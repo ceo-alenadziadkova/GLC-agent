@@ -1,17 +1,19 @@
 interface SectionLabelProps {
   children: React.ReactNode;
   className?: string;
+  accent?: boolean;
 }
 
-export function SectionLabel({ children, className = '' }: SectionLabelProps) {
+export function SectionLabel({ children, className = '', accent = false }: SectionLabelProps) {
   return (
     <span
-      className={`inline-flex items-center font-semibold ${className}`}
+      className={`inline-flex items-center font-bold ${className}`}
       style={{
         fontSize: '10px',
-        letterSpacing: 'var(--tracking-widest)',
-        color: 'var(--text-tertiary)',
+        letterSpacing: '0.10em',
+        color: accent ? 'var(--glc-blue)' : 'var(--text-tertiary)',
         textTransform: 'uppercase',
+        fontFamily: 'var(--font-sans)',
       }}
     >
       {children}
