@@ -9,6 +9,7 @@ import { AppShell } from '../components/AppShell';
 import { StatusPill } from '../components/glc/StatusPill';
 import { ScoreBadge } from '../components/glc/ScoreBadge';
 import { SectionLabel } from '../components/glc/SectionLabel';
+import { ReviewPointModal } from '../components/glc/ReviewPointModal';
 
 type PhSt = 'completed' | 'running' | 'pending' | 'review';
 
@@ -91,7 +92,7 @@ function PhCard({ ph, active, onSel }: { ph: Phase; active: boolean; onSel: () =
   );
 }
 
-function RevBanner({ rv }: { rv: typeof REVIEWS[0] }) {
+function RevBanner({ rv, onOpenModal }: { rv: typeof REVIEWS[0]; onOpenModal: () => void }) {
   const done = rv.status === 'completed';
   const c = done ? 'var(--glc-green)' : 'var(--score-3)';
   return (
@@ -111,6 +112,7 @@ function RevBanner({ rv }: { rv: typeof REVIEWS[0] }) {
       </div>
       {!done && (
         <button
+          onClick={onOpenModal}
           className="text-xs font-semibold px-2 py-1 rounded flex-shrink-0"
           style={{ backgroundColor: 'var(--score-3)', color: '#fff', borderRadius: 'var(--radius-sm)' }}
         >
@@ -123,10 +125,18 @@ function RevBanner({ rv }: { rv: typeof REVIEWS[0] }) {
 
 export function PipelineMonitor() {
   const [sel, setSel] = useState(5);
+  const [reviews, setReviews] = useState(REVIEWS);
+  const [modalRv, setModalRv] = useState<typeof REVIEWS[0] | null>(null);
+
   const ph = PHASES.find(p => p.id === sel) ?? PHASES[0];
   const done = PHASES.filter(p => p.status === 'completed').length;
   const pct = Math.round((done / PHASES.length) * 100);
   const I = ph.icon;
+
+  function handleApprove(id: number) {
+    setReviews(prev => prev.map(r => r.id === id ? { ...r, status: 'completed' as PhSt } : r));
+    setModalRv(null);
+  }
 
   return (
     <AppShell
@@ -153,12 +163,12 @@ export function PipelineMonitor() {
           <div className="px-1 pb-1"><SectionLabel>Phases</SectionLabel></div>
 
           <PhCard ph={PHASES[0]} active={sel === 0} onSel={() => setSel(0)} />
-          <RevBanner rv={REVIEWS[0]} />
+          <RevBanner rv={reviews[0]} onOpenModal={() => setModalRv(reviews[0])} />
 
           <div className="px-1 pt-1"><SectionLabel>Auto Wing</SectionLabel></div>
           {PHASES.filter(p => p.wing === 'auto').map(p => <PhCard key={p.id} ph={p} active={sel === p.id} onSel={() => setSel(p.id)} />)}
 
-          <RevBanner rv={REVIEWS[1]} />
+          <RevBanner rv={reviews[1]} onOpenModal={() => setModalRv(reviews[1])} />
 
           <div className="px-1 pt-1"><SectionLabel>Analytic Wing</SectionLabel></div>
           {PHASES.filter(p => p.wing === 'analytic').map(p => <PhCard key={p.id} ph={p} active={sel === p.id} onSel={() => setSel(p.id)} />)}
@@ -289,6 +299,13 @@ export function PipelineMonitor() {
           </div>
         </div>
       </div>
+
+      <ReviewPointModal
+        open={modalRv !== null}
+        reviewPoint={modalRv}
+        onClose={() => setModalRv(null)}
+        onApprove={(id) => handleApprove(id)}
+      />
     </AppShell>
   );
 }

@@ -32,7 +32,7 @@ export function Portfolio() {
       subtitle="All consulting clients and audit history"
       actions={
         <Link
-          to="/audit"
+          to="/audit/new"
           className="glc-btn-primary"
           style={{ textDecoration: 'none' }}
         >
@@ -201,7 +201,7 @@ export function Portfolio() {
               <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Start a new audit by entering a company URL</p>
             </div>
           </div>
-          <Link to="/audit" className="glc-btn-primary" style={{ textDecoration: 'none' }}>
+          <Link to="/audit/new" className="glc-btn-primary" style={{ textDecoration: 'none' }}>
             <Plus className="w-4 h-4" />
             Start Audit
           </Link>
