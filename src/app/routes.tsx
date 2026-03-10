@@ -1,30 +1,16 @@
-import { createBrowserRouter, Navigate } from "react-router";
-import { AuditLayout } from "./pages/AuditLayout";
-import { DomainReport } from "./pages/DomainReport";
-import { StrategyReport } from "./pages/StrategyReport";
-import { OverviewReport } from "./pages/OverviewReport";
+import { createBrowserRouter, Navigate } from 'react-router';
+import { Portfolio }       from './pages/Portfolio';
+import { AuditWorkspace }  from './pages/AuditWorkspace';
+import { PipelineMonitor } from './pages/PipelineMonitor';
+import { ReportViewer }    from './pages/ReportViewer';
+import { StrategyLab }     from './pages/StrategyLab';
 
 export const router = createBrowserRouter([
-  {
-    path: "/",
-    element: <Navigate to="/audit/overview" replace />,
-  },
-  {
-    path: "/audit",
-    element: <AuditLayout />,
-    children: [
-      {
-        path: "overview",
-        element: <OverviewReport />,
-      },
-      {
-        path: ":domainId",
-        element: <DomainReport />,
-      },
-      {
-        path: "strategy",
-        element: <StrategyReport />,
-      },
-    ],
-  },
+  { path: '/',            element: <Navigate to="/portfolio" replace /> },
+  { path: '/portfolio',   element: <Portfolio /> },
+  { path: '/audit',       element: <AuditWorkspace /> },
+  { path: '/audit/:domainId', element: <AuditWorkspace /> },
+  { path: '/pipeline',    element: <PipelineMonitor /> },
+  { path: '/reports',     element: <ReportViewer /> },
+  { path: '/strategy',    element: <StrategyLab /> },
 ]);
