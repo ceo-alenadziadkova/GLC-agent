@@ -3,28 +3,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router';
 import {
   Plus, Search, ArrowUpRight, MoreHorizontal,
-  Building2, MapPin, Calendar, TrendingUp, AlertTriangle, Users, Activity
+  Building2, Calendar, TrendingUp, AlertTriangle, Users, Activity, RefreshCw, Trash2
 } from 'lucide-react';
 import { AppShell } from '../components/AppShell';
 import { ScoreBadge, ScoreDot } from '../components/glc/ScoreBadge';
 import { StatusPill } from '../components/glc/StatusPill';
 import { SectionLabel } from '../components/glc/SectionLabel';
-
-const CLIENTS = [
-  { id: 'hotel-xyz',        name: 'Hotel XYZ',        industry: 'Hospitality',  country: 'Mallorca, ES', score: 3, status: 'completed' as const, lastAudit: 'Mar 9, 2026',  critical: 2, pkg: 'Growth Audit'  },
-  { id: 'finca-sol',        name: 'Finca Sol',         industry: 'Real Estate',  country: 'Mallorca, ES', score: 2, status: 'running'   as const, lastAudit: 'Mar 10, 2026', critical: 5, pkg: 'Deep Audit'    },
-  { id: 'nautic-blue',      name: 'Nautic Blue',       industry: 'Marine',       country: 'Palma, ES',    score: 4, status: 'completed' as const, lastAudit: 'Feb 28, 2026', critical: 1, pkg: 'Starting Point' },
-  { id: 'clinica-mas',      name: 'Clínica Mas',       industry: 'Healthcare',   country: 'Inca, ES',     score: 2, status: 'review'    as const, lastAudit: 'Mar 8, 2026',  critical: 4, pkg: 'Growth Audit'  },
-  { id: 'restaurante-cala', name: 'Restaurante Cala',  industry: 'F&B',          country: 'Sóller, ES',   score: 0, status: 'pending'   as const, lastAudit: '—',            critical: 0, pkg: '—'             },
-  { id: 'blue-sail',        name: 'Blue Sail Yachts',  industry: 'Marine',       country: 'Palma, ES',    score: 5, status: 'completed' as const, lastAudit: 'Feb 14, 2026', critical: 0, pkg: 'Starting Point' },
-];
-
-const METRICS = [
-  { label: 'Total Clients',   value: '12',  sub: '+3 this month',    Icon: Users,         color: 'var(--glc-blue)'   },
-  { label: 'Active Audits',   value: '3',   sub: '2 in pipeline',    Icon: Activity,      color: 'var(--glc-orange)' },
-  { label: 'Avg Score',       value: '3.2', sub: 'Across 8 domains', Icon: TrendingUp,    color: 'var(--glc-green)'  },
-  { label: 'Critical Issues', value: '14',  sub: 'Need attention',   Icon: AlertTriangle, color: 'var(--score-1)'    },
-];
+import { useAudits } from '../hooks/useAudits';
+import type { AuditMeta } from '../data/auditTypes';
 
 const listVariants = {
   hidden: {},
@@ -35,13 +21,36 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.28, ease: [0.16, 1, 0.3, 1] } },
 };
 
+function mapStatus(status: string): 'completed' | 'running' | 'pending' | 'review' {
+  if (status === 'completed') return 'completed';
+  if (status === 'failed') return 'review';
+  if (status === 'created') return 'pending';
+  return 'running';
+}
+
 export function Portfolio() {
+  const { audits, loading, error, deleteAudit } = useAudits();
   const [query, setQuery] = useState('');
-  const filtered = CLIENTS.filter(c =>
+
+  const filtered = audits.filter(c =>
     query === '' ||
-    c.name.toLowerCase().includes(query.toLowerCase()) ||
-    c.industry.toLowerCase().includes(query.toLowerCase())
+    (c.company_name || '').toLowerCase().includes(query.toLowerCase()) ||
+    (c.industry || '').toLowerCase().includes(query.toLowerCase()) ||
+    c.company_url.toLowerCase().includes(query.toLowerCase())
   );
+
+  const totalAudits = audits.length;
+  const activeAudits = audits.filter(a => !['completed', 'failed', 'created'].includes(a.status)).length;
+  const completedWithScores = audits.filter(a => a.overall_score !== null);
+  const avgScore = completedWithScores.length > 0
+    ? (completedWithScores.reduce((s, a) => s + (a.overall_score ?? 0), 0) / completedWithScores.length).toFixed(1)
+    : '—';
+
+  const METRICS = [
+    { label: 'Total Audits',    value: String(totalAudits), sub: 'All time',          Icon: Users,         color: 'var(--glc-blue)'   },
+    { label: 'Active',          value: String(activeAudits),sub: 'In pipeline',        Icon: Activity,      color: 'var(--glc-orange)' },
+    { label: 'Avg Score',       value: avgScore,            sub: 'Across all audits',  Icon: TrendingUp,    color: 'var(--glc-green)'  },
+  ];
 
   return (
     <AppShell
@@ -57,7 +66,7 @@ export function Portfolio() {
 
         {/* ── KPI strip ─────────────────────────────── */}
         <motion.div
-          className="grid grid-cols-4 gap-3"
+          className="grid grid-cols-3 gap-3"
           variants={listVariants}
           initial="hidden"
           animate="visible"
@@ -104,16 +113,7 @@ export function Portfolio() {
             style={{
               backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border-default)',
-              transition: 'border-color var(--ease-fast), box-shadow var(--ease-fast)',
               borderRadius: 'var(--radius-md)',
-            }}
-            onFocusCapture={e => {
-              (e.currentTarget as HTMLElement).style.borderColor = 'var(--glc-blue)';
-              (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-blue)';
-            }}
-            onBlurCapture={e => {
-              (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-default)';
-              (e.currentTarget as HTMLElement).style.boxShadow = 'none';
             }}
           >
             <Search className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--text-tertiary)' }} />
@@ -121,150 +121,145 @@ export function Portfolio() {
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Search clients..."
+              placeholder="Search audits..."
               className="flex-1 bg-transparent outline-none"
               style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}
             />
           </div>
-          <button className="glc-btn-secondary">All Status</button>
-          <button className="glc-btn-secondary">All Industries</button>
         </div>
+
+        {loading && audits.length === 0 && (
+          <div className="flex items-center justify-center py-10">
+            <RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+          </div>
+        )}
+
+        {error && (
+          <div className="text-center py-4">
+            <p className="text-sm" style={{ color: 'var(--score-1)' }}>{error}</p>
+          </div>
+        )}
 
         {/* ── Table ─────────────────────────────────── */}
-        <div className="glc-card overflow-hidden" style={{ borderRadius: 'var(--radius-xl)' }}>
-          {/* Header */}
-          <div
-            className="grid px-5 py-3"
-            style={{
-              gridTemplateColumns: '2fr 1fr 1fr 88px 128px 72px 1fr 40px',
-              color: 'var(--text-quaternary)',
-              borderBottom: '1px solid var(--border-subtle)',
-              backgroundColor: 'var(--bg-canvas)',
-              fontSize: '10px',
-              fontWeight: 700,
-              letterSpacing: '0.09em',
-              textTransform: 'uppercase',
-            }}
-          >
-            <span>Company</span>
-            <span>Industry</span>
-            <span>Last Audit</span>
-            <span>Score</span>
-            <span>Status</span>
-            <span>Critical</span>
-            <span>Package</span>
-            <span />
-          </div>
+        {filtered.length > 0 && (
+          <div className="glc-card overflow-hidden" style={{ borderRadius: 'var(--radius-xl)' }}>
+            {/* Header */}
+            <div
+              className="grid px-5 py-3"
+              style={{
+                gridTemplateColumns: '2fr 1fr 1fr 88px 128px 40px',
+                color: 'var(--text-quaternary)',
+                borderBottom: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--bg-canvas)',
+                fontSize: '10px',
+                fontWeight: 700,
+                letterSpacing: '0.09em',
+                textTransform: 'uppercase',
+              }}
+            >
+              <span>Company</span>
+              <span>Industry</span>
+              <span>Created</span>
+              <span>Score</span>
+              <span>Status</span>
+              <span />
+            </div>
 
-          {/* Rows */}
-          <AnimatePresence initial={false}>
-            {filtered.map((c, i) => (
-              <motion.div
-                key={c.id}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ delay: i * 0.025, duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                className="grid items-center px-5 py-3.5 group cursor-pointer"
-                style={{
-                  gridTemplateColumns: '2fr 1fr 1fr 88px 128px 72px 1fr 40px',
-                  borderBottom: i < filtered.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-                  transition: 'background var(--ease-fast)',
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--bg-canvas)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
-              >
-                {/* Company */}
-                <div className="flex items-center gap-3 min-w-0">
-                  <div
-                    className="w-8 h-8 flex items-center justify-center text-xs font-bold flex-shrink-0"
-                    style={{
-                      background: 'linear-gradient(135deg, var(--glc-blue-xlight) 0%, rgba(28,189,255,0.06) 100%)',
-                      color: 'var(--glc-blue-deeper)',
-                      border: '1px solid rgba(28,189,255,0.14)',
-                      borderRadius: 'var(--radius-lg)',
-                      fontFamily: 'var(--font-display)',
-                      fontSize: '11px',
-                    }}
-                  >
-                    {c.name.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <Link
-                      to={`/audit/${c.id}`}
-                      className="font-semibold truncate block"
+            {/* Rows */}
+            <AnimatePresence initial={false}>
+              {filtered.map((c, i) => (
+                <motion.div
+                  key={c.id}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ delay: i * 0.025, duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                  className="grid items-center px-5 py-3.5 group cursor-pointer"
+                  style={{
+                    gridTemplateColumns: '2fr 1fr 1fr 88px 128px 40px',
+                    borderBottom: i < filtered.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                    transition: 'background var(--ease-fast)',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--bg-canvas)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
+                >
+                  {/* Company */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className="w-8 h-8 flex items-center justify-center text-xs font-bold flex-shrink-0"
                       style={{
-                        color: 'var(--text-primary)',
-                        textDecoration: 'none',
-                        fontSize: 'var(--text-sm)',
+                        background: 'linear-gradient(135deg, var(--glc-blue-xlight) 0%, rgba(28,189,255,0.06) 100%)',
+                        color: 'var(--glc-blue-deeper)',
+                        border: '1px solid rgba(28,189,255,0.14)',
+                        borderRadius: 'var(--radius-lg)',
                         fontFamily: 'var(--font-display)',
-                        letterSpacing: '-0.01em',
-                        transition: 'color var(--ease-fast)',
+                        fontSize: '11px',
                       }}
-                      onMouseEnter={e => { (e.target as HTMLElement).style.color = 'var(--glc-blue)'; }}
-                      onMouseLeave={e => { (e.target as HTMLElement).style.color = 'var(--text-primary)'; }}
                     >
-                      {c.name}
-                    </Link>
-                    <div className="flex items-center gap-1 mt-0.5" style={{ color: 'var(--text-quaternary)', fontSize: '11px' }}>
-                      <MapPin className="w-2.5 h-2.5" />{c.country}
+                      {(c.company_name || c.company_url).slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <Link
+                        to={`/audit/${c.id}`}
+                        className="font-semibold truncate block"
+                        style={{
+                          color: 'var(--text-primary)',
+                          textDecoration: 'none',
+                          fontSize: 'var(--text-sm)',
+                          fontFamily: 'var(--font-display)',
+                          letterSpacing: '-0.01em',
+                        }}
+                      >
+                        {c.company_name || c.company_url}
+                      </Link>
+                      <div className="text-xs truncate mt-0.5" style={{ color: 'var(--text-quaternary)', fontSize: '11px' }}>
+                        {c.company_url}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>{c.industry}</span>
+                  <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>{c.industry || '—'}</span>
 
-                <div className="flex items-center gap-1.5" style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)' }}>
-                  <Calendar className="w-3.5 h-3.5 flex-shrink-0" />{c.lastAudit}
-                </div>
+                  <div className="flex items-center gap-1.5" style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)' }}>
+                    <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
+                    {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </div>
 
-                {c.score > 0
-                  ? <ScoreBadge score={c.score} size="sm" />
-                  : <span style={{ color: 'var(--text-quaternary)', fontSize: 'var(--text-sm)' }}>—</span>
-                }
+                  {c.overall_score !== null
+                    ? <ScoreBadge score={Math.round(c.overall_score)} size="sm" />
+                    : <span style={{ color: 'var(--text-quaternary)', fontSize: 'var(--text-sm)' }}>—</span>
+                  }
 
-                <StatusPill status={c.status} pulse={c.status === 'running'} />
+                  <StatusPill status={mapStatus(c.status)} pulse={mapStatus(c.status) === 'running'} />
 
-                <div className="flex items-center gap-1.5">
-                  {c.critical > 0 ? (
-                    <>
-                      <ScoreDot score={1} size={6} />
-                      <span
-                        className="font-bold tabular-nums"
-                        style={{ color: 'var(--score-1)', fontSize: 'var(--text-sm)', fontFamily: 'var(--font-mono)' }}
-                      >
-                        {c.critical}
-                      </span>
-                    </>
-                  ) : (
-                    <span style={{ color: 'var(--text-quaternary)', fontSize: 'var(--text-sm)' }}>—</span>
-                  )}
-                </div>
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Link
+                      to={c.status === 'created' ? `/pipeline/${c.id}` : `/audit/${c.id}`}
+                      className="glc-btn-icon"
+                      style={{ width: 28, height: 28, borderRadius: 'var(--radius-md)' }}
+                    >
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
 
-                <span style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-xs)' }}>{c.pkg}</span>
+            {filtered.length === 0 && (
+              <div className="py-14 text-center" style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)' }}>
+                No audits match "{query}"
+              </div>
+            )}
+          </div>
+        )}
 
-                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Link
-                    to={`/audit/${c.id}`}
-                    className="glc-btn-icon"
-                    style={{ width: 28, height: 28, borderRadius: 'var(--radius-md)' }}
-                  >
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                  </Link>
-                  <button className="glc-btn-icon" style={{ width: 28, height: 28, borderRadius: 'var(--radius-md)' }}>
-                    <MoreHorizontal className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-
-          {filtered.length === 0 && (
-            <div className="py-14 text-center" style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)' }}>
-              No clients match "{query}"
-            </div>
-          )}
-        </div>
+        {!loading && audits.length === 0 && !error && (
+          <div className="text-center py-14" style={{ color: 'var(--text-tertiary)' }}>
+            <Building2 className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
+            <p className="text-sm font-medium">No audits yet</p>
+            <p className="text-xs mt-1">Start your first audit to see it here</p>
+          </div>
+        )}
 
         {/* ── Add new ───────────────────────────────── */}
         <motion.div
@@ -275,10 +270,7 @@ export function Portfolio() {
             border: '1.5px dashed var(--border-default)',
             borderRadius: 'var(--radius-xl)',
             backgroundColor: 'var(--bg-surface)',
-            transition: 'border-color var(--ease-fast)',
           }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--glc-blue)'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-default)'; }}
         >
           <div className="flex items-center gap-3">
             <div

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useParams, Link } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Search, Server, Shield, Globe, MousePointer, Target, Zap, Map,
@@ -10,34 +11,52 @@ import { StatusPill } from '../components/glc/StatusPill';
 import { ScoreBadge } from '../components/glc/ScoreBadge';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { ReviewPointModal } from '../components/glc/ReviewPointModal';
+import { usePipeline } from '../hooks/usePipeline';
+import { useAudit } from '../hooks/useAudit';
+import type { PipelineEvent, ReviewPoint } from '../data/auditTypes';
 
 type PhSt = 'completed' | 'running' | 'pending' | 'review';
 
-interface Phase {
+const PHASE_META = [
+  { id: 0, name: 'Recon',              icon: Search,       wing: 'recon'    as const, domainKey: null },
+  { id: 1, name: 'Tech Infrastructure',icon: Server,       wing: 'auto'     as const, domainKey: 'tech_infrastructure' },
+  { id: 2, name: 'Security',           icon: Shield,       wing: 'auto'     as const, domainKey: 'security_compliance' },
+  { id: 3, name: 'SEO & Digital',      icon: Globe,        wing: 'auto'     as const, domainKey: 'seo_digital' },
+  { id: 4, name: 'UX & Conversion',    icon: MousePointer, wing: 'auto'     as const, domainKey: 'ux_conversion' },
+  { id: 5, name: 'Marketing & UTP',    icon: Target,       wing: 'analytic' as const, domainKey: 'marketing_utp' },
+  { id: 6, name: 'Automation',         icon: Zap,          wing: 'analytic' as const, domainKey: 'automation_processes' },
+  { id: 7, name: 'Strategy & Roadmap', icon: Map,          wing: 'strategy' as const, domainKey: null },
+];
+
+const REVIEW_AFTER_PHASES = [0, 4, 7];
+
+function getPhaseStatus(phaseId: number, currentPhase: number, auditStatus: string, reviews: Array<{ after_phase: number; status: string }>): PhSt {
+  if (auditStatus === 'completed') return 'completed';
+  if (auditStatus === 'failed') {
+    if (phaseId < currentPhase) return 'completed';
+    if (phaseId === currentPhase) return 'review'; // show as error state
+    return 'pending';
+  }
+
+  if (phaseId < currentPhase) return 'completed';
+  if (phaseId === currentPhase) {
+    // Check if this phase's review is pending
+    const review = reviews.find(r => r.after_phase === phaseId);
+    if (review && review.status === 'pending') return 'review';
+    return 'running';
+  }
+  return 'pending';
+}
+
+interface PhaseView {
   id: number; name: string; label: string;
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   status: PhSt; score: number | null;
   wing: 'recon' | 'auto' | 'analytic' | 'strategy';
-  duration?: string; log?: string[];
+  log: string[];
 }
 
-const PHASES: Phase[] = [
-  { id: 0, name: 'Recon',             label: 'Phase 0', icon: Search,       status: 'completed', score: null, wing: 'recon',    duration: '4m 12s', log: ['✓ Crawled 15 pages', '✓ Stack: WordPress 5.8, Cloudflare, GA4', '✓ Competitors identified: 3', '✓ Interview questions: 12'] },
-  { id: 1, name: 'Tech Infrastructure',label: 'Phase 1', icon: Server,       status: 'completed', score: 3,    wing: 'auto',     duration: '6m 30s', log: ['✓ Lighthouse: 58/100', '✓ WordPress 5.8 — EOL, 12 CVEs', '✓ No CDN for static assets', '✓ Mobile: 43/100'] },
-  { id: 2, name: 'Security',           label: 'Phase 2', icon: Shield,       status: 'completed', score: 2,    wing: 'auto',     duration: '3m 55s', log: ['✓ HTTPS: OK', '✗ No CSP header', '✗ No GDPR consent banner', '✗ Verifactu: not implemented'] },
-  { id: 3, name: 'SEO & Digital',      label: 'Phase 3', icon: Globe,        status: 'completed', score: 3,    wing: 'auto',     duration: '5m 10s', log: ['✓ robots.txt found', '✓ sitemap.xml found', '✗ No JSON-LD data', '✗ hreflang missing'] },
-  { id: 4, name: 'UX & Conversion',    label: 'Phase 4', icon: MousePointer, status: 'completed', score: 4,    wing: 'auto',     duration: '7m 02s', log: ['✓ Mobile responsive', '✓ Clear CTA structure', '✗ Booking form: 9 fields', '✗ No exit-intent'] },
-  { id: 5, name: 'Marketing & UТП',   label: 'Phase 5', icon: Target,       status: 'running',   score: null, wing: 'analytic',             log: ['⠋ Analyzing brand positioning...', '⠋ Comparing vs competitors...'] },
-  { id: 6, name: 'Automation',         label: 'Phase 6', icon: Zap,          status: 'pending',   score: null, wing: 'analytic' },
-  { id: 7, name: 'Strategy & Roadmap', label: 'Phase 7', icon: Map,          status: 'pending',   score: null, wing: 'strategy' },
-];
-
-const REVIEWS_INIT = [
-  { id: 1, after: 0, status: 'completed' as PhSt, label: 'Review Point #1', note: 'Brief added. Interview notes uploaded.' },
-  { id: 2, after: 4, status: 'pending'   as PhSt, label: 'Review Point #2', note: 'Waiting for auto-wing completion.' },
-];
-
-function PhCard({ ph, active, onSel }: { ph: Phase; active: boolean; onSel: () => void }) {
+function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: () => void }) {
   const I = ph.icon;
   const stIcon = {
     completed: <CheckCircle2 className="w-3.5 h-3.5" style={{ color: 'var(--glc-green)' }} />,
@@ -108,11 +127,6 @@ function PhCard({ ph, active, onSel }: { ph: Phase; active: boolean; onSel: () =
           </div>
           <div className="flex items-center gap-2 mt-0.5">
             {ph.score !== null && <ScoreBadge score={ph.score} size="sm" />}
-            {ph.duration && (
-              <span className="text-xs font-mono tabular-nums" style={{ color: 'var(--text-quaternary)' }}>
-                {ph.duration}
-              </span>
-            )}
           </div>
         </div>
       </div>
@@ -120,8 +134,8 @@ function PhCard({ ph, active, onSel }: { ph: Phase; active: boolean; onSel: () =
   );
 }
 
-function RevBanner({ rv, onOpenModal }: { rv: typeof REVIEWS_INIT[0]; onOpenModal: () => void }) {
-  const done = rv.status === 'completed';
+function RevBanner({ review, label, onOpenModal }: { review: { status: string }; label: string; onOpenModal: () => void }) {
+  const done = review.status === 'approved';
   const color  = done ? 'var(--glc-green)'  : 'var(--score-3)';
   const bg     = done ? 'var(--glc-green-xlight)' : 'var(--score-3-bg)';
   const border = done ? 'rgba(14,207,130,0.25)'   : 'rgba(234,179,8,0.25)';
@@ -138,8 +152,10 @@ function RevBanner({ rv, onOpenModal }: { rv: typeof REVIEWS_INIT[0]; onOpenModa
     >
       <Star className="w-3.5 h-3.5 flex-shrink-0" style={{ color, fill: color, stroke: 'none' }} />
       <div className="flex-1 min-w-0">
-        <span className="text-xs font-bold block" style={{ color, fontFamily: 'var(--font-display)' }}>{rv.label}</span>
-        <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-secondary)' }}>{rv.note}</p>
+        <span className="text-xs font-bold block" style={{ color, fontFamily: 'var(--font-display)' }}>{label}</span>
+        <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+          {done ? 'Approved' : 'Waiting for approval'}
+        </p>
       </div>
       {!done && (
         <motion.button
@@ -164,24 +180,98 @@ function RevBanner({ rv, onOpenModal }: { rv: typeof REVIEWS_INIT[0]; onOpenModa
 }
 
 export function PipelineMonitor() {
-  const [sel,     setSel]     = useState(5);
-  const [reviews, setReviews] = useState(REVIEWS_INIT);
-  const [modalRv, setModalRv] = useState<typeof REVIEWS_INIT[0] | null>(null);
+  const { id } = useParams<{ id: string }>();
+  const { state: pipelineState, loading: pipeLoading, error: pipeError, startPipeline, runNextPhase, approveReview } = usePipeline(id);
+  const { audit, loading: auditLoading } = useAudit(id);
 
-  const ph   = PHASES.find(p => p.id === sel) ?? PHASES[0];
-  const done = PHASES.filter(p => p.status === 'completed').length;
-  const pct  = Math.round((done / PHASES.length) * 100);
+  const [sel, setSel] = useState(0);
+  const [modalReview, setModalReview] = useState<{ afterPhase: number; label: string } | null>(null);
+
+  // Build phase views from pipeline state
+  const phases: PhaseView[] = useMemo(() => {
+    if (!pipelineState || !audit) {
+      return PHASE_META.map(pm => ({
+        id: pm.id,
+        name: pm.name,
+        label: `Phase ${pm.id}`,
+        icon: pm.icon,
+        status: 'pending' as PhSt,
+        score: null,
+        wing: pm.wing,
+        log: [],
+      }));
+    }
+
+    const reviews = pipelineState.reviews || [];
+    const events = pipelineState.events || [];
+
+    return PHASE_META.map(pm => {
+      const status = getPhaseStatus(pm.id, pipelineState.current_phase, pipelineState.status, reviews);
+      const phaseEvents = events.filter((e: PipelineEvent) => e.phase === pm.id);
+      const log = phaseEvents
+        .filter((e: PipelineEvent) => e.message)
+        .map((e: PipelineEvent) => {
+          const prefix = e.event_type === 'completed' ? '✓' : e.event_type === 'error' ? '✗' : '⠋';
+          return `${prefix} ${e.message}`;
+        });
+
+      // Get score from domain data
+      let score: number | null = null;
+      if (pm.domainKey && audit.domains[pm.domainKey]) {
+        score = audit.domains[pm.domainKey]!.score;
+      }
+
+      return {
+        id: pm.id,
+        name: pm.name,
+        label: `Phase ${pm.id}`,
+        icon: pm.icon,
+        status,
+        score,
+        wing: pm.wing,
+        log,
+      };
+    });
+  }, [pipelineState, audit]);
+
+  const reviews = useMemo(() => {
+    if (!pipelineState) return [];
+    return pipelineState.reviews || [];
+  }, [pipelineState]);
+
+  const getReviewForPhase = (afterPhase: number) =>
+    reviews.find(r => r.after_phase === afterPhase) || { status: 'pending' };
+
+  const ph   = phases.find(p => p.id === sel) ?? phases[0];
+  const done = phases.filter(p => p.status === 'completed').length;
+  const pct  = Math.round((done / phases.length) * 100);
   const I    = ph.icon;
 
-  function handleApprove(id: number) {
-    setReviews(prev => prev.map(r => r.id === id ? { ...r, status: 'completed' as PhSt } : r));
-    setModalRv(null);
+  const companyName = audit?.meta.company_name || audit?.meta.company_url || 'Loading...';
+
+  async function handleApprove(_id: number, consultantNotes: string, interviewNotes: string) {
+    if (!modalReview) return;
+    await approveReview(modalReview.afterPhase, consultantNotes || undefined, interviewNotes || undefined);
+    setModalReview(null);
   }
+
+  if (pipeLoading && !pipelineState) {
+    return (
+      <AppShell title="Pipeline Monitor" subtitle="Loading...">
+        <div className="flex items-center justify-center h-64">
+          <RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+        </div>
+      </AppShell>
+    );
+  }
+
+  const auditStatus = pipelineState?.status || 'created';
+  const isCreated = auditStatus === 'created';
 
   return (
     <AppShell
       title="Pipeline Monitor"
-      subtitle="Hotel XYZ · Audit #glc-2026-03-09"
+      subtitle={`${companyName} · Audit #${id?.slice(0, 8) ?? ''}`}
       actions={
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2.5">
@@ -195,7 +285,7 @@ export function PipelineMonitor() {
             </div>
             <span className="text-xs font-mono font-bold tabular-nums" style={{ color: 'var(--glc-green)' }}>{pct}%</span>
           </div>
-          <StatusPill status="running" pulse />
+          <StatusPill status={auditStatus === 'completed' ? 'completed' : auditStatus === 'failed' ? 'review' : 'running'} pulse={auditStatus !== 'completed' && auditStatus !== 'failed'} />
         </div>
       }
     >
@@ -208,28 +298,75 @@ export function PipelineMonitor() {
         >
           <div className="px-1 pb-1.5"><SectionLabel>Phases</SectionLabel></div>
 
-          <PhCard ph={PHASES[0]} active={sel === 0} onSel={() => setSel(0)} />
-          <RevBanner rv={reviews[0]} onOpenModal={() => setModalRv(reviews[0])} />
+          <PhCard ph={phases[0]} active={sel === 0} onSel={() => setSel(0)} />
+          <RevBanner
+            review={getReviewForPhase(0)}
+            label="Review Point #1"
+            onOpenModal={() => setModalReview({ afterPhase: 0, label: 'Review Point #1' })}
+          />
 
           <div className="px-1 pt-2 pb-1"><SectionLabel>Auto Wing</SectionLabel></div>
-          {PHASES.filter(p => p.wing === 'auto').map(p => (
+          {phases.filter(p => p.wing === 'auto').map(p => (
             <PhCard key={p.id} ph={p} active={sel === p.id} onSel={() => setSel(p.id)} />
           ))}
 
-          <RevBanner rv={reviews[1]} onOpenModal={() => setModalRv(reviews[1])} />
+          <RevBanner
+            review={getReviewForPhase(4)}
+            label="Review Point #2"
+            onOpenModal={() => setModalReview({ afterPhase: 4, label: 'Review Point #2' })}
+          />
 
           <div className="px-1 pt-2 pb-1"><SectionLabel>Analytic Wing</SectionLabel></div>
-          {PHASES.filter(p => p.wing === 'analytic').map(p => (
+          {phases.filter(p => p.wing === 'analytic').map(p => (
             <PhCard key={p.id} ph={p} active={sel === p.id} onSel={() => setSel(p.id)} />
           ))}
 
           <div className="px-1 pt-2 pb-1"><SectionLabel>Synthesis</SectionLabel></div>
-          <PhCard ph={PHASES[7]} active={sel === 7} onSel={() => setSel(7)} />
+          <PhCard ph={phases[7]} active={sel === 7} onSel={() => setSel(7)} />
+
+          <RevBanner
+            review={getReviewForPhase(7)}
+            label="Review Point #3"
+            onOpenModal={() => setModalReview({ afterPhase: 7, label: 'Review Point #3' })}
+          />
         </aside>
 
         {/* ── Phase detail ─────────────────────────── */}
         <div className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--bg-canvas)' }}>
           <div className="max-w-2xl mx-auto px-7 py-6">
+            {/* Start pipeline CTA */}
+            {isCreated && (
+              <div className="glc-card p-8 text-center mb-6" style={{ borderRadius: 'var(--radius-xl)' }}>
+                <Play className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--glc-blue)' }} />
+                <h3
+                  className="font-semibold mb-2"
+                  style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)', fontSize: 'var(--text-lg)' }}
+                >
+                  Ready to start
+                </h3>
+                <p className="text-sm mb-4" style={{ color: 'var(--text-tertiary)' }}>
+                  This will begin the 8-phase audit pipeline. Estimated cost: ~$0.50 in API credits.
+                </p>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={startPipeline}
+                  className="glc-btn-primary mx-auto"
+                >
+                  <Play className="w-4 h-4" /> Start Pipeline
+                </motion.button>
+              </div>
+            )}
+
+            {pipeError && (
+              <div
+                className="rounded-xl p-4 mb-4"
+                style={{ backgroundColor: 'var(--score-1-bg)', border: '1px solid var(--score-1-border)', color: 'var(--score-1)' }}
+              >
+                <p className="text-sm font-medium">Error: {pipeError}</p>
+              </div>
+            )}
+
             <AnimatePresence mode="wait">
               <motion.div
                 key={ph.id}
@@ -277,11 +414,6 @@ export function PipelineMonitor() {
                       <StatusPill status={ph.status} pulse={ph.status === 'running'} />
                     </div>
                     <div className="flex items-center gap-3 mt-1.5" style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-xs)' }}>
-                      {ph.duration && (
-                        <span className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5" />{ph.duration}
-                        </span>
-                      )}
                       {ph.score !== null && <ScoreBadge score={ph.score} showLabel size="md" />}
                     </div>
                   </div>
@@ -387,55 +519,49 @@ export function PipelineMonitor() {
                       <SectionLabel>Domain Score</SectionLabel>
                       <ScoreBadge score={ph.score} showLabel size="lg" />
                     </div>
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      {[
-                        { l: 'Strengths', v: ph.id + 2, color: 'var(--glc-green)'  },
-                        { l: 'Issues',    v: ph.id + 1, color: 'var(--score-1)'    },
-                        { l: 'Quick Wins',v: ph.id > 2 ? 1 : 2, color: 'var(--glc-orange)' },
-                      ].map(({ l, v, color }) => (
-                        <div key={l}>
-                          <div
-                            className="text-2xl font-bold tabular-nums"
-                            style={{ color, fontFamily: 'var(--font-display)', letterSpacing: 'var(--tracking-tight)' }}
-                          >
-                            {v}
-                          </div>
-                          <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>{l}</div>
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 )}
 
                 {/* Actions */}
                 <div className="flex items-center gap-3">
-                  {ph.status === 'completed' && (
-                    <>
-                      <button className="glc-btn-primary">
-                        <CheckCircle2 className="w-4 h-4" /> Review & Approve
-                      </button>
-                      <button className="glc-btn-secondary">
-                        View in Workspace <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </>
+                  {ph.status === 'completed' && id && (
+                    <Link
+                      to={`/audit/${id}`}
+                      className="glc-btn-secondary"
+                      style={{ textDecoration: 'none' }}
+                    >
+                      View in Workspace <ChevronRight className="w-4 h-4" />
+                    </Link>
                   )}
-                  {ph.status === 'pending' && (
-                    <button className="glc-btn-secondary" disabled style={{ opacity: 0.4, cursor: 'not-allowed' }}>
-                      <Play className="w-4 h-4" /> Run Phase
-                    </button>
+                  {ph.status === 'review' && (
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => runNextPhase()}
+                      className="glc-btn-primary"
+                    >
+                      <Play className="w-4 h-4" /> Continue Pipeline
+                    </motion.button>
                   )}
                 </div>
               </motion.div>
             </AnimatePresence>
+
+            {/* Token usage */}
+            {pipelineState && (
+              <div className="mt-6 flex items-center gap-4 text-xs" style={{ color: 'var(--text-quaternary)' }}>
+                <span>Tokens used: <strong className="font-mono">{pipelineState.tokens_used.toLocaleString()}</strong> / {pipelineState.token_budget.toLocaleString()}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       <ReviewPointModal
-        open={modalRv !== null}
-        reviewPoint={modalRv}
-        onClose={() => setModalRv(null)}
-        onApprove={(id) => handleApprove(id)}
+        open={modalReview !== null}
+        reviewPoint={modalReview ? { id: modalReview.afterPhase, label: modalReview.label, note: 'Add your observations before continuing', after: modalReview.afterPhase } : null}
+        onClose={() => setModalReview(null)}
+        onApprove={handleApprove}
       />
     </AppShell>
   );

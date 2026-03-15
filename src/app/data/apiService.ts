@@ -1,0 +1,96 @@
+import { supabase } from '../lib/supabase';
+import type { AuditMeta, AuditState } from './auditTypes';
+
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) return {};
+  return { Authorization: `Bearer ${session.access_token}` };
+}
+
+async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const authHeaders = await getAuthHeaders();
+
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders,
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(error.error ?? `API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+// ─── API Service ───────────────────────────────────────────
+
+export const api = {
+  // Audits CRUD
+  async createAudit(companyUrl: string, companyName?: string, industry?: string) {
+    return apiFetch<{ id: string; status: string }>('/api/audits', {
+      method: 'POST',
+      body: JSON.stringify({ company_url: companyUrl, company_name: companyName, industry }),
+    });
+  },
+
+  async listAudits() {
+    return apiFetch<AuditMeta[]>('/api/audits');
+  },
+
+  async getAudit(id: string) {
+    return apiFetch<AuditState>(`/api/audits/${id}`);
+  },
+
+  async deleteAudit(id: string) {
+    return apiFetch<{ deleted: boolean }>(`/api/audits/${id}`, { method: 'DELETE' });
+  },
+
+  // Pipeline
+  async startPipeline(id: string) {
+    return apiFetch<{ status: string; phase: number }>(`/api/audits/${id}/pipeline/start`, { method: 'POST' });
+  },
+
+  async runNextPhase(id: string) {
+    return apiFetch<{ status: string; phase: number }>(`/api/audits/${id}/pipeline/next`, { method: 'POST' });
+  },
+
+  async retryPhase(id: string, phase: number) {
+    return apiFetch<{ status: string; phase: number }>(`/api/audits/${id}/pipeline/retry`, {
+      method: 'POST',
+      body: JSON.stringify({ phase }),
+    });
+  },
+
+  async getPipelineStatus(id: string) {
+    return apiFetch<{
+      status: string;
+      current_phase: number;
+      tokens_used: number;
+      token_budget: number;
+      events: Array<{ id: number; phase: number; event_type: string; message: string; data: Record<string, unknown>; created_at: string }>;
+      reviews: Array<{ after_phase: number; status: string; consultant_notes: string | null; interview_notes: string | null }>;
+    }>(`/api/audits/${id}/pipeline/status`);
+  },
+
+  // Reviews
+  async approveReview(id: string, phase: number, consultantNotes?: string, interviewNotes?: string) {
+    return apiFetch(`/api/audits/${id}/reviews/${phase}`, {
+      method: 'POST',
+      body: JSON.stringify({ consultant_notes: consultantNotes, interview_notes: interviewNotes }),
+    });
+  },
+
+  // Reports
+  async getReport(id: string, format: 'markdown' | 'json' = 'json') {
+    return apiFetch<{ audit_id: string; company: string; generated_at: string; markdown: string }>(
+      `/api/audits/${id}/report?format=${format}`
+    );
+  },
+};

@@ -2,16 +2,26 @@ import { NavLink, useLocation } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Briefcase, LayoutGrid, Activity, FileText, FlaskConical,
-  Globe, Settings, Bell, Search, Zap
+  Globe, Settings, Bell, Search, Zap, LogOut
 } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
-const NAV = [
-  { to: '/portfolio', icon: Briefcase,    label: 'Client Portfolio', badge: '12' },
-  { to: '/audit',     icon: LayoutGrid,   label: 'Audit Workspace',  badge: null },
-  { to: '/pipeline',  icon: Activity,     label: 'Pipeline',         badge: '3'  },
-  { to: '/reports',   icon: FileText,     label: 'Reports',          badge: null },
-  { to: '/strategy',  icon: FlaskConical, label: 'Strategy Lab',     badge: null },
-];
+function useCurrentAuditId(): string | null {
+  const { pathname } = useLocation();
+  // Extract audit ID from paths like /audit/:id, /pipeline/:id, /reports/:id, /strategy/:id
+  const match = pathname.match(/^\/(audit|pipeline|reports|strategy)\/([a-f0-9-]+)/);
+  return match ? match[2] : null;
+}
+
+function buildNav(auditId: string | null) {
+  return [
+    { to: '/portfolio',                          icon: Briefcase,    label: 'Client Portfolio', badge: null },
+    { to: auditId ? `/audit/${auditId}` : null,  icon: LayoutGrid,   label: 'Audit Workspace',  badge: null },
+    { to: auditId ? `/pipeline/${auditId}` : null, icon: Activity,   label: 'Pipeline',         badge: null },
+    { to: auditId ? `/reports/${auditId}` : null, icon: FileText,    label: 'Reports',          badge: null },
+    { to: auditId ? `/strategy/${auditId}` : null,icon: FlaskConical, label: 'Strategy Lab',    badge: null },
+  ];
+}
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -22,6 +32,9 @@ interface AppShellProps {
 
 export function AppShell({ children, title, subtitle, actions }: AppShellProps) {
   const location = useLocation();
+  const { user, signOut, isAuthenticated } = useAuth();
+  const auditId = useCurrentAuditId();
+  const NAV = buildNav(auditId);
 
   return (
     <div className="h-screen flex overflow-hidden" style={{ backgroundColor: 'var(--bg-canvas)' }}>
@@ -128,9 +141,20 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           </div>
 
           {NAV.map(({ to, icon: Icon, label, badge }) => {
+            if (!to) {
+              return (
+                <div
+                  key={label}
+                  className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg"
+                  style={{ color: 'rgba(255,255,255,0.20)', fontSize: 'var(--text-sm)', cursor: 'not-allowed' }}
+                >
+                  <Icon className="relative w-4 h-4 flex-shrink-0" style={{ color: 'rgba(255,255,255,0.15)' }} />
+                  <span className="relative flex-1 truncate">{label}</span>
+                </div>
+              );
+            }
             const active = location.pathname === to ||
-              (to !== '/audit' && location.pathname.startsWith(to)) ||
-              (to === '/audit' && location.pathname.startsWith('/audit') && !location.pathname.startsWith('/audit/new'));
+              (to !== '/portfolio' && location.pathname.startsWith(to.split('/').slice(0, 2).join('/')));
             return (
               <NavLink
                 key={to}
@@ -242,34 +266,43 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           ))}
 
           {/* Avatar */}
-          <div
-            className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg mt-1 cursor-pointer"
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.06)',
-              borderRadius: 'var(--radius-md)',
-            }}
-          >
+          {isAuthenticated && user && (
             <div
-              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+              className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg mt-1 cursor-pointer"
               style={{
-                background: 'var(--gradient-brand)',
-                color: 'var(--glc-ink)',
-                boxShadow: '0 0 8px rgba(28,189,255,0.30)',
+                backgroundColor: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.06)',
+                borderRadius: 'var(--radius-md)',
               }}
             >
-              A
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium leading-none" style={{ color: 'rgba(255,255,255,0.85)' }}>
-                Alena D.
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                style={{
+                  background: 'var(--gradient-brand)',
+                  color: 'var(--glc-ink)',
+                  boxShadow: '0 0 8px rgba(28,189,255,0.30)',
+                }}
+              >
+                {(user.email || 'U')[0].toUpperCase()}
               </div>
-              <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.28)', marginTop: 3, letterSpacing: '0.03em' }}>
-                GLC Tech · Admin
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium leading-none" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                  {user.email?.split('@')[0] || 'User'}
+                </div>
+                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.28)', marginTop: 3, letterSpacing: '0.03em' }}>
+                  GLC Audit Platform
+                </div>
               </div>
+              <button
+                onClick={signOut}
+                className="flex-shrink-0"
+                style={{ color: 'rgba(255,255,255,0.30)' }}
+                title="Sign out"
+              >
+                <LogOut className="w-3 h-3" />
+              </button>
             </div>
-            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--glc-green)', flexShrink: 0, boxShadow: '0 0 4px var(--glc-green)' }} />
-          </div>
+          )}
         </div>
       </aside>
 
