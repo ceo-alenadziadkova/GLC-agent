@@ -1,41 +1,16 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Link } from 'react-router';
+import { Link, useParams } from 'react-router';
 import {
   Zap, TrendingUp, Map, ArrowRight, Check,
-  Clock, DollarSign, Target, Sparkles
+  Clock, DollarSign, Target, Sparkles, RefreshCw
 } from 'lucide-react';
 import { AppShell } from '../components/AppShell';
 import { SectionLabel } from '../components/glc/SectionLabel';
-import { QuickWinTag } from '../components/glc/QuickWinTag';
+import { useAudit } from '../hooks/useAudit';
+import type { StrategyInitiative } from '../data/auditTypes';
 
 type Timeframe = 'quick' | 'medium' | 'strategic';
-
-interface Initiative {
-  id: string;
-  label: string;
-  impact: string;
-  effort: 'Low' | 'Medium' | 'High';
-  cost: string;
-  time: string;
-  domain: string;
-  timeframe: Timeframe;
-}
-
-const INITIATIVES: Initiative[] = [
-  { id: 'q1', label: 'Add HTTPS redirect & fix mixed content',     impact: '+Security',    effort: 'Low',    cost: '€0',   time: '30m',   domain: 'Security',  timeframe: 'quick'    },
-  { id: 'q2', label: 'Compress hero images (LCP: 8.2s → 2.4s)',   impact: '+UX score',    effort: 'Low',    cost: '€0',   time: '1h',    domain: 'Tech',      timeframe: 'quick'    },
-  { id: 'q3', label: 'Add JSON-LD schema markup',                  impact: '+SEO',         effort: 'Low',    cost: '€0',   time: '2h',    domain: 'SEO',       timeframe: 'quick'    },
-  { id: 'q4', label: 'Google Business Profile setup',              impact: '+Visibility',  effort: 'Low',    cost: '€0',   time: '1h',    domain: 'Marketing', timeframe: 'quick'    },
-  { id: 'q5', label: 'Reduce booking form from 9 → 5 fields',     impact: '+Conversions', effort: 'Low',    cost: '€200', time: '4h',    domain: 'UX',        timeframe: 'quick'    },
-  { id: 'm1', label: 'Migrate WordPress → Webflow/Vite',           impact: '+Performance', effort: 'High',   cost: '€4K',  time: '6 wks', domain: 'Tech',      timeframe: 'medium'   },
-  { id: 'm2', label: 'Implement CRM + email automation',           impact: '+Retention',   effort: 'Medium', cost: '€800', time: '3 wks', domain: 'Automation',timeframe: 'medium'   },
-  { id: 'm3', label: 'SEO content cluster (10 articles)',          impact: '+Organic',     effort: 'Medium', cost: '€2K',  time: '8 wks', domain: 'SEO',       timeframe: 'medium'   },
-  { id: 'm4', label: 'Paid social retargeting setup',              impact: '+Revenue',     effort: 'Medium', cost: '€1.5K','time': '2 wks', domain: 'Marketing',timeframe: 'medium'  },
-  { id: 's1', label: 'Full brand & positioning rebrand',           impact: '+Brand equity',effort: 'High',   cost: '€8K',  time: '3 mo',  domain: 'Strategy',  timeframe: 'strategic'},
-  { id: 's2', label: 'Loyalty program & direct booking engine',    impact: '+LTV',         effort: 'High',   cost: '€12K', time: '4 mo',  domain: 'UX',        timeframe: 'strategic'},
-  { id: 's3', label: 'Multilingual site (DE, EN, ES)',             impact: '+Market reach',effort: 'High',   cost: '€6K',  time: '3 mo',  domain: 'SEO',       timeframe: 'strategic'},
-];
 
 const TABS: { key: Timeframe; label: string; icon: typeof Zap; color: string; desc: string }[] = [
   { key: 'quick',    label: 'Quick Wins',   icon: Zap,       color: 'var(--glc-orange)', desc: 'Under 1 week · €0–500'   },
@@ -44,31 +19,73 @@ const TABS: { key: Timeframe; label: string; icon: typeof Zap; color: string; de
 ];
 
 const EFFORT_COLOR: Record<string, string> = {
-  Low:    'var(--glc-green)',
-  Medium: 'var(--score-3)',
-  High:   'var(--score-1)',
+  low:    'var(--glc-green)',
+  medium: 'var(--score-3)',
+  high:   'var(--score-1)',
 };
 
 export function StrategyLab() {
+  const { id } = useParams<{ id: string }>();
+  const { audit, loading, error } = useAudit(id);
   const [activeTab, setActiveTab] = useState<Timeframe>('quick');
-  const [selected,  setSelected]  = useState<Set<string>>(new Set(['q1', 'q2', 'q3']));
+  const [selected,  setSelected]  = useState<Set<string>>(new Set());
 
-  const visible    = INITIATIVES.filter(i => i.timeframe === activeTab);
-  const allSelected= INITIATIVES.filter(i => selected.has(i.id));
-  const totalCost  = allSelected.reduce((s, i) => {
-    const n = parseFloat(i.cost.replace(/[€K,]/g, ''));
-    return s + (i.cost.includes('K') ? n * 1000 : n);
-  }, 0);
+  const initiatives = useMemo(() => {
+    if (!audit?.strategy) return { quick: [], medium: [], strategic: [] };
+    return {
+      quick: audit.strategy.quick_wins || [],
+      medium: audit.strategy.medium_term || [],
+      strategic: audit.strategy.strategic || [],
+    };
+  }, [audit?.strategy]);
 
-  function toggle(id: string) {
+  const visible = initiatives[activeTab];
+  const allInitiatives = [...initiatives.quick, ...initiatives.medium, ...initiatives.strategic];
+  const allSelected = allInitiatives.filter(i => selected.has(i.id));
+
+  function toggle(initId: string) {
     setSelected(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      next.has(initId) ? next.delete(initId) : next.add(initId);
       return next;
     });
   }
 
   const activeTabCfg = TABS.find(t => t.key === activeTab)!;
+
+  if (loading && !audit) {
+    return (
+      <AppShell title="Strategy Lab" subtitle="Loading...">
+        <div className="flex items-center justify-center h-64">
+          <RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (error || !audit) {
+    return (
+      <AppShell title="Strategy Lab" subtitle="Error">
+        <div className="flex items-center justify-center h-64">
+          <p style={{ color: 'var(--score-1)' }}>{error || 'Audit not found'}</p>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (!audit.strategy) {
+    return (
+      <AppShell title="Strategy Lab" subtitle="Not available yet">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Map className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
+            <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Strategy data not yet generated</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-quaternary)' }}>Complete the pipeline to generate strategy</p>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell
@@ -100,6 +117,7 @@ export function StrategyLab() {
             {TABS.map(tab => {
               const I = tab.icon;
               const active = activeTab === tab.key;
+              const count = initiatives[tab.key].length;
               return (
                 <button
                   key={tab.key}
@@ -107,7 +125,7 @@ export function StrategyLab() {
                   className="relative flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-xl text-sm transition-all"
                   style={{
                     backgroundColor: active ? 'var(--bg-surface)' : 'transparent',
-                    border: active ? `1px solid var(--border-subtle)` : '1px solid transparent',
+                    border: active ? '1px solid var(--border-subtle)' : '1px solid transparent',
                     boxShadow: active ? 'var(--shadow-sm)' : 'none',
                     color: active ? 'var(--text-primary)' : 'var(--text-tertiary)',
                     transition: 'all var(--ease-fast)',
@@ -122,7 +140,7 @@ export function StrategyLab() {
                     />
                   )}
                   <I className="relative w-4 h-4" style={{ color: active ? tab.color : 'inherit' }} />
-                  <span className="relative font-semibold text-xs">{tab.label}</span>
+                  <span className="relative font-semibold text-xs">{tab.label} ({count})</span>
                   <span className="relative" style={{ fontSize: '10px', color: active ? tab.color : 'var(--text-quaternary)', opacity: active ? 0.8 : 1 }}>
                     {tab.desc}
                   </span>
@@ -142,7 +160,12 @@ export function StrategyLab() {
                 transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                 className="space-y-2"
               >
-                {visible.map((init, i) => {
+                {visible.length === 0 && (
+                  <div className="text-center py-10">
+                    <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>No initiatives in this category</p>
+                  </div>
+                )}
+                {visible.map((init: StrategyInitiative, i: number) => {
                   const sel = selected.has(init.id);
                   return (
                     <motion.button
@@ -160,7 +183,6 @@ export function StrategyLab() {
                       }}
                     >
                       <div className="flex items-start gap-3">
-                        {/* Checkbox */}
                         <div
                           className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5"
                           style={{
@@ -178,9 +200,15 @@ export function StrategyLab() {
                               className="font-medium text-sm"
                               style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
                             >
-                              {init.label}
+                              {init.title}
                             </span>
                           </div>
+
+                          {init.description && (
+                            <p className="text-xs mb-2" style={{ color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
+                              {init.description}
+                            </p>
+                          )}
 
                           <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
                             <span
@@ -191,29 +219,14 @@ export function StrategyLab() {
                                 fontSize: '10px',
                               }}
                             >
-                              {init.impact}
-                            </span>
-                            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                              Domain: <strong style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{init.domain}</strong>
+                              {init.impact} impact
                             </span>
                             <span
                               className="text-xs font-semibold"
-                              style={{ color: EFFORT_COLOR[init.effort], fontSize: '11px' }}
+                              style={{ color: EFFORT_COLOR[init.effort] || 'var(--text-tertiary)', fontSize: '11px' }}
                             >
                               {init.effort} effort
                             </span>
-                          </div>
-
-                          <div className="flex items-center gap-4 mt-2">
-                            <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                              <Clock className="w-3 h-3" />{init.time}
-                            </span>
-                            <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: 'var(--glc-green)' }}>
-                              <DollarSign className="w-3 h-3" />{init.cost}
-                            </span>
-                            {init.effort === 'Low' && init.timeframe === 'quick' && (
-                              <QuickWinTag />
-                            )}
                           </div>
                         </div>
                       </div>
@@ -238,25 +251,11 @@ export function StrategyLab() {
               </p>
             </div>
 
-            {/* Stats */}
             <div className="space-y-2">
               {[
                 { label: 'Total Initiatives', value: `${selected.size}`, color: 'var(--text-primary)' },
-                {
-                  label: 'Est. Investment',
-                  value: totalCost >= 1000 ? `€${(totalCost / 1000).toFixed(1)}K` : `€${totalCost}`,
-                  color: 'var(--glc-orange)',
-                },
-                {
-                  label: 'Quick Wins',
-                  value: `${allSelected.filter(i => i.timeframe === 'quick').length}`,
-                  color: 'var(--glc-green)',
-                },
-                {
-                  label: 'Strategic Items',
-                  value: `${allSelected.filter(i => i.timeframe === 'strategic').length}`,
-                  color: '#8B5CF6',
-                },
+                { label: 'Quick Wins', value: `${allSelected.filter(i => initiatives.quick.includes(i)).length}`, color: 'var(--glc-green)' },
+                { label: 'Strategic Items', value: `${allSelected.filter(i => initiatives.strategic.includes(i)).length}`, color: '#8B5CF6' },
               ].map(({ label, value, color }) => (
                 <div
                   key={label}
@@ -274,12 +273,12 @@ export function StrategyLab() {
             {/* Effort mix */}
             <div>
               <SectionLabel className="mb-2">Effort Mix</SectionLabel>
-              {(['Low', 'Medium', 'High'] as const).map(effort => {
+              {(['low', 'medium', 'high'] as const).map(effort => {
                 const count = allSelected.filter(i => i.effort === effort).length;
                 const pct   = selected.size > 0 ? (count / selected.size) * 100 : 0;
                 return (
                   <div key={effort} className="flex items-center gap-2 mb-2">
-                    <span className="text-xs w-14 flex-shrink-0" style={{ color: 'var(--text-tertiary)' }}>{effort}</span>
+                    <span className="text-xs w-14 flex-shrink-0 capitalize" style={{ color: 'var(--text-tertiary)' }}>{effort}</span>
                     <div className="flex-1 rounded-full overflow-hidden" style={{ height: 4, backgroundColor: 'var(--border-subtle)' }}>
                       <motion.div
                         className="h-full rounded-full"
@@ -308,7 +307,7 @@ export function StrategyLab() {
                       style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-subtle)' }}
                     >
                       <Target className="w-3 h-3 flex-shrink-0 mt-0.5" style={{ color: 'var(--glc-blue)' }} />
-                      <span style={{ color: 'var(--text-secondary)', lineHeight: 1.4 }}>{init.label}</span>
+                      <span style={{ color: 'var(--text-secondary)', lineHeight: 1.4 }}>{init.title}</span>
                     </div>
                   ))}
                   {allSelected.length > 8 && (
@@ -334,7 +333,7 @@ export function StrategyLab() {
               Generate Roadmap
             </motion.button>
             <Link
-              to="/reports"
+              to={`/reports/${id}`}
               className="w-full glc-btn-ghost justify-center py-2 block text-center"
               style={{ textDecoration: 'none', fontSize: 'var(--text-sm)' }}
             >

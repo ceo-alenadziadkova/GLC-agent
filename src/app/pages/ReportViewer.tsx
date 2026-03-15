@@ -1,38 +1,17 @@
 import { motion } from 'motion/react';
-import { Link } from 'react-router';
+import { Link, useParams } from 'react-router';
 import {
   ArrowUpRight, TrendingUp, AlertTriangle, Zap, ChevronRight,
-  CheckCircle2, FileText, Clock, DollarSign, BarChart3
+  CheckCircle2, FileText, Clock, DollarSign, BarChart3, RefreshCw
 } from 'lucide-react';
 import { AppShell } from '../components/AppShell';
 import { ScoreBadge, ScoreBar } from '../components/glc/ScoreBadge';
 import { StatusPill } from '../components/glc/StatusPill';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { QuickWinTag } from '../components/glc/QuickWinTag';
-
-const DOMAINS = [
-  { id: 'tech',      label: 'Tech Infrastructure', score: 3 },
-  { id: 'security',  label: 'Security & Compliance', score: 2 },
-  { id: 'seo',       label: 'SEO & Digital',         score: 3 },
-  { id: 'ux',        label: 'UX & Conversion',       score: 4 },
-  { id: 'marketing', label: 'Marketing & UТП',       score: 3 },
-  { id: 'automation',label: 'Automation',             score: 2 },
-  { id: 'finance',   label: 'Financial Health',       score: 4 },
-  { id: 'strategy',  label: 'Strategy & Roadmap',     score: 3 },
-];
-
-const QUICK_WINS = [
-  { label: 'Add HTTPS redirect for www variant',                time: '30 min', cost: '€0',    impact: 'Security' },
-  { label: 'Compress hero image (saves 1.2s load time)',        time: '1 hr',   cost: '€0',    impact: 'UX'       },
-  { label: 'Add JSON-LD LocalBusiness schema',                  time: '2 hrs',  cost: '€0',    impact: 'SEO'      },
-  { label: 'Set up Google Business Profile (missing)',          time: '1 hr',   cost: '€0',    impact: 'Marketing'},
-];
-
-const INVESTMENTS = [
-  { tier: 'Quick Wins',    price: '€800–2K',    timeline: '2–4 weeks',   items: 6,  color: 'var(--glc-green)',   desc: 'Immediate improvements with no infrastructure changes' },
-  { tier: 'Core Growth',   price: '€5K–12K',    timeline: '2–3 months',  items: 4,  color: 'var(--glc-blue)',    desc: 'Core platform upgrade and marketing automation' },
-  { tier: 'Transformation',price: '€18K–35K',   timeline: '4–6 months',  items: 3,  color: 'var(--glc-orange)',  desc: 'Full digital transformation with measurable ROI' },
-];
+import { useAudit } from '../hooks/useAudit';
+import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
+import type { DomainData } from '../data/auditTypes';
 
 const listVariants = {
   hidden: {},
@@ -44,15 +23,57 @@ const itemVariants = {
 };
 
 export function ReportViewer() {
-  const avg = DOMAINS.reduce((s, d) => s + d.score, 0) / DOMAINS.length;
+  const { id } = useParams<{ id: string }>();
+  const { audit, loading, error } = useAudit(id);
+
+  if (loading && !audit) {
+    return (
+      <AppShell title="Audit Report" subtitle="Loading...">
+        <div className="flex items-center justify-center h-64">
+          <RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (error || !audit) {
+    return (
+      <AppShell title="Audit Report" subtitle="Error">
+        <div className="flex items-center justify-center h-64">
+          <p style={{ color: 'var(--score-1)' }}>{error || 'Audit not found'}</p>
+        </div>
+      </AppShell>
+    );
+  }
+
+  const companyName = audit.meta.company_name || audit.meta.company_url;
+  const domains = DOMAIN_KEYS.map(key => ({
+    key,
+    label: DOMAIN_LABELS[key],
+    data: audit.domains[key],
+    score: audit.domains[key]?.score ?? 0,
+  }));
+
+  const domainEntries = domains.filter(d => d.data && d.data.score !== null);
+  const avg = domainEntries.length > 0
+    ? domainEntries.reduce((s, d) => s + d.score, 0) / domainEntries.length
+    : 0;
+
+  // Collect all issues and quick wins across domains
+  const allIssues = domains.flatMap(d => d.data?.issues ?? []);
+  const criticalIssues = allIssues.filter(i => i.severity === 'critical' || i.severity === 'high');
+  const allStrengths = domains.flatMap(d => (d.data?.strengths ?? []).map(s => ({ domain: d.label, text: s })));
+  const allQuickWins = domains.flatMap(d => d.data?.quick_wins ?? []);
+
+  const executiveSummary = audit.strategy?.executive_summary || null;
 
   return (
     <AppShell
       title="Audit Report"
-      subtitle="Hotel XYZ · glc-2026-03-09"
+      subtitle={`${companyName} · ${id?.slice(0, 8)}`}
       actions={
         <div className="flex items-center gap-2">
-          <StatusPill status="completed" />
+          <StatusPill status={audit.meta.status === 'completed' ? 'completed' : 'running'} />
           <button className="glc-btn-secondary">
             <FileText className="w-4 h-4" /> Export PDF
           </button>
@@ -73,7 +94,6 @@ export function ReportViewer() {
             padding: '32px 36px',
           }}
         >
-          {/* Mesh glow */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{ background: 'var(--mesh-ink)', opacity: 0.7 }}
@@ -96,33 +116,26 @@ export function ReportViewer() {
                   lineHeight: 1.2,
                 }}
               >
-                Hotel XYZ
+                {companyName}
               </h2>
 
               <p className="mt-1" style={{ color: 'rgba(255,255,255,0.45)', fontSize: 'var(--text-sm)' }}>
-                Hospitality · Mallorca, Spain · March 2026
+                {audit.meta.industry || 'General'} · {new Date(audit.meta.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </p>
 
-              <p
-                className="mt-4 leading-relaxed"
-                style={{ color: 'rgba(255,255,255,0.72)', fontSize: 'var(--text-sm)', maxWidth: 480 }}
-              >
-                The audit reveals a business with strong UX foundations and solid conversion
-                architecture, but held back by critical security vulnerabilities and an
-                ageing tech stack. Addressing these systematically unlocks an estimated{' '}
-                <strong style={{ color: 'var(--glc-green)', fontWeight: 600 }}>+34% organic growth</strong>{' '}
-                and{' '}
-                <strong style={{ color: 'var(--glc-blue)', fontWeight: 600 }}>+18% conversion rate</strong>{' '}
-                within 6 months.
-              </p>
+              {executiveSummary && (
+                <p
+                  className="mt-4 leading-relaxed"
+                  style={{ color: 'rgba(255,255,255,0.72)', fontSize: 'var(--text-sm)', maxWidth: 480 }}
+                >
+                  {executiveSummary}
+                </p>
+              )}
 
-              {/* Stat pills */}
               <div className="flex flex-wrap gap-2 mt-5">
                 {[
-                  { icon: AlertTriangle, label: '14 issues found',    color: 'var(--score-1)' },
-                  { icon: Zap,          label: '6 quick wins',        color: 'var(--glc-green)' },
-                  { icon: TrendingUp,   label: '+34% growth potential',color: 'var(--glc-blue)' },
-                  { icon: Clock,        label: '~4 weeks to impact',   color: 'var(--score-3)'  },
+                  { icon: AlertTriangle, label: `${allIssues.length} issues found`,    color: 'var(--score-1)' },
+                  { icon: Zap,           label: `${allQuickWins.length} quick wins`,    color: 'var(--glc-green)' },
                 ].map(({ icon: I, label, color }) => (
                   <div
                     key={label}
@@ -151,7 +164,6 @@ export function ReportViewer() {
                 minWidth: 120,
               }}
             >
-              {/* SVG ring — inline for dark bg */}
               <svg width="72" height="72" style={{ flexShrink: 0 }}>
                 <circle cx="36" cy="36" r="28" fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth="4" />
                 <motion.circle
@@ -192,13 +204,15 @@ export function ReportViewer() {
               <BarChart3 className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
               <SectionLabel>Domain Scorecard</SectionLabel>
             </div>
-            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>8 domains · avg {avg.toFixed(1)}/5</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+              {domainEntries.length} domains · avg {avg.toFixed(1)}/5
+            </span>
           </div>
 
           <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
-            {DOMAINS.map((d, i) => (
+            {domains.map((d, i) => (
               <motion.div
-                key={d.id}
+                key={d.key}
                 variants={itemVariants}
                 className="flex items-center gap-4 px-5 py-3.5 group"
                 style={{ transition: 'background var(--ease-fast)' }}
@@ -217,10 +231,10 @@ export function ReportViewer() {
                 >
                   {d.label}
                 </span>
-                <div className="w-32"><ScoreBar score={d.score} /></div>
-                <ScoreBadge score={d.score} size="sm" />
+                <div className="w-32">{d.score > 0 && <ScoreBar score={d.score} />}</div>
+                {d.score > 0 ? <ScoreBadge score={d.score} size="sm" /> : <span className="text-xs" style={{ color: 'var(--text-quaternary)' }}>—</span>}
                 <Link
-                  to={`/audit/${d.id}`}
+                  to={`/audit/${id}/${d.key}`}
                   className="opacity-0 group-hover:opacity-100 transition-opacity glc-btn-icon"
                   style={{ width: 26, height: 26 }}
                 >
@@ -240,11 +254,7 @@ export function ReportViewer() {
               color: 'var(--glc-green)',
               bg: 'var(--glc-green-xlight)',
               border: 'rgba(14,207,130,0.20)',
-              items: [
-                'Mobile-responsive design with clear CTA hierarchy',
-                'Booking flow optimised for conversion (4.2% above sector avg)',
-                'Strong local brand recognition in Mallorca market',
-              ],
+              items: allStrengths.slice(0, 5).map(s => s.text),
             },
             {
               title: 'Critical Issues',
@@ -252,11 +262,7 @@ export function ReportViewer() {
               color: 'var(--score-1)',
               bg: 'var(--score-1-bg)',
               border: 'var(--score-1-border)',
-              items: [
-                'WordPress 5.8 EOL — 12 known CVEs unpatched',
-                'No CSP header · No GDPR consent banner',
-                'Missing Verifactu fiscal compliance (Spain 2026)',
-              ],
+              items: criticalIssues.slice(0, 5).map(i => i.title),
             },
           ].map(({ title, icon: I, color, bg, border, items }) => (
             <motion.div
@@ -276,7 +282,7 @@ export function ReportViewer() {
                 <span className="font-semibold text-sm" style={{ color, fontFamily: 'var(--font-display)' }}>{title}</span>
               </div>
               <ul className="space-y-2">
-                {items.map(item => (
+                {items.length > 0 ? items.map(item => (
                   <li
                     key={item}
                     className="text-xs leading-relaxed flex items-start gap-2"
@@ -285,97 +291,65 @@ export function ReportViewer() {
                     <span className="mt-1.5 w-1 h-1 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
                     {item}
                   </li>
-                ))}
+                )) : (
+                  <li className="text-xs" style={{ color: 'var(--text-quaternary)' }}>No data yet</li>
+                )}
               </ul>
             </motion.div>
           ))}
         </div>
 
         {/* ── Quick wins ────────────────────────────── */}
-        <div className="glc-card overflow-hidden" style={{ borderRadius: 'var(--radius-xl)' }}>
-          <div
-            className="flex items-center justify-between px-5 py-3"
-            style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
-          >
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4" style={{ color: 'var(--glc-orange)', fill: 'var(--glc-orange)', stroke: 'none' }} />
-              <SectionLabel>Quick Wins</SectionLabel>
+        {allQuickWins.length > 0 && (
+          <div className="glc-card overflow-hidden" style={{ borderRadius: 'var(--radius-xl)' }}>
+            <div
+              className="flex items-center justify-between px-5 py-3"
+              style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
+            >
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4" style={{ color: 'var(--glc-orange)', fill: 'var(--glc-orange)', stroke: 'none' }} />
+                <SectionLabel>Quick Wins</SectionLabel>
+              </div>
             </div>
-            <QuickWinTag time="≤ 2 hrs each" cost="€0" />
-          </div>
-          <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
-            {QUICK_WINS.map((qw, i) => (
-              <motion.div
-                key={qw.label}
-                initial={{ opacity: 0, x: -6 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.07 + 0.15, duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-                className="flex items-center gap-4 px-5 py-3.5"
-              >
-                <span
-                  className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 font-mono text-xs font-bold"
-                  style={{ backgroundColor: 'var(--glc-orange-xlight)', color: 'var(--glc-orange)', fontSize: '10px' }}
+            <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+              {allQuickWins.slice(0, 8).map((qw, i) => (
+                <motion.div
+                  key={qw.id || i}
+                  initial={{ opacity: 0, x: -6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.07 + 0.15, duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex items-center gap-4 px-5 py-3.5"
                 >
-                  {i + 1}
-                </span>
-                <span className="flex-1 text-sm" style={{ color: 'var(--text-primary)' }}>{qw.label}</span>
-                <div className="flex items-center gap-3 flex-shrink-0">
                   <span
-                    className="text-xs px-2 py-0.5 rounded-full"
-                    style={{ backgroundColor: 'var(--bg-inset)', color: 'var(--text-tertiary)', fontSize: '11px' }}
+                    className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 font-mono text-xs font-bold"
+                    style={{ backgroundColor: 'var(--glc-orange-xlight)', color: 'var(--glc-orange)', fontSize: '10px' }}
                   >
-                    {qw.impact}
+                    {i + 1}
                   </span>
-                  <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                    <Clock className="w-3 h-3" />{qw.time}
-                  </span>
-                  <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: 'var(--glc-green)' }}>
-                    <DollarSign className="w-3 h-3" />{qw.cost}
-                  </span>
-                </div>
-              </motion.div>
-            ))}
+                  <span className="flex-1 text-sm" style={{ color: 'var(--text-primary)' }}>{qw.title}</span>
+                  {qw.timeframe && (
+                    <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                      <Clock className="w-3 h-3" />{qw.timeframe}
+                    </span>
+                  )}
+                </motion.div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* ── Investment tiers ──────────────────────── */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <SectionLabel>Investment Overview</SectionLabel>
-            <Link to="/strategy" className="text-xs font-medium" style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}>
-              View Strategy Lab <ArrowUpRight className="inline w-3 h-3" />
+        {/* Strategy link */}
+        {audit.strategy && (
+          <div className="text-center">
+            <Link
+              to={`/strategy/${id}`}
+              className="glc-btn-secondary inline-flex"
+              style={{ textDecoration: 'none' }}
+            >
+              View Strategy Lab <ArrowUpRight className="w-4 h-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            {INVESTMENTS.map((inv, i) => (
-              <motion.div
-                key={inv.tier}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08 + 0.2, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                whileHover={{ y: -2, transition: { duration: 0.18 } }}
-                className="glc-card p-4 cursor-default"
-                style={{ borderRadius: 'var(--radius-xl)', borderTop: `3px solid ${inv.color}` }}
-              >
-                <div className="font-semibold text-sm mb-1" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>
-                  {inv.tier}
-                </div>
-                <div
-                  className="font-bold tabular-nums mb-2"
-                  style={{ color: inv.color, fontSize: 'var(--text-xl)', fontFamily: 'var(--font-display)', letterSpacing: 'var(--tracking-tight)' }}
-                >
-                  {inv.price}
-                </div>
-                <p className="text-xs leading-relaxed mb-3" style={{ color: 'var(--text-tertiary)' }}>{inv.desc}</p>
-                <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--text-quaternary)' }}>
-                  <span><strong style={{ color: 'var(--text-secondary)' }}>{inv.items}</strong> items</span>
-                  <span>{inv.timeline}</span>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
+        )}
       </div>
     </AppShell>
   );

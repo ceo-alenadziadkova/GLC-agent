@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Globe, ArrowRight, Search, Server, Shield, MousePointer, Target, Zap, Map } from 'lucide-react';
 import { AppShell } from '../components/AppShell';
 import { SectionLabel } from '../components/glc/SectionLabel';
+import { api } from '../data/apiService';
 
 const INDUSTRIES = [
   'Hospitality', 'Real Estate', 'Marine', 'Healthcare',
@@ -27,14 +28,22 @@ export function NewAudit() {
   const [name,     setName]     = useState('');
   const [industry, setIndustry] = useState('');
   const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState<string | null>(null);
 
   const canSubmit = url.trim().length > 4;
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
     setLoading(true);
-    setTimeout(() => navigate('/pipeline'), 900);
+    setError(null);
+    try {
+      const result = await api.createAudit(url, name || undefined, industry || undefined);
+      navigate(`/pipeline/${result.id}`);
+    } catch (err) {
+      setError((err as Error).message);
+      setLoading(false);
+    }
   }
 
   return (
@@ -263,6 +272,10 @@ export function NewAudit() {
                 )}
               </AnimatePresence>
             </motion.button>
+
+            {error && (
+              <p className="text-center text-sm" style={{ color: 'var(--score-1)' }}>{error}</p>
+            )}
 
             <p className="text-center" style={{ fontSize: '11px', color: 'var(--text-quaternary)', lineHeight: 1.5 }}>
               We collect only publicly available information.
