@@ -1,28 +1,33 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { Globe, Mail, ArrowRight } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { logger } from '../lib/logger';
 
 export function Login() {
   const navigate = useNavigate();
-  const { signInWithEmail, signInWithGoogle, isAuthenticated } = useAuth();
+  const { signInWithEmail, signInWithGoogle, isAuthenticated, authError } = useAuth();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (isAuthenticated) {
-    navigate('/portfolio', { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (isAuthenticated) {
+      logger.info('Login: isAuthenticated, navigating to /portfolio');
+      navigate('/portfolio', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
+    logger.info('Login: handleEmail submit', { email });
     if (!email.trim()) return;
     setLoading(true);
     setError(null);
     const { error: err } = await signInWithEmail(email);
+    logger.info('Login: signInWithEmail result', { hasError: !!err, errorMessage: err?.message });
     setLoading(false);
     if (err) {
       setError(err.message);
@@ -32,8 +37,10 @@ export function Login() {
   }
 
   async function handleGoogle() {
+    console.log('[Login] handleGoogle click');
     setError(null);
     const { error: err } = await signInWithGoogle();
+    console.log('[Login] signInWithGoogle result', err);
     if (err) setError(err.message);
   }
 
@@ -198,8 +205,10 @@ export function Login() {
             )}
           </AnimatePresence>
 
-          {error && (
-            <p className="text-center text-sm" style={{ color: 'var(--score-1)' }}>{error}</p>
+          {(error || authError) && (
+            <p className="text-center text-sm" style={{ color: 'var(--score-1)' }}>
+              {error ?? authError}
+            </p>
           )}
         </div>
 
