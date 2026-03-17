@@ -2,6 +2,7 @@ import { BaseAgent } from './base.js';
 import { CrawlerCollector } from '../collectors/crawler.js';
 import { ReconOutputSchema, zodToJsonSchema } from '../schemas/domain-output.js';
 import { supabase } from '../services/supabase.js';
+import { CLAUDE_MODEL, MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import type { DomainResult } from '../types/audit.js';
 
 /**
@@ -56,12 +57,18 @@ Use the submit_analysis tool to return your structured analysis.`;
     await this.emit('analyzing', 'Analyzing company profile...');
     const budget = await this.tokenTracker.checkBudget(this.auditId);
     if (!budget.within_budget) throw new Error('Token budget exceeded');
+    if (budget.remaining < MIN_TOKEN_RESERVE) {
+      throw new Error(`Insufficient token reserve: ${budget.remaining} remaining, need at least ${MIN_TOKEN_RESERVE}`);
+    }
+    if (budget.is_approaching_limit) {
+      await this.emit('warning', `Token budget at ${Math.round((budget.tokens_used / budget.token_budget) * 100)}% — ${budget.remaining} tokens remaining`);
+    }
 
     // Use parent's callClaude logic via full run, but we need to handle recon-specific saving
     const prompt = this.contextBuilder.formatPrompt(context);
     const response = await this.anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
+      model: CLAUDE_MODEL,
+      max_tokens: MODEL_MAX_TOKENS.recon,
       messages: [{ role: 'user', content: prompt }],
       tools: [{
         name: 'submit_analysis',
@@ -74,7 +81,7 @@ Use the submit_analysis tool to return your structured analysis.`;
     await this.tokenTracker.log(this.auditId, 0, {
       input_tokens: response.usage.input_tokens,
       output_tokens: response.usage.output_tokens,
-      model: 'claude-sonnet-4-20250514',
+      model: CLAUDE_MODEL,
     });
 
     const toolBlock = response.content.find(b => b.type === 'tool_use');
