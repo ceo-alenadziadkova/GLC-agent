@@ -86,7 +86,7 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
       }
 
       // Strengths
-      const strengths = domain.strengths as string[];
+      const strengths = (domain.strengths ?? []) as string[];
       if (strengths.length > 0) {
         lines.push('### Strengths');
         for (const s of strengths) lines.push(`- ✅ ${s}`);
@@ -94,7 +94,7 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
       }
 
       // Weaknesses
-      const weaknesses = domain.weaknesses as string[];
+      const weaknesses = (domain.weaknesses ?? []) as string[];
       if (weaknesses.length > 0) {
         lines.push('### Areas for Improvement');
         for (const w of weaknesses) lines.push(`- ⚠️ ${w}`);
@@ -102,7 +102,7 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
       }
 
       // Issues
-      const issues = domain.issues as Array<{ severity: string; title: string; description: string }>;
+      const issues = (domain.issues ?? []) as Array<{ severity: string; title: string; description: string }>;
       if (issues.length > 0) {
         lines.push('### Issues Found');
         for (const issue of issues) {
@@ -112,7 +112,7 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
       }
 
       // Quick wins
-      const quickWins = domain.quick_wins as Array<{ title: string; description: string; timeframe: string }>;
+      const quickWins = (domain.quick_wins ?? []) as Array<{ title: string; description: string; timeframe: string }>;
       if (quickWins.length > 0) {
         lines.push('### Quick Wins');
         for (const qw of quickWins) {
@@ -122,7 +122,7 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
       }
 
       // Recommendations
-      const recs = domain.recommendations as Array<{ title: string; description: string; priority: string; estimated_cost: string; estimated_time: string }>;
+      const recs = (domain.recommendations ?? []) as Array<{ title: string; description: string; priority: string; estimated_cost: string; estimated_time: string }>;
       if (recs.length > 0) {
         lines.push('### Recommendations');
         for (const rec of recs) {
@@ -137,9 +137,9 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
 
     // Roadmap
     if (strategy) {
-      const quickWins = strategy.quick_wins as Array<{ title: string; description: string }>;
-      const mediumTerm = strategy.medium_term as Array<{ title: string; description: string }>;
-      const strategic = strategy.strategic as Array<{ title: string; description: string }>;
+      const quickWins = (strategy.quick_wins ?? []) as Array<{ title: string; description: string }>;
+      const mediumTerm = (strategy.medium_term ?? []) as Array<{ title: string; description: string }>;
+      const strategic = (strategy.strategic ?? []) as Array<{ title: string; description: string }>;
 
       lines.push('## Strategic Roadmap');
       lines.push('');

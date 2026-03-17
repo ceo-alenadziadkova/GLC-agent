@@ -229,9 +229,40 @@ export class FactChecker {
   }
 
   private applyCorrections(result: DomainResult, corrections: FactCorrection[]): DomainResult {
-    // For now, we only flag — we don't auto-correct scores.
-    // Corrections are logged for the consultant to review.
-    // In the future, we could add auto-correction rules.
-    return result;
+    if (corrections.length === 0) return result;
+
+    let { score } = result;
+
+    // 1. Apply hard overrides first (action: 'override' with explicit corrected_value)
+    for (const c of corrections) {
+      if (c.action === 'override' && c.field === 'score' && c.corrected_value !== undefined) {
+        score = c.corrected_value as number;
+      }
+    }
+
+    // 2. For each "score too high" flag, cap by 1 point per flag (max reduction: 2)
+    //    This prevents over-correction while still forcing inflated scores down.
+    const scoreFlags = corrections.filter(c => c.action === 'flag' && c.field === 'score');
+    if (scoreFlags.length > 0) {
+      const reduction = Math.min(scoreFlags.length, 2);
+      score = Math.max(1, score - reduction);
+    }
+
+    if (score === result.score) return result; // No change needed
+
+    return {
+      ...result,
+      score,
+      // Recalculate label to stay consistent with the new score
+      label: this.scoreLabel(score),
+    };
+  }
+
+  private scoreLabel(score: number): string {
+    if (score <= 1) return 'Critical';
+    if (score <= 2) return 'Needs Work';
+    if (score <= 3) return 'Moderate';
+    if (score <= 4) return 'Good';
+    return 'Excellent';
   }
 }

@@ -4,6 +4,26 @@ import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { pipelineLimiter } from '../middleware/rate-limit.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
 
+/**
+ * Emit an error event to pipeline_events and mark audit as failed.
+ * Used as a catch handler for fire-and-forget phase runs.
+ */
+async function emitPhaseError(auditId: string, phase: number, err: Error): Promise<void> {
+  console.error(`[Pipeline ${auditId}] Phase ${phase} crashed:`, err.message);
+  await Promise.all([
+    supabase.from('pipeline_events').insert({
+      audit_id: auditId,
+      phase,
+      event_type: 'error',
+      message: err.message ?? 'Phase failed unexpectedly',
+      data: { error: err.message, stack: err.stack?.split('\n')[1]?.trim() ?? '' },
+    }),
+    supabase.from('audits')
+      .update({ status: 'failed' })
+      .eq('id', auditId),
+  ]);
+}
+
 export const pipelineRouter = Router();
 
 pipelineRouter.use(requireAuth);
@@ -40,11 +60,9 @@ pipelineRouter.post('/:id/pipeline/start', pipelineLimiter, async (req: AuthRequ
     // Start pipeline (runs Phase 0: Recon)
     res.json({ status: 'started', phase: 0 });
 
-    // Run asynchronously
+    // Run asynchronously — surface errors to frontend via pipeline_events
     const orchestrator = new PipelineOrchestrator(id);
-    orchestrator.startPhase(0).catch(err => {
-      console.error(`[Pipeline ${id}] Phase 0 failed:`, err);
-    });
+    orchestrator.startPhase(0).catch(err => emitPhaseError(id, 0, err as Error));
   } catch (err) {
     console.error('[POST /pipeline/start]', err);
     res.status(500).json({ error: 'Failed to start pipeline' });
@@ -100,11 +118,9 @@ pipelineRouter.post('/:id/pipeline/next', pipelineLimiter, async (req: AuthReque
 
     res.json({ status: 'running', phase: nextPhase });
 
-    // Run asynchronously
+    // Run asynchronously — surface errors to frontend via pipeline_events
     const orchestrator = new PipelineOrchestrator(id);
-    orchestrator.startPhase(nextPhase).catch(err => {
-      console.error(`[Pipeline ${id}] Phase ${nextPhase} failed:`, err);
-    });
+    orchestrator.startPhase(nextPhase).catch(err => emitPhaseError(id, nextPhase, err as Error));
   } catch (err) {
     console.error('[POST /pipeline/next]', err);
     res.status(500).json({ error: 'Failed to run next phase' });
@@ -141,10 +157,9 @@ pipelineRouter.post('/:id/pipeline/retry', pipelineLimiter, async (req: AuthRequ
 
     res.json({ status: 'retrying', phase });
 
+    // Run asynchronously — surface errors to frontend via pipeline_events
     const orchestrator = new PipelineOrchestrator(id);
-    orchestrator.startPhase(phase).catch(err => {
-      console.error(`[Pipeline ${id}] Retry Phase ${phase} failed:`, err);
-    });
+    orchestrator.startPhase(phase).catch(err => emitPhaseError(id, phase as number, err as Error));
   } catch (err) {
     console.error('[POST /pipeline/retry]', err);
     res.status(500).json({ error: 'Failed to retry phase' });

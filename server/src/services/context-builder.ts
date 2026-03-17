@@ -111,11 +111,24 @@ export class ContextBuilder {
 - **Contact Info:** ${JSON.stringify(recon.contact_info)}`);
     }
 
-    // Collected raw data
+    // Collected raw data — truncated to avoid overflowing the context window.
+    // Each collector block is capped at 40,000 chars (~10K tokens); total at 120,000 chars.
+    const MAX_PER_COLLECTOR = 40_000;
+    const MAX_TOTAL_RAW = 120_000;
     if (Object.keys(ctx.collected_data).length > 0) {
       sections.push('## Collected Data (Raw Analysis)');
+      let totalRawChars = 0;
       for (const [key, data] of Object.entries(ctx.collected_data)) {
-        sections.push(`### ${key}\n\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\``);
+        if (totalRawChars >= MAX_TOTAL_RAW) {
+          sections.push(`### ${key}\n_[omitted — total raw data limit reached]_`);
+          continue;
+        }
+        let json = JSON.stringify(data, null, 2);
+        if (json.length > MAX_PER_COLLECTOR) {
+          json = json.slice(0, MAX_PER_COLLECTOR) + '\n... [truncated — remaining data omitted to save context]';
+        }
+        sections.push(`### ${key}\n\`\`\`json\n${json}\n\`\`\``);
+        totalRawChars += json.length;
       }
     }
 

@@ -38,6 +38,12 @@ Score Guidelines:
 
 Use consultant and interview notes if available — they provide crucial context about internal processes that aren't visible from the website.
 
+**If no consultant or interview notes are present in your context**, rely on observable signals:
+- `tech_stack` from recon (booking systems, chat_support, email_marketing, ecommerce detected)
+- Social profiles and their activity level
+- Previous domain findings (UX issues with forms/CTAs often reveal process gaps)
+Score conservatively when process-level information is unavailable; note this explicitly in your summary.
+
 Use the submit_analysis tool to return your structured analysis.`;
   }
 }

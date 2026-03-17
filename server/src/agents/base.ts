@@ -162,52 +162,55 @@ export abstract class BaseAgent {
   async saveDomainResult(result: DomainResult): Promise<void> {
     if (this.domainKey === 'recon' || this.domainKey === 'strategy') return;
 
-    // Get current max version
-    const { data: existing } = await supabase
+    const payload = {
+      status: 'completed' as const,
+      score: result.score,
+      label: result.label,
+      summary: result.summary,
+      strengths: result.strengths,
+      weaknesses: result.weaknesses,
+      issues: result.issues,
+      quick_wins: result.quick_wins,
+      recommendations: result.recommendations,
+    };
+
+    // Check whether the pending placeholder exists to update in-place (first run),
+    // or whether we need to insert a new versioned row (retry scenario).
+    // NOTE: audit_domains has version DEFAULT 1, so placeholders always start at v1.
+    // The old version-arithmetic approach was broken: existing.version=1 → version=2
+    // → always took the insert branch, leaving the placeholder stale forever.
+    const { data: placeholder } = await supabase
       .from('audit_domains')
-      .select('version')
+      .select('id')
       .eq('audit_id', this.auditId)
       .eq('domain_key', this.domainKey)
-      .order('version', { ascending: false })
+      .eq('status', 'pending')
       .limit(1)
       .single();
 
-    const version = (existing?.version ?? 0) + 1;
-
-    if (version === 1) {
-      // Update existing placeholder
+    if (placeholder) {
+      // First run — update the placeholder in-place
       await supabase
         .from('audit_domains')
-        .update({
-          status: 'completed',
-          score: result.score,
-          label: result.label,
-          summary: result.summary,
-          strengths: result.strengths,
-          weaknesses: result.weaknesses,
-          issues: result.issues,
-          quick_wins: result.quick_wins,
-          recommendations: result.recommendations,
-        })
+        .update(payload)
+        .eq('id', placeholder.id);
+    } else {
+      // Retry — find the highest existing version and insert version + 1
+      const { data: latest } = await supabase
+        .from('audit_domains')
+        .select('version')
         .eq('audit_id', this.auditId)
         .eq('domain_key', this.domainKey)
-        .eq('version', 1);
-    } else {
-      // Insert new version
+        .order('version', { ascending: false })
+        .limit(1)
+        .single();
+
       await supabase.from('audit_domains').insert({
         audit_id: this.auditId,
         domain_key: this.domainKey,
         phase_number: this.phaseNumber,
-        status: 'completed',
-        score: result.score,
-        label: result.label,
-        version,
-        summary: result.summary,
-        strengths: result.strengths,
-        weaknesses: result.weaknesses,
-        issues: result.issues,
-        quick_wins: result.quick_wins,
-        recommendations: result.recommendations,
+        version: (latest?.version ?? 1) + 1,
+        ...payload,
       });
     }
   }

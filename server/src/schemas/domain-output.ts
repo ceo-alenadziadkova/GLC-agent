@@ -90,43 +90,74 @@ export const StrategyOutputSchema = z.object({
 export type StrategyOutput = z.infer<typeof StrategyOutputSchema>;
 
 // ─── JSON Schema versions (for Claude tool_use) ───────────
-// Convert Zod schemas to JSON Schema for Claude's tool_use parameter
+// Converts Zod schemas to JSON Schema for Claude's tool_use parameter.
+// Handles all constraints used in this codebase: min/max/int on numbers,
+// minLength/maxLength on strings, minItems/maxItems on arrays.
 
 export function zodToJsonSchema(schema: z.ZodTypeAny): Record<string, unknown> {
-  // Minimal implementation for our use case
-  // In production, use zod-to-json-schema package
   return zodToJson(schema);
 }
 
+// Internal Zod _def types we rely on (not exported by Zod)
+type ZodNumberCheck = { kind: 'int' } | { kind: 'min'; value: number; inclusive: boolean } | { kind: 'max'; value: number; inclusive: boolean };
+type ZodStringCheck = { kind: 'min'; value: number } | { kind: 'max'; value: number } | { kind: string };
+type ZodArrayDef = { minLength: { value: number } | null; maxLength: { value: number } | null };
+
 function zodToJson(schema: z.ZodTypeAny): Record<string, unknown> {
+  // ── Object ───────────────────────────────────────────────
   if (schema instanceof z.ZodObject) {
-    const shape = schema.shape;
+    const shape = schema.shape as Record<string, z.ZodTypeAny>;
     const properties: Record<string, unknown> = {};
     const required: string[] = [];
-
     for (const [key, value] of Object.entries(shape)) {
-      properties[key] = zodToJson(value as z.ZodTypeAny);
+      properties[key] = zodToJson(value);
       if (!(value instanceof z.ZodOptional) && !(value instanceof z.ZodNullable)) {
         required.push(key);
       }
     }
-
     return { type: 'object', properties, required };
   }
 
+  // ── Array — with minItems / maxItems ─────────────────────
   if (schema instanceof z.ZodArray) {
-    return { type: 'array', items: zodToJson(schema.element) };
+    const result: Record<string, unknown> = { type: 'array', items: zodToJson(schema.element) };
+    const def = schema._def as unknown as ZodArrayDef;
+    if (def.minLength?.value != null) result.minItems = def.minLength.value;
+    if (def.maxLength?.value != null) result.maxItems = def.maxLength.value;
+    return result;
   }
 
-  if (schema instanceof z.ZodString) return { type: 'string' };
-  if (schema instanceof z.ZodNumber) return { type: 'number' };
+  // ── String — with minLength / maxLength ──────────────────
+  if (schema instanceof z.ZodString) {
+    const result: Record<string, unknown> = { type: 'string' };
+    const checks = ((schema._def as unknown as { checks?: ZodStringCheck[] }).checks) ?? [];
+    for (const check of checks) {
+      if (check.kind === 'min') result.minLength = (check as { kind: 'min'; value: number }).value;
+      if (check.kind === 'max') result.maxLength = (check as { kind: 'max'; value: number }).value;
+    }
+    return result;
+  }
+
+  // ── Number — with minimum / maximum / integer ────────────
+  if (schema instanceof z.ZodNumber) {
+    const result: Record<string, unknown> = { type: 'number' };
+    const checks = ((schema._def as unknown as { checks?: ZodNumberCheck[] }).checks) ?? [];
+    for (const check of checks) {
+      if (check.kind === 'int') result.type = 'integer';
+      if (check.kind === 'min') result.minimum = check.value;
+      if (check.kind === 'max') result.maximum = check.value;
+    }
+    return result;
+  }
+
+  // ── Primitives ───────────────────────────────────────────
   if (schema instanceof z.ZodBoolean) return { type: 'boolean' };
+  if (schema instanceof z.ZodEnum) return { type: 'string', enum: schema.options };
+
+  // ── Wrappers ─────────────────────────────────────────────
   if (schema instanceof z.ZodNullable) return { ...zodToJson(schema.unwrap()), nullable: true };
   if (schema instanceof z.ZodOptional) return zodToJson(schema.unwrap());
 
-  if (schema instanceof z.ZodEnum) {
-    return { type: 'string', enum: schema.options };
-  }
-
+  // Fallback
   return { type: 'string' };
 }

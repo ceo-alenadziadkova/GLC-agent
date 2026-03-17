@@ -38,6 +38,12 @@ Score Guidelines:
 
 This domain relies more on qualitative analysis. Use consultant and interview notes if available.
 
+**If no consultant or interview notes are present in your context**, base your analysis entirely on:
+- The reconnaissance data (social profiles, detected pages, tech stack, languages)
+- The company's website content visible through crawled pages (titles, H1s, meta descriptions)
+- The previous domain results (UX/SEO/Tech/Security findings often reveal marketing signals)
+Be explicit in your summary about which findings are directly observed vs inferred from indirect signals.
+
 Use the submit_analysis tool to return your structured analysis.`;
   }
 }
