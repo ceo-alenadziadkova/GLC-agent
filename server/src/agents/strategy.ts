@@ -1,5 +1,6 @@
+import Anthropic from '@anthropic-ai/sdk';
 import { BaseAgent } from './base.js';
-import { StrategyOutputSchema } from '../schemas/domain-output.js';
+import { StrategyOutputSchema, zodToJsonSchema } from '../schemas/domain-output.js';
 import { supabase } from '../services/supabase.js';
 import { calculateWeightedScore } from '../config/industry-weights.js';
 import type { DomainKey, DomainResult } from '../types/audit.js';
@@ -67,18 +68,7 @@ Use the submit_analysis tool to return your structured roadmap.`;
       tools: [{
         name: 'submit_analysis',
         description: 'Submit the strategic roadmap',
-        input_schema: {
-          type: 'object' as const,
-          properties: {
-            executive_summary: { type: 'string' },
-            overall_score: { type: 'number' },
-            quick_wins: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, description: { type: 'string' }, impact: { type: 'string', enum: ['high', 'medium', 'low'] }, effort: { type: 'string', enum: ['low', 'medium', 'high'] }, dependencies: { type: 'array', items: { type: 'string' } } }, required: ['id', 'title', 'description', 'impact', 'effort'] } },
-            medium_term: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, description: { type: 'string' }, impact: { type: 'string', enum: ['high', 'medium', 'low'] }, effort: { type: 'string', enum: ['low', 'medium', 'high'] }, dependencies: { type: 'array', items: { type: 'string' } } }, required: ['id', 'title', 'description', 'impact', 'effort'] } },
-            strategic: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string' }, description: { type: 'string' }, impact: { type: 'string', enum: ['high', 'medium', 'low'] }, effort: { type: 'string', enum: ['low', 'medium', 'high'] }, dependencies: { type: 'array', items: { type: 'string' } } }, required: ['id', 'title', 'description', 'impact', 'effort'] } },
-            scorecard: { type: 'array', items: { type: 'object', properties: { domain_key: { type: 'string' }, label: { type: 'string' }, score: { type: 'number' }, weight: { type: 'number' }, weighted_score: { type: 'number' } }, required: ['domain_key', 'label', 'score', 'weight', 'weighted_score'] } },
-          },
-          required: ['executive_summary', 'overall_score', 'quick_wins', 'medium_term', 'strategic', 'scorecard'],
-        },
+        input_schema: zodToJsonSchema(StrategyOutputSchema) as Anthropic.Tool['input_schema'],
       }],
       tool_choice: { type: 'tool', name: 'submit_analysis' },
     });
