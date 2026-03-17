@@ -1,6 +1,6 @@
 import { BaseAgent } from './base.js';
 import { CrawlerCollector } from '../collectors/crawler.js';
-import { ReconOutputSchema } from '../schemas/domain-output.js';
+import { ReconOutputSchema, zodToJsonSchema } from '../schemas/domain-output.js';
 import { supabase } from '../services/supabase.js';
 import type { DomainResult } from '../types/audit.js';
 
@@ -66,25 +66,7 @@ Use the submit_analysis tool to return your structured analysis.`;
       tools: [{
         name: 'submit_analysis',
         description: 'Submit the structured reconnaissance analysis',
-        input_schema: {
-          type: 'object' as const,
-          properties: {
-            company_name: { type: 'string', nullable: true },
-            industry: { type: 'string', nullable: true },
-            industry_subcategory: { type: 'string', nullable: true },
-            location: { type: 'string', nullable: true },
-            estimated_size: { type: 'string', nullable: true },
-            business_model: { type: 'string', nullable: true },
-            target_audience: { type: 'string', nullable: true },
-            key_services_products: { type: 'array', items: { type: 'string' } },
-            value_proposition: { type: 'string', nullable: true },
-            competitive_landscape_notes: { type: 'string', nullable: true },
-            mallorca_relevance: { type: 'string', nullable: true },
-            initial_observations: { type: 'array', items: { type: 'string' } },
-            suggested_interview_questions: { type: 'array', items: { type: 'string' } },
-          },
-          required: ['key_services_products', 'initial_observations', 'suggested_interview_questions'],
-        },
+        input_schema: zodToJsonSchema(ReconOutputSchema) as { type: 'object'; properties: Record<string, unknown>; required?: string[] },
       }],
       tool_choice: { type: 'tool', name: 'submit_analysis' },
     });

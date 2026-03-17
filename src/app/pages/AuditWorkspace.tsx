@@ -67,11 +67,13 @@ export function AuditWorkspace() {
   const domainData: DomainData | null = audit.domains[activeDomain] || null;
   const companyName = audit.meta.company_name || audit.meta.company_url;
 
-  // Compute overall score from available domain scores
+  // Use server-calculated weighted overall score when available (set after Phase 7).
+  // Fall back to unweighted average while pipeline is still running.
   const domainEntries = DOMAIN_KEYS.map(k => audit.domains[k]).filter((d): d is DomainData => d !== null && d.score !== null);
-  const overallScore = domainEntries.length > 0
-    ? +(domainEntries.reduce((s, d) => s + (d.score ?? 0), 0) / domainEntries.length).toFixed(1)
-    : 0;
+  const overallScore = audit.meta.overall_score
+    ?? (domainEntries.length > 0
+      ? +(domainEntries.reduce((s, d) => s + (d.score ?? 0), 0) / domainEntries.length).toFixed(1)
+      : 0);
 
   return (
     <AppShell

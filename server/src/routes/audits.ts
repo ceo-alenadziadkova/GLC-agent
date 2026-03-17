@@ -70,18 +70,23 @@ auditsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) => {
   }
 });
 
-// ─── GET /api/audits — List user's audits ──────────────────
+// ─── GET /api/audits — List user's audits (paginated) ──────
+// Query params: ?limit=20&offset=0 (defaults: limit=50, offset=0)
 auditsRouter.get('/', async (req: AuthRequest, res) => {
   try {
-    const { data, error } = await supabase
+    const limit = Math.min(parseInt(String(req.query.limit ?? '50'), 10) || 50, 200);
+    const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
+
+    const { data, error, count } = await supabase
       .from('audits')
-      .select('id, company_url, company_name, industry, status, current_phase, overall_score, tokens_used, created_at, updated_at')
+      .select('id, company_url, company_name, industry, status, current_phase, overall_score, tokens_used, created_at, updated_at', { count: 'exact' })
       .eq('user_id', req.userId!)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) throw error;
 
-    res.json(data);
+    res.json({ data, total: count ?? 0, limit, offset });
   } catch (err) {
     console.error('[GET /api/audits]', err);
     res.status(500).json({ error: 'Failed to list audits' });

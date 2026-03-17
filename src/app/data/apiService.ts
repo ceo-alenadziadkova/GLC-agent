@@ -40,8 +40,11 @@ export const api = {
     });
   },
 
-  async listAudits() {
-    return apiFetch<AuditMeta[]>('/api/audits');
+  async listAudits(limit = 50, offset = 0) {
+    const res = await apiFetch<{ data: AuditMeta[]; total: number; limit: number; offset: number }>(
+      `/api/audits?limit=${limit}&offset=${offset}`
+    );
+    return res; // { data, total, limit, offset }
   },
 
   async getAudit(id: string) {
