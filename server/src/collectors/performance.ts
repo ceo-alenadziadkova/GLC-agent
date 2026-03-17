@@ -33,6 +33,7 @@ export class PerformanceCollector extends BaseCollector {
     try {
       const response = await fetch(url, {
         headers: { 'User-Agent': 'GLC-AuditBot/1.0' },
+        signal: AbortSignal.timeout(10_000),
       });
 
       const headers = response.headers;

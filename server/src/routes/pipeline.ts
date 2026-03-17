@@ -7,21 +7,29 @@ import { PipelineOrchestrator } from '../services/pipeline.js';
 /**
  * Emit an error event to pipeline_events and mark audit as failed.
  * Used as a catch handler for fire-and-forget phase runs.
+ *
+ * [C4] Wrapped in try-catch: if Supabase is unreachable during error handling,
+ * we log to console instead of throwing an unhandled rejection.
  */
 async function emitPhaseError(auditId: string, phase: number, err: Error): Promise<void> {
   console.error(`[Pipeline ${auditId}] Phase ${phase} crashed:`, err.message);
-  await Promise.all([
-    supabase.from('pipeline_events').insert({
-      audit_id: auditId,
-      phase,
-      event_type: 'error',
-      message: err.message ?? 'Phase failed unexpectedly',
-      data: { error: err.message, stack: err.stack?.split('\n')[1]?.trim() ?? '' },
-    }),
-    supabase.from('audits')
-      .update({ status: 'failed' })
-      .eq('id', auditId),
-  ]);
+  try {
+    await Promise.all([
+      supabase.from('pipeline_events').insert({
+        audit_id: auditId,
+        phase,
+        event_type: 'error',
+        message: err.message ?? 'Phase failed unexpectedly',
+        data: { error: err.message, stack: err.stack?.split('\n')[1]?.trim() ?? '' },
+      }),
+      supabase.from('audits')
+        .update({ status: 'failed' })
+        .eq('id', auditId),
+    ]);
+  } catch (dbErr) {
+    // DB unavailable — already logged to console above, don't rethrow
+    console.error(`[Pipeline ${auditId}] Failed to write error event to DB:`, dbErr);
+  }
 }
 
 export const pipelineRouter = Router();
@@ -91,6 +99,14 @@ pipelineRouter.post('/:id/pipeline/next', pipelineLimiter, async (req: AuthReque
       return;
     }
 
+    // [C4] Concurrent phase lock: reject if a phase is actively executing.
+    // DB constraint has no 'running' status — orchestrator uses 'recon'/'auto'/'analytic'/'strategy'.
+    const PHASE_ACTIVE_STATUSES = ['recon', 'auto', 'analytic', 'strategy'] as const;
+    if ((PHASE_ACTIVE_STATUSES as readonly string[]).includes(audit.status)) {
+      res.status(409).json({ error: 'A phase is already in progress', status: audit.status });
+      return;
+    }
+
     const nextPhase = audit.current_phase + 1;
 
     if (nextPhase > 7) {
@@ -140,7 +156,7 @@ pipelineRouter.post('/:id/pipeline/retry', pipelineLimiter, async (req: AuthRequ
 
     const { data: audit, error } = await supabase
       .from('audits')
-      .select('id, tokens_used, token_budget')
+      .select('id, status, tokens_used, token_budget')
       .eq('id', id)
       .eq('user_id', req.userId!)
       .single();
@@ -152,6 +168,13 @@ pipelineRouter.post('/:id/pipeline/retry', pipelineLimiter, async (req: AuthRequ
 
     if (audit.tokens_used >= audit.token_budget) {
       res.status(400).json({ error: 'Token budget exceeded' });
+      return;
+    }
+
+    // [C4] Concurrent phase lock — same guard as /next
+    const PHASE_ACTIVE_STATUSES = ['recon', 'auto', 'analytic', 'strategy'] as const;
+    if ((PHASE_ACTIVE_STATUSES as readonly string[]).includes(audit.status)) {
+      res.status(409).json({ error: 'A phase is already in progress', status: audit.status });
       return;
     }
 

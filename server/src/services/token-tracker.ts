@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { getModelPricing, BUDGET_WARNING_THRESHOLD } from '../config/model.js';
 
 interface TokenUsage {
   input_tokens: number;
@@ -6,13 +7,14 @@ interface TokenUsage {
   model: string;
 }
 
-// Pricing per million tokens (approximate)
-const PRICING: Record<string, { input: number; output: number }> = {
-  'claude-sonnet-4-20250514': { input: 3.0, output: 15.0 },
-  'claude-haiku-4-5-20251001': { input: 0.8, output: 4.0 },
-  // Default fallback
-  default: { input: 3.0, output: 15.0 },
-};
+export interface BudgetStatus {
+  within_budget: boolean;
+  tokens_used: number;
+  token_budget: number;
+  remaining: number;
+  /** true when tokens_used >= BUDGET_WARNING_THRESHOLD (80%) of budget */
+  is_approaching_limit: boolean;
+}
 
 export class TokenTracker {
   /**
@@ -20,7 +22,7 @@ export class TokenTracker {
    */
   async log(auditId: string, phase: number, usage: TokenUsage): Promise<void> {
     const totalTokens = usage.input_tokens + usage.output_tokens;
-    const pricing = PRICING[usage.model] ?? PRICING.default;
+    const pricing = getModelPricing(usage.model);
     const costUsd = (usage.input_tokens / 1_000_000) * pricing.input + (usage.output_tokens / 1_000_000) * pricing.output;
 
     // Log event
@@ -54,9 +56,10 @@ export class TokenTracker {
   }
 
   /**
-   * Check if the audit has exceeded its token budget.
+   * Check if the audit is within its token budget.
+   * Returns is_approaching_limit=true when usage >= BUDGET_WARNING_THRESHOLD of budget.
    */
-  async checkBudget(auditId: string): Promise<{ within_budget: boolean; tokens_used: number; token_budget: number; remaining: number }> {
+  async checkBudget(auditId: string): Promise<BudgetStatus> {
     const { data: audit } = await supabase
       .from('audits')
       .select('tokens_used, token_budget')
@@ -64,14 +67,18 @@ export class TokenTracker {
       .single();
 
     if (!audit) {
-      return { within_budget: false, tokens_used: 0, token_budget: 0, remaining: 0 };
+      return { within_budget: false, tokens_used: 0, token_budget: 0, remaining: 0, is_approaching_limit: false };
     }
+
+    const remaining = audit.token_budget - audit.tokens_used;
+    const is_approaching_limit = audit.tokens_used >= audit.token_budget * BUDGET_WARNING_THRESHOLD;
 
     return {
       within_budget: audit.tokens_used < audit.token_budget,
       tokens_used: audit.tokens_used,
       token_budget: audit.token_budget,
-      remaining: audit.token_budget - audit.tokens_used,
+      remaining,
+      is_approaching_limit,
     };
   }
 

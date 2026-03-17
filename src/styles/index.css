@@ -1,3 +1,41 @@
 @import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';
+
+/* ── Print / PDF export ─────────────────────────────────────────── */
+@media print {
+  /* Hide navigation, toolbars, and interactive controls */
+  nav,
+  header nav,
+  .glc-btn-primary,
+  .glc-btn-secondary,
+  .glc-btn-icon,
+  [data-pipeline-controls],
+  .pipeline-controls {
+    display: none !important;
+  }
+
+  /* Full-width report layout */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .max-w-3xl {
+    max-width: none !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* Avoid splitting domain cards across pages */
+  .glc-card,
+  .report-section {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Page margins */
+  @page {
+    margin: 2cm;
+  }
+}

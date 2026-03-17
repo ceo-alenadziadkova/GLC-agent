@@ -119,13 +119,13 @@ export class PipelineOrchestrator {
    * Call this after a review approval to auto-run the next block.
    */
   async runBlock(): Promise<void> {
-    const { data: audit } = await supabase
+    const { data: audit, error: auditErr } = await supabase
       .from('audits')
       .select('current_phase, status')
       .eq('id', this.auditId)
       .single();
 
-    if (!audit) return;
+    if (auditErr || !audit) return;
 
     let phase = audit.current_phase + 1;
 

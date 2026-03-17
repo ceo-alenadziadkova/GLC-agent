@@ -6,9 +6,9 @@ import { TokenTracker } from '../services/token-tracker.js';
 import { type BaseCollector } from '../collectors/base.js';
 import type { DomainResult, DomainKey } from '../types/audit.js';
 import { DomainOutputSchema, zodToJsonSchema } from '../schemas/domain-output.js';
+import { CLAUDE_MODEL, MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import type { z } from 'zod';
 
-const MODEL = 'claude-sonnet-4-20250514';
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 2000;
 
@@ -70,10 +70,21 @@ export abstract class BaseAgent {
     // ─── Step 3: Single Claude call ──────────────────────
     await this.emit('analyzing', 'Running AI analysis...');
 
-    // Check token budget before calling
+    // [C1] Check token budget with hard reserve and warning threshold
     const budget = await this.tokenTracker.checkBudget(this.auditId);
     if (!budget.within_budget) {
       throw new Error(`Token budget exceeded: ${budget.tokens_used}/${budget.token_budget}`);
+    }
+    if (budget.remaining < MIN_TOKEN_RESERVE) {
+      throw new Error(
+        `Insufficient token reserve: ${budget.remaining} remaining, need at least ${MIN_TOKEN_RESERVE}`
+      );
+    }
+    if (budget.is_approaching_limit) {
+      await this.emit(
+        'warning',
+        `Token budget at ${Math.round((budget.tokens_used / budget.token_budget) * 100)}% — ${budget.remaining} tokens remaining`
+      );
     }
 
     const result = await this.callClaudeWithRetry(context);
@@ -103,8 +114,8 @@ export abstract class BaseAgent {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
         const response = await this.anthropic.messages.create({
-          model: MODEL,
-          max_tokens: 4096,
+          model: CLAUDE_MODEL,
+          max_tokens: MODEL_MAX_TOKENS.domain,
           messages: [{ role: 'user', content: prompt }],
           tools: [{
             name: 'submit_analysis',
@@ -124,7 +135,7 @@ export abstract class BaseAgent {
         await this.tokenTracker.log(this.auditId, this.phaseNumber, {
           input_tokens: response.usage.input_tokens,
           output_tokens: response.usage.output_tokens,
-          model: MODEL,
+          model: CLAUDE_MODEL,
         });
 
         // Validate with Zod
@@ -158,6 +169,10 @@ export abstract class BaseAgent {
 
   /**
    * Save domain result to database.
+   *
+   * [C3] Atomic approach: a single UPDATE WHERE status='pending' claims the placeholder
+   * under Postgres row-level lock — eliminates the TOCTOU race condition between
+   * concurrent retries that could otherwise both write to the same row.
    */
   async saveDomainResult(result: DomainResult): Promise<void> {
     if (this.domainKey === 'recon' || this.domainKey === 'strategy') return;
@@ -174,45 +189,40 @@ export abstract class BaseAgent {
       recommendations: result.recommendations,
     };
 
-    // Check whether the pending placeholder exists to update in-place (first run),
-    // or whether we need to insert a new versioned row (retry scenario).
-    // NOTE: audit_domains has version DEFAULT 1, so placeholders always start at v1.
-    // The old version-arithmetic approach was broken: existing.version=1 → version=2
-    // → always took the insert branch, leaving the placeholder stale forever.
-    const { data: placeholder } = await supabase
+    // Atomic claim: UPDATE WHERE status='pending'.
+    // Postgres serializes this with a row-level lock — only one concurrent caller
+    // can match the pending placeholder; the other gets an empty result set.
+    const { data: updated } = await supabase
       .from('audit_domains')
-      .select('id')
+      .update(payload)
       .eq('audit_id', this.auditId)
       .eq('domain_key', this.domainKey)
       .eq('status', 'pending')
+      .select('id');
+
+    if (updated && updated.length > 0) {
+      // Claimed and updated the placeholder atomically — done.
+      return;
+    }
+
+    // No pending placeholder — retry path: find the highest existing version
+    // and insert a new row at version + 1.
+    const { data: latest } = await supabase
+      .from('audit_domains')
+      .select('version')
+      .eq('audit_id', this.auditId)
+      .eq('domain_key', this.domainKey)
+      .order('version', { ascending: false })
       .limit(1)
       .single();
 
-    if (placeholder) {
-      // First run — update the placeholder in-place
-      await supabase
-        .from('audit_domains')
-        .update(payload)
-        .eq('id', placeholder.id);
-    } else {
-      // Retry — find the highest existing version and insert version + 1
-      const { data: latest } = await supabase
-        .from('audit_domains')
-        .select('version')
-        .eq('audit_id', this.auditId)
-        .eq('domain_key', this.domainKey)
-        .order('version', { ascending: false })
-        .limit(1)
-        .single();
-
-      await supabase.from('audit_domains').insert({
-        audit_id: this.auditId,
-        domain_key: this.domainKey,
-        phase_number: this.phaseNumber,
-        version: (latest?.version ?? 1) + 1,
-        ...payload,
-      });
-    }
+    await supabase.from('audit_domains').insert({
+      audit_id: this.auditId,
+      domain_key: this.domainKey,
+      phase_number: this.phaseNumber,
+      version: (latest?.version ?? 1) + 1,
+      ...payload,
+    });
   }
 
   protected async emit(eventType: string, message: string, data: Record<string, unknown> = {}): Promise<void> {
@@ -225,13 +235,22 @@ export abstract class BaseAgent {
     });
   }
 
+  /**
+   * [C2] Throws if the audit row is missing or inaccessible — prevents silent
+   * empty-string company URLs from propagating into collectors and Claude prompts.
+   */
   protected async getCompanyUrl(): Promise<string> {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('audits')
       .select('company_url')
       .eq('id', this.auditId)
       .single();
-    return data?.company_url ?? '';
+
+    if (error || !data) {
+      throw new Error(`Audit not found or inaccessible: ${this.auditId}`);
+    }
+
+    return data.company_url;
   }
 }
 

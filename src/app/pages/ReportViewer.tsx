@@ -26,6 +26,10 @@ export function ReportViewer() {
   const { id } = useParams<{ id: string }>();
   const { audit, loading, error } = useAudit(id);
 
+  const handleExportPdf = () => {
+    window.print();
+  };
+
   if (loading && !audit) {
     return (
       <AppShell title="Audit Report" subtitle="Loading...">
@@ -74,7 +78,7 @@ export function ReportViewer() {
       actions={
         <div className="flex items-center gap-2">
           <StatusPill status={audit.meta.status === 'completed' ? 'completed' : 'running'} />
-          <button className="glc-btn-secondary">
+          <button className="glc-btn-secondary" onClick={handleExportPdf}>
             <FileText className="w-4 h-4" /> Export PDF
           </button>
         </div>

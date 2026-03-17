@@ -3,6 +3,7 @@ import { BaseAgent } from './base.js';
 import { StrategyOutputSchema, zodToJsonSchema } from '../schemas/domain-output.js';
 import { supabase } from '../services/supabase.js';
 import { calculateWeightedScore } from '../config/industry-weights.js';
+import { CLAUDE_MODEL, MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import type { DomainKey, DomainResult } from '../types/audit.js';
 
 /**
@@ -59,11 +60,17 @@ Use the submit_analysis tool to return your structured roadmap.`;
     await this.emit('analyzing', 'Synthesizing strategic roadmap...');
     const budget = await this.tokenTracker.checkBudget(this.auditId);
     if (!budget.within_budget) throw new Error('Token budget exceeded');
+    if (budget.remaining < MIN_TOKEN_RESERVE) {
+      throw new Error(`Insufficient token reserve: ${budget.remaining} remaining, need at least ${MIN_TOKEN_RESERVE}`);
+    }
+    if (budget.is_approaching_limit) {
+      await this.emit('warning', `Token budget at ${Math.round((budget.tokens_used / budget.token_budget) * 100)}% — ${budget.remaining} tokens remaining`);
+    }
 
     const prompt = this.contextBuilder.formatPrompt(context);
     const response = await this.anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 8192, // Strategy needs more output
+      model: CLAUDE_MODEL,
+      max_tokens: MODEL_MAX_TOKENS.strategy,
       messages: [{ role: 'user', content: prompt }],
       tools: [{
         name: 'submit_analysis',
@@ -76,7 +83,7 @@ Use the submit_analysis tool to return your structured roadmap.`;
     await this.tokenTracker.log(this.auditId, 7, {
       input_tokens: response.usage.input_tokens,
       output_tokens: response.usage.output_tokens,
-      model: 'claude-sonnet-4-20250514',
+      model: CLAUDE_MODEL,
     });
 
     const toolBlock = response.content.find(b => b.type === 'tool_use');

@@ -40,28 +40,37 @@ auditsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) => {
 
     if (auditErr) throw auditErr;
 
-    // Pre-create review points
+    // Pre-create all placeholder records in parallel.
+    // If any INSERT fails we roll back by deleting the audit (CASCADE handles the rest).
     const reviewInserts = REVIEW_AFTER_PHASES.map(phase => ({
       audit_id: audit.id,
       after_phase: phase,
     }));
 
-    await supabase.from('review_points').insert(reviewInserts);
-
-    // Pre-create domain placeholders
     const domainInserts = DOMAIN_KEYS.map((key, i) => ({
       audit_id: audit.id,
       domain_key: key,
       phase_number: i + 1,
     }));
 
-    await supabase.from('audit_domains').insert(domainInserts);
+    const [reviewRes, domainsRes, reconRes, strategyRes] = await Promise.allSettled([
+      supabase.from('review_points').insert(reviewInserts),
+      supabase.from('audit_domains').insert(domainInserts),
+      supabase.from('audit_recon').insert({ audit_id: audit.id }),
+      supabase.from('audit_strategy').insert({ audit_id: audit.id }),
+    ]);
 
-    // Create recon placeholder
-    await supabase.from('audit_recon').insert({ audit_id: audit.id });
+    const initFailed = [reviewRes, domainsRes, reconRes, strategyRes].some(
+      r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.error)
+    );
 
-    // Create strategy placeholder
-    await supabase.from('audit_strategy').insert({ audit_id: audit.id });
+    if (initFailed) {
+      // Rollback — CASCADE DELETE removes all child records
+      await supabase.from('audits').delete().eq('id', audit.id);
+      console.error('[POST /api/audits] Placeholder init failed, rolled back audit', audit.id);
+      res.status(500).json({ error: 'Failed to initialize audit — rolled back' });
+      return;
+    }
 
     res.status(201).json({ id: audit.id, status: audit.status });
   } catch (err) {
@@ -111,31 +120,35 @@ auditsRouter.get('/:id', async (req: AuthRequest, res) => {
       return;
     }
 
-    // Fetch related data in parallel
-    const [reconRes, domainsRes, strategyRes, reviewsRes] = await Promise.all([
+    // Fetch related data in parallel — use allSettled so a single DB error
+    // returns partial data rather than a 500 for the entire request.
+    const [reconRes, domainsRes, strategyRes, reviewsRes] = await Promise.allSettled([
       supabase.from('audit_recon').select('*').eq('audit_id', id).single(),
       supabase.from('audit_domains').select('*').eq('audit_id', id).order('phase_number'),
       supabase.from('audit_strategy').select('*').eq('audit_id', id).single(),
       supabase.from('review_points').select('*').eq('audit_id', id).order('after_phase'),
     ]);
 
+    const recon = reconRes.status === 'fulfilled' ? (reconRes.value.data ?? null) : null;
+    const domainsArr = domainsRes.status === 'fulfilled' ? (domainsRes.value.data ?? []) : [];
+    const strategy = strategyRes.status === 'fulfilled' ? (strategyRes.value.data ?? null) : null;
+    const reviews = reviewsRes.status === 'fulfilled' ? (reviewsRes.value.data ?? []) : [];
+
     // Build domains map (latest version per domain_key)
     const domainsMap: Record<string, unknown> = {};
-    if (domainsRes.data) {
-      for (const d of domainsRes.data) {
-        const existing = domainsMap[d.domain_key] as { version?: number } | undefined;
-        if (!existing || (d.version > (existing.version ?? 0))) {
-          domainsMap[d.domain_key] = d;
-        }
+    for (const d of domainsArr) {
+      const existing = domainsMap[d.domain_key] as { version?: number } | undefined;
+      if (!existing || (d.version > (existing.version ?? 0))) {
+        domainsMap[d.domain_key] = d;
       }
     }
 
     res.json({
       meta: audit,
-      recon: reconRes.data ?? null,
+      recon,
       domains: domainsMap,
-      strategy: strategyRes.data ?? null,
-      reviews: reviewsRes.data ?? [],
+      strategy,
+      reviews,
     });
   } catch (err) {
     console.error('[GET /api/audits/:id]', err);
