@@ -99,8 +99,10 @@ pipelineRouter.post('/:id/pipeline/next', pipelineLimiter, async (req: AuthReque
       return;
     }
 
-    // [C4] Concurrent phase lock: reject if a phase is already running
-    if (audit.status === 'running') {
+    // [C4] Concurrent phase lock: reject if a phase is actively executing.
+    // DB constraint has no 'running' status — orchestrator uses 'recon'/'auto'/'analytic'/'strategy'.
+    const PHASE_ACTIVE_STATUSES = ['recon', 'auto', 'analytic', 'strategy'] as const;
+    if ((PHASE_ACTIVE_STATUSES as readonly string[]).includes(audit.status)) {
       res.status(409).json({ error: 'A phase is already in progress', status: audit.status });
       return;
     }
@@ -169,8 +171,9 @@ pipelineRouter.post('/:id/pipeline/retry', pipelineLimiter, async (req: AuthRequ
       return;
     }
 
-    // [C4] Concurrent phase lock: reject if a phase is already running
-    if (audit.status === 'running') {
+    // [C4] Concurrent phase lock — same guard as /next
+    const PHASE_ACTIVE_STATUSES = ['recon', 'auto', 'analytic', 'strategy'] as const;
+    if ((PHASE_ACTIVE_STATUSES as readonly string[]).includes(audit.status)) {
       res.status(409).json({ error: 'A phase is already in progress', status: audit.status });
       return;
     }

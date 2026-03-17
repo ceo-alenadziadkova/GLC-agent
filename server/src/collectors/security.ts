@@ -26,7 +26,11 @@ export class SecurityCollector extends BaseCollector {
   private async checkSSL(url: string) {
     try {
       const httpsUrl = url.replace(/^http:/, 'https:');
-      const response = await fetch(httpsUrl, { method: 'HEAD', redirect: 'manual' });
+      const response = await fetch(httpsUrl, {
+        method: 'HEAD',
+        redirect: 'manual',
+        signal: AbortSignal.timeout(10_000),
+      });
 
       return {
         valid: response.ok || response.status === 301 || response.status === 302,
@@ -43,6 +47,7 @@ export class SecurityCollector extends BaseCollector {
       const response = await fetch(url, {
         headers: { 'User-Agent': 'GLC-AuditBot/1.0' },
         redirect: 'follow',
+        signal: AbortSignal.timeout(10_000),
       });
 
       const headers = response.headers;
@@ -110,7 +115,7 @@ export class SecurityCollector extends BaseCollector {
 
   private async checkCookies(url: string) {
     try {
-      const response = await fetch(url, { redirect: 'follow' });
+      const response = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(10_000) });
       const setCookieHeaders = response.headers.getSetCookie?.() ?? [];
 
       const cookies = setCookieHeaders.map(cookie => {
