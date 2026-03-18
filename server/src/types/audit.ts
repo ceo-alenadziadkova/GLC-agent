@@ -99,13 +99,16 @@ export interface CrawledPage {
   status: number;
   meta_description: string | null;
   h1: string[];
+  h2: string[];
   structured_data: string[];
+  /** Field names match crawler.ts output exactly: total / with_alt / missing_alt / lazy_loaded */
   images: {
-    total_images: number;
-    with_alt_text: number;
+    total: number;
+    with_alt: number;
     missing_alt: number;
     lazy_loaded: number;
   };
+  links: { internal: string[]; external: string[] };
   content_length?: number;
   load_time_ms?: number;
 }

@@ -72,13 +72,14 @@ Use the submit_analysis tool to return your structured analysis.`;
     }
 
     // Use parent's callClaude logic via full run, but we need to handle recon-specific saving
-    const { prompt, truncated, truncatedKeys } = this.contextBuilder.formatPrompt(context);
+    const { system, prompt, truncated, truncatedKeys } = this.contextBuilder.formatPrompt(context);
     if (truncated) {
       await this.emit('warning', `Context truncated for keys: ${truncatedKeys.join(', ')}`);
     }
     const response = await this.anthropic.messages.create({
       model: CLAUDE_MODEL,
       max_tokens: MODEL_MAX_TOKENS.recon,
+      system,                                           // ← role instructions in system channel
       messages: [{ role: 'user', content: prompt }],
       tools: [{
         name: 'submit_analysis',

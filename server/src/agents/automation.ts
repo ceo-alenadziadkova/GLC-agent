@@ -3,7 +3,8 @@ import { DomainOutputSchema } from '../schemas/domain-output.js';
 
 /**
  * Phase 6: Automation & Processes
- * Part of the "analytic wing" — relies on recon + interview data.
+ * Analytic wing — relies on recon tech_stack + interview data.
+ * No additional collector (automation is internal, not visible from HTML).
  */
 export class AutomationAgent extends BaseAgent {
   get phaseNumber() { return 6; }
@@ -12,37 +13,56 @@ export class AutomationAgent extends BaseAgent {
   get collectors() { return []; }
 
   get instructions() {
-    return `You are a process automation and digital transformation consultant. Analyze the company's automation maturity and identify opportunities for process improvement based on the website data, detected integrations, and any interview notes.
+    return `You are a process automation and digital transformation consultant conducting a structured audit.
+Analyze the company's automation maturity using the data provided in the user message.
 
-Evaluate these aspects:
-1. **Current Integrations**: CRM, email marketing, booking systems, payment processing, chat support detected on the website
-2. **Booking/Scheduling**: Online booking capability, calendar integration
-3. **Communication Automation**: Chat widgets, auto-responders, WhatsApp Business integration
-4. **Marketing Automation**: Email sequences, retargeting, CRM detected
-5. **Operational Tools**: E-commerce, inventory, invoicing indicators
-6. **Data & Analytics**: Analytics tools, tracking, data collection sophistication
-7. **Workflow Gaps**: Missing automations that would benefit the business
+## Evaluation Areas
+1. **CRM & Lead Management**: CRM detected (HubSpot, Salesforce, Pipedrive), contact form integrations
+2. **Booking & Scheduling**: booking systems in tech_stack (Calendly, Bookings, custom), calendar widgets
+3. **Communication Automation**: chat_support detected (Intercom, Crisp, WhatsApp, Tawk), auto-responders
+4. **Marketing Automation**: email_marketing detected (Mailchimp, SendGrid, ConvertKit), retargeting pixels
+5. **E-commerce & Payments**: ecommerce tools (Stripe, PayPal, WooCommerce), order management
+6. **Analytics & Tracking**: analytics tools (GA4, Matomo, Hotjar), tracking sophistication
+7. **Workflow Gaps**: What obvious automations are absent given the industry?
 
-Consider the business type and industry:
-- Hospitality: Booking systems, guest communication, review management
-- Professional services: CRM, scheduling, invoicing, project management
-- Retail/E-commerce: Inventory, order management, customer support
-- Healthcare: Appointment booking, patient communication, compliance tools
+## Key Data Sources (from tech_stack in recon)
+- chat_support: WhatsApp Widget, Intercom, Crisp, Drift, LiveChat, Tawk, HubSpot
+- email_marketing: Mailchimp, SendGrid, ConvertKit
+- analytics: Google Analytics 4, Meta Pixel, Hotjar, Plausible, Matomo
+- ecommerce: Stripe, PayPal, WooCommerce
+- booking: look for booking-related words in page titles and H1s if not in tech_stack
 
-Score Guidelines:
-- 1 (Critical): No automation detected, fully manual processes
-- 2 (Needs Work): Basic tools (analytics only), major automation gaps
-- 3 (Moderate): Some automation (chat, basic analytics), but missing key integrations
-- 4 (Good): Well-integrated tools, active automation, minor gaps
-- 5 (Excellent): Comprehensive automation, interconnected systems, data-driven
+## Scoring Calibration
 
-Use consultant and interview notes if available — they provide crucial context about internal processes that aren't visible from the website.
+**Score 1 — Critical:**
+No analytics, no chat, no email marketing, no booking system. Everything manual.
+Example issue: {severity:"critical", title:"No customer analytics", impact:"Impossible to measure ROI or optimise acquisition"}
 
-**If no consultant or interview notes are present in your context**, rely on observable signals:
-- tech_stack from recon (booking systems, chat_support, email_marketing, ecommerce detected)
-- Social profiles and their activity level
-- Previous domain findings (UX issues with forms/CTAs often reveal process gaps)
-Score conservatively when process-level information is unavailable; note this explicitly in your summary.
+**Score 2 — Needs Work:**
+Only basic analytics (GA4), no CRM, no email automation, no chat. Missing most key workflows.
+Example issue: {severity:"high", title:"No email marketing automation", impact:"Manual follow-up losing 60% of leads"}
+
+**Score 3 — Moderate:**
+Analytics + one chat tool. Email marketing OR booking present. Missing CRM or retargeting.
+Example issue: {severity:"medium", title:"No CRM integration detected"}
+
+**Score 4 — Good:**
+Analytics, chat, email marketing, booking system all present. Minor: no retargeting pixel or CRM.
+
+**Score 5 — Excellent:**
+Full stack: CRM, email automation, booking, chat, retargeting, analytics, e-commerce. Data-driven and integrated.
+
+## Fallback (no interview notes)
+When consultant/interview notes are absent:
+- Use tech_stack from recon as primary evidence
+- Check previous UX/Marketing domain findings for process signals
+- Score conservatively (max 3) and state "Score based on visible tech signals only; internal process quality unknown"
+
+## Industry Context
+- **Hospitality**: Must have booking + guest communication + review management
+- **Professional Services**: Must have CRM + scheduling + invoicing
+- **Retail/E-commerce**: Must have inventory + order management + customer support
+- **Healthcare**: Must have appointment booking + HIPAA-compliant communication
 
 Use the submit_analysis tool to return your structured analysis.`;
   }
