@@ -31,19 +31,28 @@ export class ContextBuilder {
     collectedData: Record<string, Record<string, unknown>>,
     instructions: string
   ): Promise<AgentContext> {
-    // Fetch audit meta
-    const { data: audit } = await supabase
+    // Fetch audit meta — [C2] check error: missing audit = invalid context, must throw
+    const { data: audit, error: auditError } = await supabase
       .from('audits')
       .select('company_url, company_name, industry')
       .eq('id', auditId)
       .single();
 
-    // Fetch recon data
-    const { data: recon } = await supabase
+    if (auditError || !audit) {
+      throw new Error(`[ContextBuilder] Failed to fetch audit ${auditId}: ${auditError?.message ?? 'not found'}`);
+    }
+
+    // Fetch recon data — recon may genuinely be missing (phase 0 not yet run), so warn but don't throw
+    const { data: recon, error: reconError } = await supabase
       .from('audit_recon')
       .select('*')
       .eq('audit_id', auditId)
       .single();
+
+    if (reconError && reconError.code !== 'PGRST116') {
+      // PGRST116 = "no rows returned" — acceptable for early phases; other errors are real failures
+      console.warn(`[ContextBuilder] Recon data unavailable for ${auditId}: ${reconError.message}`);
+    }
 
     // Fetch completed domain results (for cross-domain context)
     const { data: completedDomains } = await supabase
