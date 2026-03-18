@@ -67,7 +67,7 @@ Use the submit_analysis tool to return your structured roadmap.`;
       await this.emit('warning', `Token budget at ${Math.round((budget.tokens_used / budget.token_budget) * 100)}% — ${budget.remaining} tokens remaining`);
     }
 
-    const prompt = this.contextBuilder.formatPrompt(context);
+    const { prompt } = this.contextBuilder.formatPrompt(context);
     const response = await this.anthropic.messages.create({
       model: CLAUDE_MODEL,
       max_tokens: MODEL_MAX_TOKENS.strategy,

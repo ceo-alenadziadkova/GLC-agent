@@ -16,6 +16,17 @@ export class AccessibilityCollector extends BaseCollector {
 
     const pages = (crawlData?.data as Record<string, unknown>)?.pages_crawled as Array<Record<string, unknown>> ?? [];
 
+    if (pages.length === 0) {
+      return {
+        no_crawl_data: true,
+        warning: 'No crawled pages available — accessibility analysis skipped',
+        image_accessibility: { total_images: 0, missing_alt: 0, alt_coverage_percent: 100 },
+        structured_data_present: false,
+        issues: ['No pages were crawled — cannot assess accessibility'],
+        pages_analyzed: 0,
+      };
+    }
+
     const issues: string[] = [];
     let totalImages = 0;
     let missingAlt = 0;

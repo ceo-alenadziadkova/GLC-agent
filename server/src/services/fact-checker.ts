@@ -72,12 +72,14 @@ export class FactChecker {
     const ssl = secData.ssl as { valid: boolean } | undefined;
     const headers = secData.headers as Array<{ name: string; present: boolean }> | undefined;
 
-    if (ssl && !ssl.valid && result.score >= 4) {
+    if (ssl && !ssl.valid) {
       corrections.push({
         field: 'score',
-        issue: 'Score too high: SSL certificate is invalid or missing',
+        issue: 'Invalid SSL certificate caps security score at 2/5',
         raw_evidence: 'SSL check returned invalid',
-        action: 'flag',
+        action: 'override',
+        original_value: result.score,
+        corrected_value: Math.min(result.score, 2),
       });
     }
 

@@ -89,9 +89,11 @@ export class ContextBuilder {
 
   /**
    * Formats context into a structured prompt string for Claude.
+   * Returns the prompt along with truncation metadata so callers can emit warnings.
    */
-  formatPrompt(ctx: AgentContext): string {
+  formatPrompt(ctx: AgentContext): { prompt: string; truncated: boolean; truncatedKeys: string[] } {
     const sections: string[] = [];
+    const truncatedKeys: string[] = [];
 
     // Company profile
     sections.push(`## Company Profile
@@ -121,11 +123,13 @@ export class ContextBuilder {
       for (const [key, data] of Object.entries(ctx.collected_data)) {
         if (totalRawChars >= MAX_TOTAL_RAW) {
           sections.push(`### ${key}\n_[omitted — total raw data limit reached]_`);
+          truncatedKeys.push(key);
           continue;
         }
         let json = JSON.stringify(data, null, 2);
         if (json.length > MAX_PER_COLLECTOR) {
           json = json.slice(0, MAX_PER_COLLECTOR) + '\n... [truncated — remaining data omitted to save context]';
+          truncatedKeys.push(key);
         }
         sections.push(`### ${key}\n\`\`\`json\n${json}\n\`\`\``);
         totalRawChars += json.length;
@@ -160,6 +164,10 @@ ${domain.summary}
     // Instructions
     sections.push(`## Your Task\n${ctx.instructions}`);
 
-    return sections.join('\n\n');
+    return {
+      prompt: sections.join('\n\n'),
+      truncated: truncatedKeys.length > 0,
+      truncatedKeys,
+    };
   }
 }

@@ -41,7 +41,7 @@ export function AuditWorkspace() {
   const { audit, loading, error } = useAudit(id);
   const [openRec, setOpenRec] = useState<number | null>(null);
   const [activeDomain, setActiveDomain] = useState<DomainKey>(
-    (domainId as DomainKey) || DOMAIN_KEYS[0]
+    (domainId && DOMAIN_KEYS.includes(domainId as DomainKey)) ? (domainId as DomainKey) : DOMAIN_KEYS[0]
   );
 
   if (loading && !audit) {
