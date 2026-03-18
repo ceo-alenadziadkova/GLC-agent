@@ -15,15 +15,27 @@ auditsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) => {
   try {
     const { company_url, company_name, industry } = req.body;
 
-    if (!company_url || typeof company_url !== 'string' || company_url.length < 5) {
-      res.status(400).json({ error: 'company_url is required (min 5 characters)' });
+    if (!company_url || typeof company_url !== 'string') {
+      res.status(400).json({ error: 'company_url is required' });
       return;
     }
 
-    // Normalize URL
+    // Normalize URL BEFORE validation — prevents double-prefix like "https://http://..."
     let url = company_url.trim();
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = `https://${url}`;
+    }
+
+    if (url.length < 10) {
+      res.status(400).json({ error: 'company_url must be a valid URL (e.g. https://company.com)' });
+      return;
+    }
+
+    try {
+      new URL(url);
+    } catch {
+      res.status(400).json({ error: 'company_url must be a valid URL (e.g. https://company.com)' });
+      return;
     }
 
     // Create audit

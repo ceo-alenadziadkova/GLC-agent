@@ -45,7 +45,14 @@ Use the submit_analysis tool to return your structured analysis.`;
     await this.emit('collecting', 'Crawling company website...');
     const crawler = new CrawlerCollector();
     const crawlResult = await crawler.run(this.auditId, companyUrl);
-    await this.emit('log', `✓ Crawled ${(crawlResult.data.pages_crawled as unknown[])?.length ?? 0} pages`);
+    const crawledPageCount = (crawlResult.data.pages_crawled as unknown[])?.length ?? 0;
+    await this.emit('log', `✓ Crawled ${crawledPageCount} pages`);
+
+    if (crawledPageCount === 0) {
+      const msg = 'Recon crawled 0 pages — site may be unreachable or blocking crawlers';
+      await this.emit('phase-error', msg, { phase: 'recon', fatal: true, timestamp: new Date().toISOString() });
+      throw new Error(msg);
+    }
 
     // Step 2: Assemble context
     await this.emit('assembling_context', 'Preparing analysis context...');
@@ -65,7 +72,10 @@ Use the submit_analysis tool to return your structured analysis.`;
     }
 
     // Use parent's callClaude logic via full run, but we need to handle recon-specific saving
-    const prompt = this.contextBuilder.formatPrompt(context);
+    const { prompt, truncated, truncatedKeys } = this.contextBuilder.formatPrompt(context);
+    if (truncated) {
+      await this.emit('warning', `Context truncated for keys: ${truncatedKeys.join(', ')}`);
+    }
     const response = await this.anthropic.messages.create({
       model: CLAUDE_MODEL,
       max_tokens: MODEL_MAX_TOKENS.recon,

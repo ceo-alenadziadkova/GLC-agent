@@ -12,8 +12,15 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const authHeaders = await getAuthHeaders();
 
+  // 30s timeout — prevents hanging indefinitely if server is unreachable
+  const timeoutSignal = AbortSignal.timeout(30_000);
+  const signal = options.signal
+    ? AbortSignal.any([options.signal as AbortSignal, timeoutSignal])
+    : timeoutSignal;
+
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
+    signal,
     headers: {
       'Content-Type': 'application/json',
       ...authHeaders,

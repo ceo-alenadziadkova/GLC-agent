@@ -104,8 +104,14 @@ export class CrawlerCollector extends BaseCollector {
     }
 
     const baseUrl = new URL(companyUrl);
+    const TOTAL_TIMEOUT_MS = 90_000;
+    const crawlStart = Date.now();
 
     while (toVisit.length > 0 && pages.length < this.maxPages) {
+      if (Date.now() - crawlStart > TOTAL_TIMEOUT_MS) {
+        console.warn(`[Crawler] Total timeout reached after ${pages.length} pages — stopping crawl`);
+        break;
+      }
       const url = toVisit.shift()!;
       const normalized = this.normalizeUrl(url);
 

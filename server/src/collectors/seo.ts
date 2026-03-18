@@ -16,6 +16,18 @@ export class SeoCollector extends BaseCollector {
 
     const pages = (crawlData?.data as Record<string, unknown>)?.pages_crawled as Array<Record<string, unknown>> ?? [];
 
+    if (pages.length === 0) {
+      return {
+        no_crawl_data: true,
+        warning: 'No crawled pages available — SEO page analysis skipped',
+        robots_txt: await this.checkRobotsTxt(companyUrl),
+        sitemap: await this.checkSitemap(companyUrl),
+        open_graph: { pages_with_structured_data: 0, total_pages: 0, structured_data_types: [] },
+        page_analysis: { issues: ['No pages were crawled — cannot assess on-page SEO'], meta_coverage: { with_title: 0, with_description: 0, with_h1: 0, total: 0 }, image_stats: { total: 0, missing_alt: 0 } },
+        total_pages: 0,
+      };
+    }
+
     const [robotsTxt, sitemap, openGraph] = await Promise.all([
       this.checkRobotsTxt(companyUrl),
       this.checkSitemap(companyUrl),

@@ -2,9 +2,11 @@ import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { SCORE_LABELS } from '../types/audit.js';
+import { generalLimiter } from '../middleware/rate-limit.js';
 
 export const reportsRouter = Router();
 
+reportsRouter.use(generalLimiter);
 reportsRouter.use(requireAuth);
 
 // ─── GET /api/audits/:id/report — Generate markdown report ─

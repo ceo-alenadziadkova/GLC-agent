@@ -108,7 +108,10 @@ export abstract class BaseAgent {
    * Call Claude with retry and exponential backoff.
    */
   private async callClaudeWithRetry(context: AgentContext): Promise<DomainResult> {
-    const prompt = this.contextBuilder.formatPrompt(context);
+    const { prompt, truncated, truncatedKeys } = this.contextBuilder.formatPrompt(context);
+    if (truncated) {
+      await this.emit('warning', `Context truncated for keys: ${truncatedKeys.join(', ')}`);
+    }
     const jsonSchema = zodToJsonSchema(this.outputSchema);
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {

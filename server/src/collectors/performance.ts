@@ -16,6 +16,17 @@ export class PerformanceCollector extends BaseCollector {
 
     const pages = (crawlData?.data as Record<string, unknown>)?.pages_crawled as Array<Record<string, unknown>> ?? [];
 
+    if (pages.length === 0) {
+      const headerAnalysis = await this.analyzeHeaders(companyUrl);
+      return {
+        no_crawl_data: true,
+        warning: 'No crawled pages available — page weight analysis skipped',
+        headers: headerAnalysis,
+        page_weights: { avg_content_length_bytes: 0, avg_load_time_ms: 0, heaviest_page: null, slowest_page: null, total_images: 0, lazy_loaded_images: 0, lazy_load_coverage: 100 },
+        total_pages_analyzed: 0,
+      };
+    }
+
     // Check response headers for caching/compression
     const headerAnalysis = await this.analyzeHeaders(companyUrl);
 
@@ -49,7 +60,7 @@ export class PerformanceCollector extends BaseCollector {
           last_modified: !!headers.get('last-modified'),
           has_cache_policy: !!(headers.get('cache-control') || headers.get('etag')),
         },
-        http2: response.url.startsWith('https://'), // Rough proxy — actual h2 detection requires more
+        https_available: response.url.startsWith('https://'),
         cdn_detected: !!(
           headers.get('cf-ray') ||
           headers.get('x-vercel-id') ||
@@ -59,7 +70,7 @@ export class PerformanceCollector extends BaseCollector {
         server: headers.get('server') ?? null,
       };
     } catch {
-      return { compression: { enabled: false, type: null }, caching: { cache_control: null, etag: false, last_modified: false, has_cache_policy: false }, http2: false, cdn_detected: false, server: null };
+      return { compression: { enabled: false, type: null }, caching: { cache_control: null, etag: false, last_modified: false, has_cache_policy: false }, https_available: false, cdn_detected: false, server: null };
     }
   }
 
