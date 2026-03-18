@@ -153,6 +153,10 @@ pipelineRouter.post('/:id/pipeline/retry', pipelineLimiter, async (req: AuthRequ
       res.status(400).json({ error: 'phase is required (number)' });
       return;
     }
+    if (!Number.isInteger(phase) || phase < 0 || phase > 7) {
+      res.status(400).json({ error: 'phase must be an integer between 0 and 7' });
+      return;
+    }
 
     const { data: audit, error } = await supabase
       .from('audits')
@@ -232,6 +236,14 @@ pipelineRouter.post('/:id/reviews/:phase', async (req: AuthRequest, res) => {
     const phase = req.params.phase as string;
     const { consultant_notes, interview_notes } = req.body;
 
+    const MAX_NOTES_LENGTH = 5000;
+    const sanitizedConsultantNotes = consultant_notes
+      ? String(consultant_notes).trim().slice(0, MAX_NOTES_LENGTH) || null
+      : null;
+    const sanitizedInterviewNotes = interview_notes
+      ? String(interview_notes).trim().slice(0, MAX_NOTES_LENGTH) || null
+      : null;
+
     // Verify ownership
     const { data: audit } = await supabase
       .from('audits')
@@ -249,8 +261,8 @@ pipelineRouter.post('/:id/reviews/:phase', async (req: AuthRequest, res) => {
       .from('review_points')
       .update({
         status: 'approved',
-        consultant_notes: consultant_notes || null,
-        interview_notes: interview_notes || null,
+        consultant_notes: sanitizedConsultantNotes,
+        interview_notes: sanitizedInterviewNotes,
         approved_at: new Date().toISOString(),
       })
       .eq('audit_id', id)
@@ -266,7 +278,7 @@ pipelineRouter.post('/:id/reviews/:phase', async (req: AuthRequest, res) => {
       phase: parseInt(phase),
       event_type: 'review_approved',
       message: `Review point after phase ${phase} approved`,
-      data: { consultant_notes, interview_notes },
+      data: { consultant_notes: sanitizedConsultantNotes, interview_notes: sanitizedInterviewNotes },
     });
 
     res.json(data);

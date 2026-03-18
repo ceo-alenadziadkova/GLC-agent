@@ -30,7 +30,18 @@ export function NewAudit() {
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState<string | null>(null);
 
-  const canSubmit = url.trim().length > 4;
+  function isValidUrl(raw: string): boolean {
+    const trimmed = raw.trim();
+    if (!trimmed) return false;
+    try {
+      const prefixed = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+      const parsed = new URL(prefixed);
+      return parsed.hostname.includes('.');
+    } catch {
+      return false;
+    }
+  }
+  const canSubmit = isValidUrl(url);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
