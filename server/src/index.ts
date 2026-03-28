@@ -4,6 +4,7 @@ import cors from 'cors';
 import { auditsRouter } from './routes/audits.js';
 import { pipelineRouter } from './routes/pipeline.js';
 import { reportsRouter } from './routes/reports.js';
+import { logRouter } from './routes/log.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
@@ -26,6 +27,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/audits', auditsRouter);
 app.use('/api/audits', pipelineRouter);
 app.use('/api/audits', reportsRouter);
+app.use('/api/log', logRouter);
 
 // ─── Error handler ─────────────────────────────────────────
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

@@ -5,6 +5,7 @@ import {
   Globe, Settings, Bell, Search, Zap, LogOut
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import Logo from '../assets/logo.svg';
 
 function useCurrentAuditId(): string | null {
   const { pathname } = useLocation();
@@ -57,40 +58,14 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
 
         {/* Logo */}
         <div
-          className="relative flex items-center gap-3 px-4 pt-5 pb-4"
+          className="relative flex items-center gap-2 px-4 pt-5 pb-4"
           style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
         >
-          {/* Logo mark */}
-          <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 relative"
-            style={{
-              background: 'var(--gradient-brand)',
-              boxShadow: '0 0 16px rgba(28,189,255,0.35), 0 2px 4px rgba(0,0,0,0.3)',
-            }}
-          >
-            <Globe className="w-4 h-4 text-white" />
-            {/* Pulse dot */}
-            <span
-              className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full"
-              style={{ backgroundColor: 'var(--glc-green)', boxShadow: '0 0 6px var(--glc-green)' }}
-            />
-          </div>
-          <div>
-            <div
-              className="font-bold leading-none"
-              style={{
-                color: '#fff',
-                fontSize: '15px',
-                fontFamily: 'var(--font-display)',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              GLC
-            </div>
-            <div style={{ color: 'rgba(255,255,255,0.30)', fontSize: '9px', letterSpacing: '0.12em', marginTop: 2 }}>
-              AUDIT PLATFORM
-            </div>
-          </div>
+          <img
+            src={Logo}
+            alt="GLC Audit Platform"
+            className="h-12 w-auto"
+          />
         </div>
 
         {/* Search */}

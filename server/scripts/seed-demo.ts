@@ -7,14 +7,12 @@
  *
  * Usage:
  *   cd server
- *   npx ts-node scripts/seed-demo.ts --email you@example.com
+ *   npx tsx scripts/seed-demo.ts --email you@example.com
  *
  * Options:
  *   --email <email>   Assign the demo audit to this Supabase Auth user.
- *                     If omitted, a fixed demo user UUID is used (works with
- *                     RLS disabled or service role key bypassing RLS).
- *   --reset           Delete any existing demo audit for this user first
- *                     (default: true — seed is idempotent).
+ *                     If the user doesn't exist yet, it will be created.
+ *   --no-reset        Keep any existing demo audit (default: reset enabled).
  *
  * Requirements:
  *   - server/.env must contain SUPABASE_URL and SUPABASE_SERVICE_KEY
@@ -22,8 +20,12 @@
 
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 import { buildSonEspasesData, DEMO_AUDIT_ID } from './data/son-espases';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load .env from server directory
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
@@ -33,7 +35,6 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 // ---------------------------------------------------------------------------
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const DEMO_USER_UUID = '00000000-0000-0000-0000-000000000001'; // fallback
 const DEMO_COMPANY_URL = 'https://www.hospitalsonespases.es';
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
@@ -63,20 +64,30 @@ function parseArgs() {
 // ---------------------------------------------------------------------------
 async function resolveUserId(email: string | null): Promise<string> {
   if (!email) {
-    console.log(`ℹ️   No --email provided. Using fallback demo user UUID: ${DEMO_USER_UUID}`);
-    return DEMO_USER_UUID;
+    throw new Error(
+      'Missing --email. Provide an existing Supabase Auth user email (or a new one to auto-create).'
+    );
   }
 
   const { data, error } = await supabase.auth.admin.listUsers();
   if (error) {
-    console.warn(`⚠️   Could not list users (${error.message}). Using fallback UUID.`);
-    return DEMO_USER_UUID;
+    throw new Error(
+      `Could not list users via Supabase Admin API (${error.message}). Check SUPABASE_SERVICE_KEY.`
+    );
   }
 
   const user = data.users.find((u) => u.email === email);
   if (!user) {
-    console.warn(`⚠️   User "${email}" not found in Supabase Auth. Using fallback UUID.`);
-    return DEMO_USER_UUID;
+    console.log(`ℹ️   User "${email}" not found. Creating it in Supabase Auth…`);
+    const { data: created, error: createErr } = await supabase.auth.admin.createUser({
+      email,
+      email_confirm: true,
+    });
+    if (createErr || !created.user) {
+      throw new Error(`Could not create Supabase Auth user: ${createErr?.message ?? 'Unknown error'}`);
+    }
+    console.log(`✅  Created user: ${email} (${created.user.id})`);
+    return created.user.id;
   }
 
   console.log(`✅  Found user: ${email} (${user.id})`);

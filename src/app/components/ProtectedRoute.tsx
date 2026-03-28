@@ -1,10 +1,12 @@
 import { Navigate } from 'react-router';
 import { useAuth } from '../hooks/useAuth';
+import { logger } from '../lib/logger';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
+    logger.debug('ProtectedRoute: loading auth state');
     return (
       <div
         className="h-screen flex items-center justify-center"
@@ -22,8 +24,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated) {
+    logger.info('ProtectedRoute: not authenticated, redirecting to /login');
     return <Navigate to="/login" replace />;
   }
 
+  logger.debug('ProtectedRoute: authenticated, render children');
   return <>{children}</>;
 }
