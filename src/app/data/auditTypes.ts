@@ -1,5 +1,23 @@
 // ─── Types matching the backend/DB schema ──────────────────
 
+export type ProductMode = 'free_snapshot' | 'express' | 'full';
+
+// Free Snapshot result (public, no auth)
+export interface FreeSnapshotPreview {
+  audit_id: string;
+  snapshot_token: string;
+  status: 'running' | 'completed' | 'failed';
+  company_url: string;
+  company_name: string | null;
+  tech_stack: Record<string, string[]>;
+  location: string | null;
+  ux_score: number | null;
+  ux_label: string | null;
+  ux_summary: string | null;
+  issues: Array<{ id: string; severity: string; title: string; description: string; impact: string }>;
+  quick_wins: Array<{ id: string; title: string; description: string; effort: string; timeframe: string }>;
+}
+
 export const DOMAIN_KEYS = [
   'tech_infrastructure',
   'security_compliance',

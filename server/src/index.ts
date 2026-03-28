@@ -5,6 +5,7 @@ import { auditsRouter } from './routes/audits.js';
 import { pipelineRouter } from './routes/pipeline.js';
 import { reportsRouter } from './routes/reports.js';
 import { logRouter } from './routes/log.js';
+import { snapshotRouter } from './routes/snapshot.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
@@ -13,7 +14,7 @@ const PORT = parseInt(process.env.PORT ?? '3001', 10);
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
     ? process.env.FRONTEND_URL
-    : ['http://localhost:5173', 'http://localhost:3000'],
+    : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
   credentials: true,
 }));
 app.use(express.json({ limit: '2mb' }));
@@ -24,6 +25,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ─── Routes ────────────────────────────────────────────────
+app.use('/api/snapshot', snapshotRouter); // Public — no auth
 app.use('/api/audits', auditsRouter);
 app.use('/api/audits', pipelineRouter);
 app.use('/api/audits', reportsRouter);

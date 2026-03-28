@@ -1,3 +1,8 @@
+// ─── Product Modes ─────────────────────────────────────────
+export type ProductMode = 'free_snapshot' | 'express' | 'full';
+
+export const PRODUCT_MODES: ProductMode[] = ['free_snapshot', 'express', 'full'];
+
 // ─── Domain Keys ───────────────────────────────────────────
 export const DOMAIN_KEYS = [
   'tech_infrastructure',
@@ -47,7 +52,7 @@ export const SCORE_COLORS: Record<number, string> = {
 // ─── Data Structures ───────────────────────────────────────
 export interface AuditMeta {
   id: string;
-  user_id: string;
+  user_id: string | null;
   company_url: string;
   company_name: string | null;
   industry: string | null;
@@ -56,8 +61,26 @@ export interface AuditMeta {
   overall_score: number | null;
   token_budget: number;
   tokens_used: number;
+  product_mode: ProductMode;
+  snapshot_token: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// ─── Free Snapshot Result ──────────────────────────────────
+export interface FreeSnapshotPreview {
+  audit_id: string;
+  snapshot_token: string;
+  status: 'running' | 'completed' | 'failed';
+  company_url: string;
+  company_name: string | null;
+  tech_stack: Record<string, string[]>;
+  location: string | null;
+  ux_score: number | null;
+  ux_label: string | null;
+  ux_summary: string | null;
+  issues: AuditIssue[];
+  quick_wins: QuickWin[];
 }
 
 export interface ReconData {
