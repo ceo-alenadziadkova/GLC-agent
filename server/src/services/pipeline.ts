@@ -8,7 +8,7 @@ import { MarketingAgent } from '../agents/marketing.js';
 import { AutomationAgent } from '../agents/automation.js';
 import { StrategyAgent } from '../agents/strategy.js';
 import { BaseAgent } from '../agents/base.js';
-import { REVIEW_AFTER_PHASES, PHASE_DOMAIN_MAP } from '../types/audit.js';
+import { REVIEW_AFTER_PHASES, PHASE_DOMAIN_MAP, type FreeSnapshotPreview } from '../types/audit.js';
 
 type AgentConstructor = new (auditId: string) => BaseAgent;
 
@@ -152,6 +152,72 @@ export class PipelineOrchestrator {
       }
 
       phase++;
+    }
+  }
+
+  /**
+   * Free Snapshot pipeline — runs Phase 0 (Recon) + Phase 4 (UX partial).
+   * No auth required; result is trimmed to 2 issues + 2 quick wins.
+   * Does NOT trigger review gates.
+   */
+  async runFreeSnapshot(): Promise<FreeSnapshotPreview> {
+    try {
+      console.log(`[FreeSnapshot ${this.auditId}] Starting`);
+
+      // ── Phase 0: Recon ──────────────────────────────────
+      await supabase.from('audits').update({ status: 'recon', current_phase: 0 }).eq('id', this.auditId);
+      await this.emitEvent(0, 'started', 'Free Snapshot: Recon started');
+
+      const reconAgent = new ReconAgent(this.auditId);
+      await reconAgent.run(); // ReconAgent saves its own result
+
+      await this.emitEvent(0, 'completed', 'Free Snapshot: Recon completed');
+
+      // ── Phase 4: UX (partial) ───────────────────────────
+      await supabase.from('audits').update({ status: 'auto', current_phase: 4 }).eq('id', this.auditId);
+      await supabase.from('audit_domains').update({ status: 'collecting' })
+        .eq('audit_id', this.auditId)
+        .eq('domain_key', 'ux_conversion');
+      await this.emitEvent(4, 'started', 'Free Snapshot: UX analysis started');
+
+      const uxAgent = new UxAgent(this.auditId);
+      const uxResult = await uxAgent.run();
+      await uxAgent.saveDomainResult(uxResult);
+
+      await this.emitEvent(4, 'completed', 'Free Snapshot: UX analysis completed');
+
+      // ── Mark completed ──────────────────────────────────
+      await supabase.from('audits').update({ status: 'completed' }).eq('id', this.auditId);
+
+      // ── Fetch results ───────────────────────────────────
+      const [{ data: audit }, { data: recon }] = await Promise.all([
+        supabase.from('audits').select('snapshot_token, company_url, company_name').eq('id', this.auditId).single(),
+        supabase.from('audit_recon').select('company_name, tech_stack, location').eq('audit_id', this.auditId).single(),
+      ]);
+
+      console.log(`[FreeSnapshot ${this.auditId}] Completed`);
+
+      return {
+        audit_id: this.auditId,
+        snapshot_token: audit?.snapshot_token ?? '',
+        status: 'completed',
+        company_url: audit?.company_url ?? '',
+        company_name: recon?.company_name ?? audit?.company_name ?? null,
+        tech_stack: (recon?.tech_stack as Record<string, string[]>) ?? {},
+        location: (recon?.location as string | null) ?? null,
+        ux_score: uxResult.score,
+        ux_label: uxResult.label,
+        ux_summary: uxResult.summary,
+        issues: uxResult.issues.slice(0, 2),
+        quick_wins: uxResult.quick_wins.slice(0, 2),
+      };
+
+    } catch (err) {
+      const error = err as Error;
+      console.error(`[FreeSnapshot ${this.auditId}] Error:`, error.message);
+      await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
+      await this.emitEvent(0, 'error', error.message);
+      throw err;
     }
   }
 
