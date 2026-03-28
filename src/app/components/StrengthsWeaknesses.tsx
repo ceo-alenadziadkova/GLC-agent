@@ -1,4 +1,4 @@
-import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { CheckCircle, WarningCircle } from '@phosphor-icons/react';
 import type { AuditDomain } from '../data/auditData';
 
 interface StrengthsWeaknessesProps {
@@ -25,9 +25,9 @@ export function StrengthsWeaknesses({ domain }: StrengthsWeaknessesProps) {
             <div className="space-y-3">
               {domain.strengths.map((strength, index) => (
                 <div key={index} className="flex gap-3">
-                  <CheckCircle2 
-                    className="w-5 h-5 flex-shrink-0 mt-0.5" 
-                    style={{ color: 'var(--status-excellent)' }} 
+                  <CheckCircle
+                    className="w-5 h-5 flex-shrink-0 mt-0.5"
+                    style={{ color: 'var(--status-excellent)' }}
                   />
                   <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>
                     {strength}
@@ -54,9 +54,9 @@ export function StrengthsWeaknesses({ domain }: StrengthsWeaknessesProps) {
             <div className="space-y-3">
               {domain.weaknesses.map((weakness, index) => (
                 <div key={index} className="flex gap-3">
-                  <AlertCircle 
-                    className="w-5 h-5 flex-shrink-0 mt-0.5" 
-                    style={{ color: 'var(--status-needs-improvement)' }} 
+                  <WarningCircle
+                    className="w-5 h-5 flex-shrink-0 mt-0.5"
+                    style={{ color: 'var(--status-needs-improvement)' }}
                   />
                   <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>
                     {weakness}

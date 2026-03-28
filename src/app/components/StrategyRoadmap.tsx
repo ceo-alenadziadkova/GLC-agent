@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { ArrowRight, TrendingUp, Zap, Calendar, Target } from 'lucide-react';
+import { ArrowRight, TrendUp, Lightning, Calendar, Target } from '@phosphor-icons/react';
 import type { StrategyInitiative } from '../data/auditData';
 import { cn } from './ui/utils';
 
@@ -55,13 +55,13 @@ function InitiativeCard({ initiative, index }: InitiativeCardProps) {
 
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-1.5">
-          <TrendingUp className="w-3.5 h-3.5" style={{ color: getImpactColor(initiative.impact) }} />
+          <TrendUp className="w-3.5 h-3.5" style={{ color: getImpactColor(initiative.impact) }} />
           <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
             {initiative.impact} impact
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <Zap className="w-3.5 h-3.5" style={{ color: getEffortColor(initiative.effort) }} />
+          <Lightning className="w-3.5 h-3.5" style={{ color: getEffortColor(initiative.effort) }} />
           <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
             {initiative.effort} effort
           </span>
@@ -141,7 +141,7 @@ export function StrategyRoadmap({ initiatives }: StrategyRoadmapProps) {
       <div className="space-y-6">
         <TimeframeSection
           title="Quick Wins"
-          icon={Zap}
+          icon={Lightning}
           items={quickWins}
           color="var(--status-excellent)"
           timeLabel="≤ 1 week"

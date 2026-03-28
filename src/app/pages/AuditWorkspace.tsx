@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, useParams } from 'react-router';
 import {
-  Server, Shield, Globe, MousePointer, Target, Zap, Map, Search,
-  ChevronDown, ChevronRight, CheckCircle2, AlertTriangle, ArrowUpRight, RefreshCw
-} from 'lucide-react';
+  HardDrives, Shield, Globe, Cursor, Target, Lightning, MapTrifold, MagnifyingGlass,
+  CaretDown, CaretRight, CheckCircle, Warning, ArrowUpRight, ArrowsClockwise
+} from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { ScoreBadge, ScoreBar, ScoreRing } from '../components/glc/ScoreBadge';
 import { SectionLabel } from '../components/glc/SectionLabel';
@@ -15,12 +15,12 @@ import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
 import type { DomainKey, DomainData } from '../data/auditTypes';
 
 const DOMAIN_ICONS: Record<DomainKey, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
-  tech_infrastructure: Server,
+  tech_infrastructure: HardDrives,
   security_compliance: Shield,
   seo_digital: Globe,
-  ux_conversion: MousePointer,
+  ux_conversion: Cursor,
   marketing_utp: Target,
-  automation_processes: Zap,
+  automation_processes: Lightning,
 };
 
 const SEV_COLOR: Record<string, string> = {
@@ -48,7 +48,7 @@ export function AuditWorkspace() {
     return (
       <AppShell title="Audit Workspace" subtitle="Loading...">
         <div className="flex items-center justify-center h-64">
-          <RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+          <ArrowsClockwise className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
         </div>
       </AppShell>
     );
@@ -202,7 +202,7 @@ export function AuditWorkspace() {
                 {domainData.strengths.length > 0 && (
                   <div className="glc-card p-5" style={{ borderRadius: 'var(--radius-xl)' }}>
                     <div className="flex items-center gap-2 mb-3">
-                      <CheckCircle2 className="w-4 h-4" style={{ color: 'var(--glc-green)' }} />
+                      <CheckCircle className="w-4 h-4" style={{ color: 'var(--glc-green)' }} />
                       <SectionLabel>Strengths</SectionLabel>
                     </div>
                     <ul className="space-y-2">
@@ -226,7 +226,7 @@ export function AuditWorkspace() {
                       className="flex items-center gap-2 px-5 py-3"
                       style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
                     >
-                      <AlertTriangle className="w-4 h-4" style={{ color: 'var(--score-1)' }} />
+                      <Warning className="w-4 h-4" style={{ color: 'var(--score-1)' }} />
                       <SectionLabel>Issues Found</SectionLabel>
                       <span
                         className="ml-auto px-2 py-0.5 rounded-full text-xs font-bold"
@@ -322,7 +322,7 @@ export function AuditWorkspace() {
                               transition={{ duration: 0.2 }}
                               className="flex-shrink-0"
                             >
-                              <ChevronRight className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
+                              <CaretRight className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
                             </motion.div>
                           </button>
 

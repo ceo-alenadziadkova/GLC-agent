@@ -1,4 +1,4 @@
-import { FileText, Download, Share2 } from 'lucide-react';
+import { FileText, DownloadSimple, ShareNetwork } from '@phosphor-icons/react';
 
 interface AuditHeaderProps {
   title: string;
@@ -31,7 +31,7 @@ export function AuditHeader({ title, subtitle }: AuditHeaderProps) {
               color: 'var(--text-secondary)'
             }}
           >
-            <Share2 className="w-4 h-4" />
+            <ShareNetwork className="w-4 h-4" />
             <span className="text-sm font-medium">Share</span>
           </button>
           <button
@@ -42,7 +42,7 @@ export function AuditHeader({ title, subtitle }: AuditHeaderProps) {
               color: 'white'
             }}
           >
-            <Download className="w-4 h-4" />
+            <DownloadSimple className="w-4 h-4" />
             <span className="text-sm font-medium">Export PDF</span>
           </button>
         </div>

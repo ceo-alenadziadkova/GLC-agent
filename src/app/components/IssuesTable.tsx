@@ -1,4 +1,4 @@
-import { AlertTriangle, AlertCircle, AlertOctagon } from 'lucide-react';
+import { Warning, WarningCircle, WarningOctagon } from '@phosphor-icons/react';
 import type { AuditIssue } from '../data/auditData';
 
 interface IssuesTableProps {
@@ -9,13 +9,13 @@ export function IssuesTable({ issues }: IssuesTableProps) {
   const getSeverityIcon = (severity: string) => {
     switch (severity) {
       case 'critical':
-        return <AlertOctagon className="w-4 h-4" style={{ color: 'var(--status-critical)' }} />;
+        return <WarningOctagon className="w-4 h-4" style={{ color: 'var(--status-critical)' }} />;
       case 'high':
-        return <AlertTriangle className="w-4 h-4" style={{ color: 'var(--status-needs-improvement)' }} />;
+        return <Warning className="w-4 h-4" style={{ color: 'var(--status-needs-improvement)' }} />;
       case 'medium':
-        return <AlertCircle className="w-4 h-4" style={{ color: 'var(--status-moderate)' }} />;
+        return <WarningCircle className="w-4 h-4" style={{ color: 'var(--status-moderate)' }} />;
       default:
-        return <AlertCircle className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />;
+        return <WarningCircle className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />;
     }
   };
 

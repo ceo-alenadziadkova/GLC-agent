@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Star, CheckCircle2, ArrowRight, Search, Server, Shield, Globe, MousePointer, Target, Zap, Map } from 'lucide-react';
+import { Star, CheckCircle, ArrowRight, MagnifyingGlass, HardDrives, Shield, Globe, Cursor, Target, Lightning, MapTrifold } from '@phosphor-icons/react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '../ui/dialog';
@@ -23,14 +23,14 @@ interface ReviewPointModalProps {
 
 // Phase data mirrored here for the "completed in this block" list
 const ALL_PHASES = [
-  { id: 0, name: 'Recon',              icon: Search       },
-  { id: 1, name: 'Tech Infrastructure',icon: Server       },
-  { id: 2, name: 'Security',           icon: Shield       },
-  { id: 3, name: 'SEO & Digital',      icon: Globe        },
-  { id: 4, name: 'UX & Conversion',    icon: MousePointer },
-  { id: 5, name: 'Marketing',          icon: Target       },
-  { id: 6, name: 'Automation',         icon: Zap          },
-  { id: 7, name: 'Strategy & Roadmap', icon: Map          },
+  { id: 0, name: 'Recon',              icon: MagnifyingGlass },
+  { id: 1, name: 'Tech Infrastructure',icon: HardDrives      },
+  { id: 2, name: 'Security',           icon: Shield          },
+  { id: 3, name: 'SEO & Digital',      icon: Globe           },
+  { id: 4, name: 'UX & Conversion',    icon: Cursor          },
+  { id: 5, name: 'Marketing',          icon: Target          },
+  { id: 6, name: 'Automation',         icon: Lightning       },
+  { id: 7, name: 'Strategy & Roadmap', icon: MapTrifold      },
 ];
 
 export function ReviewPointModal({ reviewPoint, open, onClose, onApprove }: ReviewPointModalProps) {
@@ -132,7 +132,7 @@ export function ReviewPointModal({ reviewPoint, open, onClose, onApprove }: Revi
                     <span className="text-sm flex-1" style={{ color: 'var(--text-secondary)' }}>
                       Phase {ph.id}: {ph.name}
                     </span>
-                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-green)' }} />
+                    <CheckCircle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-green)' }} />
                   </div>
                 );
               })}

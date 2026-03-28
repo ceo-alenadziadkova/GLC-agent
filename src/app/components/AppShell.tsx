@@ -1,9 +1,9 @@
 import { NavLink, useLocation } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Briefcase, LayoutGrid, Activity, FileText, FlaskConical,
-  Globe, Settings, Bell, Search, Zap, LogOut
-} from 'lucide-react';
+  Briefcase, SquaresFour, Pulse, FileText, Flask,
+  Globe, GearSix, Bell, MagnifyingGlass, Lightning, SignOut
+} from '@phosphor-icons/react';
 import { useAuth } from '../hooks/useAuth';
 import Logo from '../assets/logo.svg';
 
@@ -17,10 +17,10 @@ function useCurrentAuditId(): string | null {
 function buildNav(auditId: string | null) {
   return [
     { to: '/portfolio',                          icon: Briefcase,    label: 'Client Portfolio', badge: null },
-    { to: auditId ? `/audit/${auditId}` : null,  icon: LayoutGrid,   label: 'Audit Workspace',  badge: null },
-    { to: auditId ? `/pipeline/${auditId}` : null, icon: Activity,   label: 'Pipeline',         badge: null },
+    { to: auditId ? `/audit/${auditId}` : null,  icon: SquaresFour,  label: 'Audit Workspace',  badge: null },
+    { to: auditId ? `/pipeline/${auditId}` : null, icon: Pulse,      label: 'Pipeline',         badge: null },
     { to: auditId ? `/reports/${auditId}` : null, icon: FileText,    label: 'Reports',          badge: null },
-    { to: auditId ? `/strategy/${auditId}` : null,icon: FlaskConical, label: 'Strategy Lab',    badge: null },
+    { to: auditId ? `/strategy/${auditId}` : null,icon: Flask,       label: 'Strategy Lab',     badge: null },
   ];
 }
 
@@ -89,7 +89,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)';
             }}
           >
-            <Search className="w-3.5 h-3.5 flex-shrink-0" />
+            <MagnifyingGlass className="w-3.5 h-3.5 flex-shrink-0" />
             <span className="flex-1 text-left">Search...</span>
             <span
               className="px-1 py-0.5 rounded"
@@ -209,7 +209,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.38)';
             }}
           >
-            <Zap className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-orange)' }} />
+            <Lightning className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-orange)' }} />
             <span>New Audit</span>
           </NavLink>
         </nav>
@@ -220,8 +220,8 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
         >
           {[
-            { icon: Bell,     label: 'Notifications' },
-            { icon: Settings, label: 'Settings'       },
+            { icon: Bell,    label: 'Notifications' },
+            { icon: GearSix, label: 'Settings'       },
           ].map(({ icon: I, label }) => (
             <button
               key={label}
@@ -274,7 +274,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                 style={{ color: 'rgba(255,255,255,0.30)' }}
                 title="Sign out"
               >
-                <LogOut className="w-3 h-3" />
+                <SignOut className="w-3 h-3" />
               </button>
             </div>
           )}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import { Globe, ArrowRight, Search, Server, Shield, MousePointer, Target, Zap, Map } from 'lucide-react';
+import { Globe, ArrowRight, MagnifyingGlass, HardDrives, Shield, Cursor, Target, Lightning, MapTrifold } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { api } from '../data/apiService';
@@ -12,14 +12,14 @@ const INDUSTRIES = [
 ];
 
 const DOMAIN_PILLS = [
-  { icon: Search,       label: 'Recon',      color: 'var(--glc-blue)'      },
-  { icon: Server,       label: 'Tech',        color: '#8B5CF6'              },
-  { icon: Shield,       label: 'Security',    color: 'var(--score-1)'      },
-  { icon: Globe,        label: 'SEO',         color: 'var(--glc-green)'    },
-  { icon: MousePointer, label: 'UX',          color: 'var(--score-3)'      },
-  { icon: Target,       label: 'Marketing',   color: 'var(--glc-orange)'   },
-  { icon: Zap,          label: 'Automation',  color: 'var(--glc-blue-dark)'},
-  { icon: Map,          label: 'Strategy',    color: 'var(--glc-green-dark)'},
+  { icon: MagnifyingGlass, label: 'Recon',      color: 'var(--glc-blue)'      },
+  { icon: HardDrives,      label: 'Tech',        color: '#8B5CF6'              },
+  { icon: Shield,          label: 'Security',    color: 'var(--score-1)'      },
+  { icon: Globe,           label: 'SEO',         color: 'var(--glc-green)'    },
+  { icon: Cursor,          label: 'UX',          color: 'var(--score-3)'      },
+  { icon: Target,          label: 'Marketing',   color: 'var(--glc-orange)'   },
+  { icon: Lightning,       label: 'Automation',  color: 'var(--glc-blue-dark)'},
+  { icon: MapTrifold,      label: 'Strategy',    color: 'var(--glc-green-dark)'},
 ];
 
 export function NewAudit() {

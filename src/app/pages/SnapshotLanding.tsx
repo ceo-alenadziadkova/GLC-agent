@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import { Globe, ArrowRight, CheckCircle, AlertTriangle, Zap, ChevronRight, Shield } from 'lucide-react';
+import { Globe, ArrowRight, CheckCircle, Warning, Lightning, CaretRight, Shield } from '@phosphor-icons/react';
 import type { FreeSnapshotPreview } from '../data/auditTypes';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
@@ -156,7 +156,7 @@ export function SnapshotLanding() {
           className="flex items-center gap-1 text-sm font-medium"
           style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
         >
-          Sign in <ChevronRight className="w-3.5 h-3.5" />
+          Sign in <CaretRight className="w-3.5 h-3.5" />
         </Link>
       </header>
 
@@ -181,7 +181,7 @@ export function SnapshotLanding() {
                   className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6 text-xs font-medium"
                   style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--glc-blue)' }}
                 >
-                  <Zap className="w-3 h-3" /> Free UX Snapshot — 90 seconds
+                  <Lightning className="w-3 h-3" /> Free UX Snapshot — 90 seconds
                 </div>
                 <h1
                   style={{
@@ -404,7 +404,7 @@ export function SnapshotLanding() {
                 {result.issues.length > 0 && (
                   <div className="glc-card p-5" style={{ borderRadius: 'var(--radius-xl)' }}>
                     <div className="flex items-center gap-2 mb-4">
-                      <AlertTriangle className="w-4 h-4" style={{ color: 'var(--score-2)' }} />
+                      <Warning className="w-4 h-4" style={{ color: 'var(--score-2)' }} />
                       <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                         Top Issues
                       </span>
@@ -430,7 +430,7 @@ export function SnapshotLanding() {
                 {result.quick_wins.length > 0 && (
                   <div className="glc-card p-5" style={{ borderRadius: 'var(--radius-xl)' }}>
                     <div className="flex items-center gap-2 mb-4">
-                      <Zap className="w-4 h-4" style={{ color: 'var(--glc-green)' }} />
+                      <Lightning className="w-4 h-4" style={{ color: 'var(--glc-green)' }} />
                       <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                         Quick Wins
                       </span>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import { Globe, Mail, ArrowRight, Lock } from 'lucide-react';
+import { Globe, Envelope, ArrowRight, Lock } from '@phosphor-icons/react';
 import { useAuth } from '../hooks/useAuth';
 import { logger } from '../lib/logger';
 
@@ -121,7 +121,7 @@ export function Login() {
                 animate={{ opacity: 1, y: 0 }}
                 className="text-center py-4"
               >
-                <Mail className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--glc-green)' }} />
+                <Envelope className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--glc-green)' }} />
                 <h2
                   className="font-semibold"
                   style={{ color: 'var(--text-primary)', fontSize: 'var(--text-base)', fontFamily: 'var(--font-display)' }}
