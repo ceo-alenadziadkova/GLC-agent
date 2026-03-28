@@ -1,4 +1,4 @@
-import { ArrowUpRight, Clock, DollarSign, TrendingUp } from 'lucide-react';
+import { ArrowUpRight, Clock, CurrencyDollar, TrendUp } from '@phosphor-icons/react';
 import type { Recommendation } from '../data/auditData';
 
 interface RecommendationCardProps {
@@ -73,7 +73,7 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
 
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <DollarSign className="w-3.5 h-3.5" style={{ color: 'var(--text-tertiary)' }} />
+            <CurrencyDollar className="w-3.5 h-3.5" style={{ color: 'var(--text-tertiary)' }} />
             <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Investment</span>
           </div>
           <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
@@ -83,7 +83,7 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
 
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="w-3.5 h-3.5" style={{ color: 'var(--status-excellent)' }} />
+            <TrendUp className="w-3.5 h-3.5" style={{ color: 'var(--status-excellent)' }} />
             <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Impact</span>
           </div>
           <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>

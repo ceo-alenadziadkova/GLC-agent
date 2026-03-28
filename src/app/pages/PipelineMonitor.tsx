@@ -2,10 +2,10 @@ import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Search, Server, Shield, Globe, MousePointer, Target, Zap, Map,
-  CheckCircle2, Clock, AlertCircle, Play, Star, ChevronRight,
-  RefreshCw, Terminal, ArrowRight
-} from 'lucide-react';
+  MagnifyingGlass, HardDrives, Shield, Globe, Cursor, Target, Lightning, MapTrifold,
+  CheckCircle, Clock, WarningCircle, Play, Star, CaretRight,
+  ArrowsClockwise, Terminal, ArrowRight
+} from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { StatusPill } from '../components/glc/StatusPill';
 import { ScoreBadge } from '../components/glc/ScoreBadge';
@@ -18,14 +18,14 @@ import type { PipelineEvent, ReviewPoint } from '../data/auditTypes';
 type PhSt = 'completed' | 'running' | 'pending' | 'review';
 
 const PHASE_META = [
-  { id: 0, name: 'Recon',              icon: Search,       wing: 'recon'    as const, domainKey: null },
-  { id: 1, name: 'Tech Infrastructure',icon: Server,       wing: 'auto'     as const, domainKey: 'tech_infrastructure' },
-  { id: 2, name: 'Security',           icon: Shield,       wing: 'auto'     as const, domainKey: 'security_compliance' },
-  { id: 3, name: 'SEO & Digital',      icon: Globe,        wing: 'auto'     as const, domainKey: 'seo_digital' },
-  { id: 4, name: 'UX & Conversion',    icon: MousePointer, wing: 'auto'     as const, domainKey: 'ux_conversion' },
-  { id: 5, name: 'Marketing & UTP',    icon: Target,       wing: 'analytic' as const, domainKey: 'marketing_utp' },
-  { id: 6, name: 'Automation',         icon: Zap,          wing: 'analytic' as const, domainKey: 'automation_processes' },
-  { id: 7, name: 'Strategy & Roadmap', icon: Map,          wing: 'strategy' as const, domainKey: null },
+  { id: 0, name: 'Recon',              icon: MagnifyingGlass, wing: 'recon'    as const, domainKey: null },
+  { id: 1, name: 'Tech Infrastructure',icon: HardDrives,      wing: 'auto'     as const, domainKey: 'tech_infrastructure' },
+  { id: 2, name: 'Security',           icon: Shield,          wing: 'auto'     as const, domainKey: 'security_compliance' },
+  { id: 3, name: 'SEO & Digital',      icon: Globe,           wing: 'auto'     as const, domainKey: 'seo_digital' },
+  { id: 4, name: 'UX & Conversion',    icon: Cursor,          wing: 'auto'     as const, domainKey: 'ux_conversion' },
+  { id: 5, name: 'Marketing & UTP',    icon: Target,          wing: 'analytic' as const, domainKey: 'marketing_utp' },
+  { id: 6, name: 'Automation',         icon: Lightning,       wing: 'analytic' as const, domainKey: 'automation_processes' },
+  { id: 7, name: 'Strategy & Roadmap', icon: MapTrifold,      wing: 'strategy' as const, domainKey: null },
 ];
 
 const REVIEW_AFTER_PHASES = [0, 4, 7];
@@ -59,10 +59,10 @@ interface PhaseView {
 function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: () => void }) {
   const I = ph.icon;
   const stIcon = {
-    completed: <CheckCircle2 className="w-3.5 h-3.5" style={{ color: 'var(--glc-green)' }} />,
-    running:   <RefreshCw    className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--glc-blue)' }} />,
-    pending:   <Clock        className="w-3.5 h-3.5" style={{ color: 'var(--text-quaternary)' }} />,
-    review:    <AlertCircle  className="w-3.5 h-3.5" style={{ color: 'var(--score-3)' }} />,
+    completed: <CheckCircle      className="w-3.5 h-3.5" style={{ color: 'var(--glc-green)' }} />,
+    running:   <ArrowsClockwise className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--glc-blue)' }} />,
+    pending:   <Clock           className="w-3.5 h-3.5" style={{ color: 'var(--text-quaternary)' }} />,
+    review:    <WarningCircle   className="w-3.5 h-3.5" style={{ color: 'var(--score-3)' }} />,
   }[ph.status];
 
   const accentColor = {
@@ -259,7 +259,7 @@ export function PipelineMonitor() {
     return (
       <AppShell title="Pipeline Monitor" subtitle="Loading...">
         <div className="flex items-center justify-center h-64">
-          <RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+          <ArrowsClockwise className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
         </div>
       </AppShell>
     );
@@ -431,7 +431,7 @@ export function PipelineMonitor() {
                     }}
                   >
                     <div className="flex items-center gap-2 mb-3">
-                      <RefreshCw className="w-4 h-4 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+                      <ArrowsClockwise className="w-4 h-4 animate-spin" style={{ color: 'var(--glc-blue)' }} />
                       <span className="text-sm font-semibold" style={{ color: 'var(--glc-blue-deeper)', fontFamily: 'var(--font-display)' }}>
                         Agent running...
                       </span>
@@ -530,7 +530,7 @@ export function PipelineMonitor() {
                       className="glc-btn-secondary"
                       style={{ textDecoration: 'none' }}
                     >
-                      View in Workspace <ChevronRight className="w-4 h-4" />
+                      View in Workspace <CaretRight className="w-4 h-4" />
                     </Link>
                   )}
                   {ph.status === 'review' && (

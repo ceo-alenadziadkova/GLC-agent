@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronDown } from 'lucide-react';
+import { CaretDown } from '@phosphor-icons/react';
 import { cn } from './ui/utils';
 
 interface CollapsibleSectionProps {
@@ -43,8 +43,8 @@ export function CollapsibleSection({
             transition={{ duration: 0.2 }}
             className="p-1 rounded-lg group-hover:bg-[var(--surface)] transition-colors"
           >
-            <ChevronDown 
-              className="w-5 h-5" 
+            <CaretDown
+              className="w-5 h-5"
               style={{ color: 'var(--text-tertiary)' }}
             />
           </motion.div>

@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router';
 import {
-  Plus, Search, ArrowUpRight, MoreHorizontal,
-  Building2, Calendar, TrendingUp, AlertTriangle, Users, Activity, RefreshCw, Trash2
-} from 'lucide-react';
+  Plus, MagnifyingGlass, ArrowUpRight, DotsThree,
+  Buildings, Calendar, TrendUp, Warning, Users, Pulse, ArrowsClockwise, Trash
+} from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { ScoreBadge, ScoreDot } from '../components/glc/ScoreBadge';
 import { StatusPill } from '../components/glc/StatusPill';
@@ -48,8 +48,8 @@ export function Portfolio() {
 
   const METRICS = [
     { label: 'Total Audits',    value: String(totalAudits), sub: 'All time',          Icon: Users,         color: 'var(--glc-blue)'   },
-    { label: 'Active',          value: String(activeAudits),sub: 'In pipeline',        Icon: Activity,      color: 'var(--glc-orange)' },
-    { label: 'Avg Score',       value: avgScore,            sub: 'Across all audits',  Icon: TrendingUp,    color: 'var(--glc-green)'  },
+    { label: 'Active',          value: String(activeAudits),sub: 'In pipeline',        Icon: Pulse,         color: 'var(--glc-orange)' },
+    { label: 'Avg Score',       value: avgScore,            sub: 'Across all audits',  Icon: TrendUp,       color: 'var(--glc-green)'  },
   ];
 
   return (
@@ -116,7 +116,7 @@ export function Portfolio() {
               borderRadius: 'var(--radius-md)',
             }}
           >
-            <Search className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--text-tertiary)' }} />
+            <MagnifyingGlass className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--text-tertiary)' }} />
             <input
               type="text"
               value={query}
@@ -130,7 +130,7 @@ export function Portfolio() {
 
         {loading && audits.length === 0 && (
           <div className="flex items-center justify-center py-10">
-            <RefreshCw className="w-5 h-5 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+            <ArrowsClockwise className="w-5 h-5 animate-spin" style={{ color: 'var(--glc-blue)' }} />
           </div>
         )}
 
@@ -255,7 +255,7 @@ export function Portfolio() {
 
         {!loading && audits.length === 0 && !error && (
           <div className="text-center py-14" style={{ color: 'var(--text-tertiary)' }}>
-            <Building2 className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
+            <Buildings className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
             <p className="text-sm font-medium">No audits yet</p>
             <p className="text-xs mt-1">Start your first audit to see it here</p>
           </div>
@@ -281,7 +281,7 @@ export function Portfolio() {
                 border: '1px solid rgba(28,189,255,0.15)',
               }}
             >
-              <Building2 className="w-5 h-5" />
+              <Buildings className="w-5 h-5" />
             </div>
             <div>
               <p

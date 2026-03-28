@@ -1,4 +1,4 @@
-import { Zap, Clock } from 'lucide-react';
+import { Lightning, Clock } from '@phosphor-icons/react';
 import type { QuickWin } from '../data/auditData';
 import { cn } from './ui/utils';
 
@@ -37,7 +37,7 @@ export function QuickWinCard({ quickWin }: QuickWinCardProps) {
           className="p-2 rounded-lg"
           style={{ backgroundColor: '#F0FDF4' }}
         >
-          <Zap className="w-4 h-4" style={{ color: 'var(--status-excellent)' }} />
+          <Lightning className="w-4 h-4" style={{ color: 'var(--status-excellent)' }} />
         </div>
         <div className="flex-1">
           <h4 className="font-semibold text-sm mb-1" style={{ color: 'var(--text-primary)' }}>

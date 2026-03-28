@@ -1,21 +1,21 @@
 import { Link, useParams, useLocation } from 'react-router';
-import { 
-  Search, Server, Shield, Globe, MousePointer, 
-  Target, Zap, Map, LayoutDashboard, type LucideIcon 
-} from 'lucide-react';
+import {
+  MagnifyingGlass, HardDrives, Shield, Globe, Cursor,
+  Target, Lightning, MapTrifold, SquaresFour, type Icon
+} from '@phosphor-icons/react';
 import { ScoreIndicator } from './ScoreIndicator';
 import { auditDomains } from '../data/auditData';
 import { cn } from './ui/utils';
 
-const iconMap: Record<string, LucideIcon> = {
-  Search,
-  Server,
+const iconMap: Record<string, Icon> = {
+  Search: MagnifyingGlass,
+  Server: HardDrives,
   Shield,
   Globe,
-  MousePointer,
+  MousePointer: Cursor,
   Target,
-  Zap,
-  Map
+  Zap: Lightning,
+  Map: MapTrifold
 };
 
 export function AuditNavigation() {
@@ -51,8 +51,8 @@ export function AuditNavigation() {
               transition: 'var(--transition-fast)'
             }}
           >
-            <LayoutDashboard 
-              className="w-5 h-5 flex-shrink-0" 
+            <SquaresFour
+              className="w-5 h-5 flex-shrink-0"
               style={{ color: isOverviewActive ? 'var(--text-primary)' : 'var(--text-secondary)' }}
             />
             <div className="flex-1 min-w-0">
@@ -119,8 +119,8 @@ export function AuditNavigation() {
               transition: 'var(--transition-fast)'
             }}
           >
-            <Map 
-              className="w-5 h-5 flex-shrink-0" 
+            <MapTrifold
+              className="w-5 h-5 flex-shrink-0"
               style={{ color: isStrategyActive ? 'var(--text-primary)' : 'var(--text-secondary)' }}
             />
             <div className="flex-1 min-w-0">

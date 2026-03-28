@@ -1,9 +1,9 @@
 import { motion } from 'motion/react';
 import { Link, useParams } from 'react-router';
 import {
-  ArrowUpRight, TrendingUp, AlertTriangle, Zap, ChevronRight,
-  CheckCircle2, FileText, Clock, DollarSign, BarChart3, RefreshCw
-} from 'lucide-react';
+  ArrowUpRight, TrendUp, Warning, Lightning, CaretRight,
+  CheckCircle, FileText, Clock, CurrencyDollar, ChartBar, ArrowsClockwise
+} from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { ScoreBadge, ScoreBar } from '../components/glc/ScoreBadge';
 import { StatusPill } from '../components/glc/StatusPill';
@@ -34,7 +34,7 @@ export function ReportViewer() {
     return (
       <AppShell title="Audit Report" subtitle="Loading...">
         <div className="flex items-center justify-center h-64">
-          <RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+          <ArrowsClockwise className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
         </div>
       </AppShell>
     );
@@ -138,8 +138,8 @@ export function ReportViewer() {
 
               <div className="flex flex-wrap gap-2 mt-5">
                 {[
-                  { icon: AlertTriangle, label: `${allIssues.length} issues found`,    color: 'var(--score-1)' },
-                  { icon: Zap,           label: `${allQuickWins.length} quick wins`,    color: 'var(--glc-green)' },
+                  { icon: Warning,   label: `${allIssues.length} issues found`,    color: 'var(--score-1)' },
+                  { icon: Lightning, label: `${allQuickWins.length} quick wins`,    color: 'var(--glc-green)' },
                 ].map(({ icon: I, label, color }) => (
                   <div
                     key={label}
@@ -205,7 +205,7 @@ export function ReportViewer() {
             style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
           >
             <div className="flex items-center gap-2">
-              <BarChart3 className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
+              <ChartBar className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
               <SectionLabel>Domain Scorecard</SectionLabel>
             </div>
             <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
@@ -242,7 +242,7 @@ export function ReportViewer() {
                   className="opacity-0 group-hover:opacity-100 transition-opacity glc-btn-icon"
                   style={{ width: 26, height: 26 }}
                 >
-                  <ChevronRight className="w-3.5 h-3.5" />
+                  <CaretRight className="w-3.5 h-3.5" />
                 </Link>
               </motion.div>
             ))}
@@ -254,7 +254,7 @@ export function ReportViewer() {
           {[
             {
               title: 'Key Strengths',
-              icon: CheckCircle2,
+              icon: CheckCircle,
               color: 'var(--glc-green)',
               bg: 'var(--glc-green-xlight)',
               border: 'rgba(14,207,130,0.20)',
@@ -262,7 +262,7 @@ export function ReportViewer() {
             },
             {
               title: 'Critical Issues',
-              icon: AlertTriangle,
+              icon: Warning,
               color: 'var(--score-1)',
               bg: 'var(--score-1-bg)',
               border: 'var(--score-1-border)',
@@ -311,7 +311,7 @@ export function ReportViewer() {
               style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
             >
               <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4" style={{ color: 'var(--glc-orange)', fill: 'var(--glc-orange)', stroke: 'none' }} />
+                <Lightning className="w-4 h-4" style={{ color: 'var(--glc-orange)', fill: 'var(--glc-orange)', stroke: 'none' }} />
                 <SectionLabel>Quick Wins</SectionLabel>
               </div>
             </div>

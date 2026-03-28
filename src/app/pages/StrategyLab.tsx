@@ -2,9 +2,9 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, useParams } from 'react-router';
 import {
-  Zap, TrendingUp, Map, ArrowRight, Check,
-  Clock, DollarSign, Target, Sparkles, RefreshCw
-} from 'lucide-react';
+  Lightning, TrendUp, MapTrifold, ArrowRight, Check,
+  Clock, CurrencyDollar, Target, Sparkle, ArrowsClockwise
+} from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { useAudit } from '../hooks/useAudit';
@@ -12,10 +12,10 @@ import type { StrategyInitiative } from '../data/auditTypes';
 
 type Timeframe = 'quick' | 'medium' | 'strategic';
 
-const TABS: { key: Timeframe; label: string; icon: typeof Zap; color: string; desc: string }[] = [
-  { key: 'quick',    label: 'Quick Wins',   icon: Zap,       color: 'var(--glc-orange)', desc: 'Under 1 week · €0–500'   },
-  { key: 'medium',   label: 'Core Growth',  icon: TrendingUp,color: 'var(--glc-blue)',   desc: '1–3 months · €1K–6K'      },
-  { key: 'strategic',label: 'Strategic',    icon: Map,        color: '#8B5CF6',           desc: '3–6 months · €6K–20K'    },
+const TABS: { key: Timeframe; label: string; icon: typeof Lightning; color: string; desc: string }[] = [
+  { key: 'quick',    label: 'Quick Wins',   icon: Lightning,  color: 'var(--glc-orange)', desc: 'Under 1 week · €0–500'   },
+  { key: 'medium',   label: 'Core Growth',  icon: TrendUp,    color: 'var(--glc-blue)',   desc: '1–3 months · €1K–6K'      },
+  { key: 'strategic',label: 'Strategic',    icon: MapTrifold, color: '#8B5CF6',           desc: '3–6 months · €6K–20K'    },
 ];
 
 const EFFORT_COLOR: Record<string, string> = {
@@ -57,7 +57,7 @@ export function StrategyLab() {
     return (
       <AppShell title="Strategy Lab" subtitle="Loading...">
         <div className="flex items-center justify-center h-64">
-          <RefreshCw className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+          <ArrowsClockwise className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
         </div>
       </AppShell>
     );
@@ -78,7 +78,7 @@ export function StrategyLab() {
       <AppShell title="Strategy Lab" subtitle="Not available yet">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <Map className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
+            <MapTrifold className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
             <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Strategy data not yet generated</p>
             <p className="text-xs mt-1" style={{ color: 'var(--text-quaternary)' }}>Complete the pipeline to generate strategy</p>
           </div>
@@ -97,7 +97,7 @@ export function StrategyLab() {
             {selected.size} selected
           </span>
           <button className="glc-btn-primary">
-            <Sparkles className="w-4 h-4" /> Generate Roadmap
+            <Sparkle className="w-4 h-4" /> Generate Roadmap
           </button>
         </div>
       }
@@ -329,7 +329,7 @@ export function StrategyLab() {
               className="w-full glc-btn-primary justify-center py-2.5"
               style={{ opacity: selected.size === 0 ? 0.4 : 1, fontSize: 'var(--text-sm)' }}
             >
-              <Sparkles className="w-4 h-4" />
+              <Sparkle className="w-4 h-4" />
               Generate Roadmap
             </motion.button>
             <Link

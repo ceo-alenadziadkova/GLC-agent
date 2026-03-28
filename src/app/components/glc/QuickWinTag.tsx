@@ -1,4 +1,4 @@
-import { Zap } from 'lucide-react';
+import { Lightning } from '@phosphor-icons/react';
 
 interface QuickWinTagProps {
   time?: string;
@@ -18,7 +18,7 @@ export function QuickWinTag({ time, cost }: QuickWinTagProps) {
         letterSpacing: '0.01em',
       }}
     >
-      <Zap className="w-3 h-3 flex-shrink-0" style={{ fill: 'var(--glc-orange)', stroke: 'none' }} />
+      <Lightning className="w-3 h-3 flex-shrink-0" style={{ fill: 'var(--glc-orange)', stroke: 'none' }} />
       Quick Win
       {(time || cost) && (
         <span style={{ opacity: 0.55, fontWeight: 400 }}>

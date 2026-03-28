@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { ChevronRight } from 'lucide-react';
+import { CaretRight } from '@phosphor-icons/react';
 
 interface BreadcrumbItem {
   label: string;
@@ -16,7 +16,7 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
       {items.map((item, index) => (
         <div key={index} className="flex items-center gap-2">
           {index > 0 && (
-            <ChevronRight className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
+            <CaretRight className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
           )}
           {item.href ? (
             <Link
