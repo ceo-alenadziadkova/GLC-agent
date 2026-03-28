@@ -6,6 +6,7 @@ import { pipelineRouter } from './routes/pipeline.js';
 import { reportsRouter } from './routes/reports.js';
 import { logRouter } from './routes/log.js';
 import { snapshotRouter } from './routes/snapshot.js';
+import { auditRequestsRouter } from './routes/audit-requests.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
@@ -25,7 +26,8 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ─── Routes ────────────────────────────────────────────────
-app.use('/api/snapshot', snapshotRouter); // Public — no auth
+app.use('/api/snapshot', snapshotRouter);          // Public — no auth
+app.use('/api/audit-requests', auditRequestsRouter); // Client portal requests
 app.use('/api/audits', auditsRouter);
 app.use('/api/audits', pipelineRouter);
 app.use('/api/audits', reportsRouter);

@@ -2,9 +2,11 @@ import { NavLink, useLocation } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Briefcase, SquaresFour, Pulse, FileText, Flask,
-  Globe, GearSix, Bell, MagnifyingGlass, Lightning, SignOut
+  Globe, GearSix, Bell, MagnifyingGlass, Lightning, SignOut,
+  HouseSimple, ClipboardText, Eye,
 } from '@phosphor-icons/react';
 import { useAuth } from '../hooks/useAuth';
+import { useProfile } from '../hooks/useProfile';
 import Logo from '../assets/logo.svg';
 
 function useCurrentAuditId(): string | null {
@@ -14,13 +16,21 @@ function useCurrentAuditId(): string | null {
   return match ? match[2] : null;
 }
 
-function buildNav(auditId: string | null) {
+function buildConsultantNav(auditId: string | null) {
   return [
     { to: '/portfolio',                          icon: Briefcase,    label: 'Client Portfolio', badge: null },
     { to: auditId ? `/audit/${auditId}` : null,  icon: SquaresFour,  label: 'Audit Workspace',  badge: null },
     { to: auditId ? `/pipeline/${auditId}` : null, icon: Pulse,      label: 'Pipeline',         badge: null },
     { to: auditId ? `/reports/${auditId}` : null, icon: FileText,    label: 'Reports',          badge: null },
     { to: auditId ? `/strategy/${auditId}` : null,icon: Flask,       label: 'Strategy Lab',     badge: null },
+  ];
+}
+
+function buildClientNav(auditId: string | null) {
+  return [
+    { to: '/portal',                                        icon: HouseSimple,   label: 'My Portal',    badge: null },
+    { to: '/portal/request',                               icon: ClipboardText, label: 'New Request',  badge: null },
+    { to: auditId ? `/portal/audit/${auditId}` : null,     icon: Eye,           label: 'Audit Status', badge: null },
   ];
 }
 
@@ -34,8 +44,12 @@ interface AppShellProps {
 export function AppShell({ children, title, subtitle, actions }: AppShellProps) {
   const location = useLocation();
   const { user, signOut, isAuthenticated } = useAuth();
+  const { isConsultant, isClient } = useProfile();
   const auditId = useCurrentAuditId();
-  const NAV = buildNav(auditId);
+
+  const NAV = isClient ? buildClientNav(auditId) : buildConsultantNav(auditId);
+
+  const sectionLabel = isClient ? 'MY WORKSPACE' : 'WORKSPACES';
 
   return (
     <div className="h-screen flex overflow-hidden" style={{ backgroundColor: 'var(--bg-canvas)' }}>
@@ -68,43 +82,45 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           />
         </div>
 
-        {/* Search */}
-        <div className="relative px-3 py-3">
-          <button
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg"
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.05)',
-              color: 'rgba(255,255,255,0.30)',
-              fontSize: 'var(--text-xs)',
-              border: '1px solid rgba(255,255,255,0.07)',
-              borderRadius: 'var(--radius-md)',
-              transition: 'background var(--ease-fast), border-color var(--ease-fast)',
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
-              (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)';
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.05)';
-              (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)';
-            }}
-          >
-            <MagnifyingGlass className="w-3.5 h-3.5 flex-shrink-0" />
-            <span className="flex-1 text-left">Search...</span>
-            <span
-              className="px-1 py-0.5 rounded"
+        {/* Search — consultant only */}
+        {(isConsultant || !isClient) && (
+          <div className="relative px-3 py-3">
+            <button
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg"
               style={{
-                fontSize: '9px',
-                fontFamily: 'var(--font-mono)',
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                color: 'rgba(255,255,255,0.35)',
-                letterSpacing: '0',
+                backgroundColor: 'rgba(255,255,255,0.05)',
+                color: 'rgba(255,255,255,0.30)',
+                fontSize: 'var(--text-xs)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                borderRadius: 'var(--radius-md)',
+                transition: 'background var(--ease-fast), border-color var(--ease-fast)',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
+                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.12)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.05)';
+                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)';
               }}
             >
-              ⌘K
-            </span>
-          </button>
-        </div>
+              <MagnifyingGlass className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="flex-1 text-left">Search...</span>
+              <span
+                className="px-1 py-0.5 rounded"
+                style={{
+                  fontSize: '9px',
+                  fontFamily: 'var(--font-mono)',
+                  backgroundColor: 'rgba(255,255,255,0.08)',
+                  color: 'rgba(255,255,255,0.35)',
+                  letterSpacing: '0',
+                }}
+              >
+                ⌘K
+              </span>
+            </button>
+          </div>
+        )}
 
         {/* Nav */}
         <nav className="relative flex-1 px-2 pb-2 space-y-0.5 overflow-y-auto">
@@ -112,7 +128,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
             className="px-2 py-1.5"
             style={{ color: 'rgba(255,255,255,0.20)', fontSize: '9px', letterSpacing: '0.14em', fontWeight: 700 }}
           >
-            WORKSPACES
+            {sectionLabel}
           </div>
 
           {NAV.map(({ to, icon: Icon, label, badge }) => {
@@ -129,7 +145,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               );
             }
             const active = location.pathname === to ||
-              (to !== '/portfolio' && location.pathname.startsWith(to.split('/').slice(0, 2).join('/')));
+              (to !== '/portfolio' && to !== '/portal' && location.pathname.startsWith(to.split('/').slice(0, 2).join('/')));
             return (
               <NavLink
                 key={to}
@@ -191,27 +207,50 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           {/* Divider */}
           <div className="mx-2 my-2" style={{ height: '1px', background: 'rgba(255,255,255,0.06)' }} />
 
-          {/* Quick action */}
-          <NavLink
-            to="/audit/new"
-            className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
-            style={{
-              color: 'rgba(255,255,255,0.38)',
-              fontSize: 'var(--text-sm)',
-              transition: 'color var(--ease-fast), background var(--ease-fast)',
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(242,79,29,0.10)';
-              (e.currentTarget as HTMLElement).style.color = 'var(--glc-orange-light)';
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
-              (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.38)';
-            }}
-          >
-            <Lightning className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-orange)' }} />
-            <span>New Audit</span>
-          </NavLink>
+          {/* Quick action — consultant: New Audit; client: Submit Request */}
+          {isClient ? (
+            <NavLink
+              to="/portal/request"
+              className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
+              style={{
+                color: 'rgba(255,255,255,0.38)',
+                fontSize: 'var(--text-sm)',
+                transition: 'color var(--ease-fast), background var(--ease-fast)',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(28,189,255,0.10)';
+                (e.currentTarget as HTMLElement).style.color = 'var(--glc-blue)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+                (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.38)';
+              }}
+            >
+              <ClipboardText className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
+              <span>Submit Request</span>
+            </NavLink>
+          ) : (
+            <NavLink
+              to="/audit/new"
+              className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
+              style={{
+                color: 'rgba(255,255,255,0.38)',
+                fontSize: 'var(--text-sm)',
+                transition: 'color var(--ease-fast), background var(--ease-fast)',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(242,79,29,0.10)';
+                (e.currentTarget as HTMLElement).style.color = 'var(--glc-orange-light)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+                (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.38)';
+              }}
+            >
+              <Lightning className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-orange)' }} />
+              <span>New Audit</span>
+            </NavLink>
+          )}
         </nav>
 
         {/* Bottom */}
@@ -265,7 +304,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                   {user.email?.split('@')[0] || 'User'}
                 </div>
                 <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.28)', marginTop: 3, letterSpacing: '0.03em' }}>
-                  GLC Audit Platform
+                  {isClient ? 'Client Portal' : 'GLC Audit Platform'}
                 </div>
               </div>
               <button

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
-import { requireAuth, type AuthRequest } from '../middleware/auth.js';
+import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../middleware/auth.js';
 import { pipelineLimiter } from '../middleware/rate-limit.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
 
@@ -34,10 +34,12 @@ async function emitPhaseError(auditId: string, phase: number, err: Error): Promi
 
 export const pipelineRouter = Router();
 
-pipelineRouter.use(requireAuth);
+// All pipeline mutation routes require consultant role.
+// Status endpoint is readable by any authenticated user (client progress tracking).
+const consultantGuard = [requireAuth, attachProfile, requireRole('consultant')] as const;
 
 // ─── POST /api/audits/:id/pipeline/start — Start pipeline ──
-pipelineRouter.post('/:id/pipeline/start', pipelineLimiter, async (req: AuthRequest, res) => {
+pipelineRouter.post('/:id/pipeline/start', ...consultantGuard, pipelineLimiter, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
 
@@ -78,7 +80,7 @@ pipelineRouter.post('/:id/pipeline/start', pipelineLimiter, async (req: AuthRequ
 });
 
 // ─── POST /api/audits/:id/pipeline/next — Run next phase ───
-pipelineRouter.post('/:id/pipeline/next', pipelineLimiter, async (req: AuthRequest, res) => {
+pipelineRouter.post('/:id/pipeline/next', ...consultantGuard, pipelineLimiter, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
 
@@ -144,7 +146,7 @@ pipelineRouter.post('/:id/pipeline/next', pipelineLimiter, async (req: AuthReque
 });
 
 // ─── POST /api/audits/:id/pipeline/retry — Retry failed phase
-pipelineRouter.post('/:id/pipeline/retry', pipelineLimiter, async (req: AuthRequest, res) => {
+pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
     const { phase } = req.body;
@@ -194,7 +196,8 @@ pipelineRouter.post('/:id/pipeline/retry', pipelineLimiter, async (req: AuthRequ
 });
 
 // ─── GET /api/audits/:id/pipeline/status — Pipeline status ──
-pipelineRouter.get('/:id/pipeline/status', async (req: AuthRequest, res) => {
+// Readable by any authenticated user (clients track their own audit progress)
+pipelineRouter.get('/:id/pipeline/status', requireAuth, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
 
@@ -230,7 +233,7 @@ pipelineRouter.get('/:id/pipeline/status', async (req: AuthRequest, res) => {
 });
 
 // ─── POST /api/audits/:id/reviews/:phase — Approve review ──
-pipelineRouter.post('/:id/reviews/:phase', async (req: AuthRequest, res) => {
+pipelineRouter.post('/:id/reviews/:phase', ...consultantGuard, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
     const phase = req.params.phase as string;
