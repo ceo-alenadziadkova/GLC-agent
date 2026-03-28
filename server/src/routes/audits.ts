@@ -3,6 +3,8 @@ import { supabase } from '../services/supabase.js';
 import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../middleware/auth.js';
 import { createAuditLimiter, generalLimiter } from '../middleware/rate-limit.js';
 import { DOMAIN_KEYS, REVIEW_AFTER_PHASES } from '../types/audit.js';
+import { saveBriefResponses, validateBriefResponses } from '../services/brief-validator.js';
+import { BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
 
 export const auditsRouter = Router();
 
@@ -187,5 +189,96 @@ auditsRouter.delete('/:id', ...consultantGuard, async (req: AuthRequest, res) =>
   } catch (err) {
     console.error('[DELETE /api/audits/:id]', err);
     res.status(500).json({ error: 'Failed to delete audit' });
+  }
+});
+
+// ─── GET /api/audits/:id/brief — Get brief + questions ─────────────────────
+// Accessible by any authenticated user who owns or requested this audit.
+auditsRouter.get('/:id/brief', async (req: AuthRequest, res) => {
+  try {
+    const id = req.params.id as string;
+
+    // Verify access (owner or client)
+    const { data: audit } = await supabase
+      .from('audits')
+      .select('id, product_mode, user_id, client_id')
+      .eq('id', id)
+      .single();
+
+    if (!audit) {
+      res.status(404).json({ error: 'Audit not found' });
+      return;
+    }
+
+    const hasAccess = audit.user_id === req.userId || audit.client_id === req.userId;
+    if (!hasAccess) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    const { data: brief } = await supabase
+      .from('intake_brief')
+      .select('*')
+      .eq('audit_id', id)
+      .single();
+
+    // Compute validation stats live
+    const responses = (brief?.responses as Record<string, unknown>) ?? {};
+    const validation = validateBriefResponses(responses);
+
+    res.json({
+      brief: brief ?? null,
+      questions: BRIEF_QUESTIONS,
+      validation,
+    });
+  } catch (err) {
+    console.error('[GET /api/audits/:id/brief]', err);
+    res.status(500).json({ error: 'Failed to get brief' });
+  }
+});
+
+// ─── PUT /api/audits/:id/brief — Save brief responses ──────────────────────
+// Accessible by owner (consultant) or client who submitted the request.
+// Idempotent upsert — call repeatedly as user fills the form.
+auditsRouter.put('/:id/brief', async (req: AuthRequest, res) => {
+  try {
+    const id = req.params.id as string;
+    const { responses } = req.body;
+
+    if (!responses || typeof responses !== 'object' || Array.isArray(responses)) {
+      res.status(400).json({ error: 'responses must be an object' });
+      return;
+    }
+
+    // Verify access
+    const { data: audit } = await supabase
+      .from('audits')
+      .select('id, user_id, client_id')
+      .eq('id', id)
+      .single();
+
+    if (!audit) {
+      res.status(404).json({ error: 'Audit not found' });
+      return;
+    }
+
+    const hasAccess = audit.user_id === req.userId || audit.client_id === req.userId;
+    if (!hasAccess) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    const brief = await saveBriefResponses(id, responses as Record<string, unknown>);
+    const validation = validateBriefResponses(brief.responses as Record<string, unknown>);
+
+    res.json({ brief, validation });
+  } catch (err) {
+    console.error('[PUT /api/audits/:id/brief]', err);
+    const msg = (err as Error).message;
+    if (msg.startsWith('Invalid brief responses')) {
+      res.status(400).json({ error: msg });
+      return;
+    }
+    res.status(500).json({ error: 'Failed to save brief' });
   }
 });

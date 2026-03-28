@@ -13,6 +13,18 @@ export type AuditRequestStatus =
   | 'running'
   | 'delivered';
 
+export interface IntakeBrief {
+  id: string;
+  audit_id: string;
+  responses: Record<string, string | string[] | number | null>;
+  status: 'draft' | 'submitted';
+  sla_met: boolean;
+  answered_required: number;
+  answered_recommended: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AuditRequest {
   id: string;
   client_id: string;

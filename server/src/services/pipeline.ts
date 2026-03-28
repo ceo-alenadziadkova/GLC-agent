@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { assertBriefReady } from './brief-validator.js';
 import { ReconAgent } from '../agents/recon.js';
 import { TechAgent } from '../agents/tech.js';
 import { SecurityAgent } from '../agents/security.js';
@@ -48,6 +49,11 @@ export class PipelineOrchestrator {
     }
 
     try {
+      // Brief gate — Phase 0 is blocked for express/full until SLA questions are answered
+      if (phase === 0) {
+        await assertBriefReady(this.auditId);
+      }
+
       // Emit start event
       await this.emitEvent(phase, 'started', `Phase ${phase} started: ${PHASE_DOMAIN_MAP[phase]}`);
 
