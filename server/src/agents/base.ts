@@ -108,7 +108,7 @@ export abstract class BaseAgent {
    * Call Claude with retry and exponential backoff.
    */
   private async callClaudeWithRetry(context: AgentContext): Promise<DomainResult> {
-    const { prompt, truncated, truncatedKeys } = this.contextBuilder.formatPrompt(context);
+    const { system, prompt, truncated, truncatedKeys } = this.contextBuilder.formatPrompt(context);
     if (truncated) {
       await this.emit('warning', `Context truncated for keys: ${truncatedKeys.join(', ')}`);
     }
@@ -119,6 +119,7 @@ export abstract class BaseAgent {
         const response = await this.anthropic.messages.create({
           model: CLAUDE_MODEL,
           max_tokens: MODEL_MAX_TOKENS.domain,
+          system,                                       // ← role instructions in system channel
           messages: [{ role: 'user', content: prompt }],
           tools: [{
             name: 'submit_analysis',

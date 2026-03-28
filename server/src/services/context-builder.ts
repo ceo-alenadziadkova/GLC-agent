@@ -97,10 +97,14 @@ export class ContextBuilder {
   }
 
   /**
-   * Formats context into a structured prompt string for Claude.
-   * Returns the prompt along with truncation metadata so callers can emit warnings.
+   * Formats context into two parts:
+   * - `system`: role instructions (goes to Claude's system parameter)
+   * - `prompt`: all factual data (goes to the user message)
+   *
+   * Separating role from data improves instruction following — Claude treats
+   * system-level directives with higher priority than user-message content.
    */
-  formatPrompt(ctx: AgentContext): { prompt: string; truncated: boolean; truncatedKeys: string[] } {
+  formatPrompt(ctx: AgentContext): { system: string; prompt: string; truncated: boolean; truncatedKeys: string[] } {
     const sections: string[] = [];
     const truncatedKeys: string[] = [];
 
@@ -123,7 +127,9 @@ export class ContextBuilder {
     }
 
     // Collected raw data — truncated to avoid overflowing the context window.
-    // Each collector block is capped at 40,000 chars (~10K tokens); total at 120,000 chars.
+    // Strategy: remove top-level keys one by one (largest first) until the JSON fits.
+    // This always produces valid JSON, unlike slicing the serialised string mid-byte.
+    // Each collector block: ≤40K chars (~10K tokens); total across all: ≤120K chars.
     const MAX_PER_COLLECTOR = 40_000;
     const MAX_TOTAL_RAW = 120_000;
     if (Object.keys(ctx.collected_data).length > 0) {
@@ -137,7 +143,12 @@ export class ContextBuilder {
         }
         let json = JSON.stringify(data, null, 2);
         if (json.length > MAX_PER_COLLECTOR) {
-          json = json.slice(0, MAX_PER_COLLECTOR) + '\n... [truncated — remaining data omitted to save context]';
+          // Trim by removing top-level keys largest-first until JSON fits
+          const trimmed = trimByKeys(data, MAX_PER_COLLECTOR);
+          json = JSON.stringify(trimmed.obj, null, 2);
+          if (trimmed.removed > 0) {
+            json += `\n// [${trimmed.removed} large key(s) omitted: ${trimmed.removedKeys.join(', ')}]`;
+          }
           truncatedKeys.push(key);
         }
         sections.push(`### ${key}\n\`\`\`json\n${json}\n\`\`\``);
@@ -170,13 +181,58 @@ ${domain.summary}
       }
     }
 
-    // Instructions
-    sections.push(`## Your Task\n${ctx.instructions}`);
-
     return {
+      // Role goes to system — highest-priority Claude instruction channel
+      system: ctx.instructions,
+      // All factual data goes to the user message
       prompt: sections.join('\n\n'),
       truncated: truncatedKeys.length > 0,
       truncatedKeys,
     };
   }
+}
+
+/**
+ * Reduce a JSON-serialisable object to fit within `maxChars` by removing
+ * top-level keys, largest-serialised-value first.
+ *
+ * Unlike slicing the JSON string, this always produces valid JSON.
+ * Array-typed top-level keys (e.g. pages_crawled) are trimmed by halving
+ * the array length before removing the key entirely.
+ */
+function trimByKeys(
+  obj: Record<string, unknown>,
+  maxChars: number
+): { obj: Record<string, unknown>; removed: number; removedKeys: string[] } {
+  const result: Record<string, unknown> = { ...obj };
+  const removedKeys: string[] = [];
+
+  // First pass: halve any large arrays (preserves structure, reduces size)
+  for (const [k, v] of Object.entries(result)) {
+    if (Array.isArray(v) && v.length > 5) {
+      const serialised = JSON.stringify(v);
+      if (serialised.length > maxChars / 4) {
+        result[k] = v.slice(0, Math.ceil(v.length / 2));
+      }
+    }
+  }
+
+  // Second pass: remove keys largest-first until the object fits
+  while (JSON.stringify(result).length > maxChars) {
+    // Find the largest key by serialised value size
+    const entries = Object.entries(result);
+    if (entries.length === 0) break;
+
+    let largestKey = entries[0][0];
+    let largestSize = JSON.stringify(entries[0][1]).length;
+    for (const [k, v] of entries.slice(1)) {
+      const size = JSON.stringify(v).length;
+      if (size > largestSize) { largestKey = k; largestSize = size; }
+    }
+
+    delete result[largestKey];
+    removedKeys.push(largestKey);
+  }
+
+  return { obj: result, removed: removedKeys.length, removedKeys };
 }

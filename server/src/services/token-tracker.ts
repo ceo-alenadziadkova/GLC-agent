@@ -40,18 +40,28 @@ export class TokenTracker {
       },
     });
 
-    // Update audit total
-    const { data: audit } = await supabase
-      .from('audits')
-      .select('tokens_used')
-      .eq('id', auditId)
-      .single();
+    // Atomic increment — avoids read-then-write race condition when multiple
+    // phases log concurrently. Uses Postgres RPC so the increment is a single
+    // UPDATE tokens_used = tokens_used + $1 without a separate SELECT.
+    const { error: rpcError } = await supabase.rpc('increment_tokens_used', {
+      audit_id_input: auditId,
+      increment: totalTokens,
+    });
 
-    if (audit) {
-      await supabase
+    if (rpcError) {
+      // Fallback: best-effort read-then-write (acceptable on single-instance deployments)
+      console.warn('[TokenTracker] RPC increment_tokens_used failed, falling back:', rpcError.message);
+      const { data: audit } = await supabase
         .from('audits')
-        .update({ tokens_used: (audit.tokens_used ?? 0) + totalTokens })
-        .eq('id', auditId);
+        .select('tokens_used')
+        .eq('id', auditId)
+        .single();
+      if (audit) {
+        await supabase
+          .from('audits')
+          .update({ tokens_used: (audit.tokens_used ?? 0) + totalTokens })
+          .eq('id', auditId);
+      }
     }
   }
 

@@ -1,17 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import { Globe, Mail, ArrowRight } from 'lucide-react';
+import { Globe, Mail, ArrowRight, Lock } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { logger } from '../lib/logger';
 
+const TEST_EMAIL = 'alenauserfortest@gmail.com';
+
 export function Login() {
   const navigate = useNavigate();
-  const { signInWithEmail, signInWithGoogle, isAuthenticated, authError } = useAuth();
+  const { signInWithEmail, signInWithPassword, signInWithGoogle, isAuthenticated, authError } = useAuth();
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isTestUser = email.trim().toLowerCase() === TEST_EMAIL;
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -20,12 +25,20 @@ export function Login() {
     }
   }, [isAuthenticated, navigate]);
 
-  async function handleEmail(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     logger.info('Login: handleEmail submit', { email });
     if (!email.trim()) return;
     setLoading(true);
     setError(null);
+
+    if (isTestUser && password) {
+      const { error: err } = await signInWithPassword(email.trim(), password);
+      setLoading(false);
+      if (err) setError(err.message);
+      return;
+    }
+
     const { error: err } = await signInWithEmail(email);
     logger.info('Login: signInWithEmail result', { hasError: !!err, errorMessage: err?.message });
     setLoading(false);
@@ -43,6 +56,9 @@ export function Login() {
     console.log('[Login] signInWithGoogle result', err);
     if (err) setError(err.message);
   }
+
+  const submitLabel = isTestUser && password ? 'Sign In' : 'Send Magic Link';
+  const isReady = email.trim() && (!isTestUser || password);
 
   return (
     <div
@@ -154,8 +170,8 @@ export function Login() {
                   <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border-subtle)' }} />
                 </div>
 
-                {/* Email */}
-                <form onSubmit={handleEmail} className="space-y-3">
+                {/* Email / Password */}
+                <form onSubmit={handleSubmit} className="space-y-3">
                   <input
                     type="email"
                     value={email}
@@ -174,29 +190,62 @@ export function Login() {
                     onFocus={e => { e.target.style.borderColor = 'var(--glc-blue)'; e.target.style.boxShadow = 'var(--shadow-blue)'; }}
                     onBlur={e => { e.target.style.borderColor = 'var(--border-default)'; e.target.style.boxShadow = 'none'; }}
                   />
+                  <AnimatePresence>
+                    {isTestUser && (
+                      <motion.div
+                        key="password"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
+                          <input
+                            type="password"
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            placeholder="Password"
+                            autoFocus
+                            className="w-full pl-9 pr-4 py-3 bg-transparent outline-none"
+                            style={{
+                              borderRadius: 'var(--radius-lg)',
+                              border: '1px solid var(--border-default)',
+                              backgroundColor: 'var(--bg-surface)',
+                              color: 'var(--text-primary)',
+                              fontSize: 'var(--text-sm)',
+                              transition: 'border-color var(--ease-fast), box-shadow var(--ease-fast)',
+                            }}
+                            onFocus={e => { e.target.style.borderColor = 'var(--glc-blue)'; e.target.style.boxShadow = 'var(--shadow-blue)'; }}
+                            onBlur={e => { e.target.style.borderColor = 'var(--border-default)'; e.target.style.boxShadow = 'none'; }}
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                   <motion.button
                     type="submit"
-                    disabled={loading || !email.trim()}
+                    disabled={loading || !isReady}
                     whileHover={!loading ? { scale: 1.015 } : {}}
                     whileTap={!loading ? { scale: 0.985 } : {}}
                     className="w-full flex items-center justify-center gap-2 py-3 text-white font-semibold"
                     style={{
                       borderRadius: 'var(--radius-lg)',
-                      background: email.trim() ? 'var(--gradient-accent)' : 'var(--border-default)',
-                      cursor: email.trim() && !loading ? 'pointer' : 'not-allowed',
+                      background: isReady ? 'var(--gradient-accent)' : 'var(--border-default)',
+                      cursor: isReady && !loading ? 'pointer' : 'not-allowed',
                       fontSize: 'var(--text-sm)',
                       border: 'none',
-                      boxShadow: email.trim() ? '0 4px 14px rgba(242,79,29,0.28)' : 'none',
+                      boxShadow: isReady ? '0 4px 14px rgba(242,79,29,0.28)' : 'none',
                     }}
                   >
                     {loading ? (
                       <span className="flex items-center gap-2">
                         <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                        Sending...
+                        {isTestUser && password ? 'Signing in...' : 'Sending...'}
                       </span>
                     ) : (
                       <span className="flex items-center gap-2">
-                        Send Magic Link <ArrowRight className="w-4 h-4" />
+                        {submitLabel} <ArrowRight className="w-4 h-4" />
                       </span>
                     )}
                   </motion.button>
