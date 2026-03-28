@@ -1,12 +1,23 @@
 import { Navigate } from 'react-router';
 import { useAuth } from '../hooks/useAuth';
+import { useProfile } from '../hooks/useProfile';
 import { logger } from '../lib/logger';
+import type { UserRole } from '../data/auditTypes';
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, loading } = useAuth();
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  /** If provided, the route is only accessible by this role. */
+  requiredRole?: UserRole;
+}
+
+export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { role, loading: profileLoading } = useProfile();
+
+  const loading = authLoading || (isAuthenticated && requiredRole != null && profileLoading);
 
   if (loading) {
-    logger.debug('ProtectedRoute: loading auth state');
+    logger.debug('ProtectedRoute: loading auth/profile state');
     return (
       <div
         className="h-screen flex items-center justify-center"
@@ -26,6 +37,13 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated) {
     logger.info('ProtectedRoute: not authenticated, redirecting to /login');
     return <Navigate to="/login" replace />;
+  }
+
+  if (requiredRole != null && role !== requiredRole) {
+    // Role mismatch: redirect to appropriate home
+    logger.info(`ProtectedRoute: role "${role}" does not match required "${requiredRole}"`);
+    const redirect = role === 'client' ? '/portal' : '/portfolio';
+    return <Navigate to={redirect} replace />;
   }
 
   logger.debug('ProtectedRoute: authenticated, render children');

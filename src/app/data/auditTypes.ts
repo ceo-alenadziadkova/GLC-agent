@@ -2,6 +2,32 @@
 
 export type ProductMode = 'free_snapshot' | 'express' | 'full';
 
+export type UserRole = 'consultant' | 'client';
+
+export type AuditRequestStatus =
+  | 'draft'
+  | 'submitted'
+  | 'under_review'
+  | 'approved'
+  | 'rejected'
+  | 'running'
+  | 'delivered';
+
+export interface AuditRequest {
+  id: string;
+  client_id: string;
+  audit_id: string | null;
+  url: string;
+  industry: string | null;
+  product_mode: 'express' | 'full';
+  status: AuditRequestStatus;
+  brief_snapshot: Record<string, unknown>;
+  client_notes: string | null;
+  consultant_note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // Free Snapshot result (public, no auth)
 export interface FreeSnapshotPreview {
   audit_id: string;

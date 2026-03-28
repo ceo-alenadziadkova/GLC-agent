@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
-import { requireAuth, type AuthRequest } from '../middleware/auth.js';
+import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../middleware/auth.js';
 import { createAuditLimiter, generalLimiter } from '../middleware/rate-limit.js';
 import { DOMAIN_KEYS, REVIEW_AFTER_PHASES } from '../types/audit.js';
 
@@ -10,8 +10,10 @@ export const auditsRouter = Router();
 auditsRouter.use(requireAuth);
 auditsRouter.use(generalLimiter);
 
-// ─── POST /api/audits — Create new audit ───────────────────
-auditsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) => {
+const consultantGuard = [attachProfile, requireRole('consultant')] as const;
+
+// ─── POST /api/audits — Create new audit (consultant only) ─
+auditsRouter.post('/', ...consultantGuard, createAuditLimiter, async (req: AuthRequest, res) => {
   try {
     const { company_url, company_name, industry } = req.body;
 
@@ -168,8 +170,8 @@ auditsRouter.get('/:id', async (req: AuthRequest, res) => {
   }
 });
 
-// ─── DELETE /api/audits/:id — Delete audit (CASCADE) ───────
-auditsRouter.delete('/:id', async (req: AuthRequest, res) => {
+// ─── DELETE /api/audits/:id — Delete audit (consultant only) ─
+auditsRouter.delete('/:id', ...consultantGuard, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
 
