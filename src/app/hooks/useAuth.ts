@@ -81,7 +81,6 @@ export function useAuth() {
         logger.info('getSession result', { hasSession: !!session, userId: session?.user.id });
         if (isMounted) {
           if (!session && fromMagic) {
-            // Пришли с Supabase verify, но сессии нет → линк битый/просрочен
             setAuthError('Magic link is invalid or has expired. Please request a new one.');
           } else {
             setAuthError(null);
@@ -125,6 +124,11 @@ export function useAuth() {
     return { error };
   };
 
+  const signInWithPassword = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error };
+  };
+
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -145,6 +149,7 @@ export function useAuth() {
     loading,
     authError,
     signInWithEmail,
+    signInWithPassword,
     signInWithGoogle,
     signOut,
     isAuthenticated: !!user,
