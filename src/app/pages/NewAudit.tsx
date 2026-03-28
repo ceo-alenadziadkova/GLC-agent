@@ -1,298 +1,564 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import { Globe, ArrowRight, MagnifyingGlass, HardDrives, Shield, Cursor, Target, Lightning, MapTrifold } from '@phosphor-icons/react';
+import {
+  Globe, ArrowRight, ArrowLeft, MagnifyingGlass, HardDrives, Shield,
+  Cursor, Target, Lightning, MapTrifold, CheckCircle, Warning,
+  ClipboardText, Rocket,
+} from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { api } from '../data/apiService';
+import {
+  BRIEF_QUESTIONS, BRIEF_SECTIONS, REQUIRED_IDS, countAnswered,
+  type BriefResponses, type BriefQuestion,
+} from '../data/briefQuestions';
 
-const INDUSTRIES = [
-  'Hospitality', 'Real Estate', 'Marine', 'Healthcare',
-  'Food & Beverage', 'Retail', 'Professional Services', 'Other',
+// ── Step indicator ────────────────────────────────────────────────────────────
+
+const STEPS = [
+  { label: 'Basics',  icon: Globe },
+  { label: 'Brief',   icon: ClipboardText },
+  { label: 'Launch',  icon: Rocket },
 ];
+
+function StepIndicator({ current }: { current: number }) {
+  return (
+    <div className="flex items-center gap-1 mb-8 justify-center">
+      {STEPS.map((s, i) => {
+        const done = i < current;
+        const active = i === current;
+        return (
+          <div key={s.label} className="flex items-center gap-1">
+            <div className="flex flex-col items-center gap-1">
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center"
+                style={{
+                  background: done
+                    ? 'rgba(16,185,129,0.15)'
+                    : active
+                      ? 'var(--gradient-brand)'
+                      : 'rgba(255,255,255,0.05)',
+                  border: done
+                    ? '1px solid rgba(16,185,129,0.35)'
+                    : active
+                      ? 'none'
+                      : '1px solid rgba(255,255,255,0.10)',
+                  boxShadow: active ? '0 0 12px rgba(28,189,255,0.30)' : 'none',
+                }}
+              >
+                {done
+                  ? <CheckCircle weight="fill" className="w-4 h-4" style={{ color: '#10B981' }} />
+                  : <s.icon className="w-4 h-4" style={{ color: active ? '#fff' : 'rgba(255,255,255,0.25)' }} />}
+              </div>
+              <span style={{ fontSize: '10px', color: active ? '#fff' : 'rgba(255,255,255,0.30)', letterSpacing: '0.04em' }}>
+                {s.label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div
+                className="w-10 h-px mb-4"
+                style={{ background: i < current ? 'rgba(16,185,129,0.40)' : 'rgba(255,255,255,0.08)' }}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Brief question renderer ───────────────────────────────────────────────────
+
+const PRIORITY_BADGE: Record<string, { label: string; color: string }> = {
+  required:    { label: '🔴 Required',     color: '#EF4444' },
+  recommended: { label: '🟡 Recommended',  color: '#F59E0B' },
+  optional:    { label: '🟢 Optional',     color: '#10B981' },
+};
+
+function BriefField({
+  q,
+  value,
+  onChange,
+}: {
+  q: BriefQuestion;
+  value: string | string[] | number | null | undefined;
+  onChange: (v: string | string[] | number | null) => void;
+}) {
+  const badge = PRIORITY_BADGE[q.priority];
+  const strVal = (typeof value === 'number' ? String(value) : (value as string) ?? '');
+  const arrVal = (Array.isArray(value) ? value : []) as string[];
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-start justify-between gap-2">
+        <label className="block text-sm leading-snug" style={{ color: 'var(--text-primary)', flex: 1 }}>
+          {q.question}
+        </label>
+        <span
+          className="text-xs flex-shrink-0 mt-0.5"
+          style={{ color: badge.color, opacity: 0.75, fontSize: '10px' }}
+        >
+          {badge.label}
+        </span>
+      </div>
+      {q.hint && (
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: -2 }}>{q.hint}</p>
+      )}
+
+      {q.type === 'free_text' && (
+        <textarea
+          rows={2}
+          value={strVal}
+          onChange={e => onChange(e.target.value || null)}
+          placeholder="Your answer..."
+          className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
+          style={{
+            backgroundColor: 'var(--bg-inset)',
+            border: '1px solid var(--border-subtle)',
+            color: 'var(--text-primary)',
+          }}
+          onFocus={e => { (e.target as HTMLElement).style.borderColor = 'var(--glc-blue)'; }}
+          onBlur={e => { (e.target as HTMLElement).style.borderColor = 'var(--border-subtle)'; }}
+        />
+      )}
+
+      {q.type === 'number' && (
+        <input
+          type="number"
+          value={typeof value === 'number' ? value : ''}
+          onChange={e => onChange(e.target.value ? Number(e.target.value) : null)}
+          className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+          style={{
+            backgroundColor: 'var(--bg-inset)',
+            border: '1px solid var(--border-subtle)',
+            color: 'var(--text-primary)',
+          }}
+          onFocus={e => { (e.target as HTMLElement).style.borderColor = 'var(--glc-blue)'; }}
+          onBlur={e => { (e.target as HTMLElement).style.borderColor = 'var(--border-subtle)'; }}
+        />
+      )}
+
+      {q.type === 'single_choice' && q.options && (
+        <div className="flex flex-wrap gap-1.5">
+          {q.options.map(opt => {
+            const selected = strVal === opt;
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => onChange(selected ? null : opt)}
+                className="px-2.5 py-1 rounded-lg text-xs transition-all"
+                style={{
+                  backgroundColor: selected ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)',
+                  border: selected ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)',
+                  color: selected ? '#fff' : 'var(--text-secondary)',
+                  fontWeight: selected ? 500 : 400,
+                }}
+              >
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {q.type === 'multi_choice' && q.options && (
+        <div className="flex flex-wrap gap-1.5">
+          {q.options.map(opt => {
+            const selected = arrVal.includes(opt);
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => {
+                  const next = selected ? arrVal.filter(v => v !== opt) : [...arrVal, opt];
+                  onChange(next.length ? next : null);
+                }}
+                className="px-2.5 py-1 rounded-lg text-xs transition-all"
+                style={{
+                  backgroundColor: selected ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)',
+                  border: selected ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)',
+                  color: selected ? '#fff' : 'var(--text-secondary)',
+                  fontWeight: selected ? 500 : 400,
+                }}
+              >
+                {selected ? '✓ ' : ''}{opt}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Domain pills (Step 1) ─────────────────────────────────────────────────────
 
 const DOMAIN_PILLS = [
   { icon: MagnifyingGlass, label: 'Recon',      color: 'var(--glc-blue)'      },
   { icon: HardDrives,      label: 'Tech',        color: '#8B5CF6'              },
-  { icon: Shield,          label: 'Security',    color: 'var(--score-1)'      },
-  { icon: Globe,           label: 'SEO',         color: 'var(--glc-green)'    },
-  { icon: Cursor,          label: 'UX',          color: 'var(--score-3)'      },
-  { icon: Target,          label: 'Marketing',   color: 'var(--glc-orange)'   },
-  { icon: Lightning,       label: 'Automation',  color: 'var(--glc-blue-dark)'},
+  { icon: Shield,          label: 'Security',    color: 'var(--score-1)'       },
+  { icon: Globe,           label: 'SEO',         color: 'var(--glc-green)'     },
+  { icon: Cursor,          label: 'UX',          color: 'var(--score-3)'       },
+  { icon: Target,          label: 'Marketing',   color: 'var(--glc-orange)'    },
+  { icon: Lightning,       label: 'Automation',  color: 'var(--glc-blue-dark)' },
   { icon: MapTrifold,      label: 'Strategy',    color: 'var(--glc-green-dark)'},
 ];
 
-export function NewAudit() {
-  const navigate   = useNavigate();
-  const [url,      setUrl]      = useState('');
-  const [name,     setName]     = useState('');
-  const [industry, setIndustry] = useState('');
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
+const INDUSTRIES = [
+  'Hospitality', 'Real Estate', 'Marine', 'Healthcare',
+  'E-commerce', 'SaaS / Software', 'Food & Beverage', 'Professional Services',
+  'Retail', 'Finance', 'Education', 'Manufacturing', 'Other',
+];
 
+// ── Main component ────────────────────────────────────────────────────────────
+
+export function NewAudit() {
+  const navigate = useNavigate();
+
+  // Step 1 fields
+  const [url,         setUrl]         = useState('');
+  const [name,        setName]        = useState('');
+  const [industry,    setIndustry]    = useState('');
+  const [productMode, setProductMode] = useState<'full' | 'express'>('full');
+
+  // Step 2 fields
+  const [responses, setResponses] = useState<BriefResponses>({});
+
+  // UI state
+  const [step,    setStep]    = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
+
+  // ── Validation ──────────────────────────────────────────
   function isValidUrl(raw: string): boolean {
     const trimmed = raw.trim();
     if (!trimmed) return false;
     try {
       const prefixed = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
-      const parsed = new URL(prefixed);
-      return parsed.hostname.includes('.');
-    } catch {
-      return false;
-    }
+      return new URL(prefixed).hostname.includes('.');
+    } catch { return false; }
   }
-  const canSubmit = isValidUrl(url);
 
-  async function handleSubmit(e: React.FormEvent) {
+  const step1Valid = isValidUrl(url);
+
+  const answeredRequired = countAnswered(responses, REQUIRED_IDS);
+  const step2Complete    = answeredRequired === REQUIRED_IDS.length;
+
+  // ── Handlers ───────────────────────────────────────────
+  function handleResponseChange(id: string, value: string | string[] | number | null) {
+    setResponses(prev => ({ ...prev, [id]: value }));
+  }
+
+  async function handleLaunch(e: React.FormEvent) {
     e.preventDefault();
-    if (!canSubmit) return;
-    setLoading(true);
     setError(null);
+    setLoading(true);
     try {
-      const result = await api.createAudit(url, name || undefined, industry || undefined);
-      navigate(`/pipeline/${result.id}`);
+      // 1. Create audit
+      const audit = await api.createAudit(url, name || undefined, industry || undefined);
+
+      // 2. Save brief (fire-and-forget on error — brief is best-effort, pipeline gate will catch)
+      try {
+        await api.saveBrief(audit.id, responses);
+      } catch (briefErr) {
+        console.warn('[NewAudit] Brief save failed (non-fatal):', briefErr);
+      }
+
+      // 3. Start pipeline
+      await api.startPipeline(audit.id);
+
+      navigate(`/pipeline/${audit.id}`);
     } catch (err) {
       setError((err as Error).message);
       setLoading(false);
     }
   }
 
+  // ── Render ─────────────────────────────────────────────
   return (
     <AppShell title="New Audit" subtitle="Start a comprehensive 8-domain business analysis">
       <div
         className="min-h-full flex flex-col items-center justify-center py-12 px-6 relative"
         style={{ backgroundColor: 'var(--bg-canvas)' }}
       >
-        {/* Mesh glow */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{ background: 'var(--mesh-brand)', opacity: 0.55 }}
-        />
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'var(--mesh-brand)', opacity: 0.55 }} />
 
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
           className="relative w-full"
-          style={{ maxWidth: 460 }}
+          style={{ maxWidth: step === 1 ? 640 : 460 }}
         >
-          {/* Icon + title */}
-          <div className="text-center mb-8">
-            <motion.div
-              initial={{ scale: 0.75, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.08, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-              className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
-              style={{
-                background: 'var(--gradient-brand)',
-                boxShadow: '0 8px 28px rgba(28,189,255,0.32), 0 2px 8px rgba(0,0,0,0.14)',
-              }}
-            >
-              <Globe className="w-7 h-7 text-white" />
-            </motion.div>
+          <StepIndicator current={step} />
 
-            <SectionLabel accent>GLStech Audit Platform</SectionLabel>
+          <AnimatePresence mode="wait">
 
-            <h1
-              className="mt-2"
-              style={{
-                fontSize: 'var(--text-3xl)',
-                color: 'var(--text-primary)',
-                fontFamily: 'var(--font-display)',
-                fontWeight: 700,
-                letterSpacing: 'var(--tracking-tight)',
-                lineHeight: 1.15,
-              }}
-            >
-              Start a New Audit
-            </h1>
-            <p className="mt-2.5" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Enter the company website and we'll analyze{' '}
-              <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>8 business domains</strong>{' '}
-              automatically.
-            </p>
-          </div>
-
-          {/* Domain pills */}
-          <motion.div
-            className="flex flex-wrap gap-1.5 justify-center mb-7"
-            initial="hidden"
-            animate="visible"
-            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.045 } } }}
-          >
-            {DOMAIN_PILLS.map(({ icon: I, label, color }) => (
-              <motion.span
-                key={label}
-                variants={{
-                  hidden:  { opacity: 0, scale: 0.85, y: 4 },
-                  visible: { opacity: 1, scale: 1,    y: 0, transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] } },
-                }}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-medium"
-                style={{
-                  backgroundColor: 'var(--bg-surface)',
-                  border: '1px solid var(--border-subtle)',
-                  color: 'var(--text-secondary)',
-                  fontSize: '11px',
-                  boxShadow: 'var(--shadow-xs)',
-                }}
+            {/* ── Step 0: Basics ───────────────────────── */}
+            {step === 0 && (
+              <motion.div
+                key="step0"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.28 }}
               >
-                <I className="w-3 h-3 flex-shrink-0" style={{ color }} />
-                {label}
-              </motion.span>
-            ))}
-          </motion.div>
-
-          {/* Card form */}
-          <motion.form
-            onSubmit={handleSubmit}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.18, duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
-            className="glc-card p-6 space-y-5"
-            style={{
-              borderRadius: 'var(--radius-2xl)',
-              boxShadow: 'var(--shadow-lg)',
-            }}
-          >
-            {/* URL */}
-            <div className="space-y-1.5">
-              <label
-                htmlFor="url"
-                className="block font-medium"
-                style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}
-              >
-                Company Website <span style={{ color: 'var(--glc-orange)' }}>*</span>
-              </label>
-              <div
-                className="flex items-center overflow-hidden"
-                style={{
-                  borderRadius: 'var(--radius-lg)',
-                  border: url ? '1px solid var(--glc-blue)' : '1px solid var(--border-default)',
-                  boxShadow: url ? 'var(--shadow-blue)' : 'none',
-                  backgroundColor: 'var(--bg-surface)',
-                  transition: 'border-color var(--ease-fast), box-shadow var(--ease-fast)',
-                }}
-              >
-                <div
-                  className="flex items-center justify-center px-3 self-stretch flex-shrink-0"
-                  style={{ borderRight: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-inset)', minWidth: 44 }}
-                >
-                  <Globe className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
+                {/* Header */}
+                <div className="text-center mb-8">
+                  <motion.div
+                    initial={{ scale: 0.75, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.08, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
+                    style={{ background: 'var(--gradient-brand)', boxShadow: '0 8px 28px rgba(28,189,255,0.32)' }}
+                  >
+                    <Globe className="w-7 h-7 text-white" />
+                  </motion.div>
+                  <SectionLabel accent>GLC Audit Platform</SectionLabel>
+                  <h1 className="mt-2" style={{ fontSize: 'var(--text-3xl)', color: 'var(--text-primary)', fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: 'var(--tracking-tight)' }}>
+                    Start a New Audit
+                  </h1>
+                  <p className="mt-2.5" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                    Enter the company website and we'll analyze{' '}
+                    <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>8 business domains</strong> automatically.
+                  </p>
                 </div>
-                <input
-                  id="url"
-                  type="url"
-                  value={url}
-                  onChange={e => setUrl(e.target.value)}
-                  placeholder="https://company.com"
-                  required
-                  autoFocus
-                  className="flex-1 px-4 py-3 bg-transparent outline-none"
-                  style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)' }}
-                />
-              </div>
-            </div>
 
-            {/* Company name */}
-            <div className="space-y-1.5">
-              <label htmlFor="cname" className="flex items-center gap-2 font-medium" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
-                Company Name
-                <span className="font-normal" style={{ color: 'var(--text-quaternary)', fontSize: '11px' }}>optional</span>
-              </label>
-              <input
-                id="cname"
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="e.g. Hotel XYZ"
-                className="w-full px-4 py-3 bg-transparent outline-none"
-                style={{
-                  borderRadius: 'var(--radius-lg)',
-                  border: '1px solid var(--border-default)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: 'var(--text-sm)',
-                  transition: 'border-color var(--ease-fast), box-shadow var(--ease-fast)',
-                }}
-                onFocus={e => { e.target.style.borderColor = 'var(--glc-blue)'; e.target.style.boxShadow = 'var(--shadow-blue)'; }}
-                onBlur={e =>  { e.target.style.borderColor = 'var(--border-default)'; e.target.style.boxShadow = 'none'; }}
-              />
-            </div>
+                {/* Domain pills */}
+                <motion.div className="flex flex-wrap gap-1.5 justify-center mb-7" initial="hidden" animate="visible" variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.045 } } }}>
+                  {DOMAIN_PILLS.map(({ icon: I, label, color }) => (
+                    <motion.span key={label} variants={{ hidden: { opacity: 0, scale: 0.85 }, visible: { opacity: 1, scale: 1, transition: { duration: 0.3 } } }}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-medium"
+                      style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', fontSize: '11px' }}
+                    >
+                      <I className="w-3 h-3" style={{ color }} />{label}
+                    </motion.span>
+                  ))}
+                </motion.div>
 
-            {/* Industry */}
-            <div className="space-y-1.5">
-              <label htmlFor="industry" className="flex items-center gap-2 font-medium" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
-                Industry
-                <span className="font-normal" style={{ color: 'var(--text-quaternary)', fontSize: '11px' }}>tailors recommendations</span>
-              </label>
-              <select
-                id="industry"
-                value={industry}
-                onChange={e => setIndustry(e.target.value)}
-                className="w-full px-4 py-3 outline-none appearance-none"
-                style={{
-                  borderRadius: 'var(--radius-lg)',
-                  border: '1px solid var(--border-default)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: industry ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                  fontSize: 'var(--text-sm)',
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238496B0' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
-                  backgroundRepeat: 'no-repeat',
-                  backgroundPosition: 'right 12px center',
-                  transition: 'border-color var(--ease-fast), box-shadow var(--ease-fast)',
-                }}
-                onFocus={e => { e.target.style.borderColor = 'var(--glc-blue)'; e.target.style.boxShadow = 'var(--shadow-blue)'; }}
-                onBlur={e =>  { e.target.style.borderColor = 'var(--border-default)'; e.target.style.boxShadow = 'none'; }}
-              >
-                <option value="">Select industry...</option>
-                {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
-              </select>
-            </div>
+                {/* Form */}
+                <form onSubmit={e => { e.preventDefault(); if (step1Valid) setStep(1); }} className="glc-card p-6 space-y-5" style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}>
+                  {/* URL */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="url" className="block font-medium" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
+                      Company Website <span style={{ color: 'var(--glc-orange)' }}>*</span>
+                    </label>
+                    <div className="flex items-center overflow-hidden" style={{ borderRadius: 'var(--radius-lg)', border: url ? '1px solid var(--glc-blue)' : '1px solid var(--border-default)', boxShadow: url ? 'var(--shadow-blue)' : 'none', backgroundColor: 'var(--bg-surface)', transition: 'border-color var(--ease-fast)' }}>
+                      <div className="flex items-center justify-center px-3 self-stretch flex-shrink-0" style={{ borderRight: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-inset)', minWidth: 44 }}>
+                        <Globe className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
+                      </div>
+                      <input id="url" type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://company.com" required autoFocus className="flex-1 px-4 py-3 bg-transparent outline-none" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }} />
+                    </div>
+                  </div>
 
-            {/* Gradient divider */}
-            <div className="glc-divider" />
+                  {/* Name */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="cname" className="flex items-center gap-2 font-medium" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
+                      Company Name <span className="font-normal" style={{ color: 'var(--text-quaternary)', fontSize: '11px' }}>optional</span>
+                    </label>
+                    <input id="cname" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Hotel XYZ"
+                      className="w-full px-4 py-3 bg-transparent outline-none"
+                      style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-default)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}
+                      onFocus={e => { e.target.style.borderColor = 'var(--glc-blue)'; }} onBlur={e => { e.target.style.borderColor = 'var(--border-default)'; }}
+                    />
+                  </div>
 
-            {/* CTA */}
-            <motion.button
-              type="submit"
-              disabled={!canSubmit || loading}
-              whileHover={canSubmit && !loading ? { scale: 1.015, boxShadow: '0 6px 20px rgba(242,79,29,0.36)' } : {}}
-              whileTap={canSubmit  && !loading ? { scale: 0.985 } : {}}
-              className="w-full flex items-center justify-center gap-2 py-3 text-white font-semibold"
-              style={{
-                borderRadius: 'var(--radius-lg)',
-                background: canSubmit ? 'var(--gradient-accent)' : 'var(--border-default)',
-                cursor: canSubmit && !loading ? 'pointer' : 'not-allowed',
-                fontSize: 'var(--text-sm)',
-                letterSpacing: '-0.01em',
-                border: 'none',
-                boxShadow: canSubmit ? '0 4px 14px rgba(242,79,29,0.28)' : 'none',
-                transition: 'opacity var(--ease-fast), background var(--ease-fast)',
-              }}
-            >
-              <AnimatePresence mode="wait">
-                {loading ? (
-                  <motion.span key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                    Starting pipeline...
-                  </motion.span>
-                ) : (
-                  <motion.span key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
-                    Start Audit <ArrowRight className="w-4 h-4" />
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </motion.button>
+                  {/* Industry */}
+                  <div className="space-y-1.5">
+                    <label htmlFor="industry" className="flex items-center gap-2 font-medium" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
+                      Industry <span className="font-normal" style={{ color: 'var(--text-quaternary)', fontSize: '11px' }}>tailors recommendations</span>
+                    </label>
+                    <select id="industry" value={industry} onChange={e => setIndustry(e.target.value)}
+                      className="w-full px-4 py-3 outline-none appearance-none"
+                      style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-default)', backgroundColor: 'var(--bg-surface)', color: industry ? 'var(--text-primary)' : 'var(--text-tertiary)', fontSize: 'var(--text-sm)' }}
+                      onFocus={e => { e.target.style.borderColor = 'var(--glc-blue)'; }} onBlur={e => { e.target.style.borderColor = 'var(--border-default)'; }}
+                    >
+                      <option value="">Select industry...</option>
+                      {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+                    </select>
+                  </div>
 
-            {error && (
-              <p className="text-center text-sm" style={{ color: 'var(--score-1)' }}>{error}</p>
+                  {/* Product mode */}
+                  <div className="space-y-2">
+                    <label className="block font-medium" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>Audit Type</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(['full', 'express'] as const).map(mode => {
+                        const sel = productMode === mode;
+                        return (
+                          <button key={mode} type="button" onClick={() => setProductMode(mode)}
+                            className="rounded-lg px-3 py-2.5 text-left text-xs transition-all"
+                            style={{ backgroundColor: sel ? 'rgba(28,189,255,0.08)' : 'var(--bg-inset)', border: sel ? '1px solid rgba(28,189,255,0.30)' : '1px solid var(--border-subtle)' }}
+                          >
+                            <div className="font-semibold" style={{ color: sel ? '#fff' : 'var(--text-primary)' }}>{mode === 'full' ? 'Full Audit' : 'Express'}</div>
+                            <div style={{ color: 'var(--text-tertiary)', marginTop: 2 }}>{mode === 'full' ? 'All 6 domains + strategy' : '4 key domains, faster'}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="glc-divider" />
+
+                  <motion.button type="submit" disabled={!step1Valid}
+                    whileHover={step1Valid ? { scale: 1.015 } : {}} whileTap={step1Valid ? { scale: 0.985 } : {}}
+                    className="w-full flex items-center justify-center gap-2 py-3 font-semibold"
+                    style={{ borderRadius: 'var(--radius-lg)', background: step1Valid ? 'var(--gradient-brand)' : 'var(--border-default)', color: '#fff', cursor: step1Valid ? 'pointer' : 'not-allowed', fontSize: 'var(--text-sm)', border: 'none', boxShadow: step1Valid ? '0 4px 14px rgba(28,189,255,0.28)' : 'none' }}
+                  >
+                    Continue to Brief <ArrowRight className="w-4 h-4" />
+                  </motion.button>
+                </form>
+              </motion.div>
             )}
 
-            <p className="text-center" style={{ fontSize: '11px', color: 'var(--text-quaternary)', lineHeight: 1.5 }}>
-              We collect only publicly available information.
-              <br />No credentials or account access required.
-            </p>
-          </motion.form>
+            {/* ── Step 1: Brief ─────────────────────────── */}
+            {step === 1 && (
+              <motion.div
+                key="step1"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.28 }}
+                className="glc-card p-6"
+                style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between mb-1">
+                  <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-primary)' }}>Intake Brief</h2>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+                    {answeredRequired} / {REQUIRED_IDS.length} required
+                  </span>
+                </div>
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)', marginBottom: 20 }}>
+                  These questions feed directly into the AI agents. <strong style={{ color: 'var(--text-secondary)' }}>🔴 Required</strong> questions must be answered to start the pipeline.
+                </p>
+
+                {/* Progress bar */}
+                <div className="rounded-full overflow-hidden mb-6" style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.06)' }}>
+                  <div className="h-full rounded-full transition-all" style={{ width: `${(answeredRequired / REQUIRED_IDS.length) * 100}%`, background: 'var(--gradient-brand)' }} />
+                </div>
+
+                {/* Questions grouped by section */}
+                <div className="space-y-8 max-h-[55vh] overflow-y-auto pr-1">
+                  {BRIEF_SECTIONS.map(section => {
+                    const sectionQs = BRIEF_QUESTIONS.filter(q => q.section === section);
+                    return (
+                      <div key={section}>
+                        <div className="px-2 py-1 mb-3 rounded" style={{ backgroundColor: 'rgba(28,189,255,0.05)', borderLeft: '2px solid rgba(28,189,255,0.25)' }}>
+                          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(28,189,255,0.7)', textTransform: 'uppercase' }}>
+                            {section}
+                          </span>
+                        </div>
+                        <div className="space-y-5">
+                          {sectionQs.map(q => (
+                            <BriefField
+                              key={q.id}
+                              q={q}
+                              value={responses[q.id]}
+                              onChange={v => handleResponseChange(q.id, v)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="glc-divider mt-5" />
+
+                {/* Navigation */}
+                <div className="flex items-center gap-3 mt-4">
+                  <button type="button" onClick={() => setStep(0)}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm"
+                    style={{ color: 'var(--text-tertiary)', border: '1px solid var(--border-subtle)', backgroundColor: 'transparent' }}
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" /> Back
+                  </button>
+                  <button type="button" onClick={() => setStep(2)} disabled={!step2Complete}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all"
+                    style={{ background: step2Complete ? 'var(--gradient-brand)' : 'rgba(255,255,255,0.06)', color: step2Complete ? '#fff' : 'rgba(255,255,255,0.25)', cursor: step2Complete ? 'pointer' : 'not-allowed', border: 'none', boxShadow: step2Complete ? '0 4px 14px rgba(28,189,255,0.25)' : 'none' }}
+                  >
+                    {step2Complete
+                      ? <><CheckCircle className="w-4 h-4" /> Review & Launch</>
+                      : <><Warning className="w-4 h-4" /> Fill {REQUIRED_IDS.length - answeredRequired} more required</>}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── Step 2: Confirm ───────────────────────── */}
+            {step === 2 && (
+              <motion.form
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.28 }}
+                onSubmit={handleLaunch}
+                className="glc-card p-6 space-y-5"
+                style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}
+              >
+                <div className="text-center mb-2">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                    style={{ background: 'var(--gradient-brand)', boxShadow: '0 6px 20px rgba(28,189,255,0.30)' }}>
+                    <Rocket className="w-6 h-6 text-white" />
+                  </div>
+                  <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--text-primary)' }}>Ready to Launch</h2>
+                  <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)', marginTop: 6 }}>
+                    Review the details below and start the pipeline.
+                  </p>
+                </div>
+
+                {/* Summary */}
+                <div className="space-y-2 rounded-xl p-4" style={{ backgroundColor: 'var(--bg-inset)', border: '1px solid var(--border-subtle)' }}>
+                  {[
+                    ['Website', url],
+                    name ? ['Company', name] : null,
+                    industry ? ['Industry', industry] : null,
+                    ['Audit type', productMode === 'full' ? 'Full Audit (6 domains + strategy)' : 'Express (4 domains)'],
+                    ['Brief', `${answeredRequired}/${REQUIRED_IDS.length} required answered`],
+                  ].filter(Boolean).map(([label, value]) => (
+                    <div key={label} className="flex items-start gap-3">
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', minWidth: 90, paddingTop: 1 }}>{label}</span>
+                      <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', wordBreak: 'break-word' }}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {error && (
+                  <div className="flex items-center gap-2.5 px-4 py-3 rounded-lg text-sm"
+                    style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)', color: '#EF4444' }}>
+                    <Warning className="w-4 h-4 flex-shrink-0" />{error}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={() => setStep(1)}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm"
+                    style={{ color: 'var(--text-tertiary)', border: '1px solid var(--border-subtle)', backgroundColor: 'transparent' }}
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" /> Back
+                  </button>
+                  <motion.button type="submit" disabled={loading}
+                    whileHover={!loading ? { scale: 1.015 } : {}} whileTap={!loading ? { scale: 0.985 } : {}}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold"
+                    style={{ background: 'var(--gradient-accent)', color: '#fff', cursor: loading ? 'not-allowed' : 'pointer', border: 'none', boxShadow: '0 4px 14px rgba(242,79,29,0.30)' }}
+                  >
+                    <AnimatePresence mode="wait">
+                      {loading
+                        ? <motion.span key="l" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
+                            <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />Starting...
+                          </motion.span>
+                        : <motion.span key="i" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
+                            <Lightning className="w-4 h-4" /> Launch Audit
+                          </motion.span>}
+                    </AnimatePresence>
+                  </motion.button>
+                </div>
+              </motion.form>
+            )}
+          </AnimatePresence>
         </motion.div>
       </div>
     </AppShell>

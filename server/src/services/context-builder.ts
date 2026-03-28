@@ -1,6 +1,7 @@
 import { supabase } from './supabase.js';
 import type { DomainKey, ReconData } from '../types/audit.js';
 import { getDomainWeight } from '../config/industry-weights.js';
+import { getQuestionsForDomain } from '../schemas/intake-brief.js';
 
 export interface AgentContext {
   company_url: string;
@@ -17,6 +18,8 @@ export interface AgentContext {
   }>;
   review_notes: Array<{ phase: number; consultant_notes: string | null; interview_notes: string | null }>;
   domain_weight: number;
+  /** Answered brief responses relevant to this domain (empty object when no brief) */
+  brief_responses: Record<string, string | string[] | number | null>;
   instructions: string;
 }
 
@@ -69,6 +72,23 @@ export class ContextBuilder {
       .eq('audit_id', auditId)
       .eq('status', 'approved');
 
+    // Fetch intake brief — get only questions relevant to this domain
+    const { data: brief } = await supabase
+      .from('intake_brief')
+      .select('responses')
+      .eq('audit_id', auditId)
+      .single();
+
+    const allResponses = (brief?.responses as Record<string, unknown>) ?? {};
+    const domainQuestions = getQuestionsForDomain(domainKey);
+    const briefResponses: Record<string, string | string[] | number | null> = {};
+    for (const q of domainQuestions) {
+      const val = allResponses[q.id];
+      if (val !== undefined) {
+        briefResponses[q.id] = val as string | string[] | number | null;
+      }
+    }
+
     const industry = audit?.industry ?? recon?.industry ?? null;
 
     return {
@@ -92,6 +112,7 @@ export class ContextBuilder {
       domain_weight: typeof domainKey === 'string' && domainKey !== 'recon' && domainKey !== 'strategy'
         ? getDomainWeight(industry, domainKey)
         : 1,
+      brief_responses: briefResponses,
       instructions,
     };
   }
@@ -114,6 +135,20 @@ export class ContextBuilder {
 - **Name:** ${ctx.company_name ?? 'Unknown'}
 - **Industry:** ${ctx.industry ?? 'Not determined'}
 - **Domain weight for this industry:** ${ctx.domain_weight}x`);
+
+    // Intake brief — domain-relevant answers (shown before raw data for prominence)
+    if (Object.keys(ctx.brief_responses).length > 0) {
+      const briefLines = Object.entries(ctx.brief_responses)
+        .filter(([, v]) => v !== null && v !== '')
+        .map(([id, v]) => {
+          const q = id.replace(/_/g, ' ');
+          const answer = Array.isArray(v) ? v.join(', ') : String(v);
+          return `- **${q}:** ${answer}`;
+        });
+      if (briefLines.length > 0) {
+        sections.push(`## Client Brief (Pre-Audit Intake)\n${briefLines.join('\n')}`);
+      }
+    }
 
     // Recon summary
     if (ctx.recon && ctx.recon.status === 'completed') {

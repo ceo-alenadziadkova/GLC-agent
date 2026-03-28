@@ -104,6 +104,33 @@ export const api = {
     );
   },
 
+  // Intake Brief
+  async getBrief(auditId: string) {
+    return apiFetch<{
+      brief: import('../data/auditTypes').IntakeBrief | null;
+      questions: import('../data/briefQuestions').BriefQuestion[];
+      validation: {
+        passed: boolean;
+        sla_met: boolean;
+        answered_required: number;
+        total_required: number;
+        answered_recommended: number;
+        total_recommended: number;
+        missing_required: Array<{ id: string; question: string }>;
+      };
+    }>(`/api/audits/${auditId}/brief`);
+  },
+
+  async saveBrief(auditId: string, responses: Record<string, unknown>) {
+    return apiFetch<{
+      brief: import('../data/auditTypes').IntakeBrief;
+      validation: { passed: boolean; sla_met: boolean; answered_required: number; total_required: number };
+    }>(`/api/audits/${auditId}/brief`, {
+      method: 'PUT',
+      body: JSON.stringify({ responses }),
+    });
+  },
+
   // Profile
   async getProfile() {
     return apiFetch<{ id: string; role: string; full_name: string | null; created_at: string }>('/api/profile');

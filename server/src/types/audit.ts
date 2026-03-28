@@ -232,6 +232,34 @@ export interface PipelineEvent {
   created_at: string;
 }
 
+// ─── Intake Brief ──────────────────────────────────────────
+
+export type BriefPriority = 'required' | 'recommended' | 'optional';
+
+export interface BriefQuestion {
+  id: string;
+  priority: BriefPriority;
+  /** Which agents this question feeds context to */
+  domains: Array<DomainKey | 'all'>;
+  question: string;
+  hint?: string;
+  /** free_text | single_choice | multi_choice | number */
+  type: 'free_text' | 'single_choice' | 'multi_choice' | 'number';
+  options?: string[];
+}
+
+export interface IntakeBrief {
+  id: string;
+  audit_id: string;
+  responses: Record<string, string | string[] | number | null>;
+  status: 'draft' | 'submitted';
+  sla_met: boolean;
+  answered_required: number;
+  answered_recommended: number;
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Full Audit State (for API responses) ──────────────────
 export interface AuditState {
   meta: AuditMeta;
@@ -240,4 +268,5 @@ export interface AuditState {
   strategy: StrategyRoadmap | null;
   reviews: ReviewPoint[];
   events: PipelineEvent[];
+  brief: IntakeBrief | null;
 }

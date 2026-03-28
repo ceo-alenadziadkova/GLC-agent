@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router';
 import {
   CheckCircle, Clock, XCircle, Spinner, Warning,
-  ArrowLeft, Pulse, FileText, Globe, ChatCircle,
+  ArrowLeft, Pulse, FileText, Globe, ChatCircle, ClipboardText,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { api } from '../data/apiService';
 import type { AuditRequest, AuditRequestStatus } from '../data/auditTypes';
+import {
+  BRIEF_QUESTIONS, REQUIRED_IDS, countAnswered,
+  type BriefResponses, type BriefQuestion,
+} from '../data/briefQuestions';
 
 // ── Status step timeline ──────────────────────────────────────────────────────
 
@@ -111,6 +115,150 @@ function StepTimeline({ status }: { status: AuditRequestStatus }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Inline brief form ────────────────────────────────────────────────────────
+
+function ClientBriefSection({ auditId }: { auditId: string }) {
+  const [responses, setResponses] = useState<BriefResponses>({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [briefError, setBriefError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getBrief(auditId)
+      .then(data => {
+        if (data.brief?.responses) {
+          setResponses(data.brief.responses as BriefResponses);
+        }
+      })
+      .catch(() => {/* Brief may not exist yet — that's OK */})
+      .finally(() => setLoading(false));
+  }, [auditId]);
+
+  const answeredRequired = countAnswered(responses, REQUIRED_IDS);
+
+  async function handleSave() {
+    setSaving(true);
+    setBriefError(null);
+    setSaved(false);
+    try {
+      await api.saveBrief(auditId, responses as Record<string, unknown>);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      setBriefError((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return null;
+
+  const requiredQs = BRIEF_QUESTIONS.filter(q => q.priority === 'required');
+
+  return (
+    <div className="rounded-xl" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
+      {/* Header */}
+      <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+        <div className="flex items-center gap-2.5">
+          <ClipboardText className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
+          <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Pre-Audit Brief</h3>
+        </div>
+        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+          {answeredRequired} / {REQUIRED_IDS.length} required answered
+        </span>
+      </div>
+
+      <div className="px-5 py-4 space-y-4">
+        {/* Progress */}
+        <div className="rounded-full overflow-hidden" style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.06)' }}>
+          <div className="h-full rounded-full" style={{ width: `${(answeredRequired / REQUIRED_IDS.length) * 100}%`, background: 'var(--gradient-brand)', transition: 'width 0.3s' }} />
+        </div>
+
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+          These answers help the consultant tailor the audit. Fill required 🔴 questions before the audit starts.
+        </p>
+
+        {/* Required questions only in client view */}
+        <div className="space-y-4">
+          {requiredQs.map((q: BriefQuestion) => {
+            const value = responses[q.id];
+            const strVal = typeof value === 'string' ? value : '';
+            const arrVal = Array.isArray(value) ? value : [];
+
+            return (
+              <div key={q.id} className="space-y-1.5">
+                <label className="block text-sm" style={{ color: 'var(--text-primary)' }}>
+                  🔴 {q.question}
+                </label>
+                {q.hint && <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>{q.hint}</p>}
+
+                {q.type === 'free_text' && (
+                  <textarea rows={2} value={strVal} onChange={e => setResponses(prev => ({ ...prev, [q.id]: e.target.value || null }))}
+                    placeholder="Your answer..." className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
+                    style={{ backgroundColor: 'var(--bg-inset)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+                    onFocus={e => { (e.target as HTMLElement).style.borderColor = 'var(--glc-blue)'; }}
+                    onBlur={e => { (e.target as HTMLElement).style.borderColor = 'var(--border-subtle)'; }}
+                  />
+                )}
+
+                {(q.type === 'single_choice') && q.options && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {q.options.map(opt => {
+                      const sel = strVal === opt;
+                      return (
+                        <button key={opt} type="button" onClick={() => setResponses(prev => ({ ...prev, [q.id]: sel ? null : opt }))}
+                          className="px-2.5 py-1 rounded-lg text-xs"
+                          style={{ backgroundColor: sel ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)', border: sel ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)', color: sel ? '#fff' : 'var(--text-secondary)' }}
+                        >{opt}</button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {q.type === 'multi_choice' && q.options && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {q.options.map(opt => {
+                      const sel = arrVal.includes(opt);
+                      return (
+                        <button key={opt} type="button"
+                          onClick={() => {
+                            const next = sel ? arrVal.filter(v => v !== opt) : [...arrVal, opt];
+                            setResponses(prev => ({ ...prev, [q.id]: next.length ? next : null }));
+                          }}
+                          className="px-2.5 py-1 rounded-lg text-xs"
+                          style={{ backgroundColor: sel ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)', border: sel ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)', color: sel ? '#fff' : 'var(--text-secondary)' }}
+                        >{sel ? '✓ ' : ''}{opt}</button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {briefError && (
+          <div className="flex items-center gap-2 text-xs px-3 py-2 rounded" style={{ backgroundColor: 'rgba(239,68,68,0.08)', color: '#EF4444' }}>
+            <Warning className="w-3.5 h-3.5" />{briefError}
+          </div>
+        )}
+
+        <button type="button" onClick={handleSave} disabled={saving}
+          className="w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+          style={{ background: 'var(--gradient-brand)', color: 'var(--glc-ink)', cursor: saving ? 'not-allowed' : 'pointer', boxShadow: 'var(--glow-blue-sm)' }}
+        >
+          {saving
+            ? <><Spinner className="w-3.5 h-3.5 animate-spin" /> Saving...</>
+            : saved
+              ? <><CheckCircle weight="fill" className="w-3.5 h-3.5" /> Saved!</>
+              : 'Save Brief'}
+        </button>
+      </div>
     </div>
   );
 }
@@ -262,6 +410,11 @@ export function ClientAuditView() {
                   {request.consultant_note}
                 </p>
               </div>
+            )}
+
+            {/* Brief form — show when approved (not yet running) */}
+            {request.status === 'approved' && request.audit_id && (
+              <ClientBriefSection auditId={request.audit_id} />
             )}
 
             {/* Delivered: link to report */}
