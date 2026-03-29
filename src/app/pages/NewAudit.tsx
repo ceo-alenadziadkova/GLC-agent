@@ -257,7 +257,7 @@ export function NewAudit() {
     setLoading(true);
     try {
       // 1. Create audit
-      const audit = await api.createAudit(url, name || undefined, industry || undefined);
+      const audit = await api.createAudit(url, name || undefined, industry || undefined, productMode);
 
       // 2. Save brief (fire-and-forget on error — brief is best-effort, pipeline gate will catch)
       try {

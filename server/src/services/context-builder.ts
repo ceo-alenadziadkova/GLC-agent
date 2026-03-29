@@ -1,7 +1,7 @@
 import { supabase } from './supabase.js';
 import type { DomainKey, ReconData } from '../types/audit.js';
 import { getDomainWeight } from '../config/industry-weights.js';
-import { getQuestionsForDomain } from '../schemas/intake-brief.js';
+import { BRIEF_QUESTIONS, getQuestionsForDomain } from '../schemas/intake-brief.js';
 
 export interface AgentContext {
   company_url: string;
@@ -141,9 +141,9 @@ export class ContextBuilder {
       const briefLines = Object.entries(ctx.brief_responses)
         .filter(([, v]) => v !== null && v !== '')
         .map(([id, v]) => {
-          const q = id.replace(/_/g, ' ');
+          const question = BRIEF_QUESTIONS.find(q => q.id === id)?.question ?? id.replace(/_/g, ' ');
           const answer = Array.isArray(v) ? v.join(', ') : String(v);
-          return `- **${q}:** ${answer}`;
+          return `- **${question}:** ${answer}`;
         });
       if (briefLines.length > 0) {
         sections.push(`## Client Brief (Pre-Audit Intake)\n${briefLines.join('\n')}`);

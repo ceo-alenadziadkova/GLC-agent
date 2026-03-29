@@ -154,17 +154,19 @@ auditsRouter.get('/:id', async (req: AuthRequest, res) => {
 
     // Fetch related data in parallel — use allSettled so a single DB error
     // returns partial data rather than a 500 for the entire request.
-    const [reconRes, domainsRes, strategyRes, reviewsRes] = await Promise.allSettled([
+    const [reconRes, domainsRes, strategyRes, reviewsRes, briefRes] = await Promise.allSettled([
       supabase.from('audit_recon').select('*').eq('audit_id', id).single(),
       supabase.from('audit_domains').select('*').eq('audit_id', id).order('phase_number'),
       supabase.from('audit_strategy').select('*').eq('audit_id', id).single(),
       supabase.from('review_points').select('*').eq('audit_id', id).order('after_phase'),
+      supabase.from('intake_brief').select('*').eq('audit_id', id).single(),
     ]);
 
     const recon = reconRes.status === 'fulfilled' ? (reconRes.value.data ?? null) : null;
     const domainsArr = domainsRes.status === 'fulfilled' ? (domainsRes.value.data ?? []) : [];
     const strategy = strategyRes.status === 'fulfilled' ? (strategyRes.value.data ?? null) : null;
     const reviews = reviewsRes.status === 'fulfilled' ? (reviewsRes.value.data ?? []) : [];
+    const brief = briefRes.status === 'fulfilled' ? (briefRes.value.data ?? null) : null;
 
     // Build domains map (latest version per domain_key)
     const domainsMap: Record<string, unknown> = {};
@@ -181,6 +183,7 @@ auditsRouter.get('/:id', async (req: AuthRequest, res) => {
       domains: domainsMap,
       strategy,
       reviews,
+      brief,
     });
   } catch (err) {
     console.error('[GET /api/audits/:id]', err);

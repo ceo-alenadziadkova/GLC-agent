@@ -97,14 +97,17 @@ export const SCORE_COLORS: Record<number, string> = {
 export interface AuditMeta {
   id: string;
   user_id: string;
+  client_id: string | null;
   company_url: string;
   company_name: string | null;
   industry: string | null;
   status: string;
   current_phase: number;
   overall_score: number | null;
+  product_mode: ProductMode;
   token_budget: number;
   tokens_used: number;
+  snapshot_token: string | null;
   created_at: string;
   updated_at: string;
 }

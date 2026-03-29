@@ -212,8 +212,10 @@ pipelineRouter.get('/:id/pipeline/status', requireAuth, async (req: AuthRequest,
 
     const [auditRes, eventsRes, reviewsRes] = await Promise.all([
       supabase.from('audits')
-        .select('status, current_phase, tokens_used, token_budget')
-        .eq('id', id).eq('user_id', req.userId!).single(),
+        .select('status, current_phase, tokens_used, token_budget, product_mode')
+        .eq('id', id)
+        .or(`user_id.eq.${req.userId!},client_id.eq.${req.userId!}`)
+        .single(),
       supabase.from('pipeline_events')
         .select('*')
         .eq('audit_id', id)

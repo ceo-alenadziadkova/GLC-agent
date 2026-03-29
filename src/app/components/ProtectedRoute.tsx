@@ -14,7 +14,8 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { role, loading: profileLoading } = useProfile();
 
-  const loading = authLoading || (isAuthenticated && requiredRole != null && profileLoading);
+  // Also keep spinner if role is required but hasn't resolved yet (null while loading)
+  const loading = authLoading || (isAuthenticated && requiredRole != null && (profileLoading || role == null));
 
   if (loading) {
     logger.debug('ProtectedRoute: loading auth/profile state');
@@ -40,9 +41,11 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   }
 
   if (requiredRole != null && role !== requiredRole) {
-    // Role mismatch: redirect to appropriate home
+    // Role mismatch: redirect to the correct home for the actual role.
+    // Only redirect to a known destination — never to a route guarded by the same role
+    // (which would cause an infinite redirect loop when role is still null).
     logger.info(`ProtectedRoute: role "${role}" does not match required "${requiredRole}"`);
-    const redirect = role === 'client' ? '/portal' : '/portfolio';
+    const redirect = role === 'consultant' ? '/portfolio' : '/portal';
     return <Navigate to={redirect} replace />;
   }
 
