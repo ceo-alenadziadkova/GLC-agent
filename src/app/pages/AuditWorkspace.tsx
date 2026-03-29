@@ -12,7 +12,11 @@ import { StatusPill } from '../components/glc/StatusPill';
 import { QuickWinTag } from '../components/glc/QuickWinTag';
 import { useAudit } from '../hooks/useAudit';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
-import type { DomainKey, DomainData } from '../data/auditTypes';
+import type { DomainKey, DomainData, ProductMode } from '../data/auditTypes';
+
+const EXPRESS_DOMAIN_KEYS: readonly DomainKey[] = [
+  'tech_infrastructure', 'security_compliance', 'seo_digital', 'ux_conversion',
+];
 
 const DOMAIN_ICONS: Record<DomainKey, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
   tech_infrastructure: HardDrives,
@@ -66,10 +70,12 @@ export function AuditWorkspace() {
 
   const domainData: DomainData | null = audit.domains[activeDomain] || null;
   const companyName = audit.meta.company_name || audit.meta.company_url;
+  const isExpress = (audit.meta.product_mode as ProductMode) === 'express';
+  const visibleDomainKeys: readonly DomainKey[] = isExpress ? EXPRESS_DOMAIN_KEYS : DOMAIN_KEYS;
 
   // Use server-calculated weighted overall score when available (set after Phase 7).
   // Fall back to unweighted average while pipeline is still running.
-  const domainEntries = DOMAIN_KEYS.map(k => audit.domains[k]).filter((d): d is DomainData => d !== null && d.score !== null);
+  const domainEntries = visibleDomainKeys.map(k => audit.domains[k]).filter((d): d is DomainData => d !== null && d.score !== null);
   const overallScore = audit.meta.overall_score
     ?? (domainEntries.length > 0
       ? +(domainEntries.reduce((s, d) => s + (d.score ?? 0), 0) / domainEntries.length).toFixed(1)
@@ -114,7 +120,7 @@ export function AuditWorkspace() {
           {/* Domain nav */}
           <div className="px-2 py-2 space-y-0.5 flex-1">
             <div className="px-2 pb-1.5"><SectionLabel>Domains</SectionLabel></div>
-            {DOMAIN_KEYS.map(key => {
+            {visibleDomainKeys.map(key => {
               const I = DOMAIN_ICONS[key];
               const d = audit.domains[key];
               const active = key === activeDomain;

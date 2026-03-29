@@ -13,9 +13,9 @@ import { SectionLabel } from '../components/glc/SectionLabel';
 import { ReviewPointModal } from '../components/glc/ReviewPointModal';
 import { usePipeline } from '../hooks/usePipeline';
 import { useAudit } from '../hooks/useAudit';
-import type { PipelineEvent, ReviewPoint } from '../data/auditTypes';
+import type { PipelineEvent } from '../data/auditTypes';
 
-type PhSt = 'completed' | 'running' | 'pending' | 'review';
+type PhSt = 'completed' | 'running' | 'pending' | 'review' | 'skipped';
 
 const PHASE_META = [
   { id: 0, name: 'Recon',              icon: MagnifyingGlass, wing: 'recon'    as const, domainKey: null },
@@ -28,9 +28,12 @@ const PHASE_META = [
   { id: 7, name: 'Strategy & Roadmap', icon: MapTrifold,      wing: 'strategy' as const, domainKey: null },
 ];
 
-const REVIEW_AFTER_PHASES = [0, 4, 7];
+const REVIEW_AFTER_PHASES_FULL = [0, 4, 7];
+const REVIEW_AFTER_PHASES_EXPRESS = [0, 4];
+const EXPRESS_MAX_PHASE = 4;
 
-function getPhaseStatus(phaseId: number, currentPhase: number, auditStatus: string, reviews: Array<{ after_phase: number; status: string }>): PhSt {
+function getPhaseStatus(phaseId: number, currentPhase: number, auditStatus: string, reviews: Array<{ after_phase: number; status: string }>, isExpress: boolean): PhSt {
+  if (isExpress && phaseId > EXPRESS_MAX_PHASE) return 'skipped';
   if (auditStatus === 'completed') return 'completed';
   if (auditStatus === 'failed') {
     if (phaseId < currentPhase) return 'completed';
@@ -54,6 +57,7 @@ interface PhaseView {
   status: PhSt; score: number | null;
   wing: 'recon' | 'auto' | 'analytic' | 'strategy';
   log: string[];
+  skipped: boolean;
 }
 
 function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: () => void }) {
@@ -63,6 +67,7 @@ function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: 
     running:   <ArrowsClockwise className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--glc-blue)' }} />,
     pending:   <Clock           className="w-3.5 h-3.5" style={{ color: 'var(--text-quaternary)' }} />,
     review:    <WarningCircle   className="w-3.5 h-3.5" style={{ color: 'var(--score-3)' }} />,
+    skipped:   <span className="text-[9px] font-bold px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-muted)', color: 'var(--text-quaternary)', letterSpacing: '0.05em' }}>SKIP</span>,
   }[ph.status];
 
   const accentColor = {
@@ -70,6 +75,7 @@ function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: 
     running:   'var(--glc-blue)',
     pending:   'var(--border-default)',
     review:    'var(--score-3)',
+    skipped:   'var(--border-subtle)',
   }[ph.status];
 
   return (
@@ -83,7 +89,7 @@ function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: 
         border: `1px solid ${active ? 'rgba(28,189,255,0.30)' : 'var(--border-subtle)'}`,
         borderLeft: `3px solid ${active ? 'var(--glc-blue)' : accentColor}`,
         borderRadius: 'var(--radius-lg)',
-        opacity: ph.status === 'pending' ? 0.5 : 1,
+        opacity: ph.status === 'pending' ? 0.5 : ph.status === 'skipped' ? 0.35 : 1,
         boxShadow: active ? '0 0 0 3px rgba(28,189,255,0.10)' : 'var(--shadow-xs)',
         transition: 'all var(--ease-fast)',
       }}
@@ -187,6 +193,9 @@ export function PipelineMonitor() {
   const [sel, setSel] = useState(0);
   const [modalReview, setModalReview] = useState<{ afterPhase: number; label: string } | null>(null);
 
+  const isExpress = audit?.meta.product_mode === 'express';
+  const reviewAfterPhases = isExpress ? REVIEW_AFTER_PHASES_EXPRESS : REVIEW_AFTER_PHASES_FULL;
+
   // Build phase views from pipeline state
   const phases: PhaseView[] = useMemo(() => {
     if (!pipelineState || !audit) {
@@ -195,10 +204,11 @@ export function PipelineMonitor() {
         name: pm.name,
         label: `Phase ${pm.id}`,
         icon: pm.icon,
-        status: 'pending' as PhSt,
+        status: (isExpress && pm.id > EXPRESS_MAX_PHASE ? 'skipped' : 'pending') as PhSt,
         score: null,
         wing: pm.wing,
         log: [],
+        skipped: isExpress && pm.id > EXPRESS_MAX_PHASE,
       }));
     }
 
@@ -206,7 +216,7 @@ export function PipelineMonitor() {
     const events = pipelineState.events || [];
 
     return PHASE_META.map(pm => {
-      const status = getPhaseStatus(pm.id, pipelineState.current_phase, pipelineState.status, reviews);
+      const status = getPhaseStatus(pm.id, pipelineState.current_phase, pipelineState.status, reviews, isExpress);
       const phaseEvents = events.filter((e: PipelineEvent) => e.phase === pm.id);
       const log = phaseEvents
         .filter((e: PipelineEvent) => e.message)
@@ -230,9 +240,10 @@ export function PipelineMonitor() {
         score,
         wing: pm.wing,
         log,
+        skipped: status === 'skipped',
       };
     });
-  }, [pipelineState, audit]);
+  }, [pipelineState, audit, isExpress]);
 
   const reviews = useMemo(() => {
     if (!pipelineState) return [];
@@ -242,9 +253,10 @@ export function PipelineMonitor() {
   const getReviewForPhase = (afterPhase: number) =>
     reviews.find(r => r.after_phase === afterPhase) || { status: 'pending' };
 
-  const ph   = phases.find(p => p.id === sel) ?? phases[0];
-  const done = phases.filter(p => p.status === 'completed').length;
-  const pct  = Math.round((done / phases.length) * 100);
+  const ph         = phases.find(p => p.id === sel) ?? phases[0];
+  const activePhases = phases.filter(p => !p.skipped);
+  const done       = activePhases.filter(p => p.status === 'completed').length;
+  const pct        = Math.round((done / activePhases.length) * 100);
   const I    = ph.icon;
 
   const companyName = audit?.meta.company_name || audit?.meta.company_url || 'Loading...';
@@ -274,6 +286,20 @@ export function PipelineMonitor() {
       subtitle={`${companyName} · Audit #${id?.slice(0, 8) ?? ''}`}
       actions={
         <div className="flex items-center gap-3">
+          {isExpress && (
+            <span
+              className="text-xs font-bold px-2.5 py-1 rounded-full"
+              style={{
+                backgroundColor: 'rgba(28,189,255,0.10)',
+                color: 'var(--glc-blue)',
+                border: '1px solid rgba(28,189,255,0.25)',
+                fontFamily: 'var(--font-display)',
+                letterSpacing: '0.04em',
+              }}
+            >
+              Express
+            </span>
+          )}
           <div className="flex items-center gap-2.5">
             <div className="w-28 rounded-full overflow-hidden" style={{ height: 4, backgroundColor: 'var(--border-subtle)' }}>
               <motion.div
@@ -312,23 +338,29 @@ export function PipelineMonitor() {
 
           <RevBanner
             review={getReviewForPhase(4)}
-            label="Review Point #2"
-            onOpenModal={() => setModalReview({ afterPhase: 4, label: 'Review Point #2' })}
+            label={isExpress ? 'Review Point #2 (Final)' : 'Review Point #2'}
+            onOpenModal={() => setModalReview({ afterPhase: 4, label: isExpress ? 'Review Point #2 (Final)' : 'Review Point #2' })}
           />
 
-          <div className="px-1 pt-2 pb-1"><SectionLabel>Analytic Wing</SectionLabel></div>
+          <div className="px-1 pt-2 pb-1" style={{ opacity: isExpress ? 0.4 : 1 }}>
+            <SectionLabel>Analytic Wing</SectionLabel>
+          </div>
           {phases.filter(p => p.wing === 'analytic').map(p => (
-            <PhCard key={p.id} ph={p} active={sel === p.id} onSel={() => setSel(p.id)} />
+            <PhCard key={p.id} ph={p} active={sel === p.id} onSel={() => !p.skipped && setSel(p.id)} />
           ))}
 
-          <div className="px-1 pt-2 pb-1"><SectionLabel>Synthesis</SectionLabel></div>
-          <PhCard ph={phases[7]} active={sel === 7} onSel={() => setSel(7)} />
+          <div className="px-1 pt-2 pb-1" style={{ opacity: isExpress ? 0.4 : 1 }}>
+            <SectionLabel>Synthesis</SectionLabel>
+          </div>
+          <PhCard ph={phases[7]} active={sel === 7} onSel={() => !phases[7].skipped && setSel(7)} />
 
-          <RevBanner
-            review={getReviewForPhase(7)}
-            label="Review Point #3"
-            onOpenModal={() => setModalReview({ afterPhase: 7, label: 'Review Point #3' })}
-          />
+          {!isExpress && (
+            <RevBanner
+              review={getReviewForPhase(7)}
+              label="Review Point #3"
+              onOpenModal={() => setModalReview({ afterPhase: 7, label: 'Review Point #3' })}
+            />
+          )}
         </aside>
 
         {/* ── Phase detail ─────────────────────────── */}
@@ -345,7 +377,9 @@ export function PipelineMonitor() {
                   Ready to start
                 </h3>
                 <p className="text-sm mb-4" style={{ color: 'var(--text-tertiary)' }}>
-                  This will begin the 8-phase audit pipeline. Estimated cost: ~$0.50 in API credits.
+                  {isExpress
+                    ? 'This will begin the Express audit (5 phases: Recon + 4 domains). Estimated cost: ~$0.30 in API credits.'
+                    : 'This will begin the full 8-phase audit pipeline. Estimated cost: ~$0.50 in API credits.'}
                 </p>
                 <motion.button
                   whileHover={{ scale: 1.02 }}

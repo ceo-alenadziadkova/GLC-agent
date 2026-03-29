@@ -9,7 +9,13 @@ import { MarketingAgent } from '../agents/marketing.js';
 import { AutomationAgent } from '../agents/automation.js';
 import { StrategyAgent } from '../agents/strategy.js';
 import { BaseAgent } from '../agents/base.js';
-import { REVIEW_AFTER_PHASES, PHASE_DOMAIN_MAP, type FreeSnapshotPreview } from '../types/audit.js';
+import {
+  PHASE_DOMAIN_MAP,
+  maxPhaseForMode,
+  reviewPhasesForMode,
+  type FreeSnapshotPreview,
+  type ProductMode,
+} from '../types/audit.js';
 
 type AgentConstructor = new (auditId: string) => BaseAgent;
 
@@ -39,6 +45,16 @@ export class PipelineOrchestrator {
     this.auditId = auditId;
   }
 
+  /** Fetch the product_mode for this audit. Falls back to 'full' on error. */
+  private async getProductMode(): Promise<ProductMode> {
+    const { data } = await supabase
+      .from('audits')
+      .select('product_mode')
+      .eq('id', this.auditId)
+      .single();
+    return (data?.product_mode as ProductMode) ?? 'full';
+  }
+
   /**
    * Start a specific phase.
    */
@@ -49,6 +65,13 @@ export class PipelineOrchestrator {
     }
 
     try {
+      // Mode ceiling — reject phases beyond what this product mode allows
+      const mode = await this.getProductMode();
+      const maxPhase = maxPhaseForMode(mode);
+      if (phase > maxPhase) {
+        throw new Error(`Phase ${phase} is not available for product_mode '${mode}' (max: ${maxPhase})`);
+      }
+
       // Brief gate — Phase 0 is blocked for express/full until SLA questions are answered
       if (phase === 0) {
         await assertBriefReady(this.auditId);
@@ -88,7 +111,7 @@ export class PipelineOrchestrator {
       }
 
       // Check if this phase triggers a review point
-      if (REVIEW_AFTER_PHASES.includes(phase as 0 | 4 | 7)) {
+      if ((reviewPhasesForMode(mode) as readonly number[]).includes(phase)) {
         await this.emitEvent(phase, 'review_needed', `Review point: approve before continuing`);
         await supabase.from('audits').update({ status: 'review' }).eq('id', this.auditId);
       }
@@ -133,11 +156,15 @@ export class PipelineOrchestrator {
 
     if (auditErr || !audit) return;
 
+    const mode = await this.getProductMode();
+    const maxPhase = maxPhaseForMode(mode);
+    const reviewPhases = reviewPhasesForMode(mode) as readonly number[];
+
     let phase = audit.current_phase + 1;
 
-    while (phase <= 7) {
+    while (phase <= maxPhase) {
       // Check for pending review before this phase
-      const isReviewBefore = REVIEW_AFTER_PHASES.includes((phase - 1) as 0 | 4 | 7);
+      const isReviewBefore = reviewPhases.includes(phase - 1);
       if (isReviewBefore && phase > audit.current_phase + 1) {
         // Already past the first phase in the block, check if review is approved
         const { data: review } = await supabase
@@ -153,7 +180,7 @@ export class PipelineOrchestrator {
       await this.startPhase(phase);
 
       // Stop at review points
-      if (REVIEW_AFTER_PHASES.includes(phase as 0 | 4 | 7)) {
+      if (reviewPhases.includes(phase)) {
         break;
       }
 

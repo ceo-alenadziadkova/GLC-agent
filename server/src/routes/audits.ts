@@ -2,7 +2,14 @@ import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
 import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../middleware/auth.js';
 import { createAuditLimiter, generalLimiter } from '../middleware/rate-limit.js';
-import { DOMAIN_KEYS, REVIEW_AFTER_PHASES } from '../types/audit.js';
+import {
+  DOMAIN_KEYS,
+  REVIEW_AFTER_PHASES,
+  EXPRESS_DOMAIN_KEYS,
+  EXPRESS_REVIEW_AFTER_PHASES,
+  reviewPhasesForMode,
+  type ProductMode,
+} from '../types/audit.js';
 import { saveBriefResponses, validateBriefResponses } from '../services/brief-validator.js';
 import { BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
 
@@ -17,7 +24,8 @@ const consultantGuard = [attachProfile, requireRole('consultant')] as const;
 // ─── POST /api/audits — Create new audit (consultant only) ─
 auditsRouter.post('/', ...consultantGuard, createAuditLimiter, async (req: AuthRequest, res) => {
   try {
-    const { company_url, company_name, industry } = req.body;
+    const { company_url, company_name, industry, product_mode } = req.body;
+    const mode: ProductMode = product_mode === 'express' ? 'express' : 'full';
 
     if (!company_url || typeof company_url !== 'string') {
       res.status(400).json({ error: 'company_url is required' });
@@ -50,33 +58,41 @@ auditsRouter.post('/', ...consultantGuard, createAuditLimiter, async (req: AuthR
         company_url: url,
         company_name: company_name || null,
         industry: industry || null,
+        product_mode: mode,
       })
       .select()
       .single();
 
     if (auditErr) throw auditErr;
 
-    // Pre-create all placeholder records in parallel.
-    // If any INSERT fails we roll back by deleting the audit (CASCADE handles the rest).
-    const reviewInserts = REVIEW_AFTER_PHASES.map(phase => ({
+    // Pre-create placeholder records appropriate for this product mode.
+    // Express: 4 domains, 2 review gates, no strategy row.
+    // Full: 6 domains, 3 review gates, strategy row.
+    const activeDomainKeys = mode === 'express' ? EXPRESS_DOMAIN_KEYS : DOMAIN_KEYS;
+    const activeReviewPhases = reviewPhasesForMode(mode);
+
+    const reviewInserts = activeReviewPhases.map(phase => ({
       audit_id: audit.id,
       after_phase: phase,
     }));
 
-    const domainInserts = DOMAIN_KEYS.map((key, i) => ({
+    const domainInserts = activeDomainKeys.map((key, i) => ({
       audit_id: audit.id,
       domain_key: key,
       phase_number: i + 1,
     }));
 
-    const [reviewRes, domainsRes, reconRes, strategyRes] = await Promise.allSettled([
+    const childInserts = [
       supabase.from('review_points').insert(reviewInserts),
       supabase.from('audit_domains').insert(domainInserts),
       supabase.from('audit_recon').insert({ audit_id: audit.id }),
-      supabase.from('audit_strategy').insert({ audit_id: audit.id }),
-    ]);
+      // Express mode skips the strategy phase entirely
+      ...(mode !== 'express' ? [supabase.from('audit_strategy').insert({ audit_id: audit.id })] : []),
+    ] as const;
 
-    const initFailed = [reviewRes, domainsRes, reconRes, strategyRes].some(
+    const results = await Promise.allSettled(childInserts);
+
+    const initFailed = results.some(
       r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.error)
     );
 

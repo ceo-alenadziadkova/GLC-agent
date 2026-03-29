@@ -29,6 +29,32 @@ export const PHASE_DOMAIN_MAP: Record<number, DomainKey | 'recon' | 'strategy'> 
 
 export const REVIEW_AFTER_PHASES = [0, 4, 7] as const;
 
+// ─── Express Mode constants ─────────────────────────────────
+// Express runs Recon + Tech + Security + SEO + UX (phases 0-4).
+// Marketing, Automation, and Strategy phases (5-7) are skipped.
+
+export const EXPRESS_DOMAIN_KEYS = [
+  'tech_infrastructure',
+  'security_compliance',
+  'seo_digital',
+  'ux_conversion',
+] as const satisfies readonly DomainKey[];
+
+export const EXPRESS_MAX_PHASE = 4;
+export const EXPRESS_REVIEW_AFTER_PHASES = [0, 4] as const;
+
+/** Returns the max phase number for a given product mode. */
+export function maxPhaseForMode(mode: ProductMode): number {
+  if (mode === 'express') return EXPRESS_MAX_PHASE;
+  return 7; // full
+}
+
+/** Returns which review gates apply for a given product mode. */
+export function reviewPhasesForMode(mode: ProductMode): readonly number[] {
+  if (mode === 'express') return EXPRESS_REVIEW_AFTER_PHASES;
+  return REVIEW_AFTER_PHASES;
+}
+
 export type PhaseStatus = 'pending' | 'collecting' | 'analyzing' | 'completed' | 'failed';
 export type AuditStatus = 'created' | 'recon' | 'auto' | 'analytic' | 'review' | 'completed' | 'failed';
 
