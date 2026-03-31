@@ -11,8 +11,9 @@ PostgreSQL on **Supabase**. Apply migrations **in numeric order** so foreign key
 5. `005_client_portal.sql` — `profiles`, `audit_requests`, `client_id` on `audits`
 6. `006_intake_brief.sql` — `intake_brief`
 7. `007_finding_provenance.sql` — extra columns on `audit_domains`
+8. `008_reliability_idempotency.sql` — `api_idempotency_keys` for safe replay of critical writes
 
-**Tables (10):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`.
+**Tables (11):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`.
 
 Row Level Security is enabled on these tables; exact policies differ by table (consultant vs client access). **Canonical SQL:** the migration files — this doc summarises shapes.
 
@@ -211,6 +212,18 @@ Client-submitted audit requests before an `audits` row is attached. Status workf
 ### `intake_brief`
 
 Structured questionnaire responses per audit (`responses` jsonb, `status` `draft` | `submitted`, SLA counters). One row per audit (unique `audit_id`). Migration `006_intake_brief.sql`.
+
+---
+
+### `api_idempotency_keys`
+
+Stores request fingerprints and prior responses for idempotent replay on critical write endpoints.
+
+Key fields: `user_id`, `route`, `idempotency_key`, `request_hash`, `response_status`, `response_body`, `expires_at`.
+
+Uniqueness: `(user_id, route, idempotency_key)` via unique index.
+
+Migration: `008_reliability_idempotency.sql`.
 
 ---
 

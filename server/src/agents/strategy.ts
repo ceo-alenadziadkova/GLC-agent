@@ -1,9 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { BaseAgent, loadPrompt } from './base.js';
-import { StrategyOutputSchema, zodToJsonSchema } from '../schemas/domain-output.js';
+import { StrategyOutputSchema } from '../schemas/domain-output.js';
 import { supabase } from '../services/supabase.js';
 import { calculateWeightedScore } from '../config/industry-weights.js';
-import { CLAUDE_MODEL, MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
+import { MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import type { DomainKey, DomainResult } from '../types/audit.js';
 
 /**
@@ -40,33 +39,7 @@ export class StrategyAgent extends BaseAgent {
       await this.emit('warning', `Token budget at ${Math.round((budget.tokens_used / budget.token_budget) * 100)}% — ${budget.remaining} tokens remaining`);
     }
 
-    const { system, prompt, truncated, truncatedKeys } = this.contextBuilder.formatPrompt(context);
-    if (truncated) {
-      await this.emit('warning', `Context truncated for keys: ${truncatedKeys.join(', ')}`);
-    }
-    const response = await this.anthropic.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: MODEL_MAX_TOKENS.strategy,
-      system,                                           // ← role instructions in system channel
-      messages: [{ role: 'user', content: prompt }],
-      tools: [{
-        name: 'submit_analysis',
-        description: 'Submit the strategic roadmap',
-        input_schema: zodToJsonSchema(StrategyOutputSchema) as Anthropic.Tool['input_schema'],
-      }],
-      tool_choice: { type: 'tool', name: 'submit_analysis' },
-    });
-
-    await this.tokenTracker.log(this.auditId, 7, {
-      input_tokens: response.usage.input_tokens,
-      output_tokens: response.usage.output_tokens,
-      model: CLAUDE_MODEL,
-    });
-
-    const toolBlock = response.content.find(b => b.type === 'tool_use');
-    if (!toolBlock || toolBlock.type !== 'tool_use') throw new Error('No tool_use response');
-
-    const strategyResult = StrategyOutputSchema.parse(toolBlock.input);
+    const strategyResult = await this.callClaudeWithRetry(context, StrategyOutputSchema, MODEL_MAX_TOKENS.strategy) as unknown as import('zod').infer<typeof StrategyOutputSchema>;
 
     // Calculate weighted score from actual domain scores
     const { data: domains } = await supabase

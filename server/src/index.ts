@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import { initSentry, Sentry } from './config/sentry.js';
 import { auditsRouter } from './routes/audits.js';
 import { pipelineRouter } from './routes/pipeline.js';
 import { reportsRouter } from './routes/reports.js';
@@ -8,11 +9,17 @@ import { logRouter } from './routes/log.js';
 import { snapshotRouter } from './routes/snapshot.js';
 import { auditRequestsRouter } from './routes/audit-requests.js';
 import { requireAuth, attachProfile, type AuthRequest } from './middleware/auth.js';
+import { traceMiddleware } from './middleware/trace.js';
+import { logger } from './services/logger.js';
+import { startAlertsWorker } from './services/alerts.js';
+import { updateContext } from './services/observability-context.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
+initSentry();
 
 // ─── Middleware ─────────────────────────────────────────────
+app.use(traceMiddleware);
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
     ? process.env.FRONTEND_URL
@@ -20,6 +27,11 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({ limit: '2mb' }));
+app.use((req, _res, next) => {
+  const auditId = req.params?.id;
+  updateContext({ auditId: typeof auditId === 'string' ? auditId : undefined });
+  next();
+});
 
 // Sensitive API responses must not be cached by shared proxies or browsers.
 app.use((req, res, next) => {
@@ -39,6 +51,7 @@ app.get('/api/health', (_req, res) => {
 // Running requireAuth + attachProfile upserts the profile row if it doesn't
 // exist yet (handles existing users created before migration 005).
 app.get('/api/profile', requireAuth, attachProfile, (req: AuthRequest, res) => {
+  updateContext({ userId: req.userId });
   res.json({
     id: req.userId,
     role: req.userRole,
@@ -56,14 +69,18 @@ app.use('/api/log', logRouter);
 
 // ─── Error handler ─────────────────────────────────────────
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('[ERROR]', err.message, err.stack);
+  Sentry.captureException(err);
+  logger.error('Unhandled error', { error: err.message, stack: err.stack });
   res.status(500).json({ error: 'Internal server error', message: err.message });
 });
 
 // ─── Start ─────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`[GLC Server] Running on http://localhost:${PORT}`);
-  console.log(`[GLC Server] Environment: ${process.env.NODE_ENV ?? 'development'}`);
+  logger.info('Server started', {
+    port: PORT,
+    env: process.env.NODE_ENV ?? 'development',
+  });
+  startAlertsWorker();
 });
 
 export { app };

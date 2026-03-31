@@ -135,6 +135,13 @@ Phase sequencing logic:
 6. Update `audits.status` based on completed phases
 7. If all phases complete → compute weighted overall score → set `audits.status = 'completed'`
 
+Reliability controls:
+
+- Pipeline start/next/retry use compare-and-set claim semantics to avoid duplicate execution from concurrent requests.
+- Every pipeline event includes trace correlation fields (`trace_id`, `operation_id`) when available.
+- Retry policy for Claude calls is bounded (`MAX_RETRIES=3`) with exponential backoff and jitter for transient provider failures.
+- Critical endpoint writes use idempotency keys to guarantee safe client retries.
+
 ---
 
 ## Weighted Overall Score
