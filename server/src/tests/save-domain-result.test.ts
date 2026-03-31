@@ -230,6 +230,35 @@ describe('saveDomainResult — retry (atomic UPDATE returns [], no placeholder)'
   });
 });
 
+describe('saveDomainResult — prompt_version in payload', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setUpdateReturnsPlaceholder(true);
+  });
+
+  it('includes prompt_version in the UPDATE payload', async () => {
+    const agent = new TestAgent(AUDIT_ID);
+    await agent.saveDomainResult(DOMAIN_RESULT);
+
+    const payload = (mockUpdate.mock.calls as unknown[][])[0][0] as Record<string, unknown>;
+    // promptVersion reads server/prompts/tech_infrastructure.md — should return '1.0' or 'unknown'
+    expect(typeof payload.prompt_version).toBe('string');
+    expect(payload.prompt_version).toBeTruthy();
+  });
+
+  it('includes prompt_version in the INSERT payload on retry', async () => {
+    setUpdateReturnsPlaceholder(false);
+    setSelectData({ version: 1 });
+
+    const agent = new TestAgent(AUDIT_ID);
+    await agent.saveDomainResult(DOMAIN_RESULT);
+
+    const payload = (mockInsert.mock.calls as unknown[][])[0][0] as Record<string, unknown>;
+    expect(typeof payload.prompt_version).toBe('string');
+    expect(payload.prompt_version).toBeTruthy();
+  });
+});
+
 describe('saveDomainResult — skipped for recon and strategy', () => {
   beforeEach(() => {
     vi.clearAllMocks();

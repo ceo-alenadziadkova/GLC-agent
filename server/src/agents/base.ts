@@ -254,6 +254,7 @@ export abstract class BaseAgent {
       recommendations: result.recommendations,
       unknown_items: result.unknown_items ?? [],
       confidence_distribution: result.confidence_distribution ?? null,
+      prompt_version: promptVersion(this.domainKey),
     };
 
     // Atomic claim: UPDATE WHERE status='pending'.
