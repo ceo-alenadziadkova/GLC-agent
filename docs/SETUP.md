@@ -27,11 +27,12 @@ cd server && npm install && cd ..
 ## 2. Supabase Setup
 
 1. Create a project at [supabase.com](https://supabase.com)
-2. In the SQL Editor, run `server/migrations/001_initial_schema.sql`
+2. In the SQL Editor, run **all** migrations in order (see [DATABASE.md](./DATABASE.md#overview)):
+   - `001_initial_schema.sql` through `008_reliability_idempotency.sql`
 3. Note your project URL and anon key (Project Settings → API)
 4. Note your service role key (same page — keep secret)
 
-The migration creates all 6 tables with RLS policies. See [DATABASE.md](./DATABASE.md).
+Schema summary and table list: [DATABASE.md](./DATABASE.md).
 
 ---
 
@@ -109,14 +110,57 @@ cd server && npx tsc --noEmit
 │       ├── data/    ← auditTypes.ts, apiService.ts
 │       ├── lib/     ← supabase.ts client
 │       └── components/
-├── docs/            ← All documentation
+├── docs/            ← All documentation (index: MASTER_DOCUMENTATION.md)
 server/              ← Backend (Express + TypeScript)
 ├── src/
-│   ├── agents/      ← 8 domain agents + BaseAgent
+│   ├── agents/      ← Domain agents + BaseAgent
 │   ├── collectors/  ← Data collectors (no AI)
 │   ├── services/    ← Pipeline, context builder, fact-checker
 │   ├── routes/      ← Express route handlers
 │   ├── middleware/  ← Auth, rate-limit
 │   └── config/      ← Industry weights
-└── migrations/      ← SQL migration files
+└── migrations/      ← SQL migration files (run in order)
 ```
+
+---
+
+## Demo audit (seeded data)
+
+Simulated full audit for **Hospital Universitari Son Espases** — use to explore UI without running the live AI pipeline.
+
+**Warning:** Data is representative for demo purposes, not a full programmatic audit of the hospital site.
+
+### Prerequisites
+
+1. Supabase migrations applied (at least through `001`; full product features need `001`–`008`)
+2. `server/.env` with valid `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`
+3. Frontend running: `pnpm dev` (http://localhost:5173)
+
+### Run the seed script
+
+```bash
+cd server
+npx ts-node scripts/seed-demo.ts --email your@email.com
+```
+
+Use the email you log in with. If you omit `--email`, the audit is tied to a demo user UUID and may not appear in your portfolio until you re-run with your email.
+
+The script is **idempotent** — it replaces the demo audit cleanly on re-run.
+
+### URLs (fixed audit id)
+
+| Page | Path |
+|------|------|
+| Portfolio | `/portfolio` |
+| Pipeline log | `/pipeline/b1a2c3d4-e5f6-7890-abcd-ef1234567890` |
+| Audit workspace | `/audit/b1a2c3d4-e5f6-7890-abcd-ef1234567890` |
+| Report | `/reports/b1a2c3d4-e5f6-7890-abcd-ef1234567890` |
+| Strategy Lab | `/strategy/b1a2c3d4-e5f6-7890-abcd-ef1234567890` |
+
+### Reset
+
+```bash
+cd server && npx ts-node scripts/seed-demo.ts --email your@email.com
+```
+
+Or delete the row in Supabase `audits` where `company_url = 'https://www.hospitalsonespases.es'` (related rows cascade).

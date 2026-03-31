@@ -46,10 +46,10 @@
 - Enforces rate limits and token budget
 
 ### Supabase (PostgreSQL + Auth + Realtime)
-- PostgreSQL stores all persistent state (audits, domains, strategy, events)
+- PostgreSQL stores all persistent state (audits, domains, strategy, events, intake brief, client portal tables — see [DATABASE.md](./DATABASE.md))
 - Auth issues JWTs for frontend users; backend verifies them
 - Realtime publishes row changes from `pipeline_events` and `audits` to subscribed frontend clients
-- RLS enforces data isolation: users see only their own rows
+- RLS enforces data isolation; consultants and linked clients have distinct access patterns — policies evolve with migrations ([DATABASE.md](./DATABASE.md))
 
 ### Anthropic Claude
 - Called exclusively from backend agents (one call per phase)
@@ -67,7 +67,7 @@
 4. User clicks "Start" → POST /api/audits/:id/pipeline/start
 5. Backend:
    a. Runs ReconAgent (Phase 0):
-      - CrawlerCollector fetches all pages (no AI)
+      - CrawlerCollector fetches up to the configured page limit (no AI; see [AGENTS.md](./AGENTS.md))
       - ReconCollector extracts tech stack, social profiles, structured data (no AI)
       - ContextBuilder assembles briefing
       - One Claude call → company profile JSON
@@ -77,12 +77,25 @@
 6. Supabase Realtime → frontend receives events → PipelineMonitor updates UI
 7. Review gate: frontend shows "Approve" button
 8. User approves → POST /api/audits/:id/reviews/0 with optional notes
-9. Backend runs Auto Wing (Phases 1–4) sequentially, emitting events per phase
-10. Second review gate, then Analytic Wing (Phases 5–6)
-11. Third review gate, then Strategy (Phase 7)
-12. audit.status → 'completed', overall_score set
+9. Backend runs Auto Wing (Phases 1–4) **in parallel**, then emits review gate 2 if configured for the product mode
+10. User approves gate 2 → Analytic Wing (Phases 5–6) **in parallel**, then Phase 7 (Strategy) **without** a gate between 6 and 7
+11. After Strategy completes, review gate 3 (phase `7` in the reviews API) when in full mode
+12. audit.status → `completed`, overall_score set
 13. User navigates to /reports/:id and /strategy/:id
 ```
+
+Details: [PIPELINE.md](./PIPELINE.md). API: [API.md](./API.md).
+
+---
+
+## ADR — TypeScript-first (v1)
+
+| Field | Decision |
+|-------|----------|
+| **Status** | Accepted |
+| **Context** | Ship snapshot, express, and full audit flows on the existing Node/TypeScript stack and Supabase. |
+| **Decision** | Orchestration, collectors, agents, API, and reports stay **TypeScript** (Express, Zod, Anthropic SDK). |
+| **Consequence** | Optional Python (heavy crawl, OCR, ML) is **out of scope** for v1 unless promoted later with explicit ADR and infra work. |
 
 ---
 
@@ -117,3 +130,9 @@
 | Collectors separated from agents | Allows retrying analysis without re-crawling; raw data cached in `collected_data` table |
 | Railway for backend | Zero-config Node.js deployment; easy env var management; no cold starts on hobby tier |
 | EU Frankfurt Supabase region | GDPR compliance for EU clients |
+
+---
+
+## Logical audit state
+
+There is no single `audit_state.json` file in production. Persistent state is normalised across PostgreSQL tables listed in [DATABASE.md](./DATABASE.md). A JSON “document” shape is useful for exports and debugging only.

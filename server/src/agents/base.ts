@@ -10,10 +10,12 @@ import { type BaseCollector } from '../collectors/base.js';
 import type { DomainResult, DomainKey } from '../types/audit.js';
 import { DomainOutputSchema, zodToJsonSchema } from '../schemas/domain-output.js';
 import { CLAUDE_MODEL, MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
+import { logger } from '../services/logger.js';
+import { getContext, updateContext } from '../services/observability-context.js';
 import type { z } from 'zod';
 
 const MAX_RETRIES = 3;
-const RETRY_BASE_MS = 2000;
+const RETRY_BASE_MS = 1500;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROMPTS_DIR = join(__dirname, '../../prompts');
@@ -154,18 +156,22 @@ export abstract class BaseAgent {
   /**
    * Call Claude with retry and exponential backoff.
    */
-  private async callClaudeWithRetry(context: AgentContext): Promise<DomainResult> {
+  protected async callClaudeWithRetry(
+    context: AgentContext,
+    schema: z.ZodSchema = this.outputSchema,
+    maxTokens: number = MODEL_MAX_TOKENS.domain
+  ): Promise<DomainResult> {
     const { system, prompt, truncated, truncatedKeys } = this.contextBuilder.formatPrompt(context);
     if (truncated) {
       await this.emit('warning', `Context truncated for keys: ${truncatedKeys.join(', ')}`);
     }
-    const jsonSchema = zodToJsonSchema(this.outputSchema);
+    const jsonSchema = zodToJsonSchema(schema);
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
         const response = await this.anthropic.messages.create({
           model: CLAUDE_MODEL,
-          max_tokens: MODEL_MAX_TOKENS.domain,
+          max_tokens: maxTokens,
           system,                                       // ← role instructions in system channel
           messages: [{ role: 'user', content: prompt }],
           tools: [{
@@ -190,7 +196,7 @@ export abstract class BaseAgent {
         });
 
         // Validate with Zod
-        const parsed = this.outputSchema.safeParse(toolBlock.input);
+        const parsed = schema.safeParse(toolBlock.input);
         if (!parsed.success) {
           await this.emit('log', `⚠ Validation error (attempt ${attempt}): ${parsed.error.message}`);
           if (attempt === MAX_RETRIES) {
@@ -205,12 +211,20 @@ export abstract class BaseAgent {
 
         // Retry on rate limit or server errors
         if ((error.status === 429 || error.status === 500 || error.status === 529) && attempt < MAX_RETRIES) {
-          const delay = RETRY_BASE_MS * Math.pow(2, attempt - 1);
+          const jitter = Math.floor(Math.random() * 300);
+          const delay = RETRY_BASE_MS * Math.pow(2, attempt - 1) + jitter;
           await this.emit('log', `⚠ API error (${error.status}), retrying in ${delay}ms...`);
           await sleep(delay);
           continue;
         }
 
+        logger.error('Claude call failed', {
+          phase: this.phaseNumber,
+          domain_key: this.domainKey,
+          attempt,
+          status: error.status ?? null,
+          error: error.message,
+        });
         throw err;
       }
     }
@@ -279,12 +293,18 @@ export abstract class BaseAgent {
   }
 
   protected async emit(eventType: string, message: string, data: Record<string, unknown> = {}): Promise<void> {
+    updateContext({ auditId: this.auditId });
+    const ctx = getContext();
     await supabase.from('pipeline_events').insert({
       audit_id: this.auditId,
       phase: this.phaseNumber,
       event_type: eventType,
       message,
-      data,
+      data: {
+        ...data,
+        trace_id: ctx?.traceId,
+        operation_id: ctx?.operationId,
+      },
     });
   }
 

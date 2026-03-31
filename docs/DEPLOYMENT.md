@@ -14,7 +14,7 @@
 ## Supabase Setup
 
 1. Create project at [supabase.com](https://supabase.com) — choose **EU (Frankfurt)** region for GDPR compliance
-2. In SQL Editor → run `server/migrations/001_initial_schema.sql`
+2. In SQL Editor → run **all** SQL migrations in order (`001` … `008`); see [DATABASE.md](./DATABASE.md#overview)
 3. Authentication → Settings:
    - Set **Site URL** to your production frontend URL
    - Add **Redirect URLs**: `https://your-app.vercel.app/**`
@@ -87,6 +87,16 @@
 | `ANTHROPIC_API_KEY` | Anthropic API key |
 | `NODE_ENV` | `production` |
 | `ALLOWED_ORIGINS` | `https://your-app.vercel.app` |
+| `SENTRY_DSN` | Sentry DSN for backend error/trace capture |
+| `SENTRY_TRACES_SAMPLE_RATE` | Trace sampling ratio, e.g. `0.2` |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token for reliability alerts |
+| `TELEGRAM_CHAT_ID` | Telegram channel or chat ID for alerts |
+| `ALERT_INTERVAL_MS` | Alert worker interval (default `60000`) |
+| `ALERT_FAILURE_RATE_THRESHOLD` | Failure rate threshold for alerting (default `0.2`) |
+| `ALERT_LATENCY_P95_MS_THRESHOLD` | p95 phase latency threshold in ms (default `180000`) |
+| `ALERT_TOKEN_BURN_15M_THRESHOLD` | Token burn threshold over 15m window (default `300000`) |
+| `SENTRY_TRACE_LINK_TEMPLATE` | Optional deep link template with `{trace_id}` placeholder |
+| `TRACE_LINK_TEMPLATE` | Optional custom trace viewer link template with `{trace_id}` |
 
 ---
 
@@ -117,7 +127,7 @@ In production: set `ALLOWED_ORIGINS=https://your-app.vercel.app` in Railway.
 
 ## Deploy Checklist
 
-- [ ] Run `server/migrations/001_initial_schema.sql` in Supabase SQL editor
+- [ ] Run all SQL migrations in order (`001` … `008`) in Supabase SQL editor
 - [ ] RLS policies active (check in Supabase → Table Editor → each table)
 - [ ] Supabase Site URL + Redirect URLs updated to production domain
 - [ ] Google OAuth configured in Supabase (if using)
@@ -135,3 +145,13 @@ In production: set `ALLOWED_ORIGINS=https://your-app.vercel.app` in Railway.
 - **Supabase** → database logs, auth logs, Realtime connection counts.
 - **Vercel** → deployment logs, function logs (if any).
 - **Anthropic** → usage dashboard for token tracking and cost.
+- **Sentry** → backend exceptions and distributed traces (`traceparent` propagated from client to API).
+- **Telegram alerts** → pipeline failure rate, phase latency p95, and token burn rate.
+
+### Reliability runbook (Sprint 5)
+
+1. Check Telegram alert payload and capture the time window.
+2. Find the related `trace_id` in Sentry and backend structured logs.
+3. Query `pipeline_events` for `event_type in ('started','completed','error','token_usage')` for the same window.
+4. If retries are involved, verify idempotency records in `api_idempotency_keys` to confirm replay vs. new execution.
+5. Expired idempotency keys are cleaned up by background worker automatically.

@@ -22,6 +22,8 @@ import {
   type ProductMode,
 } from '../types/audit.js';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
+import { getStoredIdempotentResponse, storeIdempotentResponse } from '../lib/idempotency.js';
+import { logger } from '../services/logger.js';
 
 export const auditRequestsRouter = Router();
 
@@ -256,6 +258,11 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
   try {
     const id = req.params.id as string;
     const { consultant_note } = req.body;
+    const idempotent = await getStoredIdempotentResponse(req, `POST:/api/audit-requests/${id}/approve`, req.body);
+    if (idempotent.replay) {
+      res.status(idempotent.replay.statusCode).json(idempotent.replay.payload);
+      return;
+    }
 
     const { data: requestRow, error: fetchErr } = await supabase
       .from('audit_requests')
@@ -319,7 +326,7 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
 
     if (initFailed) {
       await supabase.from('audits').delete().eq('id', audit.id); // CASCADE deletes child rows
-      console.error('[approve] Placeholder init failed, rolled back audit', audit.id);
+      logger.error('Approve request failed during placeholder init', { audit_id: audit.id, request_id: id });
       res.status(500).json({ error: 'Failed to initialize audit — rolled back' });
       return;
     }
@@ -340,13 +347,26 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
 
     if (updateErr) {
       await supabase.from('audits').delete().eq('id', audit.id);
-      console.error('[approve] Request status update failed, rolled back audit', audit.id, updateErr.message);
+      logger.error('Approve request failed during status update', { audit_id: audit.id, request_id: id, error: updateErr.message });
       throw updateErr;
     }
 
-    res.status(201).json({ audit_request: updatedRequest, audit: { id: audit.id, status: audit.status } });
+    const payload = { audit_request: updatedRequest, audit: { id: audit.id, status: audit.status } };
+    await storeIdempotentResponse(
+      req,
+      `POST:/api/audit-requests/${id}/approve`,
+      idempotent.key,
+      idempotent.hash,
+      { statusCode: 201, payload },
+      audit.id
+    );
+    res.status(201).json(payload);
   } catch (err) {
-    console.error('[POST /api/audit-requests/:id/approve]', err);
+    if ((err as Error).message.includes('Idempotency key reuse')) {
+      res.status(409).json({ error: (err as Error).message });
+      return;
+    }
+    logger.error('Approve audit request route failed', { error: (err as Error).message });
     res.status(500).json({ error: 'Failed to approve audit request' });
   }
 });

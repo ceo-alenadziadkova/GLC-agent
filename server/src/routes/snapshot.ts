@@ -19,9 +19,9 @@ const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9
 snapshotRouter.use(snapshotPublicLimiter);
 
 /**
- * Public Free UX Snapshot API contract (see docs/CONCEPT-upd.md §9.0):
+ * Public Free UX Snapshot API contract — see docs/API.md (Public Snapshot), docs/PRODUCT.md (product_mode free_snapshot).
  * POST returns 202 + snapshot_token; GET returns status or completed preview.
- * Completed body: company meta, ux_score/label/summary, max 2 issues, max 2 quick_wins (no internal confidence/evidence).
+ * Completed body: company meta, ux score/label/summary, max 2 issues, max 2 quick_wins (trimmed preview).
  */
 
 // ─── POST /api/snapshot — Start a free snapshot ────────────

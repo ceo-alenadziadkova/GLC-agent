@@ -94,23 +94,11 @@ The backend uses the **anon** `supabase` client (not service role) for `getUser(
 
 ## Row Level Security (RLS)
 
-RLS is the security boundary between users. Even if a user guesses another user's audit ID, they cannot read that audit because:
+RLS is the security boundary for the **anon** Supabase client. Policies cover consultant-owned audits, linked clients (`client_id`), intake brief, audit requests, and related rows. **Canonical policies:** `server/migrations/*.sql` and [DATABASE.md](./DATABASE.md).
 
-```sql
--- audits table
-CREATE POLICY "user_isolation" ON audits
-  FOR ALL USING (user_id = auth.uid());
+Threat model and backend verification: [SECURITY.md](./SECURITY.md).
 
--- related tables
-CREATE POLICY "user_isolation" ON audit_domains
-  FOR ALL USING (
-    audit_id IN (SELECT id FROM audits WHERE user_id = auth.uid())
-  );
-```
-
-`auth.uid()` = the user ID from the JWT. This is evaluated by Supabase for every query from the **anon key** client.
-
-The backend's **service role key** bypasses RLS — this is intentional. The backend validates ownership at the route level (`WHERE audit_id = $1 AND user_id = $2`).
+The backend's **service role key** bypasses RLS — intentional. Routes must still enforce access (e.g. `user_id`, `client_id`, role guards).
 
 ---
 

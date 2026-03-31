@@ -1,8 +1,8 @@
 import { BaseAgent, loadPrompt } from './base.js';
 import { CrawlerCollector } from '../collectors/crawler.js';
-import { ReconOutputSchema, zodToJsonSchema } from '../schemas/domain-output.js';
+import { ReconOutputSchema } from '../schemas/domain-output.js';
 import { supabase } from '../services/supabase.js';
-import { CLAUDE_MODEL, MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
+import { MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import type { DomainResult } from '../types/audit.js';
 
 /**
@@ -54,34 +54,7 @@ export class ReconAgent extends BaseAgent {
       await this.emit('warning', `Token budget at ${Math.round((budget.tokens_used / budget.token_budget) * 100)}% — ${budget.remaining} tokens remaining`);
     }
 
-    // Use parent's callClaude logic via full run, but we need to handle recon-specific saving
-    const { system, prompt, truncated, truncatedKeys } = this.contextBuilder.formatPrompt(context);
-    if (truncated) {
-      await this.emit('warning', `Context truncated for keys: ${truncatedKeys.join(', ')}`);
-    }
-    const response = await this.anthropic.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: MODEL_MAX_TOKENS.recon,
-      system,                                           // ← role instructions in system channel
-      messages: [{ role: 'user', content: prompt }],
-      tools: [{
-        name: 'submit_analysis',
-        description: 'Submit the structured reconnaissance analysis',
-        input_schema: zodToJsonSchema(ReconOutputSchema) as { type: 'object'; properties: Record<string, unknown>; required?: string[] },
-      }],
-      tool_choice: { type: 'tool', name: 'submit_analysis' },
-    });
-
-    await this.tokenTracker.log(this.auditId, 0, {
-      input_tokens: response.usage.input_tokens,
-      output_tokens: response.usage.output_tokens,
-      model: CLAUDE_MODEL,
-    });
-
-    const toolBlock = response.content.find(b => b.type === 'tool_use');
-    if (!toolBlock || toolBlock.type !== 'tool_use') throw new Error('No tool_use response');
-
-    const reconResult = ReconOutputSchema.parse(toolBlock.input);
+    const reconResult = await this.callClaudeWithRetry(context, ReconOutputSchema, MODEL_MAX_TOKENS.recon) as unknown as import('zod').infer<typeof ReconOutputSchema>;
 
     // Save to audit_recon
     await supabase.from('audit_recon').update({

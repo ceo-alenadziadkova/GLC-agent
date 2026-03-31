@@ -2,9 +2,22 @@
 
 ## Overview
 
-PostgreSQL on Supabase. 6 tables. Row Level Security on all tables. Realtime enabled on `pipeline_events` and `audits`.
+PostgreSQL on **Supabase**. Apply migrations **in numeric order** so foreign keys, RLS, and triggers exist before later tables reference them:
 
-Run `server/migrations/001_initial_schema.sql` in the Supabase SQL editor to create all tables and policies.
+1. `001_initial_schema.sql` — core audit tables
+2. `002_stability_indexes.sql`
+3. `003_atomic_token_increment.sql`
+4. `004_product_mode.sql` — `product_mode`, `snapshot_token`, nullable `user_id` rules for free snapshot
+5. `005_client_portal.sql` — `profiles`, `audit_requests`, `client_id` on `audits`
+6. `006_intake_brief.sql` — `intake_brief`
+7. `007_finding_provenance.sql` — extra columns on `audit_domains`
+8. `008_reliability_idempotency.sql` — `api_idempotency_keys` for safe replay of critical writes
+
+**Tables (11):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`.
+
+Row Level Security is enabled on these tables; exact policies differ by table (consultant vs client access). **Canonical SQL:** the migration files — this doc summarises shapes.
+
+Realtime: enabled on `pipeline_events` and `audits` (see [FRONTEND.md](./FRONTEND.md) / [ARCHITECTURE.md](./ARCHITECTURE.md)).
 
 ---
 
@@ -16,10 +29,13 @@ Master record for each audit run.
 
 ```sql
 id              uuid PRIMARY KEY DEFAULT gen_random_uuid()
-user_id         uuid REFERENCES auth.users(id) NOT NULL
+user_id         uuid REFERENCES auth.users(id)  -- NULL allowed only for product_mode = 'free_snapshot' (see migration 004)
+client_id       uuid REFERENCES profiles(id)    -- optional; client portal (migration 005)
 company_url     text NOT NULL
 company_name    text
 industry        text
+product_mode    text NOT NULL DEFAULT 'full'      -- 'free_snapshot' | 'express' | 'full' (migration 004)
+snapshot_token  uuid                             -- public polling for free snapshot (migration 004)
 status          text DEFAULT 'created'
 current_phase   int DEFAULT 0
 overall_score   numeric(3,1)
@@ -78,10 +94,12 @@ recommendations jsonb DEFAULT '[]'      -- [{title, description, priority, cost,
 raw_data        jsonb DEFAULT '{}'
 created_at      timestamptz DEFAULT now()
 
-UNIQUE(audit_id, domain_key)
+UNIQUE(audit_id, domain_key, version)
 ```
 
 **`domain_key` values:** `tech_infrastructure` | `security_compliance` | `seo_digital` | `ux_conversion` | `marketing_utp` | `automation_processes`
+
+**Migration 007:** adds `confidence_distribution` (jsonb) and `unknown_items` (jsonb) for provenance / gap tracking.
 
 **`status` values:** `pending` | `collecting` | `assembling_context` | `analyzing` | `completed` | `failed`
 
@@ -139,6 +157,7 @@ created_at  timestamptz DEFAULT now()
 | `error` | Phase failed | `{ error: string }` |
 | `review_needed` | Review gate reached | `{ after_phase: number }` |
 | `token_usage` | After each Claude call | `{ input_tokens, output_tokens, model, cost_usd }` |
+| `quality_gate` | Consistency checker result | Quality gate report payload (see `ConsistencyChecker`) |
 | `log` | Debug/info | `{ message: string }` |
 
 ---
@@ -178,23 +197,46 @@ approved_at      timestamptz
 
 ---
 
+### `profiles`
+
+User roles and display metadata. **`role`:** `consultant` | `client` (migration `005_client_portal.sql`).
+
+---
+
+### `audit_requests`
+
+Client-submitted audit requests before an `audits` row is attached. Status workflow: `draft` → `submitted` → `under_review` → `approved` | `rejected` → `running` → `delivered` (see migration `005`).
+
+---
+
+### `intake_brief`
+
+Structured questionnaire responses per audit (`responses` jsonb, `status` `draft` | `submitted`, SLA counters). One row per audit (unique `audit_id`). Migration `006_intake_brief.sql`.
+
+---
+
+### `api_idempotency_keys`
+
+Stores request fingerprints and prior responses for idempotent replay on critical write endpoints.
+
+Key fields: `user_id`, `route`, `idempotency_key`, `request_hash`, `response_status`, `response_body`, `expires_at`.
+
+Uniqueness: `(user_id, route, idempotency_key)` via unique index.
+
+Migration: `008_reliability_idempotency.sql`.
+
+---
+
 ## Row Level Security
 
-All tables have RLS enabled. The policy pattern on every table:
+RLS is enabled on all application tables. Policies evolved across migrations: consultants, linked clients (`client_id`), and free-snapshot rows each have specific rules. **Do not copy legacy “single policy” snippets from older docs** — use the migration files as source of truth.
 
-```sql
--- Users can only see their own rows
-CREATE POLICY "user_isolation" ON table_name
-  FOR ALL USING (
-    audit_id IN (SELECT id FROM audits WHERE user_id = auth.uid())
-  );
+Typical pattern:
 
--- audits table uses user_id directly
-CREATE POLICY "user_isolation" ON audits
-  FOR ALL USING (user_id = auth.uid());
-```
+- **Backend** uses the **service role key** and bypasses RLS; it must still filter by `user_id` / ownership in route handlers.
+- **Frontend** uses the **anon key** and is subject to RLS.
 
-The backend uses the **service role key** which bypasses RLS. The frontend uses the **anon key** which is subject to RLS.
+Threat model and JWT verification: [SECURITY.md](./SECURITY.md). Auth roles: [AUTH.md](./AUTH.md).
 
 ---
 

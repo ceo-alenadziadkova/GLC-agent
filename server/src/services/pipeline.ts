@@ -10,6 +10,8 @@ import { MarketingAgent } from '../agents/marketing.js';
 import { AutomationAgent } from '../agents/automation.js';
 import { StrategyAgent } from '../agents/strategy.js';
 import { BaseAgent } from '../agents/base.js';
+import { logger } from './logger.js';
+import { getContext, updateContext } from './observability-context.js';
 import {
   PHASE_DOMAIN_MAP,
   maxPhaseForMode,
@@ -134,7 +136,7 @@ export class PipelineOrchestrator {
 
     } catch (err) {
       const error = err as Error;
-      console.error(`[Pipeline ${this.auditId}] Phase ${phase} error:`, error.message);
+      logger.error('Pipeline phase failed', { audit_id: this.auditId, phase, error: error.message });
 
       const domainKey = PHASE_DOMAIN_MAP[phase];
       if (domainKey !== 'recon' && domainKey !== 'strategy') {
@@ -187,7 +189,7 @@ export class PipelineOrchestrator {
 
     } catch (err) {
       const error = err as Error;
-      console.error(`[Pipeline ${this.auditId}] Phase ${phase} (parallel) error:`, error.message);
+      logger.error('Pipeline parallel phase failed', { audit_id: this.auditId, phase, error: error.message });
 
       if (domainKey !== 'recon' && domainKey !== 'strategy') {
         await supabase.from('audit_domains').update({ status: 'failed' })
@@ -266,7 +268,10 @@ export class PipelineOrchestrator {
       .eq('id', this.auditId)
       .single();
 
-    if (auditErr || !audit) return;
+    if (auditErr || !audit) {
+      logger.error('Run block failed to load audit', { audit_id: this.auditId, error: auditErr?.message ?? 'missing' });
+      throw new Error('Audit not found while running block');
+    }
 
     const mode = await this.getProductMode();
     const maxPhase = maxPhaseForMode(mode);
@@ -334,7 +339,7 @@ export class PipelineOrchestrator {
    */
   async runFreeSnapshot(): Promise<FreeSnapshotPreview> {
     try {
-      console.log(`[FreeSnapshot ${this.auditId}] Starting`);
+      logger.info('Free snapshot started', { audit_id: this.auditId });
 
       // ── Phase 0: Recon ──────────────────────────────────
       await supabase.from('audits').update({ status: 'recon', current_phase: 0 }).eq('id', this.auditId);
@@ -367,7 +372,7 @@ export class PipelineOrchestrator {
         supabase.from('audit_recon').select('company_name, tech_stack, location').eq('audit_id', this.auditId).single(),
       ]);
 
-      console.log(`[FreeSnapshot ${this.auditId}] Completed`);
+      logger.info('Free snapshot completed', { audit_id: this.auditId });
 
       return {
         audit_id: this.auditId,
@@ -386,7 +391,7 @@ export class PipelineOrchestrator {
 
     } catch (err) {
       const error = err as Error;
-      console.error(`[FreeSnapshot ${this.auditId}] Error:`, error.message);
+      logger.error('Free snapshot failed', { audit_id: this.auditId, error: error.message });
       await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
       await this.emitEvent(0, 'error', error.message);
       throw err;
@@ -394,12 +399,18 @@ export class PipelineOrchestrator {
   }
 
   private async emitEvent(phase: number, eventType: string, message: string, data: Record<string, unknown> = {}): Promise<void> {
+    updateContext({ auditId: this.auditId });
+    const ctx = getContext();
     await supabase.from('pipeline_events').insert({
       audit_id: this.auditId,
       phase,
       event_type: eventType,
       message,
-      data,
+      data: {
+        ...data,
+        trace_id: ctx?.traceId,
+        operation_id: ctx?.operationId,
+      },
     });
   }
 }

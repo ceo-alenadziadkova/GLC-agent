@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { supabase } from '../services/supabase.js';
+import { updateContext } from '../services/observability-context.js';
 
 export type UserRole = 'consultant' | 'client';
 
@@ -33,6 +34,7 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
 
     req.userId = data.user.id;
     req.userEmail = data.user.email;
+    updateContext({ userId: data.user.id });
     next();
   } catch {
     res.status(401).json({ error: 'Authentication failed' });
