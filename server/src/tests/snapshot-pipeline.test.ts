@@ -89,7 +89,7 @@ vi.mock('../agents/recon.js', () => ({
   ReconAgent: class MockReconAgent {
     constructor(public auditId: string) {}
     async run() {
-      return (globalThis as Record<string, unknown>).__mockRunRecon(this.auditId);
+      return ((globalThis as Record<string, unknown>).__mockRunRecon as (id: string) => unknown)(this.auditId);
     }
   },
 }));
@@ -98,10 +98,10 @@ vi.mock('../agents/ux.js', () => ({
   UxAgent: class MockUxAgent {
     constructor(public auditId: string) {}
     async run() {
-      return (globalThis as Record<string, unknown>).__mockRunUx(this.auditId);
+      return ((globalThis as Record<string, unknown>).__mockRunUx as (id: string) => unknown)(this.auditId);
     }
     async saveDomainResult(result: unknown) {
-      return (globalThis as Record<string, unknown>).__mockSaveDomain(result);
+      return ((globalThis as Record<string, unknown>).__mockSaveDomain as (r: unknown) => unknown)(result);
     }
   },
 }));
@@ -124,7 +124,16 @@ import type { DomainResult, AuditIssue, QuickWin } from '../types/audit.js';
 const AUDIT_ID = 'audit-snapshot-uuid-001';
 
 function makeIssue(n: number): AuditIssue {
-  return { id: `i${n}`, severity: 'high', title: `Issue ${n}`, description: `Desc ${n}`, impact: 'High' };
+  return {
+    id: `i${n}`,
+    severity: 'high',
+    title: `Issue ${n}`,
+    description: `Desc ${n}`,
+    impact: 'High',
+    confidence: 'high',
+    evidence_refs: [{ type: 'stub', finding: `evidence ${n}` }],
+    data_source: 'auto_detected',
+  };
 }
 
 function makeQuickWin(n: number): QuickWin {
@@ -141,6 +150,7 @@ function makeUxResult(issueCount = 3, quickWinCount = 4): DomainResult {
     issues: Array.from({ length: issueCount }, (_, i) => makeIssue(i + 1)),
     quick_wins: Array.from({ length: quickWinCount }, (_, i) => makeQuickWin(i + 1)),
     recommendations: [],
+    unknown_items: [],
   };
 }
 

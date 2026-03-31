@@ -9,7 +9,13 @@ import { MarketingAgent } from '../agents/marketing.js';
 import { AutomationAgent } from '../agents/automation.js';
 import { StrategyAgent } from '../agents/strategy.js';
 import { BaseAgent } from '../agents/base.js';
-import { REVIEW_AFTER_PHASES, PHASE_DOMAIN_MAP, type FreeSnapshotPreview } from '../types/audit.js';
+import {
+  PHASE_DOMAIN_MAP,
+  maxPhaseForMode,
+  reviewPhasesForMode,
+  type FreeSnapshotPreview,
+  type ProductMode,
+} from '../types/audit.js';
 
 type AgentConstructor = new (auditId: string) => BaseAgent;
 
@@ -25,10 +31,21 @@ const PHASE_AGENTS: Record<number, AgentConstructor> = {
 };
 
 /**
+ * Phases that run concurrently within a block.
+ *
+ * Auto wing   (1–4): Tech, Security, SEO, UX — all data-independent, safe to parallelise.
+ * Analytic wing (5–6): Marketing, Automation — also independent of each other.
+ * Phase 7 (Strategy) remains sequential; it synthesises every prior result.
+ */
+const AUTO_WING_PHASES    = [1, 2, 3, 4] as const;
+const ANALYTIC_WING_PHASES = [5, 6] as const;
+
+/**
  * Pipeline Orchestrator
  *
- * Manages the phase sequencing:
- * Phase 0 (Recon) → [review] → Phases 1-4 (Auto) → [review] → Phases 5-6 (Analytic) → [review] → Phase 7 (Strategy)
+ * Phase sequencing:
+ *   Phase 0 (Recon) → Gate 1 → Phases 1-4 (parallel auto) → Gate 2
+ *   → Phases 5-6 (parallel analytic) → Phase 7 (Strategy) → Gate 3
  *
  * Each phase: COLLECT → ASSEMBLE → CALL CLAUDE → FACT-CHECK → SAVE
  */
@@ -39,8 +56,20 @@ export class PipelineOrchestrator {
     this.auditId = auditId;
   }
 
+  /** Fetch the product_mode for this audit. Falls back to 'full' on error. */
+  private async getProductMode(): Promise<ProductMode> {
+    const { data } = await supabase
+      .from('audits')
+      .select('product_mode')
+      .eq('id', this.auditId)
+      .single();
+    return (data?.product_mode as ProductMode) ?? 'full';
+  }
+
   /**
-   * Start a specific phase.
+   * Start a specific phase (sequential, single-phase path).
+   * Handles audit-level status updates, review gates, and full error propagation.
+   * Used for Phase 0 (Recon), Phase 7 (Strategy), and direct retry calls.
    */
   async startPhase(phase: number): Promise<void> {
     const AgentClass = PHASE_AGENTS[phase];
@@ -49,6 +78,13 @@ export class PipelineOrchestrator {
     }
 
     try {
+      // Mode ceiling — reject phases beyond what this product mode allows
+      const mode = await this.getProductMode();
+      const maxPhase = maxPhaseForMode(mode);
+      if (phase > maxPhase) {
+        throw new Error(`Phase ${phase} is not available for product_mode '${mode}' (max: ${maxPhase})`);
+      }
+
       // Brief gate — Phase 0 is blocked for express/full until SLA questions are answered
       if (phase === 0) {
         await assertBriefReady(this.auditId);
@@ -57,14 +93,13 @@ export class PipelineOrchestrator {
       // Emit start event
       await this.emitEvent(phase, 'started', `Phase ${phase} started: ${PHASE_DOMAIN_MAP[phase]}`);
 
-      // Update audit status
+      // Update audit status + current_phase
       const statusMap: Record<number, string> = {
         0: 'recon',
         1: 'auto', 2: 'auto', 3: 'auto', 4: 'auto',
         5: 'analytic', 6: 'analytic',
         7: 'strategy',
       };
-
       await supabase.from('audits').update({
         status: statusMap[phase] ?? 'auto',
         current_phase: phase,
@@ -82,18 +117,16 @@ export class PipelineOrchestrator {
       const agent = new AgentClass(this.auditId);
       const result = await agent.run();
 
-      // Save result (base agent handles domain saving, recon/strategy handle their own)
       if (domainKey !== 'recon' && domainKey !== 'strategy') {
         await agent.saveDomainResult(result);
       }
 
       // Check if this phase triggers a review point
-      if (REVIEW_AFTER_PHASES.includes(phase as 0 | 4 | 7)) {
+      if ((reviewPhasesForMode(mode) as readonly number[]).includes(phase)) {
         await this.emitEvent(phase, 'review_needed', `Review point: approve before continuing`);
         await supabase.from('audits').update({ status: 'review' }).eq('id', this.auditId);
       }
 
-      // Emit completion
       await this.emitEvent(phase, 'completed', `Phase ${phase} completed`, {
         score: result.score > 0 ? result.score : undefined,
       });
@@ -102,7 +135,6 @@ export class PipelineOrchestrator {
       const error = err as Error;
       console.error(`[Pipeline ${this.auditId}] Phase ${phase} error:`, error.message);
 
-      // Update domain status to failed
       const domainKey = PHASE_DOMAIN_MAP[phase];
       if (domainKey !== 'recon' && domainKey !== 'strategy') {
         await supabase.from('audit_domains').update({ status: 'failed' })
@@ -111,18 +143,120 @@ export class PipelineOrchestrator {
       }
 
       await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
-
-      await this.emitEvent(phase, 'error', error.message, {
-        stack: error.stack?.substring(0, 500),
-      });
+      await this.emitEvent(phase, 'error', error.message, { stack: error.stack?.substring(0, 500) });
 
       throw err;
     }
   }
 
   /**
-   * Auto-run: execute all phases in the current block until a review point.
-   * Call this after a review approval to auto-run the next block.
+   * Run a single phase in isolation — used inside a parallel block.
+   *
+   * Differences from `startPhase()`:
+   * - Does NOT update `audits.status` or `audits.current_phase` (block-level concern).
+   * - Does NOT emit `review_needed` (block-level concern after all phases finish).
+   * - On error: marks only the individual domain as 'failed'; does NOT abort the audit.
+   *   Throws so Promise.allSettled() can track the failure.
+   */
+  private async startPhaseIsolated(phase: number): Promise<void> {
+    const AgentClass = PHASE_AGENTS[phase];
+    if (!AgentClass) throw new Error(`Unknown phase: ${phase}`);
+
+    const domainKey = PHASE_DOMAIN_MAP[phase];
+
+    try {
+      await this.emitEvent(phase, 'started', `Phase ${phase} started: ${domainKey}`);
+
+      if (domainKey !== 'recon' && domainKey !== 'strategy') {
+        await supabase.from('audit_domains').update({ status: 'collecting' })
+          .eq('audit_id', this.auditId)
+          .eq('domain_key', domainKey);
+      }
+
+      const agent = new AgentClass(this.auditId);
+      const result = await agent.run();
+
+      if (domainKey !== 'recon' && domainKey !== 'strategy') {
+        await agent.saveDomainResult(result);
+      }
+
+      await this.emitEvent(phase, 'completed', `Phase ${phase} completed`, {
+        score: result.score > 0 ? result.score : undefined,
+      });
+
+    } catch (err) {
+      const error = err as Error;
+      console.error(`[Pipeline ${this.auditId}] Phase ${phase} (parallel) error:`, error.message);
+
+      if (domainKey !== 'recon' && domainKey !== 'strategy') {
+        await supabase.from('audit_domains').update({ status: 'failed' })
+          .eq('audit_id', this.auditId)
+          .eq('domain_key', domainKey);
+      }
+
+      await this.emitEvent(phase, 'error', error.message, { stack: error.stack?.substring(0, 500) });
+      throw err;
+    }
+  }
+
+  /**
+   * Run multiple phases concurrently using Promise.allSettled().
+   *
+   * Partial-failure semantics:
+   * - If some (but not all) phases fail → continue; failed domains are recorded and
+   *   later surfaced to the Strategy Agent via context-builder.
+   * - If ALL phases fail → audit is marked 'failed' and an error is thrown.
+   *
+   * Caller is responsible for updating `audits.status` and `current_phase` before
+   * and after this call.
+   *
+   * @returns Array of domain key strings for phases that failed (empty = all succeeded).
+   */
+  private async runParallelBlock(phases: readonly number[]): Promise<string[]> {
+    await this.emitEvent(-1, 'parallel_started', `Parallel block: phases [${phases.join(',')}]`);
+
+    const results = await Promise.allSettled(
+      phases.map(p => this.startPhaseIsolated(p)),
+    );
+
+    const failedDomains: string[] = [];
+    results.forEach((result, i) => {
+      if (result.status === 'rejected') {
+        failedDomains.push(String(PHASE_DOMAIN_MAP[phases[i]]));
+      }
+    });
+
+    if (failedDomains.length === phases.length) {
+      // Total failure — mark audit failed
+      await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
+      await this.emitEvent(-1, 'error', `All parallel phases failed: ${failedDomains.join(', ')}`);
+      throw new Error(`All parallel phases failed: ${failedDomains.join(', ')}`);
+    }
+
+    if (failedDomains.length > 0) {
+      await this.emitEvent(-1, 'partial_failure',
+        `${failedDomains.length} domain(s) unavailable: ${failedDomains.join(', ')}. Pipeline continues.`,
+        { domains_unavailable: failedDomains },
+      );
+    } else {
+      await this.emitEvent(-1, 'parallel_completed', `Parallel block finished: phases [${phases.join(',')}]`);
+    }
+
+    return failedDomains;
+  }
+
+  /**
+   * Run the next block of phases from the current pipeline position.
+   *
+   * Called by POST /api/audits/:id/pipeline/next (and after review approvals).
+   * Detects which wing is next (auto / analytic / strategy) and runs accordingly.
+   *
+   * Wing layout (full mode):
+   *   current_phase=0  → auto wing: phases 1-4 in parallel
+   *   current_phase=4  → analytic wing: phases 5-6 in parallel, then phase 7 sequential
+   *   current_phase=7  → nothing (all done)
+   *
+   * Express mode: only auto wing (phases 1-4); no analytic or strategy.
    */
   async runBlock(): Promise<void> {
     const { data: audit, error: auditErr } = await supabase
@@ -133,31 +267,55 @@ export class PipelineOrchestrator {
 
     if (auditErr || !audit) return;
 
-    let phase = audit.current_phase + 1;
+    const mode = await this.getProductMode();
+    const maxPhase = maxPhaseForMode(mode);
+    const reviewPhases = reviewPhasesForMode(mode) as readonly number[];
+    const nextPhase = audit.current_phase + 1;
 
-    while (phase <= 7) {
-      // Check for pending review before this phase
-      const isReviewBefore = REVIEW_AFTER_PHASES.includes((phase - 1) as 0 | 4 | 7);
-      if (isReviewBefore && phase > audit.current_phase + 1) {
-        // Already past the first phase in the block, check if review is approved
-        const { data: review } = await supabase
-          .from('review_points')
-          .select('status')
-          .eq('audit_id', this.auditId)
-          .eq('after_phase', phase - 1)
-          .single();
+    if (nextPhase > maxPhase) return; // All phases complete
 
-        if (review?.status !== 'approved') break;
+    // ── Auto wing: phases 1-4 (or subset for express) ────────────────
+    if ((AUTO_WING_PHASES as readonly number[]).includes(nextPhase)) {
+      const wingPhases = AUTO_WING_PHASES.filter(p => p <= maxPhase);
+      const lastWingPhase = Math.max(...wingPhases);
+
+      await supabase.from('audits').update({ status: 'auto', current_phase: nextPhase }).eq('id', this.auditId);
+
+      await this.runParallelBlock(wingPhases);
+
+      // Record last completed wing phase
+      await supabase.from('audits').update({ current_phase: lastWingPhase }).eq('id', this.auditId);
+
+      // Gate after auto wing (if applicable)
+      if (reviewPhases.includes(lastWingPhase)) {
+        await this.emitEvent(lastWingPhase, 'review_needed', `Review point: approve before continuing`);
+        await supabase.from('audits').update({ status: 'review' }).eq('id', this.auditId);
       }
+      return;
+    }
 
-      await this.startPhase(phase);
+    // ── Analytic wing: phases 5-6, then Strategy ─────────────────────
+    if ((ANALYTIC_WING_PHASES as readonly number[]).includes(nextPhase)) {
+      const wingPhases = ANALYTIC_WING_PHASES.filter(p => p <= maxPhase);
+      const lastWingPhase = Math.max(...wingPhases);
 
-      // Stop at review points
-      if (REVIEW_AFTER_PHASES.includes(phase as 0 | 4 | 7)) {
-        break;
+      await supabase.from('audits').update({ status: 'analytic', current_phase: nextPhase }).eq('id', this.auditId);
+
+      await this.runParallelBlock(wingPhases);
+
+      await supabase.from('audits').update({ current_phase: lastWingPhase }).eq('id', this.auditId);
+
+      // Continue to Strategy (phase 7) without an intermediate gate
+      if (maxPhase >= 7) {
+        await this.startPhase(7);
       }
+      return;
+    }
 
-      phase++;
+    // ── Strategy phase (solo) ─────────────────────────────────────────
+    if (nextPhase === 7) {
+      await this.startPhase(7);
+      return;
     }
   }
 

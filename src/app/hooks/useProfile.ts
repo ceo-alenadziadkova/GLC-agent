@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { UserRole } from '../data/auditTypes';
 
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+
 interface Profile {
   id: string;
   role: UserRole;
@@ -20,9 +22,11 @@ interface UseProfileResult {
 
 /**
  * Reads the current user's profile from Supabase.
- * Role is set by the server at sign-in via the CONSULTANT_EMAILS env check.
+ * Role is set by the server via the CONSULTANT_EMAILS env check.
  *
- * Returns null while loading or if the user is not signed in.
+ * If the profile row doesn't exist yet (user created before migration 005,
+ * or handle_new_user trigger missed), calls GET /api/profile which runs
+ * attachProfile() to upsert the row, then re-reads from the DB.
  */
 export function useProfile(): UseProfileResult {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -46,16 +50,34 @@ export function useProfile(): UseProfileResult {
         return;
       }
 
-      const { data, error: dbError } = await supabase
+      // Try reading profile directly from DB first (fast path)
+      let { data, error: dbError } = await supabase
         .from('profiles')
         .select('id, role, full_name, created_at')
         .eq('id', session.user.id)
         .single();
 
+      // PGRST116 = 0 rows — profile doesn't exist yet.
+      // Call /api/profile which runs attachProfile() to upsert it, then re-read.
+      if (dbError?.code === 'PGRST116') {
+        try {
+          await fetch(`${API_URL}/api/profile`, {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          });
+          const retry = await supabase
+            .from('profiles')
+            .select('id, role, full_name, created_at')
+            .eq('id', session.user.id)
+            .single();
+          data = retry.data;
+          dbError = retry.error;
+        } catch {
+          // Server unreachable — fall through to error state
+        }
+      }
+
       if (!cancelled) {
         if (dbError || !data) {
-          // Profile may not exist yet (migration not applied, or first login before trigger ran).
-          // Fail gracefully — treat as client.
           setProfile(null);
           setError(dbError?.message ?? 'Profile not found');
         } else {
@@ -68,8 +90,11 @@ export function useProfile(): UseProfileResult {
     void load();
 
     // Re-fetch on auth state changes (sign in / sign out)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      void load();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Only re-run on actual sign-in / sign-out, not on every token refresh
+      if (session === null || _event === 'SIGNED_IN' || _event === 'SIGNED_OUT') {
+        void load();
+      }
     });
 
     return () => {

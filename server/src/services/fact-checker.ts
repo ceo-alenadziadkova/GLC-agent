@@ -1,9 +1,10 @@
-import type { DomainResult, DomainKey } from '../types/audit.js';
+import type { DomainResult, DomainKey, ConfidenceLevel } from '../types/audit.js';
 
 interface FactCheckResult {
   result: DomainResult;
   corrections: FactCorrection[];
-  confidence: number; // 0-1 how confident we are in the score
+  /** 0–1 overall confidence in the score, derived from corrections + finding confidences. */
+  confidence: number;
 }
 
 interface FactCorrection {
@@ -49,10 +50,8 @@ export class FactChecker {
     // General checks
     this.checkScoreConsistency(result, corrections);
 
-    // Calculate confidence
-    const confidence = corrections.length === 0 ? 1.0
-      : corrections.filter(c => c.action === 'override').length > 0 ? 0.5
-      : 0.8;
+    // Calculate confidence — blend structural corrections with per-finding confidence levels
+    const confidence = this.calculateConfidence(result, corrections);
 
     return {
       result: this.applyCorrections(result, corrections),
@@ -228,6 +227,39 @@ export class FactChecker {
         action: 'flag',
       });
     }
+  }
+
+  /**
+   * Calculates an overall confidence score (0–1) by combining:
+   * 1. Structural corrections (overrides lower confidence more than flags)
+   * 2. Per-finding confidence levels reported by the agent
+   *
+   * Rules:
+   * - Start at 1.0
+   * - Each 'override' correction: -0.2
+   * - Each 'flag' correction: -0.1 (max deduction from flags: -0.2)
+   * - Finding-level confidence ratio: if >50% of issues are 'low': -0.15; if >50% 'medium': -0.05
+   * - Final value clamped to [0, 1]
+   */
+  private calculateConfidence(result: DomainResult, corrections: FactCorrection[]): number {
+    let score = 1.0;
+
+    const overrideCount = corrections.filter(c => c.action === 'override').length;
+    const flagCount = corrections.filter(c => c.action === 'flag').length;
+    score -= overrideCount * 0.2;
+    score -= Math.min(flagCount * 0.1, 0.2); // cap flag deduction at -0.2
+
+    // Factor in per-finding confidence levels
+    if (result.issues.length > 0) {
+      const lowCount = result.issues.filter(i => (i.confidence as ConfidenceLevel) === 'low').length;
+      const mediumCount = result.issues.filter(i => (i.confidence as ConfidenceLevel) === 'medium').length;
+      const ratio = (level: number) => level / result.issues.length;
+
+      if (ratio(lowCount) > 0.5) score -= 0.15;
+      else if (ratio(mediumCount) > 0.5) score -= 0.05;
+    }
+
+    return Math.max(0, Math.min(1, score));
   }
 
   private applyCorrections(result: DomainResult, corrections: FactCorrection[]): DomainResult {

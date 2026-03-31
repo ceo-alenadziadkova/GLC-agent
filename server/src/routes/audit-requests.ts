@@ -14,7 +14,13 @@ import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
 import { requireAuth, attachProfile, requireRole, type AuthRequest, type UserRole } from '../middleware/auth.js';
 import { generalLimiter, createAuditLimiter } from '../middleware/rate-limit.js';
-import { DOMAIN_KEYS, REVIEW_AFTER_PHASES } from '../types/audit.js';
+import {
+  DOMAIN_KEYS,
+  REVIEW_AFTER_PHASES,
+  EXPRESS_DOMAIN_KEYS,
+  reviewPhasesForMode,
+  type ProductMode,
+} from '../types/audit.js';
 
 export const auditRequestsRouter = Router();
 
@@ -270,36 +276,45 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
 
     if (auditErr) throw auditErr;
 
-    // Pre-create audit child records
-    const reviewInserts = REVIEW_AFTER_PHASES.map(phase => ({
+    // Pre-create audit child records — mirror the same mode-aware logic as POST /api/audits
+    const requestMode = (requestRow.product_mode ?? 'full') as ProductMode;
+    const activeDomainKeys = requestMode === 'express' ? EXPRESS_DOMAIN_KEYS : DOMAIN_KEYS;
+    const activeReviewPhases = reviewPhasesForMode(requestMode);
+
+    const reviewInserts = activeReviewPhases.map(phase => ({
       audit_id: audit.id,
       after_phase: phase,
     }));
 
-    const domainInserts = DOMAIN_KEYS.map((key, i) => ({
+    const domainInserts = activeDomainKeys.map((key, i) => ({
       audit_id: audit.id,
       domain_key: key,
       phase_number: i + 1,
     }));
 
-    const [reviewRes, domainsRes, reconRes, strategyRes] = await Promise.allSettled([
+    const childInserts = [
       supabase.from('review_points').insert(reviewInserts),
       supabase.from('audit_domains').insert(domainInserts),
       supabase.from('audit_recon').insert({ audit_id: audit.id }),
-      supabase.from('audit_strategy').insert({ audit_id: audit.id }),
-    ]);
+      ...(requestMode !== 'express' ? [supabase.from('audit_strategy').insert({ audit_id: audit.id })] : []),
+    ] as const;
 
-    const initFailed = [reviewRes, domainsRes, reconRes, strategyRes].some(
+    const results = await Promise.allSettled(childInserts);
+
+    const initFailed = results.some(
       r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.error)
     );
 
     if (initFailed) {
-      await supabase.from('audits').delete().eq('id', audit.id);
+      await supabase.from('audits').delete().eq('id', audit.id); // CASCADE deletes child rows
+      console.error('[approve] Placeholder init failed, rolled back audit', audit.id);
       res.status(500).json({ error: 'Failed to initialize audit — rolled back' });
       return;
     }
 
-    // Update request: link audit_id, set status=approved
+    // Update request: link audit_id, set status=approved.
+    // If this update fails we must also roll back the audit to keep data consistent —
+    // otherwise the audit row exists but is not linked to the request.
     const { data: updatedRequest, error: updateErr } = await supabase
       .from('audit_requests')
       .update({
@@ -311,7 +326,11 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
       .select()
       .single();
 
-    if (updateErr) throw updateErr;
+    if (updateErr) {
+      await supabase.from('audits').delete().eq('id', audit.id);
+      console.error('[approve] Request status update failed, rolled back audit', audit.id, updateErr.message);
+      throw updateErr;
+    }
 
     res.status(201).json({ audit_request: updatedRequest, audit: { id: audit.id, status: audit.status } });
   } catch (err) {
@@ -366,6 +385,22 @@ auditRequestsRouter.post('/:id/deliver', requireRole('consultant'), async (req: 
   try {
     const id = req.params.id as string;
 
+    const { data: existing } = await supabase
+      .from('audit_requests')
+      .select('status')
+      .eq('id', id)
+      .single();
+
+    if (!existing) {
+      res.status(404).json({ error: 'Audit request not found' });
+      return;
+    }
+
+    if (!['approved', 'running'].includes(existing.status as string)) {
+      res.status(400).json({ error: 'Only approved or running requests can be marked as delivered', current_status: existing.status });
+      return;
+    }
+
     const { data, error } = await supabase
       .from('audit_requests')
       .update({ status: 'delivered' })
@@ -374,7 +409,7 @@ auditRequestsRouter.post('/:id/deliver', requireRole('consultant'), async (req: 
       .single();
 
     if (error || !data) {
-      res.status(404).json({ error: 'Audit request not found' });
+      res.status(500).json({ error: 'Failed to update request' });
       return;
     }
 

@@ -97,14 +97,17 @@ export const SCORE_COLORS: Record<number, string> = {
 export interface AuditMeta {
   id: string;
   user_id: string;
+  client_id: string | null;
   company_url: string;
   company_name: string | null;
   industry: string | null;
   status: string;
   current_phase: number;
   overall_score: number | null;
+  product_mode: ProductMode;
   token_budget: number;
   tokens_used: number;
+  snapshot_token: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -135,12 +138,25 @@ export interface CrawledPage {
   images: { total: number; with_alt: number; missing_alt: number; lazy_loaded: number };
 }
 
+// ─── Finding Provenance (Sprint 14) ───────────────────────
+export type ConfidenceLevel = 'high' | 'medium' | 'low';
+export type DataSource = 'auto_detected' | 'from_brief' | 'inferred';
+
+export interface EvidenceRef {
+  type: string;
+  url?: string;
+  finding: string;
+}
+
 export interface AuditIssue {
   id: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
   title: string;
   description: string;
   impact: string;
+  confidence: ConfidenceLevel;
+  evidence_refs: EvidenceRef[];
+  data_source: DataSource;
 }
 
 export interface Recommendation {
@@ -161,6 +177,12 @@ export interface QuickWin {
   timeframe: string;
 }
 
+export interface ConfidenceDistribution {
+  high: number;
+  medium: number;
+  low: number;
+}
+
 export interface DomainData {
   id: string;
   audit_id: string;
@@ -176,6 +198,8 @@ export interface DomainData {
   issues: AuditIssue[];
   quick_wins: QuickWin[];
   recommendations: Recommendation[];
+  unknown_items: string[];
+  confidence_distribution: ConfidenceDistribution | null;
   raw_data: Record<string, unknown>;
 }
 

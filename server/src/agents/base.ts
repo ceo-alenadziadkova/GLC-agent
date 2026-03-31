@@ -39,6 +39,18 @@ export abstract class BaseAgent {
   }
 
   /**
+   * Computes confidence_distribution from the issues array and attaches it to the result.
+   * Called after fact-check so the distribution reflects the final set of issues.
+   */
+  private attachConfidenceDistribution(result: DomainResult): DomainResult {
+    const dist = { high: 0, medium: 0, low: 0 };
+    for (const issue of result.issues) {
+      dist[issue.confidence] += 1;
+    }
+    return { ...result, confidence_distribution: dist };
+  }
+
+  /**
    * Run the full agent pipeline.
    */
   async run(): Promise<DomainResult> {
@@ -98,7 +110,7 @@ export abstract class BaseAgent {
           confidence: verification.confidence,
         });
       }
-      return verification.result;
+      return this.attachConfidenceDistribution(verification.result);
     }
 
     return result;
@@ -191,6 +203,8 @@ export abstract class BaseAgent {
       issues: result.issues,
       quick_wins: result.quick_wins,
       recommendations: result.recommendations,
+      unknown_items: result.unknown_items ?? [],
+      confidence_distribution: result.confidence_distribution ?? null,
     };
 
     // Atomic claim: UPDATE WHERE status='pending'.

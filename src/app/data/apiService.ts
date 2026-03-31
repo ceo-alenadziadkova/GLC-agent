@@ -40,10 +40,10 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 
 export const api = {
   // Audits CRUD
-  async createAudit(companyUrl: string, companyName?: string, industry?: string) {
+  async createAudit(companyUrl: string, companyName?: string, industry?: string, productMode: 'express' | 'full' = 'full') {
     return apiFetch<{ id: string; status: string }>('/api/audits', {
       method: 'POST',
-      body: JSON.stringify({ company_url: companyUrl, company_name: companyName, industry }),
+      body: JSON.stringify({ company_url: companyUrl, company_name: companyName, industry, product_mode: productMode }),
     });
   },
 

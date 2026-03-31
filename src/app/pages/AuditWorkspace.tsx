@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Link, useParams } from 'react-router';
 import {
   HardDrives, Shield, Globe, Cursor, Target, Lightning, MapTrifold, MagnifyingGlass,
-  CaretDown, CaretRight, CheckCircle, Warning, ArrowUpRight, ArrowsClockwise
+  CaretDown, CaretRight, CheckCircle, Warning, ArrowUpRight, ArrowsClockwise,
+  Question, Link as LinkIcon,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { ScoreBadge, ScoreBar, ScoreRing } from '../components/glc/ScoreBadge';
@@ -12,7 +13,11 @@ import { StatusPill } from '../components/glc/StatusPill';
 import { QuickWinTag } from '../components/glc/QuickWinTag';
 import { useAudit } from '../hooks/useAudit';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
-import type { DomainKey, DomainData } from '../data/auditTypes';
+import type { DomainKey, DomainData, ProductMode, ConfidenceLevel } from '../data/auditTypes';
+
+const EXPRESS_DOMAIN_KEYS: readonly DomainKey[] = [
+  'tech_infrastructure', 'security_compliance', 'seo_digital', 'ux_conversion',
+];
 
 const DOMAIN_ICONS: Record<DomainKey, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
   tech_infrastructure: HardDrives,
@@ -25,14 +30,26 @@ const DOMAIN_ICONS: Record<DomainKey, React.ComponentType<{ className?: string; 
 
 const SEV_COLOR: Record<string, string> = {
   critical: 'var(--score-1)',
-  high:   'var(--score-1)',
-  medium: 'var(--score-3)',
-  low:    'var(--text-tertiary)',
+  high:     'var(--score-1)',
+  medium:   'var(--score-3)',
+  low:      'var(--text-tertiary)',
 };
 const SEV_BG: Record<string, string> = {
   critical: 'var(--score-1-bg)',
-  high:   'var(--score-1-bg)',
-  medium: 'var(--score-3-bg)',
+  high:     'var(--score-1-bg)',
+  medium:   'var(--score-3-bg)',
+  low:      'var(--bg-muted)',
+};
+
+// Confidence level colours for provenance badges
+const CONF_COLOR: Record<ConfidenceLevel, string> = {
+  high:   'var(--glc-green)',
+  medium: 'var(--score-3)',
+  low:    'var(--text-tertiary)',
+};
+const CONF_BG: Record<ConfidenceLevel, string> = {
+  high:   'rgba(14,207,130,0.1)',
+  medium: 'rgba(234,179,8,0.1)',
   low:    'var(--bg-muted)',
 };
 
@@ -66,10 +83,12 @@ export function AuditWorkspace() {
 
   const domainData: DomainData | null = audit.domains[activeDomain] || null;
   const companyName = audit.meta.company_name || audit.meta.company_url;
+  const isExpress = (audit.meta.product_mode as ProductMode) === 'express';
+  const visibleDomainKeys: readonly DomainKey[] = isExpress ? EXPRESS_DOMAIN_KEYS : DOMAIN_KEYS;
 
   // Use server-calculated weighted overall score when available (set after Phase 7).
   // Fall back to unweighted average while pipeline is still running.
-  const domainEntries = DOMAIN_KEYS.map(k => audit.domains[k]).filter((d): d is DomainData => d !== null && d.score !== null);
+  const domainEntries = visibleDomainKeys.map(k => audit.domains[k]).filter((d): d is DomainData => d !== null && d.score !== null);
   const overallScore = audit.meta.overall_score
     ?? (domainEntries.length > 0
       ? +(domainEntries.reduce((s, d) => s + (d.score ?? 0), 0) / domainEntries.length).toFixed(1)
@@ -114,7 +133,7 @@ export function AuditWorkspace() {
           {/* Domain nav */}
           <div className="px-2 py-2 space-y-0.5 flex-1">
             <div className="px-2 pb-1.5"><SectionLabel>Domains</SectionLabel></div>
-            {DOMAIN_KEYS.map(key => {
+            {visibleDomainKeys.map(key => {
               const I = DOMAIN_ICONS[key];
               const d = audit.domains[key];
               const active = key === activeDomain;
@@ -236,34 +255,75 @@ export function AuditWorkspace() {
                       </span>
                     </div>
                     <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
-                      {domainData.issues.map((issue, i) => (
-                        <motion.div
-                          key={issue.id || i}
-                          initial={{ opacity: 0, x: -4 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: i * 0.06, duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                          className="flex items-center gap-3 px-5 py-3"
-                        >
-                          <span
-                            className="px-2 py-0.5 rounded-full text-xs font-bold capitalize flex-shrink-0"
-                            style={{
-                              backgroundColor: SEV_BG[issue.severity] || SEV_BG.medium,
-                              color: SEV_COLOR[issue.severity] || SEV_COLOR.medium,
-                              fontSize: '10px',
-                              minWidth: 48,
-                              textAlign: 'center',
-                            }}
+                      {domainData.issues.map((issue, i) => {
+                        const conf = (issue.confidence ?? 'medium') as ConfidenceLevel;
+                        return (
+                          <motion.div
+                            key={issue.id || i}
+                            initial={{ opacity: 0, x: -4 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.06, duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                            className="flex items-start gap-3 px-5 py-3"
                           >
-                            {issue.severity}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{issue.title}</span>
-                            {issue.description && (
-                              <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{issue.description}</p>
-                            )}
-                          </div>
-                        </motion.div>
-                      ))}
+                            {/* Severity badge */}
+                            <span
+                              className="px-2 py-0.5 rounded-full font-bold capitalize flex-shrink-0 mt-0.5"
+                              style={{
+                                backgroundColor: SEV_BG[issue.severity] || SEV_BG.medium,
+                                color: SEV_COLOR[issue.severity] || SEV_COLOR.medium,
+                                fontSize: '10px',
+                                minWidth: 48,
+                                textAlign: 'center',
+                              }}
+                            >
+                              {issue.severity}
+                            </span>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{issue.title}</span>
+                                {/* Confidence badge */}
+                                <span
+                                  className="px-1.5 py-0.5 rounded font-medium capitalize flex-shrink-0"
+                                  style={{
+                                    backgroundColor: CONF_BG[conf],
+                                    color: CONF_COLOR[conf],
+                                    fontSize: '9px',
+                                    letterSpacing: '0.03em',
+                                  }}
+                                  title={`Confidence: ${conf}${issue.data_source ? ` — ${issue.data_source.replace(/_/g, ' ')}` : ''}`}
+                                >
+                                  {conf}
+                                </span>
+                              </div>
+                              {issue.description && (
+                                <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{issue.description}</p>
+                              )}
+                              {/* Evidence references */}
+                              {issue.evidence_refs && issue.evidence_refs.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                  {issue.evidence_refs.map((ref, ri) => (
+                                    <span
+                                      key={ri}
+                                      className="flex items-center gap-1 px-1.5 py-0.5 rounded"
+                                      style={{
+                                        backgroundColor: 'var(--bg-muted)',
+                                        fontSize: '10px',
+                                        color: 'var(--text-tertiary)',
+                                        fontFamily: 'monospace',
+                                      }}
+                                      title={ref.url ? `URL: ${ref.url}` : undefined}
+                                    >
+                                      {ref.url && <LinkIcon size={9} />}
+                                      <span>{ref.type}: {ref.finding}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -355,6 +415,31 @@ export function AuditWorkspace() {
                         </div>
                       );
                     })}
+                  </div>
+                )}
+
+                {/* Data Gaps — unknown_items */}
+                {domainData.unknown_items && domainData.unknown_items.length > 0 && (
+                  <div className="glc-card p-5" style={{ borderRadius: 'var(--radius-xl)' }}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Question className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
+                      <SectionLabel>Data Gaps</SectionLabel>
+                      <span className="text-xs ml-1" style={{ color: 'var(--text-tertiary)' }}>
+                        — areas not assessable from crawl data
+                      </span>
+                    </div>
+                    <ul className="space-y-1.5">
+                      {domainData.unknown_items.map((item, i) => (
+                        <li
+                          key={i}
+                          className="flex items-start gap-2 text-xs"
+                          style={{ color: 'var(--text-tertiary)' }}
+                        >
+                          <span className="mt-1.5 w-1 h-1 rounded-full bg-current flex-shrink-0" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 

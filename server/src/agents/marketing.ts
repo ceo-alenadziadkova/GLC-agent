@@ -58,6 +58,19 @@ State clearly which findings are directly observed vs. inferred.
 - Seasonal vs. year-round strategy matters for hospitality/tourism
 - Local trust signals (Mallorca Michelin, FEHM membership, Consell de Mallorca partners) are high-value
 
+## Finding Provenance (required on every issue)
+Each issue MUST include:
+- **confidence** ('high'|'medium'|'low'): high = directly observable from payload; medium = inferred from partial signals; low = assumed / no direct data
+- **evidence_refs** (1–3 entries): { type: short key for the check, url: page url if applicable, finding: exact raw value }
+  Marketing evidence types: 'marketing_signals', 'page_crawl', 'social_profiles_detect', 'content_scan'
+  Example: { type: 'marketing_signals', finding: 'testimonial_count: 0' }
+  Example: { type: 'page_crawl', url: 'https://example.com', finding: 'H1: "Welcome to our hotel"' }
+- **data_source**: 'auto_detected' (from collected data) | 'from_brief' (from intake brief) | 'inferred' (no direct evidence)
+
+## unknown_items
+List areas you could not evaluate due to missing data (e.g. "Social media engagement metrics unavailable", "No pricing page found to assess positioning").
+Leave empty array if all areas were assessable.
+
 Use the submit_analysis tool to return your structured analysis.`;
   }
 }

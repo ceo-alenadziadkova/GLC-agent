@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Globe, ArrowRight, ArrowLeft, MagnifyingGlass, HardDrives, Shield,
   Cursor, Target, Lightning, MapTrifold, CheckCircle, Warning,
-  ClipboardText, Rocket,
+  ClipboardText, Rocket, Circle, Check,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { SectionLabel } from '../components/glc/SectionLabel';
@@ -71,9 +71,9 @@ function StepIndicator({ current }: { current: number }) {
 // ── Brief question renderer ───────────────────────────────────────────────────
 
 const PRIORITY_BADGE: Record<string, { label: string; color: string }> = {
-  required:    { label: '🔴 Required',     color: '#EF4444' },
-  recommended: { label: '🟡 Recommended',  color: '#F59E0B' },
-  optional:    { label: '🟢 Optional',     color: '#10B981' },
+  required:    { label: 'Required',    color: '#EF4444' },
+  recommended: { label: 'Recommended', color: '#F59E0B' },
+  optional:    { label: 'Optional',    color: '#10B981' },
 };
 
 function BriefField({
@@ -96,9 +96,10 @@ function BriefField({
           {q.question}
         </label>
         <span
-          className="text-xs flex-shrink-0 mt-0.5"
+          className="flex items-center gap-0.5 flex-shrink-0 mt-0.5"
           style={{ color: badge.color, opacity: 0.75, fontSize: '10px' }}
         >
+          <Circle size={6} weight="fill" />
           {badge.label}
         </span>
       </div>
@@ -183,7 +184,8 @@ function BriefField({
                   fontWeight: selected ? 500 : 400,
                 }}
               >
-                {selected ? '✓ ' : ''}{opt}
+                {selected && <Check size={11} weight="bold" style={{ display: 'inline', marginRight: 3 }} />}
+                {opt}
               </button>
             );
           })}
@@ -257,7 +259,7 @@ export function NewAudit() {
     setLoading(true);
     try {
       // 1. Create audit
-      const audit = await api.createAudit(url, name || undefined, industry || undefined);
+      const audit = await api.createAudit(url, name || undefined, industry || undefined, productMode);
 
       // 2. Save brief (fire-and-forget on error — brief is best-effort, pipeline gate will catch)
       try {
@@ -431,7 +433,12 @@ export function NewAudit() {
                   </span>
                 </div>
                 <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)', marginBottom: 20 }}>
-                  These questions feed directly into the AI agents. <strong style={{ color: 'var(--text-secondary)' }}>🔴 Required</strong> questions must be answered to start the pipeline.
+                  These questions feed directly into the AI agents.{' '}
+                  <strong className="inline-flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
+                    <Circle size={7} weight="fill" style={{ color: '#EF4444' }} />
+                    Required
+                  </strong>{' '}
+                  questions must be answered to start the pipeline.
                 </p>
 
                 {/* Progress bar */}

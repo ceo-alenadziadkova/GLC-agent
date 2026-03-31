@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   MagnifyingGlass, HardDrives, Shield, Globe, Cursor, Target, Lightning, MapTrifold,
   CheckCircle, Clock, WarningCircle, Play, Star, CaretRight,
-  ArrowsClockwise, Terminal, ArrowRight
+  ArrowsClockwise, Terminal, ArrowRight, Check, X, CircleNotch,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { StatusPill } from '../components/glc/StatusPill';
@@ -13,39 +13,71 @@ import { SectionLabel } from '../components/glc/SectionLabel';
 import { ReviewPointModal } from '../components/glc/ReviewPointModal';
 import { usePipeline } from '../hooks/usePipeline';
 import { useAudit } from '../hooks/useAudit';
-import type { PipelineEvent, ReviewPoint } from '../data/auditTypes';
+import type { PipelineEvent } from '../data/auditTypes';
 
-type PhSt = 'completed' | 'running' | 'pending' | 'review';
+type PhSt = 'completed' | 'running' | 'pending' | 'review' | 'skipped' | 'failed';
 
 const PHASE_META = [
-  { id: 0, name: 'Recon',              icon: MagnifyingGlass, wing: 'recon'    as const, domainKey: null },
-  { id: 1, name: 'Tech Infrastructure',icon: HardDrives,      wing: 'auto'     as const, domainKey: 'tech_infrastructure' },
-  { id: 2, name: 'Security',           icon: Shield,          wing: 'auto'     as const, domainKey: 'security_compliance' },
-  { id: 3, name: 'SEO & Digital',      icon: Globe,           wing: 'auto'     as const, domainKey: 'seo_digital' },
-  { id: 4, name: 'UX & Conversion',    icon: Cursor,          wing: 'auto'     as const, domainKey: 'ux_conversion' },
-  { id: 5, name: 'Marketing & UTP',    icon: Target,          wing: 'analytic' as const, domainKey: 'marketing_utp' },
-  { id: 6, name: 'Automation',         icon: Lightning,       wing: 'analytic' as const, domainKey: 'automation_processes' },
-  { id: 7, name: 'Strategy & Roadmap', icon: MapTrifold,      wing: 'strategy' as const, domainKey: null },
+  { id: 0, name: 'Recon',              icon: MagnifyingGlass, wing: 'recon'    as const, domainKey: null                    as null | string },
+  { id: 1, name: 'Tech Infrastructure',icon: HardDrives,      wing: 'auto'     as const, domainKey: 'tech_infrastructure'   as null | string },
+  { id: 2, name: 'Security',           icon: Shield,          wing: 'auto'     as const, domainKey: 'security_compliance'   as null | string },
+  { id: 3, name: 'SEO & Digital',      icon: Globe,           wing: 'auto'     as const, domainKey: 'seo_digital'           as null | string },
+  { id: 4, name: 'UX & Conversion',    icon: Cursor,          wing: 'auto'     as const, domainKey: 'ux_conversion'         as null | string },
+  { id: 5, name: 'Marketing & UTP',    icon: Target,          wing: 'analytic' as const, domainKey: 'marketing_utp'         as null | string },
+  { id: 6, name: 'Automation',         icon: Lightning,       wing: 'analytic' as const, domainKey: 'automation_processes'  as null | string },
+  { id: 7, name: 'Strategy & Roadmap', icon: MapTrifold,      wing: 'strategy' as const, domainKey: null                    as null | string },
 ];
 
-const REVIEW_AFTER_PHASES = [0, 4, 7];
+const REVIEW_AFTER_PHASES_FULL = [0, 4, 7];
+const REVIEW_AFTER_PHASES_EXPRESS = [0, 4];
+const EXPRESS_MAX_PHASE = 4;
 
-function getPhaseStatus(phaseId: number, currentPhase: number, auditStatus: string, reviews: Array<{ after_phase: number; status: string }>): PhSt {
+const AUTO_WING_IDS    = [1, 2, 3, 4];
+const ANALYTIC_WING_IDS = [5, 6];
+
+/**
+ * Determine phase display status.
+ *
+ * Priority order:
+ * 1. Domain-level status (authoritative for parallel phases — each domain updates independently).
+ * 2. Audit-level status / current_phase (fallback for recon + strategy).
+ */
+function getPhaseStatus(
+  phaseId: number,
+  currentPhase: number,
+  auditStatus: string,
+  reviews: Array<{ after_phase: number; status: string }>,
+  isExpress: boolean,
+  domainStatus: string | null,
+): PhSt {
+  if (isExpress && phaseId > EXPRESS_MAX_PHASE) return 'skipped';
+
+  // Domain-level status is the source of truth for domain phases (handles parallel)
+  if (domainStatus) {
+    if (domainStatus === 'completed') return 'completed';
+    if (domainStatus === 'failed')    return 'failed';
+    if (domainStatus === 'collecting' || domainStatus === 'analyzing') return 'running';
+  }
+
   if (auditStatus === 'completed') return 'completed';
   if (auditStatus === 'failed') {
     if (phaseId < currentPhase) return 'completed';
-    if (phaseId === currentPhase) return 'review'; // show as error state
+    if (phaseId === currentPhase) return 'review';
     return 'pending';
   }
 
   if (phaseId < currentPhase) return 'completed';
   if (phaseId === currentPhase) {
-    // Check if this phase's review is pending
     const review = reviews.find(r => r.after_phase === phaseId);
-    if (review && review.status === 'pending') return 'review';
+    if (review?.status === 'pending') return 'review';
     return 'running';
   }
   return 'pending';
+}
+
+interface LogEntry {
+  eventType: string;
+  text: string;
 }
 
 interface PhaseView {
@@ -53,7 +85,8 @@ interface PhaseView {
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   status: PhSt; score: number | null;
   wing: 'recon' | 'auto' | 'analytic' | 'strategy';
-  log: string[];
+  log: LogEntry[];
+  skipped: boolean;
 }
 
 function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: () => void }) {
@@ -63,6 +96,8 @@ function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: 
     running:   <ArrowsClockwise className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--glc-blue)' }} />,
     pending:   <Clock           className="w-3.5 h-3.5" style={{ color: 'var(--text-quaternary)' }} />,
     review:    <WarningCircle   className="w-3.5 h-3.5" style={{ color: 'var(--score-3)' }} />,
+    failed:    <WarningCircle   className="w-3.5 h-3.5" style={{ color: 'var(--score-1)' }} />,
+    skipped:   <span className="text-[9px] font-bold px-1 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-muted)', color: 'var(--text-quaternary)', letterSpacing: '0.05em' }}>SKIP</span>,
   }[ph.status];
 
   const accentColor = {
@@ -70,6 +105,8 @@ function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: 
     running:   'var(--glc-blue)',
     pending:   'var(--border-default)',
     review:    'var(--score-3)',
+    failed:    'var(--score-1)',
+    skipped:   'var(--border-subtle)',
   }[ph.status];
 
   return (
@@ -83,7 +120,7 @@ function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: 
         border: `1px solid ${active ? 'rgba(28,189,255,0.30)' : 'var(--border-subtle)'}`,
         borderLeft: `3px solid ${active ? 'var(--glc-blue)' : accentColor}`,
         borderRadius: 'var(--radius-lg)',
-        opacity: ph.status === 'pending' ? 0.5 : 1,
+        opacity: ph.status === 'pending' ? 0.5 : ph.status === 'skipped' ? 0.35 : 1,
         boxShadow: active ? '0 0 0 3px rgba(28,189,255,0.10)' : 'var(--shadow-xs)',
         transition: 'all var(--ease-fast)',
       }}
@@ -179,6 +216,114 @@ function RevBanner({ review, label, onOpenModal }: { review: { status: string };
   );
 }
 
+/**
+ * Mini progress card used inside the parallel wing banner.
+ * Shows one phase running concurrently with the others.
+ */
+function ParallelMiniCard({ ph }: { ph: PhaseView }) {
+  const I = ph.icon;
+  const isRunning   = ph.status === 'running';
+  const isCompleted = ph.status === 'completed';
+  const isFailed    = ph.status === 'failed';
+
+  const borderColor = isCompleted ? 'rgba(14,207,130,0.30)'
+    : isFailed  ? 'rgba(239,68,68,0.30)'
+    : isRunning ? 'rgba(28,189,255,0.25)'
+    : 'var(--border-subtle)';
+
+  const iconBg = isCompleted ? 'var(--glc-green-xlight)'
+    : isFailed  ? 'rgba(239,68,68,0.12)'
+    : isRunning ? 'var(--glc-blue-xlight)'
+    : 'var(--bg-inset)';
+
+  const iconColor = isCompleted ? 'var(--glc-green-dark)'
+    : isFailed  ? '#EF4444'
+    : isRunning ? 'var(--glc-blue)'
+    : 'var(--text-quaternary)';
+
+  return (
+    <div
+      className="rounded-xl p-2.5"
+      style={{ backgroundColor: 'var(--bg-surface)', border: `1px solid ${borderColor}`, flex: '1 1 0' }}
+    >
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: iconBg }}>
+          <I className="w-3 h-3" style={{ color: iconColor }} />
+        </div>
+        <span className="text-[10px] font-semibold truncate" style={{ color: isRunning ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)', fontFamily: 'var(--font-display)' }}>
+          {ph.name}
+        </span>
+      </div>
+
+      {/* Status indicator */}
+      {isRunning && (
+        <div className="rounded-full overflow-hidden" style={{ height: 3, backgroundColor: 'rgba(28,189,255,0.15)' }}>
+          <motion.div
+            className="h-full rounded-full"
+            style={{ background: 'var(--gradient-brand)' }}
+            initial={{ width: '10%' }}
+            animate={{ width: '80%' }}
+            transition={{ duration: 3.5, ease: 'easeInOut', repeat: Infinity, repeatType: 'mirror' }}
+          />
+        </div>
+      )}
+      {isCompleted && ph.score !== null && <ScoreBadge score={ph.score} size="sm" />}
+      {isCompleted && ph.score === null && (
+        <div className="flex items-center gap-1">
+          <CheckCircle className="w-3 h-3" style={{ color: 'var(--glc-green)' }} />
+          <span style={{ fontSize: 10, color: 'var(--glc-green)', fontFamily: 'var(--font-display)' }}>Done</span>
+        </div>
+      )}
+      {isFailed && (
+        <div className="flex items-center gap-1">
+          <WarningCircle className="w-3 h-3" style={{ color: '#EF4444' }} />
+          <span style={{ fontSize: 10, color: '#EF4444', fontFamily: 'var(--font-display)' }}>Failed</span>
+        </div>
+      )}
+      {!isRunning && !isCompleted && !isFailed && (
+        <div className="flex items-center gap-1">
+          <Clock className="w-3 h-3" style={{ color: 'var(--text-quaternary)' }} />
+          <span style={{ fontSize: 10, color: 'var(--text-quaternary)', fontFamily: 'var(--font-display)' }}>Waiting</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Shows a parallel execution overview with mini cards for each wing phase.
+ * Displayed when any phase in the wing is currently running.
+ */
+function ParallelWingBanner({ phases, wingName }: { phases: PhaseView[]; wingName: string }) {
+  const anyRunning = phases.some(p => p.status === 'running');
+  if (!anyRunning) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+      className="rounded-xl p-4"
+      style={{
+        backgroundColor: 'var(--glc-blue-xlight)',
+        border: '1px solid rgba(28,189,255,0.20)',
+        marginBottom: 8,
+      }}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <ArrowsClockwise className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+        <span className="text-xs font-bold" style={{ color: 'var(--glc-blue-deeper)', fontFamily: 'var(--font-display)' }}>
+          {wingName} · Running in parallel
+        </span>
+      </div>
+      <div className="flex gap-2">
+        {phases.map(ph => <ParallelMiniCard key={ph.id} ph={ph} />)}
+      </div>
+    </motion.div>
+  );
+}
+
 export function PipelineMonitor() {
   const { id } = useParams<{ id: string }>();
   const { state: pipelineState, loading: pipeLoading, error: pipeError, startPipeline, runNextPhase, approveReview } = usePipeline(id);
@@ -186,6 +331,9 @@ export function PipelineMonitor() {
 
   const [sel, setSel] = useState(0);
   const [modalReview, setModalReview] = useState<{ afterPhase: number; label: string } | null>(null);
+
+  const isExpress = audit?.meta.product_mode === 'express';
+  const reviewAfterPhases = isExpress ? REVIEW_AFTER_PHASES_EXPRESS : REVIEW_AFTER_PHASES_FULL;
 
   // Build phase views from pipeline state
   const phases: PhaseView[] = useMemo(() => {
@@ -195,10 +343,11 @@ export function PipelineMonitor() {
         name: pm.name,
         label: `Phase ${pm.id}`,
         icon: pm.icon,
-        status: 'pending' as PhSt,
+        status: (isExpress && pm.id > EXPRESS_MAX_PHASE ? 'skipped' : 'pending') as PhSt,
         score: null,
         wing: pm.wing,
         log: [],
+        skipped: isExpress && pm.id > EXPRESS_MAX_PHASE,
       }));
     }
 
@@ -206,20 +355,20 @@ export function PipelineMonitor() {
     const events = pipelineState.events || [];
 
     return PHASE_META.map(pm => {
-      const status = getPhaseStatus(pm.id, pipelineState.current_phase, pipelineState.status, reviews);
+      // Domain-level status for parallel phase detection
+      const domainData = pm.domainKey ? (audit.domains as Record<string, { status: string; score: number } | null>)[pm.domainKey] : null;
+      const domainStatus = domainData?.status ?? null;
+
+      const status = getPhaseStatus(pm.id, pipelineState.current_phase, pipelineState.status, reviews, isExpress, domainStatus);
       const phaseEvents = events.filter((e: PipelineEvent) => e.phase === pm.id);
       const log = phaseEvents
         .filter((e: PipelineEvent) => e.message)
-        .map((e: PipelineEvent) => {
-          const prefix = e.event_type === 'completed' ? '✓' : e.event_type === 'error' ? '✗' : '⠋';
-          return `${prefix} ${e.message}`;
-        });
+        .map((e: PipelineEvent): LogEntry => ({
+          eventType: e.event_type,
+          text: e.message ?? '',
+        }));
 
-      // Get score from domain data
-      let score: number | null = null;
-      if (pm.domainKey && audit.domains[pm.domainKey]) {
-        score = audit.domains[pm.domainKey]!.score;
-      }
+      const score: number | null = domainData?.score ?? null;
 
       return {
         id: pm.id,
@@ -230,9 +379,10 @@ export function PipelineMonitor() {
         score,
         wing: pm.wing,
         log,
+        skipped: status === 'skipped',
       };
     });
-  }, [pipelineState, audit]);
+  }, [pipelineState, audit, isExpress]);
 
   const reviews = useMemo(() => {
     if (!pipelineState) return [];
@@ -242,9 +392,10 @@ export function PipelineMonitor() {
   const getReviewForPhase = (afterPhase: number) =>
     reviews.find(r => r.after_phase === afterPhase) || { status: 'pending' };
 
-  const ph   = phases.find(p => p.id === sel) ?? phases[0];
-  const done = phases.filter(p => p.status === 'completed').length;
-  const pct  = Math.round((done / phases.length) * 100);
+  const ph         = phases.find(p => p.id === sel) ?? phases[0];
+  const activePhases = phases.filter(p => !p.skipped);
+  const done       = activePhases.filter(p => p.status === 'completed').length;
+  const pct        = Math.round((done / activePhases.length) * 100);
   const I    = ph.icon;
 
   const companyName = audit?.meta.company_name || audit?.meta.company_url || 'Loading...';
@@ -274,6 +425,20 @@ export function PipelineMonitor() {
       subtitle={`${companyName} · Audit #${id?.slice(0, 8) ?? ''}`}
       actions={
         <div className="flex items-center gap-3">
+          {isExpress && (
+            <span
+              className="text-xs font-bold px-2.5 py-1 rounded-full"
+              style={{
+                backgroundColor: 'rgba(28,189,255,0.10)',
+                color: 'var(--glc-blue)',
+                border: '1px solid rgba(28,189,255,0.25)',
+                fontFamily: 'var(--font-display)',
+                letterSpacing: '0.04em',
+              }}
+            >
+              Express
+            </span>
+          )}
           <div className="flex items-center gap-2.5">
             <div className="w-28 rounded-full overflow-hidden" style={{ height: 4, backgroundColor: 'var(--border-subtle)' }}>
               <motion.div
@@ -305,30 +470,70 @@ export function PipelineMonitor() {
             onOpenModal={() => setModalReview({ afterPhase: 0, label: 'Review Point #1' })}
           />
 
-          <div className="px-1 pt-2 pb-1"><SectionLabel>Auto Wing</SectionLabel></div>
-          {phases.filter(p => p.wing === 'auto').map(p => (
-            <PhCard key={p.id} ph={p} active={sel === p.id} onSel={() => setSel(p.id)} />
-          ))}
+          {/* Auto wing — 2×2 grid to reflect parallel execution */}
+          <div className="px-1 pt-2 pb-1 flex items-center gap-2">
+            <SectionLabel>Auto Wing</SectionLabel>
+            <span
+              className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+              style={{
+                backgroundColor: 'rgba(28,189,255,0.12)',
+                color: 'var(--glc-blue)',
+                border: '1px solid rgba(28,189,255,0.25)',
+                letterSpacing: '0.06em',
+                fontFamily: 'var(--font-display)',
+              }}
+            >
+              PARALLEL
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {phases.filter(p => p.wing === 'auto').map(p => (
+              <PhCard key={p.id} ph={p} active={sel === p.id} onSel={() => setSel(p.id)} />
+            ))}
+          </div>
 
           <RevBanner
             review={getReviewForPhase(4)}
-            label="Review Point #2"
-            onOpenModal={() => setModalReview({ afterPhase: 4, label: 'Review Point #2' })}
+            label={isExpress ? 'Review Point #2 (Final)' : 'Review Point #2'}
+            onOpenModal={() => setModalReview({ afterPhase: 4, label: isExpress ? 'Review Point #2 (Final)' : 'Review Point #2' })}
           />
 
-          <div className="px-1 pt-2 pb-1"><SectionLabel>Analytic Wing</SectionLabel></div>
-          {phases.filter(p => p.wing === 'analytic').map(p => (
-            <PhCard key={p.id} ph={p} active={sel === p.id} onSel={() => setSel(p.id)} />
-          ))}
+          {/* Analytic wing — 2-column grid */}
+          <div className="px-1 pt-2 pb-1 flex items-center gap-2" style={{ opacity: isExpress ? 0.4 : 1 }}>
+            <SectionLabel>Analytic Wing</SectionLabel>
+            {!isExpress && (
+              <span
+                className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                style={{
+                  backgroundColor: 'rgba(28,189,255,0.08)',
+                  color: 'var(--glc-blue)',
+                  border: '1px solid rgba(28,189,255,0.18)',
+                  letterSpacing: '0.06em',
+                  fontFamily: 'var(--font-display)',
+                }}
+              >
+                PARALLEL
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-1.5" style={{ opacity: isExpress ? 0.35 : 1 }}>
+            {phases.filter(p => p.wing === 'analytic').map(p => (
+              <PhCard key={p.id} ph={p} active={sel === p.id} onSel={() => !p.skipped && setSel(p.id)} />
+            ))}
+          </div>
 
-          <div className="px-1 pt-2 pb-1"><SectionLabel>Synthesis</SectionLabel></div>
-          <PhCard ph={phases[7]} active={sel === 7} onSel={() => setSel(7)} />
+          <div className="px-1 pt-2 pb-1" style={{ opacity: isExpress ? 0.4 : 1 }}>
+            <SectionLabel>Synthesis</SectionLabel>
+          </div>
+          <PhCard ph={phases[7]} active={sel === 7} onSel={() => !phases[7].skipped && setSel(7)} />
 
-          <RevBanner
-            review={getReviewForPhase(7)}
-            label="Review Point #3"
-            onOpenModal={() => setModalReview({ afterPhase: 7, label: 'Review Point #3' })}
-          />
+          {!isExpress && (
+            <RevBanner
+              review={getReviewForPhase(7)}
+              label="Review Point #3"
+              onOpenModal={() => setModalReview({ afterPhase: 7, label: 'Review Point #3' })}
+            />
+          )}
         </aside>
 
         {/* ── Phase detail ─────────────────────────── */}
@@ -345,7 +550,9 @@ export function PipelineMonitor() {
                   Ready to start
                 </h3>
                 <p className="text-sm mb-4" style={{ color: 'var(--text-tertiary)' }}>
-                  This will begin the 8-phase audit pipeline. Estimated cost: ~$0.50 in API credits.
+                  {isExpress
+                    ? 'This will begin the Express audit (5 phases: Recon + 4 domains). Estimated cost: ~$0.30 in API credits.'
+                    : 'This will begin the full 8-phase audit pipeline. Estimated cost: ~$0.50 in API credits.'}
                 </p>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
@@ -366,6 +573,22 @@ export function PipelineMonitor() {
                 <p className="text-sm font-medium">Error: {pipeError}</p>
               </div>
             )}
+
+            {/* Parallel wing banners — shown when wing is actively running */}
+            <AnimatePresence>
+              {phases.some(p => AUTO_WING_IDS.includes(p.id) && p.status === 'running') && (
+                <ParallelWingBanner
+                  phases={phases.filter(p => AUTO_WING_IDS.includes(p.id))}
+                  wingName="Auto Wing"
+                />
+              )}
+              {phases.some(p => ANALYTIC_WING_IDS.includes(p.id) && p.status === 'running') && (
+                <ParallelWingBanner
+                  phases={phases.filter(p => ANALYTIC_WING_IDS.includes(p.id))}
+                  wingName="Analytic Wing"
+                />
+              )}
+            </AnimatePresence>
 
             <AnimatePresence mode="wait">
               <motion.div
@@ -460,6 +683,27 @@ export function PipelineMonitor() {
                   </div>
                 )}
 
+                {/* Failed domain — partial failure */}
+                {ph.status === 'failed' && (
+                  <div
+                    className="rounded-xl p-4"
+                    style={{
+                      backgroundColor: 'rgba(239,68,68,0.06)',
+                      border: '1px solid rgba(239,68,68,0.25)',
+                    }}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <WarningCircle className="w-4 h-4 flex-shrink-0" style={{ color: '#EF4444' }} />
+                      <span className="text-sm font-semibold" style={{ color: '#EF4444', fontFamily: 'var(--font-display)' }}>
+                        Domain unavailable
+                      </span>
+                    </div>
+                    <p className="text-xs ml-6" style={{ color: 'var(--text-secondary)' }}>
+                      This domain could not be analysed. The pipeline has continued and the Strategy Agent will note this gap explicitly.
+                    </p>
+                  </div>
+                )}
+
                 {/* Agent log */}
                 {ph.log && ph.log.length > 0 && (
                   <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-md)' }}>
@@ -481,24 +725,27 @@ export function PipelineMonitor() {
                       className="p-4 space-y-2"
                       style={{ backgroundColor: '#0A0F1E', fontFamily: 'var(--font-mono)', fontSize: '12px' }}
                     >
-                      {ph.log.map((line, i) => (
-                        <motion.div
-                          key={i}
-                          initial={{ opacity: 0, x: -6 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: i * 0.07, duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-                          style={{
-                            color: line.startsWith('✓')
-                              ? '#34D399'
-                              : line.startsWith('✗')
-                              ? '#F87171'
-                              : 'rgba(148,163,184,0.80)',
-                            lineHeight: 1.6,
-                          }}
-                        >
-                          {line}
-                        </motion.div>
-                      ))}
+                      {ph.log.map((entry, i) => {
+                        const isOk  = entry.eventType === 'completed' || entry.eventType === 'fact_check';
+                        const isErr = entry.eventType === 'error';
+                        return (
+                          <motion.div
+                            key={i}
+                            initial={{ opacity: 0, x: -6 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.07, duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+                            className="flex items-start gap-1.5"
+                            style={{ color: isOk ? '#34D399' : isErr ? '#F87171' : 'rgba(148,163,184,0.80)', lineHeight: 1.6 }}
+                          >
+                            {isOk
+                              ? <Check size={11} weight="bold" style={{ marginTop: 3, flexShrink: 0 }} />
+                              : isErr
+                              ? <X size={11} weight="bold" style={{ marginTop: 3, flexShrink: 0 }} />
+                              : <CircleNotch size={11} style={{ marginTop: 3, flexShrink: 0 }} />}
+                            <span>{entry.text}</span>
+                          </motion.div>
+                        );
+                      })}
                       {ph.status === 'running' && (
                         <motion.span
                           animate={{ opacity: [1, 0] }}

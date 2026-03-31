@@ -48,6 +48,19 @@ Edge CDN (Vercel/Cloudflare), SSR/SSG framework, HTTPS, compression, full cachin
 - estimated_cost examples: "€0 — free CDN tier", "€20/mo — managed hosting upgrade"
 - estimated_time examples: "2 hours", "1 day", "1 week"
 - Each quick_win must be achievable in ≤1 week with low effort.
-- Use the submit_analysis tool to return your structured analysis.`;
+
+## Finding Provenance (required on every issue)
+Each issue MUST include:
+- **confidence** ('high'|'medium'|'low'): high = directly observable from payload; medium = inferred from partial signals; low = assumed / no direct data
+- **evidence_refs** (1–3 entries): { type: short key for the check, url: page url if applicable, finding: exact raw value }
+  Tech evidence types: 'performance_headers', 'page_crawl', 'tech_stack_detect', 'http_response'
+  Example: { type: 'performance_headers', finding: 'compression.enabled: false' }
+- **data_source**: 'auto_detected' (from collected data) | 'from_brief' (from intake brief) | 'inferred' (no direct evidence)
+
+## unknown_items
+List areas you could not evaluate due to missing data (e.g. "Page speed data unavailable — server-side crawl only").
+Leave empty array if all areas were assessable.
+
+Use the submit_analysis tool to return your structured analysis.`;
   }
 }

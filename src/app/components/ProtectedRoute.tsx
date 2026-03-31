@@ -14,6 +14,8 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { role, loading: profileLoading } = useProfile();
 
+  // Spin only while auth or profile are actively loading — never block on role value itself,
+  // since a null role after loading just means the profile fetch errored (handled below).
   const loading = authLoading || (isAuthenticated && requiredRole != null && profileLoading);
 
   if (loading) {
@@ -40,9 +42,14 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   }
 
   if (requiredRole != null && role !== requiredRole) {
-    // Role mismatch: redirect to appropriate home
     logger.info(`ProtectedRoute: role "${role}" does not match required "${requiredRole}"`);
-    const redirect = role === 'client' ? '/portal' : '/portfolio';
+    // If role is null (profile row missing or server unreachable), redirect to /login
+    // so the user re-authenticates and triggers a fresh attachProfile() upsert.
+    // Do NOT redirect to a role-guarded route — that causes an infinite redirect loop.
+    if (role === null) {
+      return <Navigate to="/login" replace />;
+    }
+    const redirect = role === 'consultant' ? '/portfolio' : '/portal';
     return <Navigate to={redirect} replace />;
   }
 

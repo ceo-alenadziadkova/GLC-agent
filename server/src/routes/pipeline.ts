@@ -3,6 +3,7 @@ import { supabase } from '../services/supabase.js';
 import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../middleware/auth.js';
 import { pipelineLimiter } from '../middleware/rate-limit.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
+import { maxPhaseForMode, type ProductMode } from '../types/audit.js';
 
 /**
  * Emit an error event to pipeline_events and mark audit as failed.
@@ -86,7 +87,7 @@ pipelineRouter.post('/:id/pipeline/next', ...consultantGuard, pipelineLimiter, a
 
     const { data: audit, error } = await supabase
       .from('audits')
-      .select('id, status, current_phase, tokens_used, token_budget')
+      .select('id, status, current_phase, tokens_used, token_budget, product_mode')
       .eq('id', id)
       .eq('user_id', req.userId!)
       .single();
@@ -109,9 +110,11 @@ pipelineRouter.post('/:id/pipeline/next', ...consultantGuard, pipelineLimiter, a
       return;
     }
 
+    const mode = (audit.product_mode ?? 'full') as ProductMode;
+    const maxPhase = maxPhaseForMode(mode);
     const nextPhase = audit.current_phase + 1;
 
-    if (nextPhase > 7) {
+    if (nextPhase > maxPhase) {
       res.status(400).json({ error: 'All phases completed' });
       return;
     }
@@ -136,9 +139,10 @@ pipelineRouter.post('/:id/pipeline/next', ...consultantGuard, pipelineLimiter, a
 
     res.json({ status: 'running', phase: nextPhase });
 
-    // Run asynchronously — surface errors to frontend via pipeline_events
+    // Run asynchronously — runBlock() handles parallel wings internally.
+    // Surface errors to frontend via pipeline_events.
     const orchestrator = new PipelineOrchestrator(id);
-    orchestrator.startPhase(nextPhase).catch(err => emitPhaseError(id, nextPhase, err as Error));
+    orchestrator.runBlock().catch(err => emitPhaseError(id, nextPhase, err as Error));
   } catch (err) {
     console.error('[POST /pipeline/next]', err);
     res.status(500).json({ error: 'Failed to run next phase' });
@@ -162,7 +166,7 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
 
     const { data: audit, error } = await supabase
       .from('audits')
-      .select('id, status, tokens_used, token_budget')
+      .select('id, status, tokens_used, token_budget, product_mode')
       .eq('id', id)
       .eq('user_id', req.userId!)
       .single();
@@ -174,6 +178,12 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
 
     if (audit.tokens_used >= audit.token_budget) {
       res.status(400).json({ error: 'Token budget exceeded' });
+      return;
+    }
+
+    const retryMode = (audit.product_mode ?? 'full') as ProductMode;
+    if (phase > maxPhaseForMode(retryMode)) {
+      res.status(400).json({ error: `Phase ${phase} is not available for product_mode '${retryMode}'` });
       return;
     }
 
@@ -203,8 +213,10 @@ pipelineRouter.get('/:id/pipeline/status', requireAuth, async (req: AuthRequest,
 
     const [auditRes, eventsRes, reviewsRes] = await Promise.all([
       supabase.from('audits')
-        .select('status, current_phase, tokens_used, token_budget')
-        .eq('id', id).eq('user_id', req.userId!).single(),
+        .select('status, current_phase, tokens_used, token_budget, product_mode')
+        .eq('id', id)
+        .or(`user_id.eq.${req.userId!},client_id.eq.${req.userId!}`)
+        .single(),
       supabase.from('pipeline_events')
         .select('*')
         .eq('audit_id', id)

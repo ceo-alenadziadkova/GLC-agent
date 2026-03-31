@@ -1,7 +1,7 @@
 import { supabase } from './supabase.js';
 import type { DomainKey, ReconData } from '../types/audit.js';
 import { getDomainWeight } from '../config/industry-weights.js';
-import { getQuestionsForDomain } from '../schemas/intake-brief.js';
+import { BRIEF_QUESTIONS, getQuestionsForDomain } from '../schemas/intake-brief.js';
 
 export interface AgentContext {
   company_url: string;
@@ -20,6 +20,11 @@ export interface AgentContext {
   domain_weight: number;
   /** Answered brief responses relevant to this domain (empty object when no brief) */
   brief_responses: Record<string, string | string[] | number | null>;
+  /**
+   * Domain keys that failed during a parallel wing run.
+   * Passed to Strategy Agent so it can acknowledge gaps in its report.
+   */
+  failed_domains: string[];
   instructions: string;
 }
 
@@ -64,6 +69,13 @@ export class ContextBuilder {
       .eq('audit_id', auditId)
       .eq('status', 'completed')
       .order('phase_number');
+
+    // Fetch failed domains — surfaced to Strategy Agent so it can acknowledge data gaps
+    const { data: failedDomains } = await supabase
+      .from('audit_domains')
+      .select('domain_key')
+      .eq('audit_id', auditId)
+      .eq('status', 'failed');
 
     // Fetch review notes
     const { data: reviews } = await supabase
@@ -113,6 +125,7 @@ export class ContextBuilder {
         ? getDomainWeight(industry, domainKey)
         : 1,
       brief_responses: briefResponses,
+      failed_domains: (failedDomains ?? []).map(d => String(d.domain_key)),
       instructions,
     };
   }
@@ -141,9 +154,9 @@ export class ContextBuilder {
       const briefLines = Object.entries(ctx.brief_responses)
         .filter(([, v]) => v !== null && v !== '')
         .map(([id, v]) => {
-          const q = id.replace(/_/g, ' ');
+          const question = BRIEF_QUESTIONS.find(q => q.id === id)?.question ?? id.replace(/_/g, ' ');
           const answer = Array.isArray(v) ? v.join(', ') : String(v);
-          return `- **${q}:** ${answer}`;
+          return `- **${question}:** ${answer}`;
         });
       if (briefLines.length > 0) {
         sections.push(`## Client Brief (Pre-Audit Intake)\n${briefLines.join('\n')}`);
@@ -200,6 +213,15 @@ ${domain.summary}
 - Strengths: ${domain.strengths.join('; ')}
 - Weaknesses: ${domain.weaknesses.join('; ')}`);
       }
+    }
+
+    // Failed domains — alert Strategy Agent to acknowledge data gaps
+    if (ctx.failed_domains.length > 0) {
+      sections.push(`## Domains Unavailable\n` +
+        `The following domain analyses could not be completed and have no data:\n` +
+        ctx.failed_domains.map(d => `- ${d}`).join('\n') + `\n\n` +
+        `Explicitly note in your report that these areas could not be assessed and recommend the client seek targeted reviews for them.`
+      );
     }
 
     // Review notes

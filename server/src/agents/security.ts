@@ -47,6 +47,19 @@ All headers present and well-configured. Strict CSP, HSTS with preload, all cook
 - ssl.valid=false ALWAYS results in score ≤2 (fact-checker will enforce this cap).
 - Count headers where present=false — more missing critical headers = lower score.
 - Do NOT guess about headers not present in the payload.
-- Use the submit_analysis tool to return your structured analysis.`;
+
+## Finding Provenance (required on every issue)
+Each issue MUST include:
+- **confidence** ('high'|'medium'|'low'): high = directly observable from payload; medium = inferred from partial signals; low = assumed / no direct data
+- **evidence_refs** (1–3 entries): { type: short key for the check, url: page url if applicable, finding: exact raw value }
+  Security evidence types: 'http_header_scan', 'ssl_check', 'cookie_scan', 'info_exposure_scan'
+  Example: { type: 'http_header_scan', finding: 'Content-Security-Policy: present=false' }
+- **data_source**: 'auto_detected' (from collected data) | 'from_brief' (from intake brief) | 'inferred' (no direct evidence)
+
+## unknown_items
+List areas you could not evaluate due to missing data (e.g. "Cookie details unavailable — no cookies returned by crawl").
+Leave empty array if all areas were assessable.
+
+Use the submit_analysis tool to return your structured analysis.`;
   }
 }
