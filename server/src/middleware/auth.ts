@@ -64,8 +64,9 @@ export async function optionalAuth(req: AuthRequest, _res: Response, next: NextF
 /**
  * Reads the user's profile from the DB and attaches their role to the request.
  * Must be called AFTER requireAuth (req.userId must be set).
- * Also handles first-login profile creation, and upgrades to 'consultant' if
- * the user's email is in the CONSULTANT_EMAILS env variable.
+ * Handles first-login profile creation and one-way promotion to 'consultant'
+ * when the email is in CONSULTANT_EMAILS. It does not auto-downgrade an
+ * existing consultant role from environment changes.
  */
 export async function attachProfile(req: AuthRequest, res: Response, next: NextFunction) {
   if (!req.userId || !req.userEmail) {
@@ -84,22 +85,60 @@ export async function attachProfile(req: AuthRequest, res: Response, next: NextF
       ? 'consultant'
       : 'client';
 
-    // Upsert profile (handles first login + role upgrade/downgrade)
-    const { data: profile, error } = await supabase
+    const { data: existingProfile, error: fetchError } = await supabase
       .from('profiles')
-      .upsert(
-        { id: req.userId, role: intendedRole },
-        { onConflict: 'id' }
-      )
       .select('role')
+      .eq('id', req.userId)
       .single();
 
-    if (error || !profile) {
+    if (fetchError && fetchError.code !== 'PGRST116') {
       res.status(500).json({ error: 'Failed to load user profile' });
       return;
     }
 
-    req.userRole = profile.role as UserRole;
+    // First login: create profile from allowlist-derived role.
+    if (!existingProfile) {
+      const { data: createdProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert({ id: req.userId, role: intendedRole })
+        .select('role')
+        .single();
+
+      if (createError || !createdProfile) {
+        res.status(500).json({ error: 'Failed to create user profile' });
+        return;
+      }
+
+      req.userRole = createdProfile.role as UserRole;
+      next();
+      return;
+    }
+
+    let resolvedRole = existingProfile.role as UserRole;
+
+    // One-way promotion only: never auto-downgrade consultants.
+    if (resolvedRole !== 'consultant' && intendedRole === 'consultant') {
+      const { data: updatedProfile, error: updateError } = await supabase
+        .from('profiles')
+        .update({ role: 'consultant' })
+        .eq('id', req.userId)
+        .select('role')
+        .single();
+
+      if (updateError || !updatedProfile) {
+        res.status(500).json({ error: 'Failed to update user profile' });
+        return;
+      }
+
+      resolvedRole = updatedProfile.role as UserRole;
+    }
+
+    if (!resolvedRole) {
+      res.status(500).json({ error: 'Failed to load user profile' });
+      return;
+    }
+
+    req.userRole = resolvedRole;
     next();
   } catch {
     res.status(500).json({ error: 'Profile lookup failed' });

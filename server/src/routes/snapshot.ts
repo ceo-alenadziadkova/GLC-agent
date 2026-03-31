@@ -8,12 +8,21 @@ import { Router } from 'express';
 import { randomUUID } from 'crypto';
 import { supabase } from '../services/supabase.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
+import { snapshotPublicLimiter } from '../middleware/rate-limit.js';
+import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import type { FreeSnapshotPreview } from '../types/audit.js';
 
 export const snapshotRouter = Router();
+const SNAPSHOT_TTL_HOURS = Number(process.env.SNAPSHOT_TOKEN_TTL_HOURS ?? 72);
+const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-// Rate limit: no more than 5 snapshot requests per IP per hour
-// (handled by general rate limiter in index.ts for now)
+snapshotRouter.use(snapshotPublicLimiter);
+
+/**
+ * Public Free UX Snapshot API contract (see docs/CONCEPT-upd.md §9.0):
+ * POST returns 202 + snapshot_token; GET returns status or completed preview.
+ * Completed body: company meta, ux_score/label/summary, max 2 issues, max 2 quick_wins (no internal confidence/evidence).
+ */
 
 // ─── POST /api/snapshot — Start a free snapshot ────────────
 snapshotRouter.post('/', async (req, res) => {
@@ -32,10 +41,13 @@ snapshotRouter.post('/', async (req, res) => {
     }
 
     try {
-      new URL(url);
-    } catch {
-      res.status(400).json({ error: 'company_url must be a valid URL (e.g. example.com)' });
-      return;
+      url = await validatePublicAuditUrl(url);
+    } catch (e) {
+      if (e instanceof PublicUrlNotAllowedError) {
+        res.status(400).json({ error: 'company_url is not allowed' });
+        return;
+      }
+      throw e;
     }
 
     const snapshotToken = randomUUID();
@@ -61,7 +73,7 @@ snapshotRouter.post('/', async (req, res) => {
     const auditId = audit.id as string;
 
     // Pre-create required child records
-    await Promise.all([
+    const initResults = await Promise.allSettled([
       supabase.from('audit_recon').insert({ audit_id: auditId }),
       supabase.from('audit_domains').insert({
         audit_id: auditId,
@@ -69,6 +81,17 @@ snapshotRouter.post('/', async (req, res) => {
         phase_number: 4,
       }),
     ]);
+
+    const initFailed = initResults.some(
+      r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.error)
+    );
+
+    if (initFailed) {
+      await supabase.from('audits').delete().eq('id', auditId);
+      console.error('[POST /api/snapshot] Placeholder init failed, rolled back audit', auditId);
+      res.status(500).json({ error: 'Failed to initialize snapshot — rolled back' });
+      return;
+    }
 
     // Run pipeline asynchronously — client polls for result
     const orchestrator = new PipelineOrchestrator(auditId);
@@ -92,7 +115,7 @@ snapshotRouter.get('/:token', async (req, res) => {
   try {
     const { token } = req.params;
 
-    if (!token || token.length < 32) {
+    if (!token || !UUID_V4_RE.test(token)) {
       res.status(400).json({ error: 'Invalid snapshot token' });
       return;
     }
@@ -100,7 +123,7 @@ snapshotRouter.get('/:token', async (req, res) => {
     // Fetch audit by snapshot_token
     const { data: audit, error: auditErr } = await supabase
       .from('audits')
-      .select('id, status, company_url, company_name, product_mode')
+      .select('id, status, company_url, company_name, product_mode, created_at')
       .eq('snapshot_token', token)
       .eq('product_mode', 'free_snapshot') // Safety: only expose free snapshots
       .single();
@@ -111,6 +134,27 @@ snapshotRouter.get('/:token', async (req, res) => {
     }
 
     const status = audit.status as string;
+    const createdAt = new Date(audit.created_at as string).getTime();
+    if (!Number.isFinite(createdAt)) {
+      await supabase
+        .from('audits')
+        .update({ snapshot_token: null })
+        .eq('id', audit.id)
+        .eq('product_mode', 'free_snapshot');
+      res.status(410).json({ error: 'Snapshot token expired' });
+      return;
+    }
+    const ageHours = (Date.now() - createdAt) / (1000 * 60 * 60);
+    if (ageHours > SNAPSHOT_TTL_HOURS) {
+      // Best-effort token invalidation so leaked URLs stop working permanently.
+      await supabase
+        .from('audits')
+        .update({ snapshot_token: null })
+        .eq('id', audit.id)
+        .eq('product_mode', 'free_snapshot');
+      res.status(410).json({ error: 'Snapshot token expired' });
+      return;
+    }
 
     // Still running — return status only
     if (status !== 'completed' && status !== 'failed') {

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { generalLimiter } from '../middleware/rate-limit.js';
+import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 import { reportProfiler, REPORT_PROFILES, type ReportProfile } from '../services/report-profiler.js';
 
 export const reportsRouter = Router();
@@ -24,8 +25,10 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
 
     // Fetch full audit state — allSettled so a missing recon/strategy
     // doesn't prevent the rest of the report from rendering.
+    const uid = req.userId!;
+    const userFilter = safeOrUserFilter(uid);
     const [auditRes, reconRes, domainsRes, strategyRes] = await Promise.allSettled([
-      supabase.from('audits').select('*').eq('id', id).eq('user_id', req.userId!).single(),
+      supabase.from('audits').select('*').eq('id', id).or(userFilter).single(),
       supabase.from('audit_recon').select('*').eq('audit_id', id).single(),
       supabase.from('audit_domains').select('*').eq('audit_id', id).order('phase_number'),
       supabase.from('audit_strategy').select('*').eq('audit_id', id).single(),
@@ -37,10 +40,20 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
       return;
     }
 
-    const audit   = auditData.data;
-    const recon   = reconRes.status === 'fulfilled' ? (reconRes.value.data ?? null) : null;
-    const domains = domainsRes.status === 'fulfilled' ? (domainsRes.value.data ?? []) : [];
+    const audit    = auditData.data;
+    const recon    = reconRes.status === 'fulfilled' ? (reconRes.value.data ?? null) : null;
     const strategy = strategyRes.status === 'fulfilled' ? (strategyRes.value.data ?? null) : null;
+
+    // Deduplicate domains by domain_key, keeping highest version
+    const domainsRaw = domainsRes.status === 'fulfilled' ? (domainsRes.value.data ?? []) : [];
+    const latestByKey = new Map<string, (typeof domainsRaw)[0]>();
+    for (const d of domainsRaw) {
+      const prev = latestByKey.get(d.domain_key);
+      if (!prev || (d.version ?? 0) > (prev.version ?? 0)) latestByKey.set(d.domain_key, d);
+    }
+    const domains = Array.from(latestByKey.values()).sort(
+      (a, b) => (a.phase_number ?? 0) - (b.phase_number ?? 0)
+    );
 
     const input = { audit, recon, domains, strategy };
 

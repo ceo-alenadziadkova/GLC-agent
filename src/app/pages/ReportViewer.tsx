@@ -67,17 +67,9 @@ export function ReportViewer() {
     if (!id) return;
     setCsvLoading(true);
     try {
-      // Fetch with auth headers via apiFetch then trigger download
-      const report = await api.getReport(id, 'json', profile);
-      const csvUrl = api.getReportCsvUrl(id);
-      // Use anchor with auth — simpler: open in tab (auth header can't be set on <a href>)
-      // For CSV we use a direct anchor since it triggers a file download
-      const a = document.createElement('a');
-      a.href = csvUrl;
-      a.download = `action-plan-${report.company?.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() ?? id}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      await api.downloadReportCsv(id, profile);
+    } catch (e) {
+      console.error(e);
     } finally {
       setCsvLoading(false);
     }
@@ -143,6 +135,7 @@ export function ReportViewer() {
         <div className="flex items-center gap-2">
           <StatusPill status={audit.meta.status === 'completed' ? 'completed' : 'running'} />
           <button
+            type="button"
             className="glc-btn-secondary"
             onClick={handleDownloadCsv}
             disabled={csvLoading}
@@ -151,7 +144,7 @@ export function ReportViewer() {
             <DownloadSimple className="w-4 h-4" />
             {csvLoading ? 'Generating…' : 'Action Plan CSV'}
           </button>
-          <button className="glc-btn-secondary" onClick={handleExportPdf}>
+          <button type="button" className="glc-btn-secondary" onClick={handleExportPdf}>
             <FileText className="w-4 h-4" /> Export PDF
           </button>
         </div>

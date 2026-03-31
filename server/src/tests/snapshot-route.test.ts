@@ -42,7 +42,11 @@ const {
   let reconQueryResult: Record<string, unknown> | null = null;
   let uxQueryResult: Record<string, unknown> | null = null;
 
-  const setSnapshotQueryResult = (v: Record<string, unknown> | null) => { snapshotQueryResult = v; };
+  const setSnapshotQueryResult = (v: Record<string, unknown> | null) => {
+    snapshotQueryResult = v
+      ? { created_at: new Date().toISOString(), ...v }
+      : null;
+  };
   const setReconQueryResult = (v: Record<string, unknown> | null) => { reconQueryResult = v; };
   const setUxQueryResult = (v: Record<string, unknown> | null) => { uxQueryResult = v; };
 
@@ -142,7 +146,43 @@ vi.mock('../services/pipeline.js', () => ({
 vi.mock('../middleware/rate-limit.js', () => ({
   createAuditLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
   generalLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
+  pipelineLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
+  snapshotPublicLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
+
+// Avoid real DNS in CI/sandbox; mirrors sync checks + URL normalization from production module.
+vi.mock('../lib/public-http-url.js', () => {
+  class PublicUrlNotAllowedError extends Error {
+    override name = 'PublicUrlNotAllowedError';
+    constructor(message: string) {
+      super(message);
+    }
+  }
+  return {
+    PublicUrlNotAllowedError,
+    validatePublicAuditUrl: async (urlString: string) => {
+      let s = String(urlString).trim();
+      if (!s.startsWith('http://') && !s.startsWith('https://')) s = `https://${s}`;
+      let u: URL;
+      try {
+        u = new URL(s);
+      } catch {
+        throw new PublicUrlNotAllowedError('Invalid URL');
+      }
+      if (u.username || u.password) {
+        throw new PublicUrlNotAllowedError('URL must not contain credentials');
+      }
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+        throw new PublicUrlNotAllowedError('Only http and https URLs are allowed');
+      }
+      const h = u.hostname.toLowerCase();
+      if (h === 'localhost' || h.endsWith('.local')) {
+        throw new PublicUrlNotAllowedError('Host is not allowed');
+      }
+      return u.href;
+    },
+  };
+});
 
 // ─── App setup ────────────────────────────────────────────────────────────────
 

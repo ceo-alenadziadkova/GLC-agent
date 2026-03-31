@@ -10,6 +10,7 @@ import { SnapshotLanding }  from './pages/SnapshotLanding';
 import { ClientPortal }     from './pages/ClientPortal';
 import { ClientRequestForm } from './pages/ClientRequestForm';
 import { ClientAuditView }  from './pages/ClientAuditView';
+import { AdminRequestQueue } from './pages/AdminRequestQueue';
 import { ProtectedRoute }   from './components/ProtectedRoute';
 
 function P({ children }: { children: React.ReactNode }) {
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
 
   // ── Consultant routes ──────────────────────────────────────────────────────
   { path: '/portfolio',           element: <Consultant><Portfolio /></Consultant> },
+  { path: '/admin/requests',      element: <Consultant><AdminRequestQueue /></Consultant> },
   { path: '/audit/new',           element: <Consultant><NewAudit /></Consultant> },
   { path: '/audit/:id',           element: <Consultant><AuditWorkspace /></Consultant> },
   { path: '/audit/:id/:domainId', element: <Consultant><AuditWorkspace /></Consultant> },

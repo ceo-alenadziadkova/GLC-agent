@@ -38,33 +38,68 @@ const { setRequestUserId, mockDeleteChain, getDeleteCalls } = vi.hoisted(() => {
   const deleteCalls: Array<{ filters: Record<string, string> }> = [];
   const getDeleteCalls = () => deleteCalls;
 
-  // Chainable mock that simulates user_id filter for the audits table
+  const auditRow = {
+    id: 'audit-owned-by-001',
+    user_id: 'user-001',
+    client_id: null as string | null,
+    status: 'created',
+    current_phase: 0,
+    tokens_used: 0,
+    token_budget: 200_000,
+    product_mode: 'full',
+  };
+
+  // Chainable mock: list uses .or(); GET :id uses .eq('id').or(...).single()
   const makeAuditChain = () => {
     const filters: Record<string, string> = {};
     const chain: Record<string, unknown> = {};
 
     chain.select = vi.fn().mockReturnValue(chain);
     chain.order  = vi.fn().mockReturnValue(chain);
-    chain.range  = vi.fn(() =>
-      Promise.resolve({ data: [], error: null, count: 0 })
-    );
+    chain.or = vi.fn(() => {
+      filters['_orCalled'] = '1';
+      return chain;
+    });
+    chain.range = vi.fn(() => {
+      const userId = (globalThis as unknown as { __isolationGetUserId?: () => string }).__isolationGetUserId?.() ?? '';
+      const allowed = auditRow.user_id === userId || auditRow.client_id === userId;
+      if (allowed) {
+        return Promise.resolve({
+          data: [{ ...auditRow }],
+          error: null,
+          count: 1,
+        });
+      }
+      return Promise.resolve({ data: [], error: null, count: 0 });
+    });
     chain.eq = vi.fn((col: string, val: string) => {
       filters[col] = val;
       return chain;
     });
     chain.single = vi.fn(() => {
-      const userId = ((globalThis as Record<string, unknown>).__isolationGetUserId as () => string)();
-      const matches = filters['id'] === AUDIT_ID && filters['user_id'] === OWNER_ID && userId === OWNER_ID;
-      if (matches) {
-        return Promise.resolve({
-          data: { id: AUDIT_ID, user_id: OWNER_ID, status: 'created', current_phase: 0, tokens_used: 0, token_budget: 200_000, product_mode: 'full' },
-          error: null,
-        });
+      const userId = (globalThis as unknown as { __isolationGetUserId?: () => string }).__isolationGetUserId?.() ?? '';
+      if (filters['id'] !== 'audit-owned-by-001') {
+        return Promise.resolve({ data: null, error: { code: 'PGRST116', message: 'not found' } });
+      }
+      // Pipeline start/next/reviews: .eq('id').eq('user_id', req.userId).single()
+      if (filters['user_id'] !== undefined) {
+        if (auditRow.user_id === filters['user_id']) {
+          return Promise.resolve({ data: { ...auditRow }, error: null });
+        }
+        return Promise.resolve({ data: null, error: { code: 'PGRST116', message: 'not found' } });
+      }
+      // Brief route: .eq('id').single() — row returned here; route enforces access in app code.
+      if (!filters['_orCalled']) {
+        return Promise.resolve({ data: { ...auditRow }, error: null });
+      }
+      const allowed = auditRow.user_id === userId || auditRow.client_id === userId;
+      if (allowed) {
+        return Promise.resolve({ data: { ...auditRow }, error: null });
       }
       return Promise.resolve({ data: null, error: { code: 'PGRST116', message: 'not found' } });
     });
     chain.delete = vi.fn(() => {
-      const userId = ((globalThis as Record<string, unknown>).__isolationGetUserId as () => string)();
+      const userId = (globalThis as unknown as { __isolationGetUserId?: () => string }).__isolationGetUserId?.() ?? '';
       filters['_requester'] = String(userId);
       deleteCalls.push({ filters: { ...filters } });
       chain.eq = vi.fn((col: string, val: string) => {
@@ -84,11 +119,11 @@ const { setRequestUserId, mockDeleteChain, getDeleteCalls } = vi.hoisted(() => {
     select: vi.fn().mockReturnThis(),
     eq:     vi.fn().mockReturnThis(),
     order:  vi.fn().mockReturnThis(),
+    limit:  vi.fn().mockReturnThis(),
     single: vi.fn().mockResolvedValue({ data: null, error: null }),
     insert: vi.fn().mockResolvedValue({ error: null }),
     update: vi.fn().mockReturnThis(),
     or:     vi.fn().mockReturnThis(),
-    limit:  vi.fn().mockResolvedValue({ data: [], error: null }),
   });
 
   const mockFrom = vi.fn((table: string) => {
@@ -126,10 +161,15 @@ vi.mock('../middleware/rate-limit.js', () => ({
 }));
 
 vi.mock('../services/pipeline.js', () => ({
-  PipelineOrchestrator: vi.fn().mockImplementation(() => ({
-    startPhase: vi.fn().mockResolvedValue(undefined),
-    runBlock:   vi.fn().mockResolvedValue(undefined),
-  })),
+  PipelineOrchestrator: class MockPipelineOrchestrator {
+    constructor(public auditId: string) {}
+    startPhase(_phase: number) {
+      return Promise.resolve();
+    }
+    runBlock() {
+      return Promise.resolve();
+    }
+  },
 }));
 
 vi.mock('../services/brief-validator.js', () => ({
@@ -196,9 +236,9 @@ describe('GET /api/audits — list isolation', () => {
     setRequestUserId(OWNER_ID);
     const res = await fetch(`${baseUrl}/api/audits`);
     expect(res.status).toBe(200);
-    // The mock returns empty list — what matters is it returned 200, not someone else's data
     const body = await res.json() as { data: unknown[] };
     expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data).toHaveLength(1);
   });
 
   it('always filters by the requesting user_id (attacker gets empty list, not owner data)', async () => {
