@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
-import { SCORE_LABELS } from '../types/audit.js';
+import { SCORE_LABELS, EXPRESS_DOMAIN_KEYS } from '../types/audit.js';
 import { generalLimiter } from '../middleware/rate-limit.js';
+import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 
 export const reportsRouter = Router();
 
@@ -16,8 +17,10 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
 
     // Fetch full audit state — allSettled so a missing recon/strategy
     // doesn't prevent the rest of the report from rendering.
+    const uid = req.userId!;
+    const userFilter = safeOrUserFilter(uid);
     const [auditRes, reconRes, domainsRes, strategyRes] = await Promise.allSettled([
-      supabase.from('audits').select('*').eq('id', id).eq('user_id', req.userId!).single(),
+      supabase.from('audits').select('*').eq('id', id).or(userFilter).single(),
       supabase.from('audit_recon').select('*').eq('audit_id', id).single(),
       supabase.from('audit_domains').select('*').eq('audit_id', id).order('phase_number'),
       supabase.from('audit_strategy').select('*').eq('audit_id', id).single(),
@@ -31,13 +34,54 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
 
     const audit = auditData.data;
     const recon = reconRes.status === 'fulfilled' ? (reconRes.value.data ?? null) : null;
-    const domains = domainsRes.status === 'fulfilled' ? (domainsRes.value.data ?? []) : [];
+    const domainsRaw = domainsRes.status === 'fulfilled' ? (domainsRes.value.data ?? []) : [];
     const strategy = strategyRes.status === 'fulfilled' ? (strategyRes.value.data ?? null) : null;
+
+    const productMode = String(audit.product_mode ?? 'full');
+    const profileParam = String(req.query.profile ?? '').toLowerCase();
+    const effectiveProfile =
+      profileParam === 'owner' || profileParam === 'full'
+        ? profileParam
+        : productMode === 'express'
+          ? 'owner'
+          : 'full';
+    const isOwnerLike = effectiveProfile === 'owner';
+
+    const latestByKey = new Map<string, (typeof domainsRaw)[0]>();
+    for (const d of domainsRaw) {
+      const prev = latestByKey.get(d.domain_key);
+      if (!prev || (d.version ?? 0) > (prev.version ?? 0)) latestByKey.set(d.domain_key, d);
+    }
+    const domainsLatest = Array.from(latestByKey.values()).sort(
+      (a, b) => (a.phase_number ?? 0) - (b.phase_number ?? 0)
+    );
+    let domains = domainsLatest;
+    if (isOwnerLike) {
+      const allow = new Set(EXPRESS_DOMAIN_KEYS);
+      domains = domainsLatest.filter(d => allow.has(d.domain_key as (typeof EXPRESS_DOMAIN_KEYS)[number]));
+    }
+
+    const format = String(req.query.format ?? 'markdown');
+
+    if (format === 'csv') {
+      const rows = buildActionPlanRows(domainsLatest);
+      const header = 'Title,Domain,Type,Priority,Timeframe,EstimatedCost\n';
+      const body = rows
+        .map(r =>
+          [csvEscape(r.title), csvEscape(r.domain), csvEscape(r.type), csvEscape(r.priority), csvEscape(r.timeframe), csvEscape(r.estimatedCost)].join(',')
+        )
+        .join('\n');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="audit-${id}-action-plan.csv"`);
+      res.send(header + body);
+      return;
+    }
 
     // Generate markdown
     const lines: string[] = [];
 
-    lines.push(`# IT Audit Report: ${recon?.company_name ?? audit.company_url}`);
+    const titleSuffix = isOwnerLike ? ' — Express summary' : '';
+    lines.push(`# IT Audit Report: ${recon?.company_name ?? audit.company_url}${titleSuffix}`);
     lines.push('');
     lines.push(`**Date:** ${new Date(audit.created_at).toLocaleDateString('en-GB')}`);
     lines.push(`**URL:** ${audit.company_url}`);
@@ -47,8 +91,8 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
     lines.push('---');
     lines.push('');
 
-    // Executive summary
-    if (strategy?.executive_summary) {
+    // Executive summary (full profile or non-express)
+    if (!isOwnerLike && strategy?.executive_summary) {
       lines.push('## Executive Summary');
       lines.push('');
       lines.push(strategy.executive_summary);
@@ -89,50 +133,50 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
         lines.push('');
       }
 
-      // Strengths
-      const strengths = (domain.strengths ?? []) as string[];
-      if (strengths.length > 0) {
-        lines.push('### Strengths');
-        for (const s of strengths) lines.push(`- ✅ ${s}`);
-        lines.push('');
-      }
-
-      // Weaknesses
-      const weaknesses = (domain.weaknesses ?? []) as string[];
-      if (weaknesses.length > 0) {
-        lines.push('### Areas for Improvement');
-        for (const w of weaknesses) lines.push(`- ⚠️ ${w}`);
-        lines.push('');
-      }
-
-      // Issues
-      const issues = (domain.issues ?? []) as Array<{ severity: string; title: string; description: string }>;
-      if (issues.length > 0) {
-        lines.push('### Issues Found');
-        for (const issue of issues) {
-          lines.push(`- **[${issue.severity.toUpperCase()}]** ${issue.title}: ${issue.description}`);
+      if (!isOwnerLike) {
+        const strengths = (domain.strengths ?? []) as string[];
+        if (strengths.length > 0) {
+          lines.push('### Strengths');
+          for (const s of strengths) lines.push(`- ✅ ${s}`);
+          lines.push('');
         }
-        lines.push('');
+
+        const weaknesses = (domain.weaknesses ?? []) as string[];
+        if (weaknesses.length > 0) {
+          lines.push('### Areas for Improvement');
+          for (const w of weaknesses) lines.push(`- ⚠️ ${w}`);
+          lines.push('');
+        }
+
+        const issues = (domain.issues ?? []) as Array<{ severity: string; title: string; description: string }>;
+        if (issues.length > 0) {
+          lines.push('### Issues Found');
+          for (const issue of issues) {
+            lines.push(`- **[${issue.severity.toUpperCase()}]** ${issue.title}: ${issue.description}`);
+          }
+          lines.push('');
+        }
       }
 
-      // Quick wins
       const quickWins = (domain.quick_wins ?? []) as Array<{ title: string; description: string; timeframe: string }>;
-      if (quickWins.length > 0) {
+      const qws = isOwnerLike ? quickWins.slice(0, 3) : quickWins;
+      if (qws.length > 0) {
         lines.push('### Quick Wins');
-        for (const qw of quickWins) {
+        for (const qw of qws) {
           lines.push(`- 🚀 **${qw.title}** (${qw.timeframe}): ${qw.description}`);
         }
         lines.push('');
       }
 
-      // Recommendations
-      const recs = (domain.recommendations ?? []) as Array<{ title: string; description: string; priority: string; estimated_cost: string; estimated_time: string }>;
-      if (recs.length > 0) {
-        lines.push('### Recommendations');
-        for (const rec of recs) {
-          lines.push(`- **${rec.title}** [${rec.priority}] — ${rec.description} (Est: ${rec.estimated_cost}, ${rec.estimated_time})`);
+      if (!isOwnerLike) {
+        const recs = (domain.recommendations ?? []) as Array<{ title: string; description: string; priority: string; estimated_cost: string; estimated_time: string }>;
+        if (recs.length > 0) {
+          lines.push('### Recommendations');
+          for (const rec of recs) {
+            lines.push(`- **${rec.title}** [${rec.priority}] — ${rec.description} (Est: ${rec.estimated_cost}, ${rec.estimated_time})`);
+          }
+          lines.push('');
         }
-        lines.push('');
       }
 
       lines.push('---');
@@ -140,7 +184,7 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
     }
 
     // Roadmap
-    if (strategy) {
+    if (!isOwnerLike && strategy) {
       const quickWins = (strategy.quick_wins ?? []) as Array<{ title: string; description: string }>;
       const mediumTerm = (strategy.medium_term ?? []) as Array<{ title: string; description: string }>;
       const strategic = (strategy.strategic ?? []) as Array<{ title: string; description: string }>;
@@ -172,8 +216,6 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
     lines.push('');
     lines.push('*Generated by GLC Audit Platform — glctech.es*');
 
-    const format = req.query.format ?? 'markdown';
-
     if (format === 'json') {
       res.json({
         audit_id: id,
@@ -201,4 +243,52 @@ function formatDomainName(key: string): string {
     automation_processes: 'Automation & Processes',
   };
   return names[key] ?? key;
+}
+
+function csvEscape(s: string): string {
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function buildActionPlanRows(
+  domains: Array<{
+    domain_key: string;
+    status?: string;
+    quick_wins?: unknown;
+    recommendations?: unknown;
+  }>
+): Array<{ title: string; domain: string; type: string; priority: string; timeframe: string; estimatedCost: string }> {
+  const rows: Array<{ title: string; domain: string; type: string; priority: string; timeframe: string; estimatedCost: string }> = [];
+  const dk = (k: string) => formatDomainName(k);
+  for (const domain of domains) {
+    if (domain.status !== 'completed') continue;
+    const qws = (domain.quick_wins ?? []) as Array<{ title: string; timeframe?: string }>;
+    for (const qw of qws) {
+      rows.push({
+        title: qw.title ?? '',
+        domain: dk(domain.domain_key),
+        type: 'Quick Win',
+        priority: 'high',
+        timeframe: qw.timeframe ?? '',
+        estimatedCost: '',
+      });
+    }
+    const recs = (domain.recommendations ?? []) as Array<{
+      title: string;
+      priority?: string;
+      estimated_time?: string;
+      estimated_cost?: string;
+    }>;
+    for (const rec of recs) {
+      rows.push({
+        title: rec.title ?? '',
+        domain: dk(domain.domain_key),
+        type: 'Recommendation',
+        priority: rec.priority ?? 'medium',
+        timeframe: rec.estimated_time ?? '',
+        estimatedCost: rec.estimated_cost ?? '',
+      });
+    }
+  }
+  return rows;
 }

@@ -6,6 +6,7 @@ import {
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { api } from '../data/apiService';
+import { useAudits } from '../hooks/useAudits';
 import type { AuditRequest, AuditRequestStatus } from '../data/auditTypes';
 
 // ── Status helpers ────────────────────────────────────────────────────────────
@@ -114,6 +115,7 @@ export function ClientPortal() {
   const [requests, setRequests] = useState<AuditRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { audits: myAudits, loading: auditsLoading, error: auditsError } = useAudits(30);
 
   useEffect(() => {
     api.listAuditRequests()
@@ -138,8 +140,53 @@ export function ClientPortal() {
   );
 
   return (
-    <AppShell title="My Portal" subtitle="Track your audit requests" actions={actions}>
-      <div className="px-7 py-6 max-w-3xl mx-auto">
+    <AppShell title="My Portal" subtitle="Track your requests and audits" actions={actions}>
+      <div className="px-7 py-6 max-w-3xl mx-auto space-y-10">
+
+        {!auditsLoading && !auditsError && myAudits.length > 0 && (
+          <section>
+            <h3
+              className="font-semibold mb-3"
+              style={{ color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}
+            >
+              My audits
+            </h3>
+            <div className="space-y-2">
+              {myAudits.map(a => {
+                const host = (() => { try { return new URL(a.company_url).hostname; } catch { return a.company_url; } })();
+                return (
+                  <Link
+                    key={a.id}
+                    to={`/portal/audit/${a.id}`}
+                    className="block no-underline rounded-xl px-4 py-3 transition-all"
+                    style={{
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-medium truncate" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}>
+                        {a.company_name || host}
+                      </span>
+                      <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-tertiary)' }}>
+                        {a.status.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {auditsError && (
+          <div
+            className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm"
+            style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)', color: '#EF4444' }}
+          >
+            {auditsError}
+          </div>
+        )}
 
         {loading && (
           <div className="flex items-center justify-center py-20">

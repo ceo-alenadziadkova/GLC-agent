@@ -2,8 +2,8 @@ import { NavLink, useLocation } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Briefcase, SquaresFour, Pulse, FileText, Flask,
-  Globe, GearSix, Bell, MagnifyingGlass, Lightning, SignOut,
-  HouseSimple, ClipboardText, Eye,
+  GearSix, Bell, MagnifyingGlass, Lightning, SignOut,
+  HouseSimple, ClipboardText, Eye, Tray,
 } from '@phosphor-icons/react';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
@@ -18,7 +18,8 @@ function useCurrentAuditId(): string | null {
 
 function buildConsultantNav(auditId: string | null) {
   return [
-    { to: '/portfolio',                          icon: Briefcase,    label: 'Client Portfolio', badge: null },
+    { to: '/portfolio',                          icon: Briefcase,    label: 'Portfolio', badge: null },
+    { to: '/admin/requests',                     icon: Tray,         label: 'Request queue', badge: null },
     { to: auditId ? `/audit/${auditId}` : null,  icon: SquaresFour,  label: 'Audit Workspace',  badge: null },
     { to: auditId ? `/pipeline/${auditId}` : null, icon: Pulse,      label: 'Pipeline',         badge: null },
     { to: auditId ? `/reports/${auditId}` : null, icon: FileText,    label: 'Reports',          badge: null },
@@ -44,12 +45,12 @@ interface AppShellProps {
 export function AppShell({ children, title, subtitle, actions }: AppShellProps) {
   const location = useLocation();
   const { user, signOut, isAuthenticated } = useAuth();
-  const { isConsultant, isClient } = useProfile();
+  const { isConsultant, isClient, roleDisplayName } = useProfile();
   const auditId = useCurrentAuditId();
 
   const NAV = isClient ? buildClientNav(auditId) : buildConsultantNav(auditId);
 
-  const sectionLabel = isClient ? 'MY WORKSPACE' : 'WORKSPACES';
+  const sectionLabel = isClient ? 'CLIENT WORKSPACE' : 'ADMIN WORKSPACE';
 
   return (
     <div className="h-screen flex overflow-hidden" style={{ backgroundColor: 'var(--bg-canvas)' }}>
@@ -145,7 +146,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               );
             }
             const active = location.pathname === to ||
-              (to !== '/portfolio' && to !== '/portal' && location.pathname.startsWith(to.split('/').slice(0, 2).join('/')));
+              (to !== '/portfolio' && to !== '/portal' && to !== '/admin/requests' && location.pathname.startsWith(to.split('/').slice(0, 2).join('/')));
             return (
               <NavLink
                 key={to}
@@ -304,7 +305,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                   {user.email?.split('@')[0] || 'User'}
                 </div>
                 <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.28)', marginTop: 3, letterSpacing: '0.03em' }}>
-                  {isClient ? 'Client Portal' : 'GLC Audit Platform'}
+                  {roleDisplayName ?? (isClient ? 'Client' : 'Admin')}
                 </div>
               </div>
               <button

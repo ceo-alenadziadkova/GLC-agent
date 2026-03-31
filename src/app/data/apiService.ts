@@ -108,6 +108,26 @@ export const api = {
     );
   },
 
+  /** Downloads action-plan CSV (auth required). Triggers browser file save. */
+  async downloadReportCsv(auditId: string, profile: 'full' | 'owner' = 'owner') {
+    const authHeaders = await getAuthHeaders();
+    const res = await fetch(
+      `${API_URL}/api/audits/${auditId}/report?format=csv&profile=${profile}`,
+      { headers: authHeaders }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error((err as { error?: string }).error ?? `API error: ${res.status}`);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit-${auditId}-action-plan.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
   // Intake Brief
   async getBrief(auditId: string) {
     return apiFetch<{

@@ -1,4 +1,5 @@
 import { BaseCollector } from './base.js';
+import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } from '../lib/public-http-url.js';
 
 interface SecurityHeaders {
   name: string;
@@ -12,6 +13,21 @@ export class SecurityCollector extends BaseCollector {
   get phase() { return 2; }
 
   async collect(_auditId: string, companyUrl: string) {
+    try {
+      await validatePublicAuditUrl(companyUrl);
+    } catch (e) {
+      if (e instanceof PublicUrlNotAllowedError) {
+        return {
+          ssl: { valid: false, redirects_to_https: false, status: 0 },
+          headers: [],
+          cookies: [],
+          mixed_content_hints: ['Target URL is not allowed for outbound requests'],
+          exposed_info: [],
+        };
+      }
+      throw e;
+    }
+
     const results = {
       ssl: await this.checkSSL(companyUrl),
       headers: await this.checkHeaders(companyUrl),
@@ -26,11 +42,10 @@ export class SecurityCollector extends BaseCollector {
   private async checkSSL(url: string) {
     try {
       const httpsUrl = url.replace(/^http:/, 'https:');
-      const response = await fetch(httpsUrl, {
+      const response = await fetchPublicHttpUrl(httpsUrl, {
         method: 'HEAD',
-        redirect: 'manual',
         signal: AbortSignal.timeout(10_000),
-      });
+      }, 0);
 
       return {
         valid: response.ok || response.status === 301 || response.status === 302,
@@ -44,9 +59,8 @@ export class SecurityCollector extends BaseCollector {
 
   private async checkHeaders(url: string): Promise<SecurityHeaders[]> {
     try {
-      const response = await fetch(url, {
+      const response = await fetchPublicHttpUrl(url, {
         headers: { 'User-Agent': 'GLC-AuditBot/1.0' },
-        redirect: 'follow',
         signal: AbortSignal.timeout(10_000),
       });
 
@@ -115,7 +129,7 @@ export class SecurityCollector extends BaseCollector {
 
   private async checkCookies(url: string) {
     try {
-      const response = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(10_000) });
+      const response = await fetchPublicHttpUrl(url, { signal: AbortSignal.timeout(10_000) });
       const setCookieHeaders = response.headers.getSetCookie?.() ?? [];
 
       const cookies = setCookieHeaders.map(cookie => {

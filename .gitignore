@@ -14,3 +14,5 @@ dist/
 /dataSources.local.xml
 /.claude/
 /.claire/
+.DS_Store
+*.docx
