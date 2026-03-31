@@ -14,7 +14,7 @@ cp .env.example .env          # fill in Supabase + API URL
 cp server/.env.example server/.env  # fill in Supabase service key + Anthropic key
 
 # 3. Run Supabase migrations
-# → paste server/migrations/001_initial_schema.sql into Supabase SQL Editor
+# → run server/migrations/001_initial_schema.sql through 007_finding_provenance.sql in order (see docs/DATABASE.md)
 
 # 4. Start dev servers
 cd server && npm run dev   # backend on :3001
@@ -57,20 +57,23 @@ A consultant submits a client's URL. The platform:
 
 ## Documentation
 
+Flat `docs/` folder (**13 files**). Start here:
+
 | Doc | Contents |
 |---|---|
-| [docs/MASTER.md](./docs/MASTER.md) | Master knowledge index |
-| [docs/OVERVIEW.md](./docs/OVERVIEW.md) | Product overview, scoring, business logic |
-| [docs/SETUP.md](./docs/SETUP.md) | Local development setup |
+| [docs/MASTER_DOCUMENTATION.md](./docs/MASTER_DOCUMENTATION.md) | Master index, knowledge domains, governance, PR checklist |
+| [docs/MASTER.md](./docs/MASTER.md) | Short pointer to master documentation |
+| [docs/PRODUCT.md](./docs/PRODUCT.md) | Product overview, modes, deliverables |
+| [docs/SETUP.md](./docs/SETUP.md) | Local development, migrations, demo seed |
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Full-stack architecture + data flow |
-| [docs/DATABASE.md](./docs/DATABASE.md) | Schema, RLS, Realtime |
+| [docs/DATABASE.md](./docs/DATABASE.md) | Schema, migrations, RLS overview |
 | [docs/API.md](./docs/API.md) | REST endpoints |
-| [docs/PIPELINE.md](./docs/PIPELINE.md) | 8-phase pipeline, review gates |
+| [docs/PIPELINE.md](./docs/PIPELINE.md) | Phases, parallel wings, review gates |
 | [docs/AGENTS.md](./docs/AGENTS.md) | AI agents, collectors, fact-checker |
 | [docs/FRONTEND.md](./docs/FRONTEND.md) | React pages, hooks, routing |
 | [docs/AUTH.md](./docs/AUTH.md) | Authentication flow |
 | [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | Vercel + Railway + Supabase deploy |
-| [docs/SECURITY.md](./docs/SECURITY.md) | RLS, rate limiting, CORS, GDPR |
+| [docs/SECURITY.md](./docs/SECURITY.md) | Threat model, rate limits, CORS, GDPR |
 
 ## Key Design Principle
 
@@ -86,13 +89,13 @@ A consultant submits a client's URL. The platform:
 │   ├── data/        ← apiService.ts, auditTypes.ts
 │   ├── lib/         ← supabase.ts
 │   └── components/  ← AppShell, ProtectedRoute, ReviewPointModal
-├── docs/            ← Documentation
+├── docs/            ← Documentation (see MASTER_DOCUMENTATION.md)
 server/              ← Backend (Express + TypeScript)
 ├── src/
-│   ├── agents/      ← 8 domain agents + BaseAgent
-│   ├── collectors/  ← Programmatic data collectors
-│   ├── services/    ← Pipeline orchestrator, context builder
-│   ├── routes/      ← Express routes
-│   └── middleware/  ← Auth, rate limiting
-└── migrations/      ← SQL schema files
+│   ├── agents/      ← Pipeline agents + BaseAgent
+│   ├── collectors/  ← Data collectors (no AI)
+│   ├── services/    ← Pipeline, context builder, fact-checker
+│   ├── routes/      ← Express route handlers
+│   └── middleware/  ← Auth, rate-limit
+└── migrations/      ← SQL migrations (001–007)
 ```
