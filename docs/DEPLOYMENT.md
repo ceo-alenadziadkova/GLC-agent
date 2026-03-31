@@ -95,6 +95,8 @@
 | `ALERT_FAILURE_RATE_THRESHOLD` | Failure rate threshold for alerting (default `0.2`) |
 | `ALERT_LATENCY_P95_MS_THRESHOLD` | p95 phase latency threshold in ms (default `180000`) |
 | `ALERT_TOKEN_BURN_15M_THRESHOLD` | Token burn threshold over 15m window (default `300000`) |
+| `SENTRY_TRACE_LINK_TEMPLATE` | Optional deep link template with `{trace_id}` placeholder |
+| `TRACE_LINK_TEMPLATE` | Optional custom trace viewer link template with `{trace_id}` |
 
 ---
 
@@ -152,3 +154,4 @@ In production: set `ALLOWED_ORIGINS=https://your-app.vercel.app` in Railway.
 2. Find the related `trace_id` in Sentry and backend structured logs.
 3. Query `pipeline_events` for `event_type in ('started','completed','error','token_usage')` for the same window.
 4. If retries are involved, verify idempotency records in `api_idempotency_keys` to confirm replay vs. new execution.
+5. Expired idempotency keys are cleaned up by background worker automatically.

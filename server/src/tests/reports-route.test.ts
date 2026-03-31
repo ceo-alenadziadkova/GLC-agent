@@ -122,12 +122,12 @@ beforeEach(() => {
 
 describe('GET /api/audits/:id/report', () => {
   it('returns markdown for owner', async () => {
-    const res = await fetch(`${baseUrl}/api/audits/${AUDIT_ID}/report`);
+    const res = await fetch(`${baseUrl}/api/audits/${AUDIT_ID}/report?format=markdown`);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toMatch(/markdown/);
     const text = await res.text();
     expect(text).toContain('Example Ltd');
-    expect(text).toContain('Express summary');
+    expect(text).toContain('UX summary');
   });
 
   it('returns CSV for client with access', async () => {
