@@ -12,6 +12,8 @@ import {
 } from '../types/audit.js';
 import { saveBriefResponses, validateBriefResponses } from '../services/brief-validator.js';
 import { BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
+import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
+import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 
 export const auditsRouter = Router();
 
@@ -44,10 +46,13 @@ auditsRouter.post('/', ...consultantGuard, createAuditLimiter, async (req: AuthR
     }
 
     try {
-      new URL(url);
-    } catch {
-      res.status(400).json({ error: 'company_url must be a valid URL (e.g. https://company.com)' });
-      return;
+      url = await validatePublicAuditUrl(url);
+    } catch (e) {
+      if (e instanceof PublicUrlNotAllowedError) {
+        res.status(400).json({ error: 'company_url is not allowed' });
+        return;
+      }
+      throw e;
     }
 
     // Create audit
@@ -118,10 +123,12 @@ auditsRouter.get('/', async (req: AuthRequest, res) => {
     const limit = Math.min(parseInt(String(req.query.limit ?? '50'), 10) || 50, 200);
     const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
 
+    const uid = req.userId!;
+    const userFilter = safeOrUserFilter(uid);
     const { data, error, count } = await supabase
       .from('audits')
       .select('id, company_url, company_name, industry, status, current_phase, overall_score, tokens_used, created_at, updated_at', { count: 'exact' })
-      .eq('user_id', req.userId!)
+      .or(userFilter)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -140,11 +147,13 @@ auditsRouter.get('/:id', async (req: AuthRequest, res) => {
     const id = req.params.id as string;
 
     // Fetch audit (RLS ensures ownership)
+    const uid = req.userId!;
+    const userFilter = safeOrUserFilter(uid);
     const { data: audit, error: auditErr } = await supabase
       .from('audits')
       .select('*')
       .eq('id', id)
-      .eq('user_id', req.userId!)
+      .or(userFilter)
       .single();
 
     if (auditErr || !audit) {

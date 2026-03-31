@@ -1,5 +1,7 @@
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { Router } from 'express';
+import { requireAuth, type AuthRequest } from '../middleware/auth.js';
+import { logIngestLimiter } from '../middleware/rate-limit.js';
 
 interface LogBody {
   level?: 'debug' | 'info' | 'warn' | 'error';
@@ -11,16 +13,17 @@ interface LogBody {
 
 export const logRouter = Router();
 
-logRouter.post('/', (req: Request<unknown, unknown, LogBody>, res: Response) => {
-  const { level = 'info', source = 'frontend', message = '', context, timestamp } = req.body ?? {};
+logRouter.post('/', requireAuth, logIngestLimiter, (req: AuthRequest, res: Response) => {
+  const body = (req.body ?? {}) as LogBody;
+  const level = body.level ?? 'info';
+  const source = String(body.source ?? 'frontend').slice(0, 64);
+  const message = String(body.message ?? '').slice(0, 4000);
+  const context = body.context && typeof body.context === 'object' ? body.context : undefined;
+  const timestamp = body.timestamp ?? new Date().toISOString();
 
-  const prefix = `[LOG][${level.toUpperCase()}][${source}]`;
-  const ts = timestamp ?? new Date().toISOString();
-
-  // Структурированное логирование на бэкенде
+  const prefix = `[LOG][${level.toUpperCase()}][${source}][user:${req.userId?.slice(0, 8) ?? '?'}]`;
   // eslint-disable-next-line no-console
-  console.log(prefix, ts, message, context ?? {});
+  console.log(prefix, timestamp, message, context ?? {});
 
   res.status(204).end();
 });
-

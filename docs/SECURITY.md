@@ -13,27 +13,11 @@ Primary risks for this platform:
 
 ## Row Level Security (RLS)
 
-The core data isolation mechanism. All 6 Supabase tables have RLS enabled.
+The core data isolation mechanism. **All application tables** use RLS; policies differ by table (consultant ownership, linked `client_id`, intake brief, audit requests, etc.).
 
-**Pattern:** Users can only read/write rows that belong to their own audits.
+**Canonical source:** migration SQL in `server/migrations/` and the table list in [DATABASE.md](./DATABASE.md).
 
-```sql
--- audits: direct user_id match
-ALTER TABLE audits ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "user_isolation" ON audits
-  FOR ALL USING (user_id = auth.uid());
-
--- related tables: via audit ownership
-ALTER TABLE audit_domains ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "user_isolation" ON audit_domains
-  FOR ALL USING (
-    audit_id IN (SELECT id FROM audits WHERE user_id = auth.uid())
-  );
--- Same pattern for: audit_recon, audit_strategy, pipeline_events,
--- collected_data, review_points
-```
-
-`auth.uid()` is the Supabase function that returns the user ID from the current JWT. It's evaluated server-side by Supabase for every query made with the anon key.
+`auth.uid()` is evaluated server-side by Supabase for queries using the anon key.
 
 **Backend uses service role key** — bypasses RLS intentionally. The backend enforces ownership at the application layer:
 ```typescript

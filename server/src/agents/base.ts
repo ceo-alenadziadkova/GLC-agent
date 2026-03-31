@@ -1,4 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { join, dirname } from 'path';
 import { supabase } from '../services/supabase.js';
 import { ContextBuilder, type AgentContext } from '../services/context-builder.js';
 import { FactChecker } from '../services/fact-checker.js';
@@ -11,6 +14,38 @@ import type { z } from 'zod';
 
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 2000;
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PROMPTS_DIR = join(__dirname, '../../prompts');
+
+/**
+ * Load a prompt from server/prompts/<name>.md, stripping the version comment header.
+ * Falls back to empty string if the file is missing (shouldn't happen in prod).
+ */
+export function loadPrompt(name: string): string {
+  try {
+    const raw = readFileSync(join(PROMPTS_DIR, `${name}.md`), 'utf-8');
+    // Strip the HTML version comment header line if present
+    return raw.replace(/^<!--.*?-->\n/, '').trimStart();
+  } catch {
+    console.error(`[loadPrompt] Missing prompt file: ${name}.md`);
+    return '';
+  }
+}
+
+/**
+ * Extract the version string from a prompt file's header comment.
+ * Returns e.g. "1.0" from "<!-- version: 1.0 date: 2026-03-31 -->".
+ */
+export function promptVersion(name: string): string {
+  try {
+    const raw = readFileSync(join(PROMPTS_DIR, `${name}.md`), 'utf-8');
+    const match = raw.match(/<!--\s*version:\s*([\d.]+)/);
+    return match?.[1] ?? 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
 
 /**
  * BaseAgent — the core AI agent pattern.

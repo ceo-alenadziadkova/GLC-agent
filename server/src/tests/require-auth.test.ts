@@ -28,31 +28,75 @@ import type { Server } from 'node:http';
 
 // ─── Hoisted mocks ────────────────────────────────────────────────────────────
 
-const { mockGetUser, mockUpsert, setGetUserResult, setUpsertResult } = vi.hoisted(() => {
+const {
+  mockGetUser,
+  mockProfileSelect,
+  mockProfileInsert,
+  mockProfileUpdate,
+  setGetUserResult,
+  setProfileSelectResult,
+  setProfileInsertResult,
+  setProfileUpdateResult,
+} = vi.hoisted(() => {
   let getUserResult: { data: { user: { id: string; email: string } | null }; error: Error | null } = {
     data: { user: { id: 'user-001', email: 'user@example.com' } },
     error: null,
   };
-  let upsertResult: { data: { role: string } | null; error: Error | null } = {
+  let profileSelectResult: { data: { role: string } | null; error: { code?: string } | null } = {
+    data: null,
+    error: { code: 'PGRST116' },
+  };
+  let profileInsertResult: { data: { role: string } | null; error: Error | null } = {
     data: { role: 'client' },
+    error: null,
+  };
+  let profileUpdateResult: { data: { role: string } | null; error: Error | null } = {
+    data: { role: 'consultant' },
     error: null,
   };
 
   const setGetUserResult = (v: typeof getUserResult) => { getUserResult = v; };
-  const setUpsertResult  = (v: typeof upsertResult)  => { upsertResult  = v; };
+  const setProfileSelectResult = (v: typeof profileSelectResult) => { profileSelectResult = v; };
+  const setProfileInsertResult = (v: typeof profileInsertResult) => { profileInsertResult = v; };
+  const setProfileUpdateResult = (v: typeof profileUpdateResult) => { profileUpdateResult = v; };
 
   const mockGetUser = vi.fn(() => Promise.resolve(getUserResult));
 
-  const mockUpsert = vi.fn(() => ({
+  const mockProfileSelect = vi.fn(() => ({
+    eq: vi.fn(() => ({
+      single: vi.fn(() => Promise.resolve(profileSelectResult)),
+    })),
+  }));
+
+  const mockProfileInsert = vi.fn(() => ({
     select: vi.fn(() => ({
-      single: vi.fn(() => Promise.resolve(upsertResult)),
+      single: vi.fn(() => Promise.resolve(profileInsertResult)),
+    })),
+  }));
+
+  const mockProfileUpdate = vi.fn(() => ({
+    eq: vi.fn(() => ({
+      select: vi.fn(() => ({
+        single: vi.fn(() => Promise.resolve(profileUpdateResult)),
+      })),
     })),
   }));
 
   (globalThis as Record<string, unknown>).__authMockGetUser = mockGetUser;
-  (globalThis as Record<string, unknown>).__authMockUpsert  = mockUpsert;
+  (globalThis as Record<string, unknown>).__authMockProfileSelect = mockProfileSelect;
+  (globalThis as Record<string, unknown>).__authMockProfileInsert = mockProfileInsert;
+  (globalThis as Record<string, unknown>).__authMockProfileUpdate = mockProfileUpdate;
 
-  return { mockGetUser, mockUpsert, setGetUserResult, setUpsertResult };
+  return {
+    mockGetUser,
+    mockProfileSelect,
+    mockProfileInsert,
+    mockProfileUpdate,
+    setGetUserResult,
+    setProfileSelectResult,
+    setProfileInsertResult,
+    setProfileUpdateResult,
+  };
 });
 
 // ─── Module mocks ─────────────────────────────────────────────────────────────
@@ -63,7 +107,9 @@ vi.mock('../services/supabase.js', () => ({
       getUser: (globalThis as Record<string, unknown>).__authMockGetUser,
     },
     from: vi.fn(() => ({
-      upsert: (globalThis as Record<string, unknown>).__authMockUpsert,
+      select: (globalThis as Record<string, unknown>).__authMockProfileSelect,
+      insert: (globalThis as Record<string, unknown>).__authMockProfileInsert,
+      update: (globalThis as Record<string, unknown>).__authMockProfileUpdate,
     })),
   },
 }));
@@ -115,10 +161,14 @@ afterAll(async () => {
 
 beforeEach(() => {
   (mockGetUser as Mock).mockClear();
-  (mockUpsert  as Mock).mockClear();
+  (mockProfileSelect as Mock).mockClear();
+  (mockProfileInsert as Mock).mockClear();
+  (mockProfileUpdate as Mock).mockClear();
   // Reset to valid defaults
   setGetUserResult({ data: { user: { id: 'user-001', email: 'user@example.com' } }, error: null });
-  setUpsertResult({ data: { role: 'client' }, error: null });
+  setProfileSelectResult({ data: null, error: { code: 'PGRST116' } });
+  setProfileInsertResult({ data: { role: 'client' }, error: null });
+  setProfileUpdateResult({ data: { role: 'consultant' }, error: null });
 });
 
 // ─── requireAuth tests ────────────────────────────────────────────────────────
@@ -180,7 +230,8 @@ describe('attachProfile', () => {
   it('assigns role "client" when email is not in CONSULTANT_EMAILS', async () => {
     process.env.CONSULTANT_EMAILS = 'boss@company.com';
     setGetUserResult({ data: { user: { id: 'user-001', email: 'random@other.com' } }, error: null });
-    setUpsertResult({ data: { role: 'client' }, error: null });
+    setProfileSelectResult({ data: null, error: { code: 'PGRST116' } });
+    setProfileInsertResult({ data: { role: 'client' }, error: null });
 
     const res = await fetch(`${fullChainBase}/test`, {
       headers: { Authorization: 'Bearer tok' },
@@ -193,7 +244,8 @@ describe('attachProfile', () => {
   it('assigns role "consultant" when email matches CONSULTANT_EMAILS', async () => {
     process.env.CONSULTANT_EMAILS = 'consultant@glc.com,another@glc.com';
     setGetUserResult({ data: { user: { id: 'user-c', email: 'consultant@glc.com' } }, error: null });
-    setUpsertResult({ data: { role: 'consultant' }, error: null });
+    setProfileSelectResult({ data: null, error: { code: 'PGRST116' } });
+    setProfileInsertResult({ data: { role: 'consultant' }, error: null });
 
     const res = await fetch(`${fullChainBase}/test`, {
       headers: { Authorization: 'Bearer tok' },
@@ -206,7 +258,8 @@ describe('attachProfile', () => {
   it('is case-insensitive for CONSULTANT_EMAILS match', async () => {
     process.env.CONSULTANT_EMAILS = 'BOSS@COMPANY.COM';
     setGetUserResult({ data: { user: { id: 'user-b', email: 'boss@company.com' } }, error: null });
-    setUpsertResult({ data: { role: 'consultant' }, error: null });
+    setProfileSelectResult({ data: null, error: { code: 'PGRST116' } });
+    setProfileInsertResult({ data: { role: 'consultant' }, error: null });
 
     const res = await fetch(`${fullChainBase}/test`, {
       headers: { Authorization: 'Bearer tok' },
@@ -216,8 +269,9 @@ describe('attachProfile', () => {
     expect(body.role).toBe('consultant');
   });
 
-  it('returns 500 when profile upsert fails', async () => {
-    setUpsertResult({ data: null, error: new Error('DB unavailable') });
+  it('returns 500 when profile creation fails', async () => {
+    setProfileSelectResult({ data: null, error: { code: 'PGRST116' } });
+    setProfileInsertResult({ data: null, error: new Error('DB unavailable') });
     const res = await fetch(`${fullChainBase}/test`, {
       headers: { Authorization: 'Bearer tok' },
     });

@@ -1,3 +1,5 @@
+import { supabase } from './supabase';
+
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface LogPayload {
@@ -10,10 +12,14 @@ interface LogPayload {
 
 async function sendLog(payload: LogPayload) {
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+
     await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/api/log`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify(payload),
     });

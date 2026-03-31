@@ -1,11 +1,29 @@
 import { BaseCollector } from './base.js';
 import { supabase } from '../services/supabase.js';
+import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } from '../lib/public-http-url.js';
 
 export class SeoCollector extends BaseCollector {
   get key() { return 'seo_meta'; }
   get phase() { return 3; }
 
   async collect(auditId: string, companyUrl: string) {
+    try {
+      await validatePublicAuditUrl(companyUrl);
+    } catch (e) {
+      if (e instanceof PublicUrlNotAllowedError) {
+        return {
+          no_crawl_data: true,
+          warning: 'Target URL is not allowed for outbound requests',
+          robots_txt: { exists: false, content: null, issues: [] },
+          sitemap: { exists: false, url: null, url_count: 0, format: null },
+          open_graph: { pages_with_structured_data: 0, total_pages: 0, structured_data_types: [] },
+          page_analysis: { issues: [], meta_coverage: { with_title: 0, with_description: 0, with_h1: 0, total: 0 }, image_stats: { total: 0, missing_alt: 0 } },
+          total_pages: 0,
+        };
+      }
+      throw e;
+    }
+
     // Get crawled pages from the crawler's collected data
     const { data: crawlData } = await supabase
       .from('collected_data')
@@ -48,7 +66,7 @@ export class SeoCollector extends BaseCollector {
   private async checkRobotsTxt(url: string) {
     try {
       const baseUrl = new URL(url);
-      const response = await fetch(`${baseUrl.origin}/robots.txt`, {
+      const response = await fetchPublicHttpUrl(`${baseUrl.origin}/robots.txt`, {
         headers: { 'User-Agent': 'GLC-AuditBot/1.0' },
       });
 
@@ -82,7 +100,7 @@ export class SeoCollector extends BaseCollector {
 
     for (const sitemapUrl of sitemapUrls) {
       try {
-        const response = await fetch(sitemapUrl, {
+        const response = await fetchPublicHttpUrl(sitemapUrl, {
           headers: { 'User-Agent': 'GLC-AuditBot/1.0' },
         });
 

@@ -21,6 +21,7 @@ import {
   reviewPhasesForMode,
   type ProductMode,
 } from '../types/audit.js';
+import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
 
 export const auditRequestsRouter = Router();
 
@@ -50,10 +51,13 @@ auditRequestsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) 
     }
 
     try {
-      new URL(normalizedUrl);
-    } catch {
-      res.status(400).json({ error: 'url must be a valid URL (e.g. https://company.com)' });
-      return;
+      normalizedUrl = await validatePublicAuditUrl(normalizedUrl);
+    } catch (e) {
+      if (e instanceof PublicUrlNotAllowedError) {
+        res.status(400).json({ error: 'url is not allowed' });
+        return;
+      }
+      throw e;
     }
 
     if (!['express', 'full'].includes(product_mode)) {
@@ -170,11 +174,19 @@ auditRequestsRouter.patch('/:id', async (req: AuthRequest, res) => {
 
     const updates: Record<string, unknown> = {};
     if (url) {
-      let normalizedUrl = url.trim();
+      let normalizedUrl = String(url).trim();
       if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
         normalizedUrl = `https://${normalizedUrl}`;
       }
-      updates.url = normalizedUrl;
+      try {
+        updates.url = await validatePublicAuditUrl(normalizedUrl);
+      } catch (e) {
+        if (e instanceof PublicUrlNotAllowedError) {
+          res.status(400).json({ error: 'url is not allowed' });
+          return;
+        }
+        throw e;
+      }
     }
     if (industry !== undefined) updates.industry = industry || null;
     if (product_mode) updates.product_mode = product_mode;

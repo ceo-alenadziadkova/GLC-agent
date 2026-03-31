@@ -217,6 +217,12 @@ describe('PipelineOrchestrator.startPhase() — mode ceiling', () => {
     const orch = new PipelineOrchestrator(AUDIT_ID);
     await expect(orch.startPhase(4)).resolves.not.toThrow();
   });
+
+  it('throws when phase exceeds free_snapshot maximum (phase 5)', async () => {
+    setProductMode('free_snapshot');
+    const orch = new PipelineOrchestrator(AUDIT_ID);
+    await expect(orch.startPhase(5)).rejects.toThrow(/not available for product_mode 'free_snapshot'/i);
+  });
 });
 
 describe('PipelineOrchestrator.startPhase(0) — Phase 0 (Recon) happy path', () => {

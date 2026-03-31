@@ -54,8 +54,8 @@ export function Portfolio() {
 
   return (
     <AppShell
-      title="Client Portfolio"
-      subtitle="All consulting clients and audit history"
+      title="Admin portfolio"
+      subtitle="All client audits and pipeline history (GLC team)"
       actions={
         <Link to="/audit/new" className="glc-btn-primary" style={{ textDecoration: 'none' }}>
           <Plus className="w-4 h-4" /> New Audit

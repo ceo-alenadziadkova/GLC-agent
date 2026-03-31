@@ -1,0 +1,25 @@
+# Sample product thresholds — documentation mirror of code constants.
+# Not loaded automatically: keep server/src/types/audit.ts and related config in sync,
+# or introduce an optional loader that maps these keys to env overrides in a later iteration.
+
+product_modes:
+  free_snapshot:
+    token_budget: 80000
+    public_response:
+      max_issues: 2
+      max_quick_wins: 2
+    pipeline:
+      max_phase: 4
+      review_gates: []
+  express:
+    max_phase: 4
+    review_gates_after_phases: [0, 4]
+    domains: [tech_infrastructure, security_compliance, seo_digital, ux_conversion]
+  full:
+    max_phase: 7
+    review_gates_after_phases: [0, 4, 7]
+
+rate_limits:
+  snapshot_public_per_ip_per_hour: 10
+  create_audit_per_user_per_day: 5
+  pipeline_operations_per_hour: 30
