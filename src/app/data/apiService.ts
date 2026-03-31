@@ -102,10 +102,14 @@ export const api = {
   },
 
   // Reports
-  async getReport(id: string, format: 'markdown' | 'json' = 'json') {
-    return apiFetch<{ audit_id: string; company: string; generated_at: string; markdown: string }>(
-      `/api/audits/${id}/report?format=${format}`
+  async getReport(id: string, format: 'markdown' | 'json' = 'json', profile: 'full' | 'owner' | 'tech' | 'marketing' | 'onepager' = 'full') {
+    return apiFetch<{ audit_id: string; company: string; profile: string; profile_label: string; generated_at: string; markdown: string }>(
+      `/api/audits/${id}/report?format=${format}&profile=${profile}`
     );
+  },
+
+  getReportCsvUrl(id: string): string {
+    return `${API_URL}/api/audits/${id}/report?format=csv`;
   },
 
   // Intake Brief

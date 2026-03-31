@@ -53,7 +53,7 @@ const { setRequestUserId, mockDeleteChain, getDeleteCalls } = vi.hoisted(() => {
       return chain;
     });
     chain.single = vi.fn(() => {
-      const userId = (globalThis as Record<string, unknown>).__isolationGetUserId();
+      const userId = ((globalThis as Record<string, unknown>).__isolationGetUserId as () => string)();
       const matches = filters['id'] === AUDIT_ID && filters['user_id'] === OWNER_ID && userId === OWNER_ID;
       if (matches) {
         return Promise.resolve({
@@ -64,7 +64,7 @@ const { setRequestUserId, mockDeleteChain, getDeleteCalls } = vi.hoisted(() => {
       return Promise.resolve({ data: null, error: { code: 'PGRST116', message: 'not found' } });
     });
     chain.delete = vi.fn(() => {
-      const userId = (globalThis as Record<string, unknown>).__isolationGetUserId();
+      const userId = ((globalThis as Record<string, unknown>).__isolationGetUserId as () => string)();
       filters['_requester'] = String(userId);
       deleteCalls.push({ filters: { ...filters } });
       chain.eq = vi.fn((col: string, val: string) => {
