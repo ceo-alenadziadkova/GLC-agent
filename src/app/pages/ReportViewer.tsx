@@ -3,7 +3,8 @@ import { motion } from 'motion/react';
 import { Link, useParams } from 'react-router';
 import {
   ArrowUpRight, TrendUp, Warning, Lightning, CaretRight,
-  CheckCircle, FileText, Clock, CurrencyDollar, ChartBar, ArrowsClockwise
+  CheckCircle, FileText, Clock, CurrencyDollar, ChartBar, ArrowsClockwise,
+  DownloadSimple, User, Code, Megaphone, Article,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { ScoreBadge, ScoreBar } from '../components/glc/ScoreBadge';
@@ -14,6 +15,34 @@ import { useAudit } from '../hooks/useAudit';
 import { api } from '../data/apiService';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
 import type { DomainData } from '../data/auditTypes';
+
+type ReportProfile = 'full' | 'owner' | 'tech' | 'marketing' | 'onepager';
+
+const PROFILES: Array<{ id: ReportProfile; label: string; icon: React.ElementType; description: string }> = [
+  { id: 'full',      label: 'Full Report',       icon: ChartBar,          description: 'All 6 domains — consulting team' },
+  { id: 'owner',     label: 'Owner Summary',      icon: User,              description: 'Exec summary + roadmap + costs' },
+  { id: 'tech',      label: 'Technical',          icon: Code,              description: 'Tech & Security deep-dive' },
+  { id: 'marketing', label: 'Marketing & Growth', icon: Megaphone,         description: 'SEO, UX, Marketing analysis' },
+  { id: 'onepager',  label: 'One-Pager',          icon: Article,           description: 'Summary + top findings, 1 page' },
+];
+
+// Mirrors server/src/services/report-profiler.ts PROFILE_DOMAINS
+const PROFILE_DOMAIN_FILTER: Record<ReportProfile, string[] | 'all'> = {
+  full:      'all',
+  owner:     'all',
+  tech:      ['tech_infrastructure', 'security_compliance'],
+  marketing: ['seo_digital', 'ux_conversion', 'marketing_utp'],
+  onepager:  'all',
+};
+
+// Max items to show per section per profile
+const PROFILE_MAX_ITEMS: Record<ReportProfile, number> = {
+  full:      999,
+  owner:     5,
+  tech:      999,
+  marketing: 999,
+  onepager:  3,
+};
 
 const listVariants = {
   hidden: {},
@@ -27,24 +56,24 @@ const itemVariants = {
 export function ReportViewer() {
   const { id } = useParams<{ id: string }>();
   const { audit, loading, error } = useAudit(id);
-  const [csvBusy, setCsvBusy] = useState(false);
+  const [profile, setProfile] = useState<ReportProfile>('full');
+  const [csvLoading, setCsvLoading] = useState(false);
 
   const handleExportPdf = () => {
     window.print();
   };
 
-  const handleExportCsv = async () => {
+  async function handleDownloadCsv() {
     if (!id) return;
-    setCsvBusy(true);
+    setCsvLoading(true);
     try {
-      const profile = audit?.meta.product_mode === 'express' ? 'owner' : 'full';
       await api.downloadReportCsv(id, profile);
     } catch (e) {
       console.error(e);
     } finally {
-      setCsvBusy(false);
+      setCsvLoading(false);
     }
-  };
+  }
 
   if (loading && !audit) {
     return (
@@ -67,19 +96,30 @@ export function ReportViewer() {
   }
 
   const companyName = audit.meta.company_name || audit.meta.company_url;
-  const domains = DOMAIN_KEYS.map(key => ({
+  const allDomains = DOMAIN_KEYS.map(key => ({
     key,
     label: DOMAIN_LABELS[key],
     data: audit.domains[key],
     score: audit.domains[key]?.score ?? 0,
   }));
 
-  const domainEntries = domains.filter(d => d.data && d.data.score !== null);
-  const avg = domainEntries.length > 0
-    ? domainEntries.reduce((s, d) => s + d.score, 0) / domainEntries.length
+  // Filter domains by active profile
+  const domainFilter = PROFILE_DOMAIN_FILTER[profile];
+  const domains = domainFilter === 'all'
+    ? allDomains
+    : allDomains.filter(d => (domainFilter as string[]).includes(d.key));
+
+  const maxItems = PROFILE_MAX_ITEMS[profile];
+
+  // Always use all domains for overall avg (hero card shows whole-company score)
+  const allDomainEntries = allDomains.filter(d => d.data && d.data.score !== null);
+  const avg = allDomainEntries.length > 0
+    ? allDomainEntries.reduce((s, d) => s + d.score, 0) / allDomainEntries.length
     : 0;
 
-  // Collect all issues and quick wins across domains
+  const domainEntries = domains.filter(d => d.data && d.data.score !== null);
+
+  // Collect issues/strengths/quick wins scoped to visible domains
   const allIssues = domains.flatMap(d => d.data?.issues ?? []);
   const criticalIssues = allIssues.filter(i => i.severity === 'critical' || i.severity === 'high');
   const allStrengths = domains.flatMap(d => (d.data?.strengths ?? []).map(s => ({ domain: d.label, text: s })));
@@ -97,10 +137,12 @@ export function ReportViewer() {
           <button
             type="button"
             className="glc-btn-secondary"
-            disabled={csvBusy}
-            onClick={handleExportCsv}
+            onClick={handleDownloadCsv}
+            disabled={csvLoading}
+            title="Download Action Plan as CSV"
           >
-            <ChartBar className="w-4 h-4" /> {csvBusy ? 'CSV…' : 'Action plan CSV'}
+            <DownloadSimple className="w-4 h-4" />
+            {csvLoading ? 'Generating…' : 'Action Plan CSV'}
           </button>
           <button type="button" className="glc-btn-secondary" onClick={handleExportPdf}>
             <FileText className="w-4 h-4" /> Export PDF
@@ -109,6 +151,45 @@ export function ReportViewer() {
       }
     >
       <div className="max-w-3xl mx-auto px-7 py-6 space-y-6">
+
+        {/* ── Profile selector ──────────────────────── */}
+        <div
+          className="flex items-start gap-2 flex-wrap p-1 rounded-xl"
+          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+        >
+          {PROFILES.map(p => {
+            const active = profile === p.id;
+            const I = p.icon;
+            return (
+              <button
+                key={p.id}
+                onClick={() => setProfile(p.id)}
+                title={p.description}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all"
+                style={{
+                  fontSize: '12px',
+                  fontWeight: active ? 700 : 500,
+                  fontFamily: 'var(--font-display)',
+                  color: active ? '#fff' : 'var(--text-secondary)',
+                  background: active ? 'var(--gradient-accent)' : 'transparent',
+                  border: active ? 'none' : '1px solid transparent',
+                  boxShadow: active ? '0 2px 8px rgba(242,79,29,0.28)' : 'none',
+                  cursor: 'pointer',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                <I size={13} weight={active ? 'fill' : 'regular'} />
+                {p.label}
+              </button>
+            );
+          })}
+          <span
+            className="ml-auto text-xs self-center pr-1"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
+            {PROFILES.find(p => p.id === profile)?.description}
+          </span>
+        </div>
 
         {/* ── Hero card ─────────────────────────────── */}
         <motion.div
@@ -162,8 +243,8 @@ export function ReportViewer() {
 
               <div className="flex flex-wrap gap-2 mt-5">
                 {[
-                  { icon: Warning,   label: `${allIssues.length} issues found`,    color: 'var(--score-1)' },
-                  { icon: Lightning, label: `${allQuickWins.length} quick wins`,    color: 'var(--glc-green)' },
+                  { icon: Warning,   label: `${criticalIssues.length} critical issues`,  color: 'var(--score-1)' },
+                  { icon: Lightning, label: `${allQuickWins.length} quick wins`,          color: 'var(--glc-green)' },
                 ].map(({ icon: I, label, color }) => (
                   <div
                     key={label}
@@ -233,7 +314,7 @@ export function ReportViewer() {
               <SectionLabel>Domain Scorecard</SectionLabel>
             </div>
             <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-              {domainEntries.length} domains · avg {avg.toFixed(1)}/5
+              {domainEntries.length} {domainFilter !== 'all' ? 'of 6' : ''} domains · avg {avg.toFixed(1)}/5
             </span>
           </div>
 
@@ -282,7 +363,7 @@ export function ReportViewer() {
               color: 'var(--glc-green)',
               bg: 'var(--glc-green-xlight)',
               border: 'rgba(14,207,130,0.20)',
-              items: allStrengths.slice(0, 5).map(s => s.text),
+              items: allStrengths.slice(0, Math.min(5, maxItems)).map(s => s.text),
             },
             {
               title: 'Critical Issues',
@@ -290,7 +371,7 @@ export function ReportViewer() {
               color: 'var(--score-1)',
               bg: 'var(--score-1-bg)',
               border: 'var(--score-1-border)',
-              items: criticalIssues.slice(0, 5).map(i => i.title),
+              items: criticalIssues.slice(0, Math.min(5, maxItems)).map(i => i.title),
             },
           ].map(({ title, icon: I, color, bg, border, items }) => (
             <motion.div
@@ -340,7 +421,7 @@ export function ReportViewer() {
               </div>
             </div>
             <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
-              {allQuickWins.slice(0, 8).map((qw, i) => (
+              {allQuickWins.slice(0, Math.min(8, maxItems)).map((qw, i) => (
                 <motion.div
                   key={qw.id || i}
                   initial={{ opacity: 0, x: -6 }}

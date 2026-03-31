@@ -102,14 +102,14 @@ export const api = {
   },
 
   // Reports
-  async getReport(id: string, format: 'markdown' | 'json' = 'json') {
-    return apiFetch<{ audit_id: string; company: string; generated_at: string; markdown: string }>(
-      `/api/audits/${id}/report?format=${format}`
+  async getReport(id: string, format: 'markdown' | 'json' = 'json', profile: 'full' | 'owner' | 'tech' | 'marketing' | 'onepager' = 'full') {
+    return apiFetch<{ audit_id: string; company: string; profile: string; profile_label: string; generated_at: string; markdown: string }>(
+      `/api/audits/${id}/report?format=${format}&profile=${profile}`
     );
   },
 
-  /** Downloads action-plan CSV (auth required). Triggers browser file save. */
-  async downloadReportCsv(auditId: string, profile: 'full' | 'owner' = 'owner') {
+  /** Downloads action-plan CSV with auth headers. Triggers browser file save. */
+  async downloadReportCsv(auditId: string, profile: 'full' | 'owner' | 'tech' | 'marketing' | 'onepager' = 'full') {
     const authHeaders = await getAuthHeaders();
     const res = await fetch(
       `${API_URL}/api/audits/${auditId}/report?format=csv&profile=${profile}`,
