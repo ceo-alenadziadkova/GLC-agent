@@ -14,6 +14,8 @@ import { saveBriefResponses, validateBriefResponses } from '../services/brief-va
 import { BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import { safeOrUserFilter } from '../lib/postgrest-filter.js';
+import { getStoredIdempotentResponse, storeIdempotentResponse } from '../lib/idempotency.js';
+import { logger } from '../services/logger.js';
 
 export const auditsRouter = Router();
 
@@ -28,6 +30,11 @@ auditsRouter.post('/', ...consultantGuard, createAuditLimiter, async (req: AuthR
   try {
     const { company_url, company_name, industry, product_mode } = req.body;
     const mode: ProductMode = product_mode === 'express' ? 'express' : 'full';
+    const idempotent = await getStoredIdempotentResponse(req, 'POST:/api/audits', req.body);
+    if (idempotent.replay) {
+      res.status(idempotent.replay.statusCode).json(idempotent.replay.payload);
+      return;
+    }
 
     if (!company_url || typeof company_url !== 'string') {
       res.status(400).json({ error: 'company_url is required' });
@@ -104,14 +111,20 @@ auditsRouter.post('/', ...consultantGuard, createAuditLimiter, async (req: AuthR
     if (initFailed) {
       // Rollback — CASCADE DELETE removes all child records
       await supabase.from('audits').delete().eq('id', audit.id);
-      console.error('[POST /api/audits] Placeholder init failed, rolled back audit', audit.id);
+      logger.error('Audit initialization failed, rollback applied', { audit_id: audit.id });
       res.status(500).json({ error: 'Failed to initialize audit — rolled back' });
       return;
     }
 
-    res.status(201).json({ id: audit.id, status: audit.status });
+    const payload = { id: audit.id, status: audit.status };
+    await storeIdempotentResponse(req, 'POST:/api/audits', idempotent.key, idempotent.hash, { statusCode: 201, payload }, audit.id);
+    res.status(201).json(payload);
   } catch (err) {
-    console.error('[POST /api/audits]', err);
+    if ((err as Error).message.includes('Idempotency key reuse')) {
+      res.status(409).json({ error: (err as Error).message });
+      return;
+    }
+    logger.error('Create audit route failed', { error: (err as Error).message });
     res.status(500).json({ error: 'Failed to create audit' });
   }
 });

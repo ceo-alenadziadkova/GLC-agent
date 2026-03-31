@@ -93,7 +93,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 ### 5. Data storage
 
-**What it is:** PostgreSQL schema on Supabase; migrations `001`–`007`; RLS; Realtime on key tables.
+**What it is:** PostgreSQL schema on Supabase; migrations `001`–`008`; RLS; Realtime on key tables.
 
 **Why it matters:** Persistence and isolation for audits, events, client portal, intake brief.
 

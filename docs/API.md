@@ -150,6 +150,7 @@ Delete audit and all related data (CASCADE). Irreversible.
 ### `POST /api/audits/:id/pipeline/start`
 
 Start Phase 0 (Recon). Audit must be in `created` status.
+Supports optimistic race protection via DB compare-and-set. If another request already claimed execution, returns `409`.
 
 **Response `200`:**
 
@@ -162,6 +163,7 @@ Start Phase 0 (Recon). Audit must be in `created` status.
 ### `POST /api/audits/:id/pipeline/next`
 
 Run the next pending phase or parallel block. Used after a review approval to continue the pipeline.
+Uses compare-and-set claim on the audit row to prevent duplicate concurrent starts.
 
 **Response `200`:**
 
@@ -174,6 +176,7 @@ Run the next pending phase or parallel block. Used after a review approval to co
 ### `POST /api/audits/:id/pipeline/retry`
 
 Retry a failed phase. **Consultant-only.** Request body must include the `phase` number to retry. Behaviour and limits depend on `product_mode` (phases above the mode’s max are rejected).
+Uses compare-and-set claim on the audit row to prevent duplicate concurrent retries.
 
 **Response `200`:** e.g. `{ "status": "retrying", "phase": <number> }`
 
@@ -233,6 +236,23 @@ Submit review approval at a review gate. Optionally includes consultant and inte
 ```json
 { "approved": true, "next_phase": 1 }
 ```
+
+If the review was already approved earlier, route returns `{ "status": "already_approved" }`.
+
+---
+
+## Idempotency support
+
+Critical write endpoints accept optional `Idempotency-Key` header:
+
+- `POST /api/audits`
+- `POST /api/audit-requests/:id/approve`
+
+Rules:
+
+- Same key + same payload returns stored response (safe replay).
+- Same key + different payload returns `409`.
+- Keys are scoped by `user_id + route` and stored for 24 hours.
 
 ---
 

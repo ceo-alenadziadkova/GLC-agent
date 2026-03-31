@@ -4,6 +4,7 @@ import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../mi
 import { pipelineLimiter } from '../middleware/rate-limit.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
 import { maxPhaseForMode, type ProductMode } from '../types/audit.js';
+import { logger } from '../services/logger.js';
 
 /**
  * Emit an error event to pipeline_events and mark audit as failed.
@@ -13,7 +14,7 @@ import { maxPhaseForMode, type ProductMode } from '../types/audit.js';
  * we log to console instead of throwing an unhandled rejection.
  */
 async function emitPhaseError(auditId: string, phase: number, err: Error): Promise<void> {
-  console.error(`[Pipeline ${auditId}] Phase ${phase} crashed:`, err.message);
+  logger.error('Pipeline phase crashed', { audit_id: auditId, phase, error: err.message });
   try {
     await Promise.all([
       supabase.from('pipeline_events').insert({
@@ -29,7 +30,7 @@ async function emitPhaseError(auditId: string, phase: number, err: Error): Promi
     ]);
   } catch (dbErr) {
     // DB unavailable — already logged to console above, don't rethrow
-    console.error(`[Pipeline ${auditId}] Failed to write error event to DB:`, dbErr);
+    logger.error('Failed to write pipeline error event', { audit_id: auditId, phase, error: (dbErr as Error).message });
   }
 }
 
@@ -47,7 +48,7 @@ pipelineRouter.post('/:id/pipeline/start', ...consultantGuard, pipelineLimiter, 
     // Verify ownership
     const { data: audit, error } = await supabase
       .from('audits')
-      .select('id, status, current_phase, tokens_used, token_budget')
+      .select('id, status, current_phase, tokens_used, token_budget, updated_at')
       .eq('id', id)
       .eq('user_id', req.userId!)
       .single();
@@ -68,6 +69,19 @@ pipelineRouter.post('/:id/pipeline/start', ...consultantGuard, pipelineLimiter, 
       return;
     }
 
+    const { data: claimedStart } = await supabase
+      .from('audits')
+      .update({ status: 'recon', current_phase: 0 })
+      .eq('id', id)
+      .eq('user_id', req.userId!)
+      .eq('status', 'created')
+      .eq('updated_at', audit.updated_at)
+      .select('id');
+    if (!claimedStart || claimedStart.length === 0) {
+      res.status(409).json({ error: 'Pipeline start already claimed by another request' });
+      return;
+    }
+
     // Start pipeline (runs Phase 0: Recon)
     res.json({ status: 'started', phase: 0 });
 
@@ -75,7 +89,7 @@ pipelineRouter.post('/:id/pipeline/start', ...consultantGuard, pipelineLimiter, 
     const orchestrator = new PipelineOrchestrator(id);
     orchestrator.startPhase(0).catch(err => emitPhaseError(id, 0, err as Error));
   } catch (err) {
-    console.error('[POST /pipeline/start]', err);
+    logger.error('Pipeline start route failed', { error: (err as Error).message });
     res.status(500).json({ error: 'Failed to start pipeline' });
   }
 });
@@ -87,7 +101,7 @@ pipelineRouter.post('/:id/pipeline/next', ...consultantGuard, pipelineLimiter, a
 
     const { data: audit, error } = await supabase
       .from('audits')
-      .select('id, status, current_phase, tokens_used, token_budget, product_mode')
+      .select('id, status, current_phase, tokens_used, token_budget, product_mode, updated_at')
       .eq('id', id)
       .eq('user_id', req.userId!)
       .single();
@@ -137,6 +151,18 @@ pipelineRouter.post('/:id/pipeline/next', ...consultantGuard, pipelineLimiter, a
       return;
     }
 
+    const { data: claimedNext } = await supabase
+      .from('audits')
+      .update({ status: String(audit.status) })
+      .eq('id', id)
+      .eq('user_id', req.userId!)
+      .eq('updated_at', audit.updated_at)
+      .select('id');
+    if (!claimedNext || claimedNext.length === 0) {
+      res.status(409).json({ error: 'Next phase request already claimed by another request' });
+      return;
+    }
+
     res.json({ status: 'running', phase: nextPhase });
 
     // Run asynchronously — runBlock() handles parallel wings internally.
@@ -144,7 +170,7 @@ pipelineRouter.post('/:id/pipeline/next', ...consultantGuard, pipelineLimiter, a
     const orchestrator = new PipelineOrchestrator(id);
     orchestrator.runBlock().catch(err => emitPhaseError(id, nextPhase, err as Error));
   } catch (err) {
-    console.error('[POST /pipeline/next]', err);
+    logger.error('Pipeline next route failed', { error: (err as Error).message });
     res.status(500).json({ error: 'Failed to run next phase' });
   }
 });
@@ -166,7 +192,7 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
 
     const { data: audit, error } = await supabase
       .from('audits')
-      .select('id, status, tokens_used, token_budget, product_mode')
+      .select('id, status, tokens_used, token_budget, product_mode, updated_at')
       .eq('id', id)
       .eq('user_id', req.userId!)
       .single();
@@ -194,13 +220,25 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
       return;
     }
 
+    const { data: claimedRetry } = await supabase
+      .from('audits')
+      .update({ status: String(audit.status) })
+      .eq('id', id)
+      .eq('user_id', req.userId!)
+      .eq('updated_at', audit.updated_at)
+      .select('id');
+    if (!claimedRetry || claimedRetry.length === 0) {
+      res.status(409).json({ error: 'Retry request already claimed by another request' });
+      return;
+    }
+
     res.json({ status: 'retrying', phase });
 
     // Run asynchronously — surface errors to frontend via pipeline_events
     const orchestrator = new PipelineOrchestrator(id);
     orchestrator.startPhase(phase).catch(err => emitPhaseError(id, phase as number, err as Error));
   } catch (err) {
-    console.error('[POST /pipeline/retry]', err);
+    logger.error('Pipeline retry route failed', { error: (err as Error).message });
     res.status(500).json({ error: 'Failed to retry phase' });
   }
 });
@@ -348,10 +386,15 @@ pipelineRouter.post('/:id/reviews/:phase', ...consultantGuard, async (req: AuthR
       })
       .eq('audit_id', id)
       .eq('after_phase', parseInt(phase))
+      .eq('status', 'pending')
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
+    if (!data) {
+      res.status(200).json({ status: 'already_approved' });
+      return;
+    }
 
     // Emit event
     await supabase.from('pipeline_events').insert({

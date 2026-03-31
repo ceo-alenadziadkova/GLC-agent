@@ -3,6 +3,18 @@ import type { AuditMeta, AuditState, AuditRequest } from './auditTypes';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
+function randomHex(bytes: number): string {
+  const arr = new Uint8Array(bytes);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function createTraceparent(): string {
+  const traceId = randomHex(16);
+  const spanId = randomHex(8);
+  return `00-${traceId}-${spanId}-01`;
+}
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) return {};
@@ -23,6 +35,8 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     signal,
     headers: {
       'Content-Type': 'application/json',
+      traceparent: createTraceparent(),
+      'x-operation-id': crypto.randomUUID(),
       ...authHeaders,
       ...options.headers,
     },
