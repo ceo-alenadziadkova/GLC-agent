@@ -97,6 +97,10 @@ export const api = {
     });
   },
 
+  async getQualityGate(id: string, phase: number) {
+    return apiFetch<import('./auditTypes').QualityGateReport | null>(`/api/audits/${id}/quality-gate/${phase}`);
+  },
+
   // Reports
   async getReport(id: string, format: 'markdown' | 'json' = 'json') {
     return apiFetch<{ audit_id: string; company: string; generated_at: string; markdown: string }>(

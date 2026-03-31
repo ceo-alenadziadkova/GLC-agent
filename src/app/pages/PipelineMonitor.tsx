@@ -13,7 +13,7 @@ import { SectionLabel } from '../components/glc/SectionLabel';
 import { ReviewPointModal } from '../components/glc/ReviewPointModal';
 import { usePipeline } from '../hooks/usePipeline';
 import { useAudit } from '../hooks/useAudit';
-import type { PipelineEvent } from '../data/auditTypes';
+import type { PipelineEvent, QualityGateReport } from '../data/auditTypes';
 
 type PhSt = 'completed' | 'running' | 'pending' | 'review' | 'skipped' | 'failed';
 
@@ -171,7 +171,7 @@ function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: 
   );
 }
 
-function RevBanner({ review, label, onOpenModal }: { review: { status: string }; label: string; onOpenModal: () => void }) {
+function RevBanner({ review, label, onOpenModal, hasWarnings }: { review: { status: string }; label: string; onOpenModal: () => void; hasWarnings?: boolean }) {
   const done = review.status === 'approved';
   const color  = done ? 'var(--glc-green)'  : 'var(--score-3)';
   const bg     = done ? 'var(--glc-green-xlight)' : 'var(--score-3-bg)';
@@ -189,9 +189,14 @@ function RevBanner({ review, label, onOpenModal }: { review: { status: string };
     >
       <Star className="w-3.5 h-3.5 flex-shrink-0" style={{ color, fill: color, stroke: 'none' }} />
       <div className="flex-1 min-w-0">
-        <span className="text-xs font-bold block" style={{ color, fontFamily: 'var(--font-display)' }}>{label}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-bold" style={{ color, fontFamily: 'var(--font-display)' }}>{label}</span>
+          {!done && hasWarnings && (
+            <WarningCircle size={12} weight="fill" style={{ color: '#F97316', flexShrink: 0 }} title="Quality warnings" />
+          )}
+        </div>
         <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-          {done ? 'Approved' : 'Waiting for approval'}
+          {done ? 'Approved' : hasWarnings ? 'Quality warnings — notes required' : 'Waiting for approval'}
         </p>
       </div>
       {!done && (
@@ -392,6 +397,14 @@ export function PipelineMonitor() {
   const getReviewForPhase = (afterPhase: number) =>
     reviews.find(r => r.after_phase === afterPhase) || { status: 'pending' };
 
+  const getQualityGateForPhase = (phase: number): QualityGateReport | null => {
+    if (!pipelineState) return null;
+    const event = pipelineState.events.find(
+      (e: PipelineEvent) => e.phase === phase && e.event_type === 'quality_gate'
+    );
+    return event ? (event.data as QualityGateReport) : null;
+  };
+
   const ph         = phases.find(p => p.id === sel) ?? phases[0];
   const activePhases = phases.filter(p => !p.skipped);
   const done       = activePhases.filter(p => p.status === 'completed').length;
@@ -468,6 +481,7 @@ export function PipelineMonitor() {
             review={getReviewForPhase(0)}
             label="Review Point #1"
             onOpenModal={() => setModalReview({ afterPhase: 0, label: 'Review Point #1' })}
+            hasWarnings={!getQualityGateForPhase(0)?.passed && (getQualityGateForPhase(0)?.flags.some(f => f.severity === 'warning') ?? false)}
           />
 
           {/* Auto wing — 2×2 grid to reflect parallel execution */}
@@ -496,6 +510,7 @@ export function PipelineMonitor() {
             review={getReviewForPhase(4)}
             label={isExpress ? 'Review Point #2 (Final)' : 'Review Point #2'}
             onOpenModal={() => setModalReview({ afterPhase: 4, label: isExpress ? 'Review Point #2 (Final)' : 'Review Point #2' })}
+            hasWarnings={!getQualityGateForPhase(4)?.passed && (getQualityGateForPhase(4)?.flags.some(f => f.severity === 'warning') ?? false)}
           />
 
           {/* Analytic wing — 2-column grid */}
@@ -532,6 +547,7 @@ export function PipelineMonitor() {
               review={getReviewForPhase(7)}
               label="Review Point #3"
               onOpenModal={() => setModalReview({ afterPhase: 7, label: 'Review Point #3' })}
+              hasWarnings={!getQualityGateForPhase(7)?.passed && (getQualityGateForPhase(7)?.flags.some(f => f.severity === 'warning') ?? false)}
             />
           )}
         </aside>
@@ -809,6 +825,7 @@ export function PipelineMonitor() {
         reviewPoint={modalReview ? { id: modalReview.afterPhase, label: modalReview.label, note: 'Add your observations before continuing', after: modalReview.afterPhase } : null}
         onClose={() => setModalReview(null)}
         onApprove={handleApprove}
+        qualityGate={modalReview ? getQualityGateForPhase(modalReview.afterPhase) : null}
       />
     </AppShell>
   );

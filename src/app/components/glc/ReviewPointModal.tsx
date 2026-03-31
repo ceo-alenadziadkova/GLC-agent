@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Star, CheckCircle, ArrowRight, MagnifyingGlass, HardDrives, Shield, Globe, Cursor, Target, Lightning, MapTrifold } from '@phosphor-icons/react';
+import { Star, CheckCircle, ArrowRight, MagnifyingGlass, HardDrives, Shield, Globe, Cursor, Target, Lightning, MapTrifold, WarningCircle, Info } from '@phosphor-icons/react';
+import type { QualityGateReport } from '../../data/auditTypes';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '../ui/dialog';
@@ -19,6 +20,7 @@ interface ReviewPointModalProps {
   open: boolean;
   onClose: () => void;
   onApprove: (id: number, consultantNotes: string, interviewNotes: string) => void;
+  qualityGate?: QualityGateReport | null;
 }
 
 // Phase data mirrored here for the "completed in this block" list
@@ -33,7 +35,7 @@ const ALL_PHASES = [
   { id: 7, name: 'Strategy & Roadmap', icon: MapTrifold      },
 ];
 
-export function ReviewPointModal({ reviewPoint, open, onClose, onApprove }: ReviewPointModalProps) {
+export function ReviewPointModal({ reviewPoint, open, onClose, onApprove, qualityGate }: ReviewPointModalProps) {
   const [consultantNotes, setConsultantNotes] = useState('');
   const [interviewNotes,  setInterviewNotes]  = useState('');
 
@@ -42,7 +44,12 @@ export function ReviewPointModal({ reviewPoint, open, onClose, onApprove }: Revi
   // Phases completed before this review point
   const blockPhases = ALL_PHASES.filter(p => p.id <= reviewPoint.after);
 
+  const warnings = qualityGate?.flags.filter(f => f.severity === 'warning') ?? [];
+  const infoFlags = qualityGate?.flags.filter(f => f.severity === 'info') ?? [];
+  const notesRequired = warnings.length > 0 && !consultantNotes.trim();
+
   function handleApprove() {
+    if (notesRequired) return;
     onApprove(reviewPoint.id, consultantNotes, interviewNotes);
     setConsultantNotes('');
     setInterviewNotes('');
@@ -139,13 +146,72 @@ export function ReviewPointModal({ reviewPoint, open, onClose, onApprove }: Revi
             </div>
           </div>
 
+          {/* Quality Gate warnings */}
+          {warnings.length > 0 && (
+            <div
+              className="rounded-lg overflow-hidden"
+              style={{ border: '1px solid rgba(249,115,22,0.35)', backgroundColor: 'rgba(249,115,22,0.06)' }}
+            >
+              <div
+                className="flex items-center gap-2 px-4 py-2.5"
+                style={{ borderBottom: '1px solid rgba(249,115,22,0.2)', backgroundColor: 'rgba(249,115,22,0.1)' }}
+              >
+                <WarningCircle size={15} weight="fill" style={{ color: '#F97316', flexShrink: 0 }} />
+                <span className="text-xs font-bold" style={{ color: '#C2410C' }}>
+                  {warnings.length} Quality Warning{warnings.length > 1 ? 's' : ''} — Notes Required
+                </span>
+              </div>
+              <div>
+                {warnings.map((flag, i) => (
+                  <div
+                    key={flag.id}
+                    className="px-4 py-2.5"
+                    style={{ borderTop: i > 0 ? '1px solid rgba(249,115,22,0.15)' : 'none' }}
+                  >
+                    <p className="text-xs leading-relaxed" style={{ color: '#92400E' }}>{flag.message}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Quality Gate info flags */}
+          {infoFlags.length > 0 && (
+            <div
+              className="rounded-lg overflow-hidden"
+              style={{ border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }}
+            >
+              <div className="flex items-center gap-2 px-4 py-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                <Info size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+                <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                  {infoFlags.length} Informational Note{infoFlags.length > 1 ? 's' : ''}
+                </span>
+              </div>
+              <div>
+                {infoFlags.map((flag, i) => (
+                  <div
+                    key={flag.id}
+                    className="px-4 py-2.5"
+                    style={{ borderTop: i > 0 ? '1px solid var(--border-subtle)' : 'none' }}
+                  >
+                    <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{flag.message}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Consultant notes */}
           <div className="space-y-1.5">
             <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
               Consultant Notes
-              <span className="ml-1.5 text-xs font-normal" style={{ color: 'var(--text-tertiary)' }}>
-                your observations after reviewing these phases
-              </span>
+              {warnings.length > 0 ? (
+                <span className="ml-1.5 text-xs font-semibold" style={{ color: '#EF4444' }}>* required</span>
+              ) : (
+                <span className="ml-1.5 text-xs font-normal" style={{ color: 'var(--text-tertiary)' }}>
+                  your observations after reviewing these phases
+                </span>
+              )}
             </label>
             <textarea
               rows={3}
@@ -162,6 +228,11 @@ export function ReviewPointModal({ reviewPoint, open, onClose, onApprove }: Revi
                 (e.target as HTMLTextAreaElement).style.boxShadow = 'none';
               }}
             />
+            {notesRequired && (
+              <p className="text-xs mt-1" style={{ color: '#EF4444' }}>
+                Notes are required to acknowledge the quality warnings above before approving.
+              </p>
+            )}
           </div>
 
           {/* Interview notes */}
@@ -219,9 +290,11 @@ export function ReviewPointModal({ reviewPoint, open, onClose, onApprove }: Revi
           </button>
           <motion.button
             onClick={handleApprove}
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={notesRequired ? {} : { scale: 1.01 }}
+            whileTap={notesRequired ? {} : { scale: 0.98 }}
+            disabled={notesRequired}
             className="glc-btn-primary"
+            style={notesRequired ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
           >
             Approve & Continue
             <ArrowRight className="w-4 h-4" />

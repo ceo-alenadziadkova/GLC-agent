@@ -244,6 +244,47 @@ pipelineRouter.get('/:id/pipeline/status', requireAuth, async (req: AuthRequest,
   }
 });
 
+// ─── GET /api/audits/:id/quality-gate/:phase — Fetch quality gate report ──
+pipelineRouter.get('/:id/quality-gate/:phase', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const id = req.params.id as string;
+    const phase = parseInt(req.params.phase as string);
+
+    // Verify audit is accessible to this user (consultant or client)
+    const { data: audit } = await supabase
+      .from('audits')
+      .select('id')
+      .eq('id', id)
+      .or(`user_id.eq.${req.userId!},client_id.eq.${req.userId!}`)
+      .single();
+
+    if (!audit) {
+      res.status(404).json({ error: 'Audit not found' });
+      return;
+    }
+
+    const { data: event } = await supabase
+      .from('pipeline_events')
+      .select('data, created_at')
+      .eq('audit_id', id)
+      .eq('phase', phase)
+      .eq('event_type', 'quality_gate')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!event) {
+      res.json(null);
+      return;
+    }
+
+    res.json(event.data);
+  } catch (err) {
+    console.error('[GET /quality-gate/:phase]', err);
+    res.status(500).json({ error: 'Failed to fetch quality gate report' });
+  }
+});
+
 // ─── POST /api/audits/:id/reviews/:phase — Approve review ──
 pipelineRouter.post('/:id/reviews/:phase', ...consultantGuard, async (req: AuthRequest, res) => {
   try {
@@ -270,6 +311,31 @@ pipelineRouter.post('/:id/reviews/:phase', ...consultantGuard, async (req: AuthR
     if (!audit) {
       res.status(404).json({ error: 'Audit not found' });
       return;
+    }
+
+    // ── Quality gate enforcement ───────────────────────────────────────
+    // If this gate has warning-level flags, consultant notes are required.
+    // This prevents silent approval of low-confidence or miscalibrated findings.
+    const { data: qgEvent } = await supabase
+      .from('pipeline_events')
+      .select('data')
+      .eq('audit_id', id)
+      .eq('phase', parseInt(phase))
+      .eq('event_type', 'quality_gate')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (qgEvent?.data) {
+      const qgReport = qgEvent.data as { passed: boolean; flags: Array<{ severity: string }> };
+      const hasWarnings = !qgReport.passed && qgReport.flags.some(f => f.severity === 'warning');
+      if (hasWarnings && !sanitizedConsultantNotes) {
+        res.status(400).json({
+          error: 'quality_gate_requires_notes',
+          message: 'This review gate has quality warnings. Consultant notes are required to acknowledge them before approving.',
+        });
+        return;
+      }
     }
 
     const { data, error } = await supabase

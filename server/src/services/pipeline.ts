@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { assertBriefReady } from './brief-validator.js';
+import { consistencyChecker } from './consistency-checker.js';
 import { ReconAgent } from '../agents/recon.js';
 import { TechAgent } from '../agents/tech.js';
 import { SecurityAgent } from '../agents/security.js';
@@ -286,6 +287,9 @@ export class PipelineOrchestrator {
       // Record last completed wing phase
       await supabase.from('audits').update({ current_phase: lastWingPhase }).eq('id', this.auditId);
 
+      // Run consistency / quality gate checks before surfacing the review gate
+      await consistencyChecker.run(this.auditId, lastWingPhase, wingPhases);
+
       // Gate after auto wing (if applicable)
       if (reviewPhases.includes(lastWingPhase)) {
         await this.emitEvent(lastWingPhase, 'review_needed', `Review point: approve before continuing`);
@@ -308,6 +312,10 @@ export class PipelineOrchestrator {
       // Continue to Strategy (phase 7) without an intermediate gate
       if (maxPhase >= 7) {
         await this.startPhase(7);
+
+        // Run quality gate on the full audit (all domains) after strategy completes
+        const allDomainPhases = [...wingPhases, 7];
+        await consistencyChecker.run(this.auditId, 7, allDomainPhases);
       }
       return;
     }
