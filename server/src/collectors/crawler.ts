@@ -1,5 +1,7 @@
 import * as cheerio from 'cheerio';
 import { BaseCollector } from './base.js';
+import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } from '../lib/public-http-url.js';
+import { detectLanguagesFromPages, extractLanguagesFromHtml } from '../lib/language-utils.js';
 
 interface CrawledPage {
   url: string;
@@ -14,6 +16,7 @@ interface CrawledPage {
   content_length: number;
   load_time_ms: number;
   html?: string; // Raw HTML for downstream collectors
+  detected_languages?: string[];
 }
 
 // Tech stack detection patterns
@@ -90,8 +93,18 @@ export class CrawlerCollector extends BaseCollector {
   private timeout = 15_000;
 
   async collect(auditId: string, companyUrl: string) {
+    let baseHref: string;
+    try {
+      baseHref = await validatePublicAuditUrl(companyUrl);
+    } catch (e) {
+      if (e instanceof PublicUrlNotAllowedError) {
+        throw new Error(`Crawler: ${e.message}`);
+      }
+      throw e;
+    }
+
     const visited = new Set<string>();
-    const toVisit = [companyUrl];
+    const toVisit = [baseHref];
     const pages: CrawledPage[] = [];
     const techStack: Record<string, Set<string>> = {};
     const socialProfiles: Record<string, string> = {};
@@ -103,7 +116,7 @@ export class CrawlerCollector extends BaseCollector {
       techStack[cat] = new Set();
     }
 
-    const baseUrl = new URL(companyUrl);
+    const baseUrl = new URL(baseHref);
     const TOTAL_TIMEOUT_MS = 90_000;
     const crawlStart = Date.now();
 
@@ -151,7 +164,7 @@ export class CrawlerCollector extends BaseCollector {
     }
 
     // Detect languages from pages
-    const languages = this.detectLanguages(pages);
+    const languages = detectLanguagesFromPages(pages);
 
     // Clean pages (remove raw HTML to save space)
     const cleanPages = pages.map(({ html, ...rest }) => rest);
@@ -184,14 +197,13 @@ export class CrawlerCollector extends BaseCollector {
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
     try {
-      const response = await fetch(url, {
+      const response = await fetchPublicHttpUrl(url, {
         signal: controller.signal,
         headers: {
           'User-Agent': 'GLC-AuditBot/1.0 (+https://glctech.es)',
           'Accept': 'text/html,application/xhtml+xml',
           'Accept-Language': 'en,es,ca',
         },
-        redirect: 'follow',
       });
 
       clearTimeout(timeoutId);
@@ -240,7 +252,7 @@ export class CrawlerCollector extends BaseCollector {
       });
 
       return {
-        url,
+        url: response.url || url,
         title: $('title').text().trim() || '',
         status: response.status,
         meta_description: $('meta[name="description"]').attr('content')?.trim() || null,
@@ -252,6 +264,7 @@ export class CrawlerCollector extends BaseCollector {
         content_length: html.length,
         load_time_ms: loadTime,
         html,
+        detected_languages: extractLanguagesFromHtml(html),
       };
     } catch (err) {
       clearTimeout(timeoutId);
@@ -308,26 +321,6 @@ export class CrawlerCollector extends BaseCollector {
         }
       }
     }
-  }
-
-  private detectLanguages(pages: CrawledPage[]): string[] {
-    const langs = new Set<string>();
-
-    for (const page of pages) {
-      const html = page.html ?? '';
-      // Check html lang attribute
-      const langMatch = html.match(/<html[^>]*\slang=["']([a-z]{2})(?:-[A-Z]{2})?["']/i);
-      if (langMatch) langs.add(langMatch[1].toLowerCase());
-
-      // Check hreflang tags
-      const hreflangPattern = /hreflang=["']([a-z]{2})(?:-[A-Z]{2})?["']/gi;
-      let match;
-      while ((match = hreflangPattern.exec(html)) !== null) {
-        langs.add(match[1].toLowerCase());
-      }
-    }
-
-    return Array.from(langs);
   }
 
   private normalizeUrl(url: string): string {

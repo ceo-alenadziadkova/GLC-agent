@@ -16,7 +16,7 @@ import {
 
 const STEPS: { status: AuditRequestStatus; label: string; description: string }[] = [
   { status: 'submitted',    label: 'Request Submitted',  description: 'Your request is in our queue.' },
-  { status: 'under_review', label: 'Under Review',       description: 'The consultant is reviewing your request.' },
+  { status: 'under_review', label: 'Under Review',       description: 'The GLC team is reviewing your request.' },
   { status: 'approved',     label: 'Approved',           description: 'Audit approved and being set up.' },
   { status: 'running',      label: 'Audit in Progress',  description: 'Our AI pipeline is running your audit.' },
   { status: 'delivered',    label: 'Delivered',          description: 'Your audit report is ready.' },
@@ -110,7 +110,7 @@ function StepTimeline({ status }: { status: AuditRequestStatus }) {
           <div>
             <div className="text-sm font-medium" style={{ color: '#EF4444' }}>Request Rejected</div>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: 2 }}>
-              See the consultant note below for details.
+              See the GLC team note below for details.
             </div>
           </div>
         </div>
@@ -180,7 +180,7 @@ function ClientBriefSection({ auditId }: { auditId: string }) {
         </div>
 
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
-          These answers help the consultant tailor the audit. Fill{' '}
+          These answers help the GLC team tailor the audit. Fill{' '}
           <span className="inline-flex items-center gap-0.5" style={{ color: '#EF4444' }}>
             <Circle size={6} weight="fill" />
             required
@@ -409,7 +409,7 @@ export function ClientAuditView() {
                     className="text-sm font-medium"
                     style={{ color: request.status === 'rejected' ? '#EF4444' : 'var(--glc-blue)' }}
                   >
-                    Consultant note
+                    GLC team note
                   </span>
                 </div>
                 <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 1.6 }}>

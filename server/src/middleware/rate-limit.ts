@@ -41,3 +41,33 @@ export const generalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+/**
+ * Public free snapshot: limit abuse by IP (no auth).
+ */
+export const snapshotPublicLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10,
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  message: {
+    error: 'Too many snapshot requests from this address. Try again later.',
+    retry_after_minutes: 60,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Authenticated client log ingest: max 120 entries per user per hour.
+ */
+export const logIngestLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 120,
+  keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
+  message: {
+    error: 'Too many log events. Please wait before retrying.',
+    retry_after_minutes: 60,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

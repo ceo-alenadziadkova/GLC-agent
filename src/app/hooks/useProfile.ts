@@ -14,7 +14,11 @@ interface Profile {
 interface UseProfileResult {
   profile: Profile | null;
   role: UserRole | null;
+  /** Product label for UI: internal role `consultant` displays as Admin. */
+  roleDisplayName: 'Admin' | 'Client' | null;
   isConsultant: boolean;
+  /** Same as isConsultant — GLC internal staff (DB role `consultant`). */
+  isAdmin: boolean;
   isClient: boolean;
   loading: boolean;
   error: string | null;
@@ -103,10 +107,13 @@ export function useProfile(): UseProfileResult {
     };
   }, []);
 
+  const isConsultant = profile?.role === 'consultant';
   return {
     profile,
     role: profile?.role ?? null,
-    isConsultant: profile?.role === 'consultant',
+    roleDisplayName: profile ? (profile.role === 'consultant' ? 'Admin' : 'Client') : null,
+    isConsultant,
+    isAdmin: isConsultant,
     isClient: profile?.role === 'client',
     loading,
     error,

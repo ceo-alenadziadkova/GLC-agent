@@ -42,7 +42,7 @@ export class ContextBuilder {
     // Fetch audit meta — [C2] check error: missing audit = invalid context, must throw
     const { data: audit, error: auditError } = await supabase
       .from('audits')
-      .select('company_url, company_name, industry')
+      .select('company_url, company_name, industry, product_mode')
       .eq('id', auditId)
       .single();
 
@@ -99,6 +99,12 @@ export class ContextBuilder {
       if (val !== undefined) {
         briefResponses[q.id] = val as string | string[] | number | null;
       }
+    }
+
+    // Express: one primary competitor in agent context (product promises a single confirmed peer).
+    const productMode = String(audit?.product_mode ?? 'full');
+    if (productMode === 'express' && briefResponses.main_competitors != null) {
+      briefResponses.main_competitors = extractPrimaryCompetitor(briefResponses.main_competitors);
     }
 
     const industry = audit?.industry ?? recon?.industry ?? null;
@@ -249,6 +255,15 @@ ${domain.summary}
   }
 }
 
+export function extractPrimaryCompetitor(value: unknown): string | null {
+  const raw = Array.isArray(value) ? value.join('\n') : String(value ?? '');
+  const first = raw
+    .split(/[\n,;]+/)
+    .map(x => x.trim())
+    .find(Boolean);
+  return first ?? null;
+}
+
 /**
  * Reduce a JSON-serialisable object to fit within `maxChars` by removing
  * top-level keys, largest-serialised-value first.
@@ -261,6 +276,12 @@ function trimByKeys(
   obj: Record<string, unknown>,
   maxChars: number
 ): { obj: Record<string, unknown>; removed: number; removedKeys: string[] } {
+  if (maxChars <= 2) {
+    // "{}" is the minimum valid JSON object payload.
+    const allKeys = Object.keys(obj);
+    return { obj: {}, removed: allKeys.length, removedKeys: allKeys };
+  }
+
   const result: Record<string, unknown> = { ...obj };
   const removedKeys: string[] = [];
 
@@ -276,6 +297,7 @@ function trimByKeys(
 
   // Second pass: remove keys largest-first until the object fits
   while (JSON.stringify(result).length > maxChars) {
+    const before = JSON.stringify(result).length;
     // Find the largest key by serialised value size
     const entries = Object.entries(result);
     if (entries.length === 0) break;
@@ -287,8 +309,20 @@ function trimByKeys(
       if (size > largestSize) { largestKey = k; largestSize = size; }
     }
 
-    delete result[largestKey];
-    removedKeys.push(largestKey);
+    const candidate = { ...result };
+    delete candidate[largestKey];
+    const after = JSON.stringify(candidate).length;
+    // Commit deletion only if it actually reduces payload size.
+    if (after < before) {
+      delete result[largestKey];
+      removedKeys.push(largestKey);
+      continue;
+    }
+    // Safety break: if deletion cannot reduce stringified size any further,
+    // stop to avoid pathological loops with tiny maxChars values.
+    if (after >= before) {
+      break;
+    }
   }
 
   return { obj: result, removed: removedKeys.length, removedKeys };

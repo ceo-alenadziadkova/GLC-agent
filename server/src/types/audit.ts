@@ -43,14 +43,19 @@ export const EXPRESS_DOMAIN_KEYS = [
 export const EXPRESS_MAX_PHASE = 4;
 export const EXPRESS_REVIEW_AFTER_PHASES = [0, 4] as const;
 
+/** Free snapshot runs recon + UX only (see PipelineOrchestrator.runFreeSnapshot). */
+export const FREE_SNAPSHOT_MAX_PHASE = 4;
+
 /** Returns the max phase number for a given product mode. */
 export function maxPhaseForMode(mode: ProductMode): number {
+  if (mode === 'free_snapshot') return FREE_SNAPSHOT_MAX_PHASE;
   if (mode === 'express') return EXPRESS_MAX_PHASE;
   return 7; // full
 }
 
 /** Returns which review gates apply for a given product mode. */
 export function reviewPhasesForMode(mode: ProductMode): readonly number[] {
+  if (mode === 'free_snapshot') return [];
   if (mode === 'express') return EXPRESS_REVIEW_AFTER_PHASES;
   return REVIEW_AFTER_PHASES;
 }

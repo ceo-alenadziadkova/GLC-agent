@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Link, useParams } from 'react-router';
 import {
@@ -10,6 +11,7 @@ import { StatusPill } from '../components/glc/StatusPill';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { QuickWinTag } from '../components/glc/QuickWinTag';
 import { useAudit } from '../hooks/useAudit';
+import { api } from '../data/apiService';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
 import type { DomainData } from '../data/auditTypes';
 
@@ -25,9 +27,23 @@ const itemVariants = {
 export function ReportViewer() {
   const { id } = useParams<{ id: string }>();
   const { audit, loading, error } = useAudit(id);
+  const [csvBusy, setCsvBusy] = useState(false);
 
   const handleExportPdf = () => {
     window.print();
+  };
+
+  const handleExportCsv = async () => {
+    if (!id) return;
+    setCsvBusy(true);
+    try {
+      const profile = audit?.meta.product_mode === 'express' ? 'owner' : 'full';
+      await api.downloadReportCsv(id, profile);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setCsvBusy(false);
+    }
   };
 
   if (loading && !audit) {
@@ -78,7 +94,15 @@ export function ReportViewer() {
       actions={
         <div className="flex items-center gap-2">
           <StatusPill status={audit.meta.status === 'completed' ? 'completed' : 'running'} />
-          <button className="glc-btn-secondary" onClick={handleExportPdf}>
+          <button
+            type="button"
+            className="glc-btn-secondary"
+            disabled={csvBusy}
+            onClick={handleExportCsv}
+          >
+            <ChartBar className="w-4 h-4" /> {csvBusy ? 'CSV…' : 'Action plan CSV'}
+          </button>
+          <button type="button" className="glc-btn-secondary" onClick={handleExportPdf}>
             <FileText className="w-4 h-4" /> Export PDF
           </button>
         </div>
