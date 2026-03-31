@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
+import { cleanupExpiredIdempotencyKeys } from '../lib/idempotency.js';
 
 const WINDOW_MIN = 15;
 const INTERVAL_MS = Number(process.env.ALERT_INTERVAL_MS ?? '60000');
@@ -39,6 +40,24 @@ function percentile95(values: number[]): number {
   return sorted[idx];
 }
 
+function firstTraceId(events: Array<{ data?: unknown }>): string | undefined {
+  for (const event of events) {
+    const traceId = (event.data as { trace_id?: string } | null)?.trace_id;
+    if (traceId) return traceId;
+  }
+  return undefined;
+}
+
+function renderTraceLinks(traceId?: string): string {
+  if (!traceId) return '';
+  const sentryTemplate = process.env.SENTRY_TRACE_LINK_TEMPLATE;
+  const traceTemplate = process.env.TRACE_LINK_TEMPLATE;
+  const sentryLink = sentryTemplate ? sentryTemplate.replace('{trace_id}', traceId) : undefined;
+  const traceLink = traceTemplate ? traceTemplate.replace('{trace_id}', traceId) : undefined;
+  const parts = [sentryLink ? `Sentry: ${sentryLink}` : null, traceLink ? `Trace: ${traceLink}` : null].filter(Boolean);
+  return parts.length > 0 ? `\n${parts.join('\n')}` : `\ntrace_id=${traceId}`;
+}
+
 export async function runAlertChecks(): Promise<void> {
   const since = new Date(Date.now() - WINDOW_MIN * 60 * 1000).toISOString();
 
@@ -49,11 +68,12 @@ export async function runAlertChecks(): Promise<void> {
 
   const started = (events ?? []).filter(e => e.event_type === 'started').length;
   const failed = (events ?? []).filter(e => e.event_type === 'error').length;
+  const traceId = firstTraceId(events ?? []);
   const failureRate = started > 0 ? failed / started : 0;
 
   if (failureRate >= FAILURE_RATE_THRESHOLD && shouldNotify('failure_rate')) {
     await sendTelegram(
-      `ALERT pipeline failure rate high: ${(failureRate * 100).toFixed(1)}% in last ${WINDOW_MIN}m (failed=${failed}, started=${started})`
+      `ALERT pipeline failure rate high: ${(failureRate * 100).toFixed(1)}% in last ${WINDOW_MIN}m (failed=${failed}, started=${started})${renderTraceLinks(traceId)}`
     );
   }
 
@@ -75,7 +95,7 @@ export async function runAlertChecks(): Promise<void> {
   const p95 = percentile95(latencies);
   if (p95 >= LATENCY_P95_MS_THRESHOLD && shouldNotify('latency_p95')) {
     await sendTelegram(
-      `ALERT pipeline latency high: p95=${Math.round(p95)}ms in last ${WINDOW_MIN}m (threshold=${LATENCY_P95_MS_THRESHOLD}ms)`
+      `ALERT pipeline latency high: p95=${Math.round(p95)}ms in last ${WINDOW_MIN}m (threshold=${LATENCY_P95_MS_THRESHOLD}ms)${renderTraceLinks(traceId)}`
     );
   }
 
@@ -88,7 +108,7 @@ export async function runAlertChecks(): Promise<void> {
 
   if (tokenBurn >= TOKEN_BURN_THRESHOLD && shouldNotify('token_burn')) {
     await sendTelegram(
-      `ALERT token burn high: ${tokenBurn} tokens in last ${WINDOW_MIN}m (threshold=${TOKEN_BURN_THRESHOLD})`
+      `ALERT token burn high: ${tokenBurn} tokens in last ${WINDOW_MIN}m (threshold=${TOKEN_BURN_THRESHOLD})${renderTraceLinks(traceId)}`
     );
   }
 }
@@ -98,5 +118,12 @@ export function startAlertsWorker(): void {
   setInterval(() => {
     runAlertChecks().catch((err: Error) => logger.error('Alert worker failed', { error: err.message }));
   }, INTERVAL_MS);
+  setInterval(() => {
+    cleanupExpiredIdempotencyKeys()
+      .then((count) => {
+        if (count > 0) logger.info('Expired idempotency keys cleaned', { deleted: count });
+      })
+      .catch((err: Error) => logger.error('Idempotency cleanup failed', { error: err.message }));
+  }, INTERVAL_MS * 5);
   logger.info('Alert worker started', { interval_ms: INTERVAL_MS });
 }

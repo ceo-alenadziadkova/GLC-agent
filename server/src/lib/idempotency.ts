@@ -93,3 +93,17 @@ export async function storeIdempotentResponse(
     { onConflict: 'user_id,route,idempotency_key' }
   );
 }
+
+export async function cleanupExpiredIdempotencyKeys(): Promise<number> {
+  const nowIso = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('api_idempotency_keys')
+    .delete()
+    .lt('expires_at', nowIso)
+    .select('id');
+  if (error) {
+    logger.error('Failed to cleanup expired idempotency keys', { error: error.message });
+    return 0;
+  }
+  return data?.length ?? 0;
+}

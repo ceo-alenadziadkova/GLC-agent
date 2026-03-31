@@ -1,14 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthRequest } from '../middleware/auth.js';
 
-const { setStoredRow, getStoredRow } = vi.hoisted(() => {
+const { setStoredRow, getStoredRow, setDeletedRows, getDeletedRows, setDeleteError, getDeleteError } = vi.hoisted(() => {
   let row: Record<string, unknown> | null = null;
+  let deletedRows: Array<{ id: number }> = [];
+  let deleteError: { message: string } | null = null;
   return {
     setStoredRow(next: Record<string, unknown> | null) {
       row = next;
     },
     getStoredRow() {
       return row;
+    },
+    setDeletedRows(next: Array<{ id: number }>) {
+      deletedRows = next;
+    },
+    getDeletedRows() {
+      return deletedRows;
+    },
+    setDeleteError(next: { message: string } | null) {
+      deleteError = next;
+    },
+    getDeleteError() {
+      return deleteError;
     },
   };
 });
@@ -26,11 +40,16 @@ vi.mock('../services/supabase.js', () => ({
         }),
       }),
       upsert: async () => ({ error: null }),
+      delete: () => ({
+        lt: () => ({
+          select: async () => ({ data: getDeletedRows(), error: getDeleteError() }),
+        }),
+      }),
     }),
   },
 }));
 
-import { getStoredIdempotentResponse } from '../lib/idempotency.js';
+import { cleanupExpiredIdempotencyKeys, getStoredIdempotentResponse } from '../lib/idempotency.js';
 
 function mockReq(idempotencyKey: string, userId = 'user-1', body: Record<string, unknown> = {}): AuthRequest {
   return {
@@ -44,7 +63,11 @@ function mockReq(idempotencyKey: string, userId = 'user-1', body: Record<string,
 }
 
 describe('idempotency helper', () => {
-  beforeEach(() => setStoredRow(null));
+  beforeEach(() => {
+    setStoredRow(null);
+    setDeletedRows([]);
+    setDeleteError(null);
+  });
 
   it('returns replay payload when key and payload hash match', async () => {
     setStoredRow({
@@ -68,5 +91,17 @@ describe('idempotency helper', () => {
     });
     const req = mockReq('same-key', 'user-1', { a: 2 });
     await expect(getStoredIdempotentResponse(req, 'POST:/api/audits', { a: 2 })).rejects.toThrow(/different payload/i);
+  });
+
+  it('returns deleted rows count for expired keys cleanup', async () => {
+    setDeletedRows([{ id: 1 }, { id: 2 }, { id: 3 }]);
+    const count = await cleanupExpiredIdempotencyKeys();
+    expect(count).toBe(3);
+  });
+
+  it('returns 0 when cleanup query fails', async () => {
+    setDeleteError({ message: 'db unavailable' });
+    const count = await cleanupExpiredIdempotencyKeys();
+    expect(count).toBe(0);
   });
 });
