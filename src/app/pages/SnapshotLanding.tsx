@@ -3,6 +3,8 @@ import { Link } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { Globe, ArrowRight, CheckCircle, Warning, Lightning, CaretRight, Shield } from '@phosphor-icons/react';
 import type { FreeSnapshotPreview } from '../data/auditTypes';
+// @ts-ignore
+import Logo from '../assets/logo-white.svg';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
@@ -141,15 +143,11 @@ export function SnapshotLanding() {
       {/* Header */}
       <header className="relative z-10 flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
         <div className="flex items-center gap-2">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: 'var(--gradient-brand)' }}
-          >
-            <Globe className="w-4 h-4 text-white" />
-          </div>
-          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}>
-            GLC Audit
-          </span>
+            <img
+                src={Logo}
+                alt="GLC Audit Platform"
+                className="h-9 w-auto"
+            />
         </div>
         <Link
           to="/login"
