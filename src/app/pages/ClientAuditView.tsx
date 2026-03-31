@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router';
 import {
   CheckCircle, Clock, XCircle, Spinner, Warning,
-  ArrowLeft, Pulse, FileText, Globe, ChatCircle, ClipboardText,
+  ArrowLeft, Pulse, FileText, Globe, ChatCircle, ClipboardText, Circle, Check,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { api } from '../data/apiService';
@@ -180,7 +180,12 @@ function ClientBriefSection({ auditId }: { auditId: string }) {
         </div>
 
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
-          These answers help the consultant tailor the audit. Fill required 🔴 questions before the audit starts.
+          These answers help the consultant tailor the audit. Fill{' '}
+          <span className="inline-flex items-center gap-0.5" style={{ color: '#EF4444' }}>
+            <Circle size={6} weight="fill" />
+            required
+          </span>{' '}
+          questions before the audit starts.
         </p>
 
         {/* Required questions only in client view */}
@@ -192,8 +197,9 @@ function ClientBriefSection({ auditId }: { auditId: string }) {
 
             return (
               <div key={q.id} className="space-y-1.5">
-                <label className="block text-sm" style={{ color: 'var(--text-primary)' }}>
-                  🔴 {q.question}
+                <label className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--text-primary)' }}>
+                  <Circle size={6} weight="fill" style={{ color: '#EF4444', flexShrink: 0 }} />
+                  {q.question}
                 </label>
                 {q.hint && <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>{q.hint}</p>}
 
@@ -232,7 +238,7 @@ function ClientBriefSection({ auditId }: { auditId: string }) {
                           }}
                           className="px-2.5 py-1 rounded-lg text-xs"
                           style={{ backgroundColor: sel ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)', border: sel ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)', color: sel ? '#fff' : 'var(--text-secondary)' }}
-                        >{sel ? '✓ ' : ''}{opt}</button>
+                        >{sel && <Check size={11} weight="bold" style={{ display: 'inline', marginRight: 3 }} />}{opt}</button>
                       );
                     })}
                   </div>

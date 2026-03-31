@@ -150,6 +150,7 @@ Use the submit_analysis tool to return your structured roadmap.`;
       issues: [],
       quick_wins: [],
       recommendations: [],
+      unknown_items: [],
     };
   }
 }

@@ -47,6 +47,19 @@ Full technical SEO, 100% meta coverage, rich structured data (multiple types), h
 - Use exact numbers from meta_coverage (e.g. "12/20 pages missing meta descriptions").
 - Mention specific structured_data_types found or note absence.
 - For Mallorca businesses: flag multilingual gaps explicitly if relevant.
-- Use the submit_analysis tool to return your structured analysis.`;
+
+## Finding Provenance (required on every issue)
+Each issue MUST include:
+- **confidence** ('high'|'medium'|'low'): high = directly observable from payload; medium = inferred from partial signals; low = assumed / no direct data
+- **evidence_refs** (1–3 entries): { type: short key for the check, url: page url if applicable, finding: exact raw value }
+  SEO evidence types: 'sitemap_check', 'robots_txt_check', 'meta_coverage', 'structured_data_scan', 'page_crawl'
+  Example: { type: 'meta_coverage', finding: 'with_description: 8 / total: 20 pages' }
+- **data_source**: 'auto_detected' (from collected data) | 'from_brief' (from intake brief) | 'inferred' (no direct evidence)
+
+## unknown_items
+List areas you could not evaluate due to missing data (e.g. "Page speed data unavailable", "No structured data collector output").
+Leave empty array if all areas were assessable.
+
+Use the submit_analysis tool to return your structured analysis.`;
   }
 }

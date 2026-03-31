@@ -11,6 +11,12 @@ import type { DomainResult } from '../types/audit.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
+const STUB_ISSUE_FIELDS = {
+  confidence: 'medium' as const,
+  evidence_refs: [{ type: 'stub', finding: 'test' }],
+  data_source: 'auto_detected' as const,
+};
+
 function makeDomainResult(overrides: Partial<DomainResult> = {}): DomainResult {
   return {
     score: 4,
@@ -19,10 +25,11 @@ function makeDomainResult(overrides: Partial<DomainResult> = {}): DomainResult {
     strengths: ['Good SSL', 'Fast load'],
     weaknesses: ['Missing CSP'],
     issues: [
-      { id: 'i1', severity: 'medium', title: 'Missing CSP', description: 'No Content-Security-Policy', impact: 'Medium' },
+      { id: 'i1', severity: 'medium', title: 'Missing CSP', description: 'No Content-Security-Policy', impact: 'Medium', ...STUB_ISSUE_FIELDS },
     ],
     quick_wins: [],
     recommendations: [],
+    unknown_items: [],
     ...overrides,
   };
 }
@@ -82,7 +89,7 @@ describe('FactChecker — score flags reduce score', () => {
     // Let's give it only low-severity issues to trigger the score-1 consistency flag
     const resultWithNoHighIssues = makeDomainResult({
       score: 1,
-      issues: [{ id: 'i1', severity: 'low', title: 'Minor', description: 'Minor issue', impact: 'Low' }],
+      issues: [{ id: 'i1', severity: 'low', title: 'Minor', description: 'Minor issue', impact: 'Low', ...STUB_ISSUE_FIELDS }],
     });
     const { result: corrected } = checker.verify(resultWithNoHighIssues, 'security_compliance', {});
     expect(corrected.score).toBeGreaterThanOrEqual(1);
@@ -116,7 +123,7 @@ describe('FactChecker — consistency checks', () => {
   it('score 5 with a critical issue triggers a flag', () => {
     const result = makeDomainResult({
       score: 5,
-      issues: [{ id: 'i1', severity: 'critical', title: 'Critical bug', description: 'Bad', impact: 'High' }],
+      issues: [{ id: 'i1', severity: 'critical', title: 'Critical bug', description: 'Bad', impact: 'High', ...STUB_ISSUE_FIELDS }],
     });
     const { corrections } = checker.verify(result, 'security_compliance', {});
     const hasConsistencyFlag = corrections.some(c => c.issue.includes('critical issues'));
@@ -126,7 +133,7 @@ describe('FactChecker — consistency checks', () => {
   it('score 1 without critical/high issues triggers a flag', () => {
     const result = makeDomainResult({
       score: 1,
-      issues: [{ id: 'i1', severity: 'low', title: 'Minor', description: 'Minor', impact: 'Low' }],
+      issues: [{ id: 'i1', severity: 'low', title: 'Minor', description: 'Minor', impact: 'Low', ...STUB_ISSUE_FIELDS }],
     });
     const { corrections } = checker.verify(result, 'security_compliance', {});
     const hasConsistencyFlag = corrections.some(c => c.issue.includes('no critical or high issues'));

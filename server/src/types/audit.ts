@@ -162,12 +162,34 @@ export interface CrawledPage {
   load_time_ms?: number;
 }
 
+// ─── Finding Provenance (Sprint 14) ───────────────────────
+export type ConfidenceLevel = 'high' | 'medium' | 'low';
+export type DataSource = 'auto_detected' | 'from_brief' | 'inferred';
+
+/**
+ * A raw data point that backs a finding.
+ * type: short key describing the check ('http_header_scan', 'page_crawl', 'html_meta_tag', etc.)
+ * url:  the page URL where the evidence was observed (optional for site-wide checks)
+ * finding: the raw value / observation (e.g. header name, tag content, metric value)
+ */
+export interface EvidenceRef {
+  type: string;
+  url?: string;
+  finding: string;
+}
+
 export interface AuditIssue {
   id: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
   title: string;
   description: string;
   impact: string;
+  /** How confident the agent is that this finding is accurate. */
+  confidence: ConfidenceLevel;
+  /** Raw data points that back this finding. At least one ref required. */
+  evidence_refs: EvidenceRef[];
+  /** Where the finding data came from. */
+  data_source: DataSource;
 }
 
 export interface Recommendation {
@@ -188,6 +210,12 @@ export interface QuickWin {
   timeframe: string;
 }
 
+export interface ConfidenceDistribution {
+  high: number;
+  medium: number;
+  low: number;
+}
+
 export interface DomainResult {
   score: number;
   label: string;
@@ -197,6 +225,13 @@ export interface DomainResult {
   issues: AuditIssue[];
   quick_wins: QuickWin[];
   recommendations: Recommendation[];
+  /**
+   * Areas the agent could not evaluate due to missing/unavailable data.
+   * E.g. ["Page speed data unavailable — server-side crawl only", "No pricing page found"]
+   */
+  unknown_items: string[];
+  /** Computed by BaseAgent after fact-check — not provided by Claude directly. */
+  confidence_distribution?: ConfidenceDistribution;
 }
 
 export interface DomainData extends DomainResult {

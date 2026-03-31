@@ -25,6 +25,7 @@ React 18 + Vite frontend (Vercel) talks to an Express + TypeScript backend (Rail
 5. **Always filter DB queries by `userId`.** Backend routes must include `user_id = req.userId` in queries, even though service role key bypasses RLS.
 6. **All protected routes need `requireAuth` middleware.** Check `server/src/routes/` patterns.
 7. **No subfolders in `/docs/`.** Documentation lives flat in `docs/`.
+8. **No emoji in source code.** Use Phosphor React icons instead — e.g. `<CircleIcon size={20} color="#df3434" weight="fill" />`. Emoji are allowed only in agent prompt strings (LLM instructions) and user-facing log messages emitted to `pipeline_events`.
 
 ---
 

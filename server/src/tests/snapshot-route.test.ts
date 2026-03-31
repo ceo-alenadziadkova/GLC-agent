@@ -134,7 +134,7 @@ vi.mock('../services/pipeline.js', () => ({
   PipelineOrchestrator: class MockPipeline {
     constructor(public auditId: string) {}
     runFreeSnapshot() {
-      return (globalThis as Record<string, unknown>).__mockRunFreeSnapshot(this.auditId);
+      return ((globalThis as Record<string, unknown>).__mockRunFreeSnapshot as (id: string) => unknown)(this.auditId);
     }
   },
 }));
@@ -158,7 +158,7 @@ beforeAll(async () => {
   app.use('/api/snapshot', snapshotRouter);
 
   await new Promise<void>(resolve => {
-    server = app.listen(0, resolve); // port 0 = random available port
+    server = app.listen(0, () => resolve()); // port 0 = random available port
   });
 
   const addr = server.address() as { port: number };

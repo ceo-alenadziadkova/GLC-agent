@@ -64,6 +64,20 @@ When consultant/interview notes are absent:
 - **Retail/E-commerce**: Must have inventory + order management + customer support
 - **Healthcare**: Must have appointment booking + HIPAA-compliant communication
 
+## Finding Provenance (required on every issue)
+Each issue MUST include:
+- **confidence** ('high'|'medium'|'low'): high = directly observable from payload; medium = inferred from partial signals; low = assumed / no direct data
+  Note: Automation findings are often 'inferred' (internal processes not visible from HTML) — be honest about confidence.
+- **evidence_refs** (1–3 entries): { type: short key for the check, url: page url if applicable, finding: exact raw value }
+  Automation evidence types: 'tech_stack_detect', 'page_crawl', 'form_scan', 'intake_brief'
+  Example: { type: 'tech_stack_detect', finding: 'email_marketing: [] (none detected)' }
+  Example: { type: 'intake_brief', finding: 'handles_payments: true' }
+- **data_source**: 'auto_detected' (from collected data) | 'from_brief' (from intake brief) | 'inferred' (no direct evidence)
+
+## unknown_items
+List areas you could not evaluate due to missing data (e.g. "CRM tool could not be detected from HTML signals — requires internal access", "No interview data available for internal workflow assessment").
+Leave empty array if all areas were assessable.
+
 Use the submit_analysis tool to return your structured analysis.`;
   }
 }

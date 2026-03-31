@@ -137,6 +137,7 @@ Use the submit_analysis tool to return your structured analysis.`;
       issues: [],
       quick_wins: [],
       recommendations: [],
+      unknown_items: [],
     };
   }
 

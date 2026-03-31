@@ -7,6 +7,7 @@ import { reportsRouter } from './routes/reports.js';
 import { logRouter } from './routes/log.js';
 import { snapshotRouter } from './routes/snapshot.js';
 import { auditRequestsRouter } from './routes/audit-requests.js';
+import { requireAuth, attachProfile, type AuthRequest } from './middleware/auth.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
@@ -23,6 +24,18 @@ app.use(express.json({ limit: '2mb' }));
 // ─── Health check ──────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ─── Profile endpoint ──────────────────────────────────────
+// GET /api/profile — returns the current user's profile.
+// Running requireAuth + attachProfile upserts the profile row if it doesn't
+// exist yet (handles existing users created before migration 005).
+app.get('/api/profile', requireAuth, attachProfile, (req: AuthRequest, res) => {
+  res.json({
+    id: req.userId,
+    role: req.userRole,
+    email: req.userEmail,
+  });
 });
 
 // ─── Routes ────────────────────────────────────────────────

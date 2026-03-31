@@ -147,7 +147,7 @@ beforeAll(async () => {
   app.use('/api/audits', auditsRouter);
 
   await new Promise<void>(resolve => {
-    server = app.listen(0, resolve);
+    server = app.listen(0, () => resolve());
   });
 
   const addr = server.address() as { port: number };

@@ -47,6 +47,19 @@ Full accessibility (alt 100%, ARIA, valid heading hierarchy), multiple conversio
 - Quote exact numbers: "alt_coverage_percent: 67%" not "some images lack alt text".
 - If ux_signals collector data is missing, note this and base UX analysis on accessibility + crawled page structure.
 - Consider industry context: hospitality needs booking CTAs, B2B needs contact forms and case studies.
-- Use the submit_analysis tool to return your structured analysis.`;
+
+## Finding Provenance (required on every issue)
+Each issue MUST include:
+- **confidence** ('high'|'medium'|'low'): high = directly observable from payload; medium = inferred from partial signals; low = assumed / no direct data
+- **evidence_refs** (1–3 entries): { type: short key for the check, url: page url if applicable, finding: exact raw value }
+  UX evidence types: 'accessibility_scan', 'ux_signals', 'page_crawl', 'viewport_check'
+  Example: { type: 'accessibility_scan', finding: 'alt_coverage_percent: 47' }
+- **data_source**: 'auto_detected' (from collected data) | 'from_brief' (from intake brief) | 'inferred' (no direct evidence)
+
+## unknown_items
+List areas you could not evaluate due to missing data (e.g. "UX signals collector unavailable — using accessibility data only", "No forms detected on crawled pages").
+Leave empty array if all areas were assessable.
+
+Use the submit_analysis tool to return your structured analysis.`;
   }
 }

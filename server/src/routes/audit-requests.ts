@@ -312,7 +312,9 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
       return;
     }
 
-    // Update request: link audit_id, set status=approved
+    // Update request: link audit_id, set status=approved.
+    // If this update fails we must also roll back the audit to keep data consistent —
+    // otherwise the audit row exists but is not linked to the request.
     const { data: updatedRequest, error: updateErr } = await supabase
       .from('audit_requests')
       .update({
@@ -324,7 +326,11 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
       .select()
       .single();
 
-    if (updateErr) throw updateErr;
+    if (updateErr) {
+      await supabase.from('audits').delete().eq('id', audit.id);
+      console.error('[approve] Request status update failed, rolled back audit', audit.id, updateErr.message);
+      throw updateErr;
+    }
 
     res.status(201).json({ audit_request: updatedRequest, audit: { id: audit.id, status: audit.status } });
   } catch (err) {

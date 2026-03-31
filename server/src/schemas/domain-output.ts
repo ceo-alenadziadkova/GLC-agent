@@ -19,6 +19,17 @@ export const ReconOutputSchema = z.object({
 
 export type ReconOutput = z.infer<typeof ReconOutputSchema>;
 
+// ─── Evidence Reference Schema ─────────────────────────────
+// Each finding must cite at least one raw data point that supports it.
+// type:    short key describing the check ('http_header_scan', 'page_crawl', 'html_meta_tag', etc.)
+// url:     page URL where evidence was observed (omit for site-wide checks)
+// finding: the raw value / observation (e.g. header name, metric value)
+export const EvidenceRefSchema = z.object({
+  type: z.string(),
+  url: z.string().optional(),
+  finding: z.string(),
+});
+
 // ─── Issue Schema ──────────────────────────────────────────
 export const IssueSchema = z.object({
   id: z.string(),
@@ -26,6 +37,17 @@ export const IssueSchema = z.object({
   title: z.string(),
   description: z.string(),
   impact: z.string(),
+  /**
+   * How confident the agent is in this finding.
+   * high   — directly observable from collected data
+   * medium — inferred from partial signals
+   * low    — assumed / no direct data available
+   */
+  confidence: z.enum(['high', 'medium', 'low']),
+  /** Raw data points that back this finding. At least one required. */
+  evidence_refs: z.array(EvidenceRefSchema).min(1).max(5),
+  /** Where the finding data came from. */
+  data_source: z.enum(['auto_detected', 'from_brief', 'inferred']),
 });
 
 // ─── Quick Win Schema ──────────────────────────────────────
@@ -58,6 +80,12 @@ export const DomainOutputSchema = z.object({
   issues: z.array(IssueSchema).min(1).max(10),
   quick_wins: z.array(QuickWinSchema).max(5),
   recommendations: z.array(RecommendationSchema).min(1).max(8),
+  /**
+   * Areas the agent could not evaluate due to missing or unavailable data.
+   * E.g. ["Page speed data unavailable — server-side crawl only", "No pricing page found"]
+   * Leave empty array if all areas were assessable.
+   */
+  unknown_items: z.array(z.string()).max(10),
 });
 
 export type DomainOutput = z.infer<typeof DomainOutputSchema>;

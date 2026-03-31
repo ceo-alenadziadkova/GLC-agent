@@ -139,9 +139,10 @@ pipelineRouter.post('/:id/pipeline/next', ...consultantGuard, pipelineLimiter, a
 
     res.json({ status: 'running', phase: nextPhase });
 
-    // Run asynchronously — surface errors to frontend via pipeline_events
+    // Run asynchronously — runBlock() handles parallel wings internally.
+    // Surface errors to frontend via pipeline_events.
     const orchestrator = new PipelineOrchestrator(id);
-    orchestrator.startPhase(nextPhase).catch(err => emitPhaseError(id, nextPhase, err as Error));
+    orchestrator.runBlock().catch(err => emitPhaseError(id, nextPhase, err as Error));
   } catch (err) {
     console.error('[POST /pipeline/next]', err);
     res.status(500).json({ error: 'Failed to run next phase' });

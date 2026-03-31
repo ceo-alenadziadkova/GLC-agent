@@ -135,9 +135,19 @@ const DOMAIN_RESULT: DomainResult = {
   summary: 'Test summary that meets the minimum length requirement for the schema.',
   strengths: ['Good SSL'],
   weaknesses: ['No CDN'],
-  issues: [{ id: 'i1', severity: 'medium', title: 'No CDN', description: 'Slow', impact: 'Medium' }],
+  issues: [{
+    id: 'i1',
+    severity: 'medium',
+    title: 'No CDN',
+    description: 'Slow',
+    impact: 'Medium',
+    confidence: 'medium',
+    evidence_refs: [{ type: 'tech_stack_detect', finding: 'cdn: none detected' }],
+    data_source: 'auto_detected',
+  }],
   quick_wins: [],
   recommendations: [],
+  unknown_items: [],
 };
 
 // ─── Tests ────────────────────────────────────────────────────────────────
