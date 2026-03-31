@@ -293,7 +293,13 @@ export class PipelineOrchestrator {
       await supabase.from('audits').update({ current_phase: lastWingPhase }).eq('id', this.auditId);
 
       // Run consistency / quality gate checks before surfacing the review gate
-      await consistencyChecker.run(this.auditId, lastWingPhase, wingPhases);
+      const autoGateReport = await consistencyChecker.run(this.auditId, lastWingPhase, wingPhases);
+
+      // Persist quality gate result on the review_points row for this gate
+      await supabase.from('review_points')
+        .update({ quality_gate_passed: autoGateReport.passed })
+        .eq('audit_id', this.auditId)
+        .eq('after_phase', lastWingPhase);
 
       // Gate after auto wing (if applicable)
       if (reviewPhases.includes(lastWingPhase)) {
@@ -320,7 +326,13 @@ export class PipelineOrchestrator {
 
         // Run quality gate on the full audit (all domains) after strategy completes
         const allDomainPhases = [...wingPhases, 7];
-        await consistencyChecker.run(this.auditId, 7, allDomainPhases);
+        const finalGateReport = await consistencyChecker.run(this.auditId, 7, allDomainPhases);
+
+        // Persist quality gate result on the final review_points row (after phase 7)
+        await supabase.from('review_points')
+          .update({ quality_gate_passed: finalGateReport.passed })
+          .eq('audit_id', this.auditId)
+          .eq('after_phase', 7);
       }
       return;
     }
