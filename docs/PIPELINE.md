@@ -6,14 +6,14 @@
 Phase 0  Recon             ──┐
                               │ Review Gate 1 (after recon)
 Phase 1  Tech Infrastructure ─┤
-Phase 2  Security & Compliance│
-Phase 3  SEO & Digital        │ Auto Wing
+Phase 2  Security & Compliance│  Auto Wing (phases 1–4 in parallel)
+Phase 3  SEO & Digital        │
 Phase 4  UX & Conversion    ──┤
                               │ Review Gate 2 (after auto wing)
-Phase 5  Marketing & UTP    ──┤
-Phase 6  Automation & Processes│ Analytic Wing
-                              │ Review Gate 3 (after analytic wing)
+Phase 5  Marketing & UTP    ──┤  Analytic wing (5–6 in parallel)
+Phase 6  Automation & Processes│  then Phase 7 Strategy (sequential; no gate between 6 and 7)
 Phase 7  Strategy Synthesis ──┘
+                              │ Review Gate 3 (after strategy; full mode only)
 ```
 
 ---
@@ -59,11 +59,15 @@ Single `claude-sonnet-4-20250514` call using `tool_use` with a strict JSON schem
 
 Review gates pause the pipeline and let the consultant enrich the context before the next block of phases.
 
-| Gate | After Phase | Before Phases |
+| Gate | After Phase | Before / notes |
 |---|---|---|
-| Gate 1 | Phase 0 (Recon) | Phases 1–4 (Auto Wing) |
-| Gate 2 | Phase 4 (UX) | Phases 5–6 (Analytic Wing) |
-| Gate 3 | Phase 6 (Automation) | Phase 7 (Strategy) |
+| Gate 1 | Phase 0 (Recon) | Auto wing (phases 1–4) |
+| Gate 2 | Phase 4 (last of auto wing) | Analytic wing (phases 5–6) then Strategy (phase 7) |
+| Gate 3 | Phase 7 (Strategy) | Report / delivery (no further automated phases) |
+
+**Full mode** uses review phases `[0, 4, 7]` (`server/src/types/audit.ts`). **Express** uses `[0, 4]`. **Free snapshot** uses no review gates.
+
+Approve with `POST /api/audits/:id/reviews/:phase` where `phase` matches the completed block (`0`, `4`, or `7`). See [API.md](./API.md).
 
 When a gate is reached:
 1. Backend emits `review_needed` event to `pipeline_events`

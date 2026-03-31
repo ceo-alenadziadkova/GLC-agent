@@ -1,5 +1,7 @@
 # Frontend Architecture
 
+Product context (modes, deliverables): [PRODUCT.md](./PRODUCT.md). System diagram: [ARCHITECTURE.md](./ARCHITECTURE.md).
+
 ## Stack
 
 React 18 + TypeScript + Vite. Deployed to Vercel. Uses Tailwind CSS + glassmorphism design system. Animation via Framer Motion.

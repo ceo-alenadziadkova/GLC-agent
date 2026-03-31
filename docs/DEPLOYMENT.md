@@ -14,7 +14,7 @@
 ## Supabase Setup
 
 1. Create project at [supabase.com](https://supabase.com) — choose **EU (Frankfurt)** region for GDPR compliance
-2. In SQL Editor → run `server/migrations/001_initial_schema.sql`
+2. In SQL Editor → run **all** SQL migrations in order (`001` … `007`); see [DATABASE.md](./DATABASE.md#overview)
 3. Authentication → Settings:
    - Set **Site URL** to your production frontend URL
    - Add **Redirect URLs**: `https://your-app.vercel.app/**`
