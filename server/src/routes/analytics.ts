@@ -41,6 +41,7 @@ interface ReviewGateItem {
   status: string;
   updated_at: string;
   priority: Priority;
+  urgency_rank: number;
 }
 
 interface SlaRiskItem {
@@ -50,6 +51,7 @@ interface SlaRiskItem {
   created_at: string;
   days_open: number;
   priority: Priority;
+  urgency_rank: number;
 }
 
 interface FailureItem {
@@ -58,6 +60,7 @@ interface FailureItem {
   company_url: string;
   updated_at: string;
   priority: Priority;
+  urgency_rank: number;
 }
 
 interface PendingRequestItem {
@@ -66,6 +69,7 @@ interface PendingRequestItem {
   industry: string | null;
   created_at: string;
   priority: Priority;
+  urgency_rank: number;
 }
 
 interface ActionItems {
@@ -103,6 +107,7 @@ interface DashboardResponse {
   score_distribution: ScoreDistribution;
   meta: {
     degraded_sections: DegradedSection[];
+    generated_at: string;
   };
 }
 
@@ -115,7 +120,8 @@ function daysSince(isoString: string): number {
 }
 
 function scoreBucket(score: number): 1 | 2 | 3 | 4 {
-  // Integer bucket: floor clamped to 1–4 (score 5.0 → bucket 4)
+  // Bucket semantics:
+  // 1: [1.0, 2.0), 2: [2.0, 3.0), 3: [3.0, 4.0), 4: [4.0, 5.0]
   return Math.min(Math.max(Math.floor(score), 1), 4) as 1 | 2 | 3 | 4;
 }
 
@@ -249,6 +255,7 @@ analyticsRouter.get('/dashboard', async (req: AuthRequest, res) => {
         status: r.status,
         updated_at: r.updated_at,
         priority: 'high' as Priority,  // review gates always block progress
+        urgency_rank: 10,
       }));
     }
 
@@ -262,6 +269,7 @@ analyticsRouter.get('/dashboard', async (req: AuthRequest, res) => {
           created_at: r.created_at,
           days_open: days,
           priority: (days > 14 ? 'high' : 'medium') as Priority,
+          urgency_rank: days > 14 ? 20 : 30,
         };
       });
     }
@@ -273,6 +281,7 @@ analyticsRouter.get('/dashboard', async (req: AuthRequest, res) => {
         company_url: r.company_url,
         updated_at: r.updated_at,
         priority: 'medium' as Priority,
+        urgency_rank: 40,
       }));
     }
 
@@ -283,6 +292,7 @@ analyticsRouter.get('/dashboard', async (req: AuthRequest, res) => {
         industry: r.industry,
         created_at: r.created_at,
         priority: 'low' as Priority,
+        urgency_rank: 50,
       }));
     }
   }
@@ -314,7 +324,10 @@ analyticsRouter.get('/dashboard', async (req: AuthRequest, res) => {
     action_items: actionItems,
     activity_feed: activityFeed,
     score_distribution: scoreDistribution,
-    meta: { degraded_sections: degraded },
+    meta: {
+      degraded_sections: degraded,
+      generated_at: new Date().toISOString(),
+    },
   };
 
   res.json(response);

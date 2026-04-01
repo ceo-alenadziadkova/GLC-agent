@@ -11,7 +11,7 @@ import { SectionLabel } from '../components/glc/SectionLabel';
 import { api } from '../data/apiService';
 import {
   BRIEF_QUESTIONS, BRIEF_SECTIONS, REQUIRED_IDS, countAnswered,
-  type BriefResponses, type BriefQuestion,
+  type BriefResponseEntry, type BriefResponses, type BriefQuestion,
 } from '../data/briefQuestions';
 
 // ── Step indicator ────────────────────────────────────────────────────────────
@@ -80,14 +80,19 @@ function BriefField({
   q,
   value,
   onChange,
+  onSetUnknown,
 }: {
   q: BriefQuestion;
-  value: string | string[] | number | null | undefined;
+  value: string | string[] | number | boolean | null | BriefResponseEntry | undefined;
   onChange: (v: string | string[] | number | null) => void;
+  onSetUnknown: () => void;
 }) {
+  const rawValue = (value && typeof value === 'object' && !Array.isArray(value) && 'value' in value)
+    ? value.value
+    : value;
   const badge = PRIORITY_BADGE[q.priority];
-  const strVal = (typeof value === 'number' ? String(value) : (value as string) ?? '');
-  const arrVal = (Array.isArray(value) ? value : []) as string[];
+  const strVal = (typeof rawValue === 'number' ? String(rawValue) : (rawValue as string) ?? '');
+  const arrVal = (Array.isArray(rawValue) ? rawValue : []) as string[];
 
   return (
     <div className="space-y-1.5">
@@ -106,6 +111,14 @@ function BriefField({
       {q.hint && (
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: -2 }}>{q.hint}</p>
       )}
+      <button
+        type="button"
+        onClick={onSetUnknown}
+        className="text-xs underline underline-offset-2"
+        style={{ color: 'var(--text-tertiary)' }}
+      >
+        I don’t know / Ask consultant
+      </button>
 
       {q.type === 'free_text' && (
         <textarea
@@ -127,7 +140,7 @@ function BriefField({
       {q.type === 'number' && (
         <input
           type="number"
-          value={typeof value === 'number' ? value : ''}
+          value={typeof rawValue === 'number' ? rawValue : ''}
           onChange={e => onChange(e.target.value ? Number(e.target.value) : null)}
           className="w-full px-3 py-2 rounded-lg text-sm outline-none"
           style={{
@@ -208,6 +221,13 @@ const DOMAIN_PILLS = [
   { icon: MapTrifold,      label: 'Strategy',    color: 'var(--glc-green-dark)'},
 ];
 
+const NEXT_ACTION_TEXT: Record<string, string> = {
+  complete_required: 'Complete required fields to start the audit.',
+  add_recommended: 'Add a few recommended details to improve audit quality.',
+  confirm_prefill: 'Confirm auto-detected prefill data before launch.',
+  none: 'Your intake is ready.',
+};
+
 const INDUSTRIES = [
   'Hospitality', 'Real Estate', 'Marine', 'Healthcare',
   'E-commerce', 'SaaS / Software', 'Food & Beverage', 'Professional Services',
@@ -247,10 +267,17 @@ export function NewAudit() {
 
   const answeredRequired = countAnswered(responses, REQUIRED_IDS);
   const step2Complete    = answeredRequired === REQUIRED_IDS.length;
+  const progressPct = Math.min(100, Math.round((answeredRequired / REQUIRED_IDS.length) * 100));
+  const readinessBadge: 'low' | 'medium' | 'high' = progressPct >= 80 ? 'high' : progressPct >= 45 ? 'medium' : 'low';
+  const nextBestAction = step2Complete ? 'add_recommended' : 'complete_required';
 
   // ── Handlers ───────────────────────────────────────────
   function handleResponseChange(id: string, value: string | string[] | number | null) {
-    setResponses(prev => ({ ...prev, [id]: value }));
+    setResponses(prev => ({ ...prev, [id]: { value, source: 'client' } }));
+  }
+
+  function handleSetUnknown(id: string) {
+    setResponses(prev => ({ ...prev, [id]: { value: null, source: 'unknown' } }));
   }
 
   async function handleLaunch(e: React.FormEvent) {
@@ -432,6 +459,12 @@ export function NewAudit() {
                     {answeredRequired} / {REQUIRED_IDS.length} required
                   </span>
                 </div>
+                <div className="flex items-center justify-between mb-3">
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>Audit readiness: {progressPct}%</span>
+                  <span className="px-2 py-0.5 rounded text-xs" style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                    {readinessBadge.toUpperCase()}
+                  </span>
+                </div>
                 <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)', marginBottom: 20 }}>
                   These questions feed directly into the AI agents.{' '}
                   <strong className="inline-flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
@@ -445,6 +478,9 @@ export function NewAudit() {
                 <div className="rounded-full overflow-hidden mb-6" style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.06)' }}>
                   <div className="h-full rounded-full transition-all" style={{ width: `${(answeredRequired / REQUIRED_IDS.length) * 100}%`, background: 'var(--gradient-brand)' }} />
                 </div>
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginBottom: 14 }}>
+                  {NEXT_ACTION_TEXT[nextBestAction]}
+                </p>
 
                 {/* Questions grouped by section */}
                 <div className="space-y-8 max-h-[55vh] overflow-y-auto pr-1">
@@ -464,6 +500,7 @@ export function NewAudit() {
                               q={q}
                               value={responses[q.id]}
                               onChange={v => handleResponseChange(q.id, v)}
+                              onSetUnknown={() => handleSetUnknown(q.id)}
                             />
                           ))}
                         </div>

@@ -18,6 +18,18 @@ Phase 7  Strategy Synthesis ──┘
 
 ---
 
+## Intake Enrichment Order
+
+Intake sequencing is progressive:
+
+1. Step 1A: URL entry + initial brief answers.
+2. Step 1B: Recon runs and enriches intake with prefill candidates.
+3. Client/consultant confirms or updates prefill before deeper domain phases.
+
+Contract note: "brief before anything else" means before domain analysis phases (1–7), not necessarily before recon itself.
+
+---
+
 ## Per-Phase Execution Model
 
 Every phase runs the same 5-step sequence:

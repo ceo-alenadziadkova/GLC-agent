@@ -19,6 +19,7 @@ export interface DashboardReviewGateItem {
   status: string;
   updated_at: string;
   priority: DashboardPriority;
+  urgency_rank: number;
 }
 
 export interface DashboardSlaRiskItem {
@@ -28,6 +29,7 @@ export interface DashboardSlaRiskItem {
   created_at: string;
   days_open: number;
   priority: DashboardPriority;
+  urgency_rank: number;
 }
 
 export interface DashboardFailureItem {
@@ -36,6 +38,7 @@ export interface DashboardFailureItem {
   company_url: string;
   updated_at: string;
   priority: DashboardPriority;
+  urgency_rank: number;
 }
 
 export interface DashboardPendingRequestItem {
@@ -44,6 +47,7 @@ export interface DashboardPendingRequestItem {
   industry: string | null;
   created_at: string;
   priority: DashboardPriority;
+  urgency_rank: number;
 }
 
 export interface DashboardActionItems {
@@ -79,10 +83,120 @@ export interface DashboardData {
   score_distribution: DashboardScoreDistribution;
   meta: {
     degraded_sections: Array<'kpis' | 'action_items' | 'activity_feed' | 'score_distribution'>;
+    generated_at: string;
   };
 }
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+
+function assertIntakePayloadShape(payload: unknown): asserts payload is {
+  intakeProgress: { progressPct: number; readinessBadge: string; nextBestAction: string };
+  gates: { canStartSnapshot: boolean; canStartExpress: boolean; canStartFull: boolean };
+} {
+  const p = payload as Record<string, unknown>;
+  const gates = p?.gates as Record<string, unknown> | undefined;
+  const intakeProgress = p?.intakeProgress as Record<string, unknown> | undefined;
+  if (!gates || !intakeProgress) throw new Error('Invalid API payload: missing intakeProgress/gates');
+  if (typeof gates.canStartSnapshot !== 'boolean' || typeof gates.canStartExpress !== 'boolean' || typeof gates.canStartFull !== 'boolean') {
+    throw new Error('Invalid API payload: invalid gates shape');
+  }
+  if (typeof intakeProgress.progressPct !== 'number' || typeof intakeProgress.readinessBadge !== 'string' || typeof intakeProgress.nextBestAction !== 'string') {
+    throw new Error('Invalid API payload: invalid intakeProgress shape');
+  }
+}
+
+function assertPipelineStartShape(payload: unknown): asserts payload is {
+  status: string;
+  phase: number;
+  intakeProgress: { progressPct: number; readinessBadge: string; nextBestAction: string };
+} {
+  const p = payload as Record<string, unknown>;
+  if (typeof p?.status !== 'string' || typeof p?.phase !== 'number') {
+    throw new Error('Invalid API payload: invalid pipeline start shape');
+  }
+  const intakeProgress = p?.intakeProgress as Record<string, unknown> | undefined;
+  if (!intakeProgress) throw new Error('Invalid API payload: missing intakeProgress in pipeline start');
+  if (typeof intakeProgress.progressPct !== 'number' || typeof intakeProgress.readinessBadge !== 'string' || typeof intakeProgress.nextBestAction !== 'string') {
+    throw new Error('Invalid API payload: invalid intakeProgress in pipeline start');
+  }
+}
+
+function assertPipelineStatusShape(payload: unknown): asserts payload is {
+  status: string;
+  current_phase: number;
+  tokens_used: number;
+  token_budget: number;
+  product_mode: string;
+  events: Array<{
+    id: number;
+    audit_id: string;
+    phase: number;
+    event_type: string;
+    message: string | null;
+    data: Record<string, unknown>;
+    created_at: string;
+  }>;
+  reviews: Array<{
+    after_phase: number;
+    status: string;
+    consultant_notes: string | null;
+    interview_notes: string | null;
+  }>;
+} {
+  const p = payload as Record<string, unknown>;
+  if (typeof p?.status !== 'string') {
+    throw new Error('Invalid API payload: pipeline status missing status');
+  }
+  if (typeof p?.current_phase !== 'number') {
+    throw new Error('Invalid API payload: pipeline status missing current_phase');
+  }
+  if (typeof p?.tokens_used !== 'number' || typeof p?.token_budget !== 'number') {
+    throw new Error('Invalid API payload: pipeline status missing token fields');
+  }
+  if (typeof p?.product_mode !== 'string') {
+    throw new Error('Invalid API payload: pipeline status missing product_mode');
+  }
+  if (!Array.isArray(p?.events)) {
+    throw new Error('Invalid API payload: pipeline status events must be an array');
+  }
+  if (!Array.isArray(p?.reviews)) {
+    throw new Error('Invalid API payload: pipeline status reviews must be an array');
+  }
+  for (let i = 0; i < p.events.length; i++) {
+    const e = p.events[i] as Record<string, unknown>;
+    if (typeof e?.id !== 'number' || typeof e?.audit_id !== 'string' || typeof e?.phase !== 'number') {
+      throw new Error(`Invalid API payload: pipeline event[${i}] missing id/audit_id/phase`);
+    }
+    if (typeof e?.event_type !== 'string' || (e?.message !== null && typeof e?.message !== 'string')) {
+      throw new Error(`Invalid API payload: pipeline event[${i}] invalid event_type/message`);
+    }
+    if (e?.data === null || typeof e?.data !== 'object' || Array.isArray(e.data)) {
+      throw new Error(`Invalid API payload: pipeline event[${i}] data must be an object`);
+    }
+    if (typeof e?.created_at !== 'string') {
+      throw new Error(`Invalid API payload: pipeline event[${i}] missing created_at`);
+    }
+  }
+  for (let i = 0; i < p.reviews.length; i++) {
+    const r = p.reviews[i] as Record<string, unknown>;
+    if (typeof r?.after_phase !== 'number' || typeof r?.status !== 'string') {
+      throw new Error(`Invalid API payload: pipeline review[${i}] missing after_phase/status`);
+    }
+    if (r?.consultant_notes !== null && typeof r?.consultant_notes !== 'string') {
+      throw new Error(`Invalid API payload: pipeline review[${i}] invalid consultant_notes`);
+    }
+    if (r?.interview_notes !== null && typeof r?.interview_notes !== 'string') {
+      throw new Error(`Invalid API payload: pipeline review[${i}] invalid interview_notes`);
+    }
+  }
+}
+
+function assertPipelineMutationShape(payload: unknown, label: string): asserts payload is { status: string; phase: number } {
+  const p = payload as Record<string, unknown>;
+  if (typeof p?.status !== 'string' || typeof p?.phase !== 'number') {
+    throw new Error(`Invalid API payload: ${label} missing status/phase`);
+  }
+}
 
 function randomHex(bytes: number): string {
   const arr = new Uint8Array(bytes);
@@ -159,29 +273,49 @@ export const api = {
 
   // Pipeline
   async startPipeline(id: string) {
-    return apiFetch<{ status: string; phase: number }>(`/api/audits/${id}/pipeline/start`, { method: 'POST' });
+    const payload = await apiFetch<{ status: string; phase: number; intakeProgress: { progressPct: number; readinessBadge: string; nextBestAction: string } }>(
+      `/api/audits/${id}/pipeline/start`,
+      { method: 'POST' }
+    );
+    assertPipelineStartShape(payload);
+    return payload;
   },
 
   async runNextPhase(id: string) {
-    return apiFetch<{ status: string; phase: number }>(`/api/audits/${id}/pipeline/next`, { method: 'POST' });
+    const payload = await apiFetch<{ status: string; phase: number }>(`/api/audits/${id}/pipeline/next`, { method: 'POST' });
+    assertPipelineMutationShape(payload, 'pipeline next');
+    return payload;
   },
 
   async retryPhase(id: string, phase: number) {
-    return apiFetch<{ status: string; phase: number }>(`/api/audits/${id}/pipeline/retry`, {
+    const payload = await apiFetch<{ status: string; phase: number }>(`/api/audits/${id}/pipeline/retry`, {
       method: 'POST',
       body: JSON.stringify({ phase }),
     });
+    assertPipelineMutationShape(payload, 'pipeline retry');
+    return payload;
   },
 
   async getPipelineStatus(id: string) {
-    return apiFetch<{
+    const payload = await apiFetch<{
       status: string;
       current_phase: number;
       tokens_used: number;
       token_budget: number;
-      events: Array<{ id: number; phase: number; event_type: string; message: string; data: Record<string, unknown>; created_at: string }>;
+      product_mode: string;
+      events: Array<{
+        id: number;
+        audit_id: string;
+        phase: number;
+        event_type: string;
+        message: string | null;
+        data: Record<string, unknown>;
+        created_at: string;
+      }>;
       reviews: Array<{ after_phase: number; status: string; consultant_notes: string | null; interview_notes: string | null }>;
     }>(`/api/audits/${id}/pipeline/status`);
+    assertPipelineStatusShape(payload);
+    return payload;
   },
 
   // Reviews
@@ -245,7 +379,7 @@ export const api = {
 
   // Intake Brief
   async getBrief(auditId: string) {
-    return apiFetch<{
+    const payload = await apiFetch<{
       brief: import('../data/auditTypes').IntakeBrief | null;
       questions: import('../data/briefQuestions').BriefQuestion[];
       validation: {
@@ -257,17 +391,55 @@ export const api = {
         total_recommended: number;
         missing_required: Array<{ id: string; question: string }>;
       };
+      gates: {
+        canStartSnapshot: boolean;
+        canStartExpress: boolean;
+        canStartFull: boolean;
+        missingRequiredIds: string[];
+        recommendedToImproveIds: string[];
+        intakeProgress: {
+          progressPct: number;
+          readinessBadge: 'low' | 'medium' | 'high';
+          nextBestAction: 'complete_required' | 'add_recommended' | 'confirm_prefill' | 'none';
+        };
+      };
+      intakeProgress: {
+        progressPct: number;
+        readinessBadge: 'low' | 'medium' | 'high';
+        nextBestAction: 'complete_required' | 'add_recommended' | 'confirm_prefill' | 'none';
+      };
     }>(`/api/audits/${auditId}/brief`);
+    assertIntakePayloadShape(payload);
+    return payload;
   },
 
   async saveBrief(auditId: string, responses: Record<string, unknown>) {
-    return apiFetch<{
+    const payload = await apiFetch<{
       brief: import('../data/auditTypes').IntakeBrief;
       validation: { passed: boolean; sla_met: boolean; answered_required: number; total_required: number };
+      gates: {
+        canStartSnapshot: boolean;
+        canStartExpress: boolean;
+        canStartFull: boolean;
+        missingRequiredIds: string[];
+        recommendedToImproveIds: string[];
+        intakeProgress: {
+          progressPct: number;
+          readinessBadge: 'low' | 'medium' | 'high';
+          nextBestAction: 'complete_required' | 'add_recommended' | 'confirm_prefill' | 'none';
+        };
+      };
+      intakeProgress: {
+        progressPct: number;
+        readinessBadge: 'low' | 'medium' | 'high';
+        nextBestAction: 'complete_required' | 'add_recommended' | 'confirm_prefill' | 'none';
+      };
     }>(`/api/audits/${auditId}/brief`, {
       method: 'PUT',
       body: JSON.stringify({ responses }),
     });
+    assertIntakePayloadShape(payload);
+    return payload;
   },
 
   // Profile

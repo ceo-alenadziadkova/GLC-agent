@@ -273,19 +273,19 @@ describe('saveBriefResponses()', () => {
 
   it('saves valid responses and returns IntakeBrief record', async () => {
     const responses = makeFullRequired();
-    const brief = await saveBriefResponses('audit-001', responses);
+    const { brief } = await saveBriefResponses('audit-001', responses);
     expect(brief).toHaveProperty('id');
     expect(brief).toHaveProperty('audit_id', 'audit-001');
     expect(brief).toHaveProperty('sla_met');
   });
 
   it('sets sla_met=true when all required answered', async () => {
-    const brief = await saveBriefResponses('audit-001', makeFullRequired());
+    const { brief } = await saveBriefResponses('audit-001', makeFullRequired());
     expect(brief.sla_met).toBe(true);
   });
 
   it('sets sla_met=false when required questions missing', async () => {
-    const brief = await saveBriefResponses('audit-001', { primary_goal: 'grow' });
+    const { brief } = await saveBriefResponses('audit-001', { primary_goal: 'grow' });
     expect(brief.sla_met).toBe(false);
   });
 
@@ -308,7 +308,7 @@ describe('saveBriefResponses()', () => {
     await expect(saveBriefResponses('audit-001', responses)).rejects.toThrow(/Invalid brief responses/);
   });
 
-  it('rejects response values that are objects (not allowed by schema)', async () => {
+  it('rejects malformed structured response objects', async () => {
     const responses = { primary_goal: { nested: 'object' } };
     await expect(saveBriefResponses('audit-001', responses)).rejects.toThrow(/Invalid brief responses/);
   });

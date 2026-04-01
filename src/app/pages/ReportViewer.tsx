@@ -133,6 +133,10 @@ export function ReportViewer() {
   const criticalIssues = allIssues.filter(i => i.severity === 'critical' || i.severity === 'high');
   const allStrengths = domains.flatMap(d => (d.data?.strengths ?? []).map(s => ({ domain: d.label, text: s })));
   const allQuickWins = domains.flatMap(d => d.data?.quick_wins ?? []);
+  const followUpQuestions = Array.isArray(audit.brief?.post_audit_questions)
+    ? audit.brief.post_audit_questions
+    : [];
+  const answeredFollowUps = followUpQuestions.filter(q => q && typeof q === 'object' && (q as { answered?: boolean }).answered).length;
 
   const executiveSummary = audit.strategy?.executive_summary || null;
 
@@ -461,6 +465,26 @@ export function ReportViewer() {
               ))}
             </div>
           </div>
+        )}
+
+        {followUpQuestions.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="glc-card p-5"
+            style={{ borderRadius: 'var(--radius-xl)' }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <SectionLabel>Improve future audits</SectionLabel>
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: 6 }}>
+                  You&apos;ve answered {answeredFollowUps} of {followUpQuestions.length} follow-up questions.
+                </p>
+              </div>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>Answer now (~3 min)</span>
+            </div>
+          </motion.div>
         )}
 
         {/* Strategy link */}

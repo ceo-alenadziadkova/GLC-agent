@@ -10,7 +10,7 @@ import {
   reviewPhasesForMode,
   type ProductMode,
 } from '../types/audit.js';
-import { saveBriefResponses, validateBriefResponses } from '../services/brief-validator.js';
+import { evaluateBriefGates, saveBriefResponses, validateBriefResponses } from '../services/brief-validator.js';
 import { BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import { safeOrUserFilter } from '../lib/postgrest-filter.js';
@@ -266,11 +266,14 @@ auditsRouter.get('/:id/brief', async (req: AuthRequest, res) => {
     // Compute validation stats live
     const responses = (brief?.responses as Record<string, unknown>) ?? {};
     const validation = validateBriefResponses(responses);
+    const gates = evaluateBriefGates(responses, audit.product_mode as ProductMode);
 
     res.json({
       brief: brief ?? null,
       questions: BRIEF_QUESTIONS,
       validation,
+      gates,
+      intakeProgress: gates.intakeProgress,
     });
   } catch (err) {
     console.error('[GET /api/audits/:id/brief]', err);
@@ -309,10 +312,15 @@ auditsRouter.put('/:id/brief', async (req: AuthRequest, res) => {
       return;
     }
 
-    const brief = await saveBriefResponses(id, responses as Record<string, unknown>);
-    const validation = validateBriefResponses(brief.responses as Record<string, unknown>);
+    const { brief, gates } = await saveBriefResponses(id, responses as Record<string, unknown>);
+    const liveValidation = validateBriefResponses(brief.responses as Record<string, unknown>);
 
-    res.json({ brief, validation });
+    res.json({
+      brief,
+      validation: liveValidation,
+      gates,
+      intakeProgress: gates.intakeProgress,
+    });
   } catch (err) {
     console.error('[PUT /api/audits/:id/brief]', err);
     const msg = (err as Error).message;

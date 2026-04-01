@@ -24,7 +24,8 @@ ALTER TABLE review_points
 -- and review points through Supabase Realtime / direct queries.
 
 -- audit_domains
-CREATE POLICY IF NOT EXISTS "audit_domains_select_client"
+DROP POLICY IF EXISTS "audit_domains_select_client" ON audit_domains;
+CREATE POLICY "audit_domains_select_client"
   ON audit_domains FOR SELECT
   USING (
     audit_id IN (
@@ -34,7 +35,8 @@ CREATE POLICY IF NOT EXISTS "audit_domains_select_client"
   );
 
 -- pipeline_events
-CREATE POLICY IF NOT EXISTS "pipeline_events_select_client"
+DROP POLICY IF EXISTS "pipeline_events_select_client" ON pipeline_events;
+CREATE POLICY "pipeline_events_select_client"
   ON pipeline_events FOR SELECT
   USING (
     audit_id IN (
@@ -44,7 +46,8 @@ CREATE POLICY IF NOT EXISTS "pipeline_events_select_client"
   );
 
 -- audit_strategy
-CREATE POLICY IF NOT EXISTS "audit_strategy_select_client"
+DROP POLICY IF EXISTS "audit_strategy_select_client" ON audit_strategy;
+CREATE POLICY "audit_strategy_select_client"
   ON audit_strategy FOR SELECT
   USING (
     audit_id IN (
@@ -54,7 +57,8 @@ CREATE POLICY IF NOT EXISTS "audit_strategy_select_client"
   );
 
 -- review_points
-CREATE POLICY IF NOT EXISTS "review_points_select_client"
+DROP POLICY IF EXISTS "review_points_select_client" ON review_points;
+CREATE POLICY "review_points_select_client"
   ON review_points FOR SELECT
   USING (
     audit_id IN (

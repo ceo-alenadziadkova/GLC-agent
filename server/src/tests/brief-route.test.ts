@@ -200,6 +200,9 @@ describe('GET /api/audits/:id/brief', () => {
     expect(body.questions).toBeInstanceOf(Array);
     expect((body.questions as unknown[]).length).toBe(25);
     expect(body.brief).toBeNull();
+    expect(body.gates).toBeDefined();
+    expect(body.intakeProgress).toBeDefined();
+    expect(typeof (body.intakeProgress as Record<string, unknown>).progressPct).toBe('number');
   });
 
   it('returns 200 with populated brief when row exists', async () => {
@@ -233,6 +236,9 @@ describe('GET /api/audits/:id/brief', () => {
     expect(v.total_recommended).toBeGreaterThan(0);
     expect(typeof v.sla_met).toBe('boolean');
     expect(typeof v.passed).toBe('boolean');
+    const gates = body.gates as Record<string, unknown>;
+    expect(typeof gates.canStartSnapshot).toBe('boolean');
+    expect(Array.isArray(gates.missingRequiredIds)).toBe(true);
   });
 
   it('returns validation.sla_met=true when all required answered', async () => {
@@ -295,6 +301,8 @@ describe('PUT /api/audits/:id/brief', () => {
     expect(status).toBe(200);
     expect(body.brief).toBeDefined();
     expect(body.validation).toBeDefined();
+    expect(body.gates).toBeDefined();
+    expect(body.intakeProgress).toBeDefined();
   });
 
   it('returns sla_met=true in validation when all required answered', async () => {

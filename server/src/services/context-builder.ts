@@ -19,7 +19,11 @@ export interface AgentContext {
   review_notes: Array<{ phase: number; consultant_notes: string | null; interview_notes: string | null }>;
   domain_weight: number;
   /** Answered brief responses relevant to this domain (empty object when no brief) */
-  brief_responses: Record<string, string | string[] | number | null>;
+  brief_responses: Record<string, string | string[] | number | boolean | null>;
+  brief_response_sources: Record<string, string>;
+  intake_data_quality_score: number;
+  intake_readiness_badge: 'low' | 'medium' | 'high';
+  post_audit_questions: Array<Record<string, unknown>>;
   /**
    * Domain keys that failed during a parallel wing run.
    * Passed to Strategy Agent so it can acknowledge gaps in its report.
@@ -33,6 +37,15 @@ export interface AgentContext {
  * This is Step 2 of the Data-First pipeline: COLLECT → **ASSEMBLE** → CALL → VERIFY.
  */
 export class ContextBuilder {
+  private static unwrapBriefResponse(value: unknown): { value: string | string[] | number | boolean | null; source: string } {
+    if (value && typeof value === 'object' && !Array.isArray(value) && 'value' in (value as Record<string, unknown>)) {
+      const v = (value as { value: unknown }).value;
+      const source = String((value as { source?: unknown }).source ?? 'client');
+      return { value: (v as string | string[] | number | boolean | null) ?? null, source };
+    }
+    return { value: (value as string | string[] | number | boolean | null) ?? null, source: 'client' };
+  }
+
   async build(
     auditId: string,
     domainKey: DomainKey | 'recon' | 'strategy',
@@ -87,17 +100,20 @@ export class ContextBuilder {
     // Fetch intake brief — get only questions relevant to this domain
     const { data: brief } = await supabase
       .from('intake_brief')
-      .select('responses')
+      .select('responses, data_quality_score, readiness_badge, post_audit_questions')
       .eq('audit_id', auditId)
       .single();
 
     const allResponses = (brief?.responses as Record<string, unknown>) ?? {};
     const domainQuestions = getQuestionsForDomain(domainKey);
-    const briefResponses: Record<string, string | string[] | number | null> = {};
+    const briefResponses: Record<string, string | string[] | number | boolean | null> = {};
+    const briefResponseSources: Record<string, string> = {};
     for (const q of domainQuestions) {
       const val = allResponses[q.id];
       if (val !== undefined) {
-        briefResponses[q.id] = val as string | string[] | number | null;
+        const parsed = ContextBuilder.unwrapBriefResponse(val);
+        briefResponses[q.id] = parsed.value;
+        briefResponseSources[q.id] = parsed.source;
       }
     }
 
@@ -131,6 +147,10 @@ export class ContextBuilder {
         ? getDomainWeight(industry, domainKey)
         : 1,
       brief_responses: briefResponses,
+      brief_response_sources: briefResponseSources,
+      intake_data_quality_score: Number(brief?.data_quality_score ?? 0),
+      intake_readiness_badge: (brief?.readiness_badge as 'low' | 'medium' | 'high') ?? 'low',
+      post_audit_questions: (brief?.post_audit_questions as Array<Record<string, unknown>>) ?? [],
       failed_domains: (failedDomains ?? []).map(d => String(d.domain_key)),
       instructions,
     };
@@ -153,7 +173,9 @@ export class ContextBuilder {
 - **URL:** ${ctx.company_url}
 - **Name:** ${ctx.company_name ?? 'Unknown'}
 - **Industry:** ${ctx.industry ?? 'Not determined'}
-- **Domain weight for this industry:** ${ctx.domain_weight}x`);
+- **Domain weight for this industry:** ${ctx.domain_weight}x
+- **Intake readiness:** ${ctx.intake_readiness_badge}
+- **Intake data quality score:** ${ctx.intake_data_quality_score}`);
 
     // Intake brief — domain-relevant answers (shown before raw data for prominence)
     if (Object.keys(ctx.brief_responses).length > 0) {
@@ -162,11 +184,18 @@ export class ContextBuilder {
         .map(([id, v]) => {
           const question = BRIEF_QUESTIONS.find(q => q.id === id)?.question ?? id.replace(/_/g, ' ');
           const answer = Array.isArray(v) ? v.join(', ') : String(v);
-          return `- **${question}:** ${answer}`;
+          const source = ctx.brief_response_sources[id] ?? 'client';
+          return `- **${question}:** ${answer} _(source: ${source})_`;
         });
       if (briefLines.length > 0) {
         sections.push(`## Client Brief (Pre-Audit Intake)\n${briefLines.join('\n')}`);
       }
+    }
+
+    if (ctx.post_audit_questions.length > 0) {
+      sections.push(`## Post-audit Follow-up Questions\n${ctx.post_audit_questions
+        .map((q, i) => `- Q${i + 1}: ${String(q.question ?? q.item ?? 'Follow-up needed')}`)
+        .join('\n')}`);
     }
 
     // Recon summary

@@ -8,11 +8,19 @@
  *   optional     🟢 — nice-to-have context
  */
 export type BriefPriority = 'required' | 'recommended' | 'optional';
-export type BriefQuestionType = 'free_text' | 'single_choice' | 'multi_choice' | 'number';
+export type BriefQuestionType = 'free_text' | 'single_choice' | 'multi_choice' | 'number' | 'rating' | 'confirm';
+export type BriefImportance = 'red' | 'yellow' | 'green';
+export type IntakeLayer = 0 | 1 | 2 | 3 | 'pre_brief';
+export type UxGroup = 'basics' | 'business' | 'tech' | 'audience' | 'goals';
+export type BriefResponseValue = string | string[] | number | boolean | null;
 
 export interface BriefQuestion {
   id: string;
   priority: BriefPriority;
+  importance?: BriefImportance;
+  intake_layer?: IntakeLayer;
+  weight?: number;
+  ux_group?: UxGroup;
   section: string;
   question: string;
   hint?: string;
@@ -20,9 +28,14 @@ export interface BriefQuestion {
   options?: string[];
 }
 
-export type BriefResponses = Record<string, string | string[] | number | null>;
+export interface BriefResponseEntry {
+  value: BriefResponseValue;
+  source: 'client' | 'consultant' | 'recon_confirmed' | 'unknown';
+}
 
-export const BRIEF_QUESTIONS: BriefQuestion[] = [
+export type BriefResponses = Record<string, BriefResponseValue | BriefResponseEntry>;
+
+const BASE_BRIEF_QUESTIONS: BriefQuestion[] = [
   // ── Business Basics ──────────────────────────────────────
   {
     id: 'primary_goal', priority: 'required', section: 'Business',
@@ -185,15 +198,84 @@ export const BRIEF_QUESTIONS: BriefQuestion[] = [
   },
 ];
 
+const EXPRESS_REQUIRED_IDS = new Set<string>([
+  'primary_goal',
+  'target_audience',
+  'revenue_model',
+  'primary_cta',
+  'has_google_analytics',
+  'handles_payments',
+  'biggest_pain',
+]);
+
+const PRE_BRIEF_IDS = new Set<string>([
+  'primary_goal',
+  'target_audience',
+  'primary_cta',
+  'has_google_analytics',
+  'handles_payments',
+  'biggest_pain',
+]);
+
+function enrichQuestion(question: BriefQuestion): BriefQuestion {
+  const importance: BriefImportance = question.priority === 'required'
+    ? 'red'
+    : question.priority === 'recommended'
+      ? 'yellow'
+      : 'green';
+  const weight = importance === 'red' ? 3 : importance === 'yellow' ? 2 : 1;
+
+  let ux_group: UxGroup = 'business';
+  if (question.section.includes('Tech') || question.section.includes('Security')) {
+    ux_group = 'tech';
+  } else if (question.section.includes('SEO')) {
+    ux_group = 'audience';
+  } else if (question.id === 'primary_goal' || question.id === 'biggest_pain') {
+    ux_group = 'goals';
+  } else if (question.id === 'revenue_model' || question.id === 'monthly_revenue') {
+    ux_group = 'basics';
+  }
+
+  let intake_layer: IntakeLayer = question.priority === 'required' ? 1 : 2;
+  if (PRE_BRIEF_IDS.has(question.id)) {
+    intake_layer = 'pre_brief';
+  }
+
+  return {
+    ...question,
+    importance,
+    weight,
+    ux_group,
+    intake_layer,
+  };
+}
+
+export const BRIEF_QUESTIONS: BriefQuestion[] = BASE_BRIEF_QUESTIONS.map(enrichQuestion);
+
 export const REQUIRED_IDS = BRIEF_QUESTIONS.filter(q => q.priority === 'required').map(q => q.id);
+export const EXPRESS_REQUIRED_QUESTION_IDS = BRIEF_QUESTIONS
+  .filter(q => EXPRESS_REQUIRED_IDS.has(q.id))
+  .map(q => q.id);
+export const PRE_BRIEF_QUESTION_IDS = BRIEF_QUESTIONS
+  .filter(q => q.intake_layer === 'pre_brief')
+  .map(q => q.id);
 export const BRIEF_SECTIONS = [...new Set(BRIEF_QUESTIONS.map(q => q.section))];
+export const BRIEF_UX_GROUPS = [...new Set(BRIEF_QUESTIONS.map(q => q.ux_group))];
+
+function unwrapResponse(value: BriefResponseValue | BriefResponseEntry | undefined): BriefResponseValue | undefined {
+  if (value != null && typeof value === 'object' && !Array.isArray(value) && 'value' in value) {
+    return value.value;
+  }
+  return value as BriefResponseValue | undefined;
+}
 
 export function countAnswered(responses: BriefResponses, ids: string[]): number {
   return ids.filter(id => {
-    const v = responses[id];
+    const v = unwrapResponse(responses[id]);
     if (v === null || v === undefined) return false;
     if (typeof v === 'string') return v.trim().length > 0;
     if (typeof v === 'number') return true;
+    if (typeof v === 'boolean') return true;
     if (Array.isArray(v)) return v.length > 0;
     return false;
   }).length;

@@ -9,7 +9,7 @@ import { api } from '../data/apiService';
 import type { AuditRequest, AuditRequestStatus } from '../data/auditTypes';
 import {
   BRIEF_QUESTIONS, REQUIRED_IDS, countAnswered,
-  type BriefResponses, type BriefQuestion,
+  type BriefResponseEntry, type BriefResponses, type BriefQuestion,
 } from '../data/briefQuestions';
 
 // ── Status step timeline ──────────────────────────────────────────────────────
@@ -123,6 +123,8 @@ function StepTimeline({ status }: { status: AuditRequestStatus }) {
 
 function ClientBriefSection({ auditId }: { auditId: string }) {
   const [responses, setResponses] = useState<BriefResponses>({});
+  const [intakeProgress, setIntakeProgress] = useState<{ progressPct: number; readinessBadge: 'low' | 'medium' | 'high'; nextBestAction: string } | null>(null);
+  const [missingRecommendedCount, setMissingRecommendedCount] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [briefError, setBriefError] = useState<string | null>(null);
@@ -134,12 +136,17 @@ function ClientBriefSection({ auditId }: { auditId: string }) {
         if (data.brief?.responses) {
           setResponses(data.brief.responses as BriefResponses);
         }
+        if (data.intakeProgress) setIntakeProgress(data.intakeProgress);
+        if (data.gates?.recommendedToImproveIds) setMissingRecommendedCount(data.gates.recommendedToImproveIds.length);
       })
       .catch(() => {/* Brief may not exist yet — that's OK */})
       .finally(() => setLoading(false));
   }, [auditId]);
 
   const answeredRequired = countAnswered(responses, REQUIRED_IDS);
+  const fallbackProgress = Math.min(100, Math.round((answeredRequired / REQUIRED_IDS.length) * 100));
+  const progressPct = intakeProgress?.progressPct ?? fallbackProgress;
+  const readinessBadge = intakeProgress?.readinessBadge ?? (fallbackProgress >= 80 ? 'high' : fallbackProgress >= 45 ? 'medium' : 'low');
 
   async function handleSave() {
     setSaving(true);
@@ -147,6 +154,9 @@ function ClientBriefSection({ auditId }: { auditId: string }) {
     setSaved(false);
     try {
       await api.saveBrief(auditId, responses as Record<string, unknown>);
+      const refreshed = await api.getBrief(auditId);
+      if (refreshed.intakeProgress) setIntakeProgress(refreshed.intakeProgress);
+      if (refreshed.gates?.recommendedToImproveIds) setMissingRecommendedCount(refreshed.gates.recommendedToImproveIds.length);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -174,9 +184,15 @@ function ClientBriefSection({ auditId }: { auditId: string }) {
       </div>
 
       <div className="px-5 py-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>Audit readiness: {progressPct}%</span>
+          <span className="px-2 py-0.5 rounded text-xs" style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+            {readinessBadge.toUpperCase()}
+          </span>
+        </div>
         {/* Progress */}
         <div className="rounded-full overflow-hidden" style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.06)' }}>
-          <div className="h-full rounded-full" style={{ width: `${(answeredRequired / REQUIRED_IDS.length) * 100}%`, background: 'var(--gradient-brand)', transition: 'width 0.3s' }} />
+          <div className="h-full rounded-full" style={{ width: `${progressPct}%`, background: 'var(--gradient-brand)', transition: 'width 0.3s' }} />
         </div>
 
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
@@ -187,13 +203,19 @@ function ClientBriefSection({ auditId }: { auditId: string }) {
           </span>{' '}
           questions before the audit starts.
         </p>
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+          Want to improve audit quality? Answer {missingRecommendedCount} more recommended question(s).
+        </p>
 
         {/* Required questions only in client view */}
         <div className="space-y-4">
           {requiredQs.map((q: BriefQuestion) => {
             const value = responses[q.id];
-            const strVal = typeof value === 'string' ? value : '';
-            const arrVal = Array.isArray(value) ? value : [];
+            const rawValue = (value && typeof value === 'object' && !Array.isArray(value) && 'value' in value)
+              ? (value as BriefResponseEntry).value
+              : value;
+            const strVal = typeof rawValue === 'string' ? rawValue : '';
+            const arrVal = Array.isArray(rawValue) ? rawValue : [];
 
             return (
               <div key={q.id} className="space-y-1.5">
@@ -204,7 +226,7 @@ function ClientBriefSection({ auditId }: { auditId: string }) {
                 {q.hint && <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>{q.hint}</p>}
 
                 {q.type === 'free_text' && (
-                  <textarea rows={2} value={strVal} onChange={e => setResponses(prev => ({ ...prev, [q.id]: e.target.value || null }))}
+                  <textarea rows={2} value={strVal} onChange={e => setResponses(prev => ({ ...prev, [q.id]: { value: e.target.value || null, source: 'client' } }))}
                     placeholder="Your answer..." className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
                     style={{ backgroundColor: 'var(--bg-inset)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
                     onFocus={e => { (e.target as HTMLElement).style.borderColor = 'var(--glc-blue)'; }}
@@ -217,7 +239,7 @@ function ClientBriefSection({ auditId }: { auditId: string }) {
                     {q.options.map(opt => {
                       const sel = strVal === opt;
                       return (
-                        <button key={opt} type="button" onClick={() => setResponses(prev => ({ ...prev, [q.id]: sel ? null : opt }))}
+                        <button key={opt} type="button" onClick={() => setResponses(prev => ({ ...prev, [q.id]: { value: sel ? null : opt, source: 'client' } }))}
                           className="px-2.5 py-1 rounded-lg text-xs"
                           style={{ backgroundColor: sel ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)', border: sel ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)', color: sel ? '#fff' : 'var(--text-secondary)' }}
                         >{opt}</button>
@@ -234,7 +256,7 @@ function ClientBriefSection({ auditId }: { auditId: string }) {
                         <button key={opt} type="button"
                           onClick={() => {
                             const next = sel ? arrVal.filter(v => v !== opt) : [...arrVal, opt];
-                            setResponses(prev => ({ ...prev, [q.id]: next.length ? next : null }));
+                            setResponses(prev => ({ ...prev, [q.id]: { value: next.length ? next : null, source: 'client' } }));
                           }}
                           className="px-2.5 py-1 rounded-lg text-xs"
                           style={{ backgroundColor: sel ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)', border: sel ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)', color: sel ? '#fff' : 'var(--text-secondary)' }}

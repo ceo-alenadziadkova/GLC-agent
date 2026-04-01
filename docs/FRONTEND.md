@@ -6,6 +6,8 @@ Product context (modes, deliverables): [PRODUCT.md](./PRODUCT.md). System diagra
 
 React 18 + TypeScript + Vite. Deployed to Vercel. Uses Tailwind CSS + glassmorphism design system. Animation via Framer Motion.
 
+Application UI code must not use emoji characters for status or progress markers. Use icon components (Phosphor React) and semantic color tokens.
+
 ---
 
 ## Pages (7 total)

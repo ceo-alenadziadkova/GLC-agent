@@ -14,7 +14,7 @@ import type { BriefQuestion } from '../types/audit.js';
 
 // ─── Question definitions ─────────────────────────────────────────────────────
 
-export const BRIEF_QUESTIONS: BriefQuestion[] = [
+const BASE_BRIEF_QUESTIONS: BriefQuestion[] = [
   // ── Business Basics (all agents) ──────────────────────────────────────────
   {
     id: 'primary_goal',
@@ -227,12 +227,71 @@ export const BRIEF_QUESTIONS: BriefQuestion[] = [
   },
 ];
 
+const EXPRESS_REQUIRED_IDS = new Set<string>([
+  'primary_goal',
+  'target_audience',
+  'revenue_model',
+  'primary_cta',
+  'has_google_analytics',
+  'handles_payments',
+  'biggest_pain',
+]);
+
+const PRE_BRIEF_IDS = new Set<string>([
+  'primary_goal',
+  'target_audience',
+  'primary_cta',
+  'has_google_analytics',
+  'handles_payments',
+  'biggest_pain',
+]);
+
+function enrichQuestion(question: BriefQuestion): BriefQuestion {
+  const importance = question.priority === 'required'
+    ? 'red'
+    : question.priority === 'recommended'
+      ? 'yellow'
+      : 'green';
+  const weight = importance === 'red' ? 3 : importance === 'yellow' ? 2 : 1;
+
+  let ux_group: BriefQuestion['ux_group'] = 'business';
+  if (question.domains.includes('tech_infrastructure') || question.domains.includes('security_compliance')) {
+    ux_group = 'tech';
+  } else if (question.domains.includes('seo_digital')) {
+    ux_group = 'audience';
+  } else if (question.id === 'primary_goal' || question.id === 'biggest_pain') {
+    ux_group = 'goals';
+  } else if (question.id === 'revenue_model' || question.id === 'monthly_revenue') {
+    ux_group = 'basics';
+  }
+
+  let intake_layer: BriefQuestion['intake_layer'] = question.priority === 'required' ? 1 : 2;
+  if (PRE_BRIEF_IDS.has(question.id)) {
+    intake_layer = 'pre_brief';
+  }
+
+  return {
+    ...question,
+    importance,
+    weight,
+    ux_group,
+    intake_layer,
+  };
+}
+
+export const BRIEF_QUESTIONS: BriefQuestion[] = BASE_BRIEF_QUESTIONS.map(enrichQuestion);
+
 // ─── Zod schema for responses validation ──────────────────────────────────────
 
 const answerSchema = z.union([
   z.string().max(2000),
   z.array(z.string()).max(10),
   z.number(),
+  z.boolean(),
+  z.object({
+    value: z.union([z.string().max(2000), z.array(z.string()).max(10), z.number(), z.boolean(), z.null()]),
+    source: z.enum(['client', 'consultant', 'recon_confirmed', 'unknown']),
+  }),
   z.null(),
 ]);
 
@@ -246,8 +305,20 @@ export const REQUIRED_QUESTION_IDS = BRIEF_QUESTIONS
   .filter(q => q.priority === 'required')
   .map(q => q.id);
 
+export const EXPRESS_REQUIRED_QUESTION_IDS = BRIEF_QUESTIONS
+  .filter(q => EXPRESS_REQUIRED_IDS.has(q.id))
+  .map(q => q.id);
+
 export const RECOMMENDED_QUESTION_IDS = BRIEF_QUESTIONS
   .filter(q => q.priority === 'recommended')
+  .map(q => q.id);
+
+export const OPTIONAL_QUESTION_IDS = BRIEF_QUESTIONS
+  .filter(q => q.priority === 'optional')
+  .map(q => q.id);
+
+export const PRE_BRIEF_QUESTION_IDS = BRIEF_QUESTIONS
+  .filter(q => q.intake_layer === 'pre_brief')
   .map(q => q.id);
 
 /**

@@ -5,6 +5,7 @@ import { pipelineLimiter } from '../middleware/rate-limit.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
 import { maxPhaseForMode, type ProductMode } from '../types/audit.js';
 import { logger } from '../services/logger.js';
+import { evaluateBriefGates } from '../services/brief-validator.js';
 
 /**
  * Emit an error event to pipeline_events and mark audit as failed.
@@ -48,7 +49,7 @@ pipelineRouter.post('/:id/pipeline/start', ...consultantGuard, pipelineLimiter, 
     // Verify ownership
     const { data: audit, error } = await supabase
       .from('audits')
-      .select('id, status, current_phase, tokens_used, token_budget, updated_at')
+      .select('id, status, current_phase, tokens_used, token_budget, updated_at, product_mode')
       .eq('id', id)
       .eq('user_id', req.userId!)
       .single();
@@ -82,8 +83,16 @@ pipelineRouter.post('/:id/pipeline/start', ...consultantGuard, pipelineLimiter, 
       return;
     }
 
+    // Include intake progress contract so UI can render readiness state.
+    const { data: brief } = await supabase
+      .from('intake_brief')
+      .select('responses')
+      .eq('audit_id', id)
+      .single();
+    const gates = evaluateBriefGates((brief?.responses as Record<string, unknown>) ?? {}, (audit.product_mode as ProductMode) ?? 'full');
+
     // Start pipeline (runs Phase 0: Recon)
-    res.json({ status: 'started', phase: 0 });
+    res.json({ status: 'started', phase: 0, intakeProgress: gates.intakeProgress });
 
     // Run asynchronously — surface errors to frontend via pipeline_events
     const orchestrator = new PipelineOrchestrator(id);

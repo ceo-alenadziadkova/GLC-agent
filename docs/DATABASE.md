@@ -12,6 +12,8 @@ PostgreSQL on **Supabase**. Apply migrations **in numeric order** so foreign key
 6. `006_intake_brief.sql` — `intake_brief`
 7. `007_finding_provenance.sql` — extra columns on `audit_domains`
 8. `008_reliability_idempotency.sql` — `api_idempotency_keys` for safe replay of critical writes
+9. `009_prompt_version_quality_gate.sql` — `prompt_version` in `audit_domains`, `quality_gate_passed` in `review_points`, client-read RLS policies on downstream tables
+10. `010_intake_progress_gamification.sql` — progressive intake and readiness fields in `intake_brief`
 
 **Tables (11):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`.
 
@@ -100,6 +102,7 @@ UNIQUE(audit_id, domain_key, version)
 **`domain_key` values:** `tech_infrastructure` | `security_compliance` | `seo_digital` | `ux_conversion` | `marketing_utp` | `automation_processes`
 
 **Migration 007:** adds `confidence_distribution` (jsonb) and `unknown_items` (jsonb) for provenance / gap tracking.
+**Migration 009:** adds `prompt_version` (`varchar(20)`) to track prompt contract version per domain row.
 
 **`status` values:** `pending` | `collecting` | `assembling_context` | `analyzing` | `completed` | `failed`
 
@@ -193,6 +196,7 @@ status           text DEFAULT 'pending'   -- pending | approved
 consultant_notes text
 interview_notes  text
 approved_at      timestamptz
+quality_gate_passed boolean                -- added by migration 009
 ```
 
 ---
@@ -211,7 +215,21 @@ Client-submitted audit requests before an `audits` row is attached. Status workf
 
 ### `intake_brief`
 
-Structured questionnaire responses per audit (`responses` jsonb, `status` `draft` | `submitted`, SLA counters). One row per audit (unique `audit_id`). Migration `006_intake_brief.sql`.
+Structured questionnaire responses per audit. One row per audit (unique `audit_id`).
+
+Core fields:
+
+- `responses` (`jsonb`) — versioned payload (`responses_format`), supports legacy flat values and structured `{ value, source }`.
+- `status` (`draft` | `submitted`) and SLA counters (`answered_required`, `answered_recommended`, `answered_optional`).
+- Progressive intake metadata: `layer_completed`, `collected_by`, `collection_mode`, `data_quality_score`, `recon_prefills`, `post_audit_questions`.
+- Server-derived gamification/readiness state:
+  - `progress_pct` (`0..100`),
+  - `readiness_badge` (`low|medium|high`),
+  - `next_best_action` (`complete_required|add_recommended|confirm_prefill|none`).
+
+Contract rule: readiness/progress fields are derived on the backend on each save/update and treated as canonical API data (frontend renders only).
+
+Migrations: `006_intake_brief.sql`, `010_intake_progress_gamification.sql`.
 
 ---
 

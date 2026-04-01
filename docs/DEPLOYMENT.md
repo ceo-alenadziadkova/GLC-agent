@@ -14,7 +14,7 @@
 ## Supabase Setup
 
 1. Create project at [supabase.com](https://supabase.com) — choose **EU (Frankfurt)** region for GDPR compliance
-2. In SQL Editor → run **all** SQL migrations in order (`001` … `008`); see [DATABASE.md](./DATABASE.md#overview)
+2. In SQL Editor → run **all** SQL migrations in order (`001` … `010`); see [DATABASE.md](./DATABASE.md#overview)
 3. Authentication → Settings:
    - Set **Site URL** to your production frontend URL
    - Add **Redirect URLs**: `https://your-app.vercel.app/**`
@@ -34,7 +34,8 @@
 2. New Project → Deploy from GitHub repo
 3. Railway auto-detects `server/package.json` — set root directory to `server/`
 4. Set environment variables in Railway dashboard:
-   ```
+
+   ```env
    PORT=3001
    SUPABASE_URL=https://xxxx.supabase.co
    SUPABASE_SERVICE_KEY=eyJ...
@@ -55,7 +56,8 @@
 2. New Project → Import GitHub repo
 3. Vercel auto-detects Vite — no changes needed to build settings
 4. Set environment variables in Vercel dashboard (Settings → Environment Variables):
-   ```
+
+   ```env
    VITE_API_URL=https://glc-api.up.railway.app
    VITE_SUPABASE_URL=https://xxxx.supabase.co
    VITE_SUPABASE_ANON_KEY=eyJ...
@@ -127,7 +129,7 @@ In production: set `ALLOWED_ORIGINS=https://your-app.vercel.app` in Railway.
 
 ## Deploy Checklist
 
-- [ ] Run all SQL migrations in order (`001` … `008`) in Supabase SQL editor
+- [ ] Run all SQL migrations in order (`001` … `010`) in Supabase SQL editor
 - [ ] RLS policies active (check in Supabase → Table Editor → each table)
 - [ ] Supabase Site URL + Redirect URLs updated to production domain
 - [ ] Google OAuth configured in Supabase (if using)
