@@ -1,3 +1,5 @@
+import { INDUSTRY_OPTIONS } from './industry-options';
+
 /**
  * Intake Brief question definitions — frontend copy of server/src/schemas/intake-brief.ts
  * Keep in sync with the server schema.
@@ -38,6 +40,43 @@ export interface BriefResponseEntry {
 }
 
 export type BriefResponses = Record<string, BriefResponseValue | BriefResponseEntry>;
+
+/** Public /intake/:token only — same response keys as server (not in BRIEF_QUESTIONS). */
+const BASE_INTAKE_IDENTITY_QUESTIONS: BriefQuestion[] = [
+  {
+    id: 'intake_company_website',
+    priority: 'required',
+    section: 'Business',
+    question: 'Company website',
+    hint: 'Full URL (https://…). If you do not have a website yet, write "none" or "no website".',
+    type: 'free_text',
+  },
+  {
+    id: 'intake_company_name',
+    priority: 'required',
+    section: 'Business',
+    question: 'Company name',
+    hint: 'Legal or trading name — as you want it shown on the audit.',
+    type: 'free_text',
+  },
+  {
+    id: 'intake_industry',
+    priority: 'required',
+    section: 'Business',
+    question: 'Primary industry or sector',
+    hint: 'Choose the closest match; you can change it if needed.',
+    type: 'single_choice',
+    options: [...INDUSTRY_OPTIONS],
+  },
+  {
+    id: 'intake_industry_specify',
+    priority: 'optional',
+    section: 'Business',
+    question: 'Which industry or sector?',
+    hint: 'You chose Other — briefly describe your industry (e.g. niche manufacturing, creator economy).',
+    type: 'free_text',
+  },
+];
 
 const BASE_BRIEF_QUESTIONS: BriefQuestion[] = [
   // ── Business Basics ──────────────────────────────────────
@@ -213,6 +252,10 @@ const EXPRESS_REQUIRED_IDS = new Set<string>([
 ]);
 
 const PRE_BRIEF_IDS = new Set<string>([
+  'intake_company_website',
+  'intake_company_name',
+  'intake_industry',
+  'intake_industry_specify',
   'primary_goal',
   'target_audience',
   'primary_cta',
@@ -230,6 +273,10 @@ const HIGH_REVENUE_QUESTION_IDS = new Set<string>([
 ]);
 
 const CONSULTANT_HINTS: Record<string, string> = {
+  intake_company_website: 'Confirm live URL; social-only or pre-launch — capture where prospects actually go.',
+  intake_company_name: 'Legal vs trading name if it affects positioning or contracts.',
+  intake_industry: 'Confirm the closest list match; probe sub-niche in the interview if needed.',
+  intake_industry_specify: 'If Other, capture how they describe the vertical in their own words.',
   primary_goal: 'Confirm the north-star KPI and timeline; note tensions between growth vs. cost.',
   target_audience: 'Probe jobs-to-be-done, regions, and budget authority.',
   revenue_model: 'Clarify average deal size or basket value and seasonality.',
@@ -272,7 +319,9 @@ function enrichQuestion(question: BriefQuestion): BriefQuestion {
   const weight = importance === 'red' ? 3 : importance === 'yellow' ? 2 : 1;
 
   let ux_group: UxGroup = 'business';
-  if (question.section.includes('Tech') || question.section.includes('Security')) {
+  if (question.id.startsWith('intake_')) {
+    ux_group = 'basics';
+  } else if (question.section.includes('Tech') || question.section.includes('Security')) {
     ux_group = 'tech';
   } else if (question.section.includes('SEO')) {
     ux_group = 'audience';
@@ -307,6 +356,23 @@ function enrichQuestion(question: BriefQuestion): BriefQuestion {
 
 export const BRIEF_QUESTIONS: BriefQuestion[] = BASE_BRIEF_QUESTIONS.map(enrichQuestion);
 
+export const INTAKE_IDENTITY_BRIEF_QUESTIONS: BriefQuestion[] = BASE_INTAKE_IDENTITY_QUESTIONS.map(enrichQuestion);
+
+export const INTAKE_IDENTITY_FIELD_IDS = [
+  'intake_company_website',
+  'intake_company_name',
+  'intake_industry',
+  'intake_industry_specify',
+] as const;
+
+export function getBriefQuestionText(id: string): string {
+  return (
+    BRIEF_QUESTIONS.find(q => q.id === id)?.question
+    ?? INTAKE_IDENTITY_BRIEF_QUESTIONS.find(q => q.id === id)?.question
+    ?? id.replace(/_/g, ' ')
+  );
+}
+
 export const REQUIRED_IDS = BRIEF_QUESTIONS.filter(q => q.priority === 'required').map(q => q.id);
 export const EXPRESS_REQUIRED_QUESTION_IDS = BRIEF_QUESTIONS
   .filter(q => EXPRESS_REQUIRED_IDS.has(q.id))
@@ -324,8 +390,58 @@ function unwrapResponse(value: BriefResponseValue | BriefResponseEntry | undefin
   return value as BriefResponseValue | undefined;
 }
 
+/** True if the field has no usable answer yet (used to apply consultant metadata prefill on public intake). */
+export function isBriefValueBlank(raw: BriefResponses[string] | undefined): boolean {
+  if (raw === undefined) return true;
+  if (isExplicitUnknown(raw)) return false;
+  const v = unwrapResponse(raw);
+  if (v === null || v === undefined) return true;
+  if (typeof v === 'string') return v.trim() === '';
+  if (typeof v === 'number') return false;
+  if (typeof v === 'boolean') return false;
+  if (Array.isArray(v)) return v.length === 0;
+  return true;
+}
+
+/**
+ * Deep-enough merge for saving intake brief: non-blank local answers win; otherwise keep server.
+ * Prevents wiping token-merged pre-brief when local React state missed some keys (e.g. expired public GET).
+ */
+export function mergeBriefResponsesPreferFilled(
+  server: BriefResponses,
+  local: BriefResponses
+): BriefResponses {
+  const keys = new Set([...Object.keys(server), ...Object.keys(local)]);
+  const out: BriefResponses = {};
+  for (const id of keys) {
+    const s = server[id];
+    const l = local[id];
+    const sOk = !isBriefValueBlank(s);
+    const lOk = !isBriefValueBlank(l);
+    if (lOk) {
+      out[id] = l as BriefResponseEntry;
+    } else if (sOk) {
+      out[id] = s as BriefResponseEntry;
+    } else if (l !== undefined) {
+      out[id] = l as BriefResponseEntry;
+    } else if (s !== undefined) {
+      out[id] = s as BriefResponseEntry;
+    }
+  }
+  return out;
+}
+
+function isExplicitUnknown(raw: BriefResponses[string] | undefined): boolean {
+  if (raw != null && typeof raw === 'object' && !Array.isArray(raw) && 'source' in raw) {
+    return (raw as BriefResponseEntry).source === 'unknown';
+  }
+  return false;
+}
+
+/** Counts questions satisfied for gating: real answers or explicit "I don't know" (source unknown). */
 export function countAnswered(responses: BriefResponses, ids: string[]): number {
   return ids.filter(id => {
+    if (isExplicitUnknown(responses[id])) return true;
     const v = unwrapResponse(responses[id]);
     if (v === null || v === undefined) return false;
     if (typeof v === 'string') return v.trim().length > 0;
@@ -334,4 +450,52 @@ export function countAnswered(responses: BriefResponses, ids: string[]): number 
     if (Array.isArray(v)) return v.length > 0;
     return false;
   }).length;
+}
+
+/** True when primary industry is Other (shows follow-up specify field on public pre-brief). */
+export function intakeIndustryIsOther(responses: BriefResponses): boolean {
+  return unwrapResponse(responses.intake_industry) === 'Other';
+}
+
+/** Pre-brief completion per slot (specify required only when industry is Other). */
+export function isPreBriefQuestionSatisfied(questionId: string, responses: BriefResponses): boolean {
+  if (questionId === 'intake_industry_specify') {
+    if (!intakeIndustryIsOther(responses)) return true;
+    return countAnswered(responses, [questionId]) >= 1;
+  }
+  return countAnswered(responses, [questionId]) >= 1;
+}
+
+/** Slot list for public pre-brief progress + server submit validation (identity + core). */
+export function getPreBriefSubmitSlotIds(responses: BriefResponses): string[] {
+  const ids: string[] = [
+    INTAKE_IDENTITY_FIELD_IDS[0],
+    INTAKE_IDENTITY_FIELD_IDS[1],
+    INTAKE_IDENTITY_FIELD_IDS[2],
+  ];
+  if (intakeIndustryIsOther(responses)) {
+    ids.push(INTAKE_IDENTITY_FIELD_IDS[3]);
+  }
+  ids.push(...PRE_BRIEF_QUESTION_IDS);
+  return ids;
+}
+
+export function countPreBriefSatisfied(responses: BriefResponses): number {
+  return getPreBriefSubmitSlotIds(responses).filter(id => isPreBriefQuestionSatisfied(id, responses)).length;
+}
+
+/** One-line summary for review / read-only lists (intake, exports). */
+export function formatBriefAnswerSummary(
+  _q: BriefQuestion,
+  raw: BriefResponses[string] | undefined,
+): string {
+  if (raw === undefined) return '—';
+  if (isExplicitUnknown(raw)) return "Don't know (consultant will follow up)";
+  const v = unwrapResponse(raw);
+  if (v === null || v === undefined) return '—';
+  if (typeof v === 'string') return v.trim() || '—';
+  if (typeof v === 'number') return String(v);
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+  if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
+  return '—';
 }

@@ -285,10 +285,26 @@ async function publicApiFetch<T>(path: string, options: RequestInit = {}): Promi
 
 export const api = {
   // Audits CRUD
-  async createAudit(companyUrl: string, companyName?: string, industry?: string, productMode: 'express' | 'full' = 'full') {
+  async createAudit(
+    companyUrl: string,
+    companyName?: string,
+    industry?: string,
+    productMode: 'express' | 'full' = 'full',
+    options?: { noPublicWebsite?: boolean }
+  ) {
+    const body: Record<string, unknown> = {
+      company_name: companyName ?? null,
+      industry: industry ?? null,
+      product_mode: productMode,
+    };
+    if (options?.noPublicWebsite) {
+      body.no_public_website = true;
+    } else {
+      body.company_url = companyUrl;
+    }
     return apiFetch<{ id: string; status: string }>('/api/audits', {
       method: 'POST',
-      body: JSON.stringify({ company_url: companyUrl, company_name: companyName, industry, product_mode: productMode }),
+      body: JSON.stringify(body),
     });
   },
 
@@ -486,6 +502,8 @@ export const api = {
   // Audit Requests (client portal)
   async createAuditRequest(params: {
     url: string;
+    /** When true, server stores the canonical no-public-website placeholder URL. */
+    no_public_website?: boolean;
     industry?: string;
     product_mode?: 'express' | 'full';
     brief_snapshot?: Record<string, unknown>;
@@ -547,6 +565,41 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  },
+
+  /** Tie a pre-brief token to an audit and merge any submitted client answers into intake_brief. */
+  async linkIntakeTokenToAudit(token: string, auditId: string) {
+    return apiFetch<{ ok: true }>('/api/intake/link-audit', {
+      method: 'POST',
+      body: JSON.stringify({ token, audit_id: auditId }),
+    });
+  },
+
+  /** Consultant: client submissions via shareable pre-brief links (submitted_at set). */
+  async listIntakeSubmissions() {
+    return apiFetch<{
+      submissions: Array<{
+        token: string;
+        metadata: Record<string, unknown>;
+        responses: Record<string, unknown>;
+        submitted_at: string;
+        expires_at: string;
+        audit_id: string | null;
+        intake_url: string;
+      }>;
+    }>('/api/intake/submissions');
+  },
+
+  /** Consultant: load token answers for New Audit prefill even when the public link has expired. */
+  async getIntakePrefillForConsultant(token: string) {
+    return apiFetch<{
+      metadata: Record<string, unknown>;
+      questions: BriefQuestion[];
+      responses: Record<string, unknown>;
+      submitted_at: string | null;
+      expires_at: string;
+      link_expired?: boolean;
+    }>(`/api/intake/prefill/${encodeURIComponent(token)}`);
   },
 
   async getIntakeToken(token: string) {

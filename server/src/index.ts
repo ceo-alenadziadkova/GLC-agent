@@ -12,6 +12,7 @@ import { auditRequestsRouter } from './routes/audit-requests.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { requireAuth, attachProfile, type AuthRequest } from './middleware/auth.js';
 import { traceMiddleware } from './middleware/trace.js';
+import { requestLogMiddleware } from './middleware/request-log.js';
 import { logger } from './services/logger.js';
 import { startAlertsWorker } from './services/alerts.js';
 import { updateContext } from './services/observability-context.js';
@@ -22,11 +23,19 @@ initSentry();
 
 // ─── Middleware ─────────────────────────────────────────────
 app.use(traceMiddleware);
+app.use(requestLogMiddleware);
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
     ? process.env.FRONTEND_URL
     : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
   credentials: true,
+  exposedHeaders: [
+    'RateLimit-Limit',
+    'RateLimit-Remaining',
+    'RateLimit-Reset',
+    'RateLimit-Policy',
+    'Retry-After',
+  ],
 }));
 app.use(express.json({ limit: '2mb' }));
 app.use((req, _res, next) => {

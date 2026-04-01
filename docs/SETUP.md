@@ -28,7 +28,7 @@ cd server && npm install && cd ..
 
 1. Create a project at [supabase.com](https://supabase.com)
 2. In the SQL Editor, run **all** migrations in order (see [DATABASE.md](./DATABASE.md#overview)):
-   - `001_initial_schema.sql` through `011_intake_tokens.sql`
+   - `001_initial_schema.sql` through `012_profiles_trigger_auth_admin.sql`
 3. Note your project URL and anon key (Project Settings → API)
 4. Note your service role key (same page — keep secret)
 
@@ -132,7 +132,7 @@ Simulated full audit for **Hospital Universitari Son Espases** — use to explor
 
 ### Demo prerequisites
 
-1. Supabase migrations applied (at least through `001`; full product features need `001`–`011`)
+1. Supabase migrations applied (at least through `001`; full product features need `001`–`012`)
 2. `server/.env` with valid `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`
 3. Frontend running: `pnpm dev` ([http://localhost:5173](http://localhost:5173))
 

@@ -1,12 +1,29 @@
 import { BaseCollector } from './base.js';
 import { supabase } from '../services/supabase.js';
 import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } from '../lib/public-http-url.js';
+import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
 
 export class SeoCollector extends BaseCollector {
   get key() { return 'seo_meta'; }
   get phase() { return 3; }
 
   async collect(auditId: string, companyUrl: string) {
+    if (isNoPublicWebsiteUrl(companyUrl)) {
+      return {
+        no_crawl_data: true,
+        warning: 'No public website — SEO checks skipped',
+        robots_txt: { exists: false, content: null, issues: ['No public website URL on file'] },
+        sitemap: { exists: false, url: null, url_count: 0, format: null },
+        open_graph: { pages_with_structured_data: 0, total_pages: 0, structured_data_types: [] },
+        page_analysis: {
+          issues: [],
+          meta_coverage: { with_title: 0, with_description: 0, with_h1: 0, total: 0 },
+          image_stats: { total: 0, missing_alt: 0 },
+        },
+        total_pages: 0,
+      };
+    }
+
     try {
       await validatePublicAuditUrl(companyUrl);
     } catch (e) {

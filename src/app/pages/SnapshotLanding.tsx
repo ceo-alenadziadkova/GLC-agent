@@ -4,8 +4,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Globe, ArrowRight, CheckCircle, Warning, Lightning, CaretRight, Shield, Check, X, Equals } from '@phosphor-icons/react';
 import type { SnapshotCompetitorComparison } from '../data/auditTypes';
 import type { FreeSnapshotPreview } from '../data/auditTypes';
-// @ts-ignore
-import Logo from '../assets/logo-white.svg';
+import { GlcLogo } from '../components/GlcLogo';
+import { SyncPathLoader } from '../components/SyncPathLoader';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
@@ -71,10 +72,30 @@ export function SnapshotLanding() {
   const [url, setUrl] = useState('');
   const [stage, setStage] = useState<Stage>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+  const [quotaHint, setQuotaHint] = useState('');
+  const [rateLimitDetail, setRateLimitDetail] = useState<{ limit: number; remaining: number } | null>(null);
   const [result, setResult] = useState<FreeSnapshotPreview | null>(null);
   const [phaseIdx, setPhaseIdx] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tokenRef = useRef<string>('');
+  const [quotaPreview, setQuotaPreview] = useState<{ remaining: number; limit: number } | null>(null);
+
+  async function refreshQuotaPreview() {
+    try {
+      const res = await fetch(`${API_URL}/api/snapshot/quota`);
+      if (!res.ok) return;
+      const data = (await res.json()) as { remaining?: number; limit?: number };
+      if (typeof data.remaining === 'number' && typeof data.limit === 'number') {
+        setQuotaPreview({ remaining: data.remaining, limit: data.limit });
+      }
+    } catch {
+      /* ignore — page still works without preview */
+    }
+  }
+
+  useEffect(() => {
+    void refreshQuotaPreview();
+  }, []);
 
   // Cycle through phase labels while running
   useEffect(() => {
@@ -120,6 +141,7 @@ export function SnapshotLanding() {
 
     setStage('submitting');
     setErrorMsg('');
+    setRateLimitDetail(null);
 
     try {
       const res = await fetch(`${API_URL}/api/snapshot`, {
@@ -128,15 +150,47 @@ export function SnapshotLanding() {
         body: JSON.stringify({ company_url: trimmed }),
       });
 
-      const data = await res.json();
+      const data = (await res.json()) as {
+        error?: string;
+        limit?: number;
+        remaining?: number;
+        snapshot_token?: string;
+      };
 
       if (!res.ok) {
-        setErrorMsg(data.error ?? 'Failed to start analysis');
+        setErrorMsg(
+          typeof data.error === 'string' ? data.error : 'Failed to start analysis'
+        );
+        if (
+          res.status === 429 &&
+          typeof data.limit === 'number'
+        ) {
+          setRateLimitDetail({
+            limit: data.limit,
+            remaining: typeof data.remaining === 'number' ? data.remaining : 0,
+          });
+        }
+        void refreshQuotaPreview();
         setStage('error');
         return;
       }
 
-      tokenRef.current = data.snapshot_token;
+      const lim = res.headers.get('RateLimit-Limit');
+      const rem = res.headers.get('RateLimit-Remaining');
+      if (lim != null && rem != null) {
+        const l = parseInt(lim, 10);
+        const r = parseInt(rem, 10);
+        if (!Number.isNaN(l) && !Number.isNaN(r)) {
+          setQuotaHint(`${r} of ${l} free checks left today on this connection.`);
+        } else {
+          setQuotaHint('');
+        }
+      } else {
+        setQuotaHint('');
+      }
+
+      tokenRef.current = data.snapshot_token ?? '';
+      void refreshQuotaPreview();
       setStage('running');
     } catch {
       setErrorMsg('Network error. Please try again.');
@@ -148,8 +202,11 @@ export function SnapshotLanding() {
     setStage('idle');
     setResult(null);
     setErrorMsg('');
+    setQuotaHint('');
+    setRateLimitDetail(null);
     setUrl('');
     setPhaseIdx(0);
+    void refreshQuotaPreview();
   }
 
   const techEntries = result
@@ -158,7 +215,7 @@ export function SnapshotLanding() {
 
   return (
     <div
-      className="min-h-screen flex flex-col"
+      className="flex min-h-[100dvh] flex-col"
       style={{ backgroundColor: 'var(--bg-canvas)' }}
     >
       {/* Background mesh */}
@@ -168,25 +225,30 @@ export function SnapshotLanding() {
       />
 
       {/* Header */}
-      <header className="relative z-10 flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-        <div className="flex items-center gap-2">
-            <img
-                src={Logo}
-                alt="GLC Audit Platform"
-                className="h-9 w-auto"
-            />
+      <header
+        className="relative z-10 flex items-center justify-between gap-3 px-6 py-4 mobile:px-4 mobile:py-3"
+        style={{
+          borderBottom: '1px solid var(--border-subtle)',
+          paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
+        }}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <GlcLogo className="h-9 mobile:h-8" />
         </div>
-        <Link
-          to="/login"
-          className="flex items-center gap-1 text-sm font-medium"
-          style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
-        >
-          Sign in <CaretRight className="w-3.5 h-3.5" />
-        </Link>
+        <div className="flex shrink-0 items-center gap-3 sm:gap-4">
+          <ThemeToggle />
+          <Link
+            to="/login"
+            className="inline-flex items-center justify-end gap-1 rounded-lg text-sm font-medium mobile:min-h-11 mobile:min-w-11 mobile:px-2"
+            style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
+          >
+            Sign in <CaretRight className="h-3.5 w-3.5 shrink-0" />
+          </Link>
+        </div>
       </header>
 
       {/* Main */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-12">
+      <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 py-12 mobile:justify-start mobile:px-4 mobile:py-8">
         <AnimatePresence mode="wait">
 
           {/* ── Idle / Submitting: URL form ──────────────────── */}
@@ -197,41 +259,83 @@ export function SnapshotLanding() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-              className="w-full"
-              style={{ maxWidth: 560 }}
+              className="mx-auto w-full max-w-5xl"
             >
-              {/* Hero text */}
-              <div className="text-center mb-10">
-                <div
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-6 text-xs font-medium"
-                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--glc-blue)' }}
-                >
-                  <Lightning className="w-3 h-3" /> Free UX Snapshot — 90 seconds
-                </div>
-                <h1
-                  style={{
-                    fontSize: 'clamp(1.75rem, 5vw, 2.5rem)',
-                    fontFamily: 'var(--font-display)',
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                    letterSpacing: 'var(--tracking-tight)',
-                    lineHeight: 1.15,
-                  }}
-                >
-                  How well does your website<br />convert visitors?
-                </h1>
-                <p className="mt-4" style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-base)' }}>
-                  Enter your URL for an instant AI-powered UX audit.
-                  <br />No sign-up required.
-                </p>
-              </div>
+              {/* Desktop: hero + quota (col 7) | form span 2 rows. Mobile: vertical rhythm — hero, context, form, quota, includes. */}
+              <div className="flex flex-col gap-8 mobile:gap-7 lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-12 lg:gap-y-6">
+                {/* HERO + context column */}
+                <div className="order-1 flex flex-col gap-6 text-center lg:order-none lg:col-span-7 lg:row-start-1 lg:gap-6 lg:text-left mobile:gap-5">
+                  <section
+                    aria-labelledby="snapshot-hero-heading"
+                    className="flex flex-col items-stretch gap-4 lg:gap-4 lg:border-l-2 lg:border-[color-mix(in_oklab,var(--glc-blue)_45%,var(--border-subtle))] lg:pl-6 mobile:gap-3"
+                  >
+                    <div className="flex justify-center lg:justify-start">
+                      <div
+                        className="inline-flex max-w-full items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide mobile:py-1.5 mobile:pl-3 mobile:pr-3.5 mobile:text-[11px] mobile:leading-tight"
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(28,189,255,0.12) 0%, rgba(242,79,29,0.08) 100%)',
+                          border: '1px solid var(--border-default)',
+                          color: 'var(--glc-blue)',
+                          letterSpacing: '0.06em',
+                        }}
+                      >
+                        <Lightning className="h-3.5 w-3.5 shrink-0" weight="fill" /> Free check ~90s
+                      </div>
+                    </div>
 
-              {/* Form card */}
-              <div className="glc-card p-6" style={{ borderRadius: 'var(--radius-2xl)' }}>
+                    <h1
+                      id="snapshot-hero-heading"
+                      className="mx-auto w-full max-w-[min(100%,22rem)] text-balance tracking-[-0.025em] lg:mx-0 lg:max-w-xl lg:tracking-[-0.035em]"
+                      style={{
+                        fontSize: 'clamp(2.05rem, 9.25vw, 4rem)',
+                        fontFamily: 'var(--font-display)',
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                        lineHeight: 1.04,
+                      }}
+                    >
+                      <span className="block lg:max-w-[15ch]">How well does your website</span>
+                      <span className="glc-gradient-text-flow mt-2 block lg:mt-2.5 mobile:mt-2 lg:max-w-[14ch]">
+                        convert visitors?
+                      </span>
+                    </h1>
+                  </section>
+
+                  {/* Mobile: subcopy + trust in one calm band; desktop: unwrapped flow */}
+                  <div className="flex flex-col gap-3 text-center lg:contents lg:text-left">
+                    <p
+                      className="mx-auto max-w-md text-pretty leading-snug lg:mx-0 mobile:max-w-none mobile:text-[0.8125rem] mobile:leading-relaxed"
+                      style={{ color: 'var(--text-secondary)', fontSize: 'clamp(0.8125rem, 2.85vw, 0.975rem)' }}
+                    >
+                      Enter your site address for a quick, plain-language read on how it feels for real visitors — what works, what gets in the way, and where to focus first.
+                    </p>
+
+                    <div
+                      className="mx-auto flex w-full max-w-md items-center justify-center gap-2 py-1 text-sm font-medium lg:mx-0 lg:w-auto lg:max-w-none lg:justify-start"
+                      style={{ color: 'var(--text-tertiary)' }}
+                    >
+                      <CheckCircle className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
+                      No sign-up required
+                    </div>
+                  </div>
+                </div>
+
+                <div className="order-2 w-full lg:order-none lg:col-span-5 lg:row-span-2 lg:row-start-1 lg:self-start lg:pt-1">
+                  {/* Only this block reads as a card on mobile — main CTA */}
+                  <div
+                    className="glc-card p-6 lg:p-7 mobile:p-5 mobile:shadow-[0_12px_40px_rgba(0,0,0,0.14)]"
+                    style={{ borderRadius: 'var(--radius-2xl)' }}
+                  >
+                <p
+                  className="mb-4 hidden text-left text-xs font-semibold tracking-wide lg:hidden"
+                  style={{ color: 'var(--text-primary)' }}
+                >
+                  Your website
+                </p>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="relative">
                     <Globe
-                      className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4"
+                      className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 mobile:left-3"
                       style={{ color: 'var(--text-tertiary)' }}
                     />
                     <input
@@ -241,14 +345,13 @@ export function SnapshotLanding() {
                       placeholder="yourcompany.com"
                       required
                       disabled={stage === 'submitting'}
-                      className="w-full pl-10 pr-4 py-3 bg-transparent outline-none"
+                      inputMode="url"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      className="w-full rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-transparent py-3 pl-10 pr-4 text-sm outline-none transition-[border-color,box-shadow] mobile:min-h-12 mobile:py-3.5 mobile:text-base"
                       style={{
-                        borderRadius: 'var(--radius-lg)',
-                        border: '1px solid var(--border-default)',
                         backgroundColor: 'var(--bg-surface)',
                         color: 'var(--text-primary)',
-                        fontSize: 'var(--text-sm)',
-                        transition: 'border-color var(--ease-fast), box-shadow var(--ease-fast)',
                       }}
                       onFocus={e => { e.target.style.borderColor = 'var(--glc-blue)'; e.target.style.boxShadow = 'var(--shadow-blue)'; }}
                       onBlur={e => { e.target.style.borderColor = 'var(--border-default)'; e.target.style.boxShadow = 'none'; }}
@@ -260,9 +363,8 @@ export function SnapshotLanding() {
                     disabled={!url.trim() || stage === 'submitting'}
                     whileHover={url.trim() ? { scale: 1.015 } : {}}
                     whileTap={url.trim() ? { scale: 0.985 } : {}}
-                    className="w-full flex items-center justify-center gap-2 py-3 text-white font-semibold text-sm"
+                    className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] py-3 text-sm font-semibold text-white mobile:min-h-12"
                     style={{
-                      borderRadius: 'var(--radius-lg)',
                       background: url.trim() ? 'var(--gradient-accent)' : 'var(--border-default)',
                       border: 'none',
                       cursor: url.trim() && stage !== 'submitting' ? 'pointer' : 'not-allowed',
@@ -281,23 +383,76 @@ export function SnapshotLanding() {
                 </form>
 
                 {stage === 'error' && errorMsg && (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="mt-3 text-center text-sm"
-                    style={{ color: 'var(--score-1)' }}
+                  <div className="mt-3 space-y-1 text-center mobile:text-left">
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="text-sm"
+                      style={{ color: 'var(--score-1)' }}
+                    >
+                      {errorMsg}
+                    </motion.p>
+                    {rateLimitDetail && (
+                      <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        Free checks left today on this connection: {rateLimitDetail.remaining} of {rateLimitDetail.limit}.
+                      </p>
+                    )}
+                  </div>
+                )}
+                  </div>
+                </div>
+
+                {quotaPreview !== null && (
+                  <div
+                    className="order-3 w-full max-w-md lg:order-none lg:col-span-7 lg:row-start-2 lg:max-w-none"
                   >
-                    {errorMsg}
-                  </motion.p>
+                    <div
+                      className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] lg:mx-0 mobile:mx-0 mobile:max-w-full mobile:rounded-none mobile:border-0 mobile:border-t mobile:border-[var(--border-subtle)] mobile:bg-transparent mobile:px-0 mobile:pb-0 mobile:pt-6 mobile:shadow-none"
+                    >
+                      <div className="mb-2.5 flex flex-row flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                        <span className="text-xs font-semibold uppercase tracking-wider mobile:text-[10px] mobile:tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
+                          Today on this connection
+                        </span>
+                        <span className="text-base font-bold tabular-nums mobile:text-[0.9375rem]" style={{ color: 'var(--text-primary)' }}>
+                          {quotaPreview.remaining} / {quotaPreview.limit} left
+                        </span>
+                      </div>
+                      <div
+                        className="h-1.5 w-full overflow-hidden rounded-full"
+                        style={{ background: 'var(--border-subtle)' }}
+                        aria-hidden
+                      >
+                        <div
+                          className="h-full rounded-full transition-[width] duration-500 ease-out"
+                          style={{
+                            width: `${Math.min(100, Math.round((quotaPreview.remaining / Math.max(1, quotaPreview.limit)) * 100))}%`,
+                            background: 'linear-gradient(90deg, var(--glc-blue), var(--glc-green))',
+                          }}
+                        />
+                      </div>
+                      <p className="mt-2.5 text-center text-xs leading-snug lg:text-left mobile:mt-3 mobile:text-[11px]" style={{ color: 'var(--text-quaternary)' }}>
+                        Rolling 24-hour limit from this connection.
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              {/* What's included */}
-              <div className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2">
+              {/* What's included — mobile: 2×2 grid; desktop: wrap row */}
+              <div className="mt-10 grid w-full grid-cols-2 gap-x-4 gap-y-2.5 mobile:max-w-[20rem] mobile:mx-auto mobile:pt-1 lg:mx-0 lg:mt-14 lg:flex lg:max-w-none lg:flex-wrap lg:justify-start lg:gap-x-8 lg:gap-y-3">
+                <p
+                  className="col-span-2 text-center text-[10px] font-semibold uppercase tracking-[0.16em] lg:hidden"
+                  style={{ color: 'var(--text-quaternary)' }}
+                >
+                  You will get
+                </p>
                 {['UX score', 'Top issues', 'Quick wins', 'Tech stack'].map(item => (
-                  <div key={item} className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                    <CheckCircle className="w-3.5 h-3.5" style={{ color: 'var(--glc-green)' }} />
-                    {item}
+                  <div
+                    key={item}
+                    className="flex items-center justify-center gap-2 text-center text-xs text-[var(--text-tertiary)] lg:inline-flex lg:min-w-0 lg:max-w-full lg:justify-start lg:text-left"
+                  >
+                    <CheckCircle className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--glc-green)' }} />
+                    <span className="leading-tight">{item}</span>
                   </div>
                 ))}
               </div>
@@ -312,32 +467,21 @@ export function SnapshotLanding() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-              className="text-center"
-              style={{ maxWidth: 420 }}
+              className="flex w-full max-w-[min(100%,26rem)] flex-col items-center px-0 text-center mobile:px-1"
             >
-              {/* Spinner */}
-              <div className="relative w-20 h-20 mx-auto mb-8">
-                <div
-                  className="absolute inset-0 rounded-full animate-spin"
-                  style={{
-                    border: '3px solid transparent',
-                    borderTopColor: 'var(--glc-blue)',
-                    borderRightColor: 'var(--glc-blue)',
-                  }}
-                />
-                <div
-                  className="absolute inset-2 rounded-full flex items-center justify-center"
-                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
-                >
-                  <Globe className="w-7 h-7" style={{ color: 'var(--glc-blue)' }} />
-                </div>
-              </div>
+              <SyncPathLoader
+                layout="embedded"
+                variant="indeterminate"
+                showCaptions={false}
+                loadingText="Analysing your website, please wait"
+                durationSeconds={8}
+                className="mb-4 px-2"
+              />
 
               <h2
+                className="text-balance text-xl font-bold mobile:px-1 mobile:text-lg"
                 style={{
-                  fontSize: 'var(--text-xl)',
                   fontFamily: 'var(--font-display)',
-                  fontWeight: 700,
                   color: 'var(--text-primary)',
                 }}
               >
@@ -361,6 +505,11 @@ export function SnapshotLanding() {
               <p className="mt-6 text-xs" style={{ color: 'var(--text-quaternary)' }}>
                 Usually takes 60–120 seconds
               </p>
+              {quotaHint && (
+                <p className="mt-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                  {quotaHint}
+                </p>
+              )}
             </motion.div>
           )}
 
@@ -371,22 +520,20 @@ export function SnapshotLanding() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-              className="w-full"
-              style={{ maxWidth: 620 }}
+              className="mx-auto w-full min-w-0 max-w-[min(100%,38.75rem)]"
             >
               {/* Company header */}
-              <div className="text-center mb-8">
+              <div className="mb-8 text-center mobile:mb-6">
                 <div
                   className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-xs"
                   style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)' }}
                 >
-                  <CheckCircle className="w-3 h-3" style={{ color: 'var(--glc-green)' }} /> Snapshot complete
+                  <CheckCircle className="w-3 h-3" style={{ color: 'var(--glc-green)' }} /> Your check is ready
                 </div>
                 <h2
+                  className="break-words text-2xl font-bold mobile:px-1 mobile:text-xl"
                   style={{
-                    fontSize: 'var(--text-2xl)',
                     fontFamily: 'var(--font-display)',
-                    fontWeight: 700,
                     color: 'var(--text-primary)',
                   }}
                 >
@@ -400,22 +547,22 @@ export function SnapshotLanding() {
               {/* UX Score card */}
               {result.ux_score !== null && (
                 <div
-                  className="glc-card p-6 mb-4 flex items-center justify-between"
+                  className="glc-card mb-4 flex flex-row items-center justify-between p-6 mobile:flex-col mobile:gap-4 mobile:p-5"
                   style={{ borderRadius: 'var(--radius-xl)' }}
                 >
-                  <div>
-                    <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  <div className="min-w-0 shrink-0 text-left mobile:text-center">
+                    <p className="mb-1 text-xs font-medium" style={{ color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                       UX & Conversion Score
                     </p>
                     <p style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, fontFamily: 'var(--font-display)', color: SCORE_COLORS[result.ux_score] }}>
                       {result.ux_score}/5
                     </p>
-                    <p className="text-sm font-semibold mt-0.5" style={{ color: SCORE_COLORS[result.ux_score] }}>
+                    <p className="mt-0.5 text-sm font-semibold" style={{ color: SCORE_COLORS[result.ux_score] }}>
                       {SCORE_LABELS[result.ux_score]}
                     </p>
                   </div>
                   {result.ux_summary && (
-                    <p className="text-sm ml-6" style={{ color: 'var(--text-secondary)', maxWidth: 340, lineHeight: 1.6 }}>
+                    <p className="min-w-0 max-w-[21rem] text-pretty text-sm leading-relaxed ml-6 mobile:ml-0 mobile:max-w-none" style={{ color: 'var(--text-secondary)' }}>
                       {result.ux_summary}
                     </p>
                   )}
@@ -423,7 +570,7 @@ export function SnapshotLanding() {
               )}
 
               {/* Issues + Quick Wins grid */}
-              <div className="grid grid-cols-1 gap-4 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+              <div className="mb-4 grid grid-cols-2 gap-4 mobile:grid-cols-1">
 
                 {/* Issues */}
                 {result.issues.length > 0 && (
@@ -523,9 +670,14 @@ export function SnapshotLanding() {
 
               {/* CTA */}
               <div
-                className="glc-card p-6 text-center"
+                className="glc-card p-6 text-center mobile:p-5"
                 style={{ borderRadius: 'var(--radius-xl)', border: '1px solid var(--glc-blue)', background: 'linear-gradient(135deg, rgba(28,189,255,0.06) 0%, transparent 60%)' }}
               >
+                {quotaHint && (
+                  <p className="mb-3 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                    {quotaHint}
+                  </p>
+                )}
                 <h3
                   style={{
                     fontSize: 'var(--text-lg)',
@@ -536,21 +688,22 @@ export function SnapshotLanding() {
                 >
                   Want the full picture?
                 </h3>
-                <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                <p className="mt-2 text-pretty text-sm" style={{ color: 'var(--text-secondary)' }}>
                   The Express Audit covers all 6 business domains — Tech, Security, SEO, UX, Marketing & Automation —
                   with a full action plan and competitor benchmark.
                 </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-5">
+                <div className="mt-5 flex w-full flex-row items-center justify-center gap-3 mobile:flex-col mobile:items-stretch">
                   <Link
                     to="/login"
-                    className="glc-btn-primary"
-                    style={{ textDecoration: 'none', minWidth: 160 }}
+                    className="glc-btn-primary w-auto min-w-[10rem] justify-center mobile:min-h-12 mobile:w-full"
+                    style={{ textDecoration: 'none' }}
                   >
                     Get Express Audit <ArrowRight className="w-4 h-4 inline ml-1" />
                   </Link>
                   <button
+                    type="button"
                     onClick={reset}
-                    className="text-sm font-medium"
+                    className="text-sm font-medium mobile:min-h-11"
                     style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}
                   >
                     Analyse another URL
@@ -564,7 +717,13 @@ export function SnapshotLanding() {
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 text-center py-4 px-6" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+      <footer
+        className="relative z-10 px-6 py-4 text-center mobile:px-4"
+        style={{
+          borderTop: '1px solid var(--border-subtle)',
+          paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+        }}
+      >
         <p className="text-xs" style={{ color: 'var(--text-quaternary)' }}>
           Results are AI-generated and for informational purposes only. · {' '}
           <Link to="/login" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Sign in</Link>

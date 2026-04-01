@@ -6,7 +6,13 @@ Product context (modes, deliverables): [PRODUCT.md](./PRODUCT.md). System diagra
 
 React 18 + TypeScript + Vite. Deployed to Vercel. Uses Tailwind CSS + glassmorphism design system. Animation via Framer Motion.
 
+**Dark theme:** `html.dark` sets design tokens in `src/styles/theme.css` (canvas `#0d1117`, text `#e6edf3`, borders `#30363d` / `#484f58`, matching the G-Power loader reference). A global vignette lives in `src/styles/index.css`. Initialization: `applyGlcColorScheme()` in `main.tsx` — uses `prefers-color-scheme` until the user changes the toggle (then `localStorage['glc-theme']` is `'dark'` or `'light'`). UI: `ThemeToggle` in `AppShell` **header** (every page with the shell) and sidebar, plus `/login`, `/snapshot`, and `/intake/:token` (`IntakeBrief`). Brand mark: `GlcLogo` (`src/app/components/GlcLogo.tsx`) — `variant="on-dark"` (always `logo-white.svg`) in the ink sidebar; `variant="auto"` elsewhere switches `logo.svg` / `logo-white.svg` with the theme. API: `setGlcColorScheme('dark'|'light'|'system')` and `useGlcTheme()` in `src/app/lib/glc-theme.ts` / `src/app/hooks/useGlcTheme.ts`. Prefer CSS variables for surfaces and accents: `--bg-canvas`, `--bg-surface`, `--text-primary`, `--score-*-bg`, `--primary-foreground` (white on brand gradients); legacy aliases `--surface`, `--surface-elevated`, and `--panel-border` map to the same system in `:root`.
+
+**Narrow-only tweaks:** the `mobile:` variant (`width < 40rem`, same cutoff as Tailwind `sm`) is defined in `src/styles/tailwind.css`. Pair it with base classes aimed at sm+ (e.g. `px-6 mobile:px-4`, `flex-row mobile:flex-col`) so sub-640px adjustments stay isolated and you avoid `sm:` undo chains.
+
 Application UI code must not use emoji characters for status or progress markers. Use icon components (Phosphor React) and semantic color tokens.
+
+**Public pre-brief (`IntakeBrief`, `/intake/:token`):** Clients fill questions, then a **review** step lists all answers with edit shortcuts, then **Confirm and submit**. Success copy uses token `metadata` (`consultant_name`, `expected_contact`, `contact_channel`, `consultant_email`, `consultant_whatsapp`); helpers in `src/app/lib/intake-client-copy.ts`. Consultants optionally set these when creating the link in New Audit. Clients can resubmit on the same URL until `expires_at` (default 7 days).
 
 ---
 
@@ -32,7 +38,7 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 
 ### `Login.tsx`
 - Email input → `supabase.auth.signInWithOtp({ email })` → shows "Check your email" state
-- Google OAuth → `supabase.auth.signInWithOAuth({ provider: 'google' })`
+- Google OAuth → `signInWithOAuth` with `redirectTo: <origin>/login` (so tokens are not stripped by `/` → `/dashboard` redirect)
 - If already authenticated (`useAuth().isAuthenticated`) → redirect to `/portfolio`
 - Glassmorphism card, gradient button, GLC logo
 

@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
 import { logger } from '../lib/logger';
 import type { UserRole } from '../data/auditTypes';
+import { SyncPathLoader } from './SyncPathLoader';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -20,20 +21,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
 
   if (loading) {
     logger.debug('ProtectedRoute: loading auth/profile state');
-    return (
-      <div
-        className="h-screen flex items-center justify-center"
-        style={{ backgroundColor: 'var(--bg-canvas)' }}
-      >
-        <div className="flex flex-col items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-full border-3 animate-spin"
-            style={{ borderColor: 'var(--border-subtle)', borderTopColor: 'var(--glc-blue)' }}
-          />
-          <span style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)' }}>Loading...</span>
-        </div>
-      </div>
-    );
+    return <SyncPathLoader variant="indeterminate" />;
   }
 
   if (!isAuthenticated) {

@@ -1,12 +1,42 @@
 import { BaseCollector } from './base.js';
 import { supabase } from '../services/supabase.js';
 import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } from '../lib/public-http-url.js';
+import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
 
 export class PerformanceCollector extends BaseCollector {
   get key() { return 'performance'; }
   get phase() { return 1; }
 
   async collect(auditId: string, companyUrl: string) {
+    if (isNoPublicWebsiteUrl(companyUrl)) {
+      return {
+        no_crawl_data: true,
+        warning: 'No public website — performance checks skipped',
+        headers: {
+          compression: { enabled: false, type: null },
+          caching: {
+            cache_control: null,
+            etag: false,
+            last_modified: false,
+            has_cache_policy: false,
+          },
+          https_available: false,
+          cdn_detected: false,
+          server: null,
+        },
+        page_weights: {
+          avg_content_length_bytes: 0,
+          avg_load_time_ms: 0,
+          heaviest_page: null,
+          slowest_page: null,
+          total_images: 0,
+          lazy_loaded_images: 0,
+          lazy_load_coverage: 100,
+        },
+        total_pages_analyzed: 0,
+      };
+    }
+
     try {
       await validatePublicAuditUrl(companyUrl);
     } catch (e) {

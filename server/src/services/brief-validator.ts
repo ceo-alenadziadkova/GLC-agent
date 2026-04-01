@@ -9,6 +9,7 @@ import { supabase } from './supabase.js';
 import {
   BRIEF_QUESTIONS,
   EXPRESS_REQUIRED_QUESTION_IDS,
+  INTAKE_IDENTITY_FIELD_IDS,
   OPTIONAL_QUESTION_IDS,
   PRE_BRIEF_QUESTION_IDS,
   REQUIRED_QUESTION_IDS,
@@ -56,6 +57,10 @@ function unwrapAnswer(value: unknown): unknown {
 }
 
 function isAnswered(value: unknown): boolean {
+  if (value && typeof value === 'object' && !Array.isArray(value) && 'source' in (value as Record<string, unknown>)) {
+    const src = (value as { source?: string }).source;
+    if (src === 'unknown') return true;
+  }
   const raw = unwrapAnswer(value);
   if (raw === null || raw === undefined) return false;
   if (typeof raw === 'string') return raw.trim().length > 0;
@@ -63,6 +68,35 @@ function isAnswered(value: unknown): boolean {
   if (typeof raw === 'boolean') return true;
   if (Array.isArray(raw)) return raw.length > 0;
   return false;
+}
+
+/** Pre-brief slot satisfied; `intake_industry_specify` only required when industry is Other. */
+export function isPreBriefIdSatisfied(id: string, responses: Record<string, unknown>): boolean {
+  if (id === 'intake_industry_specify') {
+    const ind = unwrapAnswer(responses.intake_industry);
+    if (ind !== 'Other') return true;
+    return isAnswered(responses[id]);
+  }
+  return isAnswered(responses[id]);
+}
+
+/** Slots required for a valid public pre-brief submit (identity + express-style core). */
+function getPreBriefSubmitSlotIds(responses: Record<string, unknown>): string[] {
+  const ids: string[] = [
+    INTAKE_IDENTITY_FIELD_IDS[0],
+    INTAKE_IDENTITY_FIELD_IDS[1],
+    INTAKE_IDENTITY_FIELD_IDS[2],
+  ];
+  if (unwrapAnswer(responses.intake_industry) === 'Other') {
+    ids.push(INTAKE_IDENTITY_FIELD_IDS[3]);
+  }
+  ids.push(...PRE_BRIEF_QUESTION_IDS);
+  return ids;
+}
+
+/** All pre-brief questions satisfied (used by public intake submit). */
+export function arePreBriefSlotsSatisfied(responses: Record<string, unknown>): boolean {
+  return getPreBriefSubmitSlotIds(responses).every(id => isPreBriefIdSatisfied(id, responses));
 }
 
 function computeProgress(responses: Record<string, unknown>): IntakeProgress {
@@ -118,12 +152,13 @@ export function evaluateBriefGates(
 ): BriefGateResult {
   const missingExpressRequired = EXPRESS_REQUIRED_QUESTION_IDS.filter(id => !isAnswered(responses[id]));
   const missingFullRequired = REQUIRED_QUESTION_IDS.filter(id => !isAnswered(responses[id]));
-  const missingPreBrief = PRE_BRIEF_QUESTION_IDS.filter(id => !isAnswered(responses[id]));
+  const submitSlotIds = getPreBriefSubmitSlotIds(responses);
+  const missingPreBrief = submitSlotIds.filter(id => !isPreBriefIdSatisfied(id, responses));
   const missingRecommended = RECOMMENDED_QUESTION_IDS.filter(id => !isAnswered(responses[id]));
   const intakeProgress = computeProgress(responses);
 
-  const minPreBriefAnswered = Math.ceil(PRE_BRIEF_QUESTION_IDS.length / 2);
-  const answeredPreBrief = PRE_BRIEF_QUESTION_IDS.length - missingPreBrief.length;
+  const minPreBriefAnswered = Math.ceil(submitSlotIds.length / 2);
+  const answeredPreBrief = submitSlotIds.length - missingPreBrief.length;
   const canStartSnapshot = answeredPreBrief >= minPreBriefAnswered;
   const canStartExpress = missingExpressRequired.length === 0;
   const canStartFull = missingFullRequired.length === 0;

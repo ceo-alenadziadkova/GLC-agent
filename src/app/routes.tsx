@@ -13,6 +13,7 @@ import { ClientRequestForm } from './pages/ClientRequestForm';
 import { ClientAuditView }  from './pages/ClientAuditView';
 import { AdminRequestQueue } from './pages/AdminRequestQueue';
 import { ProtectedRoute }   from './components/ProtectedRoute';
+import { RootRedirect }     from './components/RootRedirect';
 
 function P({ children }: { children: React.ReactNode }) {
   return <ProtectedRoute>{children}</ProtectedRoute>;
@@ -27,7 +28,7 @@ function Client({ children }: { children: React.ReactNode }) {
 }
 
 export const router = createBrowserRouter([
-  { path: '/',                    element: <Navigate to="/dashboard" replace /> },
+  { path: '/',                    element: <RootRedirect /> },
   { path: '/login',               element: <Login /> },
   { path: '/snapshot',            element: <SnapshotLanding /> },           // public
   { path: '/intake/:token',       element: <IntakeBrief /> },              // public pre-brief

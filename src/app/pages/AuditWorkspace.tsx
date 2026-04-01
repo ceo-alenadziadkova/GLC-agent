@@ -18,6 +18,7 @@ import { BriefField } from '../components/BriefField';
 import { BRIEF_QUESTIONS } from '../data/briefQuestions';
 import type { BriefQuestion, BriefResponses } from '../data/briefQuestions';
 import { api } from '../data/apiService';
+import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 
 const EXPRESS_DOMAIN_KEYS: readonly DomainKey[] = [
   'tech_infrastructure', 'security_compliance', 'seo_digital', 'ux_conversion',
@@ -69,12 +70,16 @@ export function AuditWorkspace() {
     (domainId && DOMAIN_KEYS.includes(domainId as DomainKey)) ? (domainId as DomainKey) : DOMAIN_KEYS[0]
   );
 
-  const queueFollowupBriefSave = useCallback((qid: string, value: string | string[] | number | null) => {
+  const queueFollowupBriefSave = useCallback((
+    qid: string,
+    value: string | string[] | number | null,
+    source: 'consultant' | 'unknown' = 'consultant',
+  ) => {
     if (!id || !audit?.brief) return;
     const prev = (audit.brief.responses as BriefResponses) ?? {};
     const next: BriefResponses = {
       ...prev,
-      [qid]: { value, source: 'consultant' },
+      [qid]: { value, source },
     };
     pendingBriefRef.current = next;
     if (enrichSaveTimer.current) clearTimeout(enrichSaveTimer.current);
@@ -132,7 +137,8 @@ export function AuditWorkspace() {
   const showEnrichmentBanner = Boolean(
     domainData?.status === 'completed' && followupQuestions.length > 0 && id
   );
-  const companyName = audit.meta.company_name || audit.meta.company_url;
+  const companyName =
+    audit.meta.company_name || formatAuditWebsiteDisplay(audit.meta.company_url) || audit.meta.company_url;
   const isExpress = (audit.meta.product_mode as ProductMode) === 'express';
   const visibleDomainKeys: readonly DomainKey[] = isExpress ? EXPRESS_DOMAIN_KEYS : DOMAIN_KEYS;
 
@@ -417,7 +423,7 @@ export function AuditWorkspace() {
                               q={q}
                               value={(audit.brief?.responses as BriefResponses | undefined)?.[q.id]}
                               onChange={v => queueFollowupBriefSave(q.id, v)}
-                              onSetUnknown={() => queueFollowupBriefSave(q.id, null)}
+                              onSetUnknown={() => queueFollowupBriefSave(q.id, null, 'unknown')}
                             />
                           ))}
                         </motion.div>

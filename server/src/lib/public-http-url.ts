@@ -4,6 +4,7 @@
  */
 import dns from 'node:dns/promises';
 import { isIPv4, isIPv6 } from 'node:net';
+import { isNoPublicWebsiteUrl, NO_PUBLIC_WEBSITE_URL } from '../config/no-public-website.js';
 
 export class PublicUrlNotAllowedError extends Error {
   override name = 'PublicUrlNotAllowedError';
@@ -50,9 +51,14 @@ function assertHostnameNotBlocked(hostname: string): void {
  * Resolves DNS on the server; reject if any A/AAAA is non-public.
  */
 export async function validatePublicAuditUrl(urlString: string): Promise<string> {
+  const trimmed = urlString.trim();
+  if (isNoPublicWebsiteUrl(trimmed)) {
+    return NO_PUBLIC_WEBSITE_URL;
+  }
+
   let u: URL;
   try {
-    u = new URL(urlString.trim());
+    u = new URL(trimmed);
   } catch {
     throw new PublicUrlNotAllowedError('Invalid URL');
   }
@@ -119,6 +125,10 @@ export async function fetchPublicHttpUrl(
   init: RequestInit = {},
   maxRedirects = 5
 ): Promise<Response> {
+  if (isNoPublicWebsiteUrl(url.trim())) {
+    throw new PublicUrlNotAllowedError('No public website');
+  }
+
   let currentUrl = await validatePublicAuditUrl(url);
   const maxRetries = 3;
   const retryableStatus = new Set([408, 429, 500, 502, 503, 504, 529]);

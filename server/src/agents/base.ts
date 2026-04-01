@@ -31,7 +31,7 @@ export function loadPrompt(name: string): string {
     // Strip the HTML version comment header line if present
     return raw.replace(/^<!--.*?-->\n/, '').trimStart();
   } catch {
-    console.error(`[loadPrompt] Missing prompt file: ${name}.md`);
+    logger.error('agent.load_prompt_missing', { component: 'agent', prompt: `${name}.md` });
     return '';
   }
 }

@@ -7,6 +7,7 @@ import {
 import { AppShell } from '../components/AppShell';
 import { api } from '../data/apiService';
 import type { AuditRequest, AuditRequestStatus } from '../data/auditTypes';
+import { formatAuditWebsiteDisplay, isNoPublicWebsiteUrl } from '../data/no-public-website';
 import {
   BRIEF_QUESTIONS, REQUIRED_IDS, countAnswered,
   type BriefResponseEntry, type BriefResponses, type BriefQuestion,
@@ -50,28 +51,28 @@ function StepTimeline({ status }: { status: AuditRequestStatus }) {
                 className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 z-10"
                 style={{
                   backgroundColor: done
-                    ? 'rgba(16,185,129,0.15)'
+                    ? 'var(--score-5-bg)'
                     : active
-                      ? 'rgba(28,189,255,0.15)'
-                      : 'rgba(255,255,255,0.05)',
+                      ? 'var(--glc-blue-muted)'
+                      : 'var(--bg-muted)',
                   border: done
-                    ? '1px solid rgba(16,185,129,0.40)'
+                    ? '1px solid var(--score-5-border)'
                     : active
-                      ? '1px solid rgba(28,189,255,0.40)'
-                      : '1px solid rgba(255,255,255,0.08)',
+                      ? '1px solid rgba(28,189,255,0.35)'
+                      : '1px solid var(--border-subtle)',
                 }}
               >
                 {done
-                  ? <CheckCircle weight="fill" className="w-4 h-4" style={{ color: '#10B981' }} />
+                  ? <CheckCircle weight="fill" className="w-4 h-4" style={{ color: 'var(--score-5)' }} />
                   : active
                     ? <Spinner className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--glc-blue)' }} />
-                    : <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'rgba(255,255,255,0.15)' }} />}
+                    : <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--text-quaternary)' }} />}
               </div>
               {i < STEPS.length - 1 && (
                 <div
                   className="w-px flex-1 my-0.5"
                   style={{
-                    background: done ? 'rgba(16,185,129,0.30)' : 'rgba(255,255,255,0.06)',
+                    background: done ? 'var(--score-5)' : 'var(--border-default)',
                     minHeight: 20,
                   }}
                 />
@@ -83,7 +84,7 @@ function StepTimeline({ status }: { status: AuditRequestStatus }) {
               <div
                 className="text-sm font-medium"
                 style={{
-                  color: done ? '#10B981' : active ? '#fff' : 'rgba(255,255,255,0.25)',
+                  color: done ? 'var(--glc-green)' : active ? 'var(--text-blue)' : 'var(--text-tertiary)',
                 }}
               >
                 {step.label}
@@ -191,7 +192,7 @@ function ClientBriefSection({ auditId }: { auditId: string }) {
           </span>
         </div>
         {/* Progress */}
-        <div className="rounded-full overflow-hidden" style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.06)' }}>
+        <div className="rounded-full overflow-hidden" style={{ height: 3, backgroundColor: 'var(--bg-muted)' }}>
           <div className="h-full rounded-full" style={{ width: `${progressPct}%`, background: 'var(--gradient-brand)', transition: 'width 0.3s' }} />
         </div>
 
@@ -241,7 +242,7 @@ function ClientBriefSection({ auditId }: { auditId: string }) {
                       return (
                         <button key={opt} type="button" onClick={() => setResponses(prev => ({ ...prev, [q.id]: { value: sel ? null : opt, source: 'client' } }))}
                           className="px-2.5 py-1 rounded-lg text-xs"
-                          style={{ backgroundColor: sel ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)', border: sel ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)', color: sel ? '#fff' : 'var(--text-secondary)' }}
+                          style={{ backgroundColor: sel ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)', border: sel ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)', color: sel ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)' }}
                         >{opt}</button>
                       );
                     })}
@@ -259,7 +260,7 @@ function ClientBriefSection({ auditId }: { auditId: string }) {
                             setResponses(prev => ({ ...prev, [q.id]: { value: next.length ? next : null, source: 'client' } }));
                           }}
                           className="px-2.5 py-1 rounded-lg text-xs"
-                          style={{ backgroundColor: sel ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)', border: sel ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)', color: sel ? '#fff' : 'var(--text-secondary)' }}
+                          style={{ backgroundColor: sel ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)', border: sel ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)', color: sel ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)' }}
                         >{sel && <Check size={11} weight="bold" style={{ display: 'inline', marginRight: 3 }} />}{opt}</button>
                       );
                     })}
@@ -319,7 +320,15 @@ export function ClientAuditView() {
     return () => clearInterval(interval);
   }, [id, request?.status]);
 
-  const domain = request ? (() => { try { return new URL(request.url).hostname; } catch { return request.url; } })() : '';
+  const industryOtherSpec = request && typeof request.brief_snapshot?.intake_industry_specify === 'string'
+    ? request.brief_snapshot.intake_industry_specify.trim()
+    : '';
+
+  const domain = request
+    ? (isNoPublicWebsiteUrl(request.url)
+      ? formatAuditWebsiteDisplay(request.url)
+      : (() => { try { return new URL(request.url).hostname; } catch { return request.url; } })())
+    : '';
 
   return (
     <AppShell
@@ -370,10 +379,12 @@ export function ClientAuditView() {
                   >
                     {domain}
                   </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Globe className="w-3.5 h-3.5" style={{ color: 'var(--text-tertiary)' }} />
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>{request.url}</span>
-                  </div>
+                  {!isNoPublicWebsiteUrl(request.url) && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Globe className="w-3.5 h-3.5" style={{ color: 'var(--text-tertiary)' }} />
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>{request.url}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <span
@@ -388,7 +399,9 @@ export function ClientAuditView() {
                   </span>
                   {request.industry && (
                     <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
-                      {request.industry}
+                      {request.industry === 'Other' && industryOtherSpec
+                        ? `Other (${industryOtherSpec})`
+                        : request.industry}
                     </span>
                   )}
                 </div>
@@ -458,8 +471,8 @@ export function ClientAuditView() {
                 <div className="flex items-center gap-3">
                   <FileText className="w-5 h-5" style={{ color: 'var(--glc-blue)' }} />
                   <div>
-                    <div className="font-medium text-sm" style={{ color: '#fff' }}>View Your Report</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+                    <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>View Your Report</div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
                       Your audit is complete and ready to review
                     </div>
                   </div>
@@ -481,8 +494,8 @@ export function ClientAuditView() {
                 <div className="flex items-center gap-3">
                   <Pulse className="w-5 h-5" style={{ color: 'var(--glc-blue)' }} />
                   <div>
-                    <div className="font-medium text-sm" style={{ color: '#fff' }}>Audit in progress</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+                    <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>Audit in progress</div>
+                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
                       You'll be notified when it's ready
                     </div>
                   </div>

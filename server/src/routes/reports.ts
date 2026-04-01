@@ -5,6 +5,7 @@ import { generalLimiter } from '../middleware/rate-limit.js';
 import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 import { reportProfiler, REPORT_PROFILES, type ReportProfile } from '../services/report-profiler.js';
 import { pdfGenerator } from '../services/pdf-generator.js';
+import { logger } from '../services/logger.js';
 
 export const reportsRouter = Router();
 
@@ -98,7 +99,8 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
       res.send(report.markdown);
     }
   } catch (err) {
-    console.error('[GET /report]', err);
+    const e = err as Error;
+    logger.error('route.report_failed', { component: 'reports', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to generate report' });
   }
 });

@@ -1,7 +1,18 @@
 import { supabase } from './supabase.js';
+import { logger } from './logger.js';
 import type { DomainKey, ReconData } from '../types/audit.js';
 import { getDomainWeight } from '../config/industry-weights.js';
-import { BRIEF_QUESTIONS, getQuestionsForDomain } from '../schemas/intake-brief.js';
+import {
+  BRIEF_QUESTIONS,
+  getBriefQuestionText,
+  getQuestionsForDomain,
+  INTAKE_IDENTITY_FIELD_IDS,
+} from '../schemas/intake-brief.js';
+import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
+
+function formatCompanyUrlForPrompt(url: string): string {
+  return isNoPublicWebsiteUrl(url) ? 'No public website (use intake brief and consultant notes only)' : url;
+}
 
 export interface AgentContext {
   company_url: string;
@@ -72,7 +83,12 @@ export class ContextBuilder {
 
     if (reconError && reconError.code !== 'PGRST116') {
       // PGRST116 = "no rows returned" — acceptable for early phases; other errors are real failures
-      console.warn(`[ContextBuilder] Recon data unavailable for ${auditId}: ${reconError.message}`);
+      logger.warn('context_builder.recon_unavailable', {
+        component: 'context_builder',
+        audit_id: auditId,
+        error: reconError.message,
+        code: reconError.code,
+      });
     }
 
     // Fetch completed domain results (for cross-domain context)
@@ -115,6 +131,14 @@ export class ContextBuilder {
         briefResponses[q.id] = parsed.value;
         briefResponseSources[q.id] = parsed.source;
       }
+    }
+
+    for (const id of INTAKE_IDENTITY_FIELD_IDS) {
+      const val = allResponses[id];
+      if (val === undefined) continue;
+      const parsed = ContextBuilder.unwrapBriefResponse(val);
+      briefResponses[id] = parsed.value;
+      briefResponseSources[id] = parsed.source;
     }
 
     // Express: one primary competitor in agent context (product promises a single confirmed peer).
@@ -168,11 +192,21 @@ export class ContextBuilder {
     const sections: string[] = [];
     const truncatedKeys: string[] = [];
 
+    const specifyRaw = ctx.brief_responses.intake_industry_specify;
+    const specifyStr =
+      specifyRaw != null && specifyRaw !== ''
+        ? (Array.isArray(specifyRaw) ? specifyRaw.join(', ') : String(specifyRaw)).trim()
+        : '';
+    const industryLine =
+      ctx.industry === 'Other' && specifyStr
+        ? `Other (${specifyStr})`
+        : (ctx.industry ?? 'Not determined');
+
     // Company profile
     sections.push(`## Company Profile
-- **URL:** ${ctx.company_url}
+- **URL:** ${formatCompanyUrlForPrompt(ctx.company_url)}
 - **Name:** ${ctx.company_name ?? 'Unknown'}
-- **Industry:** ${ctx.industry ?? 'Not determined'}
+- **Industry:** ${industryLine}
 - **Domain weight for this industry:** ${ctx.domain_weight}x
 - **Intake readiness:** ${ctx.intake_readiness_badge}
 - **Intake data quality score:** ${ctx.intake_data_quality_score}`);
@@ -180,9 +214,15 @@ export class ContextBuilder {
     // Intake brief — domain-relevant answers (shown before raw data for prominence)
     if (Object.keys(ctx.brief_responses).length > 0) {
       const briefLines = Object.entries(ctx.brief_responses)
-        .filter(([, v]) => v !== null && v !== '')
+        .filter(([id, v]) => {
+          if (v === null || v === '') return false;
+          if (id === 'intake_industry_specify' && ctx.industry === 'Other' && specifyStr) {
+            return false;
+          }
+          return true;
+        })
         .map(([id, v]) => {
-          const question = BRIEF_QUESTIONS.find(q => q.id === id)?.question ?? id.replace(/_/g, ' ');
+          const question = getBriefQuestionText(id);
           const answer = Array.isArray(v) ? v.join(', ') : String(v);
           const source = ctx.brief_response_sources[id] ?? 'client';
           return `- **${question}:** ${answer} _(source: ${source})_`;

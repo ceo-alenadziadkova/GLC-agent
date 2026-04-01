@@ -11,6 +11,7 @@ import { StatusPill } from '../components/glc/StatusPill';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { useAudits } from '../hooks/useAudits';
 import type { AuditMeta } from '../data/auditTypes';
+import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 
 const listVariants = {
   hidden: {},
@@ -36,7 +37,8 @@ export function Portfolio() {
     query === '' ||
     (c.company_name || '').toLowerCase().includes(query.toLowerCase()) ||
     (c.industry || '').toLowerCase().includes(query.toLowerCase()) ||
-    c.company_url.toLowerCase().includes(query.toLowerCase())
+    c.company_url.toLowerCase().includes(query.toLowerCase()) ||
+    formatAuditWebsiteDisplay(c.company_url).toLowerCase().includes(query.toLowerCase())
   );
 
   const totalAudits = audits.length;
@@ -196,7 +198,7 @@ export function Portfolio() {
                         fontSize: '11px',
                       }}
                     >
-                      {(c.company_name || c.company_url).slice(0, 2).toUpperCase()}
+                      {(c.company_name || formatAuditWebsiteDisplay(c.company_url)).slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0">
                       <Link
@@ -210,10 +212,10 @@ export function Portfolio() {
                           letterSpacing: '-0.01em',
                         }}
                       >
-                        {c.company_name || c.company_url}
+                        {c.company_name || formatAuditWebsiteDisplay(c.company_url)}
                       </Link>
                       <div className="text-xs truncate mt-0.5" style={{ color: 'var(--text-quaternary)', fontSize: '11px' }}>
-                        {c.company_url}
+                        {formatAuditWebsiteDisplay(c.company_url)}
                       </div>
                     </div>
                   </div>

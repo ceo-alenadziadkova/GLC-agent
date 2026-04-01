@@ -13,6 +13,7 @@ import {
 import { evaluateBriefGates, saveBriefResponses, validateBriefResponses } from '../services/brief-validator.js';
 import { BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
+import { NO_PUBLIC_WEBSITE_URL } from '../config/no-public-website.js';
 import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 import { getStoredIdempotentResponse, storeIdempotentResponse } from '../lib/idempotency.js';
 import { logger } from '../services/logger.js';
@@ -28,7 +29,7 @@ const consultantGuard = [attachProfile, requireRole('consultant')] as const;
 // ─── POST /api/audits — Create new audit (consultant only) ─
 auditsRouter.post('/', ...consultantGuard, createAuditLimiter, async (req: AuthRequest, res) => {
   try {
-    const { company_url, company_name, industry, product_mode } = req.body;
+    const { company_url, company_name, industry, product_mode, no_public_website } = req.body;
     const mode: ProductMode = product_mode === 'express' ? 'express' : 'full';
     const idempotent = await getStoredIdempotentResponse(req, 'POST:/api/audits', req.body);
     if (idempotent.replay) {
@@ -36,30 +37,41 @@ auditsRouter.post('/', ...consultantGuard, createAuditLimiter, async (req: AuthR
       return;
     }
 
-    if (!company_url || typeof company_url !== 'string') {
-      res.status(400).json({ error: 'company_url is required' });
-      return;
-    }
+    const noSite = no_public_website === true;
+    let url: string;
 
-    // Normalize URL BEFORE validation — prevents double-prefix like "https://http://..."
-    let url = company_url.trim();
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = `https://${url}`;
-    }
-
-    if (url.length < 10) {
-      res.status(400).json({ error: 'company_url must be a valid URL (e.g. https://company.com)' });
-      return;
-    }
-
-    try {
-      url = await validatePublicAuditUrl(url);
-    } catch (e) {
-      if (e instanceof PublicUrlNotAllowedError) {
-        res.status(400).json({ error: 'company_url is not allowed' });
+    if (noSite) {
+      if (company_url != null && typeof company_url === 'string' && company_url.trim() !== '') {
+        res.status(400).json({ error: 'Omit company_url when no_public_website is true' });
         return;
       }
-      throw e;
+      url = NO_PUBLIC_WEBSITE_URL;
+    } else {
+      if (!company_url || typeof company_url !== 'string') {
+        res.status(400).json({ error: 'company_url is required' });
+        return;
+      }
+
+      // Normalize URL BEFORE validation — prevents double-prefix like "https://http://..."
+      url = company_url.trim();
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = `https://${url}`;
+      }
+
+      if (url.length < 10) {
+        res.status(400).json({ error: 'company_url must be a valid URL (e.g. https://company.com)' });
+        return;
+      }
+
+      try {
+        url = await validatePublicAuditUrl(url);
+      } catch (e) {
+        if (e instanceof PublicUrlNotAllowedError) {
+          res.status(400).json({ error: 'company_url is not allowed' });
+          return;
+        }
+        throw e;
+      }
     }
 
     // Create audit
@@ -149,7 +161,8 @@ auditsRouter.get('/', async (req: AuthRequest, res) => {
 
     res.json({ data, total: count ?? 0, limit, offset });
   } catch (err) {
-    console.error('[GET /api/audits]', err);
+    const e = err as Error;
+    logger.error('route.audits_list_failed', { component: 'audits', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to list audits' });
   }
 });
@@ -208,7 +221,8 @@ auditsRouter.get('/:id', async (req: AuthRequest, res) => {
       brief,
     });
   } catch (err) {
-    console.error('[GET /api/audits/:id]', err);
+    const e = err as Error;
+    logger.error('route.audit_get_failed', { component: 'audits', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to fetch audit' });
   }
 });
@@ -228,7 +242,8 @@ auditsRouter.delete('/:id', ...consultantGuard, async (req: AuthRequest, res) =>
 
     res.json({ deleted: true });
   } catch (err) {
-    console.error('[DELETE /api/audits/:id]', err);
+    const e = err as Error;
+    logger.error('route.audit_delete_failed', { component: 'audits', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to delete audit' });
   }
 });
@@ -276,7 +291,8 @@ auditsRouter.get('/:id/brief', async (req: AuthRequest, res) => {
       intakeProgress: gates.intakeProgress,
     });
   } catch (err) {
-    console.error('[GET /api/audits/:id/brief]', err);
+    const e = err as Error;
+    logger.error('route.brief_get_failed', { component: 'audits', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to get brief' });
   }
 });
@@ -322,8 +338,9 @@ auditsRouter.put('/:id/brief', async (req: AuthRequest, res) => {
       intakeProgress: gates.intakeProgress,
     });
   } catch (err) {
-    console.error('[PUT /api/audits/:id/brief]', err);
-    const msg = (err as Error).message;
+    const e = err as Error;
+    logger.error('route.brief_put_failed', { component: 'audits', error: e.message, stack: e.stack });
+    const msg = e.message;
     if (msg.startsWith('Invalid brief responses')) {
       res.status(400).json({ error: msg });
       return;

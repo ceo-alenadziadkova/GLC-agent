@@ -1,4 +1,4 @@
-import { Circle, Check } from '@phosphor-icons/react';
+import { Circle, Check, CheckCircle } from '@phosphor-icons/react';
 import type { BriefQuestion, BriefResponseEntry } from '../data/briefQuestions';
 
 export const PRIORITY_BADGE: Record<string, { label: string; color: string }> = {
@@ -30,6 +30,7 @@ export function BriefField({
   const badge = PRIORITY_BADGE[q.priority];
   const strVal = (typeof rawValue === 'number' ? String(rawValue) : (rawValue as string) ?? '');
   const arrVal = (Array.isArray(rawValue) ? rawValue : []) as string[];
+  const markedUnknown = entrySource === 'unknown';
 
   return (
     <div className="space-y-1.5">
@@ -58,14 +59,6 @@ export function BriefField({
       {q.hint && (
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: -2 }}>{q.hint}</p>
       )}
-      <button
-        type="button"
-        onClick={onSetUnknown}
-        className="text-xs underline underline-offset-2"
-        style={{ color: 'var(--text-tertiary)' }}
-      >
-        I don’t know / Ask consultant
-      </button>
 
       {q.type === 'free_text' && (
         <textarea
@@ -113,7 +106,7 @@ export function BriefField({
                 style={{
                   backgroundColor: selected ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)',
                   border: selected ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)',
-                  color: selected ? '#fff' : 'var(--text-secondary)',
+                  color: selected ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
                   fontWeight: selected ? 500 : 400,
                 }}
               >
@@ -140,7 +133,7 @@ export function BriefField({
                 style={{
                   backgroundColor: selected ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)',
                   border: selected ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)',
-                  color: selected ? '#fff' : 'var(--text-secondary)',
+                  color: selected ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
                   fontWeight: selected ? 500 : 400,
                 }}
               >
@@ -151,6 +144,55 @@ export function BriefField({
           })}
         </div>
       )}
+
+      <div className="mt-2 space-y-1.5">
+        {markedUnknown ? (
+          <div
+            className="flex flex-wrap items-start gap-2 rounded-lg px-2.5 py-2 text-left text-xs leading-snug"
+            style={{
+              background: 'rgba(16,207,130,0.08)',
+              border: '1px solid rgba(16,207,130,0.28)',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <CheckCircle className="h-4 w-4 shrink-0 mt-0.5" weight="fill" style={{ color: 'var(--glc-green)' }} />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <p style={{ color: 'var(--text-primary)' }}>
+                Marked as &quot;don&apos;t know&quot; — this counts toward progress. Your consultant can follow up.
+              </p>
+              <button
+                type="button"
+                onClick={() => onChange(null)}
+                className="text-xs font-medium underline underline-offset-2 cursor-pointer"
+                style={{ color: 'var(--glc-blue)' }}
+              >
+                I&apos;ll answer myself instead
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onSetUnknown}
+            className="rounded-lg border px-2.5 py-2 text-left text-xs font-medium transition-colors cursor-pointer"
+            style={{
+              borderColor: 'var(--border-default)',
+              color: 'var(--text-secondary)',
+              backgroundColor: 'var(--bg-surface)',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.borderColor = 'var(--glc-blue)';
+              (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-default)';
+              (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
+            }}
+          >
+            I don&apos;t know — skip for now (consultant can fill in)
+          </button>
+        )}
+      </div>
     </div>
   );
 }

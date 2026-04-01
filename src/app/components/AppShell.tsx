@@ -7,7 +7,8 @@ import {
 } from '@phosphor-icons/react';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
-import Logo from '../assets/logo.svg';
+import { GlcLogo } from './GlcLogo';
+import { ThemeToggle } from './ThemeToggle';
 
 function useCurrentAuditId(): string | null {
   const { pathname } = useLocation();
@@ -76,11 +77,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           className="relative flex items-center gap-2 px-4 pt-5 pb-4"
           style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
         >
-          <img
-            src={Logo}
-            alt="GLC Audit Platform"
-            className="h-12 w-auto"
-          />
+          <GlcLogo variant="on-dark" className="h-12" />
         </div>
 
         {/* Search — consultant only */}
@@ -153,7 +150,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                 to={to}
                 className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline transition-all"
                 style={{
-                  color: active ? '#fff' : 'rgba(255,255,255,0.46)',
+                  color: active ? 'var(--primary-foreground)' : 'rgba(255,255,255,0.46)',
                   fontSize: 'var(--text-sm)',
                   fontWeight: active ? 500 : 400,
                   transition: 'color var(--ease-fast)',
@@ -259,6 +256,15 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           className="relative px-2 py-2 space-y-0.5"
           style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
         >
+          <div
+            className="mb-1 flex items-center justify-between gap-2 rounded-lg px-2.5 py-2"
+            style={{ borderRadius: 'var(--radius-md)' }}
+          >
+            <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.45)' }}>
+              Theme
+            </span>
+            <ThemeToggle variant="sidebar" />
+          </div>
           {[
             { icon: Bell,    label: 'Notifications' },
             { icon: GearSix, label: 'Settings'       },
@@ -360,7 +366,10 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                 </p>
               )}
             </div>
-            {actions && <div className="flex items-center gap-2">{actions}</div>}
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              {actions}
+            </div>
           </header>
         )}
         <main className="flex-1 overflow-y-auto">{children}</main>

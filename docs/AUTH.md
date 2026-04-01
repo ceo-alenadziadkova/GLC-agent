@@ -16,9 +16,13 @@
 5. Supabase JS client picks up tokens automatically → session established
 
 ### Google OAuth
-1. Frontend calls `supabase.auth.signInWithOAuth({ provider: 'google' })`
+1. Frontend calls `supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: '<origin>/login' } })`
 2. Browser redirects to Google
-3. After consent → Google redirects back → Supabase exchanges code for session
+3. After consent → Google → Supabase → browser opens `/login` with `?code=` (PKCE) or hash tokens; `useAuth` exchanges or `setSession`, then UI navigates away
+
+Do not use bare `<origin>` as `redirectTo` when `/` immediately redirects to `/dashboard`: that navigation drops the auth query/hash and the session is never created.
+
+**`Database error saving new user` (Google or first sign-up):** the `on_auth_user_created` trigger inserts into `public.profiles`. On Supabase hosted, that runs as `supabase_auth_admin`; without an INSERT (and SELECT for conflict checks) RLS policy for that role, the insert fails. Apply migration `012_profiles_trigger_auth_admin.sql` (see [DATABASE.md](./DATABASE.md#overview)). The login page surfaces `error_description` from the redirect URL when present.
 
 Both methods produce the same result: a Supabase session with an `access_token` (JWT) and `refresh_token`.
 
@@ -54,7 +58,7 @@ The Supabase JS client handles session persistence automatically:
 
 The database keeps the legacy value `consultant` for admins; the app may display **Admin** in the shell. Clients only see audits where they are `user_id` **or** `client_id` on the `audits` row (enforced in API queries, not only RLS).
 
-**Public (no auth):** `POST/GET /api/snapshot` for free UX snapshot — rate-limited by IP.
+**Public (no auth):** `POST/GET /api/snapshot` for free UX snapshot — `POST` (starts) are rate-limited by IP (see [API.md](./API.md#public-snapshot)); `GET` polling is not counted.
 
 ---
 
@@ -124,8 +128,8 @@ In Supabase dashboard (Authentication → Settings):
 
 | Setting | Value |
 |---|---|
-| Site URL | `http://localhost:5173` (dev) / `https://your-app.vercel.app` (prod) |
-| Redirect URLs | `http://localhost:5173/**`, `https://your-app.vercel.app/**` |
+| Site URL | **Exact URL only** (no `*`): `http://localhost:5173` (dev) / `https://your-app.vercel.app` (prod) |
+| Redirect URLs | Prefer **exact** URLs: `http://localhost:5173`, `http://localhost:5173/login`, `http://localhost:5173/login?from_magic=1`, plus production `https://…/login`. OAuth uses `redirectTo: <origin>/login`, so **`/login` must be allowed**. If an auth callback ever lands on `/`, `RootRedirect` forwards `?code` / hash to `/login`. Optional: [Supabase glob patterns](https://supabase.com/docs/guides/auth/redirect-urls) where the dashboard accepts them. |
 | Magic Link expiry | 1 hour (default) |
 | Google OAuth | Enabled — add Client ID + Secret from Google Cloud Console |
 

@@ -1,5 +1,8 @@
 /**
- * Intake Brief — 25 questions across all domains.
+ * Intake Brief — 25 questions in the main schema (full / express brief).
+ * Identity fields (website, name, industry, Other specify) are in INTAKE_IDENTITY_BRIEF_QUESTIONS.
+ * They are always returned on public /intake/:token (and prefill) — clients must still complete them there.
+ * Consultants enter the same fields on New Audit step 0; step 2 full brief does not repeat them.
  *
  * Priority legend:
  *   🔴 required     — pipeline is BLOCKED until all required questions are answered
@@ -11,8 +14,46 @@
  */
 import { z } from 'zod';
 import type { BriefQuestion } from '../types/audit.js';
+import { INDUSTRY_OPTIONS } from '../config/industry-options.js';
 
 // ─── Question definitions ─────────────────────────────────────────────────────
+
+/** Shown on public /intake/:token only — same keys as saved in responses (not listed in BRIEF_QUESTIONS). */
+const BASE_INTAKE_IDENTITY_QUESTIONS: BriefQuestion[] = [
+  {
+    id: 'intake_company_website',
+    priority: 'required',
+    domains: ['all'],
+    question: 'Company website',
+    hint: 'Full URL (https://…). If you do not have a website yet, write "none" or "no website".',
+    type: 'free_text',
+  },
+  {
+    id: 'intake_company_name',
+    priority: 'required',
+    domains: ['all'],
+    question: 'Company name',
+    hint: 'Legal or trading name — as you want it shown on the audit.',
+    type: 'free_text',
+  },
+  {
+    id: 'intake_industry',
+    priority: 'required',
+    domains: ['all'],
+    question: 'Primary industry or sector',
+    hint: 'Choose the closest match; you can change it if needed.',
+    type: 'single_choice',
+    options: [...INDUSTRY_OPTIONS],
+  },
+  {
+    id: 'intake_industry_specify',
+    priority: 'optional',
+    domains: ['all'],
+    question: 'Which industry or sector?',
+    hint: 'You chose Other — briefly describe your industry (e.g. niche manufacturing, creator economy).',
+    type: 'free_text',
+  },
+];
 
 const BASE_BRIEF_QUESTIONS: BriefQuestion[] = [
   // ── Business Basics (all agents) ──────────────────────────────────────────
@@ -238,6 +279,10 @@ const EXPRESS_REQUIRED_IDS = new Set<string>([
 ]);
 
 const PRE_BRIEF_IDS = new Set<string>([
+  'intake_company_website',
+  'intake_company_name',
+  'intake_industry',
+  'intake_industry_specify',
   'primary_goal',
   'target_audience',
   'primary_cta',
@@ -256,6 +301,10 @@ const HIGH_REVENUE_QUESTION_IDS = new Set<string>([
 ]);
 
 const CONSULTANT_HINTS: Record<string, string> = {
+  intake_company_website: 'Confirm live URL; social-only or pre-launch — capture where prospects actually go.',
+  intake_company_name: 'Legal vs trading name if it affects positioning or contracts.',
+  intake_industry: 'Confirm the closest list match; probe sub-niche in the interview if needed.',
+  intake_industry_specify: 'If Other, capture how they describe the vertical in their own words.',
   primary_goal: 'Confirm the north-star KPI and timeline; note tensions between growth vs. cost.',
   target_audience: 'Probe jobs-to-be-done, regions, and budget authority.',
   revenue_model: 'Clarify average deal size or basket value and seasonality.',
@@ -298,7 +347,9 @@ function enrichQuestion(question: BriefQuestion): BriefQuestion {
   const weight = importance === 'red' ? 3 : importance === 'yellow' ? 2 : 1;
 
   let ux_group: BriefQuestion['ux_group'] = 'business';
-  if (question.domains.includes('tech_infrastructure') || question.domains.includes('security_compliance')) {
+  if (question.id.startsWith('intake_')) {
+    ux_group = 'basics';
+  } else if (question.domains.includes('tech_infrastructure') || question.domains.includes('security_compliance')) {
     ux_group = 'tech';
   } else if (question.domains.includes('seo_digital')) {
     ux_group = 'audience';
@@ -332,6 +383,24 @@ function enrichQuestion(question: BriefQuestion): BriefQuestion {
 }
 
 export const BRIEF_QUESTIONS: BriefQuestion[] = BASE_BRIEF_QUESTIONS.map(enrichQuestion);
+
+export const INTAKE_IDENTITY_BRIEF_QUESTIONS: BriefQuestion[] = BASE_INTAKE_IDENTITY_QUESTIONS.map(enrichQuestion);
+
+/** All intake_* keys that may appear in responses (specify only when industry is Other). */
+export const INTAKE_IDENTITY_FIELD_IDS = [
+  'intake_company_website',
+  'intake_company_name',
+  'intake_industry',
+  'intake_industry_specify',
+] as const;
+
+export function getBriefQuestionText(id: string): string {
+  return (
+    BRIEF_QUESTIONS.find(q => q.id === id)?.question
+    ?? INTAKE_IDENTITY_BRIEF_QUESTIONS.find(q => q.id === id)?.question
+    ?? id.replace(/_/g, ' ')
+  );
+}
 
 // ─── Zod schema for responses validation ──────────────────────────────────────
 

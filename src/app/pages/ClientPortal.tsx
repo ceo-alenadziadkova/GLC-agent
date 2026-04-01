@@ -8,6 +8,7 @@ import { AppShell } from '../components/AppShell';
 import { api } from '../data/apiService';
 import { useAudits } from '../hooks/useAudits';
 import type { AuditRequest, AuditRequestStatus } from '../data/auditTypes';
+import { formatAuditWebsiteDisplay, isNoPublicWebsiteUrl } from '../data/no-public-website';
 
 // ── Status helpers ────────────────────────────────────────────────────────────
 
@@ -33,7 +34,12 @@ function StatusBadge({ status }: { status: AuditRequestStatus }) {
 }
 
 function RequestCard({ req }: { req: AuditRequest }) {
-  const domain = (() => { try { return new URL(req.url).hostname; } catch { return req.url; } })();
+  const domain = isNoPublicWebsiteUrl(req.url)
+    ? formatAuditWebsiteDisplay(req.url)
+    : (() => { try { return new URL(req.url).hostname; } catch { return req.url; } })();
+  const industryOtherSpec = typeof req.brief_snapshot?.intake_industry_specify === 'string'
+    ? req.brief_snapshot.intake_industry_specify.trim()
+    : '';
   const date = new Date(req.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
   const linkTarget = req.audit_id
@@ -78,10 +84,11 @@ function RequestCard({ req }: { req: AuditRequest }) {
             </span>
             {req.industry && (
               <span
-                className="px-1.5 py-0.5 rounded text-xs flex-shrink-0"
+                className="px-1.5 py-0.5 rounded text-xs flex-shrink-0 max-w-[min(200px,45vw)] truncate inline-block align-bottom"
                 style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: 'var(--text-tertiary)' }}
+                title={req.industry === 'Other' && industryOtherSpec ? industryOtherSpec : undefined}
               >
-                {req.industry}
+                {req.industry === 'Other' && industryOtherSpec ? `Other: ${industryOtherSpec}` : req.industry}
               </span>
             )}
           </div>
@@ -153,7 +160,7 @@ export function ClientPortal() {
             </h3>
             <div className="space-y-2">
               {myAudits.map(a => {
-                const host = (() => { try { return new URL(a.company_url).hostname; } catch { return a.company_url; } })();
+                const title = a.company_name || formatAuditWebsiteDisplay(a.company_url);
                 return (
                   <Link
                     key={a.id}
@@ -166,7 +173,7 @@ export function ClientPortal() {
                   >
                     <div className="flex items-center justify-between gap-3">
                       <span className="font-medium truncate" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}>
-                        {a.company_name || host}
+                        {title}
                       </span>
                       <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-tertiary)' }}>
                         {a.status.replace(/_/g, ' ')}

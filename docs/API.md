@@ -281,9 +281,19 @@ Generate a markdown, JSON, or CSV audit report. Caller must be the audit **owner
 
 ## Public Snapshot
 
+### `GET /api/snapshot/quota`
+
+Public endpoint (no JWT). Returns how many free website checks are **still available** from this IP in the current rolling window (same counter as `POST /api/snapshot`; this request does **not** consume a check).
+
+**Response `200`:** `{ "limit", "remaining", "period": "day", "reset_at": "<ISO timestamp> | null" }`
+
 ### `POST /api/snapshot`
 
 Start a free snapshot run. Public endpoint (no JWT).
+
+**Fair use:** at most **3** starts per IP per rolling **24 hours** (abuse control). Only `POST` counts toward the limit; `GET` polling and `GET /quota` do not.
+
+**Response `429`:** `RATE_LIMITED` — body includes `error` (plain-language for visitors, e.g. "free website checks" from "this connection"; avoids internal jargon like "snapshot"), `code`, `limit`, `remaining`, `period: "day"`, `retry_after_hours`. Successful responses include `RateLimit-Limit` / `RateLimit-Remaining` headers (exposed to browsers via CORS) so the client can show how many free starts are left.
 
 ### `GET /api/snapshot/:token`
 
@@ -308,9 +318,31 @@ Migration: `011_intake_tokens.sql`. Table `intake_tokens` — operations via ser
 **Body (optional):**
 
 - `audit_id` — UUID; if set, responses from `POST .../respond` merge into that audit’s `intake_brief` (consultant must own the audit).
-- `metadata` — JSON object, e.g. `{ "company_name": "...", "message": "..." }` for the client-facing page.
+- `metadata` — JSON object for the client-facing pre-brief page. Common keys:
+  - `company_name`, `company_website`, `industry` — optional pre-fill for the first three pre-brief questions (client can edit before submit). Website: full URL, or client may enter `none` / `no website` if absent. `industry` must match a canonical app dropdown value (same list as New Audit / client request form) or it is ignored for pre-fill.
+  - `message` — header context.
+  - `consultant_name` — shown on the success screen (“X has received your answers”).
+  - `expected_contact` — timing hint (e.g. `24 hours`, `Friday`, `our Thursday call`); combined with `contact_channel` for the follow-up line. If omitted, the UI defaults to “within 24 hours”.
+  - `contact_channel` — e.g. `WhatsApp`, `phone`, `email`.
+  - `consultant_email`, `consultant_whatsapp` — optional; shown as “Questions? …” on success.
 
 **Response `201`:** `{ "token", "url", "expires_at" }` — `url` is built from `FRONTEND_URL` (or localhost) + `/intake/:token`.
+
+### `POST /api/intake/link-audit`
+
+**Auth:** consultant JWT.
+
+**Body:** `{ "token": "<40 hex>", "audit_id": "<uuid>" }` — ties an existing intake token to an audit you own. If the client already submitted answers while `audit_id` was null, those pre-brief fields are merged into `intake_brief` immediately. Use this when the link was created without `audit_id` (e.g. from New Audit before the audit existed), then the audit is created afterward.
+
+**Errors:** `400` invalid body, `403` token owned by another user, `404` token or audit not found, `409` token already linked to a different audit.
+
+### `GET /api/intake/submissions`
+
+**Auth:** consultant JWT.
+
+Lists intake tokens **you created** where the client has already submitted (`submitted_at` is set), newest first (limit 100). Used by the admin request queue to show raw pre-brief answers before or after linking to an audit.
+
+**Response `200`:** `{ "submissions": [ { "token", "metadata", "responses", "submitted_at", "expires_at", "audit_id", "intake_url" } ] }` — `intake_url` is the shareable client link (`FRONTEND_URL` + `/intake/:token`).
 
 ### `GET /api/intake/:token`
 

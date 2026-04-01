@@ -12,7 +12,7 @@ import { evaluateBriefGates } from '../services/brief-validator.js';
  * Used as a catch handler for fire-and-forget phase runs.
  *
  * [C4] Wrapped in try-catch: if Supabase is unreachable during error handling,
- * we log to console instead of throwing an unhandled rejection.
+ * we log via logger instead of throwing an unhandled rejection.
  */
 async function emitPhaseError(auditId: string, phase: number, err: Error): Promise<void> {
   logger.error('Pipeline phase crashed', { audit_id: auditId, phase, error: err.message });
@@ -286,7 +286,8 @@ pipelineRouter.get('/:id/pipeline/status', requireAuth, async (req: AuthRequest,
       reviews: reviewsRes.data ?? [],
     });
   } catch (err) {
-    console.error('[GET /pipeline/status]', err);
+    const e = err as Error;
+    logger.error('route.pipeline_status_failed', { component: 'pipeline', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to get pipeline status' });
   }
 });
@@ -327,7 +328,8 @@ pipelineRouter.get('/:id/quality-gate/:phase', requireAuth, async (req: AuthRequ
 
     res.json(event.data);
   } catch (err) {
-    console.error('[GET /quality-gate/:phase]', err);
+    const e = err as Error;
+    logger.error('route.quality_gate_failed', { component: 'pipeline', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to fetch quality gate report' });
   }
 });
@@ -416,7 +418,8 @@ pipelineRouter.post('/:id/reviews/:phase', ...consultantGuard, async (req: AuthR
 
     res.json(data);
   } catch (err) {
-    console.error('[POST /reviews/:phase]', err);
+    const e = err as Error;
+    logger.error('route.review_approve_failed', { component: 'pipeline', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to approve review' });
   }
 });

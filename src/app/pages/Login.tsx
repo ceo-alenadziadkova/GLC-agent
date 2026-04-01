@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import { Globe, Envelope, ArrowRight, Lock } from '@phosphor-icons/react';
+import { Envelope, ArrowRight, Lock } from '@phosphor-icons/react';
 import { useAuth } from '../hooks/useAuth';
 import { logger } from '../lib/logger';
+import { ThemeToggle } from '../components/ThemeToggle';
+import { GlcLogo } from '../components/GlcLogo';
 
 const TEST_EMAIL = 'alenauserfortest@gmail.com';
 
@@ -65,6 +67,10 @@ export function Login() {
       className="min-h-screen flex flex-col items-center justify-center px-6 relative"
       style={{ backgroundColor: 'var(--bg-canvas)' }}
     >
+      <div className="absolute top-4 right-4 z-20 sm:top-6 sm:right-6">
+        <ThemeToggle />
+      </div>
+
       <div
         className="absolute inset-0 pointer-events-none"
         style={{ background: 'var(--mesh-brand)', opacity: 0.55 }}
@@ -83,13 +89,9 @@ export function Login() {
             initial={{ scale: 0.75, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.08, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
-            style={{
-              background: 'var(--gradient-brand)',
-              boxShadow: '0 8px 28px rgba(28,189,255,0.32), 0 2px 8px rgba(0,0,0,0.14)',
-            }}
+            className="flex justify-center mb-5"
           >
-            <Globe className="w-7 h-7 text-white" />
+            <GlcLogo className="h-9 w-auto max-w-[min(240px,85vw)]" alt="" />
           </motion.div>
 
           <h1
@@ -228,10 +230,11 @@ export function Login() {
                     disabled={loading || !isReady}
                     whileHover={!loading ? { scale: 1.015 } : {}}
                     whileTap={!loading ? { scale: 0.985 } : {}}
-                    className="w-full flex items-center justify-center gap-2 py-3 text-white font-semibold"
+                    className="w-full flex items-center justify-center gap-2 py-3 font-semibold"
                     style={{
                       borderRadius: 'var(--radius-lg)',
                       background: isReady ? 'var(--gradient-accent)' : 'var(--border-default)',
+                      color: isReady ? 'var(--primary-foreground)' : 'var(--text-tertiary)',
                       cursor: isReady && !loading ? 'pointer' : 'not-allowed',
                       fontSize: 'var(--text-sm)',
                       border: 'none',
@@ -240,7 +243,7 @@ export function Login() {
                   >
                     {loading ? (
                       <span className="flex items-center gap-2">
-                        <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                        <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin border-[var(--primary-foreground)]" />
                         {isTestUser && password ? 'Signing in...' : 'Sending...'}
                       </span>
                     ) : (

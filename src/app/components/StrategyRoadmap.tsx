@@ -27,11 +27,11 @@ function InitiativeCard({ initiative, index }: InitiativeCardProps) {
   const getEffortColor = (effort: string) => {
     switch (effort) {
       case 'low':
-        return '#15803D';
+        return 'var(--score-5)';
       case 'medium':
-        return '#B45309';
+        return 'var(--score-3)';
       default:
-        return '#DC2626';
+        return 'var(--score-1)';
     }
   };
 
@@ -40,7 +40,7 @@ function InitiativeCard({ initiative, index }: InitiativeCardProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
-      className="p-5 rounded-lg border bg-white hover:shadow-md transition-all"
+      className="p-5 rounded-lg border bg-[var(--bg-surface)] hover:shadow-md transition-all"
       style={{ borderColor: 'var(--panel-border)', boxShadow: 'var(--shadow-sm)' }}
     >
       <div className="flex items-start justify-between mb-3">
