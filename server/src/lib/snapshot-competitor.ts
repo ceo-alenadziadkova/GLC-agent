@@ -130,8 +130,6 @@ export async function maybeBuildCompetitorMini(
     cmpBool('structured_data', 'JSON-LD structured data', clientM.structured_data, compM.structured_data),
   ];
 
-  if (comparisons.length === 0) return undefined;
-
   return {
     competitor_name: candidate.name,
     competitor_url: candidate.url,

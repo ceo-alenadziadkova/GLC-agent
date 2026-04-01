@@ -75,6 +75,8 @@ export function IntakeBrief() {
 
   const answered = countAnswered(responses, PRE_BRIEF_QUESTION_IDS);
   const total = PRE_BRIEF_QUESTION_IDS.length;
+  // "touched" = answered OR explicitly marked unknown — all touched → unlock Submit
+  const touched = PRE_BRIEF_QUESTION_IDS.filter(id => id in responses).length;
 
   function handleChange(id: string, value: string | string[] | number | null) {
     setResponses(prev => ({ ...prev, [id]: { value, source: 'client' } }));
@@ -203,13 +205,13 @@ export function IntakeBrief() {
 
                 <button
                   type="submit"
-                  disabled={submitting || answered < total}
+                  disabled={submitting || touched < total}
                   className="w-full flex items-center justify-center gap-2 py-3 font-semibold rounded-xl text-sm"
                   style={{
-                    background: answered >= total && !submitting ? 'var(--gradient-brand)' : 'var(--border-default)',
+                    background: touched >= total && !submitting ? 'var(--gradient-brand)' : 'var(--border-default)',
                     color: '#fff',
                     border: 'none',
-                    cursor: answered >= total && !submitting ? 'pointer' : 'not-allowed',
+                    cursor: touched >= total && !submitting ? 'pointer' : 'not-allowed',
                   }}
                 >
                   {submitting ? 'Sending…' : <>Submit <ArrowRight className="w-4 h-4" /></>}
