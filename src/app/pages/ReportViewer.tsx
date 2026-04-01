@@ -58,10 +58,19 @@ export function ReportViewer() {
   const { audit, loading, error } = useAudit(id);
   const [profile, setProfile] = useState<ReportProfile>('full');
   const [csvLoading, setCsvLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
-  const handleExportPdf = () => {
-    window.print();
-  };
+  async function handleExportPdf() {
+    if (!id) return;
+    setPdfLoading(true);
+    try {
+      await api.downloadReportPdf(id, profile);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPdfLoading(false);
+    }
+  }
 
   async function handleDownloadCsv() {
     if (!id) return;
@@ -144,8 +153,15 @@ export function ReportViewer() {
             <DownloadSimple className="w-4 h-4" />
             {csvLoading ? 'Generating…' : 'Action Plan CSV'}
           </button>
-          <button type="button" className="glc-btn-secondary" onClick={handleExportPdf}>
-            <FileText className="w-4 h-4" /> Export PDF
+          <button
+            type="button"
+            className="glc-btn-secondary"
+            onClick={handleExportPdf}
+            disabled={pdfLoading}
+            title="Download branded A4 PDF report"
+          >
+            <FileText className="w-4 h-4" />
+            {pdfLoading ? 'Generating…' : 'Export PDF'}
           </button>
         </div>
       }

@@ -122,6 +122,26 @@ export const api = {
     );
   },
 
+  /** Downloads branded A4 PDF report with auth headers. Triggers browser file save. */
+  async downloadReportPdf(auditId: string, profile: 'full' | 'owner' | 'tech' | 'marketing' | 'onepager' = 'full') {
+    const authHeaders = await getAuthHeaders();
+    const res = await fetch(
+      `${API_URL}/api/audits/${auditId}/report?format=pdf&profile=${profile}`,
+      { headers: authHeaders }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error((err as { error?: string }).error ?? `API error: ${res.status}`);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit-${auditId}-report.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
   /** Downloads action-plan CSV with auth headers. Triggers browser file save. */
   async downloadReportCsv(auditId: string, profile: 'full' | 'owner' | 'tech' | 'marketing' | 'onepager' = 'full') {
     const authHeaders = await getAuthHeaders();
