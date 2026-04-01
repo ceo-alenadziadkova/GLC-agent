@@ -18,9 +18,9 @@ function useCurrentAuditId(): string | null {
 
 function buildConsultantNav(auditId: string | null) {
   return [
-    { to: '/portfolio',                          icon: Briefcase,    label: 'Portfolio', badge: null },
+    { to: '/dashboard',                          icon: SquaresFour,  label: 'Dashboard', badge: null },
     { to: '/admin/requests',                     icon: Tray,         label: 'Request queue', badge: null },
-    { to: auditId ? `/audit/${auditId}` : null,  icon: SquaresFour,  label: 'Audit Workspace',  badge: null },
+    { to: auditId ? `/audit/${auditId}` : null,  icon: Briefcase,    label: 'Audit Workspace',  badge: null },
     { to: auditId ? `/pipeline/${auditId}` : null, icon: Pulse,      label: 'Pipeline',         badge: null },
     { to: auditId ? `/reports/${auditId}` : null, icon: FileText,    label: 'Reports',          badge: null },
     { to: auditId ? `/strategy/${auditId}` : null,icon: Flask,       label: 'Strategy Lab',     badge: null },
@@ -146,7 +146,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               );
             }
             const active = location.pathname === to ||
-              (to !== '/portfolio' && to !== '/portal' && to !== '/admin/requests' && location.pathname.startsWith(to.split('/').slice(0, 2).join('/')));
+              (to !== '/dashboard' && to !== '/portal' && to !== '/admin/requests' && location.pathname.startsWith(to.split('/').slice(0, 2).join('/')));
             return (
               <NavLink
                 key={to}

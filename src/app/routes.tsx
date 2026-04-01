@@ -1,5 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router';
-import { Portfolio }        from './pages/Portfolio';
+import { Dashboard }        from './pages/Dashboard';
 import { NewAudit }         from './pages/NewAudit';
 import { AuditWorkspace }   from './pages/AuditWorkspace';
 import { PipelineMonitor }  from './pages/PipelineMonitor';
@@ -26,12 +26,13 @@ function Client({ children }: { children: React.ReactNode }) {
 }
 
 export const router = createBrowserRouter([
-  { path: '/',                    element: <Navigate to="/portfolio" replace /> },
+  { path: '/',                    element: <Navigate to="/dashboard" replace /> },
   { path: '/login',               element: <Login /> },
   { path: '/snapshot',            element: <SnapshotLanding /> },           // public
 
   // ── Consultant routes ──────────────────────────────────────────────────────
-  { path: '/portfolio',           element: <Consultant><Portfolio /></Consultant> },
+  { path: '/dashboard',           element: <Consultant><Dashboard /></Consultant> },
+  { path: '/portfolio',           element: <Navigate to="/dashboard" replace /> },  // backward compat
   { path: '/admin/requests',      element: <Consultant><AdminRequestQueue /></Consultant> },
   { path: '/audit/new',           element: <Consultant><NewAudit /></Consultant> },
   { path: '/audit/:id',           element: <Consultant><AuditWorkspace /></Consultant> },
