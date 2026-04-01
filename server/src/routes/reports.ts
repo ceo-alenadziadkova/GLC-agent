@@ -4,6 +4,7 @@ import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { generalLimiter } from '../middleware/rate-limit.js';
 import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 import { reportProfiler, REPORT_PROFILES, type ReportProfile } from '../services/report-profiler.js';
+import { pdfGenerator } from '../services/pdf-generator.js';
 
 export const reportsRouter = Router();
 
@@ -11,7 +12,7 @@ reportsRouter.use(generalLimiter);
 reportsRouter.use(requireAuth);
 
 // ─── GET /api/audits/:id/report — Generate report ──────────
-// ?format=json|markdown|csv  (default: json)
+// ?format=json|markdown|csv|pdf  (default: json)
 // ?profile=full|owner|tech|marketing|onepager  (default: full)
 reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
   try {
@@ -56,6 +57,18 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
     );
 
     const input = { audit, recon, domains, strategy };
+
+    // ── PDF export ───────────────────────────────────────
+    if (format === 'pdf') {
+      const company = recon?.company_name ?? audit.company_url;
+      const filename = `audit-report-${company.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.pdf`;
+      const pdfBuffer = await pdfGenerator.generate(input, profile);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      res.send(pdfBuffer);
+      return;
+    }
 
     // ── CSV export ────────────────────────────────────────
     if (format === 'csv') {
