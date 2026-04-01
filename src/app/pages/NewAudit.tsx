@@ -208,6 +208,15 @@ export function NewAudit() {
     }
   }
 
+  function closePreBriefModal() {
+    setPreBriefOpen(false);
+    setPreBriefCompany('');
+    setPreBriefMessage('');
+    setPreBriefLink(null);
+    setPreBriefErr(null);
+    setPreBriefLoading(false);
+  }
+
   async function handlePreBriefCreate() {
     setPreBriefErr(null);
     setPreBriefLoading(true);
@@ -378,8 +387,8 @@ export function NewAudit() {
                   <div
                     className="fixed inset-0 z-50 flex items-center justify-center p-4"
                     style={{ background: 'rgba(0,0,0,0.55)' }}
-                    onClick={() => setPreBriefOpen(false)}
-                    onKeyDown={(e) => { if (e.key === 'Escape') setPreBriefOpen(false); }}
+                    onClick={closePreBriefModal}
+                    onKeyDown={(e) => { if (e.key === 'Escape') closePreBriefModal(); }}
                     role="presentation"
                   >
                     <div
@@ -392,7 +401,7 @@ export function NewAudit() {
                     >
                       <div className="flex items-start justify-between gap-2 mb-4">
                         <h3 id="prebrief-title" className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Send pre-brief link</h3>
-                        <button type="button" aria-label="Close" onClick={() => setPreBriefOpen(false)} style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                        <button type="button" aria-label="Close" onClick={closePreBriefModal} style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}>
                           <X className="w-5 h-5" />
                         </button>
                       </div>
@@ -417,7 +426,7 @@ export function NewAudit() {
                               <Copy className="w-4 h-4" />
                             </button>
                           </div>
-                          <button type="button" className="text-sm mt-2" style={{ color: 'var(--glc-blue)', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setPreBriefOpen(false)}>Done</button>
+                          <button type="button" className="text-sm mt-2" style={{ color: 'var(--glc-blue)', background: 'none', border: 'none', cursor: 'pointer' }} onClick={closePreBriefModal}>Done</button>
                         </div>
                       ) : (
                         <button

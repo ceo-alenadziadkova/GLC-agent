@@ -8,6 +8,20 @@ import type { CrawledPage, FreeSnapshotPreview, SnapshotCompetitorComparison } f
 
 const BLOCKED_EXTERNAL = /facebook\.com|instagram\.com|twitter\.com|x\.com|linkedin\.com|youtube\.com|tiktok\.com|google\.com|gstatic\.com|doubleclick\.net|googletagmanager\.com|analytics\.google|googleadservices\.com|clk\.|fonts\.googleapis\.com|cdnjs\.|jsdelivr\.net/i;
 
+/** AbortSignal.timeout() polyfill for Node < 18.17 */
+function abortAfter(ms: number): AbortSignal {
+  if (typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(ms);
+  }
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(new DOMException('TimeoutError', 'TimeoutError')), ms);
+  // Allow Node to exit even if the timer is still pending
+  if (typeof (id as unknown as NodeJS.Timeout).unref === 'function') {
+    (id as unknown as NodeJS.Timeout).unref();
+  }
+  return ctrl.signal;
+}
+
 export interface LightSiteMetrics {
   https: boolean;
   mobile_viewport: boolean;
@@ -55,7 +69,7 @@ export async function fetchLightSiteMetrics(
   timeoutMs: number
 ): Promise<LightSiteMetrics | null> {
   try {
-    const signal = AbortSignal.timeout(timeoutMs);
+    const signal = abortAfter(timeoutMs);
     const res = await fetchPublicHttpUrl(url, {
       signal,
       headers: {
@@ -129,8 +143,6 @@ export async function maybeBuildCompetitorMini(
     cmpNumber('hreflang_count', 'hreflang locale signals', clientM.hreflang_count, compM.hreflang_count),
     cmpBool('structured_data', 'JSON-LD structured data', clientM.structured_data, compM.structured_data),
   ];
-
-  if (comparisons.length === 0) return undefined;
 
   return {
     competitor_name: candidate.name,

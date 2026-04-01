@@ -309,19 +309,26 @@ export abstract class BaseAgent {
       .eq('audit_id', this.auditId)
       .maybeSingle();
 
-    if (error || !row) return;
+    if (error) return; // real DB error — skip silently, don't corrupt state
 
-    const existing = (row.post_audit_questions as Array<{ domain?: string; id?: string }>) ?? [];
+    const existing = (row?.post_audit_questions as Array<{ domain?: string; id?: string }>) ?? [];
     const existingKeys = new Set(existing.map(q => `${q.domain}:${q.id}`));
     const toAdd = newQs.filter(q => !existingKeys.has(`${q.domain}:${q.id}`));
     if (toAdd.length === 0) return;
 
     const merged = [...existing, ...toAdd];
 
-    await supabase
-      .from('intake_brief')
-      .update({ post_audit_questions: merged })
-      .eq('audit_id', this.auditId);
+    if (!row) {
+      // intake_brief row doesn't exist yet — create it with just the followup questions
+      await supabase
+        .from('intake_brief')
+        .insert({ audit_id: this.auditId, post_audit_questions: merged, responses: {} });
+    } else {
+      await supabase
+        .from('intake_brief')
+        .update({ post_audit_questions: merged })
+        .eq('audit_id', this.auditId);
+    }
   }
 
   protected async emit(eventType: string, message: string, data: Record<string, unknown> = {}): Promise<void> {
