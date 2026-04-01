@@ -8,6 +8,20 @@ import type { CrawledPage, FreeSnapshotPreview, SnapshotCompetitorComparison } f
 
 const BLOCKED_EXTERNAL = /facebook\.com|instagram\.com|twitter\.com|x\.com|linkedin\.com|youtube\.com|tiktok\.com|google\.com|gstatic\.com|doubleclick\.net|googletagmanager\.com|analytics\.google|googleadservices\.com|clk\.|fonts\.googleapis\.com|cdnjs\.|jsdelivr\.net/i;
 
+/** AbortSignal.timeout() polyfill for Node < 18.17 */
+function abortAfter(ms: number): AbortSignal {
+  if (typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(ms);
+  }
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(new DOMException('TimeoutError', 'TimeoutError')), ms);
+  // Allow Node to exit even if the timer is still pending
+  if (typeof (id as unknown as NodeJS.Timeout).unref === 'function') {
+    (id as unknown as NodeJS.Timeout).unref();
+  }
+  return ctrl.signal;
+}
+
 export interface LightSiteMetrics {
   https: boolean;
   mobile_viewport: boolean;
@@ -55,7 +69,7 @@ export async function fetchLightSiteMetrics(
   timeoutMs: number
 ): Promise<LightSiteMetrics | null> {
   try {
-    const signal = AbortSignal.timeout(timeoutMs);
+    const signal = abortAfter(timeoutMs);
     const res = await fetchPublicHttpUrl(url, {
       signal,
       headers: {

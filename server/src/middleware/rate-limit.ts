@@ -58,6 +58,22 @@ export const snapshotPublicLimiter = rateLimit({
 });
 
 /**
+ * Public intake token endpoints: 30 requests per hour by IP.
+ * Generous enough for legitimate re-submissions and refreshes.
+ */
+export const intakePublicLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 30,
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  message: {
+    error: 'Too many requests to this intake link. Try again later.',
+    retry_after_minutes: 60,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
  * Authenticated client log ingest: max 120 entries per user per hour.
  */
 export const logIngestLimiter = rateLimit({

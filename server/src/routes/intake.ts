@@ -4,6 +4,7 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
 import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../middleware/auth.js';
+import { intakePublicLimiter } from '../middleware/rate-limit.js';
 import {
   BRIEF_QUESTIONS,
   PRE_BRIEF_QUESTION_IDS,
@@ -82,7 +83,7 @@ intakeRouter.post('/', requireAuth, attachProfile, requireRole('consultant'), as
 });
 
 /** GET /api/intake/:token — public */
-intakeRouter.get('/:token', async (req, res) => {
+intakeRouter.get('/:token', intakePublicLimiter, async (req, res) => {
   try {
     const { token } = req.params;
     if (!token || !TOKEN_HEX.test(token)) {
@@ -124,7 +125,7 @@ intakeRouter.get('/:token', async (req, res) => {
 });
 
 /** POST /api/intake/:token/respond — public; overwrites responses until expiry */
-intakeRouter.post('/:token/respond', async (req, res) => {
+intakeRouter.post('/:token/respond', intakePublicLimiter, async (req, res) => {
   try {
     const { token } = req.params;
     if (!token || !TOKEN_HEX.test(token)) {
@@ -134,7 +135,7 @@ intakeRouter.post('/:token/respond', async (req, res) => {
 
     const { data: row, error: fetchErr } = await supabase
       .from('intake_tokens')
-      .select('id, audit_id, expires_at')
+      .select('id, audit_id, consultant_id, expires_at')
       .eq('token', token)
       .single();
 
@@ -179,6 +180,18 @@ intakeRouter.post('/:token/respond', async (req, res) => {
     const auditId = row.audit_id as string | null;
     if (auditId) {
       try {
+        // Ownership check: verify the audit belongs to the consultant who created this token.
+        const { data: auditRow, error: auditErr } = await supabase
+          .from('audits')
+          .select('user_id')
+          .eq('id', auditId)
+          .single();
+        if (auditErr || !auditRow || auditRow.user_id !== (row.consultant_id as string)) {
+          console.warn('[POST intake respond] brief merge skipped: audit ownership mismatch for token');
+          res.json({ ok: true as const, submitted_at: submittedAt });
+          return;
+        }
+
         const { data: brief } = await supabase
           .from('intake_brief')
           .select('responses')
