@@ -1,14 +1,15 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Globe, ArrowRight, ArrowLeft, MagnifyingGlass, HardDrives, Shield,
   Cursor, Target, Lightning, MapTrifold, CheckCircle, Warning,
-  ClipboardText, Rocket, Circle, Check,
+  ClipboardText, Rocket, Circle, Copy, X,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
+import { BriefField } from '../components/BriefField';
 import { SectionLabel } from '../components/glc/SectionLabel';
-import { api } from '../data/apiService';
+import { api, ApiError } from '../data/apiService';
 import {
   BRIEF_QUESTIONS, BRIEF_SECTIONS, REQUIRED_IDS, countAnswered,
   type BriefResponseEntry, type BriefResponses, type BriefQuestion,
@@ -68,146 +69,6 @@ function StepIndicator({ current }: { current: number }) {
   );
 }
 
-// ── Brief question renderer ───────────────────────────────────────────────────
-
-const PRIORITY_BADGE: Record<string, { label: string; color: string }> = {
-  required:    { label: 'Required',    color: '#EF4444' },
-  recommended: { label: 'Recommended', color: '#F59E0B' },
-  optional:    { label: 'Optional',    color: '#10B981' },
-};
-
-function BriefField({
-  q,
-  value,
-  onChange,
-  onSetUnknown,
-}: {
-  q: BriefQuestion;
-  value: string | string[] | number | boolean | null | BriefResponseEntry | undefined;
-  onChange: (v: string | string[] | number | null) => void;
-  onSetUnknown: () => void;
-}) {
-  const rawValue = (value && typeof value === 'object' && !Array.isArray(value) && 'value' in value)
-    ? value.value
-    : value;
-  const badge = PRIORITY_BADGE[q.priority];
-  const strVal = (typeof rawValue === 'number' ? String(rawValue) : (rawValue as string) ?? '');
-  const arrVal = (Array.isArray(rawValue) ? rawValue : []) as string[];
-
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-start justify-between gap-2">
-        <label className="block text-sm leading-snug" style={{ color: 'var(--text-primary)', flex: 1 }}>
-          {q.question}
-        </label>
-        <span
-          className="flex items-center gap-0.5 flex-shrink-0 mt-0.5"
-          style={{ color: badge.color, opacity: 0.75, fontSize: '10px' }}
-        >
-          <Circle size={6} weight="fill" />
-          {badge.label}
-        </span>
-      </div>
-      {q.hint && (
-        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: -2 }}>{q.hint}</p>
-      )}
-      <button
-        type="button"
-        onClick={onSetUnknown}
-        className="text-xs underline underline-offset-2"
-        style={{ color: 'var(--text-tertiary)' }}
-      >
-        I don’t know / Ask consultant
-      </button>
-
-      {q.type === 'free_text' && (
-        <textarea
-          rows={2}
-          value={strVal}
-          onChange={e => onChange(e.target.value || null)}
-          placeholder="Your answer..."
-          className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
-          style={{
-            backgroundColor: 'var(--bg-inset)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-primary)',
-          }}
-          onFocus={e => { (e.target as HTMLElement).style.borderColor = 'var(--glc-blue)'; }}
-          onBlur={e => { (e.target as HTMLElement).style.borderColor = 'var(--border-subtle)'; }}
-        />
-      )}
-
-      {q.type === 'number' && (
-        <input
-          type="number"
-          value={typeof rawValue === 'number' ? rawValue : ''}
-          onChange={e => onChange(e.target.value ? Number(e.target.value) : null)}
-          className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-          style={{
-            backgroundColor: 'var(--bg-inset)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-primary)',
-          }}
-          onFocus={e => { (e.target as HTMLElement).style.borderColor = 'var(--glc-blue)'; }}
-          onBlur={e => { (e.target as HTMLElement).style.borderColor = 'var(--border-subtle)'; }}
-        />
-      )}
-
-      {q.type === 'single_choice' && q.options && (
-        <div className="flex flex-wrap gap-1.5">
-          {q.options.map(opt => {
-            const selected = strVal === opt;
-            return (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => onChange(selected ? null : opt)}
-                className="px-2.5 py-1 rounded-lg text-xs transition-all"
-                style={{
-                  backgroundColor: selected ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)',
-                  border: selected ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)',
-                  color: selected ? '#fff' : 'var(--text-secondary)',
-                  fontWeight: selected ? 500 : 400,
-                }}
-              >
-                {opt}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {q.type === 'multi_choice' && q.options && (
-        <div className="flex flex-wrap gap-1.5">
-          {q.options.map(opt => {
-            const selected = arrVal.includes(opt);
-            return (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => {
-                  const next = selected ? arrVal.filter(v => v !== opt) : [...arrVal, opt];
-                  onChange(next.length ? next : null);
-                }}
-                className="px-2.5 py-1 rounded-lg text-xs transition-all"
-                style={{
-                  backgroundColor: selected ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)',
-                  border: selected ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)',
-                  color: selected ? '#fff' : 'var(--text-secondary)',
-                  fontWeight: selected ? 500 : 400,
-                }}
-              >
-                {selected && <Check size={11} weight="bold" style={{ display: 'inline', marginRight: 3 }} />}
-                {opt}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Domain pills (Step 1) ─────────────────────────────────────────────────────
 
 const DOMAIN_PILLS = [
@@ -236,8 +97,22 @@ const INDUSTRIES = [
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+function normalizeIntakeToResponses(raw: Record<string, unknown>): BriefResponses {
+  const out: BriefResponses = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (v != null && typeof v === 'object' && !Array.isArray(v) && 'value' in (v as Record<string, unknown>)) {
+      out[k] = { value: (v as BriefResponseEntry).value, source: 'client' };
+    } else {
+      out[k] = { value: v as BriefResponseEntry['value'], source: 'client' };
+    }
+  }
+  return out;
+}
+
 export function NewAudit() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const intakeTokenFromUrl = searchParams.get('intake')?.trim() ?? '';
 
   // Step 1 fields
   const [url,         setUrl]         = useState('');
@@ -247,11 +122,39 @@ export function NewAudit() {
 
   // Step 2 fields
   const [responses, setResponses] = useState<BriefResponses>({});
+  const [intakePrefillActive, setIntakePrefillActive] = useState(false);
+
+  // Pre-brief modal (Step 0)
+  const [preBriefOpen, setPreBriefOpen] = useState(false);
+  const [preBriefCompany, setPreBriefCompany] = useState('');
+  const [preBriefMessage, setPreBriefMessage] = useState('');
+  const [preBriefLink, setPreBriefLink] = useState<string | null>(null);
+  const [preBriefLoading, setPreBriefLoading] = useState(false);
+  const [preBriefErr, setPreBriefErr] = useState<string | null>(null);
 
   // UI state
   const [step,    setStep]    = useState(0);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!intakeTokenFromUrl) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.getIntakeToken(intakeTokenFromUrl);
+        if (cancelled) return;
+        const fromToken = normalizeIntakeToResponses(data.responses ?? {});
+        if (Object.keys(fromToken).length > 0) {
+          setResponses(prev => ({ ...fromToken, ...prev }));
+          setIntakePrefillActive(true);
+        }
+      } catch {
+        /* invalid or expired token — ignore, user continues fresh */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [intakeTokenFromUrl]);
 
   // ── Validation ──────────────────────────────────────────
   function isValidUrl(raw: string): boolean {
@@ -300,8 +203,27 @@ export function NewAudit() {
 
       navigate(`/pipeline/${audit.id}`);
     } catch (err) {
-      setError((err as Error).message);
+      setError(err instanceof ApiError ? err.message : (err as Error).message);
       setLoading(false);
+    }
+  }
+
+  async function handlePreBriefCreate() {
+    setPreBriefErr(null);
+    setPreBriefLoading(true);
+    setPreBriefLink(null);
+    try {
+      const { url } = await api.createIntakeToken({
+        metadata: {
+          ...(preBriefCompany.trim() ? { company_name: preBriefCompany.trim() } : {}),
+          ...(preBriefMessage.trim() ? { message: preBriefMessage.trim() } : {}),
+        },
+      });
+      setPreBriefLink(url);
+    } catch (e) {
+      setPreBriefErr((e as Error).message);
+    } finally {
+      setPreBriefLoading(false);
     }
   }
 
@@ -437,7 +359,80 @@ export function NewAudit() {
                   >
                     Continue to Brief <ArrowRight className="w-4 h-4" />
                   </motion.button>
+
+                  <button
+                    type="button"
+                    className="w-full text-center text-sm pt-2"
+                    style={{ color: 'var(--glc-blue)', background: 'none', border: 'none', cursor: 'pointer' }}
+                    onClick={() => {
+                      setPreBriefOpen(true);
+                      setPreBriefLink(null);
+                      setPreBriefErr(null);
+                    }}
+                  >
+                    Send pre-brief to client
+                  </button>
                 </form>
+
+                {preBriefOpen && (
+                  <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    style={{ background: 'rgba(0,0,0,0.55)' }}
+                    onClick={() => setPreBriefOpen(false)}
+                    onKeyDown={(e) => { if (e.key === 'Escape') setPreBriefOpen(false); }}
+                    role="presentation"
+                  >
+                    <div
+                      className="glc-card p-6 w-full max-w-md"
+                      style={{ borderRadius: 'var(--radius-xl)' }}
+                      onClick={e => e.stopPropagation()}
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby="prebrief-title"
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-4">
+                        <h3 id="prebrief-title" className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Send pre-brief link</h3>
+                        <button type="button" aria-label="Close" onClick={() => setPreBriefOpen(false)} style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                      <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Optional context for your client. They complete six short questions on a page without logging in.</p>
+                      <div className="space-y-3 mb-4">
+                        <div>
+                          <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>Company name (optional)</label>
+                          <input value={preBriefCompany} onChange={e => setPreBriefCompany(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }} />
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>Message (optional)</label>
+                          <textarea value={preBriefMessage} onChange={e => setPreBriefMessage(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-lg text-sm resize-none" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }} />
+                        </div>
+                      </div>
+                      {preBriefErr && <p className="text-sm mb-2" style={{ color: 'var(--score-1)' }}>{preBriefErr}</p>}
+                      {preBriefLink ? (
+                        <div className="space-y-2">
+                          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Share this link:</p>
+                          <div className="flex gap-2">
+                            <input readOnly value={preBriefLink} className="flex-1 px-2 py-1.5 rounded text-xs" style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-inset)', color: 'var(--text-primary)' }} />
+                            <button type="button" className="px-2 py-1.5 rounded-lg text-xs" style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', cursor: 'pointer' }} onClick={() => { void navigator.clipboard.writeText(preBriefLink); }}>
+                              <Copy className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <button type="button" className="text-sm mt-2" style={{ color: 'var(--glc-blue)', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setPreBriefOpen(false)}>Done</button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={preBriefLoading}
+                          className="w-full py-2.5 rounded-lg text-sm font-semibold"
+                          style={{ background: 'var(--gradient-brand)', color: '#fff', border: 'none', cursor: preBriefLoading ? 'wait' : 'pointer' }}
+                          onClick={() => { void handlePreBriefCreate(); }}
+                        >
+                          {preBriefLoading ? 'Creating…' : 'Create link'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </motion.div>
             )}
 
@@ -465,6 +460,11 @@ export function NewAudit() {
                     {readinessBadge.toUpperCase()}
                   </span>
                 </div>
+                {intakePrefillActive && (
+                  <div className="mb-4 px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(28,189,255,0.08)', border: '1px solid rgba(28,189,255,0.22)', color: 'var(--text-secondary)' }}>
+                    Pre-filled from client&apos;s pre-brief answers. Review before launch.
+                  </div>
+                )}
                 <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)', marginBottom: 20 }}>
                   These questions feed directly into the AI agents.{' '}
                   <strong className="inline-flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
@@ -501,6 +501,7 @@ export function NewAudit() {
                               value={responses[q.id]}
                               onChange={v => handleResponseChange(q.id, v)}
                               onSetUnknown={() => handleSetUnknown(q.id)}
+                              emphasizeClientSource={intakePrefillActive}
                             />
                           ))}
                         </div>

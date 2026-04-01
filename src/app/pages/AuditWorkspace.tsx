@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, useParams } from 'react-router';
 import {
@@ -14,6 +14,10 @@ import { QuickWinTag } from '../components/glc/QuickWinTag';
 import { useAudit } from '../hooks/useAudit';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
 import type { DomainKey, DomainData, ProductMode, ConfidenceLevel } from '../data/auditTypes';
+import { BriefField } from '../components/BriefField';
+import { BRIEF_QUESTIONS } from '../data/briefQuestions';
+import type { BriefQuestion, BriefResponses } from '../data/briefQuestions';
+import { api } from '../data/apiService';
 
 const EXPRESS_DOMAIN_KEYS: readonly DomainKey[] = [
   'tech_infrastructure', 'security_compliance', 'seo_digital', 'ux_conversion',
@@ -55,11 +59,45 @@ const CONF_BG: Record<ConfidenceLevel, string> = {
 
 export function AuditWorkspace() {
   const { id, domainId } = useParams<{ id: string; domainId?: string }>();
-  const { audit, loading, error } = useAudit(id);
+  const { audit, loading, error, reload } = useAudit(id);
   const [openRec, setOpenRec] = useState<number | null>(null);
+  const [enrichOpen, setEnrichOpen] = useState(true);
+  const [enrichSaved, setEnrichSaved] = useState(false);
+  const enrichSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingBriefRef = useRef<BriefResponses | null>(null);
   const [activeDomain, setActiveDomain] = useState<DomainKey>(
     (domainId && DOMAIN_KEYS.includes(domainId as DomainKey)) ? (domainId as DomainKey) : DOMAIN_KEYS[0]
   );
+
+  const queueFollowupBriefSave = useCallback((qid: string, value: string | string[] | number | null) => {
+    if (!id || !audit?.brief) return;
+    const prev = (audit.brief.responses as BriefResponses) ?? {};
+    const next: BriefResponses = {
+      ...prev,
+      [qid]: { value, source: 'consultant' },
+    };
+    pendingBriefRef.current = next;
+    if (enrichSaveTimer.current) clearTimeout(enrichSaveTimer.current);
+    enrichSaveTimer.current = setTimeout(() => {
+      void (async () => {
+        const payload = pendingBriefRef.current;
+        pendingBriefRef.current = null;
+        if (!id || !payload) return;
+        try {
+          await api.saveBrief(id, payload);
+          setEnrichSaved(true);
+          reload();
+          window.setTimeout(() => setEnrichSaved(false), 2200);
+        } catch (err) {
+          console.error('[AuditWorkspace] brief save', err);
+        }
+      })();
+    }, 650);
+  }, [id, audit?.brief, reload]);
+
+  useEffect(() => () => {
+    if (enrichSaveTimer.current) clearTimeout(enrichSaveTimer.current);
+  }, []);
 
   if (loading && !audit) {
     return (
@@ -82,6 +120,18 @@ export function AuditWorkspace() {
   }
 
   const domainData: DomainData | null = audit.domains[activeDomain] || null;
+  const postAuditRaw = audit.brief?.post_audit_questions ?? [];
+  const followupRefs = postAuditRaw.filter((x): x is { domain: string; id: string } => (
+    typeof x === 'object' && x !== null && 'domain' in x && 'id' in x
+    && typeof (x as { domain: string }).domain === 'string'
+    && typeof (x as { id: string }).id === 'string'
+  )).filter(x => x.domain === activeDomain);
+  const followupQuestions = followupRefs
+    .map(r => BRIEF_QUESTIONS.find(q => q.id === r.id))
+    .filter((q): q is BriefQuestion => q != null);
+  const showEnrichmentBanner = Boolean(
+    domainData?.status === 'completed' && followupQuestions.length > 0 && id
+  );
   const companyName = audit.meta.company_name || audit.meta.company_url;
   const isExpress = (audit.meta.product_mode as ProductMode) === 'express';
   const visibleDomainKeys: readonly DomainKey[] = isExpress ? EXPRESS_DOMAIN_KEYS : DOMAIN_KEYS;
@@ -325,6 +375,54 @@ export function AuditWorkspace() {
                         );
                       })}
                     </div>
+                  </div>
+                )}
+
+                {/* Post-audit enrichment (brief follow-ups) */}
+                {showEnrichmentBanner && (
+                  <div className="glc-card overflow-hidden" style={{ borderRadius: 'var(--radius-xl)', border: '1px solid rgba(28,189,255,0.2)' }}>
+                    <button
+                      type="button"
+                      className="w-full flex items-center gap-2 px-4 py-3 text-left"
+                      style={{ background: 'rgba(28,189,255,0.06)' }}
+                      onClick={() => setEnrichOpen(o => !o)}
+                    >
+                      <CaretRight className="w-4 h-4 flex-shrink-0 transition-transform" style={{ transform: enrichOpen ? 'rotate(90deg)' : 'none', color: 'var(--glc-blue)' }} />
+                      <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        Refine {DOMAIN_LABELS[activeDomain]} score — answer {followupQuestions.length} question{followupQuestions.length === 1 ? '' : 's'}
+                      </span>
+                    </button>
+                    <AnimatePresence>
+                      {enrichOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="px-4 pb-4 space-y-4"
+                          style={{ borderTop: '1px solid var(--border-subtle)' }}
+                        >
+                          {enrichSaved && (
+                            <motion.p
+                              initial={{ opacity: 0, y: -4 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="text-xs font-medium"
+                              style={{ color: 'var(--glc-green)' }}
+                            >
+                              Brief updated — readiness refreshed
+                            </motion.p>
+                          )}
+                          {followupQuestions.map(q => (
+                            <BriefField
+                              key={q.id}
+                              q={q}
+                              value={(audit.brief?.responses as BriefResponses | undefined)?.[q.id]}
+                              onChange={v => queueFollowupBriefSave(q.id, v)}
+                              onSetUnknown={() => queueFollowupBriefSave(q.id, null)}
+                            />
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 )}
 

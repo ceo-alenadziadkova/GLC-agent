@@ -13,6 +13,7 @@ export type BriefImportance = 'red' | 'yellow' | 'green';
 export type IntakeLayer = 0 | 1 | 2 | 3 | 'pre_brief';
 export type UxGroup = 'basics' | 'business' | 'tech' | 'audience' | 'goals';
 export type BriefResponseValue = string | string[] | number | boolean | null;
+export type BriefRevenueSignal = 'high' | 'medium' | 'low';
 
 export interface BriefQuestion {
   id: string;
@@ -24,6 +25,9 @@ export interface BriefQuestion {
   section: string;
   question: string;
   hint?: string;
+  consultant_hint?: string;
+  revenue_signal?: BriefRevenueSignal;
+  triggers_followup?: string[];
   type: BriefQuestionType;
   options?: string[];
 }
@@ -217,6 +221,48 @@ const PRE_BRIEF_IDS = new Set<string>([
   'biggest_pain',
 ]);
 
+const HIGH_REVENUE_QUESTION_IDS = new Set<string>([
+  'primary_goal',
+  'biggest_pain',
+  'uses_crm',
+  'handles_payments',
+  'unique_value_prop',
+]);
+
+const CONSULTANT_HINTS: Record<string, string> = {
+  primary_goal: 'Confirm the north-star KPI and timeline; note tensions between growth vs. cost.',
+  target_audience: 'Probe jobs-to-be-done, regions, and budget authority.',
+  revenue_model: 'Clarify average deal size or basket value and seasonality.',
+  monthly_visitors: 'Validate traffic source split if they are guessing.',
+  monthly_revenue: 'If declined, note order-of-magnitude verbally for context only.',
+  primary_cta: 'Walk through the main funnel step-by-step as a user would.',
+  conversion_rate: 'Ask how measured (tool, definition of conversion).',
+  biggest_ux_complaint: 'Ask for evidence: quotes, support tickets, or analytics.',
+  top_keywords: 'Check branded vs. non-branded priority.',
+  main_traffic_source: 'Challenge single-channel reliance if they depend on one lane.',
+  has_google_analytics: 'Ask who owns access and if goals are configured.',
+  has_search_console: 'Confirm verification and coverage issues familiarity.',
+  cms_platform: 'Note who can deploy changes and typical release cadence.',
+  hosting_provider: 'Capture SLA concerns and incident history if any.',
+  has_staging: 'If no staging, flag launch-risk for changes.',
+  handles_payments: 'Clarify PCI scope and who owns gateway configuration.',
+  gdpr_region: 'Check legal owner for privacy and consent tooling.',
+  has_privacy_policy: 'Ask when it was last reviewed vs. actual tracking.',
+  main_competitors: 'Get named URLs and why customers pick them.',
+  unique_value_prop: 'Test positioning in one sentence; note customer language vs. internal jargon.',
+  active_channels: 'Prioritise spend and internal bandwidth per channel.',
+  uses_crm: 'Capture edition, integrations, and data hygiene.',
+  email_automation: 'Map triggers, volumes, and ownership.',
+  biggest_pain: 'Restate pain as a measurable gap they agree with.',
+  budget_for_changes: 'Frame as ranges for fix vs. strategic initiatives.',
+};
+
+const TRIGGERS_FOLLOWUP: Record<string, string[]> = {
+  uses_crm: ['email_automation'],
+  has_google_analytics: ['conversion_rate'],
+  revenue_model: ['primary_cta'],
+};
+
 function enrichQuestion(question: BriefQuestion): BriefQuestion {
   const importance: BriefImportance = question.priority === 'required'
     ? 'red'
@@ -241,12 +287,21 @@ function enrichQuestion(question: BriefQuestion): BriefQuestion {
     intake_layer = 'pre_brief';
   }
 
+  const revenue_signal: BriefRevenueSignal = HIGH_REVENUE_QUESTION_IDS.has(question.id)
+    ? 'high'
+    : question.priority === 'optional'
+      ? 'low'
+      : 'medium';
+
   return {
     ...question,
     importance,
     weight,
     ux_group,
     intake_layer,
+    consultant_hint: CONSULTANT_HINTS[question.id],
+    revenue_signal,
+    triggers_followup: TRIGGERS_FOLLOWUP[question.id] ?? [],
   };
 }
 

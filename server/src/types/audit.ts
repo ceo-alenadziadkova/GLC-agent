@@ -99,6 +99,15 @@ export interface AuditMeta {
 }
 
 // ─── Free Snapshot Result ──────────────────────────────────
+/** Verifiable competitor line item for public free snapshot only. */
+export interface SnapshotCompetitorComparison {
+  metric: string;
+  client_val: boolean | number;
+  comp_val: boolean | number;
+  winner: 'client' | 'competitor' | 'tie';
+  label: string;
+}
+
 export interface FreeSnapshotPreview {
   audit_id: string;
   snapshot_token: string;
@@ -112,6 +121,13 @@ export interface FreeSnapshotPreview {
   ux_summary: string | null;
   issues: AuditIssue[];
   quick_wins: QuickWin[];
+  competitor_mini?: {
+    competitor_name: string;
+    competitor_url: string;
+    comparisons: SnapshotCompetitorComparison[];
+    data_source: 'auto_detected';
+    confidence: 'high';
+  };
 }
 
 export interface ReconData {
@@ -327,6 +343,8 @@ export type BriefResponseSource = 'client' | 'consultant' | 'recon_confirmed' | 
 export type IntakeReadinessBadge = 'low' | 'medium' | 'high';
 export type IntakeNextBestAction = 'complete_required' | 'add_recommended' | 'confirm_prefill' | 'none';
 
+export type BriefRevenueSignal = 'high' | 'medium' | 'low';
+
 export interface BriefQuestion {
   id: string;
   priority: BriefPriority;
@@ -338,6 +356,12 @@ export interface BriefQuestion {
   domains: Array<DomainKey | 'all'>;
   question: string;
   hint?: string;
+  /** Interview probe: what to listen for / clarify live with the client. */
+  consultant_hint?: string;
+  /** Weight for revenue / impact prioritisation in analytics (high = sparse). */
+  revenue_signal?: BriefRevenueSignal;
+  /** Question IDs unlocked in Layer 3 when this answer satisfies follow-up rules (product extension). */
+  triggers_followup?: string[];
   /** free_text | single_choice | multi_choice | number | rating | confirm */
   type: 'free_text' | 'single_choice' | 'multi_choice' | 'number' | 'rating' | 'confirm';
   options?: string[];

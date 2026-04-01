@@ -5,7 +5,9 @@
 - **Development:** `http://localhost:3001`
 - **Production:** Railway deployment URL (set as `VITE_API_URL` in frontend env)
 
-All endpoints except `/api/auth/*` and `/api/snapshot/*` require a valid Supabase JWT in the `Authorization: Bearer <token>` header. The frontend's `apiService.ts` adds this automatically.
+All endpoints except `/api/auth/*`, `/api/snapshot/*`, and the **public** pre-brief routes `GET /api/intake/:token` and `POST /api/intake/:token/respond` require a valid Supabase JWT in the `Authorization: Bearer <token>` header. The frontend's `apiService.ts` adds this automatically.
+
+`POST /api/intake` (create link) requires a **consultant** JWT.
 
 All authenticated `/api/*` responses are returned with:
 
@@ -290,6 +292,39 @@ Poll current status or retrieve completed preview payload.
 - Token is UUID-based and must meet minimum length checks.
 - Token TTL is enforced by backend (`SNAPSHOT_TOKEN_TTL_HOURS`, default `72`).
 - Expired tokens return `410 Snapshot token expired` and are invalidated in storage.
+
+Completed JSON may include optional `competitor_mini`: a small set of **objective** comparisons (HTTPS, viewport meta, hreflang count, JSON-LD) against one external URL inferred from the recon crawl. Omitted when no suitable competitor URL is found or the competitor fetch fails.
+
+---
+
+## Pre-brief intake (public link)
+
+Migration: `011_intake_tokens.sql`. Table `intake_tokens` — operations via service role in the API.
+
+### `POST /api/intake`
+
+**Auth:** consultant JWT (`requireAuth` + `attachProfile` + `requireRole('consultant')`).
+
+**Body (optional):**
+
+- `audit_id` — UUID; if set, responses from `POST .../respond` merge into that audit’s `intake_brief` (consultant must own the audit).
+- `metadata` — JSON object, e.g. `{ "company_name": "...", "message": "..." }` for the client-facing page.
+
+**Response `201`:** `{ "token", "url", "expires_at" }` — `url` is built from `FRONTEND_URL` (or localhost) + `/intake/:token`.
+
+### `GET /api/intake/:token`
+
+**Auth:** none. `token` is 40 hex characters.
+
+**Response `200`:** `{ "metadata", "questions" (pre-brief subset), "responses", "submitted_at", "expires_at" }`.
+
+**Response `410`:** link expired.
+
+### `POST /api/intake/:token/respond`
+
+**Auth:** none. **Body:** `{ "responses": { ... } }` — same shape as intake brief answers (validated with `BriefResponsesSchema`).
+
+Overwrites stored responses and updates `submitted_at`. Allowed until `expires_at` (no single-submit lock). If the token was created with `audit_id`, merges pre-brief question keys into `intake_brief` with source `client`.
 
 ---
 

@@ -10,7 +10,8 @@ import { supabase } from '../services/supabase.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
 import { snapshotPublicLimiter } from '../middleware/rate-limit.js';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
-import type { FreeSnapshotPreview } from '../types/audit.js';
+import type { CrawledPage, FreeSnapshotPreview } from '../types/audit.js';
+import { maybeBuildCompetitorMini } from '../lib/snapshot-competitor.js';
 
 export const snapshotRouter = Router();
 const SNAPSHOT_TTL_HOURS = Number(process.env.SNAPSHOT_TOKEN_TTL_HOURS ?? 72);
@@ -167,10 +168,10 @@ snapshotRouter.get('/:token', async (req, res) => {
       return;
     }
 
-    // Completed — fetch result data
+    // Completed — fetch result data; competitor mini is best-effort (never fails the response).
     const [{ data: recon }, { data: uxDomain }] = await Promise.all([
       supabase.from('audit_recon')
-        .select('company_name, tech_stack, location')
+        .select('company_name, tech_stack, location, pages_crawled')
         .eq('audit_id', audit.id)
         .single(),
       supabase.from('audit_domains')
@@ -182,11 +183,14 @@ snapshotRouter.get('/:token', async (req, res) => {
         .single(),
     ]);
 
+    const pagesCrawled = (recon?.pages_crawled as CrawledPage[] | null) ?? null;
+    const companyUrl = audit.company_url as string;
+
     const preview: FreeSnapshotPreview = {
       audit_id: audit.id as string,
       snapshot_token: token,
       status: 'completed',
-      company_url: audit.company_url as string,
+      company_url: companyUrl,
       company_name: (recon?.company_name as string | null) ?? (audit.company_name as string | null) ?? null,
       tech_stack: (recon?.tech_stack as Record<string, string[]>) ?? {},
       location: (recon?.location as string | null) ?? null,
@@ -196,6 +200,13 @@ snapshotRouter.get('/:token', async (req, res) => {
       issues: ((uxDomain?.issues as unknown[]) ?? []).slice(0, 2) as FreeSnapshotPreview['issues'],
       quick_wins: ((uxDomain?.quick_wins as unknown[]) ?? []).slice(0, 2) as FreeSnapshotPreview['quick_wins'],
     };
+
+    const competitorSettled = await Promise.allSettled([
+      maybeBuildCompetitorMini(companyUrl, pagesCrawled, 3000),
+    ]);
+    if (competitorSettled[0].status === 'fulfilled' && competitorSettled[0].value) {
+      preview.competitor_mini = competitorSettled[0].value;
+    }
 
     res.json(preview);
 

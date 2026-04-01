@@ -87,11 +87,20 @@ Core UX contract:
 
 ### Intake collection modes
 
-One canonical brief model supports two collection UIs over the **same** question set:
-- `self_serve` — wizard for the client; selects, prefills, soft nudges between layers.
-- `interview` — consultant-facing surface for live capture (e.g. meeting); same fields, different layout.
+One canonical question bank backs every intake path; **`collection_mode`** (`self_serve` | `interview` | `pre_brief`) and **`collected_by`** (`client` | `consultant`) describe *how* answers were captured.
+
+**Entry-point grid (product framing):** combine **URL vs. discovery** with **self-serve vs. consultant-led**:
+
+| | Self-serve (client) | Consultant-led (interview) |
+|--|--------------------|---------------------------|
+| **URL present** | Mode A — wizard on live site | Mode B — live capture against the same fields |
+| **No website yet** | Mode C — discovery intake (deferred sprint: `product_mode: 'discovery'`, dedicated flow) | Mode C with consultant as primary recorder |
+
+`pre_brief` links sit on the self-serve row: short answer set before a call, same canonical fields.
 
 Record **`collected_by`:** `client` | `consultant` so exports and quality analytics stay honest.
+
+**Benchmark / assumption integrity (for any displayed comparative or revenue-adjacent metrics):** treat source tiers in strict order of trust — **`client_calculated`** (or client-provided with method) **>** **`glc_internal`** (measured in-platform) **>** **`verified_research`** (third-party with citation) **>** **`industry_estimate`**. If material conclusions rest on `industry_estimate` or lower, the UI or report must carry an explicit disclaimer that figures are indicative, not audited facts.
 
 ### Pre-brief (link before a meeting)
 

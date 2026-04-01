@@ -63,6 +63,15 @@ export interface AuditRequest {
   updated_at: string;
 }
 
+/** Verifiable competitor comparison line (free snapshot). */
+export interface SnapshotCompetitorComparison {
+  metric: string;
+  client_val: boolean | number;
+  comp_val: boolean | number;
+  winner: 'client' | 'competitor' | 'tie';
+  label: string;
+}
+
 // Free Snapshot result (public, no auth)
 export interface FreeSnapshotPreview {
   audit_id: string;
@@ -77,6 +86,13 @@ export interface FreeSnapshotPreview {
   ux_summary: string | null;
   issues: Array<{ id: string; severity: string; title: string; description: string; impact: string }>;
   quick_wins: Array<{ id: string; title: string; description: string; effort: string; timeframe: string }>;
+  competitor_mini?: {
+    competitor_name: string;
+    competitor_url: string;
+    comparisons: SnapshotCompetitorComparison[];
+    data_source: 'auto_detected';
+    confidence: 'high';
+  };
 }
 
 export const DOMAIN_KEYS = [

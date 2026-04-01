@@ -7,6 +7,7 @@ import { ReportViewer }     from './pages/ReportViewer';
 import { StrategyLab }      from './pages/StrategyLab';
 import { Login }            from './pages/Login';
 import { SnapshotLanding }  from './pages/SnapshotLanding';
+import { IntakeBrief }       from './pages/IntakeBrief';
 import { ClientPortal }     from './pages/ClientPortal';
 import { ClientRequestForm } from './pages/ClientRequestForm';
 import { ClientAuditView }  from './pages/ClientAuditView';
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
   { path: '/',                    element: <Navigate to="/dashboard" replace /> },
   { path: '/login',               element: <Login /> },
   { path: '/snapshot',            element: <SnapshotLanding /> },           // public
+  { path: '/intake/:token',       element: <IntakeBrief /> },              // public pre-brief
 
   // ── Consultant routes ──────────────────────────────────────────────────────
   { path: '/dashboard',           element: <Consultant><Dashboard /></Consultant> },

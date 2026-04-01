@@ -14,8 +14,9 @@ PostgreSQL on **Supabase**. Apply migrations **in numeric order** so foreign key
 8. `008_reliability_idempotency.sql` — `api_idempotency_keys` for safe replay of critical writes
 9. `009_prompt_version_quality_gate.sql` — `prompt_version` in `audit_domains`, `quality_gate_passed` in `review_points`, client-read RLS policies on downstream tables
 10. `010_intake_progress_gamification.sql` — progressive intake and readiness fields in `intake_brief`
+11. `011_intake_tokens.sql` — `intake_tokens` for shareable pre-brief links (consultant-created; client-submitted responses)
 
-**Tables (11):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`.
+**Tables (12):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`.
 
 Row Level Security is enabled on these tables; exact policies differ by table (consultant vs client access). **Canonical SQL:** the migration files — this doc summarises shapes.
 
@@ -242,6 +243,16 @@ Key fields: `user_id`, `route`, `idempotency_key`, `request_hash`, `response_sta
 Uniqueness: `(user_id, route, idempotency_key)` via unique index.
 
 Migration: `008_reliability_idempotency.sql`.
+
+---
+
+### `intake_tokens`
+
+Pre-brief magic links: consultant creates a row; the client opens a public URL and POSTs answers until `expires_at`. Optional `audit_id` merges responses into `intake_brief` on submit.
+
+Access is via **service role** in the API (no RLS on this table); the `token` value is unguessable (40 hex chars).
+
+Migration: `011_intake_tokens.sql`.
 
 ---
 

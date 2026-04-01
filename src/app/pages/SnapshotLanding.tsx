@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import { Globe, ArrowRight, CheckCircle, Warning, Lightning, CaretRight, Shield } from '@phosphor-icons/react';
+import { Globe, ArrowRight, CheckCircle, Warning, Lightning, CaretRight, Shield, Check, X, Equals } from '@phosphor-icons/react';
+import type { SnapshotCompetitorComparison } from '../data/auditTypes';
 import type { FreeSnapshotPreview } from '../data/auditTypes';
 // @ts-ignore
 import Logo from '../assets/logo-white.svg';
@@ -25,6 +26,32 @@ const SCORE_LABELS: Record<number, string> = {
   4: 'Good',
   5: 'Excellent',
 };
+
+function competitorComparisonCaption(c: SnapshotCompetitorComparison, competitorLabel: string): { kind: 'client' | 'competitor' | 'tie'; text: string } {
+  if (c.metric === 'https') {
+    if (c.winner === 'tie') return { kind: 'tie', text: 'Both sites use HTTPS' };
+    if (c.winner === 'client') return { kind: 'client', text: 'HTTPS is in use on your site' };
+    return { kind: 'competitor', text: `${competitorLabel} uses HTTPS; check your redirect` };
+  }
+  if (c.metric === 'mobile_viewport') {
+    if (c.winner === 'tie') return { kind: 'tie', text: 'Both include a mobile viewport meta tag' };
+    if (c.winner === 'client') return { kind: 'client', text: 'Your homepage declares a mobile viewport' };
+    return { kind: 'competitor', text: `${competitorLabel} declares a mobile viewport — yours may not` };
+  }
+  if (c.metric === 'hreflang_count') {
+    const cn = Number(c.client_val);
+    const tn = Number(c.comp_val);
+    if (c.winner === 'tie') return { kind: 'tie', text: `Both expose ${cn} hreflang alternate(s)` };
+    if (c.winner === 'client') return { kind: 'client', text: `You show more hreflang alternates (${cn} vs ${tn})` };
+    return { kind: 'competitor', text: `${competitorLabel} shows more hreflang alternates (${tn} vs ${cn})` };
+  }
+  if (c.metric === 'structured_data') {
+    if (c.winner === 'tie') return { kind: 'tie', text: 'Both homepages include JSON-LD structured data' };
+    if (c.winner === 'client') return { kind: 'client', text: 'Your homepage includes JSON-LD structured data' };
+    return { kind: 'competitor', text: `${competitorLabel} includes JSON-LD — yours may not` };
+  }
+  return { kind: 'tie', text: c.label };
+}
 
 const SEVERITY_COLOR: Record<string, string> = {
   critical: 'var(--score-1)',
@@ -470,6 +497,27 @@ export function SnapshotLanding() {
                       </span>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {result.competitor_mini && result.competitor_mini.comparisons.length > 0 && (
+                <div className="glc-card p-5 mb-6" style={{ borderRadius: 'var(--radius-xl)' }}>
+                  <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+                    Compared to {result.competitor_mini.competitor_name}
+                  </p>
+                  <ul className="space-y-2">
+                    {result.competitor_mini.comparisons.map((row, i) => {
+                      const { kind, text } = competitorComparisonCaption(row, result.competitor_mini!.competitor_name);
+                      const Icon = kind === 'tie' ? Equals : kind === 'client' ? Check : X;
+                      const color = kind === 'tie' ? 'var(--text-tertiary)' : kind === 'client' ? 'var(--glc-green)' : 'var(--score-1)';
+                      return (
+                        <li key={i} className="flex items-start gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                          <Icon className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color }} weight="bold" />
+                          <span>{text}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               )}
 

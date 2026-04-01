@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { AuditMeta, AuditState, AuditRequest } from './auditTypes';
+import type { BriefQuestion, BriefResponses } from './briefQuestions';
 
 // ─── Dashboard types ──────────────────────────────────────────────────────────
 
@@ -216,6 +217,15 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   return { Authorization: `Bearer ${session.access_token}` };
 }
 
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const authHeaders = await getAuthHeaders();
 
@@ -239,7 +249,33 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: response.statusText }));
-    throw new Error(error.error ?? `API error: ${response.status}`);
+    throw new ApiError(error.error ?? `API error: ${response.status}`, response.status);
+  }
+
+  return response.json();
+}
+
+/** Public intake/snapshot calls — no Authorization header. */
+async function publicApiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const timeoutSignal = AbortSignal.timeout(30_000);
+  const signal = options.signal
+    ? AbortSignal.any([options.signal as AbortSignal, timeoutSignal])
+    : timeoutSignal;
+
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    signal,
+    headers: {
+      'Content-Type': 'application/json',
+      traceparent: createTraceparent(),
+      'x-operation-id': crypto.randomUUID(),
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }));
+    throw new ApiError(error.error ?? `API error: ${response.status}`, response.status);
   }
 
   return response.json();
@@ -503,5 +539,30 @@ export const api = {
   // Analytics
   async getDashboard() {
     return apiFetch<DashboardData>('/api/analytics/dashboard');
+  },
+
+  // Pre-brief intake tokens (consultant creates; client uses public GET/respond)
+  async createIntakeToken(data: { audit_id?: string; metadata?: Record<string, string> }) {
+    return apiFetch<{ token: string; url: string; expires_at: string }>('/api/intake', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getIntakeToken(token: string) {
+    return publicApiFetch<{
+      metadata: Record<string, unknown>;
+      questions: BriefQuestion[];
+      responses: Record<string, unknown>;
+      submitted_at: string | null;
+      expires_at: string;
+    }>(`/api/intake/${encodeURIComponent(token)}`);
+  },
+
+  async submitIntakeResponses(token: string, responses: BriefResponses) {
+    return publicApiFetch<{ ok: true; submitted_at: string }>(`/api/intake/${encodeURIComponent(token)}/respond`, {
+      method: 'POST',
+      body: JSON.stringify({ responses }),
+    });
   },
 };
