@@ -5,7 +5,6 @@ import { Envelope, ArrowRight, Lock } from '@phosphor-icons/react';
 import { useAuth } from '../hooks/useAuth';
 import { logger } from '../lib/logger';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { GlcLogo } from '../components/GlcLogo';
 
 const TEST_EMAIL = 'alenauserfortest@gmail.com';
 
@@ -63,7 +62,7 @@ export function Login() {
   const isReady = email.trim() && (!isTestUser || password);
 
   return (
-    <div
+    <main
       className="min-h-screen flex flex-col items-center justify-center px-6 relative"
       style={{ backgroundColor: 'var(--bg-canvas)' }}
     >
@@ -89,22 +88,28 @@ export function Login() {
             initial={{ scale: 0.75, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.08, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className="flex justify-center mb-5"
+            className="flex items-center justify-center gap-3 mb-4"
           >
-            <GlcLogo className="h-9 w-auto max-w-[min(240px,85vw)]" alt="" />
+            <img
+              src="/logo-simple.svg"
+              alt=""
+              className="h-10 w-auto max-w-[min(72px,20vw)] shrink-0"
+              width={68}
+              height={72}
+              decoding="async"
+            />
+            <h1
+              className="font-logo leading-none"
+              style={{
+                fontSize: 'var(--text-2xl)',
+                fontWeight: 700,
+                letterSpacing: 'var(--tracking-tight)',
+              }}
+            >
+              <span className="text-[#444343] dark:text-[#DEDEDE]">GLC</span>
+              <span className="text-[rgba(68,67,67,0.78)] dark:text-[#e5e7ebb8]"> Audit Platform</span>
+            </h1>
           </motion.div>
-
-          <h1
-            style={{
-              fontSize: 'var(--text-2xl)',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-display)',
-              fontWeight: 700,
-              letterSpacing: 'var(--tracking-tight)',
-            }}
-          >
-            GLC Audit Platform
-          </h1>
           <p className="mt-2" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
             Sign in to access your audit workspace
           </p>
@@ -192,39 +197,29 @@ export function Login() {
                     onFocus={e => { e.target.style.borderColor = 'var(--glc-blue)'; e.target.style.boxShadow = 'var(--shadow-blue)'; }}
                     onBlur={e => { e.target.style.borderColor = 'var(--border-default)'; e.target.style.boxShadow = 'none'; }}
                   />
-                  <AnimatePresence>
-                    {isTestUser && (
-                      <motion.div
-                        key="password"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        style={{ overflow: 'hidden' }}
-                      >
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
-                          <input
-                            type="password"
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
-                            placeholder="Password"
-                            autoFocus
-                            className="w-full pl-9 pr-4 py-3 bg-transparent outline-none"
-                            style={{
-                              borderRadius: 'var(--radius-lg)',
-                              border: '1px solid var(--border-default)',
-                              backgroundColor: 'var(--bg-surface)',
-                              color: 'var(--text-primary)',
-                              fontSize: 'var(--text-sm)',
-                              transition: 'border-color var(--ease-fast), box-shadow var(--ease-fast)',
-                            }}
-                            onFocus={e => { e.target.style.borderColor = 'var(--glc-blue)'; e.target.style.boxShadow = 'var(--shadow-blue)'; }}
-                            onBlur={e => { e.target.style.borderColor = 'var(--border-default)'; e.target.style.boxShadow = 'none'; }}
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  {isTestUser && (
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="Password"
+                        autoFocus
+                        className="w-full pl-9 pr-4 py-3 bg-transparent outline-none"
+                        style={{
+                          borderRadius: 'var(--radius-lg)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)',
+                          fontSize: 'var(--text-sm)',
+                          transition: 'border-color var(--ease-fast), box-shadow var(--ease-fast)',
+                        }}
+                        onFocus={e => { e.target.style.borderColor = 'var(--glc-blue)'; e.target.style.boxShadow = 'var(--shadow-blue)'; }}
+                        onBlur={e => { e.target.style.borderColor = 'var(--border-default)'; e.target.style.boxShadow = 'none'; }}
+                      />
+                    </div>
+                  )}
                   <motion.button
                     type="submit"
                     disabled={loading || !isReady}
@@ -268,6 +263,6 @@ export function Login() {
           By signing in, you agree to our Terms of Service.
         </p>
       </motion.div>
-    </div>
+    </main>
   );
 }

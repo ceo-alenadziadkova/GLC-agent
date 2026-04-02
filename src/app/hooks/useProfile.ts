@@ -22,6 +22,7 @@ interface UseProfileResult {
   isClient: boolean;
   loading: boolean;
   error: string | null;
+  refetch: () => Promise<void>;
 }
 
 /**
@@ -40,7 +41,7 @@ export function useProfile(): UseProfileResult {
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
+    const load = async () => {
       setLoading(true);
       setError(null);
 
@@ -89,7 +90,7 @@ export function useProfile(): UseProfileResult {
         }
         setLoading(false);
       }
-    }
+    };
 
     void load();
 
@@ -107,6 +108,30 @@ export function useProfile(): UseProfileResult {
     };
   }, []);
 
+  const refetch = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      setProfile(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const { data, error: dbError } = await supabase
+      .from('profiles')
+      .select('id, role, full_name, created_at')
+      .eq('id', session.user.id)
+      .single();
+    if (dbError || !data) {
+      setProfile(null);
+      setError(dbError?.message ?? 'Profile not found');
+    } else {
+      setProfile(data as Profile);
+    }
+    setLoading(false);
+  };
+
   const isConsultant = profile?.role === 'consultant';
   return {
     profile,
@@ -117,5 +142,6 @@ export function useProfile(): UseProfileResult {
     isClient: profile?.role === 'client',
     loading,
     error,
+    refetch,
   };
 }

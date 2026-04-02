@@ -496,7 +496,14 @@ export const api = {
 
   // Profile
   async getProfile() {
-    return apiFetch<{ id: string; role: string; full_name: string | null; created_at: string }>('/api/profile');
+    return apiFetch<{ id: string; role: string; email: string | null; full_name: string | null }>('/api/profile');
+  },
+
+  async patchProfile(params: { full_name?: string | null }) {
+    return apiFetch<{ id: string; role: string; email: string | null; full_name: string | null }>('/api/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(params),
+    });
   },
 
   // Audit Requests (client portal)

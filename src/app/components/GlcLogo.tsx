@@ -12,6 +12,6 @@ type GlcLogoProps = {
 
 export function GlcLogo({ variant = 'auto', className, alt = 'GLC Audit Platform' }: GlcLogoProps) {
   const { isDark } = useGlcTheme();
-  const src = variant === 'on-dark' || isDark ? LogoLight : LogoWhite;
+  const src = variant === 'on-dark' || isDark ? LogoWhite : LogoLight;
   return <img src={src} alt={alt} className={cn('w-auto shrink-0', className)} />;
 }

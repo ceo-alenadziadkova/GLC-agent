@@ -27,6 +27,46 @@ Exchange Supabase session → confirm server-side user context. Optional; primar
 
 ---
 
+## Profile
+
+### `GET /api/profile`
+
+Returns current authenticated user profile metadata.
+
+**Auth:** valid JWT.
+
+**Response `200`:**
+
+```json
+{
+  "id": "uuid",
+  "role": "consultant",
+  "email": "user@example.com",
+  "full_name": "Jane Doe"
+}
+```
+
+### `PATCH /api/profile`
+
+Updates editable profile fields for the current user.
+
+**Auth:** valid JWT.
+
+**Request body:**
+
+```json
+{
+  "full_name": "Jane Doe"
+}
+```
+
+Notes:
+- `full_name` is optional and nullable.
+- Empty/whitespace value is normalized to `null`.
+- Max length: 200 characters.
+
+---
+
 ## Audits
 
 ### Access matrix (audits)

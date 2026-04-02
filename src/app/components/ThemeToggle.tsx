@@ -26,6 +26,7 @@ export function ThemeToggle({ variant = 'default', className }: ThemeToggleProps
         weight={isDark ? 'regular' : 'fill'}
         style={{ color: isDark ? iconMuted : iconActive }}
         aria-hidden
+        focusable="false"
       />
       <Switch
         checked={isDark}
@@ -38,6 +39,7 @@ export function ThemeToggle({ variant = 'default', className }: ThemeToggleProps
         weight={isDark ? 'fill' : 'regular'}
         style={{ color: isDark ? iconActive : iconMuted }}
         aria-hidden
+        focusable="false"
       />
     </div>
   );

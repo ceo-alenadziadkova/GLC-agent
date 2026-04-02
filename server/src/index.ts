@@ -11,7 +11,7 @@ import { intakeRouter } from './routes/intake.js';
 import { discoverRouter } from './routes/discover.js';
 import { auditRequestsRouter } from './routes/audit-requests.js';
 import { analyticsRouter } from './routes/analytics.js';
-import { requireAuth, attachProfile, type AuthRequest } from './middleware/auth.js';
+import { profileRouter } from './routes/profile.js';
 import { traceMiddleware } from './middleware/trace.js';
 import { requestLogMiddleware } from './middleware/request-log.js';
 import { logger } from './services/logger.js';
@@ -58,20 +58,8 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// ─── Profile endpoint ──────────────────────────────────────
-// GET /api/profile — returns the current user's profile.
-// Running requireAuth + attachProfile upserts the profile row if it doesn't
-// exist yet (handles existing users created before migration 005).
-app.get('/api/profile', requireAuth, attachProfile, (req: AuthRequest, res) => {
-  updateContext({ userId: req.userId });
-  res.json({
-    id: req.userId,
-    role: req.userRole,
-    email: req.userEmail,
-  });
-});
-
 // ─── Routes ────────────────────────────────────────────────
+app.use('/api/profile', profileRouter);
 app.use('/api/snapshot', snapshotRouter);          // Public — no auth
 app.use('/api/intake', intakeRouter);               // Public token GET/respond; POST requires consultant auth
 app.use('/api/discover', discoverRouter);           // Public submit/load; consultant sessions/convert

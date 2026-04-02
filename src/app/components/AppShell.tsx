@@ -47,7 +47,7 @@ interface AppShellProps {
 export function AppShell({ children, title, subtitle, actions }: AppShellProps) {
   const location = useLocation();
   const { user, signOut, isAuthenticated } = useAuth();
-  const { isConsultant, isClient, roleDisplayName } = useProfile();
+  const { profile, isConsultant, isClient, roleDisplayName } = useProfile();
   const auditId = useCurrentAuditId();
 
   const NAV = isClient ? buildClientNav(auditId) : buildConsultantNav(auditId);
@@ -270,25 +270,33 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
             <ThemeToggle variant="sidebar" />
           </div>
           {[
-            { icon: Bell,    label: 'Notifications' },
-            { icon: GearSix, label: 'Settings'       },
-          ].map(({ icon: I, label }) => (
-            <button
-              key={label}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all"
-              style={{ color: 'rgba(255,255,255,0.30)', borderRadius: 'var(--radius-md)' }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.05)';
-                (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.65)';
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
-                (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.30)';
-              }}
-            >
-              <I className="w-3.5 h-3.5" />{label}
-            </button>
-          ))}
+            { icon: Bell, label: 'Notifications', to: '/settings#notifications' },
+            { icon: GearSix, label: 'Settings', to: '/settings' },
+          ].map(({ icon: I, label, to }) => {
+            const active = location.pathname === '/settings';
+            return (
+              <NavLink
+                key={label}
+                to={to}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all no-underline"
+                style={{
+                  color: active ? 'rgba(255,255,255,0.80)' : 'rgba(255,255,255,0.30)',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: active ? 'rgba(255,255,255,0.08)' : 'transparent',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
+                  (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.75)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = active ? 'rgba(255,255,255,0.08)' : 'transparent';
+                  (e.currentTarget as HTMLElement).style.color = active ? 'rgba(255,255,255,0.80)' : 'rgba(255,255,255,0.30)';
+                }}
+              >
+                <I className="w-3.5 h-3.5" />{label}
+              </NavLink>
+            );
+          })}
 
           {/* Avatar */}
           {isAuthenticated && user && (
@@ -312,7 +320,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium leading-none" style={{ color: 'rgba(255,255,255,0.85)' }}>
-                  {user.email?.split('@')[0] || 'User'}
+                  {profile?.full_name?.trim() || user.email?.split('@')[0] || 'User'}
                 </div>
                 <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.28)', marginTop: 3, letterSpacing: '0.03em' }}>
                   {roleDisplayName ?? (isClient ? 'Client' : 'Admin')}

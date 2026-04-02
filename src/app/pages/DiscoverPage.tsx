@@ -5,7 +5,7 @@
  * After answering, shows a tech-maturity level and up to 4 improvement findings.
  */
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import {
   ArrowRight, CheckCircle, Check, Circle, Warning,
   ChartBar, Lightbulb, Users, Buildings, ArrowLeft, PaperPlaneRight,
@@ -592,14 +592,13 @@ export function DiscoverPage() {
           </div>
         )}
 
-        {/* Current question */}
-        <AnimatePresence mode="wait">
-          {currentQ && (
+        {/* Current question — keyed motion only (no AnimatePresence): mode="wait" exit
+            animations conflict with React 18 commit and can throw insertBefore NotFoundError */}
+        {currentQ && (
             <motion.div
               key={currentId}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
               className="rounded-2xl p-5 space-y-3"
               style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
@@ -650,13 +649,11 @@ export function DiscoverPage() {
                     <ArrowLeft size={14} /> Back
                   </button>
                 )}
-                <motion.button
+                <button
                   type="button"
                   onClick={handleNext}
                   disabled={!canAdvance}
-                  whileHover={canAdvance ? { scale: 1.02 } : {}}
-                  whileTap={canAdvance ? { scale: 0.97 } : {}}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm"
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm transition-transform hover:scale-[1.02] active:scale-[0.97] disabled:hover:scale-100 disabled:active:scale-100"
                   style={{
                     background: canAdvance
                       ? 'linear-gradient(135deg, #1CBDFF, #0066CC)'
@@ -675,11 +672,10 @@ export function DiscoverPage() {
                       See my results
                     </>
                   )}
-                </motion.button>
+                </button>
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
 
         {/* All done / auto-advance edge case */}
         {allDone && !showResults && (

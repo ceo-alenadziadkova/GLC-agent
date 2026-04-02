@@ -6,7 +6,7 @@ Product context (modes, deliverables): [PRODUCT.md](./PRODUCT.md). System diagra
 
 React 18 + TypeScript + Vite. Deployed to Vercel. Uses Tailwind CSS + glassmorphism design system. Animation via Framer Motion.
 
-**Dark theme:** `html.dark` sets design tokens in `src/styles/theme.css` (canvas `#0d1117`, text `#e6edf3`, borders `#30363d` / `#484f58`, matching the G-Power loader reference). A global vignette lives in `src/styles/index.css`. Initialization: `applyGlcColorScheme()` in `main.tsx` — uses `prefers-color-scheme` until the user changes the toggle (then `localStorage['glc-theme']` is `'dark'` or `'light'`). UI: `ThemeToggle` in `AppShell` **header** (every page with the shell) and sidebar, plus `/login`, `/snapshot`, and `/intake/:token` (`IntakeBrief`). Brand mark: `GlcLogo` (`src/app/components/GlcLogo.tsx`) — `variant="on-dark"` (always `logo-white.svg`) in the ink sidebar; `variant="auto"` elsewhere switches `logo.svg` / `logo-white.svg` with the theme. API: `setGlcColorScheme('dark'|'light'|'system')` and `useGlcTheme()` in `src/app/lib/glc-theme.ts` / `src/app/hooks/useGlcTheme.ts`. Prefer CSS variables for surfaces and accents: `--bg-canvas`, `--bg-surface`, `--text-primary`, `--score-*-bg`, `--primary-foreground` (white on brand gradients); legacy aliases `--surface`, `--surface-elevated`, and `--panel-border` map to the same system in `:root`.
+**Dark theme:** `html.dark` sets design tokens in `src/styles/theme.css` (canvas `#0d1117`, text `#e6edf3`, borders `#30363d` / `#484f58`, matching the G-Power loader reference). A global vignette lives in `src/styles/index.css`. Initialization: `applyGlcColorScheme()` in `main.tsx` — uses `prefers-color-scheme` until the user changes the toggle. User choice is saved in `localStorage['glc-theme']` as `'dark'`, `'light'`, or omitted for `'system'`. UI: `ThemeToggle` in `AppShell` **header** (every page with the shell) and sidebar, plus `/login`, `/snapshot`, and `/intake/:token` (`IntakeBrief`). Settings page (`/settings`) exposes explicit `System / Light / Dark` mode controls through `useGlcTheme().setMode(...)`. Brand mark: `GlcLogo` (`src/app/components/GlcLogo.tsx`) — `variant="on-dark"` (always `logo-white.svg`) in the ink sidebar; `variant="auto"` elsewhere switches `logo.svg` / `logo-white.svg` with the theme. API: `setGlcColorScheme('dark'|'light'|'system')` and `useGlcTheme()` in `src/app/lib/glc-theme.ts` / `src/app/hooks/useGlcTheme.ts`. Prefer CSS variables for surfaces and accents: `--bg-canvas`, `--bg-surface`, `--text-primary`, `--score-*-bg`, `--primary-foreground` (white on brand gradients); legacy aliases `--surface`, `--surface-elevated`, and `--panel-border` map to the same system in `:root`.
 
 **Narrow-only tweaks:** the `mobile:` variant (`width < 40rem`, same cutoff as Tailwind `sm`) is defined in `src/styles/tailwind.css`. Pair it with base classes aimed at sm+ (e.g. `px-6 mobile:px-4`, `flex-row mobile:flex-col`) so sub-640px adjustments stay isolated and you avoid `sm:` undo chains.
 
@@ -16,7 +16,7 @@ Application UI code must not use emoji characters for status or progress markers
 
 ---
 
-## Pages (7 total)
+## Pages
 
 All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` for audit-specific pages.
 
@@ -31,6 +31,7 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 | `/audit/:id/:domainId` | `AuditWorkspace.tsx` | Same page, deep-linked domain |
 | `/reports/:id` | `ReportViewer.tsx` | Final audit report |
 | `/strategy/:id` | `StrategyLab.tsx` | Strategic roadmap |
+| `/settings` | `SettingsPage.tsx` | Profile, appearance, notifications |
 
 ---
 
@@ -41,6 +42,12 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 - Google OAuth → `signInWithOAuth` with `redirectTo: <origin>/login` (so tokens are not stripped by `/` → `/dashboard` redirect)
 - If already authenticated (`useAuth().isAuthenticated`) → redirect to `/portfolio`
 - Glassmorphism card, gradient button, GLC logo
+
+### `SettingsPage.tsx`
+- Shared protected route for consultant and client
+- Profile save uses `PATCH /api/profile` (editable `full_name`)
+- Appearance has explicit `system | light | dark` selection via `useGlcTheme().setMode(...)`
+- Notification toggles persist locally in `localStorage['glc_notify_prefs_v1']` (no backend sync in MVP)
 
 ### `Portfolio.tsx`
 - Calls `useAudits()` → list of audits from `GET /api/audits`

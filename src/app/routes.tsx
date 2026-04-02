@@ -14,6 +14,7 @@ import { ClientAuditView }  from './pages/ClientAuditView';
 import { AdminRequestQueue } from './pages/AdminRequestQueue';
 import { DiscoverPage }     from './pages/DiscoverPage';
 import { DiscoveryQueue }   from './pages/DiscoveryQueue';
+import { SettingsPage }     from './pages/SettingsPage';
 import { ProtectedRoute }   from './components/ProtectedRoute';
 import { RootRedirect }     from './components/RootRedirect';
 
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
   { path: '/pipeline/:id',        element: <Consultant><PipelineMonitor /></Consultant> },
   { path: '/reports/:id',         element: <Consultant><ReportViewer /></Consultant> },
   { path: '/strategy/:id',        element: <Consultant><StrategyLab /></Consultant> },
+  { path: '/settings',            element: <P><SettingsPage /></P> },
 
   // ── Client portal routes ───────────────────────────────────────────────────
   { path: '/portal',                  element: <Client><ClientPortal /></Client> },
