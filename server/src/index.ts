@@ -8,6 +8,7 @@ import { reportsRouter } from './routes/reports.js';
 import { logRouter } from './routes/log.js';
 import { snapshotRouter } from './routes/snapshot.js';
 import { intakeRouter } from './routes/intake.js';
+import { discoverRouter } from './routes/discover.js';
 import { auditRequestsRouter } from './routes/audit-requests.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { requireAuth, attachProfile, type AuthRequest } from './middleware/auth.js';
@@ -73,6 +74,7 @@ app.get('/api/profile', requireAuth, attachProfile, (req: AuthRequest, res) => {
 // ─── Routes ────────────────────────────────────────────────
 app.use('/api/snapshot', snapshotRouter);          // Public — no auth
 app.use('/api/intake', intakeRouter);               // Public token GET/respond; POST requires consultant auth
+app.use('/api/discover', discoverRouter);           // Public submit/load; consultant sessions/convert
 app.use('/api/audit-requests', auditRequestsRouter); // Client portal requests
 app.use('/api/analytics', analyticsRouter);          // Consultant analytics
 app.use('/api/audits', auditsRouter);

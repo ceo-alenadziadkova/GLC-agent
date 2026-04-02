@@ -8,7 +8,8 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowRight, CheckCircle, Check, Circle, Warning,
-  ChartBar, Lightbulb, Users, Buildings, ArrowLeft,
+  ChartBar, Lightbulb, Users, Buildings, ArrowLeft, PaperPlaneRight,
+  Spinner,
 } from '@phosphor-icons/react';
 import {
   buildQuestionSequence,
@@ -18,6 +19,7 @@ import {
   type DiscoveryAnswers,
   type DiscoveryFinding,
 } from '../lib/discovery-flow';
+import { api } from '../data/apiService';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -205,6 +207,18 @@ export function DiscoverPage() {
   const [draft, setDraft] = useState<DiscoveryAnswers[string]>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Session persistence
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState(false);
+
+  // Contact form (results screen)
+  const [contactName,  setContactName]  = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactSaving, setContactSaving] = useState(false);
+  const [contactSaved,  setContactSaved]  = useState(false);
+  const [contactError,  setContactError]  = useState<string | null>(null);
+
   const sequence = buildQuestionSequence(answers);
   const currentId = sequence[currentIdx] ?? null;
   const currentQ = currentId ? getQuestion(currentId) : null;
@@ -238,9 +252,43 @@ export function DiscoverPage() {
     const nextSequence = buildQuestionSequence(committed);
     const nextIdx = currentIdx + 1;
     if (nextIdx >= nextSequence.length) {
+      // Compute results from final committed state and persist in background
+      const finalMaturity = computeMaturity(committed);
+      const finalFindings = computeFindings(committed);
+      setSaveError(false);
+      api.saveDiscoverySession({
+        answers: committed,
+        maturity_level: finalMaturity.level,
+        findings: finalFindings,
+      }).then(({ token }) => {
+        setSessionToken(token);
+      }).catch(() => {
+        setSaveError(true);
+      });
       setShowResults(true);
     } else {
       setCurrentIdx(nextIdx);
+    }
+  }
+
+  async function handleContactSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim()) return;
+    setContactSaving(true);
+    setContactError(null);
+    try {
+      if (sessionToken) {
+        await api.saveDiscoveryContact(sessionToken, {
+          contact_name: contactName.trim() || undefined,
+          contact_email: contactEmail.trim() || undefined,
+          contact_phone: contactPhone.trim() || undefined,
+        });
+      }
+      setContactSaved(true);
+    } catch {
+      setContactError('Could not save contact info — please email us directly.');
+    } finally {
+      setContactSaving(false);
     }
   }
 
@@ -342,6 +390,99 @@ export function DiscoverPage() {
                 No commitment. We reply within one business day.
               </p>
             </div>
+
+            {/* Session saved badge */}
+            {sessionToken && !saveError && (
+              <div className="flex items-center justify-center gap-1.5">
+                <CheckCircle size={13} weight="fill" style={{ color: 'rgba(16,185,129,0.60)' }} />
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.28)' }}>
+                  Results saved — share this page or return any time
+                </span>
+              </div>
+            )}
+            {saveError && (
+              <p className="text-center" style={{ fontSize: 11, color: 'rgba(239,68,68,0.55)' }}>
+                Could not save your session — your results are still shown above.
+              </p>
+            )}
+
+            {/* Contact form */}
+            {!contactSaved ? (
+              <form
+                onSubmit={handleContactSubmit}
+                className="rounded-2xl p-5 space-y-3"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)' }}
+              >
+                <div>
+                  <p className="font-semibold mb-0.5" style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)' }}>
+                    Leave your contact details
+                  </p>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.40)', lineHeight: 1.55 }}>
+                    Optional — we'll reach out only if you ask us to.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {[
+                    { placeholder: 'Your name', value: contactName, setter: setContactName, type: 'text' },
+                    { placeholder: 'Email address', value: contactEmail, setter: setContactEmail, type: 'email' },
+                    { placeholder: 'Phone / WhatsApp (optional)', value: contactPhone, setter: setContactPhone, type: 'tel' },
+                  ].map(({ placeholder, value, setter, type }) => (
+                    <input
+                      key={placeholder}
+                      type={type}
+                      placeholder={placeholder}
+                      value={value}
+                      onChange={e => setter(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl text-sm outline-none"
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        color: '#fff',
+                      }}
+                      onFocus={e => { e.currentTarget.style.borderColor = 'rgba(28,189,255,0.45)'; }}
+                      onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+                    />
+                  ))}
+                </div>
+                {contactError && (
+                  <p style={{ fontSize: 11, color: 'rgba(239,68,68,0.80)' }}>{contactError}</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={contactSaving || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim())}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm"
+                  style={{
+                    background: (contactSaving || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim()))
+                      ? 'rgba(255,255,255,0.08)'
+                      : 'linear-gradient(135deg, #1CBDFF, #0066CC)',
+                    color: (contactSaving || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim()))
+                      ? 'rgba(255,255,255,0.30)'
+                      : '#fff',
+                    border: 'none',
+                    cursor: (contactSaving || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim()))
+                      ? 'not-allowed'
+                      : 'pointer',
+                  }}
+                >
+                  {contactSaving
+                    ? <><Spinner size={14} className="animate-spin" /> Saving…</>
+                    : <><PaperPlaneRight size={14} /> Send contact details</>}
+                </button>
+              </form>
+            ) : (
+              <div
+                className="flex items-center gap-3 rounded-2xl p-4"
+                style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)' }}
+              >
+                <CheckCircle size={20} weight="fill" className="flex-shrink-0" style={{ color: '#10B981' }} />
+                <div>
+                  <p className="font-semibold" style={{ fontSize: 13, color: '#10B981' }}>Details received</p>
+                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', lineHeight: 1.5 }}>
+                    We'll be in touch within one business day.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Back */}
             <button
