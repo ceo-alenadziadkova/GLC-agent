@@ -1,4 +1,4 @@
-import { Circle, Check, CheckCircle } from '@phosphor-icons/react';
+import { Circle, Check, CheckCircle, Lightbulb, UserCircle } from '@phosphor-icons/react';
 import type { BriefQuestion, BriefResponseEntry } from '../data/briefQuestions';
 
 export const PRIORITY_BADGE: Record<string, { label: string; color: string }> = {
@@ -13,6 +13,7 @@ export function BriefField({
   onChange,
   onSetUnknown,
   emphasizeClientSource,
+  interviewMode,
 }: {
   q: BriefQuestion;
   value: string | string[] | number | boolean | null | BriefResponseEntry | undefined;
@@ -20,6 +21,8 @@ export function BriefField({
   onSetUnknown: () => void;
   /** When true, shows a tag if the entry came from the client (e.g. pre-brief link). */
   emphasizeClientSource?: boolean;
+  /** When true, shows consultant_hint coaching prompts and marks answers as consultant-sourced. */
+  interviewMode?: boolean;
 }) {
   const rawValue = (value && typeof value === 'object' && !Array.isArray(value) && 'value' in value)
     ? value.value
@@ -60,9 +63,25 @@ export function BriefField({
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: -2 }}>{q.hint}</p>
       )}
 
+      {interviewMode && q.consultant_hint && (
+        <div
+          className="flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg"
+          style={{
+            background: 'rgba(245,158,11,0.07)',
+            border: '1px solid rgba(245,158,11,0.22)',
+            marginTop: 2,
+          }}
+        >
+          <Lightbulb size={13} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: '#F59E0B' }} />
+          <p style={{ fontSize: '11px', color: 'rgba(245,158,11,0.85)', lineHeight: 1.5, margin: 0 }}>
+            {q.consultant_hint}
+          </p>
+        </div>
+      )}
+
       {q.type === 'free_text' && (
         <textarea
-          rows={2}
+          rows={interviewMode ? 3 : 2}
           value={strVal}
           onChange={e => onChange(e.target.value || null)}
           placeholder="Your answer..."
@@ -158,7 +177,9 @@ export function BriefField({
             <CheckCircle className="h-4 w-4 shrink-0 mt-0.5" weight="fill" style={{ color: 'var(--glc-green)' }} />
             <div className="min-w-0 flex-1 space-y-1.5">
               <p style={{ color: 'var(--text-primary)' }}>
-                Marked as &quot;don&apos;t know&quot; — this counts toward progress. Your consultant can follow up.
+                {interviewMode
+                  ? 'Client doesn\'t know — flagged for post-audit follow-up.'
+                  : 'Marked as "don\'t know" — this counts toward progress. Your consultant can follow up.'}
               </p>
               <button
                 type="button"
@@ -166,7 +187,7 @@ export function BriefField({
                 className="text-xs font-medium underline underline-offset-2 cursor-pointer"
                 style={{ color: 'var(--glc-blue)' }}
               >
-                I&apos;ll answer myself instead
+                {interviewMode ? 'Clear — enter answer instead' : 'I\'ll answer myself instead'}
               </button>
             </div>
           </div>
@@ -174,7 +195,7 @@ export function BriefField({
           <button
             type="button"
             onClick={onSetUnknown}
-            className="rounded-lg border px-2.5 py-2 text-left text-xs font-medium transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-left text-xs font-medium transition-colors cursor-pointer"
             style={{
               borderColor: 'var(--border-default)',
               color: 'var(--text-secondary)',
@@ -189,7 +210,9 @@ export function BriefField({
               (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
             }}
           >
-            I don&apos;t know — skip for now (consultant can fill in)
+            {interviewMode
+              ? <><UserCircle size={13} className="flex-shrink-0" /> Client doesn&apos;t know — flag for follow-up</>
+              : <>I don&apos;t know — skip for now (consultant can fill in)</>}
           </button>
         )}
       </div>
