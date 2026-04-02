@@ -728,6 +728,16 @@ export function SnapshotLanding() {
           Results are AI-generated and for informational purposes only. · {' '}
           <Link to="/login" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Sign in</Link>
         </p>
+        <p className="text-xs mt-1.5" style={{ color: 'var(--text-quaternary)' }}>
+          No website yet?{' '}
+          <Link
+            to="/audit/discover"
+            style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}
+          >
+            Try our discovery flow
+          </Link>
+          {' '}— get a free tech-maturity assessment without a URL.
+        </p>
       </footer>
     </div>
   );

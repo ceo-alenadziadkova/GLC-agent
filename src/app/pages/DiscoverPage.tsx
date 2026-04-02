@@ -252,18 +252,26 @@ export function DiscoverPage() {
     const nextSequence = buildQuestionSequence(committed);
     const nextIdx = currentIdx + 1;
     if (nextIdx >= nextSequence.length) {
-      // Compute results from final committed state and persist in background
+      // Compute results from final committed state and persist in background.
+      // 5-second timeout: if the server is slow the badge simply doesn't appear;
+      // the results screen is never blocked and no error is surfaced to the user.
       const finalMaturity = computeMaturity(committed);
       const finalFindings = computeFindings(committed);
       setSaveError(false);
-      api.saveDiscoverySession({
-        answers: committed,
-        maturity_level: finalMaturity.level,
-        findings: finalFindings,
-      }).then(({ token }) => {
+      const saveTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 5000),
+      );
+      Promise.race([
+        api.saveDiscoverySession({
+          answers: committed,
+          maturity_level: finalMaturity.level,
+          findings: finalFindings,
+        }),
+        saveTimeout,
+      ]).then(({ token }) => {
         setSessionToken(token);
       }).catch(() => {
-        setSaveError(true);
+        // timeout or network error — results are still shown, badge is silently skipped
       });
       setShowResults(true);
     } else {

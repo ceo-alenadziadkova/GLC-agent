@@ -22,11 +22,23 @@ const TOKEN_HEX = /^[a-f0-9]{40}$/i;
 
 // ── Answer → intake-brief mapping ────────────────────────────────────────────
 
-type BriefEntry = { value: unknown; source: 'client' };
+type BriefEntry = { value: unknown; source: 'client' | 'unknown' };
 
+/**
+ * Maps discovery answers into intake-brief format.
+ *
+ * Fields we can derive from discovery answers are tagged source:'client'.
+ * Required brief fields that cannot be determined from a discovery session
+ * are tagged source:'unknown' so the brief-validator counts them as "answered"
+ * (consultant-flagged unknowns) and allows the pipeline to start.
+ * The consultant can fill them in via AuditWorkspace before or after running.
+ */
 function discoveryToBriefPatch(answers: Record<string, unknown>): Record<string, BriefEntry> {
-  const tag = (v: unknown): BriefEntry => ({ value: v, source: 'client' });
+  const tag  = (v: unknown): BriefEntry => ({ value: v, source: 'client' });
+  const unk  = ():           BriefEntry => ({ value: null, source: 'unknown' });
   const patch: Record<string, BriefEntry> = {};
+
+  // ── Fields we CAN derive ──────────────────────────────────────────────────
 
   // Industry maps directly to intake_industry
   if (typeof answers.industry === 'string' && answers.industry.trim()) {
@@ -49,25 +61,48 @@ function discoveryToBriefPatch(answers: Record<string, unknown>): Record<string,
   }
 
   // Biggest pain: prefer manual_bottleneck (specific), fall back to biggest_challenge
-  const manual = typeof answers.manual_bottleneck === 'string' ? answers.manual_bottleneck.trim() : '';
+  const manual    = typeof answers.manual_bottleneck === 'string' ? answers.manual_bottleneck.trim() : '';
   const challenge = typeof answers.biggest_challenge === 'string' ? answers.biggest_challenge.trim() : '';
-  if (manual) patch.biggest_pain = tag(manual);
+  if (manual)    patch.biggest_pain  = tag(manual);
   else if (challenge) patch.biggest_pain = tag(challenge);
 
   // Primary goal from biggest_challenge
   if (challenge) patch.primary_goal = tag(challenge);
 
+  // Unique value prop from one-sentence business description
+  const bizDesc = typeof answers.biz_description === 'string' ? answers.biz_description.trim() : '';
+  if (bizDesc) patch.unique_value_prop = tag(bizDesc);
+
+  // has_google_analytics: businesses with no website or social-only have no GA
+  const presence = typeof answers.online_presence === 'string' ? answers.online_presence : '';
+  if (
+    presence === 'None — clients find us through word of mouth' ||
+    presence === 'Social media profiles only'
+  ) {
+    patch.has_google_analytics = tag('No');
+  }
+
   // Traffic / acquisition channels
   const acq = Array.isArray(answers.client_acquisition) ? (answers.client_acquisition as string[]) : [];
   const SOURCE_MAP: Record<string, string> = {
-    'Word of mouth / referrals': 'Direct / referral',
-    'Social media': 'Social media',
-    'Google search': 'Organic search (SEO)',
-    'Paid ads': 'Paid ads (Google/Meta)',
-    'Outbound (cold calls / messages)': 'Direct / referral',
+    'Word of mouth / referrals':         'Direct / referral',
+    'Social media':                      'Social media',
+    'Google search':                     'Organic search (SEO)',
+    'Paid ads':                          'Paid ads (Google/Meta)',
+    'Outbound (cold calls / messages)':  'Direct / referral',
   };
   const mappedSources = [...new Set(acq.flatMap(a => (SOURCE_MAP[a] ? [SOURCE_MAP[a]] : [])))];
   if (mappedSources.length > 0) patch.main_traffic_source = tag(mappedSources);
+
+  // ── Required fields we CANNOT derive — flag as unknown ───────────────────
+  // brief-validator treats source:'unknown' as answered, so the pipeline can
+  // start without blocking; consultant fills these in AuditWorkspace.
+
+  if (!patch.target_audience)     patch.target_audience     = unk();
+  if (!patch.revenue_model)       patch.revenue_model       = unk();
+  if (!patch.primary_cta)         patch.primary_cta         = unk();
+  if (!patch.has_google_analytics) patch.has_google_analytics = unk();
+  if (!patch.handles_payments)    patch.handles_payments    = unk();
 
   return patch;
 }
