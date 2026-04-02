@@ -12,6 +12,7 @@ import { ClientPortal }     from './pages/ClientPortal';
 import { ClientRequestForm } from './pages/ClientRequestForm';
 import { ClientAuditView }  from './pages/ClientAuditView';
 import { AdminRequestQueue } from './pages/AdminRequestQueue';
+import { DiscoverPage }     from './pages/DiscoverPage';
 import { ProtectedRoute }   from './components/ProtectedRoute';
 import { RootRedirect }     from './components/RootRedirect';
 
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
   { path: '/login',               element: <Login /> },
   { path: '/snapshot',            element: <SnapshotLanding /> },           // public
   { path: '/intake/:token',       element: <IntakeBrief /> },              // public pre-brief
+  { path: '/audit/discover',      element: <DiscoverPage /> },             // public Mode C
 
   // ── Consultant routes ──────────────────────────────────────────────────────
   { path: '/dashboard',           element: <Consultant><Dashboard /></Consultant> },
