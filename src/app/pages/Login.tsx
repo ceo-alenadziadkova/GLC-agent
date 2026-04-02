@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import { Globe, Envelope, ArrowRight, Lock } from '@phosphor-icons/react';
+import { Envelope, ArrowRight, Lock } from '@phosphor-icons/react';
 import { useAuth } from '../hooks/useAuth';
 import { logger } from '../lib/logger';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 const TEST_EMAIL = 'alenauserfortest@gmail.com';
 
@@ -61,10 +62,14 @@ export function Login() {
   const isReady = email.trim() && (!isTestUser || password);
 
   return (
-    <div
+    <main
       className="min-h-screen flex flex-col items-center justify-center px-6 relative"
       style={{ backgroundColor: 'var(--bg-canvas)' }}
     >
+      <div className="absolute top-4 right-4 z-20 sm:top-6 sm:right-6">
+        <ThemeToggle />
+      </div>
+
       <div
         className="absolute inset-0 pointer-events-none"
         style={{ background: 'var(--mesh-brand)', opacity: 0.55 }}
@@ -83,26 +88,28 @@ export function Login() {
             initial={{ scale: 0.75, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.08, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
-            style={{
-              background: 'var(--gradient-brand)',
-              boxShadow: '0 8px 28px rgba(28,189,255,0.32), 0 2px 8px rgba(0,0,0,0.14)',
-            }}
+            className="flex items-center justify-center gap-3 mb-4"
           >
-            <Globe className="w-7 h-7 text-white" />
+            <img
+              src="/logo-simple.svg"
+              alt=""
+              className="h-10 w-auto max-w-[min(72px,20vw)] shrink-0"
+              width={68}
+              height={72}
+              decoding="async"
+            />
+            <h1
+              className="font-logo leading-none"
+              style={{
+                fontSize: 'var(--text-2xl)',
+                fontWeight: 700,
+                letterSpacing: 'var(--tracking-tight)',
+              }}
+            >
+              <span className="text-[#444343] dark:text-[#DEDEDE]">GLC</span>
+              <span className="text-[rgba(68,67,67,0.78)] dark:text-[#e5e7ebb8]"> Audit Platform</span>
+            </h1>
           </motion.div>
-
-          <h1
-            style={{
-              fontSize: 'var(--text-2xl)',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-display)',
-              fontWeight: 700,
-              letterSpacing: 'var(--tracking-tight)',
-            }}
-          >
-            GLC Audit Platform
-          </h1>
           <p className="mt-2" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
             Sign in to access your audit workspace
           </p>
@@ -190,48 +197,39 @@ export function Login() {
                     onFocus={e => { e.target.style.borderColor = 'var(--glc-blue)'; e.target.style.boxShadow = 'var(--shadow-blue)'; }}
                     onBlur={e => { e.target.style.borderColor = 'var(--border-default)'; e.target.style.boxShadow = 'none'; }}
                   />
-                  <AnimatePresence>
-                    {isTestUser && (
-                      <motion.div
-                        key="password"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        style={{ overflow: 'hidden' }}
-                      >
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
-                          <input
-                            type="password"
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
-                            placeholder="Password"
-                            autoFocus
-                            className="w-full pl-9 pr-4 py-3 bg-transparent outline-none"
-                            style={{
-                              borderRadius: 'var(--radius-lg)',
-                              border: '1px solid var(--border-default)',
-                              backgroundColor: 'var(--bg-surface)',
-                              color: 'var(--text-primary)',
-                              fontSize: 'var(--text-sm)',
-                              transition: 'border-color var(--ease-fast), box-shadow var(--ease-fast)',
-                            }}
-                            onFocus={e => { e.target.style.borderColor = 'var(--glc-blue)'; e.target.style.boxShadow = 'var(--shadow-blue)'; }}
-                            onBlur={e => { e.target.style.borderColor = 'var(--border-default)'; e.target.style.boxShadow = 'none'; }}
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  {isTestUser && (
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="Password"
+                        autoFocus
+                        className="w-full pl-9 pr-4 py-3 bg-transparent outline-none"
+                        style={{
+                          borderRadius: 'var(--radius-lg)',
+                          border: '1px solid var(--border-default)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)',
+                          fontSize: 'var(--text-sm)',
+                          transition: 'border-color var(--ease-fast), box-shadow var(--ease-fast)',
+                        }}
+                        onFocus={e => { e.target.style.borderColor = 'var(--glc-blue)'; e.target.style.boxShadow = 'var(--shadow-blue)'; }}
+                        onBlur={e => { e.target.style.borderColor = 'var(--border-default)'; e.target.style.boxShadow = 'none'; }}
+                      />
+                    </div>
+                  )}
                   <motion.button
                     type="submit"
                     disabled={loading || !isReady}
                     whileHover={!loading ? { scale: 1.015 } : {}}
                     whileTap={!loading ? { scale: 0.985 } : {}}
-                    className="w-full flex items-center justify-center gap-2 py-3 text-white font-semibold"
+                    className="w-full flex items-center justify-center gap-2 py-3 font-semibold"
                     style={{
                       borderRadius: 'var(--radius-lg)',
                       background: isReady ? 'var(--gradient-accent)' : 'var(--border-default)',
+                      color: isReady ? 'var(--primary-foreground)' : 'var(--text-tertiary)',
                       cursor: isReady && !loading ? 'pointer' : 'not-allowed',
                       fontSize: 'var(--text-sm)',
                       border: 'none',
@@ -240,7 +238,7 @@ export function Login() {
                   >
                     {loading ? (
                       <span className="flex items-center gap-2">
-                        <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                        <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin border-[var(--primary-foreground)]" />
                         {isTestUser && password ? 'Signing in...' : 'Sending...'}
                       </span>
                     ) : (
@@ -265,6 +263,6 @@ export function Login() {
           By signing in, you agree to our Terms of Service.
         </p>
       </motion.div>
-    </div>
+    </main>
   );
 }

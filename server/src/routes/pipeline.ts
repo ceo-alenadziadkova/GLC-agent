@@ -5,13 +5,15 @@ import { pipelineLimiter } from '../middleware/rate-limit.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
 import { maxPhaseForMode, type ProductMode } from '../types/audit.js';
 import { logger } from '../services/logger.js';
+import { evaluateBriefGates } from '../services/brief-validator.js';
+import { notifyAuditParticipants, notifyAuditParticipantsExcept } from '../services/notifications.js';
 
 /**
  * Emit an error event to pipeline_events and mark audit as failed.
  * Used as a catch handler for fire-and-forget phase runs.
  *
  * [C4] Wrapped in try-catch: if Supabase is unreachable during error handling,
- * we log to console instead of throwing an unhandled rejection.
+ * we log via logger instead of throwing an unhandled rejection.
  */
 async function emitPhaseError(auditId: string, phase: number, err: Error): Promise<void> {
   logger.error('Pipeline phase crashed', { audit_id: auditId, phase, error: err.message });
@@ -32,6 +34,20 @@ async function emitPhaseError(auditId: string, phase: number, err: Error): Promi
     // DB unavailable — already logged to console above, don't rethrow
     logger.error('Failed to write pipeline error event', { audit_id: auditId, phase, error: (dbErr as Error).message });
   }
+  await notifyAuditParticipants(
+    auditId,
+    'pipeline',
+    'Pipeline failure',
+    err.message ?? 'Pipeline phase failed unexpectedly',
+    {
+      phase,
+      status: 'failed',
+      route: `/pipeline/${auditId}`,
+      occurred_at: new Date().toISOString(),
+      actor_role: 'system',
+      failure_type: 'phase_failed',
+    },
+  );
 }
 
 export const pipelineRouter = Router();
@@ -39,6 +55,14 @@ export const pipelineRouter = Router();
 // All pipeline mutation routes require consultant role.
 // Status endpoint is readable by any authenticated user (client progress tracking).
 const consultantGuard = [requireAuth, attachProfile, requireRole('consultant')] as const;
+const PHASE_ACTIVE_STATUSES = ['recon', 'auto', 'analytic', 'strategy'] as const;
+
+function statusForPhase(phase: number): 'recon' | 'auto' | 'analytic' | 'strategy' {
+  if (phase === 0) return 'recon';
+  if (phase >= 1 && phase <= 4) return 'auto';
+  if (phase >= 5 && phase <= 6) return 'analytic';
+  return 'strategy';
+}
 
 // ─── POST /api/audits/:id/pipeline/start — Start pipeline ──
 pipelineRouter.post('/:id/pipeline/start', ...consultantGuard, pipelineLimiter, async (req: AuthRequest, res) => {
@@ -48,7 +72,7 @@ pipelineRouter.post('/:id/pipeline/start', ...consultantGuard, pipelineLimiter, 
     // Verify ownership
     const { data: audit, error } = await supabase
       .from('audits')
-      .select('id, status, current_phase, tokens_used, token_budget, updated_at')
+      .select('id, status, current_phase, tokens_used, token_budget, updated_at, product_mode')
       .eq('id', id)
       .eq('user_id', req.userId!)
       .single();
@@ -82,8 +106,16 @@ pipelineRouter.post('/:id/pipeline/start', ...consultantGuard, pipelineLimiter, 
       return;
     }
 
+    // Include intake progress contract so UI can render readiness state.
+    const { data: brief } = await supabase
+      .from('intake_brief')
+      .select('responses')
+      .eq('audit_id', id)
+      .single();
+    const gates = evaluateBriefGates((brief?.responses as Record<string, unknown>) ?? {}, (audit.product_mode as ProductMode) ?? 'full');
+
     // Start pipeline (runs Phase 0: Recon)
-    res.json({ status: 'started', phase: 0 });
+    res.json({ status: 'started', phase: 0, intakeProgress: gates.intakeProgress });
 
     // Run asynchronously — surface errors to frontend via pipeline_events
     const orchestrator = new PipelineOrchestrator(id);
@@ -118,7 +150,6 @@ pipelineRouter.post('/:id/pipeline/next', ...consultantGuard, pipelineLimiter, a
 
     // [C4] Concurrent phase lock: reject if a phase is actively executing.
     // DB constraint has no 'running' status — orchestrator uses 'recon'/'auto'/'analytic'/'strategy'.
-    const PHASE_ACTIVE_STATUSES = ['recon', 'auto', 'analytic', 'strategy'] as const;
     if ((PHASE_ACTIVE_STATUSES as readonly string[]).includes(audit.status)) {
       res.status(409).json({ error: 'A phase is already in progress', status: audit.status });
       return;
@@ -151,12 +182,14 @@ pipelineRouter.post('/:id/pipeline/next', ...consultantGuard, pipelineLimiter, a
       return;
     }
 
+    const lockStatus = statusForPhase(nextPhase);
     const { data: claimedNext } = await supabase
       .from('audits')
-      .update({ status: String(audit.status) })
+      .update({ status: lockStatus })
       .eq('id', id)
       .eq('user_id', req.userId!)
       .eq('updated_at', audit.updated_at)
+      .in('status', ['review', 'completed', 'failed', 'created'])
       .select('id');
     if (!claimedNext || claimedNext.length === 0) {
       res.status(409).json({ error: 'Next phase request already claimed by another request' });
@@ -214,18 +247,19 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
     }
 
     // [C4] Concurrent phase lock — same guard as /next
-    const PHASE_ACTIVE_STATUSES = ['recon', 'auto', 'analytic', 'strategy'] as const;
     if ((PHASE_ACTIVE_STATUSES as readonly string[]).includes(audit.status)) {
       res.status(409).json({ error: 'A phase is already in progress', status: audit.status });
       return;
     }
 
+    const lockStatus = statusForPhase(phase);
     const { data: claimedRetry } = await supabase
       .from('audits')
-      .update({ status: String(audit.status) })
+      .update({ status: lockStatus })
       .eq('id', id)
       .eq('user_id', req.userId!)
       .eq('updated_at', audit.updated_at)
+      .in('status', ['review', 'completed', 'failed', 'created'])
       .select('id');
     if (!claimedRetry || claimedRetry.length === 0) {
       res.status(409).json({ error: 'Retry request already claimed by another request' });
@@ -233,6 +267,22 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
     }
 
     res.json({ status: 'retrying', phase });
+
+    await notifyAuditParticipantsExcept(
+      id,
+      'pipeline',
+      'Phase retry started',
+      `Retry was requested for phase ${phase}.`,
+      [req.userId!],
+      {
+        phase,
+        status: 'retrying',
+        route: `/pipeline/${id}`,
+        occurred_at: new Date().toISOString(),
+        actor_role: 'consultant',
+        failure_type: 'retry_started',
+      },
+    );
 
     // Run asynchronously — surface errors to frontend via pipeline_events
     const orchestrator = new PipelineOrchestrator(id);
@@ -277,7 +327,8 @@ pipelineRouter.get('/:id/pipeline/status', requireAuth, async (req: AuthRequest,
       reviews: reviewsRes.data ?? [],
     });
   } catch (err) {
-    console.error('[GET /pipeline/status]', err);
+    const e = err as Error;
+    logger.error('route.pipeline_status_failed', { component: 'pipeline', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to get pipeline status' });
   }
 });
@@ -318,7 +369,8 @@ pipelineRouter.get('/:id/quality-gate/:phase', requireAuth, async (req: AuthRequ
 
     res.json(event.data);
   } catch (err) {
-    console.error('[GET /quality-gate/:phase]', err);
+    const e = err as Error;
+    logger.error('route.quality_gate_failed', { component: 'pipeline', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to fetch quality gate report' });
   }
 });
@@ -405,9 +457,18 @@ pipelineRouter.post('/:id/reviews/:phase', ...consultantGuard, async (req: AuthR
       data: { consultant_notes: sanitizedConsultantNotes, interview_notes: sanitizedInterviewNotes },
     });
 
+    await notifyAuditParticipants(
+      id,
+      'review',
+      'Review approved',
+      `Review point after phase ${phase} approved`,
+      { phase: parseInt(phase) },
+    );
+
     res.json(data);
   } catch (err) {
-    console.error('[POST /reviews/:phase]', err);
+    const e = err as Error;
+    logger.error('route.review_approve_failed', { component: 'pipeline', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to approve review' });
   }
 });

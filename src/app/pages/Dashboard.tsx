@@ -16,6 +16,7 @@ import { ScoreDistributionChart } from '../components/glc/ScoreDistributionChart
 import { useAudits } from '../hooks/useAudits';
 import { useDashboard } from '../hooks/useDashboard';
 import type { AuditMeta } from '../data/auditTypes';
+import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 
 const itemVariants = {
   hidden:  { opacity: 0, y: 8 },
@@ -40,7 +41,8 @@ export function Dashboard() {
     query === '' ||
     (c.company_name || '').toLowerCase().includes(query.toLowerCase()) ||
     (c.industry || '').toLowerCase().includes(query.toLowerCase()) ||
-    c.company_url.toLowerCase().includes(query.toLowerCase())
+    c.company_url.toLowerCase().includes(query.toLowerCase()) ||
+    formatAuditWebsiteDisplay(c.company_url).toLowerCase().includes(query.toLowerCase())
   );
 
   return (
@@ -189,7 +191,7 @@ export function Dashboard() {
                           fontSize: '11px',
                         }}
                       >
-                        {(c.company_name || c.company_url).slice(0, 2).toUpperCase()}
+                        {(c.company_name || formatAuditWebsiteDisplay(c.company_url)).slice(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0">
                         <Link
@@ -203,10 +205,10 @@ export function Dashboard() {
                             letterSpacing: '-0.01em',
                           }}
                         >
-                          {c.company_name || c.company_url}
+                          {c.company_name || formatAuditWebsiteDisplay(c.company_url)}
                         </Link>
                         <div className="text-xs truncate mt-0.5" style={{ color: 'var(--text-quaternary)', fontSize: '11px' }}>
-                          {c.company_url}
+                          {formatAuditWebsiteDisplay(c.company_url)}
                         </div>
                       </div>
                     </div>
@@ -238,7 +240,7 @@ export function Dashboard() {
                         className="glc-btn-icon"
                         style={{ width: 28, height: 28, borderRadius: 'var(--radius-md)', color: 'var(--score-1)' }}
                         onClick={async () => {
-                          if (confirm(`Delete audit for ${c.company_name || c.company_url}?`)) {
+                          if (confirm(`Delete audit for ${c.company_name || formatAuditWebsiteDisplay(c.company_url)}?`)) {
                             await deleteAudit(c.id);
                           }
                         }}

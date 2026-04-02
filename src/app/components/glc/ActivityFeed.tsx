@@ -3,6 +3,7 @@ import { Pulse } from '@phosphor-icons/react';
 import { SectionLabel } from './SectionLabel';
 import { formatRelativeTime } from '../../lib/relativeTime';
 import type { DashboardActivityEvent } from '../../data/apiService';
+import { formatAuditWebsiteDisplay } from '../../data/no-public-website';
 
 interface ActivityFeedProps {
   events: DashboardActivityEvent[] | undefined;
@@ -86,7 +87,7 @@ export function ActivityFeed({ events, loading }: ActivityFeedProps) {
                       fontFamily: 'var(--font-display)',
                     }}
                   >
-                    {ev.company_name || ev.company_url || ev.audit_id.slice(0, 8)}
+                    {ev.company_name || formatAuditWebsiteDisplay(ev.company_url) || ev.audit_id.slice(0, 8)}
                   </Link>
                   {ev.message && (
                     <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>

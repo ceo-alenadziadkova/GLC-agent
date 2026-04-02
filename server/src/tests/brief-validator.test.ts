@@ -8,6 +8,7 @@
  *    · all required answered: sla_met = true
  *    · non-required extras don't affect sla
  *    · falsy values (empty string, null, []) treated as unanswered
+ *    · { value: null, source: 'unknown' } treated as answered for SLA gating
  *    · number 0 treated as answered
  *  - assertBriefReady() — DB-mocked
  *    · free_snapshot audits skip gate unconditionally
@@ -162,6 +163,24 @@ describe('validateBriefResponses()', () => {
     expect(result.answered_required).toBe(0);
   });
 
+  it('treats explicit source=unknown as answered for required gating', () => {
+    const responses: Record<string, unknown> = {};
+    REQUIRED_QUESTION_IDS.forEach(id => {
+      responses[id] = { value: null, source: 'unknown' };
+    });
+    const result = validateBriefResponses(responses);
+    expect(result.answered_required).toBe(REQUIRED_QUESTION_IDS.length);
+    expect(result.sla_met).toBe(true);
+  });
+
+  it('mixes real answers with source=unknown and still meets SLA', () => {
+    const responses = makeFullRequired();
+    responses[REQUIRED_QUESTION_IDS[0]] = { value: null, source: 'unknown' };
+    const result = validateBriefResponses(responses);
+    expect(result.answered_required).toBe(REQUIRED_QUESTION_IDS.length);
+    expect(result.sla_met).toBe(true);
+  });
+
   it('treats empty array as unanswered', () => {
     const responses: Record<string, unknown> = {};
     REQUIRED_QUESTION_IDS.forEach(id => { responses[id] = []; });
@@ -273,19 +292,19 @@ describe('saveBriefResponses()', () => {
 
   it('saves valid responses and returns IntakeBrief record', async () => {
     const responses = makeFullRequired();
-    const brief = await saveBriefResponses('audit-001', responses);
+    const { brief } = await saveBriefResponses('audit-001', responses);
     expect(brief).toHaveProperty('id');
     expect(brief).toHaveProperty('audit_id', 'audit-001');
     expect(brief).toHaveProperty('sla_met');
   });
 
   it('sets sla_met=true when all required answered', async () => {
-    const brief = await saveBriefResponses('audit-001', makeFullRequired());
+    const { brief } = await saveBriefResponses('audit-001', makeFullRequired());
     expect(brief.sla_met).toBe(true);
   });
 
   it('sets sla_met=false when required questions missing', async () => {
-    const brief = await saveBriefResponses('audit-001', { primary_goal: 'grow' });
+    const { brief } = await saveBriefResponses('audit-001', { primary_goal: 'grow' });
     expect(brief.sla_met).toBe(false);
   });
 
@@ -308,7 +327,7 @@ describe('saveBriefResponses()', () => {
     await expect(saveBriefResponses('audit-001', responses)).rejects.toThrow(/Invalid brief responses/);
   });
 
-  it('rejects response values that are objects (not allowed by schema)', async () => {
+  it('rejects malformed structured response objects', async () => {
     const responses = { primary_goal: { nested: 'object' } };
     await expect(saveBriefResponses('audit-001', responses)).rejects.toThrow(/Invalid brief responses/);
   });
@@ -317,7 +336,7 @@ describe('saveBriefResponses()', () => {
 // ─── Schema invariants ────────────────────────────────────────────────────────
 
 describe('BRIEF_QUESTIONS schema invariants', () => {
-  it('has 25 questions total', () => {
+  it('has 25 main brief questions (identity is separate for public /intake link only)', () => {
     expect(BRIEF_QUESTIONS).toHaveLength(25);
   });
 
@@ -350,9 +369,9 @@ describe('BRIEF_QUESTIONS schema invariants', () => {
     expect(new Set(explicitRec)).toEqual(new Set(RECOMMENDED_QUESTION_IDS));
   });
 
-  it('has between 4 and 10 required questions', () => {
+  it('has between 4 and 14 required questions', () => {
     expect(REQUIRED_QUESTION_IDS.length).toBeGreaterThanOrEqual(4);
-    expect(REQUIRED_QUESTION_IDS.length).toBeLessThanOrEqual(10);
+    expect(REQUIRED_QUESTION_IDS.length).toBeLessThanOrEqual(14);
   });
 
   it('all domain references are valid domain keys or "all"', () => {

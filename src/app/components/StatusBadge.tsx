@@ -8,30 +8,30 @@ interface StatusBadgeProps {
 export function StatusBadge({ status, className }: StatusBadgeProps) {
   const getStatusStyles = (status: string) => {
     const styles: Record<string, { bg: string; color: string; text: string }> = {
-      'excellent': { 
-        bg: '#F0FDF4', 
-        color: 'var(--status-excellent)', 
-        text: 'Excellent' 
+      'excellent': {
+        bg: 'var(--score-5-bg)',
+        color: 'var(--status-excellent)',
+        text: 'Excellent'
       },
-      'good': { 
-        bg: '#F0FDF4', 
-        color: 'var(--status-good)', 
-        text: 'Good' 
+      'good': {
+        bg: 'var(--score-4-bg)',
+        color: 'var(--status-good)',
+        text: 'Good'
       },
-      'moderate': { 
-        bg: '#FFFBEB', 
-        color: 'var(--status-moderate)', 
-        text: 'Moderate' 
+      'moderate': {
+        bg: 'var(--score-3-bg)',
+        color: 'var(--status-moderate)',
+        text: 'Moderate'
       },
-      'needs-improvement': { 
-        bg: '#FFF7ED', 
-        color: 'var(--status-needs-improvement)', 
-        text: 'Needs Improvement' 
+      'needs-improvement': {
+        bg: 'var(--score-2-bg)',
+        color: 'var(--status-needs-improvement)',
+        text: 'Needs Improvement'
       },
-      'critical': { 
-        bg: '#FFF1F0', 
-        color: 'var(--status-critical)', 
-        text: 'Critical' 
+      'critical': {
+        bg: 'var(--score-1-bg)',
+        color: 'var(--status-critical)',
+        text: 'Critical'
       }
     };
 

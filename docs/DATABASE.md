@@ -12,8 +12,14 @@ PostgreSQL on **Supabase**. Apply migrations **in numeric order** so foreign key
 6. `006_intake_brief.sql` — `intake_brief`
 7. `007_finding_provenance.sql` — extra columns on `audit_domains`
 8. `008_reliability_idempotency.sql` — `api_idempotency_keys` for safe replay of critical writes
+9. `009_prompt_version_quality_gate.sql` — `prompt_version` in `audit_domains`, `quality_gate_passed` in `review_points`, client-read RLS policies on downstream tables
+10. `010_intake_progress_gamification.sql` — progressive intake and readiness fields in `intake_brief`
+11. `011_intake_tokens.sql` — `intake_tokens` for shareable pre-brief links (consultant-created; client-submitted responses)
+12. `012_profiles_trigger_auth_admin.sql` — RLS + grants so `handle_new_user` can insert into `profiles` (fixes OAuth `Database error saving new user` on Supabase hosted)
+13. `014_notifications.sql` — `notifications` table for in-app notification center
+14. `015_audit_request_guards.sql` — DB guard constraints/indexes for `audit_requests` consistency under concurrent writes
 
-**Tables (11):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`.
+**Tables (13):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`.
 
 Row Level Security is enabled on these tables; exact policies differ by table (consultant vs client access). **Canonical SQL:** the migration files — this doc summarises shapes.
 
@@ -100,6 +106,7 @@ UNIQUE(audit_id, domain_key, version)
 **`domain_key` values:** `tech_infrastructure` | `security_compliance` | `seo_digital` | `ux_conversion` | `marketing_utp` | `automation_processes`
 
 **Migration 007:** adds `confidence_distribution` (jsonb) and `unknown_items` (jsonb) for provenance / gap tracking.
+**Migration 009:** adds `prompt_version` (`varchar(20)`) to track prompt contract version per domain row.
 
 **`status` values:** `pending` | `collecting` | `assembling_context` | `analyzing` | `completed` | `failed`
 
@@ -193,6 +200,7 @@ status           text DEFAULT 'pending'   -- pending | approved
 consultant_notes text
 interview_notes  text
 approved_at      timestamptz
+quality_gate_passed boolean                -- added by migration 009
 ```
 
 ---
@@ -207,11 +215,30 @@ User roles and display metadata. **`role`:** `consultant` | `client` (migration 
 
 Client-submitted audit requests before an `audits` row is attached. Status workflow: `draft` → `submitted` → `under_review` → `approved` | `rejected` → `running` → `delivered` (see migration `005`).
 
+DB guards (migration `015_audit_request_guards.sql`):
+
+- Partial unique index on `audit_id` (`WHERE audit_id IS NOT NULL`) ensures one audit is linked to at most one request.
+- Check constraint enforces that `approved` / `running` / `delivered` rows always have `audit_id IS NOT NULL`.
+
 ---
 
 ### `intake_brief`
 
-Structured questionnaire responses per audit (`responses` jsonb, `status` `draft` | `submitted`, SLA counters). One row per audit (unique `audit_id`). Migration `006_intake_brief.sql`.
+Structured questionnaire responses per audit. One row per audit (unique `audit_id`).
+
+Core fields:
+
+- `responses` (`jsonb`) — versioned payload (`responses_format`), supports legacy flat values and structured `{ value, source }`.
+- `status` (`draft` | `submitted`) and SLA counters (`answered_required`, `answered_recommended`, `answered_optional`).
+- Progressive intake metadata: `layer_completed`, `collected_by`, `collection_mode`, `data_quality_score`, `recon_prefills`, `post_audit_questions`.
+- Server-derived gamification/readiness state:
+  - `progress_pct` (`0..100`),
+  - `readiness_badge` (`low|medium|high`),
+  - `next_best_action` (`complete_required|add_recommended|confirm_prefill|none`).
+
+Contract rule: readiness/progress fields are derived on the backend on each save/update and treated as canonical API data (frontend renders only).
+
+Migrations: `006_intake_brief.sql`, `010_intake_progress_gamification.sql`.
 
 ---
 
@@ -224,6 +251,51 @@ Key fields: `user_id`, `route`, `idempotency_key`, `request_hash`, `response_sta
 Uniqueness: `(user_id, route, idempotency_key)` via unique index.
 
 Migration: `008_reliability_idempotency.sql`.
+
+---
+
+### `intake_tokens`
+
+Pre-brief magic links: consultant creates a row; the client opens a public URL and POSTs answers until `expires_at`. Optional `audit_id` merges responses into `intake_brief` on submit.
+
+Access is via **service role** in the API (no RLS on this table); the `token` value is unguessable (40 hex chars).
+
+Migration: `011_intake_tokens.sql`.
+
+---
+
+### `notifications`
+
+In-app notifications shown in the frontend notification center.
+
+Core fields:
+
+- `user_id` — target recipient.
+- `audit_id` — optional linked audit for deep links.
+- `kind` — `pipeline` | `review` | `intake`.
+- `title`, `message`, `payload` — display text + structured metadata.
+- `is_read`, `read_at`, `created_at` — read state and ordering.
+
+Payload conventions in current app flows:
+
+- `payload.route` — deep-link target used by the shell router.
+- `payload.request_id` — request-related notifications (`audit_requests` lifecycle).
+- `payload.artifact` — artifact readiness (`strategy`, `report`, `report_pdf`, `action_plan_csv`).
+- `payload.failure_type` — failure/retry semantics (`phase_failed`, `retry_started`, etc.).
+
+Note: request/artifact/failure are modeled through payload metadata while `kind` stays in the base taxonomy above.
+
+Indexes:
+
+- `(user_id, is_read, created_at desc)` for unread and list queries.
+- `(user_id, created_at desc)` for paginated history.
+- `(audit_id, created_at desc)` partial index for audit-linked lookups.
+
+RLS:
+
+- Authenticated users can `SELECT` and `UPDATE` only rows where `auth.uid() = user_id`.
+
+Migration: `014_notifications.sql`.
 
 ---
 

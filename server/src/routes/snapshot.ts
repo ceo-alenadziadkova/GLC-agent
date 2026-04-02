@@ -1,22 +1,23 @@
 /**
  * Public Snapshot Routes — no auth required.
  *
- * POST /api/snapshot       — submit URL for free snapshot, returns { snapshotToken }
+ * POST /api/snapshot        — submit URL for free snapshot, returns { snapshotToken }
+ * GET  /api/snapshot/quota — remaining free checks this window (same IP key as POST)
  * GET  /api/snapshot/:token — poll status / fetch result by snapshotToken
  */
 import { Router } from 'express';
 import { randomUUID } from 'crypto';
 import { supabase } from '../services/supabase.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
-import { snapshotPublicLimiter } from '../middleware/rate-limit.js';
+import { getSnapshotPublicQuota, snapshotPublicLimiter } from '../middleware/rate-limit.js';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
-import type { FreeSnapshotPreview } from '../types/audit.js';
+import type { CrawledPage, FreeSnapshotPreview } from '../types/audit.js';
+import { maybeBuildCompetitorMini } from '../lib/snapshot-competitor.js';
+import { logger } from '../services/logger.js';
 
 export const snapshotRouter = Router();
 const SNAPSHOT_TTL_HOURS = Number(process.env.SNAPSHOT_TOKEN_TTL_HOURS ?? 72);
 const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-snapshotRouter.use(snapshotPublicLimiter);
 
 /**
  * Public Free UX Snapshot API contract — see docs/API.md (Public Snapshot), docs/PRODUCT.md (product_mode free_snapshot).
@@ -24,8 +25,20 @@ snapshotRouter.use(snapshotPublicLimiter);
  * Completed body: company meta, ux score/label/summary, max 2 issues, max 2 quick_wins (trimmed preview).
  */
 
+// ─── GET /api/snapshot/quota — Remaining free checks (no auth, no quota spend) ─
+snapshotRouter.get('/quota', async (req, res) => {
+  try {
+    const quota = await getSnapshotPublicQuota(req);
+    res.json(quota);
+  } catch (err) {
+    const e = err as Error;
+    logger.error('snapshot.quota_failed', { component: 'snapshot', error: e.message, stack: e.stack });
+    res.status(500).json({ error: 'Failed to read quota' });
+  }
+});
+
 // ─── POST /api/snapshot — Start a free snapshot ────────────
-snapshotRouter.post('/', async (req, res) => {
+snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
   try {
     const { company_url } = req.body;
 
@@ -65,7 +78,7 @@ snapshotRouter.post('/', async (req, res) => {
       .single();
 
     if (auditErr || !audit) {
-      console.error('[POST /api/snapshot] DB error:', auditErr);
+      logger.error('snapshot.create_audit_failed', { component: 'snapshot', error: auditErr?.message });
       res.status(500).json({ error: 'Failed to create snapshot' });
       return;
     }
@@ -88,7 +101,7 @@ snapshotRouter.post('/', async (req, res) => {
 
     if (initFailed) {
       await supabase.from('audits').delete().eq('id', auditId);
-      console.error('[POST /api/snapshot] Placeholder init failed, rolled back audit', auditId);
+      logger.error('snapshot.init_placeholders_failed', { component: 'snapshot', audit_id: auditId });
       res.status(500).json({ error: 'Failed to initialize snapshot — rolled back' });
       return;
     }
@@ -96,7 +109,12 @@ snapshotRouter.post('/', async (req, res) => {
     // Run pipeline asynchronously — client polls for result
     const orchestrator = new PipelineOrchestrator(auditId);
     orchestrator.runFreeSnapshot().catch((err: Error) => {
-      console.error(`[FreeSnapshot ${auditId}] Unhandled error:`, err.message);
+      logger.error('snapshot.pipeline_unhandled', {
+        component: 'snapshot',
+        audit_id: auditId,
+        error: err.message,
+        stack: err.stack,
+      });
     });
 
     res.status(202).json({
@@ -105,7 +123,8 @@ snapshotRouter.post('/', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('[POST /api/snapshot]', err);
+    const e = err as Error;
+    logger.error('snapshot.post_exception', { component: 'snapshot', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to start snapshot' });
   }
 });
@@ -167,10 +186,10 @@ snapshotRouter.get('/:token', async (req, res) => {
       return;
     }
 
-    // Completed — fetch result data
+    // Completed — fetch result data; competitor mini is best-effort (never fails the response).
     const [{ data: recon }, { data: uxDomain }] = await Promise.all([
       supabase.from('audit_recon')
-        .select('company_name, tech_stack, location')
+        .select('company_name, tech_stack, location, pages_crawled')
         .eq('audit_id', audit.id)
         .single(),
       supabase.from('audit_domains')
@@ -182,11 +201,14 @@ snapshotRouter.get('/:token', async (req, res) => {
         .single(),
     ]);
 
+    const pagesCrawled = (recon?.pages_crawled as CrawledPage[] | null) ?? null;
+    const companyUrl = audit.company_url as string;
+
     const preview: FreeSnapshotPreview = {
       audit_id: audit.id as string,
       snapshot_token: token,
       status: 'completed',
-      company_url: audit.company_url as string,
+      company_url: companyUrl,
       company_name: (recon?.company_name as string | null) ?? (audit.company_name as string | null) ?? null,
       tech_stack: (recon?.tech_stack as Record<string, string[]>) ?? {},
       location: (recon?.location as string | null) ?? null,
@@ -197,10 +219,18 @@ snapshotRouter.get('/:token', async (req, res) => {
       quick_wins: ((uxDomain?.quick_wins as unknown[]) ?? []).slice(0, 2) as FreeSnapshotPreview['quick_wins'],
     };
 
+    const competitorSettled = await Promise.allSettled([
+      maybeBuildCompetitorMini(companyUrl, pagesCrawled, 3000),
+    ]);
+    if (competitorSettled[0].status === 'fulfilled' && competitorSettled[0].value) {
+      preview.competitor_mini = competitorSettled[0].value;
+    }
+
     res.json(preview);
 
   } catch (err) {
-    console.error('[GET /api/snapshot/:token]', err);
+    const e = err as Error;
+    logger.error('snapshot.get_exception', { component: 'snapshot', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to fetch snapshot' });
   }
 });

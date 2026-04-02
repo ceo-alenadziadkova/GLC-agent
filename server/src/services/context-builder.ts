@@ -1,7 +1,18 @@
 import { supabase } from './supabase.js';
+import { logger } from './logger.js';
 import type { DomainKey, ReconData } from '../types/audit.js';
 import { getDomainWeight } from '../config/industry-weights.js';
-import { BRIEF_QUESTIONS, getQuestionsForDomain } from '../schemas/intake-brief.js';
+import {
+  BRIEF_QUESTIONS,
+  getBriefQuestionText,
+  getQuestionsForDomain,
+  INTAKE_IDENTITY_FIELD_IDS,
+} from '../schemas/intake-brief.js';
+import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
+
+function formatCompanyUrlForPrompt(url: string): string {
+  return isNoPublicWebsiteUrl(url) ? 'No public website (use intake brief and consultant notes only)' : url;
+}
 
 export interface AgentContext {
   company_url: string;
@@ -19,7 +30,11 @@ export interface AgentContext {
   review_notes: Array<{ phase: number; consultant_notes: string | null; interview_notes: string | null }>;
   domain_weight: number;
   /** Answered brief responses relevant to this domain (empty object when no brief) */
-  brief_responses: Record<string, string | string[] | number | null>;
+  brief_responses: Record<string, string | string[] | number | boolean | null>;
+  brief_response_sources: Record<string, string>;
+  intake_data_quality_score: number;
+  intake_readiness_badge: 'low' | 'medium' | 'high';
+  post_audit_questions: Array<Record<string, unknown>>;
   /**
    * Domain keys that failed during a parallel wing run.
    * Passed to Strategy Agent so it can acknowledge gaps in its report.
@@ -33,6 +48,15 @@ export interface AgentContext {
  * This is Step 2 of the Data-First pipeline: COLLECT → **ASSEMBLE** → CALL → VERIFY.
  */
 export class ContextBuilder {
+  private static unwrapBriefResponse(value: unknown): { value: string | string[] | number | boolean | null; source: string } {
+    if (value && typeof value === 'object' && !Array.isArray(value) && 'value' in (value as Record<string, unknown>)) {
+      const v = (value as { value: unknown }).value;
+      const source = String((value as { source?: unknown }).source ?? 'client');
+      return { value: (v as string | string[] | number | boolean | null) ?? null, source };
+    }
+    return { value: (value as string | string[] | number | boolean | null) ?? null, source: 'client' };
+  }
+
   async build(
     auditId: string,
     domainKey: DomainKey | 'recon' | 'strategy',
@@ -59,7 +83,12 @@ export class ContextBuilder {
 
     if (reconError && reconError.code !== 'PGRST116') {
       // PGRST116 = "no rows returned" — acceptable for early phases; other errors are real failures
-      console.warn(`[ContextBuilder] Recon data unavailable for ${auditId}: ${reconError.message}`);
+      logger.warn('context_builder.recon_unavailable', {
+        component: 'context_builder',
+        audit_id: auditId,
+        error: reconError.message,
+        code: reconError.code,
+      });
     }
 
     // Fetch completed domain results (for cross-domain context)
@@ -87,18 +116,29 @@ export class ContextBuilder {
     // Fetch intake brief — get only questions relevant to this domain
     const { data: brief } = await supabase
       .from('intake_brief')
-      .select('responses')
+      .select('responses, data_quality_score, readiness_badge, post_audit_questions')
       .eq('audit_id', auditId)
       .single();
 
     const allResponses = (brief?.responses as Record<string, unknown>) ?? {};
     const domainQuestions = getQuestionsForDomain(domainKey);
-    const briefResponses: Record<string, string | string[] | number | null> = {};
+    const briefResponses: Record<string, string | string[] | number | boolean | null> = {};
+    const briefResponseSources: Record<string, string> = {};
     for (const q of domainQuestions) {
       const val = allResponses[q.id];
       if (val !== undefined) {
-        briefResponses[q.id] = val as string | string[] | number | null;
+        const parsed = ContextBuilder.unwrapBriefResponse(val);
+        briefResponses[q.id] = parsed.value;
+        briefResponseSources[q.id] = parsed.source;
       }
+    }
+
+    for (const id of INTAKE_IDENTITY_FIELD_IDS) {
+      const val = allResponses[id];
+      if (val === undefined) continue;
+      const parsed = ContextBuilder.unwrapBriefResponse(val);
+      briefResponses[id] = parsed.value;
+      briefResponseSources[id] = parsed.source;
     }
 
     // Express: one primary competitor in agent context (product promises a single confirmed peer).
@@ -131,6 +171,10 @@ export class ContextBuilder {
         ? getDomainWeight(industry, domainKey)
         : 1,
       brief_responses: briefResponses,
+      brief_response_sources: briefResponseSources,
+      intake_data_quality_score: Number(brief?.data_quality_score ?? 0),
+      intake_readiness_badge: (brief?.readiness_badge as 'low' | 'medium' | 'high') ?? 'low',
+      post_audit_questions: (brief?.post_audit_questions as Array<Record<string, unknown>>) ?? [],
       failed_domains: (failedDomains ?? []).map(d => String(d.domain_key)),
       instructions,
     };
@@ -148,25 +192,50 @@ export class ContextBuilder {
     const sections: string[] = [];
     const truncatedKeys: string[] = [];
 
+    const specifyRaw = ctx.brief_responses.intake_industry_specify;
+    const specifyStr =
+      specifyRaw != null && specifyRaw !== ''
+        ? (Array.isArray(specifyRaw) ? specifyRaw.join(', ') : String(specifyRaw)).trim()
+        : '';
+    const industryLine =
+      ctx.industry === 'Other' && specifyStr
+        ? `Other (${specifyStr})`
+        : (ctx.industry ?? 'Not determined');
+
     // Company profile
     sections.push(`## Company Profile
-- **URL:** ${ctx.company_url}
+- **URL:** ${formatCompanyUrlForPrompt(ctx.company_url)}
 - **Name:** ${ctx.company_name ?? 'Unknown'}
-- **Industry:** ${ctx.industry ?? 'Not determined'}
-- **Domain weight for this industry:** ${ctx.domain_weight}x`);
+- **Industry:** ${industryLine}
+- **Domain weight for this industry:** ${ctx.domain_weight}x
+- **Intake readiness:** ${ctx.intake_readiness_badge}
+- **Intake data quality score:** ${ctx.intake_data_quality_score}`);
 
     // Intake brief — domain-relevant answers (shown before raw data for prominence)
     if (Object.keys(ctx.brief_responses).length > 0) {
       const briefLines = Object.entries(ctx.brief_responses)
-        .filter(([, v]) => v !== null && v !== '')
+        .filter(([id, v]) => {
+          if (v === null || v === '') return false;
+          if (id === 'intake_industry_specify' && ctx.industry === 'Other' && specifyStr) {
+            return false;
+          }
+          return true;
+        })
         .map(([id, v]) => {
-          const question = BRIEF_QUESTIONS.find(q => q.id === id)?.question ?? id.replace(/_/g, ' ');
+          const question = getBriefQuestionText(id);
           const answer = Array.isArray(v) ? v.join(', ') : String(v);
-          return `- **${question}:** ${answer}`;
+          const source = ctx.brief_response_sources[id] ?? 'client';
+          return `- **${question}:** ${answer} _(source: ${source})_`;
         });
       if (briefLines.length > 0) {
         sections.push(`## Client Brief (Pre-Audit Intake)\n${briefLines.join('\n')}`);
       }
+    }
+
+    if (ctx.post_audit_questions.length > 0) {
+      sections.push(`## Post-audit Follow-up Questions\n${ctx.post_audit_questions
+        .map((q, i) => `- Q${i + 1}: ${String(q.question ?? q.item ?? 'Follow-up needed')}`)
+        .join('\n')}`);
     }
 
     // Recon summary

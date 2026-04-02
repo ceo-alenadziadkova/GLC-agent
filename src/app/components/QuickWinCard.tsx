@@ -9,9 +9,9 @@ interface QuickWinCardProps {
 export function QuickWinCard({ quickWin }: QuickWinCardProps) {
   const getEffortBadge = (effort: string) => {
     const styles: Record<string, { bg: string; color: string; text: string }> = {
-      low: { bg: '#F0FDF4', color: '#15803D', text: 'Low Effort' },
-      medium: { bg: '#FFFBEB', color: '#B45309', text: 'Medium Effort' },
-      high: { bg: '#FFF1F0', color: '#DC2626', text: 'High Effort' }
+      low: { bg: 'var(--score-5-bg)', color: 'var(--score-5)', text: 'Low Effort' },
+      medium: { bg: 'var(--score-3-bg)', color: 'var(--score-3)', text: 'Medium Effort' },
+      high: { bg: 'var(--score-1-bg)', color: 'var(--score-1)', text: 'High Effort' }
     };
 
     const style = styles[effort] || styles.low;
@@ -28,14 +28,14 @@ export function QuickWinCard({ quickWin }: QuickWinCardProps) {
 
   return (
     <div
-      className="p-5 rounded-lg border bg-white hover:border-[var(--status-excellent)] transition-all group"
+      className="p-5 rounded-lg border bg-[var(--bg-surface)] hover:border-[var(--status-excellent)] transition-all group"
       style={{ borderColor: 'var(--panel-border)', boxShadow: 'var(--shadow-sm)' }}
     >
       {/* Icon Header */}
       <div className="flex items-start gap-4 mb-3">
         <div
           className="p-2 rounded-lg"
-          style={{ backgroundColor: '#F0FDF4' }}
+          style={{ backgroundColor: 'var(--score-5-bg)' }}
         >
           <Lightning className="w-4 h-4" style={{ color: 'var(--status-excellent)' }} />
         </div>

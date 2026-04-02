@@ -1,4 +1,5 @@
-import { NavLink, useLocation } from 'react-router';
+import { useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Briefcase, SquaresFour, Pulse, FileText, Flask,
@@ -7,7 +8,11 @@ import {
 } from '@phosphor-icons/react';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
-import Logo from '../assets/logo.svg';
+import { useNotifications } from '../hooks/useNotifications';
+import { GlcLogo } from './GlcLogo';
+import { ThemeToggle } from './ThemeToggle';
+import { NotificationCenter } from './NotificationCenter';
+import type { NotificationItem } from '../data/auditTypes';
 
 function useCurrentAuditId(): string | null {
   const { pathname } = useLocation();
@@ -18,12 +23,13 @@ function useCurrentAuditId(): string | null {
 
 function buildConsultantNav(auditId: string | null) {
   return [
-    { to: '/dashboard',                          icon: SquaresFour,  label: 'Dashboard', badge: null },
-    { to: '/admin/requests',                     icon: Tray,         label: 'Request queue', badge: null },
-    { to: auditId ? `/audit/${auditId}` : null,  icon: Briefcase,    label: 'Audit Workspace',  badge: null },
-    { to: auditId ? `/pipeline/${auditId}` : null, icon: Pulse,      label: 'Pipeline',         badge: null },
-    { to: auditId ? `/reports/${auditId}` : null, icon: FileText,    label: 'Reports',          badge: null },
-    { to: auditId ? `/strategy/${auditId}` : null,icon: Flask,       label: 'Strategy Lab',     badge: null },
+    { to: '/dashboard',                           icon: SquaresFour,    label: 'Dashboard',       badge: null },
+    { to: '/admin/requests',                      icon: Tray,           label: 'Request queue',   badge: null },
+    { to: '/admin/discovery',                     icon: MagnifyingGlass,label: 'Discovery queue', badge: null },
+    { to: auditId ? `/audit/${auditId}` : null,   icon: Briefcase,      label: 'Audit Workspace', badge: null },
+    { to: auditId ? `/pipeline/${auditId}` : null,icon: Pulse,          label: 'Pipeline',        badge: null },
+    { to: auditId ? `/reports/${auditId}` : null, icon: FileText,       label: 'Reports',         badge: null },
+    { to: auditId ? `/strategy/${auditId}` : null,icon: Flask,          label: 'Strategy Lab',    badge: null },
   ];
 }
 
@@ -44,13 +50,53 @@ interface AppShellProps {
 
 export function AppShell({ children, title, subtitle, actions }: AppShellProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, signOut, isAuthenticated } = useAuth();
-  const { isConsultant, isClient, roleDisplayName } = useProfile();
+  const { profile, isConsultant, isClient, roleDisplayName, loading: profileLoading } = useProfile();
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const {
+    items: notifications,
+    unreadCount,
+    loading: notificationsLoading,
+    error: notificationsError,
+    reload: reloadNotifications,
+    markAsRead,
+    markAllAsRead,
+  } = useNotifications();
   const auditId = useCurrentAuditId();
 
-  const NAV = isClient ? buildClientNav(auditId) : buildConsultantNav(auditId);
+  const roleUnknown = isAuthenticated && (profileLoading || !profile?.role);
+  const NAV = roleUnknown ? buildClientNav(auditId) : (isClient ? buildClientNav(auditId) : buildConsultantNav(auditId));
+  const sectionLabel = roleUnknown ? 'WORKSPACE' : (isClient ? 'CLIENT WORKSPACE' : 'ADMIN WORKSPACE');
 
-  const sectionLabel = isClient ? 'CLIENT WORKSPACE' : 'ADMIN WORKSPACE';
+  const openNotification = (item: NotificationItem) => {
+    if (!item.is_read) markAsRead(item.id);
+    const route = typeof item.payload?.route === 'string' ? item.payload.route : null;
+    const requestId = typeof item.payload?.request_id === 'string' ? item.payload.request_id : null;
+    if (route) {
+      navigate(route);
+      setNotificationsOpen(false);
+      return;
+    }
+    if (requestId) {
+      navigate(isClient ? `/portal/request/${requestId}` : '/admin/requests');
+      setNotificationsOpen(false);
+      return;
+    }
+    if (item.audit_id) {
+      if (item.kind === 'pipeline' || item.kind === 'review') {
+        navigate(`/pipeline/${item.audit_id}`);
+      } else {
+        navigate(`/audit/${item.audit_id}`);
+      }
+      setNotificationsOpen(false);
+      return;
+    }
+    if (item.kind === 'intake' && isConsultant) {
+      navigate('/admin/requests');
+      setNotificationsOpen(false);
+    }
+  };
 
   return (
     <div className="h-screen flex overflow-hidden" style={{ backgroundColor: 'var(--bg-canvas)' }}>
@@ -76,15 +122,11 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           className="relative flex items-center gap-2 px-4 pt-5 pb-4"
           style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
         >
-          <img
-            src={Logo}
-            alt="GLC Audit Platform"
-            className="h-12 w-auto"
-          />
+          <GlcLogo variant="on-dark" className="h-12" />
         </div>
 
         {/* Search — consultant only */}
-        {(isConsultant || !isClient) && (
+        {isConsultant && !roleUnknown && (
           <div className="relative px-3 py-3">
             <button
               className="w-full flex items-center gap-2 px-3 py-2 rounded-lg"
@@ -132,7 +174,19 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
             {sectionLabel}
           </div>
 
-          {NAV.map(({ to, icon: Icon, label, badge }) => {
+          {roleUnknown && (
+            <>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div
+                  key={`nav-skeleton-${i}`}
+                  className="mx-2 mb-1 h-8 rounded-lg animate-pulse"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+                />
+              ))}
+            </>
+          )}
+
+          {!roleUnknown && NAV.map(({ to, icon: Icon, label, badge }) => {
             if (!to) {
               return (
                 <div
@@ -146,14 +200,17 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               );
             }
             const active = location.pathname === to ||
-              (to !== '/dashboard' && to !== '/portal' && to !== '/admin/requests' && location.pathname.startsWith(to.split('/').slice(0, 2).join('/')));
+              // Exact-match for any /admin/* or top-level singleton routes to avoid cross-highlighting.
+              // Prefix-match only for audit-scoped paths like /audit/:id, /pipeline/:id, etc.
+              (!to.startsWith('/admin/') && to !== '/dashboard' && to !== '/portal' &&
+               location.pathname.startsWith(to.split('/').slice(0, 2).join('/')));
             return (
               <NavLink
                 key={to}
                 to={to}
                 className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline transition-all"
                 style={{
-                  color: active ? '#fff' : 'rgba(255,255,255,0.46)',
+                  color: active ? 'var(--primary-foreground)' : 'rgba(255,255,255,0.46)',
                   fontSize: 'var(--text-sm)',
                   fontWeight: active ? 500 : 400,
                   transition: 'color var(--ease-fast)',
@@ -209,7 +266,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           <div className="mx-2 my-2" style={{ height: '1px', background: 'rgba(255,255,255,0.06)' }} />
 
           {/* Quick action — consultant: New Audit; client: Submit Request */}
-          {isClient ? (
+          {isClient || roleUnknown ? (
             <NavLink
               to="/portal/request"
               className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
@@ -259,26 +316,70 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           className="relative px-2 py-2 space-y-0.5"
           style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
         >
+          <div
+            className="mb-1 flex items-center justify-between gap-2 rounded-lg px-2.5 py-2"
+            style={{ borderRadius: 'var(--radius-md)' }}
+          >
+            <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.45)' }}>
+              Theme
+            </span>
+            <ThemeToggle variant="sidebar" />
+          </div>
+          <button
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all"
+            style={{ color: 'rgba(255,255,255,0.30)', borderRadius: 'var(--radius-md)' }}
+            onClick={() => setNotificationsOpen(true)}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
+              (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.75)';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+              (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.30)';
+            }}
+          >
+            <Bell className="w-3.5 h-3.5" />
+            <span className="flex-1 text-left">Notifications</span>
+            {unreadCount > 0 && (
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold tabular-nums"
+                style={{
+                  backgroundColor: 'rgba(28,189,255,0.15)',
+                  color: 'var(--glc-blue)',
+                  border: '1px solid rgba(28,189,255,0.25)',
+                }}
+              >
+                {unreadCount}
+              </span>
+            )}
+          </button>
           {[
-            { icon: Bell,    label: 'Notifications' },
-            { icon: GearSix, label: 'Settings'       },
-          ].map(({ icon: I, label }) => (
-            <button
-              key={label}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all"
-              style={{ color: 'rgba(255,255,255,0.30)', borderRadius: 'var(--radius-md)' }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.05)';
-                (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.65)';
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
-                (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.30)';
-              }}
-            >
-              <I className="w-3.5 h-3.5" />{label}
-            </button>
-          ))}
+            { icon: GearSix, label: 'Settings', to: '/settings' },
+          ].map(({ icon: I, label, to }) => {
+            const active = location.pathname === '/settings';
+            return (
+              <NavLink
+                key={label}
+                to={to}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all no-underline"
+                style={{
+                  color: active ? 'rgba(255,255,255,0.80)' : 'rgba(255,255,255,0.30)',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: active ? 'rgba(255,255,255,0.08)' : 'transparent',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
+                  (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.75)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = active ? 'rgba(255,255,255,0.08)' : 'transparent';
+                  (e.currentTarget as HTMLElement).style.color = active ? 'rgba(255,255,255,0.80)' : 'rgba(255,255,255,0.30)';
+                }}
+              >
+                <I className="w-3.5 h-3.5" />{label}
+              </NavLink>
+            );
+          })}
 
           {/* Avatar */}
           {isAuthenticated && user && (
@@ -302,7 +403,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium leading-none" style={{ color: 'rgba(255,255,255,0.85)' }}>
-                  {user.email?.split('@')[0] || 'User'}
+                  {profile?.full_name?.trim() || user.email?.split('@')[0] || 'User'}
                 </div>
                 <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.28)', marginTop: 3, letterSpacing: '0.03em' }}>
                   {roleDisplayName ?? (isClient ? 'Client' : 'Admin')}
@@ -360,11 +461,26 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                 </p>
               )}
             </div>
-            {actions && <div className="flex items-center gap-2">{actions}</div>}
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              {actions}
+            </div>
           </header>
         )}
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
+      <NotificationCenter
+        open={notificationsOpen}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        loading={notificationsLoading}
+        error={notificationsError}
+        onClose={() => setNotificationsOpen(false)}
+        onRefresh={reloadNotifications}
+        onMarkAsRead={markAsRead}
+        onMarkAllAsRead={markAllAsRead}
+        onOpenNotification={openNotification}
+      />
     </div>
   );
 }

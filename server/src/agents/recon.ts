@@ -3,6 +3,7 @@ import { CrawlerCollector } from '../collectors/crawler.js';
 import { ReconOutputSchema } from '../schemas/domain-output.js';
 import { supabase } from '../services/supabase.js';
 import { MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
+import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
 import type { DomainResult } from '../types/audit.js';
 
 /**
@@ -23,15 +24,24 @@ export class ReconAgent extends BaseAgent {
    */
   async run(): Promise<DomainResult> {
     const companyUrl = await this.getCompanyUrl();
+    const noPublicSite = isNoPublicWebsiteUrl(companyUrl);
 
     // Step 1: Collect
-    await this.emit('collecting', 'Crawling company website...');
+    await this.emit(
+      'collecting',
+      noPublicSite ? 'No public website — skipping web crawl...' : 'Crawling company website...'
+    );
     const crawler = new CrawlerCollector();
     const crawlResult = await crawler.run(this.auditId, companyUrl);
     const crawledPageCount = (crawlResult.data.pages_crawled as unknown[])?.length ?? 0;
-    await this.emit('log', `✓ Crawled ${crawledPageCount} pages`);
+    await this.emit(
+      'log',
+      noPublicSite
+        ? '✓ No public website — recon will use intake brief and form data only'
+        : `✓ Crawled ${crawledPageCount} pages`
+    );
 
-    if (crawledPageCount === 0) {
+    if (!noPublicSite && crawledPageCount === 0) {
       const msg = 'Recon crawled 0 pages — site may be unreachable or blocking crawlers';
       await this.emit('phase-error', msg, { phase: 'recon', fatal: true, timestamp: new Date().toISOString() });
       throw new Error(msg);

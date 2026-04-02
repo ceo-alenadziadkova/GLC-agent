@@ -8,6 +8,7 @@ import { FactChecker } from '../services/fact-checker.js';
 import { TokenTracker } from '../services/token-tracker.js';
 import { type BaseCollector } from '../collectors/base.js';
 import type { DomainResult, DomainKey } from '../types/audit.js';
+import { followupQuestionsFromUnknowns } from '../lib/post-audit-followups.js';
 import { DomainOutputSchema, zodToJsonSchema } from '../schemas/domain-output.js';
 import { CLAUDE_MODEL, MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import { logger } from '../services/logger.js';
@@ -30,7 +31,7 @@ export function loadPrompt(name: string): string {
     // Strip the HTML version comment header line if present
     return raw.replace(/^<!--.*?-->\n/, '').trimStart();
   } catch {
-    console.error(`[loadPrompt] Missing prompt file: ${name}.md`);
+    logger.error('agent.load_prompt_missing', { component: 'agent', prompt: `${name}.md` });
     return '';
   }
 }
@@ -268,29 +269,66 @@ export abstract class BaseAgent {
       .eq('status', 'pending')
       .select('id');
 
-    if (updated && updated.length > 0) {
-      // Claimed and updated the placeholder atomically — done.
-      return;
+    if (!(updated && updated.length > 0)) {
+      // No pending placeholder — retry path: find the highest existing version
+      // and insert a new row at version + 1.
+      const { data: latest } = await supabase
+        .from('audit_domains')
+        .select('version')
+        .eq('audit_id', this.auditId)
+        .eq('domain_key', this.domainKey)
+        .order('version', { ascending: false })
+        .limit(1)
+        .single();
+
+      await supabase.from('audit_domains').insert({
+        audit_id: this.auditId,
+        domain_key: this.domainKey,
+        phase_number: this.phaseNumber,
+        version: (latest?.version ?? 1) + 1,
+        ...payload,
+      });
     }
 
-    // No pending placeholder — retry path: find the highest existing version
-    // and insert a new row at version + 1.
-    const { data: latest } = await supabase
-      .from('audit_domains')
-      .select('version')
-      .eq('audit_id', this.auditId)
-      .eq('domain_key', this.domainKey)
-      .order('version', { ascending: false })
-      .limit(1)
-      .single();
+    await this.mergePostAuditFollowups(result);
+  }
 
-    await supabase.from('audit_domains').insert({
-      audit_id: this.auditId,
-      domain_key: this.domainKey,
-      phase_number: this.phaseNumber,
-      version: (latest?.version ?? 1) + 1,
-      ...payload,
-    });
+  /**
+   * Append domain-specific follow-up brief questions from unknown_items (idempotent per domain+id).
+   */
+  private async mergePostAuditFollowups(result: DomainResult): Promise<void> {
+    const dk = this.domainKey;
+    if (dk === 'recon' || dk === 'strategy') return;
+
+    const newQs = followupQuestionsFromUnknowns(dk as DomainKey, result.unknown_items ?? []);
+    if (newQs.length === 0) return;
+
+    const { data: row, error } = await supabase
+      .from('intake_brief')
+      .select('post_audit_questions')
+      .eq('audit_id', this.auditId)
+      .maybeSingle();
+
+    if (error) return; // real DB error — skip silently, don't corrupt state
+
+    const existing = (row?.post_audit_questions as Array<{ domain?: string; id?: string }>) ?? [];
+    const existingKeys = new Set(existing.map(q => `${q.domain}:${q.id}`));
+    const toAdd = newQs.filter(q => !existingKeys.has(`${q.domain}:${q.id}`));
+    if (toAdd.length === 0) return;
+
+    const merged = [...existing, ...toAdd];
+
+    if (!row) {
+      // intake_brief row doesn't exist yet — create it with just the followup questions
+      await supabase
+        .from('intake_brief')
+        .insert({ audit_id: this.auditId, post_audit_questions: merged, responses: {} });
+    } else {
+      await supabase
+        .from('intake_brief')
+        .update({ post_audit_questions: merged })
+        .eq('audit_id', this.auditId);
+    }
   }
 
   protected async emit(eventType: string, message: string, data: Record<string, unknown> = {}): Promise<void> {

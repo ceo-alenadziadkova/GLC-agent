@@ -15,6 +15,7 @@ import { useAudit } from '../hooks/useAudit';
 import { api } from '../data/apiService';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
 import type { DomainData } from '../data/auditTypes';
+import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 
 type ReportProfile = 'full' | 'owner' | 'tech' | 'marketing' | 'onepager';
 
@@ -104,7 +105,8 @@ export function ReportViewer() {
     );
   }
 
-  const companyName = audit.meta.company_name || audit.meta.company_url;
+  const companyName =
+    audit.meta.company_name || formatAuditWebsiteDisplay(audit.meta.company_url) || audit.meta.company_url;
   const allDomains = DOMAIN_KEYS.map(key => ({
     key,
     label: DOMAIN_LABELS[key],
@@ -133,6 +135,10 @@ export function ReportViewer() {
   const criticalIssues = allIssues.filter(i => i.severity === 'critical' || i.severity === 'high');
   const allStrengths = domains.flatMap(d => (d.data?.strengths ?? []).map(s => ({ domain: d.label, text: s })));
   const allQuickWins = domains.flatMap(d => d.data?.quick_wins ?? []);
+  const followUpQuestions = Array.isArray(audit.brief?.post_audit_questions)
+    ? audit.brief.post_audit_questions
+    : [];
+  const answeredFollowUps = followUpQuestions.filter(q => q && typeof q === 'object' && (q as { answered?: boolean }).answered).length;
 
   const executiveSummary = audit.strategy?.executive_summary || null;
 
@@ -186,7 +192,7 @@ export function ReportViewer() {
                   fontSize: '12px',
                   fontWeight: active ? 700 : 500,
                   fontFamily: 'var(--font-display)',
-                  color: active ? '#fff' : 'var(--text-secondary)',
+                  color: active ? 'var(--primary-foreground)' : 'var(--text-secondary)',
                   background: active ? 'var(--gradient-accent)' : 'transparent',
                   border: active ? 'none' : '1px solid transparent',
                   boxShadow: active ? '0 2px 8px rgba(242,79,29,0.28)' : 'none',
@@ -226,14 +232,14 @@ export function ReportViewer() {
 
           <div className="relative flex items-start justify-between gap-6">
             <div className="flex-1 min-w-0">
-              <SectionLabel className="opacity-50" style={{ color: '#fff' } as React.CSSProperties}>
+              <SectionLabel className="opacity-50" style={{ color: 'var(--primary-foreground)' } as React.CSSProperties}>
                 Executive Summary
               </SectionLabel>
 
               <h2
                 className="mt-2"
                 style={{
-                  color: '#fff',
+                  color: 'var(--primary-foreground)',
                   fontFamily: 'var(--font-display)',
                   fontSize: 'var(--text-2xl)',
                   fontWeight: 700,
@@ -461,6 +467,26 @@ export function ReportViewer() {
               ))}
             </div>
           </div>
+        )}
+
+        {followUpQuestions.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="glc-card p-5"
+            style={{ borderRadius: 'var(--radius-xl)' }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <SectionLabel>Improve future audits</SectionLabel>
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: 6 }}>
+                  You&apos;ve answered {answeredFollowUps} of {followUpQuestions.length} follow-up questions.
+                </p>
+              </div>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>Answer now (~3 min)</span>
+            </div>
+          </motion.div>
         )}
 
         {/* Strategy link */}

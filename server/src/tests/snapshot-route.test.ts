@@ -143,12 +143,13 @@ vi.mock('../services/pipeline.js', () => ({
   },
 }));
 
-vi.mock('../middleware/rate-limit.js', () => ({
-  createAuditLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
-  generalLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
-  pipelineLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
-  snapshotPublicLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
-}));
+vi.mock('../middleware/rate-limit.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../middleware/rate-limit.js')>();
+  return {
+    ...actual,
+    snapshotPublicLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
+  };
+});
 
 // Avoid real DNS in CI/sandbox; mirrors sync checks + URL normalization from production module.
 vi.mock('../lib/public-http-url.js', () => {
@@ -216,6 +217,22 @@ beforeEach(() => {
   setSnapshotQueryResult(null);
   setReconQueryResult(null);
   setUxQueryResult(null);
+});
+
+// ─── GET /api/snapshot/quota ──────────────────────────────────────────────────
+
+describe('GET /api/snapshot/quota', () => {
+  it('returns limit, remaining, period, and reset_at', async () => {
+    const res = await fetch(`${baseUrl}/api/snapshot/quota`);
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.limit).toBe(3);
+    expect(body.period).toBe('day');
+    expect(typeof body.remaining).toBe('number');
+    expect(body.remaining).toBeGreaterThanOrEqual(0);
+    expect(body.remaining).toBeLessThanOrEqual(3);
+    expect(body.reset_at === null || typeof body.reset_at === 'string').toBe(true);
+  });
 });
 
 // ─── POST /api/snapshot ───────────────────────────────────────────────────────

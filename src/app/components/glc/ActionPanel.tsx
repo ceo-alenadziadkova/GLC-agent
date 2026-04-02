@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import { ArrowUpRight, CheckCircle, Warning, XCircle, Clock, Tray } from '@phosphor-icons/react';
 import { SectionLabel } from './SectionLabel';
 import { formatRelativeTime } from '../../lib/relativeTime';
+import { formatAuditWebsiteDisplay } from '../../data/no-public-website';
 import type {
   DashboardActionItems,
   DashboardPriority,
@@ -32,7 +33,7 @@ function priorityDot(p: DashboardPriority) {
 }
 
 function CompanyAvatar({ name, url }: { name: string | null; url: string }) {
-  const initials = (name || url).slice(0, 2).toUpperCase();
+  const initials = (name || formatAuditWebsiteDisplay(url)).slice(0, 2).toUpperCase();
   return (
     <div
       className="w-7 h-7 flex items-center justify-center text-xs font-bold flex-shrink-0"
@@ -96,7 +97,7 @@ function ReviewGateRow({ item }: { item: DashboardReviewGateItem }) {
             className="font-medium truncate"
             style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
           >
-            {item.company_name || item.company_url}
+            {item.company_name || formatAuditWebsiteDisplay(item.company_url)}
           </span>
         </div>
         <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
@@ -125,7 +126,7 @@ function SlaRiskRow({ item }: { item: DashboardSlaRiskItem }) {
           className="font-medium truncate"
           style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
         >
-          {item.company_name || item.company_url}
+          {item.company_name || formatAuditWebsiteDisplay(item.company_url)}
         </div>
         <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
           Not started · {item.days_open}d open
@@ -153,7 +154,7 @@ function FailureRow({ item }: { item: DashboardFailureItem }) {
           className="font-medium truncate"
           style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
         >
-          {item.company_name || item.company_url}
+          {item.company_name || formatAuditWebsiteDisplay(item.company_url)}
         </div>
         <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
           Pipeline failed · {formatRelativeTime(item.updated_at)}

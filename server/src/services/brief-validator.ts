@@ -8,11 +8,15 @@
 import { supabase } from './supabase.js';
 import {
   BRIEF_QUESTIONS,
+  EXPRESS_REQUIRED_QUESTION_IDS,
+  INTAKE_IDENTITY_FIELD_IDS,
+  OPTIONAL_QUESTION_IDS,
+  PRE_BRIEF_QUESTION_IDS,
   REQUIRED_QUESTION_IDS,
   RECOMMENDED_QUESTION_IDS,
   BriefResponsesSchema,
 } from '../schemas/intake-brief.js';
-import type { IntakeBrief } from '../types/audit.js';
+import type { IntakeBrief, IntakeNextBestAction, IntakeReadinessBadge, ProductMode } from '../types/audit.js';
 
 export interface BriefValidationResult {
   passed: boolean;
@@ -24,12 +28,93 @@ export interface BriefValidationResult {
   missing_required: Array<{ id: string; question: string }>;
 }
 
+export interface IntakeProgress {
+  progressPct: number;
+  readinessBadge: IntakeReadinessBadge;
+  nextBestAction: IntakeNextBestAction;
+}
+
+export interface BriefGateResult {
+  canStartSnapshot: boolean;
+  canStartExpress: boolean;
+  canStartFull: boolean;
+  missingRequiredIds: string[];
+  recommendedToImproveIds: string[];
+  intakeProgress: IntakeProgress;
+}
+
+export interface SaveBriefResult {
+  brief: IntakeBrief;
+  validation: BriefValidationResult;
+  gates: BriefGateResult;
+}
+
+function unwrapAnswer(value: unknown): unknown {
+  if (value && typeof value === 'object' && !Array.isArray(value) && 'value' in (value as Record<string, unknown>)) {
+    return (value as { value: unknown }).value;
+  }
+  return value;
+}
+
 function isAnswered(value: unknown): boolean {
-  if (value === null || value === undefined) return false;
-  if (typeof value === 'string') return value.trim().length > 0;
-  if (typeof value === 'number') return true;
-  if (Array.isArray(value)) return value.length > 0;
+  if (value && typeof value === 'object' && !Array.isArray(value) && 'source' in (value as Record<string, unknown>)) {
+    const src = (value as { source?: string }).source;
+    if (src === 'unknown') return true;
+  }
+  const raw = unwrapAnswer(value);
+  if (raw === null || raw === undefined) return false;
+  if (typeof raw === 'string') return raw.trim().length > 0;
+  if (typeof raw === 'number') return true;
+  if (typeof raw === 'boolean') return true;
+  if (Array.isArray(raw)) return raw.length > 0;
   return false;
+}
+
+/** Pre-brief slot satisfied; `intake_industry_specify` only required when industry is Other. */
+export function isPreBriefIdSatisfied(id: string, responses: Record<string, unknown>): boolean {
+  if (id === 'intake_industry_specify') {
+    const ind = unwrapAnswer(responses.intake_industry);
+    if (ind !== 'Other') return true;
+    return isAnswered(responses[id]);
+  }
+  return isAnswered(responses[id]);
+}
+
+/** Slots required for a valid public pre-brief submit (identity + express-style core). */
+function getPreBriefSubmitSlotIds(responses: Record<string, unknown>): string[] {
+  const ids: string[] = [
+    INTAKE_IDENTITY_FIELD_IDS[0],
+    INTAKE_IDENTITY_FIELD_IDS[1],
+    INTAKE_IDENTITY_FIELD_IDS[2],
+  ];
+  if (unwrapAnswer(responses.intake_industry) === 'Other') {
+    ids.push(INTAKE_IDENTITY_FIELD_IDS[3]);
+  }
+  ids.push(...PRE_BRIEF_QUESTION_IDS);
+  return ids;
+}
+
+/** All pre-brief questions satisfied (used by public intake submit). */
+export function arePreBriefSlotsSatisfied(responses: Record<string, unknown>): boolean {
+  return getPreBriefSubmitSlotIds(responses).every(id => isPreBriefIdSatisfied(id, responses));
+}
+
+function computeProgress(responses: Record<string, unknown>): IntakeProgress {
+  const totalWeight = BRIEF_QUESTIONS.reduce((sum, q) => sum + (q.weight ?? 1), 0);
+  const answeredWeight = BRIEF_QUESTIONS.reduce((sum, q) => (
+    sum + (isAnswered(responses[q.id]) ? (q.weight ?? 1) : 0)
+  ), 0);
+  const progressPct = totalWeight > 0 ? Math.min(100, Math.round((answeredWeight / totalWeight) * 100)) : 0;
+  const readinessBadge: IntakeReadinessBadge = progressPct >= 80 ? 'high' : progressPct >= 45 ? 'medium' : 'low';
+
+  const missingRequired = REQUIRED_QUESTION_IDS.filter(id => !isAnswered(responses[id]));
+  const missingRecommended = RECOMMENDED_QUESTION_IDS.filter(id => !isAnswered(responses[id]));
+
+  let nextBestAction: IntakeNextBestAction = 'none';
+  if (missingRequired.length > 0) nextBestAction = 'complete_required';
+  else if (missingRecommended.length > 0) nextBestAction = 'add_recommended';
+
+  return { progressPct, readinessBadge, nextBestAction };
 }
 
 /**
@@ -61,6 +146,37 @@ export function validateBriefResponses(
   };
 }
 
+export function evaluateBriefGates(
+  responses: Record<string, unknown>,
+  mode: ProductMode,
+): BriefGateResult {
+  const missingExpressRequired = EXPRESS_REQUIRED_QUESTION_IDS.filter(id => !isAnswered(responses[id]));
+  const missingFullRequired = REQUIRED_QUESTION_IDS.filter(id => !isAnswered(responses[id]));
+  const submitSlotIds = getPreBriefSubmitSlotIds(responses);
+  const missingPreBrief = submitSlotIds.filter(id => !isPreBriefIdSatisfied(id, responses));
+  const missingRecommended = RECOMMENDED_QUESTION_IDS.filter(id => !isAnswered(responses[id]));
+  const intakeProgress = computeProgress(responses);
+
+  const minPreBriefAnswered = Math.ceil(submitSlotIds.length / 2);
+  const answeredPreBrief = submitSlotIds.length - missingPreBrief.length;
+  const canStartSnapshot = answeredPreBrief >= minPreBriefAnswered;
+  const canStartExpress = missingExpressRequired.length === 0;
+  const canStartFull = missingFullRequired.length === 0;
+  const missingRequiredIds = mode === 'full' ? missingFullRequired : missingExpressRequired;
+
+  return {
+    canStartSnapshot,
+    canStartExpress,
+    canStartFull,
+    missingRequiredIds,
+    recommendedToImproveIds: missingRecommended,
+    intakeProgress: {
+      ...intakeProgress,
+      nextBestAction: missingRequiredIds.length > 0 ? 'complete_required' : intakeProgress.nextBestAction,
+    },
+  };
+}
+
 /**
  * Loads the brief for an audit, updates the DB stats, and returns the
  * validation result. Returns passed=true if the audit is a free_snapshot
@@ -87,24 +203,36 @@ export async function assertBriefReady(auditId: string): Promise<void> {
 
   const responses = (brief?.responses as Record<string, unknown>) ?? {};
   const validation = validateBriefResponses(responses);
+  const gates = evaluateBriefGates(responses, audit.product_mode as ProductMode);
+  const optionalCount = OPTIONAL_QUESTION_IDS.filter(id => isAnswered(responses[id])).length;
 
   // Update stats in DB
   await supabase.from('intake_brief').upsert(
     {
       audit_id: auditId,
       responses,
-      status: validation.sla_met ? 'submitted' : 'draft',
-      sla_met: validation.sla_met,
+      status: gates.missingRequiredIds.length === 0 ? 'submitted' : 'draft',
+      sla_met: gates.missingRequiredIds.length === 0,
       answered_required: validation.answered_required,
       answered_recommended: validation.answered_recommended,
+      answered_optional: optionalCount,
+      total_required: REQUIRED_QUESTION_IDS.length,
+      total_recommended: RECOMMENDED_QUESTION_IDS.length,
+      total_optional: OPTIONAL_QUESTION_IDS.length,
+      progress_pct: gates.intakeProgress.progressPct,
+      readiness_badge: gates.intakeProgress.readinessBadge,
+      next_best_action: gates.intakeProgress.nextBestAction,
     },
     { onConflict: 'audit_id' }
   );
 
-  if (!validation.sla_met) {
-    const questions = validation.missing_required.map(q => `• ${q.question}`).join('\n');
+  if (gates.missingRequiredIds.length > 0) {
+    const questions = validation.missing_required
+      .filter(q => gates.missingRequiredIds.includes(q.id))
+      .map(q => `• ${q.question}`)
+      .join('\n');
     throw new Error(
-      `Intake brief incomplete — ${validation.missing_required.length} required question(s) unanswered:\n${questions}`
+      `Intake brief incomplete — ${gates.missingRequiredIds.length} required question(s) unanswered:\n${questions}`
     );
   }
 }
@@ -116,7 +244,7 @@ export async function assertBriefReady(auditId: string): Promise<void> {
 export async function saveBriefResponses(
   auditId: string,
   rawResponses: Record<string, unknown>
-): Promise<IntakeBrief> {
+): Promise<SaveBriefResult> {
   const parsed = BriefResponsesSchema.safeParse(rawResponses);
   if (!parsed.success) {
     throw new Error(`Invalid brief responses: ${parsed.error.message}`);
@@ -124,6 +252,10 @@ export async function saveBriefResponses(
 
   const responses = parsed.data;
   const validation = validateBriefResponses(responses as Record<string, unknown>);
+  const { data: audit } = await supabase.from('audits').select('product_mode').eq('id', auditId).single();
+  const mode = ((audit?.product_mode ?? 'full') as ProductMode);
+  const gates = evaluateBriefGates(responses as Record<string, unknown>, mode);
+  const answeredOptional = OPTIONAL_QUESTION_IDS.filter(id => isAnswered(responses[id])).length;
 
   const { data, error } = await supabase
     .from('intake_brief')
@@ -131,10 +263,18 @@ export async function saveBriefResponses(
       {
         audit_id: auditId,
         responses,
-        status: validation.sla_met ? 'submitted' : 'draft',
-        sla_met: validation.sla_met,
+        status: gates.missingRequiredIds.length === 0 ? 'submitted' : 'draft',
+        sla_met: gates.missingRequiredIds.length === 0,
         answered_required: validation.answered_required,
         answered_recommended: validation.answered_recommended,
+        answered_optional: answeredOptional,
+        total_required: REQUIRED_QUESTION_IDS.length,
+        total_recommended: RECOMMENDED_QUESTION_IDS.length,
+        total_optional: OPTIONAL_QUESTION_IDS.length,
+        progress_pct: gates.intakeProgress.progressPct,
+        readiness_badge: gates.intakeProgress.readinessBadge,
+        next_best_action: gates.intakeProgress.nextBestAction,
+        responses_format: 2,
       },
       { onConflict: 'audit_id' }
     )
@@ -143,5 +283,9 @@ export async function saveBriefResponses(
 
   if (error || !data) throw new Error(`Failed to save brief: ${error?.message ?? 'unknown'}`);
 
-  return data as IntakeBrief;
+  return {
+    brief: data as IntakeBrief,
+    validation,
+    gates,
+  };
 }

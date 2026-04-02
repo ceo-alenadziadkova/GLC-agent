@@ -20,6 +20,6 @@ product_modes:
     review_gates_after_phases: [0, 4, 7]
 
 rate_limits:
-  snapshot_public_per_ip_per_hour: 10
+  snapshot_public_per_ip_per_day: 3
   create_audit_per_user_per_day: 5
   pipeline_operations_per_hour: 30

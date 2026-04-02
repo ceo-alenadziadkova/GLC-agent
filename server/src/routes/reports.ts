@@ -5,6 +5,8 @@ import { generalLimiter } from '../middleware/rate-limit.js';
 import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 import { reportProfiler, REPORT_PROFILES, type ReportProfile } from '../services/report-profiler.js';
 import { pdfGenerator } from '../services/pdf-generator.js';
+import { logger } from '../services/logger.js';
+import { notifyAuditParticipants, notifyAuditParticipantsExcept } from '../services/notifications.js';
 
 export const reportsRouter = Router();
 
@@ -67,6 +69,20 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.setHeader('Content-Length', pdfBuffer.length);
       res.send(pdfBuffer);
+      await notifyAuditParticipantsExcept(
+        id,
+        'pipeline',
+        'Artifact ready',
+        'PDF report is ready.',
+        [req.userId!],
+        {
+          audit_id: id,
+          artifact: 'report_pdf',
+          route: `/reports/${id}`,
+          occurred_at: new Date().toISOString(),
+          actor_role: 'system',
+        },
+      );
       return;
     }
 
@@ -78,6 +94,20 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.send(csv);
+      await notifyAuditParticipantsExcept(
+        id,
+        'pipeline',
+        'Artifact ready',
+        'CSV action plan export is ready.',
+        [req.userId!],
+        {
+          audit_id: id,
+          artifact: 'action_plan_csv',
+          route: `/reports/${id}`,
+          occurred_at: new Date().toISOString(),
+          actor_role: 'system',
+        },
+      );
       return;
     }
 
@@ -98,7 +128,8 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
       res.send(report.markdown);
     }
   } catch (err) {
-    console.error('[GET /report]', err);
+    const e = err as Error;
+    logger.error('route.report_failed', { component: 'reports', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to generate report' });
   }
 });

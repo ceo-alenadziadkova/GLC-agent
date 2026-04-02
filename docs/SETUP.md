@@ -28,7 +28,7 @@ cd server && npm install && cd ..
 
 1. Create a project at [supabase.com](https://supabase.com)
 2. In the SQL Editor, run **all** migrations in order (see [DATABASE.md](./DATABASE.md#overview)):
-   - `001_initial_schema.sql` through `008_reliability_idempotency.sql`
+   - `001_initial_schema.sql` through `015_audit_request_guards.sql`
 3. Note your project URL and anon key (Project Settings → API)
 4. Note your service role key (same page — keep secret)
 
@@ -69,15 +69,15 @@ cd server && npm run dev
 pnpm dev
 ```
 
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:3001
+- Frontend: [http://localhost:5173](http://localhost:5173)
+- Backend API: [http://localhost:3001](http://localhost:3001)
 - Vite proxies `/api/*` requests to the backend automatically (configured in `vite.config.ts`)
 
 ---
 
 ## 5. Verify Setup
 
-1. Open http://localhost:5173
+1. Open [http://localhost:5173](http://localhost:5173)
 2. You should see the Login page
 3. Enter your email → magic link sent → click link → redirected to Portfolio
 4. Click "New Audit" → enter a URL → submit → redirected to PipelineMonitor
@@ -101,7 +101,7 @@ cd server && npx tsc --noEmit
 
 ## Project Structure
 
-```
+```text
 /                    ← Frontend (React + Vite)
 ├── src/
 │   └── app/
@@ -130,11 +130,11 @@ Simulated full audit for **Hospital Universitari Son Espases** — use to explor
 
 **Warning:** Data is representative for demo purposes, not a full programmatic audit of the hospital site.
 
-### Prerequisites
+### Demo prerequisites
 
-1. Supabase migrations applied (at least through `001`; full product features need `001`–`008`)
+1. Supabase migrations applied (at least through `001`; full product features need `001`–`015`)
 2. `server/.env` with valid `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`
-3. Frontend running: `pnpm dev` (http://localhost:5173)
+3. Frontend running: `pnpm dev` ([http://localhost:5173](http://localhost:5173))
 
 ### Run the seed script
 

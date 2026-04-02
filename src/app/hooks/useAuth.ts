@@ -25,11 +25,27 @@ export function useAuth() {
         const fromMagic = url.searchParams.get('from_magic') === '1'
           || referrer.includes('/auth/v1/verify');
 
+        // OAuth / magic-link failures: ?error= & error_description= (e.g. DB error saving new user)
+        let oauthRedirectError: string | null = null;
+        const oauthErr = url.searchParams.get('error');
+        const oauthDesc = url.searchParams.get('error_description');
+        if (oauthErr) {
+          oauthRedirectError = oauthDesc
+            ? decodeURIComponent(oauthDesc.replace(/\+/g, ' '))
+            : oauthErr;
+          logger.error('OAuth redirect error', { oauthErr, oauthRedirectError });
+          url.searchParams.delete('error');
+          url.searchParams.delete('error_description');
+          url.searchParams.delete('error_code');
+          const qs = url.searchParams.toString();
+          window.history.replaceState({}, '', `${url.pathname}${qs ? `?${qs}` : ''}${url.hash}`);
+        }
+
         // 1) Новый PKCE-флоу: ?code=...
         const code = url.searchParams.get('code');
         if (code) {
           logger.info('Auth: found code param, exchanging for session');
-          const { data, error } = await supabase.auth.exchangeCodeForSession(href);
+          const { data, error } = await supabase.auth.exchangeCodeForSession(url.href);
           if (error) {
             logger.error('exchangeCodeForSession error', { error });
             if (isMounted) {
@@ -80,8 +96,12 @@ export function useAuth() {
         const { data: { session } } = await supabase.auth.getSession();
         logger.info('getSession result', { hasSession: !!session, userId: session?.user.id });
         if (isMounted) {
-          if (!session && fromMagic) {
+          if (session) {
+            setAuthError(null);
+          } else if (fromMagic) {
             setAuthError('Magic link is invalid or has expired. Please request a new one.');
+          } else if (oauthRedirectError) {
+            setAuthError(oauthRedirectError);
           } else {
             setAuthError(null);
           }
@@ -132,7 +152,10 @@ export function useAuth() {
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin },
+      options: {
+        // Must not be bare origin: `/` immediately redirects to `/dashboard` and drops ?code / hash tokens.
+        redirectTo: `${window.location.origin}/login`,
+      },
     });
     return { error };
   };

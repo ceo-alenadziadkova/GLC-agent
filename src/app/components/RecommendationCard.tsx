@@ -19,8 +19,8 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
 
   const getPriorityBadge = (priority: string) => {
     const styles: Record<string, { bg: string; text: string }> = {
-      high: { bg: '#FFF1F0', text: 'High Priority' },
-      medium: { bg: '#FFFBEB', text: 'Medium Priority' },
+      high: { bg: 'var(--score-1-bg)', text: 'High Priority' },
+      medium: { bg: 'var(--score-3-bg)', text: 'Medium Priority' },
       low: { bg: 'var(--surface)', text: 'Low Priority' }
     };
 
@@ -38,7 +38,7 @@ export function RecommendationCard({ recommendation }: RecommendationCardProps) 
 
   return (
     <div
-      className="p-6 rounded-lg border bg-white hover:shadow-md transition-all"
+      className="p-6 rounded-lg border bg-[var(--bg-surface)] hover:shadow-md transition-all"
       style={{ borderColor: 'var(--panel-border)', boxShadow: 'var(--shadow-sm)' }}
     >
       {/* Header */}

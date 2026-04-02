@@ -29,13 +29,13 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 ### 1. Product and business logic
 
-**What it is:** B2B audit product: URL plus intake context, multi-phase analysis, scored domains, report and strategy deliverables. Supports `full`, `express`, and `free_snapshot` modes.
+**What it is:** B2B audit product: URL plus progressive intake context, multi-phase analysis, scored domains, report and strategy deliverables. Supports `full`, `express`, and `free_snapshot` modes.
 
 **Why it matters:** Defines scope of engineering work and what clients receive.
 
 **Where it is implemented:** Product behaviour is encoded in `server/src/types/audit.ts`, `server/src/services/pipeline.ts`, UI pages under `src/app/pages/`.
 
-**Where to find documentation:** [PRODUCT.md](./PRODUCT.md)
+**Where to find documentation:** [PRODUCT.md](./PRODUCT.md) (includes Intake Experience layers, readiness contract, and mode thresholds)
 
 **Owner:** Product / Tech Lead (TBD)
 
@@ -93,7 +93,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 ### 5. Data storage
 
-**What it is:** PostgreSQL schema on Supabase; migrations `001`–`008`; RLS; Realtime on key tables.
+**What it is:** PostgreSQL schema on Supabase; migrations `001`–`015`; RLS; Realtime on key tables.
 
 **Why it matters:** Persistence and isolation for audits, events, client portal, intake brief.
 
@@ -246,7 +246,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 ### New documentation tree (13 files, flat)
 
-```
+```text
 docs/
   MASTER_DOCUMENTATION.md   # This file — index + knowledge map + governance + restructuring log
   MASTER.md                 # Short pointer to MASTER_DOCUMENTATION.md

@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
-import type { AuditMeta, AuditState, AuditRequest } from './auditTypes';
+import type { AuditMeta, AuditState, AuditRequest, NotificationItem } from './auditTypes';
+import type { BriefQuestion, BriefResponses } from './briefQuestions';
 
 // ─── Dashboard types ──────────────────────────────────────────────────────────
 
@@ -19,6 +20,7 @@ export interface DashboardReviewGateItem {
   status: string;
   updated_at: string;
   priority: DashboardPriority;
+  urgency_rank: number;
 }
 
 export interface DashboardSlaRiskItem {
@@ -28,6 +30,7 @@ export interface DashboardSlaRiskItem {
   created_at: string;
   days_open: number;
   priority: DashboardPriority;
+  urgency_rank: number;
 }
 
 export interface DashboardFailureItem {
@@ -36,6 +39,7 @@ export interface DashboardFailureItem {
   company_url: string;
   updated_at: string;
   priority: DashboardPriority;
+  urgency_rank: number;
 }
 
 export interface DashboardPendingRequestItem {
@@ -44,6 +48,7 @@ export interface DashboardPendingRequestItem {
   industry: string | null;
   created_at: string;
   priority: DashboardPriority;
+  urgency_rank: number;
 }
 
 export interface DashboardActionItems {
@@ -79,10 +84,120 @@ export interface DashboardData {
   score_distribution: DashboardScoreDistribution;
   meta: {
     degraded_sections: Array<'kpis' | 'action_items' | 'activity_feed' | 'score_distribution'>;
+    generated_at: string;
   };
 }
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+
+function assertIntakePayloadShape(payload: unknown): asserts payload is {
+  intakeProgress: { progressPct: number; readinessBadge: string; nextBestAction: string };
+  gates: { canStartSnapshot: boolean; canStartExpress: boolean; canStartFull: boolean };
+} {
+  const p = payload as Record<string, unknown>;
+  const gates = p?.gates as Record<string, unknown> | undefined;
+  const intakeProgress = p?.intakeProgress as Record<string, unknown> | undefined;
+  if (!gates || !intakeProgress) throw new Error('Invalid API payload: missing intakeProgress/gates');
+  if (typeof gates.canStartSnapshot !== 'boolean' || typeof gates.canStartExpress !== 'boolean' || typeof gates.canStartFull !== 'boolean') {
+    throw new Error('Invalid API payload: invalid gates shape');
+  }
+  if (typeof intakeProgress.progressPct !== 'number' || typeof intakeProgress.readinessBadge !== 'string' || typeof intakeProgress.nextBestAction !== 'string') {
+    throw new Error('Invalid API payload: invalid intakeProgress shape');
+  }
+}
+
+function assertPipelineStartShape(payload: unknown): asserts payload is {
+  status: string;
+  phase: number;
+  intakeProgress: { progressPct: number; readinessBadge: string; nextBestAction: string };
+} {
+  const p = payload as Record<string, unknown>;
+  if (typeof p?.status !== 'string' || typeof p?.phase !== 'number') {
+    throw new Error('Invalid API payload: invalid pipeline start shape');
+  }
+  const intakeProgress = p?.intakeProgress as Record<string, unknown> | undefined;
+  if (!intakeProgress) throw new Error('Invalid API payload: missing intakeProgress in pipeline start');
+  if (typeof intakeProgress.progressPct !== 'number' || typeof intakeProgress.readinessBadge !== 'string' || typeof intakeProgress.nextBestAction !== 'string') {
+    throw new Error('Invalid API payload: invalid intakeProgress in pipeline start');
+  }
+}
+
+function assertPipelineStatusShape(payload: unknown): asserts payload is {
+  status: string;
+  current_phase: number;
+  tokens_used: number;
+  token_budget: number;
+  product_mode: string;
+  events: Array<{
+    id: number;
+    audit_id: string;
+    phase: number;
+    event_type: string;
+    message: string | null;
+    data: Record<string, unknown>;
+    created_at: string;
+  }>;
+  reviews: Array<{
+    after_phase: number;
+    status: string;
+    consultant_notes: string | null;
+    interview_notes: string | null;
+  }>;
+} {
+  const p = payload as Record<string, unknown>;
+  if (typeof p?.status !== 'string') {
+    throw new Error('Invalid API payload: pipeline status missing status');
+  }
+  if (typeof p?.current_phase !== 'number') {
+    throw new Error('Invalid API payload: pipeline status missing current_phase');
+  }
+  if (typeof p?.tokens_used !== 'number' || typeof p?.token_budget !== 'number') {
+    throw new Error('Invalid API payload: pipeline status missing token fields');
+  }
+  if (typeof p?.product_mode !== 'string') {
+    throw new Error('Invalid API payload: pipeline status missing product_mode');
+  }
+  if (!Array.isArray(p?.events)) {
+    throw new Error('Invalid API payload: pipeline status events must be an array');
+  }
+  if (!Array.isArray(p?.reviews)) {
+    throw new Error('Invalid API payload: pipeline status reviews must be an array');
+  }
+  for (let i = 0; i < p.events.length; i++) {
+    const e = p.events[i] as Record<string, unknown>;
+    if (typeof e?.id !== 'number' || typeof e?.audit_id !== 'string' || typeof e?.phase !== 'number') {
+      throw new Error(`Invalid API payload: pipeline event[${i}] missing id/audit_id/phase`);
+    }
+    if (typeof e?.event_type !== 'string' || (e?.message !== null && typeof e?.message !== 'string')) {
+      throw new Error(`Invalid API payload: pipeline event[${i}] invalid event_type/message`);
+    }
+    if (e?.data === null || typeof e?.data !== 'object' || Array.isArray(e.data)) {
+      throw new Error(`Invalid API payload: pipeline event[${i}] data must be an object`);
+    }
+    if (typeof e?.created_at !== 'string') {
+      throw new Error(`Invalid API payload: pipeline event[${i}] missing created_at`);
+    }
+  }
+  for (let i = 0; i < p.reviews.length; i++) {
+    const r = p.reviews[i] as Record<string, unknown>;
+    if (typeof r?.after_phase !== 'number' || typeof r?.status !== 'string') {
+      throw new Error(`Invalid API payload: pipeline review[${i}] missing after_phase/status`);
+    }
+    if (r?.consultant_notes !== null && typeof r?.consultant_notes !== 'string') {
+      throw new Error(`Invalid API payload: pipeline review[${i}] invalid consultant_notes`);
+    }
+    if (r?.interview_notes !== null && typeof r?.interview_notes !== 'string') {
+      throw new Error(`Invalid API payload: pipeline review[${i}] invalid interview_notes`);
+    }
+  }
+}
+
+function assertPipelineMutationShape(payload: unknown, label: string): asserts payload is { status: string; phase: number } {
+  const p = payload as Record<string, unknown>;
+  if (typeof p?.status !== 'string' || typeof p?.phase !== 'number') {
+    throw new Error(`Invalid API payload: ${label} missing status/phase`);
+  }
+}
 
 function randomHex(bytes: number): string {
   const arr = new Uint8Array(bytes);
@@ -100,6 +215,15 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) return {};
   return { Authorization: `Bearer ${session.access_token}` };
+}
+
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
 }
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -125,7 +249,33 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: response.statusText }));
-    throw new Error(error.error ?? `API error: ${response.status}`);
+    throw new ApiError(error.error ?? `API error: ${response.status}`, response.status);
+  }
+
+  return response.json();
+}
+
+/** Public intake/snapshot calls — no Authorization header. */
+async function publicApiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const timeoutSignal = AbortSignal.timeout(30_000);
+  const signal = options.signal
+    ? AbortSignal.any([options.signal as AbortSignal, timeoutSignal])
+    : timeoutSignal;
+
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    signal,
+    headers: {
+      'Content-Type': 'application/json',
+      traceparent: createTraceparent(),
+      'x-operation-id': crypto.randomUUID(),
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }));
+    throw new ApiError(error.error ?? `API error: ${response.status}`, response.status);
   }
 
   return response.json();
@@ -135,10 +285,26 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 
 export const api = {
   // Audits CRUD
-  async createAudit(companyUrl: string, companyName?: string, industry?: string, productMode: 'express' | 'full' = 'full') {
+  async createAudit(
+    companyUrl: string,
+    companyName?: string,
+    industry?: string,
+    productMode: 'express' | 'full' = 'full',
+    options?: { noPublicWebsite?: boolean }
+  ) {
+    const body: Record<string, unknown> = {
+      company_name: companyName ?? null,
+      industry: industry ?? null,
+      product_mode: productMode,
+    };
+    if (options?.noPublicWebsite) {
+      body.no_public_website = true;
+    } else {
+      body.company_url = companyUrl;
+    }
     return apiFetch<{ id: string; status: string }>('/api/audits', {
       method: 'POST',
-      body: JSON.stringify({ company_url: companyUrl, company_name: companyName, industry, product_mode: productMode }),
+      body: JSON.stringify(body),
     });
   },
 
@@ -159,29 +325,49 @@ export const api = {
 
   // Pipeline
   async startPipeline(id: string) {
-    return apiFetch<{ status: string; phase: number }>(`/api/audits/${id}/pipeline/start`, { method: 'POST' });
+    const payload = await apiFetch<{ status: string; phase: number; intakeProgress: { progressPct: number; readinessBadge: string; nextBestAction: string } }>(
+      `/api/audits/${id}/pipeline/start`,
+      { method: 'POST' }
+    );
+    assertPipelineStartShape(payload);
+    return payload;
   },
 
   async runNextPhase(id: string) {
-    return apiFetch<{ status: string; phase: number }>(`/api/audits/${id}/pipeline/next`, { method: 'POST' });
+    const payload = await apiFetch<{ status: string; phase: number }>(`/api/audits/${id}/pipeline/next`, { method: 'POST' });
+    assertPipelineMutationShape(payload, 'pipeline next');
+    return payload;
   },
 
   async retryPhase(id: string, phase: number) {
-    return apiFetch<{ status: string; phase: number }>(`/api/audits/${id}/pipeline/retry`, {
+    const payload = await apiFetch<{ status: string; phase: number }>(`/api/audits/${id}/pipeline/retry`, {
       method: 'POST',
       body: JSON.stringify({ phase }),
     });
+    assertPipelineMutationShape(payload, 'pipeline retry');
+    return payload;
   },
 
   async getPipelineStatus(id: string) {
-    return apiFetch<{
+    const payload = await apiFetch<{
       status: string;
       current_phase: number;
       tokens_used: number;
       token_budget: number;
-      events: Array<{ id: number; phase: number; event_type: string; message: string; data: Record<string, unknown>; created_at: string }>;
+      product_mode: string;
+      events: Array<{
+        id: number;
+        audit_id: string;
+        phase: number;
+        event_type: string;
+        message: string | null;
+        data: Record<string, unknown>;
+        created_at: string;
+      }>;
       reviews: Array<{ after_phase: number; status: string; consultant_notes: string | null; interview_notes: string | null }>;
     }>(`/api/audits/${id}/pipeline/status`);
+    assertPipelineStatusShape(payload);
+    return payload;
   },
 
   // Reviews
@@ -245,7 +431,7 @@ export const api = {
 
   // Intake Brief
   async getBrief(auditId: string) {
-    return apiFetch<{
+    const payload = await apiFetch<{
       brief: import('../data/auditTypes').IntakeBrief | null;
       questions: import('../data/briefQuestions').BriefQuestion[];
       validation: {
@@ -257,27 +443,74 @@ export const api = {
         total_recommended: number;
         missing_required: Array<{ id: string; question: string }>;
       };
+      gates: {
+        canStartSnapshot: boolean;
+        canStartExpress: boolean;
+        canStartFull: boolean;
+        missingRequiredIds: string[];
+        recommendedToImproveIds: string[];
+        intakeProgress: {
+          progressPct: number;
+          readinessBadge: 'low' | 'medium' | 'high';
+          nextBestAction: 'complete_required' | 'add_recommended' | 'confirm_prefill' | 'none';
+        };
+      };
+      intakeProgress: {
+        progressPct: number;
+        readinessBadge: 'low' | 'medium' | 'high';
+        nextBestAction: 'complete_required' | 'add_recommended' | 'confirm_prefill' | 'none';
+      };
     }>(`/api/audits/${auditId}/brief`);
+    assertIntakePayloadShape(payload);
+    return payload;
   },
 
   async saveBrief(auditId: string, responses: Record<string, unknown>) {
-    return apiFetch<{
+    const payload = await apiFetch<{
       brief: import('../data/auditTypes').IntakeBrief;
       validation: { passed: boolean; sla_met: boolean; answered_required: number; total_required: number };
+      gates: {
+        canStartSnapshot: boolean;
+        canStartExpress: boolean;
+        canStartFull: boolean;
+        missingRequiredIds: string[];
+        recommendedToImproveIds: string[];
+        intakeProgress: {
+          progressPct: number;
+          readinessBadge: 'low' | 'medium' | 'high';
+          nextBestAction: 'complete_required' | 'add_recommended' | 'confirm_prefill' | 'none';
+        };
+      };
+      intakeProgress: {
+        progressPct: number;
+        readinessBadge: 'low' | 'medium' | 'high';
+        nextBestAction: 'complete_required' | 'add_recommended' | 'confirm_prefill' | 'none';
+      };
     }>(`/api/audits/${auditId}/brief`, {
       method: 'PUT',
       body: JSON.stringify({ responses }),
     });
+    assertIntakePayloadShape(payload);
+    return payload;
   },
 
   // Profile
   async getProfile() {
-    return apiFetch<{ id: string; role: string; full_name: string | null; created_at: string }>('/api/profile');
+    return apiFetch<{ id: string; role: string; email: string | null; full_name: string | null }>('/api/profile');
+  },
+
+  async patchProfile(params: { full_name?: string | null }) {
+    return apiFetch<{ id: string; role: string; email: string | null; full_name: string | null }>('/api/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(params),
+    });
   },
 
   // Audit Requests (client portal)
   async createAuditRequest(params: {
     url: string;
+    /** When true, server stores the canonical no-public-website placeholder URL. */
+    no_public_website?: boolean;
     industry?: string;
     product_mode?: 'express' | 'full';
     brief_snapshot?: Record<string, unknown>;
@@ -331,5 +564,153 @@ export const api = {
   // Analytics
   async getDashboard() {
     return apiFetch<DashboardData>('/api/analytics/dashboard');
+  },
+
+  // Notifications
+  async listNotifications(limit = 30, offset = 0, unreadOnly = false) {
+    const q = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+      unreadOnly: unreadOnly ? 'true' : 'false',
+    });
+    return apiFetch<{ data: NotificationItem[]; total: number; limit: number; offset: number }>(
+      `/api/notifications?${q.toString()}`,
+    );
+  },
+
+  async getUnreadNotificationCount() {
+    return apiFetch<{ unread: number }>('/api/notifications/unread-count');
+  },
+
+  async markNotificationRead(id: string) {
+    return apiFetch<{ ok: boolean }>(`/api/notifications/${id}/read`, { method: 'POST' });
+  },
+
+  async markAllNotificationsRead() {
+    return apiFetch<{ ok: boolean }>('/api/notifications/read-all', { method: 'POST' });
+  },
+
+  // Pre-brief intake tokens (consultant creates; client uses public GET/respond)
+  async createIntakeToken(data: { audit_id?: string; metadata?: Record<string, string> }) {
+    return apiFetch<{ token: string; url: string; expires_at: string }>('/api/intake', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /** Tie a pre-brief token to an audit and merge any submitted client answers into intake_brief. */
+  async linkIntakeTokenToAudit(token: string, auditId: string) {
+    return apiFetch<{ ok: true }>('/api/intake/link-audit', {
+      method: 'POST',
+      body: JSON.stringify({ token, audit_id: auditId }),
+    });
+  },
+
+  /** Consultant: client submissions via shareable pre-brief links (submitted_at set). */
+  async listIntakeSubmissions() {
+    return apiFetch<{
+      submissions: Array<{
+        token: string;
+        metadata: Record<string, unknown>;
+        responses: Record<string, unknown>;
+        submitted_at: string;
+        expires_at: string;
+        audit_id: string | null;
+        intake_url: string;
+      }>;
+    }>('/api/intake/submissions');
+  },
+
+  /** Consultant: load token answers for New Audit prefill even when the public link has expired. */
+  async getIntakePrefillForConsultant(token: string) {
+    return apiFetch<{
+      metadata: Record<string, unknown>;
+      questions: BriefQuestion[];
+      responses: Record<string, unknown>;
+      submitted_at: string | null;
+      expires_at: string;
+      link_expired?: boolean;
+    }>(`/api/intake/prefill/${encodeURIComponent(token)}`);
+  },
+
+  async getIntakeToken(token: string) {
+    return publicApiFetch<{
+      metadata: Record<string, unknown>;
+      questions: BriefQuestion[];
+      responses: Record<string, unknown>;
+      submitted_at: string | null;
+      expires_at: string;
+    }>(`/api/intake/${encodeURIComponent(token)}`);
+  },
+
+  async submitIntakeResponses(token: string, responses: BriefResponses) {
+    return publicApiFetch<{ ok: true; submitted_at: string }>(`/api/intake/${encodeURIComponent(token)}/respond`, {
+      method: 'POST',
+      body: JSON.stringify({ responses }),
+    });
+  },
+
+  // ── Discovery (Mode C) ──────────────────────────────────────────────────────
+
+  /** Public: save a completed discovery session. Returns a session token. */
+  async saveDiscoverySession(data: {
+    answers: Record<string, unknown>;
+    maturity_level: number;
+    findings: unknown[];
+  }) {
+    return publicApiFetch<{ token: string; created_at: string }>('/api/discover', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /** Public: load a saved discovery session by token. */
+  async getDiscoverySession(token: string) {
+    return publicApiFetch<{
+      answers: Record<string, unknown>;
+      maturity_level: number;
+      findings: unknown[];
+      contact_name: string | null;
+      contact_email: string | null;
+      created_at: string;
+      audit_id: string | null;
+    }>(`/api/discover/${encodeURIComponent(token)}`);
+  },
+
+  /** Public: attach contact info to a discovery session (called from results page). */
+  async saveDiscoveryContact(token: string, contact: {
+    contact_name?: string;
+    contact_email?: string;
+    contact_phone?: string;
+  }) {
+    return publicApiFetch<{ ok: true }>(`/api/discover/${encodeURIComponent(token)}/contact`, {
+      method: 'PATCH',
+      body: JSON.stringify(contact),
+    });
+  },
+
+  /** Consultant: list all discovery sessions (most recent first). */
+  async listDiscoverySessions() {
+    return apiFetch<{
+      sessions: Array<{
+        session_token:   string;
+        maturity_level:  number;
+        findings:        unknown[];
+        contact_name:    string | null;
+        contact_email:   string | null;
+        contact_phone:   string | null;
+        audit_id:        string | null;
+        created_at:      string;
+        biz_description: string | null;
+        industry:        string | null;
+      }>;
+    }>('/api/discover/sessions');
+  },
+
+  /** Consultant: convert a discovery session into a full audit. */
+  async convertDiscoverySession(token: string) {
+    return apiFetch<{ audit_id: string }>(`/api/discover/${encodeURIComponent(token)}/convert`, {
+      method: 'POST',
+    });
   },
 };

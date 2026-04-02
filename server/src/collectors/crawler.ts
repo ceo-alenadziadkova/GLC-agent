@@ -2,6 +2,8 @@ import * as cheerio from 'cheerio';
 import { BaseCollector } from './base.js';
 import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import { detectLanguagesFromPages, extractLanguagesFromHtml } from '../lib/language-utils.js';
+import { logger } from '../services/logger.js';
+import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
 
 interface CrawledPage {
   url: string;
@@ -93,6 +95,23 @@ export class CrawlerCollector extends BaseCollector {
   private timeout = 15_000;
 
   async collect(auditId: string, companyUrl: string) {
+    if (isNoPublicWebsiteUrl(companyUrl)) {
+      const techStackResult: Record<string, string[]> = {};
+      for (const cat of Object.keys(TECH_PATTERNS)) {
+        techStackResult[cat] = [];
+      }
+      return {
+        pages_crawled: [],
+        tech_stack: techStackResult,
+        social_profiles: {},
+        contact_info: { emails: [], phones: [], addresses: [] },
+        languages_detected: [],
+        total_pages: 0,
+        crawl_timestamp: new Date().toISOString(),
+        no_public_website: true,
+      };
+    }
+
     let baseHref: string;
     try {
       baseHref = await validatePublicAuditUrl(companyUrl);
@@ -122,7 +141,7 @@ export class CrawlerCollector extends BaseCollector {
 
     while (toVisit.length > 0 && pages.length < this.maxPages) {
       if (Date.now() - crawlStart > TOTAL_TIMEOUT_MS) {
-        console.warn(`[Crawler] Total timeout reached after ${pages.length} pages — stopping crawl`);
+        logger.warn('crawler.total_timeout', { component: 'crawler', pages_crawled: pages.length });
         break;
       }
       const url = toVisit.shift()!;
@@ -159,7 +178,7 @@ export class CrawlerCollector extends BaseCollector {
           }
         }
       } catch (err) {
-        console.warn(`[Crawler] Failed to fetch ${url}:`, (err as Error).message);
+        logger.warn('crawler.fetch_failed', { component: 'crawler', url, error: (err as Error).message });
       }
     }
 
@@ -269,7 +288,7 @@ export class CrawlerCollector extends BaseCollector {
     } catch (err) {
       clearTimeout(timeoutId);
       if ((err as Error).name === 'AbortError') {
-        console.warn(`[Crawler] Timeout fetching ${url}`);
+        logger.warn('crawler.page_timeout', { component: 'crawler', url });
       }
       return null;
     }

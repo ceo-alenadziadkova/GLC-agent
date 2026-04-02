@@ -99,6 +99,15 @@ export interface AuditMeta {
 }
 
 // ─── Free Snapshot Result ──────────────────────────────────
+/** Verifiable competitor line item for public free snapshot only. */
+export interface SnapshotCompetitorComparison {
+  metric: string;
+  client_val: boolean | number;
+  comp_val: boolean | number;
+  winner: 'client' | 'competitor' | 'tie';
+  label: string;
+}
+
 export interface FreeSnapshotPreview {
   audit_id: string;
   snapshot_token: string;
@@ -112,6 +121,13 @@ export interface FreeSnapshotPreview {
   ux_summary: string | null;
   issues: AuditIssue[];
   quick_wins: QuickWin[];
+  competitor_mini?: {
+    competitor_name: string;
+    competitor_url: string;
+    comparisons: SnapshotCompetitorComparison[];
+    data_source: 'auto_detected';
+    confidence: 'high';
+  };
 }
 
 export interface ReconData {
@@ -323,27 +339,62 @@ export interface QualityGateReport {
 // ─── Intake Brief ──────────────────────────────────────────
 
 export type BriefPriority = 'required' | 'recommended' | 'optional';
+export type BriefResponseSource = 'client' | 'consultant' | 'recon_confirmed' | 'unknown';
+export type IntakeReadinessBadge = 'low' | 'medium' | 'high';
+export type IntakeNextBestAction = 'complete_required' | 'add_recommended' | 'confirm_prefill' | 'none';
+
+export type BriefRevenueSignal = 'high' | 'medium' | 'low';
 
 export interface BriefQuestion {
   id: string;
   priority: BriefPriority;
+  importance?: 'red' | 'yellow' | 'green';
+  intake_layer?: 0 | 1 | 2 | 3 | 'pre_brief';
+  weight?: number;
+  ux_group?: 'basics' | 'business' | 'tech' | 'audience' | 'goals';
   /** Which agents this question feeds context to */
   domains: Array<DomainKey | 'all'>;
   question: string;
   hint?: string;
-  /** free_text | single_choice | multi_choice | number */
-  type: 'free_text' | 'single_choice' | 'multi_choice' | 'number';
+  /** Interview probe: what to listen for / clarify live with the client. */
+  consultant_hint?: string;
+  /** Weight for revenue / impact prioritisation in analytics (high = sparse). */
+  revenue_signal?: BriefRevenueSignal;
+  /** Question IDs unlocked in Layer 3 when this answer satisfies follow-up rules (product extension). */
+  triggers_followup?: string[];
+  /** free_text | single_choice | multi_choice | number | rating | confirm */
+  type: 'free_text' | 'single_choice' | 'multi_choice' | 'number' | 'rating' | 'confirm';
   options?: string[];
+}
+
+export type BriefResponseValue = string | string[] | number | boolean | null;
+export interface BriefResponseEntry {
+  value: BriefResponseValue;
+  source: BriefResponseSource;
 }
 
 export interface IntakeBrief {
   id: string;
   audit_id: string;
-  responses: Record<string, string | string[] | number | null>;
+  responses: Record<string, BriefResponseValue | BriefResponseEntry>;
   status: 'draft' | 'submitted';
+  layer_completed: 0 | 1 | 2 | 3;
+  collected_by: 'client' | 'consultant';
+  collection_mode: 'self_serve' | 'interview' | 'pre_brief';
+  data_quality_score: number;
   sla_met: boolean;
   answered_required: number;
   answered_recommended: number;
+  answered_optional: number;
+  total_required: number;
+  total_recommended: number;
+  total_optional: number;
+  recon_prefills: Record<string, unknown>;
+  post_audit_questions: Array<Record<string, unknown>>;
+  progress_pct: number;
+  readiness_badge: IntakeReadinessBadge;
+  next_best_action: IntakeNextBestAction;
+  responses_format: 1 | 2;
   created_at: string;
   updated_at: string;
 }

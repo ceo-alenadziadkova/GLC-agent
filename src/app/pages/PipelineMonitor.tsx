@@ -14,6 +14,7 @@ import { ReviewPointModal } from '../components/glc/ReviewPointModal';
 import { usePipeline } from '../hooks/usePipeline';
 import { useAudit } from '../hooks/useAudit';
 import type { PipelineEvent, QualityGateReport } from '../data/auditTypes';
+import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 
 type PhSt = 'completed' | 'running' | 'pending' | 'review' | 'skipped' | 'failed';
 
@@ -141,7 +142,7 @@ function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: 
             className="w-3.5 h-3.5"
             style={{
               color: active
-                ? '#fff'
+                ? 'var(--primary-foreground)'
                 : ph.status === 'completed'
                 ? 'var(--glc-green-dark)'
                 : 'var(--text-tertiary)',
@@ -207,7 +208,7 @@ function RevBanner({ review, label, onOpenModal, hasWarnings }: { review: { stat
           className="text-xs font-bold px-2.5 py-1.5 rounded-lg flex-shrink-0 flex items-center gap-1"
           style={{
             background: 'var(--gradient-accent)',
-            color: '#fff',
+            color: 'var(--primary-foreground)',
             border: 'none',
             cursor: 'pointer',
             boxShadow: '0 2px 8px rgba(242,79,29,0.28)',
@@ -411,7 +412,11 @@ export function PipelineMonitor() {
   const pct        = Math.round((done / activePhases.length) * 100);
   const I    = ph.icon;
 
-  const companyName = audit?.meta.company_name || audit?.meta.company_url || 'Loading...';
+  const companyName =
+    audit?.meta.company_name
+    || formatAuditWebsiteDisplay(audit?.meta.company_url)
+    || audit?.meta.company_url
+    || 'Loading...';
 
   async function handleApprove(_id: number, consultantNotes: string, interviewNotes: string) {
     if (!modalReview) return;
@@ -634,7 +639,7 @@ export function PipelineMonitor() {
                   >
                     <I
                       className="w-6 h-6"
-                      style={{ color: ph.status === 'pending' ? 'var(--text-tertiary)' : '#fff' }}
+                      style={{ color: ph.status === 'pending' ? 'var(--text-tertiary)' : 'var(--primary-foreground)' }}
                     />
                   </div>
                   <div className="flex-1">

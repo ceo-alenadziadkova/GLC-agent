@@ -18,12 +18,19 @@ function randomHex(bytes: number): string {
   return Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
 }
 
+/** After a 429, pause remote ingest to avoid hammering the API and console noise. */
+let remoteLogBackoffUntil = 0;
+
 async function sendLog(payload: LogPayload) {
   try {
+    if (Date.now() < remoteLogBackoffUntil) {
+      return;
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return;
 
-    await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/api/log`, {
+    const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/api/log`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -31,6 +38,14 @@ async function sendLog(payload: LogPayload) {
       },
       body: JSON.stringify(payload),
     });
+
+    if (res.status === 429) {
+      remoteLogBackoffUntil = Date.now() + 90_000;
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.warn('[logger] Remote ingest rate-limited (429); pausing backend log POSTs for 90s');
+      }
+    }
   } catch {
     // Swallow logging errors to avoid breaking UX
   }
