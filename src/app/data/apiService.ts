@@ -662,14 +662,16 @@ export const api = {
   async listDiscoverySessions() {
     return apiFetch<{
       sessions: Array<{
-        session_token: string;
-        maturity_level: number;
-        findings: unknown[];
-        contact_name: string | null;
-        contact_email: string | null;
-        contact_phone: string | null;
-        audit_id: string | null;
-        created_at: string;
+        session_token:   string;
+        maturity_level:  number;
+        findings:        unknown[];
+        contact_name:    string | null;
+        contact_email:   string | null;
+        contact_phone:   string | null;
+        audit_id:        string | null;
+        created_at:      string;
+        biz_description: string | null;
+        industry:        string | null;
       }>;
     }>('/api/discover/sessions');
   },

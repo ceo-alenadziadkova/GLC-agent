@@ -8,8 +8,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import {
   ChartBar, Users, Warning, Lightbulb, ArrowRight,
-  CheckCircle, Spinner, MagnifyingGlass, UserCircle,
-  EnvelopeSimple, Phone, Calendar,
+  CheckCircle, Spinner, ArrowsClockwise, UserCircle,
+  EnvelopeSimple, Phone, Calendar, Copy,
 } from '@phosphor-icons/react';
 import { api } from '../data/apiService';
 import { AppShell } from '../components/AppShell';
@@ -17,14 +17,16 @@ import { AppShell } from '../components/AppShell';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface DiscoverySession {
-  session_token: string;
-  maturity_level: number;
-  findings: Array<{ id: string; zone: string; headline: string; impact: string }>;
-  contact_name:  string | null;
-  contact_email: string | null;
-  contact_phone: string | null;
-  audit_id:      string | null;
-  created_at:    string;
+  session_token:   string;
+  maturity_level:  number;
+  findings:        Array<{ id: string; zone: string; headline: string; impact: string }>;
+  contact_name:    string | null;
+  contact_email:   string | null;
+  contact_phone:   string | null;
+  audit_id:        string | null;
+  created_at:      string;
+  biz_description: string | null;
+  industry:        string | null;
 }
 
 // ── Maturity helpers ──────────────────────────────────────────────────────────
@@ -135,36 +137,58 @@ function SessionCard({
         )}
       </div>
 
-      {/* Contact info */}
-      {(session.contact_name || session.contact_email || session.contact_phone) ? (
-        <div
-          className="flex flex-wrap gap-x-4 gap-y-1 px-3 py-2 rounded-xl"
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
-        >
-          {session.contact_name && (
-            <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'rgba(255,255,255,0.70)' }}>
-              <UserCircle size={13} style={{ color: 'rgba(28,189,255,0.70)' }} />
-              {session.contact_name}
-            </span>
-          )}
-          {session.contact_email && (
-            <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'rgba(255,255,255,0.70)' }}>
-              <EnvelopeSimple size={13} style={{ color: 'rgba(28,189,255,0.70)' }} />
-              {session.contact_email}
-            </span>
-          )}
-          {session.contact_phone && (
-            <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'rgba(255,255,255,0.70)' }}>
-              <Phone size={13} style={{ color: 'rgba(28,189,255,0.70)' }} />
-              {session.contact_phone}
-            </span>
-          )}
-        </div>
-      ) : (
-        <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>
-          No contact info provided
-        </p>
-      )}
+      {/* Business identity — contact details if provided, else biz_description + industry */}
+      <div
+        className="rounded-xl px-3 py-2 space-y-1.5"
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+      >
+        {/* Contact info row */}
+        {(session.contact_name || session.contact_email || session.contact_phone) ? (
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            {session.contact_name && (
+              <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'rgba(255,255,255,0.70)' }}>
+                <UserCircle size={13} style={{ color: 'rgba(28,189,255,0.70)' }} />
+                {session.contact_name}
+              </span>
+            )}
+            {session.contact_email && (
+              <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'rgba(255,255,255,0.70)' }}>
+                <EnvelopeSimple size={13} style={{ color: 'rgba(28,189,255,0.70)' }} />
+                {session.contact_email}
+              </span>
+            )}
+            {session.contact_phone && (
+              <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'rgba(255,255,255,0.70)' }}>
+                <Phone size={13} style={{ color: 'rgba(28,189,255,0.70)' }} />
+                {session.contact_phone}
+              </span>
+            )}
+          </div>
+        ) : (
+          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)', fontStyle: 'italic' }}>
+            No contact info provided
+          </p>
+        )}
+
+        {/* Business description / industry (always show when present — gives context for no-contact sessions) */}
+        {(session.biz_description || session.industry) && (
+          <div className="space-y-0.5" style={{ borderTop: (session.contact_name || session.contact_email || session.contact_phone) ? '1px solid rgba(255,255,255,0.06)' : 'none', paddingTop: (session.contact_name || session.contact_email || session.contact_phone) ? 6 : 0 }}>
+            {session.industry && (
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)' }}>
+                <span style={{ color: 'rgba(255,255,255,0.28)', marginRight: 4 }}>Industry</span>
+                {session.industry}
+              </p>
+            )}
+            {session.biz_description && (
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
+                {session.biz_description.length > 120
+                  ? `${session.biz_description.slice(0, 117)}…`
+                  : session.biz_description}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Top findings */}
       {session.findings.length > 0 && (
@@ -212,6 +236,7 @@ export function DiscoveryQueue() {
   const [converting, setConverting] = useState<string | null>(null); // token currently converting
   const [convertError, setConvertError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'new' | 'converted'>('all');
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -279,19 +304,44 @@ export function DiscoveryQueue() {
               Mode C submissions from the public discovery questionnaire
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-            style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.10)',
-              color: 'rgba(255,255,255,0.55)',
-              cursor: 'pointer',
-            }}
-          >
-            <MagnifyingGlass size={12} /> Refresh
-          </button>
+            <div className="flex items-center gap-2">
+            {/* Copy public discover link */}
+            <button
+              type="button"
+              onClick={() => {
+                const url = `${window.location.origin}/audit/discover`;
+                void navigator.clipboard.writeText(url).then(() => {
+                  setLinkCopied(true);
+                  setTimeout(() => setLinkCopied(false), 2000);
+                });
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+              style={{
+                background: linkCopied ? 'rgba(16,185,129,0.12)' : 'rgba(28,189,255,0.08)',
+                border: linkCopied ? '1px solid rgba(16,185,129,0.30)' : '1px solid rgba(28,189,255,0.22)',
+                color: linkCopied ? '#10B981' : 'rgba(28,189,255,0.80)',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              {linkCopied
+                ? <><CheckCircle size={12} weight="fill" /> Copied!</>
+                : <><Copy size={12} /> Copy discover link</>}
+            </button>
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.10)',
+                color: 'rgba(255,255,255,0.55)',
+                cursor: 'pointer',
+              }}
+            >
+              <ArrowsClockwise size={12} /> Refresh
+            </button>
+          </div>
         </div>
 
         {/* Filter tabs */}
@@ -368,7 +418,7 @@ export function DiscoveryQueue() {
             <Users size={32} weight="thin" className="mx-auto mb-3" style={{ color: 'rgba(255,255,255,0.20)' }} />
             <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.35)' }}>
               {filter === 'all'
-                ? 'No discovery sessions yet. Share /audit/discover with prospects.'
+                ? 'No discovery sessions yet. Use "Copy discover link" above to share the questionnaire.'
                 : `No ${filter} sessions.`}
             </p>
           </div>

@@ -166,7 +166,7 @@ discoverRouter.get(
     try {
       const { data, error } = await supabase
         .from('discovery_sessions')
-        .select('session_token, maturity_level, findings, contact_name, contact_email, contact_phone, audit_id, created_at')
+        .select('session_token, maturity_level, findings, contact_name, contact_email, contact_phone, audit_id, created_at, answers')
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -176,7 +176,24 @@ discoverRouter.get(
         return;
       }
 
-      res.json({ sessions: data ?? [] });
+      // Extract display fields from answers JSONB; drop the full answers blob from the response
+      const sessions = (data ?? []).map(row => {
+        const ans = (row.answers as Record<string, unknown>) ?? {};
+        return {
+          session_token: row.session_token,
+          maturity_level: row.maturity_level,
+          findings: row.findings,
+          contact_name:  row.contact_name,
+          contact_email: row.contact_email,
+          contact_phone: row.contact_phone,
+          audit_id:      row.audit_id,
+          created_at:    row.created_at,
+          biz_description: typeof ans.biz_description === 'string' ? ans.biz_description.trim() || null : null,
+          industry:        typeof ans.industry         === 'string' ? ans.industry.trim()         || null : null,
+        };
+      });
+
+      res.json({ sessions });
     } catch (err) {
       logger.error('discover.list_exception', { component: 'discover', error: (err as Error).message });
       res.status(500).json({ error: 'Failed to list sessions' });

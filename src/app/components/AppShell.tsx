@@ -19,12 +19,13 @@ function useCurrentAuditId(): string | null {
 
 function buildConsultantNav(auditId: string | null) {
   return [
-    { to: '/dashboard',                          icon: SquaresFour,  label: 'Dashboard', badge: null },
-    { to: '/admin/requests',                     icon: Tray,         label: 'Request queue', badge: null },
-    { to: auditId ? `/audit/${auditId}` : null,  icon: Briefcase,    label: 'Audit Workspace',  badge: null },
-    { to: auditId ? `/pipeline/${auditId}` : null, icon: Pulse,      label: 'Pipeline',         badge: null },
-    { to: auditId ? `/reports/${auditId}` : null, icon: FileText,    label: 'Reports',          badge: null },
-    { to: auditId ? `/strategy/${auditId}` : null,icon: Flask,       label: 'Strategy Lab',     badge: null },
+    { to: '/dashboard',                           icon: SquaresFour,    label: 'Dashboard',       badge: null },
+    { to: '/admin/requests',                      icon: Tray,           label: 'Request queue',   badge: null },
+    { to: '/admin/discovery',                     icon: MagnifyingGlass,label: 'Discovery queue', badge: null },
+    { to: auditId ? `/audit/${auditId}` : null,   icon: Briefcase,      label: 'Audit Workspace', badge: null },
+    { to: auditId ? `/pipeline/${auditId}` : null,icon: Pulse,          label: 'Pipeline',        badge: null },
+    { to: auditId ? `/reports/${auditId}` : null, icon: FileText,       label: 'Reports',         badge: null },
+    { to: auditId ? `/strategy/${auditId}` : null,icon: Flask,          label: 'Strategy Lab',    badge: null },
   ];
 }
 
@@ -143,7 +144,10 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               );
             }
             const active = location.pathname === to ||
-              (to !== '/dashboard' && to !== '/portal' && to !== '/admin/requests' && location.pathname.startsWith(to.split('/').slice(0, 2).join('/')));
+              // Exact-match for any /admin/* or top-level singleton routes to avoid cross-highlighting.
+              // Prefix-match only for audit-scoped paths like /audit/:id, /pipeline/:id, etc.
+              (!to.startsWith('/admin/') && to !== '/dashboard' && to !== '/portal' &&
+               location.pathname.startsWith(to.split('/').slice(0, 2).join('/')));
             return (
               <NavLink
                 key={to}
