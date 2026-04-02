@@ -14,7 +14,7 @@
 ## Supabase Setup
 
 1. Create project at [supabase.com](https://supabase.com) — choose **EU (Frankfurt)** region for GDPR compliance
-2. In SQL Editor → run **all** SQL migrations in order (`001` … `012`); see [DATABASE.md](./DATABASE.md#overview)
+2. In SQL Editor → run **all** SQL migrations in order (`001` … `015`); see [DATABASE.md](./DATABASE.md#overview)
 3. Authentication → Settings:
    - Set **Site URL** to your production frontend URL (exact URL; wildcards are invalid here)
    - Add **Redirect URLs**: exact dev/prod origins and `/login` URLs as needed — see [AUTH.md](./AUTH.md#supabase-auth-configuration) (some dashboards reject `*` wildcards)
@@ -129,7 +129,7 @@ In production: set `ALLOWED_ORIGINS=https://your-app.vercel.app` in Railway.
 
 ## Deploy Checklist
 
-- [ ] Run all SQL migrations in order (`001` … `012`) in Supabase SQL editor
+- [ ] Run all SQL migrations in order (`001` … `015`) in Supabase SQL editor
 - [ ] RLS policies active (check in Supabase → Table Editor → each table)
 - [ ] Supabase Site URL + Redirect URLs updated to production domain
 - [ ] Google OAuth configured in Supabase (if using)

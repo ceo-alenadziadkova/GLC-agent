@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import type { AuditMeta, AuditState, AuditRequest } from './auditTypes';
+import type { AuditMeta, AuditState, AuditRequest, NotificationItem } from './auditTypes';
 import type { BriefQuestion, BriefResponses } from './briefQuestions';
 
 // ─── Dashboard types ──────────────────────────────────────────────────────────
@@ -564,6 +564,30 @@ export const api = {
   // Analytics
   async getDashboard() {
     return apiFetch<DashboardData>('/api/analytics/dashboard');
+  },
+
+  // Notifications
+  async listNotifications(limit = 30, offset = 0, unreadOnly = false) {
+    const q = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+      unreadOnly: unreadOnly ? 'true' : 'false',
+    });
+    return apiFetch<{ data: NotificationItem[]; total: number; limit: number; offset: number }>(
+      `/api/notifications?${q.toString()}`,
+    );
+  },
+
+  async getUnreadNotificationCount() {
+    return apiFetch<{ unread: number }>('/api/notifications/unread-count');
+  },
+
+  async markNotificationRead(id: string) {
+    return apiFetch<{ ok: boolean }>(`/api/notifications/${id}/read`, { method: 'POST' });
+  },
+
+  async markAllNotificationsRead() {
+    return apiFetch<{ ok: boolean }>('/api/notifications/read-all', { method: 'POST' });
   },
 
   // Pre-brief intake tokens (consultant creates; client uses public GET/respond)

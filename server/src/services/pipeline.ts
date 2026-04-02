@@ -12,6 +12,7 @@ import { StrategyAgent } from '../agents/strategy.js';
 import { BaseAgent } from '../agents/base.js';
 import { logger } from './logger.js';
 import { getContext, updateContext } from './observability-context.js';
+import { notifyAuditParticipants } from './notifications.js';
 import {
   PHASE_DOMAIN_MAP,
   maxPhaseForMode,
@@ -424,5 +425,55 @@ export class PipelineOrchestrator {
         operation_id: ctx?.operationId,
       },
     });
+
+    // Keep in-app notifications concise and limited to user-relevant lifecycle changes.
+    if (['started', 'completed', 'error', 'review_needed'].includes(eventType)) {
+      const titleByType: Record<string, string> = {
+        started: 'Pipeline phase started',
+        completed: 'Pipeline phase completed',
+        error: 'Pipeline phase failed',
+        review_needed: 'Review required',
+      };
+      await notifyAuditParticipants(
+        this.auditId,
+        eventType === 'review_needed' ? 'review' : 'pipeline',
+        titleByType[eventType] ?? 'Pipeline update',
+        message,
+        {
+          phase,
+          event_type: eventType,
+          ...data,
+        },
+      );
+    }
+
+    if (eventType === 'completed' && phase === 7) {
+      await notifyAuditParticipants(
+        this.auditId,
+        'pipeline',
+        'Artifact ready',
+        'Strategy synthesis is ready.',
+        {
+          audit_id: this.auditId,
+          artifact: 'strategy',
+          route: `/strategy/${this.auditId}`,
+          occurred_at: new Date().toISOString(),
+          actor_role: 'system',
+        },
+      );
+      await notifyAuditParticipants(
+        this.auditId,
+        'pipeline',
+        'Artifact ready',
+        'Final report is ready.',
+        {
+          audit_id: this.auditId,
+          artifact: 'report',
+          route: `/reports/${this.auditId}`,
+          occurred_at: new Date().toISOString(),
+          actor_role: 'system',
+        },
+      );
+    }
   }
 }

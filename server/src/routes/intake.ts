@@ -14,6 +14,7 @@ import {
 } from '../schemas/intake-brief.js';
 import { arePreBriefSlotsSatisfied, saveBriefResponses } from '../services/brief-validator.js';
 import { logger } from '../services/logger.js';
+import { notifyAuditParticipants, notifyUser } from '../services/notifications.js';
 
 export const intakeRouter = Router();
 
@@ -409,6 +410,32 @@ intakeRouter.post('/:token/respond', intakePublicLimiter, async (req, res) => {
           error: (mergeErr as Error).message,
         });
       }
+    }
+
+    const responseCount = Object.keys(parsed.data as Record<string, unknown>).length;
+    if (auditId) {
+      await notifyAuditParticipants(
+        auditId,
+        'intake',
+        'Intake responses updated',
+        `Client submitted pre-brief responses (${responseCount} fields).`,
+        {
+          token,
+          submitted_at: submittedAt,
+        },
+      );
+    } else {
+      await notifyUser({
+        userId: row.consultant_id as string,
+        auditId: null,
+        kind: 'intake',
+        title: 'New intake submission',
+        message: `Client submitted pre-brief responses (${responseCount} fields).`,
+        payload: {
+          token,
+          submitted_at: submittedAt,
+        },
+      });
     }
 
     res.json({ ok: true as const, submitted_at: submittedAt });

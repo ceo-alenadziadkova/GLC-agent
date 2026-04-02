@@ -14,6 +14,8 @@ Application UI code must not use emoji characters for status or progress markers
 
 **Public pre-brief (`IntakeBrief`, `/intake/:token`):** Clients fill questions, then a **review** step lists all answers with edit shortcuts, then **Confirm and submit**. Success copy uses token `metadata` (`consultant_name`, `expected_contact`, `contact_channel`, `consultant_email`, `consultant_whatsapp`); helpers in `src/app/lib/intake-client-copy.ts`. Consultants optionally set these when creating the link in New Audit. Clients can resubmit on the same URL until `expires_at` (default 7 days).
 
+**Notification center (`AppShell`):** Sidebar `Notifications` opens `NotificationCenter` drawer (`src/app/components/NotificationCenter.tsx`). Data source: `useNotifications` (`src/app/hooks/useNotifications.ts`) with initial API load (`/api/notifications`) and Supabase Realtime updates from `notifications` table (`INSERT`/`UPDATE`). Unread badge and read actions (`mark one` / `mark all`) stay in sync with API and realtime. Navigation is payload-aware (`payload.route`, `request_id`, `audit_id`) to open the right workspace/request screen. Visual emphasis is also payload-aware (for example failure lightning / artifact success icons via `failure_type` and `artifact` payload fields).
+
 ---
 
 ## Pages

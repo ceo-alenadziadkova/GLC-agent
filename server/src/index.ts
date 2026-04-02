@@ -11,6 +11,7 @@ import { intakeRouter } from './routes/intake.js';
 import { discoverRouter } from './routes/discover.js';
 import { auditRequestsRouter } from './routes/audit-requests.js';
 import { analyticsRouter } from './routes/analytics.js';
+import { notificationsRouter } from './routes/notifications.js';
 import { profileRouter } from './routes/profile.js';
 import { traceMiddleware } from './middleware/trace.js';
 import { requestLogMiddleware } from './middleware/request-log.js';
@@ -65,6 +66,7 @@ app.use('/api/intake', intakeRouter);               // Public token GET/respond;
 app.use('/api/discover', discoverRouter);           // Public submit/load; consultant sessions/convert
 app.use('/api/audit-requests', auditRequestsRouter); // Client portal requests
 app.use('/api/analytics', analyticsRouter);          // Consultant analytics
+app.use('/api/notifications', notificationsRouter);  // In-app notification center
 app.use('/api/audits', auditsRouter);
 app.use('/api/audits', pipelineRouter);
 app.use('/api/audits', reportsRouter);

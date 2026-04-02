@@ -1,4 +1,5 @@
-import { NavLink, useLocation } from 'react-router';
+import { useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Briefcase, SquaresFour, Pulse, FileText, Flask,
@@ -7,8 +8,11 @@ import {
 } from '@phosphor-icons/react';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
+import { useNotifications } from '../hooks/useNotifications';
 import { GlcLogo } from './GlcLogo';
 import { ThemeToggle } from './ThemeToggle';
+import { NotificationCenter } from './NotificationCenter';
+import type { NotificationItem } from '../data/auditTypes';
 
 function useCurrentAuditId(): string | null {
   const { pathname } = useLocation();
@@ -46,13 +50,53 @@ interface AppShellProps {
 
 export function AppShell({ children, title, subtitle, actions }: AppShellProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, signOut, isAuthenticated } = useAuth();
-  const { profile, isConsultant, isClient, roleDisplayName } = useProfile();
+  const { profile, isConsultant, isClient, roleDisplayName, loading: profileLoading } = useProfile();
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const {
+    items: notifications,
+    unreadCount,
+    loading: notificationsLoading,
+    error: notificationsError,
+    reload: reloadNotifications,
+    markAsRead,
+    markAllAsRead,
+  } = useNotifications();
   const auditId = useCurrentAuditId();
 
-  const NAV = isClient ? buildClientNav(auditId) : buildConsultantNav(auditId);
+  const roleUnknown = isAuthenticated && (profileLoading || !profile?.role);
+  const NAV = roleUnknown ? buildClientNav(auditId) : (isClient ? buildClientNav(auditId) : buildConsultantNav(auditId));
+  const sectionLabel = roleUnknown ? 'WORKSPACE' : (isClient ? 'CLIENT WORKSPACE' : 'ADMIN WORKSPACE');
 
-  const sectionLabel = isClient ? 'CLIENT WORKSPACE' : 'ADMIN WORKSPACE';
+  const openNotification = (item: NotificationItem) => {
+    if (!item.is_read) markAsRead(item.id);
+    const route = typeof item.payload?.route === 'string' ? item.payload.route : null;
+    const requestId = typeof item.payload?.request_id === 'string' ? item.payload.request_id : null;
+    if (route) {
+      navigate(route);
+      setNotificationsOpen(false);
+      return;
+    }
+    if (requestId) {
+      navigate(isClient ? `/portal/request/${requestId}` : '/admin/requests');
+      setNotificationsOpen(false);
+      return;
+    }
+    if (item.audit_id) {
+      if (item.kind === 'pipeline' || item.kind === 'review') {
+        navigate(`/pipeline/${item.audit_id}`);
+      } else {
+        navigate(`/audit/${item.audit_id}`);
+      }
+      setNotificationsOpen(false);
+      return;
+    }
+    if (item.kind === 'intake' && isConsultant) {
+      navigate('/admin/requests');
+      setNotificationsOpen(false);
+    }
+  };
 
   return (
     <div className="h-screen flex overflow-hidden" style={{ backgroundColor: 'var(--bg-canvas)' }}>
@@ -82,7 +126,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
         </div>
 
         {/* Search — consultant only */}
-        {(isConsultant || !isClient) && (
+        {isConsultant && !roleUnknown && (
           <div className="relative px-3 py-3">
             <button
               className="w-full flex items-center gap-2 px-3 py-2 rounded-lg"
@@ -130,7 +174,19 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
             {sectionLabel}
           </div>
 
-          {NAV.map(({ to, icon: Icon, label, badge }) => {
+          {roleUnknown && (
+            <>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div
+                  key={`nav-skeleton-${i}`}
+                  className="mx-2 mb-1 h-8 rounded-lg animate-pulse"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+                />
+              ))}
+            </>
+          )}
+
+          {!roleUnknown && NAV.map(({ to, icon: Icon, label, badge }) => {
             if (!to) {
               return (
                 <div
@@ -210,7 +266,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           <div className="mx-2 my-2" style={{ height: '1px', background: 'rgba(255,255,255,0.06)' }} />
 
           {/* Quick action — consultant: New Audit; client: Submit Request */}
-          {isClient ? (
+          {isClient || roleUnknown ? (
             <NavLink
               to="/portal/request"
               className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
@@ -269,8 +325,35 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
             </span>
             <ThemeToggle variant="sidebar" />
           </div>
+          <button
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all"
+            style={{ color: 'rgba(255,255,255,0.30)', borderRadius: 'var(--radius-md)' }}
+            onClick={() => setNotificationsOpen(true)}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
+              (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.75)';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+              (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.30)';
+            }}
+          >
+            <Bell className="w-3.5 h-3.5" />
+            <span className="flex-1 text-left">Notifications</span>
+            {unreadCount > 0 && (
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold tabular-nums"
+                style={{
+                  backgroundColor: 'rgba(28,189,255,0.15)',
+                  color: 'var(--glc-blue)',
+                  border: '1px solid rgba(28,189,255,0.25)',
+                }}
+              >
+                {unreadCount}
+              </span>
+            )}
+          </button>
           {[
-            { icon: Bell, label: 'Notifications', to: '/settings#notifications' },
             { icon: GearSix, label: 'Settings', to: '/settings' },
           ].map(({ icon: I, label, to }) => {
             const active = location.pathname === '/settings';
@@ -386,6 +469,18 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
         )}
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
+      <NotificationCenter
+        open={notificationsOpen}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        loading={notificationsLoading}
+        error={notificationsError}
+        onClose={() => setNotificationsOpen(false)}
+        onRefresh={reloadNotifications}
+        onMarkAsRead={markAsRead}
+        onMarkAllAsRead={markAllAsRead}
+        onOpenNotification={openNotification}
+      />
     </div>
   );
 }

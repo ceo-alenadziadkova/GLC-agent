@@ -298,6 +298,46 @@ Rules:
 
 ---
 
+## Notifications
+
+In-app notification center endpoints (authenticated users only). Notifications are scoped by `user_id`; users can only read/update their own rows.
+
+Base kind taxonomy: `pipeline` | `review` | `intake`.
+
+Additional semantics are carried in `payload` (for example `request_id`, `artifact`, `failure_type`, `route`) so the client can render tailored icons and deep-link to the relevant screen.
+
+### `GET /api/notifications`
+
+List notifications in reverse chronological order.
+
+**Query params:**
+
+- `limit` (default `30`, max `100`)
+- `offset` (default `0`)
+- `unreadOnly` (`true|false`, default `false`)
+
+**Response `200`:** `{ "data": [...], "total": <number>, "limit": <number>, "offset": <number> }`
+
+### `GET /api/notifications/unread-count`
+
+Returns current unread count for the authenticated user.
+
+**Response `200`:** `{ "unread": <number> }`
+
+### `POST /api/notifications/:id/read`
+
+Marks one notification as read (`is_read=true`, `read_at=<timestamp>`).
+
+**Response `200`:** `{ "ok": true }`
+
+### `POST /api/notifications/read-all`
+
+Marks all unread notifications for the current user as read.
+
+**Response `200`:** `{ "ok": true }`
+
+---
+
 ## Reports
 
 ### `GET /api/audits/:id/report`

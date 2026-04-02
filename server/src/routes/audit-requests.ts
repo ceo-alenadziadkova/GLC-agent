@@ -26,6 +26,7 @@ import { NO_PUBLIC_WEBSITE_URL, isNoPublicWebsiteUrl } from '../config/no-public
 import { getStoredIdempotentResponse, storeIdempotentResponse } from '../lib/idempotency.js';
 import { logger } from '../services/logger.js';
 import { saveBriefResponses } from '../services/brief-validator.js';
+import { notifyConsultants, notifyUser } from '../services/notifications.js';
 
 export const auditRequestsRouter = Router();
 
@@ -153,6 +154,21 @@ auditRequestsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) 
       .single();
 
     if (error) throw error;
+
+    if (data.status === 'submitted') {
+      await notifyConsultants(
+        'intake',
+        'New client request',
+        'A client submitted a new audit request.',
+        {
+          request_id: data.id,
+          status: data.status,
+          route: '/admin/requests',
+          occurred_at: new Date().toISOString(),
+          actor_role: 'client',
+        },
+      );
+    }
 
     res.status(201).json(data);
   } catch (err) {
@@ -292,6 +308,19 @@ auditRequestsRouter.patch('/:id', async (req: AuthRequest, res) => {
 
     if (error) throw error;
 
+    await notifyConsultants(
+      'intake',
+      'Client request submitted',
+      'A draft request was submitted and is ready for review.',
+      {
+        request_id: data.id,
+        status: data.status,
+        route: '/admin/requests',
+        occurred_at: new Date().toISOString(),
+        actor_role: isConsultant(req) ? 'consultant' : 'client',
+      },
+    );
+
     res.json(data);
   } catch (err) {
     const e = err as Error;
@@ -382,6 +411,27 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
 
     if (!['submitted', 'under_review'].includes(requestRow.status as string)) {
       res.status(400).json({ error: 'Request must be submitted or under review to approve', current_status: requestRow.status });
+      return;
+    }
+
+    // CAS lock: only one concurrent approve request can claim this row.
+    // The winner moves status to under_review before any audit row is created.
+    const { data: claimedRows, error: claimErr } = await supabase
+      .from('audit_requests')
+      .update({ status: 'under_review' })
+      .eq('id', id)
+      .eq('status', 'submitted')
+      .is('audit_id', null)
+      .select('id');
+    if (claimErr) throw claimErr;
+
+    // If status was already under_review we treat it as actively claimed by another request.
+    if ((!claimedRows || claimedRows.length === 0) && requestRow.status === 'submitted') {
+      res.status(409).json({ error: 'Approve request already claimed by another request' });
+      return;
+    }
+    if (requestRow.status === 'under_review') {
+      res.status(409).json({ error: 'Approve request is already in progress' });
       return;
     }
 
@@ -485,6 +535,23 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
       { statusCode: 201, payload },
       audit.id
     );
+
+    await notifyUser({
+      userId: requestRow.client_id as string,
+      auditId: audit.id as string,
+      kind: 'review',
+      title: 'Request approved',
+      message: 'Your audit request was approved and moved to execution.',
+      payload: {
+        request_id: id,
+        audit_id: audit.id,
+        status: 'approved',
+        route: `/portal/audit/${audit.id}`,
+        occurred_at: new Date().toISOString(),
+        actor_role: 'consultant',
+      },
+    });
+
     res.status(201).json(payload);
   } catch (err) {
     if ((err as Error).message.includes('Idempotency key reuse')) {
@@ -504,7 +571,7 @@ auditRequestsRouter.post('/:id/reject', requireRole('consultant'), async (req: A
 
     const { data: existing } = await supabase
       .from('audit_requests')
-      .select('status')
+      .select('status, client_id')
       .eq('id', id)
       .single();
 
@@ -530,6 +597,20 @@ auditRequestsRouter.post('/:id/reject', requireRole('consultant'), async (req: A
 
     if (error) throw error;
 
+    await notifyUser({
+      userId: data.client_id as string,
+      kind: 'review',
+      title: 'Request rejected',
+      message: 'Your audit request was rejected. Check consultant notes for details.',
+      payload: {
+        request_id: id,
+        status: 'rejected',
+        route: `/portal/request/${id}`,
+        occurred_at: new Date().toISOString(),
+        actor_role: 'consultant',
+      },
+    });
+
     res.json(data);
   } catch (err) {
     const e = err as Error;
@@ -545,7 +626,7 @@ auditRequestsRouter.post('/:id/deliver', requireRole('consultant'), async (req: 
 
     const { data: existing } = await supabase
       .from('audit_requests')
-      .select('status')
+      .select('status, client_id, audit_id')
       .eq('id', id)
       .single();
 
@@ -570,6 +651,22 @@ auditRequestsRouter.post('/:id/deliver', requireRole('consultant'), async (req: 
       res.status(500).json({ error: 'Failed to update request' });
       return;
     }
+
+    await notifyUser({
+      userId: data.client_id as string,
+      auditId: (data.audit_id as string | null) ?? null,
+      kind: 'pipeline',
+      title: 'Deliverables ready',
+      message: 'Your audit deliverables are marked as delivered.',
+      payload: {
+        request_id: id,
+        audit_id: data.audit_id,
+        status: 'delivered',
+        route: data.audit_id ? `/portal/audit/${data.audit_id as string}` : `/portal/request/${id}`,
+        occurred_at: new Date().toISOString(),
+        actor_role: 'consultant',
+      },
+    });
 
     res.json(data);
   } catch (err) {

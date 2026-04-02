@@ -16,8 +16,10 @@ PostgreSQL on **Supabase**. Apply migrations **in numeric order** so foreign key
 10. `010_intake_progress_gamification.sql` — progressive intake and readiness fields in `intake_brief`
 11. `011_intake_tokens.sql` — `intake_tokens` for shareable pre-brief links (consultant-created; client-submitted responses)
 12. `012_profiles_trigger_auth_admin.sql` — RLS + grants so `handle_new_user` can insert into `profiles` (fixes OAuth `Database error saving new user` on Supabase hosted)
+13. `014_notifications.sql` — `notifications` table for in-app notification center
+14. `015_audit_request_guards.sql` — DB guard constraints/indexes for `audit_requests` consistency under concurrent writes
 
-**Tables (12):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`.
+**Tables (13):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`.
 
 Row Level Security is enabled on these tables; exact policies differ by table (consultant vs client access). **Canonical SQL:** the migration files — this doc summarises shapes.
 
@@ -213,6 +215,11 @@ User roles and display metadata. **`role`:** `consultant` | `client` (migration 
 
 Client-submitted audit requests before an `audits` row is attached. Status workflow: `draft` → `submitted` → `under_review` → `approved` | `rejected` → `running` → `delivered` (see migration `005`).
 
+DB guards (migration `015_audit_request_guards.sql`):
+
+- Partial unique index on `audit_id` (`WHERE audit_id IS NOT NULL`) ensures one audit is linked to at most one request.
+- Check constraint enforces that `approved` / `running` / `delivered` rows always have `audit_id IS NOT NULL`.
+
 ---
 
 ### `intake_brief`
@@ -254,6 +261,41 @@ Pre-brief magic links: consultant creates a row; the client opens a public URL a
 Access is via **service role** in the API (no RLS on this table); the `token` value is unguessable (40 hex chars).
 
 Migration: `011_intake_tokens.sql`.
+
+---
+
+### `notifications`
+
+In-app notifications shown in the frontend notification center.
+
+Core fields:
+
+- `user_id` — target recipient.
+- `audit_id` — optional linked audit for deep links.
+- `kind` — `pipeline` | `review` | `intake`.
+- `title`, `message`, `payload` — display text + structured metadata.
+- `is_read`, `read_at`, `created_at` — read state and ordering.
+
+Payload conventions in current app flows:
+
+- `payload.route` — deep-link target used by the shell router.
+- `payload.request_id` — request-related notifications (`audit_requests` lifecycle).
+- `payload.artifact` — artifact readiness (`strategy`, `report`, `report_pdf`, `action_plan_csv`).
+- `payload.failure_type` — failure/retry semantics (`phase_failed`, `retry_started`, etc.).
+
+Note: request/artifact/failure are modeled through payload metadata while `kind` stays in the base taxonomy above.
+
+Indexes:
+
+- `(user_id, is_read, created_at desc)` for unread and list queries.
+- `(user_id, created_at desc)` for paginated history.
+- `(audit_id, created_at desc)` partial index for audit-linked lookups.
+
+RLS:
+
+- Authenticated users can `SELECT` and `UPDATE` only rows where `auth.uid() = user_id`.
+
+Migration: `014_notifications.sql`.
 
 ---
 
