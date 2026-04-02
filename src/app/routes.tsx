@@ -12,6 +12,8 @@ import { ClientPortal }     from './pages/ClientPortal';
 import { ClientRequestForm } from './pages/ClientRequestForm';
 import { ClientAuditView }  from './pages/ClientAuditView';
 import { AdminRequestQueue } from './pages/AdminRequestQueue';
+import { DiscoverPage }     from './pages/DiscoverPage';
+import { DiscoveryQueue }   from './pages/DiscoveryQueue';
 import { ProtectedRoute }   from './components/ProtectedRoute';
 import { RootRedirect }     from './components/RootRedirect';
 
@@ -32,11 +34,13 @@ export const router = createBrowserRouter([
   { path: '/login',               element: <Login /> },
   { path: '/snapshot',            element: <SnapshotLanding /> },           // public
   { path: '/intake/:token',       element: <IntakeBrief /> },              // public pre-brief
+  { path: '/audit/discover',      element: <DiscoverPage /> },             // public Mode C
 
   // ── Consultant routes ──────────────────────────────────────────────────────
   { path: '/dashboard',           element: <Consultant><Dashboard /></Consultant> },
   { path: '/portfolio',           element: <Navigate to="/dashboard" replace /> },  // backward compat
   { path: '/admin/requests',      element: <Consultant><AdminRequestQueue /></Consultant> },
+  { path: '/admin/discovery',     element: <Consultant><DiscoveryQueue /></Consultant> },
   { path: '/audit/new',           element: <Consultant><NewAudit /></Consultant> },
   { path: '/audit/:id',           element: <Consultant><AuditWorkspace /></Consultant> },
   { path: '/audit/:id/:domainId', element: <Consultant><AuditWorkspace /></Consultant> },

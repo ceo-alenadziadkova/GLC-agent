@@ -213,6 +213,9 @@ export function NewAudit() {
   const [preBriefLoading, setPreBriefLoading] = useState(false);
   const [preBriefErr, setPreBriefErr] = useState<string | null>(null);
 
+  // Interview mode — consultant fills the brief during a live call
+  const [interviewMode, setInterviewMode] = useState(false);
+
   // UI state
   const [step,    setStep]    = useState(0);
   const [loading, setLoading] = useState(false);
@@ -298,7 +301,7 @@ export function NewAudit() {
 
   // ── Handlers ───────────────────────────────────────────
   function handleResponseChange(id: string, value: string | string[] | number | null) {
-    setResponses(prev => ({ ...prev, [id]: { value, source: 'client' } }));
+    setResponses(prev => ({ ...prev, [id]: { value, source: interviewMode ? 'consultant' : 'client' } }));
   }
 
   function handleSetUnknown(id: string) {
@@ -635,6 +638,33 @@ export function NewAudit() {
                     Continue to Brief <ArrowRight className="w-4 h-4" />
                   </motion.button>
 
+                  {/* Interview mode toggle */}
+                  <label
+                    className="flex items-center gap-2.5 cursor-pointer select-none rounded-lg px-3 py-2.5 transition-all"
+                    style={{
+                      border: interviewMode ? '1px solid rgba(245,158,11,0.35)' : '1px solid var(--border-subtle)',
+                      background: interviewMode ? 'rgba(245,158,11,0.06)' : 'var(--bg-inset)',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={interviewMode}
+                      onChange={e => setInterviewMode(e.target.checked)}
+                      className="rounded"
+                      style={{ accentColor: '#F59E0B', width: 15, height: 15, flexShrink: 0 }}
+                    />
+                    <div>
+                      <span className="text-sm font-medium" style={{ color: interviewMode ? '#D97706' : 'var(--text-primary)' }}>
+                        Interview mode
+                      </span>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                        {interviewMode
+                          ? 'Coaching prompts visible. Answers tagged as consultant-sourced.'
+                          : "I'm filling this during a live call — show coaching hints"}
+                      </p>
+                    </div>
+                  </label>
+
                   <button
                     type="button"
                     className="w-full text-center text-sm pt-2"
@@ -812,7 +842,17 @@ export function NewAudit() {
               >
                 {/* Header */}
                 <div className="flex items-center justify-between mb-1">
-                  <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-primary)' }}>Intake Brief</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-primary)' }}>Intake Brief</h2>
+                    {interviewMode && (
+                      <span
+                        className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                        style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.30)', color: '#D97706' }}
+                      >
+                        Interview
+                      </span>
+                    )}
+                  </div>
                   <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
                     {answeredRequired} / {REQUIRED_IDS.length} required
                   </span>
@@ -823,6 +863,15 @@ export function NewAudit() {
                     {readinessBadge.toUpperCase()}
                   </span>
                 </div>
+                {interviewMode && (
+                  <div className="mb-3 flex items-start gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.22)', color: '#92400E' }}>
+                    <span style={{ flexShrink: 0, marginTop: 1 }}>&#9679;</span>
+                    <span>
+                      Coaching hints visible. Answers are tagged <strong>consultant</strong> — agents weight them as high-confidence.
+                      Client answers from pre-brief are tagged <strong>client</strong> and shown in blue.
+                    </span>
+                  </div>
+                )}
                 {intakePrefillActive && (
                   <div className="mb-4 px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(28,189,255,0.08)', border: '1px solid rgba(28,189,255,0.22)', color: 'var(--text-secondary)' }}>
                     Pre-filled from client&apos;s pre-brief answers. Review before launch.
@@ -865,6 +914,7 @@ export function NewAudit() {
                               onChange={v => handleResponseChange(q.id, v)}
                               onSetUnknown={() => handleSetUnknown(q.id)}
                               emphasizeClientSource={intakePrefillActive}
+                              interviewMode={interviewMode}
                             />
                           ))}
                         </div>
