@@ -758,7 +758,7 @@ export function PipelineMonitor() {
                     >
                       <div className="flex items-center gap-1.5">
                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#EF4444' }} />
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#F59E0B' }} />
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'var(--callout-warning-icon)' }} />
                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'var(--glc-green)' }} />
                       </div>
                       <Terminal className="w-3.5 h-3.5 ml-2" style={{ color: 'rgba(255,255,255,0.35)' }} />

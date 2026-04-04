@@ -727,7 +727,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
       {draftError && (
         <div
           className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
-          style={{ backgroundColor: 'rgba(239,68,68,0.08)', color: '#EF4444' }}
+          style={{ backgroundColor: 'var(--callout-error-bg)', border: '1px solid var(--callout-error-border)', color: 'var(--score-1)' }}
         >
           <Warning className="w-3.5 h-3.5 flex-shrink-0" />
           {draftError}
@@ -806,8 +806,8 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
             <div
               className="mb-5 flex items-start gap-3 px-4 py-3 rounded-xl"
               style={{
-                backgroundColor: 'rgba(28,189,255,0.08)',
-                border: '1px solid rgba(28,189,255,0.22)',
+                backgroundColor: 'var(--callout-info-bg)',
+                border: '1px solid var(--callout-info-border)',
               }}
             >
               <ClipboardText className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--glc-blue)' }} />
@@ -1008,7 +1008,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                         return (
                           <button key={mode} type="button" onClick={() => setProductMode(mode)}
                             className="rounded-lg px-3 py-2.5 text-left text-xs transition-all"
-                            style={{ backgroundColor: sel ? 'rgba(28,189,255,0.08)' : 'var(--bg-inset)', border: sel ? '1px solid rgba(28,189,255,0.30)' : '1px solid var(--border-subtle)' }}
+                            style={{ backgroundColor: sel ? 'var(--callout-info-bg)' : 'var(--bg-inset)', border: sel ? '1px solid var(--callout-info-border-strong)' : '1px solid var(--border-subtle)' }}
                           >
                             <div className="font-semibold" style={{ color: sel ? 'var(--glc-blue-deeper)' : 'var(--text-primary)' }}>{mode === 'full' ? 'Full Audit' : 'Express'}</div>
                             <div style={{ color: 'var(--text-tertiary)', marginTop: 2 }}>{mode === 'full' ? 'All 6 domains + strategy' : '4 key domains, faster'}</div>
@@ -1044,8 +1044,8 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                   <label
                     className="flex items-center gap-2.5 cursor-pointer select-none rounded-lg px-3 py-2.5 transition-all"
                     style={{
-                      border: interviewMode ? '1px solid rgba(245,158,11,0.35)' : '1px solid var(--border-subtle)',
-                      background: interviewMode ? 'rgba(245,158,11,0.06)' : 'var(--bg-inset)',
+                      border: interviewMode ? '1px solid var(--callout-warning-border-focus)' : '1px solid var(--border-subtle)',
+                      background: interviewMode ? 'var(--callout-warning-bg-subtle)' : 'var(--bg-inset)',
                     }}
                   >
                     <input
@@ -1053,10 +1053,10 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                       checked={interviewMode}
                       onChange={e => setInterviewMode(e.target.checked)}
                       className="rounded"
-                      style={{ accentColor: '#F59E0B', width: 15, height: 15, flexShrink: 0 }}
+                      style={{ accentColor: 'var(--callout-warning-icon)', width: 15, height: 15, flexShrink: 0 }}
                     />
                     <div>
-                      <span className="text-sm font-medium" style={{ color: interviewMode ? '#D97706' : 'var(--text-primary)' }}>
+                      <span className="text-sm font-medium" style={{ color: interviewMode ? 'var(--callout-warning-fg-emphasis)' : 'var(--text-primary)' }}>
                         Interview mode
                       </span>
                       <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
@@ -1251,7 +1251,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                     {interviewMode && (
                       <span
                         className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                        style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.30)', color: '#D97706' }}
+                        style={{ background: 'var(--callout-warning-bg-strong)', border: '1px solid var(--callout-warning-border-strong)', color: 'var(--callout-warning-fg-emphasis)' }}
                       >
                         Interview
                       </span>
@@ -1311,7 +1311,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                       />
                     </div>
                     {interviewMode && (
-                      <div className="mb-3 flex items-start gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.22)', color: '#92400E' }}>
+                      <div className="mb-3 flex items-start gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'var(--callout-warning-bg)', border: '1px solid var(--callout-warning-border)', color: 'var(--callout-warning-fg)' }}>
                         <span style={{ flexShrink: 0, marginTop: 1 }}>&#9679;</span>
                         <span>
                           Coaching hints visible. Answers are tagged <strong>consultant</strong> — agents weight them as high-confidence.
@@ -1320,14 +1320,14 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                       </div>
                     )}
                     {intakePrefillActive && (
-                      <div className="mb-4 px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(28,189,255,0.08)', border: '1px solid rgba(28,189,255,0.22)', color: 'var(--text-secondary)' }}>
+                      <div className="mb-4 px-3 py-2 rounded-lg text-sm" style={{ background: 'var(--callout-info-bg)', border: '1px solid var(--callout-info-border)', color: 'var(--text-secondary)' }}>
                         Pre-filled from client&apos;s pre-brief answers. Review before launch.
                       </div>
                     )}
                     <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)', marginBottom: 20 }}>
                       These questions feed directly into the AI agents.{' '}
                       <strong className="inline-flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
-                        <Circle size={7} weight="fill" style={{ color: '#EF4444' }} />
+                        <Circle size={7} weight="fill" style={{ color: 'var(--score-1)' }} />
                         Required
                       </strong>{' '}
                       questions must be answered to start the pipeline.
@@ -1444,7 +1444,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
 
                 {error && (
                   <div className="flex items-center gap-2.5 px-4 py-3 rounded-lg text-sm"
-                    style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)', color: '#EF4444' }}>
+                    style={{ backgroundColor: 'var(--callout-error-bg)', border: '1px solid var(--callout-error-border)', color: 'var(--score-1)' }}>
                     <Warning className="w-4 h-4 flex-shrink-0" />{error}
                   </div>
                 )}

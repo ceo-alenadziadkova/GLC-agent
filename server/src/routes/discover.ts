@@ -29,6 +29,40 @@ function singleRouteParam(v: string | string[] | undefined): string {
 
 type BriefEntry = { value: unknown; source: 'client' | 'unknown' };
 
+const PRESENCE_FULL_SITE = 'Full website (multi-page)';
+const PRESENCE_LANDING = 'Single landing page';
+const PRESENCE_IN_DEV = 'Website in development / not public yet';
+
+const LEGACY_ONLINE_PRESENCE: Record<string, string[]> = {
+  'Full website (multi-page)': [PRESENCE_FULL_SITE],
+  'Single landing page': [PRESENCE_LANDING],
+  'Social media profiles only': ['Social media'],
+  'None — clients find us through word of mouth': [
+    'Mostly word of mouth, offline, or referrals',
+  ],
+};
+
+function normalizedOnlinePresence(answers: Record<string, unknown>): string[] {
+  const v = answers.online_presence;
+  if (Array.isArray(v)) {
+    return v.filter((x): x is string => typeof x === 'string' && x.length > 0);
+  }
+  if (typeof v === 'string' && v.trim()) {
+    const s = v.trim();
+    return LEGACY_ONLINE_PRESENCE[s] ?? [s];
+  }
+  return [];
+}
+
+function discoveryHasOwnSiteForAnalytics(pres: string[]): boolean {
+  return pres.some(
+    p =>
+      p === PRESENCE_FULL_SITE ||
+      p === PRESENCE_LANDING ||
+      p === PRESENCE_IN_DEV,
+  );
+}
+
 /**
  * Maps discovery answers into intake-brief format.
  *
@@ -78,12 +112,9 @@ function discoveryToBriefPatch(answers: Record<string, unknown>): Record<string,
   const bizDesc = typeof answers.biz_description === 'string' ? answers.biz_description.trim() : '';
   if (bizDesc) patch.unique_value_prop = tag(bizDesc);
 
-  // has_google_analytics: businesses with no website or social-only have no GA
-  const presence = typeof answers.online_presence === 'string' ? answers.online_presence : '';
-  if (
-    presence === 'None — clients find us through word of mouth' ||
-    presence === 'Social media profiles only'
-  ) {
+  // has_google_analytics: infer No when there is no live or in-progress owned site (landing/full/dev)
+  const presenceNorm = normalizedOnlinePresence(answers);
+  if (presenceNorm.length > 0 && !discoveryHasOwnSiteForAnalytics(presenceNorm)) {
     patch.has_google_analytics = tag('No');
   }
 

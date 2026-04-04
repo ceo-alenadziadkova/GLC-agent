@@ -93,6 +93,18 @@ export const BRANCH_RULES: Record<string, BranchPredicate> = {
     const g = normalizeWebsiteGate(r);
     return g === 'no_website' || g === 'under_construction';
   },
+  /** `c_nosite_3` — only when no_website path and `c_nosite_1` includes the exact \"Social media\" option. */
+  nosite_social: (r) => {
+    const g = normalizeWebsiteGate(r);
+    if (g !== 'no_website' && g !== 'under_construction') return false;
+    const raw = unwrapIntakeValue(r.c_nosite_1);
+    const label = 'Social media';
+    if (Array.isArray(raw)) {
+      return raw.some(v => String(v).trim() === label);
+    }
+    if (typeof raw === 'string') return raw.trim() === label;
+    return false;
+  },
   is_hospitality: (r) => industryBranchSlug(r) === 'hospitality',
   is_real_estate: (r) => industryBranchSlug(r) === 'real_estate',
   is_restaurant: (r) => industryBranchSlug(r) === 'restaurant_fb',

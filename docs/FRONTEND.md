@@ -35,7 +35,9 @@ Single source of truth for **visual language** in code is `src/styles/theme.css`
 | Muted | `--bg-muted` | Inputs, subtle bands |
 | Sidebar | `--bg-sidebar` | Nav shell (ink in light theme) |
 
-**Text:** `--text-primary` → `--text-quaternary` (strongest → tertiary UI). **Borders:** `--border-subtle` / `--border-default` / `--border-strong`.
+**Text:** `--text-primary` → `--text-quaternary` (strongest → most muted UI). Prefer **`--text-primary` / `--text-secondary`** for body and interactive labels. **`--text-tertiary`** suits captions and secondary hints; **`--text-quaternary`** is the lightest step and is often **below WCAG AA 4.5:1** on typical surfaces — use only for non-critical meta (e.g. timestamps), large type, or when the same information is available in a stronger style elsewhere. See [Contrast and accessibility](#contrast-and-accessibility).
+
+**Borders:** `--border-subtle` / `--border-default` / `--border-strong`.
 
 ### Color — dark theme (`html.dark`)
 
@@ -44,6 +46,27 @@ Dark maps GitHub-style canvas and borders (e.g. canvas `#0d1117`, surface `#161b
 ### Score scale (1–5)
 
 Domain scores use `--score-1` … `--score-5` and paired `--score-*-bg` / `--score-*-border` for badges and rings. Do not invent ad-hoc reds/greens for scores.
+
+### Callout tokens (warning, error, info)
+
+Inline banners, interview-mode hints, and status surfaces should use theme-aware variables (values differ in `html.dark` for contrast):
+
+| Token family | Use |
+| --- | --- |
+| `--callout-warning-fg`, `--callout-warning-fg-emphasis`, `--callout-warning-icon` | Amber/warning text and icons |
+| `--callout-warning-bg`, `--callout-warning-bg-subtle`, `--callout-warning-bg-strong` | Warning panel backgrounds |
+| `--callout-warning-border`, `--callout-warning-border-strong`, `--callout-warning-border-focus` | Warning borders (focus = strongest, e.g. toggles) |
+| `--callout-warning-pill-bg` | Pills such as **Needs Review** (`StatusPill`) |
+| `--callout-error-bg`, `--callout-error-border` | Destructive / error banners (with `--score-1` for text where appropriate) |
+| `--callout-info-bg`, `--callout-info-border`, `--callout-info-border-strong` | Informational cyan panels |
+
+Avoid hard-coded `#92400E`, `#D97706`, `#F59E0B`, and raw `rgba(245,158,11,…)` on user-facing callouts so dark theme stays readable.
+
+### Contrast and accessibility
+
+- **Design intent** for the muted text steps is documented inline in `theme.css` next to `--text-tertiary` / `--text-quaternary`.
+- **Automated check:** Lighthouse 11 accessibility was run on the public **`/login`** route (dev server); category score **1.0** with no failing audits in that run. **Portfolio, New Audit, Audit Workspace, Settings** require an authenticated session for the same automated pass — use Lighthouse/axe in a logged-in browser or CI with a test user when regressing contrast.
+- **Gradient-filled text** (`.glc-gradient-text-flow` in `index.css`) can fail contrast in portions of the gradient if the string is essential content; reserve it for decorative/marketing emphasis or provide a plain-text equivalent nearby.
 
 ### Typography
 
@@ -103,10 +126,13 @@ Prefer composing with tokens (`bg-background`, `text-foreground`, `border-border
 | --- | --- |
 | Persistence | `localStorage['glc-theme']`: `'dark'`, `'light'`, or omitted = `system` |
 | Apply | `applyGlcColorScheme()` in `main.tsx`; API `setGlcColorScheme`, `useGlcTheme()` in `src/app/lib/glc-theme.ts`, `src/app/hooks/useGlcTheme.ts` |
-| UI | `ThemeToggle` in `AppShell` header + sidebar; `/login`, `/snapshot`, `/intake/:token`; `/settings` for explicit System / Light / Dark |
+| UI | `ThemeToggle` in `AppShell` header + sidebar; `/login`, `/snapshot`, `/intake/:token`, `/discovery`; `/settings` for explicit System / Light / Dark |
+| Toasts | `GlcToaster` (`src/app/components/GlcToaster.tsx`) — `sonner` `theme` follows `useGlcTheme().isDark` (not `next-themes`; `src/app/components/ui/sonner.tsx` is unused unless wired separately) |
 | Canvas polish | Global vignette: `src/styles/index.css` |
 
 ### Product flows (UI contracts)
+
+**Public discovery (Mode C):** `DiscoverPage` — routes **`/discovery`** and **`/audit/discover`** (same component). Styling uses **`theme.css` tokens** (`--bg-canvas`, `--text-primary`, `--callout-*`, etc.) so the flow matches light/dark like the rest of the app. **`DiscoveryQueue`** (`/admin/discovery`) uses the same tokens; **Copy discover link** copies `origin + /discovery`.
 
 **Public pre-brief (`IntakeBrief`, `/intake/:token`):** Questions from `GET /api/intake/:token` include **`section`** per item; the form and review screens group fields with `groupBriefQuestionsBySection` (adjacent same-title blocks; repeated titles like “Business”/`Goals` may appear as separate blocks following API order). Flow: **review** (edit shortcuts) → **Confirm and submit**. Success copy from token `metadata`; helpers `src/app/lib/intake-client-copy.ts`. Resubmit allowed until `expires_at`.
 
@@ -138,6 +164,8 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 | `/reports/:id` | `ReportViewer.tsx` | Final audit report |
 | `/strategy/:id` | `StrategyLab.tsx` | Strategic roadmap |
 | `/settings` | `SettingsPage.tsx` | Profile, appearance, client self-serve audit owner (consultants), intake brief layout defaults, notifications |
+| `/discovery`, `/audit/discover` | `DiscoverPage.tsx` | Public discovery questionnaire (no auth); alias paths are equivalent |
+| `/admin/discovery` | `DiscoveryQueue.tsx` | Consultant: Mode C submissions, convert to audit; shareable URL `/discovery` |
 
 ---
 

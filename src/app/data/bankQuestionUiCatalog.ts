@@ -4,6 +4,10 @@
  */
 import type { BriefQuestion, BriefPriority, BriefQuestionType } from './briefQuestions';
 import { INDUSTRY_OPTIONS } from './industry-options';
+import {
+  DISCOVERY_ONLINE_PRESENCE_OPTIONS,
+  DISCOVERY_SOCIAL_PLATFORM_OPTIONS,
+} from '../lib/discovery-flow';
 import bankRaw from '../../../server/src/intake/question-bank.v1.json';
 
 type RawQ = { id: string; section: string; label: string };
@@ -45,6 +49,20 @@ const OVERRIDES: Record<string, Override> = {
   c7: {
     type: 'multi_choice',
     options: ['None / minimal', 'LinkedIn', 'Instagram', 'Facebook', 'TikTok', 'YouTube', 'Other'],
+  },
+  c_nosite_1: {
+    type: 'multi_choice',
+    options: [...DISCOVERY_ONLINE_PRESENCE_OPTIONS],
+    hint: 'Select everything that applies — you can combine a site in progress with social and other channels.',
+  },
+  c_nosite_2: {
+    type: 'free_text',
+    hint: 'Optional — e.g. niche forums, an app, a planned launch, or a link we should know about.',
+  },
+  c_nosite_3: {
+    type: 'multi_choice',
+    options: [...DISCOVERY_SOCIAL_PLATFORM_OPTIONS],
+    hint: 'Select all that apply.',
   },
   c9: { type: 'single_choice', options: ['< 6 months', '6–24 months', '2–5 years', '5+ years', 'Not sure'] },
   d1: {

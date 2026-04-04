@@ -294,7 +294,7 @@ export function SettingsPage() {
                   <div
                     className="mb-4 px-3 py-2 rounded-lg text-xs leading-relaxed"
                     style={{
-                      backgroundColor: 'rgba(242,79,29,0.08)',
+                      backgroundColor: 'var(--glc-orange-muted)',
                       border: '1px solid rgba(242,79,29,0.25)',
                       color: 'var(--text-secondary)',
                     }}

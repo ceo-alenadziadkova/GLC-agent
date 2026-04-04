@@ -1,7 +1,8 @@
 /**
  * Mode C — Discovery flow (public, no auth required).
  *
- * Sequential branching questionnaire for businesses without a public website.
+ * Sequential branching questionnaire (discovery-first; supports site-in-progress, social, and mixed channels).
+ * Routes: /discovery and /audit/discover (public). Respects global light/dark via theme.css variables.
  * After answering, shows a tech-maturity level and up to 4 improvement findings.
  */
 import { useState, useEffect, useRef } from 'react';
@@ -63,13 +64,13 @@ function QuestionInput({
         placeholder="Your answer…"
         className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none"
         style={{
-          background: 'rgba(255,255,255,0.06)',
-          border: '1px solid rgba(255,255,255,0.15)',
-          color: '#fff',
+          background: 'var(--input-background)',
+          border: '1px solid var(--border-default)',
+          color: 'var(--text-primary)',
           lineHeight: 1.6,
         }}
-        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(28,189,255,0.55)'; }}
-        onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; }}
+        onFocus={e => { e.currentTarget.style.borderColor = 'var(--glc-blue)'; }}
+        onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
       />
     );
   }
@@ -86,9 +87,9 @@ function QuestionInput({
               onClick={() => onChange(sel ? null : opt)}
               className="px-3 py-2 rounded-lg text-sm transition-all"
               style={{
-                background: sel ? 'rgba(28,189,255,0.18)' : 'rgba(255,255,255,0.06)',
-                border: sel ? '1px solid rgba(28,189,255,0.50)' : '1px solid rgba(255,255,255,0.14)',
-                color: sel ? '#7DD3FC' : 'rgba(255,255,255,0.78)',
+                background: sel ? 'var(--callout-info-bg)' : 'var(--bg-muted)',
+                border: sel ? '1px solid var(--callout-info-border-strong)' : '1px solid var(--border-default)',
+                color: sel ? 'var(--glc-blue)' : 'var(--text-secondary)',
                 fontWeight: sel ? 500 : 400,
               }}
             >
@@ -115,9 +116,9 @@ function QuestionInput({
               }}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all"
               style={{
-                background: sel ? 'rgba(28,189,255,0.18)' : 'rgba(255,255,255,0.06)',
-                border: sel ? '1px solid rgba(28,189,255,0.50)' : '1px solid rgba(255,255,255,0.14)',
-                color: sel ? '#7DD3FC' : 'rgba(255,255,255,0.78)',
+                background: sel ? 'var(--callout-info-bg)' : 'var(--bg-muted)',
+                border: sel ? '1px solid var(--callout-info-border-strong)' : '1px solid var(--border-default)',
+                color: sel ? 'var(--glc-blue)' : 'var(--text-secondary)',
                 fontWeight: sel ? 500 : 400,
               }}
             >
@@ -157,7 +158,7 @@ function MaturityBadge({ level, label, description, color }: ReturnType<typeof c
       </div>
       <div>
         <p className="font-bold mb-1" style={{ color, fontSize: '15px' }}>{label}</p>
-        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.65)', lineHeight: 1.55 }}>{description}</p>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.55 }}>{description}</p>
       </div>
     </div>
   );
@@ -171,27 +172,27 @@ function FindingCard({ finding }: { finding: DiscoveryFinding }) {
     <div
       className="rounded-xl p-4"
       style={{
-        background: isHigh ? 'rgba(239,68,68,0.07)' : 'rgba(245,158,11,0.07)',
-        border: isHigh ? '1px solid rgba(239,68,68,0.25)' : '1px solid rgba(245,158,11,0.25)',
+        background: isHigh ? 'var(--callout-error-bg)' : 'var(--callout-warning-bg)',
+        border: isHigh ? '1px solid var(--callout-error-border)' : '1px solid var(--callout-warning-border)',
       }}
     >
       <div className="flex items-start gap-2.5 mb-2">
         {isHigh
-          ? <Warning size={15} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: '#EF4444' }} />
-          : <Lightbulb size={15} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: '#F59E0B' }} />}
+          ? <Warning size={15} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: 'var(--score-1)' }} />
+          : <Lightbulb size={15} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: 'var(--callout-warning-icon)' }} />}
         <div>
           <span
             className="text-[10px] font-semibold uppercase tracking-wider"
-            style={{ color: isHigh ? '#EF4444' : '#F59E0B' }}
+            style={{ color: isHigh ? 'var(--score-1)' : 'var(--callout-warning-icon)' }}
           >
             {finding.zone}
           </span>
-          <p className="font-semibold text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.92)' }}>
+          <p className="font-semibold text-sm mt-0.5" style={{ color: 'var(--text-primary)' }}>
             {finding.headline}
           </p>
         </div>
       </div>
-      <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.60)', lineHeight: 1.6, paddingLeft: 23 }}>
+      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.6, paddingLeft: 23 }}>
         {finding.detail}
       </p>
     </div>
@@ -238,7 +239,7 @@ export function DiscoverPage() {
     }
   }, [currentIdx, showResults]);
 
-  const canAdvance = isAnswered(draft);
+  const canAdvance = Boolean(currentQ?.optional) || isAnswered(draft);
   const allDone = currentIdx >= sequence.length;
 
   const maturity = computeMaturity(answers);
@@ -246,8 +247,12 @@ export function DiscoverPage() {
 
   function handleNext() {
     if (!currentId) return;
-    // Commit draft to answers
-    const committed = { ...answers, [currentId]: draft };
+    const q = getQuestion(currentId);
+    let valueToSave: DiscoveryAnswers[string] = draft;
+    if (q?.optional && typeof draft === 'string' && !draft.trim()) {
+      valueToSave = null;
+    }
+    const committed = { ...answers, [currentId]: valueToSave };
     setAnswers(committed);
     const nextSequence = buildQuestionSequence(committed);
     const nextIdx = currentIdx + 1;
@@ -319,41 +324,41 @@ export function DiscoverPage() {
     return (
       <div
         className="min-h-screen flex flex-col items-center py-12 px-5"
-        style={{
-          background: 'linear-gradient(135deg, #0A0F1A 0%, #0D1626 60%, #0A1020 100%)',
-        }}
+        style={{ background: 'var(--bg-canvas)' }}
       >
-        {/* Mesh */}
-        <div className="fixed inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(28,189,255,0.10) 0%, transparent 70%)', zIndex: 0 }} />
+        <div
+          className="fixed inset-0 pointer-events-none"
+          style={{ background: 'var(--mesh-brand)', zIndex: 0 }}
+          aria-hidden
+        />
 
         <div className="relative w-full max-w-lg z-10">
-          {/* Logo */}
           <div className="flex items-center gap-2 mb-8 justify-center">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1CBDFF, #0066CC)' }}>
-              <ChartBar size={16} weight="bold" style={{ color: '#fff' }} />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--gradient-brand)' }}>
+              <ChartBar size={16} weight="bold" style={{ color: 'var(--primary-foreground)' }} />
             </div>
-            <span style={{ fontWeight: 700, fontSize: 15, color: 'rgba(255,255,255,0.85)', letterSpacing: '-0.01em' }}>GLC Audit</span>
+            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>GLC Audit</span>
           </div>
 
           <div className="space-y-5">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} className="space-y-5">
             {/* Header */}
             <div className="text-center mb-6">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full mb-3" style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.30)' }}>
-                <CheckCircle size={13} weight="fill" style={{ color: '#10B981' }} />
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#10B981', letterSpacing: '0.04em' }}>ANALYSIS COMPLETE</span>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full mb-3" style={{ background: 'var(--glc-green-muted)', border: '1px solid rgba(14,207,130,0.32)' }}>
+                <CheckCircle size={13} weight="fill" style={{ color: 'var(--glc-green-dark)' }} />
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--glc-green-dark)', letterSpacing: '0.04em' }}>ANALYSIS COMPLETE</span>
               </div>
-              <h1 style={{ fontSize: 24, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1.25 }}>
+              <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.25 }}>
                 Here is what we found
               </h1>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', marginTop: 8, lineHeight: 1.6 }}>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8, lineHeight: 1.6 }}>
                 Based on your answers — {answeredIds.length + 1} signals analysed
               </p>
             </div>
 
             {/* Maturity */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-tertiary)' }}>
                 Technology maturity
               </p>
               <MaturityBadge {...maturity} />
@@ -362,7 +367,7 @@ export function DiscoverPage() {
             {/* Findings */}
             {findings.length > 0 && (
               <div>
-                <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-tertiary)' }}>
                   {findings.length} area{findings.length > 1 ? 's' : ''} to address
                 </p>
                 <div className="space-y-3">
@@ -378,24 +383,24 @@ export function DiscoverPage() {
             {/* CTA */}
             <div
               className="rounded-2xl p-5 text-center"
-              style={{ background: 'rgba(28,189,255,0.07)', border: '1px solid rgba(28,189,255,0.22)' }}
+              style={{ background: 'var(--callout-info-bg)', border: '1px solid var(--callout-info-border)' }}
             >
-              <Buildings size={22} className="mx-auto mb-2" style={{ color: 'rgba(28,189,255,0.70)' }} />
-              <p className="font-bold mb-1" style={{ fontSize: 15, color: '#fff' }}>
+              <Buildings size={22} className="mx-auto mb-2" style={{ color: 'var(--glc-blue)' }} />
+              <p className="font-bold mb-1" style={{ fontSize: 15, color: 'var(--text-primary)' }}>
                 Want to dig deeper?
               </p>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, marginBottom: 16 }}>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 16 }}>
                 A GLC consultant can walk through each area with you, prioritise what matters most, and give you an action plan — not just a list of problems.
               </p>
               <a
                 href="mailto:hello@glc-audit.com?subject=Discovery%20consultation%20request"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm"
-                style={{ background: 'linear-gradient(135deg, #1CBDFF, #0066CC)', color: '#fff', textDecoration: 'none' }}
+                style={{ background: 'var(--gradient-brand)', color: 'var(--primary-foreground)', textDecoration: 'none' }}
               >
                 <Users size={15} />
                 Request a consultation
               </a>
-              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)', marginTop: 10 }}>
+              <p style={{ fontSize: 11, color: 'var(--text-quaternary)', marginTop: 10 }}>
                 No commitment. We reply within one business day.
               </p>
             </div>
@@ -403,14 +408,14 @@ export function DiscoverPage() {
             {/* Session saved badge */}
             {sessionToken && !saveError && (
               <div className="flex items-center justify-center gap-1.5">
-                <CheckCircle size={13} weight="fill" style={{ color: 'rgba(16,185,129,0.60)' }} />
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.28)' }}>
+                <CheckCircle size={13} weight="fill" style={{ color: 'var(--glc-green)' }} />
+                <span style={{ fontSize: 11, color: 'var(--text-quaternary)' }}>
                   Results saved — share this page or return any time
                 </span>
               </div>
             )}
             {saveError && (
-              <p className="text-center" style={{ fontSize: 11, color: 'rgba(239,68,68,0.55)' }}>
+              <p className="text-center" style={{ fontSize: 11, color: 'var(--score-1)' }}>
                 Could not save your session — your results are still shown above.
               </p>
             )}
@@ -421,13 +426,13 @@ export function DiscoverPage() {
               <form
                 onSubmit={handleContactSubmit}
                 className="rounded-2xl p-5 space-y-3"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)' }}
+                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
               >
                 <div>
-                  <p className="font-semibold mb-0.5" style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)' }}>
+                  <p className="font-semibold mb-0.5" style={{ fontSize: 14, color: 'var(--text-primary)' }}>
                     Leave your contact details
                   </p>
-                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.40)', lineHeight: 1.55 }}>
+                  <p style={{ fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.55 }}>
                     Optional — we'll reach out only if you ask us to.
                   </p>
                 </div>
@@ -445,17 +450,17 @@ export function DiscoverPage() {
                       onChange={e => setter(e.target.value)}
                       className="w-full px-3.5 py-2.5 rounded-xl text-sm outline-none"
                       style={{
-                        background: 'rgba(255,255,255,0.06)',
-                        border: '1px solid rgba(255,255,255,0.12)',
-                        color: '#fff',
+                        background: 'var(--input-background)',
+                        border: '1px solid var(--border-default)',
+                        color: 'var(--text-primary)',
                       }}
-                      onFocus={e => { e.currentTarget.style.borderColor = 'rgba(28,189,255,0.45)'; }}
-                      onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+                      onFocus={e => { e.currentTarget.style.borderColor = 'var(--glc-blue)'; }}
+                      onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
                     />
                   ))}
                 </div>
                 {contactError && (
-                  <p style={{ fontSize: 11, color: 'rgba(239,68,68,0.80)' }}>{contactError}</p>
+                  <p style={{ fontSize: 11, color: 'var(--score-1)' }}>{contactError}</p>
                 )}
                 <button
                   type="submit"
@@ -463,11 +468,11 @@ export function DiscoverPage() {
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm"
                   style={{
                     background: (contactSaving || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim()))
-                      ? 'rgba(255,255,255,0.08)'
-                      : 'linear-gradient(135deg, #1CBDFF, #0066CC)',
+                      ? 'var(--bg-muted)'
+                      : 'var(--gradient-brand)',
                     color: (contactSaving || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim()))
-                      ? 'rgba(255,255,255,0.30)'
-                      : '#fff',
+                      ? 'var(--text-tertiary)'
+                      : 'var(--primary-foreground)',
                     border: 'none',
                     cursor: (contactSaving || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim()))
                       ? 'not-allowed'
@@ -492,12 +497,12 @@ export function DiscoverPage() {
             ) : (
               <div
                 className="flex items-center gap-3 rounded-2xl p-4"
-                style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)' }}
+                style={{ background: 'var(--glc-green-muted)', border: '1px solid rgba(14,207,130,0.28)' }}
               >
-                <CheckCircle size={20} weight="fill" className="flex-shrink-0" style={{ color: '#10B981' }} />
+                <CheckCircle size={20} weight="fill" className="flex-shrink-0" style={{ color: 'var(--glc-green-dark)' }} />
                 <div>
-                  <p className="font-semibold" style={{ fontSize: 13, color: '#10B981' }}>Details received</p>
-                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', lineHeight: 1.5 }}>
+                  <p className="font-semibold" style={{ fontSize: 13, color: 'var(--glc-green-dark)' }}>Details received</p>
+                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                     We'll be in touch within one business day.
                   </p>
                 </div>
@@ -509,7 +514,7 @@ export function DiscoverPage() {
               type="button"
               onClick={handleBack}
               className="flex items-center gap-1.5 text-sm mx-auto"
-              style={{ color: 'rgba(255,255,255,0.35)', background: 'none', border: 'none', cursor: 'pointer' }}
+              style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}
             >
               <ArrowLeft size={14} /> Review answers
             </button>
@@ -521,34 +526,30 @@ export function DiscoverPage() {
 
   // ── Questionnaire screen ────────────────────────────────────────────────────
   return (
-    <div
-      className="min-h-screen flex flex-col items-center py-10 px-5"
-      style={{
-        background: 'linear-gradient(135deg, #0A0F1A 0%, #0D1626 60%, #0A1020 100%)',
-      }}
-    >
-      {/* Mesh */}
-      <div className="fixed inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(28,189,255,0.08) 0%, transparent 70%)', zIndex: 0 }} />
+    <div className="min-h-screen flex flex-col items-center py-10 px-5" style={{ background: 'var(--bg-canvas)' }}>
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{ background: 'var(--mesh-brand)', zIndex: 0 }}
+        aria-hidden
+      />
 
       <div className="relative w-full max-w-lg z-10">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1CBDFF, #0066CC)' }}>
-              <ChartBar size={16} weight="bold" style={{ color: '#fff' }} />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--gradient-brand)' }}>
+              <ChartBar size={16} weight="bold" style={{ color: 'var(--primary-foreground)' }} />
             </div>
-            <span style={{ fontWeight: 700, fontSize: 15, color: 'rgba(255,255,255,0.85)', letterSpacing: '-0.01em' }}>GLC Audit</span>
+            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>GLC Audit</span>
           </div>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>
+          <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
             {currentIdx + 1} / {sequence.length}
           </span>
         </div>
 
-        {/* Progress bar */}
-        <div className="rounded-full overflow-hidden mb-8" style={{ height: 2, background: 'rgba(255,255,255,0.08)' }}>
+        <div className="rounded-full overflow-hidden mb-8" style={{ height: 2, background: 'var(--bg-muted)' }}>
           <motion.div
             className="h-full rounded-full"
-            style={{ background: 'linear-gradient(90deg, #1CBDFF, #0066CC)' }}
+            style={{ background: 'var(--gradient-brand)' }}
             animate={{ width: `${((currentIdx + (canAdvance ? 1 : 0)) / sequence.length) * 100}%` }}
             transition={{ duration: 0.35, ease: 'easeOut' }}
           />
@@ -561,10 +562,10 @@ export function DiscoverPage() {
             animate={{ opacity: 1, y: 0 }}
             className="mb-6 text-center"
           >
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1.3 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.3 }}>
               Let's understand your business
             </h1>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.50)', marginTop: 8, lineHeight: 1.6 }}>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8, lineHeight: 1.6 }}>
               {sequence.length} quick questions — no account needed.
               We'll show you where the biggest opportunities are.
             </p>
@@ -581,15 +582,15 @@ export function DiscoverPage() {
                 <div
                   key={id}
                   className="flex items-start gap-3 px-3 py-2.5 rounded-xl"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
                 >
-                  <CheckCircle size={14} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: '#10B981' }} />
+                  <CheckCircle size={14} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: 'var(--glc-green-dark)' }} />
                   <div className="min-w-0 flex-1">
-                    <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.40)', marginBottom: 1 }}>{q.question}</p>
+                    <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: 1 }}>{q.question}</p>
                     <p
                       style={{
                         fontSize: '12px',
-                        color: 'rgba(255,255,255,0.75)',
+                        color: 'var(--text-secondary)',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -613,33 +614,32 @@ export function DiscoverPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
               className="rounded-2xl p-5 space-y-3"
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
+              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
             >
-              {/* Step pill */}
               <div className="flex items-center gap-2">
                 <span
                   className="inline-flex items-center justify-center rounded-full text-[10px] font-bold"
                   style={{
                     width: 20, height: 20,
-                    background: 'linear-gradient(135deg, #1CBDFF, #0066CC)',
-                    color: '#fff',
+                    background: 'var(--gradient-brand)',
+                    color: 'var(--primary-foreground)',
                   }}
                 >
                   {currentIdx + 1}
                 </span>
                 {currentQ.type === 'multi_choice' && (
-                  <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.40)', letterSpacing: '0.04em' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', letterSpacing: '0.04em' }}>
                     SELECT ALL THAT APPLY
                   </span>
                 )}
               </div>
 
-              <label className="block font-semibold" style={{ fontSize: 15, color: '#fff', lineHeight: 1.4 }}>
+              <label className="block font-semibold" style={{ fontSize: 15, color: 'var(--text-primary)', lineHeight: 1.4 }}>
                 {currentQ.question}
               </label>
 
               {currentQ.hint && (
-                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', marginTop: -4 }}>
+                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: -4 }}>
                   {currentQ.hint}
                 </p>
               )}
@@ -653,9 +653,9 @@ export function DiscoverPage() {
                     onClick={handleBack}
                     className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm"
                     style={{
-                      color: 'rgba(255,255,255,0.40)',
+                      color: 'var(--text-tertiary)',
                       background: 'transparent',
-                      border: '1px solid rgba(255,255,255,0.12)',
+                      border: '1px solid var(--border-default)',
                     }}
                   >
                     <ArrowLeft size={14} /> Back
@@ -668,12 +668,12 @@ export function DiscoverPage() {
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm transition-transform hover:scale-[1.02] active:scale-[0.97] disabled:hover:scale-100 disabled:active:scale-100"
                   style={{
                     background: canAdvance
-                      ? 'linear-gradient(135deg, #1CBDFF, #0066CC)'
-                      : 'rgba(255,255,255,0.08)',
-                    color: canAdvance ? '#fff' : 'rgba(255,255,255,0.30)',
+                      ? 'var(--gradient-brand)'
+                      : 'var(--bg-muted)',
+                    color: canAdvance ? 'var(--primary-foreground)' : 'var(--text-tertiary)',
                     border: 'none',
                     cursor: canAdvance ? 'pointer' : 'not-allowed',
-                    boxShadow: canAdvance ? '0 4px 14px rgba(28,189,255,0.30)' : 'none',
+                    boxShadow: canAdvance ? '0 4px 14px rgba(28,189,255,0.28)' : 'none',
                   }}
                 >
                   {currentIdx < sequence.length - 1 ? (
@@ -696,7 +696,7 @@ export function DiscoverPage() {
               type="button"
               onClick={() => setShowResults(true)}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm"
-              style={{ background: 'linear-gradient(135deg, #1CBDFF, #0066CC)', color: '#fff', border: 'none', cursor: 'pointer' }}
+              style={{ background: 'var(--gradient-brand)', color: 'var(--primary-foreground)', border: 'none', cursor: 'pointer' }}
             >
               <CheckCircle size={16} /> View my assessment
             </button>
@@ -706,7 +706,7 @@ export function DiscoverPage() {
         <div ref={bottomRef} />
 
         {/* Footer */}
-        <p className="text-center mt-8" style={{ fontSize: 11, color: 'rgba(255,255,255,0.22)' }}>
+        <p className="text-center mt-8" style={{ fontSize: 11, color: 'var(--text-quaternary)' }}>
           GLC Audit Platform — free discovery assessment
         </p>
       </div>

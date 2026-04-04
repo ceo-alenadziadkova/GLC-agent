@@ -1,6 +1,7 @@
 /**
- * Discovery flow — Mode C (no public website / discovery-first audit).
+ * Discovery flow — Mode C (discovery-first audit, often no public site).
  *
+ * Online presence is multi-select (site + social + marketplaces can co-exist).
  * Pure logic: questions, branching, maturity scoring, findings generation.
  * No React or DOM dependencies — safe to import from any context.
  */
@@ -19,6 +20,8 @@ export interface DiscoveryQuestion {
   hint?: string;
   type: DiscoveryQuestionType;
   options?: string[];
+  /** If true, empty answer is allowed and Next still advances (commits null). */
+  optional?: boolean;
 }
 
 // ── Question bank ─────────────────────────────────────────────────────────────
@@ -32,6 +35,44 @@ const TOOLS_OPTIONS = [
   'Project management (Trello, Asana, Notion…)',
   'Custom or industry-specific software',
   'Nothing specific',
+] as const;
+
+/** Aligned with intake bank `c_nosite_1` / `c_nosite_3` (see `bankQuestionUiCatalog`). */
+export const DISCOVERY_ONLINE_PRESENCE_OPTIONS = [
+  'Full website (multi-page)',
+  'Single landing page',
+  'Website in development / not public yet',
+  'Social media',
+  'Marketplaces, directories, or other online platforms',
+  'Mostly word of mouth, offline, or referrals',
+] as const;
+
+const [
+  PRESENCE_FULL_SITE,
+  PRESENCE_LANDING,
+  PRESENCE_IN_DEV,
+  PRESENCE_SOCIAL,
+  PRESENCE_MARKETPLACES,
+  PRESENCE_OFFLINE,
+] = DISCOVERY_ONLINE_PRESENCE_OPTIONS;
+
+/** Single-select values from older discovery sessions → current multi-select ids. */
+const LEGACY_ONLINE_PRESENCE: Record<string, string[]> = {
+  'Full website (multi-page)': [PRESENCE_FULL_SITE],
+  'Single landing page': [PRESENCE_LANDING],
+  'Social media profiles only': [PRESENCE_SOCIAL],
+  'None — clients find us through word of mouth': [PRESENCE_OFFLINE],
+};
+
+export const DISCOVERY_SOCIAL_PLATFORM_OPTIONS = [
+  'Instagram',
+  'Facebook',
+  'LinkedIn',
+  'TikTok',
+  'YouTube',
+  'X (Twitter)',
+  'Telegram',
+  'WhatsApp Business / channel',
 ] as const;
 
 const ALL_QUESTIONS: DiscoveryQuestion[] = [
@@ -87,14 +128,24 @@ const ALL_QUESTIONS: DiscoveryQuestion[] = [
   },
   {
     id: 'online_presence',
-    question: "What's your current online presence?",
-    type: 'single_choice',
-    options: [
-      'Full website (multi-page)',
-      'Single landing page',
-      'Social media profiles only',
-      'None — clients find us through word of mouth',
-    ],
+    question: 'Where are you visible online today?',
+    hint: 'Select everything that applies — you can combine a site in progress with social and other channels.',
+    type: 'multi_choice',
+    options: [...DISCOVERY_ONLINE_PRESENCE_OPTIONS],
+  },
+  {
+    id: 'social_platforms',
+    question: 'Which social or messaging channels do you actively use for the business?',
+    hint: 'Select all that apply.',
+    type: 'multi_choice',
+    options: [...DISCOVERY_SOCIAL_PLATFORM_OPTIONS],
+  },
+  {
+    id: 'online_presence_notes',
+    question: 'Anything else about your online presence?',
+    hint: 'Optional — e.g. niche forums, an app, a planned launch, or a link we should know about.',
+    type: 'free_text',
+    optional: true,
   },
   // Branch: no real website → ask how clients find them
   {
@@ -136,9 +187,38 @@ function hasCrm(answers: DiscoveryAnswers): boolean {
   return tools.some(t => t.includes('CRM'));
 }
 
+/** Normalises legacy single-string answers saved before multi-select. */
+export function getOnlinePresenceSelections(answers: DiscoveryAnswers): string[] {
+  const v = answers.online_presence;
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string' && v.trim()) {
+    const s = v.trim();
+    return LEGACY_ONLINE_PRESENCE[s] ?? [s];
+  }
+  return [];
+}
+
 function hasWebsite(answers: DiscoveryAnswers): boolean {
-  const p = answers.online_presence as string | null;
-  return p === 'Full website (multi-page)' || p === 'Single landing page';
+  const pres = getOnlinePresenceSelections(answers);
+  return pres.some(
+    p => p === PRESENCE_FULL_SITE || p === PRESENCE_LANDING || p === PRESENCE_IN_DEV,
+  );
+}
+
+function hasSocialPresenceOption(answers: DiscoveryAnswers): boolean {
+  return getOnlinePresenceSelections(answers).some(p => p === PRESENCE_SOCIAL);
+}
+
+function hasDigitalSurfaceBeyondOffline(answers: DiscoveryAnswers): boolean {
+  const pres = getOnlinePresenceSelections(answers);
+  return pres.some(
+    p =>
+      p === PRESENCE_FULL_SITE ||
+      p === PRESENCE_LANDING ||
+      p === PRESENCE_IN_DEV ||
+      p === PRESENCE_SOCIAL ||
+      p === PRESENCE_MARKETPLACES,
+  );
 }
 
 /**
@@ -163,8 +243,14 @@ export function buildQuestionSequence(answers: DiscoveryAnswers): string[] {
 
   seq.push('online_presence');
 
-  // Branch on presence: no real website → ask acquisition channels
-  if (answers.online_presence != null && !hasWebsite(answers)) {
+  if (hasSocialPresenceOption(answers)) {
+    seq.push('social_platforms');
+  }
+
+  seq.push('online_presence_notes');
+
+  const pres = getOnlinePresenceSelections(answers);
+  if (pres.length > 0 && !hasWebsite(answers)) {
     seq.push('client_acquisition');
   }
 
@@ -235,9 +321,13 @@ export function computeMaturity(answers: DiscoveryAnswers): MaturityResult {
   if (tracking?.includes('CRM')) score += 2;
   else if (tracking?.includes('spreadsheet')) score += 1;
 
-  const presence = answers.online_presence as string | null;
-  if (presence === 'Full website (multi-page)') score += 2;
-  else if (presence === 'Single landing page') score += 1;
+  const pres = getOnlinePresenceSelections(answers);
+  if (pres.includes(PRESENCE_FULL_SITE)) score += 2;
+  else if (pres.includes(PRESENCE_LANDING) || pres.includes(PRESENCE_IN_DEV)) score += 1;
+  if (pres.includes(PRESENCE_MARKETPLACES)) score += 1;
+
+  const socialPlats = (answers.social_platforms as string[] | null) ?? [];
+  if (hasSocialPresenceOption(answers) && socialPlats.length >= 1) score += 1;
 
   const team = answers.team_size as string | null;
   if (team === '6–20 people' || team === 'More than 20') score += 1;
@@ -264,7 +354,7 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
   const tools = (answers.tools_daily as string[] | null) ?? [];
   const tracking = answers.lead_tracking as string | null;
   const challenge = answers.biggest_challenge as string | null;
-  const presence = answers.online_presence as string | null;
+  const pres = getOnlinePresenceSelections(answers);
   const acquisition = (answers.client_acquisition as string[] | null) ?? [];
   const manual = (answers.manual_bottleneck as string | null) ?? '';
 
@@ -307,17 +397,14 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
     });
   }
 
-  // Weak or absent online presence
-  if (
-    presence === 'Social media profiles only' ||
-    presence === 'None — clients find us through word of mouth'
-  ) {
+  // Offline / referral-only digital posture (no site, social, or marketplace footprint)
+  if (pres.length > 0 && !hasDigitalSurfaceBeyondOffline(answers)) {
     findings.push({
       id: 'online_visibility',
       zone: 'Online visibility',
-      headline: 'No discoverable web presence limits inbound growth',
+      headline: 'Limited digital surface area for inbound discovery',
       detail:
-        "Clients searching for your service online currently can't find you. Even a single well-structured page — optimised for your core search terms — creates a consistent inbound channel that doesn't require ongoing ad spend.",
+        'You are not yet using a live site, social channels, or other online listings in a way we can build on for audits. Even one clear digital home — a landing page, a profile you post to weekly, or a directory you own — makes growth and measurement much easier.',
       impact: 'high',
     });
   }
@@ -327,8 +414,10 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
     a => !a.includes('Repeat') && !a.includes('Word of mouth'),
   );
   if (
-    (acquisition.length === 0 && presence != null) ||
-    (acquisition.length <= 2 && meaningfulChannels.length === 0)
+    (!hasWebsite(answers) && acquisition.length === 0 && pres.length > 0) ||
+    (acquisition.length > 0 &&
+      acquisition.length <= 2 &&
+      meaningfulChannels.length === 0)
   ) {
     findings.push({
       id: 'channel_dependency',

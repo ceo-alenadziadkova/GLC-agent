@@ -232,12 +232,12 @@
 
 | ID | Question | Input | Priority | Layer | Agent feeds (P / S) | Branch |
 |----|----------|-------|----------|-------|-------|--------|
-| `c_nosite_1` | How do people currently find your business online? | multi | Recommended | 2 | seo_digital (P) | !has_website |
-| | Options: Google Business / Social media / Word of mouth / OTA/marketplace / Not really online yet | | | | | |
-| `c_nosite_2` | Are you planning to create a website? | select | Recommended | 2 | seo_digital (P); strategy (S) | !has_website |
-| | Options: Yes, soon / Yes, but not sure how / Eventually / No, not a priority right now | | | | | |
-| `c_nosite_3` | Where are you active on social media? | multi | Recommended | 2 | seo_digital (P) | !has_website |
-| | *(Same as c7)* | | | | | |
+| `c_nosite_1` | Where are you visible online today? | multi | Recommended | 2 | seo_digital (P) | !has_website |
+| | Options: Full website (multi-page) / Single landing page / Website in development / Social media / Marketplaces or other online platforms / Mostly offline or referrals — **multi-select**, aligned with public `/discovery` (`discovery-flow.ts`). | | | | | |
+| `c_nosite_2` | Anything else about your online presence? | textarea | Optional | 2 | seo_digital (P); strategy (S) | !has_website |
+| | Free text; optional context (forums, app, launch, links). | | | | | |
+| `c_nosite_3` | Which social or messaging channels do you use for the business? | multi | Recommended | 2 | seo_digital (P) | `nosite_social` |
+| | Options: Instagram, Facebook, LinkedIn, TikTok, YouTube, X, Telegram, WhatsApp Business — **only if** `c_nosite_1` includes the exact option **Social media** (see `BRANCH_RULES.nosite_social`). | | | | | |
 
 ---
 
@@ -406,9 +406,9 @@ Pre-brief + дополнительно:
 | 7 | d1 | Daily tools |
 | 8 | d2 | Biggest manual time-sink |
 | 9 | d1a / d1b | CRM or lead tracking (branched) |
-| 10 | c_nosite_1 | How people find you online |
-| 11 | c_nosite_2 | Planning a website |
-| 12 | c_nosite_3 | Social (no-site path) |
+| 10 | c_nosite_1 | Online visibility (multi-select; same options as public discovery) |
+| 11 | c_nosite_3 | Social/messaging channels (branch: `nosite_social`) |
+| 12 | c_nosite_2 | Optional free-text notes |
 | 13 | b2 | How customers find you |
 | 14 | f8 | **Deadline / key moment** driving this audit |
 | 15 | f1 | Main business problem (solve) |
@@ -450,6 +450,7 @@ Pre-brief + дополнительно:
 | Key | Назначение |
 |-----|------------|
 | `has_website` / `no_website` | Ворота по ответу «сайт» (`a5`, нормализация в enum gate) |
+| `nosite_social` | `no_website` и в `c_nosite_1` выбран пункт **Social media** (точное совпадение строки) |
 | `is_hospitality`, `is_real_estate`, `is_restaurant`, `is_services`, `is_healthcare`, `is_marine` | Отраслевые ветки (ярлык индустрии мапится из dropdown через `INDUSTRY_LABEL_TO_BRANCH_SLUG`) |
 | `has_crm` / `no_crm` | Наличие CRM в мультивыборе `d1` (в т.ч. синтетические значения при merge из legacy) |
 | `handles_payments` | Нормализованный `a6`: yes / sometimes / rarely |

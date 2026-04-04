@@ -124,7 +124,7 @@ export function ClientPortal() {
         {auditsError && (
           <div
             className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm"
-            style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)', color: '#EF4444' }}
+            style={{ backgroundColor: 'var(--callout-error-bg)', border: '1px solid var(--callout-error-border)', color: 'var(--score-1)' }}
           >
             <Warning className="w-4 h-4 flex-shrink-0" />
             {auditsError}
@@ -198,7 +198,7 @@ export function ClientPortal() {
           <div className="text-center py-20">
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-              style={{ backgroundColor: 'rgba(28,189,255,0.08)', border: '1px solid rgba(28,189,255,0.15)' }}
+              style={{ backgroundColor: 'var(--callout-info-bg)', border: '1px solid var(--callout-info-border)' }}
             >
               <ClipboardText className="w-7 h-7" style={{ color: 'var(--glc-blue)' }} />
             </div>

@@ -121,6 +121,21 @@ describe('discovery collection mode', () => {
     expect(ids).toContain('c_nosite_1');
     expect(ids).not.toContain('b3');
   });
+
+  it('shows c_nosite_3 only when c_nosite_1 includes Social media (nosite_social branch)', () => {
+    const base = { a5: 'No website yet' as const };
+    const withoutSocial = filterVisibleQuestions(QUESTION_BANK_V1_STUBS, {
+      ...base,
+      c_nosite_1: ['Mostly word of mouth, offline, or referrals'],
+    });
+    expect(withoutSocial.map(q => q.id)).not.toContain('c_nosite_3');
+
+    const withSocial = filterVisibleQuestions(QUESTION_BANK_V1_STUBS, {
+      ...base,
+      c_nosite_1: ['Social media', 'Marketplaces, directories, or other online platforms'],
+    });
+    expect(withSocial.map(q => q.id)).toContain('c_nosite_3');
+  });
 });
 
 describe('sliceResponsesForDomain', () => {

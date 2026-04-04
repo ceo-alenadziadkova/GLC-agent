@@ -35,6 +35,7 @@ export const router = createBrowserRouter([
   { path: '/snapshot',            element: <SnapshotLanding /> },           // public
   { path: '/intake/:token',       element: <IntakeBrief /> },              // public pre-brief
   { path: '/audit/discover',      element: <DiscoverPage /> },             // public Mode C
+  { path: '/discovery',           element: <DiscoverPage /> },             // alias (same flow)
 
   // ── Consultant routes ──────────────────────────────────────────────────────
   { path: '/dashboard',           element: <Consultant><Dashboard /></Consultant> },
