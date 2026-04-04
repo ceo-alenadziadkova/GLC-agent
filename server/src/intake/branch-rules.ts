@@ -118,6 +118,10 @@ export function evalBranchCondition(
 ): boolean {
   if (!condition) return true;
   const rule = BRANCH_RULES[condition];
-  if (!rule) return true;
+  if (!rule) {
+    // Unknown condition: question will be shown to everyone — likely a missing predicate or typo.
+    console.warn(`[branch-rules] Unknown branchCondition "${condition}" — defaulting to visible. Add it to BRANCH_RULES if intentional.`);
+    return true;
+  }
   return rule(responses);
 }

@@ -39,7 +39,9 @@ function mapHandlesPaymentsToA6(raw: unknown): string | null {
   const s = String(unwrapIntakeValue(raw) ?? '').trim();
   if (!s) return null;
   if (s.startsWith('Yes — we process card')) return 'Yes';
-  if (s.startsWith('No — we use Stripe')) return 'Sometimes';
+  // Stripe/PayPal hosted checkout: customers DO pay online even though card data goes to the processor.
+  // Map to 'Yes' so security and strategy agents apply full payment-context analysis.
+  if (s.startsWith('No — we use Stripe')) return 'Yes';
   if (s.startsWith('No payments on site')) return 'No, offline only';
   return null;
 }
@@ -68,7 +70,8 @@ function mapGdprToE2(raw: unknown): string | null {
   if (!s) return null;
   if (s === 'Yes') return 'Yes';
   if (s === 'No') return 'No';
-  if (s === 'Partially') return 'Not sure';
+  // 'Partially' has a distinct meaning from 'Not sure' — preserve it with the closest bank option.
+  if (s === 'Partially') return 'Partially / not sure';
   return null;
 }
 
@@ -85,7 +88,8 @@ function mapEmailAutomationToD5(raw: unknown): string | null {
 function mapBudgetToF5(raw: unknown): string | null {
   const s = String(unwrapIntakeValue(raw) ?? '').trim();
   if (!s) return null;
-  if (s === '< €1k') return '€500–2,000';
+  // Legacy ranges don't align perfectly with bank buckets; map to closest without collapsing distinct signals.
+  if (s === '< €1k') return 'Under €500';
   if (s === '€1k – €5k') return '€500–2,000';
   if (s === '€5k – €20k') return '€2,000–10,000';
   if (s === '€20k – €50k' || s === '> €50k') return 'Over €10,000';
@@ -206,7 +210,7 @@ export function mergeLegacyResponsesIntoBankV1(responses: IntakeResponsesMap): I
   if (f5m) setPlainIfEmpty(r, 'f5', f5m);
 
   const kw = getResponseString(r, 'top_keywords');
-  if (kw) setPlainIfEmpty(r, 'f6', `Legacy note — target keywords: ${kw}`);
+  if (kw) setPlainIfEmpty(r, 'f6', kw);
 
   return r;
 }
