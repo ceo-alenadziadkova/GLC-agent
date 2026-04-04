@@ -12,6 +12,7 @@ import { SectionLabel } from '../components/glc/SectionLabel';
 import { StatusPill } from '../components/glc/StatusPill';
 import { QuickWinTag } from '../components/glc/QuickWinTag';
 import { useAudit } from '../hooks/useAudit';
+import { useIntakeBankMetrics } from '../hooks/useIntakeWizard';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
 import type { DomainKey, DomainData, ProductMode, ConfidenceLevel } from '../data/auditTypes';
 import { BriefField } from '../components/BriefField';
@@ -19,6 +20,7 @@ import { BRIEF_QUESTIONS } from '../data/briefQuestions';
 import type { BriefQuestion, BriefResponses } from '../data/briefQuestions';
 import { api } from '../data/apiService';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
+import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
 
 const EXPRESS_DOMAIN_KEYS: readonly DomainKey[] = [
   'tech_infrastructure', 'security_compliance', 'seo_digital', 'ux_conversion',
@@ -104,6 +106,11 @@ export function AuditWorkspace() {
     if (enrichSaveTimer.current) clearTimeout(enrichSaveTimer.current);
   }, []);
 
+  const bankMetrics = useIntakeBankMetrics(
+    (audit?.brief?.responses as BriefResponses) ?? {},
+    audit?.brief?.collection_mode === 'discovery' ? 'discovery' : undefined,
+  );
+
   if (loading && !audit) {
     return (
       <AppShell title="Audit Workspace" subtitle="Loading...">
@@ -185,6 +192,18 @@ export function AuditWorkspace() {
               </p>
             </div>
           </div>
+
+          {audit.brief && (
+            <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+              <IntakeBankCoverageHint
+                dataQualityPct={bankMetrics.dataQualityPct}
+                visibleRequiredAnswered={bankMetrics.visibleRequiredAnswered}
+                visibleRequiredTotal={bankMetrics.visibleRequiredTotal}
+                visibleRecommendedAnswered={bankMetrics.visibleRecommendedAnswered}
+                visibleRecommendedTotal={bankMetrics.visibleRecommendedTotal}
+              />
+            </div>
+          )}
 
           {/* Domain nav */}
           <div className="px-2 py-2 space-y-0.5 flex-1">

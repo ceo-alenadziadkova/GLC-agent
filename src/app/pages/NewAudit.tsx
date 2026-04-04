@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -10,12 +10,22 @@ import { AppShell } from '../components/AppShell';
 import { BriefField } from '../components/BriefField';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { useAuth } from '../hooks/useAuth';
+import { briefResponsesToIntakeMap, useIntakeBankMetrics } from '../hooks/useIntakeWizard';
+import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
+import { IntakeBankWizard } from '../components/IntakeBankWizard';
+import { prepareBriefForValidation } from '../../../server/src/intake/hydrate-legacy-from-bank';
 import { api, ApiError } from '../data/apiService';
 import { INDUSTRY_OPTIONS, isIndustryOption } from '../data/industry-options';
 import { applyIntakeMetadataPrefill } from '../lib/intake-client-copy';
 import {
-  BRIEF_QUESTIONS, BRIEF_SECTIONS, REQUIRED_IDS, countAnswered, mergeBriefResponsesPreferFilled,
-  type BriefResponseEntry, type BriefResponses, type BriefQuestion,
+  BRIEF_QUESTIONS,
+  BRIEF_SECTIONS,
+  REQUIRED_IDS,
+  countAnswered,
+  mergeBriefResponsesPreferFilled,
+  type BriefResponseEntry,
+  type BriefResponses,
+  type BriefQuestion,
 } from '../data/briefQuestions';
 
 // ── Step indicator ────────────────────────────────────────────────────────────
@@ -216,6 +226,9 @@ export function NewAudit() {
   // Interview mode — consultant fills the brief during a live call
   const [interviewMode, setInterviewMode] = useState(false);
 
+  /** Classic = all legacy sections; wizard = full question-bank v1 step-by-step. */
+  const [briefUiMode, setBriefUiMode] = useState<'classic' | 'wizard'>('classic');
+
   // UI state
   const [step,    setStep]    = useState(0);
   const [loading, setLoading] = useState(false);
@@ -293,11 +306,20 @@ export function NewAudit() {
     (noPublicWebsite || isValidUrl(url))
     && (industry !== 'Other' || industrySpecify.trim().length > 0);
 
-  const answeredRequired = countAnswered(responses, REQUIRED_IDS);
+  const effectiveBriefForGates = useMemo(() => {
+    const prepared = prepareBriefForValidation(briefResponsesToIntakeMap(responses)) as Record<string, unknown>;
+    return normalizeIntakeToResponses(prepared);
+  }, [responses]);
+
+  const answeredRequired = countAnswered(effectiveBriefForGates, REQUIRED_IDS);
   const step2Complete    = answeredRequired === REQUIRED_IDS.length;
   const progressPct = Math.min(100, Math.round((answeredRequired / REQUIRED_IDS.length) * 100));
   const readinessBadge: 'low' | 'medium' | 'high' = progressPct >= 80 ? 'high' : progressPct >= 45 ? 'medium' : 'low';
   const nextBestAction = step2Complete ? 'add_recommended' : 'complete_required';
+  const bankMetrics = useIntakeBankMetrics(
+    responses,
+    noPublicWebsite && briefUiMode === 'wizard' ? 'discovery' : undefined,
+  );
 
   // ── Handlers ───────────────────────────────────────────
   function handleResponseChange(id: string, value: string | string[] | number | null) {
@@ -348,7 +370,10 @@ export function NewAudit() {
       }
 
       try {
-        await api.saveBrief(audit.id, mergedForSave);
+        await api.saveBrief(audit.id, mergedForSave, {
+          collection_mode:
+            noPublicWebsite && briefUiMode === 'wizard' ? 'discovery' : undefined,
+        });
       } catch (briefErr) {
         console.warn('[NewAudit] Brief save failed (non-fatal):', briefErr);
       }
@@ -841,7 +866,7 @@ export function NewAudit() {
                 style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}
               >
                 {/* Header */}
-                <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
                   <div className="flex items-center gap-2">
                     <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-primary)' }}>Intake Brief</h2>
                     {interviewMode && (
@@ -853,15 +878,57 @@ export function NewAudit() {
                       </span>
                     )}
                   </div>
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
-                    {answeredRequired} / {REQUIRED_IDS.length} required
-                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div
+                      className="flex rounded-lg p-0.5"
+                      style={{ background: 'var(--bg-muted)', border: '1px solid var(--border-subtle)' }}
+                      role="group"
+                      aria-label="Brief layout"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setBriefUiMode('classic')}
+                        className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
+                        style={{
+                          background: briefUiMode === 'classic' ? 'var(--bg-surface)' : 'transparent',
+                          color: briefUiMode === 'classic' ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                          boxShadow: briefUiMode === 'classic' ? 'var(--shadow-xs)' : 'none',
+                        }}
+                      >
+                        All sections
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBriefUiMode('wizard')}
+                        className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
+                        style={{
+                          background: briefUiMode === 'wizard' ? 'var(--bg-surface)' : 'transparent',
+                          color: briefUiMode === 'wizard' ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                          boxShadow: briefUiMode === 'wizard' ? 'var(--shadow-xs)' : 'none',
+                        }}
+                      >
+                        Step-by-step (bank)
+                      </button>
+                    </div>
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+                      {answeredRequired} / {REQUIRED_IDS.length} required
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between mb-3">
                   <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>Audit readiness: {progressPct}%</span>
                   <span className="px-2 py-0.5 rounded text-xs" style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
                     {readinessBadge.toUpperCase()}
                   </span>
+                </div>
+                <div className="mb-3">
+                  <IntakeBankCoverageHint
+                    dataQualityPct={bankMetrics.dataQualityPct}
+                    visibleRequiredAnswered={bankMetrics.visibleRequiredAnswered}
+                    visibleRequiredTotal={bankMetrics.visibleRequiredTotal}
+                    visibleRecommendedAnswered={bankMetrics.visibleRecommendedAnswered}
+                    visibleRecommendedTotal={bankMetrics.visibleRecommendedTotal}
+                  />
                 </div>
                 {interviewMode && (
                   <div className="mb-3 flex items-start gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.22)', color: '#92400E' }}>
@@ -894,34 +961,48 @@ export function NewAudit() {
                   {NEXT_ACTION_TEXT[nextBestAction]}
                 </p>
 
-                {/* Questions grouped by section */}
-                <div className="space-y-8 max-h-[55vh] overflow-y-auto pr-1">
-                  {BRIEF_SECTIONS.map(section => {
-                    const sectionQs = BRIEF_QUESTIONS.filter(q => q.section === section);
-                    return (
-                      <div key={section}>
-                        <div className="px-2 py-1 mb-3 rounded" style={{ backgroundColor: 'rgba(28,189,255,0.05)', borderLeft: '2px solid rgba(28,189,255,0.25)' }}>
-                          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(28,189,255,0.7)', textTransform: 'uppercase' }}>
-                            {section}
-                          </span>
+                {briefUiMode === 'wizard' ? (
+                  <div className="max-h-[55vh] overflow-y-auto pr-1">
+                    <IntakeBankWizard
+                      responses={responses}
+                      onResponsesChange={patch =>
+                        setResponses(prev => mergeBriefResponsesPreferFilled(prev, patch))
+                      }
+                      interviewMode={interviewMode}
+                      emphasizeClientSource={intakePrefillActive}
+                      answerSource={interviewMode ? 'consultant' : 'client'}
+                      collectionMode={noPublicWebsite ? 'discovery' : undefined}
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-8 max-h-[55vh] overflow-y-auto pr-1">
+                    {BRIEF_SECTIONS.map(section => {
+                      const sectionQs = BRIEF_QUESTIONS.filter(q => q.section === section);
+                      return (
+                        <div key={section}>
+                          <div className="px-2 py-1 mb-3 rounded" style={{ backgroundColor: 'rgba(28,189,255,0.05)', borderLeft: '2px solid rgba(28,189,255,0.25)' }}>
+                            <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(28,189,255,0.7)', textTransform: 'uppercase' }}>
+                              {section}
+                            </span>
+                          </div>
+                          <div className="space-y-5">
+                            {sectionQs.map(q => (
+                              <BriefField
+                                key={q.id}
+                                q={q}
+                                value={responses[q.id]}
+                                onChange={v => handleResponseChange(q.id, v)}
+                                onSetUnknown={() => handleSetUnknown(q.id)}
+                                emphasizeClientSource={intakePrefillActive}
+                                interviewMode={interviewMode}
+                              />
+                            ))}
+                          </div>
                         </div>
-                        <div className="space-y-5">
-                          {sectionQs.map(q => (
-                            <BriefField
-                              key={q.id}
-                              q={q}
-                              value={responses[q.id]}
-                              onChange={v => handleResponseChange(q.id, v)}
-                              onSetUnknown={() => handleSetUnknown(q.id)}
-                              emphasizeClientSource={intakePrefillActive}
-                              interviewMode={interviewMode}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 <div className="glc-divider mt-5" />
 

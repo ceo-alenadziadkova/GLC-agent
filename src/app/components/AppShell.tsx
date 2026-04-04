@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router';
-import { motion, AnimatePresence } from 'motion/react';
 import {
   Briefcase, SquaresFour, Pulse, FileText, Flask,
   GearSix, Bell, MagnifyingGlass, Lightning, SignOut,
@@ -218,14 +217,12 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               >
                 {/* Active background */}
                 {active && (
-                  <motion.span
-                    layoutId="nav-bg"
-                    className="absolute inset-0 rounded-lg"
+                  <span
+                    className="absolute inset-0 rounded-lg transition-[opacity,transform] duration-200 ease-out"
                     style={{
                       background: 'linear-gradient(90deg, rgba(28,189,255,0.15) 0%, rgba(28,189,255,0.06) 100%)',
                       border: '1px solid rgba(28,189,255,0.18)',
                     }}
-                    transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
                   />
                 )}
                 {/* Active left glow line */}

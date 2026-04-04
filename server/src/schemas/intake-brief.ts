@@ -56,6 +56,47 @@ const BASE_INTAKE_IDENTITY_QUESTIONS: BriefQuestion[] = [
 ];
 
 const BASE_BRIEF_QUESTIONS: BriefQuestion[] = [
+  // ── Pre-brief bank slice (before primary_goal / f1 — narrowing & context) ─
+  {
+    id: 'f2',
+    priority: 'recommended',
+    domains: ['all'],
+    question: 'Which areas are you most interested in improving with this audit?',
+    hint: 'Select all that apply — this helps us balance depth across domains.',
+    type: 'multi_choice',
+    options: [
+      'Website performance and technology (speed, stability, technical health)',
+      'Online visibility and SEO (finding and attracting the right traffic)',
+      'Customer experience and conversions (turning visitors into customers)',
+      'Marketing and positioning (clarity of message and differentiation)',
+      'Process automation and efficiency (less manual work and handoffs)',
+      'Security, compliance and risk (avoiding costly surprises)',
+    ],
+  },
+  {
+    id: 'a7',
+    priority: 'recommended',
+    domains: ['all'],
+    question: 'How would you describe where your business is right now? (not company age — the moment)',
+    hint: 'This shapes tone and whether we emphasise quick wins vs. foundation work.',
+    type: 'single_choice',
+    options: ['Launching', 'Growing fast', 'Stabilising', 'Scaling', 'Mature and optimising'],
+  },
+  {
+    id: 'f8',
+    priority: 'recommended',
+    domains: ['all'],
+    question: 'Is there a deadline or key moment driving this audit?',
+    hint: 'Helps us prioritise sequencing of recommendations.',
+    type: 'single_choice',
+    options: [
+      'Opening or launch soon',
+      'Seasonal peak coming',
+      'Investor, partner, or board review',
+      'Contract or compliance milestone',
+      'No specific deadline',
+    ],
+  },
   // ── Business Basics (all agents) ──────────────────────────────────────────
   {
     id: 'primary_goal',
@@ -283,6 +324,9 @@ const PRE_BRIEF_IDS = new Set<string>([
   'intake_company_name',
   'intake_industry',
   'intake_industry_specify',
+  'f2',
+  'a7',
+  'f8',
   'primary_goal',
   'target_audience',
   'primary_cta',
@@ -290,6 +334,19 @@ const PRE_BRIEF_IDS = new Set<string>([
   'handles_payments',
   'biggest_pain',
 ]);
+
+/**
+ * Slots required to submit the public pre-brief link (identity + legacy express core).
+ * Additional `pre_brief` questions (e.g. bank ids f2, a7, f8) merge into the audit but do not block submit.
+ */
+export const PRE_BRIEF_REQUIRED_SUBMIT_IDS = [
+  'primary_goal',
+  'target_audience',
+  'primary_cta',
+  'has_google_analytics',
+  'handles_payments',
+  'biggest_pain',
+] as const;
 
 /** Fewer «high» signals keeps impact weighting meaningful. */
 const HIGH_REVENUE_QUESTION_IDS = new Set<string>([
@@ -338,6 +395,44 @@ const TRIGGERS_FOLLOWUP: Record<string, string[]> = {
   revenue_model: ['primary_cta'],
 };
 
+/**
+ * Section labels for progressive intake UI — mirror `src/app/data/briefQuestions.ts`.
+ */
+export const BRIEF_QUESTION_UI_SECTION: Record<string, string> = {
+  intake_company_website: 'Business',
+  intake_company_name: 'Business',
+  intake_industry: 'Business',
+  intake_industry_specify: 'Business',
+  f2: 'Goals',
+  a7: 'Business',
+  f8: 'Goals',
+  primary_goal: 'Business',
+  target_audience: 'Business',
+  revenue_model: 'Business',
+  monthly_visitors: 'Business',
+  monthly_revenue: 'Business',
+  primary_cta: 'UX & Conversion',
+  conversion_rate: 'UX & Conversion',
+  biggest_ux_complaint: 'UX & Conversion',
+  top_keywords: 'SEO & Digital',
+  main_traffic_source: 'SEO & Digital',
+  has_google_analytics: 'SEO & Digital',
+  has_search_console: 'SEO & Digital',
+  cms_platform: 'Tech & Infrastructure',
+  hosting_provider: 'Tech & Infrastructure',
+  has_staging: 'Tech & Infrastructure',
+  handles_payments: 'Security & Compliance',
+  gdpr_region: 'Security & Compliance',
+  has_privacy_policy: 'Security & Compliance',
+  main_competitors: 'Marketing',
+  unique_value_prop: 'Marketing',
+  active_channels: 'Marketing',
+  uses_crm: 'Automation',
+  email_automation: 'Automation',
+  biggest_pain: 'Audit Scope',
+  budget_for_changes: 'Audit Scope',
+};
+
 function enrichQuestion(question: BriefQuestion): BriefQuestion {
   const importance = question.priority === 'required'
     ? 'red'
@@ -353,8 +448,10 @@ function enrichQuestion(question: BriefQuestion): BriefQuestion {
     ux_group = 'tech';
   } else if (question.domains.includes('seo_digital')) {
     ux_group = 'audience';
-  } else if (question.id === 'primary_goal' || question.id === 'biggest_pain') {
+  } else if (question.id === 'primary_goal' || question.id === 'biggest_pain' || question.id === 'f2' || question.id === 'f8') {
     ux_group = 'goals';
+  } else if (question.id === 'a7') {
+    ux_group = 'business';
   } else if (question.id === 'revenue_model' || question.id === 'monthly_revenue') {
     ux_group = 'basics';
   }
@@ -370,8 +467,11 @@ function enrichQuestion(question: BriefQuestion): BriefQuestion {
       ? 'low'
       : 'medium';
 
+  const section = BRIEF_QUESTION_UI_SECTION[question.id];
+
   return {
     ...question,
+    ...(section !== undefined ? { section } : {}),
     importance,
     weight,
     ux_group,
@@ -404,13 +504,22 @@ export function getBriefQuestionText(id: string): string {
 
 // ─── Zod schema for responses validation ──────────────────────────────────────
 
+/** Max length for free-text / textarea answers (legacy + question-bank v1). */
+export const BRIEF_ANSWER_STRING_MAX = 12_000;
+
 const answerSchema = z.union([
-  z.string().max(2000),
+  z.string().max(BRIEF_ANSWER_STRING_MAX),
   z.array(z.string()).max(10),
   z.number(),
   z.boolean(),
   z.object({
-    value: z.union([z.string().max(2000), z.array(z.string()).max(10), z.number(), z.boolean(), z.null()]),
+    value: z.union([
+      z.string().max(BRIEF_ANSWER_STRING_MAX),
+      z.array(z.string()).max(10),
+      z.number(),
+      z.boolean(),
+      z.null(),
+    ]),
     source: z.enum(['client', 'consultant', 'recon_confirmed', 'unknown']),
   }),
   z.null(),

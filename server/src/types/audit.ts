@@ -352,6 +352,10 @@ export interface BriefQuestion {
   intake_layer?: 0 | 1 | 2 | 3 | 'pre_brief';
   weight?: number;
   ux_group?: 'basics' | 'business' | 'tech' | 'audience' | 'goals';
+  /**
+   * UI section heading (wizard / public intake). Kept in sync with frontend `briefQuestions.ts`.
+   */
+  section?: string;
   /** Which agents this question feeds context to */
   domains: Array<DomainKey | 'all'>;
   question: string;
@@ -373,6 +377,18 @@ export interface BriefResponseEntry {
   source: BriefResponseSource;
 }
 
+/** Crawler vs client disagreement on recon-suggested fields (e.g. c1 stack confirm). */
+export interface ReconConflict {
+  questionId: string;
+  detectedValue: string;
+  clientValue: string;
+  status: 'open' | 'resolved';
+  resolvedAt?: string;
+  notes?: string;
+}
+
+export type IntakeBriefCollectionMode = 'self_serve' | 'interview' | 'pre_brief' | 'discovery';
+
 export interface IntakeBrief {
   id: string;
   audit_id: string;
@@ -380,7 +396,7 @@ export interface IntakeBrief {
   status: 'draft' | 'submitted';
   layer_completed: 0 | 1 | 2 | 3;
   collected_by: 'client' | 'consultant';
-  collection_mode: 'self_serve' | 'interview' | 'pre_brief';
+  collection_mode: IntakeBriefCollectionMode;
   data_quality_score: number;
   sla_met: boolean;
   answered_required: number;
@@ -390,6 +406,7 @@ export interface IntakeBrief {
   total_recommended: number;
   total_optional: number;
   recon_prefills: Record<string, unknown>;
+  recon_conflicts: ReconConflict[];
   post_audit_questions: Array<Record<string, unknown>>;
   progress_pct: number;
   readiness_badge: IntakeReadinessBadge;

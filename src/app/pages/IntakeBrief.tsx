@@ -9,6 +9,7 @@ import {
   countPreBriefSatisfied,
   formatBriefAnswerSummary,
   getPreBriefSubmitSlotIds,
+  groupBriefQuestionsBySection,
   intakeIndustryIsOther,
 } from '../data/briefQuestions';
 import { GlcLogo } from '../components/GlcLogo';
@@ -65,6 +66,11 @@ export function IntakeBrief() {
   const orderedQuestions = useMemo(
     () => questions.filter(q => q.id !== 'intake_industry_specify' || intakeIndustryIsOther(responses)),
     [questions, responses],
+  );
+
+  const questionSections = useMemo(
+    () => groupBriefQuestionsBySection(orderedQuestions),
+    [orderedQuestions],
   );
 
   const clientMeta = useMemo(() => parseIntakeClientMetadata(metadataRecord), [metadataRecord]);
@@ -376,22 +382,38 @@ export function IntakeBrief() {
                   Back to questions
                 </button>
 
-                <div className="glc-card divide-y" style={{ borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-subtle)' }}>
-                  {orderedQuestions.map(q => (
-                    <div key={q.id} className="flex gap-3 px-4 py-3.5 items-start">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>{q.question}</p>
-                        <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{formatBriefAnswerSummary(q, responses[q.id])}</p>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label={`Edit: ${q.question}`}
-                        className="shrink-0 p-2 rounded-lg"
-                        style={{ border: '1px solid var(--border-subtle)', color: 'var(--glc-blue)', background: 'var(--bg-surface)', cursor: 'pointer' }}
-                        onClick={() => scrollToQuestion(q.id)}
+                <div className="glc-card overflow-hidden" style={{ borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-subtle)' }}>
+                  {questionSections.map((block, blockIdx) => (
+                    <div key={`intake-review-section-${blockIdx}`} className={blockIdx > 0 ? 'border-t' : ''} style={blockIdx > 0 ? { borderColor: 'var(--border-subtle)' } : undefined}>
+                      <div
+                        className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider"
+                        style={{
+                          background: 'var(--bg-muted)',
+                          color: 'var(--text-quaternary)',
+                          borderBottom: '1px solid var(--border-subtle)',
+                        }}
                       >
-                        <PencilSimple className="w-4 h-4" />
-                      </button>
+                        {block.section}
+                      </div>
+                      <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+                        {block.questions.map(q => (
+                          <div key={q.id} className="flex gap-3 px-4 py-3.5 items-start">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>{q.question}</p>
+                              <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{formatBriefAnswerSummary(q, responses[q.id])}</p>
+                            </div>
+                            <button
+                              type="button"
+                              aria-label={`Edit: ${q.question}`}
+                              className="shrink-0 p-2 rounded-lg"
+                              style={{ border: '1px solid var(--border-subtle)', color: 'var(--glc-blue)', background: 'var(--bg-surface)', cursor: 'pointer' }}
+                              onClick={() => scrollToQuestion(q.id)}
+                            >
+                              <PencilSimple className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -454,16 +476,32 @@ export function IntakeBrief() {
                   </div>
                 </div>
 
-                <div className="glc-card p-5 space-y-6" style={{ borderRadius: 'var(--radius-xl)' }}>
-                  {orderedQuestions.map(q => (
-                    <div key={q.id} id={`intake-q-${q.id}`}>
-                      <BriefField
-                        q={q}
-                        value={responses[q.id]}
-                        onChange={q.id === 'intake_industry' ? v => handleIndustryChange(v) : v => handleChange(q.id, v)}
-                        onSetUnknown={() => handleUnknown(q.id)}
-                      />
-                    </div>
+                <div className="glc-card overflow-hidden p-5 space-y-8" style={{ borderRadius: 'var(--radius-xl)' }}>
+                  {questionSections.map((block, blockIdx) => (
+                    <section key={`intake-form-section-${blockIdx}`} className="space-y-6" aria-labelledby={`intake-section-${blockIdx}`}>
+                      <h2
+                        id={`intake-section-${blockIdx}`}
+                        className="text-[11px] font-semibold uppercase tracking-[0.12em] m-0 pb-1"
+                        style={{
+                          color: 'var(--text-quaternary)',
+                          borderBottom: '1px solid var(--border-subtle)',
+                        }}
+                      >
+                        {block.section}
+                      </h2>
+                      <div className="space-y-6">
+                        {block.questions.map(q => (
+                          <div key={q.id} id={`intake-q-${q.id}`}>
+                            <BriefField
+                              q={q}
+                              value={responses[q.id]}
+                              onChange={q.id === 'intake_industry' ? v => handleIndustryChange(v) : v => handleChange(q.id, v)}
+                              onSetUnknown={() => handleUnknown(q.id)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </section>
                   ))}
                 </div>
 

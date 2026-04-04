@@ -335,6 +335,7 @@ export function DiscoverPage() {
             <span style={{ fontWeight: 700, fontSize: 15, color: 'rgba(255,255,255,0.85)', letterSpacing: '-0.01em' }}>GLC Audit</span>
           </div>
 
+          <div className="space-y-5">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} className="space-y-5">
             {/* Header */}
             <div className="text-center mb-6">
@@ -413,8 +414,9 @@ export function DiscoverPage() {
                 Could not save your session — your results are still shown above.
               </p>
             )}
+          </motion.div>
 
-            {/* Contact form */}
+            {/* Contact form — keep outside motion.div (Motion + React insertBefore conflicts on submit state) */}
             {!contactSaved ? (
               <form
                 onSubmit={handleContactSubmit}
@@ -472,9 +474,19 @@ export function DiscoverPage() {
                       : 'pointer',
                   }}
                 >
-                  {contactSaving
-                    ? <><Spinner size={14} className="animate-spin" /> Saving…</>
-                    : <><PaperPlaneRight size={14} /> Send contact details</>}
+                  <span key={contactSaving ? 'saving' : 'idle'} className="inline-flex items-center justify-center gap-2">
+                    {contactSaving ? (
+                      <>
+                        <Spinner size={14} className="animate-spin" aria-hidden />
+                        Saving…
+                      </>
+                    ) : (
+                      <>
+                        <PaperPlaneRight size={14} aria-hidden />
+                        Send contact details
+                      </>
+                    )}
+                  </span>
                 </button>
               </form>
             ) : (
@@ -501,7 +513,7 @@ export function DiscoverPage() {
             >
               <ArrowLeft size={14} /> Review answers
             </button>
-          </motion.div>
+          </div>
         </div>
       </div>
     );

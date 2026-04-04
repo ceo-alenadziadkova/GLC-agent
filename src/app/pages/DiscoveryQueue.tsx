@@ -324,9 +324,15 @@ export function DiscoveryQueue() {
                 transition: 'all 0.2s',
               }}
             >
-              {linkCopied
-                ? <><CheckCircle size={12} weight="fill" /> Copied!</>
-                : <><Copy size={12} /> Copy discover link</>}
+              {/* Keyed wrapper avoids DOM reconcile edge cases with sidebar layout updates + icon swap */}
+              <span key={linkCopied ? 'copied' : 'idle'} className="inline-flex items-center gap-1.5">
+                {linkCopied ? (
+                  <CheckCircle size={12} weight="fill" aria-hidden />
+                ) : (
+                  <Copy size={12} aria-hidden />
+                )}
+                {linkCopied ? 'Copied!' : 'Copy discover link'}
+              </span>
             </button>
             <button
               type="button"

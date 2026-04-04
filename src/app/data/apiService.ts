@@ -465,7 +465,15 @@ export const api = {
     return payload;
   },
 
-  async saveBrief(auditId: string, responses: Record<string, unknown>) {
+  async saveBrief(
+    auditId: string,
+    responses: Record<string, unknown>,
+    opts?: { collection_mode?: import('../data/auditTypes').IntakeBriefCollectionMode },
+  ) {
+    const body: Record<string, unknown> = { responses };
+    if (opts?.collection_mode) {
+      body.collection_mode = opts.collection_mode;
+    }
     const payload = await apiFetch<{
       brief: import('../data/auditTypes').IntakeBrief;
       validation: { passed: boolean; sla_met: boolean; answered_required: number; total_required: number };
@@ -488,7 +496,7 @@ export const api = {
       };
     }>(`/api/audits/${auditId}/brief`, {
       method: 'PUT',
-      body: JSON.stringify({ responses }),
+      body: JSON.stringify(body),
     });
     assertIntakePayloadShape(payload);
     return payload;

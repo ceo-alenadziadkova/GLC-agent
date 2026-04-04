@@ -5,6 +5,7 @@ import { supabase } from '../services/supabase.js';
 import { MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
 import type { DomainResult } from '../types/audit.js';
+import { writeReconPrefillsAfterPhase0 } from '../services/recon-prefill.js';
 
 /**
  * Phase 0: Recon Agent
@@ -78,6 +79,13 @@ export class ReconAgent extends BaseAgent {
       contact_info: crawlResult.data.contact_info,
       pages_crawled: crawlResult.data.pages_crawled,
     }).eq('audit_id', this.auditId);
+
+    if (!noPublicSite) {
+      await writeReconPrefillsAfterPhase0(
+        this.auditId,
+        (crawlResult.data.tech_stack ?? {}) as Record<string, unknown>,
+      );
+    }
 
     // Update audit with discovered info
     await supabase.from('audits').update({

@@ -63,6 +63,8 @@ function makeAgentContext(): AgentContext {
     intake_data_quality_score: 0,
     intake_readiness_badge: 'medium',
     post_audit_questions: [],
+    recon_prefills: {},
+    recon_conflicts: [],
     failed_domains: [],
     instructions: 'test',
   };

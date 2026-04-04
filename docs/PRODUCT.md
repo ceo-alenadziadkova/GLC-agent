@@ -5,7 +5,7 @@ Consultant-led B2B audits: submit a company URL (plus intake context where appli
 **Primary users:** Consultants running audits for SMB clients.  
 **Client deliverables:** Scored domain findings, executive summary, quick wins, and (full mode) strategy initiatives in Strategy Lab (`/strategy/:id`).
 
-Technical execution details: [PIPELINE.md](./PIPELINE.md), [AGENTS.md](./AGENTS.md). Index of all domains: [MASTER_DOCUMENTATION.md](./MASTER_DOCUMENTATION.md).
+Technical execution details: [PIPELINE.md](./PIPELINE.md), [AGENTS.md](./AGENTS.md). Index of all domains: [MASTER.md](./MASTER.md).
 
 ---
 

@@ -24,7 +24,8 @@ export interface BriefQuestion {
   intake_layer?: IntakeLayer;
   weight?: number;
   ux_group?: UxGroup;
-  section: string;
+  /** Set for all brief definitions; public intake may rely on API-populated sections. */
+  section?: string;
   question: string;
   hint?: string;
   consultant_hint?: string;
@@ -79,6 +80,46 @@ const BASE_INTAKE_IDENTITY_QUESTIONS: BriefQuestion[] = [
 ];
 
 const BASE_BRIEF_QUESTIONS: BriefQuestion[] = [
+  {
+    id: 'f2',
+    priority: 'recommended',
+    section: 'Goals',
+    question: 'Which areas are you most interested in improving with this audit?',
+    hint: 'Select all that apply — this helps us balance depth across domains.',
+    type: 'multi_choice',
+    options: [
+      'Website performance and technology (speed, stability, technical health)',
+      'Online visibility and SEO (finding and attracting the right traffic)',
+      'Customer experience and conversions (turning visitors into customers)',
+      'Marketing and positioning (clarity of message and differentiation)',
+      'Process automation and efficiency (less manual work and handoffs)',
+      'Security, compliance and risk (avoiding costly surprises)',
+    ],
+  },
+  {
+    id: 'a7',
+    priority: 'recommended',
+    section: 'Business',
+    question: 'How would you describe where your business is right now? (not company age — the moment)',
+    hint: 'This shapes tone and whether we emphasise quick wins vs. foundation work.',
+    type: 'single_choice',
+    options: ['Launching', 'Growing fast', 'Stabilising', 'Scaling', 'Mature and optimising'],
+  },
+  {
+    id: 'f8',
+    priority: 'recommended',
+    section: 'Goals',
+    question: 'Is there a deadline or key moment driving this audit?',
+    hint: 'Helps us prioritise sequencing of recommendations.',
+    type: 'single_choice',
+    options: [
+      'Opening or launch soon',
+      'Seasonal peak coming',
+      'Investor, partner, or board review',
+      'Contract or compliance milestone',
+      'No specific deadline',
+    ],
+  },
   // ── Business Basics ──────────────────────────────────────
   {
     id: 'primary_goal', priority: 'required', section: 'Business',
@@ -256,6 +297,9 @@ const PRE_BRIEF_IDS = new Set<string>([
   'intake_company_name',
   'intake_industry',
   'intake_industry_specify',
+  'f2',
+  'a7',
+  'f8',
   'primary_goal',
   'target_audience',
   'primary_cta',
@@ -263,6 +307,16 @@ const PRE_BRIEF_IDS = new Set<string>([
   'handles_payments',
   'biggest_pain',
 ]);
+
+/** Keep in sync with server `PRE_BRIEF_REQUIRED_SUBMIT_IDS` in `server/src/schemas/intake-brief.ts`. */
+const PRE_BRIEF_REQUIRED_SUBMIT_IDS = [
+  'primary_goal',
+  'target_audience',
+  'primary_cta',
+  'has_google_analytics',
+  'handles_payments',
+  'biggest_pain',
+] as const;
 
 const HIGH_REVENUE_QUESTION_IDS = new Set<string>([
   'primary_goal',
@@ -321,12 +375,14 @@ function enrichQuestion(question: BriefQuestion): BriefQuestion {
   let ux_group: UxGroup = 'business';
   if (question.id.startsWith('intake_')) {
     ux_group = 'basics';
-  } else if (question.section.includes('Tech') || question.section.includes('Security')) {
+  } else if (question.section?.includes('Tech') || question.section?.includes('Security')) {
     ux_group = 'tech';
-  } else if (question.section.includes('SEO')) {
+  } else if (question.section?.includes('SEO')) {
     ux_group = 'audience';
-  } else if (question.id === 'primary_goal' || question.id === 'biggest_pain') {
+  } else if (question.id === 'primary_goal' || question.id === 'biggest_pain' || question.id === 'f2' || question.id === 'f8') {
     ux_group = 'goals';
+  } else if (question.id === 'a7') {
+    ux_group = 'business';
   } else if (question.id === 'revenue_model' || question.id === 'monthly_revenue') {
     ux_group = 'basics';
   }
@@ -380,8 +436,25 @@ export const EXPRESS_REQUIRED_QUESTION_IDS = BRIEF_QUESTIONS
 export const PRE_BRIEF_QUESTION_IDS = BRIEF_QUESTIONS
   .filter(q => q.intake_layer === 'pre_brief')
   .map(q => q.id);
-export const BRIEF_SECTIONS = [...new Set(BRIEF_QUESTIONS.map(q => q.section))];
+export const BRIEF_SECTIONS = [...new Set(BRIEF_QUESTIONS.map(q => q.section).filter(Boolean) as string[])];
 export const BRIEF_UX_GROUPS = [...new Set(BRIEF_QUESTIONS.map(q => q.ux_group))];
+
+/** Adjacent questions with the same `section` become one block (public `/intake`, review step). */
+export function groupBriefQuestionsBySection(
+  ordered: BriefQuestion[],
+): Array<{ section: string; questions: BriefQuestion[] }> {
+  const groups: Array<{ section: string; questions: BriefQuestion[] }> = [];
+  for (const q of ordered) {
+    const section = (q.section?.trim() || 'Questions').trim();
+    const last = groups[groups.length - 1];
+    if (last && last.section === section) {
+      last.questions.push(q);
+    } else {
+      groups.push({ section, questions: [q] });
+    }
+  }
+  return groups;
+}
 
 function unwrapResponse(value: BriefResponseValue | BriefResponseEntry | undefined): BriefResponseValue | undefined {
   if (value != null && typeof value === 'object' && !Array.isArray(value) && 'value' in value) {
@@ -476,7 +549,7 @@ export function getPreBriefSubmitSlotIds(responses: BriefResponses): string[] {
   if (intakeIndustryIsOther(responses)) {
     ids.push(INTAKE_IDENTITY_FIELD_IDS[3]);
   }
-  ids.push(...PRE_BRIEF_QUESTION_IDS);
+  ids.push(...PRE_BRIEF_REQUIRED_SUBMIT_IDS);
   return ids;
 }
 

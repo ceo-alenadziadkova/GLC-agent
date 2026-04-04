@@ -72,6 +72,9 @@ const { setRequestUserId, resetSupabaseMock } = vi.hoisted(() => {
     if (table === 'audit_domains') return makeDomainsChain();
     if (table === 'audit_recon') return makeSingleChain({ company_name: 'Example Ltd', industry: 'SaaS' });
     if (table === 'audit_strategy') return makeSingleChain(null);
+    if (table === 'notifications') {
+      return { insert: vi.fn(() => Promise.resolve({ error: null })) };
+    }
     return makeSingleChain(null);
   });
 

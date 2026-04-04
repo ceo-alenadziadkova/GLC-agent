@@ -10,7 +10,12 @@ import {
   reviewPhasesForMode,
   type ProductMode,
 } from '../types/audit.js';
-import { evaluateBriefGates, saveBriefResponses, validateBriefResponses } from '../services/brief-validator.js';
+import {
+  evaluateBriefGates,
+  saveBriefResponses,
+  validateBriefResponses,
+} from '../services/brief-validator.js';
+import type { IntakeBriefCollectionMode } from '../types/audit.js';
 import { BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import { NO_PUBLIC_WEBSITE_URL } from '../config/no-public-website.js';
@@ -303,12 +308,18 @@ auditsRouter.get('/:id/brief', async (req: AuthRequest, res) => {
 auditsRouter.put('/:id/brief', async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
-    const { responses } = req.body;
+    const { responses, collection_mode: collectionModeRaw } = req.body;
 
     if (!responses || typeof responses !== 'object' || Array.isArray(responses)) {
       res.status(400).json({ error: 'responses must be an object' });
       return;
     }
+
+    const allowedModes: IntakeBriefCollectionMode[] = ['self_serve', 'interview', 'pre_brief', 'discovery'];
+    const collection_mode =
+      typeof collectionModeRaw === 'string' && allowedModes.includes(collectionModeRaw as IntakeBriefCollectionMode)
+        ? (collectionModeRaw as IntakeBriefCollectionMode)
+        : undefined;
 
     // Verify access
     const { data: audit } = await supabase
@@ -328,7 +339,9 @@ auditsRouter.put('/:id/brief', async (req: AuthRequest, res) => {
       return;
     }
 
-    const { brief, gates } = await saveBriefResponses(id, responses as Record<string, unknown>);
+    const { brief, gates } = await saveBriefResponses(id, responses as Record<string, unknown>, {
+      ...(collection_mode ? { collection_mode } : {}),
+    });
     const liveValidation = validateBriefResponses(brief.responses as Record<string, unknown>);
 
     res.json({

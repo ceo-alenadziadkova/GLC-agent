@@ -430,11 +430,17 @@ Lists intake tokens **you created** where the client has already submitted (`sub
 
 **Response `200`:** `{ "metadata", "questions" (pre-brief subset), "responses", "submitted_at", "expires_at" }`.
 
+The `questions` list includes question-bank fields **`f2`**, **`a7`**, and **`f8`** (focus areas, business moment, deadline) immediately after identity and before the legacy core (`primary_goal`, etc.); see [QUESTION_BANK.md](./QUESTION_BANK.md).
+
+Each question object includes optional **`section`** (UI heading: `Business`, `Goals`, `UX & Conversion`, …) aligned with the consultant brief — the public `/intake/:token` page groups the form and review by these sections. Same shape on **`GET /api/intake/prefill/:token`**.
+
 **Response `410`:** link expired.
 
 ### `POST /api/intake/:token/respond`
 
 **Auth:** none. **Body:** `{ "responses": { ... } }` — same shape as intake brief answers (validated with `BriefResponsesSchema`).
+
+Submit validation requires **identity** plus the legacy express-style core (`primary_goal`, `target_audience`, `primary_cta`, `has_google_analytics`, `handles_payments`, `biggest_pain`); **`f2` / `a7` / `f8` are optional** but, when present, merge into `intake_brief` like other `pre_brief` keys.
 
 Overwrites stored responses and updates `submitted_at`. Allowed until `expires_at` (no single-submit lock). If the token was created with `audit_id`, merges pre-brief question keys into `intake_brief` with source `client`.
 

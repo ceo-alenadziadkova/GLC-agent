@@ -41,6 +41,12 @@ abstract class BaseAgent {
 
 ---
 
+## Intake context & question bank
+
+On each brief save and when building agent context, **`mergeLegacyResponsesIntoBankV1`** (`server/src/intake/legacy-to-bank.ts`) fills empty bank slots from legacy ids (`primary_goal`→`f1`, `intake_company_website`→`a5`, …) without overwriting real bank answers; persisted on `saveBriefResponses` / `assertBriefReady`. `ContextBuilder` merges legacy brief fields with **question-bank v1** answers per domain when responses include bank ids (`a1`, …) — mapping in [QUESTION_BANK.md](./QUESTION_BANK.md) §5; implementation in `server/src/intake/` (`DOMAIN_TO_QUESTION_IDS`, `question-bank.v1.json` labels). The formatted prompt adds **Intake AI readiness (heuristic)** (0–100) only for those briefs (`calcAiReadinessScore`, §8 in QUESTION_BANK). Free-text answers validate up to **`BRIEF_ANSWER_STRING_MAX`** (12k chars) in `server/src/schemas/intake-brief.ts`.
+
+---
+
 ## Collectors
 
 Data gatherers in `server/src/collectors/`. Run before any AI call. Results cached in `collected_data`.

@@ -12,6 +12,8 @@ import {
   BRIEF_QUESTIONS, REQUIRED_IDS, countAnswered,
   type BriefResponseEntry, type BriefResponses, type BriefQuestion,
 } from '../data/briefQuestions';
+import { useIntakeBankMetrics } from '../hooks/useIntakeWizard';
+import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
 
 // ── Status step timeline ──────────────────────────────────────────────────────
 
@@ -131,12 +133,15 @@ function ClientBriefSection({ auditId }: { auditId: string }) {
   const [briefError, setBriefError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [bankCollectionMode, setBankCollectionMode] = useState<'discovery' | undefined>(undefined);
+
   useEffect(() => {
     api.getBrief(auditId)
       .then(data => {
         if (data.brief?.responses) {
           setResponses(data.brief.responses as BriefResponses);
         }
+        setBankCollectionMode(data.brief?.collection_mode === 'discovery' ? 'discovery' : undefined);
         if (data.intakeProgress) setIntakeProgress(data.intakeProgress);
         if (data.gates?.recommendedToImproveIds) setMissingRecommendedCount(data.gates.recommendedToImproveIds.length);
       })
@@ -148,6 +153,7 @@ function ClientBriefSection({ auditId }: { auditId: string }) {
   const fallbackProgress = Math.min(100, Math.round((answeredRequired / REQUIRED_IDS.length) * 100));
   const progressPct = intakeProgress?.progressPct ?? fallbackProgress;
   const readinessBadge = intakeProgress?.readinessBadge ?? (fallbackProgress >= 80 ? 'high' : fallbackProgress >= 45 ? 'medium' : 'low');
+  const bankMetrics = useIntakeBankMetrics(responses, bankCollectionMode);
 
   async function handleSave() {
     setSaving(true);
@@ -195,6 +201,14 @@ function ClientBriefSection({ auditId }: { auditId: string }) {
         <div className="rounded-full overflow-hidden" style={{ height: 3, backgroundColor: 'var(--bg-muted)' }}>
           <div className="h-full rounded-full" style={{ width: `${progressPct}%`, background: 'var(--gradient-brand)', transition: 'width 0.3s' }} />
         </div>
+
+        <IntakeBankCoverageHint
+          dataQualityPct={bankMetrics.dataQualityPct}
+          visibleRequiredAnswered={bankMetrics.visibleRequiredAnswered}
+          visibleRequiredTotal={bankMetrics.visibleRequiredTotal}
+          visibleRecommendedAnswered={bankMetrics.visibleRecommendedAnswered}
+          visibleRecommendedTotal={bankMetrics.visibleRecommendedTotal}
+        />
 
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
           These answers help the GLC team tailor the audit. Fill{' '}

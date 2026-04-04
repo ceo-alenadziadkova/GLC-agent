@@ -20,6 +20,11 @@ export const discoverRouter = Router();
 
 const TOKEN_HEX = /^[a-f0-9]{40}$/i;
 
+function singleRouteParam(v: string | string[] | undefined): string {
+  if (v === undefined) return '';
+  return Array.isArray(v) ? (v[0] ?? '') : v;
+}
+
 // ── Answer → intake-brief mapping ────────────────────────────────────────────
 
 type BriefEntry = { value: unknown; source: 'client' | 'unknown' };
@@ -205,7 +210,7 @@ discoverRouter.get(
 
 discoverRouter.get('/:token', intakePublicLimiter, async (req, res) => {
   try {
-    const { token } = req.params;
+    const token = singleRouteParam(req.params.token);
     if (!token || !TOKEN_HEX.test(token)) {
       res.status(400).json({ error: 'Invalid token' });
       return;
@@ -233,7 +238,7 @@ discoverRouter.get('/:token', intakePublicLimiter, async (req, res) => {
 
 discoverRouter.patch('/:token/contact', intakePublicLimiter, async (req, res) => {
   try {
-    const { token } = req.params;
+    const token = singleRouteParam(req.params.token);
     if (!token || !TOKEN_HEX.test(token)) {
       res.status(400).json({ error: 'Invalid token' });
       return;
@@ -278,7 +283,7 @@ discoverRouter.post(
   requireAuth, attachProfile, requireRole('consultant'),
   async (req: AuthRequest, res) => {
     try {
-      const { token } = req.params;
+      const token = singleRouteParam(req.params.token);
       if (!token || !TOKEN_HEX.test(token)) {
         res.status(400).json({ error: 'Invalid token' });
         return;

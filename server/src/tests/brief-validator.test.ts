@@ -36,14 +36,23 @@ const { mockFrom, setAuditMode, setBriefRow, getUpsertCalls } = vi.hoisted(() =>
   const getUpsertCalls = () => upsertCalls;
 
   const makeChain = (table: string) => ({
-    select: vi.fn(() => ({
-      eq: vi.fn().mockReturnThis(),
-      single: vi.fn(() => {
-        if (table === 'audits') return Promise.resolve({ data: { product_mode: auditMode }, error: null });
-        if (table === 'intake_brief') return Promise.resolve({ data: briefRow, error: briefRow ? null : { code: 'PGRST116', message: 'No rows' } });
-        return Promise.resolve({ data: null, error: null });
-      }),
-    })),
+    select: vi.fn(() => {
+      const chain = {
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn(() => {
+          if (table === 'intake_brief') {
+            return Promise.resolve({ data: briefRow, error: null });
+          }
+          return Promise.resolve({ data: null, error: null });
+        }),
+        single: vi.fn(() => {
+          if (table === 'audits') return Promise.resolve({ data: { product_mode: auditMode }, error: null });
+          if (table === 'intake_brief') return Promise.resolve({ data: briefRow, error: briefRow ? null : { code: 'PGRST116', message: 'No rows' } });
+          return Promise.resolve({ data: null, error: null });
+        }),
+      };
+      return chain;
+    }),
     upsert: vi.fn((payload: unknown) => {
       upsertCalls.push({ table, payload });
       return {
@@ -57,6 +66,8 @@ const { mockFrom, setAuditMode, setBriefRow, getUpsertCalls } = vi.hoisted(() =>
               sla_met: (payload as Record<string, unknown>).sla_met ?? false,
               answered_required: (payload as Record<string, unknown>).answered_required ?? 0,
               answered_recommended: (payload as Record<string, unknown>).answered_recommended ?? 0,
+              recon_conflicts: (payload as Record<string, unknown>).recon_conflicts ?? [],
+              collection_mode: (payload as Record<string, unknown>).collection_mode ?? 'self_serve',
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             },
@@ -81,7 +92,12 @@ vi.mock('../services/supabase.js', () => ({
 
 // ─── Import after mocks ───────────────────────────────────────────────────────
 
-import { validateBriefResponses, assertBriefReady, saveBriefResponses } from '../services/brief-validator.js';
+import {
+  validateBriefResponses,
+  assertBriefReady,
+  saveBriefResponses,
+  arePreBriefSlotsSatisfied,
+} from '../services/brief-validator.js';
 import { REQUIRED_QUESTION_IDS, RECOMMENDED_QUESTION_IDS, BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -123,7 +139,10 @@ describe('validateBriefResponses()', () => {
 
   it('counts only answered required questions', () => {
     const responses: Record<string, unknown> = {};
-    const firstThree = REQUIRED_QUESTION_IDS.slice(0, 3);
+    // Skip primary_goal/biggest_pain: prepareBrief syncs them via f1 hydration and would add an extra answered slot.
+    const firstThree = REQUIRED_QUESTION_IDS.filter(
+      id => id !== 'primary_goal' && id !== 'biggest_pain',
+    ).slice(0, 3);
     firstThree.forEach(id => { responses[id] = 'answered'; });
 
     const result = validateBriefResponses(responses);
@@ -322,8 +341,8 @@ describe('saveBriefResponses()', () => {
     expect((upsert!.payload as Record<string, unknown>).audit_id).toBe('audit-xyz');
   });
 
-  it('rejects responses with invalid Zod types (string > 2000 chars)', async () => {
-    const responses = { primary_goal: 'x'.repeat(2001) };
+  it('rejects responses with invalid Zod types (string over BRIEF_ANSWER_STRING_MAX)', async () => {
+    const responses = { primary_goal: 'x'.repeat(12_001) };
     await expect(saveBriefResponses('audit-001', responses)).rejects.toThrow(/Invalid brief responses/);
   });
 
@@ -336,8 +355,8 @@ describe('saveBriefResponses()', () => {
 // ─── Schema invariants ────────────────────────────────────────────────────────
 
 describe('BRIEF_QUESTIONS schema invariants', () => {
-  it('has 25 main brief questions (identity is separate for public /intake link only)', () => {
-    expect(BRIEF_QUESTIONS).toHaveLength(25);
+  it('has 28 main brief questions (identity is separate for public /intake link only)', () => {
+    expect(BRIEF_QUESTIONS).toHaveLength(28);
   });
 
   it('all question IDs are unique', () => {
@@ -385,5 +404,28 @@ describe('BRIEF_QUESTIONS schema invariants', () => {
         expect(VALID_DOMAINS).toContain(domain);
       }
     }
+  });
+});
+
+describe('arePreBriefSlotsSatisfied', () => {
+  const minimalPreBrief = {
+    intake_company_website: 'https://example.com',
+    intake_company_name: 'Acme',
+    intake_industry: 'Hospitality',
+    primary_goal: 'More direct bookings',
+    target_audience: 'Travelers 30–50',
+    primary_cta: 'Book now',
+    has_google_analytics: 'Yes, GA4',
+    handles_payments: 'Yes — we process card payments on site',
+    biggest_pain: 'Low conversion',
+  };
+
+  it('passes without optional bank fields f2, a7, f8', () => {
+    expect(arePreBriefSlotsSatisfied(minimalPreBrief)).toBe(true);
+  });
+
+  it('fails when a required submit slot is missing', () => {
+    const { biggest_pain: _, ...rest } = minimalPreBrief;
+    expect(arePreBriefSlotsSatisfied(rest)).toBe(false);
   });
 });

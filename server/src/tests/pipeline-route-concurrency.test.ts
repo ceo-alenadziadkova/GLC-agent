@@ -51,22 +51,23 @@ const {
         update: vi.fn((payload: Record<string, unknown>) => {
           const isStartClaim = payload.status === 'recon' && payload.current_phase === 0;
           const isRetryOrNextClaim = typeof payload.status === 'string' && payload.current_phase === undefined;
-          return {
-            eq: vi.fn().mockReturnThis(),
-            select: vi.fn(async () => {
-              if (isStartClaim) {
-                return { data: claimStartSuccess ? [{ id: 'audit-001' }] : [], error: null };
+          const chain: Record<string, unknown> = {};
+          chain.eq = vi.fn(() => chain);
+          chain.in = vi.fn(() => chain);
+          chain.select = vi.fn(async () => {
+            if (isStartClaim) {
+              return { data: claimStartSuccess ? [{ id: 'audit-001' }] : [], error: null };
+            }
+            if (isRetryOrNextClaim) {
+              const isRetryCall = auditRow?.status === 'failed';
+              if (isRetryCall) {
+                return { data: claimRetrySuccess ? [{ id: 'audit-001' }] : [], error: null };
               }
-              if (isRetryOrNextClaim) {
-                const isRetryCall = auditRow?.status === 'failed';
-                if (isRetryCall) {
-                  return { data: claimRetrySuccess ? [{ id: 'audit-001' }] : [], error: null };
-                }
-                return { data: claimNextSuccess ? [{ id: 'audit-001' }] : [], error: null };
-              }
-              return { data: [{ id: 'audit-001' }], error: null };
-            }),
-          };
+              return { data: claimNextSuccess ? [{ id: 'audit-001' }] : [], error: null };
+            }
+            return { data: [{ id: 'audit-001' }], error: null };
+          });
+          return chain;
         }),
       };
     }

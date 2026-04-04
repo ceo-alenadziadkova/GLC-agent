@@ -2,19 +2,117 @@
 
 Product context (modes, deliverables): [PRODUCT.md](./PRODUCT.md). System diagram: [ARCHITECTURE.md](./ARCHITECTURE.md).
 
+**Design system (Figma-style guide):** [Design system (style guide)](#design-system-style-guide) — tokens, themes, typography, spacing, components. Canonical CSS: `src/styles/theme.css`.
+
 ## Stack
 
-React 18 + TypeScript + Vite. Deployed to Vercel. Uses Tailwind CSS + glassmorphism design system. Animation via Framer Motion.
+React 18 + TypeScript + Vite. Tailwind CSS v4 (`src/styles/tailwind.css`), glassmorphism and brand gradients where specified in tokens. Animation: Framer Motion. UI primitives: shadcn-style semantic variables mapped in `theme.css` (`--background`, `--primary`, …).
 
-**Dark theme:** `html.dark` sets design tokens in `src/styles/theme.css` (canvas `#0d1117`, text `#e6edf3`, borders `#30363d` / `#484f58`, matching the G-Power loader reference). A global vignette lives in `src/styles/index.css`. Initialization: `applyGlcColorScheme()` in `main.tsx` — uses `prefers-color-scheme` until the user changes the toggle. User choice is saved in `localStorage['glc-theme']` as `'dark'`, `'light'`, or omitted for `'system'`. UI: `ThemeToggle` in `AppShell` **header** (every page with the shell) and sidebar, plus `/login`, `/snapshot`, and `/intake/:token` (`IntakeBrief`). Settings page (`/settings`) exposes explicit `System / Light / Dark` mode controls through `useGlcTheme().setMode(...)`. Brand mark: `GlcLogo` (`src/app/components/GlcLogo.tsx`) — `variant="on-dark"` (always `logo-white.svg`) in the ink sidebar; `variant="auto"` elsewhere switches `logo.svg` / `logo-white.svg` with the theme. API: `setGlcColorScheme('dark'|'light'|'system')` and `useGlcTheme()` in `src/app/lib/glc-theme.ts` / `src/app/hooks/useGlcTheme.ts`. Prefer CSS variables for surfaces and accents: `--bg-canvas`, `--bg-surface`, `--text-primary`, `--score-*-bg`, `--primary-foreground` (white on brand gradients); legacy aliases `--surface`, `--surface-elevated`, and `--panel-border` map to the same system in `:root`.
+---
 
-**Narrow-only tweaks:** the `mobile:` variant (`width < 40rem`, same cutoff as Tailwind `sm`) is defined in `src/styles/tailwind.css`. Pair it with base classes aimed at sm+ (e.g. `px-6 mobile:px-4`, `flex-row mobile:flex-col`) so sub-640px adjustments stay isolated and you avoid `sm:` undo chains.
+## Design system (style guide)
 
-Application UI code must not use emoji characters for status or progress markers. Use icon components (Phosphor React) and semantic color tokens.
+Single source of truth for **visual language** in code is `src/styles/theme.css` (“GLC Design System v2”). Use **CSS variables** (not hard-coded hex) for surfaces, text, and borders. Tailwind utilities that reference `@theme inline` map to those tokens.
 
-**Public pre-brief (`IntakeBrief`, `/intake/:token`):** Clients fill questions, then a **review** step lists all answers with edit shortcuts, then **Confirm and submit**. Success copy uses token `metadata` (`consultant_name`, `expected_contact`, `contact_channel`, `consultant_email`, `consultant_whatsapp`); helpers in `src/app/lib/intake-client-copy.ts`. Consultants optionally set these when creating the link in New Audit. Clients can resubmit on the same URL until `expires_at` (default 7 days).
+### Brand and principles
 
-**Notification center (`AppShell`):** Sidebar `Notifications` opens `NotificationCenter` drawer (`src/app/components/NotificationCenter.tsx`). Data source: `useNotifications` (`src/app/hooks/useNotifications.ts`) with initial API load (`/api/notifications`) and Supabase Realtime updates from `notifications` table (`INSERT`/`UPDATE`). Unread badge and read actions (`mark one` / `mark all`) stay in sync with API and realtime. Navigation is payload-aware (`payload.route`, `request_id`, `audit_id`) to open the right workspace/request screen. Visual emphasis is also payload-aware (for example failure lightning / artifact success icons via `failure_type` and `artifact` payload fields).
+| Token | Role |
+| --- | --- |
+| Cyan `#1CBDFF` (`--glc-blue` …) | Primary / focus / data accent |
+| Orange `#F24F1D` (`--glc-orange` …) | CTA and emphasis (`--text-accent`, primary button utility) |
+| Green `#0ECF82` (`--glc-green` …) | Success / positive drift |
+| Ink stack (`--glc-ink` … `--glc-ink-4`) | Sidebar and deep surfaces |
+
+**References:** product tone “Linear / Vercel / Stripe” is noted in `theme.css`. **Glass** panels use `--glass-*`; **mesh** backgrounds use `--mesh-brand` / `--mesh-ink`.
+
+### Color — semantic layers (light)
+
+| Layer | Variable | Typical use |
+| --- | --- | --- |
+| Canvas | `--bg-canvas` | App background |
+| Surface | `--bg-surface` | Cards, panels |
+| Elevated | `--bg-elevated` | Modals, raised chips |
+| Muted | `--bg-muted` | Inputs, subtle bands |
+| Sidebar | `--bg-sidebar` | Nav shell (ink in light theme) |
+
+**Text:** `--text-primary` → `--text-quaternary` (strongest → tertiary UI). **Borders:** `--border-subtle` / `--border-default` / `--border-strong`.
+
+### Color — dark theme (`html.dark`)
+
+Dark maps GitHub-style canvas and borders (e.g. canvas `#0d1117`, surface `#161b22`, default border `#30363d`). Brand primaries stay the same; score chips and glass tokens get dark-specific backgrounds. Toggle is `class="dark"` on `<html>` — see [Theme runtime](#theme-runtime).
+
+### Score scale (1–5)
+
+Domain scores use `--score-1` … `--score-5` and paired `--score-*-bg` / `--score-*-border` for badges and rings. Do not invent ad-hoc reds/greens for scores.
+
+### Typography
+
+| Role | Variable / rule |
+| --- | --- |
+| Display | `--font-display` (Space Grotesk) — `h1`–`h3` in `@layer base` |
+| Body | `--font-sans` (Inter) — `body`, forms |
+| Mono | `--font-mono` — metrics, IDs, code |
+| Scale | `--text-xs` … `--text-4xl` (see `theme.css`) |
+| Tracking | `--tracking-tight` … `--tracking-widest` |
+| Label utility | `.glc-label`, `.glc-label-accent` |
+
+Base heading sizes and weights are set globally in `theme.css` (`h1`–`h4`, `label`).
+
+### Spacing and radius
+
+**Spacing scale:** `--space-1` (4px) through `--space-16` (64px).
+
+**Radius:** `--radius-xs` … `--radius-2xl`, `--radius-pill`. **shadcn bridge:** `--radius` (0.5rem) feeds `--radius-sm` / `--radius-md` / … in `@theme inline`.
+
+### Elevation and depth
+
+| Token | Use |
+| --- | --- |
+| `--shadow-xs` … `--shadow-xl` | Layered depth |
+| `--shadow-card` | Default card border + shadow |
+| `--glow-blue`, `--glow-orange`, `--glow-green` | Focus / emphasis rings |
+| `--gradient-brand`, `--gradient-accent`, `--gradient-success` | Buttons, heroes |
+| `--shadow-ink`, `--shadow-swiss` | Sidebar / bold UI |
+
+### Motion and focus
+
+**Easing:** `--ease-fast`, `--ease-base`, `--ease-slow`. **Focus visible:** 2px `--glc-blue` outline + `--shadow-blue` (global `theme.css`).
+
+### Layout and responsive
+
+**`mobile:` variant:** `width < 40rem` (same breakpoint notion as Tailwind `sm`). Define base layout for `sm+`, narrow overrides with `mobile:` — see `src/styles/tailwind.css`.
+
+### Components and patterns
+
+| Pattern | Where |
+| --- | --- |
+| shadcn semantic tokens | `--background`, `--primary`, `--card`, `--sidebar-*`, `--chart-*` in `:root` and `html.dark` |
+| GLC cards | `.glc-card`, `.glc-card-elevated` |
+| GLC buttons | `.glc-btn-primary`, `.glc-btn-secondary`, `.glc-btn-ghost` |
+| Brand mark | `GlcLogo` — `variant="on-dark"` in ink sidebar; `variant="auto"` elsewhere |
+
+Prefer composing with tokens (`bg-background`, `text-foreground`, `border-border`) where Tailwind maps them; use `.glc-*` when matching existing product chrome.
+
+### Icons and content
+
+**Icons:** [Phosphor React](https://phosphoricons.com/) only for status and affordances. **Do not** use emoji in application UI code (per project rules). **Illustrations / loaders:** loader path colors `--sync-loader-path-idle` / `--sync-loader-path-pulse`.
+
+### Theme runtime
+
+| Concern | Implementation |
+| --- | --- |
+| Persistence | `localStorage['glc-theme']`: `'dark'`, `'light'`, or omitted = `system` |
+| Apply | `applyGlcColorScheme()` in `main.tsx`; API `setGlcColorScheme`, `useGlcTheme()` in `src/app/lib/glc-theme.ts`, `src/app/hooks/useGlcTheme.ts` |
+| UI | `ThemeToggle` in `AppShell` header + sidebar; `/login`, `/snapshot`, `/intake/:token`; `/settings` for explicit System / Light / Dark |
+| Canvas polish | Global vignette: `src/styles/index.css` |
+
+### Product flows (UI contracts)
+
+**Public pre-brief (`IntakeBrief`, `/intake/:token`):** Questions from `GET /api/intake/:token` include **`section`** per item; the form and review screens group fields with `groupBriefQuestionsBySection` (adjacent same-title blocks; repeated titles like “Business”/`Goals` may appear as separate blocks following API order). Flow: **review** (edit shortcuts) → **Confirm and submit**. Success copy from token `metadata`; helpers `src/app/lib/intake-client-copy.ts`. Resubmit allowed until `expires_at`.
+
+**Question bank coverage hint:** `IntakeBankCoverageHint` + `useIntakeBankMetrics` on **New Audit** (Brief step), **Audit Workspace** sidebar (when `intake_brief` exists), and **Client portal** pre-audit brief — same branch-aware v1 score as the API after legacy merge.
+
+**Notification center:** `NotificationCenter` + `useNotifications`; API + Realtime on `notifications`. Deep links use `payload.route`, `request_id`, `audit_id`; icons follow `failure_type` / `artifact` in `payload`.
 
 ---
 
@@ -23,7 +121,7 @@ Application UI code must not use emoji characters for status or progress markers
 All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` for audit-specific pages.
 
 | Route | Page | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | `/login` | `Login.tsx` | Magic link + Google OAuth |
 | `/` → redirects | — | Redirect to `/portfolio` |
 | `/portfolio` | `Portfolio.tsx` | List of all audits, KPI bar |
@@ -112,6 +210,9 @@ const { user, isAuthenticated, loading, signOut } = useAuth();
 - Subscribes to `supabase.auth.onAuthStateChange`
 - `signOut()` → `supabase.auth.signOut()` + redirect to `/login`
 - `loading` is true until auth state is confirmed (prevents flash of login page)
+
+### `useIntakeBankMetrics()` / `useIntakeWizard()`
+Defined in `useIntakeWizard.ts`. **`useIntakeBankMetrics(briefResponses)`** derives branch-aware question-bank v1 coverage (same `mergeLegacyResponsesIntoBankV1` + `calcDataQualityScore` as the API) for UI such as **New Audit** step “Brief”. **`useIntakeWizard`** supports controlled mode (`value` + `onChange`), canonical **`sortStubsByBankOrder`**, and step navigation (`goNext` / `goPrev`, `currentStub`, `totalSteps`). **New Audit → Brief** toggle **“Step-by-step (bank)”** renders **`IntakeBankWizard`**: one question per step over visible bank ids (labels/types from `bankQuestionUiCatalog.ts` + `question-bank.v1.json`), plus **revenue model** (legacy-only required field). Required-field progress uses **`prepareBriefForValidation`** (same as API) so bank answers hydrate legacy gates.
 
 ### `useAudit(id: string | undefined)`
 ```typescript

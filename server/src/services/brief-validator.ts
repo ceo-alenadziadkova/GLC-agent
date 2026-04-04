@@ -11,12 +11,22 @@ import {
   EXPRESS_REQUIRED_QUESTION_IDS,
   INTAKE_IDENTITY_FIELD_IDS,
   OPTIONAL_QUESTION_IDS,
-  PRE_BRIEF_QUESTION_IDS,
+  PRE_BRIEF_REQUIRED_SUBMIT_IDS,
   REQUIRED_QUESTION_IDS,
   RECOMMENDED_QUESTION_IDS,
   BriefResponsesSchema,
 } from '../schemas/intake-brief.js';
-import type { IntakeBrief, IntakeNextBestAction, IntakeReadinessBadge, ProductMode } from '../types/audit.js';
+import type {
+  IntakeBrief,
+  IntakeBriefCollectionMode,
+  IntakeNextBestAction,
+  IntakeReadinessBadge,
+  ProductMode,
+  ReconConflict,
+} from '../types/audit.js';
+import { deriveBankV1DataQuality } from '../intake/question-bank.js';
+import { prepareBriefForValidation } from '../intake/hydrate-legacy-from-bank.js';
+import { mergeReconConflictsFromC1 } from '../intake/recon-conflicts.js';
 
 export interface BriefValidationResult {
   passed: boolean;
@@ -47,6 +57,10 @@ export interface SaveBriefResult {
   brief: IntakeBrief;
   validation: BriefValidationResult;
   gates: BriefGateResult;
+}
+
+export interface SaveBriefOptions {
+  collection_mode?: IntakeBriefCollectionMode;
 }
 
 function unwrapAnswer(value: unknown): unknown {
@@ -90,7 +104,7 @@ function getPreBriefSubmitSlotIds(responses: Record<string, unknown>): string[] 
   if (unwrapAnswer(responses.intake_industry) === 'Other') {
     ids.push(INTAKE_IDENTITY_FIELD_IDS[3]);
   }
-  ids.push(...PRE_BRIEF_QUESTION_IDS);
+  ids.push(...PRE_BRIEF_REQUIRED_SUBMIT_IDS);
   return ids;
 }
 
@@ -100,15 +114,16 @@ export function arePreBriefSlotsSatisfied(responses: Record<string, unknown>): b
 }
 
 function computeProgress(responses: Record<string, unknown>): IntakeProgress {
+  const r = prepareBriefForValidation(responses);
   const totalWeight = BRIEF_QUESTIONS.reduce((sum, q) => sum + (q.weight ?? 1), 0);
   const answeredWeight = BRIEF_QUESTIONS.reduce((sum, q) => (
-    sum + (isAnswered(responses[q.id]) ? (q.weight ?? 1) : 0)
+    sum + (isAnswered(r[q.id]) ? (q.weight ?? 1) : 0)
   ), 0);
   const progressPct = totalWeight > 0 ? Math.min(100, Math.round((answeredWeight / totalWeight) * 100)) : 0;
   const readinessBadge: IntakeReadinessBadge = progressPct >= 80 ? 'high' : progressPct >= 45 ? 'medium' : 'low';
 
-  const missingRequired = REQUIRED_QUESTION_IDS.filter(id => !isAnswered(responses[id]));
-  const missingRecommended = RECOMMENDED_QUESTION_IDS.filter(id => !isAnswered(responses[id]));
+  const missingRequired = REQUIRED_QUESTION_IDS.filter(id => !isAnswered(r[id]));
+  const missingRecommended = RECOMMENDED_QUESTION_IDS.filter(id => !isAnswered(r[id]));
 
   let nextBestAction: IntakeNextBestAction = 'none';
   if (missingRequired.length > 0) nextBestAction = 'complete_required';
@@ -123,11 +138,12 @@ function computeProgress(responses: Record<string, unknown>): IntakeProgress {
 export function validateBriefResponses(
   responses: Record<string, unknown>
 ): BriefValidationResult {
-  const answeredRequired = REQUIRED_QUESTION_IDS.filter(id => isAnswered(responses[id]));
-  const answeredRecommended = RECOMMENDED_QUESTION_IDS.filter(id => isAnswered(responses[id]));
+  const r = prepareBriefForValidation(responses);
+  const answeredRequired = REQUIRED_QUESTION_IDS.filter(id => isAnswered(r[id]));
+  const answeredRecommended = RECOMMENDED_QUESTION_IDS.filter(id => isAnswered(r[id]));
 
   const missingRequired = REQUIRED_QUESTION_IDS
-    .filter(id => !isAnswered(responses[id]))
+    .filter(id => !isAnswered(r[id]))
     .map(id => {
       const q = BRIEF_QUESTIONS.find(q => q.id === id)!;
       return { id, question: q.question };
@@ -150,11 +166,12 @@ export function evaluateBriefGates(
   responses: Record<string, unknown>,
   mode: ProductMode,
 ): BriefGateResult {
-  const missingExpressRequired = EXPRESS_REQUIRED_QUESTION_IDS.filter(id => !isAnswered(responses[id]));
-  const missingFullRequired = REQUIRED_QUESTION_IDS.filter(id => !isAnswered(responses[id]));
+  const r = prepareBriefForValidation(responses);
+  const missingExpressRequired = EXPRESS_REQUIRED_QUESTION_IDS.filter(id => !isAnswered(r[id]));
+  const missingFullRequired = REQUIRED_QUESTION_IDS.filter(id => !isAnswered(r[id]));
   const submitSlotIds = getPreBriefSubmitSlotIds(responses);
   const missingPreBrief = submitSlotIds.filter(id => !isPreBriefIdSatisfied(id, responses));
-  const missingRecommended = RECOMMENDED_QUESTION_IDS.filter(id => !isAnswered(responses[id]));
+  const missingRecommended = RECOMMENDED_QUESTION_IDS.filter(id => !isAnswered(r[id]));
   const intakeProgress = computeProgress(responses);
 
   const minPreBriefAnswered = Math.ceil(submitSlotIds.length / 2);
@@ -201,12 +218,15 @@ export async function assertBriefReady(auditId: string): Promise<void> {
     .eq('audit_id', auditId)
     .single();
 
-  const responses = (brief?.responses as Record<string, unknown>) ?? {};
-  const validation = validateBriefResponses(responses);
+  const rawBrief = (brief?.responses as Record<string, unknown>) ?? {};
+  const responses = prepareBriefForValidation(rawBrief);
+  const validation = validateBriefResponses(rawBrief);
   const gates = evaluateBriefGates(responses, audit.product_mode as ProductMode);
   const optionalCount = OPTIONAL_QUESTION_IDS.filter(id => isAnswered(responses[id])).length;
 
   // Update stats in DB
+  const bankDataQuality = deriveBankV1DataQuality(responses);
+
   await supabase.from('intake_brief').upsert(
     {
       audit_id: auditId,
@@ -222,6 +242,7 @@ export async function assertBriefReady(auditId: string): Promise<void> {
       progress_pct: gates.intakeProgress.progressPct,
       readiness_badge: gates.intakeProgress.readinessBadge,
       next_best_action: gates.intakeProgress.nextBestAction,
+      ...(bankDataQuality !== null ? { data_quality_score: bankDataQuality } : {}),
     },
     { onConflict: 'audit_id' }
   );
@@ -243,19 +264,42 @@ export async function assertBriefReady(auditId: string): Promise<void> {
  */
 export async function saveBriefResponses(
   auditId: string,
-  rawResponses: Record<string, unknown>
+  rawResponses: Record<string, unknown>,
+  options?: SaveBriefOptions,
 ): Promise<SaveBriefResult> {
   const parsed = BriefResponsesSchema.safeParse(rawResponses);
   if (!parsed.success) {
     throw new Error(`Invalid brief responses: ${parsed.error.message}`);
   }
 
-  const responses = parsed.data;
-  const validation = validateBriefResponses(responses as Record<string, unknown>);
+  const responses = prepareBriefForValidation(parsed.data as Record<string, unknown>) as typeof parsed.data;
+  const validation = validateBriefResponses(parsed.data as Record<string, unknown>);
   const { data: audit } = await supabase.from('audits').select('product_mode').eq('id', auditId).single();
   const mode = ((audit?.product_mode ?? 'full') as ProductMode);
   const gates = evaluateBriefGates(responses as Record<string, unknown>, mode);
   const answeredOptional = OPTIONAL_QUESTION_IDS.filter(id => isAnswered(responses[id])).length;
+  const bankDataQualitySave = deriveBankV1DataQuality(responses as Record<string, unknown>);
+
+  const { data: existingBrief } = await supabase
+    .from('intake_brief')
+    .select('recon_prefills, recon_conflicts, collection_mode')
+    .eq('audit_id', auditId)
+    .maybeSingle();
+
+  const prefills = (existingBrief?.recon_prefills as Record<string, unknown>) ?? {};
+  const priorConflicts: ReconConflict[] = Array.isArray(existingBrief?.recon_conflicts)
+    ? (existingBrief.recon_conflicts as ReconConflict[])
+    : [];
+  const reconConflicts = mergeReconConflictsFromC1(
+    responses as Record<string, unknown>,
+    prefills,
+    priorConflicts,
+  );
+
+  const collection_mode: IntakeBriefCollectionMode =
+    options?.collection_mode
+    ?? (existingBrief?.collection_mode as IntakeBriefCollectionMode | undefined)
+    ?? 'self_serve';
 
   const { data, error } = await supabase
     .from('intake_brief')
@@ -275,6 +319,9 @@ export async function saveBriefResponses(
         readiness_badge: gates.intakeProgress.readinessBadge,
         next_best_action: gates.intakeProgress.nextBestAction,
         responses_format: 2,
+        recon_conflicts: reconConflicts,
+        collection_mode,
+        ...(bankDataQualitySave !== null ? { data_quality_score: bankDataQualitySave } : {}),
       },
       { onConflict: 'audit_id' }
     )
