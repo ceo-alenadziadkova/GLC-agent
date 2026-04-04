@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
-import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../middleware/auth.js';
+import { requireAuth, attachProfile, requireRole, type AuthRequest, type UserRole } from '../middleware/auth.js';
+import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 import { pipelineLimiter } from '../middleware/rate-limit.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
 import { maxPhaseForMode, type ProductMode } from '../types/audit.js';
@@ -52,9 +53,16 @@ async function emitPhaseError(auditId: string, phase: number, err: Error): Promi
 
 export const pipelineRouter = Router();
 
-// All pipeline mutation routes require consultant role.
+// Mutations: /start and /next allow the audit owner consultant OR the linked client (self-serve).
+// /retry and /reviews remain consultant-only.
 // Status endpoint is readable by any authenticated user (client progress tracking).
 const consultantGuard = [requireAuth, attachProfile, requireRole('consultant')] as const;
+
+function canOperatePipeline(audit: { user_id: string; client_id: string | null }, uid: string, role: UserRole): boolean {
+  if (role === 'consultant' && audit.user_id === uid) return true;
+  if (role === 'client' && audit.client_id === uid) return true;
+  return false;
+}
 const PHASE_ACTIVE_STATUSES = ['recon', 'auto', 'analytic', 'strategy'] as const;
 
 function statusForPhase(phase: number): 'recon' | 'auto' | 'analytic' | 'strategy' {
@@ -65,20 +73,29 @@ function statusForPhase(phase: number): 'recon' | 'auto' | 'analytic' | 'strateg
 }
 
 // ─── POST /api/audits/:id/pipeline/start — Start pipeline ──
-pipelineRouter.post('/:id/pipeline/start', ...consultantGuard, pipelineLimiter, async (req: AuthRequest, res) => {
+pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineLimiter, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
+    const role = req.userRole as UserRole | undefined;
+    if (role !== 'consultant' && role !== 'client') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
 
-    // Verify ownership
     const { data: audit, error } = await supabase
       .from('audits')
-      .select('id, status, current_phase, tokens_used, token_budget, updated_at, product_mode')
+      .select('id, status, current_phase, tokens_used, token_budget, updated_at, product_mode, user_id, client_id')
       .eq('id', id)
-      .eq('user_id', req.userId!)
+      .or(safeOrUserFilter(req.userId!))
       .single();
 
     if (error || !audit) {
       res.status(404).json({ error: 'Audit not found' });
+      return;
+    }
+
+    if (!canOperatePipeline(audit as { user_id: string; client_id: string | null }, req.userId!, role)) {
+      res.status(403).json({ error: 'Access denied' });
       return;
     }
 
@@ -97,7 +114,7 @@ pipelineRouter.post('/:id/pipeline/start', ...consultantGuard, pipelineLimiter, 
       .from('audits')
       .update({ status: 'recon', current_phase: 0 })
       .eq('id', id)
-      .eq('user_id', req.userId!)
+      .or(safeOrUserFilter(req.userId!))
       .eq('status', 'created')
       .eq('updated_at', audit.updated_at)
       .select('id');
@@ -127,19 +144,29 @@ pipelineRouter.post('/:id/pipeline/start', ...consultantGuard, pipelineLimiter, 
 });
 
 // ─── POST /api/audits/:id/pipeline/next — Run next phase ───
-pipelineRouter.post('/:id/pipeline/next', ...consultantGuard, pipelineLimiter, async (req: AuthRequest, res) => {
+pipelineRouter.post('/:id/pipeline/next', requireAuth, attachProfile, pipelineLimiter, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
+    const role = req.userRole as UserRole | undefined;
+    if (role !== 'consultant' && role !== 'client') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
 
     const { data: audit, error } = await supabase
       .from('audits')
-      .select('id, status, current_phase, tokens_used, token_budget, product_mode, updated_at')
+      .select('id, status, current_phase, tokens_used, token_budget, product_mode, updated_at, user_id, client_id')
       .eq('id', id)
-      .eq('user_id', req.userId!)
+      .or(safeOrUserFilter(req.userId!))
       .single();
 
     if (error || !audit) {
       res.status(404).json({ error: 'Audit not found' });
+      return;
+    }
+
+    if (!canOperatePipeline(audit as { user_id: string; client_id: string | null }, req.userId!, role)) {
+      res.status(403).json({ error: 'Access denied' });
       return;
     }
 
@@ -187,7 +214,7 @@ pipelineRouter.post('/:id/pipeline/next', ...consultantGuard, pipelineLimiter, a
       .from('audits')
       .update({ status: lockStatus })
       .eq('id', id)
-      .eq('user_id', req.userId!)
+      .or(safeOrUserFilter(req.userId!))
       .eq('updated_at', audit.updated_at)
       .in('status', ['review', 'completed', 'failed', 'created'])
       .select('id');

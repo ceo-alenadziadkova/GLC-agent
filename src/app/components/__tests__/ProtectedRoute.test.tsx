@@ -35,7 +35,8 @@ describe('ProtectedRoute', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
   });
 

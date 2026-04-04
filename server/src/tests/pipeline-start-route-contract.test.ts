@@ -5,6 +5,8 @@ import express from 'express';
 const { setAuditRow, setBriefRow } = vi.hoisted(() => {
   let auditRow: Record<string, unknown> | null = {
     id: 'audit-001',
+    user_id: 'user-001',
+    client_id: null,
     status: 'created',
     current_phase: 0,
     tokens_used: 0,
@@ -22,10 +24,12 @@ const { setAuditRow, setBriefRow } = vi.hoisted(() => {
       return {
         select: vi.fn(() => ({
           eq: vi.fn().mockReturnThis(),
+          or: vi.fn().mockReturnThis(),
           single: vi.fn(async () => ({ data: auditRow, error: auditRow ? null : { code: 'PGRST116' } })),
         })),
         update: vi.fn(() => ({
           eq: vi.fn().mockReturnThis(),
+          or: vi.fn().mockReturnThis(),
           select: vi.fn(async () => ({ data: [{ id: 'audit-001' }], error: null })),
         })),
       };
@@ -66,7 +70,10 @@ vi.mock('../middleware/auth.js', () => ({
     req.userId = 'user-001';
     next();
   },
-  attachProfile: (_req: unknown, _res: unknown, next: () => void) => next(),
+  attachProfile: (req: Record<string, unknown>, _res: unknown, next: () => void) => {
+    req.userRole = 'consultant';
+    next();
+  },
   requireRole: () => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
@@ -103,6 +110,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   setAuditRow({
     id: 'audit-001',
+    user_id: 'user-001',
+    client_id: null,
     status: 'created',
     current_phase: 0,
     tokens_used: 0,

@@ -1,23 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { BriefResponses } from '../data/briefQuestions';
+import { briefResponsesToIntakeMap } from '../data/intakeBriefMap';
 import { calcDataQualityScore, DEFAULT_DATA_QUALITY_WEIGHTS } from '../../../server/src/intake/data-quality';
 import { filterVisibleQuestions } from '../../../server/src/intake/is-visible';
 import { mergeLegacyResponsesIntoBankV1 } from '../../../server/src/intake/legacy-to-bank';
 import { QUESTION_BANK_V1_STUBS } from '../../../server/src/intake/question-bank';
 import type { CollectionMode, IntakeQuestionStub } from '../../../server/src/intake/types';
 
-/** Map UI brief state to engine input (cells may be flat or `{ value, source }`). */
-export function briefResponsesToIntakeMap(brief: BriefResponses): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(brief)) {
-    if (v != null && typeof v === 'object' && !Array.isArray(v) && 'value' in v) {
-      out[k] = v;
-    } else {
-      out[k] = v as unknown;
-    }
-  }
-  return out;
-}
+export { briefResponsesToIntakeMap };
 
 /** Canonical bank JSON order for stable wizard sequencing. */
 export function sortStubsByBankOrder(stubs: IntakeQuestionStub[]): IntakeQuestionStub[] {

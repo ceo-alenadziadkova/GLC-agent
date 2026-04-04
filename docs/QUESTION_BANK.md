@@ -37,7 +37,9 @@
 |----------|---------------|---------|--------------|
 | **Pre-brief** (ссылка перед встречей) | Клиент | 5-7 вопросов, 5 мин | Alena приходит подготовленной |
 | **Full intake** (wizard/interview) | Клиент или Alena | 25-35 вопросов, 30-40 мин | Полный аудит |
-| **Discovery** (Mode C, нет сайта) | Клиент + Alena | 9-12 вопросов, 15 мин | Понимание бизнеса → конвертация в full |
+
+В приложении режим **«All sections»** (классическая форма) и **пошаговый wizard** используют **один и тот же** набор видимых id банка (`filterVisibleQuestions` + merge legacy→bank); отличается только подача — все секции сразу или один вопрос на шаг. См. `getVisibleBankBriefSections` / `BankClassicBriefFields` в коде и [FRONTEND.md](./FRONTEND.md).
+| **Discovery** (Mode C, нет сайта) | Клиент + Alena | **16** вопросов (банк), ~15 мин | Понимание бизнеса → конвертация в full |
 
 ### 2.2. Секции (клиент видит)
 
@@ -65,8 +67,12 @@
 | `team_size` | "How big is your team?" | Solo → процессные вопросы упрощаются; 50+ → появляются вопросы о документации |
 | `has_crm` | Ответ в tools_daily | Да → "Какой CRM?"; Нет → "Как отслеживаете клиентов?" |
 | `handles_payments` / `a6` | Ранний ответ в секции A (или уточнение в E) | Да → раньше включаем PCI/GDPR-контекст и полный блок E; Нет → E остаётся видимым для EU/GDPR, детали про платежи можно сжать |
-| `website_maturity` | `c9` (возраст сайта) | Влияет на ожидания по техдолгу и UX (strategy, tech_infra) |
-| `automation_attempt` | `d_automation_attempt` | Уже пробовали автоматизировать → глубже копаем в automation_processes |
+| `website_maturity` *(сигнал, не predicate)* | `c9` (возраст сайта) | Попадает в **context slice** tech/strategy через §5; **не** ключ в `BRANCH_RULES` — видимость вопросов не переключается отдельным gate |
+| `automation_attempt` *(сигнал, не predicate)* | `d_automation_attempt` | Ответ уходит в **automation_processes** (§5); в `question-bank.v1.json` у вопроса **нет** `branch` — это не условие `evalBranchCondition` |
+
+**Реализация веток:** канон — `server/src/intake/branch-rules.ts` (`BRANCH_RULES`, `evalBranchCondition`). Неизвестный `branchCondition` в JSON → в лог пишется предупреждение `[branch-rules] Unknown branchCondition`, вопрос по умолчанию **показывается** (fail-open).
+
+**Отрасль в UI:** в выпадающем списке больше ярлыков, чем отраслевых веток с дополнительными вопросами. Явные `branch`-вопросы есть только для hospitality, real estate, restaurant & F&B, professional services, healthcare, marine; остальные индустрии калибруют общие вопросы и веса, без отраслевого пакета в банке.
 
 **Секция E (видимость):** блок **всегда показываем** для EU-ориентированного продукта: даже без онлайн-платежей релевантны GDPR, политика, куки. Копирайтинг секции подчёркивает «быстрый чеклист и спокойствие», а не «только PCI».
 
@@ -92,13 +98,23 @@
 
 ## 3. Complete Question Bank
 
+### Источник истины по срезам агентов
+
+**Markdown не является каноном для того, какой ответ какому агенту попадает.** Единственный источник истины — объект **`QUESTION_FEED_ROLES`** в [`server/src/intake/question-feed-roles.ts`](../server/src/intake/question-feed-roles.ts) (от него строятся `DOMAIN_TO_QUESTIONS_RAW` → `DOMAIN_TO_QUESTION_IDS` и контекст в `ContextBuilder`).
+
+- Менять срезы нужно **в TypeScript**, затем **подтянуть §3 / §5 в этом файле** как человекочитаемое зеркало (или сгенерировать его скриптом).
+- Колонка **Agent feeds (P / S)** ниже: **(P)** = primary, **(S)** = secondary (тот же ответ дублируется в срез другого агента). Формат `домен (P), …; домен (S), …` — часть после `;` опускается, если secondaries нет.
+- Продуктовые формулировки вроде «all (calibration)» ниже — **пояснение для людей**, не отдельные домены в коде, пока не заведены в `QUESTION_FEED_ROLES`.
+
 ### Обозначения
 
 - **Priority:** **Required** / **Recommended** / **Nice-to-have**
 - **Input:** `select` / `multi` / `text` / `textarea` / `number` / `rating` / `confirm`
-- **Feeds:** какой домен(ы) использует этот ответ
+- **Agent feeds (P / S):** как в `QUESTION_FEED_ROLES` (см. выше). Имена доменов как в коде: `recon`, `tech_infrastructure`, `security_compliance`, `seo_digital`, `ux_conversion`, `marketing_utp`, `automation_processes`, `strategy`.
 - **Branch:** условие показа (пустое = всегда)
 - **Layer:** 1 = Quick Intake / 2 = Deep Intake / pre = Pre-brief / disc = Discovery
+
+**Примечание:** `d1` в **seo_digital** как **(S)** включён **всегда** (MVP); условная подстройка среза только при сигнале аналитики в `d1`/`c3` — отдельная задача.
 
 ---
 
@@ -106,25 +122,25 @@
 
 *"Let's start with who you are — this helps us tailor everything to your context."*
 
-| ID | Question | Input | Priority | Layer | Feeds | Branch |
+| ID | Question | Input | Priority | Layer | Agent feeds (P / S) | Branch |
 |----|----------|-------|----------|-------|-------|--------|
-| `a1` | How would you describe your business in one sentence? | textarea | Required | 1, pre, disc | recon, marketing_utp | — |
+| `a1` | How would you describe your business in one sentence? | textarea | Required | 1, pre, disc | recon (P) | — |
 | | *Example: "We run a boutique hotel in Palma's old town with a rooftop restaurant"* | | | | | |
-| `a2` | Which industry are you in? | select | Required | 1, pre, disc | recon, all (calibration) | — |
+| `a2` | Which industry are you in? | select | Required | 1, pre, disc | recon (P) | — |
 | | Options: Hospitality (hotels, apartments, tours) / Real Estate / Restaurant & F&B / Professional Services (legal, consulting, gestoría) / Healthcare & Wellness / Retail & E-commerce / Marine & Yachting / Education / SaaS & Software / Manufacturing / Media & Entertainment / Non-profit / Other → text | | | | | |
-| `a3` | Where is your business based? | text | Required | 1, pre | recon | — |
+| `a3` | Where is your business based? | text | Required | 1, pre | recon (P) | — |
 | | *Placeholder: "Palma de Mallorca, Spain"* | | | | | |
-| `a4` | How big is your team? | select | Recommended | 1, disc | recon, automation_processes | — |
+| `a4` | How big is your team? | select | Recommended | 1, disc | recon (P), strategy (P) | — |
 | | Options: Just me / 2–10 people / 11–50 / 51–200 / 200+ | | | | | |
-| `a5` | Do you have a website? | select | Required | 1, pre, disc | all (gate) | — |
+| `a5` | Do you have a website? | select | Required | 1, pre, disc | recon (P), tech_infrastructure (P) | — |
 | | Options: Yes, multi-page site / Yes, single landing page / Under construction / No website yet | | | | | |
-| `a6` | Do customers pay you online today (card, booking engine, invoice link, or deposits)? | select | Required | 1, pre, disc | security_compliance, strategy (early gate) | — |
+| `a6` | Do customers pay you online today (card, booking engine, invoice link, or deposits)? | select | Required | 1, pre, disc | recon (P), security_compliance (P) | — |
 | | Options: Yes / Sometimes / Rarely / No, offline only / Not sure | | | | | |
 | | *Если `No` — в Layer 2 вопрос `e1` можно сократить или пропустить (ветка `handles_payments`); GDPR-вопросы E остаются.* | | | | | |
-| `a7` | How would you describe where your business is **right now**? (not company age — the *moment*) | select | Required | 1, pre, disc | strategy, recon (tone), all (calibration) | — |
+| `a7` | How would you describe where your business is **right now**? (not company age — the *moment*) | select | Required | 1, pre, disc | recon (P), strategy (P) | — |
 | | Options: Launching / Growing fast / Stabilising / Scaling / Mature & optimising | | | | | |
 | | *Зачем:* тон рекомендаций и приоритет «quick wins vs. foundation» сильно меняется между «запускаемся» и «оптимизируем зрелый процесс». | | | | | |
-| `a8` | Approximately how many **customers or orders** do you serve in a typical month? | select | Recommended | 2 | strategy, automation_processes (scale signal) | — |
+| `a8` | Approximately how many **customers or orders** do you serve in a typical month? | select | Recommended | 2 | strategy (P), automation_processes (P); ux_conversion (S), marketing_utp (S) | — |
 | | Options: < 50 / 50–200 / 200–1,000 / 1,000+ / Not sure | | | | | |
 | | *Helper:* «A rough range is enough — this helps us see where digital or automation improvements could have the **biggest impact** (value at scale).» | | | | | |
 
@@ -136,24 +152,24 @@
 
 *"Understanding your customers helps us evaluate whether your marketing and messaging are hitting the mark."*
 
-| ID | Question | Input | Priority | Layer | Feeds | Branch |
+| ID | Question | Input | Priority | Layer | Agent feeds (P / S) | Branch |
 |----|----------|-------|----------|-------|-------|--------|
-| `b1` | Who is your ideal customer? | textarea | Required | 1, pre | marketing_utp, ux_conversion | — |
+| `b1` | Who is your ideal customer? | textarea | Required | 1, pre | ux_conversion (P), marketing_utp (P) | — |
 | | *Helper:* «Think about **who you create the most value for today**: who they are, where they come from, and what problem or job they solve with you.» | | | | | |
 | | *Example: "European couples aged 30–55 looking for an authentic boutique experience"* | | | | | |
-| `b2` | How do most of your new customers find you? | multi | Required | 1, disc | marketing_utp, seo_digital | — |
+| `b2` | How do most of your new customers find you? | multi | Required | 1, disc | marketing_utp (P), seo_digital (P); strategy (S), automation_processes (S) | — |
 | | Options: Google / Social media / OTA/marketplace (Booking, Airbnb, Idealista…) / Word of mouth / Paid ads / Email / Partnerships / Offline (walk-ins, events) / Other → text | | | | | |
 | | *Framing (acquisition pain):* подсказка микротекста — «Where growth feels stuck or expensive helps us judge positioning vs. channels.» | | | | | |
-| `b3` | What is the **main promise or value** for your best customers compared to competitors? | textarea | Required | 1, pre | marketing_utp | — |
+| `b3` | What is the **main promise or value** for your best customers compared to competitors? | textarea | Required | 1, pre | marketing_utp (P) | — |
 | | *Helper (b3):* в UI — короткие паттерны (price, speed/service, unique experience/location); клиент может выбрать паттерн + одно предложение своими словами. Язык **ценности для клиента**, не «нас отличает цена». | | | | | |
 | | *Example: "Historic building with a rooftop restaurant and best-price guarantee"* | | | | | |
-| `b4` | How would you describe your pricing compared to competitors? | select | Recommended | 2 | marketing_utp, strategy | — |
+| `b4` | How would you describe your pricing compared to competitors? | select | Recommended | 2 | marketing_utp (P), strategy (P) | — |
 | | Options: Lower than average / About the same / Higher, premium positioning / Hard to compare | | | | | |
-| `b5` | Is your business seasonal? | select | Recommended | 2 | marketing_utp, strategy | — |
+| `b5` | Is your business seasonal? | select | Recommended | 2 | marketing_utp (P), strategy (P) | — |
 | | Options: Yes, very (summer peak) / Yes, slightly / No, steady all year / Not sure | | | | | |
-| `b6` | Do you offer any guarantees to customers? | multi | Recommended | 2 | marketing_utp, ux_conversion | — |
+| `b6` | Do you offer any guarantees to customers? | multi | Recommended | 2 | marketing_utp (P), ux_conversion (P) | — |
 | | Options: Money-back / Best price guarantee / Free cancellation / Satisfaction guarantee / None / Other → text | | | | | |
-| `b7` | Is your revenue mostly **repeat / recurring customers**, or **mostly one-off** transactions? | select | Recommended | 2 | automation_processes, ux_conversion, marketing_utp, strategy | — |
+| `b7` | Is your revenue mostly **repeat / recurring customers**, or **mostly one-off** transactions? | select | Recommended | 2 | marketing_utp (P), ux_conversion (P), strategy (P) | — |
 | | Options: Mostly repeat / Mix of both / Mostly one-off / Not sure | | | | | |
 | | *Зачем:* retention-воронка, LTV и автоматизация (напоминания, CRM, подписки) принципиально отличаются от чистого acquisition; без этого агенты ошибают приоритет. | | | | | |
 
@@ -161,21 +177,21 @@
 
 *Перегрузка Hospitality:* 6 базовых + 2 отраслевых = 8 в одной секции — на верхней границе; новым отраслям лучше выносить редкие ветки в Layer 2 или conditional packs.
 
-| ID | Question | Input | Priority | Layer | Feeds | Shows when |
+| ID | Question | Input | Priority | Layer | Agent feeds (P / S) | Shows when |
 |----|----------|-------|----------|-------|-------|------------|
-| `b_hotel_1` | Which booking channels do you use? | multi | Recommended | 2 | marketing_utp, automation | industry = Hospitality |
+| `b_hotel_1` | Which booking channels do you use? | multi | Recommended | 2 | marketing_utp (P) | industry = Hospitality |
 | | Options: Direct website / Booking.com / Airbnb / Expedia / TripAdvisor / Other → text | | | | | |
-| `b_hotel_2` | What % of bookings come through your own site vs. OTAs? | select | Recommended | 2 | marketing_utp | industry = Hospitality |
+| `b_hotel_2` | What % of bookings come through your own site vs. OTAs? | select | Recommended | 2 | marketing_utp (P) | industry = Hospitality |
 | | Options: Mostly OTA (80%+) / More OTA than direct / About 50-50 / More direct / Almost all direct / Don't know | | | | | |
-| `b_realestate_1` | Which property portals do you list on? | multi | Recommended | 2 | marketing_utp, automation | industry = Real Estate |
+| `b_realestate_1` | Which property portals do you list on? | multi | Recommended | 2 | marketing_utp (P) | industry = Real Estate |
 | | Options: Idealista / Fotocasa / Kyero / Rightmove / Own website / None / Other → text | | | | | |
-| `b_restaurant_1` | Do you use a reservation system? | select | Recommended | 2 | automation, ux_conversion | industry = Restaurant |
+| `b_restaurant_1` | Do you use a reservation system? | select | Recommended | 2 | marketing_utp (P); ux_conversion (S) | industry = Restaurant |
 | | Options: TheFork / Resy / CoverManager / Phone only / Walk-in only / Other → text | | | | | |
-| `b_services_1` | How do clients typically book your services? | select | Recommended | 2 | ux_conversion, automation | industry = Professional Services |
+| `b_services_1` | How do clients typically book your services? | select | Recommended | 2 | ux_conversion (P) | industry = Professional Services |
 | | Options: Contact form / Phone call / Email / WhatsApp / Online booking / In person / Other → text | | | | | |
-| `b_health_1` | Do patients book appointments online? | select | Recommended | 2 | ux_conversion, automation | industry = Healthcare |
+| `b_health_1` | Do patients book appointments online? | select | Recommended | 2 | ux_conversion (P) | industry = Healthcare |
 | | Options: Yes, through our site / Yes, through a platform (Doctoralia, etc.) / No, phone/in-person only | | | | | |
-| `b_marine_1` | Which charter platforms do you use? | multi | Recommended | 2 | marketing_utp, automation | industry = Marine |
+| `b_marine_1` | Which charter platforms do you use? | multi | Recommended | 2 | marketing_utp (P) | industry = Marine |
 | | Options: Click&Boat / SamBoat / Nautal / Yachtall / Direct only / None / Other → text | | | | | |
 
 ---
@@ -189,38 +205,38 @@
 *Рекомендованный порядок в мастере (эмоция и GTM → конкуренты, пока клиент свежий → возраст сайта → подтверждение рекона и техника): **c5 → c6 → c8 → c9 → c1 → c2 → c3 → c4 → c7**.*  
 `c8` (конкуренты) сознательно **не** в хвосте Layer 2: к концу блока клиент устал; ранний ввод повышает качество ответов.
 
-| ID | Question | Input | Priority | Layer | Feeds | Branch |
+| ID | Question | Input | Priority | Layer | Agent feeds (P / S) | Branch |
 |----|----------|-------|----------|-------|-------|--------|
-| `c5` | What's the main thing you want visitors to do on your site? | select | Required | 1 | ux_conversion | has_website |
+| `c5` | What's the main thing you want visitors to do on your site? | select | Required | 1 | ux_conversion (P) | has_website |
 | | Options: Book / Buy / Fill out a contact form / Call / WhatsApp / Download something / Just browse | | | | | |
-| `c6` | What frustrates you most about your website right now? | textarea | Required | 1, 2 | ux_conversion, tech_infra | has_website |
+| `c6` | What frustrates you most about your website right now? | textarea | Required | 1, 2 | ux_conversion (P), tech_infrastructure (P); seo_digital (S), strategy (S) | has_website |
 | | *Required в Layer 1 при has_website; уточнение/деталь — Layer 2 при необходимости.* | | | | | |
 | | *Helper (UX/CRO-style examples):* «For example: “People visit but rarely contact us”, “It’s slow on mobile”, “I can’t update content without a developer”, “Hard to tell which pages or campaigns actually work”.» | | | | | |
-| `c8` | Name 2–3 of your direct competitors (company name or URL). | textarea | Recommended | 2 | marketing_utp, strategy | has_website |
+| `c8` | Name 2–3 of your direct competitors (company name or URL). | textarea | Recommended | 2 | marketing_utp (P) | has_website |
 | | *We'll use them for benchmarking — not shared in your report.* | | | | | |
-| `c9` | Roughly how long has your current live website been in production? | select | Recommended | 1 | tech_infra, strategy | has_website |
+| `c9` | Roughly how long has your current live website been in production? | select | Recommended | 1 | tech_infrastructure (P) | has_website |
 | | Options: Under 6 months / 6 months – 2 years / 2–5 years / 5+ years / Not sure | | | | | |
-| `c1` | *Auto-prefill:* "We detected [WordPress + Cloudflare + Cloudbeds]. Is this correct?" | confirm | Recommended | 2 | tech_infra | has_website |
+| `c1` | *Auto-prefill:* "We detected [WordPress + Cloudflare + Cloudbeds]. Is this correct?" | confirm | Recommended | 2 | tech_infrastructure (P) | has_website |
 | | Options: Yes, correct / Not quite (→ text) / I don't know | | | | | |
 | | *Контракт `ReconConflict`: если клиент выбирает «Not quite» или значение расходится с реконом — фиксируем запись в `reconConflicts[]` (см. §11).* | | | | | |
-| `c2` | Who maintains your website? | select | Recommended | 2 | tech_infra | has_website |
+| `c2` | Who maintains your website? | select | Recommended | 2 | tech_infrastructure (P) | has_website |
 | | Options: Me / someone in-house / Freelancer / Agency / No one regularly / Don't know | | | | | |
-| `c3` | Do you have Google Analytics or another analytics tool installed? | select | Recommended | 2 | seo_digital | has_website |
+| `c3` | Do you have Google Analytics or another analytics tool installed? | select | Required | 2 | seo_digital (P) | has_website |
 | | Options: Yes, GA4 / Yes, another tool / I think so, but I don't check it / No / Don't know | | | | | |
-| `c4` | Is Google Search Console set up? | select | Nice-to-have | 2 | seo_digital | has_website |
+| `c4` | Is Google Search Console set up? | select | Nice-to-have | 2 | seo_digital (P) | has_website |
 | | Options: Yes / No / What's that? | | | | | |
-| `c7` | Where are you active on social media? | multi | Recommended | 2 | seo_digital, marketing_utp | — |
+| `c7` | Where are you active on social media? | multi | Recommended | 2 | marketing_utp (P), seo_digital (P) | — |
 | | Options: Instagram / Facebook / TikTok / LinkedIn / YouTube / Google Business / TripAdvisor / None / Other → text | | | | | |
 
 **Light mode** (has_website = No / Under construction):
 
-| ID | Question | Input | Priority | Layer | Feeds | Branch |
+| ID | Question | Input | Priority | Layer | Agent feeds (P / S) | Branch |
 |----|----------|-------|----------|-------|-------|--------|
-| `c_nosite_1` | How do people currently find your business online? | multi | Recommended | 2 | marketing_utp, seo_digital | !has_website |
+| `c_nosite_1` | How do people currently find your business online? | multi | Recommended | 2 | seo_digital (P) | !has_website |
 | | Options: Google Business / Social media / Word of mouth / OTA/marketplace / Not really online yet | | | | | |
-| `c_nosite_2` | Are you planning to create a website? | select | Recommended | 2 | strategy | !has_website |
+| `c_nosite_2` | Are you planning to create a website? | select | Recommended | 2 | seo_digital (P); strategy (S) | !has_website |
 | | Options: Yes, soon / Yes, but not sure how / Eventually / No, not a priority right now | | | | | |
-| `c_nosite_3` | Where are you active on social media? | multi | Recommended | 2 | seo_digital, marketing_utp | !has_website |
+| `c_nosite_3` | Where are you active on social media? | multi | Recommended | 2 | seo_digital (P) | !has_website |
 | | *(Same as c7)* | | | | | |
 
 ---
@@ -231,47 +247,47 @@
 
 **Структурная заметка (перегрузка):** после `d_automation_attempt`, AI readiness и **`d6`** (типы данных) секция плотная; `d6` и **`a8`** — осознанно Layer 2, мягкие диапазоны, без «финансовой исповеди».
 
-| ID | Question | Input | Priority | Layer | Feeds | Branch |
+| ID | Question | Input | Priority | Layer | Agent feeds (P / S) | Branch |
 |----|----------|-------|----------|-------|-------|--------|
-| `d1` | Which tools does your team use every day? | multi | Required | 1, disc | automation_processes, tech_infra | — |
+| `d1` | Which tools does your team use every day? | multi | Required | 1, disc | automation_processes (P), tech_infrastructure (P); strategy (S), seo_digital (S) | — |
 | | Options: WhatsApp / Email (Gmail, Outlook) / Google Sheets or Excel / CRM (→ branch d1a) / Accounting software / Project management tool / Industry-specific software (PMS, POS, etc.) / Nothing specific | | | | | |
-| `d1a` | Which CRM do you use? | select | Recommended | 2 | automation_processes | d1 includes "CRM" |
+| `d1a` | Which CRM do you use? | select | Recommended | 2 | automation_processes (P) | d1 includes "CRM" |
 | | Options: HubSpot / Pipedrive / Salesforce / Zoho / Monday / Notion / Other → text | | | | | |
-| `d1b` | How do you keep track of clients and leads? | select | Recommended | 2 | automation_processes | d1 does NOT include "CRM" |
+| `d1b` | How do you keep track of clients and leads? | select | Recommended | 2 | automation_processes (P) | d1 does NOT include "CRM" |
 | | Options: Spreadsheet / Email inbox / Notebook / WhatsApp chats / I don't really / Other → text | | | | | |
-| `d2` | What is the **single manual task** that consumes the most time for you or your team? | textarea | Required | 1, disc | automation_processes | — |
+| `d2` | What is the **single manual task** that consumes the most time for you or your team? | textarea | Required | 1, disc | automation_processes (P); ux_conversion (S), marketing_utp (S) | — |
 | | *Helper (value framing):* «Think about work that **doesn’t create direct value for customers** but still eats hours every week.» | | | | | |
 | | *Examples:* «Copying inquiries from WhatsApp or email into a spreadsheet», «Manually issuing invoices», «Answering the same questions every day across chat and social media», «Re-typing bookings into another system». | | | | | |
-| `d_automation_attempt` | Have you already tried to automate or streamline that work (tool, Zapier/Make, freelancer, agency)? | select | Recommended | 1, disc | automation_processes, strategy | — |
+| `d_automation_attempt` | Have you already tried to automate or streamline that work (tool, Zapier/Make, freelancer, agency)? | select | Recommended | 1, disc | automation_processes (P) | — |
 | | Options: Yes, it helped / Tried, abandoned / Not yet / Not sure | | | | | |
-| `d3` | Roughly how many hours per week does your team spend on repetitive manual tasks? | select | Recommended | 2 | automation_processes, strategy | — |
+| `d3` | Roughly how many hours per week does your team spend on repetitive manual tasks? | select | Recommended | 2 | automation_processes (P) | — |
 | | Options: Less than 5h / 5–10h / 10–20h / 20–40h / 40h+ / No idea | | | | | |
-| `d4` | If you had to explain your **main service or delivery process** to a new hire today — where would you send them **first**? | select | Recommended | 2 | automation_processes | team_size > Solo |
+| `d4` | If you had to explain your **main service or delivery process** to a new hire today — where would you send them **first**? | select | Recommended | 2 | automation_processes (P) | team_size > Solo |
 | | Options: Written playbook / SOP doc / Internal wiki / Loom or recorded video / I'd walk them through it live / WhatsApp or chat history / We'd figure it out together / Not applicable (solo) | | | | | |
 | | *Поведенческий срез вместо «насколько у вас документация»: совпадающие самооценкой ответы больше не склеивают «мы всё задокументировали» и «реально есть источник правды».* | | | | | |
-| `d4a` | Do you already use AI tools in everyday work (ChatGPT, copilots, meeting notes, translation)? | select | Recommended | **2** | automation_processes, strategy | — |
+| `d4a` | Do you already use AI tools in everyday work (ChatGPT, copilots, meeting notes, translation)? | select | Recommended | **2** | automation_processes (P), strategy (P) | — |
 | | Options: Daily / Occasionally / Tried, stopped / No / Prefer not to say | | | | | |
 | | *Только Deep Intake (Layer 2), не Quick.* | | | | | |
-| `d4b` | Can you export key customer or ops data cleanly — e.g. bookings, clients, inventory — to a **spreadsheet or CSV** without losing half a day? | select | Recommended | **2** | automation_processes, strategy | — |
+| `d4b` | Can you export key customer or ops data cleanly — e.g. bookings, clients, inventory — to a **spreadsheet or CSV** without losing half a day? | select | Recommended | **2** | automation_processes (P), strategy (P) | — |
 | | Options: Yes, usually quick / Sometimes / Rarely — it's painful / No / Don't know | | | | | |
 | | **Helper text (обязательно в UI):** *«Example: exporting last month's reservations or a full client list — could you do it in minutes, or would it mean chasing someone or manual copy-paste?»* | | | | | |
-| `d6` | Which **types of data** do you work with most often? | multi | Recommended | 2 | automation_processes, strategy | — |
+| `d6` | Which **types of data** do you work with most often? | multi | Recommended | 2 | automation_processes (P), strategy (P) | — |
 | | Options: Bookings / transactions / Deals or orders / Contacts & leads / Inventory or stock / Finance & invoices / HR & shifts / Other → text | | | | | |
 | | *Helper:* «Rough picture is enough — this helps **automation** and **strategy** prioritise which processes to tackle first.» | | | | | |
-| `d5` | Do you use automated email sequences? (welcome, follow-up, reminders) | select | Recommended | 2 | automation_processes, marketing_utp | — |
+| `d5` | Do you use automated email sequences? (welcome, follow-up, reminders) | select | Recommended | 2 | automation_processes (P) | — |
 | | Options: Yes, actively / We set something up but it's not maintained / No / What's that? | | | | | |
 
 **Отраслевые вопросы:**
 
-| ID | Question | Input | Priority | Layer | Feeds | Shows when |
+| ID | Question | Input | Priority | Layer | Agent feeds (P / S) | Shows when |
 |----|----------|-------|----------|-------|-------|------------|
-| `d_hotel_1` | Do you use a Property Management System (PMS)? | select | Recommended | 2 | automation, tech_infra | industry = Hospitality |
+| `d_hotel_1` | Do you use a Property Management System (PMS)? | select | Recommended | 2 | tech_infrastructure (P), automation_processes (P) | industry = Hospitality |
 | | Options: Cloudbeds / Opera / Mews / Beds24 / Other → text / None | | | | | |
-| `d_hotel_2` | How do you handle check-in/check-out? | select | Recommended | 2 | automation | industry = Hospitality |
+| `d_hotel_2` | How do you handle check-in/check-out? | select | Recommended | 2 | automation_processes (P) | industry = Hospitality |
 | | Options: Manual at reception / Self-check-in (digital key) / PMS-integrated / Mixed | | | | | |
-| `d_realestate_1` | How do you manage property listings across portals? | select | Recommended | 2 | automation | industry = Real Estate |
+| `d_realestate_1` | How do you manage property listings across portals? | select | Recommended | 2 | automation_processes (P) | industry = Real Estate |
 | | Options: Manual updates per portal / Multi-listing tool (Sooprema, Inmovilla…) / CRM handles it / Agency does it | | | | | |
-| `d_restaurant_1` | What POS system do you use? | select | Recommended | 2 | tech_infra, automation | industry = Restaurant |
+| `d_restaurant_1` | What POS system do you use? | select | Recommended | 2 | tech_infrastructure (P), automation_processes (P) | industry = Restaurant |
 | | Options: Square / SumUp / Lightspeed / Revo / Glovo integration / Other → text / None | | | | | |
 
 ---
@@ -281,16 +297,16 @@
 *"Quick check on security and legal basics — important for EU businesses."*  
 **Framing (обязательная видимость):** секция не прячется полностью при отсутствии онлайн-платежей: клиенты в EU всё равно нуждаются в понятном GDPR/куки/политика контексте. Копия UI: «Даже если платежи офлайн, это 3 минуты, чтобы мы не промахнулись с рисками в отчёте.» При `a6 = No` блок про PCI можно сжать до одного уточняющего вопроса или опираться только на `e1`.
 
-| ID | Question | Input | Priority | Layer | Feeds | Branch |
+| ID | Question | Input | Priority | Layer | Agent feeds (P / S) | Branch |
 |----|----------|-------|----------|-------|-------|--------|
-| `e1` | Does your business accept online payments? | select | Recommended | 2 | security_compliance | — |
+| `e1` | Does your business accept online payments? | select | Recommended | 2 | security_compliance (P) | — |
 | | Options: Yes, on our website / Yes, through a third party (Booking, Stripe checkout, etc.) / No, cash/transfer only | | | | | |
-| `e2` | Does your business operate in the EU or serve EU customers? | select | Recommended | 2 | security_compliance | — |
+| `e2` | Does your business operate in the EU or serve EU customers? | select | Recommended | 2 | security_compliance (P) | — |
 | | Options: Yes / No / Not sure | | | | | |
-| `e3` | How confident are you that your GDPR setup is complete? (cookie banner, privacy policy, consent) | select | Recommended | 2 | security_compliance | — |
+| `e3` | How confident are you that your GDPR setup is complete? (cookie banner, privacy policy, consent) | select | Recommended | 2 | security_compliance (P) | — |
 | | Options: Very confident / Something's there, not sure if complete / Probably not / Haven't thought about it | | | | | |
 | | *Раскрытие ограничено:* это **самооценка** клиента; реальную картину дают Recon + Security agent. Вопрос нужен для **приоритизации тона** в отчёте и triage, не как истина. | | | | | |
-| `e4` | Are you using or planning to use e-invoicing / Verifactu? | select | Nice-to-have | 2 | security_compliance | location contains "Spain" |
+| `e4` | Are you using or planning to use e-invoicing / Verifactu? | select | Nice-to-have | 2 | security_compliance (P) | location contains "Spain" |
 | | Options: Already using / Planning to / Not yet / What's that? | | | | | |
 
 ---
@@ -299,28 +315,28 @@
 
 *"Last step — help us focus on what matters most to YOU."*
 
-| ID | Question | Input | Priority | Layer | Feeds | Branch |
+| ID | Question | Input | Priority | Layer | Agent feeds (P / S) | Branch |
 |----|----------|-------|----------|-------|-------|--------|
-| `f1` | What is the **single most important business problem** you want this audit to help you **solve**? | textarea | Required | 1, pre, disc | strategy, all (calibration) | — |
+| `f1` | What is the **single most important business problem** you want this audit to help you **solve**? | textarea | Required | 1, pre, disc | strategy (P) | — |
 | | *Helper:* «For example: “Too much manual work eating our time”, “Not enough direct bookings vs OTAs”, “We don’t know which channels bring **profitable** clients”, “Our digital setup feels chaotic and we’re not sure where to start”.» | | | | | |
-| `f2` | Which areas are you most interested in **improving** with this audit? | multi | Required | 1, pre | strategy (scope) | — |
+| `f2` | Which areas are you most interested in **improving** with this audit? | multi | Required | 1, pre | strategy (P) | — |
 | | Options: **Website performance & technology** (speed, stability, technical health) / **Online visibility & SEO** (finding and attracting the right traffic) / **Customer experience & conversions** (turning visitors into customers) / **Marketing & positioning** (clarity of message and differentiation) / **Process automation & efficiency** (less manual work and handoffs) / **Security, compliance & risk** (avoiding costly surprises) | | | | | |
-| `f3` | How do you rate your current digital setup overall? | rating 1–5 | Recommended | 1 | strategy (baseline) | — |
+| `f3` | How do you rate your current digital setup overall? | rating 1–5 | Recommended | 1 | strategy (P); marketing_utp (S), ux_conversion (S), automation_processes (S) | — |
 | | 1 = "Struggling" … 3 = "Okay-ish" … 5 = "We're nailing it" | | | | | |
 | | *Важно для тона отчёта:* 2/5 и 4/5 — разная эмоциональная и директивная подача рекомендаций. | | | | | |
-| | *Follow-up (wizard, следом после f3):* «Who else decides on **digital or marketing** changes?» — free text или multi (owner / partner / ops / agency) → **strategy**, **marketing_utp**. | | | | | |
-| `f4` | How **ready** are you to implement changes based on this audit? | select | Recommended | 2 | strategy | — |
+| | *Follow-up (wizard, следом после f3):* «Who else decides on **digital or marketing** changes?» — free text или multi (owner / partner / ops / agency). Пока это **не отдельный id банка**, в срезы агентов не попадает; при добавлении вопроса — завести строку в `QUESTION_FEED_ROLES`. | | | | | |
+| `f4` | How **ready** are you to implement changes based on this audit? | select | Recommended | 2 | strategy (P) | — |
 | | Options: Ready to move quickly on clear **quick wins** / Ready to invest if **ROI and impact** are clear / Prefer to **understand the situation** for now / Need to **align first** with partner, owner, or team | | | | | |
 | | *Helper:* «This doesn’t lock you into anything. It helps us balance **quick wins** versus **deeper change** in systems and processes in your report.» | | | | | |
-| `f5` | What approximate **budget range** do you have in mind for improvements over the **next 3–12 months**? | select | Nice-to-have | 2 | strategy | — |
+| `f5` | What approximate **budget range** do you have in mind for improvements over the **next 3–12 months**? | select | Nice-to-have | 2 | strategy (P) | — |
 | | Options: Under €500 / €500–2,000 / €2,000–10,000 / Over €10,000 / **No clear budget yet** — depends on the recommendations | | | | | |
 | | *Helper:* «We use this as a **guideline** to match recommendations to your **level of ambition** — from low-cost quick wins to larger changes.» | | | | | |
-| `f6` | Anything you specifically do NOT want us to recommend? | textarea | Nice-to-have | 2 | strategy | — |
+| `f6` | Anything you specifically do NOT want us to recommend? | textarea | Nice-to-have | 2 | strategy (P) | — |
 | | *Example: "No more SaaS subscriptions", "Don't touch the current CMS"* | | | | | |
-| `f7` | Who would **approve a new automation or AI tool** if we recommended one? | select | Recommended | 1, 2 | strategy, automation_processes (governance slice) | — |
+| `f7` | Who would **approve a new automation or AI tool** if we recommended one? | select | Recommended | 1, 2 | strategy (P), automation_processes (P) | — |
 | | Options: Me / Ops or office manager / IT provider or agency / Owner or partner / Board or investor / Not sure | | | | | |
 | | *Перенесён из Section D (`d4c`). В мастере показывать **сразу после** f3 + follow-up на маркетинг/цифру.* | | | | | |
-| `f8` | Is there a **deadline or key moment** driving this audit? | select | Recommended | 1, 2 | strategy | — |
+| `f8` | Is there a **deadline or key moment** driving this audit? | select | Recommended | 1, 2 | strategy (P) | — |
 | | Options: Opening or launch soon / Seasonal peak coming / Investor, partner, or board review / Contract or compliance milestone / No specific deadline | | | | | |
 | | *Urgency:* «открываемся через 2 месяца» vs «без срочности» меняет последовательность рекомендаций. | | | | | |
 
@@ -375,19 +391,27 @@ Pre-brief + дополнительно:
 
 **Обязательный контекст без сайта:** **`a7`** (стадия бизнеса) и **`f8`** (срок/событие, движущее аудит). *Launching* и *Mature & optimising* дают принципиально разный тон операционных и стратегических рекомендаций; без сайта это важнее, чем «тон по техстеку». **`f8`** задаёт приоритеты roadmap (сезон, открытие, инвестор) до формулировки главной проблемы.
 
+**Полный набор id (Mode C)** — ровно **16** вопросов, множество `DISCOVERY_BANK_IDS` в `server/src/intake/discovery.ts` (порядок в UI может сортироваться мастером, состав должен совпадать):
+
+`a1`, `a2`, `a7`, `a4`, `a5`, `a6`, `d1`, `d2`, `d1a`, `d1b`, `c_nosite_1`, `c_nosite_2`, `c_nosite_3`, `b2`, `f8`, `f1`.
+
 | Order | ID | Question |
 |-------|----|----------|
 | 1 | a1 | Describe your business |
 | 2 | a2 | Industry |
 | 3 | a7 | **Business stage** (where you are right now) |
 | 4 | a4 | Team size |
-| 5 | d1 | Daily tools |
-| 6 | d2 | Biggest manual time-sink |
-| 7 | d1a/d1b | CRM or lead tracking (branched) |
-| 8 | c_nosite_1 | How people find you online |
-| 9 | b2 | How customers find you |
-| 10 | f8 | **Deadline / key moment** driving this audit |
-| 11 | f1 | главная business problem (solve) |
+| 5 | a5 | Website presence (gate for no-site path) |
+| 6 | a6 | Online payments today |
+| 7 | d1 | Daily tools |
+| 8 | d2 | Biggest manual time-sink |
+| 9 | d1a / d1b | CRM or lead tracking (branched) |
+| 10 | c_nosite_1 | How people find you online |
+| 11 | c_nosite_2 | Planning a website |
+| 12 | c_nosite_3 | Social (no-site path) |
+| 13 | b2 | How customers find you |
+| 14 | f8 | **Deadline / key moment** driving this audit |
+| 15 | f1 | Main business problem (solve) |
 
 **Discovery outro (copy):** *«Спасибо — мы уже видим операционную картину. Следующий шаг: короткий созвон, чтобы согласовать глубину аудита и доступы; отчёт опирается на процессы так же сильно, как на сайт.»*
 
@@ -397,55 +421,44 @@ Pre-brief + дополнительно:
 
 ## 5. Domain Agent ← Question Mapping
 
-Какой агент какие ответы получает (context slice):
+**Не правьте эту таблицу как первичный источник.** Сначала меняйте **`QUESTION_FEED_ROLES`** в [`question-feed-roles.ts`](../server/src/intake/question-feed-roles.ts), затем обновляйте списки здесь и колонку **Agent feeds (P / S)** в §3. Иначе документация снова разойдётся с рантаймом.
+
+Ниже: какой агент какие ответы получает (context slice). Состав строки = **primary ∪ secondary**; в промпте роль **P/S** не дублируется построчно — см. §3. Порядок id внутри домена — порядок банка (`DOMAIN_TO_QUESTION_IDS`).
 
 | Agent | Questions used (IDs) |
 |-------|----------------------|
 | **recon** | a1, a2, a3, a4, a5, a6, a7 (+ auto-crawl) |
-| **tech_infrastructure** | a5, c9, c1, c2, c6, d1 (tools → tech signals), d_hotel_1, d_restaurant_1 |
-| **security_compliance** | a6 (gate), e1, e2, e3, e4 |
-| **seo_digital** | c3, c4, c7, c_nosite_1, c_nosite_3, b2 (traffic sources) |
-| **ux_conversion** | b1 (ideal customer), b6 (guarantees), b7 (repeat vs one-off), c5 (main action), c6 (frustrations), b_services_1, b_health_1 |
-| **marketing_utp** | b1, b2, b3, b4, b5, b6, b7, c7, c8 (competitors), b_hotel_1, b_hotel_2, b_realestate_1, b_marine_1 |
-| **automation_processes** | d1, d1a/d1b, d2, d_automation_attempt, d3, d4, d4a, d4b, **d6** (data types), d5, **a8** (monthly volume), f7 (approver), d_hotel_1, d_hotel_2, d_realestate_1, d_restaurant_1 |
-| **strategy** | f1, f2, f3 (+ marketing decision follow-up), f4, f5, f6, f7, f8 (urgency), a4, a7, **a8** (scale), b4, b5, b7, d4a, d4b, **d6** |
+| **tech_infrastructure** | a5, c6, c9, c1, c2, d1, d_hotel_1, d_restaurant_1 |
+| **security_compliance** | a6, e1, e2, e3, e4 |
+| **seo_digital** | b2, c6, c3, c4, c7, c_nosite_1, c_nosite_2, c_nosite_3, d1 |
+| **ux_conversion** | a8, b1, b6, b7, b_restaurant_1, b_services_1, b_health_1, c5, c6, d2, f3 |
+| **marketing_utp** | a8, b1, b2, b3, b4, b5, b6, b7, b_hotel_1, b_hotel_2, b_realestate_1, b_restaurant_1, b_marine_1, c8, c7, d2, f3 |
+| **automation_processes** | a8, b2, d1, d1a, d1b, d2, d_automation_attempt, d3, d4, d4a, d4b, d6, d5, d_hotel_1, d_hotel_2, d_realestate_1, d_restaurant_1, f3, f7 |
+| **strategy** | a4, a7, a8, b2, b4, b5, b7, c6, c_nosite_2, d1, d4a, d4b, d6, f1, f2, f3, f4, f5, f6, f7, f8 |
 
-**Правило:** агент получает ТОЛЬКО свои вопросы (context slicing), не весь бриф.
+**Правило:** агент получает только свои вопросы (context slicing), не весь бриф. Цепочка в коде: `QUESTION_FEED_ROLES` → `DOMAIN_TO_QUESTIONS_RAW` (реэкспорт в `domain-slice-data.ts`) → `DOMAIN_TO_QUESTION_IDS` в `question-bank.ts`.
 
 ---
 
 ## 6. Branching Logic (implementation)
 
-```typescript
-// Simplified branching rules
-const BRANCH_RULES: Record<string, (responses: Responses) => boolean> = {
-  // Gates
-  'has_website': (r) => r.a5?.value !== 'no_website',
-  'no_website': (r) => r.a5?.value === 'no_website' || r.a5?.value === 'under_construction',
+Каноническая реализация: **`server/src/intake/branch-rules.ts`** — `BRANCH_RULES`, нормализация `a5`/`a6`/`a4`/`a2`, `evalBranchCondition`. Вызов видимости: `server/src/intake/is-visible.ts`.
 
-  // Industry
-  'is_hospitality': (r) => r.a2?.value === 'hospitality',
-  'is_real_estate': (r) => r.a2?.value === 'real_estate',
-  'is_restaurant': (r) => r.a2?.value === 'restaurant_fb',
-  'is_services': (r) => r.a2?.value === 'professional_services',
-  'is_healthcare': (r) => r.a2?.value === 'healthcare',
-  'is_marine': (r) => r.a2?.value === 'marine',
+- Ключи в `branch` / `branchCondition` JSON **должны** совпадать с ключами `BRANCH_RULES`. Неизвестный ключ → `console.warn` с префиксом `[branch-rules] Unknown branchCondition`, вопрос считается **видимым** (fail-open).
+- Ниже — краткая шпаргалка по ключам (без дословного кода; детали смотри в репозитории).
 
-  // Contextual
-  'has_crm': (r) => r.d1?.value?.includes('crm'),
-  'no_crm': (r) => !r.d1?.value?.includes('crm'),
-  'handles_payments': (r) =>
-    r.a6?.value === 'yes' ||
-    r.a6?.value === 'sometimes' ||
-    r.a6?.value === 'rarely',
-  'not_solo': (r) => r.a4?.value !== 'just_me',
-  'spain_based': (r) => r.a3?.value?.toLowerCase().includes('spain') ||
-                        r.a3?.value?.toLowerCase().includes('españa') ||
-                        r.a3?.value?.toLowerCase().includes('mallorca'),
-};
-```
+| Key | Назначение |
+|-----|------------|
+| `has_website` / `no_website` | Ворота по ответу «сайт» (`a5`, нормализация в enum gate) |
+| `is_hospitality`, `is_real_estate`, `is_restaurant`, `is_services`, `is_healthcare`, `is_marine` | Отраслевые ветки (ярлык индустрии мапится из dropdown через `INDUSTRY_LABEL_TO_BRANCH_SLUG`) |
+| `has_crm` / `no_crm` | Наличие CRM в мультивыборе `d1` (в т.ч. синтетические значения при merge из legacy) |
+| `handles_payments` | Нормализованный `a6`: yes / sometimes / rarely |
+| `not_solo` | Команда ≠ solo (`a4`) |
+| `spain_based` | Локация (`a3`) |
 
 **UX:** скрытые вопросы не показываются. Клиент не знает, что вопрос существует. Wizard адаптируется динамически.
+
+**Other → specify (банковский мастер):** при выборе `Other` в single/multi показывается поле; значение пишется в **`${questionId}__other`**, для **`a2`** — в **`intake_industry_specify`** (совместимость с `mergeLegacyResponsesIntoBankV1` и синтезом `a1`). См. `BriefField` / `IntakeBankWizard`.
 
 ---
 
@@ -516,7 +529,7 @@ const BRANCH_RULES: Record<string, (responses: Responses) => boolean> = {
 *После переноса `d4c` → `f7` в D на один id меньше (`f7` считается в F), но операционный блок всё ещё плотный — см. заметку перегрузки в Section D.*
 
 Из-за branching типичный клиент видит **27–36 вопросов**, не все строки таблицы.
-Pre-brief: **9**. Quick Intake: **~18–21** (зависит от f7/f8 и сайта). Deep Intake: +12–22. Discovery: **11** (включает **a7**, **f8**).
+Pre-brief: **9**. Quick Intake: **~18–21** (зависит от f7/f8 и сайта). Deep Intake: +12–22. Discovery (Mode C): **16** id — полный список в §4 (`DISCOVERY_BANK_IDS`), включает **a5**, **a6**, **a7**, **f8**, **f1** и no-site поля **c_nosite_1**, **c_nosite_2**, **c_nosite_3**.
 
 ---
 

@@ -16,10 +16,14 @@ PostgreSQL on **Supabase**. Apply migrations **in numeric order** so foreign key
 10. `010_intake_progress_gamification.sql` — progressive intake and readiness fields in `intake_brief`
 11. `011_intake_tokens.sql` — `intake_tokens` for shareable pre-brief links (consultant-created; client-submitted responses)
 12. `012_profiles_trigger_auth_admin.sql` — RLS + grants so `handle_new_user` can insert into `profiles` (fixes OAuth `Database error saving new user` on Supabase hosted)
-13. `014_notifications.sql` — `notifications` table for in-app notification center
-14. `015_audit_request_guards.sql` — DB guard constraints/indexes for `audit_requests` consistency under concurrent writes
+13. `013_discovery_sessions.sql` — discovery-session persistence (see migration file)
+14. `014_notifications.sql` — `notifications` table for in-app notification center
+15. `015_audit_request_guards.sql` — DB guard constraints/indexes for `audit_requests` consistency under concurrent writes
+16. `016_intake_recon_conflicts_discovery.sql` — recon conflict handling / discovery-related intake (see migration file)
+17. `017_client_brief_help.sql` — `brief_help_requested_at`, `brief_help_client_message` on `audits` (optional client “help with brief” signal)
+18. `018_platform_settings.sql` — singleton `platform_settings` (`self_serve_audit_owner_user_id` for client self-serve owner)
 
-**Tables (13):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`.
+**Tables (14):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`.
 
 Row Level Security is enabled on these tables; exact policies differ by table (consultant vs client access). **Canonical SQL:** the migration files — this doc summarises shapes.
 
@@ -49,6 +53,8 @@ token_budget    int DEFAULT 200000
 tokens_used     int DEFAULT 0
 created_at      timestamptz DEFAULT now()
 updated_at      timestamptz DEFAULT now()
+brief_help_requested_at  timestamptz   -- optional; client self-serve help ping (migration 017)
+brief_help_client_message text         -- optional short note from client (migration 017)
 ```
 
 **`status` values:** `created` → `recon` → `auto` → `analytic` → `review` → `completed` | `failed`
@@ -296,6 +302,19 @@ RLS:
 - Authenticated users can `SELECT` and `UPDATE` only rows where `auth.uid() = user_id`.
 
 Migration: `014_notifications.sql`.
+
+---
+
+### `platform_settings`
+
+Singleton row (`id = 1`) for cross-tenant platform options maintained via the API (service role).
+
+- `self_serve_audit_owner_user_id` — optional `profiles.id` (role `consultant`) used as `audits.user_id` when a **client** creates an audit from the portal. If null, the API may fall back to `SELF_SERVE_AUDIT_OWNER_USER_ID` when set (see [DEPLOYMENT.md](./DEPLOYMENT.md)).
+- `updated_at`, `updated_by` — audit metadata.
+
+RLS enabled with no policies (no direct client access); server writes through the service role.
+
+Migration: `018_platform_settings.sql`.
 
 ---
 

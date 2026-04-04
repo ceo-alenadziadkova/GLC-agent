@@ -29,7 +29,7 @@
     { "id": "c9", "section": "C", "priority": "recommended", "branch": "has_website", "label": "Site age in production" },
     { "id": "c1", "section": "C", "priority": "recommended", "branch": "has_website", "label": "Recon-detected stack confirmation" },
     { "id": "c2", "section": "C", "priority": "recommended", "branch": "has_website", "label": "Who maintains the website" },
-    { "id": "c3", "section": "C", "priority": "recommended", "branch": "has_website", "label": "Analytics tool installed" },
+    { "id": "c3", "section": "C", "priority": "required", "branch": "has_website", "label": "Analytics tool installed" },
     { "id": "c4", "section": "C", "priority": "optional", "branch": "has_website", "label": "Google Search Console" },
     { "id": "c7", "section": "C", "priority": "recommended", "label": "Social media presence" },
     { "id": "c_nosite_1", "section": "C", "priority": "recommended", "branch": "no_website", "label": "How people find you online (no site)" },

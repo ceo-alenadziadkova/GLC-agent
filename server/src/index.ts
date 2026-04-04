@@ -13,6 +13,7 @@ import { auditRequestsRouter } from './routes/audit-requests.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { profileRouter } from './routes/profile.js';
+import { platformRouter } from './routes/platform.js';
 import { traceMiddleware } from './middleware/trace.js';
 import { requestLogMiddleware } from './middleware/request-log.js';
 import { logger } from './services/logger.js';
@@ -61,6 +62,7 @@ app.get('/api/health', (_req, res) => {
 
 // ─── Routes ────────────────────────────────────────────────
 app.use('/api/profile', profileRouter);
+app.use('/api/platform', platformRouter);
 app.use('/api/snapshot', snapshotRouter);          // Public — no auth
 app.use('/api/intake', intakeRouter);               // Public token GET/respond; POST requires consultant auth
 app.use('/api/discover', discoverRouter);           // Public submit/load; consultant sessions/convert

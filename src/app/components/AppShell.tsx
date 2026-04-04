@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router';
 import {
   Briefcase, SquaresFour, Pulse, FileText, Flask,
   GearSix, Bell, MagnifyingGlass, Lightning, SignOut,
-  HouseSimple, ClipboardText, Eye, Tray,
+  HouseSimple, Eye, Tray, PlusCircle,
 } from '@phosphor-icons/react';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
@@ -15,9 +15,10 @@ import type { NotificationItem } from '../data/auditTypes';
 
 function useCurrentAuditId(): string | null {
   const { pathname } = useLocation();
-  // Extract audit ID from paths like /audit/:id, /pipeline/:id, /reports/:id, /strategy/:id
-  const match = pathname.match(/^\/(audit|pipeline|reports|strategy)\/([a-f0-9-]+)/);
-  return match ? match[2] : null;
+  // Extract audit ID from consultant and client paths (workspace, pipeline, reports, strategy)
+  const match = pathname.match(/^\/(?:audit|pipeline|reports|strategy)\/([a-f0-9-]+)/)
+    ?? pathname.match(/^\/portal\/(?:audit|pipeline)\/([a-f0-9-]+)/);
+  return match ? match[1] : null;
 }
 
 function buildConsultantNav(auditId: string | null) {
@@ -35,8 +36,8 @@ function buildConsultantNav(auditId: string | null) {
 function buildClientNav(auditId: string | null) {
   return [
     { to: '/portal',                                        icon: HouseSimple,   label: 'My Portal',    badge: null },
-    { to: '/portal/request',                               icon: ClipboardText, label: 'New Request',  badge: null },
     { to: auditId ? `/portal/audit/${auditId}` : null,     icon: Eye,           label: 'Audit Status', badge: null },
+    { to: auditId ? `/portal/pipeline/${auditId}` : null,   icon: Pulse,         label: 'Pipeline',     badge: null },
   ];
 }
 
@@ -78,7 +79,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
       return;
     }
     if (requestId) {
-      navigate(isClient ? `/portal/request/${requestId}` : '/admin/requests');
+      navigate(isClient ? '/portal' : '/admin/requests');
       setNotificationsOpen(false);
       return;
     }
@@ -262,10 +263,10 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           {/* Divider */}
           <div className="mx-2 my-2" style={{ height: '1px', background: 'rgba(255,255,255,0.06)' }} />
 
-          {/* Quick action — consultant: New Audit; client: Submit Request */}
+          {/* Quick action — consultant: New Audit; client: New audit (self-serve) */}
           {isClient || roleUnknown ? (
             <NavLink
-              to="/portal/request"
+              to="/portal/audit/new"
               className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
               style={{
                 color: 'rgba(255,255,255,0.38)',
@@ -281,8 +282,8 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                 (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.38)';
               }}
             >
-              <ClipboardText className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
-              <span>Submit Request</span>
+              <PlusCircle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
+              <span>New audit</span>
             </NavLink>
           ) : (
             <NavLink

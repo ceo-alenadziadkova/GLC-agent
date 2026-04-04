@@ -1,139 +1,105 @@
-import { useState, useEffect } from 'react';
+import type { ComponentProps } from 'react';
 import { Link } from 'react-router';
-import {
-  ClipboardText, Clock, CheckCircle, XCircle, Spinner,
-  ArrowRight, PlusCircle, Warning,
-} from '@phosphor-icons/react';
+import { formatDistanceToNow } from 'date-fns';
+import { CaretRight, ClipboardText, PlusCircle, Spinner, Warning } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
-import { api } from '../data/apiService';
+import { StatusPill } from '../components/glc/StatusPill';
 import { useAudits } from '../hooks/useAudits';
-import type { AuditRequest, AuditRequestStatus } from '../data/auditTypes';
-import { formatAuditWebsiteDisplay, isNoPublicWebsiteUrl } from '../data/no-public-website';
+import type { AuditMeta } from '../data/auditTypes';
+import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 
-// ── Status helpers ────────────────────────────────────────────────────────────
+type PortalPillStatus = ComponentProps<typeof StatusPill>['status'];
 
-const STATUS_CONFIG: Record<AuditRequestStatus, { label: string; color: string; Icon: React.ElementType }> = {
-  draft:        { label: 'Draft',        color: 'rgba(255,255,255,0.30)', Icon: ClipboardText },
-  submitted:    { label: 'Submitted',    color: '#F59E0B',               Icon: Clock         },
-  under_review: { label: 'Under Review', color: '#3B82F6',               Icon: Clock         },
-  approved:     { label: 'Approved',     color: '#10B981',               Icon: CheckCircle   },
-  rejected:     { label: 'Rejected',     color: '#EF4444',               Icon: XCircle       },
-  running:      { label: 'In Progress',  color: '#1CBDFF',               Icon: Spinner       },
-  delivered:    { label: 'Delivered',    color: '#10B981',               Icon: CheckCircle   },
-};
-
-function StatusBadge({ status }: { status: AuditRequestStatus }) {
-  const { label, color, Icon } = STATUS_CONFIG[status] ?? STATUS_CONFIG.draft;
-  const spinning = status === 'running';
-  return (
-    <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color }}>
-      <Icon className={`w-3.5 h-3.5 ${spinning ? 'animate-spin' : ''}`} />
-      {label}
-    </span>
-  );
+function productModeShortLabel(mode: AuditMeta['product_mode'] | undefined): string | null {
+  if (mode === 'express') return 'Express audit';
+  if (mode === 'full') return 'Full audit';
+  if (mode === 'free_snapshot') return 'Free snapshot';
+  return null;
 }
 
-function RequestCard({ req }: { req: AuditRequest }) {
-  const domain = isNoPublicWebsiteUrl(req.url)
-    ? formatAuditWebsiteDisplay(req.url)
-    : (() => { try { return new URL(req.url).hostname; } catch { return req.url; } })();
-  const industryOtherSpec = typeof req.brief_snapshot?.intake_industry_specify === 'string'
-    ? req.brief_snapshot.intake_industry_specify.trim()
-    : '';
-  const date = new Date(req.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-
-  const linkTarget = req.audit_id
-    ? `/portal/audit/${req.audit_id}`
-    : `/portal/request/${req.id}`;
-
-  return (
-    <Link
-      to={linkTarget}
-      className="block no-underline"
-    >
-      <div
-        className="rounded-xl px-5 py-4 flex items-center gap-4 transition-all"
-        style={{
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px solid var(--border-subtle)',
-          transition: 'border-color var(--ease-fast), background var(--ease-fast)',
-        }}
-        onMouseEnter={e => {
-          (e.currentTarget as HTMLElement).style.borderColor = 'rgba(28,189,255,0.25)';
-          (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--bg-surface-hover)';
-        }}
-        onMouseLeave={e => {
-          (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-subtle)';
-          (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--bg-surface)';
-        }}
-      >
-        <div
-          className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: 'rgba(28,189,255,0.08)', border: '1px solid rgba(28,189,255,0.15)' }}
-        >
-          <ClipboardText className="w-5 h-5" style={{ color: 'var(--glc-blue)' }} />
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span
-              className="font-medium truncate"
-              style={{ color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}
-            >
-              {domain}
-            </span>
-            {req.industry && (
-              <span
-                className="px-1.5 py-0.5 rounded text-xs flex-shrink-0 max-w-[min(200px,45vw)] truncate inline-block align-bottom"
-                style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: 'var(--text-tertiary)' }}
-                title={req.industry === 'Other' && industryOtherSpec ? industryOtherSpec : undefined}
-              >
-                {req.industry === 'Other' && industryOtherSpec ? `Other: ${industryOtherSpec}` : req.industry}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-3 mt-0.5">
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>{date}</span>
-            <span
-              className="px-1.5 py-0.5 rounded text-xs"
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.04)',
-                color: 'var(--text-tertiary)',
-                border: '1px solid rgba(255,255,255,0.06)',
-              }}
-            >
-              {req.product_mode === 'full' ? 'Full Audit' : 'Express'}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4 flex-shrink-0">
-          <StatusBadge status={req.status} />
-          <ArrowRight className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.20)' }} />
-        </div>
-      </div>
-    </Link>
-  );
+function formatUpdatedRelative(iso: string | undefined): string {
+  if (!iso) return '';
+  try {
+    return formatDistanceToNow(new Date(iso), { addSuffix: true });
+  } catch {
+    return '';
+  }
 }
 
-// ── Page ─────────────────────────────────────────────────────────────────────
+/** Client-facing status copy for the portal list (not raw DB strings). */
+function clientPortalAuditPresentation(a: AuditMeta): {
+  pill: PortalPillStatus;
+  label: string;
+  hint: string;
+  pulse: boolean;
+} {
+  switch (a.status) {
+    case 'created':
+      return {
+        pill: 'pending',
+        label: 'Brief & setup',
+        hint: 'Complete the intake brief on the next screen, then start your audit when you are ready.',
+        pulse: false,
+      };
+    case 'recon':
+      return {
+        pill: 'running',
+        label: 'Scanning your site',
+        hint: 'We are collecting public information about your website.',
+        pulse: true,
+      };
+    case 'auto':
+    case 'analytic':
+      return {
+        pill: 'running',
+        label: 'Analysis running',
+        hint: 'Automated phases are in progress. Open the audit to follow the pipeline.',
+        pulse: true,
+      };
+    case 'review':
+      return {
+        pill: 'review',
+        label: 'Review pause',
+        hint: 'Waiting on your GLC consultant at a review step before the run continues.',
+        pulse: false,
+      };
+    case 'completed':
+      return {
+        pill: 'completed',
+        label: 'Completed',
+        hint: 'Your report and deliverables are ready to view.',
+        pulse: false,
+      };
+    case 'failed':
+      return {
+        pill: 'failed',
+        label: 'Needs attention',
+        hint: 'The run stopped unexpectedly. Your GLC contact can help.',
+        pulse: false,
+      };
+    default:
+      return {
+        pill: 'running',
+        label: a.status.replace(/_/g, ' '),
+        hint: 'Open this audit for details.',
+        pulse: false,
+      };
+  }
+}
+
+function portalCardWebsiteLine(a: AuditMeta, title: string): string | null {
+  const site = formatAuditWebsiteDisplay(a.company_url);
+  if (!site) return null;
+  if (a.company_name?.trim() && site !== title) return site;
+  return null;
+}
 
 export function ClientPortal() {
-  const [requests, setRequests] = useState<AuditRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { audits: myAudits, loading: auditsLoading, error: auditsError } = useAudits(30);
-
-  useEffect(() => {
-    api.listAuditRequests()
-      .then(res => setRequests(res.data))
-      .catch(err => setError((err as Error).message))
-      .finally(() => setLoading(false));
-  }, []);
 
   const actions = (
     <Link
-      to="/portal/request"
+      to="/portal/audit/new"
       className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium no-underline transition-all"
       style={{
         background: 'var(--gradient-brand)',
@@ -142,13 +108,28 @@ export function ClientPortal() {
       }}
     >
       <PlusCircle className="w-4 h-4" />
-      New Request
+      New audit
     </Link>
   );
 
   return (
-    <AppShell title="My Portal" subtitle="Track your requests and audits" actions={actions}>
+    <AppShell title="My Portal" subtitle="Your audits and intake briefs" actions={actions}>
       <div className="px-7 py-6 max-w-3xl mx-auto space-y-10">
+        {auditsLoading && (
+          <div className="flex items-center justify-center py-20">
+            <Spinner className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+          </div>
+        )}
+
+        {auditsError && (
+          <div
+            className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm"
+            style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)', color: '#EF4444' }}
+          >
+            <Warning className="w-4 h-4 flex-shrink-0" />
+            {auditsError}
+          </div>
+        )}
 
         {!auditsLoading && !auditsError && myAudits.length > 0 && (
           <section>
@@ -160,24 +141,51 @@ export function ClientPortal() {
             </h3>
             <div className="space-y-2">
               {myAudits.map(a => {
-                const title = a.company_name || formatAuditWebsiteDisplay(a.company_url);
+                const title = a.company_name?.trim() || formatAuditWebsiteDisplay(a.company_url) || 'Your audit';
+                const websiteLine = portalCardWebsiteLine(a, title);
+                const pres = clientPortalAuditPresentation(a);
+                const modeLabel = productModeShortLabel(a.product_mode);
+                const updatedRel = formatUpdatedRelative(a.updated_at);
+                const metaParts = [a.industry?.trim(), modeLabel, updatedRel ? `Updated ${updatedRel}` : null].filter(
+                  Boolean,
+                ) as string[];
+
                 return (
                   <Link
                     key={a.id}
                     to={`/portal/audit/${a.id}`}
-                    className="block no-underline rounded-xl px-4 py-3 transition-all"
+                    className="block no-underline rounded-xl px-4 py-3.5 transition-all hover:brightness-[1.02]"
                     style={{
                       backgroundColor: 'var(--bg-surface)',
                       border: '1px solid var(--border-subtle)',
                     }}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-medium truncate" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}>
-                        {title}
-                      </span>
-                      <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-tertiary)' }}>
-                        {a.status.replace(/_/g, ' ')}
-                      </span>
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div
+                          className="font-semibold truncate"
+                          style={{ color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}
+                        >
+                          {title}
+                        </div>
+                        {websiteLine ? (
+                          <div className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
+                            {websiteLine}
+                          </div>
+                        ) : null}
+                        <p className="text-xs m-0 leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
+                          {pres.hint}
+                        </p>
+                        {metaParts.length > 0 ? (
+                          <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                            {metaParts.join(' · ')}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-col items-end gap-2 flex-shrink-0 pt-0.5">
+                        <StatusPill status={pres.pill} label={pres.label} pulse={pres.pulse} />
+                        <CaretRight className="w-4 h-4" style={{ color: 'var(--text-quaternary)' }} aria-hidden />
+                      </div>
                     </div>
                   </Link>
                 );
@@ -186,32 +194,7 @@ export function ClientPortal() {
           </section>
         )}
 
-        {auditsError && (
-          <div
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm"
-            style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)', color: '#EF4444' }}
-          >
-            {auditsError}
-          </div>
-        )}
-
-        {loading && (
-          <div className="flex items-center justify-center py-20">
-            <Spinner className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
-          </div>
-        )}
-
-        {!loading && error && (
-          <div
-            className="flex items-center gap-3 px-4 py-3 rounded-lg"
-            style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)', color: '#EF4444' }}
-          >
-            <Warning className="w-4 h-4 flex-shrink-0" />
-            <span className="text-sm">{error}</span>
-          </div>
-        )}
-
-        {!loading && !error && requests.length === 0 && (
+        {!auditsLoading && !auditsError && myAudits.length === 0 && (
           <div className="text-center py-20">
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
@@ -223,27 +206,19 @@ export function ClientPortal() {
               className="font-semibold mb-2"
               style={{ color: 'var(--text-primary)', fontSize: 'var(--text-base)' }}
             >
-              No requests yet
+              No audits yet
             </h3>
             <p style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)', marginBottom: 20 }}>
-              Submit your first audit request to get started.
+              Create an audit, complete the branching intake brief, then start the run when you are ready.
             </p>
             <Link
-              to="/portal/request"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium no-underline"
+              to="/portal/audit/new"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium no-underline"
               style={{ background: 'var(--gradient-brand)', color: 'var(--glc-ink)' }}
             >
               <PlusCircle className="w-4 h-4" />
-              Submit Request
+              New audit
             </Link>
-          </div>
-        )}
-
-        {!loading && !error && requests.length > 0 && (
-          <div className="space-y-3">
-            {requests.map(req => (
-              <RequestCard key={req.id} req={req} />
-            ))}
           </div>
         )}
       </div>

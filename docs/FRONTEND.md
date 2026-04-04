@@ -112,6 +112,12 @@ Prefer composing with tokens (`bg-background`, `text-foreground`, `border-border
 
 **Question bank coverage hint:** `IntakeBankCoverageHint` + `useIntakeBankMetrics` on **New Audit** (Brief step), **Audit Workspace** sidebar (when `intake_brief` exists), and **Client portal** pre-audit brief — same branch-aware v1 score as the API after legacy merge.
 
+**Client portal — self-serve audits:** **`ClientPortal`** (`/portal`, “My Portal”) lists audits from **`GET /api/audits`** with **`StatusPill`** labels (e.g. **Brief & setup** for `created`), a short next-step hint, optional website line under the company name, and a meta line (industry · express/full · relative `updated_at`). **`ClientAuditView`** at `/portal/audit/:id` loads the audit with **`GET /api/audits/:id`** and renders **`ClientPortalAuditById`** when the caller may access that row; otherwise it shows **not found** (no fallback to `audit_requests` IDs). Flow: **`/portal/audit/new`** → `NewAudit` with `variant="client_self_serve"` → full bank brief; wizard state is mirrored to **`sessionStorage`** (`glc_portal_new_audit_draft_v1`) so a tab refresh restores progress; **Save draft** also persists to the account (**`POST /api/audits`** once, then **`PUT …/brief`**) when Basics validate. **Launch Audit** reuses that draft **`audits.id`** when present, then **`pipeline/start`** and navigation to **`/portal/pipeline/:id`**. Audits left in **`created`** can still be continued from **My Portal** with **Start audit** / **Save Brief** there. **`/portal/pipeline/:id`** and **`/portal/reports/:id`** mirror consultant URLs under the client layout.
+
+**Client portal Pre-Audit Brief** (embedded in `ClientAuditView` for self-serve `created` audits): `BriefLayoutPreferenceCards` lets the client choose **All sections at once** (`BankClassicBriefFields`, compact) or **Step by step** (`IntakeBankWizard`). **Resolution:** per-audit `localStorage` `glc_client_brief_layout_v1:<auditId>` overrides the **default** from Settings (`glc_client_brief_layout_default_v1`); if neither is set, the chooser appears (`resolveClientBriefLayout`). **Change layout** clears the per-audit key only. **Ask each time** in Settings (`applyClientBriefLayoutAskEachTime`) clears the default and **all** `glc_client_brief_layout_v1:*` keys. Same bank v1 branching as consultant flows; `collection_mode === 'discovery'` applies when returned from the API. New answers use `source: 'client'` (and `unknown` for explicit unknown). **Save Brief** submits via `PUT /api/audits/:id/brief` (no auto-save debounce in this panel). Brief UI links to **`/settings#brief-layout`**.
+
+**Consultant / admin brief layout:** Same `BriefLayoutPreferenceCards` on **New Audit** (Brief step) and **Audit Workspace** “Edit intake brief”. **Resolution:** per-scope `glc_consultant_brief_layout_v1:new_audit` or `glc_consultant_brief_layout_v1:<auditId>`, then Settings default `glc_consultant_brief_layout_default_v1`, else chooser (`resolveConsultantBriefLayout`). **Change layout** clears the per-scope key. **Settings → All sections / Step by step** sets the default and removes `…:new_audit` so only one key drives the New Audit step. **Ask each time** (`applyConsultantBriefLayoutAskEachTime`) removes the default and **all** `glc_consultant_brief_layout_v1:*` keys so the chooser appears everywhere until the user picks again. Links to **`/settings#brief-layout`**. Prefs sync: `useBriefLayoutPrefsSync` + `glc-brief-layout-prefs-changed` custom event (and `storage` for other tabs).
+
 **Notification center:** `NotificationCenter` + `useNotifications`; API + Realtime on `notifications`. Deep links use `payload.route`, `request_id`, `audit_id`; icons follow `failure_type` / `artifact` in `payload`.
 
 ---
@@ -131,7 +137,7 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 | `/audit/:id/:domainId` | `AuditWorkspace.tsx` | Same page, deep-linked domain |
 | `/reports/:id` | `ReportViewer.tsx` | Final audit report |
 | `/strategy/:id` | `StrategyLab.tsx` | Strategic roadmap |
-| `/settings` | `SettingsPage.tsx` | Profile, appearance, notifications |
+| `/settings` | `SettingsPage.tsx` | Profile, appearance, client self-serve audit owner (consultants), intake brief layout defaults, notifications |
 
 ---
 
@@ -145,8 +151,10 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 
 ### `SettingsPage.tsx`
 - Shared protected route for consultant and client
+- **Client portal — audit owner** (consultants): `GET` / `PATCH /api/platform/self-serve-owner` — pick which consultant owns audits started by clients; read-only when `PLATFORM_ADMIN_USER_IDS` excludes the current user
 - Profile save uses `PATCH /api/profile` (editable `full_name`)
 - Appearance has explicit `system | light | dark` selection via `useGlcTheme().setMode(...)`
+- **Intake brief layout** (`#brief-layout`): clients configure `glc_client_brief_layout_default_v1`; consultants/admins configure `glc_consultant_brief_layout_default_v1` — options **All sections**, **Step by step**, or **Ask each time** (clears defaults and all per-audit/per-scope layout keys on this device). Consultant **All sections / Step by step** also clears `glc_consultant_brief_layout_v1:new_audit` so the New Audit step follows the default without a duplicate key. Scroll-into-view when opened with hash.
 - Notification toggles persist locally in `localStorage['glc_notify_prefs_v1']` (no backend sync in MVP)
 
 ### `Portfolio.tsx`
@@ -176,6 +184,7 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 ### `AuditWorkspace.tsx`
 - `useAudit(id)` for full audit data
 - Left sidebar: domain list from `DOMAIN_KEYS` (defined in `auditTypes.ts`), shows score badge per domain
+- **Edit intake brief** (when `audit.brief` / `intake_brief` exists): `BriefLayoutPreferenceCards` first (or persisted `glc_consultant_brief_layout_v1:<id>`), then **All sections at once** = `BankClassicBriefFields` (compact; same visible bank ids/order as wizard) or **Step by step** = `IntakeBankWizard`. **Change layout** clears the stored choice. `collection_mode === 'discovery'` applies the discovery subset to both modes; debounced `api.saveBrief` like New Audit
 - Right panel: selected domain detail — score ring, summary, strengths, weaknesses, issues table, quick wins, recommendations
 - Overall score computed from available domains (weighted average)
 - Empty state when domain not yet analyzed: "Domain analysis pending"
@@ -212,7 +221,7 @@ const { user, isAuthenticated, loading, signOut } = useAuth();
 - `loading` is true until auth state is confirmed (prevents flash of login page)
 
 ### `useIntakeBankMetrics()` / `useIntakeWizard()`
-Defined in `useIntakeWizard.ts`. **`useIntakeBankMetrics(briefResponses)`** derives branch-aware question-bank v1 coverage (same `mergeLegacyResponsesIntoBankV1` + `calcDataQualityScore` as the API) for UI such as **New Audit** step “Brief”. **`useIntakeWizard`** supports controlled mode (`value` + `onChange`), canonical **`sortStubsByBankOrder`**, and step navigation (`goNext` / `goPrev`, `currentStub`, `totalSteps`). **New Audit → Brief** toggle **“Step-by-step (bank)”** renders **`IntakeBankWizard`**: one question per step over visible bank ids (labels/types from `bankQuestionUiCatalog.ts` + `question-bank.v1.json`), plus **revenue model** (legacy-only required field). Required-field progress uses **`prepareBriefForValidation`** (same as API) so bank answers hydrate legacy gates.
+Defined in `useIntakeWizard.ts`. **`useIntakeBankMetrics(briefResponses)`** derives branch-aware question-bank v1 coverage (same `mergeLegacyResponsesIntoBankV1` + `calcDataQualityScore` as the API) for UI such as **New Audit** step “Brief”. **`useIntakeWizard`** supports controlled mode (`value` + `onChange`), canonical **`sortStubsByBankOrder`**, and step navigation (`goNext` / `goPrev`, `currentStub`, `totalSteps`). **New Audit → Brief** and **Audit Workspace** use **`BriefLayoutPreferenceCards`** to choose **`BankClassicBriefFields`** vs **`IntakeBankWizard`** (consultant keys in `client-brief-layout-preference.ts`). Both layouts share visibility rules (`filterVisibleQuestions`, `mergeLegacyResponsesIntoBankV1`); **no public website** sets `collection_mode` to discovery for metrics and for both layouts. Labels/types from `bankQuestionUiCatalog.ts` + `question-bank.v1.json`; **revenue model** is appended (not in bank JSON). Canonical list helper: `getVisibleBankBriefSections` in `src/app/data/bankClassicBrief.ts`. Required-field progress uses **`prepareBriefForValidation`** (same as API) so bank answers hydrate legacy gates.
 
 ### `useAudit(id: string | undefined)`
 ```typescript

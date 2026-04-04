@@ -1,6 +1,6 @@
 /**
  * Canonical question-bank v1 — imported from question-bank.v1.json (docs/QUESTION_BANK.md).
- * Domain slices (§5) are derived from ./domain-slice-data.ts and ordered by bank sequence.
+ * Domain slices (§5): primary/secondary feeds in question-feed-roles.ts → domain-slice-data → ordered here.
  */
 import { calcDataQualityScore } from './data-quality.js';
 import { DOMAIN_TO_QUESTIONS_RAW } from './domain-slice-data.js';

@@ -9,7 +9,6 @@ import { Login }            from './pages/Login';
 import { SnapshotLanding }  from './pages/SnapshotLanding';
 import { IntakeBrief }       from './pages/IntakeBrief';
 import { ClientPortal }     from './pages/ClientPortal';
-import { ClientRequestForm } from './pages/ClientRequestForm';
 import { ClientAuditView }  from './pages/ClientAuditView';
 import { AdminRequestQueue } from './pages/AdminRequestQueue';
 import { DiscoverPage }     from './pages/DiscoverPage';
@@ -47,12 +46,13 @@ export const router = createBrowserRouter([
   { path: '/audit/:id/:domainId', element: <Consultant><AuditWorkspace /></Consultant> },
   { path: '/pipeline/:id',        element: <Consultant><PipelineMonitor /></Consultant> },
   { path: '/reports/:id',         element: <Consultant><ReportViewer /></Consultant> },
+  { path: '/portal/reports/:id',  element: <Client><ReportViewer /></Client> },
   { path: '/strategy/:id',        element: <Consultant><StrategyLab /></Consultant> },
   { path: '/settings',            element: <P><SettingsPage /></P> },
 
   // ── Client portal routes ───────────────────────────────────────────────────
   { path: '/portal',                  element: <Client><ClientPortal /></Client> },
-  { path: '/portal/request',          element: <Client><ClientRequestForm /></Client> },
-  { path: '/portal/request/:id',      element: <Client><ClientAuditView /></Client> },
+  { path: '/portal/audit/new',        element: <Client><NewAudit variant="client_self_serve" /></Client> },
+  { path: '/portal/pipeline/:id',     element: <Client><PipelineMonitor /></Client> },
   { path: '/portal/audit/:id',        element: <Client><ClientAuditView /></Client> },
 ]);
