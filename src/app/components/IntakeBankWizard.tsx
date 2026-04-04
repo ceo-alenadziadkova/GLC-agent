@@ -97,20 +97,29 @@ export function IntakeBankWizard({
         />
       </div>
 
-      {q && (
-        <BriefField
-          q={q}
-          value={unwrapForField(responses[q.id])}
-          onChange={v => {
-            wizard.setField(q.id, { value: v, source });
-          }}
-          onSetUnknown={() => {
-            wizard.setField(q.id, { value: null, source: 'unknown' });
-          }}
-          emphasizeClientSource={emphasizeClientSource}
-          interviewMode={interviewMode}
-        />
-      )}
+      {q && (() => {
+        // For a2 (industry), use the legacy-compat key so legacy-to-bank synthesises a1 correctly.
+        const otherKey = q.id === 'a2' ? 'intake_industry_specify' : `${q.id}__other`;
+        const otherSpecify = (unwrapForField(responses[otherKey]) as string | undefined) ?? '';
+        return (
+          <BriefField
+            q={q}
+            value={unwrapForField(responses[q.id])}
+            onChange={v => {
+              wizard.setField(q.id, { value: v, source });
+            }}
+            onSetUnknown={() => {
+              wizard.setField(q.id, { value: null, source: 'unknown' });
+            }}
+            emphasizeClientSource={emphasizeClientSource}
+            interviewMode={interviewMode}
+            otherSpecify={otherSpecify}
+            onOtherSpecifyChange={text => {
+              wizard.setField(otherKey, { value: text || null, source });
+            }}
+          />
+        );
+      })()}
 
       {wizard.totalSteps === 0 && (
         <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>

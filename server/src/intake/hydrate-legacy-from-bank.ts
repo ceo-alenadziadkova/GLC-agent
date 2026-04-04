@@ -24,6 +24,8 @@ function setLegacyIfEmpty(target: IntakeResponsesMap, key: string, bankVal: unkn
 export function mapA6ToHandlesPaymentsLegacy(a6: unknown): string | null {
   const s = String(unwrapIntakeValue(a6) ?? '').trim();
   if (!s) return null;
+  // 'Yes' covers both direct card processing and hosted-checkout (Stripe/PayPal);
+  // we use the broader label so legacy gates treat both as "online payments active".
   if (s === 'Yes') return 'Yes — we process card data';
   if (s === 'Sometimes' || s === 'Rarely') return 'No — we use Stripe/PayPal/etc. hosted checkout';
   if (s.toLowerCase().includes('offline')) return 'No payments on site';

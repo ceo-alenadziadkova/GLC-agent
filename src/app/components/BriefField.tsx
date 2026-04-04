@@ -14,6 +14,8 @@ export function BriefField({
   onSetUnknown,
   emphasizeClientSource,
   interviewMode,
+  otherSpecify,
+  onOtherSpecifyChange,
 }: {
   q: BriefQuestion;
   value: string | string[] | number | boolean | null | BriefResponseEntry | undefined;
@@ -23,6 +25,10 @@ export function BriefField({
   emphasizeClientSource?: boolean;
   /** When true, shows consultant_hint coaching prompts and marks answers as consultant-sourced. */
   interviewMode?: boolean;
+  /** Current free-text clarification when "Other" is selected. */
+  otherSpecify?: string;
+  /** Callback to update the "Other" clarification text. Required to enable the specify input. */
+  onOtherSpecifyChange?: (v: string) => void;
 }) {
   const rawValue = (value && typeof value === 'object' && !Array.isArray(value) && 'value' in value)
     ? value.value
@@ -113,54 +119,92 @@ export function BriefField({
       )}
 
       {q.type === 'single_choice' && q.options && (
-        <div className="flex flex-wrap gap-1.5">
-          {q.options.map(opt => {
-            const selected = strVal === opt;
-            return (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => onChange(selected ? null : opt)}
-                className="px-2.5 py-1 rounded-lg text-xs transition-all"
-                style={{
-                  backgroundColor: selected ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)',
-                  border: selected ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)',
-                  color: selected ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
-                  fontWeight: selected ? 500 : 400,
-                }}
-              >
-                {opt}
-              </button>
-            );
-          })}
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-1.5">
+            {q.options.map(opt => {
+              const selected = strVal === opt;
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => onChange(selected ? null : opt)}
+                  className="px-2.5 py-1 rounded-lg text-xs transition-all"
+                  style={{
+                    backgroundColor: selected ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)',
+                    border: selected ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)',
+                    color: selected ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
+                    fontWeight: selected ? 500 : 400,
+                  }}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+          {strVal === 'Other' && onOtherSpecifyChange !== undefined && (
+            <input
+              type="text"
+              value={otherSpecify ?? ''}
+              onChange={e => onOtherSpecifyChange(e.target.value)}
+              placeholder="Please specify..."
+              autoFocus
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+              style={{
+                backgroundColor: 'var(--bg-inset)',
+                border: '1px solid var(--glc-blue)',
+                color: 'var(--text-primary)',
+              }}
+              onBlur={e => { (e.target as HTMLElement).style.borderColor = 'var(--border-subtle)'; }}
+              onFocus={e => { (e.target as HTMLElement).style.borderColor = 'var(--glc-blue)'; }}
+            />
+          )}
         </div>
       )}
 
       {q.type === 'multi_choice' && q.options && (
-        <div className="flex flex-wrap gap-1.5">
-          {q.options.map(opt => {
-            const selected = arrVal.includes(opt);
-            return (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => {
-                  const next = selected ? arrVal.filter(v => v !== opt) : [...arrVal, opt];
-                  onChange(next.length ? next : null);
-                }}
-                className="px-2.5 py-1 rounded-lg text-xs transition-all"
-                style={{
-                  backgroundColor: selected ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)',
-                  border: selected ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)',
-                  color: selected ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
-                  fontWeight: selected ? 500 : 400,
-                }}
-              >
-                {selected && <Check size={11} weight="bold" style={{ display: 'inline', marginRight: 3 }} />}
-                {opt}
-              </button>
-            );
-          })}
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-1.5">
+            {q.options.map(opt => {
+              const selected = arrVal.includes(opt);
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => {
+                    const next = selected ? arrVal.filter(v => v !== opt) : [...arrVal, opt];
+                    onChange(next.length ? next : null);
+                  }}
+                  className="px-2.5 py-1 rounded-lg text-xs transition-all"
+                  style={{
+                    backgroundColor: selected ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)',
+                    border: selected ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)',
+                    color: selected ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
+                    fontWeight: selected ? 500 : 400,
+                  }}
+                >
+                  {selected && <Check size={11} weight="bold" style={{ display: 'inline', marginRight: 3 }} />}
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+          {arrVal.includes('Other') && onOtherSpecifyChange !== undefined && (
+            <input
+              type="text"
+              value={otherSpecify ?? ''}
+              onChange={e => onOtherSpecifyChange(e.target.value)}
+              placeholder="Please specify..."
+              autoFocus
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+              style={{
+                backgroundColor: 'var(--bg-inset)',
+                border: '1px solid var(--glc-blue)',
+                color: 'var(--text-primary)',
+              }}
+              onBlur={e => { (e.target as HTMLElement).style.borderColor = 'var(--border-subtle)'; }}
+              onFocus={e => { (e.target as HTMLElement).style.borderColor = 'var(--glc-blue)'; }}
+            />
+          )}
         </div>
       )}
 
