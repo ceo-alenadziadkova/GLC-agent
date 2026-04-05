@@ -12,6 +12,8 @@ const {
 } = vi.hoisted(() => {
   let auditRow: Record<string, unknown> | null = {
     id: 'audit-001',
+    user_id: 'user-001',
+    client_id: null,
     status: 'created',
     current_phase: 0,
     tokens_used: 0,
@@ -46,6 +48,7 @@ const {
       return {
         select: vi.fn(() => ({
           eq: vi.fn().mockReturnThis(),
+          or: vi.fn().mockReturnThis(),
           single: vi.fn(async () => ({ data: auditRow, error: auditRow ? null : { code: 'PGRST116' } })),
         })),
         update: vi.fn((payload: Record<string, unknown>) => {
@@ -53,6 +56,7 @@ const {
           const isRetryOrNextClaim = typeof payload.status === 'string' && payload.current_phase === undefined;
           const chain: Record<string, unknown> = {};
           chain.eq = vi.fn(() => chain);
+          chain.or = vi.fn(() => chain);
           chain.in = vi.fn(() => chain);
           chain.select = vi.fn(async () => {
             if (isStartClaim) {
@@ -131,7 +135,10 @@ vi.mock('../middleware/auth.js', () => ({
     req.userId = 'user-001';
     next();
   },
-  attachProfile: (_req: unknown, _res: unknown, next: () => void) => next(),
+  attachProfile: (req: Record<string, unknown>, _res: unknown, next: () => void) => {
+    req.userRole = 'consultant';
+    next();
+  },
   requireRole: () => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
@@ -172,6 +179,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   setAuditRow({
     id: 'audit-001',
+    user_id: 'user-001',
+    client_id: null,
     status: 'created',
     current_phase: 0,
     tokens_used: 0,
@@ -197,6 +206,8 @@ describe('pipeline route concurrency guards', () => {
   it('POST /pipeline/next returns 409 when audit is already in active phase status', async () => {
     setAuditRow({
       id: 'audit-001',
+      user_id: 'user-001',
+      client_id: null,
       status: 'recon',
       current_phase: 0,
       tokens_used: 0,
@@ -214,6 +225,8 @@ describe('pipeline route concurrency guards', () => {
   it('POST /pipeline/next returns 409 when optimistic claim fails', async () => {
     setAuditRow({
       id: 'audit-001',
+      user_id: 'user-001',
+      client_id: null,
       status: 'review',
       current_phase: 0,
       tokens_used: 0,
@@ -232,6 +245,8 @@ describe('pipeline route concurrency guards', () => {
   it('POST /pipeline/retry returns 409 when phase is actively executing', async () => {
     setAuditRow({
       id: 'audit-001',
+      user_id: 'user-001',
+      client_id: null,
       status: 'auto',
       current_phase: 2,
       tokens_used: 0,
@@ -252,6 +267,8 @@ describe('pipeline route concurrency guards', () => {
   it('POST /pipeline/retry returns 409 when retry claim is taken', async () => {
     setAuditRow({
       id: 'audit-001',
+      user_id: 'user-001',
+      client_id: null,
       status: 'failed',
       current_phase: 2,
       tokens_used: 0,

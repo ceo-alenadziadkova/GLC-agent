@@ -1,31 +1,45 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams, Link } from 'react-router';
+import type { BriefResponseSource } from '../data/auditTypes';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Globe, ArrowRight, ArrowLeft, MagnifyingGlass, HardDrives, Shield,
   Cursor, Target, Lightning, MapTrifold, CheckCircle, Warning,
-  ClipboardText, Rocket, Circle, Copy, X,
+  ClipboardText, Rocket, Circle, Copy, X, FloppyDisk, Spinner,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
-import { BriefField } from '../components/BriefField';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { useAuth } from '../hooks/useAuth';
+import { useBriefLayoutPrefsSync } from '../hooks/useBriefLayoutPrefsSync';
 import { briefResponsesToIntakeMap, useIntakeBankMetrics } from '../hooks/useIntakeWizard';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
 import { IntakeBankWizard } from '../components/IntakeBankWizard';
-import { prepareBriefForValidation } from '../../../server/src/intake/hydrate-legacy-from-bank';
+import { BankClassicBriefFields } from '../components/BankClassicBriefFields';
+import { BriefLayoutPreferenceCards } from '../components/BriefLayoutPreferenceCards';
+import {
+  CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE,
+  CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE,
+  CONSULTANT_BRIEF_LAYOUT_DEFAULT_KEY,
+  consultantBriefLayoutStorageKey,
+  resolveConsultantBriefLayout,
+  writeConsultantBriefLayout,
+  clearConsultantBriefLayout,
+  resolveClientBriefLayout,
+  writeClientBriefLayout,
+  clearClientBriefLayout,
+  CLIENT_BRIEF_LAYOUT_DEFAULT_KEY,
+  clientBriefLayoutStorageKey,
+} from '../lib/client-brief-layout-preference';
 import { api, ApiError } from '../data/apiService';
 import { INDUSTRY_OPTIONS, isIndustryOption } from '../data/industry-options';
 import { applyIntakeMetadataPrefill } from '../lib/intake-client-copy';
+import { effectiveBriefForPipelineGates, normalizeIntakeToResponses } from '../data/intakeBriefMap';
 import {
-  BRIEF_QUESTIONS,
-  BRIEF_SECTIONS,
-  REQUIRED_IDS,
   countAnswered,
   mergeBriefResponsesPreferFilled,
+  pipelineRequiredIdsForProductMode,
   type BriefResponseEntry,
   type BriefResponses,
-  type BriefQuestion,
 } from '../data/briefQuestions';
 
 // ── Step indicator ────────────────────────────────────────────────────────────
@@ -111,18 +125,6 @@ const NEXT_ACTION_TEXT: Record<string, string> = {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-function normalizeIntakeToResponses(raw: Record<string, unknown>): BriefResponses {
-  const out: BriefResponses = {};
-  for (const [k, v] of Object.entries(raw)) {
-    if (v != null && typeof v === 'object' && !Array.isArray(v) && 'value' in (v as Record<string, unknown>)) {
-      out[k] = { value: (v as BriefResponseEntry).value, source: 'client' };
-    } else {
-      out[k] = { value: v as BriefResponseEntry['value'], source: 'client' };
-    }
-  }
-  return out;
-}
-
 function unwrapBriefString(responses: BriefResponses, id: string): string | undefined {
   const raw = responses[id];
   if (raw == null) return undefined;
@@ -150,28 +152,29 @@ function buildStep0IntakePatch(
   industry: string,
   industrySpecify: string,
   url: string,
-  noPublicWebsite: boolean
+  noPublicWebsite: boolean,
+  source: BriefResponseSource = 'consultant',
 ): Partial<BriefResponses> {
   const patch: Partial<BriefResponses> = {};
   const nt = name.trim();
   if (nt) {
-    patch.intake_company_name = { value: nt, source: 'consultant' };
+    patch.intake_company_name = { value: nt, source };
   }
   if (industry.trim() && isIndustryOption(industry)) {
-    patch.intake_industry = { value: industry, source: 'consultant' };
+    patch.intake_industry = { value: industry, source };
   }
   const spec = industrySpecify.trim();
   if (industry.trim() === 'Other' && spec) {
-    patch.intake_industry_specify = { value: spec, source: 'consultant' };
+    patch.intake_industry_specify = { value: spec, source };
   }
   if (noPublicWebsite) {
-    patch.intake_company_website = { value: 'none', source: 'consultant' };
+    patch.intake_company_website = { value: 'none', source };
   } else {
     const ut = url.trim();
     if (ut) {
       patch.intake_company_website = {
         value: ut.startsWith('http') ? ut : `https://${ut}`,
-        source: 'consultant',
+        source,
       };
     }
   }
@@ -186,24 +189,117 @@ function defaultConsultantDisplayName(user: ReturnType<typeof useAuth>['user']):
   return user.email?.split('@')[0]?.trim() ?? '';
 }
 
-export function NewAudit() {
+/** Client `/portal/audit/new` — survives refresh in the same tab; optional server row via Save draft. */
+const CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY = 'glc_portal_new_audit_draft_v1';
+
+type ClientPortalNewAuditDraftV1 = {
+  v: 1;
+  step: 0 | 1 | 2;
+  url: string;
+  noPublicWebsite: boolean;
+  name: string;
+  industry: string;
+  industrySpecify: string;
+  productMode: 'full' | 'express';
+  responses: BriefResponses;
+  briefLayoutChoice: 'unset' | 'classic' | 'wizard';
+  draftAuditId: string | null;
+};
+
+function parseClientPortalNewAuditDraft(raw: string): ClientPortalNewAuditDraftV1 | null {
+  try {
+    const o = JSON.parse(raw) as unknown;
+    if (!o || typeof o !== 'object') return null;
+    const d = o as Partial<ClientPortalNewAuditDraftV1>;
+    if (d.v !== 1) return null;
+    const step = typeof d.step === 'number' && d.step >= 0 && d.step <= 2 ? (d.step as 0 | 1 | 2) : 0;
+    const bl = d.briefLayoutChoice;
+    const briefLayoutChoice: 'unset' | 'classic' | 'wizard' =
+      bl === 'classic' || bl === 'wizard' || bl === 'unset' ? bl : 'unset';
+    return {
+      v: 1,
+      step,
+      url: typeof d.url === 'string' ? d.url : '',
+      noPublicWebsite: Boolean(d.noPublicWebsite),
+      name: typeof d.name === 'string' ? d.name : '',
+      industry: typeof d.industry === 'string' ? d.industry : '',
+      industrySpecify: typeof d.industrySpecify === 'string' ? d.industrySpecify : '',
+      productMode: d.productMode === 'express' ? 'express' : 'full',
+      responses: d.responses && typeof d.responses === 'object' && !Array.isArray(d.responses)
+        ? (d.responses as BriefResponses)
+        : {},
+      briefLayoutChoice,
+      draftAuditId: typeof d.draftAuditId === 'string' && d.draftAuditId.length > 0 ? d.draftAuditId : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function readClientPortalNewAuditDraft(): ClientPortalNewAuditDraftV1 | null {
+  if (typeof sessionStorage === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY);
+    if (!raw) return null;
+    return parseClientPortalNewAuditDraft(raw);
+  } catch {
+    return null;
+  }
+}
+
+function writeClientPortalNewAuditDraft(data: ClientPortalNewAuditDraftV1): void {
+  if (typeof sessionStorage === 'undefined') return;
+  try {
+    sessionStorage.setItem(CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY, JSON.stringify(data));
+  } catch {
+    /* quota or private mode */
+  }
+}
+
+function clearClientPortalNewAuditDraft(): void {
+  if (typeof sessionStorage === 'undefined') return;
+  try {
+    sessionStorage.removeItem(CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY);
+  } catch {
+    /* */
+  }
+}
+
+/** POST /api/audits returns 503 when no valid self-serve owner is configured (`code: SELF_SERVE_OWNER_UNAVAILABLE`). */
+function isSelfServeOwnerConfigApiError(err: unknown): boolean {
+  if (!(err instanceof ApiError)) return false;
+  if (err.status !== 503) return false;
+  if (err.code === 'SELF_SERVE_OWNER_UNAVAILABLE') return true;
+  const m = err.message;
+  return m.includes('We could not assign ownership for this audit');
+}
+
+export type NewAuditVariant = 'consultant' | 'client_self_serve';
+
+export function NewAudit(props?: { variant?: NewAuditVariant }) {
+  const variant = props?.variant ?? 'consultant';
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-  const intakeTokenFromUrl  = searchParams.get('intake')?.trim() ?? '';
-  const fromDiscovery       = searchParams.get('from_discovery') ?? '';
+  const intakeTokenFromUrl = searchParams.get('intake')?.trim() ?? '';
+  const fromDiscovery      = searchParams.get('from_discovery') ?? '';
+  const isClientSelfServe = variant === 'client_self_serve';
+
+  const [portalDraftSeed] = useState<ClientPortalNewAuditDraftV1 | null>(() =>
+    variant === 'client_self_serve' ? readClientPortalNewAuditDraft() : null,
+  );
 
   // Step 1 fields
-  const [url,         setUrl]         = useState('');
-  const [noPublicWebsite, setNoPublicWebsite] = useState(false);
-  const [name,        setName]        = useState('');
-  const [industry,    setIndustry]    = useState('');
+  const [url,         setUrl]         = useState(() => portalDraftSeed?.url ?? '');
+  const [noPublicWebsite, setNoPublicWebsite] = useState(() => portalDraftSeed?.noPublicWebsite ?? false);
+  const [name,        setName]        = useState(() => portalDraftSeed?.name ?? '');
+  const [industry,    setIndustry]    = useState(() => portalDraftSeed?.industry ?? '');
   /** Free-text sector when industry is Other (synced from client pre-brief when linking ?intake=). */
-  const [industrySpecify, setIndustrySpecify] = useState('');
-  const [productMode, setProductMode] = useState<'full' | 'express'>('full');
+  const [industrySpecify, setIndustrySpecify] = useState(() => portalDraftSeed?.industrySpecify ?? '');
+  const [productMode, setProductMode] = useState<'full' | 'express'>(() => portalDraftSeed?.productMode ?? 'full');
 
   // Step 2 fields
-  const [responses, setResponses] = useState<BriefResponses>({});
+  const [responses, setResponses] = useState<BriefResponses>(() => portalDraftSeed?.responses ?? {});
   const [intakePrefillActive, setIntakePrefillActive] = useState(false);
   /** True when answers were pre-loaded from a public discovery session. */
   const [discoveryPrefilled, setDiscoveryPrefilled] = useState(false);
@@ -229,16 +325,49 @@ export function NewAudit() {
   // Interview mode — consultant fills the brief during a live call
   const [interviewMode, setInterviewMode] = useState(false);
 
-  /** Classic = all legacy sections; wizard = full question-bank v1 step-by-step. */
-  const [briefUiMode, setBriefUiMode] = useState<'classic' | 'wizard'>('classic');
+  /** unset until layout resolved (per-session key, then Settings default, else chooser). */
+  const [briefLayoutChoice, setBriefLayoutChoice] = useState<'unset' | 'classic' | 'wizard'>(() => {
+    if (isClientSelfServe) {
+      const bl = portalDraftSeed?.briefLayoutChoice;
+      if (bl === 'classic' || bl === 'wizard') return bl;
+      return resolveClientBriefLayout(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE) ?? 'unset';
+    }
+    return resolveConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE) ?? 'unset';
+  });
+
+  const briefLayoutSyncKeys = useMemo(
+    () =>
+      isClientSelfServe
+        ? [CLIENT_BRIEF_LAYOUT_DEFAULT_KEY, clientBriefLayoutStorageKey(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE)]
+        : [CONSULTANT_BRIEF_LAYOUT_DEFAULT_KEY, consultantBriefLayoutStorageKey(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE)],
+    [isClientSelfServe],
+  );
+
+  useBriefLayoutPrefsSync(briefLayoutSyncKeys, () => {
+    setBriefLayoutChoice(
+      isClientSelfServe
+        ? (resolveClientBriefLayout(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE) ?? 'unset')
+        : (resolveConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE) ?? 'unset'),
+    );
+  });
 
   // UI state
-  const [step,    setStep]    = useState(0);
+  const [step,    setStep]    = useState(() => {
+    const s = portalDraftSeed?.step ?? 0;
+    return s >= 0 && s <= 2 ? s : 0;
+  });
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
 
+  /** Server-backed draft audit (client self-serve); reused on Launch to avoid duplicate rows. */
+  const [draftAuditId, setDraftAuditId] = useState<string | null>(() => portalDraftSeed?.draftAuditId ?? null);
+  const [draftSaving, setDraftSaving] = useState(false);
+  const [draftNotice, setDraftNotice] = useState<string | null>(null);
+  const [draftError, setDraftError] = useState<string | null>(null);
+  const [draftRestoredVisible, setDraftRestoredVisible] = useState(() => Boolean(portalDraftSeed));
+
   useEffect(() => {
-    if (!intakeTokenFromUrl) return;
+    if (isClientSelfServe || !intakeTokenFromUrl) return;
     let cancelled = false;
     (async () => {
       try {
@@ -293,7 +422,40 @@ export function NewAudit() {
       }
     })();
     return () => { cancelled = true; };
-  }, [intakeTokenFromUrl]);
+  }, [intakeTokenFromUrl, isClientSelfServe]);
+
+  // Persist client wizard to sessionStorage (same tab survives refresh).
+  useEffect(() => {
+    if (!isClientSelfServe) return;
+    const t = window.setTimeout(() => {
+      writeClientPortalNewAuditDraft({
+        v: 1,
+        step: step as 0 | 1 | 2,
+        url,
+        noPublicWebsite,
+        name,
+        industry,
+        industrySpecify,
+        productMode,
+        responses,
+        briefLayoutChoice,
+        draftAuditId,
+      });
+    }, 350);
+    return () => window.clearTimeout(t);
+  }, [
+    isClientSelfServe,
+    step,
+    url,
+    noPublicWebsite,
+    name,
+    industry,
+    industrySpecify,
+    productMode,
+    responses,
+    briefLayoutChoice,
+    draftAuditId,
+  ]);
 
   // ── Discovery session pre-fill ──────────────────────────────────────────────
   // When the user arrives from /audit/discover via ?from_discovery=1, load the
@@ -348,28 +510,128 @@ export function NewAudit() {
     (noPublicWebsite || isValidUrl(url))
     && (industry !== 'Other' || industrySpecify.trim().length > 0);
 
-  const effectiveBriefForGates = useMemo(() => {
-    const prepared = prepareBriefForValidation(briefResponsesToIntakeMap(responses)) as Record<string, unknown>;
-    return normalizeIntakeToResponses(prepared);
-  }, [responses]);
+  const effectiveBriefForGates = useMemo(
+    () => effectiveBriefForPipelineGates(responses),
+    [responses],
+  );
 
-  const answeredRequired = countAnswered(effectiveBriefForGates, REQUIRED_IDS);
-  const step2Complete    = answeredRequired === REQUIRED_IDS.length;
-  const progressPct = Math.min(100, Math.round((answeredRequired / REQUIRED_IDS.length) * 100));
+  const pipelineRequiredIds = pipelineRequiredIdsForProductMode(productMode);
+  const answeredRequired = countAnswered(effectiveBriefForGates, [...pipelineRequiredIds]);
+  const pipelineRequiredTotal = pipelineRequiredIds.length;
+  const step2Complete    = answeredRequired === pipelineRequiredTotal;
+  const progressPct = Math.min(100, Math.round((answeredRequired / pipelineRequiredTotal) * 100));
   const readinessBadge: 'low' | 'medium' | 'high' = progressPct >= 80 ? 'high' : progressPct >= 45 ? 'medium' : 'low';
   const nextBestAction = step2Complete ? 'add_recommended' : 'complete_required';
   const bankMetrics = useIntakeBankMetrics(
     responses,
-    noPublicWebsite && briefUiMode === 'wizard' ? 'discovery' : undefined,
+    noPublicWebsite ? 'discovery' : undefined,
   );
+
+  const layoutSelected = briefLayoutChoice === 'classic' || briefLayoutChoice === 'wizard';
+
+  function handleSelectConsultantBriefLayout(mode: 'classic' | 'wizard') {
+    if (isClientSelfServe) {
+      writeClientBriefLayout(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE, mode);
+    } else {
+      writeConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE, mode);
+    }
+    setBriefLayoutChoice(mode);
+  }
+
+  function handleChangeConsultantBriefLayout() {
+    if (isClientSelfServe) {
+      clearClientBriefLayout(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE);
+    } else {
+      clearConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE);
+    }
+    setBriefLayoutChoice('unset');
+  }
 
   // ── Handlers ───────────────────────────────────────────
   function handleResponseChange(id: string, value: string | string[] | number | null) {
-    setResponses(prev => ({ ...prev, [id]: { value, source: interviewMode ? 'consultant' : 'client' } }));
+    const src: BriefResponseSource = isClientSelfServe ? 'client' : (interviewMode ? 'consultant' : 'client');
+    setResponses(prev => ({ ...prev, [id]: { value, source: src } }));
   }
 
   function handleSetUnknown(id: string) {
     setResponses(prev => ({ ...prev, [id]: { value: null, source: 'unknown' } }));
+  }
+
+  async function handleSaveClientDraft() {
+    if (!isClientSelfServe) return;
+    setDraftError(null);
+    setDraftNotice(null);
+    setDraftSaving(true);
+    try {
+      writeClientPortalNewAuditDraft({
+        v: 1,
+        step: step as 0 | 1 | 2,
+        url,
+        noPublicWebsite,
+        name,
+        industry,
+        industrySpecify,
+        productMode,
+        responses,
+        briefLayoutChoice,
+        draftAuditId,
+      });
+      if (!step1Valid) {
+        setDraftNotice('Draft saved in this browser. Add website (or no public site) and industry so we can also save to your account.');
+        return;
+      }
+
+      let auditId = draftAuditId;
+      if (!auditId) {
+        const created = await api.createAudit(url, name || undefined, industry || undefined, productMode, {
+          noPublicWebsite,
+        });
+        auditId = created.id;
+        setDraftAuditId(auditId);
+      }
+
+      const basicsSource: BriefResponseSource = 'client';
+      const localWithBasics: BriefResponses = {
+        ...responses,
+        ...buildStep0IntakePatch(name, industry, industrySpecify, url, noPublicWebsite, basicsSource),
+      };
+      if (industry !== 'Other') {
+        delete localWithBasics.intake_industry_specify;
+      }
+
+      await api.saveBrief(auditId, localWithBasics, {
+        collection_mode:
+          noPublicWebsite && briefLayoutChoice === 'wizard' ? 'discovery' : undefined,
+      });
+
+      writeClientPortalNewAuditDraft({
+        v: 1,
+        step: step as 0 | 1 | 2,
+        url,
+        noPublicWebsite,
+        name,
+        industry,
+        industrySpecify,
+        productMode,
+        responses,
+        briefLayoutChoice,
+        draftAuditId: auditId,
+      });
+
+      setDraftNotice(
+        'Draft saved to your account and this browser. You can continue from My Portal or keep editing here.',
+      );
+    } catch (err) {
+      if (isSelfServeOwnerConfigApiError(err)) {
+        setDraftNotice(
+          'Draft saved in this browser. We could not save a copy to your account just now—you can keep working here. Try again later, or contact the GLC team if this keeps happening.',
+        );
+      } else {
+        setDraftError(err instanceof ApiError ? err.message : (err as Error).message);
+      }
+    } finally {
+      setDraftSaving(false);
+    }
   }
 
   async function handleLaunch(e: React.FormEvent) {
@@ -377,24 +639,33 @@ export function NewAudit() {
     setError(null);
     setLoading(true);
     try {
-      // 1. Create audit
-      const audit = await api.createAudit(url, name || undefined, industry || undefined, productMode, {
-        noPublicWebsite,
-      });
-
+      const basicsSource: BriefResponseSource = isClientSelfServe ? 'client' : 'consultant';
       const localWithBasics: BriefResponses = {
         ...responses,
-        ...buildStep0IntakePatch(name, industry, industrySpecify, url, noPublicWebsite),
+        ...buildStep0IntakePatch(name, industry, industrySpecify, url, noPublicWebsite, basicsSource),
       };
       if (industry !== 'Other') {
         delete localWithBasics.intake_industry_specify;
       }
 
+      // 1. Create audit (or reuse client draft saved earlier)
+      let auditId: string;
+      if (isClientSelfServe && draftAuditId) {
+        auditId = draftAuditId;
+      } else {
+        const audit = await api.createAudit(url, name || undefined, industry || undefined, productMode, {
+          noPublicWebsite,
+        });
+        auditId = audit.id;
+      }
+
       // 2. Link any pre-brief tokens (modal link or ?intake= URL) so client answers merge into intake_brief
-      const tokenCandidates = [...new Set([preBriefToken, intakeTokenFromUrl].filter(Boolean))] as string[];
+      const tokenCandidates = isClientSelfServe
+        ? ([] as string[])
+        : ([...new Set([preBriefToken, intakeTokenFromUrl].filter(Boolean))] as string[]);
       for (const t of tokenCandidates) {
         try {
-          await api.linkIntakeTokenToAudit(t, audit.id);
+          await api.linkIntakeTokenToAudit(t, auditId);
         } catch (linkErr) {
           console.warn('[NewAudit] linkIntakeTokenToAudit failed (non-fatal):', linkErr);
         }
@@ -403,7 +674,7 @@ export function NewAudit() {
       let mergedForSave = localWithBasics;
       if (tokenCandidates.length > 0) {
         try {
-          const { brief } = await api.getBrief(audit.id);
+          const { brief } = await api.getBrief(auditId);
           const fromServer = normalizeIntakeToResponses((brief?.responses as Record<string, unknown>) ?? {});
           mergedForSave = mergeBriefResponsesPreferFilled(fromServer, localWithBasics);
         } catch (mergeErr) {
@@ -412,20 +683,30 @@ export function NewAudit() {
       }
 
       try {
-        await api.saveBrief(audit.id, mergedForSave, {
+        await api.saveBrief(auditId, mergedForSave, {
           collection_mode:
-            noPublicWebsite && briefUiMode === 'wizard' ? 'discovery' : undefined,
+            noPublicWebsite && briefLayoutChoice === 'wizard' ? 'discovery' : undefined,
         });
       } catch (briefErr) {
         console.warn('[NewAudit] Brief save failed (non-fatal):', briefErr);
       }
 
-      await api.startPipeline(audit.id);
+      await api.startPipeline(auditId);
       setPreBriefToken(null);
 
-      navigate(`/pipeline/${audit.id}`);
+      if (isClientSelfServe) {
+        clearClientPortalNewAuditDraft();
+      }
+
+      navigate(isClientSelfServe ? `/portal/pipeline/${auditId}` : `/pipeline/${auditId}`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : (err as Error).message);
+      if (isClientSelfServe && isSelfServeOwnerConfigApiError(err)) {
+        setError(
+          'We could not start your audit just now. Your answers are still saved in this browser tab. Please try again later, or contact the GLC team for help.',
+        );
+      } else {
+        setError(err instanceof ApiError ? err.message : (err as Error).message);
+      }
       setLoading(false);
     }
   }
@@ -483,9 +764,71 @@ export function NewAudit() {
     }
   }
 
+  const clientDraftSaveSection = isClientSelfServe ? (
+    <div className="mt-5 pt-5 space-y-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+      {draftError && (
+        <div
+          className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
+          style={{ backgroundColor: 'var(--callout-error-bg)', border: '1px solid var(--callout-error-border)', color: 'var(--score-1)' }}
+        >
+          <Warning className="w-3.5 h-3.5 flex-shrink-0" />
+          {draftError}
+        </div>
+      )}
+      {draftNotice && !draftError && (
+        <div
+          className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
+          style={{ backgroundColor: 'rgba(14,207,130,0.08)', color: 'var(--glc-green-dark)' }}
+        >
+          <CheckCircle weight="fill" className="w-3.5 h-3.5 flex-shrink-0" />
+          {draftNotice}
+        </div>
+      )}
+      <button
+        type="button"
+        disabled={draftSaving}
+        onClick={() => {
+          void handleSaveClientDraft();
+        }}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all"
+        style={{
+          border: '1px solid var(--border-default)',
+          backgroundColor: 'var(--bg-surface)',
+          color: 'var(--text-primary)',
+          cursor: draftSaving ? 'wait' : 'pointer',
+        }}
+      >
+        {draftSaving ? (
+          <Spinner className="w-4 h-4 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+        ) : (
+          <FloppyDisk className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
+        )}
+        Save draft
+      </button>
+      <p className="text-xs m-0 leading-relaxed text-center" style={{ color: 'var(--text-quaternary)' }}>
+        This tab keeps a copy as you type. Save draft also writes to your account when Basics are valid, so you can
+        continue from My Portal.
+      </p>
+    </div>
+  ) : null;
+
   // ── Render ─────────────────────────────────────────────
   return (
-    <AppShell title="New Audit" subtitle="Start a comprehensive 8-domain business analysis">
+    <AppShell
+      title={isClientSelfServe ? 'New audit' : 'New Audit'}
+      subtitle={isClientSelfServe ? 'Fill the brief and start your audit when you are ready' : 'Start a comprehensive 8-domain business analysis'}
+      actions={
+        isClientSelfServe ? (
+          <Link
+            to="/portal"
+            className="text-sm no-underline"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
+            Back to portal
+          </Link>
+        ) : undefined
+      }
+    >
       <div
         className="min-h-full flex flex-col items-center justify-center py-12 px-6 relative"
         style={{ backgroundColor: 'var(--bg-canvas)' }}
@@ -500,6 +843,36 @@ export function NewAudit() {
           style={{ maxWidth: step === 1 ? 640 : 460 }}
         >
           <StepIndicator current={step} />
+
+          {isClientSelfServe && draftRestoredVisible && (
+            <div
+              className="mb-5 flex items-start gap-3 px-4 py-3 rounded-xl"
+              style={{
+                backgroundColor: 'var(--callout-info-bg)',
+                border: '1px solid var(--callout-info-border)',
+              }}
+            >
+              <ClipboardText className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--glc-blue)' }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium m-0" style={{ color: 'var(--text-primary)' }}>
+                  Draft restored
+                </p>
+                <p className="text-xs m-0 mt-1 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  We loaded your in-progress answers from this browser tab. Refresh-safe copy is kept automatically; use
+                  Save draft to also store on your account when Basics are complete.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="p-1 rounded-md flex-shrink-0"
+                style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}
+                aria-label="Dismiss"
+                onClick={() => setDraftRestoredVisible(false)}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
           <AnimatePresence mode="wait">
 
@@ -677,7 +1050,7 @@ export function NewAudit() {
                         return (
                           <button key={mode} type="button" onClick={() => setProductMode(mode)}
                             className="rounded-lg px-3 py-2.5 text-left text-xs transition-all"
-                            style={{ backgroundColor: sel ? 'rgba(28,189,255,0.08)' : 'var(--bg-inset)', border: sel ? '1px solid rgba(28,189,255,0.30)' : '1px solid var(--border-subtle)' }}
+                            style={{ backgroundColor: sel ? 'var(--callout-info-bg)' : 'var(--bg-inset)', border: sel ? '1px solid var(--callout-info-border-strong)' : '1px solid var(--border-subtle)' }}
                           >
                             <div className="font-semibold" style={{ color: sel ? 'var(--glc-blue-deeper)' : 'var(--text-primary)' }}>{mode === 'full' ? 'Full Audit' : 'Express'}</div>
                             <div style={{ color: 'var(--text-tertiary)', marginTop: 2 }}>{mode === 'full' ? 'All 6 domains + strategy' : '4 key domains, faster'}</div>
@@ -705,12 +1078,16 @@ export function NewAudit() {
                     Continue to Brief <ArrowRight className="w-4 h-4" />
                   </motion.button>
 
+                  {clientDraftSaveSection}
+
+                  {!isClientSelfServe && (
+                    <>
                   {/* Interview mode toggle */}
                   <label
                     className="flex items-center gap-2.5 cursor-pointer select-none rounded-lg px-3 py-2.5 transition-all"
                     style={{
-                      border: interviewMode ? '1px solid rgba(245,158,11,0.35)' : '1px solid var(--border-subtle)',
-                      background: interviewMode ? 'rgba(245,158,11,0.06)' : 'var(--bg-inset)',
+                      border: interviewMode ? '1px solid var(--callout-warning-border-focus)' : '1px solid var(--border-subtle)',
+                      background: interviewMode ? 'var(--callout-warning-bg-subtle)' : 'var(--bg-inset)',
                     }}
                   >
                     <input
@@ -718,10 +1095,10 @@ export function NewAudit() {
                       checked={interviewMode}
                       onChange={e => setInterviewMode(e.target.checked)}
                       className="rounded"
-                      style={{ accentColor: '#F59E0B', width: 15, height: 15, flexShrink: 0 }}
+                      style={{ accentColor: 'var(--callout-warning-icon)', width: 15, height: 15, flexShrink: 0 }}
                     />
                     <div>
-                      <span className="text-sm font-medium" style={{ color: interviewMode ? '#D97706' : 'var(--text-primary)' }}>
+                      <span className="text-sm font-medium" style={{ color: interviewMode ? 'var(--callout-warning-fg-emphasis)' : 'var(--text-primary)' }}>
                         Interview mode
                       </span>
                       <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
@@ -744,9 +1121,11 @@ export function NewAudit() {
                   >
                     Send pre-brief to client
                   </button>
+                    </>
+                  )}
                 </form>
 
-                {preBriefOpen && (
+                {!isClientSelfServe && preBriefOpen && (
                   <div
                     className="fixed inset-0 z-50 flex items-center justify-center p-4"
                     style={{ background: 'rgba(0,0,0,0.55)' }}
@@ -914,149 +1293,134 @@ export function NewAudit() {
                     {interviewMode && (
                       <span
                         className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                        style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.30)', color: '#D97706' }}
+                        style={{ background: 'var(--callout-warning-bg-strong)', border: '1px solid var(--callout-warning-border-strong)', color: 'var(--callout-warning-fg-emphasis)' }}
                       >
                         Interview
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div
-                      className="flex rounded-lg p-0.5"
-                      style={{ background: 'var(--bg-muted)', border: '1px solid var(--border-subtle)' }}
-                      role="group"
-                      aria-label="Brief layout"
-                    >
+                  {layoutSelected && (
+                    <div className="flex items-center gap-2 flex-wrap">
                       <button
                         type="button"
-                        onClick={() => setBriefUiMode('classic')}
-                        className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
-                        style={{
-                          background: briefUiMode === 'classic' ? 'var(--bg-surface)' : 'transparent',
-                          color: briefUiMode === 'classic' ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                          boxShadow: briefUiMode === 'classic' ? 'var(--shadow-xs)' : 'none',
-                        }}
+                        onClick={handleChangeConsultantBriefLayout}
+                        className="text-xs font-medium underline-offset-2 hover:underline"
+                        style={{ color: 'var(--glc-blue)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                       >
-                        All sections
+                        Change layout
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setBriefUiMode('wizard')}
-                        className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
-                        style={{
-                          background: briefUiMode === 'wizard' ? 'var(--bg-surface)' : 'transparent',
-                          color: briefUiMode === 'wizard' ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                          boxShadow: briefUiMode === 'wizard' ? 'var(--shadow-xs)' : 'none',
-                        }}
-                      >
-                        Step-by-step (bank)
-                      </button>
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+                        {answeredRequired} / {pipelineRequiredTotal} required
+                      </span>
                     </div>
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
-                      {answeredRequired} / {REQUIRED_IDS.length} required
-                    </span>
-                  </div>
+                  )}
                 </div>
-                <div className="flex items-center justify-between mb-3">
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>Audit readiness: {progressPct}%</span>
-                  <span className="px-2 py-0.5 rounded text-xs" style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
-                    {readinessBadge.toUpperCase()}
-                  </span>
-                </div>
-                <div className="mb-3">
-                  <IntakeBankCoverageHint
-                    dataQualityPct={bankMetrics.dataQualityPct}
-                    visibleRequiredAnswered={bankMetrics.visibleRequiredAnswered}
-                    visibleRequiredTotal={bankMetrics.visibleRequiredTotal}
-                    visibleRecommendedAnswered={bankMetrics.visibleRecommendedAnswered}
-                    visibleRecommendedTotal={bankMetrics.visibleRecommendedTotal}
-                  />
-                </div>
-                {interviewMode && (
-                  <div className="mb-3 flex items-start gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.22)', color: '#92400E' }}>
-                    <span style={{ flexShrink: 0, marginTop: 1 }}>&#9679;</span>
-                    <span>
-                      Coaching hints visible. Answers are tagged <strong>consultant</strong> — agents weight them as high-confidence.
-                      Client answers from pre-brief are tagged <strong>client</strong> and shown in blue.
-                    </span>
-                  </div>
-                )}
-                {intakePrefillActive && (
-                  <div className="mb-4 px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(28,189,255,0.08)', border: '1px solid rgba(28,189,255,0.22)', color: 'var(--text-secondary)' }}>
-                    Pre-filled from client&apos;s pre-brief answers. Review before launch.
-                  </div>
-                )}
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)', marginBottom: 20 }}>
-                  These questions feed directly into the AI agents.{' '}
-                  <strong className="inline-flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
-                    <Circle size={7} weight="fill" style={{ color: '#EF4444' }} />
-                    Required
-                  </strong>{' '}
-                  questions must be answered to start the pipeline.
-                </p>
 
-                {/* Discovery pre-fill banner */}
-                {discoveryPrefilled && (
-                  <div
-                    className="flex items-start gap-2.5 rounded-xl px-3.5 py-2.5 mb-4"
-                    style={{ background: 'rgba(28,189,255,0.08)', border: '1px solid rgba(28,189,255,0.25)' }}
+                <p className="text-xs leading-relaxed mb-3" style={{ color: 'var(--text-quaternary)' }}>
+                  Set your default intake layout anytime in{' '}
+                  <Link
+                    to="/settings#brief-layout"
+                    className="font-medium underline-offset-2 hover:underline"
+                    style={{ color: 'var(--glc-blue)' }}
                   >
-                    <CheckCircle size={15} weight="fill" className="flex-shrink-0 mt-0.5" style={{ color: '#1CBDFF' }} />
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'rgba(255,255,255,0.70)', lineHeight: 1.55 }}>
-                      Your discovery answers are pre-filled — review and continue from where you left off.
-                    </p>
-                  </div>
-                )}
-
-                {/* Progress bar */}
-                <div className="rounded-full overflow-hidden mb-6" style={{ height: 3, backgroundColor: 'var(--bg-muted)' }}>
-                  <div className="h-full rounded-full transition-all" style={{ width: `${(answeredRequired / REQUIRED_IDS.length) * 100}%`, background: 'var(--gradient-brand)' }} />
-                </div>
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginBottom: 14 }}>
-                  {NEXT_ACTION_TEXT[nextBestAction]}
+                    Settings
+                  </Link>
+                  . The layout you pick here overrides that default for this new-audit flow until you use Change layout.
                 </p>
 
-                {briefUiMode === 'wizard' ? (
-                  <div className="max-h-[55vh] overflow-y-auto pr-1">
-                    <IntakeBankWizard
-                      responses={responses}
-                      onResponsesChange={patch =>
-                        setResponses(prev => mergeBriefResponsesPreferFilled(prev, patch))
-                      }
-                      interviewMode={interviewMode}
-                      emphasizeClientSource={intakePrefillActive}
-                      answerSource={interviewMode ? 'consultant' : 'client'}
-                      collectionMode={noPublicWebsite ? 'discovery' : undefined}
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-8 max-h-[55vh] overflow-y-auto pr-1">
-                    {BRIEF_SECTIONS.map(section => {
-                      const sectionQs = BRIEF_QUESTIONS.filter(q => q.section === section);
-                      return (
-                        <div key={section}>
-                          <div className="px-2 py-1 mb-3 rounded" style={{ backgroundColor: 'rgba(28,189,255,0.05)', borderLeft: '2px solid rgba(28,189,255,0.25)' }}>
-                            <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(28,189,255,0.7)', textTransform: 'uppercase' }}>
-                              {section}
-                            </span>
-                          </div>
-                          <div className="space-y-5">
-                            {sectionQs.map(q => (
-                              <BriefField
-                                key={q.id}
-                                q={q}
-                                value={responses[q.id]}
-                                onChange={v => handleResponseChange(q.id, v)}
-                                onSetUnknown={() => handleSetUnknown(q.id)}
-                                emphasizeClientSource={intakePrefillActive}
-                                interviewMode={interviewMode}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                {!layoutSelected && (
+                  <BriefLayoutPreferenceCards
+                    selected={null}
+                    onSelect={handleSelectConsultantBriefLayout}
+                  />
+                )}
+
+                {layoutSelected && (
+                  <>
+                    {/* Discovery pre-fill banner */}
+                    {discoveryPrefilled && (
+                      <div
+                        className="flex items-start gap-2.5 rounded-xl px-3.5 py-2.5 mb-4"
+                        style={{ background: 'var(--callout-info-bg)', border: '1px solid var(--callout-info-border)' }}
+                      >
+                        <CheckCircle size={15} weight="fill" className="flex-shrink-0 mt-0.5" style={{ color: 'var(--glc-blue)' }} />
+                        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                          Your discovery answers are pre-filled — review and continue from where you left off.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between mb-3">
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>Audit readiness: {progressPct}%</span>
+                      <span className="px-2 py-0.5 rounded text-xs" style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                        {readinessBadge.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="mb-3">
+                      <IntakeBankCoverageHint
+                        dataQualityPct={bankMetrics.dataQualityPct}
+                        visibleRequiredAnswered={bankMetrics.visibleRequiredAnswered}
+                        visibleRequiredTotal={bankMetrics.visibleRequiredTotal}
+                        visibleRecommendedAnswered={bankMetrics.visibleRecommendedAnswered}
+                        visibleRecommendedTotal={bankMetrics.visibleRecommendedTotal}
+                      />
+                    </div>
+                    {interviewMode && (
+                      <div className="mb-3 flex items-start gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'var(--callout-warning-bg)', border: '1px solid var(--callout-warning-border)', color: 'var(--callout-warning-fg)' }}>
+                        <span style={{ flexShrink: 0, marginTop: 1 }}>&#9679;</span>
+                        <span>
+                          Coaching hints visible. Answers are tagged <strong>consultant</strong> — agents weight them as high-confidence.
+                          Client answers from pre-brief are tagged <strong>client</strong> and shown in blue.
+                        </span>
+                      </div>
+                    )}
+                    {intakePrefillActive && (
+                      <div className="mb-4 px-3 py-2 rounded-lg text-sm" style={{ background: 'var(--callout-info-bg)', border: '1px solid var(--callout-info-border)', color: 'var(--text-secondary)' }}>
+                        Pre-filled from client&apos;s pre-brief answers. Review before launch.
+                      </div>
+                    )}
+                    <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)', marginBottom: 20 }}>
+                      These questions feed directly into the AI agents.{' '}
+                      <strong className="inline-flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
+                        <Circle size={7} weight="fill" style={{ color: 'var(--score-1)' }} />
+                        Required
+                      </strong>{' '}
+                      questions must be answered to start the pipeline.
+                    </p>
+
+                    <div className="rounded-full overflow-hidden mb-6" style={{ height: 3, backgroundColor: 'var(--bg-muted)' }}>
+                      <div className="h-full rounded-full transition-all" style={{ width: `${(answeredRequired / pipelineRequiredTotal) * 100}%`, background: 'var(--gradient-brand)' }} />
+                    </div>
+                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginBottom: 14 }}>
+                      {NEXT_ACTION_TEXT[nextBestAction]}
+                    </p>
+
+                    {briefLayoutChoice === 'wizard' ? (
+                      <div className="max-h-[55vh] overflow-y-auto pr-1">
+                        <IntakeBankWizard
+                          responses={responses}
+                          onResponsesChange={patch =>
+                            setResponses(prev => mergeBriefResponsesPreferFilled(prev, patch))
+                          }
+                          interviewMode={interviewMode}
+                          emphasizeClientSource={intakePrefillActive}
+                          answerSource={interviewMode ? 'consultant' : 'client'}
+                          collectionMode={noPublicWebsite ? 'discovery' : undefined}
+                        />
+                      </div>
+                    ) : (
+                      <div className="max-h-[55vh] overflow-y-auto pr-1">
+                        <BankClassicBriefFields
+                          responses={responses}
+                          collectionMode={noPublicWebsite ? 'discovery' : undefined}
+                          onChange={handleResponseChange}
+                          onSetUnknown={handleSetUnknown}
+                          emphasizeClientSource={intakePrefillActive}
+                          interviewMode={interviewMode}
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
 
                 <div className="glc-divider mt-5" />
@@ -1081,9 +1445,11 @@ export function NewAudit() {
                   >
                     {step2Complete
                       ? <><CheckCircle className="w-4 h-4" /> Review & Launch</>
-                      : <><Warning className="w-4 h-4" /> Fill {REQUIRED_IDS.length - answeredRequired} more required</>}
+                      : <><Warning className="w-4 h-4" /> Fill {pipelineRequiredTotal - answeredRequired} more required</>}
                   </button>
                 </div>
+
+                {clientDraftSaveSection}
               </motion.div>
             )}
 
@@ -1108,6 +1474,11 @@ export function NewAudit() {
                   <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)', marginTop: 6 }}>
                     Review the details below and start the pipeline.
                   </p>
+                  {isClientSelfServe && (
+                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-quaternary)', marginTop: 10, lineHeight: 1.5 }}>
+                      After recon completes, a consultant may need to approve review gates before the next phases run. You can track progress on the pipeline screen.
+                    </p>
+                  )}
                 </div>
 
                 {/* Summary */}
@@ -1117,7 +1488,7 @@ export function NewAudit() {
                     name ? ['Company', name] : null,
                     industry ? ['Industry', industry] : null,
                     ['Audit type', productMode === 'full' ? 'Full Audit (6 domains + strategy)' : 'Express (4 domains)'],
-                    ['Brief', `${answeredRequired}/${REQUIRED_IDS.length} required answered`],
+                    ['Brief', `${answeredRequired}/${pipelineRequiredTotal} required answered`],
                   ].filter(Boolean).map(([label, value]) => (
                     <div key={label} className="flex items-start gap-3">
                       <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', minWidth: 90, paddingTop: 1 }}>{label}</span>
@@ -1128,7 +1499,7 @@ export function NewAudit() {
 
                 {error && (
                   <div className="flex items-center gap-2.5 px-4 py-3 rounded-lg text-sm"
-                    style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)', color: '#EF4444' }}>
+                    style={{ backgroundColor: 'var(--callout-error-bg)', border: '1px solid var(--callout-error-border)', color: 'var(--score-1)' }}>
                     <Warning className="w-4 h-4 flex-shrink-0" />{error}
                   </div>
                 )}
@@ -1156,6 +1527,8 @@ export function NewAudit() {
                     </AnimatePresence>
                   </motion.button>
                 </div>
+
+                {clientDraftSaveSection}
               </motion.form>
             )}
           </AnimatePresence>

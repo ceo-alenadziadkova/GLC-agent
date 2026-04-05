@@ -23,6 +23,8 @@ export interface DiscoveryQuestion {
   hint?: string;
   type: DiscoveryQuestionType;
   options?: string[];
+  /** If true, empty answer is allowed and Next still advances (commits null). */
+  optional?: boolean;
 }
 
 export interface DiscoveryFinding {
@@ -41,6 +43,44 @@ export interface DiscoveryFinding {
 // keys but may change question copy, type, or options for the public context
 // (e.g. d2 becomes single_choice chips here instead of free_text in the full wizard).
 // Do NOT import from bankQuestionUiCatalog — this file stays public-page-isolated.
+
+/** Aligned with intake bank `c_nosite_1` / `c_nosite_3` (see `bankQuestionUiCatalog`). */
+export const DISCOVERY_ONLINE_PRESENCE_OPTIONS = [
+  'Full website (multi-page)',
+  'Single landing page',
+  'Website in development / not public yet',
+  'Social media',
+  'Marketplaces, directories, or other online platforms',
+  'Mostly word of mouth, offline, or referrals',
+] as const;
+
+const [
+  PRESENCE_FULL_SITE,
+  PRESENCE_LANDING,
+  PRESENCE_IN_DEV,
+  PRESENCE_SOCIAL,
+  PRESENCE_MARKETPLACES,
+  PRESENCE_OFFLINE,
+] = DISCOVERY_ONLINE_PRESENCE_OPTIONS;
+
+/** Single-select values from older discovery sessions → current multi-select ids. */
+const LEGACY_ONLINE_PRESENCE: Record<string, string[]> = {
+  'Full website (multi-page)': [PRESENCE_FULL_SITE],
+  'Single landing page': [PRESENCE_LANDING],
+  'Social media profiles only': [PRESENCE_SOCIAL],
+  'None — clients find us through word of mouth': [PRESENCE_OFFLINE],
+};
+
+export const DISCOVERY_SOCIAL_PLATFORM_OPTIONS = [
+  'Instagram',
+  'Facebook',
+  'LinkedIn',
+  'TikTok',
+  'YouTube',
+  'X (Twitter)',
+  'Telegram',
+  'WhatsApp Business / channel',
+] as const;
 
 const ALL_QUESTIONS: DiscoveryQuestion[] = [
   {
@@ -170,6 +210,20 @@ function hasCrm(answers: DiscoveryAnswers): boolean {
   return tools.includes('CRM');
 }
 
+/**
+ * Normalises legacy single-string answers saved before multi-select was introduced.
+ * Exported for backward-compat reading of old discovery sessions.
+ */
+export function getOnlinePresenceSelections(answers: DiscoveryAnswers): string[] {
+  const v = answers['online_presence'];
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string' && v.trim()) {
+    const s = v.trim();
+    return LEGACY_ONLINE_PRESENCE[s] ?? [s];
+  }
+  return [];
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
@@ -214,6 +268,15 @@ export function computeScore(answers: DiscoveryAnswers): number {
 
 function industryLabel(answers: DiscoveryAnswers): string {
   return (answers['a2'] as string | null) ?? 'your industry';
+}
+
+/**
+ * Backward-compat wrapper for any code that still calls computeMaturity().
+ * Returns `{ level }` where level is the 1–5 triage score.
+ * @deprecated Use computeScore() instead.
+ */
+export function computeMaturity(answers: DiscoveryAnswers): { level: number } {
+  return { level: computeScore(answers) };
 }
 
 function teamLabel(answers: DiscoveryAnswers): string {

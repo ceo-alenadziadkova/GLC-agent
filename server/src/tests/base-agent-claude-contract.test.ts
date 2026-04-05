@@ -66,6 +66,7 @@ function makeAgentContext(): AgentContext {
     recon_prefills: {},
     recon_conflicts: [],
     failed_domains: [],
+    slice_domain: 'tech_infrastructure',
     instructions: 'test',
   };
 }

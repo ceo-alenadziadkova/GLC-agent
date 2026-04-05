@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { ArrowLeft, ArrowRight, ListBullets } from '@phosphor-icons/react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, ArrowRight, CaretDown, CaretRight, ListBullets } from '@phosphor-icons/react';
 import { BriefField } from './BriefField';
 import { bankIdToBriefQuestion } from '../data/bankQuestionUiCatalog';
 import {
@@ -31,6 +31,12 @@ function unwrapForField(raw: BriefResponses[string] | undefined): string | strin
     return (raw as BriefResponseEntry).value as string | string[] | number | null;
   }
   return raw as string | string[] | number | null;
+}
+
+function isRevenueModelAnswered(
+  value: string | string[] | number | null | undefined,
+): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 const REVENUE_MODEL = BRIEF_QUESTIONS.find(q => q.id === 'revenue_model')!;
@@ -68,6 +74,16 @@ export function IntakeBankWizard({
   });
 
   const q = wizard.currentStub ? bankIdToBriefQuestion(wizard.currentStub.id, wizard.currentStub.priority) : null;
+
+  const revenueValue = unwrapForField(responses.revenue_model);
+  const revenueAnswered = isRevenueModelAnswered(revenueValue);
+  const [revenueLaunchOpen, setRevenueLaunchOpen] = useState(() => !revenueAnswered);
+
+  useEffect(() => {
+    if (!revenueAnswered) {
+      setRevenueLaunchOpen(true);
+    }
+  }, [revenueAnswered]);
 
   return (
     <div className="space-y-5">
@@ -128,31 +144,81 @@ export function IntakeBankWizard({
         </p>
       )}
 
-      <div className="rounded-xl p-4 space-y-3" style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-inset)' }}>
-        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
-          Also required for launch
-        </p>
-        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-          Revenue model is not in the bank JSON; capture it here if you have not already.
-        </p>
-        <BriefField
-          q={REVENUE_MODEL}
-          value={unwrapForField(responses.revenue_model)}
-          onChange={v => {
-            onResponsesChange({
-              ...responses,
-              revenue_model: { value: v, source },
-            });
-          }}
-          onSetUnknown={() => {
-            onResponsesChange({
-              ...responses,
-              revenue_model: { value: null, source: 'unknown' },
-            });
-          }}
-          emphasizeClientSource={emphasizeClientSource}
-          interviewMode={interviewMode}
-        />
+      <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-inset)' }}>
+        {revenueAnswered && !revenueLaunchOpen ? (
+          <button
+            type="button"
+            onClick={() => setRevenueLaunchOpen(true)}
+            className="w-full flex items-start gap-2 text-left p-4 rounded-xl transition-colors"
+            style={{ color: 'var(--text-primary)', cursor: 'pointer' }}
+            aria-expanded={false}
+          >
+            <CaretRight className="w-4 h-4 shrink-0 mt-0.5" aria-hidden weight="bold" />
+            <span className="min-w-0 flex-1 space-y-1">
+              <span className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+                Also required for launch
+              </span>
+              <span className="block text-sm" style={{ color: 'var(--text-secondary)' }}>
+                Revenue model: {revenueValue}
+              </span>
+              <span className="block text-xs" style={{ color: 'var(--text-quaternary)' }}>
+                Expand to change
+              </span>
+            </span>
+          </button>
+        ) : (
+          <div className="p-4 space-y-3">
+            {revenueAnswered ? (
+              <button
+                type="button"
+                onClick={() => setRevenueLaunchOpen(false)}
+                className="w-full flex items-start gap-2 text-left rounded-lg -m-1 p-1"
+                style={{ color: 'var(--text-primary)', cursor: 'pointer' }}
+                aria-expanded
+              >
+                <CaretDown className="w-4 h-4 shrink-0 mt-0.5" aria-hidden weight="bold" />
+                <span className="min-w-0 flex-1 space-y-1">
+                  <span className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+                    Also required for launch
+                  </span>
+                  <span className="block text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    Tap to collapse when done (expand again from the summary row).
+                  </span>
+                </span>
+              </button>
+            ) : (
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+                  Also required for launch
+                </p>
+                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  Revenue model is not in the bank JSON; capture it here if you have not already.
+                </p>
+              </div>
+            )}
+            <BriefField
+              q={REVENUE_MODEL}
+              value={unwrapForField(responses.revenue_model)}
+              onChange={v => {
+                onResponsesChange({
+                  ...responses,
+                  revenue_model: { value: v, source },
+                });
+                if (typeof v === 'string' && v.trim().length > 0) {
+                  setRevenueLaunchOpen(false);
+                }
+              }}
+              onSetUnknown={() => {
+                onResponsesChange({
+                  ...responses,
+                  revenue_model: { value: null, source: 'unknown' },
+                });
+              }}
+              emphasizeClientSource={emphasizeClientSource}
+              interviewMode={interviewMode}
+            />
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-3 pt-1">

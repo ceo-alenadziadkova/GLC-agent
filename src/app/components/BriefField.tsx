@@ -2,9 +2,9 @@ import { Circle, Check, CheckCircle, Lightbulb, UserCircle } from '@phosphor-ico
 import type { BriefQuestion, BriefResponseEntry } from '../data/briefQuestions';
 
 export const PRIORITY_BADGE: Record<string, { label: string; color: string }> = {
-  required: { label: 'Required', color: '#EF4444' },
-  recommended: { label: 'Recommended', color: '#F59E0B' },
-  optional: { label: 'Optional', color: '#10B981' },
+  required: { label: 'Required', color: 'var(--score-1)' },
+  recommended: { label: 'Recommended', color: 'var(--callout-warning-icon)' },
+  optional: { label: 'Optional', color: 'var(--glc-green-dark)' },
 };
 
 export function BriefField({
@@ -73,13 +73,13 @@ export function BriefField({
         <div
           className="flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg"
           style={{
-            background: 'rgba(245,158,11,0.07)',
-            border: '1px solid rgba(245,158,11,0.22)',
+            background: 'var(--callout-warning-bg)',
+            border: '1px solid var(--callout-warning-border)',
             marginTop: 2,
           }}
         >
-          <Lightbulb size={13} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: '#F59E0B' }} />
-          <p style={{ fontSize: '11px', color: 'rgba(245,158,11,0.85)', lineHeight: 1.5, margin: 0 }}>
+          <Lightbulb size={13} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: 'var(--callout-warning-icon)' }} />
+          <p style={{ fontSize: '11px', color: 'var(--callout-warning-fg)', lineHeight: 1.5, margin: 0 }}>
             {q.consultant_hint}
           </p>
         </div>

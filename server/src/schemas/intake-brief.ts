@@ -11,6 +11,10 @@
  *
  * Each question maps to one or more domain agents that will receive it in
  * their context slice (via ContextBuilder.build()).
+ *
+ * UI copy is mirrored in `src/app/data/briefQuestions.ts`. Bank ids / branches / agent feeds are
+ * canonical in `server/src/intake/question-bank.v1.json` and `question-feed-roles.ts` — see Vitest
+ * contract test in `intake-engine.test.ts`.
  */
 import { z } from 'zod';
 import type { BriefQuestion } from '../types/audit.js';

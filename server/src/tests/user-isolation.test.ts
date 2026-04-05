@@ -149,7 +149,10 @@ vi.mock('../middleware/auth.js', () => ({
     req.userEmail = req.userId === OWNER_ID ? 'owner@test.com' : 'attacker@test.com';
     next();
   },
-  attachProfile: (_req: unknown, _res: unknown, next: () => void) => next(),
+  attachProfile: (req: Record<string, unknown>, _res: unknown, next: () => void) => {
+    req.userRole = 'consultant';
+    next();
+  },
   requireRole: () => (_req: unknown, _res: unknown, next: () => void) => next(),
   optionalAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));

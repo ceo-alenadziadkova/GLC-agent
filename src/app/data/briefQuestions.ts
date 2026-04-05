@@ -2,7 +2,14 @@ import { INDUSTRY_OPTIONS } from './industry-options';
 
 /**
  * Intake Brief question definitions — frontend copy of server/src/schemas/intake-brief.ts
- * Keep in sync with the server schema.
+ * (`BRIEF_QUESTIONS`). Keep copy, options, and section labels aligned on every bank change.
+ *
+ * Canonical runtime contract for branching and agent slices lives in:
+ * - `server/src/intake/question-bank.v1.json` (stub ids, priority, branch keys, prompt labels)
+ * - `server/src/intake/question-feed-roles.ts` (`QUESTION_FEED_ROLES` — primary/secondary per id)
+ * Long-term, UI copy here and server Zod shapes may be generated from an extended bank JSON; until then
+ * edit both files together and rely on Vitest `question bank v1 vs QUESTION_FEED_ROLES contract` in
+ * `server/src/tests/intake-engine.test.ts`.
  *
  * Priority:
  *   required     🔴 — pipeline blocked until all answered
@@ -433,6 +440,11 @@ export const REQUIRED_IDS = BRIEF_QUESTIONS.filter(q => q.priority === 'required
 export const EXPRESS_REQUIRED_QUESTION_IDS = BRIEF_QUESTIONS
   .filter(q => EXPRESS_REQUIRED_IDS.has(q.id))
   .map(q => q.id);
+
+/** IDs checked before pipeline start — matches server `evaluateBriefGates` per product mode. */
+export function pipelineRequiredIdsForProductMode(mode: 'full' | 'express'): readonly string[] {
+  return mode === 'express' ? EXPRESS_REQUIRED_QUESTION_IDS : REQUIRED_IDS;
+}
 export const PRE_BRIEF_QUESTION_IDS = BRIEF_QUESTIONS
   .filter(q => q.intake_layer === 'pre_brief')
   .map(q => q.id);

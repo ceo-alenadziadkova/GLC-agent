@@ -75,10 +75,10 @@ function SessionCard({
     <div
       className="rounded-2xl p-5 space-y-4"
       style={{
-        background: 'rgba(255,255,255,0.03)',
+        background: 'var(--bg-surface)',
         border: session.audit_id
-          ? '1px solid rgba(16,185,129,0.22)'
-          : '1px solid rgba(255,255,255,0.09)',
+          ? '1px solid rgba(14,207,130,0.28)'
+          : '1px solid var(--border-subtle)',
       }}
     >
       {/* Header row */}
@@ -89,13 +89,13 @@ function SessionCard({
             {session.audit_id && (
               <span
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                style={{ background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.28)', color: '#10B981' }}
+                style={{ background: 'var(--glc-green-muted)', border: '1px solid rgba(14,207,130,0.30)', color: 'var(--glc-green-dark)' }}
               >
                 <CheckCircle size={10} weight="fill" /> Converted
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>
+          <div className="flex items-center gap-1" style={{ color: 'var(--text-tertiary)', fontSize: 11 }}>
             <Calendar size={11} />
             <span>{date}</span>
           </div>
@@ -108,8 +108,8 @@ function SessionCard({
             onClick={() => onConvert(session.session_token)}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold flex-shrink-0"
             style={{
-              background: converting ? 'rgba(255,255,255,0.08)' : 'linear-gradient(135deg, #1CBDFF, #0066CC)',
-              color: converting ? 'rgba(255,255,255,0.35)' : '#fff',
+              background: converting ? 'var(--bg-muted)' : 'var(--gradient-brand)',
+              color: converting ? 'var(--text-tertiary)' : 'var(--primary-foreground)',
               border: 'none',
               cursor: converting ? 'not-allowed' : 'pointer',
               boxShadow: converting ? 'none' : '0 3px 10px rgba(28,189,255,0.28)',
@@ -126,9 +126,9 @@ function SessionCard({
             href={`/audit/${session.audit_id}`}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
             style={{
-              background: 'rgba(16,185,129,0.10)',
-              border: '1px solid rgba(16,185,129,0.25)',
-              color: '#10B981',
+              background: 'var(--glc-green-muted)',
+              border: '1px solid rgba(14,207,130,0.28)',
+              color: 'var(--glc-green-dark)',
               textDecoration: 'none',
             }}
           >
@@ -140,47 +140,47 @@ function SessionCard({
       {/* Business identity — contact details if provided, else biz_description + industry */}
       <div
         className="rounded-xl px-3 py-2 space-y-1.5"
-        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+        style={{ background: 'var(--bg-muted)', border: '1px solid var(--border-subtle)' }}
       >
         {/* Contact info row */}
         {(session.contact_name || session.contact_email || session.contact_phone) ? (
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {session.contact_name && (
-              <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'rgba(255,255,255,0.70)' }}>
-                <UserCircle size={13} style={{ color: 'rgba(28,189,255,0.70)' }} />
+              <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                <UserCircle size={13} style={{ color: 'var(--glc-blue)' }} />
                 {session.contact_name}
               </span>
             )}
             {session.contact_email && (
-              <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'rgba(255,255,255,0.70)' }}>
-                <EnvelopeSimple size={13} style={{ color: 'rgba(28,189,255,0.70)' }} />
+              <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                <EnvelopeSimple size={13} style={{ color: 'var(--glc-blue)' }} />
                 {session.contact_email}
               </span>
             )}
             {session.contact_phone && (
-              <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'rgba(255,255,255,0.70)' }}>
-                <Phone size={13} style={{ color: 'rgba(28,189,255,0.70)' }} />
+              <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                <Phone size={13} style={{ color: 'var(--glc-blue)' }} />
                 {session.contact_phone}
               </span>
             )}
           </div>
         ) : (
-          <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)', fontStyle: 'italic' }}>
+          <p style={{ fontSize: 11, color: 'var(--text-quaternary)', fontStyle: 'italic' }}>
             No contact info provided
           </p>
         )}
 
         {/* Business description / industry (always show when present — gives context for no-contact sessions) */}
         {(session.biz_description || session.industry) && (
-          <div className="space-y-0.5" style={{ borderTop: (session.contact_name || session.contact_email || session.contact_phone) ? '1px solid rgba(255,255,255,0.06)' : 'none', paddingTop: (session.contact_name || session.contact_email || session.contact_phone) ? 6 : 0 }}>
+          <div className="space-y-0.5" style={{ borderTop: (session.contact_name || session.contact_email || session.contact_phone) ? '1px solid var(--border-subtle)' : 'none', paddingTop: (session.contact_name || session.contact_email || session.contact_phone) ? 6 : 0 }}>
             {session.industry && (
-              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.40)' }}>
-                <span style={{ color: 'rgba(255,255,255,0.28)', marginRight: 4 }}>Industry</span>
+              <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                <span style={{ color: 'var(--text-quaternary)', marginRight: 4 }}>Industry</span>
                 {session.industry}
               </p>
             )}
             {session.biz_description && (
-              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
+              <p style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                 {session.biz_description.length > 120
                   ? `${session.biz_description.slice(0, 117)}…`
                   : session.biz_description}
@@ -198,12 +198,12 @@ function SessionCard({
             return (
               <div key={f.id} className="flex items-start gap-2">
                 {isHigh
-                  ? <Warning size={12} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: '#EF4444' }} />
-                  : <Lightbulb size={12} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: '#F59E0B' }} />}
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.60)', lineHeight: 1.5 }}>
+                  ? <Warning size={12} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: 'var(--score-1)' }} />
+                  : <Lightbulb size={12} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: 'var(--callout-warning-icon)' }} />}
+                <span style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                   <span
                     className="font-semibold mr-1"
-                    style={{ color: isHigh ? '#EF4444' : '#F59E0B', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}
+                    style={{ color: isHigh ? 'var(--score-1)' : 'var(--callout-warning-icon)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}
                   >
                     {f.zone}
                   </span>
@@ -213,14 +213,14 @@ function SessionCard({
             );
           })}
           {session.findings.length > 3 && (
-            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.28)', paddingLeft: 16 }}>
+            <p style={{ fontSize: 11, color: 'var(--text-quaternary)', paddingLeft: 16 }}>
               +{session.findings.length - 3} more finding{session.findings.length - 3 > 1 ? 's' : ''}
             </p>
           )}
         </div>
       )}
       {highFindings.length === 0 && session.findings.length === 0 && (
-        <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)' }}>No findings recorded</p>
+        <p style={{ fontSize: 11, color: 'var(--text-quaternary)' }}>No findings recorded</p>
       )}
     </div>
   );
@@ -287,20 +287,20 @@ export function DiscoveryQueue() {
         <div className="flex items-start justify-between mb-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <ChartBar size={18} weight="bold" style={{ color: '#1CBDFF' }} />
-              <h1 className="font-bold" style={{ fontSize: 20, color: '#fff', letterSpacing: '-0.02em' }}>
+              <ChartBar size={18} weight="bold" style={{ color: 'var(--glc-blue)' }} />
+              <h1 className="font-bold" style={{ fontSize: 20, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
                 Discovery Queue
               </h1>
               {newCount > 0 && (
                 <span
                   className="inline-flex items-center justify-center rounded-full text-[10px] font-bold px-2 py-0.5"
-                  style={{ background: 'rgba(28,189,255,0.18)', color: '#1CBDFF', border: '1px solid rgba(28,189,255,0.35)' }}
+                  style={{ background: 'var(--callout-info-bg)', color: 'var(--glc-blue)', border: '1px solid var(--callout-info-border)' }}
                 >
                   {newCount} new
                 </span>
               )}
             </div>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
               Mode C submissions from the public discovery questionnaire
             </p>
           </div>
@@ -309,7 +309,7 @@ export function DiscoveryQueue() {
             <button
               type="button"
               onClick={() => {
-                const url = `${window.location.origin}/audit/discover`;
+                const url = `${window.location.origin}/discovery`;
                 void navigator.clipboard.writeText(url).then(() => {
                   setLinkCopied(true);
                   setTimeout(() => setLinkCopied(false), 2000);
@@ -317,9 +317,9 @@ export function DiscoveryQueue() {
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
               style={{
-                background: linkCopied ? 'rgba(16,185,129,0.12)' : 'rgba(28,189,255,0.08)',
-                border: linkCopied ? '1px solid rgba(16,185,129,0.30)' : '1px solid rgba(28,189,255,0.22)',
-                color: linkCopied ? '#10B981' : 'rgba(28,189,255,0.80)',
+                background: linkCopied ? 'var(--glc-green-muted)' : 'var(--callout-info-bg)',
+                border: linkCopied ? '1px solid rgba(14,207,130,0.32)' : '1px solid var(--callout-info-border)',
+                color: linkCopied ? 'var(--glc-green-dark)' : 'var(--glc-blue)',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
               }}
@@ -339,9 +339,9 @@ export function DiscoveryQueue() {
               onClick={() => void load()}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
               style={{
-                background: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.10)',
-                color: 'rgba(255,255,255,0.55)',
+                background: 'var(--bg-muted)',
+                border: '1px solid var(--border-default)',
+                color: 'var(--text-secondary)',
                 cursor: 'pointer',
               }}
             >
@@ -359,9 +359,9 @@ export function DiscoveryQueue() {
               onClick={() => setFilter(tab)}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold capitalize"
               style={{
-                background: filter === tab ? 'rgba(28,189,255,0.15)' : 'rgba(255,255,255,0.05)',
-                border: filter === tab ? '1px solid rgba(28,189,255,0.35)' : '1px solid rgba(255,255,255,0.08)',
-                color: filter === tab ? '#1CBDFF' : 'rgba(255,255,255,0.45)',
+                background: filter === tab ? 'var(--callout-info-bg)' : 'var(--bg-muted)',
+                border: filter === tab ? '1px solid var(--callout-info-border-strong)' : '1px solid var(--border-subtle)',
+                color: filter === tab ? 'var(--glc-blue)' : 'var(--text-secondary)',
                 cursor: 'pointer',
               }}
             >
@@ -377,14 +377,14 @@ export function DiscoveryQueue() {
         {convertError && (
           <div
             className="flex items-center gap-2 px-4 py-3 rounded-xl mb-4"
-            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}
+            style={{ background: 'var(--callout-error-bg)', border: '1px solid var(--callout-error-border)' }}
           >
-            <Warning size={14} weight="fill" style={{ color: '#EF4444' }} />
-            <span style={{ fontSize: 13, color: 'rgba(239,68,68,0.90)' }}>{convertError}</span>
+            <Warning size={14} weight="fill" style={{ color: 'var(--score-1)' }} />
+            <span style={{ fontSize: 13, color: 'var(--score-1)' }}>{convertError}</span>
             <button
               type="button"
               onClick={() => setConvertError(null)}
-              style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'rgba(239,68,68,0.60)', cursor: 'pointer', fontSize: 12 }}
+              style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', fontSize: 12 }}
             >
               Dismiss
             </button>
@@ -393,7 +393,7 @@ export function DiscoveryQueue() {
 
         {/* Content */}
         {loading && (
-          <div className="flex items-center justify-center py-16 gap-3" style={{ color: 'rgba(255,255,255,0.35)' }}>
+          <div className="flex items-center justify-center py-16 gap-3" style={{ color: 'var(--text-tertiary)' }}>
             <Spinner size={18} className="animate-spin" />
             <span style={{ fontSize: 13 }}>Loading sessions…</span>
           </div>
@@ -401,16 +401,16 @@ export function DiscoveryQueue() {
 
         {!loading && error && (
           <div className="text-center py-12">
-            <Warning size={28} weight="fill" className="mx-auto mb-3" style={{ color: 'rgba(239,68,68,0.50)' }} />
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.50)' }}>{error}</p>
+            <Warning size={28} weight="fill" className="mx-auto mb-3" style={{ color: 'var(--score-1)' }} />
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{error}</p>
             <button
               type="button"
               onClick={() => void load()}
               className="mt-4 px-4 py-2 rounded-lg text-sm font-medium"
               style={{
-                background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                color: 'rgba(255,255,255,0.60)',
+                background: 'var(--bg-muted)',
+                border: '1px solid var(--border-default)',
+                color: 'var(--text-secondary)',
                 cursor: 'pointer',
               }}
             >
@@ -421,8 +421,8 @@ export function DiscoveryQueue() {
 
         {!loading && !error && filtered.length === 0 && (
           <div className="text-center py-16">
-            <Users size={32} weight="thin" className="mx-auto mb-3" style={{ color: 'rgba(255,255,255,0.20)' }} />
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.35)' }}>
+            <Users size={32} weight="thin" className="mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
+            <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>
               {filter === 'all'
                 ? 'No discovery sessions yet. Use "Copy discover link" above to share the questionnaire.'
                 : `No ${filter} sessions.`}

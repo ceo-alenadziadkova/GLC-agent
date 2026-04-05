@@ -3,7 +3,8 @@
 Consultant-led B2B audits: submit a company URL (plus intake context where applicable); the platform crawls and analyses the public site across business domains and produces a scored report and roadmap-style deliverables.
 
 **Primary users:** Consultants running audits for SMB clients.  
-**Client deliverables:** Scored domain findings, executive summary, quick wins, and (full mode) strategy initiatives in Strategy Lab (`/strategy/:id`).
+**Client portal (self-serve):** Clients can create an audit with the **same branching intake bank** as consultants (`/portal/audit/new`), complete the brief on **`/portal/audit/:id`**, start the pipeline without a queue approval step, and optionally **request help with the brief** (consultants are notified; help does not block starting the run). The **`audit_requests`** table and consultant **`/admin/requests`** queue remain for consultant-led intake; there is no separate client-facing request form in the portal during MVP development.  
+**Client deliverables:** Scored domain findings, executive summary, quick wins, and (full mode) strategy-style initiatives surfaced in the **report viewer** (`/portal/reports/:id` in the client shell). Consultants use Strategy Lab (`/strategy/:id`) for the same underlying strategy payload where enabled.
 
 Technical execution details: [PIPELINE.md](./PIPELINE.md), [AGENTS.md](./AGENTS.md). Index of all domains: [MASTER.md](./MASTER.md).
 

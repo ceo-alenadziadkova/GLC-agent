@@ -1,16 +1,21 @@
 import { describe, it, expect } from 'vitest';
 import {
   BRANCH_RULES,
+  buildDomainToQuestionsRawFromRoles,
   calcAiReadinessScore,
   calcDataQualityScore,
   DOMAIN_TO_QUESTION_IDS,
   deriveBankV1DataQuality,
   filterVisibleQuestions,
+  getDomainsForQuestionId,
   getQuestionBankPromptLabel,
+  isPrimaryFeedForDomain,
+  isSecondaryFeedForDomain,
   mergeLegacyResponsesIntoBankV1,
   normalizeWebsiteGate,
   QUESTION_BANK_V1_IDS,
   QUESTION_BANK_V1_STUBS,
+  QUESTION_FEED_ROLES,
   QUESTION_FEEDS_BY_ID,
   responsesUseQuestionBankV1,
   sliceResponsesForDomain,
@@ -116,6 +121,21 @@ describe('discovery collection mode', () => {
     expect(ids).toContain('c_nosite_1');
     expect(ids).not.toContain('b3');
   });
+
+  it('shows c_nosite_3 only when c_nosite_1 includes Social media (nosite_social branch)', () => {
+    const base = { a5: 'No website yet' as const };
+    const withoutSocial = filterVisibleQuestions(QUESTION_BANK_V1_STUBS, {
+      ...base,
+      c_nosite_1: ['Mostly word of mouth, offline, or referrals'],
+    });
+    expect(withoutSocial.map(q => q.id)).not.toContain('c_nosite_3');
+
+    const withSocial = filterVisibleQuestions(QUESTION_BANK_V1_STUBS, {
+      ...base,
+      c_nosite_1: ['Social media', 'Marketplaces, directories, or other online platforms'],
+    });
+    expect(withSocial.map(q => q.id)).toContain('c_nosite_3');
+  });
 });
 
 describe('sliceResponsesForDomain', () => {
@@ -127,6 +147,35 @@ describe('sliceResponsesForDomain', () => {
     expect(strategy).toEqual({ f1: 'Goal' });
     expect(strategy).not.toHaveProperty('a4');
     expect(DOMAIN_TO_QUESTION_IDS.strategy).toContain('f1');
+  });
+});
+
+describe('question feed roles', () => {
+  it('rebuilds DOMAIN_TO_QUESTIONS_RAW without duplicate ids per domain', () => {
+    const raw = buildDomainToQuestionsRawFromRoles(QUESTION_FEED_ROLES);
+    for (const [, ids] of Object.entries(raw)) {
+      const set = new Set(ids);
+      expect(set.size).toBe(ids.length);
+    }
+  });
+
+  it('QUESTION_FEEDS_BY_ID matches getDomainsForQuestionId for every bank id', () => {
+    for (const id of QUESTION_BANK_V1_IDS) {
+      const fromInverted = QUESTION_FEEDS_BY_ID[id] ?? [];
+      const fromRoles = getDomainsForQuestionId(id);
+      expect([...fromInverted].sort()).toEqual([...fromRoles].sort());
+    }
+  });
+
+  it('marks c6 seo as secondary and ux as primary', () => {
+    expect(isPrimaryFeedForDomain('c6', 'ux_conversion')).toBe(true);
+    expect(isSecondaryFeedForDomain('c6', 'seo_digital')).toBe(true);
+    expect(isPrimaryFeedForDomain('c6', 'seo_digital')).toBe(false);
+  });
+
+  it('marks b_restaurant_1 marketing primary and ux secondary', () => {
+    expect(isPrimaryFeedForDomain('b_restaurant_1', 'marketing_utp')).toBe(true);
+    expect(isSecondaryFeedForDomain('b_restaurant_1', 'ux_conversion')).toBe(true);
   });
 });
 
@@ -206,7 +255,7 @@ describe('mergeLegacyResponsesIntoBankV1', () => {
     expect(m.a1).toBe('Acme — Hospitality');
     expect(m.a2).toBe('Hospitality');
     expect(m.a5).toBe('Yes, multi-page site');
-    expect(m.a6).toBe('Sometimes');
+    expect(m.a6).toBe('Yes');
     expect(m.c3).toBe('Yes, GA4');
     expect(m.b1).toBe('Families');
     expect(m.f1).toBe('OTA fees eat margin');
@@ -245,5 +294,16 @@ describe('mergeLegacyResponsesIntoBankV1', () => {
     });
     expect(responsesUseQuestionBankV1(merged)).toBe(true);
     expect(deriveBankV1DataQuality(merged)).not.toBe(null);
+  });
+});
+
+describe('question bank v1 vs QUESTION_FEED_ROLES contract', () => {
+  it('question-bank.v1.json stub ids and QUESTION_FEED_ROLES keys are the same set', () => {
+    const bankIds = new Set(QUESTION_BANK_V1_STUBS.map(q => q.id));
+    const roleKeys = new Set(Object.keys(QUESTION_FEED_ROLES));
+    const missingRoles = [...bankIds].filter(id => !roleKeys.has(id));
+    const orphanRoles = [...roleKeys].filter(id => !bankIds.has(id));
+    expect(missingRoles, `QUESTION_FEED_ROLES missing for JSON ids: ${missingRoles.join(', ')}`).toEqual([]);
+    expect(orphanRoles, `QUESTION_FEED_ROLES has keys not in JSON: ${orphanRoles.join(', ')}`).toEqual([]);
   });
 });

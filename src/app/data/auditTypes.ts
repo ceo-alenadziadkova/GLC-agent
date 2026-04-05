@@ -357,4 +357,6 @@ export interface AuditState {
   domains: Record<string, DomainData | null>;
   strategy: StrategyRoadmap | null;
   reviews: ReviewPoint[];
+  /** Present when `GET /api/audits/:id` loaded intake_brief (see server audits route). */
+  brief: IntakeBrief | null;
 }

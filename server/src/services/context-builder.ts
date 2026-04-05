@@ -10,9 +10,15 @@ import {
 } from '../schemas/intake-brief.js';
 import { calcAiReadinessScore } from '../intake/ai-readiness.js';
 import { DOMAIN_TO_QUESTION_IDS } from '../intake/domain-slice.js';
-import { getQuestionBankPromptLabel, responsesUseQuestionBankV1 } from '../intake/question-bank.js';
+import {
+  getQuestionBankPromptLabel,
+  QUESTION_BANK_V1_IDS,
+  responsesUseQuestionBankV1,
+} from '../intake/question-bank.js';
 import { prepareBriefForValidation } from '../intake/hydrate-legacy-from-bank.js';
 import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
+import { isPrimaryFeedForDomain, isSecondaryFeedForDomain } from '../intake/question-feed-roles.js';
+import type { IntakeSliceDomain } from '../intake/types.js';
 
 function formatCompanyUrlForPrompt(url: string): string {
   return isNoPublicWebsiteUrl(url) ? 'No public website (use intake brief and consultant notes only)' : url;
@@ -50,6 +56,8 @@ export interface AgentContext {
    * Passed to Strategy Agent so it can acknowledge gaps in its report.
    */
   failed_domains: string[];
+  /** Agent receiving this context — used to group intake lines by primary vs secondary feeds. */
+  slice_domain: IntakeSliceDomain;
   instructions: string;
 }
 
@@ -210,8 +218,92 @@ export class ContextBuilder {
         ? (brief.recon_conflicts as ReconConflict[])
         : [],
       failed_domains: (failedDomains ?? []).map(d => String(d.domain_key)),
+      slice_domain: domainKey as IntakeSliceDomain,
       instructions,
     };
+  }
+
+  /**
+   * Markdown for "## Client Brief" with primary vs secondary grouping when bank v1 ids are present.
+   */
+  static formatClientBriefSection(ctx: AgentContext, industryOtherSpecify: string): string | null {
+    const slice = ctx.slice_domain;
+    const domainOrder = DOMAIN_TO_QUESTION_IDS[slice];
+    const orderIdx = domainOrder ? new Map(domainOrder.map((id, i) => [id, i] as const)) : null;
+
+    type BriefEntry = { id: string; line: string };
+
+    const entries: BriefEntry[] = [];
+    for (const [id, v] of Object.entries(ctx.brief_responses)) {
+      if (v === null || v === '') continue;
+      if (id === 'intake_industry_specify' && ctx.industry === 'Other' && industryOtherSpecify) {
+        continue;
+      }
+      const question = getQuestionBankPromptLabel(id) ?? getBriefQuestionText(id);
+      const answer = Array.isArray(v) ? v.join(', ') : String(v);
+      const source = ctx.brief_response_sources[id] ?? 'client';
+      entries.push({
+        id,
+        line: `- **${question}:** ${answer} _(source: ${source})_`,
+      });
+    }
+
+    if (entries.length === 0) return null;
+
+    const hasBankId = entries.some(e => QUESTION_BANK_V1_IDS.has(e.id));
+    if (!hasBankId || !orderIdx) {
+      return `## Client Brief (Pre-Audit Intake)\n${entries.map(e => e.line).join('\n')}`;
+    }
+
+    const primary: BriefEntry[] = [];
+    const secondary: BriefEntry[] = [];
+    const legacy: BriefEntry[] = [];
+
+    for (const e of entries) {
+      const { id } = e;
+      if (!QUESTION_BANK_V1_IDS.has(id) || !orderIdx.has(id)) {
+        legacy.push(e);
+        continue;
+      }
+      if (isPrimaryFeedForDomain(id, slice)) {
+        primary.push(e);
+      } else if (isSecondaryFeedForDomain(id, slice)) {
+        secondary.push(e);
+      } else {
+        legacy.push(e);
+      }
+    }
+
+    const bySliceOrder = (a: BriefEntry, b: BriefEntry) =>
+      (orderIdx.get(a.id) ?? 9999) - (orderIdx.get(b.id) ?? 9999);
+    primary.sort(bySliceOrder);
+    secondary.sort(bySliceOrder);
+
+    const identityOrder = new Map(INTAKE_IDENTITY_FIELD_IDS.map((id, i) => [id, i] as const));
+    legacy.sort((a, b) => {
+      const ai = identityOrder.get(a.id as (typeof INTAKE_IDENTITY_FIELD_IDS)[number]);
+      const bi = identityOrder.get(b.id as (typeof INTAKE_IDENTITY_FIELD_IDS)[number]);
+      if (ai !== undefined && bi !== undefined) return ai - bi;
+      if (ai !== undefined) return -1;
+      if (bi !== undefined) return 1;
+      return a.id.localeCompare(b.id);
+    });
+
+    const parts: string[] = ['## Client Brief (Pre-Audit Intake)'];
+    if (primary.length > 0) {
+      parts.push('### Primary intake (this domain)');
+      parts.push(...primary.map(e => e.line));
+    }
+    if (secondary.length > 0) {
+      parts.push('### Additional context (shared from other domains)');
+      parts.push(...secondary.map(e => e.line));
+    }
+    if (legacy.length > 0) {
+      parts.push('### Other intake (identity & legacy)');
+      parts.push(...legacy.map(e => e.line));
+    }
+
+    return parts.join('\n');
   }
 
   /**
@@ -249,25 +341,9 @@ export class ContextBuilder {
     : ''
 }`);
 
-    // Intake brief — domain-relevant answers (shown before raw data for prominence)
-    if (Object.keys(ctx.brief_responses).length > 0) {
-      const briefLines = Object.entries(ctx.brief_responses)
-        .filter(([id, v]) => {
-          if (v === null || v === '') return false;
-          if (id === 'intake_industry_specify' && ctx.industry === 'Other' && specifyStr) {
-            return false;
-          }
-          return true;
-        })
-        .map(([id, v]) => {
-          const question = getQuestionBankPromptLabel(id) ?? getBriefQuestionText(id);
-          const answer = Array.isArray(v) ? v.join(', ') : String(v);
-          const source = ctx.brief_response_sources[id] ?? 'client';
-          return `- **${question}:** ${answer} _(source: ${source})_`;
-        });
-      if (briefLines.length > 0) {
-        sections.push(`## Client Brief (Pre-Audit Intake)\n${briefLines.join('\n')}`);
-      }
+    const briefSection = ContextBuilder.formatClientBriefSection(ctx, specifyStr);
+    if (briefSection) {
+      sections.push(briefSection);
     }
 
     if (ctx.post_audit_questions.length > 0) {
