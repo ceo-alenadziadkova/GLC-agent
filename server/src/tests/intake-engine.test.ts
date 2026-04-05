@@ -11,7 +11,6 @@ import {
   getQuestionBankPromptLabel,
   isPrimaryFeedForDomain,
   isSecondaryFeedForDomain,
-  mergeLegacyResponsesIntoBankV1,
   normalizeWebsiteGate,
   QUESTION_BANK_V1_IDS,
   QUESTION_BANK_V1_STUBS,
@@ -119,7 +118,7 @@ describe('discovery collection mode', () => {
     const ids = visible.map(q => q.id);
     expect(ids).toContain('a1');
     expect(ids).toContain('c_nosite_1');
-    expect(ids).not.toContain('b3');
+    expect(ids).toContain('b3');
   });
 
   it('shows c_nosite_3 only when c_nosite_1 includes Social media (nosite_social branch)', () => {
@@ -200,8 +199,8 @@ describe('question-bank v1', () => {
     expect(responsesUseQuestionBankV1({ a1: 'Hotel' })).toBe(true);
   });
 
-  it('deriveBankV1DataQuality returns null for legacy-only keys', () => {
-    expect(deriveBankV1DataQuality({ primary_goal: 'grow' })).toBe(null);
+  it('deriveBankV1DataQuality returns null when no bank keys', () => {
+    expect(deriveBankV1DataQuality({ revenue_model: 'Lead generation' })).toBe(null);
   });
 
   it('getQuestionBankPromptLabel returns JSON label', () => {
@@ -237,63 +236,6 @@ describe('calcAiReadinessScore', () => {
       d6: 'Orders, customers, finance',
     });
     expect(high.score).toBeGreaterThan(low.score);
-  });
-});
-
-describe('mergeLegacyResponsesIntoBankV1', () => {
-  it('fills bank keys from legacy pre-brief / express fields', () => {
-    const m = mergeLegacyResponsesIntoBankV1({
-      intake_company_name: 'Acme',
-      intake_industry: 'Hospitality',
-      intake_company_website: 'https://acme.com',
-      primary_goal: 'More direct bookings',
-      biggest_pain: 'OTA fees eat margin',
-      target_audience: 'Families',
-      handles_payments: 'No — we use Stripe/PayPal/etc. hosted checkout',
-      has_google_analytics: 'Yes, GA4',
-    });
-    expect(m.a1).toBe('Acme — Hospitality');
-    expect(m.a2).toBe('Hospitality');
-    expect(m.a5).toBe('Yes, multi-page site');
-    expect(m.a6).toBe('Yes');
-    expect(m.c3).toBe('Yes, GA4');
-    expect(m.b1).toBe('Families');
-    expect(m.f1).toBe('OTA fees eat margin');
-  });
-
-  it('does not overwrite explicit bank answers', () => {
-    const m = mergeLegacyResponsesIntoBankV1({
-      f1: 'Kept',
-      primary_goal: 'ignored for f1',
-      biggest_pain: 'also ignored',
-    });
-    expect(m.f1).toBe('Kept');
-  });
-
-  it('prefers biggest_pain over primary_goal for f1', () => {
-    const m = mergeLegacyResponsesIntoBankV1({
-      primary_goal: 'goal',
-      biggest_pain: 'pain',
-    });
-    expect(m.f1).toBe('pain');
-  });
-
-  it('lets deriveBankV1DataQuality run on merged legacy-only payloads', () => {
-    const merged = mergeLegacyResponsesIntoBankV1({
-      intake_company_name: 'X',
-      intake_industry: 'SaaS / Software',
-      intake_company_website: 'none',
-      primary_goal: 'grow',
-      biggest_pain: 'manual work',
-      target_audience: 'SMB',
-      revenue_model: 'Subscription / SaaS',
-      primary_cta: 'book',
-      has_google_analytics: 'Yes, GA4',
-      handles_payments: 'No payments on site',
-      unique_value_prop: 'Fast',
-    });
-    expect(responsesUseQuestionBankV1(merged)).toBe(true);
-    expect(deriveBankV1DataQuality(merged)).not.toBe(null);
   });
 });
 

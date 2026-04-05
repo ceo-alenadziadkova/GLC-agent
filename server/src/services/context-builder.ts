@@ -15,7 +15,7 @@ import {
   QUESTION_BANK_V1_IDS,
   responsesUseQuestionBankV1,
 } from '../intake/question-bank.js';
-import { prepareBriefForValidation } from '../intake/hydrate-legacy-from-bank.js';
+import { prepareBriefForValidation } from '../intake/prepare-brief-for-validation.js';
 import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
 import { isPrimaryFeedForDomain, isSecondaryFeedForDomain } from '../intake/question-feed-roles.js';
 import type { IntakeSliceDomain } from '../intake/types.js';
@@ -45,7 +45,7 @@ export interface AgentContext {
   intake_data_quality_score: number;
   intake_readiness_badge: 'low' | 'medium' | 'high';
   /**
-   * Question-bank v1 only: heuristic 0–100 (docs/QUESTION_BANK.md §8). Omitted for legacy-only briefs.
+   * Question-bank v1 only: heuristic 0–100 (docs/QUESTION_BANK.md §8). Omitted when no bank ids in responses.
    */
   intake_ai_readiness_score?: number;
   post_audit_questions: Array<Record<string, unknown>>;
@@ -318,7 +318,7 @@ export class ContextBuilder {
       parts.push(...secondary.map(e => e.line));
     }
     if (legacy.length > 0) {
-      parts.push('### Other intake (identity & legacy)');
+      parts.push('### Other intake (identity & additional fields)');
       parts.push(...legacy.map(e => e.line));
     }
 

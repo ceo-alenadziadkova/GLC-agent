@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { getVisibleBankBriefSections } from './bankClassicBrief';
-import { mergeLegacyResponsesIntoBankV1 } from '../../../server/src/intake/legacy-to-bank';
 import { filterVisibleQuestions } from '../../../server/src/intake/is-visible';
 import { QUESTION_BANK_V1_STUBS } from '../../../server/src/intake/question-bank';
 import { briefResponsesToIntakeMap } from './intakeBriefMap';
@@ -11,7 +10,7 @@ function visibleStubIds(
   responses: BriefResponses,
   collectionMode?: 'discovery',
 ): string[] {
-  const map = mergeLegacyResponsesIntoBankV1({ ...briefResponsesToIntakeMap(responses) });
+  const map = { ...briefResponsesToIntakeMap(responses) };
   return sortStubsByBankOrder(
     filterVisibleQuestions(QUESTION_BANK_V1_STUBS, map, { collectionMode }),
   ).map(s => s.id);

@@ -64,7 +64,7 @@ describe('apiService intake contract guards', () => {
       // missing gates + intakeProgress
     })));
 
-    await expect(api.saveBrief('audit-001', { primary_goal: 'grow' }))
+    await expect(api.saveBrief('audit-001', { f1: 'grow' }))
       .rejects
       .toThrow(/Invalid API payload/);
   });

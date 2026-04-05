@@ -98,29 +98,30 @@ import {
   saveBriefResponses,
   arePreBriefSlotsSatisfied,
 } from '../services/brief-validator.js';
-import { REQUIRED_QUESTION_IDS, RECOMMENDED_QUESTION_IDS, BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
+import { RECOMMENDED_QUESTION_IDS, BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
+import { resolveBankRecommendedIds, resolveFullSlaRequiredIds } from '../intake/brief-gates.js';
+import {
+  makeWebsitePathExpressBrief,
+  makeWebsitePathFullBrief,
+} from './bank-brief-fixtures.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Returns a responses object with all required questions answered */
 function makeFullRequired(): Record<string, unknown> {
-  const r: Record<string, unknown> = {};
-  for (const id of REQUIRED_QUESTION_IDS) {
-    const q = BRIEF_QUESTIONS.find(q => q.id === id)!;
-    if (q.type === 'number') r[id] = 1000;
-    else if (q.type === 'multi_choice') r[id] = [q.options![0]];
-    else r[id] = q.options ? q.options[0] : 'Test answer';
-  }
-  return r;
+  return makeWebsitePathFullBrief();
 }
 
-function makeFullRecommended(): Record<string, unknown> {
-  const r: Record<string, unknown> = {};
-  for (const id of RECOMMENDED_QUESTION_IDS) {
-    const q = BRIEF_QUESTIONS.find(q => q.id === id)!;
-    if (q.type === 'number') r[id] = 500;
-    else if (q.type === 'multi_choice') r[id] = [q.options![0]];
-    else r[id] = q.options ? q.options[0] : 'Answer';
+function makeFullWithAllRecommended(): Record<string, unknown> {
+  const r = { ...makeWebsitePathFullBrief() };
+  for (const id of resolveBankRecommendedIds(r)) {
+    if (r[id] !== undefined) continue;
+    if (id === 'f2') {
+      r[id] = ['Website performance and technology (speed, stability, technical health)'];
+    } else if (id === 'b2' || id === 'd1') {
+      r[id] = ['Google'];
+    } else {
+      r[id] = 'Answer';
+    }
   }
   return r;
 }
@@ -129,47 +130,49 @@ function makeFullRecommended(): Record<string, unknown> {
 
 describe('validateBriefResponses()', () => {
   it('returns sla_met=false and all required missing when responses is empty', () => {
+    const fullReq = resolveFullSlaRequiredIds({});
     const result = validateBriefResponses({});
     expect(result.sla_met).toBe(false);
     expect(result.passed).toBe(false);
     expect(result.answered_required).toBe(0);
-    expect(result.total_required).toBe(REQUIRED_QUESTION_IDS.length);
-    expect(result.missing_required).toHaveLength(REQUIRED_QUESTION_IDS.length);
+    expect(result.total_required).toBe(fullReq.length);
+    expect(result.missing_required).toHaveLength(fullReq.length);
   });
 
   it('counts only answered required questions', () => {
     const responses: Record<string, unknown> = {};
-    // Skip primary_goal/biggest_pain: prepareBrief syncs them via f1 hydration and would add an extra answered slot.
-    const firstThree = REQUIRED_QUESTION_IDS.filter(
-      id => id !== 'primary_goal' && id !== 'biggest_pain',
-    ).slice(0, 3);
+    const fullReq = resolveFullSlaRequiredIds({});
+    const firstThree = fullReq.slice(0, 3);
     firstThree.forEach(id => { responses[id] = 'answered'; });
 
     const result = validateBriefResponses(responses);
     expect(result.answered_required).toBe(3);
-    expect(result.missing_required).toHaveLength(REQUIRED_QUESTION_IDS.length - 3);
+    expect(result.missing_required).toHaveLength(fullReq.length - 3);
     expect(result.sla_met).toBe(false);
   });
 
   it('returns sla_met=true when all required are answered', () => {
-    const result = validateBriefResponses(makeFullRequired());
+    const full = makeFullRequired();
+    const result = validateBriefResponses(full);
     expect(result.sla_met).toBe(true);
     expect(result.passed).toBe(true);
-    expect(result.answered_required).toBe(REQUIRED_QUESTION_IDS.length);
+    expect(result.answered_required).toBe(resolveFullSlaRequiredIds(full).length);
     expect(result.missing_required).toHaveLength(0);
   });
 
   it('counts recommended independently', () => {
-    const responses = { ...makeFullRequired(), ...makeFullRecommended() };
+    const responses = makeFullWithAllRecommended();
     const result = validateBriefResponses(responses);
     expect(result.sla_met).toBe(true);
-    expect(result.answered_recommended).toBe(RECOMMENDED_QUESTION_IDS.length);
-    expect(result.total_recommended).toBe(RECOMMENDED_QUESTION_IDS.length);
+    const nRec = resolveBankRecommendedIds(responses).length;
+    expect(result.answered_recommended).toBe(nRec);
+    expect(result.total_recommended).toBe(nRec);
   });
 
   it('treats empty string as unanswered', () => {
     const responses: Record<string, unknown> = {};
-    REQUIRED_QUESTION_IDS.forEach(id => { responses[id] = ''; });
+    const fullReq = resolveFullSlaRequiredIds({});
+    fullReq.forEach(id => { responses[id] = ''; });
     const result = validateBriefResponses(responses);
     expect(result.answered_required).toBe(0);
     expect(result.sla_met).toBe(false);
@@ -177,50 +180,35 @@ describe('validateBriefResponses()', () => {
 
   it('treats null as unanswered', () => {
     const responses: Record<string, unknown> = {};
-    REQUIRED_QUESTION_IDS.forEach(id => { responses[id] = null; });
+    resolveFullSlaRequiredIds({}).forEach(id => { responses[id] = null; });
     const result = validateBriefResponses(responses);
     expect(result.answered_required).toBe(0);
   });
 
   it('treats explicit source=unknown as answered for required gating', () => {
     const responses: Record<string, unknown> = {};
-    REQUIRED_QUESTION_IDS.forEach(id => {
+    resolveFullSlaRequiredIds({}).forEach(id => {
       responses[id] = { value: null, source: 'unknown' };
     });
     const result = validateBriefResponses(responses);
-    expect(result.answered_required).toBe(REQUIRED_QUESTION_IDS.length);
+    expect(result.answered_required).toBe(resolveFullSlaRequiredIds({}).length);
     expect(result.sla_met).toBe(true);
   });
 
   it('mixes real answers with source=unknown and still meets SLA', () => {
     const responses = makeFullRequired();
-    responses[REQUIRED_QUESTION_IDS[0]] = { value: null, source: 'unknown' };
+    const firstId = resolveFullSlaRequiredIds(responses)[0];
+    responses[firstId] = { value: null, source: 'unknown' };
     const result = validateBriefResponses(responses);
-    expect(result.answered_required).toBe(REQUIRED_QUESTION_IDS.length);
+    expect(result.answered_required).toBe(resolveFullSlaRequiredIds(responses).length);
     expect(result.sla_met).toBe(true);
   });
 
   it('treats empty array as unanswered', () => {
     const responses: Record<string, unknown> = {};
-    REQUIRED_QUESTION_IDS.forEach(id => { responses[id] = []; });
+    resolveFullSlaRequiredIds({}).forEach(id => { responses[id] = []; });
     const result = validateBriefResponses(responses);
     expect(result.answered_required).toBe(0);
-  });
-
-  it('treats number 0 as answered', () => {
-    const responses = { ...makeFullRequired() };
-    // Find a number-type required question if any, otherwise this just verifies
-    // that numeric 0 wouldn't incorrectly fail the falsy check
-    const numQId = REQUIRED_QUESTION_IDS.find(id => {
-      const q = BRIEF_QUESTIONS.find(q => q.id === id);
-      return q?.type === 'number';
-    });
-    if (numQId) {
-      responses[numQId] = 0;
-      const result = validateBriefResponses(responses);
-      // 0 is a valid number answer — should be counted as answered
-      expect(result.answered_required).toBe(REQUIRED_QUESTION_IDS.length);
-    }
   });
 
   it('extra optional/recommended answers do not affect sla_met', () => {
@@ -255,13 +243,13 @@ describe('assertBriefReady()', () => {
 
   it('resolves for express audit with complete brief', async () => {
     setAuditMode('express');
-    setBriefRow({ responses: makeFullRequired() });
+    setBriefRow({ responses: makeWebsitePathExpressBrief() });
     await expect(assertBriefReady('audit-001')).resolves.toBeUndefined();
   });
 
   it('resolves for full audit with complete brief', async () => {
     setAuditMode('full');
-    setBriefRow({ responses: makeFullRequired() });
+    setBriefRow({ responses: makeWebsitePathFullBrief() });
     await expect(assertBriefReady('audit-001')).resolves.toBeUndefined();
   });
 
@@ -273,7 +261,7 @@ describe('assertBriefReady()', () => {
 
   it('throws for express audit with missing required questions', async () => {
     setAuditMode('express');
-    setBriefRow({ responses: { primary_goal: 'increase revenue' } }); // only 1 of N required
+    setBriefRow({ responses: { f1: 'increase revenue' } });
     await expect(assertBriefReady('audit-001')).rejects.toThrow(/Intake brief incomplete/);
   });
 
@@ -293,7 +281,7 @@ describe('assertBriefReady()', () => {
 
   it('upserts brief stats to DB when validating', async () => {
     setAuditMode('express');
-    setBriefRow({ responses: makeFullRequired() });
+    setBriefRow({ responses: makeWebsitePathExpressBrief() });
     await assertBriefReady('audit-001');
     const briefUpsert = getUpsertCalls().find(c => c.table === 'intake_brief');
     expect(briefUpsert).toBeDefined();
@@ -323,16 +311,18 @@ describe('saveBriefResponses()', () => {
   });
 
   it('sets sla_met=false when required questions missing', async () => {
-    const { brief } = await saveBriefResponses('audit-001', { primary_goal: 'grow' });
+    const { brief } = await saveBriefResponses('audit-001', { f1: 'grow' });
     expect(brief.sla_met).toBe(false);
   });
 
   it('upserts with correct answered_required count', async () => {
-    await saveBriefResponses('audit-001', makeFullRequired());
+    const full = makeFullRequired();
+    const { validation } = await saveBriefResponses('audit-001', full);
     const upsert = getUpsertCalls().find(c => c.table === 'intake_brief');
     expect(upsert).toBeDefined();
     const payload = upsert!.payload as Record<string, unknown>;
-    expect(payload.answered_required).toBe(REQUIRED_QUESTION_IDS.length);
+    expect(payload.answered_required).toBe(validation.answered_required);
+    expect(payload.total_required).toBe(validation.total_required);
   });
 
   it('upserts with audit_id', async () => {
@@ -342,12 +332,12 @@ describe('saveBriefResponses()', () => {
   });
 
   it('rejects responses with invalid Zod types (string over BRIEF_ANSWER_STRING_MAX)', async () => {
-    const responses = { primary_goal: 'x'.repeat(12_001) };
+    const responses = { f1: 'x'.repeat(12_001) };
     await expect(saveBriefResponses('audit-001', responses)).rejects.toThrow(/Invalid brief responses/);
   });
 
   it('rejects malformed structured response objects', async () => {
-    const responses = { primary_goal: { nested: 'object' } };
+    const responses = { f1: { nested: 'object' } };
     await expect(saveBriefResponses('audit-001', responses)).rejects.toThrow(/Invalid brief responses/);
   });
 });
@@ -378,19 +368,15 @@ describe('BRIEF_QUESTIONS schema invariants', () => {
     }
   });
 
-  it('every required question ID is in REQUIRED_QUESTION_IDS', () => {
-    const explicitRequired = BRIEF_QUESTIONS.filter(q => q.priority === 'required').map(q => q.id);
-    expect(new Set(explicitRequired)).toEqual(new Set(REQUIRED_QUESTION_IDS));
-  });
-
   it('every recommended question ID is in RECOMMENDED_QUESTION_IDS', () => {
     const explicitRec = BRIEF_QUESTIONS.filter(q => q.priority === 'recommended').map(q => q.id);
     expect(new Set(explicitRec)).toEqual(new Set(RECOMMENDED_QUESTION_IDS));
   });
 
-  it('has between 4 and 14 required questions', () => {
-    expect(REQUIRED_QUESTION_IDS.length).toBeGreaterThanOrEqual(4);
-    expect(REQUIRED_QUESTION_IDS.length).toBeLessThanOrEqual(14);
+  it('has between 4 and 14 schema-marked required questions (legacy form copy)', () => {
+    const n = BRIEF_QUESTIONS.filter(q => q.priority === 'required').length;
+    expect(n).toBeGreaterThanOrEqual(4);
+    expect(n).toBeLessThanOrEqual(14);
   });
 
   it('all domain references are valid domain keys or "all"', () => {
@@ -412,12 +398,13 @@ describe('arePreBriefSlotsSatisfied', () => {
     intake_company_website: 'https://example.com',
     intake_company_name: 'Acme',
     intake_industry: 'Hospitality',
-    primary_goal: 'More direct bookings',
-    target_audience: 'Travelers 30–50',
-    primary_cta: 'Book now',
-    has_google_analytics: 'Yes, GA4',
-    handles_payments: 'Yes — we process card payments on site',
-    biggest_pain: 'Low conversion',
+    a5: 'Yes, multi-page site',
+    revenue_model: 'Lead generation',
+    f1: 'More direct bookings',
+    b1: 'Travelers 30–50',
+    a6: 'Yes',
+    c5: 'Book now',
+    c3: 'Yes, GA4',
   };
 
   it('passes without optional bank fields f2, a7, f8', () => {
@@ -425,16 +412,16 @@ describe('arePreBriefSlotsSatisfied', () => {
   });
 
   it('fails when a required submit slot is missing', () => {
-    const { biggest_pain: _, ...rest } = minimalPreBrief;
+    const { c3: _, ...rest } = minimalPreBrief;
     expect(arePreBriefSlotsSatisfied(rest)).toBe(false);
   });
 
-  it('requires clarification when analytics is "Yes, other tool"', () => {
-    const withOtherTool = { ...minimalPreBrief, has_google_analytics: 'Yes, other tool' };
+  it('requires clarification when analytics choice needs specify', () => {
+    const withOtherTool = { ...minimalPreBrief, c3: 'Yes, another tool' };
     expect(arePreBriefSlotsSatisfied(withOtherTool)).toBe(false);
     expect(arePreBriefSlotsSatisfied({
       ...withOtherTool,
-      has_google_analytics__other: 'Plausible',
+      c3__other: 'Plausible',
     })).toBe(true);
   });
 });

@@ -37,9 +37,9 @@
 |----------|---------------|---------|--------------|
 | **Pre-brief** (ссылка перед встречей) | Клиент | 5-7 вопросов, 5 мин | Alena приходит подготовленной |
 | **Full intake** (wizard/interview) | Клиент или Alena | 25-35 вопросов, 30-40 мин | Полный аудит |
-
-В приложении режим **«All sections»** (классическая форма) и **пошаговый wizard** используют **один и тот же** набор видимых id банка (`filterVisibleQuestions` + merge legacy→bank); отличается только подача — все секции сразу или один вопрос на шаг. См. `getVisibleBankBriefSections` / `BankClassicBriefFields` в коде и [FRONTEND.md](./FRONTEND.md).
 | **Discovery** (Mode C, нет сайта) | Клиент + Alena | **16** вопросов (банк), ~15 мин | Понимание бизнеса → конвертация в full |
+
+В приложении режим **«All sections»** (классическая форма) и **пошаговый wizard** используют **один и тот же** набор видимых id банка (`filterVisibleQuestions` по текущим ответам); отличается только подача — все секции сразу или один вопрос на шаг. Канонические id ответов — **question-bank v1** (плюс identity и `revenue_model`). **Готовность к старту пайплайна** (full vs express, pre-brief submit): `server/src/intake/brief-gates.ts` — `resolveFullSlaRequiredIds` / `resolveExpressSlaRequiredIds`; на фронте зеркало — `pipelineRequiredIdsForProductMode` ([FRONTEND.md](./FRONTEND.md)). См. `getVisibleBankBriefSections` / `BankClassicBriefFields`.
 
 ### 2.2. Секции (клиент видит)
 
@@ -484,14 +484,14 @@ The legacy system (`discovery-flow.ts`) pre-dates bank v1 integration and is not
 | `has_website` / `no_website` | Ворота по ответу «сайт» (`a5`, нормализация в enum gate) |
 | `nosite_social` | `no_website` и в `c_nosite_1` выбран пункт **Social media** (точное совпадение строки) |
 | `is_hospitality`, `is_real_estate`, `is_restaurant`, `is_services`, `is_healthcare`, `is_marine` | Отраслевые ветки (ярлык индустрии мапится из dropdown через `INDUSTRY_LABEL_TO_BRANCH_SLUG`) |
-| `has_crm` / `no_crm` | Наличие CRM в мультивыборе `d1` (в т.ч. синтетические значения при merge из legacy) |
+| `has_crm` / `no_crm` | Наличие CRM в мультивыборе `d1` (в т.ч. нормализованные / синтетические значения после парсинга ответа) |
 | `handles_payments` | Нормализованный `a6`: yes / sometimes / rarely |
 | `not_solo` | Команда ≠ solo (`a4`) |
 | `spain_based` | Локация (`a3`) |
 
 **UX:** скрытые вопросы не показываются. Клиент не знает, что вопрос существует. Wizard адаптируется динамически.
 
-**Other → specify (банковский мастер и legacy):** при выборе вариантов, требующих уточнения (`Other`, «Yes, other tool» / «Yes, another tool», «Something else» — см. `CHOICE_OPTION_LABELS_REQUIRING_SPECIFY` в `src/app/lib/choice-specify-triggers.ts`), показывается поле; значение пишется в **`${questionId}__other`**, для **`a2`** / **`intake_industry`** — в **`intake_industry_specify`**. Discovery: **`${bankId}__other`**, для **`a2`** при конвертации дублируется в **`intake_industry_specify`**. См. `BriefField`, `IntakeBankWizard`, `DiscoverPage`.
+**Other → specify (банк + классическая форма):** при выборе вариантов, требующих уточнения (`Other`, «Yes, other tool» / «Yes, another tool», «Something else» — см. `CHOICE_OPTION_LABELS_REQUIRING_SPECIFY` в `src/app/lib/choice-specify-triggers.ts`), показывается поле; значение пишется в **`${questionId}__other`**, для **`a2`** / **`intake_industry`** — в **`intake_industry_specify`**. Discovery: **`${bankId}__other`**, для **`a2`** при конвертации дублируется в **`intake_industry_specify`**. См. `BriefField`, `IntakeBankWizard`, `DiscoverPage`.
 
 ---
 

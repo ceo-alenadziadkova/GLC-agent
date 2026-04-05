@@ -3,7 +3,6 @@ import type { BriefResponses } from '../data/briefQuestions';
 import { briefResponsesToIntakeMap } from '../data/intakeBriefMap';
 import { calcDataQualityScore, DEFAULT_DATA_QUALITY_WEIGHTS } from '../../../server/src/intake/data-quality';
 import { filterVisibleQuestions } from '../../../server/src/intake/is-visible';
-import { mergeLegacyResponsesIntoBankV1 } from '../../../server/src/intake/legacy-to-bank';
 import { QUESTION_BANK_V1_STUBS } from '../../../server/src/intake/question-bank';
 import type { CollectionMode, IntakeQuestionStub } from '../../../server/src/intake/types';
 
@@ -16,15 +15,14 @@ export function sortStubsByBankOrder(stubs: IntakeQuestionStub[]): IntakeQuestio
 }
 
 /**
- * Question-bank v1 coverage for the current legacy+brief UI (branch-aware visible set).
- * Uses the same merge/scoring as the API (`mergeLegacyResponsesIntoBankV1`, §10 QUESTION_BANK).
+ * Question-bank v1 coverage (branch-aware visible set + same scoring as API `calcDataQualityScore`).
  */
 export function useIntakeBankMetrics(
   briefResponses: BriefResponses,
   collectionMode?: CollectionMode,
 ) {
   return useMemo(() => {
-    const merged = mergeLegacyResponsesIntoBankV1({ ...briefResponsesToIntakeMap(briefResponses) });
+    const merged = { ...briefResponsesToIntakeMap(briefResponses) };
     const dq = calcDataQualityScore(
       QUESTION_BANK_V1_STUBS,
       merged,
@@ -60,10 +58,10 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
   const { initialMap = {}, collectionMode, value, onChange } = options;
   const controlled = value !== undefined && onChange !== undefined;
 
-  const [internal, setInternal] = useState(() => mergeLegacyResponsesIntoBankV1({ ...initialMap }));
+  const [internal, setInternal] = useState(() => ({ ...initialMap }));
 
   const responses = useMemo(() => {
-    if (controlled) return mergeLegacyResponsesIntoBankV1({ ...value });
+    if (controlled) return { ...value };
     return internal;
   }, [controlled, value, internal]);
 
@@ -88,7 +86,7 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
   const setField = useCallback(
     (id: string, val: unknown) => {
       const base = { ...responses, [id]: val };
-      const next = mergeLegacyResponsesIntoBankV1(base);
+      const next = { ...base };
       if (controlled) onChange(next);
       else setInternal(next);
     },
@@ -98,10 +96,10 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
   const setResponses = useCallback(
     (updater: (prev: Record<string, unknown>) => Record<string, unknown>) => {
       if (controlled) {
-        const next = mergeLegacyResponsesIntoBankV1(updater({ ...responses }));
+        const next = { ...updater({ ...responses }) };
         onChange(next);
       } else {
-        setInternal(prev => mergeLegacyResponsesIntoBankV1(updater({ ...prev })));
+        setInternal(prev => ({ ...updater({ ...prev }) }));
       }
     },
     [controlled, onChange, responses],

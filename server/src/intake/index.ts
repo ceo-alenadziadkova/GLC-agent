@@ -16,6 +16,14 @@ export {
   type BranchPredicate,
   type WebsiteGate,
 } from './branch-rules.js';
+export {
+  getVisibleBankStubs,
+  resolveBankOptionalIds,
+  resolveBankRecommendedIds,
+  resolveExpressSlaRequiredIds,
+  resolveFullSlaRequiredIds,
+  resolveSlaRequiredIds,
+} from './brief-gates.js';
 export { calcDataQualityScore, DEFAULT_DATA_QUALITY_WEIGHTS } from './data-quality.js';
 export { DISCOVERY_BANK_IDS, isDiscoverySurfaceQuestion } from './discovery.js';
 export {
@@ -53,10 +61,4 @@ export {
   roundDataQualityScore,
 } from './question-bank.js';
 export { mergeReconConflictsFromC1, type ReconConflict } from './recon-conflicts.js';
-export { mergeLegacyResponsesIntoBankV1 } from './legacy-to-bank.js';
-export {
-  hydrateLegacyFromBankForGates,
-  mapA6ToHandlesPaymentsLegacy,
-  mapC3ToHasGoogleAnalyticsLegacy,
-  prepareBriefForValidation,
-} from './hydrate-legacy-from-bank.js';
+export { prepareBriefForValidation } from './prepare-brief-for-validation.js';

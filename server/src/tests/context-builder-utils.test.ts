@@ -61,7 +61,7 @@ describe('ContextBuilder.formatPrompt', () => {
     expect(prompt).toContain('Main business problem to solve');
     expect(prompt).toContain('Scale direct bookings');
     expect(prompt).toContain('### Primary intake (this domain)');
-    expect(prompt).toContain('### Other intake (identity & legacy)');
+    expect(prompt).toContain('### Other intake (identity & additional fields)');
   });
 
   it('places c6 under Additional context for seo_digital (secondary feed)', () => {

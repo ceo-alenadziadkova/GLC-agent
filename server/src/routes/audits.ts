@@ -330,8 +330,12 @@ auditsRouter.get('/:id/brief', async (req: AuthRequest, res) => {
 
     // Compute validation stats live
     const responses = (brief?.responses as Record<string, unknown>) ?? {};
-    const validation = validateBriefResponses(responses);
-    const gates = evaluateBriefGates(responses, audit.product_mode as ProductMode);
+    const collectionMode = brief?.collection_mode as IntakeBriefCollectionMode | undefined;
+    const validation = validateBriefResponses(responses, {
+      productMode: audit.product_mode as ProductMode,
+      collectionMode,
+    });
+    const gates = evaluateBriefGates(responses, audit.product_mode as ProductMode, collectionMode);
 
     res.json({
       product_mode: audit.product_mode,
@@ -438,7 +442,7 @@ auditsRouter.put('/:id/brief', async (req: AuthRequest, res) => {
     // Verify access
     const { data: audit } = await supabase
       .from('audits')
-      .select('id, user_id, client_id')
+      .select('id, user_id, client_id, product_mode')
       .eq('id', id)
       .single();
 
@@ -456,7 +460,10 @@ auditsRouter.put('/:id/brief', async (req: AuthRequest, res) => {
     const { brief, gates } = await saveBriefResponses(id, responses as Record<string, unknown>, {
       ...(collection_mode ? { collection_mode } : {}),
     });
-    const liveValidation = validateBriefResponses(brief.responses as Record<string, unknown>);
+    const liveValidation = validateBriefResponses(brief.responses as Record<string, unknown>, {
+      productMode: audit.product_mode as ProductMode,
+      collectionMode: brief.collection_mode as IntakeBriefCollectionMode,
+    });
 
     res.json({
       brief,

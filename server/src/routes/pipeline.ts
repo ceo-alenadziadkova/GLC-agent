@@ -4,7 +4,7 @@ import { requireAuth, attachProfile, requireRole, type AuthRequest, type UserRol
 import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 import { pipelineLimiter } from '../middleware/rate-limit.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
-import { maxPhaseForMode, type ProductMode } from '../types/audit.js';
+import { maxPhaseForMode, type IntakeBriefCollectionMode, type ProductMode } from '../types/audit.js';
 import { logger } from '../services/logger.js';
 import { evaluateBriefGates } from '../services/brief-validator.js';
 import { notifyAuditParticipants, notifyAuditParticipantsExcept } from '../services/notifications.js';
@@ -126,10 +126,14 @@ pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineL
     // Include intake progress contract so UI can render readiness state.
     const { data: brief } = await supabase
       .from('intake_brief')
-      .select('responses')
+      .select('responses, collection_mode')
       .eq('audit_id', id)
       .single();
-    const gates = evaluateBriefGates((brief?.responses as Record<string, unknown>) ?? {}, (audit.product_mode as ProductMode) ?? 'full');
+    const gates = evaluateBriefGates(
+      (brief?.responses as Record<string, unknown>) ?? {},
+      (audit.product_mode as ProductMode) ?? 'full',
+      brief?.collection_mode as IntakeBriefCollectionMode | undefined,
+    );
 
     // Start pipeline (runs Phase 0: Recon)
     res.json({ status: 'started', phase: 0, intakeProgress: gates.intakeProgress });
