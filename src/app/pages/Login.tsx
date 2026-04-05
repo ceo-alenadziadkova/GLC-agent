@@ -19,23 +19,10 @@ export function Login() {
 
   const isTestUser = email.trim().toLowerCase() === TEST_EMAIL;
 
-  // Capture ?discovery=TOKEN from the URL so that after auth the user is
-  // redirected to /audit/new with their discovery answers pre-filled.
-  useEffect(() => {
-    const discovery = new URLSearchParams(window.location.search).get('discovery');
-    if (discovery) localStorage.setItem('glc_discovery_token', discovery);
-  }, []);
-
   useEffect(() => {
     if (isAuthenticated) {
-      const discoveryToken = localStorage.getItem('glc_discovery_token');
-      if (discoveryToken) {
-        logger.info('Login: isAuthenticated with discovery token, navigating to /audit/new');
-        navigate('/audit/new?from_discovery=1', { replace: true });
-      } else {
-        logger.info('Login: isAuthenticated, navigating to /portfolio');
-        navigate('/portfolio', { replace: true });
-      }
+      logger.info('Login: isAuthenticated, navigating to /portfolio');
+      navigate('/portfolio', { replace: true });
     }
   }, [isAuthenticated, navigate]);
 
