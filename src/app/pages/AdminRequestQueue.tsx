@@ -50,7 +50,7 @@ function intakeSummaryLine(norm: BriefResponses, auditId: string | null, expired
 
 const STATUS_CONFIG: Record<AuditRequestStatus, { label: string; color: string }> = {
   draft:        { label: 'Draft',        color: 'rgba(255,255,255,0.30)' },
-  submitted:    { label: 'Submitted',    color: '#F59E0B' },
+  submitted:    { label: 'Submitted',    color: 'var(--callout-warning-icon)' },
   under_review: { label: 'Under Review', color: '#3B82F6' },
   approved:     { label: 'Approved',     color: '#10B981' },
   rejected:     { label: 'Rejected',     color: '#EF4444' },

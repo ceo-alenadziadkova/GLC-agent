@@ -219,10 +219,12 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  code?: string;
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -248,8 +250,12 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: response.statusText }));
-    throw new ApiError(error.error ?? `API error: ${response.status}`, response.status);
+    const error = (await response.json().catch(() => ({ error: response.statusText }))) as {
+      error?: string;
+      code?: unknown;
+    };
+    const code = typeof error.code === 'string' ? error.code : undefined;
+    throw new ApiError(error.error ?? `API error: ${response.status}`, response.status, code);
   }
 
   return response.json();
@@ -331,6 +337,14 @@ export const api = {
     );
     assertPipelineStartShape(payload);
     return payload;
+  },
+
+  /** Client-only: notify consultants that help with the brief is welcome (optional message). */
+  async requestBriefHelp(auditId: string, message?: string) {
+    return apiFetch<{ ok: boolean }>(`/api/audits/${auditId}/brief/help-request`, {
+      method: 'POST',
+      body: JSON.stringify({ message: message?.trim() ?? '' }),
+    });
   },
 
   async runNextPhase(id: string) {
@@ -432,6 +446,7 @@ export const api = {
   // Intake Brief
   async getBrief(auditId: string) {
     const payload = await apiFetch<{
+      product_mode?: string;
       brief: import('../data/auditTypes').IntakeBrief | null;
       questions: import('../data/briefQuestions').BriefQuestion[];
       validation: {
@@ -465,7 +480,15 @@ export const api = {
     return payload;
   },
 
-  async saveBrief(auditId: string, responses: Record<string, unknown>) {
+  async saveBrief(
+    auditId: string,
+    responses: Record<string, unknown>,
+    opts?: { collection_mode?: import('../data/auditTypes').IntakeBriefCollectionMode },
+  ) {
+    const body: Record<string, unknown> = { responses };
+    if (opts?.collection_mode) {
+      body.collection_mode = opts.collection_mode;
+    }
     const payload = await apiFetch<{
       brief: import('../data/auditTypes').IntakeBrief;
       validation: { passed: boolean; sla_met: boolean; answered_required: number; total_required: number };
@@ -488,7 +511,7 @@ export const api = {
       };
     }>(`/api/audits/${auditId}/brief`, {
       method: 'PUT',
-      body: JSON.stringify({ responses }),
+      body: JSON.stringify(body),
     });
     assertIntakePayloadShape(payload);
     return payload;
@@ -501,6 +524,30 @@ export const api = {
 
   async patchProfile(params: { full_name?: string | null }) {
     return apiFetch<{ id: string; role: string; email: string | null; full_name: string | null }>('/api/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(params),
+    });
+  },
+
+  async getPlatformSelfServeOwner() {
+    return apiFetch<{
+      stored_owner_user_id: string | null;
+      effective_owner_user_id: string | null;
+      effective_ready: boolean;
+      env_fallback_active: boolean;
+      consultants: Array<{ id: string; full_name: string | null; email: string | null }>;
+      can_manage: boolean;
+    }>('/api/platform/self-serve-owner');
+  },
+
+  async patchPlatformSelfServeOwner(params: { owner_user_id: string | null }) {
+    return apiFetch<{
+      ok: boolean;
+      stored_owner_user_id: string | null;
+      effective_ready: boolean;
+      effective_owner_user_id: string | null;
+      env_fallback_active: boolean;
+    }>('/api/platform/self-serve-owner', {
       method: 'PATCH',
       body: JSON.stringify(params),
     });
@@ -672,6 +719,8 @@ export const api = {
       findings: unknown[];
       contact_name: string | null;
       contact_email: string | null;
+      contact_phone: string | null;
+      contact_company: string | null;
       created_at: string;
       audit_id: string | null;
     }>(`/api/discover/${encodeURIComponent(token)}`);
@@ -682,6 +731,7 @@ export const api = {
     contact_name?: string;
     contact_email?: string;
     contact_phone?: string;
+    contact_company?: string;
   }) {
     return publicApiFetch<{ ok: true }>(`/api/discover/${encodeURIComponent(token)}/contact`, {
       method: 'PATCH',
@@ -699,6 +749,7 @@ export const api = {
         contact_name:    string | null;
         contact_email:   string | null;
         contact_phone:   string | null;
+        contact_company: string | null;
         audit_id:        string | null;
         created_at:      string;
         biz_description: string | null;

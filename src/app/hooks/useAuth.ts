@@ -108,6 +108,13 @@ export function useAuth() {
           setSession(session);
           setUser(session?.user ?? null);
         }
+      } catch (err) {
+        logger.error('Auth init error', { err });
+        if (isMounted) {
+          setAuthError(null);
+          setSession(null);
+          setUser(null);
+        }
       } finally {
         if (isMounted) {
           logger.debug('Auth init finished, set loading=false');

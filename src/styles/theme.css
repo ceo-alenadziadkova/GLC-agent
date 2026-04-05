@@ -59,6 +59,25 @@
   --score-5-bg:     #E6FAF3;
   --score-5-border: rgba(14,207,130,0.18);
 
+  /* Semantic callouts — amber / warning (pair fg + bg per theme for WCAG) */
+  --callout-warning-fg:            #92400E;
+  --callout-warning-fg-emphasis:   #D97706;
+  --callout-warning-bg-subtle:     rgba(245,158,11,0.06);
+  --callout-warning-bg:            rgba(245,158,11,0.07);
+  --callout-warning-bg-strong:     rgba(245,158,11,0.12);
+  --callout-warning-border:        rgba(245,158,11,0.22);
+  --callout-warning-border-strong: rgba(245,158,11,0.30);
+  --callout-warning-border-focus:  rgba(245,158,11,0.35);
+  --callout-warning-icon:          #F59E0B;
+  --callout-warning-pill-bg:       #FFFBEB;
+
+  --callout-error-bg:              rgba(239,68,68,0.07);
+  --callout-error-border:          rgba(239,68,68,0.25);
+
+  --callout-info-bg:               rgba(28,189,255,0.08);
+  --callout-info-border:           rgba(28,189,255,0.22);
+  --callout-info-border-strong:    rgba(28,189,255,0.30);
+
   /* ── Surfaces ───────────────────────────────── */
   --bg-canvas:  #F5F7FB;
   --bg-surface: #FFFFFF;
@@ -68,6 +87,7 @@
   --bg-sidebar: var(--glc-ink);
 
   /* ── Text ───────────────────────────────────── */
+  /* Tertiary / quaternary: use for captions, meta, disabled-looking UI — not sole carrier of critical copy under ~14px (quaternary often below WCAG AA 4.5:1 on light surfaces). */
   --text-primary:    #0B1120;
   --text-secondary:  #3D4F6A;
   --text-tertiary:   #8496B0;
@@ -265,6 +285,24 @@ html.dark {
   --score-4-border: rgba(34,197,94,0.35);
   --score-5-bg:     rgba(14,207,130,0.14);
   --score-5-border: rgba(14,207,130,0.38);
+
+  --callout-warning-fg:            #FBBF24;
+  --callout-warning-fg-emphasis:   #FCD34D;
+  --callout-warning-bg-subtle:     rgba(245,158,11,0.10);
+  --callout-warning-bg:            rgba(245,158,11,0.12);
+  --callout-warning-bg-strong:     rgba(245,158,11,0.18);
+  --callout-warning-border:        rgba(245,158,11,0.35);
+  --callout-warning-border-strong: rgba(245,158,11,0.42);
+  --callout-warning-border-focus:  rgba(245,158,11,0.48);
+  --callout-warning-icon:          #FBBF24;
+  --callout-warning-pill-bg:       rgba(234,179,8,0.14);
+
+  --callout-error-bg:              rgba(239,68,68,0.14);
+  --callout-error-border:          rgba(239,68,68,0.38);
+
+  --callout-info-bg:               rgba(28,189,255,0.10);
+  --callout-info-border:           rgba(28,189,255,0.28);
+  --callout-info-border-strong:    rgba(28,189,255,0.36);
 
   --glass-bg:        rgba(22,27,34,0.72);
   --glass-border:    rgba(230,237,243,0.08);

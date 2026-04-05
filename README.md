@@ -57,12 +57,11 @@ A consultant submits a client's URL. The platform:
 
 ## Documentation
 
-Flat `docs/` folder (**13 files**). Start here:
+Flat `docs/` folder (**12 files**). Start here:
 
 | Doc | Contents |
-|---|---|
-| [docs/MASTER_DOCUMENTATION.md](./docs/MASTER_DOCUMENTATION.md) | Master index, knowledge domains, governance, PR checklist |
-| [docs/MASTER.md](./docs/MASTER.md) | Short pointer to master documentation |
+| --- | --- |
+| [docs/MASTER.md](./docs/MASTER.md) | Master index, knowledge domains, governance, PR checklist |
 | [docs/PRODUCT.md](./docs/PRODUCT.md) | Product overview, modes, deliverables |
 | [docs/SETUP.md](./docs/SETUP.md) | Local development, migrations, demo seed |
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Full-stack architecture + data flow |
@@ -70,7 +69,7 @@ Flat `docs/` folder (**13 files**). Start here:
 | [docs/API.md](./docs/API.md) | REST endpoints |
 | [docs/PIPELINE.md](./docs/PIPELINE.md) | Phases, parallel wings, review gates |
 | [docs/AGENTS.md](./docs/AGENTS.md) | AI agents, collectors, fact-checker |
-| [docs/FRONTEND.md](./docs/FRONTEND.md) | React pages, hooks, routing |
+| [docs/FRONTEND.md](./docs/FRONTEND.md) | React pages, hooks, routing, design system (style guide) |
 | [docs/AUTH.md](./docs/AUTH.md) | Authentication flow |
 | [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | Vercel + Railway + Supabase deploy |
 | [docs/SECURITY.md](./docs/SECURITY.md) | Threat model, rate limits, CORS, GDPR |
@@ -89,7 +88,7 @@ Flat `docs/` folder (**13 files**). Start here:
 │   ├── data/        ← apiService.ts, auditTypes.ts
 │   ├── lib/         ← supabase.ts
 │   └── components/  ← AppShell, ProtectedRoute, ReviewPointModal
-├── docs/            ← Documentation (see MASTER_DOCUMENTATION.md)
+├── docs/            ← Documentation-index (MASTER.md)
 server/              ← Backend (Express + TypeScript)
 ├── src/
 │   ├── agents/      ← Pipeline agents + BaseAgent

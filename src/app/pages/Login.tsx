@@ -19,11 +19,25 @@ export function Login() {
 
   const isTestUser = email.trim().toLowerCase() === TEST_EMAIL;
 
+  // Capture ?discovery=TOKEN from the URL so that after auth the user is
+  // redirected to /audit/new with their discovery answers pre-filled.
   useEffect(() => {
-    if (isAuthenticated) {
+    const discovery = new URLSearchParams(window.location.search).get('discovery');
+    if (discovery) localStorage.setItem('glc_discovery_token', discovery);
+    // NOTE: localStorage is fine here — same origin as the public discovery page.
+    // If a future requirement needs server-side session handoff, use an httpOnly cookie instead.
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const token = localStorage.getItem('glc_discovery_token');
+    if (token) {
+      logger.info('Login: isAuthenticated with discovery token, navigating to /audit/new');
+    } else {
       logger.info('Login: isAuthenticated, navigating to /portfolio');
-      navigate('/portfolio', { replace: true });
     }
+    navigate(token ? '/audit/new?from_discovery=1' : '/portfolio', { replace: true });
+    // Token cleanup runs in NewAudit.tsx after the session is loaded, not here.
   }, [isAuthenticated, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {

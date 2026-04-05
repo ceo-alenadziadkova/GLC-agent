@@ -6,11 +6,21 @@ export type UserRole = 'consultant' | 'client';
 export type BriefResponseSource = 'client' | 'consultant' | 'recon_confirmed' | 'unknown';
 export type IntakeReadinessBadge = 'low' | 'medium' | 'high';
 export type IntakeNextBestAction = 'complete_required' | 'add_recommended' | 'confirm_prefill' | 'none';
+export type IntakeBriefCollectionMode = 'self_serve' | 'interview' | 'pre_brief' | 'discovery';
 export type BriefResponseValue = string | string[] | number | boolean | null;
 
 export interface BriefResponseEntry {
   value: BriefResponseValue;
   source: BriefResponseSource;
+}
+
+export interface ReconConflict {
+  questionId: string;
+  detectedValue: string;
+  clientValue: string;
+  status: 'open' | 'resolved';
+  resolvedAt?: string;
+  notes?: string;
 }
 
 export type AuditRequestStatus =
@@ -29,7 +39,7 @@ export interface IntakeBrief {
   status: 'draft' | 'submitted';
   layer_completed: 0 | 1 | 2 | 3;
   collected_by: 'client' | 'consultant';
-  collection_mode: 'self_serve' | 'interview' | 'pre_brief';
+  collection_mode: IntakeBriefCollectionMode;
   data_quality_score: number;
   sla_met: boolean;
   answered_required: number;
@@ -39,6 +49,7 @@ export interface IntakeBrief {
   total_recommended: number;
   total_optional: number;
   recon_prefills: Record<string, unknown>;
+  recon_conflicts: ReconConflict[];
   post_audit_questions: Array<Record<string, unknown>>;
   progress_pct: number;
   readiness_badge: IntakeReadinessBadge;
@@ -346,4 +357,6 @@ export interface AuditState {
   domains: Record<string, DomainData | null>;
   strategy: StrategyRoadmap | null;
   reviews: ReviewPoint[];
+  /** Present when `GET /api/audits/:id` loaded intake_brief (see server audits route). */
+  brief: IntakeBrief | null;
 }

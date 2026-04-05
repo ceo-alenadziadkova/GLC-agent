@@ -731,7 +731,7 @@ export function SnapshotLanding() {
         <p className="text-xs mt-1.5" style={{ color: 'var(--text-quaternary)' }}>
           No website yet?{' '}
           <Link
-            to="/audit/discover"
+            to="/discovery"
             style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}
           >
             Try our discovery flow

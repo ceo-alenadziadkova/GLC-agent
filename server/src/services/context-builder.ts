@@ -1,6 +1,6 @@
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
-import type { DomainKey, ReconData } from '../types/audit.js';
+import type { DomainKey, ReconConflict, ReconData } from '../types/audit.js';
 import { getDomainWeight } from '../config/industry-weights.js';
 import {
   BRIEF_QUESTIONS,
@@ -8,7 +8,17 @@ import {
   getQuestionsForDomain,
   INTAKE_IDENTITY_FIELD_IDS,
 } from '../schemas/intake-brief.js';
+import { calcAiReadinessScore } from '../intake/ai-readiness.js';
+import { DOMAIN_TO_QUESTION_IDS } from '../intake/domain-slice.js';
+import {
+  getQuestionBankPromptLabel,
+  QUESTION_BANK_V1_IDS,
+  responsesUseQuestionBankV1,
+} from '../intake/question-bank.js';
+import { prepareBriefForValidation } from '../intake/hydrate-legacy-from-bank.js';
 import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
+import { isPrimaryFeedForDomain, isSecondaryFeedForDomain } from '../intake/question-feed-roles.js';
+import type { IntakeSliceDomain } from '../intake/types.js';
 
 function formatCompanyUrlForPrompt(url: string): string {
   return isNoPublicWebsiteUrl(url) ? 'No public website (use intake brief and consultant notes only)' : url;
@@ -34,12 +44,20 @@ export interface AgentContext {
   brief_response_sources: Record<string, string>;
   intake_data_quality_score: number;
   intake_readiness_badge: 'low' | 'medium' | 'high';
+  /**
+   * Question-bank v1 only: heuristic 0–100 (docs/QUESTION_BANK.md §8). Omitted for legacy-only briefs.
+   */
+  intake_ai_readiness_score?: number;
   post_audit_questions: Array<Record<string, unknown>>;
+  recon_prefills: Record<string, unknown>;
+  recon_conflicts: ReconConflict[];
   /**
    * Domain keys that failed during a parallel wing run.
    * Passed to Strategy Agent so it can acknowledge gaps in its report.
    */
   failed_domains: string[];
+  /** Agent receiving this context — used to group intake lines by primary vs secondary feeds. */
+  slice_domain: IntakeSliceDomain;
   instructions: string;
 }
 
@@ -116,11 +134,13 @@ export class ContextBuilder {
     // Fetch intake brief — get only questions relevant to this domain
     const { data: brief } = await supabase
       .from('intake_brief')
-      .select('responses, data_quality_score, readiness_badge, post_audit_questions')
+      .select('responses, data_quality_score, readiness_badge, post_audit_questions, recon_prefills, recon_conflicts')
       .eq('audit_id', auditId)
       .single();
 
-    const allResponses = (brief?.responses as Record<string, unknown>) ?? {};
+    const allResponses = prepareBriefForValidation(
+      (brief?.responses as Record<string, unknown>) ?? {},
+    ) as Record<string, unknown>;
     const domainQuestions = getQuestionsForDomain(domainKey);
     const briefResponses: Record<string, string | string[] | number | boolean | null> = {};
     const briefResponseSources: Record<string, string> = {};
@@ -141,13 +161,39 @@ export class ContextBuilder {
       briefResponseSources[id] = parsed.source;
     }
 
+    if (responsesUseQuestionBankV1(allResponses)) {
+      const bankIds = DOMAIN_TO_QUESTION_IDS[domainKey as keyof typeof DOMAIN_TO_QUESTION_IDS];
+      if (bankIds) {
+        for (const id of bankIds) {
+          const val = allResponses[id];
+          if (val === undefined) continue;
+          const parsed = ContextBuilder.unwrapBriefResponse(val);
+          briefResponses[id] = parsed.value;
+          briefResponseSources[id] = parsed.source;
+        }
+      }
+    }
+
     // Express: one primary competitor in agent context (product promises a single confirmed peer).
     const productMode = String(audit?.product_mode ?? 'full');
     if (productMode === 'express' && briefResponses.main_competitors != null) {
       briefResponses.main_competitors = extractPrimaryCompetitor(briefResponses.main_competitors);
     }
 
+    for (const [k, val] of Object.entries(allResponses)) {
+      if (!k.endsWith('__other')) continue;
+      const parent = k.slice(0, -'__other'.length);
+      if (!(parent in briefResponses)) continue;
+      const parsed = ContextBuilder.unwrapBriefResponse(val);
+      briefResponses[k] = parsed.value;
+      briefResponseSources[k] = parsed.source;
+    }
+
     const industry = audit?.industry ?? recon?.industry ?? null;
+
+    const bankAiReadiness = responsesUseQuestionBankV1(allResponses)
+      ? calcAiReadinessScore(allResponses).score
+      : undefined;
 
     return {
       company_url: audit?.company_url ?? '',
@@ -174,10 +220,109 @@ export class ContextBuilder {
       brief_response_sources: briefResponseSources,
       intake_data_quality_score: Number(brief?.data_quality_score ?? 0),
       intake_readiness_badge: (brief?.readiness_badge as 'low' | 'medium' | 'high') ?? 'low',
+      ...(bankAiReadiness !== undefined ? { intake_ai_readiness_score: bankAiReadiness } : {}),
       post_audit_questions: (brief?.post_audit_questions as Array<Record<string, unknown>>) ?? [],
+      recon_prefills: (brief?.recon_prefills as Record<string, unknown>) ?? {},
+      recon_conflicts: Array.isArray(brief?.recon_conflicts)
+        ? (brief.recon_conflicts as ReconConflict[])
+        : [],
       failed_domains: (failedDomains ?? []).map(d => String(d.domain_key)),
+      slice_domain: domainKey as IntakeSliceDomain,
       instructions,
     };
+  }
+
+  /**
+   * Markdown for "## Client Brief" with primary vs secondary grouping when bank v1 ids are present.
+   */
+  static formatClientBriefSection(ctx: AgentContext, industryOtherSpecify: string): string | null {
+    const slice = ctx.slice_domain;
+    const domainOrder = DOMAIN_TO_QUESTION_IDS[slice];
+    const orderIdx = domainOrder ? new Map(domainOrder.map((id, i) => [id, i] as const)) : null;
+
+    type BriefEntry = { id: string; line: string };
+
+    const entries: BriefEntry[] = [];
+    for (const [id, v] of Object.entries(ctx.brief_responses)) {
+      if (v === null || v === '') continue;
+      if (id.endsWith('__other')) continue;
+      if (id === 'intake_industry_specify' && ctx.industry === 'Other' && industryOtherSpecify) {
+        continue;
+      }
+      const question = getQuestionBankPromptLabel(id) ?? getBriefQuestionText(id);
+      let answer = Array.isArray(v) ? v.join(', ') : String(v);
+      const specKey = `${id}__other`;
+      const rawSpec = ctx.brief_responses[specKey];
+      const specStr =
+        rawSpec != null && rawSpec !== ''
+          ? (Array.isArray(rawSpec) ? rawSpec.join(', ') : String(rawSpec)).trim()
+          : '';
+      if (specStr) {
+        answer = `${answer} — ${specStr}`;
+      }
+      const source = ctx.brief_response_sources[id] ?? 'client';
+      entries.push({
+        id,
+        line: `- **${question}:** ${answer} _(source: ${source})_`,
+      });
+    }
+
+    if (entries.length === 0) return null;
+
+    const hasBankId = entries.some(e => QUESTION_BANK_V1_IDS.has(e.id));
+    if (!hasBankId || !orderIdx) {
+      return `## Client Brief (Pre-Audit Intake)\n${entries.map(e => e.line).join('\n')}`;
+    }
+
+    const primary: BriefEntry[] = [];
+    const secondary: BriefEntry[] = [];
+    const legacy: BriefEntry[] = [];
+
+    for (const e of entries) {
+      const { id } = e;
+      if (!QUESTION_BANK_V1_IDS.has(id) || !orderIdx.has(id)) {
+        legacy.push(e);
+        continue;
+      }
+      if (isPrimaryFeedForDomain(id, slice)) {
+        primary.push(e);
+      } else if (isSecondaryFeedForDomain(id, slice)) {
+        secondary.push(e);
+      } else {
+        legacy.push(e);
+      }
+    }
+
+    const bySliceOrder = (a: BriefEntry, b: BriefEntry) =>
+      (orderIdx.get(a.id) ?? 9999) - (orderIdx.get(b.id) ?? 9999);
+    primary.sort(bySliceOrder);
+    secondary.sort(bySliceOrder);
+
+    const identityOrder = new Map(INTAKE_IDENTITY_FIELD_IDS.map((id, i) => [id, i] as const));
+    legacy.sort((a, b) => {
+      const ai = identityOrder.get(a.id as (typeof INTAKE_IDENTITY_FIELD_IDS)[number]);
+      const bi = identityOrder.get(b.id as (typeof INTAKE_IDENTITY_FIELD_IDS)[number]);
+      if (ai !== undefined && bi !== undefined) return ai - bi;
+      if (ai !== undefined) return -1;
+      if (bi !== undefined) return 1;
+      return a.id.localeCompare(b.id);
+    });
+
+    const parts: string[] = ['## Client Brief (Pre-Audit Intake)'];
+    if (primary.length > 0) {
+      parts.push('### Primary intake (this domain)');
+      parts.push(...primary.map(e => e.line));
+    }
+    if (secondary.length > 0) {
+      parts.push('### Additional context (shared from other domains)');
+      parts.push(...secondary.map(e => e.line));
+    }
+    if (legacy.length > 0) {
+      parts.push('### Other intake (identity & legacy)');
+      parts.push(...legacy.map(e => e.line));
+    }
+
+    return parts.join('\n');
   }
 
   /**
@@ -209,32 +354,33 @@ export class ContextBuilder {
 - **Industry:** ${industryLine}
 - **Domain weight for this industry:** ${ctx.domain_weight}x
 - **Intake readiness:** ${ctx.intake_readiness_badge}
-- **Intake data quality score:** ${ctx.intake_data_quality_score}`);
+- **Intake data quality score:** ${ctx.intake_data_quality_score}${
+  ctx.intake_ai_readiness_score != null
+    ? `\n- **Intake AI readiness (heuristic, question-bank):** ${ctx.intake_ai_readiness_score}/100`
+    : ''
+}`);
 
-    // Intake brief — domain-relevant answers (shown before raw data for prominence)
-    if (Object.keys(ctx.brief_responses).length > 0) {
-      const briefLines = Object.entries(ctx.brief_responses)
-        .filter(([id, v]) => {
-          if (v === null || v === '') return false;
-          if (id === 'intake_industry_specify' && ctx.industry === 'Other' && specifyStr) {
-            return false;
-          }
-          return true;
-        })
-        .map(([id, v]) => {
-          const question = getBriefQuestionText(id);
-          const answer = Array.isArray(v) ? v.join(', ') : String(v);
-          const source = ctx.brief_response_sources[id] ?? 'client';
-          return `- **${question}:** ${answer} _(source: ${source})_`;
-        });
-      if (briefLines.length > 0) {
-        sections.push(`## Client Brief (Pre-Audit Intake)\n${briefLines.join('\n')}`);
-      }
+    const briefSection = ContextBuilder.formatClientBriefSection(ctx, specifyStr);
+    if (briefSection) {
+      sections.push(briefSection);
     }
 
     if (ctx.post_audit_questions.length > 0) {
       sections.push(`## Post-audit Follow-up Questions\n${ctx.post_audit_questions
         .map((q, i) => `- Q${i + 1}: ${String(q.question ?? q.item ?? 'Follow-up needed')}`)
+        .join('\n')}`);
+    }
+
+    const openConflicts = ctx.recon_conflicts.filter(c => c.status === 'open');
+    if (openConflicts.length > 0) {
+      sections.push(`## Recon / client conflicts\n${openConflicts
+        .map(c => `- **${c.questionId}:** crawler suggested "${c.detectedValue}" — client indicated "${c.clientValue}"`)
+        .join('\n')}`);
+    }
+
+    if (Object.keys(ctx.recon_prefills).length > 0) {
+      sections.push(`## Recon prefills (for intake confirm)\n${Object.entries(ctx.recon_prefills)
+        .map(([k, v]) => `- **${k}:** ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
         .join('\n')}`);
     }
 

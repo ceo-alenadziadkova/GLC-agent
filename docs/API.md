@@ -67,6 +67,44 @@ Notes:
 
 ---
 
+## Platform (consultant)
+
+Assigns which consultant owns **client self-serve** audits (`audits.user_id` when `POST /api/audits` is called with a client JWT). UI: **Settings → Client portal — audit owner** (consultant / admin shell).
+
+**Optional env:** `PLATFORM_ADMIN_USER_IDS` — comma-separated consultant `profiles.id` values allowed to **PATCH** this setting. If unset or empty, any consultant may change it.
+
+### `GET /api/platform/self-serve-owner`
+
+**Auth:** consultant JWT.
+
+**Response `200`:**
+
+```json
+{
+  "stored_owner_user_id": "uuid | null",
+  "effective_owner_user_id": "uuid | null",
+  "effective_ready": true,
+  "env_fallback_active": false,
+  "consultants": [{ "id": "uuid", "full_name": "Jane", "email": "jane@example.com" }],
+  "can_manage": true
+}
+```
+
+- `effective_ready` — `POST /api/audits` as a client would succeed (stored consultant valid, or valid env fallback).
+- `env_fallback_active` — effective owner comes from `SELF_SERVE_AUDIT_OWNER_USER_ID` because nothing is stored in `platform_settings` yet.
+
+### `PATCH /api/platform/self-serve-owner`
+
+**Auth:** consultant JWT and `can_manage` (see `PLATFORM_ADMIN_USER_IDS` above).
+
+**Body:** `{ "owner_user_id": "<uuid>" | null }` — `null` clears the stored consultant (env fallback may still apply).
+
+**Response `200`:** `{ "ok": true, "stored_owner_user_id", "effective_ready", "effective_owner_user_id", "env_fallback_active" }`
+
+**Errors:** `400` invalid consultant, `403` not a platform admin when the allowlist is configured.
+
+---
+
 ## Audits
 
 ### Access matrix (audits)
@@ -76,14 +114,19 @@ Use this matrix for new endpoints to keep access rules consistent. **Consultant*
 | Endpoint pattern | Consultant (owner) | Client (`client_id`) | Notes |
 |------------------|--------------------|----------------------|--------|
 | `GET /api/audits`, `GET /api/audits/:id` | yes | yes | Read when permitted by API/RLS |
+| `GET /api/audits/:id/brief`, `PUT /api/audits/:id/brief` | yes | yes | Intake brief + `gates`; **GET** includes `product_mode` (from audit) for express vs full required-field UX |
 | `GET /api/audits/:id/pipeline/status`, `GET /api/audits/:id/quality-gate/:phase` | yes | yes | Progress / quality gate payload |
-| `POST /api/audits/:id/pipeline/start`, `POST .../pipeline/next`, `POST .../pipeline/retry` | yes | no | Consultant-only (`server/src/routes/pipeline.ts`) |
+| `POST /api/audits/:id/pipeline/start`, `POST .../pipeline/next` | yes | yes | Client may start/continue only when `audits.client_id` matches and brief gates pass (`status === 'created'` for start). **`retry`** remains consultant-only. |
+| `POST /api/audits/:id/pipeline/retry` | yes | no | Consultant-only |
 | `POST /api/audits/:id/reviews/:phase` | yes | no | Consultant-only |
+| `POST /api/audits/:id/brief/help-request` | no | yes | Client-only: optional brief help ping (`brief_help_*` on `audits` + consultant notification). Only while `status === 'created'`. |
 | `DELETE /api/audits/:id` | yes (owner) | no | Destructive |
 
 ### `POST /api/audits`
 
 Create a new audit.
+
+**Roles:** **Consultant** — `user_id` is the authenticated consultant, `client_id` null. **Client (self-serve)** — allowed when a valid owner consultant is configured: **`platform_settings.self_serve_audit_owner_user_id`** (see `GET /api/platform/self-serve-owner`), else optional fallback **`SELF_SERVE_AUDIT_OWNER_USER_ID`** env. The new row uses that consultant as `user_id` (billing/ownership) and `client_id` = authenticated client profile id. **`503`** with `code: "SELF_SERVE_OWNER_UNAVAILABLE"` when neither is valid.
 
 **Request body:**
 
@@ -110,22 +153,31 @@ Create a new audit.
 
 ### `GET /api/audits`
 
-List all audits for the authenticated user (summary fields only).
+List audits visible to the caller (summary fields only): consultants see rows they own (`user_id`); clients see rows where they are `client_id`.
 
 **Response `200`:**
 
 ```json
-[
-  {
-    "id": "uuid",
-    "company_url": "https://example.com",
-    "company_name": "Example Co",
-    "industry": "E-commerce",
-    "status": "completed",
-    "overall_score": 3.8,
-    "created_at": "2024-01-01T00:00:00Z"
-  }
-]
+{
+  "data": [
+    {
+      "id": "uuid",
+      "company_url": "https://example.com",
+      "company_name": "Example Co",
+      "industry": "E-commerce",
+      "product_mode": "full",
+      "status": "completed",
+      "current_phase": 7,
+      "overall_score": 3.8,
+      "tokens_used": 120000,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-02T00:00:00Z"
+    }
+  ],
+  "total": 1,
+  "limit": 50,
+  "offset": 0
+}
 ```
 
 ---
@@ -187,11 +239,21 @@ Delete audit and all related data (CASCADE). Irreversible.
 
 ---
 
+### `POST /api/audits/:id/brief/help-request`
+
+**Auth:** client JWT only. **Body:** `{ "message": "optional short note" }` (trimmed, max 2000 chars).
+
+Records `brief_help_requested_at` / `brief_help_client_message` on the audit and notifies consultants. Allowed only while `audits.status === 'created'` and the caller is the audit’s `client_id`. Does not block `pipeline/start`.
+
+**Response `200`:** `{ "ok": true }`
+
+---
+
 ## Pipeline
 
 ### `POST /api/audits/:id/pipeline/start`
 
-Start Phase 0 (Recon). Audit must be in `created` status.
+Start Phase 0 (Recon). Audit must be in `created` status; intake brief gates must allow start for the audit’s `product_mode` (express vs full). **Consultant** callers must own the row (`user_id`). **Client** callers must match `client_id` on the audit.
 Supports optimistic race protection via DB compare-and-set. If another request already claimed execution, returns `409`.
 
 **Response `200`:**
@@ -204,7 +266,7 @@ Supports optimistic race protection via DB compare-and-set. If another request a
 
 ### `POST /api/audits/:id/pipeline/next`
 
-Run the next pending phase or parallel block. Used after a review approval to continue the pipeline.
+Run the next pending phase or parallel block. Used after a review approval to continue the pipeline. **Clients** linked via `client_id` may call this when the pipeline is waiting to advance in a state the API allows (consultants still own review submissions and retry).
 Uses compare-and-set claim on the audit row to prevent duplicate concurrent starts.
 
 **Response `200`:**
@@ -430,11 +492,17 @@ Lists intake tokens **you created** where the client has already submitted (`sub
 
 **Response `200`:** `{ "metadata", "questions" (pre-brief subset), "responses", "submitted_at", "expires_at" }`.
 
+The `questions` list includes question-bank fields **`f2`**, **`a7`**, and **`f8`** (focus areas, business moment, deadline) immediately after identity and before the legacy core (`primary_goal`, etc.); see [QUESTION_BANK.md](./QUESTION_BANK.md).
+
+Each question object includes optional **`section`** (UI heading: `Business`, `Goals`, `UX & Conversion`, …) aligned with the consultant brief — the public `/intake/:token` page groups the form and review by these sections. Same shape on **`GET /api/intake/prefill/:token`**.
+
 **Response `410`:** link expired.
 
 ### `POST /api/intake/:token/respond`
 
 **Auth:** none. **Body:** `{ "responses": { ... } }` — same shape as intake brief answers (validated with `BriefResponsesSchema`).
+
+Submit validation requires **identity** plus the legacy express-style core (`primary_goal`, `target_audience`, `primary_cta`, `has_google_analytics`, `handles_payments`, `biggest_pain`); **`f2` / `a7` / `f8` are optional** but, when present, merge into `intake_brief` like other `pre_brief` keys.
 
 Overwrites stored responses and updates `submitted_at`. Allowed until `expires_at` (no single-submit lock). If the token was created with `audit_id`, merges pre-brief question keys into `intake_brief` with source `client`.
 

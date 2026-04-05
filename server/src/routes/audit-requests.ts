@@ -605,7 +605,7 @@ auditRequestsRouter.post('/:id/reject', requireRole('consultant'), async (req: A
       payload: {
         request_id: id,
         status: 'rejected',
-        route: `/portal/request/${id}`,
+        route: '/portal',
         occurred_at: new Date().toISOString(),
         actor_role: 'consultant',
       },
@@ -662,7 +662,7 @@ auditRequestsRouter.post('/:id/deliver', requireRole('consultant'), async (req: 
         request_id: id,
         audit_id: data.audit_id,
         status: 'delivered',
-        route: data.audit_id ? `/portal/audit/${data.audit_id as string}` : `/portal/request/${id}`,
+        route: data.audit_id ? `/portal/audit/${data.audit_id as string}` : '/portal',
         occurred_at: new Date().toISOString(),
         actor_role: 'consultant',
       },

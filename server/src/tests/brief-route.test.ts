@@ -70,9 +70,9 @@ const {
     })),
   });
 
-  const mockFrom = vi.fn((table: string) => ({
-    select: vi.fn(() => ({
-      eq: vi.fn().mockReturnThis(),
+  const mockFrom = vi.fn((table: string) => {
+    const chain = {
+      eq: vi.fn(() => chain),
       single: vi.fn(() => {
         if (table === 'audits') {
           return Promise.resolve({
@@ -88,12 +88,24 @@ const {
         }
         return Promise.resolve({ data: null, error: null });
       }),
-    })),
-    upsert: vi.fn((payload: unknown) => {
-      lastUpsertPayload = payload;
-      return makeBriefUpsertChain();
-    }),
-  }));
+      maybeSingle: vi.fn(() => {
+        if (table === 'intake_brief') {
+          return Promise.resolve({
+            data: briefRow,
+            error: null,
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      }),
+    };
+    return {
+      select: vi.fn(() => chain),
+      upsert: vi.fn((payload: unknown) => {
+        lastUpsertPayload = payload;
+        return makeBriefUpsertChain();
+      }),
+    };
+  });
 
   (globalThis as Record<string, unknown>).__briefRouteMockFrom = mockFrom;
   (globalThis as Record<string, unknown>).__setAuditRow = setAuditRow;
@@ -198,7 +210,7 @@ describe('GET /api/audits/:id/brief', () => {
 
     expect(status).toBe(200);
     expect(body.questions).toBeInstanceOf(Array);
-    expect((body.questions as unknown[]).length).toBe(25);
+    expect((body.questions as unknown[]).length).toBe(28);
     expect(body.brief).toBeNull();
     expect(body.gates).toBeDefined();
     expect(body.intakeProgress).toBeDefined();
@@ -340,9 +352,9 @@ describe('PUT /api/audits/:id/brief', () => {
     expect(body.error).toBeDefined();
   });
 
-  it('returns 400 for Zod violation (string > 2000 chars)', async () => {
+  it('returns 400 for Zod violation (string > BRIEF_ANSWER_STRING_MAX chars)', async () => {
     const { status, body } = await putJSON('/api/audits/audit-001/brief', {
-      responses: { primary_goal: 'x'.repeat(2001) },
+      responses: { primary_goal: 'x'.repeat(12_001) },
     });
     expect(status).toBe(400);
     expect(body.error).toMatch(/Invalid brief responses/);

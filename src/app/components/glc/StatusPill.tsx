@@ -10,7 +10,7 @@ const STATUS_CONFIG: Record<Status, {
   pending:   { label: 'Pending',       color: 'var(--text-tertiary)',   bg: 'var(--bg-muted)',         dot: 'var(--border-strong)',      border: 'var(--border-subtle)'  },
   running:   { label: 'Running',       color: 'var(--glc-blue-deeper)', bg: 'var(--glc-blue-xlight)',  dot: 'var(--glc-blue)',           border: 'rgba(28,189,255,0.25)' },
   completed: { label: 'Completed',     color: 'var(--glc-green-dark)',  bg: 'var(--glc-green-xlight)', dot: 'var(--glc-green)',          border: 'rgba(14,207,130,0.25)' },
-  review:    { label: 'Needs Review',  color: '#92400E',                bg: '#FFFBEB',                 dot: 'var(--score-3)',            border: 'rgba(234,179,8,0.25)'  },
+  review:    { label: 'Needs Review',  color: 'var(--callout-warning-fg)', bg: 'var(--callout-warning-pill-bg)', dot: 'var(--score-3)',       border: 'var(--score-3-border)'  },
   failed:    { label: 'Failed',        color: 'var(--score-1)',         bg: 'var(--score-1-bg)',        dot: 'var(--score-1)',            border: 'var(--score-1-border)' },
   active:    { label: 'Active',        color: 'var(--glc-green-dark)',  bg: 'var(--glc-green-xlight)', dot: 'var(--glc-green)',          border: 'rgba(14,207,130,0.25)' },
   paused:    { label: 'Paused',        color: 'var(--text-secondary)',  bg: 'var(--bg-muted)',          dot: 'var(--text-quaternary)',    border: 'var(--border-subtle)'  },

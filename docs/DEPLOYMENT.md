@@ -14,7 +14,7 @@
 ## Supabase Setup
 
 1. Create project at [supabase.com](https://supabase.com) — choose **EU (Frankfurt)** region for GDPR compliance
-2. In SQL Editor → run **all** SQL migrations in order (`001` … `015`); see [DATABASE.md](./DATABASE.md#overview)
+2. In SQL Editor → run **all** SQL migrations in order (`001` … `018`); see [DATABASE.md](./DATABASE.md#overview)
 3. Authentication → Settings:
    - Set **Site URL** to your production frontend URL (exact URL; wildcards are invalid here)
    - Add **Redirect URLs**: exact dev/prod origins and `/login` URLs as needed — see [AUTH.md](./AUTH.md#supabase-auth-configuration) (some dashboards reject `*` wildcards)
@@ -42,6 +42,8 @@
    ANTHROPIC_API_KEY=sk-ant-...
    NODE_ENV=production
    ```
+   **Client self-serve (portal):** after migration `018_platform_settings.sql`, a **lead administrator** (consultant) sets the default audit owner under **Settings → Client portal — audit owner** (`PATCH /api/platform/self-serve-owner`). Optionally keep **`SELF_SERVE_AUDIT_OWNER_USER_ID`** as a bootstrap / backup consultant UUID when the database value is empty. **`PLATFORM_ADMIN_USER_IDS`** (comma-separated consultant `profiles.id`) restricts who may PATCH platform settings; if omitted, any consultant may change the assignment.
+
 5. Build command: `npm run build`
 6. Start command: `npm start` (runs compiled `dist/index.js`)
 7. Railway provides a public URL like `https://glc-api.up.railway.app`
@@ -99,6 +101,8 @@
 | `ALERT_TOKEN_BURN_15M_THRESHOLD` | Token burn threshold over 15m window (default `300000`) |
 | `SENTRY_TRACE_LINK_TEMPLATE` | Optional deep link template with `{trace_id}` placeholder |
 | `TRACE_LINK_TEMPLATE` | Optional custom trace viewer link template with `{trace_id}` |
+| `SELF_SERVE_AUDIT_OWNER_USER_ID` | Optional fallback consultant `profiles.id` when `platform_settings.self_serve_audit_owner_user_id` is null |
+| `PLATFORM_ADMIN_USER_IDS` | Optional comma-separated consultant `profiles.id` values allowed to PATCH `/api/platform/self-serve-owner`; if unset, any consultant may manage the stored assignment |
 
 ---
 
@@ -129,7 +133,7 @@ In production: set `ALLOWED_ORIGINS=https://your-app.vercel.app` in Railway.
 
 ## Deploy Checklist
 
-- [ ] Run all SQL migrations in order (`001` … `015`) in Supabase SQL editor
+- [ ] Run all SQL migrations in order (`001` … `018`) in Supabase SQL editor
 - [ ] RLS policies active (check in Supabase → Table Editor → each table)
 - [ ] Supabase Site URL + Redirect URLs updated to production domain
 - [ ] Google OAuth configured in Supabase (if using)

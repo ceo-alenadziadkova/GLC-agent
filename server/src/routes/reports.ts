@@ -130,6 +130,8 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
   } catch (err) {
     const e = err as Error;
     logger.error('route.report_failed', { component: 'reports', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to generate report' });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to generate report' });
+    }
   }
 });

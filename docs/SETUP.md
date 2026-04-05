@@ -110,7 +110,7 @@ cd server && npx tsc --noEmit
 │       ├── data/    ← auditTypes.ts, apiService.ts
 │       ├── lib/     ← supabase.ts client
 │       └── components/
-├── docs/            ← All documentation (index: MASTER_DOCUMENTATION.md)
+├── docs/            ← All documentation (index: MASTER.md)
 server/              ← Backend (Express + TypeScript)
 ├── src/
 │   ├── agents/      ← Domain agents + BaseAgent

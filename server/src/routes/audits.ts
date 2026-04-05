@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
-import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../middleware/auth.js';
+import { requireAuth, attachProfile, requireRole, type AuthRequest, type UserRole } from '../middleware/auth.js';
 import { createAuditLimiter, generalLimiter } from '../middleware/rate-limit.js';
 import {
   DOMAIN_KEYS,
@@ -10,13 +10,20 @@ import {
   reviewPhasesForMode,
   type ProductMode,
 } from '../types/audit.js';
-import { evaluateBriefGates, saveBriefResponses, validateBriefResponses } from '../services/brief-validator.js';
+import {
+  evaluateBriefGates,
+  saveBriefResponses,
+  validateBriefResponses,
+} from '../services/brief-validator.js';
+import type { IntakeBriefCollectionMode } from '../types/audit.js';
 import { BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import { NO_PUBLIC_WEBSITE_URL } from '../config/no-public-website.js';
 import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 import { getStoredIdempotentResponse, storeIdempotentResponse } from '../lib/idempotency.js';
 import { logger } from '../services/logger.js';
+import { resolveSelfServeAuditOwnerUserId } from '../lib/self-serve-audit-owner.js';
+import { notifyConsultants } from '../services/notifications.js';
 
 export const auditsRouter = Router();
 
@@ -26,9 +33,76 @@ auditsRouter.use(generalLimiter);
 
 const consultantGuard = [attachProfile, requireRole('consultant')] as const;
 
-// ─── POST /api/audits — Create new audit (consultant only) ─
-auditsRouter.post('/', ...consultantGuard, createAuditLimiter, async (req: AuthRequest, res) => {
+async function createAuditWithChildren(params: {
+  ownerUserId: string;
+  clientId: string | null;
+  company_url: string;
+  company_name: string | null;
+  industry: string | null;
+  mode: ProductMode;
+}): Promise<{ id: string; status: string }> {
+  const { ownerUserId, clientId, company_url, company_name, industry, mode } = params;
+
+  const { data: audit, error: auditErr } = await supabase
+    .from('audits')
+    .insert({
+      user_id: ownerUserId,
+      client_id: clientId,
+      company_url,
+      company_name,
+      industry,
+      product_mode: mode,
+    })
+    .select()
+    .single();
+
+  if (auditErr) throw auditErr;
+
+  const activeDomainKeys = mode === 'express' ? EXPRESS_DOMAIN_KEYS : DOMAIN_KEYS;
+  const activeReviewPhases = reviewPhasesForMode(mode);
+
+  const reviewInserts = activeReviewPhases.map(phase => ({
+    audit_id: audit.id,
+    after_phase: phase,
+  }));
+
+  const domainInserts = activeDomainKeys.map((key, i) => ({
+    audit_id: audit.id,
+    domain_key: key,
+    phase_number: i + 1,
+  }));
+
+  const childInserts = [
+    supabase.from('review_points').insert(reviewInserts),
+    supabase.from('audit_domains').insert(domainInserts),
+    supabase.from('audit_recon').insert({ audit_id: audit.id }),
+    ...(mode !== 'express' ? [supabase.from('audit_strategy').insert({ audit_id: audit.id })] : []),
+  ] as const;
+
+  const results = await Promise.allSettled(childInserts);
+
+  const initFailed = results.some(
+    r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.error)
+  );
+
+  if (initFailed) {
+    await supabase.from('audits').delete().eq('id', audit.id);
+    logger.error('Audit initialization failed, rollback applied', { audit_id: audit.id });
+    throw new Error('Failed to initialize audit — rolled back');
+  }
+
+  return { id: audit.id as string, status: audit.status as string };
+}
+
+// ─── POST /api/audits — Create audit (consultant: own user_id; client: self-serve owner + client_id) ─
+auditsRouter.post('/', attachProfile, createAuditLimiter, async (req: AuthRequest, res) => {
   try {
+    const role = req.userRole as UserRole | undefined;
+    if (role !== 'consultant' && role !== 'client') {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
     const { company_url, company_name, industry, product_mode, no_public_website } = req.body;
     const mode: ProductMode = product_mode === 'express' ? 'express' : 'full';
     const idempotent = await getStoredIdempotentResponse(req, 'POST:/api/audits', req.body);
@@ -52,7 +126,6 @@ auditsRouter.post('/', ...consultantGuard, createAuditLimiter, async (req: AuthR
         return;
       }
 
-      // Normalize URL BEFORE validation — prevents double-prefix like "https://http://..."
       url = company_url.trim();
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         url = `https://${url}`;
@@ -74,59 +147,29 @@ auditsRouter.post('/', ...consultantGuard, createAuditLimiter, async (req: AuthR
       }
     }
 
-    // Create audit
-    const { data: audit, error: auditErr } = await supabase
-      .from('audits')
-      .insert({
-        user_id: req.userId!,
-        company_url: url,
-        company_name: company_name || null,
-        industry: industry || null,
-        product_mode: mode,
-      })
-      .select()
-      .single();
+    let ownerUserId: string;
+    let clientId: string | null = null;
 
-    if (auditErr) throw auditErr;
-
-    // Pre-create placeholder records appropriate for this product mode.
-    // Express: 4 domains, 2 review gates, no strategy row.
-    // Full: 6 domains, 3 review gates, strategy row.
-    const activeDomainKeys = mode === 'express' ? EXPRESS_DOMAIN_KEYS : DOMAIN_KEYS;
-    const activeReviewPhases = reviewPhasesForMode(mode);
-
-    const reviewInserts = activeReviewPhases.map(phase => ({
-      audit_id: audit.id,
-      after_phase: phase,
-    }));
-
-    const domainInserts = activeDomainKeys.map((key, i) => ({
-      audit_id: audit.id,
-      domain_key: key,
-      phase_number: i + 1,
-    }));
-
-    const childInserts = [
-      supabase.from('review_points').insert(reviewInserts),
-      supabase.from('audit_domains').insert(domainInserts),
-      supabase.from('audit_recon').insert({ audit_id: audit.id }),
-      // Express mode skips the strategy phase entirely
-      ...(mode !== 'express' ? [supabase.from('audit_strategy').insert({ audit_id: audit.id })] : []),
-    ] as const;
-
-    const results = await Promise.allSettled(childInserts);
-
-    const initFailed = results.some(
-      r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.error)
-    );
-
-    if (initFailed) {
-      // Rollback — CASCADE DELETE removes all child records
-      await supabase.from('audits').delete().eq('id', audit.id);
-      logger.error('Audit initialization failed, rollback applied', { audit_id: audit.id });
-      res.status(500).json({ error: 'Failed to initialize audit — rolled back' });
-      return;
+    if (role === 'consultant') {
+      ownerUserId = req.userId!;
+    } else {
+      const resolved = await resolveSelfServeAuditOwnerUserId();
+      if (!resolved.ok) {
+        res.status(resolved.statusCode).json({ error: resolved.error, code: resolved.code });
+        return;
+      }
+      ownerUserId = resolved.userId;
+      clientId = req.userId!;
     }
+
+    const audit = await createAuditWithChildren({
+      ownerUserId,
+      clientId,
+      company_url: url,
+      company_name: typeof company_name === 'string' && company_name.trim() ? company_name.trim() : null,
+      industry: typeof industry === 'string' && industry.trim() ? industry.trim() : null,
+      mode,
+    });
 
     const payload = { id: audit.id, status: audit.status };
     await storeIdempotentResponse(req, 'POST:/api/audits', idempotent.key, idempotent.hash, { statusCode: 201, payload }, audit.id);
@@ -134,6 +177,10 @@ auditsRouter.post('/', ...consultantGuard, createAuditLimiter, async (req: AuthR
   } catch (err) {
     if ((err as Error).message.includes('Idempotency key reuse')) {
       res.status(409).json({ error: (err as Error).message });
+      return;
+    }
+    if ((err as Error).message.includes('Failed to initialize audit')) {
+      res.status(500).json({ error: (err as Error).message });
       return;
     }
     logger.error('Create audit route failed', { error: (err as Error).message });
@@ -152,7 +199,10 @@ auditsRouter.get('/', async (req: AuthRequest, res) => {
     const userFilter = safeOrUserFilter(uid);
     const { data, error, count } = await supabase
       .from('audits')
-      .select('id, company_url, company_name, industry, status, current_phase, overall_score, tokens_used, created_at, updated_at', { count: 'exact' })
+      .select(
+        'id, company_url, company_name, industry, product_mode, status, current_phase, overall_score, tokens_used, created_at, updated_at',
+        { count: 'exact' },
+      )
       .or(userFilter)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -284,6 +334,7 @@ auditsRouter.get('/:id/brief', async (req: AuthRequest, res) => {
     const gates = evaluateBriefGates(responses, audit.product_mode as ProductMode);
 
     res.json({
+      product_mode: audit.product_mode,
       brief: brief ?? null,
       questions: BRIEF_QUESTIONS,
       validation,
@@ -297,18 +348,92 @@ auditsRouter.get('/:id/brief', async (req: AuthRequest, res) => {
   }
 });
 
+// ─── POST /api/audits/:id/brief/help-request — Client asks for brief help (optional) ─
+auditsRouter.post('/:id/brief/help-request', attachProfile, async (req: AuthRequest, res) => {
+  try {
+    const id = req.params.id as string;
+    if (req.userRole !== 'client') {
+      res.status(403).json({ error: 'Only clients can request brief help from this endpoint' });
+      return;
+    }
+
+    const rawMsg = req.body?.message;
+    const message =
+      typeof rawMsg === 'string' ? rawMsg.trim().slice(0, 2000) : '';
+
+    const { data: audit } = await supabase
+      .from('audits')
+      .select('id, user_id, client_id, company_url, status')
+      .eq('id', id)
+      .single();
+
+    if (!audit) {
+      res.status(404).json({ error: 'Audit not found' });
+      return;
+    }
+
+    if (audit.client_id !== req.userId) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    if ((audit.status as string) !== 'created') {
+      res.status(400).json({ error: 'Help request is only available before the pipeline has started' });
+      return;
+    }
+
+    const { error: upErr } = await supabase
+      .from('audits')
+      .update({
+        brief_help_requested_at: new Date().toISOString(),
+        brief_help_client_message: message || null,
+      })
+      .eq('id', id)
+      .eq('client_id', req.userId!);
+
+    if (upErr) throw upErr;
+
+    await notifyConsultants(
+      'intake',
+      'Client requested help with brief',
+      message
+        ? `A client asked for help with their intake brief (audit ${id.slice(0, 8)}…).`
+        : `A client asked for help with their intake brief (audit ${id.slice(0, 8)}…).`,
+      {
+        audit_id: id,
+        route: `/audit/${id}`,
+        occurred_at: new Date().toISOString(),
+        actor_role: 'client',
+        help_message: message || undefined,
+      },
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    const e = err as Error;
+    logger.error('route.brief_help_request_failed', { component: 'audits', error: e.message, stack: e.stack });
+    res.status(500).json({ error: 'Failed to record help request' });
+  }
+});
+
 // ─── PUT /api/audits/:id/brief — Save brief responses ──────────────────────
 // Accessible by owner (consultant) or client who submitted the request.
 // Idempotent upsert — call repeatedly as user fills the form.
 auditsRouter.put('/:id/brief', async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
-    const { responses } = req.body;
+    const { responses, collection_mode: collectionModeRaw } = req.body;
 
     if (!responses || typeof responses !== 'object' || Array.isArray(responses)) {
       res.status(400).json({ error: 'responses must be an object' });
       return;
     }
+
+    const allowedModes: IntakeBriefCollectionMode[] = ['self_serve', 'interview', 'pre_brief', 'discovery'];
+    const collection_mode =
+      typeof collectionModeRaw === 'string' && allowedModes.includes(collectionModeRaw as IntakeBriefCollectionMode)
+        ? (collectionModeRaw as IntakeBriefCollectionMode)
+        : undefined;
 
     // Verify access
     const { data: audit } = await supabase
@@ -328,7 +453,9 @@ auditsRouter.put('/:id/brief', async (req: AuthRequest, res) => {
       return;
     }
 
-    const { brief, gates } = await saveBriefResponses(id, responses as Record<string, unknown>);
+    const { brief, gates } = await saveBriefResponses(id, responses as Record<string, unknown>, {
+      ...(collection_mode ? { collection_mode } : {}),
+    });
     const liveValidation = validateBriefResponses(brief.responses as Record<string, unknown>);
 
     res.json({
