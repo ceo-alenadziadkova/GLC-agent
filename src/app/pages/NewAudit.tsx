@@ -282,6 +282,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const intakeTokenFromUrl = searchParams.get('intake')?.trim() ?? '';
+  const fromDiscovery      = searchParams.get('from_discovery') ?? '';
   const isClientSelfServe = variant === 'client_self_serve';
 
   const [portalDraftSeed] = useState<ClientPortalNewAuditDraftV1 | null>(() =>
@@ -300,6 +301,8 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
   // Step 2 fields
   const [responses, setResponses] = useState<BriefResponses>(() => portalDraftSeed?.responses ?? {});
   const [intakePrefillActive, setIntakePrefillActive] = useState(false);
+  /** True when answers were pre-loaded from a public discovery session. */
+  const [discoveryPrefilled, setDiscoveryPrefilled] = useState(false);
 
   // Pre-brief modal (Step 0)
   const [preBriefOpen, setPreBriefOpen] = useState(false);
@@ -453,6 +456,45 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
     briefLayoutChoice,
     draftAuditId,
   ]);
+
+  // ── Discovery session pre-fill ──────────────────────────────────────────────
+  // When the user arrives from /audit/discover via ?from_discovery=1, load the
+  // stored discovery session and merge its bank-ID answers into the wizard.
+  useEffect(() => {
+    if (!fromDiscovery) return;
+    const token = localStorage.getItem('glc_discovery_token');
+    if (!token) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const session = await api.getDiscoverySession(token);
+        if (cancelled || !session?.answers) return;
+
+        const bankResponses: BriefResponses = {};
+        for (const [key, val] of Object.entries(session.answers as Record<string, unknown>)) {
+          if (val != null) {
+            bankResponses[key] = { value: val as BriefResponseEntry['value'], source: 'client' };
+          }
+        }
+        // Discovery mode always implies no public website
+        bankResponses['a5'] = { value: 'No website yet', source: 'client' };
+
+        setResponses(prev => ({ ...prev, ...bankResponses }));
+        setNoPublicWebsite(true);
+
+        // Sync Step 1 industry field if a2 was answered
+        const a2 = session.answers['a2'] as string | undefined;
+        if (a2) setIndustry(a2);
+
+        setDiscoveryPrefilled(true);
+        localStorage.removeItem('glc_discovery_token');
+      } catch {
+        // Non-critical — wizard opens blank if session can't be loaded
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [fromDiscovery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Validation ──────────────────────────────────────────
   function isValidUrl(raw: string): boolean {
@@ -1295,6 +1337,19 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
 
                 {layoutSelected && (
                   <>
+                    {/* Discovery pre-fill banner */}
+                    {discoveryPrefilled && (
+                      <div
+                        className="flex items-start gap-2.5 rounded-xl px-3.5 py-2.5 mb-4"
+                        style={{ background: 'var(--callout-info-bg)', border: '1px solid var(--callout-info-border)' }}
+                      >
+                        <CheckCircle size={15} weight="fill" className="flex-shrink-0 mt-0.5" style={{ color: 'var(--glc-blue)' }} />
+                        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                          Your discovery answers are pre-filled — review and continue from where you left off.
+                        </p>
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between mb-3">
                       <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>Audit readiness: {progressPct}%</span>
                       <span className="px-2 py-0.5 rounded text-xs" style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>

@@ -387,35 +387,67 @@ Pre-brief + дополнительно:
 Показываются **только релевантные** (по branching gates).
 Типичный клиент увидит 12–22 дополнительных вопросов, не все строки банка.
 
-### Discovery — Mode C (нет сайта, ~15 мин)
+### Discovery — Mode C (нет сайта, ~22–29 вопросов, 25–35 мин)
 
-**Обязательный контекст без сайта:** **`a7`** (стадия бизнеса) и **`f8`** (срок/событие, движущее аудит). *Launching* и *Mature & optimising* дают принципиально разный тон операционных и стратегических рекомендаций; без сайта это важнее, чем «тон по техстеку». **`f8`** задаёт приоритеты roadmap (сезон, открытие, инвестор) до формулировки главной проблемы.
+**Operations-first audit.** Для клиентов без сайта ценность аудита — в автоматизации, конверсии и операционной эффективности, а не в техстеке. Discovery path охватывает все домены наравне с full-site path. Рекомендация «создать сайт» выводится из данных, а не наоборот.
 
-**Полный набор id (Mode C)** — ровно **16** вопросов, множество `DISCOVERY_BANK_IDS` в `server/src/intake/discovery.ts` (порядок в UI может сортироваться мастером, состав должен совпадать):
+**Активация:** `a5 = "No website yet" | "Under construction"` + wizard активен → `collectionMode = 'discovery'`.
 
-`a1`, `a2`, `a7`, `a4`, `a5`, `a6`, `d1`, `d2`, `d1a`, `d1b`, `c_nosite_1`, `c_nosite_2`, `c_nosite_3`, `b2`, `f8`, `f1`.
+**Видимых вопросов после ветвления:**
+- Generic industry, solo: ~22
+- Hospitality, small team: ~27
+- Максимум (с industry + CRM ветками): ~29
 
-| Order | ID | Question |
-|-------|----|----------|
-| 1 | a1 | Describe your business |
-| 2 | a2 | Industry |
-| 3 | a7 | **Business stage** (where you are right now) |
-| 4 | a4 | Team size |
-| 5 | a5 | Website presence (gate for no-site path) |
-| 6 | a6 | Online payments today |
-| 7 | d1 | Daily tools |
-| 8 | d2 | Biggest manual time-sink |
-| 9 | d1a / d1b | CRM or lead tracking (branched) |
-| 10 | c_nosite_1 | Online visibility (multi-select; same options as public discovery) |
-| 11 | c_nosite_3 | Social/messaging channels (branch: `nosite_social`) |
-| 12 | c_nosite_2 | Optional free-text notes |
-| 13 | b2 | How customers find you |
-| 14 | f8 | **Deadline / key moment** driving this audit |
-| 15 | f1 | Main business problem (solve) |
+#### 6-Phase Sequence
 
-**Discovery outro (copy):** *«Спасибо — мы уже видим операционную картину. Следующий шаг: короткий созвон, чтобы согласовать глубину аудита и доступы; отчёт опирается на процессы так же сильно, как на сайт.»*
+| Phase | IDs | Focus |
+|-------|-----|-------|
+| **Identity** | a1, a2, a3, a4, a6, a7, a8, a9 | Who, where, stage, scale, languages |
+| **Customers** | b1, b2, b3, b7, b_growth_attempts + [industry B] | ICP, acquisition channels, growth history |
+| **Digital trace** | c_nosite_1, c_nosite_4, c_nosite_5, c_nosite_reviews, c_nosite_2, c_nosite_3 | Online presence without a site |
+| **Conversion pipeline** | d1, d1a/d1b, d_response_time, d_closing_flow, d_billing_flow | Inquiry → payment funnel |
+| **Operations & Automation** | d2, d_automation_attempt, d4a, d4b, d6, d5 + [industry D] | Manual bottlenecks, AI/automation readiness |
+| **Goals** | f1, f2, f7, f8, f4 | Problem to solve, focus areas, readiness, urgency |
 
-**Фокус:** процессы и операции, не сайт. Показывает клиенту, что аудит ≠ только про сайт.
+#### Full ID Set (38 IDs)
+
+```
+Section A (8):  a1, a2, a3, a4, a6, a7, a8, a9
+Section B (5 universal + up to 2 industry-specific):
+  b1, b2, b3, b7, b_growth_attempts
+  b_hotel_1, b_hotel_2 (is_hospitality)
+  b_realestate_1 (is_real_estate)
+  b_restaurant_1 (is_restaurant)
+  b_services_1 (is_services)
+  b_health_1 (is_healthcare)
+  b_marine_1 (is_marine)
+Section C (6, all branch: no_website):
+  c_nosite_1, c_nosite_4, c_nosite_5, c_nosite_reviews, c_nosite_2, c_nosite_3
+Section D (12 universal + up to 2 industry-specific):
+  d1, d1a (has_crm), d1b (no_crm)
+  d_response_time, d_closing_flow, d_billing_flow
+  d2, d_automation_attempt, d4a, d4b, d6, d5
+  d_hotel_1, d_hotel_2 (is_hospitality)
+  d_realestate_1 (is_real_estate)
+  d_restaurant_1 (is_restaurant)
+Section F (5):  f1, f2, f7, f8, f4
+```
+
+**Intentionally excluded:**
+- `a5` — already answered (triggers discovery mode)
+- `d3` — clients reliably underestimate hours on repetitive work; low signal quality in self-serve context. Kept in bank for full-intake consultant mode.
+- `d4` — `not_solo` branch gates this correctly; solo clients (~60% of discovery) do not see it
+- `e1`/`e2`/`e3` — compliance depth adds friction without changing discovery recommendations
+
+**Branch fix — `c7`:** Added `"branch": "has_website"` to prevent no-website clients from seeing both `c7` (generic social presence) and `c_nosite_3` (richer version with Google Business, TripAdvisor). `c_nosite_3` is the correct question for this path.
+
+**Tech debt:** Two parallel discovery systems exist in the codebase:
+1. `server/src/intake/discovery.ts` — bank-integrated, used by `IntakeBankWizard` (this spec)
+2. `src/app/lib/discovery-flow.ts` — standalone legacy system with own question set, maturity scoring, and findings format
+
+The legacy system (`discovery-flow.ts`) pre-dates bank v1 integration and is not covered by this spec. It should be evaluated for removal or migration in a future sprint.
+
+**Discovery outro (copy):** *"Thank you — we already have a clear operational picture. Next step: a short call to align on audit depth and access. Our report leans on your processes just as heavily as on your online presence."*
 
 ---
 
@@ -428,13 +460,13 @@ Pre-brief + дополнительно:
 | Agent | Questions used (IDs) |
 |-------|----------------------|
 | **recon** | a1, a2, a3, a4, a5, a6, a7 (+ auto-crawl) |
-| **tech_infrastructure** | a5, c6, c9, c1, c2, d1, d_hotel_1, d_restaurant_1 |
-| **security_compliance** | a6, e1, e2, e3, e4 |
-| **seo_digital** | b2, c6, c3, c4, c7, c_nosite_1, c_nosite_2, c_nosite_3, d1 |
-| **ux_conversion** | a8, b1, b6, b7, b_restaurant_1, b_services_1, b_health_1, c5, c6, d2, f3 |
-| **marketing_utp** | a8, b1, b2, b3, b4, b5, b6, b7, b_hotel_1, b_hotel_2, b_realestate_1, b_restaurant_1, b_marine_1, c8, c7, d2, f3 |
-| **automation_processes** | a8, b2, d1, d1a, d1b, d2, d_automation_attempt, d3, d4, d4a, d4b, d6, d5, d_hotel_1, d_hotel_2, d_realestate_1, d_restaurant_1, f3, f7 |
-| **strategy** | a4, a7, a8, b2, b4, b5, b7, c6, c_nosite_2, d1, d4a, d4b, d6, f1, f2, f3, f4, f5, f6, f7, f8 |
+| **tech_infrastructure** | a5, c9, c1, c2, c6, d1 (tools → tech signals), d_hotel_1, d_restaurant_1 |
+| **security_compliance** | a6 (gate), e1, e2, e3, e4, **d_billing_flow** (Verifactu signal) |
+| **seo_digital** | c3, c4, c7, c_nosite_1, c_nosite_2, c_nosite_3, **c_nosite_5** (Google Business), **c_nosite_reviews** (reputation), b2 (traffic sources) |
+| **ux_conversion** | b1 (ideal customer), b6 (guarantees), b7 (repeat vs one-off), c5 (main action), c6 (frustrations), b_services_1, b_health_1, **d_response_time**, **d_closing_flow** |
+| **marketing_utp** | **a9** (customer languages), b1, b2, b3, b4, b5, b6, b7, **b_growth_attempts**, c7, c8 (competitors), **c_nosite_4**, **c_nosite_5**, **c_nosite_reviews**, b_hotel_1, b_hotel_2, b_realestate_1, b_marine_1 |
+| **automation_processes** | **a9**, d1, d1a/d1b, **d_response_time**, **d_closing_flow**, **d_billing_flow**, d2, d_automation_attempt, d3, d4, d4a, d4b, **d6** (data types), d5, **a8** (monthly volume), f7 (approver), **c_nosite_4**, d_hotel_1, d_hotel_2, d_realestate_1, d_restaurant_1 |
+| **strategy** | f1, f2, f3, f4, f5, f6, f7, f8 (urgency), a4, a7, **a8** (scale), b4, b5, b7, **b_growth_attempts**, d4a, d4b, **d6** |
 
 **Правило:** агент получает только свои вопросы (context slicing), не весь бриф. Цепочка в коде: `QUESTION_FEED_ROLES` → `DOMAIN_TO_QUESTIONS_RAW` (реэкспорт в `domain-slice-data.ts`) → `DOMAIN_TO_QUESTION_IDS` в `question-bank.ts`.
 
