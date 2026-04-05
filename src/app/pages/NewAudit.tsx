@@ -1345,7 +1345,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                       >
                         <CheckCircle size={15} weight="fill" className="flex-shrink-0 mt-0.5" style={{ color: 'var(--glc-blue)' }} />
                         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-                          Your discovery answers are pre-filled — review and continue from where you left off.
+                          Your discovery answers are pre-filled — review and continue.
                         </p>
                       </div>
                     )}

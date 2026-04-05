@@ -132,7 +132,7 @@ Prefer composing with tokens (`bg-background`, `text-foreground`, `border-border
 
 ### Product flows (UI contracts)
 
-**Public discovery (Mode C):** `DiscoverPage` — routes **`/discovery`** and **`/audit/discover`** (same component). Styling uses **`theme.css` tokens** (`--bg-canvas`, `--text-primary`, `--callout-*`, etc.) so the flow matches light/dark like the rest of the app. **`DiscoveryQueue`** (`/admin/discovery`) uses the same tokens; **Copy discover link** copies `origin + /discovery`.
+**Public discovery (Mode C):** `DiscoverPage` — routes **`/discovery`** and **`/audit/discover`** (same component). Styling uses **`theme.css` tokens** (`--bg-canvas`, `--text-primary`, `--callout-*`, etc.) so the flow matches light/dark like the rest of the app. **`DiscoveryQueue`** (`/admin/discovery`) uses the same tokens; **Copy discover link** copies `origin + /discovery`. Session **`maturity_level`** (1–5) is an internal triage score from the **count** of generated finding cards in `discovery-flow.ts` (`computeScore`), not from per-card severity labels.
 
 **Public pre-brief (`IntakeBrief`, `/intake/:token`):** Questions from `GET /api/intake/:token` include **`section`** per item; the form and review screens group fields with `groupBriefQuestionsBySection` (adjacent same-title blocks; repeated titles like “Business”/`Goals` may appear as separate blocks following API order). Flow: **review** (edit shortcuts) → **Confirm and submit**. Success copy from token `metadata`; helpers `src/app/lib/intake-client-copy.ts`. Resubmit allowed until `expires_at`.
 

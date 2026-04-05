@@ -428,4 +428,13 @@ describe('arePreBriefSlotsSatisfied', () => {
     const { biggest_pain: _, ...rest } = minimalPreBrief;
     expect(arePreBriefSlotsSatisfied(rest)).toBe(false);
   });
+
+  it('requires clarification when analytics is "Yes, other tool"', () => {
+    const withOtherTool = { ...minimalPreBrief, has_google_analytics: 'Yes, other tool' };
+    expect(arePreBriefSlotsSatisfied(withOtherTool)).toBe(false);
+    expect(arePreBriefSlotsSatisfied({
+      ...withOtherTool,
+      has_google_analytics__other: 'Plausible',
+    })).toBe(true);
+  });
 });

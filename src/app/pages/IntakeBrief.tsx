@@ -21,6 +21,7 @@ import {
   applyIntakeMetadataPrefill,
   hasIntakeConsultantPrefill,
 } from '../lib/intake-client-copy';
+import { choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
 
 function normalizeStoredResponses(raw: Record<string, unknown>): BriefResponses {
   const out: BriefResponses = {};
@@ -119,7 +120,14 @@ export function IntakeBrief() {
   const formComplete = answered === total;
 
   function handleChange(id: string, value: string | string[] | number | null) {
-    setResponses(prev => ({ ...prev, [id]: { value, source: 'client' } }));
+    setResponses(prev => {
+      const next: BriefResponses = { ...prev, [id]: { value, source: 'client' } };
+      if (!choiceValueNeedsSpecify(value)) {
+        const sk = `${id}__other`;
+        delete next[sk];
+      }
+      return next;
+    });
   }
 
   function handleIndustryChange(value: string | string[] | number | null) {
@@ -136,7 +144,14 @@ export function IntakeBrief() {
   }
 
   function handleUnknown(id: string) {
-    setResponses(prev => ({ ...prev, [id]: { value: null, source: 'unknown' } }));
+    setResponses(prev => {
+      const next: BriefResponses = { ...prev, [id]: { value: null, source: 'unknown' } };
+      delete next[`${id}__other`];
+      if (id === 'intake_industry') {
+        delete next.intake_industry_specify;
+      }
+      return next;
+    });
   }
 
   function scrollToQuestion(id: string) {
@@ -400,7 +415,7 @@ export function IntakeBrief() {
                           <div key={q.id} className="flex gap-3 px-4 py-3.5 items-start">
                             <div className="min-w-0 flex-1">
                               <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>{q.question}</p>
-                              <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{formatBriefAnswerSummary(q, responses[q.id])}</p>
+                              <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{formatBriefAnswerSummary(q, responses[q.id], responses)}</p>
                             </div>
                             <button
                               type="button"
@@ -490,16 +505,27 @@ export function IntakeBrief() {
                         {block.section}
                       </h2>
                       <div className="space-y-6">
-                        {block.questions.map(q => (
-                          <div key={q.id} id={`intake-q-${q.id}`}>
-                            <BriefField
-                              q={q}
-                              value={responses[q.id]}
-                              onChange={q.id === 'intake_industry' ? v => handleIndustryChange(v) : v => handleChange(q.id, v)}
-                              onSetUnknown={() => handleUnknown(q.id)}
-                            />
-                          </div>
-                        ))}
+                        {block.questions.map(q => {
+                          const specKey =
+                            q.id === 'intake_industry'
+                              ? null
+                              : q.type === 'single_choice' || q.type === 'multi_choice'
+                                ? `${q.id}__other`
+                                : null;
+                          const otherSpecify = specKey ? stringAnswer(responses[specKey]) : '';
+                          return (
+                            <div key={q.id} id={`intake-q-${q.id}`}>
+                              <BriefField
+                                q={q}
+                                value={responses[q.id]}
+                                onChange={q.id === 'intake_industry' ? v => handleIndustryChange(v) : v => handleChange(q.id, v)}
+                                onSetUnknown={() => handleUnknown(q.id)}
+                                otherSpecify={specKey ? otherSpecify : undefined}
+                                onOtherSpecifyChange={specKey ? text => handleChange(specKey, text || null) : undefined}
+                              />
+                            </div>
+                          );
+                        })}
                       </div>
                     </section>
                   ))}

@@ -1,4 +1,5 @@
 import { INDUSTRY_OPTIONS } from './industry-options';
+import { choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
 
 /**
  * Intake Brief question definitions — frontend copy of server/src/schemas/intake-brief.ts
@@ -468,7 +469,7 @@ export function groupBriefQuestionsBySection(
   return groups;
 }
 
-function unwrapResponse(value: BriefResponseValue | BriefResponseEntry | undefined): BriefResponseValue | undefined {
+export function unwrapResponse(value: BriefResponseValue | BriefResponseEntry | undefined): BriefResponseValue | undefined {
   if (value != null && typeof value === 'object' && !Array.isArray(value) && 'value' in value) {
     return value.value;
   }
@@ -542,11 +543,20 @@ export function intakeIndustryIsOther(responses: BriefResponses): boolean {
   return unwrapResponse(responses.intake_industry) === 'Other';
 }
 
-/** Pre-brief completion per slot (specify required only when industry is Other). */
+/** Pre-brief completion per slot (industry Other + choice "specify" options). */
 export function isPreBriefQuestionSatisfied(questionId: string, responses: BriefResponses): boolean {
   if (questionId === 'intake_industry_specify') {
     if (!intakeIndustryIsOther(responses)) return true;
     return countAnswered(responses, [questionId]) >= 1;
+  }
+  const mainVal = unwrapResponse(responses[questionId]);
+  if (
+    questionId === 'has_google_analytics'
+    && typeof mainVal === 'string'
+    && choiceValueNeedsSpecify(mainVal)
+  ) {
+    const spec = unwrapResponse(responses.has_google_analytics__other);
+    return typeof spec === 'string' && spec.trim().length > 0;
   }
   return countAnswered(responses, [questionId]) >= 1;
 }
@@ -571,16 +581,27 @@ export function countPreBriefSatisfied(responses: BriefResponses): number {
 
 /** One-line summary for review / read-only lists (intake, exports). */
 export function formatBriefAnswerSummary(
-  _q: BriefQuestion,
+  q: BriefQuestion,
   raw: BriefResponses[string] | undefined,
+  allResponses?: BriefResponses,
 ): string {
   if (raw === undefined) return '—';
   if (isExplicitUnknown(raw)) return "Don't know (consultant will follow up)";
   const v = unwrapResponse(raw);
   if (v === null || v === undefined) return '—';
-  if (typeof v === 'string') return v.trim() || '—';
-  if (typeof v === 'number') return String(v);
-  if (typeof v === 'boolean') return v ? 'Yes' : 'No';
-  if (Array.isArray(v)) return v.length ? v.join(', ') : '—';
-  return '—';
+  let line: string;
+  if (typeof v === 'string') line = v.trim() || '—';
+  else if (typeof v === 'number') line = String(v);
+  else if (typeof v === 'boolean') line = v ? 'Yes' : 'No';
+  else if (Array.isArray(v)) line = v.length ? v.join(', ') : '—';
+  else line = '—';
+
+  if (allResponses && choiceValueNeedsSpecify(v)) {
+    const specKey = q.id === 'intake_industry' ? 'intake_industry_specify' : `${q.id}__other`;
+    const spec = unwrapResponse(allResponses[specKey]);
+    if (typeof spec === 'string' && spec.trim()) {
+      line = `${line} (${spec.trim()})`;
+    }
+  }
+  return line;
 }

@@ -3,6 +3,7 @@ import { BriefField } from './BriefField';
 import { getVisibleBankBriefSections } from '../data/bankClassicBrief';
 import { BRIEF_QUESTIONS, type BriefResponses } from '../data/briefQuestions';
 import type { CollectionMode } from '../../../server/src/intake/types';
+import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
 
 const REVENUE_MODEL = BRIEF_QUESTIONS.find(q => q.id === 'revenue_model')!;
 
@@ -66,15 +67,23 @@ export function BankClassicBriefFields({
           </div>
           <div className={hx.gap}>
             {questions.map(q => {
-              const otherKey = q.id === 'a2' ? 'intake_industry_specify' : `${q.id}__other`;
+              const otherKey = choiceSpecifyResponseKey(q.id);
               const otherSpecify = (unwrapForField(responses[otherKey]) as string | undefined) ?? '';
               return (
                 <BriefField
                   key={q.id}
                   q={q}
                   value={responses[q.id]}
-                  onChange={v => onChange(q.id, v)}
-                  onSetUnknown={() => onSetUnknown(q.id)}
+                  onChange={v => {
+                    onChange(q.id, v);
+                    if (!choiceValueNeedsSpecify(v)) {
+                      onChange(otherKey, null);
+                    }
+                  }}
+                  onSetUnknown={() => {
+                    onSetUnknown(q.id);
+                    onChange(otherKey, null);
+                  }}
                   emphasizeClientSource={emphasizeClientSource}
                   interviewMode={interviewMode}
                   otherSpecify={otherSpecify}
@@ -99,10 +108,20 @@ export function BankClassicBriefFields({
         <BriefField
           q={REVENUE_MODEL}
           value={responses.revenue_model}
-          onChange={v => onChange('revenue_model', v)}
-          onSetUnknown={() => onSetUnknown('revenue_model')}
+          onChange={v => {
+            onChange('revenue_model', v);
+            if (!choiceValueNeedsSpecify(v)) {
+              onChange('revenue_model__other', null);
+            }
+          }}
+          onSetUnknown={() => {
+            onSetUnknown('revenue_model');
+            onChange('revenue_model__other', null);
+          }}
           emphasizeClientSource={emphasizeClientSource}
           interviewMode={interviewMode}
+          otherSpecify={(unwrapForField(responses.revenue_model__other) as string | undefined) ?? ''}
+          onOtherSpecifyChange={text => onChange('revenue_model__other', text || null)}
         />
       </div>
     </div>

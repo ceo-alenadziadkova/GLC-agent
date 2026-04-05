@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router';
 import {
   ChartBar, Users, Warning, Lightbulb, ArrowRight,
   CheckCircle, Spinner, ArrowsClockwise, UserCircle,
-  EnvelopeSimple, Phone, Calendar, Copy,
+  EnvelopeSimple, Phone, Calendar, Copy, Buildings,
 } from '@phosphor-icons/react';
 import { api } from '../data/apiService';
 import { AppShell } from '../components/AppShell';
@@ -23,6 +23,7 @@ interface DiscoverySession {
   contact_name:    string | null;
   contact_email:   string | null;
   contact_phone:   string | null;
+  contact_company: string | null;
   audit_id:        string | null;
   created_at:      string;
   biz_description: string | null;
@@ -36,6 +37,7 @@ const MATURITY_CONFIG: Record<number, { label: string; color: string }> = {
   2: { label: 'Developing',    color: '#F97316' },
   3: { label: 'Intermediate',  color: '#F59E0B' },
   4: { label: 'Advanced',      color: '#10B981' },
+  5: { label: 'Low priority',  color: '#6B7280' },
 };
 
 function MaturityPill({ level }: { level: number }) {
@@ -143,12 +145,18 @@ function SessionCard({
         style={{ background: 'var(--bg-muted)', border: '1px solid var(--border-subtle)' }}
       >
         {/* Contact info row */}
-        {(session.contact_name || session.contact_email || session.contact_phone) ? (
+        {(session.contact_name || session.contact_email || session.contact_phone || session.contact_company) ? (
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {session.contact_name && (
               <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
                 <UserCircle size={13} style={{ color: 'var(--glc-blue)' }} />
                 {session.contact_name}
+              </span>
+            )}
+            {session.contact_company && (
+              <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                <Buildings size={13} style={{ color: 'var(--glc-blue)' }} />
+                {session.contact_company}
               </span>
             )}
             {session.contact_email && (
@@ -172,7 +180,15 @@ function SessionCard({
 
         {/* Business description / industry (always show when present — gives context for no-contact sessions) */}
         {(session.biz_description || session.industry) && (
-          <div className="space-y-0.5" style={{ borderTop: (session.contact_name || session.contact_email || session.contact_phone) ? '1px solid var(--border-subtle)' : 'none', paddingTop: (session.contact_name || session.contact_email || session.contact_phone) ? 6 : 0 }}>
+          <div
+            className="space-y-0.5"
+            style={{
+              borderTop: (session.contact_name || session.contact_email || session.contact_phone || session.contact_company)
+                ? '1px solid var(--border-subtle)'
+                : 'none',
+              paddingTop: (session.contact_name || session.contact_email || session.contact_phone || session.contact_company) ? 6 : 0,
+            }}
+          >
             {session.industry && (
               <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                 <span style={{ color: 'var(--text-quaternary)', marginRight: 4 }}>Industry</span>

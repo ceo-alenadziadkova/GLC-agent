@@ -491,7 +491,7 @@ The legacy system (`discovery-flow.ts`) pre-dates bank v1 integration and is not
 
 **UX:** скрытые вопросы не показываются. Клиент не знает, что вопрос существует. Wizard адаптируется динамически.
 
-**Other → specify (банковский мастер):** при выборе `Other` в single/multi показывается поле; значение пишется в **`${questionId}__other`**, для **`a2`** — в **`intake_industry_specify`** (совместимость с `mergeLegacyResponsesIntoBankV1` и синтезом `a1`). См. `BriefField` / `IntakeBankWizard`.
+**Other → specify (банковский мастер и legacy):** при выборе вариантов, требующих уточнения (`Other`, «Yes, other tool» / «Yes, another tool», «Something else» — см. `CHOICE_OPTION_LABELS_REQUIRING_SPECIFY` в `src/app/lib/choice-specify-triggers.ts`), показывается поле; значение пишется в **`${questionId}__other`**, для **`a2`** / **`intake_industry`** — в **`intake_industry_specify`**. Discovery: **`${bankId}__other`**, для **`a2`** при конвертации дублируется в **`intake_industry_specify`**. См. `BriefField`, `IntakeBankWizard`, `DiscoverPage`.
 
 ---
 

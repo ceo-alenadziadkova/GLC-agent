@@ -63,6 +63,79 @@ function discoveryHasOwnSiteForAnalytics(pres: string[]): boolean {
   );
 }
 
+/** Question-bank ids saved by public `/audit/discover` (Mode C). */
+const DISCOVERY_BANK_KEYS = [
+  'a1', 'a2', 'a4', 'a5', 'a7',
+  'd1', 'd1b', 'c_nosite_1', 'c_nosite_4', 'd2', 'f1',
+] as const;
+
+function normalizedPresenceFromBank(answers: Record<string, unknown>): string[] {
+  const v = answers.c_nosite_1;
+  if (!Array.isArray(v)) return [];
+  return v.filter((x): x is string => typeof x === 'string' && x.length > 0);
+}
+
+function discoveryUsesBankIds(answers: Record<string, unknown>): boolean {
+  return (
+    (typeof answers.a2 === 'string' && answers.a2.trim().length > 0) ||
+    Array.isArray(answers.d1) ||
+    Array.isArray(answers.c_nosite_1)
+  );
+}
+
+/**
+ * Maps bank-ID discovery answers (a2, d1, c_nosite_*, …) into brief cells.
+ */
+function discoveryBankIdsToBriefPatch(answers: Record<string, unknown>): Record<string, BriefEntry> {
+  const tag = (v: unknown): BriefEntry => ({ value: v, source: 'client' });
+  const unk = (): BriefEntry => ({ value: null, source: 'unknown' });
+  const patch: Record<string, BriefEntry> = {};
+
+  for (const key of DISCOVERY_BANK_KEYS) {
+    if (key === 'a5') continue;
+    const v = answers[key];
+    if (v == null) continue;
+    if (typeof v === 'string' && !v.trim()) continue;
+    if (Array.isArray(v) && v.length === 0) continue;
+    patch[key] = tag(v);
+  }
+  patch.a5 = tag('No website yet');
+
+  for (const key of DISCOVERY_BANK_KEYS) {
+    const side = `${key}__other`;
+    const raw = answers[side];
+    if (typeof raw !== 'string' || !raw.trim()) continue;
+    if (key === 'a2') {
+      patch.intake_industry_specify = tag(raw.trim());
+    } else {
+      patch[side] = tag(raw.trim());
+    }
+  }
+
+  const pres = normalizedPresenceFromBank(answers);
+  if (pres.length > 0 && !discoveryHasOwnSiteForAnalytics(pres)) {
+    patch.has_google_analytics = tag('No');
+  }
+
+  const d1 = Array.isArray(answers.d1) ? (answers.d1 as string[]) : [];
+  if (d1.some(t => typeof t === 'string' && t.includes('CRM'))) {
+    patch.uses_crm = tag('Yes');
+  } else if (typeof answers.d1b === 'string' && answers.d1b.includes('CRM')) {
+    patch.uses_crm = tag('Yes');
+  } else if (d1.length > 0 || typeof answers.d1b === 'string') {
+    patch.uses_crm = tag('No');
+  }
+  if (!patch.uses_crm) patch.uses_crm = unk();
+
+  if (!patch.target_audience) patch.target_audience = unk();
+  if (!patch.revenue_model) patch.revenue_model = unk();
+  if (!patch.primary_cta) patch.primary_cta = unk();
+  if (!patch.has_google_analytics) patch.has_google_analytics = unk();
+  if (!patch.handles_payments) patch.handles_payments = unk();
+
+  return patch;
+}
+
 /**
  * Maps discovery answers into intake-brief format.
  *
@@ -73,6 +146,10 @@ function discoveryHasOwnSiteForAnalytics(pres: string[]): boolean {
  * The consultant can fill them in via AuditWorkspace before or after running.
  */
 function discoveryToBriefPatch(answers: Record<string, unknown>): Record<string, BriefEntry> {
+  if (discoveryUsesBankIds(answers)) {
+    return discoveryBankIdsToBriefPatch(answers);
+  }
+
   const tag  = (v: unknown): BriefEntry => ({ value: v, source: 'client' });
   const unk  = ():           BriefEntry => ({ value: null, source: 'unknown' });
   const patch: Record<string, BriefEntry> = {};
@@ -158,8 +235,8 @@ discoverRouter.post('/', intakePublicLimiter, async (req, res) => {
       return;
     }
     const ml = Number(maturity_level);
-    if (!Number.isInteger(ml) || ml < 1 || ml > 4) {
-      res.status(400).json({ error: 'maturity_level must be an integer 1–4' });
+    if (!Number.isInteger(ml) || ml < 1 || ml > 5) {
+      res.status(400).json({ error: 'maturity_level must be an integer 1–5' });
       return;
     }
     if (!Array.isArray(findings)) {
@@ -202,7 +279,7 @@ discoverRouter.get(
     try {
       const { data, error } = await supabase
         .from('discovery_sessions')
-        .select('session_token, maturity_level, findings, contact_name, contact_email, contact_phone, audit_id, created_at, answers')
+        .select('session_token, maturity_level, findings, contact_name, contact_email, contact_phone, contact_company, audit_id, created_at, answers')
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -215,17 +292,24 @@ discoverRouter.get(
       // Extract display fields from answers JSONB; drop the full answers blob from the response
       const sessions = (data ?? []).map(row => {
         const ans = (row.answers as Record<string, unknown>) ?? {};
+        const industryFromBank = typeof ans.a2 === 'string' ? ans.a2.trim() || null : null;
+        const bizFromBank = typeof ans.a1 === 'string' ? ans.a1.trim() || null : null;
         return {
           session_token: row.session_token,
           maturity_level: row.maturity_level,
           findings: row.findings,
-          contact_name:  row.contact_name,
-          contact_email: row.contact_email,
-          contact_phone: row.contact_phone,
+          contact_name:    row.contact_name,
+          contact_email:   row.contact_email,
+          contact_phone:   row.contact_phone,
+          contact_company: row.contact_company,
           audit_id:      row.audit_id,
           created_at:    row.created_at,
-          biz_description: typeof ans.biz_description === 'string' ? ans.biz_description.trim() || null : null,
-          industry:        typeof ans.industry         === 'string' ? ans.industry.trim()         || null : null,
+          biz_description:
+            bizFromBank
+            ?? (typeof ans.biz_description === 'string' ? ans.biz_description.trim() || null : null),
+          industry:
+            industryFromBank
+            ?? (typeof ans.industry === 'string' ? ans.industry.trim() || null : null),
         };
       });
 
@@ -249,7 +333,7 @@ discoverRouter.get('/:token', intakePublicLimiter, async (req, res) => {
 
     const { data: row, error } = await supabase
       .from('discovery_sessions')
-      .select('answers, maturity_level, findings, contact_name, contact_email, created_at, audit_id')
+      .select('answers, maturity_level, findings, contact_name, contact_email, contact_phone, contact_company, created_at, audit_id')
       .eq('session_token', token)
       .single();
 
@@ -275,19 +359,31 @@ discoverRouter.patch('/:token/contact', intakePublicLimiter, async (req, res) =>
       return;
     }
 
-    const name    = typeof req.body?.contact_name  === 'string' ? req.body.contact_name.trim()  : null;
-    const email   = typeof req.body?.contact_email === 'string' ? req.body.contact_email.trim()  : null;
-    const phone   = typeof req.body?.contact_phone === 'string' ? req.body.contact_phone.trim()  : null;
-
-    if (!name && !email && !phone) {
-      res.status(400).json({ error: 'Provide at least one of contact_name, contact_email, contact_phone' });
-      return;
+    const patch: Record<string, string | null> = {};
+    if (typeof req.body?.contact_name === 'string') {
+      patch.contact_name = req.body.contact_name.trim() || null;
+    }
+    if (typeof req.body?.contact_email === 'string') {
+      patch.contact_email = req.body.contact_email.trim() || null;
+    }
+    if (typeof req.body?.contact_phone === 'string') {
+      patch.contact_phone = req.body.contact_phone.trim() || null;
+    }
+    if (typeof req.body?.contact_company === 'string') {
+      patch.contact_company = req.body.contact_company.trim() || null;
     }
 
-    const patch: Record<string, string | null> = {};
-    if (name  !== null) patch.contact_name  = name  || null;
-    if (email !== null) patch.contact_email = email || null;
-    if (phone !== null) patch.contact_phone = phone || null;
+    if (Object.keys(patch).length === 0) {
+      res.status(400).json({
+        error: 'Provide at least one of contact_name, contact_email, contact_phone, contact_company',
+      });
+      return;
+    }
+    const hasValue = Object.values(patch).some(v => v != null && String(v).length > 0);
+    if (!hasValue) {
+      res.status(400).json({ error: 'At least one contact field must be non-empty' });
+      return;
+    }
 
     const { error } = await supabase
       .from('discovery_sessions')
@@ -322,7 +418,7 @@ discoverRouter.post(
 
       const { data: session, error: sErr } = await supabase
         .from('discovery_sessions')
-        .select('id, answers, maturity_level, findings, contact_name, audit_id')
+        .select('id, answers, maturity_level, findings, contact_name, contact_company, audit_id')
         .eq('session_token', token)
         .single();
 
@@ -336,8 +432,15 @@ discoverRouter.post(
       }
 
       const answers = (session.answers as Record<string, unknown>) ?? {};
-      const industry = typeof answers.industry === 'string' ? answers.industry.trim() : null;
-      const companyName = session.contact_name as string | null;
+      const industry =
+        (typeof answers.a2 === 'string' && answers.a2.trim())
+        || (typeof answers.industry === 'string' ? answers.industry.trim() : null)
+        || null;
+      const row = session as { contact_name?: string | null; contact_company?: string | null };
+      const companyName =
+        (typeof row.contact_name === 'string' && row.contact_name.trim())
+        || (typeof row.contact_company === 'string' && row.contact_company.trim())
+        || null;
 
       // Create audit with no public website (Mode C)
       const { data: audit, error: aErr } = await supabase

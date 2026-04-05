@@ -24,19 +24,20 @@ export function Login() {
   useEffect(() => {
     const discovery = new URLSearchParams(window.location.search).get('discovery');
     if (discovery) localStorage.setItem('glc_discovery_token', discovery);
+    // NOTE: localStorage is fine here — same origin as the public discovery page.
+    // If a future requirement needs server-side session handoff, use an httpOnly cookie instead.
   }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      const discoveryToken = localStorage.getItem('glc_discovery_token');
-      if (discoveryToken) {
-        logger.info('Login: isAuthenticated with discovery token, navigating to /audit/new');
-        navigate('/audit/new?from_discovery=1', { replace: true });
-      } else {
-        logger.info('Login: isAuthenticated, navigating to /portfolio');
-        navigate('/portfolio', { replace: true });
-      }
+    if (!isAuthenticated) return;
+    const token = localStorage.getItem('glc_discovery_token');
+    if (token) {
+      logger.info('Login: isAuthenticated with discovery token, navigating to /audit/new');
+    } else {
+      logger.info('Login: isAuthenticated, navigating to /portfolio');
     }
+    navigate(token ? '/audit/new?from_discovery=1' : '/portfolio', { replace: true });
+    // Token cleanup runs in NewAudit.tsx after the session is loaded, not here.
   }, [isAuthenticated, navigate]);
 
   async function handleSubmit(e: React.FormEvent) {

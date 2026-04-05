@@ -14,8 +14,8 @@ import {
   ArrowRight, CheckCircle, Check, Warning,
   ChartBar, ArrowLeft, PaperPlaneRight,
   Spinner, CurrencyCircleDollar, Clock, Eye, TrendUp,
-  Gear, ChartLineUp, MagnifyingGlass, Star, Buildings,
-  Users, HandshakeSimple, Robot,
+  Gear, ChartLine, MagnifyingGlass, Star, Buildings,
+  Users, HandshakeIcon, Robot,
 } from '@phosphor-icons/react';
 import {
   buildQuestionSequence,
@@ -26,6 +26,7 @@ import {
   type DiscoveryFinding,
 } from '../lib/discovery-flow';
 import { api } from '../data/apiService';
+import { choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -36,10 +37,15 @@ function isAnswered(val: DiscoveryAnswers[string]): boolean {
   return false;
 }
 
-function summarise(val: DiscoveryAnswers[string]): string {
+function summarise(val: DiscoveryAnswers[string], qId: string, all: DiscoveryAnswers): string {
   if (!isAnswered(val)) return '—';
-  if (Array.isArray(val)) return val.join(', ');
-  return String(val).trim();
+  let base = Array.isArray(val) ? val.join(', ') : String(val).trim();
+  if (choiceValueNeedsSpecify(val)) {
+    const k = `${qId}__other`;
+    const s = typeof all[k] === 'string' ? all[k].trim() : '';
+    if (s) base = `${base} (${s})`;
+  }
+  return base;
 }
 
 // ── Answer input ──────────────────────────────────────────────────────────────
@@ -48,10 +54,14 @@ function QuestionInput({
   qId,
   value,
   onChange,
+  specifyValue,
+  onSpecifyChange,
 }: {
   qId: string;
   value: DiscoveryAnswers[string];
   onChange: (v: DiscoveryAnswers[string]) => void;
+  specifyValue: string;
+  onSpecifyChange: (text: string) => void;
 }) {
   const q = getQuestion(qId);
   if (!q) return null;
@@ -81,57 +91,95 @@ function QuestionInput({
   }
 
   if (q.type === 'single_choice' && q.options) {
+    const needsSpec = choiceValueNeedsSpecify(strVal);
     return (
-      <div className="flex flex-wrap gap-2">
-        {q.options.map(opt => {
-          const sel = strVal === opt;
-          return (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => onChange(sel ? null : opt)}
-              className="px-3 py-2 rounded-lg text-sm transition-all"
-              style={{
-                background: sel ? 'var(--callout-info-bg)' : 'var(--bg-muted)',
-                border: sel ? '1px solid var(--callout-info-border-strong)' : '1px solid var(--border-default)',
-                color: sel ? 'var(--glc-blue)' : 'var(--text-secondary)',
-                fontWeight: sel ? 500 : 400,
-              }}
-            >
-              {opt}
-            </button>
-          );
-        })}
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
+          {q.options.map(opt => {
+            const sel = strVal === opt;
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => onChange(sel ? null : opt)}
+                className="px-3 py-2 rounded-lg text-sm transition-all"
+                style={{
+                  background: sel ? 'var(--callout-info-bg)' : 'var(--bg-muted)',
+                  border: sel ? '1px solid var(--callout-info-border-strong)' : '1px solid var(--border-default)',
+                  color: sel ? 'var(--glc-blue)' : 'var(--text-secondary)',
+                  fontWeight: sel ? 500 : 400,
+                }}
+              >
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+        {needsSpec && (
+          <input
+            type="text"
+            value={specifyValue}
+            onChange={e => onSpecifyChange(e.target.value)}
+            placeholder="Please specify…"
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+            style={{
+              background: 'var(--input-background)',
+              border: '1px solid var(--glc-blue)',
+              color: 'var(--text-primary)',
+            }}
+            onFocus={e => { e.currentTarget.style.borderColor = 'var(--glc-blue)'; }}
+            onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
+          />
+        )}
       </div>
     );
   }
 
   if (q.type === 'multi_choice' && q.options) {
+    const needsSpec = choiceValueNeedsSpecify(arrVal);
     return (
-      <div className="flex flex-wrap gap-2">
-        {q.options.map(opt => {
-          const sel = arrVal.includes(opt);
-          return (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => {
-                const next = sel ? arrVal.filter(v => v !== opt) : [...arrVal, opt];
-                onChange(next.length ? next : null);
-              }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all"
-              style={{
-                background: sel ? 'var(--callout-info-bg)' : 'var(--bg-muted)',
-                border: sel ? '1px solid var(--callout-info-border-strong)' : '1px solid var(--border-default)',
-                color: sel ? 'var(--glc-blue)' : 'var(--text-secondary)',
-                fontWeight: sel ? 500 : 400,
-              }}
-            >
-              {sel && <Check size={12} weight="bold" />}
-              {opt}
-            </button>
-          );
-        })}
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
+          {q.options.map(opt => {
+            const sel = arrVal.includes(opt);
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => {
+                  const next = sel ? arrVal.filter(v => v !== opt) : [...arrVal, opt];
+                  onChange(next.length ? next : null);
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all"
+                style={{
+                  background: sel ? 'var(--callout-info-bg)' : 'var(--bg-muted)',
+                  border: sel ? '1px solid var(--callout-info-border-strong)' : '1px solid var(--border-default)',
+                  color: sel ? 'var(--glc-blue)' : 'var(--text-secondary)',
+                  fontWeight: sel ? 500 : 400,
+                }}
+              >
+                {sel && <Check size={12} weight="bold" />}
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+        {needsSpec && (
+          <input
+            type="text"
+            value={specifyValue}
+            onChange={e => onSpecifyChange(e.target.value)}
+            placeholder="Please specify…"
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+            style={{
+              background: 'var(--input-background)',
+              border: '1px solid var(--glc-blue)',
+              color: 'var(--text-primary)',
+            }}
+            onFocus={e => { e.currentTarget.style.borderColor = 'var(--glc-blue)'; }}
+            onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
+          />
+        )}
       </div>
     );
   }
@@ -163,29 +211,33 @@ function FindingCard({ finding }: { finding: DiscoveryFinding }) {
         border: isHigh ? '1px solid rgba(239,68,68,0.22)' : '1px solid rgba(245,158,11,0.22)',
       }}
     >
-      <div className="flex items-start gap-2.5 mb-2">
-        {isHigh
-          ? <Warning size={15} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: '#EF4444' }} />
-          : <meta.Icon size={15} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: '#F59E0B' }} />}
-        <div className="flex-1 min-w-0">
-          <span
-            className="text-[10px] font-semibold uppercase tracking-wider"
-            style={{ color: isHigh ? 'var(--score-1)' : 'var(--callout-warning-icon)' }}
-          >
-            {finding.zone}
-          </span>
-          <p className="font-semibold text-sm mt-0.5" style={{ color: 'var(--text-primary)' }}>
-            {finding.headline}
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        <span
+          className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md"
+          style={{
+            background: 'rgba(255,255,255,0.06)',
+            color: isHigh ? 'rgba(248,113,113,0.95)' : 'rgba(251,191,36,0.95)',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          {finding.zone}
+        </span>
+        {isHigh && (
+          <Warning size={14} weight="fill" className="flex-shrink-0" style={{ color: '#EF4444' }} aria-hidden />
+        )}
       </div>
-      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.6, paddingLeft: 23 }}>
+      <p className="font-semibold text-sm mb-1.5" style={{ color: '#fff', lineHeight: 1.35 }}>
+        {finding.headline}
+      </p>
+      <p
+        className="line-clamp-2"
+        style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.55 }}
+      >
         {finding.detail}
       </p>
-      {/* Impact tag */}
-      <div className="flex items-center gap-1 mt-2.5" style={{ paddingLeft: 23 }}>
-        <meta.Icon size={11} weight="fill" style={{ color: meta.color, opacity: 0.8 }} />
-        <span style={{ fontSize: '10px', color: meta.color, fontWeight: 600, opacity: 0.9, letterSpacing: '0.03em' }}>
+      <div className="flex items-center gap-1.5 mt-3 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <meta.Icon size={14} weight="fill" style={{ color: meta.color, opacity: 0.9 }} aria-hidden />
+        <span style={{ fontSize: '10px', color: meta.color, fontWeight: 600, letterSpacing: '0.04em' }}>
           {meta.label}
         </span>
       </div>
@@ -198,9 +250,9 @@ function FindingCard({ finding }: { finding: DiscoveryFinding }) {
 const INDUSTRY_TEASER: Record<string, { Icon: React.ComponentType<{ size: number; weight: string; style?: React.CSSProperties }>; text: string }> = {
   'Hospitality':          { Icon: Star,                text: 'Reputation management — how to build reviews on autopilot' },
   'Food & Beverage':      { Icon: Star,                text: 'Booking and review automation — consistent tables, consistent stars' },
-  'Healthcare':           { Icon: Users,               text: 'Appointment automation — fewer no-shows, fuller calendar' },
-  'Real Estate':          { Icon: HandshakeSimple,     text: 'Pipeline visibility — tracking every lead from first contact to deal' },
-  'Professional Services':{ Icon: ChartLineUp,         text: 'Proposal and follow-up automation — close more without chasing' },
+  'Healthcare':           { Icon: Users,               text: 'Appointment & follow-up automation — fewer no-shows, fuller calendar' },
+  'Real Estate':          { Icon: HandshakeIcon,       text: 'Pipeline visibility — tracking every lead from first contact to deal' },
+  'Professional Services':{ Icon: ChartLine,           text: 'Proposal and follow-up automation — close more without chasing' },
   'Marine':               { Icon: Robot,               text: 'Seasonal ops automation — peak season systems that scale without stress' },
 };
 
@@ -208,10 +260,10 @@ function AuditTeaser({ industry }: { industry: string | null }) {
   const specific = industry ? INDUSTRY_TEASER[industry] : null;
 
   const bullets: { Icon: React.ComponentType<{ size: number; weight: string; style?: React.CSSProperties }>; text: string }[] = [
-    { Icon: Gear,              text: 'Automation roadmap — which manual tasks to eliminate first and in what order' },
-    { Icon: ChartLineUp,       text: 'Conversion analysis — where you lose clients in your pipeline and how to fix it' },
-    { Icon: MagnifyingGlass,   text: 'Digital presence strategy — fastest path from invisible to findable' },
-    specific ?? { Icon: Robot, text: 'Tech stack review — what to keep, replace, and connect for maximum efficiency' },
+    { Icon: Gear,            text: 'Automation roadmap — which manual tasks to eliminate first' },
+    { Icon: ChartLine,       text: 'Conversion analysis — where you lose clients in your pipeline' },
+    { Icon: MagnifyingGlass, text: 'Digital presence strategy — fastest path from invisible to findable' },
+    specific ?? { Icon: Robot, text: 'Tech stack review — what to keep, replace, and connect' },
   ];
 
   return (
@@ -254,6 +306,7 @@ export function DiscoverPage() {
   const [contactName,    setContactName]    = useState('');
   const [contactEmail,   setContactEmail]   = useState('');
   const [contactPhone,   setContactPhone]   = useState('');
+  const [contactCompany, setContactCompany] = useState('');
   const [contactSaving,  setContactSaving]  = useState(false);
   const [contactSaved,   setContactSaved]   = useState(false);
   const [contactError,   setContactError]   = useState<string | null>(null);
@@ -277,13 +330,25 @@ export function DiscoverPage() {
     }
   }, [currentIdx, showResults]);
 
+  const specifyKey = currentId ? `${currentId}__other` : '';
+  const specifyFilled = !specifyKey || (typeof answers[specifyKey] === 'string' && answers[specifyKey].trim().length > 0);
+  const draftNeedsSpec = choiceValueNeedsSpecify(draft);
   // Optional questions allow advancing without an answer
-  const canAdvance = Boolean(currentQ?.optional) || isAnswered(draft);
+  const canAdvance = Boolean(currentQ?.optional) || (isAnswered(draft) && (!draftNeedsSpec || specifyFilled));
   const allDone    = currentIdx >= sequence.length;
 
   const findings = computeFindings(answers);
   const industry = answers['a2'] as string | null;
   const teamSize = answers['a4'] as string | null;
+  const signalCount = buildQuestionSequence(answers).length;
+
+  function teamOfPhrase(size: string | null): string {
+    if (!size) return 'your team';
+    if (size === 'Just me') return 'one';
+    if (size === '2–5 people') return '2–5';
+    if (size === '6–20 people') return '6–20';
+    return '20+';
+  }
 
   function handleNext() {
     if (!currentId) return;
@@ -322,15 +387,16 @@ export function DiscoverPage() {
 
   async function handleContactSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim()) return;
+    if (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim() && !contactCompany.trim()) return;
     setContactSaving(true);
     setContactError(null);
     try {
       if (sessionToken) {
         await api.saveDiscoveryContact(sessionToken, {
-          contact_name:  contactName.trim()  || undefined,
-          contact_email: contactEmail.trim() || undefined,
-          contact_phone: contactPhone.trim() || undefined,
+          contact_name:    contactName.trim()    || undefined,
+          contact_email:   contactEmail.trim()   || undefined,
+          contact_phone:   contactPhone.trim()   || undefined,
+          contact_company: contactCompany.trim() || undefined,
         });
       }
       setContactSaved(true);
@@ -358,7 +424,6 @@ export function DiscoverPage() {
   // ── Results screen ──────────────────────────────────────────────────────────
   if (showResults) {
     const industryStr = industry ?? 'your industry';
-    const teamStr     = teamSize ?? '';
 
     return (
       <div
@@ -389,21 +454,18 @@ export function DiscoverPage() {
                   <span style={{ fontSize: '11px', fontWeight: 600, color: '#10B981', letterSpacing: '0.04em' }}>ANALYSIS COMPLETE</span>
                 </div>
                 <h1 style={{ fontSize: 22, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1.3 }}>
-                  Here is what we found in your business
+                  Here&apos;s what we found in your business
                 </h1>
                 <p style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.45)', marginTop: 6, lineHeight: 1.6 }}>
-                  {answeredIds.length + 1} signals analysed
+                  Based on {signalCount} signals
                   {industryStr && industryStr !== 'your industry' ? ` — ${industryStr}` : ''}
-                  {teamStr ? `, ${teamStr.toLowerCase()}` : ''}
+                  {teamSize ? `, team of ${teamOfPhrase(teamSize)}` : ''}
                 </p>
               </div>
 
               {/* Findings */}
               {findings.length > 0 ? (
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'rgba(255,255,255,0.30)' }}>
-                    {findings.length} area{findings.length > 1 ? 's' : ''} to address
-                  </p>
                   <div className="space-y-3">
                     {findings.map((f, i) => (
                       <motion.div
@@ -440,7 +502,7 @@ export function DiscoverPage() {
                   Continue and get your full audit
                 </p>
                 <p style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.50)', lineHeight: 1.6, marginBottom: 16 }}>
-                  Free. Takes 15 minutes. Your answers carry over — no need to start over.
+                  Free. Takes 15 min. Your answers carry over.
                 </p>
                 <a
                   href={sessionToken ? `/login?discovery=${sessionToken}` : '/login'}
@@ -466,17 +528,18 @@ export function DiscoverPage() {
               >
                 <div>
                   <p className="font-semibold mb-0.5" style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)' }}>
-                    Save your results
+                    Save your results &amp; continue later
                   </p>
                   <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.40)', lineHeight: 1.55 }}>
-                    Add your details so we can keep your answers on file — you will pick up exactly where you left off after signing up.
+                    Add your details so we can keep your answers on file — you&apos;ll pick up exactly where you left off after signing up.
                   </p>
                 </div>
                 <div className="space-y-2">
                   {[
-                    { placeholder: 'Your name',              value: contactName,  setter: setContactName,  type: 'text'  },
-                    { placeholder: 'Email address',          value: contactEmail, setter: setContactEmail, type: 'email' },
-                    { placeholder: 'Phone / WhatsApp',       value: contactPhone, setter: setContactPhone, type: 'tel'   },
+                    { placeholder: 'Your name',              value: contactName,    setter: setContactName,    type: 'text'  },
+                    { placeholder: 'Email address',          value: contactEmail,   setter: setContactEmail,   type: 'email' },
+                    { placeholder: 'Phone / WhatsApp',       value: contactPhone,   setter: setContactPhone,   type: 'tel'   },
+                    { placeholder: 'Company (optional)',     value: contactCompany, setter: setContactCompany, type: 'text'  },
                   ].map(({ placeholder, value, setter, type }) => (
                     <input
                       key={placeholder}
@@ -500,17 +563,29 @@ export function DiscoverPage() {
                 )}
                 <button
                   type="submit"
-                  disabled={contactSaving || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim())}
+                  disabled={
+                    contactSaving
+                    || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim() && !contactCompany.trim())
+                  }
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm"
                   style={{
-                    background: (contactSaving || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim()))
+                    background: (
+                      contactSaving
+                      || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim() && !contactCompany.trim())
+                    )
                       ? 'rgba(255,255,255,0.08)'
                       : 'linear-gradient(135deg, #1CBDFF44, #0066CC44)',
-                    color: (contactSaving || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim()))
+                    color: (
+                      contactSaving
+                      || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim() && !contactCompany.trim())
+                    )
                       ? 'rgba(255,255,255,0.30)'
                       : 'rgba(255,255,255,0.80)',
                     border: '1px solid rgba(28,189,255,0.25)',
-                    cursor: (contactSaving || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim()))
+                    cursor: (
+                      contactSaving
+                      || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim() && !contactCompany.trim())
+                    )
                       ? 'not-allowed'
                       : 'pointer',
                   }}
@@ -524,7 +599,7 @@ export function DiscoverPage() {
                     ) : (
                       <>
                         <PaperPlaneRight size={14} aria-hidden />
-                        Save and continue later
+                        Save
                       </>
                     )}
                   </span>
@@ -632,7 +707,7 @@ export function DiscoverPage() {
                         textOverflow: 'ellipsis',
                       }}
                     >
-                      {summarise(answers[id])}
+                      {summarise(answers[id], id, answers)}
                     </p>
                   </div>
                 </div>
@@ -679,7 +754,29 @@ export function DiscoverPage() {
               </p>
             )}
 
-            <QuestionInput qId={currentId!} value={draft} onChange={setDraft} />
+            <QuestionInput
+              qId={currentId!}
+              value={draft}
+              onChange={v => {
+                setDraft(v);
+                if (!choiceValueNeedsSpecify(v)) {
+                  setAnswers(a => {
+                    const k = `${currentId}__other`;
+                    if (!(k in a)) return a;
+                    const next = { ...a };
+                    delete next[k];
+                    return next;
+                  });
+                }
+              }}
+              specifyValue={typeof answers[`${currentId}__other`] === 'string' ? answers[`${currentId}__other`] : ''}
+              onSpecifyChange={text => {
+                setAnswers(a => ({
+                  ...a,
+                  [`${currentId!}__other`]: text.trim() || null,
+                }));
+              }}
+            />
 
             <div className="flex items-center gap-3 pt-1">
               {currentIdx > 0 && (

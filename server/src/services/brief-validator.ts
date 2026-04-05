@@ -27,6 +27,7 @@ import type {
 import { deriveBankV1DataQuality } from '../intake/question-bank.js';
 import { prepareBriefForValidation } from '../intake/hydrate-legacy-from-bank.js';
 import { mergeReconConflictsFromC1 } from '../intake/recon-conflicts.js';
+import { choiceValueNeedsSpecify } from '../intake/choice-specify-triggers.js';
 
 export interface BriefValidationResult {
   passed: boolean;
@@ -84,12 +85,20 @@ function isAnswered(value: unknown): boolean {
   return false;
 }
 
-/** Pre-brief slot satisfied; `intake_industry_specify` only required when industry is Other. */
+/** Pre-brief slot satisfied; industry Other + choice options that require clarification. */
 export function isPreBriefIdSatisfied(id: string, responses: Record<string, unknown>): boolean {
   if (id === 'intake_industry_specify') {
     const ind = unwrapAnswer(responses.intake_industry);
     if (ind !== 'Other') return true;
     return isAnswered(responses[id]);
+  }
+  if (id === 'has_google_analytics') {
+    if (!isAnswered(responses[id])) return false;
+    const main = unwrapAnswer(responses.has_google_analytics);
+    if (choiceValueNeedsSpecify(main)) {
+      return isAnswered(responses.has_google_analytics__other);
+    }
+    return true;
   }
   return isAnswered(responses[id]);
 }

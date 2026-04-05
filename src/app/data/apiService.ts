@@ -719,6 +719,8 @@ export const api = {
       findings: unknown[];
       contact_name: string | null;
       contact_email: string | null;
+      contact_phone: string | null;
+      contact_company: string | null;
       created_at: string;
       audit_id: string | null;
     }>(`/api/discover/${encodeURIComponent(token)}`);
@@ -729,6 +731,7 @@ export const api = {
     contact_name?: string;
     contact_email?: string;
     contact_phone?: string;
+    contact_company?: string;
   }) {
     return publicApiFetch<{ ok: true }>(`/api/discover/${encodeURIComponent(token)}/contact`, {
       method: 'PATCH',
@@ -746,6 +749,7 @@ export const api = {
         contact_name:    string | null;
         contact_email:   string | null;
         contact_phone:   string | null;
+        contact_company: string | null;
         audit_id:        string | null;
         created_at:      string;
         biz_description: string | null;

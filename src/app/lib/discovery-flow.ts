@@ -173,7 +173,7 @@ const ALL_QUESTIONS: DiscoveryQuestion[] = [
   },
   {
     id: 'd2',
-    question: 'What takes the most of your time each week that you wish you could eliminate?',
+    question: 'What takes the most time in your week that you wish you could eliminate?',
     type: 'single_choice',
     options: [
       'Following up with leads and prospects',
@@ -250,18 +250,21 @@ export function getQuestion(id: string): DiscoveryQuestion | undefined {
 
 /**
  * Returns a 1–5 triage score for the consultant queue.
+ * The score is derived only from the **count** of findings returned by `computeFindings`
+ * (same answer set → same cards → same score). Individual finding `impact` (high vs medium)
+ * does not change this number — a screen full of medium-severity items lowers the score
+ * like several high-severity items would.
  * Stored server-side as `maturity_level` for backend compatibility.
  * NOT shown to the user — internal signal only.
- * Lower score = more pressing issues found.
+ * More findings → lower numeric score → higher follow-up priority in the consultant queue.
  */
 export function computeScore(answers: DiscoveryAnswers): number {
-  const findings = computeFindings(answers);
-  const highCount = findings.filter(f => f.impact === 'high').length;
-  if (highCount >= 3) return 1;
-  if (highCount === 2) return 2;
-  if (highCount === 1) return 3;
-  if (findings.length > 0) return 4;
-  return 5;
+  const n = computeFindings(answers).length;
+  if (n === 0) return 5;
+  if (n <= 2) return 4;
+  if (n <= 4) return 3;
+  if (n <= 6) return 2;
+  return 1;
 }
 
 // ── Findings engine ───────────────────────────────────────────────────────────
@@ -270,20 +273,47 @@ function industryLabel(answers: DiscoveryAnswers): string {
   return (answers['a2'] as string | null) ?? 'your industry';
 }
 
-/**
- * Backward-compat wrapper for any code that still calls computeMaturity().
- * Returns `{ level }` where level is the 1–5 triage score.
- * @deprecated Use computeScore() instead.
- */
-export function computeMaturity(answers: DiscoveryAnswers): { level: number } {
-  return { level: computeScore(answers) };
-}
-
 function teamLabel(answers: DiscoveryAnswers): string {
   const t = answers['a4'] as string | null;
   if (!t || t === 'Just me') return 'as a solo operator';
   if (t === '2–5 people') return 'with a small team';
   return 'at your team size';
+}
+
+/** Natural-language list for enquiry channels (c_nosite_4). */
+function channelsLabel(chs: string[]): string {
+  if (chs.length === 0) return 'your enquiry channels';
+  if (chs.length === 1) return chs[0];
+  if (chs.length === 2) return `${chs[0]} and ${chs[1]}`;
+  return `${chs.slice(0, -1).join(', ')}, and ${chs[chs.length - 1]}`;
+}
+
+function stageLabel(stage: string | null): string {
+  if (!stage) return 'at your stage';
+  const map: Record<string, string> = {
+    'Just getting started': 'while you are launching',
+    'Growing fast': 'while you are growing fast',
+    Stabilising: 'during stabilisation',
+    Scaling: 'while you scale',
+    'Mature and optimising': 'as you optimise',
+  };
+  return map[stage] ?? 'at your current stage';
+}
+
+/** True when d1 is empty or only trivial / spreadsheet-only tooling. */
+function d1SoloWeakTools(tools: string[]): boolean {
+  if (tools.length === 0) return true;
+  const meaningful = tools.filter(
+    t => t !== 'Email' && t !== 'Nothing specific' && t !== 'WhatsApp / voice notes',
+  );
+  return meaningful.length === 0 || (meaningful.length === 1 && meaningful[0] === 'Spreadsheets');
+}
+
+function d1EffectivelyEmpty(tools: string[]): boolean {
+  return (
+    tools.length === 0 ||
+    (tools.length === 1 && tools[0] === 'Nothing specific')
+  );
 }
 
 /**
@@ -310,9 +340,6 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
   const isLaunching   = stage === 'Just getting started';
   const isGrowingFast = stage === 'Growing fast';
 
-  const isWordOfMouthOnly =
-    presence.length === 0 ||
-    presence.every(p => p === 'Word of mouth only' || p === 'Not really online yet');
   const isNotOnline = presence.includes('Not really online yet');
 
   const isLocalServiceBusiness =
@@ -325,36 +352,37 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
     !presence.includes('Google search') &&
     !presence.includes('Google Business / Maps listing');
 
-  const meaningfulTools = tools.filter(
-    t => t !== 'Email' && t !== 'Nothing specific' && t !== 'WhatsApp / voice notes',
-  );
-
   // ── Rule 1: No CRM + WhatsApp as primary channel ────────────────────────────
   if (noCrm && hasWhatsApp) {
+    const ch = channels.filter(c => c !== 'WhatsApp');
+    const tail = ch.length ? ` The same pattern often shows up across ${channelsLabel(ch)}.` : '';
     findings.push({
       id: 'no_crm_whatsapp',
       zone: 'Automation',
-      headline: 'Every WhatsApp message is a sale with no record',
-      detail: `You are managing your pipeline inside a messaging app. There is no follow-up sequence, no reminder when a lead goes cold, no visibility into how many enquiries were lost. For a business ${teamLabel(answers)} in ${industryLabel(answers)}, this is typically the single fastest revenue fix available.`,
+      headline: 'Every WhatsApp thread is revenue walking out the door',
+      detail: `You are managing leads inside WhatsApp with no CRM record.${tail} There is no follow-up sequence, no reminder when a lead goes cold, and no count of how many enquiries slipped away. For ${industryLabel(answers)} ${teamLabel(answers)}, wiring WhatsApp into a simple pipeline is often the fastest revenue win.`,
       impact: 'high',
       hook: 'revenue',
     });
   }
 
-  // ── Rule 2: Lead tracking in head or unsystematic ────────────────────────────
-  if (tracking?.includes('In my head') || tracking?.includes("don't track")) {
+  // ── Rule 2: Lead tracking in head / WhatsApp (d1b) ─────────────────────────────
+  if (
+    tracking === 'In my head or WhatsApp messages' ||
+    (typeof tracking === 'string' && tracking.includes("don't track"))
+  ) {
     findings.push({
       id: 'lead_in_head',
       zone: 'Revenue',
-      headline: 'You are losing clients you do not know you are losing',
-      detail: 'Without a system to log enquiries and track follow-ups, your pipeline is invisible. Research consistently shows 40–60% of new business closes within 24 hours of first contact — every delayed reply costs real revenue.',
+      headline: 'You are losing clients you never see in a pipeline',
+      detail: `Without a system to log enquiries from ${channelsLabel(channels)}, follow-ups live in memory and chat. Deals that close within hours of first contact are the ones you never see — every slow reply is money left on the table ${stageLabel(stage)}.`,
       impact: 'high',
       hook: 'revenue',
     });
   }
 
-  // ── Rule 3: Not online at all ─────────────────────────────────────────────────
-  if (isNotOnline) {
+  // ── Rule 3: Not online at all (skip when Rule 13 covers the same case with goal context)
+  if (isNotOnline && goal !== 'Not enough new clients') {
     findings.push({
       id: 'invisible',
       zone: 'Visibility',
@@ -365,24 +393,26 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
     });
   }
 
-  // ── Rule 4: Word-of-mouth only (not already covered by rule 3) ───────────────
-  if (isWordOfMouthOnly && !isNotOnline && !isGrowingFast) {
+  // ── Rule 4: Only one acquisition / visibility path selected (c_nosite_1) ───
+  const solePresence = presence.length === 1 ? presence[0] : null;
+  if (solePresence && solePresence !== 'Not really online yet') {
+    const only = solePresence;
     findings.push({
       id: 'single_channel',
       zone: 'Growth risk',
-      headline: 'Your entire pipeline depends on one channel',
-      detail: `Word-of-mouth is the highest-trust channel there is — but it makes revenue unpredictable. One slow month with no digital fallback and the business stalls. This is the most common hidden risk for ${industryLabel(answers)} businesses at your stage.`,
+      headline: 'All new demand is flowing through a single narrow path',
+      detail: `You indicated people find you mainly via "${only}". When that one path hiccups — algorithm, seasonality, or a quiet referral month — revenue wobbles with no backup. ${industryLabel(answers)} businesses ${teamLabel(answers)} usually need at least one parallel acquisition route; the audit shows which to add first.`,
       impact: 'high',
       hook: 'risk',
     });
   }
 
-  // ── Rule 5: Local service business with no Google presence ───────────────────
+  // ── Rule 5: Hospitality / F&B / healthcare with no Google presence ──────────
   if (isLocalServiceBusiness && hasNoGooglePresence) {
     findings.push({
-      id: 'local_no_google',
+      id: 'hospitality_no_google',
       zone: 'Visibility',
-      headline: 'Your most important digital asset is not set up yet',
+      headline: 'Your most important local discovery surface is not working for you yet',
       detail: `For ${industryLabel(answers)}, Google Maps is the first touchpoint for the majority of new clients. A verified Google Business profile is free, takes under an hour, and starts driving enquiries immediately.`,
       impact: 'high',
       hook: 'visibility',
@@ -402,13 +432,13 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
   }
 
   // ── Rule 7: d2 bottleneck is a known automatable workflow ───────────────────
-  const automatableBottlenecks = [
-    'Following up with leads',
-    'Scheduling and confirming',
-    'Creating and sending quotes',
-    'Reporting and tracking',
-  ];
-  if (bottleneck && automatableBottlenecks.some(b => bottleneck.startsWith(b))) {
+  const automatableD2 = new Set([
+    'Following up with leads and prospects',
+    'Scheduling and confirming appointments',
+    'Creating and sending quotes or invoices',
+    'Reporting and tracking what is working',
+  ]);
+  if (bottleneck && automatableD2.has(bottleneck)) {
     const hourEstimate = isSolo ? '3–5' : '5–10';
     findings.push({
       id: 'd2_automatable',
@@ -420,20 +450,20 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
     });
   }
 
-  // ── Rule 8: Solo operator with no meaningful tools ───────────────────────────
-  if (isSolo && meaningfulTools.length === 0) {
+  // ── Rule 8: Solo + empty or spreadsheet-only stack ─────────────────────────
+  if (isSolo && d1SoloWeakTools(tools)) {
     findings.push({
       id: 'solo_no_tools',
       zone: 'Operations',
-      headline: 'You are doing the work of three people manually',
-      detail: 'Solo operators running on memory and spreadsheets hit a capacity ceiling that looks like a client volume problem but is actually a systems problem. The audit maps the 2–3 automations that create the most headroom for your specific workflow.',
+      headline: 'You are carrying the whole operation without a real stack',
+      detail: `Running ${industryLabel(answers)} solo on spreadsheets and ad hoc tools caps how many clients you can serve before quality slips. The bottleneck feels like "not enough hours" but it is usually three repeatable workflows — the audit ranks which to automate first so you reclaim 5–10 hours a week.`,
       impact: 'high',
       hook: 'time',
     });
   }
 
-  // ── Rule 9: No tools at all ───────────────────────────────────────────────────
-  if (tools.includes('Nothing specific') || tools.length === 0) {
+  // ── Rule 9: No substantive tools (non-solo, or solo not already covered by Rule 8)
+  if (d1EffectivelyEmpty(tools) && !(isSolo && d1SoloWeakTools(tools))) {
     findings.push({
       id: 'no_tools',
       zone: 'Operations',
@@ -459,7 +489,7 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
   // ── Rule 11: Growing fast with narrow acquisition base ───────────────────────
   if (isGrowingFast && presence.length <= 2) {
     findings.push({
-      id: 'fast_growth_fragile',
+      id: 'fast_growth_single_channel',
       zone: 'Growth risk',
       headline: 'Fast growth on a narrow base is structurally fragile',
       detail: 'Growing fast with 1–2 acquisition sources means an algorithm change or a referral drought can cut your pipeline in half overnight. Diversification at this stage is cheaper than recovery later.',
@@ -480,20 +510,20 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
     });
   }
 
-  // ── Rule 13: Goal is client acquisition but no online presence ──────────────
-  if (goal === 'Not enough new clients' && (isNotOnline || isWordOfMouthOnly)) {
+  // ── Rule 13: Goal is clients + c_nosite_1 includes "Not really online yet" ───
+  if (goal === 'Not enough new clients' && isNotOnline) {
     findings.push({
       id: 'goal_clients_no_presence',
       zone: 'Visibility',
       headline: 'You want more clients, but they cannot find you',
-      detail: 'You named client acquisition as your core challenge. The fastest path to solving it is not paid ads — it is making sure you appear where your ideal clients already search. The audit maps exactly that, starting with the zero-cost options.',
+      detail: `You said new clients are the priority, yet you also signalled you are not really online yet — so search and discovery traffic is not reaching you. The fastest fix is rarely more ad spend; it is showing up where ${industryLabel(answers)} buyers already look, starting with the zero-cost moves the audit sequences.`,
       impact: 'high',
       hook: 'visibility',
     });
   }
 
-  // ── Rule 14: Goal is admin overload but no tools ─────────────────────────────
-  if (goal === 'Too much time on admin and operations' && meaningfulTools.length <= 1) {
+  // ── Rule 14: Goal is admin overload but d1 is thin ─────────────────────────
+  if (goal === 'Too much time on admin and operations' && d1SoloWeakTools(tools)) {
     findings.push({
       id: 'goal_admin_no_tools',
       zone: 'Automation',
@@ -504,13 +534,15 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
     });
   }
 
-  // ── Rule 15: Phone as primary channel without CRM ─────────────────────────
+  // ── Rule 15: Phone as enquiry channel without CRM ───────────────────────────
   if (hasPhone && noCrm) {
+    const otherCh = channels.filter(c => c !== 'Phone call');
+    const chTail = otherCh.length ? `, often alongside ${channelsLabel(otherCh)}` : '';
     findings.push({
       id: 'phone_primary',
       zone: 'Automation',
-      headline: 'Every missed call is a lead that went to a competitor',
-      detail: 'Phone-first businesses miss enquiries whenever the owner is unavailable. A simple async response system — even a smart WhatsApp auto-reply or a booking link in your voicemail — recovers the majority of those conversations.',
+      headline: 'Phone calls are high-intent — and they vanish without a system',
+      detail: `You told us enquiries arrive by phone${chTail}. Without CRM logging, callbacks slip, voicemails stack, and revenue leaks on busy days. A lightweight capture plus SMS or WhatsApp handoff often pays for itself in one recovered job.`,
       impact: 'medium',
       hook: 'revenue',
     });

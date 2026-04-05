@@ -1,5 +1,6 @@
 import { Circle, Check, CheckCircle, Lightbulb, UserCircle } from '@phosphor-icons/react';
 import type { BriefQuestion, BriefResponseEntry } from '../data/briefQuestions';
+import { choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
 
 export const PRIORITY_BADGE: Record<string, { label: string; color: string }> = {
   required: { label: 'Required', color: 'var(--score-1)' },
@@ -25,9 +26,9 @@ export function BriefField({
   emphasizeClientSource?: boolean;
   /** When true, shows consultant_hint coaching prompts and marks answers as consultant-sourced. */
   interviewMode?: boolean;
-  /** Current free-text clarification when "Other" is selected. */
+  /** Current free-text clarification when an "Other / specify" option is selected. */
   otherSpecify?: string;
-  /** Callback to update the "Other" clarification text. Required to enable the specify input. */
+  /** Callback to update the clarification text. Required to enable the specify input. */
   onOtherSpecifyChange?: (v: string) => void;
 }) {
   const rawValue = (value && typeof value === 'object' && !Array.isArray(value) && 'value' in value)
@@ -141,7 +142,7 @@ export function BriefField({
               );
             })}
           </div>
-          {strVal === 'Other' && onOtherSpecifyChange !== undefined && (
+          {choiceValueNeedsSpecify(strVal) && onOtherSpecifyChange !== undefined && (
             <input
               type="text"
               value={otherSpecify ?? ''}
@@ -188,7 +189,7 @@ export function BriefField({
               );
             })}
           </div>
-          {arrVal.includes('Other') && onOtherSpecifyChange !== undefined && (
+          {choiceValueNeedsSpecify(arrVal) && onOtherSpecifyChange !== undefined && (
             <input
               type="text"
               value={otherSpecify ?? ''}

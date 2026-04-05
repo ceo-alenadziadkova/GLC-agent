@@ -20,8 +20,10 @@ import { BriefField } from '../components/BriefField';
 import {
   BRIEF_QUESTIONS,
   mergeBriefResponsesPreferFilled,
+  unwrapResponse,
 } from '../data/briefQuestions';
 import type { BriefQuestion, BriefResponses } from '../data/briefQuestions';
+import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
 import { api } from '../data/apiService';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
@@ -99,8 +101,10 @@ export function AuditWorkspace() {
   ) => {
     if (!id || !audit?.brief) return;
     const prev = (audit.brief.responses as BriefResponses) ?? {};
+    const priorPending = pendingBriefRef.current;
+    const base = priorPending ? { ...prev, ...priorPending } : prev;
     const next: BriefResponses = {
-      ...prev,
+      ...base,
       [qid]: { value, source },
     };
     pendingBriefRef.current = next;
@@ -619,15 +623,31 @@ export function AuditWorkspace() {
                               Brief updated — readiness refreshed
                             </motion.p>
                           )}
-                          {followupQuestions.map(q => (
-                            <BriefField
-                              key={q.id}
-                              q={q}
-                              value={(audit.brief?.responses as BriefResponses | undefined)?.[q.id]}
-                              onChange={v => queueFollowupBriefSave(q.id, v)}
-                              onSetUnknown={() => queueFollowupBriefSave(q.id, null, 'unknown')}
-                            />
-                          ))}
+                          {followupQuestions.map(q => {
+                            const otherKey = choiceSpecifyResponseKey(q.id);
+                            const br = (audit.brief?.responses as BriefResponses) ?? {};
+                            const specRaw = unwrapResponse(br[otherKey]);
+                            const otherSpecify = typeof specRaw === 'string' ? specRaw : '';
+                            return (
+                              <BriefField
+                                key={q.id}
+                                q={q}
+                                value={br[q.id]}
+                                onChange={v => {
+                                  queueFollowupBriefSave(q.id, v);
+                                  if (!choiceValueNeedsSpecify(v)) {
+                                    queueFollowupBriefSave(otherKey, null);
+                                  }
+                                }}
+                                onSetUnknown={() => {
+                                  queueFollowupBriefSave(q.id, null, 'unknown');
+                                  queueFollowupBriefSave(otherKey, null, 'unknown');
+                                }}
+                                otherSpecify={otherSpecify}
+                                onOtherSpecifyChange={text => queueFollowupBriefSave(otherKey, text || null)}
+                              />
+                            );
+                          })}
                         </motion.div>
                       )}
                     </AnimatePresence>

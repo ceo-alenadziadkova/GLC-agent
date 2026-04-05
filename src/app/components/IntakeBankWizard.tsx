@@ -9,6 +9,7 @@ import {
   type BriefResponses,
 } from '../data/briefQuestions';
 import { briefResponsesToIntakeMap, useIntakeWizard } from '../hooks/useIntakeWizard';
+import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
 
 function intakeMapToBriefResponses(map: Record<string, unknown>): BriefResponses {
   const out: BriefResponses = {};
@@ -115,7 +116,7 @@ export function IntakeBankWizard({
 
       {q && (() => {
         // For a2 (industry), use the legacy-compat key so legacy-to-bank synthesises a1 correctly.
-        const otherKey = q.id === 'a2' ? 'intake_industry_specify' : `${q.id}__other`;
+        const otherKey = choiceSpecifyResponseKey(q.id);
         const otherSpecify = (unwrapForField(responses[otherKey]) as string | undefined) ?? '';
         return (
           <BriefField
@@ -123,9 +124,13 @@ export function IntakeBankWizard({
             value={unwrapForField(responses[q.id])}
             onChange={v => {
               wizard.setField(q.id, { value: v, source });
+              if (!choiceValueNeedsSpecify(v as string | string[] | null)) {
+                wizard.setField(choiceSpecifyResponseKey(q.id), { value: null, source });
+              }
             }}
             onSetUnknown={() => {
               wizard.setField(q.id, { value: null, source: 'unknown' });
+              wizard.setField(choiceSpecifyResponseKey(q.id), { value: null, source: 'unknown' });
             }}
             emphasizeClientSource={emphasizeClientSource}
             interviewMode={interviewMode}
@@ -200,10 +205,14 @@ export function IntakeBankWizard({
               q={REVENUE_MODEL}
               value={unwrapForField(responses.revenue_model)}
               onChange={v => {
-                onResponsesChange({
+                const next: BriefResponses = {
                   ...responses,
                   revenue_model: { value: v, source },
-                });
+                };
+                if (!choiceValueNeedsSpecify(v as string | string[] | null)) {
+                  delete next.revenue_model__other;
+                }
+                onResponsesChange(next);
                 if (typeof v === 'string' && v.trim().length > 0) {
                   setRevenueLaunchOpen(false);
                 }
@@ -212,10 +221,18 @@ export function IntakeBankWizard({
                 onResponsesChange({
                   ...responses,
                   revenue_model: { value: null, source: 'unknown' },
+                  revenue_model__other: { value: null, source: 'unknown' },
                 });
               }}
               emphasizeClientSource={emphasizeClientSource}
               interviewMode={interviewMode}
+              otherSpecify={(unwrapForField(responses.revenue_model__other) as string | undefined) ?? ''}
+              onOtherSpecifyChange={text => {
+                onResponsesChange({
+                  ...responses,
+                  revenue_model__other: { value: text || null, source },
+                });
+              }}
             />
           </div>
         )}

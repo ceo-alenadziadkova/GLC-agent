@@ -180,6 +180,15 @@ export class ContextBuilder {
       briefResponses.main_competitors = extractPrimaryCompetitor(briefResponses.main_competitors);
     }
 
+    for (const [k, val] of Object.entries(allResponses)) {
+      if (!k.endsWith('__other')) continue;
+      const parent = k.slice(0, -'__other'.length);
+      if (!(parent in briefResponses)) continue;
+      const parsed = ContextBuilder.unwrapBriefResponse(val);
+      briefResponses[k] = parsed.value;
+      briefResponseSources[k] = parsed.source;
+    }
+
     const industry = audit?.industry ?? recon?.industry ?? null;
 
     const bankAiReadiness = responsesUseQuestionBankV1(allResponses)
@@ -236,11 +245,21 @@ export class ContextBuilder {
     const entries: BriefEntry[] = [];
     for (const [id, v] of Object.entries(ctx.brief_responses)) {
       if (v === null || v === '') continue;
+      if (id.endsWith('__other')) continue;
       if (id === 'intake_industry_specify' && ctx.industry === 'Other' && industryOtherSpecify) {
         continue;
       }
       const question = getQuestionBankPromptLabel(id) ?? getBriefQuestionText(id);
-      const answer = Array.isArray(v) ? v.join(', ') : String(v);
+      let answer = Array.isArray(v) ? v.join(', ') : String(v);
+      const specKey = `${id}__other`;
+      const rawSpec = ctx.brief_responses[specKey];
+      const specStr =
+        rawSpec != null && rawSpec !== ''
+          ? (Array.isArray(rawSpec) ? rawSpec.join(', ') : String(rawSpec)).trim()
+          : '';
+      if (specStr) {
+        answer = `${answer} — ${specStr}`;
+      }
       const source = ctx.brief_response_sources[id] ?? 'client';
       entries.push({
         id,
