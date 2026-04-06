@@ -19,7 +19,7 @@
    - Set **Site URL** to your production frontend URL (exact URL; wildcards are invalid here)
    - Add **Redirect URLs**: exact dev/prod origins and `/login` URLs as needed — see [AUTH.md](./AUTH.md#supabase-auth-configuration) (some dashboards reject `*` wildcards)
 4. Authentication → Providers:
-   - Enable **Email** (magic link is enabled by default)
+   - Enable **Email** and **email + password** sign-in; disable passwordless / magic-link email if you want the dashboard to match app-only password + Google flows
    - Enable **Google** → enter Client ID + Client Secret from Google Cloud Console
 5. Note down from Project Settings → API:
    - `SUPABASE_URL` (format: `https://xxxx.supabase.co`)
@@ -156,7 +156,7 @@ In production: set `ALLOWED_ORIGINS=https://your-app.vercel.app` in Railway.
 - [ ] All env vars set in Railway and Vercel
 - [ ] `ALLOWED_ORIGINS` in Railway matches Vercel domain
 - [ ] Backend `/` healthcheck returns 200
-- [ ] Test: magic link email delivery (check Supabase Auth logs)
+   - [ ] Test: sign-in and sign-up (email/password and/or Google; check Supabase Auth logs if confirmations fail)
 - [ ] Test: create audit end-to-end in production
 
 ---

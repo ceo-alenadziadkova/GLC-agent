@@ -9,6 +9,8 @@ import { Router } from 'express';
 import { randomUUID } from 'crypto';
 import { supabase } from '../services/supabase.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
+import { requireAuth, attachProfile, type AuthRequest } from '../middleware/auth.js';
+import { resolveSelfServeAuditOwnerUserId } from '../lib/self-serve-audit-owner.js';
 import {
   getSnapshotPublicQuota,
   snapshotCompareLimiter,
@@ -153,7 +155,7 @@ snapshotRouter.get('/quota', async (req, res) => {
 });
 
 // ─── POST /api/snapshot — Start a free snapshot ────────────
-snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
+snapshotRouter.post('/', snapshotPublicLimiter, requireAuth, attachProfile, async (req: AuthRequest, res) => {
   try {
     const { company_url } = req.body;
 
@@ -195,14 +197,30 @@ snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
 
     const snapshotToken = randomUUID();
 
-    // Create audit record (no user_id for free_snapshot)
+    let ownerUserId: string;
+    let clientId: string | null = null;
+
+    if (req.userRole === 'consultant') {
+      ownerUserId = req.userId!;
+    } else {
+      const resolved = await resolveSelfServeAuditOwnerUserId();
+      if (!resolved.ok) {
+        res.status(resolved.statusCode).json({ error: resolved.error, code: resolved.code });
+        return;
+      }
+      ownerUserId = resolved.userId;
+      clientId = req.userId!;
+    }
+
     const { data: audit, error: auditErr } = await supabase
       .from('audits')
       .insert({
         company_url: url,
         product_mode: 'free_snapshot',
         snapshot_token: snapshotToken,
-        token_budget: 80000, // Reduced budget for free snapshot
+        token_budget: 80000,
+        user_id: ownerUserId,
+        client_id: clientId,
       })
       .select('id')
       .single();
@@ -306,7 +324,8 @@ snapshotRouter.post('/operator/purge-cache', async (req, res) => {
 // ─── GET /api/snapshot/:token — Poll status / fetch result ─
 snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
   try {
-    const { token } = req.params;
+    const rawTok = req.params.token;
+    const token = typeof rawTok === 'string' ? rawTok : rawTok?.[0] ?? '';
 
     if (!token || !UUID_V4_RE.test(token)) {
       res.status(400).json({ error: 'Invalid snapshot token' });

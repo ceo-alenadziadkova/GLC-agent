@@ -1,6 +1,13 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
-import { requireAuth, attachProfile, requireRole, type AuthRequest, type UserRole } from '../middleware/auth.js';
+import {
+  requireAuth,
+  attachProfile,
+  requireRole,
+  rejectGuestFromPortal,
+  type AuthRequest,
+  type UserRole,
+} from '../middleware/auth.js';
 import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 import { pipelineLimiter } from '../middleware/rate-limit.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
@@ -325,8 +332,8 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
 });
 
 // ─── GET /api/audits/:id/pipeline/status — Pipeline status ──
-// Readable by any authenticated user (clients track their own audit progress)
-pipelineRouter.get('/:id/pipeline/status', requireAuth, async (req: AuthRequest, res) => {
+// Clients and consultants track progress; snapshot guests use /api/snapshot until registered.
+pipelineRouter.get('/:id/pipeline/status', requireAuth, attachProfile, rejectGuestFromPortal, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
 
@@ -365,7 +372,7 @@ pipelineRouter.get('/:id/pipeline/status', requireAuth, async (req: AuthRequest,
 });
 
 // ─── GET /api/audits/:id/quality-gate/:phase — Fetch quality gate report ──
-pipelineRouter.get('/:id/quality-gate/:phase', requireAuth, async (req: AuthRequest, res) => {
+pipelineRouter.get('/:id/quality-gate/:phase', requireAuth, attachProfile, rejectGuestFromPortal, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
     const phase = parseInt(req.params.phase as string);

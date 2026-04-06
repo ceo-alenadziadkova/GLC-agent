@@ -25,8 +25,16 @@ import { GlcLogo } from '../components/GlcLogo';
 import { SyncPathLoader } from '../components/SyncPathLoader';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
+import { supabase } from '../lib/supabase';
+import { getSnapshotAccessToken } from '../lib/snapshot-auth';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+
+async function getBearerForSnapshot(): Promise<string | null> {
+  return getSnapshotAccessToken();
+}
+
+type SnapshotAuthState = 'checking' | 'signed_in' | 'signed_out';
 
 type Stage = 'idle' | 'submitting' | 'running' | 'done' | 'error';
 
@@ -375,6 +383,21 @@ export function SnapshotLanding() {
   const [quotaPreview, setQuotaPreview] = useState<{ remaining: number; limit: number } | null>(null);
   const [competitorLoading, setCompetitorLoading] = useState(false);
   const [competitorLoadError, setCompetitorLoadError] = useState('');
+  const [snapshotAuth, setSnapshotAuth] = useState<SnapshotAuthState>('checking');
+
+  useEffect(() => {
+    const sync = async () => {
+      const { data } = await supabase.auth.getSession();
+      setSnapshotAuth(data.session?.access_token ? 'signed_in' : 'signed_out');
+    };
+    void sync();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      void sync();
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   async function refreshQuotaPreview() {
     try {
@@ -440,9 +463,19 @@ export function SnapshotLanding() {
     setRateLimitDetail(null);
 
     try {
+      const bearer = await getBearerForSnapshot();
+      if (!bearer) {
+        setErrorMsg('Session missing — sign in again from /login?next=/snapshot');
+        setStage('error');
+        return;
+      }
+
       const res = await fetch(`${API_URL}/api/snapshot`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${bearer}`,
+        },
         body: JSON.stringify({ company_url: trimmed }),
       });
 
@@ -454,9 +487,13 @@ export function SnapshotLanding() {
       };
 
       if (!res.ok) {
-        setErrorMsg(
-          typeof data.error === 'string' ? data.error : 'Failed to start analysis'
-        );
+        const msg =
+          res.status === 401
+            ? 'Session expired or invalid. Refresh the page to sign in again.'
+            : typeof data.error === 'string'
+              ? data.error
+              : 'Failed to start analysis';
+        setErrorMsg(msg);
         if (
           res.status === 429 &&
           typeof data.limit === 'number'
@@ -513,7 +550,10 @@ export function SnapshotLanding() {
     setCompetitorLoading(true);
     setCompetitorLoadError('');
     try {
-      const res = await fetch(`${API_URL}/api/snapshot/${token}?compare=1`);
+      const bearer = await getBearerForSnapshot();
+      const headers: Record<string, string> = {};
+      if (bearer) headers.Authorization = `Bearer ${bearer}`;
+      const res = await fetch(`${API_URL}/api/snapshot/${token}?compare=1`, { headers });
       if (!res.ok) {
         setCompetitorLoadError('Could not load comparison. Try again in a moment.');
         return;
@@ -593,7 +633,7 @@ export function SnapshotLanding() {
         <div className="flex shrink-0 items-center gap-3 sm:gap-4">
           <ThemeToggle />
           <Link
-            to="/login"
+            to="/login?next=/snapshot"
             className="inline-flex items-center justify-end gap-1 rounded-lg text-sm font-medium mobile:min-h-11 mobile:min-w-11 mobile:px-2"
             style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
           >
@@ -675,7 +715,7 @@ export function SnapshotLanding() {
                       style={{ color: 'var(--text-tertiary)' }}
                     >
                       <CheckCircle className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
-                      No sign-up required
+                      Sign in for free — we save the snapshot to your account
                     </div>
                   </div>
                 </div>
@@ -693,6 +733,21 @@ export function SnapshotLanding() {
                   Your website
                 </p>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {snapshotAuth === 'signed_out' && (
+                    <p
+                      className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5 text-center text-xs leading-snug mobile:text-left"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
+                      <Link
+                        to="/login?next=/snapshot"
+                        className="font-semibold underline-offset-2 hover:underline"
+                        style={{ color: 'var(--glc-blue)' }}
+                      >
+                        Sign in or create an account
+                      </Link>{' '}
+                      to run the snapshot. Results stay linked to your profile.
+                    </p>
+                  )}
                   <div className="relative">
                     <Globe
                       className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 mobile:left-3"
@@ -704,7 +759,7 @@ export function SnapshotLanding() {
                       onChange={e => setUrl(e.target.value)}
                       placeholder="yourcompany.com"
                       required
-                      disabled={stage === 'submitting'}
+                      disabled={stage === 'submitting' || snapshotAuth !== 'signed_in'}
                       inputMode="url"
                       autoCapitalize="none"
                       autoCorrect="off"
@@ -721,18 +776,36 @@ export function SnapshotLanding() {
                   <motion.button
                     type="submit"
                     layout={false}
-                    disabled={!url.trim() || stage === 'submitting'}
-                    whileHover={url.trim() ? { scale: 1.015 } : {}}
-                    whileTap={url.trim() ? { scale: 0.985 } : {}}
+                    disabled={
+                      !url.trim() ||
+                      stage === 'submitting' ||
+                      snapshotAuth !== 'signed_in'
+                    }
+                    whileHover={url.trim() && snapshotAuth === 'signed_in' ? { scale: 1.015 } : {}}
+                    whileTap={url.trim() && snapshotAuth === 'signed_in' ? { scale: 0.985 } : {}}
                     className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] py-3 text-sm font-semibold text-white mobile:min-h-12"
                     style={{
-                      background: url.trim() ? 'var(--gradient-accent)' : 'var(--border-default)',
+                      background:
+                        url.trim() && snapshotAuth === 'signed_in'
+                          ? 'var(--gradient-accent)'
+                          : 'var(--border-default)',
                       border: 'none',
-                      cursor: url.trim() && stage !== 'submitting' ? 'pointer' : 'not-allowed',
-                      boxShadow: url.trim() ? '0 4px 14px rgba(242,79,29,0.28)' : 'none',
+                      cursor:
+                        url.trim() && stage !== 'submitting' && snapshotAuth === 'signed_in'
+                          ? 'pointer'
+                          : 'not-allowed',
+                      boxShadow:
+                        url.trim() && snapshotAuth === 'signed_in'
+                          ? '0 4px 14px rgba(242,79,29,0.28)'
+                          : 'none',
                     }}
                   >
-                    {stage === 'submitting' ? (
+                    {snapshotAuth === 'checking' ? (
+                      <>
+                        <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                        Checking session...
+                      </>
+                    ) : stage === 'submitting' ? (
                       <>
                         <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
                         Starting analysis...
@@ -1412,7 +1485,7 @@ export function SnapshotLanding() {
                     >
                       Narrow snapshot only.{' '}
                       <Link
-                        to="/login"
+                        to="/login?next=/audit/new"
                         className="font-semibold"
                         style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
                       >
@@ -1511,7 +1584,7 @@ export function SnapshotLanding() {
                 </div>
                 <div className="relative z-[1] mt-5 flex w-full shrink-0 flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center lg:mt-0 lg:w-auto lg:flex-col lg:items-stretch">
                   <Link
-                    to="/login"
+                    to="/login?next=/audit/new"
                     className="glc-btn-primary w-auto min-w-[12rem] justify-center mobile:min-h-12 mobile:w-full lg:w-full"
                     style={{ textDecoration: 'none' }}
                   >
@@ -1548,7 +1621,7 @@ export function SnapshotLanding() {
       >
         <p className="text-xs" style={{ color: 'var(--text-quaternary)' }}>
           Results are AI-generated and for informational purposes only. · {' '}
-          <Link to="/login" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Sign in</Link>
+          <Link to="/login?next=/snapshot" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Sign in</Link>
         </p>
         <p className="text-xs mt-1.5" style={{ color: 'var(--text-quaternary)' }}>
           No website yet?{' '}

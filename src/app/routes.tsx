@@ -21,6 +21,10 @@ function P({ children }: { children: React.ReactNode }) {
   return <ProtectedRoute>{children}</ProtectedRoute>;
 }
 
+function PNoGuest({ children }: { children: React.ReactNode }) {
+  return <ProtectedRoute blockedForRoles={['guest']}>{children}</ProtectedRoute>;
+}
+
 function Consultant({ children }: { children: React.ReactNode }) {
   return <ProtectedRoute requiredRole="consultant">{children}</ProtectedRoute>;
 }
@@ -49,7 +53,7 @@ export const router = createBrowserRouter([
   { path: '/reports/:id',         element: <Consultant><ReportViewer /></Consultant> },
   { path: '/portal/reports/:id',  element: <Client><ReportViewer /></Client> },
   { path: '/strategy/:id',        element: <Consultant><StrategyLab /></Consultant> },
-  { path: '/settings',            element: <P><SettingsPage /></P> },
+  { path: '/settings',            element: <PNoGuest><SettingsPage /></PNoGuest> },
 
   // ── Client portal routes ───────────────────────────────────────────────────
   { path: '/portal',                  element: <Client><ClientPortal /></Client> },

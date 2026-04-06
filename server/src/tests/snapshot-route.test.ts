@@ -187,6 +187,31 @@ vi.mock('../middleware/rate-limit.js', async (importOriginal) => {
   };
 });
 
+vi.mock('../middleware/auth.js', () => ({
+  requireAuth: (req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) => {
+    const auth = req.headers.authorization;
+    if (!auth?.startsWith('Bearer ')) {
+      res.status(401).json({ error: 'Missing or invalid Authorization header' });
+      return;
+    }
+    type AR = import('../middleware/auth.js').AuthRequest;
+    (req as unknown as AR).userId = 'test-snapshot-user-id';
+    const role = req.headers['x-test-role'];
+    (req as unknown as AR).userEmail = role === 'consultant' ? 'consultant@test.example' : undefined;
+    next();
+  },
+  attachProfile: (req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) => {
+    type AR = import('../middleware/auth.js').AuthRequest;
+    (req as unknown as AR).userRole = req.headers['x-test-role'] === 'consultant' ? 'consultant' : 'client';
+    next();
+  },
+  rejectGuestFromPortal: (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
+vi.mock('../lib/self-serve-audit-owner.js', () => ({
+  resolveSelfServeAuditOwnerUserId: vi.fn().mockResolvedValue({ ok: true, userId: 'self-serve-owner-id' }),
+}));
+
 // Avoid real DNS in CI/sandbox; mirrors sync checks + URL normalization from production module.
 vi.mock('../lib/public-http-url.js', () => {
   class PublicUrlNotAllowedError extends Error {
@@ -232,6 +257,8 @@ import {
 
 let server: Server;
 let baseUrl: string;
+
+const SNAPSHOT_TEST_AUTH = { Authorization: 'Bearer snapshot-test-jwt' } as const;
 
 beforeAll(async () => {
   const app = express();
@@ -284,10 +311,19 @@ describe('GET /api/snapshot/quota', () => {
 
 describe('POST /api/snapshot', () => {
 
-  it('returns 202 with snapshot_token when URL is valid', async () => {
+  it('returns 401 when Authorization is missing', async () => {
     const res = await fetch(`${baseUrl}/api/snapshot`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ company_url: 'https://example.com' }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 202 with snapshot_token when URL is valid', async () => {
+    const res = await fetch(`${baseUrl}/api/snapshot`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
       body: JSON.stringify({ company_url: 'https://example.com' }),
     });
 
@@ -301,7 +337,7 @@ describe('POST /api/snapshot', () => {
   it('normalizes URL without protocol prefix', async () => {
     const res = await fetch(`${baseUrl}/api/snapshot`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
       body: JSON.stringify({ company_url: 'example.com' }), // no https://
     });
 
@@ -314,7 +350,7 @@ describe('POST /api/snapshot', () => {
 
     const res = await fetch(`${baseUrl}/api/snapshot`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
       body: JSON.stringify({ company_url: 'https://example.com/path' }),
     });
 
@@ -359,7 +395,7 @@ describe('POST /api/snapshot', () => {
 
     const res = await fetch(`${baseUrl}/api/snapshot`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
       body: JSON.stringify({ company_url: 'https://example.com' }),
     });
 
@@ -369,7 +405,7 @@ describe('POST /api/snapshot', () => {
   it('returns 400 when company_url is missing', async () => {
     const res = await fetch(`${baseUrl}/api/snapshot`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
       body: JSON.stringify({}),
     });
 
@@ -381,7 +417,7 @@ describe('POST /api/snapshot', () => {
   it('returns 400 when company_url is not a valid URL', async () => {
     const res = await fetch(`${baseUrl}/api/snapshot`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
       body: JSON.stringify({ company_url: 'not a url at all !@#$' }),
     });
 
@@ -397,7 +433,7 @@ describe('POST /api/snapshot', () => {
     const start = Date.now();
     const res = await fetch(`${baseUrl}/api/snapshot`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
       body: JSON.stringify({ company_url: 'https://async-test.com' }),
     });
     const elapsed = Date.now() - start;
@@ -409,7 +445,7 @@ describe('POST /api/snapshot', () => {
   it('creates audit_recon and audit_domains child records', async () => {
     await fetch(`${baseUrl}/api/snapshot`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
       body: JSON.stringify({ company_url: 'https://example.com' }),
     });
 
@@ -422,7 +458,7 @@ describe('POST /api/snapshot', () => {
 
     const res = await fetch(`${baseUrl}/api/snapshot`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
       body: JSON.stringify({ company_url: 'https://example.com' }),
     });
 

@@ -63,7 +63,7 @@ app.get('/api/health', (_req, res) => {
 // ─── Routes ────────────────────────────────────────────────
 app.use('/api/profile', profileRouter);
 app.use('/api/platform', platformRouter);
-app.use('/api/snapshot', snapshotRouter);          // Public — no auth
+app.use('/api/snapshot', snapshotRouter);          // Public GET; POST uses Supabase JWT + attachProfile
 app.use('/api/intake', intakeRouter);               // Public token GET/respond; POST requires consultant auth
 app.use('/api/discover', discoverRouter);           // Public submit/load; consultant sessions/convert
 app.use('/api/audit-requests', auditRequestsRouter); // Client portal requests

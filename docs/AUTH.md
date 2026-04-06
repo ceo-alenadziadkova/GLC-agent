@@ -2,18 +2,16 @@
 
 ## Provider
 
-**Supabase Auth.** Handles JWT issuance, session refresh, magic links, and OAuth. No custom auth server needed.
+**Supabase Auth.** Handles JWT issuance, session refresh, email/password and OAuth. No custom auth server needed.
 
 ---
 
 ## Login Methods
 
-### Magic Link (Passwordless Email)
-1. User enters email on `/login`
-2. Frontend calls `supabase.auth.signInWithOtp({ email })`
-3. Supabase sends a magic link email
-4. User clicks link → Supabase redirects to the app with session tokens in URL fragment
-5. Supabase JS client picks up tokens automatically → session established
+### Email and password
+1. User chooses **Sign in** or **Create account** on `/login`
+2. Frontend calls `supabase.auth.signInWithPassword({ email, password })` or `supabase.auth.signUp({ email, password, options: { emailRedirectTo: '<origin>/login' } })`
+3. If **Confirm email** is enabled in the Supabase project, new users may need to confirm via email before the session is fully active — align dashboard settings with product expectations.
 
 ### Google OAuth
 1. Frontend calls `supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: '<origin>/login' } })`
@@ -24,7 +22,9 @@ Do not use bare `<origin>` as `redirectTo` when `/` immediately redirects to `/d
 
 **`Database error saving new user` (Google or first sign-up):** the `on_auth_user_created` trigger inserts into `public.profiles`. On Supabase hosted, that runs as `supabase_auth_admin`; without an INSERT (and SELECT for conflict checks) RLS policy for that role, the insert fails. Apply migration `012_profiles_trigger_auth_admin.sql` (see [DATABASE.md](./DATABASE.md#overview)). The login page surfaces `error_description` from the redirect URL when present.
 
-Both methods produce the same result: a Supabase session with an `access_token` (JWT) and `refresh_token`.
+**Free snapshot (`/snapshot`):** requires an existing session — the landing page links to **`/login?next=/snapshot`** so post-login redirect returns to the tool. Rows are tied to **`auth.uid()`** like other client flows.
+
+All methods produce the same end state for full accounts: a Supabase session with an `access_token` (JWT) and `refresh_token`.
 
 ---
 
@@ -129,8 +129,7 @@ In Supabase dashboard (Authentication → Settings):
 | Setting | Value |
 |---|---|
 | Site URL | **Exact URL only** (no `*`): `http://localhost:5173` (dev) / `https://your-app.vercel.app` (prod) |
-| Redirect URLs | Prefer **exact** URLs: `http://localhost:5173`, `http://localhost:5173/login`, `http://localhost:5173/login?from_magic=1`, plus production `https://…/login`. OAuth uses `redirectTo: <origin>/login`, so **`/login` must be allowed**. If an auth callback ever lands on `/`, `RootRedirect` forwards `?code` / hash to `/login`. Optional: [Supabase glob patterns](https://supabase.com/docs/guides/auth/redirect-urls) where the dashboard accepts them. |
-| Magic Link expiry | 1 hour (default) |
+| Redirect URLs | Prefer **exact** URLs: `http://localhost:5173`, `http://localhost:5173/login`, plus production `https://…/login`. OAuth uses `redirectTo: <origin>/login`, so **`/login` must be allowed**. Email sign-up uses `emailRedirectTo: <origin>/login` when confirmation links are enabled. If an auth callback ever lands on `/`, `RootRedirect` forwards `?code` / hash to `/login`. Optional: [Supabase glob patterns](https://supabase.com/docs/guides/auth/redirect-urls) where the dashboard accepts them. |
 | Google OAuth | Enabled — add Client ID + Secret from Google Cloud Console |
 
 ---

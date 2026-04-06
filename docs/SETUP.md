@@ -79,7 +79,7 @@ pnpm dev
 
 1. Open [http://localhost:5173](http://localhost:5173)
 2. You should see the Login page
-3. Enter your email → magic link sent → click link → redirected to Portfolio
+3. Sign in or create an account (email + password or Google) → redirected to Portfolio
 4. Click "New Audit" → enter a URL → submit → redirected to PipelineMonitor
 5. PipelineMonitor should show Phase 0 starting (Recon crawl)
 

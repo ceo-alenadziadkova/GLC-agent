@@ -128,6 +128,7 @@ vi.mock('../middleware/auth.js', () => ({
     next();
   },
   attachProfile: (_req: unknown, _res: unknown, next: () => void) => next(),
+  rejectGuestFromPortal: (_req: unknown, _res: unknown, next: () => void) => next(),
   requireRole: () => (_req: unknown, _res: unknown, next: () => void) => next(),
   optionalAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));

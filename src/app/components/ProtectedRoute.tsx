@@ -9,9 +9,17 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
   /** If provided, the route is only accessible by this role. */
   requiredRole?: UserRole;
+  /** Block these roles (e.g. snapshot guests from /settings). */
+  blockedForRoles?: UserRole[];
+  blockedRedirect?: string;
 }
 
-export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
+export function ProtectedRoute({
+  children,
+  requiredRole,
+  blockedForRoles,
+  blockedRedirect = '/snapshot',
+}: ProtectedRouteProps) {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { role, loading: profileLoading } = useProfile();
 
@@ -29,6 +37,10 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     return <Navigate to="/login" replace />;
   }
 
+  if (blockedForRoles?.length && role != null && blockedForRoles.includes(role)) {
+    return <Navigate to={blockedRedirect} replace />;
+  }
+
   if (requiredRole != null && role !== requiredRole) {
     logger.info(`ProtectedRoute: role "${role}" does not match required "${requiredRole}"`);
     // If role is null (profile row missing or server unreachable), redirect to /login
@@ -36,6 +48,9 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     // Do NOT redirect to a role-guarded route — that causes an infinite redirect loop.
     if (role === null) {
       return <Navigate to="/login" replace />;
+    }
+    if (role === 'guest') {
+      return <Navigate to="/snapshot" replace />;
     }
     const redirect = role === 'consultant' ? '/portfolio' : '/portal';
     return <Navigate to={redirect} replace />;

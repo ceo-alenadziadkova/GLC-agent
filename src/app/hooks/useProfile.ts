@@ -15,11 +15,13 @@ interface UseProfileResult {
   profile: Profile | null;
   role: UserRole | null;
   /** Product label for UI: internal role `consultant` displays as Admin. */
-  roleDisplayName: 'Admin' | 'Client' | null;
+  roleDisplayName: 'Admin' | 'Client' | 'Guest' | null;
   isConsultant: boolean;
   /** Same as isConsultant — GLC internal staff (DB role `consultant`). */
   isAdmin: boolean;
   isClient: boolean;
+  /** Anonymous / snapshot-only session — full client portal blocked until registration. */
+  isGuest: boolean;
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -133,13 +135,17 @@ export function useProfile(): UseProfileResult {
   };
 
   const isConsultant = profile?.role === 'consultant';
+  const isGuest = profile?.role === 'guest';
   return {
     profile,
     role: profile?.role ?? null,
-    roleDisplayName: profile ? (profile.role === 'consultant' ? 'Admin' : 'Client') : null,
+    roleDisplayName: profile
+      ? (profile.role === 'consultant' ? 'Admin' : profile.role === 'guest' ? 'Guest' : 'Client')
+      : null,
     isConsultant,
     isAdmin: isConsultant,
     isClient: profile?.role === 'client',
+    isGuest,
     loading,
     error,
     refetch,

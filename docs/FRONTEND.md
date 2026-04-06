@@ -154,7 +154,7 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 
 | Route | Page | Purpose |
 | --- | --- | --- |
-| `/login` | `Login.tsx` | Magic link + Google OAuth |
+| `/login` | `Login.tsx` | Email/password + Google OAuth |
 | `/` → redirects | — | Redirect to `/portfolio` |
 | `/portfolio` | `Portfolio.tsx` | List of all audits, KPI bar |
 | `/audit/new` | `NewAudit.tsx` | Create audit form |
@@ -172,8 +172,9 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 ## Page Descriptions
 
 ### `Login.tsx`
-- Email input → `supabase.auth.signInWithOtp({ email })` → shows "Check your email" state
-- Google OAuth → `signInWithOAuth` with `redirectTo: <origin>/login` (so tokens are not stripped by `/` → `/dashboard` redirect)
+- **Sign in** / **Create account** tabs → `signInWithPassword` / `signUp` (see `useAuth`)
+- Google OAuth → `signInWithOAuth` with `redirectTo: <origin>/login`
+- Guest snapshot sessions see a hint to use Google so `user.id` stays stable
 - If already authenticated (`useAuth().isAuthenticated`) → redirect to `/portfolio`
 - Glassmorphism card, gradient button, GLC logo
 

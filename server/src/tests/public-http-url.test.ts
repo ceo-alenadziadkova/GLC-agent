@@ -1,9 +1,14 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import dns from 'node:dns/promises';
+import type { LookupAddress } from 'node:dns';
 import {
   validatePublicAuditUrl,
   PublicUrlNotAllowedError,
 } from '../lib/public-http-url.js';
+
+function mockDnsLookupAll(records: LookupAddress[]): typeof dns.lookup {
+  return (async () => records) as unknown as typeof dns.lookup;
+}
 
 describe('validatePublicAuditUrl', () => {
   afterEach(() => {
@@ -44,7 +49,7 @@ describe('validatePublicAuditUrl', () => {
   });
 
   it('rejects hostname whose DNS resolves only to private IPv4 (rebinding guard)', async () => {
-    vi.spyOn(dns, 'lookup').mockResolvedValue([{ address: '10.0.0.1', family: 4 }] as dns.LookupAddress[]);
+    vi.spyOn(dns, 'lookup').mockImplementation(mockDnsLookupAll([{ address: '10.0.0.1', family: 4 }]));
     await expect(validatePublicAuditUrl('https://snapshot-ssrf-test.example/')).rejects.toThrow(
       PublicUrlNotAllowedError,
     );

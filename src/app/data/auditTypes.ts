@@ -2,7 +2,7 @@
 
 export type ProductMode = 'free_snapshot' | 'express' | 'full';
 
-export type UserRole = 'consultant' | 'client';
+export type UserRole = 'consultant' | 'client' | 'guest';
 export type BriefResponseSource = 'client' | 'consultant' | 'recon_confirmed' | 'unknown';
 export type IntakeReadinessBadge = 'low' | 'medium' | 'high';
 export type IntakeNextBestAction = 'complete_required' | 'add_recommended' | 'confirm_prefill' | 'none';

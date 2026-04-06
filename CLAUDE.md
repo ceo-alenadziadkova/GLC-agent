@@ -12,7 +12,7 @@ A full-stack B2B SaaS platform for AI-powered business audits. A consultant subm
 
 ## Architecture in One Paragraph
 
-React 18 + Vite frontend (Vercel) talks to an Express + TypeScript backend (Railway) via REST. The backend orchestrates an 8-phase AI pipeline: programmatic collectors gather data (no AI), then one `claude-sonnet-4-20250514` call per phase analyses and scores. Results are stored in Supabase PostgreSQL. The frontend subscribes to `pipeline_events` and `audits` via Supabase Realtime for live updates. Supabase Auth handles magic link + Google OAuth; RLS enforces user data isolation.
+React 18 + Vite frontend (Vercel) talks to an Express + TypeScript backend (Railway) via REST. The backend orchestrates an 8-phase AI pipeline: programmatic collectors gather data (no AI), then one `claude-sonnet-4-20250514` call per phase analyses and scores. Results are stored in Supabase PostgreSQL. The frontend subscribes to `pipeline_events` and `audits` via Supabase Realtime for live updates. Supabase Auth handles email/password + Google OAuth; RLS enforces user data isolation.
 
 ---
 

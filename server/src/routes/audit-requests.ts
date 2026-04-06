@@ -32,6 +32,13 @@ export const auditRequestsRouter = Router();
 
 auditRequestsRouter.use(requireAuth);
 auditRequestsRouter.use(attachProfile);
+auditRequestsRouter.use((req: AuthRequest, res, next) => {
+  if (req.userRole === 'guest') {
+    res.status(403).json({ error: 'Complete registration (email or Google) to use the client portal.' });
+    return;
+  }
+  next();
+});
 auditRequestsRouter.use(generalLimiter);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

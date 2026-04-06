@@ -41,6 +41,11 @@ function buildClientNav(auditId: string | null) {
   ];
 }
 
+/** Anonymous snapshot session: no client portal until full registration. */
+function buildGuestNav() {
+  return [{ to: '/snapshot', icon: Lightning, label: 'Free snapshot', badge: null }];
+}
+
 interface AppShellProps {
   children: React.ReactNode;
   title?: string;
@@ -52,7 +57,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut, isAuthenticated } = useAuth();
-  const { profile, isConsultant, isClient, roleDisplayName, loading: profileLoading } = useProfile();
+  const { profile, isConsultant, isClient, isGuest, roleDisplayName, loading: profileLoading } = useProfile();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const {
     items: notifications,
@@ -66,8 +71,20 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
   const auditId = useCurrentAuditId();
 
   const roleUnknown = isAuthenticated && (profileLoading || !profile?.role);
-  const NAV = roleUnknown ? buildClientNav(auditId) : (isClient ? buildClientNav(auditId) : buildConsultantNav(auditId));
-  const sectionLabel = roleUnknown ? 'WORKSPACE' : (isClient ? 'CLIENT WORKSPACE' : 'ADMIN WORKSPACE');
+  const NAV = isGuest
+    ? buildGuestNav()
+    : roleUnknown
+      ? buildClientNav(auditId)
+      : isClient
+        ? buildClientNav(auditId)
+        : buildConsultantNav(auditId);
+  const sectionLabel = isGuest
+    ? 'SNAPSHOT'
+    : roleUnknown
+      ? 'WORKSPACE'
+      : isClient
+        ? 'CLIENT WORKSPACE'
+        : 'ADMIN WORKSPACE';
 
   const openNotification = (item: NotificationItem) => {
     if (!item.is_read) markAsRead(item.id);
@@ -264,7 +281,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           <div className="mx-2 my-2" style={{ height: '1px', background: 'rgba(255,255,255,0.06)' }} />
 
           {/* Quick action — consultant: New Audit; client: New audit (self-serve) */}
-          {isClient || roleUnknown ? (
+          {!isGuest && (isClient || roleUnknown) ? (
             <NavLink
               to="/portal/audit/new"
               className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
@@ -285,7 +302,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               <PlusCircle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
               <span>New audit</span>
             </NavLink>
-          ) : (
+          ) : !isGuest ? (
             <NavLink
               to="/audit/new"
               className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
@@ -305,6 +322,27 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
             >
               <Lightning className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-orange)' }} />
               <span>New Audit</span>
+            </NavLink>
+          ) : (
+            <NavLink
+              to="/login"
+              className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
+              style={{
+                color: 'rgba(255,255,255,0.38)',
+                fontSize: 'var(--text-sm)',
+                transition: 'color var(--ease-fast), background var(--ease-fast)',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(28,189,255,0.10)';
+                (e.currentTarget as HTMLElement).style.color = 'var(--glc-blue)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+                (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.38)';
+              }}
+            >
+              <PlusCircle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
+              <span>Register to continue</span>
             </NavLink>
           )}
         </nav>
@@ -351,33 +389,34 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               </span>
             )}
           </button>
-          {[
-            { icon: GearSix, label: 'Settings', to: '/settings' },
-          ].map(({ icon: I, label, to }) => {
-            const active = location.pathname === '/settings';
-            return (
-              <NavLink
-                key={label}
-                to={to}
-                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all no-underline"
-                style={{
-                  color: active ? 'rgba(255,255,255,0.80)' : 'rgba(255,255,255,0.30)',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: active ? 'rgba(255,255,255,0.08)' : 'transparent',
-                }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
-                  (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.75)';
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLElement).style.backgroundColor = active ? 'rgba(255,255,255,0.08)' : 'transparent';
-                  (e.currentTarget as HTMLElement).style.color = active ? 'rgba(255,255,255,0.80)' : 'rgba(255,255,255,0.30)';
-                }}
-              >
-                <I className="w-3.5 h-3.5" />{label}
-              </NavLink>
-            );
-          })}
+          {!isGuest &&
+            [
+              { icon: GearSix, label: 'Settings', to: '/settings' },
+            ].map(({ icon: I, label, to }) => {
+              const active = location.pathname === '/settings';
+              return (
+                <NavLink
+                  key={label}
+                  to={to}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all no-underline"
+                  style={{
+                    color: active ? 'rgba(255,255,255,0.80)' : 'rgba(255,255,255,0.30)',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: active ? 'rgba(255,255,255,0.08)' : 'transparent',
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
+                    (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.75)';
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.backgroundColor = active ? 'rgba(255,255,255,0.08)' : 'transparent';
+                    (e.currentTarget as HTMLElement).style.color = active ? 'rgba(255,255,255,0.80)' : 'rgba(255,255,255,0.30)';
+                  }}
+                >
+                  <I className="w-3.5 h-3.5" />{label}
+                </NavLink>
+              );
+            })}
 
           {/* Avatar */}
           {isAuthenticated && user && (
@@ -397,14 +436,14 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                   boxShadow: '0 0 8px rgba(28,189,255,0.30)',
                 }}
               >
-                {(user.email || 'U')[0].toUpperCase()}
+                {(user.email || (isGuest ? 'G' : 'U'))[0].toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium leading-none" style={{ color: 'rgba(255,255,255,0.85)' }}>
-                  {profile?.full_name?.trim() || user.email?.split('@')[0] || 'User'}
+                  {profile?.full_name?.trim() || user.email?.split('@')[0] || (isGuest ? 'Guest' : 'User')}
                 </div>
                 <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.28)', marginTop: 3, letterSpacing: '0.03em' }}>
-                  {roleDisplayName ?? (isClient ? 'Client' : 'Admin')}
+                  {roleDisplayName ?? (isClient ? 'Client' : isGuest ? 'Guest' : 'Admin')}
                 </div>
               </div>
               <button

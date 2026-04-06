@@ -127,7 +127,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 ### 7. Authentication and authorization
 
-**What it is:** Supabase Auth (magic link, Google); JWT to backend; roles via `profiles.role` (`consultant` / `client`); consultant-only pipeline mutations.
+**What it is:** Supabase Auth (email/password, Google); JWT to backend; roles via `profiles.role` (`consultant` / `client`); consultant-only pipeline mutations.
 
 **Why it matters:** Access control for audits and pipeline execution.
 

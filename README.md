@@ -51,7 +51,7 @@ A consultant submits a client's URL. The platform:
 | Frontend | React 18 + Vite + TypeScript | Vercel |
 | Backend | Node.js + Express + TypeScript | Railway |
 | Database | Supabase PostgreSQL | Supabase Cloud (EU) |
-| Auth | Supabase Auth (magic link + Google) | Supabase Cloud |
+| Auth | Supabase Auth (email/password + Google) | Supabase Cloud |
 | Realtime | Supabase Realtime | Supabase Cloud |
 | AI | Anthropic Claude (`claude-sonnet-4-20250514`) | via Backend |
 

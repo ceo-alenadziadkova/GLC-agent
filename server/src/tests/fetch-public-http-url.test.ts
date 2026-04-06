@@ -3,11 +3,16 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import dns from 'node:dns/promises';
+import type { LookupAddress } from 'node:dns';
 import { fetchPublicHttpUrl, PublicUrlNotAllowedError } from '../lib/public-http-url.js';
+
+function mockDnsLookupAll(records: LookupAddress[]): typeof dns.lookup {
+  return (async () => records) as unknown as typeof dns.lookup;
+}
 
 describe('fetchPublicHttpUrl', () => {
   beforeEach(() => {
-    vi.spyOn(dns, 'lookup').mockResolvedValue([{ address: '8.8.8.8', family: 4 }] as dns.LookupAddress[]);
+    vi.spyOn(dns, 'lookup').mockImplementation(mockDnsLookupAll([{ address: '8.8.8.8', family: 4 }]));
   });
 
   afterEach(() => {
@@ -61,12 +66,14 @@ describe('fetchPublicHttpUrl', () => {
   });
 
   it('rejects redirect target when DNS resolves to a private address (per-hop SSRF)', async () => {
-    vi.spyOn(dns, 'lookup').mockImplementation(async (hostname: string) => {
-      if (String(hostname).toLowerCase().includes('private-target')) {
-        return [{ address: '10.0.0.2', family: 4 }] as dns.LookupAddress[];
-      }
-      return [{ address: '8.8.8.8', family: 4 }] as dns.LookupAddress[];
-    });
+    vi.spyOn(dns, 'lookup').mockImplementation(
+      (async (hostname: string) => {
+        if (String(hostname).toLowerCase().includes('private-target')) {
+          return [{ address: '10.0.0.2', family: 4 }];
+        }
+        return [{ address: '8.8.8.8', family: 4 }];
+      }) as unknown as typeof dns.lookup,
+    );
 
     vi.stubGlobal(
       'fetch',
