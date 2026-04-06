@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { isAnonymousUser } from './snapshot-auth';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -30,14 +31,24 @@ async function sendLog(payload: LogPayload) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return;
 
-    const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:3001'}/api/log`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify(payload),
-    });
+    const base = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+    const trySnapshotFirst = isAnonymousUser(session.user);
+
+    async function post(path: '/api/log' | '/api/log/snapshot') {
+      return fetch(`${base}${path}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+    }
+
+    let res = trySnapshotFirst ? await post('/api/log/snapshot') : await post('/api/log');
+    if (!trySnapshotFirst && res.status === 403) {
+      res = await post('/api/log/snapshot');
+    }
 
     if (res.status === 429) {
       remoteLogBackoffUntil = Date.now() + 90_000;

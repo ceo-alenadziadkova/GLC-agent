@@ -30,9 +30,11 @@ const audit = await supabase
   .single();
 ```
 
-### Legacy anonymous JWTs (optional provider)
+### Anonymous snapshot sessions (Supabase provider)
 
-The **free snapshot** UI **does not** call `signInAnonymously()`; users sign in normally first. If you still enable **Anonymous sign-ins** in Supabase for other experiments, those JWTs use the **`authenticated`** role — narrow RLS with **`is_anonymous`** where needed ([access control](https://supabase.com/docs/guides/auth/auth-anonymous#access-control)). **`profiles.role = 'guest'`** (migration `023`) can still apply to old anonymous rows until users complete a full sign-in.
+The **free snapshot** page calls **`signInAnonymously()`** when there is no session so visitors can run a preview without a sign-up wall. Enable **Anonymous sign-ins** in the Supabase project. Those JWTs use the **`authenticated`** role — narrow RLS with **`is_anonymous`** where needed ([access control](https://supabase.com/docs/guides/auth/auth-anonymous#access-control)). **`attachProfile`** sets **`profiles.role = 'guest'`** for anonymous users until they complete a full sign-in (**`guest` → `client`/`consultant`** per migration **`023`**).
+
+**Guest session API surface:** Routes that are not part of the free snapshot UX must chain **`attachProfile`** and **`rejectGuestFromPortal`** (or equivalent role checks) so anonymous JWTs and **`profiles.role = 'guest'`** cannot call client portal behaviors. This includes **notifications** and the **registered** frontend log path **`POST /api/log`** as well as audits, pipeline, and reports. Preview sessions use the stricter **`POST /api/log/snapshot`** (guest/anonymous only, lower rate limit).
 
 ---
 
@@ -160,17 +162,11 @@ Budget is configurable per audit via `audits.token_budget`.
 
 ## CORS
 
-Backend only accepts requests from known frontend origins:
+Backend only reflects browser origins that appear in an explicit allowlist (`getCorsAllowedOrigins` in `server/src/config/cors-origins.ts`): **production** merges `ALLOWED_ORIGINS` (comma-separated) with `FRONTEND_URL`; **development** adds default localhost dev ports. `credentials: true` is set; origins are never `*`.
 
-```typescript
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') ?? ['http://localhost:5173'],
-  credentials: true,
-  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-}));
-```
+In production set at least one of:
 
-In production: `ALLOWED_ORIGINS=https://your-app.vercel.app`
+`ALLOWED_ORIGINS=https://www.example.com,https://example.com` and/or `FRONTEND_URL=https://www.example.com`
 
 ---
 

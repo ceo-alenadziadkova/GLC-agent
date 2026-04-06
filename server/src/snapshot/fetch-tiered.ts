@@ -6,7 +6,10 @@ import { fetchPublicHttpUrl, PublicUrlNotAllowedError, validatePublicAuditUrl } 
 import { logger } from '../services/logger.js';
 import { htmlLooksLikeClientShell } from './extract-facts.js';
 import type { FetchedPage, SnapshotPageRole, SnapshotScanCoverage } from './types.js';
+
+type RobotsHeadProbeShape = NonNullable<SnapshotScanCoverage['robotsHeadProbe']>;
 import {
+  classifyRobotsFallbackSiteClass,
   getSnapshotRobotsPolicy,
   robotsSnapshotHomeAllowed,
   robotsSnapshotUrlAllowed,
@@ -15,6 +18,8 @@ import { isLikelyHtmlDocument } from './html-detect.js';
 import { detectPageAnomalies } from './page-anomaly.js';
 
 const MAX_EXTRA_PAGES = 3;
+/** When the homepage is robots-blocked, try up to this many allowed same-origin HTML paths (no homepage GET). */
+const MAX_ROBOTS_FALLBACK_HTML_PAGES = MAX_EXTRA_PAGES + 1;
 const MAX_DISCOVERY_LINKS = 80;
 /** ADR wall-clock target ~8–12s; default 10s (override with SNAPSHOT_FETCH_BUDGET_MS). */
 const DEFAULT_TOTAL_BUDGET_MS = 10_000;
@@ -28,6 +33,22 @@ const PATH_HINTS = [
   /\/book/i,
   /\/appointment/i,
 ];
+
+/** Same-origin paths often allowed when `/` is disallowed (HTML only; XML sitemap excluded here). */
+const ROBOTS_FALLBACK_HTML_PATHS: string[] = [
+  '/about',
+  '/about/',
+  '/about-us',
+  '/company',
+  '/team',
+  '/contact',
+  '/pricing',
+  '/services',
+];
+
+const SNAPSHOT_UA = 'GLC-SnapshotScanner/1.0 (+https://glctech.es)';
+const BROWSER_COMPAT_UA =
+  'Mozilla/5.0 (compatible; GLC-SnapshotHeadProbe/1.0; +https://glctech.es) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 function abortAfter(ms: number): AbortSignal {
   if (typeof AbortSignal.timeout === 'function') {
@@ -78,7 +99,7 @@ async function fetchHomePage(
     const res = await fetchPublicHttpUrl(url, {
       signal: abortAfter(budget),
       headers: {
-        'User-Agent': 'GLC-SnapshotScanner/1.0 (+https://glctech.es)',
+        'User-Agent': SNAPSHOT_UA,
         Accept: 'text/html,application/xhtml+xml',
         'Accept-Language': 'en,es,de,fr,nl,pt,it,pl,ru,uk,ja,zh-CN,zh;q=0.9',
       },
@@ -126,7 +147,7 @@ async function fetchOne(
     const res = await fetchPublicHttpUrl(url, {
       signal: abortAfter(budget),
       headers: {
-        'User-Agent': 'GLC-SnapshotScanner/1.0 (+https://glctech.es)',
+        'User-Agent': SNAPSHOT_UA,
         Accept: 'text/html,application/xhtml+xml',
         'Accept-Language': 'en,es,de,fr,nl,pt,it,pl,ru,uk,ja,zh-CN,zh;q=0.9',
       },
@@ -144,6 +165,66 @@ async function fetchOne(
     logger.warn('snapshot.fetch_one_failed', { url, error: (e as Error).message });
     return null;
   }
+}
+
+type HeadProbeResult = {
+  status: number;
+  contentType?: string;
+  finalUrl?: string;
+  xRobotsTag?: string;
+  uaUsed: 'glc_scanner' | 'browser_compat';
+};
+
+/**
+ * HEAD on homepage when robots disallows GET — no response body; status + headers only.
+ * Optional second attempt with a browser-like UA when `SNAPSHOT_ROBOTS_HEAD_BROWSER_UA=1` (logged).
+ */
+async function fetchHeadHomeWhenRobotsBlock(
+  url: string,
+  deadlineMs: number,
+): Promise<HeadProbeResult | undefined> {
+  const remaining = deadlineMs - Date.now();
+  if (remaining < 500) return undefined;
+  const budget = Math.min(remaining, 3500);
+
+  const runHead = async (ua: string, uaUsed: HeadProbeResult['uaUsed']): Promise<HeadProbeResult | undefined> => {
+    try {
+      const res = await fetchPublicHttpUrl(
+        url,
+        {
+          method: 'HEAD',
+          signal: abortAfter(budget),
+          headers: {
+            'User-Agent': ua,
+            Accept: '*/*',
+            'Accept-Language': 'en,es;q=0.9',
+          },
+        },
+        5,
+      );
+      const ct = res.headers.get('content-type')?.trim();
+      const xrt = res.headers.get('x-robots-tag')?.trim();
+      return {
+        status: res.status,
+        ...(ct ? { contentType: ct } : {}),
+        finalUrl: res.url || url,
+        ...(xrt ? { xRobotsTag: xrt } : {}),
+        uaUsed,
+      };
+    } catch (e) {
+      if (e instanceof PublicUrlNotAllowedError) throw e;
+      logger.warn('snapshot.robots_head_failed', { url, uaUsed, error: (e as Error).message });
+      return undefined;
+    }
+  };
+
+  let probe = await runHead(SNAPSHOT_UA, 'glc_scanner');
+  const allowAltUa = process.env.SNAPSHOT_ROBOTS_HEAD_BROWSER_UA === '1';
+  if (!probe && allowAltUa) {
+    logger.info('snapshot.robots_head_retry_browser_ua', { url });
+    probe = await runHead(BROWSER_COMPAT_UA, 'browser_compat');
+  }
+  return probe;
 }
 
 /**
@@ -218,6 +299,8 @@ function buildCoverage(
     playwrightUsed?: boolean;
     robotsTxtFetched?: boolean;
     robotsHomeDisallowed?: boolean;
+    robotsHeadProbe?: RobotsHeadProbeShape;
+    robotsFallbackSiteClass?: SnapshotScanCoverage['robotsFallbackSiteClass'];
     robotsExtrasSkipped?: number;
     crawlDelayMsApplied?: number;
     homeFetchFailure?: HomeFetchFailureReason;
@@ -252,6 +335,8 @@ function buildCoverage(
     ...(opts?.playwrightUsed !== undefined ? { playwrightUsed: opts.playwrightUsed } : {}),
     ...(opts?.robotsTxtFetched !== undefined ? { robotsTxtFetched: opts.robotsTxtFetched } : {}),
     ...(opts?.robotsHomeDisallowed !== undefined ? { robotsHomeDisallowed: opts.robotsHomeDisallowed } : {}),
+    ...(opts?.robotsHeadProbe ? { robotsHeadProbe: opts.robotsHeadProbe } : {}),
+    ...(opts?.robotsFallbackSiteClass ? { robotsFallbackSiteClass: opts.robotsFallbackSiteClass } : {}),
     ...(opts?.robotsExtrasSkipped !== undefined ? { robotsExtrasSkipped: opts.robotsExtrasSkipped } : {}),
     ...(opts?.crawlDelayMsApplied !== undefined ? { crawlDelayMsApplied: opts.crawlDelayMsApplied } : {}),
     ...(opts?.homeFetchFailure !== undefined ? { homeFetchFailure: opts.homeFetchFailure } : {}),
@@ -282,12 +367,64 @@ export async function fetchTieredPages(companyUrl: string): Promise<{
 
   if (!robotsSnapshotHomeAllowed(robotsPolicy)) {
     logger.info('snapshot.robots_home_blocked', { origin });
+    const host = new URL(baseHref).hostname;
+    const robotsFallbackSiteClass = classifyRobotsFallbackSiteClass(host);
+    const robotsHeadProbe = await fetchHeadHomeWhenRobotsBlock(baseHref, deadline);
+
+    const pages: FetchedPage[] = [];
+    let robotsExtrasSkipped = 0;
+    let crawlDelayMsApplied = 0;
+    const triedPath = new Set<string>();
+
+    for (const path of ROBOTS_FALLBACK_HTML_PATHS) {
+      if (pages.length >= MAX_ROBOTS_FALLBACK_HTML_PAGES) break;
+      let fullUrl: string;
+      try {
+        fullUrl = new URL(path, `${origin}/`).href;
+      } catch {
+        continue;
+      }
+      let pathname = '/';
+      try {
+        pathname = new URL(fullUrl).pathname || '/';
+      } catch {
+        continue;
+      }
+      const pathKey = pathname.replace(/\/$/, '') || '/';
+      if (triedPath.has(pathKey)) continue;
+      triedPath.add(pathKey);
+
+      if (!robotsSnapshotUrlAllowed(fullUrl, robotsPolicy)) {
+        robotsExtrasSkipped += 1;
+        continue;
+      }
+
+      if (robotsPolicy.crawlDelayMs > 0 && pages.length >= 1) {
+        const room = deadline - Date.now() - 400;
+        const wait = Math.min(robotsPolicy.crawlDelayMs, Math.max(0, room));
+        if (wait > 0) {
+          await new Promise<void>(resolve => {
+            setTimeout(resolve, wait);
+          });
+          crawlDelayMsApplied += wait;
+        }
+      }
+
+      const extra = await fetchOne(fullUrl, deadline);
+      if (!extra || !isLikelyHtmlDocument(null, extra.html)) continue;
+      pages.push(extra);
+    }
+
     return {
-      pages: [],
+      pages,
       baseHref,
-      coverage: buildCoverage(totalBudgetMs, startedAt, [], {
+      coverage: buildCoverage(totalBudgetMs, startedAt, pages, {
         robotsTxtFetched: robotsPolicy.hadFile,
         robotsHomeDisallowed: true,
+        ...(robotsHeadProbe ? { robotsHeadProbe } : {}),
+        robotsFallbackSiteClass,
+        robotsExtrasSkipped: robotsExtrasSkipped > 0 ? robotsExtrasSkipped : undefined,
+        crawlDelayMsApplied: crawlDelayMsApplied > 0 ? crawlDelayMsApplied : undefined,
       }),
     };
   }

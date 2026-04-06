@@ -1,5 +1,7 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { supabase } from '../services/supabase.js';
+import { upgradeFreeSnapshotAudit } from '../lib/upgrade-free-snapshot-audit.js';
 import {
   requireAuth,
   attachProfile,
@@ -31,6 +33,7 @@ import { getStoredIdempotentResponse, storeIdempotentResponse } from '../lib/ide
 import { logger } from '../services/logger.js';
 import { resolveSelfServeAuditOwnerUserId } from '../lib/self-serve-audit-owner.js';
 import { notifyConsultants } from '../services/notifications.js';
+import { healUxDomainRowForFreeSnapshotPortal } from '../lib/snapshot-audit-response-heal.js';
 
 export const auditsRouter = Router();
 
@@ -269,6 +272,16 @@ auditsRouter.get('/:id', attachProfile, rejectGuestFromPortal, async (req: AuthR
       }
     }
 
+    if (audit.product_mode === 'free_snapshot' && audit.status === 'completed') {
+      const ux = domainsMap['ux_conversion'];
+      if (ux && typeof ux === 'object' && ux !== null && !Array.isArray(ux)) {
+        domainsMap['ux_conversion'] = await healUxDomainRowForFreeSnapshotPortal(
+          ux as Record<string, unknown>,
+          audit.company_url as string,
+        );
+      }
+    }
+
     res.json({
       meta: audit,
       recon,
@@ -281,6 +294,38 @@ auditsRouter.get('/:id', attachProfile, rejectGuestFromPortal, async (req: AuthR
     const e = err as Error;
     logger.error('route.audit_get_failed', { component: 'audits', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to fetch audit' });
+  }
+});
+
+const upgradeSnapshotBody = z.object({
+  target_mode: z.enum(['express', 'full']),
+  use_scraped_context: z.boolean(),
+});
+
+// ─── POST /api/audits/:id/upgrade-from-snapshot — free_snapshot → express/full + brief seed ─
+auditsRouter.post('/:id/upgrade-from-snapshot', attachProfile, rejectGuestFromPortal, async (req: AuthRequest, res) => {
+  try {
+    const id = req.params.id as string;
+    const parsed = upgradeSnapshotBody.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload — need target_mode and use_scraped_context' });
+      return;
+    }
+    const result = await upgradeFreeSnapshotAudit({
+      auditId: id,
+      actorUserId: req.userId!,
+      targetMode: parsed.data.target_mode,
+      useScrapedContext: parsed.data.use_scraped_context,
+    });
+    if (!result.ok) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
+    res.json(result);
+  } catch (err) {
+    const e = err as Error;
+    logger.error('route.upgrade_snapshot_failed', { component: 'audits', error: e.message, stack: e.stack });
+    res.status(500).json({ error: e.message || 'Upgrade failed' });
   }
 });
 

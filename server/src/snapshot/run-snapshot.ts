@@ -23,6 +23,7 @@ import {
   releaseSnapshotFreshConcurrency,
   SnapshotAtCapacityError,
 } from './abuse-guards.js';
+import { snapshotPayloadToAccessApiFields } from './snapshot-access-state.js';
 import type {
   SnapshotAuditResult,
   SnapshotCachePayload,
@@ -93,11 +94,48 @@ function buildCrawledPages(
   return out.length > 0 ? out : buildMinimalPage(baseUrl);
 }
 
+function applyRobotsFallbackProfileNotes(profile: SiteProfile, coverage: SnapshotScanCoverage): SiteProfile {
+  if (!coverage.robotsHomeDisallowed) return profile;
+  const signals = [...profile.businessSignals];
+  if (coverage.robotsFallbackSiteClass === 'major_platform') {
+    if (!signals.includes('robots_major_platform_crawl_control')) {
+      signals.push('robots_major_platform_crawl_control');
+    }
+  } else if (coverage.pagesFetched > 0) {
+    if (!signals.includes('robots_home_blocked_sampled_alt_paths')) {
+      signals.push('robots_home_blocked_sampled_alt_paths');
+    }
+  }
+  return { ...profile, businessSignals: signals };
+}
+
+function buildRobotsPartialScanLimitations(coverage: SnapshotScanCoverage): string[] {
+  if (!coverage.robotsHomeDisallowed || coverage.pagesFetched < 1) return [];
+  const lines = [
+    'Root URL was not downloaded; scores use other allowed same-origin pages only — treat as directional.',
+  ];
+  if (coverage.robotsFallbackSiteClass === 'major_platform') {
+    lines.push('Typical for large platforms: strict crawl control on `/`, not a verdict on the business.');
+  } else {
+    lines.push('To include the homepage, allow this path in robots.txt or submit a URL that is explicitly allowed.');
+  }
+  return lines;
+}
+
 function buildDegradedLimitations(coverage: SnapshotScanCoverage): string[] {
   if (coverage.robotsHomeDisallowed) {
-    return [
-      'robots.txt disallows automated access to the homepage for our snapshot crawler (User-agent * / GLC-SnapshotScanner).',
-    ];
+    const lines: string[] = [];
+    if (coverage.robotsHeadProbe) {
+      const hp = coverage.robotsHeadProbe;
+      lines.push(`HEAD on homepage: HTTP ${hp.status} (no HTML body).`);
+    }
+    if (coverage.robotsFallbackSiteClass === 'major_platform') {
+      lines.push('Large-site pattern: root often disallows bots — scores below are placeholders only.');
+    }
+    if (lines.length === 0) {
+      lines.push('Homepage HTML not fetched (crawl policy / robots.txt).');
+    }
+    return lines;
   }
   switch (coverage.homeFetchFailure) {
     case 'non_html':
@@ -378,7 +416,9 @@ export async function runDeterministicSnapshot(auditId: string): Promise<Determi
       return { preview };
     }
 
-    const rawFacts = extractFacts(pages, baseHref);
+    const rawFacts = extractFacts(pages, baseHref, {
+      ...(coverage.robotsHomeDisallowed ? { canonicalHomepageUrl: baseHref } : {}),
+    });
     if (coverage.challengeLikely || coverage.parkedLikely || coverage.loginWallLikely) {
       rawFacts.contentQuality = 'low';
       if (coverage.challengeLikely === true || coverage.loginWallLikely === true) {
@@ -392,8 +432,11 @@ export async function runDeterministicSnapshot(auditId: string): Promise<Determi
       parkedLikely: coverage.parkedLikely === true,
       loginWallLikely: coverage.loginWallLikely === true,
     });
+    const robotsPartialNotes = buildRobotsPartialScanLimitations(coverage);
+    const limitationNotes = [...anomalyNotes, ...robotsPartialNotes];
 
-    const { profile, debug } = runSiteProfile(facts);
+    let { profile, debug } = runSiteProfile(facts);
+    profile = applyRobotsFallbackProfileNotes(profile, coverage);
     logger.info('snapshot.site_profile', {
       audit_id: auditId,
       siteType: profile.siteType,
@@ -446,7 +489,7 @@ export async function runDeterministicSnapshot(auditId: string): Promise<Determi
       snapshot_engine_version: SNAPSHOT_ENGINE_VERSION,
       ai_visibility: { gaps: deriveAiVisibilityGaps(facts, coverage) },
       ...(homepage_snippet ? { homepage_snippet } : {}),
-      ...(anomalyNotes.length > 0 ? { limitations: anomalyNotes } : {}),
+      ...(limitationNotes.length > 0 ? { limitations: limitationNotes } : {}),
     };
 
     await writeSnapshotCache(host, redactSnapshotPayloadForDomainCache(payload));
@@ -503,16 +546,6 @@ async function persistFromCache(
     })
     .eq('audit_id', auditId);
 
-  await supabase
-    .from('audits')
-    .update({
-      company_name: p.company_name ?? undefined,
-      industry: p.site_profile.industry === 'unknown' ? undefined : p.site_profile.industry,
-      status: 'completed',
-      current_phase: 4,
-    })
-    .eq('id', auditId);
-
   const payloadRow = {
     status: 'completed' as const,
     score: domainRes.score,
@@ -525,7 +558,8 @@ async function persistFromCache(
     recommendations: domainRes.recommendations,
     unknown_items: domainRes.unknown_items,
     confidence_distribution: domainRes.confidence_distribution,
-    prompt_version: 'snapshot-deterministic-v1',
+    // Fits audit_domains.prompt_version VARCHAR(20) (see migration 024 to widen).
+    prompt_version: 'snapshot-det-v1',
     raw_data: {
       snapshot_deterministic: {
         site_profile: toApiSiteProfile(p.site_profile),
@@ -551,40 +585,97 @@ async function persistFromCache(
           ? { tech_stack_tentative: p.tech_stack_tentative }
           : {}),
         ...(p.ai_visibility ? { ai_visibility: p.ai_visibility } : {}),
+        ...snapshotPayloadToAccessApiFields({
+          scanBasisCode: p.audit.scanBasisCode,
+          limitations: p.limitations,
+          scanCoverage: p.scan_coverage
+            ? {
+                pagesFetched: p.scan_coverage.pagesFetched,
+                robotsHomeDisallowed: p.scan_coverage.robotsHomeDisallowed,
+              }
+            : undefined,
+        }),
       },
     },
   };
 
-  const { data: updated } = await supabase
+  // Update the latest ux_conversion row by id so we do not depend on status === 'pending' (e.g. collecting).
+  const { data: latestUxRows, error: uxSelectErr } = await supabase
     .from('audit_domains')
-    .update(payloadRow)
+    .select('id, version')
     .eq('audit_id', auditId)
     .eq('domain_key', 'ux_conversion')
-    .eq('status', 'pending')
-    .select('id');
+    .order('version', { ascending: false })
+    .limit(1);
 
-  if (!(updated && updated.length > 0)) {
-    const { data: latest } = await supabase
-      .from('audit_domains')
-      .select('version')
-      .eq('audit_id', auditId)
-      .eq('domain_key', 'ux_conversion')
-      .order('version', { ascending: false })
-      .limit(1)
-      .single();
+  if (uxSelectErr) {
+    logger.error('snapshot.persist_ux_select_failed', {
+      component: 'snapshot',
+      audit_id: auditId,
+      error: uxSelectErr.message,
+    });
+    throw new Error(uxSelectErr.message);
+  }
 
-    await supabase.from('audit_domains').insert({
+  const latestUx = latestUxRows?.[0];
+
+  if (latestUx?.id) {
+    const { error: uxUpdErr } = await supabase.from('audit_domains').update(payloadRow).eq('id', latestUx.id);
+    if (uxUpdErr) {
+      logger.error('snapshot.persist_ux_update_failed', {
+        component: 'snapshot',
+        audit_id: auditId,
+        domain_row_id: latestUx.id,
+        error: uxUpdErr.message,
+      });
+      throw new Error(uxUpdErr.message);
+    }
+  } else {
+    const { error: uxInsErr } = await supabase.from('audit_domains').insert({
       audit_id: auditId,
       domain_key: 'ux_conversion',
       phase_number: 4,
-      version: (latest?.version ?? 1) + 1,
+      version: 1,
       ...payloadRow,
     });
+    if (uxInsErr) {
+      logger.error('snapshot.persist_ux_insert_failed', {
+        component: 'snapshot',
+        audit_id: auditId,
+        error: uxInsErr.message,
+      });
+      throw new Error(uxInsErr.message);
+    }
+  }
+
+  // Mark audit completed only after UX row holds snapshot_deterministic (avoids GET race: completed + empty det).
+  const { error: auditUpdErr } = await supabase
+    .from('audits')
+    .update({
+      company_name: p.company_name ?? undefined,
+      industry: p.site_profile.industry === 'unknown' ? undefined : p.site_profile.industry,
+      status: 'completed',
+      current_phase: 4,
+    })
+    .eq('id', auditId);
+
+  if (auditUpdErr) {
+    logger.error('snapshot.persist_audit_completed_failed', {
+      component: 'snapshot',
+      audit_id: auditId,
+      error: auditUpdErr.message,
+    });
+    throw new Error(auditUpdErr.message);
   }
 }
 
 function buildSummary(p: SnapshotCachePayload): string {
   if (p.degraded) {
+    const cov = p.scan_coverage;
+    const pages = typeof cov?.pagesFetched === 'number' ? cov.pagesFetched : 0;
+    if (cov?.robotsHomeDisallowed === true && pages < 1) {
+      return 'No snapshot score — 0 pages sampled (homepage blocked by crawl policy). A full audit can use your brief or approved access.';
+    }
     const first = p.limitations?.[0] ?? 'Pages could not be loaded.';
     return `No automated GLC snapshot score — ${first}`;
   }
@@ -614,6 +705,18 @@ export function toApiScanCoverage(c: SnapshotScanCoverage): SnapshotScanCoverage
     ...(c.playwrightUsed !== undefined ? { playwright_used: c.playwrightUsed } : {}),
     ...(c.robotsTxtFetched !== undefined ? { robots_txt_fetched: c.robotsTxtFetched } : {}),
     ...(c.robotsHomeDisallowed !== undefined ? { robots_home_disallowed: c.robotsHomeDisallowed } : {}),
+    ...(c.robotsHeadProbe
+      ? {
+          robots_head_probe: {
+            status: c.robotsHeadProbe.status,
+            ...(c.robotsHeadProbe.contentType ? { content_type: c.robotsHeadProbe.contentType } : {}),
+            ...(c.robotsHeadProbe.finalUrl ? { final_url: c.robotsHeadProbe.finalUrl } : {}),
+            ...(c.robotsHeadProbe.xRobotsTag ? { x_robots_tag: c.robotsHeadProbe.xRobotsTag } : {}),
+            ...(c.robotsHeadProbe.uaUsed ? { ua_used: c.robotsHeadProbe.uaUsed } : {}),
+          },
+        }
+      : {}),
+    ...(c.robotsFallbackSiteClass ? { robots_fallback_site_class: c.robotsFallbackSiteClass } : {}),
     ...(c.robotsExtrasSkipped !== undefined ? { robots_extras_skipped: c.robotsExtrasSkipped } : {}),
     ...(c.crawlDelayMsApplied !== undefined ? { crawl_delay_ms_applied: c.crawlDelayMsApplied } : {}),
     ...(c.homeFetchFailure !== undefined ? { home_fetch_failure: c.homeFetchFailure } : {}),
@@ -649,6 +752,16 @@ export function snapshotPayloadToDeterministicApiRecord(p: SnapshotCachePayload)
       ? { tech_stack_tentative: p.tech_stack_tentative }
       : {}),
     ...(p.ai_visibility ? { ai_visibility: p.ai_visibility } : {}),
+    ...snapshotPayloadToAccessApiFields({
+      scanBasisCode: p.audit.scanBasisCode,
+      limitations: p.limitations,
+      scanCoverage: p.scan_coverage
+        ? {
+            pagesFetched: p.scan_coverage.pagesFetched,
+            robotsHomeDisallowed: p.scan_coverage.robotsHomeDisallowed,
+          }
+        : undefined,
+    }),
   };
 }
 

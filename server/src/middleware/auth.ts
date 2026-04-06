@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { supabase } from '../services/supabase.js';
 import { updateContext } from '../services/observability-context.js';
+import { logger } from '../services/logger.js';
 
 export type UserRole = 'consultant' | 'client' | 'guest';
 
@@ -10,6 +11,22 @@ export interface AuthRequest extends Request {
   /** True when Supabase session is anonymous (snapshot flow until linkIdentity / full sign-up). */
   userIsAnonymous?: boolean;
   userRole?: UserRole;
+}
+
+function isGuestRoleConstraintError(err: unknown): boolean {
+  const e = err as { code?: string; message?: string; details?: string; hint?: string } | null;
+  if (!e) return false;
+  if (e.code === '23514') return true;
+  const blob = `${e.message ?? ''} ${e.details ?? ''} ${e.hint ?? ''}`.toLowerCase();
+  return blob.includes('profiles_role_check') || blob.includes('role');
+}
+
+/** Postgres unique_violation — two concurrent first requests can race on INSERT into profiles. */
+function isUniqueViolationError(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | null;
+  if (!e) return false;
+  if (e.code === '23505') return true;
+  return (e.message ?? '').toLowerCase().includes('duplicate key');
 }
 
 /**
@@ -72,6 +89,10 @@ export async function optionalAuth(req: AuthRequest, _res: Response, next: NextF
  * Handles first-login profile creation and one-way promotion to 'consultant'
  * when the email is in CONSULTANT_EMAILS. It does not auto-downgrade an
  * existing consultant role from environment changes.
+ *
+ * Concurrency: parallel HTTP calls right after first login may both see "no row" and INSERT.
+ * The loser gets unique_violation (23505); we refetch once and continue so role resolution
+ * stays deterministic and guests/clients never share or cross user ids (pk is auth user id).
  */
 export async function attachProfile(req: AuthRequest, res: Response, next: NextFunction) {
   if (!req.userId) {
@@ -94,11 +115,13 @@ export async function attachProfile(req: AuthRequest, res: Response, next: NextF
     /** Role for a brand-new profile row: anonymous → guest; otherwise client/consultant from email. */
     const roleForInsert: UserRole = isAnon ? 'guest' : intendedRole;
 
-    const { data: existingProfile, error: fetchError } = await supabase
+    const profileFetch = await supabase
       .from('profiles')
       .select('role')
       .eq('id', req.userId)
       .single();
+    let existingProfile = profileFetch.data;
+    const fetchError = profileFetch.error;
 
     if (fetchError && fetchError.code !== 'PGRST116') {
       res.status(500).json({ error: 'Failed to load user profile' });
@@ -112,13 +135,60 @@ export async function attachProfile(req: AuthRequest, res: Response, next: NextF
         .select('role')
         .single();
 
-      if (createError || !createdProfile) {
-        res.status(500).json({ error: 'Failed to create user profile' });
+      if (!createError && createdProfile) {
+        req.userRole = createdProfile.role as UserRole;
+        next();
         return;
       }
 
-      req.userRole = createdProfile.role as UserRole;
-      next();
+      if (createError && isUniqueViolationError(createError)) {
+        const { data: winnerRow, error: refetchErr } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', req.userId)
+          .single();
+        if (refetchErr || !winnerRow) {
+          res.status(500).json({ error: 'Failed to create user profile' });
+          return;
+        }
+        existingProfile = winnerRow;
+      } else if (isAnon && isGuestRoleConstraintError(createError)) {
+        logger.warn('auth.guest_role_not_supported_fallback', {
+          user_id: req.userId,
+          hint: 'apply migration 023_profiles_guest_role.sql',
+        });
+        const { data: fallbackProfile, error: fallbackError } = await supabase
+          .from('profiles')
+          .insert({ id: req.userId, role: intendedRole })
+          .select('role')
+          .single();
+        if (fallbackError && isUniqueViolationError(fallbackError)) {
+          const { data: winnerRow, error: refetchErr } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', req.userId)
+            .single();
+          if (refetchErr || !winnerRow) {
+            res.status(500).json({ error: 'Failed to create user profile' });
+            return;
+          }
+          existingProfile = winnerRow;
+        } else if (!fallbackError && fallbackProfile) {
+          req.userRole = 'guest';
+          next();
+          return;
+        } else {
+          res.status(500).json({ error: 'Failed to create user profile' });
+          return;
+        }
+      } else {
+        res.status(500).json({ error: 'Failed to create user profile' });
+        return;
+      }
+    }
+
+    if (!existingProfile) {
+      res.status(500).json({ error: 'Failed to load user profile' });
       return;
     }
 
@@ -134,10 +204,19 @@ export async function attachProfile(req: AuthRequest, res: Response, next: NextF
           .single();
 
         if (updateError || !updatedProfile) {
-          res.status(500).json({ error: 'Failed to update user profile' });
-          return;
+          if (isGuestRoleConstraintError(updateError)) {
+            logger.warn('auth.guest_role_not_supported_on_update', {
+              user_id: req.userId,
+              hint: 'apply migration 023_profiles_guest_role.sql',
+            });
+            resolvedRole = 'guest';
+          } else {
+            res.status(500).json({ error: 'Failed to update user profile' });
+            return;
+          }
+        } else {
+          resolvedRole = updatedProfile.role as UserRole;
         }
-        resolvedRole = updatedProfile.role as UserRole;
       }
     } else if (resolvedRole === 'guest') {
       const { data: updatedProfile, error: updateError } = await supabase
@@ -201,9 +280,21 @@ export function requireRole(role: UserRole) {
 
 /** Use after attachProfile. Blocks snapshot-only (anonymous) sessions from portal audit APIs. */
 export function rejectGuestFromPortal(req: AuthRequest, res: Response, next: NextFunction) {
-  if (req.userRole === 'guest') {
+  if (req.userRole === 'guest' || req.userIsAnonymous === true) {
     res.status(403).json({ error: 'Complete registration to access this in the portal.' });
     return;
   }
   next();
+}
+
+/**
+ * Use after attachProfile. The opposite of portal routes — only anonymous or `guest` profile
+ * (free snapshot UX). Full `client`/`consultant` must use registered-only handlers (e.g. POST /api/log).
+ */
+export function allowGuestSnapshotLogIngest(req: AuthRequest, res: Response, next: NextFunction) {
+  if (req.userIsAnonymous === true || req.userRole === 'guest') {
+    next();
+    return;
+  }
+  res.status(403).json({ error: 'Use POST /api/log for registered accounts.' });
 }

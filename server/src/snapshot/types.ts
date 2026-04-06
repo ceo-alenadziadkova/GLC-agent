@@ -182,6 +182,18 @@ export const SnapshotScanCoverageSchema = z.object({
   robotsTxtFetched: z.boolean().optional(),
   /** robots.txt disallows crawling `/` for our snapshot user-agent — no pages fetched. */
   robotsHomeDisallowed: z.boolean().optional(),
+  /** When homepage is disallowed: HEAD probe on the same URL (no body; status / headers only). */
+  robotsHeadProbe: z
+    .object({
+      status: z.number(),
+      contentType: z.string().optional(),
+      finalUrl: z.string().optional(),
+      xRobotsTag: z.string().optional(),
+      uaUsed: z.enum(['glc_scanner', 'browser_compat']).optional(),
+    })
+    .optional(),
+  /** Deterministic bucket for copy / profile notes when `robotsHomeDisallowed`. */
+  robotsFallbackSiteClass: z.enum(['major_platform', 'standard']).optional(),
   /** Extra same-origin URLs skipped due to robots Disallow rules. */
   robotsExtrasSkipped: z.number().optional(),
   /** Milliseconds slept between fetches to honor Crawl-delay (capped). */

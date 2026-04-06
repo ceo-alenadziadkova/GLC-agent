@@ -329,6 +329,21 @@ export const api = {
     return apiFetch<{ deleted: boolean }>(`/api/audits/${id}`, { method: 'DELETE' });
   },
 
+  /** Client: promote completed `free_snapshot` to express/full and seed intake from scraped context (or fresh). */
+  async upgradeAuditFromSnapshot(
+    id: string,
+    body: { target_mode: 'express' | 'full'; use_scraped_context: boolean },
+  ) {
+    return apiFetch<{
+      ok: boolean;
+      snapshot_scrape_limited?: boolean;
+      snapshot_scrape_robots_blocked?: boolean;
+    }>(`/api/audits/${id}/upgrade-from-snapshot`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
   // Pipeline
   async startPipeline(id: string) {
     const payload = await apiFetch<{ status: string; phase: number; intakeProgress: { progressPct: number; readinessBadge: string; nextBestAction: string } }>(

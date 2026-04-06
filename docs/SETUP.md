@@ -87,6 +87,12 @@ If Phase 0 fails: check `server/.env` has valid Anthropic + Supabase keys, and S
 
 ---
 
+## Automated tests
+
+From the repo root: `npm test` (frontend Vitest), `cd server && npm test` (backend). Playwright smoke: `npm run test:e2e:install` then `npm run test:e2e`. Coverage matrix: [TESTING.md](../TESTING.md).
+
+---
+
 ## TypeScript
 
 ```bash

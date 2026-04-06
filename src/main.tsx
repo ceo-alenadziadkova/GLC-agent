@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from "react-dom/client";
+import { Analytics } from "@vercel/analytics/react";
 import App from "./app/App.tsx";
 import { ErrorBoundary } from "./app/components/ErrorBoundary.tsx";
 import { applyGlcColorScheme, GLC_THEME_STORAGE_KEY } from "./app/lib/glc-theme.ts";
@@ -16,6 +17,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>
       <App />
+      <Analytics />
     </ErrorBoundary>
   </StrictMode>
 );

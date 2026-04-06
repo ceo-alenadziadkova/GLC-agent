@@ -472,6 +472,17 @@ describe('GET /api/snapshot/:token', () => {
 
   const VALID_TOKEN = '550e8400-e29b-41d4-a716-446655440000'; // UUID-like
 
+  /** `GET /api/snapshot/:token` requires persisted `raw_data.snapshot_deterministic.overall_score` (real pipeline shape). */
+  function rawDataDeterministic(overallScore: number): Record<string, unknown> {
+    return {
+      raw_data: {
+        snapshot_deterministic: {
+          overall_score: overallScore,
+        },
+      },
+    };
+  }
+
   it('returns 404 when token does not match any audit', async () => {
     setSnapshotQueryResult(null); // No record found
 
@@ -550,6 +561,7 @@ describe('GET /api/snapshot/:token', () => {
         { id: 'q2', title: 'Fix nav contrast', description: 'a11y', effort: 'low', timeframe: '30m' },
         { id: 'q3', title: 'Add breadcrumbs', description: 'nav', effort: 'medium', timeframe: '2h' },
       ],
+      ...rawDataDeterministic(65),
     });
 
     const res = await fetch(`${baseUrl}/api/snapshot/${VALID_TOKEN}`);
@@ -586,6 +598,7 @@ describe('GET /api/snapshot/:token', () => {
         { id: 'i3', severity: 'medium',   title: 'Issue C', description: '', impact: '' },
       ],
       quick_wins: [],
+      ...rawDataDeterministic(30),
     });
 
     const res = await fetch(`${baseUrl}/api/snapshot/${VALID_TOKEN}`);
@@ -614,6 +627,7 @@ describe('GET /api/snapshot/:token', () => {
         { id: 'q2', title: 'Win 2', description: '', effort: 'low', timeframe: '1h' },
         { id: 'q3', title: 'Win 3', description: '', effort: 'low', timeframe: '1h' },
       ],
+      ...rawDataDeterministic(65),
     });
 
     const res = await fetch(`${baseUrl}/api/snapshot/${VALID_TOKEN}`);
@@ -633,7 +647,14 @@ describe('GET /api/snapshot/:token', () => {
       product_mode: 'free_snapshot',
     });
     setReconQueryResult(null); // Recon failed or missing
-    setUxQueryResult({ score: 3, label: 'Moderate', summary: 'Test.', issues: [], quick_wins: [] });
+    setUxQueryResult({
+      score: 3,
+      label: 'Moderate',
+      summary: 'Test.',
+      issues: [],
+      quick_wins: [],
+      ...rawDataDeterministic(45),
+    });
 
     const res = await fetch(`${baseUrl}/api/snapshot/${VALID_TOKEN}`);
     const body = await res.json() as Record<string, unknown>;
@@ -659,7 +680,14 @@ describe('GET /api/snapshot/:token', () => {
       location: null,
       pages_crawled: [{ url: 'https://example.com/', links: { external: ['https://other.com'] } }],
     });
-    setUxQueryResult({ score: 4, label: 'Good', summary: 'Ok.', issues: [], quick_wins: [] });
+    setUxQueryResult({
+      score: 4,
+      label: 'Good',
+      summary: 'Ok.',
+      issues: [],
+      quick_wins: [],
+      ...rawDataDeterministic(65),
+    });
 
     const res = await fetch(`${baseUrl}/api/snapshot/${VALID_TOKEN}`);
     expect(res.status).toBe(200);
@@ -693,7 +721,14 @@ describe('GET /api/snapshot/:token', () => {
       location: null,
       pages_crawled: [],
     });
-    setUxQueryResult({ score: 4, label: 'Good', summary: 'Ok.', issues: [], quick_wins: [] });
+    setUxQueryResult({
+      score: 4,
+      label: 'Good',
+      summary: 'Ok.',
+      issues: [],
+      quick_wins: [],
+      ...rawDataDeterministic(65),
+    });
 
     const res = await fetch(`${baseUrl}/api/snapshot/${VALID_TOKEN}?compare=1`);
     expect(res.status).toBe(200);

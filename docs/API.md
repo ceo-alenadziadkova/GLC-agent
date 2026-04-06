@@ -67,6 +67,30 @@ Notes:
 
 ---
 
+## Frontend log ingest
+
+Structured log events from the browser (`src/app/lib/logger.ts`). Failures are non-fatal for UX.
+
+### `POST /api/log`
+
+**Auth:** JWT for **registered** users only (`profiles.role` is `client` or `consultant` after `attachProfile`). **403** for anonymous sessions or `guest` role — those use **`POST /api/log/snapshot`** instead.
+
+**Rate limit:** 180 events / minute / user (`logIngestLimiter`).
+
+**Response:** `204` No Content.
+
+**Body** (JSON): `level` (`debug`|`info`|`warn`|`error`), `source` (default `frontend`), `message`, optional `context` object, optional `timestamp` (ISO).
+
+### `POST /api/log/snapshot`
+
+**Auth:** JWT where the user is **anonymous** (`is_anonymous`) or **`profiles.role`** is **`guest`** (free snapshot / pre-registration). **403** for full `client` / `consultant` — use **`POST /api/log`**.
+
+**Rate limit:** 40 events / minute / user by default (`snapshotLogIngestLimiter`); override with env **`SNAPSHOT_LOG_INGEST_MAX_PER_MIN`** if needed.
+
+Same body as `POST /api/log`. **Response:** `204`.
+
+---
+
 ## Platform (consultant)
 
 Assigns which consultant owns **client self-serve** audits (`audits.user_id` when `POST /api/audits` is called with a client JWT). UI: **Settings → Client portal — audit owner** (consultant / admin shell).
@@ -246,6 +270,28 @@ Delete audit and all related data (CASCADE). Irreversible.
 Records `brief_help_requested_at` / `brief_help_client_message` on the audit and notifies consultants. Allowed only while `audits.status === 'created'` and the caller is the audit’s `client_id`. Does not block `pipeline/start`.
 
 **Response `200`:** `{ "ok": true }`
+
+---
+
+### `POST /api/audits/:id/upgrade-from-snapshot`
+
+**Auth:** registered **client** JWT (not guest). Promotes a **completed** `product_mode: free_snapshot` audit to **express** or **full**, resets domain rows, and either seeds the intake brief from quick-scan recon / `snapshot_deterministic` (`use_scraped_context: true`) or clears recon placeholders (`use_scraped_context: false`).
+
+**Body:** `{ "target_mode": "express" | "full", "use_scraped_context": boolean }`
+
+When `use_scraped_context` is **true** but the snapshot **did not retrieve HTML** (e.g. `robots.txt` blocked the homepage or fetch failed — `scan_basis_code: degraded`, `pages_fetched: 0`), the response still succeeds and **`intake_brief.recon_prefills`** gains **`snapshot_scrape_limited`**, **`snapshot_scrape_robots_blocked`**, and **`snapshot_scrape_note`** so consultants know pre-fill is thin; **`overall_score_hint` is omitted** so a **0** is not treated as a real score.
+
+**Response `200`:** `{ "ok": true }`, or when scrape was limited and context was requested:
+
+```json
+{
+  "ok": true,
+  "snapshot_scrape_limited": true,
+  "snapshot_scrape_robots_blocked": true
+}
+```
+
+(`snapshot_scrape_robots_blocked` may be `false` when the limitation was a non-robots fetch failure.)
 
 ---
 
@@ -431,7 +477,7 @@ Public endpoint (no JWT). Returns how many free website checks are **still avail
 
 ### `POST /api/snapshot`
 
-Start a free snapshot run. **Auth:** Supabase `Authorization: Bearer <access_token>` required. The user must **sign in first** (email/password or Google); each run is stored with **`client_id = auth.uid()`** (clients) or **`user_id = auth.uid()`** (consultants). Same fair-use and domain rules as before.
+Start a free snapshot run. **Auth:** Supabase `Authorization: Bearer <access_token>` required. The token may be a **normal** session (email/password or Google) or an **anonymous** session from **`signInAnonymously()`** (wow-first UX on `/snapshot`; **`profiles.role = 'guest'`** until full sign-in). Each run is stored with **`client_id = auth.uid()`** or **`user_id = auth.uid()`** per existing snapshot insert rules. Same fair-use and domain rules as before.
 
 **`401`:** missing/invalid JWT.
 
@@ -453,7 +499,11 @@ Poll current status or retrieve completed preview payload.
 - Token TTL is enforced by backend (`SNAPSHOT_TOKEN_TTL_HOURS`, default `72`).
 - Expired tokens return `410 Snapshot token expired` and are invalidated in storage.
 
-When completed, the JSON includes **`tech_stack`** (confirmed names by category from HTML/script fingerprinting). Optional **`tech_stack_tentative`** lists *possible* technologies from weak signals only (JSON-LD text, `meta name=generator`, or a `type=module` entry when no framework matched); each item is **`{ name, category, signal }`** with **`signal`** explaining the limitation (quick scan does not inspect minified bundles). Omitted when empty. **`ai_visibility`** (when present) has **`gaps`**: `robots_txt` | `sitemap_html` | `structured_data` | `discovery_files` — heuristics from the sampled HTML plus whether `robots.txt` was retrieved; clients map codes to copy. Omitted on older snapshots. It also includes **`ux_score` / `ux_label` / `ux_summary`** (derived from the same deterministic run) plus optional extended fields when present: **`overall_score`** (0–100; **0** when **`scan_basis_code`** is **`degraded`** and no pages were scored), **`category_scores`**, human-readable **`scan_basis`**, normalized **`scan_basis_code`**: `homepage_only` | `homepage_plus_core_pages` | `homepage_rendered_fallback` | `degraded` | **`cache_hit`** (last value is forced when the run was satisfied from **`snapshot_domain_cache`**), **`cache_hit`** (boolean), **`scanned_at`** (ISO 8601 when the payload was built on a fresh fetch), **`limitations`** (string array; robots block, fetch failure, or heuristic notes for challenge/WAF/parked/login-wall patterns), **`signals_found`**, **`scan_confidence_band`**, advisory **`site_profile`** with **`classification_confidence_band`**, optional **`scan_coverage`** (includes robots, Playwright, when the homepage failed while allowed by robots: **`home_fetch_failure`**: `network_or_timeout` | `http_error` | `non_html` | `empty_body`, optional flags **`challenge_page_likely`**, **`parked_domain_likely`**, **`login_wall_likely`**, and optional taxonomy strings **`challenge_taxonomy`**, **`parked_taxonomy`**, **`login_wall_taxonomy`** — enumerated in the next block; canonical definitions in `server/src/snapshot/page-anomaly.ts`), **`audit_rules_version`** (audit catalog), **`classification_version`**, **`fetch_strategy_version`**, **`snapshot_engine_version`**. Persisted extras are merged from `audit_domains.raw_data.snapshot_deterministic`. Classification uses path segments from same-origin links on fetched pages (cap `SNAPSHOT_LINK_SLUG_LIMIT`, default 80), not only URLs that were fully downloaded.
+When completed, the JSON may include **`snapshot_access_blocked`** (boolean) and **`snapshot_access_robots_blocked`** (boolean, meaningful only when the former is true). The API sets these when the scan could not usefully read public HTML (e.g. `robots.txt` blocks the homepage or fetch produced no pages); clients should treat this as a limited / blocked outcome rather than a full scored check. These fields are omitted when access is normal.
+
+**Access flags (HTTP vs logged-in portal):** On completed responses, the server may **recompute** those booleans with `computePublicSnapshotAccessFlags` (`server/src/snapshot/snapshot-access-state.ts`) so legacy rows and merge edge cases match the same rules as fresh persists (uses `snapshot_deterministic`, merged `scan_coverage`, `ux_summary`, `scan_basis_code`, `overall_score`). The SPA portal mirror built from audit state (`freeSnapshotPreviewFromAuditState`) only forwards **`snapshot_access_*` stored in `raw_data`**. For blocked callouts and copy, portal code **must** use **`getSnapshotAccessBlockedState`** (`src/app/lib/snapshot-diagnostics.ts`), which applies the equivalent fallback heuristics — do not rely on persisted flags alone in the portal.
+
+**Database:** Deploy migration **`024_audit_domains_prompt_version_len.sql`** before or with any backend release that writes a longer deterministic snapshot label into **`audit_domains.prompt_version`** (column widened from `VARCHAR(20)` to `VARCHAR(64)`). Confirm applied on staging/production (e.g. Supabase Table Editor / `\d audit_domains`) so inserts are not truncated or rejected. The payload also includes **`tech_stack`** (confirmed names by category from HTML/script fingerprinting). Optional **`tech_stack_tentative`** lists *possible* technologies from weak signals only (JSON-LD text, `meta name=generator`, or a `type=module` entry when no framework matched); each item is **`{ name, category, signal }`** with **`signal`** explaining the limitation (quick scan does not inspect minified bundles). Omitted when empty. **`ai_visibility`** (when present) has **`gaps`**: `robots_txt` | `sitemap_html` | `structured_data` | `discovery_files` — heuristics from the sampled HTML plus whether `robots.txt` was retrieved; clients map codes to copy. Omitted on older snapshots. It also includes **`ux_score` / `ux_label` / `ux_summary`** (derived from the same deterministic run) plus optional extended fields when present: **`overall_score`** (0–100; **0** when **`scan_basis_code`** is **`degraded`** and no pages were scored), **`category_scores`**, human-readable **`scan_basis`**, normalized **`scan_basis_code`**: `homepage_only` | `homepage_plus_core_pages` | `homepage_rendered_fallback` | `degraded` | **`cache_hit`** (last value is forced when the run was satisfied from **`snapshot_domain_cache`**), **`cache_hit`** (boolean), **`scanned_at`** (ISO 8601 when the payload was built on a fresh fetch), **`limitations`** (string array; robots block, fetch failure, or heuristic notes for challenge/WAF/parked/login-wall patterns), **`signals_found`**, **`scan_confidence_band`**, advisory **`site_profile`** with **`classification_confidence_band`**, optional **`scan_coverage`** (includes robots, Playwright, when the homepage failed while allowed by robots: **`home_fetch_failure`**: `network_or_timeout` | `http_error` | `non_html` | `empty_body`, optional flags **`challenge_page_likely`**, **`parked_domain_likely`**, **`login_wall_likely`**, and optional taxonomy strings **`challenge_taxonomy`**, **`parked_taxonomy`**, **`login_wall_taxonomy`** — enumerated in the next block; canonical definitions in `server/src/snapshot/page-anomaly.ts`), **`audit_rules_version`** (audit catalog), **`classification_version`**, **`fetch_strategy_version`**, **`snapshot_engine_version`**. Persisted extras are merged from `audit_domains.raw_data.snapshot_deterministic`. Classification uses path segments from same-origin links on fetched pages (cap `SNAPSHOT_LINK_SLUG_LIMIT`, default 80), not only URLs that were fully downloaded.
 
 **`scan_coverage` taxonomy slugs** (optional; stable for dashboards; HTML heuristics only):
 
