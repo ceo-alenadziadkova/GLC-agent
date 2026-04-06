@@ -124,15 +124,16 @@ See [API.md — Public Snapshot](./API.md#public-snapshot).
 
 ## CORS Configuration
 
-Backend `server/src/index.ts`:
-```typescript
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') ?? 'http://localhost:5173',
-  credentials: true,
-}));
-```
+Allowlist is built in `server/src/config/cors-origins.ts` and applied in `server/src/index.ts`:
 
-In production: set `ALLOWED_ORIGINS=https://your-app.vercel.app` in Railway.
+- **Production:** `ALLOWED_ORIGINS` (comma-separated full origins) **and** `FRONTEND_URL` are merged and deduped. Trailing slashes are normalized. If both are unset, the allowlist is empty and the API logs a warning (browser CORS will fail until you set at least one).
+- **Development:** same merge, plus default localhost dev server ports (`5173`, `5174`, `3000`).
+
+Example on Railway:
+
+`ALLOWED_ORIGINS=https://www.glctech.pro,https://glctech.pro`
+
+`FRONTEND_URL` can duplicate one of those or hold the canonical site URL for redirects (`intake` routes); it is always included in the CORS allowlist when set.
 
 ---
 
@@ -142,7 +143,7 @@ In production: set `ALLOWED_ORIGINS=https://your-app.vercel.app` in Railway.
 |---|---|---|
 | API URL | Vite proxy to `localhost:3001` | `VITE_API_URL` Railway URL |
 | Auth redirect | `http://localhost:5173` | `https://your-app.vercel.app` |
-| CORS | `localhost:5173` allowed | Only Vercel domain |
+| CORS | Localhost ports + optional `ALLOWED_ORIGINS` | `ALLOWED_ORIGINS` + `FRONTEND_URL` |
 | HTTPS | HTTP (fine for dev) | HTTPS enforced by Vercel/Railway |
 
 ---

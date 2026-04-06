@@ -162,17 +162,11 @@ Budget is configurable per audit via `audits.token_budget`.
 
 ## CORS
 
-Backend only accepts requests from known frontend origins:
+Backend only reflects browser origins that appear in an explicit allowlist (`getCorsAllowedOrigins` in `server/src/config/cors-origins.ts`): **production** merges `ALLOWED_ORIGINS` (comma-separated) with `FRONTEND_URL`; **development** adds default localhost dev ports. `credentials: true` is set; origins are never `*`.
 
-```typescript
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') ?? ['http://localhost:5173'],
-  credentials: true,
-  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-}));
-```
+In production set at least one of:
 
-In production: `ALLOWED_ORIGINS=https://your-app.vercel.app`
+`ALLOWED_ORIGINS=https://www.example.com,https://example.com` and/or `FRONTEND_URL=https://www.example.com`
 
 ---
 

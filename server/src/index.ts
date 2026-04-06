@@ -19,18 +19,22 @@ import { requestLogMiddleware } from './middleware/request-log.js';
 import { logger } from './services/logger.js';
 import { startAlertsWorker } from './services/alerts.js';
 import { updateContext } from './services/observability-context.js';
+import { getCorsAllowedOrigins } from './config/cors-origins.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
 initSentry();
 
+const corsAllowedOrigins = getCorsAllowedOrigins();
+if (process.env.NODE_ENV === 'production' && corsAllowedOrigins.length === 0) {
+  logger.warn('CORS allowlist is empty: set ALLOWED_ORIGINS and/or FRONTEND_URL or browser API calls will fail CORS');
+}
+
 // ─── Middleware ─────────────────────────────────────────────
 app.use(traceMiddleware);
 app.use(requestLogMiddleware);
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? process.env.FRONTEND_URL
-    : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
+  origin: corsAllowedOrigins,
   credentials: true,
   exposedHeaders: [
     'RateLimit-Limit',
