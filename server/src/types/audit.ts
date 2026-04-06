@@ -142,6 +142,17 @@ export interface SnapshotScanCoverageApi {
   robots_txt_fetched?: boolean;
   /** robots.txt disallows `/` for the snapshot user-agent (no HTML fetched). */
   robots_home_disallowed?: boolean;
+  /** When homepage is blocked: HEAD probe metadata (no response body). */
+  robots_head_probe?: {
+    status: number;
+    content_type?: string;
+    final_url?: string;
+    x_robots_tag?: string;
+    /** `glc_scanner` or `browser_compat` when env allows a second HEAD. */
+    ua_used?: string;
+  };
+  /** Deterministic site bucket for copy when `robots_home_disallowed` (e.g. major platforms). */
+  robots_fallback_site_class?: 'major_platform' | 'standard';
   /** Candidate extra URLs skipped due to Disallow rules. */
   robots_extras_skipped?: number;
   /** Time slept between fetches for Crawl-delay (ms). */
@@ -223,6 +234,10 @@ export interface FreeSnapshotPreview {
   };
   /** Title + description read from the fetched homepage (meta / Open Graph / first paragraph). */
   homepage_snippet?: { title: string; description: string };
+  /** Server-set: snapshot could not usefully read public HTML (robots, fetch failure, etc.). */
+  snapshot_access_blocked?: boolean;
+  /** When blocked: true if robots.txt / policy prevented homepage fetch. */
+  snapshot_access_robots_blocked?: boolean;
 }
 
 export interface ReconData {

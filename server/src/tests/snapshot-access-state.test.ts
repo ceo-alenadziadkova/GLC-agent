@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { getSnapshotAccessBlockedFromDeterministic } from '../snapshot/snapshot-access-state.js';
+import {
+  computePublicSnapshotAccessFlags,
+  getSnapshotAccessBlockedFromDeterministic,
+} from '../snapshot/snapshot-access-state.js';
+import type { FreeSnapshotPreview } from '../types/audit.js';
 
 describe('getSnapshotAccessBlockedFromDeterministic', () => {
   it('returns robots when scan_coverage.robots_home_disallowed', () => {
@@ -22,9 +26,7 @@ describe('getSnapshotAccessBlockedFromDeterministic', () => {
   it('infers robots from limitations text when degraded', () => {
     const r = getSnapshotAccessBlockedFromDeterministic({
       scan_basis_code: 'degraded',
-      limitations: [
-        'robots.txt disallows automated access to the homepage for our snapshot crawler (User-agent * / GLC-SnapshotScanner).',
-      ],
+      limitations: ['robots.txt disallows our crawler on the homepage.'],
     });
     expect(r.robotsBlocked).toBe(true);
     expect(r.noHtmlSample).toBe(false);
@@ -60,5 +62,34 @@ describe('getSnapshotAccessBlockedFromDeterministic', () => {
       },
     });
     expect(r.showCallout).toBe(false);
+  });
+});
+
+describe('computePublicSnapshotAccessFlags', () => {
+  it('sets blocked + robots from deterministic scan_coverage', () => {
+    const preview = {
+      scan_basis_code: 'degraded',
+      overall_score: 0,
+      scan_coverage: { pages_fetched: 0 },
+    } as unknown as FreeSnapshotPreview;
+    const det = {
+      scan_basis_code: 'degraded',
+      scan_coverage: { pages_fetched: 0, robots_home_disallowed: true },
+    };
+    expect(computePublicSnapshotAccessFlags(preview, det)).toEqual({
+      blocked: true,
+      robots: true,
+    });
+  });
+
+  it('falls back to preview cov when det is empty', () => {
+    const preview = {
+      scan_basis_code: 'homepage_only',
+      scan_coverage: { pages_fetched: 1, robots_home_disallowed: true },
+    } as unknown as FreeSnapshotPreview;
+    expect(computePublicSnapshotAccessFlags(preview, null)).toEqual({
+      blocked: true,
+      robots: true,
+    });
   });
 });

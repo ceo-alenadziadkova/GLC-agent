@@ -112,6 +112,14 @@ export interface SnapshotScanCoverageApi {
   playwright_used?: boolean;
   robots_txt_fetched?: boolean;
   robots_home_disallowed?: boolean;
+  robots_head_probe?: {
+    status: number;
+    content_type?: string;
+    final_url?: string;
+    x_robots_tag?: string;
+    ua_used?: string;
+  };
+  robots_fallback_site_class?: 'major_platform' | 'standard';
   robots_extras_skipped?: number;
   crawl_delay_ms_applied?: number;
   home_fetch_failure?: 'network_or_timeout' | 'http_error' | 'non_html' | 'empty_body';
@@ -175,6 +183,10 @@ export interface FreeSnapshotPreview {
     confidence: 'high';
   };
   homepage_snippet?: { title: string; description: string };
+  /** Server-set: snapshot could not usefully read public HTML. */
+  snapshot_access_blocked?: boolean;
+  /** When blocked: true if robots.txt / policy prevented homepage fetch. */
+  snapshot_access_robots_blocked?: boolean;
   /** Snapshot-domain recommendations (e.g. upgrade to full audit); optional, not shown on public token API trim. */
   program_recommendations?: Array<{
     id: string;

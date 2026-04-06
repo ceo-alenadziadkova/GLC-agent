@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { Info } from '@phosphor-icons/react';
 import type { FreeSnapshotPreview, SnapshotSiteProfile } from '../../data/auditTypes';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
-import { scanConfidenceExplanation } from '../../lib/snapshot-diagnostics';
+import { scanConfidenceExplanation, snapshotZeroPagesScoreNote } from '../../lib/snapshot-diagnostics';
 
 export type SnapshotCategoryScoreKey =
   | 'ux_clarity'
@@ -86,6 +86,7 @@ export function SnapshotScoreContextNotes(props: {
   const has100 = typeof result.overall_score === 'number';
   const band = snapshotLegacyUxBand(result.ux_score);
   const scan = result.scan_confidence_band;
+  const zeroPagesNote = snapshotZeroPagesScoreNote(result);
 
   return (
     <div
@@ -102,6 +103,11 @@ export function SnapshotScoreContextNotes(props: {
         What these numbers mean
       </p>
       <div className="space-y-3">
+        {zeroPagesNote ? (
+          <p className="text-sm font-medium leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            {zeroPagesNote}
+          </p>
+        ) : null}
         <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
           {has100
             ? fivePointBandExplanation({ band, uxLabel: result.ux_label, hasOverall100: true })

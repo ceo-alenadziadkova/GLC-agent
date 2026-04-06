@@ -6,6 +6,7 @@ import {
   Globe,
   ArrowRight,
   CheckCircle,
+  SealCheck,
   Warning,
   Lightning,
   CaretRight,
@@ -33,6 +34,7 @@ import {
   formatScanCoverageLine,
   getSnapshotAccessBlockedState,
   scanConfidenceExplanation,
+  snapshotZeroPagesScoreNote,
 } from '../lib/snapshot-diagnostics';
 import { SnapshotAccessBlockedCallout } from '../components/snapshot/SnapshotAccessBlockedCallout';
 
@@ -243,6 +245,7 @@ function SnapshotScoreContextNotes(props: {
   const has100 = typeof result.overall_score === 'number';
   const band = legacyUxBand(result.ux_score);
   const scan = result.scan_confidence_band;
+  const zeroPagesNote = snapshotZeroPagesScoreNote(result);
 
   return (
     <div
@@ -259,6 +262,11 @@ function SnapshotScoreContextNotes(props: {
         What these numbers mean
       </p>
       <div className="space-y-3">
+        {zeroPagesNote ? (
+          <p className="text-sm font-medium leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            {zeroPagesNote}
+          </p>
+        ) : null}
         <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
           {has100
             ? legacyBandExplanation({ band, uxLabel: result.ux_label, hasOverall100: true })
@@ -577,6 +585,9 @@ export function SnapshotLanding() {
   const snapshotShowsAccessCallout = snapshotAccess?.showCallout ?? false;
   const snapshotAccessRobotsBlocked = snapshotAccess?.robotsBlocked ?? false;
   const snapshotAccessNoPages = snapshotAccess?.noPages ?? false;
+  const snapshotAccessRobotsLimited = snapshotAccess?.robotsLimitedSample ?? false;
+  const snapshotCalloutLimitations =
+    stage === 'done' && result && snapshotAccessRobotsBlocked && !snapshotAccessRobotsLimited ? [] : (result?.limitations ?? []);
 
   const snapshotCoverageCaption =
     stage === 'done' && result ? formatScanCoverageLine(result.scan_coverage) : null;
@@ -991,15 +1002,32 @@ export function SnapshotLanding() {
               <div className="mb-8 text-center mobile:mb-6 lg:mb-7 lg:text-left">
                 <div
                   className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-xs lg:mb-3"
-                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)' }}
+                  style={{
+                    background:
+                      snapshotShowsAccessCallout && snapshotAccessRobotsBlocked
+                        ? 'color-mix(in oklab, var(--glc-green) 10%, var(--bg-surface))'
+                        : 'var(--bg-surface)',
+                    border:
+                      snapshotShowsAccessCallout && snapshotAccessRobotsBlocked
+                        ? '1px solid color-mix(in oklab, var(--glc-green) 38%, var(--border-subtle))'
+                        : '1px solid var(--border-subtle)',
+                    color: 'var(--text-tertiary)',
+                  }}
                 >
                   {snapshotShowsAccessCallout ? (
-                    <>
-                      <Warning className="w-3 h-3 shrink-0" style={{ color: 'var(--score-2)' }} weight="fill" />
-                      {snapshotAccessRobotsBlocked
-                        ? 'Preview blocked — site crawl policy'
-                        : 'Preview incomplete — pages not loaded'}
-                    </>
+                    snapshotAccessRobotsBlocked ? (
+                      <>
+                        <SealCheck className="w-3 h-3 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
+                        {snapshotAccessRobotsLimited
+                          ? 'Preview limited — inner pages sampled'
+                          : 'Preview limited — robots.txt policy'}
+                      </>
+                    ) : (
+                      <>
+                        <Warning className="w-3 h-3 shrink-0" style={{ color: 'var(--score-2)' }} weight="fill" />
+                        Preview incomplete — pages not loaded
+                      </>
+                    )
                   ) : (
                     <>
                       <CheckCircle className="w-3 h-3" style={{ color: 'var(--glc-green)' }} /> Your check is ready
@@ -1023,7 +1051,10 @@ export function SnapshotLanding() {
               <SnapshotAccessBlockedCallout
                 robotsBlocked={snapshotAccessRobotsBlocked}
                 noHtmlSample={snapshotAccessNoPages}
-                limitations={result.limitations}
+                robotsLimitedSample={snapshotAccessRobotsLimited}
+                robotsFallbackSiteClass={snapshotAccess?.robotsFallbackSiteClass}
+                robotsHeadHttpStatus={result.scan_coverage?.robots_head_probe?.status}
+                limitations={snapshotCalloutLimitations}
               />
 
               {result.homepage_snippet &&

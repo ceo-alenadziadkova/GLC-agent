@@ -34,6 +34,7 @@ import {
 import { getSnapshotMetricsSnapshot } from '../snapshot/snapshot-metrics.js';
 import { getSnapshotSharedMetricsForOperator } from '../snapshot/snapshot-operator-metrics-shared.js';
 import { deleteSnapshotDomainCache } from '../snapshot/cache.js';
+import { computePublicSnapshotAccessFlags } from '../snapshot/snapshot-access-state.js';
 
 export const snapshotRouter = Router();
 const SNAPSHOT_TTL_HOURS = Number(process.env.SNAPSHOT_TOKEN_TTL_HOURS ?? 72);
@@ -93,6 +94,28 @@ function normalizeSnapshotScanCoverageFromStoredDet(stored: unknown): SnapshotSc
   if (c.playwright_used === true || c.playwrightUsed === true) out.playwright_used = true;
   if (c.robots_txt_fetched === true || c.robotsTxtFetched === true) out.robots_txt_fetched = true;
   if (c.robots_home_disallowed === true || c.robotsHomeDisallowed === true) out.robots_home_disallowed = true;
+
+  const rhp = c.robots_head_probe ?? c.robotsHeadProbe;
+  if (rhp && typeof rhp === 'object' && !Array.isArray(rhp)) {
+    const hp = rhp as Record<string, unknown>;
+    const st = hp.status;
+    if (typeof st === 'number' && Number.isFinite(st)) {
+      const probe: NonNullable<SnapshotScanCoverageApi['robots_head_probe']> = { status: st };
+      const ct = hp.content_type ?? hp.contentType;
+      if (typeof ct === 'string' && ct.trim()) probe.content_type = ct;
+      const fu = hp.final_url ?? hp.finalUrl;
+      if (typeof fu === 'string' && fu.trim()) probe.final_url = fu;
+      const xr = hp.x_robots_tag ?? hp.xRobotsTag;
+      if (typeof xr === 'string' && xr.trim()) probe.x_robots_tag = xr;
+      const ua = hp.ua_used ?? hp.uaUsed;
+      if (typeof ua === 'string' && ua.trim()) probe.ua_used = ua;
+      out.robots_head_probe = probe;
+    }
+  }
+
+  const rfc = c.robots_fallback_site_class ?? c.robotsFallbackSiteClass;
+  if (rfc === 'major_platform' || rfc === 'standard') out.robots_fallback_site_class = rfc;
+
   if (typeof c.robots_extras_skipped === 'number') out.robots_extras_skipped = c.robots_extras_skipped;
   if (typeof c.crawl_delay_ms_applied === 'number') out.crawl_delay_ms_applied = c.crawl_delay_ms_applied;
 
@@ -181,6 +204,10 @@ function applyDeterministicRecordToPreview(
   }
   if (typeof det.snapshot_engine_version === 'string') {
     preview.snapshot_engine_version = det.snapshot_engine_version;
+  }
+  if (det.snapshot_access_blocked === true) {
+    preview.snapshot_access_blocked = true;
+    preview.snapshot_access_robots_blocked = det.snapshot_access_robots_blocked === true;
   }
   const hs = det.homepage_snippet;
   if (hs && typeof hs === 'object' && hs !== null) {
@@ -516,6 +543,26 @@ snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
     const pagesCrawled = (recon?.pages_crawled as CrawledPage[] | null) ?? null;
     const companyUrl = audit.company_url as string;
 
+    const rawData = uxDomain?.raw_data as Record<string, unknown> | null | undefined;
+    const det = rawData?.snapshot_deterministic as Record<string, unknown> | undefined;
+    // Do not return a "completed" body until snapshot_deterministic is persisted (avoids empty UX + wrong badges).
+    if (
+      !uxDomain ||
+      typeof det !== 'object' ||
+      det === null ||
+      typeof det.overall_score !== 'number' ||
+      !Number.isFinite(det.overall_score)
+    ) {
+      logger.warn('snapshot.preview_data_not_ready', {
+        component: 'snapshot',
+        audit_id: audit.id,
+        has_ux_row: !!uxDomain,
+        has_det: det != null && typeof det === 'object',
+      });
+      res.json({ status: 'running', snapshot_token: token });
+      return;
+    }
+
     const preview: FreeSnapshotPreview = {
       audit_id: audit.id as string,
       snapshot_token: token,
@@ -524,18 +571,14 @@ snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
       company_name: (recon?.company_name as string | null) ?? (audit.company_name as string | null) ?? null,
       tech_stack: (recon?.tech_stack as Record<string, string[]>) ?? {},
       location: (recon?.location as string | null) ?? null,
-      ux_score: (uxDomain?.score as number | null) ?? null,
-      ux_label: (uxDomain?.label as string | null) ?? null,
-      ux_summary: (uxDomain?.summary as string | null) ?? null,
-      issues: ((uxDomain?.issues as unknown[]) ?? []).slice(0, 2) as FreeSnapshotPreview['issues'],
-      quick_wins: ((uxDomain?.quick_wins as unknown[]) ?? []).slice(0, 2) as FreeSnapshotPreview['quick_wins'],
+      ux_score: (uxDomain.score as number | null) ?? null,
+      ux_label: (uxDomain.label as string | null) ?? null,
+      ux_summary: (uxDomain.summary as string | null) ?? null,
+      issues: ((uxDomain.issues as unknown[]) ?? []).slice(0, 2) as FreeSnapshotPreview['issues'],
+      quick_wins: ((uxDomain.quick_wins as unknown[]) ?? []).slice(0, 2) as FreeSnapshotPreview['quick_wins'],
     };
 
-    const rawData = uxDomain?.raw_data as Record<string, unknown> | null | undefined;
-    const det = rawData?.snapshot_deterministic as Record<string, unknown> | undefined;
-    if (det && typeof det === 'object') {
-      applyDeterministicRecordToPreview(preview, det);
-    }
+    applyDeterministicRecordToPreview(preview, det);
 
     const needsDeterministicHeal =
       typeof preview.overall_score !== 'number' ||
@@ -597,6 +640,15 @@ snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
       if (competitorSettled[0].status === 'fulfilled' && competitorSettled[0].value) {
         preview.competitor_mini = competitorSettled[0].value;
       }
+    }
+
+    const access = computePublicSnapshotAccessFlags(preview, det);
+    if (access.blocked) {
+      preview.snapshot_access_blocked = true;
+      preview.snapshot_access_robots_blocked = access.robots;
+    } else {
+      delete preview.snapshot_access_blocked;
+      delete preview.snapshot_access_robots_blocked;
     }
 
     res.json(preview);

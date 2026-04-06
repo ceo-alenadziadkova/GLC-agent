@@ -210,6 +210,9 @@ export function freeSnapshotPreviewFromAuditState(state: AuditState): FreeSnapsh
     }
   }
 
+  const accessBlocked = det?.snapshot_access_blocked === true;
+  const accessRobots = det?.snapshot_access_robots_blocked === true;
+
   return {
     audit_id: state.meta.id,
     snapshot_token: state.meta.snapshot_token ?? '',
@@ -246,5 +249,8 @@ export function freeSnapshotPreviewFromAuditState(state: AuditState): FreeSnapsh
     limitations: limitations && limitations.length > 0 ? limitations : undefined,
     homepage_snippet,
     competitor_mini: det?.competitor_mini as FreeSnapshotPreview['competitor_mini'] | undefined,
+    ...(accessBlocked
+      ? { snapshot_access_blocked: true, snapshot_access_robots_blocked: accessRobots }
+      : {}),
   };
 }

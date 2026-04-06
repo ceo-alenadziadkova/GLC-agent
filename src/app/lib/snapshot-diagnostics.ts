@@ -31,7 +31,15 @@ const SCAN_ROLE_LABELS: Record<SnapshotScanCoverageApi['pages'][number]['role'],
 export function formatScanCoverageLine(cov: SnapshotScanCoverageApi | undefined): string | null {
   if (!cov) return null;
   if (cov.robots_home_disallowed) {
-    return 'robots.txt disallows our snapshot crawler from reading the homepage, so no automated sample was taken.';
+    if (typeof cov.pages_fetched === 'number' && cov.pages_fetched > 0) {
+      const cls = cov.robots_fallback_site_class;
+      const plat =
+        cls === 'major_platform'
+          ? 'Common on large sites: root blocked, inner pages allowed.'
+          : 'Inner pages only — not the homepage.';
+      return `Sampled ${cov.pages_fetched} allowed page(s); homepage not fetched (crawl policy). ${plat}`;
+    }
+    return 'No HTML in this sample: homepage blocked by site crawl policy (we still follow robots.txt).';
   }
   if (cov.pages_fetched < 1) return null;
   const order: SnapshotScanCoverageApi['pages'][number]['role'][] = [
@@ -75,6 +83,15 @@ export function formatScanCoverageLine(cov: SnapshotScanCoverageApi | undefined)
     line += ' The public page looks like a sign-in gate; most content may require authentication.';
   }
   return line;
+}
+
+/** When the donut shows 0/100 and no pages were fetched — avoid repeating long robots copy elsewhere. */
+export function snapshotZeroPagesScoreNote(result: FreeSnapshotPreview): string | null {
+  const pf = result.scan_coverage?.pages_fetched;
+  const zeroish = typeof pf !== 'number' || pf < 1;
+  if (!zeroish) return null;
+  if (typeof result.overall_score !== 'number' || result.overall_score !== 0) return null;
+  return 'Scores are based on 0 pages sampled. A full Express or Full audit can use your brief, exports, or approved access when the live site cannot be read automatically.';
 }
 
 export function scanConfidenceExplanation(band: 'high' | 'medium' | 'low'): string {
@@ -139,21 +156,50 @@ function uxSummaryIsDegradedPlaceholder(summary: string | null | undefined): boo
 export function getSnapshotAccessBlockedState(
   result: Pick<
     FreeSnapshotPreview,
-    'scan_coverage' | 'scan_basis_code' | 'limitations' | 'ux_summary' | 'overall_score'
+    | 'scan_coverage'
+    | 'scan_basis_code'
+    | 'limitations'
+    | 'ux_summary'
+    | 'overall_score'
+    | 'snapshot_access_blocked'
+    | 'snapshot_access_robots_blocked'
   >,
 ): {
   showCallout: boolean;
   robotsBlocked: boolean;
   noPages: boolean;
+  /** Homepage blocked by robots but at least one other allowed page was fetched. */
+  robotsLimitedSample: boolean;
+  robotsFallbackSiteClass?: SnapshotScanCoverageApi['robots_fallback_site_class'];
 } {
+  const pagesFetched = result.scan_coverage?.pages_fetched;
+  const limitedFromCov =
+    result.scan_coverage?.robots_home_disallowed === true &&
+    typeof pagesFetched === 'number' &&
+    pagesFetched > 0;
+
+  if (result.snapshot_access_blocked === true) {
+    const robots = result.snapshot_access_robots_blocked === true;
+    const robotsLimitedSample = robots && limitedFromCov;
+    return {
+      showCallout: true,
+      robotsBlocked: robots,
+      noPages: !robots,
+      robotsLimitedSample,
+      robotsFallbackSiteClass: result.scan_coverage?.robots_fallback_site_class,
+    };
+  }
   const robotsBlocked =
     isRobotsHomeBlockingSnapshot(result) || uxSummaryImpliesRobotsBlock(result.ux_summary);
   const noPages =
     !robotsBlocked &&
     (isSnapshotWithoutFetchedPages(result) || uxSummaryIsDegradedPlaceholder(result.ux_summary));
+  const robotsLimitedSample = robotsBlocked && limitedFromCov;
   return {
     showCallout: robotsBlocked || noPages,
     robotsBlocked,
     noPages,
+    robotsLimitedSample,
+    robotsFallbackSiteClass: result.scan_coverage?.robots_fallback_site_class,
   };
 }

@@ -179,10 +179,19 @@ function contentQualityAndShell(html: string, $: cheerio.CheerioAPI): {
   };
 }
 
+export type ExtractFactsOptions = {
+  /** When the canonical homepage was not fetched (e.g. robots.txt), keep `site.homepageUrl` on the submitted URL. */
+  canonicalHomepageUrl?: string;
+};
+
 /**
  * Merge multiple pages: homepage (first) drives hero/H1/primary form; others add slugs, signals, schema types.
  */
-export function extractFacts(pages: FetchedPage[], normalizedBaseUrl: string): SnapshotFacts {
+export function extractFacts(
+  pages: FetchedPage[],
+  normalizedBaseUrl: string,
+  opts?: ExtractFactsOptions,
+): SnapshotFacts {
   if (pages.length === 0) {
     return buildEmptyFacts(normalizedBaseUrl);
   }
@@ -310,10 +319,15 @@ export function extractFacts(pages: FetchedPage[], normalizedBaseUrl: string): S
 
   const machineReadableSurface = detectMachineReadableSurface(pages);
 
+  const homepageUrlForFacts =
+    typeof opts?.canonicalHomepageUrl === 'string' && opts.canonicalHomepageUrl.trim().length > 0
+      ? opts.canonicalHomepageUrl.trim()
+      : homeUrl;
+
   return {
     site: {
       normalizedUrl: normalizedBaseUrl,
-      homepageUrl: homeUrl,
+      homepageUrl: homepageUrlForFacts,
     },
     document: { lang },
     contentQuality,

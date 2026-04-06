@@ -435,7 +435,9 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
   const portalSubtitle =
     isFreeSnapshot && meta?.status === 'completed'
       ? freeSnapshotAccess?.showCallout
-        ? 'Your quick scan is saved, but we could not read the live site automatically (robots policy or a fetch issue). Details are below — Express or Full can still proceed from your brief and materials you add.'
+        ? freeSnapshotAccess.robotsLimitedSample
+          ? 'Your quick scan is saved. robots.txt blocked the homepage, but we sampled other allowed pages — see the note below. Express or Full can still use your brief and anything you add.'
+          : 'Your quick scan is saved, but we could not read the live site automatically (robots policy or a fetch issue). Details are below — Express or Full can still proceed from your brief and materials you add.'
         : 'Your quick scan is saved here — same results as on the snapshot page. Continue below when you want a full Express or Full audit.'
       : 'Complete your brief, then start the audit when you are ready';
 

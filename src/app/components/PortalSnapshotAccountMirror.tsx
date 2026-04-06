@@ -2,7 +2,7 @@
  * Full snapshot results on the client portal — parity with the public /snapshot "done" view.
  */
 
-import { CheckCircle, Lightning, Shield, Target, Warning } from '@phosphor-icons/react';
+import { CheckCircle, Lightning, SealCheck, Shield, Target, Warning } from '@phosphor-icons/react';
 import type { FreeSnapshotPreview } from '../data/auditTypes';
 import { formatScanCoverageLine, getSnapshotAccessBlockedState } from '../lib/snapshot-diagnostics';
 import { SnapshotAccessBlockedCallout } from './snapshot/SnapshotAccessBlockedCallout';
@@ -28,6 +28,7 @@ const SEVERITY_COLOR: Record<string, string> = {
 
 export function PortalSnapshotAccountMirror({ result }: { result: FreeSnapshotPreview }) {
   const access = getSnapshotAccessBlockedState(result);
+  const calloutLimitations = access.robotsBlocked && !access.robotsLimitedSample ? [] : (result.limitations ?? []);
   const coverageLine = formatScanCoverageLine(result.scan_coverage);
   const techEntries = Object.entries(result.tech_stack ?? {}).filter(([, v]) => Array.isArray(v) && v.length > 0);
   const showSnapshotScoreBlock =
@@ -73,15 +74,32 @@ export function PortalSnapshotAccountMirror({ result }: { result: FreeSnapshotPr
       <div className="text-center lg:text-left">
         <div
           className="mb-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs"
-          style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)' }}
+          style={{
+            background:
+              access.showCallout && access.robotsBlocked
+                ? 'color-mix(in oklab, var(--glc-green) 10%, var(--bg-surface))'
+                : 'var(--bg-surface)',
+            border:
+              access.showCallout && access.robotsBlocked
+                ? '1px solid color-mix(in oklab, var(--glc-green) 38%, var(--border-subtle))'
+                : '1px solid var(--border-subtle)',
+            color: 'var(--text-tertiary)',
+          }}
         >
           {access.showCallout ? (
-            <>
-              <Warning className="h-3 w-3 shrink-0" style={{ color: 'var(--score-2)' }} weight="fill" />
-              {access.robotsBlocked
-                ? 'Preview blocked — site crawl policy'
-                : 'Preview incomplete — pages not loaded'}
-            </>
+            access.robotsBlocked ? (
+              <>
+                <SealCheck className="h-3 w-3 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
+                {access.robotsLimitedSample
+                  ? 'Preview limited — inner pages sampled'
+                  : 'Preview limited — robots.txt policy'}
+              </>
+            ) : (
+              <>
+                <Warning className="h-3 w-3 shrink-0" style={{ color: 'var(--score-2)' }} weight="fill" />
+                Preview incomplete — pages not loaded
+              </>
+            )
           ) : (
             <>
               <CheckCircle className="h-3 w-3" style={{ color: 'var(--glc-green)' }} /> Your check is ready
@@ -104,7 +122,10 @@ export function PortalSnapshotAccountMirror({ result }: { result: FreeSnapshotPr
       <SnapshotAccessBlockedCallout
         robotsBlocked={access.robotsBlocked}
         noHtmlSample={access.noPages}
-        limitations={result.limitations}
+        robotsLimitedSample={access.robotsLimitedSample}
+        robotsFallbackSiteClass={access.robotsFallbackSiteClass}
+        robotsHeadHttpStatus={result.scan_coverage?.robots_head_probe?.status}
+        limitations={calloutLimitations}
       />
 
       {result.homepage_snippet &&
