@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   computePublicSnapshotAccessFlags,
   getSnapshotAccessBlockedFromDeterministic,
+  snapshotPayloadToAccessApiFields,
 } from '../snapshot/snapshot-access-state.js';
 import type { FreeSnapshotPreview } from '../types/audit.js';
 
@@ -90,6 +91,65 @@ describe('computePublicSnapshotAccessFlags', () => {
     expect(computePublicSnapshotAccessFlags(preview, null)).toEqual({
       blocked: true,
       robots: true,
+    });
+  });
+
+  it('infers robots from ux_summary when det has no callout', () => {
+    const preview = {
+      scan_basis_code: 'homepage_only',
+      overall_score: 3,
+      ux_summary: 'Blocked by robots.txt Disallow for our crawler.',
+    } as unknown as FreeSnapshotPreview;
+    expect(computePublicSnapshotAccessFlags(preview, null)).toEqual({
+      blocked: true,
+      robots: true,
+    });
+  });
+
+  it('blocks non-robots degraded message from summary', () => {
+    const preview = {
+      scan_basis_code: 'degraded',
+      overall_score: 0,
+      ux_summary: 'No automated GLC snapshot score — sample too thin.',
+    } as unknown as FreeSnapshotPreview;
+    expect(computePublicSnapshotAccessFlags(preview, null)).toEqual({
+      blocked: true,
+      robots: false,
+    });
+  });
+
+  it('blocks degraded score zero when det empty and summary silent', () => {
+    const preview = {
+      scan_basis_code: 'degraded',
+      overall_score: 0,
+      ux_summary: '',
+    } as unknown as FreeSnapshotPreview;
+    expect(computePublicSnapshotAccessFlags(preview, null)).toEqual({
+      blocked: true,
+      robots: false,
+    });
+  });
+});
+
+describe('snapshotPayloadToAccessApiFields', () => {
+  it('returns empty object when access is not blocked', () => {
+    expect(
+      snapshotPayloadToAccessApiFields({
+        scanBasisCode: 'homepage_only',
+        scanCoverage: { pagesFetched: 1, robotsHomeDisallowed: false },
+      }),
+    ).toEqual({});
+  });
+
+  it('returns API flags when robots blocks homepage', () => {
+    expect(
+      snapshotPayloadToAccessApiFields({
+        scanBasisCode: 'degraded',
+        scanCoverage: { pagesFetched: 0, robotsHomeDisallowed: true },
+      }),
+    ).toEqual({
+      snapshot_access_blocked: true,
+      snapshot_access_robots_blocked: true,
     });
   });
 });

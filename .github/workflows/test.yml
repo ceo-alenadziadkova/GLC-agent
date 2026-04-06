@@ -1,0 +1,39 @@
+name: Test
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  vitest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - name: Frontend unit tests
+        run: npm ci && npm test
+      - name: Backend unit tests
+        working-directory: server
+        run: npm ci && npm test
+
+  playwright:
+    runs-on: ubuntu-latest
+    needs: vitest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - name: E2E smoke
+        run: npm run test:e2e
+        env:
+          CI: true

@@ -1,13 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter, Routes, Route } from 'react-router';
 import { ProtectedRoute } from '../ProtectedRoute';
 import { useAuth } from '../../hooks/useAuth';
+import { useProfile } from '../../hooks/useProfile';
 import type { User, Session } from '@supabase/supabase-js';
 
 vi.mock('../../hooks/useAuth');
+vi.mock('../../hooks/useProfile');
 
 const mockUseAuth = vi.mocked(useAuth);
+const mockUseProfile = vi.mocked(useProfile);
 
 const AUTH_STUB = {
   user: null as User | null,
@@ -21,8 +24,22 @@ const AUTH_STUB = {
   signOut: vi.fn(),
 };
 
+const PROFILE_STUB = {
+  profile: null,
+  role: null as 'consultant' | 'client' | 'guest' | null,
+  roleDisplayName: null as 'Admin' | 'Client' | 'Guest' | null,
+  isConsultant: false,
+  isAdmin: false,
+  isClient: false,
+  isGuest: false,
+  loading: false,
+  error: null as string | null,
+  refetch: vi.fn(),
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
+  mockUseProfile.mockReturnValue(PROFILE_STUB);
 });
 
 describe('ProtectedRoute', () => {
@@ -73,5 +90,196 @@ describe('ProtectedRoute', () => {
     );
 
     expect(screen.getByText('Protected content')).toBeInTheDocument();
+  });
+
+  it('redirects guest away from consultant-only route to /snapshot', async () => {
+    mockUseAuth.mockReturnValue({
+      ...AUTH_STUB,
+      loading: false,
+      isAuthenticated: true,
+      user: { id: 'u1', email: 'g@g.com' } as User,
+    });
+    mockUseProfile.mockReturnValue({
+      ...PROFILE_STUB,
+      role: 'guest',
+      isGuest: true,
+      roleDisplayName: 'Guest',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dash']}>
+        <Routes>
+          <Route
+            path="/dash"
+            element={
+              <ProtectedRoute requiredRole="consultant">
+                <div>Consultant only</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/snapshot" element={<div data-testid="snap-dest">Snapshot</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('snap-dest')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Consultant only')).not.toBeInTheDocument();
+  });
+
+  it('redirects consultant away from client-only route to /portfolio', async () => {
+    mockUseAuth.mockReturnValue({
+      ...AUTH_STUB,
+      loading: false,
+      isAuthenticated: true,
+      user: { id: 'u1', email: 'c@c.com' } as User,
+    });
+    mockUseProfile.mockReturnValue({
+      ...PROFILE_STUB,
+      role: 'consultant',
+      isConsultant: true,
+      isAdmin: true,
+      roleDisplayName: 'Admin',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/portal']}>
+        <Routes>
+          <Route
+            path="/portal"
+            element={
+              <ProtectedRoute requiredRole="client">
+                <div>Client only</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/portfolio" element={<div data-testid="port-dest">Portfolio</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('port-dest')).toBeInTheDocument();
+    });
+  });
+
+  it('redirects to /login when role is null but route requires role', async () => {
+    mockUseAuth.mockReturnValue({
+      ...AUTH_STUB,
+      loading: false,
+      isAuthenticated: true,
+      user: { id: 'u1', email: 'x@x.com' } as User,
+    });
+    mockUseProfile.mockReturnValue({
+      ...PROFILE_STUB,
+      role: null,
+      loading: false,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/dash']}>
+        <Routes>
+          <Route
+            path="/dash"
+            element={
+              <ProtectedRoute requiredRole="consultant">
+                <div>Consultant</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/login" element={<div data-testid="login-dest">Login</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('login-dest')).toBeInTheDocument();
+    });
+  });
+
+  it('shows loader while profile resolves for role-gated routes (no protected flash)', () => {
+    mockUseAuth.mockReturnValue({
+      ...AUTH_STUB,
+      loading: false,
+      isAuthenticated: true,
+      user: { id: 'u1', email: 'c@c.com' } as User,
+    });
+    mockUseProfile.mockReturnValue({
+      ...PROFILE_STUB,
+      loading: true,
+      role: null,
+    });
+
+    render(
+      <MemoryRouter>
+        <ProtectedRoute requiredRole="client">
+          <div>Client workspace</div>
+        </ProtectedRoute>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.queryByText('Client workspace')).not.toBeInTheDocument();
+  });
+
+  it('does not wait on profile when route is not role-gated (avoids extra spinner)', () => {
+    mockUseAuth.mockReturnValue({
+      ...AUTH_STUB,
+      loading: false,
+      isAuthenticated: true,
+      user: { id: 'u1', email: 'c@c.com' } as User,
+    });
+    mockUseProfile.mockReturnValue({
+      ...PROFILE_STUB,
+      loading: true,
+      role: null,
+    });
+
+    render(
+      <MemoryRouter>
+        <ProtectedRoute>
+          <div>Generic protected</div>
+        </ProtectedRoute>
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByText('Generic protected')).toBeInTheDocument();
+  });
+
+  it('redirects guest away from blocked route (e.g. settings)', async () => {
+    mockUseAuth.mockReturnValue({
+      ...AUTH_STUB,
+      loading: false,
+      isAuthenticated: true,
+      user: { id: 'u1', email: 'g@g.com' } as User,
+    });
+    mockUseProfile.mockReturnValue({
+      ...PROFILE_STUB,
+      role: 'guest',
+      isGuest: true,
+      roleDisplayName: 'Guest',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/settings']}>
+        <Routes>
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute blockedForRoles={['guest']}>
+                <div>Settings</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/snapshot" element={<div data-testid="snap-dest">Snapshot</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('snap-dest')).toBeInTheDocument();
+    });
   });
 });
