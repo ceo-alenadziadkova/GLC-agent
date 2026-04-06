@@ -167,6 +167,12 @@ export interface FreeSnapshotPreview {
   company_url: string;
   company_name: string | null;
   tech_stack: Record<string, string[]>;
+  /** Possible technologies from weak signals only (quick scan); see `signal` per item. */
+  tech_stack_tentative?: Array<{ name: string; category: string; signal: string }>;
+  /** Surface gaps for AI/machine readability messaging (inferred from sampled HTML + robots fetch). */
+  ai_visibility?: {
+    gaps: Array<'robots_txt' | 'sitemap_html' | 'structured_data' | 'discovery_files'>;
+  };
   location: string | null;
   ux_score: number | null;
   ux_label: string | null;
@@ -215,6 +221,8 @@ export interface FreeSnapshotPreview {
     data_source: 'auto_detected';
     confidence: 'high';
   };
+  /** Title + description read from the fetched homepage (meta / Open Graph / first paragraph). */
+  homepage_snippet?: { title: string; description: string };
 }
 
 export interface ReconData {

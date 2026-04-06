@@ -131,6 +131,10 @@ export interface FreeSnapshotPreview {
   company_url: string;
   company_name: string | null;
   tech_stack: Record<string, string[]>;
+  tech_stack_tentative?: Array<{ name: string; category: string; signal: string }>;
+  ai_visibility?: {
+    gaps: Array<'robots_txt' | 'sitemap_html' | 'structured_data' | 'discovery_files'>;
+  };
   location: string | null;
   ux_score: number | null;
   ux_label: string | null;
@@ -170,6 +174,7 @@ export interface FreeSnapshotPreview {
     data_source: 'auto_detected';
     confidence: 'high';
   };
+  homepage_snippet?: { title: string; description: string };
 }
 
 export const DOMAIN_KEYS = [

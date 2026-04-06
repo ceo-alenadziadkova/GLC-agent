@@ -296,6 +296,7 @@ Free graders are **wrong often**; the product should **invite verification**, no
 | Tiered fetch + coverage | `server/src/snapshot/fetch-tiered.ts` |
 | Playwright fallback | `server/src/snapshot/playwright-fetch.ts`, gated in `fetch-tiered.ts` |
 | Facts extraction | `server/src/snapshot/extract-facts.ts`, shared tech/schema `server/src/lib/site-html-signals.ts` |
+| Tech stack fingerprints | `server/src/lib/tech-wappalyzer-detect.ts`, generated `server/src/lib/wappalyzer-imported-rules.ts`, ingest `server/scripts/ingest-webappalyzer.mjs` (`pnpm ingest:wappalyzer` in `server/`) |
 | Classification | `server/config/snapshot/classification-rules.v1.yaml`, `server/src/snapshot/classification/*` |
 | Audit rules + runner | `server/config/snapshot/audit-rules.v1.yaml`, `server/src/snapshot/audit/*` |
 | Pipeline + persistence | `server/src/services/pipeline.ts`, `server/src/snapshot/run-snapshot.ts` |

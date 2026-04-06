@@ -7,7 +7,8 @@ import { supabase } from '../services/supabase.js';
 import { logger } from '../services/logger.js';
 import type { CrawledPage, DomainResult, FreeSnapshotPreview } from '../types/audit.js';
 import { fetchTieredPages } from './fetch-tiered.js';
-import { extractFacts } from './extract-facts.js';
+import { buildEmptyFacts, extractFacts } from './extract-facts.js';
+import { deriveAiVisibilityGaps } from './ai-visibility-hints.js';
 import { runSiteProfile, type SiteProfileDebug } from './classification/site-profile-runner.js';
 import { runSnapshotAudit, overallToLegacyScore } from './audit/run-audit.js';
 import {
@@ -22,9 +23,16 @@ import {
   releaseSnapshotFreshConcurrency,
   SnapshotAtCapacityError,
 } from './abuse-guards.js';
-import type { SnapshotAuditResult, SnapshotCachePayload, SiteProfile, SnapshotScanCoverage } from './types.js';
+import type {
+  SnapshotAuditResult,
+  SnapshotCachePayload,
+  SiteProfile,
+  SnapshotScanCoverage,
+  SnapshotFacts,
+} from './types.js';
 import { SnapshotFactsSchema } from './types.js';
 import { extractJsonLdTypes, detectTechStackRecord } from '../lib/site-html-signals.js';
+import { inferTechStackTentative } from '../lib/tech-stack-tentative.js';
 import { ISSUE_MESSAGES, QUICK_WIN_MESSAGES } from './messages.js';
 import { getAuditRules, getAuditRulesCatalogVersion } from './audit/parse-audit-rules.js';
 import { getClassificationRulesVersion } from './classification/parse-rules.js';
@@ -109,6 +117,20 @@ function buildDegradedLimitations(coverage: SnapshotScanCoverage): string[] {
         'The homepage could not be retrieved within the time budget (timeout, blocking, TLS, or network error).',
       ];
   }
+}
+
+/** Best-effort homepage excerpt for the public preview (meta description, og:description, or first paragraph). */
+function buildHomepageSnippet(facts: SnapshotFacts): { title: string; description: string } | undefined {
+  const title = facts.siteText.title.trim();
+  const meta = facts.siteText.metaDescription.trim();
+  const og = facts.siteText.ogDescription.trim();
+  let description = meta || og;
+  if (!description && facts.siteText.topParagraphs[0]) {
+    const p0 = facts.siteText.topParagraphs[0].trim();
+    description = p0.length > 320 ? `${p0.slice(0, 317)}...` : p0;
+  }
+  if (!title && !description) return undefined;
+  return { title, description };
 }
 
 function buildUnknownSiteProfile(): SiteProfile {
@@ -337,6 +359,7 @@ export async function runDeterministicSnapshot(auditId: string): Promise<Determi
         classification_version: getClassificationRulesVersion(),
         fetch_strategy_version: SNAPSHOT_FETCH_STRATEGY_VERSION,
         snapshot_engine_version: SNAPSHOT_ENGINE_VERSION,
+        ai_visibility: { gaps: deriveAiVisibilityGaps(buildEmptyFacts(companyUrl), coverage) },
       };
       await persistFromCache(auditId, companyUrl, degradedPayload, {
         persistedFromDomainCache: false,
@@ -390,7 +413,8 @@ export async function runDeterministicSnapshot(auditId: string): Promise<Determi
     const pagesCrawled = buildCrawledPages(urls, htmlByUrl, pages[0]!.finalUrl);
 
     const combinedHtml = pages.map(p => p.html).join('\n');
-    const tech_stack = detectTechStackRecord(combinedHtml);
+    const tech_stack = detectTechStackRecord(combinedHtml, { pageUrls: pages.map(p => p.finalUrl) });
+    const tech_stack_tentative = inferTechStackTentative(combinedHtml, tech_stack);
 
     const emails = new Set<string>();
     const phones = new Set<string>();
@@ -399,11 +423,13 @@ export async function runDeterministicSnapshot(auditId: string): Promise<Determi
     if (m) m.slice(0, 8).forEach(e => emails.add(e.toLowerCase()));
 
     const scannedAt = new Date().toISOString();
+    const homepage_snippet = buildHomepageSnippet(facts);
     const payload: SnapshotCachePayload = {
       version: 1,
       site_profile: profile,
       audit: auditResult,
       tech_stack,
+      ...(tech_stack_tentative.length > 0 ? { tech_stack_tentative } : {}),
       pages_crawled: pagesCrawled,
       scan_coverage: coverage,
       company_name: profile.companyNameGuess,
@@ -418,6 +444,8 @@ export async function runDeterministicSnapshot(auditId: string): Promise<Determi
       classification_version: getClassificationRulesVersion(),
       fetch_strategy_version: SNAPSHOT_FETCH_STRATEGY_VERSION,
       snapshot_engine_version: SNAPSHOT_ENGINE_VERSION,
+      ai_visibility: { gaps: deriveAiVisibilityGaps(facts, coverage) },
+      ...(homepage_snippet ? { homepage_snippet } : {}),
       ...(anomalyNotes.length > 0 ? { limitations: anomalyNotes } : {}),
     };
 
@@ -518,6 +546,11 @@ async function persistFromCache(
         ...(p.classification_version !== undefined ? { classification_version: p.classification_version } : {}),
         ...(p.fetch_strategy_version ? { fetch_strategy_version: p.fetch_strategy_version } : {}),
         ...(p.snapshot_engine_version ? { snapshot_engine_version: p.snapshot_engine_version } : {}),
+        ...(p.homepage_snippet ? { homepage_snippet: p.homepage_snippet } : {}),
+        ...(p.tech_stack_tentative && p.tech_stack_tentative.length > 0
+          ? { tech_stack_tentative: p.tech_stack_tentative }
+          : {}),
+        ...(p.ai_visibility ? { ai_visibility: p.ai_visibility } : {}),
       },
     },
   };
@@ -611,6 +644,11 @@ export function snapshotPayloadToDeterministicApiRecord(p: SnapshotCachePayload)
     ...(p.classification_version !== undefined ? { classification_version: p.classification_version } : {}),
     ...(p.fetch_strategy_version ? { fetch_strategy_version: p.fetch_strategy_version } : {}),
     ...(p.snapshot_engine_version ? { snapshot_engine_version: p.snapshot_engine_version } : {}),
+    ...(p.homepage_snippet ? { homepage_snippet: p.homepage_snippet } : {}),
+    ...(p.tech_stack_tentative && p.tech_stack_tentative.length > 0
+      ? { tech_stack_tentative: p.tech_stack_tentative }
+      : {}),
+    ...(p.ai_visibility ? { ai_visibility: p.ai_visibility } : {}),
   };
 }
 
@@ -751,5 +789,10 @@ function buildPreviewFromPayload(
     ...(p.classification_version !== undefined ? { classification_version: p.classification_version } : {}),
     ...(p.fetch_strategy_version ? { fetch_strategy_version: p.fetch_strategy_version } : {}),
     ...(p.snapshot_engine_version ? { snapshot_engine_version: p.snapshot_engine_version } : {}),
+    ...(p.homepage_snippet ? { homepage_snippet: p.homepage_snippet } : {}),
+    ...(p.tech_stack_tentative && p.tech_stack_tentative.length > 0
+      ? { tech_stack_tentative: p.tech_stack_tentative }
+      : {}),
+    ...(p.ai_visibility ? { ai_visibility: p.ai_visibility } : {}),
   };
 }

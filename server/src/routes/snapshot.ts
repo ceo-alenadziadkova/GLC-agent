@@ -106,6 +106,23 @@ function applyDeterministicRecordToPreview(
   if (typeof det.snapshot_engine_version === 'string') {
     preview.snapshot_engine_version = det.snapshot_engine_version;
   }
+  const hs = det.homepage_snippet;
+  if (hs && typeof hs === 'object' && hs !== null) {
+    const o = hs as { title?: unknown; description?: unknown };
+    const title = typeof o.title === 'string' ? o.title : '';
+    const description = typeof o.description === 'string' ? o.description : '';
+    if (title.trim() || description.trim()) {
+      preview.homepage_snippet = { title, description };
+    }
+  }
+  const tst = det.tech_stack_tentative;
+  if (Array.isArray(tst) && tst.length > 0) {
+    preview.tech_stack_tentative = tst as FreeSnapshotPreview['tech_stack_tentative'];
+  }
+  const av = det.ai_visibility as FreeSnapshotPreview['ai_visibility'] | undefined;
+  if (av && Array.isArray(av.gaps)) {
+    preview.ai_visibility = { gaps: av.gaps };
+  }
 }
 
 function snapshotOperatorAuthorized(req: import('express').Request): boolean {
@@ -415,6 +432,19 @@ snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
         }
         if (preview.quick_wins.length === 0) {
           preview.quick_wins = uxFields.quick_wins;
+        }
+        if (!preview.homepage_snippet && cached.homepage_snippet) {
+          preview.homepage_snippet = cached.homepage_snippet;
+        }
+        if (
+          cached.tech_stack_tentative &&
+          cached.tech_stack_tentative.length > 0 &&
+          !(preview.tech_stack_tentative && preview.tech_stack_tentative.length > 0)
+        ) {
+          preview.tech_stack_tentative = cached.tech_stack_tentative;
+        }
+        if (cached.ai_visibility && !preview.ai_visibility) {
+          preview.ai_visibility = cached.ai_visibility;
         }
       }
     }

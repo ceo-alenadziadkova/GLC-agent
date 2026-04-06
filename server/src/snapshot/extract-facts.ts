@@ -29,6 +29,34 @@ function mergeUnique<T>(a: T[], b: T[]): T[] {
   return [...new Set([...a, ...b])];
 }
 
+/** Sitemap / AI discovery file signals in sampled HTML (not a live sitemap fetch). */
+function detectMachineReadableSurface(pages: FetchedPage[]): {
+  sitemapLinkInHtml: boolean;
+  llmsOrAiTxtLinked: boolean;
+} {
+  let sitemapLinkInHtml = false;
+  let llmsOrAiTxtLinked = false;
+  for (const p of pages) {
+    const $ = cheerio.load(p.html);
+    if ($('link[rel="sitemap"]').length > 0) sitemapLinkInHtml = true;
+    $('a[href], link[href]').each((_, el) => {
+      const href = ($(el).attr('href') ?? '').trim();
+      if (!href) return;
+      const lower = href.toLowerCase();
+      if (lower.includes('llms.txt') || /\b\/ai\.txt\b|\bai\.txt\b/i.test(href)) {
+        llmsOrAiTxtLinked = true;
+      }
+      if (/sitemap[^"'?\s]*\.(xml|txt)(\?|$)/i.test(href) || /sitemap[_-]?(index|_index)?\.xml/i.test(lower)) {
+        sitemapLinkInHtml = true;
+      }
+    });
+    if (/rel=["']sitemap["']/i.test(p.html)) sitemapLinkInHtml = true;
+    if (/href=["'][^"']*llms\.txt/i.test(p.html)) llmsOrAiTxtLinked = true;
+    if (/href=["'][^"']*\/ai\.txt/i.test(p.html)) llmsOrAiTxtLinked = true;
+  }
+  return { sitemapLinkInHtml, llmsOrAiTxtLinked };
+}
+
 /** Path segments from internal links (nav/footer/body) — improves classification when only homepage HTML is loaded. */
 function collectLinkPathSegments(pages: FetchedPage[], segmentLimit: number): string[] {
   const seen = new Set<string>();
@@ -170,6 +198,7 @@ export function extractFacts(pages: FetchedPage[], normalizedBaseUrl: string): S
 
   const title = $h('title').first().text().trim();
   const metaDescription = $h('meta[name="description"]').attr('content')?.trim() || '';
+  const ogDescription = $h('meta[property="og:description"]').attr('content')?.trim() || '';
   const h1Els = $h('h1');
   const h1Count = h1Els.length;
   const h1 = $h('main h1').first().text().trim() || h1Els.first().text().trim();
@@ -249,8 +278,9 @@ export function extractFacts(pages: FetchedPage[], normalizedBaseUrl: string): S
   let navItems = [...sig.navItems];
 
   const combinedHtml = pages.map(p => p.html).join('\n');
-  const stackByCategory = detectTechStackRecord(combinedHtml);
-  const platforms = listDetectedTechPlatforms(combinedHtml);
+  const pageUrls = pages.map(p => p.finalUrl);
+  const stackByCategory = detectTechStackRecord(combinedHtml, { pageUrls });
+  const platforms = listDetectedTechPlatforms(combinedHtml, { pageUrls });
 
   for (let i = 1; i < pages.length; i++) {
     const $p = cheerio.load(pages[i]!.html);
@@ -278,6 +308,8 @@ export function extractFacts(pages: FetchedPage[], normalizedBaseUrl: string): S
     if (t && CTA_VERB_RE.test(t)) primaryCtasAboveFold++;
   });
 
+  const machineReadableSurface = detectMachineReadableSurface(pages);
+
   return {
     site: {
       normalizedUrl: normalizedBaseUrl,
@@ -289,6 +321,7 @@ export function extractFacts(pages: FetchedPage[], normalizedBaseUrl: string): S
     siteText: {
       title,
       metaDescription,
+      ogDescription,
       h1,
       h1Count,
       h2Texts,
@@ -326,10 +359,11 @@ export function extractFacts(pages: FetchedPage[], normalizedBaseUrl: string): S
     },
     heroPrimaryCtaCount: primaryCtasAboveFold,
     genericMarketingHero: GENERIC_MARKETING_RE.test(h1) || GENERIC_MARKETING_RE.test(title),
+    machineReadableSurface,
   };
 }
 
-function buildEmptyFacts(normalizedBaseUrl: string): SnapshotFacts {
+export function buildEmptyFacts(normalizedBaseUrl: string): SnapshotFacts {
   return {
     site: { normalizedUrl: normalizedBaseUrl, homepageUrl: normalizedBaseUrl },
     document: { lang: null },
@@ -338,6 +372,7 @@ function buildEmptyFacts(normalizedBaseUrl: string): SnapshotFacts {
     siteText: {
       title: '',
       metaDescription: '',
+      ogDescription: '',
       h1: '',
       h1Count: 0,
       h2Texts: [],
@@ -367,6 +402,7 @@ function buildEmptyFacts(normalizedBaseUrl: string): SnapshotFacts {
     },
     heroPrimaryCtaCount: 0,
     genericMarketingHero: false,
+    machineReadableSurface: { sitemapLinkInHtml: false, llmsOrAiTxtLinked: false },
   };
 }
 

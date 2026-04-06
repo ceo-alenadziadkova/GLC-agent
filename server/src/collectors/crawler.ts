@@ -102,7 +102,7 @@ export class CrawlerCollector extends BaseCollector {
 
         // Detect tech stack from HTML
         const fullHtml = page.html ?? '';
-        this.detectTechStack(fullHtml, techStack);
+        this.detectTechStack(fullHtml, techStack, url);
 
         // Detect social profiles
         this.detectSocials(fullHtml, socialProfiles);
@@ -238,8 +238,8 @@ export class CrawlerCollector extends BaseCollector {
     }
   }
 
-  private detectTechStack(html: string, techStack: Record<string, Set<string>>) {
-    addTechStackFromHtml(html, techStack);
+  private detectTechStack(html: string, techStack: Record<string, Set<string>>, pageUrl?: string) {
+    addTechStackFromHtml(html, techStack, pageUrl ? { pageUrls: [pageUrl] } : undefined);
   }
 
   private detectSocials(html: string, profiles: Record<string, string>) {

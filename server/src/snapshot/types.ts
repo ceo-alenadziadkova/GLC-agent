@@ -14,6 +14,8 @@ export const SnapshotFactsSchema = z.object({
   siteText: z.object({
     title: z.string(),
     metaDescription: z.string(),
+    /** og:description when `<meta name="description">` is empty or duplicated elsewhere. */
+    ogDescription: z.string(),
     h1: z.string(),
     h1Count: z.number(),
     h2Texts: z.array(z.string()),
@@ -69,9 +71,17 @@ export const SnapshotFactsSchema = z.object({
   heroPrimaryCtaCount: z.number().optional(),
   /** Title/H1 looks like generic marketing fluff */
   genericMarketingHero: z.boolean().optional(),
+  /** Hints for machine-facing surface (sitemap links, AI discovery files) from sampled HTML. */
+  machineReadableSurface: z.object({
+    sitemapLinkInHtml: z.boolean(),
+    llmsOrAiTxtLinked: z.boolean(),
+  }),
 });
 
 export type SnapshotFacts = z.infer<typeof SnapshotFactsSchema>;
+
+/** Machine/AI surface gaps surfaced to clients (copy mapped in the app). */
+export type AiVisibilityGapId = 'robots_txt' | 'sitemap_html' | 'structured_data' | 'discovery_files';
 
 export const SiteProfileSchema = z.object({
   siteType: z.string(),
@@ -197,6 +207,8 @@ export interface SnapshotCachePayload {
   site_profile: SiteProfile;
   audit: SnapshotAuditResult;
   tech_stack: Record<string, string[]>;
+  /** Weak-signal hints (JSON-LD, generator, SPA shell); not verified like `tech_stack`. */
+  tech_stack_tentative?: Array<{ name: string; category: string; signal: string }>;
   pages_crawled: import('../types/audit.js').CrawledPage[];
   /** Fetch budget and pages actually retrieved (optional on older cache rows). */
   scan_coverage?: SnapshotScanCoverage;
@@ -209,8 +221,12 @@ export interface SnapshotCachePayload {
   scanned_at?: string;
   /** User-facing constraint messages (degraded / partial runs). */
   limitations?: string[];
+  /** Gaps in machine/AI-oriented surface coverage inferred from this scan (for client copy). */
+  ai_visibility?: { gaps: AiVisibilityGapId[] };
   /** True when no HTML could be scored (e.g. robots block, unreachable). */
   degraded?: boolean;
+  /** Public-facing excerpt from the fetched homepage (title + meta / OG / first paragraph). */
+  homepage_snippet?: { title: string; description: string };
   classification_version?: number;
   fetch_strategy_version?: string;
   snapshot_engine_version?: string;
