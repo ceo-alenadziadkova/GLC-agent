@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
 import type { User, Session } from '@supabase/supabase-js';
 
+export { isAnonymousUser } from '../lib/snapshot-auth';
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -22,10 +24,8 @@ export function useAuth() {
         logger.debug('Auth document.referrer', { referrer });
 
         const url = new URL(href);
-        const fromMagic = url.searchParams.get('from_magic') === '1'
-          || referrer.includes('/auth/v1/verify');
 
-        // OAuth / magic-link failures: ?error= & error_description= (e.g. DB error saving new user)
+        // OAuth failures: ?error= & error_description= (e.g. DB error saving new user)
         let oauthRedirectError: string | null = null;
         const oauthErr = url.searchParams.get('error');
         const oauthDesc = url.searchParams.get('error_description');
@@ -49,7 +49,7 @@ export function useAuth() {
           if (error) {
             logger.error('exchangeCodeForSession error', { error });
             if (isMounted) {
-              setAuthError('Magic link is invalid or has expired. Please request a new one.');
+              setAuthError('Sign-in failed. The link may be invalid or expired — try again.');
             }
           } else if (isMounted) {
             logger.info('exchangeCodeForSession success', { userId: data.session?.user.id });
@@ -80,7 +80,7 @@ export function useAuth() {
             if (error) {
               logger.error('setSession error', { error });
               if (isMounted) {
-                setAuthError('Magic link is invalid or has expired. Please request a new one.');
+                setAuthError('Sign-in failed. The link may be invalid or expired — try again.');
               }
             } else if (isMounted) {
               logger.info('setSession success', { userId: data.session?.user.id });
@@ -98,8 +98,8 @@ export function useAuth() {
         if (isMounted) {
           if (session) {
             setAuthError(null);
-          } else if (fromMagic) {
-            setAuthError('Magic link is invalid or has expired. Please request a new one.');
+          } else if (!session && referrer.includes('/auth/v1/verify')) {
+            setAuthError('Sign-in failed. The link may be invalid or expired — try again.');
           } else if (oauthRedirectError) {
             setAuthError(oauthRedirectError);
           } else {
@@ -141,18 +141,19 @@ export function useAuth() {
     };
   }, []);
 
-  const signInWithEmail = async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/login?from_magic=1`,
-      },
-    });
+  const signInWithPassword = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   };
 
-  const signInWithPassword = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const signUpWithPassword = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/login`,
+      },
+    });
     return { error };
   };
 
@@ -160,7 +161,6 @@ export function useAuth() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        // Must not be bare origin: `/` immediately redirects to `/dashboard` and drops ?code / hash tokens.
         redirectTo: `${window.location.origin}/login`,
       },
     });
@@ -178,8 +178,8 @@ export function useAuth() {
     session,
     loading,
     authError,
-    signInWithEmail,
     signInWithPassword,
+    signUpWithPassword,
     signInWithGoogle,
     signOut,
     isAuthenticated: !!user,

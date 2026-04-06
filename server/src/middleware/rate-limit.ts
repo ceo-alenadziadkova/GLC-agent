@@ -50,6 +50,28 @@ export const SNAPSHOT_PUBLIC_WINDOW_MS = 24 * 60 * 60 * 1000;
 /** Single store for POST limiter and read-only quota peek (`GET /api/snapshot/quota`). */
 export const snapshotPublicQuotaStore = new MemoryStore();
 
+/** Stricter cap for opt-in competitor compare on `GET /api/snapshot/:token?compare=1` (per IP, rolling 1h). */
+export const SNAPSHOT_COMPARE_MAX_PER_HOUR = Number(process.env.SNAPSHOT_COMPARE_MAX_PER_HOUR ?? 15);
+
+export const snapshotCompareLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: Number.isFinite(SNAPSHOT_COMPARE_MAX_PER_HOUR) && SNAPSHOT_COMPARE_MAX_PER_HOUR > 0 ? SNAPSHOT_COMPARE_MAX_PER_HOUR : 15,
+  keyGenerator: (req) => `${req.ip ?? 'unknown'}:snapshot_compare`,
+  skip: (req) => {
+    const q = req.query as Record<string, string | undefined>;
+    const want =
+      q.compare === '1' || q.compare === 'true' || q.include_competitor === '1';
+    return !want;
+  },
+  message: {
+    error: 'Too many competitor comparisons. Try again later.',
+    code: 'COMPARE_RATE_LIMITED',
+    retry_after_minutes: 60,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 export function snapshotPublicQuotaKey(req: Request): string {
   return req.ip ?? 'unknown';
 }
@@ -91,6 +113,8 @@ export const snapshotPublicLimiter = rateLimit({
   max: SNAPSHOT_PUBLIC_MAX_PER_DAY,
   store: snapshotPublicQuotaStore,
   keyGenerator: (req) => snapshotPublicQuotaKey(req),
+  /** Only successful starts (2xx) consume a daily slot — validation errors and domain cooldown 429 do not. */
+  skipFailedRequests: true,
   message: {
     error: `You've used all ${SNAPSHOT_PUBLIC_MAX_PER_DAY} free website checks available today from this connection. Please try again tomorrow — or sign in for a full audit.`,
     code: 'RATE_LIMITED',

@@ -1,4 +1,3 @@
-import { prepareBriefForValidation } from '../../../server/src/intake/hydrate-legacy-from-bank';
 import type { BriefResponseEntry, BriefResponses } from './briefQuestions';
 
 /** Map UI brief state to engine input (cells may be flat or `{ value, source }`). */
@@ -27,8 +26,7 @@ export function normalizeIntakeToResponses(raw: Record<string, unknown>): BriefR
   return out;
 }
 
-/** Same hydration as `assertBriefReady` / `evaluateBriefGates` (bank → legacy slots). */
+/** Shallow copy for client-side gate previews (matches server `prepareBriefForValidation`). */
 export function effectiveBriefForPipelineGates(brief: BriefResponses): BriefResponses {
-  const prepared = prepareBriefForValidation(briefResponsesToIntakeMap(brief)) as Record<string, unknown>;
-  return normalizeIntakeToResponses(prepared);
+  return { ...brief };
 }

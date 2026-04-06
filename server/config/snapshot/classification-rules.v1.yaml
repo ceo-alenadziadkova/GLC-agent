@@ -1,0 +1,158 @@
+# Machine-readable site classification for free snapshot (rule-based, no LLM).
+version: 4
+tieDeltaThreshold: 1.35
+globalCaps:
+  contentQualityLow: low
+  tieAmbiguous: low
+  noSchemaThinText: low
+supportedLangPrefixes:
+  - en
+  - es
+  - ca
+  - de
+  - fr
+  - it
+  - pt
+  - nl
+  - pl
+  - ru
+  - uk
+  - ja
+  - zh
+
+# When top two site types are within tieDeltaThreshold, prefer earlier id (more specific product ordering).
+tieBreakOrder:
+  - ecommerce
+  - saas
+  - local-business
+  - service-business
+  - content-media
+
+# When true, site-profile-runner logs richer signal detail (also respects SNAPSHOT_CLASSIFICATION_DEBUG=1).
+debugSignals: false
+
+siteTypes:
+  - id: ecommerce
+    priority: 70
+    minMatch: 2
+    signals:
+      - { kind: schemaTypeAny, types: [Product, Offer, ItemList, Store, ShoppingCenter] }
+      - { kind: ctaSubstringAny, substrings: ["add to cart", "buy now", "checkout", "add to bag", "añadir al carrito", "comprar ahora", "jetzt kaufen", "in den warenkorb", "ajouter au panier", "toevoegen aan winkelwagen", "dodaj do koszyka", "aggiungi al carrello", "adicionar ao carrinho", "в корзину", "立即购买"] }
+      - { kind: techAny, names: [Shopify, WooCommerce, Magento] }
+      - { kind: slugAny, substrings: [shop, cart, product, checkout, collection, winkelwagen, winkelmand, koszyk, panier, boutique] }
+
+  - id: saas
+    priority: 65
+    minMatch: 2
+    signals:
+      - { kind: ctaSubstringAny, substrings: ["book a demo", "request demo", "start free trial", "get started", "sign up free", "try free", "demostración gratuita", "essai gratuit", "kostenlos testen", "darmowa wersja próbna", "бесплатная пробная версия", "демо-версия", "無料トライアル", "免费试用", "agendar demo", "demo vereinbaren"] }
+      - { kind: slugAny, substrings: [pricing, features, integrations, platform, api, security, compliance, trust, enterprise, soc2, soc 2] }
+      - { kind: techAny, names: [Intercom, HubSpot] }
+      - { kind: keywordAny, fields: [title, h1, metaDescription], substrings: ["saas", "software", "platform", "cloud", "b2b", "workflow", "subscription"] }
+
+  - id: local-business
+    priority: 55
+    minMatch: 2
+    signals:
+      - { kind: schemaTypeAny, types: [LocalBusiness, Dentist, MedicalBusiness, Physician, Attorney, LegalService, Restaurant, FoodEstablishment, LodgingBusiness, AutoRepair, HomeAndConstructionBusiness] }
+      - { kind: contactAll, flags: [addressPresent, openingHoursPresent] }
+      - { kind: ctaSubstringAny, substrings: ["book appointment", "call now", "visit us", "directions", "reserve", "reservar cita", "llámanos", "llamanos", "reservierung", "termin buchen", "prendre rendez-vous", "prenons rendez-vous", "zarezerwuj", "забронювати", "予約"] }
+      - { kind: contactAll, flags: [phonePresent, addressPresent] }
+
+  - id: service-business
+    priority: 45
+    minMatch: 2
+    signals:
+      - { kind: slugAny, substrings: [services, service, consulting, agency, contact, about] }
+      - { kind: keywordAny, fields: [title, h1, metaDescription], substrings: ["agency", "consulting", "services", "firm", "studio"] }
+      - { kind: schemaTypeAny, types: [Organization, ProfessionalService] }
+
+  - id: content-media
+    priority: 35
+    minMatch: 2
+    signals:
+      - { kind: slugAny, substrings: [blog, news, magazine, podcast, insights, authors, archive, episode, episodes] }
+      - { kind: keywordAny, fields: [title, h1, metaDescription], substrings: ["blog", "magazine", "podcast", "newsletter", "editorial", "subscribe"] }
+
+  - id: unknown
+    priority: 0
+    minMatch: 0
+    signals: []
+
+industries:
+  - id: dental-clinic
+    parentSiteTypes: [local-business]
+    minMatch: 2
+    signals:
+      - { kind: schemaTypeAny, types: [Dentist, MedicalBusiness] }
+      - { kind: keywordAny, fields: [title, h1, metaDescription, bodyTextSample], substrings: [dental, dentist, teeth, invisalign, implant, orthodont] }
+
+  - id: law-firm
+    parentSiteTypes: [service-business, local-business]
+    minMatch: 2
+    signals:
+      - { kind: keywordAny, fields: [title, h1, metaDescription, bodyTextSample], substrings: [attorney, lawyer, legal, law firm, litigation] }
+      - { kind: schemaTypeAny, types: [Attorney, LegalService] }
+      - { kind: ctaSubstringAny, substrings: ["schedule consultation", "free consultation", "contact attorney"] }
+
+  - id: digital-agency
+    parentSiteTypes: [service-business]
+    minMatch: 2
+    signals:
+      - { kind: keywordAny, fields: [title, h1, metaDescription, bodyTextSample], substrings: [web design, seo, branding, marketing agency, conversion, ux/ui, development agency] }
+      - { kind: slugAny, substrings: [case-studies, portfolio, work, clients] }
+      - { kind: ctaSubstringAny, substrings: ["book a call", "request a quote", "get a quote", "schedule call"] }
+
+  - id: ecommerce-retail
+    parentSiteTypes: [ecommerce]
+    minMatch: 1
+    signals:
+      - { kind: schemaTypeAny, types: [Product, Store] }
+      - { kind: keywordAny, fields: [title, h1, metaDescription], substrings: [shop, store, buy, collection, sale] }
+
+  - id: software-saas
+    parentSiteTypes: [saas]
+    minMatch: 1
+    signals:
+      - { kind: keywordAny, fields: [title, h1, metaDescription], substrings: [software, platform, api, integration, dashboard, automate] }
+
+  - id: unknown
+    parentSiteTypes: []
+    minMatch: 0
+    signals: []
+
+conversionModels:
+  - id: ecommerce-checkout
+    minMatch: 2
+    signals:
+      - { kind: ctaSubstringAny, substrings: ["add to cart", "checkout", "buy now"] }
+      - { kind: slugAny, substrings: [cart, checkout] }
+      - { kind: schemaTypeAny, types: [Product, Offer] }
+
+  - id: demo-request
+    minMatch: 2
+    signals:
+      - { kind: ctaSubstringAny, substrings: ["book demo", "request demo", "schedule demo", "see demo"] }
+      - { kind: slugAny, substrings: [demo, contact, sales] }
+
+  - id: call-booking
+    minMatch: 2
+    signals:
+      - { kind: ctaSubstringAny, substrings: ["call now", "call us", "phone", "book appointment"] }
+      - { kind: contactAll, flags: [phonePresent] }
+
+  - id: whatsapp-contact
+    minMatch: 1
+    signals:
+      - { kind: techAny, names: ["WhatsApp Widget"] }
+      - { kind: ctaSubstringAny, substrings: [whatsapp, wa.me] }
+
+  - id: lead-form
+    minMatch: 2
+    signals:
+      - { kind: formPresent }
+      - { kind: ctaSubstringAny, substrings: ["contact", "get in touch", "submit", "send message", "request", "contáctenos", "nous contacter", "kontakt", "skontaktuj się", "kontaktieren", "お問い合わせ"] }
+
+  - id: unknown
+    minMatch: 0
+    signals: []

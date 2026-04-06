@@ -74,6 +74,7 @@ vi.mock('../middleware/auth.js', () => ({
     req.userRole = 'consultant';
     next();
   },
+  rejectGuestFromPortal: (_req: unknown, _res: unknown, next: () => void) => next(),
   requireRole: () => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 

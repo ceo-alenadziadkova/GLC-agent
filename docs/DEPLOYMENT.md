@@ -19,7 +19,7 @@
    - Set **Site URL** to your production frontend URL (exact URL; wildcards are invalid here)
    - Add **Redirect URLs**: exact dev/prod origins and `/login` URLs as needed — see [AUTH.md](./AUTH.md#supabase-auth-configuration) (some dashboards reject `*` wildcards)
 4. Authentication → Providers:
-   - Enable **Email** (magic link is enabled by default)
+   - Enable **Email** and **email + password** sign-in; disable passwordless / magic-link email if you want the dashboard to match app-only password + Google flows
    - Enable **Google** → enter Client ID + Client Secret from Google Cloud Console
 5. Note down from Project Settings → API:
    - `SUPABASE_URL` (format: `https://xxxx.supabase.co`)
@@ -49,6 +49,22 @@
 7. Railway provides a public URL like `https://glc-api.up.railway.app`
 
 **Healthcheck:** Railway pings `/` — ensure Express responds with `200`.
+
+### Free snapshot — Playwright
+
+Headless Chromium **runs by default** when the static homepage looks like an empty client shell (thin text + many scripts, or known SPA root mounts). Set **`SNAPSHOT_PLAYWRIGHT=0`** (or `false`) to disable and use only HTTP HTML.
+
+- **Env:** optional `SNAPSHOT_PLAYWRIGHT_BUDGET_MS` (default `14000`, capped by remaining `SNAPSHOT_FETCH_BUDGET_MS`). **`SNAPSHOT_FETCH_BUDGET_MS`** defaults to **`10000`** (10s wall clock for the tiered fetch). Optional **`SNAPSHOT_OPERATOR_TOKEN`** enables **`GET /api/snapshot/operator/metrics`** and **`POST /api/snapshot/operator/purge-cache`** (see [API.md](./API.md#snapshot-operator-optional)); keep the token long and rotate like any secret.
+- **Build:** install browsers once, e.g. `npx playwright install chromium` in the Railway build step, or use a Playwright-capable base image. The `playwright` package is in `server/package.json`; Chromium is not bundled.
+- If Chromium is missing or launch fails, the scanner logs a warning and continues with the original HTTP HTML.
+
+**Abuse controls (public snapshot):** optional env — `SNAPSHOT_DOMAIN_FRESH_COOLDOWN_MS` (default `600000`, `0` = off), `SNAPSHOT_MAX_CONCURRENT` (default `4`), `SNAPSHOT_COMPARE_MAX_PER_HOUR` (default `15`). **`SNAPSHOT_ROBOTS_CACHE_MS`** — TTL for in-memory `robots.txt` parse per origin (default `1200000`, i.e. 20 minutes). **`SNAPSHOT_SHARED_ABUSE_STORE`** — set to `1` / `true` / `yes` after applying migrations **`021_snapshot_domain_cooldown.sql`** and **`022_snapshot_fresh_lease.sql`** so (1) per-domain fresh cooldown and (2) **max concurrent fresh scans** are coordinated **across Railway instances** via Supabase; if unset, both stay per-process only. **`SNAPSHOT_FRESH_LEASE_TTL_SECONDS`** — optional; defaults to **max(300, 5 × fetch budget seconds)** so leases survive long Playwright runs; raise if scans can exceed that wall time.
+
+**Hosted dashboards (logs):** Ship **JSON** logs (`LOG_FORMAT=json`, `LOG_SERVICE` set per env) to your provider’s log drain (Railway log integrations → **Grafana Loki**, **Datadog**, **Axiom**, etc.). Primary snapshot signal: **`message: "snapshot.run_complete"`** with **`domain_fp`** (SHA-256 prefix of registrable host, not the URL). Secondary: **`snapshot.pipeline_capacity`** (capacity shed), **`snapshot.shared_lease_*`** (RPC / migration issues). Build panels on **rates** of `outcome`, `cache_hit`, `playwright_used`, `home_fetch_failure`; alert on sustained **`snapshot.pipeline_capacity`** or missing `snapshot.run_complete` after `POST /api/snapshot` spikes. Operator in-process counters + shared lease headcount: **`GET /api/snapshot/operator/metrics`** (Bearer **`SNAPSHOT_OPERATOR_TOKEN`**); poll with a cron or uptime check, or point a **JSON API** datasource at that URL if your dashboard product supports auth headers.
+
+Full redaction rules: [SECURITY.md — Snapshot observability & log redaction](./SECURITY.md#snapshot-observability--log-redaction-runbook).
+
+See [API.md — Public Snapshot](./API.md#public-snapshot).
 
 ---
 
@@ -140,7 +156,7 @@ In production: set `ALLOWED_ORIGINS=https://your-app.vercel.app` in Railway.
 - [ ] All env vars set in Railway and Vercel
 - [ ] `ALLOWED_ORIGINS` in Railway matches Vercel domain
 - [ ] Backend `/` healthcheck returns 200
-- [ ] Test: magic link email delivery (check Supabase Auth logs)
+   - [ ] Test: sign-in and sign-up (email/password and/or Google; check Supabase Auth logs if confirmations fail)
 - [ ] Test: create audit end-to-end in production
 
 ---

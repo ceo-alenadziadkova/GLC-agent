@@ -4,6 +4,7 @@ import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } 
 import { detectLanguagesFromPages, extractLanguagesFromHtml } from '../lib/language-utils.js';
 import { logger } from '../services/logger.js';
 import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
+import { addTechStackFromHtml, TECH_PATTERNS } from '../lib/site-html-signals.js';
 
 interface CrawledPage {
   url: string;
@@ -20,63 +21,6 @@ interface CrawledPage {
   html?: string; // Raw HTML for downstream collectors
   detected_languages?: string[];
 }
-
-// Tech stack detection patterns
-const TECH_PATTERNS: Record<string, Record<string, RegExp[]>> = {
-  cms: {
-    WordPress: [/wp-content/i, /wp-includes/i],
-    Magento: [/mage\/|magento/i, /Magento/],
-    Shopify: [/cdn\.shopify\.com/i, /shopify/i],
-    Wix: [/wix\.com/i, /wixstatic/i],
-    Squarespace: [/squarespace\.com/i, /sqsp/i],
-    Webflow: [/webflow\.com/i],
-    Ghost: [/ghost\.io/i, /ghost\.org/i],
-  },
-  analytics: {
-    'Google Analytics 4': [/gtag.*G-/i, /googletagmanager/i, /google-analytics/i],
-    'Meta Pixel': [/fbq\(|facebook\.net\/tr/i],
-    Hotjar: [/hotjar\.com/i],
-    Plausible: [/plausible\.io/i],
-    Matomo: [/matomo|piwik/i],
-  },
-  frameworks: {
-    React: [/react|__next/i, /_next\/static/i],
-    Vue: [/vue\.js|vuejs/i, /v-cloak|v-if/],
-    Angular: [/angular|ng-/i],
-    Svelte: [/svelte/i],
-    Next: [/_next\//i, /next\.js/i],
-    Nuxt: [/_nuxt\//i, /nuxt/i],
-    Gatsby: [/gatsby/i],
-    Astro: [/astro/i],
-  },
-  hosting_cdn: {
-    Cloudflare: [/cloudflare/i, /cf-ray/i],
-    Vercel: [/vercel/i, /\.vercel\.app/i],
-    Netlify: [/netlify/i],
-    AWS: [/amazonaws\.com/i, /cloudfront/i],
-    'Google Cloud': [/googleapis\.com|gstatic/i],
-    DigitalOcean: [/digitalocean/i],
-  },
-  chat_support: {
-    'WhatsApp Widget': [/wa\.me|whatsapp/i],
-    Intercom: [/intercom/i],
-    Crisp: [/crisp\.chat/i],
-    Drift: [/drift\.com/i],
-    LiveChat: [/livechat/i],
-    Tawk: [/tawk\.to/i],
-    HubSpot: [/hubspot/i],
-  },
-  ecommerce: {
-    Stripe: [/stripe\.com|js\.stripe/i],
-    PayPal: [/paypal/i],
-    WooCommerce: [/woocommerce/i],
-  },
-  email_marketing: {
-    Mailchimp: [/mailchimp/i],
-    SendGrid: [/sendgrid/i],
-    ConvertKit: [/convertkit/i],
-  },
-};
 
 const SOCIAL_PATTERNS: Record<string, RegExp> = {
   twitter: /(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)/,
@@ -158,7 +102,7 @@ export class CrawlerCollector extends BaseCollector {
 
         // Detect tech stack from HTML
         const fullHtml = page.html ?? '';
-        this.detectTechStack(fullHtml, techStack);
+        this.detectTechStack(fullHtml, techStack, url);
 
         // Detect social profiles
         this.detectSocials(fullHtml, socialProfiles);
@@ -294,17 +238,8 @@ export class CrawlerCollector extends BaseCollector {
     }
   }
 
-  private detectTechStack(html: string, techStack: Record<string, Set<string>>) {
-    for (const [category, techs] of Object.entries(TECH_PATTERNS)) {
-      for (const [name, patterns] of Object.entries(techs)) {
-        for (const pattern of patterns) {
-          if (pattern.test(html)) {
-            techStack[category]?.add(name);
-            break;
-          }
-        }
-      }
-    }
+  private detectTechStack(html: string, techStack: Record<string, Set<string>>, pageUrl?: string) {
+    addTechStackFromHtml(html, techStack, pageUrl ? { pageUrls: [pageUrl] } : undefined);
   }
 
   private detectSocials(html: string, profiles: Record<string, string>) {

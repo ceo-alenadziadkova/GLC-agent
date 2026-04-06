@@ -97,6 +97,11 @@ vi.mock('../middleware/auth.js', () => ({
     req.userId = ((globalThis as Record<string, unknown>).__reportsGetUserId as () => string)();
     next();
   },
+  attachProfile: (req: Record<string, unknown>, _res: unknown, next: () => void) => {
+    req.userRole = 'client';
+    next();
+  },
+  rejectGuestFromPortal: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
 vi.mock('../middleware/rate-limit.js', () => ({

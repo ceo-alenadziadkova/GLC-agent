@@ -1,0 +1,404 @@
+/**
+ * Tiered fetch for free snapshot: 1 homepage + up to 3 same-origin URLs within time/HTML limits.
+ */
+import * as cheerio from 'cheerio';
+import { fetchPublicHttpUrl, PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
+import { logger } from '../services/logger.js';
+import { htmlLooksLikeClientShell } from './extract-facts.js';
+import type { FetchedPage, SnapshotPageRole, SnapshotScanCoverage } from './types.js';
+import {
+  getSnapshotRobotsPolicy,
+  robotsSnapshotHomeAllowed,
+  robotsSnapshotUrlAllowed,
+} from './robots-guard.js';
+import { isLikelyHtmlDocument } from './html-detect.js';
+import { detectPageAnomalies } from './page-anomaly.js';
+
+const MAX_EXTRA_PAGES = 3;
+const MAX_DISCOVERY_LINKS = 80;
+/** ADR wall-clock target ~8–12s; default 10s (override with SNAPSHOT_FETCH_BUDGET_MS). */
+const DEFAULT_TOTAL_BUDGET_MS = 10_000;
+const MAX_HTML_BYTES = 3_000_000;
+
+const PATH_HINTS = [
+  /\/about/i,
+  /\/contact/i,
+  /\/services?\/?$/i,
+  /\/pricing/i,
+  /\/book/i,
+  /\/appointment/i,
+];
+
+function abortAfter(ms: number): AbortSignal {
+  if (typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(ms);
+  }
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(new DOMException('TimeoutError', 'TimeoutError')), ms);
+  if (typeof (id as unknown as NodeJS.Timeout).unref === 'function') {
+    (id as unknown as NodeJS.Timeout).unref();
+  }
+  return ctrl.signal;
+}
+
+function truncateHtml(html: string): string {
+  const buf = Buffer.byteLength(html, 'utf8');
+  if (buf <= MAX_HTML_BYTES) return html;
+  return Buffer.from(html, 'utf8').subarray(0, MAX_HTML_BYTES).toString('utf8');
+}
+
+function visibleTextLength(html: string): number {
+  const $ = cheerio.load(html);
+  const t = ($('main').text() || $('article').text() || $('body').text()).replace(/\s+/g, ' ').trim();
+  return t.length;
+}
+
+export type HomeFetchFailureReason =
+  | 'network_or_timeout'
+  | 'http_error'
+  | 'non_html'
+  | 'empty_body';
+
+/**
+ * Homepage fetch with HTML validation (extras still use {@link fetchOne}).
+ */
+async function fetchHomePage(
+  url: string,
+  deadlineMs: number,
+): Promise<
+  | { ok: true; page: FetchedPage }
+  | { ok: false; reason: HomeFetchFailureReason; httpStatus?: number }
+> {
+  const remaining = deadlineMs - Date.now();
+  if (remaining < 800) {
+    return { ok: false, reason: 'network_or_timeout' };
+  }
+  const budget = Math.min(remaining, 8000);
+  try {
+    const res = await fetchPublicHttpUrl(url, {
+      signal: abortAfter(budget),
+      headers: {
+        'User-Agent': 'GLC-SnapshotScanner/1.0 (+https://glctech.es)',
+        Accept: 'text/html,application/xhtml+xml',
+        'Accept-Language': 'en,es,de,fr,nl,pt,it,pl,ru,uk,ja,zh-CN,zh;q=0.9',
+      },
+    });
+    const raw = await res.text();
+    if (!res.ok) {
+      return { ok: false, reason: 'http_error', httpStatus: res.status };
+    }
+    if (!raw.trim()) {
+      return { ok: false, reason: 'empty_body', httpStatus: res.status };
+    }
+    const ct = res.headers.get('content-type');
+    if (!isLikelyHtmlDocument(ct, raw)) {
+      logger.info('snapshot.home_non_html', {
+        url: res.url || url,
+        content_type: ct ?? '',
+      });
+      return { ok: false, reason: 'non_html', httpStatus: res.status };
+    }
+    const html = truncateHtml(raw);
+    return {
+      ok: true,
+      page: {
+        url,
+        html,
+        status: res.status,
+        finalUrl: res.url || url,
+      },
+    };
+  } catch (e) {
+    if (e instanceof PublicUrlNotAllowedError) throw e;
+    logger.warn('snapshot.fetch_home_failed', { url, error: (e as Error).message });
+    return { ok: false, reason: 'network_or_timeout' };
+  }
+}
+
+async function fetchOne(
+  url: string,
+  deadlineMs: number,
+): Promise<FetchedPage | null> {
+  const remaining = deadlineMs - Date.now();
+  if (remaining < 800) return null;
+  const budget = Math.min(remaining, 8000);
+  try {
+    const res = await fetchPublicHttpUrl(url, {
+      signal: abortAfter(budget),
+      headers: {
+        'User-Agent': 'GLC-SnapshotScanner/1.0 (+https://glctech.es)',
+        Accept: 'text/html,application/xhtml+xml',
+        'Accept-Language': 'en,es,de,fr,nl,pt,it,pl,ru,uk,ja,zh-CN,zh;q=0.9',
+      },
+    });
+    const raw = await res.text();
+    const html = truncateHtml(raw);
+    return {
+      url,
+      html,
+      status: res.status,
+      finalUrl: res.url || url,
+    };
+  } catch (e) {
+    if (e instanceof PublicUrlNotAllowedError) throw e;
+    logger.warn('snapshot.fetch_one_failed', { url, error: (e as Error).message });
+    return null;
+  }
+}
+
+/**
+ * Collect internal URLs from nav, footer, and early links (capped).
+ */
+function discoverCandidateUrls(homeHtml: string, baseUrl: string): string[] {
+  const $ = cheerio.load(homeHtml);
+  const base = new URL(baseUrl);
+  const seen = new Set<string>();
+  const out: string[] = [];
+
+  const consider = (href: string | undefined) => {
+    if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+    try {
+      const u = new URL(href, baseUrl);
+      if (u.hostname !== base.hostname) return;
+      if (!['http:', 'https:'].includes(u.protocol)) return;
+      const norm = `${u.origin}${u.pathname.replace(/\/$/, '') || '/'}`;
+      if (seen.has(norm)) return;
+      seen.add(norm);
+      out.push(u.href);
+    } catch {
+      /* skip */
+    }
+  };
+
+  $('header a[href], nav a[href], footer a[href], [role="navigation"] a[href]').each((_, el) => {
+    consider($(el).attr('href'));
+  });
+  $('a[href]').each((_, el) => {
+    if (out.length >= MAX_DISCOVERY_LINKS) return false;
+    consider($(el).attr('href'));
+    return undefined;
+  });
+
+  return out;
+}
+
+export function inferSnapshotPageRole(pathname: string): SnapshotPageRole {
+  const p = pathname.toLowerCase();
+  if (p === '/' || p === '') return 'home';
+  if (/\/contact\b/i.test(p)) return 'contact';
+  if (/\/pricing|\/plans|\/subscribe|\/billing\b/i.test(p)) return 'pricing';
+  if (/\/about|\/team|\/company\b/i.test(p)) return 'about';
+  if (/\/services?\b/i.test(p)) return 'services';
+  return 'other';
+}
+
+function scorePath(urlStr: string): number {
+  let s = 0;
+  try {
+    const p = new URL(urlStr).pathname.toLowerCase();
+    for (const re of PATH_HINTS) {
+      if (re.test(p)) s += 3;
+    }
+    if (p.split('/').filter(Boolean).length <= 2) s += 1;
+  } catch {
+    return 0;
+  }
+  return s;
+}
+
+/**
+ * Homepage first, then up to 3 additional URLs prioritized by path hints, within total wall time.
+ */
+function buildCoverage(
+  totalBudgetMs: number,
+  startedAt: number,
+  pages: FetchedPage[],
+  opts?: {
+    playwrightEligible?: boolean;
+    playwrightUsed?: boolean;
+    robotsTxtFetched?: boolean;
+    robotsHomeDisallowed?: boolean;
+    robotsExtrasSkipped?: number;
+    crawlDelayMsApplied?: number;
+    homeFetchFailure?: HomeFetchFailureReason;
+    challengeLikely?: boolean;
+    challengeTaxonomy?: string;
+    parkedLikely?: boolean;
+    parkedTaxonomy?: string;
+    loginWallLikely?: boolean;
+    loginWallTaxonomy?: string;
+  },
+): SnapshotScanCoverage {
+  const elapsedMs = Math.max(0, Date.now() - startedAt);
+  return {
+    budgetMs: totalBudgetMs,
+    elapsedMs,
+    pagesFetched: pages.length,
+    maxPagesPlanned: 1 + MAX_EXTRA_PAGES,
+    pages: pages.map(p => {
+      let pathname = '/';
+      try {
+        pathname = new URL(p.finalUrl).pathname;
+      } catch {
+        /* keep default */
+      }
+      return {
+        finalUrl: p.finalUrl,
+        status: p.status,
+        role: inferSnapshotPageRole(pathname),
+      };
+    }),
+    ...(opts?.playwrightEligible !== undefined ? { playwrightEligible: opts.playwrightEligible } : {}),
+    ...(opts?.playwrightUsed !== undefined ? { playwrightUsed: opts.playwrightUsed } : {}),
+    ...(opts?.robotsTxtFetched !== undefined ? { robotsTxtFetched: opts.robotsTxtFetched } : {}),
+    ...(opts?.robotsHomeDisallowed !== undefined ? { robotsHomeDisallowed: opts.robotsHomeDisallowed } : {}),
+    ...(opts?.robotsExtrasSkipped !== undefined ? { robotsExtrasSkipped: opts.robotsExtrasSkipped } : {}),
+    ...(opts?.crawlDelayMsApplied !== undefined ? { crawlDelayMsApplied: opts.crawlDelayMsApplied } : {}),
+    ...(opts?.homeFetchFailure !== undefined ? { homeFetchFailure: opts.homeFetchFailure } : {}),
+    ...(opts?.challengeLikely === true ? { challengeLikely: true } : {}),
+    ...(opts?.challengeTaxonomy ? { challengeTaxonomy: opts.challengeTaxonomy } : {}),
+    ...(opts?.parkedLikely === true ? { parkedLikely: true } : {}),
+    ...(opts?.parkedTaxonomy ? { parkedTaxonomy: opts.parkedTaxonomy } : {}),
+    ...(opts?.loginWallLikely === true ? { loginWallLikely: true } : {}),
+    ...(opts?.loginWallTaxonomy ? { loginWallTaxonomy: opts.loginWallTaxonomy } : {}),
+  };
+}
+
+export async function fetchTieredPages(companyUrl: string): Promise<{
+  pages: FetchedPage[];
+  baseHref: string;
+  coverage: SnapshotScanCoverage;
+}> {
+  const baseHref = await validatePublicAuditUrl(companyUrl);
+  const totalBudgetMs = Number(process.env.SNAPSHOT_FETCH_BUDGET_MS ?? DEFAULT_TOTAL_BUDGET_MS);
+  const startedAt = Date.now();
+  const deadline = startedAt + totalBudgetMs;
+
+  const origin = new URL(baseHref).origin;
+  let robotsPolicy = await getSnapshotRobotsPolicy(
+    origin,
+    abortAfter(Math.min(2500, Math.max(500, deadline - Date.now()))),
+  );
+
+  if (!robotsSnapshotHomeAllowed(robotsPolicy)) {
+    logger.info('snapshot.robots_home_blocked', { origin });
+    return {
+      pages: [],
+      baseHref,
+      coverage: buildCoverage(totalBudgetMs, startedAt, [], {
+        robotsTxtFetched: robotsPolicy.hadFile,
+        robotsHomeDisallowed: true,
+      }),
+    };
+  }
+
+  const homeResult = await fetchHomePage(baseHref, deadline);
+  if (!homeResult.ok) {
+    return {
+      pages: [],
+      baseHref,
+      coverage: buildCoverage(totalBudgetMs, startedAt, [], {
+        robotsTxtFetched: robotsPolicy.hadFile,
+        homeFetchFailure: homeResult.reason,
+      }),
+    };
+  }
+
+  const home = homeResult.page;
+
+  const playwrightEligible = htmlLooksLikeClientShell(home.html);
+  let playwrightUsed = false;
+  let homePage: FetchedPage = home;
+
+  const playwrightDisabled =
+    process.env.SNAPSHOT_PLAYWRIGHT === '0' || process.env.SNAPSHOT_PLAYWRIGHT === 'false';
+  if (!playwrightDisabled && playwrightEligible) {
+    const remainingAfterHttp = deadline - Date.now();
+    const pwCap = Number(process.env.SNAPSHOT_PLAYWRIGHT_BUDGET_MS ?? 14_000);
+    const pwBudget = Math.min(pwCap, Math.max(0, remainingAfterHttp - 1200));
+    if (pwBudget >= 4500) {
+      try {
+        const { fetchRenderedHomeHtml } = await import('./playwright-fetch.js');
+        const rendered = await fetchRenderedHomeHtml(homePage.finalUrl, pwBudget);
+        if (rendered?.html) {
+          const truncated = truncateHtml(rendered.html);
+          const beforeLen = visibleTextLength(homePage.html);
+          const afterLen = visibleTextLength(truncated);
+          if (afterLen >= Math.max(280, beforeLen * 1.1) || (beforeLen < 220 && afterLen > beforeLen + 80)) {
+            homePage = {
+              ...homePage,
+              html: truncated,
+              finalUrl: rendered.finalUrl || homePage.finalUrl,
+            };
+            playwrightUsed = true;
+            logger.info('snapshot.playwright_home', {
+              url: homePage.finalUrl,
+              beforeTextLen: beforeLen,
+              afterTextLen: afterLen,
+            });
+          }
+        }
+      } catch (e) {
+        logger.warn('snapshot.playwright_failed', { error: (e as Error).message });
+      }
+    }
+  }
+
+  const pages: FetchedPage[] = [homePage];
+
+  const candidates = discoverCandidateUrls(homePage.html, homePage.finalUrl)
+    .filter(u => {
+      try {
+        return new URL(u).href !== new URL(homePage.finalUrl).href;
+      } catch {
+        return false;
+      }
+    })
+    .sort((a, b) => scorePath(b) - scorePath(a));
+
+  const picked = new Set<string>([new URL(homePage.finalUrl).href]);
+  let robotsExtrasSkipped = 0;
+  let crawlDelayMsApplied = 0;
+  for (const u of candidates) {
+    if (pages.length >= 1 + MAX_EXTRA_PAGES) break;
+    let norm: string;
+    try {
+      norm = new URL(u).href;
+    } catch {
+      continue;
+    }
+    if (picked.has(norm)) continue;
+    if (!robotsSnapshotUrlAllowed(u, robotsPolicy)) {
+      robotsExtrasSkipped += 1;
+      continue;
+    }
+    picked.add(norm);
+    if (robotsPolicy.crawlDelayMs > 0 && pages.length >= 1) {
+      const room = deadline - Date.now() - 400;
+      const wait = Math.min(robotsPolicy.crawlDelayMs, Math.max(0, room));
+      if (wait > 0) {
+        await new Promise<void>(resolve => {
+          setTimeout(resolve, wait);
+        });
+        crawlDelayMsApplied += wait;
+      }
+    }
+    const extra = await fetchOne(u, deadline);
+    if (extra) pages.push(extra);
+  }
+
+  const pageAnomaly = detectPageAnomalies(homePage.html, homePage.finalUrl);
+
+  return {
+    pages,
+    baseHref,
+    coverage: buildCoverage(totalBudgetMs, startedAt, pages, {
+      playwrightEligible,
+      playwrightUsed,
+      robotsTxtFetched: robotsPolicy.hadFile,
+      robotsExtrasSkipped: robotsExtrasSkipped > 0 ? robotsExtrasSkipped : undefined,
+      crawlDelayMsApplied: crawlDelayMsApplied > 0 ? crawlDelayMsApplied : undefined,
+      ...pageAnomaly,
+    }),
+  };
+}

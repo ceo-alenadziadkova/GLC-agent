@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router';
 
 /**
- * Sends `/` to `/dashboard`, but if Supabase OAuth/magic-link params landed on the root URL,
+ * Sends `/` to `/dashboard`, but if Supabase OAuth (or other auth callback) params landed on the root URL,
  * forward them to `/login` first so `useAuth` can run `exchangeCodeForSession` / `setSession`.
  * A bare `<Navigate to="/dashboard" />` would drop `?code=` or `#access_token=` and leave no session.
  */

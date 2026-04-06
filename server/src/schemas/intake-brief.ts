@@ -313,15 +313,15 @@ const BASE_BRIEF_QUESTIONS: BriefQuestion[] = [
   },
 ];
 
-const EXPRESS_REQUIRED_IDS = new Set<string>([
-  'primary_goal',
-  'target_audience',
+/**
+ * Express SLA base ids (always). `c5` / `c3` are added when `has_website` branch is visible — see `resolveExpressSlaRequiredIds`.
+ */
+export const EXPRESS_REQUIRED_QUESTION_IDS = [
+  'f1',
+  'b1',
   'revenue_model',
-  'primary_cta',
-  'has_google_analytics',
-  'handles_payments',
-  'biggest_pain',
-]);
+  'a6',
+] as const;
 
 const PRE_BRIEF_IDS = new Set<string>([
   'intake_company_website',
@@ -331,25 +331,24 @@ const PRE_BRIEF_IDS = new Set<string>([
   'f2',
   'a7',
   'f8',
-  'primary_goal',
-  'target_audience',
-  'primary_cta',
-  'has_google_analytics',
-  'handles_payments',
-  'biggest_pain',
+  'f1',
+  'b1',
+  'revenue_model',
+  'a6',
+  'c5',
+  'c3',
 ]);
 
 /**
- * Slots required to submit the public pre-brief link (identity + legacy express core).
- * Additional `pre_brief` questions (e.g. bank ids f2, a7, f8) merge into the audit but do not block submit.
+ * Pre-brief submit core after identity (bank ids). `c5` / `c3` are enforced only when visible for the client's answers.
  */
 export const PRE_BRIEF_REQUIRED_SUBMIT_IDS = [
-  'primary_goal',
-  'target_audience',
-  'primary_cta',
-  'has_google_analytics',
-  'handles_payments',
-  'biggest_pain',
+  'f1',
+  'b1',
+  'revenue_model',
+  'a6',
+  'c5',
+  'c3',
 ] as const;
 
 /** Fewer «high» signals keeps impact weighting meaningful. */
@@ -537,10 +536,6 @@ export type BriefResponses = z.infer<typeof BriefResponsesSchema>;
 
 export const REQUIRED_QUESTION_IDS = BRIEF_QUESTIONS
   .filter(q => q.priority === 'required')
-  .map(q => q.id);
-
-export const EXPRESS_REQUIRED_QUESTION_IDS = BRIEF_QUESTIONS
-  .filter(q => EXPRESS_REQUIRED_IDS.has(q.id))
   .map(q => q.id);
 
 export const RECOMMENDED_QUESTION_IDS = BRIEF_QUESTIONS

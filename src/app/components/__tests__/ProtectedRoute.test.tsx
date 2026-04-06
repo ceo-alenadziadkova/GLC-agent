@@ -14,7 +14,9 @@ const AUTH_STUB = {
   session: null as Session | null,
   loading: false,
   isAuthenticated: false,
-  signInWithEmail: vi.fn(),
+  authError: null as string | null,
+  signInWithPassword: vi.fn(),
+  signUpWithPassword: vi.fn(),
   signInWithGoogle: vi.fn(),
   signOut: vi.fn(),
 };

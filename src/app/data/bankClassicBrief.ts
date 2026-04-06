@@ -1,9 +1,8 @@
 /**
  * Classic "All sections" brief UI: same visible question set and order as IntakeBankWizard
- * (mergeLegacyResponsesIntoBankV1 + filterVisibleQuestions + bank JSON order).
+ * (filterVisibleQuestions + bank JSON order).
  */
 import { filterVisibleQuestions } from '../../../server/src/intake/is-visible';
-import { mergeLegacyResponsesIntoBankV1 } from '../../../server/src/intake/legacy-to-bank';
 import { QUESTION_BANK_V1_STUBS } from '../../../server/src/intake/question-bank';
 import type { CollectionMode, IntakeQuestionStub } from '../../../server/src/intake/types';
 import { bankIdToBriefQuestion } from './bankQuestionUiCatalog';
@@ -27,7 +26,7 @@ export function getVisibleBankBriefSections(
   responses: BriefResponses,
   collectionMode?: CollectionMode,
 ): BankClassicSection[] {
-  const map = mergeLegacyResponsesIntoBankV1({ ...briefResponsesToIntakeMap(responses) });
+  const map = { ...briefResponsesToIntakeMap(responses) };
   const visible = sortStubsByBankOrder(
     filterVisibleQuestions(QUESTION_BANK_V1_STUBS, map, { collectionMode }),
   );

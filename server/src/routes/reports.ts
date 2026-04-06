@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
-import { requireAuth, type AuthRequest } from '../middleware/auth.js';
+import { requireAuth, attachProfile, rejectGuestFromPortal, type AuthRequest } from '../middleware/auth.js';
 import { generalLimiter } from '../middleware/rate-limit.js';
 import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 import { reportProfiler, REPORT_PROFILES, type ReportProfile } from '../services/report-profiler.js';
@@ -16,7 +16,7 @@ reportsRouter.use(requireAuth);
 // ─── GET /api/audits/:id/report — Generate report ──────────
 // ?format=json|markdown|csv|pdf  (default: json)
 // ?profile=full|owner|tech|marketing|onepager  (default: full)
-reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
+reportsRouter.get('/:id/report', attachProfile, rejectGuestFromPortal, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
 

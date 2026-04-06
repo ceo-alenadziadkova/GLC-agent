@@ -12,11 +12,12 @@ describe('briefResponsesToIntakeMap', () => {
 });
 
 describe('useIntakeBankMetrics', () => {
-  it('derives bank coverage from legacy brief shape', () => {
+  it('derives bank coverage from partial responses', () => {
     const { result } = renderHook(() =>
       useIntakeBankMetrics({
-        primary_goal: { value: 'Grow', source: 'client' },
-        biggest_pain: { value: 'Time', source: 'client' },
+        f1: { value: 'Grow', source: 'client' },
+        a1: { value: 'Co — SaaS', source: 'client' },
+        a5: { value: 'Yes, multi-page site', source: 'client' },
         intake_company_name: { value: 'Co', source: 'client' },
         intake_industry: { value: 'SaaS / Software', source: 'client' },
         intake_company_website: { value: 'https://example.com', source: 'client' },

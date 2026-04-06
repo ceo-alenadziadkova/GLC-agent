@@ -515,7 +515,16 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
     [responses],
   );
 
-  const pipelineRequiredIds = pipelineRequiredIdsForProductMode(productMode);
+  const bankCollectionModeForGates = noPublicWebsite ? 'discovery' : undefined;
+  const pipelineRequiredIds = useMemo(
+    () =>
+      pipelineRequiredIdsForProductMode(
+        productMode,
+        effectiveBriefForGates,
+        bankCollectionModeForGates,
+      ),
+    [productMode, effectiveBriefForGates, bankCollectionModeForGates],
+  );
   const answeredRequired = countAnswered(effectiveBriefForGates, [...pipelineRequiredIds]);
   const pipelineRequiredTotal = pipelineRequiredIds.length;
   const step2Complete    = answeredRequired === pipelineRequiredTotal;

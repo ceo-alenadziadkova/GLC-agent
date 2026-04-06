@@ -75,10 +75,18 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
       .finally(() => setLoading(false));
   }, [auditId]);
 
-  const pipelineRequiredIds = pipelineRequiredIdsForProductMode(productMode);
   const effectiveBriefForGates = useMemo(
     () => effectiveBriefForPipelineGates(responses),
     [responses],
+  );
+  const pipelineRequiredIds = useMemo(
+    () =>
+      pipelineRequiredIdsForProductMode(
+        productMode,
+        effectiveBriefForGates,
+        bankCollectionMode,
+      ),
+    [productMode, effectiveBriefForGates, bankCollectionMode],
   );
   const answeredRequired = countAnswered(effectiveBriefForGates, [...pipelineRequiredIds]);
   const pipelineRequiredTotal = pipelineRequiredIds.length;

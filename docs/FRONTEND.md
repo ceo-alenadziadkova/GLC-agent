@@ -154,7 +154,7 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 
 | Route | Page | Purpose |
 | --- | --- | --- |
-| `/login` | `Login.tsx` | Magic link + Google OAuth |
+| `/login` | `Login.tsx` | Email/password + Google OAuth |
 | `/` → redirects | — | Redirect to `/portfolio` |
 | `/portfolio` | `Portfolio.tsx` | List of all audits, KPI bar |
 | `/audit/new` | `NewAudit.tsx` | Create audit form |
@@ -172,8 +172,9 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 ## Page Descriptions
 
 ### `Login.tsx`
-- Email input → `supabase.auth.signInWithOtp({ email })` → shows "Check your email" state
-- Google OAuth → `signInWithOAuth` with `redirectTo: <origin>/login` (so tokens are not stripped by `/` → `/dashboard` redirect)
+- **Sign in** / **Create account** tabs → `signInWithPassword` / `signUp` (see `useAuth`)
+- Google OAuth → `signInWithOAuth` with `redirectTo: <origin>/login`
+- Guest snapshot sessions see a hint to use Google so `user.id` stays stable
 - If already authenticated (`useAuth().isAuthenticated`) → redirect to `/portfolio`
 - Glassmorphism card, gradient button, GLC logo
 
@@ -249,7 +250,7 @@ const { user, isAuthenticated, loading, signOut } = useAuth();
 - `loading` is true until auth state is confirmed (prevents flash of login page)
 
 ### `useIntakeBankMetrics()` / `useIntakeWizard()`
-Defined in `useIntakeWizard.ts`. **`useIntakeBankMetrics(briefResponses)`** derives branch-aware question-bank v1 coverage (same `mergeLegacyResponsesIntoBankV1` + `calcDataQualityScore` as the API) for UI such as **New Audit** step “Brief”. **`useIntakeWizard`** supports controlled mode (`value` + `onChange`), canonical **`sortStubsByBankOrder`**, and step navigation (`goNext` / `goPrev`, `currentStub`, `totalSteps`). **New Audit → Brief** and **Audit Workspace** use **`BriefLayoutPreferenceCards`** to choose **`BankClassicBriefFields`** vs **`IntakeBankWizard`** (consultant keys in `client-brief-layout-preference.ts`). Both layouts share visibility rules (`filterVisibleQuestions`, `mergeLegacyResponsesIntoBankV1`); **no public website** sets `collection_mode` to discovery for metrics and for both layouts. Labels/types from `bankQuestionUiCatalog.ts` + `question-bank.v1.json`; **revenue model** is appended (not in bank JSON). Canonical list helper: `getVisibleBankBriefSections` in `src/app/data/bankClassicBrief.ts`. Required-field progress uses **`prepareBriefForValidation`** (same as API) so bank answers hydrate legacy gates.
+Defined in `useIntakeWizard.ts`. **`useIntakeBankMetrics(briefResponses)`** derives branch-aware question-bank v1 coverage (same `calcDataQualityScore` as the API) for UI such as **New Audit** step “Brief”. **`useIntakeWizard`** supports controlled mode (`value` + `onChange`), canonical **`sortStubsByBankOrder`**, and step navigation (`goNext` / `goPrev`, `currentStub`, `totalSteps`). **New Audit → Brief** and **Audit Workspace** use **`BriefLayoutPreferenceCards`** to choose **`BankClassicBriefFields`** vs **`IntakeBankWizard`** (consultant keys in `client-brief-layout-preference.ts`). Both layouts share visibility rules (`filterVisibleQuestions`); **no public website** sets `collection_mode` to discovery for metrics and for both layouts. Labels/types from `bankQuestionUiCatalog.ts` + `question-bank.v1.json`; **revenue model** is appended (not in bank JSON). Canonical list helper: `getVisibleBankBriefSections` in `src/app/data/bankClassicBrief.ts`. Required-field progress on **New Audit** / **Client portal** uses **`pipelineRequiredIdsForProductMode`** + `resolveExpressSlaRequiredIds` / `resolveFullSlaRequiredIds` (same rules as `brief-gates` on the server).
 
 ### `useAudit(id: string | undefined)`
 ```typescript

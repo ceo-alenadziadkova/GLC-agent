@@ -1,10 +1,17 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
-import { requireAuth, attachProfile, requireRole, type AuthRequest, type UserRole } from '../middleware/auth.js';
+import {
+  requireAuth,
+  attachProfile,
+  requireRole,
+  rejectGuestFromPortal,
+  type AuthRequest,
+  type UserRole,
+} from '../middleware/auth.js';
 import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 import { pipelineLimiter } from '../middleware/rate-limit.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
-import { maxPhaseForMode, type ProductMode } from '../types/audit.js';
+import { maxPhaseForMode, type IntakeBriefCollectionMode, type ProductMode } from '../types/audit.js';
 import { logger } from '../services/logger.js';
 import { evaluateBriefGates } from '../services/brief-validator.js';
 import { notifyAuditParticipants, notifyAuditParticipantsExcept } from '../services/notifications.js';
@@ -126,10 +133,14 @@ pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineL
     // Include intake progress contract so UI can render readiness state.
     const { data: brief } = await supabase
       .from('intake_brief')
-      .select('responses')
+      .select('responses, collection_mode')
       .eq('audit_id', id)
       .single();
-    const gates = evaluateBriefGates((brief?.responses as Record<string, unknown>) ?? {}, (audit.product_mode as ProductMode) ?? 'full');
+    const gates = evaluateBriefGates(
+      (brief?.responses as Record<string, unknown>) ?? {},
+      (audit.product_mode as ProductMode) ?? 'full',
+      brief?.collection_mode as IntakeBriefCollectionMode | undefined,
+    );
 
     // Start pipeline (runs Phase 0: Recon)
     res.json({ status: 'started', phase: 0, intakeProgress: gates.intakeProgress });
@@ -321,8 +332,8 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
 });
 
 // ─── GET /api/audits/:id/pipeline/status — Pipeline status ──
-// Readable by any authenticated user (clients track their own audit progress)
-pipelineRouter.get('/:id/pipeline/status', requireAuth, async (req: AuthRequest, res) => {
+// Clients and consultants track progress; snapshot guests use /api/snapshot until registered.
+pipelineRouter.get('/:id/pipeline/status', requireAuth, attachProfile, rejectGuestFromPortal, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
 
@@ -361,7 +372,7 @@ pipelineRouter.get('/:id/pipeline/status', requireAuth, async (req: AuthRequest,
 });
 
 // ─── GET /api/audits/:id/quality-gate/:phase — Fetch quality gate report ──
-pipelineRouter.get('/:id/quality-gate/:phase', requireAuth, async (req: AuthRequest, res) => {
+pipelineRouter.get('/:id/quality-gate/:phase', requireAuth, attachProfile, rejectGuestFromPortal, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
     const phase = parseInt(req.params.phase as string);

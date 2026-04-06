@@ -1,6 +1,13 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
-import { requireAuth, attachProfile, requireRole, type AuthRequest, type UserRole } from '../middleware/auth.js';
+import {
+  requireAuth,
+  attachProfile,
+  requireRole,
+  rejectGuestFromPortal,
+  type AuthRequest,
+  type UserRole,
+} from '../middleware/auth.js';
 import { createAuditLimiter, generalLimiter } from '../middleware/rate-limit.js';
 import {
   DOMAIN_KEYS,
@@ -190,7 +197,7 @@ auditsRouter.post('/', attachProfile, createAuditLimiter, async (req: AuthReques
 
 // ─── GET /api/audits — List user's audits (paginated) ──────
 // Query params: ?limit=20&offset=0 (defaults: limit=50, offset=0)
-auditsRouter.get('/', async (req: AuthRequest, res) => {
+auditsRouter.get('/', attachProfile, rejectGuestFromPortal, async (req: AuthRequest, res) => {
   try {
     const limit = Math.min(parseInt(String(req.query.limit ?? '50'), 10) || 50, 200);
     const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
@@ -218,7 +225,7 @@ auditsRouter.get('/', async (req: AuthRequest, res) => {
 });
 
 // ─── GET /api/audits/:id — Full audit state ────────────────
-auditsRouter.get('/:id', async (req: AuthRequest, res) => {
+auditsRouter.get('/:id', attachProfile, rejectGuestFromPortal, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
 
@@ -300,7 +307,7 @@ auditsRouter.delete('/:id', ...consultantGuard, async (req: AuthRequest, res) =>
 
 // ─── GET /api/audits/:id/brief — Get brief + questions ─────────────────────
 // Accessible by any authenticated user who owns or requested this audit.
-auditsRouter.get('/:id/brief', async (req: AuthRequest, res) => {
+auditsRouter.get('/:id/brief', attachProfile, rejectGuestFromPortal, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
 
@@ -330,8 +337,12 @@ auditsRouter.get('/:id/brief', async (req: AuthRequest, res) => {
 
     // Compute validation stats live
     const responses = (brief?.responses as Record<string, unknown>) ?? {};
-    const validation = validateBriefResponses(responses);
-    const gates = evaluateBriefGates(responses, audit.product_mode as ProductMode);
+    const collectionMode = brief?.collection_mode as IntakeBriefCollectionMode | undefined;
+    const validation = validateBriefResponses(responses, {
+      productMode: audit.product_mode as ProductMode,
+      collectionMode,
+    });
+    const gates = evaluateBriefGates(responses, audit.product_mode as ProductMode, collectionMode);
 
     res.json({
       product_mode: audit.product_mode,
@@ -419,7 +430,7 @@ auditsRouter.post('/:id/brief/help-request', attachProfile, async (req: AuthRequ
 // ─── PUT /api/audits/:id/brief — Save brief responses ──────────────────────
 // Accessible by owner (consultant) or client who submitted the request.
 // Idempotent upsert — call repeatedly as user fills the form.
-auditsRouter.put('/:id/brief', async (req: AuthRequest, res) => {
+auditsRouter.put('/:id/brief', attachProfile, rejectGuestFromPortal, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
     const { responses, collection_mode: collectionModeRaw } = req.body;
@@ -438,7 +449,7 @@ auditsRouter.put('/:id/brief', async (req: AuthRequest, res) => {
     // Verify access
     const { data: audit } = await supabase
       .from('audits')
-      .select('id, user_id, client_id')
+      .select('id, user_id, client_id, product_mode')
       .eq('id', id)
       .single();
 
@@ -456,7 +467,10 @@ auditsRouter.put('/:id/brief', async (req: AuthRequest, res) => {
     const { brief, gates } = await saveBriefResponses(id, responses as Record<string, unknown>, {
       ...(collection_mode ? { collection_mode } : {}),
     });
-    const liveValidation = validateBriefResponses(brief.responses as Record<string, unknown>);
+    const liveValidation = validateBriefResponses(brief.responses as Record<string, unknown>, {
+      productMode: audit.product_mode as ProductMode,
+      collectionMode: brief.collection_mode as IntakeBriefCollectionMode,
+    });
 
     res.json({
       brief,

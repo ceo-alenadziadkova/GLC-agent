@@ -128,6 +128,7 @@ vi.mock('../middleware/auth.js', () => ({
     next();
   },
   attachProfile: (_req: unknown, _res: unknown, next: () => void) => next(),
+  rejectGuestFromPortal: (_req: unknown, _res: unknown, next: () => void) => next(),
   requireRole: () => (_req: unknown, _res: unknown, next: () => void) => next(),
   optionalAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
@@ -146,6 +147,8 @@ vi.mock('../middleware/rate-limit.js', () => ({
 import express from 'express';
 import { auditsRouter } from '../routes/audits.js';
 import { REQUIRED_QUESTION_IDS, BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
+import { resolveExpressSlaRequiredIds } from '../intake/brief-gates.js';
+import { makeWebsitePathFullBrief } from './bank-brief-fixtures.js';
 
 let server: Server;
 let baseUrl: string;
@@ -176,15 +179,8 @@ beforeEach(() => {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function makeFullRequired(): Record<string, string | string[] | number | null> {
-  const r: Record<string, string | string[] | number | null> = {};
-  for (const id of REQUIRED_QUESTION_IDS) {
-    const q = BRIEF_QUESTIONS.find(q => q.id === id)!;
-    if (q.type === 'number') r[id] = 1000;
-    else if (q.type === 'multi_choice') r[id] = [q.options![0]];
-    else r[id] = q.options ? q.options[0] : 'Test answer for ' + id;
-  }
-  return r;
+function makeFullRequired(): Record<string, unknown> {
+  return makeWebsitePathFullBrief();
 }
 
 async function getJSON(path: string, headers = AUTH) {
@@ -225,7 +221,7 @@ describe('GET /api/audits/:id/brief', () => {
       responses,
       status: 'submitted',
       sla_met: true,
-      answered_required: REQUIRED_QUESTION_IDS.length,
+      answered_required: resolveExpressSlaRequiredIds(responses).length,
       answered_recommended: 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -244,7 +240,7 @@ describe('GET /api/audits/:id/brief', () => {
     expect(status).toBe(200);
     expect(body.validation).toBeDefined();
     const v = body.validation as Record<string, unknown>;
-    expect(v.total_required).toBe(REQUIRED_QUESTION_IDS.length);
+    expect(v.total_required).toBe(resolveExpressSlaRequiredIds(makeFullRequired()).length);
     expect(v.total_recommended).toBeGreaterThan(0);
     expect(typeof v.sla_met).toBe('boolean');
     expect(typeof v.passed).toBe('boolean');
@@ -325,7 +321,7 @@ describe('PUT /api/audits/:id/brief', () => {
 
   it('returns sla_met=false when required answers missing', async () => {
     const { body } = await putJSON('/api/audits/audit-001/brief', {
-      responses: { primary_goal: 'grow revenue' },
+      responses: { f1: 'grow revenue' },
     });
     expect((body.validation as Record<string, unknown>).sla_met).toBe(false);
     expect((body.validation as Record<string, unknown>).missing_required).toBeInstanceOf(Array);
@@ -335,7 +331,7 @@ describe('PUT /api/audits/:id/brief', () => {
   });
 
   it('partial save: only supplied keys are in payload', async () => {
-    const responses = { primary_goal: 'only one answer' };
+    const responses = { f1: 'only one answer' };
     const { status } = await putJSON('/api/audits/audit-001/brief', { responses });
     expect(status).toBe(200);
   });
@@ -354,7 +350,7 @@ describe('PUT /api/audits/:id/brief', () => {
 
   it('returns 400 for Zod violation (string > BRIEF_ANSWER_STRING_MAX chars)', async () => {
     const { status, body } = await putJSON('/api/audits/audit-001/brief', {
-      responses: { primary_goal: 'x'.repeat(12_001) },
+      responses: { f1: 'x'.repeat(12_001) },
     });
     expect(status).toBe(400);
     expect(body.error).toMatch(/Invalid brief responses/);
@@ -362,7 +358,7 @@ describe('PUT /api/audits/:id/brief', () => {
 
   it('returns 400 for nested object value (not allowed by schema)', async () => {
     const { status, body } = await putJSON('/api/audits/audit-001/brief', {
-      responses: { primary_goal: { nested: true } },
+      responses: { f1: { nested: true } },
     });
     expect(status).toBe(400);
     expect(body.error).toBeDefined();
@@ -392,11 +388,11 @@ describe('PUT /api/audits/:id/brief', () => {
     const { body } = await putJSON('/api/audits/audit-001/brief', { responses: makeFullRequired() });
     const v = body.validation as Record<string, unknown>;
     expect(typeof v.answered_required).toBe('number');
-    expect(v.answered_required).toBe(REQUIRED_QUESTION_IDS.length);
+    expect(v.answered_required).toBe(v.total_required);
   });
 
   it('null values are accepted (clear a previously-saved answer)', async () => {
-    const responses = { primary_goal: null };
+    const responses = { f1: null };
     const { status } = await putJSON('/api/audits/audit-001/brief', { responses });
     expect(status).toBe(200);
   });

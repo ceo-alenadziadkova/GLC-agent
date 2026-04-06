@@ -2,11 +2,13 @@ import type { Request, Response, NextFunction } from 'express';
 import { supabase } from '../services/supabase.js';
 import { updateContext } from '../services/observability-context.js';
 
-export type UserRole = 'consultant' | 'client';
+export type UserRole = 'consultant' | 'client' | 'guest';
 
 export interface AuthRequest extends Request {
   userId?: string;
   userEmail?: string;
+  /** True when Supabase session is anonymous (snapshot flow until linkIdentity / full sign-up). */
+  userIsAnonymous?: boolean;
   userRole?: UserRole;
 }
 
@@ -33,7 +35,8 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     }
 
     req.userId = data.user.id;
-    req.userEmail = data.user.email;
+    req.userEmail = data.user.email ?? undefined;
+    req.userIsAnonymous = data.user.is_anonymous === true;
     updateContext({ userId: data.user.id });
     next();
   } catch {
@@ -53,7 +56,7 @@ export async function optionalAuth(req: AuthRequest, _res: Response, next: NextF
       const { data } = await supabase.auth.getUser(token);
       if (data.user) {
         req.userId = data.user.id;
-        req.userEmail = data.user.email;
+        req.userEmail = data.user.email ?? undefined;
       }
     } catch {
       // Silently continue without auth
@@ -71,21 +74,25 @@ export async function optionalAuth(req: AuthRequest, _res: Response, next: NextF
  * existing consultant role from environment changes.
  */
 export async function attachProfile(req: AuthRequest, res: Response, next: NextFunction) {
-  if (!req.userId || !req.userEmail) {
+  if (!req.userId) {
     res.status(401).json({ error: 'Not authenticated' });
     return;
   }
 
   try {
-    // Determine intended role from env allowlist
+    const isAnon = req.userIsAnonymous === true;
+
     const consultantEmails = (process.env.CONSULTANT_EMAILS ?? '')
       .split(',')
       .map(e => e.trim().toLowerCase())
       .filter(Boolean);
 
-    const intendedRole: UserRole = consultantEmails.includes(req.userEmail.toLowerCase())
-      ? 'consultant'
-      : 'client';
+    const emailLower = (req.userEmail ?? '').trim().toLowerCase();
+    const intendedRole: UserRole =
+      emailLower && consultantEmails.includes(emailLower) ? 'consultant' : 'client';
+
+    /** Role for a brand-new profile row: anonymous → guest; otherwise client/consultant from email. */
+    const roleForInsert: UserRole = isAnon ? 'guest' : intendedRole;
 
     const { data: existingProfile, error: fetchError } = await supabase
       .from('profiles')
@@ -98,11 +105,10 @@ export async function attachProfile(req: AuthRequest, res: Response, next: NextF
       return;
     }
 
-    // First login: create profile from allowlist-derived role.
     if (!existingProfile) {
       const { data: createdProfile, error: createError } = await supabase
         .from('profiles')
-        .insert({ id: req.userId, role: intendedRole })
+        .insert({ id: req.userId, role: roleForInsert })
         .select('role')
         .single();
 
@@ -118,8 +124,37 @@ export async function attachProfile(req: AuthRequest, res: Response, next: NextF
 
     let resolvedRole = existingProfile.role as UserRole;
 
-    // One-way promotion only: never auto-downgrade consultants.
-    if (resolvedRole !== 'consultant' && intendedRole === 'consultant') {
+    if (isAnon) {
+      if (resolvedRole !== 'guest') {
+        const { data: updatedProfile, error: updateError } = await supabase
+          .from('profiles')
+          .update({ role: 'guest' })
+          .eq('id', req.userId)
+          .select('role')
+          .single();
+
+        if (updateError || !updatedProfile) {
+          res.status(500).json({ error: 'Failed to update user profile' });
+          return;
+        }
+        resolvedRole = updatedProfile.role as UserRole;
+      }
+    } else if (resolvedRole === 'guest') {
+      const { data: updatedProfile, error: updateError } = await supabase
+        .from('profiles')
+        .update({ role: intendedRole })
+        .eq('id', req.userId)
+        .select('role')
+        .single();
+
+      if (updateError || !updatedProfile) {
+        res.status(500).json({ error: 'Failed to update user profile' });
+        return;
+      }
+      resolvedRole = updatedProfile.role as UserRole;
+    }
+
+    if (!isAnon && resolvedRole !== 'consultant' && intendedRole === 'consultant') {
       const { data: updatedProfile, error: updateError } = await supabase
         .from('profiles')
         .update({ role: 'consultant' })
@@ -162,4 +197,13 @@ export function requireRole(role: UserRole) {
     }
     next();
   };
+}
+
+/** Use after attachProfile. Blocks snapshot-only (anonymous) sessions from portal audit APIs. */
+export function rejectGuestFromPortal(req: AuthRequest, res: Response, next: NextFunction) {
+  if (req.userRole === 'guest') {
+    res.status(403).json({ error: 'Complete registration to access this in the portal.' });
+    return;
+  }
+  next();
 }

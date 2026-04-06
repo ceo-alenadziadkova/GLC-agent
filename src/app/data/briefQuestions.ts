@@ -1,4 +1,7 @@
+import { resolveExpressSlaRequiredIds, resolveFullSlaRequiredIds } from '../../../server/src/intake/brief-gates';
+import type { CollectionMode } from '../../../server/src/intake/types';
 import { INDUSTRY_OPTIONS } from './industry-options';
+import { briefResponsesToIntakeMap } from './intakeBriefMap';
 import { choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
 
 /**
@@ -290,15 +293,13 @@ const BASE_BRIEF_QUESTIONS: BriefQuestion[] = [
   },
 ];
 
-const EXPRESS_REQUIRED_IDS = new Set<string>([
-  'primary_goal',
-  'target_audience',
+/** Express SLA base ids; `c5`/`c3` added when website branch is visible (see `resolveExpressSlaRequiredIds`). */
+export const EXPRESS_REQUIRED_QUESTION_IDS = [
+  'f1',
+  'b1',
   'revenue_model',
-  'primary_cta',
-  'has_google_analytics',
-  'handles_payments',
-  'biggest_pain',
-]);
+  'a6',
+] as const;
 
 const PRE_BRIEF_IDS = new Set<string>([
   'intake_company_website',
@@ -308,23 +309,13 @@ const PRE_BRIEF_IDS = new Set<string>([
   'f2',
   'a7',
   'f8',
-  'primary_goal',
-  'target_audience',
-  'primary_cta',
-  'has_google_analytics',
-  'handles_payments',
-  'biggest_pain',
+  'f1',
+  'b1',
+  'revenue_model',
+  'a6',
+  'c5',
+  'c3',
 ]);
-
-/** Keep in sync with server `PRE_BRIEF_REQUIRED_SUBMIT_IDS` in `server/src/schemas/intake-brief.ts`. */
-const PRE_BRIEF_REQUIRED_SUBMIT_IDS = [
-  'primary_goal',
-  'target_audience',
-  'primary_cta',
-  'has_google_analytics',
-  'handles_payments',
-  'biggest_pain',
-] as const;
 
 const HIGH_REVENUE_QUESTION_IDS = new Set<string>([
   'primary_goal',
@@ -438,13 +429,16 @@ export function getBriefQuestionText(id: string): string {
 }
 
 export const REQUIRED_IDS = BRIEF_QUESTIONS.filter(q => q.priority === 'required').map(q => q.id);
-export const EXPRESS_REQUIRED_QUESTION_IDS = BRIEF_QUESTIONS
-  .filter(q => EXPRESS_REQUIRED_IDS.has(q.id))
-  .map(q => q.id);
-
 /** IDs checked before pipeline start — matches server `evaluateBriefGates` per product mode. */
-export function pipelineRequiredIdsForProductMode(mode: 'full' | 'express'): readonly string[] {
-  return mode === 'express' ? EXPRESS_REQUIRED_QUESTION_IDS : REQUIRED_IDS;
+export function pipelineRequiredIdsForProductMode(
+  mode: 'full' | 'express',
+  responses: BriefResponses,
+  collectionMode?: CollectionMode,
+): string[] {
+  const m = briefResponsesToIntakeMap(responses);
+  return mode === 'express'
+    ? [...resolveExpressSlaRequiredIds(m, collectionMode)]
+    : [...resolveFullSlaRequiredIds(m, collectionMode)];
 }
 export const PRE_BRIEF_QUESTION_IDS = BRIEF_QUESTIONS
   .filter(q => q.intake_layer === 'pre_brief')
@@ -550,12 +544,8 @@ export function isPreBriefQuestionSatisfied(questionId: string, responses: Brief
     return countAnswered(responses, [questionId]) >= 1;
   }
   const mainVal = unwrapResponse(responses[questionId]);
-  if (
-    questionId === 'has_google_analytics'
-    && typeof mainVal === 'string'
-    && choiceValueNeedsSpecify(mainVal)
-  ) {
-    const spec = unwrapResponse(responses.has_google_analytics__other);
+  if (questionId === 'c3' && typeof mainVal === 'string' && choiceValueNeedsSpecify(mainVal)) {
+    const spec = unwrapResponse(responses.c3__other);
     return typeof spec === 'string' && spec.trim().length > 0;
   }
   return countAnswered(responses, [questionId]) >= 1;
@@ -571,7 +561,8 @@ export function getPreBriefSubmitSlotIds(responses: BriefResponses): string[] {
   if (intakeIndustryIsOther(responses)) {
     ids.push(INTAKE_IDENTITY_FIELD_IDS[3]);
   }
-  ids.push(...PRE_BRIEF_REQUIRED_SUBMIT_IDS);
+  const m = briefResponsesToIntakeMap(responses);
+  ids.push(...resolveExpressSlaRequiredIds(m));
   return ids;
 }
 

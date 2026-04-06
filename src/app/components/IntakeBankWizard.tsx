@@ -115,7 +115,7 @@ export function IntakeBankWizard({
       </div>
 
       {q && (() => {
-        // For a2 (industry), use the legacy-compat key so legacy-to-bank synthesises a1 correctly.
+        // a2 / intake_industry "Other" writes to `intake_industry_specify` (see choiceSpecifyResponseKey).
         const otherKey = choiceSpecifyResponseKey(q.id);
         const otherSpecify = (unwrapForField(responses[otherKey]) as string | undefined) ?? '';
         return (

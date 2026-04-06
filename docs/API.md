@@ -431,11 +431,19 @@ Public endpoint (no JWT). Returns how many free website checks are **still avail
 
 ### `POST /api/snapshot`
 
-Start a free snapshot run. Public endpoint (no JWT).
+Start a free snapshot run. **Auth:** Supabase `Authorization: Bearer <access_token>` required. The user must **sign in first** (email/password or Google); each run is stored with **`client_id = auth.uid()`** (clients) or **`user_id = auth.uid()`** (consultants). Same fair-use and domain rules as before.
 
-**Fair use:** at most **3** starts per IP per rolling **24 hours** (abuse control). Only `POST` counts toward the limit; `GET` polling and `GET /quota` do not.
+**`401`:** missing/invalid JWT.
 
-**Response `429`:** `RATE_LIMITED` — body includes `error` (plain-language for visitors, e.g. "free website checks" from "this connection"; avoids internal jargon like "snapshot"), `code`, `limit`, `remaining`, `period: "day"`, `retry_after_hours`. Successful responses include `RateLimit-Limit` / `RateLimit-Remaining` headers (exposed to browsers via CORS) so the client can show how many free starts are left.
+**Implementation:** deterministic scanner — **no LLM**. Tiered HTTP fetch (homepage plus up to a few same-origin URLs), cheerio-based **facts**, YAML-driven **site profile** (classification) and **audit rules** (expanded YAML catalog; some rules may be **skipped** per `skipForSiteTypes` / `onlyForSiteTypes` using classifier `siteType`), overall score **0–100** with four category scores. **Wall clock:** `SNAPSHOT_FETCH_BUDGET_MS` defaults to **10000** (10s; ADR target band ~8–12s). **robots.txt:** fetches `/robots.txt` (cached per origin, `SNAPSHOT_ROBOTS_CACHE_MS`, default 20 minutes). Honors `Disallow` for the snapshot user-agent (`*` and `GLC-SnapshotScanner`): if `/` is disallowed, **no HTML is fetched** (same outcome as unreachable home for the pipeline). Extra same-origin URLs are skipped when disallowed. **Crawl-delay** is applied best-effort between extra fetches within the overall fetch budget. **Playwright tier-3 (default on when needed):** if the static homepage matches client-shell heuristics, the server attempts to re-fetch it with headless Chromium. Set `SNAPSHOT_PLAYWRIGHT=0` or `false` to skip (static HTML only). Requires `playwright` + `npx playwright install chromium` on the host; failures are logged and the scan continues with HTTP HTML. Env: `SNAPSHOT_PLAYWRIGHT_BUDGET_MS` (default 14000, cap within remaining `SNAPSHOT_FETCH_BUDGET_MS`). Results for the same **registrable host** may be served from `snapshot_domain_cache` (TTL `SNAPSHOT_DOMAIN_CACHE_TTL_HOURS`, default 48); **cached JSON omits raw email/phone vectors** (PII minimization). Rule catalogs: `server/config/snapshot/classification-rules.v1.yaml`, `server/config/snapshot/audit-rules.v1.yaml`.
+
+**Fair use:** at most **3** successful starts per IP per rolling **24 hours** (abuse control). Only **`POST`** responses that the limiter treats as successful (typically **2xx**) increment the counter (`skipFailedRequests`), so validation **`400`** and **`429 DOMAIN_FRESH_COOLDOWN`** do not consume a daily slot. `GET` polling and `GET /quota` do not count.
+
+**Per-domain fresh cooldown:** If there is **no** valid row in `snapshot_domain_cache` for the registrable host but that host **just** completed a fresh scan (in this process **or**, when **`SNAPSHOT_SHARED_ABUSE_STORE=1`**, any instance via **`snapshot_domain_cooldown`**), `POST` returns **`429`** with `code: "DOMAIN_FRESH_COOLDOWN"`, `retry_after_seconds`, and a plain-language `error`. Cached hits still return **`202`** (same host may be checked again from cache without waiting). Tune with `SNAPSHOT_DOMAIN_FRESH_COOLDOWN_MS` (default **600000** ms = 10 minutes; set **0** to disable).
+
+**Concurrent fresh scans:** At most **`SNAPSHOT_MAX_CONCURRENT`** parallel **fresh** fetches (cache miss path; default **4**). With **`SNAPSHOT_SHARED_ABUSE_STORE=1`** and migration **`022_snapshot_fresh_lease.sql`**, the cap applies **cluster-wide** via TTL leases in **`snapshot_fresh_lease`**. Otherwise it is **per process** only. If the limit is reached, the audit is marked **failed** and the worker logs **`snapshot.pipeline_capacity`**; the client still received **`202`** — poll until `status: "failed"`. Tune lease length with **`SNAPSHOT_FRESH_LEASE_TTL_SECONDS`** (must exceed worst-case scan duration).
+
+**Response `429` (daily IP cap):** `RATE_LIMITED` — body includes `error`, `code`, `limit`, `remaining`, `period: "day"`, `retry_after_hours`. Successful **`202`** responses include `RateLimit-Limit` / `RateLimit-Remaining` headers (exposed to browsers via CORS).
 
 ### `GET /api/snapshot/:token`
 
@@ -445,7 +453,26 @@ Poll current status or retrieve completed preview payload.
 - Token TTL is enforced by backend (`SNAPSHOT_TOKEN_TTL_HOURS`, default `72`).
 - Expired tokens return `410 Snapshot token expired` and are invalidated in storage.
 
-Completed JSON may include optional `competitor_mini`: a small set of **objective** comparisons (HTTPS, viewport meta, hreflang count, JSON-LD) against one external URL inferred from the recon crawl. Omitted when no suitable competitor URL is found or the competitor fetch fails.
+When completed, the JSON includes **`tech_stack`** (confirmed names by category from HTML/script fingerprinting). Optional **`tech_stack_tentative`** lists *possible* technologies from weak signals only (JSON-LD text, `meta name=generator`, or a `type=module` entry when no framework matched); each item is **`{ name, category, signal }`** with **`signal`** explaining the limitation (quick scan does not inspect minified bundles). Omitted when empty. **`ai_visibility`** (when present) has **`gaps`**: `robots_txt` | `sitemap_html` | `structured_data` | `discovery_files` — heuristics from the sampled HTML plus whether `robots.txt` was retrieved; clients map codes to copy. Omitted on older snapshots. It also includes **`ux_score` / `ux_label` / `ux_summary`** (derived from the same deterministic run) plus optional extended fields when present: **`overall_score`** (0–100; **0** when **`scan_basis_code`** is **`degraded`** and no pages were scored), **`category_scores`**, human-readable **`scan_basis`**, normalized **`scan_basis_code`**: `homepage_only` | `homepage_plus_core_pages` | `homepage_rendered_fallback` | `degraded` | **`cache_hit`** (last value is forced when the run was satisfied from **`snapshot_domain_cache`**), **`cache_hit`** (boolean), **`scanned_at`** (ISO 8601 when the payload was built on a fresh fetch), **`limitations`** (string array; robots block, fetch failure, or heuristic notes for challenge/WAF/parked/login-wall patterns), **`signals_found`**, **`scan_confidence_band`**, advisory **`site_profile`** with **`classification_confidence_band`**, optional **`scan_coverage`** (includes robots, Playwright, when the homepage failed while allowed by robots: **`home_fetch_failure`**: `network_or_timeout` | `http_error` | `non_html` | `empty_body`, optional flags **`challenge_page_likely`**, **`parked_domain_likely`**, **`login_wall_likely`**, and optional taxonomy strings **`challenge_taxonomy`**, **`parked_taxonomy`**, **`login_wall_taxonomy`** — enumerated in the next block; canonical definitions in `server/src/snapshot/page-anomaly.ts`), **`audit_rules_version`** (audit catalog), **`classification_version`**, **`fetch_strategy_version`**, **`snapshot_engine_version`**. Persisted extras are merged from `audit_domains.raw_data.snapshot_deterministic`. Classification uses path segments from same-origin links on fetched pages (cap `SNAPSHOT_LINK_SLUG_LIMIT`, default 80), not only URLs that were fully downloaded.
+
+**`scan_coverage` taxonomy slugs** (optional; stable for dashboards; HTML heuristics only):
+
+- **`challenge_taxonomy`**: `cloudflare` | `akamai_bot` | `fastly` | `aws_waf` | `imperva_incapsula` | `sucuri` | `stackpath` | `perimeterx` | `datadome` | `generic_bot_interstitial`
+- **`parked_taxonomy`**: `for_sale_or_aftermarket` | `registrar_parking_page` | `minimal_placeholder` | `under_construction_hosting`
+- **`login_wall_taxonomy`**: `auth_keyword_copy` | `signin_heading` | `password_field_thin_page` | `oauth_or_sso_form` | `openid_oidc_meta` | `spa_shell_thin_html` (mostly a JS app shell in the initial HTML; substantive copy may load client-side or after login)
+
+### Snapshot operator (optional)
+
+When **`SNAPSHOT_OPERATOR_TOKEN`** is set on the server, two routes accept the token as **`Authorization: Bearer <token>`** or header **`X-Snapshot-Operator-Token`**. If the env var is unset, both return **`404`** (no route disclosure).
+
+- **`GET /api/snapshot/operator/metrics`** — counters (runs, cache vs fresh, Playwright use, fetch-failure classes, rule outcome totals, latency **p50** / **p95**) plus, when **`SNAPSHOT_SHARED_ABUSE_STORE`** is enabled: **`shared_abuse_store`**, **`snapshot_max_concurrent`**, **`snapshot_fresh_lease_ttl_seconds`**, **`snapshot_fresh_leases_active`** (DB count of non-expired leases). In-process counters reset on restart; shared lease headcount reflects the cluster.
+- **`POST /api/snapshot/operator/purge-cache`** — body **`{ "host": "example.com" }`** (registrable host, optional `https://` prefix). Deletes the row in **`snapshot_domain_cache`** for that host. Does not delete audit history.
+
+Optional **`competitor_mini`** (HTTPS, viewport meta, hreflang count, JSON-LD vs one external URL from homepage links) is returned **only** when the client requests it: `GET /api/snapshot/:token?compare=1` (or `compare=true` / `include_competitor=1`). Default completed responses omit it so no extra third-party fetch runs until the user opts in. Omitted when no suitable link exists or fetches fail.
+
+**Compare rate limit:** Requests **with** one of those query flags are capped at **`SNAPSHOT_COMPARE_MAX_PER_HOUR`** per IP per rolling hour (default **15**). **`429`** body: `code: "COMPARE_RATE_LIMITED"`, `retry_after_minutes`.
+
+When `status === "failed"`, the body includes **`code: "SNAPSHOT_FAILED"`** (e.g. unreachable site, capacity shed, or pipeline error). Fine-grained reasons may be added later.
 
 ---
 
@@ -492,7 +519,7 @@ Lists intake tokens **you created** where the client has already submitted (`sub
 
 **Response `200`:** `{ "metadata", "questions" (pre-brief subset), "responses", "submitted_at", "expires_at" }`.
 
-The `questions` list includes question-bank fields **`f2`**, **`a7`**, and **`f8`** (focus areas, business moment, deadline) immediately after identity and before the legacy core (`primary_goal`, etc.); see [QUESTION_BANK.md](./QUESTION_BANK.md).
+The `questions` list includes question-bank fields **`f2`**, **`a7`**, and **`f8`** (focus areas, business moment, deadline) immediately after identity and before the express bank subset used for submit validation; see [QUESTION_BANK.md](./QUESTION_BANK.md).
 
 Each question object includes optional **`section`** (UI heading: `Business`, `Goals`, `UX & Conversion`, …) aligned with the consultant brief — the public `/intake/:token` page groups the form and review by these sections. Same shape on **`GET /api/intake/prefill/:token`**.
 
@@ -502,7 +529,7 @@ Each question object includes optional **`section`** (UI heading: `Business`, `G
 
 **Auth:** none. **Body:** `{ "responses": { ... } }` — same shape as intake brief answers (validated with `BriefResponsesSchema`).
 
-Submit validation requires **identity** plus the legacy express-style core (`primary_goal`, `target_audience`, `primary_cta`, `has_google_analytics`, `handles_payments`, `biggest_pain`); **`f2` / `a7` / `f8` are optional** but, when present, merge into `intake_brief` like other `pre_brief` keys.
+Submit validation requires **identity** plus the **express SLA** question-bank ids resolved from visibility (same rules as server `resolveExpressSlaRequiredIds` in `brief-gates.ts`: e.g. **`f1`**, **`b1`**, **`revenue_model`**, **`a6`**, **`c5`**, and **`c3`** when the website branch applies); **`f2` / `a7` / `f8` are optional** but, when present, are stored in `intake_brief` like other `pre_brief` keys.
 
 Overwrites stored responses and updates `submitted_at`. Allowed until `expires_at` (no single-submit lock). If the token was created with `audit_id`, merges pre-brief question keys into `intake_brief` with source `client`.
 

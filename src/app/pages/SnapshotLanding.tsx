@@ -1,16 +1,70 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import { Globe, ArrowRight, CheckCircle, Warning, Lightning, CaretRight, Shield, Check, X, Equals } from '@phosphor-icons/react';
-import type { SnapshotCompetitorComparison } from '../data/auditTypes';
-import type { FreeSnapshotPreview } from '../data/auditTypes';
+import {
+  Globe,
+  ArrowRight,
+  CheckCircle,
+  Warning,
+  Lightning,
+  CaretRight,
+  Shield,
+  Check,
+  X,
+  Equals,
+  Binoculars,
+  Info,
+} from '@phosphor-icons/react';
+import type {
+  FreeSnapshotPreview,
+  SnapshotCompetitorComparison,
+  SnapshotScanCoverageApi,
+  SnapshotSiteProfile,
+} from '../data/auditTypes';
 import { GlcLogo } from '../components/GlcLogo';
 import { SyncPathLoader } from '../components/SyncPathLoader';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
+import { supabase } from '../lib/supabase';
+import { getSnapshotAccessToken } from '../lib/snapshot-auth';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
+async function getBearerForSnapshot(): Promise<string | null> {
+  return getSnapshotAccessToken();
+}
+
+type SnapshotAuthState = 'checking' | 'signed_in' | 'signed_out';
+
 type Stage = 'idle' | 'submitting' | 'running' | 'done' | 'error';
+
+/** Tight client copy for `ai_visibility.gaps` — what to verify on their side. */
+const AI_VISIBILITY_GAP_COPY: Record<
+  'robots_txt' | 'sitemap_html' | 'structured_data' | 'discovery_files',
+  string
+> = {
+  robots_txt:
+    'Robots.txt — we could not verify a reliable live file from what we saw: confirm crawl rules and any sitemap line with whoever owns the site.',
+  sitemap_html:
+    'Sitemap / full URL list — we did not see a clear discovery path from what we read: confirm published sitemap and that internal links or headers expose it correctly.',
+  structured_data:
+    'Structured data — reads thin on the templates we saw: strengthen JSON-LD on key pages so assistants can quote you instead of inferring.',
+  discovery_files:
+    'llms.txt / ai.txt — not surfaced on the pages we checked: add if policy allows and you want explicit guidance for AI crawlers.',
+};
+
+type SnapshotCategoryScoreKey = 'ux_clarity' | 'conversion_readiness' | 'ai_readiness' | 'technical_basics';
+
+const SNAPSHOT_CATEGORY_BREAKDOWN_HINTS: Record<SnapshotCategoryScoreKey, string> = {
+  ux_clarity:
+    'How clear the first screen is for someone who has never seen your brand: what you do, who it is for, primary navigation, trust signals, how easy contact is to find, and basic language/accessibility markers. The score is the share of automated UX checks that passed on the HTML we fetched (0–100)—a thin sample, not a full UX review.',
+  conversion_readiness:
+    'How easy it is to take the next step: strength of the main call-to-action, form labels and friction, whether pricing or commerce paths are discoverable, competing buttons in the hero, reassurance near actions, FAQs, and simple risk reducers. The number is the portion of those checks that passed in this snapshot (0–100), based only on pages we could load.',
+  ai_readiness:
+    'How much structured, machine-readable context we found—mainly JSON-LD (Organization, WebSite, products, offers, FAQ, breadcrumbs, etc.) that our rules expect. Higher means more of those checks passed on the sampled markup. It is not a promise about rankings or citations inside any specific AI product.',
+  technical_basics:
+    'Baseline technical signals in our grab: page title, viewport meta, HTTPS/canonical hints, whether the page looks indexable, Open Graph basics, informative alt text on images, and breadth of structured data. The score is the share of those checks that passed (0–100); it is not a penetration test or performance audit.',
+};
 
 const SCORE_COLORS: Record<number, string> = {
   1: '#EF4444',
@@ -62,11 +116,259 @@ const SEVERITY_COLOR: Record<string, string> = {
 };
 
 const PHASE_LABELS = [
-  'Crawling website...',
-  'Analysing tech stack...',
-  'Evaluating UX & conversion...',
-  'Generating insights...',
+  'Scanning homepage...',
+  'Detecting tech & structure...',
+  'Running rule-based checks...',
+  'Building your snapshot...',
 ];
+
+function scoreColorFrom100(n: number): string {
+  if (n >= 80) return SCORE_COLORS[5];
+  if (n >= 60) return SCORE_COLORS[4];
+  if (n >= 40) return SCORE_COLORS[3];
+  if (n >= 20) return SCORE_COLORS[2];
+  return SCORE_COLORS[1];
+}
+
+/** Companion 1–5 band from the API (maps alongside 0–100); internal name kept for readability. */
+function legacyUxBand(uxScore: number | null | undefined): keyof typeof SCORE_COLORS {
+  if (uxScore != null && uxScore >= 1 && uxScore <= 5) return uxScore;
+  return 3;
+}
+
+/** Ring fill 0–100 for SVG only; matches overall score. */
+function donutFillFromOverall(overall: number): number {
+  return Math.max(0, Math.min(100, overall));
+}
+
+/** Ring fill for 1–5-only display — proportional visual only, not a second score metric. */
+function donutFillFromLegacyBand(band: keyof typeof SCORE_COLORS): number {
+  return Math.max(0, Math.min(100, (Number(band) / 5) * 100));
+}
+
+function CategoryBreakdownHint(props: { label: string; categoryKey: SnapshotCategoryScoreKey }) {
+  const { label, categoryKey } = props;
+  const copy = SNAPSHOT_CATEGORY_BREAKDOWN_HINTS[categoryKey];
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex shrink-0 rounded p-0.5 text-[var(--text-quaternary)] transition-colors hover:text-[var(--text-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--glc-blue)]"
+          aria-label={`What “${label}” means in this report`}
+        >
+          <Info size={15} weight="bold" aria-hidden />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        sideOffset={6}
+        className="max-w-[min(22rem,92vw)] border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2.5 text-left text-xs font-normal leading-relaxed text-[var(--text-primary)] shadow-lg [&>svg]:hidden"
+      >
+        {copy}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+function scanConfidenceExplanation(band: 'high' | 'medium' | 'low'): string {
+  switch (band) {
+    case 'high':
+      return 'High scan confidence means we sampled enough of your public pages under normal conditions, so these scores should broadly match what a typical visitor sees.';
+    case 'medium':
+      return 'Medium scan confidence means the snapshot is still useful, but some pages were skipped, behaviour was unusual, or coverage was thin—treat the numbers as directional, not exact.';
+    case 'low':
+      return 'Low scan confidence means robots blocked part of the site, the HTML looked like a login wall or parking page, or we captured very little usable content—treat this as a rough signal only.';
+  }
+}
+
+/** User-facing copy for the score explainer (1–5 path when 0–100 is not shown). */
+function fivePointBandExplanation(params: {
+  band: keyof typeof SCORE_COLORS;
+  uxLabel: string | null | undefined;
+  hasOverall100: boolean;
+}): string {
+  if (params.hasOverall100) {
+    return 'The score out of 100 sums every rule we ran on the pages we could fetch in this snapshot—not a separate audit.';
+  }
+  const label = params.uxLabel?.trim() || SCORE_LABELS[params.band];
+  const step = params.band;
+  return (
+    `This ${step}/5 result (${label}) uses that same five-point band (1 = Critical … 5 = Excellent). ` +
+    'It reflects rule-based checks on the pages we could access—not a full consulting review.'
+  );
+}
+
+/** Alias kept so HMR / stale bundles cannot throw ReferenceError if an old name is still referenced. */
+const legacyBandExplanation = fivePointBandExplanation;
+
+function SnapshotScoreContextNotes(props: {
+  result: FreeSnapshotPreview;
+  /** When true, a top divider separates this block from copy above (e.g. API summary). */
+  showTopDivider?: boolean;
+}) {
+  const { result, showTopDivider = true } = props;
+  const has100 = typeof result.overall_score === 'number';
+  const band = legacyUxBand(result.ux_score);
+  const scan = result.scan_confidence_band;
+
+  return (
+    <div
+      className={
+        showTopDivider
+          ? 'mt-5 border-t border-[var(--border-subtle)] pt-4'
+          : 'mt-3 text-left sm:mt-4'
+      }
+    >
+      <p
+        className="mb-3 text-xs font-semibold uppercase tracking-wide"
+        style={{ color: 'var(--text-tertiary)' }}
+      >
+        What these numbers mean
+      </p>
+      <div className="space-y-3">
+        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          {has100
+            ? legacyBandExplanation({ band, uxLabel: result.ux_label, hasOverall100: true })
+            : legacyBandExplanation({ band, uxLabel: result.ux_label, hasOverall100: false })}
+        </p>
+        {scan && (
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            {scanConfidenceExplanation(scan)}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Decorative donut around the numeric score. The center text is authoritative; arc length mirrors `fillPercent` only visually.
+ */
+function SnapshotScoreDonut(props: {
+  fillPercent: number;
+  accentColor: string;
+  size?: number;
+  strokeWidth?: number;
+  children: ReactNode;
+}) {
+  const { fillPercent, accentColor, size = 168, strokeWidth = 11, children } = props;
+  const r = (size - strokeWidth) / 2;
+  const c = size / 2;
+  const circumference = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(100, fillPercent));
+  const dashOffset = circumference * (1 - pct / 100);
+
+  return (
+    <div className="relative mx-auto flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        className="absolute inset-0 -rotate-90"
+        aria-hidden
+      >
+        <circle
+          cx={c}
+          cy={c}
+          r={r}
+          fill="none"
+          stroke="var(--border-subtle)"
+          strokeWidth={strokeWidth}
+        />
+        <circle
+          cx={c}
+          cy={c}
+          r={r}
+          fill="none"
+          stroke={accentColor}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          className="[transition:stroke-dashoffset_0.75s_cubic-bezier(0.16,1,0.3,1)]"
+        />
+      </svg>
+      <div className="relative z-[1] flex flex-col items-center justify-center px-2 text-center">{children}</div>
+    </div>
+  );
+}
+
+const SCAN_ROLE_LABELS: Record<SnapshotScanCoverageApi['pages'][number]['role'], string> = {
+  home: 'homepage',
+  contact: 'contact',
+  pricing: 'pricing',
+  about: 'about',
+  services: 'services',
+  other: 'other pages',
+};
+
+function scanCoverageLine(cov: SnapshotScanCoverageApi | undefined): string | null {
+  if (!cov) return null;
+  if (cov.robots_home_disallowed) {
+    return 'robots.txt disallows our snapshot crawler from reading the homepage, so no automated sample was taken.';
+  }
+  if (cov.pages_fetched < 1) return null;
+  const order: SnapshotScanCoverageApi['pages'][number]['role'][] = [
+    'home',
+    'contact',
+    'pricing',
+    'about',
+    'services',
+    'other',
+  ];
+  const seen = new Set<string>();
+  const labels: string[] = [];
+  for (const r of order) {
+    if (!cov.pages.some(p => p.role === r)) continue;
+    const lb = SCAN_ROLE_LABELS[r];
+    if (!seen.has(lb)) {
+      seen.add(lb);
+      labels.push(lb);
+    }
+  }
+  const sample = labels.length > 0 ? labels.join(', ') : `${cov.pages_fetched} page(s)`;
+  const sec = (cov.elapsed_ms / 1000).toFixed(1);
+  const budgetSec = (cov.budget_ms / 1000).toFixed(0);
+  let line = `Sampled ${cov.pages_fetched} of up to ${cov.max_pages_planned} pages in ${sec}s (time budget ${budgetSec}s): ${sample}. Paths from internal links on those pages also inform signals.`;
+  if (cov.playwright_used) {
+    line += ' Homepage was also rendered in a headless browser to capture client-side content.';
+  } else if (cov.playwright_eligible) {
+    line += ' Static HTML looked like a JavaScript app shell; enable server Playwright to deepen the homepage read.';
+  }
+  if (cov.robots_extras_skipped && cov.robots_extras_skipped > 0) {
+    line += ` ${cov.robots_extras_skipped} extra page(s) were skipped to honor robots.txt.`;
+  }
+  if (cov.challenge_page_likely) {
+    line +=
+      ' The HTML looks like a bot challenge or security interstitial — treat scores as a rough baseline only.';
+  }
+  if (cov.parked_domain_likely) {
+    line += ' The page resembles a parked or for-sale domain.';
+  }
+  if (cov.login_wall_likely) {
+    line += ' The public page looks like a sign-in gate; most content may require authentication.';
+  }
+  return line;
+}
+
+function siteProfileSoftLine(profile: SnapshotSiteProfile | undefined): string | null {
+  if (!profile) return null;
+  const low = profile.classificationConfidenceBand === 'low';
+  const type = profile.siteType.replace(/-/g, ' ');
+  const ind = profile.industry.replace(/-/g, ' ');
+  if (profile.industry !== 'unknown' && profile.siteType !== 'unknown') {
+    return low
+      ? `Signals suggest something like a ${type} in ${ind} — automatic read only, not a final label.`
+      : `This looks like a ${type} in ${ind} (automatic read from your pages).`;
+  }
+  if (profile.siteType !== 'unknown') {
+    return low
+      ? `Signals suggest a ${type}-style site — we could not pin down a specific industry automatically.`
+      : `This looks like a ${type}-style site based on visible signals.`;
+  }
+  return 'We could not confidently categorise this site from the sampled pages alone.';
+}
 
 export function SnapshotLanding() {
   const [url, setUrl] = useState('');
@@ -79,6 +381,23 @@ export function SnapshotLanding() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tokenRef = useRef<string>('');
   const [quotaPreview, setQuotaPreview] = useState<{ remaining: number; limit: number } | null>(null);
+  const [competitorLoading, setCompetitorLoading] = useState(false);
+  const [competitorLoadError, setCompetitorLoadError] = useState('');
+  const [snapshotAuth, setSnapshotAuth] = useState<SnapshotAuthState>('checking');
+
+  useEffect(() => {
+    const sync = async () => {
+      const { data } = await supabase.auth.getSession();
+      setSnapshotAuth(data.session?.access_token ? 'signed_in' : 'signed_out');
+    };
+    void sync();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      void sync();
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   async function refreshQuotaPreview() {
     try {
@@ -144,9 +463,19 @@ export function SnapshotLanding() {
     setRateLimitDetail(null);
 
     try {
+      const bearer = await getBearerForSnapshot();
+      if (!bearer) {
+        setErrorMsg('Session missing — sign in again from /login?next=/snapshot');
+        setStage('error');
+        return;
+      }
+
       const res = await fetch(`${API_URL}/api/snapshot`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${bearer}`,
+        },
         body: JSON.stringify({ company_url: trimmed }),
       });
 
@@ -158,9 +487,13 @@ export function SnapshotLanding() {
       };
 
       if (!res.ok) {
-        setErrorMsg(
-          typeof data.error === 'string' ? data.error : 'Failed to start analysis'
-        );
+        const msg =
+          res.status === 401
+            ? 'Session expired or invalid. Refresh the page to sign in again.'
+            : typeof data.error === 'string'
+              ? data.error
+              : 'Failed to start analysis';
+        setErrorMsg(msg);
         if (
           res.status === 429 &&
           typeof data.limit === 'number'
@@ -206,12 +539,74 @@ export function SnapshotLanding() {
     setRateLimitDetail(null);
     setUrl('');
     setPhaseIdx(0);
+    setCompetitorLoading(false);
+    setCompetitorLoadError('');
     void refreshQuotaPreview();
+  }
+
+  async function loadCompetitorComparison() {
+    const token = tokenRef.current;
+    if (!token) return;
+    setCompetitorLoading(true);
+    setCompetitorLoadError('');
+    try {
+      const bearer = await getBearerForSnapshot();
+      const headers: Record<string, string> = {};
+      if (bearer) headers.Authorization = `Bearer ${bearer}`;
+      const res = await fetch(`${API_URL}/api/snapshot/${token}?compare=1`, { headers });
+      if (!res.ok) {
+        setCompetitorLoadError('Could not load comparison. Try again in a moment.');
+        return;
+      }
+      const data = (await res.json()) as FreeSnapshotPreview;
+      if (data.competitor_mini && data.competitor_mini.comparisons.length > 0) {
+        setResult(prev =>
+          prev ? { ...prev, competitor_mini: data.competitor_mini } : prev,
+        );
+      } else {
+        setCompetitorLoadError(
+          'We could not find a suitable external site linked from your homepage, or the check timed out.',
+        );
+      }
+    } catch {
+      setCompetitorLoadError('Network error while loading comparison.');
+    } finally {
+      setCompetitorLoading(false);
+    }
   }
 
   const techEntries = result
     ? Object.entries(result.tech_stack).filter(([, vals]) => vals.length > 0)
     : [];
+
+  const snapshotCoverageCaption =
+    stage === 'done' && result ? scanCoverageLine(result.scan_coverage) : null;
+
+  const snapshotLimitations =
+    stage === 'done' && result?.limitations && result.limitations.length > 0
+      ? result.limitations
+      : null;
+
+  const snapshotInsightBlockCount =
+    stage === 'done' && result
+      ? Number(result.issues.length > 0) +
+        Number(result.quick_wins.length > 0) +
+        Number(techEntries.length > 0 || (result.tech_stack_tentative?.length ?? 0) > 0)
+      : 0;
+
+  const snapshotInsightGridClass =
+    snapshotInsightBlockCount === 0
+      ? ''
+      : [
+          'grid gap-4 lg:gap-6 mobile:grid-cols-1',
+          snapshotInsightBlockCount === 3 ? 'lg:grid-cols-2 xl:grid-cols-3' : '',
+          snapshotInsightBlockCount === 2 ? 'lg:grid-cols-2' : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
+
+  const snapshotTechColClass =
+    snapshotInsightBlockCount === 3 ? 'lg:col-span-2 xl:col-span-1' : '';
 
   return (
     <div
@@ -238,7 +633,7 @@ export function SnapshotLanding() {
         <div className="flex shrink-0 items-center gap-3 sm:gap-4">
           <ThemeToggle />
           <Link
-            to="/login"
+            to="/login?next=/snapshot"
             className="inline-flex items-center justify-end gap-1 rounded-lg text-sm font-medium mobile:min-h-11 mobile:min-w-11 mobile:px-2"
             style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
           >
@@ -247,14 +642,19 @@ export function SnapshotLanding() {
         </div>
       </header>
 
-      {/* Main */}
-      <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 py-12 mobile:justify-start mobile:px-4 mobile:py-8">
+      {/* Main — center the entry form on large screens; results scroll from the top */}
+      <main
+        className={`relative z-10 flex flex-1 flex-col items-center px-6 py-12 mobile:px-4 mobile:py-8 ${
+          stage === 'done' ? 'justify-start pt-8 pb-14 lg:pt-10 lg:pb-16' : 'justify-center mobile:justify-start'
+        }`}
+      >
         <AnimatePresence mode="wait">
 
           {/* ── Idle / Submitting: URL form ──────────────────── */}
           {(stage === 'idle' || stage === 'submitting' || stage === 'error') && (
             <motion.div
               key="form"
+              layout={false}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
@@ -279,7 +679,7 @@ export function SnapshotLanding() {
                           letterSpacing: '0.06em',
                         }}
                       >
-                        <Lightning className="h-3.5 w-3.5 shrink-0" weight="fill" /> Free check ~90s
+                        <Lightning className="h-3.5 w-3.5 shrink-0" weight="fill" /> Quick rule-based scan
                       </div>
                     </div>
 
@@ -315,7 +715,7 @@ export function SnapshotLanding() {
                       style={{ color: 'var(--text-tertiary)' }}
                     >
                       <CheckCircle className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
-                      No sign-up required
+                      Sign in for free — we save the snapshot to your account
                     </div>
                   </div>
                 </div>
@@ -333,6 +733,21 @@ export function SnapshotLanding() {
                   Your website
                 </p>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                  {snapshotAuth === 'signed_out' && (
+                    <p
+                      className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5 text-center text-xs leading-snug mobile:text-left"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
+                      <Link
+                        to="/login?next=/snapshot"
+                        className="font-semibold underline-offset-2 hover:underline"
+                        style={{ color: 'var(--glc-blue)' }}
+                      >
+                        Sign in or create an account
+                      </Link>{' '}
+                      to run the snapshot. Results stay linked to your profile.
+                    </p>
+                  )}
                   <div className="relative">
                     <Globe
                       className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 mobile:left-3"
@@ -344,7 +759,7 @@ export function SnapshotLanding() {
                       onChange={e => setUrl(e.target.value)}
                       placeholder="yourcompany.com"
                       required
-                      disabled={stage === 'submitting'}
+                      disabled={stage === 'submitting' || snapshotAuth !== 'signed_in'}
                       inputMode="url"
                       autoCapitalize="none"
                       autoCorrect="off"
@@ -360,18 +775,37 @@ export function SnapshotLanding() {
 
                   <motion.button
                     type="submit"
-                    disabled={!url.trim() || stage === 'submitting'}
-                    whileHover={url.trim() ? { scale: 1.015 } : {}}
-                    whileTap={url.trim() ? { scale: 0.985 } : {}}
+                    layout={false}
+                    disabled={
+                      !url.trim() ||
+                      stage === 'submitting' ||
+                      snapshotAuth !== 'signed_in'
+                    }
+                    whileHover={url.trim() && snapshotAuth === 'signed_in' ? { scale: 1.015 } : {}}
+                    whileTap={url.trim() && snapshotAuth === 'signed_in' ? { scale: 0.985 } : {}}
                     className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] py-3 text-sm font-semibold text-white mobile:min-h-12"
                     style={{
-                      background: url.trim() ? 'var(--gradient-accent)' : 'var(--border-default)',
+                      background:
+                        url.trim() && snapshotAuth === 'signed_in'
+                          ? 'var(--gradient-accent)'
+                          : 'var(--border-default)',
                       border: 'none',
-                      cursor: url.trim() && stage !== 'submitting' ? 'pointer' : 'not-allowed',
-                      boxShadow: url.trim() ? '0 4px 14px rgba(242,79,29,0.28)' : 'none',
+                      cursor:
+                        url.trim() && stage !== 'submitting' && snapshotAuth === 'signed_in'
+                          ? 'pointer'
+                          : 'not-allowed',
+                      boxShadow:
+                        url.trim() && snapshotAuth === 'signed_in'
+                          ? '0 4px 14px rgba(242,79,29,0.28)'
+                          : 'none',
                     }}
                   >
-                    {stage === 'submitting' ? (
+                    {snapshotAuth === 'checking' ? (
+                      <>
+                        <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                        Checking session...
+                      </>
+                    ) : stage === 'submitting' ? (
                       <>
                         <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
                         Starting analysis...
@@ -463,6 +897,7 @@ export function SnapshotLanding() {
           {stage === 'running' && (
             <motion.div
               key="running"
+              layout={false}
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
@@ -503,7 +938,7 @@ export function SnapshotLanding() {
               </AnimatePresence>
 
               <p className="mt-6 text-xs" style={{ color: 'var(--text-quaternary)' }}>
-                Usually takes 60–120 seconds
+                Usually takes a few seconds to about half a minute
               </p>
               {quotaHint && (
                 <p className="mt-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
@@ -517,21 +952,23 @@ export function SnapshotLanding() {
           {stage === 'done' && result && (
             <motion.div
               key="result"
+              layout={false}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-              className="mx-auto w-full min-w-0 max-w-[min(100%,38.75rem)]"
+              className="mx-auto w-full min-w-0 max-w-[min(100%,38.75rem)] lg:max-w-6xl"
             >
-              {/* Company header */}
-              <div className="mb-8 text-center mobile:mb-6">
+              {/* Company header — mobile centered; desktop aligned with bento column */}
+              <div className="mb-8 text-center mobile:mb-6 lg:mb-7 lg:text-left">
                 <div
-                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-xs"
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-xs lg:mb-3"
                   style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)' }}
                 >
                   <CheckCircle className="w-3 h-3" style={{ color: 'var(--glc-green)' }} /> Your check is ready
                 </div>
                 <h2
-                  className="break-words text-2xl font-bold mobile:px-1 mobile:text-xl"
+                  className="break-words text-2xl font-bold tracking-tight mobile:px-1 mobile:text-xl lg:max-w-[22ch]"
                   style={{
                     fontFamily: 'var(--font-display)',
                     color: 'var(--text-primary)',
@@ -540,115 +977,560 @@ export function SnapshotLanding() {
                   {result.company_name ?? new URL(result.company_url.startsWith('http') ? result.company_url : `https://${result.company_url}`).hostname}
                 </h2>
                 {result.location && (
-                  <p className="mt-1 text-sm" style={{ color: 'var(--text-tertiary)' }}>{result.location}</p>
+                  <p className="mt-1 text-sm lg:mt-1.5" style={{ color: 'var(--text-tertiary)' }}>{result.location}</p>
                 )}
               </div>
 
-              {/* UX Score card */}
-              {result.ux_score !== null && (
-                <div
-                  className="glc-card mb-4 flex flex-row items-center justify-between p-6 mobile:flex-col mobile:gap-4 mobile:p-5"
-                  style={{ borderRadius: 'var(--radius-xl)' }}
-                >
-                  <div className="min-w-0 shrink-0 text-left mobile:text-center">
-                    <p className="mb-1 text-xs font-medium" style={{ color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                      UX & Conversion Score
+              {result.homepage_snippet &&
+                (result.homepage_snippet.title.trim() || result.homepage_snippet.description.trim()) && (
+                  <div
+                    className="glc-card glc-snapshot-result-card mb-4 p-5 text-left lg:p-6"
+                    style={{ borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-subtle)' }}
+                  >
+                    <p
+                      className="text-xs font-semibold uppercase tracking-wide mb-3"
+                      style={{ color: 'var(--text-tertiary)' }}
+                    >
+                      From your homepage
                     </p>
-                    <p style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, fontFamily: 'var(--font-display)', color: SCORE_COLORS[result.ux_score] }}>
-                      {result.ux_score}/5
-                    </p>
-                    <p className="mt-0.5 text-sm font-semibold" style={{ color: SCORE_COLORS[result.ux_score] }}>
-                      {SCORE_LABELS[result.ux_score]}
+                    {result.homepage_snippet.title.trim() ? (
+                      <p
+                        className="text-sm font-semibold leading-snug mb-2"
+                        style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
+                      >
+                        {result.homepage_snippet.title}
+                      </p>
+                    ) : null}
+                    {result.homepage_snippet.description.trim() ? (
+                      <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                        {result.homepage_snippet.description}
+                      </p>
+                    ) : null}
+                    <p className="mt-3 text-xs leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
+                      Taken from the HTML we fetched: page title, meta description, Open Graph text, or the first substantive paragraph when those are missing.
                     </p>
                   </div>
-                  {result.ux_summary && (
-                    <p className="min-w-0 max-w-[21rem] text-pretty text-sm leading-relaxed ml-6 mobile:ml-0 mobile:max-w-none" style={{ color: 'var(--text-secondary)' }}>
-                      {result.ux_summary}
+                )}
+
+              {siteProfileSoftLine(result.site_profile) && (
+                <div
+                  className="glc-card glc-snapshot-result-card mb-4 p-5 text-left lg:p-6"
+                  style={{ borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-subtle)' }}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                    Site read (advisory)
+                  </p>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                    {siteProfileSoftLine(result.site_profile)}
+                  </p>
+                  {(result.classification_confidence_band || result.site_profile?.classificationConfidenceBand) && (
+                    <p className="mt-2 text-xs" style={{ color: 'var(--text-quaternary)' }}>
+                      Classification confidence: {result.classification_confidence_band ?? result.site_profile?.classificationConfidenceBand}
                     </p>
                   )}
                 </div>
               )}
 
-              {/* Issues + Quick Wins grid */}
-              <div className="mb-4 grid grid-cols-2 gap-4 mobile:grid-cols-1">
-
-                {/* Issues */}
-                {result.issues.length > 0 && (
-                  <div className="glc-card p-5" style={{ borderRadius: 'var(--radius-xl)' }}>
-                    <div className="flex items-center gap-2 mb-4">
-                      <Warning className="w-4 h-4" style={{ color: 'var(--score-2)' }} />
-                      <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                        Top Issues
-                      </span>
-                    </div>
-                    <div className="space-y-3">
-                      {result.issues.map((issue, i) => (
-                        <div key={i} className="flex gap-3">
-                          <div
-                            className="mt-0.5 w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: SEVERITY_COLOR[issue.severity] ?? 'var(--text-tertiary)', marginTop: 6 }}
-                          />
-                          <div>
-                            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{issue.title}</p>
-                            <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{issue.description}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Quick Wins */}
-                {result.quick_wins.length > 0 && (
-                  <div className="glc-card p-5" style={{ borderRadius: 'var(--radius-xl)' }}>
-                    <div className="flex items-center gap-2 mb-4">
-                      <Lightning className="w-4 h-4" style={{ color: 'var(--glc-green)' }} />
-                      <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                        Quick Wins
-                      </span>
-                    </div>
-                    <div className="space-y-3">
-                      {result.quick_wins.map((qw, i) => (
-                        <div key={i} className="flex gap-3">
-                          <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--glc-green)' }} />
-                          <div>
-                            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{qw.title}</p>
-                            <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                              {qw.effort} effort · {qw.timeframe}
+              {/* Snapshot score: bento on lg when summary exists; else single card */}
+              {(result.ux_score !== null || typeof result.overall_score === 'number') &&
+                (result.ux_summary?.trim() ? (
+                  <div className="mb-4 lg:grid lg:grid-cols-12 lg:items-stretch lg:gap-6">
+                    <div
+                      className="glc-card glc-snapshot-result-card glc-snapshot-surface-hero mb-4 flex min-h-0 flex-col items-center justify-center p-6 text-center lg:col-span-5 lg:mb-0 lg:min-h-[15rem] lg:p-8"
+                      style={{ borderRadius: 'var(--radius-xl)' }}
+                    >
+                      <p
+                        className="mb-3 text-xs font-medium"
+                        style={{ color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}
+                      >
+                        Snapshot score
+                      </p>
+                      {typeof result.overall_score === 'number' ? (
+                        <>
+                          <SnapshotScoreDonut
+                            fillPercent={donutFillFromOverall(result.overall_score)}
+                            accentColor={scoreColorFrom100(result.overall_score)}
+                            size={180}
+                            strokeWidth={12}
+                          >
+                            <p
+                              style={{
+                                fontSize: 'clamp(1.75rem, 4vw, 2.5rem)',
+                                fontWeight: 800,
+                                fontFamily: 'var(--font-display)',
+                                color: scoreColorFrom100(result.overall_score),
+                                lineHeight: 1.05,
+                              }}
+                            >
+                              {result.overall_score}
+                              <span style={{ color: 'var(--text-quaternary)', fontWeight: 700, fontSize: '0.45em' }}>/100</span>
                             </p>
-                          </div>
-                        </div>
-                      ))}
+                          </SnapshotScoreDonut>
+                        </>
+                      ) : (
+                        <>
+                          {(() => {
+                            const band = legacyUxBand(result.ux_score);
+                            const c = SCORE_COLORS[band];
+                            return (
+                              <SnapshotScoreDonut fillPercent={donutFillFromLegacyBand(band)} accentColor={c} size={180} strokeWidth={12}>
+                                <p
+                                  style={{
+                                    fontSize: 'clamp(1.75rem, 4vw, 2.5rem)',
+                                    fontWeight: 800,
+                                    fontFamily: 'var(--font-display)',
+                                    color: c,
+                                    lineHeight: 1.05,
+                                  }}
+                                >
+                                  {band}/5
+                                </p>
+                                <p className="mt-0.5 text-xs font-semibold sm:text-sm" style={{ color: c }}>
+                                  {SCORE_LABELS[band]}
+                                </p>
+                              </SnapshotScoreDonut>
+                            );
+                          })()}
+                        </>
+                      )}
+                      {result.scan_confidence_band && (
+                        <p className="mt-2 text-xs" style={{ color: 'var(--text-quaternary)' }}>
+                          Scan confidence: {result.scan_confidence_band}
+                        </p>
+                      )}
+                    </div>
+                    <div
+                      className="glc-card glc-snapshot-result-card flex flex-col justify-center p-6 text-left lg:col-span-7 lg:p-8"
+                      style={{ borderRadius: 'var(--radius-xl)' }}
+                    >
+                      <div className="glc-snapshot-section-h glc-snapshot-section-h--neutral !mb-3">
+                        <span className="glc-snapshot-section-h__rule" aria-hidden />
+                        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+                          Summary
+                        </span>
+                      </div>
+                      <p className="text-pretty text-sm leading-relaxed lg:text-[0.9375rem]" style={{ color: 'var(--text-secondary)' }}>
+                        {result.ux_summary}
+                      </p>
+                      <SnapshotScoreContextNotes result={result} />
                     </div>
                   </div>
-                )}
-              </div>
+                ) : (
+                  <div
+                    className="glc-card glc-snapshot-result-card glc-snapshot-surface-hero mb-4 flex flex-row items-center justify-between p-6 mobile:flex-col mobile:gap-4 mobile:p-5"
+                    style={{ borderRadius: 'var(--radius-xl)' }}
+                  >
+                    <div className="flex min-w-0 flex-1 flex-col items-center gap-3 mobile:w-full lg:flex-row lg:items-center lg:justify-center lg:gap-10">
+                      <div className="flex w-full flex-col items-center text-center mobile:items-center lg:w-auto lg:shrink-0">
+                        <p
+                          className="mb-1 text-xs font-medium lg:sr-only"
+                          style={{ color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}
+                        >
+                          Snapshot score
+                        </p>
+                        {typeof result.overall_score === 'number' ? (
+                          <SnapshotScoreDonut
+                            fillPercent={donutFillFromOverall(result.overall_score)}
+                            accentColor={scoreColorFrom100(result.overall_score)}
+                            size={148}
+                            strokeWidth={10}
+                          >
+                            <p
+                              style={{
+                                fontSize: 'var(--text-3xl)',
+                                fontWeight: 800,
+                                fontFamily: 'var(--font-display)',
+                                color: scoreColorFrom100(result.overall_score),
+                                lineHeight: 1.05,
+                              }}
+                            >
+                              {result.overall_score}
+                              <span style={{ color: 'var(--text-quaternary)', fontWeight: 700, fontSize: '0.5em' }}>/100</span>
+                            </p>
+                          </SnapshotScoreDonut>
+                        ) : (
+                          (() => {
+                            const band = legacyUxBand(result.ux_score);
+                            const c = SCORE_COLORS[band];
+                            return (
+                              <SnapshotScoreDonut fillPercent={donutFillFromLegacyBand(band)} accentColor={c} size={148} strokeWidth={10}>
+                                <p
+                                  style={{
+                                    fontSize: 'var(--text-3xl)',
+                                    fontWeight: 800,
+                                    fontFamily: 'var(--font-display)',
+                                    color: c,
+                                    lineHeight: 1.05,
+                                  }}
+                                >
+                                  {band}/5
+                                </p>
+                                <p className="mt-0.5 text-sm font-semibold" style={{ color: c }}>
+                                  {SCORE_LABELS[band]}
+                                </p>
+                              </SnapshotScoreDonut>
+                            );
+                          })()
+                        )}
+                      </div>
+                      <div className="w-full min-w-0 text-center mobile:text-center lg:flex-1 lg:text-left">
+                        <p
+                          className="mb-2 hidden text-xs font-medium lg:block"
+                          style={{ color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}
+                        >
+                          Snapshot score
+                        </p>
+                        {typeof result.overall_score !== 'number' && result.ux_label ? (
+                          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                            {result.ux_label}
+                          </p>
+                        ) : null}
+                        {result.scan_confidence_band && (
+                          <p className="mt-2 text-xs lg:mt-2" style={{ color: 'var(--text-quaternary)' }}>
+                            Scan confidence: {result.scan_confidence_band}
+                          </p>
+                        )}
+                        <SnapshotScoreContextNotes result={result} showTopDivider />
+                      </div>
+                    </div>
+                  </div>
+                ))}
 
-              {/* Tech stack */}
-              {techEntries.length > 0 && (
-                <div className="glc-card p-5 mb-6" style={{ borderRadius: 'var(--radius-xl)' }}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Shield className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
-                    <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                      Tech Stack Detected
+              {snapshotCoverageCaption && (
+                <p
+                  className="mb-4 text-center text-xs px-2 lg:px-0 lg:text-left"
+                  style={{ color: 'var(--text-quaternary)' }}
+                >
+                  {snapshotCoverageCaption}
+                </p>
+              )}
+
+              {snapshotLimitations && (
+                <div className="glc-snapshot-limitations mx-auto max-w-lg lg:mx-0 lg:max-w-none">
+                  <ul className="list-disc space-y-1.5 pl-4 text-left text-xs" style={{ color: 'var(--callout-warning-fg)' }}>
+                    {snapshotLimitations.map((line, i) => (
+                      <li key={i}>{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {result.category_scores && (
+                <div
+                  className="glc-card glc-snapshot-result-card glc-snapshot-surface-category mb-4 p-5 lg:p-6"
+                  style={{ borderRadius: 'var(--radius-xl)' }}
+                >
+                  <div className="glc-snapshot-section-h glc-snapshot-section-h--neutral">
+                    <span className="glc-snapshot-section-h__rule" aria-hidden />
+                    <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+                      Category breakdown
                     </span>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {techEntries.flatMap(([, vals]) => vals).slice(0, 12).map((tech, i) => (
-                      <span
-                        key={i}
-                        className="px-2.5 py-1 rounded-full text-xs font-medium"
-                        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}
-                      >
-                        {tech}
-                      </span>
-                    ))}
+                  <ul className="space-y-4 text-sm lg:grid lg:grid-cols-2 lg:gap-x-10 lg:gap-y-5 lg:space-y-0">
+                    {(
+                      [
+                        ['UX clarity', 'ux_clarity', result.category_scores.ux_clarity],
+                        ['Conversion readiness', 'conversion_readiness', result.category_scores.conversion_readiness],
+                        ['AI readiness', 'ai_readiness', result.category_scores.ai_readiness],
+                        ['Technical basics', 'technical_basics', result.category_scores.technical_basics],
+                      ] as const
+                    ).map(([label, key, val]) => {
+                      const n = val as number;
+                      const pct = Math.max(0, Math.min(100, n));
+                      const barColor = scoreColorFrom100(n);
+                      return (
+                        <li key={key}>
+                          <div className="mb-1.5 flex items-center justify-between gap-3">
+                            <span
+                              className="inline-flex items-center gap-1.5 min-w-0"
+                              style={{ color: 'var(--text-secondary)' }}
+                            >
+                              <span className="truncate">{label}</span>
+                              <CategoryBreakdownHint label={label} categoryKey={key} />
+                            </span>
+                            <span className="font-semibold tabular-nums" style={{ color: barColor }}>
+                              {n}/100
+                            </span>
+                          </div>
+                          <div
+                            className="h-2 w-full overflow-hidden rounded-full"
+                            style={{ backgroundColor: 'var(--bg-muted)' }}
+                            aria-hidden
+                          >
+                            <div
+                              className="h-full rounded-full transition-[width] duration-500 ease-out"
+                              style={{
+                                width: `${pct}%`,
+                                backgroundColor: barColor,
+                                opacity: 0.92,
+                              }}
+                            />
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {result.scan_basis && (
+                    <p
+                      className="mt-4 border-t border-[var(--border-subtle)] pt-4 text-xs leading-relaxed"
+                      style={{ color: 'var(--text-quaternary)' }}
+                    >
+                      Based on: {result.scan_basis}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {result.signals_found && result.signals_found.length > 0 && (
+                <div className="mb-4">
+                  <p className="mb-2 text-center text-[0.65rem] font-medium uppercase tracking-wider lg:text-left sm:text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                    Detected on your pages (this scan)
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-2 lg:justify-start">
+                  {result.signals_found.map((s, i) => (
+                    <span
+                      key={i}
+                      className="glc-snapshot-signal-pill rounded-full px-2.5 py-1 text-xs font-medium"
+                      style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}
+                    >
+                      {s}
+                    </span>
+                  ))}
                   </div>
                 </div>
               )}
 
+              {/* Issues + Quick Wins + Tech (xl: three columns when all present) */}
+              {snapshotInsightBlockCount > 0 && (
+                <div className={`mb-6 ${snapshotInsightGridClass}`}>
+                  {result.issues.length > 0 && (
+                    <div className="glc-card glc-snapshot-result-card p-5 lg:p-6" style={{ borderRadius: 'var(--radius-xl)' }}>
+                      <div className="glc-snapshot-section-h glc-snapshot-section-h--warning">
+                        <span className="glc-snapshot-section-h__rule" aria-hidden />
+                        <Warning className="h-4 w-4 shrink-0" style={{ color: 'var(--score-2)' }} />
+                        <span
+                          className="text-xs font-semibold uppercase tracking-wider"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          Top Issues
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        {result.issues.map((issue, i) => (
+                          <div key={i} className="glc-snapshot-insight-row flex gap-3">
+                            <div
+                              className="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full"
+                              style={{
+                                backgroundColor: SEVERITY_COLOR[issue.severity] ?? 'var(--text-tertiary)',
+                                marginTop: 6,
+                              }}
+                            />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                                {issue.title}
+                              </p>
+                              <p className="mt-0.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                {issue.description}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {result.quick_wins.length > 0 && (
+                    <div className="glc-card glc-snapshot-result-card p-5 lg:p-6" style={{ borderRadius: 'var(--radius-xl)' }}>
+                      <div className="glc-snapshot-section-h glc-snapshot-section-h--positive">
+                        <span className="glc-snapshot-section-h__rule" aria-hidden />
+                        <Lightning className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
+                        <span
+                          className="text-xs font-semibold uppercase tracking-wider"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          Quick Wins
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        {result.quick_wins.map((qw, i) => (
+                          <div key={i} className="glc-snapshot-insight-row flex gap-3">
+                            <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0" style={{ color: 'var(--glc-green)' }} />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                                {qw.title}
+                              </p>
+                              <p className="mt-0.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                {qw.effort} effort · {qw.timeframe}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(techEntries.length > 0 || (result.tech_stack_tentative?.length ?? 0) > 0) && (
+                    <div
+                      className={`glc-card glc-snapshot-result-card p-5 lg:p-6 ${snapshotTechColClass}`}
+                      style={{ borderRadius: 'var(--radius-xl)' }}
+                    >
+                      <div className="glc-snapshot-section-h glc-snapshot-section-h--info !mb-3">
+                        <span className="glc-snapshot-section-h__rule" aria-hidden />
+                        <Shield className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-blue)' }} />
+                        <span
+                          className="text-xs font-semibold uppercase tracking-wider"
+                          style={{ color: 'var(--text-secondary)' }}
+                        >
+                          Tech stack detected
+                        </span>
+                      </div>
+                      {techEntries.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {techEntries.flatMap(([, vals]) => vals).slice(0, 12).map((tech, i) => (
+                            <span
+                              key={i}
+                              className="glc-snapshot-signal-pill rounded-full px-2.5 py-1 text-xs font-medium"
+                              style={{
+                                background: 'var(--bg-inset)',
+                                border: '1px solid var(--border-subtle)',
+                                color: 'var(--text-secondary)',
+                              }}
+                            >
+                              {tech}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {(result.tech_stack_tentative?.length ?? 0) > 0 && (
+                        <div className={techEntries.length > 0 ? 'mt-4' : ''}>
+                          <p className="mb-2 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+                            Possibly also (weak signals — this quick scan only reads initial HTML; frameworks inside
+                            bundles may not be fingerprinted)
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {(result.tech_stack_tentative ?? []).slice(0, 8).map((t, i) => (
+                              <span
+                                key={i}
+                                title={t.signal}
+                                className="glc-snapshot-signal-pill rounded-full px-2.5 py-1 text-xs font-medium"
+                                style={{
+                                  background: 'transparent',
+                                  border: '1px dashed var(--border-default)',
+                                  color: 'var(--text-tertiary)',
+                                }}
+                              >
+                                {t.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {(typeof result.overall_score === 'number' || result.ux_score !== null) && (
+                <div
+                  className="glc-card glc-snapshot-result-card mb-6 p-5 lg:p-6"
+                  style={{ borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-subtle)' }}
+                >
+                  <div className="glc-snapshot-section-h glc-snapshot-section-h--info !mb-3">
+                    <span className="glc-snapshot-section-h__rule" aria-hidden />
+                    <Binoculars className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-blue)' }} />
+                    <span
+                      className="text-xs font-semibold uppercase tracking-wider"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
+                      Neural-network visibility
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {result.ai_visibility && result.ai_visibility.gaps.length > 0 ? (
+                      <>
+                        <p className="text-sm leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                          For{' '}
+                          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+                            your site
+                          </span>
+                          , how you expose crawl rules, discovery, and machine-readable facts looks like it{' '}
+                          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+                            needs improvement
+                          </span>
+                          . Have your web or SEO owner verify the live setup—not generic best practice, but how it is wired
+                          for you:
+                        </p>
+                        <ul className="list-disc space-y-1.5 pl-5 text-sm leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                          {result.ai_visibility.gaps.map(g => (
+                            <li key={g}>{AI_VISIBILITY_GAP_COPY[g]}</li>
+                          ))}
+                        </ul>
+                        <p className="text-sm leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Do this next:</span>{' '}
+                          fix what applies, then line it up with Quick wins and Top issues above.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-sm leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                        On a quick read we did not flag critical gaps for AI/search-facing signals on your side.
+                        Still worth your web or SEO owner confirming robots, sitemap, and structured data match how you
+                        actually operate.
+                      </p>
+                    )}
+
+                    <p
+                      className="border-t border-[var(--border-subtle)] pt-3 text-xs leading-snug"
+                      style={{ color: 'var(--text-tertiary)' }}
+                    >
+                      Narrow snapshot only.{' '}
+                      <Link
+                        to="/login?next=/audit/new"
+                        className="font-semibold"
+                        style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
+                      >
+                        Sign in
+                      </Link>{' '}
+                      to run a full Express Audit with deeper checks once you add your details.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {!result.competitor_mini && (
+                <div
+                  className="glc-card glc-snapshot-result-card mb-6 p-5 text-left lg:p-6"
+                  style={{ borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-subtle)' }}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                    Optional benchmark
+                  </p>
+                  <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>
+                    Compare your homepage to one external site we infer from a link on your page (HTTPS, viewport, hreflang, JSON-LD). This loads a third-party URL only if you opt in.
+                  </p>
+                  {competitorLoadError && (
+                    <p className="mb-3 text-sm" style={{ color: 'var(--score-1)' }}>{competitorLoadError}</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => void loadCompetitorComparison()}
+                    disabled={competitorLoading}
+                    className="rounded-lg px-4 py-2.5 text-sm font-semibold mobile:min-h-11 mobile:w-full"
+                    style={{
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-default)',
+                      color: 'var(--text-primary)',
+                      cursor: competitorLoading ? 'wait' : 'pointer',
+                      opacity: competitorLoading ? 0.7 : 1,
+                    }}
+                  >
+                    {competitorLoading ? 'Loading comparison…' : 'Compare to a linked site'}
+                  </button>
+                </div>
+              )}
+
               {result.competitor_mini && result.competitor_mini.comparisons.length > 0 && (
-                <div className="glc-card p-5 mb-6" style={{ borderRadius: 'var(--radius-xl)' }}>
+                <div className="glc-card glc-snapshot-result-card mb-6 p-5 lg:p-6" style={{ borderRadius: 'var(--radius-xl)' }}>
                   <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
                     Compared to {result.competitor_mini.competitor_name}
                   </p>
@@ -668,43 +1550,56 @@ export function SnapshotLanding() {
                 </div>
               )}
 
-              {/* CTA */}
+              {/* CTA — ink band (GLC gradient-ink) */}
               <div
-                className="glc-card p-6 text-center mobile:p-5"
-                style={{ borderRadius: 'var(--radius-xl)', border: '1px solid var(--glc-blue)', background: 'linear-gradient(135deg, rgba(28,189,255,0.06) 0%, transparent 60%)' }}
+                className="glc-snapshot-cta-band overflow-hidden p-6 text-center mobile:p-5 lg:flex lg:items-center lg:justify-between lg:gap-10 lg:p-8 lg:text-left"
+                style={{
+                  borderRadius: 'var(--radius-xl)',
+                  background: 'var(--gradient-ink-rich)',
+                  border: '1px solid rgba(255,255,255,0.09)',
+                  boxShadow: 'var(--shadow-ink)',
+                }}
               >
-                {quotaHint && (
-                  <p className="mb-3 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                    {quotaHint}
+                <div className="relative z-[1] min-w-0 flex-1">
+                  {quotaHint && (
+                    <p className="mb-3 text-xs lg:mb-2" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                      {quotaHint}
+                    </p>
+                  )}
+                  <h3
+                    style={{
+                      fontSize: 'var(--text-xl)',
+                      fontFamily: 'var(--font-display)',
+                      fontWeight: 700,
+                      color: 'var(--text-inverse)',
+                      letterSpacing: 'var(--tracking-tight)',
+                    }}
+                  >
+                    Want the full picture?
+                  </h3>
+                  <p className="mt-2 max-w-xl text-pretty text-sm leading-relaxed lg:mt-2" style={{ color: 'rgba(255,255,255,0.76)' }}>
+                    The Express Audit covers all 6 business domains — Tech, Security, SEO, UX, Marketing & Automation —
+                    with a full action plan and competitor benchmark.
                   </p>
-                )}
-                <h3
-                  style={{
-                    fontSize: 'var(--text-lg)',
-                    fontFamily: 'var(--font-display)',
-                    fontWeight: 700,
-                    color: 'var(--text-primary)',
-                  }}
-                >
-                  Want the full picture?
-                </h3>
-                <p className="mt-2 text-pretty text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  The Express Audit covers all 6 business domains — Tech, Security, SEO, UX, Marketing & Automation —
-                  with a full action plan and competitor benchmark.
-                </p>
-                <div className="mt-5 flex w-full flex-row items-center justify-center gap-3 mobile:flex-col mobile:items-stretch">
+                </div>
+                <div className="relative z-[1] mt-5 flex w-full shrink-0 flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center lg:mt-0 lg:w-auto lg:flex-col lg:items-stretch">
                   <Link
-                    to="/login"
-                    className="glc-btn-primary w-auto min-w-[10rem] justify-center mobile:min-h-12 mobile:w-full"
+                    to="/login?next=/audit/new"
+                    className="glc-btn-primary w-auto min-w-[12rem] justify-center mobile:min-h-12 mobile:w-full lg:w-full"
                     style={{ textDecoration: 'none' }}
                   >
-                    Get Express Audit <ArrowRight className="w-4 h-4 inline ml-1" />
+                    Get Express Audit <ArrowRight className="ml-1 inline h-4 w-4" />
                   </Link>
                   <button
                     type="button"
                     onClick={reset}
-                    className="text-sm font-medium mobile:min-h-11"
-                    style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}
+                    className="rounded-lg py-2 text-sm font-medium mobile:min-h-11"
+                    style={{
+                      color: 'rgba(255,255,255,0.85)',
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.14)',
+                      cursor: 'pointer',
+                    }}
                   >
                     Analyse another URL
                   </button>
@@ -726,7 +1621,7 @@ export function SnapshotLanding() {
       >
         <p className="text-xs" style={{ color: 'var(--text-quaternary)' }}>
           Results are AI-generated and for informational purposes only. · {' '}
-          <Link to="/login" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Sign in</Link>
+          <Link to="/login?next=/snapshot" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Sign in</Link>
         </p>
         <p className="text-xs mt-1.5" style={{ color: 'var(--text-quaternary)' }}>
           No website yet?{' '}
