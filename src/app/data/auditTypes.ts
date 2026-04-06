@@ -175,6 +175,13 @@ export interface FreeSnapshotPreview {
     confidence: 'high';
   };
   homepage_snippet?: { title: string; description: string };
+  /** Snapshot-domain recommendations (e.g. upgrade to full audit); optional, not shown on public token API trim. */
+  program_recommendations?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    priority: 'high' | 'medium' | 'low';
+  }>;
 }
 
 export const DOMAIN_KEYS = [

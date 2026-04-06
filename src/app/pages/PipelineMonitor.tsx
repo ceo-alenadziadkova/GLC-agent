@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useParams, Link } from 'react-router';
+import { useState, useMemo, useEffect } from 'react';
+import { useParams, Link, Navigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   MagnifyingGlass, HardDrives, Shield, Globe, Cursor, Target, Lightning, MapTrifold,
@@ -14,6 +14,8 @@ import { ReviewPointModal } from '../components/glc/ReviewPointModal';
 import { usePipeline } from '../hooks/usePipeline';
 import { useAudit } from '../hooks/useAudit';
 import { useProfile } from '../hooks/useProfile';
+import { api } from '../data/apiService';
+import { clientCanViewPortalPipeline } from '../lib/client-portal-pipeline-access';
 import type { PipelineEvent, QualityGateReport } from '../data/auditTypes';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 
@@ -353,9 +355,57 @@ export function PipelineMonitor() {
   const { state: pipelineState, loading: pipeLoading, error: pipeError, startPipeline, runNextPhase, approveReview } = usePipeline(id);
   const { audit, loading: auditLoading } = useAudit(id);
   const { isClient } = useProfile();
-
+  const [clientPortalOk, setClientPortalOk] = useState<boolean | 'pending'>(() => (isClient ? 'pending' : true));
   const [sel, setSel] = useState(0);
   const [modalReview, setModalReview] = useState<{ afterPhase: number; label: string } | null>(null);
+
+  useEffect(() => {
+    if (!isClient) {
+      setClientPortalOk(true);
+      return;
+    }
+    if (!id) {
+      setClientPortalOk(false);
+      return;
+    }
+    if (auditLoading || !audit?.meta) {
+      setClientPortalOk('pending');
+      return;
+    }
+    const meta = audit.meta;
+    let cancelled = false;
+    setClientPortalOk('pending');
+    void (async () => {
+      try {
+        if (meta.status !== 'created') {
+          if (!cancelled) {
+            setClientPortalOk(clientCanViewPortalPipeline({ auditMeta: meta, brief: {} }));
+          }
+          return;
+        }
+        const d = await api.getBrief(id);
+        if (cancelled) return;
+        const pm = d.product_mode === 'express' ? 'express' : 'full';
+        setClientPortalOk(
+          clientCanViewPortalPipeline({
+            auditMeta: meta,
+            brief: {
+              product_mode: pm,
+              gates: {
+                canStartExpress: Boolean(d.gates?.canStartExpress),
+                canStartFull: Boolean(d.gates?.canStartFull),
+              },
+            },
+          }),
+        );
+      } catch {
+        if (!cancelled) setClientPortalOk(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isClient, id, audit, auditLoading]);
 
   const isExpress = audit?.meta.product_mode === 'express';
   const reviewAfterPhases = isExpress ? REVIEW_AFTER_PHASES_EXPRESS : REVIEW_AFTER_PHASES_FULL;
@@ -453,6 +503,20 @@ export function PipelineMonitor() {
         </div>
       </AppShell>
     );
+  }
+
+  if (isClient && clientPortalOk === 'pending' && id) {
+    return (
+      <AppShell title="Pipeline Monitor" subtitle="Loading...">
+        <div className="flex items-center justify-center h-64">
+          <ArrowsClockwise className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (isClient && clientPortalOk === false && id) {
+    return <Navigate to={`/portal/audit/${id}`} replace />;
   }
 
   const auditStatus = pipelineState?.status || 'created';

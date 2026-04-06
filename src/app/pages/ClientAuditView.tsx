@@ -3,10 +3,19 @@ import { useParams, Link, useNavigate } from 'react-router';
 import {
   CheckCircle, Spinner, Warning,
   ArrowLeft, Pulse, FileText, Globe, ClipboardText, Circle, Rocket, ChatCircleDots, CaretRight,
+  ChartBar,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
+import { PortalSnapshotAccountMirror } from '../components/PortalSnapshotAccountMirror';
+import { useClientPortalPipeline } from '../context/ClientPortalPipelineContext';
 import { api, ApiError } from '../data/apiService';
-import type { AuditState } from '../data/auditTypes';
+import type { AuditState, DomainData } from '../data/auditTypes';
+import {
+  CLIENT_PORTAL_PRODUCT_MODE_HELP,
+  clientCanViewPortalPipeline,
+} from '../lib/client-portal-pipeline-access';
+import { freeSnapshotPreviewFromAuditState } from '../lib/free-snapshot-preview-from-audit-state';
+import { getSnapshotAccessBlockedState } from '../lib/snapshot-diagnostics';
 import { formatAuditWebsiteDisplay, isNoPublicWebsiteUrl } from '../data/no-public-website';
 import { effectiveBriefForPipelineGates } from '../data/intakeBriefMap';
 import {
@@ -286,6 +295,10 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
   const [helpBusy, setHelpBusy] = useState(false);
   const [helpOk, setHelpOk] = useState(false);
   const [helpError, setHelpError] = useState<string | null>(null);
+  const [upgradeTarget, setUpgradeTarget] = useState<'express' | 'full'>('express');
+  const [upgradeBusy, setUpgradeBusy] = useState(false);
+  const [upgradeError, setUpgradeError] = useState<string | null>(null);
+  const { setPipelineAccess } = useClientPortalPipeline();
 
   useEffect(() => {
     let cancel = false;
@@ -308,7 +321,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
     };
   }, [auditId]);
 
-  const auditStatus = auditState?.meta.status;
+  const auditStatus = auditState?.meta?.status;
   const isCreated = auditStatus === 'created';
 
   useEffect(() => {
@@ -379,12 +392,75 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
   }
 
   const meta = auditState?.meta;
-  const statusLabel = meta?.status.replace(/_/g, ' ') ?? '';
+  const statusLabel = meta?.status?.replace(/_/g, ' ') ?? '';
+  const isFreeSnapshot = meta?.product_mode === 'free_snapshot';
+  const snapshotPreview = useMemo(
+    () => (auditState ? freeSnapshotPreviewFromAuditState(auditState) : null),
+    [auditState],
+  );
+
+  const freeSnapshotAccess = useMemo(
+    () => (snapshotPreview ? getSnapshotAccessBlockedState(snapshotPreview) : null),
+    [snapshotPreview],
+  );
+
+  const canViewPipeline = useMemo(() => {
+    if (!meta) return false;
+    return clientCanViewPortalPipeline({
+      auditMeta: meta,
+      brief:
+        meta.status === 'created'
+          ? gatePayload
+            ? {
+                product_mode: gatePayload.product_mode,
+                gates: {
+                  canStartExpress: gatePayload.canStartExpress,
+                  canStartFull: gatePayload.canStartFull,
+                },
+              }
+            : null
+          : {},
+    });
+  }, [meta, gatePayload]);
+
+  useEffect(() => {
+    if (!meta) {
+      setPipelineAccess(auditId, false);
+      return;
+    }
+    setPipelineAccess(auditId, canViewPipeline);
+    return () => setPipelineAccess(null, false);
+  }, [auditId, meta, canViewPipeline, setPipelineAccess]);
+
+  const portalSubtitle =
+    isFreeSnapshot && meta?.status === 'completed'
+      ? freeSnapshotAccess?.showCallout
+        ? 'Your quick scan is saved, but we could not read the live site automatically (robots policy or a fetch issue). Details are below — Express or Full can still proceed from your brief and materials you add.'
+        : 'Your quick scan is saved here — same results as on the snapshot page. Continue below when you want a full Express or Full audit.'
+      : 'Complete your brief, then start the audit when you are ready';
+
+  async function handleUpgradeFromSnapshot(useScrapedContext: boolean) {
+    setUpgradeBusy(true);
+    setUpgradeError(null);
+    try {
+      await api.upgradeAuditFromSnapshot(auditId, {
+        target_mode: upgradeTarget,
+        use_scraped_context: useScrapedContext,
+      });
+      const refreshed = await api.getAudit(auditId);
+      setAuditState(refreshed);
+      setBriefRefresh(n => n + 1);
+    } catch (e) {
+      setUpgradeError((e as Error).message);
+    } finally {
+      setUpgradeBusy(false);
+    }
+  }
 
   return (
     <AppShell
       title={domain || 'Your audit'}
-      subtitle="Complete your brief, then start the audit when you are ready"
+      subtitle={portalSubtitle}
       actions={
         <Link
           to="/portal"
@@ -443,7 +519,11 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                       border: '1px solid rgba(28,189,255,0.20)',
                     }}
                   >
-                    {meta.product_mode === 'full' ? 'Full Audit' : 'Express'}
+                    {meta.product_mode === 'full'
+                      ? 'Full audit'
+                      : meta.product_mode === 'free_snapshot'
+                        ? 'Free snapshot'
+                        : 'Express'}
                   </span>
                   <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>{statusLabel}</span>
                 </div>
@@ -544,7 +624,238 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
               </>
             )}
 
-            {!isCreated && meta.status === 'completed' && (
+            {!isCreated && meta.status === 'completed' && isFreeSnapshot && (
+              <div
+                className="rounded-xl overflow-hidden space-y-4 px-5 py-5"
+                style={
+                  freeSnapshotAccess?.showCallout
+                    ? {
+                        border: '1px solid rgba(249,115,22,0.28)',
+                        background: 'linear-gradient(135deg, rgba(249,115,22,0.08) 0%, rgba(28,189,255,0.04) 100%)',
+                      }
+                    : {
+                        border: '1px solid rgba(28,189,255,0.22)',
+                        background: 'linear-gradient(135deg, rgba(28,189,255,0.10) 0%, rgba(28,189,255,0.03) 100%)',
+                      }
+                }
+              >
+                <div className="flex items-start gap-3">
+                  <ChartBar className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--glc-blue)' }} />
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
+                      {freeSnapshotAccess?.showCallout
+                        ? 'Quick scan saved — automatic read was limited'
+                        : 'Quick scan in your account'}
+                    </div>
+                    <p className="text-xs m-0 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                      {freeSnapshotAccess?.showCallout ? (
+                        <>
+                          Results are kept here after sign-up, but our crawler could not download public HTML for the URL you
+                          entered (often robots.txt). Scores below are placeholders. You can{' '}
+                          <Link to="/snapshot" className="font-semibold underline-offset-2 hover:underline" style={{ color: 'var(--glc-blue)' }}>
+                            run another free check
+                          </Link>{' '}
+                          with a different allowed URL, or continue to Express / Full and add context in the brief.
+                        </>
+                      ) : (
+                        <>
+                          The same preview you saw on the free snapshot page, now saved after registration — it will not
+                          disappear when you close the tab. This is still an automated quick read, not the scored multi-phase
+                          GLC audit you get after the intake brief.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  {freeSnapshotAccess?.showCallout ? (
+                    <Warning weight="fill" className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--score-2)' }} />
+                  ) : (
+                    <CheckCircle weight="fill" className="w-5 h-5 flex-shrink-0" style={{ color: '#10B981' }} />
+                  )}
+                </div>
+
+                {snapshotPreview ? (
+                  <PortalSnapshotAccountMirror result={snapshotPreview} />
+                ) : (
+                  <p className="text-xs m-0" style={{ color: 'var(--text-quaternary)' }}>
+                    We could not load full snapshot fields for this audit. You can still continue with Express or Full below.
+                  </p>
+                )}
+
+                <div className="space-y-4 border-t pt-4" style={{ borderColor: 'rgba(28,189,255,0.15)' }}>
+                  <div>
+                    <div className="text-xs font-medium mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                      Continue with a full audit — choose type
+                    </div>
+                    <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: 'var(--border-subtle)' }}>
+                      {(['express', 'full'] as const).map(m => (
+                        <button
+                          key={m}
+                          type="button"
+                          disabled={upgradeBusy}
+                          onClick={() => setUpgradeTarget(m)}
+                          className="flex-1 py-2 text-xs font-medium"
+                          style={{
+                            background:
+                              upgradeTarget === m ? 'rgba(28,189,255,0.14)' : 'var(--bg-muted)',
+                            color: 'var(--text-primary)',
+                            border: 'none',
+                            cursor: upgradeBusy ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          {m === 'express' ? 'Express' : 'Full'}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs m-0 mt-2 leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
+                      Selected type applies to the intake brief and pipeline below. You can change it in the brief if your
+                      plan allows.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div
+                      className="rounded-lg px-3 py-2.5 text-xs"
+                      style={{
+                        background: 'var(--bg-surface)',
+                        border:
+                          upgradeTarget === 'express'
+                            ? '1px solid rgba(28,189,255,0.35)'
+                            : '1px solid var(--border-subtle)',
+                      }}
+                    >
+                      <div className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.express.label}
+                      </div>
+                      <p className="m-0 mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.express.summary}
+                      </p>
+                      <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>
+                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.express.detail}
+                      </p>
+                    </div>
+                    <div
+                      className="rounded-lg px-3 py-2.5 text-xs"
+                      style={{
+                        background: 'var(--bg-surface)',
+                        border:
+                          upgradeTarget === 'full'
+                            ? '1px solid rgba(28,189,255,0.35)'
+                            : '1px solid var(--border-subtle)',
+                      }}
+                    >
+                      <div className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.full.label}
+                      </div>
+                      <p className="m-0 mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.full.summary}
+                      </p>
+                      <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>
+                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.full.detail}
+                      </p>
+                    </div>
+                  </div>
+
+                  {upgradeError && (
+                    <div
+                      className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
+                      style={{ backgroundColor: 'rgba(239,68,68,0.08)', color: '#EF4444' }}
+                    >
+                      <Warning className="w-3.5 h-3.5 flex-shrink-0" />
+                      {upgradeError}
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    {freeSnapshotAccess?.showCallout ? (
+                      <p className="text-xs m-0 leading-relaxed rounded-lg px-3 py-2.5" style={{ color: 'var(--text-secondary)', background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)' }}>
+                        This scan did not retrieve page HTML, so there is little to pre-fill from the quick check. You can still continue — the brief matters most — or use{' '}
+                        <strong style={{ color: 'var(--text-primary)' }}>Start fresh</strong> if you prefer empty recon placeholders.
+                      </p>
+                    ) : null}
+                    <button
+                      type="button"
+                      disabled={upgradeBusy}
+                      onClick={() => void handleUpgradeFromSnapshot(true)}
+                      className="w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+                      style={{
+                        background: upgradeBusy ? 'var(--bg-muted)' : 'var(--gradient-brand)',
+                        color: upgradeBusy ? 'var(--text-quaternary)' : 'var(--glc-ink)',
+                        cursor: upgradeBusy ? 'not-allowed' : 'pointer',
+                        boxShadow: upgradeBusy ? 'none' : 'var(--glow-blue-sm)',
+                        border: 'none',
+                      }}
+                    >
+                      {upgradeBusy ? <Spinner className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
+                      {freeSnapshotAccess?.showCallout ? 'Continue with limited scan data' : 'Continue with detected details'}
+                    </button>
+                    <div
+                      className="rounded-lg px-3 py-2.5 space-y-2"
+                      style={{ background: 'var(--bg-inset)', border: '1px solid var(--border-subtle)' }}
+                    >
+                      <p className="text-xs m-0 font-medium" style={{ color: 'var(--text-secondary)' }}>
+                        We pre-fill your brief and recon notes from this quick scan:
+                      </p>
+                      <ul className="text-xs m-0 pl-4 space-y-1.5 list-disc leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+                        <li>
+                          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Tech stack</span> — tools we
+                          detected (CMS, analytics, tags, frameworks) for technical recon and phase context.
+                        </li>
+                        <li>
+                          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Site profile</span> — short
+                          label, industry guess, primary offer, audience (B2B/B2C), and conversion pattern from public
+                          pages.
+                        </li>
+                        <li>
+                          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Homepage copy</span> — title,
+                          meta description, or first substantive paragraph we captured.
+                        </li>
+                        <li>
+                          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Business activity draft</span>{' '}
+                          — paragraph for your primary goal field, combining profile + scan summary when available.
+                        </li>
+                        <li>
+                          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Snapshot score hint</span> —
+                          overall /100 from the scan stored in consultant recon prefills (the full audit is re-scored from
+                          scratch).
+                        </li>
+                        <li>
+                          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Analytics</span> — when GA /
+                          GTM / gtag signals are present we mark analytics in the brief.
+                        </li>
+                      </ul>
+                      <p className="text-xs m-0 leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
+                        {upgradeTarget === 'express'
+                          ? 'Express uses this context for recon and phases 1–4 (Tech, Security, SEO, UX). Marketing, Automation, and Strategy are not included in Express.'
+                          : 'Full audit uses this context across all six analysis domains and the Strategy phase after your brief meets start gates.'}{' '}
+                        You can edit every field before the run.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={upgradeBusy}
+                      onClick={() => void handleUpgradeFromSnapshot(false)}
+                      className="w-full py-2.5 rounded-lg text-sm font-medium"
+                      style={{
+                        backgroundColor: 'var(--bg-elevated)',
+                        border: '1px solid var(--border-default)',
+                        color: 'var(--text-primary)',
+                        cursor: upgradeBusy ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      Start fresh (site URL only)
+                    </button>
+                    <p className="text-xs m-0 leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
+                      Clears our quick-scan recon data and brief answers derived from it, and resets placeholders for a
+                      full {upgradeTarget === 'express' ? 'Express' : 'Full'} audit. Quick scan scores are not carried into
+                      the new run.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!isCreated && meta.status === 'completed' && !isFreeSnapshot && (
               <Link
                 to={`/portal/reports/${auditId}`}
                 className="flex items-center justify-between px-5 py-4 rounded-xl no-underline transition-all"
@@ -566,7 +877,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
               </Link>
             )}
 
-            {!isCreated && (
+            {canViewPipeline && (
               <Link
                 to={`/portal/pipeline/${auditId}`}
                 className="flex items-center justify-between px-5 py-4 rounded-xl no-underline"
@@ -580,12 +891,19 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                   <div>
                     <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>Pipeline status</div>
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-                      {meta.status === 'completed' ? 'Review phases and logs' : 'Follow live progress'}
+                      {meta?.status === 'completed' ? 'Review phases and logs' : 'Follow live progress'}
                     </div>
                   </div>
                 </div>
                 <CaretRight className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
               </Link>
+            )}
+
+            {isCreated && !canViewPipeline && !isFreeSnapshot && (
+              <p className="text-xs m-0 leading-relaxed px-1" style={{ color: 'var(--text-quaternary)' }}>
+                Complete the required intake brief fields and save. After the brief allows starting your run, Pipeline
+                appears here and in the sidebar so you can follow phases and logs.
+              </p>
             )}
           </div>
         )}

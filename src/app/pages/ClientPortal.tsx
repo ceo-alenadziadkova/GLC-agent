@@ -64,6 +64,15 @@ function clientPortalAuditPresentation(a: AuditMeta): {
         pulse: false,
       };
     case 'completed':
+      if (a.product_mode === 'free_snapshot') {
+        return {
+          pill: 'completed',
+          label: 'Completed',
+          hint:
+            'Quick scan saved in your account — same view as the snapshot page. A full Express or Full audit is a separate programme; open the audit to continue.',
+          pulse: false,
+        };
+      }
       return {
         pill: 'completed',
         label: 'Completed',

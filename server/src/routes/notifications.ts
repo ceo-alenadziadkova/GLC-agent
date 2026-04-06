@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
-import { requireAuth, type AuthRequest } from '../middleware/auth.js';
+import { requireAuth, attachProfile, rejectGuestFromPortal, type AuthRequest } from '../middleware/auth.js';
 import { logger } from '../services/logger.js';
 
 export const notificationsRouter = Router();
 
 notificationsRouter.use(requireAuth);
+notificationsRouter.use(attachProfile);
+notificationsRouter.use(rejectGuestFromPortal);
 
 notificationsRouter.get('/', async (req: AuthRequest, res) => {
   try {

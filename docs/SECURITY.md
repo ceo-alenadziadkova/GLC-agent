@@ -34,6 +34,8 @@ const audit = await supabase
 
 The **free snapshot** page calls **`signInAnonymously()`** when there is no session so visitors can run a preview without a sign-up wall. Enable **Anonymous sign-ins** in the Supabase project. Those JWTs use the **`authenticated`** role — narrow RLS with **`is_anonymous`** where needed ([access control](https://supabase.com/docs/guides/auth/auth-anonymous#access-control)). **`attachProfile`** sets **`profiles.role = 'guest'`** for anonymous users until they complete a full sign-in (**`guest` → `client`/`consultant`** per migration **`023`**).
 
+**Guest session API surface:** Routes that are not part of the free snapshot UX must chain **`attachProfile`** and **`rejectGuestFromPortal`** (or equivalent role checks) so anonymous JWTs and **`profiles.role = 'guest'`** cannot call client portal behaviors. This includes **notifications** and the **registered** frontend log path **`POST /api/log`** as well as audits, pipeline, and reports. Preview sessions use the stricter **`POST /api/log/snapshot`** (guest/anonymous only, lower rate limit).
+
 ---
 
 ## JWT Verification (Backend Auth Middleware)

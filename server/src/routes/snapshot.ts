@@ -39,6 +39,80 @@ export const snapshotRouter = Router();
 const SNAPSHOT_TTL_HOURS = Number(process.env.SNAPSHOT_TOKEN_TTL_HOURS ?? 72);
 const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/**
+ * Build API-shaped scan_coverage from JSON stored under snapshot_deterministic.
+ * Accepts snake_case (persisted) or accidental camelCase; fills default `pages: []`
+ * when missing so robots / degraded rows still merge.
+ */
+function normalizeSnapshotScanCoverageFromStoredDet(stored: unknown): SnapshotScanCoverageApi | null {
+  if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return null;
+  const c = stored as Record<string, unknown>;
+  const budgetRaw = c.budget_ms ?? c.budgetMs;
+  if (typeof budgetRaw !== 'number' || !Number.isFinite(budgetRaw)) return null;
+
+  const elapsedRaw = c.elapsed_ms ?? c.elapsedMs;
+  const elapsed_ms = typeof elapsedRaw === 'number' && Number.isFinite(elapsedRaw) ? elapsedRaw : 0;
+
+  const pfRaw = c.pages_fetched ?? c.pagesFetched;
+  const pages_fetched = typeof pfRaw === 'number' && Number.isFinite(pfRaw) ? pfRaw : 0;
+
+  const maxRaw = c.max_pages_planned ?? c.maxPagesPlanned;
+  const max_pages_planned = typeof maxRaw === 'number' && Number.isFinite(maxRaw) ? maxRaw : 0;
+
+  const rawPages = Array.isArray(c.pages) ? c.pages : [];
+  const pages: SnapshotScanCoverageApi['pages'] = rawPages.map((entry: unknown) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      return { final_url: '', status: 0, role: 'other' };
+    }
+    const p = entry as Record<string, unknown>;
+    const final_url =
+      typeof p.final_url === 'string' ? p.final_url : typeof p.finalUrl === 'string' ? p.finalUrl : '';
+    const status = typeof p.status === 'number' ? p.status : 0;
+    const roleRaw = p.role;
+    const role =
+      roleRaw === 'home' ||
+      roleRaw === 'contact' ||
+      roleRaw === 'pricing' ||
+      roleRaw === 'about' ||
+      roleRaw === 'services' ||
+      roleRaw === 'other'
+        ? roleRaw
+        : 'other';
+    return { final_url, status, role };
+  });
+
+  const out: SnapshotScanCoverageApi = {
+    budget_ms: budgetRaw,
+    elapsed_ms,
+    pages_fetched,
+    max_pages_planned,
+    pages,
+  };
+
+  if (c.playwright_eligible === true || c.playwrightEligible === true) out.playwright_eligible = true;
+  if (c.playwright_used === true || c.playwrightUsed === true) out.playwright_used = true;
+  if (c.robots_txt_fetched === true || c.robotsTxtFetched === true) out.robots_txt_fetched = true;
+  if (c.robots_home_disallowed === true || c.robotsHomeDisallowed === true) out.robots_home_disallowed = true;
+  if (typeof c.robots_extras_skipped === 'number') out.robots_extras_skipped = c.robots_extras_skipped;
+  if (typeof c.crawl_delay_ms_applied === 'number') out.crawl_delay_ms_applied = c.crawl_delay_ms_applied;
+
+  const hf = c.home_fetch_failure ?? c.homeFetchFailure;
+  if (hf === 'network_or_timeout' || hf === 'http_error' || hf === 'non_html' || hf === 'empty_body') {
+    out.home_fetch_failure = hf;
+  }
+  if (c.challenge_page_likely === true || c.challengePageLikely === true) out.challenge_page_likely = true;
+  const ct = c.challenge_taxonomy ?? c.challengeTaxonomy;
+  if (typeof ct === 'string' && ct.trim()) out.challenge_taxonomy = ct;
+  if (c.parked_domain_likely === true || c.parkedDomainLikely === true) out.parked_domain_likely = true;
+  const pt = c.parked_taxonomy ?? c.parkedTaxonomy;
+  if (typeof pt === 'string' && pt.trim()) out.parked_taxonomy = pt;
+  if (c.login_wall_likely === true || c.loginWallLikely === true) out.login_wall_likely = true;
+  const lt = c.login_wall_taxonomy ?? c.loginWallTaxonomy;
+  if (typeof lt === 'string' && lt.trim()) out.login_wall_taxonomy = lt;
+
+  return out;
+}
+
 function uxLegacyLabel(score: number): string {
   if (score >= 4) return 'Good';
   if (score >= 3) return 'Moderate';
@@ -74,9 +148,9 @@ function applyDeterministicRecordToPreview(
   } else if (preview.site_profile?.classificationConfidenceBand) {
     preview.classification_confidence_band = preview.site_profile.classificationConfidenceBand;
   }
-  const cov = det.scan_coverage as SnapshotScanCoverageApi | undefined;
-  if (cov && typeof cov.budget_ms === 'number' && Array.isArray(cov.pages)) {
-    preview.scan_coverage = cov;
+  const normalizedCov = normalizeSnapshotScanCoverageFromStoredDet(det.scan_coverage);
+  if (normalizedCov) {
+    preview.scan_coverage = normalizedCov;
   }
   if (typeof det.audit_rules_version === 'number') {
     preview.audit_rules_version = det.audit_rules_version;
@@ -174,7 +248,10 @@ snapshotRouter.post('/', snapshotPublicLimiter, requireAuth, attachProfile, asyn
       url = await validatePublicAuditUrl(url);
     } catch (e) {
       if (e instanceof PublicUrlNotAllowedError) {
-        res.status(400).json({ error: 'company_url is not allowed' });
+        res.status(400).json({
+          error: `company_url is not allowed: ${e.message}`,
+          code: 'INVALID_COMPANY_URL',
+        });
         return;
       }
       throw e;
@@ -410,6 +487,7 @@ snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
         status: 'failed',
         snapshot_token: token,
         code: 'SNAPSHOT_FAILED',
+        error: 'Snapshot run failed before completing analysis.',
       });
       return;
     }

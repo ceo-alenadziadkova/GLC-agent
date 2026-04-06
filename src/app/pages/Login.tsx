@@ -24,6 +24,10 @@ export function Login() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
+    if (isAnonymousUser(user)) {
+      logger.info('Login: anonymous session detected, stay on /login for account upgrade');
+      return;
+    }
     const token = localStorage.getItem('glc_discovery_token');
     if (token) {
       logger.info('Login: isAuthenticated with discovery token, navigating to /audit/new');
@@ -38,7 +42,7 @@ export function Login() {
     }
     logger.info('Login: isAuthenticated, navigating to /portfolio');
     navigate('/portfolio', { replace: true });
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, user]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -63,11 +67,17 @@ export function Login() {
   }
 
   async function handleGoogle() {
-    console.log('[Login] handleGoogle click');
     setError(null);
     const { error: err } = await signInWithGoogle();
-    console.log('[Login] signInWithGoogle result', err);
-    if (err) setError(err.message);
+    if (!err) return;
+    const msg = (err.message ?? '').toLowerCase();
+    if (msg.includes('manual linking')) {
+      setError(
+        'In Supabase Dashboard: Authentication → enable "Allow manual linking" (Auth general settings). It is required to attach Google to a quick-scan session. See docs: supabase.com/docs/guides/auth/general-configuration',
+      );
+      return;
+    }
+    setError(err.message);
   }
 
   const isReady = email.trim() && password.length > 0;

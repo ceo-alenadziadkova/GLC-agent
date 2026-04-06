@@ -67,6 +67,30 @@ Notes:
 
 ---
 
+## Frontend log ingest
+
+Structured log events from the browser (`src/app/lib/logger.ts`). Failures are non-fatal for UX.
+
+### `POST /api/log`
+
+**Auth:** JWT for **registered** users only (`profiles.role` is `client` or `consultant` after `attachProfile`). **403** for anonymous sessions or `guest` role — those use **`POST /api/log/snapshot`** instead.
+
+**Rate limit:** 180 events / minute / user (`logIngestLimiter`).
+
+**Response:** `204` No Content.
+
+**Body** (JSON): `level` (`debug`|`info`|`warn`|`error`), `source` (default `frontend`), `message`, optional `context` object, optional `timestamp` (ISO).
+
+### `POST /api/log/snapshot`
+
+**Auth:** JWT where the user is **anonymous** (`is_anonymous`) or **`profiles.role`** is **`guest`** (free snapshot / pre-registration). **403** for full `client` / `consultant` — use **`POST /api/log`**.
+
+**Rate limit:** 40 events / minute / user by default (`snapshotLogIngestLimiter`); override with env **`SNAPSHOT_LOG_INGEST_MAX_PER_MIN`** if needed.
+
+Same body as `POST /api/log`. **Response:** `204`.
+
+---
+
 ## Platform (consultant)
 
 Assigns which consultant owns **client self-serve** audits (`audits.user_id` when `POST /api/audits` is called with a client JWT). UI: **Settings → Client portal — audit owner** (consultant / admin shell).
@@ -246,6 +270,28 @@ Delete audit and all related data (CASCADE). Irreversible.
 Records `brief_help_requested_at` / `brief_help_client_message` on the audit and notifies consultants. Allowed only while `audits.status === 'created'` and the caller is the audit’s `client_id`. Does not block `pipeline/start`.
 
 **Response `200`:** `{ "ok": true }`
+
+---
+
+### `POST /api/audits/:id/upgrade-from-snapshot`
+
+**Auth:** registered **client** JWT (not guest). Promotes a **completed** `product_mode: free_snapshot` audit to **express** or **full**, resets domain rows, and either seeds the intake brief from quick-scan recon / `snapshot_deterministic` (`use_scraped_context: true`) or clears recon placeholders (`use_scraped_context: false`).
+
+**Body:** `{ "target_mode": "express" | "full", "use_scraped_context": boolean }`
+
+When `use_scraped_context` is **true** but the snapshot **did not retrieve HTML** (e.g. `robots.txt` blocked the homepage or fetch failed — `scan_basis_code: degraded`, `pages_fetched: 0`), the response still succeeds and **`intake_brief.recon_prefills`** gains **`snapshot_scrape_limited`**, **`snapshot_scrape_robots_blocked`**, and **`snapshot_scrape_note`** so consultants know pre-fill is thin; **`overall_score_hint` is omitted** so a **0** is not treated as a real score.
+
+**Response `200`:** `{ "ok": true }`, or when scrape was limited and context was requested:
+
+```json
+{
+  "ok": true,
+  "snapshot_scrape_limited": true,
+  "snapshot_scrape_robots_blocked": true
+}
+```
+
+(`snapshot_scrape_robots_blocked` may be `false` when the limitation was a non-robots fetch failure.)
 
 ---
 

@@ -24,6 +24,8 @@ Do not use bare `<origin>` as `redirectTo` when `/` immediately redirects to `/d
 
 **Free snapshot (`/snapshot`):** **`SnapshotLanding`** calls **`ensureSnapshotSession()`** — reuses any existing session or **`signInAnonymously()`** so visitors get a **wow-first** preview without a sign-up wall. Supabase must have **Anonymous sign-ins** enabled. **`POST /api/snapshot`** still sends a JWT; **`attachProfile`** creates **`profiles.role = 'guest'`** for anonymous users until they complete a full sign-in (then **`guest` → `client`/`consultant`**). For **Google**, **`useAuth.signInWithGoogle`** uses **`linkIdentity`** while anonymous so **`user.id`** stays stable when upgrading. **Email/password** from a guest session does not auto-merge the same `user.id` in Supabase; prefer Google from `/login` after a quick scan, or sign in first if using password-only accounts.
 
+**Manual linking (required for `linkIdentity`):** In the Supabase Dashboard, enable **Allow manual linking** under [Auth general configuration](https://supabase.com/docs/guides/auth/general-configuration) (same area as anonymous sign-ins). If it stays off, the API returns **`Manual linking is disabled`** and `GET /auth/v1/user/identities/authorize` may appear as **404** in the browser network tab. See [Identity linking — Manual linking](https://supabase.com/docs/guides/auth/auth-identity-linking#manual-linking-beta).
+
 All methods produce the same end state for full accounts: a Supabase session with an `access_token` (JWT) and `refresh_token`.
 
 ---
@@ -78,21 +80,26 @@ Browser (supabase client)               Backend (Express)
         │  200 OK (user's audits only)           │
 ```
 
-Backend `middleware/auth.ts`:
-```typescript
-export async function requireAuth(req, res, next) {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'Missing token' });
+`requireAuth` reads `Authorization: Bearer`, calls `supabase.auth.getUser(token)` on the **server** Supabase client, and sets `req.userId`, `req.userEmail`, and **`req.userIsAnonymous`** from the returned user. Invalid or expired tokens yield **401**.
 
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-  if (error || !user) return res.status(401).json({ error: 'Invalid token' });
+The server client is created with the **service role** key (see `server/src/services/supabase.ts`): DB queries bypass RLS by design. **JWT verification** is still done via `getUser(token)`; isolation is enforced in route handlers (`user_id` / `client_id` filters, `rejectGuestFromPortal`, `requireRole`). This matches [SECURITY.md](./SECURITY.md).
 
-  req.userId = user.id;
-  next();
-}
-```
+---
 
-The backend uses the **anon** `supabase` client (not service role) for `getUser()` — this validates the JWT without bypassing RLS.
+## Guest vs client (isolation and concurrency)
+
+- **Identity:** Each Supabase user has a stable `user.id`. Snapshot **guests** are either anonymous JWTs (`is_anonymous`) or `profiles.role = 'guest'`. Full accounts are `client` or `consultant`. There is no shared profile row between users; `profiles.id` is the auth user UUID.
+- **Promotion:** When the user is no longer anonymous, `attachProfile` upgrades `guest` → `client`/`consultant` on the **same** row. Parallel requests after sign-up can both try the first `INSERT` into `profiles`; the loser receives Postgres **23505** (unique violation), then **refetches** the winner’s row so role resolution stays correct (no duplicate users, no wrong role).
+- **Portal block:** `rejectGuestFromPortal` runs after `attachProfile` on portal APIs (and on **notifications** and **`POST /api/log`**): **403** if `req.userRole === 'guest'` **or** `req.userIsAnonymous === true`. **Preview logging** uses **`POST /api/log/snapshot`** (`allowGuestSnapshotLogIngest`, tighter rate limit) so snapshot telemetry does not require a full account.
+
+### Phased hardening (reference)
+
+| Phase | Scope | Outcome |
+|-------|--------|---------|
+| **1** | Middleware + routes | `attachProfile` + `rejectGuestFromPortal` on all non–free-snapshot product APIs that should not serve guests; JWT + `userIsAnonymous` on every protected handler. |
+| **2** | DB + `attachProfile` | Migration **023** (`guest` in `profiles_role_check`); unique-violation refetch on profile **INSERT**; trigger `handle_new_user` aligns new rows with `is_anonymous`. |
+| **3** | Frontend | `ProtectedRoute` + `useProfile` sync with `GET /api/profile` when `role` is still `guest` after OAuth `linkIdentity`; `USER_UPDATED` refreshes profile. |
+| **4** | Ops / tests | CI covers auth middleware; production must apply migrations **012** + **023**; Supabase flags: Anonymous sign-ins, **Allow manual linking** for Google on snapshot flow. |
 
 ---
 
@@ -108,17 +115,9 @@ The backend's **service role key** bypasses RLS — intentional. Routes must sti
 
 ## ProtectedRoute
 
-```tsx
-// src/app/components/ProtectedRoute.tsx
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, loading } = useAuth();
-  if (loading) return <LoadingSpinner />;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return <>{children}</>;
-}
-```
+Consultant and client routes use `ProtectedRoute` with **`useAuth`** + **`useProfile`**: load auth first, then (when `requiredRole` is set) wait for profile; **guest** users are redirected to **`/snapshot`** or blocked routes per `blockedForRoles`. Unauthenticated users go to `/login`. See `src/app/components/ProtectedRoute.tsx` and `src/app/routes.tsx` (`Consultant`, `Client`, `PNoGuest`).
 
-All pages except `/login` are wrapped with this. If a user navigates directly to `/pipeline/some-id` without being logged in, they see the login page. After login, the redirect sends them back to their intended URL (handled by React Router's `location.state`).
+Public paths stay outside `ProtectedRoute`: `/login`, `/snapshot`, intake discover aliases, etc.
 
 ---
 
