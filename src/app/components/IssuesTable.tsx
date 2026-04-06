@@ -21,9 +21,9 @@ export function IssuesTable({ issues }: IssuesTableProps) {
 
   const getSeverityBadge = (severity: string) => {
     const styles: Record<string, { bg: string; color: string; text: string }> = {
-      critical: { bg: '#FFF1F0', color: 'var(--status-critical)', text: 'Critical' },
-      high: { bg: '#FFF7ED', color: 'var(--status-needs-improvement)', text: 'High' },
-      medium: { bg: '#FFFBEB', color: 'var(--status-moderate)', text: 'Medium' },
+      critical: { bg: 'var(--score-1-bg)', color: 'var(--status-critical)', text: 'Critical' },
+      high: { bg: 'var(--score-2-bg)', color: 'var(--status-needs-improvement)', text: 'High' },
+      medium: { bg: 'var(--score-3-bg)', color: 'var(--status-moderate)', text: 'Medium' },
       low: { bg: 'var(--surface)', color: 'var(--text-secondary)', text: 'Low' }
     };
 
@@ -63,7 +63,7 @@ export function IssuesTable({ issues }: IssuesTableProps) {
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y" style={{ backgroundColor: 'white', borderColor: 'var(--panel-border)' }}>
+        <tbody className="divide-y" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--panel-border)' }}>
           {issues.map((issue) => (
             <tr key={issue.id} className="hover:bg-[var(--surface)] transition-colors">
               <td className="px-6 py-4 whitespace-nowrap">

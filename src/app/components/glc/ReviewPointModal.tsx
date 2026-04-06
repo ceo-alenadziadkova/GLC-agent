@@ -154,10 +154,10 @@ export function ReviewPointModal({ reviewPoint, open, onClose, onApprove, qualit
             >
               <div
                 className="flex items-center gap-2 px-4 py-2.5"
-                style={{ borderBottom: '1px solid rgba(249,115,22,0.2)', backgroundColor: 'rgba(249,115,22,0.1)' }}
+                style={{ borderBottom: '1px solid var(--score-2-border)', backgroundColor: 'var(--score-2-bg)' }}
               >
-                <WarningCircle size={15} weight="fill" style={{ color: '#F97316', flexShrink: 0 }} />
-                <span className="text-xs font-bold" style={{ color: '#C2410C' }}>
+                <WarningCircle size={15} weight="fill" style={{ color: 'var(--score-2)', flexShrink: 0 }} />
+                <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
                   {warnings.length} Quality Warning{warnings.length > 1 ? 's' : ''} — Notes Required
                 </span>
               </div>
@@ -166,9 +166,9 @@ export function ReviewPointModal({ reviewPoint, open, onClose, onApprove, qualit
                   <div
                     key={flag.id}
                     className="px-4 py-2.5"
-                    style={{ borderTop: i > 0 ? '1px solid rgba(249,115,22,0.15)' : 'none' }}
+                    style={{ borderTop: i > 0 ? '1px solid var(--score-2-border)' : 'none' }}
                   >
-                    <p className="text-xs leading-relaxed" style={{ color: '#92400E' }}>{flag.message}</p>
+                    <p className="text-xs leading-relaxed" style={{ color: 'var(--callout-warning-fg)' }}>{flag.message}</p>
                   </div>
                 ))}
               </div>

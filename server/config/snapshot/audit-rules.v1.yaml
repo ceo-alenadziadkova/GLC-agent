@@ -1,0 +1,296 @@
+# Free snapshot: full ADR-style grid (36 checks) with category budgets 30/30/20/20.
+version: 4
+rules:
+  - id: UX01
+    category: ux_clarity
+    maxPoints: 3
+    evaluator: metaDescriptionUseful
+    severity: medium
+    impactTier: medium
+    issueKey: UX01
+    quickWinKey: UX01
+  - id: UX02
+    category: ux_clarity
+    maxPoints: 3
+    evaluator: h1ServiceIntent
+    severity: high
+    impactTier: high
+    issueKey: UX02
+    quickWinKey: UX02
+  - id: UX03
+    category: ux_clarity
+    maxPoints: 3
+    evaluator: heroPrimaryCta
+    severity: high
+    impactTier: high
+    issueKey: UX03
+    quickWinKey: UX03
+  - id: UX04
+    category: ux_clarity
+    maxPoints: 3
+    evaluator: subheadingSupport
+    severity: medium
+    impactTier: medium
+    issueKey: UX04
+    quickWinKey: UX04
+  - id: UX05
+    category: ux_clarity
+    maxPoints: 3
+    evaluator: navBreadth
+    severity: medium
+    impactTier: medium
+    issueKey: UX05
+    quickWinKey: UX05
+  - id: UX06
+    category: ux_clarity
+    maxPoints: 3
+    evaluator: supportingCopyDepth
+    severity: medium
+    impactTier: medium
+    issueKey: UX06
+    quickWinKey: UX06
+  - id: UX07
+    category: ux_clarity
+    maxPoints: 3
+    evaluator: contactDiscoverable
+    severity: medium
+    impactTier: medium
+    issueKey: UX07
+    quickWinKey: UX07
+  - id: UX08
+    category: ux_clarity
+    maxPoints: 3
+    evaluator: trustBlocksPresent
+    severity: medium
+    impactTier: medium
+    issueKey: UX08
+    quickWinKey: UX08
+  - id: UX09
+    category: ux_clarity
+    maxPoints: 3
+    evaluator: htmlLangDeclared
+    severity: low
+    impactTier: medium
+    issueKey: UX09
+    quickWinKey: UX09
+  - id: UX10
+    category: ux_clarity
+    maxPoints: 3
+    evaluator: bodyContentDepth
+    severity: medium
+    impactTier: medium
+    issueKey: UX10
+    quickWinKey: UX10
+
+  - id: CV01
+    category: conversion_readiness
+    maxPoints: 3
+    evaluator: primaryCtaStrong
+    severity: high
+    impactTier: high
+    issueKey: CV01
+    quickWinKey: CV01
+  - id: CV02
+    category: conversion_readiness
+    maxPoints: 3
+    evaluator: ctaNoiseLevel
+    severity: medium
+    impactTier: medium
+    issueKey: CV02
+    quickWinKey: CV02
+  - id: CV03
+    category: conversion_readiness
+    maxPoints: 3
+    evaluator: formLabelsPresent
+    severity: medium
+    impactTier: medium
+    issueKey: CV03
+    quickWinKey: CV03
+  - id: CV04
+    category: conversion_readiness
+    maxPoints: 3
+    evaluator: pricingPathDiscoverable
+    severity: medium
+    impactTier: medium
+    issueKey: CV04
+    quickWinKey: CV04
+  - id: CV05
+    category: conversion_readiness
+    maxPoints: 3
+    evaluator: formFriction
+    severity: high
+    impactTier: high
+    issueKey: CV05
+    quickWinKey: CV05
+    skipForSiteTypes: [content-media]
+  - id: CV06
+    category: conversion_readiness
+    maxPoints: 3
+    evaluator: processStepsVisible
+    severity: low
+    impactTier: medium
+    issueKey: CV06
+    quickWinKey: CV06
+  - id: CV07
+    category: conversion_readiness
+    maxPoints: 3
+    evaluator: trustNearConversion
+    severity: medium
+    impactTier: high
+    issueKey: CV07
+    quickWinKey: CV07
+  - id: CV08
+    category: conversion_readiness
+    maxPoints: 3
+    evaluator: faqOrObjections
+    severity: medium
+    impactTier: medium
+    issueKey: CV08
+    quickWinKey: CV08
+    skipForSiteTypes: [content-media]
+  - id: CV09
+    category: conversion_readiness
+    maxPoints: 3
+    evaluator: reassuranceLanguage
+    severity: low
+    impactTier: medium
+    issueKey: CV09
+    quickWinKey: CV09
+  - id: CV10
+    category: conversion_readiness
+    maxPoints: 3
+    evaluator: conversionContextDepth
+    severity: medium
+    impactTier: medium
+    issueKey: CV10
+    quickWinKey: CV10
+
+  - id: AI01
+    category: ai_readiness
+    maxPoints: 3
+    evaluator: websiteSchema
+    severity: medium
+    impactTier: medium
+    issueKey: AI01
+    quickWinKey: AI01
+  - id: AI02
+    category: ai_readiness
+    maxPoints: 3
+    evaluator: productOrOfferSchema
+    severity: medium
+    impactTier: medium
+    issueKey: AI02
+    quickWinKey: AI02
+  - id: AI03
+    category: ai_readiness
+    maxPoints: 3
+    evaluator: organizationSchema
+    severity: high
+    impactTier: high
+    issueKey: AI03
+    quickWinKey: AI03
+  - id: AI04
+    category: ai_readiness
+    maxPoints: 3
+    evaluator: faqOrArticleSchema
+    severity: medium
+    impactTier: medium
+    issueKey: AI04
+    quickWinKey: AI04
+  - id: AI05
+    category: ai_readiness
+    maxPoints: 2
+    evaluator: howToOrCreativeSchema
+    severity: low
+    impactTier: low
+    issueKey: AI05
+    quickWinKey: AI05
+  - id: AI06
+    category: ai_readiness
+    maxPoints: 2
+    evaluator: reviewOrRatingSchema
+    severity: low
+    impactTier: low
+    issueKey: AI06
+    quickWinKey: AI06
+  - id: AI07
+    category: ai_readiness
+    maxPoints: 2
+    evaluator: schemaTypeBreadth
+    severity: medium
+    impactTier: medium
+    issueKey: AI07
+    quickWinKey: AI07
+  - id: AI08
+    category: ai_readiness
+    maxPoints: 2
+    evaluator: supplementalAiEntitySchema
+    severity: low
+    impactTier: low
+    issueKey: AI08
+    quickWinKey: AI08
+
+  - id: TB01
+    category: technical_basics
+    maxPoints: 3
+    evaluator: titlePresent
+    severity: high
+    impactTier: high
+    issueKey: TB01
+    quickWinKey: TB01
+  - id: TB02
+    category: technical_basics
+    maxPoints: 3
+    evaluator: viewportMetaPresent
+    severity: high
+    impactTier: high
+    issueKey: TB02
+    quickWinKey: TB02
+  - id: TB03
+    category: technical_basics
+    maxPoints: 3
+    evaluator: httpsHomepage
+    severity: high
+    impactTier: high
+    issueKey: TB03
+    quickWinKey: TB03
+  - id: TB04
+    category: technical_basics
+    maxPoints: 3
+    evaluator: imageAltCoverage
+    severity: medium
+    impactTier: medium
+    issueKey: TB04
+    quickWinKey: TB04
+  - id: TB05
+    category: technical_basics
+    maxPoints: 2
+    evaluator: canonicalHealthy
+    severity: medium
+    impactTier: medium
+    issueKey: TB05
+    quickWinKey: TB05
+  - id: TB06
+    category: technical_basics
+    maxPoints: 2
+    evaluator: publicIndexableHome
+    severity: high
+    impactTier: high
+    issueKey: TB06
+    quickWinKey: TB06
+  - id: TB07
+    category: technical_basics
+    maxPoints: 2
+    evaluator: openGraphBasics
+    severity: medium
+    impactTier: medium
+    issueKey: TB07
+    quickWinKey: TB07
+  - id: TB08
+    category: technical_basics
+    maxPoints: 2
+    evaluator: structuredDataShape
+    severity: medium
+    impactTier: medium
+    issueKey: TB08
+    quickWinKey: TB08

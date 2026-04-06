@@ -14,7 +14,9 @@ const AUTH_STUB = {
   session: null as Session | null,
   loading: false,
   isAuthenticated: false,
-  signInWithEmail: vi.fn(),
+  authError: null as string | null,
+  signInWithPassword: vi.fn(),
+  signUpWithPassword: vi.fn(),
   signInWithGoogle: vi.fn(),
   signOut: vi.fn(),
 };
@@ -35,7 +37,8 @@ describe('ProtectedRoute', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
   });
 

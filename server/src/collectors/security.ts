@@ -1,5 +1,6 @@
 import { BaseCollector } from './base.js';
 import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } from '../lib/public-http-url.js';
+import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
 
 interface SecurityHeaders {
   name: string;
@@ -13,6 +14,16 @@ export class SecurityCollector extends BaseCollector {
   get phase() { return 2; }
 
   async collect(_auditId: string, companyUrl: string) {
+    if (isNoPublicWebsiteUrl(companyUrl)) {
+      return {
+        ssl: { valid: false, redirects_to_https: false, status: 0 },
+        headers: [],
+        cookies: [],
+        mixed_content_hints: ['No public website — security headers not assessed against a live URL'],
+        exposed_info: [],
+      };
+    }
+
     try {
       await validatePublicAuditUrl(companyUrl);
     } catch (e) {

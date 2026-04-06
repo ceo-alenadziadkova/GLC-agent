@@ -1,6 +1,19 @@
+import { resolveExpressSlaRequiredIds, resolveFullSlaRequiredIds } from '../../../server/src/intake/brief-gates';
+import type { CollectionMode } from '../../../server/src/intake/types';
+import { INDUSTRY_OPTIONS } from './industry-options';
+import { briefResponsesToIntakeMap } from './intakeBriefMap';
+import { choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
+
 /**
  * Intake Brief question definitions — frontend copy of server/src/schemas/intake-brief.ts
- * Keep in sync with the server schema.
+ * (`BRIEF_QUESTIONS`). Keep copy, options, and section labels aligned on every bank change.
+ *
+ * Canonical runtime contract for branching and agent slices lives in:
+ * - `server/src/intake/question-bank.v1.json` (stub ids, priority, branch keys, prompt labels)
+ * - `server/src/intake/question-feed-roles.ts` (`QUESTION_FEED_ROLES` — primary/secondary per id)
+ * Long-term, UI copy here and server Zod shapes may be generated from an extended bank JSON; until then
+ * edit both files together and rely on Vitest `question bank v1 vs QUESTION_FEED_ROLES contract` in
+ * `server/src/tests/intake-engine.test.ts`.
  *
  * Priority:
  *   required     🔴 — pipeline blocked until all answered
@@ -8,21 +21,116 @@
  *   optional     🟢 — nice-to-have context
  */
 export type BriefPriority = 'required' | 'recommended' | 'optional';
-export type BriefQuestionType = 'free_text' | 'single_choice' | 'multi_choice' | 'number';
+export type BriefQuestionType = 'free_text' | 'single_choice' | 'multi_choice' | 'number' | 'rating' | 'confirm';
+export type BriefImportance = 'red' | 'yellow' | 'green';
+export type IntakeLayer = 0 | 1 | 2 | 3 | 'pre_brief';
+export type UxGroup = 'basics' | 'business' | 'tech' | 'audience' | 'goals';
+export type BriefResponseValue = string | string[] | number | boolean | null;
+export type BriefRevenueSignal = 'high' | 'medium' | 'low';
 
 export interface BriefQuestion {
   id: string;
   priority: BriefPriority;
-  section: string;
+  importance?: BriefImportance;
+  intake_layer?: IntakeLayer;
+  weight?: number;
+  ux_group?: UxGroup;
+  /** Set for all brief definitions; public intake may rely on API-populated sections. */
+  section?: string;
   question: string;
   hint?: string;
+  consultant_hint?: string;
+  revenue_signal?: BriefRevenueSignal;
+  triggers_followup?: string[];
   type: BriefQuestionType;
   options?: string[];
 }
 
-export type BriefResponses = Record<string, string | string[] | number | null>;
+export interface BriefResponseEntry {
+  value: BriefResponseValue;
+  source: 'client' | 'consultant' | 'recon_confirmed' | 'unknown';
+}
 
-export const BRIEF_QUESTIONS: BriefQuestion[] = [
+export type BriefResponses = Record<string, BriefResponseValue | BriefResponseEntry>;
+
+/** Public /intake/:token only — same response keys as server (not in BRIEF_QUESTIONS). */
+const BASE_INTAKE_IDENTITY_QUESTIONS: BriefQuestion[] = [
+  {
+    id: 'intake_company_website',
+    priority: 'required',
+    section: 'Business',
+    question: 'Company website',
+    hint: 'Full URL (https://…). If you do not have a website yet, write "none" or "no website".',
+    type: 'free_text',
+  },
+  {
+    id: 'intake_company_name',
+    priority: 'required',
+    section: 'Business',
+    question: 'Company name',
+    hint: 'Legal or trading name — as you want it shown on the audit.',
+    type: 'free_text',
+  },
+  {
+    id: 'intake_industry',
+    priority: 'required',
+    section: 'Business',
+    question: 'Primary industry or sector',
+    hint: 'Choose the closest match; you can change it if needed.',
+    type: 'single_choice',
+    options: [...INDUSTRY_OPTIONS],
+  },
+  {
+    id: 'intake_industry_specify',
+    priority: 'optional',
+    section: 'Business',
+    question: 'Which industry or sector?',
+    hint: 'You chose Other — briefly describe your industry (e.g. niche manufacturing, creator economy).',
+    type: 'free_text',
+  },
+];
+
+const BASE_BRIEF_QUESTIONS: BriefQuestion[] = [
+  {
+    id: 'f2',
+    priority: 'recommended',
+    section: 'Goals',
+    question: 'Which areas are you most interested in improving with this audit?',
+    hint: 'Select all that apply — this helps us balance depth across domains.',
+    type: 'multi_choice',
+    options: [
+      'Website performance and technology (speed, stability, technical health)',
+      'Online visibility and SEO (finding and attracting the right traffic)',
+      'Customer experience and conversions (turning visitors into customers)',
+      'Marketing and positioning (clarity of message and differentiation)',
+      'Process automation and efficiency (less manual work and handoffs)',
+      'Security, compliance and risk (avoiding costly surprises)',
+    ],
+  },
+  {
+    id: 'a7',
+    priority: 'recommended',
+    section: 'Business',
+    question: 'How would you describe where your business is right now? (not company age — the moment)',
+    hint: 'This shapes tone and whether we emphasise quick wins vs. foundation work.',
+    type: 'single_choice',
+    options: ['Launching', 'Growing fast', 'Stabilising', 'Scaling', 'Mature and optimising'],
+  },
+  {
+    id: 'f8',
+    priority: 'recommended',
+    section: 'Goals',
+    question: 'Is there a deadline or key moment driving this audit?',
+    hint: 'Helps us prioritise sequencing of recommendations.',
+    type: 'single_choice',
+    options: [
+      'Opening or launch soon',
+      'Seasonal peak coming',
+      'Investor, partner, or board review',
+      'Contract or compliance milestone',
+      'No specific deadline',
+    ],
+  },
   // ── Business Basics ──────────────────────────────────────
   {
     id: 'primary_goal', priority: 'required', section: 'Business',
@@ -185,16 +293,306 @@ export const BRIEF_QUESTIONS: BriefQuestion[] = [
   },
 ];
 
-export const REQUIRED_IDS = BRIEF_QUESTIONS.filter(q => q.priority === 'required').map(q => q.id);
-export const BRIEF_SECTIONS = [...new Set(BRIEF_QUESTIONS.map(q => q.section))];
+/** Express SLA base ids; `c5`/`c3` added when website branch is visible (see `resolveExpressSlaRequiredIds`). */
+export const EXPRESS_REQUIRED_QUESTION_IDS = [
+  'f1',
+  'b1',
+  'revenue_model',
+  'a6',
+] as const;
 
+const PRE_BRIEF_IDS = new Set<string>([
+  'intake_company_website',
+  'intake_company_name',
+  'intake_industry',
+  'intake_industry_specify',
+  'f2',
+  'a7',
+  'f8',
+  'f1',
+  'b1',
+  'revenue_model',
+  'a6',
+  'c5',
+  'c3',
+]);
+
+const HIGH_REVENUE_QUESTION_IDS = new Set<string>([
+  'primary_goal',
+  'biggest_pain',
+  'uses_crm',
+  'handles_payments',
+  'unique_value_prop',
+]);
+
+const CONSULTANT_HINTS: Record<string, string> = {
+  intake_company_website: 'Confirm live URL; social-only or pre-launch — capture where prospects actually go.',
+  intake_company_name: 'Legal vs trading name if it affects positioning or contracts.',
+  intake_industry: 'Confirm the closest list match; probe sub-niche in the interview if needed.',
+  intake_industry_specify: 'If Other, capture how they describe the vertical in their own words.',
+  primary_goal: 'Confirm the north-star KPI and timeline; note tensions between growth vs. cost.',
+  target_audience: 'Probe jobs-to-be-done, regions, and budget authority.',
+  revenue_model: 'Clarify average deal size or basket value and seasonality.',
+  monthly_visitors: 'Validate traffic source split if they are guessing.',
+  monthly_revenue: 'If declined, note order-of-magnitude verbally for context only.',
+  primary_cta: 'Walk through the main funnel step-by-step as a user would.',
+  conversion_rate: 'Ask how measured (tool, definition of conversion).',
+  biggest_ux_complaint: 'Ask for evidence: quotes, support tickets, or analytics.',
+  top_keywords: 'Check branded vs. non-branded priority.',
+  main_traffic_source: 'Challenge single-channel reliance if they depend on one lane.',
+  has_google_analytics: 'Ask who owns access and if goals are configured.',
+  has_search_console: 'Confirm verification and coverage issues familiarity.',
+  cms_platform: 'Note who can deploy changes and typical release cadence.',
+  hosting_provider: 'Capture SLA concerns and incident history if any.',
+  has_staging: 'If no staging, flag launch-risk for changes.',
+  handles_payments: 'Clarify PCI scope and who owns gateway configuration.',
+  gdpr_region: 'Check legal owner for privacy and consent tooling.',
+  has_privacy_policy: 'Ask when it was last reviewed vs. actual tracking.',
+  main_competitors: 'Get named URLs and why customers pick them.',
+  unique_value_prop: 'Test positioning in one sentence; note customer language vs. internal jargon.',
+  active_channels: 'Prioritise spend and internal bandwidth per channel.',
+  uses_crm: 'Capture edition, integrations, and data hygiene.',
+  email_automation: 'Map triggers, volumes, and ownership.',
+  biggest_pain: 'Restate pain as a measurable gap they agree with.',
+  budget_for_changes: 'Frame as ranges for fix vs. strategic initiatives.',
+};
+
+const TRIGGERS_FOLLOWUP: Record<string, string[]> = {
+  uses_crm: ['email_automation'],
+  has_google_analytics: ['conversion_rate'],
+  revenue_model: ['primary_cta'],
+};
+
+function enrichQuestion(question: BriefQuestion): BriefQuestion {
+  const importance: BriefImportance = question.priority === 'required'
+    ? 'red'
+    : question.priority === 'recommended'
+      ? 'yellow'
+      : 'green';
+  const weight = importance === 'red' ? 3 : importance === 'yellow' ? 2 : 1;
+
+  let ux_group: UxGroup = 'business';
+  if (question.id.startsWith('intake_')) {
+    ux_group = 'basics';
+  } else if (question.section?.includes('Tech') || question.section?.includes('Security')) {
+    ux_group = 'tech';
+  } else if (question.section?.includes('SEO')) {
+    ux_group = 'audience';
+  } else if (question.id === 'primary_goal' || question.id === 'biggest_pain' || question.id === 'f2' || question.id === 'f8') {
+    ux_group = 'goals';
+  } else if (question.id === 'a7') {
+    ux_group = 'business';
+  } else if (question.id === 'revenue_model' || question.id === 'monthly_revenue') {
+    ux_group = 'basics';
+  }
+
+  let intake_layer: IntakeLayer = question.priority === 'required' ? 1 : 2;
+  if (PRE_BRIEF_IDS.has(question.id)) {
+    intake_layer = 'pre_brief';
+  }
+
+  const revenue_signal: BriefRevenueSignal = HIGH_REVENUE_QUESTION_IDS.has(question.id)
+    ? 'high'
+    : question.priority === 'optional'
+      ? 'low'
+      : 'medium';
+
+  return {
+    ...question,
+    importance,
+    weight,
+    ux_group,
+    intake_layer,
+    consultant_hint: CONSULTANT_HINTS[question.id],
+    revenue_signal,
+    triggers_followup: TRIGGERS_FOLLOWUP[question.id] ?? [],
+  };
+}
+
+export const BRIEF_QUESTIONS: BriefQuestion[] = BASE_BRIEF_QUESTIONS.map(enrichQuestion);
+
+export const INTAKE_IDENTITY_BRIEF_QUESTIONS: BriefQuestion[] = BASE_INTAKE_IDENTITY_QUESTIONS.map(enrichQuestion);
+
+export const INTAKE_IDENTITY_FIELD_IDS = [
+  'intake_company_website',
+  'intake_company_name',
+  'intake_industry',
+  'intake_industry_specify',
+] as const;
+
+export function getBriefQuestionText(id: string): string {
+  return (
+    BRIEF_QUESTIONS.find(q => q.id === id)?.question
+    ?? INTAKE_IDENTITY_BRIEF_QUESTIONS.find(q => q.id === id)?.question
+    ?? id.replace(/_/g, ' ')
+  );
+}
+
+export const REQUIRED_IDS = BRIEF_QUESTIONS.filter(q => q.priority === 'required').map(q => q.id);
+/** IDs checked before pipeline start — matches server `evaluateBriefGates` per product mode. */
+export function pipelineRequiredIdsForProductMode(
+  mode: 'full' | 'express',
+  responses: BriefResponses,
+  collectionMode?: CollectionMode,
+): string[] {
+  const m = briefResponsesToIntakeMap(responses);
+  return mode === 'express'
+    ? [...resolveExpressSlaRequiredIds(m, collectionMode)]
+    : [...resolveFullSlaRequiredIds(m, collectionMode)];
+}
+export const PRE_BRIEF_QUESTION_IDS = BRIEF_QUESTIONS
+  .filter(q => q.intake_layer === 'pre_brief')
+  .map(q => q.id);
+export const BRIEF_SECTIONS = [...new Set(BRIEF_QUESTIONS.map(q => q.section).filter(Boolean) as string[])];
+export const BRIEF_UX_GROUPS = [...new Set(BRIEF_QUESTIONS.map(q => q.ux_group))];
+
+/** Adjacent questions with the same `section` become one block (public `/intake`, review step). */
+export function groupBriefQuestionsBySection(
+  ordered: BriefQuestion[],
+): Array<{ section: string; questions: BriefQuestion[] }> {
+  const groups: Array<{ section: string; questions: BriefQuestion[] }> = [];
+  for (const q of ordered) {
+    const section = (q.section?.trim() || 'Questions').trim();
+    const last = groups[groups.length - 1];
+    if (last && last.section === section) {
+      last.questions.push(q);
+    } else {
+      groups.push({ section, questions: [q] });
+    }
+  }
+  return groups;
+}
+
+export function unwrapResponse(value: BriefResponseValue | BriefResponseEntry | undefined): BriefResponseValue | undefined {
+  if (value != null && typeof value === 'object' && !Array.isArray(value) && 'value' in value) {
+    return value.value;
+  }
+  return value as BriefResponseValue | undefined;
+}
+
+/** True if the field has no usable answer yet (used to apply consultant metadata prefill on public intake). */
+export function isBriefValueBlank(raw: BriefResponses[string] | undefined): boolean {
+  if (raw === undefined) return true;
+  if (isExplicitUnknown(raw)) return false;
+  const v = unwrapResponse(raw);
+  if (v === null || v === undefined) return true;
+  if (typeof v === 'string') return v.trim() === '';
+  if (typeof v === 'number') return false;
+  if (typeof v === 'boolean') return false;
+  if (Array.isArray(v)) return v.length === 0;
+  return true;
+}
+
+/**
+ * Deep-enough merge for saving intake brief: non-blank local answers win; otherwise keep server.
+ * Prevents wiping token-merged pre-brief when local React state missed some keys (e.g. expired public GET).
+ */
+export function mergeBriefResponsesPreferFilled(
+  server: BriefResponses,
+  local: BriefResponses
+): BriefResponses {
+  const keys = new Set([...Object.keys(server), ...Object.keys(local)]);
+  const out: BriefResponses = {};
+  for (const id of keys) {
+    const s = server[id];
+    const l = local[id];
+    const sOk = !isBriefValueBlank(s);
+    const lOk = !isBriefValueBlank(l);
+    if (lOk) {
+      out[id] = l as BriefResponseEntry;
+    } else if (sOk) {
+      out[id] = s as BriefResponseEntry;
+    } else if (l !== undefined) {
+      out[id] = l as BriefResponseEntry;
+    } else if (s !== undefined) {
+      out[id] = s as BriefResponseEntry;
+    }
+  }
+  return out;
+}
+
+function isExplicitUnknown(raw: BriefResponses[string] | undefined): boolean {
+  if (raw != null && typeof raw === 'object' && !Array.isArray(raw) && 'source' in raw) {
+    return (raw as BriefResponseEntry).source === 'unknown';
+  }
+  return false;
+}
+
+/** Counts questions satisfied for gating: real answers or explicit "I don't know" (source unknown). */
 export function countAnswered(responses: BriefResponses, ids: string[]): number {
   return ids.filter(id => {
-    const v = responses[id];
+    if (isExplicitUnknown(responses[id])) return true;
+    const v = unwrapResponse(responses[id]);
     if (v === null || v === undefined) return false;
     if (typeof v === 'string') return v.trim().length > 0;
     if (typeof v === 'number') return true;
+    if (typeof v === 'boolean') return true;
     if (Array.isArray(v)) return v.length > 0;
     return false;
   }).length;
+}
+
+/** True when primary industry is Other (shows follow-up specify field on public pre-brief). */
+export function intakeIndustryIsOther(responses: BriefResponses): boolean {
+  return unwrapResponse(responses.intake_industry) === 'Other';
+}
+
+/** Pre-brief completion per slot (industry Other + choice "specify" options). */
+export function isPreBriefQuestionSatisfied(questionId: string, responses: BriefResponses): boolean {
+  if (questionId === 'intake_industry_specify') {
+    if (!intakeIndustryIsOther(responses)) return true;
+    return countAnswered(responses, [questionId]) >= 1;
+  }
+  const mainVal = unwrapResponse(responses[questionId]);
+  if (questionId === 'c3' && typeof mainVal === 'string' && choiceValueNeedsSpecify(mainVal)) {
+    const spec = unwrapResponse(responses.c3__other);
+    return typeof spec === 'string' && spec.trim().length > 0;
+  }
+  return countAnswered(responses, [questionId]) >= 1;
+}
+
+/** Slot list for public pre-brief progress + server submit validation (identity + core). */
+export function getPreBriefSubmitSlotIds(responses: BriefResponses): string[] {
+  const ids: string[] = [
+    INTAKE_IDENTITY_FIELD_IDS[0],
+    INTAKE_IDENTITY_FIELD_IDS[1],
+    INTAKE_IDENTITY_FIELD_IDS[2],
+  ];
+  if (intakeIndustryIsOther(responses)) {
+    ids.push(INTAKE_IDENTITY_FIELD_IDS[3]);
+  }
+  const m = briefResponsesToIntakeMap(responses);
+  ids.push(...resolveExpressSlaRequiredIds(m));
+  return ids;
+}
+
+export function countPreBriefSatisfied(responses: BriefResponses): number {
+  return getPreBriefSubmitSlotIds(responses).filter(id => isPreBriefQuestionSatisfied(id, responses)).length;
+}
+
+/** One-line summary for review / read-only lists (intake, exports). */
+export function formatBriefAnswerSummary(
+  q: BriefQuestion,
+  raw: BriefResponses[string] | undefined,
+  allResponses?: BriefResponses,
+): string {
+  if (raw === undefined) return '—';
+  if (isExplicitUnknown(raw)) return "Don't know (consultant will follow up)";
+  const v = unwrapResponse(raw);
+  if (v === null || v === undefined) return '—';
+  let line: string;
+  if (typeof v === 'string') line = v.trim() || '—';
+  else if (typeof v === 'number') line = String(v);
+  else if (typeof v === 'boolean') line = v ? 'Yes' : 'No';
+  else if (Array.isArray(v)) line = v.length ? v.join(', ') : '—';
+  else line = '—';
+
+  if (allResponses && choiceValueNeedsSpecify(v)) {
+    const specKey = q.id === 'intake_industry' ? 'intake_industry_specify' : `${q.id}__other`;
+    const spec = unwrapResponse(allResponses[specKey]);
+    if (typeof spec === 'string' && spec.trim()) {
+      line = `${line} (${spec.trim()})`;
+    }
+  }
+  return line;
 }

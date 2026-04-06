@@ -8,12 +8,15 @@ import { FactChecker } from '../services/fact-checker.js';
 import { TokenTracker } from '../services/token-tracker.js';
 import { type BaseCollector } from '../collectors/base.js';
 import type { DomainResult, DomainKey } from '../types/audit.js';
+import { followupQuestionsFromUnknowns } from '../lib/post-audit-followups.js';
 import { DomainOutputSchema, zodToJsonSchema } from '../schemas/domain-output.js';
 import { CLAUDE_MODEL, MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
+import { logger } from '../services/logger.js';
+import { getContext, updateContext } from '../services/observability-context.js';
 import type { z } from 'zod';
 
 const MAX_RETRIES = 3;
-const RETRY_BASE_MS = 2000;
+const RETRY_BASE_MS = 1500;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROMPTS_DIR = join(__dirname, '../../prompts');
@@ -28,7 +31,7 @@ export function loadPrompt(name: string): string {
     // Strip the HTML version comment header line if present
     return raw.replace(/^<!--.*?-->\n/, '').trimStart();
   } catch {
-    console.error(`[loadPrompt] Missing prompt file: ${name}.md`);
+    logger.error('agent.load_prompt_missing', { component: 'agent', prompt: `${name}.md` });
     return '';
   }
 }
@@ -154,18 +157,22 @@ export abstract class BaseAgent {
   /**
    * Call Claude with retry and exponential backoff.
    */
-  private async callClaudeWithRetry(context: AgentContext): Promise<DomainResult> {
+  protected async callClaudeWithRetry(
+    context: AgentContext,
+    schema: z.ZodSchema = this.outputSchema,
+    maxTokens: number = MODEL_MAX_TOKENS.domain
+  ): Promise<DomainResult> {
     const { system, prompt, truncated, truncatedKeys } = this.contextBuilder.formatPrompt(context);
     if (truncated) {
       await this.emit('warning', `Context truncated for keys: ${truncatedKeys.join(', ')}`);
     }
-    const jsonSchema = zodToJsonSchema(this.outputSchema);
+    const jsonSchema = zodToJsonSchema(schema);
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
         const response = await this.anthropic.messages.create({
           model: CLAUDE_MODEL,
-          max_tokens: MODEL_MAX_TOKENS.domain,
+          max_tokens: maxTokens,
           system,                                       // ← role instructions in system channel
           messages: [{ role: 'user', content: prompt }],
           tools: [{
@@ -190,7 +197,7 @@ export abstract class BaseAgent {
         });
 
         // Validate with Zod
-        const parsed = this.outputSchema.safeParse(toolBlock.input);
+        const parsed = schema.safeParse(toolBlock.input);
         if (!parsed.success) {
           await this.emit('log', `⚠ Validation error (attempt ${attempt}): ${parsed.error.message}`);
           if (attempt === MAX_RETRIES) {
@@ -205,12 +212,20 @@ export abstract class BaseAgent {
 
         // Retry on rate limit or server errors
         if ((error.status === 429 || error.status === 500 || error.status === 529) && attempt < MAX_RETRIES) {
-          const delay = RETRY_BASE_MS * Math.pow(2, attempt - 1);
+          const jitter = Math.floor(Math.random() * 300);
+          const delay = RETRY_BASE_MS * Math.pow(2, attempt - 1) + jitter;
           await this.emit('log', `⚠ API error (${error.status}), retrying in ${delay}ms...`);
           await sleep(delay);
           continue;
         }
 
+        logger.error('Claude call failed', {
+          phase: this.phaseNumber,
+          domain_key: this.domainKey,
+          attempt,
+          status: error.status ?? null,
+          error: error.message,
+        });
         throw err;
       }
     }
@@ -240,6 +255,7 @@ export abstract class BaseAgent {
       recommendations: result.recommendations,
       unknown_items: result.unknown_items ?? [],
       confidence_distribution: result.confidence_distribution ?? null,
+      prompt_version: promptVersion(this.domainKey),
     };
 
     // Atomic claim: UPDATE WHERE status='pending'.
@@ -253,38 +269,81 @@ export abstract class BaseAgent {
       .eq('status', 'pending')
       .select('id');
 
-    if (updated && updated.length > 0) {
-      // Claimed and updated the placeholder atomically — done.
-      return;
+    if (!(updated && updated.length > 0)) {
+      // No pending placeholder — retry path: find the highest existing version
+      // and insert a new row at version + 1.
+      const { data: latest } = await supabase
+        .from('audit_domains')
+        .select('version')
+        .eq('audit_id', this.auditId)
+        .eq('domain_key', this.domainKey)
+        .order('version', { ascending: false })
+        .limit(1)
+        .single();
+
+      await supabase.from('audit_domains').insert({
+        audit_id: this.auditId,
+        domain_key: this.domainKey,
+        phase_number: this.phaseNumber,
+        version: (latest?.version ?? 1) + 1,
+        ...payload,
+      });
     }
 
-    // No pending placeholder — retry path: find the highest existing version
-    // and insert a new row at version + 1.
-    const { data: latest } = await supabase
-      .from('audit_domains')
-      .select('version')
-      .eq('audit_id', this.auditId)
-      .eq('domain_key', this.domainKey)
-      .order('version', { ascending: false })
-      .limit(1)
-      .single();
+    await this.mergePostAuditFollowups(result);
+  }
 
-    await supabase.from('audit_domains').insert({
-      audit_id: this.auditId,
-      domain_key: this.domainKey,
-      phase_number: this.phaseNumber,
-      version: (latest?.version ?? 1) + 1,
-      ...payload,
-    });
+  /**
+   * Append domain-specific follow-up brief questions from unknown_items (idempotent per domain+id).
+   */
+  private async mergePostAuditFollowups(result: DomainResult): Promise<void> {
+    const dk = this.domainKey;
+    if (dk === 'recon' || dk === 'strategy') return;
+
+    const newQs = followupQuestionsFromUnknowns(dk as DomainKey, result.unknown_items ?? []);
+    if (newQs.length === 0) return;
+
+    const { data: row, error } = await supabase
+      .from('intake_brief')
+      .select('post_audit_questions')
+      .eq('audit_id', this.auditId)
+      .maybeSingle();
+
+    if (error) return; // real DB error — skip silently, don't corrupt state
+
+    const existing = (row?.post_audit_questions as Array<{ domain?: string; id?: string }>) ?? [];
+    const existingKeys = new Set(existing.map(q => `${q.domain}:${q.id}`));
+    const toAdd = newQs.filter(q => !existingKeys.has(`${q.domain}:${q.id}`));
+    if (toAdd.length === 0) return;
+
+    const merged = [...existing, ...toAdd];
+
+    if (!row) {
+      // intake_brief row doesn't exist yet — create it with just the followup questions
+      await supabase
+        .from('intake_brief')
+        .insert({ audit_id: this.auditId, post_audit_questions: merged, responses: {} });
+    } else {
+      await supabase
+        .from('intake_brief')
+        .update({ post_audit_questions: merged })
+        .eq('audit_id', this.auditId);
+    }
   }
 
   protected async emit(eventType: string, message: string, data: Record<string, unknown> = {}): Promise<void> {
+    updateContext({ auditId: this.auditId });
+    const ctx = getContext();
     await supabase.from('pipeline_events').insert({
       audit_id: this.auditId,
       phase: this.phaseNumber,
       event_type: eventType,
       message,
-      data,
+      data: {
+        ...data,
+        trace_id: ctx?.traceId,
+        operation_id: ctx?.operationId,
+      },
     });
   }
 

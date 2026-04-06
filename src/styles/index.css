@@ -2,6 +2,62 @@
 @import './tailwind.css';
 @import './theme.css';
 
+/* Canvas + vignette when dark (matches G-Power loader reference) */
+html.dark {
+  background-color: var(--bg-canvas);
+}
+
+html.dark::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(circle, transparent 40%, rgba(0, 0, 0, 0.5) 100%);
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+  min-height: 100dvh;
+}
+
+/* ── Snapshot landing — animated gradient text (background-clip) ───────── */
+@keyframes glc-gradient-text-flow {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.glc-gradient-text-flow {
+  background: linear-gradient(
+    105deg,
+    var(--glc-blue) 0%,
+    var(--glc-blue-light) 18%,
+    #f24f1d 40%,
+    #ffb38a 58%,
+    var(--glc-green-light) 78%,
+    var(--glc-blue) 100%
+  );
+  background-size: 240% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: glc-gradient-text-flow 6.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glc-gradient-text-flow {
+    animation: none;
+    background-position: 0% 50%;
+  }
+}
+
 /* ── Print / PDF export ─────────────────────────────────────────── */
 @media print {
   /* Hide navigation, toolbars, and interactive controls */

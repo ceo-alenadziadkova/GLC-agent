@@ -1,5 +1,8 @@
 /**
- * Intake Brief — 25 questions across all domains.
+ * Intake Brief — 25 questions in the main schema (full / express brief).
+ * Identity fields (website, name, industry, Other specify) are in INTAKE_IDENTITY_BRIEF_QUESTIONS.
+ * They are always returned on public /intake/:token (and prefill) — clients must still complete them there.
+ * Consultants enter the same fields on New Audit step 0; step 2 full brief does not repeat them.
  *
  * Priority legend:
  *   🔴 required     — pipeline is BLOCKED until all required questions are answered
@@ -8,13 +11,96 @@
  *
  * Each question maps to one or more domain agents that will receive it in
  * their context slice (via ContextBuilder.build()).
+ *
+ * UI copy is mirrored in `src/app/data/briefQuestions.ts`. Bank ids / branches / agent feeds are
+ * canonical in `server/src/intake/question-bank.v1.json` and `question-feed-roles.ts` — see Vitest
+ * contract test in `intake-engine.test.ts`.
  */
 import { z } from 'zod';
 import type { BriefQuestion } from '../types/audit.js';
+import { INDUSTRY_OPTIONS } from '../config/industry-options.js';
 
 // ─── Question definitions ─────────────────────────────────────────────────────
 
-export const BRIEF_QUESTIONS: BriefQuestion[] = [
+/** Shown on public /intake/:token only — same keys as saved in responses (not listed in BRIEF_QUESTIONS). */
+const BASE_INTAKE_IDENTITY_QUESTIONS: BriefQuestion[] = [
+  {
+    id: 'intake_company_website',
+    priority: 'required',
+    domains: ['all'],
+    question: 'Company website',
+    hint: 'Full URL (https://…). If you do not have a website yet, write "none" or "no website".',
+    type: 'free_text',
+  },
+  {
+    id: 'intake_company_name',
+    priority: 'required',
+    domains: ['all'],
+    question: 'Company name',
+    hint: 'Legal or trading name — as you want it shown on the audit.',
+    type: 'free_text',
+  },
+  {
+    id: 'intake_industry',
+    priority: 'required',
+    domains: ['all'],
+    question: 'Primary industry or sector',
+    hint: 'Choose the closest match; you can change it if needed.',
+    type: 'single_choice',
+    options: [...INDUSTRY_OPTIONS],
+  },
+  {
+    id: 'intake_industry_specify',
+    priority: 'optional',
+    domains: ['all'],
+    question: 'Which industry or sector?',
+    hint: 'You chose Other — briefly describe your industry (e.g. niche manufacturing, creator economy).',
+    type: 'free_text',
+  },
+];
+
+const BASE_BRIEF_QUESTIONS: BriefQuestion[] = [
+  // ── Pre-brief bank slice (before primary_goal / f1 — narrowing & context) ─
+  {
+    id: 'f2',
+    priority: 'recommended',
+    domains: ['all'],
+    question: 'Which areas are you most interested in improving with this audit?',
+    hint: 'Select all that apply — this helps us balance depth across domains.',
+    type: 'multi_choice',
+    options: [
+      'Website performance and technology (speed, stability, technical health)',
+      'Online visibility and SEO (finding and attracting the right traffic)',
+      'Customer experience and conversions (turning visitors into customers)',
+      'Marketing and positioning (clarity of message and differentiation)',
+      'Process automation and efficiency (less manual work and handoffs)',
+      'Security, compliance and risk (avoiding costly surprises)',
+    ],
+  },
+  {
+    id: 'a7',
+    priority: 'recommended',
+    domains: ['all'],
+    question: 'How would you describe where your business is right now? (not company age — the moment)',
+    hint: 'This shapes tone and whether we emphasise quick wins vs. foundation work.',
+    type: 'single_choice',
+    options: ['Launching', 'Growing fast', 'Stabilising', 'Scaling', 'Mature and optimising'],
+  },
+  {
+    id: 'f8',
+    priority: 'recommended',
+    domains: ['all'],
+    question: 'Is there a deadline or key moment driving this audit?',
+    hint: 'Helps us prioritise sequencing of recommendations.',
+    type: 'single_choice',
+    options: [
+      'Opening or launch soon',
+      'Seasonal peak coming',
+      'Investor, partner, or board review',
+      'Contract or compliance milestone',
+      'No specific deadline',
+    ],
+  },
   // ── Business Basics (all agents) ──────────────────────────────────────────
   {
     id: 'primary_goal',
@@ -227,12 +313,218 @@ export const BRIEF_QUESTIONS: BriefQuestion[] = [
   },
 ];
 
+/**
+ * Express SLA base ids (always). `c5` / `c3` are added when `has_website` branch is visible — see `resolveExpressSlaRequiredIds`.
+ */
+export const EXPRESS_REQUIRED_QUESTION_IDS = [
+  'f1',
+  'b1',
+  'revenue_model',
+  'a6',
+] as const;
+
+const PRE_BRIEF_IDS = new Set<string>([
+  'intake_company_website',
+  'intake_company_name',
+  'intake_industry',
+  'intake_industry_specify',
+  'f2',
+  'a7',
+  'f8',
+  'f1',
+  'b1',
+  'revenue_model',
+  'a6',
+  'c5',
+  'c3',
+]);
+
+/**
+ * Pre-brief submit core after identity (bank ids). `c5` / `c3` are enforced only when visible for the client's answers.
+ */
+export const PRE_BRIEF_REQUIRED_SUBMIT_IDS = [
+  'f1',
+  'b1',
+  'revenue_model',
+  'a6',
+  'c5',
+  'c3',
+] as const;
+
+/** Fewer «high» signals keeps impact weighting meaningful. */
+const HIGH_REVENUE_QUESTION_IDS = new Set<string>([
+  'primary_goal',
+  'biggest_pain',
+  'uses_crm',
+  'handles_payments',
+  'unique_value_prop',
+]);
+
+const CONSULTANT_HINTS: Record<string, string> = {
+  intake_company_website: 'Confirm live URL; social-only or pre-launch — capture where prospects actually go.',
+  intake_company_name: 'Legal vs trading name if it affects positioning or contracts.',
+  intake_industry: 'Confirm the closest list match; probe sub-niche in the interview if needed.',
+  intake_industry_specify: 'If Other, capture how they describe the vertical in their own words.',
+  primary_goal: 'Confirm the north-star KPI and timeline; note tensions between growth vs. cost.',
+  target_audience: 'Probe jobs-to-be-done, regions, and budget authority.',
+  revenue_model: 'Clarify average deal size or basket value and seasonality.',
+  monthly_visitors: 'Validate traffic source split if they are guessing.',
+  monthly_revenue: 'If declined, note order-of-magnitude verbally for context only.',
+  primary_cta: 'Walk through the main funnel step-by-step as a user would.',
+  conversion_rate: 'Ask how measured (tool, definition of conversion).',
+  biggest_ux_complaint: 'Ask for evidence: quotes, support tickets, or analytics.',
+  top_keywords: 'Check branded vs. non-branded priority.',
+  main_traffic_source: 'Challenge single-channel reliance if they depend on one lane.',
+  has_google_analytics: 'Ask who owns access and if goals are configured.',
+  has_search_console: 'Confirm verification and coverage issues familiarity.',
+  cms_platform: 'Note who can deploy changes and typical release cadence.',
+  hosting_provider: 'Capture SLA concerns and incident history if any.',
+  has_staging: 'If no staging, flag launch-risk for changes.',
+  handles_payments: 'Clarify PCI scope and who owns gateway configuration.',
+  gdpr_region: 'Check legal owner for privacy and consent tooling.',
+  has_privacy_policy: 'Ask when it was last reviewed vs. actual tracking.',
+  main_competitors: 'Get named URLs and why customers pick them.',
+  unique_value_prop: 'Test positioning in one sentence; note customer language vs. internal jargon.',
+  active_channels: 'Prioritise spend and internal bandwidth per channel.',
+  uses_crm: 'Capture edition, integrations, and data hygiene.',
+  email_automation: 'Map triggers, volumes, and ownership.',
+  biggest_pain: 'Restate pain as a measurable gap they agree with.',
+  budget_for_changes: 'Frame as ranges for fix vs. strategic initiatives.',
+};
+
+const TRIGGERS_FOLLOWUP: Record<string, string[]> = {
+  uses_crm: ['email_automation'],
+  has_google_analytics: ['conversion_rate'],
+  revenue_model: ['primary_cta'],
+};
+
+/**
+ * Section labels for progressive intake UI — mirror `src/app/data/briefQuestions.ts`.
+ */
+export const BRIEF_QUESTION_UI_SECTION: Record<string, string> = {
+  intake_company_website: 'Business',
+  intake_company_name: 'Business',
+  intake_industry: 'Business',
+  intake_industry_specify: 'Business',
+  f2: 'Goals',
+  a7: 'Business',
+  f8: 'Goals',
+  primary_goal: 'Business',
+  target_audience: 'Business',
+  revenue_model: 'Business',
+  monthly_visitors: 'Business',
+  monthly_revenue: 'Business',
+  primary_cta: 'UX & Conversion',
+  conversion_rate: 'UX & Conversion',
+  biggest_ux_complaint: 'UX & Conversion',
+  top_keywords: 'SEO & Digital',
+  main_traffic_source: 'SEO & Digital',
+  has_google_analytics: 'SEO & Digital',
+  has_search_console: 'SEO & Digital',
+  cms_platform: 'Tech & Infrastructure',
+  hosting_provider: 'Tech & Infrastructure',
+  has_staging: 'Tech & Infrastructure',
+  handles_payments: 'Security & Compliance',
+  gdpr_region: 'Security & Compliance',
+  has_privacy_policy: 'Security & Compliance',
+  main_competitors: 'Marketing',
+  unique_value_prop: 'Marketing',
+  active_channels: 'Marketing',
+  uses_crm: 'Automation',
+  email_automation: 'Automation',
+  biggest_pain: 'Audit Scope',
+  budget_for_changes: 'Audit Scope',
+};
+
+function enrichQuestion(question: BriefQuestion): BriefQuestion {
+  const importance = question.priority === 'required'
+    ? 'red'
+    : question.priority === 'recommended'
+      ? 'yellow'
+      : 'green';
+  const weight = importance === 'red' ? 3 : importance === 'yellow' ? 2 : 1;
+
+  let ux_group: BriefQuestion['ux_group'] = 'business';
+  if (question.id.startsWith('intake_')) {
+    ux_group = 'basics';
+  } else if (question.domains.includes('tech_infrastructure') || question.domains.includes('security_compliance')) {
+    ux_group = 'tech';
+  } else if (question.domains.includes('seo_digital')) {
+    ux_group = 'audience';
+  } else if (question.id === 'primary_goal' || question.id === 'biggest_pain' || question.id === 'f2' || question.id === 'f8') {
+    ux_group = 'goals';
+  } else if (question.id === 'a7') {
+    ux_group = 'business';
+  } else if (question.id === 'revenue_model' || question.id === 'monthly_revenue') {
+    ux_group = 'basics';
+  }
+
+  let intake_layer: BriefQuestion['intake_layer'] = question.priority === 'required' ? 1 : 2;
+  if (PRE_BRIEF_IDS.has(question.id)) {
+    intake_layer = 'pre_brief';
+  }
+
+  const revenue_signal = HIGH_REVENUE_QUESTION_IDS.has(question.id)
+    ? 'high'
+    : question.priority === 'optional'
+      ? 'low'
+      : 'medium';
+
+  const section = BRIEF_QUESTION_UI_SECTION[question.id];
+
+  return {
+    ...question,
+    ...(section !== undefined ? { section } : {}),
+    importance,
+    weight,
+    ux_group,
+    intake_layer,
+    consultant_hint: CONSULTANT_HINTS[question.id],
+    revenue_signal,
+    triggers_followup: TRIGGERS_FOLLOWUP[question.id] ?? [],
+  };
+}
+
+export const BRIEF_QUESTIONS: BriefQuestion[] = BASE_BRIEF_QUESTIONS.map(enrichQuestion);
+
+export const INTAKE_IDENTITY_BRIEF_QUESTIONS: BriefQuestion[] = BASE_INTAKE_IDENTITY_QUESTIONS.map(enrichQuestion);
+
+/** All intake_* keys that may appear in responses (specify only when industry is Other). */
+export const INTAKE_IDENTITY_FIELD_IDS = [
+  'intake_company_website',
+  'intake_company_name',
+  'intake_industry',
+  'intake_industry_specify',
+] as const;
+
+export function getBriefQuestionText(id: string): string {
+  return (
+    BRIEF_QUESTIONS.find(q => q.id === id)?.question
+    ?? INTAKE_IDENTITY_BRIEF_QUESTIONS.find(q => q.id === id)?.question
+    ?? id.replace(/_/g, ' ')
+  );
+}
+
 // ─── Zod schema for responses validation ──────────────────────────────────────
 
+/** Max length for free-text / textarea answers (legacy + question-bank v1). */
+export const BRIEF_ANSWER_STRING_MAX = 12_000;
+
 const answerSchema = z.union([
-  z.string().max(2000),
+  z.string().max(BRIEF_ANSWER_STRING_MAX),
   z.array(z.string()).max(10),
   z.number(),
+  z.boolean(),
+  z.object({
+    value: z.union([
+      z.string().max(BRIEF_ANSWER_STRING_MAX),
+      z.array(z.string()).max(10),
+      z.number(),
+      z.boolean(),
+      z.null(),
+    ]),
+    source: z.enum(['client', 'consultant', 'recon_confirmed', 'unknown']),
+  }),
   z.null(),
 ]);
 
@@ -248,6 +540,14 @@ export const REQUIRED_QUESTION_IDS = BRIEF_QUESTIONS
 
 export const RECOMMENDED_QUESTION_IDS = BRIEF_QUESTIONS
   .filter(q => q.priority === 'recommended')
+  .map(q => q.id);
+
+export const OPTIONAL_QUESTION_IDS = BRIEF_QUESTIONS
+  .filter(q => q.priority === 'optional')
+  .map(q => q.id);
+
+export const PRE_BRIEF_QUESTION_IDS = BRIEF_QUESTIONS
+  .filter(q => q.intake_layer === 'pre_brief')
   .map(q => q.id);
 
 /**

@@ -13,7 +13,9 @@ import { SectionLabel } from '../components/glc/SectionLabel';
 import { ReviewPointModal } from '../components/glc/ReviewPointModal';
 import { usePipeline } from '../hooks/usePipeline';
 import { useAudit } from '../hooks/useAudit';
+import { useProfile } from '../hooks/useProfile';
 import type { PipelineEvent, QualityGateReport } from '../data/auditTypes';
+import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 
 type PhSt = 'completed' | 'running' | 'pending' | 'review' | 'skipped' | 'failed';
 
@@ -141,7 +143,7 @@ function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: 
             className="w-3.5 h-3.5"
             style={{
               color: active
-                ? '#fff'
+                ? 'var(--primary-foreground)'
                 : ph.status === 'completed'
                 ? 'var(--glc-green-dark)'
                 : 'var(--text-tertiary)',
@@ -171,7 +173,19 @@ function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: 
   );
 }
 
-function RevBanner({ review, label, onOpenModal, hasWarnings }: { review: { status: string }; label: string; onOpenModal: () => void; hasWarnings?: boolean }) {
+function RevBanner({
+  review,
+  label,
+  onOpenModal,
+  hasWarnings,
+  canApprove,
+}: {
+  review: { status: string };
+  label: string;
+  onOpenModal: () => void;
+  hasWarnings?: boolean;
+  canApprove: boolean;
+}) {
   const done = review.status === 'approved';
   const color  = done ? 'var(--glc-green)'  : 'var(--score-3)';
   const bg     = done ? 'var(--glc-green-xlight)' : 'var(--score-3-bg)';
@@ -199,7 +213,7 @@ function RevBanner({ review, label, onOpenModal, hasWarnings }: { review: { stat
           {done ? 'Approved' : hasWarnings ? 'Quality warnings — notes required' : 'Waiting for approval'}
         </p>
       </div>
-      {!done && (
+      {!done && canApprove && (
         <motion.button
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
@@ -207,7 +221,7 @@ function RevBanner({ review, label, onOpenModal, hasWarnings }: { review: { stat
           className="text-xs font-bold px-2.5 py-1.5 rounded-lg flex-shrink-0 flex items-center gap-1"
           style={{
             background: 'var(--gradient-accent)',
-            color: '#fff',
+            color: 'var(--primary-foreground)',
             border: 'none',
             cursor: 'pointer',
             boxShadow: '0 2px 8px rgba(242,79,29,0.28)',
@@ -216,6 +230,11 @@ function RevBanner({ review, label, onOpenModal, hasWarnings }: { review: { stat
         >
           Approve <ArrowRight className="w-3 h-3" />
         </motion.button>
+      )}
+      {!done && !canApprove && (
+        <span className="text-[10px] font-medium px-2 py-1 rounded-md flex-shrink-0" style={{ color: 'var(--text-tertiary)', border: '1px solid var(--border-subtle)' }}>
+          Consultant approval
+        </span>
       )}
     </div>
   );
@@ -333,6 +352,7 @@ export function PipelineMonitor() {
   const { id } = useParams<{ id: string }>();
   const { state: pipelineState, loading: pipeLoading, error: pipeError, startPipeline, runNextPhase, approveReview } = usePipeline(id);
   const { audit, loading: auditLoading } = useAudit(id);
+  const { isClient } = useProfile();
 
   const [sel, setSel] = useState(0);
   const [modalReview, setModalReview] = useState<{ afterPhase: number; label: string } | null>(null);
@@ -411,7 +431,13 @@ export function PipelineMonitor() {
   const pct        = Math.round((done / activePhases.length) * 100);
   const I    = ph.icon;
 
-  const companyName = audit?.meta.company_name || audit?.meta.company_url || 'Loading...';
+  const companyName =
+    audit?.meta.company_name
+    || formatAuditWebsiteDisplay(audit?.meta.company_url)
+    || audit?.meta.company_url
+    || 'Loading...';
+
+  const workspacePath = id ? (isClient ? `/portal/audit/${id}` : `/audit/${id}`) : '/';
 
   async function handleApprove(_id: number, consultantNotes: string, interviewNotes: string) {
     if (!modalReview) return;
@@ -482,6 +508,7 @@ export function PipelineMonitor() {
             label="Review Point #1"
             onOpenModal={() => setModalReview({ afterPhase: 0, label: 'Review Point #1' })}
             hasWarnings={!getQualityGateForPhase(0)?.passed && (getQualityGateForPhase(0)?.flags.some(f => f.severity === 'warning') ?? false)}
+            canApprove={!isClient}
           />
 
           {/* Auto wing — 2×2 grid to reflect parallel execution */}
@@ -511,6 +538,7 @@ export function PipelineMonitor() {
             label={isExpress ? 'Review Point #2 (Final)' : 'Review Point #2'}
             onOpenModal={() => setModalReview({ afterPhase: 4, label: isExpress ? 'Review Point #2 (Final)' : 'Review Point #2' })}
             hasWarnings={!getQualityGateForPhase(4)?.passed && (getQualityGateForPhase(4)?.flags.some(f => f.severity === 'warning') ?? false)}
+            canApprove={!isClient}
           />
 
           {/* Analytic wing — 2-column grid */}
@@ -548,6 +576,7 @@ export function PipelineMonitor() {
               label="Review Point #3"
               onOpenModal={() => setModalReview({ afterPhase: 7, label: 'Review Point #3' })}
               hasWarnings={!getQualityGateForPhase(7)?.passed && (getQualityGateForPhase(7)?.flags.some(f => f.severity === 'warning') ?? false)}
+              canApprove={!isClient}
             />
           )}
         </aside>
@@ -634,7 +663,7 @@ export function PipelineMonitor() {
                   >
                     <I
                       className="w-6 h-6"
-                      style={{ color: ph.status === 'pending' ? 'var(--text-tertiary)' : '#fff' }}
+                      style={{ color: ph.status === 'pending' ? 'var(--text-tertiary)' : 'var(--primary-foreground)' }}
                     />
                   </div>
                   <div className="flex-1">
@@ -729,7 +758,7 @@ export function PipelineMonitor() {
                     >
                       <div className="flex items-center gap-1.5">
                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#EF4444' }} />
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#F59E0B' }} />
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'var(--callout-warning-icon)' }} />
                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'var(--glc-green)' }} />
                       </div>
                       <Terminal className="w-3.5 h-3.5 ml-2" style={{ color: 'rgba(255,255,255,0.35)' }} />
@@ -789,14 +818,14 @@ export function PipelineMonitor() {
                 <div className="flex items-center gap-3">
                   {ph.status === 'completed' && id && (
                     <Link
-                      to={`/audit/${id}`}
+                      to={workspacePath}
                       className="glc-btn-secondary"
                       style={{ textDecoration: 'none' }}
                     >
                       View in Workspace <CaretRight className="w-4 h-4" />
                     </Link>
                   )}
-                  {ph.status === 'review' && (
+                  {ph.status === 'review' && !isClient && (
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
@@ -821,7 +850,7 @@ export function PipelineMonitor() {
       </div>
 
       <ReviewPointModal
-        open={modalReview !== null}
+        open={!isClient && modalReview !== null}
         reviewPoint={modalReview ? { id: modalReview.afterPhase, label: modalReview.label, note: 'Add your observations before continuing', after: modalReview.afterPhase } : null}
         onClose={() => setModalReview(null)}
         onApprove={handleApprove}

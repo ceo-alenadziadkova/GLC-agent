@@ -15,13 +15,16 @@ interface UseProfileResult {
   profile: Profile | null;
   role: UserRole | null;
   /** Product label for UI: internal role `consultant` displays as Admin. */
-  roleDisplayName: 'Admin' | 'Client' | null;
+  roleDisplayName: 'Admin' | 'Client' | 'Guest' | null;
   isConsultant: boolean;
   /** Same as isConsultant — GLC internal staff (DB role `consultant`). */
   isAdmin: boolean;
   isClient: boolean;
+  /** Anonymous / snapshot-only session — full client portal blocked until registration. */
+  isGuest: boolean;
   loading: boolean;
   error: string | null;
+  refetch: () => Promise<void>;
 }
 
 /**
@@ -40,7 +43,7 @@ export function useProfile(): UseProfileResult {
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
+    const load = async () => {
       setLoading(true);
       setError(null);
 
@@ -89,7 +92,7 @@ export function useProfile(): UseProfileResult {
         }
         setLoading(false);
       }
-    }
+    };
 
     void load();
 
@@ -107,15 +110,44 @@ export function useProfile(): UseProfileResult {
     };
   }, []);
 
+  const refetch = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      setProfile(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const { data, error: dbError } = await supabase
+      .from('profiles')
+      .select('id, role, full_name, created_at')
+      .eq('id', session.user.id)
+      .single();
+    if (dbError || !data) {
+      setProfile(null);
+      setError(dbError?.message ?? 'Profile not found');
+    } else {
+      setProfile(data as Profile);
+    }
+    setLoading(false);
+  };
+
   const isConsultant = profile?.role === 'consultant';
+  const isGuest = profile?.role === 'guest';
   return {
     profile,
     role: profile?.role ?? null,
-    roleDisplayName: profile ? (profile.role === 'consultant' ? 'Admin' : 'Client') : null,
+    roleDisplayName: profile
+      ? (profile.role === 'consultant' ? 'Admin' : profile.role === 'guest' ? 'Guest' : 'Client')
+      : null,
     isConsultant,
     isAdmin: isConsultant,
     isClient: profile?.role === 'client',
+    isGuest,
     loading,
     error,
+    refetch,
   };
 }

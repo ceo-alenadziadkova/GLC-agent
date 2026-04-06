@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
-import { requireAuth, type AuthRequest } from '../middleware/auth.js';
+import { requireAuth, attachProfile, rejectGuestFromPortal, type AuthRequest } from '../middleware/auth.js';
 import { generalLimiter } from '../middleware/rate-limit.js';
 import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 import { reportProfiler, REPORT_PROFILES, type ReportProfile } from '../services/report-profiler.js';
+import { pdfGenerator } from '../services/pdf-generator.js';
+import { logger } from '../services/logger.js';
+import { notifyAuditParticipants, notifyAuditParticipantsExcept } from '../services/notifications.js';
 
 export const reportsRouter = Router();
 
@@ -11,9 +14,9 @@ reportsRouter.use(generalLimiter);
 reportsRouter.use(requireAuth);
 
 // ─── GET /api/audits/:id/report — Generate report ──────────
-// ?format=json|markdown|csv  (default: json)
+// ?format=json|markdown|csv|pdf  (default: json)
 // ?profile=full|owner|tech|marketing|onepager  (default: full)
-reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
+reportsRouter.get('/:id/report', attachProfile, rejectGuestFromPortal, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
 
@@ -57,6 +60,32 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
 
     const input = { audit, recon, domains, strategy };
 
+    // ── PDF export ───────────────────────────────────────
+    if (format === 'pdf') {
+      const company = recon?.company_name ?? audit.company_url;
+      const filename = `audit-report-${company.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.pdf`;
+      const pdfBuffer = await pdfGenerator.generate(input, profile);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      res.send(pdfBuffer);
+      await notifyAuditParticipantsExcept(
+        id,
+        'pipeline',
+        'Artifact ready',
+        'PDF report is ready.',
+        [req.userId!],
+        {
+          audit_id: id,
+          artifact: 'report_pdf',
+          route: `/reports/${id}`,
+          occurred_at: new Date().toISOString(),
+          actor_role: 'system',
+        },
+      );
+      return;
+    }
+
     // ── CSV export ────────────────────────────────────────
     if (format === 'csv') {
       const company = recon?.company_name ?? audit.company_url;
@@ -65,6 +94,20 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.send(csv);
+      await notifyAuditParticipantsExcept(
+        id,
+        'pipeline',
+        'Artifact ready',
+        'CSV action plan export is ready.',
+        [req.userId!],
+        {
+          audit_id: id,
+          artifact: 'action_plan_csv',
+          route: `/reports/${id}`,
+          occurred_at: new Date().toISOString(),
+          actor_role: 'system',
+        },
+      );
       return;
     }
 
@@ -85,7 +128,10 @@ reportsRouter.get('/:id/report', async (req: AuthRequest, res) => {
       res.send(report.markdown);
     }
   } catch (err) {
-    console.error('[GET /report]', err);
-    res.status(500).json({ error: 'Failed to generate report' });
+    const e = err as Error;
+    logger.error('route.report_failed', { component: 'reports', error: e.message, stack: e.stack });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to generate report' });
+    }
   }
 });

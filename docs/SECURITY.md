@@ -30,6 +30,10 @@ const audit = await supabase
   .single();
 ```
 
+### Legacy anonymous JWTs (optional provider)
+
+The **free snapshot** UI **does not** call `signInAnonymously()`; users sign in normally first. If you still enable **Anonymous sign-ins** in Supabase for other experiments, those JWTs use the **`authenticated`** role — narrow RLS with **`is_anonymous`** where needed ([access control](https://supabase.com/docs/guides/auth/auth-anonymous#access-control)). **`profiles.role = 'guest'`** (migration `023`) can still apply to old anonymous rows until users complete a full sign-in.
+
 ---
 
 ## JWT Verification (Backend Auth Middleware)
@@ -52,6 +56,61 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
 The backend calls `supabase.auth.getUser(token)` which makes a Supabase API call to verify the JWT signature and expiry. This is more secure than local JWT verification because it also catches revoked sessions (e.g., after sign out).
 
 ---
+
+## Public snapshot (SSRF + logs)
+
+- **URL validation:** `validatePublicAuditUrl` / `fetchPublicHttpUrl` in `server/src/lib/public-http-url.ts` — **http/https only**, block credentials in URL, block literals and DNS resolutions that map to private/link-local space, **re-validate every redirect hop**, cap redirect depth. Regression coverage: `server/src/tests/public-http-url.test.ts`, `server/src/tests/fetch-public-http-url.test.ts` (including redirect targets with **per-hostname** DNS outcomes).
+- **Logs / metrics:** Structured `snapshot.run_complete` and optional **`GET /api/snapshot/operator/metrics`** (see [API.md](./API.md#snapshot-operator-optional)) use **hashed host fingerprints**, not full marketing URLs, where possible. Do **not** paste full snapshot HTML or scraped contact dumps into tickets; use audit IDs and timeframe.
+- **DB minimization:** Free snapshot writes **`audit_recon.contact_info`** as empty arrays (same minimization as `snapshot_domain_cache` payload) so operator DB rows do not retain scraped emails/phones from the public scanner path.
+
+## Snapshot observability & log redaction (runbook)
+
+This section is for **operators** and **support**: what may appear in logs, what must never be copied into tickets or third-party dashboards, and how to wire **hosted** dashboards.
+
+### Structured events (allowlist mindset)
+
+| Message | Safe fields (examples) | Never copy / display |
+| --- | --- | --- |
+| `snapshot.run_complete` | `audit_id`, `domain_fp` (16-char hex prefix of SHA-256 of registrable host), `duration_ms`, `outcome`, `cache_hit`, `scan_basis_code`, numeric scores, `site_type`, confidence bands, `pages_fetched`, `playwright_used`, `home_fetch_failure` (enum), catalog versions | Raw `company_url`, full hostname as marketing URL, any scraped **email / phone / address**, HTML bodies, response bodies |
+| `snapshot.pipeline_capacity` | `audit_id`, error message (generic capacity text) | Same as above for any custom `context` added later |
+| `snapshot.site_profile` | `audit_id`, `siteType`, `industry`, `band`, `matched` (count) | URL, HTML |
+
+If you add new `logger.*('snapshot.*')` calls, default to **`audit_id` + `domain_fp`** (use the same hashing helper pattern as in `run-snapshot.ts`) instead of logging URLs.
+
+### JSON logs in production
+
+Set **`LOG_FORMAT=json`** on the API so log drains (Grafana Loki, Datadog, Axiom, CloudWatch, etc.) parse each line as one object. Recommended env:
+
+- **`LOG_SERVICE`** — e.g. `glc-api-prod` vs `glc-api-staging` for label separation.
+- **`LOG_FORMAT=json`**
+
+**Example Loki / LogQL** (adjust label names to your collector):
+
+```logql
+{service="glc-api-prod"} | json | message="snapshot.run_complete"
+```
+
+Panel ideas: `sum(count_over_time(...[5m]))` by `outcome`; ratio `cache_hit == true`; rate of `playwright_used == true`; breakdown by `home_fetch_failure`.
+
+**Alerts:** sustained **`snapshot.pipeline_capacity`** (abuse or under-provisioned concurrency); spike in `POST /api/snapshot` **without** matching `snapshot.run_complete` (worker or deploy issue).
+
+### Operator metrics HTTP API
+
+**`GET /api/snapshot/operator/metrics`** (see [API.md](./API.md#snapshot-operator-optional)) complements logs: in-process histograms and, with **`SNAPSHOT_SHARED_ABUSE_STORE`**, current **`snapshot_fresh_leases_active`**. Do **not** expose this URL publicly; protect with **`SNAPSHOT_OPERATOR_TOKEN`** and network policies if possible. Rotate the token on the same schedule as other admin secrets.
+
+### Support ticket template (minimal PII)
+
+When a user reports a bad free snapshot result, ask for:
+
+- **Approximate time (UTC)** and, if they know it, **snapshot token** or **audit_id** (from network tab or email).
+- **Expected vs actual** in one sentence.
+
+Do **not** ask them to paste full JSON responses containing **`company_url`** into public channels if avoidable; internal triage may use **`audit_id`** only in SQL.
+
+### Incident review
+
+- Prefer **IDs and fingerprints** over URLs in postmortems.
+- If logs accidentally captured a URL during development, **redact** before sharing; grep runbooks for `http://` in `context` before exporting log excerpts.
 
 ## Rate Limiting
 

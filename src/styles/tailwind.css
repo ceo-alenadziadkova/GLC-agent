@@ -1,4 +1,11 @@
 @import 'tailwindcss' source(none);
 @source '../**/*.{js,ts,jsx,tsx}';
 
+/*
+ * mobile: — only below Tailwind `sm` (40rem / 640px).
+ * Use for touch targets, single-column tweaks, iOS input size, etc.
+ * Base classes apply at sm+ unchanged.
+ */
+@custom-variant mobile (@media (width < 40rem));
+
 @import 'tw-animate-css';

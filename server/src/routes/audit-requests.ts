@@ -22,11 +22,23 @@ import {
   type ProductMode,
 } from '../types/audit.js';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
+import { NO_PUBLIC_WEBSITE_URL, isNoPublicWebsiteUrl } from '../config/no-public-website.js';
+import { getStoredIdempotentResponse, storeIdempotentResponse } from '../lib/idempotency.js';
+import { logger } from '../services/logger.js';
+import { saveBriefResponses } from '../services/brief-validator.js';
+import { notifyConsultants, notifyUser } from '../services/notifications.js';
 
 export const auditRequestsRouter = Router();
 
 auditRequestsRouter.use(requireAuth);
 auditRequestsRouter.use(attachProfile);
+auditRequestsRouter.use((req: AuthRequest, res, next) => {
+  if (req.userRole === 'guest') {
+    res.status(403).json({ error: 'Complete registration (email or Google) to use the client portal.' });
+    return;
+  }
+  next();
+});
 auditRequestsRouter.use(generalLimiter);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -35,33 +47,102 @@ function isConsultant(req: AuthRequest) {
   return (req.userRole as UserRole) === 'consultant';
 }
 
+/** Ensures Other industry always has a non-empty sector description in brief_snapshot. */
+function normalizeBriefSnapshotForIndustry(
+  industry: string | null | undefined,
+  brief_snapshot: Record<string, unknown>,
+): { ok: true; snapshot: Record<string, unknown> } | { ok: false; error: string } {
+  const snap = { ...brief_snapshot };
+  if ((industry ?? '').trim() === 'Other') {
+    const raw = snap.intake_industry_specify;
+    const spec = typeof raw === 'string' ? raw.trim() : '';
+    if (!spec) {
+      return { ok: false, error: 'Describe your industry or sector when you select Other.' };
+    }
+    snap.intake_industry_specify = spec;
+  } else {
+    delete snap.intake_industry_specify;
+  }
+  return { ok: true, snapshot: snap };
+}
+
+/** Seeds intake_brief from portal request row so agents see URL, industry, and Other specify. */
+function initialIntakeResponsesFromAuditRequest(row: {
+  url: string;
+  industry: string | null;
+  brief_snapshot: unknown;
+}): Record<string, unknown> {
+  const snap =
+    row.brief_snapshot && typeof row.brief_snapshot === 'object' && !Array.isArray(row.brief_snapshot)
+      ? (row.brief_snapshot as Record<string, unknown>)
+      : {};
+  const out: Record<string, unknown> = {
+    intake_company_website: { value: row.url, source: 'client' },
+  };
+  if (row.industry != null && String(row.industry).trim()) {
+    out.intake_industry = { value: String(row.industry).trim(), source: 'client' };
+  }
+  const spec = snap.intake_industry_specify;
+  if (typeof spec === 'string' && spec.trim()) {
+    out.intake_industry_specify = { value: spec.trim(), source: 'client' };
+  }
+  return out;
+}
+
 // ── POST /api/audit-requests — Create new request (client or consultant) ────
 auditRequestsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) => {
   try {
-    const { url, industry, product_mode = 'express', brief_snapshot = {}, client_notes } = req.body;
+    const {
+      url,
+      industry,
+      product_mode = 'express',
+      brief_snapshot = {},
+      client_notes,
+      no_public_website,
+    } = req.body;
 
-    if (!url || typeof url !== 'string') {
-      res.status(400).json({ error: 'url is required' });
-      return;
-    }
+    const noSite = no_public_website === true;
+    let normalizedUrl: string;
 
-    let normalizedUrl = url.trim();
-    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
-      normalizedUrl = `https://${normalizedUrl}`;
-    }
-
-    try {
-      normalizedUrl = await validatePublicAuditUrl(normalizedUrl);
-    } catch (e) {
-      if (e instanceof PublicUrlNotAllowedError) {
-        res.status(400).json({ error: 'url is not allowed' });
+    if (noSite) {
+      if (url != null && typeof url === 'string' && url.trim() !== '') {
+        res.status(400).json({ error: 'Leave the website field empty when you have no public website.' });
         return;
       }
-      throw e;
+      normalizedUrl = NO_PUBLIC_WEBSITE_URL;
+    } else {
+      if (!url || typeof url !== 'string' || !url.trim()) {
+        res.status(400).json({ error: 'Enter your website URL, or indicate that you have no public website.' });
+        return;
+      }
+
+      let u = url.trim();
+      if (!u.startsWith('http://') && !u.startsWith('https://')) {
+        u = `https://${u}`;
+      }
+
+      try {
+        normalizedUrl = await validatePublicAuditUrl(u);
+      } catch (e) {
+        if (e instanceof PublicUrlNotAllowedError) {
+          res.status(400).json({ error: 'url is not allowed' });
+          return;
+        }
+        throw e;
+      }
     }
 
     if (!['express', 'full'].includes(product_mode)) {
       res.status(400).json({ error: 'product_mode must be "express" or "full"' });
+      return;
+    }
+
+    const snapIn = brief_snapshot && typeof brief_snapshot === 'object' && !Array.isArray(brief_snapshot)
+      ? brief_snapshot as Record<string, unknown>
+      : {};
+    const snapResult = normalizeBriefSnapshotForIndustry(industry, snapIn);
+    if (!snapResult.ok) {
+      res.status(400).json({ error: snapResult.error });
       return;
     }
 
@@ -72,7 +153,7 @@ auditRequestsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) 
         url: normalizedUrl,
         industry: industry || null,
         product_mode,
-        brief_snapshot: brief_snapshot ?? {},
+        brief_snapshot: snapResult.snapshot,
         client_notes: client_notes ? String(client_notes).slice(0, 2000) : null,
         status: 'draft',
       })
@@ -81,9 +162,25 @@ auditRequestsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) 
 
     if (error) throw error;
 
+    if (data.status === 'submitted') {
+      await notifyConsultants(
+        'intake',
+        'New client request',
+        'A client submitted a new audit request.',
+        {
+          request_id: data.id,
+          status: data.status,
+          route: '/admin/requests',
+          occurred_at: new Date().toISOString(),
+          actor_role: 'client',
+        },
+      );
+    }
+
     res.status(201).json(data);
   } catch (err) {
-    console.error('[POST /api/audit-requests]', err);
+    const e = err as Error;
+    logger.error('route.audit_request_create_failed', { component: 'audit_requests', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to create audit request' });
   }
 });
@@ -111,7 +208,8 @@ auditRequestsRouter.get('/', async (req: AuthRequest, res) => {
 
     res.json({ data, total: count ?? 0, limit, offset });
   } catch (err) {
-    console.error('[GET /api/audit-requests]', err);
+    const e = err as Error;
+    logger.error('route.audit_requests_list_failed', { component: 'audit_requests', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to list audit requests' });
   }
 });
@@ -139,7 +237,8 @@ auditRequestsRouter.get('/:id', async (req: AuthRequest, res) => {
 
     res.json(data);
   } catch (err) {
-    console.error('[GET /api/audit-requests/:id]', err);
+    const e = err as Error;
+    logger.error('route.audit_request_get_failed', { component: 'audit_requests', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to fetch audit request' });
   }
 });
@@ -153,7 +252,7 @@ auditRequestsRouter.patch('/:id', async (req: AuthRequest, res) => {
     // Verify ownership + draft status
     const { data: existing, error: fetchErr } = await supabase
       .from('audit_requests')
-      .select('status, client_id')
+      .select('status, client_id, industry, brief_snapshot')
       .eq('id', id)
       .single();
 
@@ -190,7 +289,21 @@ auditRequestsRouter.patch('/:id', async (req: AuthRequest, res) => {
     }
     if (industry !== undefined) updates.industry = industry || null;
     if (product_mode) updates.product_mode = product_mode;
-    if (brief_snapshot !== undefined) updates.brief_snapshot = brief_snapshot;
+
+    const nextIndustry = industry !== undefined ? industry : (existing.industry as string | null);
+    let nextSnap = (existing.brief_snapshot as Record<string, unknown>) ?? {};
+    if (brief_snapshot !== undefined) {
+      nextSnap = { ...nextSnap, ...(brief_snapshot as Record<string, unknown>) };
+    }
+    if (industry !== undefined || brief_snapshot !== undefined) {
+      const snapResult = normalizeBriefSnapshotForIndustry(nextIndustry, nextSnap);
+      if (!snapResult.ok) {
+        res.status(400).json({ error: snapResult.error });
+        return;
+      }
+      updates.brief_snapshot = snapResult.snapshot;
+    }
+
     if (client_notes !== undefined) updates.client_notes = client_notes ? String(client_notes).slice(0, 2000) : null;
 
     const { data, error } = await supabase
@@ -202,9 +315,23 @@ auditRequestsRouter.patch('/:id', async (req: AuthRequest, res) => {
 
     if (error) throw error;
 
+    await notifyConsultants(
+      'intake',
+      'Client request submitted',
+      'A draft request was submitted and is ready for review.',
+      {
+        request_id: data.id,
+        status: data.status,
+        route: '/admin/requests',
+        occurred_at: new Date().toISOString(),
+        actor_role: isConsultant(req) ? 'consultant' : 'client',
+      },
+    );
+
     res.json(data);
   } catch (err) {
-    console.error('[PATCH /api/audit-requests/:id]', err);
+    const e = err as Error;
+    logger.error('route.audit_request_patch_failed', { component: 'audit_requests', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to update audit request' });
   }
 });
@@ -216,7 +343,7 @@ auditRequestsRouter.post('/:id/submit', async (req: AuthRequest, res) => {
 
     const { data: existing } = await supabase
       .from('audit_requests')
-      .select('status, client_id')
+      .select('status, client_id, industry, brief_snapshot, url')
       .eq('id', id)
       .single();
 
@@ -235,6 +362,21 @@ auditRequestsRouter.post('/:id/submit', async (req: AuthRequest, res) => {
       return;
     }
 
+    const snapResult = normalizeBriefSnapshotForIndustry(
+      existing.industry as string | null,
+      (existing.brief_snapshot as Record<string, unknown>) ?? {},
+    );
+    if (!snapResult.ok) {
+      res.status(400).json({ error: snapResult.error });
+      return;
+    }
+
+    const u = String(existing.url ?? '').trim();
+    if (!u || (!isNoPublicWebsiteUrl(u) && u.length < 10)) {
+      res.status(400).json({ error: 'Request is missing a valid website or no-public-website flag.' });
+      return;
+    }
+
     const { data, error } = await supabase
       .from('audit_requests')
       .update({ status: 'submitted' })
@@ -246,7 +388,8 @@ auditRequestsRouter.post('/:id/submit', async (req: AuthRequest, res) => {
 
     res.json(data);
   } catch (err) {
-    console.error('[POST /api/audit-requests/:id/submit]', err);
+    const e = err as Error;
+    logger.error('route.audit_request_submit_failed', { component: 'audit_requests', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to submit audit request' });
   }
 });
@@ -256,6 +399,11 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
   try {
     const id = req.params.id as string;
     const { consultant_note } = req.body;
+    const idempotent = await getStoredIdempotentResponse(req, `POST:/api/audit-requests/${id}/approve`, req.body);
+    if (idempotent.replay) {
+      res.status(idempotent.replay.statusCode).json(idempotent.replay.payload);
+      return;
+    }
 
     const { data: requestRow, error: fetchErr } = await supabase
       .from('audit_requests')
@@ -270,6 +418,27 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
 
     if (!['submitted', 'under_review'].includes(requestRow.status as string)) {
       res.status(400).json({ error: 'Request must be submitted or under review to approve', current_status: requestRow.status });
+      return;
+    }
+
+    // CAS lock: only one concurrent approve request can claim this row.
+    // The winner moves status to under_review before any audit row is created.
+    const { data: claimedRows, error: claimErr } = await supabase
+      .from('audit_requests')
+      .update({ status: 'under_review' })
+      .eq('id', id)
+      .eq('status', 'submitted')
+      .is('audit_id', null)
+      .select('id');
+    if (claimErr) throw claimErr;
+
+    // If status was already under_review we treat it as actively claimed by another request.
+    if ((!claimedRows || claimedRows.length === 0) && requestRow.status === 'submitted') {
+      res.status(409).json({ error: 'Approve request already claimed by another request' });
+      return;
+    }
+    if (requestRow.status === 'under_review') {
+      res.status(409).json({ error: 'Approve request is already in progress' });
       return;
     }
 
@@ -319,8 +488,28 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
 
     if (initFailed) {
       await supabase.from('audits').delete().eq('id', audit.id); // CASCADE deletes child rows
-      console.error('[approve] Placeholder init failed, rolled back audit', audit.id);
+      logger.error('Approve request failed during placeholder init', { audit_id: audit.id, request_id: id });
       res.status(500).json({ error: 'Failed to initialize audit — rolled back' });
+      return;
+    }
+
+    try {
+      await saveBriefResponses(
+        audit.id,
+        initialIntakeResponsesFromAuditRequest({
+          url: requestRow.url as string,
+          industry: (requestRow.industry as string | null) ?? null,
+          brief_snapshot: requestRow.brief_snapshot,
+        }),
+      );
+    } catch (seedErr) {
+      await supabase.from('audits').delete().eq('id', audit.id);
+      logger.error('Approve request failed intake brief seed', {
+        audit_id: audit.id,
+        request_id: id,
+        error: (seedErr as Error).message,
+      });
+      res.status(500).json({ error: 'Failed to seed intake brief from request' });
       return;
     }
 
@@ -340,13 +529,43 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
 
     if (updateErr) {
       await supabase.from('audits').delete().eq('id', audit.id);
-      console.error('[approve] Request status update failed, rolled back audit', audit.id, updateErr.message);
+      logger.error('Approve request failed during status update', { audit_id: audit.id, request_id: id, error: updateErr.message });
       throw updateErr;
     }
 
-    res.status(201).json({ audit_request: updatedRequest, audit: { id: audit.id, status: audit.status } });
+    const payload = { audit_request: updatedRequest, audit: { id: audit.id, status: audit.status } };
+    await storeIdempotentResponse(
+      req,
+      `POST:/api/audit-requests/${id}/approve`,
+      idempotent.key,
+      idempotent.hash,
+      { statusCode: 201, payload },
+      audit.id
+    );
+
+    await notifyUser({
+      userId: requestRow.client_id as string,
+      auditId: audit.id as string,
+      kind: 'review',
+      title: 'Request approved',
+      message: 'Your audit request was approved and moved to execution.',
+      payload: {
+        request_id: id,
+        audit_id: audit.id,
+        status: 'approved',
+        route: `/portal/audit/${audit.id}`,
+        occurred_at: new Date().toISOString(),
+        actor_role: 'consultant',
+      },
+    });
+
+    res.status(201).json(payload);
   } catch (err) {
-    console.error('[POST /api/audit-requests/:id/approve]', err);
+    if ((err as Error).message.includes('Idempotency key reuse')) {
+      res.status(409).json({ error: (err as Error).message });
+      return;
+    }
+    logger.error('Approve audit request route failed', { error: (err as Error).message });
     res.status(500).json({ error: 'Failed to approve audit request' });
   }
 });
@@ -359,7 +578,7 @@ auditRequestsRouter.post('/:id/reject', requireRole('consultant'), async (req: A
 
     const { data: existing } = await supabase
       .from('audit_requests')
-      .select('status')
+      .select('status, client_id')
       .eq('id', id)
       .single();
 
@@ -385,9 +604,24 @@ auditRequestsRouter.post('/:id/reject', requireRole('consultant'), async (req: A
 
     if (error) throw error;
 
+    await notifyUser({
+      userId: data.client_id as string,
+      kind: 'review',
+      title: 'Request rejected',
+      message: 'Your audit request was rejected. Check consultant notes for details.',
+      payload: {
+        request_id: id,
+        status: 'rejected',
+        route: '/portal',
+        occurred_at: new Date().toISOString(),
+        actor_role: 'consultant',
+      },
+    });
+
     res.json(data);
   } catch (err) {
-    console.error('[POST /api/audit-requests/:id/reject]', err);
+    const e = err as Error;
+    logger.error('route.audit_request_reject_failed', { component: 'audit_requests', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to reject audit request' });
   }
 });
@@ -399,7 +633,7 @@ auditRequestsRouter.post('/:id/deliver', requireRole('consultant'), async (req: 
 
     const { data: existing } = await supabase
       .from('audit_requests')
-      .select('status')
+      .select('status, client_id, audit_id')
       .eq('id', id)
       .single();
 
@@ -425,9 +659,26 @@ auditRequestsRouter.post('/:id/deliver', requireRole('consultant'), async (req: 
       return;
     }
 
+    await notifyUser({
+      userId: data.client_id as string,
+      auditId: (data.audit_id as string | null) ?? null,
+      kind: 'pipeline',
+      title: 'Deliverables ready',
+      message: 'Your audit deliverables are marked as delivered.',
+      payload: {
+        request_id: id,
+        audit_id: data.audit_id,
+        status: 'delivered',
+        route: data.audit_id ? `/portal/audit/${data.audit_id as string}` : '/portal',
+        occurred_at: new Date().toISOString(),
+        actor_role: 'consultant',
+      },
+    });
+
     res.json(data);
   } catch (err) {
-    console.error('[POST /api/audit-requests/:id/deliver]', err);
+    const e = err as Error;
+    logger.error('route.audit_request_deliver_failed', { component: 'audit_requests', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to mark as delivered' });
   }
 });

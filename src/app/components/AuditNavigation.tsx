@@ -25,7 +25,7 @@ export function AuditNavigation() {
   const isOverviewActive = location.pathname === '/audit/overview';
 
   return (
-    <nav className="h-full bg-white border-r flex flex-col" style={{ borderColor: 'var(--panel-border)' }}>
+    <nav className="h-full bg-[var(--bg-surface)] border-r flex flex-col" style={{ borderColor: 'var(--panel-border)' }}>
       {/* Header */}
       <div className="p-6 border-b" style={{ borderColor: 'var(--panel-border)' }}>
         <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>

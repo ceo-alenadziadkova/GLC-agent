@@ -3,9 +3,10 @@
 Consultant-led B2B audits: submit a company URL (plus intake context where applicable); the platform crawls and analyses the public site across business domains and produces a scored report and roadmap-style deliverables.
 
 **Primary users:** Consultants running audits for SMB clients.  
-**Client deliverables:** Scored domain findings, executive summary, quick wins, and (full mode) strategy initiatives in Strategy Lab (`/strategy/:id`).
+**Client portal (self-serve):** Clients can create an audit with the **same branching intake bank** as consultants (`/portal/audit/new`), complete the brief on **`/portal/audit/:id`**, start the pipeline without a queue approval step, and optionally **request help with the brief** (consultants are notified; help does not block starting the run). The **`audit_requests`** table and consultant **`/admin/requests`** queue remain for consultant-led intake; there is no separate client-facing request form in the portal during MVP development.  
+**Client deliverables:** Scored domain findings, executive summary, quick wins, and (full mode) strategy-style initiatives surfaced in the **report viewer** (`/portal/reports/:id` in the client shell). Consultants use Strategy Lab (`/strategy/:id`) for the same underlying strategy payload where enabled.
 
-Technical execution details: [PIPELINE.md](./PIPELINE.md), [AGENTS.md](./AGENTS.md). Index of all domains: [MASTER_DOCUMENTATION.md](./MASTER_DOCUMENTATION.md).
+Technical execution details: [PIPELINE.md](./PIPELINE.md), [AGENTS.md](./AGENTS.md). Index of all domains: [MASTER.md](./MASTER.md).
 
 ---
 
@@ -36,7 +37,7 @@ Implemented in code (`server/src/types/audit.ts`, `reviewPhasesForMode`, `maxPha
 |------|----------------|--------------|--------|
 | `full` | 0–7 | After phases `0`, `4`, `7` | Default paid audit; strategy row and final gate |
 | `express` | 0–4 | After `0`, `4` | Shorter audit; no phases 5–7 |
-| `free_snapshot` | 0 + partial UX (phase 4) | None | Public `POST/GET /api/snapshot`; trimmed preview (e.g. issues and quick wins capped) |
+| `free_snapshot` | Deterministic scan (no LLM) | None | Public `POST/GET /api/snapshot`; tiered fetch (HTTP + optional Playwright when the page looks like a client shell), rule-based **site profile**, **0–100** score; competitor-style benchmark **only on explicit opt-in** (`?compare=1`); optional domain cache; upgrade path to Express/full audit |
 
 ---
 
@@ -67,6 +68,55 @@ Authoritative sequencing and API interaction: [PIPELINE.md](./PIPELINE.md).
 ## Intake brief
 
 Structured pre-audit responses live in the `intake_brief` table (migration `006_intake_brief.sql`). Schema and RLS: [DATABASE.md](./DATABASE.md).
+
+### Intake Experience (progressive model)
+
+**Golden loop:** each information level unlocks more value in the audit. Same canonical brief; questions are grouped into layers and surfaced progressively (legacy flat list ~25 items maps to layers with typed fields: select, multi-select, rating, textarea, confirm).
+
+| Layer | Goal | Time | Product tie-in | Example nudge (copy evolves in UX) |
+|---|---|---|---|---|
+| `0` | URL-only entry; immediate "wow" | ~10 s | Free UX Snapshot entry | Surface a few findings; invite short context so precision improves. |
+| `1` | Quick Intake — required (red) + a few key recommended (yellow) | 10–12 min | Express / pre-brief backbone | After Express path: note domains that still lack inside-out context (e.g. marketing, automation). |
+| `2` | Deep Intake — remaining recommended + optional (green) | 15–20 min | Full Audit readiness | Data Quality meter shows progress toward full context. |
+| `3` | Post-audit enrichment | async (agents) | Follow-up, not generic FAQ | From `unknown_items[]`, generate **specific** follow-ups (e.g. missing CRM signal → "Which CRM, if any?"). |
+
+Core UX contract:
+- Server computes and returns intake derived state (`progress_pct`, `readiness_badge`, `next_best_action`, data-quality style signals where implemented); frontend renders it.
+- `responses_format` is versioned for backward compatibility (`1` legacy, `2` structured `{ value, source }` responses).
+- Progress/readiness UI stays B2B: plain text, icons, and color semantics (no emoji in intake/report interface code).
+- **Principles:** progress bar; Data Quality meter; light gamification / micro-milestones; guilt-free "Don't know"; recon-based prefills with confirm ("We detected WordPress — correct?"); prefer selects over free text where possible; short examples next to textareas.
+
+### Intake collection modes
+
+One canonical question bank backs every intake path; **`collection_mode`** (`self_serve` | `interview` | `pre_brief`) and **`collected_by`** (`client` | `consultant`) describe *how* answers were captured.
+
+**Entry-point grid (product framing):** combine **URL vs. discovery** with **self-serve vs. consultant-led**:
+
+| | Self-serve (client) | Consultant-led (interview) |
+|--|--------------------|---------------------------|
+| **URL present** | Mode A — wizard on live site | Mode B — live capture against the same fields |
+| **No website yet** | Mode C — discovery intake (deferred sprint: `product_mode: 'discovery'`, dedicated flow) | Mode C with consultant as primary recorder |
+
+`pre_brief` links sit on the self-serve row: short answer set before a call, same canonical fields.
+
+Record **`collected_by`:** `client` | `consultant` so exports and quality analytics stay honest.
+
+**Benchmark / assumption integrity (for any displayed comparative or revenue-adjacent metrics):** treat source tiers in strict order of trust — **`client_calculated`** (or client-provided with method) **>** **`glc_internal`** (measured in-platform) **>** **`verified_research`** (third-party with citation) **>** **`industry_estimate`**. If material conclusions rest on `industry_estimate` or lower, the UI or report must carry an explicit disclaimer that figures are indicative, not audited facts.
+
+### Pre-brief (link before a meeting)
+
+Short path (~6 questions, ~5 minutes) with a **custom link** sent ahead of a call. Goal: consultant arrives prepared; recon can crawl the site before the meeting. Same canonical fields as Layer 1 where applicable, scoped to minimum viable context.
+
+### Recon as intake enrichment (Step 1B)
+
+Recon is part of intake enrichment and can prefill detectable fields for confirmation.
+For product semantics, "brief before anything else" means "before domain phases", not strictly before recon.
+
+### Product thresholds by mode
+
+- `free_snapshot`: can start with minimal pre-brief context and URL entry (Layer 0).
+- `express`: Layer 1 completion for required items; more recommended fields improve readiness and scores confidence.
+- `full`: Layer 2 breadth expected; quality gate aligns with answered required/recommended mix (see pipeline and validation in code).
 
 ---
 

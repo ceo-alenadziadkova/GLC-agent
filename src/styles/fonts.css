@@ -1,9 +1,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Inter:ital,opsz,wght@0,14..32,300..800;1,14..32,300..600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
+@font-face {
+  font-family: 'Unifix SP Demo';
+  src: url('/fonts/UnifixSPDemo.otf') format('opentype');
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 :root {
   --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
   --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
   --font-mono:    'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  --font-logo:    'Unifix SP Demo', 'Space Grotesk', 'Inter', system-ui, sans-serif;
 }
 
 body {
@@ -17,4 +26,8 @@ body {
 h1, h2, h3 {
   font-family: var(--font-display);
   letter-spacing: -0.025em;
+}
+
+.font-logo {
+  font-family: var(--font-logo);
 }

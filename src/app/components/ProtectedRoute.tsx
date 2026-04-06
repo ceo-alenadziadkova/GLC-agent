@@ -3,14 +3,23 @@ import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
 import { logger } from '../lib/logger';
 import type { UserRole } from '../data/auditTypes';
+import { SyncPathLoader } from './SyncPathLoader';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   /** If provided, the route is only accessible by this role. */
   requiredRole?: UserRole;
+  /** Block these roles (e.g. snapshot guests from /settings). */
+  blockedForRoles?: UserRole[];
+  blockedRedirect?: string;
 }
 
-export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
+export function ProtectedRoute({
+  children,
+  requiredRole,
+  blockedForRoles,
+  blockedRedirect = '/snapshot',
+}: ProtectedRouteProps) {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { role, loading: profileLoading } = useProfile();
 
@@ -20,25 +29,16 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
 
   if (loading) {
     logger.debug('ProtectedRoute: loading auth/profile state');
-    return (
-      <div
-        className="h-screen flex items-center justify-center"
-        style={{ backgroundColor: 'var(--bg-canvas)' }}
-      >
-        <div className="flex flex-col items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-full border-3 animate-spin"
-            style={{ borderColor: 'var(--border-subtle)', borderTopColor: 'var(--glc-blue)' }}
-          />
-          <span style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)' }}>Loading...</span>
-        </div>
-      </div>
-    );
+    return <SyncPathLoader variant="indeterminate" />;
   }
 
   if (!isAuthenticated) {
     logger.info('ProtectedRoute: not authenticated, redirecting to /login');
     return <Navigate to="/login" replace />;
+  }
+
+  if (blockedForRoles?.length && role != null && blockedForRoles.includes(role)) {
+    return <Navigate to={blockedRedirect} replace />;
   }
 
   if (requiredRole != null && role !== requiredRole) {
@@ -48,6 +48,9 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     // Do NOT redirect to a role-guarded route — that causes an infinite redirect loop.
     if (role === null) {
       return <Navigate to="/login" replace />;
+    }
+    if (role === 'guest') {
+      return <Navigate to="/snapshot" replace />;
     }
     const redirect = role === 'consultant' ? '/portfolio' : '/portal';
     return <Navigate to={redirect} replace />;

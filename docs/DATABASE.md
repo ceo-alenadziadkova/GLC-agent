@@ -11,8 +11,22 @@ PostgreSQL on **Supabase**. Apply migrations **in numeric order** so foreign key
 5. `005_client_portal.sql` — `profiles`, `audit_requests`, `client_id` on `audits`
 6. `006_intake_brief.sql` — `intake_brief`
 7. `007_finding_provenance.sql` — extra columns on `audit_domains`
+8. `008_reliability_idempotency.sql` — `api_idempotency_keys` for safe replay of critical writes
+9. `009_prompt_version_quality_gate.sql` — `prompt_version` in `audit_domains`, `quality_gate_passed` in `review_points`, client-read RLS policies on downstream tables
+10. `010_intake_progress_gamification.sql` — progressive intake and readiness fields in `intake_brief`
+11. `011_intake_tokens.sql` — `intake_tokens` for shareable pre-brief links (consultant-created; client-submitted responses)
+12. `012_profiles_trigger_auth_admin.sql` — RLS + grants so `handle_new_user` can insert into `profiles` (fixes OAuth `Database error saving new user` on Supabase hosted)
+13. `013_discovery_sessions.sql` — discovery-session persistence (see migration file)
+14. `014_notifications.sql` — `notifications` table for in-app notification center
+15. `015_audit_request_guards.sql` — DB guard constraints/indexes for `audit_requests` consistency under concurrent writes
+16. `016_intake_recon_conflicts_discovery.sql` — recon conflict handling / discovery-related intake (see migration file)
+17. `017_client_brief_help.sql` — `brief_help_requested_at`, `brief_help_client_message` on `audits` (optional client “help with brief” signal)
+18. `018_platform_settings.sql` — singleton `platform_settings` (`self_serve_audit_owner_user_id` for client self-serve owner)
+19. `020_snapshot_domain_cache.sql` — `snapshot_domain_cache` (host-keyed JSON payload + `expires_at` for deterministic free snapshot reuse)
+20. `021_snapshot_domain_cooldown.sql` — `snapshot_domain_cooldown` (optional cross-instance fresh-fetch cooldown for public snapshot; opt-in via `SNAPSHOT_SHARED_ABUSE_STORE`)
+21. `022_snapshot_fresh_lease.sql` — `snapshot_fresh_lease` + RPC `snapshot_try_acquire_fresh_lease` / `snapshot_release_fresh_lease` (optional cross-instance **concurrent fresh** cap; same opt-in flag)
 
-**Tables (10):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`.
+**Tables (17):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`.
 
 Row Level Security is enabled on these tables; exact policies differ by table (consultant vs client access). **Canonical SQL:** the migration files — this doc summarises shapes.
 
@@ -42,6 +56,8 @@ token_budget    int DEFAULT 200000
 tokens_used     int DEFAULT 0
 created_at      timestamptz DEFAULT now()
 updated_at      timestamptz DEFAULT now()
+brief_help_requested_at  timestamptz   -- optional; client self-serve help ping (migration 017)
+brief_help_client_message text         -- optional short note from client (migration 017)
 ```
 
 **`status` values:** `created` → `recon` → `auto` → `analytic` → `review` → `completed` | `failed`
@@ -99,6 +115,7 @@ UNIQUE(audit_id, domain_key, version)
 **`domain_key` values:** `tech_infrastructure` | `security_compliance` | `seo_digital` | `ux_conversion` | `marketing_utp` | `automation_processes`
 
 **Migration 007:** adds `confidence_distribution` (jsonb) and `unknown_items` (jsonb) for provenance / gap tracking.
+**Migration 009:** adds `prompt_version` (`varchar(20)`) to track prompt contract version per domain row.
 
 **`status` values:** `pending` | `collecting` | `assembling_context` | `analyzing` | `completed` | `failed`
 
@@ -192,6 +209,7 @@ status           text DEFAULT 'pending'   -- pending | approved
 consultant_notes text
 interview_notes  text
 approved_at      timestamptz
+quality_gate_passed boolean                -- added by migration 009
 ```
 
 ---
@@ -206,11 +224,126 @@ User roles and display metadata. **`role`:** `consultant` | `client` (migration 
 
 Client-submitted audit requests before an `audits` row is attached. Status workflow: `draft` → `submitted` → `under_review` → `approved` | `rejected` → `running` → `delivered` (see migration `005`).
 
+DB guards (migration `015_audit_request_guards.sql`):
+
+- Partial unique index on `audit_id` (`WHERE audit_id IS NOT NULL`) ensures one audit is linked to at most one request.
+- Check constraint enforces that `approved` / `running` / `delivered` rows always have `audit_id IS NOT NULL`.
+
 ---
 
 ### `intake_brief`
 
-Structured questionnaire responses per audit (`responses` jsonb, `status` `draft` | `submitted`, SLA counters). One row per audit (unique `audit_id`). Migration `006_intake_brief.sql`.
+Structured questionnaire responses per audit. One row per audit (unique `audit_id`).
+
+Core fields:
+
+- `responses` (`jsonb`) — versioned payload (`responses_format`), supports legacy flat values and structured `{ value, source }`.
+- `status` (`draft` | `submitted`) and SLA counters (`answered_required`, `answered_recommended`, `answered_optional`).
+- Progressive intake metadata: `layer_completed`, `collected_by`, `collection_mode`, `data_quality_score`, `recon_prefills`, `post_audit_questions`.
+- Server-derived gamification/readiness state:
+  - `progress_pct` (`0..100`),
+  - `readiness_badge` (`low|medium|high`),
+  - `next_best_action` (`complete_required|add_recommended|confirm_prefill|none`).
+
+Contract rule: readiness/progress fields are derived on the backend on each save/update and treated as canonical API data (frontend renders only).
+
+Migrations: `006_intake_brief.sql`, `010_intake_progress_gamification.sql`.
+
+---
+
+### `api_idempotency_keys`
+
+Stores request fingerprints and prior responses for idempotent replay on critical write endpoints.
+
+Key fields: `user_id`, `route`, `idempotency_key`, `request_hash`, `response_status`, `response_body`, `expires_at`.
+
+Uniqueness: `(user_id, route, idempotency_key)` via unique index.
+
+Migration: `008_reliability_idempotency.sql`.
+
+---
+
+### `intake_tokens`
+
+Pre-brief magic links: consultant creates a row; the client opens a public URL and POSTs answers until `expires_at`. Optional `audit_id` merges responses into `intake_brief` on submit.
+
+Access is via **service role** in the API (no RLS on this table); the `token` value is unguessable (40 hex chars).
+
+Migration: `011_intake_tokens.sql`.
+
+---
+
+### `notifications`
+
+In-app notifications shown in the frontend notification center.
+
+Core fields:
+
+- `user_id` — target recipient.
+- `audit_id` — optional linked audit for deep links.
+- `kind` — `pipeline` | `review` | `intake`.
+- `title`, `message`, `payload` — display text + structured metadata.
+- `is_read`, `read_at`, `created_at` — read state and ordering.
+
+Payload conventions in current app flows:
+
+- `payload.route` — deep-link target used by the shell router.
+- `payload.request_id` — request-related notifications (`audit_requests` lifecycle).
+- `payload.artifact` — artifact readiness (`strategy`, `report`, `report_pdf`, `action_plan_csv`).
+- `payload.failure_type` — failure/retry semantics (`phase_failed`, `retry_started`, etc.).
+
+Note: request/artifact/failure are modeled through payload metadata while `kind` stays in the base taxonomy above.
+
+Indexes:
+
+- `(user_id, is_read, created_at desc)` for unread and list queries.
+- `(user_id, created_at desc)` for paginated history.
+- `(audit_id, created_at desc)` partial index for audit-linked lookups.
+
+RLS:
+
+- Authenticated users can `SELECT` and `UPDATE` only rows where `auth.uid() = user_id`.
+
+Migration: `014_notifications.sql`.
+
+---
+
+### `platform_settings`
+
+Singleton row (`id = 1`) for cross-tenant platform options maintained via the API (service role).
+
+- `self_serve_audit_owner_user_id` — optional `profiles.id` (role `consultant`) used as `audits.user_id` when a **client** creates an audit from the portal. If null, the API may fall back to `SELF_SERVE_AUDIT_OWNER_USER_ID` when set (see [DEPLOYMENT.md](./DEPLOYMENT.md)).
+- `updated_at`, `updated_by` — audit metadata.
+
+RLS enabled with no policies (no direct client access); server writes through the service role.
+
+Migration: `018_platform_settings.sql`.
+
+---
+
+### `snapshot_domain_cache`
+
+Migration: `020_snapshot_domain_cache.sql`. One row per **registrable host** (no `www.`); JSON **`payload`** is the deterministic snapshot artifact reused for repeat free checks; **`expires_at`** gates reads.
+
+**PII / retention:** The server **does not** store raw scraped emails or phone numbers in this payload (arrays are emptied before upsert). The **free snapshot** pipeline also **clears `contact_info` on `audit_recon`** when persisting from this path so DB rows do not retain scraped contact vectors from the public scanner.
+
+**Operator purge:** Delete a cache row with **`POST /api/snapshot/operator/purge-cache`** (when `SNAPSHOT_OPERATOR_TOKEN` is set) or SQL: `DELETE FROM snapshot_domain_cache WHERE host = 'example.com';`
+
+---
+
+### `snapshot_domain_cooldown`
+
+Migration: `021_snapshot_domain_cooldown.sql`. One row per **registrable host** — **`last_fresh_scan_at`** records when a fresh scan last completed and wrote **`snapshot_domain_cache`**.
+
+Used only when **`SNAPSHOT_SHARED_ABUSE_STORE=1`** (see [DEPLOYMENT.md](./DEPLOYMENT.md)); without it, cooldown stays **in-process** only. Backend reads/writes via **service role** (no RLS policies required for this internal table; optional hardening: deny anon/authenticated direct access in a follow-up migration).
+
+---
+
+### `snapshot_fresh_lease`
+
+Migration: `022_snapshot_fresh_lease.sql`. Short-lived rows (**`expires_at`**) counting active **fresh** snapshot workers cluster-wide. Acquire and release are **`SECURITY DEFINER`** RPCs (`snapshot_try_acquire_fresh_lease`, `snapshot_release_fresh_lease`) using a transaction advisory lock so counts stay consistent under concurrency. Expired rows are deleted on each successful acquire.
+
+Tune TTL with **`SNAPSHOT_FRESH_LEASE_TTL_SECONDS`** (default derived from **`SNAPSHOT_FETCH_BUDGET_MS`**; must exceed worst-case fresh scan wall time). Same **`SNAPSHOT_SHARED_ABUSE_STORE`** gate as cooldown.
 
 ---
 

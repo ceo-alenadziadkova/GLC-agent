@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js';
+import { logger } from './logger.js';
 import type { QualityFlag, QualityGateReport } from '../types/audit.js';
 
 /**
@@ -139,10 +140,14 @@ export class ConsistencyChecker {
     });
 
     if (!passed) {
-      console.warn(
-        `[ConsistencyChecker ${auditId}] Gate ${gatePhase}: ${flags.filter(f => f.severity === 'warning').length} warning(s)`,
-        flags.filter(f => f.severity === 'warning').map(f => f.message),
-      );
+      const warnings = flags.filter(f => f.severity === 'warning');
+      logger.warn('quality_gate.warnings', {
+        component: 'consistency_checker',
+        audit_id: auditId,
+        gate_phase: gatePhase,
+        warning_count: warnings.length,
+        messages: warnings.map(f => f.message),
+      });
     }
 
     return report;

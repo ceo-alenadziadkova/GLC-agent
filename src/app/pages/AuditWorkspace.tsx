@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, useParams } from 'react-router';
 import {
@@ -12,8 +12,31 @@ import { SectionLabel } from '../components/glc/SectionLabel';
 import { StatusPill } from '../components/glc/StatusPill';
 import { QuickWinTag } from '../components/glc/QuickWinTag';
 import { useAudit } from '../hooks/useAudit';
+import { useBriefLayoutPrefsSync } from '../hooks/useBriefLayoutPrefsSync';
+import { useIntakeBankMetrics } from '../hooks/useIntakeWizard';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
 import type { DomainKey, DomainData, ProductMode, ConfidenceLevel } from '../data/auditTypes';
+import { BriefField } from '../components/BriefField';
+import {
+  BRIEF_QUESTIONS,
+  mergeBriefResponsesPreferFilled,
+  unwrapResponse,
+} from '../data/briefQuestions';
+import type { BriefQuestion, BriefResponses } from '../data/briefQuestions';
+import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
+import { api } from '../data/apiService';
+import { formatAuditWebsiteDisplay } from '../data/no-public-website';
+import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
+import { IntakeBankWizard } from '../components/IntakeBankWizard';
+import { BankClassicBriefFields } from '../components/BankClassicBriefFields';
+import { BriefLayoutPreferenceCards } from '../components/BriefLayoutPreferenceCards';
+import {
+  CONSULTANT_BRIEF_LAYOUT_DEFAULT_KEY,
+  consultantBriefLayoutStorageKey,
+  resolveConsultantBriefLayout,
+  writeConsultantBriefLayout,
+  clearConsultantBriefLayout,
+} from '../lib/client-brief-layout-preference';
 
 const EXPRESS_DOMAIN_KEYS: readonly DomainKey[] = [
   'tech_infrastructure', 'security_compliance', 'seo_digital', 'ux_conversion',
@@ -55,10 +78,131 @@ const CONF_BG: Record<ConfidenceLevel, string> = {
 
 export function AuditWorkspace() {
   const { id, domainId } = useParams<{ id: string; domainId?: string }>();
-  const { audit, loading, error } = useAudit(id);
+  const { audit, loading, error, reload } = useAudit(id);
   const [openRec, setOpenRec] = useState<number | null>(null);
+  const [enrichOpen, setEnrichOpen] = useState(true);
+  const [enrichSaved, setEnrichSaved] = useState(false);
+  const enrichSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingBriefRef = useRef<BriefResponses | null>(null);
+  const [briefPanelOpen, setBriefPanelOpen] = useState(false);
+  const [briefLayoutChoice, setBriefLayoutChoice] = useState<'unset' | 'classic' | 'wizard'>('unset');
+  const [workspaceBriefResponses, setWorkspaceBriefResponses] = useState<BriefResponses>({});
+  const workspaceBriefSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingWorkspaceBriefRef = useRef<BriefResponses | null>(null);
+  const [workspaceBriefSavedFlash, setWorkspaceBriefSavedFlash] = useState(false);
   const [activeDomain, setActiveDomain] = useState<DomainKey>(
     (domainId && DOMAIN_KEYS.includes(domainId as DomainKey)) ? (domainId as DomainKey) : DOMAIN_KEYS[0]
+  );
+
+  const queueFollowupBriefSave = useCallback((
+    qid: string,
+    value: string | string[] | number | null,
+    source: 'consultant' | 'unknown' = 'consultant',
+  ) => {
+    if (!id || !audit?.brief) return;
+    const prev = (audit.brief.responses as BriefResponses) ?? {};
+    const priorPending = pendingBriefRef.current;
+    const base = priorPending ? { ...prev, ...priorPending } : prev;
+    const next: BriefResponses = {
+      ...base,
+      [qid]: { value, source },
+    };
+    pendingBriefRef.current = next;
+    if (enrichSaveTimer.current) clearTimeout(enrichSaveTimer.current);
+    enrichSaveTimer.current = setTimeout(() => {
+      void (async () => {
+        const payload = pendingBriefRef.current;
+        pendingBriefRef.current = null;
+        if (!id || !payload) return;
+        try {
+          await api.saveBrief(id, payload);
+          setEnrichSaved(true);
+          reload();
+          window.setTimeout(() => setEnrichSaved(false), 2200);
+        } catch (err) {
+          console.error('[AuditWorkspace] brief save', err);
+        }
+      })();
+    }, 650);
+  }, [id, audit?.brief, reload]);
+
+  useEffect(() => () => {
+    if (enrichSaveTimer.current) clearTimeout(enrichSaveTimer.current);
+    if (workspaceBriefSaveTimer.current) clearTimeout(workspaceBriefSaveTimer.current);
+  }, []);
+
+  useEffect(() => {
+    if (audit?.brief?.responses) {
+      setWorkspaceBriefResponses(audit.brief.responses as BriefResponses);
+    } else {
+      setWorkspaceBriefResponses({});
+    }
+  }, [audit?.id, audit?.brief?.updated_at]);
+
+  useEffect(() => {
+    if (!id) return;
+    setBriefLayoutChoice(resolveConsultantBriefLayout(id) ?? 'unset');
+  }, [id]);
+
+  const workspaceLayoutSyncKeys = useMemo(
+    () => (id ? [CONSULTANT_BRIEF_LAYOUT_DEFAULT_KEY, consultantBriefLayoutStorageKey(id)] : []),
+    [id],
+  );
+
+  useBriefLayoutPrefsSync(workspaceLayoutSyncKeys, () => {
+    if (!id) return;
+    setBriefLayoutChoice(resolveConsultantBriefLayout(id) ?? 'unset');
+  });
+
+  const queueWorkspaceBriefSave = useCallback(
+    (next: BriefResponses) => {
+      if (!id || !audit?.brief) return;
+      pendingWorkspaceBriefRef.current = next;
+      if (workspaceBriefSaveTimer.current) clearTimeout(workspaceBriefSaveTimer.current);
+      workspaceBriefSaveTimer.current = setTimeout(() => {
+        void (async () => {
+          const payload = pendingWorkspaceBriefRef.current;
+          pendingWorkspaceBriefRef.current = null;
+          if (!id || !payload) return;
+          try {
+            await api.saveBrief(id, payload);
+            setWorkspaceBriefSavedFlash(true);
+            reload();
+            window.setTimeout(() => setWorkspaceBriefSavedFlash(false), 2200);
+          } catch (err) {
+            console.error('[AuditWorkspace] workspace brief save', err);
+          }
+        })();
+      }, 650);
+    },
+    [id, audit?.brief, reload],
+  );
+
+  const handleWorkspaceBriefFieldChange = useCallback(
+    (qid: string, value: string | string[] | number | null) => {
+      setWorkspaceBriefResponses(prev => {
+        const next = { ...prev, [qid]: { value, source: 'consultant' as const } };
+        queueWorkspaceBriefSave(next);
+        return next;
+      });
+    },
+    [queueWorkspaceBriefSave],
+  );
+
+  const handleWorkspaceBriefSetUnknown = useCallback(
+    (qid: string) => {
+      setWorkspaceBriefResponses(prev => {
+        const next = { ...prev, [qid]: { value: null, source: 'unknown' as const } };
+        queueWorkspaceBriefSave(next);
+        return next;
+      });
+    },
+    [queueWorkspaceBriefSave],
+  );
+
+  const bankMetrics = useIntakeBankMetrics(
+    (audit?.brief?.responses as BriefResponses) ?? {},
+    audit?.brief?.collection_mode === 'discovery' ? 'discovery' : undefined,
   );
 
   if (loading && !audit) {
@@ -82,7 +226,20 @@ export function AuditWorkspace() {
   }
 
   const domainData: DomainData | null = audit.domains[activeDomain] || null;
-  const companyName = audit.meta.company_name || audit.meta.company_url;
+  const postAuditRaw = audit.brief?.post_audit_questions ?? [];
+  const followupRefs = postAuditRaw.filter((x): x is { domain: string; id: string } => (
+    typeof x === 'object' && x !== null && 'domain' in x && 'id' in x
+    && typeof (x as { domain: string }).domain === 'string'
+    && typeof (x as { id: string }).id === 'string'
+  )).filter(x => x.domain === activeDomain);
+  const followupQuestions = followupRefs
+    .map(r => BRIEF_QUESTIONS.find(q => q.id === r.id))
+    .filter((q): q is BriefQuestion => q != null);
+  const showEnrichmentBanner = Boolean(
+    domainData?.status === 'completed' && followupQuestions.length > 0 && id
+  );
+  const companyName =
+    audit.meta.company_name || formatAuditWebsiteDisplay(audit.meta.company_url) || audit.meta.company_url;
   const isExpress = (audit.meta.product_mode as ProductMode) === 'express';
   const visibleDomainKeys: readonly DomainKey[] = isExpress ? EXPRESS_DOMAIN_KEYS : DOMAIN_KEYS;
 
@@ -129,6 +286,111 @@ export function AuditWorkspace() {
               </p>
             </div>
           </div>
+
+          {audit.brief && (
+            <>
+              <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                <IntakeBankCoverageHint
+                  dataQualityPct={bankMetrics.dataQualityPct}
+                  visibleRequiredAnswered={bankMetrics.visibleRequiredAnswered}
+                  visibleRequiredTotal={bankMetrics.visibleRequiredTotal}
+                  visibleRecommendedAnswered={bankMetrics.visibleRecommendedAnswered}
+                  visibleRecommendedTotal={bankMetrics.visibleRecommendedTotal}
+                />
+              </div>
+              <div style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-xs font-semibold"
+                  style={{ color: 'var(--text-secondary)' }}
+                  onClick={() => setBriefPanelOpen(o => !o)}
+                >
+                  <CaretRight
+                    className="w-3.5 h-3.5 flex-shrink-0 transition-transform"
+                    style={{
+                      transform: briefPanelOpen ? 'rotate(90deg)' : 'none',
+                      color: 'var(--glc-blue)',
+                    }}
+                  />
+                  Edit intake brief
+                </button>
+                {briefPanelOpen && (
+                  <div className="px-3 pb-3 space-y-2 max-h-[42vh] overflow-y-auto">
+                    {workspaceBriefSavedFlash && (
+                      <p className="text-[10px] font-medium" style={{ color: 'var(--glc-green)' }}>
+                        Brief saved
+                      </p>
+                    )}
+                    <p className="text-[10px] leading-snug" style={{ color: 'var(--text-quaternary)' }}>
+                      Default layout:{' '}
+                      <Link
+                        to="/settings#brief-layout"
+                        className="font-medium underline-offset-2 hover:underline"
+                        style={{ color: 'var(--glc-blue)' }}
+                      >
+                        Settings
+                      </Link>
+                    </p>
+                    {briefLayoutChoice === 'unset' ? (
+                      <BriefLayoutPreferenceCards
+                        selected={null}
+                        onSelect={mode => {
+                          if (!id) return;
+                          writeConsultantBriefLayout(id, mode);
+                          setBriefLayoutChoice(mode);
+                        }}
+                      />
+                    ) : (
+                      <>
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!id) return;
+                              clearConsultantBriefLayout(id);
+                              setBriefLayoutChoice('unset');
+                            }}
+                            className="text-[10px] font-medium underline-offset-2 hover:underline"
+                            style={{ color: 'var(--glc-blue)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                          >
+                            Change layout
+                          </button>
+                        </div>
+                        {briefLayoutChoice === 'wizard' ? (
+                          <IntakeBankWizard
+                            responses={workspaceBriefResponses}
+                            onResponsesChange={patch =>
+                              setWorkspaceBriefResponses(prev => {
+                                const merged = mergeBriefResponsesPreferFilled(prev, patch);
+                                queueWorkspaceBriefSave(merged);
+                                return merged;
+                              })
+                            }
+                            interviewMode={false}
+                            emphasizeClientSource={false}
+                            answerSource="consultant"
+                            collectionMode={
+                              audit.brief.collection_mode === 'discovery' ? 'discovery' : undefined
+                            }
+                          />
+                        ) : (
+                          <BankClassicBriefFields
+                            compact
+                            responses={workspaceBriefResponses}
+                            collectionMode={
+                              audit.brief.collection_mode === 'discovery' ? 'discovery' : undefined
+                            }
+                            onChange={handleWorkspaceBriefFieldChange}
+                            onSetUnknown={handleWorkspaceBriefSetUnknown}
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           {/* Domain nav */}
           <div className="px-2 py-2 space-y-0.5 flex-1">
@@ -325,6 +587,70 @@ export function AuditWorkspace() {
                         );
                       })}
                     </div>
+                  </div>
+                )}
+
+                {/* Post-audit enrichment (brief follow-ups) */}
+                {showEnrichmentBanner && (
+                  <div className="glc-card overflow-hidden" style={{ borderRadius: 'var(--radius-xl)', border: '1px solid rgba(28,189,255,0.2)' }}>
+                    <button
+                      type="button"
+                      className="w-full flex items-center gap-2 px-4 py-3 text-left"
+                      style={{ background: 'rgba(28,189,255,0.06)' }}
+                      onClick={() => setEnrichOpen(o => !o)}
+                    >
+                      <CaretRight className="w-4 h-4 flex-shrink-0 transition-transform" style={{ transform: enrichOpen ? 'rotate(90deg)' : 'none', color: 'var(--glc-blue)' }} />
+                      <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        Refine {DOMAIN_LABELS[activeDomain]} score — answer {followupQuestions.length} question{followupQuestions.length === 1 ? '' : 's'}
+                      </span>
+                    </button>
+                    <AnimatePresence>
+                      {enrichOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="px-4 pb-4 space-y-4"
+                          style={{ borderTop: '1px solid var(--border-subtle)' }}
+                        >
+                          {enrichSaved && (
+                            <motion.p
+                              initial={{ opacity: 0, y: -4 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="text-xs font-medium"
+                              style={{ color: 'var(--glc-green)' }}
+                            >
+                              Brief updated — readiness refreshed
+                            </motion.p>
+                          )}
+                          {followupQuestions.map(q => {
+                            const otherKey = choiceSpecifyResponseKey(q.id);
+                            const br = (audit.brief?.responses as BriefResponses) ?? {};
+                            const specRaw = unwrapResponse(br[otherKey]);
+                            const otherSpecify = typeof specRaw === 'string' ? specRaw : '';
+                            return (
+                              <BriefField
+                                key={q.id}
+                                q={q}
+                                value={br[q.id]}
+                                onChange={v => {
+                                  queueFollowupBriefSave(q.id, v);
+                                  if (!choiceValueNeedsSpecify(v)) {
+                                    queueFollowupBriefSave(otherKey, null);
+                                  }
+                                }}
+                                onSetUnknown={() => {
+                                  queueFollowupBriefSave(q.id, null, 'unknown');
+                                  queueFollowupBriefSave(otherKey, null, 'unknown');
+                                }}
+                                otherSpecify={otherSpecify}
+                                onOtherSpecifyChange={text => queueFollowupBriefSave(otherKey, text || null)}
+                              />
+                            );
+                          })}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 )}
 

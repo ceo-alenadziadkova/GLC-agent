@@ -72,6 +72,9 @@ const { setRequestUserId, resetSupabaseMock } = vi.hoisted(() => {
     if (table === 'audit_domains') return makeDomainsChain();
     if (table === 'audit_recon') return makeSingleChain({ company_name: 'Example Ltd', industry: 'SaaS' });
     if (table === 'audit_strategy') return makeSingleChain(null);
+    if (table === 'notifications') {
+      return { insert: vi.fn(() => Promise.resolve({ error: null })) };
+    }
     return makeSingleChain(null);
   });
 
@@ -94,6 +97,11 @@ vi.mock('../middleware/auth.js', () => ({
     req.userId = ((globalThis as Record<string, unknown>).__reportsGetUserId as () => string)();
     next();
   },
+  attachProfile: (req: Record<string, unknown>, _res: unknown, next: () => void) => {
+    req.userRole = 'client';
+    next();
+  },
+  rejectGuestFromPortal: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
 vi.mock('../middleware/rate-limit.js', () => ({
@@ -122,12 +130,12 @@ beforeEach(() => {
 
 describe('GET /api/audits/:id/report', () => {
   it('returns markdown for owner', async () => {
-    const res = await fetch(`${baseUrl}/api/audits/${AUDIT_ID}/report`);
+    const res = await fetch(`${baseUrl}/api/audits/${AUDIT_ID}/report?format=markdown`);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toMatch(/markdown/);
     const text = await res.text();
     expect(text).toContain('Example Ltd');
-    expect(text).toContain('Express summary');
+    expect(text).toContain('UX summary');
   });
 
   it('returns CSV for client with access', async () => {

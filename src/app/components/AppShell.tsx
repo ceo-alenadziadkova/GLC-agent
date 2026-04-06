@@ -1,38 +1,49 @@
-import { NavLink, useLocation } from 'react-router';
-import { motion, AnimatePresence } from 'motion/react';
+import { useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router';
 import {
   Briefcase, SquaresFour, Pulse, FileText, Flask,
   GearSix, Bell, MagnifyingGlass, Lightning, SignOut,
-  HouseSimple, ClipboardText, Eye, Tray,
+  HouseSimple, Eye, Tray, PlusCircle,
 } from '@phosphor-icons/react';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
-import Logo from '../assets/logo.svg';
+import { useNotifications } from '../hooks/useNotifications';
+import { GlcLogo } from './GlcLogo';
+import { ThemeToggle } from './ThemeToggle';
+import { NotificationCenter } from './NotificationCenter';
+import type { NotificationItem } from '../data/auditTypes';
 
 function useCurrentAuditId(): string | null {
   const { pathname } = useLocation();
-  // Extract audit ID from paths like /audit/:id, /pipeline/:id, /reports/:id, /strategy/:id
-  const match = pathname.match(/^\/(audit|pipeline|reports|strategy)\/([a-f0-9-]+)/);
-  return match ? match[2] : null;
+  // Extract audit ID from consultant and client paths (workspace, pipeline, reports, strategy)
+  const match = pathname.match(/^\/(?:audit|pipeline|reports|strategy)\/([a-f0-9-]+)/)
+    ?? pathname.match(/^\/portal\/(?:audit|pipeline)\/([a-f0-9-]+)/);
+  return match ? match[1] : null;
 }
 
 function buildConsultantNav(auditId: string | null) {
   return [
-    { to: '/portfolio',                          icon: Briefcase,    label: 'Portfolio', badge: null },
-    { to: '/admin/requests',                     icon: Tray,         label: 'Request queue', badge: null },
-    { to: auditId ? `/audit/${auditId}` : null,  icon: SquaresFour,  label: 'Audit Workspace',  badge: null },
-    { to: auditId ? `/pipeline/${auditId}` : null, icon: Pulse,      label: 'Pipeline',         badge: null },
-    { to: auditId ? `/reports/${auditId}` : null, icon: FileText,    label: 'Reports',          badge: null },
-    { to: auditId ? `/strategy/${auditId}` : null,icon: Flask,       label: 'Strategy Lab',     badge: null },
+    { to: '/dashboard',                           icon: SquaresFour,    label: 'Dashboard',       badge: null },
+    { to: '/admin/requests',                      icon: Tray,           label: 'Request queue',   badge: null },
+    { to: '/admin/discovery',                     icon: MagnifyingGlass,label: 'Discovery queue', badge: null },
+    { to: auditId ? `/audit/${auditId}` : null,   icon: Briefcase,      label: 'Audit Workspace', badge: null },
+    { to: auditId ? `/pipeline/${auditId}` : null,icon: Pulse,          label: 'Pipeline',        badge: null },
+    { to: auditId ? `/reports/${auditId}` : null, icon: FileText,       label: 'Reports',         badge: null },
+    { to: auditId ? `/strategy/${auditId}` : null,icon: Flask,          label: 'Strategy Lab',    badge: null },
   ];
 }
 
 function buildClientNav(auditId: string | null) {
   return [
     { to: '/portal',                                        icon: HouseSimple,   label: 'My Portal',    badge: null },
-    { to: '/portal/request',                               icon: ClipboardText, label: 'New Request',  badge: null },
     { to: auditId ? `/portal/audit/${auditId}` : null,     icon: Eye,           label: 'Audit Status', badge: null },
+    { to: auditId ? `/portal/pipeline/${auditId}` : null,   icon: Pulse,         label: 'Pipeline',     badge: null },
   ];
+}
+
+/** Anonymous snapshot session: no client portal until full registration. */
+function buildGuestNav() {
+  return [{ to: '/snapshot', icon: Lightning, label: 'Free snapshot', badge: null }];
 }
 
 interface AppShellProps {
@@ -44,13 +55,65 @@ interface AppShellProps {
 
 export function AppShell({ children, title, subtitle, actions }: AppShellProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, signOut, isAuthenticated } = useAuth();
-  const { isConsultant, isClient, roleDisplayName } = useProfile();
+  const { profile, isConsultant, isClient, isGuest, roleDisplayName, loading: profileLoading } = useProfile();
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const {
+    items: notifications,
+    unreadCount,
+    loading: notificationsLoading,
+    error: notificationsError,
+    reload: reloadNotifications,
+    markAsRead,
+    markAllAsRead,
+  } = useNotifications();
   const auditId = useCurrentAuditId();
 
-  const NAV = isClient ? buildClientNav(auditId) : buildConsultantNav(auditId);
+  const roleUnknown = isAuthenticated && (profileLoading || !profile?.role);
+  const NAV = isGuest
+    ? buildGuestNav()
+    : roleUnknown
+      ? buildClientNav(auditId)
+      : isClient
+        ? buildClientNav(auditId)
+        : buildConsultantNav(auditId);
+  const sectionLabel = isGuest
+    ? 'SNAPSHOT'
+    : roleUnknown
+      ? 'WORKSPACE'
+      : isClient
+        ? 'CLIENT WORKSPACE'
+        : 'ADMIN WORKSPACE';
 
-  const sectionLabel = isClient ? 'CLIENT WORKSPACE' : 'ADMIN WORKSPACE';
+  const openNotification = (item: NotificationItem) => {
+    if (!item.is_read) markAsRead(item.id);
+    const route = typeof item.payload?.route === 'string' ? item.payload.route : null;
+    const requestId = typeof item.payload?.request_id === 'string' ? item.payload.request_id : null;
+    if (route) {
+      navigate(route);
+      setNotificationsOpen(false);
+      return;
+    }
+    if (requestId) {
+      navigate(isClient ? '/portal' : '/admin/requests');
+      setNotificationsOpen(false);
+      return;
+    }
+    if (item.audit_id) {
+      if (item.kind === 'pipeline' || item.kind === 'review') {
+        navigate(`/pipeline/${item.audit_id}`);
+      } else {
+        navigate(`/audit/${item.audit_id}`);
+      }
+      setNotificationsOpen(false);
+      return;
+    }
+    if (item.kind === 'intake' && isConsultant) {
+      navigate('/admin/requests');
+      setNotificationsOpen(false);
+    }
+  };
 
   return (
     <div className="h-screen flex overflow-hidden" style={{ backgroundColor: 'var(--bg-canvas)' }}>
@@ -76,15 +139,11 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           className="relative flex items-center gap-2 px-4 pt-5 pb-4"
           style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
         >
-          <img
-            src={Logo}
-            alt="GLC Audit Platform"
-            className="h-12 w-auto"
-          />
+          <GlcLogo variant="on-dark" className="h-12" />
         </div>
 
         {/* Search — consultant only */}
-        {(isConsultant || !isClient) && (
+        {isConsultant && !roleUnknown && (
           <div className="relative px-3 py-3">
             <button
               className="w-full flex items-center gap-2 px-3 py-2 rounded-lg"
@@ -132,7 +191,19 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
             {sectionLabel}
           </div>
 
-          {NAV.map(({ to, icon: Icon, label, badge }) => {
+          {roleUnknown && (
+            <>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div
+                  key={`nav-skeleton-${i}`}
+                  className="mx-2 mb-1 h-8 rounded-lg animate-pulse"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+                />
+              ))}
+            </>
+          )}
+
+          {!roleUnknown && NAV.map(({ to, icon: Icon, label, badge }) => {
             if (!to) {
               return (
                 <div
@@ -146,14 +217,17 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               );
             }
             const active = location.pathname === to ||
-              (to !== '/portfolio' && to !== '/portal' && to !== '/admin/requests' && location.pathname.startsWith(to.split('/').slice(0, 2).join('/')));
+              // Exact-match for any /admin/* or top-level singleton routes to avoid cross-highlighting.
+              // Prefix-match only for audit-scoped paths like /audit/:id, /pipeline/:id, etc.
+              (!to.startsWith('/admin/') && to !== '/dashboard' && to !== '/portal' &&
+               location.pathname.startsWith(to.split('/').slice(0, 2).join('/')));
             return (
               <NavLink
                 key={to}
                 to={to}
                 className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline transition-all"
                 style={{
-                  color: active ? '#fff' : 'rgba(255,255,255,0.46)',
+                  color: active ? 'var(--primary-foreground)' : 'rgba(255,255,255,0.46)',
                   fontSize: 'var(--text-sm)',
                   fontWeight: active ? 500 : 400,
                   transition: 'color var(--ease-fast)',
@@ -161,14 +235,12 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               >
                 {/* Active background */}
                 {active && (
-                  <motion.span
-                    layoutId="nav-bg"
-                    className="absolute inset-0 rounded-lg"
+                  <span
+                    className="absolute inset-0 rounded-lg transition-[opacity,transform] duration-200 ease-out"
                     style={{
                       background: 'linear-gradient(90deg, rgba(28,189,255,0.15) 0%, rgba(28,189,255,0.06) 100%)',
                       border: '1px solid rgba(28,189,255,0.18)',
                     }}
-                    transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
                   />
                 )}
                 {/* Active left glow line */}
@@ -208,10 +280,10 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           {/* Divider */}
           <div className="mx-2 my-2" style={{ height: '1px', background: 'rgba(255,255,255,0.06)' }} />
 
-          {/* Quick action — consultant: New Audit; client: Submit Request */}
-          {isClient ? (
+          {/* Quick action — consultant: New Audit; client: New audit (self-serve) */}
+          {!isGuest && (isClient || roleUnknown) ? (
             <NavLink
-              to="/portal/request"
+              to="/portal/audit/new"
               className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
               style={{
                 color: 'rgba(255,255,255,0.38)',
@@ -227,10 +299,10 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                 (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.38)';
               }}
             >
-              <ClipboardText className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
-              <span>Submit Request</span>
+              <PlusCircle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
+              <span>New audit</span>
             </NavLink>
-          ) : (
+          ) : !isGuest ? (
             <NavLink
               to="/audit/new"
               className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
@@ -251,6 +323,27 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               <Lightning className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-orange)' }} />
               <span>New Audit</span>
             </NavLink>
+          ) : (
+            <NavLink
+              to="/login"
+              className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
+              style={{
+                color: 'rgba(255,255,255,0.38)',
+                fontSize: 'var(--text-sm)',
+                transition: 'color var(--ease-fast), background var(--ease-fast)',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(28,189,255,0.10)';
+                (e.currentTarget as HTMLElement).style.color = 'var(--glc-blue)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+                (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.38)';
+              }}
+            >
+              <PlusCircle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
+              <span>Register to continue</span>
+            </NavLink>
           )}
         </nav>
 
@@ -259,26 +352,71 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           className="relative px-2 py-2 space-y-0.5"
           style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
         >
-          {[
-            { icon: Bell,    label: 'Notifications' },
-            { icon: GearSix, label: 'Settings'       },
-          ].map(({ icon: I, label }) => (
-            <button
-              key={label}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all"
-              style={{ color: 'rgba(255,255,255,0.30)', borderRadius: 'var(--radius-md)' }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.05)';
-                (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.65)';
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
-                (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.30)';
-              }}
-            >
-              <I className="w-3.5 h-3.5" />{label}
-            </button>
-          ))}
+          <div
+            className="mb-1 flex items-center justify-between gap-2 rounded-lg px-2.5 py-2"
+            style={{ borderRadius: 'var(--radius-md)' }}
+          >
+            <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.45)' }}>
+              Theme
+            </span>
+            <ThemeToggle variant="sidebar" />
+          </div>
+          <button
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all"
+            style={{ color: 'rgba(255,255,255,0.30)', borderRadius: 'var(--radius-md)' }}
+            onClick={() => setNotificationsOpen(true)}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
+              (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.75)';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+              (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.30)';
+            }}
+          >
+            <Bell className="w-3.5 h-3.5" />
+            <span className="flex-1 text-left">Notifications</span>
+            {unreadCount > 0 && (
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold tabular-nums"
+                style={{
+                  backgroundColor: 'rgba(28,189,255,0.15)',
+                  color: 'var(--glc-blue)',
+                  border: '1px solid rgba(28,189,255,0.25)',
+                }}
+              >
+                {unreadCount}
+              </span>
+            )}
+          </button>
+          {!isGuest &&
+            [
+              { icon: GearSix, label: 'Settings', to: '/settings' },
+            ].map(({ icon: I, label, to }) => {
+              const active = location.pathname === '/settings';
+              return (
+                <NavLink
+                  key={label}
+                  to={to}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all no-underline"
+                  style={{
+                    color: active ? 'rgba(255,255,255,0.80)' : 'rgba(255,255,255,0.30)',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: active ? 'rgba(255,255,255,0.08)' : 'transparent',
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255,255,255,0.08)';
+                    (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.75)';
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.backgroundColor = active ? 'rgba(255,255,255,0.08)' : 'transparent';
+                    (e.currentTarget as HTMLElement).style.color = active ? 'rgba(255,255,255,0.80)' : 'rgba(255,255,255,0.30)';
+                  }}
+                >
+                  <I className="w-3.5 h-3.5" />{label}
+                </NavLink>
+              );
+            })}
 
           {/* Avatar */}
           {isAuthenticated && user && (
@@ -298,14 +436,14 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                   boxShadow: '0 0 8px rgba(28,189,255,0.30)',
                 }}
               >
-                {(user.email || 'U')[0].toUpperCase()}
+                {(user.email || (isGuest ? 'G' : 'U'))[0].toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium leading-none" style={{ color: 'rgba(255,255,255,0.85)' }}>
-                  {user.email?.split('@')[0] || 'User'}
+                  {profile?.full_name?.trim() || user.email?.split('@')[0] || (isGuest ? 'Guest' : 'User')}
                 </div>
                 <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.28)', marginTop: 3, letterSpacing: '0.03em' }}>
-                  {roleDisplayName ?? (isClient ? 'Client' : 'Admin')}
+                  {roleDisplayName ?? (isClient ? 'Client' : isGuest ? 'Guest' : 'Admin')}
                 </div>
               </div>
               <button
@@ -360,11 +498,26 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                 </p>
               )}
             </div>
-            {actions && <div className="flex items-center gap-2">{actions}</div>}
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              {actions}
+            </div>
           </header>
         )}
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
+      <NotificationCenter
+        open={notificationsOpen}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        loading={notificationsLoading}
+        error={notificationsError}
+        onClose={() => setNotificationsOpen(false)}
+        onRefresh={reloadNotifications}
+        onMarkAsRead={markAsRead}
+        onMarkAllAsRead={markAllAsRead}
+        onOpenNotification={openNotification}
+      />
     </div>
   );
 }

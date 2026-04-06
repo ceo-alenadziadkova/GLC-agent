@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
 import type { User, Session } from '@supabase/supabase-js';
 
+export { isAnonymousUser } from '../lib/snapshot-auth';
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -22,18 +24,32 @@ export function useAuth() {
         logger.debug('Auth document.referrer', { referrer });
 
         const url = new URL(href);
-        const fromMagic = url.searchParams.get('from_magic') === '1'
-          || referrer.includes('/auth/v1/verify');
+
+        // OAuth failures: ?error= & error_description= (e.g. DB error saving new user)
+        let oauthRedirectError: string | null = null;
+        const oauthErr = url.searchParams.get('error');
+        const oauthDesc = url.searchParams.get('error_description');
+        if (oauthErr) {
+          oauthRedirectError = oauthDesc
+            ? decodeURIComponent(oauthDesc.replace(/\+/g, ' '))
+            : oauthErr;
+          logger.error('OAuth redirect error', { oauthErr, oauthRedirectError });
+          url.searchParams.delete('error');
+          url.searchParams.delete('error_description');
+          url.searchParams.delete('error_code');
+          const qs = url.searchParams.toString();
+          window.history.replaceState({}, '', `${url.pathname}${qs ? `?${qs}` : ''}${url.hash}`);
+        }
 
         // 1) Новый PKCE-флоу: ?code=...
         const code = url.searchParams.get('code');
         if (code) {
           logger.info('Auth: found code param, exchanging for session');
-          const { data, error } = await supabase.auth.exchangeCodeForSession(href);
+          const { data, error } = await supabase.auth.exchangeCodeForSession(url.href);
           if (error) {
             logger.error('exchangeCodeForSession error', { error });
             if (isMounted) {
-              setAuthError('Magic link is invalid or has expired. Please request a new one.');
+              setAuthError('Sign-in failed. The link may be invalid or expired — try again.');
             }
           } else if (isMounted) {
             logger.info('exchangeCodeForSession success', { userId: data.session?.user.id });
@@ -64,7 +80,7 @@ export function useAuth() {
             if (error) {
               logger.error('setSession error', { error });
               if (isMounted) {
-                setAuthError('Magic link is invalid or has expired. Please request a new one.');
+                setAuthError('Sign-in failed. The link may be invalid or expired — try again.');
               }
             } else if (isMounted) {
               logger.info('setSession success', { userId: data.session?.user.id });
@@ -80,13 +96,24 @@ export function useAuth() {
         const { data: { session } } = await supabase.auth.getSession();
         logger.info('getSession result', { hasSession: !!session, userId: session?.user.id });
         if (isMounted) {
-          if (!session && fromMagic) {
-            setAuthError('Magic link is invalid or has expired. Please request a new one.');
+          if (session) {
+            setAuthError(null);
+          } else if (!session && referrer.includes('/auth/v1/verify')) {
+            setAuthError('Sign-in failed. The link may be invalid or expired — try again.');
+          } else if (oauthRedirectError) {
+            setAuthError(oauthRedirectError);
           } else {
             setAuthError(null);
           }
           setSession(session);
           setUser(session?.user ?? null);
+        }
+      } catch (err) {
+        logger.error('Auth init error', { err });
+        if (isMounted) {
+          setAuthError(null);
+          setSession(null);
+          setUser(null);
         }
       } finally {
         if (isMounted) {
@@ -114,25 +141,28 @@ export function useAuth() {
     };
   }, []);
 
-  const signInWithEmail = async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/login?from_magic=1`,
-      },
-    });
+  const signInWithPassword = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   };
 
-  const signInWithPassword = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const signUpWithPassword = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/login`,
+      },
+    });
     return { error };
   };
 
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin },
+      options: {
+        redirectTo: `${window.location.origin}/login`,
+      },
     });
     return { error };
   };
@@ -148,8 +178,8 @@ export function useAuth() {
     session,
     loading,
     authError,
-    signInWithEmail,
     signInWithPassword,
+    signUpWithPassword,
     signInWithGoogle,
     signOut,
     isAuthenticated: !!user,

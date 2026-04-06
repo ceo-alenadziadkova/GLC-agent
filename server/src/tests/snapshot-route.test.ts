@@ -102,10 +102,35 @@ const {
   };
 });
 
+const { mockMaybeBuildCompetitorMini } = vi.hoisted(() => ({
+  mockMaybeBuildCompetitorMini: vi.fn().mockResolvedValue(undefined),
+}));
+
 // ─── Module mocks ─────────────────────────────────────────────────────────────
+
+vi.mock('../lib/snapshot-competitor.js', () => ({
+  maybeBuildCompetitorMini: (clientUrl: string, pages: unknown, timeoutMs: number) =>
+    mockMaybeBuildCompetitorMini(clientUrl, pages, timeoutMs),
+}));
+
+const mockReadSnapshotCache = vi.hoisted(() => vi.fn().mockResolvedValue(null));
+
+vi.mock('../snapshot/cache.js', () => ({
+  normalizeSnapshotHost: (companyUrl: string) => {
+    try {
+      const u = new URL(companyUrl);
+      return u.hostname.replace(/^www\./i, '').toLowerCase();
+    } catch {
+      return '';
+    }
+  },
+  readSnapshotCache: (host: string) => mockReadSnapshotCache(host),
+  writeSnapshotCache: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock('../services/supabase.js', () => ({
   supabase: {
+    rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
     from: vi.fn((table: string) => {
       if (table === 'audits') {
         return {
@@ -123,6 +148,16 @@ vi.mock('../services/supabase.js', () => ({
         return {
           insert: (globalThis as Record<string, unknown>).__mockChildInsert,
           select: (globalThis as Record<string, unknown>).__mockUxSelect,
+        };
+      }
+      if (table === 'snapshot_domain_cooldown') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+            })),
+          })),
+          upsert: vi.fn().mockResolvedValue({ error: null }),
         };
       }
       // Fallback
@@ -143,11 +178,38 @@ vi.mock('../services/pipeline.js', () => ({
   },
 }));
 
-vi.mock('../middleware/rate-limit.js', () => ({
-  createAuditLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
-  generalLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
-  pipelineLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
-  snapshotPublicLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
+vi.mock('../middleware/rate-limit.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../middleware/rate-limit.js')>();
+  return {
+    ...actual,
+    snapshotPublicLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
+    snapshotCompareLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
+  };
+});
+
+vi.mock('../middleware/auth.js', () => ({
+  requireAuth: (req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) => {
+    const auth = req.headers.authorization;
+    if (!auth?.startsWith('Bearer ')) {
+      res.status(401).json({ error: 'Missing or invalid Authorization header' });
+      return;
+    }
+    type AR = import('../middleware/auth.js').AuthRequest;
+    (req as unknown as AR).userId = 'test-snapshot-user-id';
+    const role = req.headers['x-test-role'];
+    (req as unknown as AR).userEmail = role === 'consultant' ? 'consultant@test.example' : undefined;
+    next();
+  },
+  attachProfile: (req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) => {
+    type AR = import('../middleware/auth.js').AuthRequest;
+    (req as unknown as AR).userRole = req.headers['x-test-role'] === 'consultant' ? 'consultant' : 'client';
+    next();
+  },
+  rejectGuestFromPortal: (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
+vi.mock('../lib/self-serve-audit-owner.js', () => ({
+  resolveSelfServeAuditOwnerUserId: vi.fn().mockResolvedValue({ ok: true, userId: 'self-serve-owner-id' }),
 }));
 
 // Avoid real DNS in CI/sandbox; mirrors sync checks + URL normalization from production module.
@@ -188,9 +250,15 @@ vi.mock('../lib/public-http-url.js', () => {
 
 import express from 'express';
 import { snapshotRouter } from '../routes/snapshot.js';
+import {
+  noteSnapshotFreshFetchCompleted,
+  resetSnapshotAbuseGuardsForTests,
+} from '../snapshot/abuse-guards.js';
 
 let server: Server;
 let baseUrl: string;
+
+const SNAPSHOT_TEST_AUTH = { Authorization: 'Bearer snapshot-test-jwt' } as const;
 
 beforeAll(async () => {
   const app = express();
@@ -211,6 +279,11 @@ afterAll(() => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resetSnapshotAbuseGuardsForTests();
+  mockReadSnapshotCache.mockReset();
+  mockReadSnapshotCache.mockResolvedValue(null);
+  mockMaybeBuildCompetitorMini.mockClear();
+  mockMaybeBuildCompetitorMini.mockResolvedValue(undefined);
   // Reset defaults
   setInsertResult({ id: 'new-audit-id-001' });
   setSnapshotQueryResult(null);
@@ -218,14 +291,39 @@ beforeEach(() => {
   setUxQueryResult(null);
 });
 
+// ─── GET /api/snapshot/quota ──────────────────────────────────────────────────
+
+describe('GET /api/snapshot/quota', () => {
+  it('returns limit, remaining, period, and reset_at', async () => {
+    const res = await fetch(`${baseUrl}/api/snapshot/quota`);
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.limit).toBe(3);
+    expect(body.period).toBe('day');
+    expect(typeof body.remaining).toBe('number');
+    expect(body.remaining).toBeGreaterThanOrEqual(0);
+    expect(body.remaining).toBeLessThanOrEqual(3);
+    expect(body.reset_at === null || typeof body.reset_at === 'string').toBe(true);
+  });
+});
+
 // ─── POST /api/snapshot ───────────────────────────────────────────────────────
 
 describe('POST /api/snapshot', () => {
 
-  it('returns 202 with snapshot_token when URL is valid', async () => {
+  it('returns 401 when Authorization is missing', async () => {
     const res = await fetch(`${baseUrl}/api/snapshot`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ company_url: 'https://example.com' }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 202 with snapshot_token when URL is valid', async () => {
+    const res = await fetch(`${baseUrl}/api/snapshot`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
       body: JSON.stringify({ company_url: 'https://example.com' }),
     });
 
@@ -239,8 +337,66 @@ describe('POST /api/snapshot', () => {
   it('normalizes URL without protocol prefix', async () => {
     const res = await fetch(`${baseUrl}/api/snapshot`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
       body: JSON.stringify({ company_url: 'example.com' }), // no https://
+    });
+
+    expect(res.status).toBe(202);
+  });
+
+  it('returns 429 DOMAIN_FRESH_COOLDOWN when host was just scanned and cache miss', async () => {
+    await noteSnapshotFreshFetchCompleted('example.com');
+    mockReadSnapshotCache.mockResolvedValue(null);
+
+    const res = await fetch(`${baseUrl}/api/snapshot`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
+      body: JSON.stringify({ company_url: 'https://example.com/path' }),
+    });
+
+    expect(res.status).toBe(429);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('DOMAIN_FRESH_COOLDOWN');
+    expect(typeof body.retry_after_seconds).toBe('number');
+  });
+
+  it('allows POST when cache hit exists even if fresh cooldown is active', async () => {
+    await noteSnapshotFreshFetchCompleted('example.com');
+    mockReadSnapshotCache.mockResolvedValue({
+      version: 1,
+      site_profile: {
+        siteType: 'unknown',
+        industry: 'unknown',
+        conversionModel: 'unknown',
+        primaryOffer: '',
+        shortLabel: '',
+        audienceGuess: 'unknown',
+        businessSignals: [],
+        classificationConfidence: 0.2,
+        classificationConfidenceBand: 'low',
+        companyNameGuess: null,
+        locationGuess: null,
+      },
+      audit: {
+        overallScore: 50,
+        categoryScores: { ux_clarity: 50, conversion_readiness: 50, ai_readiness: 50, technical_basics: 50 },
+        ruleResults: [],
+        scanBasis: 'test',
+        signalsFound: [],
+        scanConfidenceBand: 'medium',
+      },
+      tech_stack: {},
+      pages_crawled: [],
+      company_name: null,
+      location: null,
+      languages: [],
+      contact_info: { emails: [], phones: [], addresses: [] },
+    });
+
+    const res = await fetch(`${baseUrl}/api/snapshot`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
+      body: JSON.stringify({ company_url: 'https://example.com' }),
     });
 
     expect(res.status).toBe(202);
@@ -249,7 +405,7 @@ describe('POST /api/snapshot', () => {
   it('returns 400 when company_url is missing', async () => {
     const res = await fetch(`${baseUrl}/api/snapshot`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
       body: JSON.stringify({}),
     });
 
@@ -261,7 +417,7 @@ describe('POST /api/snapshot', () => {
   it('returns 400 when company_url is not a valid URL', async () => {
     const res = await fetch(`${baseUrl}/api/snapshot`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
       body: JSON.stringify({ company_url: 'not a url at all !@#$' }),
     });
 
@@ -277,7 +433,7 @@ describe('POST /api/snapshot', () => {
     const start = Date.now();
     const res = await fetch(`${baseUrl}/api/snapshot`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
       body: JSON.stringify({ company_url: 'https://async-test.com' }),
     });
     const elapsed = Date.now() - start;
@@ -289,7 +445,7 @@ describe('POST /api/snapshot', () => {
   it('creates audit_recon and audit_domains child records', async () => {
     await fetch(`${baseUrl}/api/snapshot`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
       body: JSON.stringify({ company_url: 'https://example.com' }),
     });
 
@@ -302,7 +458,7 @@ describe('POST /api/snapshot', () => {
 
     const res = await fetch(`${baseUrl}/api/snapshot`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
       body: JSON.stringify({ company_url: 'https://example.com' }),
     });
 
@@ -349,7 +505,7 @@ describe('GET /api/snapshot/:token', () => {
     expect(body.ux_score).toBeUndefined();
   });
 
-  it('returns { status: "failed" } without details when audit failed', async () => {
+  it('returns { status: "failed", code: "SNAPSHOT_FAILED" } when audit failed', async () => {
     setSnapshotQueryResult({
       id: 'audit-001',
       status: 'failed',
@@ -363,6 +519,7 @@ describe('GET /api/snapshot/:token', () => {
     expect(res.status).toBe(200);
     const body = await res.json() as Record<string, unknown>;
     expect(body.status).toBe('failed');
+    expect(body.code).toBe('SNAPSHOT_FAILED');
     expect(body.ux_score).toBeUndefined();
   });
 
@@ -486,5 +643,62 @@ describe('GET /api/snapshot/:token', () => {
     expect(body.company_name).toBeNull();
     expect(body.tech_stack).toEqual({});
     expect(body.location).toBeNull();
+  });
+
+  it('does not fetch competitor data unless compare=1', async () => {
+    setSnapshotQueryResult({
+      id: 'audit-001',
+      status: 'completed',
+      company_url: 'https://example.com',
+      company_name: null,
+      product_mode: 'free_snapshot',
+    });
+    setReconQueryResult({
+      company_name: null,
+      tech_stack: {},
+      location: null,
+      pages_crawled: [{ url: 'https://example.com/', links: { external: ['https://other.com'] } }],
+    });
+    setUxQueryResult({ score: 4, label: 'Good', summary: 'Ok.', issues: [], quick_wins: [] });
+
+    const res = await fetch(`${baseUrl}/api/snapshot/${VALID_TOKEN}`);
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.competitor_mini).toBeUndefined();
+    expect(mockMaybeBuildCompetitorMini).not.toHaveBeenCalled();
+  });
+
+  it('fetches competitor mini when compare=1', async () => {
+    const mini = {
+      competitor_name: 'other.com',
+      competitor_url: 'https://other.com',
+      comparisons: [
+        { metric: 'https', client_val: true, comp_val: true, winner: 'tie' as const, label: 'HTTPS' },
+      ],
+      data_source: 'auto_detected' as const,
+      confidence: 'high' as const,
+    };
+    mockMaybeBuildCompetitorMini.mockResolvedValue(mini);
+
+    setSnapshotQueryResult({
+      id: 'audit-001',
+      status: 'completed',
+      company_url: 'https://example.com',
+      company_name: null,
+      product_mode: 'free_snapshot',
+    });
+    setReconQueryResult({
+      company_name: null,
+      tech_stack: {},
+      location: null,
+      pages_crawled: [],
+    });
+    setUxQueryResult({ score: 4, label: 'Good', summary: 'Ok.', issues: [], quick_wins: [] });
+
+    const res = await fetch(`${baseUrl}/api/snapshot/${VALID_TOKEN}?compare=1`);
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    expect(mockMaybeBuildCompetitorMini).toHaveBeenCalledTimes(1);
+    expect(body.competitor_mini).toEqual(mini);
   });
 });

@@ -29,7 +29,7 @@ export function DomainContext({ domain }: DomainContextProps) {
   };
 
   return (
-    <div className="h-full bg-white border-l flex flex-col" style={{ borderColor: 'var(--panel-border)' }}>
+    <div className="h-full bg-[var(--bg-surface)] border-l flex flex-col" style={{ borderColor: 'var(--panel-border)' }}>
       {/* Header */}
       <div className="p-6 border-b" style={{ borderColor: 'var(--panel-border)' }}>
         <div className="text-xs font-medium mb-3" style={{ color: 'var(--text-tertiary)' }}>

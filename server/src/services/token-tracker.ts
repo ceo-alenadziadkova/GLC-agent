@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { getModelPricing, BUDGET_WARNING_THRESHOLD } from '../config/model.js';
+import { logger } from './logger.js';
 
 interface TokenUsage {
   input_tokens: number;
@@ -49,19 +50,8 @@ export class TokenTracker {
     });
 
     if (rpcError) {
-      // Fallback: best-effort read-then-write (acceptable on single-instance deployments)
-      console.warn('[TokenTracker] RPC increment_tokens_used failed, falling back:', rpcError.message);
-      const { data: audit } = await supabase
-        .from('audits')
-        .select('tokens_used')
-        .eq('id', auditId)
-        .single();
-      if (audit) {
-        await supabase
-          .from('audits')
-          .update({ tokens_used: (audit.tokens_used ?? 0) + totalTokens })
-          .eq('id', auditId);
-      }
+      logger.error('Token increment RPC failed', { audit_id: auditId, error: rpcError.message });
+      throw rpcError;
     }
   }
 

@@ -2,6 +2,7 @@ import type { Response } from 'express';
 import { Router } from 'express';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { logIngestLimiter } from '../middleware/rate-limit.js';
+import { logger } from '../services/logger.js';
 
 interface LogBody {
   level?: 'debug' | 'info' | 'warn' | 'error';
@@ -21,9 +22,14 @@ logRouter.post('/', requireAuth, logIngestLimiter, (req: AuthRequest, res: Respo
   const context = body.context && typeof body.context === 'object' ? body.context : undefined;
   const timestamp = body.timestamp ?? new Date().toISOString();
 
-  const prefix = `[LOG][${level.toUpperCase()}][${source}][user:${req.userId?.slice(0, 8) ?? '?'}]`;
-  // eslint-disable-next-line no-console
-  console.log(prefix, timestamp, message, context ?? {});
+  logger.info('Frontend log', {
+    level,
+    source,
+    timestamp,
+    message,
+    user_id: req.userId,
+    context: context ?? {},
+  });
 
   res.status(204).end();
 });

@@ -6,10 +6,15 @@ import { TechAgent } from '../agents/tech.js';
 import { SecurityAgent } from '../agents/security.js';
 import { SeoAgent } from '../agents/seo.js';
 import { UxAgent } from '../agents/ux.js';
+import { runDeterministicSnapshot } from '../snapshot/run-snapshot.js';
+import { SnapshotAtCapacityError } from '../snapshot/abuse-guards.js';
 import { MarketingAgent } from '../agents/marketing.js';
 import { AutomationAgent } from '../agents/automation.js';
 import { StrategyAgent } from '../agents/strategy.js';
 import { BaseAgent } from '../agents/base.js';
+import { logger } from './logger.js';
+import { getContext, updateContext } from './observability-context.js';
+import { notifyAuditParticipants } from './notifications.js';
 import {
   PHASE_DOMAIN_MAP,
   maxPhaseForMode,
@@ -134,7 +139,7 @@ export class PipelineOrchestrator {
 
     } catch (err) {
       const error = err as Error;
-      console.error(`[Pipeline ${this.auditId}] Phase ${phase} error:`, error.message);
+      logger.error('Pipeline phase failed', { audit_id: this.auditId, phase, error: error.message });
 
       const domainKey = PHASE_DOMAIN_MAP[phase];
       if (domainKey !== 'recon' && domainKey !== 'strategy') {
@@ -187,7 +192,7 @@ export class PipelineOrchestrator {
 
     } catch (err) {
       const error = err as Error;
-      console.error(`[Pipeline ${this.auditId}] Phase ${phase} (parallel) error:`, error.message);
+      logger.error('Pipeline parallel phase failed', { audit_id: this.auditId, phase, error: error.message });
 
       if (domainKey !== 'recon' && domainKey !== 'strategy') {
         await supabase.from('audit_domains').update({ status: 'failed' })
@@ -266,7 +271,10 @@ export class PipelineOrchestrator {
       .eq('id', this.auditId)
       .single();
 
-    if (auditErr || !audit) return;
+    if (auditErr || !audit) {
+      logger.error('Run block failed to load audit', { audit_id: this.auditId, error: auditErr?.message ?? 'missing' });
+      throw new Error('Audit not found while running block');
+    }
 
     const mode = await this.getProductMode();
     const maxPhase = maxPhaseForMode(mode);
@@ -288,7 +296,13 @@ export class PipelineOrchestrator {
       await supabase.from('audits').update({ current_phase: lastWingPhase }).eq('id', this.auditId);
 
       // Run consistency / quality gate checks before surfacing the review gate
-      await consistencyChecker.run(this.auditId, lastWingPhase, wingPhases);
+      const autoGateReport = await consistencyChecker.run(this.auditId, lastWingPhase, wingPhases);
+
+      // Persist quality gate result on the review_points row for this gate
+      await supabase.from('review_points')
+        .update({ quality_gate_passed: autoGateReport.passed })
+        .eq('audit_id', this.auditId)
+        .eq('after_phase', lastWingPhase);
 
       // Gate after auto wing (if applicable)
       if (reviewPhases.includes(lastWingPhase)) {
@@ -315,7 +329,13 @@ export class PipelineOrchestrator {
 
         // Run quality gate on the full audit (all domains) after strategy completes
         const allDomainPhases = [...wingPhases, 7];
-        await consistencyChecker.run(this.auditId, 7, allDomainPhases);
+        const finalGateReport = await consistencyChecker.run(this.auditId, 7, allDomainPhases);
+
+        // Persist quality gate result on the final review_points row (after phase 7)
+        await supabase.from('review_points')
+          .update({ quality_gate_passed: finalGateReport.passed })
+          .eq('audit_id', this.auditId)
+          .eq('after_phase', 7);
       }
       return;
     }
@@ -328,65 +348,32 @@ export class PipelineOrchestrator {
   }
 
   /**
-   * Free Snapshot pipeline — runs Phase 0 (Recon) + Phase 4 (UX partial).
-   * No auth required; result is trimmed to 2 issues + 2 quick wins.
-   * Does NOT trigger review gates.
+   * Free Snapshot — deterministic scanner (no LLM): tiered fetch, site profile, rule engine.
+   * Persists audit_recon + ux_conversion row; trimmed to 2 issues + 2 quick wins in API.
    */
   async runFreeSnapshot(): Promise<FreeSnapshotPreview> {
     try {
-      console.log(`[FreeSnapshot ${this.auditId}] Starting`);
+      logger.info('Free snapshot started', { audit_id: this.auditId });
 
-      // ── Phase 0: Recon ──────────────────────────────────
       await supabase.from('audits').update({ status: 'recon', current_phase: 0 }).eq('id', this.auditId);
-      await this.emitEvent(0, 'started', 'Free Snapshot: Recon started');
+      await this.emitEvent(0, 'started', 'Free Snapshot: deterministic scan started');
 
-      const reconAgent = new ReconAgent(this.auditId);
-      await reconAgent.run(); // ReconAgent saves its own result
+      const { preview } = await runDeterministicSnapshot(this.auditId);
 
-      await this.emitEvent(0, 'completed', 'Free Snapshot: Recon completed');
+      await this.emitEvent(4, 'completed', 'Free Snapshot: deterministic scan completed');
 
-      // ── Phase 4: UX (partial) ───────────────────────────
-      await supabase.from('audits').update({ status: 'auto', current_phase: 4 }).eq('id', this.auditId);
-      await supabase.from('audit_domains').update({ status: 'collecting' })
-        .eq('audit_id', this.auditId)
-        .eq('domain_key', 'ux_conversion');
-      await this.emitEvent(4, 'started', 'Free Snapshot: UX analysis started');
-
-      const uxAgent = new UxAgent(this.auditId);
-      const uxResult = await uxAgent.run();
-      await uxAgent.saveDomainResult(uxResult);
-
-      await this.emitEvent(4, 'completed', 'Free Snapshot: UX analysis completed');
-
-      // ── Mark completed ──────────────────────────────────
-      await supabase.from('audits').update({ status: 'completed' }).eq('id', this.auditId);
-
-      // ── Fetch results ───────────────────────────────────
-      const [{ data: audit }, { data: recon }] = await Promise.all([
-        supabase.from('audits').select('snapshot_token, company_url, company_name').eq('id', this.auditId).single(),
-        supabase.from('audit_recon').select('company_name, tech_stack, location').eq('audit_id', this.auditId).single(),
-      ]);
-
-      console.log(`[FreeSnapshot ${this.auditId}] Completed`);
-
-      return {
-        audit_id: this.auditId,
-        snapshot_token: audit?.snapshot_token ?? '',
-        status: 'completed',
-        company_url: audit?.company_url ?? '',
-        company_name: recon?.company_name ?? audit?.company_name ?? null,
-        tech_stack: (recon?.tech_stack as Record<string, string[]>) ?? {},
-        location: (recon?.location as string | null) ?? null,
-        ux_score: uxResult.score,
-        ux_label: uxResult.label,
-        ux_summary: uxResult.summary,
-        issues: uxResult.issues.slice(0, 2),
-        quick_wins: uxResult.quick_wins.slice(0, 2),
-      };
+      logger.info('Free snapshot completed', { audit_id: this.auditId });
+      return preview;
 
     } catch (err) {
       const error = err as Error;
-      console.error(`[FreeSnapshot ${this.auditId}] Error:`, error.message);
+      if (error instanceof SnapshotAtCapacityError) {
+        logger.warn('Free snapshot capacity', { audit_id: this.auditId });
+        await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
+        await this.emitEvent(0, 'error', error.message);
+        throw err;
+      }
+      logger.error('Free snapshot failed', { audit_id: this.auditId, error: error.message });
       await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
       await this.emitEvent(0, 'error', error.message);
       throw err;
@@ -394,12 +381,68 @@ export class PipelineOrchestrator {
   }
 
   private async emitEvent(phase: number, eventType: string, message: string, data: Record<string, unknown> = {}): Promise<void> {
+    updateContext({ auditId: this.auditId });
+    const ctx = getContext();
     await supabase.from('pipeline_events').insert({
       audit_id: this.auditId,
       phase,
       event_type: eventType,
       message,
-      data,
+      data: {
+        ...data,
+        trace_id: ctx?.traceId,
+        operation_id: ctx?.operationId,
+      },
     });
+
+    // Keep in-app notifications concise and limited to user-relevant lifecycle changes.
+    if (['started', 'completed', 'error', 'review_needed'].includes(eventType)) {
+      const titleByType: Record<string, string> = {
+        started: 'Pipeline phase started',
+        completed: 'Pipeline phase completed',
+        error: 'Pipeline phase failed',
+        review_needed: 'Review required',
+      };
+      await notifyAuditParticipants(
+        this.auditId,
+        eventType === 'review_needed' ? 'review' : 'pipeline',
+        titleByType[eventType] ?? 'Pipeline update',
+        message,
+        {
+          phase,
+          event_type: eventType,
+          ...data,
+        },
+      );
+    }
+
+    if (eventType === 'completed' && phase === 7) {
+      await notifyAuditParticipants(
+        this.auditId,
+        'pipeline',
+        'Artifact ready',
+        'Strategy synthesis is ready.',
+        {
+          audit_id: this.auditId,
+          artifact: 'strategy',
+          route: `/strategy/${this.auditId}`,
+          occurred_at: new Date().toISOString(),
+          actor_role: 'system',
+        },
+      );
+      await notifyAuditParticipants(
+        this.auditId,
+        'pipeline',
+        'Artifact ready',
+        'Final report is ready.',
+        {
+          audit_id: this.auditId,
+          artifact: 'report',
+          route: `/reports/${this.auditId}`,
+          occurred_at: new Date().toISOString(),
+          actor_role: 'system',
+        },
+      );
+    }
   }
 }

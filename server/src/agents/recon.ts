@@ -1,9 +1,11 @@
 import { BaseAgent, loadPrompt } from './base.js';
 import { CrawlerCollector } from '../collectors/crawler.js';
-import { ReconOutputSchema, zodToJsonSchema } from '../schemas/domain-output.js';
+import { ReconOutputSchema } from '../schemas/domain-output.js';
 import { supabase } from '../services/supabase.js';
-import { CLAUDE_MODEL, MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
+import { MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
+import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
 import type { DomainResult } from '../types/audit.js';
+import { writeReconPrefillsAfterPhase0 } from '../services/recon-prefill.js';
 
 /**
  * Phase 0: Recon Agent
@@ -23,15 +25,24 @@ export class ReconAgent extends BaseAgent {
    */
   async run(): Promise<DomainResult> {
     const companyUrl = await this.getCompanyUrl();
+    const noPublicSite = isNoPublicWebsiteUrl(companyUrl);
 
     // Step 1: Collect
-    await this.emit('collecting', 'Crawling company website...');
+    await this.emit(
+      'collecting',
+      noPublicSite ? 'No public website — skipping web crawl...' : 'Crawling company website...'
+    );
     const crawler = new CrawlerCollector();
     const crawlResult = await crawler.run(this.auditId, companyUrl);
     const crawledPageCount = (crawlResult.data.pages_crawled as unknown[])?.length ?? 0;
-    await this.emit('log', `✓ Crawled ${crawledPageCount} pages`);
+    await this.emit(
+      'log',
+      noPublicSite
+        ? '✓ No public website — recon will use intake brief and form data only'
+        : `✓ Crawled ${crawledPageCount} pages`
+    );
 
-    if (crawledPageCount === 0) {
+    if (!noPublicSite && crawledPageCount === 0) {
       const msg = 'Recon crawled 0 pages — site may be unreachable or blocking crawlers';
       await this.emit('phase-error', msg, { phase: 'recon', fatal: true, timestamp: new Date().toISOString() });
       throw new Error(msg);
@@ -54,34 +65,7 @@ export class ReconAgent extends BaseAgent {
       await this.emit('warning', `Token budget at ${Math.round((budget.tokens_used / budget.token_budget) * 100)}% — ${budget.remaining} tokens remaining`);
     }
 
-    // Use parent's callClaude logic via full run, but we need to handle recon-specific saving
-    const { system, prompt, truncated, truncatedKeys } = this.contextBuilder.formatPrompt(context);
-    if (truncated) {
-      await this.emit('warning', `Context truncated for keys: ${truncatedKeys.join(', ')}`);
-    }
-    const response = await this.anthropic.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: MODEL_MAX_TOKENS.recon,
-      system,                                           // ← role instructions in system channel
-      messages: [{ role: 'user', content: prompt }],
-      tools: [{
-        name: 'submit_analysis',
-        description: 'Submit the structured reconnaissance analysis',
-        input_schema: zodToJsonSchema(ReconOutputSchema) as { type: 'object'; properties: Record<string, unknown>; required?: string[] },
-      }],
-      tool_choice: { type: 'tool', name: 'submit_analysis' },
-    });
-
-    await this.tokenTracker.log(this.auditId, 0, {
-      input_tokens: response.usage.input_tokens,
-      output_tokens: response.usage.output_tokens,
-      model: CLAUDE_MODEL,
-    });
-
-    const toolBlock = response.content.find(b => b.type === 'tool_use');
-    if (!toolBlock || toolBlock.type !== 'tool_use') throw new Error('No tool_use response');
-
-    const reconResult = ReconOutputSchema.parse(toolBlock.input);
+    const reconResult = await this.callClaudeWithRetry(context, ReconOutputSchema, MODEL_MAX_TOKENS.recon) as unknown as import('zod').infer<typeof ReconOutputSchema>;
 
     // Save to audit_recon
     await supabase.from('audit_recon').update({
@@ -95,6 +79,13 @@ export class ReconAgent extends BaseAgent {
       contact_info: crawlResult.data.contact_info,
       pages_crawled: crawlResult.data.pages_crawled,
     }).eq('audit_id', this.auditId);
+
+    if (!noPublicSite) {
+      await writeReconPrefillsAfterPhase0(
+        this.auditId,
+        (crawlResult.data.tech_stack ?? {}) as Record<string, unknown>,
+      );
+    }
 
     // Update audit with discovered info
     await supabase.from('audits').update({
