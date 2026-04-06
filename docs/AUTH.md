@@ -14,7 +14,7 @@
 3. If **Confirm email** is enabled in the Supabase project, new users may need to confirm via email before the session is fully active — align dashboard settings with product expectations.
 
 ### Google OAuth
-1. Frontend calls `supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: '<origin>/login' } })`
+1. Frontend calls `supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: '<origin>/login' } })` (or **`linkIdentity`** when the current session is anonymous — see free snapshot below).
 2. Browser redirects to Google
 3. After consent → Google → Supabase → browser opens `/login` with `?code=` (PKCE) or hash tokens; `useAuth` exchanges or `setSession`, then UI navigates away
 
@@ -22,7 +22,7 @@ Do not use bare `<origin>` as `redirectTo` when `/` immediately redirects to `/d
 
 **`Database error saving new user` (Google or first sign-up):** the `on_auth_user_created` trigger inserts into `public.profiles`. On Supabase hosted, that runs as `supabase_auth_admin`; without an INSERT (and SELECT for conflict checks) RLS policy for that role, the insert fails. Apply migration `012_profiles_trigger_auth_admin.sql` (see [DATABASE.md](./DATABASE.md#overview)). The login page surfaces `error_description` from the redirect URL when present.
 
-**Free snapshot (`/snapshot`):** requires an existing session — the landing page links to **`/login?next=/snapshot`** so post-login redirect returns to the tool. Rows are tied to **`auth.uid()`** like other client flows.
+**Free snapshot (`/snapshot`):** **`SnapshotLanding`** calls **`ensureSnapshotSession()`** — reuses any existing session or **`signInAnonymously()`** so visitors get a **wow-first** preview without a sign-up wall. Supabase must have **Anonymous sign-ins** enabled. **`POST /api/snapshot`** still sends a JWT; **`attachProfile`** creates **`profiles.role = 'guest'`** for anonymous users until they complete a full sign-in (then **`guest` → `client`/`consultant`**). For **Google**, **`useAuth.signInWithGoogle`** uses **`linkIdentity`** while anonymous so **`user.id`** stays stable when upgrading. **Email/password** from a guest session does not auto-merge the same `user.id` in Supabase; prefer Google from `/login` after a quick scan, or sign in first if using password-only accounts.
 
 All methods produce the same end state for full accounts: a Supabase session with an `access_token` (JWT) and `refresh_token`.
 
@@ -58,7 +58,7 @@ The Supabase JS client handles session persistence automatically:
 
 The database keeps the legacy value `consultant` for admins; the app may display **Admin** in the shell. Clients only see audits where they are `user_id` **or** `client_id` on the `audits` row (enforced in API queries, not only RLS).
 
-**Public (no auth):** `POST/GET /api/snapshot` for free UX snapshot — `POST` (starts) are rate-limited by IP (see [API.md](./API.md#public-snapshot)); `GET` polling is not counted.
+**Public snapshot reads (no JWT):** `GET /api/snapshot/quota` and **`GET /api/snapshot/:token`** (poll / result). **`POST /api/snapshot`** requires a JWT (normal user or anonymous); rate limits apply (see [API.md](./API.md#public-snapshot)).
 
 ---
 

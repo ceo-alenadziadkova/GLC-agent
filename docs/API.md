@@ -431,7 +431,7 @@ Public endpoint (no JWT). Returns how many free website checks are **still avail
 
 ### `POST /api/snapshot`
 
-Start a free snapshot run. **Auth:** Supabase `Authorization: Bearer <access_token>` required. The user must **sign in first** (email/password or Google); each run is stored with **`client_id = auth.uid()`** (clients) or **`user_id = auth.uid()`** (consultants). Same fair-use and domain rules as before.
+Start a free snapshot run. **Auth:** Supabase `Authorization: Bearer <access_token>` required. The token may be a **normal** session (email/password or Google) or an **anonymous** session from **`signInAnonymously()`** (wow-first UX on `/snapshot`; **`profiles.role = 'guest'`** until full sign-in). Each run is stored with **`client_id = auth.uid()`** or **`user_id = auth.uid()`** per existing snapshot insert rules. Same fair-use and domain rules as before.
 
 **`401`:** missing/invalid JWT.
 

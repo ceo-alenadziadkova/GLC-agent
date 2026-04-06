@@ -329,17 +329,15 @@ Free graders are **wrong often**; the product should **invite verification**, no
 
 ---
 
-## Snapshot auth — signed-in users only
+## Snapshot auth — wow first, then sign-up
 
-**Goal:** Every snapshot run is owned by a **normal** `auth.users` row (email/password or Google). The app **does not** call **`signInAnonymously()`** — users open **`/login?next=/snapshot`**, then **`POST /api/snapshot`** sends their JWT.
+**Goal:** Visitors see results **without** a registration wall. **`SnapshotLanding`** calls **`ensureSnapshotSession()`** (existing session or **`signInAnonymously()`**). **`POST /api/snapshot`** always sends a JWT. **Supabase:** enable **Anonymous sign-ins**.
 
-**Product / dashboard:** **Anonymous sign-ins** are **not** required for snapshot. Optional: leave the provider off in Supabase to reduce noise in `auth.users`.
+**Server:** `POST /api/snapshot` uses **`requireAuth` + `attachProfile`**. Anonymous users get **`profiles.role = 'guest'`** until **`attachProfile`** promotes them after a non-anonymous session. **`GET /api/snapshot/:token`** and **`GET /quota`** stay public.
 
-**Server:** `POST /api/snapshot` uses **`requireAuth` + `attachProfile`**. Inserts set **`user_id` / `client_id`** like self-serve client audits (consultant owner from platform settings). **`GET /api/snapshot/:token`** and quota stay public.
+**Frontend:** Subscribes to **`onAuthStateChange`** and re-runs **`ensureSnapshotSession()`** when needed (e.g. after sign-out). If anonymous is disabled server-side, the UI shows an error and links to **`/login?next=/snapshot`**.
 
-**Frontend:** `SnapshotLanding` subscribes to **`onAuthStateChange`**; the form is enabled only when **`getSession()`** has a token. Unsigned visitors see a link to **`/login?next=/snapshot`**; **`Login`** reads **`next`** and redirects back after success.
-
-**`guest` role:** The DB may still allow **`profiles.role = 'guest'`** for legacy anonymous JWTs (migration **`023`**). New snapshot users are **`client`** or **`consultant`** from first **`attachProfile`**. RLS notes for **`is_anonymous`** apply only if you still enable Anonymous sign-ins for other experiments.
+**Upgrade:** **`useAuth.signInWithGoogle`** uses **`linkIdentity`** when the session is anonymous so **`user.id`** is preserved. **`Login`** shows a short hint for anonymous visitors. Email/password does not merge the same anonymous `user.id` by default — product copy steers upgraders to Google for continuity.
 
 ---
 
@@ -358,7 +356,7 @@ Normative items above may **outpace** current code. Track at least:
 9. **Observability** — **Improved:** [SECURITY.md](./SECURITY.md#snapshot-observability--log-redaction-runbook) runbook (redaction allowlist, Loki example, alerts) + [DEPLOYMENT.md](./DEPLOYMENT.md) hosted-dashboard notes; operator metrics include shared lease headcount when the store is on.
 10. **Retention** — **Improved:** cache strips contacts; **`audit_recon.contact_info`** cleared on free-snapshot persist; operator purge API.
 11. **Failure-mode matrix** — **Improved:** ordered WAF/challenge taxonomy (`challenge_taxonomy`); parked weak-hint suppression when JSON-LD / tel / mailto / internal path links + visible text suggest a live SMB site; `spa_shell_thin_html` for no-copy root mounts with many scripts; **residual gap:** edge cases that mimic both (e.g. marketing sites with extreme script count and little static text).
-12. **CAPTCHA for snapshot** — optional Turnstile (or similar) on **login** if bot sign-ups become an issue; snapshot itself has no anonymous `signInAnonymously` path. IP/server rate limits for snapshot remain as today.
+12. **CAPTCHA for snapshot** — optional Turnstile (or similar) on **login** or the snapshot form if **anonymous** bursts become an issue; IP/server rate limits for snapshot remain as today.
 
 ---
 

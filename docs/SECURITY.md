@@ -30,9 +30,9 @@ const audit = await supabase
   .single();
 ```
 
-### Legacy anonymous JWTs (optional provider)
+### Anonymous snapshot sessions (Supabase provider)
 
-The **free snapshot** UI **does not** call `signInAnonymously()`; users sign in normally first. If you still enable **Anonymous sign-ins** in Supabase for other experiments, those JWTs use the **`authenticated`** role — narrow RLS with **`is_anonymous`** where needed ([access control](https://supabase.com/docs/guides/auth/auth-anonymous#access-control)). **`profiles.role = 'guest'`** (migration `023`) can still apply to old anonymous rows until users complete a full sign-in.
+The **free snapshot** page calls **`signInAnonymously()`** when there is no session so visitors can run a preview without a sign-up wall. Enable **Anonymous sign-ins** in the Supabase project. Those JWTs use the **`authenticated`** role — narrow RLS with **`is_anonymous`** where needed ([access control](https://supabase.com/docs/guides/auth/auth-anonymous#access-control)). **`attachProfile`** sets **`profiles.role = 'guest'`** for anonymous users until they complete a full sign-in (**`guest` → `client`/`consultant`** per migration **`023`**).
 
 ---
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { motion } from 'motion/react';
 import { ArrowRight, Lock } from '@phosphor-icons/react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth, isAnonymousUser } from '../hooks/useAuth';
 import { logger } from '../lib/logger';
 import { ThemeToggle } from '../components/ThemeToggle';
 
@@ -10,7 +10,7 @@ type AuthMode = 'signin' | 'signup';
 
 export function Login() {
   const navigate = useNavigate();
-  const { signInWithPassword, signUpWithPassword, signInWithGoogle, isAuthenticated, authError } = useAuth();
+  const { signInWithPassword, signUpWithPassword, signInWithGoogle, isAuthenticated, authError, user } = useAuth();
   const [mode, setMode] = useState<AuthMode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -162,6 +162,11 @@ export function Login() {
           </div>
 
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            {isAnonymousUser(user) && (
+              <p className="mb-3 rounded-lg px-3 py-2 text-xs leading-snug" style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
+                You used the quick website scan. Continue with Google to keep the same account and unlock the full audit. Email sign-in starts a separate account unless you use Google first.
+              </p>
+            )}
             <button
               onClick={handleGoogle}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-medium text-sm"

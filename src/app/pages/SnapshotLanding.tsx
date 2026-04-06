@@ -26,15 +26,11 @@ import { SyncPathLoader } from '../components/SyncPathLoader';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
 import { supabase } from '../lib/supabase';
-import { getSnapshotAccessToken } from '../lib/snapshot-auth';
+import { ensureSnapshotSession, getSnapshotAccessToken } from '../lib/snapshot-auth';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
-async function getBearerForSnapshot(): Promise<string | null> {
-  return getSnapshotAccessToken();
-}
-
-type SnapshotAuthState = 'checking' | 'signed_in' | 'signed_out';
+type SnapshotAuthState = 'checking' | 'ready' | 'failed';
 
 type Stage = 'idle' | 'submitting' | 'running' | 'done' | 'error';
 
@@ -384,17 +380,30 @@ export function SnapshotLanding() {
   const [competitorLoading, setCompetitorLoading] = useState(false);
   const [competitorLoadError, setCompetitorLoadError] = useState('');
   const [snapshotAuth, setSnapshotAuth] = useState<SnapshotAuthState>('checking');
+  const [snapshotAuthError, setSnapshotAuthError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const sync = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSnapshotAuth(data.session?.access_token ? 'signed_in' : 'signed_out');
+      try {
+        await ensureSnapshotSession();
+        if (!cancelled) {
+          setSnapshotAuth('ready');
+          setSnapshotAuthError(null);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setSnapshotAuth('failed');
+          setSnapshotAuthError(e instanceof Error ? e.message : 'Preview session unavailable');
+        }
+      }
     };
     void sync();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
       void sync();
     });
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
     };
   }, []);
@@ -463,9 +472,11 @@ export function SnapshotLanding() {
     setRateLimitDetail(null);
 
     try {
-      const bearer = await getBearerForSnapshot();
-      if (!bearer) {
-        setErrorMsg('Session missing — sign in again from /login?next=/snapshot');
+      let bearer: string;
+      try {
+        bearer = await ensureSnapshotSession();
+      } catch (e) {
+        setErrorMsg(e instanceof Error ? e.message : 'Could not start analysis');
         setStage('error');
         return;
       }
@@ -550,7 +561,7 @@ export function SnapshotLanding() {
     setCompetitorLoading(true);
     setCompetitorLoadError('');
     try {
-      const bearer = await getBearerForSnapshot();
+      const bearer = await getSnapshotAccessToken();
       const headers: Record<string, string> = {};
       if (bearer) headers.Authorization = `Bearer ${bearer}`;
       const res = await fetch(`${API_URL}/api/snapshot/${token}?compare=1`, { headers });
@@ -715,7 +726,7 @@ export function SnapshotLanding() {
                       style={{ color: 'var(--text-tertiary)' }}
                     >
                       <CheckCircle className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
-                      Sign in for free — we save the snapshot to your account
+                      Try instantly — sign in anytime to unlock the full Express Audit
                     </div>
                   </div>
                 </div>
@@ -733,19 +744,20 @@ export function SnapshotLanding() {
                   Your website
                 </p>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {snapshotAuth === 'signed_out' && (
+                  {snapshotAuth === 'failed' && (
                     <p
                       className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5 text-center text-xs leading-snug mobile:text-left"
                       style={{ color: 'var(--text-secondary)' }}
                     >
+                      {snapshotAuthError ?? 'Preview session could not be started.'}{' '}
                       <Link
                         to="/login?next=/snapshot"
                         className="font-semibold underline-offset-2 hover:underline"
                         style={{ color: 'var(--glc-blue)' }}
                       >
-                        Sign in or create an account
+                        Sign in
                       </Link>{' '}
-                      to run the snapshot. Results stay linked to your profile.
+                      or ask your admin to enable Anonymous sign-ins in Supabase for instant preview.
                     </p>
                   )}
                   <div className="relative">
@@ -759,7 +771,7 @@ export function SnapshotLanding() {
                       onChange={e => setUrl(e.target.value)}
                       placeholder="yourcompany.com"
                       required
-                      disabled={stage === 'submitting' || snapshotAuth !== 'signed_in'}
+                      disabled={stage === 'submitting' || snapshotAuth !== 'ready'}
                       inputMode="url"
                       autoCapitalize="none"
                       autoCorrect="off"
@@ -779,23 +791,23 @@ export function SnapshotLanding() {
                     disabled={
                       !url.trim() ||
                       stage === 'submitting' ||
-                      snapshotAuth !== 'signed_in'
+                      snapshotAuth !== 'ready'
                     }
-                    whileHover={url.trim() && snapshotAuth === 'signed_in' ? { scale: 1.015 } : {}}
-                    whileTap={url.trim() && snapshotAuth === 'signed_in' ? { scale: 0.985 } : {}}
+                    whileHover={url.trim() && snapshotAuth === 'ready' ? { scale: 1.015 } : {}}
+                    whileTap={url.trim() && snapshotAuth === 'ready' ? { scale: 0.985 } : {}}
                     className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] py-3 text-sm font-semibold text-white mobile:min-h-12"
                     style={{
                       background:
-                        url.trim() && snapshotAuth === 'signed_in'
+                        url.trim() && snapshotAuth === 'ready'
                           ? 'var(--gradient-accent)'
                           : 'var(--border-default)',
                       border: 'none',
                       cursor:
-                        url.trim() && stage !== 'submitting' && snapshotAuth === 'signed_in'
+                        url.trim() && stage !== 'submitting' && snapshotAuth === 'ready'
                           ? 'pointer'
                           : 'not-allowed',
                       boxShadow:
-                        url.trim() && snapshotAuth === 'signed_in'
+                        url.trim() && snapshotAuth === 'ready'
                           ? '0 4px 14px rgba(242,79,29,0.28)'
                           : 'none',
                     }}
@@ -803,7 +815,7 @@ export function SnapshotLanding() {
                     {snapshotAuth === 'checking' ? (
                       <>
                         <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                        Checking session...
+                        Preparing preview...
                       </>
                     ) : stage === 'submitting' ? (
                       <>

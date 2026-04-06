@@ -226,7 +226,16 @@ snapshotRouter.post('/', snapshotPublicLimiter, requireAuth, attachProfile, asyn
       .single();
 
     if (auditErr || !audit) {
-      logger.error('snapshot.create_audit_failed', { component: 'snapshot', error: auditErr?.message });
+      const pe = auditErr as { message?: string; code?: string; details?: string; hint?: string } | null;
+      logger.error('snapshot.create_audit_failed', {
+        component: 'snapshot',
+        error: pe?.message,
+        code: pe?.code,
+        details: pe?.details,
+        hint: pe?.hint,
+        user_id: req.userId,
+        user_role: req.userRole,
+      });
       res.status(500).json({ error: 'Failed to create snapshot' });
       return;
     }
@@ -248,8 +257,30 @@ snapshotRouter.post('/', snapshotPublicLimiter, requireAuth, attachProfile, asyn
     );
 
     if (initFailed) {
+      const placeholders = ['audit_recon', 'audit_domains'] as const;
+      const initErrors = initResults.map((r, i) => {
+        const label = placeholders[i] ?? `idx_${i}`;
+        if (r.status === 'rejected') {
+          return { table: label, error: (r.reason as Error)?.message ?? String(r.reason) };
+        }
+        if (r.status === 'fulfilled' && r.value.error) {
+          const err = r.value.error as { message?: string; code?: string; details?: string; hint?: string };
+          return {
+            table: label,
+            error: err.message,
+            code: err.code,
+            details: err.details,
+            hint: err.hint,
+          };
+        }
+        return null;
+      }).filter(Boolean);
       await supabase.from('audits').delete().eq('id', auditId);
-      logger.error('snapshot.init_placeholders_failed', { component: 'snapshot', audit_id: auditId });
+      logger.error('snapshot.init_placeholders_failed', {
+        component: 'snapshot',
+        audit_id: auditId,
+        init_errors: initErrors,
+      });
       res.status(500).json({ error: 'Failed to initialize snapshot — rolled back' });
       return;
     }
