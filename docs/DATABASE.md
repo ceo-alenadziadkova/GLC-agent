@@ -22,8 +22,11 @@ PostgreSQL on **Supabase**. Apply migrations **in numeric order** so foreign key
 16. `016_intake_recon_conflicts_discovery.sql` — recon conflict handling / discovery-related intake (see migration file)
 17. `017_client_brief_help.sql` — `brief_help_requested_at`, `brief_help_client_message` on `audits` (optional client “help with brief” signal)
 18. `018_platform_settings.sql` — singleton `platform_settings` (`self_serve_audit_owner_user_id` for client self-serve owner)
+19. `020_snapshot_domain_cache.sql` — `snapshot_domain_cache` (host-keyed JSON payload + `expires_at` for deterministic free snapshot reuse)
+20. `021_snapshot_domain_cooldown.sql` — `snapshot_domain_cooldown` (optional cross-instance fresh-fetch cooldown for public snapshot; opt-in via `SNAPSHOT_SHARED_ABUSE_STORE`)
+21. `022_snapshot_fresh_lease.sql` — `snapshot_fresh_lease` + RPC `snapshot_try_acquire_fresh_lease` / `snapshot_release_fresh_lease` (optional cross-instance **concurrent fresh** cap; same opt-in flag)
 
-**Tables (14):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`.
+**Tables (17):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`.
 
 Row Level Security is enabled on these tables; exact policies differ by table (consultant vs client access). **Canonical SQL:** the migration files — this doc summarises shapes.
 
@@ -315,6 +318,32 @@ Singleton row (`id = 1`) for cross-tenant platform options maintained via the AP
 RLS enabled with no policies (no direct client access); server writes through the service role.
 
 Migration: `018_platform_settings.sql`.
+
+---
+
+### `snapshot_domain_cache`
+
+Migration: `020_snapshot_domain_cache.sql`. One row per **registrable host** (no `www.`); JSON **`payload`** is the deterministic snapshot artifact reused for repeat free checks; **`expires_at`** gates reads.
+
+**PII / retention:** The server **does not** store raw scraped emails or phone numbers in this payload (arrays are emptied before upsert). The **free snapshot** pipeline also **clears `contact_info` on `audit_recon`** when persisting from this path so DB rows do not retain scraped contact vectors from the public scanner.
+
+**Operator purge:** Delete a cache row with **`POST /api/snapshot/operator/purge-cache`** (when `SNAPSHOT_OPERATOR_TOKEN` is set) or SQL: `DELETE FROM snapshot_domain_cache WHERE host = 'example.com';`
+
+---
+
+### `snapshot_domain_cooldown`
+
+Migration: `021_snapshot_domain_cooldown.sql`. One row per **registrable host** — **`last_fresh_scan_at`** records when a fresh scan last completed and wrote **`snapshot_domain_cache`**.
+
+Used only when **`SNAPSHOT_SHARED_ABUSE_STORE=1`** (see [DEPLOYMENT.md](./DEPLOYMENT.md)); without it, cooldown stays **in-process** only. Backend reads/writes via **service role** (no RLS policies required for this internal table; optional hardening: deny anon/authenticated direct access in a follow-up migration).
+
+---
+
+### `snapshot_fresh_lease`
+
+Migration: `022_snapshot_fresh_lease.sql`. Short-lived rows (**`expires_at`**) counting active **fresh** snapshot workers cluster-wide. Acquire and release are **`SECURITY DEFINER`** RPCs (`snapshot_try_acquire_fresh_lease`, `snapshot_release_fresh_lease`) using a transaction advisory lock so counts stay consistent under concurrency. Expired rows are deleted on each successful acquire.
+
+Tune TTL with **`SNAPSHOT_FRESH_LEASE_TTL_SECONDS`** (default derived from **`SNAPSHOT_FETCH_BUDGET_MS`**; must exceed worst-case fresh scan wall time). Same **`SNAPSHOT_SHARED_ABUSE_STORE`** gate as cooldown.
 
 ---
 

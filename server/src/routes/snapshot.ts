@@ -9,15 +9,113 @@ import { Router } from 'express';
 import { randomUUID } from 'crypto';
 import { supabase } from '../services/supabase.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
-import { getSnapshotPublicQuota, snapshotPublicLimiter } from '../middleware/rate-limit.js';
+import {
+  getSnapshotPublicQuota,
+  snapshotCompareLimiter,
+  snapshotPublicLimiter,
+} from '../middleware/rate-limit.js';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
-import type { CrawledPage, FreeSnapshotPreview } from '../types/audit.js';
+import type { CrawledPage, FreeSnapshotPreview, SnapshotScanCoverageApi } from '../types/audit.js';
 import { maybeBuildCompetitorMini } from '../lib/snapshot-competitor.js';
 import { logger } from '../services/logger.js';
+import { readSnapshotCache, normalizeSnapshotHost } from '../snapshot/cache.js';
+import {
+  derivePublicUxFieldsFromSnapshotPayload,
+  snapshotPayloadToDeterministicApiRecord,
+} from '../snapshot/run-snapshot.js';
+import { overallToLegacyScore } from '../snapshot/audit/run-audit.js';
+import {
+  getSnapshotDomainFreshCooldownRetryAfterSecondsAsync,
+  isSnapshotDomainFreshCooldownActiveAsync,
+  SnapshotAtCapacityError,
+} from '../snapshot/abuse-guards.js';
+import { getSnapshotMetricsSnapshot } from '../snapshot/snapshot-metrics.js';
+import { getSnapshotSharedMetricsForOperator } from '../snapshot/snapshot-operator-metrics-shared.js';
+import { deleteSnapshotDomainCache } from '../snapshot/cache.js';
 
 export const snapshotRouter = Router();
 const SNAPSHOT_TTL_HOURS = Number(process.env.SNAPSHOT_TOKEN_TTL_HOURS ?? 72);
 const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function uxLegacyLabel(score: number): string {
+  if (score >= 4) return 'Good';
+  if (score >= 3) return 'Moderate';
+  if (score >= 2) return 'Needs Work';
+  return 'Critical';
+}
+
+/** Merge `raw_data.snapshot_deterministic` or cache-derived record into the public preview. */
+function applyDeterministicRecordToPreview(
+  preview: FreeSnapshotPreview,
+  det: Record<string, unknown>,
+): void {
+  if (typeof det.overall_score === 'number') preview.overall_score = det.overall_score;
+  if (det.category_scores && typeof det.category_scores === 'object') {
+    preview.category_scores = det.category_scores as FreeSnapshotPreview['category_scores'];
+  }
+  if (typeof det.scan_basis === 'string') preview.scan_basis = det.scan_basis;
+  if (Array.isArray(det.signals_found)) {
+    preview.signals_found = det.signals_found as string[];
+  }
+  if (det.scan_confidence_band === 'high' || det.scan_confidence_band === 'medium' || det.scan_confidence_band === 'low') {
+    preview.scan_confidence_band = det.scan_confidence_band;
+  }
+  if (det.site_profile && typeof det.site_profile === 'object') {
+    preview.site_profile = det.site_profile as FreeSnapshotPreview['site_profile'];
+  }
+  if (
+    det.classification_confidence_band === 'high' ||
+    det.classification_confidence_band === 'medium' ||
+    det.classification_confidence_band === 'low'
+  ) {
+    preview.classification_confidence_band = det.classification_confidence_band;
+  } else if (preview.site_profile?.classificationConfidenceBand) {
+    preview.classification_confidence_band = preview.site_profile.classificationConfidenceBand;
+  }
+  const cov = det.scan_coverage as SnapshotScanCoverageApi | undefined;
+  if (cov && typeof cov.budget_ms === 'number' && Array.isArray(cov.pages)) {
+    preview.scan_coverage = cov;
+  }
+  if (typeof det.audit_rules_version === 'number') {
+    preview.audit_rules_version = det.audit_rules_version;
+  }
+  if (det.cache_hit === true) {
+    preview.cache_hit = true;
+    preview.scan_basis_code = 'cache_hit';
+  } else if (
+    det.scan_basis_code === 'homepage_only' ||
+    det.scan_basis_code === 'homepage_plus_core_pages' ||
+    det.scan_basis_code === 'homepage_rendered_fallback' ||
+    det.scan_basis_code === 'degraded' ||
+    det.scan_basis_code === 'cache_hit'
+  ) {
+    preview.scan_basis_code = det.scan_basis_code;
+  }
+  if (typeof det.scanned_at === 'string') {
+    preview.scanned_at = det.scanned_at;
+  }
+  if (Array.isArray(det.limitations)) {
+    preview.limitations = det.limitations as string[];
+  }
+  if (typeof det.classification_version === 'number') {
+    preview.classification_version = det.classification_version;
+  }
+  if (typeof det.fetch_strategy_version === 'string') {
+    preview.fetch_strategy_version = det.fetch_strategy_version;
+  }
+  if (typeof det.snapshot_engine_version === 'string') {
+    preview.snapshot_engine_version = det.snapshot_engine_version;
+  }
+}
+
+function snapshotOperatorAuthorized(req: import('express').Request): boolean {
+  const token = process.env.SNAPSHOT_OPERATOR_TOKEN?.trim();
+  if (!token) return false;
+  const auth = req.headers.authorization;
+  if (auth === `Bearer ${token}`) return true;
+  const hdr = req.headers['x-snapshot-operator-token'];
+  return typeof hdr === 'string' && hdr === token;
+}
 
 /**
  * Public Free UX Snapshot API contract — see docs/API.md (Public Snapshot), docs/PRODUCT.md (product_mode free_snapshot).
@@ -61,6 +159,21 @@ snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
         return;
       }
       throw e;
+    }
+
+    const snapHost = normalizeSnapshotHost(url);
+    if (snapHost) {
+      const cacheHit = await readSnapshotCache(snapHost);
+      if (!cacheHit && (await isSnapshotDomainFreshCooldownActiveAsync(snapHost))) {
+        const retrySec = await getSnapshotDomainFreshCooldownRetryAfterSecondsAsync(snapHost);
+        res.status(429).json({
+          error:
+            'This website was just scanned from our free tool. Please wait a few minutes before starting another fresh check for the same site.',
+          code: 'DOMAIN_FRESH_COOLDOWN',
+          retry_after_seconds: retrySec > 0 ? retrySec : undefined,
+        });
+        return;
+      }
     }
 
     const snapshotToken = randomUUID();
@@ -109,6 +222,14 @@ snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
     // Run pipeline asynchronously — client polls for result
     const orchestrator = new PipelineOrchestrator(auditId);
     orchestrator.runFreeSnapshot().catch((err: Error) => {
+      if (err instanceof SnapshotAtCapacityError) {
+        logger.warn('snapshot.pipeline_capacity', {
+          component: 'snapshot',
+          audit_id: auditId,
+          error: err.message,
+        });
+        return;
+      }
       logger.error('snapshot.pipeline_unhandled', {
         component: 'snapshot',
         audit_id: auditId,
@@ -129,8 +250,44 @@ snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
   }
 });
 
+// ─── Operator-only (404 when SNAPSHOT_OPERATOR_TOKEN unset; auth via Bearer or X-Snapshot-Operator-Token) ─
+snapshotRouter.get('/operator/metrics', async (req, res) => {
+  if (!snapshotOperatorAuthorized(req)) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+  try {
+    const shared = await getSnapshotSharedMetricsForOperator();
+    res.json({ ...getSnapshotMetricsSnapshot(), ...shared });
+  } catch (err) {
+    const e = err as Error;
+    logger.error('snapshot.operator_metrics_failed', { component: 'snapshot', error: e.message });
+    res.status(500).json({ error: 'Metrics failed' });
+  }
+});
+
+snapshotRouter.post('/operator/purge-cache', async (req, res) => {
+  if (!snapshotOperatorAuthorized(req)) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+  const host = typeof req.body?.host === 'string' ? req.body.host.trim() : '';
+  if (!host) {
+    res.status(400).json({ error: 'host is required' });
+    return;
+  }
+  try {
+    const ok = await deleteSnapshotDomainCache(host);
+    res.json({ ok });
+  } catch (err) {
+    const e = err as Error;
+    logger.error('snapshot.operator_purge_failed', { component: 'snapshot', error: e.message });
+    res.status(500).json({ error: 'Purge failed' });
+  }
+});
+
 // ─── GET /api/snapshot/:token — Poll status / fetch result ─
-snapshotRouter.get('/:token', async (req, res) => {
+snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
   try {
     const { token } = req.params;
 
@@ -182,24 +339,34 @@ snapshotRouter.get('/:token', async (req, res) => {
     }
 
     if (status === 'failed') {
-      res.json({ status: 'failed', snapshot_token: token });
+      res.json({
+        status: 'failed',
+        snapshot_token: token,
+        code: 'SNAPSHOT_FAILED',
+      });
       return;
     }
 
     // Completed — fetch result data; competitor mini is best-effort (never fails the response).
-    const [{ data: recon }, { data: uxDomain }] = await Promise.all([
+    const [{ data: recon, error: reconErr }, { data: uxDomain, error: uxErr }] = await Promise.all([
       supabase.from('audit_recon')
         .select('company_name, tech_stack, location, pages_crawled')
         .eq('audit_id', audit.id)
         .single(),
       supabase.from('audit_domains')
-        .select('score, label, summary, issues, quick_wins')
+        .select('score, label, summary, issues, quick_wins, raw_data')
         .eq('audit_id', audit.id)
         .eq('domain_key', 'ux_conversion')
         .order('version', { ascending: false })
         .limit(1)
         .single(),
     ]);
+    if (reconErr) {
+      logger.warn('snapshot.get_recon_failed', { component: 'snapshot', audit_id: audit.id, error: reconErr.message });
+    }
+    if (uxErr) {
+      logger.warn('snapshot.get_ux_domain_failed', { component: 'snapshot', audit_id: audit.id, error: uxErr.message });
+    }
 
     const pagesCrawled = (recon?.pages_crawled as CrawledPage[] | null) ?? null;
     const companyUrl = audit.company_url as string;
@@ -219,11 +386,59 @@ snapshotRouter.get('/:token', async (req, res) => {
       quick_wins: ((uxDomain?.quick_wins as unknown[]) ?? []).slice(0, 2) as FreeSnapshotPreview['quick_wins'],
     };
 
-    const competitorSettled = await Promise.allSettled([
-      maybeBuildCompetitorMini(companyUrl, pagesCrawled, 3000),
-    ]);
-    if (competitorSettled[0].status === 'fulfilled' && competitorSettled[0].value) {
-      preview.competitor_mini = competitorSettled[0].value;
+    const rawData = uxDomain?.raw_data as Record<string, unknown> | null | undefined;
+    const det = rawData?.snapshot_deterministic as Record<string, unknown> | undefined;
+    if (det && typeof det === 'object') {
+      applyDeterministicRecordToPreview(preview, det);
+    }
+
+    const needsDeterministicHeal =
+      typeof preview.overall_score !== 'number' ||
+      preview.ux_score === null ||
+      preview.issues.length === 0;
+
+    if (needsDeterministicHeal) {
+      const host = normalizeSnapshotHost(companyUrl);
+      const cached = host ? await readSnapshotCache(host) : null;
+      if (cached) {
+        if (typeof preview.overall_score !== 'number') {
+          applyDeterministicRecordToPreview(preview, snapshotPayloadToDeterministicApiRecord(cached));
+        }
+        const uxFields = derivePublicUxFieldsFromSnapshotPayload(cached);
+        if (preview.ux_score === null) {
+          preview.ux_score = uxFields.ux_score;
+          preview.ux_label = uxFields.ux_label;
+          preview.ux_summary = uxFields.ux_summary;
+        }
+        if (preview.issues.length === 0) {
+          preview.issues = uxFields.issues;
+        }
+        if (preview.quick_wins.length === 0) {
+          preview.quick_wins = uxFields.quick_wins;
+        }
+      }
+    }
+
+    if (preview.ux_score === null && typeof preview.overall_score === 'number') {
+      preview.ux_score = overallToLegacyScore(preview.overall_score);
+      preview.ux_label = uxLegacyLabel(preview.ux_score);
+      if (!preview.ux_summary && typeof preview.scan_basis === 'string' && preview.scan_basis.length > 0) {
+        const s = preview.scan_basis;
+        preview.ux_summary = `${s.slice(0, 280)}${s.length > 280 ? '…' : ''}`;
+      }
+    }
+
+    const wantCompetitor =
+      req.query.compare === '1' ||
+      req.query.compare === 'true' ||
+      req.query.include_competitor === '1';
+    if (wantCompetitor) {
+      const competitorSettled = await Promise.allSettled([
+        maybeBuildCompetitorMini(companyUrl, pagesCrawled, 3000),
+      ]);
+      if (competitorSettled[0].status === 'fulfilled' && competitorSettled[0].value) {
+        preview.competitor_mini = competitorSettled[0].value;
+      }
     }
 
     res.json(preview);

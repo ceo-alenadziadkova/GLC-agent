@@ -6,6 +6,8 @@ import { TechAgent } from '../agents/tech.js';
 import { SecurityAgent } from '../agents/security.js';
 import { SeoAgent } from '../agents/seo.js';
 import { UxAgent } from '../agents/ux.js';
+import { runDeterministicSnapshot } from '../snapshot/run-snapshot.js';
+import { SnapshotAtCapacityError } from '../snapshot/abuse-guards.js';
 import { MarketingAgent } from '../agents/marketing.js';
 import { AutomationAgent } from '../agents/automation.js';
 import { StrategyAgent } from '../agents/strategy.js';
@@ -346,64 +348,31 @@ export class PipelineOrchestrator {
   }
 
   /**
-   * Free Snapshot pipeline — runs Phase 0 (Recon) + Phase 4 (UX partial).
-   * No auth required; result is trimmed to 2 issues + 2 quick wins.
-   * Does NOT trigger review gates.
+   * Free Snapshot — deterministic scanner (no LLM): tiered fetch, site profile, rule engine.
+   * Persists audit_recon + ux_conversion row; trimmed to 2 issues + 2 quick wins in API.
    */
   async runFreeSnapshot(): Promise<FreeSnapshotPreview> {
     try {
       logger.info('Free snapshot started', { audit_id: this.auditId });
 
-      // ── Phase 0: Recon ──────────────────────────────────
       await supabase.from('audits').update({ status: 'recon', current_phase: 0 }).eq('id', this.auditId);
-      await this.emitEvent(0, 'started', 'Free Snapshot: Recon started');
+      await this.emitEvent(0, 'started', 'Free Snapshot: deterministic scan started');
 
-      const reconAgent = new ReconAgent(this.auditId);
-      await reconAgent.run(); // ReconAgent saves its own result
+      const { preview } = await runDeterministicSnapshot(this.auditId);
 
-      await this.emitEvent(0, 'completed', 'Free Snapshot: Recon completed');
-
-      // ── Phase 4: UX (partial) ───────────────────────────
-      await supabase.from('audits').update({ status: 'auto', current_phase: 4 }).eq('id', this.auditId);
-      await supabase.from('audit_domains').update({ status: 'collecting' })
-        .eq('audit_id', this.auditId)
-        .eq('domain_key', 'ux_conversion');
-      await this.emitEvent(4, 'started', 'Free Snapshot: UX analysis started');
-
-      const uxAgent = new UxAgent(this.auditId);
-      const uxResult = await uxAgent.run();
-      await uxAgent.saveDomainResult(uxResult);
-
-      await this.emitEvent(4, 'completed', 'Free Snapshot: UX analysis completed');
-
-      // ── Mark completed ──────────────────────────────────
-      await supabase.from('audits').update({ status: 'completed' }).eq('id', this.auditId);
-
-      // ── Fetch results ───────────────────────────────────
-      const [{ data: audit }, { data: recon }] = await Promise.all([
-        supabase.from('audits').select('snapshot_token, company_url, company_name').eq('id', this.auditId).single(),
-        supabase.from('audit_recon').select('company_name, tech_stack, location').eq('audit_id', this.auditId).single(),
-      ]);
+      await this.emitEvent(4, 'completed', 'Free Snapshot: deterministic scan completed');
 
       logger.info('Free snapshot completed', { audit_id: this.auditId });
-
-      return {
-        audit_id: this.auditId,
-        snapshot_token: audit?.snapshot_token ?? '',
-        status: 'completed',
-        company_url: audit?.company_url ?? '',
-        company_name: recon?.company_name ?? audit?.company_name ?? null,
-        tech_stack: (recon?.tech_stack as Record<string, string[]>) ?? {},
-        location: (recon?.location as string | null) ?? null,
-        ux_score: uxResult.score,
-        ux_label: uxResult.label,
-        ux_summary: uxResult.summary,
-        issues: uxResult.issues.slice(0, 2),
-        quick_wins: uxResult.quick_wins.slice(0, 2),
-      };
+      return preview;
 
     } catch (err) {
       const error = err as Error;
+      if (error instanceof SnapshotAtCapacityError) {
+        logger.warn('Free snapshot capacity', { audit_id: this.auditId });
+        await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
+        await this.emitEvent(0, 'error', error.message);
+        throw err;
+      }
       logger.error('Free snapshot failed', { audit_id: this.auditId, error: error.message });
       await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
       await this.emitEvent(0, 'error', error.message);

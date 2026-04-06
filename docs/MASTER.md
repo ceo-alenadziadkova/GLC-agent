@@ -2,7 +2,7 @@
 
 Single source of truth **index** and **knowledge map**. Each domain has one canonical document; do not duplicate facts elsewhere — link here and to that file.
 
-**Documentation quota:** at most **13** markdown files in `/docs` (flat layout, no subfolders).
+**Documentation quota:** at most **15** markdown files in `/docs` (flat layout, no subfolders): [MASTER.md](./MASTER.md) plus **12** canonical domain docs plus **two** ADRs ([ADR-INTAKE-UNIFIED-QUESTION-BANK.md](./ADR-INTAKE-UNIFIED-QUESTION-BANK.md), [ADR-FREE-SNAPSHOT-SCANNER.md](./ADR-FREE-SNAPSHOT-SCANNER.md)).
 
 ---
 
@@ -20,6 +20,8 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | Threat model, rate limits, CORS, credentials | [SECURITY.md](./SECURITY.md) |
 | React app, routes, hooks, design system | [FRONTEND.md](./FRONTEND.md) ([style guide](./FRONTEND.md#design-system-style-guide)) |
 | Intake question bank, branching, agent mapping | [QUESTION_BANK.md](./QUESTION_BANK.md) |
+| ADR: unified bank, policy/layout, IntakePlan | [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](./ADR-INTAKE-UNIFIED-QUESTION-BANK.md) |
+| ADR: free snapshot — cheap deterministic scanner | [ADR-FREE-SNAPSHOT-SCANNER.md](./ADR-FREE-SNAPSHOT-SCANNER.md) |
 | Local dev, migrations order, demo seed | [SETUP.md](./SETUP.md) |
 | Production deploy (Vercel, Railway, Supabase) | [DEPLOYMENT.md](./DEPLOYMENT.md) |
 
@@ -225,7 +227,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 1. **One fact, one place.** If it is already documented in the canonical file, link to it (`See: /docs/<FILE>.md#anchor`).
 2. **Code and docs together.** Any change to user-visible behaviour, API contracts, auth rules, schema, pipeline sequencing, or deployment requirements must update the relevant **existing** canonical doc in the **same PR**. If the truth is unknown, add a **Needs Review** note instead of guessing.
-3. **No new doc files** unless the team agrees to replace or merge an existing file and stay within the **13-file** quota.
+3. **No new doc files** unless the team agrees to replace or merge an existing file and stay within the **15-file** quota (see top of this file).
 4. **Flat `/docs`.** No subfolders under `docs/` (project convention).
 
 ### Documentation PR checklist
@@ -244,11 +246,11 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 ## Restructuring log
 
-### Current documentation tree (12 files, flat)
+### Current documentation tree (15 files, flat)
 
 ```text
 docs/
-  MASTER.md              # This file — index + knowledge map + governance + log
+  MASTER.md                              # This file — index + knowledge map + governance + log
   PRODUCT.md
   ARCHITECTURE.md
   PIPELINE.md
@@ -258,8 +260,11 @@ docs/
   SECURITY.md
   DATABASE.md
   FRONTEND.md
+  QUESTION_BANK.md
   SETUP.md
   DEPLOYMENT.md
+  ADR-INTAKE-UNIFIED-QUESTION-BANK.md
+  ADR-FREE-SNAPSHOT-SCANNER.md
 ```
 
 ### Consolidation (2026-04)

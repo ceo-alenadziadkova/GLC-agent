@@ -2,8 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { Globe, ArrowRight, CheckCircle, Warning, Lightning, CaretRight, Shield, Check, X, Equals } from '@phosphor-icons/react';
-import type { SnapshotCompetitorComparison } from '../data/auditTypes';
-import type { FreeSnapshotPreview } from '../data/auditTypes';
+import type {
+  FreeSnapshotPreview,
+  SnapshotCompetitorComparison,
+  SnapshotScanCoverageApi,
+  SnapshotSiteProfile,
+} from '../data/auditTypes';
 import { GlcLogo } from '../components/GlcLogo';
 import { SyncPathLoader } from '../components/SyncPathLoader';
 import { ThemeToggle } from '../components/ThemeToggle';
@@ -62,11 +66,95 @@ const SEVERITY_COLOR: Record<string, string> = {
 };
 
 const PHASE_LABELS = [
-  'Crawling website...',
-  'Analysing tech stack...',
-  'Evaluating UX & conversion...',
-  'Generating insights...',
+  'Scanning homepage...',
+  'Detecting tech & structure...',
+  'Running rule-based checks...',
+  'Building your snapshot...',
 ];
+
+function scoreColorFrom100(n: number): string {
+  if (n >= 80) return SCORE_COLORS[5];
+  if (n >= 60) return SCORE_COLORS[4];
+  if (n >= 40) return SCORE_COLORS[3];
+  if (n >= 20) return SCORE_COLORS[2];
+  return SCORE_COLORS[1];
+}
+
+const SCAN_ROLE_LABELS: Record<SnapshotScanCoverageApi['pages'][number]['role'], string> = {
+  home: 'homepage',
+  contact: 'contact',
+  pricing: 'pricing',
+  about: 'about',
+  services: 'services',
+  other: 'other pages',
+};
+
+function scanCoverageLine(cov: SnapshotScanCoverageApi | undefined): string | null {
+  if (!cov) return null;
+  if (cov.robots_home_disallowed) {
+    return 'robots.txt disallows our snapshot crawler from reading the homepage, so no automated sample was taken.';
+  }
+  if (cov.pages_fetched < 1) return null;
+  const order: SnapshotScanCoverageApi['pages'][number]['role'][] = [
+    'home',
+    'contact',
+    'pricing',
+    'about',
+    'services',
+    'other',
+  ];
+  const seen = new Set<string>();
+  const labels: string[] = [];
+  for (const r of order) {
+    if (!cov.pages.some(p => p.role === r)) continue;
+    const lb = SCAN_ROLE_LABELS[r];
+    if (!seen.has(lb)) {
+      seen.add(lb);
+      labels.push(lb);
+    }
+  }
+  const sample = labels.length > 0 ? labels.join(', ') : `${cov.pages_fetched} page(s)`;
+  const sec = (cov.elapsed_ms / 1000).toFixed(1);
+  const budgetSec = (cov.budget_ms / 1000).toFixed(0);
+  let line = `Sampled ${cov.pages_fetched} of up to ${cov.max_pages_planned} pages in ${sec}s (time budget ${budgetSec}s): ${sample}. Paths from internal links on those pages also inform signals.`;
+  if (cov.playwright_used) {
+    line += ' Homepage was also rendered in a headless browser to capture client-side content.';
+  } else if (cov.playwright_eligible) {
+    line += ' Static HTML looked like a JavaScript app shell; enable server Playwright to deepen the homepage read.';
+  }
+  if (cov.robots_extras_skipped && cov.robots_extras_skipped > 0) {
+    line += ` ${cov.robots_extras_skipped} extra page(s) were skipped to honor robots.txt.`;
+  }
+  if (cov.challenge_page_likely) {
+    line +=
+      ' The HTML looks like a bot challenge or security interstitial — treat scores as a rough baseline only.';
+  }
+  if (cov.parked_domain_likely) {
+    line += ' The page resembles a parked or for-sale domain.';
+  }
+  if (cov.login_wall_likely) {
+    line += ' The public page looks like a sign-in gate; most content may require authentication.';
+  }
+  return line;
+}
+
+function siteProfileSoftLine(profile: SnapshotSiteProfile | undefined): string | null {
+  if (!profile) return null;
+  const low = profile.classificationConfidenceBand === 'low';
+  const type = profile.siteType.replace(/-/g, ' ');
+  const ind = profile.industry.replace(/-/g, ' ');
+  if (profile.industry !== 'unknown' && profile.siteType !== 'unknown') {
+    return low
+      ? `Signals suggest something like a ${type} in ${ind} — automatic read only, not a final label.`
+      : `This looks like a ${type} in ${ind} (automatic read from your pages).`;
+  }
+  if (profile.siteType !== 'unknown') {
+    return low
+      ? `Signals suggest a ${type}-style site — we could not pin down a specific industry automatically.`
+      : `This looks like a ${type}-style site based on visible signals.`;
+  }
+  return 'We could not confidently categorise this site from the sampled pages alone.';
+}
 
 export function SnapshotLanding() {
   const [url, setUrl] = useState('');
@@ -79,6 +167,8 @@ export function SnapshotLanding() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tokenRef = useRef<string>('');
   const [quotaPreview, setQuotaPreview] = useState<{ remaining: number; limit: number } | null>(null);
+  const [competitorLoading, setCompetitorLoading] = useState(false);
+  const [competitorLoadError, setCompetitorLoadError] = useState('');
 
   async function refreshQuotaPreview() {
     try {
@@ -206,12 +296,50 @@ export function SnapshotLanding() {
     setRateLimitDetail(null);
     setUrl('');
     setPhaseIdx(0);
+    setCompetitorLoading(false);
+    setCompetitorLoadError('');
     void refreshQuotaPreview();
+  }
+
+  async function loadCompetitorComparison() {
+    const token = tokenRef.current;
+    if (!token) return;
+    setCompetitorLoading(true);
+    setCompetitorLoadError('');
+    try {
+      const res = await fetch(`${API_URL}/api/snapshot/${token}?compare=1`);
+      if (!res.ok) {
+        setCompetitorLoadError('Could not load comparison. Try again in a moment.');
+        return;
+      }
+      const data = (await res.json()) as FreeSnapshotPreview;
+      if (data.competitor_mini && data.competitor_mini.comparisons.length > 0) {
+        setResult(prev =>
+          prev ? { ...prev, competitor_mini: data.competitor_mini } : prev,
+        );
+      } else {
+        setCompetitorLoadError(
+          'We could not find a suitable external site linked from your homepage, or the check timed out.',
+        );
+      }
+    } catch {
+      setCompetitorLoadError('Network error while loading comparison.');
+    } finally {
+      setCompetitorLoading(false);
+    }
   }
 
   const techEntries = result
     ? Object.entries(result.tech_stack).filter(([, vals]) => vals.length > 0)
     : [];
+
+  const snapshotCoverageCaption =
+    stage === 'done' && result ? scanCoverageLine(result.scan_coverage) : null;
+
+  const snapshotLimitations =
+    stage === 'done' && result?.limitations && result.limitations.length > 0
+      ? result.limitations
+      : null;
 
   return (
     <div
@@ -279,7 +407,7 @@ export function SnapshotLanding() {
                           letterSpacing: '0.06em',
                         }}
                       >
-                        <Lightning className="h-3.5 w-3.5 shrink-0" weight="fill" /> Free check ~90s
+                        <Lightning className="h-3.5 w-3.5 shrink-0" weight="fill" /> Quick rule-based scan
                       </div>
                     </div>
 
@@ -503,7 +631,7 @@ export function SnapshotLanding() {
               </AnimatePresence>
 
               <p className="mt-6 text-xs" style={{ color: 'var(--text-quaternary)' }}>
-                Usually takes 60–120 seconds
+                Usually takes a few seconds to about half a minute
               </p>
               {quotaHint && (
                 <p className="mt-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
@@ -544,28 +672,121 @@ export function SnapshotLanding() {
                 )}
               </div>
 
-              {/* UX Score card */}
-              {result.ux_score !== null && (
+              {siteProfileSoftLine(result.site_profile) && (
+                <div
+                  className="glc-card mb-4 p-5 text-left"
+                  style={{ borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-subtle)' }}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                    Site read (advisory)
+                  </p>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                    {siteProfileSoftLine(result.site_profile)}
+                  </p>
+                  {(result.classification_confidence_band || result.site_profile?.classificationConfidenceBand) && (
+                    <p className="mt-2 text-xs" style={{ color: 'var(--text-quaternary)' }}>
+                      Classification confidence: {result.classification_confidence_band ?? result.site_profile?.classificationConfidenceBand}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Snapshot score: 0–100 + legacy 1–5 (show if either API field present — UX row can be empty while deterministic payload exists) */}
+              {(result.ux_score !== null || typeof result.overall_score === 'number') && (
                 <div
                   className="glc-card mb-4 flex flex-row items-center justify-between p-6 mobile:flex-col mobile:gap-4 mobile:p-5"
                   style={{ borderRadius: 'var(--radius-xl)' }}
                 >
                   <div className="min-w-0 shrink-0 text-left mobile:text-center">
                     <p className="mb-1 text-xs font-medium" style={{ color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                      UX & Conversion Score
+                      Snapshot score
                     </p>
-                    <p style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, fontFamily: 'var(--font-display)', color: SCORE_COLORS[result.ux_score] }}>
-                      {result.ux_score}/5
-                    </p>
-                    <p className="mt-0.5 text-sm font-semibold" style={{ color: SCORE_COLORS[result.ux_score] }}>
-                      {SCORE_LABELS[result.ux_score]}
-                    </p>
+                    {typeof result.overall_score === 'number' ? (
+                      <>
+                        <p style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, fontFamily: 'var(--font-display)', color: scoreColorFrom100(result.overall_score) }}>
+                          {result.overall_score}/100
+                        </p>
+                        <p className="mt-0.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                          Legacy band: {result.ux_score}/5 · {result.ux_label}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p style={{ fontSize: 'var(--text-3xl)', fontWeight: 800, fontFamily: 'var(--font-display)', color: SCORE_COLORS[result.ux_score] }}>
+                          {result.ux_score}/5
+                        </p>
+                        <p className="mt-0.5 text-sm font-semibold" style={{ color: SCORE_COLORS[result.ux_score] }}>
+                          {SCORE_LABELS[result.ux_score]}
+                        </p>
+                      </>
+                    )}
+                    {result.scan_confidence_band && (
+                      <p className="mt-1 text-xs" style={{ color: 'var(--text-quaternary)' }}>
+                        Scan confidence: {result.scan_confidence_band}
+                      </p>
+                    )}
                   </div>
                   {result.ux_summary && (
                     <p className="min-w-0 max-w-[21rem] text-pretty text-sm leading-relaxed ml-6 mobile:ml-0 mobile:max-w-none" style={{ color: 'var(--text-secondary)' }}>
                       {result.ux_summary}
                     </p>
                   )}
+                </div>
+              )}
+
+              {snapshotCoverageCaption && (
+                <p className="mb-4 text-center text-xs px-2" style={{ color: 'var(--text-quaternary)' }}>
+                  {snapshotCoverageCaption}
+                </p>
+              )}
+
+              {snapshotLimitations && (
+                <ul className="mb-4 mx-auto max-w-lg list-disc px-6 text-left text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                  {snapshotLimitations.map((line, i) => (
+                    <li key={i}>{line}</li>
+                  ))}
+                </ul>
+              )}
+
+              {result.category_scores && (
+                <div className="glc-card mb-4 p-5" style={{ borderRadius: 'var(--radius-xl)' }}>
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--text-tertiary)' }}>
+                    Category breakdown
+                  </p>
+                  <ul className="space-y-2 text-sm">
+                    {[
+                      ['UX clarity', result.category_scores.ux_clarity],
+                      ['Conversion readiness', result.category_scores.conversion_readiness],
+                      ['AI readiness', result.category_scores.ai_readiness],
+                      ['Technical basics', result.category_scores.technical_basics],
+                    ].map(([label, val]) => (
+                      <li key={label as string} className="flex items-center justify-between gap-3">
+                        <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
+                        <span className="font-semibold tabular-nums" style={{ color: scoreColorFrom100(val as number) }}>
+                          {val}/100
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {result.scan_basis && (
+                    <p className="mt-3 text-xs" style={{ color: 'var(--text-quaternary)' }}>
+                      Based on: {result.scan_basis}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {result.signals_found && result.signals_found.length > 0 && (
+                <div className="mb-4 flex flex-wrap justify-center gap-2">
+                  {result.signals_found.map((s, i) => (
+                    <span
+                      key={i}
+                      className="rounded-full px-2.5 py-1 text-xs font-medium"
+                      style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}
+                    >
+                      {s}
+                    </span>
+                  ))}
                 </div>
               )}
 
@@ -644,6 +865,35 @@ export function SnapshotLanding() {
                       </span>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {!result.competitor_mini && (
+                <div className="glc-card p-5 mb-6 text-left" style={{ borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-subtle)' }}>
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                    Optional benchmark
+                  </p>
+                  <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>
+                    Compare your homepage to one external site we infer from a link on your page (HTTPS, viewport, hreflang, JSON-LD). This loads a third-party URL only if you opt in.
+                  </p>
+                  {competitorLoadError && (
+                    <p className="mb-3 text-sm" style={{ color: 'var(--score-1)' }}>{competitorLoadError}</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => void loadCompetitorComparison()}
+                    disabled={competitorLoading}
+                    className="rounded-lg px-4 py-2.5 text-sm font-semibold mobile:min-h-11 mobile:w-full"
+                    style={{
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-default)',
+                      color: 'var(--text-primary)',
+                      cursor: competitorLoading ? 'wait' : 'pointer',
+                      opacity: competitorLoading ? 0.7 : 1,
+                    }}
+                  >
+                    {competitorLoading ? 'Loading comparison…' : 'Compare to a linked site'}
+                  </button>
                 </div>
               )}
 

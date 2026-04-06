@@ -153,4 +153,4 @@ await this.emitEvent('log', { message: 'Starting security header check' });
 
 Full docs in `docs/`. See [docs/MASTER.md](./docs/MASTER.md) for index, knowledge map, and governance.
 
-When you add a feature, update the relevant **existing** doc file in the same PR. Don't create new doc files without a strong reason — the quota is **13** markdown files maximum in `/docs/` (flat layout). See [docs/MASTER.md](./docs/MASTER.md).
+When you add a feature, update the relevant **existing** doc file in the same PR. Don't create new doc files without a strong reason — the quota is **15** markdown files maximum in `/docs/` (flat layout): MASTER plus 12 domain docs plus two ADRs. See [docs/MASTER.md](./docs/MASTER.md).

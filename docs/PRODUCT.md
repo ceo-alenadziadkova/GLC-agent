@@ -37,7 +37,7 @@ Implemented in code (`server/src/types/audit.ts`, `reviewPhasesForMode`, `maxPha
 |------|----------------|--------------|--------|
 | `full` | 0–7 | After phases `0`, `4`, `7` | Default paid audit; strategy row and final gate |
 | `express` | 0–4 | After `0`, `4` | Shorter audit; no phases 5–7 |
-| `free_snapshot` | 0 + partial UX (phase 4) | None | Public `POST/GET /api/snapshot`; trimmed preview (e.g. issues and quick wins capped) |
+| `free_snapshot` | Deterministic scan (no LLM) | None | Public `POST/GET /api/snapshot`; tiered fetch (HTTP + optional Playwright when the page looks like a client shell), rule-based **site profile**, **0–100** score; competitor-style benchmark **only on explicit opt-in** (`?compare=1`); optional domain cache; upgrade path to Express/full audit |
 
 ---
 
