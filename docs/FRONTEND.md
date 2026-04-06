@@ -173,8 +173,8 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 
 ### `Login.tsx`
 - **Sign in** / **Create account** tabs → `signInWithPassword` / `signUp` (see `useAuth`)
-- Google OAuth → `signInWithOAuth` with `redirectTo: <origin>/login`
-- Guest snapshot sessions see a hint to use Google so `user.id` stays stable
+- Google OAuth → **`signInWithOAuth`**, or **`linkIdentity`** when the current user is anonymous (free snapshot upgrade path) — `redirectTo: <origin>/login`
+- Anonymous snapshot sessions see a hint to prefer **Continue with Google** so `user.id` stays stable when upgrading
 - If already authenticated (`useAuth().isAuthenticated`) → redirect to `/portfolio`
 - Glassmorphism card, gradient button, GLC logo
 

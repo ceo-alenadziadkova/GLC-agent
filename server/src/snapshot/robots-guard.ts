@@ -125,6 +125,35 @@ export function robotsSnapshotUrlAllowed(fullUrl: string, policy: SnapshotRobots
   }
 }
 
+/** Large sites that typically disallow automated homepage reads by policy (not a misconfiguration). */
+const MAJOR_CRAWL_CONTROL_ROOTS = new Set([
+  'linkedin.com',
+  'facebook.com',
+  'instagram.com',
+  'twitter.com',
+  'x.com',
+  'tiktok.com',
+  'youtube.com',
+  'reddit.com',
+  'pinterest.com',
+]);
+
+function registrableHostRoot(hostname: string): string {
+  const h = hostname.toLowerCase().replace(/^www\./, '');
+  const parts = h.split('.');
+  if (parts.length >= 2) return parts.slice(-2).join('.');
+  return h;
+}
+
+/**
+ * When the homepage is disallowed for our UA, classify intent for deterministic notes (no LLM).
+ */
+export function classifyRobotsFallbackSiteClass(hostname: string): 'major_platform' | 'standard' {
+  const root = registrableHostRoot(hostname);
+  if (MAJOR_CRAWL_CONTROL_ROOTS.has(root)) return 'major_platform';
+  return 'standard';
+}
+
 export async function getSnapshotRobotsPolicy(origin: string, signal: AbortSignal): Promise<SnapshotRobotsPolicy> {
   const ttl = cacheTtlMs();
   const now = Date.now();

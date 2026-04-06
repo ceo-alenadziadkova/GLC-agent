@@ -158,3 +158,19 @@ export const logIngestLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+const snapshotLogMaxPerMin = Number(process.env.SNAPSHOT_LOG_INGEST_MAX_PER_MIN ?? 40);
+
+/** Anonymous / guest snapshot page log ingest — stricter cap than full accounts. */
+export const snapshotLogIngestLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: Number.isFinite(snapshotLogMaxPerMin) && snapshotLogMaxPerMin > 0 ? snapshotLogMaxPerMin : 40,
+  keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
+  message: {
+    error: 'Too many log events from this preview session. Please wait before retrying.',
+    retry_after_seconds: 60,
+    code: 'SNAPSHOT_LOG_RATE_LIMITED',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

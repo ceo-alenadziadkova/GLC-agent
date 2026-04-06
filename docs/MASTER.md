@@ -24,6 +24,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | ADR: free snapshot — cheap deterministic scanner | [ADR-FREE-SNAPSHOT-SCANNER.md](./ADR-FREE-SNAPSHOT-SCANNER.md) |
 | Local dev, migrations order, demo seed | [SETUP.md](./SETUP.md) |
 | Production deploy (Vercel, Railway, Supabase) | [DEPLOYMENT.md](./DEPLOYMENT.md) |
+| Test strategy, matrix, coverage, doc alignment, dead-code signals, E2E | [TESTING.md](../TESTING.md) (repo root) |
 
 ---
 

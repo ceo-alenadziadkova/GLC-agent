@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
+import type { User } from '@supabase/supabase-js';
 import {
   Globe,
   ArrowRight,
   CheckCircle,
+  SealCheck,
   Warning,
   Lightning,
   CaretRight,
@@ -14,11 +16,11 @@ import {
   Equals,
   Binoculars,
   Info,
+  UserCircle,
 } from '@phosphor-icons/react';
 import type {
   FreeSnapshotPreview,
   SnapshotCompetitorComparison,
-  SnapshotScanCoverageApi,
   SnapshotSiteProfile,
 } from '../data/auditTypes';
 import { GlcLogo } from '../components/GlcLogo';
@@ -26,32 +28,22 @@ import { SyncPathLoader } from '../components/SyncPathLoader';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
 import { supabase } from '../lib/supabase';
-import { getSnapshotAccessToken } from '../lib/snapshot-auth';
+import { ensureSnapshotSession, getSnapshotAccessToken, isAnonymousUser } from '../lib/snapshot-auth';
+import {
+  AI_VISIBILITY_GAP_COPY,
+  formatScanCoverageLine,
+  getSnapshotAccessBlockedState,
+  scanConfidenceExplanation,
+  snapshotZeroPagesScoreNote,
+} from '../lib/snapshot-diagnostics';
+import { SnapshotAccessBlockedCallout } from '../components/snapshot/SnapshotAccessBlockedCallout';
+import { toUiErrorMessage, type SnapshotApiErrorPayload } from '../lib/snapshot-api-errors';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
-async function getBearerForSnapshot(): Promise<string | null> {
-  return getSnapshotAccessToken();
-}
-
-type SnapshotAuthState = 'checking' | 'signed_in' | 'signed_out';
+type SnapshotAuthState = 'checking' | 'ready' | 'failed';
 
 type Stage = 'idle' | 'submitting' | 'running' | 'done' | 'error';
-
-/** Tight client copy for `ai_visibility.gaps` — what to verify on their side. */
-const AI_VISIBILITY_GAP_COPY: Record<
-  'robots_txt' | 'sitemap_html' | 'structured_data' | 'discovery_files',
-  string
-> = {
-  robots_txt:
-    'Robots.txt — we could not verify a reliable live file from what we saw: confirm crawl rules and any sitemap line with whoever owns the site.',
-  sitemap_html:
-    'Sitemap / full URL list — we did not see a clear discovery path from what we read: confirm published sitemap and that internal links or headers expose it correctly.',
-  structured_data:
-    'Structured data — reads thin on the templates we saw: strengthen JSON-LD on key pages so assistants can quote you instead of inferring.',
-  discovery_files:
-    'llms.txt / ai.txt — not surfaced on the pages we checked: add if policy allows and you want explicit guidance for AI crawlers.',
-};
 
 type SnapshotCategoryScoreKey = 'ux_clarity' | 'conversion_readiness' | 'ai_readiness' | 'technical_basics';
 
@@ -171,17 +163,6 @@ function CategoryBreakdownHint(props: { label: string; categoryKey: SnapshotCate
   );
 }
 
-function scanConfidenceExplanation(band: 'high' | 'medium' | 'low'): string {
-  switch (band) {
-    case 'high':
-      return 'High scan confidence means we sampled enough of your public pages under normal conditions, so these scores should broadly match what a typical visitor sees.';
-    case 'medium':
-      return 'Medium scan confidence means the snapshot is still useful, but some pages were skipped, behaviour was unusual, or coverage was thin—treat the numbers as directional, not exact.';
-    case 'low':
-      return 'Low scan confidence means robots blocked part of the site, the HTML looked like a login wall or parking page, or we captured very little usable content—treat this as a rough signal only.';
-  }
-}
-
 /** User-facing copy for the score explainer (1–5 path when 0–100 is not shown). */
 function fivePointBandExplanation(params: {
   band: keyof typeof SCORE_COLORS;
@@ -211,6 +192,7 @@ function SnapshotScoreContextNotes(props: {
   const has100 = typeof result.overall_score === 'number';
   const band = legacyUxBand(result.ux_score);
   const scan = result.scan_confidence_band;
+  const zeroPagesNote = snapshotZeroPagesScoreNote(result);
 
   return (
     <div
@@ -227,6 +209,11 @@ function SnapshotScoreContextNotes(props: {
         What these numbers mean
       </p>
       <div className="space-y-3">
+        {zeroPagesNote ? (
+          <p className="text-sm font-medium leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            {zeroPagesNote}
+          </p>
+        ) : null}
         <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
           {has100
             ? legacyBandExplanation({ band, uxLabel: result.ux_label, hasOverall100: true })
@@ -294,64 +281,6 @@ function SnapshotScoreDonut(props: {
   );
 }
 
-const SCAN_ROLE_LABELS: Record<SnapshotScanCoverageApi['pages'][number]['role'], string> = {
-  home: 'homepage',
-  contact: 'contact',
-  pricing: 'pricing',
-  about: 'about',
-  services: 'services',
-  other: 'other pages',
-};
-
-function scanCoverageLine(cov: SnapshotScanCoverageApi | undefined): string | null {
-  if (!cov) return null;
-  if (cov.robots_home_disallowed) {
-    return 'robots.txt disallows our snapshot crawler from reading the homepage, so no automated sample was taken.';
-  }
-  if (cov.pages_fetched < 1) return null;
-  const order: SnapshotScanCoverageApi['pages'][number]['role'][] = [
-    'home',
-    'contact',
-    'pricing',
-    'about',
-    'services',
-    'other',
-  ];
-  const seen = new Set<string>();
-  const labels: string[] = [];
-  for (const r of order) {
-    if (!cov.pages.some(p => p.role === r)) continue;
-    const lb = SCAN_ROLE_LABELS[r];
-    if (!seen.has(lb)) {
-      seen.add(lb);
-      labels.push(lb);
-    }
-  }
-  const sample = labels.length > 0 ? labels.join(', ') : `${cov.pages_fetched} page(s)`;
-  const sec = (cov.elapsed_ms / 1000).toFixed(1);
-  const budgetSec = (cov.budget_ms / 1000).toFixed(0);
-  let line = `Sampled ${cov.pages_fetched} of up to ${cov.max_pages_planned} pages in ${sec}s (time budget ${budgetSec}s): ${sample}. Paths from internal links on those pages also inform signals.`;
-  if (cov.playwright_used) {
-    line += ' Homepage was also rendered in a headless browser to capture client-side content.';
-  } else if (cov.playwright_eligible) {
-    line += ' Static HTML looked like a JavaScript app shell; enable server Playwright to deepen the homepage read.';
-  }
-  if (cov.robots_extras_skipped && cov.robots_extras_skipped > 0) {
-    line += ` ${cov.robots_extras_skipped} extra page(s) were skipped to honor robots.txt.`;
-  }
-  if (cov.challenge_page_likely) {
-    line +=
-      ' The HTML looks like a bot challenge or security interstitial — treat scores as a rough baseline only.';
-  }
-  if (cov.parked_domain_likely) {
-    line += ' The page resembles a parked or for-sale domain.';
-  }
-  if (cov.login_wall_likely) {
-    line += ' The public page looks like a sign-in gate; most content may require authentication.';
-  }
-  return line;
-}
-
 function siteProfileSoftLine(profile: SnapshotSiteProfile | undefined): string | null {
   if (!profile) return null;
   const low = profile.classificationConfidenceBand === 'low';
@@ -380,21 +309,41 @@ export function SnapshotLanding() {
   const [phaseIdx, setPhaseIdx] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const tokenRef = useRef<string>('');
+  const pollFailuresRef = useRef(0);
   const [quotaPreview, setQuotaPreview] = useState<{ remaining: number; limit: number } | null>(null);
   const [competitorLoading, setCompetitorLoading] = useState(false);
   const [competitorLoadError, setCompetitorLoadError] = useState('');
   const [snapshotAuth, setSnapshotAuth] = useState<SnapshotAuthState>('checking');
+  const [snapshotAuthError, setSnapshotAuthError] = useState<string | null>(null);
+  const [accountUser, setAccountUser] = useState<User | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     const sync = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSnapshotAuth(data.session?.access_token ? 'signed_in' : 'signed_out');
+      try {
+        await ensureSnapshotSession();
+        if (!cancelled) {
+          setSnapshotAuth('ready');
+          setSnapshotAuthError(null);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setSnapshotAuth('failed');
+          setSnapshotAuthError(e instanceof Error ? e.message : 'Preview session unavailable');
+        }
+      } finally {
+        if (!cancelled) {
+          const { data } = await supabase.auth.getSession();
+          setAccountUser(data.session?.user ?? null);
+        }
+      }
     };
     void sync();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
       void sync();
     });
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
     };
   }, []);
@@ -435,17 +384,25 @@ export function SnapshotLanding() {
     const poll = async () => {
       try {
         const res = await fetch(`${API_URL}/api/snapshot/${tokenRef.current}`);
-        if (!res.ok) throw new Error('Poll failed');
-        const data: FreeSnapshotPreview = await res.json();
+        const data = (await res.json()) as FreeSnapshotPreview & SnapshotApiErrorPayload;
+        if (!res.ok) {
+          throw new Error(toUiErrorMessage(res.status, data, 'Could not load snapshot status.'));
+        }
+        pollFailuresRef.current = 0;
         if (data.status === 'completed') {
           setResult(data);
           setStage('done');
         } else if (data.status === 'failed') {
-          setErrorMsg('Analysis failed. Please try again.');
+          setErrorMsg('Analysis failed on the server. Please retry with the same URL in a few moments.');
           setStage('error');
         }
-      } catch {
-        // Keep polling on transient errors
+      } catch (err) {
+        pollFailuresRef.current += 1;
+        // Allow a couple of transient failures before surfacing an actionable message.
+        if (pollFailuresRef.current >= 3) {
+          setErrorMsg(err instanceof Error ? err.message : 'Could not fetch snapshot status. Please try again.');
+          setStage('error');
+        }
       }
     };
 
@@ -463,9 +420,11 @@ export function SnapshotLanding() {
     setRateLimitDetail(null);
 
     try {
-      const bearer = await getBearerForSnapshot();
-      if (!bearer) {
-        setErrorMsg('Session missing — sign in again from /login?next=/snapshot');
+      let bearer: string;
+      try {
+        bearer = await ensureSnapshotSession();
+      } catch (e) {
+        setErrorMsg(e instanceof Error ? e.message : 'Could not start analysis');
         setStage('error');
         return;
       }
@@ -479,21 +438,10 @@ export function SnapshotLanding() {
         body: JSON.stringify({ company_url: trimmed }),
       });
 
-      const data = (await res.json()) as {
-        error?: string;
-        limit?: number;
-        remaining?: number;
-        snapshot_token?: string;
-      };
+      const data = (await res.json()) as SnapshotApiErrorPayload;
 
       if (!res.ok) {
-        const msg =
-          res.status === 401
-            ? 'Session expired or invalid. Refresh the page to sign in again.'
-            : typeof data.error === 'string'
-              ? data.error
-              : 'Failed to start analysis';
-        setErrorMsg(msg);
+        setErrorMsg(toUiErrorMessage(res.status, data, 'Could not start analysis.'));
         if (
           res.status === 429 &&
           typeof data.limit === 'number'
@@ -526,7 +474,7 @@ export function SnapshotLanding() {
       void refreshQuotaPreview();
       setStage('running');
     } catch {
-      setErrorMsg('Network error. Please try again.');
+      setErrorMsg('Network error: could not reach the server. Check your connection and try again.');
       setStage('error');
     }
   }
@@ -550,7 +498,7 @@ export function SnapshotLanding() {
     setCompetitorLoading(true);
     setCompetitorLoadError('');
     try {
-      const bearer = await getBearerForSnapshot();
+      const bearer = await getSnapshotAccessToken();
       const headers: Record<string, string> = {};
       if (bearer) headers.Authorization = `Bearer ${bearer}`;
       const res = await fetch(`${API_URL}/api/snapshot/${token}?compare=1`, { headers });
@@ -579,11 +527,20 @@ export function SnapshotLanding() {
     ? Object.entries(result.tech_stack).filter(([, vals]) => vals.length > 0)
     : [];
 
+  const snapshotAccess =
+    stage === 'done' && result ? getSnapshotAccessBlockedState(result) : null;
+  const snapshotShowsAccessCallout = snapshotAccess?.showCallout ?? false;
+  const snapshotAccessRobotsBlocked = snapshotAccess?.robotsBlocked ?? false;
+  const snapshotAccessNoPages = snapshotAccess?.noPages ?? false;
+  const snapshotAccessRobotsLimited = snapshotAccess?.robotsLimitedSample ?? false;
+  const snapshotCalloutLimitations =
+    stage === 'done' && result && snapshotAccessRobotsBlocked && !snapshotAccessRobotsLimited ? [] : (result?.limitations ?? []);
+
   const snapshotCoverageCaption =
-    stage === 'done' && result ? scanCoverageLine(result.scan_coverage) : null;
+    stage === 'done' && result ? formatScanCoverageLine(result.scan_coverage) : null;
 
   const snapshotLimitations =
-    stage === 'done' && result?.limitations && result.limitations.length > 0
+    stage === 'done' && result?.limitations && result.limitations.length > 0 && !snapshotShowsAccessCallout
       ? result.limitations
       : null;
 
@@ -608,6 +565,12 @@ export function SnapshotLanding() {
   const snapshotTechColClass =
     snapshotInsightBlockCount === 3 ? 'lg:col-span-2 xl:col-span-1' : '';
 
+  const hasFullAccount = accountUser != null && !isAnonymousUser(accountUser);
+  const workspaceEmail =
+    hasFullAccount && accountUser.email && accountUser.email.trim().length > 0
+      ? accountUser.email.trim()
+      : null;
+
   return (
     <div
       className="flex min-h-[100dvh] flex-col"
@@ -630,15 +593,35 @@ export function SnapshotLanding() {
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <GlcLogo className="h-9 mobile:h-8" />
         </div>
-        <div className="flex shrink-0 items-center gap-3 sm:gap-4">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <ThemeToggle />
-          <Link
-            to="/login?next=/snapshot"
-            className="inline-flex items-center justify-end gap-1 rounded-lg text-sm font-medium mobile:min-h-11 mobile:min-w-11 mobile:px-2"
-            style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
-          >
-            Sign in <CaretRight className="h-3.5 w-3.5 shrink-0" />
-          </Link>
+          {hasFullAccount ? (
+            <div className="flex min-w-0 max-w-[min(100%,22rem)] items-center gap-2 sm:gap-2.5">
+              <UserCircle className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
+              <span
+                className="hidden min-w-0 truncate text-xs font-medium sm:inline sm:max-w-[10rem] md:max-w-[13rem]"
+                style={{ color: 'var(--text-secondary)' }}
+                title={workspaceEmail ?? 'Signed in'}
+              >
+                {workspaceEmail ?? 'Signed in'}
+              </span>
+              <Link
+                to="/dashboard"
+                className="inline-flex shrink-0 items-center gap-1 rounded-lg text-sm font-medium mobile:min-h-11 mobile:px-2"
+                style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
+              >
+                Workspace <CaretRight className="h-3.5 w-3.5 shrink-0" />
+              </Link>
+            </div>
+          ) : (
+            <Link
+              to="/login?next=/snapshot"
+              className="inline-flex items-center justify-end gap-1 rounded-lg text-sm font-medium mobile:min-h-11 mobile:min-w-11 mobile:px-2"
+              style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
+            >
+              Sign in <CaretRight className="h-3.5 w-3.5 shrink-0" />
+            </Link>
+          )}
         </div>
       </header>
 
@@ -715,7 +698,9 @@ export function SnapshotLanding() {
                       style={{ color: 'var(--text-tertiary)' }}
                     >
                       <CheckCircle className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
-                      Sign in for free — we save the snapshot to your account
+                      {hasFullAccount
+                        ? 'Signed in — results save to your account. Use Workspace for the full Express Audit.'
+                        : 'Try instantly — sign in anytime to unlock the full Express Audit'}
                     </div>
                   </div>
                 </div>
@@ -733,19 +718,20 @@ export function SnapshotLanding() {
                   Your website
                 </p>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {snapshotAuth === 'signed_out' && (
+                  {snapshotAuth === 'failed' && (
                     <p
                       className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5 text-center text-xs leading-snug mobile:text-left"
                       style={{ color: 'var(--text-secondary)' }}
                     >
+                      {snapshotAuthError ?? 'Preview session could not be started.'}{' '}
                       <Link
                         to="/login?next=/snapshot"
                         className="font-semibold underline-offset-2 hover:underline"
                         style={{ color: 'var(--glc-blue)' }}
                       >
-                        Sign in or create an account
+                        Sign in
                       </Link>{' '}
-                      to run the snapshot. Results stay linked to your profile.
+                      or ask your admin to enable Anonymous sign-ins in Supabase for instant preview.
                     </p>
                   )}
                   <div className="relative">
@@ -759,7 +745,7 @@ export function SnapshotLanding() {
                       onChange={e => setUrl(e.target.value)}
                       placeholder="yourcompany.com"
                       required
-                      disabled={stage === 'submitting' || snapshotAuth !== 'signed_in'}
+                      disabled={stage === 'submitting' || snapshotAuth !== 'ready'}
                       inputMode="url"
                       autoCapitalize="none"
                       autoCorrect="off"
@@ -779,23 +765,23 @@ export function SnapshotLanding() {
                     disabled={
                       !url.trim() ||
                       stage === 'submitting' ||
-                      snapshotAuth !== 'signed_in'
+                      snapshotAuth !== 'ready'
                     }
-                    whileHover={url.trim() && snapshotAuth === 'signed_in' ? { scale: 1.015 } : {}}
-                    whileTap={url.trim() && snapshotAuth === 'signed_in' ? { scale: 0.985 } : {}}
+                    whileHover={url.trim() && snapshotAuth === 'ready' ? { scale: 1.015 } : {}}
+                    whileTap={url.trim() && snapshotAuth === 'ready' ? { scale: 0.985 } : {}}
                     className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] py-3 text-sm font-semibold text-white mobile:min-h-12"
                     style={{
                       background:
-                        url.trim() && snapshotAuth === 'signed_in'
+                        url.trim() && snapshotAuth === 'ready'
                           ? 'var(--gradient-accent)'
                           : 'var(--border-default)',
                       border: 'none',
                       cursor:
-                        url.trim() && stage !== 'submitting' && snapshotAuth === 'signed_in'
+                        url.trim() && stage !== 'submitting' && snapshotAuth === 'ready'
                           ? 'pointer'
                           : 'not-allowed',
                       boxShadow:
-                        url.trim() && snapshotAuth === 'signed_in'
+                        url.trim() && snapshotAuth === 'ready'
                           ? '0 4px 14px rgba(242,79,29,0.28)'
                           : 'none',
                     }}
@@ -803,7 +789,7 @@ export function SnapshotLanding() {
                     {snapshotAuth === 'checking' ? (
                       <>
                         <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                        Checking session...
+                        Preparing preview...
                       </>
                     ) : stage === 'submitting' ? (
                       <>
@@ -963,9 +949,37 @@ export function SnapshotLanding() {
               <div className="mb-8 text-center mobile:mb-6 lg:mb-7 lg:text-left">
                 <div
                   className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-xs lg:mb-3"
-                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)' }}
+                  style={{
+                    background:
+                      snapshotShowsAccessCallout && snapshotAccessRobotsBlocked
+                        ? 'color-mix(in oklab, var(--glc-green) 10%, var(--bg-surface))'
+                        : 'var(--bg-surface)',
+                    border:
+                      snapshotShowsAccessCallout && snapshotAccessRobotsBlocked
+                        ? '1px solid color-mix(in oklab, var(--glc-green) 38%, var(--border-subtle))'
+                        : '1px solid var(--border-subtle)',
+                    color: 'var(--text-tertiary)',
+                  }}
                 >
-                  <CheckCircle className="w-3 h-3" style={{ color: 'var(--glc-green)' }} /> Your check is ready
+                  {snapshotShowsAccessCallout ? (
+                    snapshotAccessRobotsBlocked ? (
+                      <>
+                        <SealCheck className="w-3 h-3 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
+                        {snapshotAccessRobotsLimited
+                          ? 'Preview limited — inner pages sampled'
+                          : 'Preview limited — robots.txt policy'}
+                      </>
+                    ) : (
+                      <>
+                        <Warning className="w-3 h-3 shrink-0" style={{ color: 'var(--score-2)' }} weight="fill" />
+                        Preview incomplete — pages not loaded
+                      </>
+                    )
+                  ) : (
+                    <>
+                      <CheckCircle className="w-3 h-3" style={{ color: 'var(--glc-green)' }} /> Your check is ready
+                    </>
+                  )}
                 </div>
                 <h2
                   className="break-words text-2xl font-bold tracking-tight mobile:px-1 mobile:text-xl lg:max-w-[22ch]"
@@ -980,6 +994,15 @@ export function SnapshotLanding() {
                   <p className="mt-1 text-sm lg:mt-1.5" style={{ color: 'var(--text-tertiary)' }}>{result.location}</p>
                 )}
               </div>
+
+              <SnapshotAccessBlockedCallout
+                robotsBlocked={snapshotAccessRobotsBlocked}
+                noHtmlSample={snapshotAccessNoPages}
+                robotsLimitedSample={snapshotAccessRobotsLimited}
+                robotsFallbackSiteClass={snapshotAccess?.robotsFallbackSiteClass}
+                robotsHeadHttpStatus={result.scan_coverage?.robots_head_probe?.status}
+                limitations={snapshotCalloutLimitations}
+              />
 
               {result.homepage_snippet &&
                 (result.homepage_snippet.title.trim() || result.homepage_snippet.description.trim()) && (
@@ -1620,8 +1643,16 @@ export function SnapshotLanding() {
         }}
       >
         <p className="text-xs" style={{ color: 'var(--text-quaternary)' }}>
-          Results are AI-generated and for informational purposes only. · {' '}
-          <Link to="/login?next=/snapshot" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Sign in</Link>
+          Results are AI-generated and for informational purposes only. ·{' '}
+          {hasFullAccount ? (
+            <Link to="/dashboard" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>
+              Open workspace
+            </Link>
+          ) : (
+            <Link to="/login?next=/snapshot" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>
+              Sign in
+            </Link>
+          )}
         </p>
         <p className="text-xs mt-1.5" style={{ color: 'var(--text-quaternary)' }}>
           No website yet?{' '}

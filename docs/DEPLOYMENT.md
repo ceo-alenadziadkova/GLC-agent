@@ -14,7 +14,7 @@
 ## Supabase Setup
 
 1. Create project at [supabase.com](https://supabase.com) — choose **EU (Frankfurt)** region for GDPR compliance
-2. In SQL Editor → run **all** SQL migrations in order (`001` … `018`); see [DATABASE.md](./DATABASE.md#overview)
+2. In SQL Editor → run **all** SQL migrations in order through the latest file in `server/migrations/` (including **`023`**, **`024`** for guest role + snapshot `prompt_version` width); see [DATABASE.md](./DATABASE.md#overview)
 3. Authentication → Settings:
    - Set **Site URL** to your production frontend URL (exact URL; wildcards are invalid here)
    - Add **Redirect URLs**: exact dev/prod origins and `/login` URLs as needed — see [AUTH.md](./AUTH.md#supabase-auth-configuration) (some dashboards reject `*` wildcards)
@@ -124,15 +124,16 @@ See [API.md — Public Snapshot](./API.md#public-snapshot).
 
 ## CORS Configuration
 
-Backend `server/src/index.ts`:
-```typescript
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') ?? 'http://localhost:5173',
-  credentials: true,
-}));
-```
+Allowlist is built in `server/src/config/cors-origins.ts` and applied in `server/src/index.ts`:
 
-In production: set `ALLOWED_ORIGINS=https://your-app.vercel.app` in Railway.
+- **Production:** `ALLOWED_ORIGINS` (comma-separated full origins) **and** `FRONTEND_URL` are merged and deduped. Trailing slashes are normalized. If both are unset, the allowlist is empty and the API logs a warning (browser CORS will fail until you set at least one).
+- **Development:** same merge, plus default localhost dev server ports (`5173`, `5174`, `3000`).
+
+Example on Railway:
+
+`ALLOWED_ORIGINS=https://www.glctech.pro,https://glctech.pro`
+
+`FRONTEND_URL` can duplicate one of those or hold the canonical site URL for redirects (`intake` routes); it is always included in the CORS allowlist when set.
 
 ---
 
@@ -142,14 +143,14 @@ In production: set `ALLOWED_ORIGINS=https://your-app.vercel.app` in Railway.
 |---|---|---|
 | API URL | Vite proxy to `localhost:3001` | `VITE_API_URL` Railway URL |
 | Auth redirect | `http://localhost:5173` | `https://your-app.vercel.app` |
-| CORS | `localhost:5173` allowed | Only Vercel domain |
+| CORS | Localhost ports + optional `ALLOWED_ORIGINS` | `ALLOWED_ORIGINS` + `FRONTEND_URL` |
 | HTTPS | HTTP (fine for dev) | HTTPS enforced by Vercel/Railway |
 
 ---
 
 ## Deploy Checklist
 
-- [ ] Run all SQL migrations in order (`001` … `018`) in Supabase SQL editor
+- [ ] Run all SQL migrations in order (through **`024`** and any newer files) in Supabase SQL editor
 - [ ] RLS policies active (check in Supabase → Table Editor → each table)
 - [ ] Supabase Site URL + Redirect URLs updated to production domain
 - [ ] Google OAuth configured in Supabase (if using)

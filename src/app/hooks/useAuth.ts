@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
 import type { User, Session } from '@supabase/supabase-js';
+import { isAnonymousUser } from '../lib/snapshot-auth';
 
 export { isAnonymousUser } from '../lib/snapshot-auth';
 
@@ -158,6 +159,17 @@ export function useAuth() {
   };
 
   const signInWithGoogle = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user ?? null;
+    if (isAnonymousUser(user)) {
+      const { error } = await supabase.auth.linkIdentity({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/login`,
+        },
+      });
+      return { error };
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

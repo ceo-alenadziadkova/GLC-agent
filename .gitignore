@@ -1,6 +1,7 @@
 node_modules/
 /.idea/
 dist/
+coverage/
 *.env
 .env.local
 .env*.local
@@ -17,3 +18,4 @@ dist/
 /.claire/
 .DS_Store
 *.docx
+test-results/

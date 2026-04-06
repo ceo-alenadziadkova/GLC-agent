@@ -35,6 +35,7 @@ const {
   mockProfileUpdate,
   setGetUserResult,
   setProfileSelectResult,
+  setProfileSelectQueue,
   setProfileInsertResult,
   setProfileUpdateResult,
 } = vi.hoisted(() => {
@@ -46,6 +47,8 @@ const {
     data: null,
     error: { code: 'PGRST116' },
   };
+  /** When set, `single()` consumes this queue (for concurrent-insert refetch tests). */
+  let profileSelectQueue: Array<typeof profileSelectResult> | null = null;
   let profileInsertResult: { data: { role: string } | null; error: Error | null } = {
     data: { role: 'client' },
     error: null,
@@ -57,6 +60,9 @@ const {
 
   const setGetUserResult = (v: typeof getUserResult) => { getUserResult = v; };
   const setProfileSelectResult = (v: typeof profileSelectResult) => { profileSelectResult = v; };
+  const setProfileSelectQueue = (q: Array<typeof profileSelectResult> | null) => {
+    profileSelectQueue = q ? [...q] : null;
+  };
   const setProfileInsertResult = (v: typeof profileInsertResult) => { profileInsertResult = v; };
   const setProfileUpdateResult = (v: typeof profileUpdateResult) => { profileUpdateResult = v; };
 
@@ -64,7 +70,13 @@ const {
 
   const mockProfileSelect = vi.fn(() => ({
     eq: vi.fn(() => ({
-      single: vi.fn(() => Promise.resolve(profileSelectResult)),
+      single: vi.fn(() => {
+        if (profileSelectQueue && profileSelectQueue.length > 0) {
+          const next = profileSelectQueue.shift()!;
+          return Promise.resolve(next);
+        }
+        return Promise.resolve(profileSelectResult);
+      }),
     })),
   }));
 
@@ -94,6 +106,7 @@ const {
     mockProfileUpdate,
     setGetUserResult,
     setProfileSelectResult,
+    setProfileSelectQueue,
     setProfileInsertResult,
     setProfileUpdateResult,
   };
@@ -167,6 +180,7 @@ beforeEach(() => {
   // Reset to valid defaults
   setGetUserResult({ data: { user: { id: 'user-001', email: 'user@example.com' } }, error: null });
   setProfileSelectResult({ data: null, error: { code: 'PGRST116' } });
+  setProfileSelectQueue(null);
   setProfileInsertResult({ data: { role: 'client' }, error: null });
   setProfileUpdateResult({ data: { role: 'consultant' }, error: null });
 });
@@ -276,6 +290,25 @@ describe('attachProfile', () => {
       headers: { Authorization: 'Bearer tok' },
     });
     expect(res.status).toBe(500);
+  });
+
+  it('refetches profile when insert hits unique violation (concurrent first requests)', async () => {
+    process.env.CONSULTANT_EMAILS = 'boss@company.com';
+    setGetUserResult({ data: { user: { id: 'user-race', email: 'user@example.com' } }, error: null });
+    setProfileSelectQueue([
+      { data: null, error: { code: 'PGRST116' } },
+      { data: { role: 'client' }, error: null },
+    ]);
+    const dup = new Error('duplicate key value violates unique constraint') as Error & { code?: string };
+    dup.code = '23505';
+    setProfileInsertResult({ data: null, error: dup });
+
+    const res = await fetch(`${fullChainBase}/test`, {
+      headers: { Authorization: 'Bearer tok' },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { role: string };
+    expect(body.role).toBe('client');
   });
 });
 

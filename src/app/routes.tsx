@@ -16,6 +16,7 @@ import { DiscoveryQueue }   from './pages/DiscoveryQueue';
 import { SettingsPage }     from './pages/SettingsPage';
 import { ProtectedRoute }   from './components/ProtectedRoute';
 import { RootRedirect }     from './components/RootRedirect';
+import { ClientPortalPipelineProvider } from './context/ClientPortalPipelineContext';
 
 function P({ children }: { children: React.ReactNode }) {
   return <ProtectedRoute>{children}</ProtectedRoute>;
@@ -31,6 +32,15 @@ function Consultant({ children }: { children: React.ReactNode }) {
 
 function Client({ children }: { children: React.ReactNode }) {
   return <ProtectedRoute requiredRole="client">{children}</ProtectedRoute>;
+}
+
+/** Client routes that share pipeline nav gating (brief gates + snapshot rules). */
+function ClientPortalShell({ children }: { children: React.ReactNode }) {
+  return (
+    <Client>
+      <ClientPortalPipelineProvider>{children}</ClientPortalPipelineProvider>
+    </Client>
+  );
 }
 
 export const router = createBrowserRouter([
@@ -51,13 +61,13 @@ export const router = createBrowserRouter([
   { path: '/audit/:id/:domainId', element: <Consultant><AuditWorkspace /></Consultant> },
   { path: '/pipeline/:id',        element: <Consultant><PipelineMonitor /></Consultant> },
   { path: '/reports/:id',         element: <Consultant><ReportViewer /></Consultant> },
-  { path: '/portal/reports/:id',  element: <Client><ReportViewer /></Client> },
+  { path: '/portal/reports/:id',  element: <ClientPortalShell><ReportViewer /></ClientPortalShell> },
   { path: '/strategy/:id',        element: <Consultant><StrategyLab /></Consultant> },
   { path: '/settings',            element: <PNoGuest><SettingsPage /></PNoGuest> },
 
   // ── Client portal routes ───────────────────────────────────────────────────
-  { path: '/portal',                  element: <Client><ClientPortal /></Client> },
-  { path: '/portal/audit/new',        element: <Client><NewAudit variant="client_self_serve" /></Client> },
-  { path: '/portal/pipeline/:id',     element: <Client><PipelineMonitor /></Client> },
-  { path: '/portal/audit/:id',        element: <Client><ClientAuditView /></Client> },
+  { path: '/portal',                  element: <ClientPortalShell><ClientPortal /></ClientPortalShell> },
+  { path: '/portal/audit/new',        element: <ClientPortalShell><NewAudit variant="client_self_serve" /></ClientPortalShell> },
+  { path: '/portal/pipeline/:id',     element: <ClientPortalShell><PipelineMonitor /></ClientPortalShell> },
+  { path: '/portal/audit/:id',        element: <ClientPortalShell><ClientAuditView /></ClientPortalShell> },
 ]);

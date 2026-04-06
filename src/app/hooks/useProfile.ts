@@ -1,8 +1,67 @@
 import { useState, useEffect } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { UserRole } from '../data/auditTypes';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+
+/**
+ * Loads `profiles` row; runs GET /api/profile when missing (creates row via attachProfile)
+ * or when role is still `guest` so the server can promote guest → client after OAuth linkIdentity.
+ */
+async function loadProfileRowForSession(session: Session): Promise<{
+  profile: Profile | null;
+  error: string | null;
+}> {
+  let { data, error: dbError } = await supabase
+    .from('profiles')
+    .select('id, role, full_name, created_at')
+    .eq('id', session.user.id)
+    .single();
+
+  if (dbError?.code === 'PGRST116') {
+    try {
+      await fetch(`${API_URL}/api/profile`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const retry = await supabase
+        .from('profiles')
+        .select('id, role, full_name, created_at')
+        .eq('id', session.user.id)
+        .single();
+      data = retry.data;
+      dbError = retry.error;
+    } catch {
+      /* fall through */
+    }
+  }
+
+  if (dbError || !data) {
+    return { profile: null, error: dbError?.message ?? 'Profile not found' };
+  }
+
+  if (data.role === 'guest') {
+    try {
+      const res = await fetch(`${API_URL}/api/profile`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (res.ok) {
+        const api = (await res.json()) as { role?: UserRole; full_name?: string | null };
+        if (api.role && (api.role === 'client' || api.role === 'consultant' || api.role === 'guest')) {
+          data = {
+            ...data,
+            role: api.role,
+            full_name: api.full_name ?? data.full_name,
+          };
+        }
+      }
+    } catch {
+      /* keep DB row as-is */
+    }
+  }
+
+  return { profile: data as Profile, error: null };
+}
 
 interface Profile {
   id: string;
@@ -57,38 +116,14 @@ export function useProfile(): UseProfileResult {
         return;
       }
 
-      // Try reading profile directly from DB first (fast path)
-      let { data, error: dbError } = await supabase
-        .from('profiles')
-        .select('id, role, full_name, created_at')
-        .eq('id', session.user.id)
-        .single();
-
-      // PGRST116 = 0 rows — profile doesn't exist yet.
-      // Call /api/profile which runs attachProfile() to upsert it, then re-read.
-      if (dbError?.code === 'PGRST116') {
-        try {
-          await fetch(`${API_URL}/api/profile`, {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          });
-          const retry = await supabase
-            .from('profiles')
-            .select('id, role, full_name, created_at')
-            .eq('id', session.user.id)
-            .single();
-          data = retry.data;
-          dbError = retry.error;
-        } catch {
-          // Server unreachable — fall through to error state
-        }
-      }
+      const { profile: next, error: loadErr } = await loadProfileRowForSession(session);
 
       if (!cancelled) {
-        if (dbError || !data) {
+        if (loadErr || !next) {
           setProfile(null);
-          setError(dbError?.message ?? 'Profile not found');
+          setError(loadErr ?? 'Profile not found');
         } else {
-          setProfile(data as Profile);
+          setProfile(next);
         }
         setLoading(false);
       }
@@ -98,8 +133,12 @@ export function useProfile(): UseProfileResult {
 
     // Re-fetch on auth state changes (sign in / sign out)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      // Only re-run on actual sign-in / sign-out, not on every token refresh
-      if (session === null || _event === 'SIGNED_IN' || _event === 'SIGNED_OUT') {
+      if (
+        session === null ||
+        _event === 'SIGNED_IN' ||
+        _event === 'SIGNED_OUT' ||
+        _event === 'USER_UPDATED'
+      ) {
         void load();
       }
     });
@@ -120,16 +159,12 @@ export function useProfile(): UseProfileResult {
     }
     setLoading(true);
     setError(null);
-    const { data, error: dbError } = await supabase
-      .from('profiles')
-      .select('id, role, full_name, created_at')
-      .eq('id', session.user.id)
-      .single();
-    if (dbError || !data) {
+    const { profile: next, error: loadErr } = await loadProfileRowForSession(session);
+    if (loadErr || !next) {
       setProfile(null);
-      setError(dbError?.message ?? 'Profile not found');
+      setError(loadErr ?? 'Profile not found');
     } else {
-      setProfile(data as Profile);
+      setProfile(next);
     }
     setLoading(false);
   };

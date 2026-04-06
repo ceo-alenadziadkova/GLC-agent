@@ -12,6 +12,7 @@ import { GlcLogo } from './GlcLogo';
 import { ThemeToggle } from './ThemeToggle';
 import { NotificationCenter } from './NotificationCenter';
 import type { NotificationItem } from '../data/auditTypes';
+import { useClientPortalPipelineOptional } from '../context/ClientPortalPipelineContext';
 
 function useCurrentAuditId(): string | null {
   const { pathname } = useLocation();
@@ -33,11 +34,11 @@ function buildConsultantNav(auditId: string | null) {
   ];
 }
 
-function buildClientNav(auditId: string | null) {
+function buildClientNav(auditId: string | null, showPipelineInNav: boolean) {
   return [
     { to: '/portal',                                        icon: HouseSimple,   label: 'My Portal',    badge: null },
     { to: auditId ? `/portal/audit/${auditId}` : null,     icon: Eye,           label: 'Audit Status', badge: null },
-    { to: auditId ? `/portal/pipeline/${auditId}` : null,   icon: Pulse,         label: 'Pipeline',     badge: null },
+    { to: auditId && showPipelineInNav ? `/portal/pipeline/${auditId}` : null,   icon: Pulse,         label: 'Pipeline',     badge: null },
   ];
 }
 
@@ -69,14 +70,20 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
     markAllAsRead,
   } = useNotifications();
   const auditId = useCurrentAuditId();
+  const clientPipelineCtx = useClientPortalPipelineOptional();
+  const clientPipelineNavAllowed =
+    Boolean(auditId) &&
+    Boolean(
+      clientPipelineCtx && clientPipelineCtx.auditId === auditId && clientPipelineCtx.allowed,
+    );
 
   const roleUnknown = isAuthenticated && (profileLoading || !profile?.role);
   const NAV = isGuest
     ? buildGuestNav()
     : roleUnknown
-      ? buildClientNav(auditId)
+      ? buildClientNav(auditId, false)
       : isClient
-        ? buildClientNav(auditId)
+        ? buildClientNav(auditId, clientPipelineNavAllowed)
         : buildConsultantNav(auditId);
   const sectionLabel = isGuest
     ? 'SNAPSHOT'
