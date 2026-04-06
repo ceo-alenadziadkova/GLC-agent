@@ -1,7 +1,14 @@
 /**
  * Build API-shaped FreeSnapshotPreview from persisted audit state (portal mirror of /snapshot results).
+ *
+ * Access-blocked UX: `snapshot_access_*` on the object mirrors only what is stored under
+ * `raw_data.snapshot_deterministic`. For callouts and copy, the app must use
+ * `getSnapshotAccessBlockedState` from `snapshot-diagnostics.ts`, which applies the same fallback
+ * heuristics as `computePublicSnapshotAccessFlags` on GET /api/snapshot (scan_coverage, limitations,
+ * ux_summary, degraded + score zero). Do not rely on persisted flags alone in the portal.
  */
 
+import { normalizeScanCoverageFromStoredJson } from '@shared/snapshot-scan-coverage';
 import type {
   AuditState,
   AuditIssue,
@@ -51,56 +58,8 @@ function legacyUxLabel(score: number): string {
 }
 
 function asScanCoverage(raw: unknown): SnapshotScanCoverageApi | undefined {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
-  const c = raw as Record<string, unknown>;
-  const budget = typeof c.budget_ms === 'number' ? c.budget_ms : typeof c.budgetMs === 'number' ? c.budgetMs : undefined;
-  if (budget === undefined || !Number.isFinite(budget)) return undefined;
-  const elapsed = typeof c.elapsed_ms === 'number' ? c.elapsed_ms : typeof c.elapsedMs === 'number' ? c.elapsedMs : 0;
-  const pagesFetched =
-    typeof c.pages_fetched === 'number' ? c.pages_fetched : typeof c.pagesFetched === 'number' ? c.pagesFetched : 0;
-  const maxPlanned =
-    typeof c.max_pages_planned === 'number'
-      ? c.max_pages_planned
-      : typeof c.maxPagesPlanned === 'number'
-        ? c.maxPagesPlanned
-        : 0;
-  const rawPages = Array.isArray(c.pages) ? c.pages : [];
-  const pages = rawPages.map((entry: unknown): SnapshotScanCoverageApi['pages'][number] => {
-    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
-      return { final_url: '', status: 0, role: 'other' };
-    }
-    const p = entry as Record<string, unknown>;
-    const final_url =
-      typeof p.final_url === 'string' ? p.final_url : typeof p.finalUrl === 'string' ? p.finalUrl : '';
-    const status = typeof p.status === 'number' ? p.status : 0;
-    const r = p.role;
-    const role =
-      r === 'home' ||
-      r === 'contact' ||
-      r === 'pricing' ||
-      r === 'about' ||
-      r === 'services' ||
-      r === 'other'
-        ? r
-        : 'other';
-    return { final_url, status, role };
-  });
-  const out: SnapshotScanCoverageApi = {
-    budget_ms: budget,
-    elapsed_ms: elapsed,
-    pages_fetched: pagesFetched,
-    max_pages_planned: maxPlanned,
-    pages,
-  };
-  if (c.robots_home_disallowed === true || c.robotsHomeDisallowed === true) out.robots_home_disallowed = true;
-  if (c.robots_txt_fetched === true || c.robotsTxtFetched === true) out.robots_txt_fetched = true;
-  if (c.playwright_eligible === true || c.playwrightEligible === true) out.playwright_eligible = true;
-  if (c.playwright_used === true || c.playwrightUsed === true) out.playwright_used = true;
-  const hf = c.home_fetch_failure ?? c.homeFetchFailure;
-  if (hf === 'network_or_timeout' || hf === 'http_error' || hf === 'non_html' || hf === 'empty_body') {
-    out.home_fetch_failure = hf;
-  }
-  return out;
+  const n = normalizeScanCoverageFromStoredJson(raw);
+  return (n ?? undefined) as SnapshotScanCoverageApi | undefined;
 }
 
 export function freeSnapshotPreviewFromAuditState(state: AuditState): FreeSnapshotPreview | null {

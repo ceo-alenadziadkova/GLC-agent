@@ -1,6 +1,9 @@
 /**
- * Detect degraded / robots-blocked snapshot outcomes from `audit_domains.raw_data.snapshot_deterministic`
- * (mirrors frontend `getSnapshotAccessBlockedState` for upgrade + logging).
+ * Detect degraded / robots-blocked snapshot outcomes from `audit_domains.raw_data.snapshot_deterministic`.
+ *
+ * Public GET completed body: `computePublicSnapshotAccessFlags` is authoritative for JSON (legacy rows +
+ * merge edge cases). SPA portal: use `getSnapshotAccessBlockedState` in `src/app/lib/snapshot-diagnostics.ts`
+ * for UI; it mirrors these rules when persisted `snapshot_access_*` flags are missing or stale.
  */
 
 import type { FreeSnapshotPreview } from '../types/audit.js';

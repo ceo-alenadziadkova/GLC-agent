@@ -22,9 +22,12 @@ PostgreSQL on **Supabase**. Apply migrations **in numeric order** so foreign key
 16. `016_intake_recon_conflicts_discovery.sql` — recon conflict handling / discovery-related intake (see migration file)
 17. `017_client_brief_help.sql` — `brief_help_requested_at`, `brief_help_client_message` on `audits` (optional client “help with brief” signal)
 18. `018_platform_settings.sql` — singleton `platform_settings` (`self_serve_audit_owner_user_id` for client self-serve owner)
-19. `020_snapshot_domain_cache.sql` — `snapshot_domain_cache` (host-keyed JSON payload + `expires_at` for deterministic free snapshot reuse)
-20. `021_snapshot_domain_cooldown.sql` — `snapshot_domain_cooldown` (optional cross-instance fresh-fetch cooldown for public snapshot; opt-in via `SNAPSHOT_SHARED_ABUSE_STORE`)
-21. `022_snapshot_fresh_lease.sql` — `snapshot_fresh_lease` + RPC `snapshot_try_acquire_fresh_lease` / `snapshot_release_fresh_lease` (optional cross-instance **concurrent fresh** cap; same opt-in flag)
+19. `019_discovery_maturity_5_contact_company.sql` — discovery maturity / contact-company fields (see migration file)
+20. `020_snapshot_domain_cache.sql` — `snapshot_domain_cache` (host-keyed JSON payload + `expires_at` for deterministic free snapshot reuse)
+21. `021_snapshot_domain_cooldown.sql` — `snapshot_domain_cooldown` (optional cross-instance fresh-fetch cooldown for public snapshot; opt-in via `SNAPSHOT_SHARED_ABUSE_STORE`)
+22. `022_snapshot_fresh_lease.sql` — `snapshot_fresh_lease` + RPC `snapshot_try_acquire_fresh_lease` / `snapshot_release_fresh_lease` (optional cross-instance **concurrent fresh** cap; same opt-in flag)
+23. `023_profiles_guest_role.sql` — `profiles.role` adds `guest` for anonymous snapshot sessions; `handle_new_user` updates (see [AUTH.md](./AUTH.md))
+24. `024_audit_domains_prompt_version_len.sql` — widens `audit_domains.prompt_version` to **`VARCHAR(64)`** so deterministic free snapshot engine labels are not truncated (was `VARCHAR(20)` from migration 009)
 
 **Tables (17):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`.
 

@@ -152,7 +152,11 @@ function uxSummaryIsDegradedPlaceholder(summary: string | null | undefined): boo
   return typeof summary === 'string' && summary.includes(DEGRADED_SNAPSHOT_SUMMARY_MARK);
 }
 
-/** Single place to drive access-blocked UI (public snapshot + portal mirror). */
+/**
+ * Single place to drive access-blocked UI (public snapshot + portal mirror).
+ * Aligns with `computePublicSnapshotAccessFlags` on GET /api/snapshot when persisted flags are absent;
+ * see docs/API.md (Public Snapshot) and `freeSnapshotPreviewFromAuditState` file comment.
+ */
 export function getSnapshotAccessBlockedState(
   result: Pick<
     FreeSnapshotPreview,
