@@ -86,7 +86,8 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 });
 
 // ─── Start ─────────────────────────────────────────────────
-app.listen(PORT, () => {
+// Bind 0.0.0.0 so Docker / Railway edge can reach the process (not only loopback).
+app.listen(PORT, '0.0.0.0', () => {
   logger.info('Server started', {
     port: PORT,
     env: process.env.NODE_ENV ?? 'development',

@@ -37,12 +37,13 @@
 5. Set environment variables in Railway dashboard:
 
    ```env
-   PORT=3001
    SUPABASE_URL=https://xxxx.supabase.co
    SUPABASE_SERVICE_KEY=eyJ...
    ANTHROPIC_API_KEY=sk-ant-...
    NODE_ENV=production
    ```
+   **Do not set `PORT` manually** unless you know what you are doing: Railway injects **`PORT`**; the app must listen on that value (`server/src/index.ts`). In **Public networking**, **Target port** must match that same `PORT` (often not `3001`). If the deploy healthcheck passes but `https://…up.railway.app/api/health` returns **502**, fix the domain’s target port or remove a conflicting custom `PORT` variable.
+
    **Client self-serve (portal):** after migration `018_platform_settings.sql`, a **lead administrator** (consultant) sets the default audit owner under **Settings → Client portal — audit owner** (`PATCH /api/platform/self-serve-owner`). Optionally keep **`SELF_SERVE_AUDIT_OWNER_USER_ID`** as a bootstrap / backup consultant UUID when the database value is empty. **`PLATFORM_ADMIN_USER_IDS`** (comma-separated consultant `profiles.id`) restricts who may PATCH platform settings; if omitted, any consultant may change the assignment.
 
 6. **Build / start (dashboard):** if Railway uses **`server/railway.json` + Dockerfile**, the image runs `pnpm run build` during `docker build` and starts with `node dist/index.js` — you can clear custom build/start overrides in the UI to avoid duplication. Otherwise use **Build:** `npm run build`, **Start:** `npm start` (runs `dist/index.js`).
@@ -101,7 +102,7 @@ See [API.md — Public Snapshot](./API.md#public-snapshot).
 
 | Variable | Value |
 |---|---|
-| `PORT` | `3001` |
+| `PORT` | Injected by Railway (do not hardcode `3001` unless it matches **Public networking → Target port**) |
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_SERVICE_KEY` | Supabase service role key (secret) |
 | `ANTHROPIC_API_KEY` | Anthropic API key |
