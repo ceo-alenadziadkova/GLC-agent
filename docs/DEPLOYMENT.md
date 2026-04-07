@@ -32,8 +32,9 @@
 
 1. Create account at [railway.app](https://railway.app)
 2. New Project → Deploy from GitHub repo
-3. Railway auto-detects `server/package.json` — set root directory to `server/`
-4. Set environment variables in Railway dashboard:
+3. Railway auto-detects `server/package.json` — **set Root Directory to `server/`** in the service settings. If the root is the **repo root**, Nixpacks may treat the project as a **Vite SPA** and start **Caddy** only (logs like `using config from file`, `server running`, `serving initial configuration`). That is not the Express API — you will see **502** and no Node logs. The backend must build from `server/package.json` (`npm run build` → `npm start`).
+4. **Railpack build timeout / hang on `apt` or `libc-bin`:** this repo includes **`server/Dockerfile`** and **`server/railway.json`** (`builder: DOCKERFILE`) so Railway can build the API without Railpack. Commit those files and redeploy; in the service UI you can set **Config as code → file path** to `server/railway.json` if the platform does not auto-detect it. The image sets **`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`** for a faster build; for production snapshot scans that need Chromium, add a build step such as `pnpm exec playwright install chromium` (and any OS deps your base image needs) or use Railway’s docs for Playwright on Docker.
+5. Set environment variables in Railway dashboard:
 
    ```env
    PORT=3001
@@ -44,8 +45,7 @@
    ```
    **Client self-serve (portal):** after migration `018_platform_settings.sql`, a **lead administrator** (consultant) sets the default audit owner under **Settings → Client portal — audit owner** (`PATCH /api/platform/self-serve-owner`). Optionally keep **`SELF_SERVE_AUDIT_OWNER_USER_ID`** as a bootstrap / backup consultant UUID when the database value is empty. **`PLATFORM_ADMIN_USER_IDS`** (comma-separated consultant `profiles.id`) restricts who may PATCH platform settings; if omitted, any consultant may change the assignment.
 
-5. Build command: `npm run build`
-6. Start command: `npm start` (runs compiled `dist/index.js`)
+6. **Build / start (dashboard):** if Railway uses **`server/railway.json` + Dockerfile**, the image runs `pnpm run build` during `docker build` and starts with `node dist/index.js` — you can clear custom build/start overrides in the UI to avoid duplication. Otherwise use **Build:** `npm run build`, **Start:** `npm start` (runs `dist/index.js`).
 7. Railway provides a public URL like `https://glc-api.up.railway.app`
 
 **Healthcheck:** Railway pings `/` — ensure Express responds with `200`.
