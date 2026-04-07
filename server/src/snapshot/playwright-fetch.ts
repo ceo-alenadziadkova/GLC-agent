@@ -1,6 +1,6 @@
 /**
  * Tier-3 snapshot: render homepage in headless Chromium when static HTML looks like a client shell.
- * Requires `playwright` dependency and `npx playwright install chromium` on the host.
+ * Requires `playwright` dependency; Chromium must be installed (Docker: `playwright install --with-deps chromium` in server/Dockerfile; local: `pnpm playwright:install` in `server/`).
  */
 import { chromium, type Browser } from 'playwright';
 

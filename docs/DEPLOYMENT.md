@@ -33,7 +33,7 @@
 1. Create account at [railway.app](https://railway.app)
 2. New Project → Deploy from GitHub repo
 3. Railway auto-detects `server/package.json` — **set Root Directory to `server/`** in the service settings. If the root is the **repo root**, Nixpacks may treat the project as a **Vite SPA** and start **Caddy** only (logs like `using config from file`, `server running`, `serving initial configuration`). That is not the Express API — you will see **502** and no Node logs. The backend must build from `server/package.json` (`npm run build` → `npm start`).
-4. **Railpack build timeout / hang on `apt` or `libc-bin`:** this repo includes **`server/Dockerfile`** and **`server/railway.json`** (`builder: DOCKERFILE`) so Railway can build the API without Railpack. Commit those files and redeploy; in the service UI you can set **Config as code → file path** to `server/railway.json` if the platform does not auto-detect it. The image sets **`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`** for a faster build; for production snapshot scans that need Chromium, add a build step such as `pnpm exec playwright install chromium` (and any OS deps your base image needs) or use Railway’s docs for Playwright on Docker.
+4. **Railpack build timeout / hang on `apt` or `libc-bin`:** this repo includes **`server/Dockerfile`** and **`server/railway.json`** (`builder: DOCKERFILE`) so Railway can build the API without Railpack. Commit those files and redeploy; in the service UI you can set **Config as code → file path** to `server/railway.json` if the platform does not auto-detect it. The Dockerfile runs **`pnpm exec playwright install --with-deps chromium`** after `tsc` so **free snapshot** can use headless Chromium for SPA-style homepages (see § Free snapshot — Playwright). Builds are slower and the image is larger than a minimal API-only image.
 5. Set environment variables in Railway dashboard:
 
    ```env
@@ -48,14 +48,14 @@
 6. **Build / start (dashboard):** if Railway uses **`server/railway.json` + Dockerfile**, the image runs `pnpm run build` during `docker build` and starts with `node dist/index.js` — you can clear custom build/start overrides in the UI to avoid duplication. Otherwise use **Build:** `npm run build`, **Start:** `npm start` (runs `dist/index.js`).
 7. Railway provides a public URL like `https://glc-api.up.railway.app`
 
-**Healthcheck:** Railway pings `/` — ensure Express responds with `200`.
+**Healthcheck:** use **`/api/health`** (see `server/railway.json`). There is no `GET /` handler on the API; pinging `/` returns 404.
 
 ### Free snapshot — Playwright
 
 Headless Chromium **runs by default** when the static homepage looks like an empty client shell (thin text + many scripts, or known SPA root mounts). Set **`SNAPSHOT_PLAYWRIGHT=0`** (or `false`) to disable and use only HTTP HTML.
 
 - **Env:** optional `SNAPSHOT_PLAYWRIGHT_BUDGET_MS` (default `14000`, capped by remaining `SNAPSHOT_FETCH_BUDGET_MS`). **`SNAPSHOT_FETCH_BUDGET_MS`** defaults to **`10000`** (10s wall clock for the tiered fetch). Optional **`SNAPSHOT_OPERATOR_TOKEN`** enables **`GET /api/snapshot/operator/metrics`** and **`POST /api/snapshot/operator/purge-cache`** (see [API.md](./API.md#snapshot-operator-optional)); keep the token long and rotate like any secret.
-- **Build:** install browsers once, e.g. `npx playwright install chromium` in the Railway build step, or use a Playwright-capable base image. The `playwright` package is in `server/package.json`; Chromium is not bundled.
+- **Build (Docker / Railway):** `server/Dockerfile` installs Chromium via **`playwright install --with-deps chromium`**. For non-Docker hosts (e.g. local dev), run `pnpm playwright:install` in `server/` once. The `playwright` package is in `server/package.json`.
 - If Chromium is missing or launch fails, the scanner logs a warning and continues with the original HTTP HTML.
 
 **Abuse controls (public snapshot):** optional env — `SNAPSHOT_DOMAIN_FRESH_COOLDOWN_MS` (default `600000`, `0` = off), `SNAPSHOT_MAX_CONCURRENT` (default `4`), `SNAPSHOT_COMPARE_MAX_PER_HOUR` (default `15`). **`SNAPSHOT_ROBOTS_CACHE_MS`** — TTL for in-memory `robots.txt` parse per origin (default `1200000`, i.e. 20 minutes). **`SNAPSHOT_SHARED_ABUSE_STORE`** — set to `1` / `true` / `yes` after applying migrations **`021_snapshot_domain_cooldown.sql`** and **`022_snapshot_fresh_lease.sql`** so (1) per-domain fresh cooldown and (2) **max concurrent fresh scans** are coordinated **across Railway instances** via Supabase; if unset, both stay per-process only. **`SNAPSHOT_FRESH_LEASE_TTL_SECONDS`** — optional; defaults to **max(300, 5 × fetch budget seconds)** so leases survive long Playwright runs; raise if scans can exceed that wall time.
