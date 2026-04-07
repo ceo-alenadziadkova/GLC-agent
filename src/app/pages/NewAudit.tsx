@@ -31,6 +31,8 @@ import {
   clientBriefLayoutStorageKey,
 } from '../lib/client-brief-layout-preference';
 import { api, ApiError } from '../data/apiService';
+import { getGlcQueryClient } from '../lib/glc-query-client';
+import { invalidateAuditRelatedQueries, invalidateAuditsListsAndDashboard } from '../lib/glc-invalidate-queries';
 import { INDUSTRY_OPTIONS, isIndustryOption } from '../data/industry-options';
 import { applyIntakeMetadataPrefill } from '../lib/intake-client-copy';
 import { effectiveBriefForPipelineGates, normalizeIntakeToResponses } from '../data/intakeBriefMap';
@@ -52,15 +54,15 @@ const STEPS = [
 
 function StepIndicator({ current }: { current: number }) {
   return (
-    <div className="flex items-center gap-1 mb-8 justify-center">
+    <div className="flex items-center gap-0.5 mobile:gap-0 mb-6 mobile:mb-5 sm:mb-8 justify-center px-1">
       {STEPS.map((s, i) => {
         const done = i < current;
         const active = i === current;
         return (
-          <div key={s.label} className="flex items-center gap-1">
+          <div key={s.label} className="flex items-center gap-0.5 mobile:gap-0">
             <div className="flex flex-col items-center gap-1">
               <div
-                className="w-8 h-8 rounded-full flex items-center justify-center"
+                className="w-8 h-8 mobile:w-7 mobile:h-7 rounded-full flex items-center justify-center"
                 style={{
                   background: done
                     ? 'var(--score-5-bg)'
@@ -92,7 +94,7 @@ function StepIndicator({ current }: { current: number }) {
             </div>
             {i < STEPS.length - 1 && (
               <div
-                className="w-10 h-px mb-4"
+                className="w-6 mobile:w-4 sm:w-10 h-px mb-4 mobile:mb-3.5"
                 style={{ background: i < current ? 'var(--score-5)' : 'var(--border-default)' }}
               />
             )}
@@ -701,6 +703,9 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
       }
 
       await api.startPipeline(auditId);
+      const qc = getGlcQueryClient();
+      invalidateAuditRelatedQueries(qc, auditId);
+      invalidateAuditsListsAndDashboard(qc);
       setPreBriefToken(null);
 
       if (isClientSelfServe) {
@@ -830,7 +835,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         isClientSelfServe ? (
           <Link
             to="/portal"
-            className="text-sm no-underline"
+            className="hidden sm:inline text-sm no-underline"
             style={{ color: 'var(--text-tertiary)' }}
           >
             Back to portal
@@ -839,7 +844,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
       }
     >
       <div
-        className="min-h-full flex flex-col items-center justify-center py-12 px-6 relative"
+        className="min-h-full flex flex-col items-center justify-center py-8 mobile:py-6 glc-page-content relative"
         style={{ backgroundColor: 'var(--bg-canvas)' }}
       >
         <div className="absolute inset-0 pointer-events-none" style={{ background: 'var(--mesh-brand)', opacity: 0.55 }} />
@@ -848,9 +853,18 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full"
-          style={{ maxWidth: step === 1 ? 640 : 460 }}
+          className={`relative w-full max-w-full ${step === 1 ? 'sm:max-w-[40rem]' : 'sm:max-w-[28.75rem]'}`}
         >
+          {isClientSelfServe && (
+            <Link
+              to="/portal"
+              className="sm:hidden inline-flex items-center gap-1.5 text-sm font-medium no-underline glc-touch-target mb-4"
+              style={{ color: 'var(--glc-blue)' }}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to portal
+            </Link>
+          )}
           <StepIndicator current={step} />
 
           {isClientSelfServe && draftRestoredVisible && (
@@ -883,7 +897,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
             </div>
           )}
 
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="sync">
 
             {/* ── Step 0: Basics ───────────────────────── */}
             {step === 0 && (
@@ -895,12 +909,15 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 transition={{ duration: 0.28 }}
               >
                 {/* Header */}
-                <div className="text-center mb-8">
+                <div className="text-center mb-6 mobile:mb-5 sm:mb-8">
                   <SectionLabel accent>GLC Audit Platform</SectionLabel>
-                  <h1 className="mt-2" style={{ fontSize: 'var(--text-3xl)', color: 'var(--text-primary)', fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: 'var(--tracking-tight)' }}>
+                  <h1
+                    className="mt-2 text-2xl sm:text-[length:var(--text-3xl)]"
+                    style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: 'var(--tracking-tight)' }}
+                  >
                     Start a New Audit
                   </h1>
-                  <p className="mt-2.5" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  <p className="mt-2.5 px-1" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                     Enter a public website if there is one, or indicate there is no site — we still analyze{' '}
                     <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>8 business domains</strong> using your brief and available signals.
                   </p>
@@ -919,7 +936,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 </motion.div>
 
                 {/* Form */}
-                <form onSubmit={e => { e.preventDefault(); if (step1Valid) setStep(1); }} className="glc-card p-6 space-y-5" style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}>
+                <form onSubmit={e => { e.preventDefault(); if (step1Valid) setStep(1); }} className="glc-card p-4 mobile:p-5 sm:p-6 space-y-5" style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}>
                   {/* URL */}
                   <div className="space-y-1.5">
                     <label htmlFor="url" className="block font-medium" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
@@ -1143,7 +1160,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                     role="presentation"
                   >
                     <div
-                      className="glc-card p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto"
+                      className="glc-card p-4 mobile:p-5 sm:p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto"
                       style={{ borderRadius: 'var(--radius-xl)' }}
                       onClick={e => e.stopPropagation()}
                       role="dialog"
@@ -1292,7 +1309,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.28 }}
-                className="glc-card p-6"
+                className="glc-card p-4 mobile:p-5 sm:p-6"
                 style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}
               >
                 {/* Header */}
@@ -1405,7 +1422,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                     </p>
 
                     {briefLayoutChoice === 'wizard' ? (
-                      <div className="max-h-[55vh] overflow-y-auto pr-1">
+                      <div className="max-h-[min(55vh,28rem)] sm:max-h-[55vh] overflow-y-auto pr-1">
                         <IntakeBankWizard
                           responses={responses}
                           onResponsesChange={patch =>
@@ -1418,7 +1435,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                         />
                       </div>
                     ) : (
-                      <div className="max-h-[55vh] overflow-y-auto pr-1">
+                      <div className="max-h-[min(55vh,28rem)] sm:max-h-[55vh] overflow-y-auto pr-1">
                         <BankClassicBriefFields
                           responses={responses}
                           collectionMode={noPublicWebsite ? 'discovery' : undefined}
@@ -1435,15 +1452,15 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 <div className="glc-divider mt-5" />
 
                 {/* Navigation */}
-                <div className="flex items-center gap-3 mt-4">
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-3 mt-4">
                   <button type="button" onClick={() => setStep(0)}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm"
+                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-sm glc-touch-target sm:min-h-0 sm:min-w-0"
                     style={{ color: 'var(--text-tertiary)', border: '1px solid var(--border-subtle)', backgroundColor: 'transparent' }}
                   >
                     <ArrowLeft className="w-3.5 h-3.5" /> Back
                   </button>
                   <button type="button" onClick={() => setStep(2)} disabled={!step2Complete}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all"
+                    className="flex-1 flex items-center justify-center gap-2 py-3 sm:py-2.5 rounded-lg text-sm font-semibold transition-all glc-touch-target sm:min-h-0"
                     style={{
                       background: step2Complete ? 'var(--gradient-brand)' : 'var(--bg-muted)',
                       color: step2Complete ? 'var(--primary-foreground)' : 'var(--text-secondary)',
@@ -1471,7 +1488,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.28 }}
                 onSubmit={handleLaunch}
-                className="glc-card p-6 space-y-5"
+                className="glc-card p-4 mobile:p-5 sm:p-6 space-y-5"
                 style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}
               >
                 <div className="text-center mb-2">
@@ -1513,27 +1530,28 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                   </div>
                 )}
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-3">
                   <button type="button" onClick={() => setStep(1)}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm"
+                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-sm glc-touch-target sm:min-h-0 sm:min-w-0"
                     style={{ color: 'var(--text-tertiary)', border: '1px solid var(--border-subtle)', backgroundColor: 'transparent' }}
                   >
                     <ArrowLeft className="w-3.5 h-3.5" /> Back
                   </button>
                   <motion.button type="submit" disabled={loading}
                     whileHover={!loading ? { scale: 1.015 } : {}} whileTap={!loading ? { scale: 0.985 } : {}}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold"
+                    className="flex-1 flex items-center justify-center gap-2 py-3 sm:py-2.5 rounded-lg text-sm font-semibold glc-touch-target sm:min-h-0"
                     style={{ background: 'var(--gradient-accent)', color: 'var(--primary-foreground)', cursor: loading ? 'not-allowed' : 'pointer', border: 'none', boxShadow: '0 4px 14px rgba(242,79,29,0.30)' }}
                   >
-                    <AnimatePresence mode="wait">
-                      {loading
-                        ? <motion.span key="l" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
-                            <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />Starting...
-                          </motion.span>
-                        : <motion.span key="i" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
-                            <Lightning className="w-4 h-4" /> Launch Audit
-                          </motion.span>}
-                    </AnimatePresence>
+                    {loading ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                        Starting...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Lightning className="w-4 h-4" /> Launch Audit
+                      </span>
+                    )}
                   </motion.button>
                 </div>
 

@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { ArrowsClockwise, Copy, PaperPlaneTilt, House } from '@phosphor-icons/react';
 import { toast } from 'sonner';
+import { formatClientEnvironmentForSupport } from '../lib/client-environment';
 import { isLikelyTranslationOrExtensionDomCrash } from '../lib/browser-dom-crash-heuristics';
 import { api } from '../data/apiService';
 
@@ -26,6 +27,7 @@ function buildSupportPayload(
     `Reference: ${supportRef}`,
     `Page: ${path}`,
     `Time: ${new Date().toISOString()}`,
+    formatClientEnvironmentForSupport(),
   ];
   if (technicalDetail) {
     lines.push(`Detail (for support): ${technicalDetail.slice(0, 1200)}`);

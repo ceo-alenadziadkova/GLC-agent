@@ -1,10 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import type { Session } from '@supabase/supabase-js';
 
 const mockGetSession = vi.fn();
-const mockOnAuthStateChange = vi.fn(() => ({
-  data: { subscription: { unsubscribe: vi.fn() } },
-}));
+type AuthListener = (event: string, session: Session | null) => void;
+let authListener: AuthListener | null = null;
+
+const mockOnAuthStateChange = vi.fn((callback: AuthListener) => {
+  authListener = callback;
+  return {
+    data: { subscription: { unsubscribe: vi.fn() } },
+  };
+});
 const mockSingle = vi.fn();
 
 vi.mock('../../lib/supabase', () => ({
@@ -27,10 +34,21 @@ import { useProfile } from '../useProfile';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockOnAuthStateChange.mockReturnValue({
-    data: { subscription: { unsubscribe: vi.fn() } },
+  authListener = null;
+  mockOnAuthStateChange.mockImplementation((callback: AuthListener) => {
+    authListener = callback;
+    return {
+      data: { subscription: { unsubscribe: vi.fn() } },
+    };
   });
 });
+
+function sessionFixture(userId: string, token = 'tok'): Session {
+  return {
+    user: { id: userId } as Session['user'],
+    access_token: token,
+  } as Session;
+}
 
 describe('useProfile', () => {
   it('returns null profile when no session', async () => {
@@ -139,5 +157,122 @@ describe('useProfile', () => {
       });
       await Promise.resolve();
     });
+  });
+
+  it('does not refetch profile on TOKEN_REFRESHED or INITIAL_SESSION', async () => {
+    mockGetSession.mockResolvedValue({
+      data: { session: sessionFixture('user-auth-ev') },
+    });
+    mockSingle.mockResolvedValue({
+      data: {
+        id: 'user-auth-ev',
+        role: 'client',
+        full_name: 'Eve',
+        created_at: '2025-01-01',
+      },
+      error: null,
+    });
+
+    renderHook(() => useProfile());
+
+    await waitFor(() => expect(mockSingle).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      authListener?.('TOKEN_REFRESHED', sessionFixture('user-auth-ev'));
+      authListener?.('INITIAL_SESSION', sessionFixture('user-auth-ev'));
+      await Promise.resolve();
+    });
+
+    expect(mockSingle).toHaveBeenCalledTimes(1);
+  });
+
+  it('refetches on USER_UPDATED without toggling loading to true (background)', async () => {
+    mockGetSession.mockResolvedValue({
+      data: { session: sessionFixture('user-bg') },
+    });
+
+    let resolveSecond: (v: { data: Record<string, unknown>; error: null }) => void;
+    const secondSingle = new Promise<{ data: Record<string, unknown>; error: null }>(resolve => {
+      resolveSecond = resolve;
+    });
+
+    mockSingle
+      .mockResolvedValueOnce({
+        data: {
+          id: 'user-bg',
+          role: 'client',
+          full_name: 'First',
+          created_at: '2025-01-01',
+        },
+        error: null,
+      })
+      .mockImplementationOnce(() => secondSingle);
+
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(mockSingle).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      authListener?.('USER_UPDATED', sessionFixture('user-bg'));
+    });
+
+    expect(mockSingle).toHaveBeenCalledTimes(2);
+    expect(result.current.loading).toBe(false);
+
+    await act(async () => {
+      resolveSecond!({
+        data: {
+          id: 'user-bg',
+          role: 'client',
+          full_name: 'Updated',
+          created_at: '2025-01-01',
+        },
+        error: null,
+      });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(result.current.profile?.full_name).toBe('Updated'));
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('refetches in background when SIGNED_IN repeats for the same user (tab focus / session replay)', async () => {
+    mockGetSession.mockResolvedValue({
+      data: { session: sessionFixture('user-in') },
+    });
+    mockSingle.mockResolvedValue({
+      data: {
+        id: 'user-in',
+        role: 'client',
+        full_name: 'Signy',
+        created_at: '2025-01-01',
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useProfile());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(mockSingle).toHaveBeenCalledTimes(1));
+
+    mockSingle.mockResolvedValueOnce({
+      data: {
+        id: 'user-in',
+        role: 'client',
+        full_name: 'Signy2',
+        created_at: '2025-01-01',
+      },
+      error: null,
+    });
+
+    await act(async () => {
+      authListener?.('SIGNED_IN', sessionFixture('user-in'));
+      await Promise.resolve();
+    });
+
+    expect(result.current.loading).toBe(false);
+    await waitFor(() => expect(mockSingle).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.profile?.full_name).toBe('Signy2'));
   });
 });

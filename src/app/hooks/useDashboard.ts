@@ -1,29 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../data/apiService';
 import type { DashboardData } from '../data/apiService';
+import { glcKeys } from '../lib/glc-keys';
 
 export function useDashboard() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const q = useQuery<DashboardData>({
+    queryKey: glcKeys.dashboard(),
+    queryFn: () => api.getDashboard(),
+    staleTime: 120_000,
+  });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await api.getDashboard();
-      setData(result);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  // Exposed separately from useAudits().reload so the Dashboard page can
-  // soft-refresh only the operational panels (action queue, activity feed)
-  // after a review action, without re-fetching the full audit list.
-  return { data, loading, error, reloadDashboard: load };
+  return {
+    data: q.data ?? null,
+    loading: q.isPending && !q.data,
+    error: q.error ? (q.error as Error).message : null,
+    reloadDashboard: () => {
+      void queryClient.invalidateQueries({ queryKey: glcKeys.dashboard() });
+    },
+  };
 }

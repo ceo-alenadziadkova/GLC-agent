@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { invalidateGlcSessionDataCaches } from '../lib/glc-session-data-cache';
 import { logger } from '../lib/logger';
 import type { User, Session } from '@supabase/supabase-js';
-import { isAnonymousUser } from '../lib/snapshot-auth';
+import {
+  clearPreviewSessionBackup,
+  isAnonymousUser,
+  persistPreviewSessionBackupIfAnonymous,
+} from '../lib/snapshot-auth';
 
 export { isAnonymousUser } from '../lib/snapshot-auth';
 
@@ -130,6 +135,14 @@ export function useAuth() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       logger.info('onAuthStateChange', { hasSession: !!session, userId: session?.user.id });
       if (!isMounted) return;
+      if (session === null) {
+        invalidateGlcSessionDataCaches();
+        clearPreviewSessionBackup();
+      } else if (isAnonymousUser(session.user)) {
+        persistPreviewSessionBackupIfAnonymous(session);
+      } else {
+        clearPreviewSessionBackup();
+      }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -168,6 +181,18 @@ export function useAuth() {
           redirectTo: `${window.location.origin}/login`,
         },
       });
+      // If this Google identity is already linked to another account,
+      // fall back to normal OAuth sign-in instead of hard-failing upgrade flow.
+      const msg = (error?.message ?? '').toLowerCase();
+      if (error && (msg.includes('identity_already_exists') || msg.includes('already linked'))) {
+        const { error: oauthError } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: `${window.location.origin}/login`,
+          },
+        });
+        return { error: oauthError };
+      }
       return { error };
     }
     const { error } = await supabase.auth.signInWithOAuth({
@@ -180,6 +205,8 @@ export function useAuth() {
   };
 
   const signOut = async () => {
+    invalidateGlcSessionDataCaches();
+    clearPreviewSessionBackup();
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

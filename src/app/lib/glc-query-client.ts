@@ -7,7 +7,10 @@ export function createGlcQueryClient(): QueryClient {
         staleTime: 120_000,
         gcTime: 900_000,
         retry: 1,
-        refetchOnWindowFocus: true,
+        // Avoid full UI "reload" feel when switching browser tabs: data stays on screen until
+        // staleTime expires or user navigates / triggers invalidation. Use explicit refresh actions where needed.
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: true,
       },
     },
   });

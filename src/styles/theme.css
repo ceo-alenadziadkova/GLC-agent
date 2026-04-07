@@ -238,6 +238,11 @@
   /* Embedded G-loader path (light canvas) */
   --sync-loader-path-idle:  #94a3b8;
   --sync-loader-path-pulse: #cbd5e1;
+
+  /* Mobile shell — safe areas + bottom nav (used by AppShell) */
+  --glc-mobile-nav-height: 56px;
+  --glc-mobile-header-height: 52px;
+  --glc-touch-target-min: 44px;
 }
 
 /*
@@ -520,6 +525,57 @@ html.dark {
   white-space: nowrap;
 }
 .glc-btn-ghost:hover { background: var(--bg-muted); color: var(--text-primary); }
+
+/* ── Mobile layout utilities (safe-area, touch targets, page padding) ─ */
+.glc-safe-pad-x {
+  padding-left: max(var(--space-4), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--space-4), env(safe-area-inset-right, 0px));
+}
+
+.glc-safe-pad-t {
+  padding-top: max(var(--space-2), env(safe-area-inset-top, 0px));
+}
+
+.glc-safe-pad-b {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/** Minimum 44x44px touch target (WCAG 2.5.5 / platform HIG). */
+.glc-touch-target {
+  min-width: var(--glc-touch-target-min);
+  min-height: var(--glc-touch-target-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/** Page content horizontal padding: tight on narrow viewports, matches desktop shell on sm+. */
+.glc-page-content {
+  padding-left: var(--space-6);
+  padding-right: var(--space-6);
+  padding-top: var(--space-6);
+  padding-bottom: var(--space-6);
+}
+
+@media (width < 40rem) {
+  .glc-page-content {
+    padding-left: max(var(--space-4), env(safe-area-inset-left, 0px));
+    padding-right: max(var(--space-4), env(safe-area-inset-right, 0px));
+    padding-top: var(--space-4);
+    padding-bottom: var(--space-4);
+  }
+}
+
+/** Bottom padding when fixed mobile tab bar is present. */
+.glc-main-mobile-nav-pad {
+  padding-bottom: calc(var(--glc-mobile-nav-height) + env(safe-area-inset-bottom, 0px));
+}
+
+@media (width >= 40rem) {
+  .glc-main-mobile-nav-pad {
+    padding-bottom: 0;
+  }
+}
 
 /* ── Free snapshot results (SnapshotLanding, done) ─────────────────── */
 .glc-snapshot-result-card {

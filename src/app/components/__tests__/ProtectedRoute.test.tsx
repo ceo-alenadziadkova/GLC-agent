@@ -198,6 +198,39 @@ describe('ProtectedRoute', () => {
     });
   });
 
+  it('does not show loader on role-gated routes when profile exists but a background refetch sets profileLoading', () => {
+    mockUseAuth.mockReturnValue({
+      ...AUTH_STUB,
+      loading: false,
+      isAuthenticated: true,
+      user: { id: 'u1', email: 'c@c.com' } as User,
+    });
+    mockUseProfile.mockReturnValue({
+      ...PROFILE_STUB,
+      loading: true,
+      role: 'client',
+      isClient: true,
+      profile: {
+        id: 'u1',
+        role: 'client',
+        full_name: null,
+        created_at: '2025-01-01',
+      },
+      roleDisplayName: 'Client',
+    });
+
+    render(
+      <MemoryRouter>
+        <ProtectedRoute requiredRole="client">
+          <div>Client workspace</div>
+        </ProtectedRoute>
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByText('Client workspace')).toBeInTheDocument();
+  });
+
   it('shows loader while profile resolves for role-gated routes (no protected flash)', () => {
     mockUseAuth.mockReturnValue({
       ...AUTH_STUB,
