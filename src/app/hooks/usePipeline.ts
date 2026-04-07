@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { api } from '../data/apiService';
 import type { PipelineEvent } from '../data/auditTypes';
+import { getGlcQueryClient } from '../lib/glc-query-client';
+import { invalidateAuditRelatedQueries } from '../lib/glc-invalidate-queries';
 
 interface PipelineState {
   status: string;
@@ -19,11 +21,16 @@ export function usePipeline(auditId: string | undefined) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const subscriptionRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const stateRef = useRef<PipelineState | null>(null);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
-  // Load initial state
+  // Load initial state (only block UI when we have no cached pipeline snapshot yet)
   const load = useCallback(async () => {
     if (!auditId) return;
-    setLoading(true);
+    const initialEmpty = stateRef.current === null;
+    if (initialEmpty) setLoading(true);
     try {
       const data = await api.getPipelineStatus(auditId);
       setState(data);
@@ -97,6 +104,7 @@ export function usePipeline(auditId: string | undefined) {
     if (!auditId) return;
     try {
       await api.startPipeline(auditId);
+      invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
       await load();
     } catch (err) {
       setError((err as Error).message);
@@ -107,6 +115,7 @@ export function usePipeline(auditId: string | undefined) {
     if (!auditId) return;
     try {
       await api.runNextPhase(auditId);
+      invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
       await load();
     } catch (err) {
       setError((err as Error).message);
@@ -117,6 +126,7 @@ export function usePipeline(auditId: string | undefined) {
     if (!auditId) return;
     try {
       await api.retryPhase(auditId, phase);
+      invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
       await load();
     } catch (err) {
       setError((err as Error).message);
@@ -127,6 +137,7 @@ export function usePipeline(auditId: string | undefined) {
     if (!auditId) return;
     try {
       await api.approveReview(auditId, phase, consultantNotes, interviewNotes);
+      invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
       await load();
     } catch (err) {
       setError((err as Error).message);

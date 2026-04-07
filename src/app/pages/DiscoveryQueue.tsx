@@ -4,15 +4,17 @@
  * Lists discovery_sessions ordered by created_at DESC.
  * Allows "Convert to audit" which creates a full audit from the session.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import {
-  ChartBar, Users, Warning, Lightbulb, ArrowRight,
+  Users, Warning, Lightbulb, ArrowRight,
   CheckCircle, Spinner, ArrowsClockwise, UserCircle,
   EnvelopeSimple, Phone, Calendar, Copy, Buildings,
 } from '@phosphor-icons/react';
 import { api } from '../data/apiService';
 import { AppShell } from '../components/AppShell';
+import { glcKeys } from '../lib/glc-keys';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -75,7 +77,7 @@ function SessionCard({
 
   return (
     <div
-      className="rounded-2xl p-5 space-y-4"
+      className="rounded-2xl p-4 mobile:p-5 space-y-4"
       style={{
         background: 'var(--bg-surface)',
         border: session.audit_id
@@ -84,8 +86,8 @@ function SessionCard({
       }}
     >
       {/* Header row */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1.5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+        <div className="space-y-1.5 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <MaturityPill level={session.maturity_level} />
             {session.audit_id && (
@@ -108,7 +110,7 @@ function SessionCard({
             type="button"
             disabled={converting}
             onClick={() => onConvert(session.session_token)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold flex-shrink-0"
+            className="flex w-full sm:w-auto items-center justify-center gap-1.5 px-3.5 py-3 sm:py-2 rounded-xl text-sm font-semibold flex-shrink-0 glc-touch-target sm:min-h-0"
             style={{
               background: converting ? 'var(--bg-muted)' : 'var(--gradient-brand)',
               color: converting ? 'var(--text-tertiary)' : 'var(--primary-foreground)',
@@ -126,7 +128,7 @@ function SessionCard({
         {session.audit_id && (
           <a
             href={`/audit/${session.audit_id}`}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
+            className="flex w-full sm:w-auto items-center justify-center gap-1.5 px-3 py-3 sm:py-1.5 rounded-xl text-xs font-semibold glc-touch-target sm:min-h-0 no-underline"
             style={{
               background: 'var(--glc-green-muted)',
               border: '1px solid rgba(14,207,130,0.28)',
@@ -246,37 +248,36 @@ function SessionCard({
 
 export function DiscoveryQueue() {
   const navigate = useNavigate();
-  const [sessions, setSessions] = useState<DiscoverySession[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const q = useQuery({
+    queryKey: glcKeys.discoverySessions(),
+    queryFn: async () => {
+      const { sessions: data } = await api.listDiscoverySessions();
+      return data as DiscoverySession[];
+    },
+    staleTime: 300_000,
+  });
+
+  const sessions = q.data ?? [];
+  const loading = q.isPending && !q.data;
+  const error = q.error ? 'Failed to load discovery sessions' : null;
+
   const [converting, setConverting] = useState<string | null>(null); // token currently converting
   const [convertError, setConvertError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'new' | 'converted'>('all');
   const [linkCopied, setLinkCopied] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { sessions: data } = await api.listDiscoverySessions();
-      setSessions(data as DiscoverySession[]);
-    } catch {
-      setError('Failed to load discovery sessions');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { void load(); }, [load]);
+  const refetchSessions = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: glcKeys.discoverySessions() });
+  }, [queryClient]);
 
   async function handleConvert(token: string) {
     setConverting(token);
     setConvertError(null);
     try {
       const { audit_id } = await api.convertDiscoverySession(token);
-      // Update local state immediately
-      setSessions(prev =>
-        prev.map(s => s.session_token === token ? { ...s, audit_id } : s),
+      queryClient.setQueryData<DiscoverySession[]>(glcKeys.discoverySessions(), (prev) =>
+        (prev ?? []).map((s) => (s.session_token === token ? { ...s, audit_id } : s)),
       );
       navigate(`/pipeline/${audit_id}`);
     } catch (err: unknown) {
@@ -297,83 +298,68 @@ export function DiscoveryQueue() {
   const newCount = sessions.filter(s => !s.audit_id).length;
 
   return (
-    <AppShell>
-      <div className="max-w-2xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <ChartBar size={18} weight="bold" style={{ color: 'var(--glc-blue)' }} />
-              <h1 className="font-bold" style={{ fontSize: 20, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-                Discovery Queue
-              </h1>
-              {newCount > 0 && (
-                <span
-                  className="inline-flex items-center justify-center rounded-full text-[10px] font-bold px-2 py-0.5"
-                  style={{ background: 'var(--callout-info-bg)', color: 'var(--glc-blue)', border: '1px solid var(--callout-info-border)' }}
-                >
-                  {newCount} new
-                </span>
+    <AppShell
+      title="Discovery Queue"
+      subtitle={
+        newCount > 0
+          ? `Mode C submissions · ${newCount} awaiting conversion`
+          : 'Mode C submissions from the public discovery questionnaire'
+      }
+      actions={(
+        <div className="flex flex-col gap-2 w-full sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end sm:w-auto">
+          <button
+            type="button"
+            onClick={() => {
+              const url = `${window.location.origin}/discovery`;
+              void navigator.clipboard.writeText(url).then(() => {
+                setLinkCopied(true);
+                setTimeout(() => setLinkCopied(false), 2000);
+              });
+            }}
+            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium glc-touch-target sm:min-h-0"
+            style={{
+              background: linkCopied ? 'var(--glc-green-muted)' : 'var(--callout-info-bg)',
+              border: linkCopied ? '1px solid rgba(14,207,130,0.32)' : '1px solid var(--callout-info-border)',
+              color: linkCopied ? 'var(--glc-green-dark)' : 'var(--glc-blue)',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            <span key={linkCopied ? 'copied' : 'idle'} className="inline-flex items-center gap-1.5">
+              {linkCopied ? (
+                <CheckCircle size={12} weight="fill" aria-hidden />
+              ) : (
+                <Copy size={12} aria-hidden />
               )}
-            </div>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-              Mode C submissions from the public discovery questionnaire
-            </p>
-          </div>
-            <div className="flex items-center gap-2">
-            {/* Copy public discover link */}
-            <button
-              type="button"
-              onClick={() => {
-                const url = `${window.location.origin}/discovery`;
-                void navigator.clipboard.writeText(url).then(() => {
-                  setLinkCopied(true);
-                  setTimeout(() => setLinkCopied(false), 2000);
-                });
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-              style={{
-                background: linkCopied ? 'var(--glc-green-muted)' : 'var(--callout-info-bg)',
-                border: linkCopied ? '1px solid rgba(14,207,130,0.32)' : '1px solid var(--callout-info-border)',
-                color: linkCopied ? 'var(--glc-green-dark)' : 'var(--glc-blue)',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-              }}
-            >
-              {/* Keyed wrapper avoids DOM reconcile edge cases with sidebar layout updates + icon swap */}
-              <span key={linkCopied ? 'copied' : 'idle'} className="inline-flex items-center gap-1.5">
-                {linkCopied ? (
-                  <CheckCircle size={12} weight="fill" aria-hidden />
-                ) : (
-                  <Copy size={12} aria-hidden />
-                )}
-                {linkCopied ? 'Copied!' : 'Copy discover link'}
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => void load()}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-              style={{
-                background: 'var(--bg-muted)',
-                border: '1px solid var(--border-default)',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-              }}
-            >
-              <ArrowsClockwise size={12} /> Refresh
-            </button>
-          </div>
+              {linkCopied ? 'Copied!' : 'Copy discover link'}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => refetchSessions()}
+            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium glc-touch-target sm:min-h-0"
+            style={{
+              background: 'var(--bg-muted)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+            }}
+          >
+            <ArrowsClockwise size={12} /> Refresh
+          </button>
         </div>
+      )}
+    >
+      <div className="glc-page-content max-w-2xl mx-auto space-y-4 mobile:space-y-5">
 
         {/* Filter tabs */}
-        <div className="flex gap-1 mb-5">
+        <div className="flex flex-wrap gap-2">
           {(['all', 'new', 'converted'] as const).map(tab => (
             <button
               key={tab}
               type="button"
               onClick={() => setFilter(tab)}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold capitalize"
+              className="px-3 py-2 rounded-lg text-xs font-semibold capitalize glc-touch-target sm:min-h-0 sm:py-1.5"
               style={{
                 background: filter === tab ? 'var(--callout-info-bg)' : 'var(--bg-muted)',
                 border: filter === tab ? '1px solid var(--callout-info-border-strong)' : '1px solid var(--border-subtle)',
@@ -421,7 +407,7 @@ export function DiscoveryQueue() {
             <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{error}</p>
             <button
               type="button"
-              onClick={() => void load()}
+              onClick={() => refetchSessions()}
               className="mt-4 px-4 py-2 rounded-lg text-sm font-medium"
               style={{
                 background: 'var(--bg-muted)',
@@ -440,7 +426,7 @@ export function DiscoveryQueue() {
             <Users size={32} weight="thin" className="mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
             <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>
               {filter === 'all'
-                ? 'No discovery sessions yet. Use "Copy discover link" above to share the questionnaire.'
+                ? 'No discovery sessions yet. Use "Copy discover link" in the header to share the questionnaire.'
                 : `No ${filter} sessions.`}
             </p>
           </div>

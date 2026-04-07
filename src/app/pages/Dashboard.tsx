@@ -18,16 +18,101 @@ import { useDashboard } from '../hooks/useDashboard';
 import type { AuditMeta } from '../data/auditTypes';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 
-const itemVariants = {
-  hidden:  { opacity: 0, y: 8 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.28, ease: [0.16, 1, 0.3, 1] } },
-};
-
 function mapStatus(status: string): 'completed' | 'running' | 'pending' | 'review' {
   if (status === 'completed') return 'completed';
   if (status === 'failed') return 'review';
   if (status === 'created') return 'pending';
   return 'running';
+}
+
+function DashboardAuditMobileCard({
+  c,
+  onDelete,
+}: {
+  c: AuditMeta;
+  onDelete: (id: string) => Promise<void> | void;
+}) {
+  const status = mapStatus(c.status);
+  return (
+    <div
+      className="glc-card p-4"
+      style={{ borderRadius: 'var(--radius-xl)' }}
+    >
+      <div className="flex items-start gap-3 min-w-0">
+        <div
+          className="w-10 h-10 flex items-center justify-center text-xs font-bold flex-shrink-0"
+          style={{
+            background: 'linear-gradient(135deg, var(--glc-blue-xlight) 0%, rgba(28,189,255,0.06) 100%)',
+            color: 'var(--glc-blue-deeper)',
+            border: '1px solid rgba(28,189,255,0.14)',
+            borderRadius: 'var(--radius-lg)',
+            fontFamily: 'var(--font-display)',
+            fontSize: '11px',
+          }}
+        >
+          {(c.company_name || formatAuditWebsiteDisplay(c.company_url)).slice(0, 2).toUpperCase()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <Link
+            to={`/audit/${c.id}`}
+            className="font-semibold block truncate no-underline"
+            style={{
+              color: 'var(--text-primary)',
+              fontSize: 'var(--text-sm)',
+              fontFamily: 'var(--font-display)',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            {c.company_name || formatAuditWebsiteDisplay(c.company_url)}
+          </Link>
+          <div className="text-xs truncate mt-0.5" style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>
+            {formatAuditWebsiteDisplay(c.company_url)}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2">
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{c.industry || '—'}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-quaternary)' }} aria-hidden>
+              ·
+            </span>
+            <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-xs)' }}>
+              <Calendar className="w-3 h-3 flex-shrink-0" />
+              {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 mt-3">
+            {c.overall_score !== null ? (
+              <ScoreBadge score={Math.round(c.overall_score)} size="sm" />
+            ) : (
+              <span style={{ color: 'var(--text-quaternary)', fontSize: 'var(--text-sm)' }}>—</span>
+            )}
+            <StatusPill status={status} pulse={status === 'running'} />
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center justify-end gap-2 mt-4 pt-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+        <Link
+          to={c.status === 'created' ? `/pipeline/${c.id}` : `/audit/${c.id}`}
+          className="glc-btn-secondary no-underline glc-touch-target"
+          style={{ textDecoration: 'none' }}
+        >
+          <ArrowUpRight className="w-4 h-4" />
+          Open
+        </Link>
+        <button
+          type="button"
+          className="glc-btn-ghost glc-touch-target"
+          style={{ color: 'var(--score-1)' }}
+          onClick={async () => {
+            if (confirm(`Delete audit for ${c.company_name || formatAuditWebsiteDisplay(c.company_url)}?`)) {
+              await onDelete(c.id);
+            }
+          }}
+        >
+          <Trash className="w-4 h-4" />
+          Delete
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function Dashboard() {
@@ -50,15 +135,29 @@ export function Dashboard() {
       title="Dashboard"
       subtitle="Operational overview — audits, pipeline health, and client requests"
       actions={
-        <Link to="/audit/new" className="glc-btn-primary" style={{ textDecoration: 'none' }}>
+        <Link
+          to="/audit/new"
+          className="glc-btn-primary hidden sm:inline-flex"
+          style={{ textDecoration: 'none' }}
+        >
           <Plus className="w-4 h-4" /> New Audit
         </Link>
       }
     >
-      <div className="px-7 py-6 space-y-8">
+      <div className="glc-page-content space-y-8 mobile:space-y-6">
 
         {/* ── 1. KPI strip ──────────────────────────────────────── */}
         <KpiStrip kpis={dashData?.kpis} loading={dashLoading} />
+
+        <div className="sm:hidden">
+          <Link
+            to="/audit/new"
+            className="glc-btn-primary w-full justify-center no-underline"
+            style={{ textDecoration: 'none' }}
+          >
+            <Plus className="w-4 h-4" /> New Audit
+          </Link>
+        </div>
 
         {/* ── Analytics error banner (non-fatal) ────────────────── */}
         {dashError && !dashLoading && (
@@ -77,15 +176,15 @@ export function Dashboard() {
         )}
 
         {/* ── 2. Action Required (2/3) + Score Distribution (1/3) ── */}
-        <div className="grid grid-cols-3 gap-5">
-          <div className="col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-2 min-w-0">
             <ActionPanel
               items={dashData?.action_items}
               loading={dashLoading}
               onRefresh={reloadDashboard}
             />
           </div>
-          <div className="col-span-1">
+          <div className="min-w-0">
             <ScoreDistributionChart
               distribution={dashData?.score_distribution}
               loading={dashLoading}
@@ -101,26 +200,24 @@ export function Dashboard() {
 
         {/* ── 4. All Audits ─────────────────────────────────────── */}
         <section>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <SectionLabel>All Audits</SectionLabel>
-            {/* Search */}
             <div
-              className="flex items-center gap-2 px-3 py-2"
+              className="flex items-center gap-2 px-3 py-2 w-full sm:w-auto sm:min-w-[220px]"
               style={{
                 backgroundColor: 'var(--bg-surface)',
                 border: '1px solid var(--border-default)',
                 borderRadius: 'var(--radius-md)',
-                minWidth: 220,
               }}
             >
               <MagnifyingGlass className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--text-tertiary)' }} />
               <input
-                type="text"
+                type="search"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="Search audits..."
-                className="flex-1 bg-transparent outline-none"
-                style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}
+                className="flex-1 min-w-0 bg-transparent outline-none"
+                style={{ fontSize: 'var(--text-base)', color: 'var(--text-primary)' }}
               />
             </div>
           </div>
@@ -138,7 +235,8 @@ export function Dashboard() {
           )}
 
           {filtered.length > 0 && (
-            <div className="glc-card overflow-hidden" style={{ borderRadius: 'var(--radius-xl)' }}>
+            <>
+            <div className="hidden sm:block glc-card overflow-hidden" style={{ borderRadius: 'var(--radius-xl)' }}>
               {/* Header */}
               <div
                 className="grid px-5 py-3"
@@ -252,12 +350,19 @@ export function Dashboard() {
                   </motion.div>
                 ))}
               </AnimatePresence>
+            </div>
 
-              {filtered.length === 0 && query && (
-                <div className="py-14 text-center" style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)' }}>
-                  No audits match "{query}"
-                </div>
-              )}
+            <div className="sm:hidden space-y-3">
+              {filtered.map((c: AuditMeta) => (
+                <DashboardAuditMobileCard key={c.id} c={c} onDelete={deleteAudit} />
+              ))}
+            </div>
+            </>
+          )}
+
+          {query && filtered.length === 0 && audits.length > 0 && !auditsLoading && !auditsError && (
+            <div className="py-10 text-center" style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)' }}>
+              No audits match "{query}"
             </div>
           )}
 
@@ -274,14 +379,14 @@ export function Dashboard() {
         <motion.div
           whileHover={{ y: -1 }}
           transition={{ duration: 0.18 }}
-          className="p-5 flex items-center justify-between"
+          className="p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
           style={{
             border: '1.5px dashed var(--border-default)',
             borderRadius: 'var(--radius-xl)',
             backgroundColor: 'var(--bg-surface)',
           }}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center"
               style={{
@@ -304,7 +409,11 @@ export function Dashboard() {
               </p>
             </div>
           </div>
-          <Link to="/audit/new" className="glc-btn-primary" style={{ textDecoration: 'none' }}>
+          <Link
+            to="/audit/new"
+            className="glc-btn-primary w-full sm:w-auto justify-center glc-touch-target"
+            style={{ textDecoration: 'none' }}
+          >
             <Plus className="w-4 h-4" /> Start Audit
           </Link>
         </motion.div>

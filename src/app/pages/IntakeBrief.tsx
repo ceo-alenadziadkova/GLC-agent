@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, CheckCircle, Warning, PencilSimple, Clock } from '@phosphor-icons/react';
 import { BriefField } from '../components/BriefField';
@@ -208,7 +208,9 @@ export function IntakeBrief() {
       <div className="fixed inset-0 pointer-events-none" style={{ background: 'var(--mesh-brand)', opacity: 0.4 }} />
 
       <header className="relative z-10 flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-        <GlcLogo className="h-9" />
+        <Link to="/" className="inline-flex items-center" aria-label="Go to home page">
+          <GlcLogo className="h-9" />
+        </Link>
         <ThemeToggle />
       </header>
 

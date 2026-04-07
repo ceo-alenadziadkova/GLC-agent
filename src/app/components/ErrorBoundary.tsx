@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from 'react';
-import { ArrowsClockwise } from '@phosphor-icons/react';
+import { resolveGlcErrorHome } from '../lib/glc-error-home';
+import { GlcAppErrorScreen } from './GlcAppErrorScreen';
 
 interface Props {
   children: ReactNode;
@@ -8,13 +9,14 @@ interface Props {
 interface State {
   hasError: boolean;
   error?: Error;
+  supportRef?: string;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { hasError: false };
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+    return { hasError: true, error, supportRef: crypto.randomUUID() };
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
@@ -22,42 +24,24 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, error: undefined });
+    this.setState({ hasError: false, error: undefined, supportRef: undefined });
   };
 
   render() {
-    if (this.state.hasError) {
+    if (this.state.hasError && this.state.supportRef) {
+      const path = typeof window !== 'undefined' ? window.location.pathname : '/';
+      const { href: homeHref, label: homeLabel } = resolveGlcErrorHome(path);
+      const err = this.state.error;
+      const technicalDetail = err ? `${err.name}: ${err.message}` : undefined;
       return (
-        <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--bg-surface)' }}>
-          <div className="text-center p-8 max-w-md">
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
-              style={{ backgroundColor: 'var(--score-1-bg)', border: '1px solid var(--score-1-border)' }}
-            >
-              <ArrowsClockwise className="w-5 h-5" style={{ color: 'var(--score-1)' }} />
-            </div>
-            <h2
-              className="font-semibold mb-2"
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 'var(--text-xl)',
-                color: 'var(--text-primary)',
-                letterSpacing: 'var(--tracking-tight)',
-              }}
-            >
-              Something went wrong
-            </h2>
-            <p
-              className="mb-6 text-sm leading-relaxed"
-              style={{ color: 'var(--text-tertiary)' }}
-            >
-              {this.state.error?.message ?? 'An unexpected error occurred.'}
-            </p>
-            <button onClick={this.handleRetry} className="glc-btn-primary">
-              Try again
-            </button>
-          </div>
-        </div>
+        <GlcAppErrorScreen
+          supportRef={this.state.supportRef}
+          technicalDetail={technicalDetail}
+          onRetry={this.handleRetry}
+          homeHref={homeHref}
+          homeLabel={homeLabel}
+          title="Something went wrong"
+        />
       );
     }
     return this.props.children;

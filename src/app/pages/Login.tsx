@@ -109,27 +109,34 @@ export function Login() {
             initial={{ scale: 0.75, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.08, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className="flex items-center justify-center gap-3 mb-4"
+            className="mb-4"
           >
-            <img
-              src="/logo-simple.svg"
-              alt=""
-              className="h-10 w-auto max-w-[min(72px,20vw)] shrink-0"
-              width={68}
-              height={72}
-              decoding="async"
-            />
-            <h1
-              className="font-logo leading-none"
-              style={{
-                fontSize: 'var(--text-2xl)',
-                fontWeight: 700,
-                letterSpacing: 'var(--tracking-tight)',
-              }}
+            <Link
+              to="/"
+              className="inline-flex items-center justify-center gap-3"
+              style={{ textDecoration: 'none' }}
+              aria-label="Go to home page"
             >
-              <span className="text-[#444343] dark:text-[#DEDEDE]">GLC</span>
-              <span className="text-[rgba(68,67,67,0.78)] dark:text-[#e5e7ebb8]"> Audit Platform</span>
-            </h1>
+              <img
+                src="/logo-simple.svg"
+                alt=""
+                className="h-10 w-auto max-w-[min(72px,20vw)] shrink-0"
+                width={68}
+                height={72}
+                decoding="async"
+              />
+              <h1
+                className="font-logo leading-none"
+                style={{
+                  fontSize: 'var(--text-2xl)',
+                  fontWeight: 700,
+                  letterSpacing: 'var(--tracking-tight)',
+                }}
+              >
+                <span className="text-[#444343] dark:text-[#DEDEDE]">GLC</span>
+                <span className="text-[rgba(68,67,67,0.78)] dark:text-[#e5e7ebb8]"> Audit Platform</span>
+              </h1>
+            </Link>
           </motion.div>
           <p className="mt-2" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
             Sign in to the audit workspace and client portal

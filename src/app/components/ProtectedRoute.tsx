@@ -21,11 +21,14 @@ export function ProtectedRoute({
   blockedRedirect = '/snapshot',
 }: ProtectedRouteProps) {
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const { role, loading: profileLoading } = useProfile();
+  const { role, loading: profileLoading, profile } = useProfile();
 
-  // Spin only while auth or profile are actively loading — never block on role value itself,
-  // since a null role after loading just means the profile fetch errored (handled below).
-  const loading = authLoading || (isAuthenticated && requiredRole != null && profileLoading);
+  // Spin while auth resolves, or until we have a profile row on role-gated routes.
+  // Do not block when profile reloads for the same session (e.g. repeat SIGNED_IN after tab focus);
+  // that would unmount the shell and replay page loaders.
+  const loading =
+    authLoading ||
+    (isAuthenticated && requiredRole != null && profileLoading && !profile);
 
   if (loading) {
     logger.debug('ProtectedRoute: loading auth/profile state');

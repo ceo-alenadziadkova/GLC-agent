@@ -1,9 +1,8 @@
-import { useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router';
 import {
-  Briefcase, SquaresFour, Pulse, FileText, Flask,
   GearSix, Bell, MagnifyingGlass, Lightning, SignOut,
-  HouseSimple, Eye, Tray, PlusCircle,
+  PlusCircle, List, X,
 } from '@phosphor-icons/react';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
@@ -13,38 +12,22 @@ import { ThemeToggle } from './ThemeToggle';
 import { NotificationCenter } from './NotificationCenter';
 import type { NotificationItem } from '../data/auditTypes';
 import { useClientPortalPipelineOptional } from '../context/ClientPortalPipelineContext';
+import {
+  type AppShellNavItem,
+  buildClientNav,
+  buildConsultantNav,
+  buildGuestNav,
+  buildMobileBottomNavItems,
+  isNavItemActive,
+} from '../lib/app-shell-nav';
+
+export type { AppShellNavItem } from '../lib/app-shell-nav';
 
 function useCurrentAuditId(): string | null {
   const { pathname } = useLocation();
-  // Extract audit ID from consultant and client paths (workspace, pipeline, reports, strategy)
   const match = pathname.match(/^\/(?:audit|pipeline|reports|strategy)\/([a-f0-9-]+)/)
     ?? pathname.match(/^\/portal\/(?:audit|pipeline)\/([a-f0-9-]+)/);
   return match ? match[1] : null;
-}
-
-function buildConsultantNav(auditId: string | null) {
-  return [
-    { to: '/dashboard',                           icon: SquaresFour,    label: 'Dashboard',       badge: null },
-    { to: '/admin/requests',                      icon: Tray,           label: 'Request queue',   badge: null },
-    { to: '/admin/discovery',                     icon: MagnifyingGlass,label: 'Discovery queue', badge: null },
-    { to: auditId ? `/audit/${auditId}` : null,   icon: Briefcase,      label: 'Audit Workspace', badge: null },
-    { to: auditId ? `/pipeline/${auditId}` : null,icon: Pulse,          label: 'Pipeline',        badge: null },
-    { to: auditId ? `/reports/${auditId}` : null, icon: FileText,       label: 'Reports',         badge: null },
-    { to: auditId ? `/strategy/${auditId}` : null,icon: Flask,          label: 'Strategy Lab',    badge: null },
-  ];
-}
-
-function buildClientNav(auditId: string | null, showPipelineInNav: boolean) {
-  return [
-    { to: '/portal',                                        icon: HouseSimple,   label: 'My Portal',    badge: null },
-    { to: auditId ? `/portal/audit/${auditId}` : null,     icon: Eye,           label: 'Audit Status', badge: null },
-    { to: auditId && showPipelineInNav ? `/portal/pipeline/${auditId}` : null,   icon: Pulse,         label: 'Pipeline',     badge: null },
-  ];
-}
-
-/** Anonymous snapshot session: no client portal until full registration. */
-function buildGuestNav() {
-  return [{ to: '/snapshot', icon: Lightning, label: 'Free snapshot', badge: null }];
 }
 
 interface AppShellProps {
@@ -58,8 +41,16 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut, isAuthenticated } = useAuth();
-  const { profile, isConsultant, isClient, isGuest, roleDisplayName, loading: profileLoading } = useProfile();
+  const {
+    profile,
+    isConsultant,
+    isClient,
+    isGuest,
+    roleDisplayName,
+    loading: profileLoading,
+  } = useProfile();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const {
     items: notifications,
     unreadCount,
@@ -93,6 +84,29 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
         ? 'CLIENT WORKSPACE'
         : 'ADMIN WORKSPACE';
 
+  const mobileBottomNav = buildMobileBottomNavItems(NAV, {
+    isClient: Boolean(isClient || roleUnknown),
+    isGuest: Boolean(isGuest),
+    roleUnknown,
+  });
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (mobileMenuOpen) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = '';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
   const openNotification = (item: NotificationItem) => {
     if (!item.is_read) markAsRead(item.id);
     const route = typeof item.payload?.route === 'string' ? item.payload.route : null;
@@ -122,17 +136,86 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
     }
   };
 
+  const renderSidebarNavLink = (to: string | null, Icon: AppShellNavItem['icon'], label: string, badge: string | null, key: string) => {
+    if (!to) {
+      return (
+        <div
+          key={key}
+          className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg"
+          style={{ color: 'rgba(255,255,255,0.20)', fontSize: 'var(--text-sm)', cursor: 'not-allowed' }}
+        >
+          <Icon className="relative w-4 h-4 flex-shrink-0" style={{ color: 'rgba(255,255,255,0.15)' }} />
+          <span className="relative flex-1 truncate">{label}</span>
+        </div>
+      );
+    }
+    const active = isNavItemActive(location.pathname, to);
+    return (
+      <NavLink
+        key={key}
+        to={to}
+        className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline transition-all"
+        style={{
+          color: active ? 'var(--primary-foreground)' : 'rgba(255,255,255,0.46)',
+          fontSize: 'var(--text-sm)',
+          fontWeight: active ? 500 : 400,
+          transition: 'color var(--ease-fast)',
+        }}
+        onClick={() => setMobileMenuOpen(false)}
+      >
+        {active && (
+          <span
+            className="absolute inset-0 rounded-lg transition-[opacity,transform] duration-200 ease-out"
+            style={{
+              background: 'linear-gradient(90deg, rgba(28,189,255,0.15) 0%, rgba(28,189,255,0.06) 100%)',
+              border: '1px solid rgba(28,189,255,0.18)',
+            }}
+          />
+        )}
+        {active && (
+          <span
+            className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 rounded-full"
+            style={{
+              height: '60%',
+              background: 'var(--glc-blue)',
+              boxShadow: '0 0 8px rgba(28,189,255,0.7)',
+            }}
+          />
+        )}
+        <Icon
+          className="relative w-4 h-4 flex-shrink-0"
+          style={{ color: active ? 'var(--glc-blue)' : 'rgba(255,255,255,0.38)' }}
+        />
+        <span className="relative flex-1 truncate">{label}</span>
+        {badge && (
+          <span
+            className="relative text-xs px-1.5 py-0.5 rounded-full font-semibold tabular-nums"
+            style={{
+              backgroundColor: active ? 'rgba(28,189,255,0.22)' : 'rgba(255,255,255,0.08)',
+              color: active ? 'var(--glc-blue)' : 'rgba(255,255,255,0.38)',
+              fontSize: '10px',
+              border: active ? '1px solid rgba(28,189,255,0.25)' : '1px solid transparent',
+            }}
+          >
+            {badge}
+          </span>
+        )}
+      </NavLink>
+    );
+  };
+
   return (
-    <div className="h-screen flex overflow-hidden" style={{ backgroundColor: 'var(--bg-canvas)' }}>
-      {/* ── Sidebar ─────────────────────────────── */}
+    <div
+      className="min-h-0 flex flex-col sm:flex-row overflow-hidden h-[100dvh] sm:h-screen"
+      style={{ backgroundColor: 'var(--bg-canvas)' }}
+    >
       <aside
-        className="w-[216px] flex-shrink-0 flex flex-col overflow-hidden relative"
+        className="hidden sm:flex w-[216px] flex-shrink-0 flex-col overflow-hidden relative"
         style={{
           background: 'var(--gradient-ink-rich)',
           borderRight: '1px solid rgba(255,255,255,0.04)',
         }}
       >
-        {/* Mesh glow overlay */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -141,18 +224,19 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           }}
         />
 
-        {/* Logo */}
         <div
           className="relative flex items-center gap-2 px-4 pt-5 pb-4"
           style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
         >
-          <GlcLogo variant="on-dark" className="h-12" />
+          <Link to="/" className="inline-flex items-center" aria-label="Go to home page">
+            <GlcLogo variant="on-dark" className="h-12" />
+          </Link>
         </div>
 
-        {/* Search — consultant only */}
         {isConsultant && !roleUnknown && (
           <div className="relative px-3 py-3">
             <button
+              type="button"
               className="w-full flex items-center gap-2 px-3 py-2 rounded-lg"
               style={{
                 backgroundColor: 'rgba(255,255,255,0.05)',
@@ -189,7 +273,6 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           </div>
         )}
 
-        {/* Nav */}
         <nav className="relative flex-1 px-2 pb-2 space-y-0.5 overflow-y-auto">
           <div
             className="px-2 py-1.5"
@@ -210,84 +293,11 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
             </>
           )}
 
-          {!roleUnknown && NAV.map(({ to, icon: Icon, label, badge }) => {
-            if (!to) {
-              return (
-                <div
-                  key={label}
-                  className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg"
-                  style={{ color: 'rgba(255,255,255,0.20)', fontSize: 'var(--text-sm)', cursor: 'not-allowed' }}
-                >
-                  <Icon className="relative w-4 h-4 flex-shrink-0" style={{ color: 'rgba(255,255,255,0.15)' }} />
-                  <span className="relative flex-1 truncate">{label}</span>
-                </div>
-              );
-            }
-            const active = location.pathname === to ||
-              // Exact-match for any /admin/* or top-level singleton routes to avoid cross-highlighting.
-              // Prefix-match only for audit-scoped paths like /audit/:id, /pipeline/:id, etc.
-              (!to.startsWith('/admin/') && to !== '/dashboard' && to !== '/portal' &&
-               location.pathname.startsWith(to.split('/').slice(0, 2).join('/')));
-            return (
-              <NavLink
-                key={to}
-                to={to}
-                className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline transition-all"
-                style={{
-                  color: active ? 'var(--primary-foreground)' : 'rgba(255,255,255,0.46)',
-                  fontSize: 'var(--text-sm)',
-                  fontWeight: active ? 500 : 400,
-                  transition: 'color var(--ease-fast)',
-                }}
-              >
-                {/* Active background */}
-                {active && (
-                  <span
-                    className="absolute inset-0 rounded-lg transition-[opacity,transform] duration-200 ease-out"
-                    style={{
-                      background: 'linear-gradient(90deg, rgba(28,189,255,0.15) 0%, rgba(28,189,255,0.06) 100%)',
-                      border: '1px solid rgba(28,189,255,0.18)',
-                    }}
-                  />
-                )}
-                {/* Active left glow line */}
-                {active && (
-                  <span
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 rounded-full"
-                    style={{
-                      height: '60%',
-                      background: 'var(--glc-blue)',
-                      boxShadow: '0 0 8px rgba(28,189,255,0.7)',
-                    }}
-                  />
-                )}
+          {!roleUnknown && NAV.map(({ to, icon: Icon, label, badge }) =>
+            renderSidebarNavLink(to, Icon, label, badge, label))}
 
-                <Icon
-                  className="relative w-4 h-4 flex-shrink-0"
-                  style={{ color: active ? 'var(--glc-blue)' : 'rgba(255,255,255,0.38)' }}
-                />
-                <span className="relative flex-1 truncate">{label}</span>
-                {badge && (
-                  <span
-                    className="relative text-xs px-1.5 py-0.5 rounded-full font-semibold tabular-nums"
-                    style={{
-                      backgroundColor: active ? 'rgba(28,189,255,0.22)' : 'rgba(255,255,255,0.08)',
-                      color: active ? 'var(--glc-blue)' : 'rgba(255,255,255,0.38)',
-                      fontSize: '10px',
-                      border: active ? '1px solid rgba(28,189,255,0.25)' : '1px solid transparent',
-                    }}
-                  >
-                    {badge}
-                  </span>
-                )}
-              </NavLink>
-            );
-          })}
-
-          {/* Divider */}
           <div className="mx-2 my-2" style={{ height: '1px', background: 'rgba(255,255,255,0.06)' }} />
 
-          {/* Quick action — consultant: New Audit; client: New audit (self-serve) */}
           {!isGuest && (isClient || roleUnknown) ? (
             <NavLink
               to="/portal/audit/new"
@@ -305,6 +315,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                 (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
                 (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.38)';
               }}
+              onClick={() => setMobileMenuOpen(false)}
             >
               <PlusCircle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
               <span>New audit</span>
@@ -326,6 +337,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                 (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
                 (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.38)';
               }}
+              onClick={() => setMobileMenuOpen(false)}
             >
               <Lightning className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-orange)' }} />
               <span>New Audit</span>
@@ -347,6 +359,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                 (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
                 (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.38)';
               }}
+              onClick={() => setMobileMenuOpen(false)}
             >
               <PlusCircle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
               <span>Register to continue</span>
@@ -354,7 +367,6 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           )}
         </nav>
 
-        {/* Bottom */}
         <div
           className="relative px-2 py-2 space-y-0.5"
           style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
@@ -369,6 +381,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
             <ThemeToggle variant="sidebar" />
           </div>
           <button
+            type="button"
             className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all"
             style={{ color: 'rgba(255,255,255,0.30)', borderRadius: 'var(--radius-md)' }}
             onClick={() => setNotificationsOpen(true)}
@@ -419,13 +432,13 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                     (e.currentTarget as HTMLElement).style.backgroundColor = active ? 'rgba(255,255,255,0.08)' : 'transparent';
                     (e.currentTarget as HTMLElement).style.color = active ? 'rgba(255,255,255,0.80)' : 'rgba(255,255,255,0.30)';
                   }}
+                  onClick={() => setMobileMenuOpen(false)}
                 >
                   <I className="w-3.5 h-3.5" />{label}
                 </NavLink>
               );
             })}
 
-          {/* Avatar */}
           {isAuthenticated && user && (
             <div
               className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg mt-1 cursor-pointer"
@@ -454,8 +467,9 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                 </div>
               </div>
               <button
+                type="button"
                 onClick={signOut}
-                className="flex-shrink-0"
+                className="flex-shrink-0 glc-touch-target"
                 style={{ color: 'rgba(255,255,255,0.30)' }}
                 title="Sign out"
               >
@@ -466,11 +480,97 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
         </div>
       </aside>
 
-      {/* ── Main area ───────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden min-w-0">
+        <header
+          className="sm:hidden flex-shrink-0 flex items-center gap-2 border-b glc-safe-pad-x glc-safe-pad-t"
+          style={{
+            backgroundColor: 'var(--bg-surface)',
+            borderColor: 'var(--border-subtle)',
+            minHeight: 'var(--glc-mobile-header-height)',
+            boxShadow: 'var(--shadow-xs)',
+            paddingBottom: 'var(--space-2)',
+          }}
+        >
+          <Link to="/" className="inline-flex items-center flex-shrink-0" aria-label="Go to home page">
+            <GlcLogo variant="auto" className="h-9" />
+          </Link>
+          <div className="flex-1 min-w-0">
+            {title ? (
+              <>
+                <h1
+                  className="truncate m-0"
+                  style={{
+                    color: 'var(--text-primary)',
+                    fontSize: 'var(--text-base)',
+                    fontWeight: 600,
+                    letterSpacing: 'var(--tracking-tight)',
+                    fontFamily: 'var(--font-display)',
+                    lineHeight: 'var(--leading-tight)',
+                  }}
+                >
+                  {title}
+                </h1>
+                {subtitle ? (
+                  <p
+                    className="truncate m-0 mt-0.5"
+                    style={{
+                      color: 'var(--text-tertiary)',
+                      fontSize: 'var(--text-xs)',
+                      letterSpacing: '0.01em',
+                    }}
+                  >
+                    {subtitle}
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)' }}>GLC</span>
+            )}
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {actions ? (
+              <div className="flex items-center max-w-[40vw] overflow-hidden [&_a]:text-xs [&_a]:px-2 [&_a]:py-2 [&_a]:min-h-[var(--glc-touch-target-min)] [&_button]:min-h-[var(--glc-touch-target-min)]">
+                {actions}
+              </div>
+            ) : null}
+            <button
+              type="button"
+              className="relative glc-touch-target rounded-lg border-0 inline-flex items-center justify-center"
+              style={{ backgroundColor: 'var(--bg-muted)', color: 'var(--text-secondary)' }}
+              onClick={() => setNotificationsOpen(true)}
+              aria-label="Open notifications"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 ? (
+                <span
+                  className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center"
+                  style={{
+                    backgroundColor: 'var(--glc-blue)',
+                    color: 'var(--primary-foreground)',
+                  }}
+                >
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              ) : null}
+            </button>
+            <div className="glc-touch-target flex items-center justify-center">
+              <ThemeToggle />
+            </div>
+            <button
+              type="button"
+              className="glc-touch-target rounded-lg border-0"
+              style={{ backgroundColor: 'var(--bg-muted)', color: 'var(--text-secondary)' }}
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open menu"
+            >
+              <List className="w-5 h-5" weight="bold" />
+            </button>
+          </div>
+        </header>
+
         {(title || actions) && (
           <header
-            className="flex-shrink-0 flex items-center justify-between px-7"
+            className="hidden sm:flex flex-shrink-0 items-center justify-between px-7"
             style={{
               backgroundColor: 'var(--bg-surface)',
               borderBottom: '1px solid var(--border-subtle)',
@@ -511,8 +611,161 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
             </div>
           </header>
         )}
-        <main className="flex-1 overflow-y-auto">{children}</main>
+
+        <main className="flex-1 overflow-y-auto min-h-0 glc-main-mobile-nav-pad">{children}</main>
+
+        {mobileBottomNav.length > 0 && (
+          <nav
+            className="sm:hidden flex flex-shrink-0 border-t glc-safe-pad-x items-stretch justify-around"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              borderColor: 'var(--border-subtle)',
+              minHeight: 'var(--glc-mobile-nav-height)',
+              paddingBottom: 'max(var(--space-2), env(safe-area-inset-bottom, 0px))',
+              boxShadow: '0 -4px 12px rgba(11,17,32,0.06)',
+            }}
+            aria-label="Primary"
+          >
+            {mobileBottomNav.map(({ to, icon: Icon, label }) => {
+              const active = to ? isNavItemActive(location.pathname, to) : false;
+              return (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className="flex flex-1 flex-col items-center justify-center gap-0.5 no-underline min-w-0 py-1 glc-touch-target"
+                  style={{
+                    color: active ? 'var(--glc-blue)' : 'var(--text-tertiary)',
+                  }}
+                >
+                  <Icon className="w-5 h-5 flex-shrink-0" style={{ color: 'inherit' }} />
+                  <span
+                    className="truncate w-full text-center px-0.5"
+                    style={{ fontSize: '10px', fontWeight: active ? 600 : 500, lineHeight: 1.2 }}
+                  >
+                    {label}
+                  </span>
+                </NavLink>
+              );
+            })}
+          </nav>
+        )}
       </div>
+
+      {mobileMenuOpen && (
+        <div className="sm:hidden fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-label="Navigation menu">
+          <button
+            type="button"
+            className="absolute inset-0 border-0 cursor-default"
+            style={{ backgroundColor: 'rgba(8,15,30,0.45)' }}
+            aria-label="Close menu"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div
+            className="relative ml-auto flex h-full w-[min(20rem,88vw)] flex-col overflow-hidden glc-safe-pad-t glc-safe-pad-b"
+            style={{
+              background: 'var(--gradient-ink-rich)',
+              boxShadow: 'var(--shadow-ink)',
+            }}
+          >
+            <div
+              className="flex items-center justify-between gap-2 px-4 py-3 flex-shrink-0 glc-safe-pad-x"
+              style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+            >
+              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                Menu
+              </span>
+              <button
+                type="button"
+                className="glc-touch-target rounded-lg border-0 flex items-center justify-center"
+                style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.85)' }}
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Close menu"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5 glc-safe-pad-x">
+              <div
+                className="px-2 py-1.5"
+                style={{ color: 'rgba(255,255,255,0.35)', fontSize: '9px', letterSpacing: '0.14em', fontWeight: 700 }}
+              >
+                {sectionLabel}
+              </div>
+              {!roleUnknown && NAV.map(({ to, icon: Icon, label, badge }) =>
+                renderSidebarNavLink(to, Icon, label, badge, `drawer-${label}`))}
+              {roleUnknown && (
+                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 'var(--text-sm)', padding: 'var(--space-3)' }}>
+                  Loading workspace…
+                </p>
+              )}
+
+              <div className="mx-2 my-3" style={{ height: '1px', background: 'rgba(255,255,255,0.06)' }} />
+
+              {!isGuest && (isClient || roleUnknown) && (
+                <NavLink
+                  to="/portal/audit/new"
+                  className="flex items-center gap-2.5 px-2.5 py-3 rounded-lg no-underline glc-touch-target"
+                  style={{ color: 'var(--glc-blue)', fontSize: 'var(--text-sm)' }}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <PlusCircle className="w-5 h-5 flex-shrink-0" />
+                  New audit
+                </NavLink>
+              )}
+              {!isGuest && !isClient && !roleUnknown && (
+                <NavLink
+                  to="/audit/new"
+                  className="flex items-center gap-2.5 px-2.5 py-3 rounded-lg no-underline glc-touch-target"
+                  style={{ color: 'var(--glc-orange-light)', fontSize: 'var(--text-sm)' }}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Lightning className="w-5 h-5 flex-shrink-0" />
+                  New Audit
+                </NavLink>
+              )}
+              {isGuest && (
+                <NavLink
+                  to="/login"
+                  className="flex items-center gap-2.5 px-2.5 py-3 rounded-lg no-underline glc-touch-target"
+                  style={{ color: 'var(--glc-blue)', fontSize: 'var(--text-sm)' }}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <PlusCircle className="w-5 h-5 flex-shrink-0" />
+                  Register to continue
+                </NavLink>
+              )}
+
+              {!isGuest && (
+                <NavLink
+                  to="/settings"
+                  className="flex items-center gap-2.5 px-2.5 py-3 rounded-lg no-underline glc-touch-target"
+                  style={{ color: 'rgba(255,255,255,0.75)', fontSize: 'var(--text-sm)' }}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <GearSix className="w-5 h-5 flex-shrink-0" />
+                  Settings
+                </NavLink>
+              )}
+
+              {isAuthenticated && (
+                <button
+                  type="button"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-3 rounded-lg glc-touch-target border-0 text-left"
+                  style={{ color: 'rgba(255,255,255,0.55)', fontSize: 'var(--text-sm)' }}
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    void signOut();
+                  }}
+                >
+                  <SignOut className="w-5 h-5 flex-shrink-0" />
+                  Sign out
+                </button>
+              )}
+            </nav>
+          </div>
+        </div>
+      )}
+
       <NotificationCenter
         open={notificationsOpen}
         notifications={notifications}
@@ -520,7 +773,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
         loading={notificationsLoading}
         error={notificationsError}
         onClose={() => setNotificationsOpen(false)}
-        onRefresh={reloadNotifications}
+        onRefresh={() => { void reloadNotifications({ force: true }); }}
         onMarkAsRead={markAsRead}
         onMarkAllAsRead={markAllAsRead}
         onOpenNotification={openNotification}

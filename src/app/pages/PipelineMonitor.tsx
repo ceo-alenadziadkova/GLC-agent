@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useParams, Link, Navigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -356,6 +356,8 @@ export function PipelineMonitor() {
   const { audit, loading: auditLoading } = useAudit(id);
   const { isClient } = useProfile();
   const [clientPortalOk, setClientPortalOk] = useState<boolean | 'pending'>(() => (isClient ? 'pending' : true));
+  /** Avoid flashing full-page loader when the same audit re-fetches (e.g. object identity changes). */
+  const portalGateKeyRef = useRef<string | null>(null);
   const [sel, setSel] = useState(0);
   const [modalReview, setModalReview] = useState<{ afterPhase: number; label: string } | null>(null);
 
@@ -368,13 +370,24 @@ export function PipelineMonitor() {
       setClientPortalOk(false);
       return;
     }
-    if (auditLoading || !audit?.meta) {
+    // Only gate on fetch when we have no audit snapshot yet; refetch keeps prior audit in cache.
+    if (auditLoading && !audit) {
       setClientPortalOk('pending');
       return;
     }
+    if (!audit?.meta) {
+      setClientPortalOk(audit ? 'pending' : false);
+      return;
+    }
     const meta = audit.meta;
+    const gateKey = `${id}:${meta.status}:${meta.product_mode ?? ''}`;
+    const sameGate = portalGateKeyRef.current === gateKey;
+    portalGateKeyRef.current = gateKey;
+
     let cancelled = false;
-    setClientPortalOk('pending');
+    if (!sameGate) {
+      setClientPortalOk('pending');
+    }
     void (async () => {
       try {
         if (meta.status !== 'created') {

@@ -1,4 +1,6 @@
+import { getClientEnvironmentSummary } from '../lib/client-environment';
 import { supabase } from '../lib/supabase';
+import { getApiBaseUrl } from '../lib/api-base-url';
 import type { AuditMeta, AuditState, AuditRequest, NotificationItem } from './auditTypes';
 import type { BriefQuestion, BriefResponses } from './briefQuestions';
 
@@ -88,7 +90,7 @@ export interface DashboardData {
   };
 }
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+const API_URL = getApiBaseUrl();
 
 function assertIntakePayloadShape(payload: unknown): asserts payload is {
   intakeProgress: { progressPct: number; readinessBadge: string; nextBestAction: string };
@@ -796,5 +798,41 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     });
+  },
+
+  /**
+   * Registered sessions only: best-effort incident report for support (204 response).
+   * Returns false if unauthenticated, network fails, or server rejects.
+   */
+  async reportUiIncident(args: { ref: string; path: string; kind: string; detail?: string }): Promise<boolean> {
+    try {
+      const authHeaders = await getAuthHeaders();
+      if (!authHeaders.Authorization) return false;
+      const response = await fetch(`${API_URL}/api/log`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          traceparent: createTraceparent(),
+          'x-operation-id': crypto.randomUUID(),
+          ...authHeaders,
+        },
+        body: JSON.stringify({
+          level: 'error',
+          source: 'spa_ui_incident',
+          message: args.kind,
+          context: {
+            client_env: getClientEnvironmentSummary(),
+            ref: args.ref,
+            path: args.path.slice(0, 512),
+            detail: args.detail?.slice(0, 800),
+          },
+          timestamp: new Date().toISOString(),
+        }),
+        signal: AbortSignal.timeout(12_000),
+      });
+      return response.ok || response.status === 204;
+    } catch {
+      return false;
+    }
   },
 };

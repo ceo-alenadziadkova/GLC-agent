@@ -1,29 +1,31 @@
-import { useState, useEffect, useCallback } from 'react';
-import { api } from '../data/apiService';
-import type { AuditState } from '../data/auditTypes';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { api, ApiError } from '../data/apiService';
+import { glcKeys } from '../lib/glc-keys';
 
 export function useAudit(auditId: string | undefined) {
-  const [audit, setAudit] = useState<AuditState | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const q = useQuery({
+    queryKey: glcKeys.audit.detail(auditId ?? ''),
+    queryFn: () => api.getAudit(auditId!),
+    enabled: Boolean(auditId),
+    staleTime: 120_000,
+  });
 
-  const load = useCallback(async () => {
-    if (!auditId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api.getAudit(auditId);
-      setAudit(data);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [auditId]);
+  const errorMsg =
+    q.isError && q.error
+      ? q.error instanceof ApiError && q.error.status === 404
+        ? 'We could not find this audit.'
+        : (q.error as Error).message
+      : null;
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  return { audit, loading, error, reload: load };
+  return {
+    audit: q.data ?? null,
+    loading: q.isPending && !q.data,
+    error: errorMsg,
+    reload: () => {
+      if (auditId) {
+        void queryClient.invalidateQueries({ queryKey: glcKeys.audit.detail(auditId) });
+      }
+    },
+  };
 }

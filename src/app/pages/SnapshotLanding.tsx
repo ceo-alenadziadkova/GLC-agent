@@ -38,8 +38,9 @@ import {
 } from '../lib/snapshot-diagnostics';
 import { SnapshotAccessBlockedCallout } from '../components/snapshot/SnapshotAccessBlockedCallout';
 import { toUiErrorMessage, type SnapshotApiErrorPayload } from '../lib/snapshot-api-errors';
+import { getApiBaseUrl } from '../lib/api-base-url';
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+const API_URL = getApiBaseUrl();
 
 type SnapshotAuthState = 'checking' | 'ready' | 'failed';
 
@@ -591,7 +592,9 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
             }}
           >
             <div className="flex min-w-0 flex-1 items-center gap-2">
-              <GlcLogo className="h-9 mobile:h-8" />
+              <Link to="/" className="inline-flex items-center" aria-label="Go to home page">
+                <GlcLogo className="h-9 mobile:h-8" />
+              </Link>
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
               <ThemeToggle />
