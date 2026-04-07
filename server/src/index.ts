@@ -9,6 +9,7 @@ import { logRouter } from './routes/log.js';
 import { snapshotRouter } from './routes/snapshot.js';
 import { intakeRouter } from './routes/intake.js';
 import { discoverRouter } from './routes/discover.js';
+import { marketingRouter } from './routes/marketing-brief.js';
 import { auditRequestsRouter } from './routes/audit-requests.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { notificationsRouter } from './routes/notifications.js';
@@ -70,6 +71,7 @@ app.use('/api/platform', platformRouter);
 app.use('/api/snapshot', snapshotRouter);          // Public GET; POST uses Supabase JWT + attachProfile
 app.use('/api/intake', intakeRouter);               // Public token GET/respond; POST requires consultant auth
 app.use('/api/discover', discoverRouter);           // Public submit/load; consultant sessions/convert
+app.use('/api/marketing', marketingRouter);         // Public marketing brief
 app.use('/api/audit-requests', auditRequestsRouter); // Client portal requests
 app.use('/api/analytics', analyticsRouter);          // Consultant analytics
 app.use('/api/notifications', notificationsRouter);  // In-app notification center

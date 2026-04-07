@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { motion } from 'motion/react';
 import { ArrowRight, Lock } from '@phosphor-icons/react';
 import { useAuth, isAnonymousUser } from '../hooks/useAuth';
@@ -85,7 +85,7 @@ export function Login() {
 
   return (
     <main
-      className="min-h-screen flex flex-col items-center justify-center px-6 relative"
+      className="relative flex min-h-screen flex-col items-center justify-center px-6 py-12"
       style={{ backgroundColor: 'var(--bg-canvas)' }}
     >
       <div className="absolute top-4 right-4 z-20 sm:top-6 sm:right-6">
@@ -102,7 +102,7 @@ export function Login() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
         className="relative w-full"
-        style={{ maxWidth: 400 }}
+        style={{ maxWidth: 440 }}
       >
         <div className="text-center mb-8">
           <motion.div
@@ -132,7 +132,7 @@ export function Login() {
             </h1>
           </motion.div>
           <p className="mt-2" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
-            Sign in to access your audit workspace
+            Sign in to the audit workspace and client portal
           </p>
         </div>
 
@@ -167,14 +167,15 @@ export function Login() {
                 cursor: 'pointer',
               }}
             >
-              Create account
+              Register
             </button>
           </div>
 
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             {isAnonymousUser(user) && (
               <p className="mb-3 rounded-lg px-3 py-2 text-xs leading-snug" style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-                You used the quick website scan. Continue with Google to keep the same account and unlock the full audit. Email sign-in starts a separate account unless you use Google first.
+                You used the quick site scan. Continue with Google to keep the same session and open the full audit.
+                Email sign-in creates a separate account unless you link Google first.
               </p>
             )}
             <button
@@ -256,7 +257,7 @@ export function Login() {
               </div>
               {mode === 'signup' && (
                 <p className="text-xs" style={{ color: 'var(--text-quaternary)' }}>
-                  Use at least 6 characters. If email confirmation is enabled in Supabase, check your inbox after signing up.
+                  At least 6 characters. If Supabase email confirmation is on, check your inbox after registering.
                 </p>
               )}
               <motion.button
@@ -278,7 +279,7 @@ export function Login() {
                 {loading ? (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin border-[var(--primary-foreground)]" />
-                    {mode === 'signin' ? 'Signing in...' : 'Creating account...'}
+                    {mode === 'signin' ? 'Signing in…' : 'Creating…'}
                   </span>
                 ) : (
                   <span className="flex items-center gap-2">
@@ -296,8 +297,11 @@ export function Login() {
           )}
         </div>
 
-        <p className="text-center mt-5" style={{ fontSize: '11px', color: 'var(--text-quaternary)' }}>
-          By signing in, you agree to our Terms of Service.
+        <p className="mt-5 text-center text-xs" style={{ color: 'var(--text-quaternary)' }}>
+          By continuing you accept the terms of use.{' '}
+          <Link to="/faq" className="underline-offset-2 hover:underline" style={{ color: 'var(--text-tertiary)' }}>
+            FAQ
+          </Link>
         </p>
       </motion.div>
     </main>

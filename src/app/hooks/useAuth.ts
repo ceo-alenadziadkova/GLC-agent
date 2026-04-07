@@ -42,7 +42,7 @@ export function useAuth() {
           window.history.replaceState({}, '', `${url.pathname}${qs ? `?${qs}` : ''}${url.hash}`);
         }
 
-        // 1) Новый PKCE-флоу: ?code=...
+        // 1) PKCE flow: ?code=...
         const code = url.searchParams.get('code');
         if (code) {
           logger.info('Auth: found code param, exchanging for session');
@@ -61,7 +61,7 @@ export function useAuth() {
           return;
         }
 
-        // 2) Старый implicit-флоу: #access_token=...&refresh_token=...
+        // 2) Legacy implicit flow: #access_token=...&refresh_token=...
         const hash = url.hash.startsWith('#') ? url.hash.slice(1) : url.hash;
         if (hash) {
           const hashParams = new URLSearchParams(hash);
@@ -93,7 +93,7 @@ export function useAuth() {
           }
         }
 
-        // 3) Обычная инициализация — пробуем достать уже сохранённую сессию
+        // 3) Default init — load any persisted session
         const { data: { session } } = await supabase.auth.getSession();
         logger.info('getSession result', { hasSession: !!session, userId: session?.user.id });
         if (isMounted) {
@@ -126,7 +126,7 @@ export function useAuth() {
 
     initAuth();
 
-    // Слушаем дальнейшие изменения (signOut, обновление токена и т.п.)
+    // Subscribe to further changes (signOut, token refresh, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       logger.info('onAuthStateChange', { hasSession: !!session, userId: session?.user.id });
       if (!isMounted) return;

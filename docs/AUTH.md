@@ -117,7 +117,7 @@ The backend's **service role key** bypasses RLS — intentional. Routes must sti
 
 Consultant and client routes use `ProtectedRoute` with **`useAuth`** + **`useProfile`**: load auth first, then (when `requiredRole` is set) wait for profile; **guest** users are redirected to **`/snapshot`** or blocked routes per `blockedForRoles`. Unauthenticated users go to `/login`. See `src/app/components/ProtectedRoute.tsx` and `src/app/routes.tsx` (`Consultant`, `Client`, `PNoGuest`).
 
-Public paths stay outside `ProtectedRoute`: `/login`, `/snapshot`, intake discover aliases, etc.
+Public paths stay outside `ProtectedRoute`: `/` (marketing), `/login`, `/snapshot`, `/express-audit`, `/audit` (marketing page), `/discovery`, `/brief`, `/faq`, intake discover aliases, etc.
 
 ---
 
@@ -128,7 +128,7 @@ In Supabase dashboard (Authentication → Settings):
 | Setting | Value |
 |---|---|
 | Site URL | **Exact URL only** (no `*`): `http://localhost:5173` (dev) / `https://your-app.vercel.app` (prod) |
-| Redirect URLs | Prefer **exact** URLs: `http://localhost:5173`, `http://localhost:5173/login`, plus production `https://…/login`. OAuth uses `redirectTo: <origin>/login`, so **`/login` must be allowed**. Email sign-up uses `emailRedirectTo: <origin>/login` when confirmation links are enabled. If an auth callback ever lands on `/`, `RootRedirect` forwards `?code` / hash to `/login`. Optional: [Supabase glob patterns](https://supabase.com/docs/guides/auth/redirect-urls) where the dashboard accepts them. |
+| Redirect URLs | Prefer **exact** URLs: `http://localhost:5173`, `http://localhost:5173/login`, plus production `https://…/login`. OAuth uses `redirectTo: <origin>/login`, so **`/login` must be allowed**. Email sign-up uses `emailRedirectTo: <origin>/login` when confirmation links are enabled. If an auth callback ever lands on `/`, `RootEntry` forwards `?code` / hash to `/login` (same behaviour as the legacy `RootRedirect` helper). Signed-in users: consultants are redirected from `/` to `/dashboard`, clients to `/portal`; guests see the public marketing home. Optional: [Supabase glob patterns](https://supabase.com/docs/guides/auth/redirect-urls) where the dashboard accepts them. |
 | Google OAuth | Enabled — add Client ID + Secret from Google Cloud Console |
 
 ---

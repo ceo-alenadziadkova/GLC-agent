@@ -6,16 +6,20 @@ import { PipelineMonitor }  from './pages/PipelineMonitor';
 import { ReportViewer }     from './pages/ReportViewer';
 import { StrategyLab }      from './pages/StrategyLab';
 import { Login }            from './pages/Login';
-import { SnapshotLanding }  from './pages/SnapshotLanding';
 import { IntakeBrief }       from './pages/IntakeBrief';
 import { ClientPortal }     from './pages/ClientPortal';
 import { ClientAuditView }  from './pages/ClientAuditView';
 import { AdminRequestQueue } from './pages/AdminRequestQueue';
-import { DiscoverPage }     from './pages/DiscoverPage';
+import { RootEntry }        from './components/RootEntry';
+import { SnapshotPage }     from './pages/SnapshotPage';
+import { ExpressAuditPage } from './pages/ExpressAuditPage';
+import { FullAuditPage }    from './pages/FullAuditPage';
+import { PublicBriefPage }  from './pages/PublicBriefPage';
+import { FaqPage }          from './pages/FaqPage';
+import { DiscoveryPublicPage } from './pages/DiscoveryPublicPage';
 import { DiscoveryQueue }   from './pages/DiscoveryQueue';
 import { SettingsPage }     from './pages/SettingsPage';
 import { ProtectedRoute }   from './components/ProtectedRoute';
-import { RootRedirect }     from './components/RootRedirect';
 import { ClientPortalPipelineProvider } from './context/ClientPortalPipelineContext';
 
 function P({ children }: { children: React.ReactNode }) {
@@ -44,12 +48,16 @@ function ClientPortalShell({ children }: { children: React.ReactNode }) {
 }
 
 export const router = createBrowserRouter([
-  { path: '/',                    element: <RootRedirect /> },
+  { path: '/',                    element: <RootEntry /> },
   { path: '/login',               element: <Login /> },
-  { path: '/snapshot',            element: <SnapshotLanding /> },           // public
+  { path: '/snapshot',            element: <SnapshotPage /> },
+  { path: '/express-audit',       element: <ExpressAuditPage /> },
+  { path: '/audit',               element: <FullAuditPage /> },
+  { path: '/brief',               element: <PublicBriefPage /> },
+  { path: '/faq',                 element: <FaqPage /> },
   { path: '/intake/:token',       element: <IntakeBrief /> },              // public pre-brief
-  { path: '/audit/discover',      element: <DiscoverPage /> },             // public Mode C
-  { path: '/discovery',           element: <DiscoverPage /> },             // alias (same flow)
+  { path: '/audit/discover',      element: <DiscoveryPublicPage /> },
+  { path: '/discovery',           element: <DiscoveryPublicPage /> },
 
   // ── Consultant routes ──────────────────────────────────────────────────────
   { path: '/dashboard',           element: <Consultant><Dashboard /></Consultant> },

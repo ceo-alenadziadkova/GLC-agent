@@ -779,4 +779,22 @@ export const api = {
       method: 'POST',
     });
   },
+
+  /** Public: marketing site short brief (no auth). */
+  async submitMarketingBrief(body: {
+    name: string;
+    company?: string;
+    website?: string;
+    no_website: boolean;
+    concern: string;
+    improve: string;
+    urgency: string;
+    contact_method: string;
+    unsure_choice: boolean;
+  }) {
+    return publicApiFetch<{ id: string; created_at: string; recommended_route: string }>('/api/marketing/brief', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
 };

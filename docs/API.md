@@ -5,7 +5,7 @@
 - **Development:** `http://localhost:3001`
 - **Production:** Railway deployment URL (set as `VITE_API_URL` in frontend env)
 
-All endpoints except `/api/auth/*`, `/api/snapshot/*`, and the **public** pre-brief routes `GET /api/intake/:token` and `POST /api/intake/:token/respond` require a valid Supabase JWT in the `Authorization: Bearer <token>` header. The frontend's `apiService.ts` adds this automatically.
+All endpoints except `/api/auth/*`, `/api/snapshot/*`, **`POST /api/marketing/brief`**, and the **public** pre-brief routes `GET /api/intake/:token` and `POST /api/intake/:token/respond` require a valid Supabase JWT in the `Authorization: Bearer <token>` header. The frontend's `apiService.ts` adds this automatically.
 
 `POST /api/intake` (create link) requires a **consultant** JWT.
 
@@ -582,6 +582,28 @@ Each question object includes optional **`section`** (UI heading: `Business`, `G
 Submit validation requires **identity** plus the **express SLA** question-bank ids resolved from visibility (same rules as server `resolveExpressSlaRequiredIds` in `brief-gates.ts`: e.g. **`f1`**, **`b1`**, **`revenue_model`**, **`a6`**, **`c5`**, and **`c3`** when the website branch applies); **`f2` / `a7` / `f8` are optional** but, when present, are stored in `intake_brief` like other `pre_brief` keys.
 
 Overwrites stored responses and updates `submitted_at`. Allowed until `expires_at` (no single-submit lock). If the token was created with `audit_id`, merges pre-brief question keys into `intake_brief` with source `client`.
+
+---
+
+## Marketing brief (public)
+
+### `POST /api/marketing/brief`
+
+**Auth:** none. **Rate limit:** same window as public intake (`intakePublicLimiter`).
+
+**Body (JSON):**
+
+- `name` (string, required)
+- `company` (optional)
+- `website` (string, required unless `no_website` is true)
+- `no_website` (boolean)
+- `concern`, `improve` (strings)
+- `urgency`, `contact_method` (strings)
+- `unsure_choice` (boolean) — when true, server recommends `/snapshot`
+
+**Response `201`:** `{ "id", "created_at", "recommended_route" }` where `recommended_route` is one of `/snapshot`, `/express-audit`, `/audit`, `/discovery`.
+
+Persists to `marketing_brief_submissions` (migration `025_marketing_brief_submissions.sql`) and notifies consultants (`kind: intake`).
 
 ---
 

@@ -12,6 +12,15 @@ describe('page-anomaly', () => {
     expect(anomalyLimitationMessages(det).length).toBeGreaterThan(0);
   });
 
+  it('flags Spanish interstitial-style challenge HTML', () => {
+    const det = detectPageAnomalies(
+      '<html><body>Comprobando su navegador antes de acceder a example.com</body></html>',
+      'https://example.es',
+    );
+    expect(det.challengeLikely).toBe(true);
+    expect(det.challengeTaxonomy).toBe('generic_bot_interstitial');
+  });
+
   it('classifies Cloudflare signals before generic interstitial', () => {
     const det = detectPageAnomalies(
       '<html><head></head><body>Just a moment... cf-ray: 1234abcd</body></html>',
@@ -25,6 +34,15 @@ describe('page-anomaly', () => {
     const det = detectPageAnomalies(
       '<html><body>This domain is for sale — submit your offer</body></html>',
       'https://parked.test',
+    );
+    expect(det.parkedLikely).toBe(true);
+    expect(det.parkedTaxonomy).toBe('for_sale_or_aftermarket');
+  });
+
+  it('flags Spanish for-sale domain copy with aftermarket taxonomy', () => {
+    const det = detectPageAnomalies(
+      '<html><body>Dominio en venta — envíe su oferta</body></html>',
+      'https://parked.es',
     );
     expect(det.parkedLikely).toBe(true);
     expect(det.parkedTaxonomy).toBe('for_sale_or_aftermarket');
@@ -46,6 +64,33 @@ describe('page-anomaly', () => {
     );
     expect(det.loginWallLikely).toBe(true);
     expect(det.loginWallTaxonomy).toBe('auth_keyword_copy');
+  });
+
+  it('flags Spanish restricted-access copy', () => {
+    const det = detectPageAnomalies(
+      '<html><body><p>Acceso restringido a usuarios autorizados</p></body></html>',
+      'https://intranet.example.es',
+    );
+    expect(det.loginWallLikely).toBe(true);
+    expect(det.loginWallTaxonomy).toBe('auth_keyword_copy');
+  });
+
+  it('flags Ukrainian restricted-access / login copy', () => {
+    const det = detectPageAnomalies(
+      '<html><body><p>Доступ обмежено. Увійдіть, щоб продовжити.</p></body></html>',
+      'https://portal.example.ua',
+    );
+    expect(det.loginWallLikely).toBe(true);
+    expect(det.loginWallTaxonomy).toBe('auth_keyword_copy');
+  });
+
+  it('flags Ukrainian sign-in H1 when body copy does not already match keyword heuristics', () => {
+    const det = detectPageAnomalies(
+      '<html><body><h1>Вхід</h1><form><input type="text"></form></body></html>',
+      'https://cabinet.example.ua',
+    );
+    expect(det.loginWallLikely).toBe(true);
+    expect(det.loginWallTaxonomy).toBe('signin_heading');
   });
 
   it('flags OAuth-style form action without login keywords', () => {

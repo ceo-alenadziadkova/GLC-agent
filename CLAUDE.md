@@ -79,21 +79,32 @@ Review gates: after phases 0, 4, 7. Consultant adds notes that become context fo
 ## Frontend Routes
 
 ```
+/                    RootEntry → MarketingHome (public) or redirect by role / OAuth → /login
+/snapshot            SnapshotPage       (public) — marketing shell + SnapshotLanding
+/express-audit       ExpressAuditPage   (public)
+/audit               FullAuditPage      (public marketing) — before /audit/:id
+/discovery, /audit/discover  DiscoveryPublicPage (public)
+/brief               PublicBriefPage    (public)
+/faq                 FaqPage            (public)
 /login               Login.tsx          (public)
-/portfolio           Portfolio.tsx      (protected)
+/dashboard           Dashboard          (protected consultant)
+/portfolio           → /dashboard       (redirect)
 /audit/new           NewAudit.tsx       (protected)
 /pipeline/:id        PipelineMonitor    (protected) — Realtime
 /audit/:id           AuditWorkspace     (protected) — Realtime
 /audit/:id/:domainId AuditWorkspace     (protected)
 /reports/:id         ReportViewer       (protected)
 /strategy/:id        StrategyLab        (protected)
+/portal              ClientPortal       (protected client)
+/portal/audit/:id    ClientAuditView    (protected client)
+/intake/:token       IntakeBrief        (public)
 ```
 
 ---
 
 ## Backend Route Patterns
 
-All routes under `/api/`. All except health check require `requireAuth` middleware.
+All routes under `/api/`. All except health check, public snapshot/intake/discover/marketing brief, require `requireAuth` middleware.
 
 ```
 POST   /api/audits

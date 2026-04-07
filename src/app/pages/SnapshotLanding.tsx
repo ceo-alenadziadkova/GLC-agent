@@ -299,7 +299,8 @@ function siteProfileSoftLine(profile: SnapshotSiteProfile | undefined): string |
   return 'We could not confidently categorise this site from the sampled pages alone.';
 }
 
-export function SnapshotLanding() {
+export function SnapshotLanding(props?: { embedded?: boolean }) {
+  const embedded = props?.embedded ?? false;
   const [url, setUrl] = useState('');
   const [stage, setStage] = useState<Stage>('idle');
   const [errorMsg, setErrorMsg] = useState('');
@@ -573,59 +574,59 @@ export function SnapshotLanding() {
 
   return (
     <div
-      className="flex min-h-[100dvh] flex-col"
-      style={{ backgroundColor: 'var(--bg-canvas)' }}
+      className={embedded ? 'flex min-h-0 flex-col' : 'flex min-h-[100dvh] flex-col'}
+      style={{ backgroundColor: embedded ? 'transparent' : 'var(--bg-canvas)' }}
     >
-      {/* Background mesh */}
-      <div
-        className="fixed inset-0 pointer-events-none"
-        style={{ background: 'var(--mesh-brand)', opacity: 0.4 }}
-      />
-
-      {/* Header */}
-      <header
-        className="relative z-10 flex items-center justify-between gap-3 px-6 py-4 mobile:px-4 mobile:py-3"
-        style={{
-          borderBottom: '1px solid var(--border-subtle)',
-          paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
-        }}
-      >
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <GlcLogo className="h-9 mobile:h-8" />
-        </div>
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <ThemeToggle />
-          {hasFullAccount ? (
-            <div className="flex min-w-0 max-w-[min(100%,22rem)] items-center gap-2 sm:gap-2.5">
-              <UserCircle className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
-              <span
-                className="hidden min-w-0 truncate text-xs font-medium sm:inline sm:max-w-[10rem] md:max-w-[13rem]"
-                style={{ color: 'var(--text-secondary)' }}
-                title={workspaceEmail ?? 'Signed in'}
-              >
-                {workspaceEmail ?? 'Signed in'}
-              </span>
-              <Link
-                to="/dashboard"
-                className="inline-flex shrink-0 items-center gap-1 rounded-lg text-sm font-medium mobile:min-h-11 mobile:px-2"
-                style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
-              >
-                Workspace <CaretRight className="h-3.5 w-3.5 shrink-0" />
-              </Link>
+      {!embedded && (
+        <>
+          <div
+            className="fixed inset-0 pointer-events-none"
+            style={{ background: 'var(--mesh-brand)', opacity: 0.4 }}
+          />
+          <header
+            className="relative z-10 flex items-center justify-between gap-3 px-6 py-4 mobile:px-4 mobile:py-3"
+            style={{
+              borderBottom: '1px solid var(--border-subtle)',
+              paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
+            }}
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <GlcLogo className="h-9 mobile:h-8" />
             </div>
-          ) : (
-            <Link
-              to="/login?next=/snapshot"
-              className="inline-flex items-center justify-end gap-1 rounded-lg text-sm font-medium mobile:min-h-11 mobile:min-w-11 mobile:px-2"
-              style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
-            >
-              Sign in <CaretRight className="h-3.5 w-3.5 shrink-0" />
-            </Link>
-          )}
-        </div>
-      </header>
+            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+              <ThemeToggle />
+              {hasFullAccount ? (
+                <div className="flex min-w-0 max-w-[min(100%,22rem)] items-center gap-2 sm:gap-2.5">
+                  <UserCircle className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
+                  <span
+                    className="hidden min-w-0 truncate text-xs font-medium sm:inline sm:max-w-[10rem] md:max-w-[13rem]"
+                    style={{ color: 'var(--text-secondary)' }}
+                    title={workspaceEmail ?? 'Signed in'}
+                  >
+                    {workspaceEmail ?? 'Signed in'}
+                  </span>
+                  <Link
+                    to="/dashboard"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg text-sm font-medium mobile:min-h-11 mobile:px-2"
+                    style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
+                  >
+                    Workspace <CaretRight className="h-3.5 w-3.5 shrink-0" />
+                  </Link>
+                </div>
+              ) : (
+                <Link
+                  to="/login?next=/snapshot"
+                  className="inline-flex items-center justify-end gap-1 rounded-lg text-sm font-medium mobile:min-h-11 mobile:min-w-11 mobile:px-2"
+                  style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
+                >
+                  Sign in <CaretRight className="h-3.5 w-3.5 shrink-0" />
+                </Link>
+              )}
+            </div>
+          </header>
+        </>
+      )}
 
-      {/* Main — center the entry form on large screens; results scroll from the top */}
       <main
         className={`relative z-10 flex flex-1 flex-col items-center px-6 py-12 mobile:px-4 mobile:py-8 ${
           stage === 'done' ? 'justify-start pt-8 pb-14 lg:pt-10 lg:pb-16' : 'justify-center mobile:justify-start'
