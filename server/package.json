@@ -19,6 +19,7 @@
     "test:watch": "vitest",
     "playwright:install": "playwright install chromium",
     "seed-demo": "tsx scripts/seed-demo.ts",
+    "intake-plan-debug": "tsx scripts/intake-plan-debug.ts",
     "ingest:wappalyzer": "node scripts/ingest-webappalyzer.mjs"
   },
   "dependencies": {

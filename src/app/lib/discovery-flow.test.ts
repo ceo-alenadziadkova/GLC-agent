@@ -21,6 +21,17 @@ describe('buildQuestionSequence', () => {
     const seq = buildQuestionSequence({ d1: ['CRM', 'Email'] });
     expect(seq).not.toContain('d1b');
   });
+
+  it('puts a2 before a1 (layout order, not alphabetical)', () => {
+    const seq = buildQuestionSequence({});
+    expect(seq.indexOf('a2')).toBeLessThan(seq.indexOf('a1'));
+  });
+
+  it('has one more step without CRM than with CRM', () => {
+    const noCrm = buildQuestionSequence({ d1: ['Email'] });
+    const withCrm = buildQuestionSequence({ d1: ['CRM'] });
+    expect(noCrm.length).toBe(withCrm.length + 1);
+  });
 });
 
 describe('getOnlinePresenceSelections', () => {

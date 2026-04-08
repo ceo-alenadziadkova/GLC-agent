@@ -2,13 +2,9 @@
  * Intake plan types — contract for buildIntakePlan (ADR: unified question bank).
  * Phase 0: used by fixtures and snapshot tests; resolver fills these in Phase 2.
  */
+import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from '../../types/audit.js';
 
-export interface IntakeVersionTuple {
-  questionBankVersion: string;
-  policyVersion: string;
-  layoutVersion: string;
-  resolverVersion: string;
-}
+export type { IntakeVersionTuple };
 
 /** Product intake scenario (policy axis; not identical to DB product_mode). */
 export type IntakeScenarioMode = 'full' | 'express' | 'discovery' | 'pre_brief';
@@ -23,6 +19,15 @@ export type IntakeSurface =
 
 export interface IntakePlanContext {
   mode: IntakeScenarioMode;
+  surface?: IntakeSurface;
+}
+
+/** Inputs for buildIntakePlan (audit product + collection + answers). */
+export interface BuildIntakePlanInput {
+  responses: Record<string, unknown>;
+  productMode: ProductMode;
+  collectionMode?: IntakeBriefCollectionMode;
+  /** When set with `collectionMode: 'discovery'`, applies public discovery layout (step order + deferral). */
   surface?: IntakeSurface;
 }
 

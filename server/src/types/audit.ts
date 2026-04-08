@@ -507,6 +507,14 @@ export interface ReconConflict {
 
 export type IntakeBriefCollectionMode = 'self_serve' | 'interview' | 'pre_brief' | 'discovery';
 
+/** Semver / bundle ids for intake artifacts (ADR unified question bank). */
+export interface IntakeVersionTuple {
+  questionBankVersion: string;
+  policyVersion: string;
+  layoutVersion: string;
+  resolverVersion: string;
+}
+
 export interface IntakeBrief {
   id: string;
   audit_id: string;
@@ -530,6 +538,8 @@ export interface IntakeBrief {
   readiness_badge: IntakeReadinessBadge;
   next_best_action: IntakeNextBestAction;
   responses_format: 1 | 2;
+  /** Null if row predates migration 027; validation uses current engine. */
+  intake_versions?: IntakeVersionTuple | null;
   created_at: string;
   updated_at: string;
 }

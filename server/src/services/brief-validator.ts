@@ -26,7 +26,10 @@ import {
   resolveFullSlaRequiredIds,
   resolveSlaRequiredIds,
 } from '../intake/brief-gates.js';
-import { deriveBankV1DataQuality, getQuestionBankPromptLabel } from '../intake/question-bank.js';
+import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
+import { syntheticIntakeVersionsBeforeMatrix } from '../intake/core/versions.js';
+import { deriveBankV1DataQuality, getQuestionBankPromptLabel, QUESTION_BANK_V1_STUBS } from '../intake/question-bank.js';
+import { logger } from './logger.js';
 import { prepareBriefForValidation } from '../intake/prepare-brief-for-validation.js';
 import { mergeReconConflictsFromC1 } from '../intake/recon-conflicts.js';
 import { choiceValueNeedsSpecify } from '../intake/choice-specify-triggers.js';
@@ -182,8 +185,12 @@ export function validateBriefResponses(
 ): BriefValidationResult {
   const productMode = opts?.productMode ?? 'full';
   const collectionMode = opts?.collectionMode;
-  const requiredIds = resolveSlaRequiredIds(productMode, responses, collectionMode);
-  const recIds = resolveBankRecommendedIds(responses, collectionMode);
+  const plan = buildIntakePlan({ responses, productMode, collectionMode });
+  const requiredIds = productMode === 'free_snapshot' ? [] : plan.required;
+  const visibleSet = new Set(plan.visible);
+  const recIds = QUESTION_BANK_V1_STUBS.filter(
+    s => visibleSet.has(s.id) && s.priority === 'recommended',
+  ).map(s => s.id);
 
   const answeredRequired = requiredIds.filter(id => isAnswered(responses[id]));
   const answeredRecommended = recIds.filter(id => isAnswered(responses[id]));
@@ -272,6 +279,12 @@ export async function assertBriefReady(auditId: string): Promise<void> {
 
   const validation = validateBriefResponses(responses, { productMode: mode, collectionMode });
   const gates = evaluateBriefGates(responses, mode, collectionMode);
+  if (brief && brief.intake_versions == null) {
+    logger.debug('intake_brief missing intake_versions (pre-matrix row); validation uses current engine', {
+      audit_id: auditId,
+      synthetic_versions: syntheticIntakeVersionsBeforeMatrix(),
+    });
+  }
   const optionalIds = resolveBankOptionalIds(responses, collectionMode);
   const optionalCount = optionalIds.filter(id => isAnswered(responses[id])).length;
 
@@ -343,6 +356,11 @@ export async function saveBriefResponses(
     collectionMode: collection_mode,
   });
   const gates = evaluateBriefGates(responses as Record<string, unknown>, mode, collection_mode);
+  const intakePlan = buildIntakePlan({
+    responses: responses as Record<string, unknown>,
+    productMode: mode,
+    collectionMode: collection_mode,
+  });
   const optionalIds = resolveBankOptionalIds(responses as Record<string, unknown>, collection_mode);
   const answeredOptional = optionalIds.filter(id => isAnswered(responses[id])).length;
   const bankDataQualitySave = deriveBankV1DataQuality(responses as Record<string, unknown>);
@@ -377,6 +395,7 @@ export async function saveBriefResponses(
         responses_format: 2,
         recon_conflicts: reconConflicts,
         collection_mode,
+        intake_versions: intakePlan.versions,
         ...(bankDataQualitySave !== null ? { data_quality_score: bankDataQualitySave } : {}),
       },
       { onConflict: 'audit_id' },

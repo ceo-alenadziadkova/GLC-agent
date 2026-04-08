@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { BriefResponses } from '../data/briefQuestions';
 import { briefResponsesToIntakeMap } from '../data/intakeBriefMap';
+import { buildIntakePlan } from '../../../server/src/intake/core/build-intake-plan';
 import { calcDataQualityScore, DEFAULT_DATA_QUALITY_WEIGHTS } from '../../../server/src/intake/data-quality';
 import { filterVisibleQuestions } from '../../../server/src/intake/is-visible';
 import { QUESTION_BANK_V1_STUBS } from '../../../server/src/intake/question-bank';
@@ -65,13 +66,15 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
     return internal;
   }, [controlled, value, internal]);
 
-  const visibleStubs = useMemo(
-    () =>
-      sortStubsByBankOrder(
-        filterVisibleQuestions(QUESTION_BANK_V1_STUBS, responses, { collectionMode }),
-      ),
-    [responses, collectionMode],
-  );
+  const visibleStubs = useMemo(() => {
+    const plan = buildIntakePlan({
+      responses,
+      productMode: 'full',
+      collectionMode,
+    });
+    const visible = new Set(plan.visible);
+    return sortStubsByBankOrder(QUESTION_BANK_V1_STUBS.filter(q => visible.has(q.id)));
+  }, [responses, collectionMode]);
 
   const dataQuality = useMemo(
     () => calcDataQualityScore(

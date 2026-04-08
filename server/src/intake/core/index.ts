@@ -1,4 +1,30 @@
+export { buildIntakePlan } from './build-intake-plan.js';
+export { formatPlanTrace, type FormatTraceMeta } from './format-trace.js';
+export {
+  lintBankAndPolicyAll,
+  lintDeprecatedStillRequired,
+  lintDiscoveryPolicyDrift,
+  lintDuplicateDiscoveryIncluded,
+  lintForbiddenImportsInCore,
+  lintOrphanPolicyDiscoveryIds,
+  lintSyntheticCollision,
+  lintUnknownBranchRefs,
+  type LintFinding,
+  type LintSeverity,
+} from './lint-bank-policy.js';
+export { evaluateCanonEligibility } from './evaluate-canon.js';
+export { computeRequiredBankIdsFromPolicy } from './evaluate-policy.js';
+export { INTAKE_POLICY_V1, loadIntakePolicy } from './load-policy.js';
 export type {
+  DiscoveryModePolicyV1,
+  ExpressModePolicyV1,
+  FreeSnapshotModePolicyV1,
+  FullModePolicyV1,
+  IntakePolicyV1,
+  PreBriefModePolicyV1,
+} from './policy-types.js';
+export type {
+  BuildIntakePlanInput,
   DebugTraceEntry,
   IntakePlan,
   IntakePlanContext,
@@ -13,4 +39,5 @@ export {
   INTAKE_LAYOUT_VERSION,
   INTAKE_POLICY_VERSION,
   INTAKE_RESOLVER_VERSION,
+  syntheticIntakeVersionsBeforeMatrix,
 } from './versions.js';

@@ -1,0 +1,19 @@
+{
+  "version": "1.0.0",
+  "surfaces": {
+    "public_discovery": {
+      "deferRemaining": true,
+      "steps": [
+        { "label": "Industry", "questionIds": ["a2"] },
+        { "label": "About your business", "questionIds": ["a1"] },
+        { "label": "Team", "questionIds": ["a4"] },
+        { "label": "Stage", "questionIds": ["a7"] },
+        { "label": "Tools", "questionIds": ["d1", "d1b"] },
+        { "label": "Online presence", "questionIds": ["c_nosite_1"] },
+        { "label": "Enquiries", "questionIds": ["c_nosite_4"] },
+        { "label": "Bottleneck", "questionIds": ["d2"] },
+        { "label": "Main goal", "questionIds": ["f1"] }
+      ]
+    }
+  }
+}

@@ -1,0 +1,43 @@
+/**
+ * Canon layer — branch predicates only (ADR). No discovery or product-mode policy.
+ */
+import { evalBranchCondition } from '../branch-rules.js';
+import type { IntakeQuestionStub, IntakeResponsesMap } from '../types.js';
+
+import type { QuestionReason } from './types.js';
+
+export interface CanonEligibilityResult {
+  /** Bank question ids that pass branchCondition, in canonical stub order. */
+  eligibleIds: string[];
+  reasonsById: Record<string, QuestionReason[]>;
+}
+
+export function evaluateCanonEligibility(
+  stubs: IntakeQuestionStub[],
+  responses: IntakeResponsesMap,
+): CanonEligibilityResult {
+  const eligibleIds: string[] = [];
+  const reasonsById: Record<string, QuestionReason[]> = {};
+
+  for (const q of stubs) {
+    const pass = evalBranchCondition(q.branchCondition, responses);
+    if (pass) {
+      eligibleIds.push(q.id);
+      reasonsById[q.id] = [
+        { questionId: q.id, layer: 'canon', state: 'eligible', code: 'BRANCH_OK' },
+      ];
+    } else {
+      reasonsById[q.id] = [
+        {
+          questionId: q.id,
+          layer: 'canon',
+          state: 'hidden',
+          code: 'BRANCH_FALSE',
+          detail: q.branchCondition,
+        },
+      ];
+    }
+  }
+
+  return { eligibleIds, reasonsById };
+}

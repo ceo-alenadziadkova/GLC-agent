@@ -9,6 +9,7 @@
  * the client registers — no translation layer needed.
  */
 
+import { buildIntakePlan } from '../../../server/src/intake/core/build-intake-plan';
 import { INDUSTRY_OPTIONS } from '../data/industry-options';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -229,17 +230,21 @@ export function getOnlinePresenceSelections(answers: DiscoveryAnswers): string[]
 /**
  * Returns the ordered question-id sequence for this set of answers.
  * Called on every answer change so the sequence adapts as the user progresses.
+ * Order and deferral come from server `layout-rules.v1.json` (public_discovery) +
+ * `buildIntakePlan` (branch + discovery policy). `a5` defaults to `no_website` because
+ * this flow targets businesses without a public site (the page does not ask `a5`).
  */
 export function buildQuestionSequence(answers: DiscoveryAnswers): string[] {
-  const seq: string[] = ['a2', 'a1', 'a4', 'a7', 'd1'];
-
-  if (!hasCrm(answers)) {
-    seq.push('d1b');
-  }
-
-  seq.push('c_nosite_1', 'c_nosite_4', 'd2', 'f1');
-
-  return seq;
+  const plan = buildIntakePlan({
+    responses: {
+      ...(answers as Record<string, unknown>),
+      a5: (answers as Record<string, unknown>)['a5'] ?? 'no_website',
+    },
+    productMode: 'full',
+    collectionMode: 'discovery',
+    surface: 'public_discovery',
+  });
+  return plan.visible.filter(id => QUESTION_MAP.has(id));
 }
 
 export function getQuestion(id: string): DiscoveryQuestion | undefined {

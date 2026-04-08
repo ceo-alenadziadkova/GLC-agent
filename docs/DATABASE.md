@@ -30,6 +30,7 @@ PostgreSQL on **Supabase**. Apply migrations **in numeric order** so foreign key
 24. `024_audit_domains_prompt_version_len.sql` — widens `audit_domains.prompt_version` to **`VARCHAR(64)`** so deterministic free snapshot engine labels are not truncated (was `VARCHAR(20)` from migration 009)
 25. `025_marketing_brief_submissions.sql` — marketing brief submissions (see migration file)
 26. `026_snapshot_guest_sessions.sql` — **`snapshot_guest_sessions`** public snapshot funnel (guest cookie, `snapshot_token`, optional UTM/referrer/`ip_hash`, claim timestamps; 90-day `expires_at`)
+27. `027_intake_versions.sql` — optional **`intake_brief.intake_versions`** (`jsonb`) version tuple for bank/policy/layout/resolver parity (ADR unified intake)
 
 **Tables (18):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`, `snapshot_guest_sessions`.
 
@@ -243,6 +244,7 @@ Structured questionnaire responses per audit. One row per audit (unique `audit_i
 Core fields:
 
 - `responses` (`jsonb`) — versioned payload (`responses_format`), supports legacy flat values and structured `{ value, source }`.
+- `intake_versions` (`jsonb`, nullable) — `{ questionBankVersion, policyVersion, layoutVersion, resolverVersion }` saved on each brief write; `NULL` on legacy rows (server validates with the current engine).
 - `status` (`draft` | `submitted`) and SLA counters (`answered_required`, `answered_recommended`, `answered_optional`).
 - Progressive intake metadata: `layer_completed`, `collected_by`, `collection_mode`, `data_quality_score`, `recon_prefills`, `post_audit_questions`.
 - Server-derived gamification/readiness state:
@@ -252,7 +254,7 @@ Core fields:
 
 Contract rule: readiness/progress fields are derived on the backend on each save/update and treated as canonical API data (frontend renders only).
 
-Migrations: `006_intake_brief.sql`, `010_intake_progress_gamification.sql`.
+Migrations: `006_intake_brief.sql`, `010_intake_progress_gamification.sql`, `027_intake_versions.sql`.
 
 ---
 

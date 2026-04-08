@@ -62,3 +62,6 @@ export {
 } from './question-bank.js';
 export { mergeReconConflictsFromC1, type ReconConflict } from './recon-conflicts.js';
 export { prepareBriefForValidation } from './prepare-brief-for-validation.js';
+export { buildIntakePlan, loadIntakePolicy } from './core/index.js';
+export type { BuildIntakePlanInput, IntakePlan } from './core/index.js';
+export type { IntakeVersionTuple } from '../types/audit.js';
