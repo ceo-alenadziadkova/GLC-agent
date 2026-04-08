@@ -79,6 +79,10 @@ export interface IntakePlanDerivedFacts {
   segmentHints: {
     websiteGate: string;
   };
+  /**
+   * Canon `reportUse` tag → normalized answer string for visible, answered bank questions (first tag wins on collision).
+   */
+  reportAnchors?: Record<string, string>;
 }
 
 export interface IntakePlanCoverage {
@@ -127,4 +131,11 @@ export interface IntakePlan {
   derivedFacts: IntakePlanDerivedFacts;
   coverage: IntakePlanCoverage;
   confidence: IntakePlanConfidence;
+  /**
+   * Domain slices where at least one SLA-visible primary-feed bank question is still unanswered
+   * (report / agent input gap). Empty when every in-scope primary for those domains is answered.
+   */
+  missingForReport: IntakePlanCoverageDomain[];
+  /** Visible recommended-priority bank ids not yet answered (wizard order); UX hint only. */
+  nextRecommended: string[];
 }

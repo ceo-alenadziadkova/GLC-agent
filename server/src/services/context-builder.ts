@@ -1,6 +1,13 @@
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
-import type { DomainKey, ReconConflict, ReconData } from '../types/audit.js';
+import type {
+  DomainKey,
+  IntakeBriefCollectionMode,
+  IntakeVersionTuple,
+  ProductMode,
+  ReconConflict,
+  ReconData,
+} from '../types/audit.js';
 import { getDomainWeight } from '../config/industry-weights.js';
 import {
   getBriefQuestionText,
@@ -11,16 +18,37 @@ import { calcAiReadinessScore } from '../intake/ai-readiness.js';
 import { DOMAIN_TO_QUESTION_IDS } from '../intake/domain-slice.js';
 import {
   getQuestionBankPromptLabel,
+  getQuestionBankReportUse,
   QUESTION_BANK_V1_IDS,
   responsesUseQuestionBankV1,
 } from '../intake/question-bank.js';
 import { prepareBriefForValidation } from '../intake/prepare-brief-for-validation.js';
+import { getResponseString, isIntakeAnswered } from '../intake/unwrap.js';
 import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
 import { isPrimaryFeedForDomain, isSecondaryFeedForDomain } from '../intake/question-feed-roles.js';
 import type { IntakeSliceDomain } from '../intake/types.js';
+import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
+import { isSupportedIntakeArtifactTuple } from '../intake/core/resolve-intake-artifacts.js';
+import { currentIntakeVersionTuple } from '../intake/core/versions.js';
+import { resolveIntakeSurfaceForPlan } from './brief-validator.js';
 
 function formatCompanyUrlForPrompt(url: string): string {
   return isNoPublicWebsiteUrl(url) ? 'No public website (use intake brief and consultant notes only)' : url;
+}
+
+function computeIntakeReportAnchors(responses: Record<string, unknown>): Record<string, string> | undefined {
+  const out: Record<string, string> = {};
+  for (const id of QUESTION_BANK_V1_IDS) {
+    if (!Object.prototype.hasOwnProperty.call(responses, id)) continue;
+    if (!isIntakeAnswered(responses[id])) continue;
+    const tag = getQuestionBankReportUse(id);
+    if (!tag) continue;
+    const s = getResponseString(responses, id);
+    if (s.length === 0) continue;
+    if (out[tag] !== undefined) continue;
+    out[tag] = s;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 export interface AgentContext {
@@ -47,6 +75,15 @@ export interface AgentContext {
    * Question-bank v1 only: heuristic 0–100 (docs/QUESTION_BANK.md §8). Omitted when no bank ids in responses.
    */
   intake_ai_readiness_score?: number;
+  /**
+   * Canon `reportUse` tag → normalized answer from bank ids (full brief), for prompts that need semantic anchors.
+   */
+  intake_report_anchors?: Record<string, string>;
+  /**
+   * Bank v1: pipeline domains that still have unanswered SLA-visible primary-feed questions.
+   * Omitted when gaps are closed or responses lack bank ids.
+   */
+  intake_missing_report_domains?: string[];
   post_audit_questions: Array<Record<string, unknown>>;
   recon_prefills: Record<string, unknown>;
   recon_conflicts: ReconConflict[];
@@ -133,7 +170,9 @@ export class ContextBuilder {
     // Fetch intake brief — get only questions relevant to this domain
     const { data: brief } = await supabase
       .from('intake_brief')
-      .select('responses, data_quality_score, readiness_badge, post_audit_questions, recon_prefills, recon_conflicts')
+      .select(
+        'responses, data_quality_score, readiness_badge, post_audit_questions, recon_prefills, recon_conflicts, collection_mode, intake_versions, collected_by',
+      )
       .eq('audit_id', auditId)
       .single();
 
@@ -194,6 +233,33 @@ export class ContextBuilder {
       ? calcAiReadinessScore(allResponses).score
       : undefined;
 
+    const intakeReportAnchors = responsesUseQuestionBankV1(allResponses)
+      ? computeIntakeReportAnchors(allResponses)
+      : undefined;
+
+    let intakeMissingReportDomains: string[] | undefined;
+    if (responsesUseQuestionBankV1(allResponses)) {
+      const collectionMode = (brief?.collection_mode as IntakeBriefCollectionMode | undefined) ?? 'self_serve';
+      const collectedBy = brief?.collected_by as 'client' | 'consultant' | undefined;
+      const validationPerspective = collectedBy === 'consultant' ? 'consultant' : 'client';
+      const intakeSurface = resolveIntakeSurfaceForPlan(collectionMode, validationPerspective);
+      const storedTuple = brief?.intake_versions as IntakeVersionTuple | null | undefined;
+      const intakeTuple =
+        storedTuple && isSupportedIntakeArtifactTuple(storedTuple)
+          ? storedTuple
+          : currentIntakeVersionTuple();
+      const intakePlan = buildIntakePlan({
+        responses: allResponses,
+        productMode: productMode as ProductMode,
+        collectionMode,
+        surface: intakeSurface,
+        intakeVersionTuple: intakeTuple,
+      });
+      if (intakePlan.missingForReport.length > 0) {
+        intakeMissingReportDomains = [...intakePlan.missingForReport];
+      }
+    }
+
     return {
       company_url: audit?.company_url ?? '',
       company_name: audit?.company_name ?? recon?.company_name ?? null,
@@ -220,6 +286,8 @@ export class ContextBuilder {
       intake_data_quality_score: Number(brief?.data_quality_score ?? 0),
       intake_readiness_badge: (brief?.readiness_badge as 'low' | 'medium' | 'high') ?? 'low',
       ...(bankAiReadiness !== undefined ? { intake_ai_readiness_score: bankAiReadiness } : {}),
+      ...(intakeReportAnchors ? { intake_report_anchors: intakeReportAnchors } : {}),
+      ...(intakeMissingReportDomains ? { intake_missing_report_domains: intakeMissingReportDomains } : {}),
       post_audit_questions: (brief?.post_audit_questions as Array<Record<string, unknown>>) ?? [],
       recon_prefills: (brief?.recon_prefills as Record<string, unknown>) ?? {},
       recon_conflicts: Array.isArray(brief?.recon_conflicts)
@@ -356,6 +424,17 @@ export class ContextBuilder {
 - **Intake data quality score:** ${ctx.intake_data_quality_score}${
   ctx.intake_ai_readiness_score != null
     ? `\n- **Intake AI readiness (heuristic, question-bank):** ${ctx.intake_ai_readiness_score}/100`
+    : ''
+}${
+  ctx.intake_report_anchors && Object.keys(ctx.intake_report_anchors).length > 0
+    ? `\n- **Intake report anchors (canon):** ${Object.entries(ctx.intake_report_anchors)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+        .join('; ')}`
+    : ''
+}${
+  ctx.intake_missing_report_domains && ctx.intake_missing_report_domains.length > 0
+    ? `\n- **Intake report gaps (domains with unanswered primary bank questions):** ${ctx.intake_missing_report_domains.join(', ')}`
     : ''
 }`);
 

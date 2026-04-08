@@ -2,11 +2,13 @@
  * buildIntakePlan — resolver (canon, policy, optional layout surface).
  */
 import type { IntakeResponsesMap } from '../types.js';
+import { isIntakeNextRecommendedEnabled } from '../../config/intake-flags.js';
 
 import { evaluateCanonEligibility } from './evaluate-canon.js';
 import { applySurfaceLayout } from './evaluate-layout.js';
 import { computeRequiredBankIdsFromPolicy } from './evaluate-policy.js';
 import { computeIntakePlanDerived } from './plan-derived.js';
+import { computeNextRecommended } from './plan-next-recommended.js';
 import { resolveIntakeArtifacts } from './resolve-intake-artifacts.js';
 import { INTAKE_RESOLVER_VERSION } from './versions.js';
 
@@ -169,6 +171,14 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
     stubs,
   });
 
+  const nextRecommended = isIntakeNextRecommendedEnabled()
+    ? computeNextRecommended({
+        visibleOrdered: finalVisible,
+        stubs,
+        responses: r,
+      })
+    : [];
+
   return {
     eligible: eligibleAfterPolicy,
     visible: finalVisible,
@@ -183,6 +193,8 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
     derivedFacts: derived.derivedFacts,
     coverage: derived.coverage,
     confidence: derived.confidence,
+    missingForReport: derived.missingForReport,
+    nextRecommended,
     versions: {
       questionBankVersion: artifacts.questionBankVersion,
       policyVersion: policy.version,

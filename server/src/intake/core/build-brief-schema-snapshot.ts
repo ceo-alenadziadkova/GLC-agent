@@ -39,7 +39,12 @@ export interface BriefSchemaSnapshot {
     ai_readiness_score: number;
     confidence_overall: number;
     website_gate: string;
+    /** Canon `reportUse` → answer snippet when present on visible answered questions. */
+    report_anchors?: Record<string, string>;
   };
+  /** Domains with unanswered in-scope primary bank questions (SLA-visible set). */
+  missing_for_report: string[];
+  next_recommended: string[];
 }
 
 function mapStepPlan(steps: StepPlanEntry[] | null | undefined): BriefSchemaStepRow[] | null {
@@ -101,6 +106,11 @@ export function buildBriefSchemaSnapshot(args: {
       ai_readiness_score: plan.derivedFacts.aiReadinessScore,
       confidence_overall: plan.confidence.overall,
       website_gate: plan.derivedFacts.segmentHints.websiteGate,
+      ...(plan.derivedFacts.reportAnchors && Object.keys(plan.derivedFacts.reportAnchors).length > 0
+        ? { report_anchors: { ...plan.derivedFacts.reportAnchors } }
+        : {}),
     },
+    missing_for_report: [...plan.missingForReport],
+    next_recommended: [...plan.nextRecommended],
   };
 }

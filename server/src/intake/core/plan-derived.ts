@@ -4,11 +4,17 @@
 import { calcAiReadinessScore } from '../ai-readiness.js';
 import { normalizeWebsiteGate } from '../branch-rules.js';
 import { calcDataQualityScoreFromVisible } from '../data-quality.js';
+import { getQuestionBankReportUse } from '../question-bank.js';
 import { SLICE_DOMAIN_ORDER, QUESTION_FEED_ROLES } from '../question-feed-roles.js';
 import type { IntakeQuestionStub, IntakeResponsesMap } from '../types.js';
-import { isIntakeAnswered } from '../unwrap.js';
+import { getResponseString, isIntakeAnswered } from '../unwrap.js';
 
-import type { IntakePlanConfidence, IntakePlanCoverage, IntakePlanDerivedFacts } from './types.js';
+import type {
+  IntakePlanConfidence,
+  IntakePlanCoverage,
+  IntakePlanCoverageDomain,
+  IntakePlanDerivedFacts,
+} from './types.js';
 
 function visibleStubsForPlan(visibleBankIds: string[], stubs: IntakeQuestionStub[]): IntakeQuestionStub[] {
   const order = new Map(visibleBankIds.map((id, i) => [id, i]));
@@ -26,12 +32,14 @@ export function computeIntakePlanDerived(args: {
   derivedFacts: IntakePlanDerivedFacts;
   coverage: IntakePlanCoverage;
   confidence: IntakePlanConfidence;
+  missingForReport: IntakePlanCoverageDomain[];
 } {
   const { responses, slaVisibleBankIds, visibleBankIds, stubs } = args;
   const slaSet = new Set(slaVisibleBankIds);
   const ai = calcAiReadinessScore(responses);
 
   const byDomain: IntakePlanCoverage['byDomain'] = {};
+  const missingForReport: IntakePlanCoverageDomain[] = [];
   for (const domain of SLICE_DOMAIN_ORDER) {
     let total = 0;
     let answered = 0;
@@ -42,6 +50,9 @@ export function computeIntakePlanDerived(args: {
       if (isIntakeAnswered(responses[id])) answered += 1;
     }
     byDomain[domain] = total === 0 ? 1 : answered / total;
+    if (total > 0 && answered < total) {
+      missingForReport.push(domain);
+    }
   }
 
   const visibleStubs = visibleStubsForPlan(visibleBankIds, stubs);
@@ -49,12 +60,24 @@ export function computeIntakePlanDerived(args: {
   const arNorm = ai.score / 100;
   const overall = Math.min(1, Math.max(0, arNorm * 0.45 + dq.score * 0.55));
 
+  const reportAnchors: Record<string, string> = {};
+  for (const id of visibleBankIds) {
+    if (!isIntakeAnswered(responses[id])) continue;
+    const tag = getQuestionBankReportUse(id);
+    if (!tag) continue;
+    const s = getResponseString(responses, id);
+    if (s.length === 0) continue;
+    if (reportAnchors[tag] !== undefined) continue;
+    reportAnchors[tag] = s;
+  }
+
   const derivedFacts: IntakePlanDerivedFacts = {
     aiReadinessScore: ai.score,
     aiReadinessComponents: ai.components,
     segmentHints: {
       websiteGate: normalizeWebsiteGate(responses),
     },
+    ...(Object.keys(reportAnchors).length > 0 ? { reportAnchors } : {}),
   };
 
   const confidence: IntakePlanConfidence = {
@@ -65,5 +88,5 @@ export function computeIntakePlanDerived(args: {
     ],
   };
 
-  return { derivedFacts, coverage: { byDomain }, confidence };
+  return { derivedFacts, coverage: { byDomain }, confidence, missingForReport };
 }

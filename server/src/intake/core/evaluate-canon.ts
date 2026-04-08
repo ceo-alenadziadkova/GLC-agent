@@ -4,6 +4,7 @@
 import { evalBranchCondition } from '../branch-rules.js';
 import type { IntakeQuestionStub, IntakeResponsesMap } from '../types.js';
 
+import { buildBranchAwareStubEvalOrder } from './branch-condition-deps.js';
 import type { QuestionReason } from './types.js';
 
 export interface CanonEligibilityResult {
@@ -33,8 +34,14 @@ export function evaluateCanonEligibility(
     return pass;
   };
 
+  const evalOrder = buildBranchAwareStubEvalOrder(stubs);
+  const passById = new Map<string, boolean>();
+  for (const q of evalOrder) {
+    passById.set(q.id, evalCached(q.branchCondition));
+  }
+
   for (const q of stubs) {
-    const pass = evalCached(q.branchCondition);
+    const pass = passById.get(q.id) ?? evalCached(q.branchCondition);
     if (pass) {
       eligibleIds.push(q.id);
       reasonsById[q.id] = [

@@ -214,7 +214,21 @@ describe('GET /api/audits/:id/brief/schema', () => {
     expect(body.intake_versions).toBeDefined();
     expect(body.derived).toBeDefined();
     expect(typeof (body.derived as Record<string, unknown>).ai_readiness_score).toBe('number');
+    expect(Array.isArray(body.missing_for_report)).toBe(true);
+    expect(Array.isArray(body.next_recommended)).toBe(true);
     expect(body.product_mode).toBe('express');
+  });
+
+  it('includes derived.report_anchors when visible bank answers have reportUse', async () => {
+    setBriefRow({
+      responses: { a2: 'hospitality', a5: 'no_website', a1: 'Boutique stay chain' },
+    });
+    const { status, body } = await getJSON('/api/audits/audit-001/brief/schema');
+    expect(status).toBe(200);
+    const derived = body.derived as Record<string, unknown>;
+    expect(derived.report_anchors).toEqual(
+      expect.objectContaining({ recon_company_summary: 'Boutique stay chain' }),
+    );
   });
 
   it('returns 403 when user has no access', async () => {

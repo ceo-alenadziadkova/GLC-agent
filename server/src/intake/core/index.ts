@@ -1,3 +1,4 @@
+export { computeNextRecommended } from './plan-next-recommended.js';
 export { buildBriefSchemaSnapshot, type BriefSchemaSnapshot } from './build-brief-schema-snapshot.js';
 export { buildIntakePlan } from './build-intake-plan.js';
 export { applyPublicDiscoveryLayout, applySurfaceLayout } from './evaluate-layout.js';
@@ -36,7 +37,9 @@ export type { ParseIntakeVersionsBodyResult } from './intake-version-tuple.js';
 export { validateIntakeVersionsForBriefWrite } from './intake-version-write-validation.js';
 export {
   BRANCH_RULE_RESPONSE_KEYS,
+  buildBranchAwareStubEvalOrder,
   listBranchRuleResponseKeys,
+  providerStubIdsForResponseKey,
 } from './branch-condition-deps.js';
 export { evaluateCanonEligibility } from './evaluate-canon.js';
 export { computeRequiredBankIdsFromPolicy } from './evaluate-policy.js';

@@ -108,13 +108,14 @@ Minimum:
 - `reasonsById` / `debugTrace`
 - `versions`: `{ questionBankVersion, policyVersion, layoutVersion, resolverVersion }` echoing what was used to build the plan
 
-**Derived outputs (formal contract — backlog, to implement):** the resolver is a **knowledge-input layer**, not only a form driver. The following are **scheduled work** (extend `IntakePlan` in `server/src/intake/core/types.ts` and populate from resolver or a thin post-pass; start with empty objects / neutral defaults and tests):
+**Derived outputs (implemented v1):** the resolver is a **knowledge-input layer**, not only a form driver. On every `IntakePlan`:
 
-- `derivedFacts` — normalized signals computed from answers (e.g. segment flags, coarse maturity hints)
-- `coverage` — which domains / report dimensions have minimum input
-- `confidence` — heuristic strength of triage or pre-report conclusions
+- `derivedFacts` — signals from answers (AI readiness, segment hints, optional `reportAnchors`)
+- `coverage.byDomain` — share of SLA-visible primary-feed bank questions answered per slice
+- `confidence` — heuristic blend of readiness + visible data quality
+- `missingForReport` — domain keys where that slice still has unanswered in-scope primary questions (`missing_for_report` on `GET .../brief/schema`)
 
-Related fields on the same backlog: `missingForReport`, `nextRecommended` (adaptive UX). They belong to the **documented** evolution of `IntakePlan` so the core does not need redesign; **they are not deferred indefinitely** — see Phase **B** and **F** in the backlog below.
+**`nextRecommended`** remains **partial** — Phase **F** in the matrix.
 
 The mental model shifts from “which questions are visible?” to **“what data-collection plan does this context need?”**
 
@@ -126,7 +127,7 @@ Before replacing production gates with the new resolver, the implementation must
 
 These items were described as directional; they are **on the execution roadmap** (see Phase **C** and **D** below).
 
-- **Compile** canon + policy into an internal **DAG** (or explicit dependency index) at build or startup; evaluate visibility in topological or dependency order without re-walking raw JSON on every event.
+- **Compile** canon + policy into an internal **DAG** (or explicit dependency index) at build or startup; evaluate visibility in topological or dependency order without re-walking raw JSON on every event (**stub-level topo order for branch eval is implemented** in `buildBranchAwareStubEvalOrder`; startup DAG precompute still backlog).
 - **Incremental recompute**: on answer change, track `dirtyIds` and re-evaluate only questions whose branch deps or policy deps are affected (**reverse-edge** invalidation); cache unchanged regions of the plan where safe.
 - **Client**: already shares `intake-core` where imported; continue to prefer thin mirrors (`pre-brief-bank-included.json`, `express-policy-ids`) and **reduce** remaining duplicate copy (Phase **A**).
 - **API**: compact **`brief-schema`** (or equivalent) snapshot for a product / version tuple — **scheduled** (Phase **D**); payloads remain `{ id, value, ... }` plus stored version metadata.
@@ -163,9 +164,9 @@ These patterns are known to reintroduce duplication and unexplained diffs; code 
 
 **Phase 6** — Introduce `layout-rules` without changing canon semantics. **Done** in repo (`layout-rules.v1.json`); further surface expansion remains ordinary product work.
 
-### Optional metadata on canon (backlog — Phase E)
+### Optional metadata on canon (Phase E — partial)
 
-Strong candidates **to add** on **canon** over time: `reportUse`, `confidenceImpact`, `sensitivity`, `askOnce`, `answerFreshnessDays`, `owner`, `introducedInVersion`, `deprecatedAt`. Implement as the derived-layer and reporting needs firm up; lint/schema must accept unknown keys until each is adopted.
+Strong candidates on **canon** over time: `reportUse` (**shipped for selected ids** + linter whitelist), plus `confidenceImpact`, `sensitivity`, `askOnce`, `answerFreshnessDays`, `owner`, `introducedInVersion`, `deprecatedAt`. Add remaining keys as derived-layer and reporting needs firm up; unknown keys stay lint-guarded via the canon key whitelist in `lint-bank-policy.ts`.
 
 ## Consequences
 
@@ -194,20 +195,36 @@ The **architectural decision** (four layers + `buildIntakePlan` + version tuple)
 - **Internal tooling (Phase F):** “Question Bank Studio” (visual tree, policy preview), fixture lab, **interactive trace viewer** (extends Phase 2b CLI).
 - **Adaptive questioning (Phase F, after `nextRecommended` on plan):** `nextRecommended` driven by simple heuristics on top of the same `IntakePlan` pipeline, without changing the four-layer split.
 
+## Implementation coverage matrix (A–G)
+
+Normative checklist from the phased backlog. **Partial** = MVP / v1 shipped, known gaps remain. **Not started** = no production code yet.
+
+| ID | Intent | Status | Evidence / drift tests | Known gap |
+| -- | ------ | ------ | ------------------------ | --------- |
+| **A** | Single source for Discovery + legacy brief; catalog / API / anti-drift | **Partial** | Legacy brief: SPA re-exports `server/src/schemas/intake-brief.ts` — `src/app/data/brief-spa-parity.test.ts` (same array refs + identity ids + required set). Discovery: `makeDiscoveryQuestion` + `DISCOVERY_WIZARD_BANK_IDS`; `src/app/lib/discovery-flow.test.ts` (wizard ids ⊆ policy). Bank wizard UI: `src/app/data/bank-question-ui-catalog-parity.test.ts` (every `QUESTION_BANK_V1_STUBS` id resolves via `bankQuestionUiCatalog`). | Discovery **options** still defined in `discovery-flow.ts` (public UX). No **server-driven discovery copy** fragment. `bankQuestionUiCatalog` hand-maintained, not generated. SPA pulls **Zod** via `intake-brief` import (bundle cost). |
+| **A2** | Internal trace ≡ `intake-plan-debug` | **Done (v1)** | `/admin/intake-trace` (`IntakeTraceTool.tsx`); CLI `server/scripts/intake-plan-debug.ts` | Plain text output; not structured / filterable “viewer”. |
+| **B** | `derivedFacts`, `coverage`, `confidence` + gaps on `IntakePlan` | **Done (v1)** | Same + `missingForReport` / `missing_for_report`; agent prompts: `intake_missing_report_domains` via `ContextBuilder` + `buildIntakePlan` (`collected_by` surface); trace summary strip in `IntakeTraceTool.tsx`. | Richer `segmentHints` optional follow-on. |
+| **C** | Fewer redundant branch evals / dependency awareness | **Partial (v1.1)** | Predicate cache + **`buildBranchAwareStubEvalOrder`** (topo order on `BRANCH_RULE_RESPONSE_KEYS` / provider stub ids) in `evaluateCanonEligibility`; `branch-condition-deps.ts` + `branch-condition-deps.test.ts` | No precompiled DAG at startup; still one full pass per plan build (order is now dependency-aware). **C2** incremental recompute not started. |
+| **C2** | Incremental recompute on answer change | **Not started** | — | Use `BRANCH_RULE_RESPONSE_KEYS` + dirty set when benchmarks justify. |
+| **D** | Compact `brief-schema` API | **Done (v1)** | `GET /api/audits/:id/brief/schema`, `build-brief-schema-snapshot.ts`, `brief-route.test.ts`, `brief-profile-platform.ts#getBriefSchema` | Option lists for UI remain client-side until v2. |
+| **E** | Optional canon metadata + linter | **Partial (v1)** | `reportUse` on `RawQuestion` + `question-bank.v1.json` (`a1`, `f1`); `REPORT_USE_BY_ID` / `getQuestionBankReportUse`; `lintCanonQuestionMetadataKeys` + `CANON_QUESTION_JSON_KEYS` in `lint-bank-policy.ts`; `server/src/tests/question-bank-report-use.test.ts`. Derived `reportAnchors` + `GET .../brief/schema` `derived.report_anchors`; agent prompt line via `intake_report_anchors` (`context-builder.ts`). | Not all stubs tagged; optional keys (`confidenceImpact`, etc.) still unpicked. |
+| **F** | Interactive trace viewer + `nextRecommended` (flag) | **Partial (v1.2)** | **`Question trace`**: filters + reset / expand-all (visible list) / collapse-all; `@tanstack/react-virtual` when ≥20 rows; **Branch dependencies** panel (static upstream/downstream from `BRANCH_RULE_RESPONSE_KEYS` + `QUESTION_BANK_V1_STUBS`); row action **Branch links** scrolls to panel (`intake-trace-branch-links.ts`). | `nextRecommended` flag-gated; graph is list edges, not canvas. |
+| **G** | Intake analytics + A/B by version tuple | **Not started** | — | Event schema + ingestion keyed by `intake_versions`. |
+
 ## Phased implementation backlog (post-MVP tranche)
 
 Order is **recommended** dependencies first; parallelize within a phase where safe.
 
 | Phase | Theme | Outcomes / exit criteria |
 | ----- | ----- | ------------------------- |
-| **A** | **Client presentation dedup** | **In progress:** Discovery — `makeDiscoveryQuestion` + bank labels + `DISCOVERY_WIZARD_BANK_IDS` + policy sync test. **Legacy brief:** `src/app/data/briefQuestions.ts` re-exports enriched `BRIEF_QUESTIONS` / identity rows from `server/src/schemas/intake-brief.ts` (no duplicate BASE arrays); `intakeIdentityFieldIds.ts` re-exports `INTAKE_IDENTITY_FIELD_IDS` from the same module. **Remaining:** trim bundle (Zod pulled with schema) if needed; optional server-driven Discovery copy. |
+| **A** | **Client presentation dedup** | **Partial — see coverage matrix.** Drift tests: `brief-spa-parity.test.ts`, `bank-question-ui-catalog-parity.test.ts`, Discovery policy test in `discovery-flow.test.ts`. |
 | **A2** | **Phase 2b completion** | **Done (v1):** consultant route `/admin/intake-trace` (`IntakeTraceTool.tsx`) runs `buildIntakePlan` + `formatPlanTrace` on pasted JSON — parity with `server/scripts/intake-plan-debug.ts`. |
-| **B** | **`IntakePlan` derived layer v1** | **Done (v1):** `derivedFacts`, `coverage`, `confidence` on every plan (`plan-derived.ts`); tests in `build-intake-plan.test.ts`; documented in [QUESTION_BANK.md](./QUESTION_BANK.md). Extend with `missingForReport` / richer facts as needed. |
-| **C** | **Resolver performance v1** | **Done (v1):** `evaluateCanonEligibility` caches predicate results per unique `branchCondition` per plan build. **`BRANCH_RULE_RESPONSE_KEYS`** (`branch-condition-deps.ts`) documents response-key deps for each `BRANCH_RULES` entry; tests require deps map ↔ rules parity. **Next:** topological stub order or incremental invalidation (C2) if profiling warrants it. |
+| **B** | **`IntakePlan` derived layer v1** | **Done (v1):** `derivedFacts`, `coverage`, `confidence`, `missingForReport` on every plan; compact schema field `missing_for_report`. Extend with richer `segmentHints` as needed. |
+| **C** | **Resolver performance v1** | **Partial (v1.1) — see coverage matrix.** Predicate cache + **`buildBranchAwareStubEvalOrder`** + tests. Precompiled DAG / incremental stub eval per event still out of scope until benchmarks warrant it. |
 | **C2** | **Incremental recompute (optional)** | On answer updates in wizard hooks, invalidate by reverse edges; benchmark before/after on large banks — ship only if win is clear. |
 | **D** | **`brief-schema` API** | **Done (v1):** `GET /api/audits/:id/brief/schema` — plan sets + `questions[]` (bank label/section/priority per visible id) + `derived` summary; same auth/surface tuple rules as `GET .../brief`. Options/refs for UI remain client-side until a v2 extension. |
-| **E** | **Canon metadata** | Add agreed subset of optional canon fields; extend linter; wire into `derivedFacts` / agent context where useful. |
-| **F** | **Trace viewer + adaptive stub** | Interactive trace UI (builds on A2); implement `nextRecommended` as plan field + simple heuristic behind feature flag. |
+| **E** | **Canon metadata** | **Partial (v1):** `reportUse` + linter whitelist; extend with more keys and agent wiring as needed. |
+| **F** | **Trace viewer + adaptive stub** | **Partial (v1.2):** Question trace + branch link panel + virtual list + Plan JSON; optional: canvas graph, Question Bank Studio. |
 | **G** | **Analytics** | Instrument intake surfaces with versioned events; dashboards or exports; A/B hooks keyed by policy/layout tuple. |
 
 **Tech-debt hygiene (ongoing):** any new surface must call `buildIntakePlan` (or shared selectors); no new parallel id lists without policy/lint coverage.
@@ -222,5 +239,5 @@ Order is **recommended** dependencies first; parallelize within a phase where sa
 - `server/src/intake/core/build-intake-plan.ts`, `server/src/intake/core/evaluate-canon.ts`, `server/src/intake/core/evaluate-policy.ts`, `server/src/intake/core/evaluate-layout.ts`, `server/src/intake/core/load-policy.ts`, `server/src/intake/intake-policy.v1.json`, `server/src/intake/layout-rules.v1.json`
 - `server/src/intake/branch-rules.ts`, `server/src/intake/is-visible.ts`, `server/src/intake/discovery.ts` (thin export of policy discovery set), `server/src/intake/brief-gates.ts`
 - `server/src/services/brief-validator.ts` (persisted brief validation; version tuple + surface alignment on save and `assertBriefReady`)
-- `src/app/lib/discovery-flow.ts` (to be reduced to policy/layout consumers over time)
+- `src/app/lib/discovery-flow.ts` (public copy/options still local; ids guarded by policy + bank tests)
 

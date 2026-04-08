@@ -5,9 +5,10 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
+import { QUESTION_BANK_V1_STUBS } from '../intake/question-bank.js';
 import { INTAKE_PLAN_FIXTURES } from './fixtures/intake-plan-fixtures.js';
 import { type IntakePlanSnapshotPayload, computeIntakePlanSnapshotShim } from './intake-plan-shim.js';
 
@@ -66,6 +67,58 @@ describe('buildIntakePlan', () => {
     expect(plan.versions.questionBankVersion).toBe('1.0.0');
     expect(plan.versions.resolverVersion).toBe('1.1.0');
     expect(plan.versions.layoutVersion).toBe('1.1.0');
+  });
+
+  it('includes nextRecommended — visible recommended stubs unanswered first', () => {
+    const plan = buildIntakePlan({
+      responses: { a2: 'hospitality', a5: 'no_website' },
+      productMode: 'full',
+      collectionMode: 'self_serve',
+    });
+    const pri = new Map(QUESTION_BANK_V1_STUBS.map(s => [s.id, s.priority]));
+    for (const id of plan.nextRecommended) {
+      expect(pri.get(id)).toBe('recommended');
+      expect(plan.visible).toContain(id);
+    }
+  });
+
+  it('omits nextRecommended when INTAKE_NEXT_RECOMMENDED_ENABLED is off', () => {
+    vi.stubEnv('INTAKE_NEXT_RECOMMENDED_ENABLED', '0');
+    try {
+      const plan = buildIntakePlan({
+        responses: { a2: 'hospitality', a5: 'no_website' },
+        productMode: 'full',
+        collectionMode: 'self_serve',
+      });
+      expect(plan.nextRecommended).toEqual([]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('derivedFacts.reportAnchors maps canon reportUse for visible answered bank ids', () => {
+    const plan = buildIntakePlan({
+      responses: { a2: 'hospitality', a5: 'no_website', a1: 'Boutique stay chain' },
+      productMode: 'full',
+      collectionMode: 'self_serve',
+    });
+    expect(plan.visible).toContain('a1');
+    expect(plan.derivedFacts.reportAnchors?.recon_company_summary).toBe('Boutique stay chain');
+  });
+
+  it('missingForReport lists domains with unanswered SLA-visible primary-feed questions', () => {
+    const plan = buildIntakePlan({
+      responses: { a2: 'hospitality', a5: 'no_website' },
+      productMode: 'full',
+      collectionMode: 'self_serve',
+    });
+    expect(plan.missingForReport.length).toBeGreaterThan(0);
+    expect(plan.missingForReport).toContain('recon');
+    for (const d of plan.missingForReport) {
+      const r = plan.coverage.byDomain[d];
+      expect(r).toBeDefined();
+      expect(r!).toBeLessThan(1);
+    }
   });
 
   it('includes derivedFacts, coverage, and confidence', () => {

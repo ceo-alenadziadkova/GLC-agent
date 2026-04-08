@@ -15,6 +15,8 @@ interface RawQuestion {
   branch?: string;
   /** Short English label for agent prompts (docs/QUESTION_BANK.md). */
   label?: string;
+  /** Optional: how this answer feeds reporting / strategy (ADR Phase E). */
+  reportUse?: string;
 }
 
 const rawTyped = raw as { version: string; questions: RawQuestion[] };
@@ -37,8 +39,12 @@ export const DOMAIN_TO_QUESTION_IDS: Record<IntakeSliceDomain, string[]> = build
 );
 
 const PROMPT_LABEL_BY_ID = new Map<string, string>();
+const REPORT_USE_BY_ID = new Map<string, string>();
 for (const q of rawTyped.questions) {
   if (q.label && q.label.length > 0) PROMPT_LABEL_BY_ID.set(q.id, q.label);
+  if (typeof q.reportUse === 'string' && q.reportUse.trim().length > 0) {
+    REPORT_USE_BY_ID.set(q.id, q.reportUse.trim());
+  }
 }
 
 export interface QuestionBankSchemaMeta {
@@ -64,6 +70,11 @@ export function getQuestionBankPromptLabel(id: string): string | undefined {
 /** Canon label + section + priority for API schema snapshots (`GET .../brief/schema`). */
 export function getQuestionBankSchemaMeta(id: string): QuestionBankSchemaMeta | undefined {
   return SCHEMA_META_BY_ID.get(id);
+}
+
+/** Optional reporting hint from canon (`reportUse`); undefined when not set. */
+export function getQuestionBankReportUse(id: string): string | undefined {
+  return REPORT_USE_BY_ID.get(id);
 }
 
 export const QUESTION_BANK_V1_IDS = new Set(QUESTION_BANK_V1_STUBS.map(q => q.id));

@@ -50,6 +50,21 @@ export function formatPlanTrace(plan: IntakePlan, meta?: FormatTraceMeta): strin
   if (plan.confidence.rationale?.length) {
     parts.push(`confidence.rationale: ${plan.confidence.rationale.join(' | ')}`);
   }
+  if (plan.missingForReport.length > 0) {
+    parts.push(`missingForReport: ${plan.missingForReport.join(', ')}`);
+  }
+  if (plan.derivedFacts.reportAnchors && Object.keys(plan.derivedFacts.reportAnchors).length > 0) {
+    const ra = plan.derivedFacts.reportAnchors;
+    parts.push(
+      `reportAnchors: ${Object.keys(ra)
+        .sort()
+        .map(k => `${k}=${JSON.stringify(ra[k])}`)
+        .join('; ')}`,
+    );
+  }
+  if (plan.nextRecommended.length > 0) {
+    parts.push(`nextRecommended: ${lines(plan.nextRecommended, 40)}`);
+  }
 
   if (plan.debugTrace && plan.debugTrace.length > 0) {
     parts.push('--- debug trace ---');

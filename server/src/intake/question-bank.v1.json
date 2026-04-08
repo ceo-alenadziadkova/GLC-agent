@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "questions": [
-    { "id": "a1", "section": "A", "priority": "required", "label": "Business description (one sentence)" },
+    { "id": "a1", "section": "A", "priority": "required", "label": "Business description (one sentence)", "reportUse": "recon_company_summary" },
     { "id": "a2", "section": "A", "priority": "required", "label": "Industry" },
     { "id": "a3", "section": "A", "priority": "required", "label": "Business location" },
     { "id": "a4", "section": "A", "priority": "recommended", "label": "Team size" },
@@ -62,7 +62,7 @@
     { "id": "e2", "section": "E", "priority": "recommended", "label": "EU operations or customers" },
     { "id": "e3", "section": "E", "priority": "recommended", "label": "GDPR setup confidence" },
     { "id": "e4", "section": "E", "priority": "optional", "branch": "spain_based", "label": "E-invoicing / Verifactu" },
-    { "id": "f1", "section": "F", "priority": "required", "label": "Main business problem to solve" },
+    { "id": "f1", "section": "F", "priority": "required", "label": "Main business problem to solve", "reportUse": "strategy_pain_anchor" },
     { "id": "f2", "section": "F", "priority": "required", "label": "Audit focus areas" },
     { "id": "f3", "section": "F", "priority": "recommended", "label": "Digital setup self-rating (1–5)" },
     { "id": "f4", "section": "F", "priority": "recommended", "label": "Readiness to implement changes" },

@@ -309,8 +309,62 @@ export function lintPreBriefBankIncludedJsonMatchesPolicy(
   return findings;
 }
 
+const CANON_QUESTION_JSON_KEYS = new Set([
+  'id',
+  'section',
+  'priority',
+  'branch',
+  'label',
+  'reportUse',
+]);
+
+/**
+ * question-bank.v1.json: only known keys per question row; validates optional `reportUse` shape.
+ */
+export function lintCanonQuestionMetadataKeys(
+  bankPath: string = join(CORE_DIR, '..', 'question-bank.v1.json'),
+): LintFinding[] {
+  const findings: LintFinding[] = [];
+  try {
+    const raw = JSON.parse(readFileSync(bankPath, 'utf8')) as {
+      questions?: Array<Record<string, unknown>>;
+    };
+    const rows = raw.questions ?? [];
+    for (const q of rows) {
+      const id = typeof q.id === 'string' ? q.id : '?';
+      for (const key of Object.keys(q)) {
+        if (!CANON_QUESTION_JSON_KEYS.has(key)) {
+          findings.push({
+            code: 'CANON_UNKNOWN_QUESTION_KEY',
+            severity: 'error',
+            message: `question-bank.v1.json question "${id}" has unknown key "${key}" (extend CANON_QUESTION_JSON_KEYS in lint-bank-policy if intentional).`,
+            detail: id,
+          });
+        }
+      }
+      const ru = q.reportUse;
+      if (ru !== undefined && (typeof ru !== 'string' || ru.trim() === '')) {
+        findings.push({
+          code: 'CANON_INVALID_REPORT_USE',
+          severity: 'error',
+          message: `question "${id}" reportUse must be a non-empty string when present.`,
+          detail: id,
+        });
+      }
+    }
+  } catch (e) {
+    findings.push({
+      code: 'CANON_BANK_JSON_READ',
+      severity: 'error',
+      message: `Could not lint question-bank.v1.json: ${(e as Error).message}`,
+    });
+  }
+  return findings;
+}
+
 export function lintBankAndPolicyAll(): LintFinding[] {
   return [
+    ...lintCanonQuestionMetadataKeys(),
     ...lintUnknownBranchRefs(),
     ...lintMissingPolicyCoverage(),
     ...lintOrphanPolicyDiscoveryIds(),

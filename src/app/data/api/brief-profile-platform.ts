@@ -22,7 +22,10 @@ export type BriefSchemaSnapshot = {
     ai_readiness_score: number;
     confidence_overall: number;
     website_gate: string;
+    report_anchors?: Record<string, string>;
   };
+  missing_for_report: string[];
+  next_recommended: string[];
 };
 
 export const briefProfilePlatformApi = {
