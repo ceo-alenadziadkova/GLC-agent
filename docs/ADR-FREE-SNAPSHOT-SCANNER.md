@@ -331,13 +331,13 @@ Free graders are **wrong often**; the product should **invite verification**, no
 
 ## Snapshot auth — wow first, then sign-up
 
-**Goal:** Visitors see results **without** a registration wall. **`SnapshotLanding`** calls **`ensureSnapshotSession()`** (existing session or **`signInAnonymously()`**). **`POST /api/snapshot`** always sends a JWT. **Supabase:** enable **Anonymous sign-ins**.
+**Goal:** Visitors see results **without** a registration wall. **`POST /api/snapshot`** is public: **httpOnly** **`glc_snapshot_guest`** cookie + **`snapshot_guest_sessions`** funnel row; audit starts with **`client_id = null`**. **`POST /api/snapshot/claim`** (JWT) attaches the audit after sign-in. **Supabase Anonymous sign-ins** are optional (legacy only).
 
-**Server:** `POST /api/snapshot` uses **`requireAuth` + `attachProfile`**. Anonymous users get **`profiles.role = 'guest'`** until **`attachProfile`** promotes them after a non-anonymous session. **`GET /api/snapshot/:token`** and **`GET /quota`** stay public.
+**Server:** `POST /api/snapshot` does **not** use `requireAuth`. **`GET /api/snapshot/:token`** and **`GET /quota`** stay public.
 
-**Frontend:** Subscribes to **`onAuthStateChange`** and re-runs **`ensureSnapshotSession()`** when needed (e.g. after sign-out). If anonymous is disabled server-side, the UI shows an error and links to **`/login?next=/snapshot`**.
+**Frontend:** **`SnapshotLanding`** uses **`fetch(..., { credentials: 'include' })`** and stores **`glc_pending_snapshot_token`** for **`/login`** → **`claim`**.
 
-**Upgrade:** **`useAuth.signInWithGoogle`** uses **`linkIdentity`** when the session is anonymous so **`user.id`** is preserved. **`Login`** shows a short hint for anonymous visitors. Email/password does not merge the same anonymous `user.id` by default — product copy steers upgraders to Google for continuity.
+**Upgrade:** Prefer **claim** over **`linkIdentity`** for snapshot saves; optional **`linkIdentity`** remains for narrow flows.
 
 ---
 

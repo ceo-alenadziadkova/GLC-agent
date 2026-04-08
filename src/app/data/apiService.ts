@@ -289,6 +289,29 @@ async function publicApiFetch<T>(path: string, options: RequestInit = {}): Promi
   return response.json();
 }
 
+/**
+ * Public snapshot API — guest httpOnly cookie, trace headers, optional JSON body.
+ * Returns the raw Response (status, RateLimit-*, body) for snapshot-specific error handling.
+ */
+export async function snapshotPublicRequest(path: string, options: RequestInit = {}): Promise<Response> {
+  const timeoutSignal = AbortSignal.timeout(30_000);
+  const signal = options.signal
+    ? AbortSignal.any([options.signal as AbortSignal, timeoutSignal])
+    : timeoutSignal;
+  const hasBody = options.body != null;
+  return fetch(`${API_URL}${path}`, {
+    ...options,
+    signal,
+    credentials: options.credentials ?? 'include',
+    headers: {
+      ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+      traceparent: createTraceparent(),
+      'x-operation-id': crypto.randomUUID(),
+      ...options.headers,
+    },
+  });
+}
+
 // ─── API Service ───────────────────────────────────────────
 
 export const api = {
@@ -783,6 +806,18 @@ export const api = {
   },
 
   /** Public: marketing site short brief (no auth). */
+  /** After login, attach a public free_snapshot audit to the current user (`audits.client_id`). */
+  async claimSnapshot(snapshotToken: string) {
+    return apiFetch<{
+      ok: boolean;
+      audit_id: string;
+      already_claimed: boolean;
+    }>('/api/snapshot/claim', {
+      method: 'POST',
+      body: JSON.stringify({ snapshot_token: snapshotToken }),
+    });
+  },
+
   async submitMarketingBrief(body: {
     name: string;
     company?: string;

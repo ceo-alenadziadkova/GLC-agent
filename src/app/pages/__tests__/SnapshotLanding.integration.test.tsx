@@ -4,7 +4,6 @@ import { MemoryRouter } from 'react-router';
 import { SnapshotLanding } from '../SnapshotLanding';
 
 vi.mock('../../lib/snapshot-auth', () => ({
-  ensureSnapshotSession: vi.fn().mockResolvedValue('test-bearer-token'),
   getSnapshotAccessToken: vi.fn().mockResolvedValue('test-bearer-token'),
   isAnonymousUser: vi.fn(() => false),
 }));
@@ -47,7 +46,7 @@ describe('SnapshotLanding integration', () => {
         return jsonResponse({ remaining: 9, limit: 10 });
       }
       if (u.includes('/api/snapshot') && !u.match(/\/api\/snapshot\/[^/?]+/)) {
-        return jsonResponse({ snapshot_token: 'snap-int-1' });
+        return jsonResponse({ snapshot_token: 'snap-int-1', status: 'running' }, true, undefined, 202);
       }
       if (u.includes('/api/snapshot/snap-int-1')) {
         return jsonResponse({

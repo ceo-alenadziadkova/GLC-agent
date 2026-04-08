@@ -196,9 +196,14 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 
 ### `Login.tsx`
 - **Sign in** / **Create account** tabs → `signInWithPassword` / `signUp` (see `useAuth`)
-- Google OAuth → **`signInWithOAuth`**, or **`linkIdentity`** when the current user is anonymous (free snapshot upgrade path) — `redirectTo: <origin>/login`
-- Anonymous snapshot sessions see a hint to prefer **Continue with Google** so `user.id` stays stable when upgrading
-- If already authenticated (`useAuth().isAuthenticated`) → redirect to `/portfolio`
+- Google OAuth on `/login` → **`signInWithOAuth`** (`redirectTo: <origin>/login`); optional **`preserveGuestSession`** on `signInWithGoogle` for legacy **`linkIdentity`** flows only
+- After a full (non-anonymous) session is established, if **`glc_pending_snapshot_token`** is set, calls **`api.claimSnapshot`** then clears it (or clears on **404/409/410**)
+- If already authenticated (`useAuth().isAuthenticated`) → redirect to `/portfolio` (or `?next=` / discovery), after the claim step above
+
+### `/snapshot` (`SnapshotLanding.tsx`)
+- **`POST /api/snapshot`** with **`credentials: 'include'`** (no `Authorization` header); stores **`glc_pending_snapshot_token`** when a run starts
+- Polls **`GET /api/snapshot/:token`** with **`credentials: 'include'`**
+- Signed-in users see workspace link; guests see **Sign in** to save results via claim
 - Glassmorphism card, gradient button, GLC logo
 
 ### `SettingsPage.tsx`
@@ -312,7 +317,7 @@ const { audits, loading, error } = useAudits();
 ### Server data caching (overview)
 - **Query keys** live in `src/app/lib/glc-keys.ts`. **Targeted invalidation** after pipeline steps / brief saves: `invalidateAuditRelatedQueries` in `glc-invalidate-queries.ts` (audit + brief payloads).
 - **Admin Request queue** and **Discovery sessions** use a longer stale window (5 minutes).
-- **Window focus:** `refetchOnWindowFocus` is off in `glc-query-client.ts` so switching browser tabs does not trigger a blanket refetch and loading flashes; reconnect refetch stays on. Use per-page refresh / invalidation when fresh data is required.
+- **Window focus:** `refetchOnWindowFocus` is off in `glc-query-client.ts` so switching browser tabs does not trigger a blanket refetch; reconnect refetch stays on. **ProtectedRoute** blocks role-gated pages only while `profileLoading && !profile` (first load). **useProfile** treats repeat `SIGNED_IN` for the same user as a background refresh so the shell is not unmounted and local hooks (e.g. pipeline state) are not reset. Use per-page refresh / invalidation when fresh data is required.
 - **Admin Snapshot queue** uses a short stale window (3 minutes) and supports manual refresh.
 
 ---

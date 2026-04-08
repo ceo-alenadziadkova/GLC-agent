@@ -3,9 +3,19 @@ import { useNavigate, useSearchParams, Link } from 'react-router';
 import type { BriefResponseSource } from '../data/auditTypes';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Globe, ArrowRight, ArrowLeft, MagnifyingGlass, HardDrives, Shield,
-  Cursor, Target, Lightning, MapTrifold, CheckCircle, Warning,
-  ClipboardText, Rocket, Circle, Copy, X, FloppyDisk, Spinner,
+  Globe,
+  ArrowRight,
+  ArrowLeft,
+  Lightning,
+  CheckCircle,
+  Warning,
+  ClipboardText,
+  Rocket,
+  Circle,
+  Copy,
+  X,
+  FloppyDisk,
+  Spinner,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { SectionLabel } from '../components/glc/SectionLabel';
@@ -30,6 +40,21 @@ import {
   CLIENT_BRIEF_LAYOUT_DEFAULT_KEY,
   clientBriefLayoutStorageKey,
 } from '../lib/client-brief-layout-preference';
+import {
+  clearClientPortalNewAuditDraft,
+  readClientPortalNewAuditDraft,
+  writeClientPortalNewAuditDraft,
+  type ClientPortalNewAuditDraftV1,
+} from '../lib/client-portal-new-audit-draft';
+import {
+  buildStep0IntakePatch,
+  defaultConsultantDisplayName,
+  isSelfServeOwnerConfigApiError,
+  NEXT_ACTION_TEXT,
+  unwrapBriefString,
+  websiteAnswerToAuditUrl,
+} from '../lib/new-audit-helpers';
+import { DOMAIN_PILLS, StepIndicator } from './new-audit';
 import { api, ApiError } from '../data/apiService';
 import { getGlcQueryClient } from '../lib/glc-query-client';
 import { invalidateAuditRelatedQueries, invalidateAuditsListsAndDashboard } from '../lib/glc-invalidate-queries';
@@ -43,238 +68,6 @@ import {
   type BriefResponseEntry,
   type BriefResponses,
 } from '../data/briefQuestions';
-
-// ── Step indicator ────────────────────────────────────────────────────────────
-
-const STEPS = [
-  { label: 'Basics',  icon: Globe },
-  { label: 'Brief',   icon: ClipboardText },
-  { label: 'Launch',  icon: Rocket },
-];
-
-function StepIndicator({ current }: { current: number }) {
-  return (
-    <div className="flex items-center gap-0.5 mobile:gap-0 mb-6 mobile:mb-5 sm:mb-8 justify-center px-1">
-      {STEPS.map((s, i) => {
-        const done = i < current;
-        const active = i === current;
-        return (
-          <div key={s.label} className="flex items-center gap-0.5 mobile:gap-0">
-            <div className="flex flex-col items-center gap-1">
-              <div
-                className="w-8 h-8 mobile:w-7 mobile:h-7 rounded-full flex items-center justify-center"
-                style={{
-                  background: done
-                    ? 'var(--score-5-bg)'
-                    : active
-                      ? 'var(--gradient-brand)'
-                      : 'var(--bg-muted)',
-                  border: done
-                    ? '1px solid var(--score-5-border)'
-                    : active
-                      ? 'none'
-                      : '1px solid var(--border-subtle)',
-                  boxShadow: active ? '0 0 12px rgba(28,189,255,0.30)' : 'none',
-                }}
-              >
-                {done
-                  ? <CheckCircle weight="fill" className="w-4 h-4" style={{ color: 'var(--score-5)' }} />
-                  : <s.icon className="w-4 h-4" style={{ color: active ? 'var(--primary-foreground)' : 'var(--text-tertiary)' }} />}
-              </div>
-              <span
-                style={{
-                  fontSize: '10px',
-                  color: active ? 'var(--text-blue)' : 'var(--text-tertiary)',
-                  letterSpacing: '0.04em',
-                  fontWeight: active ? 600 : 400,
-                }}
-              >
-                {s.label}
-              </span>
-            </div>
-            {i < STEPS.length - 1 && (
-              <div
-                className="w-6 mobile:w-4 sm:w-10 h-px mb-4 mobile:mb-3.5"
-                style={{ background: i < current ? 'var(--score-5)' : 'var(--border-default)' }}
-              />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ── Domain pills (Step 1) ─────────────────────────────────────────────────────
-
-const DOMAIN_PILLS = [
-  { icon: MagnifyingGlass, label: 'Recon',      color: 'var(--glc-blue)'      },
-  { icon: HardDrives,      label: 'Tech',        color: '#8B5CF6'              },
-  { icon: Shield,          label: 'Security',    color: 'var(--score-1)'       },
-  { icon: Globe,           label: 'SEO',         color: 'var(--glc-green)'     },
-  { icon: Cursor,          label: 'UX',          color: 'var(--score-3)'       },
-  { icon: Target,          label: 'Marketing',   color: 'var(--glc-orange)'    },
-  { icon: Lightning,       label: 'Automation',  color: 'var(--glc-blue-dark)' },
-  { icon: MapTrifold,      label: 'Strategy',    color: 'var(--glc-green-dark)'},
-];
-
-const NEXT_ACTION_TEXT: Record<string, string> = {
-  complete_required: 'Complete required fields to start the audit.',
-  add_recommended: 'Add a few recommended details to improve audit quality.',
-  confirm_prefill: 'Confirm auto-detected prefill data before launch.',
-  none: 'Your intake is ready.',
-};
-
-// ── Main component ────────────────────────────────────────────────────────────
-
-function unwrapBriefString(responses: BriefResponses, id: string): string | undefined {
-  const raw = responses[id];
-  if (raw == null) return undefined;
-  const v =
-    typeof raw === 'object' && !Array.isArray(raw) && 'value' in raw
-      ? (raw as BriefResponseEntry).value
-      : raw;
-  if (typeof v !== 'string') return undefined;
-  const t = v.trim();
-  return t.length ? t : undefined;
-}
-
-/** Map pre-brief website answer to audit URL; skip placeholders with no real site. */
-function websiteAnswerToAuditUrl(raw: string): string | undefined {
-  const t = raw.trim();
-  if (!t) return undefined;
-  const lower = t.toLowerCase();
-  if (lower === 'none' || lower === 'no website' || lower === 'n/a' || lower === 'na') return undefined;
-  return t.startsWith('http') ? t : `https://${t}`;
-}
-
-/** Aligns step-0 Basics fields with intake brief question ids before save. */
-function buildStep0IntakePatch(
-  name: string,
-  industry: string,
-  industrySpecify: string,
-  url: string,
-  noPublicWebsite: boolean,
-  source: BriefResponseSource = 'consultant',
-): Partial<BriefResponses> {
-  const patch: Partial<BriefResponses> = {};
-  const nt = name.trim();
-  if (nt) {
-    patch.intake_company_name = { value: nt, source };
-  }
-  if (industry.trim() && isIndustryOption(industry)) {
-    patch.intake_industry = { value: industry, source };
-  }
-  const spec = industrySpecify.trim();
-  if (industry.trim() === 'Other' && spec) {
-    patch.intake_industry_specify = { value: spec, source };
-  }
-  if (noPublicWebsite) {
-    patch.intake_company_website = { value: 'none', source };
-  } else {
-    const ut = url.trim();
-    if (ut) {
-      patch.intake_company_website = {
-        value: ut.startsWith('http') ? ut : `https://${ut}`,
-        source,
-      };
-    }
-  }
-  return patch;
-}
-
-function defaultConsultantDisplayName(user: ReturnType<typeof useAuth>['user']): string {
-  if (!user) return '';
-  const meta = user.user_metadata as Record<string, unknown> | undefined;
-  const full = typeof meta?.full_name === 'string' ? meta.full_name.trim() : '';
-  if (full) return full;
-  return user.email?.split('@')[0]?.trim() ?? '';
-}
-
-/** Client `/portal/audit/new` — survives refresh in the same tab; optional server row via Save draft. */
-const CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY = 'glc_portal_new_audit_draft_v1';
-
-type ClientPortalNewAuditDraftV1 = {
-  v: 1;
-  step: 0 | 1 | 2;
-  url: string;
-  noPublicWebsite: boolean;
-  name: string;
-  industry: string;
-  industrySpecify: string;
-  productMode: 'full' | 'express';
-  responses: BriefResponses;
-  briefLayoutChoice: 'unset' | 'classic' | 'wizard';
-  draftAuditId: string | null;
-};
-
-function parseClientPortalNewAuditDraft(raw: string): ClientPortalNewAuditDraftV1 | null {
-  try {
-    const o = JSON.parse(raw) as unknown;
-    if (!o || typeof o !== 'object') return null;
-    const d = o as Partial<ClientPortalNewAuditDraftV1>;
-    if (d.v !== 1) return null;
-    const step = typeof d.step === 'number' && d.step >= 0 && d.step <= 2 ? (d.step as 0 | 1 | 2) : 0;
-    const bl = d.briefLayoutChoice;
-    const briefLayoutChoice: 'unset' | 'classic' | 'wizard' =
-      bl === 'classic' || bl === 'wizard' || bl === 'unset' ? bl : 'unset';
-    return {
-      v: 1,
-      step,
-      url: typeof d.url === 'string' ? d.url : '',
-      noPublicWebsite: Boolean(d.noPublicWebsite),
-      name: typeof d.name === 'string' ? d.name : '',
-      industry: typeof d.industry === 'string' ? d.industry : '',
-      industrySpecify: typeof d.industrySpecify === 'string' ? d.industrySpecify : '',
-      productMode: d.productMode === 'express' ? 'express' : 'full',
-      responses: d.responses && typeof d.responses === 'object' && !Array.isArray(d.responses)
-        ? (d.responses as BriefResponses)
-        : {},
-      briefLayoutChoice,
-      draftAuditId: typeof d.draftAuditId === 'string' && d.draftAuditId.length > 0 ? d.draftAuditId : null,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function readClientPortalNewAuditDraft(): ClientPortalNewAuditDraftV1 | null {
-  if (typeof sessionStorage === 'undefined') return null;
-  try {
-    const raw = sessionStorage.getItem(CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY);
-    if (!raw) return null;
-    return parseClientPortalNewAuditDraft(raw);
-  } catch {
-    return null;
-  }
-}
-
-function writeClientPortalNewAuditDraft(data: ClientPortalNewAuditDraftV1): void {
-  if (typeof sessionStorage === 'undefined') return;
-  try {
-    sessionStorage.setItem(CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY, JSON.stringify(data));
-  } catch {
-    /* quota or private mode */
-  }
-}
-
-function clearClientPortalNewAuditDraft(): void {
-  if (typeof sessionStorage === 'undefined') return;
-  try {
-    sessionStorage.removeItem(CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY);
-  } catch {
-    /* */
-  }
-}
-
-/** POST /api/audits returns 503 when no valid self-serve owner is configured (`code: SELF_SERVE_OWNER_UNAVAILABLE`). */
-function isSelfServeOwnerConfigApiError(err: unknown): boolean {
-  if (!(err instanceof ApiError)) return false;
-  if (err.status !== 503) return false;
-  if (err.code === 'SELF_SERVE_OWNER_UNAVAILABLE') return true;
-  const m = err.message;
-  return m.includes('We could not assign ownership for this audit');
-}
 
 export type NewAuditVariant = 'consultant' | 'client_self_serve';
 

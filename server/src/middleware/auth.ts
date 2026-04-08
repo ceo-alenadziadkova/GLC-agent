@@ -56,7 +56,10 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     req.userIsAnonymous = data.user.is_anonymous === true;
     updateContext({ userId: data.user.id });
     next();
-  } catch {
+  } catch (err) {
+    logger.warn('requireAuth: token verification failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
     res.status(401).json({ error: 'Authentication failed' });
   }
 }

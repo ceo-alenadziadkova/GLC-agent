@@ -30,11 +30,13 @@ const audit = await supabase
   .single();
 ```
 
-### Anonymous snapshot sessions (Supabase provider)
+### Public snapshot (cookie funnel)
 
-The **free snapshot** page calls **`signInAnonymously()`** when there is no session so visitors can run a preview without a sign-up wall. Enable **Anonymous sign-ins** in the Supabase project. Those JWTs use the **`authenticated`** role — narrow RLS with **`is_anonymous`** where needed ([access control](https://supabase.com/docs/guides/auth/auth-anonymous#access-control)). **`attachProfile`** sets **`profiles.role = 'guest'`** for anonymous users until they complete a full sign-in (**`guest` → `client`/`consultant`** per migration **`023`**).
+The **free snapshot** flow does **not** require a Supabase session to **start** a run. The API issues an **httpOnly** **`glc_snapshot_guest`** cookie and stores funnel metadata in **`snapshot_guest_sessions`** (hashed IP only; optional **`SNAPSHOT_GUEST_IP_SALT`** in production). After sign-in, the SPA calls **`POST /api/snapshot/claim`** to attach the audit via **`audits.client_id`**.
 
-**Guest session API surface:** Routes that are not part of the free snapshot UX must chain **`attachProfile`** and **`rejectGuestFromPortal`** (or equivalent role checks) so anonymous JWTs and **`profiles.role = 'guest'`** cannot call client portal behaviors. This includes **notifications** and the **registered** frontend log path **`POST /api/log`** as well as audits, pipeline, and reports. Preview sessions use the stricter **`POST /api/log/snapshot`** (guest/anonymous only, lower rate limit).
+**Legacy:** If you still enable **Anonymous sign-ins** for other features, those JWTs use the **`authenticated`** role — narrow RLS with **`is_anonymous`** where needed. **`attachProfile`** may set **`profiles.role = 'guest'`** until full sign-in (**`023`**).
+
+**Guest session API surface:** Routes outside the public snapshot UX must chain **`attachProfile`** and **`rejectGuestFromPortal`** (or equivalent) so **`profiles.role = 'guest'`** and anonymous JWTs cannot use portal behaviors. This includes **notifications** and **`POST /api/log`**. Preview telemetry uses **`POST /api/log/snapshot`** (tighter rate limit).
 
 ---
 

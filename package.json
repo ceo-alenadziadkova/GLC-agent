@@ -2,7 +2,12 @@
   "name": "glc-audit-web",
   "private": true,
   "version": "0.0.1",
+  "packageManager": "pnpm@9.15.9",
   "type": "module",
+  "engines": {
+    "node": ">=20.18.0",
+    "pnpm": ">=9.15.0"
+  },
   "scripts": {
     "build": "vite build",
     "dev": "vite",
@@ -10,7 +15,10 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:e2e:install": "playwright install chromium"
+    "test:e2e:install": "playwright install chromium",
+    "typecheck": "pnpm --filter glc-audit-server run typecheck",
+    "lint": "eslint .",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm test && pnpm --filter glc-audit-server run test"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -74,15 +82,23 @@
     "vaul": "1.1.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.22.0",
     "@playwright/test": "^1.50.0",
     "@tailwindcss/vite": "4.1.12",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
+    "@types/react": "~18.3.18",
+    "@types/react-dom": "~18.3.5",
     "@vitejs/plugin-react": "4.7.0",
     "@vitest/coverage-v8": "^4.1.2",
+    "eslint": "^9.22.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "globals": "^17.4.0",
     "jsdom": "^26.1.0",
     "tailwindcss": "4.1.12",
+    "typescript": "~5.7.3",
+    "typescript-eslint": "^8.24.0",
     "vite": "6.3.5",
     "vitest": "^4.1.0"
   },
@@ -100,7 +116,10 @@
   },
   "pnpm": {
     "overrides": {
-      "vite": "6.3.5"
+      "vite": "6.3.5",
+      "eslint": "^9.22.0",
+      "react": "18.3.1",
+      "react-dom": "18.3.1"
     }
   }
 }

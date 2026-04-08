@@ -1,31 +1,32 @@
-# Production API image — avoids Railpack apt/mise hangs on some Railway builders.
-# Root Directory in Railway must stay `server` (this folder).
+# Production API image — build from repository root (not from server/ alone):
+#   docker build -f server/Dockerfile .
+# Railway: set the service Root Directory to the repo root and use railway.json at repo root.
 
 FROM node:22-bookworm-slim
 
 WORKDIR /app
 
-# Do not set NODE_ENV=production before install/build — pnpm would skip devDependencies
-# and `typescript` / `tsc` would be missing for `pnpm run build`.
-# Skip browser fetch during `pnpm install` only; we install Chromium explicitly after build (see below).
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY server/package.json ./server/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --filter glc-audit-server...
 
-COPY . .
+COPY server ./server
+
+WORKDIR /app/server
 
 RUN pnpm run build
 
-# Snapshot tier-3: headless Chromium for client-shell homepages (fetch-tiered → playwright-fetch).
-# --with-deps installs Debian packages required on slim images; matches server/src/snapshot/playwright-fetch.ts.
-RUN pnpm exec playwright install --with-deps chromium
+RUN PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=0 pnpm exec playwright install --with-deps chromium
 
+WORKDIR /app
 ENV NODE_ENV=production
-RUN pnpm prune --prod
+RUN pnpm install --frozen-lockfile --filter glc-audit-server... --prod
 
-# Railway injects PORT; Express reads process.env.PORT
+WORKDIR /app/server
+
 CMD ["node", "dist/index.js"]

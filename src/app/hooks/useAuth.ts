@@ -11,6 +11,14 @@ import {
 
 export { isAnonymousUser } from '../lib/snapshot-auth';
 
+type SignInWithGoogleOptions = {
+  /**
+   * Preserve anonymous snapshot user id by linking Google identity.
+   * Keep this false for normal login to avoid identity-linking conflicts.
+   */
+  preserveGuestSession?: boolean;
+};
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -171,10 +179,11 @@ export function useAuth() {
     return { error };
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (options?: SignInWithGoogleOptions) => {
+    const preserveGuestSession = options?.preserveGuestSession === true;
     const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user ?? null;
-    if (isAnonymousUser(user)) {
+    if (isAnonymousUser(user) && preserveGuestSession) {
       const { error } = await supabase.auth.linkIdentity({
         provider: 'google',
         options: {
@@ -194,6 +203,10 @@ export function useAuth() {
         return { error: oauthError };
       }
       return { error };
+    }
+    if (isAnonymousUser(user) && !preserveGuestSession) {
+      // Force a clean OAuth login flow instead of identity-linking flow.
+      await supabase.auth.signOut();
     }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',

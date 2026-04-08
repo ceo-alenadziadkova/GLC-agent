@@ -1,6 +1,6 @@
 # Testing matrix — user flows (Snapshot, auth, routing)
 
-This document tracks coverage for main client journeys. Commands: root `npm test` (Vitest + RTL), `cd server && npm test`, E2E `npm run test:e2e` after `npm run test:e2e:install` (see [e2e/README.md](./e2e/README.md)).
+This document tracks coverage for main client journeys. Commands: from repo root `pnpm install` once, then `pnpm test` (Vitest + RTL), `pnpm --filter glc-audit-server test` (or `cd server && pnpm test`), E2E `pnpm run test:e2e` after `pnpm exec playwright install chromium` (see [e2e/README.md](./e2e/README.md)). Full gate: `pnpm run check` (typecheck + lint + both test suites).
 
 ## Strategy: stability, documentation, and dead code
 
@@ -41,7 +41,7 @@ Signals that something may be unused or legacy (investigate before deleting):
 - **Partial** — some coverage or indirect only.
 - **No** — gap (planned or backlog).
 
-## A. Snapshot flow (`/snapshot`, anonymous JWT, preview API)
+## A. Snapshot flow (`/snapshot`, guest cookie + claim, preview API)
 
 | Layer | Status | Notes |
 | --- | --- | --- |
@@ -50,20 +50,20 @@ Signals that something may be unused or legacy (investigate before deleting):
 | FE integration | Yes | `SnapshotLanding.integration` with mocked fetch / session |
 | BE integration | Yes | `server/src/tests/snapshot-route.test.ts` and related |
 | BE unit (access flags) | Yes | `snapshot-access-state.test.ts` — `computePublicSnapshotAccessFlags`, `snapshotPayloadToAccessApiFields` |
-| E2E | No | `/snapshot` needs real Supabase anon session; use Vitest integration + staging E2E later |
+| E2E | No | `/snapshot` uses credentialed fetch + optional staging E2E for cookie/`claim` |
 
 ## B. Register / sign in (`/login`)
 
 | Layer | Status | Notes |
 | --- | --- | --- |
-| `useAuth` | Yes | `useAuth.test.ts` — `getSession`, PKCE `?code=`, hash tokens, OAuth `?error=`, verify-referrer message, `onAuthStateChange`, anonymous → `linkIdentity` vs `signInWithOAuth`, `signUp` redirect URL, `signOut` |
+| `useAuth` | Yes | `useAuth.test.ts` — `getSession`, PKCE `?code=`, hash tokens, OAuth `?error=`, verify-referrer message, `onAuthStateChange`, `signInWithGoogle` options, `signUp` redirect URL, `signOut` |
 | `Login` page | Yes | `Login.test.tsx` — discovery vs `next` redirect, open-redirect guard on `next`, `authError`, email/password submit + signup mode, Google manual-linking copy, API errors |
 | `ProtectedRoute` | Yes | Loader until profile loads **only** when `requiredRole` is set (no extra spinner on generic protected routes) |
 | `useProfile` | Partial | Mocked Supabase + `/api/profile`; unmount-during-load race |
 | BE `/api/profile` | Yes | `profile-route.test.ts` |
 | E2E | Partial | Playwright: `/login` visible (see `e2e/smoke.spec.ts`) |
 
-Contract reference: [docs/AUTH.md](./docs/AUTH.md) (roles, anonymous snapshot, `linkIdentity`).
+Contract reference: [docs/AUTH.md](./docs/AUTH.md) (roles, snapshot guest cookie, `POST /api/snapshot/claim`).
 
 ### Note: unit/RTL vs browser and E2E (sign-in, flicker, races)
 
@@ -117,8 +117,8 @@ GitHub Actions workflow [.github/workflows/test.yml](.github/workflows/test.yml)
 
 Run locally (reports under `coverage/`, ignored by git):
 
-- **Frontend:** `npm run test:coverage` from repo root — HTML + text summary in `coverage/frontend/`.
-- **Server:** `cd server && npm run test:coverage` — `coverage/server/`.
+- **Frontend:** `pnpm run test:coverage` from repo root — HTML + text summary in `coverage/frontend/`.
+- **Server:** `pnpm --filter glc-audit-server run test:coverage` (or `cd server && pnpm run test:coverage`) — `coverage/server/`.
 
 Open the HTML report and sort by coverage to find **never-executed** modules; combine with the **Suspected dead / legacy registry** and optional `npx knip` (see **Strategy** above).
 
@@ -138,8 +138,8 @@ Below is an ordered checklist for **product admin / QA** on a staging environmen
 | --- | --- |
 | **Admin** label in UI | DB: `profiles.role = 'consultant'`; shell shows **Admin** ([`useProfile`](src/app/hooks/useProfile.ts), [`AppShell`](src/app/components/AppShell.tsx)). |
 | Who counts as admin | Server: [`CONSULTANT_EMAILS`](server/src/middleware/auth.ts) (comma-separated emails, case-insensitive). Must match on `attachProfile` / `GET /api/profile`. |
-| Snapshot without password | [`/snapshot`](src/app/pages/SnapshotLanding.tsx): anonymous Supabase session + JWT on `POST /api/snapshot` ([docs/AUTH.md](./docs/AUTH.md)). |
-| Guest upgrade to client | Google from guest: `linkIdentity`, stable `user.id`. Email/password from guest is a **different** merge path (see AUTH.md). |
+| Snapshot without password | [`/snapshot`](src/app/pages/SnapshotLanding.tsx): `POST /api/snapshot` with **`credentials: 'include'`** (guest cookie); **`glc_pending_snapshot_token`** + **`POST /api/snapshot/claim`** after login ([docs/AUTH.md](./docs/AUTH.md)). |
+| Guest upgrade to client | Sign in then **claim** attaches `audits.client_id`. Legacy anonymous/`linkIdentity` paths are optional. |
 
 ---
 
@@ -158,7 +158,7 @@ Below is an ordered checklist for **product admin / QA** on a staging environmen
 
 **Snapshot / Discovery before login (do not mix with admin work context)**
 
-- [ ] If admin **mistakenly** uses `/snapshot` or Discovery **while signed out** (anonymous), then signs in with **full admin account**: product policy — consultant data (audit lists, queues) must **not be lost or overwritten**. Note: **Google + linkIdentity** from the same anonymous session keeps `user.id`; **email/password only** after anon may yield a **different** `user.id` — separate `audits` rows (team should document expected behaviour).
+- [ ] If admin uses `/snapshot` **while signed out**, then signs in with **full admin account**: consultant data must **not** be lost; snapshot is a separate `free_snapshot` row until **claim** if applicable.
 - [ ] After login, admin sees **consultant navigation**: Dashboard, Request queue, Discovery queue, contextual Audit / Pipeline / Reports / Strategy when an audit is selected ([`buildConsultantNav`](src/app/components/AppShell.tsx)).
 
 **Settings, other areas, sign-out**
@@ -183,7 +183,7 @@ Below is an ordered checklist for **product admin / QA** on a staging environmen
 
 **Snapshot or Discovery with an existing account**
 
-- [ ] User is already **client**, runs public **Snapshot** or **Discovery**, then **signs in with the same account** (especially Google + `linkIdentity` from guest session).
+- [ ] User is already **client**, runs public **Snapshot** or **Discovery**, then **signs in with the same account**; **claim** attaches the snapshot when pending token is present.
 - [ ] Confirm: new snapshot/discovery **attaches** to the user / appears in portal, and **previous audits and quick snapshots are not missing** or replaced by a false single-audit state. Backend `user_id` / `client_id` wiring — cross-check [docs/API.md](./docs/API.md) and audit routes.
 
 **Sign-out**
@@ -192,16 +192,16 @@ Below is an ordered checklist for **product admin / QA** on a staging environmen
 
 ---
 
-### 3. Guest (`profiles.role = guest`, anonymous or post-Snapshot)
+### 3. Guest (`profiles.role = guest`, legacy anonymous or post-Snapshot)
 
 **First visit and role**
 
-- [ ] After anonymous snapshot, profile is **`guest`**, shell shows **Guest**, **SNAPSHOT** nav with Free snapshot link ([`buildGuestNav`](src/app/components/AppShell.tsx)).
+- [ ] If still using **anonymous** Supabase sessions, profile may be **`guest`**, shell shows **Guest**, **SNAPSHOT** nav ([`buildGuestNav`](src/app/components/AppShell.tsx)). Cookie-only snapshot does not require anonymous auth.
 - [ ] **Settings** hidden for guest (`isGuest`).
 
 **Snapshot and Discovery**
 
-- [ ] Full public snapshot on `/snapshot` works (Supabase Anonymous enabled).
+- [ ] Full public snapshot on `/snapshot` works (**CORS** + **`credentials: 'include'`**; optional **`SNAPSHOT_GUEST_IP_SALT`** on API).
 - [ ] **Discovery** from public routes (`/audit/discover`, alias `/discovery`).
 
 **Registration from Snapshot / Discovery**

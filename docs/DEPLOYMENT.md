@@ -32,8 +32,8 @@
 
 1. Create account at [railway.app](https://railway.app)
 2. New Project → Deploy from GitHub repo
-3. Railway auto-detects `server/package.json` — **set Root Directory to `server/`** in the service settings. If the root is the **repo root**, Nixpacks may treat the project as a **Vite SPA** and start **Caddy** only (logs like `using config from file`, `server running`, `serving initial configuration`). That is not the Express API — you will see **502** and no Node logs. The backend must build from `server/package.json` (`npm run build` → `npm start`).
-4. **Railpack build timeout / hang on `apt` or `libc-bin`:** this repo includes **`server/Dockerfile`** and **`server/railway.json`** (`builder: DOCKERFILE`) so Railway can build the API without Railpack. Commit those files and redeploy; in the service UI you can set **Config as code → file path** to `server/railway.json` if the platform does not auto-detect it. The Dockerfile runs **`pnpm exec playwright install --with-deps chromium`** after `tsc` so **free snapshot** can use headless Chromium for SPA-style homepages (see § Free snapshot — Playwright). Builds are slower and the image is larger than a minimal API-only image.
+3. **Monorepo + Docker:** set the service **Root Directory to the repository root** (not `server/`). Use **`railway.json`** at the repo root (`builder: DOCKERFILE`, `dockerfilePath: server/Dockerfile`). The Dockerfile expects build context **`.`** and runs `pnpm install --filter glc-audit-server...` from the workspace lockfile. If Root Directory stays **`server/`** alone, the Docker build cannot see `pnpm-workspace.yaml` / root `pnpm-lock.yaml` and will fail.
+4. **Railpack / Nixpacks:** if you deploy **without** Docker from **repo root**, Nixpacks may treat the project as a **Vite SPA** and start the wrong stack. Prefer the **Dockerfile** flow above. The image runs **`playwright install --with-deps chromium`** after `tsc` for **free snapshot** (see § Free snapshot — Playwright). Builds are slower than a minimal API-only image.
 5. Set environment variables in Railway dashboard:
 
    ```env
@@ -41,15 +41,16 @@
    SUPABASE_SERVICE_KEY=eyJ...
    ANTHROPIC_API_KEY=sk-ant-...
    NODE_ENV=production
+   SNAPSHOT_GUEST_IP_SALT=<long-random-secret>
    ```
    **Do not set `PORT` manually** unless you know what you are doing: Railway injects **`PORT`**; the app must listen on that value (`server/src/index.ts`). In **Public networking**, **Target port** must match that same `PORT` (often not `3001`). If the deploy healthcheck passes but `https://…up.railway.app/api/health` returns **502**, fix the domain’s target port or remove a conflicting custom `PORT` variable.
 
    **Client self-serve (portal):** after migration `018_platform_settings.sql`, a **lead administrator** (consultant) sets the default audit owner under **Settings → Client portal — audit owner** (`PATCH /api/platform/self-serve-owner`). Optionally keep **`SELF_SERVE_AUDIT_OWNER_USER_ID`** as a bootstrap / backup consultant UUID when the database value is empty. **`PLATFORM_ADMIN_USER_IDS`** (comma-separated consultant `profiles.id`) restricts who may PATCH platform settings; if omitted, any consultant may change the assignment.
 
-6. **Build / start (dashboard):** if Railway uses **`server/railway.json` + Dockerfile**, the image runs `pnpm run build` during `docker build` and starts with `node dist/index.js` — you can clear custom build/start overrides in the UI to avoid duplication. Otherwise use **Build:** `npm run build`, **Start:** `npm start` (runs `dist/index.js`).
+6. **Build / start (dashboard):** with **root `railway.json` + `server/Dockerfile`**, the image builds inside Docker (`pnpm run build` in `server/`) and starts with **`node dist/index.js`** (working directory `server/` in the image). Clear conflicting custom build/start overrides in the UI if needed.
 7. Railway provides a public URL like `https://glc-api.up.railway.app`
 
-**Healthcheck:** use **`/api/health`** (see `server/railway.json`). There is no `GET /` handler on the API; pinging `/` returns 404.
+**Healthcheck:** use **`/api/health`** (see root `railway.json`). There is no `GET /` handler on the API; pinging `/` returns 404.
 
 ### Free snapshot — Playwright
 
@@ -59,7 +60,7 @@ Headless Chromium **runs by default** when the static homepage looks like an emp
 - **Build (Docker / Railway):** `server/Dockerfile` installs Chromium via **`playwright install --with-deps chromium`**. For non-Docker hosts (e.g. local dev), run `pnpm playwright:install` in `server/` once. The `playwright` package is in `server/package.json`.
 - If Chromium is missing or launch fails, the scanner logs a warning and continues with the original HTTP HTML.
 
-**Abuse controls (public snapshot):** optional env — `SNAPSHOT_DOMAIN_FRESH_COOLDOWN_MS` (default `600000`, `0` = off), `SNAPSHOT_MAX_CONCURRENT` (default `4`), `SNAPSHOT_COMPARE_MAX_PER_HOUR` (default `15`). **`SNAPSHOT_ROBOTS_CACHE_MS`** — TTL for in-memory `robots.txt` parse per origin (default `1200000`, i.e. 20 minutes). **`SNAPSHOT_SHARED_ABUSE_STORE`** — set to `1` / `true` / `yes` after applying migrations **`021_snapshot_domain_cooldown.sql`** and **`022_snapshot_fresh_lease.sql`** so (1) per-domain fresh cooldown and (2) **max concurrent fresh scans** are coordinated **across Railway instances** via Supabase; if unset, both stay per-process only. **`SNAPSHOT_FRESH_LEASE_TTL_SECONDS`** — optional; defaults to **max(300, 5 × fetch budget seconds)** so leases survive long Playwright runs; raise if scans can exceed that wall time.
+**Abuse controls (public snapshot):** optional env — `SNAPSHOT_DOMAIN_FRESH_COOLDOWN_MS` (default `600000`, `0` = off), `SNAPSHOT_MAX_CONCURRENT` (default `4`), `SNAPSHOT_COMPARE_MAX_PER_HOUR` (default `15`). **`SNAPSHOT_GUEST_IP_SALT`** — **required in production** (non-empty secret mixed into **`ip_hash`** for **`snapshot_guest_sessions`**; the API exits at startup if missing when `NODE_ENV=production`). **`SNAPSHOT_ROBOTS_CACHE_MS`** — TTL for in-memory `robots.txt` parse per origin (default `1200000`, i.e. 20 minutes). **`SNAPSHOT_SHARED_ABUSE_STORE`** — set to `1` / `true` / `yes` after applying migrations **`021_snapshot_domain_cooldown.sql`** and **`022_snapshot_fresh_lease.sql`** so (1) per-domain fresh cooldown and (2) **max concurrent fresh scans** are coordinated **across Railway instances** via Supabase; if unset, both stay per-process only. **`SNAPSHOT_FRESH_LEASE_TTL_SECONDS`** — optional; defaults to **max(300, 5 × fetch budget seconds)** so leases survive long Playwright runs; raise if scans can exceed that wall time.
 
 **Hosted dashboards (logs):** Ship **JSON** logs (`LOG_FORMAT=json`, `LOG_SERVICE` set per env) to your provider’s log drain (Railway log integrations → **Grafana Loki**, **Datadog**, **Axiom**, etc.). Primary snapshot signal: **`message: "snapshot.run_complete"`** with **`domain_fp`** (SHA-256 prefix of registrable host, not the URL). Secondary: **`snapshot.pipeline_capacity`** (capacity shed), **`snapshot.shared_lease_*`** (RPC / migration issues). Build panels on **rates** of `outcome`, `cache_hit`, `playwright_used`, `home_fetch_failure`; alert on sustained **`snapshot.pipeline_capacity`** or missing `snapshot.run_complete` after `POST /api/snapshot` spikes. Operator in-process counters + shared lease headcount: **`GET /api/snapshot/operator/metrics`** (Bearer **`SNAPSHOT_OPERATOR_TOKEN`**); poll with a cron or uptime check, or point a **JSON API** datasource at that URL if your dashboard product supports auth headers.
 

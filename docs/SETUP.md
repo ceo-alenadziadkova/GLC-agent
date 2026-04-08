@@ -15,11 +15,7 @@
 git clone <repo-url>
 cd glc-agent
 
-# Frontend dependencies
 pnpm install
-
-# Backend dependencies
-cd server && npm install && cd ..
 ```
 
 ---
@@ -63,7 +59,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 ```bash
 # Terminal 1 — backend
-cd server && npm run dev
+cd server && pnpm run dev
 
 # Terminal 2 — frontend
 pnpm dev
@@ -89,18 +85,18 @@ If Phase 0 fails: check `server/.env` has valid Anthropic + Supabase keys, and S
 
 ## Automated tests
 
-From the repo root: `npm test` (frontend Vitest), `cd server && npm test` (backend). Playwright smoke: `npm run test:e2e:install` then `npm run test:e2e`. Coverage matrix: [TESTING.md](../TESTING.md).
+From the repo root: `pnpm test` (frontend Vitest), `pnpm --filter glc-audit-server test` (backend). Playwright smoke: `pnpm exec playwright install chromium` then `pnpm run test:e2e`. Coverage matrix: [TESTING.md](../TESTING.md).
 
 ---
 
 ## TypeScript
 
 ```bash
-# Check frontend types
-pnpm tsc --noEmit
+# Backend (CI / strict): from repo root
+pnpm run typecheck
 
-# Check backend types
-cd server && npx tsc --noEmit
+# Optional: editor-oriented frontend check (see root tsconfig.json)
+pnpm exec tsc --noEmit -p tsconfig.json
 ```
 
 ---

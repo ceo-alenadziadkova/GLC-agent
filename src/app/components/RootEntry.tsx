@@ -10,6 +10,9 @@ import { MarketingHome } from '../pages/MarketingHome';
  */
 export function RootEntry() {
   const { search, hash } = useLocation();
+  const { isAuthenticated, loading: authLoading, user } = useAuth();
+  const { role, loading: profileLoading, isConsultant, isClient } = useProfile();
+
   const hasAuthCallback =
     search.includes('code=') ||
     hash.includes('access_token=') ||
@@ -17,9 +20,6 @@ export function RootEntry() {
   if (hasAuthCallback) {
     return <Navigate to={`/login${search}${hash}`} replace />;
   }
-
-  const { isAuthenticated, loading: authLoading, user } = useAuth();
-  const { role, loading: profileLoading, isConsultant, isClient } = useProfile();
 
   if (!authLoading && isAuthenticated && !isAnonymousUser(user)) {
     if (!profileLoading) {

@@ -258,7 +258,7 @@ describe('useAuth', () => {
     expect(result.current.loading).toBe(false);
   });
 
-  it('signInWithGoogle uses linkIdentity for anonymous snapshot session', async () => {
+  it('signInWithGoogle uses OAuth for anonymous session by default', async () => {
     mockGetSession.mockResolvedValue({
       data: {
         session: {
@@ -274,6 +274,29 @@ describe('useAuth', () => {
 
     await act(async () => {
       await result.current.signInWithGoogle();
+    });
+
+    expect(mockSignOut).toHaveBeenCalled();
+    expect(mockSignInWithOAuth).toHaveBeenCalled();
+    expect(mockLinkIdentity).not.toHaveBeenCalled();
+  });
+
+  it('signInWithGoogle uses linkIdentity when preserveGuestSession is true', async () => {
+    mockGetSession.mockResolvedValue({
+      data: {
+        session: {
+          user: { id: 'anon', is_anonymous: true },
+          access_token: 't',
+        },
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.signInWithGoogle({ preserveGuestSession: true });
     });
 
     expect(mockLinkIdentity).toHaveBeenCalled();

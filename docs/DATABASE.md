@@ -28,8 +28,10 @@ PostgreSQL on **Supabase**. Apply migrations **in numeric order** so foreign key
 22. `022_snapshot_fresh_lease.sql` — `snapshot_fresh_lease` + RPC `snapshot_try_acquire_fresh_lease` / `snapshot_release_fresh_lease` (optional cross-instance **concurrent fresh** cap; same opt-in flag)
 23. `023_profiles_guest_role.sql` — `profiles.role` adds `guest` for anonymous snapshot sessions; `handle_new_user` updates (see [AUTH.md](./AUTH.md))
 24. `024_audit_domains_prompt_version_len.sql` — widens `audit_domains.prompt_version` to **`VARCHAR(64)`** so deterministic free snapshot engine labels are not truncated (was `VARCHAR(20)` from migration 009)
+25. `025_marketing_brief_submissions.sql` — marketing brief submissions (see migration file)
+26. `026_snapshot_guest_sessions.sql` — **`snapshot_guest_sessions`** public snapshot funnel (guest cookie, `snapshot_token`, optional UTM/referrer/`ip_hash`, claim timestamps; 90-day `expires_at`)
 
-**Tables (17):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`.
+**Tables (18):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`, `snapshot_guest_sessions`.
 
 Row Level Security is enabled on these tables; exact policies differ by table (consultant vs client access). **Canonical SQL:** the migration files — this doc summarises shapes.
 

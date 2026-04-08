@@ -104,7 +104,7 @@ Review gates: after phases 0, 4, 7. Consultant adds notes that become context fo
 
 ## Backend Route Patterns
 
-All routes under `/api/`. All except health check, public snapshot/intake/discover/marketing brief, require `requireAuth` middleware.
+All routes under `/api/`. All except health check, public snapshot start/poll/quota (`/api/snapshot` GET/POST except `POST /claim`), intake/discover/marketing brief, require `requireAuth` middleware.
 
 ```
 POST   /api/audits

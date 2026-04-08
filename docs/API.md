@@ -477,9 +477,29 @@ Public endpoint (no JWT). Returns how many free website checks are **still avail
 
 ### `POST /api/snapshot`
 
-Start a free snapshot run. **Auth:** Supabase `Authorization: Bearer <access_token>` required. The token may be a **normal** session (email/password or Google) or an **anonymous** session from **`signInAnonymously()`** (wow-first UX on `/snapshot`; **`profiles.role = 'guest'`** until full sign-in). Each run is stored with **`client_id = auth.uid()`** or **`user_id = auth.uid()`** per existing snapshot insert rules. Same fair-use and domain rules as before.
+Start a free snapshot run. **Auth:** none (public). The server sets or refreshes an **httpOnly** cookie **`glc_snapshot_guest`** and upserts **`snapshot_guest_sessions`** (funnel analytics; 90-day row retention). The audit is created with platform **self-serve owner** `user_id` and **`client_id = null`** until the user calls **`POST /api/snapshot/claim`** after sign-in.
+
+**CORS:** the SPA must use **`credentials: 'include'`** on this request (and on poll **`GET /api/snapshot/:token`** if you rely on the same cookie). Production cookies use **`SameSite=None; Secure`**.
+
+**Optional body fields** (all strings, ignored if invalid): **`utm_source`**, **`utm_medium`**, **`utm_campaign`** — stored on the guest session row for attribution.
+
+### `POST /api/snapshot/claim`
+
+**Auth:** `Authorization: Bearer <access_token>` (`requireAuth`).
+
+**Body:** `{ "snapshot_token": "<uuid>" }`
+
+**`200`:** `{ "ok": true, "audit_id": "<uuid>", "already_claimed": boolean }` — sets **`audits.client_id`** to the current user when it was `null`; idempotent if already linked to the same user.
+
+**`400`:** missing/invalid `snapshot_token`.
 
 **`401`:** missing/invalid JWT.
+
+**`404`:** snapshot not found (neutral).
+
+**`409`** `SNAPSHOT_CLAIM_CONFLICT`: snapshot already linked to another user (neutral copy).
+
+**`410`:** token TTL expired (same window as public poll).
 
 **Implementation:** deterministic scanner — **no LLM**. Tiered HTTP fetch (homepage plus up to a few same-origin URLs), cheerio-based **facts**, YAML-driven **site profile** (classification) and **audit rules** (expanded YAML catalog; some rules may be **skipped** per `skipForSiteTypes` / `onlyForSiteTypes` using classifier `siteType`), overall score **0–100** with four category scores. **Wall clock:** `SNAPSHOT_FETCH_BUDGET_MS` defaults to **10000** (10s; ADR target band ~8–12s). **robots.txt:** fetches `/robots.txt` (cached per origin, `SNAPSHOT_ROBOTS_CACHE_MS`, default 20 minutes). Honors `Disallow` for the snapshot user-agent (`*` and `GLC-SnapshotScanner`): if `/` is disallowed, **no HTML is fetched** (same outcome as unreachable home for the pipeline). Extra same-origin URLs are skipped when disallowed. **Crawl-delay** is applied best-effort between extra fetches within the overall fetch budget. **Playwright tier-3 (default on when needed):** if the static homepage matches client-shell heuristics, the server attempts to re-fetch it with headless Chromium. Set `SNAPSHOT_PLAYWRIGHT=0` or `false` to skip (static HTML only). Requires `playwright` + `npx playwright install chromium` on the host; failures are logged and the scan continues with HTTP HTML. Env: `SNAPSHOT_PLAYWRIGHT_BUDGET_MS` (default 14000, cap within remaining `SNAPSHOT_FETCH_BUDGET_MS`). Results for the same **registrable host** may be served from `snapshot_domain_cache` (TTL `SNAPSHOT_DOMAIN_CACHE_TTL_HOURS`, default 48); **cached JSON omits raw email/phone vectors** (PII minimization). Rule catalogs: `server/config/snapshot/classification-rules.v1.yaml`, `server/config/snapshot/audit-rules.v1.yaml`.
 

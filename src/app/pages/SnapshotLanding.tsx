@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import type { User } from '@supabase/supabase-js';
@@ -15,290 +15,42 @@ import {
   X,
   Equals,
   Binoculars,
-  Info,
   UserCircle,
 } from '@phosphor-icons/react';
-import type {
-  FreeSnapshotPreview,
-  SnapshotCompetitorComparison,
-  SnapshotSiteProfile,
-} from '../data/auditTypes';
+import type { FreeSnapshotPreview } from '../data/auditTypes';
 import { GlcLogo } from '../components/GlcLogo';
 import { SyncPathLoader } from '../components/SyncPathLoader';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
 import { supabase } from '../lib/supabase';
-import { ensureSnapshotSession, getSnapshotAccessToken, isAnonymousUser } from '../lib/snapshot-auth';
+import { getSnapshotAccessToken, isAnonymousUser } from '../lib/snapshot-auth';
+import { setPendingSnapshotToken } from '../lib/snapshot-pending-token';
 import {
   AI_VISIBILITY_GAP_COPY,
   formatScanCoverageLine,
   getSnapshotAccessBlockedState,
-  scanConfidenceExplanation,
-  snapshotZeroPagesScoreNote,
 } from '../lib/snapshot-diagnostics';
 import { SnapshotAccessBlockedCallout } from '../components/snapshot/SnapshotAccessBlockedCallout';
 import { toUiErrorMessage, type SnapshotApiErrorPayload } from '../lib/snapshot-api-errors';
-import { getApiBaseUrl } from '../lib/api-base-url';
-
-const API_URL = getApiBaseUrl();
-
-type SnapshotAuthState = 'checking' | 'ready' | 'failed';
+import { snapshotPublicRequest } from '../data/apiService';
+import {
+  PHASE_LABELS,
+  SCORE_COLORS,
+  SCORE_LABELS,
+  SEVERITY_COLOR,
+  competitorComparisonCaption,
+  donutFillFromLegacyBand,
+  donutFillFromOverall,
+  legacyUxBand,
+  scoreColorFrom100,
+  siteProfileSoftLine,
+} from '../lib/snapshot-landing-helpers';
+import {
+  CategoryBreakdownHint,
+  SnapshotScoreContextNotes,
+  SnapshotScoreDonut,
+} from './snapshot-landing';
 
 type Stage = 'idle' | 'submitting' | 'running' | 'done' | 'error';
-
-type SnapshotCategoryScoreKey = 'ux_clarity' | 'conversion_readiness' | 'ai_readiness' | 'technical_basics';
-
-const SNAPSHOT_CATEGORY_BREAKDOWN_HINTS: Record<SnapshotCategoryScoreKey, string> = {
-  ux_clarity:
-    'How clear the first screen is for someone who has never seen your brand: what you do, who it is for, primary navigation, trust signals, how easy contact is to find, and basic language/accessibility markers. The score is the share of automated UX checks that passed on the HTML we fetched (0–100)—a thin sample, not a full UX review.',
-  conversion_readiness:
-    'How easy it is to take the next step: strength of the main call-to-action, form labels and friction, whether pricing or commerce paths are discoverable, competing buttons in the hero, reassurance near actions, FAQs, and simple risk reducers. The number is the portion of those checks that passed in this snapshot (0–100), based only on pages we could load.',
-  ai_readiness:
-    'How much structured, machine-readable context we found—mainly JSON-LD (Organization, WebSite, products, offers, FAQ, breadcrumbs, etc.) that our rules expect. Higher means more of those checks passed on the sampled markup. It is not a promise about rankings or citations inside any specific AI product.',
-  technical_basics:
-    'Baseline technical signals in our grab: page title, viewport meta, HTTPS/canonical hints, whether the page looks indexable, Open Graph basics, informative alt text on images, and breadth of structured data. The score is the share of those checks that passed (0–100); it is not a penetration test or performance audit.',
-};
-
-const SCORE_COLORS: Record<number, string> = {
-  1: '#EF4444',
-  2: '#F97316',
-  3: '#EAB308',
-  4: '#22C55E',
-  5: '#0ECF82',
-};
-
-const SCORE_LABELS: Record<number, string> = {
-  1: 'Critical',
-  2: 'Needs Work',
-  3: 'Moderate',
-  4: 'Good',
-  5: 'Excellent',
-};
-
-function competitorComparisonCaption(c: SnapshotCompetitorComparison, competitorLabel: string): { kind: 'client' | 'competitor' | 'tie'; text: string } {
-  if (c.metric === 'https') {
-    if (c.winner === 'tie') return { kind: 'tie', text: 'Both sites use HTTPS' };
-    if (c.winner === 'client') return { kind: 'client', text: 'HTTPS is in use on your site' };
-    return { kind: 'competitor', text: `${competitorLabel} uses HTTPS; check your redirect` };
-  }
-  if (c.metric === 'mobile_viewport') {
-    if (c.winner === 'tie') return { kind: 'tie', text: 'Both include a mobile viewport meta tag' };
-    if (c.winner === 'client') return { kind: 'client', text: 'Your homepage declares a mobile viewport' };
-    return { kind: 'competitor', text: `${competitorLabel} declares a mobile viewport — yours may not` };
-  }
-  if (c.metric === 'hreflang_count') {
-    const cn = Number(c.client_val);
-    const tn = Number(c.comp_val);
-    if (c.winner === 'tie') return { kind: 'tie', text: `Both expose ${cn} hreflang alternate(s)` };
-    if (c.winner === 'client') return { kind: 'client', text: `You show more hreflang alternates (${cn} vs ${tn})` };
-    return { kind: 'competitor', text: `${competitorLabel} shows more hreflang alternates (${tn} vs ${cn})` };
-  }
-  if (c.metric === 'structured_data') {
-    if (c.winner === 'tie') return { kind: 'tie', text: 'Both homepages include JSON-LD structured data' };
-    if (c.winner === 'client') return { kind: 'client', text: 'Your homepage includes JSON-LD structured data' };
-    return { kind: 'competitor', text: `${competitorLabel} includes JSON-LD — yours may not` };
-  }
-  return { kind: 'tie', text: c.label };
-}
-
-const SEVERITY_COLOR: Record<string, string> = {
-  critical: 'var(--score-1)',
-  high:     'var(--score-2)',
-  medium:   'var(--score-3)',
-  low:      'var(--score-4)',
-};
-
-const PHASE_LABELS = [
-  'Scanning homepage...',
-  'Detecting tech & structure...',
-  'Running rule-based checks...',
-  'Building your snapshot...',
-];
-
-function scoreColorFrom100(n: number): string {
-  if (n >= 80) return SCORE_COLORS[5];
-  if (n >= 60) return SCORE_COLORS[4];
-  if (n >= 40) return SCORE_COLORS[3];
-  if (n >= 20) return SCORE_COLORS[2];
-  return SCORE_COLORS[1];
-}
-
-/** Companion 1–5 band from the API (maps alongside 0–100); internal name kept for readability. */
-function legacyUxBand(uxScore: number | null | undefined): keyof typeof SCORE_COLORS {
-  if (uxScore != null && uxScore >= 1 && uxScore <= 5) return uxScore;
-  return 3;
-}
-
-/** Ring fill 0–100 for SVG only; matches overall score. */
-function donutFillFromOverall(overall: number): number {
-  return Math.max(0, Math.min(100, overall));
-}
-
-/** Ring fill for 1–5-only display — proportional visual only, not a second score metric. */
-function donutFillFromLegacyBand(band: keyof typeof SCORE_COLORS): number {
-  return Math.max(0, Math.min(100, (Number(band) / 5) * 100));
-}
-
-function CategoryBreakdownHint(props: { label: string; categoryKey: SnapshotCategoryScoreKey }) {
-  const { label, categoryKey } = props;
-  const copy = SNAPSHOT_CATEGORY_BREAKDOWN_HINTS[categoryKey];
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          className="inline-flex shrink-0 rounded p-0.5 text-[var(--text-quaternary)] transition-colors hover:text-[var(--text-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--glc-blue)]"
-          aria-label={`What “${label}” means in this report`}
-        >
-          <Info size={15} weight="bold" aria-hidden />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent
-        side="top"
-        sideOffset={6}
-        className="max-w-[min(22rem,92vw)] border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2.5 text-left text-xs font-normal leading-relaxed text-[var(--text-primary)] shadow-lg [&>svg]:hidden"
-      >
-        {copy}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-/** User-facing copy for the score explainer (1–5 path when 0–100 is not shown). */
-function fivePointBandExplanation(params: {
-  band: keyof typeof SCORE_COLORS;
-  uxLabel: string | null | undefined;
-  hasOverall100: boolean;
-}): string {
-  if (params.hasOverall100) {
-    return 'The score out of 100 sums every rule we ran on the pages we could fetch in this snapshot—not a separate audit.';
-  }
-  const label = params.uxLabel?.trim() || SCORE_LABELS[params.band];
-  const step = params.band;
-  return (
-    `This ${step}/5 result (${label}) uses that same five-point band (1 = Critical … 5 = Excellent). ` +
-    'It reflects rule-based checks on the pages we could access—not a full consulting review.'
-  );
-}
-
-/** Alias kept so HMR / stale bundles cannot throw ReferenceError if an old name is still referenced. */
-const legacyBandExplanation = fivePointBandExplanation;
-
-function SnapshotScoreContextNotes(props: {
-  result: FreeSnapshotPreview;
-  /** When true, a top divider separates this block from copy above (e.g. API summary). */
-  showTopDivider?: boolean;
-}) {
-  const { result, showTopDivider = true } = props;
-  const has100 = typeof result.overall_score === 'number';
-  const band = legacyUxBand(result.ux_score);
-  const scan = result.scan_confidence_band;
-  const zeroPagesNote = snapshotZeroPagesScoreNote(result);
-
-  return (
-    <div
-      className={
-        showTopDivider
-          ? 'mt-5 border-t border-[var(--border-subtle)] pt-4'
-          : 'mt-3 text-left sm:mt-4'
-      }
-    >
-      <p
-        className="mb-3 text-xs font-semibold uppercase tracking-wide"
-        style={{ color: 'var(--text-tertiary)' }}
-      >
-        What these numbers mean
-      </p>
-      <div className="space-y-3">
-        {zeroPagesNote ? (
-          <p className="text-sm font-medium leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-            {zeroPagesNote}
-          </p>
-        ) : null}
-        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          {has100
-            ? legacyBandExplanation({ band, uxLabel: result.ux_label, hasOverall100: true })
-            : legacyBandExplanation({ band, uxLabel: result.ux_label, hasOverall100: false })}
-        </p>
-        {scan && (
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-            {scanConfidenceExplanation(scan)}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/**
- * Decorative donut around the numeric score. The center text is authoritative; arc length mirrors `fillPercent` only visually.
- */
-function SnapshotScoreDonut(props: {
-  fillPercent: number;
-  accentColor: string;
-  size?: number;
-  strokeWidth?: number;
-  children: ReactNode;
-}) {
-  const { fillPercent, accentColor, size = 168, strokeWidth = 11, children } = props;
-  const r = (size - strokeWidth) / 2;
-  const c = size / 2;
-  const circumference = 2 * Math.PI * r;
-  const pct = Math.max(0, Math.min(100, fillPercent));
-  const dashOffset = circumference * (1 - pct / 100);
-
-  return (
-    <div className="relative mx-auto flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
-      <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        className="absolute inset-0 -rotate-90"
-        aria-hidden
-      >
-        <circle
-          cx={c}
-          cy={c}
-          r={r}
-          fill="none"
-          stroke="var(--border-subtle)"
-          strokeWidth={strokeWidth}
-        />
-        <circle
-          cx={c}
-          cy={c}
-          r={r}
-          fill="none"
-          stroke={accentColor}
-          strokeWidth={strokeWidth}
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
-          className="[transition:stroke-dashoffset_0.75s_cubic-bezier(0.16,1,0.3,1)]"
-        />
-      </svg>
-      <div className="relative z-[1] flex flex-col items-center justify-center px-2 text-center">{children}</div>
-    </div>
-  );
-}
-
-function siteProfileSoftLine(profile: SnapshotSiteProfile | undefined): string | null {
-  if (!profile) return null;
-  const low = profile.classificationConfidenceBand === 'low';
-  const type = profile.siteType.replace(/-/g, ' ');
-  const ind = profile.industry.replace(/-/g, ' ');
-  if (profile.industry !== 'unknown' && profile.siteType !== 'unknown') {
-    return low
-      ? `Signals suggest something like a ${type} in ${ind} — automatic read only, not a final label.`
-      : `This looks like a ${type} in ${ind} (automatic read from your pages).`;
-  }
-  if (profile.siteType !== 'unknown') {
-    return low
-      ? `Signals suggest a ${type}-style site — we could not pin down a specific industry automatically.`
-      : `This looks like a ${type}-style site based on visible signals.`;
-  }
-  return 'We could not confidently categorise this site from the sampled pages alone.';
-}
 
 export function SnapshotLanding(props?: { embedded?: boolean }) {
   const embedded = props?.embedded ?? false;
@@ -315,34 +67,17 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
   const [quotaPreview, setQuotaPreview] = useState<{ remaining: number; limit: number } | null>(null);
   const [competitorLoading, setCompetitorLoading] = useState(false);
   const [competitorLoadError, setCompetitorLoadError] = useState('');
-  const [snapshotAuth, setSnapshotAuth] = useState<SnapshotAuthState>('checking');
-  const [snapshotAuthError, setSnapshotAuthError] = useState<string | null>(null);
   const [accountUser, setAccountUser] = useState<User | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    const sync = async () => {
-      try {
-        await ensureSnapshotSession();
-        if (!cancelled) {
-          setSnapshotAuth('ready');
-          setSnapshotAuthError(null);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setSnapshotAuth('failed');
-          setSnapshotAuthError(e instanceof Error ? e.message : 'Preview session unavailable');
-        }
-      } finally {
-        if (!cancelled) {
-          const { data } = await supabase.auth.getSession();
-          setAccountUser(data.session?.user ?? null);
-        }
-      }
+    const syncUser = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!cancelled) setAccountUser(data.session?.user ?? null);
     };
-    void sync();
+    void syncUser();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      void sync();
+      void syncUser();
     });
     return () => {
       cancelled = true;
@@ -352,7 +87,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
 
   async function refreshQuotaPreview() {
     try {
-      const res = await fetch(`${API_URL}/api/snapshot/quota`);
+      const res = await snapshotPublicRequest('/api/snapshot/quota');
       if (!res.ok) return;
       const data = (await res.json()) as { remaining?: number; limit?: number };
       if (typeof data.remaining === 'number' && typeof data.limit === 'number') {
@@ -385,7 +120,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
 
     const poll = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/snapshot/${tokenRef.current}`);
+        const res = await snapshotPublicRequest(`/api/snapshot/${tokenRef.current}`);
         const data = (await res.json()) as FreeSnapshotPreview & SnapshotApiErrorPayload;
         if (!res.ok) {
           throw new Error(toUiErrorMessage(res.status, data, 'Could not load snapshot status.'));
@@ -422,21 +157,8 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
     setRateLimitDetail(null);
 
     try {
-      let bearer: string;
-      try {
-        bearer = await ensureSnapshotSession();
-      } catch (e) {
-        setErrorMsg(e instanceof Error ? e.message : 'Could not start analysis');
-        setStage('error');
-        return;
-      }
-
-      const res = await fetch(`${API_URL}/api/snapshot`, {
+      const res = await snapshotPublicRequest('/api/snapshot', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${bearer}`,
-        },
         body: JSON.stringify({ company_url: trimmed }),
       });
 
@@ -472,7 +194,9 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
         setQuotaHint('');
       }
 
-      tokenRef.current = data.snapshot_token ?? '';
+      const st = data.snapshot_token ?? '';
+      tokenRef.current = st;
+      if (st) setPendingSnapshotToken(st);
       void refreshQuotaPreview();
       setStage('running');
     } catch {
@@ -503,7 +227,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
       const bearer = await getSnapshotAccessToken();
       const headers: Record<string, string> = {};
       if (bearer) headers.Authorization = `Bearer ${bearer}`;
-      const res = await fetch(`${API_URL}/api/snapshot/${token}?compare=1`, { headers });
+      const res = await snapshotPublicRequest(`/api/snapshot/${token}?compare=1`, { headers });
       if (!res.ok) {
         setCompetitorLoadError('Could not load comparison. Try again in a moment.');
         return;
@@ -722,22 +446,6 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                   Your website
                 </p>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {snapshotAuth === 'failed' && (
-                    <p
-                      className="rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2.5 text-center text-xs leading-snug mobile:text-left"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      {snapshotAuthError ?? 'Preview session could not be started.'}{' '}
-                      <Link
-                        to="/login?next=/snapshot"
-                        className="font-semibold underline-offset-2 hover:underline"
-                        style={{ color: 'var(--glc-blue)' }}
-                      >
-                        Sign in
-                      </Link>{' '}
-                      or ask your admin to enable Anonymous sign-ins in Supabase for instant preview.
-                    </p>
-                  )}
                   <div className="relative">
                     <Globe
                       className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 mobile:left-3"
@@ -749,7 +457,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                       onChange={e => setUrl(e.target.value)}
                       placeholder="yourcompany.com"
                       required
-                      disabled={stage === 'submitting' || snapshotAuth !== 'ready'}
+                      disabled={stage === 'submitting'}
                       inputMode="url"
                       autoCapitalize="none"
                       autoCorrect="off"
@@ -766,36 +474,27 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                   <motion.button
                     type="submit"
                     layout={false}
-                    disabled={
-                      !url.trim() ||
-                      stage === 'submitting' ||
-                      snapshotAuth !== 'ready'
-                    }
-                    whileHover={url.trim() && snapshotAuth === 'ready' ? { scale: 1.015 } : {}}
-                    whileTap={url.trim() && snapshotAuth === 'ready' ? { scale: 0.985 } : {}}
+                    disabled={!url.trim() || stage === 'submitting'}
+                    whileHover={url.trim() ? { scale: 1.015 } : {}}
+                    whileTap={url.trim() ? { scale: 0.985 } : {}}
                     className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] py-3 text-sm font-semibold text-white mobile:min-h-12"
                     style={{
                       background:
-                        url.trim() && snapshotAuth === 'ready'
+                        url.trim()
                           ? 'var(--gradient-accent)'
                           : 'var(--border-default)',
                       border: 'none',
                       cursor:
-                        url.trim() && stage !== 'submitting' && snapshotAuth === 'ready'
+                        url.trim() && stage !== 'submitting'
                           ? 'pointer'
                           : 'not-allowed',
                       boxShadow:
-                        url.trim() && snapshotAuth === 'ready'
+                        url.trim()
                           ? '0 4px 14px rgba(242,79,29,0.28)'
                           : 'none',
                     }}
                   >
-                    {snapshotAuth === 'checking' ? (
-                      <>
-                        <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                        Preparing preview...
-                      </>
-                    ) : stage === 'submitting' ? (
+                    {stage === 'submitting' ? (
                       <>
                         <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
                         Starting analysis...

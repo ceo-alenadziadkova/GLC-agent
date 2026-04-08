@@ -5,6 +5,8 @@ import { ArrowRight, Lock } from '@phosphor-icons/react';
 import { useAuth, isAnonymousUser } from '../hooks/useAuth';
 import { logger } from '../lib/logger';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { api, ApiError } from '../data/apiService';
+import { clearPendingSnapshotToken, getPendingSnapshotToken } from '../lib/snapshot-pending-token';
 
 type AuthMode = 'signin' | 'signup';
 
@@ -23,25 +25,50 @@ export function Login() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !user) return;
     if (isAnonymousUser(user)) {
       logger.info('Login: anonymous session detected, stay on /login for account upgrade');
       return;
     }
-    const token = localStorage.getItem('glc_discovery_token');
-    if (token) {
-      logger.info('Login: isAuthenticated with discovery token, navigating to /audit/new');
-      navigate('/audit/new?from_discovery=1', { replace: true });
-      return;
-    }
-    const nextRaw = new URLSearchParams(window.location.search).get('next');
-    if (nextRaw && nextRaw.startsWith('/') && !nextRaw.startsWith('//')) {
-      logger.info('Login: isAuthenticated, navigating to post-login next', { next: nextRaw });
-      navigate(nextRaw, { replace: true });
-      return;
-    }
-    logger.info('Login: isAuthenticated, navigating to /portfolio');
-    navigate('/portfolio', { replace: true });
+
+    let cancelled = false;
+    void (async () => {
+      const pendingSnapshot = getPendingSnapshotToken();
+      if (pendingSnapshot) {
+        try {
+          await api.claimSnapshot(pendingSnapshot);
+          clearPendingSnapshotToken();
+          logger.info('Login: pending snapshot claimed');
+        } catch (e) {
+          if (e instanceof ApiError && (e.status === 404 || e.status === 409 || e.status === 410)) {
+            clearPendingSnapshotToken();
+          }
+          logger.warn('Login: snapshot claim failed', {
+            message: e instanceof Error ? e.message : String(e),
+          });
+        }
+      }
+      if (cancelled) return;
+
+      const token = localStorage.getItem('glc_discovery_token');
+      if (token) {
+        logger.info('Login: isAuthenticated with discovery token, navigating to /audit/new');
+        navigate('/audit/new?from_discovery=1', { replace: true });
+        return;
+      }
+      const nextRaw = new URLSearchParams(window.location.search).get('next');
+      if (nextRaw && nextRaw.startsWith('/') && !nextRaw.startsWith('//')) {
+        logger.info('Login: isAuthenticated, navigating to post-login next', { next: nextRaw });
+        navigate(nextRaw, { replace: true });
+        return;
+      }
+      logger.info('Login: isAuthenticated, navigating to /portfolio');
+      navigate('/portfolio', { replace: true });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isAuthenticated, navigate, user]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -68,12 +95,12 @@ export function Login() {
 
   async function handleGoogle() {
     setError(null);
-    const { error: err } = await signInWithGoogle();
+    const { error: err } = await signInWithGoogle({ preserveGuestSession: false });
     if (!err) return;
     const msg = (err.message ?? '').toLowerCase();
     if (msg.includes('manual linking')) {
       setError(
-        'In Supabase Dashboard: Authentication → enable "Allow manual linking" (Auth general settings). It is required to attach Google to a quick-scan session. See docs: supabase.com/docs/guides/auth/general-configuration',
+        'In Supabase Dashboard: Authentication → enable "Allow manual linking" (Auth general settings). See docs: supabase.com/docs/guides/auth/general-configuration',
       );
       return;
     }
