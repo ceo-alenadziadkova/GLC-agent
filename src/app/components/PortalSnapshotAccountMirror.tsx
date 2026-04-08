@@ -12,6 +12,7 @@ import {
   SnapshotCategoryBreakdownList,
   SnapshotScoreContextNotes,
   SnapshotScoreDonut,
+  snapshotClassificationExplainerLine,
   snapshotDonutFillFromLegacyBand,
   snapshotDonutFillFromOverall,
   snapshotLegacyUxBand,
@@ -49,6 +50,7 @@ export function PortalSnapshotAccountMirror({ result }: { result: FreeSnapshotPr
     })();
 
   const siteLine = snapshotSiteProfileSoftLine(result.site_profile);
+  const classificationExplainer = snapshotClassificationExplainerLine(result);
 
   return (
     <div className="space-y-4">
@@ -177,6 +179,11 @@ export function PortalSnapshotAccountMirror({ result }: { result: FreeSnapshotPr
               {result.classification_confidence_band ?? result.site_profile?.classificationConfidenceBand}
             </p>
           )}
+          {classificationExplainer ? (
+            <p className="mt-2 mb-0 text-xs leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
+              {classificationExplainer}
+            </p>
+          ) : null}
         </div>
       ) : null}
 

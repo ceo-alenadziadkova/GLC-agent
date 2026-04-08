@@ -173,6 +173,13 @@ export interface FreeSnapshotPreview {
   scanned_at?: string;
   limitations?: string[];
   classification_version?: number;
+  classification_transparency?: {
+    matched_signals: string[];
+    runner_up_site_type: string | null;
+    runner_up_match_count: number | null;
+    tie_ambiguous: boolean;
+    score_top_two: [string, number][];
+  };
   fetch_strategy_version?: string;
   snapshot_engine_version?: string;
   competitor_mini?: {

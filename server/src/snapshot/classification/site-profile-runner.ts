@@ -15,6 +15,8 @@ export interface SiteProfileDebug {
   winningIndustryRule: string;
   winningConversionRule: string;
   scoreTopTwoSiteTypes: [string, number][];
+  /** Top two site types were within `tieDeltaThreshold` (classification may be unstable). */
+  tieAmbiguous: boolean;
 }
 
 function norm(s: string): string {
@@ -333,6 +335,7 @@ export function runSiteProfile(
       [top.id, top.count],
       [second.id, second.count],
     ],
+    tieAmbiguous,
   };
 
   if (rules.debugSignals || process.env.SNAPSHOT_CLASSIFICATION_DEBUG === '1') {
@@ -343,7 +346,7 @@ export function runSiteProfile(
       matchedSignals,
       rejectedSignals,
       scoreTopTwo: debug.scoreTopTwoSiteTypes,
-      tieAmbiguous,
+      tieAmbiguous: debug.tieAmbiguous,
     });
   }
 

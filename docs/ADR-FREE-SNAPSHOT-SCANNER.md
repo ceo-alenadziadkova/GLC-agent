@@ -96,6 +96,7 @@ Rules are stored in **`server/config/snapshot/audit-rules.v1.yaml`**; evaluators
 
 - **`classification-rules.v1.yaml`** drives `siteType`, `industry`, `conversionModel`, etc., from the same **`SnapshotFacts`** contract as the auditor.
 - **Risks** (wrong industry, conflicting signals, thin/SPA content, multilingual gaps, generic marketing hero) are mitigated by: **tie-break order**, **confidence caps**, **low content quality ceiling**, optional **debug signals** in logs — not by pretending certainty.
+- **Explainability:** the API may include **`classification_transparency`** (matched YAML signal payloads, runner-up `siteType` counts, `tie_ambiguous`) alongside **`classification_version`** so clients can show “why we guessed this” without running the full audit pipeline.
 
 ### Cost controls (summary)
 
@@ -103,6 +104,12 @@ Rules are stored in **`server/config/snapshot/audit-rules.v1.yaml`**; evaluators
 2. **Rule engine** — no ML/LLM in snapshot.
 3. **Conditional Playwright** — only when heuristics say raw HTML is insufficient; disable per env.
 4. **Lazy extras** — competitor compare only via **`?compare=1`** (or equivalent) after user opt-in.
+
+### Target relationship to full-audit performance (Lighthouse / Unlighthouse)
+
+This ADR remains normative for **free snapshot**: **no Unlighthouse**, and **no mandatory Lighthouse** on the default public snapshot path.
+
+**Shared product target** (see [ARCHITECTURE.md](./ARCHITECTURE.md#target-architecture-lighthouse-and-unlighthouse)): the **full audit** should move toward **multi-URL** Lighthouse coverage using an **Unlighthouse-class** orchestrator with hard caps. The **free snapshot** may, in the future, offer **at most one** programmatic Lighthouse run **only after explicit user opt-in** (or an equivalent paid/upsell gate) — not as an automatic step on every `POST /api/snapshot`. That keeps the mass-market grader cheap and fast while concentrating Chrome-heavy work in modes that expect it.
 
 ---
 
@@ -348,7 +355,7 @@ Normative items above may **outpace** current code. Track at least:
 1. **Audit catalog size** — **Done (v4 YAML):** 36-rule grid with evaluators and messages.
 2. **Category weight alignment** — **Done:** **30/30/20/20** enforced in catalog + drift test.
 3. **Fetch default budget** — **Done:** default **10s** (`SNAPSHOT_FETCH_BUDGET_MS`), ADR-aligned **~8–12s** band.
-4. **Classification YAML** — **Improved:** **v4** — broader multilingual ecommerce/saas CTAs, SaaS slug/keyword hints (security, SOC2), local-business schema breadth, content-media slugs; banks still evolve with product.
+4. **Classification YAML** — **Improved:** **v5** — title tokens from all sampled pages feed slug signals; **service-business** no longer fires on generic `/contact`/`/about` slugs alone (**`minMatch: 3`**); **`classification_transparency`** in snapshot outputs; banks still evolve with product.
 5. **Abuse controls** — **Improved:** optional **shared** cooldown (`snapshot_domain_cooldown`) + **shared fresh concurrency** (`snapshot_fresh_lease` RPCs) with **`SNAPSHOT_SHARED_ABUSE_STORE`**; compare limit remains **per process**.
 6. **SSRF parity** — **Improved:** redirect hop re-validation + **per-target-hostname** DNS checks on redirect chains (see `fetch-public-http-url.test.ts`); keep aligned with [SECURITY.md](./SECURITY.md).
 7. **Robots.txt** — **Done** in implementation; empty `Disallow:` line and merge behavior covered in tests — re-verify further edge cases if crawlers misbehave in the wild.
@@ -357,6 +364,7 @@ Normative items above may **outpace** current code. Track at least:
 10. **Retention** — **Improved:** cache strips contacts; **`audit_recon.contact_info`** cleared on free-snapshot persist; operator purge API.
 11. **Failure-mode matrix** — **Improved:** ordered WAF/challenge taxonomy (`challenge_taxonomy`); parked weak-hint suppression when JSON-LD / tel / mailto / internal path links + visible text suggest a live SMB site; `spa_shell_thin_html` for no-copy root mounts with many scripts; **residual gap:** edge cases that mimic both (e.g. marketing sites with extreme script count and little static text).
 12. **CAPTCHA for snapshot** — optional Turnstile (or similar) on **login** or the snapshot form if **anonymous** bursts become an issue; IP/server rate limits for snapshot remain as today.
+13. **Lighthouse split (snapshot vs full audit)** — **Target:** [ARCHITECTURE.md](./ARCHITECTURE.md#target-architecture-lighthouse-and-unlighthouse) — full audit evolves toward **multi-URL** (Unlighthouse-class); snapshot stays **without default Lighthouse**, optional **single-URL** only on explicit opt-in. **Today:** pipeline uses **one** Lighthouse URL when deep-scan env is on; snapshot still runs **zero** Lighthouse on the default path.
 
 ---
 

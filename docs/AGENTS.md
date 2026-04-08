@@ -56,9 +56,9 @@ Data gatherers in `server/src/collectors/`. Run before any AI call. Results cach
 | `CrawlerCollector` | `crawler.ts` | Fetches up to 20 pages; parses HTML with cheerio; returns page tree |
 | `ReconCollector` | `recon.ts` | Tech stack detection (80+ patterns), social profiles, contact info, structured data, image analysis |
 | `SecurityCollector` | `security.ts` | HTTP security headers (CSP, HSTS, X-Frame-Options, X-Content-Type), SSL validity, cookie flags, CORS config |
-| `SeoCollector` | `seo.ts` | Meta title/description, Open Graph tags, canonical URLs, sitemap.xml, robots.txt, JSON-LD schema markup |
-| `PerformanceCollector` | `performance.ts` | Page weight (HTML/CSS/JS sizes), image optimisation hints, resource hints, lazy loading |
-| `AccessibilityCollector` | `accessibility.ts` | Alt text coverage, ARIA landmark usage, form label associations, color contrast hints (heuristic) |
+| `SeoCollector` | `seo.ts` | Meta title/description, structured data from crawl; **robots-parser** for robots.txt; **fast-xml-parser** for sitemap urlset/index (bounded) |
+| `PerformanceCollector` | `performance.ts` | Page weight from crawl, response headers; optional **Lighthouse** (today: **single-URL** on `companyUrl`) when `AUDIT_LIGHTHOUSE` or `AUDIT_DEEP_SCAN` is set — **target:** multi-URL / Unlighthouse-class sampling; see [ARCHITECTURE.md](./ARCHITECTURE.md#target-architecture-lighthouse-and-unlighthouse) |
+| `AccessibilityCollector` | `accessibility.ts` | Alt text, headings, structured-data heuristics; optional **axe-core + Playwright** when `AUDIT_AXE_PLAYWRIGHT` or `AUDIT_DEEP_SCAN` is set |
 
 ### BaseCollector interface
 

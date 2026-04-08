@@ -120,6 +120,33 @@ Details: [PIPELINE.md](./PIPELINE.md). API: [API.md](./API.md).
 
 ---
 
+## Open-source collector libraries
+
+Server-side crawling still uses Cheerio and custom BFS; the following libraries extend **robots.txt**, **sitemap XML**, and optional **deep audits**:
+
+| Concern | Package | Notes |
+|---|---|---|
+| robots.txt (Allow/Disallow, wildcards, crawl-delay, Sitemap:) | [robots-parser](https://www.npmjs.com/package/robots-parser) ([repo](https://github.com/samclarke/robots-parser)) | Used for snapshot policy (`server/src/snapshot/robots-guard.ts`) and SEO collector checks (`server/src/collectors/seo.ts`). |
+| Sitemap urlset + sitemap index | [fast-xml-parser](https://www.npmjs.com/package/fast-xml-parser) | Bounded recursive fetch in `server/src/lib/sitemap-discovery.ts`. |
+| Programmatic Lighthouse | [lighthouse](https://www.npmjs.com/package/lighthouse) + [chrome-launcher](https://www.npmjs.com/package/chrome-launcher) | Gated by `AUDIT_LIGHTHOUSE` / `AUDIT_DEEP_SCAN`; see [Using Lighthouse programmatically](https://github.com/GoogleChrome/lighthouse/blob/main/docs/readme.md#using-programmatically). |
+| Accessibility rules in a real browser | [@axe-core/playwright](https://www.npmjs.com/package/@axe-core/playwright) + [Playwright](https://playwright.dev/) | Gated by `AUDIT_AXE_PLAYWRIGHT` / `AUDIT_DEEP_SCAN`. |
+| Multi-URL Lighthouse orchestration (target full audit) | [Unlighthouse](https://github.com/harlan-zw/unlighthouse) (MIT) | **Not integrated yet.** Preferred direction for **capped** site sampling + Lighthouse runs across multiple URLs (see subsection below). Context7: `/harlan-zw/unlighthouse`. |
+
+### Target architecture: Lighthouse and Unlighthouse
+
+**Goal:** separate **marginal-cost-sensitive** paths (free snapshot) from **depth-first** paths (full audit) for all Chrome-heavy performance work.
+
+| Mode | Target direction | Where we are today |
+| --- | --- | --- |
+| **Full audit** (consultant pipeline) | **Multi-URL performance sampling**: run Lighthouse across a **bounded** set of URLs derived from the crawl (key templates, not the whole site). Implement as an **Unlighthouse-class** flow (Unlighthouse itself or equivalent orchestration), with strict caps on URL count, wall time, and concurrency so deploys stay predictable. | **Interim:** `PerformanceCollector` runs **one** programmatic Lighthouse pass on the submitted `companyUrl` via `server/src/lib/lighthouse-audit.ts`, gated by `AUDIT_LIGHTHOUSE` / `AUDIT_DEEP_SCAN`. |
+| **Free snapshot** (`/api/snapshot`) | **No Unlighthouse.** Stay within [ADR-FREE-SNAPSHOT-SCANNER.md](./ADR-FREE-SNAPSHOT-SCANNER.md): tiered HTTP + cheerio, optional Playwright for thin homepage only. **Optional future product:** at most **one** **explicit opt-in** programmatic Lighthouse (single URL) — never a default on every anonymous completion. | **Matches target for “no Lighthouse default”:** snapshot does not call Lighthouse; snapshot Playwright stays scoped to the ADR. |
+
+**Rationale:** Full audit promises depth across real pages; snapshot promises speed and low marginal cost. A multi-page Chrome farm on default snapshot traffic would break latency and cost SLOs unless it is strictly opt-in and separately budgeted.
+
+**Context7 library IDs** (for `query-docs` when the MCP is available): `/googlechrome/lighthouse`, `/naturalintelligence/fast-xml-parser`, `/microsoft/playwright`, `/dequelabs/axe-core`. The npm `robots-parser` project is not indexed on Context7; use the [package README](https://github.com/samclarke/robots-parser/blob/master/README.md) or npm page.
+
+---
+
 ## Key Architectural Decisions
 
 | Decision | Rationale |

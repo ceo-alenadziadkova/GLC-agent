@@ -221,6 +221,14 @@ export interface FreeSnapshotPreview {
   limitations?: string[];
   /** classification-rules YAML `version`. */
   classification_version?: number;
+  /** Fired YAML signals and runner-up site type (explains `site_profile.siteType` for support / UI). */
+  classification_transparency?: {
+    matched_signals: string[];
+    runner_up_site_type: string | null;
+    runner_up_match_count: number | null;
+    tie_ambiguous: boolean;
+    score_top_two: [string, number][];
+  };
   /** Tiered fetch + robots policy revision label. */
   fetch_strategy_version?: string;
   /** Snapshot engine release line. */

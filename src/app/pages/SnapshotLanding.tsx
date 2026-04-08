@@ -43,6 +43,7 @@ import {
   legacyUxBand,
   scoreColorFrom100,
   siteProfileSoftLine,
+  snapshotClassificationExplainerLine,
 } from '../lib/snapshot-landing-helpers';
 import {
   CategoryBreakdownHint,
@@ -264,6 +265,9 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
 
   const snapshotCoverageCaption =
     stage === 'done' && result ? formatScanCoverageLine(result.scan_coverage) : null;
+
+  const snapshotClassificationExplainer =
+    stage === 'done' && result ? snapshotClassificationExplainerLine(result) : null;
 
   const snapshotLimitations =
     stage === 'done' && result?.limitations && result.limitations.length > 0 && !snapshotShowsAccessCallout
@@ -754,6 +758,11 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                       Classification confidence: {result.classification_confidence_band ?? result.site_profile?.classificationConfidenceBand}
                     </p>
                   )}
+                  {snapshotClassificationExplainer ? (
+                    <p className="mt-2 text-xs leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
+                      {snapshotClassificationExplainer}
+                    </p>
+                  ) : null}
                 </div>
               )}
 

@@ -1,4 +1,4 @@
-import type { SnapshotCompetitorComparison, SnapshotSiteProfile } from '../data/auditTypes';
+import type { FreeSnapshotPreview, SnapshotCompetitorComparison, SnapshotSiteProfile } from '../data/auditTypes';
 
 export type SnapshotCategoryScoreKey =
   | 'ux_clarity'
@@ -133,4 +133,61 @@ export function siteProfileSoftLine(profile: SnapshotSiteProfile | undefined): s
       : `This looks like a ${type}-style site based on visible signals.`;
   }
   return 'We could not confidently categorise this site from the sampled pages alone.';
+}
+
+function humanizeSiteTypeLabel(id: string | null | undefined): string | null {
+  if (!id || id === 'unknown') return null;
+  return id.replace(/-/g, ' ');
+}
+
+function runnerUpSiteTypeLabel(
+  result: FreeSnapshotPreview,
+  ct: NonNullable<FreeSnapshotPreview['classification_transparency']>,
+): string | null {
+  const chosen = result.site_profile?.siteType;
+  let rid: string | null | undefined = ct.runner_up_site_type ?? undefined;
+  if (!rid || rid === 'unknown' || rid === chosen) {
+    const sec = ct.score_top_two[1];
+    rid = sec?.[0];
+  }
+  if (!rid || rid === 'unknown' || rid === chosen) return null;
+  return humanizeSiteTypeLabel(rid);
+}
+
+/**
+ * One-line explainability when the free snapshot classified the site with low confidence or a near-tie.
+ * Uses API `classification_transparency`; returns null when the server did not send it or no message applies.
+ */
+export function snapshotClassificationExplainerLine(result: FreeSnapshotPreview): string | null {
+  const ct = result.classification_transparency;
+  if (!ct) return null;
+
+  const band =
+    result.classification_confidence_band ?? result.site_profile?.classificationConfidenceBand ?? null;
+  const show = ct.tie_ambiguous === true || band === 'low';
+  if (!show) return null;
+
+  const chosenLabel = humanizeSiteTypeLabel(result.site_profile?.siteType);
+  const runnerLabel = runnerUpSiteTypeLabel(result, ct);
+
+  const parts: string[] = [];
+
+  if (ct.tie_ambiguous && chosenLabel && runnerLabel) {
+    parts.push(
+      `Our quick scan scored "${chosenLabel}" and "${runnerLabel}" about the same—treat this as a rough hint, not a final industry label.`,
+    );
+  } else if (ct.tie_ambiguous && chosenLabel) {
+    parts.push(
+      `More than one site pattern matched closely on the pages we could load—we show "${chosenLabel}" as the closest fit.`,
+    );
+  }
+
+  if (band === 'low') {
+    parts.push(
+      'Confidence is low because we only sampled a few pages; a full audit can use more of your site and brief context.',
+    );
+  }
+
+  if (parts.length === 0) return null;
+  return parts.join(' ');
 }

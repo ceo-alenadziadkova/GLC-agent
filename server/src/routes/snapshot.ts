@@ -177,6 +177,10 @@ function applyDeterministicRecordToPreview(
   if (typeof det.classification_version === 'number') {
     preview.classification_version = det.classification_version;
   }
+  if (det.classification_transparency && typeof det.classification_transparency === 'object') {
+    preview.classification_transparency =
+      det.classification_transparency as FreeSnapshotPreview['classification_transparency'];
+  }
   if (typeof det.fetch_strategy_version === 'string') {
     preview.fetch_strategy_version = det.fetch_strategy_version;
   }

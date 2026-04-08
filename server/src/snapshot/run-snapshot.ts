@@ -27,6 +27,7 @@ import { snapshotPayloadToAccessApiFields } from './snapshot-access-state.js';
 import type {
   SnapshotAuditResult,
   SnapshotCachePayload,
+  SnapshotClassificationTransparency,
   SiteProfile,
   SnapshotScanCoverage,
   SnapshotFacts,
@@ -490,6 +491,7 @@ export async function runDeterministicSnapshot(auditId: string): Promise<Determi
       ai_visibility: { gaps: deriveAiVisibilityGaps(facts, coverage) },
       ...(homepage_snippet ? { homepage_snippet } : {}),
       ...(limitationNotes.length > 0 ? { limitations: limitationNotes } : {}),
+      classification_transparency: classificationTransparencyFromDebug(debug),
     };
 
     await writeSnapshotCache(host, redactSnapshotPayloadForDomainCache(payload));
@@ -513,6 +515,20 @@ export async function runDeterministicSnapshot(auditId: string): Promise<Determi
   } finally {
     await releaseOnce();
   }
+}
+
+function classificationTransparencyFromDebug(debug: SiteProfileDebug): SnapshotClassificationTransparency {
+  const scoreTopTwo = debug.scoreTopTwoSiteTypes;
+  const second = scoreTopTwo[1];
+  const runnerUpType = second && second[0] !== 'unknown' ? second[0] : null;
+  const runnerUpCount = second && second[0] !== 'unknown' ? second[1] : null;
+  return {
+    matched_signals: debug.matchedSignals.slice(0, 30),
+    runner_up_site_type: runnerUpType,
+    runner_up_match_count: runnerUpCount,
+    tie_ambiguous: debug.tieAmbiguous,
+    score_top_two: scoreTopTwo,
+  };
 }
 
 async function persistFromCache(
@@ -580,6 +596,9 @@ async function persistFromCache(
         ...(p.classification_version !== undefined ? { classification_version: p.classification_version } : {}),
         ...(p.fetch_strategy_version ? { fetch_strategy_version: p.fetch_strategy_version } : {}),
         ...(p.snapshot_engine_version ? { snapshot_engine_version: p.snapshot_engine_version } : {}),
+        ...(p.classification_transparency
+          ? { classification_transparency: p.classification_transparency }
+          : {}),
         ...(p.homepage_snippet ? { homepage_snippet: p.homepage_snippet } : {}),
         ...(p.tech_stack_tentative && p.tech_stack_tentative.length > 0
           ? { tech_stack_tentative: p.tech_stack_tentative }
@@ -747,6 +766,9 @@ export function snapshotPayloadToDeterministicApiRecord(p: SnapshotCachePayload)
     ...(p.classification_version !== undefined ? { classification_version: p.classification_version } : {}),
     ...(p.fetch_strategy_version ? { fetch_strategy_version: p.fetch_strategy_version } : {}),
     ...(p.snapshot_engine_version ? { snapshot_engine_version: p.snapshot_engine_version } : {}),
+    ...(p.classification_transparency
+      ? { classification_transparency: p.classification_transparency }
+      : {}),
     ...(p.homepage_snippet ? { homepage_snippet: p.homepage_snippet } : {}),
     ...(p.tech_stack_tentative && p.tech_stack_tentative.length > 0
       ? { tech_stack_tentative: p.tech_stack_tentative }
@@ -902,6 +924,9 @@ function buildPreviewFromPayload(
     ...(p.classification_version !== undefined ? { classification_version: p.classification_version } : {}),
     ...(p.fetch_strategy_version ? { fetch_strategy_version: p.fetch_strategy_version } : {}),
     ...(p.snapshot_engine_version ? { snapshot_engine_version: p.snapshot_engine_version } : {}),
+    ...(p.classification_transparency
+      ? { classification_transparency: p.classification_transparency }
+      : {}),
     ...(p.homepage_snippet ? { homepage_snippet: p.homepage_snippet } : {}),
     ...(p.tech_stack_tentative && p.tech_stack_tentative.length > 0
       ? { tech_stack_tentative: p.tech_stack_tentative }

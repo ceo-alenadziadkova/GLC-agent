@@ -1,11 +1,14 @@
 import { BaseCollector } from './base.js';
 import { supabase } from '../services/supabase.js';
+import { auditAxeNavigateTimeoutMs, auditAxePlaywrightEnabled } from '../lib/audit-deep-scan-env.js';
+import { runAxeOnPublicUrls } from '../lib/axe-playwright-audit.js';
+import { logger } from '../services/logger.js';
 
 export class AccessibilityCollector extends BaseCollector {
   get key() { return 'accessibility'; }
   get phase() { return 4; }
 
-  async collect(auditId: string, _companyUrl: string) {
+  async collect(auditId: string, companyUrl: string) {
     // Get crawled pages data
     const { data: crawlData } = await supabase
       .from('collected_data')
@@ -17,7 +20,7 @@ export class AccessibilityCollector extends BaseCollector {
     const pages = (crawlData?.data as Record<string, unknown>)?.pages_crawled as Array<Record<string, unknown>> ?? [];
 
     if (pages.length === 0) {
-      return {
+      const emptyCrawl = {
         no_crawl_data: true,
         warning: 'No crawled pages available — accessibility analysis skipped',
         image_accessibility: { total_images: 0, missing_alt: 0, alt_coverage_percent: 100 },
@@ -25,6 +28,7 @@ export class AccessibilityCollector extends BaseCollector {
         issues: ['No pages were crawled — cannot assess accessibility'],
         pages_analyzed: 0,
       };
+      return this.attachAxeIfEnabled(auditId, companyUrl, [companyUrl], emptyCrawl);
     }
 
     const issues: string[] = [];
@@ -94,7 +98,7 @@ export class AccessibilityCollector extends BaseCollector {
       ? Math.round(((totalImages - missingAlt) / totalImages) * 100)
       : 100;
 
-    return {
+    const base = {
       image_accessibility: {
         total_images: totalImages,
         missing_alt: missingAlt,
@@ -113,5 +117,47 @@ export class AccessibilityCollector extends BaseCollector {
       issues,
       pages_analyzed: pages.length,
     };
+
+    const urls = [companyUrl, ...pages.map(p => p.url as string).filter(Boolean)].slice(0, 5);
+    return this.attachAxeIfEnabled(auditId, companyUrl, urls, base);
+  }
+
+  private async attachAxeIfEnabled(
+    auditId: string,
+    companyUrl: string,
+    urls: string[],
+    base: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    if (!auditAxePlaywrightEnabled()) {
+      return base;
+    }
+
+    logger.info('collector.accessibility.axe_start', { auditId, companyUrl, url_count: urls.length });
+
+    try {
+      const axePages = await runAxeOnPublicUrls(urls, auditAxeNavigateTimeoutMs());
+      const totalViolations = axePages.reduce((s, p) => s + p.violations, 0);
+      const totalCritSer = axePages.reduce((s, p) => s + p.critical_and_serious, 0);
+      logger.info('collector.accessibility.axe_finished', {
+        auditId,
+        total_violations: totalViolations,
+        critical_and_serious_total: totalCritSer,
+      });
+      return {
+        ...base,
+        axe_playwright: {
+          enabled: true,
+          pages: axePages,
+          total_violations: totalViolations,
+          critical_and_serious_total: totalCritSer,
+        },
+      };
+    } catch (e) {
+      logger.warn('collector.accessibility.axe_failed', { auditId, error: (e as Error).message });
+      return {
+        ...base,
+        axe_playwright: { enabled: true, error: (e as Error).message },
+      };
+    }
   }
 }

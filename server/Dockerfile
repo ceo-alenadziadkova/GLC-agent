@@ -8,6 +8,14 @@ WORKDIR /app
 
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
+# Chromium for Lighthouse (chrome-launcher). Playwright snapshot/axe still use the browser from `playwright install chromium`.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV CHROME_PATH=/usr/bin/chromium
+
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./

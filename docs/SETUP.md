@@ -49,9 +49,28 @@ PORT=3001
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_KEY=eyJ...
 ANTHROPIC_API_KEY=sk-ant-...
+
+# Optional — deeper automated checks (extra CPU/time; needs Chrome for Lighthouse)
+# AUDIT_DEEP_SCAN=1
+# AUDIT_LIGHTHOUSE=1
+# AUDIT_AXE_PLAYWRIGHT=1
+# AUDIT_LIGHTHOUSE_BUDGET_MS=55000
+# AUDIT_AXE_NAV_TIMEOUT_MS=12000
 ```
 
 > The frontend uses the anon key (safe to expose). The backend uses the service role key (bypasses RLS for server-side operations — never expose to client).
+
+**Deep audit flags:** `AUDIT_DEEP_SCAN=1` turns on both Lighthouse (performance collector) and axe-core + Playwright (accessibility collector). You can enable them separately with `AUDIT_LIGHTHOUSE=1` or `AUDIT_AXE_PLAYWRIGHT=1`. Lighthouse uses [chrome-launcher](https://github.com/GoogleChrome/chrome-launcher), which reads **`CHROME_PATH`** if set; otherwise it searches for Chrome/Chromium on the system.
+
+**Docker / production image:** the server `Dockerfile` installs Debian `chromium` and sets `CHROME_PATH=/usr/bin/chromium` so Lighthouse works when deep-audit env vars are enabled. Local dev without Docker: install Chrome/Chromium or set `CHROME_PATH` to your binary (Playwright’s downloaded Chromium lives under `~/.cache/ms-playwright/` — e.g. `chromium-*/chrome-linux/chrome` on Linux).
+
+See [docs/ARCHITECTURE.md](./ARCHITECTURE.md#open-source-collector-libraries) for library references, Unlighthouse (future), and Context7 IDs.
+
+**Important:** `AUDIT_DEEP_SCAN` affects only the **full audit pipeline** (consultant flow: create audit → start pipeline → phases 1 and 4 run `PerformanceCollector` / `AccessibilityCollector`). It does **not** run during the **public free snapshot** (`POST /api/snapshot/`, logs like `snapshot.run_complete`, `Free snapshot started`). The snapshot scanner uses its own tiered fetch and optional Playwright for the homepage; that is unrelated to Lighthouse/axe in collectors.
+
+**Target direction:** full audit → **multi-URL** Lighthouse (Unlighthouse-class); free snapshot → **no default Lighthouse**, optional single-URL only with explicit opt-in — see [ARCHITECTURE.md](./ARCHITECTURE.md#target-architecture-lighthouse-and-unlighthouse).
+
+**How to confirm deep audit ran:** restart the API after changing env (`AUDIT_DEEP_SCAN` is read at process start). Trigger a **full** audit and let the pipeline reach tech (phase 1) and UX (phase 4). In logs, look for `collector.performance.lighthouse_start` / `lighthouse_finished` and `collector.accessibility.axe_start` / `axe_finished`. In Supabase `collected_data`: `collector_key` = `performance` → `data.lighthouse`; `collector_key` = `accessibility` → `data.axe_playwright`. If those keys are missing, either you only ran a free snapshot, env was not loaded, the server was not restarted, or the phase has not finished yet.
 
 ---
 
