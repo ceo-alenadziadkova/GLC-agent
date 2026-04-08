@@ -22,11 +22,23 @@ import {
   computeFindings,
   computeScore,
   getQuestion,
+  setDiscoveryUiFragmentQuestions,
   type DiscoveryAnswers,
   type DiscoveryFinding,
+  type DiscoveryQuestion,
 } from '../lib/discovery-flow';
+import type { IntakeVersionTuple } from '../data/auditTypes';
+import { discoverApi } from '../data/api/discover';
 import { api } from '../data/apiService';
 import { choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
+import {
+  createDiscoveryAnalyticsSink,
+  discoveryTrackQuestionAnswered,
+  discoveryTrackQuestionShown,
+  discoveryTrackQuestionSkipped,
+  discoveryTrackResultsViewed,
+  discoveryTrackWizardCompleted,
+} from '../lib/discovery-analytics';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -304,6 +316,17 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
   // Session persistence
   const [sessionToken, setSessionToken] = useState<string | null>(null);
 
+  const intakeVersionsRef = useRef<IntakeVersionTuple | null>(null);
+  const sessionTokenRef = useRef<string | null>(null);
+  const sinkRef = useRef<ReturnType<typeof createDiscoveryAnalyticsSink> | null>(null);
+  if (sinkRef.current == null) {
+    sinkRef.current = createDiscoveryAnalyticsSink({
+      getIntakeVersions: () => intakeVersionsRef.current,
+      getDiscoveryToken: () => sessionTokenRef.current,
+    });
+  }
+  const lastShownKeyRef = useRef<string>('');
+
   // Contact form
   const [contactName,    setContactName]    = useState('');
   const [contactEmail,   setContactEmail]   = useState('');
@@ -312,6 +335,44 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
   const [contactSaving,  setContactSaving]  = useState(false);
   const [contactSaved,   setContactSaved]   = useState(false);
   const [contactError,   setContactError]   = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await discoverApi.getUiFragment();
+        if (cancelled || !data?.questions?.length) return;
+        if (data.intake_versions) {
+          intakeVersionsRef.current = data.intake_versions;
+        }
+        const mapped: DiscoveryQuestion[] = data.questions.map(q => ({
+          id: q.id,
+          question: q.question,
+          hint: q.hint,
+          type: q.type,
+          options: q.options,
+          optional: q.optional,
+        }));
+        setDiscoveryUiFragmentQuestions(mapped);
+      } catch {
+        // Bundled fallback in discovery-flow remains active.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    sessionTokenRef.current = sessionToken;
+  }, [sessionToken]);
+
+  useEffect(() => {
+    const sink = sinkRef.current;
+    return () => {
+      void sink?.flush();
+    };
+  }, []);
 
   const sequence   = buildQuestionSequence(answers);
   const currentId  = sequence[currentIdx] ?? null;
@@ -331,6 +392,22 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
       }, 80);
     }
   }, [currentIdx, showResults]);
+
+  useEffect(() => {
+    if (showResults || !currentId) return;
+    const sink = sinkRef.current;
+    if (!sink) return;
+    const key = `${currentIdx}:${currentId}`;
+    if (lastShownKeyRef.current === key) return;
+    lastShownKeyRef.current = key;
+    discoveryTrackQuestionShown(sink, { questionId: currentId, stepIndex: currentIdx });
+  }, [currentId, currentIdx, showResults]);
+
+  useEffect(() => {
+    if (!showResults) return;
+    const sink = sinkRef.current;
+    if (sink) discoveryTrackResultsViewed(sink);
+  }, [showResults]);
 
   const specifyKey = currentId ? `${currentId}__other` : '';
   const specifyFilled = !specifyKey || (typeof answers[specifyKey] === 'string' && answers[specifyKey].trim().length > 0);
@@ -355,6 +432,14 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
   function handleNext() {
     if (!currentId) return;
     const q = getQuestion(currentId);
+    const sink = sinkRef.current;
+    if (sink) {
+      if (q?.optional && !isAnswered(draft)) {
+        discoveryTrackQuestionSkipped(sink, { questionId: currentId, stepIndex: currentIdx });
+      } else {
+        discoveryTrackQuestionAnswered(sink, { questionId: currentId, stepIndex: currentIdx });
+      }
+    }
     let valueToSave: DiscoveryAnswers[string] = draft;
     if (q?.optional && typeof draft === 'string' && !draft.trim()) {
       valueToSave = null;
@@ -365,6 +450,7 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
     const nextIdx = currentIdx + 1;
 
     if (nextIdx >= nextSequence.length) {
+      if (sink) discoveryTrackWizardCompleted(sink);
       const finalFindings = computeFindings(committed);
       const saveTimeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('timeout')), 5000),

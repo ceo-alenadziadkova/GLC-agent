@@ -408,6 +408,15 @@ export function AuditWorkspace() {
                             answerSource="consultant"
                             collectionMode={audit.brief.collection_mode}
                             intakeSurface={workspaceConsultantSurface}
+                            intakeAnalytics={
+                              id && workspaceConsultantSurface && audit.brief
+                                ? {
+                                    auditId: id,
+                                    surface: workspaceConsultantSurface,
+                                    getIntakeVersions: () => audit.brief.intake_versions ?? null,
+                                  }
+                                : undefined
+                            }
                           />
                         ) : (
                           <BankClassicBriefFields

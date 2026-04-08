@@ -2,6 +2,7 @@
  * Static dependency hints: which response keys each BRANCH_RULES predicate may read.
  * Used for docs, topo eval order (ADR Phase C), future incremental recompute (ADR Phase C2), and linting.
  */
+import { QUESTION_BANK_V1_STUBS } from '../question-bank.js';
 import type { IntakeQuestionStub } from '../types.js';
 
 export const BRANCH_RULE_RESPONSE_KEYS: Readonly<Record<string, readonly string[]>> = {
@@ -109,4 +110,52 @@ export function buildBranchAwareStubEvalOrder(stubs: IntakeQuestionStub[]): Inta
   }
 
   return result;
+}
+
+/**
+ * Precomputed topo eval order for the shipped v1 bank (same reference as `resolveIntakeArtifacts` stubs).
+ */
+export const QUESTION_BANK_V1_STUB_EVAL_ORDER: readonly IntakeQuestionStub[] =
+  buildBranchAwareStubEvalOrder(QUESTION_BANK_V1_STUBS);
+
+function buildResponseKeyToDependentStubIds(stubs: IntakeQuestionStub[]): Map<string, Set<string>> {
+  const stubIdSet = new Set(stubs.map(s => s.id));
+  const rev = new Map<string, Set<string>>();
+  for (const q of stubs) {
+    if (!q.branchCondition) continue;
+    for (const key of listBranchRuleResponseKeys(q.branchCondition)) {
+      for (const prov of providerStubIdsForResponseKey(key, stubIdSet)) {
+        let set = rev.get(prov);
+        if (!set) {
+          set = new Set();
+          rev.set(prov, set);
+        }
+        set.add(q.id);
+      }
+    }
+  }
+  return rev;
+}
+
+const RESPONSE_KEY_DEPS_V1 = buildResponseKeyToDependentStubIds(QUESTION_BANK_V1_STUBS);
+
+/**
+ * Bank stub ids that should be re-evaluated for branch eligibility when the given response keys change.
+ * Use with `buildIntakePlan` / `evaluateCanonEligibility` incremental paths; full replan remains valid.
+ */
+export function listBankStubIdsInvalidatedByResponseKeys(
+  changedResponseKeys: Iterable<string>,
+  stubs: IntakeQuestionStub[] = QUESTION_BANK_V1_STUBS,
+): string[] {
+  const map =
+    stubs === QUESTION_BANK_V1_STUBS
+      ? RESPONSE_KEY_DEPS_V1
+      : buildResponseKeyToDependentStubIds(stubs);
+
+  const out = new Set<string>();
+  for (const k of changedResponseKeys) {
+    const set = map.get(k);
+    if (set) for (const id of set) out.add(id);
+  }
+  return [...out].sort((a, b) => a.localeCompare(b));
 }

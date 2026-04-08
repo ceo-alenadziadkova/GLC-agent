@@ -28,6 +28,23 @@ export type BriefSchemaSnapshot = {
   next_recommended: string[];
 };
 
+export type BriefIntakeAnalyticsBatchPayload = {
+  surface: 'consultant_interview' | 'client_form' | 'client_portal';
+  client_session_id: string;
+  intake_versions?: Partial<IntakeVersionTuple>;
+  events: Array<{
+    event_type:
+      | 'question_shown'
+      | 'question_answered'
+      | 'question_skipped'
+      | 'wizard_completed'
+      | 'results_viewed';
+    question_id?: string;
+    step_index?: number;
+    client_ts?: string;
+  }>;
+};
+
 export const briefProfilePlatformApi = {
   async getBriefSchema(auditId: string) {
     return apiFetch<BriefSchemaSnapshot>(`/api/audits/${auditId}/brief/schema`);
@@ -67,6 +84,13 @@ export const briefProfilePlatformApi = {
     }>(`/api/audits/${auditId}/brief`);
     assertIntakePayloadShape(payload);
     return payload;
+  },
+
+  async postBriefAnalyticsEvents(auditId: string, payload: BriefIntakeAnalyticsBatchPayload) {
+    return apiFetch<{ ok: true; received: number }>(`/api/audits/${auditId}/brief/analytics-events`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 
   async saveBrief(

@@ -156,6 +156,9 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
 
   /** Server-backed draft audit (client self-serve); reused on Launch to avoid duplicate rows. */
   const [draftAuditId, setDraftAuditId] = useState<string | null>(() => portalDraftSeed?.draftAuditId ?? null);
+  const [draftIntakeVersions, setDraftIntakeVersions] = useState<IntakeVersionTuple | null>(
+    () => portalDraftSeed?.draftIntakeVersions ?? null,
+  );
   const [draftSaving, setDraftSaving] = useState(false);
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
@@ -219,6 +222,23 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
     return () => { cancelled = true; };
   }, [intakeTokenFromUrl, isClientSelfServe]);
 
+  useEffect(() => {
+    if (!isClientSelfServe || !draftAuditId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { brief } = await api.getBrief(draftAuditId);
+        if (cancelled || !brief?.intake_versions) return;
+        setDraftIntakeVersions(brief.intake_versions);
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isClientSelfServe, draftAuditId]);
+
   // Persist client wizard to sessionStorage (same tab survives refresh).
   useEffect(() => {
     if (!isClientSelfServe) return;
@@ -235,6 +255,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         responses,
         briefLayoutChoice,
         draftAuditId,
+        draftIntakeVersions,
       });
     }, 350);
     return () => window.clearTimeout(t);
@@ -250,6 +271,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
     responses,
     briefLayoutChoice,
     draftAuditId,
+    draftIntakeVersions,
   ]);
 
   // ── Discovery session pre-fill ──────────────────────────────────────────────
@@ -334,6 +356,18 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
 
   const layoutSelected = briefLayoutChoice === 'classic' || briefLayoutChoice === 'wizard';
 
+  const briefWizardIntakeAnalytics = useMemo(
+    () =>
+      draftAuditId && !noPublicWebsite && briefLayoutChoice === 'wizard'
+        ? {
+            auditId: draftAuditId,
+            surface: isClientSelfServe ? 'client_form' : 'consultant_interview',
+            getIntakeVersions: (): IntakeVersionTuple | null => draftIntakeVersions,
+          }
+        : undefined,
+    [draftAuditId, noPublicWebsite, briefLayoutChoice, isClientSelfServe, draftIntakeVersions],
+  );
+
   function handleSelectConsultantBriefLayout(mode: 'classic' | 'wizard') {
     if (isClientSelfServe) {
       writeClientBriefLayout(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE, mode);
@@ -380,6 +414,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         responses,
         briefLayoutChoice,
         draftAuditId,
+        draftIntakeVersions,
       });
       if (!step1Valid) {
         setDraftNotice('Draft saved in this browser. Add website (or no public site) and industry so we can also save to your account.');
@@ -404,10 +439,11 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         delete localWithBasics.intake_industry_specify;
       }
 
-      await api.saveBrief(auditId, localWithBasics, {
+      const savePayload = await api.saveBrief(auditId, localWithBasics, {
         collection_mode:
           noPublicWebsite && briefLayoutChoice === 'wizard' ? 'discovery' : undefined,
       });
+      setDraftIntakeVersions(savePayload.brief.intake_versions ?? null);
 
       writeClientPortalNewAuditDraft({
         v: 1,
@@ -421,6 +457,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         responses,
         briefLayoutChoice,
         draftAuditId: auditId,
+        draftIntakeVersions: savePayload.brief.intake_versions ?? null,
       });
 
       setDraftNotice(
@@ -507,6 +544,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
 
       if (isClientSelfServe) {
         clearClientPortalNewAuditDraft();
+        setDraftIntakeVersions(null);
       }
 
       navigate(isClientSelfServe ? `/portal/pipeline/${auditId}` : `/pipeline/${auditId}`);
@@ -1233,6 +1271,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                           answerSource={interviewMode ? 'consultant' : 'client'}
                           collectionMode={noPublicWebsite ? 'discovery' : undefined}
                           intakeSurface={noPublicWebsite ? undefined : 'consultant_interview'}
+                          intakeAnalytics={briefWizardIntakeAnalytics}
                         />
                       </div>
                     ) : (

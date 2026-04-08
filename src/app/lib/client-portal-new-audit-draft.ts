@@ -1,6 +1,29 @@
+import type { IntakeVersionTuple } from '../data/auditTypes';
 import type { BriefResponses } from '../data/briefQuestions';
 
 export const CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY = 'glc_portal_new_audit_draft_v1';
+
+function parseIntakeVersionTupleLoose(raw: unknown): IntakeVersionTuple | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  const q = o.questionBankVersion;
+  const p = o.policyVersion;
+  const l = o.layoutVersion;
+  const r = o.resolverVersion;
+  if (
+    typeof q === 'string'
+    && typeof p === 'string'
+    && typeof l === 'string'
+    && typeof r === 'string'
+    && q.length > 0
+    && p.length > 0
+    && l.length > 0
+    && r.length > 0
+  ) {
+    return { questionBankVersion: q, policyVersion: p, layoutVersion: l, resolverVersion: r };
+  }
+  return null;
+}
 
 export type ClientPortalNewAuditDraftV1 = {
   v: 1;
@@ -14,6 +37,8 @@ export type ClientPortalNewAuditDraftV1 = {
   responses: BriefResponses;
   briefLayoutChoice: 'unset' | 'classic' | 'wizard';
   draftAuditId: string | null;
+  /** Last known intake version tuple from server brief (analytics + parity). */
+  draftIntakeVersions?: IntakeVersionTuple | null;
 };
 
 export function parseClientPortalNewAuditDraft(raw: string): ClientPortalNewAuditDraftV1 | null {
@@ -26,6 +51,7 @@ export function parseClientPortalNewAuditDraft(raw: string): ClientPortalNewAudi
     const bl = d.briefLayoutChoice;
     const briefLayoutChoice: 'unset' | 'classic' | 'wizard' =
       bl === 'classic' || bl === 'wizard' || bl === 'unset' ? bl : 'unset';
+    const parsedVersions = parseIntakeVersionTupleLoose(d.draftIntakeVersions);
     return {
       v: 1,
       step,
@@ -40,6 +66,7 @@ export function parseClientPortalNewAuditDraft(raw: string): ClientPortalNewAudi
         : {},
       briefLayoutChoice,
       draftAuditId: typeof d.draftAuditId === 'string' && d.draftAuditId.length > 0 ? d.draftAuditId : null,
+      ...(parsedVersions != null ? { draftIntakeVersions: parsedVersions } : {}),
     };
   } catch {
     return null;

@@ -34,6 +34,7 @@ import {
 } from '../services/brief-validator.js';
 import type { IntakeBriefCollectionMode } from '../types/audit.js';
 import { BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
+import { intakeAnalyticsAuditBriefBatchSchema } from '../schemas/intake-analytics-events.js';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import { NO_PUBLIC_WEBSITE_URL } from '../config/no-public-website.js';
 import { safeOrUserFilter } from '../lib/postgrest-filter.js';
@@ -412,6 +413,73 @@ auditsRouter.get('/:id/brief/schema', attachProfile, rejectGuestFromPortal, asyn
     const e = err as Error;
     logger.error('route.brief_schema_get_failed', { component: 'audits', error: e.message, stack: e.stack });
     res.status(500).json({ error: 'Failed to get brief schema' });
+  }
+});
+
+// ─── POST /api/audits/:id/brief/analytics-events — Wizard funnel (ADR Phase G) ─
+
+auditsRouter.post('/:id/brief/analytics-events', attachProfile, rejectGuestFromPortal, async (req: AuthRequest, res) => {
+  try {
+    const id = req.params.id as string;
+    const parsed = intakeAnalyticsAuditBriefBatchSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({
+        error: 'Invalid analytics payload',
+        details: parsed.error.flatten(),
+      });
+      return;
+    }
+    const body = parsed.data;
+
+    const { data: audit } = await supabase
+      .from('audits')
+      .select('id, user_id, client_id')
+      .eq('id', id)
+      .single();
+
+    if (!audit) {
+      res.status(404).json({ error: 'Audit not found' });
+      return;
+    }
+
+    const hasAccess = audit.user_id === req.userId || audit.client_id === req.userId;
+    if (!hasAccess) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    const versions =
+      body.intake_versions && Object.values(body.intake_versions).some(v => v != null && v !== '')
+        ? body.intake_versions
+        : null;
+
+    const rows = body.events.map(e => ({
+      surface: body.surface,
+      event_type: e.event_type,
+      client_session_id: body.client_session_id,
+      audit_id: id,
+      question_id: e.question_id ?? null,
+      step_index: e.step_index ?? null,
+      intake_versions: versions,
+      client_ts: e.client_ts ?? null,
+    }));
+
+    const { error } = await supabase.from('intake_analytics_events').insert(rows);
+    if (error) {
+      logger.error('route.brief_analytics_insert_failed', {
+        component: 'audits',
+        error: error.message,
+        audit_id: id,
+      });
+      res.status(500).json({ error: 'Failed to store analytics events' });
+      return;
+    }
+
+    res.status(200).json({ ok: true as const, received: rows.length });
+  } catch (err) {
+    const e = err as Error;
+    logger.error('route.brief_analytics_failed', { component: 'audits', error: e.message, stack: e.stack });
+    res.status(500).json({ error: 'Failed to accept analytics events' });
   }
 });
 

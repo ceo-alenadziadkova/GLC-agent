@@ -1,7 +1,7 @@
 /**
  * Behaviour: public discovery branching and findings (see discovery-flow.ts, docs/QUESTION_BANK.md).
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { DISCOVERY_BANK_IDS } from '../../../server/src/intake/discovery';
 import {
   DISCOVERY_WIZARD_BANK_IDS,
@@ -10,7 +10,12 @@ import {
   computeScore,
   getOnlinePresenceSelections,
   getQuestion,
+  setDiscoveryUiFragmentQuestions,
 } from './discovery-flow';
+
+afterEach(() => {
+  setDiscoveryUiFragmentQuestions(null);
+});
 
 describe('Discovery wizard vs intake policy', () => {
   it('every wizard bank id is in modes.discovery.included', () => {

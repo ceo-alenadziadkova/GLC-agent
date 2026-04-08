@@ -8,9 +8,10 @@ import {
   type BriefResponseEntry,
   type BriefResponses,
 } from '../data/briefQuestions';
-import type { IntakeBriefCollectionMode } from '../data/auditTypes';
+import type { IntakeBriefCollectionMode, IntakeVersionTuple } from '../data/auditTypes';
 import { briefResponsesToIntakeMap, useIntakeWizard } from '../hooks/useIntakeWizard';
 import type { IntakeSurface } from '../../../server/src/intake/core/types';
+import type { BriefIntakeAnalyticsSurface } from '../lib/brief-intake-analytics';
 import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
 
 function intakeMapToBriefResponses(map: Record<string, unknown>): BriefResponses {
@@ -56,6 +57,7 @@ export function IntakeBankWizard({
   collectionMode,
   intakeSurface,
   answerSource,
+  intakeAnalytics,
 }: {
   responses: BriefResponses;
   onResponsesChange: (next: BriefResponses) => void;
@@ -66,6 +68,12 @@ export function IntakeBankWizard({
   intakeSurface?: IntakeSurface;
   /** Source tag for new plain values from the wizard (defaults to consultant). */
   answerSource?: BriefResponseEntry['source'];
+  /** Optional funnel analytics (authenticated audit context). */
+  intakeAnalytics?: {
+    auditId: string;
+    surface: BriefIntakeAnalyticsSurface;
+    getIntakeVersions: () => IntakeVersionTuple | null;
+  };
 }) {
   const source = answerSource ?? 'consultant';
   const map = useMemo(() => briefResponsesToIntakeMap(responses), [responses]);
@@ -78,6 +86,7 @@ export function IntakeBankWizard({
     },
     collectionMode,
     surface: intakeSurface,
+    intakeAnalytics,
   });
 
   const q = wizard.currentStub ? bankIdToBriefQuestion(wizard.currentStub.id, wizard.currentStub.priority) : null;

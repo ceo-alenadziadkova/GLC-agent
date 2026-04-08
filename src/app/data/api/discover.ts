@@ -1,4 +1,39 @@
 import { apiFetch, publicApiFetch } from '../api-http';
+import type { IntakeVersionTuple } from '../auditTypes';
+
+/** Response shape for GET /api/discover/ui-fragment (server `PublicDiscoveryUiFragment`). */
+export type DiscoveryUiFragmentPayload = {
+  version: string;
+  policyVersion: string;
+  questionBankVersion: string;
+  intake_versions?: IntakeVersionTuple;
+  questions: Array<{
+    id: string;
+    question: string;
+    hint?: string;
+    type: 'free_text' | 'single_choice' | 'multi_choice';
+    options?: string[];
+    optional?: boolean;
+  }>;
+};
+
+export type DiscoveryAnalyticsBatchPayload = {
+  surface: 'public_discovery';
+  client_session_id: string;
+  discovery_session_token?: string;
+  intake_versions?: Partial<IntakeVersionTuple>;
+  events: Array<{
+    event_type:
+      | 'question_shown'
+      | 'question_answered'
+      | 'question_skipped'
+      | 'wizard_completed'
+      | 'results_viewed';
+    question_id?: string;
+    step_index?: number;
+    client_ts?: string;
+  }>;
+};
 
 export const discoverApi = {
   /** Public: save a completed discovery session. Returns a session token. */
@@ -10,6 +45,19 @@ export const discoverApi = {
     return publicApiFetch<{ token: string; created_at: string }>('/api/discover', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  },
+
+  /** Public: server-driven Discovery wizard copy and option lists. */
+  async getUiFragment() {
+    return publicApiFetch<DiscoveryUiFragmentPayload>('/api/discover/ui-fragment');
+  },
+
+  /** Public: batched funnel analytics (non-blocking for callers). */
+  async postAnalyticsEvents(payload: DiscoveryAnalyticsBatchPayload) {
+    return publicApiFetch<{ ok: true; received: number }>('/api/discover/analytics-events', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   },
 

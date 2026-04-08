@@ -6,14 +6,14 @@ import {
   getBriefQuestionText as serverGetBriefQuestionText,
   PRE_BRIEF_QUESTION_IDS as SERVER_PRE_BRIEF_QUESTION_IDS,
   REQUIRED_QUESTION_IDS as SERVER_REQUIRED_QUESTION_IDS,
-} from '../../../server/src/schemas/intake-brief';
+} from '../../../server/src/schemas/intake-brief-questions';
 import { INTAKE_IDENTITY_FIELD_IDS } from './intakeIdentityFieldIds';
 import type { IntakeBriefCollectionMode } from './auditTypes';
 import { briefResponsesToIntakeMap } from './intakeBriefMap';
 import { choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
 
 /**
- * Legacy / public brief UI — **question rows** come from `server/src/schemas/intake-brief.ts`
+ * Legacy / public brief UI — **question rows** come from `server/src/schemas/intake-brief-questions.ts` (no Zod).
  * (single source of truth). This module adds SPA-only helpers and re-exports the same arrays
  * with the local `BriefQuestion` view type (server rows may include `domains`).
  *

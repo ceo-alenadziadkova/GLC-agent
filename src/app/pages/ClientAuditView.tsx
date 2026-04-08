@@ -253,6 +253,15 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
                   answerSource="client"
                   collectionMode={briefCollectionMode}
                   intakeSurface={clientIntakeSurface}
+                  intakeAnalytics={
+                    clientIntakeSurface
+                      ? {
+                          auditId,
+                          surface: clientIntakeSurface,
+                          getIntakeVersions: () => briefQuery.data?.brief?.intake_versions ?? null,
+                        }
+                      : undefined
+                  }
                 />
               ) : (
                 <BankClassicBriefFields

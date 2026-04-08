@@ -7,7 +7,7 @@ import {
   BRIEF_QUESTIONS as SERVER_BRIEF,
   INTAKE_IDENTITY_BRIEF_QUESTIONS as SERVER_IDENTITY,
   INTAKE_IDENTITY_FIELD_IDS as SERVER_IDENTITY_IDS,
-} from '../../../server/src/schemas/intake-brief';
+} from '../../../server/src/schemas/intake-brief-questions';
 import { INTAKE_IDENTITY_FIELD_IDS } from './intakeIdentityFieldIds';
 
 describe('legacy brief SPA ↔ server parity', () => {

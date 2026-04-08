@@ -32,8 +32,11 @@ PostgreSQL on **Supabase**. Apply migrations **in numeric order** so foreign key
 26. `026_snapshot_guest_sessions.sql` — **`snapshot_guest_sessions`** public snapshot funnel (guest cookie, `snapshot_token`, optional UTM/referrer/`ip_hash`, claim timestamps; 90-day `expires_at`)
 27. `027_intake_versions.sql` — optional **`intake_brief.intake_versions`** (`jsonb`) version tuple for bank/policy/layout/resolver parity (ADR unified intake)
 28. `028_intake_version_migration.sql` — optional **`intake_brief.intake_version_migration`** (`jsonb`) — last recorded upgrade/repair of the version tuple (`from`, `to`, `at`, `reason`)
+29. `029_intake_analytics_events.sql` — **`intake_analytics_events`** — anonymous / authenticated intake funnel events (`surface`, `event_type`, `client_session_id`, optional `discovery_session_token`, `audit_id`, `question_id`, `step_index`, `intake_versions`, `client_ts`)
+30. `030_intake_analytics_audit_id.sql` — **`audit_id`** on `intake_analytics_events` (FK to `audits`, nullable)
+31. `031_intake_analytics_dashboard_views.sql` — read-only **views** for Metabase / SQL charts (see [Intake analytics dashboards](#intake-analytics-dashboards) below)
 
-**Tables (18):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`, `snapshot_guest_sessions`.
+**Tables (19):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`, `snapshot_guest_sessions`, `intake_analytics_events`.
 
 Row Level Security is enabled on these tables; exact policies differ by table (consultant vs client access). **Canonical SQL:** the migration files — this doc summarises shapes.
 
@@ -353,6 +356,50 @@ Used only when **`SNAPSHOT_SHARED_ABUSE_STORE=1`** (see [DEPLOYMENT.md](./DEPLOY
 Migration: `022_snapshot_fresh_lease.sql`. Short-lived rows (**`expires_at`**) counting active **fresh** snapshot workers cluster-wide. Acquire and release are **`SECURITY DEFINER`** RPCs (`snapshot_try_acquire_fresh_lease`, `snapshot_release_fresh_lease`) using a transaction advisory lock so counts stay consistent under concurrency. Expired rows are deleted on each successful acquire.
 
 Tune TTL with **`SNAPSHOT_FRESH_LEASE_TTL_SECONDS`** (default derived from **`SNAPSHOT_FETCH_BUDGET_MS`**; must exceed worst-case fresh scan wall time). Same **`SNAPSHOT_SHARED_ABUSE_STORE`** gate as cooldown.
+
+---
+
+## Intake analytics dashboards
+
+Table **`intake_analytics_events`** is written by the API (`POST /api/discover/analytics-events`, `POST /api/audits/:id/brief/analytics-events`). Use the **service role** or a dedicated read-only DB user in Metabase / Supabase SQL editor; do not expose row-level client reads without a separate policy design.
+
+Migration **`031_intake_analytics_dashboard_views.sql`** defines views (windows are relative to `now()` at query time):
+
+| View | Purpose |
+|------|---------|
+| **`intake_analytics_daily_surface`** | Per UTC day: `surface`, `event_type`, counts, distinct `client_session_id` (last 180d of raw rows). |
+| **`intake_analytics_question_funnel_30d`** | Per `surface` + `question_id`: `shown` / `answered` / `skipped` / `wizard_completed` / `results_viewed`. |
+| **`intake_analytics_version_mix_30d`** | Breakdown by `policy_version`, `resolver_version`, `question_bank_version`, `surface`. |
+| **`intake_analytics_audit_attributed_30d`** | Events joined to **`audits`** (product mode + per-audit counts). |
+
+**Ad-hoc examples**
+
+```sql
+-- Public Discovery: completion vs results views (7d)
+SELECT date_trunc('day', created_at) AS day,
+       COUNT(*) FILTER (WHERE event_type = 'wizard_completed') AS completed,
+       COUNT(*) FILTER (WHERE event_type = 'results_viewed') AS saw_results
+FROM intake_analytics_events
+WHERE surface = 'public_discovery'
+  AND created_at >= now() - interval '7 days'
+GROUP BY 1
+ORDER BY 1;
+
+-- Drop-off: shown but no answered in same session (approximate — same client_session_id)
+WITH sess AS (
+  SELECT client_session_id,
+         MAX(created_at) FILTER (WHERE event_type = 'question_shown') AS last_shown,
+         MAX(created_at) FILTER (WHERE event_type = 'question_answered') AS last_answered
+  FROM intake_analytics_events
+  WHERE surface = 'public_discovery'
+    AND created_at >= now() - interval '14 days'
+  GROUP BY 1
+)
+SELECT COUNT(*) FILTER (WHERE last_shown IS NOT NULL AND last_answered IS NULL) AS sessions_no_answer
+FROM sess;
+```
+
+Decision context: [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](./ADR-INTAKE-UNIFIED-QUESTION-BANK.md) (Phase G).
 
 ---
 

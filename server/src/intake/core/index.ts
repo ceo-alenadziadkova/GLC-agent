@@ -38,8 +38,10 @@ export { validateIntakeVersionsForBriefWrite } from './intake-version-write-vali
 export {
   BRANCH_RULE_RESPONSE_KEYS,
   buildBranchAwareStubEvalOrder,
+  listBankStubIdsInvalidatedByResponseKeys,
   listBranchRuleResponseKeys,
   providerStubIdsForResponseKey,
+  QUESTION_BANK_V1_STUB_EVAL_ORDER,
 } from './branch-condition-deps.js';
 export { evaluateCanonEligibility } from './evaluate-canon.js';
 export { computeRequiredBankIdsFromPolicy } from './evaluate-policy.js';

@@ -10,7 +10,9 @@
  */
 
 import { buildIntakePlan } from '../../../server/src/intake/core/build-intake-plan';
+import { buildDiscoveryWizardQuestions } from '../../../server/src/intake/discovery-wizard-questions';
 import { getQuestionBankSchemaMeta } from '../../../server/src/intake/question-bank';
+import { getBankQuestionUiOptions } from '../data/bankQuestionUiCatalog';
 import { INDUSTRY_OPTIONS } from '../data/industry-options';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -43,8 +45,8 @@ export interface DiscoveryFinding {
 //
 // Bank ids must stay in sync with `intake-policy.v1.json` modes.discovery.included
 // (see `server/src/tests/discovery-wizard-policy-sync.test.ts`).
-// Copy defaults to `question-bank.v1.json` labels when `question` is omitted; public UX
-// usually overrides wording / control type (ADR Phase A).
+// Labels default to `question-bank.v1.json`; option lists for shared ids come from
+// `getBankQuestionUiOptions` (`bankQuestionUiCatalog`) where applicable (ADR Phase A dedup).
 
 function makeDiscoveryQuestion(
   id: string,
@@ -96,118 +98,42 @@ export const DISCOVERY_SOCIAL_PLATFORM_OPTIONS = [
   'WhatsApp Business / channel',
 ] as const;
 
-const ALL_QUESTIONS: DiscoveryQuestion[] = [
-  makeDiscoveryQuestion('a2', {
-    question: 'Which industry are you in?',
-    type: 'single_choice',
-    options: [...INDUSTRY_OPTIONS],
+/** Bundled fallback when GET /api/discover/ui-fragment fails — same builder as `buildPublicDiscoveryUiFragment` on the server. */
+const FALLBACK_QUESTIONS: DiscoveryQuestion[] = buildDiscoveryWizardQuestions({
+  bankOrFallback: (id, fallback) => [...(getBankQuestionUiOptions(id) ?? [...fallback])],
+  industryOptions: INDUSTRY_OPTIONS,
+}).map(row =>
+  makeDiscoveryQuestion(row.id, {
+    question: row.question,
+    hint: row.hint,
+    type: row.type,
+    options: row.options,
+    optional: row.optional,
   }),
-  makeDiscoveryQuestion('a1', {
-    question: 'Describe your business in one sentence.',
-    hint: 'What do you do, and who do you do it for?',
-    type: 'free_text',
-  }),
-  makeDiscoveryQuestion('a4', {
-    question: 'How big is your team?',
-    type: 'single_choice',
-    options: ['Just me', '2–5 people', '6–20 people', 'More than 20'],
-  }),
-  makeDiscoveryQuestion('a7', {
-    question: 'Where is the business right now?',
-    hint: 'This shapes everything — from what to fix first to how fast to move.',
-    type: 'single_choice',
-    options: [
-      'Just getting started',
-      'Growing fast',
-      'Stabilising',
-      'Scaling',
-      'Mature and optimising',
-    ],
-  }),
-  makeDiscoveryQuestion('d1', {
-    question: 'Which tools does your team use every day?',
-    hint: 'Select all that apply.',
-    type: 'multi_choice',
-    options: [
-      'Email',
-      'Spreadsheets',
-      'CRM',
-      'Project or task tool',
-      'Booking or scheduling tool',
-      'Accounting software',
-      'WhatsApp / voice notes',
-      'Nothing specific',
-    ],
-  }),
-  // Branch: no CRM in d1 → ask how leads are tracked (bank: d1b)
-  makeDiscoveryQuestion('d1b', {
-    question: 'How do you keep track of leads and potential clients?',
-    type: 'single_choice',
-    options: [
-      'In my head or WhatsApp messages',
-      'In a shared spreadsheet',
-      'In a CRM or dedicated tool',
-      "I don't track them systematically",
-    ],
-  }),
-  makeDiscoveryQuestion('c_nosite_1', {
-    question: 'When someone looks for your type of service — how do they find you?',
-    hint: 'Where do people land when they search for what you offer?',
-    type: 'multi_choice',
-    options: [
-      'Google search',
-      'Google Business / Maps listing',
-      'Social media',
-      'OTA or marketplace',
-      'Word of mouth only',
-      'Not really online yet',
-    ],
-  }),
-  makeDiscoveryQuestion('c_nosite_4', {
-    question: 'How do most new customer enquiries arrive?',
-    hint: 'The channel where the first message lands is usually the fastest automation win.',
-    type: 'multi_choice',
-    options: [
-      'WhatsApp',
-      'Phone call',
-      'In-person walk-in',
-      'Facebook or Instagram DM',
-      'Email',
-      'Booking platform',
-      'Other',
-    ],
-  }),
-  makeDiscoveryQuestion('d2', {
-    question: 'What takes the most time in your week that you wish you could eliminate?',
-    type: 'single_choice',
-    options: [
-      'Following up with leads and prospects',
-      'Scheduling and confirming appointments',
-      'Creating and sending quotes or invoices',
-      'Reporting and tracking what is working',
-      'Onboarding new clients',
-      'Managing team tasks and handoffs',
-      'Something else',
-    ],
-  }),
-  makeDiscoveryQuestion('f1', {
-    question: 'What is the main problem this audit should help you solve?',
-    type: 'single_choice',
-    options: [
-      'Not enough new clients',
-      'Too much time on admin and operations',
-      'Clients come once and do not return',
-      'Hard to scale — everything depends on me personally',
-      'We lose leads because we respond too slowly',
-      'I want to understand where to focus next',
-    ],
-  }),
-];
+);
 
 /** Bank ids used by the public Discovery wizard (subset of policy discovery included). */
-export const DISCOVERY_WIZARD_BANK_IDS: readonly string[] = ALL_QUESTIONS.map(q => q.id);
+export const DISCOVERY_WIZARD_BANK_IDS: readonly string[] = FALLBACK_QUESTIONS.map(q => q.id);
 
-const QUESTION_MAP = new Map(ALL_QUESTIONS.map(q => [q.id, q]));
+let activeQuestions: DiscoveryQuestion[] = FALLBACK_QUESTIONS;
+const questionMap = new Map<string, DiscoveryQuestion>();
+
+function rebuildDiscoveryQuestionMap(): void {
+  questionMap.clear();
+  for (const q of activeQuestions) {
+    questionMap.set(q.id, q);
+  }
+}
+rebuildDiscoveryQuestionMap();
+
+/**
+ * Hydrates wizard copy/options from GET /api/discover/ui-fragment. Pass null/undefined/empty
+ * to restore the bundled fallback (e.g. tests).
+ */
+export function setDiscoveryUiFragmentQuestions(questions: DiscoveryQuestion[] | null | undefined): void {
+  activeQuestions = questions && questions.length > 0 ? questions : FALLBACK_QUESTIONS;
+  rebuildDiscoveryQuestionMap();
+}
 
 // ── Branching helpers ─────────────────────────────────────────────────────────
 
@@ -250,11 +176,11 @@ export function buildQuestionSequence(answers: DiscoveryAnswers): string[] {
     collectionMode: 'discovery',
     surface: 'public_discovery',
   });
-  return plan.visible.filter(id => QUESTION_MAP.has(id));
+  return plan.visible.filter(id => questionMap.has(id));
 }
 
 export function getQuestion(id: string): DiscoveryQuestion | undefined {
-  return QUESTION_MAP.get(id);
+  return questionMap.get(id);
 }
 
 // ── Triage score ──────────────────────────────────────────────────────────────
@@ -314,16 +240,21 @@ function stageLabel(stage: string | null): string {
 /** True when d1 is empty or only trivial / spreadsheet-only tooling. */
 function d1SoloWeakTools(tools: string[]): boolean {
   if (tools.length === 0) return true;
-  const meaningful = tools.filter(
-    t => t !== 'Email' && t !== 'Nothing specific' && t !== 'WhatsApp / voice notes',
-  );
+  const trivial = new Set([
+    'Email',
+    'Nothing specific',
+    'Other',
+    'WhatsApp / voice notes',
+    'Voice notes or WhatsApp audio',
+  ]);
+  const meaningful = tools.filter(t => !trivial.has(t));
   return meaningful.length === 0 || (meaningful.length === 1 && meaningful[0] === 'Spreadsheets');
 }
 
 function d1EffectivelyEmpty(tools: string[]): boolean {
   return (
     tools.length === 0 ||
-    (tools.length === 1 && tools[0] === 'Nothing specific')
+    (tools.length === 1 && (tools[0] === 'Nothing specific' || tools[0] === 'Other'))
   );
 }
 
@@ -359,9 +290,11 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
     industry === 'Healthcare';
   const isRealEstate = industry === 'Real Estate';
 
-  const hasNoGooglePresence =
-    !presence.includes('Google search') &&
-    !presence.includes('Google Business / Maps listing');
+  const hasGoogleSearch = presence.some(p => p === 'Google search' || p === 'Google / search');
+  const hasGoogleBusinessListing = presence.some(
+    p => p === 'Google Business / Maps listing' || p === 'Google Business listing',
+  );
+  const hasNoGooglePresence = !hasGoogleSearch && !hasGoogleBusinessListing;
 
   // ── Rule 1: No CRM + WhatsApp as primary channel ────────────────────────────
   if (noCrm && hasWhatsApp) {

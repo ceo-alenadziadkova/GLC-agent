@@ -1,7 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BriefResponses } from '../data/briefQuestions';
-import type { IntakeBriefCollectionMode } from '../data/auditTypes';
+import type { IntakeBriefCollectionMode, IntakeVersionTuple } from '../data/auditTypes';
 import { briefResponsesToIntakeMap } from '../data/intakeBriefMap';
+import {
+  briefTrackQuestionAnswered,
+  briefTrackQuestionShown,
+  briefTrackQuestionSkipped,
+  createBriefIntakeAnalyticsSink,
+  intakeMapValueAnswered,
+  type BriefIntakeAnalyticsSurface,
+} from '../lib/brief-intake-analytics';
 import { buildIntakePlan } from '../../../server/src/intake/core/build-intake-plan';
 import type { IntakeSurface } from '../../../server/src/intake/core/types';
 import { calcDataQualityScoreFromVisible, DEFAULT_DATA_QUALITY_WEIGHTS } from '../../../server/src/intake/data-quality';
@@ -60,6 +68,12 @@ export interface UseIntakeWizardOptions {
   /** Controlled: parent-owned responses map (after briefResponsesToIntakeMap). */
   value?: Record<string, unknown>;
   onChange?: (next: Record<string, unknown>) => void;
+  /** Batched funnel analytics (ADR Phase G); requires authenticated audit context. */
+  intakeAnalytics?: {
+    auditId: string;
+    surface: BriefIntakeAnalyticsSurface;
+    getIntakeVersions: () => IntakeVersionTuple | null;
+  };
 }
 
 /**
@@ -67,8 +81,19 @@ export interface UseIntakeWizardOptions {
  * Controlled mode keeps `responses` in the parent (e.g. New Audit brief).
  */
 export function useIntakeWizard(options: UseIntakeWizardOptions) {
-  const { initialMap = {}, collectionMode, surface, value, onChange } = options;
+  const { initialMap = {}, collectionMode, surface, value, onChange, intakeAnalytics } = options;
   const controlled = value !== undefined && onChange !== undefined;
+  const analyticsOptRef = useRef(intakeAnalytics);
+  analyticsOptRef.current = intakeAnalytics;
+
+  const analyticsSink = useMemo(() => {
+    if (!intakeAnalytics) return null;
+    return createBriefIntakeAnalyticsSink({
+      auditId: intakeAnalytics.auditId,
+      surface: intakeAnalytics.surface,
+      getIntakeVersions: () => analyticsOptRef.current?.getIntakeVersions() ?? null,
+    });
+  }, [intakeAnalytics?.auditId, intakeAnalytics?.surface]);
 
   const [internal, setInternal] = useState(() => ({ ...initialMap }));
 
@@ -125,14 +150,51 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
   const maxIndex = Math.max(0, totalSteps - 1);
   const safeIndex = Math.min(Math.max(0, stepIndex), maxIndex);
   const currentStub = visibleStubs[safeIndex];
+  const lastShownKeyRef = useRef('');
+  const visibleStubsRef = useRef(visibleStubs);
+  visibleStubsRef.current = visibleStubs;
+  const responsesRef = useRef(responses);
+  responsesRef.current = responses;
 
   useEffect(() => {
     setStepIndex(i => Math.min(i, maxIndex));
   }, [maxIndex]);
 
+  useEffect(() => {
+    if (!analyticsSink || !currentStub) return;
+    const key = `${safeIndex}:${currentStub.id}`;
+    if (lastShownKeyRef.current === key) return;
+    lastShownKeyRef.current = key;
+    briefTrackQuestionShown(analyticsSink, { questionId: currentStub.id, stepIndex: safeIndex });
+  }, [analyticsSink, currentStub?.id, safeIndex]);
+
+  useEffect(() => {
+    const s = analyticsSink;
+    return () => {
+      void s?.flush();
+    };
+  }, [analyticsSink]);
+
   const goNext = useCallback(() => {
-    setStepIndex(i => Math.min(i + 1, maxIndex));
-  }, [maxIndex]);
+    setStepIndex(i => {
+      const stubs = visibleStubsRef.current;
+      const maxIdx = Math.max(0, stubs.length - 1);
+      const prevIdx = Math.min(Math.max(0, i), maxIdx);
+      const stub = stubs[prevIdx];
+      const res = responsesRef.current;
+      if (analyticsSink && stub) {
+        const answered = intakeMapValueAnswered(res[stub.id]);
+        if (!answered) {
+          if (stub.priority === 'optional') {
+            briefTrackQuestionSkipped(analyticsSink, { questionId: stub.id, stepIndex: prevIdx });
+          }
+        } else {
+          briefTrackQuestionAnswered(analyticsSink, { questionId: stub.id, stepIndex: prevIdx });
+        }
+      }
+      return Math.min(i + 1, maxIdx);
+    });
+  }, [analyticsSink]);
 
   const goPrev = useCallback(() => {
     setStepIndex(i => Math.max(i - 1, 0));
