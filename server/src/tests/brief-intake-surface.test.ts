@@ -1,5 +1,5 @@
 /**
- * Intake layout surface + version-tuple guards (brief-validator helpers and validateBriefResponses).
+ * Intake layout surface + intake_versions write validation.
  */
 import { describe, expect, it, vi } from 'vitest';
 
@@ -17,8 +17,8 @@ vi.mock('../services/supabase.js', () => ({
 }));
 
 import { currentIntakeVersionTuple } from '../intake/core/versions.js';
+import { validateIntakeVersionsForBriefWrite } from '../intake/core/intake-version-write-validation.js';
 import {
-  checkIntakeVersionsClientMismatch,
   resolveIntakeSurfaceForPlan,
   validateBriefResponses,
   validationPerspectiveForBriefAccess,
@@ -59,27 +59,56 @@ describe('resolveIntakeSurfaceForPlan', () => {
   });
 });
 
-describe('checkIntakeVersionsClientMismatch', () => {
-  it('treats missing or non-object body as ok', () => {
-    expect(checkIntakeVersionsClientMismatch(undefined)).toEqual({ ok: true });
-    expect(checkIntakeVersionsClientMismatch(null)).toEqual({ ok: true });
-    expect(checkIntakeVersionsClientMismatch('nope')).toEqual({ ok: true });
-    expect(checkIntakeVersionsClientMismatch([])).toEqual({ ok: true });
-  });
-
-  it('returns ok when all sent keys match the current engine tuple', () => {
-    expect(checkIntakeVersionsClientMismatch(currentIntakeVersionTuple())).toEqual({ ok: true });
-  });
-
-  it('returns ok when object has no version keys', () => {
-    expect(checkIntakeVersionsClientMismatch({ extra: 'only' })).toEqual({ ok: true });
-  });
-
-  it('returns ok:false with current tuple when a sent key disagrees', () => {
+describe('validateIntakeVersionsForBriefWrite', () => {
+  it('accepts omit when no row is stored (uses current)', () => {
     const cur = currentIntakeVersionTuple();
-    const r = checkIntakeVersionsClientMismatch({ ...cur, policyVersion: '0.0.0' });
+    const r = validateIntakeVersionsForBriefWrite({ stored: null });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.effective).toEqual(cur);
+  });
+
+  it('rejects unknown tuple with 400', () => {
+    const r = validateIntakeVersionsForBriefWrite({
+      parsedFromBody: { ...currentIntakeVersionTuple(), policyVersion: '99.0.0' },
+      stored: null,
+    });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.current).toEqual(cur);
+    if (!r.ok) expect(r.status).toBe(400);
+  });
+
+  it('allows client to upgrade stored row to current tuple', () => {
+    const cur = currentIntakeVersionTuple();
+    const frozen = {
+      questionBankVersion: '1.0.0',
+      policyVersion: '1.0.0',
+      layoutVersion: '1.1.0',
+      resolverVersion: '1.0.0',
+    };
+    const r = validateIntakeVersionsForBriefWrite({
+      parsedFromBody: cur,
+      stored: frozen,
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.effective).toEqual(cur);
+      expect(r.migration?.reason).toBe('client_upgrade');
+    }
+  });
+
+  it('409 when stored and received disagree and received is not current', () => {
+    const cur = currentIntakeVersionTuple();
+    const frozen = {
+      questionBankVersion: '1.0.0',
+      policyVersion: '1.0.0',
+      layoutVersion: '1.1.0',
+      resolverVersion: '1.0.0',
+    };
+    const r = validateIntakeVersionsForBriefWrite({
+      parsedFromBody: frozen,
+      stored: cur,
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.status).toBe(409);
   });
 });
 

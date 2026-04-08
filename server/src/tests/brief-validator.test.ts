@@ -339,9 +339,9 @@ describe('saveBriefResponses()', () => {
     const upsert = getUpsertCalls().find(c => c.table === 'intake_brief');
     const iv = (upsert!.payload as Record<string, unknown>).intake_versions as Record<string, string>;
     expect(iv.questionBankVersion).toBe('1.0.0');
-    expect(iv.policyVersion).toBe('1.0.0');
+    expect(iv.policyVersion).toBe('1.1.0');
     expect(iv.layoutVersion).toBe('1.1.0');
-    expect(iv.resolverVersion).toBe('1.0.0');
+    expect(iv.resolverVersion).toBe('1.1.0');
   });
 
   it('rejects responses with invalid Zod types (string over BRIEF_ANSWER_STRING_MAX)', async () => {

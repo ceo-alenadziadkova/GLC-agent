@@ -15,12 +15,14 @@ import type {
   IntakeBriefCollectionMode,
   IntakeNextBestAction,
   IntakeReadinessBadge,
+  IntakeVersionMigration,
   IntakeVersionTuple,
   ProductMode,
   ReconConflict,
 } from '../types/audit.js';
 import { resolveBankOptionalIds, resolveExpressSlaRequiredIds } from '../intake/brief-gates.js';
 import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
+import { isSupportedIntakeArtifactTuple, resolveIntakeArtifacts } from '../intake/core/resolve-intake-artifacts.js';
 import type { IntakeSurface } from '../intake/core/types.js';
 import { currentIntakeVersionTuple, syntheticIntakeVersionsBeforeMatrix } from '../intake/core/versions.js';
 import { deriveBankV1DataQuality, getQuestionBankPromptLabel, QUESTION_BANK_V1_STUBS } from '../intake/question-bank.js';
@@ -67,6 +69,10 @@ export interface SaveBriefOptions {
    * Routes set this from audit access (consultant vs client); default consultant.
    */
   validation_perspective?: 'consultant' | 'client';
+  /** Set by PUT /brief after validateIntakeVersionsForBriefWrite. */
+  effective_intake_versions?: IntakeVersionTuple;
+  /** When non-null, persisted to intake_version_migration on upsert. */
+  intake_version_migration?: IntakeVersionMigration | null;
 }
 
 /** Owner vs linked client — drives layout surface for validation. */
@@ -90,31 +96,19 @@ export function resolveIntakeSurfaceForPlan(
   return 'consultant_interview';
 }
 
-/**
- * If the client sends any version key that disagrees with the current engine tuple, save must fail (409).
- */
-export function checkIntakeVersionsClientMismatch(clientSent: unknown):
-  | { ok: true }
-  | { ok: false; current: IntakeVersionTuple } {
-  if (clientSent == null || typeof clientSent !== 'object' || Array.isArray(clientSent)) {
-    return { ok: true };
-  }
-  const o = clientSent as Record<string, unknown>;
+/** Use stored tuple when supported; otherwise current engine (logs once per read path). */
+function coerceArtifactTupleForRead(
+  stored: IntakeVersionTuple | null | undefined,
+  context: string,
+): IntakeVersionTuple {
   const current = currentIntakeVersionTuple();
-  const keys: (keyof IntakeVersionTuple)[] = [
-    'questionBankVersion',
-    'policyVersion',
-    'layoutVersion',
-    'resolverVersion',
-  ];
-  for (const k of keys) {
-    if (!(k in o)) continue;
-    const v = o[k];
-    if (typeof v === 'string' && v !== current[k]) {
-      return { ok: false, current };
-    }
-  }
-  return { ok: true };
+  if (!stored) return current;
+  if (isSupportedIntakeArtifactTuple(stored)) return stored;
+  logger.warn('intake_versions not in supported artifact registry; using current engine', {
+    context,
+    stored,
+  });
+  return current;
 }
 
 function slaQuestionLabel(id: string): string {
@@ -168,6 +162,7 @@ function getPreBriefSubmitSlotIds(
   responses: Record<string, unknown>,
   collectionMode?: IntakeBriefCollectionMode,
   expressRequiredBankIds?: string[],
+  intakeVersionTuple?: IntakeVersionTuple,
 ): string[] {
   const ids: string[] = [
     INTAKE_IDENTITY_FIELD_IDS[0],
@@ -178,7 +173,8 @@ function getPreBriefSubmitSlotIds(
     ids.push(INTAKE_IDENTITY_FIELD_IDS[3]);
   }
   ids.push(
-    ...(expressRequiredBankIds ?? resolveExpressSlaRequiredIds(responses, collectionMode)),
+    ...(expressRequiredBankIds ??
+      resolveExpressSlaRequiredIds(responses, collectionMode, intakeVersionTuple)),
   );
   return ids;
 }
@@ -195,11 +191,14 @@ function computeProgress(
   collectionMode?: IntakeBriefCollectionMode,
   fullPlan?: ReturnType<typeof buildIntakePlan>,
   surface?: IntakeSurface,
+  intakeVersionTuple?: IntakeVersionTuple,
 ): IntakeProgress {
   const plan =
-    fullPlan ?? buildIntakePlan({ responses, productMode: 'full', collectionMode, surface });
+    fullPlan ??
+    buildIntakePlan({ responses, productMode: 'full', collectionMode, surface, intakeVersionTuple });
   const visibleSet = new Set(plan.visible);
-  const visible = QUESTION_BANK_V1_STUBS.filter(q => visibleSet.has(q.id));
+  const stubs = resolveIntakeArtifacts(intakeVersionTuple ?? null).stubs;
+  const visible = stubs.filter(q => visibleSet.has(q.id));
   let totalWeight = 0;
   let answeredWeight = 0;
   for (const q of visible) {
@@ -232,6 +231,7 @@ export interface ValidateBriefOptions {
   productMode?: ProductMode;
   collectionMode?: IntakeBriefCollectionMode;
   surface?: IntakeSurface;
+  intakeVersionTuple?: IntakeVersionTuple;
 }
 
 /**
@@ -244,12 +244,14 @@ export function validateBriefResponses(
   const productMode = opts?.productMode ?? 'full';
   const collectionMode = opts?.collectionMode;
   const surface = opts?.surface;
-  const plan = buildIntakePlan({ responses, productMode, collectionMode, surface });
+  const intakeVersionTuple = opts?.intakeVersionTuple;
+  const plan = buildIntakePlan({ responses, productMode, collectionMode, surface, intakeVersionTuple });
   const requiredIds = productMode === 'free_snapshot' ? [] : plan.required;
   const visibleSet = new Set(plan.visible);
-  const recIds = QUESTION_BANK_V1_STUBS.filter(
-    s => visibleSet.has(s.id) && s.priority === 'recommended',
-  ).map(s => s.id);
+  const stubs = resolveIntakeArtifacts(intakeVersionTuple ?? null).stubs;
+  const recIds = stubs
+    .filter(s => visibleSet.has(s.id) && s.priority === 'recommended')
+    .map(s => s.id);
 
   const answeredRequired = requiredIds.filter(id => isAnswered(responses[id]));
   const answeredRecommended = recIds.filter(id => isAnswered(responses[id]));
@@ -276,21 +278,39 @@ export function evaluateBriefGates(
   mode: ProductMode,
   collectionMode?: IntakeBriefCollectionMode,
   surface?: IntakeSurface,
+  intakeVersionTuple?: IntakeVersionTuple,
 ): BriefGateResult {
-  const expressPlan = buildIntakePlan({ responses, productMode: 'express', collectionMode, surface });
-  const fullPlan = buildIntakePlan({ responses, productMode: 'full', collectionMode, surface });
+  const expressPlan = buildIntakePlan({
+    responses,
+    productMode: 'express',
+    collectionMode,
+    surface,
+    intakeVersionTuple,
+  });
+  const fullPlan = buildIntakePlan({
+    responses,
+    productMode: 'full',
+    collectionMode,
+    surface,
+    intakeVersionTuple,
+  });
 
   const missingExpressRequired = expressPlan.required.filter(id => !isAnswered(responses[id]));
   const missingFullRequired = fullPlan.required.filter(id => !isAnswered(responses[id]));
-  const submitSlotIds = getPreBriefSubmitSlotIds(responses, collectionMode, expressPlan.required);
+  const submitSlotIds = getPreBriefSubmitSlotIds(
+    responses,
+    collectionMode,
+    expressPlan.required,
+    intakeVersionTuple,
+  );
   const missingPreBrief = submitSlotIds.filter(id => !isPreBriefIdSatisfied(id, responses, collectionMode));
   const visibleSet = new Set(fullPlan.visible);
-  const missingRecommended = QUESTION_BANK_V1_STUBS.filter(
-    s => visibleSet.has(s.id) && s.priority === 'recommended',
-  )
+  const stubs = resolveIntakeArtifacts(intakeVersionTuple ?? null).stubs;
+  const missingRecommended = stubs
+    .filter(s => visibleSet.has(s.id) && s.priority === 'recommended')
     .map(s => s.id)
     .filter(id => !isAnswered(responses[id]));
-  const intakeProgress = computeProgress(responses, collectionMode, fullPlan, surface);
+  const intakeProgress = computeProgress(responses, collectionMode, fullPlan, surface, intakeVersionTuple);
 
   const minPreBriefAnswered = Math.ceil(submitSlotIds.length / 2);
   const answeredPreBrief = submitSlotIds.length - missingPreBrief.length;
@@ -341,16 +361,25 @@ export async function assertBriefReady(auditId: string): Promise<void> {
   const validationPerspective = collectedBy === 'consultant' ? 'consultant' : 'client';
   const surface = resolveIntakeSurfaceForPlan(collectionMode ?? 'self_serve', validationPerspective);
   const mode = audit.product_mode as ProductMode;
+  const intakeTuple = coerceArtifactTupleForRead(
+    brief?.intake_versions as IntakeVersionTuple | null | undefined,
+    'assertBriefReady',
+  );
 
-  const validation = validateBriefResponses(responses, { productMode: mode, collectionMode, surface });
-  const gates = evaluateBriefGates(responses, mode, collectionMode, surface);
+  const validation = validateBriefResponses(responses, {
+    productMode: mode,
+    collectionMode,
+    surface,
+    intakeVersionTuple: intakeTuple,
+  });
+  const gates = evaluateBriefGates(responses, mode, collectionMode, surface, intakeTuple);
   if (brief && brief.intake_versions == null) {
     logger.debug('intake_brief missing intake_versions (pre-matrix row); validation uses current engine', {
       audit_id: auditId,
       synthetic_versions: syntheticIntakeVersionsBeforeMatrix(),
     });
   }
-  const optionalIds = resolveBankOptionalIds(responses, collectionMode, surface);
+  const optionalIds = resolveBankOptionalIds(responses, collectionMode, surface, intakeTuple);
   const optionalCount = optionalIds.filter(id => isAnswered(responses[id])).length;
 
   const bankDataQuality = deriveBankV1DataQuality(responses);
@@ -407,7 +436,7 @@ export async function saveBriefResponses(
 
   const { data: existingBrief } = await supabase
     .from('intake_brief')
-    .select('recon_prefills, recon_conflicts, collection_mode')
+    .select('recon_prefills, recon_conflicts, collection_mode, intake_versions')
     .eq('audit_id', auditId)
     .maybeSingle();
 
@@ -416,6 +445,13 @@ export async function saveBriefResponses(
     ?? (existingBrief?.collection_mode as IntakeBriefCollectionMode | undefined)
     ?? 'self_serve';
 
+  const storedTuple = existingBrief?.intake_versions as IntakeVersionTuple | null | undefined;
+  const effectiveTuple =
+    options?.effective_intake_versions ??
+    (storedTuple && isSupportedIntakeArtifactTuple(storedTuple)
+      ? storedTuple
+      : currentIntakeVersionTuple());
+
   const perspective = options?.validation_perspective ?? 'consultant';
   const surface = resolveIntakeSurfaceForPlan(collection_mode, perspective);
 
@@ -423,15 +459,28 @@ export async function saveBriefResponses(
     productMode: mode,
     collectionMode: collection_mode,
     surface,
+    intakeVersionTuple: effectiveTuple,
   });
-  const gates = evaluateBriefGates(responses as Record<string, unknown>, mode, collection_mode, surface);
+  const gates = evaluateBriefGates(
+    responses as Record<string, unknown>,
+    mode,
+    collection_mode,
+    surface,
+    effectiveTuple,
+  );
   const intakePlan = buildIntakePlan({
     responses: responses as Record<string, unknown>,
     productMode: mode,
     collectionMode: collection_mode,
     surface,
+    intakeVersionTuple: effectiveTuple,
   });
-  const optionalIds = resolveBankOptionalIds(responses as Record<string, unknown>, collection_mode, surface);
+  const optionalIds = resolveBankOptionalIds(
+    responses as Record<string, unknown>,
+    collection_mode,
+    surface,
+    effectiveTuple,
+  );
   const answeredOptional = optionalIds.filter(id => isAnswered(responses[id])).length;
   const bankDataQualitySave = deriveBankV1DataQuality(responses as Record<string, unknown>);
 
@@ -466,6 +515,9 @@ export async function saveBriefResponses(
         recon_conflicts: reconConflicts,
         collection_mode,
         intake_versions: intakePlan.versions,
+        ...(options?.intake_version_migration
+          ? { intake_version_migration: options.intake_version_migration }
+          : {}),
         ...(bankDataQualitySave !== null ? { data_quality_score: bankDataQualitySave } : {}),
       },
       { onConflict: 'audit_id' },

@@ -1,14 +1,9 @@
 /**
- * Phase 0 shim: derive intake plan slices from CURRENT engine (branch + discovery filter + brief-gates SLA).
+ * Phase 0 shim: snapshot payloads from `buildIntakePlan` (no layout surface).
  *
- * - eligible: policy-visible bank ids (canon + policy; same as `buildIntakePlan` without layout surface).
- * - visible: getVisibleBankStubs (no `surface` here — equals eligible as sorted sets).
- * - hidden: bank ids not in this context (complement of visible).
- * - required: resolveSlaRequiredIds for the fixture product/collection mode.
- * - deferred: always [] here (no `surface`); layout deferral is tested in intake-layout.test.ts.
+ * Update snapshots: UPDATE_INTAKE_PLAN_SNAPSHOT=1 npx vitest run server/src/tests/intake-plan-snapshot.test.ts
  */
-import { getVisibleBankStubs, resolveSlaRequiredIds } from '../intake/brief-gates.js';
-import { QUESTION_BANK_V1_STUBS } from '../intake/question-bank.js';
+import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
 import type { IntakeBriefCollectionMode, ProductMode } from '../types/audit.js';
 
 export interface IntakePlanSnapshotPayload {
@@ -17,6 +12,7 @@ export interface IntakePlanSnapshotPayload {
   required: string[];
   hidden: string[];
   deferred: string[];
+  slaVisibleBankIds: string[];
 }
 
 function sortUnique(ids: string[]): string[] {
@@ -28,20 +24,13 @@ export function computeIntakePlanSnapshotShim(
   productMode: ProductMode,
   collectionMode?: IntakeBriefCollectionMode,
 ): IntakePlanSnapshotPayload {
-  const visible = sortUnique(getVisibleBankStubs(responses, collectionMode).map(q => q.id));
-  const eligible = visible;
-
-  const visibleSet = new Set(visible);
-  const allBankIds = QUESTION_BANK_V1_STUBS.map(q => q.id);
-  const hidden = sortUnique(allBankIds.filter(id => !visibleSet.has(id)));
-
-  const required = sortUnique(resolveSlaRequiredIds(productMode, responses, collectionMode));
-
+  const plan = buildIntakePlan({ responses, productMode, collectionMode });
   return {
-    eligible,
-    visible,
-    required,
-    hidden,
-    deferred: [],
+    eligible: sortUnique(plan.eligible),
+    visible: sortUnique(plan.visible),
+    required: sortUnique(plan.required),
+    hidden: sortUnique(plan.hidden),
+    deferred: sortUnique(plan.deferred),
+    slaVisibleBankIds: sortUnique(plan.slaVisibleBankIds),
   };
 }

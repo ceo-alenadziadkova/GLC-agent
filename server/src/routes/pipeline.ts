@@ -11,7 +11,16 @@ import {
 import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 import { pipelineLimiter } from '../middleware/rate-limit.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
-import { maxPhaseForMode, type IntakeBriefCollectionMode, type ProductMode } from '../types/audit.js';
+import {
+  currentIntakeVersionTuple,
+  isSupportedIntakeArtifactTuple,
+} from '../intake/core/index.js';
+import {
+  maxPhaseForMode,
+  type IntakeBriefCollectionMode,
+  type IntakeVersionTuple,
+  type ProductMode,
+} from '../types/audit.js';
 import { logger } from '../services/logger.js';
 import {
   evaluateBriefGates,
@@ -137,7 +146,7 @@ pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineL
     // Include intake progress contract so UI can render readiness state.
     const { data: brief } = await supabase
       .from('intake_brief')
-      .select('responses, collection_mode')
+      .select('responses, collection_mode, intake_versions')
       .eq('audit_id', id)
       .single();
     const cm = (brief?.collection_mode as IntakeBriefCollectionMode | undefined) ?? 'self_serve';
@@ -147,11 +156,15 @@ pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineL
       req.userId!,
     );
     const surface = resolveIntakeSurfaceForPlan(cm, perspective);
+    const iv = brief?.intake_versions as IntakeVersionTuple | null | undefined;
+    const intakeTuple =
+      iv && isSupportedIntakeArtifactTuple(iv) ? iv : currentIntakeVersionTuple();
     const gates = evaluateBriefGates(
       (brief?.responses as Record<string, unknown>) ?? {},
       (audit.product_mode as ProductMode) ?? 'full',
       cm,
       surface,
+      intakeTuple,
     );
 
     // Start pipeline (runs Phase 0: Recon)

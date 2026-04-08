@@ -273,6 +273,37 @@ Records `brief_help_requested_at` / `brief_help_client_message` on the audit and
 
 ---
 
+### `GET /api/audits/:id/brief/schema`
+
+**Auth:** same as `GET .../brief` (consultant owner or linked client).
+
+**GET `200`:** Compact **IntakePlan**-shaped payload for the audit’s current `responses` and `collection_mode`, using the same **surface** rule as the main brief GET (consultant vs client; `surface` is `null` when no layout surface applies, e.g. `discovery`). Includes:
+
+- **`intake_versions`** — tuple used to build the plan  
+- **`eligible`**, **`visible`**, **`required`**, **`hidden`**, **`deferred`**, **`sla_visible_bank_ids`**  
+- **`step_plan`**, **`layout_slots`** — when a layout surface is active  
+- **`questions`** — rows `{ id, label, section, priority }` for each **`visible`** bank id (from `question-bank.v1.json`)  
+- **`derived`** — `{ ai_readiness_score, confidence_overall, website_gate }` (same heuristics as `IntakePlan` derived layer)
+
+Does not replace `GET .../brief` for saving or full `BRIEF_QUESTIONS` copy; use for tooling, previews, or clients that want plan-shaped metadata without bundling the whole bank.
+
+---
+
+### `GET /api/audits/:id/brief` / `PUT /api/audits/:id/brief`
+
+**Auth:** consultant (owner) or client linked to the audit.
+
+**GET `200`:** `{ brief, questions, validation, gates, product_mode, … }` — `brief` includes `responses`, `collection_mode`, `collected_by`, optional **`intake_versions`** (`{ questionBankVersion, policyVersion, layoutVersion, resolverVersion }`), optional **`intake_version_migration`** (see below). Validation and `gates` are computed for the caller’s surface (consultant vs client), using stored `intake_versions` when it is a **supported** frozen or current tuple; otherwise the server falls back to the **current** engine tuple for validation (legacy rows).
+
+**PUT body:** `{ "responses": { … } }`, optional **`collection_mode`**, optional **`intake_versions`**.
+
+- **`intake_versions` omitted** — the server reuses the stored tuple, or the **current** tuple for a new row. If the stored tuple is **unsupported**, the write is accepted and the row is repaired to the current tuple; **`intake_version_migration`** records `{ from, to, at, reason: 'unsupported_stored_repaired' }`.
+- **`intake_versions` present** — must include all four keys. Unsupported tuple → **`400`** `UNSUPPORTED_INTAKE_VERSION`. Supported tuple that does not match stored (and is not an allowed upgrade to current) → **`409`** `INTAKE_VERSION_CONFLICT`. Sending the **current** tuple when stored was an older supported tuple → upgrade; migration **`reason: 'client_upgrade'`** is persisted once.
+
+Migration column: deploy **`028_intake_version_migration.sql`** — `intake_brief.intake_version_migration` (`jsonb`, nullable).
+
+---
+
 ### `POST /api/audits/:id/upgrade-from-snapshot`
 
 **Auth:** registered **client** JWT (not guest). Promotes a **completed** `product_mode: free_snapshot` audit to **express** or **full**, resets domain rows, and either seeds the intake brief from quick-scan recon / `snapshot_deterministic` (`use_scraped_context: true`) or clears recon placeholders (`use_scraped_context: false`).
@@ -589,7 +620,7 @@ Lists intake tokens **you created** where the client has already submitted (`sub
 
 **Response `200`:** `{ "metadata", "questions" (pre-brief subset), "responses", "submitted_at", "expires_at" }`.
 
-The `questions` list includes question-bank fields **`f2`**, **`a7`**, and **`f8`** (focus areas, business moment, deadline) immediately after identity and before the express bank subset used for submit validation; see [QUESTION_BANK.md](./QUESTION_BANK.md).
+The `questions` list is **identity** (`INTAKE_IDENTITY_BRIEF_QUESTIONS`) plus bank rows whose **`intake_layer === 'pre_brief'`** in `server/src/schemas/intake-brief.ts` — driven by policy participation (`PRE_BRIEF_PARTICIPATION_IDS`: `modes.pre_brief.bankIncluded` + `revenue_model`). That usually includes narrative fields such as **`f2`**, **`a7`**, **`f8`** when they are part of the pre-brief layer; see [QUESTION_BANK.md](./QUESTION_BANK.md).
 
 Each question object includes optional **`section`** (UI heading: `Business`, `Goals`, `UX & Conversion`, …) aligned with the consultant brief — the public `/intake/:token` page groups the form and review by these sections. Same shape on **`GET /api/intake/prefill/:token`**.
 
@@ -599,7 +630,7 @@ Each question object includes optional **`section`** (UI heading: `Business`, `G
 
 **Auth:** none. **Body:** `{ "responses": { ... } }` — same shape as intake brief answers (validated with `BriefResponsesSchema`).
 
-Submit validation requires **identity** plus the **express SLA** question-bank ids resolved from visibility (same rules as server `resolveExpressSlaRequiredIds` in `brief-gates.ts`: e.g. **`f1`**, **`b1`**, **`revenue_model`**, **`a6`**, **`c5`**, and **`c3`** when the website branch applies); **`f2` / `a7` / `f8` are optional** but, when present, are stored in `intake_brief` like other `pre_brief` keys.
+Submit validation requires **identity** plus the **express SLA** bank ids from **`resolveExpressSlaRequiredIds`** (same inputs as full express: visibility / branch / `collection_mode` / current policy). Statically this aligns with **`PRE_BRIEF_REQUIRED_SUBMIT_IDS`** (= express **`requiredAlways` + `requiredIfVisible`** in `intake-policy.v1.json` via `express-policy-ids.ts`). Optional pre-brief-only fields (e.g. **`f2` / `a7` / `f8`** when shown) are not part of that SLA unless they are required by the resolver for the client’s answers.
 
 Overwrites stored responses and updates `submitted_at`. Allowed until `expires_at` (no single-submit lock). If the token was created with `audit_id`, merges pre-brief question keys into `intake_brief` with source `client`.
 

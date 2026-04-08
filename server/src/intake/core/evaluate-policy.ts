@@ -24,8 +24,9 @@ function sortUniqueIds(ids: string[]): string[] {
 }
 
 /**
- * Bank + synthetic ids required for submit (parity with resolveSlaRequiredIds).
- * Does not add pre_brief intake_* identity ids — pre-brief submit slots stay in brief-validator (`getPreBriefSubmitSlotIds`).
+ * Bank + synthetic ids required for submit (parity with `buildIntakePlan` / `resolveSlaRequiredIds`).
+ * Caller passes the SLA visibility set (see `IntakePlan.slaVisibleBankIds`). Identity `intake_*` fields
+ * are not bank stubs and remain validated in brief-validator (`getPreBriefSubmitSlotIds`).
  */
 export function computeRequiredBankIdsFromPolicy(
   policy: IntakePolicyV1,

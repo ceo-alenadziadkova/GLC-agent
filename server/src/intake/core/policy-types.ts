@@ -25,6 +25,8 @@ export interface PreBriefModePolicyV1 {
   identitySpecifyFieldId: string;
   identitySpecifyWhenIndustryEquals: string;
   inheritExpressRequired: true;
+  /** Omitted in frozen policy bundles before 1.1.0 — resolver treats pre_brief as full bank visibility (legacy). */
+  bankIncluded?: string[];
 }
 
 export interface FreeSnapshotModePolicyV1 {

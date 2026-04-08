@@ -1,3 +1,4 @@
+export { buildBriefSchemaSnapshot, type BriefSchemaSnapshot } from './build-brief-schema-snapshot.js';
 export { buildIntakePlan } from './build-intake-plan.js';
 export { applyPublicDiscoveryLayout, applySurfaceLayout } from './evaluate-layout.js';
 export { formatPlanTrace, type FormatTraceMeta } from './format-trace.js';
@@ -8,13 +9,35 @@ export {
   lintDeprecatedStillRequired,
   lintDuplicateDiscoveryIncluded,
   lintForbiddenImportsInCore,
+  lintLayoutReferencesUnknownBankIds,
   lintMissingPolicyCoverage,
   lintOrphanPolicyDiscoveryIds,
+  lintOrphanPolicyPreBriefBankIds,
+  lintPreBriefBankIncludedJsonMatchesPolicy,
   lintSyntheticCollision,
   lintUnknownBranchRefs,
   type LintFinding,
   type LintSeverity,
 } from './lint-bank-policy.js';
+export {
+  isFrozenArtifactTuple,
+  isSupportedIntakeArtifactTuple,
+  listSupportedFrozenArtifactKeys,
+  resolveIntakeArtifacts,
+  UnsupportedIntakeArtifactTupleError,
+} from './resolve-intake-artifacts.js';
+export {
+  intakeTupleArtifactKey,
+  parseIntakeVersionTuple,
+  parseIntakeVersionsBody,
+  tuplesEqual,
+} from './intake-version-tuple.js';
+export type { ParseIntakeVersionsBodyResult } from './intake-version-tuple.js';
+export { validateIntakeVersionsForBriefWrite } from './intake-version-write-validation.js';
+export {
+  BRANCH_RULE_RESPONSE_KEYS,
+  listBranchRuleResponseKeys,
+} from './branch-condition-deps.js';
 export { evaluateCanonEligibility } from './evaluate-canon.js';
 export { computeRequiredBankIdsFromPolicy } from './evaluate-policy.js';
 export { INTAKE_POLICY_V1, loadIntakePolicy } from './load-policy.js';
@@ -30,7 +53,11 @@ export type {
   BuildIntakePlanInput,
   DebugTraceEntry,
   IntakePlan,
+  IntakePlanConfidence,
   IntakePlanContext,
+  IntakePlanCoverage,
+  IntakePlanCoverageDomain,
+  IntakePlanDerivedFacts,
   IntakeScenarioMode,
   IntakeSurface,
   IntakeVersionTuple,

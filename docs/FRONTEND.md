@@ -189,6 +189,7 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 | `/discovery`, `/audit/discover` | `DiscoverPage.tsx` | Public discovery questionnaire (no auth); alias paths are equivalent |
 | `/admin/snapshots` | `AdminSnapshotQueue.tsx` | Consultant: all free snapshot submissions (`product_mode=free_snapshot`), requested URL, status, and current score/result |
 | `/admin/discovery` | `DiscoveryQueue.tsx` | Consultant: Mode C submissions, convert to audit; shareable URL `/discovery` |
+| `/admin/intake-trace` | `IntakeTraceTool.tsx` | Consultant: debug `buildIntakePlan` / `formatPlanTrace` on pasted responses JSON (no API) |
 
 ---
 

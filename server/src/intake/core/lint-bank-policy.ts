@@ -9,6 +9,7 @@ import { BRANCH_RULES } from '../branch-rules.js';
 import { QUESTION_BANK_V1_STUBS, QUESTION_BANK_V1_IDS } from '../question-bank.js';
 import type { IntakeQuestionStub } from '../types.js';
 
+import { LAYOUT_RULES_V1 } from './load-layout.js';
 import { INTAKE_POLICY_V1 } from './load-policy.js';
 import type { IntakePolicyV1 } from './policy-types.js';
 
@@ -55,6 +56,61 @@ export function lintOrphanPolicyDiscoveryIds(
         message: `Policy discovery.included references unknown bank id "${id}".`,
         detail: id,
       });
+    }
+  }
+  return findings;
+}
+
+export function lintOrphanPolicyPreBriefBankIds(
+  policy: IntakePolicyV1 = INTAKE_POLICY_V1,
+  bankIds: Set<string> = QUESTION_BANK_V1_IDS,
+): LintFinding[] {
+  const findings: LintFinding[] = [];
+  const inc = policy.modes.pre_brief.bankIncluded ?? [];
+  for (const id of inc) {
+    if (!bankIds.has(id)) {
+      findings.push({
+        code: 'ORPHAN_PRE_BRIEF_BANK_ID',
+        severity: 'error',
+        message: `Policy pre_brief.bankIncluded references unknown bank id "${id}".`,
+        detail: id,
+      });
+    }
+  }
+  return findings;
+}
+
+/** Every layout surface step / suppress id must exist in the question bank. */
+export function lintLayoutReferencesUnknownBankIds(
+  bankIds: Set<string> = QUESTION_BANK_V1_IDS,
+): LintFinding[] {
+  const findings: LintFinding[] = [];
+  const surfaces = LAYOUT_RULES_V1.surfaces as Record<
+    string,
+    { steps?: Array<{ questionIds?: string[] }>; suppressQuestionIds?: string[] }
+  >;
+  for (const [surfaceKey, surface] of Object.entries(surfaces)) {
+    for (const id of surface.suppressQuestionIds ?? []) {
+      if (!bankIds.has(id)) {
+        findings.push({
+          code: 'LAYOUT_ORPHAN_ID',
+          severity: 'error',
+          message: `Layout surface "${surfaceKey}" suppressQuestionIds references unknown bank id "${id}".`,
+          detail: id,
+        });
+      }
+    }
+    for (const step of surface.steps ?? []) {
+      for (const id of step.questionIds ?? []) {
+        if (!bankIds.has(id)) {
+          findings.push({
+            code: 'LAYOUT_ORPHAN_ID',
+            severity: 'error',
+            message: `Layout surface "${surfaceKey}" step references unknown bank id "${id}".`,
+            detail: id,
+          });
+        }
+      }
     }
   }
   return findings;
@@ -217,11 +273,50 @@ export function lintForbiddenImportsInCore(coreDir: string = CORE_DIR): LintFind
   return findings;
 }
 
+export function lintPreBriefBankIncludedJsonMatchesPolicy(
+  policy: IntakePolicyV1 = INTAKE_POLICY_V1,
+): LintFinding[] {
+  const findings: LintFinding[] = [];
+  try {
+    const raw = readFileSync(join(CORE_DIR, '..', 'pre-brief-bank-included.json'), 'utf8');
+    const arr = JSON.parse(raw) as unknown;
+    if (!Array.isArray(arr) || !arr.every(x => typeof x === 'string')) {
+      findings.push({
+        code: 'PRE_BRIEF_BANK_INCLUDED_JSON_INVALID',
+        severity: 'error',
+        message: 'pre-brief-bank-included.json must be a JSON array of strings.',
+      });
+      return findings;
+    }
+    const fromPolicy = [...policy.modes.pre_brief.bankIncluded ?? []].sort().join(',');
+    const fromFile = [...arr].sort().join(',');
+    if (fromPolicy !== fromFile) {
+      findings.push({
+        code: 'PRE_BRIEF_BANK_INCLUDED_DRIFT',
+        severity: 'error',
+        message:
+          'pre-brief-bank-included.json does not match intake-policy pre_brief.bankIncluded. Update the JSON file to match policy (frontend thin import).',
+        detail: `policy=[${fromPolicy}] file=[${fromFile}]`,
+      });
+    }
+  } catch (e) {
+    findings.push({
+      code: 'PRE_BRIEF_BANK_INCLUDED_JSON_READ',
+      severity: 'error',
+      message: `Could not read pre-brief-bank-included.json: ${(e as Error).message}`,
+    });
+  }
+  return findings;
+}
+
 export function lintBankAndPolicyAll(): LintFinding[] {
   return [
     ...lintUnknownBranchRefs(),
     ...lintMissingPolicyCoverage(),
     ...lintOrphanPolicyDiscoveryIds(),
+    ...lintOrphanPolicyPreBriefBankIds(),
+    ...lintPreBriefBankIncludedJsonMatchesPolicy(),
+    ...lintLayoutReferencesUnknownBankIds(),
     ...lintDuplicateDiscoveryIncluded(),
     ...lintSyntheticCollision(),
     ...lintDeprecatedStillRequired(),

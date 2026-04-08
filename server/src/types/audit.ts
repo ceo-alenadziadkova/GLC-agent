@@ -515,6 +515,14 @@ export interface IntakeVersionTuple {
   resolverVersion: string;
 }
 
+/** Logged when a brief row is moved between supported artifact tuples (e.g. client upgrade). */
+export interface IntakeVersionMigration {
+  from: IntakeVersionTuple;
+  to: IntakeVersionTuple;
+  at: string;
+  reason: 'client_upgrade' | 'unsupported_stored_repaired';
+}
+
 export interface IntakeBrief {
   id: string;
   audit_id: string;
@@ -540,6 +548,8 @@ export interface IntakeBrief {
   responses_format: 1 | 2;
   /** Null if row predates migration 027; validation uses current engine. */
   intake_versions?: IntakeVersionTuple | null;
+  /** Last intake_versions migration (upgrade or repair of unsupported stored tuple). */
+  intake_version_migration?: IntakeVersionMigration | null;
   created_at: string;
   updated_at: string;
 }

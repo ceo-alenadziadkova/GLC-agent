@@ -15,10 +15,17 @@ import {
   DOMAIN_KEYS,
   EXPRESS_DOMAIN_KEYS,
   reviewPhasesForMode,
+  type IntakeVersionTuple,
   type ProductMode,
 } from '../types/audit.js';
 import {
-  checkIntakeVersionsClientMismatch,
+  currentIntakeVersionTuple,
+  isSupportedIntakeArtifactTuple,
+  parseIntakeVersionsBody,
+  validateIntakeVersionsForBriefWrite,
+} from '../intake/core/index.js';
+import { buildBriefSchemaSnapshot } from '../intake/core/build-brief-schema-snapshot.js';
+import {
   evaluateBriefGates,
   resolveIntakeSurfaceForPlan,
   saveBriefResponses,
@@ -351,6 +358,63 @@ auditsRouter.delete('/:id', ...consultantGuard, async (req: AuthRequest, res) =>
   }
 });
 
+// ─── GET /api/audits/:id/brief/schema — Compact IntakePlan + bank labels (ADR Phase D) ─
+auditsRouter.get('/:id/brief/schema', attachProfile, rejectGuestFromPortal, async (req: AuthRequest, res) => {
+  try {
+    const id = req.params.id as string;
+
+    const { data: audit } = await supabase
+      .from('audits')
+      .select('id, product_mode, user_id, client_id')
+      .eq('id', id)
+      .single();
+
+    if (!audit) {
+      res.status(404).json({ error: 'Audit not found' });
+      return;
+    }
+
+    const hasAccess = audit.user_id === req.userId || audit.client_id === req.userId;
+    if (!hasAccess) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    const { data: brief } = await supabase
+      .from('intake_brief')
+      .select('*')
+      .eq('audit_id', id)
+      .single();
+
+    const responses = (brief?.responses as Record<string, unknown>) ?? {};
+    const collectionMode =
+      (brief?.collection_mode as IntakeBriefCollectionMode | undefined) ?? 'self_serve';
+    const perspective = validationPerspectiveForBriefAccess(
+      audit.user_id as string,
+      audit.client_id as string | null | undefined,
+      req.userId!,
+    );
+    const surface = resolveIntakeSurfaceForPlan(collectionMode, perspective);
+    const iv = brief?.intake_versions as IntakeVersionTuple | null | undefined;
+    const intakeTuple =
+      iv && isSupportedIntakeArtifactTuple(iv) ? iv : currentIntakeVersionTuple();
+
+    const schema = buildBriefSchemaSnapshot({
+      responses,
+      productMode: audit.product_mode as ProductMode,
+      collectionMode,
+      surface,
+      intakeVersionTuple: intakeTuple,
+    });
+
+    res.json(schema);
+  } catch (err) {
+    const e = err as Error;
+    logger.error('route.brief_schema_get_failed', { component: 'audits', error: e.message, stack: e.stack });
+    res.status(500).json({ error: 'Failed to get brief schema' });
+  }
+});
+
 // ─── GET /api/audits/:id/brief — Get brief + questions ─────────────────────
 // Accessible by any authenticated user who owns or requested this audit.
 auditsRouter.get('/:id/brief', attachProfile, rejectGuestFromPortal, async (req: AuthRequest, res) => {
@@ -391,12 +455,23 @@ auditsRouter.get('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
       req.userId!,
     );
     const surface = resolveIntakeSurfaceForPlan(collectionMode, perspective);
+    const iv = brief?.intake_versions as IntakeVersionTuple | null | undefined;
+    const intakeTuple =
+      iv && isSupportedIntakeArtifactTuple(iv) ? iv : currentIntakeVersionTuple();
+
     const validation = validateBriefResponses(responses, {
       productMode: audit.product_mode as ProductMode,
       collectionMode,
       surface,
+      intakeVersionTuple: intakeTuple,
     });
-    const gates = evaluateBriefGates(responses, audit.product_mode as ProductMode, collectionMode, surface);
+    const gates = evaluateBriefGates(
+      responses,
+      audit.product_mode as ProductMode,
+      collectionMode,
+      surface,
+      intakeTuple,
+    );
 
     res.json({
       product_mode: audit.product_mode,
@@ -494,16 +569,6 @@ auditsRouter.put('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
       return;
     }
 
-    const versionCheck = checkIntakeVersionsClientMismatch(intakeVersionsRaw);
-    if (!versionCheck.ok) {
-      res.status(409).json({
-        error: 'VERSION_MISMATCH',
-        code: 'VERSION_MISMATCH',
-        expected: versionCheck.current,
-      });
-      return;
-    }
-
     const allowedModes: IntakeBriefCollectionMode[] = ['self_serve', 'interview', 'pre_brief', 'discovery'];
     let collection_mode: IntakeBriefCollectionMode | undefined;
     if (collectionModeRaw !== undefined && collectionModeRaw !== null && collectionModeRaw !== '') {
@@ -532,6 +597,30 @@ auditsRouter.put('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
       return;
     }
 
+    const parsedVersions = parseIntakeVersionsBody(intakeVersionsRaw);
+    if (parsedVersions.kind === 'incomplete') {
+      res.status(400).json({
+        code: 'INCOMPLETE_INTAKE_VERSIONS',
+        error: 'intake_versions must include all of questionBankVersion, policyVersion, layoutVersion, resolverVersion, or be omitted.',
+      });
+      return;
+    }
+
+    const { data: versionRow } = await supabase
+      .from('intake_brief')
+      .select('intake_versions')
+      .eq('audit_id', id)
+      .maybeSingle();
+
+    const vr = validateIntakeVersionsForBriefWrite({
+      parsedFromBody: parsedVersions.kind === 'full' ? parsedVersions.tuple : undefined,
+      stored: (versionRow?.intake_versions as IntakeVersionTuple | null) ?? null,
+    });
+    if (!vr.ok) {
+      res.status(vr.status).json(vr.body);
+      return;
+    }
+
     const perspective = validationPerspectiveForBriefAccess(
       audit.user_id as string,
       audit.client_id as string | null | undefined,
@@ -540,13 +629,20 @@ auditsRouter.put('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
     const { brief, gates } = await saveBriefResponses(id, responses as Record<string, unknown>, {
       ...(collection_mode ? { collection_mode } : {}),
       validation_perspective: perspective,
+      effective_intake_versions: vr.effective,
+      ...(vr.migration ? { intake_version_migration: vr.migration } : {}),
     });
     const cm = (brief.collection_mode as IntakeBriefCollectionMode | undefined) ?? 'self_serve';
     const surface = resolveIntakeSurfaceForPlan(cm, perspective);
+    const liveTuple =
+      brief.intake_versions && isSupportedIntakeArtifactTuple(brief.intake_versions as IntakeVersionTuple)
+        ? (brief.intake_versions as IntakeVersionTuple)
+        : currentIntakeVersionTuple();
     const liveValidation = validateBriefResponses(brief.responses as Record<string, unknown>, {
       productMode: audit.product_mode as ProductMode,
       collectionMode: brief.collection_mode as IntakeBriefCollectionMode,
       surface,
+      intakeVersionTuple: liveTuple,
     });
 
     res.json({

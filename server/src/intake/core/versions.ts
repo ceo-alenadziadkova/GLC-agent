@@ -10,7 +10,7 @@ export const INTAKE_POLICY_VERSION = INTAKE_POLICY_V1.version;
 export const INTAKE_LAYOUT_VERSION = LAYOUT_RULES_V1.version;
 
 /** Resolver semver — bump on breaking plan shape or evaluation order. */
-export const INTAKE_RESOLVER_VERSION = '1.0.0';
+export const INTAKE_RESOLVER_VERSION = '1.1.0';
 
 export function currentIntakeVersionTuple(): IntakeVersionTuple {
   return {

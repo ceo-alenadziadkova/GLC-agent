@@ -12,13 +12,15 @@
  * Each question maps to one or more domain agents that will receive it in
  * their context slice (via ContextBuilder.build()).
  *
- * UI copy is mirrored in `src/app/data/briefQuestions.ts`. Bank ids / branches / agent feeds are
- * canonical in `server/src/intake/question-bank.v1.json` and `question-feed-roles.ts` — see Vitest
- * contract test in `intake-engine.test.ts`.
+ * SPA imports enriched `BRIEF_QUESTIONS` / identity rows from this module (`src/app/data/briefQuestions.ts`).
+ * Bank ids / branches / agent feeds for **wizard** intake are canonical in `question-bank.v1.json` and
+ * `question-feed-roles.ts` — see Vitest in `intake-engine.test.ts`.
  */
 import { z } from 'zod';
 import type { BriefQuestion } from '../types/audit.js';
 import { INDUSTRY_OPTIONS } from '../config/industry-options.js';
+import { EXPRESS_REQUIRED_ALWAYS_IDS, EXPRESS_REQUIRED_IF_VISIBLE_IDS } from '../intake/express-policy-ids.js';
+import preBriefBankIncluded from '../intake/pre-brief-bank-included.json' with { type: 'json' };
 
 // ─── Question definitions ─────────────────────────────────────────────────────
 
@@ -58,6 +60,14 @@ const BASE_INTAKE_IDENTITY_QUESTIONS: BriefQuestion[] = [
     type: 'free_text',
   },
 ];
+
+/** All intake_* keys that may appear in responses (specify only when industry is Other). */
+export const INTAKE_IDENTITY_FIELD_IDS = [
+  'intake_company_website',
+  'intake_company_name',
+  'intake_industry',
+  'intake_industry_specify',
+] as const;
 
 const BASE_BRIEF_QUESTIONS: BriefQuestion[] = [
   // ── Pre-brief bank slice (before primary_goal / f1 — narrowing & context) ─
@@ -316,39 +326,25 @@ const BASE_BRIEF_QUESTIONS: BriefQuestion[] = [
 /**
  * Express SLA base ids (always). `c5` / `c3` are added when `has_website` branch is visible — see `resolveExpressSlaRequiredIds`.
  */
-export const EXPRESS_REQUIRED_QUESTION_IDS = [
-  'f1',
-  'b1',
-  'revenue_model',
-  'a6',
-] as const;
+export const EXPRESS_REQUIRED_QUESTION_IDS = EXPRESS_REQUIRED_ALWAYS_IDS;
 
-const PRE_BRIEF_IDS = new Set<string>([
-  'intake_company_website',
-  'intake_company_name',
-  'intake_industry',
-  'intake_industry_specify',
-  'f2',
-  'a7',
-  'f8',
-  'f1',
-  'b1',
+/**
+ * Pre-brief UX layer: identity fields + policy `modes.pre_brief.bankIncluded` + synthetic `revenue_model`.
+ * Kept in sync with `intake-policy.v1.json` (see `PRE_BRIEF_PARTICIPATION_IDS` tests).
+ */
+export const PRE_BRIEF_PARTICIPATION_IDS: ReadonlySet<string> = new Set<string>([
+  ...INTAKE_IDENTITY_FIELD_IDS,
+  ...(preBriefBankIncluded as string[]),
   'revenue_model',
-  'a6',
-  'c5',
-  'c3',
 ]);
 
 /**
  * Pre-brief submit core after identity (bank ids). `c5` / `c3` are enforced only when visible for the client's answers.
+ * Mirrors express policy requiredAlways + requiredIfVisible order.
  */
 export const PRE_BRIEF_REQUIRED_SUBMIT_IDS = [
-  'f1',
-  'b1',
-  'revenue_model',
-  'a6',
-  'c5',
-  'c3',
+  ...EXPRESS_REQUIRED_ALWAYS_IDS,
+  ...EXPRESS_REQUIRED_IF_VISIBLE_IDS,
 ] as const;
 
 /** Fewer «high» signals keeps impact weighting meaningful. */
@@ -460,7 +456,7 @@ function enrichQuestion(question: BriefQuestion): BriefQuestion {
   }
 
   let intake_layer: BriefQuestion['intake_layer'] = question.priority === 'required' ? 1 : 2;
-  if (PRE_BRIEF_IDS.has(question.id)) {
+  if (PRE_BRIEF_PARTICIPATION_IDS.has(question.id)) {
     intake_layer = 'pre_brief';
   }
 
@@ -488,14 +484,6 @@ function enrichQuestion(question: BriefQuestion): BriefQuestion {
 export const BRIEF_QUESTIONS: BriefQuestion[] = BASE_BRIEF_QUESTIONS.map(enrichQuestion);
 
 export const INTAKE_IDENTITY_BRIEF_QUESTIONS: BriefQuestion[] = BASE_INTAKE_IDENTITY_QUESTIONS.map(enrichQuestion);
-
-/** All intake_* keys that may appear in responses (specify only when industry is Other). */
-export const INTAKE_IDENTITY_FIELD_IDS = [
-  'intake_company_website',
-  'intake_company_name',
-  'intake_industry',
-  'intake_industry_specify',
-] as const;
 
 export function getBriefQuestionText(id: string): string {
   return (

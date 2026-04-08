@@ -41,6 +41,17 @@
 
 В приложении режим **«All sections»** (классическая форма) и **пошаговый wizard** используют **один и тот же** набор видимых id банка (`filterVisibleQuestions` по текущим ответам); отличается только подача — все секции сразу или один вопрос на шаг. Канонические id ответов — **question-bank v1** (плюс identity и `revenue_model`). **Готовность к старту пайплайна** (full vs express, pre-brief submit): `server/src/intake/brief-gates.ts` — `resolveFullSlaRequiredIds` / `resolveExpressSlaRequiredIds`; на фронте зеркало — `pipelineRequiredIdsForProductMode` ([FRONTEND.md](./FRONTEND.md)). См. `getVisibleBankBriefSections` / `BankClassicBriefFields`.
 
+**Pre-brief (публичная ссылка) и policy:**
+
+- Узкий список вопросов на экране задаётся **`modes.pre_brief.bankIncluded`** в `intake-policy.v1.json` (плюс identity и синтетический `revenue_model`). Тонкий список id для линта/фронта дублируется в `server/src/intake/pre-brief-bank-included.json` и должен совпадать с policy (тесты в `server/src/tests/intake-brief-policy-sync.test.ts`).
+- В **замороженных** снимках policy поле `bankIncluded` может отсутствовать (legacy): тогда pre-brief eligible шире, чем у текущей policy — сервер подгружает артефакты по сохранённому **`intake_versions`** tuple (`resolveIntakeArtifacts`, реестр в `resolve-intake-artifacts.ts`).
+- Поле **`slaVisibleBankIds`** в `IntakePlan` — это набор bank-stub id, по которому считается **required** для express/full SLA; для `collection_mode === 'pre_brief'` он шире, чем то, что показывается в узком pre-brief UI (см. `buildIntakePlan`).
+- **Производный слой плана (ADR backlog B):** `derivedFacts` (в т.ч. `aiReadinessScore` и `segmentHints.websiteGate` — см. §8), `coverage.byDomain` (доля отвеченных primary-вопросов банка в области `slaVisibleBankIds` по доменам из `QUESTION_FEED_ROLES`), `confidence.overall` (0–1, эвристика из readiness + data quality по видимым stub). Считается в `server/src/intake/core/plan-derived.ts` внутри `buildIntakePlan`. Консультантский отладочный UI: `/admin/intake-trace`; CLI: `pnpm intake-plan-debug` в `server/`.
+- **Компактная схема для API (ADR Phase D):** `GET /api/audits/:id/brief/schema` — JSON с наборами плана + `questions` по видимым id банка + блок `derived`; см. [API.md](./API.md).
+- **Ветки (ADR Phase C):** `server/src/intake/core/branch-condition-deps.ts` — какие ключи ответов читает каждое правило из `BRANCH_RULES`; кэш результатов предикатов в `evaluateCanonEligibility`. Public Discovery: `DISCOVERY_WIZARD_BANK_IDS` в `discovery-flow.ts` + тест ⊆ policy discovery.
+- **Legacy brief UI (ADR Phase A):** списки вопросов для классической формы / public intake берутся в SPA из **`server/src/schemas/intake-brief.ts`** (`BRIEF_QUESTIONS`, `INTAKE_IDENTITY_BRIEF_QUESTIONS`); фронт: `src/app/data/briefQuestions.ts` только типизирует вид и добавляет хелперы. Пошаговый bank-wizard по-прежнему из `bankQuestionUiCatalog.ts` + `question-bank.v1.json`.
+- **`PRE_BRIEF_REQUIRED_SUBMIT_IDS`** в `server/src/schemas/intake-brief.ts` — это **та же express-база**, что и `EXPRESS_REQUIRED_ALWAYS_IDS` + `EXPRESS_REQUIRED_IF_VISIBLE_IDS` из policy (`express-policy-ids.ts`). Фактический submit (публичный `POST .../respond` и слоты в `brief-validator`) использует **`resolveExpressSlaRequiredIds`** с учётом веток и tuple — не «ручной» список приоритетов из банка.
+
 ### 2.2. Секции (клиент видит)
 
 Вопросы организованы по 6 секциям — **для клиента**, не по нашим доменам:

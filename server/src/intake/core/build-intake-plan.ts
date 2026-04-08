@@ -1,15 +1,14 @@
 /**
  * buildIntakePlan — resolver (canon, policy, optional layout surface).
  */
-import { QUESTION_BANK_V1_STUBS, QUESTION_BANK_VERSION } from '../question-bank.js';
 import type { IntakeResponsesMap } from '../types.js';
 
 import { evaluateCanonEligibility } from './evaluate-canon.js';
 import { applySurfaceLayout } from './evaluate-layout.js';
 import { computeRequiredBankIdsFromPolicy } from './evaluate-policy.js';
-import { loadLayoutRules } from './load-layout.js';
-import { loadIntakePolicy } from './load-policy.js';
-import { INTAKE_LAYOUT_VERSION, INTAKE_RESOLVER_VERSION } from './versions.js';
+import { computeIntakePlanDerived } from './plan-derived.js';
+import { resolveIntakeArtifacts } from './resolve-intake-artifacts.js';
+import { INTAKE_RESOLVER_VERSION } from './versions.js';
 
 import type { LayoutRulesV1 } from './layout-types.js';
 import type { BuildIntakePlanInput, DebugTraceEntry, IntakePlan, QuestionReason } from './types.js';
@@ -28,11 +27,18 @@ function mergeReasonEntry(
 }
 
 export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
-  const policy = loadIntakePolicy();
-  const stubs = QUESTION_BANK_V1_STUBS;
+  const artifacts = resolveIntakeArtifacts(input.intakeVersionTuple ?? null);
+  const policy = artifacts.policy;
+  const stubs = artifacts.stubs;
   const r = input.responses as IntakeResponsesMap;
   const collectionMode = input.collectionMode;
   const discoveryIncluded = new Set(policy.modes.discovery.included);
+  const preBriefBankIncluded =
+    input.collectionMode === 'pre_brief' &&
+    policy.modes.pre_brief.bankIncluded &&
+    policy.modes.pre_brief.bankIncluded.length > 0
+      ? new Set(policy.modes.pre_brief.bankIncluded)
+      : null;
 
   const debugTrace: DebugTraceEntry[] = [];
 
@@ -44,7 +50,10 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
     reasonsById[id] = entries.map(e => ({ ...e }));
   }
 
-  const policyVisibleOrdered: string[] = [];
+  /** Bank ids that count toward SLA / required (discovery-filtered; pre_brief does not narrow SLA). */
+  const slaVisibleOrdered: string[] = [];
+  /** Bank ids shown on this collection surface (pre_brief narrows when policy has bankIncluded). */
+  const uiPolicyVisibleOrdered: string[] = [];
 
   for (const q of stubs) {
     if (!eligibleSet.has(q.id)) continue;
@@ -59,7 +68,19 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
       continue;
     }
 
-    policyVisibleOrdered.push(q.id);
+    slaVisibleOrdered.push(q.id);
+
+    if (preBriefBankIncluded && !preBriefBankIncluded.has(q.id)) {
+      mergeReasonEntry(reasonsById, q.id, {
+        questionId: q.id,
+        layer: 'policy',
+        state: 'hidden',
+        code: 'PRE_BRIEF_BANK_NOT_INCLUDED',
+      });
+      continue;
+    }
+
+    uiPolicyVisibleOrdered.push(q.id);
     mergeReasonEntry(reasonsById, q.id, {
       questionId: q.id,
       layer: 'policy',
@@ -68,24 +89,25 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
     });
   }
 
-  const policyVisibleSet = new Set(policyVisibleOrdered);
-  /** ADR: eligible = canon + policy participation (before layout deferral / suppression). */
-  const eligibleAfterPolicy = sortUniqueIds(policyVisibleOrdered);
-  const visibleStubsOrdered = stubs.filter(s => policyVisibleSet.has(s.id));
+  const slaVisibleSet = new Set(slaVisibleOrdered);
+  const uiPolicyVisibleSet = new Set(uiPolicyVisibleOrdered);
+  /** ADR: eligible = canon + policy participation for this surface (before layout). */
+  const eligibleAfterPolicy = sortUniqueIds(uiPolicyVisibleOrdered);
+  const visibleStubsForSla = stubs.filter(s => slaVisibleSet.has(s.id));
 
   const req = computeRequiredBankIdsFromPolicy(
     policy,
     input.productMode,
-    policyVisibleSet,
-    visibleStubsOrdered,
+    slaVisibleSet,
+    visibleStubsForSla,
     collectionMode,
   );
   debugTrace.push(...req.debugTrace);
 
   const allBankIds = stubs.map(s => s.id);
-  const hiddenIds = sortUniqueIds(allBankIds.filter(id => !policyVisibleSet.has(id)));
+  const hiddenIds = sortUniqueIds(allBankIds.filter(id => !uiPolicyVisibleSet.has(id)));
 
-  const layoutArtifact = loadLayoutRules();
+  const layoutArtifact = artifacts.layoutRules;
   const surfaces = layoutArtifact.surfaces as LayoutRulesV1['surfaces'];
 
   let layoutSurfaceKey: keyof LayoutRulesV1['surfaces'] | null = null;
@@ -99,7 +121,7 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
     layoutSurfaceKey = input.surface as keyof LayoutRulesV1['surfaces'];
   }
 
-  let finalVisible = sortUniqueIds(policyVisibleOrdered);
+  let finalVisible = sortUniqueIds(uiPolicyVisibleOrdered);
   let deferred: string[] = [];
   let stepPlan: IntakePlan['stepPlan'] = null;
   let layoutSlots: IntakePlan['layoutSlots'] = {};
@@ -107,8 +129,8 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
   if (layoutSurfaceKey) {
     const surfaceCfg = surfaces[layoutSurfaceKey];
     const applied = applySurfaceLayout(
-      policyVisibleOrdered,
-      policyVisibleSet,
+      uiPolicyVisibleOrdered,
+      uiPolicyVisibleSet,
       surfaceCfg,
       `${String(layoutSurfaceKey)}_`,
     );
@@ -133,12 +155,19 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
         detail: String(layoutSurfaceKey),
       });
     }
-    const slot: Record<string, string | null> = {};
+    const slot: Record<string, string[]> = {};
     for (const step of applied.stepPlan) {
-      slot[step.stepId] = step.questionIds[0] ?? null;
+      slot[step.stepId] = [...step.questionIds];
     }
     layoutSlots = slot;
   }
+
+  const derived = computeIntakePlanDerived({
+    responses: r,
+    slaVisibleBankIds: sortUniqueIds(slaVisibleOrdered),
+    visibleBankIds: finalVisible,
+    stubs,
+  });
 
   return {
     eligible: eligibleAfterPolicy,
@@ -146,15 +175,19 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
     required: sortUniqueIds(req.ids),
     hidden: hiddenIds,
     deferred,
+    slaVisibleBankIds: sortUniqueIds(slaVisibleOrdered),
     layoutSlots,
     stepPlan,
     reasonsById,
     debugTrace,
+    derivedFacts: derived.derivedFacts,
+    coverage: derived.coverage,
+    confidence: derived.confidence,
     versions: {
-      questionBankVersion: QUESTION_BANK_VERSION,
+      questionBankVersion: artifacts.questionBankVersion,
       policyVersion: policy.version,
-      layoutVersion: INTAKE_LAYOUT_VERSION,
-      resolverVersion: INTAKE_RESOLVER_VERSION,
+      layoutVersion: layoutArtifact.version,
+      resolverVersion: input.intakeVersionTuple?.resolverVersion ?? INTAKE_RESOLVER_VERSION,
     },
   };
 }

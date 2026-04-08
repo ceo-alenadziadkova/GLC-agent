@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.0.0",
   "modes": {
     "full": {
       "participation": "all_eligible",
@@ -75,17 +75,7 @@
       ],
       "identitySpecifyFieldId": "intake_industry_specify",
       "identitySpecifyWhenIndustryEquals": "Other",
-      "inheritExpressRequired": true,
-      "bankIncluded": [
-        "f1",
-        "f2",
-        "f8",
-        "a7",
-        "b1",
-        "a6",
-        "c5",
-        "c3"
-      ]
+      "inheritExpressRequired": true
     },
     "free_snapshot": {
       "participation": "all_eligible",

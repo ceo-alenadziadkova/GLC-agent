@@ -29,6 +29,7 @@ describe('buildIntakePlan', () => {
         required: plan.required,
         hidden: plan.hidden,
         deferred: plan.deferred,
+        slaVisibleBankIds: plan.slaVisibleBankIds,
       };
       expect(slice, f.id).toEqual(shim);
     }
@@ -49,6 +50,7 @@ describe('buildIntakePlan', () => {
           required: plan.required,
           hidden: plan.hidden,
           deferred: plan.deferred,
+          slaVisibleBankIds: plan.slaVisibleBankIds,
         },
         f.id,
       ).toEqual(expected[f.id]);
@@ -60,9 +62,23 @@ describe('buildIntakePlan', () => {
       responses: INTAKE_PLAN_FIXTURES[0].responses,
       productMode: 'full',
     });
-    expect(plan.versions.policyVersion).toBe('1.0.0');
+    expect(plan.versions.policyVersion).toBe('1.1.0');
     expect(plan.versions.questionBankVersion).toBe('1.0.0');
-    expect(plan.versions.resolverVersion).toBe('1.0.0');
+    expect(plan.versions.resolverVersion).toBe('1.1.0');
     expect(plan.versions.layoutVersion).toBe('1.1.0');
+  });
+
+  it('includes derivedFacts, coverage, and confidence', () => {
+    const plan = buildIntakePlan({
+      responses: { a2: 'hospitality', a5: 'no_website' },
+      productMode: 'full',
+      collectionMode: 'self_serve',
+    });
+    expect(plan.derivedFacts.aiReadinessScore).toBeGreaterThanOrEqual(0);
+    expect(plan.derivedFacts.aiReadinessScore).toBeLessThanOrEqual(100);
+    expect(plan.derivedFacts.segmentHints.websiteGate).toBe('no_website');
+    expect(plan.coverage.byDomain.recon).toBeDefined();
+    expect(plan.confidence.overall).toBeGreaterThanOrEqual(0);
+    expect(plan.confidence.overall).toBeLessThanOrEqual(1);
   });
 });

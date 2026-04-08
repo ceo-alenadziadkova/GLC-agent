@@ -3,7 +3,33 @@ import { assertIntakePayloadShape } from '../api-payload-asserts';
 import type { IntakeBrief, IntakeBriefCollectionMode, IntakeVersionTuple } from '../auditTypes';
 import type { BriefQuestion } from '../briefQuestions';
 
+/** `GET /api/audits/:id/brief/schema` — compact IntakePlan + bank labels (ADR Phase D). */
+export type BriefSchemaSnapshot = {
+  intake_versions: IntakeVersionTuple;
+  product_mode: string;
+  collection_mode: IntakeBriefCollectionMode;
+  surface: string | null;
+  eligible: string[];
+  visible: string[];
+  required: string[];
+  hidden: string[];
+  deferred: string[];
+  sla_visible_bank_ids: string[];
+  step_plan: Array<{ step_id: string; label?: string; question_ids: string[] }> | null;
+  layout_slots: Record<string, string[]>;
+  questions: Array<{ id: string; label: string; section: string; priority: string }>;
+  derived: {
+    ai_readiness_score: number;
+    confidence_overall: number;
+    website_gate: string;
+  };
+};
+
 export const briefProfilePlatformApi = {
+  async getBriefSchema(auditId: string) {
+    return apiFetch<BriefSchemaSnapshot>(`/api/audits/${auditId}/brief/schema`);
+  },
+
   async getBrief(auditId: string) {
     const payload = await apiFetch<{
       product_mode?: string;

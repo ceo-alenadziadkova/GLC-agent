@@ -2,13 +2,23 @@
  * Behaviour: public discovery branching and findings (see discovery-flow.ts, docs/QUESTION_BANK.md).
  */
 import { describe, expect, it } from 'vitest';
+import { DISCOVERY_BANK_IDS } from '../../../server/src/intake/discovery';
 import {
+  DISCOVERY_WIZARD_BANK_IDS,
   buildQuestionSequence,
   computeFindings,
   computeScore,
   getOnlinePresenceSelections,
   getQuestion,
 } from './discovery-flow';
+
+describe('Discovery wizard vs intake policy', () => {
+  it('every wizard bank id is in modes.discovery.included', () => {
+    for (const id of DISCOVERY_WIZARD_BANK_IDS) {
+      expect(DISCOVERY_BANK_IDS.has(id), `id ${id} not in discovery policy`).toBe(true);
+    }
+  });
+});
 
 describe('buildQuestionSequence', () => {
   it('includes d1b when CRM not selected in d1', () => {

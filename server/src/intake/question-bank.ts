@@ -41,9 +41,29 @@ for (const q of rawTyped.questions) {
   if (q.label && q.label.length > 0) PROMPT_LABEL_BY_ID.set(q.id, q.label);
 }
 
+export interface QuestionBankSchemaMeta {
+  label: string;
+  section: string;
+  priority: IntakePriority;
+}
+
+const SCHEMA_META_BY_ID = new Map<string, QuestionBankSchemaMeta>();
+for (const q of rawTyped.questions) {
+  SCHEMA_META_BY_ID.set(q.id, {
+    label: q.label ?? q.id,
+    section: q.section,
+    priority: q.priority,
+  });
+}
+
 /** Human label for Claude prompts; undefined if id is not in bank or has no label. */
 export function getQuestionBankPromptLabel(id: string): string | undefined {
   return PROMPT_LABEL_BY_ID.get(id);
+}
+
+/** Canon label + section + priority for API schema snapshots (`GET .../brief/schema`). */
+export function getQuestionBankSchemaMeta(id: string): QuestionBankSchemaMeta | undefined {
+  return SCHEMA_META_BY_ID.get(id);
 }
 
 export const QUESTION_BANK_V1_IDS = new Set(QUESTION_BANK_V1_STUBS.map(q => q.id));

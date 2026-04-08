@@ -10,6 +10,7 @@
  */
 
 import { buildIntakePlan } from '../../../server/src/intake/core/build-intake-plan';
+import { getQuestionBankSchemaMeta } from '../../../server/src/intake/question-bank';
 import { INDUSTRY_OPTIONS } from '../data/industry-options';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -40,10 +41,22 @@ export interface DiscoveryFinding {
 
 // ── Questions ─────────────────────────────────────────────────────────────────
 //
-// These definitions are the discovery-page UI overrides — they use bank IDs as
-// keys but may change question copy, type, or options for the public context
-// (e.g. d2 becomes single_choice chips here instead of free_text in the full wizard).
-// Do NOT import from bankQuestionUiCatalog — this file stays public-page-isolated.
+// Bank ids must stay in sync with `intake-policy.v1.json` modes.discovery.included
+// (see `server/src/tests/discovery-wizard-policy-sync.test.ts`).
+// Copy defaults to `question-bank.v1.json` labels when `question` is omitted; public UX
+// usually overrides wording / control type (ADR Phase A).
+
+function makeDiscoveryQuestion(
+  id: string,
+  spec: Omit<DiscoveryQuestion, 'id' | 'question'> & { question?: string },
+): DiscoveryQuestion {
+  const bank = getQuestionBankSchemaMeta(id);
+  return {
+    ...spec,
+    id,
+    question: spec.question ?? bank?.label ?? id,
+  };
+}
 
 /** Aligned with intake bank `c_nosite_1` / `c_nosite_3` (see `bankQuestionUiCatalog`). */
 export const DISCOVERY_ONLINE_PRESENCE_OPTIONS = [
@@ -84,26 +97,22 @@ export const DISCOVERY_SOCIAL_PLATFORM_OPTIONS = [
 ] as const;
 
 const ALL_QUESTIONS: DiscoveryQuestion[] = [
-  {
-    id: 'a2',
+  makeDiscoveryQuestion('a2', {
     question: 'Which industry are you in?',
     type: 'single_choice',
     options: [...INDUSTRY_OPTIONS],
-  },
-  {
-    id: 'a1',
+  }),
+  makeDiscoveryQuestion('a1', {
     question: 'Describe your business in one sentence.',
     hint: 'What do you do, and who do you do it for?',
     type: 'free_text',
-  },
-  {
-    id: 'a4',
+  }),
+  makeDiscoveryQuestion('a4', {
     question: 'How big is your team?',
     type: 'single_choice',
     options: ['Just me', '2–5 people', '6–20 people', 'More than 20'],
-  },
-  {
-    id: 'a7',
+  }),
+  makeDiscoveryQuestion('a7', {
     question: 'Where is the business right now?',
     hint: 'This shapes everything — from what to fix first to how fast to move.',
     type: 'single_choice',
@@ -114,9 +123,8 @@ const ALL_QUESTIONS: DiscoveryQuestion[] = [
       'Scaling',
       'Mature and optimising',
     ],
-  },
-  {
-    id: 'd1',
+  }),
+  makeDiscoveryQuestion('d1', {
     question: 'Which tools does your team use every day?',
     hint: 'Select all that apply.',
     type: 'multi_choice',
@@ -130,10 +138,9 @@ const ALL_QUESTIONS: DiscoveryQuestion[] = [
       'WhatsApp / voice notes',
       'Nothing specific',
     ],
-  },
+  }),
   // Branch: no CRM in d1 → ask how leads are tracked (bank: d1b)
-  {
-    id: 'd1b',
+  makeDiscoveryQuestion('d1b', {
     question: 'How do you keep track of leads and potential clients?',
     type: 'single_choice',
     options: [
@@ -142,9 +149,8 @@ const ALL_QUESTIONS: DiscoveryQuestion[] = [
       'In a CRM or dedicated tool',
       "I don't track them systematically",
     ],
-  },
-  {
-    id: 'c_nosite_1',
+  }),
+  makeDiscoveryQuestion('c_nosite_1', {
     question: 'When someone looks for your type of service — how do they find you?',
     hint: 'Where do people land when they search for what you offer?',
     type: 'multi_choice',
@@ -156,9 +162,8 @@ const ALL_QUESTIONS: DiscoveryQuestion[] = [
       'Word of mouth only',
       'Not really online yet',
     ],
-  },
-  {
-    id: 'c_nosite_4',
+  }),
+  makeDiscoveryQuestion('c_nosite_4', {
     question: 'How do most new customer enquiries arrive?',
     hint: 'The channel where the first message lands is usually the fastest automation win.',
     type: 'multi_choice',
@@ -171,9 +176,8 @@ const ALL_QUESTIONS: DiscoveryQuestion[] = [
       'Booking platform',
       'Other',
     ],
-  },
-  {
-    id: 'd2',
+  }),
+  makeDiscoveryQuestion('d2', {
     question: 'What takes the most time in your week that you wish you could eliminate?',
     type: 'single_choice',
     options: [
@@ -185,9 +189,8 @@ const ALL_QUESTIONS: DiscoveryQuestion[] = [
       'Managing team tasks and handoffs',
       'Something else',
     ],
-  },
-  {
-    id: 'f1',
+  }),
+  makeDiscoveryQuestion('f1', {
     question: 'What is the main problem this audit should help you solve?',
     type: 'single_choice',
     options: [
@@ -198,8 +201,11 @@ const ALL_QUESTIONS: DiscoveryQuestion[] = [
       'We lose leads because we respond too slowly',
       'I want to understand where to focus next',
     ],
-  },
+  }),
 ];
+
+/** Bank ids used by the public Discovery wizard (subset of policy discovery included). */
+export const DISCOVERY_WIZARD_BANK_IDS: readonly string[] = ALL_QUESTIONS.map(q => q.id);
 
 const QUESTION_MAP = new Map(ALL_QUESTIONS.map(q => [q.id, q]));
 

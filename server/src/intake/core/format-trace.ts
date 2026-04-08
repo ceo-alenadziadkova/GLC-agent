@@ -24,13 +24,32 @@ export function formatPlanTrace(plan: IntakePlan, meta?: FormatTraceMeta): strin
     `versions: bank=${plan.versions.questionBankVersion} policy=${plan.versions.policyVersion} layout=${plan.versions.layoutVersion} resolver=${plan.versions.resolverVersion}`,
   );
   parts.push(
-    `counts: eligible=${plan.eligible.length} visible=${plan.visible.length} required=${plan.required.length} hidden=${plan.hidden.length} deferred=${plan.deferred.length}`,
+    `counts: eligible=${plan.eligible.length} visible=${plan.visible.length} required=${plan.required.length} hidden=${plan.hidden.length} deferred=${plan.deferred.length} slaVisible=${plan.slaVisibleBankIds.length}`,
   );
   parts.push(`eligible: ${lines(plan.eligible, 80)}`);
+  if (plan.slaVisibleBankIds.length !== plan.eligible.length) {
+    parts.push(`slaVisibleBankIds: ${lines(plan.slaVisibleBankIds, 80)}`);
+  }
   parts.push(`visible: ${lines(plan.visible, 80)}`);
   parts.push(`required: ${lines(plan.required, 40)}`);
   parts.push(`hidden: ${lines(plan.hidden, 40)}`);
   parts.push(`deferred: ${lines(plan.deferred, 20)}`);
+
+  parts.push('--- derived ---');
+  parts.push(`aiReadinessScore: ${plan.derivedFacts.aiReadinessScore}`);
+  parts.push(`segmentHints.websiteGate: ${plan.derivedFacts.segmentHints.websiteGate}`);
+  const covEntries = Object.entries(plan.coverage.byDomain);
+  if (covEntries.length > 0) {
+    const cov = covEntries
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${k}=${typeof v === 'number' ? v.toFixed(2) : String(v)}`)
+      .join(', ');
+    parts.push(`coverage.byDomain: ${cov}`);
+  }
+  parts.push(`confidence.overall: ${plan.confidence.overall.toFixed(3)}`);
+  if (plan.confidence.rationale?.length) {
+    parts.push(`confidence.rationale: ${plan.confidence.rationale.join(' | ')}`);
+  }
 
   if (plan.debugTrace && plan.debugTrace.length > 0) {
     parts.push('--- debug trace ---');

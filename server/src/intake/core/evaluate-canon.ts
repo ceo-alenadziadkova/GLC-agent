@@ -12,15 +12,29 @@ export interface CanonEligibilityResult {
   reasonsById: Record<string, QuestionReason[]>;
 }
 
+/**
+ * One predicate result per unique `branchCondition` per plan build — avoids redundant work
+ * when many stubs share the same rule (ADR Phase C v1).
+ */
 export function evaluateCanonEligibility(
   stubs: IntakeQuestionStub[],
   responses: IntakeResponsesMap,
 ): CanonEligibilityResult {
   const eligibleIds: string[] = [];
   const reasonsById: Record<string, QuestionReason[]> = {};
+  const branchPassByCondition = new Map<string | undefined, boolean>();
+
+  const evalCached = (condition: string | undefined): boolean => {
+    if (branchPassByCondition.has(condition)) {
+      return branchPassByCondition.get(condition)!;
+    }
+    const pass = evalBranchCondition(condition, responses);
+    branchPassByCondition.set(condition, pass);
+    return pass;
+  };
 
   for (const q of stubs) {
-    const pass = evalBranchCondition(q.branchCondition, responses);
+    const pass = evalCached(q.branchCondition);
     if (pass) {
       eligibleIds.push(q.id);
       reasonsById[q.id] = [

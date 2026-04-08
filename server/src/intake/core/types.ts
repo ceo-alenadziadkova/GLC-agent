@@ -32,6 +32,11 @@ export interface BuildIntakePlanInput {
    * Consultant/client/portal surfaces apply whenever set (see `layout-rules.v1.json`).
    */
   surface?: IntakeSurface;
+  /**
+   * When set, policy/layout/bank JSON are loaded for this tuple (frozen bundles) instead of only the
+   * live artifacts. Resolver **code** is always the current server build.
+   */
+  intakeVersionTuple?: IntakeVersionTuple;
 }
 
 /** Per-question classification trace (explainability). */
@@ -48,6 +53,43 @@ export interface DebugTraceEntry {
   level: 'info' | 'warn' | 'error';
   code: string;
   message: string;
+}
+
+/** Pipeline slice keys for `coverage.byDomain` (aligned with `QUESTION_FEED_ROLES`). */
+export type IntakePlanCoverageDomain =
+  | 'recon'
+  | 'tech_infrastructure'
+  | 'security_compliance'
+  | 'seo_digital'
+  | 'ux_conversion'
+  | 'marketing_utp'
+  | 'automation_processes'
+  | 'strategy';
+
+export interface IntakePlanDerivedFacts {
+  aiReadinessScore: number;
+  aiReadinessComponents: {
+    base: number;
+    exportData: number;
+    governance: number;
+    automationAttempt: number;
+    penalties: number;
+    scaleBonus: number;
+  };
+  segmentHints: {
+    websiteGate: string;
+  };
+}
+
+export interface IntakePlanCoverage {
+  /** Per domain: share of in-scope primary bank questions that are answered (1 if none in scope). */
+  byDomain: Partial<Record<IntakePlanCoverageDomain, number>>;
+}
+
+export interface IntakePlanConfidence {
+  /** 0–1 blend of AI readiness and visible-stub data quality. */
+  overall: number;
+  rationale?: string[];
 }
 
 export interface StepPlanEntry {
@@ -68,12 +110,21 @@ export interface IntakePlan {
   hidden: string[];
   deferred: string[];
   /**
-   * Layout step id → first bank question id assigned to that step (null if the step resolved empty).
-   * Keys match `stepPlan[].stepId`. For steps with multiple questions, use `stepPlan[].questionIds` for the full ordered list.
+   * Bank ids used to compute `required` (SLA). Equals policy-visible bank ids except for
+   * `collectionMode === 'pre_brief'`, where the client surface is narrower but full/express SLA
+   * still uses branch-wide bank visibility.
    */
-  layoutSlots?: Record<string, string | null>;
+  slaVisibleBankIds: string[];
+  /**
+   * Layout step id → ordered bank question ids placed in that step (subset of policy-visible set).
+   * Keys match `stepPlan[].stepId`. Prefer this over scanning `stepPlan` when you need a flat map.
+   */
+  layoutSlots?: Record<string, string[]>;
   stepPlan?: StepPlanEntry[] | null;
   reasonsById?: Record<string, QuestionReason[]>;
   debugTrace?: DebugTraceEntry[];
   versions: IntakeVersionTuple;
+  derivedFacts: IntakePlanDerivedFacts;
+  coverage: IntakePlanCoverage;
+  confidence: IntakePlanConfidence;
 }
