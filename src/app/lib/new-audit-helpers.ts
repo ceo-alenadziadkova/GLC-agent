@@ -1,6 +1,6 @@
 import type { User } from '@supabase/supabase-js';
 import type { BriefResponseSource } from '../data/auditTypes';
-import { ApiError } from '../data/apiService';
+import { ApiError } from '../data/api-error';
 import type { BriefResponseEntry, BriefResponses } from '../data/briefQuestions';
 import { isIndustryOption } from '../data/industry-options';
 

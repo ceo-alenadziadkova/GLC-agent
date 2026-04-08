@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
+    "@axe-core/playwright": "^4.11.1",
     "@react-pdf/renderer": "^4.3.2",
     "@sentry/node": "^9.47.1",
     "@supabase/supabase-js": "^2.49.0",
@@ -31,8 +32,11 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
+    "fast-xml-parser": "^5.5.11",
+    "lighthouse": "11.7.1",
     "playwright": "^1.50.0",
     "react": "^18.3.1",
+    "robots-parser": "^3.0.1",
     "yaml": "^2.8.3",
     "zod": "^3.24.0"
   },

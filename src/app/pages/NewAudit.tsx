@@ -21,7 +21,7 @@ import { AppShell } from '../components/AppShell';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { useAuth } from '../hooks/useAuth';
 import { useBriefLayoutPrefsSync } from '../hooks/useBriefLayoutPrefsSync';
-import { briefResponsesToIntakeMap, useIntakeBankMetrics } from '../hooks/useIntakeWizard';
+import { useIntakeBankMetrics } from '../hooks/useIntakeWizard';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
 import { IntakeBankWizard } from '../components/IntakeBankWizard';
 import { BankClassicBriefFields } from '../components/BankClassicBriefFields';
@@ -289,7 +289,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [fromDiscovery]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fromDiscovery]);
 
   // ── Validation ──────────────────────────────────────────
   function isValidUrl(raw: string): boolean {
