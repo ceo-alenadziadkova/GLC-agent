@@ -4,6 +4,7 @@ import {
   buildDomainToQuestionsRawFromRoles,
   calcAiReadinessScore,
   calcDataQualityScore,
+  calcDataQualityScoreFromVisible,
   DOMAIN_TO_QUESTION_IDS,
   deriveBankV1DataQuality,
   filterVisibleQuestions,
@@ -89,6 +90,14 @@ describe('calcDataQualityScore', () => {
     expect(r.visibleRequired).toBe(1);
     expect(r.answeredRequired).toBe(1);
     expect(r.requiredWeight).toBe(1);
+  });
+
+  it('calcDataQualityScoreFromVisible matches filter path for same visible list', () => {
+    const responses = { a1: 'ok', x1: 'yes', a5: 'Yes, multi-page site' } as const;
+    const visible = filterVisibleQuestions(qs, responses);
+    const a = calcDataQualityScoreFromVisible(visible, responses);
+    const b = calcDataQualityScore(qs, responses);
+    expect(a).toEqual(b);
   });
 });
 

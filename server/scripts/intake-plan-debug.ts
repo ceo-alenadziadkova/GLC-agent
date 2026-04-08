@@ -2,17 +2,26 @@
  * Debug CLI for buildIntakePlan — no server, no DB.
  *
  * Usage (from server/):
- *   npx tsx scripts/intake-plan-debug.ts --product-mode=full --collection-mode=discovery --responses='{"a2":"hospitality","a5":"no_website"}'
+ *   pnpm intake-plan-debug --product-mode=full --collection-mode=discovery --surface=public_discovery --responses='{"a2":"hospitality","a5":"no_website"}'
  *
  * Flags:
- *   --product-mode=   full | express | free_snapshot (default: full)
+ *   --product-mode=     full | express | free_snapshot (default: full)
  *   --collection-mode=  discovery | pre_brief | self_serve | interview (optional)
- *   --surface=        optional label for trace header only
- *   --responses=      JSON object string (default: {})
+ *   --surface=          consultant_interview | client_form | client_portal | internal_review | public_discovery (optional; drives layout when discovery + public_discovery)
+ *   --responses=        JSON object string (default: {})
  */
 import type { IntakeBriefCollectionMode, ProductMode } from '../src/types/audit.js';
 import { buildIntakePlan } from '../src/intake/core/build-intake-plan.js';
+import type { IntakeSurface } from '../src/intake/core/types.js';
 import { formatPlanTrace } from '../src/intake/core/format-trace.js';
+
+const SURFACES: IntakeSurface[] = [
+  'consultant_interview',
+  'client_form',
+  'client_portal',
+  'internal_review',
+  'public_discovery',
+];
 
 function parseArgs(argv: string[]): Record<string, string> {
   const out: Record<string, string> = {};
@@ -39,11 +48,18 @@ function parseCollectionMode(s: string | undefined): IntakeBriefCollectionMode |
   process.exit(1);
 }
 
+function parseSurface(s: string | undefined): IntakeSurface | undefined {
+  if (!s) return undefined;
+  if ((SURFACES as string[]).includes(s)) return s as IntakeSurface;
+  console.error(`Unknown surface: ${s}. Expected one of: ${SURFACES.join(', ')}`);
+  process.exit(1);
+}
+
 function main(): void {
   const args = parseArgs(process.argv);
   const productMode = parseProductMode(args.product_mode);
   const collectionMode = parseCollectionMode(args.collection_mode);
-  const surface = args.surface;
+  const surface = parseSurface(args.surface);
 
   let responses: Record<string, unknown> = {};
   if (args.responses) {
@@ -60,11 +76,11 @@ function main(): void {
     }
   }
 
-  const plan = buildIntakePlan({ responses, productMode, collectionMode });
+  const plan = buildIntakePlan({ responses, productMode, collectionMode, surface });
   const text = formatPlanTrace(plan, {
     productMode,
-    collectionMode: collectionMode ?? '(default self_serve visibility)',
-    surface,
+    collectionMode: collectionMode ?? '(none)',
+    surface: surface ?? '(none)',
   });
   console.log(text);
 }

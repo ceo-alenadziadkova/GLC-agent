@@ -2,10 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { BriefResponses } from '../data/briefQuestions';
 import { briefResponsesToIntakeMap } from '../data/intakeBriefMap';
 import { buildIntakePlan } from '../../../server/src/intake/core/build-intake-plan';
-import { calcDataQualityScore, DEFAULT_DATA_QUALITY_WEIGHTS } from '../../../server/src/intake/data-quality';
-import { filterVisibleQuestions } from '../../../server/src/intake/is-visible';
+import {
+  calcDataQualityScore,
+  calcDataQualityScoreFromVisible,
+  DEFAULT_DATA_QUALITY_WEIGHTS,
+} from '../../../server/src/intake/data-quality';
 import { QUESTION_BANK_V1_STUBS } from '../../../server/src/intake/question-bank';
-import type { CollectionMode, IntakeQuestionStub } from '../../../server/src/intake/types';
+import type { CollectionMode, IntakeQuestionStub, IntakeResponsesMap } from '../../../server/src/intake/types';
 
 export { briefResponsesToIntakeMap };
 
@@ -77,13 +80,13 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
   }, [responses, collectionMode]);
 
   const dataQuality = useMemo(
-    () => calcDataQualityScore(
-      QUESTION_BANK_V1_STUBS,
-      responses,
-      DEFAULT_DATA_QUALITY_WEIGHTS,
-      { collectionMode },
-    ),
-    [responses, collectionMode],
+    () =>
+      calcDataQualityScoreFromVisible(
+        visibleStubs,
+        responses as IntakeResponsesMap,
+        DEFAULT_DATA_QUALITY_WEIGHTS,
+      ),
+    [visibleStubs, responses],
   );
 
   const setField = useCallback(

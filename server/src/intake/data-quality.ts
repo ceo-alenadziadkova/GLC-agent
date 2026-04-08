@@ -18,14 +18,14 @@ export const DEFAULT_DATA_QUALITY_WEIGHTS: DataQualityWeights = {
 
 const DEFAULT_WEIGHTS = DEFAULT_DATA_QUALITY_WEIGHTS;
 
-export function calcDataQualityScore(
-  questions: IntakeQuestionStub[],
+/**
+ * Score from an already-resolved visible stub list (e.g. same list as wizard steps from `buildIntakePlan`).
+ */
+export function calcDataQualityScoreFromVisible(
+  visible: IntakeQuestionStub[],
   responses: IntakeResponsesMap,
   weights: DataQualityWeights = DEFAULT_WEIGHTS,
-  visibility?: IntakeVisibilityContext,
 ): DataQualityResult {
-  const visible = filterVisibleQuestions(questions, responses, visibility);
-
   const req = visible.filter(q => q.priority === 'required');
   const rec = visible.filter(q => q.priority === 'recommended');
   const opt = visible.filter(q => q.priority === 'optional');
@@ -67,4 +67,17 @@ export function calcDataQualityScore(
     answeredRecommended: arec,
     answeredOptional: ao,
   };
+}
+
+export function calcDataQualityScore(
+  questions: IntakeQuestionStub[],
+  responses: IntakeResponsesMap,
+  weights: DataQualityWeights = DEFAULT_WEIGHTS,
+  visibility?: IntakeVisibilityContext,
+): DataQualityResult {
+  return calcDataQualityScoreFromVisible(
+    filterVisibleQuestions(questions, responses, visibility),
+    responses,
+    weights,
+  );
 }

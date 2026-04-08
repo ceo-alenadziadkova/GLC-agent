@@ -5,10 +5,10 @@
  * Philosophy: no website = audit value lever is operations & automation, not tech stack.
  * The discovery set is as comprehensive as the full-site path — every domain is covered.
  *
- * Visible count after branching:
- *   generic industry, solo  ~22 questions
- *   hospitality, small team ~27 questions
- *   max (any industry)      ~29 questions
+ * Visible count after branching (approximate; includes a5 when in policy):
+ *   generic industry, solo  ~23 questions
+ *   hospitality, small team ~28 questions
+ *   max (any industry)      ~30 questions
  *
  * Intentionally excluded:
  *   d3  — hours on repetitive work (clients reliably underestimate; low signal quality)
@@ -16,8 +16,8 @@
  *   e1/e2/e3 — compliance depth adds friction without changing discovery recommendations
  */
 export const DISCOVERY_BANK_IDS = new Set<string>([
-  // Section A — Identity, stage, scale (8)
-  'a1', 'a2', 'a3', 'a4', 'a6', 'a7', 'a8', 'a9',
+  // Section A — Identity, stage, scale (9 incl. a5 website gate; public discovery may inject a5)
+  'a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9',
 
   // Section B — Customers, channels, growth history (5 universal)
   'b1', 'b2', 'b3', 'b7', 'b_growth_attempts',

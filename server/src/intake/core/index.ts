@@ -1,5 +1,8 @@
 export { buildIntakePlan } from './build-intake-plan.js';
+export { applyPublicDiscoveryLayout } from './evaluate-layout.js';
 export { formatPlanTrace, type FormatTraceMeta } from './format-trace.js';
+export { LAYOUT_RULES_V1, loadLayoutRules } from './load-layout.js';
+export type { LayoutRulesV1, LayoutStepV1, PublicDiscoverySurfaceV1 } from './layout-types.js';
 export {
   lintBankAndPolicyAll,
   lintDeprecatedStillRequired,
