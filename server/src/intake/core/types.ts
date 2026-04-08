@@ -27,7 +27,10 @@ export interface BuildIntakePlanInput {
   responses: Record<string, unknown>;
   productMode: ProductMode;
   collectionMode?: IntakeBriefCollectionMode;
-  /** When set with `collectionMode: 'discovery'`, applies public discovery layout (step order + deferral). */
+  /**
+   * Optional layout surface: `public_discovery` requires `collectionMode: 'discovery'`.
+   * Consultant/client/portal surfaces apply whenever set (see `layout-rules.v1.json`).
+   */
   surface?: IntakeSurface;
 }
 
@@ -58,11 +61,16 @@ export interface StepPlanEntry {
  * materialize subset: eligible, visible, required, hidden, deferred.
  */
 export interface IntakePlan {
+  /** Bank ids in play after canon + policy (includes deferred; layout order does not affect membership). */
   eligible: string[];
   visible: string[];
   required: string[];
   hidden: string[];
   deferred: string[];
+  /**
+   * Layout step id → first bank question id assigned to that step (null if the step resolved empty).
+   * Keys match `stepPlan[].stepId`. For steps with multiple questions, use `stepPlan[].questionIds` for the full ordered list.
+   */
   layoutSlots?: Record<string, string | null>;
   stepPlan?: StepPlanEntry[] | null;
   reasonsById?: Record<string, QuestionReason[]>;

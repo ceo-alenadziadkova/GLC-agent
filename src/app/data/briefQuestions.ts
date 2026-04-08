@@ -1,5 +1,5 @@
 import { resolveExpressSlaRequiredIds, resolveFullSlaRequiredIds } from '../../../server/src/intake/brief-gates';
-import type { CollectionMode } from '../../../server/src/intake/types';
+import type { IntakeBriefCollectionMode } from './auditTypes';
 import { INDUSTRY_OPTIONS } from './industry-options';
 import { briefResponsesToIntakeMap } from './intakeBriefMap';
 import { choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
@@ -60,7 +60,7 @@ const BASE_INTAKE_IDENTITY_QUESTIONS: BriefQuestion[] = [
     priority: 'required',
     section: 'Business',
     question: 'Company website',
-    hint: 'Full URL (https://…). If you do not have a website yet, write "none" or "no website".',
+    hint: 'Domain or full URL (https:// optional). If you do not have a website yet, write "none" or "no website".',
     type: 'free_text',
   },
   {
@@ -433,7 +433,7 @@ export const REQUIRED_IDS = BRIEF_QUESTIONS.filter(q => q.priority === 'required
 export function pipelineRequiredIdsForProductMode(
   mode: 'full' | 'express',
   responses: BriefResponses,
-  collectionMode?: CollectionMode,
+  collectionMode?: IntakeBriefCollectionMode,
 ): string[] {
   const m = briefResponsesToIntakeMap(responses);
   return mode === 'express'

@@ -436,8 +436,8 @@ export async function runDeterministicSnapshot(auditId: string): Promise<Determi
     const robotsPartialNotes = buildRobotsPartialScanLimitations(coverage);
     const limitationNotes = [...anomalyNotes, ...robotsPartialNotes];
 
-    let { profile, debug } = runSiteProfile(facts);
-    profile = applyRobotsFallbackProfileNotes(profile, coverage);
+    const { profile: siteProfile, debug } = runSiteProfile(facts);
+    const profile = applyRobotsFallbackProfileNotes(siteProfile, coverage);
     logger.info('snapshot.site_profile', {
       audit_id: auditId,
       siteType: profile.siteType,

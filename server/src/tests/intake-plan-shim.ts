@@ -1,16 +1,14 @@
 /**
  * Phase 0 shim: derive intake plan slices from CURRENT engine (branch + discovery filter + brief-gates SLA).
  *
- * - eligible: branch predicates only (no discovery whitelist).
- * - visible: filterVisibleQuestions / getVisibleBankStubs (current behavior).
- * - hidden: bank ids not shown in this context (complement of visible).
+ * - eligible: policy-visible bank ids (canon + policy; same as `buildIntakePlan` without layout surface).
+ * - visible: getVisibleBankStubs (no `surface` here — equals eligible as sorted sets).
+ * - hidden: bank ids not in this context (complement of visible).
  * - required: resolveSlaRequiredIds for the fixture product/collection mode.
- * - deferred: always [] until layout + askStrategy (Phase 5b+); see snapshot test header comment.
+ * - deferred: always [] here (no `surface`); layout deferral is tested in intake-layout.test.ts.
  */
 import { getVisibleBankStubs, resolveSlaRequiredIds } from '../intake/brief-gates.js';
-import { evalBranchCondition } from '../intake/branch-rules.js';
 import { QUESTION_BANK_V1_STUBS } from '../intake/question-bank.js';
-import type { IntakeResponsesMap } from '../intake/types.js';
 import type { IntakeBriefCollectionMode, ProductMode } from '../types/audit.js';
 
 export interface IntakePlanSnapshotPayload {
@@ -30,13 +28,8 @@ export function computeIntakePlanSnapshotShim(
   productMode: ProductMode,
   collectionMode?: IntakeBriefCollectionMode,
 ): IntakePlanSnapshotPayload {
-  const r = responses as IntakeResponsesMap;
-
-  const eligible = sortUnique(
-    QUESTION_BANK_V1_STUBS.filter(q => evalBranchCondition(q.branchCondition, r)).map(q => q.id),
-  );
-
   const visible = sortUnique(getVisibleBankStubs(responses, collectionMode).map(q => q.id));
+  const eligible = visible;
 
   const visibleSet = new Set(visible);
   const allBankIds = QUESTION_BANK_V1_STUBS.map(q => q.id);

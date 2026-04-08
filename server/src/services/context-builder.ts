@@ -3,7 +3,6 @@ import { logger } from './logger.js';
 import type { DomainKey, ReconConflict, ReconData } from '../types/audit.js';
 import { getDomainWeight } from '../config/industry-weights.js';
 import {
-  BRIEF_QUESTIONS,
   getBriefQuestionText,
   getQuestionsForDomain,
   INTAKE_IDENTITY_FIELD_IDS,

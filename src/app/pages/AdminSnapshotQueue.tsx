@@ -30,10 +30,9 @@ export function AdminSnapshotQueue() {
     staleTime: 180_000,
   });
 
-  const snapshots = q.data ?? [];
   const filtered = useMemo(
-    () => snapshots.filter((audit) => matchesStatusFilter(audit, filter)),
-    [snapshots, filter],
+    () => (q.data ?? []).filter((audit) => matchesStatusFilter(audit, filter)),
+    [q.data, filter],
   );
 
   return (

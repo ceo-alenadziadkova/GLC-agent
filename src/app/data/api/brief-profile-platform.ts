@@ -1,6 +1,6 @@
 import { apiFetch } from '../api-http';
 import { assertIntakePayloadShape } from '../api-payload-asserts';
-import type { IntakeBrief, IntakeBriefCollectionMode } from '../auditTypes';
+import type { IntakeBrief, IntakeBriefCollectionMode, IntakeVersionTuple } from '../auditTypes';
 import type { BriefQuestion } from '../briefQuestions';
 
 export const briefProfilePlatformApi = {
@@ -43,11 +43,14 @@ export const briefProfilePlatformApi = {
   async saveBrief(
     auditId: string,
     responses: Record<string, unknown>,
-    opts?: { collection_mode?: IntakeBriefCollectionMode },
+    opts?: { collection_mode?: IntakeBriefCollectionMode; intake_versions?: IntakeVersionTuple | null },
   ) {
     const body: Record<string, unknown> = { responses };
     if (opts?.collection_mode) {
       body.collection_mode = opts.collection_mode;
+    }
+    if (opts?.intake_versions != null) {
+      body.intake_versions = opts.intake_versions;
     }
     const payload = await apiFetch<{
       brief: IntakeBrief;

@@ -1,7 +1,7 @@
 /**
  * Policy layer — SLA / required bank ids from policy artifact (matches brief-gates.ts).
  */
-import type { ProductMode } from '../../types/audit.js';
+import type { IntakeBriefCollectionMode, ProductMode } from '../../types/audit.js';
 import type { IntakeQuestionStub } from '../types.js';
 
 import type { IntakePolicyV1 } from './policy-types.js';
@@ -25,13 +25,14 @@ function sortUniqueIds(ids: string[]): string[] {
 
 /**
  * Bank + synthetic ids required for submit (parity with resolveSlaRequiredIds).
- * Does not add pre_brief intake_* identity ids — those stay in brief-validator until Phase 4+.
+ * Does not add pre_brief intake_* identity ids — pre-brief submit slots stay in brief-validator (`getPreBriefSubmitSlotIds`).
  */
 export function computeRequiredBankIdsFromPolicy(
   policy: IntakePolicyV1,
   productMode: ProductMode,
   visibleIdSet: Set<string>,
   visibleStubsInBankOrder: IntakeQuestionStub[],
+  collectionMode?: IntakeBriefCollectionMode,
 ): { ids: string[]; debugTrace: DebugTraceEntry[] } {
   const trace: DebugTraceEntry[] = [];
 
@@ -60,9 +61,12 @@ export function computeRequiredBankIdsFromPolicy(
     return { ids: sortUniqueIds(dedupePreserveOrder(out)), debugTrace: trace };
   }
 
-  const full = policy.modes.full;
   const fromCanon = visibleStubsInBankOrder.filter(s => s.priority === 'required').map(s => s.id);
-  const candidates = [...fromCanon, ...full.syntheticRequired];
+  const synthetics =
+    collectionMode === 'discovery'
+      ? policy.modes.discovery.syntheticRequired
+      : policy.modes.full.syntheticRequired;
+  const candidates = [...fromCanon, ...synthetics];
   const out: string[] = [];
   for (const id of candidates) {
     if (id === 'revenue_model' || visibleIdSet.has(id)) {

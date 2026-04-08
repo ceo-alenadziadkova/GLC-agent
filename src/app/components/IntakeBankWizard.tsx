@@ -8,7 +8,9 @@ import {
   type BriefResponseEntry,
   type BriefResponses,
 } from '../data/briefQuestions';
+import type { IntakeBriefCollectionMode } from '../data/auditTypes';
 import { briefResponsesToIntakeMap, useIntakeWizard } from '../hooks/useIntakeWizard';
+import type { IntakeSurface } from '../../../server/src/intake/core/types';
 import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
 
 function intakeMapToBriefResponses(map: Record<string, unknown>): BriefResponses {
@@ -52,13 +54,16 @@ export function IntakeBankWizard({
   interviewMode,
   emphasizeClientSource,
   collectionMode,
+  intakeSurface,
   answerSource,
 }: {
   responses: BriefResponses;
   onResponsesChange: (next: BriefResponses) => void;
   interviewMode?: boolean;
   emphasizeClientSource?: boolean;
-  collectionMode?: 'standard' | 'discovery';
+  collectionMode?: IntakeBriefCollectionMode;
+  /** Layout surface for visible ordering (omit with discovery-only flows). */
+  intakeSurface?: IntakeSurface;
   /** Source tag for new plain values from the wizard (defaults to consultant). */
   answerSource?: BriefResponseEntry['source'];
 }) {
@@ -72,6 +77,7 @@ export function IntakeBankWizard({
       onResponsesChange(mergeBriefResponsesPreferFilled(responses, patch));
     },
     collectionMode,
+    surface: intakeSurface,
   });
 
   const q = wizard.currentStub ? bankIdToBriefQuestion(wizard.currentStub.id, wizard.currentStub.priority) : null;

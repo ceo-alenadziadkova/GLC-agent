@@ -13,16 +13,17 @@ import {
 import { createAuditLimiter, generalLimiter } from '../middleware/rate-limit.js';
 import {
   DOMAIN_KEYS,
-  REVIEW_AFTER_PHASES,
   EXPRESS_DOMAIN_KEYS,
-  EXPRESS_REVIEW_AFTER_PHASES,
   reviewPhasesForMode,
   type ProductMode,
 } from '../types/audit.js';
 import {
+  checkIntakeVersionsClientMismatch,
   evaluateBriefGates,
+  resolveIntakeSurfaceForPlan,
   saveBriefResponses,
   validateBriefResponses,
+  validationPerspectiveForBriefAccess,
 } from '../services/brief-validator.js';
 import type { IntakeBriefCollectionMode } from '../types/audit.js';
 import { BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
@@ -380,14 +381,22 @@ auditsRouter.get('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
       .eq('audit_id', id)
       .single();
 
-    // Compute validation stats live
+    // Compute validation stats live (layout surface matches who is viewing: consultant vs client).
     const responses = (brief?.responses as Record<string, unknown>) ?? {};
-    const collectionMode = brief?.collection_mode as IntakeBriefCollectionMode | undefined;
+    const collectionMode =
+      (brief?.collection_mode as IntakeBriefCollectionMode | undefined) ?? 'self_serve';
+    const perspective = validationPerspectiveForBriefAccess(
+      audit.user_id as string,
+      audit.client_id as string | null | undefined,
+      req.userId!,
+    );
+    const surface = resolveIntakeSurfaceForPlan(collectionMode, perspective);
     const validation = validateBriefResponses(responses, {
       productMode: audit.product_mode as ProductMode,
       collectionMode,
+      surface,
     });
-    const gates = evaluateBriefGates(responses, audit.product_mode as ProductMode, collectionMode);
+    const gates = evaluateBriefGates(responses, audit.product_mode as ProductMode, collectionMode, surface);
 
     res.json({
       product_mode: audit.product_mode,
@@ -478,18 +487,32 @@ auditsRouter.post('/:id/brief/help-request', attachProfile, async (req: AuthRequ
 auditsRouter.put('/:id/brief', attachProfile, rejectGuestFromPortal, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
-    const { responses, collection_mode: collectionModeRaw } = req.body;
+    const { responses, collection_mode: collectionModeRaw, intake_versions: intakeVersionsRaw } = req.body;
 
     if (!responses || typeof responses !== 'object' || Array.isArray(responses)) {
       res.status(400).json({ error: 'responses must be an object' });
       return;
     }
 
+    const versionCheck = checkIntakeVersionsClientMismatch(intakeVersionsRaw);
+    if (!versionCheck.ok) {
+      res.status(409).json({
+        error: 'VERSION_MISMATCH',
+        code: 'VERSION_MISMATCH',
+        expected: versionCheck.current,
+      });
+      return;
+    }
+
     const allowedModes: IntakeBriefCollectionMode[] = ['self_serve', 'interview', 'pre_brief', 'discovery'];
-    const collection_mode =
-      typeof collectionModeRaw === 'string' && allowedModes.includes(collectionModeRaw as IntakeBriefCollectionMode)
-        ? (collectionModeRaw as IntakeBriefCollectionMode)
-        : undefined;
+    let collection_mode: IntakeBriefCollectionMode | undefined;
+    if (collectionModeRaw !== undefined && collectionModeRaw !== null && collectionModeRaw !== '') {
+      if (typeof collectionModeRaw !== 'string' || !allowedModes.includes(collectionModeRaw as IntakeBriefCollectionMode)) {
+        res.status(400).json({ error: 'Invalid collection_mode', code: 'UNKNOWN_MODE' });
+        return;
+      }
+      collection_mode = collectionModeRaw as IntakeBriefCollectionMode;
+    }
 
     // Verify access
     const { data: audit } = await supabase
@@ -509,12 +532,21 @@ auditsRouter.put('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
       return;
     }
 
+    const perspective = validationPerspectiveForBriefAccess(
+      audit.user_id as string,
+      audit.client_id as string | null | undefined,
+      req.userId!,
+    );
     const { brief, gates } = await saveBriefResponses(id, responses as Record<string, unknown>, {
       ...(collection_mode ? { collection_mode } : {}),
+      validation_perspective: perspective,
     });
+    const cm = (brief.collection_mode as IntakeBriefCollectionMode | undefined) ?? 'self_serve';
+    const surface = resolveIntakeSurfaceForPlan(cm, perspective);
     const liveValidation = validateBriefResponses(brief.responses as Record<string, unknown>, {
       productMode: audit.product_mode as ProductMode,
       collectionMode: brief.collection_mode as IntakeBriefCollectionMode,
+      surface,
     });
 
     res.json({

@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "surfaces": {
     "public_discovery": {
       "deferRemaining": true,
@@ -13,6 +13,183 @@
         { "label": "Enquiries", "questionIds": ["c_nosite_4"] },
         { "label": "Bottleneck", "questionIds": ["d2"] },
         { "label": "Main goal", "questionIds": ["f1"] }
+      ]
+    },
+    "consultant_interview": {
+      "deferRemaining": false,
+      "steps": [
+        {
+          "label": "Your business",
+          "questionIds": ["a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9"]
+        },
+        {
+          "label": "Customer & offer",
+          "questionIds": [
+            "b1",
+            "b2",
+            "b3",
+            "b4",
+            "b5",
+            "b6",
+            "b7",
+            "b_growth_attempts",
+            "b_hotel_1",
+            "b_hotel_2",
+            "b_realestate_1",
+            "b_restaurant_1",
+            "b_services_1",
+            "b_health_1",
+            "b_marine_1"
+          ]
+        },
+        {
+          "label": "Online presence",
+          "questionIds": [
+            "c5",
+            "c6",
+            "c8",
+            "c9",
+            "c1",
+            "c2",
+            "c3",
+            "c4",
+            "c7",
+            "c_nosite_1",
+            "c_nosite_4",
+            "c_nosite_5",
+            "c_nosite_reviews",
+            "c_nosite_2",
+            "c_nosite_3"
+          ]
+        },
+        {
+          "label": "Tools & processes",
+          "questionIds": [
+            "d1",
+            "d1a",
+            "d1b",
+            "d_response_time",
+            "d_closing_flow",
+            "d_billing_flow",
+            "d2",
+            "d_automation_attempt",
+            "d3",
+            "d4",
+            "d4a",
+            "d4b",
+            "d6",
+            "d5",
+            "d_hotel_1",
+            "d_hotel_2",
+            "d_realestate_1",
+            "d_restaurant_1"
+          ]
+        },
+        {
+          "label": "Compliance",
+          "questionIds": ["e1", "e2", "e3", "e4"]
+        },
+        {
+          "label": "Goals & constraints",
+          "questionIds": ["f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8"]
+        }
+      ]
+    },
+    "client_form": {
+      "deferRemaining": false,
+      "suppressQuestionIds": ["c1"],
+      "steps": [
+        {
+          "label": "Your business",
+          "questionIds": ["a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9"]
+        },
+        {
+          "label": "Customer & offer",
+          "questionIds": [
+            "b1",
+            "b2",
+            "b3",
+            "b4",
+            "b5",
+            "b6",
+            "b7",
+            "b_growth_attempts",
+            "b_hotel_1",
+            "b_hotel_2",
+            "b_realestate_1",
+            "b_restaurant_1",
+            "b_services_1",
+            "b_health_1",
+            "b_marine_1"
+          ]
+        },
+        {
+          "label": "Online presence",
+          "questionIds": [
+            "c5",
+            "c6",
+            "c8",
+            "c9",
+            "c2",
+            "c3",
+            "c4",
+            "c7",
+            "c_nosite_1",
+            "c_nosite_4",
+            "c_nosite_5",
+            "c_nosite_reviews",
+            "c_nosite_2",
+            "c_nosite_3"
+          ]
+        },
+        {
+          "label": "Tools & processes",
+          "questionIds": [
+            "d1",
+            "d1a",
+            "d1b",
+            "d_response_time",
+            "d_closing_flow",
+            "d_billing_flow",
+            "d2",
+            "d_automation_attempt",
+            "d3",
+            "d4",
+            "d4a",
+            "d4b",
+            "d6",
+            "d5",
+            "d_hotel_1",
+            "d_hotel_2",
+            "d_realestate_1",
+            "d_restaurant_1"
+          ]
+        },
+        {
+          "label": "Compliance",
+          "questionIds": ["e1", "e2", "e3", "e4"]
+        },
+        {
+          "label": "Goals & constraints",
+          "questionIds": ["f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8"]
+        }
+      ]
+    },
+    "client_portal": {
+      "deferRemaining": true,
+      "suppressQuestionIds": ["c1"],
+      "steps": [
+        {
+          "label": "Your business",
+          "questionIds": ["a1", "a2", "a3", "a5", "a6", "a7"]
+        },
+        { "label": "Customers & offer", "questionIds": ["b1", "b2", "b3"] },
+        {
+          "label": "Website & channels",
+          "questionIds": ["c5", "c6", "c3", "c7", "c_nosite_1", "c_nosite_4"]
+        },
+        { "label": "Tools & workflow", "questionIds": ["d1", "d2"] },
+        { "label": "Priorities", "questionIds": ["f1", "f2", "f4"] }
       ]
     }
   }

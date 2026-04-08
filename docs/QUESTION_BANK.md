@@ -562,7 +562,7 @@ The legacy system (`discovery-flow.ts`) pre-dates bank v1 integration and is not
 *После переноса `d4c` → `f7` в D на один id меньше (`f7` считается в F), но операционный блок всё ещё плотный — см. заметку перегрузки в Section D.*
 
 Из-за branching типичный клиент видит **27–36 вопросов**, не все строки таблицы.
-Pre-brief: **9**. Quick Intake: **~18–21** (зависит от f7/f8 и сайта). Deep Intake: +12–22. Discovery (Mode C): **16** id — полный список в §4 (`DISCOVERY_BANK_IDS`), включает **a5**, **a6**, **a7**, **f8**, **f1** и no-site поля **c_nosite_1**, **c_nosite_2**, **c_nosite_3**.
+Pre-brief: **9**. Quick Intake: **~18–21** (зависит от f7/f8 и сайта). Deep Intake: +12–22. Discovery (Mode C): полный набор id — **`intake-policy.v1.json`** → **`modes.discovery.included`** (в коде: `DISCOVERY_BANK_IDS` в `server/src/intake/discovery.ts`); в том числе **a5**, **a6**, **a7**, **f8**, **f1** и no-site поля **c_nosite_1**, **c_nosite_2**, **c_nosite_3**.
 
 ---
 

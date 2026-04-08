@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { BriefField } from './BriefField';
+import type { IntakeBriefCollectionMode } from '../data/auditTypes';
 import { getVisibleBankBriefSections } from '../data/bankClassicBrief';
 import { BRIEF_QUESTIONS, type BriefResponses } from '../data/briefQuestions';
-import type { CollectionMode } from '../../../server/src/intake/types';
+import type { IntakeSurface } from '../../../server/src/intake/core/types';
 import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
 
 const REVENUE_MODEL = BRIEF_QUESTIONS.find(q => q.id === 'revenue_model')!;
@@ -18,6 +19,7 @@ function unwrapForField(raw: BriefResponses[string] | undefined): string | strin
 export function BankClassicBriefFields({
   responses,
   collectionMode,
+  intakeSurface,
   onChange,
   onSetUnknown,
   interviewMode,
@@ -25,7 +27,8 @@ export function BankClassicBriefFields({
   compact,
 }: {
   responses: BriefResponses;
-  collectionMode?: CollectionMode;
+  collectionMode?: IntakeBriefCollectionMode;
+  intakeSurface?: IntakeSurface;
   onChange: (id: string, value: string | string[] | number | null) => void;
   onSetUnknown: (id: string) => void;
   interviewMode?: boolean;
@@ -34,8 +37,8 @@ export function BankClassicBriefFields({
   compact?: boolean;
 }) {
   const sections = useMemo(
-    () => getVisibleBankBriefSections(responses, collectionMode),
-    [responses, collectionMode],
+    () => getVisibleBankBriefSections(responses, collectionMode, intakeSurface),
+    [responses, collectionMode, intakeSurface],
   );
 
   const hx = compact

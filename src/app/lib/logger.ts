@@ -55,7 +55,6 @@ async function sendLog(payload: LogPayload) {
     if (res.status === 429) {
       remoteLogBackoffUntil = Date.now() + 90_000;
       if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
         console.warn('[logger] Remote ingest rate-limited (429); pausing backend log POSTs for 90s');
       }
     }
@@ -83,7 +82,6 @@ function baseLog(level: LogLevel, message: string, context?: Record<string, unkn
   // Send remote logs and keep dev console visibility.
   void sendLog(payload);
   if (import.meta.env.DEV) {
-    // eslint-disable-next-line no-console
     console[level]?.(`[${payload.level.toUpperCase()}] ${payload.message}`, mergedContext);
   }
 }

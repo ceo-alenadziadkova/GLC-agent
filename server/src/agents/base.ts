@@ -9,7 +9,7 @@ import { TokenTracker } from '../services/token-tracker.js';
 import { type BaseCollector } from '../collectors/base.js';
 import type { DomainResult, DomainKey } from '../types/audit.js';
 import { followupQuestionsFromUnknowns } from '../lib/post-audit-followups.js';
-import { DomainOutputSchema, zodToJsonSchema } from '../schemas/domain-output.js';
+import { zodToJsonSchema } from '../schemas/domain-output.js';
 import { CLAUDE_MODEL, MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import { logger } from '../services/logger.js';
 import { getContext, updateContext } from '../services/observability-context.js';

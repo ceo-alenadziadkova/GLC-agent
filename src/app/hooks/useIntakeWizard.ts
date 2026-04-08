@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { BriefResponses } from '../data/briefQuestions';
+import type { IntakeBriefCollectionMode } from '../data/auditTypes';
 import { briefResponsesToIntakeMap } from '../data/intakeBriefMap';
 import { buildIntakePlan } from '../../../server/src/intake/core/build-intake-plan';
-import {
-  calcDataQualityScore,
-  calcDataQualityScoreFromVisible,
-  DEFAULT_DATA_QUALITY_WEIGHTS,
-} from '../../../server/src/intake/data-quality';
+import type { IntakeSurface } from '../../../server/src/intake/core/types';
+import { calcDataQualityScoreFromVisible, DEFAULT_DATA_QUALITY_WEIGHTS } from '../../../server/src/intake/data-quality';
 import { QUESTION_BANK_V1_STUBS } from '../../../server/src/intake/question-bank';
-import type { CollectionMode, IntakeQuestionStub, IntakeResponsesMap } from '../../../server/src/intake/types';
+import type { IntakeQuestionStub, IntakeResponsesMap } from '../../../server/src/intake/types';
 
 export { briefResponsesToIntakeMap };
 
@@ -23,15 +21,23 @@ export function sortStubsByBankOrder(stubs: IntakeQuestionStub[]): IntakeQuestio
  */
 export function useIntakeBankMetrics(
   briefResponses: BriefResponses,
-  collectionMode?: CollectionMode,
+  collectionMode?: IntakeBriefCollectionMode,
+  surface?: IntakeSurface,
 ) {
   return useMemo(() => {
     const merged = { ...briefResponsesToIntakeMap(briefResponses) };
-    const dq = calcDataQualityScore(
-      QUESTION_BANK_V1_STUBS,
-      merged,
+    const plan = buildIntakePlan({
+      responses: merged,
+      productMode: 'full',
+      collectionMode,
+      surface,
+    });
+    const visibleSet = new Set(plan.visible);
+    const visibleStubs = QUESTION_BANK_V1_STUBS.filter(q => visibleSet.has(q.id));
+    const dq = calcDataQualityScoreFromVisible(
+      visibleStubs,
+      merged as IntakeResponsesMap,
       DEFAULT_DATA_QUALITY_WEIGHTS,
-      { collectionMode },
     );
     return {
       mergedResponses: merged,
@@ -42,13 +48,15 @@ export function useIntakeBankMetrics(
       visibleRecommendedTotal: dq.visibleRecommended,
       visibleRecommendedAnswered: dq.answeredRecommended,
     };
-  }, [briefResponses, collectionMode]);
+  }, [briefResponses, collectionMode, surface]);
 }
 
 export interface UseIntakeWizardOptions {
   /** Initial map when uncontrolled (only read on first mount). */
   initialMap?: Record<string, unknown>;
-  collectionMode?: CollectionMode;
+  collectionMode?: IntakeBriefCollectionMode;
+  /** Layout surface (consultant interview vs client form / portal). Omit when unknown. */
+  surface?: IntakeSurface;
   /** Controlled: parent-owned responses map (after briefResponsesToIntakeMap). */
   value?: Record<string, unknown>;
   onChange?: (next: Record<string, unknown>) => void;
@@ -59,7 +67,7 @@ export interface UseIntakeWizardOptions {
  * Controlled mode keeps `responses` in the parent (e.g. New Audit brief).
  */
 export function useIntakeWizard(options: UseIntakeWizardOptions) {
-  const { initialMap = {}, collectionMode, value, onChange } = options;
+  const { initialMap = {}, collectionMode, surface, value, onChange } = options;
   const controlled = value !== undefined && onChange !== undefined;
 
   const [internal, setInternal] = useState(() => ({ ...initialMap }));
@@ -74,10 +82,11 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
       responses,
       productMode: 'full',
       collectionMode,
+      surface,
     });
     const visible = new Set(plan.visible);
     return sortStubsByBankOrder(QUESTION_BANK_V1_STUBS.filter(q => visible.has(q.id)));
-  }, [responses, collectionMode]);
+  }, [responses, collectionMode, surface]);
 
   const dataQuality = useMemo(
     () =>

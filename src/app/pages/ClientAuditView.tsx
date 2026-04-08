@@ -10,7 +10,7 @@ import { AppShell } from '../components/AppShell';
 import { PortalSnapshotAccountMirror } from '../components/PortalSnapshotAccountMirror';
 import { useClientPortalPipeline } from '../context/ClientPortalPipelineContext';
 import { api } from '../data/apiService';
-import type { AuditState } from '../data/auditTypes';
+import type { IntakeBriefCollectionMode } from '../data/auditTypes';
 import {
   CLIENT_PORTAL_PRODUCT_MODE_HELP,
   clientCanViewPortalPipeline,
@@ -60,7 +60,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
   const [saved, setSaved] = useState(false);
   const [briefError, setBriefError] = useState<string | null>(null);
 
-  const [bankCollectionMode, setBankCollectionMode] = useState<'discovery' | undefined>(undefined);
+  const [briefCollectionMode, setBriefCollectionMode] = useState<IntakeBriefCollectionMode | undefined>(undefined);
   const [productMode, setProductMode] = useState<'full' | 'express'>('full');
   const [briefLayoutChoice, setBriefLayoutChoice] = useState<'unset' | 'classic' | 'wizard'>(() =>
     resolveClientBriefLayout(auditId) ?? 'unset',
@@ -85,7 +85,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
     if (data.brief?.responses) {
       setResponses(data.brief.responses as BriefResponses);
     }
-    setBankCollectionMode(data.brief?.collection_mode === 'discovery' ? 'discovery' : undefined);
+    setBriefCollectionMode(data.brief?.collection_mode);
     if (data.product_mode === 'express') setProductMode('express');
     else setProductMode('full');
     if (data.intakeProgress) setIntakeProgress(data.intakeProgress);
@@ -101,9 +101,9 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
       pipelineRequiredIdsForProductMode(
         productMode,
         effectiveBriefForGates,
-        bankCollectionMode,
+        briefCollectionMode,
       ),
-    [productMode, effectiveBriefForGates, bankCollectionMode],
+    [productMode, effectiveBriefForGates, briefCollectionMode],
   );
   const answeredRequired = countAnswered(effectiveBriefForGates, [...pipelineRequiredIds]);
   const pipelineRequiredTotal = pipelineRequiredIds.length;
@@ -113,7 +113,14 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
   );
   const progressPct = intakeProgress?.progressPct ?? fallbackProgress;
   const readinessBadge = intakeProgress?.readinessBadge ?? (fallbackProgress >= 80 ? 'high' : fallbackProgress >= 45 ? 'medium' : 'low');
-  const bankMetrics = useIntakeBankMetrics(responses, bankCollectionMode);
+  const clientIntakeSurface =
+    briefCollectionMode === 'discovery'
+      ? undefined
+      : briefCollectionMode === 'pre_brief'
+        ? 'client_portal'
+        : 'client_form';
+
+  const bankMetrics = useIntakeBankMetrics(responses, briefCollectionMode, clientIntakeSurface);
 
   function handleSelectBriefLayout(mode: 'classic' | 'wizard') {
     writeClientBriefLayout(auditId, mode);
@@ -138,7 +145,9 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
     setBriefError(null);
     setSaved(false);
     try {
-      await api.saveBrief(auditId, responses as Record<string, unknown>);
+      await api.saveBrief(auditId, responses as Record<string, unknown>, {
+        intake_versions: briefQuery.data?.brief?.intake_versions ?? undefined,
+      });
       await queryClient.invalidateQueries({ queryKey: glcKeys.brief.detail(auditId) });
       setSaved(true);
       onBriefSaved?.();
@@ -242,13 +251,15 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
                   interviewMode={false}
                   emphasizeClientSource={false}
                   answerSource="client"
-                  collectionMode={bankCollectionMode}
+                  collectionMode={briefCollectionMode}
+                  intakeSurface={clientIntakeSurface}
                 />
               ) : (
                 <BankClassicBriefFields
                   compact
                   responses={responses}
-                  collectionMode={bankCollectionMode}
+                  collectionMode={briefCollectionMode}
+                  intakeSurface={clientIntakeSurface}
                   onChange={handleClientBriefFieldChange}
                   onSetUnknown={handleClientBriefSetUnknown}
                   interviewMode={false}

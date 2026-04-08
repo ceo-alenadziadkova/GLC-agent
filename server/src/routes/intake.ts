@@ -60,7 +60,7 @@ async function mergePreBriefFromParsedResponses(
     if (entries[id] !== undefined) preBriefPatch[id] = entries[id];
   }
   if (Object.keys(preBriefPatch).length === 0) return;
-  await saveBriefResponses(auditId, { ...existing, ...preBriefPatch });
+  await saveBriefResponses(auditId, { ...existing, ...preBriefPatch }, { validation_perspective: 'client' });
 }
 
 /** POST /api/intake — consultant creates token */

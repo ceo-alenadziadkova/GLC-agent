@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router';
-import type { BriefResponseSource } from '../data/auditTypes';
+import type { BriefResponseSource, IntakeVersionTuple } from '../data/auditTypes';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Globe,
@@ -329,6 +329,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
   const bankMetrics = useIntakeBankMetrics(
     responses,
     noPublicWebsite ? 'discovery' : undefined,
+    noPublicWebsite ? undefined : 'consultant_interview',
   );
 
   const layoutSelected = briefLayoutChoice === 'classic' || briefLayoutChoice === 'wizard';
@@ -476,11 +477,13 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
       }
 
       let mergedForSave = localWithBasics;
+      let intakeVersionsForSave: IntakeVersionTuple | undefined;
       if (tokenCandidates.length > 0) {
         try {
           const { brief } = await api.getBrief(auditId);
           const fromServer = normalizeIntakeToResponses((brief?.responses as Record<string, unknown>) ?? {});
           mergedForSave = mergeBriefResponsesPreferFilled(fromServer, localWithBasics);
+          intakeVersionsForSave = brief?.intake_versions ?? undefined;
         } catch (mergeErr) {
           console.warn('[NewAudit] getBrief merge failed (non-fatal):', mergeErr);
         }
@@ -490,6 +493,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         await api.saveBrief(auditId, mergedForSave, {
           collection_mode:
             noPublicWebsite && briefLayoutChoice === 'wizard' ? 'discovery' : undefined,
+          intake_versions: intakeVersionsForSave,
         });
       } catch (briefErr) {
         console.warn('[NewAudit] Brief save failed (non-fatal):', briefErr);
@@ -756,13 +760,16 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                       </div>
                       <input
                         id="url"
-                        type="url"
+                        type="text"
+                        inputMode="url"
+                        autoCapitalize="none"
+                        autoCorrect="off"
                         value={url}
                         onChange={e => {
                           setNoPublicWebsite(false);
                           setUrl(e.target.value);
                         }}
-                        placeholder="https://company.com"
+                        placeholder="company.com"
                         required={!noPublicWebsite}
                         disabled={noPublicWebsite}
                         autoFocus
@@ -975,7 +982,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                         </div>
                         <div>
                           <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>Company website</label>
-                          <input value={preBriefWebsite} onChange={e => setPreBriefWebsite(e.target.value)} placeholder="https://… or leave empty for client to fill" className="w-full px-3 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }} />
+                          <input value={preBriefWebsite} onChange={e => setPreBriefWebsite(e.target.value)} placeholder="company.com or leave empty for client" className="w-full px-3 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }} />
                         </div>
                         <div>
                           <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>Industry</label>
@@ -1225,6 +1232,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                           emphasizeClientSource={intakePrefillActive}
                           answerSource={interviewMode ? 'consultant' : 'client'}
                           collectionMode={noPublicWebsite ? 'discovery' : undefined}
+                          intakeSurface={noPublicWebsite ? undefined : 'consultant_interview'}
                         />
                       </div>
                     ) : (
@@ -1232,6 +1240,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                         <BankClassicBriefFields
                           responses={responses}
                           collectionMode={noPublicWebsite ? 'discovery' : undefined}
+                          intakeSurface={noPublicWebsite ? undefined : 'consultant_interview'}
                           onChange={handleResponseChange}
                           onSetUnknown={handleSetUnknown}
                           emphasizeClientSource={intakePrefillActive}

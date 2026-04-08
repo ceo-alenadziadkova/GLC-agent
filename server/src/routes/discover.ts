@@ -13,7 +13,7 @@ import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../mi
 import { intakePublicLimiter } from '../middleware/rate-limit.js';
 import { NO_PUBLIC_WEBSITE_URL } from '../config/no-public-website.js';
 import { saveBriefResponses } from '../services/brief-validator.js';
-import { DOMAIN_KEYS, REVIEW_AFTER_PHASES, reviewPhasesForMode } from '../types/audit.js';
+import { DOMAIN_KEYS, reviewPhasesForMode } from '../types/audit.js';
 import { logger } from '../services/logger.js';
 
 export const discoverRouter = Router();
@@ -476,7 +476,10 @@ discoverRouter.post(
       const briefPatch = discoveryToBriefPatch(answers);
       if (Object.keys(briefPatch).length > 0) {
         try {
-          await saveBriefResponses(auditId, briefPatch);
+          await saveBriefResponses(auditId, briefPatch, {
+            collection_mode: 'discovery',
+            validation_perspective: 'client',
+          });
         } catch (briefErr) {
           logger.warn('discover.convert_brief_skipped', {
             component: 'discover',

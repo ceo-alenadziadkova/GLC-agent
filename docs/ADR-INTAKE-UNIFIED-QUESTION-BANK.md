@@ -3,14 +3,14 @@
 
 | Field      | Value                                                                 |
 | ---------- | --------------------------------------------------------------------- |
-| **Status** | Proposed                                                              |
+| **Status** | Accepted (implemented in repo; layout surfaces extended in `layout-rules.v1.json` v1.1.0) |
 | **Date**   | 2026-04-05                                                            |
 | **Scope**  | Intake / question bank / Discovery / Express / Pre-brief / Full brief |
 
 
 ## Context
 
-The product needs multiple intake experiences (full consultant brief, express path, client pre-brief link, public Discovery, client portal) that must stay consistent with branching logic and SLA rules. Today the server already treats the bank as a single branching tree (`branchCondition` + `filterVisibleQuestions`); Discovery further intersects with a whitelist (`DISCOVERY_BANK_IDS`). Express SLA is partly hard-coded in TypeScript (`brief-gates.ts`). The public Discovery UI still duplicates question copy and flow shape in `discovery-flow.ts` while reusing bank ids.
+The product needs multiple intake experiences (full consultant brief, express path, client pre-brief link, public Discovery, client portal) that must stay consistent with branching logic and SLA rules. The server resolves visibility via **`buildIntakePlan`** (canon branches + `intake-policy.v1.json` + optional `layout-rules.v1.json` surfaces). Discovery participation is the explicit list **`modes.discovery.included`** in that policy (re-exported at runtime as `DISCOVERY_BANK_IDS` for helpers such as `is-visible.ts`). Express / full SLA required bank ids are derived from the same policy through `computeRequiredBankIdsFromPolicy` / `brief-gates.ts`. The public Discovery UI may still duplicate question copy while reusing bank ids; layout consumption is migrating toward the shared plan.
 
 Goals:
 
@@ -190,10 +190,12 @@ These are **explicitly out of scope** for ADR acceptance but aligned with the sa
 ## Follow-up documentation
 
 - Operational detail stays in [QUESTION_BANK.md](./QUESTION_BANK.md) (human-readable mirror of branching and agent mapping).
-- This ADR is the **decision record**; when implementation lands, link the concrete file paths and package name from [MASTER.md](./MASTER.md) or [ARCHITECTURE.md](./ARCHITECTURE.md).
+- This ADR is the **decision record**. Implementation paths: [ARCHITECTURE.md](./ARCHITECTURE.md) (intake resolver section), [`server/src/intake/core/`](../server/src/intake/core/), [`intake-policy.v1.json`](../server/src/intake/intake-policy.v1.json), [`layout-rules.v1.json`](../server/src/intake/layout-rules.v1.json). Index link: [MASTER.md](./MASTER.md).
 
 ## References
 
-- `server/src/intake/is-visible.ts`, `server/src/intake/branch-rules.ts`, `server/src/intake/discovery.ts`, `server/src/intake/brief-gates.ts`
+- `server/src/intake/core/build-intake-plan.ts`, `server/src/intake/core/evaluate-canon.ts`, `server/src/intake/core/evaluate-policy.ts`, `server/src/intake/core/evaluate-layout.ts`, `server/src/intake/core/load-policy.ts`, `server/src/intake/intake-policy.v1.json`, `server/src/intake/layout-rules.v1.json`
+- `server/src/intake/branch-rules.ts`, `server/src/intake/is-visible.ts`, `server/src/intake/discovery.ts` (thin export of policy discovery set), `server/src/intake/brief-gates.ts`
+- `server/src/services/brief-validator.ts` (persisted brief validation; version tuple + surface alignment on save and `assertBriefReady`)
 - `src/app/lib/discovery-flow.ts` (to be reduced to policy/layout consumers over time)
 

@@ -7,6 +7,14 @@ export type BriefResponseSource = 'client' | 'consultant' | 'recon_confirmed' | 
 export type IntakeReadinessBadge = 'low' | 'medium' | 'high';
 export type IntakeNextBestAction = 'complete_required' | 'add_recommended' | 'confirm_prefill' | 'none';
 export type IntakeBriefCollectionMode = 'self_serve' | 'interview' | 'pre_brief' | 'discovery';
+
+/** Bank / policy / layout / resolver versions persisted with brief saves (ADR unified intake). */
+export interface IntakeVersionTuple {
+  questionBankVersion: string;
+  policyVersion: string;
+  layoutVersion: string;
+  resolverVersion: string;
+}
 export type BriefResponseValue = string | string[] | number | boolean | null;
 
 export interface BriefResponseEntry {
@@ -55,6 +63,7 @@ export interface IntakeBrief {
   readiness_badge: IntakeReadinessBadge;
   next_best_action: IntakeNextBestAction;
   responses_format: 1 | 2;
+  intake_versions?: IntakeVersionTuple | null;
   created_at: string;
   updated_at: string;
 }

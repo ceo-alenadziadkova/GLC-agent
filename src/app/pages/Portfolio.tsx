@@ -2,15 +2,14 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router';
 import {
-  Plus, MagnifyingGlass, ArrowUpRight, DotsThree,
-  Buildings, Calendar, TrendUp, Warning, Users, Pulse, ArrowsClockwise, Trash
+  Plus, MagnifyingGlass, ArrowUpRight,
+  Buildings, Calendar, TrendUp, Users, Pulse, ArrowsClockwise,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
-import { ScoreBadge, ScoreDot } from '../components/glc/ScoreBadge';
+import { ScoreBadge } from '../components/glc/ScoreBadge';
 import { StatusPill } from '../components/glc/StatusPill';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { useAudits } from '../hooks/useAudits';
-import type { AuditMeta } from '../data/auditTypes';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 
 const listVariants = {
@@ -30,7 +29,7 @@ function mapStatus(status: string): 'completed' | 'running' | 'pending' | 'revie
 }
 
 export function Portfolio() {
-  const { audits, loading, error, deleteAudit } = useAudits();
+  const { audits, loading, error } = useAudits();
   const [query, setQuery] = useState('');
 
   const filtered = audits.filter(c =>

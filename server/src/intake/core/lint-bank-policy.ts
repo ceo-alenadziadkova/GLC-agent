@@ -6,7 +6,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { BRANCH_RULES } from '../branch-rules.js';
-import { DISCOVERY_BANK_IDS } from '../discovery.js';
 import { QUESTION_BANK_V1_STUBS, QUESTION_BANK_V1_IDS } from '../question-bank.js';
 import type { IntakeQuestionStub } from '../types.js';
 
@@ -61,28 +60,38 @@ export function lintOrphanPolicyDiscoveryIds(
   return findings;
 }
 
-export function lintDiscoveryPolicyDrift(
+/**
+ * Every bank question must be covered by at least one policy mode's participation rule.
+ * Today `full` and `express` are `all_eligible` (covers entire bank); explicit lists add more ids.
+ * Fails if a future mode drops all_eligible without listing every bank id elsewhere.
+ */
+export function lintMissingPolicyCoverage(
   policy: IntakePolicyV1 = INTAKE_POLICY_V1,
-  codeDiscovery: Set<string> = DISCOVERY_BANK_IDS,
+  bankIds: Set<string> = QUESTION_BANK_V1_IDS,
 ): LintFinding[] {
-  const findings: LintFinding[] = [];
-  const fromPolicy = new Set(policy.modes.discovery.included);
-  for (const id of codeDiscovery) {
-    if (!fromPolicy.has(id)) {
-      findings.push({
-        code: 'DISCOVERY_POLICY_DRIFT',
-        severity: 'error',
-        message: `DISCOVERY_BANK_IDS has "${id}" but policy discovery.included does not (remove from code or add to policy).`,
-        detail: id,
-      });
+  const covered = new Set<string>();
+
+  const touchAllEligible = (mode: { participation?: string } | undefined) => {
+    if (mode?.participation === 'all_eligible') {
+      for (const id of bankIds) covered.add(id);
     }
+  };
+
+  touchAllEligible(policy.modes.full);
+  touchAllEligible(policy.modes.express);
+  touchAllEligible(policy.modes.free_snapshot);
+
+  if (policy.modes.discovery.participation === 'explicit') {
+    for (const id of policy.modes.discovery.included) covered.add(id);
   }
-  for (const id of fromPolicy) {
-    if (!codeDiscovery.has(id)) {
+
+  const findings: LintFinding[] = [];
+  for (const id of bankIds) {
+    if (!covered.has(id)) {
       findings.push({
-        code: 'DISCOVERY_POLICY_DRIFT',
+        code: 'MISSING_POLICY_COVERAGE',
         severity: 'error',
-        message: `Policy discovery.included has "${id}" but DISCOVERY_BANK_IDS does not (sync discovery.ts).`,
+        message: `Bank question "${id}" is not covered by any policy mode participation.`,
         detail: id,
       });
     }
@@ -211,8 +220,8 @@ export function lintForbiddenImportsInCore(coreDir: string = CORE_DIR): LintFind
 export function lintBankAndPolicyAll(): LintFinding[] {
   return [
     ...lintUnknownBranchRefs(),
+    ...lintMissingPolicyCoverage(),
     ...lintOrphanPolicyDiscoveryIds(),
-    ...lintDiscoveryPolicyDrift(),
     ...lintDuplicateDiscoveryIncluded(),
     ...lintSyntheticCollision(),
     ...lintDeprecatedStillRequired(),

@@ -29,7 +29,7 @@ const BASE_INTAKE_IDENTITY_QUESTIONS: BriefQuestion[] = [
     priority: 'required',
     domains: ['all'],
     question: 'Company website',
-    hint: 'Full URL (https://…). If you do not have a website yet, write "none" or "no website".',
+    hint: 'Domain or full URL (https:// optional). If you do not have a website yet, write "none" or "no website".',
     type: 'free_text',
   },
   {

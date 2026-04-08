@@ -200,7 +200,7 @@ function PendingRequestRow({ item }: { item: DashboardPendingRequestItem }) {
   );
 }
 
-export function ActionPanel({ items, loading, onRefresh }: ActionPanelProps) {
+export function ActionPanel({ items, loading, onRefresh: _onRefresh }: ActionPanelProps) {
   const totalItems =
     (items?.review_gates.length ?? 0) +
     (items?.sla_risks.length ?? 0) +

@@ -664,7 +664,7 @@ const AuditDocument: React.FC<AuditDocumentProps> = ({ input, profile }) => {
           </View>
         )}
         <ScorecardSection domains={filteredDomains} overallScore={overallScore} />
-        {filteredDomains.map((d, i) => (
+        {filteredDomains.map((d) => (
           <React.Fragment key={d.domain_key}>
             <View style={s.divider} />
             <DomainSection domain={d} showRecs />

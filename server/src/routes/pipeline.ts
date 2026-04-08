@@ -13,7 +13,11 @@ import { pipelineLimiter } from '../middleware/rate-limit.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
 import { maxPhaseForMode, type IntakeBriefCollectionMode, type ProductMode } from '../types/audit.js';
 import { logger } from '../services/logger.js';
-import { evaluateBriefGates } from '../services/brief-validator.js';
+import {
+  evaluateBriefGates,
+  resolveIntakeSurfaceForPlan,
+  validationPerspectiveForBriefAccess,
+} from '../services/brief-validator.js';
 import { notifyAuditParticipants, notifyAuditParticipantsExcept } from '../services/notifications.js';
 
 /**
@@ -136,10 +140,18 @@ pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineL
       .select('responses, collection_mode')
       .eq('audit_id', id)
       .single();
+    const cm = (brief?.collection_mode as IntakeBriefCollectionMode | undefined) ?? 'self_serve';
+    const perspective = validationPerspectiveForBriefAccess(
+      audit.user_id as string,
+      audit.client_id as string | null | undefined,
+      req.userId!,
+    );
+    const surface = resolveIntakeSurfaceForPlan(cm, perspective);
     const gates = evaluateBriefGates(
       (brief?.responses as Record<string, unknown>) ?? {},
       (audit.product_mode as ProductMode) ?? 'full',
-      brief?.collection_mode as IntakeBriefCollectionMode | undefined,
+      cm,
+      surface,
     );
 
     // Start pipeline (runs Phase 0: Recon)

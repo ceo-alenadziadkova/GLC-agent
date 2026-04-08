@@ -231,7 +231,7 @@ analyticsRouter.get('/dashboard', async (req: AuthRequest, res) => {
   }
 
   // ── Build action items ────────────────────────────────────────────────────────
-  let actionItems: ActionItems = {
+  const actionItems: ActionItems = {
     review_gates: [],
     sla_risks: [],
     recent_failures: [],

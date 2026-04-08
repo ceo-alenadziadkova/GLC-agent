@@ -63,6 +63,6 @@ describe('buildIntakePlan', () => {
     expect(plan.versions.policyVersion).toBe('1.0.0');
     expect(plan.versions.questionBankVersion).toBe('1.0.0');
     expect(plan.versions.resolverVersion).toBe('1.0.0');
-    expect(plan.versions.layoutVersion).toBe('1.0.0');
+    expect(plan.versions.layoutVersion).toBe('1.1.0');
   });
 });

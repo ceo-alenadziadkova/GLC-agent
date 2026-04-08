@@ -20,6 +20,8 @@
  *    · invalid Zod schema rejects
  *    · DB error throws
  *
+ * Surface / version helpers: see `brief-intake-surface.test.ts`.
+ *
  * All Supabase calls are mocked — no real DB.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -338,7 +340,7 @@ describe('saveBriefResponses()', () => {
     const iv = (upsert!.payload as Record<string, unknown>).intake_versions as Record<string, string>;
     expect(iv.questionBankVersion).toBe('1.0.0');
     expect(iv.policyVersion).toBe('1.0.0');
-    expect(iv.layoutVersion).toBe('1.0.0');
+    expect(iv.layoutVersion).toBe('1.1.0');
     expect(iv.resolverVersion).toBe('1.0.0');
   });
 

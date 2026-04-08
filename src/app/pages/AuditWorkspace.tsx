@@ -2,8 +2,8 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, useParams } from 'react-router';
 import {
-  HardDrives, Shield, Globe, Cursor, Target, Lightning, MapTrifold, MagnifyingGlass,
-  CaretDown, CaretRight, CheckCircle, Warning, ArrowUpRight, ArrowsClockwise,
+  HardDrives, Shield, Globe, Cursor, Target, Lightning,
+  CaretRight, CheckCircle, Warning, ArrowUpRight, ArrowsClockwise,
   Question, Link as LinkIcon,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
@@ -14,7 +14,7 @@ import { QuickWinTag } from '../components/glc/QuickWinTag';
 import { useAudit } from '../hooks/useAudit';
 import { useBriefLayoutPrefsSync } from '../hooks/useBriefLayoutPrefsSync';
 import { useIntakeBankMetrics } from '../hooks/useIntakeWizard';
-import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
+import { DOMAIN_KEYS, DOMAIN_LABELS, type IntakeBriefCollectionMode } from '../data/auditTypes';
 import type { DomainKey, DomainData, ProductMode, ConfidenceLevel } from '../data/auditTypes';
 import { BriefField } from '../components/BriefField';
 import {
@@ -124,7 +124,9 @@ export function AuditWorkspace() {
         pendingBriefRef.current = null;
         if (!id || !payload) return;
         try {
-          await api.saveBrief(id, payload);
+          await api.saveBrief(id, payload, {
+            intake_versions: audit.brief.intake_versions ?? undefined,
+          });
           setEnrichSaved(true);
           reload();
           window.setTimeout(() => setEnrichSaved(false), 2200);
@@ -146,7 +148,7 @@ export function AuditWorkspace() {
     } else {
       setWorkspaceBriefResponses({});
     }
-  }, [audit?.id, audit?.brief?.updated_at]);
+  }, [audit?.id, audit?.brief?.responses, audit?.brief?.updated_at]);
 
   /** Snapshots and partial loads omit most domain rows; keep sidebar + active tab consistent with product_mode. */
   useEffect(() => {
@@ -193,7 +195,9 @@ export function AuditWorkspace() {
           pendingWorkspaceBriefRef.current = null;
           if (!id || !payload) return;
           try {
-            await api.saveBrief(id, payload);
+            await api.saveBrief(id, payload, {
+              intake_versions: audit.brief.intake_versions ?? undefined,
+            });
             setWorkspaceBriefSavedFlash(true);
             reload();
             window.setTimeout(() => setWorkspaceBriefSavedFlash(false), 2200);
@@ -228,9 +232,13 @@ export function AuditWorkspace() {
     [queueWorkspaceBriefSave],
   );
 
+  const briefCollectionMode = audit?.brief?.collection_mode as IntakeBriefCollectionMode | undefined;
+  const workspaceConsultantSurface =
+    briefCollectionMode === 'discovery' ? undefined : 'consultant_interview';
   const bankMetrics = useIntakeBankMetrics(
     (audit?.brief?.responses as BriefResponses) ?? {},
-    audit?.brief?.collection_mode === 'discovery' ? 'discovery' : undefined,
+    briefCollectionMode,
+    workspaceConsultantSurface,
   );
 
   if (loading && !audit) {
@@ -398,17 +406,15 @@ export function AuditWorkspace() {
                             interviewMode={false}
                             emphasizeClientSource={false}
                             answerSource="consultant"
-                            collectionMode={
-                              audit.brief.collection_mode === 'discovery' ? 'discovery' : undefined
-                            }
+                            collectionMode={audit.brief.collection_mode}
+                            intakeSurface={workspaceConsultantSurface}
                           />
                         ) : (
                           <BankClassicBriefFields
                             compact
                             responses={workspaceBriefResponses}
-                            collectionMode={
-                              audit.brief.collection_mode === 'discovery' ? 'discovery' : undefined
-                            }
+                            collectionMode={audit.brief.collection_mode}
+                            intakeSurface={workspaceConsultantSurface}
                             onChange={handleWorkspaceBriefFieldChange}
                             onSetUnknown={handleWorkspaceBriefSetUnknown}
                           />

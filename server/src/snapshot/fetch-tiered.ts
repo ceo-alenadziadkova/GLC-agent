@@ -360,7 +360,7 @@ export async function fetchTieredPages(companyUrl: string): Promise<{
   const deadline = startedAt + totalBudgetMs;
 
   const origin = new URL(baseHref).origin;
-  let robotsPolicy = await getSnapshotRobotsPolicy(
+  const robotsPolicy = await getSnapshotRobotsPolicy(
     origin,
     abortAfter(Math.min(2500, Math.max(500, deadline - Date.now()))),
   );

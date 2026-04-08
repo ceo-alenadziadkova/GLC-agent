@@ -9,20 +9,14 @@ import {
   resolveFullSlaRequiredIds,
   resolveSlaRequiredIds,
 } from '../intake/brief-gates.js';
-import { DISCOVERY_BANK_IDS } from '../intake/discovery.js';
 import { INTAKE_POLICY_V1, computeRequiredBankIdsFromPolicy, loadIntakePolicy } from '../intake/core/index.js';
-import { QUESTION_BANK_V1_STUBS } from '../intake/question-bank.js';
+import { QUESTION_BANK_V1_IDS, QUESTION_BANK_V1_STUBS } from '../intake/question-bank.js';
 import { INTAKE_PLAN_FIXTURES } from './fixtures/intake-plan-fixtures.js';
 
 describe('intake-policy v1 parity', () => {
-  it('discovery included set matches DISCOVERY_BANK_IDS', () => {
-    const fromPolicy = new Set(INTAKE_POLICY_V1.modes.discovery.included);
-    expect(fromPolicy.size).toBe(DISCOVERY_BANK_IDS.size);
-    for (const id of DISCOVERY_BANK_IDS) {
-      expect(fromPolicy.has(id)).toBe(true);
-    }
-    for (const id of fromPolicy) {
-      expect(DISCOVERY_BANK_IDS.has(id)).toBe(true);
+  it('discovery.included references only real bank ids (no orphans)', () => {
+    for (const id of INTAKE_POLICY_V1.modes.discovery.included) {
+      expect(QUESTION_BANK_V1_IDS.has(id), id).toBe(true);
     }
   });
 
@@ -41,6 +35,7 @@ describe('intake-policy v1 parity', () => {
         f.productMode,
         visibleSet,
         visibleStubsOrdered,
+        f.collectionMode,
       ).ids;
       const fromGates = resolveSlaRequiredIds(f.productMode, f.responses, f.collectionMode);
       expect(fromPolicy, f.id).toEqual(fromGates);
@@ -58,6 +53,7 @@ describe('intake-policy v1 parity', () => {
         'express',
         visibleSet,
         visibleStubsOrdered,
+        f.collectionMode,
       ).ids;
       const expressFromGates = resolveExpressSlaRequiredIds(f.responses, f.collectionMode);
       expect(expressFromPolicy, `${f.id} express`).toEqual(expressFromGates);
@@ -75,6 +71,7 @@ describe('intake-policy v1 parity', () => {
         'full',
         visibleSet,
         visibleStubsOrdered,
+        f.collectionMode,
       ).ids;
       const fullFromGates = resolveFullSlaRequiredIds(f.responses, f.collectionMode);
       expect(fullFromPolicy, `${f.id} full`).toEqual(fullFromGates);

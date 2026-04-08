@@ -1,7 +1,7 @@
+import type { ComponentType, CSSProperties } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, TrendUp, Lightning, Calendar, Target } from '@phosphor-icons/react';
+import { TrendUp, Lightning, Calendar, Target } from '@phosphor-icons/react';
 import type { StrategyInitiative } from '../data/auditData';
-import { cn } from './ui/utils';
 
 interface StrategyRoadmapProps {
   initiatives: StrategyInitiative[];
@@ -92,7 +92,7 @@ export function StrategyRoadmap({ initiatives }: StrategyRoadmapProps) {
     timeLabel 
   }: { 
     title: string; 
-    icon: any; 
+    icon: ComponentType<{ className?: string; style?: CSSProperties }>; 
     items: StrategyInitiative[]; 
     color: string;
     timeLabel: string;

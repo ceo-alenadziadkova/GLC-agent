@@ -1,8 +1,9 @@
 /**
  * Phase 0 — Intake plan snapshot regression.
  *
- * Deferred is always [] here: layout / askStrategy are not implemented yet. When Phase 5b adds
- * layout, deferred may become non-empty and this snapshot must be updated intentionally.
+ * Deferred is always [] here: fixtures omit `surface` (no layout). Discovery with
+ * `surface: 'public_discovery'` uses layout elsewhere (`intake-layout.test.ts`). If you add
+ * layout to these fixtures, update snapshots intentionally.
  *
  * Update snapshots: UPDATE_INTAKE_PLAN_SNAPSHOT=1 npx vitest run server/src/tests/intake-plan-snapshot.test.ts
  */

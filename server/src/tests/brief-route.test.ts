@@ -148,6 +148,7 @@ import express from 'express';
 import { auditsRouter } from '../routes/audits.js';
 import { REQUIRED_QUESTION_IDS, BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
 import { resolveExpressSlaRequiredIds } from '../intake/brief-gates.js';
+import { currentIntakeVersionTuple } from '../intake/core/versions.js';
 import { makeWebsitePathFullBrief } from './bank-brief-fixtures.js';
 
 let server: Server;
@@ -407,5 +408,35 @@ describe('PUT /api/audits/:id/brief', () => {
     const responses = { main_traffic_source: ['Organic search (SEO)', 'Social media'] };
     const { status } = await putJSON('/api/audits/audit-001/brief', { responses });
     expect(status).toBe(200);
+  });
+
+  it('returns 400 UNKNOWN_MODE for invalid collection_mode', async () => {
+    const { status, body } = await putJSON('/api/audits/audit-001/brief', {
+      responses: { f1: 'x' },
+      collection_mode: 'not_a_mode',
+    });
+    expect(status).toBe(400);
+    expect(body.code).toBe('UNKNOWN_MODE');
+  });
+
+  it('accepts valid collection_mode values', async () => {
+    for (const collection_mode of ['self_serve', 'interview', 'pre_brief', 'discovery'] as const) {
+      const { status } = await putJSON('/api/audits/audit-001/brief', {
+        responses: makeFullRequired(),
+        collection_mode,
+      });
+      expect(status).toBe(200);
+    }
+  });
+
+  it('returns 409 VERSION_MISMATCH when intake_versions disagree with server', async () => {
+    const cur = currentIntakeVersionTuple();
+    const { status, body } = await putJSON('/api/audits/audit-001/brief', {
+      responses: makeFullRequired(),
+      intake_versions: { ...cur, layoutVersion: '0.0.0' },
+    });
+    expect(status).toBe(409);
+    expect(body.code).toBe('VERSION_MISMATCH');
+    expect(body.expected).toBeDefined();
   });
 });

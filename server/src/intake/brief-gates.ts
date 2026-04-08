@@ -4,25 +4,29 @@
  */
 import type { IntakeBriefCollectionMode, ProductMode } from '../types/audit.js';
 import { buildIntakePlan } from './core/build-intake-plan.js';
+import type { IntakeSurface } from './core/types.js';
 import { QUESTION_BANK_V1_STUBS } from './question-bank.js';
 import type { IntakeQuestionStub } from './types.js';
 
 function planForVisibility(
   responses: Record<string, unknown>,
   collectionMode?: IntakeBriefCollectionMode,
+  surface?: IntakeSurface,
 ) {
   return buildIntakePlan({
     responses,
     productMode: 'full',
     collectionMode,
+    surface,
   });
 }
 
 export function getVisibleBankStubs(
   responses: Record<string, unknown>,
   collectionMode?: IntakeBriefCollectionMode,
+  surface?: IntakeSurface,
 ): IntakeQuestionStub[] {
-  const visible = new Set(planForVisibility(responses, collectionMode).visible);
+  const visible = new Set(planForVisibility(responses, collectionMode, surface).visible);
   return QUESTION_BANK_V1_STUBS.filter(q => visible.has(q.id));
 }
 
@@ -53,8 +57,9 @@ export function resolveSlaRequiredIds(
 export function resolveBankRecommendedIds(
   responses: Record<string, unknown>,
   collectionMode?: IntakeBriefCollectionMode,
+  surface?: IntakeSurface,
 ): string[] {
-  return getVisibleBankStubs(responses, collectionMode)
+  return getVisibleBankStubs(responses, collectionMode, surface)
     .filter(q => q.priority === 'recommended')
     .map(q => q.id);
 }
@@ -62,8 +67,9 @@ export function resolveBankRecommendedIds(
 export function resolveBankOptionalIds(
   responses: Record<string, unknown>,
   collectionMode?: IntakeBriefCollectionMode,
+  surface?: IntakeSurface,
 ): string[] {
-  return getVisibleBankStubs(responses, collectionMode)
+  return getVisibleBankStubs(responses, collectionMode, surface)
     .filter(q => q.priority === 'optional')
     .map(q => q.id);
 }

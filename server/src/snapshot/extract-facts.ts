@@ -306,7 +306,7 @@ export function extractFacts(
 
   let allSlugs: string[] = [];
   let schemaTypes = extractJsonLdTypes(home.html);
-  let canonical = $h('link[rel="canonical"]').attr('href')?.trim() || '';
+  const canonical = $h('link[rel="canonical"]').attr('href')?.trim() || '';
   const robotsMeta =
     $h('meta[name="robots"]').attr('content')?.trim() ||
     $h('meta[name="googlebot"]').attr('content')?.trim() ||

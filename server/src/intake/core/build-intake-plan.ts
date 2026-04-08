@@ -1,16 +1,17 @@
 /**
  * buildIntakePlan — resolver (canon, policy, optional layout surface).
  */
-import { evalBranchCondition } from '../branch-rules.js';
 import { QUESTION_BANK_V1_STUBS, QUESTION_BANK_VERSION } from '../question-bank.js';
 import type { IntakeResponsesMap } from '../types.js';
 
-import { applyPublicDiscoveryLayout } from './evaluate-layout.js';
+import { evaluateCanonEligibility } from './evaluate-canon.js';
+import { applySurfaceLayout } from './evaluate-layout.js';
 import { computeRequiredBankIdsFromPolicy } from './evaluate-policy.js';
 import { loadLayoutRules } from './load-layout.js';
 import { loadIntakePolicy } from './load-policy.js';
 import { INTAKE_LAYOUT_VERSION, INTAKE_RESOLVER_VERSION } from './versions.js';
 
+import type { LayoutRulesV1 } from './layout-types.js';
 import type { BuildIntakePlanInput, DebugTraceEntry, IntakePlan, QuestionReason } from './types.js';
 
 function sortUniqueIds(ids: string[]): string[] {
@@ -35,30 +36,18 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
 
   const debugTrace: DebugTraceEntry[] = [];
 
-  const eligibleIds: string[] = [];
-  const policyVisibleOrdered: string[] = [];
+  const canon = evaluateCanonEligibility(stubs, r);
+  const eligibleIds = canon.eligibleIds;
+  const eligibleSet = new Set(eligibleIds);
   const reasonsById: Record<string, QuestionReason[]> = {};
+  for (const [id, entries] of Object.entries(canon.reasonsById)) {
+    reasonsById[id] = entries.map(e => ({ ...e }));
+  }
+
+  const policyVisibleOrdered: string[] = [];
 
   for (const q of stubs) {
-    const branchOk = evalBranchCondition(q.branchCondition, r);
-    if (!branchOk) {
-      mergeReasonEntry(reasonsById, q.id, {
-        questionId: q.id,
-        layer: 'canon',
-        state: 'hidden',
-        code: 'BRANCH_FALSE',
-        detail: q.branchCondition,
-      });
-      continue;
-    }
-
-    eligibleIds.push(q.id);
-    mergeReasonEntry(reasonsById, q.id, {
-      questionId: q.id,
-      layer: 'canon',
-      state: 'eligible',
-      code: 'BRANCH_OK',
-    });
+    if (!eligibleSet.has(q.id)) continue;
 
     if (collectionMode === 'discovery' && !discoveryIncluded.has(q.id)) {
       mergeReasonEntry(reasonsById, q.id, {
@@ -80,6 +69,8 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
   }
 
   const policyVisibleSet = new Set(policyVisibleOrdered);
+  /** ADR: eligible = canon + policy participation (before layout deferral / suppression). */
+  const eligibleAfterPolicy = sortUniqueIds(policyVisibleOrdered);
   const visibleStubsOrdered = stubs.filter(s => policyVisibleSet.has(s.id));
 
   const req = computeRequiredBankIdsFromPolicy(
@@ -87,26 +78,39 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
     input.productMode,
     policyVisibleSet,
     visibleStubsOrdered,
+    collectionMode,
   );
   debugTrace.push(...req.debugTrace);
 
   const allBankIds = stubs.map(s => s.id);
   const hiddenIds = sortUniqueIds(allBankIds.filter(id => !policyVisibleSet.has(id)));
 
-  const usePublicDiscoveryLayout =
-    input.surface === 'public_discovery' && collectionMode === 'discovery';
+  const layoutArtifact = loadLayoutRules();
+  const surfaces = layoutArtifact.surfaces as LayoutRulesV1['surfaces'];
+
+  let layoutSurfaceKey: keyof LayoutRulesV1['surfaces'] | null = null;
+  if (input.surface === 'public_discovery' && collectionMode === 'discovery') {
+    layoutSurfaceKey = 'public_discovery';
+  } else if (
+    input.surface &&
+    input.surface !== 'public_discovery' &&
+    input.surface in surfaces
+  ) {
+    layoutSurfaceKey = input.surface as keyof LayoutRulesV1['surfaces'];
+  }
 
   let finalVisible = sortUniqueIds(policyVisibleOrdered);
   let deferred: string[] = [];
   let stepPlan: IntakePlan['stepPlan'] = null;
   let layoutSlots: IntakePlan['layoutSlots'] = {};
 
-  if (usePublicDiscoveryLayout) {
-    const layoutArtifact = loadLayoutRules();
-    const applied = applyPublicDiscoveryLayout(
+  if (layoutSurfaceKey) {
+    const surfaceCfg = surfaces[layoutSurfaceKey];
+    const applied = applySurfaceLayout(
       policyVisibleOrdered,
       policyVisibleSet,
-      layoutArtifact.surfaces.public_discovery,
+      surfaceCfg,
+      `${String(layoutSurfaceKey)}_`,
     );
     finalVisible = applied.visible;
     deferred = applied.deferred;
@@ -120,6 +124,15 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
         code: 'LAYOUT_DEFER_REMAINING',
       });
     }
+    for (const id of applied.suppressedEligibleIds) {
+      mergeReasonEntry(reasonsById, id, {
+        questionId: id,
+        layer: 'layout',
+        state: 'hidden',
+        code: 'LAYOUT_SURFACE_SUPPRESSED',
+        detail: String(layoutSurfaceKey),
+      });
+    }
     const slot: Record<string, string | null> = {};
     for (const step of applied.stepPlan) {
       slot[step.stepId] = step.questionIds[0] ?? null;
@@ -128,7 +141,7 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
   }
 
   return {
-    eligible: sortUniqueIds(eligibleIds),
+    eligible: eligibleAfterPolicy,
     visible: finalVisible,
     required: sortUniqueIds(req.ids),
     hidden: hiddenIds,
