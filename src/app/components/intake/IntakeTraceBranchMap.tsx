@@ -33,11 +33,13 @@ export function IntakeTraceBranchMap({
   resolveLabel,
   resolveCanonLabel,
   resolveDraftLabel,
+  showWordingReview = false,
 }: {
   plan: IntakePlan;
   resolveLabel: (id: string) => string;
   resolveCanonLabel: (id: string) => string;
   resolveDraftLabel: (id: string) => string | null;
+  showWordingReview?: boolean;
 }) {
   const ids = useMemo(() => {
     const set = new Set<string>([
@@ -99,6 +101,7 @@ export function IntakeTraceBranchMap({
         resolveDraftLabel={resolveDraftLabel}
         focusId={focusId}
         onFocusIdChange={setFocusId}
+        showWordingReview={showWordingReview}
       />
 
       <div className="grid gap-3 sm:grid-cols-3">

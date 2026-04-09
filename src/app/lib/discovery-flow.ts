@@ -4,9 +4,9 @@
  * Pure logic only: questions, branching, findings generation, triage scoring.
  * No React or DOM dependencies — safe to import from any context.
  *
- * Question IDs use bank IDs (a2, a4, d1, c_nosite_1, etc.) so that answers
- * stored from the discovery session carry directly into IntakeBankWizard when
- * the client registers — no translation layer needed.
+ * Question IDs use bank IDs (a2, a4, d1, c_nosite_1, etc.) so answers
+ * carry directly into IntakeBankWizard. Visibility/order are resolved by
+ * shared intake-core (`buildIntakePlan`) to avoid a separate questionnaire model.
  */
 
 import { buildIntakePlan } from '../../../server/src/intake/core/build-intake-plan';

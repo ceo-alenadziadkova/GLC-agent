@@ -39,13 +39,16 @@ const DRAFT_STORAGE_KEY = 'intake_trace_wording_drafts_v1';
 
 type TraceOk = { ok: true; text: string; plan: IntakePlan };
 type TraceErr = { ok: false; message: string };
+type WorkspaceMode = 'diagnose' | 'advanced' | 'wording';
+type Panel = 'tree' | 'journey' | 'branch' | 'trace' | 'json' | 'wording';
 
 export function IntakeTraceTool() {
   const [productMode, setProductMode] = useState<ProductMode>('full');
   const [collectionMode, setCollectionMode] = useState<IntakeBriefCollectionMode | ''>('');
   const [surface, setSurface] = useState<IntakeSurface | ''>('');
   const [responsesText, setResponsesText] = useState(DEFAULT_RESPONSES);
-  const [panel, setPanel] = useState<'trace' | 'tree' | 'json' | 'journey' | 'branch' | 'wording'>('tree');
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('diagnose');
+  const [panel, setPanel] = useState<Panel>('tree');
   const [viewMode, setViewMode] = useState<'simple' | 'expert'>('simple');
   const [wordingDrafts, setWordingDrafts] = useState<Record<string, string>>({});
   const [selectedDraftId, setSelectedDraftId] = useState('');
@@ -154,6 +157,37 @@ export function IntakeTraceTool() {
     setDraftText(wordingDrafts[id] ?? '');
   };
 
+  const availablePanels: Panel[] =
+    workspaceMode === 'diagnose'
+      ? ['tree', 'journey', 'branch']
+      : workspaceMode === 'advanced'
+        ? ['trace', 'json']
+        : ['wording'];
+
+  const panelLabel: Record<Panel, string> = {
+    tree: 'Why this question appears',
+    journey: 'User journey',
+    branch: 'Dependencies graph',
+    trace: 'Resolver log',
+    json: 'Plan JSON',
+    wording: 'Wording drafts',
+  };
+
+  const panelHint: Record<Panel, string> = {
+    tree: 'Inspect reasons and states per question id.',
+    journey: 'Review what users see step by step.',
+    branch: 'Inspect upstream/downstream branch dependencies.',
+    trace: 'Read the raw resolver trace text output.',
+    json: 'Inspect the full resolver tuple and plan internals.',
+    wording: 'Edit local wording drafts without changing policy artifacts.',
+  };
+
+  useEffect(() => {
+    if (!availablePanels.includes(panel)) {
+      setPanel(availablePanels[0]);
+    }
+  }, [availablePanels, panel]);
+
   return (
     <AppShell
       title="Intake plan trace"
@@ -164,12 +198,34 @@ export function IntakeTraceTool() {
     >
       <div className="glc-page-content max-w-5xl mx-auto space-y-4">
         <p className="text-sm text-[var(--glc-muted)]">
-          Consultant-only tool. Paste responses as JSON; choose product mode, optional collection mode and surface
-          (use discovery + public_discovery to exercise layout). Use Question trace to filter{' '}
-          <code className="text-xs">reasonsById</code> by layer/state; Plan JSON for the full tuple including{' '}
-          <code className="text-xs">missingForReport</code> and <code className="text-xs">nextRecommended</code>{' '}
-          (required, then recommended, then optional primaries for gap domains when the flag is on).
+          Consultant-only tool. Start in <strong>Diagnose</strong> for question-level reasoning, open{' '}
+          <strong>Advanced</strong> for raw resolver outputs, and use <strong>Wording</strong> for local draft copy
+          edits only.
         </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-[var(--glc-muted)]">Workspace</span>
+          <button
+            type="button"
+            className={`glc-btn-secondary text-xs px-2 py-1 ${workspaceMode === 'diagnose' ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+            onClick={() => setWorkspaceMode('diagnose')}
+          >
+            Diagnose
+          </button>
+          <button
+            type="button"
+            className={`glc-btn-secondary text-xs px-2 py-1 ${workspaceMode === 'advanced' ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+            onClick={() => setWorkspaceMode('advanced')}
+          >
+            Advanced
+          </button>
+          <button
+            type="button"
+            className={`glc-btn-secondary text-xs px-2 py-1 ${workspaceMode === 'wording' ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+            onClick={() => setWorkspaceMode('wording')}
+          >
+            Wording
+          </button>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-[var(--glc-muted)]">View mode</span>
           <button
@@ -267,49 +323,23 @@ export function IntakeTraceTool() {
         )}
         {trace.ok && (
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              className={`glc-btn-secondary text-sm px-3 py-1.5 ${panel === 'tree' ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
-              onClick={() => setPanel('tree')}
-            >
-              Question trace
-            </button>
-            <button
-              type="button"
-              className={`glc-btn-secondary text-sm px-3 py-1.5 ${panel === 'journey' ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
-              onClick={() => setPanel('journey')}
-            >
-              User journey
-            </button>
-            <button
-              type="button"
-              className={`glc-btn-secondary text-sm px-3 py-1.5 ${panel === 'branch' ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
-              onClick={() => setPanel('branch')}
-            >
-              Branch map
-            </button>
-            <button
-              type="button"
-              className={`glc-btn-secondary text-sm px-3 py-1.5 ${panel === 'trace' ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
-              onClick={() => setPanel('trace')}
-            >
-              Trace text
-            </button>
-            <button
-              type="button"
-              className={`glc-btn-secondary text-sm px-3 py-1.5 ${panel === 'json' ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
-              onClick={() => setPanel('json')}
-            >
-              Plan JSON
-            </button>
-            <button
-              type="button"
-              className={`glc-btn-secondary text-sm px-3 py-1.5 ${panel === 'wording' ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
-              onClick={() => setPanel('wording')}
-            >
-              Wording drafts
-            </button>
+            {availablePanels.map(p => (
+              <button
+                key={p}
+                type="button"
+                className={`glc-btn-secondary text-sm px-3 py-1.5 ${panel === p ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+                onClick={() => setPanel(p)}
+                title={panelHint[p]}
+              >
+                {panelLabel[p]}
+              </button>
+            ))}
           </div>
+        )}
+        {trace.ok && (
+          <p className="text-xs text-[var(--glc-muted)]">
+            {panelHint[panel]}
+          </p>
         )}
         {trace.ok && panel === 'tree' ? (
           <div className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3 min-h-[200px]">
@@ -326,6 +356,7 @@ export function IntakeTraceTool() {
               resolveLabel={resolveLabel}
               resolveCanonLabel={resolveCanonLabel}
               resolveDraftLabel={resolveDraftLabel}
+              showWordingReview={workspaceMode === 'wording'}
             />
           </div>
         ) : trace.ok && panel === 'wording' ? (
