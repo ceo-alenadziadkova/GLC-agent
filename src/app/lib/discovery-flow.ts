@@ -41,6 +41,14 @@ export interface DiscoveryFinding {
   hook: 'revenue' | 'time' | 'visibility' | 'risk' | 'scale';
 }
 
+function toDiscoveryQuestionType(type: string): DiscoveryQuestionType {
+  if (type === 'free_text' || type === 'single_choice' || type === 'multi_choice') {
+    return type;
+  }
+  // Discovery UI supports only these three variants; fallback keeps the wizard renderable.
+  return 'free_text';
+}
+
 // ── Questions ─────────────────────────────────────────────────────────────────
 //
 // Bank ids must stay in sync with `intake-policy.v1.json` modes.discovery.included
@@ -106,7 +114,7 @@ const FALLBACK_QUESTIONS: DiscoveryQuestion[] = buildDiscoveryWizardQuestions({
   makeDiscoveryQuestion(row.id, {
     question: row.question,
     hint: row.hint,
-    type: row.type,
+    type: toDiscoveryQuestionType(row.type),
     options: row.options,
     optional: row.optional,
   }),
