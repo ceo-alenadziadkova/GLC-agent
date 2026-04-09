@@ -68,12 +68,14 @@ export interface DataQualityResult {
 
 export interface AiReadinessResult {
   score: number;
-  /** 0–1 breakdown for UI/debug (optional). */
+  /** Breakdown for UI/debug. */
   components: {
     base: number;
     exportData: number;
     governance: number;
     automationAttempt: number;
+    d4aBonus: number;
+    d2Bonus: number;
     penalties: number;
     scaleBonus: number;
   };

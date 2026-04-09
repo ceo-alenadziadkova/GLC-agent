@@ -28,10 +28,17 @@ export function mergeReconConflictsFromC1(
   const reject =
     /\bnot quite\b/.test(low) ||
     /\bnot correct\b/.test(low) ||
+    /\bnot exactly\b/.test(low) ||
     /\bincorrect\b/.test(low) ||
     /^no\b/.test(low) ||
     /\bdoesn'?t match\b/.test(low) ||
-    /\bwrong\b/.test(low);
+    /\bdoes not match\b/.test(low) ||
+    /\bwrong\b/.test(low) ||
+    /\bpartially correct\b/.test(low) ||
+    /\balmost right\b/.test(low) ||
+    /\bneeds (an? )?update\b/.test(low) ||
+    /\boutdated\b/.test(low) ||
+    /\bno longer\b/.test(low);
 
   if (!reject) return existing;
 

@@ -156,8 +156,11 @@
 | `a8` | Approximately how many **customers or orders** do you serve in a typical month? | select | Recommended | 2 | strategy (P), automation_processes (P); ux_conversion (S), marketing_utp (S) | — |
 | | Options: < 50 / 50–200 / 200–1,000 / 1,000+ / Not sure | | | | | |
 | | *Helper:* «A rough range is enough — this helps us see where digital or automation improvements could have the **biggest impact** (value at scale).» | | | | | |
+| `a9` | What languages do your customers communicate in? | multi | Optional | 2, disc | marketing_utp (P), automation_processes (P) | — |
+| | Options: Spanish / English / German / French / Russian / Other | | | | | |
+| | *Helper:* «Helps us evaluate your content reach, multilingual SEO opportunities, and whether automation tools (chatbots, email flows) need to support multiple languages.» | | | | | |
 
-**8 вопросов в универсальном ядре A (7 в Layer 1 / pre+disc, `a8` — Layer 2). ~4–5 минут с учётом Layer 2. Gate: industry, team_size, has_website, handles_payments, business_stage.**
+**9 вопросов в универсальном ядре A (7 в Layer 1 / pre+disc, `a8` и `a9` — Layer 2). ~4–5 минут с учётом Layer 2. Gate: industry, team_size, has_website, handles_payments, business_stage.**
 
 ---
 
@@ -542,11 +545,23 @@ The legacy system (`discovery-flow.ts`) pre-dates bank v1 integration and is not
 
 Отдельный **индикатор для UI и strategy** (не путать с доменным score 1–5): агрегирует **d4a**, экспорт данных **d4b**, поведенческий источник правды **d4**, долю ручной работы **d3**, узкие места **d2** / **d_automation_attempt**, governance **f7**, и опционально **масштаб** (**a8**, **d6**) для приоритизации «где выше потенциальный impact».
 
-**Идея шкалы 0–100 (implementation):**
+**Шкала 0–100 (heuristic v1 — `calcAiReadinessScore` в `server/src/intake/ai-readiness.ts`):**
 
-- База: положительные ответы по **d4b** и ясный **f7** (или совпадение f7 с decision-follow-up после f3).
-- Штрафы: **d4a = No** при высокой ручной нагрузке (**d3** в верхних корзинах); «размытый» ответ **d4** (только устно / WhatsApp) при команде > solo.
-- Бонус: **d_automation_attempt = helped** без противоречий с **d2**.
+| Компонент | Сигнал | Значение |
+|-----------|--------|---------|
+| База | — | +45 |
+| `exportData` | `d4b` = easy export | +18 / -5 если painful |
+| `governance` | `f7` = ясный ответ (не "Not sure") | +17 |
+| `automationAttempt` | `d_automation_attempt = helped` | +10 |
+| `d4aBonus` | `d4a` = Daily / Occasionally | +8 |
+| `d2Bonus` | `d2` ≥ 20 символов (артикулирована боль) | +5 |
+| `scaleBonus` | `a8` answered (не "Not sure") | +5 |
+| `scaleBonus` | `d6` ≥ 3 типа данных | +5 |
+| `scaleBonus` | `a5` = no\_website / under\_construction | +5 (greenfield — см. ниже) |
+| Штраф | `d4a = No` + высокий `d3` | −18 |
+| Штраф | «размытый» `d4` + команда > solo | −12 |
+
+**Greenfield-бонус (no\_website / under\_construction):** клиент без сайта не несёт legacy web-tech долга; весь scope аудита смещается на process automation, где барьеры внедрения новых инструментов ниже. +5 отражает эту структурную готовность — не компетентность клиента, а меньшее трение для изменений.
 
 Карта в агентов:
 
@@ -554,15 +569,13 @@ The legacy system (`discovery-flow.ts`) pre-dates bank v1 integration and is not
 - **strategy** — интерпретация рисков внедрения и последовательности пилотов.
 - **marketing_utp** / **ux_conversion** — только если ответы пересекаются с GTM/контентом (например AI в контенте — через свободный текст в Layer 2 при необходимости).
 
-Точная формула и веса фиксируются в `calcAiReadinessScore()` рядом с `calcDataQualityScore()` (план: `server/src/intake/engine.ts`).
-
 ---
 
 ## 9. Total Count Summary
 
 | Category | Universal | Hospitality | Real Estate | Restaurant | Services | Healthcare | Marine |
 |----------|-----------|-------------|-------------|------------|----------|------------|--------|
-| Section A | 8 | — | — | — | — | — | — |
+| Section A | 9 | — | — | — | — | — | — |
 | Section B | 7 | +2 | +1 | +1 | +1 | +1 | +1 |
 | Section C (site) | 10 | — | — | — | — | — | — |
 | Section C (no site) | 3 | — | — | — | — | — | — |

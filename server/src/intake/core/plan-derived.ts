@@ -49,8 +49,13 @@ export function computeIntakePlanDerived(args: {
       total += 1;
       if (isIntakeAnswered(responses[id])) answered += 1;
     }
-    byDomain[domain] = total === 0 ? 1 : answered / total;
-    if (total > 0 && answered < total) {
+    if (total === 0) {
+      // No SLA-scoped primary questions for this domain — leave key absent.
+      // Callers must treat undefined as "not applicable", not as 0 or 1.
+      continue;
+    }
+    byDomain[domain] = answered / total;
+    if (answered < total) {
       missingForReport.push(domain);
     }
   }
