@@ -127,8 +127,9 @@ export function recomputeCanonEligibilityIncremental(args: {
   const invalidatedIds = new Set(
     listBankStubIdsInvalidatedByResponseKeys(args.changedResponseKeys, stubs),
   );
+  const stubById = new Map(stubs.map(s => [s.id, s]));
   for (const id of invalidatedIds) {
-    const q = stubs.find(row => row.id === id);
+    const q = stubById.get(id);
     if (q?.branchCondition !== undefined) {
       branchPassByCondition.delete(q.branchCondition);
     }

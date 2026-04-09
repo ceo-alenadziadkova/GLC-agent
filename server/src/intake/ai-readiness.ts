@@ -145,8 +145,9 @@ export function calcAiReadinessScore(responses: IntakeResponsesMap): AiReadiness
   if (a8.length > 0 && !a8.toLowerCase().includes('not sure')) {
     scaleBonus += 5;
   }
-  const d6 = getResponseString(responses, 'd6');
-  if (d6.length > 2) {
+  // d6 is multi_select — check array length, not string length.
+  const rawD6 = unwrapIntakeValue(responses.d6);
+  if (Array.isArray(rawD6) ? rawD6.length >= 3 : getResponseString(responses, 'd6').length > 0) {
     scaleBonus += 5;
   }
 

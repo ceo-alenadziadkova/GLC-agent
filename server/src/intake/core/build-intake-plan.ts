@@ -214,10 +214,12 @@ function buildIntakePlanInternal(
       `${String(layoutSurfaceKey)}_`,
     );
     finalVisible = applied.visible;
-    deferred = sortUniqueIds([...deferred, ...applied.deferred]);
+    const layoutDeferred = applied.deferred;
+    deferred = sortUniqueIds([...deferred, ...layoutDeferred]);
     stepPlan = applied.stepPlan;
     debugTrace.push(...applied.debugTrace);
-    for (const id of deferred) {
+    // Only tag ids newly deferred by layout — policy-deferred ids already have their own reason.
+    for (const id of layoutDeferred) {
       mergeReasonEntry(reasonsById, id, {
         questionId: id,
         layer: 'layout',

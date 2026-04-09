@@ -51,7 +51,7 @@ export function validateIntakeVersionsForBriefWrite(args: {
     };
   }
 
-  if (args.stored == null || args.stored === undefined) {
+  if (args.stored == null) {
     return { ok: true, effective: args.parsedFromBody, migration: null };
   }
 
