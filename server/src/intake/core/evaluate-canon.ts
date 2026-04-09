@@ -48,8 +48,9 @@ export function evaluateCanonEligibility(
     passById.set(q.id, evalCached(q.branchCondition));
   }
 
+  // evalOrder covers all stubs from the same array so passById is fully populated.
   for (const q of stubs) {
-    const pass = passById.get(q.id) ?? evalCached(q.branchCondition);
+    const pass = passById.get(q.id)!;
     if (pass) {
       eligibleIds.push(q.id);
       reasonsById[q.id] = [
@@ -154,8 +155,9 @@ export function recomputeCanonEligibilityIncremental(args: {
 
   const eligibleIds: string[] = [];
   const reasonsById: Record<string, QuestionReason[]> = {};
+  // evalOrder loop above fills any missing entries; passById is complete at this point.
   for (const q of stubs) {
-    const pass = passById.get(q.id) ?? evalCached(q.branchCondition);
+    const pass = passById.get(q.id)!;
     if (pass) {
       eligibleIds.push(q.id);
       reasonsById[q.id] = [

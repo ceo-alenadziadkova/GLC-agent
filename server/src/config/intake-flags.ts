@@ -38,14 +38,28 @@ function readIntakeIncrementalEngineEnv(): string | undefined {
   if (typeof process !== 'undefined' && process.env?.INTAKE_INCREMENTAL_ENGINE_ENABLED !== undefined) {
     return process.env.INTAKE_INCREMENTAL_ENGINE_ENABLED;
   }
-  return undefined;
+  try {
+    const im = import.meta as unknown as { env?: Record<string, string | boolean | undefined> };
+    const v = im.env?.VITE_INTAKE_INCREMENTAL_ENGINE_ENABLED;
+    if (v === undefined) return undefined;
+    return typeof v === 'string' ? v : String(v);
+  } catch {
+    return undefined;
+  }
 }
 
 function readIntakePolicyRichnessEnv(): string | undefined {
   if (typeof process !== 'undefined' && process.env?.INTAKE_POLICY_RICHNESS_ENABLED !== undefined) {
     return process.env.INTAKE_POLICY_RICHNESS_ENABLED;
   }
-  return undefined;
+  try {
+    const im = import.meta as unknown as { env?: Record<string, string | boolean | undefined> };
+    const v = im.env?.VITE_INTAKE_POLICY_RICHNESS_ENABLED;
+    if (v === undefined) return undefined;
+    return typeof v === 'string' ? v : String(v);
+  } catch {
+    return undefined;
+  }
 }
 
 /**
