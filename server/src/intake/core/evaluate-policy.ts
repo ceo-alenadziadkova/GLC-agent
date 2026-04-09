@@ -46,6 +46,18 @@ export function computeRequiredBankIdsFromPolicy(
     return { ids: [], debugTrace: trace };
   }
 
+  // pre_brief inherits express SLA required (inheritExpressRequired: true in policy).
+  // Delegate rather than fall through to full-mode logic.
+  if (productMode === 'pre_brief') {
+    return computeRequiredBankIdsFromPolicy(
+      policy,
+      'express',
+      visibleIdSet,
+      visibleStubsInBankOrder,
+      collectionMode,
+    );
+  }
+
   if (productMode === 'express') {
     const ex = policy.modes.express;
     const requiredAlways = requiredOverride?.requiredAlways ?? ex.requiredAlways;
