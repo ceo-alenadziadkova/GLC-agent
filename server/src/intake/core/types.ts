@@ -37,6 +37,19 @@ export interface BuildIntakePlanInput {
    * live artifacts. Resolver **code** is always the current server build.
    */
   intakeVersionTuple?: IntakeVersionTuple;
+  /**
+   * Optional optimization hint: response keys changed since previous plan.
+   * Used only when recomputing from a previous runtime state.
+   */
+  changedResponseKeys?: string[];
+}
+
+export interface IntakePlanRuntimeState {
+  responses: Record<string, unknown>;
+  canon: {
+    branchPassByCondition: Record<string, boolean>;
+    passById: Record<string, boolean>;
+  };
 }
 
 /** Per-question classification trace (explainability). */
@@ -141,4 +154,6 @@ export interface IntakePlan {
    * then optional primaries for domains in `missingForReport`. UX / consultant hint only.
    */
   nextRecommended: string[];
+  /** Internal runtime cache for incremental recompute paths. */
+  runtimeState?: IntakePlanRuntimeState;
 }

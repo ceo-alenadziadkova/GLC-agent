@@ -2,9 +2,13 @@
  * buildIntakePlan — resolver (canon, policy, optional layout surface).
  */
 import type { IntakeResponsesMap } from '../types.js';
-import { isIntakeNextRecommendedEnabled } from '../../config/intake-flags.js';
+import {
+  isIntakeIncrementalEngineEnabled,
+  isIntakeNextRecommendedEnabled,
+  isIntakePolicyRichnessEnabled,
+} from '../../config/intake-flags.js';
 
-import { evaluateCanonEligibility } from './evaluate-canon.js';
+import { evaluateCanonEligibility, recomputeCanonEligibilityIncremental } from './evaluate-canon.js';
 import { applySurfaceLayout } from './evaluate-layout.js';
 import { computeRequiredBankIdsFromPolicy } from './evaluate-policy.js';
 import { computeIntakePlanDerived } from './plan-derived.js';
@@ -13,7 +17,13 @@ import { resolveIntakeArtifacts } from './resolve-intake-artifacts.js';
 import { INTAKE_RESOLVER_VERSION } from './versions.js';
 
 import type { LayoutRulesV1 } from './layout-types.js';
-import type { BuildIntakePlanInput, DebugTraceEntry, IntakePlan, QuestionReason } from './types.js';
+import type {
+  BuildIntakePlanInput,
+  DebugTraceEntry,
+  IntakePlan,
+  IntakePlanRuntimeState,
+  QuestionReason,
+} from './types.js';
 
 function sortUniqueIds(ids: string[]): string[] {
   return [...new Set(ids)].sort((a, b) => a.localeCompare(b));
@@ -28,7 +38,28 @@ function mergeReasonEntry(
   target[id] = [...prev, entry];
 }
 
-export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
+function isAnsweredValue(v: unknown): boolean {
+  if (v === null || v === undefined) return false;
+  if (typeof v === 'string') return v.trim().length > 0;
+  if (Array.isArray(v)) return v.length > 0;
+  return true;
+}
+
+export function buildPlanFromScratch(input: BuildIntakePlanInput): IntakePlan {
+  return buildIntakePlanInternal(input);
+}
+
+export function recomputePlanIncremental(
+  previousState: IntakePlanRuntimeState,
+  input: BuildIntakePlanInput,
+): IntakePlan {
+  return buildIntakePlanInternal(input, previousState);
+}
+
+function buildIntakePlanInternal(
+  input: BuildIntakePlanInput,
+  previousState?: IntakePlanRuntimeState,
+): IntakePlan {
   const artifacts = resolveIntakeArtifacts(input.intakeVersionTuple ?? null);
   const policy = artifacts.policy;
   const stubs = artifacts.stubs;
@@ -44,7 +75,19 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
 
   const debugTrace: DebugTraceEntry[] = [];
 
-  const canon = evaluateCanonEligibility(stubs, r);
+  const useIncrementalCanon =
+    isIntakeIncrementalEngineEnabled() &&
+    Array.isArray(input.changedResponseKeys) &&
+    input.changedResponseKeys.length > 0 &&
+    !!previousState?.canon;
+  const canon = useIncrementalCanon
+    ? recomputeCanonEligibilityIncremental({
+        stubs,
+        responses: r,
+        changedResponseKeys: input.changedResponseKeys ?? [],
+        previous: previousState.canon,
+      })
+    : evaluateCanonEligibility(stubs, r);
   const eligibleIds = canon.eligibleIds;
   const eligibleSet = new Set(eligibleIds);
   const reasonsById: Record<string, QuestionReason[]> = {};
@@ -56,6 +99,11 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
   const slaVisibleOrdered: string[] = [];
   /** Bank ids shown on this collection surface (pre_brief narrows when policy has bankIncluded). */
   const uiPolicyVisibleOrdered: string[] = [];
+  const askStrategyById = isIntakePolicyRichnessEnabled()
+    ? (policy.modes[input.productMode].askStrategyById ?? {})
+    : {};
+  const policyDeferred = new Set<string>();
+  const policySuppressed = new Set<string>();
 
   for (const q of stubs) {
     if (!eligibleSet.has(q.id)) continue;
@@ -89,12 +137,40 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
       state: 'visible',
       code: 'PARTICIPATION_OK',
     });
+
+    const askStrategy = askStrategyById[q.id];
+    if (askStrategy === 'consultant_only') {
+      const consultantSurface =
+        input.surface === 'consultant_interview' || input.surface === 'internal_review';
+      if (!consultantSurface) {
+        policySuppressed.add(q.id);
+        mergeReasonEntry(reasonsById, q.id, {
+          questionId: q.id,
+          layer: 'policy',
+          state: 'hidden',
+          code: 'ASK_STRATEGY_CONSULTANT_ONLY',
+        });
+      }
+    } else if (askStrategy === 'progressive' && !isAnsweredValue(r[q.id])) {
+      policyDeferred.add(q.id);
+      mergeReasonEntry(reasonsById, q.id, {
+        questionId: q.id,
+        layer: 'policy',
+        state: 'deferred',
+        code: 'ASK_STRATEGY_PROGRESSIVE',
+      });
+    }
   }
 
+  const uiPolicyVisibleAfterAsk = uiPolicyVisibleOrdered.filter(
+    id => !policySuppressed.has(id) && !policyDeferred.has(id),
+  );
   const slaVisibleSet = new Set(slaVisibleOrdered);
-  const uiPolicyVisibleSet = new Set(uiPolicyVisibleOrdered);
+  const uiPolicyVisibleSet = new Set(uiPolicyVisibleAfterAsk);
   /** ADR: eligible = canon + policy participation for this surface (before layout). */
-  const eligibleAfterPolicy = sortUniqueIds(uiPolicyVisibleOrdered);
+  const eligibleAfterPolicy = sortUniqueIds(
+    uiPolicyVisibleOrdered.filter(id => !policySuppressed.has(id)),
+  );
   const visibleStubsForSla = stubs.filter(s => slaVisibleSet.has(s.id));
 
   const req = computeRequiredBankIdsFromPolicy(
@@ -107,7 +183,8 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
   debugTrace.push(...req.debugTrace);
 
   const allBankIds = stubs.map(s => s.id);
-  const hiddenIds = sortUniqueIds(allBankIds.filter(id => !uiPolicyVisibleSet.has(id)));
+  const eligibleAfterPolicySet = new Set(eligibleAfterPolicy);
+  const hiddenIds = sortUniqueIds(allBankIds.filter(id => !eligibleAfterPolicySet.has(id)));
 
   const layoutArtifact = artifacts.layoutRules;
   const surfaces = layoutArtifact.surfaces as LayoutRulesV1['surfaces'];
@@ -123,21 +200,21 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
     layoutSurfaceKey = input.surface as keyof LayoutRulesV1['surfaces'];
   }
 
-  let finalVisible = sortUniqueIds(uiPolicyVisibleOrdered);
-  let deferred: string[] = [];
+  let finalVisible = sortUniqueIds(uiPolicyVisibleAfterAsk);
+  let deferred: string[] = sortUniqueIds([...policyDeferred]);
   let stepPlan: IntakePlan['stepPlan'] = null;
   let layoutSlots: IntakePlan['layoutSlots'] = {};
 
   if (layoutSurfaceKey) {
     const surfaceCfg = surfaces[layoutSurfaceKey];
     const applied = applySurfaceLayout(
-      uiPolicyVisibleOrdered,
+      uiPolicyVisibleAfterAsk,
       uiPolicyVisibleSet,
       surfaceCfg,
       `${String(layoutSurfaceKey)}_`,
     );
     finalVisible = applied.visible;
-    deferred = applied.deferred;
+    deferred = sortUniqueIds([...deferred, ...applied.deferred]);
     stepPlan = applied.stepPlan;
     debugTrace.push(...applied.debugTrace);
     for (const id of deferred) {
@@ -196,6 +273,13 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
     confidence: derived.confidence,
     missingForReport: derived.missingForReport,
     nextRecommended,
+    runtimeState: {
+      responses: input.responses,
+      canon: {
+        branchPassByCondition: canon.branchPassByCondition,
+        passById: canon.passById,
+      },
+    },
     versions: {
       questionBankVersion: artifacts.questionBankVersion,
       policyVersion: policy.version,
@@ -203,4 +287,8 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
       resolverVersion: input.intakeVersionTuple?.resolverVersion ?? INTAKE_RESOLVER_VERSION,
     },
   };
+}
+
+export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
+  return buildPlanFromScratch(input);
 }

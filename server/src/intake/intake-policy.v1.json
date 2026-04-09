@@ -4,12 +4,26 @@
     "full": {
       "participation": "all_eligible",
       "requiredness": "from_canon",
-      "syntheticRequired": ["revenue_model"]
+      "syntheticRequired": ["revenue_model"],
+      "requirednessByMode": {
+        "full": {
+          "syntheticRequired": ["revenue_model"]
+        }
+      },
+      "askStrategyById": {
+        "f8": "progressive"
+      }
     },
     "express": {
       "participation": "all_eligible",
       "requiredAlways": ["f1", "b1", "revenue_model", "a6"],
-      "requiredIfVisible": ["c5", "c3"]
+      "requiredIfVisible": ["c5", "c3"],
+      "requirednessByMode": {
+        "express": {
+          "requiredAlways": ["f1", "b1", "revenue_model", "a6"],
+          "requiredIfVisible": ["c5", "c3"]
+        }
+      }
     },
     "discovery": {
       "participation": "explicit",
@@ -64,7 +78,15 @@
         "f8"
       ],
       "requiredness": "from_canon",
-      "syntheticRequired": ["revenue_model"]
+      "syntheticRequired": ["revenue_model"],
+      "requirednessByMode": {
+        "discovery": {
+          "syntheticRequired": ["revenue_model"]
+        }
+      },
+      "askStrategyById": {
+        "d5": "consultant_only"
+      }
     },
     "pre_brief": {
       "participation": "express_plus_identity",

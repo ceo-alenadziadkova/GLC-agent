@@ -3,6 +3,7 @@
  */
 import type { IntakeBriefCollectionMode, ProductMode } from '../../types/audit.js';
 import type { IntakeQuestionStub } from '../types.js';
+import { isIntakePolicyRichnessEnabled } from '../../config/intake-flags.js';
 
 import type { IntakePolicyV1 } from './policy-types.js';
 import type { DebugTraceEntry } from './types.js';
@@ -36,6 +37,10 @@ export function computeRequiredBankIdsFromPolicy(
   collectionMode?: IntakeBriefCollectionMode,
 ): { ids: string[]; debugTrace: DebugTraceEntry[] } {
   const trace: DebugTraceEntry[] = [];
+  const rich = isIntakePolicyRichnessEnabled();
+  const requiredOverride = rich
+    ? policy.modes[productMode].requirednessByMode?.[productMode]
+    : undefined;
 
   if (productMode === 'free_snapshot') {
     return { ids: [], debugTrace: trace };
@@ -43,8 +48,10 @@ export function computeRequiredBankIdsFromPolicy(
 
   if (productMode === 'express') {
     const ex = policy.modes.express;
+    const requiredAlways = requiredOverride?.requiredAlways ?? ex.requiredAlways;
+    const requiredIfVisible = requiredOverride?.requiredIfVisible ?? ex.requiredIfVisible;
     const out: string[] = [];
-    for (const id of ex.requiredAlways) {
+    for (const id of requiredAlways) {
       if (id === 'revenue_model' || visibleIdSet.has(id)) {
         out.push(id);
       } else {
@@ -56,17 +63,18 @@ export function computeRequiredBankIdsFromPolicy(
         });
       }
     }
-    for (const id of ex.requiredIfVisible) {
+    for (const id of requiredIfVisible) {
       if (visibleIdSet.has(id)) out.push(id);
     }
     return { ids: sortUniqueIds(dedupePreserveOrder(out)), debugTrace: trace };
   }
 
   const fromCanon = visibleStubsInBankOrder.filter(s => s.priority === 'required').map(s => s.id);
-  const synthetics =
+  const syntheticsDefault =
     collectionMode === 'discovery'
       ? policy.modes.discovery.syntheticRequired
       : policy.modes.full.syntheticRequired;
+  const synthetics = requiredOverride?.syntheticRequired ?? syntheticsDefault;
   const candidates = [...fromCanon, ...synthetics];
   const out: string[] = [];
   for (const id of candidates) {

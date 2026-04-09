@@ -1,25 +1,41 @@
 /** Intake policy artifact v1 (see intake-policy.v1.json). */
+export type AskStrategy = 'always' | 'if_needed' | 'progressive' | 'consultant_only';
 
-export interface FullModePolicyV1 {
+export interface ModeRequirednessOverride {
+  requiredAlways?: string[];
+  requiredIfVisible?: string[];
+  syntheticRequired?: string[];
+}
+
+export interface PolicyRichnessV1 {
+  /** Optional mode-level override matrix (takes precedence over legacy fields when present). */
+  requirednessByMode?: Partial<
+    Record<'full' | 'express' | 'discovery' | 'pre_brief' | 'free_snapshot', ModeRequirednessOverride>
+  >;
+  /** Optional per-question ask strategy hints for resolver/layout explainability. */
+  askStrategyById?: Record<string, AskStrategy>;
+}
+
+export interface FullModePolicyV1 extends PolicyRichnessV1 {
   participation: 'all_eligible';
   requiredness: 'from_canon';
   syntheticRequired: string[];
 }
 
-export interface ExpressModePolicyV1 {
+export interface ExpressModePolicyV1 extends PolicyRichnessV1 {
   participation: 'all_eligible';
   requiredAlways: string[];
   requiredIfVisible: string[];
 }
 
-export interface DiscoveryModePolicyV1 {
+export interface DiscoveryModePolicyV1 extends PolicyRichnessV1 {
   participation: 'explicit';
   included: string[];
   requiredness: 'from_canon';
   syntheticRequired: string[];
 }
 
-export interface PreBriefModePolicyV1 {
+export interface PreBriefModePolicyV1 extends PolicyRichnessV1 {
   participation: 'express_plus_identity';
   identityFieldIds: string[];
   identitySpecifyFieldId: string;
@@ -29,7 +45,7 @@ export interface PreBriefModePolicyV1 {
   bankIncluded?: string[];
 }
 
-export interface FreeSnapshotModePolicyV1 {
+export interface FreeSnapshotModePolicyV1 extends PolicyRichnessV1 {
   participation: 'all_eligible';
   requiredness: 'none';
 }

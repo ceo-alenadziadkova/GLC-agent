@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
+import { buildIntakePlan, recomputePlanIncremental } from '../intake/core/build-intake-plan.js';
 import { QUESTION_BANK_V1_STUBS } from '../intake/question-bank.js';
 import { INTAKE_PLAN_FIXTURES } from './fixtures/intake-plan-fixtures.js';
 import { type IntakePlanSnapshotPayload, computeIntakePlanSnapshotShim } from './intake-plan-shim.js';
@@ -143,5 +143,56 @@ describe('buildIntakePlan', () => {
     expect(plan.coverage.byDomain.recon).toBeDefined();
     expect(plan.confidence.overall).toBeGreaterThanOrEqual(0);
     expect(plan.confidence.overall).toBeLessThanOrEqual(1);
+  });
+
+  it('incremental recompute stays in parity with full rebuild', () => {
+    const initial = buildIntakePlan({
+      responses: { a2: 'hospitality', a5: 'no_website', f1: 'Need growth' },
+      productMode: 'full',
+      collectionMode: 'self_serve',
+    });
+    const nextResponses = { a2: 'hospitality', a5: 'no_website', f1: 'Need growth now' };
+    const incremental = recomputePlanIncremental(initial.runtimeState!, {
+      responses: nextResponses,
+      changedResponseKeys: ['f1'],
+      productMode: 'full',
+      collectionMode: 'self_serve',
+    });
+    const full = buildIntakePlan({
+      responses: nextResponses,
+      productMode: 'full',
+      collectionMode: 'self_serve',
+    });
+    expect({
+      eligible: incremental.eligible,
+      visible: incremental.visible,
+      required: incremental.required,
+      hidden: incremental.hidden,
+      deferred: incremental.deferred,
+      versions: incremental.versions,
+    }).toEqual({
+      eligible: full.eligible,
+      visible: full.visible,
+      required: full.required,
+      hidden: full.hidden,
+      deferred: full.deferred,
+      versions: full.versions,
+    });
+  });
+
+  it('supports policy askStrategy progressive as deferred reason', () => {
+    vi.stubEnv('INTAKE_POLICY_RICHNESS_ENABLED', '1');
+    try {
+      const plan = buildIntakePlan({
+        responses: { a2: 'hospitality', a5: 'no_website' },
+        productMode: 'full',
+        collectionMode: 'self_serve',
+      });
+      if (plan.reasonsById?.f8) {
+        expect(plan.reasonsById.f8.some(r => r.code === 'ASK_STRATEGY_PROGRESSIVE')).toBe(true);
+      }
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

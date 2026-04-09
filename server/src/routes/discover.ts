@@ -65,11 +65,8 @@ function discoveryHasOwnSiteForAnalytics(pres: string[]): boolean {
   );
 }
 
-/** Question-bank ids saved by public `/audit/discover` (Mode C). */
-const DISCOVERY_BANK_KEYS = [
-  'a1', 'a2', 'a4', 'a5', 'a7',
-  'd1', 'd1b', 'c_nosite_1', 'c_nosite_4', 'd2', 'f1',
-] as const;
+/** Canonical question-bank ids used by public discovery (single source: server UI fragment). */
+const DISCOVERY_BANK_KEYS = buildPublicDiscoveryUiFragment().questions.map(q => q.id);
 
 function normalizedPresenceFromBank(answers: Record<string, unknown>): string[] {
   const v = answers.c_nosite_1;

@@ -33,3 +33,33 @@ function readIntakeNextRecommendedEnv(): string | undefined {
 export function isIntakeNextRecommendedEnabled(): boolean {
   return envFlagEnabled(readIntakeNextRecommendedEnv(), true);
 }
+
+function readIntakeIncrementalEngineEnv(): string | undefined {
+  if (typeof process !== 'undefined' && process.env?.INTAKE_INCREMENTAL_ENGINE_ENABLED !== undefined) {
+    return process.env.INTAKE_INCREMENTAL_ENGINE_ENABLED;
+  }
+  return undefined;
+}
+
+function readIntakePolicyRichnessEnv(): string | undefined {
+  if (typeof process !== 'undefined' && process.env?.INTAKE_POLICY_RICHNESS_ENABLED !== undefined) {
+    return process.env.INTAKE_POLICY_RICHNESS_ENABLED;
+  }
+  return undefined;
+}
+
+/**
+ * Enables incremental canon recompute path in `recomputePlanIncremental`.
+ * Defaults on to keep performance roadmap active; can be disabled as kill switch.
+ */
+export function isIntakeIncrementalEngineEnabled(): boolean {
+  return envFlagEnabled(readIntakeIncrementalEngineEnv(), true);
+}
+
+/**
+ * Enables policy richness extensions (`requirednessByMode`, `askStrategyById`).
+ * Defaults on with backward-compatible behavior when policy fields are absent.
+ */
+export function isIntakePolicyRichnessEnabled(): boolean {
+  return envFlagEnabled(readIntakePolicyRichnessEnv(), false);
+}

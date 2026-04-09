@@ -1,6 +1,6 @@
 export { computeNextRecommended } from './plan-next-recommended.js';
 export { buildBriefSchemaSnapshot, type BriefSchemaSnapshot } from './build-brief-schema-snapshot.js';
-export { buildIntakePlan } from './build-intake-plan.js';
+export { buildIntakePlan, buildPlanFromScratch, recomputePlanIncremental } from './build-intake-plan.js';
 export { applyPublicDiscoveryLayout, applySurfaceLayout } from './evaluate-layout.js';
 export { formatPlanTrace, type FormatTraceMeta } from './format-trace.js';
 export { LAYOUT_RULES_V1, loadLayoutRules } from './load-layout.js';
@@ -66,6 +66,7 @@ export type {
   IntakeScenarioMode,
   IntakeSurface,
   IntakeVersionTuple,
+  IntakePlanRuntimeState,
   QuestionReason,
   StepPlanEntry,
 } from './types.js';
