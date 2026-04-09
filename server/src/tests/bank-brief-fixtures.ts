@@ -2,13 +2,13 @@ import type { IntakeBriefCollectionMode } from '../types/audit.js';
 import { resolveExpressSlaRequiredIds, resolveFullSlaRequiredIds } from '../intake/brief-gates.js';
 
 /**
- * Self-serve + live website: satisfies full product SLA (all visible required stubs + revenue_model).
+ * Self-serve + live website: satisfies full product SLA (all visible required stubs + a10).
  */
 export function makeWebsitePathFullBrief(
   collectionMode?: IntakeBriefCollectionMode,
 ): Record<string, unknown> {
   const r: Record<string, unknown> = {
-    revenue_model: 'Lead generation',
+    a10: 'Lead generation',
     a1: 'We sell eco goods online.',
     a2: 'Retail',
     a3: 'Germany',
@@ -49,7 +49,7 @@ export function makeWebsitePathExpressBrief(
   collectionMode?: IntakeBriefCollectionMode,
 ): Record<string, unknown> {
   const r: Record<string, unknown> = {
-    revenue_model: 'Lead generation',
+    a10: 'Lead generation',
     f1: 'Need more leads',
     b1: 'B2B buyers',
     a6: 'Yes',

@@ -6,10 +6,9 @@ import { supabase } from '../services/supabase.js';
 import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../middleware/auth.js';
 import { intakePublicLimiter } from '../middleware/rate-limit.js';
 import {
-  BRIEF_QUESTIONS,
+  getBriefQuestionsByIds,
   INTAKE_IDENTITY_BRIEF_QUESTIONS,
   INTAKE_IDENTITY_FIELD_IDS,
-  PRE_BRIEF_QUESTION_IDS,
   BriefResponsesSchema,
 } from '../schemas/intake-brief.js';
 import { arePreBriefSlotsSatisfied, saveBriefResponses } from '../services/brief-validator.js';
@@ -21,6 +20,7 @@ import { parseIntakeVersionTuple } from '../intake/core/intake-version-tuple.js'
 import { isSupportedIntakeArtifactTuple } from '../intake/core/resolve-intake-artifacts.js';
 import type { IntakeSurface } from '../intake/core/types.js';
 import type { IntakeBriefCollectionMode, ProductMode } from '../types/audit.js';
+import { mergeLegacyIntakeAliasesRead } from '../intake/legacy-response-aliases.js';
 
 export const intakeRouter = Router();
 
@@ -36,6 +36,18 @@ function toClientEntries(raw: Record<string, unknown>): Record<string, unknown> 
     }
   }
   return out;
+}
+
+function buildPreBriefQuestionsForResponses(raw: Record<string, unknown>) {
+  const responses = mergeLegacyIntakeAliasesRead(raw);
+  const preBriefPlan = buildIntakePlan({
+    responses,
+    productMode: 'full',
+    collectionMode: 'pre_brief',
+    surface: 'client_form',
+  });
+  const coreQuestions = getBriefQuestionsByIds(preBriefPlan.visible);
+  return [...INTAKE_IDENTITY_BRIEF_QUESTIONS, ...coreQuestions];
 }
 
 /** Merges pre-brief question keys from parsed token responses into the audit's intake_brief. */
@@ -61,7 +73,21 @@ async function mergePreBriefFromParsedResponses(
   const existing = (brief?.responses as Record<string, unknown>) ?? {};
   const preBriefPatch: Record<string, unknown> = {};
   const entries = toClientEntries(parsed);
-  const mergeIds = new Set<string>([...PRE_BRIEF_QUESTION_IDS, ...INTAKE_IDENTITY_FIELD_IDS]);
+  const mergedForPlan = mergeLegacyIntakeAliasesRead({ ...existing, ...entries });
+  const preBriefPlan = buildIntakePlan({
+    responses: mergedForPlan,
+    productMode: 'full',
+    collectionMode: 'pre_brief',
+    surface: 'client_form',
+  });
+  const mergeIds = new Set<string>([
+    ...preBriefPlan.visible,
+    ...INTAKE_IDENTITY_FIELD_IDS,
+    'revenue_model',
+    'revenue_model__other',
+    'a10',
+    'a10__other',
+  ]);
   for (const id of mergeIds) {
     if (entries[id] !== undefined) preBriefPatch[id] = entries[id];
   }
@@ -276,9 +302,7 @@ intakeRouter.get(
       }
 
       // Same question bundle as public GET: identity + pre-brief core (see GET /api/intake/:token).
-      const preBriefSet = new Set(PRE_BRIEF_QUESTION_IDS);
-      const coreQuestions = BRIEF_QUESTIONS.filter(q => preBriefSet.has(q.id));
-      const questions = [...INTAKE_IDENTITY_BRIEF_QUESTIONS, ...coreQuestions];
+      const questions = buildPreBriefQuestionsForResponses((row.responses as Record<string, unknown>) ?? {});
       const expMs = new Date(row.expires_at as string).getTime();
       const linkExpired = !Number.isFinite(expMs) || Date.now() > expMs;
 
@@ -406,11 +430,9 @@ intakeRouter.get('/:token', intakePublicLimiter, async (req, res) => {
       return;
     }
 
-    // Public client pre-brief must always include identity (website, name, industry, Other specify)
-    // even though those keys are not duplicated in the consultant full-brief question list.
-    const preBriefSet = new Set(PRE_BRIEF_QUESTION_IDS);
-    const coreQuestions = BRIEF_QUESTIONS.filter(q => preBriefSet.has(q.id));
-    const questions = [...INTAKE_IDENTITY_BRIEF_QUESTIONS, ...coreQuestions];
+    // Public client pre-brief must always include identity (website, name, industry, Other specify).
+    // Core pre-brief bank questions are resolved by the policy resolver for this token's current responses.
+    const questions = buildPreBriefQuestionsForResponses((row.responses as Record<string, unknown>) ?? {});
 
     res.json({
       metadata: (row.metadata as Record<string, unknown>) ?? {},

@@ -193,11 +193,11 @@ export function lintSyntheticCollision(
     }
   }
   for (const id of policy.modes.express.requiredAlways) {
-    if (id !== 'revenue_model' && !bankIds.has(id)) {
+    if (id !== 'revenue_model' && id !== 'a10' && !bankIds.has(id)) {
       findings.push({
         code: 'EXPRESS_REQUIRED_ORPHAN',
         severity: 'error',
-        message: `Express requiredAlways "${id}" is not a bank id and not revenue_model.`,
+        message: `Express requiredAlways "${id}" is not a bank id and not a legacy revenue alias.`,
         detail: id,
       });
     }

@@ -7,6 +7,11 @@ import { isIntakePolicyRichnessEnabled } from '../../config/intake-flags.js';
 
 import type { IntakePolicyV1 } from './policy-types.js';
 import type { DebugTraceEntry } from './types.js';
+import { INTAKE_REVENUE_BANK_ID, INTAKE_REVENUE_LEGACY_KEY } from '../legacy-response-aliases.js';
+
+function isPolicyRevenueOrVisible(id: string, visibleIdSet: Set<string>): boolean {
+  return id === INTAKE_REVENUE_LEGACY_KEY || id === INTAKE_REVENUE_BANK_ID || visibleIdSet.has(id);
+}
 
 /** Same ids as brief-gates: insertion order, first occurrence wins. */
 function dedupePreserveOrder(ids: string[]): string[] {
@@ -49,7 +54,7 @@ export function computeRequiredBankIdsFromPolicy(
   // pre_brief: delegate to express when policy.modes.pre_brief.inheritExpressRequired is true.
   // The type marks this field as literal `true`, but frozen artifact JSON casts bypass that
   // constraint, so we guard at runtime to prevent silent full-mode required set leaking in.
-  if (productMode === 'pre_brief') {
+  if ((productMode as string) === 'pre_brief') {
     if (!(policy.modes.pre_brief.inheritExpressRequired as boolean)) {
       trace.push({
         layer: 'policy',
@@ -74,7 +79,7 @@ export function computeRequiredBankIdsFromPolicy(
     const requiredIfVisible = requiredOverride?.requiredIfVisible ?? ex.requiredIfVisible;
     const out: string[] = [];
     for (const id of requiredAlways) {
-      if (id === 'revenue_model' || visibleIdSet.has(id)) {
+      if (isPolicyRevenueOrVisible(id, visibleIdSet)) {
         out.push(id);
       } else {
         trace.push({
@@ -100,7 +105,7 @@ export function computeRequiredBankIdsFromPolicy(
   const candidates = [...fromCanon, ...synthetics];
   const out: string[] = [];
   for (const id of candidates) {
-    if (id === 'revenue_model' || visibleIdSet.has(id)) {
+    if (isPolicyRevenueOrVisible(id, visibleIdSet)) {
       out.push(id);
     } else {
       trace.push({

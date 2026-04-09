@@ -20,6 +20,7 @@ import {
 } from './question-bank.js';
 import type { IntakeAnswerContract, IntakeQuestionStub } from './types.js';
 import { unwrapIntakeValue } from './unwrap.js';
+import { mergeLegacyIntakeAliasesRead, syncRevenueAliasesForPersistence } from './legacy-response-aliases.js';
 
 function resolveOptions(contract: IntakeAnswerContract): readonly string[] | null {
   if (contract.options && contract.options.length > 0) return contract.options;
@@ -90,13 +91,14 @@ export function prepareBriefForValidation(
   responses: Record<string, unknown>,
   stubs: IntakeQuestionStub[] = QUESTION_BANK_V1_STUBS,
 ): Record<string, unknown> {
+  const merged = mergeLegacyIntakeAliasesRead(responses);
   const contractById = new Map(
     stubs.filter(s => s.answer != null).map(s => [s.id, s.answer!]),
   );
   const out: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(responses)) {
+  for (const [key, value] of Object.entries(merged)) {
     const contract = contractById.get(key);
     out[key] = contract ? sanitizeValue(value, contract) : value;
   }
-  return out;
+  return syncRevenueAliasesForPersistence(out);
 }

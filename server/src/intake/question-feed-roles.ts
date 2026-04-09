@@ -55,6 +55,7 @@ export const QUESTION_FEED_ROLES: Record<string, QuestionFeedRoles> = {
   a7: ps([D.recon, D.strat]),
   a8: ps([D.strat, D.auto], [D.ux, D.mkt]),
   a9: ps([D.mkt, D.auto]),
+  a10: ps([D.mkt, D.recon], [D.strat]),
   b1: ps([D.ux, D.mkt]),
   b2: ps([D.mkt, D.seo], [D.strat, D.auto]),
   b3: ps([D.mkt]),

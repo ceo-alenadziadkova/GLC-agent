@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "optionCatalogs": {
     "industry": [
       "E-commerce",
@@ -151,6 +151,25 @@
           "German",
           "French",
           "Russian",
+          "Other"
+        ]
+      }
+    },
+    {
+      "id": "a10",
+      "section": "A",
+      "priority": "required",
+      "label": "What is your main revenue model?",
+      "reportUse": "biz_revenue_model",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Subscription / SaaS",
+          "E-commerce (product sales)",
+          "Lead generation",
+          "Consulting / services",
+          "Freemium",
+          "Marketplace",
           "Other"
         ]
       }

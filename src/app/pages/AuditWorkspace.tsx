@@ -18,11 +18,10 @@ import { DOMAIN_KEYS, DOMAIN_LABELS, type IntakeBriefCollectionMode } from '../d
 import type { DomainKey, DomainData, ProductMode, ConfidenceLevel } from '../data/auditTypes';
 import { BriefField } from '../components/BriefField';
 import {
-  BRIEF_QUESTIONS,
   mergeBriefResponsesPreferFilled,
   unwrapResponse,
 } from '../data/briefQuestions';
-import type { BriefQuestion, BriefResponses } from '../data/briefQuestions';
+import type { BriefResponses } from '../data/briefQuestions';
 import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
 import { api } from '../data/apiService';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
@@ -38,6 +37,7 @@ import {
   writeConsultantBriefLayout,
   clearConsultantBriefLayout,
 } from '../lib/client-brief-layout-preference';
+import { getQuestionLabel } from '../lib/intake-question-lookup';
 
 const EXPRESS_DOMAIN_KEYS: readonly DomainKey[] = [
   'tech_infrastructure', 'security_compliance', 'seo_digital', 'ux_conversion',
@@ -271,8 +271,7 @@ export function AuditWorkspace() {
     && typeof (x as { id: string }).id === 'string'
   )).filter(x => x.domain === activeDomain);
   const followupQuestions = followupRefs
-    .map(r => BRIEF_QUESTIONS.find(q => q.id === r.id))
-    .filter((q): q is BriefQuestion => q != null);
+    .map(r => ({ id: r.id, question: getQuestionLabel(r.id) }));
   const showEnrichmentBanner = Boolean(
     domainData?.status === 'completed' && followupQuestions.length > 0 && id
   );

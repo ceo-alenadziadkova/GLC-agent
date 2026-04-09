@@ -160,7 +160,7 @@ These patterns are known to reintroduce duplication and unexplained diffs; code 
 - [x] **Phase 2b — Debug tooling**: plan trace available via route/CLI/internal tooling.
 - [x] **Phase 3 — Linting**: bank/policy/layout linters implemented and wired into test/lint workflow.
 - [x] **Phase 4 — Server gates + persist tuple**: server validation/gates use intake-core; version tuple is persisted on writes.
-- [~] **Phase 5 — Client alignment and dedup**: client Discovery consumes server-provided fragment and shared resolver; remaining work is documentation/governance cleanup to remove ambiguity about legacy wording.
+- [x] **Phase 5 — Client alignment and dedup**: client Discovery consumes server-provided fragment and shared resolver; public pre-brief and authenticated brief question bundles are plan-driven, and legacy `revenue_model` is bridged to bank id `a10` for backward compatibility.
 - [x] **Phase 6 — Layout layer**: layout rules are separated from canon/policy and applied in resolver without changing semantic eligibility.
 
 ## Governance for frozen artifact tuples

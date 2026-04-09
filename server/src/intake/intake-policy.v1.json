@@ -1,13 +1,13 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "modes": {
     "full": {
       "participation": "all_eligible",
       "requiredness": "from_canon",
-      "syntheticRequired": ["revenue_model"],
+      "syntheticRequired": ["a10"],
       "requirednessByMode": {
         "full": {
-          "syntheticRequired": ["revenue_model"]
+          "syntheticRequired": ["a10"]
         }
       },
       "askStrategyById": {
@@ -16,11 +16,11 @@
     },
     "express": {
       "participation": "all_eligible",
-      "requiredAlways": ["f1", "b1", "revenue_model", "a6"],
+      "requiredAlways": ["f1", "b1", "a10", "a6"],
       "requiredIfVisible": ["c5", "c3"],
       "requirednessByMode": {
         "express": {
-          "requiredAlways": ["f1", "b1", "revenue_model", "a6"],
+          "requiredAlways": ["f1", "b1", "a10", "a6"],
           "requiredIfVisible": ["c5", "c3"]
         }
       }
@@ -37,6 +37,7 @@
         "a7",
         "a8",
         "a9",
+        "a10",
         "b_growth_attempts",
         "b_health_1",
         "b_hotel_1",
@@ -78,10 +79,10 @@
         "f8"
       ],
       "requiredness": "from_canon",
-      "syntheticRequired": ["revenue_model"],
+      "syntheticRequired": ["a10"],
       "requirednessByMode": {
         "discovery": {
-          "syntheticRequired": ["revenue_model"]
+          "syntheticRequired": ["a10"]
         }
       },
       "askStrategyById": {

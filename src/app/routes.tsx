@@ -85,6 +85,7 @@ export const router = createBrowserRouter([
       { path: 'admin/requests', element: <Consultant><AdminRequestQueue /></Consultant> },
       { path: 'admin/snapshots', element: <Consultant><AdminSnapshotQueue /></Consultant> },
       { path: 'admin/discovery', element: <Consultant><DiscoveryQueue /></Consultant> },
+      // TODO(next iteration): routes remain accessible by direct URL while links are hidden in admin nav.
       { path: 'admin/intake-trace', element: <Consultant><IntakeTraceTool /></Consultant> },
       { path: 'admin/intake-wording', element: <Consultant><IntakeWordingWorkspace /></Consultant> },
       { path: 'pipeline/:id', element: <Consultant><PipelineMonitor /></Consultant> },

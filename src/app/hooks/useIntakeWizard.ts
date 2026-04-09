@@ -11,7 +11,7 @@ import {
   type BriefIntakeAnalyticsExperimentVariant,
   type BriefIntakeAnalyticsSurface,
 } from '../lib/brief-intake-analytics';
-import { buildIntakePlan } from '../../../server/src/intake/core/build-intake-plan';
+import { buildIntakePlan, recomputePlanIncremental } from '../../../server/src/intake/core/build-intake-plan';
 import { listBankStubIdsInvalidatedByResponseKeys } from '../../../server/src/intake/core/branch-condition-deps';
 import { isIntakeNextRecommendedEnabled } from '../../../server/src/config/intake-flags';
 import { computeIntakePlanDerived } from '../../../server/src/intake/core/plan-derived';
@@ -126,6 +126,7 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
     nextRecommended: string[];
     missingForReport: string[];
   } | null>(null);
+  const prevRuntimeStateRef = useRef<ReturnType<typeof buildIntakePlan>['runtimeState'] | null>(null);
 
   const getChangedResponseKeys = useCallback(
     (prev: Record<string, unknown>, next: Record<string, unknown>): string[] => {
@@ -152,6 +153,12 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
       ? listBankStubIdsInvalidatedByResponseKeys(changedKeys)
       : ['__force_full__'];
     const canPartial = Boolean(stableContext && prevOutput && invalidated.length === 0);
+    const canIncremental = Boolean(
+      stableContext &&
+      prevRuntimeStateRef.current &&
+      invalidated.length > 0 &&
+      invalidated[0] !== '__force_full__',
+    );
 
     if (canPartial && prevOutput) {
       const visibleStubs = prevOutput.visibleStubs;
@@ -180,12 +187,20 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
       return out;
     }
 
-    const plan = buildIntakePlan({
-      responses,
-      productMode,
-      collectionMode,
-      surface,
-    });
+    const plan = canIncremental
+      ? recomputePlanIncremental(prevRuntimeStateRef.current!, {
+          responses,
+          productMode,
+          collectionMode,
+          surface,
+          changedResponseKeys: changedKeys,
+        })
+      : buildIntakePlan({
+          responses,
+          productMode,
+          collectionMode,
+          surface,
+        });
     const visible = new Set(plan.visible);
     const visibleStubs = sortStubsByBankOrder(QUESTION_BANK_V1_STUBS.filter(q => visible.has(q.id)));
     const out = {
@@ -195,6 +210,7 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
     };
     prevPlanInputRef.current = { responses, collectionMode, surface, productMode };
     prevPlanOutputRef.current = out;
+    prevRuntimeStateRef.current = plan.runtimeState ?? null;
     return out;
   }, [responses, collectionMode, surface, productMode, getChangedResponseKeys]);
 

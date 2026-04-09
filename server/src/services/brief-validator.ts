@@ -1,7 +1,7 @@
 /**
  * BriefValidator — validates intake brief completeness.
  *
- * SLA: required question-bank stubs (visible for branch + collection mode) plus revenue_model.
+ * SLA: required question-bank stubs (visible for branch + collection mode) plus revenue signal (a10 / legacy revenue_model alias).
  * If brief doesn't exist or is incomplete, startPhase(0) throws with a user-friendly message.
  */
 import { supabase } from './supabase.js';
@@ -30,6 +30,7 @@ import { logger } from './logger.js';
 import { prepareBriefForValidation } from '../intake/prepare-brief-for-validation.js';
 import { mergeReconConflictsFromC1 } from '../intake/recon-conflicts.js';
 import { choiceValueNeedsSpecify } from '../intake/choice-specify-triggers.js';
+import { isRevenueAnsweredRaw } from '../intake/legacy-response-aliases.js';
 
 export interface BriefValidationResult {
   passed: boolean;
@@ -208,7 +209,7 @@ function computeProgress(
   }
   const revW = 3;
   totalWeight += revW;
-  if (isAnswered(responses.revenue_model)) answeredWeight += revW;
+  if (isRevenueAnsweredRaw(responses)) answeredWeight += revW;
 
   const progressPct = totalWeight > 0 ? Math.min(100, Math.round((answeredWeight / totalWeight) * 100)) : 0;
   const readinessBadge: IntakeReadinessBadge = progressPct >= 80 ? 'high' : progressPct >= 45 ? 'medium' : 'low';

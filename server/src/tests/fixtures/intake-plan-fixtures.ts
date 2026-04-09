@@ -22,7 +22,7 @@ export const INTAKE_PLAN_FIXTURES: IntakePlanFixture[] = [
       a4: '6–10 people',
       a5: 'Yes — we have a multi-page website',
       d1: ['Spreadsheets', 'CRM / sales pipeline'],
-      revenue_model: 'mixed',
+      a10: 'mixed',
     },
   },
   {
@@ -33,7 +33,7 @@ export const INTAKE_PLAN_FIXTURES: IntakePlanFixture[] = [
     responses: {
       a2: 'hospitality',
       a5: 'no_website',
-      revenue_model: 'b2c',
+      a10: 'b2c',
     },
   },
   {
@@ -45,7 +45,7 @@ export const INTAKE_PLAN_FIXTURES: IntakePlanFixture[] = [
       a4: 'Just me',
       a5: 'Yes — we have a multi-page website',
       d1: ['Email', 'Paper notebook'],
-      revenue_model: 'b2c',
+      a10: 'b2c',
     },
   },
   {
@@ -57,7 +57,7 @@ export const INTAKE_PLAN_FIXTURES: IntakePlanFixture[] = [
       a2: 'saas / software',
       a4: 'Just me',
       a5: 'no_website',
-      revenue_model: 'b2b',
+      a10: 'b2b',
     },
   },
   {
@@ -68,7 +68,7 @@ export const INTAKE_PLAN_FIXTURES: IntakePlanFixture[] = [
       a2: 'real estate',
       a4: '2–5 people',
       a5: 'Yes — we have a multi-page website',
-      revenue_model: 'b2c',
+      a10: 'b2c',
     },
   },
   {
@@ -79,7 +79,7 @@ export const INTAKE_PLAN_FIXTURES: IntakePlanFixture[] = [
       a2: 'food & beverage',
       a5: 'no_website',
       c_nosite_1: ['Social media', 'Marketplaces, directories, or other online platforms'],
-      revenue_model: 'b2c',
+      a10: 'b2c',
     },
   },
   {
@@ -91,7 +91,7 @@ export const INTAKE_PLAN_FIXTURES: IntakePlanFixture[] = [
       a2: 'professional services',
       a3: 'Barcelona, España',
       a5: 'no_website',
-      revenue_model: 'b2b',
+      a10: 'b2b',
     },
   },
   {
@@ -103,7 +103,7 @@ export const INTAKE_PLAN_FIXTURES: IntakePlanFixture[] = [
       a4: 'Just me',
       a5: 'Yes — we have a multi-page website',
       d1: ['Basic calendar'],
-      revenue_model: 'b2c',
+      a10: 'b2c',
     },
   },
   {
@@ -113,7 +113,7 @@ export const INTAKE_PLAN_FIXTURES: IntakePlanFixture[] = [
     responses: {
       a2: 'marine',
       a5: 'no_website',
-      revenue_model: 'b2c',
+      a10: 'b2c',
     },
   },
   {
@@ -124,7 +124,7 @@ export const INTAKE_PLAN_FIXTURES: IntakePlanFixture[] = [
     responses: {
       a2: 'education',
       a5: 'no_website',
-      revenue_model: 'nonprofit',
+      a10: 'nonprofit',
     },
   },
 ];

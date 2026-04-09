@@ -2,11 +2,9 @@ import { useMemo } from 'react';
 import { BriefField } from './BriefField';
 import type { IntakeBriefCollectionMode } from '../data/auditTypes';
 import { getVisibleBankBriefSections } from '../data/bankClassicBrief';
-import { BRIEF_QUESTIONS, type BriefResponses } from '../data/briefQuestions';
+import type { BriefResponses } from '../data/briefQuestions';
 import type { IntakeSurface } from '../../../server/src/intake/core/types';
 import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
-
-const REVENUE_MODEL = BRIEF_QUESTIONS.find(q => q.id === 'revenue_model')!;
 
 function unwrapForField(raw: BriefResponses[string] | undefined): string | string[] | number | null | undefined {
   if (raw == null) return undefined;
@@ -97,36 +95,6 @@ export function BankClassicBriefFields({
           </div>
         </div>
       ))}
-
-      <div
-        className="rounded-xl p-4 space-y-3"
-        style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-inset)' }}
-      >
-        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
-          Also required for launch
-        </p>
-        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-          Revenue model is not in the bank JSON; capture it here if you have not already.
-        </p>
-        <BriefField
-          q={REVENUE_MODEL}
-          value={responses.revenue_model}
-          onChange={v => {
-            onChange('revenue_model', v);
-            if (!choiceValueNeedsSpecify(v)) {
-              onChange('revenue_model__other', null);
-            }
-          }}
-          onSetUnknown={() => {
-            onSetUnknown('revenue_model');
-            onChange('revenue_model__other', null);
-          }}
-          emphasizeClientSource={emphasizeClientSource}
-          interviewMode={interviewMode}
-          otherSpecify={(unwrapForField(responses.revenue_model__other) as string | undefined) ?? ''}
-          onOtherSpecifyChange={text => onChange('revenue_model__other', text || null)}
-        />
-      </div>
     </div>
   );
 }
