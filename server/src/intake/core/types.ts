@@ -86,6 +86,8 @@ export interface IntakePlanDerivedFacts {
     exportData: number;
     governance: number;
     automationAttempt: number;
+    d4aBonus: number;
+    d2Bonus: number;
     penalties: number;
     scaleBonus: number;
   };
@@ -99,7 +101,11 @@ export interface IntakePlanDerivedFacts {
 }
 
 export interface IntakePlanCoverage {
-  /** Per domain: share of in-scope primary bank questions that are answered (1 if none in scope). */
+  /**
+   * Per domain: ratio of answered to total in-scope primary bank questions (0–1).
+   * Key is absent (undefined) when no SLA questions are scoped for that domain —
+   * do NOT treat absence as 0 or 1; render as "N/A" in UI.
+   */
   byDomain: Partial<Record<IntakePlanCoverageDomain, number>>;
 }
 

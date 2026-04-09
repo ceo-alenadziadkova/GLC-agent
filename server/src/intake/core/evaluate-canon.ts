@@ -88,8 +88,34 @@ export function recomputeCanonEligibilityIncremental(args: {
   previous: Pick<CanonEligibilityResult, 'branchPassByCondition' | 'passById'>;
 }): CanonEligibilityResult {
   const { stubs, responses, previous } = args;
+
+  // Nothing changed: rebuild eligibleIds from the previous passById cache without
+  // re-evaluating any predicates. Stubs absent from cache (e.g. bank updated) fall
+  // back to a fresh evaluation so the result stays correct.
   if (args.changedResponseKeys.length === 0) {
-    return evaluateCanonEligibility(stubs, responses);
+    const passById = new Map<string, boolean>(Object.entries(previous.passById));
+    const eligibleIds: string[] = [];
+    const reasonsById: Record<string, QuestionReason[]> = {};
+    for (const q of stubs) {
+      const pass = passById.has(q.id)
+        ? passById.get(q.id)!
+        : evalBranchCondition(q.branchCondition, responses);
+      if (!passById.has(q.id)) passById.set(q.id, pass);
+      if (pass) {
+        eligibleIds.push(q.id);
+        reasonsById[q.id] = [{ questionId: q.id, layer: 'canon', state: 'eligible', code: 'BRANCH_OK' }];
+      } else {
+        reasonsById[q.id] = [
+          { questionId: q.id, layer: 'canon', state: 'hidden', code: 'BRANCH_FALSE', detail: q.branchCondition },
+        ];
+      }
+    }
+    return {
+      eligibleIds,
+      reasonsById,
+      branchPassByCondition: previous.branchPassByCondition,
+      passById: Object.fromEntries(passById.entries()),
+    };
   }
 
   const branchPassByCondition = new Map<string | undefined, boolean>();

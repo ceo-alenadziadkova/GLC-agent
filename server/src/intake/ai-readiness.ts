@@ -1,5 +1,16 @@
 /**
  * AI Readiness score (0–100) — docs/QUESTION_BANK.md §8 (heuristic v1 until bank JSON encodes option values).
+ *
+ * Components:
+ *   base (45)         — starting point
+ *   exportData        — d4b: data-export ease (+18 positive / -5 negative)
+ *   governance        — f7: clear approval path (+17, 0 if "Not sure")
+ *   automationAttempt — d_automation_attempt: prior attempt helped (+10)
+ *   d4aBonus          — d4a: client already uses AI tools daily/occasionally (+8)
+ *   d2Bonus           — d2: client can articulate their main manual bottleneck (+5)
+ *   penalties         — d4a=No + high d3 (-18); vague truth-source + non-solo (-12)
+ *   scaleBonus        — a8 answered (+5); d6 answered with 3+ types (+5);
+ *                       no_website / under_construction (+5, greenfield bonus — see §8)
  */
 import type { AiReadinessResult, IntakeResponsesMap } from './types.js';
 import { getResponseString, unwrapIntakeValue } from './unwrap.js';
@@ -57,54 +68,97 @@ function automationAttemptHelped(responses: IntakeResponsesMap): boolean {
   return s.includes('helped') || s.includes('yes') || s.includes('worked');
 }
 
+/** Returns true when client already uses AI tools day-to-day (d4a signal). */
+function aiToolsInUse(responses: IntakeResponsesMap): boolean {
+  const s = getResponseString(responses, 'd4a').toLowerCase();
+  if (!s) return false;
+  return s.includes('daily') || s.includes('occasionally') || s.includes('yes');
+}
+
+/**
+ * Returns true when d2 contains a substantive description of the manual bottleneck
+ * (at least 20 chars of non-trivial content). An articulated pain point signals that
+ * automation scope is well-understood, raising practical readiness.
+ */
+function d2IsArticulated(responses: IntakeResponsesMap): boolean {
+  const s = getResponseString(responses, 'd2').trim();
+  return s.length >= 20;
+}
+
+/**
+ * f7 governance is considered "clear" when the client has named a decision-maker
+ * other than or including themselves, but explicitly NOT "Not sure" / blank.
+ */
+function governanceClear(responses: IntakeResponsesMap): boolean {
+  const s = getResponseString(responses, 'f7').trim().toLowerCase();
+  if (!s) return false;
+  return !s.includes('not sure') && !s.includes("don't know") && !s.includes('unsure');
+}
+
 export function calcAiReadinessScore(responses: IntakeResponsesMap): AiReadinessResult {
-  let base = 45;
+  const base = 45;
   let exportData = 0;
   let governance = 0;
   let automationAttempt = 0;
+  let d4aBonus = 0;
+  let d2Bonus = 0;
   let penalties = 0;
   let scaleBonus = 0;
 
-  const gate = normalizeWebsiteGate(responses);
-
+  // d4b: data-export capability
   if (boolishPositive(responses.d4b)) {
     exportData = 18;
   } else if (boolishNegative(responses.d4b)) {
     exportData = -5;
   }
 
-  const f7 = getResponseString(responses, 'f7');
-  if (f7.length > 1) {
+  // f7: governance / approval path is clear
+  if (governanceClear(responses)) {
     governance = 17;
   }
 
+  // d4a: client already uses AI tools — lowers adoption barrier
+  if (aiToolsInUse(responses)) {
+    d4aBonus = 8;
+  }
+
+  // d2: client can articulate their main manual bottleneck
+  if (d2IsArticulated(responses)) {
+    d2Bonus = 5;
+  }
+
+  // penalties
   if (boolishNegative(responses.d4a) && manualLoadHigh(responses)) {
     penalties -= 18;
   }
-
   if (vagueTruthSource(responses) && teamNotSolo(responses)) {
     penalties -= 12;
   }
 
+  // automation attempt helped
   if (automationAttemptHelped(responses)) {
     automationAttempt = 10;
   }
 
+  // scale signals
   const a8 = getResponseString(responses, 'a8');
   if (a8.length > 0 && !a8.toLowerCase().includes('not sure')) {
     scaleBonus += 5;
   }
-
   const d6 = getResponseString(responses, 'd6');
   if (d6.length > 2) {
     scaleBonus += 5;
   }
 
+  // No-website / under-construction: client has no legacy web-tech debt and the
+  // entire audit scope shifts to process automation — a greenfield advantage.
+  // Modest bonus reflects lower adoption barriers for new tooling. (docs §8)
+  const gate = normalizeWebsiteGate(responses);
   if (gate === 'no_website' || gate === 'under_construction') {
-    base += 5;
+    scaleBonus += 5;
   }
 
-  const raw = base + exportData + governance + automationAttempt + penalties + scaleBonus;
+  const raw = base + exportData + governance + automationAttempt + d4aBonus + d2Bonus + penalties + scaleBonus;
   const score = Math.min(100, Math.max(0, Math.round(raw)));
 
   return {
@@ -114,6 +168,8 @@ export function calcAiReadinessScore(responses: IntakeResponsesMap): AiReadiness
       exportData,
       governance,
       automationAttempt,
+      d4aBonus,
+      d2Bonus,
       penalties,
       scaleBonus,
     },
