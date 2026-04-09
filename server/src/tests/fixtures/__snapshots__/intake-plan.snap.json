@@ -2,6 +2,7 @@
   "hotel_website_full": {
     "eligible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -58,6 +59,7 @@
     ],
     "visible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -114,6 +116,7 @@
     ],
     "required": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a5",
@@ -128,8 +131,7 @@
       "d1",
       "d2",
       "f1",
-      "f2",
-      "revenue_model"
+      "f2"
     ],
     "hidden": [
       "b_health_1",
@@ -151,6 +153,7 @@
     "deferred": [],
     "slaVisibleBankIds": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -209,6 +212,7 @@
   "hotel_nosite_discovery": {
     "eligible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -250,6 +254,7 @@
     ],
     "visible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -291,6 +296,7 @@
     ],
     "required": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a5",
@@ -302,8 +308,7 @@
       "d1",
       "d2",
       "f1",
-      "f2",
-      "revenue_model"
+      "f2"
     ],
     "hidden": [
       "b_health_1",
@@ -340,6 +345,7 @@
     "deferred": [],
     "slaVisibleBankIds": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -383,6 +389,7 @@
   "solo_website_express": {
     "eligible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -434,6 +441,7 @@
     ],
     "visible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -484,12 +492,12 @@
       "f8"
     ],
     "required": [
+      "a10",
       "a6",
       "b1",
       "c3",
       "c5",
-      "f1",
-      "revenue_model"
+      "f1"
     ],
     "hidden": [
       "b_health_1",
@@ -516,6 +524,7 @@
     "deferred": [],
     "slaVisibleBankIds": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -569,6 +578,7 @@
   "solo_nosite_discovery": {
     "eligible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -606,6 +616,7 @@
     ],
     "visible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -642,10 +653,10 @@
       "f8"
     ],
     "required": [
+      "a10",
       "a6",
       "b1",
-      "f1",
-      "revenue_model"
+      "f1"
     ],
     "hidden": [
       "b_health_1",
@@ -686,6 +697,7 @@
     "deferred": [],
     "slaVisibleBankIds": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -725,6 +737,7 @@
   "realestate_website_full": {
     "eligible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -779,6 +792,7 @@
     ],
     "visible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -833,6 +847,7 @@
     ],
     "required": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a5",
@@ -847,8 +862,7 @@
       "d1",
       "d2",
       "f1",
-      "f2",
-      "revenue_model"
+      "f2"
     ],
     "hidden": [
       "b_health_1",
@@ -872,6 +886,7 @@
     "deferred": [],
     "slaVisibleBankIds": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -928,6 +943,7 @@
   "restaurant_nosite_full": {
     "eligible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -980,6 +996,7 @@
     ],
     "visible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -1032,6 +1049,7 @@
     ],
     "required": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a5",
@@ -1043,8 +1061,7 @@
       "d1",
       "d2",
       "f1",
-      "f2",
-      "revenue_model"
+      "f2"
     ],
     "hidden": [
       "b_health_1",
@@ -1070,6 +1087,7 @@
     "deferred": [],
     "slaVisibleBankIds": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -1123,6 +1141,7 @@
   },
   "services_spain_pre_brief": {
     "eligible": [
+      "a10",
       "a6",
       "a7",
       "b1",
@@ -1131,6 +1150,7 @@
       "f8"
     ],
     "visible": [
+      "a10",
       "a6",
       "a7",
       "b1",
@@ -1140,6 +1160,7 @@
     ],
     "required": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a5",
@@ -1151,8 +1172,7 @@
       "d1",
       "d2",
       "f1",
-      "f2",
-      "revenue_model"
+      "f2"
     ],
     "hidden": [
       "a1",
@@ -1222,6 +1242,7 @@
     "deferred": [],
     "slaVisibleBankIds": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -1275,6 +1296,7 @@
   "healthcare_express": {
     "eligible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -1327,6 +1349,7 @@
     ],
     "visible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -1378,12 +1401,12 @@
       "f8"
     ],
     "required": [
+      "a10",
       "a6",
       "b1",
       "c3",
       "c5",
-      "f1",
-      "revenue_model"
+      "f1"
     ],
     "hidden": [
       "b_hotel_1",
@@ -1409,6 +1432,7 @@
     "deferred": [],
     "slaVisibleBankIds": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -1463,6 +1487,7 @@
   "marine_full": {
     "eligible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -1513,6 +1538,7 @@
     ],
     "visible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -1563,6 +1589,7 @@
     ],
     "required": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a5",
@@ -1574,8 +1601,7 @@
       "d1",
       "d2",
       "f1",
-      "f2",
-      "revenue_model"
+      "f2"
     ],
     "hidden": [
       "b_health_1",
@@ -1603,6 +1629,7 @@
     "deferred": [],
     "slaVisibleBankIds": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -1655,6 +1682,7 @@
   "generic_nosite_discovery": {
     "eligible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -1692,6 +1720,7 @@
     ],
     "visible": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",
@@ -1729,6 +1758,7 @@
     ],
     "required": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a5",
@@ -1740,8 +1770,7 @@
       "d1",
       "d2",
       "f1",
-      "f2",
-      "revenue_model"
+      "f2"
     ],
     "hidden": [
       "b_health_1",
@@ -1782,6 +1811,7 @@
     "deferred": [],
     "slaVisibleBankIds": [
       "a1",
+      "a10",
       "a2",
       "a3",
       "a4",

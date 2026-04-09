@@ -341,13 +341,12 @@ const BASE_BRIEF_QUESTIONS: BriefQuestion[] = [
 export const EXPRESS_REQUIRED_QUESTION_IDS = EXPRESS_REQUIRED_ALWAYS_IDS;
 
 /**
- * Pre-brief UX layer: identity fields + policy `modes.pre_brief.bankIncluded` + bank revenue `a10`.
+ * Pre-brief UX layer: identity fields + policy `modes.pre_brief.bankIncluded` (includes `a10` when policy lists it).
  * Kept in sync with `intake-policy.v1.json` (see `PRE_BRIEF_PARTICIPATION_IDS` tests).
  */
 export const PRE_BRIEF_PARTICIPATION_IDS: ReadonlySet<string> = new Set<string>([
   ...INTAKE_IDENTITY_FIELD_IDS,
   ...(preBriefBankIncluded as string[]),
-  'a10',
 ]);
 
 /**

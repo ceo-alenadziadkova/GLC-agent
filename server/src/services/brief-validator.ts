@@ -25,7 +25,7 @@ import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
 import { isSupportedIntakeArtifactTuple, resolveIntakeArtifacts } from '../intake/core/resolve-intake-artifacts.js';
 import type { IntakeSurface } from '../intake/core/types.js';
 import { currentIntakeVersionTuple, syntheticIntakeVersionsBeforeMatrix } from '../intake/core/versions.js';
-import { deriveBankV1DataQuality, getQuestionBankPromptLabel, QUESTION_BANK_V1_STUBS } from '../intake/question-bank.js';
+import { deriveBankV1DataQuality, getQuestionBankPromptLabel } from '../intake/question-bank.js';
 import { logger } from './logger.js';
 import { prepareBriefForValidation } from '../intake/prepare-brief-for-validation.js';
 import { mergeReconConflictsFromC1 } from '../intake/recon-conflicts.js';

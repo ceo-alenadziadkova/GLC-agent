@@ -19,7 +19,6 @@ import {
   QUESTION_BANK_V1_STUBS,
 } from './question-bank.js';
 import type { IntakeAnswerContract, IntakeQuestionStub } from './types.js';
-import { unwrapIntakeValue } from './unwrap.js';
 import { mergeLegacyIntakeAliasesRead, syncRevenueAliasesForPersistence } from './legacy-response-aliases.js';
 
 function resolveOptions(contract: IntakeAnswerContract): readonly string[] | null {

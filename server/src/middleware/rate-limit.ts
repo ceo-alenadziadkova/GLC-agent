@@ -1,13 +1,16 @@
 import rateLimit, { MemoryStore } from 'express-rate-limit';
 import type { Request } from 'express';
 import { RedisStore } from 'rate-limit-redis';
-import { createClient, type RedisClientType } from 'redis';
+import { createClient } from 'redis';
 import type { AuthRequest } from './auth.js';
 
-const RATE_LIMIT_REDIS_URL = process.env.RATE_LIMIT_REDIS_URL?.trim() ?? '';
-let sharedRedisClient: RedisClientType | null = null;
+/** Inferred from `createClient` so assignments stay compatible when redis adds optional modules / RESP versions. */
+type RateLimitRedisClient = ReturnType<typeof createClient>;
 
-function getSharedRedisClient(): RedisClientType | null {
+const RATE_LIMIT_REDIS_URL = process.env.RATE_LIMIT_REDIS_URL?.trim() ?? '';
+let sharedRedisClient: RateLimitRedisClient | null = null;
+
+function getSharedRedisClient(): RateLimitRedisClient | null {
   if (!RATE_LIMIT_REDIS_URL) return null;
   if (sharedRedisClient) return sharedRedisClient;
   const client = createClient({ url: RATE_LIMIT_REDIS_URL });

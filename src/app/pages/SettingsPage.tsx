@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { SignOut, Bell, User, PaintBucket, ClipboardText, Users } from '@phosphor-icons/react';
+import { SignOut, Bell, User, PaintBucket, ClipboardText, Users, TreeStructure } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { AppShell } from '../components/AppShell';
+import { QuestionBankStudio } from '../components/QuestionBankStudio';
+import { isQuestionBankStudioEnabled } from '../lib/question-bank-studio-flags';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Switch } from '../components/ui/switch';
 import { api } from '../data/apiService';
 import { useAuth } from '../hooks/useAuth';
@@ -177,6 +180,8 @@ export function SettingsPage() {
     }
   };
 
+  const studioTabEnabled = isQuestionBankStudioEnabled() && isConsultant;
+
   const briefLayoutBtnStyle = (active: boolean): CSSProperties => ({
     borderRadius: 'var(--radius-md)',
     border: active ? '1px solid var(--glc-blue)' : '1px solid var(--border-default)',
@@ -188,9 +193,8 @@ export function SettingsPage() {
     cursor: 'pointer',
   });
 
-  return (
-    <AppShell title="Settings" subtitle="Manage profile, appearance, intake brief layout, and notifications">
-      <div className="px-7 py-6 space-y-5">
+  const generalSections = (
+    <div className="px-7 py-6 space-y-5">
         <section
           className="p-5"
           style={{
@@ -599,7 +603,45 @@ export function SettingsPage() {
             Sign out
           </button>
         </section>
-      </div>
+    </div>
+  );
+
+  return (
+    <AppShell title="Settings" subtitle="Manage profile, appearance, intake brief layout, and notifications">
+      {studioTabEnabled ? (
+        <Tabs defaultValue="general" className="w-full">
+          <div className="px-7 pt-6 pb-0">
+            <TabsList
+              className="!bg-transparent !h-auto !p-0 flex flex-wrap gap-2 justify-start rounded-none"
+              style={{ background: 'transparent' }}
+            >
+              <TabsTrigger
+                value="general"
+                className="!shadow-none rounded-md border border-[var(--border-default)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] data-[state=active]:border-[var(--glc-blue)] data-[state=active]:text-[var(--glc-blue)] data-[state=active]:bg-[rgba(28,189,255,0.08)]"
+              >
+                General
+              </TabsTrigger>
+              <TabsTrigger
+                value="bank-studio"
+                className="!shadow-none rounded-md border border-[var(--border-default)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] data-[state=active]:border-[var(--glc-blue)] data-[state=active]:text-[var(--glc-blue)] data-[state=active]:bg-[rgba(28,189,255,0.08)] flex items-center gap-1.5"
+              >
+                <TreeStructure size={16} weight="bold" />
+                Question Bank Studio
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          <TabsContent value="general" className="mt-0">
+            {generalSections}
+          </TabsContent>
+          <TabsContent value="bank-studio" className="mt-0">
+            <div className="px-7 py-6">
+              <QuestionBankStudio />
+            </div>
+          </TabsContent>
+        </Tabs>
+      ) : (
+        generalSections
+      )}
     </AppShell>
   );
 }

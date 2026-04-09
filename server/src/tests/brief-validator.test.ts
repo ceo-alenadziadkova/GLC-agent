@@ -107,6 +107,7 @@ import {
   makeWebsitePathExpressBrief,
   makeWebsitePathFullBrief,
 } from './bank-brief-fixtures.js';
+import { currentIntakeVersionTuple } from '../intake/core/versions.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -338,10 +339,11 @@ describe('saveBriefResponses()', () => {
     await saveBriefResponses('audit-001', makeFullRequired());
     const upsert = getUpsertCalls().find(c => c.table === 'intake_brief');
     const iv = (upsert!.payload as Record<string, unknown>).intake_versions as Record<string, string>;
-    expect(iv.questionBankVersion).toBe('1.1.0');
-    expect(iv.policyVersion).toBe('1.1.0');
-    expect(iv.layoutVersion).toBe('1.1.0');
-    expect(iv.resolverVersion).toBe('1.1.0');
+    const cur = currentIntakeVersionTuple();
+    expect(iv.questionBankVersion).toBe(cur.questionBankVersion);
+    expect(iv.policyVersion).toBe(cur.policyVersion);
+    expect(iv.layoutVersion).toBe(cur.layoutVersion);
+    expect(iv.resolverVersion).toBe(cur.resolverVersion);
   });
 
   it('rejects responses with invalid Zod types (string over BRIEF_ANSWER_STRING_MAX)', async () => {
@@ -412,7 +414,7 @@ describe('arePreBriefSlotsSatisfied', () => {
     intake_company_name: 'Acme',
     intake_industry: 'Hospitality',
     a5: 'Yes, multi-page site',
-    revenue_model: 'Lead generation',
+    a10: 'Lead generation',
     f1: 'More direct bookings',
     b1: 'Travelers 30–50',
     a6: 'Yes',

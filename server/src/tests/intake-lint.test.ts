@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { lintBankAndPolicyAll } from '../intake/core/lint-bank-policy.js';
+import { lintBankAndPolicyAll, lintSyntheticCollision } from '../intake/core/lint-bank-policy.js';
 
 describe('intake bank + policy lint', () => {
   it('reports no errors (warnings allowed)', () => {
@@ -13,5 +13,10 @@ describe('intake bank + policy lint', () => {
       console.error(errors.map(e => `${e.code}: ${e.message}`).join('\n'));
     }
     expect(errors).toEqual([]);
+  });
+
+  it('allows canonical revenue bank id in syntheticRequired (no SYNTHETIC_COLLISION)', () => {
+    const collisions = lintSyntheticCollision().filter(f => f.code === 'SYNTHETIC_COLLISION');
+    expect(collisions).toEqual([]);
   });
 });

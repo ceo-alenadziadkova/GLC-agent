@@ -31,7 +31,7 @@ describe('intake-policy v1 parity', () => {
   });
 
   it('loadIntakePolicy returns the same artifact', () => {
-    expect(loadIntakePolicy().version).toBe('1.1.0');
+    expect(loadIntakePolicy().version).toBe(INTAKE_POLICY_V1.version);
   });
 
   it('required bank ids from policy match plan.required for every fixture', () => {

@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { BRANCH_RULES } from '../branch-rules.js';
+import { INTAKE_REVENUE_BANK_ID } from '../legacy-response-aliases.js';
 import { QUESTION_BANK_V1_STUBS, QUESTION_BANK_V1_IDS } from '../question-bank.js';
 import type { IntakeQuestionStub } from '../types.js';
 
@@ -172,7 +173,16 @@ export function lintDuplicateDiscoveryIncluded(policy: IntakePolicyV1 = INTAKE_P
   return findings;
 }
 
-/** Synthetic / SLA ids must not reuse a real bank question id as a key. */
+/**
+ * Ids permitted in `syntheticRequired` even when the same id exists as a bank question.
+ * Keep this minimal: the usual rule is still "no accidental bank id in synthetics".
+ * Today: revenue is canonically `INTAKE_REVENUE_BANK_ID` in both places (ADR Phase 5).
+ */
+const ALLOWED_SYNTHETIC_BANK_OVERLAP: ReadonlySet<string> = new Set([INTAKE_REVENUE_BANK_ID]);
+
+/**
+ * Synthetic / SLA ids must not reuse an arbitrary bank question id as a policy key.
+ */
 export function lintSyntheticCollision(
   policy: IntakePolicyV1 = INTAKE_POLICY_V1,
   bankIds: Set<string> = QUESTION_BANK_V1_IDS,
@@ -183,6 +193,7 @@ export function lintSyntheticCollision(
     ...policy.modes.discovery.syntheticRequired,
   ]);
   for (const id of synthetics) {
+    if (ALLOWED_SYNTHETIC_BANK_OVERLAP.has(id)) continue;
     if (bankIds.has(id)) {
       findings.push({
         code: 'SYNTHETIC_COLLISION',

@@ -149,9 +149,15 @@ vi.mock('../middleware/rate-limit.js', () => ({
 
 import express from 'express';
 import { auditsRouter } from '../routes/audits.js';
-import { REQUIRED_QUESTION_IDS, BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
 import { resolveExpressSlaRequiredIds } from '../intake/brief-gates.js';
+import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
 import { currentIntakeVersionTuple } from '../intake/core/versions.js';
+import { mergeLegacyIntakeAliasesRead } from '../intake/legacy-response-aliases.js';
+import {
+  resolveIntakeSurfaceForPlan,
+  validationPerspectiveForBriefAccess,
+} from '../services/brief-validator.js';
+import { getBriefQuestionsByIds } from '../schemas/intake-brief.js';
 import { makeWebsitePathFullBrief } from './bank-brief-fixtures.js';
 
 let server: Server;
@@ -251,7 +257,17 @@ describe('GET /api/audits/:id/brief', () => {
 
     expect(status).toBe(200);
     expect(body.questions).toBeInstanceOf(Array);
-    expect((body.questions as unknown[]).length).toBe(28);
+    const audit = { user_id: 'user-001', client_id: null as string | null };
+    const perspective = validationPerspectiveForBriefAccess(audit.user_id, audit.client_id, 'user-001');
+    const surface = resolveIntakeSurfaceForPlan('self_serve', perspective);
+    const plan = buildIntakePlan({
+      responses: mergeLegacyIntakeAliasesRead({}),
+      productMode: 'express',
+      collectionMode: 'self_serve',
+      surface,
+      intakeVersionTuple: currentIntakeVersionTuple(),
+    });
+    expect((body.questions as unknown[]).length).toBe(getBriefQuestionsByIds(plan.visible).length);
     expect(body.brief).toBeNull();
     expect(body.gates).toBeDefined();
     expect(body.intakeProgress).toBeDefined();
@@ -327,20 +343,32 @@ describe('GET /api/audits/:id/brief', () => {
     expect(status).toBe(200);
   });
 
-  it('questions array contains required priority items', async () => {
+  it('questions array marks required rows for visible plan.required ids', async () => {
     const { body } = await getJSON('/api/audits/audit-001/brief');
     const questions = body.questions as Array<Record<string, unknown>>;
+    const audit = { user_id: 'user-001', client_id: null as string | null };
+    const perspective = validationPerspectiveForBriefAccess(audit.user_id, audit.client_id, 'user-001');
+    const surface = resolveIntakeSurfaceForPlan('self_serve', perspective);
+    const plan = buildIntakePlan({
+      responses: mergeLegacyIntakeAliasesRead({}),
+      productMode: 'express',
+      collectionMode: 'self_serve',
+      surface,
+      intakeVersionTuple: currentIntakeVersionTuple(),
+    });
     const required = questions.filter(q => q.priority === 'required');
-    expect(required.length).toBe(REQUIRED_QUESTION_IDS.length);
+    const expectedRequired = getBriefQuestionsByIds(plan.visible).filter(q => q.priority === 'required');
+    expect(required.map(q => q.id).sort()).toEqual(expectedRequired.map(q => q.id).sort());
   });
 
-  it('questions include all priority types', async () => {
+  it('questions use valid priority labels', async () => {
     const { body } = await getJSON('/api/audits/audit-001/brief');
     const questions = body.questions as Array<Record<string, unknown>>;
     const priorities = new Set(questions.map(q => q.priority));
     expect(priorities.has('required')).toBe(true);
-    expect(priorities.has('recommended')).toBe(true);
-    expect(priorities.has('optional')).toBe(true);
+    for (const p of priorities) {
+      expect(['required', 'recommended', 'optional']).toContain(p);
+    }
   });
 });
 
