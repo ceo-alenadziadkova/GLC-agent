@@ -399,7 +399,7 @@ SELECT COUNT(*) FILTER (WHERE last_shown IS NOT NULL AND last_answered IS NULL) 
 FROM sess;
 ```
 
-Decision context: [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](./ADR-INTAKE-UNIFIED-QUESTION-BANK.md) (Phase G).
+Decision context: [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) (Phase G).
 
 ---
 

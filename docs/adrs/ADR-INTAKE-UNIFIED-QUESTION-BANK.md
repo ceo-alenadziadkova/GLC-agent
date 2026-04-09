@@ -1,12 +1,10 @@
 # ADR: Unified question bank, policy/layout layers, and IntakePlan resolver
 
-
-| Field      | Value                                                                 |
-| ---------- | --------------------------------------------------------------------- |
-| **Status** | Proposed                                                              |
-| **Date**   | 2026-04-05                                                            |
-| **Scope**  | Intake / question bank / Discovery / Express / Pre-brief / Full brief |
-
+| Field | Value |
+| --- | --- |
+| **Status** | Proposed |
+| **Date** | 2026-04-05 |
+| **Scope** | Intake / question bank / Discovery / Express / Pre-brief / Full brief |
 
 ## Context
 
@@ -29,14 +27,12 @@ We adopt a **four-layer model**, a **single runtime entry point** `buildIntakePl
 
 These versions are part of the architecture, not an implementation detail:
 
-
-| Version               | Refers to                                                                            |
-| --------------------- | ------------------------------------------------------------------------------------ |
-| `questionBankVersion` | Canon artifact (`question-bank.v1.json` lineage).                                    |
-| `policyVersion`       | Policy artifact (`intake-policy.v1.json` or successor).                              |
-| `layoutVersion`       | Layout artifact (`layout-rules.v1.json` or successor).                               |
-| `resolverVersion`     | Semantics of `buildIntakePlan` (breaking changes to plan shape or evaluation order). |
-
+| Version | Refers to |
+| --- | --- |
+| `questionBankVersion` | Canon artifact (`question-bank.v1.json` lineage). |
+| `policyVersion` | Policy artifact (`intake-policy.v1.json` or successor). |
+| `layoutVersion` | Layout artifact (`layout-rules.v1.json` or successor). |
+| `resolverVersion` | Semantics of `buildIntakePlan` (breaking changes to plan shape or evaluation order). |
 
 **Rule:** every **submit** and every **saved draft** of intake responses stores this version tuple (or a single bundle id that maps to it) alongside answers. Server validation MUST use the same tuple the client used to render (or explicitly migrate with a recorded migration step). This prevents “question disappeared” bugs caused by client and server silently disagreeing on which bank snapshot applied.
 
@@ -54,12 +50,12 @@ Holds the **immutable semantic definition** of each question entity: **identity*
 
 Holds participation separate from coarse `priority`:
 
-- `**mode`** (product scenario): `full | express | discovery | pre_brief | ...` — not the same as UI surface.
+- **`mode`** (product scenario): `full | express | discovery | pre_brief | ...` — not the same as UI surface.
 - **Per-mode rules** such as `modePolicy` / `requirednessByMode` / `askStrategy` (`always`, `if_needed`, `progressive`, `consultant_only`).
 
-`**priority` (required / recommended / optional)** remains an editorial/research axis. It must **not** be the sole driver of Express or Pre-brief SLA; SLA and exclusions are expressed explicitly in policy to avoid hidden exceptions.
+**`priority` (required / recommended / )** remains an editorial/research axis. It must **not** be the sole driver of Express or Pre-brief SLA; SLA and exclusions are expressed explicitly in policy to avoid hidden exceptions.
 
-`**surface`** (UI context): e.g. `client_form | consultant_interview | client_portal | internal_review | public_discovery | ...`. The same **mode** (e.g. `discovery`) may appear on more than one surface (public page vs consultant-led flow). Mode and surface are **orthogonal** inputs to the resolver.
+**`surface`** (UI context): e.g. `client_form | consultant_interview | client_portal | internal_review | public_discovery | ...`. The same **mode** (e.g. `discovery`) may appear on more than one surface (public page vs consultant-led flow). Mode and surface are **orthogonal** inputs to the resolver.
 
 ### 3. Layout layer (presentation and slots)
 
@@ -83,15 +79,13 @@ buildIntakePlan(ctx): IntakePlan
 
 These definitions are **normative** for code and tests; they must not drift informally across teams.
 
-
-| Term         | Definition                                                                                                                                                                             |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Term | Definition |
+| --- | --- |
 | **eligible** | Passes branch rules **and** policy for the current `(mode, surface, …)`; the question is **in play** for this context. Not yet a statement about whether it is on-screen this instant. |
-| **visible**  | Should be **shown** in the current UI state (eligible, not suppressed by layout deferral for this step, and consistent with `stepPlan` / current wizard position if applicable).       |
-| **required** | Blocks **completion** of the current **mode** (e.g. submit SLA) until satisfied; subset of eligible, defined by policy + mode, not by layout.                                          |
-| **deferred** | **Eligible** but intentionally **not asked yet** per `askStrategy` or layout step sequencing (e.g. progressive disclosure). Must not be conflated with “hidden because excluded.”      |
-| **hidden**   | **Not eligible** for this context: excluded by branch, policy, or surface rules.                                                                                                       |
-
+| **visible** | Should be **shown** in the current UI state (eligible, not suppressed by layout deferral for this step, and consistent with `stepPlan` / current wizard position if applicable). |
+| **required** | Blocks **completion** of the current **mode** (e.g. submit SLA) until satisfied; subset of eligible, defined by policy + mode, not by layout. |
+| **deferred** | **Eligible** but intentionally **not asked yet** per `askStrategy` or layout step sequencing (e.g. progressive disclosure). Must not be conflated with “hidden because excluded.” |
+| **hidden** | **Not eligible** for this context: excluded by branch, policy, or surface rules. |
 
 `reasonsById` / `debugTrace` MUST be able to justify each classification (e.g. “hidden: branch `no_website`”, “deferred: layout step 3”, “required: policy express SLA”).
 
@@ -101,7 +95,7 @@ Minimum:
 
 - Sets (or ordered lists) for `eligible`, `visible`, `required`, `hidden`, `deferred`
 - `layoutSlots` (slot id to resolved question id or null)
-- `stepPlan` (optional ordered steps for wizards)
+- `stepPlan` ( ordered steps for wizards)
 - `reasonsById` / `debugTrace`
 - `versions`: `{ questionBankVersion, policyVersion, layoutVersion, resolverVersion }` echoing what was used to build the plan
 
@@ -111,20 +105,20 @@ Minimum:
 - `coverage` — which domains / report dimensions have minimum input
 - `confidence` — heuristic strength of triage or pre-report conclusions
 
-Related optional fields already envisioned: `missingForReport`, `nextRecommended` (adaptive UX). They are **not** required in the first shipping tranche but belong to the **documented** evolution of `IntakePlan` so the core does not need redesign when they land.
+Related  fields already envisioned: `missingForReport`, `nextRecommended` (adaptive UX). They are **not** required in the first shipping tranche but belong to the **documented** evolution of `IntakePlan` so the core does not need redesign when they land.
 
 The mental model shifts from “which questions are visible?” to **“what data-collection plan does this context need?”**
 
 ### Explainability first
 
-Before replacing production gates with the new resolver, the implementation must expose **explainability** (`whyVisible` / `whyHidden`, matched rules) on the plan object. Explainability is **mandatory** for migration, not optional polish. Otherwise parity migrations against Discovery/Express will be slow and brittle.
+Before replacing production gates with the new resolver, the implementation must expose **explainability** (`whyVisible` / `whyHidden`, matched rules) on the plan object. Explainability is **mandatory** for migration, not  polish. Otherwise parity migrations against Discovery/Express will be slow and brittle.
 
 ### Performance and packaging (directional)
 
 - **Compile** canon + policy into an internal **DAG** (or explicit dependency index) at build or startup; evaluate visibility in topological or dependency order without re-walking raw JSON on every event.
 - **Incremental recompute**: on answer change, track `dirtyIds` and re-evaluate only questions whose branch deps or policy deps are affected (**reverse-edge** invalidation); cache unchanged regions of the plan where safe.
 - **Client**: prefer running the same `intake-core` locally for instant branching; server validates submits with the **same version tuple** as the client.
-- **API**: optional compact `brief-schema` snapshot for a product version; payloads remain `{ id, value, ... }` plus stored version metadata.
+- **API**:  compact `brief-schema` snapshot for a product version; payloads remain `{ id, value, ... }` plus stored version metadata.
 
 ### Rejected alternatives
 
@@ -142,7 +136,7 @@ These patterns are known to reintroduce duplication and unexplained diffs; code 
 **Phase 0 — Contract (before behavior changes)**
 
 - Publish a short **glossary** (this ADR’s state semantics + mode vs surface).
-- Fix **canonical fixture set** (e.g. `hotel_no_site`, `solo_with_site`, `real_estate_small_team`) and the **snapshot format** (fields compared in regression: `eligible`, `visible`, `required`, `deferred`, `hidden`, optional `layoutSlots`, optional `derived` stubs).
+- Fix **canonical fixture set** (e.g. `hotel_no_site`, `solo_with_site`, `real_estate_small_team`) and the **snapshot format** (fields compared in regression: `eligible`, `visible`, `required`, `deferred`, `hidden`,  `layoutSlots`,  `derived` stubs).
 
 **Phase 1** — Introduce policy data that reproduces current behavior (Discovery whitelist, Express required set) with **no UX change**.
 
@@ -158,7 +152,7 @@ These patterns are known to reintroduce duplication and unexplained diffs; code 
 
 **Phase 6** — Introduce `layout-rules` without changing canon semantics.
 
-### Optional metadata (phased)
+###  metadata (phased)
 
 Strong candidates later on **canon**: `reportUse`, `confidenceImpact`, `sensitivity`, `askOnce`, `answerFreshnessDays`, `owner`, `introducedInVersion`, `deprecatedAt`. Not all are required for the first migration tranche.
 
@@ -192,14 +186,7 @@ These are **explicitly out of scope** for ADR acceptance but aligned with the sa
 - Operational detail stays in [QUESTION_BANK.md](./QUESTION_BANK.md) (human-readable mirror of branching and agent mapping).
 - This ADR is the **decision record**; when implementation lands, link the concrete file paths and package name from [MASTER.md](./MASTER.md) or [ARCHITECTURE.md](./ARCHITECTURE.md).
 
-### Runtime rollout flags
-
-- `INTAKE_INCREMENTAL_ENGINE_ENABLED` — enables incremental recompute path (`recomputePlanIncremental`) with reverse-edge invalidation.
-- `INTAKE_POLICY_RICHNESS_ENABLED` — enables policy richness extensions (`requirednessByMode`, `askStrategyById`) with backward-compatible fallback.
-- `INTAKE_NEXT_RECOMMENDED_ENABLED` / `VITE_INTAKE_NEXT_RECOMMENDED_ENABLED` — controls `nextRecommended` UX hints.
-
 ## References
 
 - `server/src/intake/is-visible.ts`, `server/src/intake/branch-rules.ts`, `server/src/intake/discovery.ts`, `server/src/intake/brief-gates.ts`
 - `src/app/lib/discovery-flow.ts` (to be reduced to policy/layout consumers over time)
-

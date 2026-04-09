@@ -109,7 +109,7 @@ Rules are stored in **`server/config/snapshot/audit-rules.v1.yaml`**; evaluators
 
 This ADR remains normative for **free snapshot**: **no Unlighthouse**, and **no mandatory Lighthouse** on the default public snapshot path.
 
-**Shared product target** (see [ARCHITECTURE.md](./ARCHITECTURE.md#target-architecture-lighthouse-and-unlighthouse)): the **full audit** should move toward **multi-URL** Lighthouse coverage using an **Unlighthouse-class** orchestrator with hard caps. The **free snapshot** may, in the future, offer **at most one** programmatic Lighthouse run **only after explicit user opt-in** (or an equivalent paid/upsell gate) — not as an automatic step on every `POST /api/snapshot`. That keeps the mass-market grader cheap and fast while concentrating Chrome-heavy work in modes that expect it.
+**Shared product target** (see [ARCHITECTURE.md](../ARCHITECTURE.md#target-architecture-lighthouse-and-unlighthouse)): the **full audit** should move toward **multi-URL** Lighthouse coverage using an **Unlighthouse-class** orchestrator with hard caps. The **free snapshot** may, in the future, offer **at most one** programmatic Lighthouse run **only after explicit user opt-in** (or an equivalent paid/upsell gate) — not as an automatic step on every `POST /api/snapshot`. That keeps the mass-market grader cheap and fast while concentrating Chrome-heavy work in modes that expect it.
 
 ---
 
@@ -128,7 +128,7 @@ The public snapshot endpoint is an **SSRF risk surface**. Normative rules:
 | DNS | Mitigate **DNS rebinding** by resolving and validating the target IP before fetch where the stack allows, consistent with other outbound collectors. |
 | Content | Reject or short-circuit **non-HTML** primary responses for scoring (binary, `application/json` homepage, etc.) with a structured failure / degraded outcome (see Failure-mode policy). |
 
-Implementation should align with existing URL validation used for audit collectors where possible ([SECURITY.md](./SECURITY.md)).
+Implementation should align with existing URL validation used for audit collectors where possible ([SECURITY.md](../SECURITY.md)).
 
 ### Abuse protection and rate limiting
 
@@ -145,7 +145,7 @@ Public `/api/snapshot` must assume **abuse as default**. Normative controls:
 | **429 strategy** | Stable JSON error body: `retry_after` hint, error code; avoid partial bodies. |
 | **CAPTCHA / proof-of-human** | **Optional** later layer for anonymous bursts; not required for MVP if IP + domain limits are sufficient. |
 
-Inventory (env-driven limits, current thresholds) should stay documented in [API.md](./API.md) / [SECURITY.md](./SECURITY.md).
+Inventory (env-driven limits, current thresholds) should stay documented in [API.md](../API.md) / [SECURITY.md](../SECURITY.md).
 
 ### Robots.txt, user-agent, and crawl politeness
 
@@ -254,7 +254,7 @@ Rule YAML and heuristics **cannot** evolve safely without telemetry.
 | Topic | Policy |
 | --- | --- |
 | **What is cached** | Normative: **derived artifact** (facts JSON, scores, profile, coverage metadata, versions) keyed by domain; **avoid** storing full raw HTML in long-lived cache unless required for debugging — if stored, **short TTL** and **access restricted**. |
-| **TTL** | Domain cache TTL env-driven; document in [API.md](./API.md) / [DATABASE.md](./DATABASE.md). |
+| **TTL** | Domain cache TTL env-driven; document in [API.md](../API.md) / [DATABASE.md](../DATABASE.md). |
 | **PII** | Homepage extraction may surface **phones, emails, addresses, names** from schema/footer. **Minimize** persistence: prefer derived signals (“contact present”) over raw strings in cache; if raw strings exist, treat as **sensitive** and apply retention/redaction. |
 | **Purge** | Support **operator purge by domain** (and document legal/process owner). |
 
@@ -357,21 +357,21 @@ Normative items above may **outpace** current code. Track at least:
 3. **Fetch default budget** — **Done:** default **10s** (`SNAPSHOT_FETCH_BUDGET_MS`), ADR-aligned **~8–12s** band.
 4. **Classification YAML** — **Improved:** **v5** — title tokens from all sampled pages feed slug signals; **service-business** no longer fires on generic `/contact`/`/about` slugs alone (**`minMatch: 3`**); **`classification_transparency`** in snapshot outputs; banks still evolve with product.
 5. **Abuse controls** — **Improved:** optional **shared** cooldown (`snapshot_domain_cooldown`) + **shared fresh concurrency** (`snapshot_fresh_lease` RPCs) with **`SNAPSHOT_SHARED_ABUSE_STORE`**; compare limit remains **per process**.
-6. **SSRF parity** — **Improved:** redirect hop re-validation + **per-target-hostname** DNS checks on redirect chains (see `fetch-public-http-url.test.ts`); keep aligned with [SECURITY.md](./SECURITY.md).
+6. **SSRF parity** — **Improved:** redirect hop re-validation + **per-target-hostname** DNS checks on redirect chains (see `fetch-public-http-url.test.ts`); keep aligned with [SECURITY.md](../SECURITY.md).
 7. **Robots.txt** — **Done** in implementation; empty `Disallow:` line and merge behavior covered in tests — re-verify further edge cases if crawlers misbehave in the wild.
 8. **Response contract** — **Done** for listed fields; **`scan_coverage`** extended with anomaly flags.
-9. **Observability** — **Improved:** [SECURITY.md](./SECURITY.md#snapshot-observability--log-redaction-runbook) runbook (redaction allowlist, Loki example, alerts) + [DEPLOYMENT.md](./DEPLOYMENT.md) hosted-dashboard notes; operator metrics include shared lease headcount when the store is on.
+9. **Observability** — **Improved:** [SECURITY.md](../SECURITY.md#snapshot-observability--log-redaction-runbook) runbook (redaction allowlist, Loki example, alerts) + [DEPLOYMENT.md](../DEPLOYMENT.md) hosted-dashboard notes; operator metrics include shared lease headcount when the store is on.
 10. **Retention** — **Improved:** cache strips contacts; **`audit_recon.contact_info`** cleared on free-snapshot persist; operator purge API.
 11. **Failure-mode matrix** — **Improved:** ordered WAF/challenge taxonomy (`challenge_taxonomy`); parked weak-hint suppression when JSON-LD / tel / mailto / internal path links + visible text suggest a live SMB site; `spa_shell_thin_html` for no-copy root mounts with many scripts; **residual gap:** edge cases that mimic both (e.g. marketing sites with extreme script count and little static text).
 12. **CAPTCHA for snapshot** — optional Turnstile (or similar) on **login** or the snapshot form if **anonymous** bursts become an issue; IP/server rate limits for snapshot remain as today.
-13. **Lighthouse split (snapshot vs full audit)** — **Target:** [ARCHITECTURE.md](./ARCHITECTURE.md#target-architecture-lighthouse-and-unlighthouse) — full audit evolves toward **multi-URL** (Unlighthouse-class); snapshot stays **without default Lighthouse**, optional **single-URL** only on explicit opt-in. **Today:** pipeline uses **one** Lighthouse URL when deep-scan env is on; snapshot still runs **zero** Lighthouse on the default path.
+13. **Lighthouse split (snapshot vs full audit)** — **Target:** [ARCHITECTURE.md](../ARCHITECTURE.md#target-architecture-lighthouse-and-unlighthouse) — full audit evolves toward **multi-URL** (Unlighthouse-class); snapshot stays **without default Lighthouse**, optional **single-URL** only on explicit opt-in. **Today:** pipeline uses **one** Lighthouse URL when deep-scan env is on; snapshot still runs **zero** Lighthouse on the default path.
 
 ---
 
 ## Related documents
 
-- [API.md](./API.md) — public snapshot contract and env vars.
-- [PRODUCT.md](./PRODUCT.md) — `free_snapshot` mode description.
-- [DEPLOYMENT.md](./DEPLOYMENT.md) — Playwright on Railway.
-- [DATABASE.md](./DATABASE.md) — `snapshot_domain_cache`.
-- [SECURITY.md](./SECURITY.md) — SSRF, URL validation, rate limits (align snapshot with platform rules).
+- [API.md](../API.md) — public snapshot contract and env vars.
+- [PRODUCT.md](../PRODUCT.md) — `free_snapshot` mode description.
+- [DEPLOYMENT.md](../DEPLOYMENT.md) — Playwright on Railway.
+- [DATABASE.md](../DATABASE.md) — `snapshot_domain_cache`.
+- [SECURITY.md](../SECURITY.md) — SSRF, URL validation, rate limits (align snapshot with platform rules).
