@@ -5,6 +5,7 @@ import { CaretRight, Funnel, Graph } from '@phosphor-icons/react';
 import type { IntakePlan, QuestionReason } from '../../../../server/src/intake/core/types';
 import { QUESTION_BANK_V1_STUBS } from '../../../../server/src/intake/question-bank';
 import { computeBranchDownstreamIds, computeBranchUpstreamIds } from './intake-trace-branch-links';
+import { humanizeReason, summarizeStatus } from '../../lib/intake-trace-humanize';
 
 const LAYERS: QuestionReason['layer'][] = ['canon', 'policy', 'layout'];
 const STATES: QuestionReason['state'][] = ['eligible', 'hidden', 'visible', 'deferred', 'required'];
@@ -59,6 +60,8 @@ function QuestionTraceRow({
   open,
   onToggleOpen,
   onFocusBranch,
+  resolveLabel,
+  mode,
 }: {
   id: string;
   plan: IntakePlan;
@@ -66,8 +69,12 @@ function QuestionTraceRow({
   open: boolean;
   onToggleOpen: (id: string, nextOpen: boolean) => void;
   onFocusBranch: (id: string) => void;
+  resolveLabel: (id: string) => string;
+  mode: 'simple' | 'expert';
 }) {
   const reasons = (plan.reasonsById ?? {})[id] ?? [];
+  const label = resolveLabel(id);
+  const statusSummary = summarizeStatus(id, sets);
   return (
     <details
       className="group border-b border-[var(--glc-border)] bg-[var(--glc-surface-2)]"
@@ -84,6 +91,9 @@ function QuestionTraceRow({
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-[var(--glc-fg)]">{id}</span>
+            {mode === 'simple' && (
+              <span className="text-[11px] text-[var(--glc-muted)] break-all">{label}</span>
+            )}
             <button
               type="button"
               className="rounded border border-[var(--glc-border)] bg-[var(--glc-surface)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--glc-muted)] hover:text-[var(--glc-fg)]"
@@ -96,6 +106,9 @@ function QuestionTraceRow({
               Branch links
             </button>
           </div>
+          {mode === 'simple' && (
+            <div className="text-[11px] text-[var(--glc-muted)]">{statusSummary}</div>
+          )}
           <div className="flex flex-wrap gap-1">
             {sets.eligible.has(id) && (
               <span
@@ -148,17 +161,23 @@ function QuestionTraceRow({
         ) : (
           reasons.map((r, i) => (
             <li key={`${r.layer}-${r.state}-${r.code}-${i}`}>
-              <span className="text-[var(--glc-fg)]">{r.layer}</span>
-              <span className="text-[var(--glc-muted)]"> / </span>
-              <span>{r.state}</span>
-              <span className="text-[var(--glc-muted)]"> / </span>
-              <span>{r.code}</span>
-              {r.detail ? (
+              {mode === 'simple' ? (
+                <span className="break-words">{humanizeReason(r)}</span>
+              ) : (
                 <>
-                  <span className="text-[var(--glc-muted)]"> — </span>
-                  <span className="break-all">{r.detail}</span>
+                  <span className="text-[var(--glc-fg)]">{r.layer}</span>
+                  <span className="text-[var(--glc-muted)]"> / </span>
+                  <span>{r.state}</span>
+                  <span className="text-[var(--glc-muted)]"> / </span>
+                  <span>{r.code}</span>
+                  {r.detail ? (
+                    <>
+                      <span className="text-[var(--glc-muted)]"> — </span>
+                      <span className="break-all">{r.detail}</span>
+                    </>
+                  ) : null}
                 </>
-              ) : null}
+              )}
             </li>
           ))
         )}
@@ -167,7 +186,15 @@ function QuestionTraceRow({
   );
 }
 
-export function IntakePlanQuestionTrace({ plan }: { plan: IntakePlan }) {
+export function IntakePlanQuestionTrace({
+  plan,
+  mode = 'expert',
+  resolveLabel = id => id,
+}: {
+  plan: IntakePlan;
+  mode?: 'simple' | 'expert';
+  resolveLabel?: (id: string) => string;
+}) {
   const [query, setQuery] = useState('');
   const [layerFilter, setLayerFilter] = useState<Set<QuestionReason['layer']>>(
     () => new Set(LAYERS),
@@ -183,8 +210,16 @@ export function IntakePlanQuestionTrace({ plan }: { plan: IntakePlan }) {
 
   const sortedIds = useMemo(() => {
     const reasons = plan.reasonsById ?? {};
-    return Object.keys(reasons).sort((a, b) => a.localeCompare(b));
-  }, [plan.reasonsById]);
+    const ids = new Set<string>([
+      ...Object.keys(reasons),
+      ...plan.eligible,
+      ...plan.visible,
+      ...plan.required,
+      ...plan.hidden,
+      ...plan.deferred,
+    ]);
+    return [...ids].sort((a, b) => a.localeCompare(b));
+  }, [plan.reasonsById, plan.eligible, plan.visible, plan.required, plan.hidden, plan.deferred]);
 
   const filteredIds = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -323,7 +358,11 @@ export function IntakePlanQuestionTrace({ plan }: { plan: IntakePlan }) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--glc-muted)]">
         <Funnel className="w-4 h-4 shrink-0" aria-hidden />
-        <span>Filter reasons; membership chips reflect plan sets.</span>
+        <span>
+          {mode === 'simple'
+            ? 'Simple mode: question text + human-readable reasons.'
+            : 'Expert mode: raw reason rows; membership chips reflect plan sets.'}
+        </span>
       </div>
 
       {filterBar}
@@ -343,7 +382,7 @@ export function IntakePlanQuestionTrace({ plan }: { plan: IntakePlan }) {
             >
               {sortedIds.map(id => (
                 <option key={id} value={id}>
-                  {id}
+                  {id} — {resolveLabel(id)}
                 </option>
               ))}
             </select>
@@ -369,6 +408,9 @@ export function IntakePlanQuestionTrace({ plan }: { plan: IntakePlan }) {
                       <span className="text-[var(--glc-muted)]">{p}</span>
                       <span className="text-[var(--glc-muted)]"> → </span>
                       <span>{graphFocusId}</span>
+                      <div className="text-[10px] font-sans text-[var(--glc-muted)]">
+                        {resolveLabel(p)} → {resolveLabel(graphFocusId)}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -387,6 +429,9 @@ export function IntakePlanQuestionTrace({ plan }: { plan: IntakePlan }) {
                       <span>{graphFocusId}</span>
                       <span className="text-[var(--glc-muted)]"> → </span>
                       <span className="text-[var(--glc-muted)]">{c}</span>
+                      <div className="text-[10px] font-sans text-[var(--glc-muted)]">
+                        {resolveLabel(graphFocusId)} → {resolveLabel(c)}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -489,6 +534,8 @@ export function IntakePlanQuestionTrace({ plan }: { plan: IntakePlan }) {
                     open={expandedIds.has(id)}
                     onToggleOpen={handleRowToggle}
                     onFocusBranch={focusBranch}
+                    resolveLabel={resolveLabel}
+                    mode={mode}
                   />
                 </div>
               );
@@ -505,6 +552,8 @@ export function IntakePlanQuestionTrace({ plan }: { plan: IntakePlan }) {
                 open={expandedIds.has(id)}
                 onToggleOpen={handleRowToggle}
                 onFocusBranch={focusBranch}
+                resolveLabel={resolveLabel}
+                mode={mode}
               />
             ))}
           </div>

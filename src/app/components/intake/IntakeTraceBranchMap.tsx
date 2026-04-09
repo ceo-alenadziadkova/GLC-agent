@@ -1,0 +1,167 @@
+import { useMemo, useState } from 'react';
+
+import type { IntakePlan } from '../../../../server/src/intake/core/types';
+import { QUESTION_BANK_V1_STUBS } from '../../../../server/src/intake/question-bank';
+import { computeBranchDownstreamIds, computeBranchUpstreamIds } from './intake-trace-branch-links';
+import { IntakeTraceEdgeGraph } from './IntakeTraceEdgeGraph';
+
+function statusClass(status: 'required' | 'visible' | 'deferred' | 'hidden' | 'other'): string {
+  switch (status) {
+    case 'required':
+      return 'border-amber-500/40 bg-amber-500/15';
+    case 'visible':
+      return 'border-sky-500/40 bg-sky-500/15';
+    case 'deferred':
+      return 'border-violet-500/40 bg-violet-500/15';
+    case 'hidden':
+      return 'border-zinc-500/40 bg-zinc-500/15';
+    default:
+      return 'border-[var(--glc-border)] bg-[var(--glc-surface)]';
+  }
+}
+
+function statusFor(id: string, plan: IntakePlan): 'required' | 'visible' | 'deferred' | 'hidden' | 'other' {
+  if (plan.required.includes(id)) return 'required';
+  if (plan.visible.includes(id)) return 'visible';
+  if (plan.deferred.includes(id)) return 'deferred';
+  if (plan.hidden.includes(id)) return 'hidden';
+  return 'other';
+}
+
+export function IntakeTraceBranchMap({
+  plan,
+  resolveLabel,
+  resolveCanonLabel,
+  resolveDraftLabel,
+}: {
+  plan: IntakePlan;
+  resolveLabel: (id: string) => string;
+  resolveCanonLabel: (id: string) => string;
+  resolveDraftLabel: (id: string) => string | null;
+}) {
+  const ids = useMemo(() => {
+    const set = new Set<string>([
+      ...plan.eligible,
+      ...plan.visible,
+      ...plan.required,
+      ...plan.hidden,
+      ...plan.deferred,
+    ]);
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [plan]);
+
+  const [focusId, setFocusId] = useState(ids[0] ?? '');
+
+  const upstream = useMemo(
+    () => (focusId ? computeBranchUpstreamIds(focusId, QUESTION_BANK_V1_STUBS) : []),
+    [focusId],
+  );
+  const downstream = useMemo(
+    () => (focusId ? computeBranchDownstreamIds(focusId, QUESTION_BANK_V1_STUBS) : []),
+    [focusId],
+  );
+
+  const allEdges = useMemo(() => {
+    const edgeRows: Array<{ from: string; to: string }> = [];
+    for (const id of ids) {
+      for (const up of computeBranchUpstreamIds(id, QUESTION_BANK_V1_STUBS)) {
+        edgeRows.push({ from: up, to: id });
+      }
+    }
+    return edgeRows;
+  }, [ids]);
+
+  if (ids.length === 0) {
+    return <p className="text-sm text-[var(--glc-muted)]">No questions to map in this plan.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="font-medium">Focus question</span>
+        <select
+          className="glc-input font-mono text-xs"
+          value={focusId}
+          onChange={e => setFocusId(e.target.value)}
+        >
+          {ids.map(id => (
+            <option key={id} value={id}>
+              {id} — {resolveLabel(id)}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <IntakeTraceEdgeGraph
+        plan={plan}
+        resolveLabel={resolveLabel}
+        resolveCanonLabel={resolveCanonLabel}
+        resolveDraftLabel={resolveDraftLabel}
+        focusId={focusId}
+        onFocusIdChange={setFocusId}
+      />
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
+          <div className="text-[10px] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Upstream (reads)</div>
+          <ul className="space-y-1 text-xs">
+            {upstream.length === 0 ? (
+              <li className="text-[var(--glc-muted)]">No upstream dependency</li>
+            ) : (
+              upstream.map(id => (
+                <li key={id} className={`rounded border px-2 py-1 ${statusClass(statusFor(id, plan))}`}>
+                  <span className="font-mono">{id}</span>
+                  <span className="text-[var(--glc-muted)]"> — {resolveLabel(id)}</span>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+        <div className={`rounded-lg border p-3 ${statusClass(statusFor(focusId, plan))}`}>
+          <div className="text-[10px] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Current node</div>
+          <div className="text-xs">
+            <div className="font-mono">{focusId}</div>
+            <div className="text-[var(--glc-muted)]">{resolveLabel(focusId)}</div>
+            <div className="mt-2 text-[10px] uppercase tracking-wide text-[var(--glc-muted)]">
+              status: {statusFor(focusId, plan)}
+            </div>
+          </div>
+        </div>
+        <div className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
+          <div className="text-[10px] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Downstream (dependents)</div>
+          <ul className="space-y-1 text-xs">
+            {downstream.length === 0 ? (
+              <li className="text-[var(--glc-muted)]">No downstream dependency</li>
+            ) : (
+              downstream.map(id => (
+                <li key={id} className={`rounded border px-2 py-1 ${statusClass(statusFor(id, plan))}`}>
+                  <span className="font-mono">{id}</span>
+                  <span className="text-[var(--glc-muted)]"> — {resolveLabel(id)}</span>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+      </div>
+
+      <details className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
+        <summary className="cursor-pointer text-sm font-medium">All branch edges ({allEdges.length})</summary>
+        <ul className="mt-3 max-h-56 overflow-y-auto space-y-1 text-xs font-mono">
+          {allEdges.length === 0 ? (
+            <li className="text-[var(--glc-muted)] font-sans">No branch edges in current slice.</li>
+          ) : (
+            allEdges.map((e, i) => (
+              <li key={`${e.from}-${e.to}-${i}`}>
+                {e.from} {'->'} {e.to}
+                <span className="font-sans text-[var(--glc-muted)]">
+                  {' '}
+                  ({resolveLabel(e.from)} {'->'} {resolveLabel(e.to)})
+                </span>
+              </li>
+            ))
+          )}
+        </ul>
+      </details>
+    </div>
+  );
+}

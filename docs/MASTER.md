@@ -2,7 +2,7 @@
 
 Single source of truth **index** and **knowledge map**. Each domain has one canonical document; do not duplicate facts elsewhere — link here and to that file.
 
-**Documentation quota:** at most **15** markdown files in `/docs` (flat layout, no subfolders): [MASTER.md](./MASTER.md) plus **12** canonical domain docs plus **two** ADRs ([ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md), [ADR-FREE-SNAPSHOT-SCANNER.md](adrs/ADR-FREE-SNAPSHOT-SCANNER.md)).
+**Documentation quota:** at most **16** markdown files in `/docs` (flat layout, no subfolders): [MASTER.md](./MASTER.md) plus **12** canonical domain docs plus **three** ADRs ([ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md), [ADR-FREE-SNAPSHOT-SCANNER.md](adrs/ADR-FREE-SNAPSHOT-SCANNER.md), [ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md](adrs/ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md)).
 
 ---
 
@@ -22,6 +22,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | Intake question bank, branching, agent mapping | [QUESTION_BANK.md](./QUESTION_BANK.md) |
 | ADR: unified bank, policy/layout, IntakePlan | [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) |
 | ADR: free snapshot — cheap deterministic scanner | [ADR-FREE-SNAPSHOT-SCANNER.md](adrs/ADR-FREE-SNAPSHOT-SCANNER.md) |
+| ADR: wording lifecycle + intake trace IA split | [ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md](adrs/ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md) |
 | Local dev, migrations order, demo seed | [SETUP.md](./SETUP.md) |
 | Production deploy (Vercel, Railway, Supabase) | [DEPLOYMENT.md](./DEPLOYMENT.md) |
 | Test strategy, matrix, coverage, doc alignment, dead-code signals, E2E | [TESTING.md](../TESTING.md) (repo root) |
@@ -247,7 +248,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 ## Restructuring log
 
-### Current documentation tree (15 files, flat)
+### Current documentation tree (16 files, flat)
 
 ```text
 docs/
@@ -266,6 +267,7 @@ docs/
   DEPLOYMENT.md
   ADR-INTAKE-UNIFIED-QUESTION-BANK.md
   ADR-FREE-SNAPSHOT-SCANNER.md
+  ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md
 ```
 
 ### Consolidation (2026-04)

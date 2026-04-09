@@ -127,7 +127,7 @@ export function IntakeBankWizard({
       surface: intakeSurface,
     });
     return formatIntakeQuestionReasonsBrief(plan.reasonsById?.[wizard.currentStub.id]);
-  }, [planExplainOpen, wizard.currentStub?.id, map, productMode, collectionMode, intakeSurface]);
+  }, [planExplainOpen, wizard.currentStub, map, productMode, collectionMode, intakeSurface]);
 
   return (
     <div className="space-y-5">
@@ -188,7 +188,8 @@ export function IntakeBankWizard({
                   const st = wizard.visibleQuestionStubs.find(s => s.id === id);
                   const pri = st?.priority ?? 'recommended';
                   const bq = bankIdToBriefQuestion(id, pri);
-                  const label = bq.label.length > 48 ? `${bq.label.slice(0, 47)}…` : bq.label;
+                  const labelText = bq.question;
+                  const label = labelText.length > 48 ? `${labelText.slice(0, 47)}…` : labelText;
                   const step = wizard.visibleQuestionStubs.findIndex(s => s.id === id);
                   return (
                     <button
@@ -205,8 +206,8 @@ export function IntakeBankWizard({
                         cursor: step >= 0 ? 'pointer' : 'not-allowed',
                       }}
                       disabled={step < 0}
-                      title={bq.label}
-                      aria-label={`Go to: ${bq.label}`}
+                      title={labelText}
+                      aria-label={`Go to: ${labelText}`}
                     >
                       {label}
                     </button>
