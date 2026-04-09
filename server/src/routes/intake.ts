@@ -15,6 +15,12 @@ import {
 import { arePreBriefSlotsSatisfied, saveBriefResponses } from '../services/brief-validator.js';
 import { logger } from '../services/logger.js';
 import { notifyAuditParticipants, notifyUser } from '../services/notifications.js';
+import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
+import { formatPlanTrace } from '../intake/core/format-trace.js';
+import { parseIntakeVersionTuple } from '../intake/core/intake-version-tuple.js';
+import { isSupportedIntakeArtifactTuple } from '../intake/core/resolve-intake-artifacts.js';
+import type { IntakeSurface } from '../intake/core/types.js';
+import type { IntakeBriefCollectionMode, ProductMode } from '../types/audit.js';
 
 export const intakeRouter = Router();
 
@@ -290,6 +296,88 @@ intakeRouter.get(
       res.status(500).json({ error: 'Failed to load intake prefill' });
     }
   }
+);
+
+/**
+ * POST /api/intake/plan-trace — ADR Phase 2b debug tooling (consultant-only).
+ *
+ * Runs `buildIntakePlan` for the supplied context and returns the full `IntakePlan`
+ * (including `reasonsById`, `debugTrace`, `derivedFacts`, `coverage`, `confidence`)
+ * plus a human-readable text trace via `formatPlanTrace`. Use this endpoint to
+ * diagnose visibility/required set divergence without needing a local dev server.
+ *
+ * Body: {
+ *   responses: Record<string, unknown>,      // intake answers (unwrapped or wrapped values)
+ *   productMode?: string,                    // default "full"
+ *   collectionMode?: string,                 // e.g. "discovery", "pre_brief"
+ *   surface?: string,                        // e.g. "consultant_interview", "public_discovery"
+ *   intakeVersionTuple?: IntakeVersionTuple  // omit to use current artifacts
+ * }
+ */
+const VALID_PRODUCT_MODES = new Set<string>(['full', 'express', 'discovery', 'pre_brief', 'free_snapshot']);
+const VALID_COLLECTION_MODES = new Set<string>(['full', 'discovery', 'pre_brief', 'express', 'free_snapshot']);
+const VALID_SURFACES = new Set<string>([
+  'consultant_interview',
+  'client_form',
+  'client_portal',
+  'internal_review',
+  'public_discovery',
+]);
+
+intakeRouter.post(
+  '/plan-trace',
+  requireAuth,
+  attachProfile,
+  requireRole('consultant'),
+  async (req: AuthRequest, res) => {
+    try {
+      const body = req.body ?? {};
+
+      const responses =
+        body.responses != null && typeof body.responses === 'object' && !Array.isArray(body.responses)
+          ? (body.responses as Record<string, unknown>)
+          : {};
+
+      const rawMode = typeof body.productMode === 'string' ? body.productMode : 'full';
+      if (!VALID_PRODUCT_MODES.has(rawMode)) {
+        res.status(400).json({ error: `Invalid productMode "${rawMode}". Valid values: ${[...VALID_PRODUCT_MODES].join(', ')}` });
+        return;
+      }
+      const productMode = rawMode as ProductMode;
+
+      const rawCollection = typeof body.collectionMode === 'string' ? body.collectionMode : undefined;
+      if (rawCollection !== undefined && !VALID_COLLECTION_MODES.has(rawCollection)) {
+        res.status(400).json({ error: `Invalid collectionMode "${rawCollection}".` });
+        return;
+      }
+      const collectionMode = rawCollection as IntakeBriefCollectionMode | undefined;
+
+      const rawSurface = typeof body.surface === 'string' ? body.surface : undefined;
+      if (rawSurface !== undefined && !VALID_SURFACES.has(rawSurface)) {
+        res.status(400).json({ error: `Invalid surface "${rawSurface}". Valid values: ${[...VALID_SURFACES].join(', ')}` });
+        return;
+      }
+      const surface = rawSurface as IntakeSurface | undefined;
+
+      const intakeVersionTuple = body.intakeVersionTuple != null
+        ? parseIntakeVersionTuple(body.intakeVersionTuple)
+        : undefined;
+
+      if (intakeVersionTuple !== undefined && !isSupportedIntakeArtifactTuple(intakeVersionTuple)) {
+        res.status(400).json({ error: 'Unsupported intakeVersionTuple — not current and not in frozen registry.' });
+        return;
+      }
+
+      const plan = buildIntakePlan({ responses, productMode, collectionMode, surface, intakeVersionTuple });
+      const text = formatPlanTrace(plan, { productMode, collectionMode, surface });
+
+      res.json({ plan, text });
+    } catch (err) {
+      const e = err as Error;
+      logger.error('intake.plan_trace_exception', { component: 'intake', error: e.message });
+      res.status(500).json({ error: 'Failed to build intake plan trace', detail: e.message });
+    }
+  },
 );
 
 /** GET /api/intake/:token — public */

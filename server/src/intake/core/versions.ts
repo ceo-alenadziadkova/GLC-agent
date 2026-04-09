@@ -22,8 +22,15 @@ export function currentIntakeVersionTuple(): IntakeVersionTuple {
 }
 
 /**
- * Rows missing `intake_versions` (pre-migration). Validation still uses the current resolver;
- * this tuple is for logging and future client/server mismatch checks only.
+ * Sentinel tuple for rows that pre-date the version matrix (missing `intake_versions` column).
+ * Validation for these rows still uses the current resolver — this tuple is for **logging and
+ * mismatch diagnostics only**.
+ *
+ * **DO NOT pass this to `resolveIntakeArtifacts` or `buildIntakePlan`.**
+ * It is not in FROZEN_ARTIFACT_REGISTRY and does not equal `currentIntakeVersionTuple()`, so
+ * `resolveIntakeArtifacts` would throw `UnsupportedIntakeArtifactTupleError`. Call sites that
+ * need to validate a pre-matrix brief must pass `null` (or omit the tuple) instead, which
+ * resolves to the current artifact bundle.
  */
 export function syntheticIntakeVersionsBeforeMatrix(): IntakeVersionTuple {
   return {

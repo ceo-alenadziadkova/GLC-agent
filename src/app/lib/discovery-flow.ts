@@ -68,8 +68,14 @@ function makeDiscoveryQuestion(
   };
 }
 
-/** Aligned with intake bank `c_nosite_1` / `c_nosite_3` (see `bankQuestionUiCatalog`). */
-export const DISCOVERY_ONLINE_PRESENCE_OPTIONS = [
+/**
+ * Legacy single-select values used before the discovery question `c_nosite_1` became a
+ * multi-select "how do people find you?" question. These are NOT the current `c_nosite_1`
+ * option strings (those live in `DISCOVERY_WIZARD_C_NOSITE_1_FALLBACK` on the server and
+ * in `bank-question-ui-overrides.ts`). This constant exists only for `LEGACY_ONLINE_PRESENCE`
+ * normalisation in `getOnlinePresenceSelections` — do NOT use it to check current answers.
+ */
+export const LEGACY_ONLINE_PRESENCE_OPTIONS = [
   'Full website (multi-page)',
   'Single landing page',
   'Website in development / not public yet',
@@ -78,6 +84,9 @@ export const DISCOVERY_ONLINE_PRESENCE_OPTIONS = [
   'Mostly word of mouth, offline, or referrals',
 ] as const;
 
+/** @deprecated Use LEGACY_ONLINE_PRESENCE_OPTIONS — kept for any external consumers. */
+export const DISCOVERY_ONLINE_PRESENCE_OPTIONS = LEGACY_ONLINE_PRESENCE_OPTIONS;
+
 const [
   PRESENCE_FULL_SITE,
   PRESENCE_LANDING,
@@ -85,7 +94,7 @@ const [
   PRESENCE_SOCIAL,
   _PRESENCE_MARKETPLACES,
   PRESENCE_OFFLINE,
-] = DISCOVERY_ONLINE_PRESENCE_OPTIONS;
+] = LEGACY_ONLINE_PRESENCE_OPTIONS;
 
 /** Single-select values from older discovery sessions → current multi-select ids. */
 const LEGACY_ONLINE_PRESENCE: Record<string, string[]> = {

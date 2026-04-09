@@ -286,7 +286,9 @@ function buildIntakePlanInternal(
       questionBankVersion: artifacts.questionBankVersion,
       policyVersion: policy.version,
       layoutVersion: layoutArtifact.version,
-      resolverVersion: input.intakeVersionTuple?.resolverVersion ?? INTAKE_RESOLVER_VERSION,
+      // ADR: resolver code is always current — only JSON artifacts differ by tuple.
+      // Always emit the running resolver version, never echo the stored tuple's value.
+      resolverVersion: INTAKE_RESOLVER_VERSION,
     },
   };
 }

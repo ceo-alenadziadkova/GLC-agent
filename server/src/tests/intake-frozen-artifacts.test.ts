@@ -36,7 +36,9 @@ describe('frozen intake artifacts', () => {
     });
     expect(legacy.eligible.length).toBeGreaterThan(live.eligible.length);
     expect(legacy.versions.policyVersion).toBe('1.0.0');
-    expect(legacy.versions.resolverVersion).toBe('1.0.0');
+    // ADR: resolver code is always current — resolverVersion in plan output is the running
+    // resolver, not the stored tuple's version (Issue 6 fix).
+    expect(legacy.versions.resolverVersion).toBe(INTAKE_RESOLVER_VERSION);
   });
 
   it('current tuple uses live policy 1.1.0', () => {

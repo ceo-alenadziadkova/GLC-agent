@@ -131,9 +131,12 @@ export function evalBranchCondition(
   if (!condition) return true;
   const rule = BRANCH_RULES[condition];
   if (!rule) {
-    // Unknown condition: question will be shown to everyone — likely a missing predicate or typo.
-    console.warn(`[branch-rules] Unknown branchCondition "${condition}" — defaulting to visible. Add it to BRANCH_RULES if intentional.`);
-    return true;
+    // Unknown condition: question is hidden rather than shown to everyone.
+    // Defaulting to visible would silently expose questions to all users on a typo or missing
+    // predicate. The CI linter (lintUnknownBranchRefs) catches this before deployment; the
+    // safe fallback is to hide until the predicate is added.
+    console.warn(`[branch-rules] Unknown branchCondition "${condition}" — defaulting to hidden. Add it to BRANCH_RULES and re-run lintBankAndPolicyAll.`);
+    return false;
   }
   return rule(responses);
 }

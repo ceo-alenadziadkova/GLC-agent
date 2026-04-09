@@ -46,9 +46,19 @@ export function computeRequiredBankIdsFromPolicy(
     return { ids: [], debugTrace: trace };
   }
 
-  // pre_brief inherits express SLA required (inheritExpressRequired: true in policy).
-  // Delegate rather than fall through to full-mode logic.
+  // pre_brief: delegate to express when policy.modes.pre_brief.inheritExpressRequired is true.
+  // The type marks this field as literal `true`, but frozen artifact JSON casts bypass that
+  // constraint, so we guard at runtime to prevent silent full-mode required set leaking in.
   if (productMode === 'pre_brief') {
+    if (!(policy.modes.pre_brief.inheritExpressRequired as boolean)) {
+      trace.push({
+        layer: 'policy',
+        level: 'warn',
+        code: 'PRE_BRIEF_INHERIT_EXPRESS_REQUIRED_FALSE',
+        message: 'policy.modes.pre_brief.inheritExpressRequired is not true — returning empty required set for pre_brief.',
+      });
+      return { ids: [], debugTrace: trace };
+    }
     return computeRequiredBankIdsFromPolicy(
       policy,
       'express',
