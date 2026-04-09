@@ -520,91 +520,60 @@ discoverRouter.post(
         return;
       }
 
-      const { data: session, error: sErr } = await supabase
-        .from('discovery_sessions')
-        .select('id, answers, maturity_level, findings, contact_name, contact_company, audit_id, consultant_id')
-        .eq('session_token', token)
-        .single();
-
-      if (sErr || !session) {
+      const reviewPhases = reviewPhasesForMode('full');
+      const { data: convertRows, error: convertErr } = await supabase.rpc(
+        'discovery_convert_session_atomic',
+        {
+          p_session_token: token,
+          p_consultant_id: req.userId!,
+          p_company_url: NO_PUBLIC_WEBSITE_URL,
+          p_product_mode: 'full',
+          p_review_phases: reviewPhases,
+          p_domain_keys: [...DOMAIN_KEYS],
+        },
+      );
+      if (convertErr) {
+        logger.error('discover.convert_rpc_failed', {
+          component: 'discover',
+          error: convertErr.message,
+          session_token: token,
+        });
+        res.status(500).json({ error: 'Failed to convert session' });
+        return;
+      }
+      const convertRow = Array.isArray(convertRows)
+        ? (convertRows[0] as { audit_id: string | null; error_code: string | null; answers: Record<string, unknown> | null } | undefined)
+        : undefined;
+      if (!convertRow) {
+        res.status(500).json({ error: 'Failed to convert session' });
+        return;
+      }
+      if (convertRow.error_code === 'not_found') {
         res.status(404).json({ error: 'Session not found' });
         return;
       }
-      if (session.audit_id) {
-        res.status(409).json({ error: 'Session already converted', audit_id: session.audit_id });
+      if (convertRow.error_code === 'already_converted') {
+        res.status(409).json({ error: 'Session already converted', audit_id: convertRow.audit_id });
         return;
       }
-      if ((session.consultant_id as string | null) && session.consultant_id !== req.userId) {
+      if (convertRow.error_code === 'forbidden_owner') {
         res.status(403).json({ error: 'Session is assigned to another consultant' });
         return;
       }
-
-      // Claim unassigned sessions on first conversion attempt so leaked tokens cannot be converted
-      // by another consultant after ownership has been established.
-      if (!session.consultant_id) {
-        const { data: claimed, error: claimErr } = await supabase
-          .from('discovery_sessions')
-          .update({ consultant_id: req.userId! })
-          .eq('id', session.id)
-          .is('consultant_id', null)
-          .is('audit_id', null)
-          .select('id')
-          .maybeSingle();
-        if (claimErr) {
-          logger.error('discover.convert_claim_failed', {
-            component: 'discover',
-            error: claimErr.message,
-            session_token: token,
-          });
-          res.status(500).json({ error: 'Failed to claim discovery session' });
-          return;
-        }
-        if (!claimed) {
-          res.status(409).json({ error: 'Session was claimed or converted by another request' });
-          return;
-        }
-      }
-
-      const answers = (session.answers as Record<string, unknown>) ?? {};
-      const industry =
-        (typeof answers.a2 === 'string' && answers.a2.trim())
-        || (typeof answers.industry === 'string' ? answers.industry.trim() : null)
-        || null;
-      const row = session as { contact_name?: string | null; contact_company?: string | null };
-      const companyName =
-        (typeof row.contact_name === 'string' && row.contact_name.trim())
-        || (typeof row.contact_company === 'string' && row.contact_company.trim())
-        || null;
-
-      // Create audit with no public website (Mode C)
-      const { data: audit, error: aErr } = await supabase
-        .from('audits')
-        .insert({
-          user_id: req.userId!,
-          company_url: NO_PUBLIC_WEBSITE_URL,
-          company_name: companyName || null,
-          industry: industry || null,
-          product_mode: 'full',
-        })
-        .select('id')
-        .single();
-
-      if (aErr || !audit) {
-        logger.error('discover.convert_audit_failed', { component: 'discover', error: aErr?.message });
-        res.status(500).json({ error: 'Failed to create audit' });
+      if (convertRow.error_code === 'claim_conflict') {
+        res.status(409).json({ error: 'Session was claimed or converted by another request' });
         return;
       }
-
-      const auditId = audit.id as string;
-      const reviewPhases = reviewPhasesForMode('full');
-
-      // Pre-create child records
-      await Promise.all([
-        supabase.from('review_points').insert(reviewPhases.map(phase => ({ audit_id: auditId, after_phase: phase }))),
-        supabase.from('audit_domains').insert(DOMAIN_KEYS.map((key, i) => ({ audit_id: auditId, domain_key: key, phase_number: i + 1 }))),
-        supabase.from('audit_recon').insert({ audit_id: auditId }),
-        supabase.from('audit_strategy').insert({ audit_id: auditId }),
-      ]);
+      if (convertRow.error_code === 'link_conflict') {
+        res.status(409).json({ error: 'Session conversion conflict. Please retry.' });
+        return;
+      }
+      if (convertRow.error_code || !convertRow.audit_id) {
+        res.status(500).json({ error: 'Failed to convert session' });
+        return;
+      }
+      const auditId = convertRow.audit_id;
+      const answers = (convertRow.answers ?? {}) as Record<string, unknown>;
 
       // Map discovery answers → intake brief
       const briefPatch = discoveryToBriefPatch(answers);
@@ -620,22 +589,6 @@ discoverRouter.post(
             error: (briefErr as Error).message,
           });
         }
-      }
-
-      // Link session to audit
-      const { data: linked, error: linkErr } = await supabase
-        .from('discovery_sessions')
-        .update({ audit_id: auditId, consultant_id: req.userId! })
-        .eq('id', session.id)
-        .eq('consultant_id', req.userId!)
-        .is('audit_id', null)
-        .select('id')
-        .maybeSingle();
-      if (linkErr || !linked) {
-        // Best-effort rollback: keep invariants if session link was concurrently lost.
-        await supabase.from('audits').delete().eq('id', auditId).eq('user_id', req.userId!);
-        res.status(409).json({ error: 'Session conversion conflict. Please retry.' });
-        return;
       }
 
       logger.info('discover.converted', { component: 'discover', audit_id: auditId, session_token: token });

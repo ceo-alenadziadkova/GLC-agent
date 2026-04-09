@@ -135,11 +135,54 @@ const state = vi.hoisted(() => {
         })),
       };
     },
+    mockRpc: (_fn: string, args: Record<string, unknown>) => {
+      const consultantId = args.p_consultant_id as string;
+      if (!sessionRow) {
+        return Promise.resolve({
+          data: [{ audit_id: null, error_code: 'not_found', answers: null }],
+          error: null,
+        });
+      }
+      if (sessionRow.audit_id) {
+        return Promise.resolve({
+          data: [{ audit_id: sessionRow.audit_id, error_code: 'already_converted', answers: null }],
+          error: null,
+        });
+      }
+      if (sessionRow.consultant_id && sessionRow.consultant_id !== consultantId) {
+        return Promise.resolve({
+          data: [{ audit_id: null, error_code: 'forbidden_owner', answers: null }],
+          error: null,
+        });
+      }
+      if (claimConflict) {
+        return Promise.resolve({
+          data: [{ audit_id: null, error_code: 'claim_conflict', answers: null }],
+          error: null,
+        });
+      }
+      if (linkConflict) {
+        return Promise.resolve({
+          data: [{ audit_id: null, error_code: 'link_conflict', answers: null }],
+          error: null,
+        });
+      }
+      auditsCreated += 1;
+      sessionRow = {
+        ...sessionRow,
+        consultant_id: consultantId,
+        audit_id: 'audit-001',
+      };
+      return Promise.resolve({
+        data: [{ audit_id: 'audit-001', error_code: null, answers: sessionRow.answers ?? {} }],
+        error: null,
+      });
+    },
   };
 });
 
 vi.mock('../services/supabase.js', () => ({
-  supabase: { from: state.mockFrom },
+  supabase: { from: state.mockFrom, rpc: state.mockRpc },
 }));
 
 vi.mock('../middleware/auth.js', () => ({
@@ -248,7 +291,7 @@ describe('POST /api/discover/:token/convert', () => {
     expect(body.error).toBe('Session was claimed or converted by another request');
   });
 
-  it('returns 409 and rolls back audit when link conflict happens', async () => {
+  it('returns 409 when RPC reports link conflict', async () => {
     state.setLinkConflict(true);
 
     const res = await fetch(`${baseUrl}/api/discover/${'d'.repeat(40)}/convert`, {
@@ -260,8 +303,8 @@ describe('POST /api/discover/:token/convert', () => {
 
     expect(res.status).toBe(409);
     expect(body.error).toBe('Session conversion conflict. Please retry.');
-    expect(counters.auditsCreated).toBe(1);
-    expect(counters.auditsDeleted).toBe(1);
+    expect(counters.auditsCreated).toBe(0);
+    expect(counters.auditsDeleted).toBe(0);
   });
 });
 

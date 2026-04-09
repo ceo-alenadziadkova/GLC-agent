@@ -41,6 +41,45 @@ type TraceOk = { ok: true; text: string; plan: IntakePlan };
 type TraceErr = { ok: false; message: string };
 type WorkspaceMode = 'diagnose' | 'advanced' | 'wording';
 type Panel = 'tree' | 'journey' | 'branch' | 'trace' | 'json' | 'wording';
+type ScenarioPreset = {
+  id: string;
+  label: string;
+  hint: string;
+  productMode: ProductMode;
+  collectionMode: IntakeBriefCollectionMode | '';
+  surface: IntakeSurface | '';
+  responsesText: string;
+};
+
+const SCENARIO_PRESETS: ScenarioPreset[] = [
+  {
+    id: 'full-hospitality-no-site',
+    label: 'Full: hospitality without website',
+    hint: 'Good baseline to inspect required/visible split.',
+    productMode: 'full',
+    collectionMode: '',
+    surface: '',
+    responsesText: '{\n  "a2": "hospitality",\n  "a5": "no_website"\n}\n',
+  },
+  {
+    id: 'discovery-public',
+    label: 'Discovery: public discovery surface',
+    hint: 'Use this to inspect layout-driven visibility.',
+    productMode: 'full',
+    collectionMode: 'discovery',
+    surface: 'public_discovery',
+    responsesText: '{\n  "a2": "professional_services",\n  "a5": "has_website",\n  "a6": "needs_leads"\n}\n',
+  },
+  {
+    id: 'express-prebrief',
+    label: 'Express: pre-brief flow',
+    hint: 'Useful for quick checks of minimal intake paths.',
+    productMode: 'express',
+    collectionMode: 'pre_brief',
+    surface: 'client_form',
+    responsesText: '{\n  "a2": "saas",\n  "a5": "has_website",\n  "a6": "improve_conversion"\n}\n',
+  },
+];
 
 export function IntakeTraceTool() {
   const [productMode, setProductMode] = useState<ProductMode>('full');
@@ -157,6 +196,16 @@ export function IntakeTraceTool() {
     setDraftText(wordingDrafts[id] ?? '');
   };
 
+  const applyScenarioPreset = (preset: ScenarioPreset) => {
+    setProductMode(preset.productMode);
+    setCollectionMode(preset.collectionMode);
+    setSurface(preset.surface);
+    setResponsesText(preset.responsesText);
+    setWorkspaceMode('diagnose');
+    setPanel('tree');
+    setViewMode('simple');
+  };
+
   const availablePanels: Panel[] =
     workspaceMode === 'diagnose'
       ? ['tree', 'journey', 'branch']
@@ -202,6 +251,25 @@ export function IntakeTraceTool() {
           <strong>Advanced</strong> for raw resolver outputs, and use <strong>Wording</strong> for local draft copy
           edits only.
         </p>
+        <details className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
+          <summary className="cursor-pointer text-sm font-medium">Start here</summary>
+          <div className="mt-2 space-y-2 text-xs text-[var(--glc-muted)]">
+            <p>1) Pick a scenario preset. 2) Open "Why this question appears". 3) Use "Dependencies graph" only if root cause is still unclear.</p>
+            <div className="flex flex-wrap gap-2">
+              {SCENARIO_PRESETS.map(preset => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className="glc-btn-secondary text-xs px-2 py-1"
+                  onClick={() => applyScenarioPreset(preset)}
+                  title={preset.hint}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </details>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-[var(--glc-muted)]">Workspace</span>
           <button
