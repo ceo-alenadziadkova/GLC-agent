@@ -14,6 +14,7 @@ export {
   lintMissingPolicyCoverage,
   lintOrphanPolicyDiscoveryIds,
   lintOrphanPolicyPreBriefBankIds,
+  lintPreBriefBankIncludedBranchConflicts,
   lintPreBriefBankIncludedJsonMatchesPolicy,
   lintSyntheticCollision,
   lintUnknownBranchRefs,

@@ -355,7 +355,6 @@ export async function assertBriefReady(auditId: string): Promise<void> {
     .single();
 
   const rawBrief = (brief?.responses as Record<string, unknown>) ?? {};
-  const responses = prepareBriefForValidation(rawBrief);
   const collectionMode = brief?.collection_mode as IntakeBriefCollectionMode | undefined;
   const collectedBy = brief?.collected_by as 'client' | 'consultant' | undefined;
   const validationPerspective = collectedBy === 'consultant' ? 'consultant' : 'client';
@@ -364,6 +363,10 @@ export async function assertBriefReady(auditId: string): Promise<void> {
   const intakeTuple = coerceArtifactTupleForRead(
     brief?.intake_versions as IntakeVersionTuple | null | undefined,
     'assertBriefReady',
+  );
+  const responses = prepareBriefForValidation(
+    rawBrief,
+    resolveIntakeArtifacts(intakeTuple).stubs,
   );
 
   const validation = validateBriefResponses(responses, {
@@ -429,8 +432,6 @@ export async function saveBriefResponses(
     throw new Error(`Invalid brief responses: ${parsed.error.message}`);
   }
 
-  const responses = prepareBriefForValidation(parsed.data as Record<string, unknown>) as typeof parsed.data;
-
   const { data: audit } = await supabase.from('audits').select('product_mode').eq('id', auditId).single();
   const mode = ((audit?.product_mode ?? 'full') as ProductMode);
 
@@ -451,6 +452,12 @@ export async function saveBriefResponses(
     (storedTuple && isSupportedIntakeArtifactTuple(storedTuple)
       ? storedTuple
       : currentIntakeVersionTuple());
+
+  // Sanitize after effective tuple is known so frozen artifact contracts are respected.
+  const responses = prepareBriefForValidation(
+    parsed.data as Record<string, unknown>,
+    resolveIntakeArtifacts(effectiveTuple).stubs,
+  ) as typeof parsed.data;
 
   const perspective = options?.validation_perspective ?? 'consultant';
   const surface = resolveIntakeSurfaceForPlan(collection_mode, perspective);

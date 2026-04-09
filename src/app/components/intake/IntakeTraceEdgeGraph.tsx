@@ -177,6 +177,7 @@ export function IntakeTraceEdgeGraph({
   resolveDraftLabel,
   focusId,
   onFocusIdChange,
+  showWordingReview = false,
 }: {
   plan: IntakePlan;
   resolveLabel: (id: string) => string;
@@ -184,6 +185,7 @@ export function IntakeTraceEdgeGraph({
   resolveDraftLabel: (id: string) => string | null;
   focusId: string;
   onFocusIdChange: (id: string) => void;
+  showWordingReview?: boolean;
 }) {
   const UI_PREFS_STORAGE_KEY = 'intake_trace_edge_graph_ui_prefs_v1';
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -203,7 +205,7 @@ export function IntakeTraceEdgeGraph({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [showBeforeAfter, setShowBeforeAfter] = useState(true);
   const [pinnedFocusId, setPinnedFocusId] = useState<string | null>(null);
-  const [baReviewMode, setBaReviewMode] = useState(false);
+  const [baReviewMode, setBaReviewMode] = useState(showWordingReview);
   const [highOnly, setHighOnly] = useState(false);
   const [scoringMode, setScoringMode] = useState<'strict' | 'normal' | 'lenient'>('normal');
 
@@ -256,6 +258,14 @@ export function IntakeTraceEdgeGraph({
       // no-op when storage is unavailable
     }
   }, [pathOnlyMode, downstreamDepth, searchQuery, showBeforeAfter, baReviewMode, highOnly, scoringMode]);
+
+  useEffect(() => {
+    if (!showWordingReview) {
+      setBaReviewMode(false);
+      return;
+    }
+    setBaReviewMode(true);
+  }, [showWordingReview]);
 
   const ids = useMemo(() => {
     const set = new Set<string>([
@@ -648,62 +658,73 @@ export function IntakeTraceEdgeGraph({
         >
           {showBeforeAfter ? 'Hide before/after' : 'Show before/after'}
         </button>
-        <button
-          type="button"
-          className={`glc-btn-secondary text-xs px-2 py-1 ${baReviewMode ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
-          onClick={() => setBaReviewMode(v => !v)}
-        >
-          {baReviewMode ? 'Hide BA review' : 'Show BA review'}
-        </button>
-        <button type="button" className="glc-btn-secondary text-xs px-2 py-1" onClick={resetPreferences}>
-          Reset preferences
-        </button>
       </div>
-      <div className="grid gap-2 sm:grid-cols-3">
-        <label className="flex flex-col gap-1 text-xs">
-          <span className="text-[var(--glc-muted)]">Search node</span>
-          <input
-            type="search"
-            className="glc-input font-mono text-xs"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="id or text"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-xs">
-          <span className="text-[var(--glc-muted)]">Downstream depth from focus</span>
-          <input
-            type="range"
-            min={0}
-            max={4}
-            step={1}
-            value={downstreamDepth}
-            onChange={e => setDownstreamDepth(Number(e.target.value))}
-          />
-          <span className="text-[var(--glc-muted)]">{downstreamDepth}</span>
-        </label>
-        <div className="text-xs rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-2">
-          <div className="font-medium mb-1">Legend</div>
-          <div className="grid grid-cols-2 gap-1 text-[11px]">
-            <span>required</span><span className="text-amber-300">amber</span>
-            <span>visible</span><span className="text-sky-300">blue</span>
-            <span>deferred</span><span className="text-violet-300">violet</span>
-            <span>hidden</span><span className="text-zinc-300">gray</span>
+      <details className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-2">
+        <summary className="cursor-pointer text-xs font-medium text-[var(--glc-fg)]">
+          Advanced controls
+        </summary>
+        <div className="mt-2 space-y-2">
+          <div className="flex flex-wrap gap-2">
+            {showWordingReview && (
+              <button
+                type="button"
+                className={`glc-btn-secondary text-xs px-2 py-1 ${baReviewMode ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+                onClick={() => setBaReviewMode(v => !v)}
+              >
+                {baReviewMode ? 'Hide BA review' : 'Show BA review'}
+              </button>
+            )}
+            <button type="button" className="glc-btn-secondary text-xs px-2 py-1" onClick={resetPreferences}>
+              Reset preferences
+            </button>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <label className="flex flex-col gap-1 text-xs">
+              <span className="text-[var(--glc-muted)]">Search node</span>
+              <input
+                type="search"
+                className="glc-input font-mono text-xs"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="id or text"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs">
+              <span className="text-[var(--glc-muted)]">Downstream depth from focus</span>
+              <input
+                type="range"
+                min={0}
+                max={4}
+                step={1}
+                value={downstreamDepth}
+                onChange={e => setDownstreamDepth(Number(e.target.value))}
+              />
+              <span className="text-[var(--glc-muted)]">{downstreamDepth}</span>
+            </label>
+            <div className="text-xs rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface)] p-2">
+              <div className="font-medium mb-1">Legend</div>
+              <div className="grid grid-cols-2 gap-1 text-[11px]">
+                <span>required</span><span className="text-amber-300">amber</span>
+                <span>visible</span><span className="text-sky-300">blue</span>
+                <span>deferred</span><span className="text-violet-300">violet</span>
+                <span>hidden</span><span className="text-zinc-300">gray</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {sections.map(([s, count]) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => toggleSection(s)}
+                className={`glc-btn-secondary text-[11px] px-2 py-1 ${collapsedSections.has(s) ? 'opacity-60' : ''}`}
+              >
+                Section {s} ({count}) {collapsedSections.has(s) ? 'collapsed' : 'shown'}
+              </button>
+            ))}
           </div>
         </div>
-      </div>
-      <div className="flex flex-wrap gap-1">
-        {sections.map(([s, count]) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => toggleSection(s)}
-            className={`glc-btn-secondary text-[11px] px-2 py-1 ${collapsedSections.has(s) ? 'opacity-60' : ''}`}
-          >
-            Section {s} ({count}) {collapsedSections.has(s) ? 'collapsed' : 'shown'}
-          </button>
-        ))}
-      </div>
+      </details>
       <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
       <div
         ref={containerRef}
@@ -823,12 +844,12 @@ export function IntakeTraceEdgeGraph({
         </svg>
       </div>
       <aside className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
-        <div className="text-xs font-semibold mb-2">Почему скрыт/показан (выбранный путь)</div>
+        <div className="text-xs font-semibold mb-2">Why hidden/visible (selected path)</div>
         <div className="text-[11px] text-[var(--glc-muted)] mb-2">
-          Клик по узлу = фокус. Shift/Cmd/Ctrl + клик = мультивыбор подграфа.
+          Click node = focus. Shift/Cmd/Ctrl + click = multi-select subgraph.
         </div>
         {selectedReasons.length === 0 ? (
-          <div className="text-xs text-[var(--glc-muted)]">Выберите узел, чтобы увидеть объяснение.</div>
+          <div className="text-xs text-[var(--glc-muted)]">Select a node to inspect reasoning.</div>
         ) : (
           <div className="space-y-3 max-h-[520px] overflow-auto">
             {selectedReasons.map(item => (

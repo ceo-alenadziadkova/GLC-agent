@@ -2,8 +2,8 @@
 
 | Field | Value |
 | --- | --- |
-| **Status** | Proposed |
-| **Date** | 2026-04-05 |
+| **Status** | Accepted (Implemented) |
+| **Date** | 2026-04-05 (accepted/implemented update: 2026-04-09) |
 | **Scope** | Intake / question bank / Discovery / Express / Pre-brief / Full brief |
 
 ## Context
@@ -133,7 +133,7 @@ These patterns are known to reintroduce duplication and unexplained diffs; code 
 
 ### Rollout (high level)
 
-**Phase 0 — Contract (before behavior changes)**
+#### Phase 0 — Contract (before behavior changes)
 
 - Publish a short **glossary** (this ADR’s state semantics + mode vs surface).
 - Fix **canonical fixture set** (e.g. `hotel_no_site`, `solo_with_site`, `real_estate_small_team`) and the **snapshot format** (fields compared in regression: `eligible`, `visible`, `required`, `deferred`, `hidden`,  `layoutSlots`,  `derived` stubs).
@@ -152,7 +152,38 @@ These patterns are known to reintroduce duplication and unexplained diffs; code 
 
 **Phase 6** — Introduce `layout-rules` without changing canon semantics.
 
-###  metadata (phased)
+## Implementation checklist (as of 2026-04-09)
+
+- [x] **Phase 0 — Contract**: glossary and canonical fixture/snapshot format are defined and used in tests.
+- [x] **Phase 1 — Policy data parity**: discovery inclusion and express required rules are represented in policy artifacts.
+- [x] **Phase 2 — Resolver**: `buildIntakePlan(ctx)` implemented with state sets, versions, and reason traces.
+- [x] **Phase 2b — Debug tooling**: plan trace available via route/CLI/internal tooling.
+- [x] **Phase 3 — Linting**: bank/policy/layout linters implemented and wired into test/lint workflow.
+- [x] **Phase 4 — Server gates + persist tuple**: server validation/gates use intake-core; version tuple is persisted on writes.
+- [~] **Phase 5 — Client alignment and dedup**: client Discovery consumes server-provided fragment and shared resolver; remaining work is documentation/governance cleanup to remove ambiguity about legacy wording.
+- [x] **Phase 6 — Layout layer**: layout rules are separated from canon/policy and applied in resolver without changing semantic eligibility.
+
+## Governance for frozen artifact tuples
+
+1. **When to add a frozen tuple**
+   - Add a new entry to `FROZEN_ARTIFACT_REGISTRY` only when shipping a breaking artifact bundle that must keep historical draft/submit validation reproducible.
+   - Do not add frozen tuples for non-breaking wording-only updates.
+
+2. **What must be shipped together**
+   - Frozen `question-bank`, `policy`, and `layout` artifacts.
+   - Registry entry keyed by full tuple.
+   - Tests covering tuple resolution and brief write validation paths.
+   - Changelog note in docs describing migration/compatibility intent.
+
+3. **Deprecation policy**
+   - A frozen tuple may be marked deprecated only after all persisted rows using it are migrated or explicitly accepted as read-only historical.
+   - Removal requires: migration evidence, release note, and tests updated to reject removed tuple with explicit error.
+
+4. **Write-path policy**
+   - New writes should use current tuple.
+   - Legacy tuples are accepted only for deterministic replay/migration scenarios validated by `validateIntakeVersionsForBriefWrite`.
+
+### Metadata (phased)
 
 Strong candidates later on **canon**: `reportUse`, `confidenceImpact`, `sensitivity`, `askOnce`, `answerFreshnessDays`, `owner`, `introducedInVersion`, `deprecatedAt`. Not all are required for the first migration tranche.
 

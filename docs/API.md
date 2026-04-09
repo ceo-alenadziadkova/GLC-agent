@@ -61,6 +61,7 @@ Updates editable profile fields for the current user.
 ```
 
 Notes:
+
 - `full_name` is optional and nullable.
 - Empty/whitespace value is normalized to `null`.
 - Max length: 200 characters.
@@ -136,7 +137,7 @@ Assigns which consultant owns **client self-serve** audits (`audits.user_id` whe
 Use this matrix for new endpoints to keep access rules consistent. **Consultant** = user with consultant role (pipeline mutations are guarded in code). **Client** = linked `client_id` where applicable.
 
 | Endpoint pattern | Consultant (owner) | Client (`client_id`) | Notes |
-|------------------|--------------------|----------------------|--------|
+| ---------------- | ------------------ | -------------------- | ----- |
 | `GET /api/audits`, `GET /api/audits/:id` | yes | yes | Read when permitted by API/RLS |
 | `GET /api/audits/:id/brief`, `PUT /api/audits/:id/brief` | yes | yes | Intake brief + `gates`; **GET** includes `product_mode` (from audit) for express vs full required-field UX |
 | `GET /api/audits/:id/pipeline/status`, `GET /api/audits/:id/quality-gate/:phase` | yes | yes | Progress / quality gate payload |
@@ -633,6 +634,61 @@ Each question object includes optional **`section`** (UI heading: `Business`, `G
 Submit validation requires **identity** plus the **express SLA** bank ids from **`resolveExpressSlaRequiredIds`** (same inputs as full express: visibility / branch / `collection_mode` / current policy). Statically this aligns with **`PRE_BRIEF_REQUIRED_SUBMIT_IDS`** (= express **`requiredAlways` + `requiredIfVisible`** in `intake-policy.v1.json` via `express-policy-ids.ts`). Optional pre-brief-only fields (e.g. **`f2` / `a7` / `f8`** when shown) are not part of that SLA unless they are required by the resolver for the client’s answers.
 
 Overwrites stored responses and updates `submitted_at`. Allowed until `expires_at` (no single-submit lock). If the token was created with `audit_id`, merges pre-brief question keys into `intake_brief` with source `client`.
+
+---
+
+## Discovery (public + consultant conversion)
+
+### `POST /api/discover`
+
+Public discovery submit endpoint (no auth).
+
+**Auth:** none. **Body:** `{ "answers": object, "maturity_level": 1..5, "findings": [] }`.
+
+**Response `201`:** `{ "token", "created_at" }`.
+
+`maturity_level` is validated as integer **1..5** and persisted under `discovery_sessions` with DB check constraint `1..5`.
+
+### `GET /api/discover/ui-fragment`
+
+Public endpoint returning runtime Discovery wizard copy/options derived from the unified intake bank/policy pipeline.
+
+**Auth:** none. **Response `200`:** `{ version, policyVersion, questionBankVersion, intake_versions, questions[] }`.
+
+### `GET /api/discover/:token`
+
+Public load endpoint for a discovery session by token.
+
+**Auth:** none.
+
+### `PATCH /api/discover/:token/contact`
+
+Public endpoint to attach contact details to an existing discovery session.
+
+**Auth:** none.
+
+### `GET /api/discover/sessions`
+
+Consultant queue endpoint.
+
+**Auth:** consultant JWT.
+
+Server-side scoping is enforced: only rows where `consultant_id IS NULL` (unclaimed queue) or `consultant_id = current consultant` are listed.
+
+### `POST /api/discover/:token/convert`
+
+Converts one discovery session to a full audit.
+
+**Auth:** consultant JWT.
+
+Security/ownership contract:
+
+- If `consultant_id` is already set to another consultant, returns **`403`**.
+- If session is unassigned, the route first performs an atomic claim (`consultant_id = current consultant`).
+- Claim race returns **`409`** (`Session was claimed or converted by another request`).
+- Link race at final `audit_id` write returns **`409`** (`Session conversion conflict. Please retry.`) and triggers best-effort audit rollback.
+
+Success returns **`201`** with `{ "audit_id": "..." }`.
 
 ---
 

@@ -250,9 +250,19 @@ function buildIntakePlanInternal(
     stubs,
   });
 
+  // When no layout surface applies, finalVisible is alphabetically sorted.
+  // nextRecommended iterates within priority tiers: bank-canonical order produces
+  // more predictable "fill next" suggestions than alphabetical (ADR §nextRecommended).
+  const visibleForNextRecommended = layoutSurfaceKey
+    ? finalVisible
+    : (() => {
+        const vset = new Set(finalVisible);
+        return stubs.filter(s => vset.has(s.id)).map(s => s.id);
+      })();
+
   const nextRecommended = isIntakeNextRecommendedEnabled()
     ? computeNextRecommended({
-        visibleOrdered: finalVisible,
+        visibleOrdered: visibleForNextRecommended,
         stubs,
         responses: r,
         missingForReport: derived.missingForReport,
@@ -286,8 +296,7 @@ function buildIntakePlanInternal(
       questionBankVersion: artifacts.questionBankVersion,
       policyVersion: policy.version,
       layoutVersion: layoutArtifact.version,
-      // ADR: resolver code is always current — only JSON artifacts differ by tuple.
-      // Always emit the running resolver version, never echo the stored tuple's value.
+      // Resolver code is always current (ADR); never echo a client-provided frozen version.
       resolverVersion: INTAKE_RESOLVER_VERSION,
     },
   };

@@ -315,6 +315,7 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
 
   // Session persistence
   const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [contactEditKey, setContactEditKey] = useState<string | null>(null);
 
   const intakeVersionsRef = useRef<IntakeVersionTuple | null>(null);
   const sessionTokenRef = useRef<string | null>(null);
@@ -462,8 +463,9 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
           findings: finalFindings,
         }),
         saveTimeout,
-      ]).then(({ token }) => {
+      ]).then(({ token, contact_edit_key }) => {
         setSessionToken(token);
+        setContactEditKey(contact_edit_key);
       }).catch(() => {
         // Timeout or network error — results are still shown, session token not available
       });
@@ -479,13 +481,15 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
     setContactSaving(true);
     setContactError(null);
     try {
-      if (sessionToken) {
-        await api.saveDiscoveryContact(sessionToken, {
+      if (sessionToken && contactEditKey) {
+        await api.saveDiscoveryContact(sessionToken, contactEditKey, {
           contact_name:    contactName.trim()    || undefined,
           contact_email:   contactEmail.trim()   || undefined,
           contact_phone:   contactPhone.trim()   || undefined,
           contact_company: contactCompany.trim() || undefined,
         });
+      } else if (sessionToken && !contactEditKey) {
+        throw new Error('Missing contact edit key');
       }
       setContactSaved(true);
     } catch {

@@ -3,6 +3,7 @@
 ## Threat Model
 
 Primary risks for this platform:
+
 1. User A accessing User B's audit data
 2. Unauthenticated access to the API
 3. Runaway API costs (Claude token abuse)
@@ -20,6 +21,7 @@ The core data isolation mechanism. **All application tables** use RLS; policies 
 `auth.uid()` is evaluated server-side by Supabase for queries using the anon key.
 
 **Backend uses service role key** — bypasses RLS intentionally. The backend enforces ownership at the application layer:
+
 ```typescript
 // Always filter by userId extracted from JWT
 const audit = await supabase
@@ -116,6 +118,27 @@ Do **not** ask them to paste full JSON responses containing **`company_url`** in
 - Prefer **IDs and fingerprints** over URLs in postmortems.
 - If logs accidentally captured a URL during development, **redact** before sharing; grep runbooks for `http://` in `context` before exporting log excerpts.
 
+## Discovery token ownership hardening
+
+Public Discovery sessions are token-addressable (`/api/discover/:token`). Token entropy remains high, but backend ownership controls are required to reduce impact of accidental token disclosure.
+
+Implemented controls:
+
+- `discovery_sessions.consultant_id` stores assignment ownership.
+- `POST /api/discover/:token/convert` enforces:
+  - **403** when a session is already assigned to another consultant,
+  - atomic claim for unassigned sessions before conversion,
+  - **409** on claim/link races, with best-effort rollback on late link conflict.
+- `GET /api/discover/sessions` is server-scoped to:
+  - unassigned sessions (`consultant_id IS NULL`), and
+  - sessions owned by the current consultant.
+
+Security intent:
+
+- prevent cross-consultant conversion after ownership has been established,
+- minimize hijack window to the pre-claim phase,
+- make race/failure modes explicit and non-silent.
+
 ## Rate Limiting
 
 `middleware/rate-limit.ts` using `express-rate-limit`:
@@ -175,7 +198,7 @@ In production set at least one of:
 ## Credentials Separation
 
 | Credential | Where | Why |
-|---|---|---|
+| --- | --- | --- |
 | `VITE_SUPABASE_ANON_KEY` | Frontend bundle | Public — RLS enforces access control |
 | `SUPABASE_SERVICE_KEY` | Backend only (Railway env) | Bypasses RLS — never exposed to client |
 | `ANTHROPIC_API_KEY` | Backend only (Railway env) | Direct cost liability — never exposed |
@@ -183,7 +206,8 @@ In production set at least one of:
 | `VITE_API_URL` | Frontend bundle | Safe — just the backend URL |
 
 `.gitignore` entries:
-```
+
+```bash
 .env
 .env.local
 .env*.local

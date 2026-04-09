@@ -8,6 +8,7 @@
  * POST /api/discover/:token/convert — consultant — create audit from session
  */
 import { Router } from 'express';
+import crypto from 'node:crypto';
 import { supabase } from '../services/supabase.js';
 import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../middleware/auth.js';
 import { intakePublicLimiter } from '../middleware/rate-limit.js';
@@ -21,6 +22,15 @@ import { intakeAnalyticsDiscoveryBatchSchema } from '../schemas/intake-analytics
 export const discoverRouter = Router();
 
 const TOKEN_HEX = /^[a-f0-9]{40}$/i;
+const CONTACT_EDIT_KEY_HEX = /^[a-f0-9]{64}$/i;
+
+function createContactEditKey(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+function sha256Hex(value: string): string {
+  return crypto.createHash('sha256').update(value).digest('hex');
+}
 
 function singleRouteParam(v: string | string[] | undefined): string {
   if (v === undefined) return '';
@@ -243,12 +253,14 @@ discoverRouter.post('/', intakePublicLimiter, async (req, res) => {
       return;
     }
 
+    const contactEditKey = createContactEditKey();
     const { data: row, error } = await supabase
       .from('discovery_sessions')
       .insert({
         answers,
         maturity_level: ml,
         findings,
+        contact_edit_key_hash: sha256Hex(contactEditKey),
       })
       .select('session_token, created_at')
       .single();
@@ -262,6 +274,7 @@ discoverRouter.post('/', intakePublicLimiter, async (req, res) => {
     res.status(201).json({
       token: row.session_token as string,
       created_at: row.created_at as string,
+      contact_edit_key: contactEditKey,
     });
   } catch (err) {
     logger.error('discover.save_exception', { component: 'discover', error: (err as Error).message });
@@ -344,11 +357,12 @@ discoverRouter.post('/analytics-events', intakePublicLimiter, async (req, res) =
 discoverRouter.get(
   '/sessions',
   requireAuth, attachProfile, requireRole('consultant'),
-  async (_req, res) => {
+  async (req: AuthRequest, res) => {
     try {
       const { data, error } = await supabase
         .from('discovery_sessions')
-        .select('session_token, maturity_level, findings, contact_name, contact_email, contact_phone, contact_company, audit_id, created_at, answers')
+        .select('session_token, maturity_level, findings, contact_name, contact_email, contact_phone, contact_company, audit_id, created_at, answers, consultant_id')
+        .or(`consultant_id.is.null,consultant_id.eq.${req.userId!}`)
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -363,14 +377,16 @@ discoverRouter.get(
         const ans = (row.answers as Record<string, unknown>) ?? {};
         const industryFromBank = typeof ans.a2 === 'string' ? ans.a2.trim() || null : null;
         const bizFromBank = typeof ans.a1 === 'string' ? ans.a1.trim() || null : null;
+        const isOwnedByCurrentConsultant = row.consultant_id === req.userId;
         return {
           session_token: row.session_token,
           maturity_level: row.maturity_level,
           findings: row.findings,
-          contact_name:    row.contact_name,
-          contact_email:   row.contact_email,
-          contact_phone:   row.contact_phone,
-          contact_company: row.contact_company,
+          // Unclaimed sessions remain visible for queue triage, but PII is hidden until claimed.
+          contact_name:    isOwnedByCurrentConsultant ? row.contact_name : null,
+          contact_email:   isOwnedByCurrentConsultant ? row.contact_email : null,
+          contact_phone:   isOwnedByCurrentConsultant ? row.contact_phone : null,
+          contact_company: isOwnedByCurrentConsultant ? row.contact_company : null,
           audit_id:      row.audit_id,
           created_at:    row.created_at,
           biz_description:
@@ -379,6 +395,7 @@ discoverRouter.get(
           industry:
             industryFromBank
             ?? (typeof ans.industry === 'string' ? ans.industry.trim() || null : null),
+          consultant_id: (row.consultant_id as string | null) ?? null,
         };
       });
 
@@ -402,7 +419,8 @@ discoverRouter.get('/:token', intakePublicLimiter, async (req, res) => {
 
     const { data: row, error } = await supabase
       .from('discovery_sessions')
-      .select('answers, maturity_level, findings, contact_name, contact_email, contact_phone, contact_company, created_at, audit_id')
+      // Public endpoint: intentionally excludes contact_* PII.
+      .select('answers, maturity_level, findings, created_at, audit_id')
       .eq('session_token', token)
       .single();
 
@@ -427,6 +445,15 @@ discoverRouter.patch('/:token/contact', intakePublicLimiter, async (req, res) =>
       res.status(400).json({ error: 'Invalid token' });
       return;
     }
+
+    const contactEditKeyRaw = typeof req.body?.contact_edit_key === 'string'
+      ? req.body.contact_edit_key.trim()
+      : '';
+    if (!CONTACT_EDIT_KEY_HEX.test(contactEditKeyRaw)) {
+      res.status(403).json({ error: 'Invalid or missing contact edit key' });
+      return;
+    }
+    const contactEditKeyHash = sha256Hex(contactEditKeyRaw);
 
     const patch: Record<string, string | null> = {};
     if (typeof req.body?.contact_name === 'string') {
@@ -454,14 +481,22 @@ discoverRouter.patch('/:token/contact', intakePublicLimiter, async (req, res) =>
       return;
     }
 
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from('discovery_sessions')
       .update(patch)
-      .eq('session_token', token);
+      .eq('session_token', token)
+      .is('audit_id', null)
+      .eq('contact_edit_key_hash', contactEditKeyHash)
+      .select('id')
+      .maybeSingle();
 
     if (error) {
       logger.error('discover.contact_update_failed', { component: 'discover', error: error.message });
       res.status(500).json({ error: 'Failed to save contact info' });
+      return;
+    }
+    if (!updated) {
+      res.status(403).json({ error: 'Contact update not allowed for this session' });
       return;
     }
 
@@ -485,61 +520,60 @@ discoverRouter.post(
         return;
       }
 
-      const { data: session, error: sErr } = await supabase
-        .from('discovery_sessions')
-        .select('id, answers, maturity_level, findings, contact_name, contact_company, audit_id')
-        .eq('session_token', token)
-        .single();
-
-      if (sErr || !session) {
+      const reviewPhases = reviewPhasesForMode('full');
+      const { data: convertRows, error: convertErr } = await supabase.rpc(
+        'discovery_convert_session_atomic',
+        {
+          p_session_token: token,
+          p_consultant_id: req.userId!,
+          p_company_url: NO_PUBLIC_WEBSITE_URL,
+          p_product_mode: 'full',
+          p_review_phases: reviewPhases,
+          p_domain_keys: [...DOMAIN_KEYS],
+        },
+      );
+      if (convertErr) {
+        logger.error('discover.convert_rpc_failed', {
+          component: 'discover',
+          error: convertErr.message,
+          session_token: token,
+        });
+        res.status(500).json({ error: 'Failed to convert session' });
+        return;
+      }
+      const convertRow = Array.isArray(convertRows)
+        ? (convertRows[0] as { audit_id: string | null; error_code: string | null; answers: Record<string, unknown> | null } | undefined)
+        : undefined;
+      if (!convertRow) {
+        res.status(500).json({ error: 'Failed to convert session' });
+        return;
+      }
+      if (convertRow.error_code === 'not_found') {
         res.status(404).json({ error: 'Session not found' });
         return;
       }
-      if (session.audit_id) {
-        res.status(409).json({ error: 'Session already converted', audit_id: session.audit_id });
+      if (convertRow.error_code === 'already_converted') {
+        res.status(409).json({ error: 'Session already converted', audit_id: convertRow.audit_id });
         return;
       }
-
-      const answers = (session.answers as Record<string, unknown>) ?? {};
-      const industry =
-        (typeof answers.a2 === 'string' && answers.a2.trim())
-        || (typeof answers.industry === 'string' ? answers.industry.trim() : null)
-        || null;
-      const row = session as { contact_name?: string | null; contact_company?: string | null };
-      const companyName =
-        (typeof row.contact_name === 'string' && row.contact_name.trim())
-        || (typeof row.contact_company === 'string' && row.contact_company.trim())
-        || null;
-
-      // Create audit with no public website (Mode C)
-      const { data: audit, error: aErr } = await supabase
-        .from('audits')
-        .insert({
-          user_id: req.userId!,
-          company_url: NO_PUBLIC_WEBSITE_URL,
-          company_name: companyName || null,
-          industry: industry || null,
-          product_mode: 'full',
-        })
-        .select('id')
-        .single();
-
-      if (aErr || !audit) {
-        logger.error('discover.convert_audit_failed', { component: 'discover', error: aErr?.message });
-        res.status(500).json({ error: 'Failed to create audit' });
+      if (convertRow.error_code === 'forbidden_owner') {
+        res.status(403).json({ error: 'Session is assigned to another consultant' });
         return;
       }
-
-      const auditId = audit.id as string;
-      const reviewPhases = reviewPhasesForMode('full');
-
-      // Pre-create child records
-      await Promise.all([
-        supabase.from('review_points').insert(reviewPhases.map(phase => ({ audit_id: auditId, after_phase: phase }))),
-        supabase.from('audit_domains').insert(DOMAIN_KEYS.map((key, i) => ({ audit_id: auditId, domain_key: key, phase_number: i + 1 }))),
-        supabase.from('audit_recon').insert({ audit_id: auditId }),
-        supabase.from('audit_strategy').insert({ audit_id: auditId }),
-      ]);
+      if (convertRow.error_code === 'claim_conflict') {
+        res.status(409).json({ error: 'Session was claimed or converted by another request' });
+        return;
+      }
+      if (convertRow.error_code === 'link_conflict') {
+        res.status(409).json({ error: 'Session conversion conflict. Please retry.' });
+        return;
+      }
+      if (convertRow.error_code || !convertRow.audit_id) {
+        res.status(500).json({ error: 'Failed to convert session' });
+        return;
+      }
+      const auditId = convertRow.audit_id;
+      const answers = (convertRow.answers ?? {}) as Record<string, unknown>;
 
       // Map discovery answers → intake brief
       const briefPatch = discoveryToBriefPatch(answers);
@@ -556,12 +590,6 @@ discoverRouter.post(
           });
         }
       }
-
-      // Link session to audit
-      await supabase
-        .from('discovery_sessions')
-        .update({ audit_id: auditId })
-        .eq('id', session.id);
 
       logger.info('discover.converted', { component: 'discover', audit_id: auditId, session_token: token });
       res.status(201).json({ audit_id: auditId });

@@ -466,12 +466,13 @@ Section F (5):  f1, f2, f7, f8, f4
 
 **Branch fix — `c7`:** Added `"branch": "has_website"` to prevent no-website clients from seeing both `c7` (generic social presence) and `c_nosite_3` (richer version with Google Business, TripAdvisor). `c_nosite_3` is the correct question for this path.
 
-**Tech debt:** Two parallel discovery systems exist in the codebase:
+**Architecture status (Phase 5):**
 
-1. `server/src/intake/discovery.ts` — bank-integrated, used by `IntakeBankWizard` (this spec)
-2. `src/app/lib/discovery-flow.ts` — standalone legacy system with own question set, maturity scoring, and findings format
+- `src/app/lib/discovery-flow.ts` uses the shared resolver (`buildIntakePlan`) and shared wizard question builder.
+- `GET /api/discover/ui-fragment` is the runtime source for public Discovery copy/options; client fallback uses the same server-side builder shape.
+- Maturity scoring/findings remain Discovery-specific product logic, but question identity/visibility are no longer maintained as a separate questionnaire.
 
-The legacy system (`discovery-flow.ts`) pre-dates bank v1 integration and is not covered by this spec. It should be evaluated for removal or migration in a future sprint.
+This means Discovery no longer has a separate semantic question model; it is a projection over the unified bank/policy/layout layers.
 
 **Discovery outro (copy):** *"Thank you — we already have a clear operational picture. Next step: a short call to align on audit depth and access. Our report leans on your processes just as heavily as on your online presence."*
 

@@ -21,7 +21,7 @@ function boolishPositive(raw: unknown): boolean {
   if (!s) return false;
   if (s === 'yes' || s === 'true') return true;
   if (s.includes('yes') && !s.includes('no')) return true;
-  if (s.includes('structured') || s.includes('export') || s.includes('api')) return true;
+  if (s.includes('structured') || s.includes('api')) return true;
   return false;
 }
 

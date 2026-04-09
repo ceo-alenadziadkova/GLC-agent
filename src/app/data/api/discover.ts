@@ -43,7 +43,7 @@ export const discoverApi = {
     maturity_level: number;
     findings: unknown[];
   }) {
-    return publicApiFetch<{ token: string; created_at: string }>('/api/discover', {
+    return publicApiFetch<{ token: string; created_at: string; contact_edit_key: string }>('/api/discover', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -68,10 +68,6 @@ export const discoverApi = {
       answers: Record<string, unknown>;
       maturity_level: number;
       findings: unknown[];
-      contact_name: string | null;
-      contact_email: string | null;
-      contact_phone: string | null;
-      contact_company: string | null;
       created_at: string;
       audit_id: string | null;
     }>(`/api/discover/${encodeURIComponent(token)}`);
@@ -80,6 +76,7 @@ export const discoverApi = {
   /** Public: attach contact info to a discovery session (called from results page). */
   async saveDiscoveryContact(
     token: string,
+    contactEditKey: string,
     contact: {
       contact_name?: string;
       contact_email?: string;
@@ -89,7 +86,10 @@ export const discoverApi = {
   ) {
     return publicApiFetch<{ ok: true }>(`/api/discover/${encodeURIComponent(token)}/contact`, {
       method: 'PATCH',
-      body: JSON.stringify(contact),
+      body: JSON.stringify({
+        ...contact,
+        contact_edit_key: contactEditKey,
+      }),
     });
   },
 

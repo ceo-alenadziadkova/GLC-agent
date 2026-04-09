@@ -118,13 +118,8 @@ export function lintLayoutReferencesUnknownBankIds(
 
 /**
  * Every bank question must be covered by at least one policy mode's participation rule.
- * `full`, `express`, `free_snapshot` are `all_eligible` (cover the entire bank).
- * `discovery` uses an explicit inclusion list.
- * `pre_brief` derives from express; not counted separately.
- *
- * Also validates that pre_brief.bankIncluded (when set) is a subset of the bank —
- * orphan check is in lintOrphanPolicyPreBriefBankIds; this check adds a warning when
- * bankIncluded contains ids that cannot be eligible under express (i.e. not in the bank).
+ * Today `full` and `express` are `all_eligible` (covers entire bank); explicit lists add more ids.
+ * Fails if a future mode drops all_eligible without listing every bank id elsewhere.
  */
 export function lintMissingPolicyCoverage(
   policy: IntakePolicyV1 = INTAKE_POLICY_V1,
@@ -132,17 +127,15 @@ export function lintMissingPolicyCoverage(
 ): LintFinding[] {
   const covered = new Set<string>();
 
-  // full, express, free_snapshot: `participation: 'all_eligible'` means all bank ids are in play.
-  // Guard: check the participation field value explicitly so this survives future type changes.
-  if ((policy.modes.full as { participation?: string }).participation === 'all_eligible') {
-    for (const id of bankIds) covered.add(id);
-  }
-  if ((policy.modes.express as { participation?: string }).participation === 'all_eligible') {
-    for (const id of bankIds) covered.add(id);
-  }
-  if ((policy.modes.free_snapshot as { participation?: string }).participation === 'all_eligible') {
-    for (const id of bankIds) covered.add(id);
-  }
+  const touchAllEligible = (mode: { participation?: string } | undefined) => {
+    if (mode?.participation === 'all_eligible') {
+      for (const id of bankIds) covered.add(id);
+    }
+  };
+
+  touchAllEligible(policy.modes.full);
+  touchAllEligible(policy.modes.express);
+  touchAllEligible(policy.modes.free_snapshot);
 
   if (policy.modes.discovery.participation === 'explicit') {
     for (const id of policy.modes.discovery.included) covered.add(id);
@@ -154,29 +147,11 @@ export function lintMissingPolicyCoverage(
       findings.push({
         code: 'MISSING_POLICY_COVERAGE',
         severity: 'error',
-        message: `Bank question "${id}" is not covered by any policy mode participation (full/express/free_snapshot must be all_eligible, or discovery.included must list it).`,
+        message: `Bank question "${id}" is not covered by any policy mode participation.`,
         detail: id,
       });
     }
   }
-
-  // pre_brief.bankIncluded must be a subset of discovery.included when discovery participation
-  // is explicit, because pre_brief is a narrower projection. Warn when an id in bankIncluded
-  // is outside the discovery inclusion set (it would still show in pre_brief but not in discovery,
-  // which is usually unintentional — pre_brief is supposed to be a subset of discovery).
-  const discoveryIncluded = new Set(policy.modes.discovery.included);
-  const preBriefBank = policy.modes.pre_brief.bankIncluded ?? [];
-  for (const id of preBriefBank) {
-    if (!discoveryIncluded.has(id)) {
-      findings.push({
-        code: 'PRE_BRIEF_BANK_OUTSIDE_DISCOVERY',
-        severity: 'warn',
-        message: `Policy pre_brief.bankIncluded includes "${id}" which is not in discovery.included. Pre-brief is normally a subset of discovery; verify this is intentional.`,
-        detail: id,
-      });
-    }
-  }
-
   return findings;
 }
 
@@ -644,45 +619,42 @@ export function lintCanonQuestionMetadataKeys(
 }
 
 /**
- * Every id appearing in any mode's askStrategyById must be a real bank question id.
- * A typo (e.g. "f88" instead of "f8") silently does nothing at runtime.
+ * Every id in pre_brief.bankIncluded must also appear in express.requiredAlways,
+ * express.requiredIfVisible, or be an all_eligible bank question. An id that
+ * branch-gates to hidden in all express-visible contexts creates a ghost required
+ * slot that can never be satisfied.
+ *
+ * Detects: ids in bankIncluded that are not in the express required lists AND have
+ * a branchCondition (may be hidden). Warns rather than errors because branch
+ * evaluation is runtime-dependent, but surfaces candidates for manual review.
  */
-export function lintAskStrategyByIdOrphanIds(
+export function lintPreBriefBankIncludedBranchConflicts(
   policy: IntakePolicyV1 = INTAKE_POLICY_V1,
-  bankIds: Set<string> = QUESTION_BANK_V1_IDS,
+  stubs: IntakeQuestionStub[] = QUESTION_BANK_V1_STUBS,
 ): LintFinding[] {
   const findings: LintFinding[] = [];
-  for (const [modeName, mode] of Object.entries(policy.modes) as [string, { askStrategyById?: Record<string, string> }][]) {
-    const map = mode?.askStrategyById;
-    if (!map) continue;
-    for (const id of Object.keys(map)) {
-      if (!bankIds.has(id)) {
-        findings.push({
-          code: 'ASK_STRATEGY_ORPHAN_ID',
-          severity: 'error',
-          message: `Policy modes.${modeName}.askStrategyById references unknown bank id "${id}".`,
-          detail: id,
-        });
-      }
+  const bankIncluded = policy.modes.pre_brief.bankIncluded ?? [];
+  if (bankIncluded.length === 0) return findings;
+
+  const expressRequired = new Set([
+    ...policy.modes.express.requiredAlways,
+    ...policy.modes.express.requiredIfVisible,
+  ]);
+  const branchById = new Map(stubs.map(s => [s.id, s.branchCondition]));
+
+  for (const id of bankIncluded) {
+    if (expressRequired.has(id)) continue;
+    const branch = branchById.get(id);
+    if (branch) {
+      findings.push({
+        code: 'PRE_BRIEF_BANK_INCLUDED_BRANCH_GATED',
+        severity: 'warn',
+        message: `pre_brief.bankIncluded "${id}" has branchCondition "${branch}" and is not in express required lists — may be hidden at runtime and never satisfiable.`,
+        detail: id,
+      });
     }
   }
   return findings;
-}
-
-/**
- * Policy express.requiredAlways and requiredIfVisible ids must all be visible under
- * some canon branch (i.e. exist in the bank without a branch that can never fire).
- * Only catches ids not present in the bank at all — branch-always-hidden cases are
- * caught at runtime by the EXPRESS_REQUIRED_NOT_VISIBLE debug trace entry.
- * (Subset check: already covered by lintSyntheticCollision for non-revenue_model ids.)
- */
-export function lintExpressSlaIdsAreBankIds(
-  policy: IntakePolicyV1 = INTAKE_POLICY_V1,
-  bankIds: Set<string> = QUESTION_BANK_V1_IDS,
-): LintFinding[] {
-  // Delegating to lintSyntheticCollision which already covers this — kept as an explicit
-  // named alias for clarity in lintBankAndPolicyAll.
-  return lintSyntheticCollision(policy, bankIds);
 }
 
 export function lintBankAndPolicyAll(): LintFinding[] {
@@ -693,10 +665,10 @@ export function lintBankAndPolicyAll(): LintFinding[] {
     ...lintOrphanPolicyDiscoveryIds(),
     ...lintOrphanPolicyPreBriefBankIds(),
     ...lintPreBriefBankIncludedJsonMatchesPolicy(),
+    ...lintPreBriefBankIncludedBranchConflicts(),
     ...lintLayoutReferencesUnknownBankIds(),
     ...lintDuplicateDiscoveryIncluded(),
     ...lintSyntheticCollision(),
-    ...lintAskStrategyByIdOrphanIds(),
     ...lintDeprecatedStillRequired(),
     ...lintForbiddenImportsInCore(),
   ];
