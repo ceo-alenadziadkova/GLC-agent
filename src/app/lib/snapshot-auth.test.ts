@@ -1,15 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { User } from '@supabase/supabase-js';
-import { isAnonymousUser, ensureSnapshotSession, getSnapshotAccessToken } from './snapshot-auth';
+import {
+  GLC_PREVIEW_GUEST_SESSION_KEY,
+  isAnonymousUser,
+  ensureSnapshotSession,
+  getSnapshotAccessToken,
+} from './snapshot-auth';
 
 const mockGetSession = vi.fn();
-const mockSignInAnonymously = vi.fn();
+const mockSetSession = vi.fn();
 
 vi.mock('./supabase', () => ({
   supabase: {
     auth: {
       getSession: () => mockGetSession(),
-      signInAnonymously: () => mockSignInAnonymously(),
+      setSession: (payload: unknown) => mockSetSession(payload),
     },
   },
 }));
@@ -49,6 +54,8 @@ describe('isAnonymousUser', () => {
 describe('ensureSnapshotSession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+    mockSetSession.mockResolvedValue({ data: { session: null }, error: null });
   });
 
   it('returns existing access_token from session', async () => {
@@ -56,40 +63,84 @@ describe('ensureSnapshotSession', () => {
       data: { session: { access_token: 'tok-abc' } },
     });
     await expect(ensureSnapshotSession()).resolves.toBe('tok-abc');
-    expect(mockSignInAnonymously).not.toHaveBeenCalled();
+    expect(mockSetSession).not.toHaveBeenCalled();
   });
 
-  it('calls signInAnonymously when no token', async () => {
+  it('restores session from local backup when getSession is empty', async () => {
+    localStorage.setItem(
+      GLC_PREVIEW_GUEST_SESSION_KEY,
+      JSON.stringify({ access_token: 'bak-at', refresh_token: 'bak-rt' }),
+    );
     mockGetSession.mockResolvedValue({ data: { session: null } });
-    mockSignInAnonymously.mockResolvedValue({
-      data: { session: { access_token: 'anon-tok' } },
+    mockSetSession.mockResolvedValue({
+      data: {
+        session: {
+          access_token: 'restored-at',
+          refresh_token: 'restored-rt',
+          user: { id: 'guest-1', is_anonymous: true } as User,
+        },
+      },
       error: null,
     });
-    await expect(ensureSnapshotSession()).resolves.toBe('anon-tok');
+    await expect(ensureSnapshotSession()).resolves.toBe('restored-at');
+    expect(mockSetSession).toHaveBeenCalledWith({
+      access_token: 'bak-at',
+      refresh_token: 'bak-rt',
+    });
   });
 
-  it('throws when anonymous sign-in fails', async () => {
+  it('returns empty string when backup restore fails', async () => {
+    localStorage.setItem(
+      GLC_PREVIEW_GUEST_SESSION_KEY,
+      JSON.stringify({ access_token: 'bad', refresh_token: 'bad' }),
+    );
     mockGetSession.mockResolvedValue({ data: { session: null } });
-    mockSignInAnonymously.mockResolvedValue({
-      data: { session: null },
-      error: { message: 'Anonymous disabled' },
-    });
-    await expect(ensureSnapshotSession()).rejects.toThrow(/Anonymous disabled/);
+    mockSetSession.mockResolvedValue({ data: { session: null }, error: { message: 'invalid' } });
+    await expect(ensureSnapshotSession()).resolves.toBe('');
+    expect(localStorage.getItem(GLC_PREVIEW_GUEST_SESSION_KEY)).toBeNull();
   });
 
-  it('throws when anonymous session has no token', async () => {
+  it('returns empty string when no session and no backup', async () => {
     mockGetSession.mockResolvedValue({ data: { session: null } });
-    mockSignInAnonymously.mockResolvedValue({
-      data: { session: {} },
-      error: null,
+    await expect(ensureSnapshotSession()).resolves.toBe('');
+  });
+
+  it('coalesces parallel callers into a single getSession chain', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: null } });
+    let release: () => void;
+    const barrier = new Promise<void>((r) => {
+      release = r;
     });
-    await expect(ensureSnapshotSession()).rejects.toThrow(/Could not start a preview session/);
+    mockSetSession.mockImplementation(async () => {
+      await barrier;
+      return {
+        data: {
+          session: {
+            access_token: 'single',
+            refresh_token: 'rt',
+            user: { id: 'guest-1', is_anonymous: true } as User,
+          },
+        },
+        error: null,
+      };
+    });
+    localStorage.setItem(
+      GLC_PREVIEW_GUEST_SESSION_KEY,
+      JSON.stringify({ access_token: 'bak-at', refresh_token: 'bak-rt' }),
+    );
+
+    const a = ensureSnapshotSession();
+    const b = ensureSnapshotSession();
+    release!();
+    await expect(Promise.all([a, b])).resolves.toEqual(['single', 'single']);
+    expect(mockSetSession).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('getSnapshotAccessToken', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   it('returns null when no session', async () => {

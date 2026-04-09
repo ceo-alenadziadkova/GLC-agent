@@ -8,6 +8,10 @@ Product context (modes, deliverables): [PRODUCT.md](./PRODUCT.md). System diagra
 
 React 18 + TypeScript + Vite. Tailwind CSS v4 (`src/styles/tailwind.css`), glassmorphism and brand gradients where specified in tokens. Animation: Framer Motion. UI primitives: shadcn-style semantic variables mapped in `theme.css` (`--background`, `--primary`, …).
 
+### UI languages (i18n target list)
+
+Planned in-app locales (BCP-47): **English (`en`, default), German (`de`), Spanish (`es`), Catalan (`ca`), Russian (`ru`), Italian (`it`).** Canonical definitions: `src/app/lib/supported-ui-locales.ts` (`GlcUiLocale`, labels for choosers). Full message catalogs and runtime i18n are a separate rollout; until then see the **Browser auto-translate vs React** paragraph in the Routing section below.
+
 ---
 
 ## Design system (style guide)
@@ -105,6 +109,24 @@ Base heading sizes and weights are set globally in `theme.css` (`h1`–`h4`, `la
 
 **`mobile:` variant:** `width < 40rem` (same breakpoint notion as Tailwind `sm`). Define base layout for `sm+`, narrow overrides with `mobile:` — see `src/styles/tailwind.css`.
 
+**App shell (desktop vs narrow viewports):** `AppShell` (`src/app/components/AppShell.tsx`) uses a **fixed ink sidebar** from `sm` (`40rem`) upward. Below that breakpoint it switches to a **compact top bar** (logo, page title + subtitle, notifications, theme, menu), **scrollable main** with bottom padding for the tab bar, a **bottom tab row** (up to four primary routes derived from the same nav model as the sidebar), and a **slide-in menu** for the full route list, quick actions (new audit), Settings, and Sign out. Consultant primary tabs are the first four linked destinations (Dashboard + admin queues); clients get portal routes plus **New audit** when it is not already in the first four slots. **Route lists and mobile tab selection** are implemented in `src/app/lib/app-shell-nav.ts` (unit tests in `src/app/lib/__tests__/app-shell-nav.test.ts`) so sidebar and mobile chrome stay in sync.
+
+**Manual mobile QA (recommended):** spot-check `/portal` and `/dashboard` at **320 / 375 / 390** px width for horizontal overflow, tap targets (44px utilities in `theme.css`), and that the bottom tab bar does not cover the last lines of scrollable content.
+
+**Mobile layout utilities** (tokens + safe area) live in `src/styles/theme.css`:
+
+| Class | Purpose |
+| --- | --- |
+| `--glc-mobile-nav-height`, `--glc-mobile-header-height`, `--glc-touch-target-min` | Shell metrics (44px minimum touch target) |
+| `.glc-safe-pad-x` / `.glc-safe-pad-t` / `.glc-safe-pad-b` | Combine spacing tokens with `env(safe-area-inset-*)` |
+| `.glc-touch-target` | Minimum 44×44px hit area for icon buttons |
+| `.glc-page-content` | Standard page padding (tighter horizontal padding under `40rem` + safe area) |
+| `.glc-main-mobile-nav-pad` | Extra bottom padding for main content when the mobile tab bar is visible |
+
+**Viewport:** `index.html` uses `viewport-fit=cover` so safe-area insets apply on notched devices.
+
+**Representative responsive pages:** `Dashboard` uses a **card list** for audits below `sm` and keeps the data grid on wider screens; `KpiStrip` is **2×2** then **4×1**. `ClientPortal` reuses **`PortalAuditCard`** (`src/app/components/PortalAuditCard.tsx`) for consistent list density. `ActionPanel` row actions use **`mobile:opacity-100`** so deep links stay visible without hover. **`ClientAuditView`** and **`NewAudit`** use **`glc-page-content`**, stacked primary actions on narrow widths, and (for client self-serve) a mobile **Back to portal** link in the page body when the shell action is hidden. Admin queues **`AdminRequestQueue`**, **`AdminSnapshotQueue`**, and **`DiscoveryQueue`** share the same padding utility, **`glc-touch-target`** on filters and primary controls where it helps, and **`DiscoveryQueue`** moves **Copy discover link** / **Refresh** into **`AppShell` actions** so they stay in the top bar on phones.
+
 ### Components and patterns
 
 | Pattern | Where |
@@ -138,7 +160,7 @@ Prefer composing with tokens (`bg-background`, `text-foreground`, `border-border
 
 **Question bank coverage hint:** `IntakeBankCoverageHint` + `useIntakeBankMetrics` on **New Audit** (Brief step), **Audit Workspace** sidebar (when `intake_brief` exists), and **Client portal** pre-audit brief — same branch-aware v1 score as the API after legacy merge.
 
-**Client portal — self-serve audits:** **`ClientPortal`** (`/portal`, “My Portal”) lists audits from **`GET /api/audits`** with **`StatusPill`** labels (e.g. **Brief & setup** for `created`), a short next-step hint, optional website line under the company name, and a meta line (industry · express/full · relative `updated_at`). **`ClientAuditView`** at `/portal/audit/:id` loads the audit with **`GET /api/audits/:id`** and renders **`ClientPortalAuditById`** when the caller may access that row; otherwise it shows **not found** (no fallback to `audit_requests` IDs). Flow: **`/portal/audit/new`** → `NewAudit` with `variant="client_self_serve"` → full bank brief; wizard state is mirrored to **`sessionStorage`** (`glc_portal_new_audit_draft_v1`) so a tab refresh restores progress; **Save draft** also persists to the account (**`POST /api/audits`** once, then **`PUT …/brief`**) when Basics validate. **Launch Audit** reuses that draft **`audits.id`** when present, then **`pipeline/start`** and navigation to **`/portal/pipeline/:id`**. Audits left in **`created`** can still be continued from **My Portal** with **Start audit** / **Save Brief** there. **`/portal/pipeline/:id`** and **`/portal/reports/:id`** mirror consultant URLs under the client layout.
+**Client portal — self-serve audits:** **`ClientPortal`** (`/portal`, “My Portal”) lists audits from **`GET /api/audits`** using **`PortalAuditCard`** rows with **`StatusPill`** labels (e.g. **Brief & setup** for `created`), a short next-step hint, optional website line under the company name, and a meta line (industry · express/full · relative `updated_at`). **`ClientAuditView`** at `/portal/audit/:id` loads the audit with **`GET /api/audits/:id`** and renders **`ClientPortalAuditById`** when the caller may access that row; otherwise it shows **not found** (no fallback to `audit_requests` IDs). Flow: **`/portal/audit/new`** → `NewAudit` with `variant="client_self_serve"` → full bank brief; wizard state is mirrored to **`sessionStorage`** (`glc_portal_new_audit_draft_v1`) so a tab refresh restores progress; **Save draft** also persists to the account (**`POST /api/audits`** once, then **`PUT …/brief`**) when Basics validate. **Launch Audit** reuses that draft **`audits.id`** when present, then **`pipeline/start`** and navigation to **`/portal/pipeline/:id`**. Audits left in **`created`** can still be continued from **My Portal** with **Start audit** / **Save Brief** there. **`/portal/pipeline/:id`** and **`/portal/reports/:id`** mirror consultant URLs under the client layout.
 
 **Client portal Pre-Audit Brief** (embedded in `ClientAuditView` for self-serve `created` audits): `BriefLayoutPreferenceCards` lets the client choose **All sections at once** (`BankClassicBriefFields`, compact) or **Step by step** (`IntakeBankWizard`). **Resolution:** per-audit `localStorage` `glc_client_brief_layout_v1:<auditId>` overrides the **default** from Settings (`glc_client_brief_layout_default_v1`); if neither is set, the chooser appears (`resolveClientBriefLayout`). **Change layout** clears the per-audit key only. **Ask each time** in Settings (`applyClientBriefLayoutAskEachTime`) clears the default and **all** `glc_client_brief_layout_v1:*` keys. Same bank v1 branching as consultant flows; `collection_mode === 'discovery'` applies when returned from the API. New answers use `source: 'client'` (and `unknown` for explicit unknown). **Save Brief** submits via `PUT /api/audits/:id/brief` (no auto-save debounce in this panel). Brief UI links to **`/settings#brief-layout`**.
 
@@ -165,7 +187,9 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 | `/strategy/:id` | `StrategyLab.tsx` | Strategic roadmap |
 | `/settings` | `SettingsPage.tsx` | Profile, appearance, client self-serve audit owner (consultants), intake brief layout defaults, notifications |
 | `/discovery`, `/audit/discover` | `DiscoverPage.tsx` | Public discovery questionnaire (no auth); alias paths are equivalent |
+| `/admin/snapshots` | `AdminSnapshotQueue.tsx` | Consultant: all free snapshot submissions (`product_mode=free_snapshot`), requested URL, status, and current score/result |
 | `/admin/discovery` | `DiscoveryQueue.tsx` | Consultant: Mode C submissions, convert to audit; shareable URL `/discovery` |
+| `/admin/intake-trace` | `IntakeTraceTool.tsx` | Consultant: debug `buildIntakePlan` / `formatPlanTrace` on pasted responses JSON (no API) |
 
 ---
 
@@ -173,9 +197,14 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 
 ### `Login.tsx`
 - **Sign in** / **Create account** tabs → `signInWithPassword` / `signUp` (see `useAuth`)
-- Google OAuth → **`signInWithOAuth`**, or **`linkIdentity`** when the current user is anonymous (free snapshot upgrade path) — `redirectTo: <origin>/login`
-- Anonymous snapshot sessions see a hint to prefer **Continue with Google** so `user.id` stays stable when upgrading
-- If already authenticated (`useAuth().isAuthenticated`) → redirect to `/portfolio`
+- Google OAuth on `/login` → **`signInWithOAuth`** (`redirectTo: <origin>/login`); optional **`preserveGuestSession`** on `signInWithGoogle` for legacy **`linkIdentity`** flows only
+- After a full (non-anonymous) session is established, if **`glc_pending_snapshot_token`** is set, calls **`api.claimSnapshot`** then clears it (or clears on **404/409/410**)
+- If already authenticated (`useAuth().isAuthenticated`) → redirect to `/portfolio` (or `?next=` / discovery), after the claim step above
+
+### `/snapshot` (`SnapshotLanding.tsx`)
+- **`POST /api/snapshot`** with **`credentials: 'include'`** (no `Authorization` header); stores **`glc_pending_snapshot_token`** when a run starts
+- Polls **`GET /api/snapshot/:token`** with **`credentials: 'include'`**
+- Signed-in users see workspace link; guests see **Sign in** to save results via claim
 - Glassmorphism card, gradient button, GLC logo
 
 ### `SettingsPage.tsx`
@@ -281,8 +310,16 @@ const {
 ```typescript
 const { audits, loading, error } = useAudits();
 ```
-- `GET /api/audits` on mount
-- No Realtime subscription (Portfolio is a summary view; user navigates away when audit is running)
+- `GET /api/audits` via **TanStack Query** (`@tanstack/react-query`), keyed by `limit` and `offset`; default **staleTime** 2 minutes (see `glc-query-client.ts`). Returning to Dashboard / Portal reuses in-memory query data and may refetch in the background. `reload()` invalidates all `['glc','audits','list', …]` queries. Cleared on sign-out (`queryClient.clear()` via `invalidateGlcSessionDataCaches`).
+
+### `useDashboard()`
+- `GET /api/dashboard` through the same QueryClient (staleTime ~2 minutes). `reloadDashboard()` invalidates the dashboard query.
+
+### Server data caching (overview)
+- **Query keys** live in `src/app/lib/glc-keys.ts`. **Targeted invalidation** after pipeline steps / brief saves: `invalidateAuditRelatedQueries` in `glc-invalidate-queries.ts` (audit + brief payloads).
+- **Admin Request queue** and **Discovery sessions** use a longer stale window (5 minutes).
+- **Window focus:** `refetchOnWindowFocus` is off in `glc-query-client.ts` so switching browser tabs does not trigger a blanket refetch; reconnect refetch stays on. **ProtectedRoute** blocks role-gated pages only while `profileLoading && !profile` (first load). **useProfile** treats repeat `SIGNED_IN` for the same user as a background refresh so the shell is not unmounted and local hooks (e.g. pipeline state) are not reset. Use per-page refresh / invalidation when fresh data is required.
+- **Admin Snapshot queue** uses a short stale window (3 minutes) and supports manual refresh.
 
 ---
 
@@ -370,6 +407,12 @@ export const DOMAIN_KEYS = [
 ---
 
 ## Routing (`src/app/routes.tsx`)
+
+The app uses **`createBrowserRouter`** with a root layout route (`<Outlet />`) and **`errorElement: <RouteErrorPage />`** so route render failures show a neutral recovery screen (`GlcAppErrorScreen`: reference id, copy-for-support, optional `POST /api/log` via `api.reportUiIncident` when signed in). The root **`ErrorBoundary`** in `main.tsx` wraps the same UI for errors outside the router tree. Client navigation from that screen uses plain `<a href>` so it works above `RouterProvider`. Frontend **`logger`** and **`reportUiIncident`** attach a coarse **`client_env`** object (e.g. `os_family` windows/macos/android/ios, `device_class`, `browser_coarse`, short UA excerpt) for triage; copy-for-support text includes the same OS/browser line.
+
+**Public root (`/`):** `RootEntry` mounts **`MarketingHome` immediately**. OAuth query/hash fragments are sent to **`/login`**. Redirects to **`/dashboard`**, **`/portal`**, or **`/login`** run only after **`useAuth`** / **`useProfile`** finish for signed-in, non-anonymous users. The marketing landing is **not** blocked behind **`SyncPathLoader`**, so a normal refresh on `/` does not show the full-screen logo loader.
+
+**Browser auto-translate vs React:** Chrome and other browsers inject wrapper nodes when translating a page; React then loses sync with the DOM (`insertBefore` / `NotFoundError`). There is **no reliable way** to keep a translated DOM and a client-rendered React tree in sync; the real fix is **in-app i18n**. Mitigations until then: **`index.html`** sets `translate="no"`, `class="notranslate"`, and `<meta name="google" content="notranslate">` to discourage automatic translation; **`BrowserTranslateGuard`** warns if `<html>` gets translation marker classes; **`GlcAppErrorScreen`** uses **`isLikelyTranslationOrExtensionDomCrash`** on the captured error text to show a **prioritized “What to do”** list when the failure matches typical DOM rewrite exceptions. Generic translation/extension copy remains for other errors.
 
 ```tsx
 <Routes>

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CaretDown } from '@phosphor-icons/react';
-import { cn } from './ui/utils';
 
 interface CollapsibleSectionProps {
   title: string;

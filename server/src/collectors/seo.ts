@@ -1,7 +1,11 @@
+import robotsParser from 'robots-parser';
+
 import { BaseCollector } from './base.js';
 import { supabase } from '../services/supabase.js';
 import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
+import { discoverSitemaps } from '../lib/sitemap-discovery.js';
+import { AUDIT_ROBOTS_USER_AGENT } from '../lib/robots-policy-shared.js';
 
 export class SeoCollector extends BaseCollector {
   get key() { return 'seo_meta'; }
@@ -13,7 +17,14 @@ export class SeoCollector extends BaseCollector {
         no_crawl_data: true,
         warning: 'No public website — SEO checks skipped',
         robots_txt: { exists: false, content: null, issues: ['No public website URL on file'] },
-        sitemap: { exists: false, url: null, url_count: 0, format: null },
+        sitemap: {
+          exists: false,
+          url: null,
+          url_count: 0,
+          format: null,
+          sitemaps_fetched: 0,
+          sitemap_index: false,
+        },
         open_graph: { pages_with_structured_data: 0, total_pages: 0, structured_data_types: [] },
         page_analysis: {
           issues: [],
@@ -32,7 +43,14 @@ export class SeoCollector extends BaseCollector {
           no_crawl_data: true,
           warning: 'Target URL is not allowed for outbound requests',
           robots_txt: { exists: false, content: null, issues: [] },
-          sitemap: { exists: false, url: null, url_count: 0, format: null },
+          sitemap: {
+            exists: false,
+            url: null,
+            url_count: 0,
+            format: null,
+            sitemaps_fetched: 0,
+            sitemap_index: false,
+          },
           open_graph: { pages_with_structured_data: 0, total_pages: 0, structured_data_types: [] },
           page_analysis: { issues: [], meta_coverage: { with_title: 0, with_description: 0, with_h1: 0, total: 0 }, image_stats: { total: 0, missing_alt: 0 } },
           total_pages: 0,
@@ -55,19 +73,15 @@ export class SeoCollector extends BaseCollector {
       return {
         no_crawl_data: true,
         warning: 'No crawled pages available — SEO page analysis skipped',
-        robots_txt: await this.checkRobotsTxt(companyUrl),
-        sitemap: await this.checkSitemap(companyUrl),
+        ...(await this.fetchRobotsAndSitemap(companyUrl)),
         open_graph: { pages_with_structured_data: 0, total_pages: 0, structured_data_types: [] },
         page_analysis: { issues: ['No pages were crawled — cannot assess on-page SEO'], meta_coverage: { with_title: 0, with_description: 0, with_h1: 0, total: 0 }, image_stats: { total: 0, missing_alt: 0 } },
         total_pages: 0,
       };
     }
 
-    const [robotsTxt, sitemap, openGraph] = await Promise.all([
-      this.checkRobotsTxt(companyUrl),
-      this.checkSitemap(companyUrl),
-      this.analyzeOpenGraph(pages),
-    ]);
+    const { robots_txt: robotsTxt, sitemap } = await this.fetchRobotsAndSitemap(companyUrl);
+    const openGraph = this.analyzeOpenGraph(pages);
 
     const pageAnalysis = this.analyzePages(pages);
 
@@ -80,64 +94,68 @@ export class SeoCollector extends BaseCollector {
     };
   }
 
-  private async checkRobotsTxt(url: string) {
+  /**
+   * robots-parser for directives; discoverSitemaps for recursive urlset / sitemap index (bounded).
+   */
+  private async fetchRobotsAndSitemap(companyUrl: string) {
+    const baseUrl = new URL(companyUrl);
+    const robotsResourceUrl = `${baseUrl.origin}/robots.txt`;
+
     try {
-      const baseUrl = new URL(url);
-      const response = await fetchPublicHttpUrl(`${baseUrl.origin}/robots.txt`, {
-        headers: { 'User-Agent': 'GLC-AuditBot/1.0' },
+      const response = await fetchPublicHttpUrl(robotsResourceUrl, {
+        headers: { 'User-Agent': AUDIT_ROBOTS_USER_AGENT },
+        signal: AbortSignal.timeout(15_000),
       });
 
       if (!response.ok) {
-        return { exists: false, content: null, issues: ['No robots.txt found'] };
+        const sm = await discoverSitemaps(baseUrl.origin, null, robotsResourceUrl);
+        return {
+          robots_txt: { exists: false, content: null, issues: ['No robots.txt found'] as string[] },
+          sitemap: this.formatSitemapResult(sm),
+        };
       }
 
       const content = await response.text();
+      const robot = robotsParser(robotsResourceUrl, content);
       const issues: string[] = [];
 
-      if (!content.includes('Sitemap:')) {
-        issues.push('robots.txt does not reference a sitemap');
-      }
-      if (content.includes('Disallow: /')) {
-        issues.push('robots.txt blocks all crawlers with "Disallow: /"');
+      if (robot.getSitemaps().length === 0) {
+        issues.push('robots.txt does not declare a Sitemap: directive');
       }
 
-      return { exists: true, content: content.substring(0, 2000), issues };
+      const home = new URL('/', baseUrl.origin).href;
+      if (robot.isDisallowed(home, AUDIT_ROBOTS_USER_AGENT) === true) {
+        issues.push('robots.txt disallows the site root for the audit crawler user-agent');
+      }
+
+      const sm = await discoverSitemaps(baseUrl.origin, content, robotsResourceUrl);
+
+      return {
+        robots_txt: {
+          exists: true,
+          content: content.substring(0, 2000),
+          issues,
+        },
+        sitemap: this.formatSitemapResult(sm),
+      };
     } catch {
-      return { exists: false, content: null, issues: ['Failed to fetch robots.txt'] };
+      const sm = await discoverSitemaps(baseUrl.origin, null, robotsResourceUrl);
+      return {
+        robots_txt: { exists: false, content: null, issues: ['Failed to fetch robots.txt'] },
+        sitemap: this.formatSitemapResult(sm),
+      };
     }
   }
 
-  private async checkSitemap(url: string) {
-    const baseUrl = new URL(url);
-    const sitemapUrls = [
-      `${baseUrl.origin}/sitemap.xml`,
-      `${baseUrl.origin}/sitemap_index.xml`,
-      `${baseUrl.origin}/sitemap.txt`,
-    ];
-
-    for (const sitemapUrl of sitemapUrls) {
-      try {
-        const response = await fetchPublicHttpUrl(sitemapUrl, {
-          headers: { 'User-Agent': 'GLC-AuditBot/1.0' },
-        });
-
-        if (response.ok) {
-          const content = await response.text();
-          const urlCount = (content.match(/<loc>/g) ?? []).length;
-
-          return {
-            exists: true,
-            url: sitemapUrl,
-            url_count: urlCount,
-            format: sitemapUrl.endsWith('.xml') ? 'xml' : 'text',
-          };
-        }
-      } catch {
-        continue;
-      }
-    }
-
-    return { exists: false, url: null, url_count: 0, format: null };
+  private formatSitemapResult(sm: Awaited<ReturnType<typeof discoverSitemaps>>) {
+    return {
+      exists: sm.exists,
+      url: sm.url,
+      url_count: sm.url_count,
+      format: sm.format,
+      sitemaps_fetched: sm.sitemaps_fetched,
+      sitemap_index: sm.had_index,
+    };
   }
 
   private analyzeOpenGraph(pages: Array<Record<string, unknown>>) {

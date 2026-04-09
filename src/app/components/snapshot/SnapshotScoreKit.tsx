@@ -268,3 +268,5 @@ export function snapshotSiteProfileSoftLine(profile: SnapshotSiteProfile | undef
   }
   return 'We could not confidently categorise this site from the sampled pages alone.';
 }
+
+export { snapshotClassificationExplainerLine } from '../../lib/snapshot-landing-helpers';

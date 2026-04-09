@@ -1,21 +1,22 @@
 # Machine-readable site classification for free snapshot (rule-based, no LLM).
-version: 4
+version: 5
 tieDeltaThreshold: 1.35
 globalCaps:
   contentQualityLow: low
   tieAmbiguous: low
   noSchemaThinText: low
+# Priority: ES → EN → DE → CA → RU → IT → other locales (used for hint ordering / tie hints).
 supportedLangPrefixes:
-  - en
   - es
-  - ca
+  - en
   - de
-  - fr
+  - ca
+  - ru
   - it
+  - fr
   - pt
   - nl
   - pl
-  - ru
   - uk
   - ja
   - zh
@@ -37,7 +38,7 @@ siteTypes:
     minMatch: 2
     signals:
       - { kind: schemaTypeAny, types: [Product, Offer, ItemList, Store, ShoppingCenter] }
-      - { kind: ctaSubstringAny, substrings: ["add to cart", "buy now", "checkout", "add to bag", "añadir al carrito", "comprar ahora", "jetzt kaufen", "in den warenkorb", "ajouter au panier", "toevoegen aan winkelwagen", "dodaj do koszyka", "aggiungi al carrello", "adicionar ao carrinho", "в корзину", "立即购买"] }
+      - { kind: ctaSubstringAny, substrings: ["añadir al carrito", "comprar ahora", "finalizar compra", "ir al carrito", "add to cart", "buy now", "checkout", "add to bag", "jetzt kaufen", "in den warenkorb", "zur kasse", "afegir a la cistella", "comprar ara", "finalitzar la compra", "в корзину", "купить сейчас", "оформить заказ", "aggiungi al carrello", "acquista ora", "procedi al checkout", "ajouter au panier", "toevoegen aan winkelwagen", "dodaj do koszyka", "adicionar ao carrinho", "立即购买"] }
       - { kind: techAny, names: [Shopify, WooCommerce, Magento] }
       - { kind: slugAny, substrings: [shop, cart, product, checkout, collection, winkelwagen, winkelmand, koszyk, panier, boutique] }
 
@@ -45,7 +46,7 @@ siteTypes:
     priority: 65
     minMatch: 2
     signals:
-      - { kind: ctaSubstringAny, substrings: ["book a demo", "request demo", "start free trial", "get started", "sign up free", "try free", "demostración gratuita", "essai gratuit", "kostenlos testen", "darmowa wersja próbna", "бесплатная пробная версия", "демо-версия", "無料トライアル", "免费试用", "agendar demo", "demo vereinbaren"] }
+      - { kind: ctaSubstringAny, substrings: ["demostración gratuita", "prueba gratis", "empezar gratis", "solicitar demo", "agendar demo", "book a demo", "request demo", "start free trial", "get started", "sign up free", "try free", "kostenlos testen", "demo vereinbaren", "kostenlose testversion", "prova gratuïta", "sol·licitar demo", "бесплатная пробная версия", "демо-версия", "запросить демо", "prova gratuita", "richiedi demo", "richiedi una demo", "essai gratuit", "darmowa wersja próbna", "無料トライアル", "免费试用"] }
       - { kind: slugAny, substrings: [pricing, features, integrations, platform, api, security, compliance, trust, enterprise, soc2, soc 2] }
       - { kind: techAny, names: [Intercom, HubSpot] }
       - { kind: keywordAny, fields: [title, h1, metaDescription], substrings: ["saas", "software", "platform", "cloud", "b2b", "workflow", "subscription"] }
@@ -56,14 +57,14 @@ siteTypes:
     signals:
       - { kind: schemaTypeAny, types: [LocalBusiness, Dentist, MedicalBusiness, Physician, Attorney, LegalService, Restaurant, FoodEstablishment, LodgingBusiness, AutoRepair, HomeAndConstructionBusiness] }
       - { kind: contactAll, flags: [addressPresent, openingHoursPresent] }
-      - { kind: ctaSubstringAny, substrings: ["book appointment", "call now", "visit us", "directions", "reserve", "reservar cita", "llámanos", "llamanos", "reservierung", "termin buchen", "prendre rendez-vous", "prenons rendez-vous", "zarezerwuj", "забронювати", "予約"] }
+      - { kind: ctaSubstringAny, substrings: ["reservar cita", "pedir cita", "llámanos", "llamanos", "reserva tu cita", "book appointment", "call now", "visit us", "directions", "reserve", "reservierung", "termin buchen", "demana hora", "truca'ns", "reserva cita", "записаться на прием", "позвоните нам", "prenota visita", "chiamaci", "prenota appuntamento", "prendre rendez-vous", "prenons rendez-vous", "zarezerwuj", "забронювати", "予約"] }
       - { kind: contactAll, flags: [phonePresent, addressPresent] }
 
   - id: service-business
     priority: 45
-    minMatch: 2
+    minMatch: 3
     signals:
-      - { kind: slugAny, substrings: [services, service, consulting, agency, contact, about] }
+      - { kind: slugAny, substrings: [services, service, consulting, agency, solutions, capabilities, industries, testimonials, clients, team, careers, case-studies, portfolio] }
       - { kind: keywordAny, fields: [title, h1, metaDescription], substrings: ["agency", "consulting", "services", "firm", "studio"] }
       - { kind: schemaTypeAny, types: [Organization, ProfessionalService] }
 
@@ -125,20 +126,20 @@ conversionModels:
   - id: ecommerce-checkout
     minMatch: 2
     signals:
-      - { kind: ctaSubstringAny, substrings: ["add to cart", "checkout", "buy now"] }
+      - { kind: ctaSubstringAny, substrings: ["añadir al carrito", "finalizar compra", "comprar ahora", "add to cart", "checkout", "buy now", "jetzt kaufen", "in den warenkorb", "afegir a la cistella", "в корзину", "aggiungi al carrello"] }
       - { kind: slugAny, substrings: [cart, checkout] }
       - { kind: schemaTypeAny, types: [Product, Offer] }
 
   - id: demo-request
     minMatch: 2
     signals:
-      - { kind: ctaSubstringAny, substrings: ["book demo", "request demo", "schedule demo", "see demo"] }
-      - { kind: slugAny, substrings: [demo, contact, sales] }
+      - { kind: ctaSubstringAny, substrings: ["solicitar demo", "agendar demo", "book demo", "request demo", "schedule demo", "see demo", "demo vereinbaren", "richiedi demo"] }
+      - { kind: slugAny, substrings: [demo, sales, book-a-demo, "book-demo"] }
 
   - id: call-booking
     minMatch: 2
     signals:
-      - { kind: ctaSubstringAny, substrings: ["call now", "call us", "phone", "book appointment"] }
+      - { kind: ctaSubstringAny, substrings: ["llámanos", "llamanos", "llama ya", "call now", "call us", "phone", "book appointment", "termin buchen", "truca'ns", "chiamaci", "позвоните"] }
       - { kind: contactAll, flags: [phonePresent] }
 
   - id: whatsapp-contact
@@ -151,7 +152,7 @@ conversionModels:
     minMatch: 2
     signals:
       - { kind: formPresent }
-      - { kind: ctaSubstringAny, substrings: ["contact", "get in touch", "submit", "send message", "request", "contáctenos", "nous contacter", "kontakt", "skontaktuj się", "kontaktieren", "お問い合わせ"] }
+      - { kind: ctaSubstringAny, substrings: ["contáctenos", "contacto", "escríbenos", "contact", "get in touch", "submit", "send message", "request", "kontakt", "kontaktieren", "kontakt aufnehmen", "contacteu-nos", "poseu-vos en contacte", "свяжитесь с нами", "напишите нам", "contattaci", "scrivici", "nous contacter", "skontaktuj się", "お問い合わせ"] }
 
   - id: unknown
     minMatch: 0

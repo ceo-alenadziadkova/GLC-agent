@@ -155,7 +155,7 @@ describe('Login', () => {
     renderLogin();
 
     await waitFor(() => {
-      expect(screen.getByText(/quick website scan/i)).toBeInTheDocument();
+      expect(screen.getByText(/quick site scan/i)).toBeInTheDocument();
     });
     expect(navigate).not.toHaveBeenCalled();
   });
@@ -170,7 +170,7 @@ describe('Login', () => {
 
     renderLogin();
 
-    expect(screen.getByRole('button', { name: /^create account$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^register$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /continue with google/i })).toBeInTheDocument();
   });
 
@@ -252,7 +252,7 @@ describe('Login', () => {
     renderLogin();
 
     const createTab = screen
-      .getAllByRole('button', { name: /^create account$/i })
+      .getAllByRole('button', { name: /^register$/i })
       .find(b => b.getAttribute('type') === 'button');
     expect(createTab).toBeTruthy();
     await user.click(createTab!);

@@ -20,6 +20,8 @@
  *    · invalid Zod schema rejects
  *    · DB error throws
  *
+ * Surface / version helpers: see `brief-intake-surface.test.ts`.
+ *
  * All Supabase calls are mocked — no real DB.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -60,7 +62,7 @@ const { mockFrom, setAuditMode, setBriefRow, getUpsertCalls } = vi.hoisted(() =>
           single: vi.fn(() => Promise.resolve({
             data: {
               id: 'brief-id-001',
-              audit_id: 'audit-001',
+              audit_id: (payload as Record<string, unknown>).audit_id ?? 'audit-001',
               responses: (payload as Record<string, unknown>).responses ?? {},
               status: (payload as Record<string, unknown>).status ?? 'draft',
               sla_met: (payload as Record<string, unknown>).sla_met ?? false,
@@ -68,6 +70,7 @@ const { mockFrom, setAuditMode, setBriefRow, getUpsertCalls } = vi.hoisted(() =>
               answered_recommended: (payload as Record<string, unknown>).answered_recommended ?? 0,
               recon_conflicts: (payload as Record<string, unknown>).recon_conflicts ?? [],
               collection_mode: (payload as Record<string, unknown>).collection_mode ?? 'self_serve',
+              intake_versions: (payload as Record<string, unknown>).intake_versions ?? null,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             },
@@ -329,6 +332,16 @@ describe('saveBriefResponses()', () => {
     await saveBriefResponses('audit-xyz', makeFullRequired());
     const upsert = getUpsertCalls().find(c => c.table === 'intake_brief');
     expect((upsert!.payload as Record<string, unknown>).audit_id).toBe('audit-xyz');
+  });
+
+  it('persists intake_versions from buildIntakePlan', async () => {
+    await saveBriefResponses('audit-001', makeFullRequired());
+    const upsert = getUpsertCalls().find(c => c.table === 'intake_brief');
+    const iv = (upsert!.payload as Record<string, unknown>).intake_versions as Record<string, string>;
+    expect(iv.questionBankVersion).toBe('1.1.0');
+    expect(iv.policyVersion).toBe('1.1.0');
+    expect(iv.layoutVersion).toBe('1.1.0');
+    expect(iv.resolverVersion).toBe('1.1.0');
   });
 
   it('rejects responses with invalid Zod types (string over BRIEF_ANSWER_STRING_MAX)', async () => {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, CaretDown, CaretRight, ListBullets } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, CaretDown, CaretRight, Info, ListBullets, Signpost } from '@phosphor-icons/react';
 import { BriefField } from './BriefField';
 import { bankIdToBriefQuestion } from '../data/bankQuestionUiCatalog';
 import {
@@ -8,8 +8,14 @@ import {
   type BriefResponseEntry,
   type BriefResponses,
 } from '../data/briefQuestions';
+import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from '../data/auditTypes';
 import { briefResponsesToIntakeMap, useIntakeWizard } from '../hooks/useIntakeWizard';
+import type { IntakeSurface } from '../../../server/src/intake/core/types';
+import type { BriefIntakeAnalyticsSurface } from '../lib/brief-intake-analytics';
 import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
+import { labelsForMissingReportDomains } from '../lib/intake-coverage-domain-labels';
+import { formatIntakeQuestionReasonsBrief } from '../lib/intake-plan-explain';
+import { buildIntakePlan } from '../../../server/src/intake/core/build-intake-plan';
 
 function intakeMapToBriefResponses(map: Record<string, unknown>): BriefResponses {
   const out: BriefResponses = {};
@@ -52,15 +58,28 @@ export function IntakeBankWizard({
   interviewMode,
   emphasizeClientSource,
   collectionMode,
+  intakeSurface,
   answerSource,
+  intakeAnalytics,
+  productMode = 'full',
 }: {
   responses: BriefResponses;
   onResponsesChange: (next: BriefResponses) => void;
   interviewMode?: boolean;
   emphasizeClientSource?: boolean;
-  collectionMode?: 'standard' | 'discovery';
+  collectionMode?: IntakeBriefCollectionMode;
+  /** Layout surface for visible ordering (omit with discovery-only flows). */
+  intakeSurface?: IntakeSurface;
   /** Source tag for new plain values from the wizard (defaults to consultant). */
   answerSource?: BriefResponseEntry['source'];
+  /** Optional funnel analytics (authenticated audit context). */
+  intakeAnalytics?: {
+    auditId: string;
+    surface: BriefIntakeAnalyticsSurface;
+    getIntakeVersions: () => IntakeVersionTuple | null;
+  };
+  /** Align resolver SLA / next-step hints with audit product mode. */
+  productMode?: ProductMode;
 }) {
   const source = answerSource ?? 'consultant';
   const map = useMemo(() => briefResponsesToIntakeMap(responses), [responses]);
@@ -72,19 +91,43 @@ export function IntakeBankWizard({
       onResponsesChange(mergeBriefResponsesPreferFilled(responses, patch));
     },
     collectionMode,
+    productMode,
+    surface: intakeSurface,
+    intakeAnalytics,
   });
 
   const q = wizard.currentStub ? bankIdToBriefQuestion(wizard.currentStub.id, wizard.currentStub.priority) : null;
 
+  const reportGapLabels = useMemo(
+    () => labelsForMissingReportDomains(wizard.missingForReport),
+    [wizard.missingForReport],
+  );
+
   const revenueValue = unwrapForField(responses.revenue_model);
   const revenueAnswered = isRevenueModelAnswered(revenueValue);
   const [revenueLaunchOpen, setRevenueLaunchOpen] = useState(() => !revenueAnswered);
+  const [planExplainOpen, setPlanExplainOpen] = useState(false);
 
   useEffect(() => {
     if (!revenueAnswered) {
       setRevenueLaunchOpen(true);
     }
   }, [revenueAnswered]);
+
+  useEffect(() => {
+    setPlanExplainOpen(false);
+  }, [wizard.currentStub?.id]);
+
+  const planReasonLines = useMemo(() => {
+    if (!planExplainOpen || !wizard.currentStub) return [];
+    const plan = buildIntakePlan({
+      responses: map,
+      productMode,
+      collectionMode,
+      surface: intakeSurface,
+    });
+    return formatIntakeQuestionReasonsBrief(plan.reasonsById?.[wizard.currentStub.id]);
+  }, [planExplainOpen, wizard.currentStub?.id, map, productMode, collectionMode, intakeSurface]);
 
   return (
     <div className="space-y-5">
@@ -114,31 +157,115 @@ export function IntakeBankWizard({
         />
       </div>
 
+      {reportGapLabels.length > 0 && (
+        <p className="text-xs leading-snug" style={{ color: 'var(--text-tertiary)' }}>
+          <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Report input gaps: </span>
+          {reportGapLabels.slice(0, 5).join(' · ')}
+          {reportGapLabels.length > 5 ? ` · +${reportGapLabels.length - 5} more` : ''}
+        </p>
+      )}
+
+      {wizard.nextRecommended.length > 0 &&
+        (() => {
+          const chips = wizard.nextRecommended
+            .filter(id => id !== wizard.currentStub?.id)
+            .slice(0, 6);
+          if (chips.length === 0) return null;
+          return (
+            <div
+              className="rounded-lg p-3 space-y-2"
+              style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-inset)' }}
+            >
+              <div
+                className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
+                <Signpost className="w-4 h-4 shrink-0" aria-hidden weight="bold" />
+                Suggested next
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {chips.map(id => {
+                  const st = wizard.visibleQuestionStubs.find(s => s.id === id);
+                  const pri = st?.priority ?? 'recommended';
+                  const bq = bankIdToBriefQuestion(id, pri);
+                  const label = bq.label.length > 48 ? `${bq.label.slice(0, 47)}…` : bq.label;
+                  const step = wizard.visibleQuestionStubs.findIndex(s => s.id === id);
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => {
+                        if (step >= 0) wizard.goToStep(step);
+                      }}
+                      className="text-left text-xs px-2.5 py-1.5 rounded-md max-w-full sm:max-w-[240px] line-clamp-2"
+                      style={{
+                        border: '1px solid var(--border-subtle)',
+                        background: 'var(--bg-surface)',
+                        color: 'var(--text-secondary)',
+                        cursor: step >= 0 ? 'pointer' : 'not-allowed',
+                      }}
+                      disabled={step < 0}
+                      title={bq.label}
+                      aria-label={`Go to: ${bq.label}`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
       {q && (() => {
         // a2 / intake_industry "Other" writes to `intake_industry_specify` (see choiceSpecifyResponseKey).
         const otherKey = choiceSpecifyResponseKey(q.id);
         const otherSpecify = (unwrapForField(responses[otherKey]) as string | undefined) ?? '';
         return (
-          <BriefField
-            q={q}
-            value={unwrapForField(responses[q.id])}
-            onChange={v => {
-              wizard.setField(q.id, { value: v, source });
-              if (!choiceValueNeedsSpecify(v as string | string[] | null)) {
-                wizard.setField(choiceSpecifyResponseKey(q.id), { value: null, source });
-              }
-            }}
-            onSetUnknown={() => {
-              wizard.setField(q.id, { value: null, source: 'unknown' });
-              wizard.setField(choiceSpecifyResponseKey(q.id), { value: null, source: 'unknown' });
-            }}
-            emphasizeClientSource={emphasizeClientSource}
-            interviewMode={interviewMode}
-            otherSpecify={otherSpecify}
-            onOtherSpecifyChange={text => {
-              wizard.setField(otherKey, { value: text || null, source });
-            }}
-          />
+          <div className="space-y-3">
+            <div>
+              <button
+                type="button"
+                onClick={() => setPlanExplainOpen(o => !o)}
+                className="inline-flex items-center gap-1.5 text-xs font-medium rounded-md px-2 py-1 -ml-2"
+                style={{ color: 'var(--text-tertiary)', cursor: 'pointer' }}
+                aria-expanded={planExplainOpen}
+              >
+                <Info className="w-3.5 h-3.5 shrink-0" aria-hidden weight="bold" />
+                {planExplainOpen ? 'Hide plan trace' : 'Why this question?'}
+              </button>
+              {planExplainOpen && (
+                <ul
+                  className="list-disc pl-5 mt-2 space-y-1 text-xs leading-snug"
+                  style={{ color: 'var(--text-tertiary)' }}
+                >
+                  {planReasonLines.map((line, i) => (
+                    <li key={`${line}-${i}`}>{line}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <BriefField
+              q={q}
+              value={unwrapForField(responses[q.id])}
+              onChange={v => {
+                wizard.setField(q.id, { value: v, source });
+                if (!choiceValueNeedsSpecify(v as string | string[] | null)) {
+                  wizard.setField(choiceSpecifyResponseKey(q.id), { value: null, source });
+                }
+              }}
+              onSetUnknown={() => {
+                wizard.setField(q.id, { value: null, source: 'unknown' });
+                wizard.setField(choiceSpecifyResponseKey(q.id), { value: null, source: 'unknown' });
+              }}
+              emphasizeClientSource={emphasizeClientSource}
+              interviewMode={interviewMode}
+              otherSpecify={otherSpecify}
+              onOtherSpecifyChange={text => {
+                wizard.setField(otherKey, { value: text || null, source });
+              }}
+            />
+          </div>
         );
       })()}
 

@@ -2,8 +2,8 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, useParams } from 'react-router';
 import {
-  HardDrives, Shield, Globe, Cursor, Target, Lightning, MapTrifold, MagnifyingGlass,
-  CaretDown, CaretRight, CheckCircle, Warning, ArrowUpRight, ArrowsClockwise,
+  HardDrives, Shield, Globe, Cursor, Target, Lightning,
+  CaretRight, CheckCircle, Warning, ArrowUpRight, ArrowsClockwise,
   Question, Link as LinkIcon,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
@@ -14,7 +14,7 @@ import { QuickWinTag } from '../components/glc/QuickWinTag';
 import { useAudit } from '../hooks/useAudit';
 import { useBriefLayoutPrefsSync } from '../hooks/useBriefLayoutPrefsSync';
 import { useIntakeBankMetrics } from '../hooks/useIntakeWizard';
-import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
+import { DOMAIN_KEYS, DOMAIN_LABELS, type IntakeBriefCollectionMode } from '../data/auditTypes';
 import type { DomainKey, DomainData, ProductMode, ConfidenceLevel } from '../data/auditTypes';
 import { BriefField } from '../components/BriefField';
 import {
@@ -27,6 +27,7 @@ import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '../lib/choice
 import { api } from '../data/apiService';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
+import { labelsForMissingReportDomains } from '../lib/intake-coverage-domain-labels';
 import { IntakeBankWizard } from '../components/IntakeBankWizard';
 import { BankClassicBriefFields } from '../components/BankClassicBriefFields';
 import { BriefLayoutPreferenceCards } from '../components/BriefLayoutPreferenceCards';
@@ -41,6 +42,15 @@ import {
 const EXPRESS_DOMAIN_KEYS: readonly DomainKey[] = [
   'tech_infrastructure', 'security_compliance', 'seo_digital', 'ux_conversion',
 ];
+
+/** Free snapshot pipeline only materialises UX / conversion analysis. */
+const SNAPSHOT_DOMAIN_KEYS: readonly DomainKey[] = ['ux_conversion'];
+
+function visibleDomainKeysForMode(mode: ProductMode): readonly DomainKey[] {
+  if (mode === 'free_snapshot') return SNAPSHOT_DOMAIN_KEYS;
+  if (mode === 'express') return EXPRESS_DOMAIN_KEYS;
+  return DOMAIN_KEYS;
+}
 
 const DOMAIN_ICONS: Record<DomainKey, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
   tech_infrastructure: HardDrives,
@@ -115,7 +125,9 @@ export function AuditWorkspace() {
         pendingBriefRef.current = null;
         if (!id || !payload) return;
         try {
-          await api.saveBrief(id, payload);
+          await api.saveBrief(id, payload, {
+            intake_versions: audit.brief.intake_versions ?? undefined,
+          });
           setEnrichSaved(true);
           reload();
           window.setTimeout(() => setEnrichSaved(false), 2200);
@@ -137,7 +149,26 @@ export function AuditWorkspace() {
     } else {
       setWorkspaceBriefResponses({});
     }
-  }, [audit?.id, audit?.brief?.updated_at]);
+  }, [audit?.id, audit?.brief?.responses, audit?.brief?.updated_at]);
+
+  /** Snapshots and partial loads omit most domain rows; keep sidebar + active tab consistent with product_mode. */
+  useEffect(() => {
+    if (!audit) return;
+    const keys = visibleDomainKeysForMode(audit.meta.product_mode as ProductMode);
+    const urlKey =
+      domainId && typeof domainId === 'string' && keys.includes(domainId as DomainKey)
+        ? (domainId as DomainKey)
+        : null;
+    if (urlKey) {
+      setActiveDomain(urlKey);
+      return;
+    }
+    setActiveDomain(prev => {
+      if (keys.includes(prev)) return prev;
+      const firstWithData = keys.find(k => audit.domains[k] != null);
+      return firstWithData ?? keys[0]!;
+    });
+  }, [audit, domainId]);
 
   useEffect(() => {
     if (!id) return;
@@ -165,7 +196,9 @@ export function AuditWorkspace() {
           pendingWorkspaceBriefRef.current = null;
           if (!id || !payload) return;
           try {
-            await api.saveBrief(id, payload);
+            await api.saveBrief(id, payload, {
+              intake_versions: audit.brief.intake_versions ?? undefined,
+            });
             setWorkspaceBriefSavedFlash(true);
             reload();
             window.setTimeout(() => setWorkspaceBriefSavedFlash(false), 2200);
@@ -200,9 +233,14 @@ export function AuditWorkspace() {
     [queueWorkspaceBriefSave],
   );
 
+  const briefCollectionMode = audit?.brief?.collection_mode as IntakeBriefCollectionMode | undefined;
+  const workspaceConsultantSurface =
+    briefCollectionMode === 'discovery' ? undefined : 'consultant_interview';
   const bankMetrics = useIntakeBankMetrics(
     (audit?.brief?.responses as BriefResponses) ?? {},
-    audit?.brief?.collection_mode === 'discovery' ? 'discovery' : undefined,
+    briefCollectionMode,
+    workspaceConsultantSurface,
+    (audit?.meta.product_mode as ProductMode) ?? 'full',
   );
 
   if (loading && !audit) {
@@ -240,12 +278,13 @@ export function AuditWorkspace() {
   );
   const companyName =
     audit.meta.company_name || formatAuditWebsiteDisplay(audit.meta.company_url) || audit.meta.company_url;
-  const isExpress = (audit.meta.product_mode as ProductMode) === 'express';
-  const visibleDomainKeys: readonly DomainKey[] = isExpress ? EXPRESS_DOMAIN_KEYS : DOMAIN_KEYS;
+  const visibleDomainKeys = visibleDomainKeysForMode(audit.meta.product_mode as ProductMode);
 
   // Use server-calculated weighted overall score when available (set after Phase 7).
   // Fall back to unweighted average while pipeline is still running.
-  const domainEntries = visibleDomainKeys.map(k => audit.domains[k]).filter((d): d is DomainData => d !== null && d.score !== null);
+  const domainEntries = visibleDomainKeys
+    .map(k => audit.domains[k])
+    .filter((d): d is DomainData => d != null && d.score != null);
   const overallScore = audit.meta.overall_score
     ?? (domainEntries.length > 0
       ? +(domainEntries.reduce((s, d) => s + (d.score ?? 0), 0) / domainEntries.length).toFixed(1)
@@ -296,6 +335,7 @@ export function AuditWorkspace() {
                   visibleRequiredTotal={bankMetrics.visibleRequiredTotal}
                   visibleRecommendedAnswered={bankMetrics.visibleRecommendedAnswered}
                   visibleRecommendedTotal={bankMetrics.visibleRecommendedTotal}
+                  reportInputGapLabels={labelsForMissingReportDomains(bankMetrics.missingForReport)}
                 />
               </div>
               <div style={{ borderBottom: '1px solid var(--border-subtle)' }}>
@@ -369,17 +409,25 @@ export function AuditWorkspace() {
                             interviewMode={false}
                             emphasizeClientSource={false}
                             answerSource="consultant"
-                            collectionMode={
-                              audit.brief.collection_mode === 'discovery' ? 'discovery' : undefined
+                            collectionMode={audit.brief.collection_mode}
+                            intakeSurface={workspaceConsultantSurface}
+                            intakeAnalytics={
+                              id && workspaceConsultantSurface && audit.brief
+                                ? {
+                                    auditId: id,
+                                    surface: workspaceConsultantSurface,
+                                    getIntakeVersions: () => audit.brief.intake_versions ?? null,
+                                  }
+                                : undefined
                             }
+                            productMode={audit.meta.product_mode as ProductMode}
                           />
                         ) : (
                           <BankClassicBriefFields
                             compact
                             responses={workspaceBriefResponses}
-                            collectionMode={
-                              audit.brief.collection_mode === 'discovery' ? 'discovery' : undefined
-                            }
+                            collectionMode={audit.brief.collection_mode}
+                            intakeSurface={workspaceConsultantSurface}
                             onChange={handleWorkspaceBriefFieldChange}
                             onSetUnknown={handleWorkspaceBriefSetUnknown}
                           />

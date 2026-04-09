@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useNavigate } from 'react-router';
 import {
   CheckCircle, Spinner, Warning,
@@ -8,8 +9,8 @@ import {
 import { AppShell } from '../components/AppShell';
 import { PortalSnapshotAccountMirror } from '../components/PortalSnapshotAccountMirror';
 import { useClientPortalPipeline } from '../context/ClientPortalPipelineContext';
-import { api, ApiError } from '../data/apiService';
-import type { AuditState, DomainData } from '../data/auditTypes';
+import { api } from '../data/apiService';
+import type { IntakeBriefCollectionMode } from '../data/auditTypes';
 import {
   CLIENT_PORTAL_PRODUCT_MODE_HELP,
   clientCanViewPortalPipeline,
@@ -24,9 +25,14 @@ import {
   pipelineRequiredIdsForProductMode,
   type BriefResponses,
 } from '../data/briefQuestions';
+import { useAudit } from '../hooks/useAudit';
 import { useIntakeBankMetrics } from '../hooks/useIntakeWizard';
 import { useBriefLayoutPrefsSync } from '../hooks/useBriefLayoutPrefsSync';
+import { getGlcQueryClient } from '../lib/glc-query-client';
+import { glcKeys } from '../lib/glc-keys';
+import { invalidateAuditRelatedQueries } from '../lib/glc-invalidate-queries';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
+import { labelsForMissingReportDomains } from '../lib/intake-coverage-domain-labels';
 import { IntakeBankWizard } from '../components/IntakeBankWizard';
 import { BankClassicBriefFields } from '../components/BankClassicBriefFields';
 import { BriefLayoutPreferenceCards } from '../components/BriefLayoutPreferenceCards';
@@ -41,15 +47,21 @@ import {
 // ── Inline brief form ────────────────────────────────────────────────────────
 
 function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBriefSaved?: () => void }) {
+  const queryClient = useQueryClient();
+  const briefQuery = useQuery({
+    queryKey: glcKeys.brief.detail(auditId),
+    queryFn: () => api.getBrief(auditId),
+    staleTime: 60_000,
+  });
+
   const [responses, setResponses] = useState<BriefResponses>({});
   const [intakeProgress, setIntakeProgress] = useState<{ progressPct: number; readinessBadge: 'low' | 'medium' | 'high'; nextBestAction: string } | null>(null);
   const [missingRecommendedCount, setMissingRecommendedCount] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [briefError, setBriefError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  const [bankCollectionMode, setBankCollectionMode] = useState<'discovery' | undefined>(undefined);
+  const [briefCollectionMode, setBriefCollectionMode] = useState<IntakeBriefCollectionMode | undefined>(undefined);
   const [productMode, setProductMode] = useState<'full' | 'express'>('full');
   const [briefLayoutChoice, setBriefLayoutChoice] = useState<'unset' | 'classic' | 'wizard'>(() =>
     resolveClientBriefLayout(auditId) ?? 'unset',
@@ -69,20 +81,17 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
   });
 
   useEffect(() => {
-    api.getBrief(auditId)
-      .then(data => {
-        if (data.brief?.responses) {
-          setResponses(data.brief.responses as BriefResponses);
-        }
-        setBankCollectionMode(data.brief?.collection_mode === 'discovery' ? 'discovery' : undefined);
-        if (data.product_mode === 'express') setProductMode('express');
-        else setProductMode('full');
-        if (data.intakeProgress) setIntakeProgress(data.intakeProgress);
-        if (data.gates?.recommendedToImproveIds) setMissingRecommendedCount(data.gates.recommendedToImproveIds.length);
-      })
-      .catch(() => {/* Brief may not exist yet — that's OK */})
-      .finally(() => setLoading(false));
-  }, [auditId]);
+    const data = briefQuery.data;
+    if (!data) return;
+    if (data.brief?.responses) {
+      setResponses(data.brief.responses as BriefResponses);
+    }
+    setBriefCollectionMode(data.brief?.collection_mode);
+    if (data.product_mode === 'express') setProductMode('express');
+    else setProductMode('full');
+    if (data.intakeProgress) setIntakeProgress(data.intakeProgress);
+    if (data.gates?.recommendedToImproveIds) setMissingRecommendedCount(data.gates.recommendedToImproveIds.length);
+  }, [briefQuery.data]);
 
   const effectiveBriefForGates = useMemo(
     () => effectiveBriefForPipelineGates(responses),
@@ -93,9 +102,9 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
       pipelineRequiredIdsForProductMode(
         productMode,
         effectiveBriefForGates,
-        bankCollectionMode,
+        briefCollectionMode,
       ),
-    [productMode, effectiveBriefForGates, bankCollectionMode],
+    [productMode, effectiveBriefForGates, briefCollectionMode],
   );
   const answeredRequired = countAnswered(effectiveBriefForGates, [...pipelineRequiredIds]);
   const pipelineRequiredTotal = pipelineRequiredIds.length;
@@ -105,7 +114,14 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
   );
   const progressPct = intakeProgress?.progressPct ?? fallbackProgress;
   const readinessBadge = intakeProgress?.readinessBadge ?? (fallbackProgress >= 80 ? 'high' : fallbackProgress >= 45 ? 'medium' : 'low');
-  const bankMetrics = useIntakeBankMetrics(responses, bankCollectionMode);
+  const clientIntakeSurface =
+    briefCollectionMode === 'discovery'
+      ? undefined
+      : briefCollectionMode === 'pre_brief'
+        ? 'client_portal'
+        : 'client_form';
+
+  const bankMetrics = useIntakeBankMetrics(responses, briefCollectionMode, clientIntakeSurface, productMode);
 
   function handleSelectBriefLayout(mode: 'classic' | 'wizard') {
     writeClientBriefLayout(auditId, mode);
@@ -130,12 +146,10 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
     setBriefError(null);
     setSaved(false);
     try {
-      await api.saveBrief(auditId, responses as Record<string, unknown>);
-      const refreshed = await api.getBrief(auditId);
-      if (refreshed.product_mode === 'express') setProductMode('express');
-      else setProductMode('full');
-      if (refreshed.intakeProgress) setIntakeProgress(refreshed.intakeProgress);
-      if (refreshed.gates?.recommendedToImproveIds) setMissingRecommendedCount(refreshed.gates.recommendedToImproveIds.length);
+      await api.saveBrief(auditId, responses as Record<string, unknown>, {
+        intake_versions: briefQuery.data?.brief?.intake_versions ?? undefined,
+      });
+      await queryClient.invalidateQueries({ queryKey: glcKeys.brief.detail(auditId) });
       setSaved(true);
       onBriefSaved?.();
       setTimeout(() => setSaved(false), 3000);
@@ -146,14 +160,14 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
     }
   }
 
-  if (loading) return null;
+  if (briefQuery.isPending && !briefQuery.data) return null;
 
   const layoutSelected = briefLayoutChoice === 'classic' || briefLayoutChoice === 'wizard';
 
   return (
     <div className="rounded-xl" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
       {/* Header */}
-      <div className="px-5 py-4 flex items-center justify-between flex-wrap gap-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+        <div className="px-5 py-4 mobile:px-4 flex items-center justify-between flex-wrap gap-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
         <div className="flex items-center gap-2.5">
           <ClipboardText className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
           <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Pre-Audit Brief</h3>
@@ -177,7 +191,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
         </div>
       </div>
 
-      <div className="px-5 py-4 space-y-4">
+      <div className="px-5 py-4 mobile:px-4 space-y-4">
         <p className="text-xs leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
           Set your default brief layout anytime in{' '}
           <Link
@@ -214,6 +228,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
               visibleRequiredTotal={bankMetrics.visibleRequiredTotal}
               visibleRecommendedAnswered={bankMetrics.visibleRecommendedAnswered}
               visibleRecommendedTotal={bankMetrics.visibleRecommendedTotal}
+              reportInputGapLabels={labelsForMissingReportDomains(bankMetrics.missingForReport)}
             />
 
             <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
@@ -228,7 +243,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
               Want to improve audit quality? Answer {missingRecommendedCount} more recommended question(s).
             </p>
 
-            <div className="max-h-[55vh] overflow-y-auto pr-1">
+            <div className="max-h-[min(55vh,28rem)] sm:max-h-[55vh] overflow-y-auto pr-1 -mr-1">
               {briefLayoutChoice === 'wizard' ? (
                 <IntakeBankWizard
                   responses={responses}
@@ -238,13 +253,25 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
                   interviewMode={false}
                   emphasizeClientSource={false}
                   answerSource="client"
-                  collectionMode={bankCollectionMode}
+                  collectionMode={briefCollectionMode}
+                  intakeSurface={clientIntakeSurface}
+                  intakeAnalytics={
+                    clientIntakeSurface
+                      ? {
+                          auditId,
+                          surface: clientIntakeSurface,
+                          getIntakeVersions: () => briefQuery.data?.brief?.intake_versions ?? null,
+                        }
+                      : undefined
+                  }
+                  productMode={productMode}
                 />
               ) : (
                 <BankClassicBriefFields
                   compact
                   responses={responses}
-                  collectionMode={bankCollectionMode}
+                  collectionMode={briefCollectionMode}
+                  intakeSurface={clientIntakeSurface}
                   onChange={handleClientBriefFieldChange}
                   onSetUnknown={handleClientBriefSetUnknown}
                   interviewMode={false}
@@ -280,15 +307,32 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
 
 function ClientPortalAuditById({ auditId }: { auditId: string }) {
   const navigate = useNavigate();
-  const [auditState, setAuditState] = useState<AuditState | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [briefRefresh, setBriefRefresh] = useState(0);
-  const [gatePayload, setGatePayload] = useState<{
-    product_mode: 'full' | 'express';
-    canStartExpress: boolean;
-    canStartFull: boolean;
-  } | null>(null);
+  const { audit: auditState, loading: auditLoading, error: auditError } = useAudit(auditId);
+
+  const auditStatus = auditState?.meta?.status;
+  const isCreated = auditStatus === 'created';
+
+  const briefForGatesQuery = useQuery({
+    queryKey: glcKeys.brief.detail(auditId),
+    queryFn: () => api.getBrief(auditId),
+    enabled: isCreated,
+    staleTime: 60_000,
+  });
+
+  const gatePayload = useMemo(() => {
+    if (!isCreated || !briefForGatesQuery.data) return null;
+    const d = briefForGatesQuery.data;
+    const pm = d.product_mode === 'express' ? 'express' : 'full';
+    return {
+      product_mode: pm as 'full' | 'express',
+      canStartExpress: Boolean(d.gates?.canStartExpress),
+      canStartFull: Boolean(d.gates?.canStartFull),
+    };
+  }, [isCreated, briefForGatesQuery.data]);
+
+  const loading = auditLoading && !auditState;
+  const error = auditError;
+
   const [startError, setStartError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [helpMessage, setHelpMessage] = useState('');
@@ -299,54 +343,6 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
   const [upgradeBusy, setUpgradeBusy] = useState(false);
   const [upgradeError, setUpgradeError] = useState<string | null>(null);
   const { setPipelineAccess } = useClientPortalPipeline();
-
-  useEffect(() => {
-    let cancel = false;
-    setLoading(true);
-    api.getAudit(auditId)
-      .then(data => {
-        if (!cancel) {
-          setAuditState(data);
-          setError(null);
-        }
-      })
-      .catch(err => {
-        if (!cancel) setError((err as Error).message);
-      })
-      .finally(() => {
-        if (!cancel) setLoading(false);
-      });
-    return () => {
-      cancel = true;
-    };
-  }, [auditId]);
-
-  const auditStatus = auditState?.meta?.status;
-  const isCreated = auditStatus === 'created';
-
-  useEffect(() => {
-    if (auditStatus !== 'created') {
-      setGatePayload(null);
-      return;
-    }
-    let cancel = false;
-    api.getBrief(auditId)
-      .then(d => {
-        if (cancel) return;
-        const pm = d.product_mode === 'express' ? 'express' : 'full';
-        setGatePayload({
-          product_mode: pm,
-          canStartExpress: Boolean(d.gates?.canStartExpress),
-          canStartFull: Boolean(d.gates?.canStartFull),
-        });
-      })
-      .catch(() => {
-        if (!cancel) setGatePayload(null);
-      });
-    return () => {
-      cancel = true;
-    };
-  }, [auditId, auditStatus, briefRefresh]);
 
   const domain = auditState
     ? (isNoPublicWebsiteUrl(auditState.meta.company_url)
@@ -369,6 +365,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
     setStartError(null);
     try {
       await api.startPipeline(auditId);
+      invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
       navigate(`/portal/pipeline/${auditId}`);
     } catch (e) {
       setStartError((e as Error).message);
@@ -449,9 +446,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
         target_mode: upgradeTarget,
         use_scraped_context: useScrapedContext,
       });
-      const refreshed = await api.getAudit(auditId);
-      setAuditState(refreshed);
-      setBriefRefresh(n => n + 1);
+      invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
     } catch (e) {
       setUpgradeError((e as Error).message);
     } finally {
@@ -466,7 +461,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
       actions={
         <Link
           to="/portal"
-          className="flex items-center gap-1.5 text-sm no-underline"
+          className="hidden sm:inline-flex items-center gap-1.5 text-sm no-underline"
           style={{ color: 'var(--text-tertiary)' }}
         >
           <ArrowLeft className="w-3.5 h-3.5" />
@@ -474,7 +469,15 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
         </Link>
       }
     >
-      <div className="px-7 py-6 max-w-2xl mx-auto">
+      <div className="glc-page-content max-w-2xl mx-auto space-y-4 mobile:space-y-3">
+        <Link
+          to="/portal"
+          className="sm:hidden inline-flex items-center gap-1.5 text-sm font-medium no-underline glc-touch-target -mt-1"
+          style={{ color: 'var(--glc-blue)' }}
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Portal
+        </Link>
         {loading && (
           <div className="flex items-center justify-center py-20">
             <Spinner className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
@@ -494,25 +497,25 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
         {!loading && auditState && meta && (
           <div className="space-y-5">
             <div
-              className="rounded-xl px-5 py-4"
+              className="rounded-xl px-5 py-4 mobile:px-4"
               style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
             >
-              <div className="flex items-start justify-between gap-4 flex-wrap">
-                <div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                <div className="min-w-0">
                   <div
-                    className="font-semibold"
+                    className="font-semibold break-words"
                     style={{ color: 'var(--text-primary)', fontSize: 'var(--text-base)' }}
                   >
                     {domain}
                   </div>
                   {!isNoPublicWebsiteUrl(meta.company_url) && (
-                    <div className="flex items-center gap-2 mt-1">
-                      <Globe className="w-3.5 h-3.5" style={{ color: 'var(--text-tertiary)' }} />
-                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>{meta.company_url}</span>
+                    <div className="flex items-center gap-2 mt-1 min-w-0">
+                      <Globe className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--text-tertiary)' }} />
+                      <span className="break-all" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>{meta.company_url}</span>
                     </div>
                   )}
                 </div>
-                <div className="flex flex-col items-end gap-1">
+                <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 sm:gap-1 flex-shrink-0">
                   <span
                     className="px-2 py-0.5 rounded text-xs font-medium capitalize"
                     style={{
@@ -536,7 +539,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
               <>
                 <ClientBriefSection
                   auditId={auditId}
-                  onBriefSaved={() => setBriefRefresh(n => n + 1)}
+                  onBriefSaved={() => invalidateAuditRelatedQueries(getGlcQueryClient(), auditId)}
                 />
 
                 {startError && (
@@ -550,7 +553,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                 )}
 
                 <div
-                  className="rounded-xl px-5 py-4 space-y-3"
+                  className="rounded-xl px-5 py-4 mobile:px-4 space-y-3"
                   style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
                 >
                   <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>Run the audit</div>
@@ -577,7 +580,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                 </div>
 
                 <div
-                  className="rounded-xl px-5 py-4 space-y-3"
+                  className="rounded-xl px-5 py-4 mobile:px-4 space-y-3"
                   style={{ backgroundColor: 'rgba(28,189,255,0.04)', border: '1px solid rgba(28,189,255,0.12)' }}
                 >
                   <div className="flex items-center gap-2">
@@ -612,7 +615,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                     type="button"
                     onClick={handleHelp}
                     disabled={helpBusy}
-                    className="px-4 py-2 rounded-lg text-sm font-medium"
+                    className="px-4 py-2 rounded-lg text-sm font-medium glc-touch-target"
                     style={{
                       backgroundColor: 'var(--bg-elevated)',
                       border: '1px solid var(--border-default)',
@@ -628,7 +631,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
 
             {!isCreated && meta.status === 'completed' && isFreeSnapshot && (
               <div
-                className="rounded-xl overflow-hidden space-y-4 px-5 py-5"
+                className="rounded-xl overflow-hidden space-y-4 px-5 py-5 mobile:px-4 mobile:py-4"
                 style={
                   freeSnapshotAccess?.showCallout
                     ? {
@@ -860,14 +863,14 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
             {!isCreated && meta.status === 'completed' && !isFreeSnapshot && (
               <Link
                 to={`/portal/reports/${auditId}`}
-                className="flex items-center justify-between px-5 py-4 rounded-xl no-underline transition-all"
+                className="flex items-center justify-between gap-3 px-5 py-4 mobile:px-4 rounded-xl no-underline transition-all"
                 style={{
                   background: 'linear-gradient(135deg, rgba(28,189,255,0.15) 0%, rgba(28,189,255,0.06) 100%)',
                   border: '1px solid rgba(28,189,255,0.25)',
                 }}
               >
-                <div className="flex items-center gap-3">
-                  <FileText className="w-5 h-5" style={{ color: 'var(--glc-blue)' }} />
+                <div className="flex items-center gap-3 min-w-0">
+                  <FileText className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
                   <div>
                     <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>View your report</div>
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
@@ -882,14 +885,14 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
             {canViewPipeline && (
               <Link
                 to={`/portal/pipeline/${auditId}`}
-                className="flex items-center justify-between px-5 py-4 rounded-xl no-underline"
+                className="flex items-center justify-between gap-3 px-5 py-4 mobile:px-4 rounded-xl no-underline"
                 style={{
                   backgroundColor: 'rgba(28,189,255,0.05)',
                   border: '1px solid rgba(28,189,255,0.15)',
                 }}
               >
-                <div className="flex items-center gap-3">
-                  <Pulse className="w-5 h-5" style={{ color: 'var(--glc-blue)' }} />
+                <div className="flex items-center gap-3 min-w-0">
+                  <Pulse className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
                   <div>
                     <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>Pipeline status</div>
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
@@ -915,94 +918,18 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
+/** Audit + brief gates load via TanStack Query (`useAudit` + shared `brief` query key). */
 
 export function ClientAuditView() {
   const { id } = useParams<{ id: string }>();
-  const [loading, setLoading] = useState(true);
-  const [resolveError, setResolveError] = useState<string | null>(null);
-  const [auditOk, setAuditOk] = useState(false);
-
-  useEffect(() => {
-    if (!id) {
-      setLoading(false);
-      setResolveError('Missing id.');
-      setAuditOk(false);
-      return;
-    }
-    let cancel = false;
-    setLoading(true);
-    setResolveError(null);
-    setAuditOk(false);
-
-    api
-      .getAudit(id)
-      .then(() => {
-        if (!cancel) setAuditOk(true);
-      })
-      .catch((e) => {
-        if (cancel) return;
-        if (e instanceof ApiError && e.status === 404) {
-          setResolveError('We could not find this audit.');
-        } else {
-          setResolveError((e as Error).message);
-        }
-        setAuditOk(false);
-      })
-      .finally(() => {
-        if (!cancel) setLoading(false);
-      });
-
-    return () => {
-      cancel = true;
-    };
-  }, [id]);
 
   if (!id) {
     return (
       <AppShell title="Portal" subtitle="">
-        <div className="px-7 py-6 max-w-2xl mx-auto text-sm" style={{ color: '#EF4444' }}>Missing id.</div>
+        <div className="glc-page-content max-w-2xl mx-auto text-sm" style={{ color: '#EF4444' }}>Missing id.</div>
       </AppShell>
     );
   }
 
-  if (loading) {
-    return (
-      <AppShell title="Loading" subtitle="">
-        <div className="flex items-center justify-center py-20">
-          <Spinner className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
-        </div>
-      </AppShell>
-    );
-  }
-
-  if (auditOk) {
-    return <ClientPortalAuditById auditId={id} />;
-  }
-
-  return (
-    <AppShell
-      title="Not found"
-      subtitle=""
-      actions={
-        <Link
-          to="/portal"
-          className="flex items-center gap-1.5 text-sm no-underline"
-          style={{ color: 'var(--text-tertiary)' }}
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Back to Portal
-        </Link>
-      }
-    >
-      <div className="px-7 py-6 max-w-2xl mx-auto">
-        <div
-          className="flex items-center gap-3 px-4 py-3 rounded-lg"
-          style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)', color: '#EF4444' }}
-        >
-          <Warning className="w-4 h-4 flex-shrink-0" />
-          <span className="text-sm">{resolveError ?? 'Not found.'}</span>
-        </div>
-      </div>
-    </AppShell>
-  );
+  return <ClientPortalAuditById auditId={id} />;
 }

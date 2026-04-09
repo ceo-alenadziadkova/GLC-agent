@@ -5,6 +5,9 @@
  * Supabase, requireAuth, attachProfile, requireRole, rate-limit are all mocked.
  *
  * Covers:
+ *  GET /api/audits/:id/brief/schema
+ *    · 200 compact plan payload for owner
+ *    · 403 when user has no access
  *  GET /api/audits/:id/brief
  *    · 200 with questions array and null brief on first call
  *    · 200 with populated brief when brief row exists
@@ -148,6 +151,7 @@ import express from 'express';
 import { auditsRouter } from '../routes/audits.js';
 import { REQUIRED_QUESTION_IDS, BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
 import { resolveExpressSlaRequiredIds } from '../intake/brief-gates.js';
+import { currentIntakeVersionTuple } from '../intake/core/versions.js';
 import { makeWebsitePathFullBrief } from './bank-brief-fixtures.js';
 
 let server: Server;
@@ -196,6 +200,47 @@ async function putJSON(path: string, body: unknown, headers = AUTH) {
   });
   return { status: res.status, body: await res.json() as Record<string, unknown> };
 }
+
+// ─── GET /api/audits/:id/brief/schema ─────────────────────────────────────────
+
+describe('GET /api/audits/:id/brief/schema', () => {
+  it('returns 200 with compact plan + questions for owner', async () => {
+    setBriefRow({ responses: { a2: 'hospitality', a5: 'no_website' } });
+    const { status, body } = await getJSON('/api/audits/audit-001/brief/schema');
+
+    expect(status).toBe(200);
+    expect(Array.isArray(body.visible)).toBe(true);
+    expect(Array.isArray(body.questions)).toBe(true);
+    expect(body.intake_versions).toBeDefined();
+    expect(body.derived).toBeDefined();
+    expect(typeof (body.derived as Record<string, unknown>).ai_readiness_score).toBe('number');
+    expect(Array.isArray(body.missing_for_report)).toBe(true);
+    expect(Array.isArray(body.next_recommended)).toBe(true);
+    expect(body.product_mode).toBe('express');
+    const rows = body.questions as Array<Record<string, unknown>>;
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows[0].answer).toBeDefined();
+    expect(typeof (rows[0].answer as Record<string, unknown>).type).toBe('string');
+  });
+
+  it('includes derived.report_anchors when visible bank answers have reportUse', async () => {
+    setBriefRow({
+      responses: { a2: 'hospitality', a5: 'no_website', a1: 'Boutique stay chain' },
+    });
+    const { status, body } = await getJSON('/api/audits/audit-001/brief/schema');
+    expect(status).toBe(200);
+    const derived = body.derived as Record<string, unknown>;
+    expect(derived.report_anchors).toEqual(
+      expect.objectContaining({ recon_company_summary: 'Boutique stay chain' }),
+    );
+  });
+
+  it('returns 403 when user has no access', async () => {
+    setAuditRow({ id: 'audit-001', user_id: 'other-user', client_id: null, product_mode: 'full' });
+    const { status } = await getJSON('/api/audits/audit-001/brief/schema');
+    expect(status).toBe(403);
+  });
+});
 
 // ─── GET /api/audits/:id/brief ────────────────────────────────────────────────
 
@@ -407,5 +452,44 @@ describe('PUT /api/audits/:id/brief', () => {
     const responses = { main_traffic_source: ['Organic search (SEO)', 'Social media'] };
     const { status } = await putJSON('/api/audits/audit-001/brief', { responses });
     expect(status).toBe(200);
+  });
+
+  it('returns 400 UNKNOWN_MODE for invalid collection_mode', async () => {
+    const { status, body } = await putJSON('/api/audits/audit-001/brief', {
+      responses: { f1: 'x' },
+      collection_mode: 'not_a_mode',
+    });
+    expect(status).toBe(400);
+    expect(body.code).toBe('UNKNOWN_MODE');
+  });
+
+  it('accepts valid collection_mode values', async () => {
+    for (const collection_mode of ['self_serve', 'interview', 'pre_brief', 'discovery'] as const) {
+      const { status } = await putJSON('/api/audits/audit-001/brief', {
+        responses: makeFullRequired(),
+        collection_mode,
+      });
+      expect(status).toBe(200);
+    }
+  });
+
+  it('returns 400 UNSUPPORTED_INTAKE_VERSION when intake_versions tuple is not a known artifact bundle', async () => {
+    const cur = currentIntakeVersionTuple();
+    const { status, body } = await putJSON('/api/audits/audit-001/brief', {
+      responses: makeFullRequired(),
+      intake_versions: { ...cur, layoutVersion: '0.0.0' },
+    });
+    expect(status).toBe(400);
+    expect(body.code).toBe('UNSUPPORTED_INTAKE_VERSION');
+  });
+
+  it('returns 400 INCOMPLETE_INTAKE_VERSIONS when only some version keys are sent', async () => {
+    const cur = currentIntakeVersionTuple();
+    const { status, body } = await putJSON('/api/audits/audit-001/brief', {
+      responses: makeFullRequired(),
+      intake_versions: { policyVersion: cur.policyVersion },
+    });
+    expect(status).toBe(400);
+    expect(body.code).toBe('INCOMPLETE_INTAKE_VERSIONS');
   });
 });

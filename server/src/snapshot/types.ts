@@ -99,6 +99,15 @@ export const SiteProfileSchema = z.object({
 
 export type SiteProfile = z.infer<typeof SiteProfileSchema>;
 
+/** Public, machine-readable trace for snapshot site-type rules (no PII). */
+export interface SnapshotClassificationTransparency {
+  matched_signals: string[];
+  runner_up_site_type: string | null;
+  runner_up_match_count: number | null;
+  tie_ambiguous: boolean;
+  score_top_two: [string, number][];
+}
+
 export const SnapshotAuditCategorySchema = z.enum([
   'ux_clarity',
   'conversion_readiness',
@@ -242,4 +251,6 @@ export interface SnapshotCachePayload {
   classification_version?: number;
   fetch_strategy_version?: string;
   snapshot_engine_version?: string;
+  /** Which YAML signals fired and runner-up site type counts (helps explain `site_profile.siteType`). */
+  classification_transparency?: SnapshotClassificationTransparency;
 }

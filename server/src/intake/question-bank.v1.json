@@ -1,74 +1,1045 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
+  "optionCatalogs": {
+    "industry": [
+      "E-commerce",
+      "Education",
+      "Finance",
+      "Food & Beverage",
+      "Healthcare",
+      "Hospitality",
+      "Manufacturing",
+      "Marine",
+      "Media & Entertainment",
+      "Non-profit",
+      "Professional Services",
+      "Real Estate",
+      "Retail",
+      "SaaS / Software",
+      "Other"
+    ]
+  },
   "questions": [
-    { "id": "a1", "section": "A", "priority": "required", "label": "Business description (one sentence)" },
-    { "id": "a2", "section": "A", "priority": "required", "label": "Industry" },
-    { "id": "a3", "section": "A", "priority": "required", "label": "Business location" },
-    { "id": "a4", "section": "A", "priority": "recommended", "label": "Team size" },
-    { "id": "a5", "section": "A", "priority": "required", "label": "Website presence" },
-    { "id": "a6", "section": "A", "priority": "required", "label": "Online payments today" },
-    { "id": "a7", "section": "A", "priority": "required", "label": "Business stage (moment)" },
-    { "id": "a8", "section": "A", "priority": "recommended", "label": "Customers or orders per month (typical)" },
-    { "id": "a9", "section": "A", "priority": "optional", "label": "Customer communication languages" },
-    { "id": "b1", "section": "B", "priority": "required", "label": "Ideal customer" },
-    { "id": "b2", "section": "B", "priority": "required", "label": "How new customers find you" },
-    { "id": "b3", "section": "B", "priority": "required", "label": "Main value promise vs competitors" },
-    { "id": "b4", "section": "B", "priority": "recommended", "label": "Pricing vs competitors" },
-    { "id": "b5", "section": "B", "priority": "recommended", "label": "Seasonality" },
-    { "id": "b6", "section": "B", "priority": "recommended", "label": "Guarantees offered" },
-    { "id": "b7", "section": "B", "priority": "recommended", "label": "Repeat vs one-off revenue" },
-    { "id": "b_growth_attempts", "section": "B", "priority": "recommended", "label": "Growth attempts (past 1–2 years)" },
-    { "id": "b_hotel_1", "section": "B", "priority": "recommended", "branch": "is_hospitality", "label": "Booking channels (Hospitality)" },
-    { "id": "b_hotel_2", "section": "B", "priority": "recommended", "branch": "is_hospitality", "label": "Direct vs OTA bookings (Hospitality)" },
-    { "id": "b_realestate_1", "section": "B", "priority": "recommended", "branch": "is_real_estate", "label": "Property portals (Real Estate)" },
-    { "id": "b_restaurant_1", "section": "B", "priority": "recommended", "branch": "is_restaurant", "label": "Reservation system (Restaurant)" },
-    { "id": "b_services_1", "section": "B", "priority": "recommended", "branch": "is_services", "label": "How clients book services (Professional Services)" },
-    { "id": "b_health_1", "section": "B", "priority": "recommended", "branch": "is_healthcare", "label": "Online appointment booking (Healthcare)" },
-    { "id": "b_marine_1", "section": "B", "priority": "recommended", "branch": "is_marine", "label": "Charter platforms (Marine)" },
-    { "id": "c5", "section": "C", "priority": "required", "branch": "has_website", "label": "Primary site goal (visitor action)" },
-    { "id": "c6", "section": "C", "priority": "required", "branch": "has_website", "label": "Main website frustration" },
-    { "id": "c8", "section": "C", "priority": "recommended", "branch": "has_website", "label": "Competitors (2–3)" },
-    { "id": "c9", "section": "C", "priority": "recommended", "branch": "has_website", "label": "Site age in production" },
-    { "id": "c1", "section": "C", "priority": "recommended", "branch": "has_website", "label": "Recon-detected stack confirmation" },
-    { "id": "c2", "section": "C", "priority": "recommended", "branch": "has_website", "label": "Who maintains the website" },
-    { "id": "c3", "section": "C", "priority": "required", "branch": "has_website", "label": "Analytics tool installed" },
-    { "id": "c4", "section": "C", "priority": "optional", "branch": "has_website", "label": "Google Search Console" },
-    { "id": "c7", "section": "C", "priority": "recommended", "label": "Social media presence" },
-    { "id": "c_nosite_1", "section": "C", "priority": "recommended", "branch": "no_website", "label": "Where are you visible online today? (no-site or site-in-progress path)" },
-    { "id": "c_nosite_4", "section": "C", "priority": "recommended", "branch": "no_website", "label": "Where customer inquiries arrive first (no site)" },
-    { "id": "c_nosite_5", "section": "C", "priority": "recommended", "branch": "no_website", "label": "Google Business listing presence (no site)" },
-    { "id": "c_nosite_reviews", "section": "C", "priority": "recommended", "branch": "no_website", "label": "Customer reviews and reputation management" },
-    { "id": "c_nosite_2", "section": "C", "priority": "optional", "branch": "no_website", "label": "Anything else about your online presence?" },
-    { "id": "c_nosite_3", "section": "C", "priority": "recommended", "branch": "nosite_social", "label": "Which social or messaging channels do you use for the business?" },
-    { "id": "d1", "section": "D", "priority": "required", "label": "Daily tools" },
-    { "id": "d1a", "section": "D", "priority": "recommended", "branch": "has_crm", "label": "Which CRM" },
-    { "id": "d1b", "section": "D", "priority": "recommended", "branch": "no_crm", "label": "Lead/client tracking (no CRM)" },
-    { "id": "d_response_time", "section": "D", "priority": "recommended", "label": "Response speed to new inquiries" },
-    { "id": "d_closing_flow", "section": "D", "priority": "recommended", "label": "Steps between first contact and payment" },
-    { "id": "d_billing_flow", "section": "D", "priority": "recommended", "label": "How quotes and invoices are sent" },
-    { "id": "d2", "section": "D", "priority": "required", "label": "Biggest manual time sink" },
-    { "id": "d_automation_attempt", "section": "D", "priority": "recommended", "label": "Prior automation attempts" },
-    { "id": "d3", "section": "D", "priority": "recommended", "label": "Hours/week on repetitive manual work" },
-    { "id": "d4", "section": "D", "priority": "recommended", "branch": "not_solo", "label": "Where new hire learns main process" },
-    { "id": "d4a", "section": "D", "priority": "recommended", "label": "AI tools in daily work" },
-    { "id": "d4b", "section": "D", "priority": "recommended", "label": "Export key data to CSV/spreadsheet" },
-    { "id": "d6", "section": "D", "priority": "recommended", "label": "Types of data worked with most" },
-    { "id": "d5", "section": "D", "priority": "recommended", "label": "Automated email sequences" },
-    { "id": "d_hotel_1", "section": "D", "priority": "recommended", "branch": "is_hospitality", "label": "Property Management System" },
-    { "id": "d_hotel_2", "section": "D", "priority": "recommended", "branch": "is_hospitality", "label": "Check-in/check-out handling" },
-    { "id": "d_realestate_1", "section": "D", "priority": "recommended", "branch": "is_real_estate", "label": "Listings across portals" },
-    { "id": "d_restaurant_1", "section": "D", "priority": "recommended", "branch": "is_restaurant", "label": "POS system" },
-    { "id": "e1", "section": "E", "priority": "recommended", "label": "Online payments accepted" },
-    { "id": "e2", "section": "E", "priority": "recommended", "label": "EU operations or customers" },
-    { "id": "e3", "section": "E", "priority": "recommended", "label": "GDPR setup confidence" },
-    { "id": "e4", "section": "E", "priority": "optional", "branch": "spain_based", "label": "E-invoicing / Verifactu" },
-    { "id": "f1", "section": "F", "priority": "required", "label": "Main business problem to solve" },
-    { "id": "f2", "section": "F", "priority": "required", "label": "Audit focus areas" },
-    { "id": "f3", "section": "F", "priority": "recommended", "label": "Digital setup self-rating (1–5)" },
-    { "id": "f4", "section": "F", "priority": "recommended", "label": "Readiness to implement changes" },
-    { "id": "f5", "section": "F", "priority": "optional", "label": "Budget range (3–12 months)" },
-    { "id": "f6", "section": "F", "priority": "optional", "label": "Do-not-recommend constraints" },
-    { "id": "f7", "section": "F", "priority": "recommended", "label": "Approver for new automation/AI tool" },
-    { "id": "f8", "section": "F", "priority": "recommended", "label": "Deadline or key moment" }
+    {
+      "id": "a1",
+      "section": "A",
+      "priority": "required",
+      "label": "Business description (one sentence)",
+      "reportUse": "recon_company_summary",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "a2",
+      "section": "A",
+      "priority": "required",
+      "label": "Industry",
+      "reportUse": "recon_industry_segment",
+      "answer": {
+        "type": "single_select",
+        "optionsRef": "industry"
+      }
+    },
+    {
+      "id": "a3",
+      "section": "A",
+      "priority": "required",
+      "label": "Business location",
+      "reportUse": "recon_business_location",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "a4",
+      "section": "A",
+      "priority": "recommended",
+      "label": "Team size",
+      "reportUse": "recon_team_size",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Just me",
+          "2–10 people",
+          "11–50",
+          "51–200",
+          "200+"
+        ]
+      }
+    },
+    {
+      "id": "a5",
+      "section": "A",
+      "priority": "required",
+      "label": "Website presence",
+      "reportUse": "segment_website_presence",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Yes, multi-page site",
+          "Yes, single landing page",
+          "Under construction",
+          "No website yet"
+        ]
+      }
+    },
+    {
+      "id": "a6",
+      "section": "A",
+      "priority": "required",
+      "label": "Online payments today",
+      "reportUse": "recon_online_payments_surface",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Yes",
+          "Sometimes",
+          "Rarely",
+          "No, offline only",
+          "Not sure"
+        ]
+      }
+    },
+    {
+      "id": "a7",
+      "section": "A",
+      "priority": "required",
+      "label": "Business stage (moment)",
+      "reportUse": "recon_business_stage",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Launching",
+          "Growing fast",
+          "Stabilising",
+          "Scaling",
+          "Mature and optimising"
+        ]
+      }
+    },
+    {
+      "id": "a8",
+      "section": "A",
+      "priority": "recommended",
+      "label": "Customers or orders per month (typical)",
+      "reportUse": "strat_volume_signal",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "< 50",
+          "50–200",
+          "200–1,000",
+          "1,000+",
+          "Not sure"
+        ]
+      }
+    },
+    {
+      "id": "a9",
+      "section": "A",
+      "priority": "optional",
+      "label": "Customer communication languages",
+      "reportUse": "mkt_customer_languages",
+      "answer": {
+        "type": "multi_select",
+        "options": [
+          "Spanish",
+          "English",
+          "German",
+          "French",
+          "Russian",
+          "Other"
+        ]
+      }
+    },
+    {
+      "id": "b1",
+      "section": "B",
+      "priority": "required",
+      "label": "Ideal customer",
+      "reportUse": "mkt_ideal_customer",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "b2",
+      "section": "B",
+      "priority": "required",
+      "label": "How new customers find you",
+      "reportUse": "mkt_acquisition_channels",
+      "answer": {
+        "type": "multi_select",
+        "options": [
+          "Google / search",
+          "Paid ads",
+          "Social",
+          "Referrals",
+          "Cold outreach",
+          "Events",
+          "Partners",
+          "Other"
+        ]
+      }
+    },
+    {
+      "id": "b3",
+      "section": "B",
+      "priority": "required",
+      "label": "Main value promise vs competitors",
+      "reportUse": "marketing_value_promise",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "b4",
+      "section": "B",
+      "priority": "recommended",
+      "label": "Pricing vs competitors",
+      "reportUse": "mkt_pricing_vs_competitors",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "b5",
+      "section": "B",
+      "priority": "recommended",
+      "label": "Seasonality",
+      "reportUse": "mkt_seasonality",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "b6",
+      "section": "B",
+      "priority": "recommended",
+      "label": "Guarantees offered",
+      "reportUse": "mkt_guarantees",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "b7",
+      "section": "B",
+      "priority": "recommended",
+      "label": "Repeat vs one-off revenue",
+      "reportUse": "mkt_revenue_repeat_vs_oneoff",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "b_growth_attempts",
+      "section": "B",
+      "priority": "recommended",
+      "label": "Growth attempts (past 1–2 years)",
+      "reportUse": "mkt_growth_attempts_history",
+      "answer": {
+        "type": "multi_select",
+        "options": [
+          "Paid ads (Google, Meta)",
+          "Marketing agency or freelancer",
+          "More social media content",
+          "New platforms or directories",
+          "Improved the service itself",
+          "Nothing specific yet",
+          "Other"
+        ]
+      }
+    },
+    {
+      "id": "b_hotel_1",
+      "section": "B",
+      "priority": "recommended",
+      "branch": "is_hospitality",
+      "label": "Booking channels (Hospitality)",
+      "reportUse": "mkt_hospitality_booking_channels",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "b_hotel_2",
+      "section": "B",
+      "priority": "recommended",
+      "branch": "is_hospitality",
+      "label": "Direct vs OTA bookings (Hospitality)",
+      "reportUse": "mkt_hospitality_direct_vs_ota",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "b_realestate_1",
+      "section": "B",
+      "priority": "recommended",
+      "branch": "is_real_estate",
+      "label": "Property portals (Real Estate)",
+      "reportUse": "mkt_realestate_portals",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "b_restaurant_1",
+      "section": "B",
+      "priority": "recommended",
+      "branch": "is_restaurant",
+      "label": "Reservation system (Restaurant)",
+      "reportUse": "mkt_restaurant_reservations",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "b_services_1",
+      "section": "B",
+      "priority": "recommended",
+      "branch": "is_services",
+      "label": "How clients book services (Professional Services)",
+      "reportUse": "ux_services_booking_flow",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "b_health_1",
+      "section": "B",
+      "priority": "recommended",
+      "branch": "is_healthcare",
+      "label": "Online appointment booking (Healthcare)",
+      "reportUse": "ux_healthcare_online_booking",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "b_marine_1",
+      "section": "B",
+      "priority": "recommended",
+      "branch": "is_marine",
+      "label": "Charter platforms (Marine)",
+      "reportUse": "mkt_marine_charter_platforms",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "c5",
+      "section": "C",
+      "priority": "required",
+      "branch": "has_website",
+      "label": "Primary site goal (visitor action)",
+      "reportUse": "ux_primary_site_goal",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "c6",
+      "section": "C",
+      "priority": "required",
+      "branch": "has_website",
+      "label": "Main website frustration",
+      "reportUse": "ux_site_main_frustration",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "c8",
+      "section": "C",
+      "priority": "recommended",
+      "branch": "has_website",
+      "label": "Competitors (2–3)",
+      "reportUse": "mkt_competitors_shortlist",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "c9",
+      "section": "C",
+      "priority": "recommended",
+      "branch": "has_website",
+      "label": "Site age in production",
+      "reportUse": "tech_site_production_age",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "< 6 months",
+          "6–24 months",
+          "2–5 years",
+          "5+ years",
+          "Not sure"
+        ]
+      }
+    },
+    {
+      "id": "c1",
+      "section": "C",
+      "priority": "recommended",
+      "branch": "has_website",
+      "label": "Recon-detected stack confirmation",
+      "reportUse": "tech_stack_recon_confirmation",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "c2",
+      "section": "C",
+      "priority": "recommended",
+      "branch": "has_website",
+      "label": "Who maintains the website",
+      "reportUse": "tech_site_ownership",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "c3",
+      "section": "C",
+      "priority": "required",
+      "branch": "has_website",
+      "label": "Analytics tool installed",
+      "reportUse": "seo_analytics_tool",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Yes, GA4",
+          "Yes, another tool",
+          "No",
+          "Don't know"
+        ]
+      }
+    },
+    {
+      "id": "c4",
+      "section": "C",
+      "priority": "optional",
+      "branch": "has_website",
+      "label": "Google Search Console",
+      "reportUse": "seo_search_console_usage",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Yes",
+          "No",
+          "What's that?"
+        ]
+      }
+    },
+    {
+      "id": "c7",
+      "section": "C",
+      "priority": "recommended",
+      "label": "Social media presence",
+      "reportUse": "mkt_social_presence",
+      "answer": {
+        "type": "multi_select",
+        "options": [
+          "None / minimal",
+          "LinkedIn",
+          "Instagram",
+          "Facebook",
+          "TikTok",
+          "YouTube",
+          "Other"
+        ]
+      }
+    },
+    {
+      "id": "c_nosite_1",
+      "section": "C",
+      "priority": "recommended",
+      "branch": "no_website",
+      "label": "Where are you visible online today? (no-site or site-in-progress path)",
+      "reportUse": "seo_online_visibility_no_site",
+      "answer": {
+        "type": "multi_select",
+        "options": [
+          "Google / search",
+          "Google Business listing",
+          "Social media",
+          "OTA or marketplace",
+          "Word of mouth",
+          "Not really online yet"
+        ]
+      }
+    },
+    {
+      "id": "c_nosite_4",
+      "section": "C",
+      "priority": "recommended",
+      "branch": "no_website",
+      "label": "Where customer inquiries arrive first (no site)",
+      "reportUse": "auto_inquiry_channels_no_site",
+      "answer": {
+        "type": "multi_select",
+        "options": [
+          "WhatsApp",
+          "Phone call",
+          "In-person walk-in",
+          "Facebook or Instagram DM",
+          "Email",
+          "Booking platform (OTA)",
+          "Other"
+        ]
+      }
+    },
+    {
+      "id": "c_nosite_5",
+      "section": "C",
+      "priority": "recommended",
+      "branch": "no_website",
+      "label": "Google Business listing presence (no site)",
+      "reportUse": "seo_gbp_presence_no_site",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Yes, I actively manage it",
+          "Yes, but rarely updated",
+          "No",
+          "Not sure what this is"
+        ]
+      }
+    },
+    {
+      "id": "c_nosite_reviews",
+      "section": "C",
+      "priority": "recommended",
+      "branch": "no_website",
+      "label": "Customer reviews and reputation management",
+      "reportUse": "mkt_reputation_reviews",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "I actively ask customers to leave a review",
+          "Reviews come in — I respond",
+          "Reviews come in but I rarely respond",
+          "I don't really manage this",
+          "No reviews yet"
+        ]
+      }
+    },
+    {
+      "id": "c_nosite_2",
+      "section": "C",
+      "priority": "optional",
+      "branch": "no_website",
+      "label": "Anything else about your online presence?",
+      "reportUse": "seo_online_presence_notes_no_site",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Yes, soon",
+          "Yes, but not sure how",
+          "Eventually",
+          "Not a priority right now"
+        ]
+      }
+    },
+    {
+      "id": "c_nosite_3",
+      "section": "C",
+      "priority": "recommended",
+      "branch": "nosite_social",
+      "label": "Which social or messaging channels do you use for the business?",
+      "reportUse": "mkt_social_channels_no_site",
+      "answer": {
+        "type": "multi_select",
+        "options": [
+          "Instagram",
+          "Facebook",
+          "TikTok",
+          "LinkedIn",
+          "YouTube",
+          "Google Business",
+          "TripAdvisor",
+          "None",
+          "Other"
+        ]
+      }
+    },
+    {
+      "id": "d1",
+      "section": "D",
+      "priority": "required",
+      "label": "Daily tools",
+      "reportUse": "auto_daily_tool_stack",
+      "answer": {
+        "type": "multi_select",
+        "options": [
+          "Email",
+          "Spreadsheets",
+          "CRM",
+          "Project or task tool",
+          "Booking or PMS",
+          "Accounting",
+          "Support ticketing",
+          "Voice notes or WhatsApp audio",
+          "Other"
+        ]
+      }
+    },
+    {
+      "id": "d1a",
+      "section": "D",
+      "priority": "recommended",
+      "branch": "has_crm",
+      "label": "Which CRM",
+      "reportUse": "auto_crm_product",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "d1b",
+      "section": "D",
+      "priority": "recommended",
+      "branch": "no_crm",
+      "label": "Lead/client tracking (no CRM)",
+      "reportUse": "auto_lead_tracking_without_crm",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "d_response_time",
+      "section": "D",
+      "priority": "recommended",
+      "label": "Response speed to new inquiries",
+      "reportUse": "auto_inquiry_response_speed",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Within minutes — I'm always on",
+          "Within a few hours",
+          "Same day",
+          "Next day or later",
+          "It depends — sometimes fast, sometimes slow"
+        ]
+      }
+    },
+    {
+      "id": "d_closing_flow",
+      "section": "D",
+      "priority": "recommended",
+      "label": "Steps between first contact and payment",
+      "reportUse": "auto_sales_closing_flow",
+      "answer": {
+        "type": "multi_select",
+        "options": [
+          "I send a quote or price manually",
+          "We have a call or meeting first",
+          "They visit in person",
+          "I send them to a booking platform",
+          "They pay immediately on first contact",
+          "It varies a lot",
+          "Other"
+        ]
+      }
+    },
+    {
+      "id": "d_billing_flow",
+      "section": "D",
+      "priority": "recommended",
+      "label": "How quotes and invoices are sent",
+      "reportUse": "auto_billing_invoicing_flow",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "WhatsApp message or voice note",
+          "Email with a document attached",
+          "In person or printed",
+          "Accounting software (Holded, Factusol…)",
+          "Booking platform handles it",
+          "We don't send formal confirmations",
+          "Other"
+        ]
+      }
+    },
+    {
+      "id": "d2",
+      "section": "D",
+      "priority": "required",
+      "label": "Biggest manual time sink",
+      "reportUse": "auto_manual_time_sink",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "d_automation_attempt",
+      "section": "D",
+      "priority": "recommended",
+      "label": "Prior automation attempts",
+      "reportUse": "auto_prior_automation_attempts",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "d3",
+      "section": "D",
+      "priority": "recommended",
+      "label": "Hours/week on repetitive manual work",
+      "reportUse": "auto_manual_hours_per_week",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "< 5h",
+          "5–10h",
+          "10–20h",
+          "20h+",
+          "Not sure"
+        ]
+      }
+    },
+    {
+      "id": "d4",
+      "section": "D",
+      "priority": "recommended",
+      "branch": "not_solo",
+      "label": "Where new hire learns main process",
+      "reportUse": "auto_onboarding_knowledge_location",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "d4a",
+      "section": "D",
+      "priority": "recommended",
+      "label": "AI tools in daily work",
+      "reportUse": "auto_ai_tools_daily_use",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Daily",
+          "Weekly",
+          "Occasionally",
+          "Not really"
+        ]
+      }
+    },
+    {
+      "id": "d4b",
+      "section": "D",
+      "priority": "recommended",
+      "label": "Export key data to CSV/spreadsheet",
+      "reportUse": "auto_data_export_to_spreadsheet",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Yes easily",
+          "Sometimes",
+          "Rarely",
+          "No"
+        ]
+      }
+    },
+    {
+      "id": "d6",
+      "section": "D",
+      "priority": "recommended",
+      "label": "Types of data worked with most",
+      "reportUse": "auto_primary_data_types",
+      "answer": {
+        "type": "multi_select",
+        "options": [
+          "Customer data",
+          "Financials",
+          "Inventory",
+          "Bookings",
+          "Support tickets",
+          "Marketing leads",
+          "Other"
+        ]
+      }
+    },
+    {
+      "id": "d5",
+      "section": "D",
+      "priority": "recommended",
+      "label": "Automated email sequences",
+      "reportUse": "auto_email_sequence_automation",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Yes, actively",
+          "Partially",
+          "No"
+        ]
+      }
+    },
+    {
+      "id": "d_hotel_1",
+      "section": "D",
+      "priority": "recommended",
+      "branch": "is_hospitality",
+      "label": "Property Management System",
+      "reportUse": "auto_hospitality_pms",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "d_hotel_2",
+      "section": "D",
+      "priority": "recommended",
+      "branch": "is_hospitality",
+      "label": "Check-in/check-out handling",
+      "reportUse": "auto_hospitality_checkin_checkout",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "d_realestate_1",
+      "section": "D",
+      "priority": "recommended",
+      "branch": "is_real_estate",
+      "label": "Listings across portals",
+      "reportUse": "auto_realestate_listing_sync",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "d_restaurant_1",
+      "section": "D",
+      "priority": "recommended",
+      "branch": "is_restaurant",
+      "label": "POS system",
+      "reportUse": "auto_restaurant_pos",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "e1",
+      "section": "E",
+      "priority": "recommended",
+      "label": "Online payments accepted",
+      "reportUse": "security_online_payments_accepted",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Yes",
+          "Sometimes",
+          "No",
+          "Not sure"
+        ]
+      }
+    },
+    {
+      "id": "e2",
+      "section": "E",
+      "priority": "recommended",
+      "label": "EU operations or customers",
+      "reportUse": "security_eu_operations_scope",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Yes",
+          "No",
+          "Partially / not sure"
+        ]
+      }
+    },
+    {
+      "id": "e3",
+      "section": "E",
+      "priority": "recommended",
+      "label": "GDPR setup confidence",
+      "reportUse": "security_gdpr_setup_confidence",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Confident",
+          "Somewhat",
+          "Not confident",
+          "Not set up"
+        ]
+      }
+    },
+    {
+      "id": "e4",
+      "section": "E",
+      "priority": "optional",
+      "branch": "spain_based",
+      "label": "E-invoicing / Verifactu",
+      "reportUse": "security_spain_einvoicing_verifactu",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Yes, in place",
+          "In progress",
+          "No",
+          "Not sure"
+        ]
+      }
+    },
+    {
+      "id": "f1",
+      "section": "F",
+      "priority": "required",
+      "label": "Main business problem to solve",
+      "reportUse": "strategy_pain_anchor",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "f2",
+      "section": "F",
+      "priority": "required",
+      "label": "Audit focus areas",
+      "reportUse": "strategy_audit_focus_areas",
+      "answer": {
+        "type": "multi_select",
+        "options": [
+          "Website performance and technology (speed, stability, technical health)",
+          "Online visibility and SEO (finding and attracting the right traffic)",
+          "Customer experience and conversions (turning visitors into customers)",
+          "Marketing and positioning (clarity of message and differentiation)",
+          "Process automation and efficiency (less manual work and handoffs)",
+          "Security, compliance and risk (avoiding costly surprises)"
+        ]
+      }
+    },
+    {
+      "id": "f3",
+      "section": "F",
+      "priority": "recommended",
+      "label": "Digital setup self-rating (1–5)",
+      "reportUse": "strategy_digital_self_rating",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "1 — Struggling",
+          "2",
+          "3 — Okay-ish",
+          "4",
+          "5 — Nailing it"
+        ]
+      }
+    },
+    {
+      "id": "f4",
+      "section": "F",
+      "priority": "recommended",
+      "label": "Readiness to implement changes",
+      "reportUse": "strategy_change_readiness",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Ready to move quickly on clear quick wins",
+          "Ready to invest if ROI and impact are clear",
+          "Prefer to understand the situation for now",
+          "Need to align first with partner, owner, or team"
+        ]
+      }
+    },
+    {
+      "id": "f5",
+      "section": "F",
+      "priority": "optional",
+      "label": "Budget range (3–12 months)",
+      "reportUse": "strategy_budget_range",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Under €500",
+          "€500–2,000",
+          "€2,000–10,000",
+          "Over €10,000",
+          "No clear budget yet — depends on the recommendations"
+        ]
+      }
+    },
+    {
+      "id": "f6",
+      "section": "F",
+      "priority": "optional",
+      "label": "Do-not-recommend constraints",
+      "reportUse": "strategy_do_not_recommend_constraints",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "f7",
+      "section": "F",
+      "priority": "recommended",
+      "label": "Approver for new automation/AI tool",
+      "reportUse": "strategy_tool_approver",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Me",
+          "Ops or office manager",
+          "IT provider or agency",
+          "Owner or partner",
+          "Board or investor",
+          "Not sure"
+        ]
+      }
+    },
+    {
+      "id": "f8",
+      "section": "F",
+      "priority": "recommended",
+      "label": "Deadline or key moment",
+      "reportUse": "strategy_deadline_key_moment",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "Opening or launch soon",
+          "Seasonal peak coming",
+          "Investor, partner, or board review",
+          "Contract or compliance milestone",
+          "No specific deadline"
+        ]
+      }
+    }
   ]
 }

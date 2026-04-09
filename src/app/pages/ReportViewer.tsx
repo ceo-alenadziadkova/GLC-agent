@@ -2,19 +2,17 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Link, useParams } from 'react-router';
 import {
-  ArrowUpRight, TrendUp, Warning, Lightning, CaretRight,
-  CheckCircle, FileText, Clock, CurrencyDollar, ChartBar, ArrowsClockwise,
+  ArrowUpRight, Warning, Lightning, CaretRight,
+  CheckCircle, FileText, Clock, ChartBar, ArrowsClockwise,
   DownloadSimple, User, Code, Megaphone, Article,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { ScoreBadge, ScoreBar } from '../components/glc/ScoreBadge';
 import { StatusPill } from '../components/glc/StatusPill';
 import { SectionLabel } from '../components/glc/SectionLabel';
-import { QuickWinTag } from '../components/glc/QuickWinTag';
 import { useAudit } from '../hooks/useAudit';
 import { api } from '../data/apiService';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
-import type { DomainData } from '../data/auditTypes';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 
 type ReportProfile = 'full' | 'owner' | 'tech' | 'marketing' | 'onepager';

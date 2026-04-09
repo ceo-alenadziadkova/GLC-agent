@@ -18,6 +18,80 @@ const GENERIC_MARKETING_RE =
 /** Max distinct path segments collected from same-origin links (all fetched pages). */
 const MAX_URL_SLUGS = 80;
 
+/** Noise tokens dropped when turning `<title>` text into pseudo-slugs for classification. */
+const TITLE_TOKEN_STOP = new Set([
+  'the',
+  'and',
+  'for',
+  'your',
+  'our',
+  'with',
+  'from',
+  'that',
+  'this',
+  'are',
+  'was',
+  'but',
+  'not',
+  'you',
+  'all',
+  'can',
+  'has',
+  'how',
+  'its',
+  'may',
+  'new',
+  'now',
+  'see',
+  'way',
+  'who',
+  'get',
+  'use',
+  'year',
+  'day',
+  'com',
+  'www',
+  'home',
+  'page',
+  'site',
+  'web',
+  'best',
+  'free',
+  'more',
+  'inc',
+  'llc',
+  'ltd',
+  'corp',
+]);
+
+/** Words from page titles (all fetched pages) — improves slug-based rules when nav hrefs are sparse. */
+function slugTokensFromTitle(title: string): string[] {
+  const raw = title
+    .toLowerCase()
+    .replace(/[|–—\-:]+/g, ' ')
+    .split(/[^a-z0-9]+/i)
+    .map(s => s.replace(/\.[a-z0-9]+$/i, ''))
+    .filter(s => s.length >= 3 && !TITLE_TOKEN_STOP.has(s));
+  return raw;
+}
+
+function collectTitleWordSlugs(pages: FetchedPage[], segmentLimit: number): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const page of pages) {
+    if (out.length >= segmentLimit) break;
+    const $ = cheerio.load(page.html);
+    const t = $('title').first().text().trim();
+    for (const w of slugTokensFromTitle(t)) {
+      if (!w || seen.has(w)) continue;
+      seen.add(w);
+      out.push(w);
+      if (out.length >= segmentLimit) break;
+    }
+  }
+  return out;
+}
+
 function normSlug(pathname: string): string[] {
   return pathname
     .split('/')
@@ -232,7 +306,7 @@ export function extractFacts(
 
   let allSlugs: string[] = [];
   let schemaTypes = extractJsonLdTypes(home.html);
-  let canonical = $h('link[rel="canonical"]').attr('href')?.trim() || '';
+  const canonical = $h('link[rel="canonical"]').attr('href')?.trim() || '';
   const robotsMeta =
     $h('meta[name="robots"]').attr('content')?.trim() ||
     $h('meta[name="googlebot"]').attr('content')?.trim() ||
@@ -308,6 +382,7 @@ export function extractFacts(
   const linkSegLimit = Number(process.env.SNAPSHOT_LINK_SLUG_LIMIT ?? MAX_URL_SLUGS);
   const cap = Number.isFinite(linkSegLimit) && linkSegLimit > 0 ? Math.min(linkSegLimit, 200) : MAX_URL_SLUGS;
   allSlugs = mergeUnique(allSlugs, collectLinkPathSegments(pages, cap));
+  allSlugs = mergeUnique(allSlugs, collectTitleWordSlugs(pages, cap));
 
   const heroSlice = $h('main, body').first().html() || '';
   const hero$ = cheerio.load(`<wrap>${heroSlice.slice(0, 12000)}</wrap>`);

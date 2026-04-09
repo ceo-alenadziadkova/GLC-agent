@@ -1,10 +1,23 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { invalidateGlcSessionDataCaches } from '../lib/glc-session-data-cache';
 import { logger } from '../lib/logger';
 import type { User, Session } from '@supabase/supabase-js';
-import { isAnonymousUser } from '../lib/snapshot-auth';
+import {
+  clearPreviewSessionBackup,
+  isAnonymousUser,
+  persistPreviewSessionBackupIfAnonymous,
+} from '../lib/snapshot-auth';
 
 export { isAnonymousUser } from '../lib/snapshot-auth';
+
+type SignInWithGoogleOptions = {
+  /**
+   * Preserve anonymous snapshot user id by linking Google identity.
+   * Keep this false for normal login to avoid identity-linking conflicts.
+   */
+  preserveGuestSession?: boolean;
+};
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -42,7 +55,7 @@ export function useAuth() {
           window.history.replaceState({}, '', `${url.pathname}${qs ? `?${qs}` : ''}${url.hash}`);
         }
 
-        // 1) Новый PKCE-флоу: ?code=...
+        // 1) PKCE flow: ?code=...
         const code = url.searchParams.get('code');
         if (code) {
           logger.info('Auth: found code param, exchanging for session');
@@ -61,7 +74,7 @@ export function useAuth() {
           return;
         }
 
-        // 2) Старый implicit-флоу: #access_token=...&refresh_token=...
+        // 2) Legacy implicit flow: #access_token=...&refresh_token=...
         const hash = url.hash.startsWith('#') ? url.hash.slice(1) : url.hash;
         if (hash) {
           const hashParams = new URLSearchParams(hash);
@@ -93,7 +106,7 @@ export function useAuth() {
           }
         }
 
-        // 3) Обычная инициализация — пробуем достать уже сохранённую сессию
+        // 3) Default init — load any persisted session
         const { data: { session } } = await supabase.auth.getSession();
         logger.info('getSession result', { hasSession: !!session, userId: session?.user.id });
         if (isMounted) {
@@ -126,10 +139,18 @@ export function useAuth() {
 
     initAuth();
 
-    // Слушаем дальнейшие изменения (signOut, обновление токена и т.п.)
+    // Subscribe to further changes (signOut, token refresh, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       logger.info('onAuthStateChange', { hasSession: !!session, userId: session?.user.id });
       if (!isMounted) return;
+      if (session === null) {
+        invalidateGlcSessionDataCaches();
+        clearPreviewSessionBackup();
+      } else if (isAnonymousUser(session.user)) {
+        persistPreviewSessionBackupIfAnonymous(session);
+      } else {
+        clearPreviewSessionBackup();
+      }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -158,17 +179,34 @@ export function useAuth() {
     return { error };
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (options?: SignInWithGoogleOptions) => {
+    const preserveGuestSession = options?.preserveGuestSession === true;
     const { data: { session } } = await supabase.auth.getSession();
     const user = session?.user ?? null;
-    if (isAnonymousUser(user)) {
+    if (isAnonymousUser(user) && preserveGuestSession) {
       const { error } = await supabase.auth.linkIdentity({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/login`,
         },
       });
+      // If this Google identity is already linked to another account,
+      // fall back to normal OAuth sign-in instead of hard-failing upgrade flow.
+      const msg = (error?.message ?? '').toLowerCase();
+      if (error && (msg.includes('identity_already_exists') || msg.includes('already linked'))) {
+        const { error: oauthError } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: `${window.location.origin}/login`,
+          },
+        });
+        return { error: oauthError };
+      }
       return { error };
+    }
+    if (isAnonymousUser(user) && !preserveGuestSession) {
+      // Force a clean OAuth login flow instead of identity-linking flow.
+      await supabase.auth.signOut();
     }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -180,6 +218,8 @@ export function useAuth() {
   };
 
   const signOut = async () => {
+    invalidateGlcSessionDataCaches();
+    clearPreviewSessionBackup();
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

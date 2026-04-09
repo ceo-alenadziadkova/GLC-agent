@@ -1,6 +1,5 @@
 import { Lightning, Clock } from '@phosphor-icons/react';
 import type { QuickWin } from '../data/auditData';
-import { cn } from './ui/utils';
 
 interface QuickWinCardProps {
   quickWin: QuickWin;

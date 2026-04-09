@@ -1,17 +1,28 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router';
-import type { BriefResponseSource } from '../data/auditTypes';
+import type { BriefResponseSource, IntakeVersionTuple } from '../data/auditTypes';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Globe, ArrowRight, ArrowLeft, MagnifyingGlass, HardDrives, Shield,
-  Cursor, Target, Lightning, MapTrifold, CheckCircle, Warning,
-  ClipboardText, Rocket, Circle, Copy, X, FloppyDisk, Spinner,
+  Globe,
+  ArrowRight,
+  ArrowLeft,
+  Lightning,
+  CheckCircle,
+  Warning,
+  ClipboardText,
+  Rocket,
+  Circle,
+  Copy,
+  X,
+  FloppyDisk,
+  Spinner,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { useAuth } from '../hooks/useAuth';
 import { useBriefLayoutPrefsSync } from '../hooks/useBriefLayoutPrefsSync';
-import { briefResponsesToIntakeMap, useIntakeBankMetrics } from '../hooks/useIntakeWizard';
+import { useIntakeBankMetrics } from '../hooks/useIntakeWizard';
+import { labelsForMissingReportDomains } from '../lib/intake-coverage-domain-labels';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
 import { IntakeBankWizard } from '../components/IntakeBankWizard';
 import { BankClassicBriefFields } from '../components/BankClassicBriefFields';
@@ -30,7 +41,24 @@ import {
   CLIENT_BRIEF_LAYOUT_DEFAULT_KEY,
   clientBriefLayoutStorageKey,
 } from '../lib/client-brief-layout-preference';
+import {
+  clearClientPortalNewAuditDraft,
+  readClientPortalNewAuditDraft,
+  writeClientPortalNewAuditDraft,
+  type ClientPortalNewAuditDraftV1,
+} from '../lib/client-portal-new-audit-draft';
+import {
+  buildStep0IntakePatch,
+  defaultConsultantDisplayName,
+  isSelfServeOwnerConfigApiError,
+  NEXT_ACTION_TEXT,
+  unwrapBriefString,
+  websiteAnswerToAuditUrl,
+} from '../lib/new-audit-helpers';
+import { DOMAIN_PILLS, StepIndicator } from './new-audit';
 import { api, ApiError } from '../data/apiService';
+import { getGlcQueryClient } from '../lib/glc-query-client';
+import { invalidateAuditRelatedQueries, invalidateAuditsListsAndDashboard } from '../lib/glc-invalidate-queries';
 import { INDUSTRY_OPTIONS, isIndustryOption } from '../data/industry-options';
 import { applyIntakeMetadataPrefill } from '../lib/intake-client-copy';
 import { effectiveBriefForPipelineGates, normalizeIntakeToResponses } from '../data/intakeBriefMap';
@@ -41,238 +69,6 @@ import {
   type BriefResponseEntry,
   type BriefResponses,
 } from '../data/briefQuestions';
-
-// ── Step indicator ────────────────────────────────────────────────────────────
-
-const STEPS = [
-  { label: 'Basics',  icon: Globe },
-  { label: 'Brief',   icon: ClipboardText },
-  { label: 'Launch',  icon: Rocket },
-];
-
-function StepIndicator({ current }: { current: number }) {
-  return (
-    <div className="flex items-center gap-1 mb-8 justify-center">
-      {STEPS.map((s, i) => {
-        const done = i < current;
-        const active = i === current;
-        return (
-          <div key={s.label} className="flex items-center gap-1">
-            <div className="flex flex-col items-center gap-1">
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center"
-                style={{
-                  background: done
-                    ? 'var(--score-5-bg)'
-                    : active
-                      ? 'var(--gradient-brand)'
-                      : 'var(--bg-muted)',
-                  border: done
-                    ? '1px solid var(--score-5-border)'
-                    : active
-                      ? 'none'
-                      : '1px solid var(--border-subtle)',
-                  boxShadow: active ? '0 0 12px rgba(28,189,255,0.30)' : 'none',
-                }}
-              >
-                {done
-                  ? <CheckCircle weight="fill" className="w-4 h-4" style={{ color: 'var(--score-5)' }} />
-                  : <s.icon className="w-4 h-4" style={{ color: active ? 'var(--primary-foreground)' : 'var(--text-tertiary)' }} />}
-              </div>
-              <span
-                style={{
-                  fontSize: '10px',
-                  color: active ? 'var(--text-blue)' : 'var(--text-tertiary)',
-                  letterSpacing: '0.04em',
-                  fontWeight: active ? 600 : 400,
-                }}
-              >
-                {s.label}
-              </span>
-            </div>
-            {i < STEPS.length - 1 && (
-              <div
-                className="w-10 h-px mb-4"
-                style={{ background: i < current ? 'var(--score-5)' : 'var(--border-default)' }}
-              />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ── Domain pills (Step 1) ─────────────────────────────────────────────────────
-
-const DOMAIN_PILLS = [
-  { icon: MagnifyingGlass, label: 'Recon',      color: 'var(--glc-blue)'      },
-  { icon: HardDrives,      label: 'Tech',        color: '#8B5CF6'              },
-  { icon: Shield,          label: 'Security',    color: 'var(--score-1)'       },
-  { icon: Globe,           label: 'SEO',         color: 'var(--glc-green)'     },
-  { icon: Cursor,          label: 'UX',          color: 'var(--score-3)'       },
-  { icon: Target,          label: 'Marketing',   color: 'var(--glc-orange)'    },
-  { icon: Lightning,       label: 'Automation',  color: 'var(--glc-blue-dark)' },
-  { icon: MapTrifold,      label: 'Strategy',    color: 'var(--glc-green-dark)'},
-];
-
-const NEXT_ACTION_TEXT: Record<string, string> = {
-  complete_required: 'Complete required fields to start the audit.',
-  add_recommended: 'Add a few recommended details to improve audit quality.',
-  confirm_prefill: 'Confirm auto-detected prefill data before launch.',
-  none: 'Your intake is ready.',
-};
-
-// ── Main component ────────────────────────────────────────────────────────────
-
-function unwrapBriefString(responses: BriefResponses, id: string): string | undefined {
-  const raw = responses[id];
-  if (raw == null) return undefined;
-  const v =
-    typeof raw === 'object' && !Array.isArray(raw) && 'value' in raw
-      ? (raw as BriefResponseEntry).value
-      : raw;
-  if (typeof v !== 'string') return undefined;
-  const t = v.trim();
-  return t.length ? t : undefined;
-}
-
-/** Map pre-brief website answer to audit URL; skip placeholders with no real site. */
-function websiteAnswerToAuditUrl(raw: string): string | undefined {
-  const t = raw.trim();
-  if (!t) return undefined;
-  const lower = t.toLowerCase();
-  if (lower === 'none' || lower === 'no website' || lower === 'n/a' || lower === 'na') return undefined;
-  return t.startsWith('http') ? t : `https://${t}`;
-}
-
-/** Aligns step-0 Basics fields with intake brief question ids before save. */
-function buildStep0IntakePatch(
-  name: string,
-  industry: string,
-  industrySpecify: string,
-  url: string,
-  noPublicWebsite: boolean,
-  source: BriefResponseSource = 'consultant',
-): Partial<BriefResponses> {
-  const patch: Partial<BriefResponses> = {};
-  const nt = name.trim();
-  if (nt) {
-    patch.intake_company_name = { value: nt, source };
-  }
-  if (industry.trim() && isIndustryOption(industry)) {
-    patch.intake_industry = { value: industry, source };
-  }
-  const spec = industrySpecify.trim();
-  if (industry.trim() === 'Other' && spec) {
-    patch.intake_industry_specify = { value: spec, source };
-  }
-  if (noPublicWebsite) {
-    patch.intake_company_website = { value: 'none', source };
-  } else {
-    const ut = url.trim();
-    if (ut) {
-      patch.intake_company_website = {
-        value: ut.startsWith('http') ? ut : `https://${ut}`,
-        source,
-      };
-    }
-  }
-  return patch;
-}
-
-function defaultConsultantDisplayName(user: ReturnType<typeof useAuth>['user']): string {
-  if (!user) return '';
-  const meta = user.user_metadata as Record<string, unknown> | undefined;
-  const full = typeof meta?.full_name === 'string' ? meta.full_name.trim() : '';
-  if (full) return full;
-  return user.email?.split('@')[0]?.trim() ?? '';
-}
-
-/** Client `/portal/audit/new` — survives refresh in the same tab; optional server row via Save draft. */
-const CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY = 'glc_portal_new_audit_draft_v1';
-
-type ClientPortalNewAuditDraftV1 = {
-  v: 1;
-  step: 0 | 1 | 2;
-  url: string;
-  noPublicWebsite: boolean;
-  name: string;
-  industry: string;
-  industrySpecify: string;
-  productMode: 'full' | 'express';
-  responses: BriefResponses;
-  briefLayoutChoice: 'unset' | 'classic' | 'wizard';
-  draftAuditId: string | null;
-};
-
-function parseClientPortalNewAuditDraft(raw: string): ClientPortalNewAuditDraftV1 | null {
-  try {
-    const o = JSON.parse(raw) as unknown;
-    if (!o || typeof o !== 'object') return null;
-    const d = o as Partial<ClientPortalNewAuditDraftV1>;
-    if (d.v !== 1) return null;
-    const step = typeof d.step === 'number' && d.step >= 0 && d.step <= 2 ? (d.step as 0 | 1 | 2) : 0;
-    const bl = d.briefLayoutChoice;
-    const briefLayoutChoice: 'unset' | 'classic' | 'wizard' =
-      bl === 'classic' || bl === 'wizard' || bl === 'unset' ? bl : 'unset';
-    return {
-      v: 1,
-      step,
-      url: typeof d.url === 'string' ? d.url : '',
-      noPublicWebsite: Boolean(d.noPublicWebsite),
-      name: typeof d.name === 'string' ? d.name : '',
-      industry: typeof d.industry === 'string' ? d.industry : '',
-      industrySpecify: typeof d.industrySpecify === 'string' ? d.industrySpecify : '',
-      productMode: d.productMode === 'express' ? 'express' : 'full',
-      responses: d.responses && typeof d.responses === 'object' && !Array.isArray(d.responses)
-        ? (d.responses as BriefResponses)
-        : {},
-      briefLayoutChoice,
-      draftAuditId: typeof d.draftAuditId === 'string' && d.draftAuditId.length > 0 ? d.draftAuditId : null,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function readClientPortalNewAuditDraft(): ClientPortalNewAuditDraftV1 | null {
-  if (typeof sessionStorage === 'undefined') return null;
-  try {
-    const raw = sessionStorage.getItem(CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY);
-    if (!raw) return null;
-    return parseClientPortalNewAuditDraft(raw);
-  } catch {
-    return null;
-  }
-}
-
-function writeClientPortalNewAuditDraft(data: ClientPortalNewAuditDraftV1): void {
-  if (typeof sessionStorage === 'undefined') return;
-  try {
-    sessionStorage.setItem(CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY, JSON.stringify(data));
-  } catch {
-    /* quota or private mode */
-  }
-}
-
-function clearClientPortalNewAuditDraft(): void {
-  if (typeof sessionStorage === 'undefined') return;
-  try {
-    sessionStorage.removeItem(CLIENT_PORTAL_NEW_AUDIT_DRAFT_KEY);
-  } catch {
-    /* */
-  }
-}
-
-/** POST /api/audits returns 503 when no valid self-serve owner is configured (`code: SELF_SERVE_OWNER_UNAVAILABLE`). */
-function isSelfServeOwnerConfigApiError(err: unknown): boolean {
-  if (!(err instanceof ApiError)) return false;
-  if (err.status !== 503) return false;
-  if (err.code === 'SELF_SERVE_OWNER_UNAVAILABLE') return true;
-  const m = err.message;
-  return m.includes('We could not assign ownership for this audit');
-}
 
 export type NewAuditVariant = 'consultant' | 'client_self_serve';
 
@@ -361,6 +157,9 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
 
   /** Server-backed draft audit (client self-serve); reused on Launch to avoid duplicate rows. */
   const [draftAuditId, setDraftAuditId] = useState<string | null>(() => portalDraftSeed?.draftAuditId ?? null);
+  const [draftIntakeVersions, setDraftIntakeVersions] = useState<IntakeVersionTuple | null>(
+    () => portalDraftSeed?.draftIntakeVersions ?? null,
+  );
   const [draftSaving, setDraftSaving] = useState(false);
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
@@ -424,6 +223,23 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
     return () => { cancelled = true; };
   }, [intakeTokenFromUrl, isClientSelfServe]);
 
+  useEffect(() => {
+    if (!isClientSelfServe || !draftAuditId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { brief } = await api.getBrief(draftAuditId);
+        if (cancelled || !brief?.intake_versions) return;
+        setDraftIntakeVersions(brief.intake_versions);
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isClientSelfServe, draftAuditId]);
+
   // Persist client wizard to sessionStorage (same tab survives refresh).
   useEffect(() => {
     if (!isClientSelfServe) return;
@@ -440,6 +256,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         responses,
         briefLayoutChoice,
         draftAuditId,
+        draftIntakeVersions,
       });
     }, 350);
     return () => window.clearTimeout(t);
@@ -455,6 +272,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
     responses,
     briefLayoutChoice,
     draftAuditId,
+    draftIntakeVersions,
   ]);
 
   // ── Discovery session pre-fill ──────────────────────────────────────────────
@@ -494,7 +312,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [fromDiscovery]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fromDiscovery]);
 
   // ── Validation ──────────────────────────────────────────
   function isValidUrl(raw: string): boolean {
@@ -534,9 +352,23 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
   const bankMetrics = useIntakeBankMetrics(
     responses,
     noPublicWebsite ? 'discovery' : undefined,
+    noPublicWebsite ? undefined : 'consultant_interview',
+    productMode,
   );
 
   const layoutSelected = briefLayoutChoice === 'classic' || briefLayoutChoice === 'wizard';
+
+  const briefWizardIntakeAnalytics = useMemo(
+    () =>
+      draftAuditId && !noPublicWebsite && briefLayoutChoice === 'wizard'
+        ? {
+            auditId: draftAuditId,
+            surface: isClientSelfServe ? 'client_form' : 'consultant_interview',
+            getIntakeVersions: (): IntakeVersionTuple | null => draftIntakeVersions,
+          }
+        : undefined,
+    [draftAuditId, noPublicWebsite, briefLayoutChoice, isClientSelfServe, draftIntakeVersions],
+  );
 
   function handleSelectConsultantBriefLayout(mode: 'classic' | 'wizard') {
     if (isClientSelfServe) {
@@ -584,6 +416,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         responses,
         briefLayoutChoice,
         draftAuditId,
+        draftIntakeVersions,
       });
       if (!step1Valid) {
         setDraftNotice('Draft saved in this browser. Add website (or no public site) and industry so we can also save to your account.');
@@ -608,10 +441,11 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         delete localWithBasics.intake_industry_specify;
       }
 
-      await api.saveBrief(auditId, localWithBasics, {
+      const savePayload = await api.saveBrief(auditId, localWithBasics, {
         collection_mode:
           noPublicWebsite && briefLayoutChoice === 'wizard' ? 'discovery' : undefined,
       });
+      setDraftIntakeVersions(savePayload.brief.intake_versions ?? null);
 
       writeClientPortalNewAuditDraft({
         v: 1,
@@ -625,6 +459,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         responses,
         briefLayoutChoice,
         draftAuditId: auditId,
+        draftIntakeVersions: savePayload.brief.intake_versions ?? null,
       });
 
       setDraftNotice(
@@ -681,11 +516,13 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
       }
 
       let mergedForSave = localWithBasics;
+      let intakeVersionsForSave: IntakeVersionTuple | undefined;
       if (tokenCandidates.length > 0) {
         try {
           const { brief } = await api.getBrief(auditId);
           const fromServer = normalizeIntakeToResponses((brief?.responses as Record<string, unknown>) ?? {});
           mergedForSave = mergeBriefResponsesPreferFilled(fromServer, localWithBasics);
+          intakeVersionsForSave = brief?.intake_versions ?? undefined;
         } catch (mergeErr) {
           console.warn('[NewAudit] getBrief merge failed (non-fatal):', mergeErr);
         }
@@ -695,16 +532,21 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         await api.saveBrief(auditId, mergedForSave, {
           collection_mode:
             noPublicWebsite && briefLayoutChoice === 'wizard' ? 'discovery' : undefined,
+          intake_versions: intakeVersionsForSave,
         });
       } catch (briefErr) {
         console.warn('[NewAudit] Brief save failed (non-fatal):', briefErr);
       }
 
       await api.startPipeline(auditId);
+      const qc = getGlcQueryClient();
+      invalidateAuditRelatedQueries(qc, auditId);
+      invalidateAuditsListsAndDashboard(qc);
       setPreBriefToken(null);
 
       if (isClientSelfServe) {
         clearClientPortalNewAuditDraft();
+        setDraftIntakeVersions(null);
       }
 
       navigate(isClientSelfServe ? `/portal/pipeline/${auditId}` : `/pipeline/${auditId}`);
@@ -830,7 +672,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         isClientSelfServe ? (
           <Link
             to="/portal"
-            className="text-sm no-underline"
+            className="hidden sm:inline text-sm no-underline"
             style={{ color: 'var(--text-tertiary)' }}
           >
             Back to portal
@@ -839,7 +681,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
       }
     >
       <div
-        className="min-h-full flex flex-col items-center justify-center py-12 px-6 relative"
+        className="min-h-full flex flex-col items-center justify-center py-8 mobile:py-6 glc-page-content relative"
         style={{ backgroundColor: 'var(--bg-canvas)' }}
       >
         <div className="absolute inset-0 pointer-events-none" style={{ background: 'var(--mesh-brand)', opacity: 0.55 }} />
@@ -848,9 +690,18 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full"
-          style={{ maxWidth: step === 1 ? 640 : 460 }}
+          className={`relative w-full max-w-full ${step === 1 ? 'sm:max-w-[40rem]' : 'sm:max-w-[28.75rem]'}`}
         >
+          {isClientSelfServe && (
+            <Link
+              to="/portal"
+              className="sm:hidden inline-flex items-center gap-1.5 text-sm font-medium no-underline glc-touch-target mb-4"
+              style={{ color: 'var(--glc-blue)' }}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to portal
+            </Link>
+          )}
           <StepIndicator current={step} />
 
           {isClientSelfServe && draftRestoredVisible && (
@@ -883,7 +734,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
             </div>
           )}
 
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="sync">
 
             {/* ── Step 0: Basics ───────────────────────── */}
             {step === 0 && (
@@ -895,12 +746,15 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 transition={{ duration: 0.28 }}
               >
                 {/* Header */}
-                <div className="text-center mb-8">
+                <div className="text-center mb-6 mobile:mb-5 sm:mb-8">
                   <SectionLabel accent>GLC Audit Platform</SectionLabel>
-                  <h1 className="mt-2" style={{ fontSize: 'var(--text-3xl)', color: 'var(--text-primary)', fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: 'var(--tracking-tight)' }}>
+                  <h1
+                    className="mt-2 text-2xl sm:text-[length:var(--text-3xl)]"
+                    style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: 'var(--tracking-tight)' }}
+                  >
                     Start a New Audit
                   </h1>
-                  <p className="mt-2.5" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  <p className="mt-2.5 px-1" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                     Enter a public website if there is one, or indicate there is no site — we still analyze{' '}
                     <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>8 business domains</strong> using your brief and available signals.
                   </p>
@@ -919,7 +773,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 </motion.div>
 
                 {/* Form */}
-                <form onSubmit={e => { e.preventDefault(); if (step1Valid) setStep(1); }} className="glc-card p-6 space-y-5" style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}>
+                <form onSubmit={e => { e.preventDefault(); if (step1Valid) setStep(1); }} className="glc-card p-4 mobile:p-5 sm:p-6 space-y-5" style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}>
                   {/* URL */}
                   <div className="space-y-1.5">
                     <label htmlFor="url" className="block font-medium" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
@@ -946,13 +800,16 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                       </div>
                       <input
                         id="url"
-                        type="url"
+                        type="text"
+                        inputMode="url"
+                        autoCapitalize="none"
+                        autoCorrect="off"
                         value={url}
                         onChange={e => {
                           setNoPublicWebsite(false);
                           setUrl(e.target.value);
                         }}
-                        placeholder="https://company.com"
+                        placeholder="company.com"
                         required={!noPublicWebsite}
                         disabled={noPublicWebsite}
                         autoFocus
@@ -1143,7 +1000,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                     role="presentation"
                   >
                     <div
-                      className="glc-card p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto"
+                      className="glc-card p-4 mobile:p-5 sm:p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto"
                       style={{ borderRadius: 'var(--radius-xl)' }}
                       onClick={e => e.stopPropagation()}
                       role="dialog"
@@ -1165,7 +1022,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                         </div>
                         <div>
                           <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>Company website</label>
-                          <input value={preBriefWebsite} onChange={e => setPreBriefWebsite(e.target.value)} placeholder="https://… or leave empty for client to fill" className="w-full px-3 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }} />
+                          <input value={preBriefWebsite} onChange={e => setPreBriefWebsite(e.target.value)} placeholder="company.com or leave empty for client" className="w-full px-3 py-2 rounded-lg text-sm" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }} />
                         </div>
                         <div>
                           <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>Industry</label>
@@ -1292,7 +1149,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.28 }}
-                className="glc-card p-6"
+                className="glc-card p-4 mobile:p-5 sm:p-6"
                 style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}
               >
                 {/* Header */}
@@ -1372,6 +1229,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                         visibleRequiredTotal={bankMetrics.visibleRequiredTotal}
                         visibleRecommendedAnswered={bankMetrics.visibleRecommendedAnswered}
                         visibleRecommendedTotal={bankMetrics.visibleRecommendedTotal}
+                        reportInputGapLabels={labelsForMissingReportDomains(bankMetrics.missingForReport)}
                       />
                     </div>
                     {interviewMode && (
@@ -1405,7 +1263,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                     </p>
 
                     {briefLayoutChoice === 'wizard' ? (
-                      <div className="max-h-[55vh] overflow-y-auto pr-1">
+                      <div className="max-h-[min(55vh,28rem)] sm:max-h-[55vh] overflow-y-auto pr-1">
                         <IntakeBankWizard
                           responses={responses}
                           onResponsesChange={patch =>
@@ -1415,13 +1273,17 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                           emphasizeClientSource={intakePrefillActive}
                           answerSource={interviewMode ? 'consultant' : 'client'}
                           collectionMode={noPublicWebsite ? 'discovery' : undefined}
+                          intakeSurface={noPublicWebsite ? undefined : 'consultant_interview'}
+                          intakeAnalytics={briefWizardIntakeAnalytics}
+                          productMode={productMode}
                         />
                       </div>
                     ) : (
-                      <div className="max-h-[55vh] overflow-y-auto pr-1">
+                      <div className="max-h-[min(55vh,28rem)] sm:max-h-[55vh] overflow-y-auto pr-1">
                         <BankClassicBriefFields
                           responses={responses}
                           collectionMode={noPublicWebsite ? 'discovery' : undefined}
+                          intakeSurface={noPublicWebsite ? undefined : 'consultant_interview'}
                           onChange={handleResponseChange}
                           onSetUnknown={handleSetUnknown}
                           emphasizeClientSource={intakePrefillActive}
@@ -1435,15 +1297,15 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 <div className="glc-divider mt-5" />
 
                 {/* Navigation */}
-                <div className="flex items-center gap-3 mt-4">
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-3 mt-4">
                   <button type="button" onClick={() => setStep(0)}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm"
+                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-sm glc-touch-target sm:min-h-0 sm:min-w-0"
                     style={{ color: 'var(--text-tertiary)', border: '1px solid var(--border-subtle)', backgroundColor: 'transparent' }}
                   >
                     <ArrowLeft className="w-3.5 h-3.5" /> Back
                   </button>
                   <button type="button" onClick={() => setStep(2)} disabled={!step2Complete}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all"
+                    className="flex-1 flex items-center justify-center gap-2 py-3 sm:py-2.5 rounded-lg text-sm font-semibold transition-all glc-touch-target sm:min-h-0"
                     style={{
                       background: step2Complete ? 'var(--gradient-brand)' : 'var(--bg-muted)',
                       color: step2Complete ? 'var(--primary-foreground)' : 'var(--text-secondary)',
@@ -1471,7 +1333,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ duration: 0.28 }}
                 onSubmit={handleLaunch}
-                className="glc-card p-6 space-y-5"
+                className="glc-card p-4 mobile:p-5 sm:p-6 space-y-5"
                 style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}
               >
                 <div className="text-center mb-2">
@@ -1513,27 +1375,28 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                   </div>
                 )}
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-3">
                   <button type="button" onClick={() => setStep(1)}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm"
+                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-sm glc-touch-target sm:min-h-0 sm:min-w-0"
                     style={{ color: 'var(--text-tertiary)', border: '1px solid var(--border-subtle)', backgroundColor: 'transparent' }}
                   >
                     <ArrowLeft className="w-3.5 h-3.5" /> Back
                   </button>
                   <motion.button type="submit" disabled={loading}
                     whileHover={!loading ? { scale: 1.015 } : {}} whileTap={!loading ? { scale: 0.985 } : {}}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold"
+                    className="flex-1 flex items-center justify-center gap-2 py-3 sm:py-2.5 rounded-lg text-sm font-semibold glc-touch-target sm:min-h-0"
                     style={{ background: 'var(--gradient-accent)', color: 'var(--primary-foreground)', cursor: loading ? 'not-allowed' : 'pointer', border: 'none', boxShadow: '0 4px 14px rgba(242,79,29,0.30)' }}
                   >
-                    <AnimatePresence mode="wait">
-                      {loading
-                        ? <motion.span key="l" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
-                            <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />Starting...
-                          </motion.span>
-                        : <motion.span key="i" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
-                            <Lightning className="w-4 h-4" /> Launch Audit
-                          </motion.span>}
-                    </AnimatePresence>
+                    {loading ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                        Starting...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Lightning className="w-4 h-4" /> Launch Audit
+                      </span>
+                    )}
                   </motion.button>
                 </div>
 

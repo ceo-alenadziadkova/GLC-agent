@@ -5,9 +5,8 @@ AI-powered business audit platform for SMB consulting. Submit a company URL → 
 ## Quick Start
 
 ```bash
-# 1. Install dependencies
+# 1. Install dependencies (workspace: web + server)
 pnpm install
-cd server && npm install && cd ..
 
 # 2. Set up environment variables
 cp .env.example .env          # fill in Supabase + API URL
@@ -17,7 +16,7 @@ cp server/.env.example server/.env  # fill in Supabase service key + Anthropic k
 # → run server/migrations/001_initial_schema.sql through 007_finding_provenance.sql in order (see docs/DATABASE.md)
 
 # 4. Start dev servers
-cd server && npm run dev   # backend on :3001
+cd server && pnpm run dev   # backend on :3001
 pnpm dev                   # frontend on :5173
 ```
 

@@ -360,12 +360,12 @@ export async function fetchTieredPages(companyUrl: string): Promise<{
   const deadline = startedAt + totalBudgetMs;
 
   const origin = new URL(baseHref).origin;
-  let robotsPolicy = await getSnapshotRobotsPolicy(
+  const robotsPolicy = await getSnapshotRobotsPolicy(
     origin,
     abortAfter(Math.min(2500, Math.max(500, deadline - Date.now()))),
   );
 
-  if (!robotsSnapshotHomeAllowed(robotsPolicy)) {
+  if (!robotsSnapshotHomeAllowed(robotsPolicy, origin)) {
     logger.info('snapshot.robots_home_blocked', { origin });
     const host = new URL(baseHref).hostname;
     const robotsFallbackSiteClass = classifyRobotsFallbackSiteClass(host);

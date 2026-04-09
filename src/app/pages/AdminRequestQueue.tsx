@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, type CSSProperties } from 'react';
+import { useState, useCallback, type CSSProperties } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import {
   ClipboardText, Clock, CheckCircle, XCircle, Spinner,
@@ -7,6 +8,7 @@ import {
 import { AppShell } from '../components/AppShell';
 import { api } from '../data/apiService';
 import type { AuditRequest, AuditRequestStatus } from '../data/auditTypes';
+import { glcKeys } from '../lib/glc-keys';
 import { isNoPublicWebsiteUrl } from '../data/no-public-website';
 import {
   BRIEF_QUESTIONS,
@@ -20,6 +22,12 @@ import {
 } from '../data/briefQuestions';
 
 type IntakeSubmissionRow = Awaited<ReturnType<typeof api.listIntakeSubmissions>>['submissions'][number];
+
+type AdminQueuePayload = {
+  requests: AuditRequest[];
+  intakeSubmissions: IntakeSubmissionRow[];
+  intakeLoadErrorT: string | null;
+};
 
 function normalizeIntakeResponses(raw: Record<string, unknown>): BriefResponses {
   const out: BriefResponses = {};
@@ -66,37 +74,44 @@ function StatusBadge({ status }: { status: AuditRequestStatus }) {
 }
 
 export function AdminRequestQueue() {
-  const [requests, setRequests] = useState<AuditRequest[]>([]);
-  const [intakeSubmissions, setIntakeSubmissions] = useState<IntakeSubmissionRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [intakeLoadError, setIntakeLoadError] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const q = useQuery({
+    queryKey: glcKeys.adminRequestQueue(),
+    queryFn: async (): Promise<AdminQueuePayload> => {
+      let intakeLoadErrorT: string | null = null;
+      const reqRes = await api.listAuditRequests(100, 0);
+      const intakeRes = await api.listIntakeSubmissions().catch((e) => {
+        intakeLoadErrorT = (e as Error).message;
+        return { submissions: [] as IntakeSubmissionRow[] };
+      });
+      return {
+        requests: reqRes.data,
+        intakeSubmissions: intakeRes.submissions,
+        intakeLoadErrorT,
+      };
+    },
+    staleTime: 300_000,
+  });
+
+  const requests = q.data?.requests ?? [];
+  const intakeSubmissions = q.data?.intakeSubmissions ?? [];
+  const intakeLoadError = q.data?.intakeLoadErrorT ?? null;
+  const loading = q.isPending && !q.data;
+  const fetchError = q.error ? (q.error as Error).message : null;
+
+  const [actionError, setActionError] = useState<string | null>(null);
+  const error = actionError ?? fetchError;
+
   const [filter, setFilter] = useState<'all' | 'pending'>('pending');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState<{ id: string; text: string } | null>(null);
   const [expandedIntakeToken, setExpandedIntakeToken] = useState<string | null>(null);
   const [copiedIntakeUrl, setCopiedIntakeUrl] = useState<string | null>(null);
 
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    setIntakeLoadError(null);
-    Promise.all([
-      api.listAuditRequests(100, 0),
-      api.listIntakeSubmissions().catch(e => {
-        setIntakeLoadError((e as Error).message);
-        return { submissions: [] as IntakeSubmissionRow[] };
-      }),
-    ])
-      .then(([reqRes, intakeRes]) => {
-        setRequests(reqRes.data);
-        setIntakeSubmissions(intakeRes.submissions);
-      })
-      .catch(err => setError((err as Error).message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
+  const refetchQueue = useCallback(() => {
+    setActionError(null);
+    void queryClient.invalidateQueries({ queryKey: glcKeys.adminRequestQueue() });
+  }, [queryClient]);
 
   const pending = (s: AuditRequestStatus) => s === 'submitted' || s === 'under_review';
 
@@ -127,11 +142,12 @@ export function AdminRequestQueue() {
 
   async function approve(id: string) {
     setBusyId(id);
+    setActionError(null);
     try {
       await api.approveAuditRequest(id);
-      load();
+      refetchQueue();
     } catch (e) {
-      setError((e as Error).message);
+      setActionError((e as Error).message);
     } finally {
       setBusyId(null);
     }
@@ -139,12 +155,13 @@ export function AdminRequestQueue() {
 
   async function reject(id: string, note: string) {
     setBusyId(id);
+    setActionError(null);
     try {
       await api.rejectAuditRequest(id, note || undefined);
       setRejectNote(null);
-      load();
+      refetchQueue();
     } catch (e) {
-      setError((e as Error).message);
+      setActionError((e as Error).message);
     } finally {
       setBusyId(null);
     }
@@ -155,19 +172,27 @@ export function AdminRequestQueue() {
       title="Request queue"
       subtitle="Incoming client audit requests (Admin)"
       actions={
-        <Link to="/portfolio" className="glc-btn-secondary no-underline text-sm">
-          Portfolio
-        </Link>
+        <div className="flex flex-col gap-2 w-full sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:w-auto">
+          <Link to="/admin/snapshots" className="glc-btn-secondary no-underline text-sm glc-touch-target sm:min-h-0 sm:min-w-0 justify-center">
+            Snapshots
+          </Link>
+          <Link to="/admin/discovery" className="glc-btn-secondary no-underline text-sm glc-touch-target sm:min-h-0 sm:min-w-0 justify-center">
+            Discovery
+          </Link>
+          <Link to="/portfolio" className="glc-btn-secondary no-underline text-sm glc-touch-target sm:min-h-0 sm:min-w-0 justify-center">
+            Portfolio
+          </Link>
+        </div>
       }
     >
-      <div className="px-7 py-6 max-w-4xl mx-auto space-y-4">
+      <div className="glc-page-content max-w-4xl mx-auto space-y-4">
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {(['pending', 'all'] as const).map(f => (
             <button
               key={f}
               type="button"
-              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              className="px-3 py-2 rounded-lg text-xs font-medium transition-colors glc-touch-target sm:min-h-0 sm:px-3 sm:py-1.5"
               style={{
                 background: filter === f ? 'rgba(28,189,255,0.15)' : 'var(--bg-surface)',
                 border: `1px solid ${filter === f ? 'rgba(28,189,255,0.35)' : 'var(--border-subtle)'}`,

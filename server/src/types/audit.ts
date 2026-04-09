@@ -221,6 +221,14 @@ export interface FreeSnapshotPreview {
   limitations?: string[];
   /** classification-rules YAML `version`. */
   classification_version?: number;
+  /** Fired YAML signals and runner-up site type (explains `site_profile.siteType` for support / UI). */
+  classification_transparency?: {
+    matched_signals: string[];
+    runner_up_site_type: string | null;
+    runner_up_match_count: number | null;
+    tie_ambiguous: boolean;
+    score_top_two: [string, number][];
+  };
   /** Tiered fetch + robots policy revision label. */
   fetch_strategy_version?: string;
   /** Snapshot engine release line. */
@@ -499,6 +507,22 @@ export interface ReconConflict {
 
 export type IntakeBriefCollectionMode = 'self_serve' | 'interview' | 'pre_brief' | 'discovery';
 
+/** Semver / bundle ids for intake artifacts (ADR unified question bank). */
+export interface IntakeVersionTuple {
+  questionBankVersion: string;
+  policyVersion: string;
+  layoutVersion: string;
+  resolverVersion: string;
+}
+
+/** Logged when a brief row is moved between supported artifact tuples (e.g. client upgrade). */
+export interface IntakeVersionMigration {
+  from: IntakeVersionTuple;
+  to: IntakeVersionTuple;
+  at: string;
+  reason: 'client_upgrade' | 'unsupported_stored_repaired';
+}
+
 export interface IntakeBrief {
   id: string;
   audit_id: string;
@@ -522,6 +546,10 @@ export interface IntakeBrief {
   readiness_badge: IntakeReadinessBadge;
   next_best_action: IntakeNextBestAction;
   responses_format: 1 | 2;
+  /** Null if row predates migration 027; validation uses current engine. */
+  intake_versions?: IntakeVersionTuple | null;
+  /** Last intake_versions migration (upgrade or repair of unsupported stored tuple). */
+  intake_version_migration?: IntakeVersionMigration | null;
   created_at: string;
   updated_at: string;
 }

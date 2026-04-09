@@ -6,7 +6,7 @@ import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 import { reportProfiler, REPORT_PROFILES, type ReportProfile } from '../services/report-profiler.js';
 import { pdfGenerator } from '../services/pdf-generator.js';
 import { logger } from '../services/logger.js';
-import { notifyAuditParticipants, notifyAuditParticipantsExcept } from '../services/notifications.js';
+import { notifyAuditParticipantsExcept } from '../services/notifications.js';
 
 export const reportsRouter = Router();
 

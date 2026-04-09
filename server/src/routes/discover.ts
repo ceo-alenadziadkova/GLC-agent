@@ -13,8 +13,10 @@ import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../mi
 import { intakePublicLimiter } from '../middleware/rate-limit.js';
 import { NO_PUBLIC_WEBSITE_URL } from '../config/no-public-website.js';
 import { saveBriefResponses } from '../services/brief-validator.js';
-import { DOMAIN_KEYS, REVIEW_AFTER_PHASES, reviewPhasesForMode } from '../types/audit.js';
+import { DOMAIN_KEYS, reviewPhasesForMode } from '../types/audit.js';
 import { logger } from '../services/logger.js';
+import { buildPublicDiscoveryUiFragment } from '../intake/discovery-ui-fragment.js';
+import { intakeAnalyticsDiscoveryBatchSchema } from '../schemas/intake-analytics-events.js';
 
 export const discoverRouter = Router();
 
@@ -63,11 +65,8 @@ function discoveryHasOwnSiteForAnalytics(pres: string[]): boolean {
   );
 }
 
-/** Question-bank ids saved by public `/audit/discover` (Mode C). */
-const DISCOVERY_BANK_KEYS = [
-  'a1', 'a2', 'a4', 'a5', 'a7',
-  'd1', 'd1b', 'c_nosite_1', 'c_nosite_4', 'd2', 'f1',
-] as const;
+/** Canonical question-bank ids used by public discovery (single source: server UI fragment). */
+const DISCOVERY_BANK_KEYS = buildPublicDiscoveryUiFragment().questions.map(q => q.id);
 
 function normalizedPresenceFromBank(answers: Record<string, unknown>): string[] {
   const v = answers.c_nosite_1;
@@ -267,6 +266,76 @@ discoverRouter.post('/', intakePublicLimiter, async (req, res) => {
   } catch (err) {
     logger.error('discover.save_exception', { component: 'discover', error: (err as Error).message });
     res.status(500).json({ error: 'Failed to save discovery session' });
+  }
+});
+
+// ── GET /api/discover/ui-fragment — public — Discovery wizard copy/options ─────
+// Must be registered before GET /:token so "ui-fragment" is not parsed as a token.
+
+discoverRouter.get('/ui-fragment', intakePublicLimiter, (_req, res) => {
+  try {
+    res.json(buildPublicDiscoveryUiFragment());
+  } catch (err) {
+    logger.error('discover.ui_fragment_failed', {
+      component: 'discover',
+      error: (err as Error).message,
+    });
+    res.status(500).json({ error: 'Failed to build discovery UI fragment' });
+  }
+});
+
+// ── POST /api/discover/analytics-events — public — intake funnel (ADR Phase G) ─
+// Registered before GET /:token so the path is not parsed as a session token.
+
+discoverRouter.post('/analytics-events', intakePublicLimiter, async (req, res) => {
+  try {
+    const parsed = intakeAnalyticsDiscoveryBatchSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      res.status(400).json({
+        error: 'Invalid analytics payload',
+        details: parsed.error.flatten(),
+      });
+      return;
+    }
+    const body = parsed.data;
+    const hasTuple =
+      body.intake_versions && Object.values(body.intake_versions).some(v => v != null && v !== '');
+    let versions: Record<string, unknown> | null = hasTuple ? { ...body.intake_versions } : null;
+    if (body.experiment_variant) {
+      versions = {
+        ...(versions ?? {}),
+        experimentVariant: body.experiment_variant,
+      };
+    }
+
+    const rows = body.events.map(e => ({
+      surface: body.surface,
+      event_type: e.event_type,
+      client_session_id: body.client_session_id,
+      discovery_session_token: body.discovery_session_token ?? null,
+      question_id: e.question_id ?? null,
+      step_index: e.step_index ?? null,
+      intake_versions: versions,
+      client_ts: e.client_ts ?? null,
+    }));
+
+    const { error } = await supabase.from('intake_analytics_events').insert(rows);
+    if (error) {
+      logger.error('discover.analytics_insert_failed', {
+        component: 'discover',
+        error: error.message,
+      });
+      res.status(500).json({ error: 'Failed to store analytics events' });
+      return;
+    }
+
+    res.status(200).json({ ok: true as const, received: rows.length });
+  } catch (err) {
+    logger.error('discover.analytics_exception', {
+      component: 'discover',
+      error: (err as Error).message,
+    });
+    res.status(500).json({ error: 'Failed to accept analytics events' });
   }
 });
 
@@ -476,7 +545,10 @@ discoverRouter.post(
       const briefPatch = discoveryToBriefPatch(answers);
       if (Object.keys(briefPatch).length > 0) {
         try {
-          await saveBriefResponses(auditId, briefPatch);
+          await saveBriefResponses(auditId, briefPatch, {
+            collection_mode: 'discovery',
+            validation_perspective: 'client',
+          });
         } catch (briefErr) {
           logger.warn('discover.convert_brief_skipped', {
             component: 'discover',

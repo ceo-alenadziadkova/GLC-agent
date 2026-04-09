@@ -25,6 +25,9 @@ const {
   setSnapshotQueryResult,
   setReconQueryResult,
   setUxQueryResult,
+  mockGuestUpsert,
+  mockGuestUpdate,
+  mockAuditsUpdate,
 } = vi.hoisted(() => {
   // Insert chain for audit creation
   let insertResult: { id: string } | null = { id: 'new-audit-id-001' };
@@ -89,6 +92,28 @@ const {
   (globalThis as Record<string, unknown>).__mockUxSelect = mockUxSelect;
   (globalThis as Record<string, unknown>).__mockRunFreeSnapshot = mockRunFreeSnapshot;
 
+  const mockGuestUpsert = vi.fn().mockResolvedValue({ error: null });
+  const mockGuestUpdate = vi.fn(() => ({
+    eq: vi.fn().mockResolvedValue({ error: null }),
+  }));
+  (globalThis as Record<string, unknown>).__mockGuestUpsert = mockGuestUpsert;
+  (globalThis as Record<string, unknown>).__mockGuestUpdate = mockGuestUpdate;
+
+  const mockAuditsUpdate = vi.fn(() => {
+    const o = {
+      eq: vi.fn(() => o),
+      is: vi.fn(() => ({
+        select: vi.fn(() => ({
+          maybeSingle: vi.fn(() =>
+            Promise.resolve({ data: { id: 'new-audit-id-001' }, error: null }),
+          ),
+        })),
+      })),
+    };
+    return o;
+  });
+  (globalThis as Record<string, unknown>).__mockAuditsUpdate = mockAuditsUpdate;
+
   return {
     mockInsert,
     mockSnapshotSelect,
@@ -99,6 +124,9 @@ const {
     setSnapshotQueryResult,
     setReconQueryResult,
     setUxQueryResult,
+    mockGuestUpsert,
+    mockGuestUpdate,
+    mockAuditsUpdate,
   };
 });
 
@@ -136,6 +164,16 @@ vi.mock('../services/supabase.js', () => ({
         return {
           insert: (globalThis as Record<string, unknown>).__mockInsert,
           select: (globalThis as Record<string, unknown>).__mockSnapshotSelect,
+          update: (globalThis as Record<string, unknown>).__mockAuditsUpdate,
+          delete: vi.fn(() => ({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          })),
+        };
+      }
+      if (table === 'snapshot_guest_sessions') {
+        return {
+          upsert: (globalThis as Record<string, unknown>).__mockGuestUpsert,
+          update: (globalThis as Record<string, unknown>).__mockGuestUpdate,
         };
       }
       if (table === 'audit_recon') {
@@ -198,6 +236,7 @@ vi.mock('../middleware/auth.js', () => ({
     (req as unknown as AR).userId = 'test-snapshot-user-id';
     const role = req.headers['x-test-role'];
     (req as unknown as AR).userEmail = role === 'consultant' ? 'consultant@test.example' : undefined;
+    (req as unknown as AR).userIsAnonymous = false;
     next();
   },
   attachProfile: (req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) => {
@@ -284,6 +323,20 @@ beforeEach(() => {
   mockReadSnapshotCache.mockResolvedValue(null);
   mockMaybeBuildCompetitorMini.mockClear();
   mockMaybeBuildCompetitorMini.mockResolvedValue(undefined);
+  mockGuestUpsert.mockResolvedValue({ error: null });
+  mockAuditsUpdate.mockImplementation(() => {
+    const o = {
+      eq: vi.fn(() => o),
+      is: vi.fn(() => ({
+        select: vi.fn(() => ({
+          maybeSingle: vi.fn(() =>
+            Promise.resolve({ data: { id: 'new-audit-id-001' }, error: null }),
+          ),
+        })),
+      })),
+    };
+    return o;
+  });
   // Reset defaults
   setInsertResult({ id: 'new-audit-id-001' });
   setSnapshotQueryResult(null);
@@ -311,13 +364,13 @@ describe('GET /api/snapshot/quota', () => {
 
 describe('POST /api/snapshot', () => {
 
-  it('returns 401 when Authorization is missing', async () => {
+  it('returns 202 when Authorization is missing (public guest flow)', async () => {
     const res = await fetch(`${baseUrl}/api/snapshot`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ company_url: 'https://example.com' }),
     });
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(202);
   });
 
   it('returns 202 with snapshot_token when URL is valid', async () => {
@@ -735,5 +788,95 @@ describe('GET /api/snapshot/:token', () => {
     const body = await res.json() as Record<string, unknown>;
     expect(mockMaybeBuildCompetitorMini).toHaveBeenCalledTimes(1);
     expect(body.competitor_mini).toEqual(mini);
+  });
+});
+
+// ─── POST /api/snapshot/claim ────────────────────────────────────────────────
+
+describe('POST /api/snapshot/claim', () => {
+  const CLAIM_TOKEN = '550e8400-e29b-41d4-a716-446655440000';
+
+  it('returns 401 without Authorization', async () => {
+    const res = await fetch(`${baseUrl}/api/snapshot/claim`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ snapshot_token: CLAIM_TOKEN }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 400 when snapshot_token is missing', async () => {
+    const res = await fetch(`${baseUrl}/api/snapshot/claim`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 when audit is not found', async () => {
+    setSnapshotQueryResult(null);
+    const res = await fetch(`${baseUrl}/api/snapshot/claim`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
+      body: JSON.stringify({ snapshot_token: CLAIM_TOKEN }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 200 with already_claimed when client_id matches user', async () => {
+    setSnapshotQueryResult({
+      id: 'audit-claim-1',
+      client_id: 'test-snapshot-user-id',
+      snapshot_token: CLAIM_TOKEN,
+      product_mode: 'free_snapshot',
+    });
+    const res = await fetch(`${baseUrl}/api/snapshot/claim`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
+      body: JSON.stringify({ snapshot_token: CLAIM_TOKEN }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.ok).toBe(true);
+    expect(body.already_claimed).toBe(true);
+    expect(body.audit_id).toBe('audit-claim-1');
+    expect(mockAuditsUpdate).not.toHaveBeenCalled();
+  });
+
+  it('returns 409 when snapshot is linked to another user', async () => {
+    setSnapshotQueryResult({
+      id: 'audit-claim-1',
+      client_id: 'someone-else-id',
+      snapshot_token: CLAIM_TOKEN,
+      product_mode: 'free_snapshot',
+    });
+    const res = await fetch(`${baseUrl}/api/snapshot/claim`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
+      body: JSON.stringify({ snapshot_token: CLAIM_TOKEN }),
+    });
+    expect(res.status).toBe(409);
+    expect(mockAuditsUpdate).not.toHaveBeenCalled();
+  });
+
+  it('returns 200 and runs audit update when client_id is null', async () => {
+    setSnapshotQueryResult({
+      id: 'audit-claim-1',
+      client_id: null,
+      snapshot_token: CLAIM_TOKEN,
+      product_mode: 'free_snapshot',
+    });
+    const res = await fetch(`${baseUrl}/api/snapshot/claim`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
+      body: JSON.stringify({ snapshot_token: CLAIM_TOKEN }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.ok).toBe(true);
+    expect(body.already_claimed).toBe(false);
+    expect(mockAuditsUpdate).toHaveBeenCalled();
+    expect(mockGuestUpdate).toHaveBeenCalled();
   });
 });

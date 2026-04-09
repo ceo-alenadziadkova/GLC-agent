@@ -1,0 +1,117 @@
+{
+  "version": "1.1.0",
+  "modes": {
+    "full": {
+      "participation": "all_eligible",
+      "requiredness": "from_canon",
+      "syntheticRequired": ["revenue_model"],
+      "requirednessByMode": {
+        "full": {
+          "syntheticRequired": ["revenue_model"]
+        }
+      },
+      "askStrategyById": {
+        "f8": "progressive"
+      }
+    },
+    "express": {
+      "participation": "all_eligible",
+      "requiredAlways": ["f1", "b1", "revenue_model", "a6"],
+      "requiredIfVisible": ["c5", "c3"],
+      "requirednessByMode": {
+        "express": {
+          "requiredAlways": ["f1", "b1", "revenue_model", "a6"],
+          "requiredIfVisible": ["c5", "c3"]
+        }
+      }
+    },
+    "discovery": {
+      "participation": "explicit",
+      "included": [
+        "a1",
+        "a2",
+        "a3",
+        "a4",
+        "a5",
+        "a6",
+        "a7",
+        "a8",
+        "a9",
+        "b_growth_attempts",
+        "b_health_1",
+        "b_hotel_1",
+        "b_hotel_2",
+        "b_marine_1",
+        "b_realestate_1",
+        "b_restaurant_1",
+        "b_services_1",
+        "b1",
+        "b2",
+        "b3",
+        "b7",
+        "c_nosite_1",
+        "c_nosite_2",
+        "c_nosite_3",
+        "c_nosite_4",
+        "c_nosite_5",
+        "c_nosite_reviews",
+        "d_automation_attempt",
+        "d_billing_flow",
+        "d_closing_flow",
+        "d_hotel_1",
+        "d_hotel_2",
+        "d_realestate_1",
+        "d_response_time",
+        "d_restaurant_1",
+        "d1",
+        "d1a",
+        "d1b",
+        "d2",
+        "d4a",
+        "d4b",
+        "d5",
+        "d6",
+        "f1",
+        "f2",
+        "f4",
+        "f7",
+        "f8"
+      ],
+      "requiredness": "from_canon",
+      "syntheticRequired": ["revenue_model"],
+      "requirednessByMode": {
+        "discovery": {
+          "syntheticRequired": ["revenue_model"]
+        }
+      },
+      "askStrategyById": {
+        "d5": "consultant_only"
+      }
+    },
+    "pre_brief": {
+      "participation": "express_plus_identity",
+      "identityFieldIds": [
+        "intake_company_website",
+        "intake_company_name",
+        "intake_industry"
+      ],
+      "identitySpecifyFieldId": "intake_industry_specify",
+      "identitySpecifyWhenIndustryEquals": "Other",
+      "inheritExpressRequired": true,
+      "bankIncluded": [
+        "f1",
+        "f2",
+        "f8",
+        "a7",
+        "b1",
+        "a6",
+        "c5",
+        "c3"
+      ]
+    },
+    "free_snapshot": {
+      "participation": "all_eligible",
+      "requiredness": "none"
+    }
+  }
+}

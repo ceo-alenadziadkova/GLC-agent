@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { motion } from 'motion/react';
 import { ArrowRight, Lock } from '@phosphor-icons/react';
 import { useAuth, isAnonymousUser } from '../hooks/useAuth';
 import { logger } from '../lib/logger';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { api, ApiError } from '../data/apiService';
+import { clearPendingSnapshotToken, getPendingSnapshotToken } from '../lib/snapshot-pending-token';
 
 type AuthMode = 'signin' | 'signup';
 
@@ -23,25 +25,50 @@ export function Login() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !user) return;
     if (isAnonymousUser(user)) {
       logger.info('Login: anonymous session detected, stay on /login for account upgrade');
       return;
     }
-    const token = localStorage.getItem('glc_discovery_token');
-    if (token) {
-      logger.info('Login: isAuthenticated with discovery token, navigating to /audit/new');
-      navigate('/audit/new?from_discovery=1', { replace: true });
-      return;
-    }
-    const nextRaw = new URLSearchParams(window.location.search).get('next');
-    if (nextRaw && nextRaw.startsWith('/') && !nextRaw.startsWith('//')) {
-      logger.info('Login: isAuthenticated, navigating to post-login next', { next: nextRaw });
-      navigate(nextRaw, { replace: true });
-      return;
-    }
-    logger.info('Login: isAuthenticated, navigating to /portfolio');
-    navigate('/portfolio', { replace: true });
+
+    let cancelled = false;
+    void (async () => {
+      const pendingSnapshot = getPendingSnapshotToken();
+      if (pendingSnapshot) {
+        try {
+          await api.claimSnapshot(pendingSnapshot);
+          clearPendingSnapshotToken();
+          logger.info('Login: pending snapshot claimed');
+        } catch (e) {
+          if (e instanceof ApiError && (e.status === 404 || e.status === 409 || e.status === 410)) {
+            clearPendingSnapshotToken();
+          }
+          logger.warn('Login: snapshot claim failed', {
+            message: e instanceof Error ? e.message : String(e),
+          });
+        }
+      }
+      if (cancelled) return;
+
+      const token = localStorage.getItem('glc_discovery_token');
+      if (token) {
+        logger.info('Login: isAuthenticated with discovery token, navigating to /audit/new');
+        navigate('/audit/new?from_discovery=1', { replace: true });
+        return;
+      }
+      const nextRaw = new URLSearchParams(window.location.search).get('next');
+      if (nextRaw && nextRaw.startsWith('/') && !nextRaw.startsWith('//')) {
+        logger.info('Login: isAuthenticated, navigating to post-login next', { next: nextRaw });
+        navigate(nextRaw, { replace: true });
+        return;
+      }
+      logger.info('Login: isAuthenticated, navigating to /portfolio');
+      navigate('/portfolio', { replace: true });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isAuthenticated, navigate, user]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -68,12 +95,12 @@ export function Login() {
 
   async function handleGoogle() {
     setError(null);
-    const { error: err } = await signInWithGoogle();
+    const { error: err } = await signInWithGoogle({ preserveGuestSession: false });
     if (!err) return;
     const msg = (err.message ?? '').toLowerCase();
     if (msg.includes('manual linking')) {
       setError(
-        'In Supabase Dashboard: Authentication → enable "Allow manual linking" (Auth general settings). It is required to attach Google to a quick-scan session. See docs: supabase.com/docs/guides/auth/general-configuration',
+        'In Supabase Dashboard: Authentication → enable "Allow manual linking" (Auth general settings). See docs: supabase.com/docs/guides/auth/general-configuration',
       );
       return;
     }
@@ -85,7 +112,7 @@ export function Login() {
 
   return (
     <main
-      className="min-h-screen flex flex-col items-center justify-center px-6 relative"
+      className="relative flex min-h-screen flex-col items-center justify-center px-6 py-12"
       style={{ backgroundColor: 'var(--bg-canvas)' }}
     >
       <div className="absolute top-4 right-4 z-20 sm:top-6 sm:right-6">
@@ -102,37 +129,44 @@ export function Login() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
         className="relative w-full"
-        style={{ maxWidth: 400 }}
+        style={{ maxWidth: 440 }}
       >
         <div className="text-center mb-8">
           <motion.div
             initial={{ scale: 0.75, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.08, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className="flex items-center justify-center gap-3 mb-4"
+            className="mb-4"
           >
-            <img
-              src="/logo-simple.svg"
-              alt=""
-              className="h-10 w-auto max-w-[min(72px,20vw)] shrink-0"
-              width={68}
-              height={72}
-              decoding="async"
-            />
-            <h1
-              className="font-logo leading-none"
-              style={{
-                fontSize: 'var(--text-2xl)',
-                fontWeight: 700,
-                letterSpacing: 'var(--tracking-tight)',
-              }}
+            <Link
+              to="/"
+              className="inline-flex items-center justify-center gap-3"
+              style={{ textDecoration: 'none' }}
+              aria-label="Go to home page"
             >
-              <span className="text-[#444343] dark:text-[#DEDEDE]">GLC</span>
-              <span className="text-[rgba(68,67,67,0.78)] dark:text-[#e5e7ebb8]"> Audit Platform</span>
-            </h1>
+              <img
+                src="/logo-simple.svg"
+                alt=""
+                className="h-10 w-auto max-w-[min(72px,20vw)] shrink-0"
+                width={68}
+                height={72}
+                decoding="async"
+              />
+              <h1
+                className="font-logo leading-none"
+                style={{
+                  fontSize: 'var(--text-2xl)',
+                  fontWeight: 700,
+                  letterSpacing: 'var(--tracking-tight)',
+                }}
+              >
+                <span className="text-[#444343] dark:text-[#DEDEDE]">GLC</span>
+                <span className="text-[rgba(68,67,67,0.78)] dark:text-[#e5e7ebb8]"> Audit Platform</span>
+              </h1>
+            </Link>
           </motion.div>
           <p className="mt-2" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
-            Sign in to access your audit workspace
+            Sign in to the audit workspace and client portal
           </p>
         </div>
 
@@ -167,14 +201,15 @@ export function Login() {
                 cursor: 'pointer',
               }}
             >
-              Create account
+              Register
             </button>
           </div>
 
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             {isAnonymousUser(user) && (
               <p className="mb-3 rounded-lg px-3 py-2 text-xs leading-snug" style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-                You used the quick website scan. Continue with Google to keep the same account and unlock the full audit. Email sign-in starts a separate account unless you use Google first.
+                You used the quick site scan. Continue with Google to keep the same session and open the full audit.
+                Email sign-in creates a separate account unless you link Google first.
               </p>
             )}
             <button
@@ -256,7 +291,7 @@ export function Login() {
               </div>
               {mode === 'signup' && (
                 <p className="text-xs" style={{ color: 'var(--text-quaternary)' }}>
-                  Use at least 6 characters. If email confirmation is enabled in Supabase, check your inbox after signing up.
+                  At least 6 characters. If Supabase email confirmation is on, check your inbox after registering.
                 </p>
               )}
               <motion.button
@@ -278,7 +313,7 @@ export function Login() {
                 {loading ? (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin border-[var(--primary-foreground)]" />
-                    {mode === 'signin' ? 'Signing in...' : 'Creating account...'}
+                    {mode === 'signin' ? 'Signing in…' : 'Creating…'}
                   </span>
                 ) : (
                   <span className="flex items-center gap-2">
@@ -296,8 +331,11 @@ export function Login() {
           )}
         </div>
 
-        <p className="text-center mt-5" style={{ fontSize: '11px', color: 'var(--text-quaternary)' }}>
-          By signing in, you agree to our Terms of Service.
+        <p className="mt-5 text-center text-xs" style={{ color: 'var(--text-quaternary)' }}>
+          By continuing you accept the terms of use.{' '}
+          <Link to="/faq" className="underline-offset-2 hover:underline" style={{ color: 'var(--text-tertiary)' }}>
+            FAQ
+          </Link>
         </p>
       </motion.div>
     </main>

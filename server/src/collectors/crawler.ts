@@ -130,7 +130,7 @@ export class CrawlerCollector extends BaseCollector {
     const languages = detectLanguagesFromPages(pages);
 
     // Clean pages (remove raw HTML to save space)
-    const cleanPages = pages.map(({ html, ...rest }) => rest);
+    const cleanPages = pages.map(({ html: _html, ...rest }) => rest);
 
     // Convert sets to arrays
     const techStackResult: Record<string, string[]> = {};

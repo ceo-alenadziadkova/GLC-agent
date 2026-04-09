@@ -28,14 +28,15 @@ describe('ErrorBoundary', () => {
     expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument();
   });
 
-  it('shows error UI with message when a child throws', () => {
+  it('shows neutral error UI without exposing raw exception text', () => {
     render(
       <ErrorBoundary>
         <Bomb shouldThrow={true} />
       </ErrorBoundary>
     );
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-    expect(screen.getByText('test error message')).toBeInTheDocument();
+    expect(screen.queryByText('test error message')).not.toBeInTheDocument();
+    expect(screen.getByText(/Reference:/)).toBeInTheDocument();
     expect(screen.queryByText('OK')).not.toBeInTheDocument();
   });
 

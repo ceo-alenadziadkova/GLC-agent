@@ -1,6 +1,6 @@
 # Testing matrix — user flows (Snapshot, auth, routing)
 
-This document tracks coverage for main client journeys. Commands: root `npm test` (Vitest + RTL), `cd server && npm test`, E2E `npm run test:e2e` after `npm run test:e2e:install` (see [e2e/README.md](./e2e/README.md)).
+This document tracks coverage for main client journeys. Commands: from repo root `pnpm install` once, then `pnpm test` (Vitest + RTL), `pnpm --filter glc-audit-server test` (or `cd server && pnpm test`), E2E `pnpm run test:e2e` after `pnpm exec playwright install chromium` (see [e2e/README.md](./e2e/README.md)). Full gate: `pnpm run check` (typecheck + lint + both test suites).
 
 ## Strategy: stability, documentation, and dead code
 
@@ -41,7 +41,7 @@ Signals that something may be unused or legacy (investigate before deleting):
 - **Partial** — some coverage or indirect only.
 - **No** — gap (planned or backlog).
 
-## A. Snapshot flow (`/snapshot`, anonymous JWT, preview API)
+## A. Snapshot flow (`/snapshot`, guest cookie + claim, preview API)
 
 | Layer | Status | Notes |
 | --- | --- | --- |
@@ -50,30 +50,30 @@ Signals that something may be unused or legacy (investigate before deleting):
 | FE integration | Yes | `SnapshotLanding.integration` with mocked fetch / session |
 | BE integration | Yes | `server/src/tests/snapshot-route.test.ts` and related |
 | BE unit (access flags) | Yes | `snapshot-access-state.test.ts` — `computePublicSnapshotAccessFlags`, `snapshotPayloadToAccessApiFields` |
-| E2E | No | `/snapshot` needs real Supabase anon session; use Vitest integration + staging E2E later |
+| E2E | No | `/snapshot` uses credentialed fetch + optional staging E2E for cookie/`claim` |
 
 ## B. Register / sign in (`/login`)
 
 | Layer | Status | Notes |
 | --- | --- | --- |
-| `useAuth` | Yes | `useAuth.test.ts` — `getSession`, PKCE `?code=`, hash tokens, OAuth `?error=`, verify-referrer message, `onAuthStateChange`, anonymous → `linkIdentity` vs `signInWithOAuth`, `signUp` redirect URL, `signOut` |
+| `useAuth` | Yes | `useAuth.test.ts` — `getSession`, PKCE `?code=`, hash tokens, OAuth `?error=`, verify-referrer message, `onAuthStateChange`, `signInWithGoogle` options, `signUp` redirect URL, `signOut` |
 | `Login` page | Yes | `Login.test.tsx` — discovery vs `next` redirect, open-redirect guard on `next`, `authError`, email/password submit + signup mode, Google manual-linking copy, API errors |
 | `ProtectedRoute` | Yes | Loader until profile loads **only** when `requiredRole` is set (no extra spinner on generic protected routes) |
 | `useProfile` | Partial | Mocked Supabase + `/api/profile`; unmount-during-load race |
 | BE `/api/profile` | Yes | `profile-route.test.ts` |
 | E2E | Partial | Playwright: `/login` visible (see `e2e/smoke.spec.ts`) |
 
-Contract reference: [docs/AUTH.md](./docs/AUTH.md) (roles, anonymous snapshot, `linkIdentity`).
+Contract reference: [docs/AUTH.md](./docs/AUTH.md) (roles, snapshot guest cookie, `POST /api/snapshot/claim`).
 
-### Пометка: unit/RTL vs браузер и E2E (вход, мерцание, гонки)
+### Note: unit/RTL vs browser and E2E (sign-in, flicker, races)
 
-Юнит- и RTL-тесты с **моками** Supabase проверяют логику и контракты, но **не ловят**:
+Unit and RTL tests with **mocked** Supabase cover logic and contracts but **do not catch**:
 
-- визуальное **мерцание** в реальном браузере (краткий показ «не того» экрана до paint);
-- тонкие **гонки** с настоящей сетью и таймингами клиента/Supabase;
-- полный цикл **OAuth redirect** (Google) и поведение после реального `exchangeCodeForSession` на стенде.
+- visual **flicker** in a real browser (brief wrong screen before paint);
+- subtle **races** with real network and client/Supabase timing;
+- full **OAuth redirect** (Google) and behaviour after real `exchangeCodeForSession` on a staging stack.
 
-**Рекомендация:** дополнять матрицу B **Playwright E2E на staging** с настоящим Supabase (тестовые пользователи, при необходимости — аноним + `linkIdentity`). Отдельный вариант на будущее — интеграционный тест `Login` с тонкой обёрткой над Supabase в Vitest; он **не заменяет** E2E для UX и redirect-флоу.
+**Recommendation:** complement matrix B with **Playwright E2E on staging** against real Supabase (test users; optionally anonymous + `linkIdentity`). A future option is an integration-style `Login` test with a thin Supabase wrapper in Vitest; it **does not replace** E2E for UX and redirect flows.
 
 ## C. Route guards and post-login UX
 
@@ -117,8 +117,8 @@ GitHub Actions workflow [.github/workflows/test.yml](.github/workflows/test.yml)
 
 Run locally (reports under `coverage/`, ignored by git):
 
-- **Frontend:** `npm run test:coverage` from repo root — HTML + text summary in `coverage/frontend/`.
-- **Server:** `cd server && npm run test:coverage` — `coverage/server/`.
+- **Frontend:** `pnpm run test:coverage` from repo root — HTML + text summary in `coverage/frontend/`.
+- **Server:** `pnpm --filter glc-audit-server run test:coverage` (or `cd server && pnpm run test:coverage`) — `coverage/server/`.
 
 Open the HTML report and sort by coverage to find **never-executed** modules; combine with the **Suspected dead / legacy registry** and optional `npx knip` (see **Strategy** above).
 
@@ -128,99 +128,99 @@ See also [docs/MASTER.md](./docs/MASTER.md) for architecture links.
 
 ---
 
-## Приёмочные сценарии по ролям (ручная проверка)
+## Role acceptance scenarios (manual QA)
 
-Ниже — упорядоченный список того, что должен проверить **администратор продукта / QA** на стенде (не автотесты). Язык сценариев совпадает с постановкой; технические детали даны для сверки с кодом и [docs/AUTH.md](./docs/AUTH.md).
+Below is an ordered checklist for **product admin / QA** on a staging environment (not automated tests). Technical details align with the code and [docs/AUTH.md](./docs/AUTH.md).
 
-### Общие опоры
+### Shared reference
 
-| Тема | Где в системе |
+| Topic | Where in the product |
 | --- | --- |
-| Роль **Admin** в UI | В БД: `profiles.role = 'consultant'`; в шелле подпись **Admin** ([`useProfile`](src/app/hooks/useProfile.ts), [`AppShell`](src/app/components/AppShell.tsx)). |
-| Кто считается админом | Сервер: [`CONSULTANT_EMAILS`](server/src/middleware/auth.ts) (список email через запятую, без учёта регистра). Email пользователя должен совпасть при `attachProfile` / `GET /api/profile`. |
-| Snapshot без пароля | [`/snapshot`](src/app/pages/SnapshotLanding.tsx): анонимная сессия Supabase + JWT на `POST /api/snapshot` ([docs/AUTH.md](./docs/AUTH.md)). |
-| Upgrade guest → client | Google с гостя: `linkIdentity`, стабильный `user.id`. Email/password с гостя — **другой** сценарий слияния (см. AUTH.md). |
+| **Admin** label in UI | DB: `profiles.role = 'consultant'`; shell shows **Admin** ([`useProfile`](src/app/hooks/useProfile.ts), [`AppShell`](src/app/components/AppShell.tsx)). |
+| Who counts as admin | Server: [`CONSULTANT_EMAILS`](server/src/middleware/auth.ts) (comma-separated emails, case-insensitive). Must match on `attachProfile` / `GET /api/profile`. |
+| Snapshot without password | [`/snapshot`](src/app/pages/SnapshotLanding.tsx): `POST /api/snapshot` with **`credentials: 'include'`** (guest cookie); **`glc_pending_snapshot_token`** + **`POST /api/snapshot/claim`** after login ([docs/AUTH.md](./docs/AUTH.md)). |
+| Guest upgrade to client | Sign in then **claim** attaches `audits.client_id`. Legacy anonymous/`linkIdentity` paths are optional. |
 
 ---
 
-### 1. Администратор (консультант / Admin)
+### 1. Administrator (consultant / Admin)
 
-**Идентичность и роль**
+**Identity and role**
 
-- [ ] Email админа перечислен в **`CONSULTANT_EMAILS`** на Railway (или в `.env` сервера).
-- [ ] После входа (email/password или Google) в профиле в шелле отображается роль **Admin**, в БД `profiles.role = consultant`.
+- [ ] Admin email is listed in **`CONSULTANT_EMAILS`** on Railway (or server `.env`).
+- [ ] After sign-in (email/password or Google), shell shows **Admin**; DB has `profiles.role = consultant`.
 
-**Основной вход в продукт (операционный сценарий)**
+**Primary product entry (operations)**
 
-- [ ] Ожидаемое поведение продукта: админ заходит **через обычный логин** (`/login`), а не как основной путь через публичный Snapshot — Snapshot/Discovery для **клиентского** онбординга.
-- [ ] После логина открывается **`/dashboard`** (редирект с `/portfolio` ведёт туда же).
-- [ ] На дашборде видны **операционные блоки**: KPI strip (`KpiStrip`), панели действий / распределение оценок, лента активности, **список аудитов**, поиск по аудитам ([`Dashboard.tsx`](src/app/pages/Dashboard.tsx)).
+- [ ] Expected: admin signs in via **normal login** (`/login`), not primarily through public Snapshot — Snapshot/Discovery are for **client** onboarding.
+- [ ] After login, **`/dashboard`** opens (`/portfolio` redirect goes there too).
+- [ ] Dashboard shows **operational blocks**: KPI strip (`KpiStrip`), action panels / score distribution, activity feed, **audit list**, audit search ([`Dashboard.tsx`](src/app/pages/Dashboard.tsx)).
 
-**Snapshot / Discovery до логина (не смешивать с «рабочим» контекстом админа)**
+**Snapshot / Discovery before login (do not mix with admin work context)**
 
-- [ ] Если админ **по ошибке** прошёл `/snapshot` или Discovery **будучи не залогиненным** (анонимная сессия), затем входит **полным аккаунтом админа**: проверить политику продукта — **не должны теряться или затираться** его обычные консультантские данные (списки аудитов, очереди). Уточнение: при **Google + linkIdentity** с того же анонимного сеанса `user.id` сохраняется; при **только email/password** после анона возможен **другой** `user.id` — отдельный набор строк в `audits` (зафиксировать ожидаемое поведение для команды).
-- [ ] После входа админ видит **навигацию консультанта**: Dashboard, Request queue, Discovery queue, контекстные Audit / Pipeline / Reports / Strategy при выбранном аудите ([`buildConsultantNav`](src/app/components/AppShell.tsx)).
+- [ ] If admin uses `/snapshot` **while signed out**, then signs in with **full admin account**: consultant data must **not** be lost; snapshot is a separate `free_snapshot` row until **claim** if applicable.
+- [ ] After login, admin sees **consultant navigation**: Dashboard, Request queue, Discovery queue, contextual Audit / Pipeline / Reports / Strategy when an audit is selected ([`buildConsultantNav`](src/app/components/AppShell.tsx)).
 
-**Настройки, остальные разделы, выход**
+**Settings, other areas, sign-out**
 
-- [ ] Пункт **Settings** в сайдбаре **есть** у полного аккаунта (не guest) — и у Admin, и у Client ([`AppShell`](src/app/components/AppShell.tsx): `!isGuest`).
-- [ ] Пройти по доступным разделам настроек и убедиться, что содержимое соответствует роли Admin (без доступа к клиентскому `/portal` без явного сценария).
-- [ ] **Sign out** очищает сессию; повторный заход на `/dashboard` ведёт на `/login`.
-
----
-
-### 2. Клиент (`profiles.role = client`)
-
-**Вход и регистрация**
-
-- [ ] Вход **email + password**; при необходимости — **регистрация** нового пользователя (учесть подтверждение email в Supabase, если включено).
-- [ ] При желании — вход через **Google** (отдельный сценарий).
-
-**Портал и аудиты**
-
-- [ ] **Новый** клиент: в портале есть путь **создать аудит** (например `/portal/audit/new`, quick action в шелле).
-- [ ] **Существующий** клиент с историей: на **`/portal`** виден **список прошлых аудитов** / карточки, согласно данным API.
-
-**Snapshot или Discovery при уже существующем аккаунте**
-
-- [ ] Сценарий: пользователь уже **client**, выполняет публичный **Snapshot** или **Discovery**, затем **логинится тем же аккаунтом** (особенно Google + `linkIdentity` с гостевой сессии).
-- [ ] Проверить: **новый** snapshot/discovery **прикрепляется** к пользователю / появляется в портале, при этом **предыдущие аудиты и «быстрые» снапшоты не пропадают** и не перезаписываются (нет ложного «один аудит вместо списка»). Детали привязки `user_id` / `client_id` на бэкенде — сверка с [docs/API.md](./docs/API.md) и маршрутами аудитов.
-
-**Выход**
-
-- [ ] Sign out; защищённые маршруты портала снова требуют логин.
+- [ ] **Settings** in sidebar exists for full accounts (not guest) — both Admin and Client ([`AppShell`](src/app/components/AppShell.tsx): `!isGuest`).
+- [ ] Browse available settings and confirm content matches Admin role (no client `/portal` without an explicit scenario).
+- [ ] **Sign out** clears session; visiting `/dashboard` again goes to `/login`.
 
 ---
 
-### 3. Гость (`profiles.role = guest`, анонимный или только что со Snapshot)
+### 2. Client (`profiles.role = client`)
 
-**Первый визит и роль**
+**Sign-in and registration**
 
-- [ ] После анонимного snapshot в профиле **`guest`**, в шелле роль **Guest**, навигация **SNAPSHOT**: ссылка на Free snapshot ([`buildGuestNav`](src/app/components/AppShell.tsx)).
-- [ ] **Settings** у гостя **скрыт** (`isGuest`).
+- [ ] **Email + password** sign-in; if needed, **register** a new user (respect Supabase email confirmation if enabled).
+- [ ] Optionally **Google** sign-in (separate scenario).
 
-**Snapshot и Discovery**
+**Portal and audits**
 
-- [ ] Можно пройти **полный публичный snapshot** на `/snapshot` (при включённом Anonymous в Supabase).
-- [ ] Можно пройти **Discovery** flow с публичных маршрутов (`/audit/discover`, алиас `/discovery`).
+- [ ] **New** client: portal has a path to **create an audit** (e.g. `/portal/audit/new`, quick action in shell).
+- [ ] **Existing** client: **`/portal`** shows **past audits** / cards per API data.
 
-**Регистрация из Snapshot / Discovery**
+**Snapshot or Discovery with an existing account**
 
-- [ ] Регистрация **через Google** с гостевой сессии: после апгрейда проверить **`guest` → `client`** (или консультант, если email в `CONSULTANT_EMAILS`).
-- [ ] В **Settings** (после перехода в полный аккаунт): отображаются **имя** и **email** там, где продукт их собирает (Google обычно заполняет email; имя — из профиля / `full_name`).
+- [ ] User is already **client**, runs public **Snapshot** or **Discovery**, then **signs in with the same account**; **claim** attaches the snapshot when pending token is present.
+- [ ] Confirm: new snapshot/discovery **attaches** to the user / appears in portal, and **previous audits and quick snapshots are not missing** or replaced by a false single-audit state. Backend `user_id` / `client_id` wiring — cross-check [docs/API.md](./docs/API.md) and audit routes.
 
-**Результат snapshot в «профиле»**
+**Sign-out**
 
-- [ ] После регистрации клиент видит **результат недавнего snapshot** в портале / списке аудитов (как задумано продуктом для `free_snapshot`).
-
-**Видимость и выход**
-
-- [ ] До полной регистрации гость **не** видит полноценный client portal как у `client`.
-- [ ] После регистрации — навигация **CLIENT WORKSPACE**, доступны сценарии клиента выше.
-- [ ] Sign out доступен из блока пользователя; после выхода публичные страницы доступны без сессии.
+- [ ] Sign out; protected portal routes require login again.
 
 ---
 
-### Связь с автотестами
+### 3. Guest (`profiles.role = guest`, legacy anonymous or post-Snapshot)
 
-Автоматически сейчас покрыты частично: см. таблицы A–D выше и [e2e/smoke.spec.ts](e2e/smoke.spec.ts). Полное прохождение чеклистов этого раздела — **на стенде с реальным Supabase и `CONSULTANT_EMAILS`**.
+**First visit and role**
+
+- [ ] If still using **anonymous** Supabase sessions, profile may be **`guest`**, shell shows **Guest**, **SNAPSHOT** nav ([`buildGuestNav`](src/app/components/AppShell.tsx)). Cookie-only snapshot does not require anonymous auth.
+- [ ] **Settings** hidden for guest (`isGuest`).
+
+**Snapshot and Discovery**
+
+- [ ] Full public snapshot on `/snapshot` works (**CORS** + **`credentials: 'include'`**; optional **`SNAPSHOT_GUEST_IP_SALT`** on API).
+- [ ] **Discovery** from public routes (`/audit/discover`, alias `/discovery`).
+
+**Registration from Snapshot / Discovery**
+
+- [ ] **Google** registration from guest session: after upgrade, **`guest` → `client`** (or consultant if email in `CONSULTANT_EMAILS`).
+- [ ] **Settings** (after full account): **name** and **email** show where the product collects them (Google usually provides email; name from profile / `full_name`).
+
+**Snapshot result in “profile”**
+
+- [ ] After registration, client sees **recent snapshot result** in portal / audit list (as designed for `free_snapshot`).
+
+**Visibility and sign-out**
+
+- [ ] Before full registration, guest does **not** see full client portal like `client`.
+- [ ] After registration — **CLIENT WORKSPACE** nav and client scenarios above.
+- [ ] Sign out from user menu; public pages work without session.
+
+---
+
+### Link to automated tests
+
+Partially covered today: tables A–D above and [e2e/smoke.spec.ts](e2e/smoke.spec.ts). Full walkthrough of this section needs **staging with real Supabase and `CONSULTANT_EMAILS`**.

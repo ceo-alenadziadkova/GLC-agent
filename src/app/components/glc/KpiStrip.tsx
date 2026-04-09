@@ -63,7 +63,7 @@ export function KpiStrip({ kpis, loading }: KpiStripProps) {
 
   if (loading && !kpis) {
     return (
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[0, 1, 2, 3].map(i => (
           <div
             key={i}
@@ -77,7 +77,7 @@ export function KpiStrip({ kpis, loading }: KpiStripProps) {
 
   return (
     <motion.div
-      className="grid grid-cols-4 gap-3"
+      className="grid grid-cols-2 sm:grid-cols-4 gap-3"
       variants={listVariants}
       initial="hidden"
       animate="visible"

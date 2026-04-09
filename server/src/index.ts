@@ -9,6 +9,7 @@ import { logRouter } from './routes/log.js';
 import { snapshotRouter } from './routes/snapshot.js';
 import { intakeRouter } from './routes/intake.js';
 import { discoverRouter } from './routes/discover.js';
+import { marketingRouter } from './routes/marketing-brief.js';
 import { auditRequestsRouter } from './routes/audit-requests.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { notificationsRouter } from './routes/notifications.js';
@@ -20,6 +21,7 @@ import { logger } from './services/logger.js';
 import { startAlertsWorker } from './services/alerts.js';
 import { updateContext } from './services/observability-context.js';
 import { getCorsAllowedOrigins } from './config/cors-origins.js';
+import { assertSnapshotGuestSaltIfProduction } from './lib/guest-session.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
@@ -67,9 +69,10 @@ app.get('/api/health', (_req, res) => {
 // ─── Routes ────────────────────────────────────────────────
 app.use('/api/profile', profileRouter);
 app.use('/api/platform', platformRouter);
-app.use('/api/snapshot', snapshotRouter);          // Public GET; POST uses Supabase JWT + attachProfile
+app.use('/api/snapshot', snapshotRouter);          // Public snapshot + guest cookie; POST /claim uses JWT
 app.use('/api/intake', intakeRouter);               // Public token GET/respond; POST requires consultant auth
 app.use('/api/discover', discoverRouter);           // Public submit/load; consultant sessions/convert
+app.use('/api/marketing', marketingRouter);         // Public marketing brief
 app.use('/api/audit-requests', auditRequestsRouter); // Client portal requests
 app.use('/api/analytics', analyticsRouter);          // Consultant analytics
 app.use('/api/notifications', notificationsRouter);  // In-app notification center
@@ -82,11 +85,23 @@ app.use('/api/log', logRouter);
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   Sentry.captureException(err);
   logger.error('Unhandled error', { error: err.message, stack: err.stack });
-  res.status(500).json({ error: 'Internal server error', message: err.message });
+  const isProd = process.env.NODE_ENV === 'production';
+  res.status(500).json(
+    isProd ? { error: 'Internal server error' } : { error: 'Internal server error', message: err.message },
+  );
 });
 
 // ─── Start ─────────────────────────────────────────────────
-app.listen(PORT, () => {
+try {
+  assertSnapshotGuestSaltIfProduction();
+} catch (e) {
+  const msg = e instanceof Error ? e.message : String(e);
+  logger.error('Snapshot guest configuration invalid', { error: msg });
+  process.exit(1);
+}
+
+// Bind 0.0.0.0 so Docker / Railway edge can reach the process (not only loopback).
+app.listen(PORT, '0.0.0.0', () => {
   logger.info('Server started', {
     port: PORT,
     env: process.env.NODE_ENV ?? 'development',

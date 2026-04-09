@@ -106,8 +106,8 @@ function ReviewGateRow({ item }: { item: DashboardReviewGateItem }) {
       </div>
       <Link
         to={`/pipeline/${item.id}`}
-        className="glc-btn-icon opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ width: 26, height: 26, borderRadius: 'var(--radius-md)', flexShrink: 0 }}
+        className="glc-btn-icon mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
+        style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', flexShrink: 0 }}
         title="Go to pipeline"
       >
         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -134,8 +134,8 @@ function SlaRiskRow({ item }: { item: DashboardSlaRiskItem }) {
       </div>
       <Link
         to={`/pipeline/${item.id}`}
-        className="glc-btn-icon opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ width: 26, height: 26, borderRadius: 'var(--radius-md)', flexShrink: 0 }}
+        className="glc-btn-icon mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
+        style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', flexShrink: 0 }}
         title="Start pipeline"
       >
         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -162,8 +162,8 @@ function FailureRow({ item }: { item: DashboardFailureItem }) {
       </div>
       <Link
         to={`/audit/${item.id}`}
-        className="glc-btn-icon opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ width: 26, height: 26, borderRadius: 'var(--radius-md)', flexShrink: 0 }}
+        className="glc-btn-icon mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
+        style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', flexShrink: 0 }}
         title="View audit"
       >
         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -190,8 +190,8 @@ function PendingRequestRow({ item }: { item: DashboardPendingRequestItem }) {
       </div>
       <Link
         to="/admin/requests"
-        className="glc-btn-icon opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ width: 26, height: 26, borderRadius: 'var(--radius-md)', flexShrink: 0 }}
+        className="glc-btn-icon mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
+        style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', flexShrink: 0 }}
         title="View request queue"
       >
         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -200,7 +200,7 @@ function PendingRequestRow({ item }: { item: DashboardPendingRequestItem }) {
   );
 }
 
-export function ActionPanel({ items, loading, onRefresh }: ActionPanelProps) {
+export function ActionPanel({ items, loading, onRefresh: _onRefresh }: ActionPanelProps) {
   const totalItems =
     (items?.review_gates.length ?? 0) +
     (items?.sla_risks.length ?? 0) +

@@ -5,7 +5,7 @@
 - **Development:** `http://localhost:3001`
 - **Production:** Railway deployment URL (set as `VITE_API_URL` in frontend env)
 
-All endpoints except `/api/auth/*`, `/api/snapshot/*`, and the **public** pre-brief routes `GET /api/intake/:token` and `POST /api/intake/:token/respond` require a valid Supabase JWT in the `Authorization: Bearer <token>` header. The frontend's `apiService.ts` adds this automatically.
+All endpoints except `/api/auth/*`, `/api/snapshot/*`, **`POST /api/marketing/brief`**, and the **public** pre-brief routes `GET /api/intake/:token` and `POST /api/intake/:token/respond` require a valid Supabase JWT in the `Authorization: Bearer <token>` header. The frontend's `apiService.ts` adds this automatically.
 
 `POST /api/intake` (create link) requires a **consultant** JWT.
 
@@ -273,6 +273,37 @@ Records `brief_help_requested_at` / `brief_help_client_message` on the audit and
 
 ---
 
+### `GET /api/audits/:id/brief/schema`
+
+**Auth:** same as `GET .../brief` (consultant owner or linked client).
+
+**GET `200`:** Compact **IntakePlan**-shaped payload for the audit’s current `responses` and `collection_mode`, using the same **surface** rule as the main brief GET (consultant vs client; `surface` is `null` when no layout surface applies, e.g. `discovery`). Includes:
+
+- **`intake_versions`** — tuple used to build the plan  
+- **`eligible`**, **`visible`**, **`required`**, **`hidden`**, **`deferred`**, **`sla_visible_bank_ids`**  
+- **`step_plan`**, **`layout_slots`** — when a layout surface is active  
+- **`questions`** — rows `{ id, label, section, priority, answer? }` for each **`visible`** bank id; **`answer`** is the canon contract from `question-bank.v1.json` (`type`, `maxLength`, `options`, etc.). Any `optionsRef` is expanded to inline `options` for clients.  
+- **`derived`** — `{ ai_readiness_score, confidence_overall, website_gate }` (same heuristics as `IntakePlan` derived layer)
+
+Does not replace `GET .../brief` for saving or full `BRIEF_QUESTIONS` copy; use for tooling, previews, or clients that want plan-shaped metadata without bundling the whole bank.
+
+---
+
+### `GET /api/audits/:id/brief` / `PUT /api/audits/:id/brief`
+
+**Auth:** consultant (owner) or client linked to the audit.
+
+**GET `200`:** `{ brief, questions, validation, gates, product_mode, … }` — `brief` includes `responses`, `collection_mode`, `collected_by`, optional **`intake_versions`** (`{ questionBankVersion, policyVersion, layoutVersion, resolverVersion }`), optional **`intake_version_migration`** (see below). Validation and `gates` are computed for the caller’s surface (consultant vs client), using stored `intake_versions` when it is a **supported** frozen or current tuple; otherwise the server falls back to the **current** engine tuple for validation (legacy rows).
+
+**PUT body:** `{ "responses": { … } }`, optional **`collection_mode`**, optional **`intake_versions`**.
+
+- **`intake_versions` omitted** — the server reuses the stored tuple, or the **current** tuple for a new row. If the stored tuple is **unsupported**, the write is accepted and the row is repaired to the current tuple; **`intake_version_migration`** records `{ from, to, at, reason: 'unsupported_stored_repaired' }`.
+- **`intake_versions` present** — must include all four keys. Unsupported tuple → **`400`** `UNSUPPORTED_INTAKE_VERSION`. Supported tuple that does not match stored (and is not an allowed upgrade to current) → **`409`** `INTAKE_VERSION_CONFLICT`. Sending the **current** tuple when stored was an older supported tuple → upgrade; migration **`reason: 'client_upgrade'`** is persisted once.
+
+Migration column: deploy **`028_intake_version_migration.sql`** — `intake_brief.intake_version_migration` (`jsonb`, nullable).
+
+---
+
 ### `POST /api/audits/:id/upgrade-from-snapshot`
 
 **Auth:** registered **client** JWT (not guest). Promotes a **completed** `product_mode: free_snapshot` audit to **express** or **full**, resets domain rows, and either seeds the intake brief from quick-scan recon / `snapshot_deterministic` (`use_scraped_context: true`) or clears recon placeholders (`use_scraped_context: false`).
@@ -477,9 +508,29 @@ Public endpoint (no JWT). Returns how many free website checks are **still avail
 
 ### `POST /api/snapshot`
 
-Start a free snapshot run. **Auth:** Supabase `Authorization: Bearer <access_token>` required. The token may be a **normal** session (email/password or Google) or an **anonymous** session from **`signInAnonymously()`** (wow-first UX on `/snapshot`; **`profiles.role = 'guest'`** until full sign-in). Each run is stored with **`client_id = auth.uid()`** or **`user_id = auth.uid()`** per existing snapshot insert rules. Same fair-use and domain rules as before.
+Start a free snapshot run. **Auth:** none (public). The server sets or refreshes an **httpOnly** cookie **`glc_snapshot_guest`** and upserts **`snapshot_guest_sessions`** (funnel analytics; 90-day row retention). The audit is created with platform **self-serve owner** `user_id` and **`client_id = null`** until the user calls **`POST /api/snapshot/claim`** after sign-in.
+
+**CORS:** the SPA must use **`credentials: 'include'`** on this request (and on poll **`GET /api/snapshot/:token`** if you rely on the same cookie). Production cookies use **`SameSite=None; Secure`**.
+
+**Optional body fields** (all strings, ignored if invalid): **`utm_source`**, **`utm_medium`**, **`utm_campaign`** — stored on the guest session row for attribution.
+
+### `POST /api/snapshot/claim`
+
+**Auth:** `Authorization: Bearer <access_token>` (`requireAuth`).
+
+**Body:** `{ "snapshot_token": "<uuid>" }`
+
+**`200`:** `{ "ok": true, "audit_id": "<uuid>", "already_claimed": boolean }` — sets **`audits.client_id`** to the current user when it was `null`; idempotent if already linked to the same user.
+
+**`400`:** missing/invalid `snapshot_token`.
 
 **`401`:** missing/invalid JWT.
+
+**`404`:** snapshot not found (neutral).
+
+**`409`** `SNAPSHOT_CLAIM_CONFLICT`: snapshot already linked to another user (neutral copy).
+
+**`410`:** token TTL expired (same window as public poll).
 
 **Implementation:** deterministic scanner — **no LLM**. Tiered HTTP fetch (homepage plus up to a few same-origin URLs), cheerio-based **facts**, YAML-driven **site profile** (classification) and **audit rules** (expanded YAML catalog; some rules may be **skipped** per `skipForSiteTypes` / `onlyForSiteTypes` using classifier `siteType`), overall score **0–100** with four category scores. **Wall clock:** `SNAPSHOT_FETCH_BUDGET_MS` defaults to **10000** (10s; ADR target band ~8–12s). **robots.txt:** fetches `/robots.txt` (cached per origin, `SNAPSHOT_ROBOTS_CACHE_MS`, default 20 minutes). Honors `Disallow` for the snapshot user-agent (`*` and `GLC-SnapshotScanner`): if `/` is disallowed, **no HTML is fetched** (same outcome as unreachable home for the pipeline). Extra same-origin URLs are skipped when disallowed. **Crawl-delay** is applied best-effort between extra fetches within the overall fetch budget. **Playwright tier-3 (default on when needed):** if the static homepage matches client-shell heuristics, the server attempts to re-fetch it with headless Chromium. Set `SNAPSHOT_PLAYWRIGHT=0` or `false` to skip (static HTML only). Requires `playwright` + `npx playwright install chromium` on the host; failures are logged and the scan continues with HTTP HTML. Env: `SNAPSHOT_PLAYWRIGHT_BUDGET_MS` (default 14000, cap within remaining `SNAPSHOT_FETCH_BUDGET_MS`). Results for the same **registrable host** may be served from `snapshot_domain_cache` (TTL `SNAPSHOT_DOMAIN_CACHE_TTL_HOURS`, default 48); **cached JSON omits raw email/phone vectors** (PII minimization). Rule catalogs: `server/config/snapshot/classification-rules.v1.yaml`, `server/config/snapshot/audit-rules.v1.yaml`.
 
@@ -569,7 +620,7 @@ Lists intake tokens **you created** where the client has already submitted (`sub
 
 **Response `200`:** `{ "metadata", "questions" (pre-brief subset), "responses", "submitted_at", "expires_at" }`.
 
-The `questions` list includes question-bank fields **`f2`**, **`a7`**, and **`f8`** (focus areas, business moment, deadline) immediately after identity and before the express bank subset used for submit validation; see [QUESTION_BANK.md](./QUESTION_BANK.md).
+The `questions` list is **identity** (`INTAKE_IDENTITY_BRIEF_QUESTIONS`) plus bank rows whose **`intake_layer === 'pre_brief'`** in `server/src/schemas/intake-brief.ts` — driven by policy participation (`PRE_BRIEF_PARTICIPATION_IDS`: `modes.pre_brief.bankIncluded` + `revenue_model`). That usually includes narrative fields such as **`f2`**, **`a7`**, **`f8`** when they are part of the pre-brief layer; see [QUESTION_BANK.md](./QUESTION_BANK.md).
 
 Each question object includes optional **`section`** (UI heading: `Business`, `Goals`, `UX & Conversion`, …) aligned with the consultant brief — the public `/intake/:token` page groups the form and review by these sections. Same shape on **`GET /api/intake/prefill/:token`**.
 
@@ -579,9 +630,31 @@ Each question object includes optional **`section`** (UI heading: `Business`, `G
 
 **Auth:** none. **Body:** `{ "responses": { ... } }` — same shape as intake brief answers (validated with `BriefResponsesSchema`).
 
-Submit validation requires **identity** plus the **express SLA** question-bank ids resolved from visibility (same rules as server `resolveExpressSlaRequiredIds` in `brief-gates.ts`: e.g. **`f1`**, **`b1`**, **`revenue_model`**, **`a6`**, **`c5`**, and **`c3`** when the website branch applies); **`f2` / `a7` / `f8` are optional** but, when present, are stored in `intake_brief` like other `pre_brief` keys.
+Submit validation requires **identity** plus the **express SLA** bank ids from **`resolveExpressSlaRequiredIds`** (same inputs as full express: visibility / branch / `collection_mode` / current policy). Statically this aligns with **`PRE_BRIEF_REQUIRED_SUBMIT_IDS`** (= express **`requiredAlways` + `requiredIfVisible`** in `intake-policy.v1.json` via `express-policy-ids.ts`). Optional pre-brief-only fields (e.g. **`f2` / `a7` / `f8`** when shown) are not part of that SLA unless they are required by the resolver for the client’s answers.
 
 Overwrites stored responses and updates `submitted_at`. Allowed until `expires_at` (no single-submit lock). If the token was created with `audit_id`, merges pre-brief question keys into `intake_brief` with source `client`.
+
+---
+
+## Marketing brief (public)
+
+### `POST /api/marketing/brief`
+
+**Auth:** none. **Rate limit:** same window as public intake (`intakePublicLimiter`).
+
+**Body (JSON):**
+
+- `name` (string, required)
+- `company` (optional)
+- `website` (string, required unless `no_website` is true)
+- `no_website` (boolean)
+- `concern`, `improve` (strings)
+- `urgency`, `contact_method` (strings)
+- `unsure_choice` (boolean) — when true, server recommends `/snapshot`
+
+**Response `201`:** `{ "id", "created_at", "recommended_route" }` where `recommended_route` is one of `/snapshot`, `/express-audit`, `/audit`, `/discovery`.
+
+Persists to `marketing_brief_submissions` (migration `025_marketing_brief_submissions.sql`) and notifies consultants (`kind: intake`).
 
 ---
 

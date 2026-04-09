@@ -2,6 +2,9 @@ import { BaseCollector } from './base.js';
 import { supabase } from '../services/supabase.js';
 import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
+import { auditLighthouseBudgetMs, auditLighthouseEnabled } from '../lib/audit-deep-scan-env.js';
+import { runLighthouseAuditSummary } from '../lib/lighthouse-audit.js';
+import { logger } from '../services/logger.js';
 
 export class PerformanceCollector extends BaseCollector {
   get key() { return 'performance'; }
@@ -64,13 +67,14 @@ export class PerformanceCollector extends BaseCollector {
 
     if (pages.length === 0) {
       const headerAnalysis = await this.analyzeHeaders(companyUrl);
-      return {
+      const emptyCrawl = {
         no_crawl_data: true,
         warning: 'No crawled pages available — page weight analysis skipped',
         headers: headerAnalysis,
         page_weights: { avg_content_length_bytes: 0, avg_load_time_ms: 0, heaviest_page: null, slowest_page: null, total_images: 0, lazy_loaded_images: 0, lazy_load_coverage: 100 },
         total_pages_analyzed: 0,
       };
+      return this.attachLighthouseIfEnabled(auditId, companyUrl, emptyCrawl);
     }
 
     // Check response headers for caching/compression
@@ -79,11 +83,50 @@ export class PerformanceCollector extends BaseCollector {
     // Analyze page weights
     const pageWeights = this.analyzePageWeights(pages);
 
-    return {
+    const base = {
       headers: headerAnalysis,
       page_weights: pageWeights,
       total_pages_analyzed: pages.length,
     };
+
+    return this.attachLighthouseIfEnabled(auditId, companyUrl, base);
+  }
+
+  private async attachLighthouseIfEnabled(
+    auditId: string,
+    companyUrl: string,
+    base: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    if (!auditLighthouseEnabled()) {
+      return base;
+    }
+
+    logger.info('collector.performance.lighthouse_start', { auditId, companyUrl });
+
+    try {
+      const lh = await runLighthouseAuditSummary(companyUrl, auditLighthouseBudgetMs());
+      if (lh?.error) {
+        logger.warn('collector.performance.lighthouse_finished_with_error', { auditId, error: lh.error });
+      } else {
+        logger.info('collector.performance.lighthouse_finished', {
+          auditId,
+          performance_score: lh?.performance_score ?? null,
+        });
+      }
+      return {
+        ...base,
+        lighthouse: {
+          enabled: true,
+          ...lh,
+        },
+      };
+    } catch (e) {
+      logger.warn('collector.performance.lighthouse_failed', { auditId, error: (e as Error).message });
+      return {
+        ...base,
+        lighthouse: { enabled: true, error: (e as Error).message },
+      };
+    }
   }
 
   private async analyzeHeaders(url: string) {

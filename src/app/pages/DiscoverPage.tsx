@@ -22,11 +22,23 @@ import {
   computeFindings,
   computeScore,
   getQuestion,
+  setDiscoveryUiFragmentQuestions,
   type DiscoveryAnswers,
   type DiscoveryFinding,
+  type DiscoveryQuestion,
 } from '../lib/discovery-flow';
+import type { IntakeVersionTuple } from '../data/auditTypes';
+import { discoverApi } from '../data/api/discover';
 import { api } from '../data/apiService';
 import { choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
+import {
+  createDiscoveryAnalyticsSink,
+  discoveryTrackQuestionAnswered,
+  discoveryTrackQuestionShown,
+  discoveryTrackQuestionSkipped,
+  discoveryTrackResultsViewed,
+  discoveryTrackWizardCompleted,
+} from '../lib/discovery-analytics';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -292,7 +304,9 @@ function AuditTeaser({ industry }: { industry: string | null }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function DiscoverPage() {
+export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
+  const layout = props?.layout ?? 'page';
+  const isSplit = layout === 'split';
   const [answers, setAnswers] = useState<DiscoveryAnswers>({});
   const [currentIdx, setCurrentIdx] = useState(0);
   const [showResults, setShowResults] = useState(false);
@@ -302,6 +316,17 @@ export function DiscoverPage() {
   // Session persistence
   const [sessionToken, setSessionToken] = useState<string | null>(null);
 
+  const intakeVersionsRef = useRef<IntakeVersionTuple | null>(null);
+  const sessionTokenRef = useRef<string | null>(null);
+  const sinkRef = useRef<ReturnType<typeof createDiscoveryAnalyticsSink> | null>(null);
+  if (sinkRef.current == null) {
+    sinkRef.current = createDiscoveryAnalyticsSink({
+      getIntakeVersions: () => intakeVersionsRef.current,
+      getDiscoveryToken: () => sessionTokenRef.current,
+    });
+  }
+  const lastShownKeyRef = useRef<string>('');
+
   // Contact form
   const [contactName,    setContactName]    = useState('');
   const [contactEmail,   setContactEmail]   = useState('');
@@ -310,6 +335,44 @@ export function DiscoverPage() {
   const [contactSaving,  setContactSaving]  = useState(false);
   const [contactSaved,   setContactSaved]   = useState(false);
   const [contactError,   setContactError]   = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await discoverApi.getUiFragment();
+        if (cancelled || !data?.questions?.length) return;
+        if (data.intake_versions) {
+          intakeVersionsRef.current = data.intake_versions;
+        }
+        const mapped: DiscoveryQuestion[] = data.questions.map(q => ({
+          id: q.id,
+          question: q.question,
+          hint: q.hint,
+          type: q.type,
+          options: q.options,
+          optional: q.optional,
+        }));
+        setDiscoveryUiFragmentQuestions(mapped);
+      } catch {
+        // Bundled fallback in discovery-flow remains active.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    sessionTokenRef.current = sessionToken;
+  }, [sessionToken]);
+
+  useEffect(() => {
+    const sink = sinkRef.current;
+    return () => {
+      void sink?.flush();
+    };
+  }, []);
 
   const sequence   = buildQuestionSequence(answers);
   const currentId  = sequence[currentIdx] ?? null;
@@ -329,6 +392,22 @@ export function DiscoverPage() {
       }, 80);
     }
   }, [currentIdx, showResults]);
+
+  useEffect(() => {
+    if (showResults || !currentId) return;
+    const sink = sinkRef.current;
+    if (!sink) return;
+    const key = `${currentIdx}:${currentId}`;
+    if (lastShownKeyRef.current === key) return;
+    lastShownKeyRef.current = key;
+    discoveryTrackQuestionShown(sink, { questionId: currentId, stepIndex: currentIdx });
+  }, [currentId, currentIdx, showResults]);
+
+  useEffect(() => {
+    if (!showResults) return;
+    const sink = sinkRef.current;
+    if (sink) discoveryTrackResultsViewed(sink);
+  }, [showResults]);
 
   const specifyKey = currentId ? `${currentId}__other` : '';
   const specifyFilled = !specifyKey || (typeof answers[specifyKey] === 'string' && answers[specifyKey].trim().length > 0);
@@ -353,6 +432,14 @@ export function DiscoverPage() {
   function handleNext() {
     if (!currentId) return;
     const q = getQuestion(currentId);
+    const sink = sinkRef.current;
+    if (sink) {
+      if (q?.optional && !isAnswered(draft)) {
+        discoveryTrackQuestionSkipped(sink, { questionId: currentId, stepIndex: currentIdx });
+      } else {
+        discoveryTrackQuestionAnswered(sink, { questionId: currentId, stepIndex: currentIdx });
+      }
+    }
     let valueToSave: DiscoveryAnswers[string] = draft;
     if (q?.optional && typeof draft === 'string' && !draft.trim()) {
       valueToSave = null;
@@ -363,6 +450,7 @@ export function DiscoverPage() {
     const nextIdx = currentIdx + 1;
 
     if (nextIdx >= nextSequence.length) {
+      if (sink) discoveryTrackWizardCompleted(sink);
       const finalFindings = computeFindings(committed);
       const saveTimeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('timeout')), 5000),
@@ -637,27 +725,39 @@ export function DiscoverPage() {
 
   // ── Questionnaire screen ────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex flex-col items-center py-10 px-5" style={{ background: 'var(--bg-canvas)' }}>
-      <div
-        className="fixed inset-0 pointer-events-none"
-        style={{ background: 'var(--mesh-brand)', zIndex: 0 }}
-        aria-hidden
-      />
+    <div
+      className={
+        isSplit
+          ? 'w-full'
+          : 'min-h-screen flex flex-col items-center py-10 px-5'
+      }
+      style={{ background: isSplit ? 'transparent' : 'var(--bg-canvas)' }}
+    >
+      {!isSplit && (
+        <div
+          className="fixed inset-0 pointer-events-none"
+          style={{ background: 'var(--mesh-brand)', zIndex: 0 }}
+          aria-hidden
+        />
+      )}
 
-      <div className="relative w-full max-w-lg z-10">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--gradient-brand)' }}>
-              <ChartBar size={16} weight="bold" style={{ color: 'var(--primary-foreground)' }} />
+      <div className={`relative z-10 w-full ${isSplit ? '' : 'max-w-lg'}`}>
+        <div className={`flex items-center justify-between ${isSplit ? 'mb-6' : 'mb-8'}`}>
+          {!isSplit && (
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--gradient-brand)' }}>
+                <ChartBar size={16} weight="bold" style={{ color: 'var(--primary-foreground)' }} />
+              </div>
+              <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>GLC Audit</span>
             </div>
-            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>GLC Audit</span>
-          </div>
+          )}
+          {isSplit && <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Your answers</span>}
           <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
             {currentIdx + 1} / {sequence.length}
           </span>
         </div>
 
-        <div className="rounded-full overflow-hidden mb-8" style={{ height: 2, background: 'var(--bg-muted)' }}>
+        <div className={`rounded-full overflow-hidden ${isSplit ? 'mb-6' : 'mb-8'}`} style={{ height: 2, background: 'var(--bg-muted)' }}>
           <motion.div
             className="h-full rounded-full"
             style={{ background: 'var(--gradient-brand)' }}
@@ -666,19 +766,19 @@ export function DiscoverPage() {
           />
         </div>
 
-        {/* Intro copy (first question only) */}
-        {currentIdx === 0 && (
+        {/* Intro copy (first question only) — full-page layout only */}
+        {!isSplit && currentIdx === 0 && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-6 text-center"
           >
             <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.3 }}>
-              Let's understand your business
+              Let&apos;s understand your business
             </h1>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8, lineHeight: 1.6 }}>
               {sequence.length} quick questions — no account needed.
-              We'll show you exactly where the biggest opportunities are.
+              We&apos;ll show you exactly where the biggest opportunities are.
             </p>
           </motion.div>
         )}
@@ -834,9 +934,11 @@ export function DiscoverPage() {
 
         <div ref={bottomRef} />
 
-        <p className="text-center mt-8" style={{ fontSize: 11, color: 'var(--text-quaternary)' }}>
-          GLC Audit Platform — free discovery assessment
-        </p>
+        {!isSplit && (
+          <p className="text-center mt-8" style={{ fontSize: 11, color: 'var(--text-quaternary)' }}>
+            GLC Audit Platform — free discovery assessment
+          </p>
+        )}
       </div>
     </div>
   );

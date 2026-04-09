@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+.git
+# Do not ignore *.md — prompts/*.md is loaded at runtime (BaseAgent readFileSync).
+.env
+.env.*
+**/.claude
+**/.cursor

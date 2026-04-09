@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { getApiBaseUrl } from '../lib/api-base-url';
 import type { UserRole } from '../data/auditTypes';
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+const API_URL = getApiBaseUrl();
 
 /**
  * Loads `profiles` row; runs GET /api/profile when missing (creates row via attachProfile)
@@ -98,12 +99,21 @@ export function useProfile(): UseProfileResult {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** Latest loaded profile user id — used to treat repeat SIGNED_IN for same user as background refresh. */
+  const profileUserIdRef = useRef<string | null>(null);
+  profileUserIdRef.current = profile?.id ?? null;
 
   useEffect(() => {
     let cancelled = false;
 
-    const load = async () => {
-      setLoading(true);
+    /**
+     * `blocking`: full-screen loaders (ProtectedRoute) may wait — use for first load and sign-in/out.
+     * `background`: refresh profile without unmounting the portal (e.g. USER_UPDATED, token metadata).
+     */
+    const load = async (mode: 'blocking' | 'background' = 'blocking') => {
+      if (mode === 'blocking') {
+        setLoading(true);
+      }
       setError(null);
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -129,17 +139,25 @@ export function useProfile(): UseProfileResult {
       }
     };
 
-    void load();
+    void load('blocking');
 
-    // Re-fetch on auth state changes (sign in / sign out)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (
-        session === null ||
-        _event === 'SIGNED_IN' ||
-        _event === 'SIGNED_OUT' ||
-        _event === 'USER_UPDATED'
-      ) {
-        void load();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+        return;
+      }
+      if (session === null || event === 'SIGNED_OUT') {
+        void load('blocking');
+        return;
+      }
+      if (event === 'SIGNED_IN') {
+        const uid = session?.user?.id ?? null;
+        const sameUser = uid != null && uid === profileUserIdRef.current;
+        void load(sameUser ? 'background' : 'blocking');
+        return;
+      }
+      if (event === 'USER_UPDATED') {
+        void load('background');
+        return;
       }
     });
 

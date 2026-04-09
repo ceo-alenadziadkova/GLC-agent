@@ -1,4 +1,3 @@
-import * as cheerio from 'cheerio';
 import { BaseCollector } from './base.js';
 import { supabase } from '../services/supabase.js';
 

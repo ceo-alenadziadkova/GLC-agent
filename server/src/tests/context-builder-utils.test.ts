@@ -106,4 +106,32 @@ describe('ContextBuilder.formatPrompt', () => {
     const { prompt } = builder.formatPrompt(minimalCtx({}));
     expect(prompt).not.toContain('Intake AI readiness (heuristic');
   });
+
+  it('includes intake report anchors when intake_report_anchors is set', () => {
+    const builder = new ContextBuilder();
+    const { prompt } = builder.formatPrompt(
+      minimalCtx({
+        intake_report_anchors: {
+          recon_company_summary: 'Acme Spa',
+          strategy_pain_anchor: 'More qualified leads',
+        },
+      }),
+    );
+    expect(prompt).toContain('Intake report anchors (canon)');
+    expect(prompt).toContain('recon_company_summary');
+    expect(prompt).toContain('Acme Spa');
+    expect(prompt).toContain('strategy_pain_anchor');
+  });
+
+  it('includes intake report gaps when intake_missing_report_domains is set', () => {
+    const builder = new ContextBuilder();
+    const { prompt } = builder.formatPrompt(
+      minimalCtx({
+        intake_missing_report_domains: ['recon', 'seo_digital'],
+      }),
+    );
+    expect(prompt).toContain('Intake report gaps (domains with unanswered primary bank questions)');
+    expect(prompt).toContain('recon');
+    expect(prompt).toContain('seo_digital');
+  });
 });

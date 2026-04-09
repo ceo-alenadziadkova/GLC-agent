@@ -1,5 +1,7 @@
+import { getClientEnvironmentSummary } from './client-environment';
 import { supabase } from './supabase';
 import { isAnonymousUser } from './snapshot-auth';
+import { getApiBaseUrl } from './api-base-url';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -31,7 +33,7 @@ async function sendLog(payload: LogPayload) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return;
 
-    const base = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+    const base = getApiBaseUrl();
     const trySnapshotFirst = isAnonymousUser(session.user);
 
     async function post(path: '/api/log' | '/api/log/snapshot') {
@@ -53,7 +55,6 @@ async function sendLog(payload: LogPayload) {
     if (res.status === 429) {
       remoteLogBackoffUntil = Date.now() + 90_000;
       if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
         console.warn('[logger] Remote ingest rate-limited (429); pausing backend log POSTs for 90s');
       }
     }
@@ -65,11 +66,15 @@ async function sendLog(payload: LogPayload) {
 function baseLog(level: LogLevel, message: string, context?: Record<string, unknown>) {
   const traceId = randomHex(16);
   const operationId = crypto.randomUUID();
+  const mergedContext = {
+    client_env: getClientEnvironmentSummary(),
+    ...context,
+  };
   const payload: LogPayload = {
     level,
     source: 'frontend',
     message,
-    context,
+    context: mergedContext,
     timestamp: new Date().toISOString(),
     trace_id: traceId,
     operation_id: operationId,
@@ -77,8 +82,7 @@ function baseLog(level: LogLevel, message: string, context?: Record<string, unkn
   // Send remote logs and keep dev console visibility.
   void sendLog(payload);
   if (import.meta.env.DEV) {
-    // eslint-disable-next-line no-console
-    console[level]?.(`[${payload.level.toUpperCase()}] ${payload.message}`, payload.context ?? {});
+    console[level]?.(`[${payload.level.toUpperCase()}] ${payload.message}`, mergedContext);
   }
 }
 

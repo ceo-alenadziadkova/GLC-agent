@@ -96,7 +96,7 @@ export interface MarkdownReport {
 
 export class ReportProfiler {
   generate(input: ReportInput, profile: ReportProfile = 'full'): MarkdownReport {
-    const { audit, recon, domains, strategy } = input;
+    const { audit, recon, domains } = input;
     const company = recon?.company_name ?? audit.company_url;
     const generated_at = new Date().toISOString();
 

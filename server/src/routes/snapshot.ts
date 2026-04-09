@@ -1,7 +1,8 @@
 /**
- * Public Snapshot Routes — no auth required.
+ * Public Snapshot Routes — no auth required for start/poll.
  *
- * POST /api/snapshot        — submit URL for free snapshot, returns { snapshotToken }
+ * POST /api/snapshot        — submit URL for free snapshot (guest httpOnly cookie + funnel row)
+ * POST /api/snapshot/claim  — attach snapshot audit to authenticated user (JWT)
  * GET  /api/snapshot/quota — remaining free checks this window (same IP key as POST)
  * GET  /api/snapshot/:token — poll status / fetch result by snapshotToken
  */
@@ -9,8 +10,13 @@ import { Router } from 'express';
 import { randomUUID } from 'crypto';
 import { supabase } from '../services/supabase.js';
 import { PipelineOrchestrator } from '../services/pipeline.js';
-import { requireAuth, attachProfile, type AuthRequest } from '../middleware/auth.js';
+import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { resolveSelfServeAuditOwnerUserId } from '../lib/self-serve-audit-owner.js';
+import {
+  extractUtmFromBody,
+  getOrIssueSnapshotGuestToken,
+  hashSnapshotGuestIp,
+} from '../lib/guest-session.js';
 import {
   getSnapshotPublicQuota,
   snapshotCompareLimiter,
@@ -39,7 +45,70 @@ import { normalizeScanCoverageFromStoredJson } from '../snapshot/scan-coverage-f
 
 export const snapshotRouter = Router();
 const SNAPSHOT_TTL_HOURS = Number(process.env.SNAPSHOT_TOKEN_TTL_HOURS ?? 72);
+const GUEST_FUNNEL_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Best-effort funnel row for public snapshot (cookie-bound guest). */
+async function upsertSnapshotGuestSessionRow(params: {
+  guestToken: string;
+  snapshotToken: string;
+  companyUrl: string;
+  utm: ReturnType<typeof extractUtmFromBody>;
+  req: import('express').Request;
+}): Promise<void> {
+  const ipHash = hashSnapshotGuestIp(params.req);
+  const uaRaw = params.req.headers['user-agent'];
+  const ua = typeof uaRaw === 'string' ? uaRaw.slice(0, 2000) : null;
+  const refRaw = params.req.headers.referer;
+  const referrer = typeof refRaw === 'string' ? refRaw.slice(0, 2000) : null;
+  const expiresAt = new Date(Date.now() + GUEST_FUNNEL_RETENTION_MS).toISOString();
+
+  const { error } = await supabase.from('snapshot_guest_sessions').upsert(
+    {
+      guest_session_token: params.guestToken,
+      snapshot_token: params.snapshotToken,
+      status: 'running',
+      company_url: params.companyUrl,
+      utm_source: params.utm.utm_source,
+      utm_medium: params.utm.utm_medium,
+      utm_campaign: params.utm.utm_campaign,
+      referrer,
+      user_agent: ua,
+      ip_hash: ipHash,
+      expires_at: expiresAt,
+      claimed_by_user_id: null,
+      claimed_at: null,
+    },
+    { onConflict: 'guest_session_token' },
+  );
+
+  if (error) {
+    logger.warn('snapshot.guest_session_upsert_failed', {
+      component: 'snapshot',
+      message: error.message,
+      code: (error as { code?: string }).code,
+    });
+  } else {
+    logger.info('snapshot.guest_session_upsert_ok', {
+      component: 'snapshot',
+      snapshot_token: params.snapshotToken,
+    });
+  }
+}
+
+async function updateGuestSessionPollStatus(snapshotToken: string, status: 'completed' | 'failed'): Promise<void> {
+  const { error } = await supabase
+    .from('snapshot_guest_sessions')
+    .update({ status })
+    .eq('snapshot_token', snapshotToken);
+  if (error) {
+    logger.debug('snapshot.guest_session_poll_update_skipped', {
+      component: 'snapshot',
+      snapshot_token: snapshotToken,
+      message: error.message,
+    });
+  }
+}
 
 function normalizeSnapshotScanCoverageFromStoredDet(stored: unknown): SnapshotScanCoverageApi | null {
   return normalizeScanCoverageFromStoredJson(stored) as SnapshotScanCoverageApi | null;
@@ -108,6 +177,10 @@ function applyDeterministicRecordToPreview(
   if (typeof det.classification_version === 'number') {
     preview.classification_version = det.classification_version;
   }
+  if (det.classification_transparency && typeof det.classification_transparency === 'object') {
+    preview.classification_transparency =
+      det.classification_transparency as FreeSnapshotPreview['classification_transparency'];
+  }
   if (typeof det.fetch_strategy_version === 'string') {
     preview.fetch_strategy_version = det.fetch_strategy_version;
   }
@@ -164,8 +237,132 @@ snapshotRouter.get('/quota', async (req, res) => {
   }
 });
 
+// ─── POST /api/snapshot/claim — Save snapshot to account (after login) ───────
+snapshotRouter.post('/claim', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const body = req.body as { snapshot_token?: unknown };
+    const raw = body?.snapshot_token;
+    const snapshotToken = typeof raw === 'string' ? raw.trim() : '';
+    if (!snapshotToken || !UUID_V4_RE.test(snapshotToken)) {
+      res.status(400).json({ error: 'snapshot_token is required' });
+      return;
+    }
+
+    const { data: audit, error: auditErr } = await supabase
+      .from('audits')
+      .select('id, client_id, created_at, product_mode, snapshot_token')
+      .eq('snapshot_token', snapshotToken)
+      .eq('product_mode', 'free_snapshot')
+      .single();
+
+    if (auditErr || !audit) {
+      res.status(404).json({ error: 'Snapshot not found' });
+      return;
+    }
+
+    const createdAt = new Date(audit.created_at as string).getTime();
+    if (!Number.isFinite(createdAt)) {
+      res.status(410).json({ error: 'Snapshot token expired' });
+      return;
+    }
+    const ageHours = (Date.now() - createdAt) / (1000 * 60 * 60);
+    if (ageHours > SNAPSHOT_TTL_HOURS) {
+      res.status(410).json({ error: 'Snapshot token expired' });
+      return;
+    }
+
+    const userId = req.userId!;
+    const existingClient = audit.client_id as string | null;
+
+    if (existingClient === userId) {
+      await supabase
+        .from('snapshot_guest_sessions')
+        .update({
+          status: 'claimed',
+          claimed_by_user_id: userId,
+          claimed_at: new Date().toISOString(),
+        })
+        .eq('snapshot_token', snapshotToken);
+      res.json({
+        ok: true,
+        audit_id: audit.id as string,
+        already_claimed: true,
+      });
+      return;
+    }
+
+    if (existingClient != null && existingClient !== userId) {
+      logger.info('snapshot.claim_conflict', {
+        component: 'snapshot',
+        audit_id: audit.id,
+      });
+      res.status(409).json({
+        error: 'This snapshot cannot be saved to your account.',
+        code: 'SNAPSHOT_CLAIM_CONFLICT',
+      });
+      return;
+    }
+
+    const { data: updated, error: updErr } = await supabase
+      .from('audits')
+      .update({ client_id: userId })
+      .eq('id', audit.id)
+      .eq('product_mode', 'free_snapshot')
+      .is('client_id', null)
+      .select('id')
+      .maybeSingle();
+
+    if (updErr || !updated) {
+      const { data: again } = await supabase
+        .from('audits')
+        .select('id, client_id')
+        .eq('id', audit.id)
+        .single();
+      if (again?.client_id === userId) {
+        res.json({
+          ok: true,
+          audit_id: again.id as string,
+          already_claimed: true,
+        });
+        return;
+      }
+      logger.info('snapshot.claim_conflict', { component: 'snapshot', audit_id: audit.id });
+      res.status(409).json({
+        error: 'This snapshot cannot be saved to your account.',
+        code: 'SNAPSHOT_CLAIM_CONFLICT',
+      });
+      return;
+    }
+
+    await supabase
+      .from('snapshot_guest_sessions')
+      .update({
+        status: 'claimed',
+        claimed_by_user_id: userId,
+        claimed_at: new Date().toISOString(),
+      })
+      .eq('snapshot_token', snapshotToken);
+
+    logger.info('snapshot.claim_success', {
+      component: 'snapshot',
+      audit_id: updated.id,
+      user_id: userId,
+    });
+
+    res.json({
+      ok: true,
+      audit_id: updated.id as string,
+      already_claimed: false,
+    });
+  } catch (err) {
+    const e = err as Error;
+    logger.error('snapshot.claim_exception', { component: 'snapshot', error: e.message, stack: e.stack });
+    res.status(500).json({ error: 'Failed to claim snapshot' });
+  }
+});
+
 // ─── POST /api/snapshot — Start a free snapshot ────────────
-snapshotRouter.post('/', snapshotPublicLimiter, requireAuth, attachProfile, async (req: AuthRequest, res) => {
+snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
   try {
     const { company_url } = req.body;
 
@@ -173,6 +370,9 @@ snapshotRouter.post('/', snapshotPublicLimiter, requireAuth, attachProfile, asyn
       res.status(400).json({ error: 'company_url is required' });
       return;
     }
+
+    const guestToken = getOrIssueSnapshotGuestToken(req, res);
+    const utm = extractUtmFromBody(req.body);
 
     // Normalize URL
     let url = company_url.trim();
@@ -210,20 +410,13 @@ snapshotRouter.post('/', snapshotPublicLimiter, requireAuth, attachProfile, asyn
 
     const snapshotToken = randomUUID();
 
-    let ownerUserId: string;
-    let clientId: string | null = null;
-
-    if (req.userRole === 'consultant') {
-      ownerUserId = req.userId!;
-    } else {
-      const resolved = await resolveSelfServeAuditOwnerUserId();
-      if (!resolved.ok) {
-        res.status(resolved.statusCode).json({ error: resolved.error, code: resolved.code });
-        return;
-      }
-      ownerUserId = resolved.userId;
-      clientId = req.userId!;
+    const resolved = await resolveSelfServeAuditOwnerUserId();
+    if (!resolved.ok) {
+      res.status(resolved.statusCode).json({ error: resolved.error, code: resolved.code });
+      return;
     }
+    const ownerUserId = resolved.userId;
+    const clientId: string | null = null;
 
     const { data: audit, error: auditErr } = await supabase
       .from('audits')
@@ -246,8 +439,6 @@ snapshotRouter.post('/', snapshotPublicLimiter, requireAuth, attachProfile, asyn
         code: pe?.code,
         details: pe?.details,
         hint: pe?.hint,
-        user_id: req.userId,
-        user_role: req.userRole,
       });
       res.status(500).json({ error: 'Failed to create snapshot' });
       return;
@@ -315,6 +506,14 @@ snapshotRouter.post('/', snapshotPublicLimiter, requireAuth, attachProfile, asyn
         error: err.message,
         stack: err.stack,
       });
+    });
+
+    void upsertSnapshotGuestSessionRow({
+      guestToken,
+      snapshotToken,
+      companyUrl: url,
+      utm,
+      req,
     });
 
     res.status(202).json({
@@ -419,6 +618,7 @@ snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
     }
 
     if (status === 'failed') {
+      void updateGuestSessionPollStatus(token, 'failed');
       res.json({
         status: 'failed',
         snapshot_token: token,
@@ -560,6 +760,7 @@ snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
       delete preview.snapshot_access_robots_blocked;
     }
 
+    void updateGuestSessionPollStatus(token, 'completed');
     res.json(preview);
 
   } catch (err) {

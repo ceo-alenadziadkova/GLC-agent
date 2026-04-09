@@ -24,7 +24,11 @@ export {
   resolveFullSlaRequiredIds,
   resolveSlaRequiredIds,
 } from './brief-gates.js';
-export { calcDataQualityScore, DEFAULT_DATA_QUALITY_WEIGHTS } from './data-quality.js';
+export {
+  calcDataQualityScore,
+  calcDataQualityScoreFromVisible,
+  DEFAULT_DATA_QUALITY_WEIGHTS,
+} from './data-quality.js';
 export { DISCOVERY_BANK_IDS, isDiscoverySurfaceQuestion } from './discovery.js';
 export {
   DOMAIN_TO_QUESTIONS_RAW,
@@ -62,3 +66,6 @@ export {
 } from './question-bank.js';
 export { mergeReconConflictsFromC1, type ReconConflict } from './recon-conflicts.js';
 export { prepareBriefForValidation } from './prepare-brief-for-validation.js';
+export { buildIntakePlan, loadIntakePolicy } from './core/index.js';
+export type { BuildIntakePlanInput, IntakePlan } from './core/index.js';
+export type { IntakeVersionTuple } from '../types/audit.js';
