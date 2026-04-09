@@ -209,13 +209,20 @@ Strong candidates later on **canon**: `reportUse`, `confidenceImpact`, `sensitiv
 These are **explicitly out of scope** for ADR acceptance but aligned with the same architecture:
 
 - **Analytics loop:** event log (`question_shown`, `question_answered`, `question_skipped`, drop-off at step); per-question and per-mode completion metrics; A/B on layout or policy bundles (versioned).
-- **Internal tooling:** “Question Bank Studio” (visual tree, policy preview), fixture lab, **interactive trace viewer** (extends Phase 2b).
+- **Internal tooling — Question Bank Studio:** visual canon map (all bank ids + sections + optional branch edges), optional **layout-rules** wizard steps between section and question per surface, structure metrics (depth/leaves on the visible tree), policy mode overlay, trace via **presets or pasted JSON** (same `buildIntakePlan` call as analytics would replay), **Plan footprint**, and inspector **resolver reasons** (`reasonsById`) plus SLA pointer to `brief-gates.ts`. JSON-serializable payloads: `src/app/lib/question-bank-studio-payload.ts` (`buildQuestionBankStudioPayloadPhase1` / `Phase2` include `layoutSurface` and `layoutStep` nodes when enabled). **Rollout:** consultants only; `VITE_QUESTION_BANK_STUDIO` (default on, `=0` disables tab + redirects full page); Settings `#question-bank-studio` and **`/admin/question-bank-studio`**. Vitest: canon tree completeness/order (`question-bank-studio-canon-tree.test.ts`) and branch edge parity vs `computeBranchTopology` (`question-bank-studio-branch-parity.test.ts`). UI copy clarifies canon vs runtime. Server-side analytics event **replay** on the canvas remains follow-up once a stable export/API exists.
 - **Adaptive questioning:** `nextRecommended` driven by simple heuristics (e.g. information-gain scores) on top of the same `IntakePlan` pipeline, without changing the four-layer split.
 
 ## Follow-up documentation
 
 - Operational detail stays in [QUESTION_BANK.md](./QUESTION_BANK.md) (human-readable mirror of branching and agent mapping).
 - This ADR is the **decision record**; when implementation lands, link the concrete file paths and package name from [MASTER.md](./MASTER.md) or [ARCHITECTURE.md](./ARCHITECTURE.md).
+
+## Operational notes (bundle shape; do not regress in docs or tests)
+
+- **`GET /api/audits/:id/brief`** — field **`questions`** is **`getBriefQuestionsByIds(plan.visible)` only** (legacy `BRIEF_QUESTIONS` catalog rows). Identity (`intake_*`) lives in **`brief.responses`**, not duplicated in **`questions`**. See [API.md](../API.md).
+- **Public pre-brief** — **`GET /api/intake/:token`** still prepends **identity** question rows in code, then bank rows from the same plan-driven pattern; keep parity tests aligned if that assembly changes.
+- **Policy** — **`modes.pre_brief.bankIncluded`** includes **`a10`** with other express-facing bank ids; **`pre-brief-bank-included.json`** must match (drift is a **lint error**).
+- **Lint** — **`syntheticRequired`** may list **`a10`** even though it is a bank id; **`lintSyntheticCollision`** allowlists **`INTAKE_REVENUE_BANK_ID`** (`ALLOWED_SYNTHETIC_BANK_OVERLAP` in `lint-bank-policy.ts`).
 
 ## References
 

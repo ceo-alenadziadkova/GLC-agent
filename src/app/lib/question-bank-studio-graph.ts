@@ -1,6 +1,8 @@
 import dagre from 'dagre';
 import type { Edge, Node } from '@xyflow/react';
 import { computeBranchUpstreamIds } from '../components/intake/intake-trace-branch-links';
+import layoutRulesArtifact from '../../../server/src/intake/artifacts/layout-rules-1.1.0.json';
+import type { LayoutRulesV1 } from '../../../server/src/intake/core/layout-types';
 import {
   getQuestionBankPromptLabel,
   getQuestionBankSchemaMeta,
@@ -8,11 +10,17 @@ import {
   QUESTION_FEEDS_BY_ID,
 } from '../../../server/src/intake/question-bank';
 import type { IntakeQuestionStub } from '../../../server/src/intake/types';
+import { QUESTION_FEED_ROLES } from '../../../server/src/intake/question-feed-roles';
 import {
   getPolicyOverlayForQuestion,
   participatesInPolicyMode,
   type StudioPolicyMode,
 } from './question-bank-studio-policy';
+import { resolveStudioPolicyBaseVisual, type StudioPolicyBaseVisualKind } from './question-bank-studio-node-style';
+
+const LAYOUT_RULES = layoutRulesArtifact as LayoutRulesV1;
+
+export type StudioLayoutSurfaceKey = keyof LayoutRulesV1['surfaces'];
 
 export type StudioGraphStats = {
   questionCount: number;
@@ -22,6 +30,10 @@ export type StudioGraphStats = {
   branchMaxDepth: number;
   branchRootCount: number;
   branchLeafCount: number;
+  /** Longest root-to-question path along structure edges (schema + optional layout steps). */
+  structureMaxDepth: number;
+  /** Question nodes in the current structure view (respects section collapse). */
+  structureLeafCount: number;
 };
 
 export type StudioQuestionNodeData = {
@@ -36,6 +48,10 @@ export type StudioQuestionNodeData = {
   policyBadges: string[];
   /** UI: lower opacity when true and participatesPolicy is false */
   applyPolicyDim: boolean;
+  /** Policy + canon priority chrome (card left stripe). */
+  policyBaseVisual: StudioPolicyBaseVisualKind;
+  /** Dagre / canvas box (matches viewDensity). */
+  layoutSize: { w: number; h: number };
   /** Domains that consume this id (QUESTION_BANK §5). */
   feedDomains: string[];
   /** Left border accent when color-by-domain is on (hex). */
@@ -49,6 +65,24 @@ export type StudioSectionNodeData = {
   questionCount: number;
   /** Questions hidden on canvas (collapsed branch). */
   collapsed: boolean;
+};
+
+/** Wizard step from `layout-rules` (presentation only; canon remains section-scoped). */
+export type StudioLayoutStepNodeData = {
+  kind: 'layoutStep';
+  surfaceKey: StudioLayoutSurfaceKey;
+  sectionKey: string;
+  stepIndex: number;
+  label: string;
+  questionCount: number;
+};
+
+/** Primary agent/domain slice cluster (question-feed-roles `primary[0]`). */
+export type StudioDomainClusterNodeData = {
+  kind: 'domainCluster';
+  domainKey: string;
+  label: string;
+  questionCount: number;
 };
 
 export type StudioRootNodeData = {
@@ -66,6 +100,8 @@ export type StudioIdentityNodeData = {
 export type StudioAnyNodeData =
   | StudioQuestionNodeData
   | StudioSectionNodeData
+  | StudioLayoutStepNodeData
+  | StudioDomainClusterNodeData
   | StudioRootNodeData
   | StudioIdentityNodeData;
 
@@ -74,9 +110,66 @@ const ROOT_ID = 'qbs-root';
 const DIM = {
   root: { w: 200, h: 40 },
   section: { w: 220, h: 44 },
-  question: { w: 260, h: 76 },
+  layoutStep: { w: 210, h: 48 },
+  domainCluster: { w: 220, h: 44 },
   identity: { w: 240, h: 52 },
 };
+
+export function getStudioQuestionNodeDimensions(
+  viewDensity?: 'comfortable' | 'compact',
+): { w: number; h: number } {
+  switch (viewDensity ?? 'comfortable') {
+    case 'compact':
+      return { w: 240, h: 70 };
+    case 'comfortable':
+    default:
+      return { w: 280, h: 82 };
+  }
+}
+
+function primaryFeedDomain(questionId: string): string {
+  const roles = QUESTION_FEED_ROLES[questionId];
+  if (roles?.primary?.length) return roles.primary[0];
+  return 'unassigned';
+}
+
+function buildLayoutQuestionIndex(surface: StudioLayoutSurfaceKey): Map<string, { stepIndex: number; label: string }> {
+  const steps = LAYOUT_RULES.surfaces[surface].steps;
+  const map = new Map<string, { stepIndex: number; label: string }>();
+  steps.forEach((step, stepIndex) => {
+    const label = step.label?.trim() ? step.label : `Step ${stepIndex + 1}`;
+    for (const qid of step.questionIds) {
+      if (!map.has(qid)) map.set(qid, { stepIndex, label });
+    }
+  });
+  return map;
+}
+
+function longestStructurePathToTargets(
+  rootId: string,
+  edgeList: { source: string; target: string }[],
+  targetIds: Set<string>,
+): number {
+  const depth = new Map<string, number>();
+  depth.set(rootId, 0);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const e of edgeList) {
+      const pd = depth.get(e.source);
+      if (pd === undefined) continue;
+      const next = pd + 1;
+      const cur = depth.get(e.target);
+      if (cur === undefined || next > cur) {
+        depth.set(e.target, next);
+        changed = true;
+      }
+    }
+  }
+  let max = 0;
+  for (const id of targetIds) max = Math.max(max, depth.get(id) ?? 0);
+  return max;
+}
 
 function policyBadgeList(overlay: ReturnType<typeof getPolicyOverlayForQuestion>): string[] {
   const b: string[] = [];
@@ -148,6 +241,14 @@ export function computeBranchTopology(stubs: readonly IntakeQuestionStub[]): {
   };
 }
 
+/**
+ * Multiset keys for branch edges (`from` → `to` question ids) — same canon as Studio payload `branchEdges`.
+ */
+export function canonBranchEdgeKeySet(stubs: readonly IntakeQuestionStub[]): Set<string> {
+  const { edges } = computeBranchTopology(stubs);
+  return new Set(edges.map(e => `${e.from}\t${e.to}`));
+}
+
 function truncateLabel(s: string, max = 48): string {
   const t = s.trim();
   if (t.length <= max) return t;
@@ -177,6 +278,17 @@ export type BuildStudioGraphInput = {
   collapsedSectionKeys?: ReadonlySet<string>;
   /** Tint question nodes by primary feed domain. */
   colorByDomain?: boolean;
+  /**
+   * When set, inserts `layout-rules` wizard steps between section and question nodes for that surface.
+   * Unmapped bank ids stay linked directly from the section.
+   */
+  layoutSurface?: StudioLayoutSurfaceKey | null;
+  /**
+   * Inserts primary feed-domain clusters from `question-feed-roles.ts` between root and sections.
+   */
+  clusterByPrimaryDomain?: boolean;
+  /** Question card size + layout spacing (dagre node box). */
+  viewDensity?: 'comfortable' | 'compact';
 };
 
 export type BuildStudioGraphResult = {
@@ -187,10 +299,13 @@ export type BuildStudioGraphResult = {
   sectionKeys: string[];
 };
 
-export function buildQuestionBankStudioGraph(input: BuildStudioGraphInput): BuildStudioGraphResult {
-  const stubs = QUESTION_BANK_V1_STUBS;
-  const topo = computeBranchTopology(stubs);
-
+/**
+ * Canon section order and membership from `question-bank.v1.json` stub order (single source for Studio tree).
+ */
+export function partitionStubsByCanonSection(stubs: readonly IntakeQuestionStub[]): {
+  sectionKeysInOrder: string[];
+  sectionMembers: Map<string, IntakeQuestionStub[]>;
+} {
   const sectionOrder: string[] = [];
   const sectionMembers = new Map<string, IntakeQuestionStub[]>();
   for (const stub of stubs) {
@@ -202,6 +317,26 @@ export function buildQuestionBankStudioGraph(input: BuildStudioGraphInput): Buil
     }
     sectionMembers.get(sectionKey)!.push(stub);
   }
+  return { sectionKeysInOrder: sectionOrder, sectionMembers };
+}
+
+/** Bank question ids on the Studio canvas (unordered). */
+export function collectStudioGraphQuestionIds(nodes: readonly Node<StudioAnyNodeData>[]): Set<string> {
+  const out = new Set<string>();
+  for (const n of nodes) {
+    if (n.type === 'studioQuestion' && n.data.kind === 'question') {
+      out.add(n.data.questionId);
+    }
+  }
+  return out;
+}
+
+export function buildQuestionBankStudioGraph(input: BuildStudioGraphInput): BuildStudioGraphResult {
+  const stubs = QUESTION_BANK_V1_STUBS;
+  const topo = computeBranchTopology(stubs);
+  const qDim = getStudioQuestionNodeDimensions(input.viewDensity);
+
+  const { sectionKeysInOrder: sectionOrder, sectionMembers } = partitionStubsByCanonSection(stubs);
 
   const nodes: Node<StudioAnyNodeData>[] = [];
   const edges: Edge[] = [];
@@ -212,6 +347,37 @@ export function buildQuestionBankStudioGraph(input: BuildStudioGraphInput): Buil
     position: { x: 0, y: 0 },
     data: { kind: 'root', label: 'Question bank (canon)' },
   });
+
+  const clusterDomains = Boolean(input.clusterByPrimaryDomain);
+  const domainQuestionCounts = new Map<string, number>();
+  if (clusterDomains) {
+    for (const stub of stubs) {
+      const dk = primaryFeedDomain(stub.id);
+      domainQuestionCounts.set(dk, (domainQuestionCounts.get(dk) ?? 0) + 1);
+    }
+    const domainOrder = [...domainQuestionCounts.keys()].sort((a, b) => a.localeCompare(b));
+    for (const dk of domainOrder) {
+      const domId = `qbs-domain-${dk}`;
+      const nq = domainQuestionCounts.get(dk) ?? 0;
+      nodes.push({
+        id: domId,
+        type: 'studioDomainCluster',
+        position: { x: 0, y: 0 },
+        data: {
+          kind: 'domainCluster',
+          domainKey: dk,
+          label: `${dk.replace(/_/g, ' ')} (${nq})`,
+          questionCount: nq,
+        },
+      });
+      edges.push({
+        id: `e-${ROOT_ID}-${domId}`,
+        source: ROOT_ID,
+        target: domId,
+        style: { stroke: 'var(--border-default)', strokeWidth: 1 },
+      });
+    }
+  }
 
   const collapsedKeys = input.collapsedSectionKeys ?? new Set<string>();
 
@@ -231,16 +397,32 @@ export function buildQuestionBankStudioGraph(input: BuildStudioGraphInput): Buil
         collapsed,
       },
     });
-    edges.push({
-      id: `e-${ROOT_ID}-${sectionId}`,
-      source: ROOT_ID,
-      target: sectionId,
-      style: { stroke: 'var(--border-default)', strokeWidth: 1 },
-    });
+    if (clusterDomains) {
+      const domainsForSection = new Set<string>();
+      for (const stub of members) {
+        domainsForSection.add(primaryFeedDomain(stub.id));
+      }
+      for (const dk of domainsForSection) {
+        const domId = `qbs-domain-${dk}`;
+        edges.push({
+          id: `e-${domId}-${sectionId}`,
+          source: domId,
+          target: sectionId,
+          style: { stroke: 'var(--border-default)', strokeWidth: 1 },
+        });
+      }
+    } else {
+      edges.push({
+        id: `e-${ROOT_ID}-${sectionId}`,
+        source: ROOT_ID,
+        target: sectionId,
+        style: { stroke: 'var(--border-default)', strokeWidth: 1 },
+      });
+    }
 
     if (collapsed) continue;
 
-    for (const stub of members) {
+    const pushQuestion = (stub: IntakeQuestionStub) => {
       const meta = getQuestionBankSchemaMeta(stub.id);
       const fullLabel = getQuestionBankPromptLabel(stub.id) ?? meta?.label ?? stub.id;
       const overlay = getPolicyOverlayForQuestion(
@@ -249,6 +431,7 @@ export function buildQuestionBankStudioGraph(input: BuildStudioGraphInput): Buil
         meta?.priority ?? stub.priority,
       );
       const participatesPolicy = participatesInPolicyMode(stub.id, input.policyMode);
+      const policyBaseVisual = resolveStudioPolicyBaseVisual(overlay);
       const feeds = QUESTION_FEEDS_BY_ID[stub.id] ?? [];
       const domainLabels = feeds.map(String);
       const qid = `qbs-q-${stub.id}`;
@@ -267,16 +450,83 @@ export function buildQuestionBankStudioGraph(input: BuildStudioGraphInput): Buil
           participatesPolicy,
           policyBadges: policyBadgeList(overlay),
           applyPolicyDim: true,
+          policyBaseVisual,
+          layoutSize: { w: qDim.w, h: qDim.h },
           feedDomains: domainLabels,
           domainAccent: input.colorByDomain ? accentForDomains(domainLabels) : undefined,
         },
       });
-      edges.push({
-        id: `e-${sectionId}-${qid}`,
-        source: sectionId,
-        target: qid,
-        style: { stroke: 'var(--border-default)', strokeWidth: 1 },
-      });
+      return qid;
+    };
+
+    const layoutSurface = input.layoutSurface ?? null;
+    if (!layoutSurface) {
+      for (const stub of members) {
+        const qid = pushQuestion(stub);
+        edges.push({
+          id: `e-${sectionId}-${qid}`,
+          source: sectionId,
+          target: qid,
+          style: { stroke: 'var(--border-default)', strokeWidth: 1 },
+        });
+      }
+    } else {
+      const layoutIdx = buildLayoutQuestionIndex(layoutSurface);
+      const withStep: { stub: IntakeQuestionStub; stepIndex: number; label: string }[] = [];
+      const orphans: IntakeQuestionStub[] = [];
+      for (const stub of members) {
+        const lm = layoutIdx.get(stub.id);
+        if (lm) withStep.push({ stub, stepIndex: lm.stepIndex, label: lm.label });
+        else orphans.push(stub);
+      }
+      const byStep = new Map<number, { stub: IntakeQuestionStub; label: string }[]>();
+      for (const row of withStep) {
+        if (!byStep.has(row.stepIndex)) byStep.set(row.stepIndex, []);
+        byStep.get(row.stepIndex)!.push({ stub: row.stub, label: row.label });
+      }
+      const sortedSteps = [...byStep.keys()].sort((a, b) => a - b);
+      for (const stepIndex of sortedSteps) {
+        const group = byStep.get(stepIndex)!;
+        const label = group[0]?.label ?? `Step ${stepIndex + 1}`;
+        const lsId = `qbs-ls-${layoutSurface}-${sectionKey}-${stepIndex}`;
+        nodes.push({
+          id: lsId,
+          type: 'studioLayoutStep',
+          position: { x: 0, y: 0 },
+          data: {
+            kind: 'layoutStep',
+            surfaceKey: layoutSurface,
+            sectionKey,
+            stepIndex,
+            label: truncateLabel(label, 40),
+            questionCount: group.length,
+          },
+        });
+        edges.push({
+          id: `e-${sectionId}-${lsId}`,
+          source: sectionId,
+          target: lsId,
+          style: { stroke: 'var(--border-default)', strokeWidth: 1, strokeDasharray: '3 2' },
+        });
+        for (const { stub } of group) {
+          const qid = pushQuestion(stub);
+          edges.push({
+            id: `e-${lsId}-${qid}`,
+            source: lsId,
+            target: qid,
+            style: { stroke: 'var(--border-default)', strokeWidth: 1 },
+          });
+        }
+      }
+      for (const stub of orphans) {
+        const qid = pushQuestion(stub);
+        edges.push({
+          id: `e-${sectionId}-${qid}`,
+          source: sectionId,
+          target: qid,
+          style: { stroke: 'var(--border-default)', strokeWidth: 1 },
+        });
+      }
     }
   }
 
@@ -331,11 +581,17 @@ export function buildQuestionBankStudioGraph(input: BuildStudioGraphInput): Buil
     }
   }
 
-  const identityEdgeCount =
-    input.policyMode === 'pre_brief'
-      ? ['intake_company_website', 'intake_company_name', 'intake_industry', 'intake_industry_specify'].length
-      : 0;
-  const structureEdgeCount = sectionOrder.length + stubs.length + identityEdgeCount;
+  const structureEdgesOnly = edges.filter(e => !String(e.id).startsWith('e-branch'));
+  const structureEdgeCount = structureEdgesOnly.length;
+  const questionNodeIds = new Set(
+    nodes.filter(n => n.type === 'studioQuestion').map(n => n.id),
+  );
+  const structureMaxDepth = longestStructurePathToTargets(
+    ROOT_ID,
+    structureEdgesOnly.map(e => ({ source: e.source, target: e.target })),
+    questionNodeIds,
+  );
+  const structureLeafCount = questionNodeIds.size;
 
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
@@ -347,9 +603,13 @@ export function buildQuestionBankStudioGraph(input: BuildStudioGraphInput): Buil
         ? DIM.root
         : n.type === 'studioSection'
           ? DIM.section
-          : n.type === 'studioIdentity'
-            ? DIM.identity
-            : DIM.question;
+          : n.type === 'studioLayoutStep'
+            ? DIM.layoutStep
+            : n.type === 'studioDomainCluster'
+              ? DIM.domainCluster
+              : n.type === 'studioIdentity'
+                ? DIM.identity
+                : qDim;
     dagreGraph.setNode(n.id, { width: dim.w, height: dim.h });
   }
   for (const e of edges) {
@@ -364,9 +624,13 @@ export function buildQuestionBankStudioGraph(input: BuildStudioGraphInput): Buil
         ? DIM.root
         : n.type === 'studioSection'
           ? DIM.section
-          : n.type === 'studioIdentity'
-            ? DIM.identity
-            : DIM.question;
+          : n.type === 'studioLayoutStep'
+            ? DIM.layoutStep
+            : n.type === 'studioDomainCluster'
+              ? DIM.domainCluster
+              : n.type === 'studioIdentity'
+                ? DIM.identity
+                : qDim;
     const x = nodeWithPosition.x - dim.w / 2;
     const y = nodeWithPosition.y - dim.h / 2;
     return { ...n, position: { x, y } };
@@ -388,6 +652,8 @@ export function buildQuestionBankStudioGraph(input: BuildStudioGraphInput): Buil
       branchMaxDepth: topo.maxDepth,
       branchRootCount: topo.rootCount,
       branchLeafCount: topo.leafCount,
+      structureMaxDepth,
+      structureLeafCount,
     },
   };
 }

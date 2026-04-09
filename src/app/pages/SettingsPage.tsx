@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { Link } from 'react-router';
 import { SignOut, Bell, User, PaintBucket, ClipboardText, Users, TreeStructure } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { AppShell } from '../components/AppShell';
@@ -181,6 +182,31 @@ export function SettingsPage() {
   };
 
   const studioTabEnabled = isQuestionBankStudioEnabled() && isConsultant;
+
+  const [settingsTab, setSettingsTab] = useState<'general' | 'bank-studio'>(() => {
+    if (typeof window !== 'undefined' && window.location.hash.replace(/^#/, '') === 'question-bank-studio') {
+      return 'bank-studio';
+    }
+    return 'general';
+  });
+
+  useEffect(() => {
+    if (!studioTabEnabled) return;
+    if (window.location.hash.replace(/^#/, '') === 'question-bank-studio') {
+      setSettingsTab('bank-studio');
+    }
+  }, [studioTabEnabled]);
+
+  const onSettingsTabChange = (value: string) => {
+    const next = value === 'bank-studio' ? 'bank-studio' : 'general';
+    setSettingsTab(next);
+    const base = window.location.pathname + window.location.search;
+    if (next === 'bank-studio') {
+      window.history.replaceState(null, '', `${base}#question-bank-studio`);
+    } else {
+      window.history.replaceState(null, '', base);
+    }
+  };
 
   const briefLayoutBtnStyle = (active: boolean): CSSProperties => ({
     borderRadius: 'var(--radius-md)',
@@ -609,7 +635,7 @@ export function SettingsPage() {
   return (
     <AppShell title="Settings" subtitle="Manage profile, appearance, intake brief layout, and notifications">
       {studioTabEnabled ? (
-        <Tabs defaultValue="general" className="w-full">
+        <Tabs value={settingsTab} onValueChange={onSettingsTabChange} className="w-full">
           <div className="px-7 pt-6 pb-0">
             <TabsList
               className="!bg-transparent !h-auto !p-0 flex flex-wrap gap-2 justify-start rounded-none"
@@ -635,6 +661,13 @@ export function SettingsPage() {
           </TabsContent>
           <TabsContent value="bank-studio" className="mt-0">
             <div className="px-7 py-6">
+              <p className="text-[11px] m-0 mb-3" style={{ color: 'var(--text-quaternary)' }}>
+                Full-page view:{' '}
+                <Link to="/admin/question-bank-studio" className="underline" style={{ color: 'var(--text-tertiary)' }}>
+                  /admin/question-bank-studio
+                </Link>{' '}
+                (same flag and consultant gate).
+              </p>
               <QuestionBankStudio />
             </div>
           </TabsContent>

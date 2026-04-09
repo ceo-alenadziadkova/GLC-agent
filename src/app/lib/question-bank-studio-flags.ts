@@ -7,8 +7,8 @@ function envFlagEnabled(raw: string | undefined, defaultWhenUnset: boolean): boo
 }
 
 /**
- * Internal Question Bank Studio (settings). Opt-out via `VITE_QUESTION_BANK_STUDIO=0`.
- * Unset defaults to enabled for consultants (same pattern as intake trace IA).
+ * Internal Question Bank Studio (Settings tab + `/admin/question-bank-studio`).
+ * Opt-out via `VITE_QUESTION_BANK_STUDIO=0`. Unset defaults to enabled (consultant-only routes).
  */
 export function isQuestionBankStudioEnabled(): boolean {
   const raw = import.meta.env.VITE_QUESTION_BANK_STUDIO;

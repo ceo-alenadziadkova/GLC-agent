@@ -1,5 +1,8 @@
 import intakePolicyRaw from '../../../server/src/intake/intake-policy.v1.json';
-import { QUESTION_BANK_V1_STUBS } from '../../../server/src/intake/question-bank';
+import {
+  getQuestionBankSchemaMeta,
+  QUESTION_BANK_V1_STUBS,
+} from '../../../server/src/intake/question-bank';
 
 export type StudioPolicyMode = 'full' | 'express' | 'discovery' | 'pre_brief' | 'free_snapshot';
 
@@ -121,5 +124,34 @@ export function getPolicyOverlayForQuestion(
     requiredAlways,
     requiredIfVisible,
     policyRequirednessNone,
+  };
+}
+
+/** Aggregates for Studio banner (bank ids only; identity nodes are separate on the canvas). */
+export function computeStudioPolicyModeStats(mode: StudioPolicyMode): {
+  bankTotal: number;
+  bankParticipating: number;
+  bankOutsidePolicy: number;
+  bankPolicyRequired: number;
+  bankPolicyIfVisible: number;
+} {
+  let bankParticipating = 0;
+  let bankPolicyRequired = 0;
+  let bankPolicyIfVisible = 0;
+  for (const stub of QUESTION_BANK_V1_STUBS) {
+    const meta = getQuestionBankSchemaMeta(stub.id);
+    const o = getPolicyOverlayForQuestion(stub.id, mode, meta?.priority ?? stub.priority);
+    if (!o.participates) continue;
+    bankParticipating++;
+    if (!o.policyRequirednessNone && (o.syntheticRequired || o.requiredAlways)) bankPolicyRequired++;
+    else if (!o.policyRequirednessNone && o.requiredIfVisible) bankPolicyIfVisible++;
+  }
+  const bankTotal = QUESTION_BANK_V1_STUBS.length;
+  return {
+    bankTotal,
+    bankParticipating,
+    bankOutsidePolicy: bankTotal - bankParticipating,
+    bankPolicyRequired,
+    bankPolicyIfVisible,
   };
 }

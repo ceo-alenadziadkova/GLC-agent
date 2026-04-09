@@ -20,7 +20,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | Threat model, rate limits, CORS, credentials | [SECURITY.md](./SECURITY.md) |
 | React app, routes, hooks, design system | [FRONTEND.md](./FRONTEND.md) ([style guide](./FRONTEND.md#design-system-style-guide)) |
 | Intake question bank, branching, agent mapping | [QUESTION_BANK.md](./QUESTION_BANK.md) |
-| Internal: Question Bank Studio (Settings tab, canon map + policy/trace) | [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) — `src/app/components/QuestionBankStudio.tsx` |
+| Internal: Question Bank Studio (Settings + `/admin/question-bank-studio`, canon map + policy/trace) | [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) — `src/app/components/QuestionBankStudio.tsx` |
 | ADR: unified bank, policy/layout, IntakePlan | [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) |
 | ADR: free snapshot — cheap deterministic scanner | [ADR-FREE-SNAPSHOT-SCANNER.md](adrs/ADR-FREE-SNAPSHOT-SCANNER.md) |
 | ADR: wording lifecycle + intake trace IA split | [ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md](adrs/ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md) |
