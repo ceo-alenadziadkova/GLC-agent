@@ -64,21 +64,31 @@ describe('buildIntakePlan', () => {
       productMode: 'full',
     });
     expect(plan.versions.policyVersion).toBe('1.1.0');
-    expect(plan.versions.questionBankVersion).toBe('1.0.0');
+    expect(plan.versions.questionBankVersion).toBe('1.1.0');
     expect(plan.versions.resolverVersion).toBe('1.1.0');
     expect(plan.versions.layoutVersion).toBe('1.1.0');
   });
 
-  it('includes nextRecommended — visible recommended stubs unanswered first', () => {
+  it('includes nextRecommended — required first, then recommended, then gap-filling optional', () => {
     const plan = buildIntakePlan({
       responses: { a2: 'hospitality', a5: 'no_website' },
       productMode: 'full',
       collectionMode: 'self_serve',
     });
     const pri = new Map(QUESTION_BANK_V1_STUBS.map(s => [s.id, s.priority]));
+    let seenRecommended = false;
+    let seenOptional = false;
     for (const id of plan.nextRecommended) {
-      expect(pri.get(id)).toBe('recommended');
       expect(plan.visible).toContain(id);
+      const p = pri.get(id);
+      expect(p).toBeDefined();
+      if (p === 'recommended') seenRecommended = true;
+      if (p === 'optional') seenOptional = true;
+      if (p === 'required') {
+        expect(seenRecommended).toBe(false);
+        expect(seenOptional).toBe(false);
+      }
+      if (p === 'recommended') expect(seenOptional).toBe(false);
     }
   });
 

@@ -20,6 +20,7 @@ export type DiscoveryUiFragmentPayload = {
 export type DiscoveryAnalyticsBatchPayload = {
   surface: 'public_discovery';
   client_session_id: string;
+  experiment_variant?: 'A' | 'B';
   discovery_session_token?: string;
   intake_versions?: Partial<IntakeVersionTuple>;
   events: Array<{

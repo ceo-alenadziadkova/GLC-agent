@@ -217,6 +217,10 @@ describe('GET /api/audits/:id/brief/schema', () => {
     expect(Array.isArray(body.missing_for_report)).toBe(true);
     expect(Array.isArray(body.next_recommended)).toBe(true);
     expect(body.product_mode).toBe('express');
+    const rows = body.questions as Array<Record<string, unknown>>;
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows[0].answer).toBeDefined();
+    expect(typeof (rows[0].answer as Record<string, unknown>).type).toBe('string');
   });
 
   it('includes derived.report_anchors when visible bank answers have reportUse', async () => {

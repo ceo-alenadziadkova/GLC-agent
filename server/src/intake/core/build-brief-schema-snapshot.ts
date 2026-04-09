@@ -1,7 +1,8 @@
 /**
  * Compact intake schema for a brief context — ADR Phase D (`brief-schema` API).
  */
-import { getQuestionBankSchemaMeta } from '../question-bank.js';
+import { expandAnswerContractForApi, getQuestionBankAnswerContract, getQuestionBankSchemaMeta } from '../question-bank.js';
+import type { IntakeAnswerContract } from '../types.js';
 import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from '../../types/audit.js';
 
 import { buildIntakePlan } from './build-intake-plan.js';
@@ -12,6 +13,8 @@ export interface BriefSchemaQuestionRow {
   label: string;
   section: string;
   priority: string;
+  /** Canon answer contract; `optionsRef` expanded to `options` for clients. */
+  answer?: IntakeAnswerContract;
 }
 
 export interface BriefSchemaStepRow {
@@ -78,11 +81,13 @@ export function buildBriefSchemaSnapshot(args: {
   for (const id of plan.visible) {
     const meta = getQuestionBankSchemaMeta(id);
     if (!meta) continue;
+    const ac = getQuestionBankAnswerContract(id);
     questions.push({
       id,
       label: meta.label,
       section: meta.section,
       priority: meta.priority,
+      ...(ac ? { answer: expandAnswerContractForApi(ac) } : {}),
     });
   }
 

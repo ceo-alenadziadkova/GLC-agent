@@ -282,7 +282,7 @@ Records `brief_help_requested_at` / `brief_help_client_message` on the audit and
 - **`intake_versions`** — tuple used to build the plan  
 - **`eligible`**, **`visible`**, **`required`**, **`hidden`**, **`deferred`**, **`sla_visible_bank_ids`**  
 - **`step_plan`**, **`layout_slots`** — when a layout surface is active  
-- **`questions`** — rows `{ id, label, section, priority }` for each **`visible`** bank id (from `question-bank.v1.json`)  
+- **`questions`** — rows `{ id, label, section, priority, answer? }` for each **`visible`** bank id; **`answer`** is the canon contract from `question-bank.v1.json` (`type`, `maxLength`, `options`, etc.). Any `optionsRef` is expanded to inline `options` for clients.  
 - **`derived`** — `{ ai_readiness_score, confidence_overall, website_gate }` (same heuristics as `IntakePlan` derived layer)
 
 Does not replace `GET .../brief` for saving or full `BRIEF_QUESTIONS` copy; use for tooling, previews, or clients that want plan-shaped metadata without bundling the whole bank.

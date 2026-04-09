@@ -27,6 +27,7 @@ import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '../lib/choice
 import { api } from '../data/apiService';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
+import { labelsForMissingReportDomains } from '../lib/intake-coverage-domain-labels';
 import { IntakeBankWizard } from '../components/IntakeBankWizard';
 import { BankClassicBriefFields } from '../components/BankClassicBriefFields';
 import { BriefLayoutPreferenceCards } from '../components/BriefLayoutPreferenceCards';
@@ -239,6 +240,7 @@ export function AuditWorkspace() {
     (audit?.brief?.responses as BriefResponses) ?? {},
     briefCollectionMode,
     workspaceConsultantSurface,
+    (audit?.meta.product_mode as ProductMode) ?? 'full',
   );
 
   if (loading && !audit) {
@@ -333,6 +335,7 @@ export function AuditWorkspace() {
                   visibleRequiredTotal={bankMetrics.visibleRequiredTotal}
                   visibleRecommendedAnswered={bankMetrics.visibleRecommendedAnswered}
                   visibleRecommendedTotal={bankMetrics.visibleRecommendedTotal}
+                  reportInputGapLabels={labelsForMissingReportDomains(bankMetrics.missingForReport)}
                 />
               </div>
               <div style={{ borderBottom: '1px solid var(--border-subtle)' }}>
@@ -417,6 +420,7 @@ export function AuditWorkspace() {
                                   }
                                 : undefined
                             }
+                            productMode={audit.meta.product_mode as ProductMode}
                           />
                         ) : (
                           <BankClassicBriefFields

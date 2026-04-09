@@ -2,12 +2,10 @@
  * Canon layer — branch predicates only (ADR). No discovery or product-mode policy.
  */
 import { evalBranchCondition } from '../branch-rules.js';
-import { QUESTION_BANK_V1_STUBS } from '../question-bank.js';
 import type { IntakeQuestionStub, IntakeResponsesMap } from '../types.js';
 
 import {
-  buildBranchAwareStubEvalOrder,
-  QUESTION_BANK_V1_STUB_EVAL_ORDER,
+  getBranchAwareStubEvalOrder,
 } from './branch-condition-deps.js';
 import type { QuestionReason } from './types.js';
 
@@ -38,8 +36,7 @@ export function evaluateCanonEligibility(
     return pass;
   };
 
-  const evalOrder =
-    stubs === QUESTION_BANK_V1_STUBS ? QUESTION_BANK_V1_STUB_EVAL_ORDER : buildBranchAwareStubEvalOrder(stubs);
+  const evalOrder = getBranchAwareStubEvalOrder(stubs);
   const passById = new Map<string, boolean>();
   for (const q of evalOrder) {
     passById.set(q.id, evalCached(q.branchCondition));

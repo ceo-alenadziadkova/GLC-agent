@@ -87,7 +87,8 @@ export function IntakeTraceTool() {
           Consultant-only tool. Paste responses as JSON; choose product mode, optional collection mode and surface
           (use discovery + public_discovery to exercise layout). Use Question trace to filter{' '}
           <code className="text-xs">reasonsById</code> by layer/state; Plan JSON for the full tuple including{' '}
-          <code className="text-xs">missingForReport</code> and <code className="text-xs">nextRecommended</code>.
+          <code className="text-xs">missingForReport</code> and <code className="text-xs">nextRecommended</code>{' '}
+          (required, then recommended, then optional primaries for gap domains when the flag is on).
         </p>
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="flex flex-col gap-1 text-sm">

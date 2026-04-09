@@ -28,6 +28,24 @@ describe('intakeAnalyticsBatchBodySchema (public discovery)', () => {
     expect(r.success).toBe(true);
   });
 
+  it('accepts experiment_variant A/B and rejects others', () => {
+    const ok = intakeAnalyticsBatchBodySchema.safeParse({
+      surface: 'public_discovery',
+      client_session_id: '550e8400-e29b-41d4-a716-446655440000',
+      experiment_variant: 'A',
+      events: [{ event_type: 'question_shown' }],
+    });
+    expect(ok.success).toBe(true);
+
+    const bad = intakeAnalyticsBatchBodySchema.safeParse({
+      surface: 'public_discovery',
+      client_session_id: '550e8400-e29b-41d4-a716-446655440000',
+      experiment_variant: 'C',
+      events: [{ event_type: 'question_shown' }],
+    });
+    expect(bad.success).toBe(false);
+  });
+
   it('rejects invalid discovery token', () => {
     const r = intakeAnalyticsBatchBodySchema.safeParse({
       surface: 'public_discovery',
@@ -64,5 +82,15 @@ describe('intakeAnalyticsAuditBriefBatchSchema', () => {
       events: [{ event_type: 'question_answered', question_id: 'b3' }],
     });
     expect(r2.success).toBe(true);
+  });
+
+  it('accepts optional experiment_variant for authenticated surfaces', () => {
+    const r = intakeAnalyticsAuditBriefBatchSchema.safeParse({
+      surface: 'client_form',
+      client_session_id: '550e8400-e29b-41d4-a716-446655440000',
+      experiment_variant: 'B',
+      events: [{ event_type: 'question_answered', question_id: 'f1' }],
+    });
+    expect(r.success).toBe(true);
   });
 });

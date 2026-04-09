@@ -5,6 +5,7 @@ import type { IntakeVersionTuple } from '../data/auditTypes';
 import { briefProfilePlatformApi } from '../data/api/brief-profile-platform';
 
 export type BriefIntakeAnalyticsSurface = 'consultant_interview' | 'client_form' | 'client_portal';
+export type BriefIntakeAnalyticsExperimentVariant = 'A' | 'B';
 
 export type BriefIntakeAnalyticsEventType =
   | 'question_shown'
@@ -59,12 +60,22 @@ export interface BriefIntakeAnalyticsSink {
   flush(): Promise<void>;
 }
 
+function pickVariantFromSessionId(sessionId: string): BriefIntakeAnalyticsExperimentVariant {
+  let h = 0;
+  for (let i = 0; i < sessionId.length; i += 1) {
+    h = (h + sessionId.charCodeAt(i)) & 1;
+  }
+  return h === 0 ? 'A' : 'B';
+}
+
 export function createBriefIntakeAnalyticsSink(deps: {
   auditId: string;
   surface: BriefIntakeAnalyticsSurface;
   getIntakeVersions: () => IntakeVersionTuple | null;
+  getExperimentVariant?: () => BriefIntakeAnalyticsExperimentVariant | null;
 }): BriefIntakeAnalyticsSink {
   const clientSessionId = getOrCreateBriefWizardClientSessionId(deps.auditId);
+  const experimentVariant = deps.getExperimentVariant?.() ?? pickVariantFromSessionId(clientSessionId);
   const queue: QueuedEvent[] = [];
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -83,6 +94,7 @@ export function createBriefIntakeAnalyticsSink(deps: {
     const payload = {
       surface: deps.surface,
       client_session_id: clientSessionId,
+      experiment_variant: experimentVariant,
       ...(intake_versions ? { intake_versions } : {}),
       events: batch.map(e => ({
         event_type: e.event_type,

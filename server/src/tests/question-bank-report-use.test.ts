@@ -12,7 +12,12 @@ describe('question-bank reportUse (ADR Phase E)', () => {
     expect(getQuestionBankReportUse('f1')).toBe('strategy_pain_anchor');
   });
 
-  it('returns undefined when absent', () => {
-    expect(getQuestionBankReportUse('a3')).toBeUndefined();
+  it('returns undefined for unknown ids', () => {
+    expect(getQuestionBankReportUse('not_a_bank_id')).toBeUndefined();
+  });
+
+  it('tags every bank row with reportUse (Phase E completeness)', () => {
+    expect(getQuestionBankReportUse('a3')).toBe('recon_business_location');
+    expect(getQuestionBankReportUse('f8')).toBe('strategy_deadline_key_moment');
   });
 });

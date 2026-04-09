@@ -14,6 +14,9 @@ export const INTAKE_ANALYTICS_EVENT_TYPES = [
 ] as const;
 
 export type IntakeAnalyticsEventType = (typeof INTAKE_ANALYTICS_EVENT_TYPES)[number];
+export const INTAKE_ANALYTICS_EXPERIMENT_VARIANTS = ['A', 'B'] as const;
+export type IntakeAnalyticsExperimentVariant =
+  (typeof INTAKE_ANALYTICS_EXPERIMENT_VARIANTS)[number];
 
 const intakeVersionsPartialSchema = z
   .object({
@@ -37,6 +40,7 @@ export const intakeAnalyticsDiscoveryBatchSchema = z
   .object({
     surface: z.literal('public_discovery'),
     client_session_id: z.string().min(8).max(80),
+    experiment_variant: z.enum(INTAKE_ANALYTICS_EXPERIMENT_VARIANTS).optional(),
     discovery_session_token: z
       .string()
       .regex(/^[a-f0-9]{40}$/i)
@@ -56,6 +60,7 @@ export const intakeAnalyticsAuditBriefBatchSchema = z
   .object({
     surface: z.enum(['consultant_interview', 'client_form', 'client_portal']),
     client_session_id: z.string().min(8).max(80),
+    experiment_variant: z.enum(INTAKE_ANALYTICS_EXPERIMENT_VARIANTS).optional(),
     intake_versions: intakeVersionsPartialSchema.optional(),
     events: z.array(intakeAnalyticsEventSchema).min(1).max(40),
   })

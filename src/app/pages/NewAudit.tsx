@@ -22,6 +22,7 @@ import { SectionLabel } from '../components/glc/SectionLabel';
 import { useAuth } from '../hooks/useAuth';
 import { useBriefLayoutPrefsSync } from '../hooks/useBriefLayoutPrefsSync';
 import { useIntakeBankMetrics } from '../hooks/useIntakeWizard';
+import { labelsForMissingReportDomains } from '../lib/intake-coverage-domain-labels';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
 import { IntakeBankWizard } from '../components/IntakeBankWizard';
 import { BankClassicBriefFields } from '../components/BankClassicBriefFields';
@@ -352,6 +353,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
     responses,
     noPublicWebsite ? 'discovery' : undefined,
     noPublicWebsite ? undefined : 'consultant_interview',
+    productMode,
   );
 
   const layoutSelected = briefLayoutChoice === 'classic' || briefLayoutChoice === 'wizard';
@@ -1227,6 +1229,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                         visibleRequiredTotal={bankMetrics.visibleRequiredTotal}
                         visibleRecommendedAnswered={bankMetrics.visibleRecommendedAnswered}
                         visibleRecommendedTotal={bankMetrics.visibleRecommendedTotal}
+                        reportInputGapLabels={labelsForMissingReportDomains(bankMetrics.missingForReport)}
                       />
                     </div>
                     {interviewMode && (
@@ -1272,6 +1275,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                           collectionMode={noPublicWebsite ? 'discovery' : undefined}
                           intakeSurface={noPublicWebsite ? undefined : 'consultant_interview'}
                           intakeAnalytics={briefWizardIntakeAnalytics}
+                          productMode={productMode}
                         />
                       </div>
                     ) : (

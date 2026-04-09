@@ -136,6 +136,9 @@ export interface IntakePlan {
    * (report / agent input gap). Empty when every in-scope primary for those domains is answered.
    */
   missingForReport: IntakePlanCoverageDomain[];
-  /** Visible recommended-priority bank ids not yet answered (wizard order); UX hint only. */
+  /**
+   * Suggested next bank ids (wizard order): unanswered required first, then recommended,
+   * then optional primaries for domains in `missingForReport`. UX / consultant hint only.
+   */
   nextRecommended: string[];
 }

@@ -301,10 +301,15 @@ discoverRouter.post('/analytics-events', intakePublicLimiter, async (req, res) =
       return;
     }
     const body = parsed.data;
-    const versions =
-      body.intake_versions && Object.values(body.intake_versions).some(v => v != null && v !== '')
-        ? body.intake_versions
-        : null;
+    const hasTuple =
+      body.intake_versions && Object.values(body.intake_versions).some(v => v != null && v !== '');
+    let versions: Record<string, unknown> | null = hasTuple ? { ...body.intake_versions } : null;
+    if (body.experiment_variant) {
+      versions = {
+        ...(versions ?? {}),
+        experimentVariant: body.experiment_variant,
+      };
+    }
 
     const rows = body.events.map(e => ({
       surface: body.surface,

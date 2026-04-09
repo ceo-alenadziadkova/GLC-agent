@@ -20,6 +20,9 @@
     "playwright:install": "playwright install chromium",
     "seed-demo": "tsx scripts/seed-demo.ts",
     "intake-plan-debug": "tsx scripts/intake-plan-debug.ts",
+    "intake-plan-benchmark": "tsx scripts/intake-plan-perf-benchmark.ts",
+    "question-bank-overview": "tsx scripts/question-bank-overview.ts",
+    "embed-question-bank-answers": "tsx scripts/embed-question-bank-answers.ts",
     "ingest:wappalyzer": "node scripts/ingest-webappalyzer.mjs"
   },
   "dependencies": {

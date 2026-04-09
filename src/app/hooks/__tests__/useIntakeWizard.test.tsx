@@ -41,6 +41,25 @@ describe('useIntakeBankMetrics', () => {
     expect(clientForm.current.visibleRecommendedTotal).toBeLessThanOrEqual(consultant.current.visibleRecommendedTotal);
     expect(consultant.current.visibleRecommendedTotal).toBeGreaterThan(clientForm.current.visibleRecommendedTotal);
   });
+
+  it('exposes nextRecommended from plan', () => {
+    const { result } = renderHook(() =>
+      useIntakeBankMetrics(
+        {
+          f1: { value: 'Grow', source: 'client' },
+          a1: { value: 'Co — SaaS', source: 'client' },
+          a5: { value: 'Yes, multi-page site', source: 'client' },
+          intake_company_name: { value: 'Co', source: 'client' },
+          intake_industry: { value: 'SaaS / Software', source: 'client' },
+          intake_company_website: { value: 'https://example.com', source: 'client' },
+        },
+        undefined,
+        undefined,
+        'full',
+      ),
+    );
+    expect(Array.isArray(result.current.nextRecommended)).toBe(true);
+  });
 });
 
 describe('useIntakeWizard', () => {
@@ -64,5 +83,66 @@ describe('useIntakeWizard', () => {
       }),
     );
     expect(clientForm.current.totalSteps).toBeLessThan(consultant.current.totalSteps);
+  });
+
+  it('exposes nextRecommended and missingForReport from buildIntakePlan', () => {
+    const { result } = renderHook(() =>
+      useIntakeWizard({
+        value: { a2: 'hospitality', a5: 'no_website' },
+        onChange: () => {},
+        collectionMode: 'self_serve',
+        surface: 'consultant_interview',
+        productMode: 'full',
+      }),
+    );
+    expect(Array.isArray(result.current.nextRecommended)).toBe(true);
+    expect(result.current.nextRecommended.length).toBeGreaterThan(0);
+    expect(Array.isArray(result.current.missingForReport)).toBe(true);
+    for (const id of result.current.nextRecommended) {
+      expect(result.current.visibleQuestionStubs.some(s => s.id === id)).toBe(true);
+    }
+  });
+
+  it('reuses visible stubs for non-branch response edits (partial replan path)', () => {
+    const base = {
+      a2: 'hospitality',
+      a5: 'no_website',
+      f1: 'Need more leads',
+    };
+    const { result, rerender } = renderHook(
+      ({ value }) =>
+        useIntakeWizard({
+          value,
+          onChange: () => {},
+          collectionMode: 'self_serve',
+          surface: 'consultant_interview',
+          productMode: 'full',
+        }),
+      { initialProps: { value: base } },
+    );
+    const prevRef = result.current.visibleQuestionStubs;
+    rerender({ value: { ...base, f1: 'Need more qualified leads' } });
+    expect(result.current.visibleQuestionStubs).toBe(prevRef);
+  });
+
+  it('rebuilds visible stubs when branch-driving answer changes', () => {
+    const base = {
+      a2: 'hospitality',
+      a5: 'no_website',
+    };
+    const { result, rerender } = renderHook(
+      ({ value }) =>
+        useIntakeWizard({
+          value,
+          onChange: () => {},
+          collectionMode: 'self_serve',
+          surface: 'consultant_interview',
+          productMode: 'full',
+        }),
+      { initialProps: { value: base } },
+    );
+    const prevRef = result.current.visibleQuestionStubs;
+    rerender({ value: { ...base, a5: 'Yes, multi-page site' } });
+    expect(result.current.visibleQuestionStubs).not.toBe(prevRef);
   });
 });

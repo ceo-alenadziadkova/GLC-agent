@@ -32,6 +32,7 @@ import { getGlcQueryClient } from '../lib/glc-query-client';
 import { glcKeys } from '../lib/glc-keys';
 import { invalidateAuditRelatedQueries } from '../lib/glc-invalidate-queries';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
+import { labelsForMissingReportDomains } from '../lib/intake-coverage-domain-labels';
 import { IntakeBankWizard } from '../components/IntakeBankWizard';
 import { BankClassicBriefFields } from '../components/BankClassicBriefFields';
 import { BriefLayoutPreferenceCards } from '../components/BriefLayoutPreferenceCards';
@@ -120,7 +121,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
         ? 'client_portal'
         : 'client_form';
 
-  const bankMetrics = useIntakeBankMetrics(responses, briefCollectionMode, clientIntakeSurface);
+  const bankMetrics = useIntakeBankMetrics(responses, briefCollectionMode, clientIntakeSurface, productMode);
 
   function handleSelectBriefLayout(mode: 'classic' | 'wizard') {
     writeClientBriefLayout(auditId, mode);
@@ -227,6 +228,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
               visibleRequiredTotal={bankMetrics.visibleRequiredTotal}
               visibleRecommendedAnswered={bankMetrics.visibleRecommendedAnswered}
               visibleRecommendedTotal={bankMetrics.visibleRecommendedTotal}
+              reportInputGapLabels={labelsForMissingReportDomains(bankMetrics.missingForReport)}
             />
 
             <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
@@ -262,6 +264,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
                         }
                       : undefined
                   }
+                  productMode={productMode}
                 />
               ) : (
                 <BankClassicBriefFields

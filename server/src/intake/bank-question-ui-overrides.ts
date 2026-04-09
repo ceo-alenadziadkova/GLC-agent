@@ -5,6 +5,7 @@
  */
 import type { BriefQuestion } from '../types/audit.js';
 import { INDUSTRY_OPTIONS } from '../config/industry-options.js';
+import type { IntakeAnswerContract } from './types.js';
 
 export type BankQuestionUiOverride = {
   type?: BriefQuestion['type'];
@@ -213,4 +214,32 @@ export function getBankQuestionUiOverride(id: string): BankQuestionUiOverride | 
 
 export function listBankQuestionUiOverrideIds(): string[] {
   return Object.keys(OVERRIDES).sort();
+}
+
+/**
+ * Build canon `answer` metadata for `question-bank.v1.json` (kept in sync with wizard UI overrides).
+ */
+export function buildCanonAnswerContractForBankId(id: string): IntakeAnswerContract {
+  const ov = OVERRIDES[id];
+  if (!ov || ov.type === 'free_text' || ov.type === undefined) {
+    return { type: 'textarea', maxLength: 12_000 };
+  }
+  if (ov.type === 'single_choice') {
+    if (id === 'a2') {
+      return { type: 'single_select', optionsRef: 'industry' };
+    }
+    const opts = ov.options;
+    if (!opts?.length) {
+      throw new Error(`bank UI override: single_choice missing options for "${id}"`);
+    }
+    return { type: 'single_select', options: [...opts] };
+  }
+  if (ov.type === 'multi_choice') {
+    const opts = ov.options;
+    if (!opts?.length) {
+      throw new Error(`bank UI override: multi_choice missing options for "${id}"`);
+    }
+    return { type: 'multi_select', options: [...opts] };
+  }
+  return { type: 'textarea', maxLength: 12_000 };
 }

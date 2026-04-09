@@ -3,12 +3,14 @@
  *
  * Usage (from server/):
  *   pnpm intake-plan-debug --product-mode=full --collection-mode=discovery --surface=public_discovery --responses='{"a2":"hospitality","a5":"no_website"}'
+ *   pnpm intake-plan-debug --format=json --responses='{}'
  *
  * Flags:
  *   --product-mode=     full | express | free_snapshot (default: full)
  *   --collection-mode=  discovery | pre_brief | self_serve | interview (optional)
  *   --surface=          consultant_interview | client_form | client_portal | internal_review | public_discovery (optional; drives layout when discovery + public_discovery)
  *   --responses=        JSON object string (default: {})
+ *   --format=           text (default) | json — full IntakePlan JSON for tooling / diff
  */
 import type { IntakeBriefCollectionMode, ProductMode } from '../src/types/audit.js';
 import { buildIntakePlan } from '../src/intake/core/build-intake-plan.js';
@@ -77,6 +79,15 @@ function main(): void {
   }
 
   const plan = buildIntakePlan({ responses, productMode, collectionMode, surface });
+  const fmt = (args.format ?? 'text').toLowerCase();
+  if (fmt === 'json') {
+    console.log(JSON.stringify(plan, null, 2));
+    return;
+  }
+  if (fmt !== 'text') {
+    console.error(`Unknown --format: ${args.format}. Use text or json.`);
+    process.exit(1);
+  }
   const text = formatPlanTrace(plan, {
     productMode,
     collectionMode: collectionMode ?? '(none)',

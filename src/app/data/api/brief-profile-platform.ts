@@ -31,6 +31,7 @@ export type BriefSchemaSnapshot = {
 export type BriefIntakeAnalyticsBatchPayload = {
   surface: 'consultant_interview' | 'client_form' | 'client_portal';
   client_session_id: string;
+  experiment_variant?: 'A' | 'B';
   intake_versions?: Partial<IntakeVersionTuple>;
   events: Array<{
     event_type:

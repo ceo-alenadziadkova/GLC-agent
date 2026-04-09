@@ -11,6 +11,7 @@ export type DiscoveryAnalyticsEventType =
   | 'question_skipped'
   | 'wizard_completed'
   | 'results_viewed';
+export type DiscoveryAnalyticsExperimentVariant = 'A' | 'B';
 
 const SESSION_KEY = 'glc_discover_analytics_v1';
 const FLUSH_MS = 3200;
@@ -41,11 +42,21 @@ export interface DiscoveryAnalyticsSink {
   flush(): Promise<void>;
 }
 
+function pickVariantFromSessionId(sessionId: string): DiscoveryAnalyticsExperimentVariant {
+  let h = 0;
+  for (let i = 0; i < sessionId.length; i += 1) {
+    h = (h + sessionId.charCodeAt(i)) & 1;
+  }
+  return h === 0 ? 'A' : 'B';
+}
+
 export function createDiscoveryAnalyticsSink(deps: {
   getIntakeVersions: () => IntakeVersionTuple | null;
   getDiscoveryToken: () => string | null;
+  getExperimentVariant?: () => DiscoveryAnalyticsExperimentVariant | null;
 }): DiscoveryAnalyticsSink {
   const clientSessionId = getOrCreateDiscoveryClientSessionId();
+  const experimentVariant = deps.getExperimentVariant?.() ?? pickVariantFromSessionId(clientSessionId);
   const queue: QueuedEvent[] = [];
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -65,6 +76,7 @@ export function createDiscoveryAnalyticsSink(deps: {
     const payload = {
       surface: 'public_discovery' as const,
       client_session_id: clientSessionId,
+      experiment_variant: experimentVariant,
       ...(discovery_session_token ? { discovery_session_token } : {}),
       ...(intake_versions ? { intake_versions } : {}),
       events: batch.map(e => ({

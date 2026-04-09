@@ -176,6 +176,7 @@ export function buildIntakePlan(input: BuildIntakePlanInput): IntakePlan {
         visibleOrdered: finalVisible,
         stubs,
         responses: r,
+        missingForReport: derived.missingForReport,
       })
     : [];
 

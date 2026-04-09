@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { listBankStubIdsInvalidatedByResponseKeys } from '../intake/core/branch-condition-deps.js';
+import { QUESTION_BANK_V1_STUBS } from '../intake/question-bank.js';
+import {
+  getBranchDepsCacheStats,
+  listBankStubIdsInvalidatedByResponseKeys,
+  resetBranchDepsCacheStats,
+} from '../intake/core/branch-condition-deps.js';
+import { evaluateCanonEligibility } from '../intake/core/evaluate-canon.js';
 
 describe('listBankStubIdsInvalidatedByResponseKeys (ADR Phase C2 prep)', () => {
   it('a5 change invalidates website-branch stubs', () => {
@@ -21,5 +27,23 @@ describe('listBankStubIdsInvalidatedByResponseKeys (ADR Phase C2 prep)', () => {
     const sorted = [...ids].sort((a, b) => a.localeCompare(b));
     expect(ids).toEqual(sorted);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('reuses dependency map cache for non-v1 stub slices', () => {
+    resetBranchDepsCacheStats();
+    const nonV1Slice = QUESTION_BANK_V1_STUBS.slice();
+    listBankStubIdsInvalidatedByResponseKeys(['a5'], nonV1Slice);
+    listBankStubIdsInvalidatedByResponseKeys(['d1'], nonV1Slice);
+    const stats = getBranchDepsCacheStats();
+    expect(stats.responseDepsBuilds).toBe(1);
+  });
+
+  it('reuses eval-order cache for non-v1 stub slices', () => {
+    resetBranchDepsCacheStats();
+    const nonV1Slice = QUESTION_BANK_V1_STUBS.slice();
+    evaluateCanonEligibility(nonV1Slice, { a5: 'no_website' });
+    evaluateCanonEligibility(nonV1Slice, { a5: 'Yes, multi-page site' });
+    const stats = getBranchDepsCacheStats();
+    expect(stats.evalOrderBuilds).toBe(1);
   });
 });

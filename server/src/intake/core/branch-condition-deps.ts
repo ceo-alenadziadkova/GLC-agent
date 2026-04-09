@@ -118,6 +118,8 @@ export function buildBranchAwareStubEvalOrder(stubs: IntakeQuestionStub[]): Inta
 export const QUESTION_BANK_V1_STUB_EVAL_ORDER: readonly IntakeQuestionStub[] =
   buildBranchAwareStubEvalOrder(QUESTION_BANK_V1_STUBS);
 
+const STUB_EVAL_ORDER_CACHE = new WeakMap<IntakeQuestionStub[], readonly IntakeQuestionStub[]>();
+
 function buildResponseKeyToDependentStubIds(stubs: IntakeQuestionStub[]): Map<string, Set<string>> {
   const stubIdSet = new Set(stubs.map(s => s.id));
   const rev = new Map<string, Set<string>>();
@@ -138,6 +140,47 @@ function buildResponseKeyToDependentStubIds(stubs: IntakeQuestionStub[]): Map<st
 }
 
 const RESPONSE_KEY_DEPS_V1 = buildResponseKeyToDependentStubIds(QUESTION_BANK_V1_STUBS);
+const RESPONSE_KEY_DEPS_CACHE = new WeakMap<IntakeQuestionStub[], Map<string, Set<string>>>();
+
+const CACHE_STATS = {
+  evalOrderBuilds: 0,
+  responseDepsBuilds: 0,
+};
+
+export function getBranchDepsCacheStats(): {
+  evalOrderBuilds: number;
+  responseDepsBuilds: number;
+} {
+  return {
+    evalOrderBuilds: CACHE_STATS.evalOrderBuilds,
+    responseDepsBuilds: CACHE_STATS.responseDepsBuilds,
+  };
+}
+
+export function resetBranchDepsCacheStats(): void {
+  CACHE_STATS.evalOrderBuilds = 0;
+  CACHE_STATS.responseDepsBuilds = 0;
+}
+
+export function getBranchAwareStubEvalOrder(stubs: IntakeQuestionStub[]): readonly IntakeQuestionStub[] {
+  if (stubs === QUESTION_BANK_V1_STUBS) return QUESTION_BANK_V1_STUB_EVAL_ORDER;
+  const cached = STUB_EVAL_ORDER_CACHE.get(stubs);
+  if (cached) return cached;
+  const built = buildBranchAwareStubEvalOrder(stubs);
+  STUB_EVAL_ORDER_CACHE.set(stubs, built);
+  CACHE_STATS.evalOrderBuilds += 1;
+  return built;
+}
+
+function getResponseKeyDepsMap(stubs: IntakeQuestionStub[]): Map<string, Set<string>> {
+  if (stubs === QUESTION_BANK_V1_STUBS) return RESPONSE_KEY_DEPS_V1;
+  const cached = RESPONSE_KEY_DEPS_CACHE.get(stubs);
+  if (cached) return cached;
+  const built = buildResponseKeyToDependentStubIds(stubs);
+  RESPONSE_KEY_DEPS_CACHE.set(stubs, built);
+  CACHE_STATS.responseDepsBuilds += 1;
+  return built;
+}
 
 /**
  * Bank stub ids that should be re-evaluated for branch eligibility when the given response keys change.
@@ -147,10 +190,7 @@ export function listBankStubIdsInvalidatedByResponseKeys(
   changedResponseKeys: Iterable<string>,
   stubs: IntakeQuestionStub[] = QUESTION_BANK_V1_STUBS,
 ): string[] {
-  const map =
-    stubs === QUESTION_BANK_V1_STUBS
-      ? RESPONSE_KEY_DEPS_V1
-      : buildResponseKeyToDependentStubIds(stubs);
+  const map = getResponseKeyDepsMap(stubs);
 
   const out = new Set<string>();
   for (const k of changedResponseKeys) {

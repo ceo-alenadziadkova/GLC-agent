@@ -7,7 +7,8 @@ import type { LayoutRulesV1 } from './layout-types.js';
 import type { IntakeVersionTuple } from '../../types/audit.js';
 
 import policy_1_0_0 from '../artifacts/intake-policy-1.0.0.json' with { type: 'json' };
-import { QUESTION_BANK_V1_STUBS, QUESTION_BANK_VERSION } from '../question-bank.js';
+import bank_1_0_0 from '../artifacts/question-bank-1.0.0.json' with { type: 'json' };
+import { intakeStubsFromBankRaw, QUESTION_BANK_V1_STUBS, QUESTION_BANK_VERSION } from '../question-bank.js';
 import { LAYOUT_RULES_V1 } from './load-layout.js';
 import { INTAKE_POLICY_V1 } from './load-policy.js';
 import { currentIntakeVersionTuple } from './versions.js';
@@ -27,9 +28,9 @@ export interface ResolvedIntakeArtifacts {
 const FROZEN_ARTIFACT_REGISTRY: Record<string, () => Omit<ResolvedIntakeArtifacts, 'layoutRules' | 'questionBankVersion' | 'layoutVersion'> & { layoutRules: LayoutRulesV1; questionBankVersion: string; layoutVersion: string }> = {
   '1.0.0|1.0.0|1.1.0|1.0.0': () => ({
     policy: policy_1_0_0 as IntakePolicyV1,
-    stubs: QUESTION_BANK_V1_STUBS,
+    stubs: intakeStubsFromBankRaw(bank_1_0_0),
     layoutRules: LAYOUT_RULES_V1,
-    questionBankVersion: QUESTION_BANK_VERSION,
+    questionBankVersion: '1.0.0',
     policyVersion: (policy_1_0_0 as IntakePolicyV1).version,
     layoutVersion: LAYOUT_RULES_V1.version,
   }),
