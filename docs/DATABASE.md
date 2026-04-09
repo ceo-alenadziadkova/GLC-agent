@@ -35,8 +35,14 @@ PostgreSQL on **Supabase**. Apply migrations **in numeric order** so foreign key
 29. `029_intake_analytics_events.sql` — **`intake_analytics_events`** — anonymous / authenticated intake funnel events (`surface`, `event_type`, `client_session_id`, optional `discovery_session_token`, `audit_id`, `question_id`, `step_index`, `intake_versions`, `client_ts`)
 30. `030_intake_analytics_audit_id.sql` — **`audit_id`** on `intake_analytics_events` (FK to `audits`, nullable)
 31. `031_intake_analytics_dashboard_views.sql` — read-only **views** for Metabase / SQL charts (see [Intake analytics dashboards](#intake-analytics-dashboards) below)
+32. `032_discovery_consultant_claim_and_maturity_guard.sql` — discovery consultant claim / maturity guard (see migration file)
+33. `033_discovery_contact_edit_key.sql` — discovery contact edit key (see migration file)
+34. `034_discovery_convert_atomic_rpc.sql` — discovery convert RPC (see migration file)
+35. `035_intake_trace_tool_analytics.sql` — **`intake_analytics_events.payload`** (`jsonb`), **`user_id`** (FK `auth.users`, nullable) for consultant tool telemetry
+36. `036_intake_question_wording_drafts.sql` — **`intake_question_wording_drafts`** — per-user draft wording by `question_id` (RLS: own rows only)
+37. `037_intake_wording_publish_rollback.sql` — **`published_text`** / **`published_at`** on **`intake_question_wording_drafts`**; **`intake_wording_publication_log`** (append-only publish/rollback audit; RLS: **`SELECT`** own rows)
 
-**Tables (19):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`, `snapshot_guest_sessions`, `intake_analytics_events`.
+**Tables (21):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`, `snapshot_guest_sessions`, `intake_analytics_events`, `intake_question_wording_drafts`, `intake_wording_publication_log`.
 
 Row Level Security is enabled on these tables; exact policies differ by table (consultant vs client access). **Canonical SQL:** the migration files — this doc summarises shapes.
 
@@ -263,6 +269,22 @@ Migrations: `006_intake_brief.sql`, `010_intake_progress_gamification.sql`, `027
 
 ---
 
+### `intake_question_wording_drafts`
+
+Per-authenticated-user draft wording strings keyed by **`question_id`** (bank id). Does not change branch conditions or policy; UI copy overlay only. Optional **`published_text`** / **`published_at`** store the last explicit publish snapshot (migration **`037`**). Uniqueness **`(user_id, question_id)`**. RLS: users may read/write/delete own rows. Written via **`PUT /api/intake-trace-tool/wording-drafts`**; publish/rollback via **`POST`** routes on the same API prefix.
+
+Migration: `036_intake_question_wording_drafts.sql`, `037_intake_wording_publish_rollback.sql`.
+
+---
+
+### `intake_wording_publication_log`
+
+Append-only audit of **`publish`** / **`rollback`** actions from the consultant wording tool. Fields: **`user_id`**, **`action`**, **`question_ids`** (`text[]`), **`created_at`**. RLS: **`SELECT`** own rows. Rows are inserted by the API (service role). Read-back for consultants: **`GET /api/intake-trace-tool/wording-publication-log`**.
+
+Migration: `037_intake_wording_publish_rollback.sql`.
+
+---
+
 ### `api_idempotency_keys`
 
 Stores request fingerprints and prior responses for idempotent replay on critical write endpoints.
@@ -361,7 +383,7 @@ Tune TTL with **`SNAPSHOT_FRESH_LEASE_TTL_SECONDS`** (default derived from **`SN
 
 ## Intake analytics dashboards
 
-Table **`intake_analytics_events`** is written by the API (`POST /api/discover/analytics-events`, `POST /api/audits/:id/brief/analytics-events`). Use the **service role** or a dedicated read-only DB user in Metabase / Supabase SQL editor; do not expose row-level client reads without a separate policy design.
+Table **`intake_analytics_events`** is written by the API (`POST /api/discover/analytics-events`, `POST /api/audits/:id/brief/analytics-events`, `POST /api/intake-trace-tool/analytics-events`). Consultant tool rows use **`surface` = `internal_intake_trace`**, optional **`payload`**, optional **`user_id`**. Use the **service role** or a dedicated read-only DB user in Metabase / Supabase SQL editor; do not expose row-level client reads without a separate policy design.
 
 Migration **`031_intake_analytics_dashboard_views.sql`** defines views (windows are relative to `now()` at query time):
 

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { IntakePlan } from '../../../../server/src/intake/core/types';
 import { QUESTION_BANK_V1_STUBS } from '../../../../server/src/intake/question-bank';
 import { computeBranchUpstreamIds } from './intake-trace-branch-links';
+import { trackIntakeWordingReviewExported } from '../../lib/intake-trace-tool-telemetry';
 
 interface NodePos {
   id: string;
@@ -175,6 +176,7 @@ export function IntakeTraceEdgeGraph({
   resolveLabel,
   resolveCanonLabel,
   resolveDraftLabel,
+  resolvePublishedLabel,
   focusId,
   onFocusIdChange,
   showWordingReview = false,
@@ -183,6 +185,7 @@ export function IntakeTraceEdgeGraph({
   resolveLabel: (id: string) => string;
   resolveCanonLabel: (id: string) => string;
   resolveDraftLabel: (id: string) => string | null;
+  resolvePublishedLabel?: (id: string) => string | null;
   focusId: string;
   onFocusIdChange: (id: string) => void;
   showWordingReview?: boolean;
@@ -405,7 +408,8 @@ export function IntakeTraceEdgeGraph({
     for (const id of ids) {
       const canon = resolveCanonLabel(id).trim();
       const draft = resolveDraftLabel(id)?.trim() ?? '';
-      const effective = (draft || canon).trim();
+      const published = resolvePublishedLabel?.(id)?.trim() ?? '';
+      const effective = (draft || published || canon).trim();
       const reasons: string[] = [];
       let penalty = 0;
       if (effective.length > longThreshold) reasons.push(`Very long wording (>${longThreshold} chars)`);
@@ -435,7 +439,7 @@ export function IntakeTraceEdgeGraph({
       if (a.score !== b.score) return a.score - b.score;
       return a.id.localeCompare(b.id);
     });
-  }, [ids, resolveCanonLabel, resolveDraftLabel, scoringMode]);
+  }, [ids, resolveCanonLabel, resolveDraftLabel, resolvePublishedLabel, scoringMode]);
 
   const visibleBaItems = useMemo(
     () => (highOnly ? baReviewItems.filter(item => item.severity === 'high') : baReviewItems),
@@ -588,6 +592,9 @@ export function IntakeTraceEdgeGraph({
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+    trackIntakeWordingReviewExported({
+      route: typeof window !== 'undefined' ? window.location.pathname : '/admin/intake-trace',
+    });
   };
 
   const toggleSection = (s: string) => {
@@ -783,6 +790,8 @@ export function IntakeTraceEdgeGraph({
             const selected = selectedIds.has(id);
             const label = resolveLabel(id);
             const draftLabel = resolveDraftLabel(id);
+            const publishedLabel = resolvePublishedLabel?.(id) ?? null;
+            const afterLabel = draftLabel?.trim() || publishedLabel?.trim() || null;
             const canonLabel = resolveCanonLabel(id);
             return (
               <g
@@ -816,13 +825,13 @@ export function IntakeTraceEdgeGraph({
                 <text x={pos.x + 10} y={pos.y + 20} fill={colors.text} fontSize={11} fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">
                   {id}
                 </text>
-                {showBeforeAfter && draftLabel ? (
+                {showBeforeAfter && afterLabel ? (
                   <>
                     <text x={pos.x + 10} y={pos.y + 34} fill={colors.text} fontSize={9.6} fontFamily="Inter, system-ui, sans-serif" opacity={0.75}>
                       before: {shortLabel(canonLabel)}
                     </text>
                     <text x={pos.x + 10} y={pos.y + 47} fill={colors.text} fontSize={9.6} fontFamily="Inter, system-ui, sans-serif">
-                      after: {shortLabel(draftLabel)}
+                      after: {shortLabel(afterLabel)}
                     </text>
                     <text x={pos.x + 10} y={pos.y + 58} fill={colors.text} opacity={0.85} fontSize={9.2} fontFamily="Inter, system-ui, sans-serif">
                       {status}

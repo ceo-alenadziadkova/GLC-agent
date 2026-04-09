@@ -16,6 +16,7 @@ describe('app-shell-nav', () => {
       '/admin/snapshots',
       '/admin/discovery',
       '/admin/intake-trace',
+      '/admin/intake-wording',
       null,
       null,
       null,
@@ -26,10 +27,10 @@ describe('app-shell-nav', () => {
   it('buildConsultantNav fills audit-scoped links when auditId is set', () => {
     const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
     const nav = buildConsultantNav(id);
-    expect(nav[5]?.to).toBe(`/audit/${id}`);
-    expect(nav[6]?.to).toBe(`/pipeline/${id}`);
-    expect(nav[7]?.to).toBe(`/reports/${id}`);
-    expect(nav[8]?.to).toBe(`/strategy/${id}`);
+    expect(nav[6]?.to).toBe(`/audit/${id}`);
+    expect(nav[7]?.to).toBe(`/pipeline/${id}`);
+    expect(nav[8]?.to).toBe(`/reports/${id}`);
+    expect(nav[9]?.to).toBe(`/strategy/${id}`);
   });
 
   it('buildMobileBottomNavItems takes first four linked consultant destinations', () => {

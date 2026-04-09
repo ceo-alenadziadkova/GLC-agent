@@ -33,12 +33,14 @@ export function IntakeTraceBranchMap({
   resolveLabel,
   resolveCanonLabel,
   resolveDraftLabel,
+  resolvePublishedLabel,
   showWordingReview = false,
 }: {
   plan: IntakePlan;
   resolveLabel: (id: string) => string;
   resolveCanonLabel: (id: string) => string;
   resolveDraftLabel: (id: string) => string | null;
+  resolvePublishedLabel?: (id: string) => string | null;
   showWordingReview?: boolean;
 }) {
   const ids = useMemo(() => {
@@ -99,6 +101,7 @@ export function IntakeTraceBranchMap({
         resolveLabel={resolveLabel}
         resolveCanonLabel={resolveCanonLabel}
         resolveDraftLabel={resolveDraftLabel}
+        resolvePublishedLabel={resolvePublishedLabel}
         focusId={focusId}
         onFocusIdChange={setFocusId}
         showWordingReview={showWordingReview}

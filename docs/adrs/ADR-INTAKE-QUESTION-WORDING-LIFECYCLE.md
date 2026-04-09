@@ -174,6 +174,8 @@ Track at minimum:
 - `intake_trace_graph_control_used`
 - `intake_wording_draft_saved`
 - `intake_wording_review_exported`
+- `intake_wording_published`
+- `intake_wording_rollback`
 - `intake_trace_session_completed`
 
 Telemetry must include route, active mode (`diagnose`/`advanced`/`wording`), and anonymized action context.
@@ -191,6 +193,22 @@ Telemetry must include route, active mode (`diagnose`/`advanced`/`wording`), and
 - Engineering owner: approves technical implementation and migration strategy.
 - Content/BA owner: approves wording review heuristics and publication criteria.
 - Final status may move from `Proposed` to `Accepted` only after all three approvals.
+
+## Implementation status (as of 2026-04-09)
+
+**Done (code + migrations):**
+
+- Information architecture v2 on `/admin/intake-trace` with opt-out rollback via **`VITE_INTAKE_TRACE_IA_V2`** (unset defaults to **on**; use `0` / `false` / `off` for legacy flat tabs).
+- Dedicated **`/admin/intake-wording`** page and consultant nav entry.
+- Client-batched **telemetry** to **`POST /api/intake-trace-tool/analytics-events`** into **`intake_analytics_events`** with **`surface` = `internal_intake_trace`**, **`payload`**, **`user_id`** (migrations `035`, `036`).
+- **Server persistence** for draft wording per user: **`GET`/`PUT /api/intake-trace-tool/wording-drafts`** backed by **`intake_question_wording_drafts`** (replace-all supported on PUT).
+- **MVP publish + rollback** (migration **`037`**): **`published_text`** / **`published_at`** on drafts; **`POST .../wording-drafts/publish`** and **`POST .../wording-drafts/rollback`**; append-only **`intake_wording_publication_log`** with **`GET .../wording-publication-log`**; UI on **`/admin/intake-wording`** (including publication log panel); trace labels resolve **`draft` > `published` > canon**; BA review uses **`draft || published || canon`** for length heuristics.
+
+**Not done yet (per full ADR):**
+
+- Remote/feature-flag service (env-only kill switch today).
+- Automated **success metrics** dashboards (events are stored; reporting is ad hoc SQL / Metabase).
+- Full **review queue, multi-version history, approvals, and immutable published bundles** (beyond single-iteration publish + rollback + append-only log).
 
 ## Open questions
 
