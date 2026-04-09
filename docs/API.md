@@ -635,6 +635,22 @@ Submit validation requires **identity** plus the **express SLA** bank ids from *
 
 Overwrites stored responses and updates `submitted_at`. Allowed until `expires_at` (no single-submit lock). If the token was created with `audit_id`, merges pre-brief question keys into `intake_brief` with source `client`.
 
+### Intake trace tool (consultant diagnostics)
+
+**Prefix:** `/api/intake-trace-tool` — **Auth:** consultant JWT (`requireAuth` + `attachProfile` + `requireRole('consultant')`). Rate limit: general API limiter.
+
+- **`POST /api/intake-trace-tool/analytics-events`** — body `{ client_session_id, ia_v2_enabled?, events: [{ event_type, client_ts?, payload? }] }`. Persists rows into **`intake_analytics_events`** with **`surface` = `internal_intake_trace`**, optional **`user_id`**, optional **`payload`** (JSON). Event types are tool-specific (e.g. `intake_trace_tab_opened`, `intake_trace_session_completed`); see `server/src/schemas/intake-trace-tool.ts`.
+
+- **`GET /api/intake-trace-tool/wording-drafts`** — **`200`:** `{ ok: true, drafts, published }` for the authenticated user. Maps are keyed by **`question_id`**; **`published`** contains last published snapshot text per id (omitted keys mean no publish yet).
+
+- **`PUT /api/intake-trace-tool/wording-drafts`** — body `{ drafts: { [question_id]: string }, replace_all?: boolean }`. Empty string for a key removes that draft. With **`replace_all: true`**, server-side rows not present in `drafts` (after empty-string removal) are deleted. **`200`:** `{ ok: true, drafts, published }` read-back (published columns are unchanged by PUT except when a row is deleted).
+
+- **`POST /api/intake-trace-tool/wording-drafts/publish`** — body optional `{ question_ids?: string[] }`. Copies **`draft_text`** to **`published_text`** / **`published_at`** for matching rows with non-empty server drafts; if **`question_ids`** is omitted, all such rows for the user are published. **`200`:** `{ ok: true, drafts, published, applied_to: string[] }`. Appends **`intake_wording_publication_log`** rows (**`037`** migration).
+
+- **`POST /api/intake-trace-tool/wording-drafts/rollback`** — body optional `{ question_ids?: string[] }`. Sets **`draft_text`** to **`published_text`** where a published snapshot exists; if **`question_ids`** is omitted, all rows with **`published_text`** are rolled back. **`200`:** `{ ok: true, drafts, published, applied_to: string[] }`.
+
+- **`GET /api/intake-trace-tool/wording-publication-log?limit=`** — optional **`limit`** 1..100 (default **30**). **`200`:** `{ ok: true, entries: [{ id, action: 'publish'|'rollback', question_ids, created_at }] }` newest first, for the authenticated user (backed by **`intake_wording_publication_log`**).
+
 ---
 
 ## Discovery (public + consultant conversion)

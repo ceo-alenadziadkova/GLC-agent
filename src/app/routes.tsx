@@ -22,6 +22,7 @@ import { DiscoveryQueue }   from './pages/DiscoveryQueue';
 import { SettingsPage }     from './pages/SettingsPage';
 import { AdminSnapshotQueue } from './pages/AdminSnapshotQueue';
 import { IntakeTraceTool } from './pages/IntakeTraceTool';
+import { IntakeWordingWorkspace } from './pages/IntakeWordingWorkspace';
 import { ProtectedRoute }   from './components/ProtectedRoute';
 import { ClientPortalPipelineProvider } from './context/ClientPortalPipelineContext';
 import { RouteErrorPage }   from './components/RouteErrorPage';
@@ -85,6 +86,7 @@ export const router = createBrowserRouter([
       { path: 'admin/snapshots', element: <Consultant><AdminSnapshotQueue /></Consultant> },
       { path: 'admin/discovery', element: <Consultant><DiscoveryQueue /></Consultant> },
       { path: 'admin/intake-trace', element: <Consultant><IntakeTraceTool /></Consultant> },
+      { path: 'admin/intake-wording', element: <Consultant><IntakeWordingWorkspace /></Consultant> },
       { path: 'pipeline/:id', element: <Consultant><PipelineMonitor /></Consultant> },
       { path: 'reports/:id', element: <Consultant><ReportViewer /></Consultant> },
       { path: 'strategy/:id', element: <Consultant><StrategyLab /></Consultant> },

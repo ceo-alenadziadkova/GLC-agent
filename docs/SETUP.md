@@ -40,6 +40,9 @@ Schema summary and table list: [DATABASE.md](./DATABASE.md).
 VITE_API_URL=http://localhost:3001
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...
+
+# Optional — Intake trace UI: set to 0/false/off to use legacy flat tabs (default: on / unset)
+# VITE_INTAKE_TRACE_IA_V2=0
 ```
 
 ### Backend — `server/.env`

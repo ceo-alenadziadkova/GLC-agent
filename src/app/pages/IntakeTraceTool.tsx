@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router';
 import { TreeStructure } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { IntakePlanQuestionTrace } from '../components/intake/IntakePlanQuestionTrace';
@@ -10,6 +11,15 @@ import { buildIntakePlan } from '../../../server/src/intake/core/build-intake-pl
 import { formatPlanTrace } from '../../../server/src/intake/core/format-trace';
 import { QUESTION_BANK_V1_STUBS } from '../../../server/src/intake/question-bank';
 import type { IntakePlan, IntakeSurface } from '../../../server/src/intake/core/types';
+import { useIntakeWordingDrafts } from '../hooks/useIntakeWordingDrafts';
+import { INTAKE_TRACE_SCENARIO_PRESETS } from '../lib/intake-trace-scenarios';
+import { isIntakeTraceIaV2Enabled } from '../lib/intake-trace-flags';
+import {
+  flushIntakeTraceToolTelemetrySync,
+  trackIntakeTraceSessionCompleted,
+  trackIntakeTraceTabOpened,
+  trackIntakeWordingDraftSaved,
+} from '../lib/intake-trace-tool-telemetry';
 
 const PRODUCT_OPTIONS: { value: ProductMode; label: string }[] = [
   { value: 'full', label: 'full' },
@@ -34,54 +44,17 @@ const SURFACE_OPTIONS: { value: IntakeSurface | ''; label: string }[] = [
   { value: 'public_discovery', label: 'public_discovery' },
 ];
 
-const DEFAULT_RESPONSES = '{\n  "a2": "hospitality",\n  "a5": "no_website"\n}\n';
-const DRAFT_STORAGE_KEY = 'intake_trace_wording_drafts_v1';
+const DEFAULT_RESPONSES = INTAKE_TRACE_SCENARIO_PRESETS[0].responsesText;
 
 type TraceOk = { ok: true; text: string; plan: IntakePlan };
 type TraceErr = { ok: false; message: string };
-type WorkspaceMode = 'diagnose' | 'advanced' | 'wording';
+type WorkspaceMode = 'diagnose' | 'advanced';
 type Panel = 'tree' | 'journey' | 'branch' | 'trace' | 'json' | 'wording';
-type ScenarioPreset = {
-  id: string;
-  label: string;
-  hint: string;
-  productMode: ProductMode;
-  collectionMode: IntakeBriefCollectionMode | '';
-  surface: IntakeSurface | '';
-  responsesText: string;
-};
 
-const SCENARIO_PRESETS: ScenarioPreset[] = [
-  {
-    id: 'full-hospitality-no-site',
-    label: 'Full: hospitality without website',
-    hint: 'Good baseline to inspect required/visible split.',
-    productMode: 'full',
-    collectionMode: '',
-    surface: '',
-    responsesText: '{\n  "a2": "hospitality",\n  "a5": "no_website"\n}\n',
-  },
-  {
-    id: 'discovery-public',
-    label: 'Discovery: public discovery surface',
-    hint: 'Use this to inspect layout-driven visibility.',
-    productMode: 'full',
-    collectionMode: 'discovery',
-    surface: 'public_discovery',
-    responsesText: '{\n  "a2": "professional_services",\n  "a5": "has_website",\n  "a6": "needs_leads"\n}\n',
-  },
-  {
-    id: 'express-prebrief',
-    label: 'Express: pre-brief flow',
-    hint: 'Useful for quick checks of minimal intake paths.',
-    productMode: 'express',
-    collectionMode: 'pre_brief',
-    surface: 'client_form',
-    responsesText: '{\n  "a2": "saas",\n  "a5": "has_website",\n  "a6": "improve_conversion"\n}\n',
-  },
-];
+const ROUTE = '/admin/intake-trace';
 
 export function IntakeTraceTool() {
+  const iaV2 = isIntakeTraceIaV2Enabled();
   const [productMode, setProductMode] = useState<ProductMode>('full');
   const [collectionMode, setCollectionMode] = useState<IntakeBriefCollectionMode | ''>('');
   const [surface, setSurface] = useState<IntakeSurface | ''>('');
@@ -89,31 +62,20 @@ export function IntakeTraceTool() {
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('diagnose');
   const [panel, setPanel] = useState<Panel>('tree');
   const [viewMode, setViewMode] = useState<'simple' | 'expert'>('simple');
-  const [wordingDrafts, setWordingDrafts] = useState<Record<string, string>>({});
+  const {
+    drafts: wordingDrafts,
+    published: wordingPublished,
+    setDrafts: setWordingDrafts,
+    syncToServer,
+  } = useIntakeWordingDrafts();
   const [selectedDraftId, setSelectedDraftId] = useState('');
   const [draftText, setDraftText] = useState('');
+  const [wordingSyncStatus, setWordingSyncStatus] = useState<'idle' | 'ok' | 'error'>('idle');
 
   const priorityById = useMemo(
     () => new Map(QUESTION_BANK_V1_STUBS.map(stub => [stub.id, stub.priority] as const)),
     [],
   );
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(DRAFT_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as Record<string, string>;
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        setWordingDrafts(parsed);
-      }
-    } catch {
-      // no-op: keep empty drafts when storage is malformed
-    }
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(wordingDrafts));
-  }, [wordingDrafts]);
 
   const trace: TraceOk | TraceErr = useMemo(() => {
     let responses: Record<string, unknown>;
@@ -150,6 +112,8 @@ export function IntakeTraceTool() {
   const resolveLabel = (id: string): string => {
     const draft = wordingDrafts[id]?.trim();
     if (draft) return `${draft} (draft)`;
+    const pub = wordingPublished[id]?.trim();
+    if (pub) return `${pub} (published)`;
     const priority = priorityById.get(id) ?? 'recommended';
     return bankIdToBriefQuestion(id, priority).question;
   };
@@ -160,6 +124,10 @@ export function IntakeTraceTool() {
   const resolveDraftLabel = (id: string): string | null => {
     const draft = wordingDrafts[id]?.trim();
     return draft && draft.length > 0 ? draft : null;
+  };
+  const resolvePublishedLabel = (id: string): string | null => {
+    const pub = wordingPublished[id]?.trim();
+    return pub && pub.length > 0 ? pub : null;
   };
 
   const allPlanIds = useMemo(
@@ -196,28 +164,19 @@ export function IntakeTraceTool() {
     setDraftText(wordingDrafts[id] ?? '');
   };
 
-  const applyScenarioPreset = (preset: ScenarioPreset) => {
-    setProductMode(preset.productMode);
-    setCollectionMode(preset.collectionMode);
-    setSurface(preset.surface);
-    setResponsesText(preset.responsesText);
-    setWorkspaceMode('diagnose');
-    setPanel('tree');
-    setViewMode('simple');
-  };
-
-  const availablePanels: Panel[] =
-    workspaceMode === 'diagnose'
-      ? ['tree', 'journey', 'branch']
-      : workspaceMode === 'advanced'
-        ? ['trace', 'json']
-        : ['wording'];
+  const availablePanels: Panel[] = useMemo(() => {
+    if (!iaV2) {
+      return ['tree', 'journey', 'branch', 'trace', 'json', 'wording'];
+    }
+    if (workspaceMode === 'diagnose') return ['tree', 'journey', 'branch'];
+    return ['trace', 'json'];
+  }, [iaV2, workspaceMode]);
 
   const panelLabel: Record<Panel, string> = {
-    tree: 'Why this question appears',
+    tree: iaV2 ? 'Why this question appears' : 'Question trace',
     journey: 'User journey',
-    branch: 'Dependencies graph',
-    trace: 'Resolver log',
+    branch: iaV2 ? 'Dependencies graph' : 'Branch map',
+    trace: iaV2 ? 'Resolver log' : 'Trace text',
     json: 'Plan JSON',
     wording: 'Wording drafts',
   };
@@ -228,7 +187,7 @@ export function IntakeTraceTool() {
     branch: 'Inspect upstream/downstream branch dependencies.',
     trace: 'Read the raw resolver trace text output.',
     json: 'Inspect the full resolver tuple and plan internals.',
-    wording: 'Edit local wording drafts without changing policy artifacts.',
+    wording: 'Edit local wording drafts (open Wording workspace for focused editing).',
   };
 
   useEffect(() => {
@@ -237,63 +196,127 @@ export function IntakeTraceTool() {
     }
   }, [availablePanels, panel]);
 
+  useEffect(() => {
+    const t0 = performance.now();
+    return () => {
+      trackIntakeTraceSessionCompleted({
+        route: ROUTE,
+        duration_ms: Math.round(performance.now() - t0),
+      });
+      flushIntakeTraceToolTelemetrySync();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!trace.ok) return;
+    trackIntakeTraceTabOpened({
+      route: ROUTE,
+      workspace_mode: iaV2 ? workspaceMode : 'legacy',
+      panel,
+    });
+  }, [trace.ok, iaV2, workspaceMode, panel]);
+
+  const applyScenarioPreset = (id: string) => {
+    const preset = INTAKE_TRACE_SCENARIO_PRESETS.find(p => p.id === id);
+    if (!preset) return;
+    setProductMode(preset.productMode);
+    setCollectionMode(preset.collectionMode);
+    setSurface(preset.surface);
+    setResponsesText(preset.responsesText);
+    if (iaV2) {
+      setWorkspaceMode('diagnose');
+      setPanel('tree');
+      setViewMode('simple');
+    }
+  };
+
+  const showWordingReviewOnBranch = iaV2 ? false : true;
+
   return (
     <AppShell
       title="Intake plan trace"
       subtitle="Runs buildIntakePlan locally — same resolver as the server CLI (debug only)"
-      actions={(
-        <TreeStructure className="w-6 h-6 text-[var(--glc-muted)]" aria-hidden />
-      )}
+      actions={<TreeStructure className="w-6 h-6 text-[var(--glc-muted)]" aria-hidden />}
     >
       <div className="glc-page-content max-w-5xl mx-auto space-y-4">
+        {!iaV2 && (
+          <p className="text-xs text-amber-200/90 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+            Legacy Intake trace layout: set <span className="font-mono">VITE_INTAKE_TRACE_IA_V2=1</span> (or unset) for the workspace UI.
+          </p>
+        )}
         <p className="text-sm text-[var(--glc-muted)]">
-          Consultant-only tool. Start in <strong>Diagnose</strong> for question-level reasoning, open{' '}
-          <strong>Advanced</strong> for raw resolver outputs, and use <strong>Wording</strong> for local draft copy
-          edits only.
+          Consultant-only tool.
+          {iaV2 ? (
+            <>
+              {' '}
+              Start in <strong>Diagnose</strong> for question-level reasoning, open <strong>Advanced</strong> for raw
+              resolver outputs. Draft copy lives in{' '}
+              <Link to="/admin/intake-wording" className="text-[var(--glc-accent)] underline-offset-2 hover:underline">
+                Intake wording
+              </Link>
+              .
+            </>
+          ) : (
+            <>
+              {' '}
+              Use <strong>Question trace</strong> for <code className="text-xs">reasonsById</code>;{' '}
+              <strong>Plan JSON</strong> for <code className="text-xs">missingForReport</code> /{' '}
+              <code className="text-xs">nextRecommended</code>.
+            </>
+          )}
         </p>
-        <details className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
-          <summary className="cursor-pointer text-sm font-medium">Start here</summary>
-          <div className="mt-2 space-y-2 text-xs text-[var(--glc-muted)]">
-            <p>1) Pick a scenario preset. 2) Open "Why this question appears". 3) Use "Dependencies graph" only if root cause is still unclear.</p>
-            <div className="flex flex-wrap gap-2">
-              {SCENARIO_PRESETS.map(preset => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  className="glc-btn-secondary text-xs px-2 py-1"
-                  onClick={() => applyScenarioPreset(preset)}
-                  title={preset.hint}
-                >
-                  {preset.label}
-                </button>
-              ))}
+
+        {iaV2 && (
+          <details className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
+            <summary className="cursor-pointer text-sm font-medium">Start here</summary>
+            <div className="mt-2 space-y-2 text-xs text-[var(--glc-muted)]">
+              <p>
+                1) Pick a preset. 2) Open &quot;Why this question appears&quot;. 3) Use Dependencies graph only if the
+                cause is still unclear.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {INTAKE_TRACE_SCENARIO_PRESETS.map(preset => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className="glc-btn-secondary text-xs px-2 py-1"
+                    onClick={() => applyScenarioPreset(preset.id)}
+                    title={preset.hint}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
             </div>
+          </details>
+        )}
+
+        {iaV2 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-[var(--glc-muted)]">Workspace</span>
+            <button
+              type="button"
+              className={`glc-btn-secondary text-xs px-2 py-1 ${workspaceMode === 'diagnose' ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+              onClick={() => {
+                setWorkspaceMode('diagnose');
+                setPanel('tree');
+              }}
+            >
+              Diagnose
+            </button>
+            <button
+              type="button"
+              className={`glc-btn-secondary text-xs px-2 py-1 ${workspaceMode === 'advanced' ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+              onClick={() => {
+                setWorkspaceMode('advanced');
+                setPanel('trace');
+              }}
+            >
+              Advanced
+            </button>
           </div>
-        </details>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-[var(--glc-muted)]">Workspace</span>
-          <button
-            type="button"
-            className={`glc-btn-secondary text-xs px-2 py-1 ${workspaceMode === 'diagnose' ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
-            onClick={() => setWorkspaceMode('diagnose')}
-          >
-            Diagnose
-          </button>
-          <button
-            type="button"
-            className={`glc-btn-secondary text-xs px-2 py-1 ${workspaceMode === 'advanced' ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
-            onClick={() => setWorkspaceMode('advanced')}
-          >
-            Advanced
-          </button>
-          <button
-            type="button"
-            className={`glc-btn-secondary text-xs px-2 py-1 ${workspaceMode === 'wording' ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
-            onClick={() => setWorkspaceMode('wording')}
-          >
-            Wording
-          </button>
-        </div>
+        )}
+
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-[var(--glc-muted)]">View mode</span>
           <button
@@ -311,6 +334,7 @@ export function IntakeTraceTool() {
             Expert
           </button>
         </div>
+
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium">Product mode</span>
@@ -349,6 +373,7 @@ export function IntakeTraceTool() {
             </select>
           </label>
         </div>
+
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Responses (JSON object)</span>
           <textarea
@@ -358,11 +383,13 @@ export function IntakeTraceTool() {
             spellCheck={false}
           />
         </label>
+
         {displayError && (
           <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
             {displayError}
           </div>
         )}
+
         {trace.ok && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3 text-xs">
             <div>
@@ -389,6 +416,7 @@ export function IntakeTraceTool() {
             </div>
           </div>
         )}
+
         {trace.ok && (
           <div className="flex flex-wrap gap-2">
             {availablePanels.map(p => (
@@ -404,11 +432,11 @@ export function IntakeTraceTool() {
             ))}
           </div>
         )}
+
         {trace.ok && (
-          <p className="text-xs text-[var(--glc-muted)]">
-            {panelHint[panel]}
-          </p>
+          <p className="text-xs text-[var(--glc-muted)]">{panelHint[panel]}</p>
         )}
+
         {trace.ok && panel === 'tree' ? (
           <div className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3 min-h-[200px]">
             <IntakePlanQuestionTrace plan={trace.plan} mode={viewMode} resolveLabel={resolveLabel} />
@@ -424,105 +452,131 @@ export function IntakeTraceTool() {
               resolveLabel={resolveLabel}
               resolveCanonLabel={resolveCanonLabel}
               resolveDraftLabel={resolveDraftLabel}
-              showWordingReview={workspaceMode === 'wording'}
+              resolvePublishedLabel={resolvePublishedLabel}
+              showWordingReview={showWordingReviewOnBranch}
             />
           </div>
         ) : trace.ok && panel === 'wording' ? (
           <div className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3 min-h-[200px] space-y-3">
-            <p className="text-xs text-[var(--glc-muted)]">
-              Draft wording only: updates are local to this browser and do not change intake policy/bank artifacts.
-            </p>
-            <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">Question id</span>
-              <select
-                className="glc-input font-mono text-xs"
-                value={selectedDraftId}
-                onChange={e => syncDraftEditor(e.target.value)}
-              >
-                {allPlanIds.map(id => (
-                  <option key={id} value={id}>
-                    {id} — {resolveLabel(id)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {selectedDraftId && (
+            {iaV2 ? (
+              <p className="text-sm text-[var(--glc-muted)]">
+                Draft editing moved to{' '}
+                <Link to="/admin/intake-wording" className="text-[var(--glc-accent)] underline-offset-2 hover:underline">
+                  Intake wording workspace
+                </Link>
+                . Labels below still reflect your saved drafts for trace views.
+              </p>
+            ) : (
               <>
-                <div className="text-xs text-[var(--glc-muted)]">
-                  Current canon label: {bankIdToBriefQuestion(selectedDraftId, priorityById.get(selectedDraftId) ?? 'recommended').question}
-                </div>
+                <p className="text-xs text-[var(--glc-muted)]">
+                  Draft wording: local + server sync. Open{' '}
+                  <Link to="/admin/intake-wording" className="text-[var(--glc-accent)] underline-offset-2 hover:underline">
+                    Intake wording
+                  </Link>{' '}
+                  for a focused editor.
+                </p>
                 <label className="flex flex-col gap-1 text-sm">
-                  <span className="font-medium">Draft wording</span>
-                  <textarea
-                    className="glc-input min-h-[100px] text-sm"
-                    value={draftText}
-                    onChange={e => setDraftText(e.target.value)}
-                    placeholder="Write a clearer wording for this question..."
-                  />
+                  <span className="font-medium">Question id</span>
+                  <select
+                    className="glc-input font-mono text-xs"
+                    value={selectedDraftId}
+                    onChange={e => syncDraftEditor(e.target.value)}
+                  >
+                    {allPlanIds.map(id => (
+                      <option key={id} value={id}>
+                        {id} — {resolveLabel(id)}
+                      </option>
+                    ))}
+                  </select>
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="glc-btn-secondary text-xs px-2 py-1"
-                    onClick={() => {
-                      if (!selectedDraftId) return;
-                      const nextText = draftText.trim();
-                      setWordingDrafts(prev => {
-                        const next = { ...prev };
-                        if (nextText) next[selectedDraftId] = nextText;
-                        else delete next[selectedDraftId];
-                        return next;
-                      });
-                    }}
-                  >
-                    Save draft
-                  </button>
-                  <button
-                    type="button"
-                    className="glc-btn-secondary text-xs px-2 py-1"
-                    onClick={() => setDraftText(wordingDrafts[selectedDraftId] ?? '')}
-                  >
-                    Revert editor
-                  </button>
-                  <button
-                    type="button"
-                    className="glc-btn-secondary text-xs px-2 py-1"
-                    onClick={() => {
-                      const payload = JSON.stringify(wordingDrafts, null, 2);
-                      navigator.clipboard.writeText(payload).catch(() => undefined);
-                    }}
-                  >
-                    Copy JSON
-                  </button>
-                  <button
-                    type="button"
-                    className="glc-btn-secondary text-xs px-2 py-1"
-                    onClick={() => {
-                      const raw = window.prompt('Paste wording draft JSON');
-                      if (!raw) return;
-                      try {
-                        const parsed = JSON.parse(raw) as Record<string, string>;
-                        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-                          setWordingDrafts(parsed);
-                        }
-                      } catch {
-                        // no-op
-                      }
-                    }}
-                  >
-                    Import JSON
-                  </button>
-                </div>
+                {selectedDraftId && (
+                  <>
+                    <div className="text-xs text-[var(--glc-muted)]">
+                      Current canon label:{' '}
+                      {bankIdToBriefQuestion(
+                        selectedDraftId,
+                        priorityById.get(selectedDraftId) ?? 'recommended',
+                      ).question}
+                    </div>
+                    <label className="flex flex-col gap-1 text-sm">
+                      <span className="font-medium">Draft wording</span>
+                      <textarea
+                        className="glc-input min-h-[100px] text-sm"
+                        value={draftText}
+                        onChange={e => setDraftText(e.target.value)}
+                        placeholder="Write a clearer wording for this question..."
+                      />
+                    </label>
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <button
+                        type="button"
+                        className="glc-btn-secondary text-xs px-2 py-1"
+                        onClick={() => {
+                          if (!selectedDraftId) return;
+                          const nextText = draftText.trim();
+                          setWordingDrafts(prev => {
+                            const next = { ...prev };
+                            if (nextText) next[selectedDraftId] = nextText;
+                            else delete next[selectedDraftId];
+                            return next;
+                          });
+                          trackIntakeWordingDraftSaved({ route: ROUTE, question_id: selectedDraftId });
+                        }}
+                      >
+                        Save draft (local)
+                      </button>
+                      <button
+                        type="button"
+                        className="glc-btn-secondary text-xs px-2 py-1"
+                        onClick={() => setDraftText(wordingDrafts[selectedDraftId] ?? '')}
+                      >
+                        Revert editor
+                      </button>
+                      <button
+                        type="button"
+                        className="glc-btn-primary text-xs px-2 py-1"
+                        onClick={() => {
+                          const nextText = draftText.trim();
+                          const snapshot = { ...wordingDrafts };
+                          if (nextText) snapshot[selectedDraftId] = nextText;
+                          else delete snapshot[selectedDraftId];
+                          setWordingDrafts(snapshot);
+                          void syncToServer(snapshot, false)
+                            .then(() => {
+                              setWordingSyncStatus('ok');
+                              trackIntakeWordingDraftSaved({ route: ROUTE, question_id: selectedDraftId });
+                            })
+                            .catch(() => setWordingSyncStatus('error'));
+                        }}
+                      >
+                        Sync to server
+                      </button>
+                      <button
+                        type="button"
+                        className="glc-btn-secondary text-xs px-2 py-1"
+                        onClick={() => {
+                          const payload = JSON.stringify(wordingDrafts, null, 2);
+                          navigator.clipboard.writeText(payload).catch(() => undefined);
+                        }}
+                      >
+                        Copy JSON
+                      </button>
+                      {wordingSyncStatus !== 'idle' && (
+                        <span
+                          className={`text-xs ${wordingSyncStatus === 'ok' ? 'text-emerald-300' : 'text-red-300'}`}
+                        >
+                          {wordingSyncStatus === 'ok' ? 'Server sync OK' : 'Server sync failed'}
+                        </span>
+                      )}
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
         ) : (
           <pre className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3 text-xs font-mono whitespace-pre-wrap overflow-x-auto min-h-[200px]">
-            {trace.ok
-              ? panel === 'json'
-                ? JSON.stringify(trace.plan, null, 2)
-                : displayText
-              : ''}
+            {trace.ok ? (panel === 'json' ? JSON.stringify(trace.plan, null, 2) : displayText) : ''}
             {!trace.ok && !displayError ? 'Adjust inputs to refresh trace.' : null}
           </pre>
         )}

@@ -8,6 +8,7 @@ import { reportsRouter } from './routes/reports.js';
 import { logRouter } from './routes/log.js';
 import { snapshotRouter } from './routes/snapshot.js';
 import { intakeRouter } from './routes/intake.js';
+import { intakeTraceToolRouter } from './routes/intake-trace-tool.js';
 import { discoverRouter } from './routes/discover.js';
 import { marketingRouter } from './routes/marketing-brief.js';
 import { auditRequestsRouter } from './routes/audit-requests.js';
@@ -71,6 +72,7 @@ app.use('/api/profile', profileRouter);
 app.use('/api/platform', platformRouter);
 app.use('/api/snapshot', snapshotRouter);          // Public snapshot + guest cookie; POST /claim uses JWT
 app.use('/api/intake', intakeRouter);               // Public token GET/respond; POST requires consultant auth
+app.use('/api/intake-trace-tool', intakeTraceToolRouter); // Consultant: trace tool telemetry + wording drafts
 app.use('/api/discover', discoverRouter);           // Public submit/load; consultant sessions/convert
 app.use('/api/marketing', marketingRouter);         // Public marketing brief
 app.use('/api/audit-requests', auditRequestsRouter); // Client portal requests
