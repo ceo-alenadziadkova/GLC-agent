@@ -1,6 +1,33 @@
 import rateLimit, { MemoryStore } from 'express-rate-limit';
 import type { Request } from 'express';
+import { RedisStore } from 'rate-limit-redis';
+import { createClient, type RedisClientType } from 'redis';
 import type { AuthRequest } from './auth.js';
+
+const RATE_LIMIT_REDIS_URL = process.env.RATE_LIMIT_REDIS_URL?.trim() ?? '';
+let sharedRedisClient: RedisClientType | null = null;
+
+function getSharedRedisClient(): RedisClientType | null {
+  if (!RATE_LIMIT_REDIS_URL) return null;
+  if (sharedRedisClient) return sharedRedisClient;
+  const client = createClient({ url: RATE_LIMIT_REDIS_URL });
+  client.on('error', (err) => {
+    // Non-fatal: limiter calls will fail if redis is unreachable.
+    console.warn('[rate-limit] redis client error', err);
+  });
+  void client.connect();
+  sharedRedisClient = client;
+  return client;
+}
+
+function distributedStore(prefix: string): RedisStore | undefined {
+  const client = getSharedRedisClient();
+  if (!client) return undefined;
+  return new RedisStore({
+    prefix: `glc:${prefix}:`,
+    sendCommand: (...args: string[]) => client.sendCommand(args),
+  });
+}
 
 /**
  * Rate limiter for audit creation: max 5 audits per user per day.
@@ -8,6 +35,7 @@ import type { AuthRequest } from './auth.js';
 export const createAuditLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000, // 24 hours
   max: 5,
+  store: distributedStore('audit_create'),
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   message: {
     error: 'Too many audits created. Maximum 5 per day.',
@@ -23,6 +51,7 @@ export const createAuditLimiter = rateLimit({
 export const pipelineLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 30,
+  store: distributedStore('pipeline_ops'),
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   message: {
     error: 'Too many pipeline operations. Please wait before retrying.',
@@ -38,6 +67,7 @@ export const pipelineLimiter = rateLimit({
 export const generalLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 100,
+  store: distributedStore('general_api'),
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   standardHeaders: true,
   legacyHeaders: false,
@@ -56,6 +86,7 @@ export const SNAPSHOT_COMPARE_MAX_PER_HOUR = Number(process.env.SNAPSHOT_COMPARE
 export const snapshotCompareLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: Number.isFinite(SNAPSHOT_COMPARE_MAX_PER_HOUR) && SNAPSHOT_COMPARE_MAX_PER_HOUR > 0 ? SNAPSHOT_COMPARE_MAX_PER_HOUR : 15,
+  store: distributedStore('snapshot_compare'),
   keyGenerator: (req) => `${req.ip ?? 'unknown'}:snapshot_compare`,
   skip: (req) => {
     const q = req.query as Record<string, string | undefined>;
@@ -134,6 +165,7 @@ export const snapshotPublicLimiter = rateLimit({
 export const intakePublicLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 30,
+  store: distributedStore('intake_public'),
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
     error: 'Too many requests to this intake link. Try again later.',
@@ -150,6 +182,7 @@ export const intakePublicLimiter = rateLimit({
 export const logIngestLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 180,
+  store: distributedStore('log_ingest'),
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   message: {
     error: 'Too many log events. Please wait before retrying.',
@@ -165,6 +198,7 @@ const snapshotLogMaxPerMin = Number(process.env.SNAPSHOT_LOG_INGEST_MAX_PER_MIN 
 export const snapshotLogIngestLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: Number.isFinite(snapshotLogMaxPerMin) && snapshotLogMaxPerMin > 0 ? snapshotLogMaxPerMin : 40,
+  store: distributedStore('snapshot_log_ingest'),
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   message: {
     error: 'Too many log events from this preview session. Please wait before retrying.',
