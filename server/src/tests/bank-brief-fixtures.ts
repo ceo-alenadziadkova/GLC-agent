@@ -17,7 +17,7 @@ export function makeWebsitePathFullBrief(
     a7: 'Growing fast',
     b1: 'Urban shoppers 25–45',
     b2: ['Google / search'],
-    b3: 'Fast delivery and fair prices',
+    b3: 'Speed and convenience',
     c5: 'Buy now',
     c6: 'Checkout is slow',
     c3: 'Yes, GA4',
