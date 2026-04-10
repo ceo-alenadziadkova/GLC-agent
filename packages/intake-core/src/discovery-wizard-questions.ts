@@ -12,6 +12,21 @@ export type DiscoveryWizardQuestionSpec = {
   optional?: boolean;
 };
 
+/** Canonical public Discovery wizard order before policy filtering. */
+export const PUBLIC_DISCOVERY_WIZARD_BANK_IDS = [
+  'a2',
+  'a1',
+  'a4',
+  'a7',
+  'd1',
+  'd1b',
+  'c_nosite_1',
+  'c_nosite_4',
+  'd2',
+  'f1',
+  'f9',
+] as const;
+
 /** Fallback option lists when bank UI overrides omit the id (keep aligned with bank-question-ui-overrides). */
 export const DISCOVERY_WIZARD_D1_UI_FALLBACK = [
   'Email',
@@ -63,7 +78,7 @@ export function buildDiscoveryWizardQuestions(
   input: BuildDiscoveryWizardQuestionsInput,
 ): Array<DiscoveryWizardQuestionSpec & { options?: string[] }> {
   const { bankOrFallback, industryOptions } = input;
-  return [
+  const questions: Array<DiscoveryWizardQuestionSpec & { options?: string[] }> = [
     {
       id: 'a2',
       question: 'Which industry are you in?',
@@ -163,4 +178,16 @@ export function buildDiscoveryWizardQuestions(
       options: bankOrFallback('f9', DISCOVERY_WIZARD_F9_FALLBACK),
     },
   ];
+
+  // Guard against accidental order/id drift in this canonical projection list.
+  if (questions.length !== PUBLIC_DISCOVERY_WIZARD_BANK_IDS.length) {
+    throw new Error('discovery wizard ids drift: question count mismatch');
+  }
+  for (let i = 0; i < PUBLIC_DISCOVERY_WIZARD_BANK_IDS.length; i += 1) {
+    if (questions[i]?.id !== PUBLIC_DISCOVERY_WIZARD_BANK_IDS[i]) {
+      throw new Error(`discovery wizard ids drift: expected ${PUBLIC_DISCOVERY_WIZARD_BANK_IDS[i]} at index ${i}`);
+    }
+  }
+
+  return questions;
 }

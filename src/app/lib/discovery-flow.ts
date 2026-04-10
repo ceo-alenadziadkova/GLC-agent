@@ -10,7 +10,7 @@
  */
 
 import { buildIntakePlan } from '@glc/intake-core';
-import { buildDiscoveryWizardQuestions } from '@glc/intake-core';
+import { buildPublicDiscoveryUiFragment } from '@glc/intake-core';
 import { getQuestionBankSchemaMeta } from '@glc/intake-core';
 import {
   includesCrmTool,
@@ -20,8 +20,6 @@ import {
   normalizeStage,
   normalizeTeamSize,
 } from '@glc/intake-core';
-import { getBankQuestionUiOptions } from '../data/bankQuestionUiCatalog';
-import { INDUSTRY_OPTIONS } from '../data/industry-options';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -123,11 +121,8 @@ export const DISCOVERY_SOCIAL_PLATFORM_OPTIONS = [
   'WhatsApp Business / channel',
 ] as const;
 
-/** Bundled fallback when GET /api/discover/ui-fragment fails — same builder as `buildPublicDiscoveryUiFragment` on the server. */
-const FALLBACK_QUESTIONS: DiscoveryQuestion[] = buildDiscoveryWizardQuestions({
-  bankOrFallback: (id, fallback) => [...(getBankQuestionUiOptions(id) ?? [...fallback])],
-  industryOptions: INDUSTRY_OPTIONS,
-}).map(row =>
+/** Bundled fallback when GET /api/discover/ui-fragment fails — exact same payload source as the server route. */
+const FALLBACK_QUESTIONS: DiscoveryQuestion[] = buildPublicDiscoveryUiFragment().questions.map(row =>
   makeDiscoveryQuestion(row.id, {
     question: row.question,
     hint: row.hint,

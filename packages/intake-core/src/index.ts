@@ -83,7 +83,7 @@ export {
 export { mergeLegacyIntakeAliasesRead, isRevenueAnsweredRaw, INTAKE_REVENUE_BANK_ID } from './legacy-response-aliases.js';
 export { computeIntakePlanDerived } from './core/plan-derived.js';
 export { buildPublicDiscoveryUiFragment } from './discovery-ui-fragment.js';
-export { buildDiscoveryWizardQuestions } from './discovery-wizard-questions.js';
+export { buildDiscoveryWizardQuestions, PUBLIC_DISCOVERY_WIZARD_BANK_IDS } from './discovery-wizard-questions.js';
 export {
   buildCanonAnswerContractForBankId,
   getBankQuestionUiOptions,
