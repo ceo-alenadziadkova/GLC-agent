@@ -72,6 +72,8 @@ Notes:
 
 Structured log events from the browser (`src/app/lib/logger.ts`). Failures are non-fatal for UX.
 
+Dev behavior: in local frontend dev (`import.meta.env.DEV`), logger events stay console-only and are not sent to `/api/log` or `/api/log/snapshot`. Console verbosity can be tuned with `VITE_DEV_CONSOLE_LOG_LEVEL` (`debug|info|warn|error`, default `warn`).
+
 ### `POST /api/log`
 
 **Auth:** JWT for **registered** users only (`profiles.role` is `client` or `consultant` after `attachProfile`). **403** for anonymous sessions or `guest` role — those use **`POST /api/log/snapshot`** instead.

@@ -40,6 +40,45 @@ const OVERRIDES: Record<string, BankQuestionUiOverride> = {
     options: ['Google / search', 'Paid ads', 'Social', 'Referrals', 'Cold outreach', 'Events', 'Partners', 'Other'],
     hint: 'Think about how customers find out you exist in the first place — word of mouth, platforms, ads, events.',
   },
+  b3: {
+    type: 'single_choice',
+    options: [
+      'Best price / value for money',
+      'Speed and convenience',
+      'Unique location or experience',
+      'Personal service and trust',
+      'Specialised expertise',
+      'Other',
+    ],
+    hint: 'Pick the closest pattern first, then clarify in one sentence. Example: "Historic building with rooftop restaurant" or "Best-price guarantee with same-day confirmation."',
+  },
+  b4: {
+    type: 'single_choice',
+    options: ['Lower than average', 'About the same', 'Higher, premium positioning', 'Hard to compare'],
+    hint: 'A rough market position is enough. This helps us avoid recommendations that do not fit your pricing strategy.',
+  },
+  b5: {
+    type: 'single_choice',
+    options: ['Yes, very seasonal', 'Yes, slightly seasonal', 'No, steady all year', 'Not sure'],
+    hint: 'Seasonality changes channel mix, automation timing, and roadmap priorities. If unsure, pick the closest option.',
+  },
+  b6: {
+    type: 'multi_choice',
+    options: [
+      'Money-back',
+      'Best price guarantee',
+      'Free cancellation',
+      'Satisfaction guarantee',
+      'No explicit guarantees',
+      'Other',
+    ],
+    hint: 'Guarantees are trust signals. They often improve conversion without changing traffic volume.',
+  },
+  b7: {
+    type: 'single_choice',
+    options: ['Mostly repeat customers', 'Mix of repeat and one-off', 'Mostly one-off transactions', 'Not sure'],
+    hint: 'This helps us decide whether to prioritize retention systems or new acquisition channels.',
+  },
   b_growth_attempts: {
     type: 'multi_choice',
     options: [
@@ -53,13 +92,39 @@ const OVERRIDES: Record<string, BankQuestionUiOverride> = {
     ],
     hint: 'This helps us avoid recommending approaches that have already been tried — so we focus on what is most likely to move the needle for your situation.',
   },
-  c3: { type: 'single_choice', options: ['Yes, GA4', 'Yes, another tool', 'No', "Don't know"] },
+  c3: {
+    type: 'single_choice',
+    options: ['Yes, GA4', 'Yes, another tool', 'No', "Don't know"],
+    hint: "If you are not sure, that is fine. We will verify analytics coverage during the audit.",
+  },
   c4: { type: 'single_choice', options: ['Yes', 'No', "What's that?"] },
+  c6: {
+    type: 'free_text',
+    hint: 'Describe the one website issue that hurts business outcomes most. Example: "Visitors do not contact us", "Mobile feels slow", or "Content updates depend on a developer".',
+  },
+  c8: {
+    type: 'free_text',
+    hint: 'Share 2-3 competitors (name or URL). This is for private benchmarking only and is not shown in your report.',
+  },
   c7: {
     type: 'multi_choice',
     options: ['None / minimal', 'LinkedIn', 'Instagram', 'Facebook', 'TikTok', 'YouTube', 'Other'],
   },
-  c9: { type: 'single_choice', options: ['< 6 months', '6–24 months', '2–5 years', '5+ years', 'Not sure'] },
+  c9: {
+    type: 'single_choice',
+    options: ['< 6 months', '6–24 months', '2–5 years', '5+ years', 'Not sure'],
+    hint: 'Site age is a proxy for technical debt and maintenance risk. A rough range is enough.',
+  },
+  c1: {
+    type: 'single_choice',
+    options: ['Yes, correct', 'Not quite (I will clarify)', "I don't know"],
+    hint: 'We pre-filled this from automatic recon. Confirming is enough — no need to remember exact tool names.',
+  },
+  c2: {
+    type: 'single_choice',
+    options: ['Me', 'Someone in-house', 'Freelancer', 'Agency', 'No one regularly', "Don't know"],
+    hint: 'This helps us match recommendations to your real delivery model. If ownership is unclear, choose "Don\'t know".',
+  },
   c_nosite_1: {
     type: 'multi_choice',
     options: ['Google / search', 'Google Business listing', 'Social media', 'OTA or marketplace', 'Word of mouth', 'Not really online yet'],
@@ -145,17 +210,64 @@ const OVERRIDES: Record<string, BankQuestionUiOverride> = {
     ],
     hint: 'If you are in Spain, how you invoice is also relevant to the incoming Verifactu e-invoicing requirement — we will flag this in the audit if it applies.',
   },
-  d3: { type: 'single_choice', options: ['< 5h', '5–10h', '10–20h', '20h+', 'Not sure'] },
-  d5: { type: 'single_choice', options: ['Yes, actively', 'Partially', 'No'] },
-  d4a: { type: 'single_choice', options: ['Daily', 'Weekly', 'Occasionally', 'Not really'] },
-  d4b: { type: 'single_choice', options: ['Yes easily', 'Sometimes', 'Rarely', 'No'] },
+  d3: {
+    type: 'single_choice',
+    options: ['< 5h', '5–10h', '10–20h', '20h+', 'Not sure'],
+    hint: 'A rough estimate is enough. This helps size the impact of automation opportunities.',
+  },
+  d5: {
+    type: 'single_choice',
+    options: ['Yes, actively', 'Partially', 'No'],
+    hint: 'Automated follow-ups often recover demand that already exists. This helps us size quick wins.',
+  },
+  d_automation_attempt: {
+    type: 'single_choice',
+    options: ['Yes, it helped', 'Tried, then abandoned', 'Not yet', 'Not sure'],
+    hint: 'This is not a pass/fail question. It tells us what kind of recommendation will be realistic for your team now.',
+  },
+  d1a: {
+    type: 'single_choice',
+    options: ['HubSpot', 'Pipedrive', 'Salesforce', 'Zoho', 'Monday', 'Notion', 'Other'],
+  },
+  d1b: {
+    type: 'single_choice',
+    options: ['Spreadsheet', 'Email inbox', 'Notebook', 'WhatsApp chats', "I don't really track consistently", 'Other'],
+  },
+  d4a: {
+    type: 'single_choice',
+    options: ['Daily', 'Weekly', 'Occasionally', 'Not really'],
+    hint: 'This is not about being advanced. It helps estimate implementation friction and rollout speed.',
+  },
+  d4b: {
+    type: 'single_choice',
+    options: ['Yes, usually quick', 'Sometimes', "Rarely — it's painful", 'No', "Don't know"],
+    hint: "Example: exporting last month's bookings or a full client list. Minutes = strong readiness signal; manual chasing = automation opportunity.",
+  },
   d6: {
     type: 'multi_choice',
     options: ['Customer data', 'Financials', 'Inventory', 'Bookings', 'Support tickets', 'Marketing leads', 'Other'],
+    hint: 'We use this to prioritize automation by impact. Example: bookings plus invoices often signal immediate ROI opportunities.',
   },
-  e1: { type: 'single_choice', options: ['Yes', 'Sometimes', 'No', 'Not sure'] },
-  e2: { type: 'single_choice', options: ['Yes', 'No', 'Partially / not sure'] },
-  e3: { type: 'single_choice', options: ['Confident', 'Somewhat', 'Not confident', 'Not set up'] },
+  e1: {
+    type: 'single_choice',
+    options: ['Yes', 'Sometimes', 'No', 'Not sure'],
+    hint: 'This helps scope payment-risk checks. Not sure is a valid answer.',
+  },
+  e2: {
+    type: 'single_choice',
+    options: ['Yes', 'No', 'Partially / not sure'],
+    hint: 'We use this only to size compliance depth in the audit. A best guess is enough.',
+  },
+  e3: {
+    type: 'single_choice',
+    options: [
+      'Very confident',
+      "Something is in place, but I'm not sure it's complete",
+      'Probably incomplete',
+      "Haven't looked into this yet",
+    ],
+    hint: "No exam here. If you are unsure, we mark this for deeper audit validation.",
+  },
   e4: { type: 'single_choice', options: ['Yes, in place', 'In progress', 'No', 'Not sure'] },
   f2: {
     type: 'multi_choice',
@@ -176,7 +288,9 @@ const OVERRIDES: Record<string, BankQuestionUiOverride> = {
       'Ready to invest if ROI and impact are clear',
       'Prefer to understand the situation for now',
       'Need to align first with partner, owner, or team',
+      'Not sure yet',
     ],
+    hint: 'This does not lock you in. It helps us balance quick wins vs deeper system changes in the roadmap.',
   },
   f5: {
     type: 'single_choice',
@@ -186,11 +300,14 @@ const OVERRIDES: Record<string, BankQuestionUiOverride> = {
       '€2,000–10,000',
       'Over €10,000',
       'No clear budget yet — depends on the recommendations',
+      'Prefer not to share yet',
     ],
+    hint: 'A rough range is enough. We use it to match recommendations to your current ambition and risk level.',
   },
   f7: {
     type: 'single_choice',
     options: ['Me', 'Ops or office manager', 'IT provider or agency', 'Owner or partner', 'Board or investor', 'Not sure'],
+    hint: 'Knowing the approver helps sequence recommendations that can actually be implemented.',
   },
   f8: {
     type: 'single_choice',
@@ -201,6 +318,7 @@ const OVERRIDES: Record<string, BankQuestionUiOverride> = {
       'Contract or compliance milestone',
       'No specific deadline',
     ],
+    hint: 'Deadlines help us prioritize quick wins vs deeper changes in the first roadmap wave.',
   },
 };
 

@@ -15,33 +15,18 @@
 import type { AiReadinessResult, IntakeResponsesMap } from './types.js';
 import { getResponseString, unwrapIntakeValue } from './unwrap.js';
 import { normalizeWebsiteGate } from './branch-rules.js';
-
-function boolishPositive(raw: unknown): boolean {
-  const s = String(unwrapIntakeValue(raw) ?? '').trim().toLowerCase();
-  if (!s) return false;
-  if (s === 'yes' || s === 'true') return true;
-  if (s.includes('yes') && !s.includes('no')) return true;
-  if (s.includes('structured') || s.includes('api')) return true;
-  return false;
-}
-
-function boolishNegative(raw: unknown): boolean {
-  const s = String(unwrapIntakeValue(raw) ?? '').trim().toLowerCase();
-  if (!s) return false;
-  return s === 'no' || s.startsWith('no ') || s.includes('not yet') || s.includes('none');
-}
+import {
+  isA8KnownScale,
+  isGovernanceClear,
+  normalizeAutomationAttempt,
+  normalizeD3ManualLoad,
+  normalizeD4aAiUsage,
+  normalizeD4bExportReadiness,
+} from './answer-normalizers.js';
 
 /** Rough manual-load tiers from d3 (free text or select — heuristic). */
 function manualLoadHigh(responses: IntakeResponsesMap): boolean {
-  const s = getResponseString(responses, 'd3').toLowerCase();
-  if (!s) return false;
-  return (
-    s.includes('80') ||
-    s.includes('most') ||
-    s.includes('majority') ||
-    s.includes('almost all') ||
-    s.includes('high')
-  );
+  return normalizeD3ManualLoad(responses) === 'high';
 }
 
 function vagueTruthSource(responses: IntakeResponsesMap): boolean {
@@ -64,15 +49,13 @@ function teamNotSolo(responses: IntakeResponsesMap): boolean {
 }
 
 function automationAttemptHelped(responses: IntakeResponsesMap): boolean {
-  const s = getResponseString(responses, 'd_automation_attempt').toLowerCase();
-  return s.includes('helped') || s.includes('yes') || s.includes('worked');
+  return normalizeAutomationAttempt(responses) === 'helped';
 }
 
 /** Returns true when client already uses AI tools day-to-day (d4a signal). */
 function aiToolsInUse(responses: IntakeResponsesMap): boolean {
-  const s = getResponseString(responses, 'd4a').toLowerCase();
-  if (!s) return false;
-  return s.includes('daily') || s.includes('occasionally') || s.includes('yes');
+  const usage = normalizeD4aAiUsage(responses);
+  return usage === 'daily' || usage === 'weekly_or_occasional';
 }
 
 /**
@@ -89,12 +72,6 @@ function d2IsArticulated(responses: IntakeResponsesMap): boolean {
  * f7 governance is considered "clear" when the client has named a decision-maker
  * other than or including themselves, but explicitly NOT "Not sure" / blank.
  */
-function governanceClear(responses: IntakeResponsesMap): boolean {
-  const s = getResponseString(responses, 'f7').trim().toLowerCase();
-  if (!s) return false;
-  return !s.includes('not sure') && !s.includes("don't know") && !s.includes('unsure');
-}
-
 export function calcAiReadinessScore(responses: IntakeResponsesMap): AiReadinessResult {
   const base = 45;
   let exportData = 0;
@@ -106,14 +83,15 @@ export function calcAiReadinessScore(responses: IntakeResponsesMap): AiReadiness
   let scaleBonus = 0;
 
   // d4b: data-export capability
-  if (boolishPositive(responses.d4b)) {
+  const exportReadiness = normalizeD4bExportReadiness(responses);
+  if (exportReadiness === 'quick') {
     exportData = 18;
-  } else if (boolishNegative(responses.d4b)) {
+  } else if (exportReadiness === 'painful' || exportReadiness === 'no') {
     exportData = -5;
   }
 
   // f7: governance / approval path is clear
-  if (governanceClear(responses)) {
+  if (isGovernanceClear(responses)) {
     governance = 17;
   }
 
@@ -128,7 +106,7 @@ export function calcAiReadinessScore(responses: IntakeResponsesMap): AiReadiness
   }
 
   // penalties
-  if (boolishNegative(responses.d4a) && manualLoadHigh(responses)) {
+  if (normalizeD4aAiUsage(responses) === 'low' && manualLoadHigh(responses)) {
     penalties -= 18;
   }
   if (vagueTruthSource(responses) && teamNotSolo(responses)) {
@@ -141,8 +119,7 @@ export function calcAiReadinessScore(responses: IntakeResponsesMap): AiReadiness
   }
 
   // scale signals
-  const a8 = getResponseString(responses, 'a8');
-  if (a8.length > 0 && !a8.toLowerCase().includes('not sure')) {
+  if (isA8KnownScale(responses)) {
     scaleBonus += 5;
   }
   // d6 is multi_select — check array length, not string length.

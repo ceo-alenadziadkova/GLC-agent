@@ -188,17 +188,20 @@
 | `b2` | How do most of your new customers find you? | multi | Required | 1, disc | marketing_utp (P), seo_digital (P); strategy (S), automation_processes (S) | — |
 | | Options: Google / Social media / OTA/marketplace (Booking, Airbnb, Idealista…) / Word of mouth / Paid ads / Email / Partnerships / Offline (walk-ins, events) / Other → text | | | | | |
 | | *Framing (acquisition pain):* подсказка микротекста — «Where growth feels stuck or expensive helps us judge positioning vs. channels.» | | | | | |
-| `b3` | What is the **main promise or value** for your best customers compared to competitors? | textarea | Required | 1, pre | marketing_utp (P) | — |
-| | *Helper (b3):* в UI — короткие паттерны (price, speed/service, unique experience/location); клиент может выбрать паттерн + одно предложение своими словами. Язык **ценности для клиента**, не «нас отличает цена». | | | | | |
+| `b3` | What is the **main promise or value** for your best customers compared to competitors? | select | Required | 1, pre | marketing_utp (P) | — |
+| | *Helper (b3):* в UI — короткие паттерны (price, speed/service, unique experience/location, trust/expertise). Клиент выбирает паттерн и при необходимости добавляет уточнение через `b3__other`. Язык **ценности для клиента**, не «нас отличает цена». | | | | | |
 | | *Example: "Historic building with a rooftop restaurant and best-price guarantee"* | | | | | |
 | `b4` | How would you describe your pricing compared to competitors? | select | Recommended | 2 | marketing_utp (P), strategy (P) | — |
 | | Options: Lower than average / About the same / Higher, premium positioning / Hard to compare | | | | | |
+| | *Helper:* rough positioning is enough, this helps avoid recommendations that conflict with your pricing strategy. | | | | | |
 | `b5` | Is your business seasonal? | select | Recommended | 2 | marketing_utp (P), strategy (P) | — |
 | | Options: Yes, very (summer peak) / Yes, slightly / No, steady all year / Not sure | | | | | |
+| | *Helper:* seasonality changes channel mix and implementation timing. If unsure, choose the closest option. | | | | | |
 | `b6` | Do you offer any guarantees to customers? | multi | Recommended | 2 | marketing_utp (P), ux_conversion (P) | — |
-| | Options: Money-back / Best price guarantee / Free cancellation / Satisfaction guarantee / None / Other → text | | | | | |
+| | Options: Money-back / Best price guarantee / Free cancellation / Satisfaction guarantee / No explicit guarantees / Other → text | | | | | |
+| | *Helper:* guarantees are trust signals and often improve conversion without increasing traffic spend. | | | | | |
 | `b7` | Is your revenue mostly **repeat / recurring customers**, or **mostly one-off** transactions? | select | Recommended | 2 | marketing_utp (P), ux_conversion (P), strategy (P) | — |
-| | Options: Mostly repeat / Mix of both / Mostly one-off / Not sure | | | | | |
+| | Options: Mostly repeat customers / Mix of repeat and one-off / Mostly one-off transactions / Not sure | | | | | |
 | | *Зачем:* retention-воронка, LTV и автоматизация (напоминания, CRM, подписки) принципиально отличаются от чистого acquisition; без этого агенты ошибают приоритет. | | | | | |
 
 **Отраслевые вопросы (появляются по `industry`):**
@@ -241,16 +244,19 @@
 | | *Required в Layer 1 при has_website; уточнение/деталь — Layer 2 при необходимости.* | | | | | |
 | | *Helper (UX/CRO-style examples):* «For example: “People visit but rarely contact us”, “It’s slow on mobile”, “I can’t update content without a developer”, “Hard to tell which pages or campaigns actually work”.» | | | | | |
 | `c8` | Name 2–3 of your direct competitors (company name or URL). | textarea | Recommended | 2 | marketing_utp (P) | has_website |
-| | *We'll use them for benchmarking — not shared in your report.* | | | | | |
+| | *We'll use them for benchmarking — not shared in your report.* Value-first framing in UI: this helps avoid generic recommendations and compare what actually works in your local market. | | | | | |
 | `c9` | Roughly how long has your current live website been in production? | select | Recommended | 1 | tech_infrastructure (P) | has_website |
 | | Options: Under 6 months / 6 months – 2 years / 2–5 years / 5+ years / Not sure | | | | | |
-| `c1` | *Auto-prefill:* "We detected [WordPress + Cloudflare + Cloudbeds]. Is this correct?" | confirm | Recommended | 2 | tech_infrastructure (P) | has_website |
-| | Options: Yes, correct / Not quite (→ text) / I don't know | | | | | |
+| | *Helper:* site age is a proxy for technical debt and maintenance risk. A rough range is enough. | | | | | |
+| `c1` | *Auto-prefill:* "We detected [WordPress + Cloudflare + Cloudbeds]. Is this correct?" | select | Recommended | 2 | tech_infrastructure (P) | has_website |
+| | Options: Yes, correct / Not quite (I will clarify) → text / I don't know | | | | | |
 | | *Контракт `ReconConflict`: если клиент выбирает «Not quite» или значение расходится с реконом — фиксируем запись в `reconConflicts[]` (см. §11).* | | | | | |
 | `c2` | Who maintains your website? | select | Recommended | 2 | tech_infrastructure (P) | has_website |
 | | Options: Me / someone in-house / Freelancer / Agency / No one regularly / Don't know | | | | | |
+| | *Helper:* this helps us match recommendations to your real delivery model. "Don't know" is acceptable. | | | | | |
 | `c3` | Do you have Google Analytics or another analytics tool installed? | select | Required | 2 | seo_digital (P) | has_website |
 | | Options: Yes, GA4 / Yes, another tool / I think so, but I don't check it / No / Don't know | | | | | |
+| | *Helper:* if you are unsure, that is fine. We will verify analytics coverage during the audit. | | | | | |
 | `c4` | Is Google Search Console set up? | select | Nice-to-have | 2 | seo_digital (P) | has_website |
 | | Options: Yes / No / What's that? | | | | | |
 | `c7` | Where are you active on social media? | multi | Recommended | 2 | marketing_utp (P), seo_digital (P) | — |
@@ -283,19 +289,21 @@
 | `d1a` | Which CRM do you use? | select | Recommended | 2 | automation_processes (P) | d1 includes "CRM" |
 | | Options: HubSpot / Pipedrive / Salesforce / Zoho / Monday / Notion / Other → text | | | | | |
 | `d1b` | How do you keep track of clients and leads? | select | Recommended | 2 | automation_processes (P) | d1 does NOT include "CRM" |
-| | Options: Spreadsheet / Email inbox / Notebook / WhatsApp chats / I don't really / Other → text | | | | | |
+| | Options: Spreadsheet / Email inbox / Notebook / WhatsApp chats / I don't really track consistently / Other → text | | | | | |
 | `d2` | What is the **single manual task** that consumes the most time for you or your team? | textarea | Required | 1, disc | automation_processes (P); ux_conversion (S), marketing_utp (S) | — |
 | | *Helper (value framing):* «Think about work that **doesn’t create direct value for customers** but still eats hours every week.» | | | | | |
 | | *Examples:* «Copying inquiries from WhatsApp or email into a spreadsheet», «Manually issuing invoices», «Answering the same questions every day across chat and social media», «Re-typing bookings into another system». | | | | | |
 | `d_automation_attempt` | Have you already tried to automate or streamline that work (tool, Zapier/Make, freelancer, agency)? | select | Recommended | 1, disc | automation_processes (P) | — |
-| | Options: Yes, it helped / Tried, abandoned / Not yet / Not sure | | | | | |
+| | Options: Yes, it helped / Tried, then abandoned / Not yet / Not sure | | | | | |
 | `d3` | Roughly how many hours per week does your team spend on repetitive manual tasks? | select | Recommended | 2 | automation_processes (P) | — |
 | | Options: Less than 5h / 5–10h / 10–20h / 20–40h / 40h+ / No idea | | | | | |
+| | *Helper:* a rough estimate is enough. We use it to size the impact of automation opportunities. | | | | | |
 | `d4` | If you had to explain your **main service or delivery process** to a new hire today — where would you send them **first**? | select | Recommended | 2 | automation_processes (P) | team_size > Solo |
 | | Options: Written playbook / SOP doc / Internal wiki / Loom or recorded video / I'd walk them through it live / WhatsApp or chat history / We'd figure it out together / Not applicable (solo) | | | | | |
 | | *Поведенческий срез вместо «насколько у вас документация»: совпадающие самооценкой ответы больше не склеивают «мы всё задокументировали» и «реально есть источник правды».* | | | | | |
 | `d4a` | Do you already use AI tools in everyday work (ChatGPT, copilots, meeting notes, translation)? | select | Recommended | **2** | automation_processes (P), strategy (P) | — |
 | | Options: Daily / Occasionally / Tried, stopped / No / Prefer not to say | | | | | |
+| | *Helper:* this is not about being advanced. It helps estimate implementation friction and rollout speed. | | | | | |
 | | *Только Deep Intake (Layer 2), не Quick.* | | | | | |
 | `d4b` | Can you export key customer or ops data cleanly — e.g. bookings, clients, inventory — to a **spreadsheet or CSV** without losing half a day? | select | Recommended | **2** | automation_processes (P), strategy (P) | — |
 | | Options: Yes, usually quick / Sometimes / Rarely — it's painful / No / Don't know | | | | | |
@@ -303,8 +311,10 @@
 | `d6` | Which **types of data** do you work with most often? | multi | Recommended | 2 | automation_processes (P), strategy (P) | — |
 | | Options: Bookings / transactions / Deals or orders / Contacts & leads / Inventory or stock / Finance & invoices / HR & shifts / Other → text | | | | | |
 | | *Helper:* «Rough picture is enough — this helps **automation** and **strategy** prioritise which processes to tackle first.» | | | | | |
+| | *Value note:* bookings plus invoices often signal immediate ROI opportunities for automation. | | | | | |
 | `d5` | Do you use automated email sequences? (welcome, follow-up, reminders) | select | Recommended | 2 | automation_processes (P) | — |
 | | Options: Yes, actively / We set something up but it's not maintained / No / What's that? | | | | | |
+| | *Helper:* automated follow-ups often recover demand that already exists. | | | | | |
 
 **Отраслевые вопросы:**
 
@@ -330,10 +340,12 @@
 |----|----------|-------|----------|-------|-------|--------|
 | `e1` | Does your business accept online payments? | select | Recommended | 2 | security_compliance (P) | — |
 | | Options: Yes, on our website / Yes, through a third party (Booking, Stripe checkout, etc.) / No, cash/transfer only | | | | | |
+| | *Helper:* this scopes payment-risk checks, not a compliance exam. | | | | | |
 | `e2` | Does your business operate in the EU or serve EU customers? | select | Recommended | 2 | security_compliance (P) | — |
 | | Options: Yes / No / Not sure | | | | | |
+| | *Helper:* we use this only to size compliance depth in the audit. A best guess is enough. | | | | | |
 | `e3` | How confident are you that your GDPR setup is complete? (cookie banner, privacy policy, consent) | select | Recommended | 2 | security_compliance (P) | — |
-| | Options: Very confident / Something's there, not sure if complete / Probably not / Haven't thought about it | | | | | |
+| | Options: Very confident / Something is in place, but I'm not sure it's complete / Probably incomplete / Haven't looked into this yet | | | | | |
 | | *Раскрытие ограничено:* это **самооценка** клиента; реальную картину дают Recon + Security agent. Вопрос нужен для **приоритизации тона** в отчёте и triage, не как истина. | | | | | |
 | `e4` | Are you using or planning to use e-invoicing / Verifactu? | select | Nice-to-have | 2 | security_compliance (P) | location contains "Spain" |
 | | Options: Already using / Planning to / Not yet / What's that? | | | | | |
@@ -355,18 +367,20 @@
 | | *Важно для тона отчёта:* 2/5 и 4/5 — разная эмоциональная и директивная подача рекомендаций. | | | | | |
 | | *Follow-up (wizard, следом после f3):* «Who else decides on **digital or marketing** changes?» — free text или multi (owner / partner / ops / agency). Пока это **не отдельный id банка**, в срезы агентов не попадает; при добавлении вопроса — завести строку в `QUESTION_FEED_ROLES`. | | | | | |
 | `f4` | How **ready** are you to implement changes based on this audit? | select | Recommended | 2 | strategy (P) | — |
-| | Options: Ready to move quickly on clear **quick wins** / Ready to invest if **ROI and impact** are clear / Prefer to **understand the situation** for now / Need to **align first** with partner, owner, or team | | | | | |
+| | Options: Ready to move quickly on clear **quick wins** / Ready to invest if **ROI and impact** are clear / Prefer to **understand the situation** for now / Need to **align first** with partner, owner, or team / Not sure yet | | | | | |
 | | *Helper:* «This doesn’t lock you into anything. It helps us balance **quick wins** versus **deeper change** in systems and processes in your report.» | | | | | |
 | `f5` | What approximate **budget range** do you have in mind for improvements over the **next 3–12 months**? | select | Nice-to-have | 2 | strategy (P) | — |
-| | Options: Under €500 / €500–2,000 / €2,000–10,000 / Over €10,000 / **No clear budget yet** — depends on the recommendations | | | | | |
+| | Options: Under €500 / €500–2,000 / €2,000–10,000 / Over €10,000 / **No clear budget yet** — depends on the recommendations / Prefer not to share yet | | | | | |
 | | *Helper:* «We use this as a **guideline** to match recommendations to your **level of ambition** — from low-cost quick wins to larger changes.» | | | | | |
 | `f6` | Anything you specifically do NOT want us to recommend? | textarea | Nice-to-have | 2 | strategy (P) | — |
 | | *Example: "No more SaaS subscriptions", "Don't touch the current CMS"* | | | | | |
 | `f7` | Who would **approve a new automation or AI tool** if we recommended one? | select | Recommended | 1, 2 | strategy (P), automation_processes (P) | — |
 | | Options: Me / Ops or office manager / IT provider or agency / Owner or partner / Board or investor / Not sure | | | | | |
+| | *Helper:* this helps sequence recommendations that can actually be implemented without internal friction. | | | | | |
 | | *Перенесён из Section D (`d4c`). В мастере показывать **сразу после** f3 + follow-up на маркетинг/цифру.* | | | | | |
 | `f8` | Is there a **deadline or key moment** driving this audit? | select | Recommended | 1, 2 | strategy (P) | — |
 | | Options: Opening or launch soon / Seasonal peak coming / Investor, partner, or board review / Contract or compliance milestone / No specific deadline | | | | | |
+| | *Helper:* deadline context helps prioritize quick wins vs deeper system changes in wave 1. | | | | | |
 | | *Urgency:* «открываемся через 2 месяца» vs «без срочности» меняет последовательность рекомендаций. | | | | | |
 
 ---
@@ -531,7 +545,7 @@ This means Discovery no longer has a separate semantic question model; it is a p
 
 **UX:** скрытые вопросы не показываются. Клиент не знает, что вопрос существует. Wizard адаптируется динамически.
 
-**Other → specify (банк + классическая форма):** при выборе вариантов, требующих уточнения (`Other`, «Yes, other tool» / «Yes, another tool», «Something else» — см. `CHOICE_OPTION_LABELS_REQUIRING_SPECIFY` и `choiceSpecifyResponseKey` в `@glc/intake-core`; SPA и сервер импортируют только оттуда), показывается поле; значение пишется в `**${questionId}__other`**, для `**a2**` / `**intake_industry**` — в `**intake_industry_specify**`. Discovery: `**${bankId}__other**`, для `**a2**` при конвертации дублируется в `**intake_industry_specify**`. См. `BriefField`, `IntakeBankWizard`, `DiscoverPage`.
+**Other → specify (банк + классическая форма):** при выборе вариантов, требующих уточнения (`Other`, «Yes, other tool» / «Yes, another tool», «Something else», «Not quite (I will clarify)» — см. `CHOICE_OPTION_LABELS_REQUIRING_SPECIFY` и `choiceSpecifyResponseKey` в `@glc/intake-core`; SPA и сервер импортируют только оттуда), показывается поле; значение пишется в `**${questionId}__other`**, для `**a2**` / `**intake_industry**` — в `**intake_industry_specify**`. Discovery: `**${bankId}__other**`, для `**a2**` при конвертации дублируется в `**intake_industry_specify**`. См. `BriefField`, `IntakeBankWizard`, `DiscoverPage`.
 
 ---
 
@@ -573,19 +587,20 @@ This means Discovery no longer has a separate semantic question model; it is a p
 Отдельный **индикатор для UI и strategy** (не путать с доменным score 1–5): агрегирует **d4a**, экспорт данных **d4b**, поведенческий источник правды **d4**, долю ручной работы **d3**, узкие места **d2** / **d_automation_attempt**, governance **f7**, и опционально **масштаб** (**a8**, **d6**) для приоритизации «где выше потенциальный impact».
 
 **Шкала 0–100 (heuristic v1 — `calcAiReadinessScore` в `packages/intake-core/src/ai-readiness.ts`):**
+Normalization of intake answers is centralized in `packages/intake-core/src/answer-normalizers.ts` (also reused by discovery mappings), so readiness and discovery logic interpret labels consistently.
 
 | Компонент | Сигнал | Значение |
 |-----------|--------|---------|
 | База | — | +45 |
-| `exportData` | `d4b` = easy export | +18 / -5 если painful |
+| `exportData` | `normalizeD4bExportReadiness(d4b)` | +18 when `quick`; -5 when `painful` or `no` |
 | `governance` | `f7` = ясный ответ (не "Not sure") | +17 |
-| `automationAttempt` | `d_automation_attempt = helped` | +10 |
-| `d4aBonus` | `d4a` = Daily / Occasionally | +8 |
+| `automationAttempt` | `normalizeAutomationAttempt(d_automation_attempt) = helped` | +10 |
+| `d4aBonus` | `normalizeD4aAiUsage(d4a)` = `daily` / `weekly_or_occasional` | +8 |
 | `d2Bonus` | `d2` ≥ 20 символов (артикулирована боль) | +5 |
-| `scaleBonus` | `a8` answered (не "Not sure") | +5 |
+| `scaleBonus` | `isA8KnownScale(a8)` | +5 |
 | `scaleBonus` | `d6` ≥ 3 типа данных | +5 |
 | `scaleBonus` | `a5` = no\_website / under\_construction | +5 (greenfield — см. ниже) |
-| Штраф | `d4a = No` + высокий `d3` | −18 |
+| Штраф | `normalizeD4aAiUsage(d4a)=low` + `normalizeD3ManualLoad(d3)=high` | −18 |
 | Штраф | «размытый» `d4` + команда > solo | −12 |
 
 **Greenfield-бонус (no\_website / under\_construction):** клиент без сайта не несёт legacy web-tech долга; весь scope аудита смещается на process automation, где барьеры внедрения новых инструментов ниже. +5 отражает эту структурную готовность — не компетентность клиента, а меньшее трение для изменений.
@@ -738,3 +753,39 @@ interface IntakeBrief {
 
 
 **Добавлено:** отраслевые вопросы (10+), value-first формулировки целей (**f1–f2**, **b3**, helpers), стадия бизнеса (**a7**), ранний платёжный gate (**a6**), масштаб без финансовой детали (**a8**), типы данных (**d6**), руководство по тону (**§2.4**), self-rating (f3), frustrations (c6), guarantees (b6), no-site path, branching по CRM.
+
+---
+
+## 15. Question bank change protocol (mandatory)
+
+Use this checklist for **any** change to `packages/intake-core/src/question-bank.v1.json`, answer options, or wording that affects runtime behavior.
+
+1. **Update canon and UI overrides together**
+   - Update `question-bank.v1.json` (`answer` contract and labels where needed).
+   - Update `packages/intake-core/src/bank-question-ui-overrides.ts` when UI type/options/hints change.
+   - If needed, regenerate canon contracts via `server/scripts/embed-question-bank-answers.ts`.
+
+2. **Keep “specify” behavior in sync**
+   - If a new option requires clarification text, update `packages/intake-core/src/choice-specify-triggers.ts`.
+   - Confirm `__other` capture works in both classic and wizard flows.
+
+3. **Re-evaluate derived logic and AI readiness**
+   - Review `packages/intake-core/src/ai-readiness.ts` and `packages/intake-core/src/answer-normalizers.ts` for string/value assumptions tied to changed options.
+   - Review discovery conversion and findings logic (`src/app/lib/discovery-flow.ts`, `server/src/routes/discover.ts`) for hardcoded option text.
+
+4. **Verify API and schema surfaces**
+   - Confirm `GET /api/audits/:id/brief/schema` returns the updated `answer` contract.
+   - Ensure `buildPublicDiscoveryUiFragment` still matches expected question ids/options.
+
+5. **Run required tests before merge**
+   - Frontend:
+     - `pnpm vitest src/app/data/bank-question-ui-catalog-parity.test.ts`
+     - `pnpm vitest src/app/lib/discovery-flow.test.ts`
+   - Server (`server/`):
+     - `pnpm vitest src/tests/question-bank-answer-contract.test.ts`
+     - `pnpm vitest src/tests/discovery-ui-fragment.test.ts`
+
+6. **Update docs in the same PR**
+   - Update this file (`QUESTION_BANK.md`) wherever question type/options/flow semantics changed.
+   - Update `docs/API.md` if response contract behavior changed.
+   - Add a short note in PR summary about affected surfaces (New Audit, Audit Workspace, Discovery, API schema, AI readiness).

@@ -274,6 +274,8 @@ function accentForDomains(domains: string[]): string | undefined {
 export type BuildStudioGraphInput = {
   policyMode: StudioPolicyMode;
   showBranchEdges: boolean;
+  /** Dagre orientation: top-bottom (default) or left-right. */
+  orientation?: 'TB' | 'LR';
   /** Section letters/keys with collapsed question subtrees (section node stays visible). */
   collapsedSectionKeys?: ReadonlySet<string>;
   /** Tint question nodes by primary feed domain. */
@@ -595,7 +597,13 @@ export function buildQuestionBankStudioGraph(input: BuildStudioGraphInput): Buil
 
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: 'TB', nodesep: 28, ranksep: 72, marginx: 20, marginy: 20 });
+  dagreGraph.setGraph({
+    rankdir: input.orientation ?? 'TB',
+    nodesep: 28,
+    ranksep: 72,
+    marginx: 20,
+    marginy: 20,
+  });
 
   for (const n of nodes) {
     const dim =

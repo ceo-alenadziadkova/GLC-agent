@@ -1,34 +1,14 @@
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
-  memo,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type MouseEvent,
-} from 'react';
-import {
-  Background,
-  Controls,
-  MiniMap,
-  Panel,
-  ReactFlow,
-  ReactFlowProvider,
-  useReactFlow,
-  Handle,
-  Position,
-  type Edge,
   type Node,
-  type NodeProps,
 } from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
 
 import { TreeStructure } from '@phosphor-icons/react';
 import bankBundledRaw from '@glc/intake-core/question-bank.v1.json';
 import { buildIntakePlan } from '@glc/intake-core';
 import type { IntakePlan, IntakeSurface, QuestionReason } from '@glc/intake-core';
 import {
+  getQuestionBankPromptLabel,
   getQuestionBankReportUse,
   getQuestionBankSchemaMeta,
   QUESTION_BANK_VERSION,
@@ -42,11 +22,8 @@ import {
   downloadDataUrl,
   studioSvgToPngDataUrl,
 } from '../lib/question-bank-studio-map-export';
-import type { IntakeTraceScenarioPreset } from '../lib/intake-trace-scenarios';
-import { INTAKE_TRACE_SCENARIO_PRESETS } from '../lib/intake-trace-scenarios';
 import {
   buildQuestionBankStudioGraph,
-  getStudioQuestionNodeDimensions,
   type StudioAnyNodeData,
   type StudioLayoutSurfaceKey,
 } from '../lib/question-bank-studio-graph';
@@ -55,10 +32,13 @@ import {
   type StudioPolicyMode,
 } from '../lib/question-bank-studio-policy';
 import {
-  studioPolicyBaseAccent,
   type StudioPolicyBaseVisualKind,
 } from '../lib/question-bank-studio-node-style';
-import { collectBranchFocusQuestionIds } from './intake/intake-trace-branch-links';
+import {
+  collectBranchFocusQuestionIds,
+  computeBranchDownstreamIds,
+  computeBranchUpstreamIds,
+} from './intake/intake-trace-branch-links';
 import { Switch } from './ui/switch';
 
 const POLICY_STRIPE_INSPECTOR: Record<StudioPolicyBaseVisualKind, string> = {
@@ -109,232 +89,6 @@ const TRACE_SURFACE_OPTIONS: { value: IntakeSurface | ''; label: string }[] = [
   { value: 'internal_review', label: 'internal_review' },
 ];
 
-const StudioRootNode = memo(function StudioRootNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
-  if (data.kind !== 'root') return null;
-  return (
-    <>
-      <Handle type="target" position={Position.Top} style={{ opacity: 0, top: 0 }} />
-      <div
-        className="rounded-lg px-3 py-2 text-center text-xs font-semibold shadow-sm"
-        style={{
-          width: 200,
-          backgroundColor: 'var(--bg-canvas)',
-          border: '1px solid var(--border-default)',
-          color: 'var(--text-primary)',
-        }}
-      >
-        {data.label}
-      </div>
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
-    </>
-  );
-});
-
-const StudioSectionNode = memo(function StudioSectionNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
-  if (data.kind !== 'section') return null;
-  return (
-    <>
-      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
-      <div
-        className="rounded-lg px-3 py-2 text-xs font-semibold shadow-sm"
-        style={{
-          width: 220,
-          backgroundColor: 'var(--glc-blue-muted)',
-          border: '1px solid var(--glc-blue)',
-          color: 'var(--text-primary)',
-        }}
-      >
-        {data.label}
-        <span className="block font-normal opacity-80" style={{ fontSize: 10 }}>
-          {data.collapsed ? `${data.questionCount} questions (hidden)` : `${data.questionCount} questions`}
-        </span>
-      </div>
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
-    </>
-  );
-});
-
-const StudioQuestionNode = memo(function StudioQuestionNode({ data, selected }: NodeProps<Node<StudioAnyNodeData>>) {
-  if (data.kind !== 'question') return null;
-  const policyMuted = data.applyPolicyDim && !data.participatesPolicy;
-  const policyAccent = studioPolicyBaseAccent(data.policyBaseVisual);
-  const { w, h } = data.layoutSize;
-  const idSizeClass = w >= 270 ? 'text-[11px]' : 'text-[10px]';
-  const bodySizeClass = w >= 270 ? 'text-[12px]' : 'text-[11px]';
-  const defaultEdgeW = selected ? 2 : 1;
-  const defaultEdgeColor = selected ? 'var(--glc-blue)' : 'var(--border-default)';
-  const topW = data.domainAccent ? 3 : defaultEdgeW;
-  const topColor = data.domainAccent ? data.domainAccent : defaultEdgeColor;
-  return (
-    <>
-      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
-      <div
-        className="rounded-lg px-2 py-1.5 shadow-sm transition-opacity"
-        style={{
-          width: w,
-          minHeight: h,
-          backgroundColor: selected ? 'var(--glc-blue-muted)' : 'var(--bg-surface)',
-          borderLeftWidth: 5,
-          borderLeftStyle: 'solid',
-          borderLeftColor: policyAccent,
-          borderTopWidth: topW,
-          borderTopStyle: 'solid',
-          borderTopColor: topColor,
-          borderRightWidth: defaultEdgeW,
-          borderRightStyle: 'solid',
-          borderRightColor: defaultEdgeColor,
-          borderBottomWidth: defaultEdgeW,
-          borderBottomStyle: 'solid',
-          borderBottomColor: defaultEdgeColor,
-          color: 'var(--text-primary)',
-          opacity: policyMuted ? 0.45 : 1,
-        }}
-      >
-        <div className={`font-mono ${idSizeClass}`} style={{ color: 'var(--glc-blue)' }}>
-          {data.questionId}
-        </div>
-        <div className={`${bodySizeClass} leading-snug`} style={{ color: 'var(--text-secondary)' }}>
-          {data.shortLabel}
-        </div>
-        <div className="mt-1 flex flex-wrap gap-1">
-          <span
-            className="rounded px-1 text-[9px] font-medium uppercase"
-            style={{
-              backgroundColor: 'var(--bg-canvas)',
-              color: 'var(--text-tertiary)',
-            }}
-          >
-            {data.priority}
-          </span>
-          {data.branchCondition ? (
-            <span
-              className="rounded px-1 text-[9px]"
-              style={{ backgroundColor: 'var(--bg-canvas)', color: 'var(--text-quaternary)' }}
-            >
-              branch
-            </span>
-          ) : null}
-          {data.policyBadges.slice(0, 2).map(b => (
-            <span
-              key={b}
-              className="rounded px-1 text-[9px]"
-              style={{ backgroundColor: 'var(--glc-orange-muted)', color: 'var(--text-secondary)' }}
-            >
-              {b}
-            </span>
-          ))}
-        </div>
-      </div>
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
-    </>
-  );
-});
-
-const StudioDomainClusterNode = memo(function StudioDomainClusterNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
-  if (data.kind !== 'domainCluster') return null;
-  return (
-    <>
-      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
-      <div
-        className="rounded-lg px-3 py-2 text-xs font-semibold shadow-sm"
-        style={{
-          width: 220,
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px solid color-mix(in oklab, #0891b2 55%, var(--border-default))',
-          color: 'var(--text-primary)',
-        }}
-      >
-        <div className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-quaternary)' }}>
-          Feed domain (primary)
-        </div>
-        <div className="leading-snug">{data.label}</div>
-      </div>
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
-    </>
-  );
-});
-
-const StudioLayoutStepNode = memo(function StudioLayoutStepNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
-  if (data.kind !== 'layoutStep') return null;
-  return (
-    <>
-      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
-      <div
-        className="rounded-lg px-2.5 py-1.5 text-xs shadow-sm"
-        style={{
-          width: 210,
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px dashed color-mix(in oklab, #9333ea 50%, var(--border-default))',
-          color: 'var(--text-primary)',
-        }}
-      >
-        <div className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-quaternary)' }}>
-          Layout · {data.surfaceKey}
-        </div>
-        <div className="leading-snug font-medium" style={{ fontSize: 11 }}>
-          {data.label}
-        </div>
-        <div className="mt-0.5 font-normal opacity-80" style={{ fontSize: 10 }}>
-          Sec {data.sectionKey} · {data.questionCount} ids
-        </div>
-      </div>
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
-    </>
-  );
-});
-
-const StudioIdentityNode = memo(function StudioIdentityNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
-  if (data.kind !== 'identity') return null;
-  return (
-    <>
-      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
-      <div
-        className="rounded-lg px-2 py-2 text-xs shadow-sm"
-        style={{
-          width: 240,
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px dashed color-mix(in oklab, var(--glc-orange) 55%, var(--border-default))',
-          color: 'var(--text-secondary)',
-        }}
-      >
-        <div className="font-mono text-[10px]" style={{ color: 'var(--glc-orange)' }}>
-          {data.questionId}
-        </div>
-        <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>
-          Pre-brief identity (not a bank v1 id)
-        </div>
-      </div>
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
-    </>
-  );
-});
-
-/** Stable reference for React Flow — do not define inside a component. */
-const studioNodeTypes = {
-  studioRoot: StudioRootNode,
-  studioSection: StudioSectionNode,
-  studioDomainCluster: StudioDomainClusterNode,
-  studioLayoutStep: StudioLayoutStepNode,
-  studioQuestion: StudioQuestionNode,
-  studioIdentity: StudioIdentityNode,
-};
-
-function studioMinimapNodeColor(n: Pick<Node, 'type'>): string {
-  switch (n.type) {
-    case 'studioSection':
-      return '#1CBDFF';
-    case 'studioDomainCluster':
-      return '#0891b2';
-    case 'studioLayoutStep':
-      return '#9333ea';
-    case 'studioQuestion':
-      return '#94a3b8';
-    case 'studioIdentity':
-      return '#f24f1d';
-    default:
-      return '#64748b';
-  }
-}
 
 type TraceRole = 'required' | 'visible' | 'deferred' | 'hidden';
 
@@ -373,104 +127,32 @@ function traceRingColor(role: TraceRole): string {
   }
 }
 
-function FlowCanvas({
-  nodes,
-  edges,
-  onNodeClick,
-  layoutSignature,
-  centerOnNodeId,
-  minimapMaskColor,
-  viewDensity,
-}: {
-  nodes: Node<StudioAnyNodeData>[];
-  edges: Edge[];
-  onNodeClick: (event: MouseEvent, node: Node<StudioAnyNodeData>) => void;
-  /** When this changes, fit the entire graph (layout/policy/collapse). */
-  layoutSignature: string;
-  /** Focus a node by id (search); positions must match `nodes`. */
-  centerOnNodeId: string | null;
-  minimapMaskColor: string;
-  viewDensity: 'comfortable' | 'compact';
-}) {
-  const { fitView, setCenter, getZoom, getNode } = useReactFlow();
-  const qDim = getStudioQuestionNodeDimensions(viewDensity);
-  const fitPadding = viewDensity === 'compact' ? 0.14 : 0.18;
+function shortUserLabel(questionId: string): string {
+  const raw = getQuestionBankPromptLabel(questionId) ?? questionId;
+  const trimmed = raw.trim();
+  if (trimmed.length <= 78) return trimmed;
+  return `${trimmed.slice(0, 75)}...`;
+}
 
-  const handleFitEntireMap = useCallback(() => {
-    fitView({ padding: fitPadding, duration: 280 });
-  }, [fitView, fitPadding]);
-
-  useEffect(() => {
-    const t = window.setTimeout(() => {
-      fitView({ padding: fitPadding, duration: 260 });
-    }, 40);
-    return () => window.clearTimeout(t);
-  }, [layoutSignature, fitView, fitPadding]);
-
-  useEffect(() => {
-    if (!centerOnNodeId) return;
-    const n = getNode(centerOnNodeId);
-    if (!n) return;
-    const dim =
-      n.type === 'studioQuestion'
-        ? { w: qDim.w, h: qDim.h }
-        : n.type === 'studioSection'
-          ? { w: 220, h: 44 }
-          : n.type === 'studioDomainCluster'
-            ? { w: 220, h: 44 }
-            : n.type === 'studioLayoutStep'
-              ? { w: 210, h: 48 }
-              : n.type === 'studioIdentity'
-                ? { w: 240, h: 52 }
-                : { w: 200, h: 40 };
-    const cx = n.position.x + dim.w / 2;
-    const cy = n.position.y + dim.h / 2;
-    const z = Math.min(1.15, Math.max(getZoom(), viewDensity === 'compact' ? 0.92 : 0.88));
-    const t = window.setTimeout(() => setCenter(cx, cy, { zoom: z, duration: 280 }), 24);
-    return () => window.clearTimeout(t);
-  }, [centerOnNodeId, getNode, setCenter, getZoom, qDim.w, qDim.h, viewDensity]);
-
-  return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      nodeTypes={studioNodeTypes}
-      onNodeClick={onNodeClick}
-      fitView
-      minZoom={0.08}
-      maxZoom={1.5}
-      proOptions={{ hideAttribution: true }}
-    >
-      <Background gap={20} size={1} color="var(--border-default)" />
-      <Panel position="top-left">
-        <button
-          type="button"
-          className="text-[10px] font-semibold px-2 py-1.5 rounded-md shadow-sm"
-          style={{
-            border: '1px solid var(--border-default)',
-            backgroundColor: 'var(--bg-surface)',
-            color: 'var(--text-secondary)',
-            cursor: 'pointer',
-          }}
-          onClick={handleFitEntireMap}
-        >
-          Fit entire map
-        </button>
-      </Panel>
-      <Controls />
-      <MiniMap
-        pannable
-        zoomable
-        style={{ backgroundColor: 'var(--bg-canvas)' }}
-        maskColor={minimapMaskColor}
-        nodeColor={studioMinimapNodeColor}
-      />
-    </ReactFlow>
-  );
+function statusPill(status: PlanTraceRole): { label: string; fg: string; bg: string; border: string } {
+  switch (status) {
+    case 'required':
+      return { label: 'Required', fg: '#b91c1c', bg: '#fee2e2', border: '#ef4444' };
+    case 'visible':
+      return { label: 'Visible', fg: '#1d4ed8', bg: '#dbeafe', border: '#60a5fa' };
+    case 'deferred':
+      return { label: 'Deferred', fg: '#6d28d9', bg: '#ede9fe', border: '#a78bfa' };
+    case 'hidden':
+      return { label: 'Hidden', fg: '#374151', bg: '#f3f4f6', border: '#9ca3af' };
+    default:
+      return { label: 'Unknown', fg: '#334155', bg: '#e2e8f0', border: '#94a3b8' };
+  }
 }
 
 export function QuestionBankStudio() {
   const { isDark } = useGlcTheme();
+  const viewMode = 'user' as const;
+  const [graphOrientation, setGraphOrientation] = useState<'TB' | 'LR'>('TB');
   const [policyMode, setPolicyMode] = useState<StudioPolicyMode>('full');
   const [showBranchEdges, setShowBranchEdges] = useState(false);
   const [dimOutsidePolicy, setDimOutsidePolicy] = useState(true);
@@ -478,23 +160,21 @@ export function QuestionBankStudio() {
   const [viewDensity, setViewDensity] = useState<'comfortable' | 'compact'>('comfortable');
   const [overviewUi, setOverviewUi] = useState(false);
   const [branchFocusFromSelection, setBranchFocusFromSelection] = useState(false);
-  const [autoFootprintOnScenario, setAutoFootprintOnScenario] = useState(false);
-  const tracePresetPrevRef = useRef<string | null>(null);
   const [colorByDomain, setColorByDomain] = useState(false);
   const [clusterByPrimaryDomain, setClusterByPrimaryDomain] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pathHistory, setPathHistory] = useState<string[]>([]);
+  const [activeUserStep, setActiveUserStep] = useState<number | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => new Set());
   const [exportBusy, setExportBusy] = useState(false);
   /** Show only nodes that appear in the current trace preset's IntakePlan (runtime footprint). */
   const [planFootprintOnly, setPlanFootprintOnly] = useState(false);
 
-  const [tracePresetId, setTracePresetId] = useState(INTAKE_TRACE_SCENARIO_PRESETS[0]?.id ?? '');
   const [tracePlan, setTracePlan] = useState<IntakePlan | null>(null);
   const [traceError, setTraceError] = useState<string | null>(null);
   const [layoutSurface, setLayoutSurface] = useState<'' | StudioLayoutSurfaceKey>('');
-  const [useCustomTrace, setUseCustomTrace] = useState(false);
   const [customResponsesText, setCustomResponsesText] = useState('{\n}\n');
   const [debouncedCustomJson, setDebouncedCustomJson] = useState('{\n}\n');
   const [customProductMode, setCustomProductMode] = useState<ProductMode>('full');
@@ -512,20 +192,8 @@ export function QuestionBankStudio() {
   }, [tracePlan]);
 
   useEffect(() => {
-    if (!useCustomTrace) {
-      const preset = INTAKE_TRACE_SCENARIO_PRESETS.find(p => p.id === tracePresetId);
-      if (preset?.studioPolicyMode) setPolicyMode(preset.studioPolicyMode);
-      if (
-        autoFootprintOnScenario &&
-        tracePresetPrevRef.current !== null &&
-        tracePresetPrevRef.current !== tracePresetId &&
-        preset?.autoEnableFootprint !== false
-      ) {
-        setPlanFootprintOnly(true);
-      }
-    }
-    tracePresetPrevRef.current = tracePresetId;
-  }, [tracePresetId, useCustomTrace, autoFootprintOnScenario]);
+    setPolicyMode(customProductMode);
+  }, [customProductMode]);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedSearch(search.trim()), 400);
@@ -533,23 +201,37 @@ export function QuestionBankStudio() {
   }, [search]);
 
   useEffect(() => {
-    if (!useCustomTrace) return;
     const t = window.setTimeout(() => setDebouncedCustomJson(customResponsesText), 400);
     return () => window.clearTimeout(t);
-  }, [customResponsesText, useCustomTrace]);
+  }, [customResponsesText]);
+
+  const effectiveOrientation: 'TB' | 'LR' = viewMode === 'user' ? 'TB' : graphOrientation;
+  const effectiveLayoutSurface: '' | StudioLayoutSurfaceKey =
+    viewMode === 'user' ? (layoutSurface || 'consultant_interview') : layoutSurface;
+  const effectiveShowBranchEdges = viewMode === 'user' ? true : showBranchEdges;
 
   const layoutGraph = useMemo(
     () =>
       buildQuestionBankStudioGraph({
         policyMode,
-        showBranchEdges,
+        showBranchEdges: effectiveShowBranchEdges,
+        orientation: effectiveOrientation,
         collapsedSectionKeys: collapsedSections,
         colorByDomain,
-        layoutSurface: layoutSurface || null,
+        layoutSurface: effectiveLayoutSurface || null,
         clusterByPrimaryDomain,
         viewDensity,
       }),
-    [policyMode, showBranchEdges, collapsedSections, colorByDomain, layoutSurface, clusterByPrimaryDomain, viewDensity],
+    [
+      policyMode,
+      effectiveShowBranchEdges,
+      effectiveOrientation,
+      collapsedSections,
+      colorByDomain,
+      effectiveLayoutSurface,
+      clusterByPrimaryDomain,
+      viewDensity,
+    ],
   );
 
   const policyBannerStats = useMemo(() => computeStudioPolicyModeStats(policyMode), [policyMode]);
@@ -561,45 +243,34 @@ export function QuestionBankStudio() {
     return collectBranchFocusQuestionIds(n.data.questionId, QUESTION_BANK_V1_STUBS);
   }, [branchFocusFromSelection, selectedId, layoutGraph.nodes]);
 
-  const layoutSignature = useMemo(
-    () =>
-      [
-        policyMode,
-        showBranchEdges,
-        [...collapsedSections].sort().join(','),
-        colorByDomain,
-        clusterByPrimaryDomain,
-        layoutSurface,
-        planFootprintOnly,
-        policySliceOnly,
-        branchFocusFromSelection,
-        selectedId ?? '',
-        viewDensity,
-        tracePresetId,
-        useCustomTrace,
-        tracePlan ? tracePlan.eligible.length + tracePlan.hidden.length : 0,
-      ].join('|'),
-    [
-      policyMode,
-      showBranchEdges,
-      collapsedSections,
-      colorByDomain,
-      clusterByPrimaryDomain,
-      layoutSurface,
-      planFootprintOnly,
-      policySliceOnly,
-      branchFocusFromSelection,
-      selectedId,
-      viewDensity,
-      tracePresetId,
-      useCustomTrace,
-      tracePlan,
-    ],
-  );
-
   const traceRoles = useMemo(() => (tracePlan ? planTraceRoles(tracePlan) : null), [tracePlan]);
 
   const planIdSet = useMemo(() => (tracePlan ? idsInIntakePlan(tracePlan) : null), [tracePlan]);
+
+  const userStepLanes = useMemo(() => {
+    const stepNodes = layoutGraph.nodes
+      .filter(n => n.type === 'studioLayoutStep' && n.data.kind === 'layoutStep')
+      .sort((a, b) => a.data.stepIndex - b.data.stepIndex);
+    return stepNodes.map(stepNode => {
+      const questionEdges = layoutGraph.edges.filter(
+        e => e.source === stepNode.id && String(e.target).startsWith('qbs-q-'),
+      );
+      const questionIds = questionEdges
+        .map(e => {
+          const qNode = layoutGraph.nodes.find(n => n.id === e.target);
+          return qNode && qNode.type === 'studioQuestion' && qNode.data.kind === 'question'
+            ? qNode.data.questionId
+            : null;
+        })
+        .filter((v): v is string => Boolean(v));
+      return {
+        laneId: stepNode.id,
+        stepIndex: stepNode.data.stepIndex,
+        label: stepNode.data.label,
+        questionIds,
+      };
+    });
+  }, [layoutGraph.nodes, layoutGraph.edges]);
 
   const nodeHiddenById = useMemo(() => {
     const flags = new Map<string, boolean>();
@@ -674,6 +345,21 @@ export function QuestionBankStudio() {
       const allSectionsHidden = sectionEdges.every(e => flags.get(e.target));
       flags.set(n.id, allSectionsHidden);
     }
+
+    if (viewMode === 'user' && activeUserStep !== null) {
+      const lane = userStepLanes.find(s => s.stepIndex === activeUserStep);
+      const allowedQuestions = new Set(lane?.questionIds ?? []);
+      for (const n of layoutGraph.nodes) {
+        if (n.type === 'studioQuestion' && n.data.kind === 'question') {
+          if (!allowedQuestions.has(n.data.questionId)) flags.set(n.id, true);
+        }
+      }
+      for (const n of layoutGraph.nodes) {
+        if (n.type === 'studioLayoutStep' && n.data.kind === 'layoutStep') {
+          if (n.data.stepIndex !== activeUserStep) flags.set(n.id, true);
+        }
+      }
+    }
     return flags;
   }, [
     layoutGraph.nodes,
@@ -682,6 +368,9 @@ export function QuestionBankStudio() {
     planIdSet,
     policySliceOnly,
     branchFocusQuestionIds,
+    viewMode,
+    activeUserStep,
+    userStepLanes,
   ]);
 
   const searchLower = search.trim().toLowerCase();
@@ -794,24 +483,96 @@ export function QuestionBankStudio() {
     });
   }, [layoutGraph.nodes, traceRoles, searchLower, selectedId, dimOutsidePolicy, nodeHiddenById]);
 
-  const displayEdges = useMemo(() => {
-    return layoutGraph.edges.map((e): Edge => {
-      const srcHidden = nodeHiddenById.get(e.source) ?? false;
-      const tgtHidden = nodeHiddenById.get(e.target) ?? false;
-      return {
-        ...e,
-        hidden: srcHidden || tgtHidden,
-      };
-    });
-  }, [layoutGraph.edges, nodeHiddenById]);
-
   const selectedNode = useMemo(
     () => layoutGraph.nodes.find(n => n.id === selectedId),
     [layoutGraph.nodes, selectedId],
   );
 
-  const onNodeClick = useCallback((_: MouseEvent, node: Node<StudioAnyNodeData>) => {
-    setSelectedId(node.id);
+  const selectedQuestionId = useMemo(() => {
+    if (!selectedNode || selectedNode.type !== 'studioQuestion' || selectedNode.data.kind !== 'question') return null;
+    return selectedNode.data.questionId;
+  }, [selectedNode]);
+
+  const selectedQuestionRole = useMemo(() => {
+    if (!selectedQuestionId || !tracePlan) return null;
+    if (tracePlan.required.includes(selectedQuestionId)) return 'required';
+    if (tracePlan.visible.includes(selectedQuestionId)) return 'visible';
+    if (tracePlan.deferred.includes(selectedQuestionId)) return 'deferred';
+    if (tracePlan.hidden.includes(selectedQuestionId)) return 'hidden';
+    return 'other';
+  }, [selectedQuestionId, tracePlan]);
+
+  const simulation = useMemo(() => {
+    if (!selectedQuestionId) {
+      return { nextIds: [] as string[], addedNext: [] as string[], removedNext: [] as string[], nowVisible: [] as string[] };
+    }
+    const nextIds = computeBranchDownstreamIds(selectedQuestionId, QUESTION_BANK_V1_STUBS);
+    if (!tracePlan) {
+      return { nextIds, addedNext: [], removedNext: [], nowVisible: [] as string[] };
+    }
+    const nowVisibleSet = new Set([...tracePlan.required, ...tracePlan.visible]);
+    const nowVisible = [...nowVisibleSet].sort((a, b) => a.localeCompare(b));
+    const addedNext = nextIds.filter(id => tracePlan.required.includes(id) || tracePlan.visible.includes(id));
+    const removedNext = nextIds.filter(id => tracePlan.hidden.includes(id) || tracePlan.deferred.includes(id));
+    return { nextIds, addedNext, removedNext, nowVisible };
+  }, [selectedQuestionId, tracePlan]);
+
+  const selectedWhy = useMemo(() => {
+    if (!selectedQuestionId || !tracePlan) return [];
+    return tracePlan.reasonsById?.[selectedQuestionId] ?? [];
+  }, [selectedQuestionId, tracePlan]);
+
+  const breadcrumbs = useMemo(() => {
+    if (!selectedQuestionId) return [];
+    const upstream = computeBranchUpstreamIds(selectedQuestionId, QUESTION_BANK_V1_STUBS);
+    return [...upstream, selectedQuestionId];
+  }, [selectedQuestionId]);
+
+  const selectedDependencies = useMemo(() => {
+    if (!selectedQuestionId) return { dependsOn: [] as string[], enables: [] as string[] };
+    const dependsOn = computeBranchUpstreamIds(selectedQuestionId, QUESTION_BANK_V1_STUBS);
+    const enables = computeBranchDownstreamIds(selectedQuestionId, QUESTION_BANK_V1_STUBS);
+    return { dependsOn, enables };
+  }, [selectedQuestionId]);
+
+  const allQuestionsForReview = useMemo(() => {
+    const statusById = new Map<string, PlanTraceRole>();
+    if (tracePlan) {
+      for (const id of tracePlan.hidden) statusById.set(id, 'hidden');
+      for (const id of tracePlan.deferred) statusById.set(id, 'deferred');
+      for (const id of tracePlan.visible) statusById.set(id, 'visible');
+      for (const id of tracePlan.required) statusById.set(id, 'required');
+    }
+    const ids = QUESTION_BANK_V1_STUBS.map(q => q.id).sort((a, b) => a.localeCompare(b));
+    return ids.map(id => ({
+      id,
+      label: shortUserLabel(id),
+      status: statusById.get(id) ?? 'unknown',
+    }));
+  }, [tracePlan]);
+
+  const questionNodeIdByQuestionId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const n of nodes) {
+      if (n.type === 'studioQuestion' && n.data.kind === 'question') {
+        m.set(n.data.questionId, n.id);
+      }
+    }
+    return m;
+  }, [nodes]);
+
+  const traceStatusByQuestionId = useMemo(() => {
+    const m = new Map<string, 'required' | 'visible' | 'hidden' | 'deferred' | 'unknown'>();
+    if (!tracePlan) return m;
+    for (const id of tracePlan.hidden) m.set(id, 'hidden');
+    for (const id of tracePlan.deferred) m.set(id, 'deferred');
+    for (const id of tracePlan.visible) m.set(id, 'visible');
+    for (const id of tracePlan.required) m.set(id, 'required');
+    return m;
+  }, [tracePlan]);
+
+  const renderUserQuestionInline = useCallback((id: string) => {
+    return `${shortUserLabel(id)} (${id})`;
   }, []);
 
   const runBankDiff = useCallback(() => {
@@ -831,7 +592,7 @@ export function QuestionBankStudio() {
     const svg = buildStudioMapSvg(layoutGraph.nodes, layoutGraph.edges, {
       title: `Question Bank Studio · v${QUESTION_BANK_VERSION}`,
       theme: isDark ? 'dark' : 'light',
-      includeBranchEdges: showBranchEdges,
+      includeBranchEdges: effectiveShowBranchEdges,
     });
     const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -843,7 +604,7 @@ export function QuestionBankStudio() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-  }, [layoutGraph.nodes, layoutGraph.edges, isDark, showBranchEdges]);
+  }, [layoutGraph.nodes, layoutGraph.edges, isDark, effectiveShowBranchEdges]);
 
   const downloadPngExport = useCallback(async () => {
     setExportBusy(true);
@@ -851,23 +612,23 @@ export function QuestionBankStudio() {
       const svg = buildStudioMapSvg(layoutGraph.nodes, layoutGraph.edges, {
         title: `Question Bank Studio · v${QUESTION_BANK_VERSION}`,
         theme: isDark ? 'dark' : 'light',
-        includeBranchEdges: showBranchEdges,
+        includeBranchEdges: effectiveShowBranchEdges,
       });
       const png = await studioSvgToPngDataUrl(svg, 2);
       downloadDataUrl(png, `question-bank-studio-v${QUESTION_BANK_VERSION}.png`);
     } finally {
       setExportBusy(false);
     }
-  }, [layoutGraph.nodes, layoutGraph.edges, isDark, showBranchEdges]);
+  }, [layoutGraph.nodes, layoutGraph.edges, isDark, effectiveShowBranchEdges]);
 
-  const applyPreset = useCallback((preset: IntakeTraceScenarioPreset) => {
+  useEffect(() => {
     try {
-      const responses = JSON.parse(preset.responsesText) as Record<string, unknown>;
+      const responses = JSON.parse(debouncedCustomJson) as Record<string, unknown>;
       const plan = buildIntakePlan({
         responses,
-        productMode: preset.productMode,
-        collectionMode: preset.collectionMode || undefined,
-        surface: preset.surface || undefined,
+        productMode: customProductMode,
+        collectionMode: customCollectionMode || undefined,
+        surface: customSurface || undefined,
       });
       setTracePlan(plan);
       setTraceError(null);
@@ -875,36 +636,11 @@ export function QuestionBankStudio() {
       setTracePlan(null);
       setTraceError(e instanceof Error ? e.message : String(e));
     }
-  }, []);
-
-  useEffect(() => {
-    if (useCustomTrace) {
-      try {
-        const responses = JSON.parse(debouncedCustomJson) as Record<string, unknown>;
-        const plan = buildIntakePlan({
-          responses,
-          productMode: customProductMode,
-          collectionMode: customCollectionMode || undefined,
-          surface: customSurface || undefined,
-        });
-        setTracePlan(plan);
-        setTraceError(null);
-      } catch (e) {
-        setTracePlan(null);
-        setTraceError(e instanceof Error ? e.message : String(e));
-      }
-      return;
-    }
-    const preset = INTAKE_TRACE_SCENARIO_PRESETS.find(p => p.id === tracePresetId);
-    if (preset) applyPreset(preset);
   }, [
-    useCustomTrace,
     debouncedCustomJson,
     customProductMode,
     customCollectionMode,
     customSurface,
-    tracePresetId,
-    applyPreset,
   ]);
 
   const inspectorBody = useMemo(() => {
@@ -1084,11 +820,6 @@ export function QuestionBankStudio() {
     return null;
   }, [selectedNode, tracePlan]);
 
-  const activeTraceScenarioLabel = useMemo(() => {
-    if (useCustomTrace) return 'Custom JSON trace';
-    return INTAKE_TRACE_SCENARIO_PRESETS.find(p => p.id === tracePresetId)?.label ?? tracePresetId;
-  }, [useCustomTrace, tracePresetId]);
-
   const { stats, sectionKeys } = layoutGraph;
 
   const legendStyle: CSSProperties = {
@@ -1107,197 +838,236 @@ export function QuestionBankStudio() {
           <TreeStructure className="w-4 h-4" weight="bold" />
           <h2 className="text-sm font-semibold m-0">Question Bank Studio</h2>
         </div>
-        {overviewUi ? (
-          <p className="m-0 text-xs rounded-lg px-3 py-2" style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)', color: 'var(--text-quaternary)' }}>
-            Overview UI: long help and bank diff are hidden. Turn off &quot;Overview UI&quot; below to restore the full guide.
-          </p>
+        {viewMode === 'logic' ? (
+          overviewUi ? (
+            <p className="m-0 text-xs rounded-lg px-3 py-2" style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)', color: 'var(--text-quaternary)' }}>
+              Overview UI: long help and bank diff are hidden. Turn off &quot;Overview UI&quot; below to restore the full guide.
+            </p>
+          ) : (
+            <div
+              className="rounded-lg px-3 py-2 space-y-2 text-xs leading-relaxed"
+              style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}
+            >
+              <p className="m-0" style={{ color: 'var(--text-secondary)' }}>
+                <strong style={{ color: 'var(--text-primary)' }}>Canon map (default):</strong> every bank id and section
+                from <span className="font-mono">question-bank.v1.json</span> — this is the full semantic tree, not “what one
+                product screen asks in one step”.
+              </p>
+              <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>
+                <strong style={{ color: 'var(--text-tertiary)' }}>Left stripe</strong> = policy + canon priority;{' '}
+                <strong style={{ color: 'var(--text-tertiary)' }}>outer glow ring</strong> = trace result (answers +{' '}
+                <span className="font-mono">buildIntakePlan</span>) when the trace runs. Inner stripe answers &quot;what the product mode expects&quot;; ring answers &quot;what this scenario shows&quot;.
+              </p>
+              <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>
+                <strong style={{ color: 'var(--text-tertiary)' }}>Policy mode</strong> adjusts participation / requiredness
+                overlays; <strong style={{ color: 'var(--text-tertiary)' }}>full</strong> and{' '}
+                <strong style={{ color: 'var(--text-tertiary)' }}>express</strong> are both <span className="font-mono">all_eligible</span>{' '}
+                in policy, so the same ids appear — branch edges and trace show if-then differences.
+              </p>
+              <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>
+                <strong style={{ color: 'var(--text-tertiary)' }}>Layout surface</strong> adds wizard-step nodes from{' '}
+                <span className="font-mono">layout-rules</span> between each section and its questions; ids not listed in
+                that surface stay linked straight from the section.
+              </p>
+            </div>
+          )
         ) : (
           <div
-            className="rounded-lg px-3 py-2 space-y-2 text-xs leading-relaxed"
+            className="rounded-lg px-3 py-2 text-xs"
             style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}
           >
-            <p className="m-0" style={{ color: 'var(--text-secondary)' }}>
-              <strong style={{ color: 'var(--text-primary)' }}>Canon map (default):</strong> every bank id and section
-              from <span className="font-mono">question-bank.v1.json</span> — this is the full semantic tree, not “what one
-              product screen asks in one step”.
-            </p>
-            <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>
-              <strong style={{ color: 'var(--text-tertiary)' }}>Left stripe</strong> = policy + canon priority;{' '}
-              <strong style={{ color: 'var(--text-tertiary)' }}>outer glow ring</strong> = trace result (answers +{' '}
-              <span className="font-mono">buildIntakePlan</span>) when the trace runs. Inner stripe answers &quot;what the product mode expects&quot;; ring answers &quot;what this scenario shows&quot;.
-            </p>
-            <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>
-              <strong style={{ color: 'var(--text-tertiary)' }}>Policy mode</strong> adjusts participation / requiredness
-              overlays; <strong style={{ color: 'var(--text-tertiary)' }}>full</strong> and{' '}
-              <strong style={{ color: 'var(--text-tertiary)' }}>express</strong> are both <span className="font-mono">all_eligible</span>{' '}
-              in policy, so the same ids appear — branch edges and trace show if-then differences.
-            </p>
-            <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>
-              <strong style={{ color: 'var(--text-tertiary)' }}>free_snapshot</strong> uses <span className="font-mono">requiredness: none</span>{' '}
-              in policy — the map still shows the full canon; card stripes follow bank priorities.
-            </p>
-            <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>
-              Use <strong style={{ color: 'var(--text-tertiary)' }}>Plan footprint</strong> or <strong style={{ color: 'var(--text-tertiary)' }}>Policy slice</strong> to hide noise; scenario presets can sync policy mode and optionally auto-enable footprint.
-            </p>
-            <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>
-              <strong style={{ color: 'var(--text-tertiary)' }}>Layout surface</strong> adds wizard-step nodes from{' '}
-              <span className="font-mono">layout-rules</span> between each section and its questions; ids not listed in
-              that surface stay linked straight from the section.
-            </p>
+            Нажми на карточку вопроса на карте, чтобы увидеть эволюцию пути и что откроется дальше у клиента.
           </div>
         )}
 
         <div className="flex flex-wrap gap-2 items-center">
-          <label className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
-            Layout surface
-            <select
-              className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md max-w-[200px]"
-              style={{
-                backgroundColor: 'var(--bg-canvas)',
-                border: '1px solid var(--border-default)',
-                color: 'var(--text-primary)',
-              }}
-              value={layoutSurface}
-              onChange={e => setLayoutSurface(e.target.value as '' | StudioLayoutSurfaceKey)}
-            >
-              {LAYOUT_SURFACE_OPTIONS.map(o => (
-                <option key={o.value || 'flat'} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
-            Policy mode
-            <select
-              className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md"
-              style={{
-                backgroundColor: 'var(--bg-canvas)',
-                border: '1px solid var(--border-default)',
-                color: 'var(--text-primary)',
-              }}
-              value={policyMode}
-              onChange={e => setPolicyMode(e.target.value as StudioPolicyMode)}
-            >
-              {POLICY_MODE_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            <Switch checked={showBranchEdges} onCheckedChange={setShowBranchEdges} />
-            Branch edges
-          </label>
-          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            <Switch checked={dimOutsidePolicy} onCheckedChange={setDimOutsidePolicy} />
-            Dim outside policy mode
-          </label>
-          <label
-            className="flex items-center gap-2 text-xs"
-            style={{ color: 'var(--text-secondary)' }}
-            title="Hide nodes that do not participate in the selected policy mode (strong effect for discovery / pre_brief)."
-          >
-            <Switch checked={policySliceOnly} onCheckedChange={setPolicySliceOnly} />
-            Policy slice
-          </label>
-          <label className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
-            Density
-            <select
-              className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md"
-              style={{
-                backgroundColor: 'var(--bg-canvas)',
-                border: '1px solid var(--border-default)',
-                color: 'var(--text-primary)',
-              }}
-              value={viewDensity}
-              onChange={e => setViewDensity(e.target.value as 'comfortable' | 'compact')}
-            >
-              <option value="comfortable">Comfortable</option>
-              <option value="compact">Compact</option>
-            </select>
-          </label>
-          <label
-            className="flex items-center gap-2 text-xs"
-            style={{ color: 'var(--text-secondary)' }}
-            title="Collapse long help panels and bank diff for a quicker read."
-          >
-            <Switch checked={overviewUi} onCheckedChange={setOverviewUi} />
-            Overview UI
-          </label>
-          <label
-            className="flex items-center gap-2 text-xs"
-            style={{ color: 'var(--text-secondary)' }}
-            title="After selecting a question node, hide other bank ids outside its branch neighbourhood."
-          >
-            <Switch checked={branchFocusFromSelection} onCheckedChange={setBranchFocusFromSelection} />
-            Branch focus
-          </label>
-          <label
-            className="flex items-center gap-2 text-xs"
-            style={{ color: 'var(--text-secondary)' }}
-            title="When you change the scenario preset, turn on plan footprint automatically."
-          >
-            <Switch checked={autoFootprintOnScenario} onCheckedChange={setAutoFootprintOnScenario} />
-            Auto footprint on scenario
-          </label>
-          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            <Switch checked={colorByDomain} onCheckedChange={setColorByDomain} />
-            Color by feed domain
-          </label>
-          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            <Switch checked={clusterByPrimaryDomain} onCheckedChange={setClusterByPrimaryDomain} />
-            Cluster by primary domain
-          </label>
-          <label
-            className={`flex items-center gap-2 text-xs ${!tracePlan ? 'opacity-50' : ''}`}
-            style={{ color: 'var(--text-secondary)' }}
-            title={
-              tracePlan
-                ? 'Hide nodes not referenced by the current trace preset plan.'
-                : 'Run a successful trace preset first.'
-            }
-          >
-            <Switch
-              checked={planFootprintOnly}
-              disabled={!tracePlan}
-              onCheckedChange={setPlanFootprintOnly}
-            />
-            Plan footprint
-          </label>
-          <div className="flex flex-wrap gap-1 items-center">
-            <button
-              type="button"
-              disabled={exportBusy}
-              className="text-xs font-medium px-2 py-1.5 rounded-md"
-              style={{
-                border: '1px solid var(--border-default)',
-                backgroundColor: 'var(--bg-canvas)',
-                color: 'var(--text-secondary)',
-                cursor: exportBusy ? 'wait' : 'pointer',
-                opacity: exportBusy ? 0.6 : 1,
-              }}
-              onClick={() => downloadSvgExport()}
-            >
-              Export SVG
-            </button>
-            <button
-              type="button"
-              disabled={exportBusy}
-              className="text-xs font-medium px-2 py-1.5 rounded-md"
-              style={{
-                border: '1px solid var(--border-default)',
-                backgroundColor: 'var(--bg-canvas)',
-                color: 'var(--text-secondary)',
-                cursor: exportBusy ? 'wait' : 'pointer',
-                opacity: exportBusy ? 0.6 : 1,
-              }}
-              onClick={() => void downloadPngExport()}
-            >
-              {exportBusy ? 'PNG…' : 'Export PNG'}
-            </button>
-          </div>
+          <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+            Flow simulator
+          </span>
+          {viewMode === 'logic' && (
+            <label className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+              Layout surface
+              <select
+                className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md max-w-[200px]"
+                style={{
+                  backgroundColor: 'var(--bg-canvas)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                }}
+                value={layoutSurface}
+                onChange={e => setLayoutSurface(e.target.value as '' | StudioLayoutSurfaceKey)}
+              >
+                {LAYOUT_SURFACE_OPTIONS.map(o => (
+                  <option key={o.value || 'flat'} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {viewMode === 'logic' && (
+            <label className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+              Orientation
+              <select
+                className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md"
+                style={{
+                  backgroundColor: 'var(--bg-canvas)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                }}
+                value={graphOrientation}
+                onChange={e => setGraphOrientation(e.target.value as 'TB' | 'LR')}
+              >
+                <option value="TB">Vertical (top-bottom)</option>
+                <option value="LR">Horizontal (left-right)</option>
+              </select>
+            </label>
+          )}
+          {viewMode === 'logic' && (
+            <label className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+              Policy mode
+              <select
+                className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md"
+                style={{
+                  backgroundColor: 'var(--bg-canvas)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                }}
+                value={policyMode}
+                onChange={e => setPolicyMode(e.target.value as StudioPolicyMode)}
+              >
+                {POLICY_MODE_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {viewMode === 'logic' && (
+            <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+              <Switch checked={showBranchEdges} onCheckedChange={setShowBranchEdges} />
+              Branch edges
+            </label>
+          )}
+          {viewMode === 'logic' && (
+            <>
+              <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                <Switch checked={dimOutsidePolicy} onCheckedChange={setDimOutsidePolicy} />
+                Dim outside policy mode
+              </label>
+              <label
+                className="flex items-center gap-2 text-xs"
+                style={{ color: 'var(--text-secondary)' }}
+                title="Hide nodes that do not participate in the selected policy mode (strong effect for discovery / pre_brief)."
+              >
+                <Switch checked={policySliceOnly} onCheckedChange={setPolicySliceOnly} />
+                Policy slice
+              </label>
+            </>
+          )}
+          {viewMode === 'logic' && (
+            <label className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+              Density
+              <select
+                className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md"
+                style={{
+                  backgroundColor: 'var(--bg-canvas)',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
+                }}
+                value={viewDensity}
+                onChange={e => setViewDensity(e.target.value as 'comfortable' | 'compact')}
+              >
+                <option value="comfortable">Comfortable</option>
+                <option value="compact">Compact</option>
+              </select>
+            </label>
+          )}
+          {viewMode === 'logic' && (
+            <>
+              <label
+                className="flex items-center gap-2 text-xs"
+                style={{ color: 'var(--text-secondary)' }}
+                title="Collapse long help panels and bank diff for a quicker read."
+              >
+                <Switch checked={overviewUi} onCheckedChange={setOverviewUi} />
+                Overview UI
+              </label>
+              <label
+                className="flex items-center gap-2 text-xs"
+                style={{ color: 'var(--text-secondary)' }}
+                title="After selecting a question node, hide other bank ids outside its branch neighbourhood."
+              >
+                <Switch checked={branchFocusFromSelection} onCheckedChange={setBranchFocusFromSelection} />
+                Branch focus
+              </label>
+            </>
+          )}
+          {viewMode === 'logic' && (
+            <>
+              <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                <Switch checked={colorByDomain} onCheckedChange={setColorByDomain} />
+                Color by feed domain
+              </label>
+              <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                <Switch checked={clusterByPrimaryDomain} onCheckedChange={setClusterByPrimaryDomain} />
+                Cluster by primary domain
+              </label>
+            </>
+          )}
+          {viewMode === 'logic' && (
+            <>
+              <label
+                className={`flex items-center gap-2 text-xs ${!tracePlan ? 'opacity-50' : ''}`}
+                style={{ color: 'var(--text-secondary)' }}
+                title={
+                  tracePlan
+                    ? 'Hide nodes not referenced by the current trace preset plan.'
+                    : 'Run a successful trace preset first.'
+                }
+              >
+                <Switch
+                  checked={planFootprintOnly}
+                  disabled={!tracePlan}
+                  onCheckedChange={setPlanFootprintOnly}
+                />
+                Plan footprint
+              </label>
+              <div className="flex flex-wrap gap-1 items-center">
+                <button
+                  type="button"
+                  disabled={exportBusy}
+                  className="text-xs font-medium px-2 py-1.5 rounded-md"
+                  style={{
+                    border: '1px solid var(--border-default)',
+                    backgroundColor: 'var(--bg-canvas)',
+                    color: 'var(--text-secondary)',
+                    cursor: exportBusy ? 'wait' : 'pointer',
+                    opacity: exportBusy ? 0.6 : 1,
+                  }}
+                  onClick={() => downloadSvgExport()}
+                >
+                  Export SVG
+                </button>
+                <button
+                  type="button"
+                  disabled={exportBusy}
+                  className="text-xs font-medium px-2 py-1.5 rounded-md"
+                  style={{
+                    border: '1px solid var(--border-default)',
+                    backgroundColor: 'var(--bg-canvas)',
+                    color: 'var(--text-secondary)',
+                    cursor: exportBusy ? 'wait' : 'pointer',
+                    opacity: exportBusy ? 0.6 : 1,
+                  }}
+                  onClick={() => void downloadPngExport()}
+                >
+                  {exportBusy ? 'PNG…' : 'Export PNG'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         <div
@@ -1331,7 +1101,7 @@ export function QuestionBankStudio() {
             ) : null}
           </p>
           <p className="m-0" style={{ color: 'var(--text-quaternary)', fontSize: 10 }}>
-            Scenario: {activeTraceScenarioLabel}
+            Runtime trace
             {tracePlan ? (
               <>
                 {' · '}
@@ -1355,6 +1125,7 @@ export function QuestionBankStudio() {
           </p>
         </div>
 
+        {viewMode === 'logic' && (
         <div className="rounded-lg px-3 py-2" style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}>
           <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
             Legend (node types)
@@ -1396,8 +1167,9 @@ export function QuestionBankStudio() {
             ) : null}
           </div>
         </div>
+        )}
 
-        {!overviewUi ? (
+        {viewMode === 'logic' && !overviewUi ? (
         <div
           className="rounded-lg px-3 py-2 space-y-2"
           style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}
@@ -1450,6 +1222,7 @@ export function QuestionBankStudio() {
         </div>
         ) : null}
 
+        {viewMode === 'logic' && (
         <div className="rounded-lg px-3 py-2" style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}>
           <div className="text-[10px] font-semibold uppercase mb-2" style={{ color: 'var(--text-tertiary)' }}>
             Collapse sections
@@ -1476,7 +1249,9 @@ export function QuestionBankStudio() {
             })}
           </div>
         </div>
+        )}
 
+        {viewMode === 'logic' && (
         <div className="flex flex-wrap gap-2 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
           <span>Questions: {stats.questionCount}</span>
           <span>Sections: {stats.sectionCount}</span>
@@ -1488,7 +1263,9 @@ export function QuestionBankStudio() {
           <span>Branch roots: {stats.branchRootCount}</span>
           <span>Branch leaves: {stats.branchLeafCount}</span>
         </div>
+        )}
 
+        {viewMode === 'logic' && (
         <div className="flex flex-col gap-1 max-w-md">
           <input
             type="search"
@@ -1508,71 +1285,196 @@ export function QuestionBankStudio() {
             </span>
           ) : null}
         </div>
+        )}
 
-        <div className="flex flex-wrap gap-3 items-start">
+        {viewMode === 'user' && (
           <div
-            className="flex-1 min-w-0 rounded-lg overflow-hidden"
-            style={{ border: '1px solid var(--border-default)', height: 480 }}
-          >
-            <ReactFlowProvider>
-              <FlowCanvas
-                nodes={nodes}
-                edges={displayEdges}
-                onNodeClick={onNodeClick}
-                layoutSignature={layoutSignature}
-                centerOnNodeId={centerOnNodeId}
-                minimapMaskColor={isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.12)'}
-                viewDensity={viewDensity}
-              />
-            </ReactFlowProvider>
-          </div>
-          <div
-            className="w-full mobile:w-80 shrink-0 p-3 rounded-lg text-left"
+            className="rounded-lg px-3 py-2 space-y-2 text-xs"
             style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}
           >
-            <div className="text-[10px] font-semibold uppercase mb-2" style={{ color: 'var(--text-tertiary)' }}>
-              Inspector
+            <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-tertiary)' }}>
+              Breadcrumbs (current path)
             </div>
-            {inspectorBody}
-            <div
-              className="mt-4 pt-3 text-[10px] font-semibold uppercase mb-2 border-t"
-              style={{ borderColor: 'var(--border-default)', color: 'var(--text-tertiary)' }}
-            >
-              Interactive trace
+            <div style={{ color: 'var(--text-secondary)' }}>
+              {breadcrumbs.length > 0
+                ? breadcrumbs.map(renderUserQuestionInline).join(' -> ')
+                : 'Select a question node to start simulation path.'}
             </div>
-            <label className="flex items-center gap-2 text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>
-              <Switch checked={useCustomTrace} onCheckedChange={setUseCustomTrace} />
-              Custom responses JSON
-            </label>
-            {!useCustomTrace ? (
-              <>
-                <label className="block text-xs mb-1" style={{ color: 'var(--text-quaternary)' }}>
-                  Scenario preset
-                </label>
-                <select
-                  className="w-full px-2 py-1.5 text-xs rounded-md mb-2"
-                  style={{
-                    backgroundColor: 'var(--bg-surface)',
-                    border: '1px solid var(--border-default)',
-                    color: 'var(--text-primary)',
-                  }}
-                  value={tracePresetId}
-                  onChange={e => setTracePresetId(e.target.value)}
-                >
-                  {INTAKE_TRACE_SCENARIO_PRESETS.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.label}
-                    </option>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                className="text-[11px] font-medium px-2 py-1 rounded-md"
+                style={{
+                  border: '1px solid var(--border-default)',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-secondary)',
+                  cursor: pathHistory.length > 1 ? 'pointer' : 'not-allowed',
+                  opacity: pathHistory.length > 1 ? 1 : 0.5,
+                }}
+                onClick={() => {
+                  if (pathHistory.length < 2) return;
+                  const next = pathHistory.slice(0, -1);
+                  setPathHistory(next);
+                  setSelectedId(next[next.length - 1] ?? null);
+                }}
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                className="text-[11px] font-medium px-2 py-1 rounded-md"
+                style={{
+                  border: '1px solid var(--border-default)',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-secondary)',
+                  cursor: simulation.nextIds.length > 0 ? 'pointer' : 'not-allowed',
+                  opacity: simulation.nextIds.length > 0 ? 1 : 0.5,
+                }}
+                onClick={() => {
+                  if (simulation.nextIds.length === 0) return;
+                  const nextQuestionId = simulation.nextIds[0];
+                  const node = layoutGraph.nodes.find(
+                    n => n.type === 'studioQuestion' && n.data.kind === 'question' && n.data.questionId === nextQuestionId,
+                  );
+                  if (!node) return;
+                  setSelectedId(node.id);
+                  setPathHistory(prev => (prev[prev.length - 1] === node.id ? prev : [...prev, node.id]));
+                }}
+              >
+                Next preview
+              </button>
+              <button
+                type="button"
+                className="text-[11px] font-medium px-2 py-1 rounded-md"
+                style={{
+                  border: '1px solid var(--border-default)',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                }}
+                onClick={() => {
+                  setPathHistory([]);
+                  setSelectedId(null);
+                }}
+              >
+                Reset path
+              </button>
+            </div>
+            {userStepLanes.length > 0 && (
+              <div className="pt-1 border-t" style={{ borderColor: 'var(--border-default)' }}>
+                <div className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
+                  Swimlanes by step
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    className="text-[11px] font-medium px-2 py-1 rounded-md"
+                    style={{
+                      border: '1px solid var(--border-default)',
+                      backgroundColor: activeUserStep === null ? 'var(--glc-blue-muted)' : 'var(--bg-surface)',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => setActiveUserStep(null)}
+                  >
+                    All steps
+                  </button>
+                  {userStepLanes.map(step => (
+                    <button
+                      key={step.laneId}
+                      type="button"
+                      className="text-[11px] font-medium px-2 py-1 rounded-md"
+                      style={{
+                        border: '1px solid var(--border-default)',
+                        backgroundColor:
+                          activeUserStep === step.stepIndex ? 'var(--glc-blue-muted)' : 'var(--bg-surface)',
+                        color: 'var(--text-secondary)',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => setActiveUserStep(step.stepIndex)}
+                      title={step.label}
+                    >
+                      {`Step ${step.stepIndex + 1} (${step.questionIds.length})`}
+                    </button>
                   ))}
-                </select>
-              </>
-            ) : (
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className={viewMode === 'user' ? 'grid gap-3 items-start lg:grid-cols-[280px_1fr_320px]' : 'flex flex-wrap gap-3 items-start'}>
+          {viewMode === 'user' ? (
+            <div
+              className="w-full p-3 rounded-lg text-left"
+              style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}
+            >
+              <div className="text-[10px] font-semibold uppercase mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                Context inputs
+              </div>
               <div className="space-y-2 mb-2">
-                <label className="block text-[10px] uppercase" style={{ color: 'var(--text-quaternary)' }}>
+                <label className="text-[10px] block" style={{ color: 'var(--text-quaternary)' }}>
+                  Product mode
+                  <select
+                    className="block w-full mt-0.5 px-2 py-1 text-xs rounded-md"
+                    style={{
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px solid var(--border-default)',
+                      color: 'var(--text-primary)',
+                    }}
+                    value={customProductMode}
+                    onChange={e => setCustomProductMode(e.target.value as ProductMode)}
+                  >
+                    {TRACE_PRODUCT_OPTIONS.map(o => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-[10px] block" style={{ color: 'var(--text-quaternary)' }}>
+                  Collection mode
+                  <select
+                    className="block w-full mt-0.5 px-2 py-1 text-xs rounded-md"
+                    style={{
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px solid var(--border-default)',
+                      color: 'var(--text-primary)',
+                    }}
+                    value={customCollectionMode}
+                    onChange={e => setCustomCollectionMode(e.target.value as IntakeBriefCollectionMode | '')}
+                  >
+                    {TRACE_COLLECTION_OPTIONS.map(o => (
+                      <option key={o.value || 'none'} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-[10px] block" style={{ color: 'var(--text-quaternary)' }}>
+                  Surface
+                  <select
+                    className="block w-full mt-0.5 px-2 py-1 text-xs rounded-md"
+                    style={{
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px solid var(--border-default)',
+                      color: 'var(--text-primary)',
+                    }}
+                    value={customSurface}
+                    onChange={e => setCustomSurface(e.target.value as IntakeSurface | '')}
+                  >
+                    {TRACE_SURFACE_OPTIONS.map(o => (
+                      <option key={o.value || 'none'} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-[10px] block" style={{ color: 'var(--text-quaternary)' }}>
                   Responses JSON
                 </label>
                 <textarea
-                  className="w-full min-h-[120px] px-2 py-1.5 text-[11px] font-mono rounded-md"
+                  className="w-full min-h-[110px] px-2 py-1.5 text-[11px] font-mono rounded-md"
                   style={{
                     backgroundColor: 'var(--bg-surface)',
                     border: '1px solid var(--border-default)',
@@ -1582,80 +1484,315 @@ export function QuestionBankStudio() {
                   onChange={e => setCustomResponsesText(e.target.value)}
                   spellCheck={false}
                 />
-                <div className="grid grid-cols-1 gap-1.5">
-                  <label className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>
-                    Product mode
-                    <select
-                      className="block w-full mt-0.5 px-2 py-1 text-xs rounded-md"
-                      style={{
-                        backgroundColor: 'var(--bg-surface)',
-                        border: '1px solid var(--border-default)',
-                        color: 'var(--text-primary)',
-                      }}
-                      value={customProductMode}
-                      onChange={e => setCustomProductMode(e.target.value as ProductMode)}
-                    >
-                      {TRACE_PRODUCT_OPTIONS.map(o => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>
-                    Collection mode
-                    <select
-                      className="block w-full mt-0.5 px-2 py-1 text-xs rounded-md"
-                      style={{
-                        backgroundColor: 'var(--bg-surface)',
-                        border: '1px solid var(--border-default)',
-                        color: 'var(--text-primary)',
-                      }}
-                      value={customCollectionMode}
-                      onChange={e =>
-                        setCustomCollectionMode(e.target.value as IntakeBriefCollectionMode | '')
-                      }
-                    >
-                      {TRACE_COLLECTION_OPTIONS.map(o => (
-                        <option key={o.value || 'none'} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>
-                    Surface
-                    <select
-                      className="block w-full mt-0.5 px-2 py-1 text-xs rounded-md"
-                      style={{
-                        backgroundColor: 'var(--bg-surface)',
-                        border: '1px solid var(--border-default)',
-                        color: 'var(--text-primary)',
-                      }}
-                      value={customSurface}
-                      onChange={e => setCustomSurface(e.target.value as IntakeSurface | '')}
-                    >
-                      {TRACE_SURFACE_OPTIONS.map(o => (
-                        <option key={o.value || 'none'} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+              </div>
+              <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                Policy mode: <span className="font-mono">{policyMode}</span>
+              </div>
+              <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                Surface: <span className="font-mono">{effectiveLayoutSurface || 'flat'}</span>
+              </div>
+              <p className="mt-2 mb-0 text-[10px]" style={{ color: 'var(--text-quaternary)' }}>
+                User view fixes orientation to vertical and keeps branch edge labels visible for business conditions.
+              </p>
+              <button
+                type="button"
+                className="mt-2 text-[11px] font-medium px-2 py-1 rounded-md"
+                style={{
+                  border: '1px solid var(--border-default)',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setActiveUserStep(null)}
+              >
+                Show all steps
+              </button>
+            </div>
+          ) : null}
+          <div
+            className="flex-1 min-w-0 rounded-lg overflow-hidden"
+            style={{ border: '1px solid var(--border-default)', height: 'calc(100vh - 260px)', minHeight: 620 }}
+          >
+            <div className="h-full overflow-auto p-3 space-y-3" style={{ backgroundColor: 'var(--bg-surface)' }}>
+              {userStepLanes.length === 0 ? (
+                <div className="text-sm" style={{ color: 'var(--text-quaternary)' }}>
+                  No step layout available for this scenario.
                 </div>
-                <p className="text-[10px] m-0" style={{ color: 'var(--text-quaternary)' }}>
-                  Live session replay from analytics storage is not wired here yet; this JSON path matches how presets
-                  call <span className="font-mono">buildIntakePlan</span>.
-                </p>
+              ) : (
+                userStepLanes
+                  .filter(step => activeUserStep === null || step.stepIndex === activeUserStep)
+                  .map(step => (
+                    <section
+                      key={`flow-step-${step.laneId}`}
+                      className="rounded-lg p-3"
+                      style={{ border: '1px solid var(--border-default)', backgroundColor: 'var(--bg-canvas)' }}
+                    >
+                      <div className="text-xs font-semibold mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                        {`Step ${step.stepIndex + 1} — ${step.label}`}
+                      </div>
+                      <div className="grid gap-2">
+                        {step.questionIds.length === 0 ? (
+                          <div className="text-[11px]" style={{ color: 'var(--text-quaternary)' }}>
+                            No questions in this step.
+                          </div>
+                        ) : (
+                          step.questionIds.map(questionId => {
+                            const nodeId = questionNodeIdByQuestionId.get(questionId);
+                            const status = traceStatusByQuestionId.get(questionId) ?? 'unknown';
+                            const pill = statusPill(status);
+                            const active = selectedQuestionId === questionId;
+                            return (
+                              <button
+                                key={`step-card-${step.laneId}-${questionId}`}
+                                type="button"
+                                className="w-full text-left rounded-md px-3 py-2"
+                                style={{
+                                  border: active ? `1px solid ${pill.border}` : `1px solid ${pill.border}`,
+                                  backgroundColor: active ? pill.bg : 'var(--bg-surface)',
+                                  color: 'var(--text-secondary)',
+                                  cursor: nodeId ? 'pointer' : 'not-allowed',
+                                  opacity: nodeId ? 1 : 0.6,
+                                }}
+                                disabled={!nodeId}
+                                onClick={() => {
+                                  if (!nodeId) return;
+                                  setSelectedId(nodeId);
+                                  setPathHistory(prev => (prev[prev.length - 1] === nodeId ? prev : [...prev, nodeId]));
+                                }}
+                              >
+                                <div className="text-[12px] font-medium">{shortUserLabel(questionId)}</div>
+                                <div className="text-[10px] flex items-center gap-1.5" style={{ color: 'var(--text-quaternary)' }}>
+                                  id: <span className="font-mono">{questionId}</span> · status: {status}
+                                  <span
+                                    className="inline-flex items-center px-1.5 py-0.5 rounded"
+                                    style={{ backgroundColor: pill.bg, color: pill.fg, border: `1px solid ${pill.border}` }}
+                                  >
+                                    {pill.label}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </section>
+                  ))
+              )}
+            </div>
+          </div>
+          <div
+            className="w-full mobile:w-80 shrink-0 p-3 rounded-lg text-left"
+            style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}
+          >
+            <div className="text-[10px] font-semibold uppercase mb-2" style={{ color: 'var(--text-tertiary)' }}>
+              Inspector
+            </div>
+            {viewMode === 'user' && (
+              <div className="mb-3 space-y-2">
+                <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-tertiary)' }}>
+                  State delta
+                </div>
+                <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                  Current role: <span className="font-mono">{selectedQuestionRole ?? '—'}</span>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
+                    Now visible
+                  </div>
+                  <ul className="m-0 pl-4 space-y-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                    {simulation.nowVisible.length > 0 ? (
+                      simulation.nowVisible.slice(0, 8).map(id => (
+                        <li key={`now-visible-${id}`}>{renderUserQuestionInline(id)}</li>
+                      ))
+                    ) : (
+                      <li>—</li>
+                    )}
+                  </ul>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
+                    Added next
+                  </div>
+                  <ul className="m-0 pl-4 space-y-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                    {simulation.addedNext.length > 0 ? (
+                      simulation.addedNext.map(id => <li key={`added-next-${id}`}>{renderUserQuestionInline(id)}</li>)
+                    ) : (
+                      <li>—</li>
+                    )}
+                  </ul>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
+                    Removed next
+                  </div>
+                  <ul className="m-0 pl-4 space-y-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                    {simulation.removedNext.length > 0 ? (
+                      simulation.removedNext.map(id => (
+                        <li key={`removed-next-${id}`}>{renderUserQuestionInline(id)}</li>
+                      ))
+                    ) : (
+                      <li>—</li>
+                    )}
+                  </ul>
+                </div>
+                <details
+                  className="rounded-md px-2 py-1.5"
+                  style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
+                >
+                  <summary className="cursor-pointer text-[10px] uppercase" style={{ color: 'var(--text-tertiary)' }}>
+                    Next options cards
+                  </summary>
+                  <div className="mt-2 space-y-1.5">
+                    {simulation.nextIds.length === 0 ? (
+                      <div className="text-[11px]" style={{ color: 'var(--text-quaternary)' }}>
+                        No direct next options from current question.
+                      </div>
+                    ) : (
+                      simulation.nextIds.map(id => {
+                        const node = layoutGraph.nodes.find(
+                          n => n.type === 'studioQuestion' && n.data.kind === 'question' && n.data.questionId === id,
+                        );
+                        const status =
+                          tracePlan && tracePlan.required.includes(id)
+                            ? 'required'
+                            : tracePlan && tracePlan.visible.includes(id)
+                              ? 'visible'
+                              : tracePlan && tracePlan.hidden.includes(id)
+                                ? 'hidden'
+                                : tracePlan && tracePlan.deferred.includes(id)
+                                  ? 'deferred'
+                                  : 'unknown';
+                        const pill = statusPill(status);
+                        return (
+                          <button
+                            key={`next-card-${id}`}
+                            type="button"
+                            className="w-full text-left rounded-md px-2 py-1.5"
+                            style={{
+                              border: `1px solid ${pill.border}`,
+                              backgroundColor: pill.bg,
+                              color: 'var(--text-secondary)',
+                              cursor: node ? 'pointer' : 'not-allowed',
+                              opacity: node ? 1 : 0.6,
+                            }}
+                            disabled={!node}
+                            onClick={() => {
+                              if (!node) return;
+                              setSelectedId(node.id);
+                              setPathHistory(prev => (prev[prev.length - 1] === node.id ? prev : [...prev, node.id]));
+                            }}
+                          >
+                            <div className="text-[11px] font-medium">{shortUserLabel(id)}</div>
+                            <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>
+                              id: <span className="font-mono">{id}</span> ·{' '}
+                              status: {status}
+                              <span
+                                className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded"
+                                style={{ backgroundColor: pill.bg, color: pill.fg, border: `1px solid ${pill.border}` }}
+                              >
+                                {pill.label}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </details>
+                <div>
+                  <div className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
+                    Dependencies
+                  </div>
+                  <div className="text-[11px] space-y-2" style={{ color: 'var(--text-secondary)' }}>
+                    <div>
+                      <strong>Depends on:</strong>{' '}
+                      {selectedDependencies.dependsOn.length > 0
+                        ? selectedDependencies.dependsOn.map(shortUserLabel).join(', ')
+                        : '—'}
+                    </div>
+                    <div>
+                      <strong>Enables:</strong>{' '}
+                      {selectedDependencies.enables.length > 0
+                        ? selectedDependencies.enables.slice(0, 8).map(shortUserLabel).join(', ')
+                        : '—'}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
+                    Why
+                  </div>
+                  <ul className="m-0 pl-4 space-y-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                    {selectedWhy.length === 0 ? (
+                      <li>No reasons yet.</li>
+                    ) : (
+                      selectedWhy.slice(0, 6).map((r, i) => (
+                        <li key={`${r.code}-${i}`}>
+                          <span className="font-mono">{r.code}</span>
+                          {r.detail ? ` — ${r.detail}` : ''}
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </div>
+                <details
+                  className="rounded-md px-2 py-1.5"
+                  style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
+                >
+                  <summary className="cursor-pointer text-[10px] uppercase" style={{ color: 'var(--text-tertiary)' }}>
+                    Full question list ({allQuestionsForReview.length})
+                  </summary>
+                  <button
+                    type="button"
+                    className="mt-2 text-[11px] font-medium px-2 py-1 rounded-md"
+                    style={{
+                      border: '1px solid var(--border-default)',
+                      backgroundColor: 'var(--bg-canvas)',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                    onClick={async () => {
+                      const lines = allQuestionsForReview.map((q, i) => `${i + 1}. ${q.id} | ${q.status} | ${q.label}`);
+                      await navigator.clipboard.writeText(lines.join('\n'));
+                    }}
+                  >
+                    Copy list for verification
+                  </button>
+                  <div className="mt-2 max-h-56 overflow-auto space-y-1">
+                    {allQuestionsForReview.map(q => {
+                      const pill = statusPill(q.status);
+                      return (
+                        <div
+                          key={`all-q-${q.id}`}
+                          className="text-[11px] rounded px-2 py-1"
+                          style={{ border: `1px solid ${pill.border}`, backgroundColor: pill.bg, color: pill.fg }}
+                        >
+                          <span className="font-mono">{q.id}</span> — {q.label}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </details>
               </div>
             )}
-            {traceError ? (
-              <p className="text-xs m-0 text-red-500">{traceError}</p>
-            ) : (
-              <p className="text-[10px] m-0 leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
-                Card left stripe = policy + canon; outer ring = trace outcome. Ring: amber required · blue visible · purple
-                deferred · gray hidden ({useCustomTrace ? 'custom' : 'preset'} JSON + resolver).
-              </p>
+            {inspectorBody}
+            {viewMode === 'logic' && (
+              <>
+                <div
+                  className="mt-4 pt-3 text-[10px] font-semibold uppercase mb-2 border-t"
+                  style={{ borderColor: 'var(--border-default)', color: 'var(--text-tertiary)' }}
+                >
+                  Interactive trace
+                </div>
+                {traceError ? (
+                  <p className="text-xs m-0 text-red-500">{traceError}</p>
+                ) : (
+                  <p className="text-[10px] m-0 leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
+                    Card left stripe = policy + canon; outer ring = trace outcome. Ring: amber required · blue visible · purple
+                    deferred · gray hidden (JSON + resolver).
+                  </p>
+                )}
+              </>
             )}
           </div>
         </div>

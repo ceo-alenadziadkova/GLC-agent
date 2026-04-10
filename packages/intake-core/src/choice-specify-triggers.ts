@@ -6,6 +6,7 @@ export const CHOICE_OPTION_LABELS_REQUIRING_SPECIFY = new Set<string>([
   'Something else',
   'Yes, other tool',
   'Yes, another tool',
+  'Not quite (I will clarify)',
 ]);
 
 export function choiceValueNeedsSpecify(value: unknown): boolean {

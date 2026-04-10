@@ -12,6 +12,14 @@
 import { buildIntakePlan } from '@glc/intake-core';
 import { buildDiscoveryWizardQuestions } from '@glc/intake-core';
 import { getQuestionBankSchemaMeta } from '@glc/intake-core';
+import {
+  includesCrmTool,
+  normalizeIndustry,
+  normalizeOnlinePresence,
+  normalizePrimaryGoal,
+  normalizeStage,
+  normalizeTeamSize,
+} from '@glc/intake-core';
 import { getBankQuestionUiOptions } from '../data/bankQuestionUiCatalog';
 import { INDUSTRY_OPTIONS } from '../data/industry-options';
 
@@ -157,7 +165,7 @@ export function setDiscoveryUiFragmentQuestions(questions: DiscoveryQuestion[] |
 function hasCrm(answers: DiscoveryAnswers): boolean {
   const tools = answers['d1'];
   if (!Array.isArray(tools)) return false;
-  return tools.includes('CRM');
+  return includesCrmTool(tools);
 }
 
 /**
@@ -228,9 +236,9 @@ function industryLabel(answers: DiscoveryAnswers): string {
 }
 
 function teamLabel(answers: DiscoveryAnswers): string {
-  const t = answers['a4'] as string | null;
-  if (!t || t === 'Just me') return 'as a solo operator';
-  if (t === '2–5 people') return 'with a small team';
+  const t = normalizeTeamSize(answers['a4']);
+  if (t === 'solo' || t === 'unknown') return 'as a solo operator';
+  if (t === 'small') return 'with a small team';
   return 'at your team size';
 }
 
@@ -243,15 +251,11 @@ function channelsLabel(chs: string[]): string {
 }
 
 function stageLabel(stage: string | null): string {
+  const bucket = normalizeStage(stage);
+  if (bucket === 'launching') return 'while you are launching';
+  if (bucket === 'growing') return 'while you are growing fast';
   if (!stage) return 'at your stage';
-  const map: Record<string, string> = {
-    'Just getting started': 'while you are launching',
-    'Growing fast': 'while you are growing fast',
-    Stabilising: 'during stabilisation',
-    Scaling: 'while you scale',
-    'Mature and optimising': 'as you optimise',
-  };
-  return map[stage] ?? 'at your current stage';
+  return 'at your current stage';
 }
 
 /** True when d1 is empty or only trivial / spreadsheet-only tooling. */
@@ -291,26 +295,29 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
   const goal     = answers['f1'] as string | null;
   const stage    = answers['a7'] as string | null;
   const industry = answers['a2'] as string | null;
+  const goalBucket = normalizePrimaryGoal(goal);
 
   const noCrm         = !hasCrm(answers);
-  const hasWhatsApp   = channels.includes('WhatsApp');
+  const hasWhatsApp   = channels.some(c => c.toLowerCase().includes('whatsapp'));
   const hasPhone      = channels.includes('Phone call');
-  const isSolo        = answers['a4'] === 'Just me';
-  const isLaunching   = stage === 'Just getting started';
-  const isGrowingFast = stage === 'Growing fast';
+  const teamBucket = normalizeTeamSize(answers['a4']);
+  const stageBucket = normalizeStage(stage);
+  const isSolo = teamBucket === 'solo';
+  const isLaunching = stageBucket === 'launching';
+  const isGrowingFast = stageBucket === 'growing';
 
-  const isNotOnline = presence.includes('Not really online yet');
+  const presenceNorm = normalizeOnlinePresence(presence);
+  const isNotOnline = presenceNorm.hasNotOnline;
 
+  const industryNorm = normalizeIndustry(industry);
   const isLocalServiceBusiness =
-    industry === 'Hospitality' ||
-    industry === 'Food & Beverage' ||
-    industry === 'Healthcare';
-  const isRealEstate = industry === 'Real Estate';
+    industryNorm === 'hospitality' ||
+    industryNorm === 'food & beverage' ||
+    industryNorm === 'healthcare';
+  const isRealEstate = industryNorm === 'real estate';
 
-  const hasGoogleSearch = presence.some(p => p === 'Google search' || p === 'Google / search');
-  const hasGoogleBusinessListing = presence.some(
-    p => p === 'Google Business / Maps listing' || p === 'Google Business listing',
-  );
+  const hasGoogleSearch = presenceNorm.hasGoogleSearch;
+  const hasGoogleBusinessListing = presenceNorm.hasGoogleBusiness;
   const hasNoGooglePresence = !hasGoogleSearch && !hasGoogleBusinessListing;
 
   // ── Rule 1: No CRM + WhatsApp as primary channel ────────────────────────────
@@ -330,7 +337,7 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
   // ── Rule 2: Lead tracking in head / WhatsApp (d1b) ─────────────────────────────
   if (
     tracking === 'In my head or WhatsApp messages' ||
-    (typeof tracking === 'string' && tracking.includes("don't track"))
+    (typeof tracking === 'string' && tracking.toLowerCase().includes("don't track"))
   ) {
     findings.push({
       id: 'lead_in_head',
@@ -472,7 +479,7 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
   }
 
   // ── Rule 13: Goal is clients + c_nosite_1 includes "Not really online yet" ───
-  if (goal === 'Not enough new clients' && isNotOnline) {
+  if (goalBucket === 'more_clients' && isNotOnline) {
     findings.push({
       id: 'goal_clients_no_presence',
       zone: 'Visibility',
@@ -484,7 +491,7 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
   }
 
   // ── Rule 14: Goal is admin overload but d1 is thin ─────────────────────────
-  if (goal === 'Too much time on admin and operations' && d1SoloWeakTools(tools)) {
+  if (goalBucket === 'admin_overload' && d1SoloWeakTools(tools)) {
     findings.push({
       id: 'goal_admin_no_tools',
       zone: 'Automation',

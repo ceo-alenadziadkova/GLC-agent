@@ -482,6 +482,12 @@ export function IntakeBrief() {
                     Your consultant started company name, website, and/or industry for you. Please change anything that is not accurate.
                   </p>
                 )}
+                <p
+                  className="text-xs text-center px-3 py-2 rounded-lg"
+                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}
+                >
+                  Short answers are enough. If you want, write in detail. Voice input is also welcome.
+                </p>
 
                 <div>
                   <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>

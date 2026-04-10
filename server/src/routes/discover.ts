@@ -21,6 +21,7 @@ import { saveBriefResponses } from '../services/brief-validator.js';
 import { DOMAIN_KEYS, reviewPhasesForMode } from '../types/audit.js';
 import { logger } from '../services/logger.js';
 import { buildPublicDiscoveryUiFragment } from '@glc/intake-core';
+import { includesCrmTool } from '@glc/intake-core';
 import { intakeAnalyticsDiscoveryBatchSchema } from '../schemas/intake-analytics-events.js';
 
 export const discoverRouter = Router();
@@ -131,9 +132,9 @@ function discoveryBankIdsToBriefPatch(answers: Record<string, unknown>): Record<
   }
 
   const d1 = Array.isArray(answers.d1) ? (answers.d1 as string[]) : [];
-  if (d1.some(t => typeof t === 'string' && t.includes('CRM'))) {
+  if (includesCrmTool(d1)) {
     patch.uses_crm = tag('Yes');
-  } else if (typeof answers.d1b === 'string' && answers.d1b.includes('CRM')) {
+  } else if (typeof answers.d1b === 'string' && answers.d1b.toLowerCase().includes('crm')) {
     patch.uses_crm = tag('Yes');
   } else if (d1.length > 0 || typeof answers.d1b === 'string') {
     patch.uses_crm = tag('No');
@@ -176,7 +177,7 @@ function discoveryToBriefPatch(answers: Record<string, unknown>): Record<string,
 
   // CRM detection: crm_name wins over lead_tracking if tools had CRM
   const tools = Array.isArray(answers.tools_daily) ? (answers.tools_daily as string[]) : [];
-  const hasCrmTool = tools.some(t => t.includes('CRM'));
+  const hasCrmTool = includesCrmTool(tools);
   if (hasCrmTool) {
     const name = typeof answers.crm_name === 'string' ? answers.crm_name.trim() : '';
     patch.uses_crm = tag(name || 'Yes');
