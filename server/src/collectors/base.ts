@@ -12,11 +12,18 @@ export interface CollectorResult {
 export abstract class BaseCollector {
   abstract get key(): string;
   abstract get phase(): number;
+  protected get cacheTtlMs(): number {
+    return Number(process.env.COLLECTOR_CACHE_TTL_MS ?? 24 * 60 * 60 * 1000);
+  }
 
   /**
    * Override this to perform actual data collection.
    */
   abstract collect(auditId: string, companyUrl: string): Promise<Record<string, unknown>>;
+
+  protected validateCachedData(data: unknown): data is Record<string, unknown> {
+    return Boolean(data) && typeof data === 'object' && !Array.isArray(data);
+  }
 
   /**
    * Run the collector. Uses cached data if available, otherwise collects fresh.
@@ -26,12 +33,15 @@ export abstract class BaseCollector {
     if (!forceRefresh) {
       const { data: cached } = await supabase
         .from('collected_data')
-        .select('data')
+        .select('data,created_at')
         .eq('audit_id', auditId)
         .eq('collector_key', this.key)
         .single();
 
-      if (cached) {
+      const cachedAt = cached?.created_at ? Date.parse(String(cached.created_at)) : Number.NaN;
+      const freshEnough = Number.isFinite(cachedAt) && Date.now() - cachedAt <= this.cacheTtlMs;
+      const validShape = this.validateCachedData(cached?.data);
+      if (cached && freshEnough && validShape) {
         return { collector_key: this.key, data: cached.data };
       }
     }

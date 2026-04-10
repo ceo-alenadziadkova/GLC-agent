@@ -19,10 +19,13 @@ platformRouter.use(attachProfile);
 platformRouter.get('/self-serve-owner', requireRole('consultant'), async (req: AuthRequest, res) => {
   try {
     const uid = req.userId!;
+    const canManage = canManagePlatformSettings(uid);
     const stored = await getStoredSelfServeAuditOwnerUserId();
     const envSet = Boolean(process.env.SELF_SERVE_AUDIT_OWNER_USER_ID?.trim());
     const resolved = await resolveSelfServeAuditOwnerUserId();
-    const consultants = await listConsultantDirectoryRows();
+    const consultants = canManage
+      ? await listConsultantDirectoryRows()
+      : [{ id: uid }];
 
     const effectiveReady = resolved.ok;
     const envFallbackActive = effectiveReady && !stored && envSet;
@@ -33,7 +36,7 @@ platformRouter.get('/self-serve-owner', requireRole('consultant'), async (req: A
       effective_ready: effectiveReady,
       env_fallback_active: envFallbackActive,
       consultants,
-      can_manage: canManagePlatformSettings(uid),
+      can_manage: canManage,
     });
   } catch {
     res.status(500).json({ error: 'Failed to load platform settings' });

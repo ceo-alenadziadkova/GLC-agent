@@ -9,6 +9,7 @@
  */
 import { Router } from 'express';
 import crypto from 'node:crypto';
+import { promisify } from 'node:util';
 import { supabase } from '../services/supabase.js';
 import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../middleware/auth.js';
 import {
@@ -28,6 +29,7 @@ export const discoverRouter = Router();
 
 const TOKEN_HEX = /^[a-f0-9]{40}$/i;
 const CONTACT_EDIT_KEY_HEX = /^[a-f0-9]{64}$/i;
+const scryptAsync = promisify(crypto.scrypt);
 
 function createContactEditKey(): string {
   return crypto.randomBytes(32).toString('hex');
@@ -35,6 +37,25 @@ function createContactEditKey(): string {
 
 function sha256Hex(value: string): string {
   return crypto.createHash('sha256').update(value).digest('hex');
+}
+
+async function hashContactEditKey(raw: string): Promise<string> {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const derived = await scryptAsync(raw, salt, 64) as Buffer;
+  return `v2:${salt}:${derived.toString('hex')}`;
+}
+
+async function verifyContactEditKey(raw: string, stored: string): Promise<boolean> {
+  if (stored.startsWith('v2:')) {
+    const [, salt, expectedHex] = stored.split(':');
+    if (!salt || !expectedHex) return false;
+    const expected = Buffer.from(expectedHex, 'hex');
+    const actual = await scryptAsync(raw, salt, expected.length) as Buffer;
+    if (actual.length !== expected.length) return false;
+    return crypto.timingSafeEqual(actual, expected);
+  }
+  // Legacy fallback for existing records created before v2 hashing.
+  return sha256Hex(raw) === stored;
 }
 
 function singleRouteParam(v: string | string[] | undefined): string {
@@ -259,13 +280,14 @@ discoverRouter.post('/', discoverSessionCreateLimiter, async (req, res) => {
     }
 
     const contactEditKey = createContactEditKey();
+    const contactEditKeyHash = await hashContactEditKey(contactEditKey);
     const { data: row, error } = await supabase
       .from('discovery_sessions')
       .insert({
         answers,
         maturity_level: ml,
         findings,
-        contact_edit_key_hash: sha256Hex(contactEditKey),
+        contact_edit_key_hash: contactEditKeyHash,
       })
       .select('session_token, created_at')
       .single();
@@ -458,7 +480,6 @@ discoverRouter.patch('/:token/contact', discoverPublicReadLimiter, async (req, r
       res.status(403).json({ error: 'Invalid or missing contact edit key' });
       return;
     }
-    const contactEditKeyHash = sha256Hex(contactEditKeyRaw);
 
     const patch: Record<string, string | null> = {};
     if (typeof req.body?.contact_name === 'string') {
@@ -486,12 +507,31 @@ discoverRouter.patch('/:token/contact', discoverPublicReadLimiter, async (req, r
       return;
     }
 
+    const { data: row, error: loadError } = await supabase
+      .from('discovery_sessions')
+      .select('id, contact_edit_key_hash, audit_id')
+      .eq('session_token', token)
+      .maybeSingle();
+    if (loadError) {
+      logger.error('discover.contact_load_failed', { component: 'discover', error: loadError.message });
+      res.status(500).json({ error: 'Failed to save contact info' });
+      return;
+    }
+    if (!row || row.audit_id) {
+      res.status(403).json({ error: 'Contact update not allowed for this session' });
+      return;
+    }
+    const keyValid = await verifyContactEditKey(contactEditKeyRaw, String(row.contact_edit_key_hash ?? ''));
+    if (!keyValid) {
+      res.status(403).json({ error: 'Contact update not allowed for this session' });
+      return;
+    }
+
     const { data: updated, error } = await supabase
       .from('discovery_sessions')
       .update(patch)
       .eq('session_token', token)
       .is('audit_id', null)
-      .eq('contact_edit_key_hash', contactEditKeyHash)
       .select('id')
       .maybeSingle();
 

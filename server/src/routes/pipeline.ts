@@ -28,48 +28,9 @@ import {
   validationPerspectiveForBriefAccess,
 } from '../services/brief-validator.js';
 import { notifyAuditParticipants, notifyAuditParticipantsExcept } from '../services/notifications.js';
+import { emitPhaseErrorDurable } from '../services/pipeline-error.js';
+import { enqueuePipelineJob } from '../services/pipeline-jobs.js';
 
-/**
- * Emit an error event to pipeline_events and mark audit as failed.
- * Used as a catch handler for fire-and-forget phase runs.
- *
- * [C4] Wrapped in try-catch: if Supabase is unreachable during error handling,
- * we log via logger instead of throwing an unhandled rejection.
- */
-async function emitPhaseError(auditId: string, phase: number, err: Error): Promise<void> {
-  logger.error('Pipeline phase crashed', { audit_id: auditId, phase, error: err.message });
-  try {
-    await Promise.all([
-      supabase.from('pipeline_events').insert({
-        audit_id: auditId,
-        phase,
-        event_type: 'error',
-        message: err.message ?? 'Phase failed unexpectedly',
-        data: { error: err.message, stack: err.stack?.split('\n')[1]?.trim() ?? '' },
-      }),
-      supabase.from('audits')
-        .update({ status: 'failed' })
-        .eq('id', auditId),
-    ]);
-  } catch (dbErr) {
-    // DB unavailable — already logged to console above, don't rethrow
-    logger.error('Failed to write pipeline error event', { audit_id: auditId, phase, error: (dbErr as Error).message });
-  }
-  await notifyAuditParticipants(
-    auditId,
-    'pipeline',
-    'Pipeline failure',
-    err.message ?? 'Pipeline phase failed unexpectedly',
-    {
-      phase,
-      status: 'failed',
-      route: `/pipeline/${auditId}`,
-      occurred_at: new Date().toISOString(),
-      actor_role: 'system',
-      failure_type: 'phase_failed',
-    },
-  );
-}
 
 export const pipelineRouter = Router();
 
@@ -170,9 +131,12 @@ pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineL
     // Start pipeline (runs Phase 0: Recon)
     res.json({ status: 'started', phase: 0, intakeProgress: gates.intakeProgress });
 
-    // Run asynchronously — surface errors to frontend via pipeline_events
-    const orchestrator = new PipelineOrchestrator(id);
-    orchestrator.startPhase(0).catch(err => emitPhaseError(id, 0, err as Error));
+    const queued = await enqueuePipelineJob({ auditId: id, action: 'start', phase: 0 });
+    if (!queued) {
+      // Fallback path when queue backend is unavailable.
+      const orchestrator = new PipelineOrchestrator(id);
+      orchestrator.startPhase(0).catch(err => emitPhaseErrorDurable(id, 0, err as Error));
+    }
   } catch (err) {
     logger.error('Pipeline start route failed', { error: (err as Error).message });
     res.status(500).json({ error: 'Failed to start pipeline' });
@@ -261,10 +225,11 @@ pipelineRouter.post('/:id/pipeline/next', requireAuth, attachProfile, pipelineLi
 
     res.json({ status: 'running', phase: nextPhase });
 
-    // Run asynchronously — runBlock() handles parallel wings internally.
-    // Surface errors to frontend via pipeline_events.
-    const orchestrator = new PipelineOrchestrator(id);
-    orchestrator.runBlock().catch(err => emitPhaseError(id, nextPhase, err as Error));
+    const queued = await enqueuePipelineJob({ auditId: id, action: 'next', phase: nextPhase });
+    if (!queued) {
+      const orchestrator = new PipelineOrchestrator(id);
+      orchestrator.runBlock().catch(err => emitPhaseErrorDurable(id, nextPhase, err as Error));
+    }
   } catch (err) {
     logger.error('Pipeline next route failed', { error: (err as Error).message });
     res.status(500).json({ error: 'Failed to run next phase' });
@@ -347,9 +312,11 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
       },
     );
 
-    // Run asynchronously — surface errors to frontend via pipeline_events
-    const orchestrator = new PipelineOrchestrator(id);
-    orchestrator.startPhase(phase).catch(err => emitPhaseError(id, phase as number, err as Error));
+    const queued = await enqueuePipelineJob({ auditId: id, action: 'retry', phase });
+    if (!queued) {
+      const orchestrator = new PipelineOrchestrator(id);
+      orchestrator.startPhase(phase).catch(err => emitPhaseErrorDurable(id, phase as number, err as Error));
+    }
   } catch (err) {
     logger.error('Pipeline retry route failed', { error: (err as Error).message });
     res.status(500).json({ error: 'Failed to retry phase' });
