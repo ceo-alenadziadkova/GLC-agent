@@ -52,6 +52,19 @@ export default tseslint.config(
     languageOptions: {
       globals: { ...globals.browser, ...globals.es2022 },
     },
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/server/src/intake', '**/server/src/intake/**'],
+              message: 'Import intake from @glc/intake-core instead of server/src/intake.',
+            },
+          ],
+        },
+      ],
+    },
   },
   {
     files: ['src/**/*.{tsx,jsx}'],

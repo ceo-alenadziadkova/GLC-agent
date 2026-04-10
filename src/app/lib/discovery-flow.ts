@@ -9,9 +9,9 @@
  * shared intake-core (`buildIntakePlan`) to avoid a separate questionnaire model.
  */
 
-import { buildIntakePlan } from '../../../server/src/intake/core/build-intake-plan';
-import { buildDiscoveryWizardQuestions } from '../../../server/src/intake/discovery-wizard-questions';
-import { getQuestionBankSchemaMeta } from '../../../server/src/intake/question-bank';
+import { buildIntakePlan } from '@glc/intake-core';
+import { buildDiscoveryWizardQuestions } from '@glc/intake-core';
+import { getQuestionBankSchemaMeta } from '@glc/intake-core';
 import { getBankQuestionUiOptions } from '../data/bankQuestionUiCatalog';
 import { INDUSTRY_OPTIONS } from '../data/industry-options';
 

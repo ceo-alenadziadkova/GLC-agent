@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildDiscoveryWizardQuestions } from '../intake/discovery-wizard-questions.js';
-import { buildPublicDiscoveryUiFragment } from '../intake/discovery-ui-fragment.js';
-import { getBankQuestionUiOptions } from '../intake/bank-question-ui-overrides.js';
+import { buildDiscoveryWizardQuestions } from '@glc/intake-core';
+import { buildPublicDiscoveryUiFragment } from '@glc/intake-core';
+import { getBankQuestionUiOptions } from '@glc/intake-core';
 import { INDUSTRY_OPTIONS } from '../config/industry-options.js';
-import { INTAKE_POLICY_V1 } from '../intake/core/load-policy.js';
+import { INTAKE_POLICY_V1 } from '@glc/intake-core';
 
 const EXPECTED_IDS = [
   'a2',

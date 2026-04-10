@@ -30,7 +30,7 @@ import {
 import type { IntakeVersionTuple } from '../data/auditTypes';
 import { discoverApi } from '../data/api/discover';
 import { api } from '../data/apiService';
-import { choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
+import { choiceValueNeedsSpecify } from '@glc/intake-core';
 import {
   createDiscoveryAnalyticsSink,
   discoveryTrackQuestionAnswered,

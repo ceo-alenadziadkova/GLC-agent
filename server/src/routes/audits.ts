@@ -23,8 +23,8 @@ import {
   isSupportedIntakeArtifactTuple,
   parseIntakeVersionsBody,
   validateIntakeVersionsForBriefWrite,
-} from '../intake/core/index.js';
-import { buildBriefSchemaSnapshot } from '../intake/core/build-brief-schema-snapshot.js';
+} from '@glc/intake-core';
+import { buildBriefSchemaSnapshot } from '@glc/intake-core';
 import {
   evaluateBriefGates,
   resolveIntakeSurfaceForPlan,
@@ -33,7 +33,7 @@ import {
   validationPerspectiveForBriefAccess,
 } from '../services/brief-validator.js';
 import type { IntakeBriefCollectionMode } from '../types/audit.js';
-import { BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
+import { getBriefQuestionsByIds } from '../schemas/intake-brief.js';
 import { intakeAnalyticsAuditBriefBatchSchema } from '../schemas/intake-analytics-events.js';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import { NO_PUBLIC_WEBSITE_URL } from '../config/no-public-website.js';
@@ -43,6 +43,8 @@ import { logger } from '../services/logger.js';
 import { resolveSelfServeAuditOwnerUserId } from '../lib/self-serve-audit-owner.js';
 import { notifyConsultants } from '../services/notifications.js';
 import { healUxDomainRowForFreeSnapshotPortal } from '../lib/snapshot-audit-response-heal.js';
+import { buildIntakePlan } from '@glc/intake-core';
+import { mergeLegacyIntakeAliasesRead } from '@glc/intake-core';
 
 export const auditsRouter = Router();
 
@@ -546,10 +548,19 @@ auditsRouter.get('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
       intakeTuple,
     );
 
+    const plan = buildIntakePlan({
+      responses: mergeLegacyIntakeAliasesRead(responses),
+      productMode: audit.product_mode as ProductMode,
+      collectionMode,
+      surface,
+      intakeVersionTuple: intakeTuple,
+    });
+    const questions = getBriefQuestionsByIds(plan.visible);
+
     res.json({
       product_mode: audit.product_mode,
       brief: brief ?? null,
-      questions: BRIEF_QUESTIONS,
+      questions,
       validation,
       gates,
       intakeProgress: gates.intakeProgress,

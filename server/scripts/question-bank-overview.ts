@@ -10,10 +10,10 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { QUESTION_FEED_ROLES } from '../src/intake/question-feed-roles.js';
+import { QUESTION_FEED_ROLES } from '@glc/intake-core';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const bankPath = join(__dirname, '..', 'src', 'intake', 'question-bank.v1.json');
+const bankPath = join(__dirname, '..', '..', 'packages', 'intake-core', 'src', 'question-bank.v1.json');
 
 type Row = {
   id: string;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { evalBranchCondition } from '../intake/branch-rules.js';
+import { evalBranchCondition } from '@glc/intake-core';
 
 describe('evalBranchCondition', () => {
   it('fails closed for unknown branch keys', () => {

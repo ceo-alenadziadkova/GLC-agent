@@ -3,8 +3,12 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
-import { currentIntakeVersionTuple, INTAKE_RESOLVER_VERSION } from '../intake/core/versions.js';
+import { buildIntakePlan } from '@glc/intake-core';
+import {
+  currentIntakeVersionTuple,
+  INTAKE_POLICY_VERSION,
+  INTAKE_RESOLVER_VERSION,
+} from '@glc/intake-core';
 import type { IntakeVersionTuple } from '../types/audit.js';
 
 const FROZEN_LEGACY: IntakeVersionTuple = {
@@ -41,12 +45,12 @@ describe('frozen intake artifacts', () => {
     expect(legacy.versions.resolverVersion).toBe(INTAKE_RESOLVER_VERSION);
   });
 
-  it('current tuple uses live policy 1.1.0', () => {
+  it('current tuple uses live policy artifact version', () => {
     const plan = buildIntakePlan({
       responses: { a5: 'no_website', revenue_model: 'b2c' },
       productMode: 'full',
     });
-    expect(plan.versions.policyVersion).toBe('1.1.0');
+    expect(plan.versions.policyVersion).toBe(INTAKE_POLICY_VERSION);
     expect(plan.versions.resolverVersion).toBe(INTAKE_RESOLVER_VERSION);
   });
 });

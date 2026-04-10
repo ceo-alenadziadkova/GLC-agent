@@ -1,0 +1,28 @@
+{
+  "name": "@glc/intake-core",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./question-bank.v1.json": "./src/question-bank.v1.json",
+    "./pre-brief-bank-included.json": "./src/pre-brief-bank-included.json",
+    "./intake-policy.v1.json": "./src/intake-policy.v1.json",
+    "./artifacts/layout-rules-1.1.0.json": "./src/artifacts/layout-rules-1.1.0.json",
+    "./lint-node": {
+      "types": "./dist/lint-node.d.ts",
+      "default": "./dist/lint-node.js"
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.12.0"
+  }
+}

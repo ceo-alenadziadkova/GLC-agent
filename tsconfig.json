@@ -12,7 +12,14 @@
     "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@glc/intake-core": ["./packages/intake-core/src/index.ts"],
+      "@glc/intake-core/question-bank.v1.json": ["./packages/intake-core/src/question-bank.v1.json"],
+      "@glc/intake-core/pre-brief-bank-included.json": ["./packages/intake-core/src/pre-brief-bank-included.json"],
+      "@glc/intake-core/intake-policy.v1.json": ["./packages/intake-core/src/intake-policy.v1.json"],
+      "@glc/intake-core/artifacts/layout-rules-1.1.0.json": [
+        "./packages/intake-core/src/artifacts/layout-rules-1.1.0.json"
+      ]
     },
     "types": ["vitest/globals", "@testing-library/jest-dom", "vite/client"]
   },

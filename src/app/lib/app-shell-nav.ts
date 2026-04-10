@@ -11,8 +11,6 @@ import {
   Eye,
   Tray,
   PlusCircle,
-  TreeStructure,
-  NotePencil,
 } from '@phosphor-icons/react';
 
 export type AppShellNavItem = {
@@ -28,8 +26,8 @@ export function buildConsultantNav(auditId: string | null): AppShellNavItem[] {
     { to: '/admin/requests',                      icon: Tray,           label: 'Request queue',   badge: null },
     { to: '/admin/snapshots',                     icon: Lightning,      label: 'Snapshot queue',  badge: null },
     { to: '/admin/discovery',                     icon: MagnifyingGlass,label: 'Discovery queue', badge: null },
-    { to: '/admin/intake-trace',                  icon: TreeStructure,  label: 'Intake trace',    badge: null },
-    { to: '/admin/intake-wording',                icon: NotePencil,     label: 'Intake wording',  badge: null },
+    // TODO(next iteration): restore Intake trace / Intake wording admin links
+    // after refining owner workflows and usage criteria.
     { to: auditId ? `/audit/${auditId}` : null,   icon: Briefcase,      label: 'Audit Workspace', badge: null },
     { to: auditId ? `/pipeline/${auditId}` : null,icon: Pulse,          label: 'Pipeline',        badge: null },
     { to: auditId ? `/reports/${auditId}` : null, icon: FileText,       label: 'Reports',         badge: null },

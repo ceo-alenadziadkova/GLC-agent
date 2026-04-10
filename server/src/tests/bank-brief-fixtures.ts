@@ -1,14 +1,14 @@
 import type { IntakeBriefCollectionMode } from '../types/audit.js';
-import { resolveExpressSlaRequiredIds, resolveFullSlaRequiredIds } from '../intake/brief-gates.js';
+import { resolveExpressSlaRequiredIds, resolveFullSlaRequiredIds } from '@glc/intake-core';
 
 /**
- * Self-serve + live website: satisfies full product SLA (all visible required stubs + revenue_model).
+ * Self-serve + live website: satisfies full product SLA (all visible required stubs + a10).
  */
 export function makeWebsitePathFullBrief(
   collectionMode?: IntakeBriefCollectionMode,
 ): Record<string, unknown> {
   const r: Record<string, unknown> = {
-    revenue_model: 'Lead generation',
+    a10: 'Lead generation',
     a1: 'We sell eco goods online.',
     a2: 'Retail',
     a3: 'Germany',
@@ -16,12 +16,12 @@ export function makeWebsitePathFullBrief(
     a6: 'Yes',
     a7: 'Growing fast',
     b1: 'Urban shoppers 25–45',
-    b2: ['Google'],
+    b2: ['Google / search'],
     b3: 'Fast delivery and fair prices',
     c5: 'Buy now',
     c6: 'Checkout is slow',
     c3: 'Yes, GA4',
-    d1: ['Email / spreadsheets'],
+    d1: ['Email', 'Spreadsheets'],
     d2: 'Copy-pasting orders into sheets',
     f1: 'Need more qualified traffic',
     f2: ['Website performance and technology (speed, stability, technical health)'],
@@ -49,7 +49,7 @@ export function makeWebsitePathExpressBrief(
   collectionMode?: IntakeBriefCollectionMode,
 ): Record<string, unknown> {
   const r: Record<string, unknown> = {
-    revenue_model: 'Lead generation',
+    a10: 'Lead generation',
     f1: 'Need more leads',
     b1: 'B2B buyers',
     a6: 'Yes',

@@ -23,8 +23,8 @@ pnpm install
 ## 2. Supabase Setup
 
 1. Create a project at [supabase.com](https://supabase.com)
-2. In the SQL Editor, run **all** migrations in order (see [DATABASE.md](./DATABASE.md#overview)):
-   - `001_initial_schema.sql` through `015_audit_request_guards.sql`
+2. In the SQL Editor, run **all** migrations in numeric order (see [DATABASE.md](./DATABASE.md#overview)):
+   - `server/migrations/*.sql` from the first file through the latest available
 3. Note your project URL and anon key (Project Settings → API)
 4. Note your service role key (same page — keep secret)
 
@@ -129,7 +129,7 @@ pnpm exec tsc --noEmit -p tsconfig.json
 /                    ← Frontend (React + Vite)
 ├── src/
 │   └── app/
-│       ├── pages/   ← 7 page components
+│       ├── pages/   ← Public, protected, and admin pages
 │       ├── hooks/   ← useAuth, useAudit, usePipeline, useAudits
 │       ├── data/    ← auditTypes.ts, apiService.ts
 │       ├── lib/     ← supabase.ts client
@@ -156,7 +156,7 @@ Simulated full audit for **Hospital Universitari Son Espases** — use to explor
 
 ### Demo prerequisites
 
-1. Supabase migrations applied (at least through `001`; full product features need `001`–`015`)
+1. Supabase migrations applied (recommended: full ordered set from `server/migrations/`; see [DATABASE.md](./DATABASE.md#overview))
 2. `server/.env` with valid `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`
 3. Frontend running: `pnpm dev` ([http://localhost:5173](http://localhost:5173))
 
@@ -164,7 +164,7 @@ Simulated full audit for **Hospital Universitari Son Espases** — use to explor
 
 ```bash
 cd server
-npx ts-node scripts/seed-demo.ts --email your@email.com
+pnpm run seed:demo -- --email your@email.com
 ```
 
 Use the email you log in with. If you omit `--email`, the audit is tied to a demo user UUID and may not appear in your portfolio until you re-run with your email.
@@ -184,7 +184,7 @@ The script is **idempotent** — it replaces the demo audit cleanly on re-run.
 ### Reset
 
 ```bash
-cd server && npx ts-node scripts/seed-demo.ts --email your@email.com
+cd server && pnpm run seed:demo -- --email your@email.com
 ```
 
 Or delete the row in Supabase `audits` where `company_url = 'https://www.hospitalsonespases.es'` (related rows cascade).

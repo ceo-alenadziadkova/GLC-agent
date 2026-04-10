@@ -14,7 +14,7 @@
 ## Supabase Setup
 
 1. Create project at [supabase.com](https://supabase.com) — choose **EU (Frankfurt)** region for GDPR compliance
-2. In SQL Editor → run **all** SQL migrations in order through the latest file in `server/migrations/` (including **`023`**, **`024`** for guest role + snapshot `prompt_version` width); see [DATABASE.md](./DATABASE.md#overview)
+2. In SQL Editor → run **all** SQL migrations in numeric order through the latest file in `server/migrations/`; see [DATABASE.md](./DATABASE.md#overview)
 3. Authentication → Settings:
    - Set **Site URL** to your production frontend URL (exact URL; wildcards are invalid here)
    - Add **Redirect URLs**: exact dev/prod origins and `/login` URLs as needed — see [AUTH.md](./AUTH.md#supabase-auth-configuration) (some dashboards reject `*` wildcards)
@@ -152,7 +152,7 @@ Example on Railway:
 
 ## Deploy Checklist
 
-- [ ] Run all SQL migrations in order (through **`024`** and any newer files) in Supabase SQL editor
+- [ ] Run all SQL migrations in numeric order through the latest file in `server/migrations/` (see [DATABASE.md](./DATABASE.md#overview))
 - [ ] RLS policies active (check in Supabase → Table Editor → each table)
 - [ ] Supabase Site URL + Redirect URLs updated to production domain
 - [ ] Google OAuth configured in Supabase (if using)

@@ -3,7 +3,7 @@
  */
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
-import { intakePublicLimiter } from '../middleware/rate-limit.js';
+import { marketingBriefPublicLimiter } from '../middleware/rate-limit.js';
 import { notifyConsultants } from '../services/notifications.js';
 import { logger } from '../services/logger.js';
 
@@ -30,7 +30,7 @@ function computeRecommendedRoute(body: {
   return '/audit';
 }
 
-marketingRouter.post('/brief', intakePublicLimiter, async (req, res) => {
+marketingRouter.post('/brief', marketingBriefPublicLimiter, async (req, res) => {
   try {
     const name = clampStr(req.body?.name, 200);
     if (!name) {

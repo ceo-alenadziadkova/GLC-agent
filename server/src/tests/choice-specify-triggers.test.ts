@@ -1,8 +1,8 @@
 /**
- * Behaviour: mirror of src/app/lib/choice-specify-triggers.ts — intake validation.
+ * Intake validation helpers from `@glc/intake-core` (`choice-specify-triggers.ts`).
  */
 import { describe, expect, it } from 'vitest';
-import { choiceValueNeedsSpecify } from '../intake/choice-specify-triggers.js';
+import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '@glc/intake-core';
 
 describe('choiceValueNeedsSpecify (server)', () => {
   it('returns false for nullish', () => {
@@ -23,5 +23,16 @@ describe('choiceValueNeedsSpecify (server)', () => {
   it('returns false for non-string primitives', () => {
     expect(choiceValueNeedsSpecify(1)).toBe(false);
     expect(choiceValueNeedsSpecify({})).toBe(false);
+  });
+});
+
+describe('choiceSpecifyResponseKey (server)', () => {
+  it('maps industry questions to intake_industry_specify', () => {
+    expect(choiceSpecifyResponseKey('a2')).toBe('intake_industry_specify');
+    expect(choiceSpecifyResponseKey('intake_industry')).toBe('intake_industry_specify');
+  });
+
+  it('uses __other suffix for other bank ids', () => {
+    expect(choiceSpecifyResponseKey('d2')).toBe('d2__other');
   });
 });

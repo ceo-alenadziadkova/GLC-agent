@@ -7,9 +7,9 @@
 import {
   buildIntakePlan,
   recomputePlanIncremental,
-} from '../src/intake/core/build-intake-plan.js';
-import { getBranchDepsCacheStats, resetBranchDepsCacheStats } from '../src/intake/core/branch-condition-deps.js';
-import { currentIntakeVersionTuple } from '../src/intake/core/versions.js';
+} from '@glc/intake-core';
+import { getBranchDepsCacheStats, resetBranchDepsCacheStats } from '@glc/intake-core';
+import { currentIntakeVersionTuple } from '@glc/intake-core';
 import type { IntakeVersionTuple } from '../src/types/audit.js';
 
 type CaseInput = {

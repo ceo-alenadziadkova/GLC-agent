@@ -4,8 +4,8 @@
 import {
   listBranchRuleResponseKeys,
   providerStubIdsForResponseKey,
-} from '../../../../server/src/intake/core/branch-condition-deps';
-import type { IntakeQuestionStub } from '../../../../server/src/intake/types';
+} from '@glc/intake-core';
+import type { IntakeQuestionStub } from '@glc/intake-core';
 
 export function computeBranchUpstreamIds(
   questionId: string,
@@ -42,4 +42,32 @@ export function computeBranchDownstreamIds(
     }
   }
   return [...out].sort((a, b) => a.localeCompare(b));
+}
+
+/** Transitive branch-neighbourhood of `seedId` (upstream + downstream in the branch graph). */
+export function collectBranchFocusQuestionIds(
+  seedId: string,
+  stubs: readonly IntakeQuestionStub[],
+): Set<string> {
+  const set = new Set<string>([seedId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const snapshot = [...set];
+    for (const id of snapshot) {
+      for (const u of computeBranchUpstreamIds(id, stubs)) {
+        if (!set.has(u)) {
+          set.add(u);
+          changed = true;
+        }
+      }
+      for (const d of computeBranchDownstreamIds(id, stubs)) {
+        if (!set.has(d)) {
+          set.add(d);
+          changed = true;
+        }
+      }
+    }
+  }
+  return set;
 }

@@ -7,8 +7,9 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildIntakePlan, recomputePlanIncremental } from '../intake/core/build-intake-plan.js';
-import { QUESTION_BANK_V1_STUBS } from '../intake/question-bank.js';
+import { buildIntakePlan, recomputePlanIncremental } from '@glc/intake-core';
+import { currentIntakeVersionTuple } from '@glc/intake-core';
+import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import { INTAKE_PLAN_FIXTURES } from './fixtures/intake-plan-fixtures.js';
 import { type IntakePlanSnapshotPayload, computeIntakePlanSnapshotShim } from './intake-plan-shim.js';
 
@@ -63,10 +64,11 @@ describe('buildIntakePlan', () => {
       responses: INTAKE_PLAN_FIXTURES[0].responses,
       productMode: 'full',
     });
-    expect(plan.versions.policyVersion).toBe('1.1.0');
-    expect(plan.versions.questionBankVersion).toBe('1.1.0');
-    expect(plan.versions.resolverVersion).toBe('1.1.0');
-    expect(plan.versions.layoutVersion).toBe('1.1.0');
+    const cur = currentIntakeVersionTuple();
+    expect(plan.versions.policyVersion).toBe(cur.policyVersion);
+    expect(plan.versions.questionBankVersion).toBe(cur.questionBankVersion);
+    expect(plan.versions.resolverVersion).toBe(cur.resolverVersion);
+    expect(plan.versions.layoutVersion).toBe(cur.layoutVersion);
   });
 
   it('includes nextRecommended — required first, then recommended, then gap-filling optional', () => {

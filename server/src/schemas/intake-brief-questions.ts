@@ -20,8 +20,8 @@
  */
 import type { BriefQuestion } from '../types/audit.js';
 import { INDUSTRY_OPTIONS } from '../config/industry-options.js';
-import { EXPRESS_REQUIRED_ALWAYS_IDS, EXPRESS_REQUIRED_IF_VISIBLE_IDS } from '../intake/express-policy-ids.js';
-import preBriefBankIncluded from '../intake/pre-brief-bank-included.json' with { type: 'json' };
+import { EXPRESS_REQUIRED_ALWAYS_IDS, EXPRESS_REQUIRED_IF_VISIBLE_IDS } from '@glc/intake-core';
+import preBriefBankIncluded from '@glc/intake-core/pre-brief-bank-included.json' with { type: 'json' };
 
 /** Max length for free-text / textarea answers (legacy + question-bank v1). Used by `intake-brief.ts` Zod schema. */
 export const BRIEF_ANSWER_STRING_MAX = 12_000;
@@ -133,12 +133,20 @@ const BASE_BRIEF_QUESTIONS: BriefQuestion[] = [
     type: 'free_text',
   },
   {
-    id: 'revenue_model',
+    id: 'a10',
     priority: 'required',
     domains: ['all'],
     question: 'What is your main revenue model?',
     type: 'single_choice',
-    options: ['Subscription / SaaS', 'E-commerce (product sales)', 'Lead generation', 'Consulting / services', 'Freemium', 'Marketplace', 'Other'],
+    options: [
+      'Subscription / SaaS',
+      'E-commerce (product sales)',
+      'Lead generation',
+      'Consulting / services',
+      'Freemium',
+      'Marketplace',
+      'Other',
+    ],
   },
   {
     id: 'monthly_visitors',
@@ -333,13 +341,12 @@ const BASE_BRIEF_QUESTIONS: BriefQuestion[] = [
 export const EXPRESS_REQUIRED_QUESTION_IDS = EXPRESS_REQUIRED_ALWAYS_IDS;
 
 /**
- * Pre-brief UX layer: identity fields + policy `modes.pre_brief.bankIncluded` + synthetic `revenue_model`.
+ * Pre-brief UX layer: identity fields + policy `modes.pre_brief.bankIncluded` (includes `a10` when policy lists it).
  * Kept in sync with `intake-policy.v1.json` (see `PRE_BRIEF_PARTICIPATION_IDS` tests).
  */
 export const PRE_BRIEF_PARTICIPATION_IDS: ReadonlySet<string> = new Set<string>([
   ...INTAKE_IDENTITY_FIELD_IDS,
   ...(preBriefBankIncluded as string[]),
-  'revenue_model',
 ]);
 
 /**
@@ -367,7 +374,7 @@ const CONSULTANT_HINTS: Record<string, string> = {
   intake_industry_specify: 'If Other, capture how they describe the vertical in their own words.',
   primary_goal: 'Confirm the north-star KPI and timeline; note tensions between growth vs. cost.',
   target_audience: 'Probe jobs-to-be-done, regions, and budget authority.',
-  revenue_model: 'Clarify average deal size or basket value and seasonality.',
+  a10: 'Clarify average deal size or basket value and seasonality.',
   monthly_visitors: 'Validate traffic source split if they are guessing.',
   monthly_revenue: 'If declined, note order-of-magnitude verbally for context only.',
   primary_cta: 'Walk through the main funnel step-by-step as a user would.',
@@ -395,7 +402,7 @@ const CONSULTANT_HINTS: Record<string, string> = {
 const TRIGGERS_FOLLOWUP: Record<string, string[]> = {
   uses_crm: ['email_automation'],
   has_google_analytics: ['conversion_rate'],
-  revenue_model: ['primary_cta'],
+  a10: ['primary_cta'],
 };
 
 /**
@@ -411,7 +418,7 @@ export const BRIEF_QUESTION_UI_SECTION: Record<string, string> = {
   f8: 'Goals',
   primary_goal: 'Business',
   target_audience: 'Business',
-  revenue_model: 'Business',
+  a10: 'Business',
   monthly_visitors: 'Business',
   monthly_revenue: 'Business',
   primary_cta: 'UX & Conversion',
@@ -455,7 +462,7 @@ function enrichQuestion(question: BriefQuestion): BriefQuestion {
     ux_group = 'goals';
   } else if (question.id === 'a7') {
     ux_group = 'business';
-  } else if (question.id === 'revenue_model' || question.id === 'monthly_revenue') {
+  } else if (question.id === 'a10' || question.id === 'monthly_revenue') {
     ux_group = 'basics';
   }
 
@@ -485,11 +492,21 @@ function enrichQuestion(question: BriefQuestion): BriefQuestion {
   };
 }
 
+/**
+ * @deprecated As a driver for server API question bundles.
+ * Use `buildIntakePlan(...).visible` + `getBriefQuestionsByIds` for route payloads.
+ */
 export const BRIEF_QUESTIONS: BriefQuestion[] = BASE_BRIEF_QUESTIONS.map(enrichQuestion);
 
 export const INTAKE_IDENTITY_BRIEF_QUESTIONS: BriefQuestion[] = BASE_INTAKE_IDENTITY_QUESTIONS.map(enrichQuestion);
 
 export function getBriefQuestionText(id: string): string {
+  if (id === 'revenue_model') {
+    return (
+      BRIEF_QUESTIONS.find(q => q.id === 'a10')?.question
+      ?? 'What is your main revenue model?'
+    );
+  }
   return (
     BRIEF_QUESTIONS.find(q => q.id === id)?.question
     ?? INTAKE_IDENTITY_BRIEF_QUESTIONS.find(q => q.id === id)?.question
@@ -514,6 +531,18 @@ export const OPTIONAL_QUESTION_IDS = BRIEF_QUESTIONS
 export const PRE_BRIEF_QUESTION_IDS = BRIEF_QUESTIONS
   .filter(q => q.intake_layer === 'pre_brief')
   .map(q => q.id);
+
+const BRIEF_QUESTION_BY_ID = new Map(BRIEF_QUESTIONS.map(q => [q.id, q] as const));
+
+/** Ordered lookup for existing brief question rows (ids unknown to this catalog are skipped). */
+export function getBriefQuestionsByIds(ids: readonly string[]): BriefQuestion[] {
+  const out: BriefQuestion[] = [];
+  for (const id of ids) {
+    const q = BRIEF_QUESTION_BY_ID.get(id);
+    if (q) out.push(q);
+  }
+  return out;
+}
 
 /**
  * Returns domain-specific slice of questions for a given agent.

@@ -1,19 +1,33 @@
 import rateLimit, { MemoryStore } from 'express-rate-limit';
 import type { Request } from 'express';
 import { RedisStore } from 'rate-limit-redis';
-import { createClient, type RedisClientType } from 'redis';
+import { createClient } from 'redis';
 import type { AuthRequest } from './auth.js';
+import { logger } from '../services/logger.js';
+
+/** Inferred from `createClient` so assignments stay compatible when redis adds optional modules / RESP versions. */
+type RateLimitRedisClient = ReturnType<typeof createClient>;
 
 const RATE_LIMIT_REDIS_URL = process.env.RATE_LIMIT_REDIS_URL?.trim() ?? '';
-let sharedRedisClient: RedisClientType | null = null;
 
-function getSharedRedisClient(): RedisClientType | null {
+if (process.env.NODE_ENV === 'production' && !RATE_LIMIT_REDIS_URL) {
+  logger.warn(
+    '[rate-limit] RATE_LIMIT_REDIS_URL unset: public Discover / intake / marketing-brief limiters use in-process MemoryStore — ' +
+      'counters do not aggregate across multiple API instances. Set Redis for shared rate limits when horizontally scaled.',
+  );
+}
+
+let sharedRedisClient: RateLimitRedisClient | null = null;
+
+function getSharedRedisClient(): RateLimitRedisClient | null {
   if (!RATE_LIMIT_REDIS_URL) return null;
   if (sharedRedisClient) return sharedRedisClient;
   const client = createClient({ url: RATE_LIMIT_REDIS_URL });
   client.on('error', (err) => {
     // Non-fatal: limiter calls will fail if redis is unreachable.
-    console.warn('[rate-limit] redis client error', err);
+    logger.warn('[rate-limit] redis client error', {
+      error: err instanceof Error ? err.message : String(err),
+    });
   });
   void client.connect();
   sharedRedisClient = client;
@@ -158,17 +172,111 @@ export const snapshotPublicLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-/**
- * Public intake token endpoints: 30 requests per hour by IP.
- * Generous enough for legitimate re-submissions and refreshes.
- */
+function parsePositiveInt(raw: string | undefined, fallback: number): number {
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+}
+
+const HOUR_MS = 60 * 60 * 1000;
+
+/** @deprecated Prefer split limiters (discover/intake read vs write). Kept for tests and gradual rollout. */
 export const intakePublicLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 30,
-  store: distributedStore('intake_public'),
+  windowMs: HOUR_MS,
+  max: parsePositiveInt(process.env.PUBLIC_INTAKE_LEGACY_MAX_PER_HOUR, 30),
+  store: distributedStore('intake_public_legacy'),
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
     error: 'Too many requests to this intake link. Try again later.',
+    retry_after_minutes: 60,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** POST /api/discover — session creation (spam surface). */
+export const discoverSessionCreateLimiter = rateLimit({
+  windowMs: HOUR_MS,
+  max: parsePositiveInt(process.env.PUBLIC_DISCOVER_CREATE_MAX_PER_HOUR, 12),
+  store: distributedStore('discover_create'),
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  message: {
+    error: 'Too many discovery submissions from this connection. Try again later.',
+    code: 'DISCOVER_CREATE_RATE_LIMITED',
+    retry_after_minutes: 60,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** GET discovery session / ui-fragment / PATCH contact — reads and light writes. */
+export const discoverPublicReadLimiter = rateLimit({
+  windowMs: HOUR_MS,
+  max: parsePositiveInt(process.env.PUBLIC_DISCOVER_READ_MAX_PER_HOUR, 80),
+  store: distributedStore('discover_read'),
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  message: {
+    error: 'Too many discovery requests from this connection. Try again later.',
+    code: 'DISCOVER_READ_RATE_LIMITED',
+    retry_after_minutes: 60,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** POST /api/discover/analytics-events — batched telemetry. */
+export const discoverAnalyticsPublicLimiter = rateLimit({
+  windowMs: HOUR_MS,
+  max: parsePositiveInt(process.env.PUBLIC_DISCOVER_ANALYTICS_MAX_PER_HOUR, 200),
+  store: distributedStore('discover_analytics'),
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  message: {
+    error: 'Too many analytics batches from this connection. Try again later.',
+    code: 'DISCOVER_ANALYTICS_RATE_LIMITED',
+    retry_after_minutes: 60,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** GET /api/intake/:token — public load. */
+export const intakePublicReadLimiter = rateLimit({
+  windowMs: HOUR_MS,
+  max: parsePositiveInt(process.env.PUBLIC_INTAKE_READ_MAX_PER_HOUR, 60),
+  store: distributedStore('intake_public_read'),
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  message: {
+    error: 'Too many requests to this intake link. Try again later.',
+    code: 'INTAKE_READ_RATE_LIMITED',
+    retry_after_minutes: 60,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** POST /api/intake/:token/respond — public saves. */
+export const intakePublicWriteLimiter = rateLimit({
+  windowMs: HOUR_MS,
+  max: parsePositiveInt(process.env.PUBLIC_INTAKE_WRITE_MAX_PER_HOUR, 30),
+  store: distributedStore('intake_public_write'),
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  message: {
+    error: 'Too many save attempts to this intake link. Try again later.',
+    code: 'INTAKE_WRITE_RATE_LIMITED',
+    retry_after_minutes: 60,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** POST /api/marketing/brief — public lead form. */
+export const marketingBriefPublicLimiter = rateLimit({
+  windowMs: HOUR_MS,
+  max: parsePositiveInt(process.env.PUBLIC_MARKETING_BRIEF_MAX_PER_HOUR, 24),
+  store: distributedStore('marketing_brief_public'),
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  message: {
+    error: 'Too many submissions from this connection. Try again later.',
+    code: 'MARKETING_BRIEF_RATE_LIMITED',
     retry_after_minutes: 60,
   },
   standardHeaders: true,

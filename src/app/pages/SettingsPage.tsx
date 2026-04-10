@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { SignOut, Bell, User, PaintBucket, ClipboardText, Users } from '@phosphor-icons/react';
+import { Link } from 'react-router';
+import { SignOut, Bell, User, PaintBucket, ClipboardText, Users, TreeStructure } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { AppShell } from '../components/AppShell';
+import { QuestionBankStudio } from '../components/QuestionBankStudio';
+import { isQuestionBankStudioEnabled } from '../lib/question-bank-studio-flags';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Switch } from '../components/ui/switch';
 import { api } from '../data/apiService';
 import { useAuth } from '../hooks/useAuth';
@@ -177,6 +181,33 @@ export function SettingsPage() {
     }
   };
 
+  const studioTabEnabled = isQuestionBankStudioEnabled() && isConsultant;
+
+  const [settingsTab, setSettingsTab] = useState<'general' | 'bank-studio'>(() => {
+    if (typeof window !== 'undefined' && window.location.hash.replace(/^#/, '') === 'question-bank-studio') {
+      return 'bank-studio';
+    }
+    return 'general';
+  });
+
+  useEffect(() => {
+    if (!studioTabEnabled) return;
+    if (window.location.hash.replace(/^#/, '') === 'question-bank-studio') {
+      setSettingsTab('bank-studio');
+    }
+  }, [studioTabEnabled]);
+
+  const onSettingsTabChange = (value: string) => {
+    const next = value === 'bank-studio' ? 'bank-studio' : 'general';
+    setSettingsTab(next);
+    const base = window.location.pathname + window.location.search;
+    if (next === 'bank-studio') {
+      window.history.replaceState(null, '', `${base}#question-bank-studio`);
+    } else {
+      window.history.replaceState(null, '', base);
+    }
+  };
+
   const briefLayoutBtnStyle = (active: boolean): CSSProperties => ({
     borderRadius: 'var(--radius-md)',
     border: active ? '1px solid var(--glc-blue)' : '1px solid var(--border-default)',
@@ -188,9 +219,8 @@ export function SettingsPage() {
     cursor: 'pointer',
   });
 
-  return (
-    <AppShell title="Settings" subtitle="Manage profile, appearance, intake brief layout, and notifications">
-      <div className="px-7 py-6 space-y-5">
+  const generalSections = (
+    <div className="px-7 py-6 space-y-5">
         <section
           className="p-5"
           style={{
@@ -557,49 +587,105 @@ export function SettingsPage() {
           <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
             Change password
           </div>
-          <div className="space-y-2 mb-4">
-            <input
-              type="password"
-              value={newPassword}
-              onChange={e => setNewPassword(e.target.value)}
-              placeholder="New password"
-              className="w-full px-3 py-2 text-sm"
-              style={{
-                backgroundColor: 'var(--bg-canvas)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-md)',
-                color: 'var(--text-primary)',
-              }}
-            />
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              placeholder="Confirm new password"
-              className="w-full px-3 py-2 text-sm"
-              style={{
-                backgroundColor: 'var(--bg-canvas)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-md)',
-                color: 'var(--text-primary)',
-              }}
-            />
-          </div>
-          <button
-            className="glc-btn-primary mb-3"
-            onClick={changePassword}
-            disabled={savingPassword}
-            style={{ opacity: savingPassword ? 0.6 : 1 }}
+          <form
+            onSubmit={e => {
+              e.preventDefault();
+              void changePassword();
+            }}
           >
-            {savingPassword ? 'Updating...' : 'Update password'}
-          </button>
+            <div className="space-y-2 mb-4">
+              <input
+                type="password"
+                name="new-password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="New password"
+                className="w-full px-3 py-2 text-sm"
+                style={{
+                  backgroundColor: 'var(--bg-canvas)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--radius-md)',
+                  color: 'var(--text-primary)',
+                }}
+              />
+              <input
+                type="password"
+                name="confirm-new-password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+                className="w-full px-3 py-2 text-sm"
+                style={{
+                  backgroundColor: 'var(--bg-canvas)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--radius-md)',
+                  color: 'var(--text-primary)',
+                }}
+              />
+            </div>
+            <button
+              type="submit"
+              className="glc-btn-primary mb-3"
+              disabled={savingPassword}
+              style={{ opacity: savingPassword ? 0.6 : 1 }}
+            >
+              {savingPassword ? 'Updating...' : 'Update password'}
+            </button>
+          </form>
           <div className="h-3" />
           <button className="glc-btn-ghost" onClick={signOut}>
             <SignOut className="w-4 h-4" />
             Sign out
           </button>
         </section>
-      </div>
+    </div>
+  );
+
+  return (
+    <AppShell title="Settings" subtitle="Manage profile, appearance, intake brief layout, and notifications">
+      {studioTabEnabled ? (
+        <Tabs value={settingsTab} onValueChange={onSettingsTabChange} className="w-full">
+          <div className="px-7 pt-6 pb-0">
+            <TabsList
+              className="!bg-transparent !h-auto !p-0 flex flex-wrap gap-2 justify-start rounded-none"
+              style={{ background: 'transparent' }}
+            >
+              <TabsTrigger
+                value="general"
+                className="!shadow-none rounded-md border border-[var(--border-default)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] data-[state=active]:border-[var(--glc-blue)] data-[state=active]:text-[var(--glc-blue)] data-[state=active]:bg-[rgba(28,189,255,0.08)]"
+              >
+                General
+              </TabsTrigger>
+              <TabsTrigger
+                value="bank-studio"
+                className="!shadow-none rounded-md border border-[var(--border-default)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] data-[state=active]:border-[var(--glc-blue)] data-[state=active]:text-[var(--glc-blue)] data-[state=active]:bg-[rgba(28,189,255,0.08)] flex items-center gap-1.5"
+              >
+                <TreeStructure size={16} weight="bold" />
+                Question Bank Studio
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          <TabsContent value="general" className="mt-0">
+            {generalSections}
+          </TabsContent>
+          <TabsContent value="bank-studio" className="mt-0">
+            <div className="px-7 py-6">
+              <p className="text-[11px] m-0 mb-3" style={{ color: 'var(--text-quaternary)' }}>
+                Full-page view:{' '}
+                <Link to="/admin/question-bank-studio" className="underline" style={{ color: 'var(--text-tertiary)' }}>
+                  /admin/question-bank-studio
+                </Link>{' '}
+                (same flag and consultant gate).
+              </p>
+              <QuestionBankStudio />
+            </div>
+          </TabsContent>
+        </Tabs>
+      ) : (
+        generalSections
+      )}
     </AppShell>
   );
 }

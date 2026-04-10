@@ -13,7 +13,7 @@ cp .env.example .env          # fill in Supabase + API URL
 cp server/.env.example server/.env  # fill in Supabase service key + Anthropic key
 
 # 3. Run Supabase migrations
-# → run server/migrations/001_initial_schema.sql through 007_finding_provenance.sql in order (see docs/DATABASE.md)
+# → run all files in server/migrations/ in numeric order (see docs/DATABASE.md#overview)
 
 # 4. Start dev servers
 cd server && pnpm run dev   # backend on :3001
@@ -56,7 +56,7 @@ A consultant submits a client's URL. The platform:
 
 ## Documentation
 
-Flat `docs/` folder (**12 files**). Start here:
+Primary documentation lives in flat `docs/*.md` (quota: 15 files). Start here:
 
 | Doc | Contents |
 | --- | --- |
@@ -80,14 +80,15 @@ Flat `docs/` folder (**12 files**). Start here:
 ## Project Structure
 
 ```
-/                    ← Frontend (React + Vite)
+/                    ← Workspace root (pnpm)
 ├── src/app/
-│   ├── pages/       ← 7 pages
+│   ├── pages/       ← Public, protected, and admin pages
 │   ├── hooks/       ← useAuth, useAudit, usePipeline, useAudits
 │   ├── data/        ← apiService.ts, auditTypes.ts
 │   ├── lib/         ← supabase.ts
 │   └── components/  ← AppShell, ProtectedRoute, ReviewPointModal
 ├── docs/            ← Documentation-index (MASTER.md)
+├── packages/intake-core/  ← Shared intake runtime (`@glc/intake-core`)
 server/              ← Backend (Express + TypeScript)
 ├── src/
 │   ├── agents/      ← Pipeline agents + BaseAgent
@@ -95,5 +96,5 @@ server/              ← Backend (Express + TypeScript)
 │   ├── services/    ← Pipeline, context builder, fact-checker
 │   ├── routes/      ← Express route handlers
 │   └── middleware/  ← Auth, rate-limit
-└── migrations/      ← SQL migrations (001–007)
+└── migrations/      ← SQL migrations (apply all in numeric order)
 ```

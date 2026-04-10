@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { evaluateCanonEligibility } from '../intake/core/evaluate-canon.js';
-import { evalBranchCondition } from '../intake/branch-rules.js';
-import { QUESTION_BANK_V1_STUBS } from '../intake/question-bank.js';
-import type { IntakeResponsesMap } from '../intake/types.js';
+import { evaluateCanonEligibility } from '@glc/intake-core';
+import { evalBranchCondition } from '@glc/intake-core';
+import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
+import type { IntakeResponsesMap } from '@glc/intake-core';
 
 import { INTAKE_PLAN_FIXTURES } from './fixtures/intake-plan-fixtures.js';
 

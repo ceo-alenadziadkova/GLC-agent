@@ -18,12 +18,11 @@ import { DOMAIN_KEYS, DOMAIN_LABELS, type IntakeBriefCollectionMode } from '../d
 import type { DomainKey, DomainData, ProductMode, ConfidenceLevel } from '../data/auditTypes';
 import { BriefField } from '../components/BriefField';
 import {
-  BRIEF_QUESTIONS,
   mergeBriefResponsesPreferFilled,
   unwrapResponse,
 } from '../data/briefQuestions';
-import type { BriefQuestion, BriefResponses } from '../data/briefQuestions';
-import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
+import type { BriefResponses } from '../data/briefQuestions';
+import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '@glc/intake-core';
 import { api } from '../data/apiService';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
@@ -38,6 +37,8 @@ import {
   writeConsultantBriefLayout,
   clearConsultantBriefLayout,
 } from '../lib/client-brief-layout-preference';
+import { getQuestionLabel } from '../lib/intake-question-lookup';
+import { logger } from '../lib/logger';
 
 const EXPRESS_DOMAIN_KEYS: readonly DomainKey[] = [
   'tech_infrastructure', 'security_compliance', 'seo_digital', 'ux_conversion',
@@ -132,7 +133,9 @@ export function AuditWorkspace() {
           reload();
           window.setTimeout(() => setEnrichSaved(false), 2200);
         } catch (err) {
-          console.error('[AuditWorkspace] brief save', err);
+          logger.error('[AuditWorkspace] brief save', {
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
       })();
     }, 650);
@@ -203,7 +206,9 @@ export function AuditWorkspace() {
             reload();
             window.setTimeout(() => setWorkspaceBriefSavedFlash(false), 2200);
           } catch (err) {
-            console.error('[AuditWorkspace] workspace brief save', err);
+            logger.error('[AuditWorkspace] workspace brief save', {
+              error: err instanceof Error ? err.message : String(err),
+            });
           }
         })();
       }, 650);
@@ -271,8 +276,7 @@ export function AuditWorkspace() {
     && typeof (x as { id: string }).id === 'string'
   )).filter(x => x.domain === activeDomain);
   const followupQuestions = followupRefs
-    .map(r => BRIEF_QUESTIONS.find(q => q.id === r.id))
-    .filter((q): q is BriefQuestion => q != null);
+    .map(r => ({ id: r.id, question: getQuestionLabel(r.id) }));
   const showEnrichmentBanner = Boolean(
     domainData?.status === 'completed' && followupQuestions.length > 0 && id
   );

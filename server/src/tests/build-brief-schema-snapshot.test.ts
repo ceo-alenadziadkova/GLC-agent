@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildBriefSchemaSnapshot } from '../intake/core/build-brief-schema-snapshot.js';
-import { currentIntakeVersionTuple } from '../intake/core/versions.js';
+import { buildBriefSchemaSnapshot } from '@glc/intake-core';
+import { currentIntakeVersionTuple } from '@glc/intake-core';
 
 describe('buildBriefSchemaSnapshot', () => {
   it('returns visible bank ids with labels and version tuple', () => {

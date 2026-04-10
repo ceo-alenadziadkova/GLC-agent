@@ -16,8 +16,8 @@ vi.mock('../services/supabase.js', () => ({
   },
 }));
 
-import { currentIntakeVersionTuple } from '../intake/core/versions.js';
-import { validateIntakeVersionsForBriefWrite } from '../intake/core/intake-version-write-validation.js';
+import { currentIntakeVersionTuple } from '@glc/intake-core';
+import { validateIntakeVersionsForBriefWrite } from '@glc/intake-core';
 import {
   resolveIntakeSurfaceForPlan,
   validateBriefResponses,

@@ -286,7 +286,7 @@ Records `brief_help_requested_at` / `brief_help_client_message` on the audit and
 - **`questions`** — rows `{ id, label, section, priority, answer? }` for each **`visible`** bank id; **`answer`** is the canon contract from `question-bank.v1.json` (`type`, `maxLength`, `options`, etc.). Any `optionsRef` is expanded to inline `options` for clients.  
 - **`derived`** — `{ ai_readiness_score, confidence_overall, website_gate }` (same heuristics as `IntakePlan` derived layer)
 
-Does not replace `GET .../brief` for saving or full `BRIEF_QUESTIONS` copy; use for tooling, previews, or clients that want plan-shaped metadata without bundling the whole bank.
+Use for tooling, previews, or clients that want a compact **IntakePlan** view. **`GET .../brief` already returns the same plan-driven `questions` shape** (`getBriefQuestionsByIds(plan.visible)` after `buildIntakePlan`); neither endpoint returns the full historical driver list `BRIEF_QUESTIONS` — only **visible** bank ids for the current responses / surface.
 
 ---
 
@@ -294,12 +294,14 @@ Does not replace `GET .../brief` for saving or full `BRIEF_QUESTIONS` copy; use 
 
 **Auth:** consultant (owner) or client linked to the audit.
 
-**GET `200`:** `{ brief, questions, validation, gates, product_mode, … }` — `brief` includes `responses`, `collection_mode`, `collected_by`, optional **`intake_versions`** (`{ questionBankVersion, policyVersion, layoutVersion, resolverVersion }`), optional **`intake_version_migration`** (see below). Validation and `gates` are computed for the caller’s surface (consultant vs client), using stored `intake_versions` when it is a **supported** frozen or current tuple; otherwise the server falls back to the **current** engine tuple for validation (legacy rows).
+**GET `200`:** `{ brief, questions, validation, gates, product_mode, … }` — `brief` includes `responses`, `collection_mode`, `collected_by`, optional **`intake_versions`** (`{ questionBankVersion, policyVersion, layoutVersion, resolverVersion }`), optional **`intake_version_migration`** (see below). **`questions`** is **`getBriefQuestionsByIds(plan.visible)` only** (bank rows from the legacy `BRIEF_QUESTIONS` driver catalog that match visible plan ids — **not** every bank id may have a row; identity fields live in `brief.responses` and are **not** duplicated here). Same `buildIntakePlan` inputs as `GET .../brief/schema` (product mode, collection mode, caller surface, versions). Validation and `gates` are computed for the caller’s surface (consultant vs client), using stored `intake_versions` when it is a **supported** frozen or current tuple; otherwise the server falls back to the **current** engine tuple for validation (legacy rows).
 
 **PUT body:** `{ "responses": { … } }`, optional **`collection_mode`**, optional **`intake_versions`**.
 
 - **`intake_versions` omitted** — the server reuses the stored tuple, or the **current** tuple for a new row. If the stored tuple is **unsupported**, the write is accepted and the row is repaired to the current tuple; **`intake_version_migration`** records `{ from, to, at, reason: 'unsupported_stored_repaired' }`.
 - **`intake_versions` present** — must include all four keys. Unsupported tuple → **`400`** `UNSUPPORTED_INTAKE_VERSION`. Supported tuple that does not match stored (and is not an allowed upgrade to current) → **`409`** `INTAKE_VERSION_CONFLICT`. Sending the **current** tuple when stored was an older supported tuple → upgrade; migration **`reason: 'client_upgrade'`** is persisted once.
+
+**Operational semantics (not bugs):** Brief rows with **`intake_versions` null** pre-date the version matrix; **GET** validation and plan assembly use the **current** resolver and artifact bundle (same idea as “unsupported stored” fallback on GET). **PUT** rules above still apply; the **server** is authoritative on what tuple and answers are stored — a client cannot force an unsupported artifact tuple (**400**), and a supported tuple still goes through normal **response validation** (the tuple is not a bypass). **Public** Discover and pre-brief routes use split rate limiters; they use **Redis** when **`RATE_LIMIT_REDIS_URL`** is set, otherwise **in-memory per process** (limits do not aggregate across horizontally scaled instances — see [ARCHITECTURE.md](./ARCHITECTURE.md#public-routes-abuse-control-and-scaling)). **Releases:** ship SPA and API together when changing `@glc/intake-core` resolver behaviour where possible; tuple validation reduces silent artifact skew between client and server but not every cross-deployment UX edge case.
 
 Migration column: deploy **`028_intake_version_migration.sql`** — `intake_brief.intake_version_migration` (`jsonb`, nullable).
 
@@ -621,7 +623,7 @@ Lists intake tokens **you created** where the client has already submitted (`sub
 
 **Response `200`:** `{ "metadata", "questions" (pre-brief subset), "responses", "submitted_at", "expires_at" }`.
 
-The `questions` list is **identity** (`INTAKE_IDENTITY_BRIEF_QUESTIONS`) plus bank rows whose **`intake_layer === 'pre_brief'`** in `server/src/schemas/intake-brief.ts` — driven by policy participation (`PRE_BRIEF_PARTICIPATION_IDS`: `modes.pre_brief.bankIncluded` + `revenue_model`). That usually includes narrative fields such as **`f2`**, **`a7`**, **`f8`** when they are part of the pre-brief layer; see [QUESTION_BANK.md](./QUESTION_BANK.md).
+The `questions` list matches **authenticated brief**: **identity** first, then **`getBriefQuestionsByIds(plan.visible)`** where `plan` is `buildIntakePlan` with **`collection_mode: pre_brief`**, **`product_mode: full`**, **`surface: client_form`**, on responses after **`mergeLegacyIntakeAliasesRead`** (so legacy **`revenue_model`** still affects visibility; canonical bank id is **`a10`**). This is **not** a static `pre_brief` layer slice of `BRIEF_QUESTIONS`; visibility follows the same resolver as the rest of intake. See [QUESTION_BANK.md](./QUESTION_BANK.md).
 
 Each question object includes optional **`section`** (UI heading: `Business`, `Goals`, `UX & Conversion`, …) aligned with the consultant brief — the public `/intake/:token` page groups the form and review by these sections. Same shape on **`GET /api/intake/prefill/:token`**.
 
@@ -712,7 +714,7 @@ Success returns **`201`** with `{ "audit_id": "..." }`.
 
 ### `POST /api/marketing/brief`
 
-**Auth:** none. **Rate limit:** same window as public intake (`intakePublicLimiter`).
+**Auth:** none. **Rate limit:** per-IP hourly cap (`marketingBriefPublicLimiter`); override with `PUBLIC_MARKETING_BRIEF_MAX_PER_HOUR`.
 
 **Body (JSON):**
 

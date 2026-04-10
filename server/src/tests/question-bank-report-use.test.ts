@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getQuestionBankReportUse } from '../intake/question-bank.js';
+import { getQuestionBankReportUse } from '@glc/intake-core';
 
 describe('question-bank reportUse (ADR Phase E)', () => {
   it('exposes reportUse for seeded ids', () => {

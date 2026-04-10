@@ -14,7 +14,7 @@ import { PipelineOrchestrator } from '../services/pipeline.js';
 import {
   currentIntakeVersionTuple,
   isSupportedIntakeArtifactTuple,
-} from '../intake/core/index.js';
+} from '@glc/intake-core';
 import {
   maxPhaseForMode,
   type IntakeBriefCollectionMode,

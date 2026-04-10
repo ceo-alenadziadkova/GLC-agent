@@ -160,7 +160,7 @@ These patterns are known to reintroduce duplication and unexplained diffs; code 
 - [x] **Phase 2b — Debug tooling**: plan trace available via route/CLI/internal tooling.
 - [x] **Phase 3 — Linting**: bank/policy/layout linters implemented and wired into test/lint workflow.
 - [x] **Phase 4 — Server gates + persist tuple**: server validation/gates use intake-core; version tuple is persisted on writes.
-- [~] **Phase 5 — Client alignment and dedup**: client Discovery consumes server-provided fragment and shared resolver; remaining work is documentation/governance cleanup to remove ambiguity about legacy wording.
+- [x] **Phase 5 — Client alignment and dedup**: client Discovery consumes server-provided fragment and shared resolver; public pre-brief and authenticated brief question bundles are plan-driven, and legacy `revenue_model` is bridged to bank id `a10` for backward compatibility.
 - [x] **Phase 6 — Layout layer**: layout rules are separated from canon/policy and applied in resolver without changing semantic eligibility.
 
 ## Governance for frozen artifact tuples
@@ -209,7 +209,7 @@ Strong candidates later on **canon**: `reportUse`, `confidenceImpact`, `sensitiv
 These are **explicitly out of scope** for ADR acceptance but aligned with the same architecture:
 
 - **Analytics loop:** event log (`question_shown`, `question_answered`, `question_skipped`, drop-off at step); per-question and per-mode completion metrics; A/B on layout or policy bundles (versioned).
-- **Internal tooling:** “Question Bank Studio” (visual tree, policy preview), fixture lab, **interactive trace viewer** (extends Phase 2b).
+- **Internal tooling — Question Bank Studio:** visual canon map (all bank ids + sections + optional branch edges), optional **layout-rules** wizard steps between section and question per surface, structure metrics (depth/leaves on the visible tree), policy mode overlay, trace via **presets or pasted JSON** (same `buildIntakePlan` call as analytics would replay), **Plan footprint**, and inspector **resolver reasons** (`reasonsById`) plus SLA pointer to `brief-gates.ts`. JSON-serializable payloads: `src/app/lib/question-bank-studio-payload.ts` (`buildQuestionBankStudioPayloadPhase1` / `Phase2` include `layoutSurface` and `layoutStep` nodes when enabled). **Rollout:** consultants only; `VITE_QUESTION_BANK_STUDIO` (default on, `=0` disables tab + redirects full page); Settings `#question-bank-studio` and **`/admin/question-bank-studio`**. Vitest: canon tree completeness/order (`question-bank-studio-canon-tree.test.ts`) and branch edge parity vs `computeBranchTopology` (`question-bank-studio-branch-parity.test.ts`). UI copy clarifies canon vs runtime. Server-side analytics event **replay** on the canvas remains follow-up once a stable export/API exists.
 - **Adaptive questioning:** `nextRecommended` driven by simple heuristics (e.g. information-gain scores) on top of the same `IntakePlan` pipeline, without changing the four-layer split.
 
 ## Follow-up documentation
@@ -217,7 +217,22 @@ These are **explicitly out of scope** for ADR acceptance but aligned with the sa
 - Operational detail stays in [QUESTION_BANK.md](./QUESTION_BANK.md) (human-readable mirror of branching and agent mapping).
 - This ADR is the **decision record**; when implementation lands, link the concrete file paths and package name from [MASTER.md](./MASTER.md) or [ARCHITECTURE.md](./ARCHITECTURE.md).
 
+## Operational notes (bundle shape; do not regress in docs or tests)
+
+- **Shared resolver package:** runtime canon/policy/layout + `buildIntakePlan` live in **`@glc/intake-core`** (`packages/intake-core`). Server build runs `pnpm --filter @glc/intake-core run build` before `tsc`; the SPA must import **`@glc/intake-core`** (not `server/src/intake`). ESLint blocks `server/src/intake` imports under `src/`.
+- **Choice “Other / specify” triggers:** `choiceValueNeedsSpecify`, `choiceSpecifyResponseKey`, and `CHOICE_OPTION_LABELS_REQUIRING_SPECIFY` live only in **`packages/intake-core/src/choice-specify-triggers.ts`**. App and server import them from **`@glc/intake-core`** — no second copy under `src/app/lib` (avoids diverging validation vs UI).
+- **Visibility / data quality:** `filterVisibleQuestions` and stored **`data_quality_score`** derive visible sets only via **`buildIntakePlan`** (see `visibility-from-plan.ts` in the package).
+- **Public rate limits:** Discover / pre-brief intake / marketing brief use **split** per-route limiters in `server/src/middleware/rate-limit.ts` (`discoverSessionCreateLimiter`, `discoverPublicReadLimiter`, `discoverAnalyticsPublicLimiter`, `intakePublicReadLimiter`, `intakePublicWriteLimiter`, `marketingBriefPublicLimiter`). Tune with env vars `PUBLIC_DISCOVER_CREATE_MAX_PER_HOUR`, `PUBLIC_DISCOVER_READ_MAX_PER_HOUR`, `PUBLIC_DISCOVER_ANALYTICS_MAX_PER_HOUR`, `PUBLIC_INTAKE_READ_MAX_PER_HOUR`, `PUBLIC_INTAKE_WRITE_MAX_PER_HOUR`, `PUBLIC_MARKETING_BRIEF_MAX_PER_HOUR` (optional `PUBLIC_INTAKE_LEGACY_MAX_PER_HOUR` for the deprecated combined limiter).
+- **`GET /api/audits/:id/brief`** — field **`questions`** is **`getBriefQuestionsByIds(plan.visible)` only** (legacy `BRIEF_QUESTIONS` catalog rows). Identity (`intake_*`) lives in **`brief.responses`**, not duplicated in **`questions`**. See [API.md](../API.md).
+- **Public pre-brief** — **`GET /api/intake/:token`** still prepends **identity** question rows in code, then bank rows from the same plan-driven pattern; keep parity tests aligned if that assembly changes.
+- **Policy** — **`modes.pre_brief.bankIncluded`** includes **`a10`** with other express-facing bank ids; **`pre-brief-bank-included.json`** must match (drift is a **lint error**).
+- **Lint** — **`syntheticRequired`** may list **`a10`** even though it is a bank id; **`lintSyntheticCollision`** allowlists **`INTAKE_REVENUE_BANK_ID`** (`ALLOWED_SYNTHETIC_BANK_OVERLAP` in `lint-bank-policy.ts`).
+- **Legacy rows without `intake_versions`:** validation and prompt assembly use the **current** engine tuple when the column is `NULL` or the stored tuple is unsupported (repair on next write, logged in `intake_version_migration`). See [API.md](../API.md) (`PUT` brief) and [DATABASE.md](../DATABASE.md).
+- **Rate limiting:** public Discover / intake / marketing-brief limiters use **`RedisStore`** when **`RATE_LIMIT_REDIS_URL`** is set; otherwise they fall back to **`MemoryStore`** (per process). Without Redis, caps are not coordinated across horizontally scaled instances — set Redis in multi-instance production.
+- **`intake_versions` on write:** the body must be a **supported** frozen or current artifact tuple, or omitted to reuse the stored tuple. Unsupported tuple → **`400`**; conflict with stored tuple → **`409`** (except allowed upgrades). The tuple persisted on save matches the `versions` field from `buildIntakePlan`; server validation is authoritative.
+- **SPA vs server releases:** ship compatible **`@glc/intake-core`** semantics together where possible. The version tuple and PUT validation reduce client/server artifact skew; they do not remove all UX risk if resolver code diverges across deployments.
+
 ## References
 
-- `server/src/intake/is-visible.ts`, `server/src/intake/branch-rules.ts`, `server/src/intake/discovery.ts`, `server/src/intake/brief-gates.ts`
-- `src/app/lib/discovery-flow.ts` (to be reduced to policy/layout consumers over time)
+- `packages/intake-core/src/is-visible.ts`, `packages/intake-core/src/branch-rules.ts`, `packages/intake-core/src/discovery.ts`, `packages/intake-core/src/brief-gates.ts`
+- `src/app/lib/discovery-flow.ts` — uses `buildIntakePlan` from `@glc/intake-core`

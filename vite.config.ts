@@ -3,7 +3,10 @@ import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  esbuild: {
+    drop: mode === 'production' ? (['console', 'debugger'] as const) : [],
+  },
   plugins: [
     // The React and Tailwind plugins are both required for Make, even if
     // Tailwind is not being actively used – do not remove them
@@ -19,6 +22,23 @@ export default defineConfig({
         __dirname,
         './server/src/snapshot/scan-coverage-from-stored-json.ts',
       ),
+      '@glc/intake-core/question-bank.v1.json': path.resolve(
+        __dirname,
+        './packages/intake-core/src/question-bank.v1.json',
+      ),
+      '@glc/intake-core/pre-brief-bank-included.json': path.resolve(
+        __dirname,
+        './packages/intake-core/src/pre-brief-bank-included.json',
+      ),
+      '@glc/intake-core/intake-policy.v1.json': path.resolve(
+        __dirname,
+        './packages/intake-core/src/intake-policy.v1.json',
+      ),
+      '@glc/intake-core/artifacts/layout-rules-1.1.0.json': path.resolve(
+        __dirname,
+        './packages/intake-core/src/artifacts/layout-rules-1.1.0.json',
+      ),
+      '@glc/intake-core': path.resolve(__dirname, './packages/intake-core/src/index.ts'),
     },
   },
 
@@ -33,4 +53,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

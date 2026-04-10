@@ -11,7 +11,6 @@ import type { AuditRequest, AuditRequestStatus } from '../data/auditTypes';
 import { glcKeys } from '../lib/glc-keys';
 import { isNoPublicWebsiteUrl } from '../data/no-public-website';
 import {
-  BRIEF_QUESTIONS,
   INTAKE_IDENTITY_BRIEF_QUESTIONS,
   PRE_BRIEF_QUESTION_IDS,
   countPreBriefSatisfied,
@@ -19,7 +18,9 @@ import {
   getPreBriefSubmitSlotIds,
   type BriefResponses,
   type BriefResponseEntry,
+  type BriefQuestion,
 } from '../data/briefQuestions';
+import { getQuestionLabel } from '../lib/intake-question-lookup';
 
 type IntakeSubmissionRow = Awaited<ReturnType<typeof api.listIntakeSubmissions>>['submissions'][number];
 
@@ -43,7 +44,13 @@ function normalizeIntakeResponses(raw: Record<string, unknown>): BriefResponses 
 
 const ORDERED_PRE_BRIEF = [
   ...INTAKE_IDENTITY_BRIEF_QUESTIONS,
-  ...PRE_BRIEF_QUESTION_IDS.map(id => BRIEF_QUESTIONS.find(q => q.id === id)).filter((q): q is NonNullable<typeof q> => q != null),
+  ...PRE_BRIEF_QUESTION_IDS.map(id => ({
+    id,
+    question: getQuestionLabel(id),
+    priority: 'required',
+    type: 'free_text',
+    domains: ['all'],
+  } as BriefQuestion)),
 ];
 
 function intakeSummaryLine(norm: BriefResponses, auditId: string | null, expired: boolean): string {

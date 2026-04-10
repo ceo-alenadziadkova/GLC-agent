@@ -2,6 +2,23 @@ import { getContext } from './observability-context.js';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
+const LEVEL_RANK: Record<LogLevel, number> = {
+  debug: 10,
+  info: 20,
+  warn: 30,
+  error: 40,
+};
+
+function effectiveMinLogLevel(): LogLevel {
+  const raw = process.env.LOG_LEVEL?.trim().toLowerCase();
+  if (raw === 'debug' || raw === 'info' || raw === 'warn' || raw === 'error') return raw;
+  return process.env.NODE_ENV === 'production' ? 'info' : 'debug';
+}
+
+function shouldEmit(level: LogLevel): boolean {
+  return LEVEL_RANK[level] >= LEVEL_RANK[effectiveMinLogLevel()];
+}
+
 interface LogRecord {
   service: string;
   level: LogLevel;
@@ -47,6 +64,7 @@ function formatPretty(record: LogRecord): string {
 }
 
 function write(level: LogLevel, message: string, context?: Record<string, unknown>): void {
+  if (!shouldEmit(level)) return;
   const reqCtx = getContext();
   const payload: LogRecord = {
     service: SERVICE,
@@ -76,7 +94,7 @@ function write(level: LogLevel, message: string, context?: Record<string, unknow
 
 export const logger = {
   debug(message: string, context?: Record<string, unknown>) {
-    if (process.env.NODE_ENV !== 'production') write('debug', message, context);
+    write('debug', message, context);
   },
   info(message: string, context?: Record<string, unknown>) {
     write('info', message, context);

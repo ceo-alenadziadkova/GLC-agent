@@ -1,7 +1,7 @@
 /**
  * BriefValidator — validates intake brief completeness.
  *
- * SLA: required question-bank stubs (visible for branch + collection mode) plus revenue_model.
+ * SLA: required question-bank stubs (visible for branch + collection mode) plus revenue signal (a10 / legacy revenue_model alias).
  * If brief doesn't exist or is incomplete, startPhase(0) throws with a user-friendly message.
  */
 import { supabase } from './supabase.js';
@@ -20,16 +20,18 @@ import type {
   ProductMode,
   ReconConflict,
 } from '../types/audit.js';
-import { resolveBankOptionalIds, resolveExpressSlaRequiredIds } from '../intake/brief-gates.js';
-import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
-import { isSupportedIntakeArtifactTuple, resolveIntakeArtifacts } from '../intake/core/resolve-intake-artifacts.js';
-import type { IntakeSurface } from '../intake/core/types.js';
-import { currentIntakeVersionTuple, syntheticIntakeVersionsBeforeMatrix } from '../intake/core/versions.js';
-import { deriveBankV1DataQuality, getQuestionBankPromptLabel, QUESTION_BANK_V1_STUBS } from '../intake/question-bank.js';
+import { resolveBankOptionalIds, resolveExpressSlaRequiredIds } from '@glc/intake-core';
+import { buildIntakePlan } from '@glc/intake-core';
+import { isSupportedIntakeArtifactTuple, resolveIntakeArtifacts } from '@glc/intake-core';
+import type { IntakeSurface } from '@glc/intake-core';
+import { currentIntakeVersionTuple, syntheticIntakeVersionsBeforeMatrix } from '@glc/intake-core';
+import { deriveBankV1DataQuality } from '@glc/intake-core';
+import { getQuestionBankPromptLabel } from '@glc/intake-core';
 import { logger } from './logger.js';
-import { prepareBriefForValidation } from '../intake/prepare-brief-for-validation.js';
-import { mergeReconConflictsFromC1 } from '../intake/recon-conflicts.js';
-import { choiceValueNeedsSpecify } from '../intake/choice-specify-triggers.js';
+import { prepareBriefForValidation } from '@glc/intake-core';
+import { mergeReconConflictsFromC1 } from '@glc/intake-core';
+import { choiceValueNeedsSpecify } from '@glc/intake-core';
+import { isRevenueAnsweredRaw } from '@glc/intake-core';
 
 export interface BriefValidationResult {
   passed: boolean;
@@ -208,7 +210,7 @@ function computeProgress(
   }
   const revW = 3;
   totalWeight += revW;
-  if (isAnswered(responses.revenue_model)) answeredWeight += revW;
+  if (isRevenueAnsweredRaw(responses)) answeredWeight += revW;
 
   const progressPct = totalWeight > 0 ? Math.min(100, Math.round((answeredWeight / totalWeight) * 100)) : 0;
   const readinessBadge: IntakeReadinessBadge = progressPct >= 80 ? 'high' : progressPct >= 45 ? 'medium' : 'low';

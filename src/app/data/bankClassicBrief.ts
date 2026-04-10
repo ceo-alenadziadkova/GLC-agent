@@ -3,10 +3,10 @@
  * (`buildIntakePlan` + bank JSON order).
  */
 import type { IntakeBriefCollectionMode } from './auditTypes';
-import { buildIntakePlan } from '../../../server/src/intake/core/build-intake-plan';
-import type { IntakeSurface } from '../../../server/src/intake/core/types';
-import { QUESTION_BANK_V1_STUBS } from '../../../server/src/intake/question-bank';
-import type { IntakeQuestionStub } from '../../../server/src/intake/types';
+import { buildIntakePlan } from '@glc/intake-core';
+import type { IntakeSurface } from '@glc/intake-core';
+import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
+import type { IntakeQuestionStub } from '@glc/intake-core';
 import { bankIdToBriefQuestion } from './bankQuestionUiCatalog';
 import type { BriefQuestion, BriefResponses } from './briefQuestions';
 import { briefResponsesToIntakeMap } from './intakeBriefMap';

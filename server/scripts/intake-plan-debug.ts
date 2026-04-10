@@ -13,9 +13,9 @@
  *   --format=           text (default) | json — full IntakePlan JSON for tooling / diff
  */
 import type { IntakeBriefCollectionMode, ProductMode } from '../src/types/audit.js';
-import { buildIntakePlan } from '../src/intake/core/build-intake-plan.js';
-import type { IntakeSurface } from '../src/intake/core/types.js';
-import { formatPlanTrace } from '../src/intake/core/format-trace.js';
+import { buildIntakePlan } from '@glc/intake-core';
+import type { IntakeSurface } from '@glc/intake-core';
+import { formatPlanTrace } from '@glc/intake-core';
 
 const SURFACES: IntakeSurface[] = [
   'consultant_interview',

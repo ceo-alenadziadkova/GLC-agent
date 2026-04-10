@@ -44,20 +44,29 @@
 | **Discovery** (Mode C, нет сайта)     | Клиент + Alena   | **16** вопросов (банк), ~15 мин | Понимание бизнеса → конвертация в full |
 
 
-В приложении режим **«All sections»** (классическая форма) и **пошаговый wizard** используют **один и тот же** набор видимых id банка (`filterVisibleQuestions` по текущим ответам); отличается только подача — все секции сразу или один вопрос на шаг. Канонические id ответов — **question-bank v1** (плюс identity и `revenue_model`). **Готовность к старту пайплайна** (full vs express, pre-brief submit): `server/src/intake/brief-gates.ts` — `resolveFullSlaRequiredIds` / `resolveExpressSlaRequiredIds`; на фронте зеркало — `pipelineRequiredIdsForProductMode` ([FRONTEND.md](./FRONTEND.md)). См. `getVisibleBankBriefSections` / `BankClassicBriefFields`.
+В приложении режим **«All sections»** (классическая форма) и **пошаговый wizard** используют **один и тот же** набор видимых id банка (`filterVisibleQuestions` по текущим ответам); отличается только подача — все секции сразу или один вопрос на шаг. Канонические id ответов — **question-bank v1** (плюс identity; revenue перенесён в bank id `a10`, legacy alias `revenue_model` поддерживается для совместимости). **Готовность к старту пайплайна** (full vs express, pre-brief submit): `packages/intake-core/src/brief-gates.ts` — `resolveFullSlaRequiredIds` / `resolveExpressSlaRequiredIds`; на фронте зеркало — `pipelineRequiredIdsForProductMode` ([FRONTEND.md](./FRONTEND.md)). См. `getVisibleBankBriefSections` / `BankClassicBriefFields`.
 
 **Pre-brief (публичная ссылка) и policy:**
 
-- Узкий список вопросов на экране задаётся `**modes.pre_brief.bankIncluded`** в `intake-policy.v1.json` (плюс identity и синтетический `revenue_model`). Тонкий список id для линта/фронта дублируется в `server/src/intake/pre-brief-bank-included.json` и должен совпадать с policy (тесты в `server/src/tests/intake-brief-policy-sync.test.ts`).
+- Узкий список вопросов на экране задаётся `**modes.pre_brief.bankIncluded`** в `intake-policy.v1.json` (плюс identity; **`a10`** входит в `bankIncluded` вместе с express-слотами вроде `f1` / `b1` / `a6` / `c5` / `c3`). Тонкий список id для линта/фронта дублируется в `packages/intake-core/src/pre-brief-bank-included.json` и должен совпадать с policy (тесты в `server/src/tests/intake-brief-policy-sync.test.ts`).
+- Линт политики: `syntheticRequired` не должен случайно дублировать произвольные bank id; **исключение** — канонический revenue **`a10`** (`ALLOWED_SYNTHETIC_BANK_OVERLAP` в `packages/intake-core/src/core/lint-bank-policy.ts`), чтобы full/discovery могли держать тот же id, что и в банке.
 - В **замороженных** снимках policy поле `bankIncluded` может отсутствовать (legacy): тогда pre-brief eligible шире, чем у текущей policy — сервер подгружает артефакты по сохранённому `**intake_versions`** tuple (`resolveIntakeArtifacts`, реестр в `resolve-intake-artifacts.ts`).
 - Поле `**slaVisibleBankIds**` в `IntakePlan` — это набор bank-stub id, по которому считается **required** для express/full SLA; для `collection_mode === 'pre_brief'` он шире, чем то, что показывается в узком pre-brief UI (см. `buildIntakePlan`).
-- **Производный слой плана (ADR backlog B):** `derivedFacts` (в т.ч. `aiReadinessScore` и `segmentHints.websiteGate` — см. §8), `coverage.byDomain` (доля отвеченных primary-вопросов банка в области `slaVisibleBankIds` по доменам из `QUESTION_FEED_ROLES`), `confidence.overall` (0–1, эвристика из readiness + data quality по видимым stub). Считается в `server/src/intake/core/plan-derived.ts` внутри `buildIntakePlan`. Консультантский отладочный UI: `/admin/intake-trace` (диагностика плана), `/admin/intake-wording` (черновики формулировок); CLI: `pnpm intake-plan-debug` в `server/`.
+- **Производный слой плана (ADR backlog B):** `derivedFacts` (в т.ч. `aiReadinessScore` и `segmentHints.websiteGate` — см. §8), `coverage.byDomain` (доля отвеченных primary-вопросов банка в области `slaVisibleBankIds` по доменам из `QUESTION_FEED_ROLES`), `confidence.overall` (0–1, эвристика из readiness + data quality по видимым stub). Считается в `packages/intake-core/src/core/plan-derived.ts` внутри `buildIntakePlan`. Консультантский отладочный UI: `/admin/intake-trace` (диагностика плана), `/admin/intake-wording` (черновики формулировок); CLI: `pnpm intake-plan-debug` в `server/`.
 - **Компактная схема для API (ADR Phase D):** `GET /api/audits/:id/brief/schema` — JSON с наборами плана + `questions` по видимым id банка + блок `derived`; см. [API.md](./API.md).
+- **Матрица клиентских поверхностей (Phase 5):**
+
+| Surface | Endpoint / module | Водитель списка вопросов | Примечание |
+| --- | --- | --- | --- |
+| Public pre-brief (`/intake/:token`) | `server/src/routes/intake.ts` | `buildIntakePlan(... pre_brief, client_form ...)` + `getBriefQuestionsByIds(plan.visible)` | Identity поля всегда добавляются явно |
+| Consultant/client brief (`GET /api/audits/:id/brief`) | `server/src/routes/audits.ts` | `buildIntakePlan(... context ...)` + `getBriefQuestionsByIds(plan.visible)` | Возвращает plan-driven rows вместо полного `BRIEF_QUESTIONS` |
+| Compact schema (`GET /api/audits/:id/brief/schema`) | `packages/intake-core/src/core/build-brief-schema-snapshot.ts` | `plan.visible` + `getQuestionBankSchemaMeta` | Канонический bank-only snapshot для UI/инструментов |
+| Discovery | `GET /api/discover/ui-fragment` + `src/app/lib/discovery-flow.ts` | shared builder + `buildIntakePlan` | Нет параллельного вопросника |
 - **Canon `reportUse` (ADR Phase E):** у **каждого** bank id в `question-bank.v1.json` задан уникальный непустой тег `reportUse` для `derivedFacts.reportAnchors` и промпта `intake_report_anchors` (`getQuestionBankReportUse`). Линтер `lintCanonQuestionMetadataKeys` в `lint-bank-policy.ts` запрещает пропуски и дубликаты тегов. Примеры имён: `recon_company_summary`, `mkt_acquisition_channels`, `seo_analytics_tool`, `strategy_pain_anchor`.
-- **Canon `answer` (ADR — answer contract):** у **каждого** bank id задан объект `**answer`** (`type`: `text` | `textarea` | `single_select` | `multi_select` | `scale` | `boolean`, опционально `maxLength`, `options` или `optionsRef` в корневой `**optionCatalogs**`). Генерация из UI-оверрайдов: `pnpm embed-question-bank-answers` в `server/` (`scripts/embed-question-bank-answers.ts`). API: `getQuestionBankAnswerContract`, `expandAnswerContractForApi` в `server/src/intake/question-bank.ts`; снимок `GET .../brief/schema` включает `answer` по видимым id. Замороженный банк **1.0.0** без `answer`: `server/src/intake/artifacts/question-bank-1.0.0.json` (tuple в `resolve-intake-artifacts.ts`).
-- **Ветки (ADR Phase C / C2):** `server/src/intake/core/branch-condition-deps.ts` — ключи ответов на правило, топо-порядок оценки, `**QUESTION_BANK_V1_STUB_EVAL_ORDER`** для live v1 stubs; `**listBankStubIdsInvalidatedByResponseKeys**` — обратный индекс ключ → bank id (подготовка к частичному пересчёту). Кэш предикатов в `evaluateCanonEligibility`. Public Discovery: `DISCOVERY_WIZARD_BANK_IDS` в `discovery-flow.ts` + тест ⊆ policy discovery.
-- **Legacy brief UI (ADR Phase A):** списки вопросов для классической формы / public intake берутся в SPA из `**server/src/schemas/intake-brief.ts`** (`BRIEF_QUESTIONS`, `INTAKE_IDENTITY_BRIEF_QUESTIONS`); фронт: `src/app/data/briefQuestions.ts` только типизирует вид и добавляет хелперы. Пошаговый bank-wizard из `bankQuestionUiCatalog.ts` + `question-bank.v1.json`; **public Discovery** загружает тексты и опции через `**GET /api/discover/ui-fragment`** (источник: `server/src/intake/discovery-ui-fragment.ts` + `**getBankQuestionUiOptions**` из `bank-question-ui-overrides.ts` для **a2, d1, c_nosite_1, c_nosite_4**). Анти-drift: `src/app/data/brief-spa-parity.test.ts`, `src/app/data/bank-question-ui-catalog-parity.test.ts`. Полная сводка A–G: [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) § «Implementation coverage matrix».
-- `**PRE_BRIEF_REQUIRED_SUBMIT_IDS`** в `server/src/schemas/intake-brief.ts` — это **та же express-база**, что и `EXPRESS_REQUIRED_ALWAYS_IDS` + `EXPRESS_REQUIRED_IF_VISIBLE_IDS` из policy (`express-policy-ids.ts`). Фактический submit (публичный `POST .../respond` и слоты в `brief-validator`) использует `**resolveExpressSlaRequiredIds`** с учётом веток и tuple — не «ручной» список приоритетов из банка.
+- **Canon `answer` (ADR — answer contract):** у **каждого** bank id задан объект `**answer`** (`type`: `text` | `textarea` | `single_select` | `multi_select` | `scale` | `boolean`, опционально `maxLength`, `options` или `optionsRef` в корневой `**optionCatalogs**`). Генерация из UI-оверрайдов: `pnpm embed-question-bank-answers` в `server/` (`scripts/embed-question-bank-answers.ts`). API: `getQuestionBankAnswerContract`, `expandAnswerContractForApi` в `packages/intake-core/src/question-bank.ts`; снимок `GET .../brief/schema` включает `answer` по видимым id. Замороженный банк **1.0.0** без `answer`: `packages/intake-core/src/artifacts/question-bank-1.0.0.json` (tuple в `resolve-intake-artifacts.ts`).
+- **Ветки (ADR Phase C / C2):** `packages/intake-core/src/core/branch-condition-deps.ts` — ключи ответов на правило, топо-порядок оценки, `**QUESTION_BANK_V1_STUB_EVAL_ORDER`** для live v1 stubs; `**listBankStubIdsInvalidatedByResponseKeys**` — обратный индекс ключ → bank id (подготовка к частичному пересчёту). Кэш предикатов в `evaluateCanonEligibility`. Public Discovery: `DISCOVERY_WIZARD_BANK_IDS` в `discovery-flow.ts` + тест ⊆ policy discovery.
+- **Legacy brief UI (ADR Phase A):** списки вопросов для классической формы / public intake берутся в SPA из `**server/src/schemas/intake-brief-questions.ts`** (`BRIEF_QUESTIONS`, `INTAKE_IDENTITY_BRIEF_QUESTIONS`); `server/src/schemas/intake-brief.ts` реэкспортирует эти определения и добавляет Zod-валидацию ответов. Фронт: `src/app/data/briefQuestions.ts` только типизирует вид и добавляет хелперы. Пошаговый bank-wizard из `bankQuestionUiCatalog.ts` + `question-bank.v1.json`; **public Discovery** загружает тексты и опции через `**GET /api/discover/ui-fragment`** (источник: `packages/intake-core/src/discovery-ui-fragment.ts` + `**getBankQuestionUiOptions**` из `bank-question-ui-overrides.ts` для **a2, d1, c_nosite_1, c_nosite_4**). Анти-drift: `src/app/data/brief-spa-parity.test.ts`, `src/app/data/bank-question-ui-catalog-parity.test.ts`. Полная сводка A–G: [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) § «Implementation coverage matrix».
+- `**PRE_BRIEF_REQUIRED_SUBMIT_IDS`** в `server/src/schemas/intake-brief-questions.ts` — это **та же express-база**, что и `EXPRESS_REQUIRED_ALWAYS_IDS` + `EXPRESS_REQUIRED_IF_VISIBLE_IDS` из policy (`packages/intake-core/src/express-policy-ids.ts`). Фактический submit (публичный `POST .../respond` и слоты в `brief-validator`) использует `**resolveExpressSlaRequiredIds`** с учётом веток и tuple — не «ручной» список приоритетов из банка.
 
 ### 2.2. Секции (клиент видит)
 
@@ -92,7 +101,7 @@
 | `automation_attempt` *(сигнал, не predicate)* | `d_automation_attempt`                      | Ответ уходит в **automation_processes** (§5); в `question-bank.v1.json` у вопроса **нет** `branch` — это не условие `evalBranchCondition` |
 
 
-**Реализация веток:** канон — `server/src/intake/branch-rules.ts` (`BRANCH_RULES`, `evalBranchCondition`). Неизвестный `branchCondition` в JSON → в лог пишется предупреждение `[branch-rules] Unknown branchCondition`, вопрос по умолчанию **показывается** (fail-open).
+**Реализация веток:** канон — `packages/intake-core/src/branch-rules.ts` (`BRANCH_RULES`, `evalBranchCondition`). Неизвестный `branchCondition` в JSON → в лог пишется предупреждение `[branch-rules] Unknown branchCondition`, вопрос по умолчанию **показывается** (fail-open).
 
 **Отрасль в UI:** в выпадающем списке больше ярлыков, чем отраслевых веток с дополнительными вопросами. Явные `branch`-вопросы есть только для hospitality, real estate, restaurant & F&B, professional services, healthcare, marine; остальные индустрии калибруют общие вопросы и веса, без отраслевого пакета в банке.
 
@@ -116,7 +125,7 @@
 
 ### Источник истины по срезам агентов
 
-**Markdown не является каноном для того, какой ответ какому агенту попадает.** Единственный источник истины — объект `**QUESTION_FEED_ROLES`** в `[server/src/intake/question-feed-roles.ts](../server/src/intake/question-feed-roles.ts)` (от него строятся `DOMAIN_TO_QUESTIONS_RAW` → `DOMAIN_TO_QUESTION_IDS` и контекст в `ContextBuilder`).
+**Markdown не является каноном для того, какой ответ какому агенту попадает.** Единственный источник истины — объект `**QUESTION_FEED_ROLES`** в `[packages/intake-core/src/question-feed-roles.ts](../packages/intake-core/src/question-feed-roles.ts)` (от него строятся `DOMAIN_TO_QUESTIONS_RAW` → `DOMAIN_TO_QUESTION_IDS` и контекст в `ContextBuilder`).
 
 - Менять срезы нужно **в TypeScript**, затем **подтянуть §3 / §5 в этом файле** как человекочитаемое зеркало (или сгенерировать его скриптом).
 - Колонка **Agent feeds (P / S)** ниже: **(P)** = primary, **(S)** = secondary (тот же ответ дублируется в срез другого агента). Формат `домен (P), …; домен (S), …` — часть после `;` опускается, если secondaries нет.
@@ -480,7 +489,7 @@ This means Discovery no longer has a separate semantic question model; it is a p
 
 ## 5. Domain Agent ← Question Mapping
 
-**Не правьте эту таблицу как первичный источник.** Сначала меняйте `**QUESTION_FEED_ROLES`** в `[question-feed-roles.ts](../server/src/intake/question-feed-roles.ts)`, затем обновляйте списки здесь и колонку **Agent feeds (P / S)** в §3. Иначе документация снова разойдётся с рантаймом.
+**Не правьте эту таблицу как первичный источник.** Сначала меняйте `**QUESTION_FEED_ROLES`** в `[question-feed-roles.ts](../packages/intake-core/src/question-feed-roles.ts)`, затем обновляйте списки здесь и колонку **Agent feeds (P / S)** в §3. Иначе документация снова разойдётся с рантаймом.
 
 Ниже: какой агент какие ответы получает (context slice). Состав строки = **primary ∪ secondary**; в промпте роль **P/S** не дублируется построчно — см. §3. Порядок id внутри домена — порядок банка (`DOMAIN_TO_QUESTION_IDS`).
 
@@ -503,7 +512,7 @@ This means Discovery no longer has a separate semantic question model; it is a p
 
 ## 6. Branching Logic (implementation)
 
-Каноническая реализация: `**server/src/intake/branch-rules.ts`** — `BRANCH_RULES`, нормализация `a5`/`a6`/`a4`/`a2`, `evalBranchCondition`. Вызов видимости: `server/src/intake/is-visible.ts`.
+Каноническая реализация: `**packages/intake-core/src/branch-rules.ts`** — `BRANCH_RULES`, нормализация `a5`/`a6`/`a4`/`a2`, `evalBranchCondition`. Вызов видимости: `packages/intake-core/src/is-visible.ts`.
 
 - Ключи в `branch` / `branchCondition` JSON **должны** совпадать с ключами `BRANCH_RULES`. Неизвестный ключ → `console.warn` с префиксом `[branch-rules] Unknown branchCondition`, вопрос считается **видимым** (fail-open).
 - Ниже — краткая шпаргалка по ключам (без дословного кода; детали смотри в репозитории).
@@ -522,7 +531,7 @@ This means Discovery no longer has a separate semantic question model; it is a p
 
 **UX:** скрытые вопросы не показываются. Клиент не знает, что вопрос существует. Wizard адаптируется динамически.
 
-**Other → specify (банк + классическая форма):** при выборе вариантов, требующих уточнения (`Other`, «Yes, other tool» / «Yes, another tool», «Something else» — см. `CHOICE_OPTION_LABELS_REQUIRING_SPECIFY` в `src/app/lib/choice-specify-triggers.ts`), показывается поле; значение пишется в `**${questionId}__other`**, для `**a2**` / `**intake_industry**` — в `**intake_industry_specify**`. Discovery: `**${bankId}__other**`, для `**a2**` при конвертации дублируется в `**intake_industry_specify**`. См. `BriefField`, `IntakeBankWizard`, `DiscoverPage`.
+**Other → specify (банк + классическая форма):** при выборе вариантов, требующих уточнения (`Other`, «Yes, other tool» / «Yes, another tool», «Something else» — см. `CHOICE_OPTION_LABELS_REQUIRING_SPECIFY` и `choiceSpecifyResponseKey` в `@glc/intake-core`; SPA и сервер импортируют только оттуда), показывается поле; значение пишется в `**${questionId}__other`**, для `**a2**` / `**intake_industry**` — в `**intake_industry_specify**`. Discovery: `**${bankId}__other**`, для `**a2**` при конвертации дублируется в `**intake_industry_specify**`. См. `BriefField`, `IntakeBankWizard`, `DiscoverPage`.
 
 ---
 
@@ -563,7 +572,7 @@ This means Discovery no longer has a separate semantic question model; it is a p
 
 Отдельный **индикатор для UI и strategy** (не путать с доменным score 1–5): агрегирует **d4a**, экспорт данных **d4b**, поведенческий источник правды **d4**, долю ручной работы **d3**, узкие места **d2** / **d_automation_attempt**, governance **f7**, и опционально **масштаб** (**a8**, **d6**) для приоритизации «где выше потенциальный impact».
 
-**Шкала 0–100 (heuristic v1 — `calcAiReadinessScore` в `server/src/intake/ai-readiness.ts`):**
+**Шкала 0–100 (heuristic v1 — `calcAiReadinessScore` в `packages/intake-core/src/ai-readiness.ts`):**
 
 | Компонент | Сигнал | Значение |
 |-----------|--------|---------|
@@ -607,7 +616,7 @@ This means Discovery no longer has a separate semantic question model; it is a p
 *После переноса `d4c` → `f7` в D на один id меньше (`f7` считается в F), но операционный блок всё ещё плотный — см. заметку перегрузки в Section D.*
 
 Из-за branching типичный клиент видит **27–36 вопросов**, не все строки таблицы.
-Pre-brief: **9**. Quick Intake: **~18–21** (зависит от f7/f8 и сайта). Deep Intake: +12–22. Discovery (Mode C): полный набор id — `**intake-policy.v1.json*`* → `**modes.discovery.included**` (в коде: `DISCOVERY_BANK_IDS` в `server/src/intake/discovery.ts`); в том числе **a5**, **a6**, **a7**, **f8**, **f1** и no-site поля **c_nosite_1**, **c_nosite_2**, **c_nosite_3**.
+Pre-brief: **9**. Quick Intake: **~18–21** (зависит от f7/f8 и сайта). Deep Intake: +12–22. Discovery (Mode C): полный набор id — `**intake-policy.v1.json*`* → `**modes.discovery.included**` (в коде: `DISCOVERY_BANK_IDS` в `packages/intake-core/src/discovery.ts`); в том числе **a5**, **a6**, **a7**, **f8**, **f1** и no-site поля **c_nosite_1**, **c_nosite_2**, **c_nosite_3**.
 
 ---
 
@@ -625,7 +634,7 @@ optionalWeight = (# answered optional visible) / (# visible optional)
 dataQualityScore = 0.55 * requiredWeight + 0.35 * recommendedWeight + 0.10 * optionalWeight
 ```
 
-- «Visible» = `isVisible(id, responses)` с учётом веток (`has_website`, industry, …).
+- «Visible» = множество `plan.visible` из **`buildIntakePlan`** (ветки + политика + layout); для сохранённого поля **`data_quality_score`** в БД используется тот же резолвер с поверхностью **`consultant_interview`** и продуктом **`full`** (см. `DATA_QUALITY_DEFAULT_PLAN_INPUT` в `packages/intake-core/src/visibility-from-plan.ts`).
 - Пустые / whitespace-only значения не считаются answered.
 - Веса можно калибровать по режиму продукта (`express` снижает долю optional).
 

@@ -14,6 +14,7 @@ import { useAudit } from '../hooks/useAudit';
 import { api } from '../data/apiService';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
+import { logger } from '../lib/logger';
 
 type ReportProfile = 'full' | 'owner' | 'tech' | 'marketing' | 'onepager';
 
@@ -65,7 +66,9 @@ export function ReportViewer() {
     try {
       await api.downloadReportPdf(id, profile);
     } catch (e) {
-      console.error(e);
+      logger.error('[ReportViewer] export PDF failed', {
+        error: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setPdfLoading(false);
     }
@@ -77,7 +80,9 @@ export function ReportViewer() {
     try {
       await api.downloadReportCsv(id, profile);
     } catch (e) {
-      console.error(e);
+      logger.error('[ReportViewer] export CSV failed', {
+        error: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setCsvLoading(false);
     }

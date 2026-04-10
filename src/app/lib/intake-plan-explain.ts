@@ -1,4 +1,4 @@
-import type { QuestionReason } from '../../../server/src/intake/core/types';
+import type { QuestionReason } from '@glc/intake-core';
 
 /**
  * Short, human-readable lines for product UX (consultant / client wizard).
