@@ -158,7 +158,7 @@ Example on Railway:
 - [ ] Google OAuth configured in Supabase (if using)
 - [ ] All env vars set in Railway and Vercel
 - [ ] `ALLOWED_ORIGINS` in Railway matches Vercel domain
-- [ ] Backend `/` healthcheck returns 200
+- [ ] Backend `/api/health` healthcheck returns 200
    - [ ] Test: sign-in and sign-up (email/password and/or Google; check Supabase Auth logs if confirmations fail)
 - [ ] Test: create audit end-to-end in production
 
@@ -180,3 +180,21 @@ Example on Railway:
 3. Query `pipeline_events` for `event_type in ('started','completed','error','token_usage')` for the same window.
 4. If retries are involved, verify idempotency records in `api_idempotency_keys` to confirm replay vs. new execution.
 5. Expired idempotency keys are cleaned up by background worker automatically.
+
+### SRE runbooks (security + reliability)
+
+1. **Incident triage (P0/P1)**
+   - Confirm blast radius using `pipeline_events`, `job_runs`, `phase_runs` and API logs.
+   - Identify affected tenant IDs/audit IDs and freeze risky endpoints with temporary stricter rate limits.
+2. **Rollback**
+   - Roll back application deploy first (Railway/Vercel), then revert only the latest unsafe migration if needed.
+   - Never roll back by deleting audit data; use status transitions (`failed`, `phase_stalled`) and replay jobs.
+3. **Key rotation**
+   - Rotate `SUPABASE_SERVICE_KEY`, `ANTHROPIC_API_KEY`, and `SNAPSHOT_OPERATOR_TOKEN` in provider dashboards.
+   - Deploy backend immediately after rotation and verify `/api/health`, queue worker startup, and snapshot endpoints.
+4. **Queue recovery**
+   - Check Redis connectivity and queue lag.
+   - Inspect `job_runs` rows with `status in ('failed','dead_letter')`; requeue targeted jobs only.
+5. **Post-incident review**
+   - Capture timeline, root cause, and guardrail actions.
+   - Add a regression test under `server/src/tests/` for the exact failure mode before closing the incident.

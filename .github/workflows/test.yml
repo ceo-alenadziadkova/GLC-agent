@@ -6,8 +6,44 @@ on:
   pull_request:
 
 jobs:
+  security-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Migration smoke
+        run: |
+          python - <<'PY'
+          import glob, os, re, sys
+          files = sorted(glob.glob('server/migrations/*.sql'))
+          if not files:
+            print('No migrations found')
+            sys.exit(1)
+          nums = [int(re.match(r'.*/(\d+)_', f).group(1)) for f in files if re.match(r'.*/(\d+)_', f)]
+          if nums != sorted(nums):
+            print('Migration numbering is not monotonic')
+            sys.exit(1)
+          print(f'Migration smoke passed: {len(files)} files, latest={os.path.basename(files[-1])}')
+          PY
+      - name: Security policy tests
+        run: pnpm --filter glc-audit-server test -- src/tests/user-isolation.test.ts src/tests/public-http-url.test.ts src/tests/pipeline-error-fallback.test.ts
+
   vitest:
     runs-on: ubuntu-latest
+    needs: security-gates
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
