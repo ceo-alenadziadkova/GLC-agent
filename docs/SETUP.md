@@ -53,6 +53,23 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_KEY=eyJ...
 ANTHROPIC_API_KEY=sk-ant-...
 
+# Recommended for local parity with production distributed runtime
+# RATE_LIMIT_REDIS_URL=redis://localhost:6379
+# STRICT_RATE_LIMIT_REDIS=false
+# PIPELINE_QUEUE_REDIS_URL=redis://localhost:6379
+
+# Queue + pipeline resilience tuning (optional)
+# PIPELINE_WORKER_CONCURRENCY=2
+# PIPELINE_LEASE_TTL_SECONDS=60
+# PIPELINE_HEARTBEAT_MS=10000
+# PIPELINE_STALLED_TIMEOUT_MIN=15
+# PARALLEL_FAILURE_THRESHOLD=2
+
+# Claude runtime guardrails (optional)
+# CLAUDE_TIMEOUT_MS=90000
+# CLAUDE_CB_THRESHOLD=3
+# CLAUDE_CB_TTL_SEC=60
+
 # Optional — deeper automated checks (extra CPU/time; needs Chrome for Lighthouse)
 # AUDIT_DEEP_SCAN=1
 # AUDIT_LIGHTHOUSE=1
@@ -64,6 +81,12 @@ ANTHROPIC_API_KEY=sk-ant-...
 > The frontend uses the anon key (safe to expose). The backend uses the service role key (bypasses RLS for server-side operations — never expose to client).
 
 **Deep audit flags:** `AUDIT_DEEP_SCAN=1` turns on both Lighthouse (performance collector) and axe-core + Playwright (accessibility collector). You can enable them separately with `AUDIT_LIGHTHOUSE=1` or `AUDIT_AXE_PLAYWRIGHT=1`. Lighthouse uses [chrome-launcher](https://github.com/GoogleChrome/chrome-launcher), which reads **`CHROME_PATH`** if set; otherwise it searches for Chrome/Chromium on the system.
+
+**Local env checklist (backend):**
+
+- Required to start API: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` (+ `ANTHROPIC_API_KEY` for live pipeline phases).
+- Required for local distributed behavior parity: `RATE_LIMIT_REDIS_URL` (and optionally `PIPELINE_QUEUE_REDIS_URL`).
+- Optional but recommended: set queue/timeout guardrails above to mirror production behavior.
 
 **Docker / production image:** the server `Dockerfile` installs Debian `chromium` and sets `CHROME_PATH=/usr/bin/chromium` so Lighthouse works when deep-audit env vars are enabled. Local dev without Docker: install Chrome/Chromium or set `CHROME_PATH` to your binary (Playwright’s downloaded Chromium lives under `~/.cache/ms-playwright/` — e.g. `chromium-*/chrome-linux/chrome` on Linux).
 

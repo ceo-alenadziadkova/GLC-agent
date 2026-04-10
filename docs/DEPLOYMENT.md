@@ -109,6 +109,17 @@ See [API.md — Public Snapshot](./API.md#public-snapshot).
 | `ANTHROPIC_API_KEY` | Anthropic API key |
 | `NODE_ENV` | `production` |
 | `ALLOWED_ORIGINS` | `https://your-app.vercel.app` |
+| `RATE_LIMIT_REDIS_URL` | Redis URL for shared rate-limit counters (required for multi-instance consistency) |
+| `STRICT_RATE_LIMIT_REDIS` | `true` to fail startup when Redis for rate limits is missing |
+| `PIPELINE_QUEUE_REDIS_URL` | Optional dedicated Redis URL for BullMQ queue (falls back to `RATE_LIMIT_REDIS_URL`) |
+| `PIPELINE_WORKER_CONCURRENCY` | Worker concurrency (default `2`) |
+| `PIPELINE_LEASE_TTL_SECONDS` | Queue lease TTL for `job_runs` / `phase_runs` (default `60`) |
+| `PIPELINE_HEARTBEAT_MS` | Queue heartbeat interval in ms (default `10000`) |
+| `PIPELINE_STALLED_TIMEOUT_MIN` | Mark long-running audits as stalled/failed after N minutes (default `15`) |
+| `PARALLEL_FAILURE_THRESHOLD` | Parallel wing failure threshold before block fails (default `2`) |
+| `CLAUDE_TIMEOUT_MS` | Per-attempt Claude request timeout in ms (default `90000`) |
+| `CLAUDE_CB_THRESHOLD` | Claude circuit-breaker consecutive 5xx threshold (default `3`) |
+| `CLAUDE_CB_TTL_SEC` | Claude circuit-breaker Redis TTL in seconds (default `60`) |
 | `SENTRY_DSN` | Sentry DSN for backend error/trace capture |
 | `SENTRY_TRACES_SAMPLE_RATE` | Trace sampling ratio, e.g. `0.2` |
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token for reliability alerts |
@@ -117,10 +128,22 @@ See [API.md — Public Snapshot](./API.md#public-snapshot).
 | `ALERT_FAILURE_RATE_THRESHOLD` | Failure rate threshold for alerting (default `0.2`) |
 | `ALERT_LATENCY_P95_MS_THRESHOLD` | p95 phase latency threshold in ms (default `180000`) |
 | `ALERT_TOKEN_BURN_15M_THRESHOLD` | Token burn threshold over 15m window (default `300000`) |
+| `ALERT_LOCK_TTL_MS` | Distributed alert lock TTL in ms (default `55000`) |
 | `SENTRY_TRACE_LINK_TEMPLATE` | Optional deep link template with `{trace_id}` placeholder |
 | `TRACE_LINK_TEMPLATE` | Optional custom trace viewer link template with `{trace_id}` |
 | `SELF_SERVE_AUDIT_OWNER_USER_ID` | Optional fallback consultant `profiles.id` when `platform_settings.self_serve_audit_owner_user_id` is null |
 | `PLATFORM_ADMIN_USER_IDS` | Optional comma-separated consultant `profiles.id` values allowed to PATCH `/api/platform/self-serve-owner`; if unset, any consultant may manage the stored assignment |
+
+### Minimum secure production baseline
+
+- Required:
+  - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ANTHROPIC_API_KEY`, `ALLOWED_ORIGINS`, `NODE_ENV=production`
+  - `RATE_LIMIT_REDIS_URL` (for shared public abuse controls in multi-instance runtime)
+  - `SNAPSHOT_GUEST_IP_SALT` (required by startup guard in production)
+- Strongly recommended:
+  - `STRICT_RATE_LIMIT_REDIS=true`
+  - `PIPELINE_QUEUE_REDIS_URL` (or reuse `RATE_LIMIT_REDIS_URL`)
+  - `SENTRY_DSN`, alert variables, and trace-link templates
 
 ---
 
