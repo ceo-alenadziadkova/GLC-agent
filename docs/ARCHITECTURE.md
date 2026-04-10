@@ -32,7 +32,7 @@
 ## Component Responsibilities
 
 ### Frontend (React/Vite → Vercel)
-- Renders all UI: 7 pages + reusable components
+- Renders all UI surfaces: public, protected, and admin routes with reusable components
 - Manages auth state via `useAuth()` (Supabase JS client)
 - Submits audit creation and pipeline actions to backend via `apiService.ts`
 - Subscribes to `pipeline_events` and `audits` tables via Supabase Realtime for live updates
@@ -118,12 +118,15 @@ Details: [PIPELINE.md](./PIPELINE.md). API: [API.md](./API.md).
 ├── public/
 ├── index.html
 ├── vite.config.ts
-├── package.json         ← Frontend package (pnpm)
+├── package.json         ← Root workspace package (pnpm)
+├── pnpm-workspace.yaml  ← Workspace packages
 ├── docs/                ← All documentation (this folder)
+├── packages/
+│   └── intake-core/     ← Shared intake runtime (`@glc/intake-core`)
 ├── server/              ← Backend source
 │   ├── src/
 │   ├── migrations/
-│   └── package.json     ← Backend package (npm)
+│   └── package.json     ← Backend package (pnpm workspace member)
 ├── CLAUDE.md            ← Claude Code context file
 └── README.md
 ```

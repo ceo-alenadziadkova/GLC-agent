@@ -2,7 +2,7 @@
 
 Single source of truth **index** and **knowledge map**. Each domain has one canonical document; do not duplicate facts elsewhere — link here and to that file.
 
-**Documentation quota:** at most **16** markdown files in `/docs`: [MASTER.md](./MASTER.md) plus **12** canonical domain docs plus **three** ADRs in `docs/adrs/` ([ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md), [ADR-FREE-SNAPSHOT-SCANNER.md](adrs/ADR-FREE-SNAPSHOT-SCANNER.md), [ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md](adrs/ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md)).
+**Documentation quota:** at most **15** markdown files in flat `docs/*.md` (ADR archive under `docs/adrs/` is tracked separately).
 
 ---
 
@@ -98,7 +98,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 ### 5. Data storage
 
-**What it is:** PostgreSQL schema on Supabase; migrations `001`–`015`; RLS; Realtime on key tables.
+**What it is:** PostgreSQL schema on Supabase; migrations in `server/migrations/` (apply all in numeric order); RLS; Realtime on key tables.
 
 **Why it matters:** Persistence and isolation for audits, events, client portal, intake brief.
 
@@ -230,7 +230,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 1. **One fact, one place.** If it is already documented in the canonical file, link to it (`See: /docs/<FILE>.md#anchor`).
 2. **Code and docs together.** Any change to user-visible behaviour, API contracts, auth rules, schema, pipeline sequencing, or deployment requirements must update the relevant **existing** canonical doc in the **same PR**. If the truth is unknown, add a **Needs Review** note instead of guessing.
-3. **No new doc files** unless the team agrees to replace or merge an existing file and stay within the **16-file** quota (see top of this file).
+3. **No new doc files** unless the team agrees to replace or merge an existing file and stay within the **15-file flat-doc quota** (see top of this file).
 4. **Structure rule.** Canonical docs stay at `docs/*`; ADRs stay in `docs/adrs/*` (the only allowed docs subfolder).
 
 ### Documentation PR checklist
@@ -249,7 +249,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 ## Restructuring log
 
-### Current documentation tree (16 files)
+### Current primary documentation tree (15 flat docs + ADR archive)
 
 ```text
 docs/

@@ -187,10 +187,12 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 | `/strategy/:id` | `StrategyLab.tsx` | Strategic roadmap |
 | `/settings` | `SettingsPage.tsx` | Profile, appearance, client self-serve audit owner (consultants), intake brief layout defaults, notifications |
 | `/discovery`, `/audit/discover` | `DiscoverPage.tsx` | Public discovery questionnaire (no auth); alias paths are equivalent |
+| `/admin/requests` | `AdminRequestQueue.tsx` | Consultant: incoming client requests queue with triage/status actions |
 | `/admin/snapshots` | `AdminSnapshotQueue.tsx` | Consultant: all free snapshot submissions (`product_mode=free_snapshot`), requested URL, status, and current score/result |
 | `/admin/discovery` | `DiscoveryQueue.tsx` | Consultant: Mode C submissions, convert to audit; shareable URL `/discovery` |
 | `/admin/intake-trace` | `IntakeTraceTool.tsx` | Consultant: debug `buildIntakePlan` / `formatPlanTrace` on pasted responses JSON; optional telemetry + IA v2 workspace (`VITE_INTAKE_TRACE_IA_V2`, default on; set `0` for legacy tabs) |
 | `/admin/intake-wording` | `IntakeWordingWorkspace.tsx` | Consultant: draft wording (local + server sync), publish / rollback, publication log (`GET /api/intake-trace-tool/wording-publication-log`) |
+| `/admin/question-bank-studio` | `QuestionBankStudioPage.tsx` | Consultant: bank/policy studio workspace for intake configuration and diagnostics |
 
 ---
 
