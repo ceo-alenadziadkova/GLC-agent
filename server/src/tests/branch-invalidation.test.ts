@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { QUESTION_BANK_V1_STUBS } from '../intake/question-bank.js';
+import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import {
   getBranchDepsCacheStats,
   listBankStubIdsInvalidatedByResponseKeys,
   resetBranchDepsCacheStats,
-} from '../intake/core/branch-condition-deps.js';
-import { evaluateCanonEligibility } from '../intake/core/evaluate-canon.js';
+} from '@glc/intake-core';
+import { evaluateCanonEligibility } from '@glc/intake-core';
 
 describe('listBankStubIdsInvalidatedByResponseKeys (ADR Phase C2 prep)', () => {
   it('a5 change invalidates website-branch stubs', () => {

@@ -3,7 +3,7 @@
  */
 import { expandAnswerContractForApi, getQuestionBankAnswerContract, getQuestionBankSchemaMeta } from '../question-bank.js';
 import type { IntakeAnswerContract } from '../types.js';
-import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from '../../types/audit.js';
+import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from '../audit-contract.js';
 
 import { buildIntakePlan } from './build-intake-plan.js';
 import type { IntakeSurface, StepPlanEntry } from './types.js';

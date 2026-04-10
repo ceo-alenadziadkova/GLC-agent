@@ -7,10 +7,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { INDUSTRY_OPTIONS } from '../src/config/industry-options.js';
-import { buildCanonAnswerContractForBankId } from '../src/intake/bank-question-ui-overrides.js';
+import { buildCanonAnswerContractForBankId } from '@glc/intake-core';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const bankPath = join(__dirname, '../src/intake/question-bank.v1.json');
+const bankPath = join(__dirname, '../../packages/intake-core/src/question-bank.v1.json');
 
 function main(): void {
   const raw = JSON.parse(readFileSync(bankPath, 'utf8')) as {

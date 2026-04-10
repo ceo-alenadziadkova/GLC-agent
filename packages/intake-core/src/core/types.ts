@@ -2,7 +2,7 @@
  * Intake plan types — contract for buildIntakePlan (ADR: unified question bank).
  * Phase 0: used by fixtures and snapshot tests; resolver fills these in Phase 2.
  */
-import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from '../../types/audit.js';
+import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from '../audit-contract.js';
 
 export type { IntakeVersionTuple };
 

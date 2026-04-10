@@ -3,7 +3,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { lintBankAndPolicyAll, lintSyntheticCollision } from '../intake/core/lint-bank-policy.js';
+import { lintSyntheticCollision } from '@glc/intake-core';
+import { lintBankAndPolicyAll } from '@glc/intake-core/lint-node';
 
 describe('intake bank + policy lint', () => {
   it('reports no errors (warnings allowed)', () => {

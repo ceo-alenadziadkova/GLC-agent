@@ -45,6 +45,16 @@
 - One Claude API call per pipeline phase; never streams to frontend (Realtime handles progress)
 - Enforces rate limits and token budget
 
+#### Public routes, abuse control, and scaling
+
+Unauthenticated surfaces (Discover, tokenized pre-brief intake, marketing brief) rely on **split per-route limiters** in `server/src/middleware/rate-limit.ts` (see env vars in [ADR-INTAKE-UNIFIED-QUESTION-BANK](./adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) operational notes). That mitigates abuse but is **not** a full product security boundary by itself.
+
+**Horizontal scale:** limiters use **`RedisStore`** when **`RATE_LIMIT_REDIS_URL`** is set. If it is **unset**, `express-rate-limit` falls back to **`MemoryStore`**: each Node process keeps **separate** counters, so a client can obtain up to **N × per-process budget** against **N** instances. Treat **`RATE_LIMIT_REDIS_URL` as required for multi-instance production** on those public routes. (This is infrastructure operations, not part of the intake ADR’s functional model.)
+
+**Authenticated brief writes (`intake_versions`):** supported artifact tuples are validated on **PUT**; unsupported → **400**, mismatch with stored row → **409** (except allowed upgrades). The **server** persists answers and the effective tuple — clients cannot force an unsupported bundle or skip validation by tuple alone. See [API.md](./API.md).
+
+**SPA vs API releases:** the stored **version tuple** and PUT rules reduce “client rendered one bank snapshot, server validated another” drift; they do **not** remove every UX edge case if the SPA and API ship incompatible `@glc/intake-core` resolver changes out of sync. Prefer **aligned** frontend and backend releases when changing intake semantics.
+
 ### Supabase (PostgreSQL + Auth + Realtime)
 - PostgreSQL stores all persistent state (audits, domains, strategy, events, intake brief, client portal tables — see [DATABASE.md](./DATABASE.md))
 - Auth issues JWTs for frontend users; backend verifies them
@@ -166,4 +176,4 @@ There is no single `audit_state.json` file in production. Persistent state is no
 
 **Intake contract:** progressive layers, collection modes, and field semantics are defined in product terms in [PRODUCT.md](./PRODUCT.md#intake-experience-progressive-model) (`intake_brief` table plus derived readiness fields — see [DATABASE.md](./DATABASE.md)).
 
-**Unified intake resolver (ADR):** Runtime entry point `buildIntakePlan()` lives in [`server/src/intake/core/build-intake-plan.ts`](../server/src/intake/core/build-intake-plan.ts). Canon rules: [`server/src/intake/branch-rules.ts`](../server/src/intake/branch-rules.ts) + [`question-bank.v1.json`](../server/src/intake/question-bank.v1.json). Policy artifact: [`server/src/intake/intake-policy.v1.json`](../server/src/intake/intake-policy.v1.json). Layout artifact: [`server/src/intake/layout-rules.v1.json`](../server/src/intake/layout-rules.v1.json). The client may import the same core from `server/src/intake/core/` (e.g. [`src/app/hooks/useIntakeWizard.ts`](../src/app/hooks/useIntakeWizard.ts), [`src/app/lib/discovery-flow.ts`](../src/app/lib/discovery-flow.ts)). Full decision record: [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md).
+**Unified intake resolver (ADR):** Runtime entry point `buildIntakePlan()` ships in the workspace package **`@glc/intake-core`** ([`packages/intake-core`](../packages/intake-core/src/index.ts)). Canon rules: [`branch-rules.ts`](../packages/intake-core/src/branch-rules.ts) + [`question-bank.v1.json`](../packages/intake-core/src/question-bank.v1.json). Policy artifact: [`intake-policy.v1.json`](../packages/intake-core/src/intake-policy.v1.json). Layout artifact: [`layout-rules.v1.json`](../packages/intake-core/src/layout-rules.v1.json). The SPA imports **`@glc/intake-core`** (e.g. [`src/app/hooks/useIntakeWizard.ts`](../src/app/hooks/useIntakeWizard.ts), [`src/app/lib/discovery-flow.ts`](../src/app/lib/discovery-flow.ts)). Server build compiles the package to `packages/intake-core/dist` before `tsc`. Full decision record: [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md).

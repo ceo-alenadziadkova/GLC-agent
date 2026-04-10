@@ -1,7 +1,7 @@
 /**
  * Rules for PUT /brief: which intake_versions tuple is accepted and when we migrate stored rows.
  */
-import type { IntakeVersionMigration, IntakeVersionTuple } from '../../types/audit.js';
+import type { IntakeVersionMigration, IntakeVersionTuple } from '../audit-contract.js';
 
 import { currentIntakeVersionTuple } from './versions.js';
 import { isSupportedIntakeArtifactTuple } from './resolve-intake-artifacts.js';

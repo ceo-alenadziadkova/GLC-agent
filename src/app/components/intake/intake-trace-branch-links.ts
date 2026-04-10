@@ -4,8 +4,8 @@
 import {
   listBranchRuleResponseKeys,
   providerStubIdsForResponseKey,
-} from '../../../../server/src/intake/core/branch-condition-deps';
-import type { IntakeQuestionStub } from '../../../../server/src/intake/types';
+} from '@glc/intake-core';
+import type { IntakeQuestionStub } from '@glc/intake-core';
 
 export function computeBranchUpstreamIds(
   questionId: string,

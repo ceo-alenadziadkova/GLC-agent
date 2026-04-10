@@ -2,7 +2,6 @@
  * Canonical question-bank v1 — imported from question-bank.v1.json (docs/QUESTION_BANK.md).
  * Domain slices (§5): primary/secondary feeds in question-feed-roles.ts → domain-slice-data → ordered here.
  */
-import { calcDataQualityScore } from './data-quality.js';
 import { DOMAIN_TO_QUESTIONS_RAW } from './domain-slice-data.js';
 import { buildOrderedDomainToQuestionIds, feedsByQuestionId } from './domain-map-build.js';
 import type {
@@ -148,10 +147,4 @@ export function responsesUseQuestionBankV1(responses: Record<string, unknown>): 
 
 export function roundDataQualityScore(score: number): number {
   return Math.round(Math.min(1, Math.max(0, score)) * 1000) / 1000;
-}
-
-/** Server-side data_quality_score for `intake_brief` when responses use bank ids; else null (caller skips DB field). */
-export function deriveBankV1DataQuality(responses: Record<string, unknown>): number | null {
-  if (!responsesUseQuestionBankV1(responses)) return null;
-  return roundDataQualityScore(calcDataQualityScore(QUESTION_BANK_V1_STUBS, responses).score);
 }

@@ -4,7 +4,7 @@
 import type { IntakeQuestionStub } from '../types.js';
 import type { IntakePolicyV1 } from './policy-types.js';
 import type { LayoutRulesV1 } from './layout-types.js';
-import type { IntakeVersionTuple } from '../../types/audit.js';
+import type { IntakeVersionTuple } from '../audit-contract.js';
 
 import policy_1_0_0 from '../artifacts/intake-policy-1.0.0.json' with { type: 'json' };
 import bank_1_0_0 from '../artifacts/question-bank-1.0.0.json' with { type: 'json' };

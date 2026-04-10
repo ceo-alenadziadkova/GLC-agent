@@ -7,9 +7,9 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildIntakePlan, recomputePlanIncremental } from '../intake/core/build-intake-plan.js';
-import { currentIntakeVersionTuple } from '../intake/core/versions.js';
-import { QUESTION_BANK_V1_STUBS } from '../intake/question-bank.js';
+import { buildIntakePlan, recomputePlanIncremental } from '@glc/intake-core';
+import { currentIntakeVersionTuple } from '@glc/intake-core';
+import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import { INTAKE_PLAN_FIXTURES } from './fixtures/intake-plan-fixtures.js';
 import { type IntakePlanSnapshotPayload, computeIntakePlanSnapshotShim } from './intake-plan-shim.js';
 

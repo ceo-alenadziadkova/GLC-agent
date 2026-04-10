@@ -1,4 +1,4 @@
-import { resolveExpressSlaRequiredIds, resolveFullSlaRequiredIds } from '../../../server/src/intake/brief-gates';
+import { resolveExpressSlaRequiredIds, resolveFullSlaRequiredIds } from '@glc/intake-core';
 import {
   BRIEF_QUESTIONS as SERVER_BRIEF_QUESTIONS,
   INTAKE_IDENTITY_BRIEF_QUESTIONS as SERVER_INTAKE_IDENTITY_BRIEF_QUESTIONS,
@@ -10,7 +10,7 @@ import {
 import { INTAKE_IDENTITY_FIELD_IDS } from './intakeIdentityFieldIds';
 import type { IntakeBriefCollectionMode } from './auditTypes';
 import { briefResponsesToIntakeMap } from './intakeBriefMap';
-import { choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
+import { choiceValueNeedsSpecify } from '@glc/intake-core';
 
 /**
  * Legacy / public brief UI — **question rows** come from `server/src/schemas/intake-brief-questions.ts` (no Zod).

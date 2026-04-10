@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
+import { buildIntakePlan } from '@glc/intake-core';
 
 const discoveryCtx = {
   productMode: 'full' as const,

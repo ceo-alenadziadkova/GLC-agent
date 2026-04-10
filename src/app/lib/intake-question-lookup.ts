@@ -1,4 +1,4 @@
-import bankRaw from '../../../server/src/intake/question-bank.v1.json';
+import bankRaw from '@glc/intake-core/question-bank.v1.json';
 import { getBriefQuestionText } from '../data/briefQuestions';
 
 type RawQ = { id: string; label: string };

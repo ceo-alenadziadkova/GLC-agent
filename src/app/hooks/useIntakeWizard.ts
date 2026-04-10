@@ -11,15 +11,15 @@ import {
   type BriefIntakeAnalyticsExperimentVariant,
   type BriefIntakeAnalyticsSurface,
 } from '../lib/brief-intake-analytics';
-import { buildIntakePlan, recomputePlanIncremental } from '../../../server/src/intake/core/build-intake-plan';
-import { listBankStubIdsInvalidatedByResponseKeys } from '../../../server/src/intake/core/branch-condition-deps';
-import { isIntakeNextRecommendedEnabled } from '../../../server/src/config/intake-flags';
-import { computeIntakePlanDerived } from '../../../server/src/intake/core/plan-derived';
-import { computeNextRecommended } from '../../../server/src/intake/core/plan-next-recommended';
-import type { IntakeSurface } from '../../../server/src/intake/core/types';
-import { calcDataQualityScoreFromVisible, DEFAULT_DATA_QUALITY_WEIGHTS } from '../../../server/src/intake/data-quality';
-import { QUESTION_BANK_V1_STUBS } from '../../../server/src/intake/question-bank';
-import type { IntakeQuestionStub, IntakeResponsesMap } from '../../../server/src/intake/types';
+import { buildIntakePlan, recomputePlanIncremental } from '@glc/intake-core';
+import { listBankStubIdsInvalidatedByResponseKeys } from '@glc/intake-core';
+import { isIntakeNextRecommendedEnabled } from '@glc/intake-core';
+import { computeIntakePlanDerived } from '@glc/intake-core';
+import { computeNextRecommended } from '@glc/intake-core';
+import type { IntakeSurface } from '@glc/intake-core';
+import { calcDataQualityScoreFromVisible, DEFAULT_DATA_QUALITY_WEIGHTS } from '@glc/intake-core';
+import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
+import type { IntakeQuestionStub, IntakeResponsesMap } from '@glc/intake-core';
 
 export { briefResponsesToIntakeMap };
 

@@ -2,7 +2,7 @@
  * Behaviour: public discovery branching and findings (see discovery-flow.ts, docs/QUESTION_BANK.md).
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { DISCOVERY_BANK_IDS } from '../../../server/src/intake/discovery';
+import { DISCOVERY_BANK_IDS } from '@glc/intake-core';
 import {
   DISCOVERY_WIZARD_BANK_IDS,
   buildQuestionSequence,

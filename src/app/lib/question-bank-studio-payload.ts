@@ -2,7 +2,7 @@
  * Serializable Question Bank Studio payloads (JSON-safe) for phase1 structure and phase2 policy/branch.
  * React Flow positions/styles are omitted — consumers map to their own renderer or API.
  */
-import { QUESTION_BANK_VERSION, QUESTION_BANK_V1_STUBS } from '../../../server/src/intake/question-bank';
+import { QUESTION_BANK_VERSION, QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import {
   buildQuestionBankStudioGraph,
   computeBranchTopology,

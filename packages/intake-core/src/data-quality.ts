@@ -1,13 +1,16 @@
 /**
  * Data quality score — docs/QUESTION_BANK.md §10.
+ * For branch-aware scoring over the full bank use `calcDataQualityScore` from `data-quality-via-plan.ts`
+ * (avoids importing `buildIntakePlan` here — `plan-derived.ts` imports `calcDataQualityScoreFromVisible` only).
  */
-import { filterVisibleQuestions, type IntakeVisibilityContext } from './is-visible.js';
 import type {
   DataQualityResult,
   DataQualityWeights,
   IntakeQuestionStub,
   IntakeResponsesMap,
 } from './types.js';
+
+export type { DataQualityWeights };
 import { isIntakeAnswered } from './unwrap.js';
 
 export const DEFAULT_DATA_QUALITY_WEIGHTS: DataQualityWeights = {
@@ -67,17 +70,4 @@ export function calcDataQualityScoreFromVisible(
     answeredRecommended: arec,
     answeredOptional: ao,
   };
-}
-
-export function calcDataQualityScore(
-  questions: IntakeQuestionStub[],
-  responses: IntakeResponsesMap,
-  weights: DataQualityWeights = DEFAULT_WEIGHTS,
-  visibility?: IntakeVisibilityContext,
-): DataQualityResult {
-  return calcDataQualityScoreFromVisible(
-    filterVisibleQuestions(questions, responses, visibility),
-    responses,
-    weights,
-  );
 }

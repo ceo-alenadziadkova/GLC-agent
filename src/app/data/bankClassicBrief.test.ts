@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getVisibleBankBriefSections } from './bankClassicBrief';
-import { buildIntakePlan } from '../../../server/src/intake/core/build-intake-plan';
-import { QUESTION_BANK_V1_STUBS } from '../../../server/src/intake/question-bank';
+import { buildIntakePlan } from '@glc/intake-core';
+import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import { briefResponsesToIntakeMap } from './intakeBriefMap';
 import { sortStubsByBankOrder } from '../hooks/useIntakeWizard';
 import type { BriefResponses } from './briefQuestions';

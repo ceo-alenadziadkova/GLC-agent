@@ -13,9 +13,9 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { BRANCH_RULES } from '../intake/branch-rules.js';
-import rawBank from '../intake/question-bank.v1.json';
-import type { IntakeResponsesMap } from '../intake/types.js';
+import { BRANCH_RULES } from '@glc/intake-core';
+import rawBank from '@glc/intake-core/question-bank.v1.json' with { type: 'json' };
+import type { IntakeResponsesMap } from '@glc/intake-core';
 import { INTAKE_PLAN_FIXTURES } from './fixtures/intake-plan-fixtures.js';
 import { type IntakePlanSnapshotPayload, computeIntakePlanSnapshotShim } from './intake-plan-shim.js';
 

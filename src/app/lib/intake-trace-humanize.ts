@@ -1,4 +1,4 @@
-import type { QuestionReason } from '../../../server/src/intake/core/types';
+import type { QuestionReason } from '@glc/intake-core';
 
 const REASON_MESSAGES: Partial<Record<string, string>> = {
   BRANCH_TRUE: 'Branch condition passed based on the current answers.',

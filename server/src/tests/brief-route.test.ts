@@ -149,10 +149,10 @@ vi.mock('../middleware/rate-limit.js', () => ({
 
 import express from 'express';
 import { auditsRouter } from '../routes/audits.js';
-import { resolveExpressSlaRequiredIds } from '../intake/brief-gates.js';
-import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
-import { currentIntakeVersionTuple } from '../intake/core/versions.js';
-import { mergeLegacyIntakeAliasesRead } from '../intake/legacy-response-aliases.js';
+import { resolveExpressSlaRequiredIds } from '@glc/intake-core';
+import { buildIntakePlan } from '@glc/intake-core';
+import { currentIntakeVersionTuple } from '@glc/intake-core';
+import { mergeLegacyIntakeAliasesRead } from '@glc/intake-core';
 import {
   resolveIntakeSurfaceForPlan,
   validationPerspectiveForBriefAccess,

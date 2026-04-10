@@ -3,8 +3,8 @@
  * server + Vite SPA). **Generation:** extend `server/src/tests/bank-ui-overrides-schema.test.ts`
  * when adding keys (must exist in `question-bank.v1.json`).
  */
-import type { BriefQuestion } from '../types/audit.js';
-import { INDUSTRY_OPTIONS } from '../config/industry-options.js';
+import type { BriefQuestion } from './audit-contract.js';
+import { INDUSTRY_OPTIONS } from './industry-options.js';
 import type { IntakeAnswerContract } from './types.js';
 
 export type BankQuestionUiOverride = {

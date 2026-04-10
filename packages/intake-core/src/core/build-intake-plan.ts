@@ -6,7 +6,7 @@ import {
   isIntakeIncrementalEngineEnabled,
   isIntakeNextRecommendedEnabled,
   isIntakePolicyRichnessEnabled,
-} from '../../config/intake-flags.js';
+} from '../config/intake-flags.js';
 
 import { evaluateCanonEligibility, recomputeCanonEligibilityIncremental } from './evaluate-canon.js';
 import { applySurfaceLayout } from './evaluate-layout.js';

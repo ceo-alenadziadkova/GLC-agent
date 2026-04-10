@@ -11,12 +11,16 @@ import { Router } from 'express';
 import crypto from 'node:crypto';
 import { supabase } from '../services/supabase.js';
 import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../middleware/auth.js';
-import { intakePublicLimiter } from '../middleware/rate-limit.js';
+import {
+  discoverAnalyticsPublicLimiter,
+  discoverPublicReadLimiter,
+  discoverSessionCreateLimiter,
+} from '../middleware/rate-limit.js';
 import { NO_PUBLIC_WEBSITE_URL } from '../config/no-public-website.js';
 import { saveBriefResponses } from '../services/brief-validator.js';
 import { DOMAIN_KEYS, reviewPhasesForMode } from '../types/audit.js';
 import { logger } from '../services/logger.js';
-import { buildPublicDiscoveryUiFragment } from '../intake/discovery-ui-fragment.js';
+import { buildPublicDiscoveryUiFragment } from '@glc/intake-core';
 import { intakeAnalyticsDiscoveryBatchSchema } from '../schemas/intake-analytics-events.js';
 
 export const discoverRouter = Router();
@@ -231,7 +235,7 @@ function discoveryToBriefPatch(answers: Record<string, unknown>): Record<string,
 
 // ── POST /api/discover ────────────────────────────────────────────────────────
 
-discoverRouter.post('/', intakePublicLimiter, async (req, res) => {
+discoverRouter.post('/', discoverSessionCreateLimiter, async (req, res) => {
   try {
     const { answers, maturity_level, findings } = req.body as {
       answers?: unknown;
@@ -285,7 +289,7 @@ discoverRouter.post('/', intakePublicLimiter, async (req, res) => {
 // ── GET /api/discover/ui-fragment — public — Discovery wizard copy/options ─────
 // Must be registered before GET /:token so "ui-fragment" is not parsed as a token.
 
-discoverRouter.get('/ui-fragment', intakePublicLimiter, (_req, res) => {
+discoverRouter.get('/ui-fragment', discoverPublicReadLimiter, (_req, res) => {
   try {
     res.json(buildPublicDiscoveryUiFragment());
   } catch (err) {
@@ -300,7 +304,7 @@ discoverRouter.get('/ui-fragment', intakePublicLimiter, (_req, res) => {
 // ── POST /api/discover/analytics-events — public — intake funnel (ADR Phase G) ─
 // Registered before GET /:token so the path is not parsed as a session token.
 
-discoverRouter.post('/analytics-events', intakePublicLimiter, async (req, res) => {
+discoverRouter.post('/analytics-events', discoverAnalyticsPublicLimiter, async (req, res) => {
   try {
     const parsed = intakeAnalyticsDiscoveryBatchSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
@@ -409,7 +413,7 @@ discoverRouter.get(
 
 // ── GET /api/discover/:token ──────────────────────────────────────────────────
 
-discoverRouter.get('/:token', intakePublicLimiter, async (req, res) => {
+discoverRouter.get('/:token', discoverPublicReadLimiter, async (req, res) => {
   try {
     const token = singleRouteParam(req.params.token);
     if (!token || !TOKEN_HEX.test(token)) {
@@ -438,7 +442,7 @@ discoverRouter.get('/:token', intakePublicLimiter, async (req, res) => {
 
 // ── PATCH /api/discover/:token/contact — add contact info ────────────────────
 
-discoverRouter.patch('/:token/contact', intakePublicLimiter, async (req, res) => {
+discoverRouter.patch('/:token/contact', discoverPublicReadLimiter, async (req, res) => {
   try {
     const token = singleRouteParam(req.params.token);
     if (!token || !TOKEN_HEX.test(token)) {

@@ -1,4 +1,4 @@
-import type { IntakePlanCoverageDomain } from '../../../server/src/intake/core/types';
+import type { IntakePlanCoverageDomain } from '@glc/intake-core';
 import { DOMAIN_LABELS, type DomainKey } from '../data/auditTypes';
 
 /** Human labels for `IntakePlan.missingForReport` / `coverage.byDomain` keys. */

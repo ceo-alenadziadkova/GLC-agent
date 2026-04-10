@@ -3,8 +3,8 @@ import { BriefField } from './BriefField';
 import type { IntakeBriefCollectionMode } from '../data/auditTypes';
 import { getVisibleBankBriefSections } from '../data/bankClassicBrief';
 import type { BriefResponses } from '../data/briefQuestions';
-import type { IntakeSurface } from '../../../server/src/intake/core/types';
-import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
+import type { IntakeSurface } from '@glc/intake-core';
+import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '@glc/intake-core';
 
 function unwrapForField(raw: BriefResponses[string] | undefined): string | string[] | number | null | undefined {
   if (raw == null) return undefined;

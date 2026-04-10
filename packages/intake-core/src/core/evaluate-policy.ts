@@ -1,9 +1,9 @@
 /**
  * Policy layer — SLA / required bank ids from policy artifact (matches brief-gates.ts).
  */
-import type { IntakeBriefCollectionMode, ProductMode } from '../../types/audit.js';
+import type { IntakeBriefCollectionMode, ProductMode } from '../audit-contract.js';
 import type { IntakeQuestionStub } from '../types.js';
-import { isIntakePolicyRichnessEnabled } from '../../config/intake-flags.js';
+import { isIntakePolicyRichnessEnabled } from '../config/intake-flags.js';
 
 import type { IntakePolicyV1 } from './policy-types.js';
 import type { DebugTraceEntry } from './types.js';

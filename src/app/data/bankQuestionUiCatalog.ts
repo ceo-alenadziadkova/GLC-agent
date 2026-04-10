@@ -1,13 +1,13 @@
 /**
  * Maps question-bank v1 ids to BriefField-ready definitions (labels from question-bank.v1.json).
- * Option sets and hints: single source in `server/src/intake/bank-question-ui-overrides.ts`.
+ * Option sets and hints: single source in `@glc/intake-core` (`bank-question-ui-overrides.ts`).
  */
 import type { BriefQuestion, BriefPriority, BriefQuestionType } from './briefQuestions';
-import bankRaw from '../../../server/src/intake/question-bank.v1.json';
+import bankRaw from '@glc/intake-core/question-bank.v1.json';
 import {
   getBankQuestionUiOptions,
   getBankQuestionUiOverride,
-} from '../../../server/src/intake/bank-question-ui-overrides';
+} from '@glc/intake-core';
 
 type RawQ = { id: string; section: string; label: string };
 

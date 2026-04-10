@@ -2,7 +2,7 @@
  * Question-bank SLA gates — thin wrappers over buildIntakePlan (ADR unified intake).
  * Visibility and required sets stay aligned with the resolver + policy artifact.
  */
-import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from '../types/audit.js';
+import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from './audit-contract.js';
 import { buildIntakePlan } from './core/build-intake-plan.js';
 import { resolveIntakeArtifacts } from './core/resolve-intake-artifacts.js';
 import type { IntakeSurface } from './core/types.js';

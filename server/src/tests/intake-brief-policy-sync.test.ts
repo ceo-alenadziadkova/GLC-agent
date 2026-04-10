@@ -3,8 +3,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { INTAKE_POLICY_V1 } from '../intake/core/load-policy.js';
-import preBriefBankIncluded from '../intake/pre-brief-bank-included.json' with { type: 'json' };
+import { INTAKE_POLICY_V1 } from '@glc/intake-core';
+import preBriefBankIncluded from '@glc/intake-core/pre-brief-bank-included.json' with { type: 'json' };
 import {
   INTAKE_IDENTITY_FIELD_IDS,
   PRE_BRIEF_PARTICIPATION_IDS,

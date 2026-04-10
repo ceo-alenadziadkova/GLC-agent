@@ -1,11 +1,11 @@
 /**
- * Behaviour: aligned with server/src/intake/choice-specify-triggers.ts (intake “Other” paths).
+ * Behavioural contract for `choice-specify-triggers` (implemented in `@glc/intake-core` only).
  */
 import { describe, expect, it } from 'vitest';
 import {
   choiceSpecifyResponseKey,
   choiceValueNeedsSpecify,
-} from './choice-specify-triggers';
+} from '@glc/intake-core';
 
 describe('choiceValueNeedsSpecify', () => {
   it('returns false for nullish', () => {

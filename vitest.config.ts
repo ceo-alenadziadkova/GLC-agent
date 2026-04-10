@@ -1,7 +1,19 @@
 import { defineConfig, mergeConfig } from 'vitest/config';
-import viteConfig from './vite.config';
+import type { ConfigEnv, UserConfig } from 'vite';
+import viteConfigExport from './vite.config';
 
-export default mergeConfig(viteConfig, defineConfig({
+const viteTestEnv: ConfigEnv = {
+  command: 'serve',
+  mode: 'test',
+  isSsrBuild: false,
+};
+
+const resolvedVite: UserConfig =
+  typeof viteConfigExport === 'function'
+    ? (viteConfigExport as (env: ConfigEnv) => UserConfig)(viteTestEnv)
+    : (viteConfigExport as UserConfig);
+
+export default mergeConfig(resolvedVite, defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',

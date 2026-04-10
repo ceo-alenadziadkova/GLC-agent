@@ -4,7 +4,7 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
 import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../middleware/auth.js';
-import { intakePublicLimiter } from '../middleware/rate-limit.js';
+import { intakePublicReadLimiter, intakePublicWriteLimiter } from '../middleware/rate-limit.js';
 import {
   getBriefQuestionsByIds,
   INTAKE_IDENTITY_BRIEF_QUESTIONS,
@@ -14,13 +14,13 @@ import {
 import { arePreBriefSlotsSatisfied, saveBriefResponses } from '../services/brief-validator.js';
 import { logger } from '../services/logger.js';
 import { notifyAuditParticipants, notifyUser } from '../services/notifications.js';
-import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
-import { formatPlanTrace } from '../intake/core/format-trace.js';
-import { parseIntakeVersionTuple } from '../intake/core/intake-version-tuple.js';
-import { isSupportedIntakeArtifactTuple } from '../intake/core/resolve-intake-artifacts.js';
-import type { IntakeSurface } from '../intake/core/types.js';
+import { buildIntakePlan } from '@glc/intake-core';
+import { formatPlanTrace } from '@glc/intake-core';
+import { parseIntakeVersionTuple } from '@glc/intake-core';
+import { isSupportedIntakeArtifactTuple } from '@glc/intake-core';
+import type { IntakeSurface } from '@glc/intake-core';
 import type { IntakeBriefCollectionMode, ProductMode } from '../types/audit.js';
-import { mergeLegacyIntakeAliasesRead } from '../intake/legacy-response-aliases.js';
+import { mergeLegacyIntakeAliasesRead } from '@glc/intake-core';
 
 export const intakeRouter = Router();
 
@@ -405,7 +405,7 @@ intakeRouter.post(
 );
 
 /** GET /api/intake/:token — public */
-intakeRouter.get('/:token', intakePublicLimiter, async (req, res) => {
+intakeRouter.get('/:token', intakePublicReadLimiter, async (req, res) => {
   try {
     const token = String(req.params.token ?? '');
     if (!token || !TOKEN_HEX.test(token)) {
@@ -449,7 +449,7 @@ intakeRouter.get('/:token', intakePublicLimiter, async (req, res) => {
 });
 
 /** POST /api/intake/:token/respond — public; overwrites responses until expiry */
-intakeRouter.post('/:token/respond', intakePublicLimiter, async (req, res) => {
+intakeRouter.post('/:token/respond', intakePublicWriteLimiter, async (req, res) => {
   try {
     const token = String(req.params.token ?? '');
     if (!token || !TOKEN_HEX.test(token)) {

@@ -1,21 +1,17 @@
 /**
- * Static checks for question bank + intake policy (Phase 3). Safe to run in CI.
+ * Static checks for question bank + intake policy (Phase 3). Isomorphic (no Node fs).
+ * For CI filesystem scan of `core/*.ts`, use `lintBankAndPolicyAll` from `@glc/intake-core/lint-node`.
  */
-import { readFileSync, readdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { BRANCH_RULES } from '../branch-rules.js';
 import { INTAKE_REVENUE_BANK_ID } from '../legacy-response-aliases.js';
 import { QUESTION_BANK_V1_STUBS, QUESTION_BANK_V1_IDS } from '../question-bank.js';
 import type { IntakeQuestionStub } from '../types.js';
+import preBriefBankIncludedCanon from '../pre-brief-bank-included.json' with { type: 'json' };
+import questionBankCanon from '../question-bank.v1.json' with { type: 'json' };
 
 import { LAYOUT_RULES_V1 } from './load-layout.js';
 import { INTAKE_POLICY_V1 } from './load-policy.js';
 import type { IntakePolicyV1 } from './policy-types.js';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const CORE_DIR = __dirname;
 
 export type LintSeverity = 'error' | 'warn';
 
@@ -229,8 +225,7 @@ export function lintSyntheticCollision(
 /** Bank JSON: deprecatedAt + priority required is inconsistent. */
 export function lintDeprecatedStillRequired(): LintFinding[] {
   const findings: LintFinding[] = [];
-  const bankPath = join(__dirname, '..', 'question-bank.v1.json');
-  const raw = JSON.parse(readFileSync(bankPath, 'utf8')) as {
+  const raw = questionBankCanon as {
     questions: Array<{ id: string; priority?: string; deprecatedAt?: string }>;
   };
   for (const q of raw.questions) {
@@ -246,75 +241,28 @@ export function lintDeprecatedStillRequired(): LintFinding[] {
   return findings;
 }
 
-const FORBIDDEN_PATTERNS: { code: string; pattern: RegExp; hint: string }[] = [
-  { code: 'FORBIDDEN_IMPORT_FS', pattern: /\bfrom\s+['"]node:fs['"]|\bfrom\s+['"]fs['"]/, hint: 'Do not use fs in intake/core (keep isomorphic).' },
-  { code: 'FORBIDDEN_IMPORT_PATH', pattern: /\bfrom\s+['"]node:path['"]|\bfrom\s+['"]path['"]/, hint: 'Do not use path in intake/core.' },
-  { code: 'FORBIDDEN_CHILD_PROCESS', pattern: /child_process/, hint: 'No child_process in intake/core.' },
-];
-
-const ALLOWLIST_CORE_FILES = new Set(['lint-bank-policy.ts']);
-
-/** Scan intake/core sources for Node-only patterns (excluding allowlisted files). */
-export function lintForbiddenImportsInCore(coreDir: string = CORE_DIR): LintFinding[] {
-  const findings: LintFinding[] = [];
-  const names = readdirSync(coreDir).filter(f => f.endsWith('.ts'));
-  for (const name of names) {
-    if (ALLOWLIST_CORE_FILES.has(name)) continue;
-    const abs = join(coreDir, name);
-    const content = readFileSync(abs, 'utf8');
-    for (const { code, pattern, hint } of FORBIDDEN_PATTERNS) {
-      if (pattern.test(content)) {
-        findings.push({
-          code,
-          severity: 'error',
-          message: `${name}: ${hint}`,
-          detail: name,
-        });
-      }
-    }
-    if (/\bprocess\.env\b/.test(content)) {
-      findings.push({
-        code: 'FORBIDDEN_PROCESS_ENV',
-        severity: 'error',
-        message: `${name}: Do not use process.env in intake/core (keep isomorphic).`,
-        detail: name,
-      });
-    }
-  }
-  return findings;
-}
-
 export function lintPreBriefBankIncludedJsonMatchesPolicy(
   policy: IntakePolicyV1 = INTAKE_POLICY_V1,
 ): LintFinding[] {
   const findings: LintFinding[] = [];
-  try {
-    const raw = readFileSync(join(CORE_DIR, '..', 'pre-brief-bank-included.json'), 'utf8');
-    const arr = JSON.parse(raw) as unknown;
-    if (!Array.isArray(arr) || !arr.every(x => typeof x === 'string')) {
-      findings.push({
-        code: 'PRE_BRIEF_BANK_INCLUDED_JSON_INVALID',
-        severity: 'error',
-        message: 'pre-brief-bank-included.json must be a JSON array of strings.',
-      });
-      return findings;
-    }
-    const fromPolicy = [...policy.modes.pre_brief.bankIncluded ?? []].sort().join(',');
-    const fromFile = [...arr].sort().join(',');
-    if (fromPolicy !== fromFile) {
-      findings.push({
-        code: 'PRE_BRIEF_BANK_INCLUDED_DRIFT',
-        severity: 'error',
-        message:
-          'pre-brief-bank-included.json does not match intake-policy pre_brief.bankIncluded. Update the JSON file to match policy (frontend thin import).',
-        detail: `policy=[${fromPolicy}] file=[${fromFile}]`,
-      });
-    }
-  } catch (e) {
+  const arr = preBriefBankIncludedCanon as unknown;
+  if (!Array.isArray(arr) || !arr.every(x => typeof x === 'string')) {
     findings.push({
-      code: 'PRE_BRIEF_BANK_INCLUDED_JSON_READ',
+      code: 'PRE_BRIEF_BANK_INCLUDED_JSON_INVALID',
       severity: 'error',
-      message: `Could not read pre-brief-bank-included.json: ${(e as Error).message}`,
+      message: 'pre-brief-bank-included.json must be a JSON array of strings.',
+    });
+    return findings;
+  }
+  const fromPolicy = [...policy.modes.pre_brief.bankIncluded ?? []].sort().join(',');
+  const fromFile = [...arr].sort().join(',');
+  if (fromPolicy !== fromFile) {
+    findings.push({
+      code: 'PRE_BRIEF_BANK_INCLUDED_DRIFT',
+      severity: 'error',
+      message:
+        'pre-brief-bank-included.json does not match intake-policy pre_brief.bankIncluded. Update the JSON file to match policy (frontend thin import).',
+      detail: `policy=[${fromPolicy}] file=[${fromFile}]`,
     });
   }
   return findings;
@@ -514,11 +462,11 @@ function lintCanonAnswerObject(
  * question-bank.v1.json: only known keys per question row; every row must have a unique non-empty `reportUse` (ADR Phase E).
  */
 export function lintCanonQuestionMetadataKeys(
-  bankPath: string = join(CORE_DIR, '..', 'question-bank.v1.json'),
+  bankRoot: unknown = questionBankCanon,
 ): LintFinding[] {
   const findings: LintFinding[] = [];
   try {
-    const raw = JSON.parse(readFileSync(bankPath, 'utf8')) as {
+    const raw = bankRoot as {
       version?: unknown;
       optionCatalogs?: unknown;
       questions?: Array<Record<string, unknown>>;
@@ -668,6 +616,9 @@ export function lintPreBriefBankIncludedBranchConflicts(
   return findings;
 }
 
+/**
+ * All isomorphic checks (bundler-safe). For CI, also run `lintForbiddenImportsInCore` via `@glc/intake-core/lint-node`.
+ */
 export function lintBankAndPolicyAll(): LintFinding[] {
   return [
     ...lintCanonQuestionMetadataKeys(),
@@ -681,6 +632,5 @@ export function lintBankAndPolicyAll(): LintFinding[] {
     ...lintDuplicateDiscoveryIncluded(),
     ...lintSyntheticCollision(),
     ...lintDeprecatedStillRequired(),
-    ...lintForbiddenImportsInCore(),
   ];
 }

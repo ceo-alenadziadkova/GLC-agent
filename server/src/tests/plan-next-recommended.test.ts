@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeNextRecommended } from '../intake/core/plan-next-recommended.js';
-import type { IntakeQuestionStub } from '../intake/types.js';
+import { computeNextRecommended } from '@glc/intake-core';
+import type { IntakeQuestionStub } from '@glc/intake-core';
 
 const stub = (id: string, priority: IntakeQuestionStub['priority']): IntakeQuestionStub => ({
   id,

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import type { IntakePlan } from '../../../../server/src/intake/core/types';
-import { QUESTION_BANK_V1_STUBS } from '../../../../server/src/intake/question-bank';
+import type { IntakePlan } from '@glc/intake-core';
+import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import { computeBranchUpstreamIds } from './intake-trace-branch-links';
 import { trackIntakeWordingReviewExported } from '../../lib/intake-trace-tool-telemetry';
 

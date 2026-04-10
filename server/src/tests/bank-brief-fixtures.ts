@@ -1,5 +1,5 @@
 import type { IntakeBriefCollectionMode } from '../types/audit.js';
-import { resolveExpressSlaRequiredIds, resolveFullSlaRequiredIds } from '../intake/brief-gates.js';
+import { resolveExpressSlaRequiredIds, resolveFullSlaRequiredIds } from '@glc/intake-core';
 
 /**
  * Self-serve + live website: satisfies full product SLA (all visible required stubs + a10).

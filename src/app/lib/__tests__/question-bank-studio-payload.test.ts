@@ -5,7 +5,7 @@ import {
   buildQuestionBankStudioPayloadPhase1,
   buildQuestionBankStudioPayloadPhase2,
 } from '../question-bank-studio-payload';
-import { QUESTION_BANK_V1_STUBS } from '../../../../server/src/intake/question-bank';
+import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 
 describe('question-bank-studio-payload', () => {
   it('phase1 is JSON-serializable and includes all bank questions as nodes', () => {

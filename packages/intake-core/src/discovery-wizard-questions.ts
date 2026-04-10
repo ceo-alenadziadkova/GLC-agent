@@ -2,7 +2,7 @@
  * Canonical ordered list of public Discovery wizard questions (copy, types, static fallbacks).
  * Single source for `discovery-ui-fragment.ts` and SPA `discovery-flow.ts` fallback (ADR Phase A).
  */
-import type { BriefQuestion } from '../types/audit.js';
+import type { BriefQuestion } from './audit-contract.js';
 
 export type DiscoveryWizardQuestionSpec = {
   id: string;

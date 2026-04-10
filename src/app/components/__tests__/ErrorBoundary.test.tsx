@@ -2,14 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ErrorBoundary } from '../ErrorBoundary';
+import * as clientLogger from '../../lib/logger';
 
-// Suppress expected error boundary console.error noise
-const originalConsoleError = console.error;
 beforeEach(() => {
-  console.error = vi.fn();
+  vi.spyOn(clientLogger.logger, 'error').mockImplementation(() => {});
 });
 afterEach(() => {
-  console.error = originalConsoleError;
+  vi.restoreAllMocks();
 });
 
 function Bomb({ shouldThrow }: { shouldThrow: boolean }) {

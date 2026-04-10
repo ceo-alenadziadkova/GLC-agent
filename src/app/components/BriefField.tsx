@@ -1,6 +1,6 @@
 import { Circle, Check, CheckCircle, Lightbulb, UserCircle } from '@phosphor-icons/react';
 import type { BriefQuestion, BriefResponseEntry } from '../data/briefQuestions';
-import { choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
+import { choiceValueNeedsSpecify } from '@glc/intake-core';
 
 export const PRIORITY_BADGE: Record<string, { label: string; color: string }> = {
   required: { label: 'Required', color: 'var(--score-1)' },

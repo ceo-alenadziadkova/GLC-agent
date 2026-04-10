@@ -3,18 +3,18 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
+import { buildIntakePlan } from '@glc/intake-core';
 import {
   computeRequiredBankIdsFromPolicy,
   INTAKE_POLICY_V1,
   loadIntakePolicy,
-} from '../intake/core/index.js';
+} from '@glc/intake-core';
 import {
   resolveExpressSlaRequiredIds,
   resolveFullSlaRequiredIds,
   resolveSlaRequiredIds,
-} from '../intake/brief-gates.js';
-import { QUESTION_BANK_V1_IDS, QUESTION_BANK_V1_STUBS } from '../intake/question-bank.js';
+} from '@glc/intake-core';
+import { QUESTION_BANK_V1_IDS, QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import { INTAKE_PLAN_FIXTURES } from './fixtures/intake-plan-fixtures.js';
 
 describe('intake-policy v1 parity', () => {

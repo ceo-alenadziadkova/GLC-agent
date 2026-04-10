@@ -16,11 +16,12 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
-    "typecheck": "pnpm --filter glc-audit-server run typecheck",
+    "typecheck": "pnpm --filter @glc/intake-core run build && pnpm --filter glc-audit-server run typecheck",
     "lint": "eslint .",
     "check": "pnpm run typecheck && pnpm run lint && pnpm test && pnpm --filter glc-audit-server run test"
   },
   "dependencies": {
+    "@glc/intake-core": "workspace:*",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@mui/icons-material": "7.3.5",

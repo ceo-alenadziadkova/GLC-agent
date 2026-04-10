@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildPublicDiscoveryUiFragment } from '../intake/discovery-ui-fragment.js';
-import { INTAKE_POLICY_V1 } from '../intake/core/load-policy.js';
+import { buildPublicDiscoveryUiFragment } from '@glc/intake-core';
+import { INTAKE_POLICY_V1 } from '@glc/intake-core';
 
 const EXPECTED_WIZARD_IDS = [
   'a2',

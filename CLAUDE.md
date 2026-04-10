@@ -45,6 +45,7 @@ React 18 + Vite frontend (Vercel) talks to an Express + TypeScript backend (Rail
 | `src/app/lib/supabase.ts` | Supabase client init (anon key) |
 | `src/app/hooks/usePipeline.ts` | Supabase Realtime subscription to pipeline_events |
 | `src/app/components/AppShell.tsx` | Layout with audit-aware navigation (`useCurrentAuditId`) |
+| `packages/intake-core` (`@glc/intake-core`) | Shared intake: `buildIntakePlan`, question bank JSON, SLA gates, validation helpers, **choice “specify other”** (`choiceValueNeedsSpecify`, …) — import only this package from app/server (no `server/src/intake`, no duplicate `src/app/lib` shim) |
 
 ---
 

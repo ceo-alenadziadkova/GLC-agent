@@ -9,12 +9,12 @@ import {
 } from '../data/briefQuestions';
 import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from '../data/auditTypes';
 import { briefResponsesToIntakeMap, useIntakeWizard } from '../hooks/useIntakeWizard';
-import type { IntakeSurface } from '../../../server/src/intake/core/types';
+import type { IntakeSurface } from '@glc/intake-core';
 import type { BriefIntakeAnalyticsSurface } from '../lib/brief-intake-analytics';
-import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
+import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '@glc/intake-core';
 import { labelsForMissingReportDomains } from '../lib/intake-coverage-domain-labels';
 import { formatIntakeQuestionReasonsBrief } from '../lib/intake-plan-explain';
-import { buildIntakePlan } from '../../../server/src/intake/core/build-intake-plan';
+import { buildIntakePlan } from '@glc/intake-core';
 
 function intakeMapToBriefResponses(map: Record<string, unknown>): BriefResponses {
   const out: BriefResponses = {};

@@ -3,12 +3,12 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
+import { buildIntakePlan } from '@glc/intake-core';
 import {
   currentIntakeVersionTuple,
   INTAKE_POLICY_VERSION,
   INTAKE_RESOLVER_VERSION,
-} from '../intake/core/versions.js';
+} from '@glc/intake-core';
 import type { IntakeVersionTuple } from '../types/audit.js';
 
 const FROZEN_LEGACY: IntakeVersionTuple = {

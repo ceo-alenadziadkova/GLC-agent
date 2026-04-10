@@ -1,7 +1,7 @@
 /**
  * Intake engine types — aligned with docs/QUESTION_BANK.md (branching, slices, scores).
  */
-import type { DomainKey } from '../types/audit.js';
+import type { DomainKey } from './audit-contract.js';
 
 /** Domains that consume intake slices (pipeline agents + recon/strategy). */
 export type IntakeSliceDomain = DomainKey | 'recon' | 'strategy';
@@ -9,6 +9,13 @@ export type IntakeSliceDomain = DomainKey | 'recon' | 'strategy';
 export type IntakePriority = 'required' | 'recommended' | 'optional';
 
 export type CollectionMode = 'standard' | 'discovery';
+
+/** Legacy visibility hint for filtering stubs; resolver input is derived in `visibility-from-plan.ts`. */
+export interface IntakeVisibilityContext {
+  collectionMode?: CollectionMode;
+  /** Reserved for future stricter discovery subsets. */
+  discoveryStrict?: boolean;
+}
 
 /**
  * Canon answer contract (ADR: unified question bank). Drives validation hints and API schema;

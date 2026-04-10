@@ -135,7 +135,6 @@ export function evalBranchCondition(
     // Defaulting to visible would silently expose questions to all users on a typo or missing
     // predicate. The CI linter (lintUnknownBranchRefs) catches this before deployment; the
     // safe fallback is to hide until the predicate is added.
-    console.warn(`[branch-rules] Unknown branchCondition "${condition}" — defaulting to hidden. Add it to BRANCH_RULES and re-run lintBankAndPolicyAll.`);
     return false;
   }
   return rule(responses);

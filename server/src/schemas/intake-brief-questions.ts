@@ -20,8 +20,8 @@
  */
 import type { BriefQuestion } from '../types/audit.js';
 import { INDUSTRY_OPTIONS } from '../config/industry-options.js';
-import { EXPRESS_REQUIRED_ALWAYS_IDS, EXPRESS_REQUIRED_IF_VISIBLE_IDS } from '../intake/express-policy-ids.js';
-import preBriefBankIncluded from '../intake/pre-brief-bank-included.json' with { type: 'json' };
+import { EXPRESS_REQUIRED_ALWAYS_IDS, EXPRESS_REQUIRED_IF_VISIBLE_IDS } from '@glc/intake-core';
+import preBriefBankIncluded from '@glc/intake-core/pre-brief-bank-included.json' with { type: 'json' };
 
 /** Max length for free-text / textarea answers (legacy + question-bank v1). Used by `intake-brief.ts` Zod schema. */
 export const BRIEF_ANSWER_STRING_MAX = 12_000;

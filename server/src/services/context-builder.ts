@@ -14,22 +14,22 @@ import {
   getQuestionsForDomain,
   INTAKE_IDENTITY_FIELD_IDS,
 } from '../schemas/intake-brief.js';
-import { calcAiReadinessScore } from '../intake/ai-readiness.js';
-import { DOMAIN_TO_QUESTION_IDS } from '../intake/domain-slice.js';
+import { calcAiReadinessScore } from '@glc/intake-core';
+import { DOMAIN_TO_QUESTION_IDS } from '@glc/intake-core';
 import {
   getQuestionBankPromptLabel,
   getQuestionBankReportUse,
   QUESTION_BANK_V1_IDS,
   responsesUseQuestionBankV1,
-} from '../intake/question-bank.js';
-import { prepareBriefForValidation } from '../intake/prepare-brief-for-validation.js';
-import { getResponseString, isIntakeAnswered } from '../intake/unwrap.js';
+} from '@glc/intake-core';
+import { prepareBriefForValidation } from '@glc/intake-core';
+import { getResponseString, isIntakeAnswered } from '@glc/intake-core';
 import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
-import { isPrimaryFeedForDomain, isSecondaryFeedForDomain } from '../intake/question-feed-roles.js';
-import type { IntakeSliceDomain } from '../intake/types.js';
-import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
-import { isSupportedIntakeArtifactTuple } from '../intake/core/resolve-intake-artifacts.js';
-import { currentIntakeVersionTuple } from '../intake/core/versions.js';
+import { isPrimaryFeedForDomain, isSecondaryFeedForDomain } from '@glc/intake-core';
+import type { IntakeSliceDomain } from '@glc/intake-core';
+import { buildIntakePlan } from '@glc/intake-core';
+import { isSupportedIntakeArtifactTuple } from '@glc/intake-core';
+import { currentIntakeVersionTuple } from '@glc/intake-core';
 import { resolveIntakeSurfaceForPlan } from './brief-validator.js';
 
 function formatCompanyUrlForPrompt(url: string): string {

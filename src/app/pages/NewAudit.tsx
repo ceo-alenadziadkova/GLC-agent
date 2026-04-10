@@ -69,6 +69,7 @@ import {
   type BriefResponseEntry,
   type BriefResponses,
 } from '../data/briefQuestions';
+import { logger } from '../lib/logger';
 
 export type NewAuditVariant = 'consultant' | 'client_self_serve';
 
@@ -511,7 +512,9 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         try {
           await api.linkIntakeTokenToAudit(t, auditId);
         } catch (linkErr) {
-          console.warn('[NewAudit] linkIntakeTokenToAudit failed (non-fatal):', linkErr);
+          logger.warn('[NewAudit] linkIntakeTokenToAudit failed (non-fatal)', {
+            error: linkErr instanceof Error ? linkErr.message : String(linkErr),
+          });
         }
       }
 
@@ -524,7 +527,9 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
           mergedForSave = mergeBriefResponsesPreferFilled(fromServer, localWithBasics);
           intakeVersionsForSave = brief?.intake_versions ?? undefined;
         } catch (mergeErr) {
-          console.warn('[NewAudit] getBrief merge failed (non-fatal):', mergeErr);
+          logger.warn('[NewAudit] getBrief merge failed (non-fatal)', {
+            error: mergeErr instanceof Error ? mergeErr.message : String(mergeErr),
+          });
         }
       }
 
@@ -535,7 +540,9 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
           intake_versions: intakeVersionsForSave,
         });
       } catch (briefErr) {
-        console.warn('[NewAudit] Brief save failed (non-fatal):', briefErr);
+        logger.warn('[NewAudit] Brief save failed (non-fatal)', {
+          error: briefErr instanceof Error ? briefErr.message : String(briefErr),
+        });
       }
 
       await api.startPipeline(auditId);

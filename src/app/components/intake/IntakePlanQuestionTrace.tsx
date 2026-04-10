@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { CaretRight, Funnel, Graph } from '@phosphor-icons/react';
 
-import type { IntakePlan, QuestionReason } from '../../../../server/src/intake/core/types';
-import { QUESTION_BANK_V1_STUBS } from '../../../../server/src/intake/question-bank';
+import type { IntakePlan, QuestionReason } from '@glc/intake-core';
+import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import { computeBranchDownstreamIds, computeBranchUpstreamIds } from './intake-trace-branch-links';
 import { humanizeReason, summarizeStatus } from '../../lib/intake-trace-humanize';
 

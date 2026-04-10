@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 
-import type { IntakePlan } from '../../../../server/src/intake/core/types';
+import type { IntakePlan } from '@glc/intake-core';
 
 function setDiff(next: string[], prev: string[]): string[] {
   const prevSet = new Set(prev);

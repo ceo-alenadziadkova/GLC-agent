@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { QUESTION_BANK_V1_STUBS } from '../../../../server/src/intake/question-bank';
+import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import { buildQuestionBankStudioPayloadPhase2 } from '../question-bank-studio-payload';
 import { canonBranchEdgeKeySet } from '../question-bank-studio-graph';
 

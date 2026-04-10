@@ -9,7 +9,6 @@ export {
   lintBankAndPolicyAll,
   lintDeprecatedStillRequired,
   lintDuplicateDiscoveryIncluded,
-  lintForbiddenImportsInCore,
   lintLayoutReferencesUnknownBankIds,
   lintMissingPolicyCoverage,
   lintOrphanPolicyDiscoveryIds,
@@ -39,10 +38,13 @@ export { validateIntakeVersionsForBriefWrite } from './intake-version-write-vali
 export {
   BRANCH_RULE_RESPONSE_KEYS,
   buildBranchAwareStubEvalOrder,
+  getBranchAwareStubEvalOrder,
+  getBranchDepsCacheStats,
   listBankStubIdsInvalidatedByResponseKeys,
   listBranchRuleResponseKeys,
   providerStubIdsForResponseKey,
   QUESTION_BANK_V1_STUB_EVAL_ORDER,
+  resetBranchDepsCacheStats,
 } from './branch-condition-deps.js';
 export { evaluateCanonEligibility } from './evaluate-canon.js';
 export { computeRequiredBankIdsFromPolicy } from './evaluate-policy.js';

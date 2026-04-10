@@ -3,7 +3,7 @@
  *
  * Update snapshots: UPDATE_INTAKE_PLAN_SNAPSHOT=1 npx vitest run server/src/tests/intake-plan-snapshot.test.ts
  */
-import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
+import { buildIntakePlan } from '@glc/intake-core';
 import type { IntakeBriefCollectionMode, ProductMode } from '../types/audit.js';
 
 export interface IntakePlanSnapshotPayload {

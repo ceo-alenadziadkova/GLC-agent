@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { BRANCH_RULES } from '../intake/branch-rules.js';
+import { BRANCH_RULES } from '@glc/intake-core';
 import {
   BRANCH_RULE_RESPONSE_KEYS,
   buildBranchAwareStubEvalOrder,
-} from '../intake/core/branch-condition-deps.js';
-import { QUESTION_BANK_V1_STUBS } from '../intake/question-bank.js';
+} from '@glc/intake-core';
+import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 
 describe('BRANCH_RULE_RESPONSE_KEYS', () => {
   it('covers every BRANCH_RULES key (add deps when introducing a predicate)', () => {

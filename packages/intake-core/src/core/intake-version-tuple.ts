@@ -1,7 +1,7 @@
 /**
  * Parse and compare ADR intake version tuples (question bank + policy + layout + resolver).
  */
-import type { IntakeVersionTuple } from '../../types/audit.js';
+import type { IntakeVersionTuple } from '../audit-contract.js';
 
 const KEYS: (keyof IntakeVersionTuple)[] = [
   'questionBankVersion',

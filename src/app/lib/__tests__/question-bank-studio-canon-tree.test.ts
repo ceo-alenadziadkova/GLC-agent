@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getQuestionBankSchemaMeta,
   QUESTION_BANK_V1_STUBS,
-} from '../../../../server/src/intake/question-bank';
+} from '@glc/intake-core';
 import {
   buildQuestionBankStudioGraph,
   collectStudioGraphQuestionIds,

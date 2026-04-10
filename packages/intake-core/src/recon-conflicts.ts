@@ -1,7 +1,7 @@
 /**
  * Recon vs client disagreement log — docs/QUESTION_BANK.md §11.
  */
-import type { ReconConflict } from '../types/audit.js';
+import type { ReconConflict } from './audit-contract.js';
 import { unwrapIntakeValue } from './unwrap.js';
 
 export type { ReconConflict };

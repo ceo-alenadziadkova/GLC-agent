@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -24,15 +25,15 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import { TreeStructure } from '@phosphor-icons/react';
-import bankBundledRaw from '../../../server/src/intake/question-bank.v1.json';
-import { buildIntakePlan } from '../../../server/src/intake/core/build-intake-plan';
-import type { IntakePlan, IntakeSurface, QuestionReason } from '../../../server/src/intake/core/types';
+import bankBundledRaw from '@glc/intake-core/question-bank.v1.json';
+import { buildIntakePlan } from '@glc/intake-core';
+import type { IntakePlan, IntakeSurface, QuestionReason } from '@glc/intake-core';
 import {
   getQuestionBankReportUse,
   getQuestionBankSchemaMeta,
   QUESTION_BANK_VERSION,
   QUESTION_BANK_V1_STUBS,
-} from '../../../server/src/intake/question-bank';
+} from '@glc/intake-core';
 import type { IntakeBriefCollectionMode, ProductMode } from '../data/auditTypes';
 import { useGlcTheme } from '../hooks/useGlcTheme';
 import { diffQuestionBankIdSets, extractQuestionIdsFromBankJson } from '../lib/question-bank-revision-diff';
@@ -108,7 +109,7 @@ const TRACE_SURFACE_OPTIONS: { value: IntakeSurface | ''; label: string }[] = [
   { value: 'internal_review', label: 'internal_review' },
 ];
 
-function studioRootNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
+const StudioRootNode = memo(function StudioRootNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
   if (data.kind !== 'root') return null;
   return (
     <>
@@ -127,9 +128,9 @@ function studioRootNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
     </>
   );
-}
+});
 
-function studioSectionNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
+const StudioSectionNode = memo(function StudioSectionNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
   if (data.kind !== 'section') return null;
   return (
     <>
@@ -151,15 +152,19 @@ function studioSectionNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
     </>
   );
-}
+});
 
-function studioQuestionNode({ data, selected }: NodeProps<Node<StudioAnyNodeData>>) {
+const StudioQuestionNode = memo(function StudioQuestionNode({ data, selected }: NodeProps<Node<StudioAnyNodeData>>) {
   if (data.kind !== 'question') return null;
   const policyMuted = data.applyPolicyDim && !data.participatesPolicy;
   const policyAccent = studioPolicyBaseAccent(data.policyBaseVisual);
   const { w, h } = data.layoutSize;
   const idSizeClass = w >= 270 ? 'text-[11px]' : 'text-[10px]';
   const bodySizeClass = w >= 270 ? 'text-[12px]' : 'text-[11px]';
+  const defaultEdgeW = selected ? 2 : 1;
+  const defaultEdgeColor = selected ? 'var(--glc-blue)' : 'var(--border-default)';
+  const topW = data.domainAccent ? 3 : defaultEdgeW;
+  const topColor = data.domainAccent ? data.domainAccent : defaultEdgeColor;
   return (
     <>
       <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
@@ -169,9 +174,18 @@ function studioQuestionNode({ data, selected }: NodeProps<Node<StudioAnyNodeData
           width: w,
           minHeight: h,
           backgroundColor: selected ? 'var(--glc-blue-muted)' : 'var(--bg-surface)',
-          border: selected ? '2px solid var(--glc-blue)' : '1px solid var(--border-default)',
-          borderLeft: `5px solid ${policyAccent}`,
-          borderTop: data.domainAccent ? `3px solid ${data.domainAccent}` : undefined,
+          borderLeftWidth: 5,
+          borderLeftStyle: 'solid',
+          borderLeftColor: policyAccent,
+          borderTopWidth: topW,
+          borderTopStyle: 'solid',
+          borderTopColor: topColor,
+          borderRightWidth: defaultEdgeW,
+          borderRightStyle: 'solid',
+          borderRightColor: defaultEdgeColor,
+          borderBottomWidth: defaultEdgeW,
+          borderBottomStyle: 'solid',
+          borderBottomColor: defaultEdgeColor,
           color: 'var(--text-primary)',
           opacity: policyMuted ? 0.45 : 1,
         }}
@@ -214,9 +228,9 @@ function studioQuestionNode({ data, selected }: NodeProps<Node<StudioAnyNodeData
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
     </>
   );
-}
+});
 
-function studioDomainClusterNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
+const StudioDomainClusterNode = memo(function StudioDomainClusterNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
   if (data.kind !== 'domainCluster') return null;
   return (
     <>
@@ -238,9 +252,9 @@ function studioDomainClusterNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
     </>
   );
-}
+});
 
-function studioLayoutStepNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
+const StudioLayoutStepNode = memo(function StudioLayoutStepNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
   if (data.kind !== 'layoutStep') return null;
   return (
     <>
@@ -267,9 +281,9 @@ function studioLayoutStepNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
     </>
   );
-}
+});
 
-function studioIdentityNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
+const StudioIdentityNode = memo(function StudioIdentityNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
   if (data.kind !== 'identity') return null;
   return (
     <>
@@ -293,16 +307,34 @@ function studioIdentityNode({ data }: NodeProps<Node<StudioAnyNodeData>>) {
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
     </>
   );
-}
+});
 
-const nodeTypes = {
-  studioRoot: studioRootNode,
-  studioSection: studioSectionNode,
-  studioDomainCluster: studioDomainClusterNode,
-  studioLayoutStep: studioLayoutStepNode,
-  studioQuestion: studioQuestionNode,
-  studioIdentity: studioIdentityNode,
+/** Stable reference for React Flow — do not define inside a component. */
+const studioNodeTypes = {
+  studioRoot: StudioRootNode,
+  studioSection: StudioSectionNode,
+  studioDomainCluster: StudioDomainClusterNode,
+  studioLayoutStep: StudioLayoutStepNode,
+  studioQuestion: StudioQuestionNode,
+  studioIdentity: StudioIdentityNode,
 };
+
+function studioMinimapNodeColor(n: Pick<Node, 'type'>): string {
+  switch (n.type) {
+    case 'studioSection':
+      return '#1CBDFF';
+    case 'studioDomainCluster':
+      return '#0891b2';
+    case 'studioLayoutStep':
+      return '#9333ea';
+    case 'studioQuestion':
+      return '#94a3b8';
+    case 'studioIdentity':
+      return '#f24f1d';
+    default:
+      return '#64748b';
+  }
+}
 
 type TraceRole = 'required' | 'visible' | 'deferred' | 'hidden';
 
@@ -364,6 +396,10 @@ function FlowCanvas({
   const qDim = getStudioQuestionNodeDimensions(viewDensity);
   const fitPadding = viewDensity === 'compact' ? 0.14 : 0.18;
 
+  const handleFitEntireMap = useCallback(() => {
+    fitView({ padding: fitPadding, duration: 280 });
+  }, [fitView, fitPadding]);
+
   useEffect(() => {
     const t = window.setTimeout(() => {
       fitView({ padding: fitPadding, duration: 260 });
@@ -398,7 +434,7 @@ function FlowCanvas({
     <ReactFlow
       nodes={nodes}
       edges={edges}
-      nodeTypes={nodeTypes}
+      nodeTypes={studioNodeTypes}
       onNodeClick={onNodeClick}
       fitView
       minZoom={0.08}
@@ -416,7 +452,7 @@ function FlowCanvas({
             color: 'var(--text-secondary)',
             cursor: 'pointer',
           }}
-          onClick={() => fitView({ padding: fitPadding, duration: 280 })}
+          onClick={handleFitEntireMap}
         >
           Fit entire map
         </button>
@@ -427,22 +463,7 @@ function FlowCanvas({
         zoomable
         style={{ backgroundColor: 'var(--bg-canvas)' }}
         maskColor={minimapMaskColor}
-        nodeColor={n => {
-          switch (n.type) {
-            case 'studioSection':
-              return '#1CBDFF';
-            case 'studioDomainCluster':
-              return '#0891b2';
-            case 'studioLayoutStep':
-              return '#9333ea';
-            case 'studioQuestion':
-              return '#94a3b8';
-            case 'studioIdentity':
-              return '#f24f1d';
-            default:
-              return '#64748b';
-          }
-        }}
+        nodeColor={studioMinimapNodeColor}
       />
     </ReactFlow>
   );

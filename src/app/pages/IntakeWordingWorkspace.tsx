@@ -4,9 +4,9 @@ import { NotePencil } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import type { IntakeBriefCollectionMode, ProductMode } from '../data/auditTypes';
 import { bankIdToBriefQuestion } from '../data/bankQuestionUiCatalog';
-import { buildIntakePlan } from '../../../server/src/intake/core/build-intake-plan';
-import { QUESTION_BANK_V1_STUBS } from '../../../server/src/intake/question-bank';
-import type { IntakePlan, IntakeSurface } from '../../../server/src/intake/core/types';
+import { buildIntakePlan } from '@glc/intake-core';
+import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
+import type { IntakePlan, IntakeSurface } from '@glc/intake-core';
 import { useIntakeWordingDrafts } from '../hooks/useIntakeWordingDrafts';
 import { INTAKE_TRACE_SCENARIO_PRESETS } from '../lib/intake-trace-scenarios';
 import {

@@ -587,42 +587,53 @@ export function SettingsPage() {
           <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
             Change password
           </div>
-          <div className="space-y-2 mb-4">
-            <input
-              type="password"
-              value={newPassword}
-              onChange={e => setNewPassword(e.target.value)}
-              placeholder="New password"
-              className="w-full px-3 py-2 text-sm"
-              style={{
-                backgroundColor: 'var(--bg-canvas)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-md)',
-                color: 'var(--text-primary)',
-              }}
-            />
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              placeholder="Confirm new password"
-              className="w-full px-3 py-2 text-sm"
-              style={{
-                backgroundColor: 'var(--bg-canvas)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-md)',
-                color: 'var(--text-primary)',
-              }}
-            />
-          </div>
-          <button
-            className="glc-btn-primary mb-3"
-            onClick={changePassword}
-            disabled={savingPassword}
-            style={{ opacity: savingPassword ? 0.6 : 1 }}
+          <form
+            onSubmit={e => {
+              e.preventDefault();
+              void changePassword();
+            }}
           >
-            {savingPassword ? 'Updating...' : 'Update password'}
-          </button>
+            <div className="space-y-2 mb-4">
+              <input
+                type="password"
+                name="new-password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="New password"
+                className="w-full px-3 py-2 text-sm"
+                style={{
+                  backgroundColor: 'var(--bg-canvas)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--radius-md)',
+                  color: 'var(--text-primary)',
+                }}
+              />
+              <input
+                type="password"
+                name="confirm-new-password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+                className="w-full px-3 py-2 text-sm"
+                style={{
+                  backgroundColor: 'var(--bg-canvas)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--radius-md)',
+                  color: 'var(--text-primary)',
+                }}
+              />
+            </div>
+            <button
+              type="submit"
+              className="glc-btn-primary mb-3"
+              disabled={savingPassword}
+              style={{ opacity: savingPassword ? 0.6 : 1 }}
+            >
+              {savingPassword ? 'Updating...' : 'Update password'}
+            </button>
+          </form>
           <div className="h-3" />
           <button className="glc-btn-ghost" onClick={signOut}>
             <SignOut className="w-4 h-4" />

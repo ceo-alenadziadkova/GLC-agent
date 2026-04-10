@@ -107,7 +107,7 @@ Unit and RTL tests with **mocked** Supabase cover logic and contracts but **do n
 | Layer | Status | Notes |
 | --- | --- | --- |
 | `relativeTime` | Yes | `relativeTime.test.ts` |
-| Intake “specify other” | Yes | `choice-specify-triggers.test.ts` (FE) + `server/.../choice-specify-triggers.test.ts` |
+| Intake “specify other” | Yes | Canonical: `@glc/intake-core` (`choice-specify-triggers`); tests: `src/app/lib/choice-specify-triggers.test.ts` + `server/src/tests/choice-specify-triggers.test.ts` |
 
 ## CI
 

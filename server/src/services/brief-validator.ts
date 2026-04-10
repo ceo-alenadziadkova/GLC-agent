@@ -20,17 +20,18 @@ import type {
   ProductMode,
   ReconConflict,
 } from '../types/audit.js';
-import { resolveBankOptionalIds, resolveExpressSlaRequiredIds } from '../intake/brief-gates.js';
-import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
-import { isSupportedIntakeArtifactTuple, resolveIntakeArtifacts } from '../intake/core/resolve-intake-artifacts.js';
-import type { IntakeSurface } from '../intake/core/types.js';
-import { currentIntakeVersionTuple, syntheticIntakeVersionsBeforeMatrix } from '../intake/core/versions.js';
-import { deriveBankV1DataQuality, getQuestionBankPromptLabel } from '../intake/question-bank.js';
+import { resolveBankOptionalIds, resolveExpressSlaRequiredIds } from '@glc/intake-core';
+import { buildIntakePlan } from '@glc/intake-core';
+import { isSupportedIntakeArtifactTuple, resolveIntakeArtifacts } from '@glc/intake-core';
+import type { IntakeSurface } from '@glc/intake-core';
+import { currentIntakeVersionTuple, syntheticIntakeVersionsBeforeMatrix } from '@glc/intake-core';
+import { deriveBankV1DataQuality } from '@glc/intake-core';
+import { getQuestionBankPromptLabel } from '@glc/intake-core';
 import { logger } from './logger.js';
-import { prepareBriefForValidation } from '../intake/prepare-brief-for-validation.js';
-import { mergeReconConflictsFromC1 } from '../intake/recon-conflicts.js';
-import { choiceValueNeedsSpecify } from '../intake/choice-specify-triggers.js';
-import { isRevenueAnsweredRaw } from '../intake/legacy-response-aliases.js';
+import { prepareBriefForValidation } from '@glc/intake-core';
+import { mergeReconConflictsFromC1 } from '@glc/intake-core';
+import { choiceValueNeedsSpecify } from '@glc/intake-core';
+import { isRevenueAnsweredRaw } from '@glc/intake-core';
 
 export interface BriefValidationResult {
   passed: boolean;

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildPublicDiscoveryUiFragment } from '../intake/discovery-ui-fragment.js';
-import { INTAKE_POLICY_V1 } from '../intake/core/load-policy.js';
-import { buildIntakePlan } from '../intake/core/build-intake-plan.js';
-import { buildDiscoveryWizardQuestions } from '../intake/discovery-wizard-questions.js';
+import { buildPublicDiscoveryUiFragment } from '@glc/intake-core';
+import { INTAKE_POLICY_V1 } from '@glc/intake-core';
+import { buildIntakePlan } from '@glc/intake-core';
+import { buildDiscoveryWizardQuestions } from '@glc/intake-core';
 import { INDUSTRY_OPTIONS } from '../config/industry-options.js';
-import { getBankQuestionUiOptions } from '../intake/bank-question-ui-overrides.js';
+import { getBankQuestionUiOptions } from '@glc/intake-core';
 
 function bankOrFallback(id: string, fallback: readonly string[]): string[] {
   return [...(getBankQuestionUiOptions(id) ?? [...fallback])];

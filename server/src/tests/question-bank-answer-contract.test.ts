@@ -4,7 +4,7 @@ import {
   expandAnswerContractForApi,
   getQuestionBankAnswerContract,
   QUESTION_BANK_OPTION_CATALOGS,
-} from '../intake/question-bank.js';
+} from '@glc/intake-core';
 
 describe('question-bank answer contract (ADR canon)', () => {
   it('exposes textarea default for free-text rows', () => {

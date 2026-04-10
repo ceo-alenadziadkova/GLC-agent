@@ -1,16 +1,16 @@
 import dagre from 'dagre';
 import type { Edge, Node } from '@xyflow/react';
 import { computeBranchUpstreamIds } from '../components/intake/intake-trace-branch-links';
-import layoutRulesArtifact from '../../../server/src/intake/artifacts/layout-rules-1.1.0.json';
-import type { LayoutRulesV1 } from '../../../server/src/intake/core/layout-types';
+import layoutRulesArtifact from '@glc/intake-core/artifacts/layout-rules-1.1.0.json';
+import type { LayoutRulesV1 } from '@glc/intake-core';
 import {
   getQuestionBankPromptLabel,
   getQuestionBankSchemaMeta,
   QUESTION_BANK_V1_STUBS,
   QUESTION_FEEDS_BY_ID,
-} from '../../../server/src/intake/question-bank';
-import type { IntakeQuestionStub } from '../../../server/src/intake/types';
-import { QUESTION_FEED_ROLES } from '../../../server/src/intake/question-feed-roles';
+} from '@glc/intake-core';
+import type { IntakeQuestionStub } from '@glc/intake-core';
+import { QUESTION_FEED_ROLES } from '@glc/intake-core';
 import {
   getPolicyOverlayForQuestion,
   participatesInPolicyMode,

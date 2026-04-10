@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { listBankQuestionUiOverrideIds } from '../intake/bank-question-ui-overrides.js';
-import { QUESTION_BANK_V1_IDS } from '../intake/question-bank.js';
+import { listBankQuestionUiOverrideIds } from '@glc/intake-core';
+import { QUESTION_BANK_V1_IDS } from '@glc/intake-core';
 
 describe('bank-question-ui-overrides', () => {
   it('every override key exists in question-bank v1', () => {

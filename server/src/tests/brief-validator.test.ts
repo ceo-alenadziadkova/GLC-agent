@@ -102,12 +102,12 @@ import {
   arePreBriefSlotsSatisfied,
 } from '../services/brief-validator.js';
 import { RECOMMENDED_QUESTION_IDS, BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
-import { resolveBankRecommendedIds, resolveFullSlaRequiredIds } from '../intake/brief-gates.js';
+import { resolveBankRecommendedIds, resolveFullSlaRequiredIds } from '@glc/intake-core';
 import {
   makeWebsitePathExpressBrief,
   makeWebsitePathFullBrief,
 } from './bank-brief-fixtures.js';
-import { currentIntakeVersionTuple } from '../intake/core/versions.js';
+import { currentIntakeVersionTuple } from '@glc/intake-core';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

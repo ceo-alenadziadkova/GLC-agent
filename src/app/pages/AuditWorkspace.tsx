@@ -22,7 +22,7 @@ import {
   unwrapResponse,
 } from '../data/briefQuestions';
 import type { BriefResponses } from '../data/briefQuestions';
-import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
+import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '@glc/intake-core';
 import { api } from '../data/apiService';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
@@ -38,6 +38,7 @@ import {
   clearConsultantBriefLayout,
 } from '../lib/client-brief-layout-preference';
 import { getQuestionLabel } from '../lib/intake-question-lookup';
+import { logger } from '../lib/logger';
 
 const EXPRESS_DOMAIN_KEYS: readonly DomainKey[] = [
   'tech_infrastructure', 'security_compliance', 'seo_digital', 'ux_conversion',
@@ -132,7 +133,9 @@ export function AuditWorkspace() {
           reload();
           window.setTimeout(() => setEnrichSaved(false), 2200);
         } catch (err) {
-          console.error('[AuditWorkspace] brief save', err);
+          logger.error('[AuditWorkspace] brief save', {
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
       })();
     }, 650);
@@ -203,7 +206,9 @@ export function AuditWorkspace() {
             reload();
             window.setTimeout(() => setWorkspaceBriefSavedFlash(false), 2200);
           } catch (err) {
-            console.error('[AuditWorkspace] workspace brief save', err);
+            logger.error('[AuditWorkspace] workspace brief save', {
+              error: err instanceof Error ? err.message : String(err),
+            });
           }
         })();
       }, 650);

@@ -21,7 +21,7 @@ import {
   applyIntakeMetadataPrefill,
   hasIntakeConsultantPrefill,
 } from '../lib/intake-client-copy';
-import { choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
+import { choiceValueNeedsSpecify } from '@glc/intake-core';
 
 function normalizeStoredResponses(raw: Record<string, unknown>): BriefResponses {
   const out: BriefResponses = {};

@@ -1,8 +1,8 @@
-import intakePolicyRaw from '../../../server/src/intake/intake-policy.v1.json';
+import intakePolicyRaw from '@glc/intake-core/intake-policy.v1.json';
 import {
   getQuestionBankSchemaMeta,
   QUESTION_BANK_V1_STUBS,
-} from '../../../server/src/intake/question-bank';
+} from '@glc/intake-core';
 
 export type StudioPolicyMode = 'full' | 'express' | 'discovery' | 'pre_brief' | 'free_snapshot';
 

@@ -301,6 +301,8 @@ Use for tooling, previews, or clients that want a compact **IntakePlan** view. *
 - **`intake_versions` omitted** — the server reuses the stored tuple, or the **current** tuple for a new row. If the stored tuple is **unsupported**, the write is accepted and the row is repaired to the current tuple; **`intake_version_migration`** records `{ from, to, at, reason: 'unsupported_stored_repaired' }`.
 - **`intake_versions` present** — must include all four keys. Unsupported tuple → **`400`** `UNSUPPORTED_INTAKE_VERSION`. Supported tuple that does not match stored (and is not an allowed upgrade to current) → **`409`** `INTAKE_VERSION_CONFLICT`. Sending the **current** tuple when stored was an older supported tuple → upgrade; migration **`reason: 'client_upgrade'`** is persisted once.
 
+**Operational semantics (not bugs):** Brief rows with **`intake_versions` null** pre-date the version matrix; **GET** validation and plan assembly use the **current** resolver and artifact bundle (same idea as “unsupported stored” fallback on GET). **PUT** rules above still apply; the **server** is authoritative on what tuple and answers are stored — a client cannot force an unsupported artifact tuple (**400**), and a supported tuple still goes through normal **response validation** (the tuple is not a bypass). **Public** Discover and pre-brief routes use split rate limiters; they use **Redis** when **`RATE_LIMIT_REDIS_URL`** is set, otherwise **in-memory per process** (limits do not aggregate across horizontally scaled instances — see [ARCHITECTURE.md](./ARCHITECTURE.md#public-routes-abuse-control-and-scaling)). **Releases:** ship SPA and API together when changing `@glc/intake-core` resolver behaviour where possible; tuple validation reduces silent artifact skew between client and server but not every cross-deployment UX edge case.
+
 Migration column: deploy **`028_intake_version_migration.sql`** — `intake_brief.intake_version_migration` (`jsonb`, nullable).
 
 ---
@@ -712,7 +714,7 @@ Success returns **`201`** with `{ "audit_id": "..." }`.
 
 ### `POST /api/marketing/brief`
 
-**Auth:** none. **Rate limit:** same window as public intake (`intakePublicLimiter`).
+**Auth:** none. **Rate limit:** per-IP hourly cap (`marketingBriefPublicLimiter`); override with `PUBLIC_MARKETING_BRIEF_MAX_PER_HOUR`.
 
 **Body (JSON):**
 

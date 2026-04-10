@@ -1,5 +1,5 @@
 import type { IntakeBriefCollectionMode, ProductMode } from '../data/auditTypes';
-import type { IntakeSurface } from '../../../server/src/intake/core/types';
+import type { IntakeSurface } from '@glc/intake-core';
 import type { StudioPolicyMode } from './question-bank-studio-policy';
 
 export type IntakeTraceScenarioPreset = {
