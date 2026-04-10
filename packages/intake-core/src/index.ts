@@ -96,6 +96,27 @@ export {
   choiceValueNeedsSpecify,
 } from './choice-specify-triggers.js';
 export {
+  includesCrmTool,
+  isA8KnownScale,
+  isGovernanceClear,
+  normalizeAutomationAttempt,
+  normalizeD3ManualLoad,
+  normalizeD4aAiUsage,
+  normalizeD4bExportReadiness,
+  normalizePrimaryGoal,
+  normalizeIndustry,
+  normalizeOnlinePresence,
+  normalizeStage,
+  normalizeTeamSize,
+  type AutomationAttempt,
+  type D3ManualLoad,
+  type D4aAiUsage,
+  type D4bExportReadiness,
+  type GoalBucket,
+  type StageBucket,
+  type TeamBucket,
+} from './answer-normalizers.js';
+export {
   isIntakeNextRecommendedEnabled,
   isIntakeIncrementalEngineEnabled,
   isIntakePolicyRichnessEnabled,

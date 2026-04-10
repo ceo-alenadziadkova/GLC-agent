@@ -8,6 +8,17 @@ export const PRIORITY_BADGE: Record<string, { label: string; color: string }> = 
   optional: { label: 'Optional', color: 'var(--glc-green-dark)' },
 };
 
+function friendlyFreeTextPlaceholder(questionId: string): string {
+  const byId: Record<string, string> = {
+    b1: 'Example: "Families visiting Palma for 3-5 nights, booking 2-4 weeks ahead."',
+    c6: 'Example: "People visit but rarely contact us" or "Mobile pages feel slow."',
+    c8: 'Add 2-3 competitor names or URLs.',
+    d2: 'Example: "Copying inquiries from WhatsApp into spreadsheets every day."',
+    f1: 'Example: "Too much manual work and unclear channel performance."',
+  };
+  return byId[questionId] ?? 'Write what comes to mind first. Short is fine, detailed is even better.';
+}
+
 export function BriefField({
   q,
   value,
@@ -87,20 +98,25 @@ export function BriefField({
       )}
 
       {q.type === 'free_text' && (
-        <textarea
-          rows={interviewMode ? 3 : 2}
-          value={strVal}
-          onChange={e => onChange(e.target.value || null)}
-          placeholder="Your answer..."
-          className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
-          style={{
-            backgroundColor: 'var(--bg-inset)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-primary)',
-          }}
-          onFocus={e => { (e.target as HTMLElement).style.borderColor = 'var(--glc-blue)'; }}
-          onBlur={e => { (e.target as HTMLElement).style.borderColor = 'var(--border-subtle)'; }}
-        />
+        <div className="space-y-1.5">
+          <textarea
+            rows={interviewMode ? 3 : 2}
+            value={strVal}
+            onChange={e => onChange(e.target.value || null)}
+            placeholder={friendlyFreeTextPlaceholder(q.id)}
+            className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
+            style={{
+              backgroundColor: 'var(--bg-inset)',
+              border: '1px solid var(--border-subtle)',
+              color: 'var(--text-primary)',
+            }}
+            onFocus={e => { (e.target as HTMLElement).style.borderColor = 'var(--glc-blue)'; }}
+            onBlur={e => { (e.target as HTMLElement).style.borderColor = 'var(--border-subtle)'; }}
+          />
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', margin: 0 }}>
+            Short answer is enough. If you want, write in detail. Voice input is also welcome.
+          </p>
+        </div>
       )}
 
       {q.type === 'number' && (
@@ -147,7 +163,7 @@ export function BriefField({
               type="text"
               value={otherSpecify ?? ''}
               onChange={e => onOtherSpecifyChange(e.target.value)}
-              placeholder="Please specify..."
+              placeholder="Add one short clarification..."
               autoFocus
               className="w-full px-3 py-2 rounded-lg text-sm outline-none"
               style={{
@@ -194,7 +210,7 @@ export function BriefField({
               type="text"
               value={otherSpecify ?? ''}
               onChange={e => onOtherSpecifyChange(e.target.value)}
-              placeholder="Please specify..."
+              placeholder="Add one short clarification..."
               autoFocus
               className="w-full px-3 py-2 rounded-lg text-sm outline-none"
               style={{

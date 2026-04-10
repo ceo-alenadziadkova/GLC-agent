@@ -78,27 +78,38 @@ function QuestionInput({
   const q = getQuestion(qId);
   if (!q) return null;
 
+  const freeTextPlaceholderById: Record<string, string> = {
+    b1: 'Example: "Homeowners in Palma looking for renovation planning."',
+    d2: 'Example: "Manual follow-up with leads across WhatsApp and email."',
+    f1: 'Example: "Not enough predictable new clients each month."',
+  };
+
   const strVal = typeof value === 'string' ? value : '';
   const arrVal = Array.isArray(value) ? value : [];
 
   if (q.type === 'free_text') {
     return (
-      <textarea
-        autoFocus
-        rows={3}
-        value={strVal}
-        onChange={e => onChange(e.target.value || null)}
-        placeholder="Your answer…"
-        className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none"
-        style={{
-          background: 'var(--input-background)',
-          border: '1px solid var(--border-default)',
-          color: 'var(--text-primary)',
-          lineHeight: 1.6,
-        }}
-        onFocus={e => { e.currentTarget.style.borderColor = 'var(--glc-blue)'; }}
-        onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
-      />
+      <div className="space-y-1.5">
+        <textarea
+          autoFocus
+          rows={3}
+          value={strVal}
+          onChange={e => onChange(e.target.value || null)}
+          placeholder={freeTextPlaceholderById[qId] ?? 'Write what comes to mind first. Short is fine, detailed is great.'}
+          className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none"
+          style={{
+            background: 'var(--input-background)',
+            border: '1px solid var(--border-default)',
+            color: 'var(--text-primary)',
+            lineHeight: 1.6,
+          }}
+          onFocus={e => { e.currentTarget.style.borderColor = 'var(--glc-blue)'; }}
+          onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
+        />
+        <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: 0 }}>
+          Short answer is enough. You can also write in detail or use voice input.
+        </p>
+      </div>
     );
   }
 
@@ -132,7 +143,7 @@ function QuestionInput({
             type="text"
             value={specifyValue}
             onChange={e => onSpecifyChange(e.target.value)}
-            placeholder="Please specify…"
+            placeholder="Add one short clarification…"
             className="w-full px-4 py-3 rounded-xl text-sm outline-none"
             style={{
               background: 'var(--input-background)',
@@ -181,7 +192,7 @@ function QuestionInput({
             type="text"
             value={specifyValue}
             onChange={e => onSpecifyChange(e.target.value)}
-            placeholder="Please specify…"
+            placeholder="Add one short clarification…"
             className="w-full px-4 py-3 rounded-xl text-sm outline-none"
             style={{
               background: 'var(--input-background)',

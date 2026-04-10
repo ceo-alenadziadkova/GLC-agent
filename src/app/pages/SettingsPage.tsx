@@ -593,6 +593,16 @@ export function SettingsPage() {
               void changePassword();
             }}
           >
+            <input
+              type="text"
+              name="username"
+              autoComplete="username"
+              value={user?.email ?? ''}
+              readOnly
+              tabIndex={-1}
+              aria-hidden="true"
+              className="sr-only"
+            />
             <div className="space-y-2 mb-4">
               <input
                 type="password"

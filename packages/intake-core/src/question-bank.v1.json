@@ -212,8 +212,15 @@
       "label": "Main value promise vs competitors",
       "reportUse": "marketing_value_promise",
       "answer": {
-        "type": "textarea",
-        "maxLength": 12000
+        "type": "single_select",
+        "options": [
+          "Best price / value for money",
+          "Speed and convenience",
+          "Unique location or experience",
+          "Personal service and trust",
+          "Specialised expertise",
+          "Other"
+        ]
       }
     },
     {
@@ -223,8 +230,13 @@
       "label": "Pricing vs competitors",
       "reportUse": "mkt_pricing_vs_competitors",
       "answer": {
-        "type": "textarea",
-        "maxLength": 12000
+        "type": "single_select",
+        "options": [
+          "Lower than average",
+          "About the same",
+          "Higher, premium positioning",
+          "Hard to compare"
+        ]
       }
     },
     {
@@ -234,8 +246,13 @@
       "label": "Seasonality",
       "reportUse": "mkt_seasonality",
       "answer": {
-        "type": "textarea",
-        "maxLength": 12000
+        "type": "single_select",
+        "options": [
+          "Yes, very seasonal",
+          "Yes, slightly seasonal",
+          "No, steady all year",
+          "Not sure"
+        ]
       }
     },
     {
@@ -245,8 +262,15 @@
       "label": "Guarantees offered",
       "reportUse": "mkt_guarantees",
       "answer": {
-        "type": "textarea",
-        "maxLength": 12000
+        "type": "multi_select",
+        "options": [
+          "Money-back",
+          "Best price guarantee",
+          "Free cancellation",
+          "Satisfaction guarantee",
+          "No explicit guarantees",
+          "Other"
+        ]
       }
     },
     {
@@ -256,8 +280,13 @@
       "label": "Repeat vs one-off revenue",
       "reportUse": "mkt_revenue_repeat_vs_oneoff",
       "answer": {
-        "type": "textarea",
-        "maxLength": 12000
+        "type": "single_select",
+        "options": [
+          "Mostly repeat customers",
+          "Mix of repeat and one-off",
+          "Mostly one-off transactions",
+          "Not sure"
+        ]
       }
     },
     {
@@ -425,8 +454,12 @@
       "label": "Recon-detected stack confirmation",
       "reportUse": "tech_stack_recon_confirmation",
       "answer": {
-        "type": "textarea",
-        "maxLength": 12000
+        "type": "single_select",
+        "options": [
+          "Yes, correct",
+          "Not quite (I will clarify)",
+          "I don't know"
+        ]
       }
     },
     {
@@ -437,8 +470,15 @@
       "label": "Who maintains the website",
       "reportUse": "tech_site_ownership",
       "answer": {
-        "type": "textarea",
-        "maxLength": 12000
+        "type": "single_select",
+        "options": [
+          "Me",
+          "Someone in-house",
+          "Freelancer",
+          "Agency",
+          "No one regularly",
+          "Don't know"
+        ]
       }
     },
     {
@@ -635,8 +675,16 @@
       "label": "Which CRM",
       "reportUse": "auto_crm_product",
       "answer": {
-        "type": "textarea",
-        "maxLength": 12000
+        "type": "single_select",
+        "options": [
+          "HubSpot",
+          "Pipedrive",
+          "Salesforce",
+          "Zoho",
+          "Monday",
+          "Notion",
+          "Other"
+        ]
       }
     },
     {
@@ -647,8 +695,15 @@
       "label": "Lead/client tracking (no CRM)",
       "reportUse": "auto_lead_tracking_without_crm",
       "answer": {
-        "type": "textarea",
-        "maxLength": 12000
+        "type": "single_select",
+        "options": [
+          "Spreadsheet",
+          "Email inbox",
+          "Notebook",
+          "WhatsApp chats",
+          "I don't really track consistently",
+          "Other"
+        ]
       }
     },
     {
@@ -724,8 +779,13 @@
       "label": "Prior automation attempts",
       "reportUse": "auto_prior_automation_attempts",
       "answer": {
-        "type": "textarea",
-        "maxLength": 12000
+        "type": "single_select",
+        "options": [
+          "Yes, it helped",
+          "Tried, then abandoned",
+          "Not yet",
+          "Not sure"
+        ]
       }
     },
     {
@@ -782,10 +842,11 @@
       "answer": {
         "type": "single_select",
         "options": [
-          "Yes easily",
+          "Yes, usually quick",
           "Sometimes",
-          "Rarely",
-          "No"
+          "Rarely — it's painful",
+          "No",
+          "Don't know"
         ]
       }
     },
@@ -911,10 +972,10 @@
       "answer": {
         "type": "single_select",
         "options": [
-          "Confident",
-          "Somewhat",
-          "Not confident",
-          "Not set up"
+          "Very confident",
+          "Something is in place, but I'm not sure it's complete",
+          "Probably incomplete",
+          "Haven't looked into this yet"
         ]
       }
     },
@@ -993,7 +1054,8 @@
           "Ready to move quickly on clear quick wins",
           "Ready to invest if ROI and impact are clear",
           "Prefer to understand the situation for now",
-          "Need to align first with partner, owner, or team"
+          "Need to align first with partner, owner, or team",
+          "Not sure yet"
         ]
       }
     },
@@ -1010,7 +1072,8 @@
           "€500–2,000",
           "€2,000–10,000",
           "Over €10,000",
-          "No clear budget yet — depends on the recommendations"
+          "No clear budget yet — depends on the recommendations",
+          "Prefer not to share yet"
         ]
       }
     },

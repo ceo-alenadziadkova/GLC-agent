@@ -26,6 +26,7 @@ React 18 + Vite frontend (Vercel) talks to an Express + TypeScript backend (Rail
 6. **All protected routes need `requireAuth` middleware.** Check `server/src/routes/` patterns.
 7. **Primary docs live flat in `/docs/*.md` with a 15-file quota.** Treat `docs/adrs/` as legacy ADR archive: do not expand it by default.
 8. **No emoji in source code.** Use Phosphor React icons instead — e.g. `<CircleIcon size={20} color="#df3434" weight="fill" />`. Emoji are allowed only in agent prompt strings (LLM instructions) and user-facing log messages emitted to `pipeline_events`.
+9. **Question bank changes are cross-system, never JSON-only.** Any change to `packages/intake-core/src/question-bank.v1.json` or answer options must be synchronized with `bank-question-ui-overrides.ts`, `choice-specify-triggers.ts`, `ai-readiness.ts`, `answer-normalizers.ts`, discovery mapping (`src/app/lib/discovery-flow.ts`, `server/src/routes/discover.ts` when relevant), tests, and docs (`docs/QUESTION_BANK.md`; `docs/API.md` if contract behavior changes). Follow `docs/QUESTION_BANK.md` §15 and `.cursor/rules/intake-question-bank-change-protocol.mdc`.
 
 ---
 

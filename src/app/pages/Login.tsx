@@ -249,11 +249,12 @@ export function Login() {
             <form onSubmit={handleSubmit} className="space-y-3">
               <input
                 type="email"
+                name="username"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="your@email.com"
                 required
-                autoComplete="email"
+                autoComplete={mode === 'signin' ? 'username' : 'email'}
                 className="w-full px-4 py-3 bg-transparent outline-none"
                 style={{
                   borderRadius: 'var(--radius-lg)',

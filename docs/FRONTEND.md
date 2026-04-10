@@ -154,9 +154,9 @@ Prefer composing with tokens (`bg-background`, `text-foreground`, `border-border
 
 ### Product flows (UI contracts)
 
-**Public discovery (Mode C):** `DiscoverPage` — routes **`/discovery`** and **`/audit/discover`** (same component). Styling uses **`theme.css` tokens** (`--bg-canvas`, `--text-primary`, `--callout-*`, etc.) so the flow matches light/dark like the rest of the app. **`DiscoveryQueue`** (`/admin/discovery`) uses the same tokens; **Copy discover link** copies `origin + /discovery`. Session **`maturity_level`** (1–5) is an internal triage score from the **count** of generated finding cards in `discovery-flow.ts` (`computeScore`), not from per-card severity labels.
+**Public discovery (Mode C):** `DiscoverPage` — routes **`/discovery`** and **`/audit/discover`** (same component). Styling uses **`theme.css` tokens** (`--bg-canvas`, `--text-primary`, `--callout-*`, etc.) so the flow matches light/dark like the rest of the app. **`DiscoveryQueue`** (`/admin/discovery`) uses the same tokens; **Copy discover link** copies `origin + /discovery`. Session **`maturity_level`** (1–5) is an internal triage score from the **count** of generated finding cards in `discovery-flow.ts` (`computeScore`), not from per-card severity labels. Discovery heuristics use shared `@glc/intake-core` normalizers (`normalizeTeamSize`, `normalizeStage`, `normalizePrimaryGoal`, `normalizeOnlinePresence`, `includesCrmTool`) to keep FE findings and BE patch conversion aligned.
 
-**Public pre-brief (`IntakeBrief`, `/intake/:token`):** Questions from `GET /api/intake/:token` include **`section`** per item; the form and review screens group fields with `groupBriefQuestionsBySection` (adjacent same-title blocks; repeated titles like “Business”/`Goals` may appear as separate blocks following API order). Flow: **review** (edit shortcuts) → **Confirm and submit**. Success copy from token `metadata`; helpers `src/app/lib/intake-client-copy.ts`. Resubmit allowed until `expires_at`.
+**Public pre-brief (`IntakeBrief`, `/intake/:token`):** Questions from `GET /api/intake/:token` include **`section`** per item; the form and review screens group fields with `groupBriefQuestionsBySection` (adjacent same-title blocks; repeated titles like “Business”/`Goals` may appear as separate blocks following API order). Flow: **review** (edit shortcuts) → **Confirm and submit**. Success copy from token `metadata`; helpers `src/app/lib/intake-client-copy.ts`. Resubmit allowed until `expires_at`. Free-text fields use friendly placeholders and a helper note that short answers are acceptable (voice input is also supported by the browser).
 
 **Question bank coverage hint:** `IntakeBankCoverageHint` + `useIntakeBankMetrics` on **New Audit** (Brief step), **Audit Workspace** sidebar (when `intake_brief` exists), and **Client portal** pre-audit brief — same branch-aware v1 score as the API after legacy merge.
 
@@ -203,6 +203,7 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 - Google OAuth on `/login` → **`signInWithOAuth`** (`redirectTo: <origin>/login`); optional **`preserveGuestSession`** on `signInWithGoogle` for legacy **`linkIdentity`** flows only
 - After a full (non-anonymous) session is established, if **`glc_pending_snapshot_token`** is set, calls **`api.claimSnapshot`** then clears it (or clears on **404/409/410**)
 - If already authenticated (`useAuth().isAuthenticated`) → redirect to `/portfolio` (or `?next=` / discovery), after the claim step above
+- Email field is rendered with password-manager-friendly semantics (`name="username"`, sign-in `autoComplete="username"`), while sign-up keeps `autoComplete="email"` for account creation UX.
 
 ### `/snapshot` (`SnapshotLanding.tsx`)
 - **`POST /api/snapshot`** with **`credentials: 'include'`** (no `Authorization` header); stores **`glc_pending_snapshot_token`** when a run starts
@@ -217,6 +218,7 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 - Appearance has explicit `system | light | dark` selection via `useGlcTheme().setMode(...)`
 - **Intake brief layout** (`#brief-layout`): clients configure `glc_client_brief_layout_default_v1`; consultants/admins configure `glc_consultant_brief_layout_default_v1` — options **All sections**, **Step by step**, or **Ask each time** (clears defaults and all per-audit/per-scope layout keys on this device). Consultant **All sections / Step by step** also clears `glc_consultant_brief_layout_v1:new_audit` so the New Audit step follows the default without a duplicate key. Scroll-into-view when opened with hash.
 - Notification toggles persist locally in `localStorage['glc_notify_prefs_v1']` (no backend sync in MVP)
+- Password-change form includes a hidden read-only `username` field to improve browser password-manager autofill behavior for current-password/new-password fields.
 
 ### `Portfolio.tsx`
 - Calls `useAudits()` → list of audits from `GET /api/audits`
@@ -411,7 +413,7 @@ export const DOMAIN_KEYS = [
 
 ## Routing (`src/app/routes.tsx`)
 
-The app uses **`createBrowserRouter`** with a root layout route (`<Outlet />`) and **`errorElement: <RouteErrorPage />`** so route render failures show a neutral recovery screen (`GlcAppErrorScreen`: reference id, copy-for-support, optional `POST /api/log` via `api.reportUiIncident` when signed in). The root **`ErrorBoundary`** in `main.tsx` wraps the same UI for errors outside the router tree. Client navigation from that screen uses plain `<a href>` so it works above `RouterProvider`. Frontend **`logger`** and **`reportUiIncident`** attach a coarse **`client_env`** object (e.g. `os_family` windows/macos/android/ios, `device_class`, `browser_coarse`, short UA excerpt) for triage; copy-for-support text includes the same OS/browser line.
+The app uses **`createBrowserRouter`** with a root layout route (`<Outlet />`) and **`errorElement: <RouteErrorPage />`** so route render failures show a neutral recovery screen (`GlcAppErrorScreen`: reference id, copy-for-support, optional `POST /api/log` via `api.reportUiIncident` when signed in). The root **`ErrorBoundary`** in `main.tsx` wraps the same UI for errors outside the router tree. Client navigation from that screen uses plain `<a href>` so it works above `RouterProvider`. Frontend **`logger`** and **`reportUiIncident`** attach a coarse **`client_env`** object (e.g. `os_family` windows/macos/android/ios, `device_class`, `browser_coarse`, short UA excerpt) for triage; copy-for-support text includes the same OS/browser line. In local dev, `logger` keeps events console-only (no remote ingest) and supports `VITE_DEV_CONSOLE_LOG_LEVEL` (`debug|info|warn|error`, default `warn`).
 
 **Public root (`/`):** `RootEntry` mounts **`MarketingHome` immediately**. OAuth query/hash fragments are sent to **`/login`**. Redirects to **`/dashboard`**, **`/portal`**, or **`/login`** run only after **`useAuth`** / **`useProfile`** finish for signed-in, non-anonymous users. The marketing landing is **not** blocked behind **`SyncPathLoader`**, so a normal refresh on `/` does not show the full-screen logo loader.
 

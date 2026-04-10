@@ -4,6 +4,18 @@ import { isAnonymousUser } from './snapshot-auth';
 import { getApiBaseUrl } from './api-base-url';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+const LOG_LEVEL_ORDER: Record<LogLevel, number> = {
+  debug: 10,
+  info: 20,
+  warn: 30,
+  error: 40,
+};
+
+function resolveDevConsoleMinLevel(): LogLevel {
+  const raw = String(import.meta.env.VITE_DEV_CONSOLE_LOG_LEVEL ?? '').trim().toLowerCase();
+  if (raw === 'debug' || raw === 'info' || raw === 'warn' || raw === 'error') return raw;
+  return 'warn';
+}
 
 interface LogPayload {
   level: LogLevel;
@@ -23,9 +35,19 @@ function randomHex(bytes: number): string {
 
 /** After a 429, pause remote ingest to avoid hammering the API and console noise. */
 let remoteLogBackoffUntil = 0;
+let remoteLoggingDisabledForSession = false;
 
 async function sendLog(payload: LogPayload) {
   try {
+    // In local development, keep logs console-only.
+    if (import.meta.env.DEV) {
+      return;
+    }
+
+    if (remoteLoggingDisabledForSession) {
+      return;
+    }
+
     if (Date.now() < remoteLogBackoffUntil) {
       return;
     }
@@ -59,7 +81,9 @@ async function sendLog(payload: LogPayload) {
       }
     }
   } catch {
-    // Swallow logging errors to avoid breaking UX
+    // Network/API unavailable (common in local dev): silence remote logger for this tab session.
+    remoteLoggingDisabledForSession = true;
+    remoteLogBackoffUntil = Date.now() + 5 * 60_000;
   }
 }
 
@@ -82,7 +106,10 @@ function baseLog(level: LogLevel, message: string, context?: Record<string, unkn
   // Send remote logs and keep dev console visibility.
   void sendLog(payload);
   if (import.meta.env.DEV) {
-    console[level]?.(`[${payload.level.toUpperCase()}] ${payload.message}`, mergedContext);
+    const minLevel = resolveDevConsoleMinLevel();
+    if (LOG_LEVEL_ORDER[level] >= LOG_LEVEL_ORDER[minLevel]) {
+      console[level]?.(`[${payload.level.toUpperCase()}] ${payload.message}`, mergedContext);
+    }
   }
 }
 
