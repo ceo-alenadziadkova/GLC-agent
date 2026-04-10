@@ -409,6 +409,28 @@ export class PipelineOrchestrator {
       },
     });
 
+    if (phase >= 0 && ['started', 'completed', 'error'].includes(eventType)) {
+      const mappedStatus = eventType === 'started'
+        ? 'running'
+        : eventType === 'completed'
+          ? 'completed'
+          : 'failed';
+      const now = new Date();
+      await supabase.from('phase_runs').upsert(
+        {
+          audit_id: this.auditId,
+          phase,
+          attempt: 1,
+          status: mappedStatus,
+          lease_owner: `pid:${process.pid}`,
+          lease_expires_at: new Date(now.getTime() + STALLED_PHASE_TIMEOUT_MIN * 60_000).toISOString(),
+          heartbeat_at: now.toISOString(),
+          ...(eventType === 'error' ? { error_message: message } : {}),
+        },
+        { onConflict: 'audit_id,phase,attempt' },
+      );
+    }
+
     // Keep in-app notifications concise and limited to user-relevant lifecycle changes.
     if (['started', 'completed', 'error', 'review_needed'].includes(eventType)) {
       const titleByType: Record<string, string> = {

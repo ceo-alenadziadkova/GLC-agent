@@ -54,7 +54,7 @@ const limiterStoreMode = RATE_LIMIT_REDIS_URL ? 'redis' : 'memory';
 logger.info('[rate-limit] store mode initialized', {
   shared_store: limiterStoreMode,
   strict_redis: STRICT_RATE_LIMIT_REDIS,
-  snapshot_public_quota_store: 'memory',
+  snapshot_public_quota_store: RATE_LIMIT_REDIS_URL ? 'redis' : 'memory',
 });
 
 /**
@@ -106,7 +106,7 @@ export const SNAPSHOT_PUBLIC_MAX_PER_DAY = 3;
 export const SNAPSHOT_PUBLIC_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /** Single store for POST limiter and read-only quota peek (`GET /api/snapshot/quota`). */
-export const snapshotPublicQuotaStore = new MemoryStore();
+export const snapshotPublicQuotaStore = distributedStore('snapshot_public_quota') ?? new MemoryStore();
 
 /** Stricter cap for opt-in competitor compare on `GET /api/snapshot/:token?compare=1` (per IP, rolling 1h). */
 export const SNAPSHOT_COMPARE_MAX_PER_HOUR = Number(process.env.SNAPSHOT_COMPARE_MAX_PER_HOUR ?? 15);
@@ -145,7 +145,10 @@ export async function getSnapshotPublicQuota(req: Request): Promise<{
   reset_at: string | null;
 }> {
   const key = snapshotPublicQuotaKey(req);
-  const entry = await snapshotPublicQuotaStore.get(key);
+  const dynamicStore = snapshotPublicQuotaStore as {
+    get?: (k: string) => Promise<{ totalHits: number; resetTime?: Date } | undefined>;
+  };
+  const entry = dynamicStore.get ? await dynamicStore.get(key) : undefined;
   const now = Date.now();
   let used = 0;
   let resetAt: string | null = null;
