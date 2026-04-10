@@ -109,6 +109,7 @@ const {
       insertCalls.push({ table, payload });
       return Promise.resolve({ error: null });
     });
+    chain.upsert = vi.fn(() => Promise.resolve({ error: null }));
 
     return chain;
   };

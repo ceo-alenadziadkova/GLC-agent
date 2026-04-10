@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const { supabaseFromMock, notifyMock } = vi.hoisted(() => ({
+const { supabaseFromMock, structuredNotifyMock } = vi.hoisted(() => ({
   supabaseFromMock: vi.fn(),
-  notifyMock: vi.fn(async () => undefined),
+  structuredNotifyMock: vi.fn(async () => undefined),
 }));
 
 vi.mock('../services/supabase.js', () => ({
@@ -21,7 +21,7 @@ vi.mock('../services/logger.js', () => ({
 }));
 
 vi.mock('../services/notifications.js', () => ({
-  notifyAuditParticipants: notifyMock,
+  emitStructuredNotification: structuredNotifyMock,
 }));
 
 import { emitPhaseErrorDurable } from '../services/pipeline-error.js';
@@ -52,7 +52,7 @@ describe('emitPhaseErrorDurable fallback', () => {
     expect(secondUrl).toBeDefined();
     expect(String(firstUrl)).toContain('/rest/v1/pipeline_events');
     expect(String(secondUrl)).toContain('/rest/v1/audits');
-    expect(notifyMock).toHaveBeenCalledOnce();
+    expect(structuredNotifyMock).toHaveBeenCalledOnce();
   });
 });
 

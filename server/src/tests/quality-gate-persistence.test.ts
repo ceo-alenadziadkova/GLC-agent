@@ -76,6 +76,7 @@ vi.mock('../services/supabase.js', () => {
       limit: vi.fn(() => chain),
       single: vi.fn(() => Promise.resolve({ data: getAuditData(), error: null })),
       insert: vi.fn(() => Promise.resolve({ error: null })),
+      upsert: vi.fn(() => Promise.resolve({ error: null })),
       update: vi.fn((payload: Record<string, unknown>) => {
         // Record immediately with a mutable filters object
         const callRecord = { table, payload: { ...payload }, filters: {} as Record<string, unknown> };

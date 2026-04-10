@@ -116,6 +116,7 @@ export const QUESTION_FEED_ROLES: Record<string, QuestionFeedRoles> = {
   f6: ps([D.strat]),
   f7: ps([D.strat, D.auto]),
   f8: ps([D.strat]),
+  f9: ps([D.strat]),
 };
 
 /** Domains that consume a question id (primary ∪ secondary), stable order by SLICE_DOMAIN_ORDER. */

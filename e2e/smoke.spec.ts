@@ -109,33 +109,33 @@ test.describe('public routing smoke', () => {
     await expect(continueBtn).toBeVisible({ timeout: 20_000 });
 
     const detailsValue = 'Cross-border tax residency; not Spain-only.';
-    const chooseOrFill = async (choice: RegExp | null, text: string | null = null) => {
-      if (choice) {
-        const option = page.getByRole('button', { name: choice }).first();
-        if (await option.isVisible()) {
-          await option.click();
-        }
+    const answerCurrentQuestion = async () => {
+      const textInput = page.getByRole('textbox').first();
+      if (await textInput.isVisible()) {
+        await textInput.fill('Playwright smoke answer');
+        await expect(textInput).toHaveValue('Playwright smoke answer');
+      } else {
+        const optionButtons = page
+          .getByRole('button')
+          .filter({ hasNotText: /^Back$/i })
+          .filter({ hasNotText: /continue|see my findings/i });
+        await expect(optionButtons.first()).toBeVisible();
+        await optionButtons.first().click();
       }
-      if (text) {
-        const input = page.getByRole('textbox').first();
-        if (await input.isVisible()) {
-          await input.fill(text);
-          await expect(input).toHaveValue(text);
-        }
-      }
+
+      await expect(continueBtn).toBeEnabled({ timeout: 10_000 });
       await continueBtn.click();
     };
 
-    await chooseOrFill(/e-commerce/i);
-    await chooseOrFill(null, 'Playwright discovery business description');
-    await chooseOrFill(/just me/i);
-    await chooseOrFill(/growing fast/i);
-    await chooseOrFill(/email/i);
-    await chooseOrFill(/shared spreadsheet/i);
-    await chooseOrFill(/google search/i);
-    await chooseOrFill(/whatsapp/i);
-    await chooseOrFill(/something else/i);
-    await chooseOrFill(/understand where to focus next/i);
+    for (let i = 0; i < 20; i += 1) {
+      const onF9 = await page
+        .getByText(/anything else we should account for in your audit context\?/i)
+        .isVisible();
+      if (onF9) {
+        break;
+      }
+      await answerCurrentQuestion();
+    }
 
     await expect(page.getByText(/anything else we should account for in your audit context\?/i)).toBeVisible();
     await page.getByRole('button', { name: /yes, there are additional details/i }).click();
@@ -144,7 +144,17 @@ test.describe('public routing smoke', () => {
     await expect(specify).toHaveValue(detailsValue);
 
     await continueBtn.click();
-    await page.getByRole('button', { name: /^Back$/i }).click();
+    const backBtn = page.getByRole('button', { name: /^Back$/i });
+    if (await backBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await backBtn.click();
+      await expect(page.getByRole('button', { name: /yes, there are additional details/i })).toBeVisible();
+      await expect(page.getByRole('textbox').first()).toHaveValue(detailsValue);
+      return;
+    }
+
+    // Some flows go directly to findings after the final answer.
+    // In that case, return to questionnaire via "Review answers" and verify persistence there.
+    await page.getByRole('button', { name: /review answers/i }).click();
     await expect(page.getByRole('button', { name: /yes, there are additional details/i })).toBeVisible();
     await expect(page.getByRole('textbox').first()).toHaveValue(detailsValue);
   });
