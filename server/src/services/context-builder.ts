@@ -51,6 +51,14 @@ function computeIntakeReportAnchors(responses: Record<string, unknown>): Record<
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+function escapePromptContent(input: string): string {
+  return input
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/```/g, '` ` `')
+    .replace(/<\/?system>/gi, '[filtered-system-tag]');
+}
+
 export interface AgentContext {
   company_url: string;
   company_name: string | null;
@@ -327,10 +335,11 @@ export class ContextBuilder {
       if (specStr) {
         answer = `${answer} — ${specStr}`;
       }
+      const escapedAnswer = escapePromptContent(answer);
       const source = ctx.brief_response_sources[id] ?? 'client';
       entries.push({
         id,
-        line: `- **${question}:** ${answer} _(source: ${source})_`,
+        line: `- **${question}:** <user_supplied>${escapedAnswer}</user_supplied> _(source: ${source})_`,
       });
     }
 

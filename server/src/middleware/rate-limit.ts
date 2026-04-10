@@ -9,6 +9,13 @@ import { logger } from '../services/logger.js';
 type RateLimitRedisClient = ReturnType<typeof createClient>;
 
 const RATE_LIMIT_REDIS_URL = process.env.RATE_LIMIT_REDIS_URL?.trim() ?? '';
+const STRICT_RATE_LIMIT_REDIS = String(process.env.STRICT_RATE_LIMIT_REDIS ?? '').toLowerCase() === 'true';
+
+if (process.env.NODE_ENV === 'production' && !RATE_LIMIT_REDIS_URL && STRICT_RATE_LIMIT_REDIS) {
+  throw new Error(
+    '[rate-limit] STRICT_RATE_LIMIT_REDIS=true but RATE_LIMIT_REDIS_URL is unset. Refusing to start with non-distributed public rate limits.',
+  );
+}
 
 if (process.env.NODE_ENV === 'production' && !RATE_LIMIT_REDIS_URL) {
   logger.warn(
@@ -42,6 +49,13 @@ function distributedStore(prefix: string): RedisStore | undefined {
     sendCommand: (...args: string[]) => client.sendCommand(args),
   });
 }
+
+const limiterStoreMode = RATE_LIMIT_REDIS_URL ? 'redis' : 'memory';
+logger.info('[rate-limit] store mode initialized', {
+  shared_store: limiterStoreMode,
+  strict_redis: STRICT_RATE_LIMIT_REDIS,
+  snapshot_public_quota_store: 'memory',
+});
 
 /**
  * Rate limiter for audit creation: max 5 audits per user per day.

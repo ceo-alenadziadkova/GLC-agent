@@ -4,6 +4,7 @@
  */
 import dns from 'node:dns/promises';
 import { isIPv4, isIPv6 } from 'node:net';
+import { Agent } from 'undici';
 import { isNoPublicWebsiteUrl, NO_PUBLIC_WEBSITE_URL } from '../config/no-public-website.js';
 
 export class PublicUrlNotAllowedError extends Error {
@@ -114,6 +115,45 @@ function isRedirectStatus(status: number): boolean {
   return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
 }
 
+async function resolvePublicIpForHost(host: string): Promise<{ address: string; family: 4 | 6 }> {
+  if (isIPv4(host)) {
+    if (isPrivateOrBlockedIPv4(host)) throw new PublicUrlNotAllowedError('Address is not a public host');
+    return { address: host, family: 4 };
+  }
+  if (isIPv6(host)) {
+    const raw = host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host;
+    if (isPrivateOrBlockedIPv6(raw)) throw new PublicUrlNotAllowedError('Address is not a public host');
+    return { address: raw, family: 6 };
+  }
+  const records = await dns.lookup(host, { all: true });
+  if (records.length === 0) throw new PublicUrlNotAllowedError('Host does not resolve');
+  const selected = records.find((r) => {
+    if (r.family === 4) return !isPrivateOrBlockedIPv4(r.address);
+    return !isPrivateOrBlockedIPv6(r.address);
+  });
+  if (!selected || (selected.family !== 4 && selected.family !== 6)) {
+    throw new PublicUrlNotAllowedError('Host resolves to a non-public address');
+  }
+  return { address: selected.address, family: selected.family };
+}
+
+function makePinnedAgent(pinnedAddress: string, family: 4 | 6): Agent {
+  return new Agent({
+    connect: {
+      lookup: (_hostname: string, _opts: unknown, cb: (err: Error | null, address: string, family: number) => void) => {
+        const stillPublic = family === 4
+          ? !isPrivateOrBlockedIPv4(pinnedAddress)
+          : !isPrivateOrBlockedIPv6(pinnedAddress);
+        if (!stillPublic) {
+          cb(new PublicUrlNotAllowedError('IP class changed — DNS rebinding detected'), '', family);
+          return;
+        }
+        cb(null, pinnedAddress, family);
+      },
+    },
+  });
+}
+
 /**
  * Fetch wrapper with SSRF-safe redirect handling:
  * - validates each redirect Location before following
@@ -140,7 +180,12 @@ export async function fetchPublicHttpUrl(
     let lastErr: Error | null = null;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        response = await fetch(currentUrl, { ...init, redirect: 'manual' });
+        currentUrl = await validatePublicAuditUrl(currentUrl);
+        const current = new URL(currentUrl);
+        const pinned = await resolvePublicIpForHost(current.hostname);
+        const dispatcher = makePinnedAgent(pinned.address, pinned.family);
+        const fetchInit = { ...(init as Record<string, unknown>), redirect: 'manual', dispatcher };
+        response = await fetch(currentUrl, fetchInit as unknown as RequestInit);
         if (!retryableStatus.has(response.status) || methodsWithoutRetry.has(method) || attempt === maxRetries) {
           break;
         }

@@ -23,6 +23,8 @@ import { startAlertsWorker } from './services/alerts.js';
 import { updateContext } from './services/observability-context.js';
 import { getCorsAllowedOrigins } from './config/cors-origins.js';
 import { assertSnapshotGuestSaltIfProduction } from './lib/guest-session.js';
+import { recoverStalledPipelines } from './services/pipeline.js';
+import { startPipelineWorker } from './services/pipeline-jobs.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '3001', 10);
@@ -48,6 +50,15 @@ app.use(cors({
   ],
 }));
 app.use(express.json({ limit: '2mb' }));
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+});
 app.use((req, _res, next) => {
   const auditId = req.params?.id;
   updateContext({ auditId: typeof auditId === 'string' ? auditId : undefined });
@@ -108,6 +119,12 @@ app.listen(PORT, '0.0.0.0', () => {
     port: PORT,
     env: process.env.NODE_ENV ?? 'development',
   });
+  void recoverStalledPipelines().then((count) => {
+    if (count > 0) {
+      logger.warn('Recovered stalled pipelines on startup', { stalled_count: count });
+    }
+  });
+  startPipelineWorker();
   startAlertsWorker();
 });
 

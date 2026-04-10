@@ -45,6 +45,9 @@ const PHASE_AGENTS: Record<number, AgentConstructor> = {
  */
 const AUTO_WING_PHASES    = [1, 2, 3, 4] as const;
 const ANALYTIC_WING_PHASES = [5, 6] as const;
+const STALLED_PHASE_TIMEOUT_MIN = Number(process.env.PIPELINE_STALLED_TIMEOUT_MIN ?? 15);
+const STALLED_PHASE_ACTIVE_STATUSES = ['recon', 'auto', 'analytic', 'strategy'] as const;
+const PARALLEL_FAILURE_THRESHOLD = Number(process.env.PARALLEL_FAILURE_THRESHOLD ?? 2);
 
 /**
  * Pipeline Orchestrator
@@ -237,6 +240,17 @@ export class PipelineOrchestrator {
       await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
       await this.emitEvent(-1, 'error', `All parallel phases failed: ${failedDomains.join(', ')}`);
       throw new Error(`All parallel phases failed: ${failedDomains.join(', ')}`);
+    }
+
+    if (failedDomains.length >= PARALLEL_FAILURE_THRESHOLD) {
+      await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
+      await this.emitEvent(
+        -1,
+        'error',
+        `Parallel block failed reliability threshold (${failedDomains.length}/${phases.length}): ${failedDomains.join(', ')}`,
+        { domains_unavailable: failedDomains, threshold: PARALLEL_FAILURE_THRESHOLD },
+      );
+      throw new Error(`Parallel block failure threshold exceeded: ${failedDomains.join(', ')}`);
     }
 
     if (failedDomains.length > 0) {
@@ -445,4 +459,39 @@ export class PipelineOrchestrator {
       );
     }
   }
+}
+
+/**
+ * Mark long-running active audits as stalled/failed so users can retry.
+ * This is a minimal recovery guard until durable queue orchestration is introduced.
+ */
+export async function recoverStalledPipelines(timeoutMinutes = STALLED_PHASE_TIMEOUT_MIN): Promise<number> {
+  const cutoff = new Date(Date.now() - timeoutMinutes * 60_000).toISOString();
+  const { data: stuck, error } = await supabase
+    .from('audits')
+    .select('id,current_phase,status')
+    .in('status', [...STALLED_PHASE_ACTIVE_STATUSES])
+    .lt('updated_at', cutoff);
+
+  if (error) {
+    logger.error('pipeline.recover_stalled_load_failed', { error: error.message, timeout_minutes: timeoutMinutes });
+    return 0;
+  }
+  if (!stuck || stuck.length === 0) return 0;
+
+  for (const audit of stuck) {
+    await supabase.from('pipeline_events').insert({
+      audit_id: audit.id,
+      phase: Number(audit.current_phase ?? -1),
+      event_type: 'phase_stalled',
+      message: `Pipeline phase stalled for more than ${timeoutMinutes} minutes`,
+      data: {
+        timeout_minutes: timeoutMinutes,
+        previous_status: audit.status,
+      },
+    });
+    await supabase.from('audits').update({ status: 'failed' }).eq('id', audit.id);
+  }
+
+  return stuck.length;
 }

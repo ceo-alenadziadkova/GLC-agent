@@ -1,6 +1,7 @@
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
 import { cleanupExpiredIdempotencyKeys } from '../lib/idempotency.js';
+import { getSharedRedisClient } from './redis.js';
 
 const WINDOW_MIN = 15;
 const INTERVAL_MS = Number(process.env.ALERT_INTERVAL_MS ?? '60000');
@@ -10,6 +11,9 @@ const TOKEN_BURN_THRESHOLD = Number(process.env.ALERT_TOKEN_BURN_15M_THRESHOLD ?
 const COOLDOWN_MS = Number(process.env.ALERT_COOLDOWN_MS ?? '900000');
 
 const cooldown = new Map<string, number>();
+let alertChecksRunning = false;
+const ALERT_LOCK_KEY = 'lock:alerts:run';
+const ALERT_LOCK_TTL_MS = Number(process.env.ALERT_LOCK_TTL_MS ?? 55_000);
 
 function shouldNotify(key: string): boolean {
   const now = Date.now();
@@ -115,8 +119,33 @@ export async function runAlertChecks(): Promise<void> {
 
 export function startAlertsWorker(): void {
   if (!process.env.TELEGRAM_BOT_TOKEN || !process.env.TELEGRAM_CHAT_ID) return;
-  setInterval(() => {
-    runAlertChecks().catch((err: Error) => logger.error('Alert worker failed', { error: err.message }));
+  setInterval(async () => {
+    if (alertChecksRunning) {
+      logger.warn('Alert worker tick skipped: previous run still active');
+      return;
+    }
+    const redis = getSharedRedisClient();
+    const lockToken = `${process.pid}:${Date.now()}`;
+    if (redis) {
+      const lock = await redis.set(ALERT_LOCK_KEY, lockToken, { NX: true, PX: ALERT_LOCK_TTL_MS });
+      if (lock !== 'OK') {
+        logger.debug('Alert worker tick skipped: distributed lock held');
+        return;
+      }
+    }
+    alertChecksRunning = true;
+    runAlertChecks().catch((err: Error) => logger.error('Alert worker failed', { error: err.message }))
+      .finally(() => {
+        alertChecksRunning = false;
+        if (redis) {
+          void redis.get(ALERT_LOCK_KEY).then((value) => {
+            if (value === lockToken) {
+              return redis.del(ALERT_LOCK_KEY);
+            }
+            return 0;
+          });
+        }
+      });
   }, INTERVAL_MS);
   setInterval(() => {
     cleanupExpiredIdempotencyKeys()

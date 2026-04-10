@@ -27,6 +27,24 @@ interface LogPayload {
   operation_id: string;
 }
 
+const SENSITIVE_KEY_RE = /(token|secret|password|authorization|auth|api[_-]?key|key)/i;
+
+function sanitizeContext(value: unknown, depth = 0): unknown {
+  if (depth > 4) return '[Truncated]';
+  if (value === null || value === undefined) return value;
+  if (Array.isArray(value)) return value.map(v => sanitizeContext(v, depth + 1));
+  if (typeof value !== 'object') return value;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (SENSITIVE_KEY_RE.test(k)) {
+      out[k] = '[REDACTED]';
+      continue;
+    }
+    out[k] = sanitizeContext(v, depth + 1);
+  }
+  return out;
+}
+
 function randomHex(bytes: number): string {
   const arr = new Uint8Array(bytes);
   crypto.getRandomValues(arr);
@@ -94,11 +112,12 @@ function baseLog(level: LogLevel, message: string, context?: Record<string, unkn
     client_env: getClientEnvironmentSummary(),
     ...context,
   };
+  const safeContext = sanitizeContext(mergedContext) as Record<string, unknown>;
   const payload: LogPayload = {
     level,
     source: 'frontend',
     message,
-    context: mergedContext,
+    context: safeContext,
     timestamp: new Date().toISOString(),
     trace_id: traceId,
     operation_id: operationId,
@@ -108,7 +127,7 @@ function baseLog(level: LogLevel, message: string, context?: Record<string, unkn
   if (import.meta.env.DEV) {
     const minLevel = resolveDevConsoleMinLevel();
     if (LOG_LEVEL_ORDER[level] >= LOG_LEVEL_ORDER[minLevel]) {
-      console[level]?.(`[${payload.level.toUpperCase()}] ${payload.message}`, mergedContext);
+      console[level]?.(`[${payload.level.toUpperCase()}] ${payload.message}`, safeContext);
     }
   }
 }

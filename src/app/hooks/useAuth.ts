@@ -34,10 +34,26 @@ export function useAuth() {
       try {
         const href = window.location.href;
         const referrer = document.referrer;
-        logger.debug('Auth current URL', { href });
         logger.debug('Auth document.referrer', { referrer });
 
         const url = new URL(href);
+        const cleanupAuthUrl = (target: URL) => {
+          target.searchParams.delete('code');
+          target.searchParams.delete('access_token');
+          target.searchParams.delete('refresh_token');
+          if (target.hash) {
+            const hashParams = new URLSearchParams(target.hash.startsWith('#') ? target.hash.slice(1) : target.hash);
+            hashParams.delete('access_token');
+            hashParams.delete('refresh_token');
+            hashParams.delete('expires_in');
+            hashParams.delete('expires_at');
+            hashParams.delete('token_type');
+            const cleanedHash = hashParams.toString();
+            target.hash = cleanedHash ? `#${cleanedHash}` : '';
+          }
+          const qs = target.searchParams.toString();
+          window.history.replaceState({}, '', `${target.pathname}${qs ? `?${qs}` : ''}${target.hash}`);
+        };
 
         // OAuth failures: ?error= & error_description= (e.g. DB error saving new user)
         let oauthRedirectError: string | null = null;
@@ -70,6 +86,7 @@ export function useAuth() {
             setAuthError(null);
             setSession(data.session);
             setUser(data.session?.user ?? null);
+            cleanupAuthUrl(url);
           }
           return;
         }
@@ -101,6 +118,7 @@ export function useAuth() {
               setAuthError(null);
               setSession(data.session);
               setUser(data.session?.user ?? null);
+              cleanupAuthUrl(url);
             }
             return;
           }

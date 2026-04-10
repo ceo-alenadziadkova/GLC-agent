@@ -14,9 +14,70 @@ import { CLAUDE_MODEL, MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/mod
 import { logger } from '../services/logger.js';
 import { getContext, updateContext } from '../services/observability-context.js';
 import type { z } from 'zod';
+import { createClient } from 'redis';
 
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 1500;
+const CLAUDE_TIMEOUT_MS = Number(process.env.CLAUDE_TIMEOUT_MS ?? 90_000);
+const CLAUDE_CB_THRESHOLD = Number(process.env.CLAUDE_CB_THRESHOLD ?? 3);
+const CLAUDE_CB_TTL_SEC = Number(process.env.CLAUDE_CB_TTL_SEC ?? 60);
+
+let localCircuitFailures = 0;
+type ClaudeCircuitRedisClient = ReturnType<typeof createClient>;
+let claudeCircuitRedis: ClaudeCircuitRedisClient | null = null;
+
+function getClaudeCircuitRedisClient(): ClaudeCircuitRedisClient | null {
+  const redisUrl = process.env.RATE_LIMIT_REDIS_URL?.trim() ?? '';
+  if (!redisUrl) return null;
+  if (claudeCircuitRedis) return claudeCircuitRedis;
+  const client = createClient({ url: redisUrl });
+  client.on('error', (err) => {
+    logger.warn('claude.circuit.redis_error', {
+      component: 'agent',
+      error: err instanceof Error ? err.message : String(err),
+    });
+  });
+  void client.connect();
+  claudeCircuitRedis = client;
+  return client;
+}
+
+async function getConsecutiveClaudeFailures(): Promise<number> {
+  const client = getClaudeCircuitRedisClient();
+  if (!client) return localCircuitFailures;
+  try {
+    const raw = await client.get('cb:claude:failures');
+    const parsed = Number(raw ?? 0);
+    return Number.isFinite(parsed) ? parsed : 0;
+  } catch {
+    return localCircuitFailures;
+  }
+}
+
+async function recordClaudeFailure(): Promise<void> {
+  localCircuitFailures += 1;
+  const client = getClaudeCircuitRedisClient();
+  if (!client) return;
+  try {
+    const n = await client.incr('cb:claude:failures');
+    if (n === 1) {
+      await client.expire('cb:claude:failures', CLAUDE_CB_TTL_SEC);
+    }
+  } catch {
+    // Best-effort only; local fallback remains active.
+  }
+}
+
+async function resetClaudeFailures(): Promise<void> {
+  localCircuitFailures = 0;
+  const client = getClaudeCircuitRedisClient();
+  if (!client) return;
+  try {
+    await client.del('cb:claude:failures');
+  } catch {
+    // Best-effort only.
+  }
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROMPTS_DIR = join(__dirname, '../../prompts');
@@ -170,18 +231,38 @@ export abstract class BaseAgent {
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        const response = await this.anthropic.messages.create({
-          model: CLAUDE_MODEL,
-          max_tokens: maxTokens,
-          system,                                       // ← role instructions in system channel
-          messages: [{ role: 'user', content: prompt }],
-          tools: [{
-            name: 'submit_analysis',
-            description: 'Submit the structured analysis results',
-            input_schema: jsonSchema as Anthropic.Tool['input_schema'],
-          }],
-          tool_choice: { type: 'tool', name: 'submit_analysis' },
-        });
+        const consecutiveFailures = await getConsecutiveClaudeFailures();
+        if (consecutiveFailures >= CLAUDE_CB_THRESHOLD) {
+          throw new Error(
+            `Claude circuit breaker open: ${consecutiveFailures} consecutive server failures in ${CLAUDE_CB_TTL_SEC}s window`,
+          );
+        }
+
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort('Claude API timeout'), CLAUDE_TIMEOUT_MS);
+        let response: Awaited<ReturnType<Anthropic['messages']['create']>>;
+        try {
+          response = await this.anthropic.messages.create(
+            {
+              model: CLAUDE_MODEL,
+              max_tokens: maxTokens,
+              system,                                       // ← role instructions in system channel
+              messages: [{ role: 'user', content: prompt }],
+              tools: [{
+                name: 'submit_analysis',
+                description: 'Submit the structured analysis results',
+                input_schema: jsonSchema as Anthropic.Tool['input_schema'],
+              }],
+              tool_choice: { type: 'tool', name: 'submit_analysis' },
+            },
+            {
+              signal: controller.signal,
+            },
+          );
+        } finally {
+          clearTimeout(timer);
+        }
+        await resetClaudeFailures();
 
         // Extract tool use response
         const toolBlock = response.content.find(b => b.type === 'tool_use');
@@ -212,11 +293,17 @@ export abstract class BaseAgent {
 
         // Retry on rate limit or server errors
         if ((error.status === 429 || error.status === 500 || error.status === 529) && attempt < MAX_RETRIES) {
+          if (error.status === 500 || error.status === 529) {
+            await recordClaudeFailure();
+          }
           const jitter = Math.floor(Math.random() * 300);
           const delay = RETRY_BASE_MS * Math.pow(2, attempt - 1) + jitter;
           await this.emit('log', `⚠ API error (${error.status}), retrying in ${delay}ms...`);
           await sleep(delay);
           continue;
+        }
+        if (error.status === 500 || error.status === 529) {
+          await recordClaudeFailure();
         }
 
         logger.error('Claude call failed', {
@@ -270,24 +357,31 @@ export abstract class BaseAgent {
       .select('id');
 
     if (!(updated && updated.length > 0)) {
-      // No pending placeholder — retry path: find the highest existing version
-      // and insert a new row at version + 1.
-      const { data: latest } = await supabase
-        .from('audit_domains')
-        .select('version')
-        .eq('audit_id', this.auditId)
-        .eq('domain_key', this.domainKey)
-        .order('version', { ascending: false })
-        .limit(1)
-        .single();
+      // No pending placeholder — retry path: find highest existing version and insert at version + 1.
+      // Guard against races by retrying on unique conflict.
+      const maxInsertAttempts = 3;
+      for (let attempt = 1; attempt <= maxInsertAttempts; attempt++) {
+        const { data: latest } = await supabase
+          .from('audit_domains')
+          .select('version')
+          .eq('audit_id', this.auditId)
+          .eq('domain_key', this.domainKey)
+          .order('version', { ascending: false })
+          .limit(1)
+          .single();
 
-      await supabase.from('audit_domains').insert({
-        audit_id: this.auditId,
-        domain_key: this.domainKey,
-        phase_number: this.phaseNumber,
-        version: (latest?.version ?? 1) + 1,
-        ...payload,
-      });
+        const { error: insertError } = await supabase.from('audit_domains').insert({
+          audit_id: this.auditId,
+          domain_key: this.domainKey,
+          phase_number: this.phaseNumber,
+          version: (latest?.version ?? 1) + 1,
+          ...payload,
+        });
+        if (!insertError) break;
+        if (insertError.code !== '23505' || attempt === maxInsertAttempts) {
+          throw insertError;
+        }
+      }
     }
 
     await this.mergePostAuditFollowups(result);
