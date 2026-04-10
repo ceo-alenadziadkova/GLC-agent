@@ -40,16 +40,26 @@
 
 ### Backend (Express → Railway)
 - Validates Supabase JWT on every protected request (`middleware/auth.ts`)
-- Owns the full pipeline orchestration: collect → assemble → call Claude → fact-check → save
+- Owns the full pipeline orchestration contract; API routes enqueue pipeline jobs and worker processes execute phases
 - Uses Supabase **service role key** to bypass RLS for server-side reads/writes
 - One Claude API call per pipeline phase; never streams to frontend (Realtime handles progress)
 - Enforces rate limits and token budget
+
+#### Queue-backed execution state
+
+Pipeline execution now uses a queue + worker runtime for durability:
+
+- enqueue path: `server/src/routes/pipeline.ts` → `server/src/services/pipeline-jobs.ts`
+- worker path: `startPipelineWorker()` in `server/src/index.ts`
+- persistent execution state in DB: `job_runs` and `phase_runs` (migration `039_pipeline_runs_and_rls_hardening.sql`)
+
+`job_runs` and `phase_runs` track status (`queued`/`running`/`completed`/`failed`/`dead_letter`), lease owner, lease expiry, and heartbeat timestamps so stuck/failing jobs can be diagnosed without relying on process memory.
 
 #### Public routes, abuse control, and scaling
 
 Unauthenticated surfaces (Discover, tokenized pre-brief intake, marketing brief) rely on **split per-route limiters** in `server/src/middleware/rate-limit.ts` (see env vars in [ADR-INTAKE-UNIFIED-QUESTION-BANK](./adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) operational notes). That mitigates abuse but is **not** a full product security boundary by itself.
 
-**Horizontal scale:** limiters use **`RedisStore`** when **`RATE_LIMIT_REDIS_URL`** is set. If it is **unset**, `express-rate-limit` falls back to **`MemoryStore`**: each Node process keeps **separate** counters, so a client can obtain up to **N × per-process budget** against **N** instances. Treat **`RATE_LIMIT_REDIS_URL` as required for multi-instance production** on those public routes. (This is infrastructure operations, not part of the intake ADR’s functional model.)
+**Horizontal scale:** public limiters use **`RedisStore`** when **`RATE_LIMIT_REDIS_URL`** is set. Snapshot quota (`GET /api/snapshot/quota` and `POST /api/snapshot`) shares the same distributed store when Redis is configured. If Redis is unset, fallback is process-local memory and counters do not aggregate across instances.
 
 **Authenticated brief writes (`intake_versions`):** supported artifact tuples are validated on **PUT**; unsupported → **400**, mismatch with stored row → **409** (except allowed upgrades). The **server** persists answers and the effective tuple — clients cannot force an unsupported bundle or skip validation by tuple alone. See [API.md](./API.md).
 

@@ -20,6 +20,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | Threat model, rate limits, CORS, credentials | [SECURITY.md](./SECURITY.md) |
 | React app, routes, hooks, design system | [FRONTEND.md](./FRONTEND.md) ([style guide](./FRONTEND.md#design-system-style-guide)) |
 | Intake question bank, branching, agent mapping | [QUESTION_BANK.md](./QUESTION_BANK.md) |
+| Deferred product/UX backlog improvements | [IMPROVEMENTS.md](./IMPROVEMENTS.md) |
 | Internal: Question Bank Studio (Settings + `/admin/question-bank-studio`, canon map + policy/trace) | [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) — `src/app/components/QuestionBankStudio.tsx` |
 | ADR: unified bank, policy/layout, IntakePlan | [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) |
 | ADR: free snapshot — cheap deterministic scanner | [ADR-FREE-SNAPSHOT-SCANNER.md](adrs/ADR-FREE-SNAPSHOT-SCANNER.md) |
@@ -27,6 +28,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | Local dev, migrations order, demo seed | [SETUP.md](./SETUP.md) |
 | Production deploy (Vercel, Railway, Supabase) | [DEPLOYMENT.md](./DEPLOYMENT.md) |
 | Test strategy, matrix, coverage, doc alignment, dead-code signals, E2E | [TESTING.md](../TESTING.md) (repo root) |
+| Security CI gates (secret scan, migration smoke, policy tests) | [.github/workflows/test.yml](../.github/workflows/test.yml) |
 
 ---
 
@@ -146,7 +148,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 ### 8. Security
 
-**What it is:** Threat assumptions, RLS summary, JWT verification, rate limiting, CORS, credential separation, GDPR notes.
+**What it is:** Threat assumptions, RLS summary, JWT verification, rate limiting, CORS, credential separation, GDPR notes, prompt trust-boundary.
 
 **Why it matters:** Operational security and compliance expectations.
 
@@ -264,6 +266,7 @@ docs/
   DATABASE.md
   FRONTEND.md
   QUESTION_BANK.md
+  IMPROVEMENTS.md
   SETUP.md
   DEPLOYMENT.md
   adrs/

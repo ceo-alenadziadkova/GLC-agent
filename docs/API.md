@@ -337,6 +337,7 @@ When `use_scraped_context` is **true** but the snapshot **did not retrieve HTML*
 
 Start Phase 0 (Recon). Audit must be in `created` status; intake brief gates must allow start for the audit’s `product_mode` (express vs full). **Consultant** callers must own the row (`user_id`). **Client** callers must match `client_id` on the audit.
 Supports optimistic race protection via DB compare-and-set. If another request already claimed execution, returns `409`.
+Execution is queue-backed when Redis is configured: route enqueues a pipeline job and returns immediately; worker processes perform phase execution. If queue backend is unavailable, runtime falls back to in-process execution.
 
 **Response `200`:**
 
@@ -350,6 +351,7 @@ Supports optimistic race protection via DB compare-and-set. If another request a
 
 Run the next pending phase or parallel block. Used after a review approval to continue the pipeline. **Clients** linked via `client_id` may call this when the pipeline is waiting to advance in a state the API allows (consultants still own review submissions and retry).
 Uses compare-and-set claim on the audit row to prevent duplicate concurrent starts.
+Queue-backed execution/fallback behavior is the same as `pipeline/start`.
 
 **Response `200`:**
 
@@ -363,6 +365,7 @@ Uses compare-and-set claim on the audit row to prevent duplicate concurrent star
 
 Retry a failed phase. **Consultant-only.** Request body must include the `phase` number to retry. Behaviour and limits depend on `product_mode` (phases above the mode’s max are rejected).
 Uses compare-and-set claim on the audit row to prevent duplicate concurrent retries.
+Queue-backed execution/fallback behavior is the same as `pipeline/start`.
 
 **Response `200`:** e.g. `{ "status": "retrying", "phase": <number> }`
 
@@ -507,7 +510,7 @@ Generate a markdown, JSON, or CSV audit report. Caller must be the audit **owner
 
 ### `GET /api/snapshot/quota`
 
-Public endpoint (no JWT). Returns how many free website checks are **still available** from this IP in the current rolling window (same counter as `POST /api/snapshot`; this request does **not** consume a check).
+Public endpoint (no JWT). Returns how many free website checks are **still available** from this IP in the current rolling window (same counter as `POST /api/snapshot`; this request does **not** consume a check). With Redis configured, the quota counter is shared across API instances.
 
 **Response `200`:** `{ "limit", "remaining", "period": "day", "reset_at": "<ISO timestamp> | null" }`
 

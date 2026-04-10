@@ -20,6 +20,11 @@ The core data isolation mechanism. **All application tables** use RLS; policies 
 
 `auth.uid()` is evaluated server-side by Supabase for queries using the anon key.
 
+Recent hardening:
+
+- `audits_select_own_client` no longer grants blanket read for `product_mode = 'free_snapshot'` (migration `038_fix_rls_snapshot.sql`).
+- Backend-only operational tables now run with explicit deny-by-default RLS (`intake_tokens`, `snapshot_guest_sessions`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `intake_analytics_events`, plus queue state tables `phase_runs` and `job_runs`) via migration `039_pipeline_runs_and_rls_hardening.sql`.
+
 **Backend uses service role key** — bypasses RLS intentionally. The backend enforces ownership at the application layer:
 
 ```typescript
@@ -164,6 +169,22 @@ export const pipelineLimiter = rateLimit({
   keyGenerator: (req) => req.userId ?? req.ip,
 });
 ```
+
+Production notes:
+
+- Set `RATE_LIMIT_REDIS_URL` for multi-instance deployments.
+- Set `STRICT_RATE_LIMIT_REDIS=true` to fail fast on startup if Redis is missing.
+- Snapshot quota (`/api/snapshot` + `/api/snapshot/quota`) uses shared Redis counters when available.
+
+---
+
+## Prompt injection boundary
+
+All prompts in `server/prompts/*.md` explicitly define untrusted-input handling:
+
+- website content, intake answers, consultant notes, and interview notes are treated as untrusted data;
+- model must never execute instructions embedded in those inputs;
+- untrusted text is used only as evidence for scoring and findings.
 
 ---
 
