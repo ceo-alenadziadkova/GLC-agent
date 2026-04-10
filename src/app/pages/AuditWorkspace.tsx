@@ -18,7 +18,6 @@ import { DOMAIN_KEYS, DOMAIN_LABELS, type IntakeBriefCollectionMode } from '../d
 import type { DomainKey, DomainData, ProductMode, ConfidenceLevel } from '../data/auditTypes';
 import { BriefField } from '../components/BriefField';
 import {
-  mergeBriefResponsesPreferFilled,
   unwrapResponse,
 } from '../data/briefQuestions';
 import type { BriefResponses } from '../data/briefQuestions';
@@ -403,11 +402,10 @@ export function AuditWorkspace() {
                         {briefLayoutChoice === 'wizard' ? (
                           <IntakeBankWizard
                             responses={workspaceBriefResponses}
-                            onResponsesChange={patch =>
-                              setWorkspaceBriefResponses(prev => {
-                                const merged = mergeBriefResponsesPreferFilled(prev, patch);
-                                queueWorkspaceBriefSave(merged);
-                                return merged;
+                            onResponsesChange={next =>
+                              setWorkspaceBriefResponses(() => {
+                                queueWorkspaceBriefSave(next);
+                                return next;
                               })
                             }
                             interviewMode={false}
@@ -432,6 +430,7 @@ export function AuditWorkspace() {
                             responses={workspaceBriefResponses}
                             collectionMode={audit.brief.collection_mode}
                             intakeSurface={workspaceConsultantSurface}
+                            productMode={audit.meta.product_mode as ProductMode}
                             onChange={handleWorkspaceBriefFieldChange}
                             onSetUnknown={handleWorkspaceBriefSetUnknown}
                           />

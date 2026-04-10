@@ -550,6 +550,22 @@ describe('GET /api/snapshot/:token', () => {
     expect(res.status).toBe(400);
   });
 
+  it('returns 410 when snapshot token is expired', async () => {
+    setSnapshotQueryResult({
+      id: 'audit-001',
+      status: 'completed',
+      company_url: 'https://example.com',
+      company_name: null,
+      product_mode: 'free_snapshot',
+      created_at: '2000-01-01T00:00:00.000Z',
+    });
+
+    const res = await fetch(`${baseUrl}/api/snapshot/${VALID_TOKEN}`);
+    expect(res.status).toBe(410);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.error).toBe('Snapshot token expired');
+  });
+
   it('returns { status: "recon" } while audit is still running', async () => {
     setSnapshotQueryResult({
       id: 'audit-001',
@@ -822,6 +838,24 @@ describe('POST /api/snapshot/claim', () => {
       body: JSON.stringify({ snapshot_token: CLAIM_TOKEN }),
     });
     expect(res.status).toBe(404);
+  });
+
+  it('returns 410 when claim token is expired', async () => {
+    setSnapshotQueryResult({
+      id: 'audit-claim-expired',
+      client_id: null,
+      snapshot_token: CLAIM_TOKEN,
+      product_mode: 'free_snapshot',
+      created_at: '2000-01-01T00:00:00.000Z',
+    });
+    const res = await fetch(`${baseUrl}/api/snapshot/claim`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
+      body: JSON.stringify({ snapshot_token: CLAIM_TOKEN }),
+    });
+    expect(res.status).toBe(410);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.error).toBe('Snapshot token expired');
   });
 
   it('returns 200 with already_claimed when client_id matches user', async () => {

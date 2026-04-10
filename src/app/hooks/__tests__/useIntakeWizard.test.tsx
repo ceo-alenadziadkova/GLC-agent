@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
+import { act } from 'react';
 import { makeWebsitePathFullBrief } from '../../../../server/src/tests/bank-brief-fixtures';
 import { briefResponsesToIntakeMap, useIntakeBankMetrics, useIntakeWizard } from '../useIntakeWizard';
 
@@ -144,5 +145,26 @@ describe('useIntakeWizard', () => {
     const prevRef = result.current.visibleQuestionStubs;
     rerender({ value: { ...base, a5: 'Yes, multi-page site' } });
     expect(result.current.visibleQuestionStubs).not.toBe(prevRef);
+  });
+
+  it('setField preserves unrelated keys across sequential updates', () => {
+    const { result } = renderHook(() =>
+      useIntakeWizard({
+        initialMap: {
+          legacy_key: { value: 'legacy', source: 'client' },
+          q1: { value: 'A', source: 'consultant' },
+        },
+      }),
+    );
+
+    act(() => {
+      result.current.setField('q1', { value: 'B', source: 'consultant' });
+      result.current.setField('q2', { value: 42, source: 'consultant' });
+    });
+
+    const responses = result.current.responses as Record<string, unknown>;
+    expect(responses.legacy_key).toEqual({ value: 'legacy', source: 'client' });
+    expect(responses.q1).toEqual({ value: 'B', source: 'consultant' });
+    expect(responses.q2).toEqual({ value: 42, source: 'consultant' });
   });
 });

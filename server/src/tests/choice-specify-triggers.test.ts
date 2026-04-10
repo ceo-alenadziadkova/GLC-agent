@@ -13,6 +13,7 @@ describe('choiceValueNeedsSpecify (server)', () => {
   it('detects trigger strings', () => {
     expect(choiceValueNeedsSpecify('Other')).toBe(true);
     expect(choiceValueNeedsSpecify('Something else')).toBe(true);
+    expect(choiceValueNeedsSpecify('Yes, there are additional details')).toBe(true);
   });
 
   it('ignores non-strings in array', () => {

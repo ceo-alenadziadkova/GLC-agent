@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { motion } from 'motion/react';
-import { ArrowRight, Lock } from '@phosphor-icons/react';
+import { ArrowRight, Eye, EyeSlash, Lock } from '@phosphor-icons/react';
 import { useAuth, isAnonymousUser } from '../hooks/useAuth';
 import { logger } from '../lib/logger';
 import { ThemeToggle } from '../components/ThemeToggle';
@@ -16,6 +16,7 @@ export function Login() {
   const [mode, setMode] = useState<AuthMode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -270,14 +271,14 @@ export function Login() {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="Password"
                   required
                   minLength={6}
                   autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                  className="w-full pl-9 pr-4 py-3 bg-transparent outline-none"
+                  className="w-full pl-9 pr-11 py-3 bg-transparent outline-none"
                   style={{
                     borderRadius: 'var(--radius-lg)',
                     border: '1px solid var(--border-default)',
@@ -289,6 +290,15 @@ export function Login() {
                   onFocus={e => { e.target.style.borderColor = 'var(--glc-blue)'; e.target.style.boxShadow = 'var(--shadow-blue)'; }}
                   onBlur={e => { e.target.style.borderColor = 'var(--border-default)'; e.target.style.boxShadow = 'none'; }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(prev => !prev)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center"
+                  style={{ color: 'var(--text-tertiary)', border: 'none', background: 'transparent', cursor: 'pointer' }}
+                >
+                  {showPassword ? <EyeSlash className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
               {mode === 'signup' && (
                 <p className="text-xs" style={{ color: 'var(--text-quaternary)' }}>

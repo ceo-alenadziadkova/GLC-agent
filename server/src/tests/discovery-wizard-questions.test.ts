@@ -16,6 +16,7 @@ const EXPECTED_IDS = [
   'c_nosite_4',
   'd2',
   'f1',
+  'f9',
 ] as const;
 
 describe('buildDiscoveryWizardQuestions', () => {
@@ -42,5 +43,20 @@ describe('buildDiscoveryWizardQuestions', () => {
 
     const { questions } = buildPublicDiscoveryUiFragment();
     expect(questions).toEqual(full);
+  });
+
+  it('includes final optional context question f9 with explain path', () => {
+    const rows = buildDiscoveryWizardQuestions({
+      bankOrFallback: (id, fb) => {
+        const o = getBankQuestionUiOptions(id);
+        return o ? [...o] : [...fb];
+      },
+      industryOptions: INDUSTRY_OPTIONS,
+    });
+    const f9 = rows.find(r => r.id === 'f9');
+    expect(f9).toBeDefined();
+    expect(f9?.optional).toBe(true);
+    expect(f9?.type).toBe('single_choice');
+    expect(f9?.options).toContain('Yes, there are additional details');
   });
 });

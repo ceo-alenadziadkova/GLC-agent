@@ -1,0 +1,114 @@
+name: Release Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  release-gate:
+    name: release-gate / full-checks-and-migrations
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: glc_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d glc_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            pg_isready -h 127.0.0.1 -p 5432 -U postgres -d glc_ci && exit 0
+            sleep 1
+          done
+          echo "Postgres did not become ready in time" >&2
+          exit 1
+
+      - name: Apply all SQL migrations on clean database
+        run: |
+          python - <<'PY'
+          import glob, re, subprocess, sys
+
+          files = sorted(glob.glob('server/migrations/*.sql'))
+          if not files:
+            print('No migrations found')
+            sys.exit(1)
+
+          nums = []
+          for f in files:
+            m = re.match(r'.*/(\d+)_', f)
+            if not m:
+              print(f'Invalid migration filename format: {f}')
+              sys.exit(1)
+            nums.append(int(m.group(1)))
+
+          if nums != sorted(nums):
+            print('Migration numbering is not monotonic')
+            sys.exit(1)
+
+          for f in files:
+            print(f'Applying {f}')
+            subprocess.run(
+              [
+                'psql',
+                '-h', '127.0.0.1',
+                '-p', '5432',
+                '-U', 'postgres',
+                '-d', 'glc_ci',
+                '-v', 'ON_ERROR_STOP=1',
+                '-f', f,
+              ],
+              check=True,
+            )
+
+          print(f'Applied {len(files)} migrations successfully')
+          PY
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Frontend unit tests
+        run: pnpm test
+
+      - name: Backend unit tests
+        run: pnpm --filter glc-audit-server test
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: E2E smoke
+        run: pnpm run test:e2e
+        env:
+          CI: true

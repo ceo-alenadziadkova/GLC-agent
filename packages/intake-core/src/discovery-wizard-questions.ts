@@ -43,6 +43,11 @@ export const DISCOVERY_WIZARD_C_NOSITE_4_FALLBACK = [
   'Other',
 ] as const;
 
+export const DISCOVERY_WIZARD_F9_FALLBACK = [
+  'No, I have already shared everything relevant',
+  'Yes, there are additional details',
+] as const;
+
 export interface BuildDiscoveryWizardQuestionsInput {
   /**
    * Resolve options for a bank id using server or SPA catalog, falling back to `readonly` lists from this module.
@@ -148,6 +153,14 @@ export function buildDiscoveryWizardQuestions(
         'We lose leads because we respond too slowly',
         'I want to understand where to focus next',
       ],
+    },
+    {
+      id: 'f9',
+      question: 'Anything else we should account for in your audit context?',
+      hint: 'Use this for special constraints or context we did not cover. If not, confirm that everything relevant is already shared.',
+      type: 'single_choice',
+      optional: true,
+      options: bankOrFallback('f9', DISCOVERY_WIZARD_F9_FALLBACK),
     },
   ];
 }

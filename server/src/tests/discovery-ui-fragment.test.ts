@@ -13,6 +13,7 @@ const EXPECTED_WIZARD_IDS = [
   'c_nosite_4',
   'd2',
   'f1',
+  'f9',
 ] as const;
 
 describe('buildPublicDiscoveryUiFragment', () => {

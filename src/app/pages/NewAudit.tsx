@@ -1273,9 +1273,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                       <div className="max-h-[min(55vh,28rem)] sm:max-h-[55vh] overflow-y-auto pr-1">
                         <IntakeBankWizard
                           responses={responses}
-                          onResponsesChange={patch =>
-                            setResponses(prev => mergeBriefResponsesPreferFilled(prev, patch))
-                          }
+                          onResponsesChange={next => setResponses(next)}
                           interviewMode={interviewMode}
                           emphasizeClientSource={intakePrefillActive}
                           answerSource={interviewMode ? 'consultant' : 'client'}
@@ -1291,6 +1289,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                           responses={responses}
                           collectionMode={noPublicWebsite ? 'discovery' : undefined}
                           intakeSurface={noPublicWebsite ? undefined : 'consultant_interview'}
+                          productMode={productMode}
                           onChange={handleResponseChange}
                           onSetUnknown={handleSetUnknown}
                           emphasizeClientSource={intakePrefillActive}
@@ -1354,7 +1353,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                   </p>
                   {isClientSelfServe && (
                     <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-quaternary)', marginTop: 10, lineHeight: 1.5 }}>
-                      After recon completes, a consultant may need to approve review gates before the next phases run. You can track progress on the pipeline screen.
+                      After recon completes, the run may pause at review gates before the next phases continue. You can track progress on the pipeline screen.
                     </p>
                   )}
                 </div>

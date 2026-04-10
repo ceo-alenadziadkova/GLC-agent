@@ -13,7 +13,7 @@ import {
 } from '../schemas/intake-brief.js';
 import { arePreBriefSlotsSatisfied, saveBriefResponses } from '../services/brief-validator.js';
 import { logger } from '../services/logger.js';
-import { notifyAuditParticipants, notifyUser } from '../services/notifications.js';
+import { emitStructuredNotification } from '../services/notifications.js';
 import { buildIntakePlan } from '@glc/intake-core';
 import { formatPlanTrace } from '@glc/intake-core';
 import { parseIntakeVersionTuple } from '@glc/intake-core';
@@ -524,21 +524,28 @@ intakeRouter.post('/:token/respond', intakePublicWriteLimiter, async (req, res) 
 
     const responseCount = Object.keys(parsed.data as Record<string, unknown>).length;
     if (auditId) {
-      await notifyAuditParticipants(
+      await emitStructuredNotification({
+        category: 'intake',
+        event: 'intake_responses_updated',
+        priority: 'low',
+        audience: 'audit_participants',
         auditId,
-        'intake',
-        'Intake responses updated',
-        `Client submitted pre-brief responses (${responseCount} fields).`,
-        {
+        title: 'Intake responses updated',
+        message: `Client submitted pre-brief responses (${responseCount} fields).`,
+        payload: {
           token,
           submitted_at: submittedAt,
         },
-      );
+        route: `/audit/${auditId}`,
+      });
     } else {
-      await notifyUser({
+      await emitStructuredNotification({
+        category: 'intake',
+        event: 'intake_submission_received',
+        priority: 'low',
+        audience: 'user',
         userId: row.consultant_id as string,
         auditId: null,
-        kind: 'intake',
         title: 'New intake submission',
         message: `Client submitted pre-brief responses (${responseCount} fields).`,
         payload: {

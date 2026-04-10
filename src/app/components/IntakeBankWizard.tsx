@@ -3,7 +3,6 @@ import { ArrowLeft, ArrowRight, Info, ListBullets, Signpost } from '@phosphor-ic
 import { BriefField } from './BriefField';
 import { bankIdToBriefQuestion } from '../data/bankQuestionUiCatalog';
 import {
-  mergeBriefResponsesPreferFilled,
   type BriefResponseEntry,
   type BriefResponses,
 } from '../data/briefQuestions';
@@ -15,6 +14,7 @@ import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '@glc/intake-c
 import { labelsForMissingReportDomains } from '../lib/intake-coverage-domain-labels';
 import { formatIntakeQuestionReasonsBrief } from '../lib/intake-plan-explain';
 import { buildIntakePlan } from '@glc/intake-core';
+import { EXPRESS_LOCKED_F2_OPTIONS, normalizeF2ValueForExpress } from '../lib/express-focus-area-locks';
 
 function intakeMapToBriefResponses(map: Record<string, unknown>): BriefResponses {
   const out: BriefResponses = {};
@@ -74,12 +74,18 @@ export function IntakeBankWizard({
 }) {
   const source = answerSource ?? 'consultant';
   const map = useMemo(() => briefResponsesToIntakeMap(responses), [responses]);
+  const [localMap, setLocalMap] = useState<Record<string, unknown>>(() => map);
+
+  useEffect(() => {
+    setLocalMap(map);
+  }, [map]);
 
   const wizard = useIntakeWizard({
-    value: map,
+    value: localMap,
     onChange: next => {
+      setLocalMap(next);
       const patch = intakeMapToBriefResponses(next);
-      onResponsesChange(mergeBriefResponsesPreferFilled(responses, patch));
+      onResponsesChange(patch);
     },
     collectionMode,
     productMode,
@@ -103,13 +109,66 @@ export function IntakeBankWizard({
   const planReasonLines = useMemo(() => {
     if (!planExplainOpen || !wizard.currentStub) return [];
     const plan = buildIntakePlan({
-      responses: map,
+      responses: localMap,
       productMode,
       collectionMode,
       surface: intakeSurface,
     });
     return formatIntakeQuestionReasonsBrief(plan.reasonsById?.[wizard.currentStub.id]);
-  }, [planExplainOpen, wizard.currentStub, map, productMode, collectionMode, intakeSurface]);
+  }, [planExplainOpen, wizard.currentStub, localMap, productMode, collectionMode, intakeSurface]);
+
+  const suggestedNextBlock = useMemo(() => {
+    if (wizard.nextRecommended.length === 0) return null;
+    const chips = wizard.nextRecommended
+      .filter(id => id !== wizard.currentStub?.id)
+      .slice(0, 6);
+    if (chips.length === 0) return null;
+    return (
+      <div
+        className="rounded-lg p-3 space-y-2"
+        style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-inset)' }}
+      >
+        <div
+          className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide"
+          style={{ color: 'var(--text-tertiary)' }}
+        >
+          <Signpost className="w-4 h-4 shrink-0" aria-hidden weight="bold" />
+          Suggested next
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {chips.map(id => {
+            const st = wizard.visibleQuestionStubs.find(s => s.id === id);
+            const pri = st?.priority ?? 'recommended';
+            const bq = bankIdToBriefQuestion(id, pri);
+            const labelText = bq.question;
+            const label = labelText.length > 48 ? `${labelText.slice(0, 47)}…` : labelText;
+            const step = wizard.visibleQuestionStubs.findIndex(s => s.id === id);
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  if (step >= 0) wizard.goToStep(step);
+                }}
+                className="text-left text-xs px-2.5 py-1.5 rounded-md max-w-full sm:max-w-[240px] line-clamp-2"
+                style={{
+                  border: '1px solid var(--border-subtle)',
+                  background: 'var(--bg-surface)',
+                  color: 'var(--text-secondary)',
+                  cursor: step >= 0 ? 'pointer' : 'not-allowed',
+                }}
+                disabled={step < 0}
+                title={labelText}
+                aria-label={`Go to: ${labelText}`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }, [wizard.nextRecommended, wizard.currentStub?.id, wizard.visibleQuestionStubs, wizard.goToStep]);
 
   return (
     <div className="space-y-5">
@@ -147,63 +206,10 @@ export function IntakeBankWizard({
         </p>
       )}
 
-      {wizard.nextRecommended.length > 0 &&
-        (() => {
-          const chips = wizard.nextRecommended
-            .filter(id => id !== wizard.currentStub?.id)
-            .slice(0, 6);
-          if (chips.length === 0) return null;
-          return (
-            <div
-              className="rounded-lg p-3 space-y-2"
-              style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-inset)' }}
-            >
-              <div
-                className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide"
-                style={{ color: 'var(--text-tertiary)' }}
-              >
-                <Signpost className="w-4 h-4 shrink-0" aria-hidden weight="bold" />
-                Suggested next
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {chips.map(id => {
-                  const st = wizard.visibleQuestionStubs.find(s => s.id === id);
-                  const pri = st?.priority ?? 'recommended';
-                  const bq = bankIdToBriefQuestion(id, pri);
-                  const labelText = bq.question;
-                  const label = labelText.length > 48 ? `${labelText.slice(0, 47)}…` : labelText;
-                  const step = wizard.visibleQuestionStubs.findIndex(s => s.id === id);
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => {
-                        if (step >= 0) wizard.goToStep(step);
-                      }}
-                      className="text-left text-xs px-2.5 py-1.5 rounded-md max-w-full sm:max-w-[240px] line-clamp-2"
-                      style={{
-                        border: '1px solid var(--border-subtle)',
-                        background: 'var(--bg-surface)',
-                        color: 'var(--text-secondary)',
-                        cursor: step >= 0 ? 'pointer' : 'not-allowed',
-                      }}
-                      disabled={step < 0}
-                      title={labelText}
-                      aria-label={`Go to: ${labelText}`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })()}
-
       {q && (() => {
         // a2 / intake_industry "Other" writes to `intake_industry_specify` (see choiceSpecifyResponseKey).
         const otherKey = choiceSpecifyResponseKey(q.id);
-        const otherSpecify = (unwrapForField(responses[otherKey]) as string | undefined) ?? '';
+        const otherSpecify = (unwrapForField(wizard.responses[otherKey] as BriefResponses[string]) as string | undefined) ?? '';
         return (
           <div className="space-y-3">
             <div>
@@ -230,16 +236,30 @@ export function IntakeBankWizard({
             </div>
             <BriefField
               q={q}
-              value={unwrapForField(responses[q.id])}
+              value={
+                q.id === 'f2' && productMode === 'express'
+                  ? normalizeF2ValueForExpress(unwrapForField(wizard.responses[q.id] as BriefResponses[string])) as string[] | null
+                  : unwrapForField(wizard.responses[q.id] as BriefResponses[string])
+              }
               onChange={v => {
-                wizard.setField(q.id, { value: v, source });
-                if (!choiceValueNeedsSpecify(v as string | string[] | null)) {
-                  wizard.setField(choiceSpecifyResponseKey(q.id), { value: null, source });
-                }
+                wizard.setResponses(prev => {
+                  const normalizedValue = q.id === 'f2' && productMode === 'express'
+                    ? normalizeF2ValueForExpress(v)
+                    : v;
+                  const next = { ...prev, [q.id]: { value: normalizedValue, source } };
+                  const isChoiceQuestion = q.type === 'single_choice' || q.type === 'multi_choice';
+                  if (isChoiceQuestion && !choiceValueNeedsSpecify(normalizedValue as string | string[] | null)) {
+                    next[choiceSpecifyResponseKey(q.id)] = { value: null, source };
+                  }
+                  return next;
+                });
               }}
               onSetUnknown={() => {
-                wizard.setField(q.id, { value: null, source: 'unknown' });
-                wizard.setField(choiceSpecifyResponseKey(q.id), { value: null, source: 'unknown' });
+                wizard.setResponses(prev => ({
+                  ...prev,
+                  [q.id]: { value: null, source: 'unknown' },
+                  [choiceSpecifyResponseKey(q.id)]: { value: null, source: 'unknown' },
+                }));
               }}
               emphasizeClientSource={emphasizeClientSource}
               interviewMode={interviewMode}
@@ -247,10 +267,14 @@ export function IntakeBankWizard({
               onOtherSpecifyChange={text => {
                 wizard.setField(otherKey, { value: text || null, source });
               }}
+              disabledOptions={q.id === 'f2' && productMode === 'express' ? EXPRESS_LOCKED_F2_OPTIONS : undefined}
+              productMode={productMode}
             />
           </div>
         );
       })()}
+
+      {suggestedNextBlock}
 
       {wizard.totalSteps === 0 && (
         <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>

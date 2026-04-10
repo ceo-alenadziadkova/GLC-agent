@@ -7,6 +7,8 @@ const state = vi.hoisted(() => {
   let sessionsRows: Array<Record<string, unknown>> = [];
   let claimConflict = false;
   let linkConflict = false;
+  let listShouldFail = false;
+  let loadShouldFail = false;
   let auditsCreated = 0;
   let auditsDeleted = 0;
   let lastDiscoverySessionsOrFilter: string | null = null;
@@ -24,6 +26,12 @@ const state = vi.hoisted(() => {
     setLinkConflict: (v: boolean) => {
       linkConflict = v;
     },
+    setListShouldFail: (v: boolean) => {
+      listShouldFail = v;
+    },
+    setLoadShouldFail: (v: boolean) => {
+      loadShouldFail = v;
+    },
     resetCounters: () => {
       auditsCreated = 0;
       auditsDeleted = 0;
@@ -38,14 +46,22 @@ const state = vi.hoisted(() => {
           select: vi.fn(() => {
             const chain = {
               eq: vi.fn(() => ({
-                single: vi.fn(async () => ({ data: sessionRow, error: sessionRow ? null : { code: 'PGRST116' } })),
+                single: vi.fn(async () =>
+                  loadShouldFail
+                    ? { data: null, error: { message: 'load failed' } }
+                    : { data: sessionRow, error: sessionRow ? null : { code: 'PGRST116' } },
+                ),
               })),
               or: vi.fn((filter: string) => {
                 lastDiscoverySessionsOrFilter = filter;
                 return chain;
               }),
               order: vi.fn(() => chain),
-              limit: vi.fn(async () => ({ data: sessionsRows, error: null })),
+              limit: vi.fn(async () =>
+                listShouldFail
+                  ? { data: null, error: { message: 'list failed' } }
+                  : { data: sessionsRows, error: null },
+              ),
             };
             return chain;
           }),
@@ -221,6 +237,8 @@ beforeEach(() => {
   state.resetCounters();
   state.setClaimConflict(false);
   state.setLinkConflict(false);
+  state.setListShouldFail(false);
+  state.setLoadShouldFail(false);
   state.setSessionsRows([
     {
       session_token: 'session-token-1',
@@ -250,6 +268,16 @@ beforeEach(() => {
 });
 
 describe('POST /api/discover/:token/convert', () => {
+  it('returns 400 for invalid token format', async () => {
+    const res = await fetch(`${baseUrl}/api/discover/not-a-valid-token/convert`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer test' },
+    });
+    const body = await res.json() as Record<string, unknown>;
+    expect(res.status).toBe(400);
+    expect(body.error).toBe('Invalid token');
+  });
+
   it('returns 403 when session is assigned to another consultant', async () => {
     state.setSessionRow({
       ...state.getSessionRow(),
@@ -308,6 +336,23 @@ describe('POST /api/discover/:token/convert', () => {
   });
 });
 
+describe('GET /api/discover/:token', () => {
+  it('returns 400 for invalid token format', async () => {
+    const res = await fetch(`${baseUrl}/api/discover/not-a-valid-token`);
+    const body = await res.json() as Record<string, unknown>;
+    expect(res.status).toBe(400);
+    expect(body.error).toBe('Invalid token');
+  });
+
+  it('returns 404 when session load query fails', async () => {
+    state.setLoadShouldFail(true);
+    const res = await fetch(`${baseUrl}/api/discover/${'a'.repeat(40)}`);
+    const body = await res.json() as Record<string, unknown>;
+    expect(res.status).toBe(404);
+    expect(body.error).toBe('Session not found');
+  });
+});
+
 describe('GET /api/discover/sessions', () => {
   it('applies consultant scoping filter and returns rows', async () => {
     const res = await fetch(`${baseUrl}/api/discover/sessions`, {
@@ -324,6 +369,16 @@ describe('GET /api/discover/sessions', () => {
     expect(first.biz_description).toBe('Hotel Blue');
     expect(first.contact_email).toBeNull();
   });
+
+  it('returns 500 when listing query fails', async () => {
+    state.setListShouldFail(true);
+    const res = await fetch(`${baseUrl}/api/discover/sessions`, {
+      headers: { Authorization: 'Bearer test' },
+    });
+    const body = await res.json() as Record<string, unknown>;
+    expect(res.status).toBe(500);
+    expect(body.error).toBe('Failed to list sessions');
+  });
 });
 
 describe('PATCH /api/discover/:token/contact', () => {
@@ -336,5 +391,20 @@ describe('PATCH /api/discover/:token/contact', () => {
     const body = await res.json() as Record<string, unknown>;
     expect(res.status).toBe(403);
     expect(body.error).toBe('Invalid or missing contact edit key');
+  });
+
+  it('returns 400 when all provided contact fields are empty', async () => {
+    const res = await fetch(`${baseUrl}/api/discover/${'e'.repeat(40)}/contact`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contact_edit_key: 'f'.repeat(64),
+        contact_name: '   ',
+        contact_email: '',
+      }),
+    });
+    const body = await res.json() as Record<string, unknown>;
+    expect(res.status).toBe(400);
+    expect(body.error).toBe('At least one contact field must be non-empty');
   });
 });

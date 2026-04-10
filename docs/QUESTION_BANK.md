@@ -171,8 +171,11 @@
 | `a9` | What languages do your customers communicate in? | multi | Optional | 2, disc | marketing_utp (P), automation_processes (P) | — |
 | | Options: Spanish / English / German / French / Russian / Other | | | | | |
 | | *Helper:* «Helps us evaluate your content reach, multilingual SEO opportunities, and whether automation tools (chatbots, email flows) need to support multiple languages.» | | | | | |
+| `a10` | How does your business mainly make money? | select | Required | 1, pre | recon (P), strategy (P); marketing_utp (S), ux_conversion (S) | — |
+| | Options: One-time services (projects, consulting) / Recurring services (retainers) / Product sales (online or offline) / Subscription or membership / Commission or marketplace fees / Lead generation or referrals / Ads or sponsorships / Other → text | | | | | |
+| | *Helper:* «Choose the closest pattern. If you are not sure, select the one that brings the largest share of revenue today.» | | | | | |
 
-**9 вопросов в универсальном ядре A (7 в Layer 1 / pre+disc, `a8` и `a9` — Layer 2). ~4–5 минут с учётом Layer 2. Gate: industry, team_size, has_website, handles_payments, business_stage.**
+**10 вопросов в универсальном ядре A (8 в Layer 1 / pre+disc, `a8` и `a9` — Layer 2). ~5–6 минут с учётом Layer 2. Gate: industry, team_size, has_website, handles_payments, business_stage.**
 
 ---
 
@@ -358,10 +361,12 @@
 
 | ID | Question | Input | Priority | Layer | Agent feeds (P / S) | Branch |
 |----|----------|-------|----------|-------|-------|--------|
-| `f1` | What is the **single most important business problem** you want this audit to help you **solve**? | textarea | Required | 1, pre, disc | strategy (P) | — |
-| | *Helper:* «For example: “Too much manual work eating our time”, “Not enough direct bookings vs OTAs”, “We don’t know which channels bring **profitable** clients”, “Our digital setup feels chaotic and we’re not sure where to start”.» | | | | | |
+| `f1` | Main business problem to solve | multi | Required | 1, pre, disc | strategy (P) | — |
+| | Options: Not enough qualified leads or new customers / Too many visitors but low conversion to inquiries/sales / Too much manual work and operational overload / Revenue is unstable or highly seasonal / Overdependence on one channel/platform / Low customer retention or repeat purchases / Margins are too low / Other → text | | | | | |
+| | *Helper:* Select up to 2 primary pain points. If needed, choose Other and add a short clarification. | | | | | |
 | `f2` | Which areas are you most interested in **improving** with this audit? | multi | Required | 1, pre | strategy (P) | — |
 | | Options: **Website performance & technology** (speed, stability, technical health) / **Online visibility & SEO** (finding and attracting the right traffic) / **Customer experience & conversions** (turning visitors into customers) / **Marketing & positioning** (clarity of message and differentiation) / **Process automation & efficiency** (less manual work and handoffs) / **Security, compliance & risk** (avoiding costly surprises) | | | | | |
+| | *Express mode UX contract:* show all options for transparency, but lock **Marketing & positioning** and **Process automation & efficiency** (lock icon + non-selectable). Explanatory copy must state that Express deep analysis covers Tech/Security/SEO/UX; the locked areas are captured for prioritization and full-audit planning. | | | | | |
 | `f3` | How do you rate your current digital setup overall? | rating 1–5 | Recommended | 1 | strategy (P); marketing_utp (S), ux_conversion (S), automation_processes (S) | — |
 | | 1 = "Struggling" … 3 = "Okay-ish" … 5 = "We're nailing it" | | | | | |
 | | *Важно для тона отчёта:* 2/5 и 4/5 — разная эмоциональная и директивная подача рекомендаций. | | | | | |
@@ -382,6 +387,9 @@
 | | Options: Opening or launch soon / Seasonal peak coming / Investor, partner, or board review / Contract or compliance milestone / No specific deadline | | | | | |
 | | *Helper:* deadline context helps prioritize quick wins vs deeper system changes in wave 1. | | | | | |
 | | *Urgency:* «открываемся через 2 месяца» vs «без срочности» меняет последовательность рекомендаций. | | | | | |
+| `f9` | Anything else we should account for in your audit context? | select + specify | Nice-to-have | 2, disc | strategy (P) | — |
+| | Options: No, I have already shared everything relevant / Yes, there are additional details (+ `f9__other`) | | | | | |
+| | *Helper:* use this for constraints or context not covered by the flow (for example, tax/legal setup in another country). | | | | | |
 
 ---
 
@@ -453,7 +461,7 @@ Pre-brief + дополнительно:
 | **Digital trace**           | c_nosite_1, c_nosite_4, c_nosite_5, c_nosite_reviews, c_nosite_2, c_nosite_3 | Online presence without a site                    |
 | **Conversion pipeline**     | d1, d1a/d1b, d_response_time, d_closing_flow, d_billing_flow                 | Inquiry → payment funnel                          |
 | **Operations & Automation** | d2, d_automation_attempt, d4a, d4b, d6, d5 + [industry D]                    | Manual bottlenecks, AI/automation readiness       |
-| **Goals**                   | f1, f2, f7, f8, f4                                                           | Problem to solve, focus areas, readiness, urgency |
+| **Goals**                   | f1, f2, f7, f8, f4, f9                                                       | Problem to solve, focus areas, readiness, urgency, additional context |
 
 
 #### Full ID Set (38 IDs)
@@ -477,7 +485,7 @@ Section D (12 universal + up to 2 industry-specific):
   d_hotel_1, d_hotel_2 (is_hospitality)
   d_realestate_1 (is_real_estate)
   d_restaurant_1 (is_restaurant)
-Section F (5):  f1, f2, f7, f8, f4
+Section F (6):  f1, f2, f7, f8, f4, f9
 ```
 
 **Intentionally excluded:**
@@ -517,7 +525,7 @@ This means Discovery no longer has a separate semantic question model; it is a p
 | **ux_conversion**        | b1 (ideal customer), b6 (guarantees), b7 (repeat vs one-off), c5 (main action), c6 (frustrations), b_services_1, b_health_1, **d_response_time**, **d_closing_flow**                                                                                                |
 | **marketing_utp**        | **a9** (customer languages), b1, b2, b3, b4, b5, b6, b7, **b_growth_attempts**, c7, c8 (competitors), **c_nosite_4**, **c_nosite_5**, **c_nosite_reviews**, b_hotel_1, b_hotel_2, b_realestate_1, b_marine_1                                                        |
 | **automation_processes** | **a9**, d1, d1a/d1b, **d_response_time**, **d_closing_flow**, **d_billing_flow**, d2, d_automation_attempt, d3, d4, d4a, d4b, **d6** (data types), d5, **a8** (monthly volume), f7 (approver), **c_nosite_4**, d_hotel_1, d_hotel_2, d_realestate_1, d_restaurant_1 |
-| **strategy**             | f1, f2, f3, f4, f5, f6, f7, f8 (urgency), a4, a7, **a8** (scale), b4, b5, b7, **b_growth_attempts**, d4a, d4b, **d6**                                                                                                                                               |
+| **strategy**             | f1, f2, f3, f4, f5, f6, f7, f8 (urgency), f9 (additional context), a4, a7, **a8** (scale), b4, b5, b7, **b_growth_attempts**, d4a, d4b, **d6**                                                                                                                       |
 
 
 **Правило:** агент получает только свои вопросы (context slicing), не весь бриф. Цепочка в коде: `QUESTION_FEED_ROLES` → `DOMAIN_TO_QUESTIONS_RAW` (реэкспорт в `domain-slice-data.ts`) → `DOMAIN_TO_QUESTION_IDS` в `question-bank.ts`.
@@ -623,9 +631,9 @@ Normalization of intake answers is centralized in `packages/intake-core/src/answ
 | Section C (no site) | 3 | — | — | — | — | — | — |
 | Section D | 11 | +2 | +1 | +1 | — | — | — |
 | Section E | 4 | — | — | — | — | — | — |
-| Section F | 8 | — | — | — | — | — | — |
-| **Total (with site)** | **46+** | **+4** | **+2** | **+2** | **+1** | **+1** | **+1** |
-| **Total (no site)** | **41+** | **+4** | **+2** | **+2** | **+1** | **+1** | **+1** |
+| Section F | 9 | — | — | — | — | — | — |
+| **Total (with site)** | **47+** | **+4** | **+2** | **+2** | **+1** | **+1** | **+1** |
+| **Total (no site)** | **42+** | **+4** | **+2** | **+2** | **+1** | **+1** | **+1** |
 
 
 *После переноса `d4c` → `f7` в D на один id меньше (`f7` считается в F), но операционный блок всё ещё плотный — см. заметку перегрузки в Section D.*

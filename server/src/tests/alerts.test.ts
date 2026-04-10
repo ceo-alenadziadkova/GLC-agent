@@ -14,11 +14,32 @@ const { setEvents, getEvents } = vi.hoisted(() => {
 
 vi.mock('../services/supabase.js', () => ({
   supabase: {
-    from: () => ({
-      select: () => ({
-        gte: async () => ({ data: getEvents(), error: null }),
-      }),
-    }),
+    from: (table: string) => {
+      if (table === 'pipeline_events') {
+        return {
+          select: () => ({
+            gte: async () => ({ data: getEvents(), error: null }),
+          }),
+        };
+      }
+      if (table === 'profiles') {
+        return {
+          select: () => ({
+            eq: async () => ({ data: [{ id: 'consultant-1' }], error: null }),
+          }),
+        };
+      }
+      if (table === 'notifications') {
+        return {
+          insert: async () => ({ error: null }),
+        };
+      }
+      return {
+        select: () => ({
+          gte: async () => ({ data: [], error: null }),
+        }),
+      };
+    },
   },
 }));
 
@@ -80,6 +101,8 @@ describe('alerts deep links', () => {
 
     expect(fetchMock).toHaveBeenCalled();
     const firstPayload = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { text: string };
+    expect(firstPayload.text).toContain('[RED|CRITICAL]');
+    expect(firstPayload.text).toContain('event=alert_failure_rate_high');
     expect(firstPayload.text).toContain('https://sentry.example/traces/abc123');
     expect(firstPayload.text).toContain('https://trace.example/id/abc123');
   });
@@ -111,6 +134,7 @@ describe('alerts deep links', () => {
 
     expect(fetchMock).toHaveBeenCalled();
     const firstPayload = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { text: string };
+    expect(firstPayload.text).toContain('[RED|CRITICAL]');
     expect(firstPayload.text).toContain('trace_id=fallback-trace');
   });
 });

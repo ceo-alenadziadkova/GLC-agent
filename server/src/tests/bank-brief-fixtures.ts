@@ -8,7 +8,7 @@ export function makeWebsitePathFullBrief(
   collectionMode?: IntakeBriefCollectionMode,
 ): Record<string, unknown> {
   const r: Record<string, unknown> = {
-    a10: 'Lead generation',
+    a10: 'Lead generation / referrals',
     a1: 'We sell eco goods online.',
     a2: 'Retail',
     a3: 'Germany',
@@ -23,7 +23,7 @@ export function makeWebsitePathFullBrief(
     c3: 'Yes, GA4',
     d1: ['Email', 'Spreadsheets'],
     d2: 'Copy-pasting orders into sheets',
-    f1: 'Need more qualified traffic',
+    f1: 'Not enough qualified leads or new customers',
     f2: ['Website performance and technology (speed, stability, technical health)'],
   };
   const missing = resolveFullSlaRequiredIds(r, collectionMode).filter(id => !isFilled(r[id]));
@@ -49,8 +49,8 @@ export function makeWebsitePathExpressBrief(
   collectionMode?: IntakeBriefCollectionMode,
 ): Record<string, unknown> {
   const r: Record<string, unknown> = {
-    a10: 'Lead generation',
-    f1: 'Need more leads',
+    a10: 'Lead generation / referrals',
+    f1: 'Not enough qualified leads or new customers',
     b1: 'B2B buyers',
     a6: 'Yes',
     a5: 'Yes, multi-page site',

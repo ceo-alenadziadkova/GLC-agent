@@ -136,15 +136,17 @@ const BASE_BRIEF_QUESTIONS: BriefQuestion[] = [
     id: 'a10',
     priority: 'required',
     domains: ['all'],
-    question: 'What is your main revenue model?',
-    type: 'single_choice',
+    question: 'Which monetization model best describes your business?',
+    hint: 'This is about your core monetization model (how money is generated), not about repeat vs one-off behavior. Select up to 2 options that represent most of your revenue today.',
+    type: 'multi_choice',
     options: [
-      'Subscription / SaaS',
-      'E-commerce (product sales)',
-      'Lead generation',
-      'Consulting / services',
-      'Freemium',
-      'Marketplace',
+      'One-time services (projects, consulting)',
+      'Recurring services (retainers)',
+      'Product sales (online or offline)',
+      'Subscription / membership',
+      'Commission or marketplace fees',
+      'Lead generation / referrals',
+      'Ads / sponsorships',
       'Other',
     ],
   },
@@ -322,8 +324,19 @@ const BASE_BRIEF_QUESTIONS: BriefQuestion[] = [
     id: 'biggest_pain',
     priority: 'required',
     domains: ['all'],
-    question: 'In one sentence: what is the biggest problem you want this audit to solve?',
-    type: 'free_text',
+    question: 'Main business problem to solve',
+    hint: 'Select up to 2 primary pain points. If needed, choose Other and add a short clarification.',
+    type: 'multi_choice',
+    options: [
+      'Not enough qualified leads or new customers',
+      'Too many visitors but low conversion to inquiries/sales',
+      'Too much manual work and operational overload',
+      'Revenue is unstable or highly seasonal',
+      'Overdependence on one channel/platform',
+      'Low customer retention or repeat purchases',
+      'Margins are too low',
+      'Other',
+    ],
   },
   {
     id: 'budget_for_changes',
@@ -504,7 +517,7 @@ export function getBriefQuestionText(id: string): string {
   if (id === 'revenue_model') {
     return (
       BRIEF_QUESTIONS.find(q => q.id === 'a10')?.question
-      ?? 'What is your main revenue model?'
+      ?? 'Which monetization model best describes your business?'
     );
   }
   return (

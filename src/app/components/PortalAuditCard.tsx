@@ -58,7 +58,7 @@ function clientPortalAuditPresentation(a: AuditMeta): {
       return {
         pill: 'review',
         label: 'Review pause',
-        hint: 'Waiting on your GLC consultant at a review step before the run continues.',
+        hint: 'Waiting at a review step before the run continues.',
         pulse: false,
       };
     case 'completed':

@@ -17,6 +17,7 @@ describe('choiceValueNeedsSpecify', () => {
     expect(choiceValueNeedsSpecify('Other')).toBe(true);
     expect(choiceValueNeedsSpecify('Something else')).toBe(true);
     expect(choiceValueNeedsSpecify('Yes, other tool')).toBe(true);
+    expect(choiceValueNeedsSpecify('Yes, there are additional details')).toBe(true);
     expect(choiceValueNeedsSpecify('Regular option')).toBe(false);
   });
 

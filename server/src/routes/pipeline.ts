@@ -27,7 +27,7 @@ import {
   resolveIntakeSurfaceForPlan,
   validationPerspectiveForBriefAccess,
 } from '../services/brief-validator.js';
-import { notifyAuditParticipants, notifyAuditParticipantsExcept } from '../services/notifications.js';
+import { emitStructuredNotification, notifyAuditParticipantsExcept } from '../services/notifications.js';
 import { emitPhaseErrorDurable } from '../services/pipeline-error.js';
 import { enqueuePipelineJob } from '../services/pipeline-jobs.js';
 
@@ -487,13 +487,17 @@ pipelineRouter.post('/:id/reviews/:phase', ...consultantGuard, async (req: AuthR
       data: { consultant_notes: sanitizedConsultantNotes, interview_notes: sanitizedInterviewNotes },
     });
 
-    await notifyAuditParticipants(
-      id,
-      'review',
-      'Review approved',
-      `Review point after phase ${phase} approved`,
-      { phase: parseInt(phase) },
-    );
+    await emitStructuredNotification({
+      category: 'review',
+      event: 'review_approved',
+      priority: 'low',
+      audience: 'audit_participants',
+      auditId: id,
+      title: 'Review approved',
+      message: `Review point after phase ${phase} approved`,
+      payload: { phase: parseInt(phase, 10) },
+      route: `/audit/${id}`,
+    });
 
     res.json(data);
   } catch (err) {

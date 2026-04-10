@@ -41,7 +41,7 @@ import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 import { getStoredIdempotentResponse, storeIdempotentResponse } from '../lib/idempotency.js';
 import { logger } from '../services/logger.js';
 import { resolveSelfServeAuditOwnerUserId } from '../lib/self-serve-audit-owner.js';
-import { notifyConsultants } from '../services/notifications.js';
+import { emitStructuredNotification } from '../services/notifications.js';
 import { healUxDomainRowForFreeSnapshotPortal } from '../lib/snapshot-audit-response-heal.js';
 import { buildIntakePlan } from '@glc/intake-core';
 import { mergeLegacyIntakeAliasesRead } from '@glc/intake-core';
@@ -617,20 +617,21 @@ auditsRouter.post('/:id/brief/help-request', attachProfile, async (req: AuthRequ
 
     if (upErr) throw upErr;
 
-    await notifyConsultants(
-      'intake',
-      'Client requested help with brief',
-      message
-        ? `A client asked for help with their intake brief (audit ${id.slice(0, 8)}…).`
-        : `A client asked for help with their intake brief (audit ${id.slice(0, 8)}…).`,
-      {
+    await emitStructuredNotification({
+      category: 'help',
+      event: 'brief_help_requested',
+      priority: 'medium',
+      audience: 'consultants',
+      auditId: id,
+      title: 'Client requested help with brief',
+      message: `A client asked for help with their intake brief (audit ${id.slice(0, 8)}...).`,
+      route: `/audit/${id}`,
+      payload: {
         audit_id: id,
-        route: `/audit/${id}`,
-        occurred_at: new Date().toISOString(),
         actor_role: 'client',
         help_message: message || undefined,
       },
-    );
+    });
 
     res.json({ ok: true });
   } catch (err) {

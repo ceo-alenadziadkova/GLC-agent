@@ -1,6 +1,6 @@
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
-import { notifyAuditParticipants } from './notifications.js';
+import { emitStructuredNotification } from './notifications.js';
 
 async function fallbackWritePipelineError(auditId: string, phase: number, err: Error): Promise<void> {
   const supabaseUrl = process.env.SUPABASE_URL;
@@ -66,19 +66,21 @@ export async function emitPhaseErrorDurable(auditId: string, phase: number, err:
     }
   }
 
-  await notifyAuditParticipants(
+  await emitStructuredNotification({
+    category: 'pipeline',
+    event: 'pipeline_phase_failed',
+    priority: 'critical',
+    audience: 'audit_participants',
     auditId,
-    'pipeline',
-    'Pipeline failure',
-    err.message ?? 'Pipeline phase failed unexpectedly',
-    {
+    title: 'Pipeline failure',
+    message: err.message ?? 'Pipeline phase failed unexpectedly',
+    route: `/pipeline/${auditId}`,
+    payload: {
       phase,
       status: 'failed',
-      route: `/pipeline/${auditId}`,
-      occurred_at: new Date().toISOString(),
       actor_role: 'system',
       failure_type: 'phase_failed',
     },
-  );
+  });
 }
 

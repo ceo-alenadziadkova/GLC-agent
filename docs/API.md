@@ -453,6 +453,28 @@ Base kind taxonomy: `pipeline` | `review` | `intake`.
 
 Additional semantics are carried in `payload` (for example `request_id`, `artifact`, `failure_type`, `route`) so the client can render tailored icons and deep-link to the relevant screen.
 
+### Structured notification event model
+
+Server-side notification producers use a unified envelope that is persisted to in-app notifications and can also fan out to Telegram:
+
+- `category`: `pipeline` | `review` | `intake` | `request` | `snapshot` | `registration` | `help` | `system`
+- `event`: stable event code (for example `pipeline_phase_failed`, `audit_request_approved`, `brief_help_requested`)
+- `priority`: `critical` | `medium` | `low`
+- `audience`: `user` | `audit_participants` | `audit_participants_except` | `consultants`
+- `context`: `audit_id`, `route`, actor metadata, and event-specific payload fields
+
+Priority policy:
+
+- `critical` (RED): pipeline failures and system incidents/degradations
+- `medium` (YELLOW): review-required events, help requests, action requests/changes
+- `low` (GREEN): successful completion, artifact-ready, registration, successful snapshot/intake flow
+
+Telegram format is intentionally structured as a compact block:
+
+- header: `[COLOR|PRIORITY] [CATEGORY] title`
+- body lines: `event=...`, `audit=...`, `time=...`, free-text message
+- optional route line: `route=/path`
+
 ### `GET /api/notifications`
 
 List notifications in reverse chronological order.
@@ -629,6 +651,9 @@ Lists intake tokens **you created** where the client has already submitted (`sub
 **Response `200`:** `{ "metadata", "questions" (pre-brief subset), "responses", "submitted_at", "expires_at" }`.
 
 The `questions` list matches **authenticated brief**: **identity** first, then **`getBriefQuestionsByIds(plan.visible)`** where `plan` is `buildIntakePlan` with **`collection_mode: pre_brief`**, **`product_mode: full`**, **`surface: client_form`**, on responses after **`mergeLegacyIntakeAliasesRead`** (so legacy **`revenue_model`** still affects visibility; canonical bank id is **`a10`**). This is **not** a static `pre_brief` layer slice of `BRIEF_QUESTIONS`; visibility follows the same resolver as the rest of intake. See [QUESTION_BANK.md](./QUESTION_BANK.md).
+For `a10`, clients receive business-friendly preset options (services, product sales, subscriptions, marketplace/commission, lead generation, ads) plus `Other`, and the selected value may include `a10__other` clarification.
+For `f1`, clients receive popular business pain presets plus `Other`; when `Other` is selected, `f1__other` may carry the clarification text.
+In `express` UX, `f2` still displays all focus areas for transparency, but `Marketing and positioning` and `Process automation and efficiency` are intentionally locked (non-selectable with explanatory copy) because express deep analysis is limited to Tech/Security/SEO/UX.
 
 Each question object includes optional **`section`** (UI heading: `Business`, `Goals`, `UX & Conversion`, …) aligned with the consultant brief — the public `/intake/:token` page groups the form and review by these sections. Same shape on **`GET /api/intake/prefill/:token`**.
 
@@ -638,7 +663,7 @@ Each question object includes optional **`section`** (UI heading: `Business`, `G
 
 **Auth:** none. **Body:** `{ "responses": { ... } }` — same shape as intake brief answers (validated with `BriefResponsesSchema`).
 
-Submit validation requires **identity** plus the **express SLA** bank ids from **`resolveExpressSlaRequiredIds`** (same inputs as full express: visibility / branch / `collection_mode` / current policy). Statically this aligns with **`PRE_BRIEF_REQUIRED_SUBMIT_IDS`** (= express **`requiredAlways` + `requiredIfVisible`** in `intake-policy.v1.json` via `express-policy-ids.ts`). Optional pre-brief-only fields (e.g. **`f2` / `a7` / `f8`** when shown) are not part of that SLA unless they are required by the resolver for the client’s answers.
+Submit validation requires **identity** plus the **express SLA** bank ids from **`resolveExpressSlaRequiredIds`** (same inputs as full express: visibility / branch / `collection_mode` / current policy). Statically this aligns with **`PRE_BRIEF_REQUIRED_SUBMIT_IDS`** (= express **`requiredAlways` + `requiredIfVisible`** in `intake-policy.v1.json` via `express-policy-ids.ts`). Optional pre-brief-only fields (e.g. **`f2` / `a7` / `f8` / `f9`** when shown) are not part of that SLA unless they are required by the resolver for the client’s answers.
 
 Overwrites stored responses and updates `submitted_at`. Allowed until `expires_at` (no single-submit lock). If the token was created with `audit_id`, merges pre-brief question keys into `intake_brief` with source `client`.
 

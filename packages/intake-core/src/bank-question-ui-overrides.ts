@@ -31,6 +31,20 @@ const OVERRIDES: Record<string, BankQuestionUiOverride> = {
     options: ['Spanish', 'English', 'German', 'French', 'Russian', 'Other'],
     hint: 'Automation and digital recommendations depend on which languages your customers actually use — a WhatsApp template in the wrong language does not convert.',
   },
+  a10: {
+    type: 'multi_choice',
+    options: [
+      'One-time services (projects, consulting)',
+      'Recurring services (retainers)',
+      'Product sales (online or offline)',
+      'Subscription / membership',
+      'Commission or marketplace fees',
+      'Lead generation / referrals',
+      'Ads / sponsorships',
+      'Other',
+    ],
+    hint: 'This is about your core monetization model (how money is generated), not about repeat vs one-off behavior. Select up to 2 options that represent most of your revenue today.',
+  },
   b1: {
     type: 'free_text',
     hint: 'Think about your three best clients from last year — what do they have in common? Industry, situation, how they found you, what they valued most.',
@@ -77,7 +91,7 @@ const OVERRIDES: Record<string, BankQuestionUiOverride> = {
   b7: {
     type: 'single_choice',
     options: ['Mostly repeat customers', 'Mix of repeat and one-off', 'Mostly one-off transactions', 'Not sure'],
-    hint: 'This helps us decide whether to prioritize retention systems or new acquisition channels.',
+    hint: 'This is about purchase frequency from existing customers (retention pattern), not your monetization model.',
   },
   b_growth_attempts: {
     type: 'multi_choice',
@@ -269,6 +283,20 @@ const OVERRIDES: Record<string, BankQuestionUiOverride> = {
     hint: "No exam here. If you are unsure, we mark this for deeper audit validation.",
   },
   e4: { type: 'single_choice', options: ['Yes, in place', 'In progress', 'No', 'Not sure'] },
+  f1: {
+    type: 'multi_choice',
+    options: [
+      'Not enough qualified leads or new customers',
+      'Too many visitors but low conversion to inquiries/sales',
+      'Too much manual work and operational overload',
+      'Revenue is unstable or highly seasonal',
+      'Overdependence on one channel/platform',
+      'Low customer retention or repeat purchases',
+      'Margins are too low',
+      'Other',
+    ],
+    hint: 'Select up to 2 primary pain points. If needed, choose Other and add a short clarification.',
+  },
   f2: {
     type: 'multi_choice',
     options: [
@@ -319,6 +347,11 @@ const OVERRIDES: Record<string, BankQuestionUiOverride> = {
       'No specific deadline',
     ],
     hint: 'Deadlines help us prioritize quick wins vs deeper changes in the first roadmap wave.',
+  },
+  f9: {
+    type: 'single_choice',
+    options: ['No, I have already shared everything relevant', 'Yes, there are additional details'],
+    hint: 'If there are special constraints or context we did not cover (for example, tax or regulatory setup in another country), share them here. If not, choose that everything is already covered.',
   },
 };
 

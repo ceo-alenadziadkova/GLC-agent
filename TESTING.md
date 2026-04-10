@@ -109,9 +109,51 @@ Unit and RTL tests with **mocked** Supabase cover logic and contracts but **do n
 | `relativeTime` | Yes | `relativeTime.test.ts` |
 | Intake “specify other” | Yes | Canonical: `@glc/intake-core` (`choice-specify-triggers`); tests: `src/app/lib/choice-specify-triggers.test.ts` + `server/src/tests/choice-specify-triggers.test.ts` |
 
+## H. Questionnaire critical regressions (Step-by-step / Wizard)
+
+This block is mandatory for changes that touch questionnaire UX, answer state wiring, or wizard ordering.
+
+### Why this exists
+
+- The highest-risk UI regression is broken answer interaction: cannot switch option, cannot type, answer disappears after navigation.
+- These checks lock down the exact user actions that must never break.
+
+### Required checks before merge
+
+Run all commands from repo root:
+
+- `pnpm vitest "src/app/components/__tests__/BriefField.test.tsx"`
+- `pnpm vitest "src/app/components/__tests__/IntakeBankWizard.test.tsx"`
+- `pnpm vitest "src/app/pages/__tests__/NewAudit.wizard-state.test.tsx"`
+- `pnpm playwright test "e2e/smoke.spec.ts" --grep "discovery step-by-step"`
+
+### Covered failure modes
+
+- **Choice switching works:** user can change selected option after misclick.
+- **Typing works:** user can input text in free-text and "Other / specify" fields.
+- **Express focus-area lock works:** in `f2` (`Audit focus areas`) the `Marketing` and `Automation` chips are locked (disabled + lock icon) in express mode, and the disclaimer copy is visible.
+- **Back/Next persistence:** answer remains after moving forward and back.
+- **State wiring safety (`NewAudit`):** wizard next-state is applied directly, not merged in a way that can resurrect stale values.
+- **Question-first hierarchy:** "Suggested next" renders below the current question to keep primary action focus.
+
 ## CI
 
 GitHub Actions workflow [.github/workflows/test.yml](.github/workflows/test.yml) runs root Vitest, `server/` Vitest, then Playwright smoke on Chromium (`npx playwright install chromium --with-deps` on Ubuntu).
+
+### CI Gate Policy
+
+- **Fast Gate**: [.github/workflows/test.yml](.github/workflows/test.yml)
+  - Runs on PR/push.
+  - Includes security gates, typecheck, lint, frontend/backend tests, and Playwright smoke.
+  - Intended as the default merge blocker.
+
+- **Release Gate**: [.github/workflows/release-gate.yml](.github/workflows/release-gate.yml)
+  - Runs on `main`/`master` pushes and manual dispatch.
+  - Includes all Fast Gate checks plus migration execution on a clean PostgreSQL service.
+  - Intended as the release readiness blocker.
+
+- **Branch protection recommendation**
+  - Mark both Fast Gate and Release Gate required in GitHub Branch Protection for release-sensitive branches.
 
 ## Code coverage (V8)
 
@@ -145,23 +187,23 @@ Below is an ordered checklist for **product admin / QA** on a staging environmen
 
 ### 1. Administrator (consultant / Admin)
 
-**Identity and role**
+#### Identity and role
 
 - [ ] Admin email is listed in **`CONSULTANT_EMAILS`** on Railway (or server `.env`).
 - [ ] After sign-in (email/password or Google), shell shows **Admin**; DB has `profiles.role = consultant`.
 
-**Primary product entry (operations)**
+#### Primary product entry (operations)
 
 - [ ] Expected: admin signs in via **normal login** (`/login`), not primarily through public Snapshot — Snapshot/Discovery are for **client** onboarding.
 - [ ] After login, **`/dashboard`** opens (`/portfolio` redirect goes there too).
 - [ ] Dashboard shows **operational blocks**: KPI strip (`KpiStrip`), action panels / score distribution, activity feed, **audit list**, audit search ([`Dashboard.tsx`](src/app/pages/Dashboard.tsx)).
 
-**Snapshot / Discovery before login (do not mix with admin work context)**
+#### Snapshot / Discovery before login (do not mix with admin work context)
 
 - [ ] If admin uses `/snapshot` **while signed out**, then signs in with **full admin account**: consultant data must **not** be lost; snapshot is a separate `free_snapshot` row until **claim** if applicable.
 - [ ] After login, admin sees **consultant navigation**: Dashboard, Request queue, Discovery queue, contextual Audit / Pipeline / Reports / Strategy when an audit is selected ([`buildConsultantNav`](src/app/components/AppShell.tsx)).
 
-**Settings, other areas, sign-out**
+#### Settings, other areas, sign-out
 
 - [ ] **Settings** in sidebar exists for full accounts (not guest) — both Admin and Client ([`AppShell`](src/app/components/AppShell.tsx): `!isGuest`).
 - [ ] Browse available settings and confirm content matches Admin role (no client `/portal` without an explicit scenario).
@@ -171,22 +213,22 @@ Below is an ordered checklist for **product admin / QA** on a staging environmen
 
 ### 2. Client (`profiles.role = client`)
 
-**Sign-in and registration**
+#### Sign-in and registration
 
 - [ ] **Email + password** sign-in; if needed, **register** a new user (respect Supabase email confirmation if enabled).
 - [ ] Optionally **Google** sign-in (separate scenario).
 
-**Portal and audits**
+#### Portal and audits
 
 - [ ] **New** client: portal has a path to **create an audit** (e.g. `/portal/audit/new`, quick action in shell).
 - [ ] **Existing** client: **`/portal`** shows **past audits** / cards per API data.
 
-**Snapshot or Discovery with an existing account**
+#### Snapshot or Discovery with an existing account
 
 - [ ] User is already **client**, runs public **Snapshot** or **Discovery**, then **signs in with the same account**; **claim** attaches the snapshot when pending token is present.
 - [ ] Confirm: new snapshot/discovery **attaches** to the user / appears in portal, and **previous audits and quick snapshots are not missing** or replaced by a false single-audit state. Backend `user_id` / `client_id` wiring — cross-check [docs/API.md](./docs/API.md) and audit routes.
 
-**Sign-out**
+#### Sign-out
 
 - [ ] Sign out; protected portal routes require login again.
 
@@ -194,26 +236,26 @@ Below is an ordered checklist for **product admin / QA** on a staging environmen
 
 ### 3. Guest (`profiles.role = guest`, legacy anonymous or post-Snapshot)
 
-**First visit and role**
+#### First visit and role
 
 - [ ] If still using **anonymous** Supabase sessions, profile may be **`guest`**, shell shows **Guest**, **SNAPSHOT** nav ([`buildGuestNav`](src/app/components/AppShell.tsx)). Cookie-only snapshot does not require anonymous auth.
 - [ ] **Settings** hidden for guest (`isGuest`).
 
-**Snapshot and Discovery**
+#### Snapshot and Discovery
 
 - [ ] Full public snapshot on `/snapshot` works (**CORS** + **`credentials: 'include'`**; optional **`SNAPSHOT_GUEST_IP_SALT`** on API).
 - [ ] **Discovery** from public routes (`/audit/discover`, alias `/discovery`).
 
-**Registration from Snapshot / Discovery**
+#### Registration from Snapshot / Discovery
 
 - [ ] **Google** registration from guest session: after upgrade, **`guest` → `client`** (or consultant if email in `CONSULTANT_EMAILS`).
 - [ ] **Settings** (after full account): **name** and **email** show where the product collects them (Google usually provides email; name from profile / `full_name`).
 
-**Snapshot result in “profile”**
+#### Snapshot result in "profile"
 
 - [ ] After registration, client sees **recent snapshot result** in portal / audit list (as designed for `free_snapshot`).
 
-**Visibility and sign-out**
+#### Visibility and sign-out
 
 - [ ] Before full registration, guest does **not** see full client portal like `client`.
 - [ ] After registration — **CLIENT WORKSPACE** nav and client scenarios above.
@@ -224,3 +266,112 @@ Below is an ordered checklist for **product admin / QA** on a staging environmen
 ### Link to automated tests
 
 Partially covered today: tables A–D above and [e2e/smoke.spec.ts](e2e/smoke.spec.ts). Full walkthrough of this section needs **staging with real Supabase and `CONSULTANT_EMAILS`**.
+
+## P0 Quality Policy and Regression Pack
+
+This project follows a risk-based blocking policy.
+No change is merge-ready or release-ready unless all P0 checks pass.
+
+### Merge Gate (required)
+
+- Typecheck passes
+- Lint passes
+- Frontend and backend test suites pass
+- Critical Playwright smoke passes
+
+### Release Gate (required)
+
+- All merge gate checks are green
+- Full E2E regression is green
+- Migrations are validated on a clean database
+- Targeted exploratory testing is completed for high-risk flows
+
+Blocking high-risk flows:
+
+- auth and role boundaries
+- snapshot and claim
+- client portal visibility and access
+- pipeline state transitions
+- user data isolation
+
+This section defines the minimum blocking quality bar for merge and release.
+
+### PR Gate (required on every pull request)
+
+Run:
+
+- `pnpm run typecheck`
+- `pnpm run lint`
+- `pnpm test`
+- `pnpm --filter glc-audit-server test`
+- `pnpm run test:e2e` (critical smoke subset)
+
+Goal: catch critical regressions before merge.
+
+### P0 Critical Scenarios (must always pass)
+
+#### Auth and access control
+
+- Unauthenticated users cannot access protected routes.
+- Correct redirect behavior after sign-in/sign-out.
+- Role boundaries remain correct (`consultant`, `client`, `guest`).
+
+#### Snapshot and claim flow
+
+- Public snapshot creation works end-to-end.
+- `claim` correctly links snapshot data to the authenticated user.
+- Existing user audits are not lost or replaced after claim.
+
+#### API contracts and isolation
+
+- Critical endpoints preserve expected response contracts.
+- User data remains isolated by user identity.
+- Authorization failures return stable, expected error responses.
+
+#### Pipeline critical path
+
+- Pipeline start prevents race conditions and duplicate starts.
+- Pipeline status transitions remain valid.
+- Blocking failures are surfaced and do not fail silently.
+
+#### Migration and RLS safety
+
+- Migrations apply in strict numeric order.
+- RLS hardening invariants remain intact.
+
+### Required Backend P0 Tests
+
+- `server/src/tests/require-auth.test.ts`
+- `server/src/tests/user-isolation.test.ts`
+- `server/src/tests/snapshot-route.test.ts`
+- `server/src/tests/discover-route.test.ts`
+- `server/src/tests/brief-route.test.ts`
+- `server/src/tests/pipeline-route-concurrency.test.ts`
+- `server/src/tests/pipeline-start-route-contract.test.ts`
+- `server/src/tests/pipeline-status-route-contract.test.ts`
+- `server/src/tests/reports-route.test.ts`
+- `server/src/tests/question-bank-answer-contract.test.ts`
+- `server/src/tests/rls-hardening-migration.test.ts`
+
+### Pre-release Gate (blocking release)
+
+Before release, require:
+
+- Full PR Gate
+- Full Playwright regression (not smoke-only)
+- Migration execution on a clean database
+- Targeted exploratory testing in high-risk zones:
+  - auth and roles
+  - snapshot and claim
+  - portal visibility and client access
+  - pipeline state transitions
+
+### Quality Gate Criteria (release readiness)
+
+Release is allowed only if:
+
+- No open P0 defects
+- All P0 automated checks are green
+- No new flaky tests in required checks
+- No auth/data isolation/security regressions
+- Critical business flows are validated by automation and targeted exploratory checks

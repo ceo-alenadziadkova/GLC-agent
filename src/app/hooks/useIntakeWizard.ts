@@ -228,16 +228,6 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
     [visibleStubs, responses],
   );
 
-  const setField = useCallback(
-    (id: string, val: unknown) => {
-      const base = { ...responses, [id]: val };
-      const next = { ...base };
-      if (controlled) onChange(next);
-      else setInternal(next);
-    },
-    [controlled, onChange, responses],
-  );
-
   const setResponses = useCallback(
     (updater: (prev: Record<string, unknown>) => Record<string, unknown>) => {
       if (controlled) {
@@ -248,6 +238,13 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
       }
     },
     [controlled, onChange, responses],
+  );
+
+  const setField = useCallback(
+    (id: string, val: unknown) => {
+      setResponses(prev => ({ ...prev, [id]: val }));
+    },
+    [setResponses],
   );
 
   const [stepIndex, setStepIndex] = useState(0);

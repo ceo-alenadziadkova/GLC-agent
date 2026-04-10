@@ -265,7 +265,7 @@ describe('assertBriefReady()', () => {
 
   it('throws for express audit with missing required questions', async () => {
     setAuditMode('express');
-    setBriefRow({ responses: { f1: 'increase revenue' } });
+    setBriefRow({ responses: { f1: 'Not enough qualified leads or new customers' } });
     await expect(assertBriefReady('audit-001')).rejects.toThrow(/Intake brief incomplete/);
   });
 
@@ -315,7 +315,7 @@ describe('saveBriefResponses()', () => {
   });
 
   it('sets sla_met=false when required questions missing', async () => {
-    const { brief } = await saveBriefResponses('audit-001', { f1: 'grow' });
+    const { brief } = await saveBriefResponses('audit-001', { f1: 'Not enough qualified leads or new customers' });
     expect(brief.sla_met).toBe(false);
   });
 
@@ -414,8 +414,8 @@ describe('arePreBriefSlotsSatisfied', () => {
     intake_company_name: 'Acme',
     intake_industry: 'Hospitality',
     a5: 'Yes, multi-page site',
-    a10: 'Lead generation',
-    f1: 'More direct bookings',
+    a10: 'Lead generation / referrals',
+    f1: 'Not enough qualified leads or new customers',
     b1: 'Travelers 30–50',
     a6: 'Yes',
     c5: 'Book now',

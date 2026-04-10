@@ -21,7 +21,6 @@ import { formatAuditWebsiteDisplay, isNoPublicWebsiteUrl } from '../data/no-publ
 import { effectiveBriefForPipelineGates } from '../data/intakeBriefMap';
 import {
   countAnswered,
-  mergeBriefResponsesPreferFilled,
   pipelineRequiredIdsForProductMode,
   type BriefResponses,
 } from '../data/briefQuestions';
@@ -247,9 +246,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
               {briefLayoutChoice === 'wizard' ? (
                 <IntakeBankWizard
                   responses={responses}
-                  onResponsesChange={patch =>
-                    setResponses(prev => mergeBriefResponsesPreferFilled(prev, patch))
-                  }
+                  onResponsesChange={next => setResponses(next)}
                   interviewMode={false}
                   emphasizeClientSource={false}
                   answerSource="client"
@@ -272,6 +269,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
                   responses={responses}
                   collectionMode={briefCollectionMode}
                   intakeSurface={clientIntakeSurface}
+                  productMode={productMode}
                   onChange={handleClientBriefFieldChange}
                   onSetUnknown={handleClientBriefSetUnknown}
                   interviewMode={false}
@@ -558,7 +556,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                 >
                   <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>Run the audit</div>
                   <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
-                    When required brief fields are complete, you can start the pipeline. Review gates inside the run are handled by your GLC consultant; you can follow progress here in the portal.
+                    When required brief fields are complete, you can start the pipeline. Some phases may pause for a review step before continuing; you can follow progress here in the portal.
                   </p>
                   <button
                     type="button"
@@ -588,7 +586,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                     <span className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>Request help with the brief</span>
                   </div>
                   <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    Optional. A consultant can clarify questions or suggest wording. This does not block starting the audit whenever you are ready.
+                    Optional. You can request help to clarify questions or improve wording. This does not block starting the audit whenever you are ready.
                   </p>
                   <textarea
                     value={helpMessage}
@@ -820,7 +818,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                         </li>
                         <li>
                           <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Snapshot score hint</span> —
-                          overall /100 from the scan stored in consultant recon prefills (the full audit is re-scored from
+                          overall /100 from the scan stored in recon prefills (the full audit is re-scored from
                           scratch).
                         </li>
                         <li>

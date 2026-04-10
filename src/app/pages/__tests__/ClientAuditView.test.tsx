@@ -43,6 +43,74 @@ function minimalCompletedFullAudit(id: string): AuditState {
   };
 }
 
+function minimalCreatedAudit(id: string): AuditState {
+  return {
+    meta: {
+      id,
+      user_id: 'user-1',
+      client_id: 'client-1',
+      company_url: 'https://example.com',
+      company_name: 'Example Co',
+      industry: 'SaaS',
+      status: 'created',
+      current_phase: 0,
+      overall_score: null,
+      product_mode: 'full',
+      token_budget: 100_000,
+      tokens_used: 0,
+      snapshot_token: null,
+      created_at: '2025-01-01T00:00:00Z',
+      updated_at: '2025-01-01T00:00:00Z',
+    },
+    recon: null,
+    domains: {},
+    strategy: null,
+    reviews: [],
+    brief: null,
+  };
+}
+
+function minimalCompletedFreeSnapshotAudit(id: string): AuditState {
+  return {
+    meta: {
+      id,
+      user_id: 'user-1',
+      client_id: 'client-1',
+      company_url: 'https://example.com',
+      company_name: 'Example Co',
+      industry: null,
+      status: 'completed',
+      current_phase: 0,
+      overall_score: null,
+      product_mode: 'free_snapshot',
+      token_budget: 0,
+      tokens_used: 0,
+      snapshot_token: 'snap-1',
+      created_at: '2025-01-01T00:00:00Z',
+      updated_at: '2025-01-01T00:00:00Z',
+    },
+    recon: {
+      id: 'recon-1',
+      audit_id: id,
+      status: 'completed',
+      company_name: 'Example Co',
+      industry: null,
+      location: null,
+      languages: [],
+      tech_stack: {},
+      social_profiles: {},
+      contact_info: { emails: [], phones: [], addresses: [] },
+      pages_crawled: [],
+      brief: null,
+      interview_answers: null,
+    },
+    domains: {},
+    strategy: null,
+    reviews: [],
+    brief: null,
+  };
+}
+
 function renderClientAuditRoute(auditId: string) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -62,16 +130,62 @@ function renderClientAuditRoute(auditId: string) {
 
 describe('ClientAuditView', () => {
   let getAuditSpy: ReturnType<typeof vi.spyOn<typeof apiService.api, 'getAudit'>>;
+  let getBriefSpy: ReturnType<typeof vi.spyOn<typeof apiService.api, 'getBrief'>>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     getAuditSpy = vi.spyOn(apiService.api, 'getAudit').mockImplementation(async (id: string) =>
       minimalCompletedFullAudit(id),
     );
+    getBriefSpy = vi.spyOn(apiService.api, 'getBrief').mockResolvedValue({
+      product_mode: 'full',
+      brief: {
+        id: 'brief-1',
+        audit_id: 'audit-xyz-1',
+        responses: {},
+        status: 'draft',
+        layer_completed: 0,
+        collected_by: 'client',
+        collection_mode: 'self_serve',
+        completed_at: null,
+        submitted_at: null,
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+        intake_versions: null,
+      },
+      questions: [],
+      validation: {
+        passed: false,
+        sla_met: false,
+        answered_required: 0,
+        total_required: 1,
+        answered_recommended: 0,
+        total_recommended: 0,
+        missing_required: [],
+      },
+      gates: {
+        canStartSnapshot: false,
+        canStartExpress: false,
+        canStartFull: false,
+        missingRequiredIds: ['a1'],
+        recommendedToImproveIds: [],
+        intakeProgress: {
+          progressPct: 0,
+          readinessBadge: 'low',
+          nextBestAction: 'complete_required',
+        },
+      },
+      intakeProgress: {
+        progressPct: 0,
+        readinessBadge: 'low',
+        nextBestAction: 'complete_required',
+      },
+    });
   });
 
   afterEach(() => {
     getAuditSpy.mockRestore();
+    getBriefSpy.mockRestore();
   });
 
   it('calls getAudit exactly once per mount (no duplicate fetch from removed wrapper)', async () => {
@@ -95,6 +209,32 @@ describe('ClientAuditView', () => {
     });
 
     expect(getAuditSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders created-state brief section and disabled start action when gates block launch', async () => {
+    getAuditSpy.mockImplementation(async (id: string) => minimalCreatedAudit(id));
+
+    renderClientAuditRoute('audit-created-1');
+
+    await waitFor(() => {
+      expect(screen.getByText('Pre-Audit Brief')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Run the audit')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /start audit/i })).toBeDisabled();
+    expect(getBriefSpy).toHaveBeenCalled();
+  });
+
+  it('renders free-snapshot completion panel for client account mirror flow', async () => {
+    getAuditSpy.mockImplementation(async (id: string) => minimalCompletedFreeSnapshotAudit(id));
+
+    renderClientAuditRoute('audit-snapshot-1');
+
+    await waitFor(() => {
+      expect(screen.getByText(/Quick scan in your account/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Continue with a full audit/i)).toBeInTheDocument();
   });
 
 });

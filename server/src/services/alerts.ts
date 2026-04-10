@@ -2,6 +2,7 @@ import { supabase } from './supabase.js';
 import { logger } from './logger.js';
 import { cleanupExpiredIdempotencyKeys } from '../lib/idempotency.js';
 import { getSharedRedisClient } from './redis.js';
+import { emitStructuredNotification } from './notifications.js';
 
 const WINDOW_MIN = 15;
 const INTERVAL_MS = Number(process.env.ALERT_INTERVAL_MS ?? '60000');
@@ -21,20 +22,6 @@ function shouldNotify(key: string): boolean {
   if (now - last < COOLDOWN_MS) return false;
   cooldown.set(key, now);
   return true;
-}
-
-async function sendTelegram(text: string): Promise<void> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  if (!token || !chatId) return;
-  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text }),
-  });
-  if (!response.ok) {
-    logger.warn('Telegram alert failed', { status: response.status });
-  }
 }
 
 function percentile95(values: number[]): number {
@@ -76,9 +63,17 @@ export async function runAlertChecks(): Promise<void> {
   const failureRate = started > 0 ? failed / started : 0;
 
   if (failureRate >= FAILURE_RATE_THRESHOLD && shouldNotify('failure_rate')) {
-    await sendTelegram(
-      `ALERT pipeline failure rate high: ${(failureRate * 100).toFixed(1)}% in last ${WINDOW_MIN}m (failed=${failed}, started=${started})${renderTraceLinks(traceId)}`
-    );
+    await emitStructuredNotification({
+      category: 'pipeline',
+      event: 'alert_failure_rate_high',
+      priority: 'critical',
+      audience: 'consultants',
+      title: 'Pipeline failure rate high',
+      message: `Failure rate ${(failureRate * 100).toFixed(1)}% in last ${WINDOW_MIN}m (failed=${failed}, started=${started})${renderTraceLinks(traceId)}`,
+      payload: { started, failed, window_minutes: WINDOW_MIN, trace_id: traceId },
+      sendInApp: true,
+      sendTelegram: true,
+    });
   }
 
   const starts = new Map<string, number>();
@@ -98,9 +93,17 @@ export async function runAlertChecks(): Promise<void> {
 
   const p95 = percentile95(latencies);
   if (p95 >= LATENCY_P95_MS_THRESHOLD && shouldNotify('latency_p95')) {
-    await sendTelegram(
-      `ALERT pipeline latency high: p95=${Math.round(p95)}ms in last ${WINDOW_MIN}m (threshold=${LATENCY_P95_MS_THRESHOLD}ms)${renderTraceLinks(traceId)}`
-    );
+    await emitStructuredNotification({
+      category: 'pipeline',
+      event: 'alert_latency_p95_high',
+      priority: 'medium',
+      audience: 'consultants',
+      title: 'Pipeline latency high',
+      message: `Latency p95=${Math.round(p95)}ms in last ${WINDOW_MIN}m (threshold=${LATENCY_P95_MS_THRESHOLD}ms)${renderTraceLinks(traceId)}`,
+      payload: { p95_ms: Math.round(p95), threshold_ms: LATENCY_P95_MS_THRESHOLD, window_minutes: WINDOW_MIN, trace_id: traceId },
+      sendInApp: true,
+      sendTelegram: true,
+    });
   }
 
   let tokenBurn = 0;
@@ -111,9 +114,17 @@ export async function runAlertChecks(): Promise<void> {
   }
 
   if (tokenBurn >= TOKEN_BURN_THRESHOLD && shouldNotify('token_burn')) {
-    await sendTelegram(
-      `ALERT token burn high: ${tokenBurn} tokens in last ${WINDOW_MIN}m (threshold=${TOKEN_BURN_THRESHOLD})${renderTraceLinks(traceId)}`
-    );
+    await emitStructuredNotification({
+      category: 'pipeline',
+      event: 'alert_token_burn_high',
+      priority: 'medium',
+      audience: 'consultants',
+      title: 'Token burn high',
+      message: `Token burn ${tokenBurn} in last ${WINDOW_MIN}m (threshold=${TOKEN_BURN_THRESHOLD})${renderTraceLinks(traceId)}`,
+      payload: { token_burn: tokenBurn, threshold: TOKEN_BURN_THRESHOLD, window_minutes: WINDOW_MIN, trace_id: traceId },
+      sendInApp: true,
+      sendTelegram: true,
+    });
   }
 }
 

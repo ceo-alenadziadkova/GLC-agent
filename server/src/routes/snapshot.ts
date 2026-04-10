@@ -26,6 +26,7 @@ import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-
 import type { CrawledPage, FreeSnapshotPreview, SnapshotScanCoverageApi } from '../types/audit.js';
 import { maybeBuildCompetitorMini } from '../lib/snapshot-competitor.js';
 import { logger } from '../services/logger.js';
+import { emitStructuredNotification } from '../services/notifications.js';
 import { readSnapshotCache, normalizeSnapshotHost } from '../snapshot/cache.js';
 import {
   derivePublicUxFieldsFromSnapshotPayload,
@@ -349,6 +350,22 @@ snapshotRouter.post('/claim', requireAuth, async (req: AuthRequest, res) => {
       user_id: userId,
     });
 
+    await emitStructuredNotification({
+      category: 'snapshot',
+      event: 'snapshot_claimed',
+      priority: 'low',
+      audience: 'consultants',
+      auditId: updated.id as string,
+      title: 'Snapshot claimed',
+      message: 'A public snapshot was linked to a registered account.',
+      route: `/audit/${updated.id as string}`,
+      payload: {
+        audit_id: updated.id,
+        claimed_by_user_id: userId,
+        actor_role: 'client',
+      },
+    });
+
     res.json({
       ok: true,
       audit_id: updated.id as string,
@@ -445,6 +462,22 @@ snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
     }
 
     const auditId = audit.id as string;
+
+    await emitStructuredNotification({
+      category: 'snapshot',
+      event: 'snapshot_started',
+      priority: 'medium',
+      audience: 'consultants',
+      auditId,
+      title: 'New snapshot started',
+      message: `Public snapshot started for ${url}.`,
+      route: `/pipeline/${auditId}`,
+      payload: {
+        audit_id: auditId,
+        company_url: url,
+        actor_role: 'client',
+      },
+    });
 
     // Pre-create required child records
     const initResults = await Promise.allSettled([

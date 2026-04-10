@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { supabase } from '../services/supabase.js';
 import { updateContext } from '../services/observability-context.js';
 import { logger } from '../services/logger.js';
+import { emitStructuredNotification } from '../services/notifications.js';
 
 export type UserRole = 'consultant' | 'client' | 'guest';
 
@@ -234,6 +235,20 @@ export async function attachProfile(req: AuthRequest, res: Response, next: NextF
         return;
       }
       resolvedRole = updatedProfile.role as UserRole;
+      await emitStructuredNotification({
+        category: 'registration',
+        event: 'user_registered',
+        priority: 'low',
+        audience: 'consultants',
+        title: 'New user registered',
+        message: `Guest user completed registration as ${resolvedRole}.`,
+        payload: {
+          user_id: req.userId,
+          role: resolvedRole,
+          actor_role: 'client',
+          user_email: req.userEmail,
+        },
+      });
     }
 
     if (!isAnon && resolvedRole !== 'consultant' && intendedRole === 'consultant') {

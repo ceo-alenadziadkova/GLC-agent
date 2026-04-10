@@ -68,7 +68,7 @@ export function PortalSnapshotAccountMirror({ result }: { result: FreeSnapshotPr
           This is the same quick rule-based scan you saw before sign-up. Creating an account keeps it here so you do not
           lose results.{' '}
           <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>It is not a full GLC audit</strong> — a
-          full run uses your intake brief, deeper phases, and consultant review gates. When you continue below with
+          full run uses your intake brief, deeper phases, and review gates. When you continue below with
           Express or Full, you start that separate programme.
         </p>
       </div>

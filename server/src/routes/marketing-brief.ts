@@ -4,7 +4,7 @@
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
 import { marketingBriefPublicLimiter } from '../middleware/rate-limit.js';
-import { notifyConsultants } from '../services/notifications.js';
+import { emitStructuredNotification } from '../services/notifications.js';
 import { logger } from '../services/logger.js';
 
 export const marketingRouter = Router();
@@ -89,16 +89,19 @@ marketingRouter.post('/brief', marketingBriefPublicLimiter, async (req, res) => 
       return;
     }
 
-    await notifyConsultants(
-      'intake',
-      'Marketing brief submitted',
-      `${name}${company ? ` (${company})` : ''} — suggested route: ${recommendedRoute}`,
-      {
-        route: '/admin/requests',
-        occurred_at: new Date().toISOString(),
+    await emitStructuredNotification({
+      category: 'intake',
+      event: 'marketing_brief_submitted',
+      priority: 'medium',
+      audience: 'consultants',
+      title: 'Marketing brief submitted',
+      message: `${name}${company ? ` (${company})` : ''} — suggested route: ${recommendedRoute}`,
+      route: '/admin/requests',
+      payload: {
         actor_role: 'client',
+        recommended_route: recommendedRoute,
       },
-    );
+    });
 
     res.status(201).json({
       id: data.id,

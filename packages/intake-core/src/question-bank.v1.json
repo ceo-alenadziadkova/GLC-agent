@@ -159,17 +159,18 @@
       "id": "a10",
       "section": "A",
       "priority": "required",
-      "label": "What is your main revenue model?",
+      "label": "Which monetization model best describes your business?",
       "reportUse": "biz_revenue_model",
       "answer": {
-        "type": "single_select",
+        "type": "multi_select",
         "options": [
-          "Subscription / SaaS",
-          "E-commerce (product sales)",
-          "Lead generation",
-          "Consulting / services",
-          "Freemium",
-          "Marketplace",
+          "One-time services (projects, consulting)",
+          "Recurring services (retainers)",
+          "Product sales (online or offline)",
+          "Subscription / membership",
+          "Commission or marketplace fees",
+          "Lead generation / referrals",
+          "Ads / sponsorships",
           "Other"
         ]
       }
@@ -277,7 +278,7 @@
       "id": "b7",
       "section": "B",
       "priority": "recommended",
-      "label": "Repeat vs one-off revenue",
+      "label": "How often do the same customers buy from you again?",
       "reportUse": "mkt_revenue_repeat_vs_oneoff",
       "answer": {
         "type": "single_select",
@@ -1003,8 +1004,17 @@
       "label": "Main business problem to solve",
       "reportUse": "strategy_pain_anchor",
       "answer": {
-        "type": "textarea",
-        "maxLength": 12000
+        "type": "multi_select",
+        "options": [
+          "Not enough qualified leads or new customers",
+          "Too many visitors but low conversion to inquiries/sales",
+          "Too much manual work and operational overload",
+          "Revenue is unstable or highly seasonal",
+          "Overdependence on one channel/platform",
+          "Low customer retention or repeat purchases",
+          "Margins are too low",
+          "Other"
+        ]
       }
     },
     {
@@ -1120,6 +1130,20 @@
           "Investor, partner, or board review",
           "Contract or compliance milestone",
           "No specific deadline"
+        ]
+      }
+    },
+    {
+      "id": "f9",
+      "section": "F",
+      "priority": "optional",
+      "label": "Anything else we should account for in your audit context?",
+      "reportUse": "strategy_additional_context_notes",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "No, I have already shared everything relevant",
+          "Yes, there are additional details"
         ]
       }
     }

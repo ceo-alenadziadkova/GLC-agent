@@ -25,7 +25,7 @@ import { NO_PUBLIC_WEBSITE_URL, isNoPublicWebsiteUrl } from '../config/no-public
 import { getStoredIdempotentResponse, storeIdempotentResponse } from '../lib/idempotency.js';
 import { logger } from '../services/logger.js';
 import { saveBriefResponses } from '../services/brief-validator.js';
-import { notifyConsultants, notifyUser } from '../services/notifications.js';
+import { emitStructuredNotification } from '../services/notifications.js';
 
 export const auditRequestsRouter = Router();
 
@@ -162,18 +162,20 @@ auditRequestsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) 
     if (error) throw error;
 
     if (data.status === 'submitted') {
-      await notifyConsultants(
-        'intake',
-        'New client request',
-        'A client submitted a new audit request.',
-        {
+      await emitStructuredNotification({
+        category: 'request',
+        event: 'audit_request_created',
+        priority: 'medium',
+        audience: 'consultants',
+        title: 'New client request',
+        message: 'A client submitted a new audit request.',
+        route: '/admin/requests',
+        payload: {
           request_id: data.id,
           status: data.status,
-          route: '/admin/requests',
-          occurred_at: new Date().toISOString(),
           actor_role: 'client',
         },
-      );
+      });
     }
 
     res.status(201).json(data);
@@ -314,18 +316,20 @@ auditRequestsRouter.patch('/:id', async (req: AuthRequest, res) => {
 
     if (error) throw error;
 
-    await notifyConsultants(
-      'intake',
-      'Client request submitted',
-      'A draft request was submitted and is ready for review.',
-      {
+    await emitStructuredNotification({
+      category: 'request',
+      event: 'audit_request_submitted',
+      priority: 'medium',
+      audience: 'consultants',
+      title: 'Client request submitted',
+      message: 'A draft request was submitted and is ready for review.',
+      route: '/admin/requests',
+      payload: {
         request_id: data.id,
         status: data.status,
-        route: '/admin/requests',
-        occurred_at: new Date().toISOString(),
         actor_role: isConsultant(req) ? 'consultant' : 'client',
       },
-    );
+    });
 
     res.json(data);
   } catch (err) {
@@ -542,18 +546,20 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
       audit.id
     );
 
-    await notifyUser({
+    await emitStructuredNotification({
+      category: 'request',
+      event: 'audit_request_approved',
+      priority: 'low',
+      audience: 'user',
       userId: requestRow.client_id as string,
       auditId: audit.id as string,
-      kind: 'review',
       title: 'Request approved',
       message: 'Your audit request was approved and moved to execution.',
+      route: `/portal/audit/${audit.id}`,
       payload: {
         request_id: id,
         audit_id: audit.id,
         status: 'approved',
-        route: `/portal/audit/${audit.id}`,
-        occurred_at: new Date().toISOString(),
         actor_role: 'consultant',
       },
     });
@@ -603,16 +609,18 @@ auditRequestsRouter.post('/:id/reject', requireRole('consultant'), async (req: A
 
     if (error) throw error;
 
-    await notifyUser({
+    await emitStructuredNotification({
+      category: 'request',
+      event: 'audit_request_rejected',
+      priority: 'medium',
+      audience: 'user',
       userId: data.client_id as string,
-      kind: 'review',
       title: 'Request rejected',
       message: 'Your audit request was rejected. Check consultant notes for details.',
+      route: '/portal',
       payload: {
         request_id: id,
         status: 'rejected',
-        route: '/portal',
-        occurred_at: new Date().toISOString(),
         actor_role: 'consultant',
       },
     });
@@ -658,18 +666,20 @@ auditRequestsRouter.post('/:id/deliver', requireRole('consultant'), async (req: 
       return;
     }
 
-    await notifyUser({
+    await emitStructuredNotification({
+      category: 'request',
+      event: 'audit_request_delivered',
+      priority: 'low',
+      audience: 'user',
       userId: data.client_id as string,
       auditId: (data.audit_id as string | null) ?? null,
-      kind: 'pipeline',
       title: 'Deliverables ready',
       message: 'Your audit deliverables are marked as delivered.',
+      route: data.audit_id ? `/portal/audit/${data.audit_id as string}` : '/portal',
       payload: {
         request_id: id,
         audit_id: data.audit_id,
         status: 'delivered',
-        route: data.audit_id ? `/portal/audit/${data.audit_id as string}` : '/portal',
-        occurred_at: new Date().toISOString(),
         actor_role: 'consultant',
       },
     });

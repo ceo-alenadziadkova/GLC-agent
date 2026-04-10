@@ -1,4 +1,4 @@
-name: Test
+name: Fast Gate
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
 
 jobs:
   security-gates:
+    name: fast-gate / security-gates
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -42,6 +43,7 @@ jobs:
         run: pnpm --filter glc-audit-server test -- src/tests/user-isolation.test.ts src/tests/public-http-url.test.ts src/tests/pipeline-error-fallback.test.ts
 
   vitest:
+    name: fast-gate / type-lint-unit
     runs-on: ubuntu-latest
     needs: security-gates
     steps:
@@ -66,6 +68,7 @@ jobs:
         run: pnpm --filter glc-audit-server test
 
   playwright:
+    name: fast-gate / e2e-smoke
     runs-on: ubuntu-latest
     needs: vitest
     steps:

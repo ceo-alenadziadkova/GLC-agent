@@ -74,12 +74,12 @@ function humanizeConversionModel(id: unknown): string {
   }
 }
 
-/** Map snapshot conversion signal to closest `revenue_model` brief option (exact string). */
+/** Map snapshot conversion signal to closest revenue-model brief option (exact label). */
 function mapConversionToRevenueModel(id: unknown): string | null {
   const s = String(id ?? '');
-  if (s === 'ecommerce-checkout') return 'E-commerce (product sales)';
+  if (s === 'ecommerce-checkout') return 'Product sales (online or offline)';
   if (s === 'demo-request' || s === 'lead-form' || s === 'call-booking' || s === 'whatsapp-contact') {
-    return 'Lead generation';
+    return 'Lead generation / referrals';
   }
   return null;
 }

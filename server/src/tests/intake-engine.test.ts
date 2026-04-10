@@ -211,7 +211,7 @@ describe('question-bank v1', () => {
   });
 
   it('deriveBankV1DataQuality returns null when no bank keys', () => {
-    expect(deriveBankV1DataQuality({ revenue_model: 'Lead generation' })).toBe(null);
+    expect(deriveBankV1DataQuality({ revenue_model: 'Lead generation / referrals' })).toBe(null);
   });
 
   it('getQuestionBankPromptLabel returns JSON label', () => {

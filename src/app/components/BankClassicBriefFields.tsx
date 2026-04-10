@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 import { BriefField } from './BriefField';
-import type { IntakeBriefCollectionMode } from '../data/auditTypes';
+import type { IntakeBriefCollectionMode, ProductMode } from '../data/auditTypes';
 import { getVisibleBankBriefSections } from '../data/bankClassicBrief';
 import type { BriefResponses } from '../data/briefQuestions';
 import type { IntakeSurface } from '@glc/intake-core';
 import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '@glc/intake-core';
+import { EXPRESS_LOCKED_F2_OPTIONS, normalizeF2ValueForExpress } from '../lib/express-focus-area-locks';
 
 function unwrapForField(raw: BriefResponses[string] | undefined): string | string[] | number | null | undefined {
   if (raw == null) return undefined;
@@ -23,6 +24,7 @@ export function BankClassicBriefFields({
   interviewMode,
   emphasizeClientSource,
   compact,
+  productMode = 'full',
 }: {
   responses: BriefResponses;
   collectionMode?: IntakeBriefCollectionMode;
@@ -33,6 +35,8 @@ export function BankClassicBriefFields({
   emphasizeClientSource?: boolean;
   /** Tighter section headers (e.g. Audit Workspace sidebar). */
   compact?: boolean;
+  /** Needed for express-specific option locking in some fields. */
+  productMode?: ProductMode;
 }) {
   const sections = useMemo(
     () => getVisibleBankBriefSections(responses, collectionMode, intakeSurface),
@@ -74,10 +78,11 @@ export function BankClassicBriefFields({
                 <BriefField
                   key={q.id}
                   q={q}
-                  value={responses[q.id]}
+                  value={q.id === 'f2' && productMode === 'express' ? normalizeF2ValueForExpress(responses[q.id]) as BriefResponses[string] : responses[q.id]}
                   onChange={v => {
-                    onChange(q.id, v);
-                    if (!choiceValueNeedsSpecify(v)) {
+                    const nextValue = q.id === 'f2' && productMode === 'express' ? normalizeF2ValueForExpress(v) : v;
+                    onChange(q.id, nextValue as string | string[] | number | null);
+                    if (!choiceValueNeedsSpecify(nextValue)) {
                       onChange(otherKey, null);
                     }
                   }}
@@ -89,6 +94,8 @@ export function BankClassicBriefFields({
                   interviewMode={interviewMode}
                   otherSpecify={otherSpecify}
                   onOtherSpecifyChange={text => onChange(otherKey, text || null)}
+                  disabledOptions={q.id === 'f2' && productMode === 'express' ? EXPRESS_LOCKED_F2_OPTIONS : undefined}
+                  productMode={productMode}
                 />
               );
             })}
