@@ -89,6 +89,29 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install chromium --with-deps
+      - name: Start backend API (port 3001)
+        env:
+          SUPABASE_URL: https://example.supabase.co
+          SUPABASE_SERVICE_KEY: test-service-key
+          SUPABASE_ANON_KEY: test-anon-key
+          JWT_SECRET: test-jwt-secret
+          ALLOWED_ORIGINS: http://127.0.0.1:5173
+          NODE_ENV: test
+        run: |
+          pnpm --filter glc-audit-server dev > /tmp/glc-backend.log 2>&1 &
+      - name: Wait for backend readiness
+        run: |
+          for i in {1..60}; do
+            if curl -fsS "http://127.0.0.1:3001/api/health" > /dev/null; then
+              echo "Backend is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Backend failed to become ready in time"
+          echo "---- Backend log tail ----"
+          tail -n 200 /tmp/glc-backend.log || true
+          exit 1
       - name: E2E smoke
         run: pnpm run test:e2e
         env:

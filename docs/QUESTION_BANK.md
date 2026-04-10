@@ -41,7 +41,7 @@
 | ------------------------------------- | ---------------- | ------------------------------- | -------------------------------------- |
 | **Pre-brief** (ссылка перед встречей) | Клиент           | 5-7 вопросов, 5 мин             | Alena приходит подготовленной          |
 | **Full intake** (wizard/interview)    | Клиент или Alena | 25-35 вопросов, 30-40 мин       | Полный аудит                           |
-| **Discovery** (Mode C, нет сайта)     | Клиент + Alena   | **16** вопросов (банк), ~15 мин | Понимание бизнеса → конвертация в full |
+| **Discovery** (Mode C, нет сайта)     | Клиент + Alena   | policy-driven subset (wizard обычно 11 шагов) | Понимание бизнеса → конвертация в full |
 
 
 В приложении режим **«All sections»** (классическая форма) и **пошаговый wizard** используют **один и тот же** набор видимых id банка (`filterVisibleQuestions` по текущим ответам); отличается только подача — все секции сразу или один вопрос на шаг. Канонические id ответов — **question-bank v1** (плюс identity; revenue перенесён в bank id `a10`, legacy alias `revenue_model` поддерживается для совместимости). **Готовность к старту пайплайна** (full vs express, pre-brief submit): `packages/intake-core/src/brief-gates.ts` — `resolveFullSlaRequiredIds` / `resolveExpressSlaRequiredIds`; на фронте зеркало — `pipelineRequiredIdsForProductMode` ([FRONTEND.md](./FRONTEND.md)). См. `getVisibleBankBriefSections` / `BankClassicBriefFields`.
@@ -163,7 +163,7 @@
 | | Options: Yes / Sometimes / Rarely / No, offline only / Not sure | | | | | |
 | | *Если `No` — в Layer 2 вопрос `e1` можно сократить или пропустить (ветка `handles_payments`); GDPR-вопросы E остаются.* | | | | | |
 | `a7` | How would you describe where your business is **right now**? (not company age — the *moment*) | select | Required | 1, pre, disc | recon (P), strategy (P) | — |
-| | Options: Launching / Growing fast / Stabilising / Scaling / Mature & optimising | | | | | |
+| | Options: Launching / Growing fast / Stabilising / Scaling / Mature and optimising | | | | | |
 | | *Зачем:* тон рекомендаций и приоритет «quick wins vs. foundation» сильно меняется между «запускаемся» и «оптимизируем зрелый процесс». | | | | | |
 | `a8` | Approximately how many **customers or orders** do you serve in a typical month? | select | Recommended | 2 | strategy (P), automation_processes (P); ux_conversion (S), marketing_utp (S) | — |
 | | Options: < 50 / 50–200 / 200–1,000 / 1,000+ / Not sure | | | | | |
@@ -171,7 +171,7 @@
 | `a9` | What languages do your customers communicate in? | multi | Optional | 2, disc | marketing_utp (P), automation_processes (P) | — |
 | | Options: Spanish / English / German / French / Russian / Other | | | | | |
 | | *Helper:* «Helps us evaluate your content reach, multilingual SEO opportunities, and whether automation tools (chatbots, email flows) need to support multiple languages.» | | | | | |
-| `a10` | How does your business mainly make money? | select | Required | 1, pre | recon (P), strategy (P); marketing_utp (S), ux_conversion (S) | — |
+| `a10` | How does your business mainly make money? | multi | Required | 1, pre | recon (P), strategy (P); marketing_utp (S), ux_conversion (S) | — |
 | | Options: One-time services (projects, consulting) / Recurring services (retainers) / Product sales (online or offline) / Subscription or membership / Commission or marketplace fees / Lead generation or referrals / Ads or sponsorships / Other → text | | | | | |
 | | *Helper:* «Choose the closest pattern. If you are not sure, select the one that brings the largest share of revenue today.» | | | | | |
 
@@ -249,7 +249,7 @@
 | `c8` | Name 2–3 of your direct competitors (company name or URL). | textarea | Recommended | 2 | marketing_utp (P) | has_website |
 | | *We'll use them for benchmarking — not shared in your report.* Value-first framing in UI: this helps avoid generic recommendations and compare what actually works in your local market. | | | | | |
 | `c9` | Roughly how long has your current live website been in production? | select | Recommended | 1 | tech_infrastructure (P) | has_website |
-| | Options: Under 6 months / 6 months – 2 years / 2–5 years / 5+ years / Not sure | | | | | |
+| | Options: < 6 months / 6–24 months / 2–5 years / 5+ years / Not sure | | | | | |
 | | *Helper:* site age is a proxy for technical debt and maintenance risk. A rough range is enough. | | | | | |
 | `c1` | *Auto-prefill:* "We detected [WordPress + Cloudflare + Cloudbeds]. Is this correct?" | select | Recommended | 2 | tech_infrastructure (P) | has_website |
 | | Options: Yes, correct / Not quite (I will clarify) → text / I don't know | | | | | |
@@ -258,7 +258,7 @@
 | | Options: Me / someone in-house / Freelancer / Agency / No one regularly / Don't know | | | | | |
 | | *Helper:* this helps us match recommendations to your real delivery model. "Don't know" is acceptable. | | | | | |
 | `c3` | Do you have Google Analytics or another analytics tool installed? | select | Required | 2 | seo_digital (P) | has_website |
-| | Options: Yes, GA4 / Yes, another tool / I think so, but I don't check it / No / Don't know | | | | | |
+| | Options: Yes, GA4 / Yes, another tool / No / Don't know | | | | | |
 | | *Helper:* if you are unsure, that is fine. We will verify analytics coverage during the audit. | | | | | |
 | `c4` | Is Google Search Console set up? | select | Nice-to-have | 2 | seo_digital (P) | has_website |
 | | Options: Yes / No / What's that? | | | | | |
@@ -270,11 +270,11 @@
 | ID | Question | Input | Priority | Layer | Agent feeds (P / S) | Branch |
 |----|----------|-------|----------|-------|-------|--------|
 | `c_nosite_1` | Where are you visible online today? | multi | Recommended | 2 | seo_digital (P) | !has_website |
-| | Options: Full website (multi-page) / Single landing page / Website in development / Social media / Marketplaces or other online platforms / Mostly offline or referrals — **multi-select**, aligned with public `/discovery` (`discovery-flow.ts`). | | | | | |
-| `c_nosite_2` | Anything else about your online presence? | textarea | Optional | 2 | seo_digital (P); strategy (S) | !has_website |
-| | Free text; optional context (forums, app, launch, links). | | | | | |
+| | Options: Google / search / Google Business listing / Social media / OTA or marketplace / Word of mouth / Not really online yet — **multi-select**, aligned with bank UI overrides and public `/discovery`. | | | | | |
+| `c_nosite_2` | Anything else about your online presence? | select | Optional | 2 | seo_digital (P); strategy (S) | !has_website |
+| | Options: Yes, soon / Yes, but not sure how / Eventually / Not a priority right now. | | | | | |
 | `c_nosite_3` | Which social or messaging channels do you use for the business? | multi | Recommended | 2 | seo_digital (P) | `nosite_social` |
-| | Options: Instagram, Facebook, LinkedIn, TikTok, YouTube, X, Telegram, WhatsApp Business — **only if** `c_nosite_1` includes the exact option **Social media** (see `BRANCH_RULES.nosite_social`). | | | | | |
+| | Options: Instagram, Facebook, TikTok, LinkedIn, YouTube, Google Business, TripAdvisor, None, Other — **only if** `c_nosite_1` includes the exact option **Social media** (see `BRANCH_RULES.nosite_social`). | | | | | |
 
 
 ---
@@ -464,10 +464,10 @@ Pre-brief + дополнительно:
 | **Goals**                   | f1, f2, f7, f8, f4, f9                                                       | Problem to solve, focus areas, readiness, urgency, additional context |
 
 
-#### Full ID Set (38 IDs)
+#### Full ID Set (policy-driven; currently 50 IDs)
 
 ```
-Section A (8):  a1, a2, a3, a4, a6, a7, a8, a9
+Section A (10): a1, a2, a3, a4, a5, a6, a7, a8, a9, a10
 Section B (5 universal + up to 2 industry-specific):
   b1, b2, b3, b7, b_growth_attempts
   b_hotel_1, b_hotel_2 (is_hospitality)
@@ -478,24 +478,25 @@ Section B (5 universal + up to 2 industry-specific):
   b_marine_1 (is_marine)
 Section C (6, all branch: no_website):
   c_nosite_1, c_nosite_4, c_nosite_5, c_nosite_reviews, c_nosite_2, c_nosite_3
-Section D (12 universal + up to 2 industry-specific):
+Section D (13 universal + up to 2 industry-specific):
   d1, d1a (has_crm), d1b (no_crm)
   d_response_time, d_closing_flow, d_billing_flow
   d2, d_automation_attempt, d4a, d4b, d6, d5
   d_hotel_1, d_hotel_2 (is_hospitality)
   d_realestate_1 (is_real_estate)
   d_restaurant_1 (is_restaurant)
-Section F (6):  f1, f2, f7, f8, f4, f9
+Section E (4):  e1, e2, e3, e4
+Section F (6):  f1, f2, f4, f7, f8, f9
 ```
 
-**Intentionally excluded:**
+**Intentionally excluded from the public Discovery wizard UI (not from discovery policy):**
 
-- `a5` — already answered (triggers discovery mode)
+- `a5` — в публичном wizard не спрашивается (default `a5 = no_website`), но id остаётся в policy-level discovery subset.
 - `d3` — clients reliably underestimate hours on repetitive work; low signal quality in self-serve context. Kept in bank for full-intake consultant mode.
 - `d4` — `not_solo` branch gates this correctly; solo clients (~60% of discovery) do not see it
-- `e1`/`e2`/`e3` — compliance depth adds friction without changing discovery recommendations
+- `e1`/`e2`/`e3`/`e4` — в публичном wizard исключены ради короткого флоу, но остаются частью policy-level discovery subset.
 
-**Branch fix — `c7`:** Added `"branch": "has_website"` to prevent no-website clients from seeing both `c7` (generic social presence) and `c_nosite_3` (richer version with Google Business, TripAdvisor). `c_nosite_3` is the correct question for this path.
+**Note — `c7` and Discovery:** в каноне `c7` сейчас без `branch`. В публичном discovery-флоу вопрос не показывается, потому что список wizard ids фиксируется `buildPublicDiscoveryUiFragment` / `discovery-wizard-questions`, а не потому что у `c7` стоит `has_website`.
 
 **Architecture status (Phase 5):**
 
@@ -625,21 +626,21 @@ Normalization of intake answers is centralized in `packages/intake-core/src/answ
 
 | Category | Universal | Hospitality | Real Estate | Restaurant | Services | Healthcare | Marine |
 |----------|-----------|-------------|-------------|------------|----------|------------|--------|
-| Section A | 9 | — | — | — | — | — | — |
+| Section A | 10 | — | — | — | — | — | — |
 | Section B | 7 | +2 | +1 | +1 | +1 | +1 | +1 |
-| Section C (site) | 10 | — | — | — | — | — | — |
-| Section C (no site) | 3 | — | — | — | — | — | — |
-| Section D | 11 | +2 | +1 | +1 | — | — | — |
+| Section C (site) | 9 | — | — | — | — | — | — |
+| Section C (no site) | 6 | — | — | — | — | — | — |
+| Section D | 14 | +2 | +1 | +1 | — | — | — |
 | Section E | 4 | — | — | — | — | — | — |
 | Section F | 9 | — | — | — | — | — | — |
-| **Total (with site)** | **47+** | **+4** | **+2** | **+2** | **+1** | **+1** | **+1** |
-| **Total (no site)** | **42+** | **+4** | **+2** | **+2** | **+1** | **+1** | **+1** |
+| **Total (with site)** | **54+** | **+4** | **+2** | **+2** | **+1** | **+1** | **+1** |
+| **Total (no site)** | **51+** | **+4** | **+2** | **+2** | **+1** | **+1** | **+1** |
 
 
 *После переноса `d4c` → `f7` в D на один id меньше (`f7` считается в F), но операционный блок всё ещё плотный — см. заметку перегрузки в Section D.*
 
-Из-за branching типичный клиент видит **27–36 вопросов**, не все строки таблицы.
-Pre-brief: **9**. Quick Intake: **~18–21** (зависит от f7/f8 и сайта). Deep Intake: +12–22. Discovery (Mode C): полный набор id — `**intake-policy.v1.json*`* → `**modes.discovery.included**` (в коде: `DISCOVERY_BANK_IDS` в `packages/intake-core/src/discovery.ts`); в том числе **a5**, **a6**, **a7**, **f8**, **f1** и no-site поля **c_nosite_1**, **c_nosite_2**, **c_nosite_3**.
+Из-за branching типичный клиент видит существенно меньше, чем полный банк.
+Pre-brief: **9** (`modes.pre_brief.bankIncluded`). Quick Intake: **~18–21** (зависит от веток и сайта). Deep Intake: +12–22. Discovery (Mode C): policy-level subset — `intake-policy.v1.json` → `modes.discovery.included` (**50 ids** на текущей версии policy), тогда как публичный discovery wizard intentionally показывает компактный runtime-набор (сейчас 11 шагов из `buildPublicDiscoveryUiFragment`).
 
 ---
 

@@ -10,6 +10,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 | Need | Canonical doc |
 | --- | --- |
+| Product concept and operating principles | [CONCEPT.md](./CONCEPT.md) |
 | Product, modes, deliverables | [PRODUCT.md](./PRODUCT.md) |
 | System architecture, data flow | [ARCHITECTURE.md](./ARCHITECTURE.md) |
 | Phases, wings, review gates, tokens | [PIPELINE.md](./PIPELINE.md) |
@@ -256,6 +257,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 ```text
 docs/
   MASTER.md                              # This file — index + knowledge map + governance + log
+  CONCEPT.md
   PRODUCT.md
   ARCHITECTURE.md
   PIPELINE.md
