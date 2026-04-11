@@ -11,6 +11,8 @@ export type CollectorCollectContext = { noPublicWebsite?: boolean };
 /**
  * BaseCollector — collects raw data WITHOUT using AI.
  * Results are cached in `collected_data` table for re-runs.
+ *
+ * User-visible pipeline copy belongs in `pipeline-events-copy.v1.json` (emitted by agents), not here.
  */
 export abstract class BaseCollector {
   abstract get key(): string;

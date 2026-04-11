@@ -25,7 +25,7 @@ This prevents storing user-specific audit data in shared caches.
 
 **Auth:** none.
 
-Returns non-secret marketing defaults (`brand_name`, `support_email`, `public_site_url`, structured `footer` strings). Source: `server/src/config/public-brand-defaults.v1.json` (edit for white-label); `public_site_url` comes from **`GLC_PUBLIC_SITE_URL`**. The SPA uses bundled `@glc/dev-brand-defaults` until the request succeeds. JSON **`support_email`:** explicit **`null`** hides public contact in the SPA; omitted or empty string falls back to **`GLC_DEV_SUPPORT_EMAIL`** in server config (`public-brand-config.ts`).
+Returns non-secret marketing defaults (`brand_name`, `support_email`, `public_site_url`, `no_public_website_display_en`, structured `footer` strings). Source: `packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json` (package **`@glc/dev-brand-defaults`**, edit for white-label); `public_site_url` comes from **`GLC_PUBLIC_SITE_URL`**. The SPA uses bundled `@glc/dev-brand-defaults` until the request succeeds. JSON **`support_email`:** explicit **`null`** hides public contact in the SPA; omitted or empty string falls back to **`GLC_DEV_SUPPORT_EMAIL`** in server config (`public-brand-config.ts`). Field **`no_public_website_display_en`** is the English label for audits without a public URL (stable i18n key: **`glc.audit.noPublicWebsite`** in `@glc/intake-core`).
 
 ---
 
@@ -582,7 +582,7 @@ Start a free snapshot run. **Auth:** none (public). The server sets or refreshes
 
 **Response `202`:** `{ "snapshot_token": "<uuid v4>", "status": "running" }`.
 
-**`400`:** missing or non-string **`company_url`**. Rejected URLs (policy / validation): `{ "error": "company_url is not allowed: …", "code": "INVALID_COMPANY_URL" }`.
+**`400`:** missing or non-string **`company_url`**. Rejected URLs (SSRF / policy): JSON body uses stable **`code`** values under the `PUBLIC_URL_*` family (e.g. `PUBLIC_URL_HOST_NOT_ALLOWED`, `PUBLIC_URL_DNS_NON_PUBLIC`) with English **`error`** from [`api-user-messages.en.json`](../server/src/config/api-user-messages.en.json) — same shape as **`POST /api/audits`** and audit-request URL validation.
 
 **`503`:** `{ "error", "code": "SELF_SERVE_OWNER_UNAVAILABLE" }` when the platform **self-serve audit owner** cannot be resolved (same operational requirement as client-created audits — configure `platform_settings.self_serve_audit_owner_user_id`, **`SELF_SERVE_AUDIT_OWNER_USER_ID`**, or a valid consultant fallback; see **`GET /api/platform/self-serve-owner`** above).
 
@@ -769,7 +769,7 @@ Public discovery submit endpoint (no auth).
 
 **Response `201`:** `{ "token", "created_at" }`.
 
-`maturity_level` is validated as integer **1..5** and persisted under `discovery_sessions` with DB check constraint `1..5`.
+`maturity_level` is validated as integer **1..5** and persisted under `discovery_sessions` with DB check constraint `1..5`. Bounds and session-token hex length match [`server/src/config/discover-contract.ts`](../server/src/config/discover-contract.ts) (aligned with migration **`013_discovery_sessions.sql`**).
 
 ### `GET /api/discover/ui-fragment`
 
@@ -856,6 +856,8 @@ All errors follow:
 ```
 
 **UI mapping:** prefer handling **`code`** for branching and user-facing copy. Keep **`error`** as a fallback string for logs and legacy clients. When adding new failures, always set a stable **`code`** and add the string to the client map (or future i18n catalog) in the same change. Human-readable text may be localized in the SPA without changing **`code`**.
+
+**Where defaults live:** stable **`code`** values and helpers are defined in [`server/src/config/api-error-codes.ts`](../server/src/config/api-error-codes.ts). Default English **`error`** strings for most coded responses are in [`server/src/config/api-user-messages.en.json`](../server/src/config/api-user-messages.en.json) (wired through `api-user-messages.en.ts` and re-exported from `api-error-codes.ts` as `*_MESSAGE` constants). A few responses use small interpolating functions in `api-error-codes.ts` (role, phase, Zod detail, etc.).
 
 Common codes:
 

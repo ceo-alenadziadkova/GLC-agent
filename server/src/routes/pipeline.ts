@@ -30,6 +30,12 @@ import {
   validationPerspectiveForBriefAccess,
 } from '../services/brief-validator.js';
 import { emitStructuredNotification, notifyAuditParticipantsExcept } from '../services/notifications.js';
+import {
+  PIPELINE_RETRY_STARTED_NOTIFICATION_TITLE,
+  PIPELINE_REVIEW_APPROVED_NOTIFICATION_TITLE,
+  pipelineRetryStartedNotificationMessage,
+  pipelineReviewApprovedMessage,
+} from '../config/route-notification-messages.js';
 import { emitPhaseErrorDurable } from '../services/pipeline-error.js';
 import { enqueuePipelineJob } from '../services/pipeline-jobs.js';
 import {
@@ -375,8 +381,8 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
     await notifyAuditParticipantsExcept(
       id,
       'pipeline',
-      'Phase retry started',
-      `Retry was requested for phase ${phase}.`,
+      PIPELINE_RETRY_STARTED_NOTIFICATION_TITLE,
+      pipelineRetryStartedNotificationMessage(phase),
       [req.userId!],
       {
         phase,
@@ -539,14 +545,12 @@ pipelineRouter.post('/:id/reviews/:phase', ...consultantGuard, async (req: AuthR
       const qgReport = qgEvent.data as { passed: boolean; flags: Array<{ severity: string }> };
       const hasWarnings = !qgReport.passed && qgReport.flags.some(f => f.severity === 'warning');
       if (hasWarnings && !sanitizedConsultantNotes) {
-        res.status(400).json({
-          ...apiErrorJson(
+        res.status(400).json(
+          apiErrorJson(
             API_ERROR_CODES.PIPELINE_QUALITY_GATE_REQUIRES_NOTES,
             PIPELINE_QUALITY_GATE_REQUIRES_NOTES_MESSAGE,
           ),
-          message:
-            'This review gate has quality warnings. Consultant notes are required to acknowledge them before approving.',
-        });
+        );
         return;
       }
     }
@@ -571,12 +575,13 @@ pipelineRouter.post('/:id/reviews/:phase', ...consultantGuard, async (req: AuthR
       return;
     }
 
-    // Emit event
+    const approvedPhase = parseInt(phase, 10);
+    const reviewApprovedMsg = pipelineReviewApprovedMessage(approvedPhase);
     await supabase.from('pipeline_events').insert({
       audit_id: id,
-      phase: parseInt(phase),
+      phase: approvedPhase,
       event_type: 'review_approved',
-      message: `Review point after phase ${phase} approved`,
+      message: reviewApprovedMsg,
       data: { consultant_notes: sanitizedConsultantNotes, interview_notes: sanitizedInterviewNotes },
     });
 
@@ -586,9 +591,9 @@ pipelineRouter.post('/:id/reviews/:phase', ...consultantGuard, async (req: AuthR
       priority: 'low',
       audience: 'audit_participants',
       auditId: id,
-      title: 'Review approved',
-      message: `Review point after phase ${phase} approved`,
-      payload: { phase: parseInt(phase, 10) },
+      title: PIPELINE_REVIEW_APPROVED_NOTIFICATION_TITLE,
+      message: reviewApprovedMsg,
+      payload: { phase: approvedPhase },
       route: `/audit/${id}`,
     });
 

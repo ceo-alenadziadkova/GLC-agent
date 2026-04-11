@@ -4,15 +4,17 @@ Machine-regenerated summary: run `./scripts/api-errors-inventory.sh` from the re
 
 ## Stable `code` field (TypeScript source of truth)
 
-Some responses add a machine-readable **`code`** next to **`error`** (client branching / future i18n). Definitions and user-safe English defaults live in [`server/src/config/api-error-codes.ts`](../server/src/config/api-error-codes.ts):
+Some responses add a machine-readable **`code`** next to **`error`** (client branching / future i18n). **`code`** values and types live in [`server/src/config/api-error-codes.ts`](../server/src/config/api-error-codes.ts); user-safe English defaults for those codes live in [`server/src/config/api-user-messages.en.json`](../server/src/config/api-user-messages.en.json) (re-exported via `api-error-codes.ts` and `api-user-messages.en.ts`).
 
 | `code` | Typical HTTP | `error` (English) | Routes |
 |--------|--------------|-------------------|--------|
 | `IDEMPOTENCY_PAYLOAD_MISMATCH` | 409 | `This idempotency key was already used with a different request body.` | `POST /api/audits`, `POST /api/audit-requests/:id/approve` |
 | `AUDIT_INITIALIZATION_FAILED` | 500 | `Failed to create audit` | `POST /api/audits` (child row init rollback), `POST /api/audit-requests/:id/approve` (same) |
-| `AUTH_*` | 401 / 403 / 500 | See [`api-error-codes.ts`](../server/src/config/api-error-codes.ts) message constants | `requireAuth`, `attachProfile`, `requireRole`, `rejectGuestFromPortal`, `allowGuestSnapshotLogIngest` |
-| `DISCOVER_*` | 400 / 403 / 404 / 409 / 500 | Same file | `server/src/routes/discover.ts` |
-| `MARKETING_*` | 400 / 500 | Same file | `POST /api/marketing/brief` |
+| `AUTH_*` | 401 / 403 / 500 | See [`api-user-messages.en.json`](../server/src/config/api-user-messages.en.json) | `requireAuth`, `attachProfile`, `requireRole`, `rejectGuestFromPortal`, `allowGuestSnapshotLogIngest` |
+| `DISCOVER_*` | 400 / 403 / 404 / 409 / 500 | Same JSON | `server/src/routes/discover.ts` |
+| `PUBLIC_URL_*` | 400 | Same JSON | SSRF-safe URL validation (`server/src/lib/public-http-url.ts`) — returned by audits, audit-requests, snapshot when `company_url` / `url` fails checks |
+| `INTERNAL_SERVER_ERROR` | 500 | Same JSON | Express global error handler (`server/src/index.ts`) — includes optional `request_id` (trace id) when request context exists |
+| `MARKETING_*` | 400 / 500 | Same JSON | `POST /api/marketing/brief` |
 | `AUDIT_CREATE_RATE_LIMITED`, `PIPELINE_RATE_LIMITED`, `GENERAL_API_RATE_LIMITED`, `COMPARE_RATE_LIMITED`, `RATE_LIMITED`, `INTAKE_LEGACY_RATE_LIMITED`, `LOG_INGEST_RATE_LIMITED`, `SNAPSHOT_LOG_RATE_LIMITED`, `DISCOVER_*`, `INTAKE_*`, `MARKETING_BRIEF_RATE_LIMITED` | 429 | See `message.error` in [`server/src/middleware/rate-limit.ts`](../server/src/middleware/rate-limit.ts) | `express-rate-limit` middleware |
 
 ---
@@ -52,7 +54,7 @@ This document groups **literal** `error` message strings returned by Express rou
 |--------|----------------|--------|
 | `company_url is required` | 400 | audits, snapshot |
 | `company_url must be a valid URL (e.g. https://company.com)` | 400 | audits |
-| `company_url is not allowed` / `url is not allowed` | 400 | audits, audit-requests |
+| `company_url is not allowed` (legacy copy; live responses use `PUBLIC_URL_*` codes + catalog strings) / granular `PUBLIC_URL_*` `error` text | 400 | audits, audit-requests, snapshot |
 | `Omit company_url when no_public_website is true` | 400 | audits |
 | `Leave the website field empty when you have no public website.` | 400 | audit-requests |
 | `Enter your website URL, or indicate that you have no public website.` | 400 | audit-requests |
@@ -110,7 +112,7 @@ This document groups **literal** `error` message strings returned by Express rou
 | `Token budget exceeded` | pipeline |
 | `All phases completed` | pipeline |
 | `Review point pending` | pipeline |
-| `quality_gate_requires_notes` | pipeline |
+| `This review gate has quality warnings. Add consultant notes to acknowledge them before approving.` | pipeline |
 
 ## Group F — Gone / expired (410)
 
@@ -144,4 +146,4 @@ When audit child rows fail to initialize after insert, **`POST /api/audits`** an
 
 ## Next steps (refactor)
 
-Extend stable **`code`** + optional **`messageKey`** (and fallback **`error`**) using [`server/src/config/api-error-codes.ts`](../server/src/config/api-error-codes.ts) as the catalog, then migrate routes incrementally without breaking clients that only read the `error` string.
+Extend stable **`code`** + optional **`messageKey`** (and fallback **`error`**) using [`server/src/config/api-error-codes.ts`](../server/src/config/api-error-codes.ts) as the code catalog and [`server/src/config/api-user-messages.en.json`](../server/src/config/api-user-messages.en.json) for default English copy, then migrate routes incrementally without breaking clients that only read the `error` string.

@@ -22,6 +22,7 @@ import {
 } from '../types/audit.js';
 import { ensureHttpsUrl } from '@glc/intake-core';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
+import { idempotencyPostAuditRequestApproveKey } from '../config/api-http-paths.js';
 import { NO_PUBLIC_WEBSITE_URL, isNoPublicWebsiteUrl } from '../config/no-public-website.js';
 import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 import {
@@ -37,6 +38,7 @@ import {
   AUDIT_REQUEST_APPROVE_FAILED_MESSAGE,
   AUDIT_REQUEST_APPROVE_IN_PROGRESS_MESSAGE,
   AUDIT_REQUEST_APPROVE_SEED_FAILED_MESSAGE,
+  AUDIT_REQUEST_BRIEF_SNAPSHOT_INDUSTRY_OTHER_MESSAGE,
   AUDIT_REQUEST_CREATE_FAILED_MESSAGE,
   AUDIT_REQUEST_DELIVER_FAILED_MESSAGE,
   AUDIT_REQUEST_DELIVER_UPDATE_FAILED_MESSAGE,
@@ -53,7 +55,6 @@ import {
   AUDIT_REQUEST_SUBMIT_NOT_DRAFT_MESSAGE,
   AUDIT_REQUEST_SUBMIT_WRONG_STATUS_MESSAGE,
   AUDIT_REQUEST_UPDATE_FAILED_MESSAGE,
-  AUDIT_REQUEST_URL_NOT_ALLOWED_MESSAGE,
   AUDIT_REQUEST_URL_OMIT_WHEN_NO_SITE_MESSAGE,
   AUDIT_REQUEST_URL_OR_FLAG_REQUIRED_MESSAGE,
   AUDIT_REQUEST_WRONG_STATUS_FOR_UPDATE_MESSAGE,
@@ -63,6 +64,18 @@ import {
 import { logger } from '../services/logger.js';
 import { saveBriefResponses } from '../services/brief-validator.js';
 import { emitStructuredNotification } from '../services/notifications.js';
+import {
+  AUDIT_REQUEST_NOTIFICATION_APPROVED_USER_MESSAGE,
+  AUDIT_REQUEST_NOTIFICATION_APPROVED_USER_TITLE,
+  AUDIT_REQUEST_NOTIFICATION_CREATED_CONSULTANTS_MESSAGE,
+  AUDIT_REQUEST_NOTIFICATION_CREATED_CONSULTANTS_TITLE,
+  AUDIT_REQUEST_NOTIFICATION_DELIVERED_USER_MESSAGE,
+  AUDIT_REQUEST_NOTIFICATION_DELIVERED_USER_TITLE,
+  AUDIT_REQUEST_NOTIFICATION_REJECTED_USER_MESSAGE,
+  AUDIT_REQUEST_NOTIFICATION_REJECTED_USER_TITLE,
+  AUDIT_REQUEST_NOTIFICATION_SUBMITTED_CONSULTANTS_MESSAGE,
+  AUDIT_REQUEST_NOTIFICATION_SUBMITTED_CONSULTANTS_TITLE,
+} from '../config/route-notification-messages.js';
 
 export const auditRequestsRouter = Router();
 
@@ -97,7 +110,7 @@ function normalizeBriefSnapshotForIndustry(
     const raw = snap.intake_industry_specify;
     const spec = typeof raw === 'string' ? raw.trim() : '';
     if (!spec) {
-      return { ok: false, error: 'Describe your industry or sector when you select Other.' };
+      return { ok: false, error: AUDIT_REQUEST_BRIEF_SNAPSHOT_INDUSTRY_OTHER_MESSAGE };
     }
     snap.intake_industry_specify = spec;
   } else {
@@ -176,11 +189,7 @@ auditRequestsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) 
         normalizedUrl = await validatePublicAuditUrl(u);
       } catch (e) {
         if (e instanceof PublicUrlNotAllowedError) {
-          res
-            .status(400)
-            .json(
-              apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_URL_NOT_ALLOWED, AUDIT_REQUEST_URL_NOT_ALLOWED_MESSAGE),
-            );
+          res.status(400).json(apiErrorJson(e.code, e.message));
           return;
         }
         throw e;
@@ -234,8 +243,8 @@ auditRequestsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) 
         event: 'audit_request_created',
         priority: 'medium',
         audience: 'consultants',
-        title: 'New client request',
-        message: 'A client submitted a new audit request.',
+        title: AUDIT_REQUEST_NOTIFICATION_CREATED_CONSULTANTS_TITLE,
+        message: AUDIT_REQUEST_NOTIFICATION_CREATED_CONSULTANTS_MESSAGE,
         route: '/admin/requests',
         payload: {
           request_id: data.id,
@@ -367,11 +376,7 @@ auditRequestsRouter.patch('/:id', async (req: AuthRequest, res) => {
         updates.url = await validatePublicAuditUrl(normalizedUrl);
       } catch (e) {
         if (e instanceof PublicUrlNotAllowedError) {
-          res
-            .status(400)
-            .json(
-              apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_URL_NOT_ALLOWED, AUDIT_REQUEST_URL_NOT_ALLOWED_MESSAGE),
-            );
+          res.status(400).json(apiErrorJson(e.code, e.message));
           return;
         }
         throw e;
@@ -416,8 +421,8 @@ auditRequestsRouter.patch('/:id', async (req: AuthRequest, res) => {
       event: 'audit_request_submitted',
       priority: 'medium',
       audience: 'consultants',
-      title: 'Client request submitted',
-      message: 'A draft request was submitted and is ready for review.',
+      title: AUDIT_REQUEST_NOTIFICATION_SUBMITTED_CONSULTANTS_TITLE,
+      message: AUDIT_REQUEST_NOTIFICATION_SUBMITTED_CONSULTANTS_MESSAGE,
       route: '/admin/requests',
       payload: {
         request_id: data.id,
@@ -527,7 +532,7 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
   try {
     const id = req.params.id as string;
     const { consultant_note } = req.body;
-    const idempotent = await getStoredIdempotentResponse(req, `POST:/api/audit-requests/${id}/approve`, req.body);
+    const idempotent = await getStoredIdempotentResponse(req, idempotencyPostAuditRequestApproveKey(id), req.body);
     if (idempotent.replay) {
       res.status(idempotent.replay.statusCode).json(idempotent.replay.payload);
       return;
@@ -700,7 +705,7 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
     const payload = { audit_request: updatedRequest, audit: { id: audit.id, status: audit.status } };
     await storeIdempotentResponse(
       req,
-      `POST:/api/audit-requests/${id}/approve`,
+      idempotencyPostAuditRequestApproveKey(id),
       idempotent.key,
       idempotent.hash,
       { statusCode: 201, payload },
@@ -714,8 +719,8 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
       audience: 'user',
       userId: requestRow.client_id as string,
       auditId: audit.id as string,
-      title: 'Request approved',
-      message: 'Your audit request was approved and moved to execution.',
+      title: AUDIT_REQUEST_NOTIFICATION_APPROVED_USER_TITLE,
+      message: AUDIT_REQUEST_NOTIFICATION_APPROVED_USER_MESSAGE,
       route: `/portal/audit/${audit.id}`,
       payload: {
         request_id: id,
@@ -793,8 +798,8 @@ auditRequestsRouter.post('/:id/reject', requireRole('consultant'), async (req: A
       priority: 'medium',
       audience: 'user',
       userId: data.client_id as string,
-      title: 'Request rejected',
-      message: 'Your audit request was rejected. Check consultant notes for details.',
+      title: AUDIT_REQUEST_NOTIFICATION_REJECTED_USER_TITLE,
+      message: AUDIT_REQUEST_NOTIFICATION_REJECTED_USER_MESSAGE,
       route: '/portal',
       payload: {
         request_id: id,
@@ -868,8 +873,8 @@ auditRequestsRouter.post('/:id/deliver', requireRole('consultant'), async (req: 
       audience: 'user',
       userId: data.client_id as string,
       auditId: (data.audit_id as string | null) ?? null,
-      title: 'Deliverables ready',
-      message: 'Your audit deliverables are marked as delivered.',
+      title: AUDIT_REQUEST_NOTIFICATION_DELIVERED_USER_TITLE,
+      message: AUDIT_REQUEST_NOTIFICATION_DELIVERED_USER_MESSAGE,
       route: data.audit_id ? `/portal/audit/${data.audit_id as string}` : '/portal',
       payload: {
         request_id: id,

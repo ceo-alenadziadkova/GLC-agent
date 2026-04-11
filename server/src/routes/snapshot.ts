@@ -61,6 +61,7 @@ import {
   SNAPSHOT_CREATE_FAILED_MESSAGE,
   SNAPSHOT_DOMAIN_FRESH_COOLDOWN_MESSAGE,
   SNAPSHOT_FETCH_FAILED_MESSAGE,
+  SNAPSHOT_FAILED_MESSAGE,
   SNAPSHOT_HOST_REQUIRED_MESSAGE,
   SNAPSHOT_INIT_ROLLBACK_MESSAGE,
   SNAPSHOT_INVALID_TOKEN_MESSAGE,
@@ -73,13 +74,14 @@ import {
   SNAPSHOT_TOKEN_EXPIRED_MESSAGE,
   SNAPSHOT_TOKEN_REQUIRED_MESSAGE,
   apiErrorJson,
-  snapshotCompanyUrlNotAllowedMessage,
 } from '../config/api-error-codes.js';
 import {
   SNAPSHOT_CLAIMED_NOTIFICATION_MESSAGE_EN,
   SNAPSHOT_CLAIMED_NOTIFICATION_TITLE_EN,
+  SNAPSHOT_STARTED_NOTIFICATION_TITLE,
   snapshotClaimedInAppRoute,
-} from '../config/snapshot-notification-copy.en.js';
+  snapshotStartedNotificationMessage,
+} from '../config/route-notification-messages.js';
 
 export const snapshotRouter = Router();
 
@@ -445,12 +447,7 @@ snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
       url = await validatePublicAuditUrl(url);
     } catch (e) {
       if (e instanceof PublicUrlNotAllowedError) {
-        res.status(400).json(
-          apiErrorJson(
-            API_ERROR_CODES.SNAPSHOT_INVALID_COMPANY_URL,
-            snapshotCompanyUrlNotAllowedMessage(e.message),
-          ),
-        );
+        res.status(400).json(apiErrorJson(e.code, e.message));
         return;
       }
       throw e;
@@ -517,8 +514,8 @@ snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
       priority: 'medium',
       audience: 'consultants',
       auditId,
-      title: 'New snapshot started',
-      message: `Public snapshot started for ${url}.`,
+      title: SNAPSHOT_STARTED_NOTIFICATION_TITLE,
+      message: snapshotStartedNotificationMessage(url),
       route: `/pipeline/${auditId}`,
       payload: {
         audit_id: auditId,
@@ -721,8 +718,7 @@ snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
       res.json({
         status: 'failed',
         snapshot_token: token,
-        code: 'SNAPSHOT_FAILED',
-        error: 'Snapshot run failed before completing analysis.',
+        ...apiErrorJson(API_ERROR_CODES.SNAPSHOT_FAILED, SNAPSHOT_FAILED_MESSAGE),
       });
       return;
     }

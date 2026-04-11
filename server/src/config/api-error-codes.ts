@@ -3,11 +3,25 @@
  * Human `error` strings stay English for logs/clients until a full i18n catalog ships.
  *
  * Inventory: docs/API_ERRORS_INVENTORY.md (literal messages) + this file (typed codes).
+ * User-facing English strings: `api-user-messages.en.json` / `api-user-messages.en.ts`.
  */
 
-import { COMPANY_URL_VALIDATION_EXAMPLE } from './api-validation-copy.js';
-
 export const API_ERROR_CODES = {
+  INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
+
+  /** SSRF / public URL validation (`PublicUrlNotAllowedError`) — granular reasons */
+  PUBLIC_URL_INVALID: 'PUBLIC_URL_INVALID',
+  PUBLIC_URL_CREDENTIALS_NOT_ALLOWED: 'PUBLIC_URL_CREDENTIALS_NOT_ALLOWED',
+  PUBLIC_URL_PROTOCOL_NOT_ALLOWED: 'PUBLIC_URL_PROTOCOL_NOT_ALLOWED',
+  PUBLIC_URL_HOST_NOT_ALLOWED: 'PUBLIC_URL_HOST_NOT_ALLOWED',
+  PUBLIC_URL_ADDRESS_NOT_PUBLIC: 'PUBLIC_URL_ADDRESS_NOT_PUBLIC',
+  PUBLIC_URL_DNS_DOES_NOT_RESOLVE: 'PUBLIC_URL_DNS_DOES_NOT_RESOLVE',
+  PUBLIC_URL_DNS_NON_PUBLIC: 'PUBLIC_URL_DNS_NON_PUBLIC',
+  PUBLIC_URL_DNS_REBINDING: 'PUBLIC_URL_DNS_REBINDING',
+  PUBLIC_URL_NO_PUBLIC_WEBSITE: 'PUBLIC_URL_NO_PUBLIC_WEBSITE',
+  PUBLIC_URL_REQUEST_FAILED: 'PUBLIC_URL_REQUEST_FAILED',
+  PUBLIC_URL_TOO_MANY_REDIRECTS: 'PUBLIC_URL_TOO_MANY_REDIRECTS',
+
   IDEMPOTENCY_PAYLOAD_MISMATCH: 'IDEMPOTENCY_PAYLOAD_MISMATCH',
   AUDIT_INITIALIZATION_FAILED: 'AUDIT_INITIALIZATION_FAILED',
 
@@ -199,9 +213,11 @@ export const API_ERROR_CODES = {
   SNAPSHOT_PURGE_FAILED: 'SNAPSHOT_PURGE_FAILED',
   SNAPSHOT_INVALID_TOKEN: 'SNAPSHOT_INVALID_TOKEN',
   SNAPSHOT_FETCH_FAILED: 'SNAPSHOT_FETCH_FAILED',
+  /** Poll/status when a free snapshot pipeline ended in `failed` (legacy body uses string `SNAPSHOT_FAILED`). */
+  SNAPSHOT_FAILED: 'SNAPSHOT_FAILED',
   /** Claim would overwrite another user's attachment */
   SNAPSHOT_CLAIM_CONFLICT: 'SNAPSHOT_CLAIM_CONFLICT',
-  /** PublicUrlNotAllowedError — same machine code as historical clients expect */
+  /** @deprecated Prefer granular `PUBLIC_URL_*` codes from `PublicUrlNotAllowedError` (snapshot route returns those). */
   SNAPSHOT_INVALID_COMPANY_URL: 'INVALID_COMPANY_URL',
   /** Per-domain fresh-scan cooldown for free tool */
   SNAPSHOT_DOMAIN_FRESH_COOLDOWN: 'DOMAIN_FRESH_COOLDOWN',
@@ -243,271 +259,7 @@ export type ApiErrorJsonBody = {
   retry_after_seconds?: number;
 };
 
-/** User-safe message for idempotency key reused with a different body (no internal details). */
-export const IDEMPOTENCY_PAYLOAD_MISMATCH_MESSAGE =
-  'This idempotency key was already used with a different request body.';
-
-/** Generic create failure after rollback (details only in server logs). */
-export const AUDIT_INITIALIZATION_FAILED_MESSAGE = 'Failed to create audit';
-
-export const AUTH_MISSING_AUTHORIZATION_MESSAGE = 'Missing or invalid Authorization header';
-export const AUTH_INVALID_TOKEN_MESSAGE = 'Invalid or expired token';
-export const AUTH_AUTHENTICATION_FAILED_MESSAGE = 'Authentication failed';
-export const AUTH_NOT_AUTHENTICATED_MESSAGE = 'Not authenticated';
-export const AUTH_PROFILE_LOAD_FAILED_MESSAGE = 'Failed to load user profile';
-export const AUTH_PROFILE_CREATE_FAILED_MESSAGE = 'Failed to create user profile';
-export const AUTH_PROFILE_UPDATE_FAILED_MESSAGE = 'Failed to update user profile';
-export const AUTH_PROFILE_LOOKUP_FAILED_MESSAGE = 'Profile lookup failed';
-export const AUTH_GUEST_PORTAL_FORBIDDEN_MESSAGE =
-  'Complete registration to access this in the portal.';
-export const AUTH_REGISTERED_LOG_REQUIRED_MESSAGE = 'Use POST /api/log for registered accounts.';
-
-export function authRoleRequiredMessage(role: string): string {
-  return `Access denied. Required role: ${role}`;
-}
-
-export const DISCOVER_ANSWERS_REQUIRED_MESSAGE = 'answers object is required';
-export const DISCOVER_MATURITY_INVALID_MESSAGE = 'maturity_level must be an integer 1–5';
-export const DISCOVER_FINDINGS_REQUIRED_MESSAGE = 'findings must be an array';
-export const DISCOVER_SAVE_FAILED_MESSAGE = 'Failed to save discovery session';
-export const DISCOVER_UI_FRAGMENT_FAILED_MESSAGE = 'Failed to build discovery UI fragment';
-export const DISCOVER_ANALYTICS_PAYLOAD_INVALID_MESSAGE = 'Invalid analytics payload';
-export const DISCOVER_ANALYTICS_STORE_FAILED_MESSAGE = 'Failed to store analytics events';
-export const DISCOVER_ANALYTICS_ACCEPT_FAILED_MESSAGE = 'Failed to accept analytics events';
-export const DISCOVER_LIST_FAILED_MESSAGE = 'Failed to list sessions';
-export const DISCOVER_INVALID_TOKEN_MESSAGE = 'Invalid token';
-export const DISCOVER_SESSION_NOT_FOUND_MESSAGE = 'Session not found';
-export const DISCOVER_LOAD_FAILED_MESSAGE = 'Failed to load session';
-export const DISCOVER_CONTACT_EDIT_KEY_INVALID_MESSAGE = 'Invalid or missing contact edit key';
-export const DISCOVER_CONTACT_FIELDS_REQUIRED_MESSAGE =
-  'Provide at least one of contact_name, contact_email, contact_phone, contact_company';
-export const DISCOVER_CONTACT_EMPTY_MESSAGE = 'At least one contact field must be non-empty';
-export const DISCOVER_CONTACT_SAVE_FAILED_MESSAGE = 'Failed to save contact info';
-export const DISCOVER_CONTACT_NOT_ALLOWED_MESSAGE = 'Contact update not allowed for this session';
-export const DISCOVER_CONVERT_FAILED_MESSAGE = 'Failed to convert session';
-export const DISCOVER_ALREADY_CONVERTED_MESSAGE = 'Session already converted';
-export const DISCOVER_FORBIDDEN_OWNER_MESSAGE = 'Session is assigned to another consultant';
-export const DISCOVER_CLAIM_CONFLICT_MESSAGE = 'Session was claimed or converted by another request';
-export const DISCOVER_LINK_CONFLICT_MESSAGE = 'Session conversion conflict. Please retry.';
-
-export const MARKETING_NAME_REQUIRED_MESSAGE = 'Name is required';
-export const MARKETING_WEBSITE_OR_FLAG_REQUIRED_MESSAGE =
-  'Provide a website URL or mark no website';
-export const MARKETING_DEPTH_REQUIRED_MESSAGE =
-  'preferred_audit_depth is required (express or full) when you have a site and are sure about the format';
-export const MARKETING_INVALID_RECOMMENDATION_MESSAGE = 'Invalid recommendation';
-export const MARKETING_SAVE_FAILED_MESSAGE = 'Failed to save brief';
-
-export const AUDITS_FORBIDDEN_MESSAGE = 'Forbidden';
-export const AUDITS_OMIT_COMPANY_URL_WHEN_NO_PUBLIC_WEBSITE_MESSAGE =
-  'Omit company_url when no_public_website is true';
-export const AUDITS_COMPANY_URL_REQUIRED_MESSAGE = 'company_url is required';
-export const AUDITS_COMPANY_URL_INVALID_MESSAGE = `company_url must be a valid URL (e.g. ${COMPANY_URL_VALIDATION_EXAMPLE})`;
-export const AUDITS_COMPANY_URL_NOT_ALLOWED_MESSAGE = 'company_url is not allowed';
-export const AUDITS_CREATE_FAILED_MESSAGE = 'Failed to create audit';
-export const AUDITS_LIST_FAILED_MESSAGE = 'Failed to list audits';
-export const AUDITS_NOT_FOUND_MESSAGE = 'Audit not found';
-export const AUDITS_FETCH_FAILED_MESSAGE = 'Failed to fetch audit';
-export const AUDITS_UPGRADE_PAYLOAD_INVALID_MESSAGE =
-  'Invalid payload — need target_mode and use_scraped_context';
-export const AUDITS_UPGRADE_FAILED_MESSAGE = 'Upgrade failed';
-export const AUDITS_UPGRADE_NOT_FREE_SNAPSHOT_MESSAGE = 'Only free snapshot audits can use this upgrade';
-export const AUDITS_UPGRADE_NOT_COMPLETED_MESSAGE = 'Snapshot must be completed before upgrading';
-export const AUDITS_UPGRADE_ACCESS_DENIED_MESSAGE = 'Access denied';
-export const AUDITS_UPGRADE_RESET_DOMAINS_FAILED_MESSAGE = 'Failed to reset audit domains';
-export const AUDITS_UPGRADE_INIT_DOMAINS_FAILED_MESSAGE = 'Failed to initialize audit domains';
-export const AUDITS_UPGRADE_INIT_REVIEWS_FAILED_MESSAGE = 'Failed to initialize review points';
-export const AUDITS_UPGRADE_INIT_STRATEGY_FAILED_MESSAGE = 'Failed to initialize strategy placeholder';
-export const AUDITS_DELETE_FAILED_MESSAGE = 'Failed to delete audit';
-export const AUDITS_BRIEF_SCHEMA_FAILED_MESSAGE = 'Failed to get brief schema';
-export const AUDITS_BRIEF_ANALYTICS_PAYLOAD_INVALID_MESSAGE = 'Invalid analytics payload';
-export const AUDITS_BRIEF_ANALYTICS_STORE_FAILED_MESSAGE = 'Failed to store analytics events';
-export const AUDITS_BRIEF_ANALYTICS_ACCEPT_FAILED_MESSAGE = 'Failed to accept analytics events';
-export const AUDITS_BRIEF_GET_FAILED_MESSAGE = 'Failed to get brief';
-export const AUDITS_BRIEF_HELP_CLIENT_ONLY_MESSAGE =
-  'Only clients can request brief help from this endpoint';
-export const AUDITS_BRIEF_HELP_ACCESS_DENIED_MESSAGE = 'Access denied';
-export const AUDITS_BRIEF_HELP_WRONG_PHASE_MESSAGE =
-  'Help request is only available before the pipeline has started';
-export const AUDITS_BRIEF_HELP_FAILED_MESSAGE = 'Failed to record help request';
-export const AUDITS_BRIEF_RESPONSES_NOT_OBJECT_MESSAGE = 'responses must be an object';
-export const AUDITS_BRIEF_COLLECTION_MODE_INVALID_MESSAGE = 'Invalid collection_mode';
-export const AUDITS_BRIEF_SAVE_FAILED_MESSAGE = 'Failed to save brief';
-export const AUDITS_ACCESS_DENIED_MESSAGE = 'Access denied';
-
-export const AUDIT_REQUEST_GUEST_FORBIDDEN_MESSAGE =
-  'Complete registration (email or Google) to use the client portal.';
-export const AUDIT_REQUEST_URL_OMIT_WHEN_NO_SITE_MESSAGE =
-  'Leave the website field empty when you have no public website.';
-export const AUDIT_REQUEST_URL_OR_FLAG_REQUIRED_MESSAGE =
-  'Enter your website URL, or indicate that you have no public website.';
-export const AUDIT_REQUEST_URL_NOT_ALLOWED_MESSAGE = 'url is not allowed';
-export const AUDIT_REQUEST_PRODUCT_MODE_INVALID_MESSAGE = 'product_mode must be "express" or "full"';
-export const AUDIT_REQUEST_CREATE_FAILED_MESSAGE = 'Failed to create audit request';
-export const AUDIT_REQUEST_LIST_FAILED_MESSAGE = 'Failed to list audit requests';
-export const AUDIT_REQUEST_NOT_FOUND_MESSAGE = 'Audit request not found';
-export const AUDIT_REQUEST_FETCH_FAILED_MESSAGE = 'Failed to fetch audit request';
-export const AUDIT_REQUEST_UPDATE_FAILED_MESSAGE = 'Failed to update audit request';
-export const AUDIT_REQUEST_ACCESS_DENIED_MESSAGE = 'Access denied';
-export const AUDIT_REQUEST_WRONG_STATUS_FOR_UPDATE_MESSAGE =
-  'Only draft or submitted requests can be updated';
-export const AUDIT_REQUEST_SUBMIT_MISSING_SITE_MESSAGE =
-  'Request is missing a valid website or no-public-website flag.';
-export const AUDIT_REQUEST_SUBMIT_NOT_DRAFT_MESSAGE = 'Only draft requests can be submitted';
-export const AUDIT_REQUEST_SUBMIT_FAILED_MESSAGE = 'Failed to submit audit request';
-export const AUDIT_REQUEST_SUBMIT_WRONG_STATUS_MESSAGE =
-  'Request must be submitted or under review to approve';
-export const AUDIT_REQUEST_APPROVE_CLAIM_CONFLICT_MESSAGE =
-  'Approve request already claimed by another request';
-export const AUDIT_REQUEST_APPROVE_IN_PROGRESS_MESSAGE = 'Approve request is already in progress';
-export const AUDIT_REQUEST_APPROVE_SEED_FAILED_MESSAGE = 'Failed to seed intake brief from request';
-export const AUDIT_REQUEST_APPROVE_FAILED_MESSAGE = 'Failed to approve audit request';
-export const AUDIT_REQUEST_REJECT_WRONG_STATUS_MESSAGE =
-  'Only submitted/under_review requests can be rejected';
-export const AUDIT_REQUEST_REJECT_FAILED_MESSAGE = 'Failed to reject audit request';
-export const AUDIT_REQUEST_DELIVER_WRONG_STATUS_MESSAGE =
-  'Only approved or running requests can be marked as delivered';
-export const AUDIT_REQUEST_DELIVER_UPDATE_FAILED_MESSAGE = 'Failed to update request';
-export const AUDIT_REQUEST_DELIVER_FAILED_MESSAGE = 'Failed to mark as delivered';
-
-export const INCOMPLETE_INTAKE_VERSIONS_MESSAGE =
-  'intake_versions must include all of questionBankVersion, policyVersion, layoutVersion, resolverVersion, or be omitted.';
-export const UNSUPPORTED_INTAKE_VERSION_MESSAGE =
-  'intake_versions tuple is not a supported artifact bundle';
-export const INTAKE_VERSION_CONFLICT_MESSAGE =
-  'intake_versions does not match this brief row; refresh the brief or send the stored tuple.';
-
-export const INTAKE_AUDIT_ID_FORMAT_INVALID_MESSAGE = 'audit_id must be a string UUID when provided';
-export const INTAKE_CREATE_LINK_FAILED_MESSAGE = 'Failed to create intake link';
-export const INTAKE_INVALID_TOKEN_MESSAGE = 'Invalid token';
-export const INTAKE_AUDIT_ID_REQUIRED_MESSAGE = 'audit_id is required';
-export const INTAKE_TOKEN_NOT_FOUND_MESSAGE = 'Token not found';
-export const INTAKE_NOT_ALLOWED_MESSAGE = 'Not allowed';
-export const INTAKE_TOKEN_LINKED_CONFLICT_MESSAGE = 'This link is already linked to another audit';
-export const INTAKE_AUDIT_NOT_FOUND_MESSAGE = 'Audit not found';
-export const INTAKE_LINK_TOKEN_FAILED_MESSAGE = 'Failed to link token';
-export const INTAKE_LINK_AUDIT_FAILED_MESSAGE = 'Failed to link intake token';
-export const INTAKE_LIST_SUBMISSIONS_FAILED_MESSAGE = 'Failed to list submissions';
-export const INTAKE_LINK_NOT_FOUND_MESSAGE = 'Link not found';
-export const INTAKE_LINK_EXPIRED_MESSAGE = 'This link has expired';
-export const INTAKE_LOAD_FAILED_MESSAGE = 'Failed to load intake link';
-export const INTAKE_PREFILL_LOAD_FAILED_MESSAGE = 'Failed to load intake prefill';
-export const INTAKE_RESPONSES_REQUIRED_MESSAGE = 'responses object is required';
-export const INTAKE_SAVE_RESPONSES_FAILED_MESSAGE = 'Failed to save responses';
-export const INTAKE_PREBRIEF_INCOMPLETE_MESSAGE =
-  'Pre-brief incomplete. If you selected Other for industry, describe your sector in the follow-up field.';
-export const INTAKE_PREBRIEF_AUDIT_OWNER_MISMATCH_MESSAGE =
-  'This audit is not owned by the consultant for this intake link; pre-brief merge was skipped.';
-
-export function intakeProductModeInvalidMessage(rawMode: string, validList: string): string {
-  return `Invalid productMode "${rawMode}". Valid values: ${validList}`;
-}
-
-export const INTAKE_VERSION_TUPLE_UNSUPPORTED_MESSAGE =
-  'Unsupported intakeVersionTuple — not current and not in frozen registry.';
-export const INTAKE_PLAN_TRACE_FAILED_MESSAGE = 'Failed to build intake plan trace';
-
-export function intakeResponsesSchemaInvalidMessage(zodMessage: string): string {
-  return `Invalid responses: ${zodMessage}`;
-}
-
-export const INTAKE_TRACE_ANALYTICS_PAYLOAD_INVALID_MESSAGE = 'Invalid analytics payload';
-export const INTAKE_TRACE_ANALYTICS_STORE_FAILED_MESSAGE = 'Failed to store analytics events';
-export const INTAKE_TRACE_ANALYTICS_ACCEPT_FAILED_MESSAGE = 'Failed to accept analytics events';
-export const INTAKE_TRACE_WORDING_LOAD_FAILED_MESSAGE = 'Failed to load wording drafts';
-export const INTAKE_TRACE_WORDING_PAYLOAD_INVALID_MESSAGE = 'Invalid wording drafts payload';
-export const INTAKE_TRACE_WORDING_UPDATE_FAILED_MESSAGE = 'Failed to update wording drafts';
-export const INTAKE_TRACE_WORDING_SAVE_FAILED_MESSAGE = 'Failed to save wording drafts';
-export const INTAKE_TRACE_PUBLISH_PAYLOAD_INVALID_MESSAGE = 'Invalid publish payload';
-export const INTAKE_TRACE_PUBLISH_FAILED_MESSAGE = 'Failed to publish wording';
-export const INTAKE_TRACE_ROLLBACK_PAYLOAD_INVALID_MESSAGE = 'Invalid rollback payload';
-export const INTAKE_TRACE_ROLLBACK_FAILED_MESSAGE = 'Failed to rollback wording';
-export const INTAKE_TRACE_PUBLICATION_LOG_QUERY_INVALID_MESSAGE = 'Invalid query';
-export const INTAKE_TRACE_PUBLICATION_LOG_FAILED_MESSAGE = 'Failed to load publication log';
-
-export const NOTIFICATIONS_LIST_FAILED_MESSAGE = 'Failed to list notifications';
-export const NOTIFICATIONS_UNREAD_COUNT_FAILED_MESSAGE = 'Failed to fetch unread count';
-export const NOTIFICATIONS_NOT_FOUND_MESSAGE = 'Notification not found';
-export const NOTIFICATIONS_MARK_READ_FAILED_MESSAGE = 'Failed to mark notification as read';
-export const NOTIFICATIONS_MARK_ALL_FAILED_MESSAGE = 'Failed to mark all notifications as read';
-
-export const PLATFORM_SELF_SERVE_LOAD_FAILED_MESSAGE = 'Failed to load platform settings';
-export const PLATFORM_ADMIN_ONLY_MESSAGE = 'Only platform administrators can change this setting';
-export const PLATFORM_OWNER_REQUIRED_MESSAGE = 'owner_user_id is required (UUID string or null)';
-export const PLATFORM_OWNER_UUID_INVALID_MESSAGE = 'owner_user_id must be a string UUID or null';
-export const PLATFORM_OWNER_NOT_CONSULTANT_MESSAGE =
-  'owner_user_id must be an active consultant profile';
-export const PLATFORM_SELF_SERVE_PERSIST_FAILED_MESSAGE = 'Failed to update platform settings';
-export const PLATFORM_SELF_SERVE_UPDATE_FAILED_MESSAGE = 'Failed to update platform settings';
-export const PLATFORM_CONSULTANT_ALLOWLIST_LOAD_FAILED_MESSAGE = 'Failed to load consultant email allowlist';
-export const PLATFORM_CONSULTANT_ALLOWLIST_EMAIL_INVALID_MESSAGE = 'Invalid email for allowlist';
-export const PLATFORM_CONSULTANT_ALLOWLIST_ADD_FAILED_MESSAGE = 'Failed to add email to allowlist';
-export const PLATFORM_CONSULTANT_ALLOWLIST_REMOVE_FAILED_MESSAGE = 'Failed to remove email from allowlist';
-
-export const PROFILE_LOAD_FAILED_MESSAGE = 'Failed to load user profile';
-export const PROFILE_PAYLOAD_INVALID_MESSAGE = 'Invalid profile payload';
-export const PROFILE_UPDATE_FAILED_MESSAGE = 'Failed to update user profile';
-
-export const REPORTS_AUDIT_NOT_FOUND_MESSAGE = 'Audit not found';
-export const REPORTS_GENERATE_FAILED_MESSAGE = 'Failed to generate report';
-
-export const SELF_SERVE_OWNER_UNAVAILABLE_MESSAGE =
-  'This feature is temporarily unavailable. Please try again in a few minutes.';
-
-export const SNAPSHOT_QUOTA_READ_FAILED_MESSAGE = 'Failed to read quota';
-export const SNAPSHOT_TOKEN_REQUIRED_MESSAGE = 'snapshot_token is required';
-export const SNAPSHOT_NOT_FOUND_MESSAGE = 'Snapshot not found';
-export const SNAPSHOT_TOKEN_EXPIRED_MESSAGE = 'Snapshot token expired';
-export const SNAPSHOT_CLAIM_FAILED_MESSAGE = 'Failed to claim snapshot';
-export const SNAPSHOT_COMPANY_URL_REQUIRED_MESSAGE = 'company_url is required';
-export const SNAPSHOT_CREATE_FAILED_MESSAGE = 'Failed to create snapshot';
-export const SNAPSHOT_INIT_ROLLBACK_MESSAGE = 'Failed to initialize snapshot — rolled back';
-export const SNAPSHOT_START_FAILED_MESSAGE = 'Failed to start snapshot';
-export const SNAPSHOT_RESOURCE_NOT_FOUND_MESSAGE = 'Not found';
-export const SNAPSHOT_METRICS_FAILED_MESSAGE = 'Metrics failed';
-export const SNAPSHOT_HOST_REQUIRED_MESSAGE = 'host is required';
-export const SNAPSHOT_PURGE_FAILED_MESSAGE = 'Purge failed';
-export const SNAPSHOT_INVALID_TOKEN_MESSAGE = 'Invalid snapshot token';
-export const SNAPSHOT_FETCH_FAILED_MESSAGE = 'Failed to fetch snapshot';
-export const SNAPSHOT_CLAIM_CONFLICT_MESSAGE = 'This snapshot cannot be saved to your account.';
-export const SNAPSHOT_DOMAIN_FRESH_COOLDOWN_MESSAGE =
-  'This website was just scanned from our free tool. Please wait a few minutes before starting another fresh check for the same site.';
-
-export function snapshotCompanyUrlNotAllowedMessage(detail: string): string {
-  const t = detail.trim();
-  return t ? `company_url is not allowed: ${t}` : 'company_url is not allowed';
-}
-
-export const PIPELINE_FORBIDDEN_MESSAGE = 'Forbidden';
-export const PIPELINE_AUDIT_NOT_FOUND_MESSAGE = 'Audit not found';
-export const PIPELINE_ACCESS_DENIED_MESSAGE = 'Access denied';
-export const PIPELINE_ALREADY_STARTED_MESSAGE = 'Pipeline already started';
-export const PIPELINE_TOKEN_BUDGET_EXCEEDED_MESSAGE = 'Token budget exceeded';
-export const PIPELINE_START_CLAIM_CONFLICT_MESSAGE =
-  'Pipeline start already claimed by another request';
-export const PIPELINE_PHASE_IN_PROGRESS_MESSAGE = 'A phase is already in progress';
-export const PIPELINE_ALL_PHASES_COMPLETE_MESSAGE = 'All phases completed';
-export const PIPELINE_REVIEW_PENDING_MESSAGE = 'Review point pending';
-export const PIPELINE_NEXT_CLAIM_CONFLICT_MESSAGE =
-  'Next phase request already claimed by another request';
-export const PIPELINE_RETRY_CLAIM_CONFLICT_MESSAGE =
-  'Retry request already claimed by another request';
-export const PIPELINE_PHASE_REQUIRED_MESSAGE = 'phase is required (number)';
-export const PIPELINE_STATUS_FAILED_MESSAGE = 'Failed to get pipeline status';
-export const PIPELINE_QUALITY_GATE_FETCH_FAILED_MESSAGE = 'Failed to fetch quality gate report';
-export const PIPELINE_REVIEW_APPROVE_FAILED_MESSAGE = 'Failed to approve review';
-export const PIPELINE_QUALITY_GATE_REQUIRES_NOTES_MESSAGE = 'quality_gate_requires_notes';
-export const PIPELINE_START_FAILED_MESSAGE = 'Failed to start pipeline';
-export const PIPELINE_NEXT_FAILED_MESSAGE = 'Failed to run next phase';
-export const PIPELINE_RETRY_FAILED_MESSAGE = 'Failed to retry phase';
-
-export function pipelinePhaseOutOfRangeMessage(min: number, max: number): string {
-  return `phase must be an integer between ${min} and ${max}`;
-}
-
-export function pipelinePhaseNotAvailableMessage(phase: number, mode: string): string {
-  return `Phase ${phase} is not available for product_mode '${mode}'`;
-}
+export * from './api-user-messages.en.js';
 
 export function apiErrorJson(code: ApiErrorCode, error: string, details?: unknown): ApiErrorJsonBody {
   if (details === undefined) {

@@ -23,7 +23,7 @@ This record is **immutable** except for editorial fixes (typos, links). If the t
 
 - The platform is **B2B** but serves **consultants and end clients** who may prefer **German, Spanish, Catalan, Russian, Italian**, or English. Marketing pages, intake wizards, dashboards, reports, and error states must eventually render in a **user-selected or browser-negotiated locale** without duplicating business logic.
 - **Trust and clarity** depend on consistent terminology (domain names, score bands, mode names) across **PDF**, **email**, **SPA**, and **API**-driven messages. Divergent translations for the same concept increase support load and break consultant workflows.
-- **White-label** and **fork** installs need to override **brand strings** separately from **product UI strings** (already partially addressed via `fetchPublicBrandConfig()` and server `public-brand-defaults` — i18n must not fight that boundary).
+- **White-label** and **fork** installs need to override **brand strings** separately from **product UI strings** (already partially addressed via `fetchPublicBrandConfig()` and [`packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json`](../../packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json) — i18n must not fight that boundary).
 
 ### 1.2 Current technical state (baseline)
 
@@ -150,7 +150,7 @@ Until then, **chrome-only** i18n (buttons, step labels outside bank) may ship **
 ### 2.6 Public brand and white-label
 
 - **Brand name, footer markdown, support email** continue to come from `**fetchPublicBrandConfig()**` / env for **single-tenant** strings.
-- **Do not** merge arbitrary brand HTML into the core `glc.*` JSON; if localized footers are required, extend **server** `public-brand-defaults` or per-tenant DB fields with **locale-keyed** blobs in a **dedicated** namespace — record in a **separate ADR** when implemented.
+- **Do not** merge arbitrary brand HTML into the core `glc.*` JSON; if localized footers are required, extend **`packages/glc-dev-brand-defaults` public brand JSON** (or per-tenant DB fields) with **locale-keyed** blobs in a **dedicated** namespace — record in a **separate ADR** when implemented.
 
 ### 2.7 Formatting and accessibility
 

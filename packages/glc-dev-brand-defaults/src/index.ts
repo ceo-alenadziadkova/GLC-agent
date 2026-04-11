@@ -1,37 +1,29 @@
 /**
- * Single source for GLC development-only brand defaults (public site origin + contact email).
- * Forks or white-label installs change values here (or override via production env vars).
+ * @glc/dev-brand-defaults
+ *
+ * - **Brand / copy / sentinel:** `public-brand-defaults.v1.json` (imported via `brand-from-json.ts`).
+ * - **Dev-only ports and CORS:** `dev-infra.ts`.
  */
-
-/** Persisted `audits.company_url` when the client has no public site; re-exported as `NO_PUBLIC_WEBSITE_URL` from `@glc/intake-core`. Forks change this literal. */
-export const GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL =
-  'https://glc-audit.placeholder/no-public-website' as const;
-
-export const GLC_DEV_BRAND_ORIGIN = 'https://glctech.es' as const;
-
-export const GLC_DEV_SUPPORT_EMAIL = 'contact@glctech.es' as const;
-
-/** Local API server (Express) — keep in sync with `PORT` default and Vite `/api` proxy. */
-export const GLC_DEV_API_PORT = 3001 as const;
-export const GLC_DEV_API_ORIGIN = `http://localhost:${GLC_DEV_API_PORT}` as const;
-
-/** Vite dev server default. */
-export const GLC_DEV_SPA_PORT = 5173 as const;
-export const GLC_DEV_SPA_ORIGIN = `http://localhost:${GLC_DEV_SPA_PORT}` as const;
-
-/**
- * Playwright / e2e use loopback host so the dev server binds predictably.
- * Prefer `GLC_DEV_SPA_ORIGIN` for CORS and human-facing dev URLs.
- */
-export const GLC_DEV_SPA_HOST_FOR_E2E = '127.0.0.1' as const;
-export const GLC_DEV_SPA_ORIGIN_E2E = `http://${GLC_DEV_SPA_HOST_FOR_E2E}:${GLC_DEV_SPA_PORT}` as const;
-
-/** Additional browser origins merged into server CORS allowlist in development. */
-export const GLC_DEV_CORS_EXTRA_ORIGINS = ['http://localhost:5174', 'http://localhost:3000'] as const;
 
 export {
+  GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL,
+  GLC_DEV_NO_PUBLIC_WEBSITE_DISPLAY_EN,
+  GLC_DEV_BRAND_ORIGIN,
+  GLC_DEV_SUPPORT_EMAIL,
   GLC_DEV_BRAND_NAME,
   GLC_DEV_BRAND_LEGAL_LINE,
   GLC_DEV_MARKETING_FOOTER_EN,
+  PUBLIC_BRAND_DEFAULTS_VERSION,
   type MarketingFooterCopyEn,
-} from './marketing-footer-en.js';
+  type PublicBrandDefaultsJsonV1,
+} from './brand-from-json.js';
+
+export {
+  GLC_DEV_API_PORT,
+  GLC_DEV_API_ORIGIN,
+  GLC_DEV_SPA_PORT,
+  GLC_DEV_SPA_ORIGIN,
+  GLC_DEV_SPA_HOST_FOR_E2E,
+  GLC_DEV_SPA_ORIGIN_E2E,
+  GLC_DEV_CORS_EXTRA_ORIGINS,
+} from './dev-infra.js';

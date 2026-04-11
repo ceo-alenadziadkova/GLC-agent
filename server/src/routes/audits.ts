@@ -44,6 +44,7 @@ import {
   isIdempotencyPayloadConflictError,
   storeIdempotentResponse,
 } from '../lib/idempotency.js';
+import { idempotencyPostAuditsCreateKey } from '../config/api-http-paths.js';
 import { AUDIT_CHILD_ROWS_INIT_ROLLBACK_MESSAGE, isAuditChildRowsInitRollbackError } from '../lib/audit-init-error.js';
 import {
   API_ERROR_CODES,
@@ -62,7 +63,6 @@ import {
   AUDITS_BRIEF_SAVE_FAILED_MESSAGE,
   AUDITS_BRIEF_SCHEMA_FAILED_MESSAGE,
   AUDITS_COMPANY_URL_INVALID_MESSAGE,
-  AUDITS_COMPANY_URL_NOT_ALLOWED_MESSAGE,
   AUDITS_COMPANY_URL_REQUIRED_MESSAGE,
   AUDITS_CREATE_FAILED_MESSAGE,
   AUDITS_DELETE_FAILED_MESSAGE,
@@ -84,6 +84,10 @@ import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 import { logger } from '../services/logger.js';
 import { resolveSelfServeAuditOwnerUserId } from '../lib/self-serve-audit-owner.js';
 import { emitStructuredNotification } from '../services/notifications.js';
+import {
+  BRIEF_HELP_REQUESTED_NOTIFICATION_TITLE,
+  briefHelpRequestedNotificationMessage,
+} from '../config/route-notification-messages.js';
 import { healUxDomainRowForFreeSnapshotPortal } from '../lib/snapshot-audit-response-heal.js';
 import { buildIntakePlan } from '@glc/intake-core';
 
@@ -169,7 +173,7 @@ auditsRouter.post('/', attachProfile, createAuditLimiter, async (req: AuthReques
 
     const { company_url, company_name, industry, product_mode, no_public_website } = req.body;
     const mode: ProductMode = product_mode === 'express' ? 'express' : 'full';
-    const idempotent = await getStoredIdempotentResponse(req, 'POST:/api/audits', req.body);
+    const idempotent = await getStoredIdempotentResponse(req, idempotencyPostAuditsCreateKey(), req.body);
     if (idempotent.replay) {
       res.status(idempotent.replay.statusCode).json(idempotent.replay.payload);
       return;
@@ -212,11 +216,7 @@ auditsRouter.post('/', attachProfile, createAuditLimiter, async (req: AuthReques
         url = await validatePublicAuditUrl(url);
       } catch (e) {
         if (e instanceof PublicUrlNotAllowedError) {
-          res
-            .status(400)
-            .json(
-              apiErrorJson(API_ERROR_CODES.AUDITS_COMPANY_URL_NOT_ALLOWED, AUDITS_COMPANY_URL_NOT_ALLOWED_MESSAGE),
-            );
+          res.status(400).json(apiErrorJson(e.code, e.message));
           return;
         }
         throw e;
@@ -249,7 +249,7 @@ auditsRouter.post('/', attachProfile, createAuditLimiter, async (req: AuthReques
     });
 
     const payload = { id: audit.id, status: audit.status };
-    await storeIdempotentResponse(req, 'POST:/api/audits', idempotent.key, idempotent.hash, { statusCode: 201, payload }, audit.id);
+    await storeIdempotentResponse(req, idempotencyPostAuditsCreateKey(), idempotent.key, idempotent.hash, { statusCode: 201, payload }, audit.id);
     res.status(201).json(payload);
   } catch (err) {
     if (isIdempotencyPayloadConflictError(err)) {
@@ -729,8 +729,10 @@ auditsRouter.post('/:id/brief/help-request', attachProfile, async (req: AuthRequ
       priority: 'medium',
       audience: 'consultants',
       auditId: id,
-      title: 'Client requested help with brief',
-      message: `A client asked for help with their intake brief (audit ${id.slice(0, REQUEST_FIELD_LIMITS.notificationAuditIdPrefixLen)}...).`,
+      title: BRIEF_HELP_REQUESTED_NOTIFICATION_TITLE,
+      message: briefHelpRequestedNotificationMessage(
+        id.slice(0, REQUEST_FIELD_LIMITS.notificationAuditIdPrefixLen),
+      ),
       route: `/audit/${id}`,
       payload: {
         audit_id: id,

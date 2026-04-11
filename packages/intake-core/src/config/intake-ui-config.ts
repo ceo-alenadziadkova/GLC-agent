@@ -1,25 +1,23 @@
 /**
  * Static defaults for intake resolver UX toggles and caps (developer-owned CONFIG).
  *
- * Runtime overrides belong in a dedicated feature-flag layer (DB/CMS/service) when introduced.
- * Until then, `intake-flags.ts` still reads optional `INTAKE_*` / `VITE_INTAKE_*` env vars as a
- * transitional kill-switch for some toggles; `nextRecommended` on/off is controlled only here.
+ * Runtime overrides belong in a dedicated feature-flag layer (DB/CMS/service) when introduced — not in deployment ENV.
  */
 
 export const INTAKE_UI_CONFIG = {
   /** Product toggle for `isIntakeNextRecommendedEnabled` (not env-overridable). */
   nextRecommendedEnabledDefault: true,
 
-  /** Default for `isIntakeIncrementalEngineEnabled` when env is unset */
+  /** Incremental engine (`recomputePlanIncremental` fast path). */
   incrementalEngineEnabledDefault: true,
 
-  /** Default for `isIntakePolicyRichnessEnabled` when env is unset */
+  /** Policy richness (`askStrategyById`, `requirednessByMode`, …). */
   policyRichnessEnabledDefault: false,
 
-  /** Default cap for `computeNextRecommended` when `max` is omitted and env is unset */
+  /** Default cap for `computeNextRecommended` when caller omits `max`. */
   nextRecommendedCapDefault: 8,
 
-  /** Hard ceiling for `resolveIntakeNextRecommendedMax` (env cannot exceed this) */
+  /** Hard ceiling for future dynamic caps (e.g. admin-tuned limits). */
   nextRecommendedCapMax: 24,
 } as const;
 

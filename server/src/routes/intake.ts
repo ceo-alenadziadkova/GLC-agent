@@ -16,6 +16,11 @@ import { arePreBriefSlotsSatisfied, saveBriefResponses } from '../services/brief
 import { resolveFrontendBaseUrl } from '../config/frontend-url.js';
 import { logger } from '../services/logger.js';
 import { emitStructuredNotification } from '../services/notifications.js';
+import {
+  INTAKE_RESPONSES_UPDATED_NOTIFICATION_TITLE,
+  INTAKE_SUBMISSION_RECEIVED_NOTIFICATION_TITLE,
+  intakePreBriefSubmittedNotificationMessage,
+} from '../config/route-notification-messages.js';
 import { buildIntakePlan } from '@glc/intake-core';
 import { choiceSpecifyResponseKey } from '@glc/intake-core';
 import { INTAKE_REVENUE_BANK_ID } from '@glc/intake-core';
@@ -48,8 +53,10 @@ import {
   INTAKE_TOKEN_NOT_FOUND_MESSAGE,
   INTAKE_VERSION_TUPLE_UNSUPPORTED_MESSAGE,
   apiErrorJson,
+  intakeCollectionModeInvalidMessage,
   intakeProductModeInvalidMessage,
   intakeResponsesSchemaInvalidMessage,
+  intakeSurfaceInvalidMessage,
 } from '../config/api-error-codes.js';
 
 export const intakeRouter = Router();
@@ -459,7 +466,7 @@ intakeRouter.post(
           .json(
             apiErrorJson(
               API_ERROR_CODES.INTAKE_COLLECTION_MODE_INVALID,
-              `Invalid collectionMode "${rawCollection}".`,
+              intakeCollectionModeInvalidMessage(rawCollection),
             ),
           );
         return;
@@ -473,7 +480,7 @@ intakeRouter.post(
           .json(
             apiErrorJson(
               API_ERROR_CODES.INTAKE_SURFACE_INVALID,
-              `Invalid surface "${rawSurface}". Valid values: ${[...VALID_SURFACES].join(', ')}`,
+              intakeSurfaceInvalidMessage(rawSurface, [...VALID_SURFACES].join(', ')),
             ),
           );
         return;
@@ -656,6 +663,7 @@ intakeRouter.post('/:token/respond', intakePublicWriteLimiter, async (req, res) 
     }
 
     const responseCount = Object.keys(parsed.data as Record<string, unknown>).length;
+    const preBriefMsg = intakePreBriefSubmittedNotificationMessage(responseCount);
     if (auditId) {
       await emitStructuredNotification({
         category: 'intake',
@@ -663,8 +671,8 @@ intakeRouter.post('/:token/respond', intakePublicWriteLimiter, async (req, res) 
         priority: 'low',
         audience: 'audit_participants',
         auditId,
-        title: 'Intake responses updated',
-        message: `Client submitted pre-brief responses (${responseCount} fields).`,
+        title: INTAKE_RESPONSES_UPDATED_NOTIFICATION_TITLE,
+        message: preBriefMsg,
         payload: {
           token,
           submitted_at: submittedAt,
@@ -679,8 +687,8 @@ intakeRouter.post('/:token/respond', intakePublicWriteLimiter, async (req, res) 
         audience: 'user',
         userId: row.consultant_id as string,
         auditId: null,
-        title: 'New intake submission',
-        message: `Client submitted pre-brief responses (${responseCount} fields).`,
+        title: INTAKE_SUBMISSION_RECEIVED_NOTIFICATION_TITLE,
+        message: preBriefMsg,
         payload: {
           token,
           submitted_at: submittedAt,

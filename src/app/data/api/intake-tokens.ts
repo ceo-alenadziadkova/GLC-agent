@@ -1,4 +1,4 @@
-import { API_PATHS } from '../../config/api-paths';
+import { API_PATHS, apiIntakePrefill, apiIntakeRespond, apiIntakeToken } from '../../config/api-paths';
 import { apiFetch, publicApiFetch } from '../api-http';
 import type { BriefQuestion, BriefResponses } from '../briefQuestions';
 
@@ -42,7 +42,7 @@ export const intakeTokensApi = {
       submitted_at: string | null;
       expires_at: string;
       link_expired?: boolean;
-    }>(`/api/intake/prefill/${encodeURIComponent(token)}`);
+    }>(apiIntakePrefill(token));
   },
 
   async getIntakeToken(token: string) {
@@ -52,11 +52,11 @@ export const intakeTokensApi = {
       responses: Record<string, unknown>;
       submitted_at: string | null;
       expires_at: string;
-    }>(`/api/intake/${encodeURIComponent(token)}`);
+    }>(apiIntakeToken(token));
   },
 
   async submitIntakeResponses(token: string, responses: BriefResponses) {
-    return publicApiFetch<{ ok: true; submitted_at: string }>(`/api/intake/${encodeURIComponent(token)}/respond`, {
+    return publicApiFetch<{ ok: true; submitted_at: string }>(apiIntakeRespond(token), {
       method: 'POST',
       body: JSON.stringify({ responses }),
     });

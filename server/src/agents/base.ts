@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import type Anthropic from '@anthropic-ai/sdk';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { join, dirname } from 'path';
@@ -18,6 +18,7 @@ import {
   CLAUDE_RETRY_JITTER_MS,
   CLAUDE_TIMEOUT_MS,
   claudeCircuitBreakerRedisKey,
+  createAnthropicClient,
 } from '../config/claude-client.js';
 import { CLAUDE_MODEL, MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import { logger } from '../services/logger.js';
@@ -139,7 +140,7 @@ export abstract class BaseAgent {
 
   constructor(auditId: string) {
     this.auditId = auditId;
-    this.anthropic = new Anthropic();
+    this.anthropic = createAnthropicClient();
     this.contextBuilder = new ContextBuilder();
     this.factChecker = new FactChecker();
     this.tokenTracker = new TokenTracker();
@@ -465,6 +466,10 @@ export abstract class BaseAgent {
     }
   }
 
+  /**
+   * Persists to `pipeline_events` (product UI / timeline). Prefer strings from
+   * `pipeline-events-copy.v1.json` for user-facing steps; use `eventType: 'log'` for technical lines.
+   */
   protected async emit(eventType: string, message: string, data: Record<string, unknown> = {}): Promise<void> {
     updateContext({ auditId: this.auditId });
     const ctx = getContext();

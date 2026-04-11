@@ -40,6 +40,10 @@ export const SYSTEM_DEFAULTS = {
     seoRobotsContentMax: 2000,
     sitemapFetchTimeoutMs: 25_000,
   },
+  /** Wappalyzer-style inline script scan bound (memory / CPU). */
+  techWappalyzer: {
+    maxInlineScriptChars: 400_000,
+  },
   snapshotPublic: {
     freeSnapshotTokenBudget: 80_000,
     tokenTtlHours: 72,
@@ -74,6 +78,13 @@ export const SYSTEM_DEFAULTS = {
   },
   observability: {
     pipelineErrorStackMaxChars: 500,
+    /** Default Sentry traces sample rate when `SENTRY_TRACES_SAMPLE_RATE` is unset. */
+    sentryTracesSampleRateDefault: 0.2,
+  },
+  /** Raw collector JSON injected into Claude context (`ContextBuilder`). */
+  contextBuilder: {
+    maxRawCharsPerCollector: 40_000,
+    maxTotalRawChars: 120_000,
   },
   publicRouteRateLimits: {
     intakeLegacyMaxPerHour: 30,
@@ -86,11 +97,18 @@ export const SYSTEM_DEFAULTS = {
   },
   pipelineModel: {
     claudeModelId: 'claude-sonnet-4-20250514',
+    /** USD per 1M tokens (input / output) for `claudeModelId`; used by token-tracker cost estimates. */
+    usdPerMillionTokens: { input: 3.0, output: 15.0 },
     minTokenReserve: 10_000,
     budgetWarningThreshold: 0.8,
     maxTokensDomain: 4096,
     maxTokensStrategy: 8192,
     maxTokensRecon: 4096,
+  },
+  /** Other Anthropic model IDs token-tracker may see (e.g. historical rows); not the pipeline default. */
+  anthropicAlternateModelPricingUsdPerMtok: {
+    'claude-haiku-4-5-20251001': { input: 0.8, output: 4.0 },
+    'claude-opus-4-20250514': { input: 15.0, output: 75.0 },
   },
   claudeHttp: {
     maxRetries: 3,
@@ -194,5 +212,13 @@ export const SYSTEM_DEFAULTS = {
    */
   outboundBot: {
     uaProductVersion: '1.0',
+  },
+  /** Length caps for `upgradeFreeSnapshotAudit` scraped-context prefill (not CMS copy). */
+  upgradeFreeSnapshotPrefill: {
+    industrySpecifyMaxChars: 200,
+    uxRowSummarySoftMaxChars: 400,
+    uxRowSummarySliceChars: 397,
+    businessActivityBlurbMaxChars: 1200,
+    reconPrefillTechStackLinesMax: 40,
   },
 } as const;

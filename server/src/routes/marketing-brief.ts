@@ -21,6 +21,10 @@ import {
   MARKETING_WEBSITE_OR_FLAG_REQUIRED_MESSAGE,
   apiErrorJson,
 } from '../config/api-error-codes.js';
+import {
+  MARKETING_BRIEF_SUBMITTED_NOTIFICATION_TITLE,
+  marketingBriefSubmittedNotificationMessage,
+} from '../config/route-notification-messages.js';
 
 export const marketingRouter = Router();
 
@@ -113,13 +117,14 @@ marketingRouter.post('/brief', marketingBriefPublicLimiter, async (req, res) => 
       return;
     }
 
+    const displayName = `${name}${company ? ` (${company})` : ''}`;
     await emitStructuredNotification({
       category: 'intake',
       event: 'marketing_brief_submitted',
       priority: 'medium',
       audience: 'consultants',
-      title: 'Marketing brief submitted',
-      message: `${name}${company ? ` (${company})` : ''} — suggested route: ${recommendedRoute}`,
+      title: MARKETING_BRIEF_SUBMITTED_NOTIFICATION_TITLE,
+      message: marketingBriefSubmittedNotificationMessage(displayName, recommendedRoute),
       route: '/admin/requests',
       payload: {
         actor_role: 'client',

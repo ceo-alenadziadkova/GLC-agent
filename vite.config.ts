@@ -35,6 +35,10 @@ export default defineConfig(({ mode }) => ({
         __dirname,
         './packages/intake-core/src/artifacts/layout-rules-1.1.0.json',
       ),
+      '@glc/dev-brand-defaults/public-brand-defaults.v1.json': path.resolve(
+        __dirname,
+        './packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json',
+      ),
       '@glc/dev-brand-defaults': path.resolve(__dirname, './packages/glc-dev-brand-defaults/src/index.ts'),
       '@glc/intake-core': path.resolve(__dirname, './packages/intake-core/src/index.ts'),
     },

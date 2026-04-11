@@ -3,21 +3,6 @@ import { GLC_DEV_API_PORT } from '@glc/dev-brand-defaults';
 import express from 'express';
 import cors from 'cors';
 import { initSentry, Sentry } from './config/sentry.js';
-import { auditsRouter } from './routes/audits.js';
-import { pipelineRouter } from './routes/pipeline.js';
-import { reportsRouter } from './routes/reports.js';
-import { logRouter } from './routes/log.js';
-import { snapshotRouter } from './routes/snapshot.js';
-import { intakeRouter } from './routes/intake.js';
-import { intakeTraceToolRouter } from './routes/intake-trace-tool.js';
-import { discoverRouter } from './routes/discover.js';
-import { marketingRouter } from './routes/marketing-brief.js';
-import { auditRequestsRouter } from './routes/audit-requests.js';
-import { analyticsRouter } from './routes/analytics.js';
-import { notificationsRouter } from './routes/notifications.js';
-import { profileRouter } from './routes/profile.js';
-import { platformRouter } from './routes/platform.js';
-import { publicBrandRouter } from './routes/public-brand.js';
 import { traceMiddleware } from './middleware/trace.js';
 import { requestLogMiddleware } from './middleware/request-log.js';
 import { logger } from './services/logger.js';
@@ -26,10 +11,15 @@ import { updateContext } from './services/observability-context.js';
 import { getCorsAllowedOrigins } from './config/cors-origins.js';
 import { assertProductionRuntimeConfig } from './config/runtime-assert.js';
 import { API_HEALTH_PATH, API_PREFIX, getExpressJsonBodyLimit } from './config/http-server.js';
+import { mountApiRouters } from './config/api-route-mounts.js';
+import { API_ERROR_CODES } from './config/api-error-codes.js';
+import { INTERNAL_SERVER_ERROR_MESSAGE } from './config/api-user-messages.en.js';
+import { getContext } from './services/observability-context.js';
 import { assertSnapshotGuestSaltIfProduction } from './lib/guest-session.js';
 import { setStandardSecurityHeaders } from './config/security-headers.js';
 import { recoverStalledPipelines } from './services/pipeline.js';
 import { startPipelineWorker } from './services/pipeline-jobs.js';
+import { warnPlatformAdminUserIdsEnvBootstrap } from './lib/platform-admin.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? String(GLC_DEV_API_PORT), 10);
@@ -37,6 +27,7 @@ const PORT = parseInt(process.env.PORT ?? String(GLC_DEV_API_PORT), 10);
 const LISTEN_HOST = (process.env.LISTEN_HOST ?? '0.0.0.0').trim() || '0.0.0.0';
 initSentry();
 assertProductionRuntimeConfig();
+warnPlatformAdminUserIdsEnvBootstrap(logger);
 
 const corsAllowedOrigins = getCorsAllowedOrigins();
 if (process.env.NODE_ENV === 'production' && corsAllowedOrigins.length === 0) {
@@ -81,32 +72,19 @@ app.get(API_HEALTH_PATH, (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.use('/api/public', publicBrandRouter);
-
-// ─── Routes ────────────────────────────────────────────────
-app.use('/api/profile', profileRouter);
-app.use('/api/platform', platformRouter);
-app.use('/api/snapshot', snapshotRouter);          // Public snapshot + guest cookie; POST /claim uses JWT
-app.use('/api/intake', intakeRouter);               // Public token GET/respond; POST requires consultant auth
-app.use('/api/intake-trace-tool', intakeTraceToolRouter); // Consultant: trace tool telemetry + wording drafts
-app.use('/api/discover', discoverRouter);           // Public submit/load; consultant sessions/convert
-app.use('/api/marketing', marketingRouter);         // Public marketing brief
-app.use('/api/audit-requests', auditRequestsRouter); // Client portal requests
-app.use('/api/analytics', analyticsRouter);          // Consultant analytics
-app.use('/api/notifications', notificationsRouter);  // In-app notification center
-app.use('/api/audits', auditsRouter);
-app.use('/api/audits', pipelineRouter);
-app.use('/api/audits', reportsRouter);
-app.use('/api/log', logRouter);
+// ─── API routes (prefixes: `config/api-route-mounts.ts`) ───
+mountApiRouters(app);
 
 // ─── Error handler ─────────────────────────────────────────
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   Sentry.captureException(err);
   logger.error('Unhandled error', { error: err.message, stack: err.stack });
-  const isProd = process.env.NODE_ENV === 'production';
-  res.status(500).json(
-    isProd ? { error: 'Internal server error' } : { error: 'Internal server error', message: err.message },
-  );
+  const traceId = getContext()?.traceId;
+  res.status(500).json({
+    code: API_ERROR_CODES.INTERNAL_SERVER_ERROR,
+    error: INTERNAL_SERVER_ERROR_MESSAGE,
+    ...(traceId ? { request_id: traceId } : {}),
+  });
 });
 
 // ─── Start ─────────────────────────────────────────────────

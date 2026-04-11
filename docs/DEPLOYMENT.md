@@ -17,10 +17,11 @@ Canonical policy: [ARCHITECTURE.md — Strict layer boundaries](./ARCHITECTURE.m
 
 ### Infrastructure (typical allowlist)
 
-Values that are **secrets, connectivity, or deploy wiring** — not product defaults: **`SUPABASE_URL`**, **`SUPABASE_SERVICE_KEY`**, **`ANTHROPIC_API_KEY`**, **`NODE_ENV`**, **`PORT`** (when the host injects it), **`SNAPSHOT_GUEST_IP_SALT`** (required in production), **`RATE_LIMIT_REDIS_URL`**, **`FRONTEND_URL`** / **`ALLOWED_ORIGINS`**, **`GLC_PUBLIC_SITE_URL`** (required in production), Telegram / operator tokens where used. **Public marketing copy** (`brand_name`, footer text, optional `support_email`) lives in **`server/src/config/public-brand-defaults.v1.json`**, not in env. The no-public-website sentinel (**`NO_PUBLIC_WEBSITE_URL`**) is a **TypeScript constant** from **`@glc/intake-core`** / **`@glc/dev-brand-defaults`**, not an env var. See [`server/.env.example`](../server/.env.example) for the authoritative commented list.
+Values that are **secrets, connectivity, or deploy wiring** — not product defaults: **`SUPABASE_URL`**, **`SUPABASE_SERVICE_KEY`**, **`ANTHROPIC_API_KEY`**, **`NODE_ENV`**, **`PORT`** (when the host injects it), **`SNAPSHOT_GUEST_IP_SALT`** (required in production), **`RATE_LIMIT_REDIS_URL`**, **`FRONTEND_URL`** / **`ALLOWED_ORIGINS`**, **`GLC_PUBLIC_SITE_URL`** (required in production), Telegram / operator tokens where used. **Public marketing copy** (`brand_name`, footer text, optional `support_email`, sentinel URL) lives in **`packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json`** (package **`@glc/dev-brand-defaults`**), not in env. The no-public-website value (**`NO_PUBLIC_WEBSITE_URL`**) is re-exported from **`@glc/intake-core`** from that JSON (`no_public_website_sentinel`), not an env var. See [`server/.env.example`](../server/.env.example) for the authoritative commented list.
 
 ### Deprecated / ops-only
 
+- **`PLATFORM_ADMIN_USER_IDS`** — **bootstrap / disaster-recovery only.** Prefer **`profiles.is_platform_admin`** or **`platform_settings.legacy_platform_admin_user_ids`** (migrations 049–050). When this env is set, the server logs **`platform_admin.env_bootstrap_active`** at startup; remove the variable once admins are stored in the database (see [Railway](#railway-backend) platform admin note).
 - **`CONSULTANT_EMAILS`** — **removed.** Consultant promotion on first login uses **`consultant_email_allowlist`** only (SQL or **`/api/platform/consultant-allowlist`**). Delete this env from any legacy deploy configs.
 - **Product numerics** (rate limits, snapshot timings, pipeline/Claude, alerts, etc.) are **static TypeScript** in **`SYSTEM_DEFAULTS`** and focused modules — not Railway env. Remaining backend env is mostly **secrets, URLs, Redis, Sentry/Telegram, operator tokens**.
 
@@ -101,6 +102,8 @@ Shared constants and env-driven defaults introduced to reduce duplicated literal
 | HTTP listen bind address | `LISTEN_HOST` env (default `0.0.0.0`) in `server/src/index.ts` |
 | Full-audit crawler limits (max pages, per-page timeout, total crawl budget) | `SYSTEM_DEFAULTS.crawler` via `server/src/config/crawler-limits.ts` |
 | Collector HTTP timeouts and header truncation (security / performance / SEO / sitemap) | `SYSTEM_DEFAULTS.collectorsHttp` via `server/src/config/collector-http.ts` |
+| Tech stack HTML fingerprint inline-script bound | `SYSTEM_DEFAULTS.techWappalyzer` (`maxInlineScriptChars`) in `server/src/lib/tech-wappalyzer-detect.ts` |
+| Discovery session token hex length, contact-edit key pattern, maturity bounds | `server/src/config/discover-contract.ts` (see migrations 013, 032, 033) |
 | SSRF-safe public fetch (redirect cap, retries, backoff) | `server/src/config/public-http-fetch.ts` |
 | Sitemap discovery bounds (fetch count, bytes, URL cap, fallback paths) | `server/src/config/sitemap-discovery-limits.ts` |
 | Idempotency key TTL | `SYSTEM_DEFAULTS.idempotency` in `server/src/config/system-defaults.ts` |
@@ -114,32 +117,35 @@ Shared constants and env-driven defaults introduced to reduce duplicated literal
 | Intake absolute URLs | `server/src/config/frontend-url.ts` (`FRONTEND_URL`) |
 | Production startup assertions | `server/src/config/runtime-assert.ts` |
 | Snapshot audit partial-score multiplier | `SYSTEM_DEFAULTS.snapshotAudit.partialScoreFactor` via `server/src/config/snapshot-partial-score.ts` |
-| Claude circuit-breaker Redis key prefix (optional) | `server/src/agents/base.ts` (`REDIS_KEY_PREFIX`) |
+| Redis key prefix for Claude circuit breaker + distributed rate limits (optional) | `REDIS_KEY_PREFIX` — `server/src/config/claude-client.ts`, `server/src/middleware/rate-limit.ts` (`${prefix}glc:…` / `${prefix}cb:…`) |
 | Local dev API/SPA ports and default CORS dev origins | `packages/glc-dev-brand-defaults` (`GLC_DEV_*`); consumed by Vite proxy, Playwright, `cors-origins`, `frontend-url`, `api-base-url` |
 | Marketing brief → recommended SPA route | `packages/intake-core` (`marketing-brief-routing.ts`); re-exported from `server/src/config/marketing-brief-routing.ts` (logic: unsure / no-site / preferred depth; **no env**) |
 | Snapshot tiered HTTP fetch (Accept-Language, path hints, robots fallback paths) | `server/src/config/snapshot-fetch-heuristics.ts` |
 | Audit list pagination (`GET /api/audits`) | `SYSTEM_DEFAULTS.auditsList` via `server/src/config/audits-list-limits.ts` |
 | Pipeline phase index bounds (full-mode max; retry validation) | `server/src/config/pipeline-phases.ts` (`PIPELINE_MIN_PHASE`, `PIPELINE_MAX_PHASE_INDEX`) |
-| Stable JSON error `code` values (subset; grows over time) | `server/src/config/api-error-codes.ts` |
+| Stable JSON error `code` values (subset; grows over time) | `server/src/config/api-error-codes.ts` (`API_ERROR_CODES`, types, `apiErrorJson`, dynamic message helpers) |
+| Default English API `error` strings for coded responses | `server/src/config/api-user-messages.en.json` + `api-user-messages.en.ts` (re-exported from `api-error-codes.ts` as `*_MESSAGE`) |
 | HTTP body truncation limits (marketing brief, logs, audit requests, intake analytics ids) | `server/src/config/request-field-limits.ts` (`REQUEST_FIELD_LIMITS`) |
 | Collector user-visible copy (security headers, accessibility heuristics) | `server/src/config/collector-copy-security.en.ts`, `server/src/config/collector-copy-accessibility.en.ts` |
-| URL validation hint example (shared with error message text) | `server/src/config/api-validation-copy.ts` (`COMPANY_URL_VALIDATION_EXAMPLE`) |
-| SPA → API relative paths | `src/app/config/api-paths.ts` (`API_PATHS`, `apiIntakeTracePublicationLog`) |
+| URL validation hint example (`{example}` in `AUDITS_COMPANY_URL_INVALID`) | `server/src/config/api-user-messages.en.json` (`COMPANY_URL_VALIDATION_EXAMPLE`) |
+| SPA → API relative paths | `src/app/config/api-paths.ts` (`API_PATHS`, builder helpers) |
+| Express `app.use` API mounts (kept in sync with SPA paths) | `server/src/config/api-route-mounts.ts` (`API_ROUTE_MOUNT_ENTRIES`, `mountApiRouters`); contract: `server/src/tests/api-paths-mount-contract.test.ts` (Vitest) |
 | Discover wizard timing (scroll delay, save timeout) | `src/app/config/discover-page-defaults.ts` |
 | Login operator hints (e.g. Supabase manual linking) | `src/app/config/login-copy.en.ts` |
 | Copy layering (zones, single source, PR checklist) | [ARCHITECTURE.md — §6](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone) |
-| Intake UX flag defaults (next-recommended on/off and cap; other toggles may still use env kill-switches) | `packages/intake-core/src/config/intake-ui-config.ts` (`INTAKE_UI_CONFIG`); optional `INTAKE_*` / `VITE_INTAKE_*` for incremental engine / policy richness / caps in `intake-flags.ts` |
+| Intake UX toggles and next-recommended cap (no env overrides) | `packages/intake-core/src/config/intake-ui-config.ts` (`INTAKE_UI_CONFIG`); `intake-flags.ts` re-exports booleans/cap — change CONFIG and redeploy, or add a future DB/feature-flag layer for runtime toggles |
+| Platform admin UUID list (migration off `PLATFORM_ADMIN_USER_IDS`) | `platform_settings.legacy_platform_admin_user_ids` (migration `050_platform_settings_legacy_admin_ids.sql`) — when non-empty, replaces env for ACL + self-serve owner fallback; prefer `profiles.is_platform_admin` for individuals |
 
 ### White-label and dev defaults: environment matrix
 
 | Layer | Variables / package | Purpose |
 | --- | --- | --- |
-| **Dev template (fork)** | `packages/glc-dev-brand-defaults` (`GLC_DEV_*`) | Local API/SPA ports and origins, extra dev CORS origins, **`GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL`** (re-exported as **`NO_PUBLIC_WEBSITE_URL`** from **`@glc/intake-core`**), shared dev defaults — **not** the server’s live brand JSON; production must set **`FRONTEND_URL`**, **`GLC_PUBLIC_SITE_URL`**, **`VITE_*`** for deploy wiring |
-| **Server — public JSON** | `server/src/config/public-brand-defaults.v1.json` + **`GLC_PUBLIC_SITE_URL`** (required in production) | `GET /api/public/brand` for marketing shell |
+| **Dev template (fork)** | `packages/glc-dev-brand-defaults` (`GLC_DEV_*` from `dev-infra.ts`; brand/sentinel from `public-brand-defaults.v1.json` via `brand-from-json.ts`) | Local API/SPA ports and origins, extra dev CORS origins; **`no_public_website_sentinel`** in JSON → **`GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL`** → **`NO_PUBLIC_WEBSITE_URL`** (**`@glc/intake-core`**). Production must set **`FRONTEND_URL`**, **`GLC_PUBLIC_SITE_URL`**, **`VITE_*`** for deploy wiring |
+| **Server — public JSON** | `packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json` + **`GLC_PUBLIC_SITE_URL`** (required in production) | `GET /api/public/brand` for marketing shell |
 | **Vite / browser** | `VITE_API_URL` (required prod), `VITE_SUPABASE_*` | API base URL, Supabase client |
 | **Notifications (optional)** | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_API_BASE` (default `https://api.telegram.org`) | Telegram outbound; override base only behind a corporate proxy |
 
-**Copy and brand:** public contact for marketing surfaces comes from **`public-brand-defaults.v1.json`** `support_email` (served by **`GET /api/public/brand`**). JSON **`null`** hides the footer mail link; omitted or empty string falls back to **`GLC_DEV_SUPPORT_EMAIL`** in server config. See [ARCHITECTURE.md — §6 User-visible copy layering](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone).
+**Copy and brand:** public contact for marketing surfaces comes from **`packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json`** field **`support_email`** (served by **`GET /api/public/brand`** via **`public-brand-config.ts`**). JSON **`null`** hides the footer mail link; omitted or empty string falls back to **`GLC_DEV_SUPPORT_EMAIL`** (same JSON). See [ARCHITECTURE.md — §6 User-visible copy layering](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone).
 
 See also § **White-label and cross-stack parity** in [`server/.env.example`](../server/.env.example).
 
@@ -149,8 +155,8 @@ Collector/crawler HTTP limits, snapshot public route defaults (token budget, TTL
 
 ### Product sentinel: no-public-website URL
 
-- **Source of truth:** **`GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL`** in **`packages/glc-dev-brand-defaults`**, exported as **`NO_PUBLIC_WEBSITE_URL`** from **`packages/intake-core/src/no-public-website.ts`**, re-exported by the server (`server/src/config/no-public-website.ts`) and SPA (`src/app/data/no-public-website.ts`). API and browser bundles share the same compiled constant — **no env vars**.
-- **White-label / fork:** change the literal in **`@glc/dev-brand-defaults`** and redeploy server + SPA together. When persisted as **`audits.company_url`**, collectors and snapshot logic treat it as “no public site” and **must not** crawl it.
+- **Source of truth:** JSON field **`no_public_website_sentinel`** in **`packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json`**, exposed as **`GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL`** from **`@glc/dev-brand-defaults`**, then as **`NO_PUBLIC_WEBSITE_URL`** from **`packages/intake-core/src/no-public-website.ts`**, re-exported by the server (`server/src/config/no-public-website.ts`) and SPA (`src/app/data/no-public-website.ts`). API and browser bundles share the same compiled constant — **no env vars**.
+- **White-label / fork:** edit that JSON field (or replace the package defaults) and redeploy server + SPA together. When persisted as **`audits.company_url`**, collectors and snapshot logic treat it as “no public site” and **must not** crawl it.
 - **Changing the sentinel** is **breaking** for stored rows: plan a **data migration** for existing `audits.company_url` values.
 
 ### Server and SPA variables that must match (when set)
@@ -213,6 +219,7 @@ Client analytics batching, TanStack Query defaults, and HTTP client timeouts are
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_SERVICE_KEY` | Supabase service role key (secret) |
 | `ANTHROPIC_API_KEY` | Anthropic API key |
+| `ANTHROPIC_BASE_URL` | Optional Anthropic-compatible API base URL (corporate proxy / gateway); omit for SDK default |
 | `NODE_ENV` | `production` |
 | `FRONTEND_URL` | Canonical SPA origin (no trailing slash), e.g. `https://your-app.vercel.app` — **required when `NODE_ENV=production`** (process exits at startup if missing). Used for absolute intake links and merged into CORS allowlist. |
 | `GLC_PUBLIC_SITE_URL` | **Required when `NODE_ENV=production`.** HTTPS origin (no trailing slash) embedded in crawler/snapshot user-agents. In development, defaults to `https://glctech.es` if unset. |
@@ -230,7 +237,7 @@ Client analytics batching, TanStack Query defaults, and HTTP client timeouts are
 | `TELEGRAM_CHAT_ID` | Telegram channel or chat ID for alerts |
 | `TELEGRAM_API_BASE` | Optional Bot API base (proxy); default official endpoint |
 | `SELF_SERVE_AUDIT_OWNER_USER_ID` | Optional bootstrap: consultant `profiles.id` used only while **`platform_settings.self_serve_audit_owner_user_id`** is null; prefer **Save assignment** in Settings so production does not rely on this env |
-| `PLATFORM_ADMIN_USER_IDS` | Optional legacy comma-separated consultant `profiles.id` values allowed to manage platform settings; merged with **`profiles.is_platform_admin`** when restrictions apply (see migration `049_profiles_platform_admin.sql`) |
+| `PLATFORM_ADMIN_USER_IDS` | Optional legacy comma-separated consultant `profiles.id` values; used only when **`platform_settings.legacy_platform_admin_user_ids`** is empty — prefer DB column (migration `050_platform_settings_legacy_admin_ids.sql`) or **`profiles.is_platform_admin`** (migration `049_profiles_platform_admin.sql`) |
 | `SNAPSHOT_OPERATOR_TOKEN` | Optional operator-only snapshot actions (see `server/src/routes/snapshot.ts`) |
 
 **Not env (change in code / release):** rate-limit numerics and windows, public-route hourly caps, Express JSON body limit, Claude model id and `max_tokens` / token reserve / budget warning, Claude HTTP retries and timeouts, BullMQ queue retention and backoff, worker concurrency and lease TTL, pipeline stall and parallel-failure thresholds, snapshot fetch/Playwright/axe timing, snapshot abuse and domain-cache TTL, page-anomaly thresholds, audit deep-scan (Lighthouse/axe) enablement and budgets, reliability alert thresholds and intervals — all live in **`server/src/config/system-defaults.ts`** and re-exported modules (`rate-limits.ts`, `snapshot-timing.ts`, `alerts-config.ts`, `model.ts`, …). Marketing brief routing stays in **`@glc/intake-core`**.

@@ -36,3 +36,52 @@ export type ApiLogPath = (typeof API_PATHS)['log'] | (typeof API_PATHS)['logSnap
 export function apiIntakeTracePublicationLog(limit: number): string {
   return `/api/intake-trace-tool/wording-publication-log?limit=${limit}`;
 }
+
+export function apiAuditsPath(auditId: string): string {
+  return `${API_PATHS.audits}/${encodeURIComponent(auditId)}`;
+}
+
+export function apiAuditsPipelineStart(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/pipeline/start`;
+}
+
+export function apiAuditsPipelineNext(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/pipeline/next`;
+}
+
+export function apiAuditsPipelineRetry(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/pipeline/retry`;
+}
+
+export function apiAuditsPipelineStatus(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/pipeline/status`;
+}
+
+export function apiAuditsBriefHelpRequest(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/brief/help-request`;
+}
+
+export function apiAuditsReview(auditId: string, phase: number): string {
+  return `${apiAuditsPath(auditId)}/reviews/${encodeURIComponent(String(phase))}`;
+}
+
+export function apiAuditsQualityGate(auditId: string, phase: number): string {
+  return `${apiAuditsPath(auditId)}/quality-gate/${encodeURIComponent(String(phase))}`;
+}
+
+export function apiAuditsReportQuery(auditId: string, format: string, profile: string): string {
+  const q = new URLSearchParams({ format, profile });
+  return `${apiAuditsPath(auditId)}/report?${q.toString()}`;
+}
+
+export function apiIntakePrefill(token: string): string {
+  return `${API_PATHS.intake}/prefill/${encodeURIComponent(token)}`;
+}
+
+export function apiIntakeToken(token: string): string {
+  return `${API_PATHS.intake}/${encodeURIComponent(token)}`;
+}
+
+export function apiIntakeRespond(token: string): string {
+  return `${API_PATHS.intake}/${encodeURIComponent(token)}/respond`;
+}

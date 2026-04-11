@@ -8,6 +8,7 @@
  */
 import * as cheerio from 'cheerio';
 
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { WAPPALYZER_IMPORTED_RULES_RAW } from './wappalyzer-imported-rules.js';
 
 export type TechDetectOpts = {
@@ -126,7 +127,7 @@ export type TechChannels = {
   pageUrls: string[];
 };
 
-const MAX_INLINE_SCRIPT_CHARS = 400_000;
+const MAX_INLINE_SCRIPT_CHARS = SYSTEM_DEFAULTS.techWappalyzer.maxInlineScriptChars;
 
 export function collectTechChannels(html: string, pageUrls: string[] = []): TechChannels {
   const root = cheerio.load(html);

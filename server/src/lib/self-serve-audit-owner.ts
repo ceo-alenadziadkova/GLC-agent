@@ -1,6 +1,6 @@
 import { supabase } from '../services/supabase.js';
 import { getStoredSelfServeAuditOwnerUserId } from './platform-self-serve-settings.js';
-import { listPlatformAdminUserIdsFromEnv } from './platform-admin.js';
+import { listLegacyPlatformAdminUserIds } from './platform-admin.js';
 import { logger } from '../services/logger.js';
 import { API_ERROR_CODES, SELF_SERVE_OWNER_UNAVAILABLE_MESSAGE } from '../config/api-error-codes.js';
 
@@ -28,7 +28,7 @@ function unavailable(reason: string): SelfServeOwnerResult {
     component: 'self_serve_audit_owner',
     reason,
     remediation:
-      'Set platform_settings.self_serve_audit_owner_user_id or SELF_SERVE_AUDIT_OWNER_USER_ID, or set profiles.is_platform_admin / PLATFORM_ADMIN_USER_IDS (or ensure at least one consultant profile exists).',
+      'Set platform_settings.self_serve_audit_owner_user_id or SELF_SERVE_AUDIT_OWNER_USER_ID, or set profiles.is_platform_admin / platform_settings.legacy_platform_admin_user_ids / PLATFORM_ADMIN_USER_IDS (or ensure at least one consultant profile exists).',
   });
   return CLIENT_SAFE_UNAVAILABLE;
 }
@@ -51,7 +51,7 @@ async function consultantIdIfValid(raw: string): Promise<string | null> {
 }
 
 async function tryFirstPlatformAdmin(): Promise<SelfServeOwnerResult | null> {
-  for (const adminRaw of listPlatformAdminUserIdsFromEnv()) {
+  for (const adminRaw of await listLegacyPlatformAdminUserIds()) {
     const cid = await consultantIdIfValid(adminRaw);
     if (cid) {
       logger.info('self_serve_audit_owner.fallback_platform_admin', {
@@ -64,7 +64,7 @@ async function tryFirstPlatformAdmin(): Promise<SelfServeOwnerResult | null> {
 }
 
 /**
- * When PLATFORM_ADMIN_USER_IDS is unset and no consultant has is_platform_admin (open mode), use the earliest consultant
+ * When legacy admin lists are empty and no consultant has is_platform_admin (open mode), use the earliest consultant
  * by signup time as implicit default owner.
  */
 async function tryFirstConsultantByCreatedAt(): Promise<SelfServeOwnerResult | null> {
@@ -92,7 +92,7 @@ async function tryFirstConsultantByCreatedAt(): Promise<SelfServeOwnerResult | n
  * public snapshot. Order:
  * 1. `platform_settings.self_serve_audit_owner_user_id`
  * 2. `SELF_SERVE_AUDIT_OWNER_USER_ID` env
- * 3. First valid id in `PLATFORM_ADMIN_USER_IDS` (when non-empty; legacy)
+ * 3. First valid id in `platform_settings.legacy_platform_admin_user_ids` or `PLATFORM_ADMIN_USER_IDS` (legacy)
  * 4. If unrestricted (open mode): earliest consultant profile (`created_at`)
  */
 export async function resolveSelfServeAuditOwnerUserId(): Promise<SelfServeOwnerResult> {
@@ -125,7 +125,7 @@ export async function resolveSelfServeAuditOwnerUserId(): Promise<SelfServeOwner
     return fromAdmins;
   }
 
-  if (listPlatformAdminUserIdsFromEnv().length === 0) {
+  if ((await listLegacyPlatformAdminUserIds()).length === 0) {
     const fromFirst = await tryFirstConsultantByCreatedAt();
     if (fromFirst) {
       return fromFirst;

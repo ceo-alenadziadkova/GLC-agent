@@ -1,11 +1,14 @@
-import { GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL } from '@glc/dev-brand-defaults';
+import {
+  GLC_DEV_NO_PUBLIC_WEBSITE_DISPLAY_EN,
+  GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL,
+} from '@glc/dev-brand-defaults';
 
 /**
  * Canonical placeholder URL when the client has no public website (`audits.company_url`).
  * Collectors must skip outbound fetches when this value is detected.
  *
- * Single shared constant from `@glc/dev-brand-defaults` — API and SPA import the same module
- * so no env pair is required. Forks change `GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL` in that package.
+ * Single shared constant from `@glc/dev-brand-defaults` (sourced from `public-brand-defaults.v1.json`).
+ * Forks change `no_public_website_sentinel` in that JSON.
  */
 export const NO_PUBLIC_WEBSITE_URL = GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL;
 
@@ -32,8 +35,11 @@ export function auditSkipsPublicWebsiteFetches(
   return isNoPublicWebsiteUrl(companyUrl);
 }
 
-/** English default for “no public website” (until message catalogs ship). */
-export const NO_PUBLIC_WEBSITE_DISPLAY_EN = 'No public website' as const;
+/**
+ * English label for “no public website” — sourced from `public-brand-defaults.v1.json`
+ * (`no_public_website_display_en`). Exposed on `GET /api/public/brand` as `no_public_website_display_en`.
+ */
+export const NO_PUBLIC_WEBSITE_DISPLAY_EN = GLC_DEV_NO_PUBLIC_WEBSITE_DISPLAY_EN;
 
 /**
  * Stable key for future i18n catalogs; UI maps this to localized copy.

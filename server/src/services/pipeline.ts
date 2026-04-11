@@ -476,6 +476,10 @@ export class PipelineOrchestrator {
     }
   }
 
+  /**
+   * Writes `pipeline_events` and mirrors lifecycle into in-app notifications.
+   * Copy is sourced from `pipeline-orchestrator-copy.v1.json` (orchestrator) and agent JSON, not ad hoc strings.
+   */
   private async emitEvent(phase: number, eventType: string, message: string, data: Record<string, unknown> = {}): Promise<void> {
     updateContext({ auditId: this.auditId });
     const ctx = getContext();

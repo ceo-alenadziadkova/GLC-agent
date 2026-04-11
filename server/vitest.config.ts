@@ -29,7 +29,13 @@ export default defineConfig({
         'packages/intake-core/src/config/intake-flags.ts',
       ),
       '@glc/intake-core': path.join(root, 'packages/intake-core/src/index.ts'),
+      /** Before `@glc/dev-brand-defaults` — otherwise the package alias is treated as a directory. */
+      '@glc/dev-brand-defaults/public-brand-defaults.v1.json': path.join(
+        root,
+        'packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json',
+      ),
       '@glc/dev-brand-defaults': path.join(root, 'packages/glc-dev-brand-defaults/src/index.ts'),
+      '@glc/web-app/api-paths': path.join(root, 'src/app/config/api-paths.ts'),
     },
   },
   test: {

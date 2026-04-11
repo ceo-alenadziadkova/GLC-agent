@@ -8,6 +8,11 @@ import { pdfGenerator } from '../services/pdf-generator.js';
 import { logger } from '../services/logger.js';
 import { notifyAuditParticipantsExcept } from '../services/notifications.js';
 import {
+  REPORTS_ARTIFACT_READY_NOTIFICATION_TITLE,
+  REPORTS_CSV_READY_NOTIFICATION_MESSAGE,
+  REPORTS_PDF_READY_NOTIFICATION_MESSAGE,
+} from '../config/route-notification-messages.js';
+import {
   API_ERROR_CODES,
   REPORTS_AUDIT_NOT_FOUND_MESSAGE,
   REPORTS_GENERATE_FAILED_MESSAGE,
@@ -78,8 +83,8 @@ reportsRouter.get('/:id/report', attachProfile, rejectGuestFromPortal, async (re
       await notifyAuditParticipantsExcept(
         id,
         'pipeline',
-        'Artifact ready',
-        'PDF report is ready.',
+        REPORTS_ARTIFACT_READY_NOTIFICATION_TITLE,
+        REPORTS_PDF_READY_NOTIFICATION_MESSAGE,
         [req.userId!],
         {
           audit_id: id,
@@ -103,8 +108,8 @@ reportsRouter.get('/:id/report', attachProfile, rejectGuestFromPortal, async (re
       await notifyAuditParticipantsExcept(
         id,
         'pipeline',
-        'Artifact ready',
-        'CSV action plan export is ready.',
+        REPORTS_ARTIFACT_READY_NOTIFICATION_TITLE,
+        REPORTS_CSV_READY_NOTIFICATION_MESSAGE,
         [req.userId!],
         {
           audit_id: id,

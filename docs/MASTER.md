@@ -123,7 +123,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 **Why it matters:** Contract between frontend and backend; client portal and consultant flows.
 
-**Where it is implemented:** `server/src/routes/`.
+**Where it is implemented:** `server/src/routes/`; routers are mounted from `server/src/config/api-route-mounts.ts` (`mountApiRouters` in `server/src/index.ts`). SPA paths: `src/app/config/api-paths.ts` (Vitest contract vs mounts: `server/src/tests/api-paths-mount-contract.test.ts`).
 
 **Where to find documentation:** [API.md](./API.md)
 

@@ -9,6 +9,7 @@ import {
 import {
   GLC_DEV_BRAND_NAME,
   GLC_DEV_MARKETING_FOOTER_EN,
+  GLC_DEV_NO_PUBLIC_WEBSITE_DISPLAY_EN,
   type MarketingFooterCopyEn,
 } from '@glc/dev-brand-defaults';
 import { GLC_SUPPORT_EMAIL } from '../lib/support-email';
@@ -23,6 +24,8 @@ export type PublicBrandContextValue = {
   footer: MarketingFooterCopyEn;
   /** Public support address from API; empty when JSON `support_email` is null (hidden). */
   supportEmail: string;
+  /** Label for audits without a public URL (matches `NO_PUBLIC_WEBSITE_DISPLAY_I18N_KEY` / brief tooling). */
+  noPublicWebsiteDisplayEn: string;
 };
 
 const fallbackValue: PublicBrandContextValue = {
@@ -30,6 +33,7 @@ const fallbackValue: PublicBrandContextValue = {
   brandName: GLC_DEV_BRAND_NAME,
   footer: { ...GLC_DEV_MARKETING_FOOTER_EN },
   supportEmail: GLC_SUPPORT_EMAIL,
+  noPublicWebsiteDisplayEn: GLC_DEV_NO_PUBLIC_WEBSITE_DISPLAY_EN,
 };
 
 const PublicBrandContext = createContext<PublicBrandContextValue>(fallbackValue);
@@ -59,7 +63,9 @@ export function PublicBrandProvider({ children }: { children: ReactNode }) {
       const t = payload.support_email.trim();
       supportEmail = t || GLC_SUPPORT_EMAIL;
     }
-    return { payload, brandName, footer, supportEmail };
+    const noPublicWebsiteDisplayEn =
+      payload?.no_public_website_display_en?.trim() || GLC_DEV_NO_PUBLIC_WEBSITE_DISPLAY_EN;
+    return { payload, brandName, footer, supportEmail, noPublicWebsiteDisplayEn };
   }, [payload]);
 
   return <PublicBrandContext.Provider value={value}>{children}</PublicBrandContext.Provider>;

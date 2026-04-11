@@ -6,6 +6,7 @@ export type PublicBrandPayload = {
   brand_name: string;
   support_email: string | null;
   public_site_url: string;
+  no_public_website_display_en: string;
   footer: MarketingFooterCopyEn;
 };
 

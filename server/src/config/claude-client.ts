@@ -3,6 +3,8 @@
  * Source of truth: `SYSTEM_DEFAULTS.claudeHttp`.
  */
 
+import Anthropic from '@anthropic-ai/sdk';
+
 import { SYSTEM_DEFAULTS } from './system-defaults.js';
 
 const C = SYSTEM_DEFAULTS.claudeHttp;
@@ -23,4 +25,15 @@ export const CLAUDE_CB_TTL_SEC = C.cbTtlSec;
 export function claudeCircuitBreakerRedisKey(): string {
   const p = process.env.REDIS_KEY_PREFIX?.trim().replace(/:+$/, '');
   return p ? `${p}:cb:claude:failures` : 'cb:claude:failures';
+}
+
+/**
+ * Anthropic SDK client. Optional `ANTHROPIC_BASE_URL` (infra) for corporate proxy or compatible API gateway.
+ */
+export function createAnthropicClient(): Anthropic {
+  const baseURL = process.env.ANTHROPIC_BASE_URL?.trim();
+  if (baseURL) {
+    return new Anthropic({ baseURL });
+  }
+  return new Anthropic();
 }

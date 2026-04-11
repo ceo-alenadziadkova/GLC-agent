@@ -17,7 +17,7 @@ React 18 + TypeScript + Vite. Tailwind CSS v4 (`src/styles/tailwind.css`), glass
 | `VITE_API_URL` | Backend origin for `getApiBaseUrl()` — **required in production** (throws if missing when the app runs under `import.meta.env.PROD`). |
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Supabase client — **required at module load** in every environment (production build throws if missing; local dev needs `.env.local`; Vitest stubs both in `src/test/setup.ts`). |
 
-The no-public-website sentinel is **`NO_PUBLIC_WEBSITE_URL`** from **`@glc/intake-core`** (constant from **`@glc/dev-brand-defaults`**), not a `VITE_*` variable.
+The no-public-website sentinel is **`NO_PUBLIC_WEBSITE_URL`** from **`@glc/intake-core`**, sourced from **`no_public_website_sentinel`** in **`@glc/dev-brand-defaults`** [`public-brand-defaults.v1.json`](../packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json), not a `VITE_*` variable.
 
 **Static front config (no `VITE_*`):** feature flags (`src/app/config/app-feature-flags.ts`), client analytics batching (`client-analytics-batching.ts`), TanStack Query defaults (`query-client-defaults.ts` + `glc-query-client-defaults.ts`), HTTP timeouts (`http-client-defaults.ts`).
 

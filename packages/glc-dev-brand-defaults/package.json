@@ -9,9 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./public-brand-defaults.v1.json": "./dist/public-brand-defaults.v1.json"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json && cp src/public-brand-defaults.v1.json dist/public-brand-defaults.v1.json"
   }
 }

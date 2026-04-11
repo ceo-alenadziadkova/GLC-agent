@@ -150,7 +150,7 @@ Security intent:
 
 ## Rate Limiting
 
-Implementation: **`server/src/middleware/rate-limit.ts`** (`express-rate-limit`), with **numeric defaults and env names** centralized in **`server/src/config/rate-limits.ts`**.
+Implementation: **`server/src/middleware/rate-limit.ts`** (`express-rate-limit`), with **numeric defaults and env names** centralized in **`server/src/config/rate-limits.ts`**. JSON **`429`** bodies that expose **`retry_after_minutes`** / **`retry_after_hours`** / **`retry_after_seconds`** derive those fields from each limiter’s **`windowMs`** so hints stay aligned if windows change.
 
 | Export (examples) | Role |
 | --- | --- |

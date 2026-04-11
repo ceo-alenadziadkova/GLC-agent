@@ -22,8 +22,28 @@ import {
   SNAPSHOT_PUBLIC_MAX_PER_DAY,
   SNAPSHOT_PUBLIC_WINDOW_MS,
 } from '../config/rate-limits.js';
+import {
+  RATE_LIMIT_COMPARE_MESSAGE,
+  RATE_LIMIT_DISCOVER_ANALYTICS_MESSAGE,
+  RATE_LIMIT_DISCOVER_CREATE_MESSAGE,
+  RATE_LIMIT_DISCOVER_READ_MESSAGE,
+  RATE_LIMIT_GENERAL_MESSAGE,
+  RATE_LIMIT_INTAKE_LEGACY_MESSAGE,
+  RATE_LIMIT_INTAKE_READ_MESSAGE,
+  RATE_LIMIT_INTAKE_WRITE_MESSAGE,
+  RATE_LIMIT_LOG_INGEST_MESSAGE,
+  RATE_LIMIT_MARKETING_BRIEF_MESSAGE,
+  RATE_LIMIT_PIPELINE_MESSAGE,
+  RATE_LIMIT_SNAPSHOT_LOG_INGEST_MESSAGE,
+  rateLimitAuditCreateMessage,
+  rateLimitSnapshotPublicDailyCapMessage,
+} from '../config/rate-limit-messages.js';
 
 const PRL = SYSTEM_DEFAULTS.publicRouteRateLimits;
+
+function retryAfterMinutesFromWindow(windowMs: number): number {
+  return Math.max(1, Math.ceil(windowMs / MINUTE_MS));
+}
 
 /** Inferred from `createClient` so assignments stay compatible when redis adds optional modules / RESP versions. */
 type RateLimitRedisClient = ReturnType<typeof createClient>;
@@ -61,11 +81,16 @@ function getSharedRedisClient(): RateLimitRedisClient | null {
   return client;
 }
 
+function rateLimitRedisKeyPrefix(): string {
+  const p = process.env.REDIS_KEY_PREFIX?.trim().replace(/:+$/, '');
+  return p ? `${p}:` : '';
+}
+
 function distributedStore(prefix: string): RedisStore | undefined {
   const client = getSharedRedisClient();
   if (!client) return undefined;
   return new RedisStore({
-    prefix: `glc:${prefix}:`,
+    prefix: `${rateLimitRedisKeyPrefix()}glc:${prefix}:`,
     sendCommand: (...args: string[]) => client.sendCommand(args),
   });
 }
@@ -86,7 +111,7 @@ export const createAuditLimiter = rateLimit({
   store: distributedStore('audit_create'),
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   message: {
-    error: `Too many audits created. Maximum ${RATE_LIMIT_AUDIT_CREATE_MAX_PER_DAY} per rolling window.`,
+    error: rateLimitAuditCreateMessage(RATE_LIMIT_AUDIT_CREATE_MAX_PER_DAY),
     code: 'AUDIT_CREATE_RATE_LIMITED',
     retry_after_hours: Math.max(1, Math.ceil(RATE_LIMIT_AUDIT_CREATE_WINDOW_MS / HOUR_MS)),
   },
@@ -103,7 +128,7 @@ export const pipelineLimiter = rateLimit({
   store: distributedStore('pipeline_ops'),
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   message: {
-    error: 'Too many pipeline operations. Please wait before retrying.',
+    error: RATE_LIMIT_PIPELINE_MESSAGE,
     code: 'PIPELINE_RATE_LIMITED',
     retry_after_minutes: Math.max(1, Math.ceil(RATE_LIMIT_PIPELINE_WINDOW_MS / MINUTE_MS)),
   },
@@ -120,7 +145,7 @@ export const generalLimiter = rateLimit({
   store: distributedStore('general_api'),
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   message: {
-    error: 'Too many API requests. Please wait before retrying.',
+    error: RATE_LIMIT_GENERAL_MESSAGE,
     code: 'GENERAL_API_RATE_LIMITED',
     retry_after_seconds: Math.max(1, Math.ceil(RATE_LIMIT_GENERAL_WINDOW_MS / 1000)),
   },
@@ -150,7 +175,7 @@ export const snapshotCompareLimiter = rateLimit({
     return !want;
   },
   message: {
-    error: 'Too many competitor comparisons. Try again later.',
+    error: RATE_LIMIT_COMPARE_MESSAGE,
     code: 'COMPARE_RATE_LIMITED',
     retry_after_minutes: Math.max(1, Math.ceil(SNAPSHOT_COMPARE_WINDOW_MS / MINUTE_MS)),
   },
@@ -205,7 +230,7 @@ export const snapshotPublicLimiter = rateLimit({
   /** Only successful starts (2xx) consume a daily slot — validation errors and domain cooldown 429 do not. */
   skipFailedRequests: true,
   message: {
-    error: `You've used all ${SNAPSHOT_PUBLIC_MAX_PER_DAY} free website checks available today from this connection. Please try again tomorrow — or sign in for a full audit.`,
+    error: rateLimitSnapshotPublicDailyCapMessage(SNAPSHOT_PUBLIC_MAX_PER_DAY),
     code: 'RATE_LIMITED',
     limit: SNAPSHOT_PUBLIC_MAX_PER_DAY,
     remaining: 0,
@@ -223,9 +248,9 @@ export const intakePublicLimiter = rateLimit({
   store: distributedStore('intake_public_legacy'),
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
-    error: 'Too many requests to this intake link. Try again later.',
+    error: RATE_LIMIT_INTAKE_LEGACY_MESSAGE,
     code: 'INTAKE_LEGACY_RATE_LIMITED',
-    retry_after_minutes: 60,
+    retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -238,9 +263,9 @@ export const discoverSessionCreateLimiter = rateLimit({
   store: distributedStore('discover_create'),
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
-    error: 'Too many discovery submissions from this connection. Try again later.',
+    error: RATE_LIMIT_DISCOVER_CREATE_MESSAGE,
     code: 'DISCOVER_CREATE_RATE_LIMITED',
-    retry_after_minutes: 60,
+    retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -253,9 +278,9 @@ export const discoverPublicReadLimiter = rateLimit({
   store: distributedStore('discover_read'),
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
-    error: 'Too many discovery requests from this connection. Try again later.',
+    error: RATE_LIMIT_DISCOVER_READ_MESSAGE,
     code: 'DISCOVER_READ_RATE_LIMITED',
-    retry_after_minutes: 60,
+    retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -268,9 +293,9 @@ export const discoverAnalyticsPublicLimiter = rateLimit({
   store: distributedStore('discover_analytics'),
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
-    error: 'Too many analytics batches from this connection. Try again later.',
+    error: RATE_LIMIT_DISCOVER_ANALYTICS_MESSAGE,
     code: 'DISCOVER_ANALYTICS_RATE_LIMITED',
-    retry_after_minutes: 60,
+    retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -283,9 +308,9 @@ export const intakePublicReadLimiter = rateLimit({
   store: distributedStore('intake_public_read'),
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
-    error: 'Too many requests to this intake link. Try again later.',
+    error: RATE_LIMIT_INTAKE_READ_MESSAGE,
     code: 'INTAKE_READ_RATE_LIMITED',
-    retry_after_minutes: 60,
+    retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -298,9 +323,9 @@ export const intakePublicWriteLimiter = rateLimit({
   store: distributedStore('intake_public_write'),
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
-    error: 'Too many save attempts to this intake link. Try again later.',
+    error: RATE_LIMIT_INTAKE_WRITE_MESSAGE,
     code: 'INTAKE_WRITE_RATE_LIMITED',
-    retry_after_minutes: 60,
+    retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -313,9 +338,9 @@ export const marketingBriefPublicLimiter = rateLimit({
   store: distributedStore('marketing_brief_public'),
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
-    error: 'Too many submissions from this connection. Try again later.',
+    error: RATE_LIMIT_MARKETING_BRIEF_MESSAGE,
     code: 'MARKETING_BRIEF_RATE_LIMITED',
-    retry_after_minutes: 60,
+    retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -331,7 +356,7 @@ export const logIngestLimiter = rateLimit({
   store: distributedStore('log_ingest'),
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   message: {
-    error: 'Too many log events. Please wait before retrying.',
+    error: RATE_LIMIT_LOG_INGEST_MESSAGE,
     code: 'LOG_INGEST_RATE_LIMITED',
     retry_after_seconds: Math.max(1, Math.ceil(RATE_LIMIT_LOG_INGEST_WINDOW_MS / 1000)),
   },
@@ -346,7 +371,7 @@ export const snapshotLogIngestLimiter = rateLimit({
   store: distributedStore('snapshot_log_ingest'),
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   message: {
-    error: 'Too many log events from this preview session. Please wait before retrying.',
+    error: RATE_LIMIT_SNAPSHOT_LOG_INGEST_MESSAGE,
     retry_after_seconds: Math.max(1, Math.ceil(MINUTE_MS / 1000)),
     code: 'SNAPSHOT_LOG_RATE_LIMITED',
   },

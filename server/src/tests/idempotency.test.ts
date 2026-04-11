@@ -49,6 +49,7 @@ vi.mock('../services/supabase.js', () => ({
   },
 }));
 
+import { idempotencyPostAuditsCreateKey } from '../config/api-http-paths.js';
 import { cleanupExpiredIdempotencyKeys, getStoredIdempotentResponse } from '../lib/idempotency.js';
 
 function mockReq(idempotencyKey: string, userId = 'user-1', body: Record<string, unknown> = {}): AuthRequest {
@@ -77,7 +78,7 @@ describe('idempotency helper', () => {
       expires_at: new Date(Date.now() + 60_000).toISOString(),
     });
     const req = mockReq('same-key', 'user-1', { a: 1 });
-    const result = await getStoredIdempotentResponse(req, 'POST:/api/audits', { a: 1 });
+    const result = await getStoredIdempotentResponse(req, idempotencyPostAuditsCreateKey(), { a: 1 });
     expect(result.replay?.statusCode).toBe(201);
     expect(result.replay?.payload.id).toBe('audit-1');
   });
@@ -90,7 +91,9 @@ describe('idempotency helper', () => {
       expires_at: new Date(Date.now() + 60_000).toISOString(),
     });
     const req = mockReq('same-key', 'user-1', { a: 2 });
-    await expect(getStoredIdempotentResponse(req, 'POST:/api/audits', { a: 2 })).rejects.toThrow(/different payload/i);
+    await expect(getStoredIdempotentResponse(req, idempotencyPostAuditsCreateKey(), { a: 2 })).rejects.toThrow(
+      /different payload/i,
+    );
   });
 
   it('returns deleted rows count for expired keys cleanup', async () => {

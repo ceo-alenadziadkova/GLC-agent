@@ -32,6 +32,11 @@ import {
 } from '@glc/intake-core';
 import { intakeAnalyticsDiscoveryBatchSchema } from '../schemas/intake-analytics-events.js';
 import {
+  DISCOVER_CONTACT_EDIT_KEY_PATTERN,
+  DISCOVER_SESSION_TOKEN_PATTERN,
+  isDiscoverMaturityLevel,
+} from '../config/discover-contract.js';
+import {
   API_ERROR_CODES,
   DISCOVER_ALREADY_CONVERTED_MESSAGE,
   DISCOVER_ANALYTICS_ACCEPT_FAILED_MESSAGE,
@@ -60,8 +65,6 @@ import {
 
 export const discoverRouter = Router();
 
-const TOKEN_HEX = /^[a-f0-9]{40}$/i;
-const CONTACT_EDIT_KEY_HEX = /^[a-f0-9]{64}$/i;
 const scryptAsync = promisify(crypto.scrypt);
 
 function createContactEditKey(): string {
@@ -220,7 +223,7 @@ discoverRouter.post('/', discoverSessionCreateLimiter, async (req, res) => {
       return;
     }
     const ml = Number(maturity_level);
-    if (!Number.isInteger(ml) || ml < 1 || ml > 5) {
+    if (!isDiscoverMaturityLevel(ml)) {
       res
         .status(400)
         .json(apiErrorJson(API_ERROR_CODES.DISCOVER_MATURITY_INVALID, DISCOVER_MATURITY_INVALID_MESSAGE));
@@ -406,7 +409,7 @@ discoverRouter.get(
 discoverRouter.get('/:token', discoverPublicReadLimiter, async (req, res) => {
   try {
     const token = singleRouteParam(req.params.token);
-    if (!token || !TOKEN_HEX.test(token)) {
+    if (!token || !DISCOVER_SESSION_TOKEN_PATTERN.test(token)) {
       res.status(400).json(apiErrorJson(API_ERROR_CODES.DISCOVER_INVALID_TOKEN, DISCOVER_INVALID_TOKEN_MESSAGE));
       return;
     }
@@ -437,7 +440,7 @@ discoverRouter.get('/:token', discoverPublicReadLimiter, async (req, res) => {
 discoverRouter.patch('/:token/contact', discoverPublicReadLimiter, async (req, res) => {
   try {
     const token = singleRouteParam(req.params.token);
-    if (!token || !TOKEN_HEX.test(token)) {
+    if (!token || !DISCOVER_SESSION_TOKEN_PATTERN.test(token)) {
       res.status(400).json(apiErrorJson(API_ERROR_CODES.DISCOVER_INVALID_TOKEN, DISCOVER_INVALID_TOKEN_MESSAGE));
       return;
     }
@@ -445,7 +448,7 @@ discoverRouter.patch('/:token/contact', discoverPublicReadLimiter, async (req, r
     const contactEditKeyRaw = typeof req.body?.contact_edit_key === 'string'
       ? req.body.contact_edit_key.trim()
       : '';
-    if (!CONTACT_EDIT_KEY_HEX.test(contactEditKeyRaw)) {
+    if (!DISCOVER_CONTACT_EDIT_KEY_PATTERN.test(contactEditKeyRaw)) {
       res
         .status(403)
         .json(
@@ -559,7 +562,7 @@ discoverRouter.post(
   async (req: AuthRequest, res) => {
     try {
       const token = singleRouteParam(req.params.token);
-      if (!token || !TOKEN_HEX.test(token)) {
+      if (!token || !DISCOVER_SESSION_TOKEN_PATTERN.test(token)) {
         res
           .status(400)
           .json(apiErrorJson(API_ERROR_CODES.DISCOVER_INVALID_TOKEN, DISCOVER_INVALID_TOKEN_MESSAGE));

@@ -188,7 +188,7 @@ describe('buildIntakePlan', () => {
   });
 
   it('supports policy askStrategy progressive as deferred reason', () => {
-    vi.stubEnv('INTAKE_POLICY_RICHNESS_ENABLED', '1');
+    const spy = vi.spyOn(intakeFlags, 'isIntakePolicyRichnessEnabled').mockReturnValue(true);
     try {
       const plan = buildIntakePlan({
         responses: { a2: 'hospitality', a5: 'no_website' },
@@ -199,7 +199,7 @@ describe('buildIntakePlan', () => {
         expect(plan.reasonsById.f8.some(r => r.code === 'ASK_STRATEGY_PROGRESSIVE')).toBe(true);
       }
     } finally {
-      vi.unstubAllEnvs();
+      spy.mockRestore();
     }
   });
 });
