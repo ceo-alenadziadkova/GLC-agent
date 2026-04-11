@@ -10,6 +10,7 @@ import {
   PIPELINE_QUEUE_REMOVE_ON_COMPLETE,
   PIPELINE_QUEUE_REMOVE_ON_FAIL,
 } from '../config/pipeline-queue.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 
 type PipelineJobPayload = {
   auditId: string;
@@ -18,8 +19,9 @@ type PipelineJobPayload = {
 };
 
 const QUEUE_NAME = 'pipeline_execution';
-const PIPELINE_LEASE_TTL_SECONDS = Number(process.env.PIPELINE_LEASE_TTL_SECONDS ?? 60);
-const PIPELINE_HEARTBEAT_MS = Number(process.env.PIPELINE_HEARTBEAT_MS ?? 10_000);
+const PW = SYSTEM_DEFAULTS.pipelineWorker;
+const PIPELINE_LEASE_TTL_SECONDS = PW.leaseTtlSeconds;
+const PIPELINE_HEARTBEAT_MS = PW.heartbeatMs;
 let queue: Queue<PipelineJobPayload> | null = null;
 let worker: Worker<PipelineJobPayload> | null = null;
 
@@ -154,7 +156,7 @@ export function startPipelineWorker(): void {
     },
     {
       connection: { url },
-      concurrency: Number(process.env.PIPELINE_WORKER_CONCURRENCY ?? 2),
+      concurrency: PW.concurrency,
     },
   );
 
@@ -172,7 +174,7 @@ export function startPipelineWorker(): void {
 
   logger.info('pipeline.worker_started', {
     queue: QUEUE_NAME,
-    concurrency: Number(process.env.PIPELINE_WORKER_CONCURRENCY ?? 2),
+    concurrency: PW.concurrency,
   });
 }
 

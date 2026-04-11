@@ -6,6 +6,11 @@ import dns from 'node:dns/promises';
 import { isIPv4, isIPv6, type LookupFunction } from 'node:net';
 import { Agent, fetch as undiciFetch } from 'undici';
 import { isNoPublicWebsiteUrl, NO_PUBLIC_WEBSITE_URL } from '../config/no-public-website.js';
+import {
+  PUBLIC_HTTP_FETCH,
+  PUBLIC_HTTP_FETCH_METHODS_WITHOUT_RETRY,
+  PUBLIC_HTTP_FETCH_RETRYABLE_STATUS,
+} from '../config/public-http-fetch.js';
 
 export class PublicUrlNotAllowedError extends Error {
   override name = 'PublicUrlNotAllowedError';
@@ -171,16 +176,16 @@ function makePinnedAgent(pinnedAddress: string, family: 4 | 6): Agent {
 export async function fetchPublicHttpUrl(
   url: string,
   init: RequestInit = {},
-  maxRedirects = 5
+  maxRedirects: number = PUBLIC_HTTP_FETCH.defaultMaxRedirects,
 ): Promise<Response> {
   if (isNoPublicWebsiteUrl(url.trim())) {
     throw new PublicUrlNotAllowedError('No public website');
   }
 
   let currentUrl = await validatePublicAuditUrl(url);
-  const maxRetries = 3;
-  const retryableStatus = new Set([408, 429, 500, 502, 503, 504, 529]);
-  const methodsWithoutRetry = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
+  const maxRetries = PUBLIC_HTTP_FETCH.maxRetries;
+  const retryableStatus = PUBLIC_HTTP_FETCH_RETRYABLE_STATUS;
+  const methodsWithoutRetry = PUBLIC_HTTP_FETCH_METHODS_WITHOUT_RETRY;
   const method = String(init.method ?? 'GET').toUpperCase();
 
   for (let hop = 0; hop <= maxRedirects; hop++) {
@@ -205,7 +210,9 @@ export async function fetchPublicHttpUrl(
           throw lastErr;
         }
       }
-      const backoffMs = 300 * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 120);
+      const backoffMs =
+        PUBLIC_HTTP_FETCH.backoffBaseMs * Math.pow(2, attempt - 1) +
+        Math.floor(Math.random() * PUBLIC_HTTP_FETCH.backoffJitterMaxMs);
       await new Promise(resolve => setTimeout(resolve, backoffMs));
     }
     if (!response) {

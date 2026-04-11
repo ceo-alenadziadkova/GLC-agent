@@ -141,6 +141,7 @@ export const API_ERROR_CODES = {
   INTAKE_RESPONSES_SCHEMA_INVALID: 'INTAKE_RESPONSES_SCHEMA_INVALID',
   INTAKE_SAVE_RESPONSES_FAILED: 'INTAKE_SAVE_RESPONSES_FAILED',
   INTAKE_PREBRIEF_INCOMPLETE: 'INTAKE_PREBRIEF_INCOMPLETE',
+  INTAKE_PREBRIEF_AUDIT_OWNER_MISMATCH: 'INTAKE_PREBRIEF_AUDIT_OWNER_MISMATCH',
 
   INTAKE_TRACE_ANALYTICS_PAYLOAD_INVALID: 'INTAKE_TRACE_ANALYTICS_PAYLOAD_INVALID',
   INTAKE_TRACE_ANALYTICS_STORE_FAILED: 'INTAKE_TRACE_ANALYTICS_STORE_FAILED',
@@ -395,6 +396,8 @@ export const INTAKE_RESPONSES_REQUIRED_MESSAGE = 'responses object is required';
 export const INTAKE_SAVE_RESPONSES_FAILED_MESSAGE = 'Failed to save responses';
 export const INTAKE_PREBRIEF_INCOMPLETE_MESSAGE =
   'Pre-brief incomplete. If you selected Other for industry, describe your sector in the follow-up field.';
+export const INTAKE_PREBRIEF_AUDIT_OWNER_MISMATCH_MESSAGE =
+  'This audit is not owned by the consultant for this intake link; pre-brief merge was skipped.';
 
 export function intakeProductModeInvalidMessage(rawMode: string, validList: string): string {
   return `Invalid productMode "${rawMode}". Valid values: ${validList}`;

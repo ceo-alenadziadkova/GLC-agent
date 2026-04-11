@@ -16,7 +16,7 @@ export abstract class BaseCollector {
   abstract get key(): string;
   abstract get phase(): number;
   protected get cacheTtlMs(): number {
-    return Number(process.env.COLLECTOR_CACHE_TTL_MS ?? SYSTEM_DEFAULTS.collectorCacheTtlMs);
+    return SYSTEM_DEFAULTS.collectorCacheTtlMs;
   }
 
   /**

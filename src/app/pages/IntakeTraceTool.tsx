@@ -241,7 +241,9 @@ export function IntakeTraceTool() {
       <div className="glc-page-content max-w-5xl mx-auto space-y-4">
         {!iaV2 && (
           <p className="text-xs text-amber-200/90 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-            Legacy Intake trace layout: set <span className="font-mono">VITE_INTAKE_TRACE_IA_V2=1</span> (or unset) for the workspace UI.
+            Legacy Intake trace layout: enable the workspace UI via{' '}
+            <span className="font-mono">APP_FEATURE_FLAGS.intakeTraceIaV2Enabled</span> in{' '}
+            <span className="font-mono">src/app/config/app-feature-flags.ts</span>.
           </p>
         )}
         <p className="text-sm text-[var(--glc-muted)]">

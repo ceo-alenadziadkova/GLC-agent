@@ -3,11 +3,11 @@
  *
  * Runtime overrides belong in a dedicated feature-flag layer (DB/CMS/service) when introduced.
  * Until then, `intake-flags.ts` still reads optional `INTAKE_*` / `VITE_INTAKE_*` env vars as a
- * transitional kill-switch; when those vars are unset, values from this module apply.
+ * transitional kill-switch for some toggles; `nextRecommended` on/off is controlled only here.
  */
 
 export const INTAKE_UI_CONFIG = {
-  /** Default for `isIntakeNextRecommendedEnabled` when env is unset */
+  /** Product toggle for `isIntakeNextRecommendedEnabled` (not env-overridable). */
   nextRecommendedEnabledDefault: true,
 
   /** Default for `isIntakeIncrementalEngineEnabled` when env is unset */

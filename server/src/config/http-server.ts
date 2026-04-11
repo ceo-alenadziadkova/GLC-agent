@@ -1,9 +1,15 @@
 /**
- * Express HTTP server tuning (env-driven).
+ * Express HTTP server tuning.
  */
 
-/** Max JSON body size (default `2mb`). Set `JSON_BODY_LIMIT` to e.g. `1mb`, `512kb`. */
+import { SYSTEM_DEFAULTS } from './system-defaults.js';
+
+/** Mounted under this prefix in `index.ts` (middleware cache skip uses the same string). */
+export const API_PREFIX = '/api' as const;
+
+export const API_HEALTH_PATH = `${API_PREFIX}/health` as const;
+
+/** Max JSON body size for `express.json()`. */
 export function getExpressJsonBodyLimit(): string {
-  const raw = process.env.JSON_BODY_LIMIT?.trim();
-  return raw && raw.length > 0 ? raw : '2mb';
+  return SYSTEM_DEFAULTS.express.jsonBodyLimit;
 }

@@ -1,47 +1,15 @@
 /**
  * Per-million-token USD rates for cost estimates (token-tracker).
- * Defaults match built-in Anthropic list prices; override via ANTHROPIC_PRICING_JSON
- * without redeploying (merge over defaults).
- *
- * Example:
- *   ANTHROPIC_PRICING_JSON={"claude-sonnet-4-20250514":{"input":3.5,"output":16}}
+ * Tune in this module when vendor list prices change.
  */
 
-const DEFAULT_MODEL_PRICING: Record<string, { input: number; output: number }> = {
+const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   'claude-sonnet-4-20250514': { input: 3.0, output: 15.0 },
   'claude-haiku-4-5-20251001': { input: 0.8, output: 4.0 },
   'claude-opus-4-20250514': { input: 15.0, output: 75.0 },
 };
 
 const SONNET_FALLBACK_KEY = 'claude-sonnet-4-20250514';
-
-function parseAnthropicPricingOverrides(): Record<string, { input: number; output: number }> {
-  const raw = process.env.ANTHROPIC_PRICING_JSON?.trim();
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-    const out: Record<string, { input: number; output: number }> = {};
-    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-      const key = k.trim();
-      if (!key) continue;
-      if (v == null || typeof v !== 'object' || Array.isArray(v)) continue;
-      const o = v as Record<string, unknown>;
-      const input = Number(o.input);
-      const output = Number(o.output);
-      if (!Number.isFinite(input) || !Number.isFinite(output) || input < 0 || output < 0) continue;
-      out[key] = { input, output };
-    }
-    return out;
-  } catch {
-    return {};
-  }
-}
-
-const MODEL_PRICING: Record<string, { input: number; output: number }> = {
-  ...DEFAULT_MODEL_PRICING,
-  ...parseAnthropicPricingOverrides(),
-};
 
 /** Returns pricing for the given model ID, falling back to Sonnet rates. */
 export function getModelPricing(model: string): { input: number; output: number } {

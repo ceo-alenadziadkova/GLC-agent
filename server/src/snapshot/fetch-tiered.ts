@@ -21,6 +21,7 @@ import {
   SNAPSHOT_SCANNER_USER_AGENT,
 } from '../config/bot-identity.js';
 import { getSnapshotFetchBudgetMs } from '../config/snapshot-fetch-budget.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import {
   SNAPSHOT_CRAWL_DELAY_ROOM_SUBTRACT_MS,
   SNAPSHOT_FETCH_MIN_REMAINING_MS,
@@ -218,7 +219,7 @@ async function fetchHeadHomeWhenRobotsBlock(
   };
 
   let probe = await runHead(SNAPSHOT_SCANNER_USER_AGENT, 'glc_scanner');
-  const allowAltUa = process.env.SNAPSHOT_ROBOTS_HEAD_BROWSER_UA === '1';
+  const allowAltUa = SYSTEM_DEFAULTS.snapshotTieredFetch.robotsHeadRetryBrowserUa;
   if (!probe && allowAltUa) {
     logger.info('snapshot.robots_head_retry_browser_ua', { url });
     probe = await runHead(SNAPSHOT_HEAD_PROBE_BROWSER_UA, 'browser_compat');
@@ -448,11 +449,11 @@ export async function fetchTieredPages(companyUrl: string): Promise<{
   let playwrightUsed = false;
   let homePage: FetchedPage = home;
 
-  const playwrightDisabled =
-    process.env.SNAPSHOT_PLAYWRIGHT === '0' || process.env.SNAPSHOT_PLAYWRIGHT === 'false';
+  const STF = SYSTEM_DEFAULTS.snapshotTieredFetch;
+  const playwrightDisabled = !STF.playwrightEnabled;
   if (!playwrightDisabled && playwrightEligible) {
     const remainingAfterHttp = deadline - Date.now();
-    const pwCap = Number(process.env.SNAPSHOT_PLAYWRIGHT_BUDGET_MS ?? 14_000);
+    const pwCap = STF.playwrightBudgetMs;
     const pwBudget = Math.min(pwCap, Math.max(0, remainingAfterHttp - SNAPSHOT_PLAYWRIGHT_REMAINING_RESERVE_MS));
     if (pwBudget >= SNAPSHOT_PLAYWRIGHT_MIN_BUDGET_MS) {
       try {

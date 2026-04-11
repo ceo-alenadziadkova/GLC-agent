@@ -4,6 +4,7 @@ import {
   GLC_DEV_SPA_ORIGIN_E2E,
   GLC_DEV_SPA_PORT,
 } from '@glc/dev-brand-defaults';
+import { PLAYWRIGHT_WEB_SERVER_TIMEOUT_MS } from './e2e/defaults';
 
 /**
  * Browser smoke tests against the Vite dev server.
@@ -25,6 +26,6 @@ export default defineConfig({
     command: `npm run dev -- --host ${GLC_DEV_SPA_HOST_FOR_E2E} --port ${GLC_DEV_SPA_PORT}`,
     url: GLC_DEV_SPA_ORIGIN_E2E,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: PLAYWRIGHT_WEB_SERVER_TIMEOUT_MS,
   },
 });

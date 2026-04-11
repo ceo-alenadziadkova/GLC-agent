@@ -1,5 +1,6 @@
 import type { AuthRequest } from '../middleware/auth.js';
 import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { supabase } from '../services/supabase.js';
 import { logger } from '../services/logger.js';
 
@@ -11,7 +12,7 @@ export function isIdempotencyPayloadConflictError(err: unknown): boolean {
   return err instanceof Error && err.message === IDEMPOTENCY_PAYLOAD_CONFLICT_MESSAGE;
 }
 
-const TTL_HOURS = 24;
+const TTL_HOURS = SYSTEM_DEFAULTS.idempotency.ttlHours;
 
 export interface IdempotentResponse {
   statusCode: number;

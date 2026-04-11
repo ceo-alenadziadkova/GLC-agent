@@ -1,5 +1,5 @@
 /**
- * TanStack Query defaults for the SPA. Optional `VITE_QUERY_*` env overrides in `glc-query-client-defaults.ts`.
+ * TanStack Query defaults for the SPA. Imported by `glc-query-client-defaults.ts`.
  */
 
 export const GLC_QUERY_DEFAULT_RETRY_DEFAULT = 1;

@@ -52,6 +52,16 @@ vi.mock('../services/logger.js', () => ({
   },
 }));
 
+vi.mock('../config/alerts-config.js', () => ({
+  ALERT_CHECK_INTERVAL_MS: 60_000,
+  ALERT_CHECK_WINDOW_MINUTES: 15,
+  ALERT_COOLDOWN_MS: 900_000,
+  ALERT_FAILURE_RATE_THRESHOLD: 0.01,
+  ALERT_LATENCY_P95_MS_THRESHOLD: 1,
+  ALERT_LOCK_TTL_MS: 55_000,
+  ALERT_TOKEN_BURN_THRESHOLD: 1,
+}));
+
 import { runAlertChecks } from '../services/alerts.js';
 
 describe('alerts deep links', () => {
@@ -60,9 +70,6 @@ describe('alerts deep links', () => {
     vi.restoreAllMocks();
     process.env.TELEGRAM_BOT_TOKEN = 'bot-token';
     process.env.TELEGRAM_CHAT_ID = 'chat-id';
-    process.env.ALERT_FAILURE_RATE_THRESHOLD = '0.2';
-    process.env.ALERT_LATENCY_P95_MS_THRESHOLD = '1';
-    process.env.ALERT_TOKEN_BURN_15M_THRESHOLD = '1';
     process.env.SENTRY_TRACE_LINK_TEMPLATE = '';
     process.env.TRACE_LINK_TEMPLATE = '';
   });

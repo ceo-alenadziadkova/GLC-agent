@@ -17,9 +17,10 @@ React 18 + TypeScript + Vite. Tailwind CSS v4 (`src/styles/tailwind.css`), glass
 | `VITE_API_URL` | Backend origin for `getApiBaseUrl()` — **required in production** (throws if missing when the app runs under `import.meta.env.PROD`). |
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Supabase client — **required at module load** in every environment (production build throws if missing; local dev needs `.env.local`; Vitest stubs both in `src/test/setup.ts`). |
 | `VITE_SUPPORT_EMAIL` | **Required in production builds** at module load (marketing footer + public brief errors). In dev, optional with fallback `contact@glctech.es` (`src/app/lib/support-email.ts`). |
-| `VITE_DISCOVERY_ANALYTICS_FLUSH_MS`, `VITE_DISCOVERY_ANALYTICS_MAX_BATCH` | Optional; Discovery analytics batching (`src/app/lib/discovery-analytics-config.ts`). |
-| `VITE_QUERY_DEFAULT_RETRY`, `VITE_QUERY_STALE_TIME_MS`, `VITE_QUERY_GC_TIME_MS` | Optional; TanStack Query defaults (`src/app/lib/glc-query-client-defaults.ts`). |
-| `VITE_NO_PUBLIC_WEBSITE_URL` | Optional; must match server **`NO_PUBLIC_WEBSITE_URL`** when overriding the no-public-website sentinel (`packages/intake-core` / `src/app/data/no-public-website.ts`). |
+
+The no-public-website sentinel is **`NO_PUBLIC_WEBSITE_URL`** from **`@glc/intake-core`** (constant from **`@glc/dev-brand-defaults`**), not a `VITE_*` variable.
+
+**Static front config (no `VITE_*`):** feature flags (`src/app/config/app-feature-flags.ts`), client analytics batching (`client-analytics-batching.ts`), TanStack Query defaults (`query-client-defaults.ts` + `glc-query-client-defaults.ts`), HTTP timeouts (`http-client-defaults.ts`).
 
 Cross-page persistence keys for consultant flows live in **`src/app/lib/storage-keys.ts`** (e.g. `GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY` for post–Discovery login handoff). See [DEPLOYMENT.md](./DEPLOYMENT.md#production-environment-variables) for the full production matrix.
 
@@ -216,7 +217,7 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 | `/admin/requests` | `AdminRequestQueue.tsx` | Consultant: incoming client requests queue with triage/status actions |
 | `/admin/snapshots` | `AdminSnapshotQueue.tsx` | Consultant: all free snapshot submissions (`product_mode=free_snapshot`), requested URL, status, and current score/result |
 | `/admin/discovery` | `DiscoveryQueue.tsx` | Consultant: Mode C submissions, convert to audit; shareable URL `/discovery` |
-| `/admin/intake-trace` | `IntakeTraceTool.tsx` | Consultant: debug `buildIntakePlan` / `formatPlanTrace` on pasted responses JSON; optional telemetry + IA v2 workspace (`VITE_INTAKE_TRACE_IA_V2`, default on; set `0` for legacy tabs) |
+| `/admin/intake-trace` | `IntakeTraceTool.tsx` | Consultant: debug `buildIntakePlan` / `formatPlanTrace` on pasted responses JSON; optional telemetry + IA v2 workspace (`APP_FEATURE_FLAGS.intakeTraceIaV2Enabled` in `app-feature-flags.ts`) |
 | `/admin/intake-wording` | `IntakeWordingWorkspace.tsx` | Consultant: draft wording (local + server sync), publish / rollback, publication log (`GET /api/intake-trace-tool/wording-publication-log`) |
 | `/admin/question-bank-studio` | `QuestionBankStudioPage.tsx` | Consultant: bank/policy studio workspace for intake configuration and diagnostics |
 

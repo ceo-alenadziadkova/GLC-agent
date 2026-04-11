@@ -31,6 +31,11 @@ export const REQUEST_FIELD_LIMITS = {
   /** Intake analytics `step_index` upper bound */
   intakeAnalyticsStepIndexMax: 500,
 
+  /**
+   * Intake trace tool: max wording draft keys per PUT and max `question_ids` per publish/rollback batch.
+   */
+  intakeTraceToolWordingOperationMaxKeys: 500,
+
   idempotencyKeyMax: 128,
 
   /** Short audit id prefix in operator notifications (not a secret) */

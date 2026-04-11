@@ -23,6 +23,11 @@ export default defineConfig({
         'packages/intake-core/src/discovery-brief-fallbacks.v1.json',
       ),
       '@glc/intake-core/lint-node': path.join(root, 'packages/intake-core/src/lint-node.ts'),
+      /** Must be before `@glc/intake-core` — otherwise Vite treats the package alias as a file and appends `/config/...`. */
+      '@glc/intake-core/config/intake-flags.js': path.join(
+        root,
+        'packages/intake-core/src/config/intake-flags.ts',
+      ),
       '@glc/intake-core': path.join(root, 'packages/intake-core/src/index.ts'),
       '@glc/dev-brand-defaults': path.join(root, 'packages/glc-dev-brand-defaults/src/index.ts'),
     },

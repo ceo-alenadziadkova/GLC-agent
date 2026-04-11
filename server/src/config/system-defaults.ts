@@ -1,10 +1,13 @@
 /**
- * Canonical numeric defaults for server behaviour (static CONFIG layer).
- * Deploy-time overrides: documented `process.env.*` in each consuming module under
- * `server/src/config/` (ops tuning — not secrets).
+ * Canonical defaults for server behaviour (static CONFIG layer).
+ * Prefer adding tunables here; use `process.env` only for secrets, deploy wiring, or
+ * documented infra needs (see `server/.env.example`).
  */
 
 export const SYSTEM_DEFAULTS = {
+  express: {
+    jsonBodyLimit: '2mb',
+  },
   rateLimits: {
     auditCreateMaxPerDay: 5,
     auditCreateWindowHours: 24,
@@ -30,8 +33,33 @@ export const SYSTEM_DEFAULTS = {
     pageTimeoutMs: 15_000,
     totalBudgetMs: 90_000,
   },
+  collectorsHttp: {
+    fetchTimeoutMs: 10_000,
+    headerPreviewMax: 200,
+    seoFetchTimeoutMs: 15_000,
+    seoRobotsContentMax: 2000,
+    sitemapFetchTimeoutMs: 25_000,
+  },
+  snapshotPublic: {
+    freeSnapshotTokenBudget: 80_000,
+    tokenTtlHours: 72,
+    guestFunnelRetentionDays: 90,
+    guestHeaderMaxLen: 2000,
+    uxSummaryMaxChars: 280,
+    competitorTimeoutMs: 3000,
+  },
+  snapshotGuestSession: {
+    cookieName: 'glc_snapshot_guest',
+    maxAgeSec: 90 * 24 * 60 * 60,
+    tokenBytes: 32,
+  },
+  idempotency: {
+    ttlHours: 24,
+  },
+  snapshotAudit: {
+    partialScoreFactor: 0.5,
+  },
   snapshotFetchBudgetMs: 10_000,
-  /** Collector cache TTL when `COLLECTOR_CACHE_TTL_MS` is unset (24 hours). */
   collectorCacheTtlMs: 86_400_000,
   alerts: {
     windowMinutes: 15,
@@ -46,5 +74,118 @@ export const SYSTEM_DEFAULTS = {
   },
   observability: {
     pipelineErrorStackMaxChars: 500,
+  },
+  publicRouteRateLimits: {
+    intakeLegacyMaxPerHour: 30,
+    discoverCreateMaxPerHour: 12,
+    discoverReadMaxPerHour: 80,
+    discoverAnalyticsMaxPerHour: 200,
+    intakeReadMaxPerHour: 60,
+    intakeWriteMaxPerHour: 30,
+    marketingBriefMaxPerHour: 24,
+  },
+  pipelineModel: {
+    claudeModelId: 'claude-sonnet-4-20250514',
+    minTokenReserve: 10_000,
+    budgetWarningThreshold: 0.8,
+    maxTokensDomain: 4096,
+    maxTokensStrategy: 8192,
+    maxTokensRecon: 4096,
+  },
+  claudeHttp: {
+    maxRetries: 3,
+    retryBaseMs: 1500,
+    retryJitterMs: 300,
+    timeoutMs: 90_000,
+    cbThreshold: 3,
+    cbTtlSec: 60,
+  },
+  pipelineOrchestrator: {
+    stalledPhaseTimeoutMin: 15,
+    parallelFailureThreshold: 2,
+  },
+  pipelineWorker: {
+    leaseTtlSeconds: 60,
+    heartbeatMs: 10_000,
+    concurrency: 2,
+  },
+  pipelineQueue: {
+    removeOnComplete: 1000,
+    removeOnFail: 1000,
+    jobAttempts: 3,
+  },
+  snapshotTiming: {
+    fetchMinRemainingMs: 800,
+    fetchSinglePageBudgetCapMs: 8000,
+    headMinRemainingMs: 500,
+    headBudgetCapMs: 3500,
+    robotsAbortMinMs: 500,
+    robotsAbortMaxMs: 2500,
+    maxExtraPages: 3,
+    maxDiscoveryLinks: 80,
+    maxHtmlBytes: 3_000_000,
+    playwrightRemainingReserveMs: 1200,
+    playwrightMinBudgetMs: 4500,
+    crawlDelayRoomSubtractMs: 400,
+    pwBudgetSubtractMs: 2000,
+    pwNavTimeoutMinMs: 4000,
+    pwNavTimeoutMaxMs: 25_000,
+    pwSettleMinMs: 300,
+    pwSettleMaxMs: 2000,
+    pwVisibleTextMinChars: 280,
+    pwVisibleTextRatio: 1.1,
+    pwVisibleShortBeforeMax: 220,
+    pwVisibleShortGainMin: 80,
+    axeNavTimeoutMinMs: 4000,
+    axeNavTimeoutMaxMs: 30_000,
+  },
+  snapshotAbuse: {
+    maxConcurrent: 4,
+    domainFreshCooldownMs: 10 * 60 * 1000,
+    useSharedAbuseStore: false,
+  },
+  snapshotRobots: {
+    cacheMs: 20 * 60 * 1000,
+  },
+  snapshotDomainCache: {
+    ttlHours: 48,
+  },
+  snapshotLinkSlug: {
+    max: 80,
+    hardCap: 200,
+  },
+  snapshotTieredFetch: {
+    playwrightEnabled: true,
+    playwrightBudgetMs: 14_000,
+    robotsHeadRetryBrowserUa: false,
+  },
+  snapshotClassification: {
+    debugSignals: false,
+  },
+  pageAnomaly: {
+    sampleBytes: 96_000,
+    registrarThinVisibleMax: 3_800,
+    oauthRawMarkupMax: 16_000,
+    passwordRawMarkupMax: 12_000,
+    spaShellVisibleMax: 520,
+    spaShellScriptMin: 10,
+    suppressOrgVisibleMin: 350,
+    suppressMailtoVisibleMin: 650,
+    suppressPathLinksHigh: 12,
+    suppressPathLinksHighVisibleMin: 550,
+    suppressPathLinksMed: 8,
+    suppressPathLinksMedVisibleMin: 1_800,
+    suppressLongCopyVisibleMin: 3_200,
+  },
+  auditDeepScan: {
+    deepScanEnabled: false,
+    lighthouseEnabled: false,
+    axePlaywrightEnabled: false,
+    lighthouseBudgetMsDefault: 55_000,
+    lighthouseBudgetMsMin: 10_000,
+    lighthouseBudgetMsMax: 120_000,
+    axeNavigateTimeoutMsDefault: 12_000,
+    axeNavigateTimeoutMsMin: 4000,
+    axeNavigateTimeoutMsMax: 30_000,
   },
 } as const;

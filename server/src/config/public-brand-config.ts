@@ -1,17 +1,19 @@
 /**
  * Public, non-secret brand surface for marketing UI and white-label overrides.
- * Env overrides (optional): PUBLIC_BRAND_NAME, PUBLIC_SUPPORT_EMAIL, PUBLIC_BRAND_LEGAL_LINE.
+ * Defaults: `public-brand-defaults.v1.json` (edit for fork / CMS-style copy without env).
+ * `public_site_url` remains infrastructure: `GLC_PUBLIC_SITE_URL` via bot-identity.
  */
 
 import {
   GLC_DEV_BRAND_LEGAL_LINE,
-  GLC_DEV_BRAND_NAME,
-  GLC_DEV_MARKETING_FOOTER_EN,
   GLC_DEV_SUPPORT_EMAIL,
   type MarketingFooterCopyEn,
 } from '@glc/dev-brand-defaults';
 
+import raw from './public-brand-defaults.v1.json' with { type: 'json' };
 import { GLC_PUBLIC_SITE_URL } from './bot-identity.js';
+
+export const PUBLIC_BRAND_DEFAULTS_VERSION = raw.version as string;
 
 export type PublicBrandPayload = {
   brand_name: string;
@@ -21,27 +23,28 @@ export type PublicBrandPayload = {
   footer: MarketingFooterCopyEn;
 };
 
-function trimOrUndef(v: string | undefined): string | undefined {
-  const t = v?.trim();
-  return t ? t : undefined;
-}
-
 /**
  * Values safe to expose to unauthenticated browsers (no secrets).
  */
 export function getPublicBrandConfig(): PublicBrandPayload {
-  const brandName = trimOrUndef(process.env.PUBLIC_BRAND_NAME) ?? GLC_DEV_BRAND_NAME;
-  const legalLine = trimOrUndef(process.env.PUBLIC_BRAND_LEGAL_LINE) ?? GLC_DEV_BRAND_LEGAL_LINE;
+  const brandName = String(raw.brand_name ?? '').trim() || 'GLC Tech';
+  const legalLine = String(raw.legal_line ?? '').trim() || GLC_DEV_BRAND_LEGAL_LINE;
 
-  const supportFromEnv = trimOrUndef(process.env.PUBLIC_SUPPORT_EMAIL);
+  const rawSupport = raw.support_email;
+  const trimmedSupport =
+    rawSupport != null && typeof rawSupport === 'string' ? rawSupport.trim() : '';
   const support_email: string | null =
-    supportFromEnv ??
-    (process.env.NODE_ENV === 'production' ? null : GLC_DEV_SUPPORT_EMAIL);
+    trimmedSupport !== ''
+      ? trimmedSupport
+      : process.env.NODE_ENV === 'production'
+        ? null
+        : GLC_DEV_SUPPORT_EMAIL;
 
+  const footerBase = raw.footer as Omit<MarketingFooterCopyEn, 'brandTitle' | 'legalLine'>;
   const footer: MarketingFooterCopyEn = {
-    ...GLC_DEV_MARKETING_FOOTER_EN,
+    ...footerBase,
     brandTitle: brandName,
-    legalLine,
+    legalLine: legalLine || brandName,
   };
 
   return {

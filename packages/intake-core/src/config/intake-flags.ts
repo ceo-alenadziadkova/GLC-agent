@@ -3,14 +3,15 @@
  *
  * **Source of truth for defaults:** [`intake-ui-config.ts`](./intake-ui-config.ts) (static CONFIG).
  *
- * **Transitional overrides:** optional deploy-time env vars (kill-switch only). Prefer a dedicated
- * feature-flag service for product rollouts; do not add new business toggles to env long-term.
+ * **Transitional overrides:** optional deploy-time env vars for some toggles (kill-switch only).
+ * `nextRecommended` on/off is **not** env-driven — use `INTAKE_UI_CONFIG.nextRecommendedEnabledDefault`.
  *
- * - **Server / Node:** `INTAKE_NEXT_RECOMMENDED_ENABLED`, `INTAKE_INCREMENTAL_ENGINE_ENABLED`, …
- * - **Vite SPA:** `VITE_INTAKE_*` (`import.meta.env`)
+ * - **Server / Node:** `INTAKE_INCREMENTAL_ENGINE_ENABLED`, `INTAKE_POLICY_RICHNESS_ENABLED`, …
+ * - **Vite SPA:** matching `VITE_INTAKE_*` where applicable (`import.meta.env`)
  *
- * When explicitly falsey (`0`, `false`, `no`, `off`), `IntakePlan.nextRecommended` stays empty.
- * When enabled, `computeNextRecommended` orders: unanswered required, then recommended, then optional primaries for domains in `missingForReport` (cap from CONFIG unless overridden via `INTAKE_NEXT_RECOMMENDED_MAX` / `VITE_INTAKE_NEXT_RECOMMENDED_MAX`).
+ * When `isIntakeNextRecommendedEnabled()` is true, `computeNextRecommended` orders: unanswered required,
+ * then recommended, then optional primaries for domains in `missingForReport` (cap from CONFIG unless
+ * overridden via `INTAKE_NEXT_RECOMMENDED_MAX` / `VITE_INTAKE_NEXT_RECOMMENDED_MAX`).
  */
 import { INTAKE_UI_CONFIG } from './intake-ui-config.js';
 
@@ -22,25 +23,8 @@ function envFlagEnabled(raw: string | undefined, defaultWhenUnset: boolean): boo
   return defaultWhenUnset;
 }
 
-function readIntakeNextRecommendedEnv(): string | undefined {
-  if (typeof process !== 'undefined' && process.env?.INTAKE_NEXT_RECOMMENDED_ENABLED !== undefined) {
-    return process.env.INTAKE_NEXT_RECOMMENDED_ENABLED;
-  }
-  try {
-    const im = import.meta as unknown as { env?: Record<string, string | boolean | undefined> };
-    const v = im.env?.VITE_INTAKE_NEXT_RECOMMENDED_ENABLED;
-    if (v === undefined) return undefined;
-    return typeof v === 'string' ? v : String(v);
-  } catch {
-    return undefined;
-  }
-}
-
 export function isIntakeNextRecommendedEnabled(): boolean {
-  return envFlagEnabled(
-    readIntakeNextRecommendedEnv(),
-    INTAKE_UI_CONFIG.nextRecommendedEnabledDefault,
-  );
+  return INTAKE_UI_CONFIG.nextRecommendedEnabledDefault;
 }
 
 function readIntakeIncrementalEngineEnv(): string | undefined {

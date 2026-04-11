@@ -19,7 +19,7 @@ export function QuestionBankStudioPage() {
           <Link to="/settings#question-bank-studio" className="underline" style={{ color: 'var(--text-tertiary)' }}>
             Settings
           </Link>
-          . Disable via env <span className="font-mono">VITE_QUESTION_BANK_STUDIO=0</span>.
+          . Toggle in <span className="font-mono">src/app/config/app-feature-flags.ts</span>.
         </p>
         <QuestionBankStudio />
       </div>

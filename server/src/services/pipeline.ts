@@ -1,3 +1,7 @@
+import {
+  interpolateOrchestratorMessage,
+  pipelineOrchestratorCopy,
+} from '../config/pipeline-orchestrator-copy.js';
 import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { supabase } from './supabase.js';
 import { assertBriefReady } from './brief-validator.js';
@@ -46,9 +50,9 @@ const PHASE_AGENTS: Record<number, AgentConstructor> = {
  */
 const AUTO_WING_PHASES    = [1, 2, 3, 4] as const;
 const ANALYTIC_WING_PHASES = [5, 6] as const;
-const STALLED_PHASE_TIMEOUT_MIN = Number(process.env.PIPELINE_STALLED_TIMEOUT_MIN ?? 15);
+const STALLED_PHASE_TIMEOUT_MIN = SYSTEM_DEFAULTS.pipelineOrchestrator.stalledPhaseTimeoutMin;
 const STALLED_PHASE_ACTIVE_STATUSES = ['recon', 'auto', 'analytic', 'strategy'] as const;
-const PARALLEL_FAILURE_THRESHOLD = Number(process.env.PARALLEL_FAILURE_THRESHOLD ?? 2);
+const PARALLEL_FAILURE_THRESHOLD = SYSTEM_DEFAULTS.pipelineOrchestrator.parallelFailureThreshold;
 
 /**
  * Pipeline Orchestrator
@@ -101,7 +105,15 @@ export class PipelineOrchestrator {
       }
 
       // Emit start event
-      await this.emitEvent(phase, 'started', `Phase ${phase} started: ${PHASE_DOMAIN_MAP[phase]}`);
+      const ocStart = pipelineOrchestratorCopy();
+      await this.emitEvent(
+        phase,
+        'started',
+        interpolateOrchestratorMessage(ocStart.phase.startedTemplate, {
+          phase,
+          domain: PHASE_DOMAIN_MAP[phase],
+        }),
+      );
 
       // Update audit status + current_phase
       const statusMap: Record<number, string> = {
@@ -133,17 +145,27 @@ export class PipelineOrchestrator {
 
       // Check if this phase triggers a review point
       if ((reviewPhasesForMode(mode) as readonly number[]).includes(phase)) {
-        await this.emitEvent(phase, 'review_needed', `Review point: approve before continuing`);
+        await this.emitEvent(phase, 'review_needed', ocStart.phase.reviewNeeded);
         await supabase.from('audits').update({ status: 'review' }).eq('id', this.auditId);
       }
 
-      await this.emitEvent(phase, 'completed', `Phase ${phase} completed`, {
-        score: result.score > 0 ? result.score : undefined,
-      });
+      await this.emitEvent(
+        phase,
+        'completed',
+        interpolateOrchestratorMessage(ocStart.phase.completedTemplate, { phase }),
+        {
+          score: result.score > 0 ? result.score : undefined,
+        },
+      );
 
     } catch (err) {
       const error = err as Error;
-      logger.error('Pipeline phase failed', { audit_id: this.auditId, phase, error: error.message });
+      logger.error('Pipeline phase failed', {
+        audit_id: this.auditId,
+        phase,
+        error: error.message,
+        stack: error.stack,
+      });
 
       const domainKey = PHASE_DOMAIN_MAP[phase];
       if (domainKey !== 'recon' && domainKey !== 'strategy') {
@@ -153,8 +175,11 @@ export class PipelineOrchestrator {
       }
 
       await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
-      await this.emitEvent(phase, 'error', error.message, {
-        stack: error.stack?.substring(0, SYSTEM_DEFAULTS.observability.pipelineErrorStackMaxChars),
+      const ocErr = pipelineOrchestratorCopy();
+      await this.emitEvent(phase, 'error', ocErr.errors.phaseFailedUserMessage, {
+        error_code: ocErr.errors.phaseFailedCode,
+        phase,
+        domain_key: domainKey !== 'recon' && domainKey !== 'strategy' ? domainKey : undefined,
       });
 
       throw err;
@@ -177,7 +202,12 @@ export class PipelineOrchestrator {
     const domainKey = PHASE_DOMAIN_MAP[phase];
 
     try {
-      await this.emitEvent(phase, 'started', `Phase ${phase} started: ${domainKey}`);
+      const ocIso = pipelineOrchestratorCopy();
+      await this.emitEvent(
+        phase,
+        'started',
+        interpolateOrchestratorMessage(ocIso.phase.startedTemplate, { phase, domain: domainKey }),
+      );
 
       if (domainKey !== 'recon' && domainKey !== 'strategy') {
         await supabase.from('audit_domains').update({ status: 'collecting' })
@@ -192,13 +222,23 @@ export class PipelineOrchestrator {
         await agent.saveDomainResult(result);
       }
 
-      await this.emitEvent(phase, 'completed', `Phase ${phase} completed`, {
-        score: result.score > 0 ? result.score : undefined,
-      });
+      await this.emitEvent(
+        phase,
+        'completed',
+        interpolateOrchestratorMessage(ocIso.phase.completedTemplate, { phase }),
+        {
+          score: result.score > 0 ? result.score : undefined,
+        },
+      );
 
     } catch (err) {
       const error = err as Error;
-      logger.error('Pipeline parallel phase failed', { audit_id: this.auditId, phase, error: error.message });
+      logger.error('Pipeline parallel phase failed', {
+        audit_id: this.auditId,
+        phase,
+        error: error.message,
+        stack: error.stack,
+      });
 
       if (domainKey !== 'recon' && domainKey !== 'strategy') {
         await supabase.from('audit_domains').update({ status: 'failed' })
@@ -206,8 +246,11 @@ export class PipelineOrchestrator {
           .eq('domain_key', domainKey);
       }
 
-      await this.emitEvent(phase, 'error', error.message, {
-        stack: error.stack?.substring(0, SYSTEM_DEFAULTS.observability.pipelineErrorStackMaxChars),
+      const ocParErr = pipelineOrchestratorCopy();
+      await this.emitEvent(phase, 'error', ocParErr.errors.parallelPhaseFailedUserMessage, {
+        error_code: ocParErr.errors.parallelPhaseFailedCode,
+        phase,
+        domain_key: domainKey !== 'recon' && domainKey !== 'strategy' ? domainKey : undefined,
       });
       throw err;
     }
@@ -227,7 +270,12 @@ export class PipelineOrchestrator {
    * @returns Array of domain key strings for phases that failed (empty = all succeeded).
    */
   private async runParallelBlock(phases: readonly number[]): Promise<string[]> {
-    await this.emitEvent(-1, 'parallel_started', `Parallel block: phases [${phases.join(',')}]`);
+    const ocPar = pipelineOrchestratorCopy();
+    await this.emitEvent(
+      -1,
+      'parallel_started',
+      interpolateOrchestratorMessage(ocPar.parallel.startedTemplate, { phases: phases.join(',') }),
+    );
 
     const results = await Promise.allSettled(
       phases.map(p => this.startPhaseIsolated(p)),
@@ -243,28 +291,48 @@ export class PipelineOrchestrator {
     if (failedDomains.length === phases.length) {
       // Total failure — mark audit failed
       await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
-      await this.emitEvent(-1, 'error', `All parallel phases failed: ${failedDomains.join(', ')}`);
-      throw new Error(`All parallel phases failed: ${failedDomains.join(', ')}`);
+      const joined = failedDomains.join(', ');
+      await this.emitEvent(
+        -1,
+        'error',
+        interpolateOrchestratorMessage(ocPar.parallel.allFailedTemplate, { domains: joined }),
+        { error_code: 'ALL_PARALLEL_PHASES_FAILED', domains_unavailable: failedDomains },
+      );
+      throw new Error(`All parallel phases failed: ${joined}`);
     }
 
     if (failedDomains.length >= PARALLEL_FAILURE_THRESHOLD) {
       await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
+      const joined = failedDomains.join(', ');
       await this.emitEvent(
         -1,
         'error',
-        `Parallel block failed reliability threshold (${failedDomains.length}/${phases.length}): ${failedDomains.join(', ')}`,
+        interpolateOrchestratorMessage(ocPar.parallel.thresholdFailedTemplate, {
+          failed: failedDomains.length,
+          total: phases.length,
+          domains: joined,
+        }),
         { domains_unavailable: failedDomains, threshold: PARALLEL_FAILURE_THRESHOLD },
       );
-      throw new Error(`Parallel block failure threshold exceeded: ${failedDomains.join(', ')}`);
+      throw new Error(`Parallel block failure threshold exceeded: ${joined}`);
     }
 
     if (failedDomains.length > 0) {
-      await this.emitEvent(-1, 'partial_failure',
-        `${failedDomains.length} domain(s) unavailable: ${failedDomains.join(', ')}. Pipeline continues.`,
+      await this.emitEvent(
+        -1,
+        'partial_failure',
+        interpolateOrchestratorMessage(ocPar.parallel.partialFailureTemplate, {
+          count: failedDomains.length,
+          domains: failedDomains.join(', '),
+        }),
         { domains_unavailable: failedDomains },
       );
     } else {
-      await this.emitEvent(-1, 'parallel_completed', `Parallel block finished: phases [${phases.join(',')}]`);
+      await this.emitEvent(
+        -1,
+        'parallel_completed',
+        interpolateOrchestratorMessage(ocPar.parallel.completedTemplate, { phases: phases.join(',') }),
+      );
     }
 
     return failedDomains;
@@ -325,7 +393,7 @@ export class PipelineOrchestrator {
 
       // Gate after auto wing (if applicable)
       if (reviewPhases.includes(lastWingPhase)) {
-        await this.emitEvent(lastWingPhase, 'review_needed', `Review point: approve before continuing`);
+        await this.emitEvent(lastWingPhase, 'review_needed', pipelineOrchestratorCopy().phase.reviewNeeded);
         await supabase.from('audits').update({ status: 'review' }).eq('id', this.auditId);
       }
       return;
@@ -371,15 +439,16 @@ export class PipelineOrchestrator {
    * Persists audit_recon + ux_conversion row; trimmed to 2 issues + 2 quick wins in API.
    */
   async runFreeSnapshot(): Promise<FreeSnapshotPreview> {
+    const ocFs = pipelineOrchestratorCopy();
     try {
       logger.info('Free snapshot started', { audit_id: this.auditId });
 
       await supabase.from('audits').update({ status: 'recon', current_phase: 0 }).eq('id', this.auditId);
-      await this.emitEvent(0, 'started', 'Free Snapshot: deterministic scan started');
+      await this.emitEvent(0, 'started', ocFs.freeSnapshot.started);
 
       const { preview } = await runDeterministicSnapshot(this.auditId);
 
-      await this.emitEvent(4, 'completed', 'Free Snapshot: deterministic scan completed');
+      await this.emitEvent(4, 'completed', ocFs.freeSnapshot.completed);
 
       logger.info('Free snapshot completed', { audit_id: this.auditId });
       return preview;
@@ -389,12 +458,20 @@ export class PipelineOrchestrator {
       if (error instanceof SnapshotAtCapacityError) {
         logger.warn('Free snapshot capacity', { audit_id: this.auditId });
         await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
-        await this.emitEvent(0, 'error', error.message);
+        await this.emitEvent(0, 'error', ocFs.freeSnapshot.errorCapacity, {
+          error_code: 'SNAPSHOT_AT_CAPACITY',
+        });
         throw err;
       }
-      logger.error('Free snapshot failed', { audit_id: this.auditId, error: error.message });
+      logger.error('Free snapshot failed', {
+        audit_id: this.auditId,
+        error: error.message,
+        stack: error.stack,
+      });
       await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
-      await this.emitEvent(0, 'error', error.message);
+      await this.emitEvent(0, 'error', ocFs.freeSnapshot.errorGeneric, {
+        error_code: 'FREE_SNAPSHOT_FAILED',
+      });
       throw err;
     }
   }
@@ -438,19 +515,17 @@ export class PipelineOrchestrator {
 
     // Keep in-app notifications concise and limited to user-relevant lifecycle changes.
     if (['started', 'completed', 'error', 'review_needed'].includes(eventType)) {
-      const titleByType: Record<string, string> = {
-        started: 'Pipeline phase started',
-        completed: 'Pipeline phase completed',
-        error: 'Pipeline phase failed',
-        review_needed: 'Review required',
-      };
+      const ocN = pipelineOrchestratorCopy();
+      const titles = ocN.notifications.pipelinePhaseTitles;
+      const title =
+        (titles as Record<string, string>)[eventType] ?? titles.default;
       await emitStructuredNotification({
         category: eventType === 'review_needed' ? 'review' : 'pipeline',
         event: `pipeline_${eventType}`,
         priority: eventType === 'error' ? 'critical' : eventType === 'review_needed' ? 'medium' : 'low',
         audience: 'audit_participants',
         auditId: this.auditId,
-        title: titleByType[eventType] ?? 'Pipeline update',
+        title,
         message,
         payload: {
           phase,
@@ -461,15 +536,17 @@ export class PipelineOrchestrator {
     }
 
     if (eventType === 'completed' && phase === 7) {
+      const ocArt = pipelineOrchestratorCopy();
+      const n = ocArt.notifications;
       await emitStructuredNotification({
         category: 'pipeline',
         event: 'artifact_strategy_ready',
         priority: 'low',
         audience: 'audit_participants',
         auditId: this.auditId,
-        title: 'Artifact ready',
-        message: 'Strategy synthesis is ready.',
-        route: `/strategy/${this.auditId}`,
+        title: n.artifactTitle,
+        message: n.artifactStrategyMessage,
+        route: interpolateOrchestratorMessage(n.artifactStrategyRouteTemplate, { audit_id: this.auditId }),
         payload: {
           audit_id: this.auditId,
           artifact: 'strategy',
@@ -482,9 +559,9 @@ export class PipelineOrchestrator {
         priority: 'low',
         audience: 'audit_participants',
         auditId: this.auditId,
-        title: 'Artifact ready',
-        message: 'Final report is ready.',
-        route: `/reports/${this.auditId}`,
+        title: n.artifactTitle,
+        message: n.artifactReportMessage,
+        route: interpolateOrchestratorMessage(n.artifactReportRouteTemplate, { audit_id: this.auditId }),
         payload: {
           audit_id: this.auditId,
           artifact: 'report',
@@ -513,12 +590,15 @@ export async function recoverStalledPipelines(timeoutMinutes = STALLED_PHASE_TIM
   }
   if (!stuck || stuck.length === 0) return 0;
 
+  const ocStall = pipelineOrchestratorCopy();
   for (const audit of stuck) {
     await supabase.from('pipeline_events').insert({
       audit_id: audit.id,
       phase: Number(audit.current_phase ?? -1),
       event_type: 'phase_stalled',
-      message: `Pipeline phase stalled for more than ${timeoutMinutes} minutes`,
+      message: interpolateOrchestratorMessage(ocStall.recoverStalled.messageTemplate, {
+        timeout_minutes: timeoutMinutes,
+      }),
       data: {
         timeout_minutes: timeoutMinutes,
         previous_status: audit.status,

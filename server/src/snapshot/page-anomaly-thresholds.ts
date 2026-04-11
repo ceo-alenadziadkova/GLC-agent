@@ -1,64 +1,32 @@
 /**
- * Numeric thresholds for `page-anomaly` heuristics. Override via env for tuning without code edits.
- * All env vars are optional positive integers; invalid values fall back to defaults.
+ * Numeric thresholds for `page-anomaly` heuristics.
+ * Source of truth: `SYSTEM_DEFAULTS.pageAnomaly`.
  */
 
-function readPositiveInt(envName: string, fallback: number): number {
-  const raw = process.env[envName]?.trim();
-  if (!raw) return fallback;
-  const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
-}
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 
-/** Max HTML bytes scanned for anomaly detection (default 96KB). */
-export const PAGE_ANOMALY_SAMPLE_BYTES = readPositiveInt('SNAPSHOT_PAGE_ANOMALY_SAMPLE_BYTES', 96_000);
+const P = SYSTEM_DEFAULTS.pageAnomaly;
 
-/** Registrar “weak parking” branch: visible text below this length counts as “thin”. */
-export const PAGE_ANOMALY_REGISTRAR_THIN_VISIBLE_MAX = readPositiveInt(
-  'SNAPSHOT_PAGE_ANOMALY_REGISTRAR_THIN_VISIBLE_MAX',
-  3_800,
-);
+export const PAGE_ANOMALY_SAMPLE_BYTES = P.sampleBytes;
 
-/** OAuth-style form gate: max raw markup length (lower = stricter). */
-export const PAGE_ANOMALY_OAUTH_RAW_MARKUP_MAX = readPositiveInt('SNAPSHOT_PAGE_ANOMALY_OAUTH_RAW_MARKUP_MAX', 16_000);
+export const PAGE_ANOMALY_REGISTRAR_THIN_VISIBLE_MAX = P.registrarThinVisibleMax;
 
-/** Password-field thin page gate: max raw markup length. */
-export const PAGE_ANOMALY_PASSWORD_RAW_MARKUP_MAX = readPositiveInt(
-  'SNAPSHOT_PAGE_ANOMALY_PASSWORD_RAW_MARKUP_MAX',
-  12_000,
-);
+export const PAGE_ANOMALY_OAUTH_RAW_MARKUP_MAX = P.oauthRawMarkupMax;
 
-/** SPA shell heuristic: visible text below this with many scripts suggests login wall. */
-export const PAGE_ANOMALY_SPA_SHELL_VISIBLE_MAX = readPositiveInt('SNAPSHOT_PAGE_ANOMALY_SPA_SHELL_VISIBLE_MAX', 520);
+export const PAGE_ANOMALY_PASSWORD_RAW_MARKUP_MAX = P.passwordRawMarkupMax;
 
-/** SPA shell heuristic: minimum open script tags. */
-export const PAGE_ANOMALY_SPA_SHELL_SCRIPT_MIN = readPositiveInt('SNAPSHOT_PAGE_ANOMALY_SPA_SHELL_SCRIPT_MIN', 10);
+export const PAGE_ANOMALY_SPA_SHELL_VISIBLE_MAX = P.spaShellVisibleMax;
 
-/** Weak parked suppression: min visible chars with Organization contact signal. */
-export const PAGE_ANOMALY_SUPPRESS_ORG_VISIBLE_MIN = readPositiveInt('SNAPSHOT_PAGE_ANOMALY_SUPPRESS_ORG_VISIBLE_MIN', 350);
+export const PAGE_ANOMALY_SPA_SHELL_SCRIPT_MIN = P.spaShellScriptMin;
 
-/** Weak parked suppression: min visible chars when mailto/tel present. */
-export const PAGE_ANOMALY_SUPPRESS_MAILTO_VISIBLE_MIN = readPositiveInt(
-  'SNAPSHOT_PAGE_ANOMALY_SUPPRESS_MAILTO_VISIBLE_MIN',
-  650,
-);
+export const PAGE_ANOMALY_SUPPRESS_ORG_VISIBLE_MIN = P.suppressOrgVisibleMin;
 
-/** Weak parked suppression: internal path links threshold (high) with visible minimum. */
-export const PAGE_ANOMALY_SUPPRESS_PATH_LINKS_HIGH = readPositiveInt('SNAPSHOT_PAGE_ANOMALY_SUPPRESS_PATH_LINKS_HIGH', 12);
-export const PAGE_ANOMALY_SUPPRESS_PATH_LINKS_HIGH_VISIBLE_MIN = readPositiveInt(
-  'SNAPSHOT_PAGE_ANOMALY_SUPPRESS_PATH_LINKS_HIGH_VISIBLE_MIN',
-  550,
-);
+export const PAGE_ANOMALY_SUPPRESS_MAILTO_VISIBLE_MIN = P.suppressMailtoVisibleMin;
 
-/** Weak parked suppression: internal path links threshold (medium) with visible minimum. */
-export const PAGE_ANOMALY_SUPPRESS_PATH_LINKS_MED = readPositiveInt('SNAPSHOT_PAGE_ANOMALY_SUPPRESS_PATH_LINKS_MED', 8);
-export const PAGE_ANOMALY_SUPPRESS_PATH_LINKS_MED_VISIBLE_MIN = readPositiveInt(
-  'SNAPSHOT_PAGE_ANOMALY_SUPPRESS_PATH_LINKS_MED_VISIBLE_MIN',
-  1_800,
-);
+export const PAGE_ANOMALY_SUPPRESS_PATH_LINKS_HIGH = P.suppressPathLinksHigh;
+export const PAGE_ANOMALY_SUPPRESS_PATH_LINKS_HIGH_VISIBLE_MIN = P.suppressPathLinksHighVisibleMin;
 
-/** Weak parked suppression: long copy alone is enough above this visible length. */
-export const PAGE_ANOMALY_SUPPRESS_LONG_COPY_VISIBLE_MIN = readPositiveInt(
-  'SNAPSHOT_PAGE_ANOMALY_SUPPRESS_LONG_COPY_VISIBLE_MIN',
-  3_200,
-);
+export const PAGE_ANOMALY_SUPPRESS_PATH_LINKS_MED = P.suppressPathLinksMed;
+export const PAGE_ANOMALY_SUPPRESS_PATH_LINKS_MED_VISIBLE_MIN = P.suppressPathLinksMedVisibleMin;
+
+export const PAGE_ANOMALY_SUPPRESS_LONG_COPY_VISIBLE_MIN = P.suppressLongCopyVisibleMin;

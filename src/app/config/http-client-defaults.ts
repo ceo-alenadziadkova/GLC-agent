@@ -1,0 +1,11 @@
+/**
+ * SPA HTTP client timeouts (static front config).
+ */
+
+export const API_CLIENT_TIMEOUT_MS_DEFAULT = 30_000;
+
+export const LOG_INCIDENT_POST_TIMEOUT_MS_DEFAULT = 12_000;
+
+export const API_CLIENT_TIMEOUT_MS = API_CLIENT_TIMEOUT_MS_DEFAULT;
+
+export const LOG_INCIDENT_POST_TIMEOUT_MS = LOG_INCIDENT_POST_TIMEOUT_MS_DEFAULT;

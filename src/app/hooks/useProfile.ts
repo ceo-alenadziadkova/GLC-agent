@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import { API_PATHS } from '../config/api-paths';
+import { apiFetch } from '../data/api-http';
 import { supabase } from '../lib/supabase';
-import { getApiBaseUrl } from '../lib/api-base-url';
 import type { UserRole } from '../data/auditTypes';
-
-const API_URL = getApiBaseUrl();
 
 /**
  * Loads `profiles` row; runs GET /api/profile when missing (creates row via attachProfile)
@@ -22,9 +21,7 @@ async function loadProfileRowForSession(session: Session): Promise<{
 
   if (dbError?.code === 'PGRST116') {
     try {
-      await fetch(`${API_URL}/api/profile`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
+      await apiFetch(API_PATHS.profile, { method: 'GET' });
       const retry = await supabase
         .from('profiles')
         .select('id, role, full_name, created_at')
@@ -43,18 +40,15 @@ async function loadProfileRowForSession(session: Session): Promise<{
 
   if (data.role === 'guest') {
     try {
-      const res = await fetch(`${API_URL}/api/profile`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+      const api = await apiFetch<{ role?: UserRole; full_name?: string | null }>(API_PATHS.profile, {
+        method: 'GET',
       });
-      if (res.ok) {
-        const api = (await res.json()) as { role?: UserRole; full_name?: string | null };
-        if (api.role && (api.role === 'client' || api.role === 'consultant' || api.role === 'guest')) {
-          data = {
-            ...data,
-            role: api.role,
-            full_name: api.full_name ?? data.full_name,
-          };
-        }
+      if (api.role && (api.role === 'client' || api.role === 'consultant' || api.role === 'guest')) {
+        data = {
+          ...data,
+          role: api.role,
+          full_name: api.full_name ?? data.full_name,
+        };
       }
     } catch {
       /* keep DB row as-is */

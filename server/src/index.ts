@@ -25,7 +25,7 @@ import { startAlertsWorker } from './services/alerts.js';
 import { updateContext } from './services/observability-context.js';
 import { getCorsAllowedOrigins } from './config/cors-origins.js';
 import { assertProductionRuntimeConfig } from './config/runtime-assert.js';
-import { getExpressJsonBodyLimit } from './config/http-server.js';
+import { API_HEALTH_PATH, API_PREFIX, getExpressJsonBodyLimit } from './config/http-server.js';
 import { assertSnapshotGuestSaltIfProduction } from './lib/guest-session.js';
 import { setStandardSecurityHeaders } from './config/security-headers.js';
 import { recoverStalledPipelines } from './services/pipeline.js';
@@ -68,14 +68,14 @@ app.use((req, _res, next) => {
 
 // Sensitive API responses must not be cached by shared proxies or browsers.
 app.use((req, res, next) => {
-  if (req.path.startsWith('/api/') && req.path !== '/api/health') {
+  if (req.path.startsWith(`${API_PREFIX}/`) && req.path !== API_HEALTH_PATH) {
     res.setHeader('Cache-Control', 'private, no-store');
   }
   next();
 });
 
 // ─── Health check ──────────────────────────────────────────
-app.get('/api/health', (_req, res) => {
+app.get(API_HEALTH_PATH, (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 

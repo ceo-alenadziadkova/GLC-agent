@@ -15,6 +15,7 @@ import {
 import { api } from '../data/apiService';
 import { AppShell } from '../components/AppShell';
 import { glcKeys } from '../lib/glc-keys';
+import { UI_FEEDBACK_FLASH_MS } from '../config/ui-feedback-defaults';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -314,7 +315,7 @@ export function DiscoveryQueue() {
               const url = `${window.location.origin}/discovery`;
               void navigator.clipboard.writeText(url).then(() => {
                 setLinkCopied(true);
-                setTimeout(() => setLinkCopied(false), 2000);
+                setTimeout(() => setLinkCopied(false), UI_FEEDBACK_FLASH_MS);
               });
             }}
             className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium glc-touch-target sm:min-h-0"

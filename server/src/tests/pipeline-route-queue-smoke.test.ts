@@ -57,6 +57,7 @@ vi.mock('../services/brief-validator.js', () => ({
 vi.mock('@glc/intake-core', () => ({
   currentIntakeVersionTuple: () => ({ policyVersion: 'v1', questionBankVersion: 'v1' }),
   isSupportedIntakeArtifactTuple: () => true,
+  REVIEW_GATE_NOTES_MAX: 5000,
 }));
 
 vi.mock('../services/supabase.js', () => ({

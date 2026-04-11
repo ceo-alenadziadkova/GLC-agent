@@ -3,7 +3,7 @@
  * Forks or white-label installs change values here (or override via production env vars).
  */
 
-/** Persisted `audits.company_url` when the client has no public site (dev default; override with NO_PUBLIC_WEBSITE_URL in production Node). */
+/** Persisted `audits.company_url` when the client has no public site; re-exported as `NO_PUBLIC_WEBSITE_URL` from `@glc/intake-core`. Forks change this literal. */
 export const GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL =
   'https://glc-audit.placeholder/no-public-website' as const;
 

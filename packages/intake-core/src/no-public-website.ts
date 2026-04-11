@@ -1,34 +1,13 @@
 import { GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL } from '@glc/dev-brand-defaults';
 
-const DEFAULT_NO_PUBLIC_WEBSITE_URL = GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL;
-
-function readNoPublicWebsiteUrlFromEnv(): string | undefined {
-  if (typeof process !== 'undefined' && process.env?.NO_PUBLIC_WEBSITE_URL) {
-    const t = process.env.NO_PUBLIC_WEBSITE_URL.trim();
-    if (t) return t;
-  }
-  try {
-    const im = import.meta as unknown as { env?: Record<string, string | boolean | undefined> };
-    const v = im.env?.VITE_NO_PUBLIC_WEBSITE_URL;
-    if (v === undefined || v === '') return undefined;
-    const s = typeof v === 'string' ? v.trim() : String(v).trim();
-    return s || undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 /**
- * Canonical placeholder URL when the client has no public website (audits.company_url).
+ * Canonical placeholder URL when the client has no public website (`audits.company_url`).
  * Collectors must skip outbound fetches when this value is detected.
  *
- * Override on the server with `NO_PUBLIC_WEBSITE_URL` and on the Vite SPA with
- * `VITE_NO_PUBLIC_WEBSITE_URL` so UI and API agree for white-label installs.
- * The API server must set `NO_PUBLIC_WEBSITE_URL` in production — enforced in
- * `server/src/config/runtime-assert.ts` (not here) so Vite client builds are not blocked.
+ * Single shared constant from `@glc/dev-brand-defaults` — API and SPA import the same module
+ * so no env pair is required. Forks change `GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL` in that package.
  */
-export const NO_PUBLIC_WEBSITE_URL =
-  readNoPublicWebsiteUrlFromEnv() ?? DEFAULT_NO_PUBLIC_WEBSITE_URL;
+export const NO_PUBLIC_WEBSITE_URL = GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL;
 
 export function isNoPublicWebsiteUrl(url: string): boolean {
   const t = url.trim();

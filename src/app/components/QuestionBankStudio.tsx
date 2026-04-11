@@ -40,6 +40,7 @@ import {
   computeBranchDownstreamIds,
   computeBranchUpstreamIds,
 } from './intake/intake-trace-branch-links';
+import { QUESTION_BANK_STUDIO_DEBOUNCE_MS } from '../config/question-bank-studio-defaults';
 import { Switch } from './ui/switch';
 
 const POLICY_STRIPE_INSPECTOR: Record<StudioPolicyBaseVisualKind, string> = {
@@ -205,12 +206,12 @@ export function QuestionBankStudio() {
   }, [customProductMode]);
 
   useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    const t = window.setTimeout(() => setDebouncedSearch(search.trim()), QUESTION_BANK_STUDIO_DEBOUNCE_MS);
     return () => window.clearTimeout(t);
   }, [search]);
 
   useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedCustomJson(customResponsesText), 400);
+    const t = window.setTimeout(() => setDebouncedCustomJson(customResponsesText), QUESTION_BANK_STUDIO_DEBOUNCE_MS);
     return () => window.clearTimeout(t);
   }, [customResponsesText]);
 

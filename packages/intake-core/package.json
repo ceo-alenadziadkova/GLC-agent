@@ -16,6 +16,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./config/intake-flags.js": {
+      "types": "./dist/config/intake-flags.d.ts",
+      "default": "./dist/config/intake-flags.js"
+    },
     "./question-bank.v1.json": "./src/question-bank.v1.json",
     "./question-feed-roles.v1.json": "./src/question-feed-roles.v1.json",
     "./bank-question-ui-overrides.v1.json": "./src/bank-question-ui-overrides.v1.json",

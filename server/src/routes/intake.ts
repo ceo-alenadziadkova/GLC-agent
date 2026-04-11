@@ -40,6 +40,7 @@ import {
   INTAKE_NOT_ALLOWED_MESSAGE,
   INTAKE_PLAN_TRACE_FAILED_MESSAGE,
   INTAKE_PREFILL_LOAD_FAILED_MESSAGE,
+  INTAKE_PREBRIEF_AUDIT_OWNER_MISMATCH_MESSAGE,
   INTAKE_PREBRIEF_INCOMPLETE_MESSAGE,
   INTAKE_RESPONSES_REQUIRED_MESSAGE,
   INTAKE_SAVE_RESPONSES_FAILED_MESSAGE,
@@ -54,6 +55,8 @@ import {
 export const intakeRouter = Router();
 
 const TOKEN_HEX = /^[a-f0-9]{40}$/i;
+
+type MergePreBriefOutcome = 'merged' | 'nothing_to_merge' | 'consultant_not_audit_owner';
 
 function toClientEntries(raw: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -88,14 +91,14 @@ async function mergePreBriefFromParsedResponses(
   auditId: string,
   consultantUserId: string,
   parsed: Record<string, unknown>,
-): Promise<void> {
+): Promise<MergePreBriefOutcome> {
   const { data: auditRow, error: auditErr } = await supabase
     .from('audits')
     .select('user_id')
     .eq('id', auditId)
     .single();
   if (auditErr || !auditRow || auditRow.user_id !== consultantUserId) {
-    throw new Error('audit_ownership_mismatch');
+    return 'consultant_not_audit_owner';
   }
 
   const { data: brief } = await supabase
@@ -126,8 +129,9 @@ async function mergePreBriefFromParsedResponses(
   for (const id of mergeIds) {
     if (entries[id] !== undefined) preBriefPatch[id] = entries[id];
   }
-  if (Object.keys(preBriefPatch).length === 0) return;
+  if (Object.keys(preBriefPatch).length === 0) return 'nothing_to_merge';
   await saveBriefResponses(auditId, { ...existing, ...preBriefPatch }, { validation_perspective: 'client' });
+  return 'merged';
 }
 
 /** POST /api/intake — consultant creates token */
@@ -260,7 +264,18 @@ intakeRouter.post('/link-audit', requireAuth, attachProfile, requireRole('consul
     const parsed = BriefResponsesSchema.safeParse(rawResponses);
     if (parsed.success && Object.keys(parsed.data).length > 0) {
       try {
-        await mergePreBriefFromParsedResponses(audit_id, req.userId!, parsed.data as Record<string, unknown>);
+        const outcome = await mergePreBriefFromParsedResponses(
+          audit_id,
+          req.userId!,
+          parsed.data as Record<string, unknown>,
+        );
+        if (outcome === 'consultant_not_audit_owner') {
+          logger.warn('intake.link_audit_merge_skipped', {
+            component: 'intake',
+            code: API_ERROR_CODES.INTAKE_PREBRIEF_AUDIT_OWNER_MISMATCH,
+            message: INTAKE_PREBRIEF_AUDIT_OWNER_MISMATCH_MESSAGE,
+          });
+        }
       } catch (mergeErr) {
         logger.warn('intake.link_audit_merge_skipped', {
           component: 'intake',
@@ -619,12 +634,22 @@ intakeRouter.post('/:token/respond', intakePublicWriteLimiter, async (req, res) 
     const auditId = row.audit_id as string | null;
     if (auditId) {
       try {
-        await mergePreBriefFromParsedResponses(auditId, row.consultant_id as string, parsed.data as Record<string, unknown>);
+        const outcome = await mergePreBriefFromParsedResponses(
+          auditId,
+          row.consultant_id as string,
+          parsed.data as Record<string, unknown>,
+        );
+        if (outcome === 'consultant_not_audit_owner') {
+          logger.warn('intake.brief_merge_skipped', {
+            component: 'intake',
+            code: API_ERROR_CODES.INTAKE_PREBRIEF_AUDIT_OWNER_MISMATCH,
+            message: INTAKE_PREBRIEF_AUDIT_OWNER_MISMATCH_MESSAGE,
+          });
+        }
       } catch (mergeErr) {
-        const reason = (mergeErr as Error).message === 'audit_ownership_mismatch' ? 'audit_ownership_mismatch' : 'merge_error';
         logger.warn('intake.brief_merge_skipped', {
           component: 'intake',
-          reason,
+          reason: 'merge_error',
           error: (mergeErr as Error).message,
         });
       }

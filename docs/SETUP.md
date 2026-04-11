@@ -42,7 +42,7 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...
 
 # Optional — Intake trace UI: set to 0/false/off to use legacy flat tabs (default: on / unset)
-# VITE_INTAKE_TRACE_IA_V2=0
+# Intake trace IA v2: src/app/config/app-feature-flags.ts (intakeTraceIaV2Enabled)
 ```
 
 ### Backend — `server/.env`
@@ -58,44 +58,24 @@ ANTHROPIC_API_KEY=sk-ant-...
 # STRICT_RATE_LIMIT_REDIS=false
 # PIPELINE_QUEUE_REDIS_URL=redis://localhost:6379
 
-# Queue + pipeline resilience tuning (optional)
-# PIPELINE_WORKER_CONCURRENCY=2
-# PIPELINE_LEASE_TTL_SECONDS=60
-# PIPELINE_HEARTBEAT_MS=10000
-# PIPELINE_STALLED_TIMEOUT_MIN=15
-# PARALLEL_FAILURE_THRESHOLD=2
-
-# Claude runtime guardrails (optional)
-# CLAUDE_TIMEOUT_MS=90000
-# CLAUDE_CB_THRESHOLD=3
-# CLAUDE_CB_TTL_SEC=60
-
-# Optional — deeper automated checks (extra CPU/time; needs Chrome for Lighthouse)
-# AUDIT_DEEP_SCAN=1
-# AUDIT_LIGHTHOUSE=1
-# AUDIT_AXE_PLAYWRIGHT=1
-# AUDIT_LIGHTHOUSE_BUDGET_MS=55000
-# AUDIT_AXE_NAV_TIMEOUT_MS=12000
-
-# Optional — collector HTTP limits, phase-0 crawler caps, public snapshot GET truncation/competitor budget, Claude pricing overrides for token-tracker:
-# see [DEPLOYMENT.md](./DEPLOYMENT.md#configuration-centralization-avoid-drift) (optional tuning table) and `server/.env.example` (COLLECTOR_*, CRAWLER_*, SNAPSHOT_*, ANTHROPIC_PRICING_JSON).
+# Pipeline, Claude HTTP, rate limits, snapshot timing, audit deep-scan (Lighthouse/axe): SYSTEM_DEFAULTS in server/src/config/system-defaults.ts — not env.
 ```
 
 > The frontend uses the anon key (safe to expose). The backend uses the service role key (bypasses RLS for server-side operations — never expose to client).
 
-**Deep audit flags:** `AUDIT_DEEP_SCAN=1` turns on both Lighthouse (performance collector) and axe-core + Playwright (accessibility collector). You can enable them separately with `AUDIT_LIGHTHOUSE=1` or `AUDIT_AXE_PLAYWRIGHT=1`. Lighthouse uses [chrome-launcher](https://github.com/GoogleChrome/chrome-launcher), which reads **`CHROME_PATH`** if set; otherwise it searches for Chrome/Chromium on the system.
+**Deep audit (full pipeline):** enable Lighthouse and/or axe+Playwright in **`SYSTEM_DEFAULTS.auditDeepScan`** (`deepScanEnabled`, `lighthouseEnabled`, `axePlaywrightEnabled`) and redeploy. Lighthouse uses [chrome-launcher](https://github.com/GoogleChrome/chrome-launcher), which reads **`CHROME_PATH`** if set; otherwise it searches for Chrome/Chromium on the system.
 
 **Local env checklist (backend):**
 
 - Required to start API: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` (+ `ANTHROPIC_API_KEY` for live pipeline phases).
 - Required for local distributed behavior parity: `RATE_LIMIT_REDIS_URL` (and optionally `PIPELINE_QUEUE_REDIS_URL`).
-- Optional but recommended: set queue/timeout guardrails above to mirror production behavior.
+- Optional: tune numeric guardrails in `server/src/config/system-defaults.ts` to mirror production.
 
-**Docker / production image:** the server `Dockerfile` installs Debian `chromium` and sets `CHROME_PATH=/usr/bin/chromium` so Lighthouse works when deep-audit env vars are enabled. Local dev without Docker: install Chrome/Chromium or set `CHROME_PATH` to your binary (Playwright’s downloaded Chromium lives under `~/.cache/ms-playwright/` — e.g. `chromium-*/chrome-linux/chrome` on Linux).
+**Docker / production image:** the server `Dockerfile` installs Debian `chromium` and sets `CHROME_PATH=/usr/bin/chromium` so Lighthouse works when deep audit is enabled in config. Local dev without Docker: install Chrome/Chromium or set `CHROME_PATH` to your binary (Playwright’s downloaded Chromium lives under `~/.cache/ms-playwright/` — e.g. `chromium-*/chrome-linux/chrome` on Linux).
 
 See [docs/ARCHITECTURE.md](./ARCHITECTURE.md#open-source-collector-libraries) for library references, Unlighthouse (future), and Context7 IDs.
 
-**Important:** `AUDIT_DEEP_SCAN` affects only the **full audit pipeline** (consultant flow: create audit → start pipeline → phases 1 and 4 run `PerformanceCollector` / `AccessibilityCollector`). It does **not** run during the **public free snapshot** (`POST /api/snapshot/`, logs like `snapshot.run_complete`, `Free snapshot started`). The snapshot scanner uses its own tiered fetch and optional Playwright for the homepage; that is unrelated to Lighthouse/axe in collectors.
+**Important:** Deep audit flags affect only the **full audit pipeline** (consultant flow: create audit → start pipeline → phases 1 and 4 run `PerformanceCollector` / `AccessibilityCollector`). It does **not** run during the **public free snapshot** (`POST /api/snapshot/`, logs like `snapshot.run_complete`, `Free snapshot started`). The snapshot scanner uses its own tiered fetch and optional Playwright for the homepage; that is unrelated to Lighthouse/axe in collectors.
 
 **Target direction:** full audit → **multi-URL** Lighthouse (Unlighthouse-class); free snapshot → **no default Lighthouse**, optional single-URL only with explicit opt-in — see [ARCHITECTURE.md](./ARCHITECTURE.md#target-architecture-lighthouse-and-unlighthouse).
 

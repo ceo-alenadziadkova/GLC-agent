@@ -22,6 +22,10 @@ import {
 import { CLAUDE_MODEL, MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import { logger } from '../services/logger.js';
 import { getContext, updateContext } from '../services/observability-context.js';
+import {
+  interpolatePipelineEventMessage,
+  pipelineBaseEventCopy,
+} from '../config/pipeline-events-copy.js';
 import type { z } from 'zod';
 import { createClient } from 'redis';
 
@@ -158,23 +162,33 @@ export abstract class BaseAgent {
    */
   async run(): Promise<DomainResult> {
     const { companyUrl, noPublicWebsite } = await this.getAuditWebContext();
+    const ev = pipelineBaseEventCopy();
 
     // ─── Step 1: Collect data (NO AI) ────────────────────
-    await this.emit('collecting', 'Collecting raw data...');
+    await this.emit('collecting', ev.collecting);
     const collectedData: Record<string, Record<string, unknown>> = {};
 
     for (const collector of this.collectors) {
       try {
         const result = await collector.run(this.auditId, companyUrl, { noPublicWebsite });
         collectedData[result.collector_key] = result.data;
-        await this.emit('log', `✓ Collected: ${result.collector_key}`);
+        await this.emit(
+          'log',
+          interpolatePipelineEventMessage(ev.logCollected, { key: result.collector_key }),
+        );
       } catch (err) {
-        await this.emit('log', `⚠ Collector ${collector.key} failed: ${(err as Error).message}`);
+        await this.emit(
+          'log',
+          interpolatePipelineEventMessage(ev.logCollectorFailed, {
+            key: collector.key,
+            message: (err as Error).message,
+          }),
+        );
       }
     }
 
     // ─── Step 2: Assemble context ────────────────────────
-    await this.emit('assembling_context', 'Building analysis context...');
+    await this.emit('assembling_context', ev.assemblingContext);
     const context = await this.contextBuilder.build(
       this.auditId,
       this.domainKey,
@@ -183,7 +197,7 @@ export abstract class BaseAgent {
     );
 
     // ─── Step 3: Single Claude call ──────────────────────
-    await this.emit('analyzing', 'Running AI analysis...');
+    await this.emit('analyzing', ev.analyzing);
 
     // [C1] Check token budget with hard reserve and warning threshold
     const budget = await this.tokenTracker.checkBudget(this.auditId);
@@ -198,7 +212,10 @@ export abstract class BaseAgent {
     if (budget.is_approaching_limit) {
       await this.emit(
         'warning',
-        `Token budget at ${Math.round((budget.tokens_used / budget.token_budget) * 100)}% — ${budget.remaining} tokens remaining`
+        interpolatePipelineEventMessage(ev.tokenBudgetWarning, {
+          pct: Math.round((budget.tokens_used / budget.token_budget) * 100),
+          remaining: budget.remaining,
+        }),
       );
     }
 
@@ -208,10 +225,14 @@ export abstract class BaseAgent {
     if (this.domainKey !== 'recon' && this.domainKey !== 'strategy') {
       const verification = this.factChecker.verify(result, this.domainKey, collectedData);
       if (verification.corrections.length > 0) {
-        await this.emit('fact_check', `Found ${verification.corrections.length} fact-check flag(s)`, {
-          corrections: verification.corrections,
-          confidence: verification.confidence,
-        });
+        await this.emit(
+          'fact_check',
+          interpolatePipelineEventMessage(ev.factCheckFlags, { count: verification.corrections.length }),
+          {
+            corrections: verification.corrections,
+            confidence: verification.confidence,
+          },
+        );
       }
       return this.attachConfidenceDistribution(verification.result);
     }
@@ -227,9 +248,13 @@ export abstract class BaseAgent {
     schema: z.ZodSchema = this.outputSchema,
     maxTokens: number = MODEL_MAX_TOKENS.domain
   ): Promise<DomainResult> {
+    const ev = pipelineBaseEventCopy();
     const { system, prompt, truncated, truncatedKeys } = this.contextBuilder.formatPrompt(context);
     if (truncated) {
-      await this.emit('warning', `Context truncated for keys: ${truncatedKeys.join(', ')}`);
+      await this.emit(
+        'warning',
+        interpolatePipelineEventMessage(ev.contextTruncated, { keys: truncatedKeys.join(', ') }),
+      );
     }
     const jsonSchema = zodToJsonSchema(schema);
 
@@ -254,7 +279,7 @@ export abstract class BaseAgent {
               messages: [{ role: 'user', content: prompt }],
               tools: [{
                 name: 'submit_analysis',
-                description: 'Submit the structured analysis results',
+                description: ev.claudeToolDescription,
                 input_schema: jsonSchema as Anthropic.Tool['input_schema'],
               }],
               tool_choice: { type: 'tool', name: 'submit_analysis' },
@@ -284,7 +309,13 @@ export abstract class BaseAgent {
         // Validate with Zod
         const parsed = schema.safeParse(toolBlock.input);
         if (!parsed.success) {
-          await this.emit('log', `⚠ Validation error (attempt ${attempt}): ${parsed.error.message}`);
+          await this.emit(
+            'log',
+            interpolatePipelineEventMessage(ev.validationErrorAttempt, {
+              attempt,
+              message: parsed.error.message,
+            }),
+          );
           if (attempt === CLAUDE_MAX_RETRIES) {
             throw new Error(
               `Response validation failed after ${CLAUDE_MAX_RETRIES} attempts: ${parsed.error.message}`,
@@ -304,7 +335,10 @@ export abstract class BaseAgent {
           }
           const jitter = Math.floor(Math.random() * CLAUDE_RETRY_JITTER_MS);
           const delay = CLAUDE_RETRY_BASE_MS * Math.pow(2, attempt - 1) + jitter;
-          await this.emit('log', `⚠ API error (${error.status}), retrying in ${delay}ms...`);
+          await this.emit(
+            'log',
+            interpolatePipelineEventMessage(ev.apiErrorRetry, { status: error.status ?? 0, delay }),
+          );
           await sleep(delay);
           continue;
         }

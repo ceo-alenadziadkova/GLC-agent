@@ -254,7 +254,6 @@ pipelineRouter.post('/:id/pipeline/next', requireAuth, attachProfile, pipelineLi
       res.status(400).json({
         ...apiErrorJson(API_ERROR_CODES.PIPELINE_REVIEW_PENDING, PIPELINE_REVIEW_PENDING_MESSAGE),
         review_after_phase: audit.current_phase,
-        message: 'Approve the review point before proceeding to the next phase',
       });
       return;
     }

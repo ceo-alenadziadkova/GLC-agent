@@ -90,7 +90,7 @@ Use this split when adding a new “setting” so it lands in the right place an
 
 **What belongs here:** values that apply to **the whole backend or frontend build**, differ by **environment** (dev / staging / production), and do **not** need to vary per audit, user, or row in Postgres. Secrets and rate-limit numbers stay in env — never in source.
 
-**Where it lives:** `server/.env` (+ `server/.env.example`), root `.env` for `VITE_*`, and TypeScript readers under `**server/src/config/`** (single place per concern). Shared non-secret defaults used by both app and tooling may live in `**packages/glc-dev-brand-defaults**` (dev ports/origins) or `**packages/intake-core**` when the contract must be identical on server and SPA (e.g. `ensureHttpsUrl`, `**INTAKE_UI_CONFIG**` in `packages/intake-core/src/config/intake-ui-config.ts` for intake UX defaults, optional `INTAKE_*` / `VITE_INTAKE_*` env kill-switches in `intake-flags.ts`, **marketing brief → recommended route**). When `**PORT`** is unset, the Express entrypoint uses `**GLC_DEV_API_PORT**` from `@glc/dev-brand-defaults` (same default the Vite proxy documents) instead of a second magic number in `server/src/index.ts`.
+**Where it lives:** `server/.env` (+ `server/.env.example`), root `.env` for `VITE_*`, and TypeScript readers under `**server/src/config/`** (single place per concern). Shared non-secret defaults used by both app and tooling may live in `**packages/glc-dev-brand-defaults**` (dev ports/origins) or `**packages/intake-core**` when the contract must be identical on server and SPA (e.g. `ensureHttpsUrl`, `**INTAKE_UI_CONFIG**` in `packages/intake-core/src/config/intake-ui-config.ts` for intake UX defaults including next-recommended on/off, optional `INTAKE_*` / `VITE_INTAKE_*` env kill-switches in `intake-flags.ts` for other intake toggles, **marketing brief → recommended route**). When `**PORT`** is unset, the Express entrypoint uses `**GLC_DEV_API_PORT**` from `@glc/dev-brand-defaults` (same default the Vite proxy documents) instead of a second magic number in `server/src/index.ts`.
 
 **Rule of thumb:** one value for the entire deployed **server instance** → **env + `server/src/config/*`**. Public build-time values for the browser → `**VITE_***` + small modules under `src/app/lib/`.
 
@@ -116,7 +116,7 @@ Use this split when adding a new “setting” so it lands in the right place an
 
 ### Strict layer boundaries (operational policy)
 
-Tightening boundaries is **rules + structure + checks**, not one large refactor. Env allowlist and “infrastructure vs ops override” live in `[server/.env.example](../server/.env.example)` and [DEPLOYMENT.md — Environment layers](./DEPLOYMENT.md#environment-layers-infrastructure-vs-ops-overrides).
+Tightening boundaries is **rules + structure + checks**, not one large refactor. Env allowlist lives in `[server/.env.example](../server/.env.example)` (secrets + deploy wiring + integrations); product numerics belong in **`SYSTEM_DEFAULTS`**. See [DEPLOYMENT.md — Environment layers](./DEPLOYMENT.md#environment-layers-infrastructure-vs-ops-overrides).
 
 #### ENV (infrastructure and secrets)
 
@@ -130,7 +130,7 @@ Tightening boundaries is **rules + structure + checks**, not one large refactor.
 
 Non-secret values that define **default product behavior**: timeouts, limits, fact-checker thresholds, pagination defaults, observability trimming, etc.
 
-**Policy:** add new numeric defaults to `**SYSTEM_DEFAULTS`** / focused config modules first; **environment variables are optional ops overrides**, not the first place product numbers appear.
+**Policy:** add new numeric defaults to `**SYSTEM_DEFAULTS`** / focused config modules; **do not** add env reads for product limits/thresholds unless there is an explicit infra reason (documented in `server/.env.example`).
 
 #### SERVICES (`server/src/services/*.ts`)
 

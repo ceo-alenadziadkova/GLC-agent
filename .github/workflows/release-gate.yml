@@ -113,7 +113,7 @@ jobs:
         run: |
           test -f docs/DEPLOYMENT.md
           grep -q 'NO_PUBLIC_WEBSITE_URL' docs/DEPLOYMENT.md
-          grep -q 'VITE_NO_PUBLIC_WEBSITE_URL' docs/DEPLOYMENT.md
+          grep -q 'GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL' docs/DEPLOYMENT.md
           grep -q 'Server and SPA variables that must match' docs/DEPLOYMENT.md
           grep -q 'snapshot-fetch-heuristics' docs/DEPLOYMENT.md
 

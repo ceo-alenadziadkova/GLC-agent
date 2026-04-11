@@ -1,3 +1,4 @@
+import { API_CLIENT_TIMEOUT_MS } from '../config/http-client-defaults';
 import { supabase } from '../lib/supabase';
 import { getApiBaseUrl } from '../lib/api-base-url';
 import { ApiError } from './api-error';
@@ -25,8 +26,7 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const authHeaders = await getAuthHeaders();
 
-  // 30s timeout — prevents hanging indefinitely if server is unreachable
-  const timeoutSignal = AbortSignal.timeout(30_000);
+  const timeoutSignal = AbortSignal.timeout(API_CLIENT_TIMEOUT_MS);
   const signal = options.signal
     ? AbortSignal.any([options.signal as AbortSignal, timeoutSignal])
     : timeoutSignal;
@@ -57,8 +57,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
 
 /** Public intake/snapshot calls — no Authorization header. */
 export async function publicApiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  // 30s timeout — same as authenticated apiFetch
-  const timeoutSignal = AbortSignal.timeout(30_000);
+  const timeoutSignal = AbortSignal.timeout(API_CLIENT_TIMEOUT_MS);
   const signal = options.signal
     ? AbortSignal.any([options.signal as AbortSignal, timeoutSignal])
     : timeoutSignal;
@@ -87,7 +86,7 @@ export async function publicApiFetch<T>(path: string, options: RequestInit = {})
  * Returns the raw Response (status, RateLimit-*, body) for snapshot-specific error handling.
  */
 export async function snapshotPublicRequest(path: string, options: RequestInit = {}): Promise<Response> {
-  const timeoutSignal = AbortSignal.timeout(30_000);
+  const timeoutSignal = AbortSignal.timeout(API_CLIENT_TIMEOUT_MS);
   const signal = options.signal
     ? AbortSignal.any([options.signal as AbortSignal, timeoutSignal])
     : timeoutSignal;
@@ -103,4 +102,42 @@ export async function snapshotPublicRequest(path: string, options: RequestInit =
       ...options.headers,
     },
   });
+}
+
+type ApiPostAckOptions = RequestInit & { clientTimeoutMs?: number };
+
+/**
+ * POST JSON as an authenticated user; success is any 2xx with no response body parse (e.g. 204).
+ */
+export async function apiPostAck(path: string, body: unknown, options: ApiPostAckOptions = {}): Promise<void> {
+  const { clientTimeoutMs, ...fetchInit } = options;
+  const authHeaders = await getAuthHeaders();
+  const timeoutMs = clientTimeoutMs ?? API_CLIENT_TIMEOUT_MS;
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  const signal = fetchInit.signal
+    ? AbortSignal.any([fetchInit.signal as AbortSignal, timeoutSignal])
+    : timeoutSignal;
+
+  const response = await fetch(`${API_URL}${path}`, {
+    ...fetchInit,
+    method: 'POST',
+    signal,
+    headers: {
+      'Content-Type': 'application/json',
+      traceparent: createTraceparent(),
+      'x-operation-id': crypto.randomUUID(),
+      ...authHeaders,
+      ...fetchInit.headers,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const error = (await response.json().catch(() => ({ error: response.statusText }))) as {
+      error?: string;
+      code?: unknown;
+    };
+    const code = typeof error.code === 'string' ? error.code : undefined;
+    throw new ApiError(error.error ?? `API error: ${response.status}`, response.status, code);
+  }
 }

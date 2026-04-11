@@ -41,7 +41,7 @@ export const intakeTraceToolWordingDraftsPutSchema = z
     drafts: z
       .record(z.string(), z.string())
       .superRefine((val, ctx) => {
-        if (Object.keys(val).length > 500) {
+        if (Object.keys(val).length > REQUEST_FIELD_LIMITS.intakeTraceToolWordingOperationMaxKeys) {
           ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Too many draft keys' });
         }
       }),
@@ -54,7 +54,7 @@ export type IntakeTraceToolWordingDraftsPutBody = z.infer<typeof intakeTraceTool
 
 const questionIdListSchema = z
   .array(z.string().min(1).max(REQUEST_FIELD_LIMITS.traceQuestionIdMax))
-  .max(500)
+  .max(REQUEST_FIELD_LIMITS.intakeTraceToolWordingOperationMaxKeys)
   .optional();
 
 export const intakeTraceToolWordingPublishSchema = z

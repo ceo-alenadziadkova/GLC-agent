@@ -5,28 +5,15 @@
 import { createHash, randomBytes } from 'crypto';
 import type { Request, Response } from 'express';
 import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 
-const DEFAULT_SNAPSHOT_GUEST_COOKIE_NAME = 'glc_snapshot_guest';
+const SG = SYSTEM_DEFAULTS.snapshotGuestSession;
 
-/** Override with `SNAPSHOT_GUEST_COOKIE_NAME` for multi-product on one registrable domain. */
-export const SNAPSHOT_GUEST_COOKIE_NAME =
-  process.env.SNAPSHOT_GUEST_COOKIE_NAME?.trim() || DEFAULT_SNAPSHOT_GUEST_COOKIE_NAME;
+/** HttpOnly cookie name for public snapshot guest sessions. */
+export const SNAPSHOT_GUEST_COOKIE_NAME = SG.cookieName;
 
-const GUEST_TOKEN_BYTES = 32;
-
-function readGuestSessionMaxAgeSec(): number {
-  const raw = process.env.SNAPSHOT_GUEST_SESSION_MAX_AGE_SEC?.trim();
-  if (!raw) return 90 * 24 * 60 * 60;
-  const n = Number(raw);
-  const maxCap = 365 * 24 * 60 * 60;
-  if (Number.isFinite(n) && n > 0 && n <= maxCap) {
-    return Math.floor(n);
-  }
-  return 90 * 24 * 60 * 60;
-}
-
-/** Browser cookie lifetime; default 90 days. Cap 365 days. */
-export const GUEST_SESSION_MAX_AGE_SEC = readGuestSessionMaxAgeSec();
+/** Browser cookie lifetime (seconds). */
+export const GUEST_SESSION_MAX_AGE_SEC = SG.maxAgeSec;
 
 const DEV_FALLBACK_IP_SALT = 'dev-only-snapshot-guest-ip-salt';
 
@@ -105,7 +92,7 @@ export function getOrIssueSnapshotGuestToken(req: Request, res: Response): strin
   const existing = parseGuestCookie(req);
   if (existing) return existing;
 
-  const token = randomBytes(GUEST_TOKEN_BYTES).toString('hex');
+  const token = randomBytes(SG.tokenBytes).toString('hex');
   const { sameSite, secure } = cookieFlags(req);
   const parts = [
     `${SNAPSHOT_GUEST_COOKIE_NAME}=${token}`,

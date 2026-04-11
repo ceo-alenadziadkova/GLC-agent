@@ -22,6 +22,7 @@ import {
 } from '../data/briefQuestions';
 import type { BriefResponses } from '../data/briefQuestions';
 import { choiceSpecifyResponseKey, choiceValueNeedsSpecify, QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
+import { AUDIT_WORKSPACE_SAVE_FLASH_MS } from '../config/ui-feedback-defaults';
 import { api } from '../data/apiService';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
@@ -141,7 +142,7 @@ export function AuditWorkspace() {
           });
           setEnrichSaved(true);
           reload();
-          window.setTimeout(() => setEnrichSaved(false), 2200);
+          window.setTimeout(() => setEnrichSaved(false), AUDIT_WORKSPACE_SAVE_FLASH_MS);
         } catch (err) {
           logger.error('[AuditWorkspace] brief save', {
             error: err instanceof Error ? err.message : String(err),
@@ -214,7 +215,7 @@ export function AuditWorkspace() {
             });
             setWorkspaceBriefSavedFlash(true);
             reload();
-            window.setTimeout(() => setWorkspaceBriefSavedFlash(false), 2200);
+            window.setTimeout(() => setWorkspaceBriefSavedFlash(false), AUDIT_WORKSPACE_SAVE_FLASH_MS);
           } catch (err) {
             logger.error('[AuditWorkspace] workspace brief save', {
               error: err instanceof Error ? err.message : String(err),

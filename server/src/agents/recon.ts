@@ -2,6 +2,10 @@ import { BaseAgent, loadPrompt } from './base.js';
 import { CrawlerCollector } from '../collectors/crawler.js';
 import { ReconOutputSchema } from '../schemas/domain-output.js';
 import { supabase } from '../services/supabase.js';
+import {
+  interpolatePipelineEventMessage,
+  pipelineReconEventCopy,
+} from '../config/pipeline-events-copy.js';
 import { MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import { auditSkipsPublicWebsiteFetches } from '@glc/intake-core';
 import type { DomainResult } from '../types/audit.js';
@@ -26,11 +30,12 @@ export class ReconAgent extends BaseAgent {
   async run(): Promise<DomainResult> {
     const { companyUrl, noPublicWebsite } = await this.getAuditWebContext();
     const noPublicSite = auditSkipsPublicWebsiteFetches(noPublicWebsite, companyUrl);
+    const ev = pipelineReconEventCopy();
 
     // Step 1: Collect
     await this.emit(
       'collecting',
-      noPublicSite ? 'No public website — skipping web crawl...' : 'Crawling company website...'
+      noPublicSite ? ev.collectingNoPublicSite : ev.collectingWithCrawl,
     );
     const crawler = new CrawlerCollector();
     const crawlResult = await crawler.run(this.auditId, companyUrl, { noPublicWebsite });
@@ -38,31 +43,37 @@ export class ReconAgent extends BaseAgent {
     await this.emit(
       'log',
       noPublicSite
-        ? '✓ No public website — recon will use intake brief and form data only'
-        : `✓ Crawled ${crawledPageCount} pages`
+        ? ev.logNoPublicSite
+        : interpolatePipelineEventMessage(ev.logAfterCrawl, { count: crawledPageCount }),
     );
 
     if (!noPublicSite && crawledPageCount === 0) {
-      const msg = 'Recon crawled 0 pages — site may be unreachable or blocking crawlers';
+      const msg = ev.phaseErrorZeroPages;
       await this.emit('phase-error', msg, { phase: 'recon', fatal: true, timestamp: new Date().toISOString() });
       throw new Error(msg);
     }
 
     // Step 2: Assemble context
-    await this.emit('assembling_context', 'Preparing analysis context...');
+    await this.emit('assembling_context', ev.assemblingContext);
     const context = await this.contextBuilder.build(
       this.auditId, 'recon', { crawler: crawlResult.data }, this.instructions
     );
 
     // Step 3: Claude call
-    await this.emit('analyzing', 'Analyzing company profile...');
+    await this.emit('analyzing', ev.analyzing);
     const budget = await this.tokenTracker.checkBudget(this.auditId);
     if (!budget.within_budget) throw new Error('Token budget exceeded');
     if (budget.remaining < MIN_TOKEN_RESERVE) {
       throw new Error(`Insufficient token reserve: ${budget.remaining} remaining, need at least ${MIN_TOKEN_RESERVE}`);
     }
     if (budget.is_approaching_limit) {
-      await this.emit('warning', `Token budget at ${Math.round((budget.tokens_used / budget.token_budget) * 100)}% — ${budget.remaining} tokens remaining`);
+      await this.emit(
+        'warning',
+        interpolatePipelineEventMessage(ev.tokenBudgetWarning, {
+          pct: Math.round((budget.tokens_used / budget.token_budget) * 100),
+          remaining: budget.remaining,
+        }),
+      );
     }
 
     const reconResult = await this.callClaudeWithRetry(context, ReconOutputSchema, MODEL_MAX_TOKENS.recon) as unknown as import('zod').infer<typeof ReconOutputSchema>;
@@ -95,7 +106,7 @@ export class ReconAgent extends BaseAgent {
       current_phase: 0,
     }).eq('id', this.auditId);
 
-    await this.emit('completed', 'Reconnaissance complete', {
+    await this.emit('completed', ev.completed, {
       company_name: reconResult.company_name,
       industry: reconResult.industry,
       pages_crawled: (crawlResult.data.pages_crawled as unknown[])?.length ?? 0,
