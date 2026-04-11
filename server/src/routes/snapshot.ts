@@ -358,7 +358,7 @@ snapshotRouter.post('/claim', requireAuth, async (req: AuthRequest, res) => {
       auditId: updated.id as string,
       title: 'Snapshot claimed',
       message: 'A public snapshot was linked to a registered account.',
-      route: `/audit/${updated.id as string}`,
+      route: `/audit/${updated.id as string}?brief=1`,
       payload: {
         audit_id: updated.id,
         claimed_by_user_id: userId,

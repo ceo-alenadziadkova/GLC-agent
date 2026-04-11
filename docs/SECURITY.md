@@ -22,8 +22,12 @@ The core data isolation mechanism. **All application tables** use RLS; policies 
 
 Recent hardening:
 
-- `audits_select_own_client` no longer grants blanket read for `product_mode = 'free_snapshot'` (migration `038_fix_rls_snapshot.sql`).
-- Backend-only operational tables now run with explicit deny-by-default RLS (`intake_tokens`, `snapshot_guest_sessions`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `intake_analytics_events`, plus queue state tables `phase_runs` and `job_runs`) via migration `039_pipeline_runs_and_rls_hardening.sql`.
+- **`audits`** client read is scoped by **`audits_select_scoped`** (single **`SELECT`** policy: `user_id` or `client_id` match); it does not grant blanket read for `product_mode = 'free_snapshot'` (behavior from **`038_fix_rls_snapshot.sql`**, policy names consolidated in **`044_rls_merge_permissive_select.sql`**). Other core audit child tables follow the same **`*_select_scoped` / `*_consultant`** split — see **`044_rls_merge_permissive_select.sql`** and [DATABASE.md](./DATABASE.md#row-level-security).
+- Migration **`039_pipeline_runs_and_rls_hardening.sql`**: deny-by-default RLS on operational tables (`intake_tokens`, `snapshot_guest_sessions`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `intake_analytics_events`, `phase_runs`, `job_runs`).
+- Migration **`043_db_hardening_rls_views_functions.sql`**: same explicit **deny-all** pattern for `api_idempotency_keys`, `discovery_sessions`, `marketing_brief_submissions`, `platform_settings`, `snapshot_fresh_lease`; **`security_invoker`** on intake analytics views; fixed **`search_path`** on selected functions; RLS **`(select auth.uid())`** pattern for advisor lint **0003**.
+- Migration **`045_query_performance_indexes.sql`**: targeted indexes for hot PostgREST-style queries (see **Supabase Database Advisor and migrations `043`–`045`** in [DATABASE.md](./DATABASE.md)).
+
+**Auth:** Supabase **“Prevent use of leaked passwords”** (Have I Been Pwned) is **limited to Pro plans and above** on hosted Supabase; on Free, strengthen **minimum length** / **password requirements** instead ([password security](https://supabase.com/docs/guides/auth/password-security)).
 
 **Backend uses service role key** — bypasses RLS intentionally. The backend enforces ownership at the application layer:
 

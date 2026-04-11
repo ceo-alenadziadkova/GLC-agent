@@ -159,7 +159,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 **Owner:** Full-stack / DevOps (TBD)
 
-**Status:** Documented; align RLS narrative with latest migrations via [DATABASE.md](./DATABASE.md)
+**Status:** Documented; RLS / advisor notes for migrations **`043`–`045`** live in [DATABASE.md](./DATABASE.md)
 
 ---
 

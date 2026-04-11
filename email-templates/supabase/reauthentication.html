@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<!--
+  Supabase: Dashboard "Reauthentication" / config [auth.email.template.reauthentication]
+  Purpose: step-up verification before a sensitive action (6-digit OTP per Supabase).
+  https://supabase.com/docs/guides/local-development/customizing-email-templates
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reauthentication</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background-color:#F4F4F4;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#F4F4F4;">
+    <tr>
+      <td align="center" style="padding:24px 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;background-color:#FFFFFF;border:1px solid #E5E5E5;">
+          <tr>
+            <td align="center" style="padding:28px 24px 8px;font-family:'JetBrains Mono',Consolas,monospace;font-size:56px;font-weight:600;color:#F8F8F8;line-height:1;letter-spacing:-0.05em;">LOCK</td>
+          </tr>
+          <tr>
+            <td style="border-bottom:1px solid #E5E5E5;padding:20px 32px 28px;font-family:'JetBrains Mono',Consolas,monospace;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#000000;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td style="font-weight:600;">GLC // REAUTHENTICATION</td>
+                  <td align="right" style="color:#666666;">STEP_UP</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 32px 40px;font-family:'Inter',Arial,Helvetica,sans-serif;">
+              <p style="margin:0 0 8px;font-family:'JetBrains Mono',Consolas,monospace;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#666666;">SUBJECT: RE-AUTHENTICATE // GLC</p>
+              <h1 style="margin:0 0 24px;font-size:36px;line-height:0.95;font-weight:600;letter-spacing:-0.05em;color:#000000;text-transform:uppercase;">Sensitive<br>Action.</h1>
+              <p style="margin:0 0 28px;font-size:15px;line-height:1.6;color:#666666;font-weight:400;">You are re-authenticating before a sensitive action in GLC. Enter this code where the app prompts you. Account: <span style="font-family:'JetBrains Mono',Consolas,monospace;color:#000000;">{{ .Email }}</span></p>
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 28px;">
+                <tr>
+                  <td style="border:1px solid #E5E5E5;padding:32px 24px;background-color:#FAFAFA;text-align:center;">
+                    <p style="margin:0 0 16px;font-family:'JetBrains Mono',Consolas,monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#666666;">One-time code</p>
+                    <p style="margin:0;font-family:'JetBrains Mono',Consolas,monospace;font-size:40px;letter-spacing:0.25em;color:#000000;font-weight:500;">{{ .Token }}</p>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0;font-family:'JetBrains Mono',Consolas,monospace;font-size:10px;color:#999999;line-height:1.5;">If you did not attempt a sensitive action, reset your password and contact support.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

@@ -21,7 +21,8 @@
 4. Authentication → Providers:
    - Enable **Email** and **email + password** sign-in; disable passwordless / magic-link email if you want the dashboard to match app-only password + Google flows
    - Enable **Google** → enter Client ID + Client Secret from Google Cloud Console
-5. Note down from Project Settings → API:
+5. Optional: **Authentication → Email Templates** — paste branded bodies from repo **`email-templates/supabase/`**; see [AUTH.md](./AUTH.md#email-templates-supabase) and [`email-templates/README.md`](../email-templates/README.md).
+6. Note down from Project Settings → API:
    - `SUPABASE_URL` (format: `https://xxxx.supabase.co`)
    - `anon public` key → frontend `VITE_SUPABASE_ANON_KEY`
    - `service_role secret` key → backend `SUPABASE_SERVICE_KEY` (keep secret, never expose)
