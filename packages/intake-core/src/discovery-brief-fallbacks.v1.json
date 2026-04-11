@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "a5NoWebsiteYet": {
+    "matchPattern": "no website yet",
+    "fallbackOption": "No website yet"
+  },
+  "c3AnalyticsNotOnSite": {
+    "equalsNormalized": "no",
+    "fallbackOption": "No"
+  },
+  "cNosite1LegacyFirstPartyWebLabels": [
+    "Full website (multi-page)",
+    "Single landing page",
+    "Website in development / not public yet"
+  ]
+}
