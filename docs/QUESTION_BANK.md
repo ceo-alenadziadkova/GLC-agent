@@ -44,11 +44,17 @@
 | **Discovery** (Mode C, нет сайта)     | Клиент + Alena   | policy-driven subset (wizard обычно 11 шагов) | Понимание бизнеса → конвертация в full |
 
 
-В приложении режим **«All sections»** (классическая форма) и **пошаговый wizard** используют **один и тот же** набор видимых id банка (`filterVisibleQuestions` по текущим ответам); отличается только подача — все секции сразу или один вопрос на шаг. Канонические id ответов — **question-bank v1** (плюс identity; revenue перенесён в bank id `a10`, legacy alias `revenue_model` поддерживается для совместимости). **Готовность к старту пайплайна** (full vs express, pre-brief submit): `packages/intake-core/src/brief-gates.ts` — `resolveFullSlaRequiredIds` / `resolveExpressSlaRequiredIds`; на фронте зеркало — `pipelineRequiredIdsForProductMode` ([FRONTEND.md](./FRONTEND.md)). См. `getVisibleBankBriefSections` / `BankClassicBriefFields`.
+В приложении режим **«All sections»** (классическая форма) и **пошаговый wizard** используют **один и тот же** набор видимых id банка (`filterVisibleQuestions` по текущим ответам); отличается только подача — все секции сразу или один вопрос на шаг. Канонические id ответов — **question-bank v1** (плюс identity; revenue — bank id **`a10`**). **Готовность к старту пайплайна** (full vs express, pre-brief submit): `packages/intake-core/src/brief-gates.ts` — `resolveFullSlaRequiredIds` / `resolveExpressSlaRequiredIds`; на фронте зеркало — `pipelineRequiredIdsForProductMode` ([FRONTEND.md](./FRONTEND.md)). См. `getVisibleBankBriefSections` / `BankClassicBriefFields`.
+
+**Guardrail for legacy removal (semantic parity):**
+
+- **Meaning parity:** новый канонический путь переносит тот же бизнес-сигнал и intent.
+- **Direction parity:** downstream-поведение эквивалентно по результату (visibility / gates / policy / persisted cells).
+- **Coverage proof:** в том же изменении обновлены тесты и docs; если parity не доказан, legacy-ветку сужаем guardrails-ами, а не удаляем вслепую.
 
 **Pre-brief (публичная ссылка) и policy:**
 
-- Узкий список вопросов на экране задаётся `**modes.pre_brief.bankIncluded`** в `intake-policy.v1.json` (плюс identity; **`a10`** входит в `bankIncluded` вместе с express-слотами вроде `f1` / `b1` / `a6` / `c5` / `c3`). Тонкий список id для линта/фронта дублируется в `packages/intake-core/src/pre-brief-bank-included.json` и должен совпадать с policy (тесты в `server/src/tests/intake-brief-policy-sync.test.ts`).
+- Узкий список вопросов на экране задаётся только `**modes.pre_brief.bankIncluded`** в `intake-policy.v1.json` (плюс identity). Текущий набор bank id: **`f1`**, **`f2`**, **`f8`**, **`a7`**, **`b1`**, **`a10`**, **`a6`** (без **`c5`** / **`c3`** — они остаются в express/full intake, но не в публичном pre-brief по ссылке). В коде тот же срез доступен как **`PRE_BRIEF_BANK_INCLUDED_IDS`** из `@glc/intake-core` (см. `server/src/tests/intake-brief-policy-sync.test.ts`).
 - Линт политики: `syntheticRequired` не должен случайно дублировать произвольные bank id; **исключение** — канонический revenue **`a10`** (`ALLOWED_SYNTHETIC_BANK_OVERLAP` в `packages/intake-core/src/core/lint-bank-policy.ts`), чтобы full/discovery могли держать тот же id, что и в банке.
 - В **замороженных** снимках policy поле `bankIncluded` может отсутствовать (legacy): тогда pre-brief eligible шире, чем у текущей policy — сервер подгружает артефакты по сохранённому `**intake_versions`** tuple (`resolveIntakeArtifacts`, реестр в `resolve-intake-artifacts.ts`).
 - Поле `**slaVisibleBankIds**` в `IntakePlan` — это набор bank-stub id, по которому считается **required** для express/full SLA; для `collection_mode === 'pre_brief'` он шире, чем то, что показывается в узком pre-brief UI (см. `buildIntakePlan`).
@@ -61,12 +67,12 @@
 | Public pre-brief (`/intake/:token`) | `server/src/routes/intake.ts` | `buildIntakePlan(... pre_brief, client_form ...)` + `getBriefQuestionsByIds(plan.visible)` | Identity поля всегда добавляются явно |
 | Consultant/client brief (`GET /api/audits/:id/brief`) | `server/src/routes/audits.ts` | `buildIntakePlan(... context ...)` + `getBriefQuestionsByIds(plan.visible)` | Возвращает plan-driven rows вместо полного `BRIEF_QUESTIONS` |
 | Compact schema (`GET /api/audits/:id/brief/schema`) | `packages/intake-core/src/core/build-brief-schema-snapshot.ts` | `plan.visible` + `getQuestionBankSchemaMeta` | Канонический bank-only snapshot для UI/инструментов |
-| Discovery | `GET /api/discover/ui-fragment` + `src/app/lib/discovery-flow.ts` | shared builder + `buildIntakePlan` | Нет параллельного вопросника |
+| Discovery | `GET /api/discover/ui-fragment` + `src/app/lib/discovery-flow.ts` | `buildDiscoveryWizardQuestions()` (`question-bank.v1.json` + `bank-question-ui-overrides.ts`) + `buildIntakePlan` | Порядок id — `PUBLIC_DISCOVERY_WIZARD_BANK_IDS`; тексты/опции не дублируются в TS |
 - **Canon `reportUse` (ADR Phase E):** у **каждого** bank id в `question-bank.v1.json` задан уникальный непустой тег `reportUse` для `derivedFacts.reportAnchors` и промпта `intake_report_anchors` (`getQuestionBankReportUse`). Линтер `lintCanonQuestionMetadataKeys` в `lint-bank-policy.ts` запрещает пропуски и дубликаты тегов. Примеры имён: `recon_company_summary`, `mkt_acquisition_channels`, `seo_analytics_tool`, `strategy_pain_anchor`.
 - **Canon `answer` (ADR — answer contract):** у **каждого** bank id задан объект `**answer`** (`type`: `text` | `textarea` | `single_select` | `multi_select` | `scale` | `boolean`, опционально `maxLength`, `options` или `optionsRef` в корневой `**optionCatalogs**`). Генерация из UI-оверрайдов: `pnpm embed-question-bank-answers` в `server/` (`scripts/embed-question-bank-answers.ts`). API: `getQuestionBankAnswerContract`, `expandAnswerContractForApi` в `packages/intake-core/src/question-bank.ts`; снимок `GET .../brief/schema` включает `answer` по видимым id. Замороженный банк **1.0.0** без `answer`: `packages/intake-core/src/artifacts/question-bank-1.0.0.json` (tuple в `resolve-intake-artifacts.ts`).
-- **Ветки (ADR Phase C / C2):** `packages/intake-core/src/core/branch-condition-deps.ts` — ключи ответов на правило, топо-порядок оценки, `**QUESTION_BANK_V1_STUB_EVAL_ORDER`** для live v1 stubs; `**listBankStubIdsInvalidatedByResponseKeys**` — обратный индекс ключ → bank id (подготовка к частичному пересчёту). Кэш предикатов в `evaluateCanonEligibility`. Public Discovery: `DISCOVERY_WIZARD_BANK_IDS` в `discovery-flow.ts` + тест ⊆ policy discovery.
-- **Legacy brief UI (ADR Phase A):** списки вопросов для классической формы / public intake берутся в SPA из `**server/src/schemas/intake-brief-questions.ts`** (`BRIEF_QUESTIONS`, `INTAKE_IDENTITY_BRIEF_QUESTIONS`); `server/src/schemas/intake-brief.ts` реэкспортирует эти определения и добавляет Zod-валидацию ответов. Фронт: `src/app/data/briefQuestions.ts` только типизирует вид и добавляет хелперы. Пошаговый bank-wizard из `bankQuestionUiCatalog.ts` + `question-bank.v1.json`; **public Discovery** загружает тексты и опции через `**GET /api/discover/ui-fragment`** (источник: `packages/intake-core/src/discovery-ui-fragment.ts` + `**getBankQuestionUiOptions**` из `bank-question-ui-overrides.ts` для **a2, d1, c_nosite_1, c_nosite_4**). Анти-drift: `src/app/data/brief-spa-parity.test.ts`, `src/app/data/bank-question-ui-catalog-parity.test.ts`. Полная сводка A–G: [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) § «Implementation coverage matrix».
-- `**PRE_BRIEF_REQUIRED_SUBMIT_IDS`** в `server/src/schemas/intake-brief-questions.ts` — это **та же express-база**, что и `EXPRESS_REQUIRED_ALWAYS_IDS` + `EXPRESS_REQUIRED_IF_VISIBLE_IDS` из policy (`packages/intake-core/src/express-policy-ids.ts`). Фактический submit (публичный `POST .../respond` и слоты в `brief-validator`) использует `**resolveExpressSlaRequiredIds`** с учётом веток и tuple — не «ручной» список приоритетов из банка.
+- **Ветки (ADR Phase C / C2):** `packages/intake-core/src/core/branch-condition-deps.ts` — ключи ответов на правило, топо-порядок оценки, `**QUESTION_BANK_V1_STUB_EVAL_ORDER`** для live v1 stubs; `**listBankStubIdsInvalidatedByResponseKeys**` — обратный индекс ключ → bank id (подготовка к частичному пересчёту). Кэш предикатов в `evaluateCanonEligibility`. Public Discovery: канонический порядок шагов — **`PUBLIC_DISCOVERY_WIZARD_BANK_IDS`** в `packages/intake-core/src/discovery-wizard-questions.ts`; SPA деривация **`DISCOVERY_WIZARD_BANK_IDS`** в `discovery-flow.ts` совпадает с `buildPublicDiscoveryUiFragment()`; тест ⊆ policy — `server/src/tests/discovery-policy-sync.test.ts`.
+- **Classic consultant brief UI (ADR Phase A):** каталог для классической формы собирается в **`@glc/intake-core`** (`intake-brief-catalog-meta.ts` из **`intake-policy.v1.json`** → **`modes.classic_brief`** + банк); в приложении — реэкспорт через **`server/src/schemas/intake-brief-questions.ts`** (`BRIEF_QUESTIONS`, `INTAKE_IDENTITY_BRIEF_QUESTIONS`). Тексты/типы/опции для каждой строки **`modes.classic_brief.main`** — через **`buildBriefQuestionStemFromBankId(bankId)`**; **ключ ответа в `responses` = bank id** (например `f1`, `b1`, `c5`). Исключение — уточнение для отрасли «Other»: **`intake_industry_specify`** (см. `choiceSpecifyResponseKey('a2')`). **`prepareBriefForValidation`** применяет **answer contract** только по ключу bank id. `server/src/schemas/intake-brief.ts` реэкспортирует определения и добавляет Zod. Фронт: `src/app/data/briefQuestions.ts` — типы и хелперы. **public Discovery** — `GET /api/discover/ui-fragment`. Анти-drift: `src/app/data/brief-spa-parity.test.ts`, `src/app/data/bank-question-ui-catalog-parity.test.ts`. Полная сводка A–G: [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) § «Implementation coverage matrix».
+- `**PRE_BRIEF_REQUIRED_SUBMIT_IDS`** — это **`requiredAlways`** + **`requiredIfVisible`**, пересечённые с **`modes.pre_brief.bankIncluded`** (см. `intake-brief-catalog-meta.ts`). Публичный submit и прогресс `/intake/:token` используют **`resolvePreBriefSubmitExpressBankIds`** (ветки + tuple), чтобы слоты не требовали полей вне pre-brief UI.
 
 ### 2.2. Секции (клиент видит)
 
@@ -95,7 +101,7 @@
 | `has_website`                                 | "Do you have a website?"                    | Нет → секция C переключается на light mode, site-questions скрыты                                                                         |
 | `industry`                                    | "Which industry?"                           | Появляются 2-4 отраслевых вопроса в секциях B, C, D                                                                                       |
 | `team_size`                                   | "How big is your team?"                     | Solo → процессные вопросы упрощаются; 50+ → появляются вопросы о документации                                                             |
-| `has_crm`                                     | Ответ в tools_daily                         | Да → "Какой CRM?"; Нет → "Как отслеживаете клиентов?"                                                                                     |
+| `has_crm`                                     | Мультивыбор **`d1`** (инструменты/стек) + нормализация CRM-сигнала | Да → показывается **`d1a`** (какой CRM); Нет → **`d1b`** (как отслеживаете клиентов) — см. `branch-rules` / `includesCrmTool` в discover |
 | `handles_payments` / `a6`                     | Ранний ответ в секции A (или уточнение в E) | Да → раньше включаем PCI/GDPR-контекст и полный блок E; Нет → E остаётся видимым для EU/GDPR, детали про платежи можно сжать              |
 | `website_maturity` *(сигнал, не predicate)*   | `c9` (возраст сайта)                        | Попадает в **context slice** tech/strategy через §5; **не** ключ в `BRANCH_RULES` — видимость вопросов не переключается отдельным gate    |
 | `automation_attempt` *(сигнал, не predicate)* | `d_automation_attempt`                      | Ответ уходит в **automation_processes** (§5); в `question-bank.v1.json` у вопроса **нет** `branch` — это не условие `evalBranchCondition` |
@@ -171,9 +177,9 @@
 | `a9` | What languages do your customers communicate in? | multi | Optional | 2, disc | marketing_utp (P), automation_processes (P) | — |
 | | Options: Spanish / English / German / French / Russian / Other | | | | | |
 | | *Helper:* «Helps us evaluate your content reach, multilingual SEO opportunities, and whether automation tools (chatbots, email flows) need to support multiple languages.» | | | | | |
-| `a10` | How does your business mainly make money? | multi | Required | 1, pre | recon (P), strategy (P); marketing_utp (S), ux_conversion (S) | — |
-| | Options: One-time services (projects, consulting) / Recurring services (retainers) / Product sales (online or offline) / Subscription or membership / Commission or marketplace fees / Lead generation or referrals / Ads or sponsorships / Other → text | | | | | |
-| | *Helper:* «Choose the closest pattern. If you are not sure, select the one that brings the largest share of revenue today.» | | | | | |
+| `a10` | Which monetization model best describes your business? | multi | Required | 1, pre | marketing_utp (P), recon (P); strategy (S) | — |
+| | Options (канон `question-bank.v1.json`): One-time services (projects, consulting) / Recurring services (retainers) / Product sales (online or offline) / Subscription / membership / Commission or marketplace fees / Lead generation / referrals / Ads / sponsorships / Other | | | | | |
+| | *UI hint (`bank-question-ui-overrides`):* core monetization (not repeat vs one-off); select up to **2** options that represent most revenue today. | | | | | |
 
 **10 вопросов в универсальном ядре A (8 в Layer 1 / pre+disc, `a8` и `a9` — Layer 2). ~5–6 минут с учётом Layer 2. Gate: industry, team_size, has_website, handles_payments, business_stage.**
 
@@ -188,9 +194,9 @@
 | `b1` | Who is your ideal customer? | textarea | Required | 1, pre | ux_conversion (P), marketing_utp (P) | — |
 | | *Helper:* «Think about **who you create the most value for today**: who they are, where they come from, and what problem or job they solve with you.» | | | | | |
 | | *Example: "European couples aged 30–55 looking for an authentic boutique experience"* | | | | | |
-| `b2` | How do most of your new customers find you? | multi | Required | 1, disc | marketing_utp (P), seo_digital (P); strategy (S), automation_processes (S) | — |
-| | Options: Google / Social media / OTA/marketplace (Booking, Airbnb, Idealista…) / Word of mouth / Paid ads / Email / Partnerships / Offline (walk-ins, events) / Other → text | | | | | |
-| | *Framing (acquisition pain):* подсказка микротекста — «Where growth feels stuck or expensive helps us judge positioning vs. channels.» | | | | | |
+| `b2` | How new customers find you | multi | Required | 1, disc | marketing_utp (P), seo_digital (P); strategy (S), automation_processes (S) | — |
+| | Options (канон): Google / search / Paid ads / Social / Referrals / Cold outreach / Events / Partners / Other | | | | | |
+| | *UI hint:* how customers first discover you — word of mouth, platforms, ads, events. | | | | | |
 | `b3` | What is the **main promise or value** for your best customers compared to competitors? | select | Required | 1, pre | marketing_utp (P) | — |
 | | *Helper (b3):* в UI — короткие паттерны (price, speed/service, unique experience/location, trust/expertise). Клиент выбирает паттерн и при необходимости добавляет уточнение через `b3__other`. Язык **ценности для клиента**, не «нас отличает цена». | | | | | |
 | | *Example: "Historic building with a rooftop restaurant and best-price guarantee"* | | | | | |
@@ -206,6 +212,8 @@
 | `b7` | Is your revenue mostly **repeat / recurring customers**, or **mostly one-off** transactions? | select | Recommended | 2 | marketing_utp (P), ux_conversion (P), strategy (P) | — |
 | | Options: Mostly repeat customers / Mix of repeat and one-off / Mostly one-off transactions / Not sure | | | | | |
 | | *Зачем:* retention-воронка, LTV и автоматизация (напоминания, CRM, подписки) принципиально отличаются от чистого acquisition; без этого агенты ошибают приоритет. | | | | | |
+| `b_growth_attempts` | Growth attempts (past 1–2 years) | multi | Recommended | 2 | marketing_utp (P), strategy (P) | — |
+| | Options (канон): Paid ads (Google, Meta) / Marketing agency or freelancer / More social media content / New platforms or directories / Improved the service itself / Nothing specific yet / Other | | | | | |
 
 **Отраслевые вопросы (появляются по `industry`):**
 
@@ -288,14 +296,19 @@
 | ID | Question | Input | Priority | Layer | Agent feeds (P / S) | Branch |
 |----|----------|-------|----------|-------|-------|--------|
 | `d1` | Which tools does your team use every day? | multi | Required | 1, disc | automation_processes (P), tech_infrastructure (P); strategy (S), seo_digital (S) | — |
-| | Options: WhatsApp / Email (Gmail, Outlook) / Google Sheets or Excel / CRM (→ branch d1a) / Accounting software / Project management tool / Industry-specific software (PMS, POS, etc.) / Nothing specific | | | | | |
+| | Options (канон `question-bank.v1.json`): Email / Spreadsheets / CRM (→ d1a) / Project or task tool / Booking or PMS / Accounting / Support ticketing / Voice notes or WhatsApp audio / Other | | | | | |
 | `d1a` | Which CRM do you use? | select | Recommended | 2 | automation_processes (P) | d1 includes "CRM" |
 | | Options: HubSpot / Pipedrive / Salesforce / Zoho / Monday / Notion / Other → text | | | | | |
 | `d1b` | How do you keep track of clients and leads? | select | Recommended | 2 | automation_processes (P) | d1 does NOT include "CRM" |
 | | Options: Spreadsheet / Email inbox / Notebook / WhatsApp chats / I don't really track consistently / Other → text | | | | | |
-| `d2` | What is the **single manual task** that consumes the most time for you or your team? | textarea | Required | 1, disc | automation_processes (P); ux_conversion (S), marketing_utp (S) | — |
-| | *Helper (value framing):* «Think about work that **doesn’t create direct value for customers** but still eats hours every week.» | | | | | |
-| | *Examples:* «Copying inquiries from WhatsApp or email into a spreadsheet», «Manually issuing invoices», «Answering the same questions every day across chat and social media», «Re-typing bookings into another system». | | | | | |
+| `d_response_time` | Response speed to new inquiries | select | Recommended | 2 | automation_processes (P), ux_conversion (P) | — |
+| | Options (канон): Within minutes — I'm always on / Within a few hours / Same day / Next day or later / It depends — sometimes fast, sometimes slow | | | | | |
+| `d_closing_flow` | Steps between first contact and payment | multi | Recommended | 2 | automation_processes (P), ux_conversion (P) | — |
+| | Options (канон): I send a quote or price manually / We have a call or meeting first / They visit in person / I send them to a booking platform / They pay immediately on first contact / It varies a lot / Other | | | | | |
+| `d_billing_flow` | How quotes and invoices are sent | select | Recommended | 2 | automation_processes (P), security_compliance (P) | — |
+| | Options (канон): WhatsApp message or voice note / Email with a document attached / In person or printed / Accounting software (Holded, Factusol…) / Booking platform handles it / We don't send formal confirmations / Other | | | | | |
+| `d2` | Biggest manual time sink (single bottleneck bucket) | select | Required | 1, disc | automation_processes (P); ux_conversion (S), marketing_utp (S) | — |
+| | Options: Following up with leads and prospects / Scheduling and confirming appointments / Creating and sending quotes or invoices / Reporting and tracking what is working / Onboarding new clients / Managing team tasks and handoffs / Something else → specify (`d2__other`) | | | | | |
 | `d_automation_attempt` | Have you already tried to automate or streamline that work (tool, Zapier/Make, freelancer, agency)? | select | Recommended | 1, disc | automation_processes (P) | — |
 | | Options: Yes, it helped / Tried, then abandoned / Not yet / Not sure | | | | | |
 | `d3` | Roughly how many hours per week does your team spend on repetitive manual tasks? | select | Recommended | 2 | automation_processes (P) | — |
@@ -519,14 +532,14 @@ This means Discovery no longer has a separate semantic question model; it is a p
 
 | Agent                    | Questions used (IDs)                                                                                                                                                                                                                                                |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **recon**                | a1, a2, a3, a4, a5, a6, a7 (+ auto-crawl)                                                                                                                                                                                                                           |
+| **recon**                | a1, a2, a3, a4, a5, a6, a7, **a10** (+ auto-crawl)                                                                                                                                                                                                                  |
 | **tech_infrastructure**  | a5, c9, c1, c2, c6, d1 (tools → tech signals), d_hotel_1, d_restaurant_1                                                                                                                                                                                            |
 | **security_compliance**  | a6 (gate), e1, e2, e3, e4, **d_billing_flow** (Verifactu signal)                                                                                                                                                                                                    |
 | **seo_digital**          | c3, c4, c7, c_nosite_1, c_nosite_2, c_nosite_3, **c_nosite_5** (Google Business), **c_nosite_reviews** (reputation), b2 (traffic sources)                                                                                                                           |
 | **ux_conversion**        | b1 (ideal customer), b6 (guarantees), b7 (repeat vs one-off), c5 (main action), c6 (frustrations), b_services_1, b_health_1, **d_response_time**, **d_closing_flow**                                                                                                |
-| **marketing_utp**        | **a9** (customer languages), b1, b2, b3, b4, b5, b6, b7, **b_growth_attempts**, c7, c8 (competitors), **c_nosite_4**, **c_nosite_5**, **c_nosite_reviews**, b_hotel_1, b_hotel_2, b_realestate_1, b_marine_1                                                        |
+| **marketing_utp**        | **a9** (customer languages), **a10**, b1, b2, b3, b4, b5, b6, b7, **b_growth_attempts**, c7, c8 (competitors), **c_nosite_4**, **c_nosite_5**, **c_nosite_reviews**, b_hotel_1, b_hotel_2, b_realestate_1, b_marine_1                                              |
 | **automation_processes** | **a9**, d1, d1a/d1b, **d_response_time**, **d_closing_flow**, **d_billing_flow**, d2, d_automation_attempt, d3, d4, d4a, d4b, **d6** (data types), d5, **a8** (monthly volume), f7 (approver), **c_nosite_4**, d_hotel_1, d_hotel_2, d_realestate_1, d_restaurant_1 |
-| **strategy**             | f1, f2, f3, f4, f5, f6, f7, f8 (urgency), f9 (additional context), a4, a7, **a8** (scale), b4, b5, b7, **b_growth_attempts**, d4a, d4b, **d6**                                                                                                                       |
+| **strategy**             | f1, f2, f3, f4, f5, f6, f7, f8 (urgency), f9 (additional context), a4, a7, **a8** (scale), **a10** (S), b4, b5, b7, **b_growth_attempts**, d4a, d4b, **d6**                                                                                                            |
 
 
 **Правило:** агент получает только свои вопросы (context slicing), не весь бриф. Цепочка в коде: `QUESTION_FEED_ROLES` → `DOMAIN_TO_QUESTIONS_RAW` (реэкспорт в `domain-slice-data.ts`) → `DOMAIN_TO_QUESTION_IDS` в `question-bank.ts`.
@@ -547,7 +560,7 @@ This means Discovery no longer has a separate semantic question model; it is a p
 | `nosite_social`                                                                                  | `no_website` и в `c_nosite_1` выбран пункт **Social media** (точное совпадение строки)                  |
 | `is_hospitality`, `is_real_estate`, `is_restaurant`, `is_services`, `is_healthcare`, `is_marine` | Отраслевые ветки (ярлык индустрии мапится из dropdown через `INDUSTRY_LABEL_TO_BRANCH_SLUG`)            |
 | `has_crm` / `no_crm`                                                                             | Наличие CRM в мультивыборе `d1` (в т.ч. нормализованные / синтетические значения после парсинга ответа) |
-| `handles_payments`                                                                               | Нормализованный `a6`: yes / sometimes / rarely                                                          |
+| `handles_payments`                                                                               | Предикат читает нормализованный **`a6`** (`normalizePayments`): сначала ячейка **`a6`**, иначе legacy **`handles_payments`**; старые формулировки classic brief (карта на сайте / hosted checkout / «no payments») сводятся к **yes / sometimes / no** и согласуются с веткой |
 | `not_solo`                                                                                       | Команда ≠ solo (`a4`)                                                                                   |
 | `spain_based`                                                                                    | Локация (`a3`)                                                                                          |
 
@@ -605,7 +618,7 @@ Normalization of intake answers is centralized in `packages/intake-core/src/answ
 | `governance` | `f7` = ясный ответ (не "Not sure") | +17 |
 | `automationAttempt` | `normalizeAutomationAttempt(d_automation_attempt) = helped` | +10 |
 | `d4aBonus` | `normalizeD4aAiUsage(d4a)` = `daily` / `weekly_or_occasional` | +8 |
-| `d2Bonus` | `d2` ≥ 20 символов (артикулирована боль) | +5 |
+| `d2Bonus` | `d2`: длинный текст (legacy) **или** выбран конкретный bucket (не «Something else») | +5 |
 | `scaleBonus` | `isA8KnownScale(a8)` | +5 |
 | `scaleBonus` | `d6` ≥ 3 типа данных | +5 |
 | `scaleBonus` | `a5` = no\_website / under\_construction | +5 (greenfield — см. ниже) |
@@ -640,7 +653,7 @@ Normalization of intake answers is centralized in `packages/intake-core/src/answ
 *После переноса `d4c` → `f7` в D на один id меньше (`f7` считается в F), но операционный блок всё ещё плотный — см. заметку перегрузки в Section D.*
 
 Из-за branching типичный клиент видит существенно меньше, чем полный банк.
-Pre-brief: **9** (`modes.pre_brief.bankIncluded`). Quick Intake: **~18–21** (зависит от веток и сайта). Deep Intake: +12–22. Discovery (Mode C): policy-level subset — `intake-policy.v1.json` → `modes.discovery.included` (**50 ids** на текущей версии policy), тогда как публичный discovery wizard intentionally показывает компактный runtime-набор (сейчас 11 шагов из `buildPublicDiscoveryUiFragment`).
+Pre-brief: **7** bank id в `modes.pre_brief.bankIncluded` (плюс identity). Quick Intake: **~18–21** (зависит от веток и сайта). Deep Intake: +12–22. Discovery (Mode C): policy-level subset — `intake-policy.v1.json` → `modes.discovery.included` (**50 ids** на текущей версии policy), тогда как публичный discovery wizard intentionally показывает компактный runtime-набор (сейчас 11 шагов из `buildPublicDiscoveryUiFragment`).
 
 ---
 
@@ -760,6 +773,7 @@ interface IntakeBrief {
 | `has_privacy_policy` | Убран из вопросов             | Recon сам проверит наличие; это задача Security Agent             |
 | `email_automation`   | Стал d5 (проще)               | Был слишком технический; теперь select с human-friendly опциями   |
 
+**Classic intake — те же опции, прежние ключи в `responses`:** в классической форме для платежей, бюджета и email-автоматизации в JSON по-прежнему пишутся **`handles_payments`**, **`budget_for_changes`**, **`email_automation`**, а тексты и option set совпадают с банком **`a6`**, **`f5`**, **`d5`** (`classicBankBriefRow` + `responseId`). При конвертации Discovery в бриф, если задан только **`a6`**, патч дублирует значение в **`handles_payments`**, чтобы ячейка classic ключа не оставалась пустой.
 
 **Добавлено:** отраслевые вопросы (10+), value-first формулировки целей (**f1–f2**, **b3**, helpers), стадия бизнеса (**a7**), ранний платёжный gate (**a6**), масштаб без финансовой детали (**a8**), типы данных (**d6**), руководство по тону (**§2.4**), self-rating (f3), frustrations (c6), guarantees (b6), no-site path, branching по CRM.
 

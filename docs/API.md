@@ -288,7 +288,7 @@ Records `brief_help_requested_at` / `brief_help_client_message` on the audit and
 - **`questions`** — rows `{ id, label, section, priority, answer? }` for each **`visible`** bank id; **`answer`** is the canon contract from `question-bank.v1.json` (`type`, `maxLength`, `options`, etc.). Any `optionsRef` is expanded to inline `options` for clients.  
 - **`derived`** — `{ ai_readiness_score, confidence_overall, website_gate }` (same heuristics as `IntakePlan` derived layer)
 
-Use for tooling, previews, or clients that want a compact **IntakePlan** view. **`GET .../brief` already returns the same plan-driven `questions` shape** (`getBriefQuestionsByIds(plan.visible)` after `buildIntakePlan`); neither endpoint returns the full historical driver list `BRIEF_QUESTIONS` — only **visible** bank ids for the current responses / surface.
+Use for tooling, previews, or clients that want a compact **IntakePlan** view. **`GET .../brief` already returns the same plan-driven `questions` shape** (`getBriefQuestionsByIds(plan.visible)` after `buildIntakePlan`); neither endpoint returns every row of the **classic brief catalog** (export **`BRIEF_QUESTIONS`** in `@glc/intake-core`, built from **`modes.classic_brief.main`** in `intake-policy.v1.json`) — only **plan.visible** ids get question rows for the current responses / surface.
 
 ---
 
@@ -296,7 +296,7 @@ Use for tooling, previews, or clients that want a compact **IntakePlan** view. *
 
 **Auth:** consultant (owner) or client linked to the audit.
 
-**GET `200`:** `{ brief, questions, validation, gates, product_mode, … }` — `brief` includes `responses`, `collection_mode`, `collected_by`, optional **`intake_versions`** (`{ questionBankVersion, policyVersion, layoutVersion, resolverVersion }`), optional **`intake_version_migration`** (see below). **`questions`** is **`getBriefQuestionsByIds(plan.visible)` only** (bank rows from the legacy `BRIEF_QUESTIONS` driver catalog that match visible plan ids — **not** every bank id may have a row; identity fields live in `brief.responses` and are **not** duplicated here). Same `buildIntakePlan` inputs as `GET .../brief/schema` (product mode, collection mode, caller surface, versions). Validation and `gates` are computed for the caller’s surface (consultant vs client), using stored `intake_versions` when it is a **supported** frozen or current tuple; otherwise the server falls back to the **current** engine tuple for validation (legacy rows).
+**GET `200`:** `{ brief, questions, validation, gates, product_mode, … }` — `brief` includes `responses`, `collection_mode`, `collected_by`, optional **`intake_versions`** (`{ questionBankVersion, policyVersion, layoutVersion, resolverVersion }`), optional **`intake_version_migration`** (see below). **`questions`** is **`getBriefQuestionsByIds(plan.visible)` only** — each id is resolved against the **classic brief catalog** (same **`BRIEF_QUESTIONS`** export from `@glc/intake-core`, derived from policy **`modes.classic_brief.main`**). Only ids in **`plan.visible`** appear; **identity** bank stubs from **`identityFieldIds`** show up in **`questions`** only if they are also in **`plan.visible`**. Answer cells live in **`brief.responses`** under **bank ids** (and side keys such as **`…__other`**, **`intake_industry_specify`**). Same `buildIntakePlan` inputs as `GET .../brief/schema` (product mode, collection mode, caller surface, versions). Validation and `gates` are computed for the caller’s surface (consultant vs client), using stored `intake_versions` when it is a **supported** frozen or current tuple; otherwise the server falls back to the **current** engine tuple for validation (legacy rows).
 
 **PUT body:** `{ "responses": { … } }`, optional **`collection_mode`**, optional **`intake_versions`**.
 
@@ -619,7 +619,7 @@ Migration: `011_intake_tokens.sql`. Table `intake_tokens` — operations via ser
 
 - `audit_id` — UUID; if set, responses from `POST .../respond` merge into that audit’s `intake_brief` (consultant must own the audit).
 - `metadata` — JSON object for the client-facing pre-brief page. Common keys:
-  - `company_name`, `company_website`, `industry` — optional pre-fill for the first three pre-brief questions (client can edit before submit). Website: full URL, or client may enter `none` / `no website` if absent. `industry` must match a canonical app dropdown value (same list as New Audit / client request form) or it is ignored for pre-fill.
+  - `company_name`, `company_website`, `industry` — optional pre-fill for **identity bank cells** (client can edit before submit): maps to **`a12`**, **`a11`**, **`a2`** respectively (`applyIntakeMetadataPrefill` in the SPA). Website: full URL, or client may enter `none` / `no website` if absent. `industry` must match a canonical industry option (same catalog as **`a2`** / New Audit) or it is ignored for pre-fill. Optional **`industry_specify`** seeds **`intake_industry_specify`** when **`a2`** is **Other**. **`a5`** (website presence) is part of identity in policy but is **not** set from these metadata keys by default.
   - `message` — header context.
   - `consultant_name` — shown on the success screen (“X has received your answers”).
   - `expected_contact` — timing hint (e.g. `24 hours`, `Friday`, `our Thursday call`); combined with `contact_channel` for the follow-up line. If omitted, the UI defaults to “within 24 hours”.
@@ -650,7 +650,7 @@ Lists intake tokens **you created** where the client has already submitted (`sub
 
 **Response `200`:** `{ "metadata", "questions" (pre-brief subset), "responses", "submitted_at", "expires_at" }`.
 
-The `questions` list matches **authenticated brief**: **identity** first, then **`getBriefQuestionsByIds(plan.visible)`** where `plan` is `buildIntakePlan` with **`collection_mode: pre_brief`**, **`product_mode: full`**, **`surface: client_form`**, on responses after **`mergeLegacyIntakeAliasesRead`** (so legacy **`revenue_model`** still affects visibility; canonical bank id is **`a10`**). This is **not** a static `pre_brief` layer slice of `BRIEF_QUESTIONS`; visibility follows the same resolver as the rest of intake. See [QUESTION_BANK.md](./QUESTION_BANK.md).
+The `questions` list is **`[...INTAKE_IDENTITY_BRIEF_QUESTIONS, ...getBriefQuestionsByIds(plan.visible)]`** (see `buildPreBriefQuestionsForResponses` in `server/src/routes/intake.ts`): **identity** rows are only policy **`identityFieldIds`** as bank stems (**`a5`**, **`a11`**, **`a12`**, **`a2`**); **`intake_industry_specify`** is not a separate row — it is the clarify cell for **`a2`** when **Other** (same as classic **`BriefField`** specify). Then **pre-brief bank** rows from **`getBriefQuestionsByIds(plan.visible)`** where `plan` is `buildIntakePlan` with **`collection_mode: pre_brief`**, **`product_mode: full`**, **`surface: client_form`**, on the stored **`responses`** map (revenue uses canonical bank id **`a10`**). This is **not** “dump every **`BRIEF_QUESTIONS`** row”; **`plan.visible`** follows the same resolver as the rest of intake. See [QUESTION_BANK.md](./QUESTION_BANK.md).
 For `a10`, clients receive business-friendly preset options (services, product sales, subscriptions, marketplace/commission, lead generation, ads) plus `Other`, and the selected value may include `a10__other` clarification.
 For `f1`, clients receive popular business pain presets plus `Other`; when `Other` is selected, `f1__other` may carry the clarification text.
 In `express` UX, `f2` still displays all focus areas for transparency, but `Marketing and positioning` and `Process automation and efficiency` are intentionally locked (non-selectable with explanatory copy) because express deep analysis is limited to Tech/Security/SEO/UX.
@@ -663,7 +663,28 @@ Each question object includes optional **`section`** (UI heading: `Business`, `G
 
 **Auth:** none. **Body:** `{ "responses": { ... } }` — same shape as intake brief answers (validated with `BriefResponsesSchema`).
 
-Submit validation requires **identity** plus the **express SLA** bank ids from **`resolveExpressSlaRequiredIds`** (same inputs as full express: visibility / branch / `collection_mode` / current policy). Statically this aligns with **`PRE_BRIEF_REQUIRED_SUBMIT_IDS`** (= express **`requiredAlways` + `requiredIfVisible`** in `intake-policy.v1.json` via `express-policy-ids.ts`). Optional pre-brief-only fields (e.g. **`f2` / `a7` / `f8` / `f9`** when shown) are not part of that SLA unless they are required by the resolver for the client’s answers.
+**Example** (illustrative; express SLA ids depend on visibility — e.g. **`c3`** only when the site branch shows analytics):
+
+```json
+{
+  "responses": {
+    "a11": { "value": "https://example.com", "source": "client" },
+    "a12": { "value": "Example Hotels SL", "source": "client" },
+    "a2": { "value": "Hospitality", "source": "client" },
+    "a5": { "value": "Yes, multi-page site", "source": "client" },
+    "f1": { "value": "Low direct bookings", "source": "client" },
+    "b1": { "value": "Couples 30–55 from EU", "source": "client" },
+    "a10": { "value": ["Recurring services (retainers)"], "source": "client" },
+    "a6": { "value": "Sometimes", "source": "client" },
+    "c5": { "value": "Book", "source": "client" },
+    "c3": { "value": "Yes, GA4", "source": "client" }
+  }
+}
+```
+
+If **`a2`** is **`Other`**, include **`intake_industry_specify`**: `{ "value": "Boutique sailing charters", "source": "client" }`. Select / multi-select **`value`** types must match the bank **`answer`** contract for that id.
+
+Submit validation requires every id in **`INTAKE_IDENTITY_FIELD_IDS`** (same order as policy **`identityFieldIds`**, currently **`a5`**, **`a11`**, **`a12`**, **`a2`**), plus **`intake_industry_specify`** when **`a2`** is **Other**, plus express-SLA bank ids **restricted to the pre-brief bank slice** via **`resolvePreBriefSubmitExpressBankIds`** (same visibility/branch/tuple logic as express, intersected with **`PRE_BRIEF_PARTICIPATION_IDS`**). Statically the maximum bank set matches **`PRE_BRIEF_REQUIRED_SUBMIT_IDS`**. Optional pre-brief-only fields (e.g. **`f2` / `a7` / `f8`**) are not part of that SLA unless included in policy **`bankIncluded`** and marked required by the resolver.
 
 Overwrites stored responses and updates `submitted_at`. Allowed until `expires_at` (no single-submit lock). If the token was created with `audit_id`, merges pre-brief question keys into `intake_brief` with source `client`.
 

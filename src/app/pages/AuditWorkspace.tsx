@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Link, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import {
   HardDrives, Shield, Globe, Cursor, Target, Lightning,
   CaretRight, CheckCircle, Warning, ArrowUpRight, ArrowsClockwise,
@@ -88,6 +88,8 @@ const CONF_BG: Record<ConfidenceLevel, string> = {
 
 export function AuditWorkspace() {
   const { id, domainId } = useParams<{ id: string; domainId?: string }>();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { audit, loading, error, reload } = useAudit(id);
   const [openRec, setOpenRec] = useState<number | null>(null);
   const [enrichOpen, setEnrichOpen] = useState(true);
@@ -103,6 +105,15 @@ export function AuditWorkspace() {
   const [activeDomain, setActiveDomain] = useState<DomainKey>(
     (domainId && DOMAIN_KEYS.includes(domainId as DomainKey)) ? (domainId as DomainKey) : DOMAIN_KEYS[0]
   );
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('brief') !== '1') return;
+    setBriefPanelOpen(true);
+    params.delete('brief');
+    const q = params.toString();
+    void navigate(`${location.pathname}${q ? `?${q}` : ''}`, { replace: true });
+  }, [location.pathname, location.search, navigate]);
 
   const queueFollowupBriefSave = useCallback((
     qid: string,

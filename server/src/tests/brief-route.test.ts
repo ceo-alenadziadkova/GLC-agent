@@ -152,13 +152,12 @@ import { auditsRouter } from '../routes/audits.js';
 import { resolveExpressSlaRequiredIds } from '@glc/intake-core';
 import { buildIntakePlan } from '@glc/intake-core';
 import { currentIntakeVersionTuple } from '@glc/intake-core';
-import { mergeLegacyIntakeAliasesRead } from '@glc/intake-core';
 import {
   resolveIntakeSurfaceForPlan,
   validationPerspectiveForBriefAccess,
 } from '../services/brief-validator.js';
 import { getBriefQuestionsByIds } from '../schemas/intake-brief.js';
-import { makeWebsitePathFullBrief } from './bank-brief-fixtures.js';
+import { makeWebsitePathFullBrief, wrapBriefCellsClient } from './bank-brief-fixtures.js';
 
 let server: Server;
 let baseUrl: string;
@@ -190,7 +189,7 @@ beforeEach(() => {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function makeFullRequired(): Record<string, unknown> {
-  return makeWebsitePathFullBrief();
+  return wrapBriefCellsClient(makeWebsitePathFullBrief());
 }
 
 async function getJSON(path: string, headers = AUTH) {
@@ -261,7 +260,7 @@ describe('GET /api/audits/:id/brief', () => {
     const perspective = validationPerspectiveForBriefAccess(audit.user_id, audit.client_id, 'user-001');
     const surface = resolveIntakeSurfaceForPlan('self_serve', perspective);
     const plan = buildIntakePlan({
-      responses: mergeLegacyIntakeAliasesRead({}),
+      responses: {},
       productMode: 'express',
       collectionMode: 'self_serve',
       surface,
@@ -350,7 +349,7 @@ describe('GET /api/audits/:id/brief', () => {
     const perspective = validationPerspectiveForBriefAccess(audit.user_id, audit.client_id, 'user-001');
     const surface = resolveIntakeSurfaceForPlan('self_serve', perspective);
     const plan = buildIntakePlan({
-      responses: mergeLegacyIntakeAliasesRead({}),
+      responses: {},
       productMode: 'express',
       collectionMode: 'self_serve',
       surface,
@@ -394,7 +393,7 @@ describe('PUT /api/audits/:id/brief', () => {
 
   it('returns sla_met=false when required answers missing', async () => {
     const { body } = await putJSON('/api/audits/audit-001/brief', {
-      responses: { f1: 'grow revenue' },
+      responses: { f1: { value: 'grow revenue', source: 'client' } },
     });
     expect((body.validation as Record<string, unknown>).sla_met).toBe(false);
     expect((body.validation as Record<string, unknown>).missing_required).toBeInstanceOf(Array);
@@ -404,7 +403,7 @@ describe('PUT /api/audits/:id/brief', () => {
   });
 
   it('partial save: only supplied keys are in payload', async () => {
-    const responses = { f1: 'only one answer' };
+    const responses = { f1: { value: 'only one answer', source: 'client' as const } };
     const { status } = await putJSON('/api/audits/audit-001/brief', { responses });
     expect(status).toBe(200);
   });
@@ -423,7 +422,7 @@ describe('PUT /api/audits/:id/brief', () => {
 
   it('returns 400 for Zod violation (string > BRIEF_ANSWER_STRING_MAX chars)', async () => {
     const { status, body } = await putJSON('/api/audits/audit-001/brief', {
-      responses: { f1: 'x'.repeat(12_001) },
+      responses: { f1: { value: 'x'.repeat(12_001), source: 'client' as const } },
     });
     expect(status).toBe(400);
     expect(body.error).toMatch(/Invalid brief responses/);
@@ -471,20 +470,22 @@ describe('PUT /api/audits/:id/brief', () => {
   });
 
   it('number values are accepted for number-type questions', async () => {
-    const responses = { monthly_visitors: 5000 };
+    const responses = { monthly_visitors: { value: 5000, source: 'client' as const } };
     const { status } = await putJSON('/api/audits/audit-001/brief', { responses });
     expect(status).toBe(200);
   });
 
   it('array values are accepted for multi_choice questions', async () => {
-    const responses = { main_traffic_source: ['Organic search (SEO)', 'Social media'] };
+    const responses = {
+      main_traffic_source: { value: ['Google / search', 'Social'], source: 'client' as const },
+    };
     const { status } = await putJSON('/api/audits/audit-001/brief', { responses });
     expect(status).toBe(200);
   });
 
   it('returns 400 UNKNOWN_MODE for invalid collection_mode', async () => {
     const { status, body } = await putJSON('/api/audits/audit-001/brief', {
-      responses: { f1: 'x' },
+      responses: { f1: { value: 'x', source: 'client' as const } },
       collection_mode: 'not_a_mode',
     });
     expect(status).toBe(400);

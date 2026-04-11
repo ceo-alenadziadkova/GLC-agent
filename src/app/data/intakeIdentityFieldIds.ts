@@ -1,4 +1,4 @@
 /**
- * Must match server `INTAKE_IDENTITY_FIELD_IDS` (`server/src/schemas/intake-brief-questions.ts`).
+ * Same as `modes.pre_brief.identityFieldIds` in `intake-policy.v1.json` (via `@glc/intake-core`).
  */
-export { INTAKE_IDENTITY_FIELD_IDS } from '../../../server/src/schemas/intake-brief-questions';
+export { INTAKE_IDENTITY_FIELD_IDS } from '@glc/intake-core';

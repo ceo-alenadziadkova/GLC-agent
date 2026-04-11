@@ -140,6 +140,8 @@ Run all commands from repo root:
 
 GitHub Actions workflow [.github/workflows/test.yml](.github/workflows/test.yml) runs root Vitest, `server/` Vitest, then Playwright smoke on Chromium (`npx playwright install chromium --with-deps` on Ubuntu).
 
+The Playwright job starts the Express API on port `3001` (Vite proxies `/api` there). Configure these **repository secrets** in GitHub (same values as in your local `.env`, which stays gitignored): `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_ANON_KEY`, `JWT_SECRET`. Without them the E2E job fails fast with a clear error.
+
 ### CI Gate Policy
 
 - **Fast Gate**: [.github/workflows/test.yml](.github/workflows/test.yml)

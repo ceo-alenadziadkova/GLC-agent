@@ -14,7 +14,6 @@ export {
   lintOrphanPolicyDiscoveryIds,
   lintOrphanPolicyPreBriefBankIds,
   lintPreBriefBankIncludedBranchConflicts,
-  lintPreBriefBankIncludedJsonMatchesPolicy,
   lintSyntheticCollision,
   lintUnknownBranchRefs,
   type LintFinding,
@@ -48,7 +47,7 @@ export {
 } from './branch-condition-deps.js';
 export { evaluateCanonEligibility } from './evaluate-canon.js';
 export { computeRequiredBankIdsFromPolicy } from './evaluate-policy.js';
-export { INTAKE_POLICY_V1, loadIntakePolicy } from './load-policy.js';
+export { INTAKE_POLICY_V1, loadIntakePolicy, PRE_BRIEF_BANK_INCLUDED_IDS } from './load-policy.js';
 export type {
   DiscoveryModePolicyV1,
   ExpressModePolicyV1,

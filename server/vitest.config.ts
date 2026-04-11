@@ -10,10 +10,6 @@ export default defineConfig({
         root,
         'packages/intake-core/src/question-bank.v1.json',
       ),
-      '@glc/intake-core/pre-brief-bank-included.json': path.join(
-        root,
-        'packages/intake-core/src/pre-brief-bank-included.json',
-      ),
       '@glc/intake-core/intake-policy.v1.json': path.join(
         root,
         'packages/intake-core/src/intake-policy.v1.json',

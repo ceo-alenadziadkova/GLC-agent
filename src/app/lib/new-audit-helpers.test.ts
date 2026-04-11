@@ -20,9 +20,10 @@ describe('new-audit-helpers', () => {
   });
 
   describe('buildStep0IntakePatch', () => {
-    it('sets website to "none" when noPublicWebsite is true', () => {
+    it('sets website to "none" and a5 when noPublicWebsite is true', () => {
       const patch = buildStep0IntakePatch('ACME', 'SaaS', '', 'example.com', true, 'client');
-      expect(patch.intake_company_website).toEqual({ value: 'none', source: 'client' });
+      expect(patch.a11).toEqual({ value: 'none', source: 'client' });
+      expect(patch.a5).toEqual({ value: 'No website yet', source: 'client' });
     });
 
     it('keeps industry specify only for Other industry', () => {
@@ -35,7 +36,8 @@ describe('new-audit-helpers', () => {
 
     it('normalizes url protocol when public website exists', () => {
       const patch = buildStep0IntakePatch('ACME', 'SaaS', '', 'example.com', false, 'consultant');
-      expect(patch.intake_company_website).toEqual({ value: 'https://example.com', source: 'consultant' });
+      expect(patch.a11).toEqual({ value: 'https://example.com', source: 'consultant' });
+      expect(patch.a5).toEqual({ value: 'Yes, multi-page site', source: 'consultant' });
     });
   });
 

@@ -28,9 +28,8 @@ describe('choiceValueNeedsSpecify (server)', () => {
 });
 
 describe('choiceSpecifyResponseKey (server)', () => {
-  it('maps industry questions to intake_industry_specify', () => {
+  it('maps a2 to intake_industry_specify', () => {
     expect(choiceSpecifyResponseKey('a2')).toBe('intake_industry_specify');
-    expect(choiceSpecifyResponseKey('intake_industry')).toBe('intake_industry_specify');
   });
 
   it('uses __other suffix for other bank ids', () => {

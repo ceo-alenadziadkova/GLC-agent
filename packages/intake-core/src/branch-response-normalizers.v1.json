@@ -1,0 +1,170 @@
+{
+  "version": "1.0.0",
+  "websiteGate": {
+    "rules": [
+      {
+        "then": "unknown",
+        "if": [{ "kind": "string_empty" }]
+      },
+      {
+        "then": "no_website",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_eq", "value": "no_website" },
+              { "kind": "string_includes", "value": "no website" },
+              { "kind": "string_eq", "value": "none" }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "under_construction",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "under construction" },
+              { "kind": "string_eq", "value": "under_construction" }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "single_landing",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "single" },
+              { "kind": "string_includes", "value": "landing" }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "multi",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "multi-page" },
+              { "kind": "string_includes", "value": "multi page" },
+              {
+                "kind": "all",
+                "of": [
+                  { "kind": "string_starts_with", "value": "yes" },
+                  { "kind": "string_includes", "value": "multi" }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "single_landing",
+        "if": [
+          {
+            "kind": "all",
+            "of": [
+              { "kind": "string_includes", "value": "yes" },
+              { "kind": "string_not_includes", "value": "no" },
+              { "kind": "string_includes", "value": "landing" }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "multi",
+        "if": [
+          {
+            "kind": "all",
+            "of": [
+              { "kind": "string_includes", "value": "yes" },
+              { "kind": "string_not_includes", "value": "no" }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "multi",
+        "if": [{ "kind": "raw_boolean_true" }]
+      },
+      {
+        "then": "unknown",
+        "if": [{ "kind": "always" }]
+      }
+    ]
+  },
+  "payments": {
+    "pickOrder": ["a6"],
+    "rules": [
+      {
+        "then": "",
+        "if": [{ "kind": "string_empty" }]
+      },
+      {
+        "then": "yes",
+        "if": [{ "kind": "string_includes", "value": "process card data" }]
+      },
+      {
+        "then": "no",
+        "if": [{ "kind": "string_includes", "value": "no payments on site" }]
+      },
+      {
+        "then": "sometimes",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "hosted checkout" },
+              { "kind": "string_includes", "value": "stripe" },
+              { "kind": "string_includes", "value": "paypal" }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "yes",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_eq", "value": "yes" },
+              { "kind": "string_starts_with", "value": "yes" }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "sometimes",
+        "if": [{ "kind": "string_includes", "value": "sometimes" }]
+      },
+      {
+        "then": "rarely",
+        "if": [{ "kind": "string_includes", "value": "rarely" }]
+      },
+      {
+        "then": "no",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "offline only" },
+              { "kind": "string_eq", "value": "no" }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "not_sure",
+        "if": [{ "kind": "string_includes", "value": "not sure" }]
+      },
+      {
+        "then": "__passthrough__",
+        "if": [{ "kind": "always" }]
+      }
+    ]
+  }
+}

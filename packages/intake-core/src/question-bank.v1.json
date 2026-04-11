@@ -176,6 +176,28 @@
       }
     },
     {
+      "id": "a11",
+      "section": "A",
+      "priority": "required",
+      "label": "Company website",
+      "reportUse": "recon_company_website_url",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "a12",
+      "section": "A",
+      "priority": "required",
+      "label": "Company name",
+      "reportUse": "recon_company_legal_name",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
       "id": "b1",
       "section": "B",
       "priority": "required",
@@ -220,6 +242,27 @@
           "Unique location or experience",
           "Personal service and trust",
           "Specialised expertise",
+          "Other"
+        ]
+      }
+    },
+    {
+      "id": "b10",
+      "section": "B",
+      "priority": "recommended",
+      "label": "Marketing channels you actively invest in",
+      "reportUse": "mkt_active_investment_channels",
+      "answer": {
+        "type": "multi_select",
+        "options": [
+          "Google Ads",
+          "Facebook/Instagram Ads",
+          "LinkedIn Ads",
+          "Content/SEO",
+          "Email marketing",
+          "Influencer / affiliate",
+          "PR",
+          "None currently",
           "Other"
         ]
       }
@@ -769,8 +812,16 @@
       "label": "Biggest manual time sink",
       "reportUse": "auto_manual_time_sink",
       "answer": {
-        "type": "textarea",
-        "maxLength": 12000
+        "type": "single_select",
+        "options": [
+          "Following up with leads and prospects",
+          "Scheduling and confirming appointments",
+          "Creating and sending quotes or invoices",
+          "Reporting and tracking what is working",
+          "Onboarding new clients",
+          "Managing team tasks and handoffs",
+          "Something else"
+        ]
       }
     },
     {

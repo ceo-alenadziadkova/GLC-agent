@@ -14,7 +14,6 @@ function friendlyFreeTextPlaceholder(questionId: string): string {
     b1: 'Example: "Families visiting Palma for 3-5 nights, booking 2-4 weeks ahead."',
     c6: 'Example: "People visit but rarely contact us" or "Mobile pages feel slow."',
     c8: 'Add 2-3 competitor names or URLs.',
-    d2: 'Example: "Copying inquiries from WhatsApp into spreadsheets every day."',
     f1: 'Example: "Too much manual work and unclear channel performance."',
   };
   return byId[questionId] ?? 'Write what comes to mind first. Short is fine, detailed is even better.';

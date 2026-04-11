@@ -47,9 +47,39 @@ describe('toUiErrorMessage', () => {
     expect(msg).toContain('30s');
   });
 
-  it('maps 500', () => {
+  it('maps 5xx without a client-safe body to a generic server message', () => {
+    expect(toUiErrorMessage(500, {}, 'x')).toBe(
+      'Server error while starting analysis. Please try again in a minute.',
+    );
     expect(toUiErrorMessage(502, {}, 'x')).toBe(
       'Server error while starting analysis. Please try again in a minute.',
+    );
+  });
+
+  it('maps 502/504 with API error to that message', () => {
+    expect(toUiErrorMessage(502, { error: 'Upstream timeout' }, 'fb')).toBe('Upstream timeout');
+  });
+
+  it('hides self-serve owner details for 503 even if error body leaked', () => {
+    expect(
+      toUiErrorMessage(
+        503,
+        {
+          error: 'INTERNAL: set self_serve_audit_owner_user_id',
+          code: 'SELF_SERVE_OWNER_UNAVAILABLE',
+        },
+        'fb',
+      ),
+    ).toBe('This feature is temporarily unavailable. Please try again in a few minutes.');
+  });
+
+  it('maps 503 with API error when not owner-unavailable', () => {
+    expect(toUiErrorMessage(503, { error: 'Maintenance window' }, 'fb')).toBe('Maintenance window');
+  });
+
+  it('maps 503 without API error to an unavailable fallback', () => {
+    expect(toUiErrorMessage(503, {}, 'fb')).toBe(
+      'This feature is temporarily unavailable. Please try again in a few minutes.',
     );
   });
 

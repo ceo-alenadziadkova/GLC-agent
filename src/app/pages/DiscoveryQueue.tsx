@@ -279,7 +279,8 @@ export function DiscoveryQueue() {
       queryClient.setQueryData<DiscoverySession[]>(glcKeys.discoverySessions(), (prev) =>
         (prev ?? []).map((s) => (s.session_token === token ? { ...s, audit_id } : s)),
       );
-      navigate(`/pipeline/${audit_id}`);
+      // New full audit with discovery answers pre-mapped into intake_brief — open workspace + brief, not pipeline.
+      navigate(`/audit/${audit_id}?brief=1`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       setConvertError(msg.includes('already converted')

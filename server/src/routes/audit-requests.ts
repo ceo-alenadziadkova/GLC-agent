@@ -76,10 +76,10 @@ function initialIntakeResponsesFromAuditRequest(row: {
       ? (row.brief_snapshot as Record<string, unknown>)
       : {};
   const out: Record<string, unknown> = {
-    intake_company_website: { value: row.url, source: 'client' },
+    a11: { value: row.url, source: 'client' },
   };
   if (row.industry != null && String(row.industry).trim()) {
-    out.intake_industry = { value: String(row.industry).trim(), source: 'client' };
+    out.a2 = { value: String(row.industry).trim(), source: 'client' };
   }
   const spec = snap.intake_industry_specify;
   if (typeof spec === 'string' && spec.trim()) {

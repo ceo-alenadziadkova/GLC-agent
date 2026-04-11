@@ -545,7 +545,7 @@ export interface IntakeBrief {
   progress_pct: number;
   readiness_badge: IntakeReadinessBadge;
   next_best_action: IntakeNextBestAction;
-  responses_format: 1 | 2;
+  responses_format: 2;
   /** Null if row predates migration 027; validation uses current engine. */
   intake_versions?: IntakeVersionTuple | null;
   /** Last intake_versions migration (upgrade or repair of unsupported stored tuple). */

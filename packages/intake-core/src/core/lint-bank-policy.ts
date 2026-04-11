@@ -3,11 +3,12 @@
  * For CI filesystem scan of `core/*.ts`, use `lintBankAndPolicyAll` from `@glc/intake-core/lint-node`.
  */
 import { BRANCH_RULES } from '../branch-rules.js';
-import { INTAKE_REVENUE_BANK_ID } from '../legacy-response-aliases.js';
+import { INTAKE_REVENUE_BANK_ID } from '../intake-revenue.js';
 import { QUESTION_BANK_V1_STUBS, QUESTION_BANK_V1_IDS } from '../question-bank.js';
+import { QUESTION_FEED_ROLES } from '../question-feed-roles.js';
 import type { IntakeQuestionStub } from '../types.js';
-import preBriefBankIncludedCanon from '../pre-brief-bank-included.json' with { type: 'json' };
 import questionBankCanon from '../question-bank.v1.json' with { type: 'json' };
+import branchRulesCanon from '../branch-rules.v1.json' with { type: 'json' };
 
 import { LAYOUT_RULES_V1 } from './load-layout.js';
 import { INTAKE_POLICY_V1 } from './load-policy.js';
@@ -20,6 +21,23 @@ export interface LintFinding {
   severity: LintSeverity;
   message: string;
   detail?: string;
+}
+
+/** `not` rules must reference an existing rule id. */
+export function lintBranchRulesNotReferences(): LintFinding[] {
+  const rules = (branchRulesCanon as { rules: Record<string, { kind: string; inner?: string }> }).rules;
+  const findings: LintFinding[] = [];
+  for (const [k, v] of Object.entries(rules)) {
+    if (v.kind === 'not' && v.inner && !rules[v.inner]) {
+      findings.push({
+        code: 'BRANCH_RULE_NOT_INVALID_INNER',
+        severity: 'error',
+        message: `branch-rules.v1.json: rule "${k}" references missing inner rule "${v.inner}".`,
+        detail: k,
+      });
+    }
+  }
+  return findings;
 }
 
 export function lintUnknownBranchRefs(stubs: IntakeQuestionStub[] = QUESTION_BANK_V1_STUBS): LintFinding[] {
@@ -169,6 +187,74 @@ export function lintDuplicateDiscoveryIncluded(policy: IntakePolicyV1 = INTAKE_P
   return findings;
 }
 
+/** `modes.discovery.publicWizardOrder` must reference only bank ids in `discovery.included` (when set). */
+export function lintPublicDiscoveryWizardOrder(
+  policy: IntakePolicyV1 = INTAKE_POLICY_V1,
+  bankIds: Set<string> = QUESTION_BANK_V1_IDS,
+): LintFinding[] {
+  const order = policy.modes.discovery.publicWizardOrder;
+  if (!order?.length) return [];
+  const included = new Set(policy.modes.discovery.included);
+  const findings: LintFinding[] = [];
+  const seen = new Set<string>();
+  for (const id of order) {
+    if (seen.has(id)) {
+      findings.push({
+        code: 'DUPLICATE_PUBLIC_WIZARD_ORDER',
+        severity: 'error',
+        message: `Duplicate id "${id}" in policy discovery.publicWizardOrder.`,
+        detail: id,
+      });
+    }
+    seen.add(id);
+    if (!bankIds.has(id)) {
+      findings.push({
+        code: 'PUBLIC_WIZARD_ORDER_ORPHAN',
+        severity: 'error',
+        message: `discovery.publicWizardOrder "${id}" is not a bank id.`,
+        detail: id,
+      });
+    }
+    if (!included.has(id)) {
+      findings.push({
+        code: 'PUBLIC_WIZARD_NOT_IN_DISCOVERY',
+        severity: 'error',
+        message: `discovery.publicWizardOrder "${id}" is not in discovery.included.`,
+        detail: id,
+      });
+    }
+  }
+  return findings;
+}
+
+/** `question-feed-roles.v1.json` keys must match bank question ids 1:1. */
+export function lintQuestionFeedRolesAlignBank(
+  bankIds: Set<string> = QUESTION_BANK_V1_IDS,
+): LintFinding[] {
+  const findings: LintFinding[] = [];
+  for (const id of bankIds) {
+    if (!QUESTION_FEED_ROLES[id]) {
+      findings.push({
+        code: 'FEED_ROLES_MISSING_BANK_ID',
+        severity: 'error',
+        message: `question-feed-roles.v1.json: missing feeds for bank id "${id}".`,
+        detail: id,
+      });
+    }
+  }
+  for (const id of Object.keys(QUESTION_FEED_ROLES)) {
+    if (!bankIds.has(id)) {
+      findings.push({
+        code: 'FEED_ROLES_UNKNOWN_BANK_ID',
+        severity: 'error',
+        message: `question-feed-roles.v1.json: unknown bank id "${id}".`,
+        detail: id,
+      });
+    }
+  }
+  return findings;
+}
+
 /**
  * Ids permitted in `syntheticRequired` even when the same id exists as a bank question.
  * Keep this minimal: the usual rule is still "no accidental bank id in synthetics".
@@ -200,11 +286,11 @@ export function lintSyntheticCollision(
     }
   }
   for (const id of policy.modes.express.requiredAlways) {
-    if (id !== 'revenue_model' && id !== 'a10' && !bankIds.has(id)) {
+    if (id !== INTAKE_REVENUE_BANK_ID && !bankIds.has(id)) {
       findings.push({
         code: 'EXPRESS_REQUIRED_ORPHAN',
         severity: 'error',
-        message: `Express requiredAlways "${id}" is not a bank id and not a legacy revenue alias.`,
+        message: `Express requiredAlways "${id}" is not a bank id.`,
         detail: id,
       });
     }
@@ -237,33 +323,6 @@ export function lintDeprecatedStillRequired(): LintFinding[] {
         detail: q.id,
       });
     }
-  }
-  return findings;
-}
-
-export function lintPreBriefBankIncludedJsonMatchesPolicy(
-  policy: IntakePolicyV1 = INTAKE_POLICY_V1,
-): LintFinding[] {
-  const findings: LintFinding[] = [];
-  const arr = preBriefBankIncludedCanon as unknown;
-  if (!Array.isArray(arr) || !arr.every(x => typeof x === 'string')) {
-    findings.push({
-      code: 'PRE_BRIEF_BANK_INCLUDED_JSON_INVALID',
-      severity: 'error',
-      message: 'pre-brief-bank-included.json must be a JSON array of strings.',
-    });
-    return findings;
-  }
-  const fromPolicy = [...policy.modes.pre_brief.bankIncluded ?? []].sort().join(',');
-  const fromFile = [...arr].sort().join(',');
-  if (fromPolicy !== fromFile) {
-    findings.push({
-      code: 'PRE_BRIEF_BANK_INCLUDED_DRIFT',
-      severity: 'error',
-      message:
-        'pre-brief-bank-included.json does not match intake-policy pre_brief.bankIncluded. Update the JSON file to match policy (frontend thin import).',
-      detail: `policy=[${fromPolicy}] file=[${fromFile}]`,
-    });
   }
   return findings;
 }
@@ -622,14 +681,16 @@ export function lintPreBriefBankIncludedBranchConflicts(
 export function lintBankAndPolicyAll(): LintFinding[] {
   return [
     ...lintCanonQuestionMetadataKeys(),
+    ...lintBranchRulesNotReferences(),
     ...lintUnknownBranchRefs(),
     ...lintMissingPolicyCoverage(),
     ...lintOrphanPolicyDiscoveryIds(),
     ...lintOrphanPolicyPreBriefBankIds(),
-    ...lintPreBriefBankIncludedJsonMatchesPolicy(),
     ...lintPreBriefBankIncludedBranchConflicts(),
     ...lintLayoutReferencesUnknownBankIds(),
     ...lintDuplicateDiscoveryIncluded(),
+    ...lintPublicDiscoveryWizardOrder(),
+    ...lintQuestionFeedRolesAlignBank(),
     ...lintSyntheticCollision(),
     ...lintDeprecatedStillRequired(),
   ];

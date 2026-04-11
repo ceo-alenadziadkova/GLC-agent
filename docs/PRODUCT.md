@@ -82,7 +82,7 @@ Structured pre-audit responses live in the `intake_brief` table (migration `006_
 
 Core UX contract:
 - Server computes and returns intake derived state (`progress_pct`, `readiness_badge`, `next_best_action`, data-quality style signals where implemented); frontend renders it.
-- `responses_format` is versioned for backward compatibility (`1` legacy, `2` structured `{ value, source }` responses).
+- `responses_format` is fixed at `2` (structured `{ value, source }` cells only).
 - Progress/readiness UI stays B2B: plain text, icons, and color semantics (no emoji in intake/report interface code).
 - **Principles:** progress bar; Data Quality meter; light gamification / micro-milestones; guilt-free "Don't know"; recon-based prefills with confirm ("We detected WordPress — correct?"); prefer selects over free text where possible; short examples next to textareas.
 
@@ -97,7 +97,7 @@ One canonical question bank backs every intake path; **`collection_mode`** (`sel
 | **URL present** | Mode A — wizard on live site | Mode B — live capture against the same fields |
 | **No website yet** | Mode C — discovery intake (deferred sprint: `product_mode: 'discovery'`, dedicated flow) | Mode C with consultant as primary recorder |
 
-`pre_brief` links sit on the self-serve row: short answer set before a call, same canonical fields.
+`pre_brief` links sit on the self-serve row: short answer set before a call — **identity** comes from policy **`identityFieldIds`** (bank stubs such as **`a11`**, **`a12`**, **`a2`**, **`a5`**) plus **`modes.pre_brief.bankIncluded`** for the rest; same canonical bank as full intake.
 
 Record **`collected_by`:** `client` | `consultant` so exports and quality analytics stay honest.
 
@@ -105,7 +105,7 @@ Record **`collected_by`:** `client` | `consultant` so exports and quality analyt
 
 ### Pre-brief (link before a meeting)
 
-Short path (~6 questions, ~5 minutes) with a **custom link** sent ahead of a call. Goal: consultant arrives prepared; recon can crawl the site before the meeting. Same canonical fields as Layer 1 where applicable, scoped to minimum viable context.
+Short path (identity block + **`bankIncluded`** slice; see [QUESTION_BANK.md](./QUESTION_BANK.md)) with a **custom link** sent ahead of a call. Goal: consultant arrives prepared; recon can crawl the site before the meeting. Same canonical bank ids as Layer 1 where applicable, scoped to minimum viable context.
 
 ### Recon as intake enrichment (Step 1B)
 

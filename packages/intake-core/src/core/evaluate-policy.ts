@@ -7,10 +7,10 @@ import { isIntakePolicyRichnessEnabled } from '../config/intake-flags.js';
 
 import type { IntakePolicyV1 } from './policy-types.js';
 import type { DebugTraceEntry } from './types.js';
-import { INTAKE_REVENUE_BANK_ID, INTAKE_REVENUE_LEGACY_KEY } from '../legacy-response-aliases.js';
+import { INTAKE_REVENUE_BANK_ID } from '../intake-revenue.js';
 
 function isPolicyRevenueOrVisible(id: string, visibleIdSet: Set<string>): boolean {
-  return id === INTAKE_REVENUE_LEGACY_KEY || id === INTAKE_REVENUE_BANK_ID || visibleIdSet.has(id);
+  return id === INTAKE_REVENUE_BANK_ID || visibleIdSet.has(id);
 }
 
 /** Same ids as brief-gates: insertion order, first occurrence wins. */

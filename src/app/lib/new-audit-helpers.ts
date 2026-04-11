@@ -44,24 +44,26 @@ export function buildStep0IntakePatch(
   const patch: Partial<BriefResponses> = {};
   const nt = name.trim();
   if (nt) {
-    patch.intake_company_name = { value: nt, source };
+    patch.a12 = { value: nt, source };
   }
   if (industry.trim() && isIndustryOption(industry)) {
-    patch.intake_industry = { value: industry, source };
+    patch.a2 = { value: industry, source };
   }
   const spec = industrySpecify.trim();
   if (industry.trim() === 'Other' && spec) {
     patch.intake_industry_specify = { value: spec, source };
   }
   if (noPublicWebsite) {
-    patch.intake_company_website = { value: 'none', source };
+    patch.a11 = { value: 'none', source };
+    patch.a5 = { value: 'No website yet', source };
   } else {
     const ut = url.trim();
     if (ut) {
-      patch.intake_company_website = {
+      patch.a11 = {
         value: ut.startsWith('http') ? ut : `https://${ut}`,
         source,
       };
+      patch.a5 = { value: 'Yes, multi-page site', source };
     }
   }
   return patch;

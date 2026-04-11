@@ -6,11 +6,15 @@ import { BriefField } from '../components/BriefField';
 import { api, ApiError } from '../data/apiService';
 import type { BriefQuestion, BriefResponses, BriefResponseEntry, BriefResponseValue } from '../data/briefQuestions';
 import {
+  A11_VALUE_WHEN_NO_PUBLIC_SITE,
+  coerceA11ForNoWebsitePresence,
   countPreBriefSatisfied,
   formatBriefAnswerSummary,
   getPreBriefSubmitSlotIds,
   groupBriefQuestionsBySection,
-  intakeIndustryIsOther,
+  unwrapResponse,
+  websitePresenceMeansNoPublicSite,
+  WEBSITE_PRESENCE_NO_SITE_LABEL,
 } from '../data/briefQuestions';
 import { GlcLogo } from '../components/GlcLogo';
 import { ThemeToggle } from '../components/ThemeToggle';
@@ -64,14 +68,14 @@ export function IntakeBrief() {
 
   const hadSubmissionOnLoadRef = useRef(false);
 
-  const orderedQuestions = useMemo(
-    () => questions.filter(q => q.id !== 'intake_industry_specify' || intakeIndustryIsOther(responses)),
+  const visibleQuestions = useMemo(
+    () => questions.filter(q => !(q.id === 'a11' && websitePresenceMeansNoPublicSite(responses))),
     [questions, responses],
   );
 
   const questionSections = useMemo(
-    () => groupBriefQuestionsBySection(orderedQuestions),
-    [orderedQuestions],
+    () => groupBriefQuestionsBySection(visibleQuestions),
+    [visibleQuestions],
   );
 
   const clientMeta = useMemo(() => parseIntakeClientMetadata(metadataRecord), [metadataRecord]);
@@ -95,10 +99,10 @@ export function IntakeBrief() {
         setMetadataRecord(data.metadata ?? {});
         setSubmittedAt(data.submitted_at);
         hadSubmissionOnLoadRef.current = !!data.submitted_at;
-        setResponses(applyIntakeMetadataPrefill(
+        setResponses(coerceA11ForNoWebsitePresence(applyIntakeMetadataPrefill(
           normalizeStoredResponses(data.responses ?? {}),
           data.metadata ?? {},
-        ));
+        )));
         setPhase('form');
         setLastSubmittedIso(null);
       } catch (e) {
@@ -114,6 +118,11 @@ export function IntakeBrief() {
     })();
     return () => { cancelled = true; };
   }, [token]);
+
+  const websitePresenceKey = stringAnswer(responses.a5);
+  useEffect(() => {
+    setResponses(prev => coerceA11ForNoWebsitePresence(prev));
+  }, [websitePresenceKey]);
 
   const answered = countPreBriefSatisfied(responses);
   const total = getPreBriefSubmitSlotIds(responses).length;
@@ -134,10 +143,30 @@ export function IntakeBrief() {
     setResponses(prev => {
       const next: BriefResponses = {
         ...prev,
-        intake_industry: { value: value as BriefResponseValue, source: 'client' },
+        a2: { value: value as BriefResponseValue, source: 'client' },
       };
       if (value !== 'Other') {
         delete next.intake_industry_specify;
+      }
+      return next;
+    });
+  }
+
+  function handleWebsitePresenceChange(value: string | string[] | number | null) {
+    setResponses(prev => {
+      const next: BriefResponses = {
+        ...prev,
+        a5: { value: value as BriefResponseValue, source: 'client' },
+      };
+      if (value === WEBSITE_PRESENCE_NO_SITE_LABEL) {
+        next.a11 = { value: A11_VALUE_WHEN_NO_PUBLIC_SITE, source: 'client' };
+      } else {
+        const prevA11 = unwrapResponse(prev.a11);
+        const s = typeof prevA11 === 'string' ? prevA11.trim().toLowerCase() : '';
+        if (s === 'none' || s === 'no website' || s === 'n/a' || s === 'na') {
+          const { a11: _, ...rest } = next;
+          return rest as BriefResponses;
+        }
       }
       return next;
     });
@@ -147,8 +176,11 @@ export function IntakeBrief() {
     setResponses(prev => {
       const next: BriefResponses = { ...prev, [id]: { value: null, source: 'unknown' } };
       delete next[`${id}__other`];
-      if (id === 'intake_industry') {
+      if (id === 'a2') {
         delete next.intake_industry_specify;
+      }
+      if (id === 'a5') {
+        delete next.a11;
       }
       return next;
     });
@@ -165,7 +197,7 @@ export function IntakeBrief() {
     setSubmitError(null);
     setSubmitting(true);
     try {
-      const result = await api.submitIntakeResponses(token, responses);
+      const result = await api.submitIntakeResponses(token, coerceA11ForNoWebsitePresence(responses));
       setLastSubmittedIso(result.submitted_at);
       setSubmittedAt(result.submitted_at);
       setPhase('success');
@@ -180,7 +212,8 @@ export function IntakeBrief() {
     }
   }
 
-  const companyName = stringAnswer(responses.intake_company_name) || clientMeta.company_name || '';
+  const companyName =
+    stringAnswer(responses.a12 ?? responses.intake_company_name) || clientMeta.company_name || '';
   const message = clientMeta.message ?? '';
   const consultantLabel = clientMeta.consultant_name?.trim() || 'Your consultant';
   const followUpLine = buildFollowUpExpectationLine(clientMeta);
@@ -515,21 +548,38 @@ export function IntakeBrief() {
                       <div className="space-y-6">
                         {block.questions.map(q => {
                           const specKey =
-                            q.id === 'intake_industry'
+                            q.id === 'a2'
                               ? null
                               : q.type === 'single_choice' || q.type === 'multi_choice'
                                 ? `${q.id}__other`
                                 : null;
-                          const otherSpecify = specKey ? stringAnswer(responses[specKey]) : '';
+                          const otherSpecify =
+                            q.id === 'a2'
+                              ? stringAnswer(responses.intake_industry_specify)
+                              : specKey
+                                ? stringAnswer(responses[specKey])
+                                : '';
                           return (
                             <div key={q.id} id={`intake-q-${q.id}`}>
                               <BriefField
                                 q={q}
                                 value={responses[q.id]}
-                                onChange={q.id === 'intake_industry' ? v => handleIndustryChange(v) : v => handleChange(q.id, v)}
+                                onChange={
+                                  q.id === 'a2'
+                                    ? v => handleIndustryChange(v)
+                                    : q.id === 'a5'
+                                      ? v => handleWebsitePresenceChange(v)
+                                      : v => handleChange(q.id, v)
+                                }
                                 onSetUnknown={() => handleUnknown(q.id)}
-                                otherSpecify={specKey ? otherSpecify : undefined}
-                                onOtherSpecifyChange={specKey ? text => handleChange(specKey, text || null) : undefined}
+                                otherSpecify={q.id === 'a2' || specKey ? otherSpecify : undefined}
+                                onOtherSpecifyChange={
+                                  q.id === 'a2'
+                                    ? text => handleChange('intake_industry_specify', text || null)
+                                    : specKey
+                                      ? text => handleChange(specKey, text || null)
+                                      : undefined
+                                }
                               />
                             </div>
                           );

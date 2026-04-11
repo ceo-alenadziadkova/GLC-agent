@@ -1,14 +1,17 @@
 /**
- * Choice option labels that require a free-text clarification (shared by server validation and SPA).
+ * Choice option labels that require a free-text clarification — from `choice-specify-triggers.v1.json`.
  */
-export const CHOICE_OPTION_LABELS_REQUIRING_SPECIFY = new Set<string>([
-  'Other',
-  'Something else',
-  'Yes, other tool',
-  'Yes, another tool',
-  'Not quite (I will clarify)',
-  'Yes, there are additional details',
-]);
+import raw from './choice-specify-triggers.v1.json' with { type: 'json' };
+
+type ChoiceSpecifyRaw = {
+  optionLabelsRequiringSpecify: string[];
+  specifyResponseKeyByQuestionId: Record<string, string>;
+  defaultSpecifySuffix: string;
+};
+
+const cfg = raw as ChoiceSpecifyRaw;
+
+export const CHOICE_OPTION_LABELS_REQUIRING_SPECIFY = new Set<string>(cfg.optionLabelsRequiringSpecify);
 
 export function choiceValueNeedsSpecify(value: unknown): boolean {
   if (value == null) return false;
@@ -19,8 +22,7 @@ export function choiceValueNeedsSpecify(value: unknown): boolean {
 
 /** Response key for the clarification field (aligned with bank wizard / classic brief / discovery). */
 export function choiceSpecifyResponseKey(questionId: string): string {
-  if (questionId === 'a2' || questionId === 'intake_industry') {
-    return 'intake_industry_specify';
-  }
-  return `${questionId}__other`;
+  const mapped = cfg.specifyResponseKeyByQuestionId[questionId];
+  if (mapped) return mapped;
+  return `${questionId}${cfg.defaultSpecifySuffix}`;
 }

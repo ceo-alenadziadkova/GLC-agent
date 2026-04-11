@@ -1,0 +1,20 @@
+{
+  "version": "1.0.0",
+  "labelLowerToBranchSlug": {
+    "hospitality": "hospitality",
+    "real estate": "real_estate",
+    "food & beverage": "restaurant_fb",
+    "professional services": "professional_services",
+    "healthcare": "healthcare",
+    "marine": "marine",
+    "e-commerce": "ecommerce",
+    "education": "education",
+    "finance": "finance",
+    "manufacturing": "manufacturing",
+    "media & entertainment": "media",
+    "non-profit": "nonprofit",
+    "retail": "retail",
+    "saas / software": "saas",
+    "other": "other"
+  }
+}

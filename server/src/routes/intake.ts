@@ -1,5 +1,6 @@
 /**
  * Pre-brief public intake: consultant creates token; client loads and submits without auth.
+ * Payload shape matches `buildPreBriefQuestionsForResponses` + `BriefResponsesSchema` (bank id cells; see API.md).
  */
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
@@ -15,12 +16,13 @@ import { arePreBriefSlotsSatisfied, saveBriefResponses } from '../services/brief
 import { logger } from '../services/logger.js';
 import { emitStructuredNotification } from '../services/notifications.js';
 import { buildIntakePlan } from '@glc/intake-core';
+import { choiceSpecifyResponseKey } from '@glc/intake-core';
+import { INTAKE_REVENUE_BANK_ID } from '@glc/intake-core';
 import { formatPlanTrace } from '@glc/intake-core';
 import { parseIntakeVersionTuple } from '@glc/intake-core';
 import { isSupportedIntakeArtifactTuple } from '@glc/intake-core';
 import type { IntakeSurface } from '@glc/intake-core';
 import type { IntakeBriefCollectionMode, ProductMode } from '../types/audit.js';
-import { mergeLegacyIntakeAliasesRead } from '@glc/intake-core';
 
 export const intakeRouter = Router();
 
@@ -38,10 +40,10 @@ function toClientEntries(raw: Record<string, unknown>): Record<string, unknown> 
   return out;
 }
 
+/** Question rows for public/prefill GET: policy identity block, then classic-catalog rows for `plan.visible` (pre_brief slice). */
 function buildPreBriefQuestionsForResponses(raw: Record<string, unknown>) {
-  const responses = mergeLegacyIntakeAliasesRead(raw);
   const preBriefPlan = buildIntakePlan({
-    responses,
+    responses: raw,
     productMode: 'full',
     collectionMode: 'pre_brief',
     surface: 'client_form',
@@ -50,7 +52,11 @@ function buildPreBriefQuestionsForResponses(raw: Record<string, unknown>) {
   return [...INTAKE_IDENTITY_BRIEF_QUESTIONS, ...coreQuestions];
 }
 
-/** Merges pre-brief question keys from parsed token responses into the audit's intake_brief. */
+/**
+ * Merges token submit cells into `intake_brief.responses` (whitelist only).
+ * Includes `pre_brief` `plan.visible` ids, `INTAKE_IDENTITY_FIELD_IDS`, `INTAKE_REVENUE_BANK_ID` and its specify key,
+ * and every `choiceSpecifyResponseKey` for visible + identity ids (e.g. `f1__other`, `c3__other`, `intake_industry_specify` for `a2`).
+ */
 async function mergePreBriefFromParsedResponses(
   auditId: string,
   consultantUserId: string,
@@ -73,7 +79,7 @@ async function mergePreBriefFromParsedResponses(
   const existing = (brief?.responses as Record<string, unknown>) ?? {};
   const preBriefPatch: Record<string, unknown> = {};
   const entries = toClientEntries(parsed);
-  const mergedForPlan = mergeLegacyIntakeAliasesRead({ ...existing, ...entries });
+  const mergedForPlan = { ...existing, ...entries };
   const preBriefPlan = buildIntakePlan({
     responses: mergedForPlan,
     productMode: 'full',
@@ -83,11 +89,13 @@ async function mergePreBriefFromParsedResponses(
   const mergeIds = new Set<string>([
     ...preBriefPlan.visible,
     ...INTAKE_IDENTITY_FIELD_IDS,
-    'revenue_model',
-    'revenue_model__other',
-    'a10',
-    'a10__other',
+    INTAKE_REVENUE_BANK_ID,
+    choiceSpecifyResponseKey(INTAKE_REVENUE_BANK_ID),
   ]);
+  const specifyScopeIds = [...preBriefPlan.visible, ...INTAKE_IDENTITY_FIELD_IDS];
+  for (const id of specifyScopeIds) {
+    mergeIds.add(choiceSpecifyResponseKey(id));
+  }
   for (const id of mergeIds) {
     if (entries[id] !== undefined) preBriefPatch[id] = entries[id];
   }
@@ -301,7 +309,7 @@ intakeRouter.get(
         return;
       }
 
-      // Same question bundle as public GET: identity + pre-brief core (see GET /api/intake/:token).
+      // Same bundle as public GET /api/intake/:token (buildPreBriefQuestionsForResponses).
       const questions = buildPreBriefQuestionsForResponses((row.responses as Record<string, unknown>) ?? {});
       const expMs = new Date(row.expires_at as string).getTime();
       const linkExpired = !Number.isFinite(expMs) || Date.now() > expMs;
@@ -430,8 +438,8 @@ intakeRouter.get('/:token', intakePublicReadLimiter, async (req, res) => {
       return;
     }
 
-    // Public client pre-brief must always include identity (website, name, industry, Other specify).
-    // Core pre-brief bank questions are resolved by the policy resolver for this token's current responses.
+    // Public pre-brief: INTAKE_IDENTITY_BRIEF_QUESTIONS first (policy identityFieldIds bank stubs; a2 Other uses intake_industry_specify inline),
+    // then getBriefQuestionsByIds(plan.visible) for the pre_brief bank slice.
     const questions = buildPreBriefQuestionsForResponses((row.responses as Record<string, unknown>) ?? {});
 
     res.json({

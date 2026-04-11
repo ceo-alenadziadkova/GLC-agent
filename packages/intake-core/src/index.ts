@@ -23,6 +23,7 @@ export {
   resolveBankRecommendedIds,
   resolveExpressSlaRequiredIds,
   resolveFullSlaRequiredIds,
+  resolvePreBriefSubmitExpressBankIds,
   resolveSlaRequiredIds,
 } from './brief-gates.js';
 export {
@@ -42,6 +43,16 @@ export {
 } from './domain-slice-data.js';
 export type { QuestionFeedRoles } from './domain-slice-data.js';
 export { calcAiReadinessScore } from './ai-readiness.js';
+export {
+  DISCOVERY_FINDINGS_CONFIG,
+  type DiscoveryFindingsConfigV1,
+  type DiscoveryFindingHook,
+} from './discovery-findings-config.js';
+export {
+  DISCOVERY_FINDINGS_COPY,
+  fillDiscoveryFindingTemplate,
+  type DiscoveryFindingCopyRow,
+} from './discovery-findings-copy.js';
 export {
   DOMAIN_TO_QUESTION_IDS,
   formatSliceForPrompt,
@@ -80,10 +91,37 @@ export {
   intakeStubsFromBankRaw,
   QUESTION_BANK_OPTION_CATALOGS,
 } from './question-bank.js';
-export { mergeLegacyIntakeAliasesRead, isRevenueAnsweredRaw, INTAKE_REVENUE_BANK_ID } from './legacy-response-aliases.js';
+export { isRevenueAnsweredRaw, INTAKE_REVENUE_BANK_ID } from './intake-revenue.js';
 export { computeIntakePlanDerived } from './core/plan-derived.js';
 export { buildPublicDiscoveryUiFragment } from './discovery-ui-fragment.js';
-export { buildDiscoveryWizardQuestions, PUBLIC_DISCOVERY_WIZARD_BANK_IDS } from './discovery-wizard-questions.js';
+export {
+  buildDiscoveryQuestionRow,
+  buildDiscoveryWizardQuestions,
+  PUBLIC_DISCOVERY_WIZARD_BANK_IDS,
+} from './discovery-wizard-questions.js';
+export {
+  BRIEF_ANSWER_STRING_MAX,
+  BRIEF_QUESTION_UI_SECTION,
+  BRIEF_QUESTIONS,
+  EXPRESS_REQUIRED_QUESTION_IDS,
+  getBriefQuestionText,
+  getBriefQuestionsByIds,
+  getQuestionsForDomain,
+  INTAKE_BRIEF_CONSULTANT_HINTS,
+  INTAKE_BRIEF_HIGH_REVENUE_QUESTION_IDS,
+  INTAKE_BRIEF_TRIGGERS_FOLLOWUP,
+  INTAKE_BRIEF_UI_SECTION_BY_ID,
+  INTAKE_IDENTITY_BRIEF_QUESTIONS,
+  INTAKE_IDENTITY_FIELD_IDS,
+  OPTIONAL_QUESTION_IDS,
+  PRE_BRIEF_PARTICIPATION_IDS,
+  PRE_BRIEF_QUESTION_IDS,
+  PRE_BRIEF_REQUIRED_SUBMIT_IDS,
+  RECOMMENDED_QUESTION_IDS,
+  REQUIRED_QUESTION_IDS,
+} from './intake-brief-catalog-meta.js';
+export { buildBriefQuestionStemFromBankId } from './bank-question-presentation.js';
+export type { BriefQuestionStem } from './bank-question-presentation.js';
 export {
   buildCanonAnswerContractForBankId,
   getBankQuestionUiOptions,

@@ -1,0 +1,509 @@
+{
+  "version": "1.0.0",
+  "feeds": {
+    "a1": {
+      "primary": [
+        "recon"
+      ],
+      "secondary": []
+    },
+    "a2": {
+      "primary": [
+        "recon"
+      ],
+      "secondary": []
+    },
+    "a3": {
+      "primary": [
+        "recon"
+      ],
+      "secondary": []
+    },
+    "a4": {
+      "primary": [
+        "recon",
+        "strategy"
+      ],
+      "secondary": []
+    },
+    "a5": {
+      "primary": [
+        "recon",
+        "tech_infrastructure"
+      ],
+      "secondary": []
+    },
+    "a6": {
+      "primary": [
+        "recon",
+        "security_compliance"
+      ],
+      "secondary": []
+    },
+    "a7": {
+      "primary": [
+        "recon",
+        "strategy"
+      ],
+      "secondary": []
+    },
+    "a8": {
+      "primary": [
+        "strategy",
+        "automation_processes"
+      ],
+      "secondary": [
+        "ux_conversion",
+        "marketing_utp"
+      ]
+    },
+    "a9": {
+      "primary": [
+        "marketing_utp",
+        "automation_processes"
+      ],
+      "secondary": []
+    },
+    "a10": {
+      "primary": [
+        "marketing_utp",
+        "recon"
+      ],
+      "secondary": [
+        "strategy"
+      ]
+    },
+    "a11": {
+      "primary": [
+        "recon"
+      ],
+      "secondary": []
+    },
+    "a12": {
+      "primary": [
+        "recon"
+      ],
+      "secondary": []
+    },
+    "b1": {
+      "primary": [
+        "ux_conversion",
+        "marketing_utp"
+      ],
+      "secondary": []
+    },
+    "b2": {
+      "primary": [
+        "marketing_utp",
+        "seo_digital"
+      ],
+      "secondary": [
+        "strategy",
+        "automation_processes"
+      ]
+    },
+    "b3": {
+      "primary": [
+        "marketing_utp"
+      ],
+      "secondary": []
+    },
+    "b4": {
+      "primary": [
+        "marketing_utp",
+        "strategy"
+      ],
+      "secondary": []
+    },
+    "b5": {
+      "primary": [
+        "marketing_utp",
+        "strategy"
+      ],
+      "secondary": []
+    },
+    "b6": {
+      "primary": [
+        "marketing_utp",
+        "ux_conversion"
+      ],
+      "secondary": []
+    },
+    "b7": {
+      "primary": [
+        "marketing_utp",
+        "ux_conversion",
+        "strategy"
+      ],
+      "secondary": []
+    },
+    "b10": {
+      "primary": [
+        "marketing_utp",
+        "seo_digital"
+      ],
+      "secondary": [
+        "strategy"
+      ]
+    },
+    "b_growth_attempts": {
+      "primary": [
+        "marketing_utp",
+        "strategy"
+      ],
+      "secondary": []
+    },
+    "b_hotel_1": {
+      "primary": [
+        "marketing_utp"
+      ],
+      "secondary": []
+    },
+    "b_hotel_2": {
+      "primary": [
+        "marketing_utp"
+      ],
+      "secondary": []
+    },
+    "b_realestate_1": {
+      "primary": [
+        "marketing_utp"
+      ],
+      "secondary": []
+    },
+    "b_restaurant_1": {
+      "primary": [
+        "marketing_utp"
+      ],
+      "secondary": [
+        "ux_conversion"
+      ]
+    },
+    "b_services_1": {
+      "primary": [
+        "ux_conversion"
+      ],
+      "secondary": []
+    },
+    "b_health_1": {
+      "primary": [
+        "ux_conversion"
+      ],
+      "secondary": []
+    },
+    "b_marine_1": {
+      "primary": [
+        "marketing_utp"
+      ],
+      "secondary": []
+    },
+    "c5": {
+      "primary": [
+        "ux_conversion"
+      ],
+      "secondary": []
+    },
+    "c6": {
+      "primary": [
+        "ux_conversion",
+        "tech_infrastructure"
+      ],
+      "secondary": [
+        "seo_digital",
+        "strategy"
+      ]
+    },
+    "c8": {
+      "primary": [
+        "marketing_utp"
+      ],
+      "secondary": []
+    },
+    "c9": {
+      "primary": [
+        "tech_infrastructure"
+      ],
+      "secondary": []
+    },
+    "c1": {
+      "primary": [
+        "tech_infrastructure"
+      ],
+      "secondary": []
+    },
+    "c2": {
+      "primary": [
+        "tech_infrastructure"
+      ],
+      "secondary": []
+    },
+    "c3": {
+      "primary": [
+        "seo_digital"
+      ],
+      "secondary": []
+    },
+    "c4": {
+      "primary": [
+        "seo_digital"
+      ],
+      "secondary": []
+    },
+    "c7": {
+      "primary": [
+        "marketing_utp",
+        "seo_digital"
+      ],
+      "secondary": []
+    },
+    "c_nosite_1": {
+      "primary": [
+        "seo_digital"
+      ],
+      "secondary": []
+    },
+    "c_nosite_2": {
+      "primary": [
+        "seo_digital"
+      ],
+      "secondary": [
+        "strategy"
+      ]
+    },
+    "c_nosite_3": {
+      "primary": [
+        "seo_digital"
+      ],
+      "secondary": []
+    },
+    "c_nosite_4": {
+      "primary": [
+        "automation_processes",
+        "marketing_utp"
+      ],
+      "secondary": []
+    },
+    "c_nosite_5": {
+      "primary": [
+        "seo_digital",
+        "marketing_utp"
+      ],
+      "secondary": []
+    },
+    "c_nosite_reviews": {
+      "primary": [
+        "marketing_utp",
+        "seo_digital"
+      ],
+      "secondary": [
+        "automation_processes"
+      ]
+    },
+    "d1": {
+      "primary": [
+        "automation_processes",
+        "tech_infrastructure"
+      ],
+      "secondary": [
+        "strategy",
+        "seo_digital"
+      ]
+    },
+    "d1a": {
+      "primary": [
+        "automation_processes"
+      ],
+      "secondary": []
+    },
+    "d1b": {
+      "primary": [
+        "automation_processes"
+      ],
+      "secondary": []
+    },
+    "d2": {
+      "primary": [
+        "automation_processes"
+      ],
+      "secondary": [
+        "ux_conversion",
+        "marketing_utp"
+      ]
+    },
+    "d_automation_attempt": {
+      "primary": [
+        "automation_processes"
+      ],
+      "secondary": []
+    },
+    "d_response_time": {
+      "primary": [
+        "automation_processes",
+        "ux_conversion"
+      ],
+      "secondary": []
+    },
+    "d_closing_flow": {
+      "primary": [
+        "automation_processes",
+        "ux_conversion"
+      ],
+      "secondary": []
+    },
+    "d_billing_flow": {
+      "primary": [
+        "automation_processes",
+        "security_compliance"
+      ],
+      "secondary": []
+    },
+    "d3": {
+      "primary": [
+        "automation_processes"
+      ],
+      "secondary": []
+    },
+    "d4": {
+      "primary": [
+        "automation_processes"
+      ],
+      "secondary": []
+    },
+    "d4a": {
+      "primary": [
+        "automation_processes",
+        "strategy"
+      ],
+      "secondary": []
+    },
+    "d4b": {
+      "primary": [
+        "automation_processes",
+        "strategy"
+      ],
+      "secondary": []
+    },
+    "d6": {
+      "primary": [
+        "automation_processes",
+        "strategy"
+      ],
+      "secondary": []
+    },
+    "d5": {
+      "primary": [
+        "automation_processes"
+      ],
+      "secondary": []
+    },
+    "d_hotel_1": {
+      "primary": [
+        "tech_infrastructure",
+        "automation_processes"
+      ],
+      "secondary": []
+    },
+    "d_hotel_2": {
+      "primary": [
+        "automation_processes"
+      ],
+      "secondary": []
+    },
+    "d_realestate_1": {
+      "primary": [
+        "automation_processes"
+      ],
+      "secondary": []
+    },
+    "d_restaurant_1": {
+      "primary": [
+        "tech_infrastructure",
+        "automation_processes"
+      ],
+      "secondary": []
+    },
+    "e1": {
+      "primary": [
+        "security_compliance"
+      ],
+      "secondary": []
+    },
+    "e2": {
+      "primary": [
+        "security_compliance"
+      ],
+      "secondary": []
+    },
+    "e3": {
+      "primary": [
+        "security_compliance"
+      ],
+      "secondary": []
+    },
+    "e4": {
+      "primary": [
+        "security_compliance"
+      ],
+      "secondary": []
+    },
+    "f1": {
+      "primary": [
+        "strategy"
+      ],
+      "secondary": []
+    },
+    "f2": {
+      "primary": [
+        "strategy"
+      ],
+      "secondary": []
+    },
+    "f3": {
+      "primary": [
+        "strategy"
+      ],
+      "secondary": [
+        "marketing_utp",
+        "ux_conversion",
+        "automation_processes"
+      ]
+    },
+    "f4": {
+      "primary": [
+        "strategy"
+      ],
+      "secondary": []
+    },
+    "f5": {
+      "primary": [
+        "strategy"
+      ],
+      "secondary": []
+    },
+    "f6": {
+      "primary": [
+        "strategy"
+      ],
+      "secondary": []
+    },
+    "f7": {
+      "primary": [
+        "strategy",
+        "automation_processes"
+      ],
+      "secondary": []
+    },
+    "f8": {
+      "primary": [
+        "strategy"
+      ],
+      "secondary": []
+    },
+    "f9": {
+      "primary": [
+        "strategy"
+      ],
+      "secondary": []
+    }
+  }
+}

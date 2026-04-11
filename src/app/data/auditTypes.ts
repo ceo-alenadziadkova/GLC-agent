@@ -62,7 +62,7 @@ export interface IntakeBrief {
   progress_pct: number;
   readiness_badge: IntakeReadinessBadge;
   next_best_action: IntakeNextBestAction;
-  responses_format: 1 | 2;
+  responses_format: 2;
   intake_versions?: IntakeVersionTuple | null;
   created_at: string;
   updated_at: string;

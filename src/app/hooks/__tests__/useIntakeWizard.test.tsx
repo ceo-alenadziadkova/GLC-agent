@@ -20,9 +20,9 @@ describe('useIntakeBankMetrics', () => {
         f1: { value: 'Grow', source: 'client' },
         a1: { value: 'Co — SaaS', source: 'client' },
         a5: { value: 'Yes, multi-page site', source: 'client' },
-        intake_company_name: { value: 'Co', source: 'client' },
-        intake_industry: { value: 'SaaS / Software', source: 'client' },
-        intake_company_website: { value: 'https://example.com', source: 'client' },
+        a12: { value: 'Co', source: 'client' },
+        a2: { value: 'SaaS / Software', source: 'client' },
+        a11: { value: 'https://example.com', source: 'client' },
       }),
     );
     expect(result.current.dataQualityPct).toBeGreaterThanOrEqual(0);
@@ -47,12 +47,13 @@ describe('useIntakeBankMetrics', () => {
     const { result } = renderHook(() =>
       useIntakeBankMetrics(
         {
-          f1: { value: 'Grow', source: 'client' },
+          f1: { value: ['Other'], source: 'client' },
+          f1__other: { value: 'Grow', source: 'client' },
           a1: { value: 'Co — SaaS', source: 'client' },
           a5: { value: 'Yes, multi-page site', source: 'client' },
-          intake_company_name: { value: 'Co', source: 'client' },
-          intake_industry: { value: 'SaaS / Software', source: 'client' },
-          intake_company_website: { value: 'https://example.com', source: 'client' },
+          a12: { value: 'Co', source: 'client' },
+          a2: { value: 'SaaS / Software', source: 'client' },
+          a11: { value: 'https://example.com', source: 'client' },
         },
         undefined,
         undefined,

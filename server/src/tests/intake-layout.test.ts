@@ -83,7 +83,7 @@ describe('intake layout (client_form vs consultant_interview)', () => {
     a5: 'Yes — we have a multi-page website',
     a2: 'retail',
     a4: '2–5 people',
-    revenue_model: 'b2c',
+    a10: ['Product sales (online or offline)'],
   };
 
   it('client_form omits c1 when website branch makes it eligible', () => {
@@ -103,7 +103,7 @@ describe('intake layout (client_form vs consultant_interview)', () => {
 
   it('consultant_interview keeps section A before section B in visible order', () => {
     const plan = buildIntakePlan({
-      responses: { a5: 'no_website', revenue_model: 'b2c' },
+      responses: { a5: 'no_website', a10: ['Product sales (online or offline)'] },
       productMode: 'full',
       surface: 'consultant_interview',
     });
@@ -116,7 +116,7 @@ describe('intake layout (client_form vs consultant_interview)', () => {
 
   it('client_portal defers eligible ids outside compact steps', () => {
     const plan = buildIntakePlan({
-      responses: { a5: 'no_website', revenue_model: 'b2c' },
+      responses: { a5: 'no_website', a10: ['Product sales (online or offline)'] },
       productMode: 'full',
       surface: 'client_portal',
     });

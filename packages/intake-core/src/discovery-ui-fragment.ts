@@ -5,8 +5,6 @@
  */
 import { QUESTION_BANK_VERSION } from './question-bank.js';
 import { INTAKE_POLICY_V1 } from './core/load-policy.js';
-import { getBankQuestionUiOptions } from './bank-question-ui-overrides.js';
-import { INDUSTRY_OPTIONS } from './industry-options.js';
 import type { BriefQuestion, IntakeVersionTuple } from './audit-contract.js';
 import { buildDiscoveryWizardQuestions } from './discovery-wizard-questions.js';
 import { currentIntakeVersionTuple } from './core/versions.js';
@@ -29,16 +27,8 @@ export type PublicDiscoveryUiFragment = {
   questions: DiscoveryUiFragmentQuestion[];
 };
 
-function bankOrFallback(id: string, fallback: readonly string[]): string[] {
-  const o = getBankQuestionUiOptions(id);
-  return o ? [...o] : [...fallback];
-}
-
 function buildWizardQuestions(): DiscoveryUiFragmentQuestion[] {
-  return buildDiscoveryWizardQuestions({
-    bankOrFallback,
-    industryOptions: INDUSTRY_OPTIONS,
-  });
+  return buildDiscoveryWizardQuestions();
 }
 
 export function buildPublicDiscoveryUiFragment(): PublicDiscoveryUiFragment {

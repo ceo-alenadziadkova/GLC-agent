@@ -11,6 +11,11 @@
 
 import { buildIntakePlan } from '@glc/intake-core';
 import { buildPublicDiscoveryUiFragment } from '@glc/intake-core';
+import {
+  DISCOVERY_FINDINGS_CONFIG,
+  DISCOVERY_FINDINGS_COPY,
+  fillDiscoveryFindingTemplate,
+} from '@glc/intake-core';
 import { getQuestionBankSchemaMeta } from '@glc/intake-core';
 import {
   includesCrmTool,
@@ -20,6 +25,8 @@ import {
   normalizeStage,
   normalizeTeamSize,
 } from '@glc/intake-core';
+
+const FC = DISCOVERY_FINDINGS_CONFIG;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -58,7 +65,7 @@ function toDiscoveryQuestionType(type: string): DiscoveryQuestionType {
 // ── Questions ─────────────────────────────────────────────────────────────────
 //
 // Bank ids must stay in sync with `intake-policy.v1.json` modes.discovery.included
-// (see `server/src/tests/discovery-wizard-policy-sync.test.ts`).
+// (see `server/src/tests/discovery-policy-sync.test.ts`).
 // Labels default to `question-bank.v1.json`; option lists for shared ids come from
 // `getBankQuestionUiOptions` (`bankQuestionUiCatalog`) where applicable (ADR Phase A dedup).
 
@@ -73,42 +80,6 @@ function makeDiscoveryQuestion(
     question: spec.question ?? bank?.label ?? id,
   };
 }
-
-/**
- * Legacy single-select values used before the discovery question `c_nosite_1` became a
- * multi-select "how do people find you?" question. These are NOT the current `c_nosite_1`
- * option strings (those live in `DISCOVERY_WIZARD_C_NOSITE_1_FALLBACK` on the server and
- * in `bank-question-ui-overrides.ts`). This constant exists only for `LEGACY_ONLINE_PRESENCE`
- * normalisation in `getOnlinePresenceSelections` — do NOT use it to check current answers.
- */
-export const LEGACY_ONLINE_PRESENCE_OPTIONS = [
-  'Full website (multi-page)',
-  'Single landing page',
-  'Website in development / not public yet',
-  'Social media',
-  'Marketplaces, directories, or other online platforms',
-  'Mostly word of mouth, offline, or referrals',
-] as const;
-
-/** @deprecated Use LEGACY_ONLINE_PRESENCE_OPTIONS — kept for any external consumers. */
-export const DISCOVERY_ONLINE_PRESENCE_OPTIONS = LEGACY_ONLINE_PRESENCE_OPTIONS;
-
-const [
-  PRESENCE_FULL_SITE,
-  PRESENCE_LANDING,
-  _PRESENCE_IN_DEV,
-  PRESENCE_SOCIAL,
-  _PRESENCE_MARKETPLACES,
-  PRESENCE_OFFLINE,
-] = LEGACY_ONLINE_PRESENCE_OPTIONS;
-
-/** Single-select values from older discovery sessions → current multi-select ids. */
-const LEGACY_ONLINE_PRESENCE: Record<string, string[]> = {
-  'Full website (multi-page)': [PRESENCE_FULL_SITE],
-  'Single landing page': [PRESENCE_LANDING],
-  'Social media profiles only': [PRESENCE_SOCIAL],
-  'None — clients find us through word of mouth': [PRESENCE_OFFLINE],
-};
 
 export const DISCOVERY_SOCIAL_PLATFORM_OPTIONS = [
   'Instagram',
@@ -163,20 +134,6 @@ function hasCrm(answers: DiscoveryAnswers): boolean {
   return includesCrmTool(tools);
 }
 
-/**
- * Normalises legacy single-string answers saved before multi-select was introduced.
- * Exported for backward-compat reading of old discovery sessions.
- */
-export function getOnlinePresenceSelections(answers: DiscoveryAnswers): string[] {
-  const v = answers['online_presence'];
-  if (Array.isArray(v)) return v;
-  if (typeof v === 'string' && v.trim()) {
-    const s = v.trim();
-    return LEGACY_ONLINE_PRESENCE[s] ?? [s];
-  }
-  return [];
-}
-
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
@@ -217,11 +174,12 @@ export function getQuestion(id: string): DiscoveryQuestion | undefined {
  */
 export function computeScore(answers: DiscoveryAnswers): number {
   const n = computeFindings(answers).length;
-  if (n === 0) return 5;
-  if (n <= 2) return 4;
-  if (n <= 4) return 3;
-  if (n <= 6) return 2;
-  return 1;
+  const t = FC.triage;
+  if (n === 0) return t.ifZero;
+  if (n <= 2) return t.ifAtMost2;
+  if (n <= 4) return t.ifAtMost4;
+  if (n <= 6) return t.ifAtMost6;
+  return t.otherwise;
 }
 
 // ── Findings engine ───────────────────────────────────────────────────────────
@@ -256,22 +214,33 @@ function stageLabel(stage: string | null): string {
 /** True when d1 is empty or only trivial / spreadsheet-only tooling. */
 function d1SoloWeakTools(tools: string[]): boolean {
   if (tools.length === 0) return true;
-  const trivial = new Set([
-    'Email',
-    'Nothing specific',
-    'Other',
-    'WhatsApp / voice notes',
-    'Voice notes or WhatsApp audio',
-  ]);
+  const trivial = new Set(FC.d1TrivialTools);
   const meaningful = tools.filter(t => !trivial.has(t));
-  return meaningful.length === 0 || (meaningful.length === 1 && meaningful[0] === 'Spreadsheets');
+  return (
+    meaningful.length === 0 ||
+    (meaningful.length === 1 && meaningful[0] === FC.d1SoloWeakSpreadsheetOnlyLabel)
+  );
 }
 
 function d1EffectivelyEmpty(tools: string[]): boolean {
-  return (
-    tools.length === 0 ||
-    (tools.length === 1 && (tools[0] === 'Nothing specific' || tools[0] === 'Other'))
-  );
+  return tools.length === 0 || (tools.length === 1 && tools[0] === FC.d1EffectivelyEmptyIfOnlyOption);
+}
+
+function pushDiscoveryCopyFinding(
+  findings: DiscoveryFinding[],
+  id: string,
+  vars: Record<string, string | undefined>,
+): void {
+  const row = DISCOVERY_FINDINGS_COPY[id];
+  if (!row) return;
+  findings.push({
+    id,
+    zone: row.zone,
+    headline: fillDiscoveryFindingTemplate(row.headline, vars),
+    detail: fillDiscoveryFindingTemplate(row.detail, vars),
+    impact: row.impact,
+    hook: row.hook,
+  });
 }
 
 /**
@@ -287,14 +256,16 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
   const channels = (answers['c_nosite_4'] as string[] | null) ?? [];
   const presence = (answers['c_nosite_1'] as string[] | null) ?? [];
   const bottleneck = answers['d2'] as string | null;
-  const goal     = answers['f1'] as string | null;
+  const f1Raw = answers['f1'];
+  const goal =
+    f1Raw == null ? null : Array.isArray(f1Raw) ? (f1Raw[0] as string | undefined) ?? null : (f1Raw as string);
   const stage    = answers['a7'] as string | null;
   const industry = answers['a2'] as string | null;
-  const goalBucket = normalizePrimaryGoal(goal);
+  const goalBucket = normalizePrimaryGoal(f1Raw);
 
-  const noCrm         = !hasCrm(answers);
-  const hasWhatsApp   = channels.some(c => c.toLowerCase().includes('whatsapp'));
-  const hasPhone      = channels.includes('Phone call');
+  const noCrm = !hasCrm(answers);
+  const hasWhatsApp = channels.some(c => c.toLowerCase().includes(FC.channelWhatsAppSubstring));
+  const hasPhone = channels.includes(FC.channelPhoneLabel);
   const teamBucket = normalizeTeamSize(answers['a4']);
   const stageBucket = normalizeStage(stage);
   const isSolo = teamBucket === 'solo';
@@ -317,220 +288,142 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
 
   // ── Rule 1: No CRM + WhatsApp as primary channel ────────────────────────────
   if (noCrm && hasWhatsApp) {
-    const ch = channels.filter(c => c !== 'WhatsApp');
-    const tail = ch.length ? ` The same pattern often shows up across ${channelsLabel(ch)}.` : '';
-    findings.push({
-      id: 'no_crm_whatsapp',
-      zone: 'Automation',
-      headline: 'Every WhatsApp thread is revenue walking out the door',
-      detail: `You are managing leads inside WhatsApp with no CRM record.${tail} There is no follow-up sequence, no reminder when a lead goes cold, and no count of how many enquiries slipped away. For ${industryLabel(answers)} ${teamLabel(answers)}, wiring WhatsApp into a simple pipeline is often the fastest revenue win.`,
-      impact: 'high',
-      hook: 'revenue',
+    const ch = channels.filter(c => c !== FC.whatsappToolbarChannelLabel);
+    const channelsTail = ch.length ? ` The same pattern often shows up across ${channelsLabel(ch)}.` : '';
+    pushDiscoveryCopyFinding(findings, 'no_crm_whatsapp', {
+      channelsTail,
+      industry: industryLabel(answers),
+      team: teamLabel(answers),
     });
   }
 
-  // ── Rule 2: Lead tracking in head / WhatsApp (d1b) ─────────────────────────────
-  if (
-    tracking === 'In my head or WhatsApp messages' ||
-    (typeof tracking === 'string' && tracking.toLowerCase().includes("don't track"))
-  ) {
-    findings.push({
-      id: 'lead_in_head',
-      zone: 'Revenue',
-      headline: 'You are losing clients you never see in a pipeline',
-      detail: `Without a system to log enquiries from ${channelsLabel(channels)}, follow-ups live in memory and chat. Deals that close within hours of first contact are the ones you never see — every slow reply is money left on the table ${stageLabel(stage)}.`,
-      impact: 'high',
-      hook: 'revenue',
+  // ── Rule 2: Informal lead tracking (d1b) ───────────────────────────────────────
+  const trackingInformal =
+    typeof tracking === 'string' &&
+    (FC.trackingInformalExact.includes(tracking) ||
+      FC.trackingInformalSubstrings.some(s => tracking.toLowerCase().includes(s)));
+  if (trackingInformal) {
+    pushDiscoveryCopyFinding(findings, 'lead_in_head', {
+      channels: channelsLabel(channels),
+      stage: stageLabel(stage),
     });
   }
 
   // ── Rule 3: Not online at all (skip when Rule 13 covers the same case with goal context)
-  if (isNotOnline && goal !== 'Not enough new clients') {
-    findings.push({
-      id: 'invisible',
-      zone: 'Visibility',
-      headline: 'You are invisible to clients searching for you right now',
-      detail: `People are actively looking for ${industryLabel(answers)} services and none of that search traffic reaches you. The audit maps the fastest path to being found — starting with channels that take hours to set up, not months.`,
-      impact: 'high',
-      hook: 'visibility',
+  if (isNotOnline && goalBucket !== FC.excludeInvisibleFindingWhenGoalBucket) {
+    pushDiscoveryCopyFinding(findings, 'invisible', {
+      industry: industryLabel(answers),
     });
   }
 
   // ── Rule 4: Only one acquisition / visibility path selected (c_nosite_1) ───
   const solePresence = presence.length === 1 ? presence[0] : null;
-  if (solePresence && solePresence !== 'Not really online yet') {
+  if (solePresence && solePresence !== FC.solePresenceChannelExclude) {
     const only = solePresence;
-    findings.push({
-      id: 'single_channel',
-      zone: 'Growth risk',
-      headline: 'All new demand is flowing through a single narrow path',
-      detail: `You indicated people find you mainly via "${only}". When that one path hiccups — algorithm, seasonality, or a quiet referral month — revenue wobbles with no backup. ${industryLabel(answers)} businesses ${teamLabel(answers)} usually need at least one parallel acquisition route; the audit shows which to add first.`,
-      impact: 'high',
-      hook: 'risk',
+    pushDiscoveryCopyFinding(findings, 'single_channel', {
+      soleChannel: only,
+      industry: industryLabel(answers),
+      team: teamLabel(answers),
     });
   }
 
   // ── Rule 5: Hospitality / F&B / healthcare with no Google presence ──────────
   if (isLocalServiceBusiness && hasNoGooglePresence) {
-    findings.push({
-      id: 'hospitality_no_google',
-      zone: 'Visibility',
-      headline: 'Your most important local discovery surface is not working for you yet',
-      detail: `For ${industryLabel(answers)}, Google Maps is the first touchpoint for the majority of new clients. A verified Google Business profile is free, takes under an hour, and starts driving enquiries immediately.`,
-      impact: 'high',
-      hook: 'visibility',
+    pushDiscoveryCopyFinding(findings, 'hospitality_no_google', {
+      industry: industryLabel(answers),
     });
   }
 
   // ── Rule 6: Launching stage ───────────────────────────────────────────────────
   if (isLaunching) {
-    findings.push({
-      id: 'launching',
-      zone: 'Operations',
-      headline: 'The systems you build now define your ceiling later',
-      detail: 'At the launch stage, manual workarounds feel fast — until you are busy. Every process built on WhatsApp, spreadsheets, or memory costs 3x more to replace once the business picks up. The audit identifies which shortcuts to avoid and which to invest in now.',
-      impact: 'medium',
-      hook: 'scale',
-    });
+    pushDiscoveryCopyFinding(findings, 'launching', {});
   }
 
   // ── Rule 7: d2 bottleneck is a known automatable workflow ───────────────────
-  const automatableD2 = new Set([
-    'Following up with leads and prospects',
-    'Scheduling and confirming appointments',
-    'Creating and sending quotes or invoices',
-    'Reporting and tracking what is working',
-  ]);
+  const automatableD2 = new Set(FC.automatableD2Options);
   if (bottleneck && automatableD2.has(bottleneck)) {
     const hourEstimate = isSolo ? '3–5' : '5–10';
-    findings.push({
-      id: 'd2_automatable',
-      zone: 'Automation',
-      headline: 'Your biggest time drain is highly automatable',
-      detail: `"${bottleneck}" is one of the most commonly automated workflows for ${industryLabel(answers)} businesses. For a team ${teamLabel(answers)}, eliminating this typically frees ${hourEstimate} hours per week — redirected straight to client work.`,
-      impact: 'high',
-      hook: 'time',
+    pushDiscoveryCopyFinding(findings, 'd2_automatable', {
+      bottleneck,
+      industry: industryLabel(answers),
+      team: teamLabel(answers),
+      hoursRange: hourEstimate,
     });
   }
 
   // ── Rule 8: Solo + empty or spreadsheet-only stack ─────────────────────────
   if (isSolo && d1SoloWeakTools(tools)) {
-    findings.push({
-      id: 'solo_no_tools',
-      zone: 'Operations',
-      headline: 'You are carrying the whole operation without a real stack',
-      detail: `Running ${industryLabel(answers)} solo on spreadsheets and ad hoc tools caps how many clients you can serve before quality slips. The bottleneck feels like "not enough hours" but it is usually three repeatable workflows — the audit ranks which to automate first so you reclaim 5–10 hours a week.`,
-      impact: 'high',
-      hook: 'time',
+    pushDiscoveryCopyFinding(findings, 'solo_no_tools', {
+      industry: industryLabel(answers),
     });
   }
 
   // ── Rule 9: No substantive tools (non-solo, or solo not already covered by Rule 8)
   if (d1EffectivelyEmpty(tools) && !(isSolo && d1SoloWeakTools(tools))) {
-    findings.push({
-      id: 'no_tools',
-      zone: 'Operations',
-      headline: 'Operating without systems is your largest hidden cost',
-      detail: `No tools means every piece of information lives in memory or a chat thread. When you grow — or when someone is unavailable — everything stalls. The audit identifies the minimum viable stack for a ${industryLabel(answers)} business at your stage.`,
-      impact: 'high',
-      hook: 'risk',
+    pushDiscoveryCopyFinding(findings, 'no_tools', {
+      industry: industryLabel(answers),
     });
   }
 
   // ── Rule 10: CRM exists but still has a manual bottleneck ───────────────────
-  if (!noCrm && bottleneck && !bottleneck.startsWith('Something')) {
-    findings.push({
-      id: 'crm_but_bottleneck',
-      zone: 'Automation',
-      headline: 'Your CRM exists but your team works around it',
-      detail: `You have the infrastructure but it is not reducing your workload. "${bottleneck}" is still manual. This usually means the setup does not match your actual workflow — something the audit's automation phase maps in detail.`,
-      impact: 'medium',
-      hook: 'time',
+  if (!noCrm && bottleneck && !bottleneck.startsWith(FC.crmBottleneckIgnorePrefix)) {
+    pushDiscoveryCopyFinding(findings, 'crm_but_bottleneck', {
+      bottleneck,
     });
   }
 
   // ── Rule 11: Growing fast with narrow acquisition base ───────────────────────
   if (isGrowingFast && presence.length <= 2) {
-    findings.push({
-      id: 'fast_growth_single_channel',
-      zone: 'Growth risk',
-      headline: 'Fast growth on a narrow base is structurally fragile',
-      detail: 'Growing fast with 1–2 acquisition sources means an algorithm change or a referral drought can cut your pipeline in half overnight. Diversification at this stage is cheaper than recovery later.',
-      impact: 'medium',
-      hook: 'risk',
-    });
+    pushDiscoveryCopyFinding(findings, 'fast_growth_single_channel', {});
   }
 
   // ── Rule 12: Real estate without CRM ─────────────────────────────────────────
   if (isRealEstate && noCrm) {
-    findings.push({
-      id: 'realestate_no_crm',
-      zone: 'Revenue',
-      headline: 'Real estate runs on relationships — and yours are not tracked',
-      detail: 'In real estate, the majority of deals come from repeat clients or referrals. Without a CRM, you have no visibility into your warm pipeline, no follow-up triggers, no relationship history. Each contact is effectively reset.',
-      impact: 'high',
-      hook: 'revenue',
-    });
+    pushDiscoveryCopyFinding(findings, 'realestate_no_crm', {});
   }
 
   // ── Rule 13: Goal is clients + c_nosite_1 includes "Not really online yet" ───
-  if (goalBucket === 'more_clients' && isNotOnline) {
-    findings.push({
-      id: 'goal_clients_no_presence',
-      zone: 'Visibility',
-      headline: 'You want more clients, but they cannot find you',
-      detail: `You said new clients are the priority, yet you also signalled you are not really online yet — so search and discovery traffic is not reaching you. The fastest fix is rarely more ad spend; it is showing up where ${industryLabel(answers)} buyers already look, starting with the zero-cost moves the audit sequences.`,
-      impact: 'high',
-      hook: 'visibility',
+  if (goalBucket === FC.excludeInvisibleFindingWhenGoalBucket && isNotOnline) {
+    pushDiscoveryCopyFinding(findings, 'goal_clients_no_presence', {
+      industry: industryLabel(answers),
     });
   }
 
   // ── Rule 14: Goal is admin overload but d1 is thin ─────────────────────────
-  if (goalBucket === 'admin_overload' && d1SoloWeakTools(tools)) {
-    findings.push({
-      id: 'goal_admin_no_tools',
-      zone: 'Automation',
-      headline: 'Admin overload is a systems problem, not a time problem',
-      detail: 'Adding hours to the day does not fix admin overload — the right workflow setup does. The audit identifies the 20% of your processes generating 80% of your admin burden and maps them to specific automation options.',
-      impact: 'high',
-      hook: 'time',
-    });
+  if (goalBucket === FC.goalBucketAdminOverload && d1SoloWeakTools(tools)) {
+    pushDiscoveryCopyFinding(findings, 'goal_admin_no_tools', {});
   }
 
   // ── Rule 15: Phone as enquiry channel without CRM ───────────────────────────
   if (hasPhone && noCrm) {
-    const otherCh = channels.filter(c => c !== 'Phone call');
+    const otherCh = channels.filter(c => c !== FC.channelPhoneLabel);
     const chTail = otherCh.length ? `, often alongside ${channelsLabel(otherCh)}` : '';
-    findings.push({
-      id: 'phone_primary',
-      zone: 'Automation',
-      headline: 'Phone calls are high-intent — and they vanish without a system',
-      detail: `You told us enquiries arrive by phone${chTail}. Without CRM logging, callbacks slip, voicemails stack, and revenue leaks on busy days. A lightweight capture plus SMS or WhatsApp handoff often pays for itself in one recovered job.`,
-      impact: 'medium',
-      hook: 'revenue',
+    pushDiscoveryCopyFinding(findings, 'phone_primary', {
+      phoneChannelLower: FC.channelPhoneLabel.toLowerCase(),
+      chTail,
     });
   }
 
   // ── Prioritise and de-duplicate ───────────────────────────────────────────────
-  const hookOrder: Record<DiscoveryFinding['hook'], number> = {
-    revenue: 0, time: 1, visibility: 2, risk: 3, scale: 4,
-  };
+  const hookOrder = Object.fromEntries(FC.hookSortOrder.map((h, i) => [h, i])) as Record<
+    DiscoveryFinding['hook'],
+    number
+  >;
 
   const sorted = [...findings].sort((a, b) => {
     if (a.impact !== b.impact) return a.impact === 'high' ? -1 : 1;
     return hookOrder[a.hook] - hookOrder[b.hook];
   });
 
-  // Max 2 findings per zone to avoid repetitive output
   const zoneCounts: Record<string, number> = {};
   const deduped: DiscoveryFinding[] = [];
   for (const f of sorted) {
     const count = zoneCounts[f.zone] ?? 0;
-    if (count < 2) {
+    if (count < FC.maxFindingsPerZone) {
       deduped.push(f);
       zoneCounts[f.zone] = count + 1;
     }
-    if (deduped.length === 4) break;
+    if (deduped.length === FC.maxFindingsReturned) break;
   }
   return deduped;
 }

@@ -253,7 +253,7 @@ Structured questionnaire responses per audit. One row per audit (unique `audit_i
 
 Core fields:
 
-- `responses` (`jsonb`) — versioned payload (`responses_format`), supports legacy flat values and structured `{ value, source }`.
+- `responses` (`jsonb`) — payload with structured cells `{ value, source }` only (`responses_format` = 2). Keys are **question-bank v1** ids (**`a11`**, **`f1`**, **`a10`**, …) plus side-channel keys such as **`…__other`** and **`intake_industry_specify`** where applicable.
 - `intake_versions` (`jsonb`, nullable) — `{ questionBankVersion, policyVersion, layoutVersion, resolverVersion }` saved on each brief write; `NULL` on legacy rows (server validates with the current engine).
 - `intake_version_migration` (`jsonb`, nullable) — last migration metadata when the stored tuple was repaired or upgraded (see `validateIntakeVersionsForBriefWrite` / ADR).
 - `status` (`draft` | `submitted`) and SLA counters (`answered_required`, `answered_recommended`, `answered_optional`).
@@ -300,6 +300,8 @@ Migration: `008_reliability_idempotency.sql`.
 ### `intake_tokens`
 
 Pre-brief magic links: consultant creates a row; the client opens a public URL and POSTs answers until `expires_at`. Optional `audit_id` merges responses into `intake_brief` on submit.
+
+**`responses` (`jsonb`):** same structured shape as **`intake_brief.responses`** — keys are **question-bank v1** ids (**`a11`**, **`a12`**, **`a2`**, **`a5`**, **`f1`**, **`a10`**, …) with values **`{ value, source }`** (`responses_format` **2**), plus **`…__other`** / **`intake_industry_specify`** as needed.
 
 Access is via **service role** in the API (no RLS on this table); the `token` value is unguessable (40 hex chars).
 

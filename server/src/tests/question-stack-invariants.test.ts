@@ -11,7 +11,9 @@ describe('question stack invariants', () => {
   });
 
   it('policy pre-brief bankIncluded ids exist in question-bank canon', () => {
-    for (const id of INTAKE_POLICY_V1.modes.pre_brief.bankIncluded) {
+    const bankIncluded = INTAKE_POLICY_V1.modes.pre_brief.bankIncluded;
+    expect(bankIncluded, 'bundled policy must define pre_brief.bankIncluded').toBeDefined();
+    for (const id of bankIncluded!) {
       expect(QUESTION_BANK_V1_IDS.has(id), `pre_brief bankIncluded id ${id} not in question-bank.v1.json`).toBe(true);
     }
   });

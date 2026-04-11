@@ -1,6 +1,6 @@
 /**
  * Agent context slices — docs/QUESTION_BANK.md §5.
- * Canonical map is built from primary/secondary feeds in question-feed-roles.ts; ordered per bank in question-bank.ts.
+ * Canonical map is built from primary/secondary feeds in `question-feed-roles.v1.json`; ordered per bank in question-bank.ts.
  */
 export {
   DOMAIN_TO_QUESTIONS_RAW,

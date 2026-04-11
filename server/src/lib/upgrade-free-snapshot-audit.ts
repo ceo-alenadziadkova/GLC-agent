@@ -84,7 +84,7 @@ function mapConversionToRevenueModel(id: unknown): string | null {
   return null;
 }
 
-/** Starter line for `target_audience` from classifier guess. */
+/** Starter line for bank id `b1` from classifier guess. */
 function mapAudienceGuess(ag: unknown): string | null {
   const s = String(ag ?? '');
   if (s === 'b2b') return 'Primarily business buyers (B2B). Please refine who you sell to.';
@@ -263,9 +263,9 @@ export async function upgradeFreeSnapshotAudit(params: {
     await saveBriefResponses(
       auditId,
       {
-        intake_company_website: { value: siteUrl, source: 'client' },
-        intake_company_name: { value: host, source: 'client' },
-        intake_industry: { value: 'Other', source: 'client' },
+        a11: { value: siteUrl, source: 'client' },
+        a12: { value: host, source: 'client' },
+        a2: { value: 'Other', source: 'client' },
         intake_industry_specify: { value: 'To be confirmed — we will ask in the brief.', source: 'client' },
       },
       { collection_mode: 'self_serve' },
@@ -334,18 +334,19 @@ export async function upgradeFreeSnapshotAudit(params: {
       .eq('id', auditId);
 
     const responses: Record<string, unknown> = {
-      intake_company_website: { value: siteUrl, source: 'recon_confirmed' },
-      intake_company_name: { value: guessName, source: 'recon_confirmed' },
-      intake_industry: { value: ind, source: 'recon_confirmed' },
+      a11: { value: siteUrl, source: 'recon_confirmed' },
+      a12: { value: guessName, source: 'recon_confirmed' },
+      a2: { value: ind, source: 'recon_confirmed' },
     };
     if (ind === 'Other' && specify) {
       responses.intake_industry_specify = { value: specify, source: 'recon_confirmed' };
     }
     if (ga) {
-      responses.has_google_analytics = { value: 'Yes, GA4', source: 'recon_confirmed' };
+      responses.c3 = { value: 'Yes, GA4', source: 'recon_confirmed' };
     }
     if (activity.blurb) {
-      responses.primary_goal = {
+      responses.f1 = { value: ['Other'], source: 'recon_confirmed' };
+      responses.f1__other = {
         value:
           'Set your real #1 goal for this audit (this is a draft from our quick scan — edit freely).\n\n' +
           activity.blurb,
@@ -354,11 +355,11 @@ export async function upgradeFreeSnapshotAudit(params: {
     }
     const audienceLine = mapAudienceGuess(siteProfile?.audienceGuess);
     if (audienceLine) {
-      responses.target_audience = { value: audienceLine, source: 'recon_confirmed' };
+      responses.b1 = { value: audienceLine, source: 'recon_confirmed' };
     }
     const revenuePick = mapConversionToRevenueModel(siteProfile?.conversionModel);
     if (revenuePick) {
-      responses.revenue_model = { value: revenuePick, source: 'recon_confirmed' };
+      responses.a10 = { value: [revenuePick], source: 'recon_confirmed' };
     }
 
     await saveBriefResponses(auditId, responses, { collection_mode: 'self_serve' });

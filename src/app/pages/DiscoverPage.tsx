@@ -80,7 +80,6 @@ function QuestionInput({
 
   const freeTextPlaceholderById: Record<string, string> = {
     b1: 'Example: "Homeowners in Palma looking for renovation planning."',
-    d2: 'Example: "Manual follow-up with leads across WhatsApp and email."',
     f1: 'Example: "Not enough predictable new clients each month."',
   };
 

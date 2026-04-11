@@ -129,12 +129,28 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install chromium --with-deps
+      - name: Require repository secrets for E2E backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          ok=true
+          if [ -z "$SUPABASE_URL" ]; then echo "::error::Missing repository secret SUPABASE_URL"; ok=false; fi
+          if [ -z "$SUPABASE_SERVICE_KEY" ]; then echo "::error::Missing repository secret SUPABASE_SERVICE_KEY"; ok=false; fi
+          if [ -z "$SUPABASE_ANON_KEY" ]; then echo "::error::Missing repository secret SUPABASE_ANON_KEY"; ok=false; fi
+          if [ -z "$JWT_SECRET" ]; then echo "::error::Missing repository secret JWT_SECRET"; ok=false; fi
+          if [ "$ok" != true ]; then
+            echo "Add these under Settings → Secrets and variables → Actions (repository secrets)."
+            exit 1
+          fi
       - name: Start backend API (port 3001)
         env:
-          SUPABASE_URL: https://example.supabase.co
-          SUPABASE_SERVICE_KEY: test-service-key
-          SUPABASE_ANON_KEY: test-anon-key
-          JWT_SECRET: test-jwt-secret
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
           ALLOWED_ORIGINS: http://127.0.0.1:5173
           NODE_ENV: test
         run: |

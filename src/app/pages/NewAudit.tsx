@@ -190,7 +190,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         setResponses(prev => ({ ...prev, ...merged }));
         setIntakePrefillActive(true);
 
-        const web = unwrapBriefString(merged, 'intake_company_website');
+        const web = unwrapBriefString(merged, 'a11') ?? unwrapBriefString(merged, 'intake_company_website');
         if (web) {
           const auditUrl = websiteAnswerToAuditUrl(web);
           if (auditUrl) {
@@ -203,13 +203,14 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         }
 
         const cname =
-          unwrapBriefString(merged, 'intake_company_name')
+          unwrapBriefString(merged, 'a12')
+          ?? unwrapBriefString(merged, 'intake_company_name')
           ?? (typeof data.metadata?.company_name === 'string' ? data.metadata.company_name.trim() : undefined);
         if (cname) {
           setName(n => (n.trim() ? n : cname));
         }
 
-        const ind = unwrapBriefString(merged, 'intake_industry');
+        const ind = unwrapBriefString(merged, 'a2') ?? unwrapBriefString(merged, 'intake_industry');
         if (ind && isIndustryOption(ind)) {
           setIndustry(i => (i ? i : ind));
         }

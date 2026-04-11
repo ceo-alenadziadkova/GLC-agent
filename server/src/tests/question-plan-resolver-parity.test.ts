@@ -24,7 +24,7 @@ describe('question plan resolver parity', () => {
     expect(schema.questions.map(q => q.id)).toEqual(schemaBankIds);
   });
 
-  it('legacy brief question projection stays an ordered subset of schema ids', () => {
+  it('classic brief catalog rows for plan.visible stay an ordered subset of schema question ids', () => {
     const args = {
       responses: {
         a5: 'No website yet',
@@ -38,8 +38,8 @@ describe('question plan resolver parity', () => {
     const schema = buildBriefSchemaSnapshot(args);
     const plan = buildIntakePlan(args);
     const schemaIds = schema.questions.map(q => q.id);
-    const legacyIds = getBriefQuestionsByIds(plan.visible).map(q => q.id);
-    const schemaSubset = schemaIds.filter(id => legacyIds.includes(id));
-    expect(schemaSubset).toEqual(legacyIds);
+    const classicBriefIds = getBriefQuestionsByIds(plan.visible).map(q => q.id);
+    const schemaSubset = schemaIds.filter(id => classicBriefIds.includes(id));
+    expect(schemaSubset).toEqual(classicBriefIds);
   });
 });

@@ -28,9 +28,8 @@ describe('choiceValueNeedsSpecify', () => {
 });
 
 describe('choiceSpecifyResponseKey', () => {
-  it('maps industry question ids to intake_industry_specify', () => {
+  it('maps a2 industry to intake_industry_specify', () => {
     expect(choiceSpecifyResponseKey('a2')).toBe('intake_industry_specify');
-    expect(choiceSpecifyResponseKey('intake_industry')).toBe('intake_industry_specify');
   });
 
   it('suffixes other question ids', () => {

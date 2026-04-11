@@ -207,7 +207,7 @@ export function IntakeBankWizard({
       )}
 
       {q && (() => {
-        // a2 / intake_industry "Other" writes to `intake_industry_specify` (see choiceSpecifyResponseKey).
+        // a2 "Other" writes to `intake_industry_specify` (see choiceSpecifyResponseKey).
         const otherKey = choiceSpecifyResponseKey(q.id);
         const otherSpecify = (unwrapForField(wizard.responses[otherKey] as BriefResponses[string]) as string | undefined) ?? '';
         return (

@@ -1,7 +1,7 @@
 /**
  * BriefValidator — validates intake brief completeness.
  *
- * SLA: required question-bank stubs (visible for branch + collection mode) plus revenue signal (a10 / legacy revenue_model alias).
+ * SLA: required question-bank stubs (visible for branch + collection mode) plus revenue signal (bank id `a10`).
  * If brief doesn't exist or is incomplete, startPhase(0) throws with a user-friendly message.
  */
 import { supabase } from './supabase.js';
@@ -20,13 +20,19 @@ import type {
   ProductMode,
   ReconConflict,
 } from '../types/audit.js';
-import { resolveBankOptionalIds, resolveExpressSlaRequiredIds } from '@glc/intake-core';
-import { buildIntakePlan } from '@glc/intake-core';
-import { isSupportedIntakeArtifactTuple, resolveIntakeArtifacts } from '@glc/intake-core';
-import type { IntakeSurface } from '@glc/intake-core';
-import { currentIntakeVersionTuple, syntheticIntakeVersionsBeforeMatrix } from '@glc/intake-core';
-import { deriveBankV1DataQuality } from '@glc/intake-core';
-import { getQuestionBankPromptLabel } from '@glc/intake-core';
+import {
+  buildIntakePlan,
+  deriveBankV1DataQuality,
+  getQuestionBankPromptLabel,
+  isSupportedIntakeArtifactTuple,
+  resolveBankOptionalIds,
+  resolveExpressSlaRequiredIds,
+  resolvePreBriefSubmitExpressBankIds,
+  resolveIntakeArtifacts,
+  currentIntakeVersionTuple,
+  syntheticIntakeVersionsBeforeMatrix,
+  type IntakeSurface,
+} from '@glc/intake-core';
 import { logger } from './logger.js';
 import { prepareBriefForValidation } from '@glc/intake-core';
 import { mergeReconConflictsFromC1 } from '@glc/intake-core';
@@ -91,7 +97,8 @@ export function resolveIntakeSurfaceForPlan(
   collectionMode: IntakeBriefCollectionMode,
   perspective: 'consultant' | 'client',
 ): IntakeSurface | undefined {
-  if (collectionMode === 'discovery') return undefined;
+  /** Matches buildIntakePlan: `public_discovery` layout only applies with this surface + discovery mode. */
+  if (collectionMode === 'discovery') return 'public_discovery';
   if (perspective === 'client') {
     return collectionMode === 'pre_brief' ? 'client_portal' : 'client_form';
   }
@@ -124,6 +131,10 @@ function unwrapAnswer(value: unknown): unknown {
   return value;
 }
 
+function effectiveBriefForSla(responses: Record<string, unknown>): Record<string, unknown> {
+  return { ...responses };
+}
+
 function isAnswered(value: unknown): boolean {
   if (value && typeof value === 'object' && !Array.isArray(value) && 'source' in (value as Record<string, unknown>)) {
     const src = (value as { source?: string }).source;
@@ -145,7 +156,7 @@ export function isPreBriefIdSatisfied(
   _collectionMode?: IntakeBriefCollectionMode,
 ): boolean {
   if (id === 'intake_industry_specify') {
-    const ind = unwrapAnswer(responses.intake_industry);
+    const ind = unwrapAnswer(responses.a2);
     if (ind !== 'Other') return true;
     return isAnswered(responses[id]);
   }
@@ -166,26 +177,21 @@ function getPreBriefSubmitSlotIds(
   expressRequiredBankIds?: string[],
   intakeVersionTuple?: IntakeVersionTuple,
 ): string[] {
-  const ids: string[] = [
-    INTAKE_IDENTITY_FIELD_IDS[0],
-    INTAKE_IDENTITY_FIELD_IDS[1],
-    INTAKE_IDENTITY_FIELD_IDS[2],
-  ];
-  if (unwrapAnswer(responses.intake_industry) === 'Other') {
-    ids.push(INTAKE_IDENTITY_FIELD_IDS[3]);
+  const ids: string[] = [...INTAKE_IDENTITY_FIELD_IDS];
+  if (unwrapAnswer(responses.a2) === 'Other') {
+    ids.push('intake_industry_specify');
   }
   ids.push(
     ...(expressRequiredBankIds ??
-      resolveExpressSlaRequiredIds(responses, collectionMode, intakeVersionTuple)),
+      resolvePreBriefSubmitExpressBankIds(responses, collectionMode, intakeVersionTuple)),
   );
   return ids;
 }
 
 /** All pre-brief questions satisfied (used by public intake submit). */
 export function arePreBriefSlotsSatisfied(responses: Record<string, unknown>): boolean {
-  return getPreBriefSubmitSlotIds(responses).every(id =>
-    isPreBriefIdSatisfied(id, responses),
-  );
+  const effective = effectiveBriefForSla(responses);
+  return getPreBriefSubmitSlotIds(effective).every(id => isPreBriefIdSatisfied(id, effective));
 }
 
 function computeProgress(
@@ -198,6 +204,7 @@ function computeProgress(
   const plan =
     fullPlan ??
     buildIntakePlan({ responses, productMode: 'full', collectionMode, surface, intakeVersionTuple });
+  const effective = effectiveBriefForSla(responses);
   const visibleSet = new Set(plan.visible);
   const stubs = resolveIntakeArtifacts(intakeVersionTuple ?? null).stubs;
   const visible = stubs.filter(q => visibleSet.has(q.id));
@@ -206,21 +213,21 @@ function computeProgress(
   for (const q of visible) {
     const w = q.priority === 'required' ? 3 : q.priority === 'recommended' ? 2 : 1;
     totalWeight += w;
-    if (isAnswered(responses[q.id])) answeredWeight += w;
+    if (isAnswered(effective[q.id])) answeredWeight += w;
   }
   const revW = 3;
   totalWeight += revW;
-  if (isRevenueAnsweredRaw(responses)) answeredWeight += revW;
+  if (isRevenueAnsweredRaw(effective)) answeredWeight += revW;
 
   const progressPct = totalWeight > 0 ? Math.min(100, Math.round((answeredWeight / totalWeight) * 100)) : 0;
   const readinessBadge: IntakeReadinessBadge = progressPct >= 80 ? 'high' : progressPct >= 45 ? 'medium' : 'low';
 
   const fullRequired = plan.required;
-  const missingRequired = fullRequired.filter(id => !isAnswered(responses[id]));
+  const missingRequired = fullRequired.filter(id => !isAnswered(effective[id]));
   const missingRecommended = visible
     .filter(q => q.priority === 'recommended')
     .map(q => q.id)
-    .filter(id => !isAnswered(responses[id]));
+    .filter(id => !isAnswered(effective[id]));
 
   let nextBestAction: IntakeNextBestAction = 'none';
   if (missingRequired.length > 0) nextBestAction = 'complete_required';
@@ -248,6 +255,7 @@ export function validateBriefResponses(
   const surface = opts?.surface;
   const intakeVersionTuple = opts?.intakeVersionTuple;
   const plan = buildIntakePlan({ responses, productMode, collectionMode, surface, intakeVersionTuple });
+  const effective = effectiveBriefForSla(responses);
   const requiredIds = productMode === 'free_snapshot' ? [] : plan.required;
   const visibleSet = new Set(plan.visible);
   const stubs = resolveIntakeArtifacts(intakeVersionTuple ?? null).stubs;
@@ -255,11 +263,11 @@ export function validateBriefResponses(
     .filter(s => visibleSet.has(s.id) && s.priority === 'recommended')
     .map(s => s.id);
 
-  const answeredRequired = requiredIds.filter(id => isAnswered(responses[id]));
-  const answeredRecommended = recIds.filter(id => isAnswered(responses[id]));
+  const answeredRequired = requiredIds.filter(id => isAnswered(effective[id]));
+  const answeredRecommended = recIds.filter(id => isAnswered(effective[id]));
 
   const missingRequired = requiredIds
-    .filter(id => !isAnswered(responses[id]))
+    .filter(id => !isAnswered(effective[id]))
     .map(id => ({ id, question: slaQuestionLabel(id) }));
 
   const sla_met = missingRequired.length === 0;
@@ -282,6 +290,7 @@ export function evaluateBriefGates(
   surface?: IntakeSurface,
   intakeVersionTuple?: IntakeVersionTuple,
 ): BriefGateResult {
+  const effective = effectiveBriefForSla(responses);
   const expressPlan = buildIntakePlan({
     responses,
     productMode: 'express',
@@ -297,21 +306,25 @@ export function evaluateBriefGates(
     intakeVersionTuple,
   });
 
-  const missingExpressRequired = expressPlan.required.filter(id => !isAnswered(responses[id]));
-  const missingFullRequired = fullPlan.required.filter(id => !isAnswered(responses[id]));
+  const missingExpressRequired = expressPlan.required.filter(id => !isAnswered(effective[id]));
+  const missingFullRequired = fullPlan.required.filter(id => !isAnswered(effective[id]));
+  const expressBankSlotsForPreBriefLink =
+    collectionMode === 'pre_brief'
+      ? resolvePreBriefSubmitExpressBankIds(responses, collectionMode, intakeVersionTuple)
+      : expressPlan.required;
   const submitSlotIds = getPreBriefSubmitSlotIds(
-    responses,
+    effective,
     collectionMode,
-    expressPlan.required,
+    expressBankSlotsForPreBriefLink,
     intakeVersionTuple,
   );
-  const missingPreBrief = submitSlotIds.filter(id => !isPreBriefIdSatisfied(id, responses, collectionMode));
+  const missingPreBrief = submitSlotIds.filter(id => !isPreBriefIdSatisfied(id, effective, collectionMode));
   const visibleSet = new Set(fullPlan.visible);
   const stubs = resolveIntakeArtifacts(intakeVersionTuple ?? null).stubs;
   const missingRecommended = stubs
     .filter(s => visibleSet.has(s.id) && s.priority === 'recommended')
     .map(s => s.id)
-    .filter(id => !isAnswered(responses[id]));
+    .filter(id => !isAnswered(effective[id]));
   const intakeProgress = computeProgress(responses, collectionMode, fullPlan, surface, intakeVersionTuple);
 
   const minPreBriefAnswered = Math.ceil(submitSlotIds.length / 2);
@@ -384,10 +397,11 @@ export async function assertBriefReady(auditId: string): Promise<void> {
       synthetic_versions: syntheticIntakeVersionsBeforeMatrix(),
     });
   }
+  const effectiveAssert = effectiveBriefForSla(responses);
   const optionalIds = resolveBankOptionalIds(responses, collectionMode, surface, intakeTuple);
-  const optionalCount = optionalIds.filter(id => isAnswered(responses[id])).length;
+  const optionalCount = optionalIds.filter(id => isAnswered(effectiveAssert[id])).length;
 
-  const bankDataQuality = deriveBankV1DataQuality(responses);
+  const bankDataQuality = deriveBankV1DataQuality(effectiveAssert);
 
   await supabase.from('intake_brief').upsert(
     {
@@ -484,14 +498,15 @@ export async function saveBriefResponses(
     surface,
     intakeVersionTuple: effectiveTuple,
   });
+  const effectiveSave = effectiveBriefForSla(responses as Record<string, unknown>);
   const optionalIds = resolveBankOptionalIds(
     responses as Record<string, unknown>,
     collection_mode,
     surface,
     effectiveTuple,
   );
-  const answeredOptional = optionalIds.filter(id => isAnswered(responses[id])).length;
-  const bankDataQualitySave = deriveBankV1DataQuality(responses as Record<string, unknown>);
+  const answeredOptional = optionalIds.filter(id => isAnswered(effectiveSave[id])).length;
+  const bankDataQualitySave = deriveBankV1DataQuality(effectiveSave);
 
   const prefills = (existingBrief?.recon_prefills as Record<string, unknown>) ?? {};
   const priorConflicts: ReconConflict[] = Array.isArray(existingBrief?.recon_conflicts)

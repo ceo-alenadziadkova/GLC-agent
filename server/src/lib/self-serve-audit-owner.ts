@@ -1,7 +1,13 @@
 import { supabase } from '../services/supabase.js';
 import { getStoredSelfServeAuditOwnerUserId } from './platform-self-serve-settings.js';
+import { listPlatformAdminUserIds } from './platform-admin.js';
+import { logger } from '../services/logger.js';
 
 export const SELF_SERVE_OWNER_UNAVAILABLE_CODE = 'SELF_SERVE_OWNER_UNAVAILABLE' as const;
+
+/** Shown in API JSON only — internal remediation is logged separately. */
+const USER_FACING_UNAVAILABLE =
+  'This feature is temporarily unavailable. Please try again in a few minutes.';
 
 export type SelfServeOwnerResult =
   | { ok: true; userId: string }
@@ -16,15 +22,23 @@ const CLIENT_SAFE_UNAVAILABLE: SelfServeOwnerResult = {
   ok: false,
   statusCode: 503,
   code: SELF_SERVE_OWNER_UNAVAILABLE_CODE,
-  error:
-    'We could not assign ownership for this audit. Please try again later or contact the GLC team.',
+  error: USER_FACING_UNAVAILABLE,
 };
 
-async function validateConsultantUserId(raw: string): Promise<SelfServeOwnerResult> {
+function unavailable(reason: string): SelfServeOwnerResult {
+  logger.error('self_serve_audit_owner.unavailable', {
+    component: 'self_serve_audit_owner',
+    reason,
+    remediation:
+      'Set platform_settings.self_serve_audit_owner_user_id or SELF_SERVE_AUDIT_OWNER_USER_ID, or configure PLATFORM_ADMIN_USER_IDS (or ensure at least one consultant profile exists).',
+  });
+  return CLIENT_SAFE_UNAVAILABLE;
+}
+
+/** Returns consultant `profiles.id` when `raw` is a consultant UUID, else null (no logging). */
+async function consultantIdIfValid(raw: string): Promise<string | null> {
   const id = raw.trim();
-  if (!id) {
-    return CLIENT_SAFE_UNAVAILABLE;
-  }
+  if (!id) return null;
 
   const { data: profile, error } = await supabase
     .from('profiles')
@@ -33,31 +47,105 @@ async function validateConsultantUserId(raw: string): Promise<SelfServeOwnerResu
     .maybeSingle();
 
   if (error || !profile || (profile.role as string) !== 'consultant') {
-    return CLIENT_SAFE_UNAVAILABLE;
+    return null;
   }
+  return profile.id as string;
+}
 
-  return { ok: true, userId: profile.id as string };
+async function tryFirstPlatformAdmin(): Promise<SelfServeOwnerResult | null> {
+  for (const adminRaw of listPlatformAdminUserIds()) {
+    const cid = await consultantIdIfValid(adminRaw);
+    if (cid) {
+      logger.info('self_serve_audit_owner.fallback_platform_admin', {
+        component: 'self_serve_audit_owner',
+      });
+      return { ok: true, userId: cid };
+    }
+  }
+  return null;
 }
 
 /**
- * Resolves the consultant `audits.user_id` for audits created by clients
- * (self-serve). Order: value stored in `platform_settings`, then optional
- * `SELF_SERVE_AUDIT_OWNER_USER_ID` env (legacy / bootstrap).
+ * When PLATFORM_ADMIN_USER_IDS is unset (single-team mode), use the earliest consultant
+ * by signup time as implicit default owner.
+ */
+async function tryFirstConsultantByCreatedAt(): Promise<SelfServeOwnerResult | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('role', 'consultant')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  logger.info('self_serve_audit_owner.fallback_first_consultant', {
+    component: 'self_serve_audit_owner',
+    note: 'PLATFORM_ADMIN_USER_IDS unset; using earliest consultant by created_at.',
+  });
+  return { ok: true, userId: data.id as string };
+}
+
+/**
+ * Resolves the consultant `audits.user_id` for audits created by clients (self-serve) and
+ * public snapshot. Order:
+ * 1. `platform_settings.self_serve_audit_owner_user_id`
+ * 2. `SELF_SERVE_AUDIT_OWNER_USER_ID` env
+ * 3. First valid id in `PLATFORM_ADMIN_USER_IDS` (when non-empty)
+ * 4. If `PLATFORM_ADMIN_USER_IDS` is unset/empty: earliest consultant profile (`created_at`)
  */
 export async function resolveSelfServeAuditOwnerUserId(): Promise<SelfServeOwnerResult> {
   const stored = await getStoredSelfServeAuditOwnerUserId();
   if (stored) {
-    const validated = await validateConsultantUserId(stored);
-    if (validated.ok) {
-      return validated;
+    const fromStored = await consultantIdIfValid(stored);
+    if (fromStored) {
+      return { ok: true, userId: fromStored };
     }
-    // Invalid stored id: fall through to env if present
+    logger.warn('self_serve_audit_owner.stored_owner_invalid', {
+      component: 'self_serve_audit_owner',
+      message:
+        'platform_settings.self_serve_audit_owner_user_id is missing or not a consultant; trying fallbacks',
+    });
   }
 
   const envRaw = process.env.SELF_SERVE_AUDIT_OWNER_USER_ID?.trim();
   if (envRaw) {
-    return validateConsultantUserId(envRaw);
+    const fromEnv = await consultantIdIfValid(envRaw);
+    if (fromEnv) {
+      return { ok: true, userId: fromEnv };
+    }
+    return unavailable(
+      'SELF_SERVE_AUDIT_OWNER_USER_ID is set but does not reference a valid consultant profile',
+    );
   }
 
-  return CLIENT_SAFE_UNAVAILABLE;
+  const fromAdmins = await tryFirstPlatformAdmin();
+  if (fromAdmins) {
+    return fromAdmins;
+  }
+
+  if (listPlatformAdminUserIds().length === 0) {
+    const fromFirst = await tryFirstConsultantByCreatedAt();
+    if (fromFirst) {
+      return fromFirst;
+    }
+  }
+
+  if (stored) {
+    logger.error('self_serve_audit_owner.unavailable', {
+      component: 'self_serve_audit_owner',
+      reason:
+        'stored self-serve owner invalid and no env / platform-admin / first-consultant fallback succeeded',
+      remediation:
+        'Fix platform_settings.self_serve_audit_owner_user_id or set SELF_SERVE_AUDIT_OWNER_USER_ID / PLATFORM_ADMIN_USER_IDS.',
+    });
+    return CLIENT_SAFE_UNAVAILABLE;
+  }
+
+  return unavailable(
+    'no valid self-serve audit owner: platform_settings empty, SELF_SERVE_AUDIT_OWNER_USER_ID unset, PLATFORM_ADMIN_USER_IDS empty or invalid, and no consultant profiles',
+  );
 }

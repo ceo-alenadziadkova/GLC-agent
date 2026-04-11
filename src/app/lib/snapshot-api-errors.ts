@@ -51,6 +51,14 @@ export function toUiErrorMessage(
     return `Too many requests.${wait}`;
   }
   if (status >= 500) {
+    if (payload.code === 'SELF_SERVE_OWNER_UNAVAILABLE') {
+      return 'This feature is temporarily unavailable. Please try again in a few minutes.';
+    }
+    const gatewayOrUnavailable = status === 502 || status === 503 || status === 504;
+    if (gatewayOrUnavailable && apiMessage) return apiMessage;
+    if (status === 503) {
+      return 'This feature is temporarily unavailable. Please try again in a few minutes.';
+    }
     return 'Server error while starting analysis. Please try again in a minute.';
   }
   return apiMessage ?? fallback;

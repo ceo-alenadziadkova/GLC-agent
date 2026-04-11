@@ -44,7 +44,6 @@ import { resolveSelfServeAuditOwnerUserId } from '../lib/self-serve-audit-owner.
 import { emitStructuredNotification } from '../services/notifications.js';
 import { healUxDomainRowForFreeSnapshotPortal } from '../lib/snapshot-audit-response-heal.js';
 import { buildIntakePlan } from '@glc/intake-core';
-import { mergeLegacyIntakeAliasesRead } from '@glc/intake-core';
 
 export const auditsRouter = Router();
 
@@ -549,7 +548,7 @@ auditsRouter.get('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
     );
 
     const plan = buildIntakePlan({
-      responses: mergeLegacyIntakeAliasesRead(responses),
+      responses,
       productMode: audit.product_mode as ProductMode,
       collectionMode,
       surface,

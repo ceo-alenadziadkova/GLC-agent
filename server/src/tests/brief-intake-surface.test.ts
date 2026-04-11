@@ -38,9 +38,9 @@ describe('validationPerspectiveForBriefAccess', () => {
 });
 
 describe('resolveIntakeSurfaceForPlan', () => {
-  it('returns undefined for discovery (layout handled elsewhere)', () => {
-    expect(resolveIntakeSurfaceForPlan('discovery', 'consultant')).toBeUndefined();
-    expect(resolveIntakeSurfaceForPlan('discovery', 'client')).toBeUndefined();
+  it('returns public_discovery for discovery (layout-rules surface)', () => {
+    expect(resolveIntakeSurfaceForPlan('discovery', 'consultant')).toBe('public_discovery');
+    expect(resolveIntakeSurfaceForPlan('discovery', 'client')).toBe('public_discovery');
   });
 
   it('maps consultant modes to consultant_interview', () => {

@@ -3,8 +3,8 @@
  * Blocks loopback, RFC1918, link-local, CGNAT, credentials in URL, and obvious internal hostnames.
  */
 import dns from 'node:dns/promises';
-import { isIPv4, isIPv6 } from 'node:net';
-import { Agent } from 'undici';
+import { isIPv4, isIPv6, type LookupFunction } from 'node:net';
+import { Agent, fetch as undiciFetch } from 'undici';
 import { isNoPublicWebsiteUrl, NO_PUBLIC_WEBSITE_URL } from '../config/no-public-website.js';
 
 export class PublicUrlNotAllowedError extends Error {
@@ -138,19 +138,27 @@ async function resolvePublicIpForHost(host: string): Promise<{ address: string; 
 }
 
 function makePinnedAgent(pinnedAddress: string, family: 4 | 6): Agent {
+  /**
+   * Node's tls/net may call lookup with `{ all: true }` (autoSelectFamily). In that mode the
+   * callback must receive `LookupAddress[]`, not `(address, family)` — otherwise the IP is
+   * undefined and fetch fails with a generic "fetch failed".
+   */
+  const lookup: LookupFunction = (_hostname, opts, cb) => {
+    const stillPublic = family === 4
+      ? !isPrivateOrBlockedIPv4(pinnedAddress)
+      : !isPrivateOrBlockedIPv6(pinnedAddress);
+    if (!stillPublic) {
+      cb(new PublicUrlNotAllowedError('IP class changed — DNS rebinding detected') as NodeJS.ErrnoException, '', family);
+      return;
+    }
+    if (opts && typeof opts === 'object' && 'all' in opts && opts.all === true) {
+      cb(null, [{ address: pinnedAddress, family }]);
+    } else {
+      cb(null, pinnedAddress, family);
+    }
+  };
   return new Agent({
-    connect: {
-      lookup: (_hostname: string, _opts: unknown, cb: (err: Error | null, address: string, family: number) => void) => {
-        const stillPublic = family === 4
-          ? !isPrivateOrBlockedIPv4(pinnedAddress)
-          : !isPrivateOrBlockedIPv6(pinnedAddress);
-        if (!stillPublic) {
-          cb(new PublicUrlNotAllowedError('IP class changed — DNS rebinding detected'), '', family);
-          return;
-        }
-        cb(null, pinnedAddress, family);
-      },
-    },
+    connect: { lookup },
   });
 }
 
@@ -185,7 +193,9 @@ export async function fetchPublicHttpUrl(
         const pinned = await resolvePublicIpForHost(current.hostname);
         const dispatcher = makePinnedAgent(pinned.address, pinned.family);
         const fetchInit = { ...(init as Record<string, unknown>), redirect: 'manual', dispatcher };
-        response = await fetch(currentUrl, fetchInit as unknown as RequestInit);
+        // Must use undici's fetch with npm `undici` Agent — Node's global fetch uses a different
+        // undici build and throws (e.g. "invalid onRequestStart method").
+        response = await undiciFetch(currentUrl, fetchInit as Parameters<typeof undiciFetch>[1]);
         if (!retryableStatus.has(response.status) || methodsWithoutRetry.has(method) || attempt === maxRetries) {
           break;
         }

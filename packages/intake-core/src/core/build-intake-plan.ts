@@ -15,7 +15,6 @@ import { computeIntakePlanDerived } from './plan-derived.js';
 import { computeNextRecommended } from './plan-next-recommended.js';
 import { resolveIntakeArtifacts } from './resolve-intake-artifacts.js';
 import { INTAKE_RESOLVER_VERSION } from './versions.js';
-import { mergeLegacyIntakeAliasesRead } from '../legacy-response-aliases.js';
 
 import type { LayoutRulesV1 } from './layout-types.js';
 import type {
@@ -64,7 +63,7 @@ function buildIntakePlanInternal(
   const artifacts = resolveIntakeArtifacts(input.intakeVersionTuple ?? null);
   const policy = artifacts.policy;
   const stubs = artifacts.stubs;
-  const r = mergeLegacyIntakeAliasesRead(input.responses as Record<string, unknown>) as IntakeResponsesMap;
+  const r = { ...input.responses } as IntakeResponsesMap;
   const collectionMode = input.collectionMode;
   const discoveryIncluded = new Set(policy.modes.discovery.included);
   const preBriefBankIncluded =

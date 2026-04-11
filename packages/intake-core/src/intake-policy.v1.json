@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.2.2",
   "modes": {
     "full": {
       "participation": "all_eligible",
@@ -27,6 +27,19 @@
     },
     "discovery": {
       "participation": "explicit",
+      "publicWizardOrder": [
+        "a2",
+        "a1",
+        "a4",
+        "a7",
+        "d1",
+        "d1b",
+        "c_nosite_1",
+        "c_nosite_4",
+        "d2",
+        "f1",
+        "f9"
+      ],
       "included": [
         "a1",
         "a2",
@@ -38,6 +51,8 @@
         "a8",
         "a9",
         "a10",
+        "a11",
+        "a12",
         "b_growth_attempts",
         "b_health_1",
         "b_hotel_1",
@@ -49,6 +64,7 @@
         "b1",
         "b2",
         "b3",
+        "b10",
         "b7",
         "c_nosite_1",
         "c_nosite_2",
@@ -92,11 +108,7 @@
     },
     "pre_brief": {
       "participation": "express_plus_identity",
-      "identityFieldIds": [
-        "intake_company_website",
-        "intake_company_name",
-        "intake_industry"
-      ],
+      "identityFieldIds": ["a5", "a11", "a12", "a2"],
       "identitySpecifyFieldId": "intake_industry_specify",
       "identitySpecifyWhenIndustryEquals": "Other",
       "inheritExpressRequired": true,
@@ -107,9 +119,7 @@
         "a7",
         "b1",
         "a10",
-        "a6",
-        "c5",
-        "c3"
+        "a6"
       ]
     },
     "free_snapshot": {

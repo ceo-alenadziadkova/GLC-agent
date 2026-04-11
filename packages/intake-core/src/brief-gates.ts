@@ -6,6 +6,7 @@ import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from 
 import { buildIntakePlan } from './core/build-intake-plan.js';
 import { resolveIntakeArtifacts } from './core/resolve-intake-artifacts.js';
 import type { IntakeSurface } from './core/types.js';
+import { PRE_BRIEF_PARTICIPATION_IDS } from './intake-brief-catalog-meta.js';
 import type { IntakeQuestionStub } from './types.js';
 
 function planForVisibility(
@@ -49,6 +50,20 @@ export function resolveExpressSlaRequiredIds(
   intakeVersionTuple?: IntakeVersionTuple,
 ): string[] {
   return buildIntakePlan({ responses, productMode: 'express', collectionMode, intakeVersionTuple }).required;
+}
+
+/**
+ * Express SLA bank ids that count toward **public pre-brief** submit (link flow).
+ * Omits `requiredIfVisible` questions not listed in `modes.pre_brief.bankIncluded`, so slots stay aligned with UI.
+ */
+export function resolvePreBriefSubmitExpressBankIds(
+  responses: Record<string, unknown>,
+  collectionMode?: IntakeBriefCollectionMode,
+  intakeVersionTuple?: IntakeVersionTuple,
+): string[] {
+  return resolveExpressSlaRequiredIds(responses, collectionMode, intakeVersionTuple).filter(id =>
+    PRE_BRIEF_PARTICIPATION_IDS.has(id),
+  );
 }
 
 export function resolveSlaRequiredIds(

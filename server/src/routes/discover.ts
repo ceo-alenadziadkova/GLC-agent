@@ -5,7 +5,7 @@
  * GET  /api/discover/sessions      — consultant — list sessions (ordered by created_at DESC)
  * GET  /api/discover/:token        — public — load a session by token
  * PATCH /api/discover/:token/contact — public — add/update contact info
- * POST /api/discover/:token/convert — consultant — create audit from session
+ * POST /api/discover/:token/convert — consultant — new full audit + intake_brief seeded from discovery answers
  */
 import { Router } from 'express';
 import crypto from 'node:crypto';
@@ -71,27 +71,6 @@ const PRESENCE_FULL_SITE = 'Full website (multi-page)';
 const PRESENCE_LANDING = 'Single landing page';
 const PRESENCE_IN_DEV = 'Website in development / not public yet';
 
-const LEGACY_ONLINE_PRESENCE: Record<string, string[]> = {
-  'Full website (multi-page)': [PRESENCE_FULL_SITE],
-  'Single landing page': [PRESENCE_LANDING],
-  'Social media profiles only': ['Social media'],
-  'None — clients find us through word of mouth': [
-    'Mostly word of mouth, offline, or referrals',
-  ],
-};
-
-function normalizedOnlinePresence(answers: Record<string, unknown>): string[] {
-  const v = answers.online_presence;
-  if (Array.isArray(v)) {
-    return v.filter((x): x is string => typeof x === 'string' && x.length > 0);
-  }
-  if (typeof v === 'string' && v.trim()) {
-    const s = v.trim();
-    return LEGACY_ONLINE_PRESENCE[s] ?? [s];
-  }
-  return [];
-}
-
 function discoveryHasOwnSiteForAnalytics(pres: string[]): boolean {
   return pres.some(
     p =>
@@ -108,14 +87,6 @@ function normalizedPresenceFromBank(answers: Record<string, unknown>): string[] 
   const v = answers.c_nosite_1;
   if (!Array.isArray(v)) return [];
   return v.filter((x): x is string => typeof x === 'string' && x.length > 0);
-}
-
-function discoveryUsesBankIds(answers: Record<string, unknown>): boolean {
-  return (
-    (typeof answers.a2 === 'string' && answers.a2.trim().length > 0) ||
-    Array.isArray(answers.d1) ||
-    Array.isArray(answers.c_nosite_1)
-  );
 }
 
 /**
@@ -149,7 +120,7 @@ function discoveryBankIdsToBriefPatch(answers: Record<string, unknown>): Record<
 
   const pres = normalizedPresenceFromBank(answers);
   if (pres.length > 0 && !discoveryHasOwnSiteForAnalytics(pres)) {
-    patch.has_google_analytics = tag('No');
+    patch.c3 = tag('No');
   }
 
   const d1 = Array.isArray(answers.d1) ? (answers.d1 as string[]) : [];
@@ -162,11 +133,10 @@ function discoveryBankIdsToBriefPatch(answers: Record<string, unknown>): Record<
   }
   if (!patch.uses_crm) patch.uses_crm = unk();
 
-  if (!patch.target_audience) patch.target_audience = unk();
-  if (!patch.revenue_model) patch.revenue_model = unk();
-  if (!patch.primary_cta) patch.primary_cta = unk();
-  if (!patch.has_google_analytics) patch.has_google_analytics = unk();
-  if (!patch.handles_payments) patch.handles_payments = unk();
+  if (!patch.b1) patch.b1 = unk();
+  if (!patch.c5) patch.c5 = unk();
+  if (!patch.c3) patch.c3 = unk();
+  if (!patch.a6) patch.a6 = unk();
 
   return patch;
 }
@@ -174,85 +144,43 @@ function discoveryBankIdsToBriefPatch(answers: Record<string, unknown>): Record<
 /**
  * Maps discovery answers into intake-brief format.
  *
+ * Only bank-id shaped discovery payloads are supported (public wizard contract).
+ * Pre-bank discovery field names (`industry`, `online_presence`, …) are no longer mapped.
+ *
  * Fields we can derive from discovery answers are tagged source:'client'.
  * Required brief fields that cannot be determined from a discovery session
  * are tagged source:'unknown' so the brief-validator counts them as "answered"
  * (consultant-flagged unknowns) and allows the pipeline to start.
- * The consultant can fill them in via AuditWorkspace before or after running.
+ * Monetization is bank id **`a10`** only when present in session answers; no legacy **`revenue_model`** cell is synthesized.
  */
 function discoveryToBriefPatch(answers: Record<string, unknown>): Record<string, BriefEntry> {
-  if (discoveryUsesBankIds(answers)) {
-    return discoveryBankIdsToBriefPatch(answers);
-  }
+  return discoveryBankIdsToBriefPatch(answers);
+}
 
-  const tag  = (v: unknown): BriefEntry => ({ value: v, source: 'client' });
-  const unk  = ():           BriefEntry => ({ value: null, source: 'unknown' });
-  const patch: Record<string, BriefEntry> = {};
+type DiscoveryConvertRpcRow = {
+  audit_id: string | null;
+  error_code: string | null;
+  answers: unknown;
+};
 
-  // ── Fields we CAN derive ──────────────────────────────────────────────────
-
-  // Industry maps directly to intake_industry
-  if (typeof answers.industry === 'string' && answers.industry.trim()) {
-    patch.intake_industry = tag(answers.industry.trim());
-  }
-
-  // CRM detection: crm_name wins over lead_tracking if tools had CRM
-  const tools = Array.isArray(answers.tools_daily) ? (answers.tools_daily as string[]) : [];
-  const hasCrmTool = includesCrmTool(tools);
-  if (hasCrmTool) {
-    const name = typeof answers.crm_name === 'string' ? answers.crm_name.trim() : '';
-    patch.uses_crm = tag(name || 'Yes');
-  } else if (typeof answers.lead_tracking === 'string') {
-    const lt = answers.lead_tracking;
-    if (lt.includes('CRM') || lt.includes('dedicated')) {
-      patch.uses_crm = tag('Yes');
-    } else {
-      patch.uses_crm = tag('No');
-    }
-  }
-
-  // Biggest pain: prefer manual_bottleneck (specific), fall back to biggest_challenge
-  const manual    = typeof answers.manual_bottleneck === 'string' ? answers.manual_bottleneck.trim() : '';
-  const challenge = typeof answers.biggest_challenge === 'string' ? answers.biggest_challenge.trim() : '';
-  if (manual)    patch.biggest_pain  = tag(manual);
-  else if (challenge) patch.biggest_pain = tag(challenge);
-
-  // Primary goal from biggest_challenge
-  if (challenge) patch.primary_goal = tag(challenge);
-
-  // Unique value prop from one-sentence business description
-  const bizDesc = typeof answers.biz_description === 'string' ? answers.biz_description.trim() : '';
-  if (bizDesc) patch.unique_value_prop = tag(bizDesc);
-
-  // has_google_analytics: infer No when there is no live or in-progress owned site (landing/full/dev)
-  const presenceNorm = normalizedOnlinePresence(answers);
-  if (presenceNorm.length > 0 && !discoveryHasOwnSiteForAnalytics(presenceNorm)) {
-    patch.has_google_analytics = tag('No');
-  }
-
-  // Traffic / acquisition channels
-  const acq = Array.isArray(answers.client_acquisition) ? (answers.client_acquisition as string[]) : [];
-  const SOURCE_MAP: Record<string, string> = {
-    'Word of mouth / referrals':         'Direct / referral',
-    'Social media':                      'Social media',
-    'Google search':                     'Organic search (SEO)',
-    'Paid ads':                          'Paid ads (Google/Meta)',
-    'Outbound (cold calls / messages)':  'Direct / referral',
+function parseDiscoveryConvertRpcRow(data: unknown): DiscoveryConvertRpcRow | undefined {
+  if (data == null) return undefined;
+  const rows = Array.isArray(data) ? data : [data];
+  const first = rows[0];
+  if (first == null || typeof first !== 'object' || Array.isArray(first)) return undefined;
+  const o = first as Record<string, unknown>;
+  return {
+    audit_id: (o.audit_id as string | null | undefined) ?? null,
+    error_code: (o.error_code as string | null | undefined) ?? null,
+    answers: o.answers,
   };
-  const mappedSources = [...new Set(acq.flatMap(a => (SOURCE_MAP[a] ? [SOURCE_MAP[a]] : [])))];
-  if (mappedSources.length > 0) patch.main_traffic_source = tag(mappedSources);
+}
 
-  // ── Required fields we CANNOT derive — flag as unknown ───────────────────
-  // brief-validator treats source:'unknown' as answered, so the pipeline can
-  // start without blocking; consultant fills these in AuditWorkspace.
-
-  if (!patch.target_audience)     patch.target_audience     = unk();
-  if (!patch.revenue_model)       patch.revenue_model       = unk();
-  if (!patch.primary_cta)         patch.primary_cta         = unk();
-  if (!patch.has_google_analytics) patch.has_google_analytics = unk();
-  if (!patch.handles_payments)    patch.handles_payments    = unk();
-
-  return patch;
+function coerceDiscoverySessionAnswers(value: unknown): Record<string, unknown> {
+  if (value != null && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
 }
 
 // ── POST /api/discover ────────────────────────────────────────────────────────
@@ -552,7 +480,7 @@ discoverRouter.patch('/:token/contact', discoverPublicReadLimiter, async (req, r
   }
 });
 
-// ── POST /api/discover/:token/convert — consultant: create audit ──────────────
+// ── POST /api/discover/:token/convert — consultant: audit shell + mapped brief ─
 
 discoverRouter.post(
   '/:token/convert',
@@ -581,15 +509,20 @@ discoverRouter.post(
         logger.error('discover.convert_rpc_failed', {
           component: 'discover',
           error: convertErr.message,
+          code: (convertErr as { code?: string }).code,
+          details: (convertErr as { details?: string }).details,
+          hint: (convertErr as { hint?: string }).hint,
           session_token: token,
         });
         res.status(500).json({ error: 'Failed to convert session' });
         return;
       }
-      const convertRow = Array.isArray(convertRows)
-        ? (convertRows[0] as { audit_id: string | null; error_code: string | null; answers: Record<string, unknown> | null } | undefined)
-        : undefined;
+      const convertRow = parseDiscoveryConvertRpcRow(convertRows);
       if (!convertRow) {
+        logger.error('discover.convert_rpc_empty_shape', {
+          component: 'discover',
+          session_token: token,
+        });
         res.status(500).json({ error: 'Failed to convert session' });
         return;
       }
@@ -618,15 +551,25 @@ discoverRouter.post(
         return;
       }
       const auditId = convertRow.audit_id;
-      const answers = (convertRow.answers ?? {}) as Record<string, unknown>;
+      const answers = coerceDiscoverySessionAnswers(convertRow.answers);
 
       // Map discovery answers → intake brief
-      const briefPatch = discoveryToBriefPatch(answers);
+      let briefPatch: Record<string, BriefEntry> = {};
+      try {
+        briefPatch = discoveryToBriefPatch(answers);
+      } catch (mapErr) {
+        logger.warn('discover.convert_brief_map_failed', {
+          component: 'discover',
+          audit_id: auditId,
+          error: (mapErr as Error).message,
+        });
+      }
       if (Object.keys(briefPatch).length > 0) {
         try {
           await saveBriefResponses(auditId, briefPatch, {
-            collection_mode: 'discovery',
-            validation_perspective: 'client',
+            // Continue as consultant-led intake (not public discovery); mapped cells stay source: client.
+            collection_mode: 'interview',
+            validation_perspective: 'consultant',
           });
         } catch (briefErr) {
           logger.warn('discover.convert_brief_skipped', {

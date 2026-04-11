@@ -9,12 +9,9 @@ const BANK_LABEL_BY_ID = new Map(RAW_QUESTIONS.map(q => [q.id, q.label] as const
 /**
  * Unified intake question label lookup.
  * - prefers canonical bank labels for bank ids
- * - falls back to legacy brief catalog (`intake_*`, compatibility aliases)
+ * - falls back to brief catalog (`intake_*` and other driver ids)
  */
 export function getQuestionLabel(id: string): string {
-  if (id === 'revenue_model') {
-    return BANK_LABEL_BY_ID.get('a10') ?? getBriefQuestionText('revenue_model');
-  }
   return BANK_LABEL_BY_ID.get(id) ?? getBriefQuestionText(id);
 }
 
