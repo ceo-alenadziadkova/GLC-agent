@@ -22,6 +22,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | React app, routes, hooks, design system | [FRONTEND.md](./FRONTEND.md) ([style guide](./FRONTEND.md#design-system-style-guide)) |
 | Intake question bank, branching, agent mapping | [QUESTION_BANK.md](./QUESTION_BANK.md) |
 | Deferred product/UX backlog improvements | [IMPROVEMENTS.md](./IMPROVEMENTS.md) |
+| Translator / product glossary (i18n support) | [GLOSSARY.md](./GLOSSARY.md) |
 | Internal: Question Bank Studio (Settings + `/admin/question-bank-studio`, canon map + policy/trace) | [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) — `src/app/components/QuestionBankStudio.tsx` |
 | ADR: unified bank, policy/layout, IntakePlan | [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) |
 | ADR: free snapshot — cheap deterministic scanner | [ADR-FREE-SNAPSHOT-SCANNER.md](adrs/ADR-FREE-SNAPSHOT-SCANNER.md) |

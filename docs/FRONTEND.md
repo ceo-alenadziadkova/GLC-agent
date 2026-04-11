@@ -27,6 +27,10 @@ Cross-page persistence keys for consultant flows live in **`src/app/lib/storage-
 
 Planned in-app locales (BCP-47): **English (`en`, default), German (`de`), Spanish (`es`), Catalan (`ca`), Russian (`ru`), Italian (`it`).** Canonical definitions: `src/app/lib/supported-ui-locales.ts` (`GlcUiLocale`, labels for choosers). Full message catalogs and runtime i18n are a separate rollout; until then see the **Browser auto-translate vs React** paragraph in the Routing section below.
 
+**Decision record (proposed):** [ADR-FRONTEND-I18N.md](./adrs/ADR-FRONTEND-I18N.md) — stable vs unstable keys, registry as English source for `i18nKey` rows, question-bank rules, fallback UX, SEO vs app routing, observability.
+
+**Translator glossary (living doc):** [GLOSSARY.md](./GLOSSARY.md).
+
 ### User-visible strings and API errors (strategy)
 
 **Governance:** copy zones, namespaces (`intake.*`, `api.*`, `app.*`, `brand.public.*`), single-source rules, and PR checklist live in [ARCHITECTURE.md — §6 User-visible copy layering](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone).

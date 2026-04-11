@@ -61,142 +61,234 @@ This record is **immutable** except for editorial fixes (typos, links). If the t
 
 ### 2.1 Target outcome
 
-1. Introduce a **single i18n runtime** in the React app with **lazy-loaded** locale bundles, **default locale `en**`, and **explicit fallback** to English for missing keys.
-2. Standardize on **stable message IDs** (namespaced strings, e.g. `glc.app.dashboard.title`) aligned with existing `**i18nKey**` fields in `ui-copy-registry` where they already exist; **extend** the registry pattern for app-only strings.
-3. Store **translations** outside TSX in **JSON** (or PO if tooling requires) under a dedicated tree, e.g. `src/app/locales/<locale>/` — **not** scattered constants in components.
-4. Use `**Intl**` APIs (or thin wrappers) for **dates, numbers, currencies, lists**; forbid hand-rolled locale-specific formatting in feature code.
-5. Keep **brand** strings (`brand_name`, footer lines from public config) **separate** from **product** catalogs — brand may stay single-language per deploy or gain its own small override map later without merging into the main `glc.*` namespace.
-6. **API errors**: prefer mapping `**error` response `code**` → localized string; treat raw `error` text as **fallback** for unknown codes or logging only.
+1. Introduce a **single i18n runtime** in the React app with **lazy-loaded** locale bundles where appropriate, **default locale `en**`, and a **deliberate fallback policy** (see §2.11 — avoid “random mix” of languages in one screen).
+2. Treat **registry-backed identifiers** and **ephemeral UI keys** differently (§2.3): only the former are a **cross-surface contract**; the latter may be **renamed or refactored** without versioning sprawl.
+3. Make `**ui-copy-registry` the single source of truth for English** for all rows it defines; **do not** duplicate `labelEn` into `locales/en/*.json` for those keys (§2.4).
+4. Store **app-only** translations outside TSX in **versioned** JSON under e.g. `src/app/locales/<locale>/` (§2.12).
+5. Use `**Intl**` APIs (or thin wrappers) for **dates, numbers, currencies, lists**; forbid hand-rolled locale-specific formatting in feature code.
+6. Keep **brand** strings separate from **product** catalogs (§2.6).
+7. **API errors**: map `**code**` → structured UX (§2.13): localized **message** plus optional **action hints** (retry, contact support, go back), not a plain string only.
 
 ### 2.2 Recommended library stack (decision)
 
 **Primary recommendation: `i18next` + `react-i18next**`
 
 
-| Criterion     | Rationale                                                                                                                                |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Ecosystem     | Mature, widely used with React 18; large doc surface; fits Vite.                                                                         |
-| Lazy loading  | `i18next-http-backend` or **static chunked imports** (`import(\`./locales/${lng}.json)`) for bundle size control.                        |
-| ICU / plurals | Use `i18next-icu` + `Intl.PluralRules` or formatjs **intl-messageformat** as interpolation backend when complex plural/select is needed. |
-| Key-based API | Aligns with existing `**i18nKey`** fields in `ui-copy-registry.v1.json`.                                                                 |
-| SSR           | Not required for current Vite SPA; future SSR would still be supported by the same ecosystem.                                            |
+| Criterion     | Rationale                                                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Ecosystem     | Mature, widely used with React 18; large doc surface; fits Vite.                                                                |
+| Lazy loading  | `i18next-http-backend` or **static chunked imports** (`import(\`./locales/${lng}/...)`) for bundle size control.                |
+| ICU / plurals | Use `i18next-icu` + `Intl.PluralRules` or **intl-messageformat** as interpolation backend when complex plural/select is needed. |
+| Key-based API | Works for **app-only** keys; registry keys resolve via `**tRegistryKey`** (§2.4), not duplicate EN JSON.                        |
+| SSR           | Not required for current Vite SPA; future SSR would still be supported by the same ecosystem.                                   |
 
 
 **Alternatives considered**
 
 
-| Option                                                      | Pros                                                 | Cons                                                   | Verdict                                                         |
-| ----------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------- |
-| **Lingui**                                                  | Excellent DX, compile-time extraction, small runtime | Team learning curve; build macro config with Vite      | **Viable second choice** if extraction-from-source is mandatory |
-| **FormatJS / react-intl**                                   | ICU-native, strong formatting                        | Heavier setup; less default convention for file layout | **Viable** if team standardizes on FormatJS everywhere          |
-| **Custom lightweight `Map<locale, Record<string,string>>`** | Zero deps                                            | No plurals, no nesting, no tooling, maintenance burden | **Reject** for production scale                                 |
+| Option                                          | Pros                                                 | Cons                                                   | Verdict                                                         |
+| ----------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------- |
+| **Lingui**                                      | Excellent DX, compile-time extraction, small runtime | Team learning curve; build macro config with Vite      | **Viable second choice** if extraction-from-source is mandatory |
+| **FormatJS / react-intl**                       | ICU-native, strong formatting                        | Heavier setup; less default convention for file layout | **Viable** if team standardizes on FormatJS everywhere          |
+| **Custom `Map<locale, Record<string,string>>`** | Zero deps                                            | No plurals, no tooling, maintenance burden             | **Reject** for production scale                                 |
 
 
 **Decision:** Adopt `**i18next` + `react-i18next`** for the SPA unless a future ADR records a switch (e.g. org-wide FormatJS mandate).
 
-### 2.3 Namespace and key naming
+### 2.3 Stable vs unstable keys (avoid treating all i18n keys as “public API”)
 
-- **Prefix:** `glc.` for all product-owned UI keys (matches existing registry style, e.g. `glc.audit.domain.tech_infrastructure`).
-- **Segments:** `glc.<zone>.<feature>.<element>` where **zone** aligns with `docs/ARCHITECTURE.md` copy zones, e.g.:
-  - `glc.intake.*` — wizard, brief, discover client strings not sourced from question-bank JSON
-  - `glc.app.*` — authenticated shell, dashboard, pipeline monitor, settings
-  - `glc.marketing.*` — public marketing (where not driven by `ui-copy-registry` rows)
-  - `glc.snapshot.*` — free snapshot landing (client-side strings; server messages may stay English until API contract extends)
-  - `glc.api.*` — maps from `**ApiError` / `code`** to user-facing recovery text
-  - `glc.audit.*` — domain/score/report labels: **prefer importing from registry keys** rather than duplicating string literals
-- **Stability:** Keys are **API** for consultants embedding help links and for **PDF parity**; changing a key is a **breaking change** — use **version suffix** or new key if semantics change (`glc.app.pipeline.status.running` → `glc.app.pipeline.status.running_v2` only when meaning changes).
+**Problem if everything is “frozen API”:** developers fear refactors; catalogs accumulate `*_v2`, `*_v3`; dead keys rot; quality drops.
 
-### 2.4 Binding `ui-copy-registry` to runtime
+**Decision — two tiers:**
 
-- **Do not** fork English strings inside components when `ui-copy-registry` already exposes `i18nKey` and `labelEn`.
-- **Pattern:**
-  1. At build time or app init, ensure **English** messages for all `i18nKey` values exist in `locales/en/*.json` (can be **generated** from `ui-copy-registry.v1.json` via a small script to avoid drift).
-  2. Non-English locales **override** the same keys; missing keys **fallback** to `en`.
-  3. Components call `t('glc.audit.domain.tech_infrastructure')` **or** a thin helper `tRegistryKey(row.i18nKey)` that asserts the key is registered.
 
-### 2.5 Question bank (`question-bank.v1.json`)
+| Tier                   | Meaning                                                                                                                                    | Examples                                                                                    | Change policy                                                                                                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Stable (contract)**  | Shared with **backend, PDF, emails**, or defined in `**ui-copy-registry.v1.json` / question-bank ids** — must stay aligned across surfaces | `glc.audit.domain.tech_infrastructure`, score band keys, marketing route keys from registry | Treat `**i18nKey` + registry version** as contract; change semantics only with **registry bump** and coordinated releases (same spirit as `QUESTION_BANK.md`) |
+| **Unstable (UI-only)** | Strings **only** rendered in the SPA; not referenced by server or exports                                                                  | e.g. `glc.app.dashboard.header.title`, wizard chrome, empty states                          | **Refactor freely**: rename keys in one PR with catalog + call sites; **no** `_v2` suffix unless product **intentionally** keeps two meanings live            |
 
-**Decision (phased):**
 
-- **Phase A (MVP i18n):** Keep **one** canonical bank file per shipped **question-bank version**; add **parallel** optional files, e.g. `question-bank.v1.de.json`, **only if** product commits to **full bank translation** and **parity tests** (same ids, same option counts). Server and client must agree on **which file** loads for a given `intake_versions` tuple — this touches `**@glc/intake-core`** loaders and is a **cross-cutting** release.
-- **Phase B (scale):** Move translatable fields to **message IDs** + ICU in catalogs, generated from bank export — higher tooling cost, better reuse outside JSON.
+**Rule of thumb:** If a string is **not** in `ui-copy-registry`, **not** in persisted payloads, and **not** promised in external docs — it is **unstable UI**, not a public API.
 
-Until Phase A is approved, **intake i18n** may ship **only** for **chrome** strings (buttons, step labels) while **bank content** stays English — product must sign off on **partial localization**.
+### 2.4 `ui-copy-registry` binding — registry is primary; locales are overrides only
+
+**Anti-pattern:** Generate `locales/en/glc.json` from the registry and ship **two** English sources (`labelEn` in JSON **and** in locale files) → drift, “why is this word different?”, surprise overrides.
+
+**Decision:**
+
+1. **English for every `i18nKey` in `ui-copy-registry.v1.json` comes from the registry** (`labelEn` / description fields) at runtime via a thin helper, e.g. `**tRegistryKey(key: string): string`** (or `getRegistryLabelEn(key)` + future `getRegistryLabel(locale, key)` when non-EN registry columns exist).
+2. **Locale JSON files (`de`, `es`, …) hold only overrides** for those keys when translated. If a key is missing in `de`, **fallback** is: **registry `labelEn`** (not a second EN file).
+3. **App-only keys** (`glc.app.*`, etc.) live in `**locales/<locale>/glc.<bundleVersion>.json`** (§2.12) and use `**t()**` as usual; English for those lives in `**en**` bundle **once**.
+
+Optional **CI check:** assert every `i18nKey` in the registry appears in **at most** the override files for non-`en` locales — never require a duplicate EN entry in `locales/en/`.
+
+### 2.5 Question bank — separate i18n domain; highest risk; stricter rules
+
+The question bank is **not** “just another JSON file”. It is the **largest and riskiest** localization surface in the product.
+
+**Why it is harder than generic UI**
+
+- **Volume and context:** stems, hints, options, branch-specific copy; translators need **full flow context**, not isolated strings.
+- **Legal / business impact:** misleading or vague wording changes **audit meaning** and client decisions (especially healthcare, finance, regulated sectors).
+- **Layout:** translations vary **30–300% in length**; cards, wizards, and mobile layouts **break** without responsive design and **max-length / truncation policy**.
+- **Parity:** server validation, AI readiness, and discovery mapping depend on **stable option identity**; wording must not change **canonical values** without the intake change protocol.
+
+**Decision — treat as its own i18n domain**
+
+- **Mandatory human review** for any locale shipped to production (no “MT-only” bank for paid modes unless product explicitly accepts risk).
+- **No partial translation for a shipped locale:** either **100%** of user-visible bank strings for that locale pass QA, or that locale **does not** appear as a **complete** UI language for intake (see §2.11 — whole-locale gating / Beta).
+- **Versioned per locale:** e.g. `question-bank.v1.de.json` (or equivalent) must declare **same structural version** as English (`questionBankVersion` / artifact tuple); **parity tests** (ids, option counts, branch refs) are **required** — same class of tests as English bank changes.
+- **Engineering gate:** bank locale files are governed by `**docs/QUESTION_BANK.md**` and `**.cursor/rules/intake-question-bank-change-protocol.mdc**` equivalents for localized artifacts (update in same PR: canon + UI + tests + docs).
+
+Phased delivery (**content** phases, not “easy then hard” technically):
+
+- **Phase A:** Parallel locale file **only** when product commits to **full** translation + QA for that locale.
+- **Phase B:** Optional extraction to message IDs / ICU if tooling wins outweigh migration cost.
+
+Until then, **chrome-only** i18n (buttons, step labels outside bank) may ship **with bank still English**, with **explicit UX** that the questionnaire is EN (see §2.11).
 
 ### 2.6 Public brand and white-label
 
-- **Brand name, footer markdown, support email** continue to come from `**fetchPublicBrandConfig()`** / env for **single-tenant** strings.
-- **Do not** merge arbitrary brand HTML into the core `glc.*` JSON; if localized footers are required, extend **server** `public-brand-defaults` or per-tenant DB fields with **locale-keyed** blobs in a **dedicated** namespace (`brand.footer.de`, etc.) — record in a **separate ADR** when implemented.
+- **Brand name, footer markdown, support email** continue to come from `**fetchPublicBrandConfig()**` / env for **single-tenant** strings.
+- **Do not** merge arbitrary brand HTML into the core `glc.*` JSON; if localized footers are required, extend **server** `public-brand-defaults` or per-tenant DB fields with **locale-keyed** blobs in a **dedicated** namespace — record in a **separate ADR** when implemented.
 
 ### 2.7 Formatting and accessibility
 
 - **Dates/times:** `Intl.DateTimeFormat(locale, options)`; store **UTC** in data, present in **user timezone** where applicable (existing hooks may need `locale` from i18n context).
 - **Relative time:** Replace or wrap `relativeTime` helpers to accept **locale** and use `Intl.RelativeTimeFormat` where possible.
 - **Numbers / scores:** `Intl.NumberFormat`; **percentages** and **currency** in Strategy Lab / reports must use the same locale as UI.
-- **aria-label / placeholder:** Every user-visible attribute goes through `**t()`**; add **ESLint rule** or **codemod** policy to block new raw English literals in `src/app/pages` and `src/app/components` (excluding `ui/` primitives if they stay presentational-only).
+- **aria-label / placeholder:** Should go through `**t()**` / registry helpers; **ESLint policy** is **warning-level** by default (§2.14), not blocking error, to avoid grinding velocity — tighten to error on `main` / release branch if desired later.
 
 ### 2.8 Testing
 
-- **Unit tests:** Mock `i18next` instance with a **fixed locale** (`en`) for snapshot stability; add **one** integration test per critical flow that asserts **key exists** in `de` (or smoke test missing-key counter).
-- **E2E:** Playwright **does not** need full matrix on day one; optional job with `?lang=de` once locale routing exists.
+- **Unit tests:** Mock `i18next` with fixed locale (`en`) for snapshot stability; smoke **missing-key** behavior.
+- **E2E:** Optional `?lang=` / path once routing exists; not full matrix on day one.
 
-### 2.9 Locale persistence and routing
+### 2.9 Routing and SEO — split **marketing** vs **authenticated app**
 
-- **Preference order (recommended):** (1) **user profile / DB** field for authenticated users, (2) `**localStorage`** key `glc.ui.locale`, (3) `**Accept-Language**` negotiation on first visit, (4) default `en`.
-- **URL strategy:** Optional `?lang=` or path prefix `/de/...` — **product decision**; ADR recommends **starting** with **query or storage** to avoid large router refactor; path-prefix requires `react-router` audit (`src/app/routes.tsx`, `SPA_ROUTE_SEGMENTS`).
+**Problem:** `?lang=` + `localStorage` is **insufficient for indexable marketing**: crawlers and **hreflang** need **stable URLs per language**.
 
-### 2.10 SEO and `html lang`
+**Decision**
 
-- Set `document.documentElement.lang` to **active locale** on change (marketing pages, public brief).
-- **hreflang** for marketing — future; coordinate with Vercel deployment and sitemap generation (out of scope for initial SPA-only i18n).
+
+| Surface                                                               | URL / state strategy                                                                   | SEO                                                                             |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| **Public marketing** (landing, pricing, public audit marketing pages) | Prefer **path-based** locales, e.g. `/es/...`, `/de/...` (exact shape product-defined) | **hreflang** alternates + sitemap entries per locale; `html[lang]` matches path |
+| **Authenticated app** (dashboard, pipeline, intake after login)       | `**localStorage**` / user profile + optional `**?lang=**` for deep links               | **noindex** or low SEO priority; focus on **consistent in-app language**        |
+
+
+The SPA may implement **both** routers or a **single router** with different segment rules — the **invariant** is: **do not** use “query-only” as the **only** story for content you need **indexed** in multiple languages.
+
+### 2.10 `html lang` and document metadata
+
+- Set `**document.documentElement.lang**` to the **active locale** on change for every public route.
+- Marketing **hreflang** and **canonical** rules are **product + SEO** owned; engineering provides **routing hooks** and **per-locale static paths** where Vercel prerender or SSR applies.
+
+### 2.11 Fallback and mixed-language UX (product-critical)
+
+**Problem:** Per-key fallback to English produces **mixed UI** (e.g. Spanish button + English error) which users read as a **bug**.
+
+**Decision — pick one product policy (recommendation in bold)**
+
+1. **Whole-app fallback:** If **coverage** for locale `L` is **below threshold** `X%` (defined per release, e.g. 95% of **stable** keys + agreed **app** namespaces), **do not** present `L` as a full UI language — **force `en**` or hide `L` from the chooser.
+2. **Beta locales:** Show `**L**` only with a **visible “Beta / partial translation”** badge; still prefer **whole-screen** consistency: either **all** strings in `L` for that flow or **fallback entire shell** to `en` for that session (stricter, simpler to explain).
+3. **Never** silently mix languages on **one** wizard step or **one** modal without **explicit** “This section is only available in English” copy (edge case only).
+
+Product sets `**X**` and **which namespaces** count toward coverage (registry keys, `glc.app.*`, bank, etc.).
+
+### 2.12 Locale bundle versioning and file layout
+
+- Align message bundles with **registry / product versions**, e.g. `src/app/locales/de/glc.v1.json` (or `glc.app.v1.json` split by namespace) so **breaking catalog changes** bump **bundle version** and CI can detect **stale** translation files.
+- **Question bank** artifacts already use **explicit version tuple**; locale-specific bank files must **match** the same **question bank version** as English.
+
+### 2.13 API error presentation — message + action hints
+
+- Keep mapping `**error.code` → structured object**, not a single flat string:
+  - `**messageKey**` or resolved `**message**` (localized)
+  - `**severity**` (info / warning / error)
+  - `**actions**`: optional list, e.g. `{ type: 'retry' }`, `{ type: 'contact_support', hrefKey: '...' }`, `{ type: 'navigate', path: '...' }`
+- Raw `**error**` string from server remains **fallback** for unknown codes and **logging**, not the primary UX.
+
+### 2.14 ESLint / static analysis for raw strings
+
+- **Default:** `**eslint-plugin-i18next` or custom rule at `warn**`, not `error`, in `**src/app/pages**` and `**src/app/components**`.
+- **Exclusions:** `**/__tests__/**`, `*.test.tsx`, **prototyping** paths if any, `**src/app/components/ui/****` (presentational primitives), and **explicit** `// i18n-ignore` with reason (reviewed in PR).
+- **Tighten** to `error` on release branch or after catalog maturity if the team agrees.
+
+### 2.15 Runtime performance — avoid English “flash” then swap
+
+**Risks:** lazy-loaded JSON causes **first paint in English** then **language flip** → jarring “FOUC-like” text shift.
+
+**Decision**
+
+- **Resolve initial locale synchronously** before first meaningful render where possible: read `**localStorage` / profile bootstrap** in `**main.tsx` / root loader**; `**await i18next.init()**` (or preload **current** locale chunk) **before** `ReactDOM.createRoot(...).render` **or** behind `**Suspense**` with a **single** loading shell that does not show final copy.
+- **Preload** the **active** locale’s bundles on **language switch** before swapping (small spinner acceptable).
+- **Cache** loaded locale JSON in memory; optional **Service Worker** later — not required for MVP.
 
 ---
 
-## 3. Consequences
+## 3. Observability and glossary
+
+### 3.1 Missing-key monitoring (production maturity)
+
+- Emit **metrics** (or structured logs): `**i18n_missing_key_total**` (labels: `locale`, `key`, `namespace`) — **must-have** before calling i18n “production-grade”.
+- **Dev:** `saveMissing: true` / dedicated handler to **console** or **overlay** in staging.
+- **Alerting:** threshold on missing keys for **non-Beta** locales post-release.
+
+### 3.2 Translator glossary (B2B terminology)
+
+- **Technical canonical terms** already live in `**ui-copy-registry**` and **domain keys** — reuse `**i18nKey**` as glossary IDs where possible.
+- Maintain a **human-readable** glossary for translators and PM: `**docs/GLOSSARY.md**` — canonical **English term**, **definition**, **do-not-translate** (product name, legal), **approved translations** per locale (filled as locales ship). Link from `**docs/QUESTION_BANK.md**` / `**docs/FRONTEND.md**` when glossary grows.
+
+---
+
+## 4. Consequences
 
 ### Positive
 
-- Single **glossary** and **review** process for translators; keys stable for docs and support.
-- **Reduced drift** between PDF/report labels and SPA when both use `**i18nKey`** from `ui-copy-registry`.
-- Clear **migration path** from today’s English literals.
+- **Registry** stays **one English source**; no duplicate EN in locale files for registry keys.
+- **Refactor-friendly** **UI-only** keys without pretending every string is a semver API.
+- Clear **marketing vs app** routing story for **SEO**.
+- **Actionable** error UX beyond plain text.
 
 ### Negative / costs
 
-- **Bundle size** grows with locale files — mitigate with **lazy `import()`** per locale.
-- **Velocity:** every new string requires **key + en + (eventually) translations**; need **CI check** for missing keys in `en`.
-- **Question bank translation** is the **largest** cost item (content volume + legal accuracy for regulated industries).
+- **Bundle size** and **preload** tradeoffs need measurement.
+- **Coverage gating** and **Beta** badges require **product + eng** alignment.
+- **Question bank** localization remains the **largest** cost and **highest** regression risk.
 
 ### Risks
 
 
-| Risk                                          | Mitigation                                                                                                                |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Mismatched server vs client locale for intake | Persist `**intake_versions`** + explicit `**ui_locale**` on audit row if server must render emails in user language later |
-| Translators break ICU placeholders            | Use **validation** script + **translator notes** in JSON `_comments` (stripped in prod) or sidecar docs                   |
-| Partial locale feels “cheap”                  | **Ship only complete** flows or **explicitly** mark Beta languages in UI                                                  |
+| Risk                                 | Mitigation                                                                 |
+| ------------------------------------ | -------------------------------------------------------------------------- |
+| Registry vs override drift           | **No** `locales/en` duplicates for registry keys; CI + `tRegistryKey` only |
+| Mixed-language UX                    | §2.11 whole-locale / Beta policy                                           |
+| Layout breaks from long translations | Design review + max lengths + responsive rules for bank cards              |
+| Mismatched server vs client locale   | Persist `**ui_locale**` on audit / user profile when emails/PDF must match |
 
 
 ---
 
-## 4. Implementation phases (suggested)
+## 5. Implementation phases (suggested)
 
 
-| Phase | Scope                                                                                                                                               | Exit criteria                                                 |
-| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| **0** | **Tooling:** add deps, `I18nextProvider`, `src/app/locales/en/glc.json` scaffold, dev-only missing-key logging                                      | App boots; one page uses `t()`                                |
-| **1** | **Registry sync:** script from `ui-copy-registry.v1.json` → keys in `en`; replace direct `labelEn` usage in **shared** components (scores, domains) | No duplicate domain/score English in TSX for touched surfaces |
-| **2** | **API errors:** central `mapApiCodeToMessage(code)` using `glc.api.*` keys                                                                          | Top 20 error paths localized                                  |
-| **3** | **Dashboard + shell:** `AppShell`, nav, settings, notifications                                                                                     | `de`/`es` JSON stubs ≥ 80% key coverage for these routes      |
-| **4** | **Intake chrome + Discover** (bank text policy per §2.5)                                                                                            | Product-approved scope documented                             |
-| **5** | **Marketing + snapshot landing**                                                                                                                    | Marketing QA sign-off per locale                              |
-| **6** | `**Intl` hardening:** relative time, strategy numbers, report viewer                                                                                | Audit for raw `toFixed` / string dates                        |
+| Phase | Scope                                                                                                                                      | Exit criteria                                         |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| **0** | Tooling: `i18next`, provider, **sync init** / Suspense, `**tRegistryKey**` reading registry, `**locales/de/glc.v1.json**` override example | No visible language flash on reload for chosen locale |
+| **1** | Replace inline **domain/score** labels with `**tRegistryKey**`; **no** generated `en` JSON from registry                                   | TSX uses registry for all registry-defined labels     |
+| **2** | `**mapApiCodeToUserError(code)**` → message + actions (`glc.api.*`)                                                                        | Top error paths return structured UX                  |
+| **3** | Dashboard + shell `**glc.app.***` in versioned JSON                                                                                        | Coverage ≥ threshold or **Beta** badge per §2.11      |
+| **4** | Intake **chrome**; bank policy per §2.5                                                                                                    | Product-signed scope                                  |
+| **5** | Marketing **path locales** + **hreflang** hooks                                                                                            | SEO checklist signed off                              |
+| **6** | `**Intl**` hardening + missing-key **metrics**                                                                                             | Dashboards live                                       |
 
 
-Phases may be **reordered** by product priority; **Phase 1** is strongly recommended early to **lock glossary** for domains and scores.
+Phases may be **reordered** by product priority.
 
 ---
 
-## 5. Related documents and code references
+## 6. Related documents and code references
 
 
 | Artifact                        | Path                                                |
@@ -204,8 +296,9 @@ Phases may be **reordered** by product priority; **Phase 1** is strongly recomme
 | Target locales                  | `src/app/lib/supported-ui-locales.ts`               |
 | UI copy registry (JSON)         | `packages/intake-core/src/ui-copy-registry.v1.json` |
 | UI copy registry (TS)           | `packages/intake-core/src/ui-copy-registry.ts`      |
-| Frontend i18n strategy (docs)   | `docs/FRONTEND.md` (UI languages, copy zones)       |
-| Copy layering policy            | `docs/ARCHITECTURE.md` (user-visible copy layering) |
+| Translator glossary (human)     | `docs/GLOSSARY.md`                                  |
+| Frontend i18n strategy          | `docs/FRONTEND.md`                                  |
+| Copy layering                   | `docs/ARCHITECTURE.md`                              |
 | Login copy extract              | `src/app/config/login-copy.en.ts`                   |
 | Intake client sentence builders | `src/app/lib/intake-client-copy.ts`                 |
 | Browser translate warning       | `src/app/components/BrowserTranslateGuard.tsx`      |
@@ -214,20 +307,22 @@ Phases may be **reordered** by product priority; **Phase 1** is strongly recomme
 
 ---
 
-## 6. Open questions (to resolve before Phase A kickoff)
+## 7. Open questions (to resolve before Phase A kickoff)
 
-1. **Minimum viable locales** for first revenue release (all six in `supported-ui-locales` vs subset).
-2. **Legal / medical** copy review requirements for `de`/`es` healthcare verticals.
-3. **Email templates** (Supabase auth, transactional) — separate pipeline; align **brand** language with SPA choice or always English.
-4. **PDF** generation language: server must receive **locale** on export job — may require **new API** fields and **this ADR’s backend companion** later.
+1. **Threshold `X**` for whole-app fallback (§2.11) and **Beta** eligibility.
+2. **Marketing path prefix** shape (`/es` vs `/es/` vs locale subdomain).
+3. **Minimum viable locales** for first revenue release.
+4. **Legal / medical** review for bank + registry strings per vertical.
+5. **Email templates** and **PDF** locale — **backend** fields and companion ADR.
+6. **Metrics backend** (Prometheus / logging vendor) for `i18n_missing_key_total`.
 
 ---
 
-## 7. Compliance with project rules
+## 8. Compliance with project rules
 
-- **No emoji** in ADR body (per repo code style for source; ADR is markdown doc — neutral).
-- **No new flat `docs/*.md`** beyond quota concern: ADR lives under `**docs/adrs/**`, which is the established archive.
-- **Question bank changes** remain governed by `docs/QUESTION_BANK.md` and the intake change protocol — any localized bank file must follow the **same** validation and test matrix as the English bank.
+- **No emoji** in ADR body.
+- ADR lives under `**docs/adrs/**`.
+- **Question bank** changes remain governed by `**docs/QUESTION_BANK.md`** and the intake change protocol — localized bank files follow the **same** validation and test discipline as English.
 
 ---
 

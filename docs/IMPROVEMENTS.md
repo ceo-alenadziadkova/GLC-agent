@@ -9,7 +9,7 @@ It is a planning artifact, not a source of runtime truth.
 
 **Canonical decision record:** [ADR-FRONTEND-I18N.md](./adrs/ADR-FRONTEND-I18N.md) — proposed stack (`i18next` + `react-i18next`), namespace policy (`glc.*`), binding to `ui-copy-registry.v1.json`, phased rollout (registry sync, API error maps, dashboard, intake/marketing, `Intl` hardening), question-bank translation phases, risks, and open questions (PDF/email locale, URL strategy).
 
-**Related:** [FRONTEND.md](./FRONTEND.md) (UI languages, copy strategy), [ARCHITECTURE.md](./ARCHITECTURE.md) (user-visible copy layering), `src/app/lib/supported-ui-locales.ts`, `packages/intake-core/src/ui-copy-registry.v1.json`.
+**Related:** [FRONTEND.md](./FRONTEND.md) (UI languages, copy strategy), [ARCHITECTURE.md](./ARCHITECTURE.md) (user-visible copy layering), [GLOSSARY.md](./GLOSSARY.md) (translator terminology), `src/app/lib/supported-ui-locales.ts`, `packages/intake-core/src/ui-copy-registry.v1.json`.
 
 ## Intake flow split: Auto vs Consultant-assisted
 
