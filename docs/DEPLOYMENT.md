@@ -17,11 +17,11 @@ Canonical policy: [ARCHITECTURE.md — Strict layer boundaries](./ARCHITECTURE.m
 
 ### Infrastructure (typical allowlist)
 
-Values that are **secrets, connectivity, or deploy wiring** — not product defaults: **`SUPABASE_URL`**, **`SUPABASE_SERVICE_KEY`**, **`ANTHROPIC_API_KEY`**, **`NODE_ENV`**, **`PORT`** (when the host injects it), **`SNAPSHOT_GUEST_IP_SALT`** (required in production), **`RATE_LIMIT_REDIS_URL`**, **`FRONTEND_URL`** / **`ALLOWED_ORIGINS`**, **`GLC_PUBLIC_SITE_URL`** (required in production), white-label **`PUBLIC_BRAND_NAME`**, **`PUBLIC_SUPPORT_EMAIL`**, **`PUBLIC_BRAND_LEGAL_LINE`**, Telegram / operator tokens where used. The no-public-website sentinel (**`NO_PUBLIC_WEBSITE_URL`**) is a **TypeScript constant** from **`@glc/intake-core`** / **`@glc/dev-brand-defaults`**, not an env var. See [`server/.env.example`](../server/.env.example) for the authoritative commented list.
+Values that are **secrets, connectivity, or deploy wiring** — not product defaults: **`SUPABASE_URL`**, **`SUPABASE_SERVICE_KEY`**, **`ANTHROPIC_API_KEY`**, **`NODE_ENV`**, **`PORT`** (when the host injects it), **`SNAPSHOT_GUEST_IP_SALT`** (required in production), **`RATE_LIMIT_REDIS_URL`**, **`FRONTEND_URL`** / **`ALLOWED_ORIGINS`**, **`GLC_PUBLIC_SITE_URL`** (required in production), Telegram / operator tokens where used. **Public marketing copy** (`brand_name`, footer text, optional `support_email`) lives in **`server/src/config/public-brand-defaults.v1.json`**, not in env. The no-public-website sentinel (**`NO_PUBLIC_WEBSITE_URL`**) is a **TypeScript constant** from **`@glc/intake-core`** / **`@glc/dev-brand-defaults`**, not an env var. See [`server/.env.example`](../server/.env.example) for the authoritative commented list.
 
 ### Deprecated / ops-only
 
-- **`CONSULTANT_EMAILS`** — deprecated; use **`consultant_email_allowlist`** and platform admin routes (see [DATABASE.md](./DATABASE.md), `server/.env.example`).
+- **`CONSULTANT_EMAILS`** — **deprecated** duplicate of the **`consultant_email_allowlist`** table (source of truth for consultant promotion on first login). Do not rely on this env for new deployments; populate the DB table via migrations or platform admin flows. The server still merges env entries as a temporary bootstrap fallback; remove this env once every environment uses the table exclusively (see `server/src/services/consultant-allowlist.ts`).
 - **Product numerics** (rate limits, snapshot timings, pipeline/Claude, alerts, etc.) are **static TypeScript** in **`SYSTEM_DEFAULTS`** and focused modules — not Railway env. Remaining backend env is mostly **secrets, URLs, Redis, Sentry/Telegram, operator tokens**.
 
 **Rule:** new product limits and thresholds get a **code default in config** first; env only **overrides** when operators need to tune without a release.
@@ -133,12 +133,12 @@ Shared constants and env-driven defaults introduced to reduce duplicated literal
 
 | Layer | Variables / package | Purpose |
 | --- | --- | --- |
-| **Dev template (fork)** | `packages/glc-dev-brand-defaults` (`GLC_DEV_*`) | Local API/SPA ports and origins, extra dev CORS origins, **`GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL`** (re-exported as **`NO_PUBLIC_WEBSITE_URL`** from **`@glc/intake-core`**), English marketing footer template, default support email for non-prod — **not** the live brand surface; production must set the env vars in the rows below (`FRONTEND_URL`, `GLC_PUBLIC_SITE_URL`, `VITE_*`, `PUBLIC_*`) for deploy wiring |
-| **Server — public JSON** | `PUBLIC_BRAND_NAME`, `PUBLIC_SUPPORT_EMAIL`, `PUBLIC_BRAND_LEGAL_LINE`, `GLC_PUBLIC_SITE_URL` (required in production) | `GET /api/public/brand` for marketing shell |
+| **Dev template (fork)** | `packages/glc-dev-brand-defaults` (`GLC_DEV_*`) | Local API/SPA ports and origins, extra dev CORS origins, **`GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL`** (re-exported as **`NO_PUBLIC_WEBSITE_URL`** from **`@glc/intake-core`**), shared dev defaults — **not** the server’s live brand JSON; production must set **`FRONTEND_URL`**, **`GLC_PUBLIC_SITE_URL`**, **`VITE_*`** for deploy wiring |
+| **Server — public JSON** | `server/src/config/public-brand-defaults.v1.json` + **`GLC_PUBLIC_SITE_URL`** (required in production) | `GET /api/public/brand` for marketing shell |
 | **Vite / browser** | `VITE_API_URL` (required prod), `VITE_SUPPORT_EMAIL` (required prod) | API base URL, public contact in UI/errors |
 | **Notifications (optional)** | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_API_BASE` (default `https://api.telegram.org`) | Telegram outbound; override base only behind a corporate proxy |
 
-**Copy and brand:** which strings belong in intake JSON vs server vs SPA, and how **`PUBLIC_SUPPORT_EMAIL`** relates to **`VITE_SUPPORT_EMAIL`**, is documented in [ARCHITECTURE.md — §6 User-visible copy layering](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone).
+**Copy and brand:** which strings belong in intake JSON vs server vs SPA, and how **`public-brand-defaults.v1.json`** `support_email` (null in production unless set) relates to **`VITE_SUPPORT_EMAIL`**, is documented in [ARCHITECTURE.md — §6 User-visible copy layering](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone).
 
 See also § **White-label and cross-stack parity** in [`server/.env.example`](../server/.env.example).
 

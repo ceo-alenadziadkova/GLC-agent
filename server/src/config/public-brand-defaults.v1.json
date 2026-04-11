@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "brand_name": "GLC Tech",
+  "legal_line": "Palma de Mallorca · Spain · GLC Tech / GLCTech",
+  "support_email": null,
+  "footer": {
+    "introParagraph": "Audits of digital systems, processes, and your website. Bottlenecks, priorities, automation, and a clear roadmap—from diagnosis to implementation.",
+    "routesSectionTitle": "Routes",
+    "clientSignInLabel": "Client sign-in",
+    "nextStepSectionTitle": "Next step",
+    "nextStepBeforeSnapshot": "Not sure where to start? Try ",
+    "snapshotLinkLabel": "Snapshot",
+    "nextStepBetweenSnapshotAndBrief": ". Want a human in the loop—",
+    "briefLinkLabel": "short brief",
+    "nextStepAfterBrief": "."
+  }
+}

@@ -1,4 +1,5 @@
 import { FACT_CHECKER_THRESHOLDS } from '../config/fact-checker-thresholds.js';
+import { factCheckerCopy, interpolateFactCheckerMessage } from '../config/fact-checker-copy.js';
 import type { DomainResult, DomainKey, ConfidenceLevel } from '../types/audit.js';
 
 const T = FACT_CHECKER_THRESHOLDS;
@@ -74,11 +75,12 @@ export class FactChecker {
     const ssl = secData.ssl as { valid: boolean } | undefined;
     const headers = secData.headers as Array<{ name: string; present: boolean }> | undefined;
 
+    const secCopy = factCheckerCopy().security;
     if (ssl && !ssl.valid) {
       corrections.push({
         field: 'score',
-        issue: 'Invalid SSL certificate caps security score at 2/5',
-        raw_evidence: 'SSL check returned invalid',
+        issue: secCopy.invalidSslIssue,
+        raw_evidence: secCopy.invalidSslRawEvidence,
         action: 'override',
         original_value: result.score,
         corrected_value: Math.min(result.score, T.security.invalidSslMaxScore),
@@ -98,8 +100,12 @@ export class FactChecker {
       ) {
         corrections.push({
           field: 'score',
-          issue: `Score too high: ${missingCritical.length} critical security headers missing (CSP, HSTS)`,
-          raw_evidence: `Missing: ${missingCritical.map(h => h.name).join(', ')}`,
+          issue: interpolateFactCheckerMessage(secCopy.missingCriticalIssueTemplate, {
+            count: missingCritical.length,
+          }),
+          raw_evidence: interpolateFactCheckerMessage(secCopy.missingCriticalRawEvidenceTemplate, {
+            names: missingCritical.map(h => h.name).join(', '),
+          }),
           action: 'flag',
         });
       }
@@ -117,13 +123,14 @@ export class FactChecker {
     const sitemap = seoData.sitemap as { exists: boolean } | undefined;
     const robotsTxt = seoData.robots_txt as { exists: boolean } | undefined;
     const pageAnalysis = seoData.page_analysis as { issues: string[]; meta_coverage: { with_description: number; total: number } } | undefined;
+    const seoCopy = factCheckerCopy().seo;
 
     // Can't score 5 without sitemap
     if (sitemap && !sitemap.exists && result.score === T.seo.perfectScore) {
       corrections.push({
         field: 'score',
-        issue: 'Score 5/5 but no sitemap.xml found',
-        raw_evidence: 'sitemap.exists = false',
+        issue: seoCopy.noSitemapIssue,
+        raw_evidence: seoCopy.noSitemapRawEvidence,
         action: 'flag',
       });
     }
@@ -132,8 +139,8 @@ export class FactChecker {
     if (robotsTxt && !robotsTxt.exists && result.score === T.seo.perfectScore) {
       corrections.push({
         field: 'score',
-        issue: 'Score 5/5 but no robots.txt found',
-        raw_evidence: 'robots_txt.exists = false',
+        issue: seoCopy.noRobotsIssue,
+        raw_evidence: seoCopy.noRobotsRawEvidence,
         action: 'flag',
       });
     }
@@ -144,8 +151,13 @@ export class FactChecker {
       if (coverage < T.seo.metaDescriptionMinCoverage && result.score >= T.seo.metaDescriptionFlagMinScore) {
         corrections.push({
           field: 'score',
-          issue: `Score too high: only ${Math.round(coverage * 100)}% of pages have meta descriptions`,
-          raw_evidence: `${pageAnalysis.meta_coverage.with_description}/${pageAnalysis.meta_coverage.total} pages`,
+          issue: interpolateFactCheckerMessage(seoCopy.metaCoverageIssueTemplate, {
+            pct: Math.round(coverage * 100),
+          }),
+          raw_evidence: interpolateFactCheckerMessage(seoCopy.metaCoverageRawEvidenceTemplate, {
+            with_desc: pageAnalysis.meta_coverage.with_description,
+            total: pageAnalysis.meta_coverage.total,
+          }),
           action: 'flag',
         });
       }
@@ -161,13 +173,14 @@ export class FactChecker {
     if (!perfData) return;
 
     const headers = perfData.headers as { compression: { enabled: boolean }; caching: { has_cache_policy: boolean } } | undefined;
+    const techCopy = factCheckerCopy().tech;
 
     if (headers) {
       if (!headers.compression.enabled && result.score >= T.tech.flagMinScore) {
         corrections.push({
           field: 'score',
-          issue: 'Score too high: no HTTP compression detected',
-          raw_evidence: 'compression.enabled = false',
+          issue: techCopy.noCompressionIssue,
+          raw_evidence: techCopy.noCompressionRawEvidence,
           action: 'flag',
         });
       }
@@ -175,8 +188,8 @@ export class FactChecker {
       if (!headers.caching.has_cache_policy && result.score >= T.tech.flagMinScore) {
         corrections.push({
           field: 'score',
-          issue: 'Score too high: no cache policy detected',
-          raw_evidence: 'caching.has_cache_policy = false',
+          issue: techCopy.noCacheIssue,
+          raw_evidence: techCopy.noCacheRawEvidence,
           action: 'flag',
         });
       }
@@ -192,6 +205,7 @@ export class FactChecker {
     if (!a11y) return;
 
     const imageA11y = a11y.image_accessibility as { alt_coverage_percent: number } | undefined;
+    const uxCopy = factCheckerCopy().ux;
 
     if (
       imageA11y &&
@@ -200,20 +214,27 @@ export class FactChecker {
     ) {
       corrections.push({
         field: 'score',
-        issue: `Score too high: only ${imageA11y.alt_coverage_percent}% image alt text coverage`,
-        raw_evidence: `alt_coverage_percent = ${imageA11y.alt_coverage_percent}`,
+        issue: interpolateFactCheckerMessage(uxCopy.imageAltIssueTemplate, {
+          pct: imageA11y.alt_coverage_percent,
+        }),
+        raw_evidence: interpolateFactCheckerMessage(uxCopy.imageAltRawEvidenceTemplate, {
+          pct: imageA11y.alt_coverage_percent,
+        }),
         action: 'flag',
       });
     }
   }
 
   private checkScoreConsistency(result: DomainResult, corrections: FactCorrection[]) {
+    const cCopy = factCheckerCopy().consistency;
     // Score 5 should not have critical issues
     if (result.score === T.consistency.maxScore && result.issues.some(i => i.severity === 'critical')) {
       corrections.push({
         field: 'score',
-        issue: 'Score 5/5 but critical issues found',
-        raw_evidence: `Critical issues: ${result.issues.filter(i => i.severity === 'critical').map(i => i.title).join(', ')}`,
+        issue: cCopy.criticalWithMaxScoreIssue,
+        raw_evidence: interpolateFactCheckerMessage(cCopy.criticalWithMaxScoreRawEvidenceTemplate, {
+          titles: result.issues.filter(i => i.severity === 'critical').map(i => i.title).join(', '),
+        }),
         action: 'flag',
       });
     }
@@ -225,8 +246,10 @@ export class FactChecker {
     ) {
       corrections.push({
         field: 'score',
-        issue: 'Score 1/5 but no critical or high issues listed',
-        raw_evidence: 'Max severity in issues: ' + (result.issues[0]?.severity ?? 'none'),
+        issue: cCopy.minScoreNoSevereIssue,
+        raw_evidence: interpolateFactCheckerMessage(cCopy.minScoreNoSevereRawEvidenceTemplate, {
+          max_severity: result.issues[0]?.severity ?? 'none',
+        }),
         action: 'flag',
       });
     }
@@ -238,8 +261,11 @@ export class FactChecker {
     ) {
       corrections.push({
         field: 'score',
-        issue: 'High score but significantly more weaknesses than strengths',
-        raw_evidence: `Strengths: ${result.strengths.length}, Weaknesses: ${result.weaknesses.length}`,
+        issue: cCopy.weaknessesBalanceIssue,
+        raw_evidence: interpolateFactCheckerMessage(cCopy.weaknessesBalanceRawEvidenceTemplate, {
+          strengths: result.strengths.length,
+          weaknesses: result.weaknesses.length,
+        }),
         action: 'flag',
       });
     }
@@ -310,10 +336,11 @@ export class FactChecker {
   }
 
   private scoreLabel(score: number): string {
-    if (score <= 1) return 'Critical';
-    if (score <= 2) return 'Needs Work';
-    if (score <= 3) return 'Moderate';
-    if (score <= 4) return 'Good';
-    return 'Excellent';
+    const L = factCheckerCopy().scoreLabels;
+    if (score <= 1) return L.critical;
+    if (score <= 2) return L.needsWork;
+    if (score <= 3) return L.moderate;
+    if (score <= 4) return L.good;
+    return L.excellent;
   }
 }

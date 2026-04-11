@@ -1,0 +1,35 @@
+{
+  "version": "1.1.0",
+  "agents": {
+    "recon": {
+      "collectingWithCrawl": "Crawling company website...",
+      "collectingNoPublicSite": "No public website — skipping web crawl...",
+      "logAfterCrawl": "✓ Crawled {{count}} pages",
+      "logNoPublicSite": "✓ No public website — recon will use intake brief and form data only",
+      "phaseErrorZeroPages": "Recon crawled 0 pages — site may be unreachable or blocking crawlers",
+      "assemblingContext": "Preparing analysis context...",
+      "analyzing": "Analyzing company profile...",
+      "tokenBudgetWarning": "Token budget at {{pct}}% — {{remaining}} tokens remaining",
+      "completed": "Reconnaissance complete"
+    },
+    "base": {
+      "collecting": "Collecting raw data...",
+      "logCollected": "✓ Collected: {{key}}",
+      "logCollectorFailed": "⚠ Collector {{key}} failed: {{message}}",
+      "assemblingContext": "Building analysis context...",
+      "analyzing": "Running AI analysis...",
+      "tokenBudgetWarning": "Token budget at {{pct}}% — {{remaining}} tokens remaining",
+      "factCheckFlags": "Found {{count}} fact-check flag(s)",
+      "contextTruncated": "Context truncated for keys: {{keys}}",
+      "validationErrorAttempt": "⚠ Validation error (attempt {{attempt}}): {{message}}",
+      "apiErrorRetry": "⚠ API error ({{status}}), retrying in {{delay}}ms...",
+      "claudeToolDescription": "Submit the structured analysis results"
+    },
+    "strategy": {
+      "assemblingContext": "Gathering all domain results...",
+      "analyzing": "Synthesizing strategic roadmap...",
+      "tokenBudgetWarning": "Token budget at {{pct}}% — {{remaining}} tokens remaining",
+      "completed": "Strategic roadmap complete"
+    }
+  }
+}

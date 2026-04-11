@@ -201,7 +201,7 @@ Use these **logical prefixes** in docs and in future i18n catalogs (no requireme
 #### Cross-cutting brand and support email
 
 - **Marketing shell / public pages** should prefer `**fetchPublicBrandConfig()`** (`[src/app/lib/public-brand.ts](../src/app/lib/public-brand.ts)`) for `**brand_name**`, `**footer**`, and `**public_site_url**` instead of hardcoding the product name in every route.
-- **Support email in the SPA (production):** `**VITE_SUPPORT_EMAIL`** is required at build time (`[src/app/lib/support-email.ts](../src/app/lib/support-email.ts)`). The server may set `**PUBLIC_SUPPORT_EMAIL**` so `**GET /api/public/brand**` returns `support_email`; use that for surfaces driven by the brand payload. Do not introduce a third divergent “contact” string without documenting precedence — see [DEPLOYMENT.md — White-label and dev defaults](./DEPLOYMENT.md#white-label-and-dev-defaults-environment-matrix).
+- **Support email in the SPA (production):** `**VITE_SUPPORT_EMAIL**` is required at build time (`[src/app/lib/support-email.ts](../src/app/lib/support-email.ts)`). The server may set `support_email` in `[server/src/config/public-brand-defaults.v1.json](../server/src/config/public-brand-defaults.v1.json)` so `**GET /api/public/brand**` returns it; use that for surfaces driven by the brand payload. Do not introduce a third divergent “contact” string without documenting precedence — see [DEPLOYMENT.md — White-label and dev defaults](./DEPLOYMENT.md#white-label-and-dev-defaults-environment-matrix).
 
 #### API errors vs SPA copy
 

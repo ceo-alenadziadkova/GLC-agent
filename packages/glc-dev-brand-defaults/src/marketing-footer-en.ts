@@ -1,6 +1,6 @@
 /**
  * Default English marketing footer copy (public pages).
- * Override at deploy time via GET /api/public/brand env: PUBLIC_BRAND_NAME, PUBLIC_SUPPORT_EMAIL, PUBLIC_BRAND_LEGAL_LINE.
+ * Server-side live brand for GET /api/public/brand: edit `server/src/config/public-brand-defaults.v1.json`. This package remains the shared dev template and type shape.
  */
 
 export const GLC_DEV_BRAND_NAME = 'GLC Tech' as const;

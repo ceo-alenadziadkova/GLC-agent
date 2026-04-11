@@ -6,25 +6,21 @@ describe('getPublicBrandConfig', () => {
     vi.resetModules();
   });
 
-  it('merges PUBLIC_* env overrides over dev defaults', async () => {
+  it('returns brand copy from public-brand-defaults.v1.json and public_site_url from env', async () => {
     vi.stubEnv('NODE_ENV', 'development');
     vi.stubEnv('GLC_PUBLIC_SITE_URL', 'https://brand.example');
-    vi.stubEnv('PUBLIC_BRAND_NAME', 'Acme Audits');
-    vi.stubEnv('PUBLIC_SUPPORT_EMAIL', 'hello@acme.test');
-    vi.stubEnv('PUBLIC_BRAND_LEGAL_LINE', 'London · UK');
     const { getPublicBrandConfig } = await import('../config/public-brand-config.js');
     const c = getPublicBrandConfig();
-    expect(c.brand_name).toBe('Acme Audits');
-    expect(c.support_email).toBe('hello@acme.test');
+    expect(c.brand_name).toBe('GLC Tech');
     expect(c.public_site_url).toBe('https://brand.example');
-    expect(c.footer.brandTitle).toBe('Acme Audits');
-    expect(c.footer.legalLine).toBe('London · UK');
+    expect(c.footer.brandTitle).toBe('GLC Tech');
+    expect(c.footer.introParagraph).toContain('Audits of digital systems');
+    expect(c.support_email).toMatch(/@/);
   });
 
-  it('production: support_email null when PUBLIC_SUPPORT_EMAIL unset', async () => {
+  it('production: support_email null when JSON support_email is null', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('GLC_PUBLIC_SITE_URL', 'https://prod.example');
-    vi.stubEnv('PUBLIC_SUPPORT_EMAIL', '');
     const { getPublicBrandConfig } = await import('../config/public-brand-config.js');
     const c = getPublicBrandConfig();
     expect(c.support_email).toBeNull();

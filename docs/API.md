@@ -25,7 +25,7 @@ This prevents storing user-specific audit data in shared caches.
 
 **Auth:** none.
 
-Returns non-secret marketing defaults (`brand_name`, `support_email`, `public_site_url`, structured `footer` strings). Optional server env: `PUBLIC_BRAND_NAME`, `PUBLIC_SUPPORT_EMAIL`, `PUBLIC_BRAND_LEGAL_LINE` (see `server/.env.example`). Bundled defaults live in `@glc/dev-brand-defaults`; the SPA uses those until the request succeeds. In production, `support_email` is `null` when `PUBLIC_SUPPORT_EMAIL` is unset — the UI then relies on `VITE_SUPPORT_EMAIL` from the build.
+Returns non-secret marketing defaults (`brand_name`, `support_email`, `public_site_url`, structured `footer` strings). Source: `server/src/config/public-brand-defaults.v1.json` (edit for white-label); `public_site_url` comes from **`GLC_PUBLIC_SITE_URL`**. The SPA uses bundled `@glc/dev-brand-defaults` until the request succeeds. In production, `support_email` is `null` when JSON `support_email` is null — the UI then relies on `VITE_SUPPORT_EMAIL` from the build.
 
 ---
 

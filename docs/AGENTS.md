@@ -170,7 +170,7 @@ interface BaseCollector {
 
 ## Fact Checker (`services/fact-checker.ts`)
 
-Validates Claude's scored output against raw metrics to prevent hallucinated scores.
+Validates Claude's scored output against raw metrics to prevent hallucinated scores. User-visible correction strings and score band labels load from `server/src/config/fact-checker-copy.v1.json` (thresholds stay in `fact-checker-thresholds.ts`).
 
 **Rules:**
 - SEO score ≥ 4 but no sitemap found → max score capped at 3, flag added

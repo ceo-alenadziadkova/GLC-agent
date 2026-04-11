@@ -30,9 +30,8 @@ export function getPublicBrandConfig(): PublicBrandPayload {
   const brandName = String(raw.brand_name ?? '').trim() || 'GLC Tech';
   const legalLine = String(raw.legal_line ?? '').trim() || GLC_DEV_BRAND_LEGAL_LINE;
 
-  const rawSupport = raw.support_email;
-  const trimmedSupport =
-    rawSupport != null && typeof rawSupport === 'string' ? rawSupport.trim() : '';
+  const rawSupport = raw.support_email as string | null | undefined;
+  const trimmedSupport = typeof rawSupport === 'string' ? rawSupport.trim() : '';
   const support_email: string | null =
     trimmedSupport !== ''
       ? trimmedSupport
@@ -44,7 +43,7 @@ export function getPublicBrandConfig(): PublicBrandPayload {
   const footer: MarketingFooterCopyEn = {
     ...footerBase,
     brandTitle: brandName,
-    legalLine: legalLine || brandName,
+    legalLine,
   };
 
   return {

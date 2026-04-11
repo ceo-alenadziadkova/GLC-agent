@@ -20,6 +20,7 @@ import {
   intakeTraceToolWordingRollbackSchema,
   intakeTraceToolPublicationLogQuerySchema,
 } from '../schemas/intake-trace-tool.js';
+import { INTAKE_TRACE_TOOL_ANALYTICS_SURFACE } from '../config/intake-trace-tool-surface.js';
 import {
   API_ERROR_CODES,
   INTAKE_TRACE_ANALYTICS_ACCEPT_FAILED_MESSAGE,
@@ -39,8 +40,6 @@ import {
 } from '../config/api-error-codes.js';
 
 export const intakeTraceToolRouter = Router();
-
-const TOOL_SURFACE = 'internal_intake_trace';
 
 async function readWordingDraftsMaps(userId: string): Promise<{ drafts: Record<string, string>; published: Record<string, string> }> {
   const { data, error } = await supabase
@@ -86,7 +85,7 @@ intakeTraceToolRouter.post('/analytics-events', async (req: AuthRequest, res) =>
     };
 
     const rows = body.events.map(e => ({
-      surface: TOOL_SURFACE,
+      surface: INTAKE_TRACE_TOOL_ANALYTICS_SURFACE,
       event_type: e.event_type,
       client_session_id: body.client_session_id,
       user_id: userId,
