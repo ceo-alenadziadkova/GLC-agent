@@ -7,6 +7,7 @@ import { DecisionPath } from '../marketing/blocks/DecisionPath';
 import { AuditCompare } from '../marketing/blocks/AuditCompare';
 import { NextStepsCta } from '../marketing/blocks/NextStepsCta';
 import { LOGIN_PATH } from '../marketing/marketing-nav';
+import { usePublicBrand } from '../marketing/PublicBrandContext';
 import {
   Accordion,
   AccordionContent,
@@ -105,10 +106,19 @@ const FAQ_PREVIEW = [
 ];
 
 export function MarketingHome() {
-  const reduce = useReducedMotion();
-
   return (
     <MarketingLayout>
+      <MarketingHomeInner />
+    </MarketingLayout>
+  );
+}
+
+function MarketingHomeInner() {
+  const reduce = useReducedMotion();
+  const { brandName, footer } = usePublicBrand();
+  const whoWeAreDescription = `${brandName} is a digital consulting / systems advisory team: we help you see the real state of your site and processes, find bottlenecks, and build a prioritized plan—from quick wins to durable systemic change.`;
+
+  return (
       <div data-testid="marketing-home">
         <MarketingSection className="relative">
           <div
@@ -137,7 +147,7 @@ export function MarketingHome() {
                   boxShadow: 'var(--shadow-xs)',
                 }}
               >
-                GLC Tech · audit-first
+                {brandName} · audit-first
               </p>
               <h1
                 className="font-display text-[clamp(1.9rem,5.2vw,3.15rem)] font-bold leading-[1.06] tracking-tight"
@@ -256,7 +266,7 @@ export function MarketingHome() {
           <SectionHeading
             variant="rail"
             title="Who we are"
-            description="GLC Tech is a digital consulting / systems advisory team: we help you see the real state of your site and processes, find bottlenecks, and build a prioritized plan—from quick wins to durable systemic change."
+            description={whoWeAreDescription}
           />
         </MarketingSection>
 
@@ -406,11 +416,10 @@ export function MarketingHome() {
             steps={[
               { to: '/faq', label: 'FAQ', hint: 'Timelines, format, how we work.' },
               { to: '/brief', label: 'Short brief', hint: 'We gather context and suggest a route.', primary: true },
-              { to: LOGIN_PATH, label: 'Client sign-in', hint: 'For current clients.' },
+              { to: LOGIN_PATH, label: footer.clientSignInLabel, hint: 'For current clients.' },
             ]}
           />
         </div>
       </div>
-    </MarketingLayout>
   );
 }

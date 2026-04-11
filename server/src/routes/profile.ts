@@ -3,6 +3,13 @@ import { z } from 'zod';
 import { requireAuth, attachProfile, type AuthRequest } from '../middleware/auth.js';
 import { updateContext } from '../services/observability-context.js';
 import { supabase } from '../services/supabase.js';
+import {
+  API_ERROR_CODES,
+  PROFILE_LOAD_FAILED_MESSAGE,
+  PROFILE_PAYLOAD_INVALID_MESSAGE,
+  PROFILE_UPDATE_FAILED_MESSAGE,
+  apiErrorJson,
+} from '../config/api-error-codes.js';
 
 const patchProfileSchema = z.object({
   full_name: z.string().trim().max(200).nullable().optional(),
@@ -20,7 +27,7 @@ profileRouter.get('/', requireAuth, attachProfile, async (req: AuthRequest, res)
     .single();
 
   if (error) {
-    res.status(500).json({ error: 'Failed to load user profile' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.PROFILE_LOAD_FAILED, PROFILE_LOAD_FAILED_MESSAGE));
     return;
   }
 
@@ -37,7 +44,7 @@ profileRouter.patch('/', requireAuth, attachProfile, async (req: AuthRequest, re
 
   const parsed = patchProfileSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
-    res.status(400).json({ error: 'Invalid profile payload' });
+    res.status(400).json(apiErrorJson(API_ERROR_CODES.PROFILE_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
     return;
   }
 
@@ -55,7 +62,7 @@ profileRouter.patch('/', requireAuth, attachProfile, async (req: AuthRequest, re
     .eq('id', req.userId);
 
   if (error) {
-    res.status(500).json({ error: 'Failed to update user profile' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.PROFILE_UPDATE_FAILED, PROFILE_UPDATE_FAILED_MESSAGE));
     return;
   }
 

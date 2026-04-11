@@ -3,6 +3,7 @@
  */
 import type { IntakeVersionTuple } from '../data/auditTypes';
 import { discoverApi } from '../data/api/discover';
+import { DISCOVERY_ANALYTICS_FLUSH_MS, DISCOVERY_ANALYTICS_MAX_BATCH } from './discovery-analytics-config';
 
 /** Must match server `INTAKE_ANALYTICS_EVENT_TYPES` (ADR Phase G). */
 export type DiscoveryAnalyticsEventType =
@@ -14,8 +15,6 @@ export type DiscoveryAnalyticsEventType =
 export type DiscoveryAnalyticsExperimentVariant = 'A' | 'B';
 
 const SESSION_KEY = 'glc_discover_analytics_v1';
-const FLUSH_MS = 3200;
-const MAX_BATCH = 24;
 
 type QueuedEvent = {
   event_type: DiscoveryAnalyticsEventType;
@@ -65,12 +64,12 @@ export function createDiscoveryAnalyticsSink(deps: {
     flushTimer = setTimeout(() => {
       flushTimer = null;
       void flush();
-    }, FLUSH_MS);
+    }, DISCOVERY_ANALYTICS_FLUSH_MS);
   }
 
   async function flush(): Promise<void> {
     if (!queue.length) return;
-    const batch = queue.splice(0, MAX_BATCH);
+    const batch = queue.splice(0, DISCOVERY_ANALYTICS_MAX_BATCH);
     const intake_versions = deps.getIntakeVersions();
     const discovery_session_token = deps.getDiscoveryToken() ?? undefined;
     const payload = {
@@ -106,7 +105,7 @@ export function createDiscoveryAnalyticsSink(deps: {
     enqueue(event) {
       const client_ts = event.client_ts ?? new Date().toISOString();
       queue.push({ ...event, client_ts } as QueuedEvent);
-      if (queue.length >= MAX_BATCH) void flush();
+      if (queue.length >= DISCOVERY_ANALYTICS_MAX_BATCH) void flush();
       else scheduleFlush();
     },
     flush,

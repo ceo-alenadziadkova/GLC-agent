@@ -483,13 +483,13 @@ describe('PUT /api/audits/:id/brief', () => {
     expect(status).toBe(200);
   });
 
-  it('returns 400 UNKNOWN_MODE for invalid collection_mode', async () => {
+  it('returns 400 AUDITS_BRIEF_COLLECTION_MODE_INVALID for invalid collection_mode', async () => {
     const { status, body } = await putJSON('/api/audits/audit-001/brief', {
       responses: { f1: { value: 'x', source: 'client' as const } },
       collection_mode: 'not_a_mode',
     });
     expect(status).toBe(400);
-    expect(body.code).toBe('UNKNOWN_MODE');
+    expect(body.code).toBe('AUDITS_BRIEF_COLLECTION_MODE_INVALID');
   });
 
   it('accepts valid collection_mode values', async () => {

@@ -1,9 +1,16 @@
 import * as cheerio from 'cheerio';
-import { BaseCollector } from './base.js';
+import { auditSkipsPublicWebsiteFetches } from '@glc/intake-core';
+import { BaseCollector, type CollectorCollectContext } from './base.js';
 import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import { detectLanguagesFromPages, extractLanguagesFromHtml } from '../lib/language-utils.js';
 import { logger } from '../services/logger.js';
-import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
+import { CRAWLER_USER_AGENT } from '../config/bot-identity.js';
+import {
+  CRAWLER_MAX_PAGES,
+  CRAWLER_PAGE_TIMEOUT_MS,
+  CRAWLER_TOTAL_BUDGET_MS,
+} from '../config/crawler-limits.js';
+import { SOCIAL_LINK_PATTERNS } from '../config/social-link-patterns.js';
 import { addTechStackFromHtml, TECH_PATTERNS } from '../lib/site-html-signals.js';
 
 interface CrawledPage {
@@ -22,24 +29,12 @@ interface CrawledPage {
   detected_languages?: string[];
 }
 
-const SOCIAL_PATTERNS: Record<string, RegExp> = {
-  twitter: /(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)/,
-  linkedin: /linkedin\.com\/(?:company|in)\/([a-zA-Z0-9_-]+)/,
-  facebook: /facebook\.com\/([a-zA-Z0-9._-]+)/,
-  instagram: /instagram\.com\/([a-zA-Z0-9._-]+)/,
-  youtube: /youtube\.com\/(?:@|channel\/)([a-zA-Z0-9_-]+)/,
-  github: /github\.com\/([a-zA-Z0-9_-]+)/,
-};
-
 export class CrawlerCollector extends BaseCollector {
   get key() { return 'crawler'; }
   get phase() { return 0; }
 
-  private maxPages = 20;
-  private timeout = 15_000;
-
-  async collect(auditId: string, companyUrl: string) {
-    if (isNoPublicWebsiteUrl(companyUrl)) {
+  async collect(auditId: string, companyUrl: string, ctx?: CollectorCollectContext) {
+    if (auditSkipsPublicWebsiteFetches(ctx?.noPublicWebsite, companyUrl)) {
       const techStackResult: Record<string, string[]> = {};
       for (const cat of Object.keys(TECH_PATTERNS)) {
         techStackResult[cat] = [];
@@ -80,11 +75,10 @@ export class CrawlerCollector extends BaseCollector {
     }
 
     const baseUrl = new URL(baseHref);
-    const TOTAL_TIMEOUT_MS = 90_000;
     const crawlStart = Date.now();
 
-    while (toVisit.length > 0 && pages.length < this.maxPages) {
-      if (Date.now() - crawlStart > TOTAL_TIMEOUT_MS) {
+    while (toVisit.length > 0 && pages.length < CRAWLER_MAX_PAGES) {
+      if (Date.now() - crawlStart > CRAWLER_TOTAL_BUDGET_MS) {
         logger.warn('crawler.total_timeout', { component: 'crawler', pages_crawled: pages.length });
         break;
       }
@@ -157,13 +151,13 @@ export class CrawlerCollector extends BaseCollector {
     const start = Date.now();
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    const timeoutId = setTimeout(() => controller.abort(), CRAWLER_PAGE_TIMEOUT_MS);
 
     try {
       const response = await fetchPublicHttpUrl(url, {
         signal: controller.signal,
         headers: {
-          'User-Agent': 'GLC-AuditBot/1.0 (+https://glctech.es)',
+          'User-Agent': CRAWLER_USER_AGENT,
           'Accept': 'text/html,application/xhtml+xml',
           'Accept-Language': 'en,es,ca',
         },
@@ -243,7 +237,7 @@ export class CrawlerCollector extends BaseCollector {
   }
 
   private detectSocials(html: string, profiles: Record<string, string>) {
-    for (const [platform, pattern] of Object.entries(SOCIAL_PATTERNS)) {
+    for (const [platform, pattern] of Object.entries(SOCIAL_LINK_PATTERNS)) {
       if (profiles[platform]) continue;
       const match = html.match(pattern);
       if (match?.[1]) {

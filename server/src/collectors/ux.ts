@@ -1,4 +1,4 @@
-import { BaseCollector } from './base.js';
+import { BaseCollector, type CollectorCollectContext } from './base.js';
 import { supabase } from '../services/supabase.js';
 
 /**
@@ -9,7 +9,7 @@ export class UxCollector extends BaseCollector {
   get key() { return 'ux_signals'; }
   get phase() { return 4; }
 
-  async collect(auditId: string, _companyUrl: string) {
+  async collect(auditId: string, _companyUrl: string, _ctx?: CollectorCollectContext) {
     // Fetch crawled pages from cache (crawler always runs before UX in phase 4)
     const { data: crawlData } = await supabase
       .from('collected_data')

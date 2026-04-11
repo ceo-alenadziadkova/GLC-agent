@@ -4,6 +4,15 @@
  */
 import { chromium, type Browser } from 'playwright';
 
+import { PLAYWRIGHT_SNAPSHOT_USER_AGENT } from '../config/bot-identity.js';
+import {
+  SNAPSHOT_PW_BUDGET_SUBTRACT_MS,
+  SNAPSHOT_PW_NAV_TIMEOUT_MAX_MS,
+  SNAPSHOT_PW_NAV_TIMEOUT_MIN_MS,
+  SNAPSHOT_PW_SETTLE_MAX_MS,
+  SNAPSHOT_PW_SETTLE_MIN_MS,
+} from '../config/snapshot-timing.js';
+
 export type PlaywrightFetchResult = { html: string; finalUrl: string };
 
 /**
@@ -13,8 +22,14 @@ export async function fetchRenderedHomeHtml(
   url: string,
   budgetMs: number,
 ): Promise<PlaywrightFetchResult | null> {
-  const navTimeout = Math.min(Math.max(budgetMs - 2000, 4000), 25_000);
-  const settleMs = Math.min(2000, Math.max(300, Math.floor(budgetMs / 6)));
+  const navTimeout = Math.min(
+    Math.max(budgetMs - SNAPSHOT_PW_BUDGET_SUBTRACT_MS, SNAPSHOT_PW_NAV_TIMEOUT_MIN_MS),
+    SNAPSHOT_PW_NAV_TIMEOUT_MAX_MS,
+  );
+  const settleMs = Math.min(
+    SNAPSHOT_PW_SETTLE_MAX_MS,
+    Math.max(SNAPSHOT_PW_SETTLE_MIN_MS, Math.floor(budgetMs / 6)),
+  );
 
   let browser: Browser | undefined;
   try {
@@ -23,8 +38,7 @@ export async function fetchRenderedHomeHtml(
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
     const context = await browser.newContext({
-      userAgent:
-        'Mozilla/5.0 (compatible; GLC-SnapshotScanner/1.0; +https://glctech.es) Chrome/120 Safari/537.36',
+      userAgent: PLAYWRIGHT_SNAPSHOT_USER_AGENT,
       locale: 'en-US',
     });
     const page = await context.newPage();

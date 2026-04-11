@@ -11,6 +11,7 @@ import industryMapRaw from './branch-industry-map.v1.json' with { type: 'json' }
 import branchRuntimeRaw from './branch-runtime.v1.json' with { type: 'json' };
 import branchRulesCanon from './branch-rules.v1.json' with { type: 'json' };
 import {
+  isSoloTeamRaw,
   normalizePayments,
   normalizeWebsiteGate,
   type WebsiteGate,
@@ -67,7 +68,7 @@ function normalizeTeamSize(responses: IntakeResponsesMap): string {
   const raw = unwrapIntakeValue(responses.a4);
   const s = String(raw ?? '').trim().toLowerCase();
   if (!s) return '';
-  if (s.includes('just me') || s === 'just_me' || s === 'solo') return 'just_me';
+  if (isSoloTeamRaw(raw)) return 'just_me';
   return s;
 }
 

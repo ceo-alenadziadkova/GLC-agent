@@ -12,13 +12,15 @@ import { SectionLabel } from '../components/glc/SectionLabel';
 import { useAudits } from '../hooks/useAudits';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 
+const EASE_GLC = [0.16, 1, 0.3, 1] as const;
+
 const listVariants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.05 } },
 };
 const itemVariants = {
   hidden:  { opacity: 0, y: 8 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.28, ease: [0.16, 1, 0.3, 1] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.28, ease: EASE_GLC } },
 };
 
 function mapStatus(status: string): 'completed' | 'running' | 'pending' | 'review' {
@@ -37,7 +39,7 @@ export function Portfolio() {
     (c.company_name || '').toLowerCase().includes(query.toLowerCase()) ||
     (c.industry || '').toLowerCase().includes(query.toLowerCase()) ||
     c.company_url.toLowerCase().includes(query.toLowerCase()) ||
-    formatAuditWebsiteDisplay(c.company_url).toLowerCase().includes(query.toLowerCase())
+    formatAuditWebsiteDisplay(c.company_url, c.no_public_website).toLowerCase().includes(query.toLowerCase())
   );
 
   const totalAudits = audits.length;
@@ -197,7 +199,7 @@ export function Portfolio() {
                         fontSize: '11px',
                       }}
                     >
-                      {(c.company_name || formatAuditWebsiteDisplay(c.company_url)).slice(0, 2).toUpperCase()}
+                      {(c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website)).slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0">
                       <Link
@@ -211,10 +213,10 @@ export function Portfolio() {
                           letterSpacing: '-0.01em',
                         }}
                       >
-                        {c.company_name || formatAuditWebsiteDisplay(c.company_url)}
+                        {c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website)}
                       </Link>
                       <div className="text-xs truncate mt-0.5" style={{ color: 'var(--text-quaternary)', fontSize: '11px' }}>
-                        {formatAuditWebsiteDisplay(c.company_url)}
+                        {formatAuditWebsiteDisplay(c.company_url, c.no_public_website)}
                       </div>
                     </div>
                   </div>

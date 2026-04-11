@@ -4,7 +4,7 @@
  * Verifies industry weight application and the weighted overall score
  * calculation that drives the main audit score.
  */
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getDomainWeight, calculateWeightedScore } from '../config/industry-weights.js';
 
 // ─── getDomainWeight ───────────────────────────────────────────────────────
@@ -42,6 +42,25 @@ describe('getDomainWeight', () => {
   it('normalization: "Healthcare" → matches "healthcare"', () => {
     // getDomainWeight lowercases and replaces spaces/& with _
     expect(getDomainWeight('Healthcare', 'security_compliance')).toBe(1.6);
+  });
+});
+
+describe('INDUSTRY_WEIGHTS_JSON override', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('merges JSON over defaults for matching industry keys', async () => {
+    vi.stubEnv(
+      'INDUSTRY_WEIGHTS_JSON',
+      JSON.stringify({ healthcare: { security_compliance: 2.5, invalid_domain: 99, seo_digital: 1.05 } }),
+    );
+    vi.resetModules();
+    const { getDomainWeight: gw } = await import('../config/industry-weights.js');
+    expect(gw('healthcare', 'security_compliance')).toBe(2.5);
+    expect(gw('healthcare', 'seo_digital')).toBe(1.05);
+    expect(gw('healthcare', 'ux_conversion')).toBe(1.3);
   });
 });
 

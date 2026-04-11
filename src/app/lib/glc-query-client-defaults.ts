@@ -2,6 +2,12 @@
  * Defaults for TanStack Query in the SPA. Optional Vite env overrides.
  */
 
+import {
+  GLC_QUERY_DEFAULT_RETRY_DEFAULT,
+  GLC_QUERY_GC_TIME_MS_DEFAULT,
+  GLC_QUERY_STALE_TIME_MS_DEFAULT,
+} from '../config/query-client-defaults';
+
 function clampInt(raw: unknown, min: number, max: number, fallback: number): number {
   const s = typeof raw === 'string' ? raw.trim() : '';
   const n = s === '' ? NaN : Number(s);
@@ -13,24 +19,24 @@ function clampInt(raw: unknown, min: number, max: number, fallback: number): num
 
 export function glcQueryDefaultRetry(): number | boolean {
   const raw = import.meta.env.VITE_QUERY_DEFAULT_RETRY;
-  if (raw === undefined || raw === '') return 1;
+  if (raw === undefined || raw === '') return GLC_QUERY_DEFAULT_RETRY_DEFAULT;
   const s = String(raw).trim().toLowerCase();
   if (s === 'false' || s === '0') return false;
   const n = Number(s);
   if (Number.isFinite(n) && n >= 0 && n <= 5) return Math.floor(n);
-  return 1;
+  return GLC_QUERY_DEFAULT_RETRY_DEFAULT;
 }
 
 export const GLC_QUERY_STALE_TIME_MS = clampInt(
   import.meta.env.VITE_QUERY_STALE_TIME_MS,
   10_000,
   3_600_000,
-  120_000,
+  GLC_QUERY_STALE_TIME_MS_DEFAULT,
 );
 
 export const GLC_QUERY_GC_TIME_MS = clampInt(
   import.meta.env.VITE_QUERY_GC_TIME_MS,
   60_000,
   86_400_000,
-  900_000,
+  GLC_QUERY_GC_TIME_MS_DEFAULT,
 );

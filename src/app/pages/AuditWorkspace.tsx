@@ -21,7 +21,7 @@ import {
   unwrapResponse,
 } from '../data/briefQuestions';
 import type { BriefResponses } from '../data/briefQuestions';
-import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '@glc/intake-core';
+import { choiceSpecifyResponseKey, choiceValueNeedsSpecify, QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import { api } from '../data/apiService';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
@@ -36,7 +36,7 @@ import {
   writeConsultantBriefLayout,
   clearConsultantBriefLayout,
 } from '../lib/client-brief-layout-preference';
-import { getQuestionLabel } from '../lib/intake-question-lookup';
+import { bankIdToBriefQuestion } from '../data/bankQuestionUiCatalog';
 import { logger } from '../lib/logger';
 
 const EXPRESS_DOMAIN_KEYS: readonly DomainKey[] = [
@@ -162,7 +162,7 @@ export function AuditWorkspace() {
     } else {
       setWorkspaceBriefResponses({});
     }
-  }, [audit?.id, audit?.brief?.responses, audit?.brief?.updated_at]);
+  }, [audit?.meta?.id, audit?.brief?.responses, audit?.brief?.updated_at]);
 
   /** Snapshots and partial loads omit most domain rows; keep sidebar + active tab consistent with product_mode. */
   useEffect(() => {
@@ -285,13 +285,17 @@ export function AuditWorkspace() {
     && typeof (x as { domain: string }).domain === 'string'
     && typeof (x as { id: string }).id === 'string'
   )).filter(x => x.domain === activeDomain);
-  const followupQuestions = followupRefs
-    .map(r => ({ id: r.id, question: getQuestionLabel(r.id) }));
+  const followupQuestions = followupRefs.map(r => {
+    const stub = QUESTION_BANK_V1_STUBS.find(s => s.id === r.id);
+    return bankIdToBriefQuestion(r.id, stub?.priority ?? 'recommended');
+  });
   const showEnrichmentBanner = Boolean(
     domainData?.status === 'completed' && followupQuestions.length > 0 && id
   );
   const companyName =
-    audit.meta.company_name || formatAuditWebsiteDisplay(audit.meta.company_url) || audit.meta.company_url;
+    audit.meta.company_name ||
+    formatAuditWebsiteDisplay(audit.meta.company_url, audit.meta.no_public_website) ||
+    audit.meta.company_url;
   const visibleDomainKeys = visibleDomainKeysForMode(audit.meta.product_mode as ProductMode);
 
   // Use server-calculated weighted overall score when available (set after Phase 7).

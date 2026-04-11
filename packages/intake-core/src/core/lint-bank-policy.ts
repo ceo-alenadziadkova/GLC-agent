@@ -2,6 +2,7 @@
  * Static checks for question bank + intake policy (Phase 3). Isomorphic (no Node fs).
  * For CI filesystem scan of `core/*.ts`, use `lintBankAndPolicyAll` from `@glc/intake-core/lint-node`.
  */
+import { BRIEF_ANSWER_STRING_MAX } from '../brief-answer-limits.js';
 import { BRANCH_RULES } from '../branch-rules.js';
 import { INTAKE_REVENUE_BANK_ID } from '../intake-revenue.js';
 import { QUESTION_BANK_V1_STUBS, QUESTION_BANK_V1_IDS } from '../question-bank.js';
@@ -482,11 +483,11 @@ function lintCanonAnswerObject(
   if (t === 'text' || t === 'textarea') {
     if ('maxLength' in a) {
       const m = a.maxLength;
-      if (typeof m !== 'number' || !Number.isInteger(m) || m < 1 || m > 12_000) {
+      if (typeof m !== 'number' || !Number.isInteger(m) || m < 1 || m > BRIEF_ANSWER_STRING_MAX) {
         findings.push({
           code: 'CANON_ANSWER_BAD_MAX_LENGTH',
           severity: 'error',
-          message: `question "${id}": maxLength must be an integer 1..12000 for text/textarea.`,
+          message: `question "${id}": maxLength must be an integer 1..${BRIEF_ANSWER_STRING_MAX} for text/textarea.`,
           detail: id,
         });
       }

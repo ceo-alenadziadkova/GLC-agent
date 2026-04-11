@@ -10,6 +10,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
+import type { Icon } from '@phosphor-icons/react';
 import {
   ArrowRight, CheckCircle, Check, Warning,
   ChartBar, ArrowLeft, PaperPlaneRight,
@@ -39,6 +40,10 @@ import {
   discoveryTrackResultsViewed,
   discoveryTrackWizardCompleted,
 } from '../lib/discovery-analytics';
+import {
+  DISCOVER_QUESTION_SCROLL_DELAY_MS,
+  DISCOVER_WIZARD_SAVE_TIMEOUT_MS,
+} from '../config/discover-page-defaults';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -213,7 +218,7 @@ function QuestionInput({
 
 const HOOK_META: Record<
   DiscoveryFinding['hook'],
-  { Icon: React.ComponentType<{ size: number; weight: string; style?: React.CSSProperties }>; label: string; color: string }
+  { Icon: Icon; label: string; color: string }
 > = {
   revenue:    { Icon: CurrencyCircleDollar, label: 'Revenue at risk',   color: '#EF4444' },
   time:       { Icon: Clock,               label: 'Hours recoverable',  color: '#F59E0B' },
@@ -269,7 +274,7 @@ function FindingCard({ finding }: { finding: DiscoveryFinding }) {
 
 // ── Full-audit teaser ─────────────────────────────────────────────────────────
 
-const INDUSTRY_TEASER: Record<string, { Icon: React.ComponentType<{ size: number; weight: string; style?: React.CSSProperties }>; text: string }> = {
+const INDUSTRY_TEASER: Record<string, { Icon: Icon; text: string }> = {
   'Hospitality':          { Icon: Star,                text: 'Reputation management — how to build reviews on autopilot' },
   'Food & Beverage':      { Icon: Star,                text: 'Booking and review automation — consistent tables, consistent stars' },
   'Healthcare':           { Icon: Users,               text: 'Appointment & follow-up automation — fewer no-shows, fuller calendar' },
@@ -281,7 +286,7 @@ const INDUSTRY_TEASER: Record<string, { Icon: React.ComponentType<{ size: number
 function AuditTeaser({ industry }: { industry: string | null }) {
   const specific = industry ? INDUSTRY_TEASER[industry] : null;
 
-  const bullets: { Icon: React.ComponentType<{ size: number; weight: string; style?: React.CSSProperties }>; text: string }[] = [
+  const bullets: { Icon: Icon; text: string }[] = [
     { Icon: Gear,            text: 'Automation roadmap — which manual tasks to eliminate first' },
     { Icon: ChartLine,       text: 'Conversion analysis — where you lose clients in your pipeline' },
     { Icon: MagnifyingGlass, text: 'Digital presence strategy — fastest path from invisible to findable' },
@@ -400,7 +405,7 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
     if (!showResults) {
       setTimeout(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 80);
+      }, DISCOVER_QUESTION_SCROLL_DELAY_MS);
     }
   }, [currentIdx, showResults]);
 
@@ -464,7 +469,7 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
       if (sink) discoveryTrackWizardCompleted(sink);
       const finalFindings = computeFindings(committed);
       const saveTimeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), 5000),
+        setTimeout(() => reject(new Error('timeout')), DISCOVER_WIZARD_SAVE_TIMEOUT_MS),
       );
       Promise.race([
         api.saveDiscoverySession({
@@ -883,7 +888,10 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
                   });
                 }
               }}
-              specifyValue={typeof answers[`${currentId}__other`] === 'string' ? answers[`${currentId}__other`] : ''}
+              specifyValue={(() => {
+                const v = answers[`${currentId!}__other`];
+                return typeof v === 'string' ? v : '';
+              })()}
               onSpecifyChange={text => {
                 setAnswers(a => ({
                   ...a,

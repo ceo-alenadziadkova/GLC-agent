@@ -1,3 +1,5 @@
+import { PIPELINE_MAX_PHASE_INDEX } from '../config/pipeline-phases.js';
+
 // ─── Product Modes ─────────────────────────────────────────
 export type ProductMode = 'free_snapshot' | 'express' | 'full';
 
@@ -50,7 +52,7 @@ export const FREE_SNAPSHOT_MAX_PHASE = 4;
 export function maxPhaseForMode(mode: ProductMode): number {
   if (mode === 'free_snapshot') return FREE_SNAPSHOT_MAX_PHASE;
   if (mode === 'express') return EXPRESS_MAX_PHASE;
-  return 7; // full
+  return PIPELINE_MAX_PHASE_INDEX; // full
 }
 
 /** Returns which review gates apply for a given product mode. */
@@ -63,28 +65,16 @@ export function reviewPhasesForMode(mode: ProductMode): readonly number[] {
 export type PhaseStatus = 'pending' | 'collecting' | 'analyzing' | 'completed' | 'failed';
 export type AuditStatus = 'created' | 'recon' | 'auto' | 'analytic' | 'review' | 'completed' | 'failed';
 
-// ─── Score System ──────────────────────────────────────────
-export const SCORE_LABELS: Record<number, string> = {
-  1: 'Critical',
-  2: 'Needs Work',
-  3: 'Moderate',
-  4: 'Good',
-  5: 'Excellent',
-};
-
-export const SCORE_COLORS: Record<number, string> = {
-  1: '#EF4444',
-  2: '#F97316',
-  3: '#EAB308',
-  4: '#22C55E',
-  5: '#0ECF82',
-};
+// ─── Score System (single source: @glc/intake-core) ─────────
+export { SCORE_COLORS, SCORE_LABELS } from '@glc/intake-core';
 
 // ─── Data Structures ───────────────────────────────────────
 export interface AuditMeta {
   id: string;
   user_id: string | null;
   company_url: string;
+  /** Persisted flag; legacy rows may be false while company_url is still a sentinel URL. */
+  no_public_website?: boolean;
   company_name: string | null;
   industry: string | null;
   status: AuditStatus;

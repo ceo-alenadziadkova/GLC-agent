@@ -2,6 +2,7 @@ import { getClientEnvironmentSummary } from './client-environment';
 import { supabase } from './supabase';
 import { isAnonymousUser } from './snapshot-auth';
 import { getApiBaseUrl } from './api-base-url';
+import { API_PATHS, type ApiLogPath } from '../config/api-paths';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 const LOG_LEVEL_ORDER: Record<LogLevel, number> = {
@@ -76,7 +77,7 @@ async function sendLog(payload: LogPayload) {
     const base = getApiBaseUrl();
     const trySnapshotFirst = isAnonymousUser(session.user);
 
-    async function post(path: '/api/log' | '/api/log/snapshot') {
+    async function post(path: ApiLogPath) {
       return fetch(`${base}${path}`, {
         method: 'POST',
         headers: {
@@ -87,9 +88,9 @@ async function sendLog(payload: LogPayload) {
       });
     }
 
-    let res = trySnapshotFirst ? await post('/api/log/snapshot') : await post('/api/log');
+    let res = trySnapshotFirst ? await post(API_PATHS.logSnapshot) : await post(API_PATHS.log);
     if (!trySnapshotFirst && res.status === 403) {
-      res = await post('/api/log/snapshot');
+      res = await post(API_PATHS.logSnapshot);
     }
 
     if (res.status === 429) {

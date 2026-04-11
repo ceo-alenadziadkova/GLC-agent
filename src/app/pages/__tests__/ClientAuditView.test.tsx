@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import type { AuditState } from '../../data/auditTypes';
+import type { AuditState, IntakeBrief } from '../../data/auditTypes';
 import { ClientAuditView } from '../ClientAuditView';
 import { ClientPortalPipelineProvider } from '../../context/ClientPortalPipelineContext';
 import * as apiService from '../../data/apiService';
@@ -128,9 +128,37 @@ function renderClientAuditRoute(auditId: string) {
   );
 }
 
+const mockIntakeBrief: IntakeBrief = {
+  id: 'brief-1',
+  audit_id: 'audit-xyz-1',
+  responses: {},
+  status: 'draft',
+  layer_completed: 0,
+  collected_by: 'client',
+  collection_mode: 'self_serve',
+  data_quality_score: 0,
+  sla_met: false,
+  answered_required: 0,
+  answered_recommended: 0,
+  answered_optional: 0,
+  total_required: 1,
+  total_recommended: 0,
+  total_optional: 0,
+  recon_prefills: {},
+  recon_conflicts: [],
+  post_audit_questions: [],
+  progress_pct: 0,
+  readiness_badge: 'low',
+  next_best_action: 'complete_required',
+  responses_format: 2,
+  intake_versions: null,
+  created_at: '2025-01-01T00:00:00Z',
+  updated_at: '2025-01-01T00:00:00Z',
+};
+
 describe('ClientAuditView', () => {
-  let getAuditSpy: ReturnType<typeof vi.spyOn<typeof apiService.api, 'getAudit'>>;
-  let getBriefSpy: ReturnType<typeof vi.spyOn<typeof apiService.api, 'getBrief'>>;
+  let getAuditSpy: ReturnType<typeof vi.spyOn>;
+  let getBriefSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -139,20 +167,7 @@ describe('ClientAuditView', () => {
     );
     getBriefSpy = vi.spyOn(apiService.api, 'getBrief').mockResolvedValue({
       product_mode: 'full',
-      brief: {
-        id: 'brief-1',
-        audit_id: 'audit-xyz-1',
-        responses: {},
-        status: 'draft',
-        layer_completed: 0,
-        collected_by: 'client',
-        collection_mode: 'self_serve',
-        completed_at: null,
-        submitted_at: null,
-        created_at: '2025-01-01T00:00:00Z',
-        updated_at: '2025-01-01T00:00:00Z',
-        intake_versions: null,
-      },
+      brief: mockIntakeBrief,
       questions: [],
       validation: {
         passed: false,

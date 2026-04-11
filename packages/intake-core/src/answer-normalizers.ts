@@ -164,6 +164,13 @@ export function includesCrmTool(values: string[]): boolean {
   return values.some(v => norm(v).includes(needle));
 }
 
+/** Free-text d1b (or similar) implies CRM when it contains the same needle as `includesCrmTool`. */
+export function freeTextImpliesCrmTool(text: string): boolean {
+  const needle = norm(file.crmToolNeedle);
+  if (!needle) return false;
+  return norm(text).includes(needle);
+}
+
 export function normalizeOnlinePresence(values: string[]): {
   hasNotOnline: boolean;
   hasGoogleSearch: boolean;

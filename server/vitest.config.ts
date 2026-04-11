@@ -18,8 +18,13 @@ export default defineConfig({
         root,
         'packages/intake-core/src/artifacts/layout-rules-1.1.0.json',
       ),
+      '@glc/intake-core/discovery-brief-fallbacks.v1.json': path.join(
+        root,
+        'packages/intake-core/src/discovery-brief-fallbacks.v1.json',
+      ),
       '@glc/intake-core/lint-node': path.join(root, 'packages/intake-core/src/lint-node.ts'),
       '@glc/intake-core': path.join(root, 'packages/intake-core/src/index.ts'),
+      '@glc/dev-brand-defaults': path.join(root, 'packages/glc-dev-brand-defaults/src/index.ts'),
     },
   },
   test: {
@@ -33,6 +38,7 @@ export default defineConfig({
       exclude: [
         'src/**/*.test.ts',
         'src/tests/**',
+        'src/snapshot/**',
         '**/*.d.ts',
       ],
     },

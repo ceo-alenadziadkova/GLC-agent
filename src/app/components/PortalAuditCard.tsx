@@ -95,7 +95,7 @@ function clientPortalAuditPresentation(a: AuditMeta): {
 }
 
 function portalCardWebsiteLine(a: AuditMeta, title: string): string | null {
-  const site = formatAuditWebsiteDisplay(a.company_url);
+  const site = formatAuditWebsiteDisplay(a.company_url, a.no_public_website);
   if (!site) return null;
   if (a.company_name?.trim() && site !== title) return site;
   return null;
@@ -109,7 +109,8 @@ interface PortalAuditCardProps {
  * Single audit row/card for the client portal list. Shared layout for consistent mobile and desktop density.
  */
 export function PortalAuditCard({ audit: a }: PortalAuditCardProps) {
-  const title = a.company_name?.trim() || formatAuditWebsiteDisplay(a.company_url) || 'Your audit';
+  const title =
+    a.company_name?.trim() || formatAuditWebsiteDisplay(a.company_url, a.no_public_website) || 'Your audit';
   const websiteLine = portalCardWebsiteLine(a, title);
   const pres = clientPortalAuditPresentation(a);
   const modeLabel = productModeShortLabel(a.product_mode);

@@ -1,3 +1,19 @@
+import {
+  PAGE_ANOMALY_OAUTH_RAW_MARKUP_MAX,
+  PAGE_ANOMALY_PASSWORD_RAW_MARKUP_MAX,
+  PAGE_ANOMALY_REGISTRAR_THIN_VISIBLE_MAX,
+  PAGE_ANOMALY_SAMPLE_BYTES,
+  PAGE_ANOMALY_SPA_SHELL_SCRIPT_MIN,
+  PAGE_ANOMALY_SPA_SHELL_VISIBLE_MAX,
+  PAGE_ANOMALY_SUPPRESS_LONG_COPY_VISIBLE_MIN,
+  PAGE_ANOMALY_SUPPRESS_MAILTO_VISIBLE_MIN,
+  PAGE_ANOMALY_SUPPRESS_ORG_VISIBLE_MIN,
+  PAGE_ANOMALY_SUPPRESS_PATH_LINKS_HIGH,
+  PAGE_ANOMALY_SUPPRESS_PATH_LINKS_HIGH_VISIBLE_MIN,
+  PAGE_ANOMALY_SUPPRESS_PATH_LINKS_MED,
+  PAGE_ANOMALY_SUPPRESS_PATH_LINKS_MED_VISIBLE_MIN,
+} from './page-anomaly-thresholds.js';
+
 /**
  * Heuristic flags for HTML that often invalidates a «normal marketing homepage» read (ADR failure-mode matrix).
  * Deterministic string matching only — no bypass of challenges.
@@ -153,7 +169,7 @@ const OAUTH_FORM_ACTION_RE =
 const OIDC_META_RE =
   /<meta[^>]+(?:property|name)=["'](?:og:url|twitter:url)["'][^>]+content=["'][^"']*(?:\/login|\/signin|openid|oauth)/i;
 
-/** Strip tags to approximate visible text length (first 96KB). */
+/** Strip tags to approximate visible text length for the given HTML slice. */
 function approxVisibleTextLen(sample: string): number {
   const noScriptStyle = sample
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
@@ -199,18 +215,20 @@ function shouldSuppressWeakParkedHint(sample: string, visibleApprox: number): bo
   const pathLinks = countPathInternalAnchors(sample);
 
   if (hasLocalBizSignal) return true;
-  if (hasOrgContactSignal && visibleApprox >= 350) return true;
-  if (hasContactScheme && visibleApprox >= 650) return true;
-  if (pathLinks >= 12 && visibleApprox >= 550) return true;
-  if (pathLinks >= 8 && visibleApprox >= 1_800) return true;
-  if (visibleApprox >= 3_200) return true;
+  if (hasOrgContactSignal && visibleApprox >= PAGE_ANOMALY_SUPPRESS_ORG_VISIBLE_MIN) return true;
+  if (hasContactScheme && visibleApprox >= PAGE_ANOMALY_SUPPRESS_MAILTO_VISIBLE_MIN) return true;
+  if (pathLinks >= PAGE_ANOMALY_SUPPRESS_PATH_LINKS_HIGH && visibleApprox >= PAGE_ANOMALY_SUPPRESS_PATH_LINKS_HIGH_VISIBLE_MIN)
+    return true;
+  if (pathLinks >= PAGE_ANOMALY_SUPPRESS_PATH_LINKS_MED && visibleApprox >= PAGE_ANOMALY_SUPPRESS_PATH_LINKS_MED_VISIBLE_MIN)
+    return true;
+  if (visibleApprox >= PAGE_ANOMALY_SUPPRESS_LONG_COPY_VISIBLE_MIN) return true;
 
   return false;
 }
 
-/** Inspect first ~96KB — enough for typical interstitial + head. */
+/** Inspect first ~96KB (configurable) — enough for typical interstitial + head. */
 export function detectPageAnomalies(html: string, finalUrl: string): PageAnomalyDetection {
-  const sample = html.slice(0, 96_000);
+  const sample = html.slice(0, PAGE_ANOMALY_SAMPLE_BYTES);
   const lower = sample.toLowerCase();
   const visibleApprox = approxVisibleTextLen(sample);
   const rawMarkupLen = lower
@@ -243,7 +261,7 @@ export function detectPageAnomalies(html: string, finalUrl: string): PageAnomaly
     parkedLikely = true;
     parkedTaxonomy = 'under_construction_hosting';
   } else if (REGISTRAR_WEAK_RE.test(lower)) {
-    const thin = visibleApprox < 3_800;
+    const thin = visibleApprox < PAGE_ANOMALY_REGISTRAR_THIN_VISIBLE_MAX;
     const ctx = REGISTRAR_PARK_CONTEXT_RE.test(lower);
     if (thin || ctx) {
       parkedFromWeakRegistrar = true;
@@ -275,14 +293,14 @@ export function detectPageAnomalies(html: string, finalUrl: string): PageAnomaly
   } else if (
     OAUTH_FORM_ACTION_RE.test(sample) &&
     /<input[^>]+type=["']email["']/i.test(sample) &&
-    rawMarkupLen < 16_000 &&
+    rawMarkupLen < PAGE_ANOMALY_OAUTH_RAW_MARKUP_MAX &&
     !/newsletter|subscribe to our/i.test(lower)
   ) {
     loginWallLikely = true;
     loginWallTaxonomy = 'oauth_or_sso_form';
   } else if (
     /<input[^>]+type=["']password["']/i.test(sample) &&
-    rawMarkupLen < 12_000 &&
+    rawMarkupLen < PAGE_ANOMALY_PASSWORD_RAW_MARKUP_MAX &&
     !/newsletter|subscribe/i.test(lower)
   ) {
     loginWallLikely = true;
@@ -304,8 +322,8 @@ export function detectPageAnomalies(html: string, finalUrl: string): PageAnomaly
     !challengeLikely &&
     !parkedLikely &&
     pathSuggestsAppShell &&
-    visibleApprox < 520 &&
-    scripts >= 10 &&
+    visibleApprox < PAGE_ANOMALY_SPA_SHELL_VISIBLE_MAX &&
+    scripts >= PAGE_ANOMALY_SPA_SHELL_SCRIPT_MIN &&
     hasSpaShellMountMarkers(sample)
   ) {
     loginWallLikely = true;

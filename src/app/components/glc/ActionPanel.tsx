@@ -32,8 +32,16 @@ function priorityDot(p: DashboardPriority) {
   );
 }
 
-function CompanyAvatar({ name, url }: { name: string | null; url: string }) {
-  const initials = (name || formatAuditWebsiteDisplay(url)).slice(0, 2).toUpperCase();
+function CompanyAvatar({
+  name,
+  url,
+  noPublicWebsite,
+}: {
+  name: string | null;
+  url: string;
+  noPublicWebsite?: boolean;
+}) {
+  const initials = (name || formatAuditWebsiteDisplay(url, noPublicWebsite)).slice(0, 2).toUpperCase();
   return (
     <div
       className="w-7 h-7 flex items-center justify-center text-xs font-bold flex-shrink-0"
@@ -90,14 +98,18 @@ function ReviewGateRow({ item }: { item: DashboardReviewGateItem }) {
   return (
     <div className="flex items-center gap-2.5 group">
       {priorityDot(item.priority)}
-      <CompanyAvatar name={item.company_name} url={item.company_url} />
+      <CompanyAvatar
+        name={item.company_name}
+        url={item.company_url}
+        noPublicWebsite={item.no_public_website}
+      />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span
             className="font-medium truncate"
             style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
           >
-            {item.company_name || formatAuditWebsiteDisplay(item.company_url)}
+            {item.company_name || formatAuditWebsiteDisplay(item.company_url, item.no_public_website)}
           </span>
         </div>
         <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
@@ -120,13 +132,17 @@ function SlaRiskRow({ item }: { item: DashboardSlaRiskItem }) {
   return (
     <div className="flex items-center gap-2.5 group">
       {priorityDot(item.priority)}
-      <CompanyAvatar name={item.company_name} url={item.company_url} />
+      <CompanyAvatar
+        name={item.company_name}
+        url={item.company_url}
+        noPublicWebsite={item.no_public_website}
+      />
       <div className="flex-1 min-w-0">
         <div
           className="font-medium truncate"
           style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
         >
-          {item.company_name || formatAuditWebsiteDisplay(item.company_url)}
+          {item.company_name || formatAuditWebsiteDisplay(item.company_url, item.no_public_website)}
         </div>
         <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
           Not started · {item.days_open}d open
@@ -148,13 +164,17 @@ function FailureRow({ item }: { item: DashboardFailureItem }) {
   return (
     <div className="flex items-center gap-2.5 group">
       {priorityDot(item.priority)}
-      <CompanyAvatar name={item.company_name} url={item.company_url} />
+      <CompanyAvatar
+        name={item.company_name}
+        url={item.company_url}
+        noPublicWebsite={item.no_public_website}
+      />
       <div className="flex-1 min-w-0">
         <div
           className="font-medium truncate"
           style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
         >
-          {item.company_name || formatAuditWebsiteDisplay(item.company_url)}
+          {item.company_name || formatAuditWebsiteDisplay(item.company_url, item.no_public_website)}
         </div>
         <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
           Pipeline failed · {formatRelativeTime(item.updated_at)}

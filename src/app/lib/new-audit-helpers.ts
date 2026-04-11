@@ -1,3 +1,4 @@
+import { ensureHttpsUrl } from '@glc/intake-core';
 import type { User } from '@supabase/supabase-js';
 import type { BriefResponseSource } from '../data/auditTypes';
 import { ApiError } from '../data/api-error';
@@ -29,7 +30,7 @@ export function websiteAnswerToAuditUrl(raw: string): string | undefined {
   if (!t) return undefined;
   const lower = t.toLowerCase();
   if (lower === 'none' || lower === 'no website' || lower === 'n/a' || lower === 'na') return undefined;
-  return t.startsWith('http') ? t : `https://${t}`;
+  return ensureHttpsUrl(t);
 }
 
 /** Aligns step-0 Basics fields with intake brief question ids before save. */
@@ -60,7 +61,7 @@ export function buildStep0IntakePatch(
     const ut = url.trim();
     if (ut) {
       patch.a11 = {
-        value: ut.startsWith('http') ? ut : `https://${ut}`,
+        value: ensureHttpsUrl(ut),
         source,
       };
       patch.a5 = { value: 'Yes, multi-page site', source };

@@ -2,12 +2,10 @@ import { supabase } from '../services/supabase.js';
 import { getStoredSelfServeAuditOwnerUserId } from './platform-self-serve-settings.js';
 import { listPlatformAdminUserIds } from './platform-admin.js';
 import { logger } from '../services/logger.js';
+import { API_ERROR_CODES, SELF_SERVE_OWNER_UNAVAILABLE_MESSAGE } from '../config/api-error-codes.js';
 
-export const SELF_SERVE_OWNER_UNAVAILABLE_CODE = 'SELF_SERVE_OWNER_UNAVAILABLE' as const;
-
-/** Shown in API JSON only — internal remediation is logged separately. */
-const USER_FACING_UNAVAILABLE =
-  'This feature is temporarily unavailable. Please try again in a few minutes.';
+/** Stable string for client checks; same value as `API_ERROR_CODES.SELF_SERVE_OWNER_UNAVAILABLE`. */
+export const SELF_SERVE_OWNER_UNAVAILABLE_CODE = API_ERROR_CODES.SELF_SERVE_OWNER_UNAVAILABLE;
 
 export type SelfServeOwnerResult =
   | { ok: true; userId: string }
@@ -15,14 +13,14 @@ export type SelfServeOwnerResult =
       ok: false;
       error: string;
       statusCode: number;
-      code: typeof SELF_SERVE_OWNER_UNAVAILABLE_CODE;
+      code: typeof API_ERROR_CODES.SELF_SERVE_OWNER_UNAVAILABLE;
     };
 
 const CLIENT_SAFE_UNAVAILABLE: SelfServeOwnerResult = {
   ok: false,
   statusCode: 503,
-  code: SELF_SERVE_OWNER_UNAVAILABLE_CODE,
-  error: USER_FACING_UNAVAILABLE,
+  code: API_ERROR_CODES.SELF_SERVE_OWNER_UNAVAILABLE,
+  error: SELF_SERVE_OWNER_UNAVAILABLE_MESSAGE,
 };
 
 function unavailable(reason: string): SelfServeOwnerResult {

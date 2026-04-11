@@ -7,6 +7,12 @@ import { reportProfiler, REPORT_PROFILES, type ReportProfile } from '../services
 import { pdfGenerator } from '../services/pdf-generator.js';
 import { logger } from '../services/logger.js';
 import { notifyAuditParticipantsExcept } from '../services/notifications.js';
+import {
+  API_ERROR_CODES,
+  REPORTS_AUDIT_NOT_FOUND_MESSAGE,
+  REPORTS_GENERATE_FAILED_MESSAGE,
+  apiErrorJson,
+} from '../config/api-error-codes.js';
 
 export const reportsRouter = Router();
 
@@ -39,7 +45,7 @@ reportsRouter.get('/:id/report', attachProfile, rejectGuestFromPortal, async (re
 
     const auditData = auditRes.status === 'fulfilled' ? auditRes.value : null;
     if (!auditData?.data) {
-      res.status(404).json({ error: 'Audit not found' });
+      res.status(404).json(apiErrorJson(API_ERROR_CODES.REPORTS_AUDIT_NOT_FOUND, REPORTS_AUDIT_NOT_FOUND_MESSAGE));
       return;
     }
 
@@ -131,7 +137,9 @@ reportsRouter.get('/:id/report', attachProfile, rejectGuestFromPortal, async (re
     const e = err as Error;
     logger.error('route.report_failed', { component: 'reports', error: e.message, stack: e.stack });
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Failed to generate report' });
+      res
+        .status(500)
+        .json(apiErrorJson(API_ERROR_CODES.REPORTS_GENERATE_FAILED, REPORTS_GENERATE_FAILED_MESSAGE));
     }
   }
 });

@@ -20,6 +20,7 @@ import {
 } from '../types/audit.js';
 import {
   currentIntakeVersionTuple,
+  ensureHttpsUrl,
   isSupportedIntakeArtifactTuple,
   parseIntakeVersionsBody,
   validateIntakeVersionsForBriefWrite,
@@ -38,7 +39,48 @@ import { intakeAnalyticsAuditBriefBatchSchema } from '../schemas/intake-analytic
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import { NO_PUBLIC_WEBSITE_URL } from '../config/no-public-website.js';
 import { safeOrUserFilter } from '../lib/postgrest-filter.js';
-import { getStoredIdempotentResponse, storeIdempotentResponse } from '../lib/idempotency.js';
+import {
+  getStoredIdempotentResponse,
+  isIdempotencyPayloadConflictError,
+  storeIdempotentResponse,
+} from '../lib/idempotency.js';
+import { AUDIT_CHILD_ROWS_INIT_ROLLBACK_MESSAGE, isAuditChildRowsInitRollbackError } from '../lib/audit-init-error.js';
+import {
+  API_ERROR_CODES,
+  AUDIT_INITIALIZATION_FAILED_MESSAGE,
+  AUDITS_ACCESS_DENIED_MESSAGE,
+  AUDITS_BRIEF_ANALYTICS_ACCEPT_FAILED_MESSAGE,
+  AUDITS_BRIEF_ANALYTICS_PAYLOAD_INVALID_MESSAGE,
+  AUDITS_BRIEF_ANALYTICS_STORE_FAILED_MESSAGE,
+  AUDITS_BRIEF_COLLECTION_MODE_INVALID_MESSAGE,
+  AUDITS_BRIEF_GET_FAILED_MESSAGE,
+  AUDITS_BRIEF_HELP_ACCESS_DENIED_MESSAGE,
+  AUDITS_BRIEF_HELP_CLIENT_ONLY_MESSAGE,
+  AUDITS_BRIEF_HELP_FAILED_MESSAGE,
+  AUDITS_BRIEF_HELP_WRONG_PHASE_MESSAGE,
+  AUDITS_BRIEF_RESPONSES_NOT_OBJECT_MESSAGE,
+  AUDITS_BRIEF_SAVE_FAILED_MESSAGE,
+  AUDITS_BRIEF_SCHEMA_FAILED_MESSAGE,
+  AUDITS_COMPANY_URL_INVALID_MESSAGE,
+  AUDITS_COMPANY_URL_NOT_ALLOWED_MESSAGE,
+  AUDITS_COMPANY_URL_REQUIRED_MESSAGE,
+  AUDITS_CREATE_FAILED_MESSAGE,
+  AUDITS_DELETE_FAILED_MESSAGE,
+  AUDITS_FETCH_FAILED_MESSAGE,
+  AUDITS_FORBIDDEN_MESSAGE,
+  AUDITS_LIST_FAILED_MESSAGE,
+  AUDITS_NOT_FOUND_MESSAGE,
+  AUDITS_OMIT_COMPANY_URL_WHEN_NO_PUBLIC_WEBSITE_MESSAGE,
+  AUDITS_UPGRADE_FAILED_MESSAGE,
+  AUDITS_UPGRADE_PAYLOAD_INVALID_MESSAGE,
+  IDEMPOTENCY_PAYLOAD_MISMATCH_MESSAGE,
+  INCOMPLETE_INTAKE_VERSIONS_MESSAGE,
+  INTAKE_VERSION_CONFLICT_MESSAGE,
+  UNSUPPORTED_INTAKE_VERSION_MESSAGE,
+  apiErrorJson,
+} from '../config/api-error-codes.js';
+import { AUDITS_LIST_DEFAULT_LIMIT, AUDITS_LIST_MAX_LIMIT } from '../config/audits-list-limits.js';
+import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 import { logger } from '../services/logger.js';
 import { resolveSelfServeAuditOwnerUserId } from '../lib/self-serve-audit-owner.js';
 import { emitStructuredNotification } from '../services/notifications.js';
@@ -60,8 +102,9 @@ async function createAuditWithChildren(params: {
   company_name: string | null;
   industry: string | null;
   mode: ProductMode;
+  no_public_website?: boolean;
 }): Promise<{ id: string; status: string }> {
-  const { ownerUserId, clientId, company_url, company_name, industry, mode } = params;
+  const { ownerUserId, clientId, company_url, company_name, industry, mode, no_public_website } = params;
 
   const { data: audit, error: auditErr } = await supabase
     .from('audits')
@@ -72,6 +115,7 @@ async function createAuditWithChildren(params: {
       company_name,
       industry,
       product_mode: mode,
+      no_public_website: no_public_website === true,
     })
     .select()
     .single();
@@ -108,7 +152,7 @@ async function createAuditWithChildren(params: {
   if (initFailed) {
     await supabase.from('audits').delete().eq('id', audit.id);
     logger.error('Audit initialization failed, rollback applied', { audit_id: audit.id });
-    throw new Error('Failed to initialize audit — rolled back');
+    throw new Error(AUDIT_CHILD_ROWS_INIT_ROLLBACK_MESSAGE);
   }
 
   return { id: audit.id as string, status: audit.status as string };
@@ -119,7 +163,7 @@ auditsRouter.post('/', attachProfile, createAuditLimiter, async (req: AuthReques
   try {
     const role = req.userRole as UserRole | undefined;
     if (role !== 'consultant' && role !== 'client') {
-      res.status(403).json({ error: 'Forbidden' });
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.AUDITS_FORBIDDEN, AUDITS_FORBIDDEN_MESSAGE));
       return;
     }
 
@@ -136,23 +180,31 @@ auditsRouter.post('/', attachProfile, createAuditLimiter, async (req: AuthReques
 
     if (noSite) {
       if (company_url != null && typeof company_url === 'string' && company_url.trim() !== '') {
-        res.status(400).json({ error: 'Omit company_url when no_public_website is true' });
+        res
+          .status(400)
+          .json(
+            apiErrorJson(
+              API_ERROR_CODES.AUDITS_OMIT_COMPANY_URL_WHEN_NO_PUBLIC_WEBSITE,
+              AUDITS_OMIT_COMPANY_URL_WHEN_NO_PUBLIC_WEBSITE_MESSAGE,
+            ),
+          );
         return;
       }
       url = NO_PUBLIC_WEBSITE_URL;
     } else {
       if (!company_url || typeof company_url !== 'string') {
-        res.status(400).json({ error: 'company_url is required' });
+        res
+          .status(400)
+          .json(apiErrorJson(API_ERROR_CODES.AUDITS_COMPANY_URL_REQUIRED, AUDITS_COMPANY_URL_REQUIRED_MESSAGE));
         return;
       }
 
-      url = company_url.trim();
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        url = `https://${url}`;
-      }
+      url = ensureHttpsUrl(company_url);
 
-      if (url.length < 10) {
-        res.status(400).json({ error: 'company_url must be a valid URL (e.g. https://company.com)' });
+      if (url.length < REQUEST_FIELD_LIMITS.auditCompanyUrlMinNormalizedLength) {
+        res
+          .status(400)
+          .json(apiErrorJson(API_ERROR_CODES.AUDITS_COMPANY_URL_INVALID, AUDITS_COMPANY_URL_INVALID_MESSAGE));
         return;
       }
 
@@ -160,7 +212,11 @@ auditsRouter.post('/', attachProfile, createAuditLimiter, async (req: AuthReques
         url = await validatePublicAuditUrl(url);
       } catch (e) {
         if (e instanceof PublicUrlNotAllowedError) {
-          res.status(400).json({ error: 'company_url is not allowed' });
+          res
+            .status(400)
+            .json(
+              apiErrorJson(API_ERROR_CODES.AUDITS_COMPANY_URL_NOT_ALLOWED, AUDITS_COMPANY_URL_NOT_ALLOWED_MESSAGE),
+            );
           return;
         }
         throw e;
@@ -175,7 +231,7 @@ auditsRouter.post('/', attachProfile, createAuditLimiter, async (req: AuthReques
     } else {
       const resolved = await resolveSelfServeAuditOwnerUserId();
       if (!resolved.ok) {
-        res.status(resolved.statusCode).json({ error: resolved.error, code: resolved.code });
+        res.status(resolved.statusCode).json(apiErrorJson(resolved.code, resolved.error));
         return;
       }
       ownerUserId = resolved.userId;
@@ -189,22 +245,32 @@ auditsRouter.post('/', attachProfile, createAuditLimiter, async (req: AuthReques
       company_name: typeof company_name === 'string' && company_name.trim() ? company_name.trim() : null,
       industry: typeof industry === 'string' && industry.trim() ? industry.trim() : null,
       mode,
+      no_public_website: noSite,
     });
 
     const payload = { id: audit.id, status: audit.status };
     await storeIdempotentResponse(req, 'POST:/api/audits', idempotent.key, idempotent.hash, { statusCode: 201, payload }, audit.id);
     res.status(201).json(payload);
   } catch (err) {
-    if ((err as Error).message.includes('Idempotency key reuse')) {
-      res.status(409).json({ error: (err as Error).message });
+    if (isIdempotencyPayloadConflictError(err)) {
+      res
+        .status(409)
+        .json(
+          apiErrorJson(API_ERROR_CODES.IDEMPOTENCY_PAYLOAD_MISMATCH, IDEMPOTENCY_PAYLOAD_MISMATCH_MESSAGE),
+        );
       return;
     }
-    if ((err as Error).message.includes('Failed to initialize audit')) {
-      res.status(500).json({ error: (err as Error).message });
+    if (isAuditChildRowsInitRollbackError(err)) {
+      logger.error('Create audit: child row initialization failed', { error: (err as Error).message });
+      res
+        .status(500)
+        .json(
+          apiErrorJson(API_ERROR_CODES.AUDIT_INITIALIZATION_FAILED, AUDIT_INITIALIZATION_FAILED_MESSAGE),
+        );
       return;
     }
     logger.error('Create audit route failed', { error: (err as Error).message });
-    res.status(500).json({ error: 'Failed to create audit' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.AUDITS_CREATE_FAILED, AUDITS_CREATE_FAILED_MESSAGE));
   }
 });
 
@@ -212,7 +278,10 @@ auditsRouter.post('/', attachProfile, createAuditLimiter, async (req: AuthReques
 // Query params: ?limit=20&offset=0 (defaults: limit=50, offset=0)
 auditsRouter.get('/', attachProfile, rejectGuestFromPortal, async (req: AuthRequest, res) => {
   try {
-    const limit = Math.min(parseInt(String(req.query.limit ?? '50'), 10) || 50, 200);
+    const limit = Math.min(
+      parseInt(String(req.query.limit ?? String(AUDITS_LIST_DEFAULT_LIMIT)), 10) || AUDITS_LIST_DEFAULT_LIMIT,
+      AUDITS_LIST_MAX_LIMIT,
+    );
     const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
 
     const uid = req.userId!;
@@ -220,7 +289,7 @@ auditsRouter.get('/', attachProfile, rejectGuestFromPortal, async (req: AuthRequ
     const { data, error, count } = await supabase
       .from('audits')
       .select(
-        'id, company_url, company_name, industry, product_mode, status, current_phase, overall_score, tokens_used, created_at, updated_at',
+        'id, company_url, company_name, industry, product_mode, status, current_phase, overall_score, tokens_used, created_at, updated_at, no_public_website',
         { count: 'exact' },
       )
       .or(userFilter)
@@ -233,7 +302,7 @@ auditsRouter.get('/', attachProfile, rejectGuestFromPortal, async (req: AuthRequ
   } catch (err) {
     const e = err as Error;
     logger.error('route.audits_list_failed', { component: 'audits', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to list audits' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.AUDITS_LIST_FAILED, AUDITS_LIST_FAILED_MESSAGE));
   }
 });
 
@@ -253,7 +322,7 @@ auditsRouter.get('/:id', attachProfile, rejectGuestFromPortal, async (req: AuthR
       .single();
 
     if (auditErr || !audit) {
-      res.status(404).json({ error: 'Audit not found' });
+      res.status(404).json(apiErrorJson(API_ERROR_CODES.AUDITS_NOT_FOUND, AUDITS_NOT_FOUND_MESSAGE));
       return;
     }
 
@@ -303,7 +372,7 @@ auditsRouter.get('/:id', attachProfile, rejectGuestFromPortal, async (req: AuthR
   } catch (err) {
     const e = err as Error;
     logger.error('route.audit_get_failed', { component: 'audits', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to fetch audit' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.AUDITS_FETCH_FAILED, AUDITS_FETCH_FAILED_MESSAGE));
   }
 });
 
@@ -318,7 +387,11 @@ auditsRouter.post('/:id/upgrade-from-snapshot', attachProfile, rejectGuestFromPo
     const id = req.params.id as string;
     const parsed = upgradeSnapshotBody.safeParse(req.body ?? {});
     if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid payload — need target_mode and use_scraped_context' });
+      res
+        .status(400)
+        .json(
+          apiErrorJson(API_ERROR_CODES.AUDITS_UPGRADE_PAYLOAD_INVALID, AUDITS_UPGRADE_PAYLOAD_INVALID_MESSAGE),
+        );
       return;
     }
     const result = await upgradeFreeSnapshotAudit({
@@ -328,14 +401,21 @@ auditsRouter.post('/:id/upgrade-from-snapshot', attachProfile, rejectGuestFromPo
       useScrapedContext: parsed.data.use_scraped_context,
     });
     if (!result.ok) {
-      res.status(result.status).json({ error: result.error });
+      res.status(result.status).json(apiErrorJson(result.code, result.error));
       return;
     }
     res.json(result);
   } catch (err) {
     const e = err as Error;
     logger.error('route.upgrade_snapshot_failed', { component: 'audits', error: e.message, stack: e.stack });
-    res.status(500).json({ error: e.message || 'Upgrade failed' });
+    res
+      .status(500)
+      .json(
+        apiErrorJson(
+          API_ERROR_CODES.AUDITS_UPGRADE_FAILED,
+          e.message?.trim() ? e.message : AUDITS_UPGRADE_FAILED_MESSAGE,
+        ),
+      );
   }
 });
 
@@ -356,7 +436,7 @@ auditsRouter.delete('/:id', ...consultantGuard, async (req: AuthRequest, res) =>
   } catch (err) {
     const e = err as Error;
     logger.error('route.audit_delete_failed', { component: 'audits', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to delete audit' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.AUDITS_DELETE_FAILED, AUDITS_DELETE_FAILED_MESSAGE));
   }
 });
 
@@ -372,13 +452,13 @@ auditsRouter.get('/:id/brief/schema', attachProfile, rejectGuestFromPortal, asyn
       .single();
 
     if (!audit) {
-      res.status(404).json({ error: 'Audit not found' });
+      res.status(404).json(apiErrorJson(API_ERROR_CODES.AUDITS_NOT_FOUND, AUDITS_NOT_FOUND_MESSAGE));
       return;
     }
 
     const hasAccess = audit.user_id === req.userId || audit.client_id === req.userId;
     if (!hasAccess) {
-      res.status(403).json({ error: 'Access denied' });
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.AUDITS_ACCESS_DENIED, AUDITS_ACCESS_DENIED_MESSAGE));
       return;
     }
 
@@ -413,7 +493,9 @@ auditsRouter.get('/:id/brief/schema', attachProfile, rejectGuestFromPortal, asyn
   } catch (err) {
     const e = err as Error;
     logger.error('route.brief_schema_get_failed', { component: 'audits', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to get brief schema' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.AUDITS_BRIEF_SCHEMA_FAILED, AUDITS_BRIEF_SCHEMA_FAILED_MESSAGE));
   }
 });
 
@@ -424,10 +506,13 @@ auditsRouter.post('/:id/brief/analytics-events', attachProfile, rejectGuestFromP
     const id = req.params.id as string;
     const parsed = intakeAnalyticsAuditBriefBatchSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
-      res.status(400).json({
-        error: 'Invalid analytics payload',
-        details: parsed.error.flatten(),
-      });
+      res.status(400).json(
+        apiErrorJson(
+          API_ERROR_CODES.AUDITS_BRIEF_ANALYTICS_PAYLOAD_INVALID,
+          AUDITS_BRIEF_ANALYTICS_PAYLOAD_INVALID_MESSAGE,
+          parsed.error.flatten(),
+        ),
+      );
       return;
     }
     const body = parsed.data;
@@ -439,13 +524,13 @@ auditsRouter.post('/:id/brief/analytics-events', attachProfile, rejectGuestFromP
       .single();
 
     if (!audit) {
-      res.status(404).json({ error: 'Audit not found' });
+      res.status(404).json(apiErrorJson(API_ERROR_CODES.AUDITS_NOT_FOUND, AUDITS_NOT_FOUND_MESSAGE));
       return;
     }
 
     const hasAccess = audit.user_id === req.userId || audit.client_id === req.userId;
     if (!hasAccess) {
-      res.status(403).json({ error: 'Access denied' });
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.AUDITS_ACCESS_DENIED, AUDITS_ACCESS_DENIED_MESSAGE));
       return;
     }
 
@@ -477,7 +562,14 @@ auditsRouter.post('/:id/brief/analytics-events', attachProfile, rejectGuestFromP
         error: error.message,
         audit_id: id,
       });
-      res.status(500).json({ error: 'Failed to store analytics events' });
+      res
+        .status(500)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.AUDITS_BRIEF_ANALYTICS_STORE_FAILED,
+            AUDITS_BRIEF_ANALYTICS_STORE_FAILED_MESSAGE,
+          ),
+        );
       return;
     }
 
@@ -485,7 +577,14 @@ auditsRouter.post('/:id/brief/analytics-events', attachProfile, rejectGuestFromP
   } catch (err) {
     const e = err as Error;
     logger.error('route.brief_analytics_failed', { component: 'audits', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to accept analytics events' });
+    res
+      .status(500)
+      .json(
+        apiErrorJson(
+          API_ERROR_CODES.AUDITS_BRIEF_ANALYTICS_ACCEPT_FAILED,
+          AUDITS_BRIEF_ANALYTICS_ACCEPT_FAILED_MESSAGE,
+        ),
+      );
   }
 });
 
@@ -503,13 +602,13 @@ auditsRouter.get('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
       .single();
 
     if (!audit) {
-      res.status(404).json({ error: 'Audit not found' });
+      res.status(404).json(apiErrorJson(API_ERROR_CODES.AUDITS_NOT_FOUND, AUDITS_NOT_FOUND_MESSAGE));
       return;
     }
 
     const hasAccess = audit.user_id === req.userId || audit.client_id === req.userId;
     if (!hasAccess) {
-      res.status(403).json({ error: 'Access denied' });
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.AUDITS_ACCESS_DENIED, AUDITS_ACCESS_DENIED_MESSAGE));
       return;
     }
 
@@ -567,7 +666,7 @@ auditsRouter.get('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
   } catch (err) {
     const e = err as Error;
     logger.error('route.brief_get_failed', { component: 'audits', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to get brief' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.AUDITS_BRIEF_GET_FAILED, AUDITS_BRIEF_GET_FAILED_MESSAGE));
   }
 });
 
@@ -576,13 +675,15 @@ auditsRouter.post('/:id/brief/help-request', attachProfile, async (req: AuthRequ
   try {
     const id = req.params.id as string;
     if (req.userRole !== 'client') {
-      res.status(403).json({ error: 'Only clients can request brief help from this endpoint' });
+      res
+        .status(403)
+        .json(apiErrorJson(API_ERROR_CODES.AUDITS_BRIEF_HELP_CLIENT_ONLY, AUDITS_BRIEF_HELP_CLIENT_ONLY_MESSAGE));
       return;
     }
 
     const rawMsg = req.body?.message;
     const message =
-      typeof rawMsg === 'string' ? rawMsg.trim().slice(0, 2000) : '';
+      typeof rawMsg === 'string' ? rawMsg.trim().slice(0, REQUEST_FIELD_LIMITS.clientNotesMax) : '';
 
     const { data: audit } = await supabase
       .from('audits')
@@ -591,17 +692,23 @@ auditsRouter.post('/:id/brief/help-request', attachProfile, async (req: AuthRequ
       .single();
 
     if (!audit) {
-      res.status(404).json({ error: 'Audit not found' });
+      res.status(404).json(apiErrorJson(API_ERROR_CODES.AUDITS_NOT_FOUND, AUDITS_NOT_FOUND_MESSAGE));
       return;
     }
 
     if (audit.client_id !== req.userId) {
-      res.status(403).json({ error: 'Access denied' });
+      res
+        .status(403)
+        .json(apiErrorJson(API_ERROR_CODES.AUDITS_BRIEF_HELP_ACCESS_DENIED, AUDITS_BRIEF_HELP_ACCESS_DENIED_MESSAGE));
       return;
     }
 
     if ((audit.status as string) !== 'created') {
-      res.status(400).json({ error: 'Help request is only available before the pipeline has started' });
+      res
+        .status(400)
+        .json(
+          apiErrorJson(API_ERROR_CODES.AUDITS_BRIEF_HELP_WRONG_PHASE, AUDITS_BRIEF_HELP_WRONG_PHASE_MESSAGE),
+        );
       return;
     }
 
@@ -623,7 +730,7 @@ auditsRouter.post('/:id/brief/help-request', attachProfile, async (req: AuthRequ
       audience: 'consultants',
       auditId: id,
       title: 'Client requested help with brief',
-      message: `A client asked for help with their intake brief (audit ${id.slice(0, 8)}...).`,
+      message: `A client asked for help with their intake brief (audit ${id.slice(0, REQUEST_FIELD_LIMITS.notificationAuditIdPrefixLen)}...).`,
       route: `/audit/${id}`,
       payload: {
         audit_id: id,
@@ -636,7 +743,9 @@ auditsRouter.post('/:id/brief/help-request', attachProfile, async (req: AuthRequ
   } catch (err) {
     const e = err as Error;
     logger.error('route.brief_help_request_failed', { component: 'audits', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to record help request' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.AUDITS_BRIEF_HELP_FAILED, AUDITS_BRIEF_HELP_FAILED_MESSAGE));
   }
 });
 
@@ -649,7 +758,11 @@ auditsRouter.put('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
     const { responses, collection_mode: collectionModeRaw, intake_versions: intakeVersionsRaw } = req.body;
 
     if (!responses || typeof responses !== 'object' || Array.isArray(responses)) {
-      res.status(400).json({ error: 'responses must be an object' });
+      res
+        .status(400)
+        .json(
+          apiErrorJson(API_ERROR_CODES.AUDITS_BRIEF_RESPONSES_NOT_OBJECT, AUDITS_BRIEF_RESPONSES_NOT_OBJECT_MESSAGE),
+        );
       return;
     }
 
@@ -657,7 +770,11 @@ auditsRouter.put('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
     let collection_mode: IntakeBriefCollectionMode | undefined;
     if (collectionModeRaw !== undefined && collectionModeRaw !== null && collectionModeRaw !== '') {
       if (typeof collectionModeRaw !== 'string' || !allowedModes.includes(collectionModeRaw as IntakeBriefCollectionMode)) {
-        res.status(400).json({ error: 'Invalid collection_mode', code: 'UNKNOWN_MODE' });
+        res
+          .status(400)
+          .json(
+            apiErrorJson(API_ERROR_CODES.AUDITS_BRIEF_COLLECTION_MODE_INVALID, AUDITS_BRIEF_COLLECTION_MODE_INVALID_MESSAGE),
+          );
         return;
       }
       collection_mode = collectionModeRaw as IntakeBriefCollectionMode;
@@ -671,22 +788,23 @@ auditsRouter.put('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
       .single();
 
     if (!audit) {
-      res.status(404).json({ error: 'Audit not found' });
+      res.status(404).json(apiErrorJson(API_ERROR_CODES.AUDITS_NOT_FOUND, AUDITS_NOT_FOUND_MESSAGE));
       return;
     }
 
     const hasAccess = audit.user_id === req.userId || audit.client_id === req.userId;
     if (!hasAccess) {
-      res.status(403).json({ error: 'Access denied' });
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.AUDITS_ACCESS_DENIED, AUDITS_ACCESS_DENIED_MESSAGE));
       return;
     }
 
     const parsedVersions = parseIntakeVersionsBody(intakeVersionsRaw);
     if (parsedVersions.kind === 'incomplete') {
-      res.status(400).json({
-        code: 'INCOMPLETE_INTAKE_VERSIONS',
-        error: 'intake_versions must include all of questionBankVersion, policyVersion, layoutVersion, resolverVersion, or be omitted.',
-      });
+      res
+        .status(400)
+        .json(
+          apiErrorJson(API_ERROR_CODES.INCOMPLETE_INTAKE_VERSIONS, INCOMPLETE_INTAKE_VERSIONS_MESSAGE),
+        );
       return;
     }
 
@@ -701,7 +819,35 @@ auditsRouter.put('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
       stored: (versionRow?.intake_versions as IntakeVersionTuple | null) ?? null,
     });
     if (!vr.ok) {
-      res.status(vr.status).json(vr.body);
+      const b = vr.body as {
+        code: string;
+        message?: string;
+        received?: unknown;
+        supportedHint?: string;
+        stored?: unknown;
+      };
+      if (b.code === 'UNSUPPORTED_INTAKE_VERSION') {
+        res.status(vr.status).json(
+          apiErrorJson(API_ERROR_CODES.UNSUPPORTED_INTAKE_VERSION, UNSUPPORTED_INTAKE_VERSION_MESSAGE, {
+            received: b.received,
+            supportedHint: b.supportedHint,
+          }),
+        );
+        return;
+      }
+      if (b.code === 'INTAKE_VERSION_CONFLICT') {
+        res.status(vr.status).json(
+          apiErrorJson(API_ERROR_CODES.INTAKE_VERSION_CONFLICT, INTAKE_VERSION_CONFLICT_MESSAGE, {
+            stored: b.stored,
+            received: b.received,
+          }),
+        );
+        return;
+      }
+      logger.error('route.brief_put_unexpected_intake_version_body', { body: vr.body });
+      res
+        .status(500)
+        .json(apiErrorJson(API_ERROR_CODES.AUDITS_BRIEF_SAVE_FAILED, AUDITS_BRIEF_SAVE_FAILED_MESSAGE));
       return;
     }
 
@@ -740,9 +886,9 @@ auditsRouter.put('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
     logger.error('route.brief_put_failed', { component: 'audits', error: e.message, stack: e.stack });
     const msg = e.message;
     if (msg.startsWith('Invalid brief responses')) {
-      res.status(400).json({ error: msg });
+      res.status(400).json(apiErrorJson(API_ERROR_CODES.AUDITS_BRIEF_VALIDATION_FAILED, msg));
       return;
     }
-    res.status(500).json({ error: 'Failed to save brief' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.AUDITS_BRIEF_SAVE_FAILED, AUDITS_BRIEF_SAVE_FAILED_MESSAGE));
   }
 });

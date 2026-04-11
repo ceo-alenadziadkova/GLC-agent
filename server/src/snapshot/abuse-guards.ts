@@ -3,6 +3,7 @@
  * Optional shared cooldown via `snapshot_domain_cooldown` when `SNAPSHOT_SHARED_ABUSE_STORE=1`.
  */
 
+import { getSnapshotFetchBudgetMs } from '../config/snapshot-fetch-budget.js';
 import { supabase } from '../services/supabase.js';
 import { logger } from '../services/logger.js';
 
@@ -23,7 +24,7 @@ const domainFreshCooldownMs = (() => {
 function freshLeaseTtlSeconds(): number {
   const fromEnv = Number(process.env.SNAPSHOT_FRESH_LEASE_TTL_SECONDS);
   if (Number.isFinite(fromEnv) && fromEnv >= 60) return Math.floor(fromEnv);
-  const fetchMs = Number(process.env.SNAPSHOT_FETCH_BUDGET_MS ?? 10_000);
+  const fetchMs = getSnapshotFetchBudgetMs();
   const fetchSec = Number.isFinite(fetchMs) ? Math.max(1, fetchMs / 1000) : 10;
   return Math.max(300, Math.ceil(fetchSec * 5));
 }

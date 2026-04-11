@@ -5,7 +5,7 @@
 - **Development:** `http://localhost:3001`
 - **Production:** Railway deployment URL (set as `VITE_API_URL` in frontend env)
 
-All endpoints except `/api/auth/*`, `/api/snapshot/*`, **`POST /api/marketing/brief`**, and the **public** pre-brief routes `GET /api/intake/:token` and `POST /api/intake/:token/respond` require a valid Supabase JWT in the `Authorization: Bearer <token>` header. The frontend's `apiService.ts` adds this automatically.
+All endpoints except `/api/auth/*`, `/api/snapshot/*`, **`GET /api/public/brand`**, **`POST /api/marketing/brief`**, and the **public** pre-brief routes `GET /api/intake/:token` and `POST /api/intake/:token/respond` require a valid Supabase JWT in the `Authorization: Bearer <token>` header. The frontend's `apiService.ts` adds this automatically.
 
 `POST /api/intake` (create link) requires a **consultant** JWT.
 
@@ -16,6 +16,16 @@ Cache-Control: private, no-store
 ```
 
 This prevents storing user-specific audit data in shared caches.
+
+---
+
+## Public brand config (white-label)
+
+### `GET /api/public/brand`
+
+**Auth:** none.
+
+Returns non-secret marketing defaults (`brand_name`, `support_email`, `public_site_url`, structured `footer` strings). Optional server env: `PUBLIC_BRAND_NAME`, `PUBLIC_SUPPORT_EMAIL`, `PUBLIC_BRAND_LEGAL_LINE` (see `server/.env.example`). Bundled defaults live in `@glc/dev-brand-defaults`; the SPA uses those until the request succeeds. In production, `support_email` is `null` when `PUBLIC_SUPPORT_EMAIL` is unset — the UI then relies on `VITE_SUPPORT_EMAIL` from the build.
 
 ---
 
@@ -129,6 +139,28 @@ Assigns which consultant owns **client self-serve** audits (`audits.user_id` whe
 **Response `200`:** `{ "ok": true, "stored_owner_user_id", "effective_ready", "effective_owner_user_id", "env_fallback_active" }`
 
 **Errors:** `400` invalid consultant, `403` not a platform admin when the allowlist is configured.
+
+### `GET /api/platform/consultant-allowlist`
+
+**Auth:** consultant JWT. **Access:** same as `PATCH /api/platform/self-serve-owner` — only when `PLATFORM_ADMIN_USER_IDS` allows this user (or the list is unset, in which case any consultant may call).
+
+**Response `200`:** `{ "emails": ["admin@example.com", ...] }` — lowercase, sorted.
+
+### `POST /api/platform/consultant-allowlist`
+
+**Body:** `{ "email": "new.consultant@example.com" }`
+
+**Response `201`:** `{ "ok": true, "email": "<normalized>" }`
+
+**Errors:** `400` invalid email, `403` not platform admin, `409` email already present, `500` persistence failure.
+
+### `DELETE /api/platform/consultant-allowlist?email=<url-encoded-email>`
+
+**Response `200`:** `{ "ok": true, "removed": true | false, "email": "<normalized>" }` (`removed` is false if the row did not exist).
+
+**Errors:** `400` missing/invalid email, `403` not platform admin.
+
+**Note:** New consultant bootstrap emails should live in table `consultant_email_allowlist` (this API). Deprecated: comma-separated `CONSULTANT_EMAILS` env is still merged on login until removed.
 
 ---
 
@@ -440,7 +472,7 @@ Critical write endpoints accept optional `Idempotency-Key` header:
 Rules:
 
 - Same key + same payload returns stored response (safe replay).
-- Same key + different payload returns `409`.
+- Same key + different payload returns **`409`** with body `{ "code": "IDEMPOTENCY_PAYLOAD_MISMATCH", "error": "This idempotency key was already used with a different request body." }` (no internal exception text).
 - Keys are scoped by `user_id + route` and stored for 24 hours.
 
 ---
@@ -542,6 +574,8 @@ Start a free snapshot run. **Auth:** none (public). The server sets or refreshes
 
 **CORS:** the SPA must use **`credentials: 'include'`** on this request (and on poll **`GET /api/snapshot/:token`** if you rely on the same cookie). Production cookies use **`SameSite=None; Secure`**.
 
+**Token budget:** the new audit row is inserted with **`token_budget`** = **`FREE_SNAPSHOT_TOKEN_BUDGET`** (positive integer; default **80000**). **`POST /api/audits`** rows use the database column default (**200000** in the initial schema) unless a future migration or insert overrides it — free snapshots intentionally use a lower ceiling.
+
 **Body:** **`company_url`** (string, required). A scheme is optional; the server prepends **`https://`** when missing, then validates against the same public URL rules as other marketing/audit entry points.
 
 **Optional body fields** (all strings, ignored if invalid): **`utm_source`**, **`utm_medium`**, **`utm_campaign`** — stored on the guest session row for attribution.
@@ -552,7 +586,7 @@ Start a free snapshot run. **Auth:** none (public). The server sets or refreshes
 
 **`503`:** `{ "error", "code": "SELF_SERVE_OWNER_UNAVAILABLE" }` when the platform **self-serve audit owner** cannot be resolved (same operational requirement as client-created audits — configure `platform_settings.self_serve_audit_owner_user_id`, **`SELF_SERVE_AUDIT_OWNER_USER_ID`**, or a valid consultant fallback; see **`GET /api/platform/self-serve-owner`** above).
 
-**Implementation:** deterministic scanner — **no LLM**. Tiered HTTP fetch (homepage plus up to a few same-origin URLs), cheerio-based **facts**, YAML-driven **site profile** (classification) and **audit rules** (expanded YAML catalog; some rules may be **skipped** per `skipForSiteTypes` / `onlyForSiteTypes` using classifier `siteType`), overall score **0–100** with four category scores. **Wall clock:** `SNAPSHOT_FETCH_BUDGET_MS` defaults to **10000** (10s; ADR target band ~8–12s). **robots.txt:** fetches `/robots.txt` (cached per origin, `SNAPSHOT_ROBOTS_CACHE_MS`, default 20 minutes). Honors `Disallow` for the snapshot user-agent (`*` and `GLC-SnapshotScanner`): if `/` is disallowed, **no HTML is fetched** (same outcome as unreachable home for the pipeline). Extra same-origin URLs are skipped when disallowed. **Crawl-delay** is applied best-effort between extra fetches within the overall fetch budget. **Playwright tier-3 (default on when needed):** if the static homepage matches client-shell heuristics, the server attempts to re-fetch it with headless Chromium. Set `SNAPSHOT_PLAYWRIGHT=0` or `false` to skip (static HTML only). Requires `playwright` + `npx playwright install chromium` on the host; failures are logged and the scan continues with HTTP HTML. Env: `SNAPSHOT_PLAYWRIGHT_BUDGET_MS` (default 14000, cap within remaining `SNAPSHOT_FETCH_BUDGET_MS`). Results for the same **registrable host** may be served from `snapshot_domain_cache` (TTL `SNAPSHOT_DOMAIN_CACHE_TTL_HOURS`, default 48); **cached JSON omits raw email/phone vectors** (PII minimization). Rule catalogs: `server/config/snapshot/classification-rules.v1.yaml`, `server/config/snapshot/audit-rules.v1.yaml`.
+**Implementation:** deterministic scanner — **no LLM**. Tiered HTTP fetch (homepage plus up to a few same-origin URLs), cheerio-based **facts**, YAML-driven **site profile** (classification) and **audit rules** (expanded YAML catalog; some rules may be **skipped** per `skipForSiteTypes` / `onlyForSiteTypes` using classifier `siteType`), overall score **0–100** with four category scores. Outbound HTTP user-agents for snapshot/crawl paths embed **`GLC_PUBLIC_SITE_URL`** (HTTPS origin, no trailing slash; **required in production**; dev default **`https://glctech.es`** if unset). **Wall clock:** `SNAPSHOT_FETCH_BUDGET_MS` defaults to **10000** (10s; ADR target band ~8–12s; shared default lives in `server/src/config/snapshot-fetch-budget.ts`). **robots.txt:** fetches `/robots.txt` (cached per origin, `SNAPSHOT_ROBOTS_CACHE_MS`, default 20 minutes). Honors `Disallow` for the snapshot user-agent (`*` and `GLC-SnapshotScanner`): if `/` is disallowed, **no HTML is fetched** (same outcome as unreachable home for the pipeline). Extra same-origin URLs are skipped when disallowed. **Crawl-delay** is applied best-effort between extra fetches within the overall fetch budget. **Playwright tier-3 (default on when needed):** if the static homepage matches client-shell heuristics, the server attempts to re-fetch it with headless Chromium. Set `SNAPSHOT_PLAYWRIGHT=0` or `false` to skip (static HTML only). Requires `playwright` + `npx playwright install chromium` on the host; failures are logged and the scan continues with HTTP HTML. Env: `SNAPSHOT_PLAYWRIGHT_BUDGET_MS` (default 14000, cap within remaining `SNAPSHOT_FETCH_BUDGET_MS`). Results for the same **registrable host** may be served from `snapshot_domain_cache` (TTL `SNAPSHOT_DOMAIN_CACHE_TTL_HOURS`, default 48); **cached JSON omits raw email/phone vectors** (PII minimization). Rule catalogs: `server/config/snapshot/classification-rules.v1.yaml`, `server/config/snapshot/audit-rules.v1.yaml`.
 
 **Fair use:** at most **3** successful starts per IP per rolling **24 hours** (abuse control). Only **`POST`** responses that the limiter treats as successful (typically **2xx**) increment the counter (`skipFailedRequests`), so validation **`400`** and **`429 DOMAIN_FRESH_COOLDOWN`** do not consume a daily slot. `GET` polling and `GET /quota` do not count.
 
@@ -580,7 +614,7 @@ Start a free snapshot run. **Auth:** none (public). The server sets or refreshes
 
 **`410`:** token TTL expired (same window as public poll).
 
-**Implementation:** deterministic scanner — **no LLM**. Tiered HTTP fetch (homepage plus up to a few same-origin URLs), cheerio-based **facts**, YAML-driven **site profile** (classification) and **audit rules** (expanded YAML catalog; some rules may be **skipped** per `skipForSiteTypes` / `onlyForSiteTypes` using classifier `siteType`), overall score **0–100** with four category scores. **Wall clock:** `SNAPSHOT_FETCH_BUDGET_MS` defaults to **10000** (10s; ADR target band ~8–12s). **robots.txt:** fetches `/robots.txt` (cached per origin, `SNAPSHOT_ROBOTS_CACHE_MS`, default 20 minutes). Honors `Disallow` for the snapshot user-agent (`*` and `GLC-SnapshotScanner`): if `/` is disallowed, **no HTML is fetched** (same outcome as unreachable home for the pipeline). Extra same-origin URLs are skipped when disallowed. **Crawl-delay** is applied best-effort between extra fetches within the overall fetch budget. **Playwright tier-3 (default on when needed):** if the static homepage matches client-shell heuristics, the server attempts to re-fetch it with headless Chromium. Set `SNAPSHOT_PLAYWRIGHT=0` or `false` to skip (static HTML only). Requires `playwright` + `npx playwright install chromium` on the host; failures are logged and the scan continues with HTTP HTML. Env: `SNAPSHOT_PLAYWRIGHT_BUDGET_MS` (default 14000, cap within remaining `SNAPSHOT_FETCH_BUDGET_MS`). Results for the same **registrable host** may be served from `snapshot_domain_cache` (TTL `SNAPSHOT_DOMAIN_CACHE_TTL_HOURS`, default 48); **cached JSON omits raw email/phone vectors** (PII minimization). Rule catalogs: `server/config/snapshot/classification-rules.v1.yaml`, `server/config/snapshot/audit-rules.v1.yaml`.
+**Implementation:** deterministic scanner — **no LLM**. Tiered HTTP fetch (homepage plus up to a few same-origin URLs), cheerio-based **facts**, YAML-driven **site profile** (classification) and **audit rules** (expanded YAML catalog; some rules may be **skipped** per `skipForSiteTypes` / `onlyForSiteTypes` using classifier `siteType`), overall score **0–100** with four category scores. Outbound HTTP user-agents for snapshot/crawl paths embed **`GLC_PUBLIC_SITE_URL`** (HTTPS origin, no trailing slash; **required in production**; dev default **`https://glctech.es`** if unset). **Wall clock:** `SNAPSHOT_FETCH_BUDGET_MS` defaults to **10000** (10s; ADR target band ~8–12s; shared default lives in `server/src/config/snapshot-fetch-budget.ts`). **robots.txt:** fetches `/robots.txt` (cached per origin, `SNAPSHOT_ROBOTS_CACHE_MS`, default 20 minutes). Honors `Disallow` for the snapshot user-agent (`*` and `GLC-SnapshotScanner`): if `/` is disallowed, **no HTML is fetched** (same outcome as unreachable home for the pipeline). Extra same-origin URLs are skipped when disallowed. **Crawl-delay** is applied best-effort between extra fetches within the overall fetch budget. **Playwright tier-3 (default on when needed):** if the static homepage matches client-shell heuristics, the server attempts to re-fetch it with headless Chromium. Set `SNAPSHOT_PLAYWRIGHT=0` or `false` to skip (static HTML only). Requires `playwright` + `npx playwright install chromium` on the host; failures are logged and the scan continues with HTTP HTML. Env: `SNAPSHOT_PLAYWRIGHT_BUDGET_MS` (default 14000, cap within remaining `SNAPSHOT_FETCH_BUDGET_MS`). Results for the same **registrable host** may be served from `snapshot_domain_cache` (TTL `SNAPSHOT_DOMAIN_CACHE_TTL_HOURS`, default 48); **cached JSON omits raw email/phone vectors** (PII minimization). Rule catalogs: `server/config/snapshot/classification-rules.v1.yaml`, `server/config/snapshot/audit-rules.v1.yaml`.
 
 **Fair use:** at most **3** successful starts per IP per rolling **24 hours** (abuse control). Only **`POST`** responses that the limiter treats as successful (typically **2xx**) increment the counter (`skipFailedRequests`), so validation **`400`** and **`429 DOMAIN_FRESH_COOLDOWN`** do not consume a daily slot. `GET` polling and `GET /quota` do not count.
 
@@ -645,7 +679,7 @@ Migration: `011_intake_tokens.sql`. Table `intake_tokens` — operations via ser
   - `contact_channel` — e.g. `WhatsApp`, `phone`, `email`.
   - `consultant_email`, `consultant_whatsapp` — optional; shown as “Questions? …” on success.
 
-**Response `201`:** `{ "token", "url", "expires_at" }` — `url` is built from `FRONTEND_URL` (or localhost) + `/intake/:token`.
+**Response `201`:** `{ "token", "url", "expires_at" }` — `url` is built from **`FRONTEND_URL`** (required when **`NODE_ENV=production`**; otherwise defaults to `http://localhost:5173`) + `/intake/:token`.
 
 ### `POST /api/intake/link-audit`
 
@@ -659,9 +693,9 @@ Migration: `011_intake_tokens.sql`. Table `intake_tokens` — operations via ser
 
 **Auth:** consultant JWT.
 
-Lists intake tokens **you created** where the client has already submitted (`submitted_at` is set), newest first (limit 100). Used by the admin request queue to show raw pre-brief answers before or after linking to an audit.
+Lists intake tokens **you created** where the client has already submitted (`submitted_at` is set), newest first. The query uses a hard **`.limit(100)`** in `server/src/routes/intake.ts` (not env-tunable). Used by the admin request queue to show raw pre-brief answers before or after linking to an audit. See [DEPLOYMENT.md — Consultant list endpoints](./DEPLOYMENT.md#consultant-list-endpoints-hard-cap).
 
-**Response `200`:** `{ "submissions": [ { "token", "metadata", "responses", "submitted_at", "expires_at", "audit_id", "intake_url" } ] }` — `intake_url` is the shareable client link (`FRONTEND_URL` + `/intake/:token`).
+**Response `200`:** `{ "submissions": [ { "token", "metadata", "responses", "submitted_at", "expires_at", "audit_id", "intake_url" } ] }` — `intake_url` is the shareable client link (**`FRONTEND_URL`** as above + `/intake/:token`).
 
 ### `GET /api/intake/:token`
 
@@ -763,6 +797,8 @@ Consultant queue endpoint.
 
 Server-side scoping is enforced: only rows where `consultant_id IS NULL` (unclaimed queue) or `consultant_id = current consultant` are listed.
 
+**Pagination:** Newest first; the implementation applies a hard **`.limit(100)`** in `server/src/routes/discover.ts` (not env-tunable). See [DEPLOYMENT.md — Consultant list endpoints](./DEPLOYMENT.md#consultant-list-endpoints-hard-cap).
+
 ### `POST /api/discover/:token/convert`
 
 Converts one discovery session to a full audit.
@@ -777,6 +813,8 @@ Security/ownership contract:
 - Link race at final `audit_id` write returns **`409`** (`Session conversion conflict. Please retry.`) and triggers best-effort audit rollback.
 
 Success returns **`201`** with `{ "audit_id": "..." }`.
+
+**Seeded brief:** Discovery answers are mapped into `intake_brief.responses` under **bank ids** where applicable. The synthetic cell **`uses_crm`** (not a bank question) is set from CRM inference using **locale-agnostic stored tokens** **`uses_crm:yes`** / **`uses_crm:no`** (see `packages/intake-core/src/discovery-brief-contract.v1.json`). Older rows may still hold **`Yes`** / **`No`**; consumers should normalize via **`normalizeUsesCrmBriefStoredValue`** from **`@glc/intake-core`**.
 
 ---
 
@@ -793,12 +831,16 @@ Success returns **`201`** with `{ "audit_id": "..." }`.
 - `website` (string, required unless `no_website` is true)
 - `no_website` (boolean)
 - `concern`, `improve` (strings)
-- `urgency`, `contact_method` (strings)
-- `unsure_choice` (boolean) — when true, server recommends `/snapshot`
+- `contact_method` (string)
+- `urgency` (string, optional) — persisted if sent; the public **`/brief`** form does not collect it (empty in DB). Does **not** select the route.
+- `unsure_choice` (boolean) — when true: **`/snapshot`** if the lead has a public site, **`/discovery`** if `no_website`.
+- `preferred_audit_depth` (`"express"` \| `"full"`) — **required** when `unsure_choice` is false **and** `no_website` is false. Chooses **`/express-audit`** vs **`/audit`** by **depth of analysis**, not by speed.
 
 **Response `201`:** `{ "id", "created_at", "recommended_route" }` where `recommended_route` is one of `/snapshot`, `/express-audit`, `/audit`, `/discovery`.
 
-Persists to `marketing_brief_submissions` (migration `025_marketing_brief_submissions.sql`) and notifies consultants (`kind: intake`).
+Route rules live in **`@glc/intake-core`** (`marketing-brief-routing.ts`).
+
+Persists to `marketing_brief_submissions` (migrations `025`, optional column `preferred_audit_depth` in `046`) and notifies consultants (`kind: intake`).
 
 ---
 
@@ -813,6 +855,8 @@ All errors follow:
 }
 ```
 
+**UI mapping:** prefer handling **`code`** for branching and user-facing copy. Keep **`error`** as a fallback string for logs and legacy clients. When adding new failures, always set a stable **`code`** and add the string to the client map (or future i18n catalog) in the same change. Human-readable text may be localized in the SPA without changing **`code`**.
+
 Common codes:
 
 - `AUDIT_NOT_FOUND` — 404
@@ -822,3 +866,5 @@ Common codes:
 - `BUDGET_EXCEEDED` — 402 (token budget exhausted)
 - `PIPELINE_BUSY` — 409 (pipeline already running)
 - `INVALID_STATUS` — 422 (action not valid for current audit status)
+
+A grouped inventory of literal `error` strings returned by route handlers lives in [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md). Regenerate raw matches with `./scripts/api-errors-inventory.sh`.

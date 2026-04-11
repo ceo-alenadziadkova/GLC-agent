@@ -24,7 +24,7 @@ import {
 } from '@glc/intake-core';
 import { prepareBriefForValidation } from '@glc/intake-core';
 import { getResponseString, isIntakeAnswered } from '@glc/intake-core';
-import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
+import { auditSkipsPublicWebsiteFetches } from '@glc/intake-core';
 import { isPrimaryFeedForDomain, isSecondaryFeedForDomain } from '@glc/intake-core';
 import type { IntakeSliceDomain } from '@glc/intake-core';
 import { buildIntakePlan } from '@glc/intake-core';
@@ -32,8 +32,10 @@ import { isSupportedIntakeArtifactTuple } from '@glc/intake-core';
 import { currentIntakeVersionTuple } from '@glc/intake-core';
 import { resolveIntakeSurfaceForPlan } from './brief-validator.js';
 
-function formatCompanyUrlForPrompt(url: string): string {
-  return isNoPublicWebsiteUrl(url) ? 'No public website (use intake brief and consultant notes only)' : url;
+function formatCompanyUrlForPrompt(url: string, noPublicWebsite?: boolean | null): string {
+  return auditSkipsPublicWebsiteFetches(noPublicWebsite, url)
+    ? 'No public website (use intake brief and consultant notes only)'
+    : url;
 }
 
 function computeIntakeReportAnchors(responses: Record<string, unknown>): Record<string, string> | undefined {
@@ -61,6 +63,8 @@ function escapePromptContent(input: string): string {
 
 export interface AgentContext {
   company_url: string;
+  /** When true, treat as no public site (skip live URL context); legacy rows may rely on sentinel URL only. */
+  no_public_website?: boolean;
   company_name: string | null;
   industry: string | null;
   recon: ReconData | null;
@@ -128,7 +132,7 @@ export class ContextBuilder {
     // Fetch audit meta — [C2] check error: missing audit = invalid context, must throw
     const { data: audit, error: auditError } = await supabase
       .from('audits')
-      .select('company_url, company_name, industry, product_mode')
+      .select('company_url, company_name, industry, product_mode, no_public_website')
       .eq('id', auditId)
       .single();
 
@@ -270,6 +274,7 @@ export class ContextBuilder {
 
     return {
       company_url: audit?.company_url ?? '',
+      no_public_website: audit?.no_public_website === true,
       company_name: audit?.company_name ?? recon?.company_name ?? null,
       industry,
       recon: recon as ReconData | null,
@@ -425,7 +430,7 @@ export class ContextBuilder {
 
     // Company profile
     sections.push(`## Company Profile
-- **URL:** ${formatCompanyUrlForPrompt(ctx.company_url)}
+- **URL:** ${formatCompanyUrlForPrompt(ctx.company_url, ctx.no_public_website)}
 - **Name:** ${ctx.company_name ?? 'Unknown'}
 - **Industry:** ${industryLine}
 - **Domain weight for this industry:** ${ctx.domain_weight}x

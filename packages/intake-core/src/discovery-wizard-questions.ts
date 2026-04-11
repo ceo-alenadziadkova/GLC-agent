@@ -16,8 +16,14 @@ export type DiscoveryWizardQuestionSpec = {
 };
 
 /**
- * Fallback when policy omits `publicWizardOrder` (frozen artifact bundles).
- * Keep in sync with live `intake-policy.v1.json`.
+ * Fallback when `intake-policy.v1.json` omits `modes.discovery.publicWizardOrder`
+ * (e.g. older frozen artifact bundles shipped without that field).
+ *
+ * **Not** a second editorial source of truth: the live policy file should always
+ * define `publicWizardOrder`; this array only prevents a broken wizard when an old
+ * bundle is loaded. When changing Discovery order for current releases, edit the
+ * policy JSON — then mirror any intentional default here so offline/stale bundles
+ * stay consistent with the last known good order.
  */
 const DEFAULT_PUBLIC_DISCOVERY_WIZARD_BANK_IDS = [
   'a2',

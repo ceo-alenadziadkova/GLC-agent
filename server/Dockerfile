@@ -19,11 +19,11 @@ ENV CHROME_PATH=/usr/bin/chromium
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY server/package.json ./server/
+COPY packages/intake-core ./packages/intake-core
+COPY packages/glc-dev-brand-defaults ./packages/glc-dev-brand-defaults
+COPY server ./server
 
 RUN pnpm install --frozen-lockfile --filter glc-audit-server...
-
-COPY server ./server
 
 WORKDIR /app/server
 

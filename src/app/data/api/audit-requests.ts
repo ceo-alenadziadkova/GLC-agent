@@ -1,3 +1,4 @@
+import { API_PATHS } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
 import type { AuditRequest } from '../auditTypes';
 
@@ -11,7 +12,7 @@ export const auditRequestsApi = {
     brief_snapshot?: Record<string, unknown>;
     client_notes?: string;
   }) {
-    return apiFetch<AuditRequest>('/api/audit-requests', {
+    return apiFetch<AuditRequest>(API_PATHS.auditRequests, {
       method: 'POST',
       body: JSON.stringify(params),
     });
@@ -19,43 +20,43 @@ export const auditRequestsApi = {
 
   async listAuditRequests(limit = 50, offset = 0) {
     return apiFetch<{ data: AuditRequest[]; total: number; limit: number; offset: number }>(
-      `/api/audit-requests?limit=${limit}&offset=${offset}`,
+      `${API_PATHS.auditRequests}?limit=${limit}&offset=${offset}`,
     );
   },
 
   async getAuditRequest(id: string) {
-    return apiFetch<AuditRequest>(`/api/audit-requests/${id}`);
+    return apiFetch<AuditRequest>(`${API_PATHS.auditRequests}/${id}`);
   },
 
   async updateAuditRequest(
     id: string,
     updates: Partial<Pick<AuditRequest, 'url' | 'industry' | 'product_mode' | 'brief_snapshot' | 'client_notes'>>,
   ) {
-    return apiFetch<AuditRequest>(`/api/audit-requests/${id}`, {
+    return apiFetch<AuditRequest>(`${API_PATHS.auditRequests}/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(updates),
     });
   },
 
   async submitAuditRequest(id: string) {
-    return apiFetch<AuditRequest>(`/api/audit-requests/${id}/submit`, { method: 'POST' });
+    return apiFetch<AuditRequest>(`${API_PATHS.auditRequests}/${id}/submit`, { method: 'POST' });
   },
 
   async approveAuditRequest(id: string, consultant_note?: string) {
     return apiFetch<{ audit_request: AuditRequest; audit: { id: string; status: string } }>(
-      `/api/audit-requests/${id}/approve`,
+      `${API_PATHS.auditRequests}/${id}/approve`,
       { method: 'POST', body: JSON.stringify({ consultant_note }) },
     );
   },
 
   async rejectAuditRequest(id: string, consultant_note?: string) {
-    return apiFetch<AuditRequest>(`/api/audit-requests/${id}/reject`, {
+    return apiFetch<AuditRequest>(`${API_PATHS.auditRequests}/${id}/reject`, {
       method: 'POST',
       body: JSON.stringify({ consultant_note }),
     });
   },
 
   async deliverAuditRequest(id: string) {
-    return apiFetch<AuditRequest>(`/api/audit-requests/${id}/deliver`, { method: 'POST' });
+    return apiFetch<AuditRequest>(`${API_PATHS.auditRequests}/${id}/deliver`, { method: 'POST' });
   },
 };

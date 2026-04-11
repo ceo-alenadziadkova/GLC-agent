@@ -1,5 +1,7 @@
 /**
- * User-agents used with robots-parser (must stay in sync with outbound fetch headers where relevant).
+ * User-agents used with robots-parser (must match outbound fetch headers for the same product).
  */
-export const SNAPSHOT_ROBOTS_USER_AGENT = 'GLC-SnapshotScanner/1.0 (+https://glctech.es)';
-export const AUDIT_ROBOTS_USER_AGENT = 'GLC-AuditBot/1.0';
+export {
+  CRAWLER_USER_AGENT as AUDIT_ROBOTS_USER_AGENT,
+  SNAPSHOT_SCANNER_USER_AGENT as SNAPSHOT_ROBOTS_USER_AGENT,
+} from '../config/bot-identity.js';

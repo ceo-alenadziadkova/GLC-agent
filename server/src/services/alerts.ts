@@ -3,18 +3,33 @@ import { logger } from './logger.js';
 import { cleanupExpiredIdempotencyKeys } from '../lib/idempotency.js';
 import { getSharedRedisClient } from './redis.js';
 import { emitStructuredNotification } from './notifications.js';
+import {
+  ALERT_CHECK_INTERVAL_MS,
+  ALERT_CHECK_WINDOW_MINUTES,
+  ALERT_COOLDOWN_MS,
+  ALERT_FAILURE_RATE_THRESHOLD,
+  ALERT_LATENCY_P95_MS_THRESHOLD,
+  ALERT_LOCK_TTL_MS,
+  ALERT_TOKEN_BURN_THRESHOLD,
+} from '../config/alerts-config.js';
+import { ALERT_LATENCY_PERCENTILE } from '../config/alert-thresholds.js';
+import {
+  formatPipelineFailureRateMessageEn,
+  formatPipelineLatencyP95MessageEn,
+  formatPipelineTokenBurnMessageEn,
+  pipelineAlertTitlesEn,
+} from '../config/alert-messages.en.js';
 
-const WINDOW_MIN = 15;
-const INTERVAL_MS = Number(process.env.ALERT_INTERVAL_MS ?? '60000');
-const FAILURE_RATE_THRESHOLD = Number(process.env.ALERT_FAILURE_RATE_THRESHOLD ?? '0.2');
-const LATENCY_P95_MS_THRESHOLD = Number(process.env.ALERT_LATENCY_P95_MS_THRESHOLD ?? '180000');
-const TOKEN_BURN_THRESHOLD = Number(process.env.ALERT_TOKEN_BURN_15M_THRESHOLD ?? '300000');
-const COOLDOWN_MS = Number(process.env.ALERT_COOLDOWN_MS ?? '900000');
+const WINDOW_MIN = ALERT_CHECK_WINDOW_MINUTES;
+const INTERVAL_MS = ALERT_CHECK_INTERVAL_MS;
+const FAILURE_RATE_THRESHOLD = ALERT_FAILURE_RATE_THRESHOLD;
+const LATENCY_P95_MS_THRESHOLD = ALERT_LATENCY_P95_MS_THRESHOLD;
+const TOKEN_BURN_THRESHOLD = ALERT_TOKEN_BURN_THRESHOLD;
+const COOLDOWN_MS = ALERT_COOLDOWN_MS;
 
 const cooldown = new Map<string, number>();
 let alertChecksRunning = false;
 const ALERT_LOCK_KEY = 'lock:alerts:run';
-const ALERT_LOCK_TTL_MS = Number(process.env.ALERT_LOCK_TTL_MS ?? 55_000);
 
 function shouldNotify(key: string): boolean {
   const now = Date.now();
@@ -27,7 +42,7 @@ function shouldNotify(key: string): boolean {
 function percentile95(values: number[]): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
-  const idx = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95));
+  const idx = Math.min(sorted.length - 1, Math.floor(sorted.length * ALERT_LATENCY_PERCENTILE));
   return sorted[idx];
 }
 
@@ -68,8 +83,14 @@ export async function runAlertChecks(): Promise<void> {
       event: 'alert_failure_rate_high',
       priority: 'critical',
       audience: 'consultants',
-      title: 'Pipeline failure rate high',
-      message: `Failure rate ${(failureRate * 100).toFixed(1)}% in last ${WINDOW_MIN}m (failed=${failed}, started=${started})${renderTraceLinks(traceId)}`,
+      title: pipelineAlertTitlesEn.failureRateHigh,
+      message: formatPipelineFailureRateMessageEn({
+        failureRatePct: (failureRate * 100).toFixed(1),
+        failed,
+        started,
+        windowMin: WINDOW_MIN,
+        traceSuffix: renderTraceLinks(traceId),
+      }),
       payload: { started, failed, window_minutes: WINDOW_MIN, trace_id: traceId },
       sendInApp: true,
       sendTelegram: true,
@@ -98,8 +119,13 @@ export async function runAlertChecks(): Promise<void> {
       event: 'alert_latency_p95_high',
       priority: 'medium',
       audience: 'consultants',
-      title: 'Pipeline latency high',
-      message: `Latency p95=${Math.round(p95)}ms in last ${WINDOW_MIN}m (threshold=${LATENCY_P95_MS_THRESHOLD}ms)${renderTraceLinks(traceId)}`,
+      title: pipelineAlertTitlesEn.latencyP95High,
+      message: formatPipelineLatencyP95MessageEn({
+        p95Ms: Math.round(p95),
+        windowMin: WINDOW_MIN,
+        thresholdMs: LATENCY_P95_MS_THRESHOLD,
+        traceSuffix: renderTraceLinks(traceId),
+      }),
       payload: { p95_ms: Math.round(p95), threshold_ms: LATENCY_P95_MS_THRESHOLD, window_minutes: WINDOW_MIN, trace_id: traceId },
       sendInApp: true,
       sendTelegram: true,
@@ -119,8 +145,13 @@ export async function runAlertChecks(): Promise<void> {
       event: 'alert_token_burn_high',
       priority: 'medium',
       audience: 'consultants',
-      title: 'Token burn high',
-      message: `Token burn ${tokenBurn} in last ${WINDOW_MIN}m (threshold=${TOKEN_BURN_THRESHOLD})${renderTraceLinks(traceId)}`,
+      title: pipelineAlertTitlesEn.tokenBurnHigh,
+      message: formatPipelineTokenBurnMessageEn({
+        tokenBurn,
+        windowMin: WINDOW_MIN,
+        threshold: TOKEN_BURN_THRESHOLD,
+        traceSuffix: renderTraceLinks(traceId),
+      }),
       payload: { token_burn: tokenBurn, threshold: TOKEN_BURN_THRESHOLD, window_minutes: WINDOW_MIN, trace_id: traceId },
       sendInApp: true,
       sendTelegram: true,

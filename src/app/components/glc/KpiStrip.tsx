@@ -8,13 +8,15 @@ interface KpiStripProps {
   loading: boolean;
 }
 
+const EASE_GLC = [0.16, 1, 0.3, 1] as const;
+
 const listVariants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.06 } },
 };
 const itemVariants = {
   hidden:  { opacity: 0, y: 8 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.28, ease: [0.16, 1, 0.3, 1] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.28, ease: EASE_GLC } },
 };
 
 interface Card {

@@ -89,7 +89,7 @@ interface UseProfileResult {
 
 /**
  * Reads the current user's profile from Supabase.
- * Role is set by the server via the CONSULTANT_EMAILS env check.
+ * Role is set by the server (`consultant_email_allowlist` or deprecated CONSULTANT_EMAILS env).
  *
  * If the profile row doesn't exist yet (user created before migration 005,
  * or handle_new_user trigger missed), calls GET /api/profile which runs

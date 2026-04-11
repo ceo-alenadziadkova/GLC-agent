@@ -30,6 +30,8 @@
 - **Отраслевые** вопросы, которые показывают экспертизу GLC
 - **Без сайта** → разворот на процессы, операции, рост
 
+**Persisted URL when the client has no public website (full audit / portal):** The backend stores the canonical sentinel **`NO_PUBLIC_WEBSITE_URL`** from **`@glc/intake-core`** (`https://glc-audit.placeholder/no-public-website`) in **`audits.company_url`** so collectors skip real HTTP crawls. Do not change this literal without a coordinated package + data migration; see [DEPLOYMENT.md — Immutable product constants](./DEPLOYMENT.md#immutable-product-constants) and [DATABASE.md — `audits`](./DATABASE.md#audits).
+
 ---
 
 ## 2. Архитектура вопросов
@@ -794,7 +796,8 @@ Use this checklist for **any** change to `packages/intake-core/src/question-bank
 
 3. **Re-evaluate derived logic and AI readiness**
    - Review `packages/intake-core/src/ai-readiness.ts` and `packages/intake-core/src/answer-normalizers.ts` for string/value assumptions tied to changed options.
-   - Review discovery conversion and findings logic (`src/app/lib/discovery-flow.ts`, `server/src/routes/discover.ts`) for hardcoded option text.
+   - Review discovery conversion and findings logic (`src/app/lib/discovery-flow.ts`, `server/src/routes/discover.ts`) for hardcoded option text. Server-side brief seeding from Discovery uses **`packages/intake-core/src/discovery-brief-mapping.ts`** (`DISCOVERY_BRIEF_PATCH_A5_NO_WEBSITE_YET` from the bank JSON, plus **`C_NOSITE_1_LEGACY_FIRST_PARTY_WEB_LABELS`** for old stored answers) — extend there instead of duplicating display strings in `discover.ts`.
+   - **Synthetic `uses_crm` cell** (not a bank id): stored values are defined in **`discovery-brief-contract.v1.json`** as **`uses_crm:yes` / `uses_crm:no`**; English display and i18n keys live in the same file. Use **`normalizeUsesCrmBriefStoredValue`** when interpreting persisted briefs (handles legacy **`Yes` / `No`**).
 
 4. **Verify API and schema surfaces**
    - Confirm `GET /api/audits/:id/brief/schema` returns the updated `answer` contract.

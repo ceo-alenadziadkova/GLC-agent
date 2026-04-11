@@ -2,12 +2,17 @@
  * Batched consultant telemetry for Intake trace / wording tools.
  * POST /api/intake-trace-tool/analytics-events (non-blocking).
  */
+import { API_PATHS } from '../config/api-paths';
 import { apiFetch } from '../data/api-http';
+import {
+  CLIENT_ANALYTICS_FLUSH_MS_DEFAULT,
+  CLIENT_ANALYTICS_MAX_BATCH_DEFAULT,
+} from '../config/client-analytics-batching';
 import { isIntakeTraceIaV2Enabled } from './intake-trace-flags';
 
 const SESSION_STORAGE_KEY = 'glc_intake_trace_tool_session_v1';
-const FLUSH_MS = 3200;
-const MAX_BATCH = 24;
+const FLUSH_MS = CLIENT_ANALYTICS_FLUSH_MS_DEFAULT;
+const MAX_BATCH = CLIENT_ANALYTICS_MAX_BATCH_DEFAULT;
 
 export type IntakeTraceToolTelemetryEventType =
   | 'intake_trace_tab_opened'
@@ -54,7 +59,7 @@ export async function flushIntakeTraceToolTelemetry(): Promise<void> {
   if (queue.length === 0) return;
   const batch = queue.splice(0, MAX_BATCH);
   try {
-    await apiFetch<{ ok: true; received: number }>('/api/intake-trace-tool/analytics-events', {
+    await apiFetch<{ ok: true; received: number }>(API_PATHS.intakeTraceToolAnalytics, {
       method: 'POST',
       body: JSON.stringify({
         client_session_id: getOrCreateIntakeTraceToolSessionId(),

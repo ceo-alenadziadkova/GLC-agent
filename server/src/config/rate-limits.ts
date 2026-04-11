@@ -3,6 +3,10 @@
  * Used by `server/src/middleware/rate-limit.ts`.
  */
 
+import { SYSTEM_DEFAULTS } from './system-defaults.js';
+
+const RL = SYSTEM_DEFAULTS.rateLimits;
+
 export const HOUR_MS = 60 * 60 * 1000;
 export const MINUTE_MS = 60 * 1000;
 
@@ -14,47 +18,56 @@ export function parsePositiveIntFromEnv(raw: string | undefined, fallback: numbe
 /** Audit creation: max requests per rolling window (default 5 per 24h). */
 export const RATE_LIMIT_AUDIT_CREATE_MAX_PER_DAY = parsePositiveIntFromEnv(
   process.env.RATE_LIMIT_AUDIT_CREATE_MAX_PER_DAY,
-  5,
+  RL.auditCreateMaxPerDay,
 );
 export const RATE_LIMIT_AUDIT_CREATE_WINDOW_MS =
-  parsePositiveIntFromEnv(process.env.RATE_LIMIT_AUDIT_CREATE_WINDOW_HOURS, 24) * HOUR_MS;
+  parsePositiveIntFromEnv(process.env.RATE_LIMIT_AUDIT_CREATE_WINDOW_HOURS, RL.auditCreateWindowHours) * HOUR_MS;
 
 /** Pipeline start/next: max per rolling window (default 30 per hour). */
 export const RATE_LIMIT_PIPELINE_MAX_PER_WINDOW = parsePositiveIntFromEnv(
   process.env.RATE_LIMIT_PIPELINE_MAX_PER_HOUR,
-  30,
+  RL.pipelineMaxPerHour,
 );
 export const RATE_LIMIT_PIPELINE_WINDOW_MS =
-  parsePositiveIntFromEnv(process.env.RATE_LIMIT_PIPELINE_WINDOW_MINUTES, 60) * MINUTE_MS;
+  parsePositiveIntFromEnv(process.env.RATE_LIMIT_PIPELINE_WINDOW_MINUTES, RL.pipelineWindowMinutes) * MINUTE_MS;
 
 /** General authenticated API: max per rolling window (default 100 per minute). */
 export const RATE_LIMIT_GENERAL_MAX_PER_WINDOW = parsePositiveIntFromEnv(
   process.env.RATE_LIMIT_GENERAL_MAX_PER_MIN,
-  100,
+  RL.generalMaxPerMin,
 );
 export const RATE_LIMIT_GENERAL_WINDOW_MS =
-  parsePositiveIntFromEnv(process.env.RATE_LIMIT_GENERAL_WINDOW_SECONDS, 60) * 1000;
+  parsePositiveIntFromEnv(process.env.RATE_LIMIT_GENERAL_WINDOW_SECONDS, RL.generalWindowSeconds) * 1000;
 
 /** Free snapshot POST starts per IP per rolling window (abuse control). */
 export const SNAPSHOT_PUBLIC_MAX_PER_DAY = parsePositiveIntFromEnv(
   process.env.RATE_LIMIT_SNAPSHOT_PUBLIC_MAX_PER_DAY,
-  3,
+  RL.snapshotPublicMaxPerDay,
 );
 export const SNAPSHOT_PUBLIC_WINDOW_MS =
-  parsePositiveIntFromEnv(process.env.RATE_LIMIT_SNAPSHOT_PUBLIC_WINDOW_HOURS, 24) * HOUR_MS;
+  parsePositiveIntFromEnv(process.env.RATE_LIMIT_SNAPSHOT_PUBLIC_WINDOW_HOURS, RL.snapshotPublicWindowHours) * HOUR_MS;
 
 /** Authenticated client log ingest. */
 export const RATE_LIMIT_LOG_INGEST_MAX_PER_WINDOW = parsePositiveIntFromEnv(
   process.env.RATE_LIMIT_LOG_INGEST_MAX_PER_MIN,
-  180,
+  RL.logIngestMaxPerMin,
 );
 export const RATE_LIMIT_LOG_INGEST_WINDOW_MS =
-  parsePositiveIntFromEnv(process.env.RATE_LIMIT_LOG_INGEST_WINDOW_SECONDS, 60) * 1000;
+  parsePositiveIntFromEnv(process.env.RATE_LIMIT_LOG_INGEST_WINDOW_SECONDS, RL.logIngestWindowSeconds) * 1000;
 
-const snapshotCompareRaw = Number(process.env.SNAPSHOT_COMPARE_MAX_PER_HOUR ?? 15);
+const snapshotCompareRaw = Number(process.env.SNAPSHOT_COMPARE_MAX_PER_HOUR ?? RL.snapshotCompareMaxPerHour);
 export const SNAPSHOT_COMPARE_MAX_PER_HOUR =
-  Number.isFinite(snapshotCompareRaw) && snapshotCompareRaw > 0 ? Math.floor(snapshotCompareRaw) : 15;
+  Number.isFinite(snapshotCompareRaw) && snapshotCompareRaw > 0
+    ? Math.floor(snapshotCompareRaw)
+    : RL.snapshotCompareMaxPerHour;
 
-const snapshotLogRaw = Number(process.env.SNAPSHOT_LOG_INGEST_MAX_PER_MIN ?? 40);
+/** Sliding window for GET snapshot competitor/compare abuse (default 1h). */
+export const SNAPSHOT_COMPARE_WINDOW_MS =
+  parsePositiveIntFromEnv(process.env.RATE_LIMIT_SNAPSHOT_COMPARE_WINDOW_HOURS, RL.snapshotCompareWindowHours) *
+  HOUR_MS;
+
+const snapshotLogRaw = Number(process.env.SNAPSHOT_LOG_INGEST_MAX_PER_MIN ?? RL.snapshotLogIngestMaxPerMin);
 export const SNAPSHOT_LOG_INGEST_MAX_PER_MIN =
-  Number.isFinite(snapshotLogRaw) && snapshotLogRaw > 0 ? Math.floor(snapshotLogRaw) : 40;
+  Number.isFinite(snapshotLogRaw) && snapshotLogRaw > 0
+    ? Math.floor(snapshotLogRaw)
+    : RL.snapshotLogIngestMaxPerMin;

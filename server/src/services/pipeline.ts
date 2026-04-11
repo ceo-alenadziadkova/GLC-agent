@@ -1,3 +1,4 @@
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { supabase } from './supabase.js';
 import { assertBriefReady } from './brief-validator.js';
 import { consistencyChecker } from './consistency-checker.js';
@@ -152,7 +153,9 @@ export class PipelineOrchestrator {
       }
 
       await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
-      await this.emitEvent(phase, 'error', error.message, { stack: error.stack?.substring(0, 500) });
+      await this.emitEvent(phase, 'error', error.message, {
+        stack: error.stack?.substring(0, SYSTEM_DEFAULTS.observability.pipelineErrorStackMaxChars),
+      });
 
       throw err;
     }
@@ -203,7 +206,9 @@ export class PipelineOrchestrator {
           .eq('domain_key', domainKey);
       }
 
-      await this.emitEvent(phase, 'error', error.message, { stack: error.stack?.substring(0, 500) });
+      await this.emitEvent(phase, 'error', error.message, {
+        stack: error.stack?.substring(0, SYSTEM_DEFAULTS.observability.pipelineErrorStackMaxChars),
+      });
       throw err;
     }
   }

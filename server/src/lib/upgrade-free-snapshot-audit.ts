@@ -11,8 +11,21 @@ import {
   reviewPhasesForMode,
 } from '../types/audit.js';
 import { INDUSTRY_OPTIONS } from '../config/industry-options.js';
+import { UPGRADE_FREE_SNAPSHOT_COPY_EN } from '../config/upgrade-free-snapshot-copy.en.js';
 import { getSnapshotAccessBlockedFromDeterministic } from '../snapshot/snapshot-access-state.js';
 import { logger } from '../services/logger.js';
+import {
+  API_ERROR_CODES,
+  type ApiErrorCode,
+  AUDITS_NOT_FOUND_MESSAGE,
+  AUDITS_UPGRADE_ACCESS_DENIED_MESSAGE,
+  AUDITS_UPGRADE_INIT_DOMAINS_FAILED_MESSAGE,
+  AUDITS_UPGRADE_INIT_REVIEWS_FAILED_MESSAGE,
+  AUDITS_UPGRADE_INIT_STRATEGY_FAILED_MESSAGE,
+  AUDITS_UPGRADE_NOT_COMPLETED_MESSAGE,
+  AUDITS_UPGRADE_NOT_FREE_SNAPSHOT_MESSAGE,
+  AUDITS_UPGRADE_RESET_DOMAINS_FAILED_MESSAGE,
+} from '../config/api-error-codes.js';
 
 export type UpgradeSnapshotTarget = 'express' | 'full';
 
@@ -135,7 +148,9 @@ export async function upgradeFreeSnapshotAudit(params: {
   actorUserId: string;
   targetMode: UpgradeSnapshotTarget;
   useScrapedContext: boolean;
-}): Promise<UpgradeFreeSnapshotAuditSuccess | { ok: false; status: number; error: string }> {
+}): Promise<
+  UpgradeFreeSnapshotAuditSuccess | { ok: false; status: number; error: string; code: ApiErrorCode }
+> {
   const { auditId, actorUserId, targetMode, useScrapedContext } = params;
 
   const { data: audit, error: aErr } = await supabase
@@ -145,21 +160,41 @@ export async function upgradeFreeSnapshotAudit(params: {
     .single();
 
   if (aErr || !audit) {
-    return { ok: false, status: 404, error: 'Audit not found' };
+    return {
+      ok: false,
+      status: 404,
+      code: API_ERROR_CODES.AUDITS_NOT_FOUND,
+      error: AUDITS_NOT_FOUND_MESSAGE,
+    };
   }
 
   if (audit.product_mode !== 'free_snapshot') {
-    return { ok: false, status: 400, error: 'Only free snapshot audits can use this upgrade' };
+    return {
+      ok: false,
+      status: 400,
+      code: API_ERROR_CODES.AUDITS_UPGRADE_NOT_FREE_SNAPSHOT,
+      error: AUDITS_UPGRADE_NOT_FREE_SNAPSHOT_MESSAGE,
+    };
   }
   if (audit.status !== 'completed') {
-    return { ok: false, status: 400, error: 'Snapshot must be completed before upgrading' };
+    return {
+      ok: false,
+      status: 400,
+      code: API_ERROR_CODES.AUDITS_UPGRADE_NOT_COMPLETED,
+      error: AUDITS_UPGRADE_NOT_COMPLETED_MESSAGE,
+    };
   }
 
   const clientId = audit.client_id as string | null;
   const ownerId = audit.user_id as string;
   const canAct = clientId === actorUserId || ownerId === actorUserId;
   if (!canAct) {
-    return { ok: false, status: 403, error: 'Access denied' };
+    return {
+      ok: false,
+      status: 403,
+      code: API_ERROR_CODES.AUDITS_UPGRADE_ACCESS_DENIED,
+      error: AUDITS_UPGRADE_ACCESS_DENIED_MESSAGE,
+    };
   }
 
   const nextMode: ProductMode = targetMode === 'express' ? 'express' : 'full';
@@ -191,7 +226,12 @@ export async function upgradeFreeSnapshotAudit(params: {
   const { error: delDomains } = await supabase.from('audit_domains').delete().eq('audit_id', auditId);
   if (delDomains) {
     logger.error('upgrade_snapshot.delete_domains_failed', { audit_id: auditId, error: delDomains.message });
-    return { ok: false, status: 500, error: 'Failed to reset audit domains' };
+    return {
+      ok: false,
+      status: 500,
+      code: API_ERROR_CODES.AUDITS_UPGRADE_RESET_DOMAINS_FAILED,
+      error: AUDITS_UPGRADE_RESET_DOMAINS_FAILED_MESSAGE,
+    };
   }
 
   await supabase.from('review_points').delete().eq('audit_id', auditId);
@@ -205,7 +245,12 @@ export async function upgradeFreeSnapshotAudit(params: {
   const { error: insDom } = await supabase.from('audit_domains').insert(domainInserts);
   if (insDom) {
     logger.error('upgrade_snapshot.insert_domains_failed', { audit_id: auditId, error: insDom.message });
-    return { ok: false, status: 500, error: 'Failed to initialize audit domains' };
+    return {
+      ok: false,
+      status: 500,
+      code: API_ERROR_CODES.AUDITS_UPGRADE_INIT_DOMAINS_FAILED,
+      error: AUDITS_UPGRADE_INIT_DOMAINS_FAILED_MESSAGE,
+    };
   }
 
   const reviewInserts = reviewPhases.map(phase => ({
@@ -215,7 +260,12 @@ export async function upgradeFreeSnapshotAudit(params: {
   const { error: insRev } = await supabase.from('review_points').insert(reviewInserts);
   if (insRev) {
     logger.error('upgrade_snapshot.insert_reviews_failed', { audit_id: auditId, error: insRev.message });
-    return { ok: false, status: 500, error: 'Failed to initialize review points' };
+    return {
+      ok: false,
+      status: 500,
+      code: API_ERROR_CODES.AUDITS_UPGRADE_INIT_REVIEWS_FAILED,
+      error: AUDITS_UPGRADE_INIT_REVIEWS_FAILED_MESSAGE,
+    };
   }
 
   if (nextMode === 'full') {
@@ -224,7 +274,12 @@ export async function upgradeFreeSnapshotAudit(params: {
       const { error: sErr } = await supabase.from('audit_strategy').insert({ audit_id: auditId });
       if (sErr) {
         logger.error('upgrade_snapshot.insert_strategy_failed', { audit_id: auditId, error: sErr.message });
-        return { ok: false, status: 500, error: 'Failed to initialize strategy placeholder' };
+        return {
+          ok: false,
+          status: 500,
+          code: API_ERROR_CODES.AUDITS_UPGRADE_INIT_STRATEGY_FAILED,
+          error: AUDITS_UPGRADE_INIT_STRATEGY_FAILED_MESSAGE,
+        };
       }
     }
   }
@@ -302,8 +357,8 @@ export async function upgradeFreeSnapshotAudit(params: {
             snapshot_scrape_limited: true,
             snapshot_scrape_robots_blocked: snapshotAccess.robotsBlocked,
             snapshot_scrape_note: snapshotAccess.robotsBlocked
-              ? 'Free snapshot did not fetch HTML (robots.txt blocks or policy). Pre-fill from pages is minimal — prioritize the client brief.'
-              : 'Free snapshot did not fetch public HTML (timeout, error, or empty response). Pre-fill from pages is minimal — prioritize the client brief.',
+              ? UPGRADE_FREE_SNAPSHOT_COPY_EN.snapshotScrapeNoteRobotsBlocked
+              : UPGRADE_FREE_SNAPSHOT_COPY_EN.snapshotScrapeNoteOther,
           }
         : {}),
       ...(activity.blurb ? { business_activity_summary: activity.blurb } : {}),

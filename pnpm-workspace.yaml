@@ -2,3 +2,4 @@ packages:
   - '.'
   - 'server'
   - 'packages/intake-core'
+  - 'packages/glc-dev-brand-defaults'

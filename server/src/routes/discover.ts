@@ -21,9 +21,42 @@ import { NO_PUBLIC_WEBSITE_URL } from '../config/no-public-website.js';
 import { saveBriefResponses } from '../services/brief-validator.js';
 import { DOMAIN_KEYS, reviewPhasesForMode } from '../types/audit.js';
 import { logger } from '../services/logger.js';
-import { buildPublicDiscoveryUiFragment } from '@glc/intake-core';
-import { includesCrmTool } from '@glc/intake-core';
+import {
+  buildPublicDiscoveryUiFragment,
+  DISCOVERY_BRIEF_PATCH_A5_NO_WEBSITE_YET,
+  DISCOVERY_BRIEF_PATCH_C3_ANALYTICS_NOT_ON_SITE,
+  DISCOVERY_BRIEF_USES_CRM_NO,
+  DISCOVERY_BRIEF_USES_CRM_YES,
+  discoveryCnSite1SelectionsImplyFirstPartyWeb,
+  inferDiscoveryUsesCrm,
+} from '@glc/intake-core';
 import { intakeAnalyticsDiscoveryBatchSchema } from '../schemas/intake-analytics-events.js';
+import {
+  API_ERROR_CODES,
+  DISCOVER_ALREADY_CONVERTED_MESSAGE,
+  DISCOVER_ANALYTICS_ACCEPT_FAILED_MESSAGE,
+  DISCOVER_ANALYTICS_PAYLOAD_INVALID_MESSAGE,
+  DISCOVER_ANALYTICS_STORE_FAILED_MESSAGE,
+  DISCOVER_ANSWERS_REQUIRED_MESSAGE,
+  DISCOVER_CLAIM_CONFLICT_MESSAGE,
+  DISCOVER_CONTACT_EDIT_KEY_INVALID_MESSAGE,
+  DISCOVER_CONTACT_EMPTY_MESSAGE,
+  DISCOVER_CONTACT_FIELDS_REQUIRED_MESSAGE,
+  DISCOVER_CONTACT_NOT_ALLOWED_MESSAGE,
+  DISCOVER_CONTACT_SAVE_FAILED_MESSAGE,
+  DISCOVER_CONVERT_FAILED_MESSAGE,
+  DISCOVER_FINDINGS_REQUIRED_MESSAGE,
+  DISCOVER_FORBIDDEN_OWNER_MESSAGE,
+  DISCOVER_INVALID_TOKEN_MESSAGE,
+  DISCOVER_LINK_CONFLICT_MESSAGE,
+  DISCOVER_LIST_FAILED_MESSAGE,
+  DISCOVER_LOAD_FAILED_MESSAGE,
+  DISCOVER_MATURITY_INVALID_MESSAGE,
+  DISCOVER_SAVE_FAILED_MESSAGE,
+  DISCOVER_SESSION_NOT_FOUND_MESSAGE,
+  DISCOVER_UI_FRAGMENT_FAILED_MESSAGE,
+  apiErrorJson,
+} from '../config/api-error-codes.js';
 
 export const discoverRouter = Router();
 
@@ -67,19 +100,6 @@ function singleRouteParam(v: string | string[] | undefined): string {
 
 type BriefEntry = { value: unknown; source: 'client' | 'unknown' };
 
-const PRESENCE_FULL_SITE = 'Full website (multi-page)';
-const PRESENCE_LANDING = 'Single landing page';
-const PRESENCE_IN_DEV = 'Website in development / not public yet';
-
-function discoveryHasOwnSiteForAnalytics(pres: string[]): boolean {
-  return pres.some(
-    p =>
-      p === PRESENCE_FULL_SITE ||
-      p === PRESENCE_LANDING ||
-      p === PRESENCE_IN_DEV,
-  );
-}
-
 /** Canonical question-bank ids used by public discovery (single source: server UI fragment). */
 const DISCOVERY_BANK_KEYS = buildPublicDiscoveryUiFragment().questions.map(q => q.id);
 
@@ -105,7 +125,7 @@ function discoveryBankIdsToBriefPatch(answers: Record<string, unknown>): Record<
     if (Array.isArray(v) && v.length === 0) continue;
     patch[key] = tag(v);
   }
-  patch.a5 = tag('No website yet');
+  patch.a5 = tag(DISCOVERY_BRIEF_PATCH_A5_NO_WEBSITE_YET);
 
   for (const key of DISCOVERY_BANK_KEYS) {
     const side = `${key}__other`;
@@ -119,19 +139,19 @@ function discoveryBankIdsToBriefPatch(answers: Record<string, unknown>): Record<
   }
 
   const pres = normalizedPresenceFromBank(answers);
-  if (pres.length > 0 && !discoveryHasOwnSiteForAnalytics(pres)) {
-    patch.c3 = tag('No');
+  if (pres.length > 0 && !discoveryCnSite1SelectionsImplyFirstPartyWeb(pres)) {
+    patch.c3 = tag(DISCOVERY_BRIEF_PATCH_C3_ANALYTICS_NOT_ON_SITE);
   }
 
   const d1 = Array.isArray(answers.d1) ? (answers.d1 as string[]) : [];
-  if (includesCrmTool(d1)) {
-    patch.uses_crm = tag('Yes');
-  } else if (typeof answers.d1b === 'string' && answers.d1b.toLowerCase().includes('crm')) {
-    patch.uses_crm = tag('Yes');
-  } else if (d1.length > 0 || typeof answers.d1b === 'string') {
-    patch.uses_crm = tag('No');
+  const crmInference = inferDiscoveryUsesCrm(d1, answers.d1b);
+  if (crmInference === 'yes') {
+    patch.uses_crm = tag(DISCOVERY_BRIEF_USES_CRM_YES);
+  } else if (crmInference === 'no') {
+    patch.uses_crm = tag(DISCOVERY_BRIEF_USES_CRM_NO);
+  } else {
+    patch.uses_crm = unk();
   }
-  if (!patch.uses_crm) patch.uses_crm = unk();
 
   if (!patch.b1) patch.b1 = unk();
   if (!patch.c5) patch.c5 = unk();
@@ -194,16 +214,22 @@ discoverRouter.post('/', discoverSessionCreateLimiter, async (req, res) => {
     };
 
     if (!answers || typeof answers !== 'object' || Array.isArray(answers)) {
-      res.status(400).json({ error: 'answers object is required' });
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.DISCOVER_ANSWERS_REQUIRED, DISCOVER_ANSWERS_REQUIRED_MESSAGE));
       return;
     }
     const ml = Number(maturity_level);
     if (!Number.isInteger(ml) || ml < 1 || ml > 5) {
-      res.status(400).json({ error: 'maturity_level must be an integer 1–5' });
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.DISCOVER_MATURITY_INVALID, DISCOVER_MATURITY_INVALID_MESSAGE));
       return;
     }
     if (!Array.isArray(findings)) {
-      res.status(400).json({ error: 'findings must be an array' });
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.DISCOVER_FINDINGS_REQUIRED, DISCOVER_FINDINGS_REQUIRED_MESSAGE));
       return;
     }
 
@@ -222,7 +248,9 @@ discoverRouter.post('/', discoverSessionCreateLimiter, async (req, res) => {
 
     if (error || !row) {
       logger.error('discover.save_failed', { component: 'discover', error: error?.message });
-      res.status(500).json({ error: 'Failed to save discovery session' });
+      res
+        .status(500)
+        .json(apiErrorJson(API_ERROR_CODES.DISCOVER_SAVE_FAILED, DISCOVER_SAVE_FAILED_MESSAGE));
       return;
     }
 
@@ -233,7 +261,7 @@ discoverRouter.post('/', discoverSessionCreateLimiter, async (req, res) => {
     });
   } catch (err) {
     logger.error('discover.save_exception', { component: 'discover', error: (err as Error).message });
-    res.status(500).json({ error: 'Failed to save discovery session' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.DISCOVER_SAVE_FAILED, DISCOVER_SAVE_FAILED_MESSAGE));
   }
 });
 
@@ -248,7 +276,9 @@ discoverRouter.get('/ui-fragment', discoverPublicReadLimiter, (_req, res) => {
       component: 'discover',
       error: (err as Error).message,
     });
-    res.status(500).json({ error: 'Failed to build discovery UI fragment' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.DISCOVER_UI_FRAGMENT_FAILED, DISCOVER_UI_FRAGMENT_FAILED_MESSAGE));
   }
 });
 
@@ -259,10 +289,13 @@ discoverRouter.post('/analytics-events', discoverAnalyticsPublicLimiter, async (
   try {
     const parsed = intakeAnalyticsDiscoveryBatchSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
-      res.status(400).json({
-        error: 'Invalid analytics payload',
-        details: parsed.error.flatten(),
-      });
+      res.status(400).json(
+        apiErrorJson(
+          API_ERROR_CODES.DISCOVER_ANALYTICS_PAYLOAD_INVALID,
+          DISCOVER_ANALYTICS_PAYLOAD_INVALID_MESSAGE,
+          parsed.error.flatten(),
+        ),
+      );
       return;
     }
     const body = parsed.data;
@@ -293,7 +326,9 @@ discoverRouter.post('/analytics-events', discoverAnalyticsPublicLimiter, async (
         component: 'discover',
         error: error.message,
       });
-      res.status(500).json({ error: 'Failed to store analytics events' });
+      res
+        .status(500)
+        .json(apiErrorJson(API_ERROR_CODES.DISCOVER_ANALYTICS_STORE_FAILED, DISCOVER_ANALYTICS_STORE_FAILED_MESSAGE));
       return;
     }
 
@@ -303,7 +338,9 @@ discoverRouter.post('/analytics-events', discoverAnalyticsPublicLimiter, async (
       component: 'discover',
       error: (err as Error).message,
     });
-    res.status(500).json({ error: 'Failed to accept analytics events' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.DISCOVER_ANALYTICS_ACCEPT_FAILED, DISCOVER_ANALYTICS_ACCEPT_FAILED_MESSAGE));
   }
 });
 
@@ -323,7 +360,9 @@ discoverRouter.get(
 
       if (error) {
         logger.error('discover.list_failed', { component: 'discover', error: error.message });
-        res.status(500).json({ error: 'Failed to list sessions' });
+        res
+          .status(500)
+          .json(apiErrorJson(API_ERROR_CODES.DISCOVER_LIST_FAILED, DISCOVER_LIST_FAILED_MESSAGE));
         return;
       }
 
@@ -357,7 +396,7 @@ discoverRouter.get(
       res.json({ sessions });
     } catch (err) {
       logger.error('discover.list_exception', { component: 'discover', error: (err as Error).message });
-      res.status(500).json({ error: 'Failed to list sessions' });
+      res.status(500).json(apiErrorJson(API_ERROR_CODES.DISCOVER_LIST_FAILED, DISCOVER_LIST_FAILED_MESSAGE));
     }
   },
 );
@@ -368,7 +407,7 @@ discoverRouter.get('/:token', discoverPublicReadLimiter, async (req, res) => {
   try {
     const token = singleRouteParam(req.params.token);
     if (!token || !TOKEN_HEX.test(token)) {
-      res.status(400).json({ error: 'Invalid token' });
+      res.status(400).json(apiErrorJson(API_ERROR_CODES.DISCOVER_INVALID_TOKEN, DISCOVER_INVALID_TOKEN_MESSAGE));
       return;
     }
 
@@ -380,14 +419,16 @@ discoverRouter.get('/:token', discoverPublicReadLimiter, async (req, res) => {
       .single();
 
     if (error || !row) {
-      res.status(404).json({ error: 'Session not found' });
+      res
+        .status(404)
+        .json(apiErrorJson(API_ERROR_CODES.DISCOVER_SESSION_NOT_FOUND, DISCOVER_SESSION_NOT_FOUND_MESSAGE));
       return;
     }
 
     res.json(row);
   } catch (err) {
     logger.error('discover.load_exception', { component: 'discover', error: (err as Error).message });
-    res.status(500).json({ error: 'Failed to load session' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.DISCOVER_LOAD_FAILED, DISCOVER_LOAD_FAILED_MESSAGE));
   }
 });
 
@@ -397,7 +438,7 @@ discoverRouter.patch('/:token/contact', discoverPublicReadLimiter, async (req, r
   try {
     const token = singleRouteParam(req.params.token);
     if (!token || !TOKEN_HEX.test(token)) {
-      res.status(400).json({ error: 'Invalid token' });
+      res.status(400).json(apiErrorJson(API_ERROR_CODES.DISCOVER_INVALID_TOKEN, DISCOVER_INVALID_TOKEN_MESSAGE));
       return;
     }
 
@@ -405,7 +446,14 @@ discoverRouter.patch('/:token/contact', discoverPublicReadLimiter, async (req, r
       ? req.body.contact_edit_key.trim()
       : '';
     if (!CONTACT_EDIT_KEY_HEX.test(contactEditKeyRaw)) {
-      res.status(403).json({ error: 'Invalid or missing contact edit key' });
+      res
+        .status(403)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.DISCOVER_CONTACT_EDIT_KEY_INVALID,
+            DISCOVER_CONTACT_EDIT_KEY_INVALID_MESSAGE,
+          ),
+        );
       return;
     }
 
@@ -424,14 +472,19 @@ discoverRouter.patch('/:token/contact', discoverPublicReadLimiter, async (req, r
     }
 
     if (Object.keys(patch).length === 0) {
-      res.status(400).json({
-        error: 'Provide at least one of contact_name, contact_email, contact_phone, contact_company',
-      });
+      res.status(400).json(
+        apiErrorJson(
+          API_ERROR_CODES.DISCOVER_CONTACT_FIELDS_REQUIRED,
+          DISCOVER_CONTACT_FIELDS_REQUIRED_MESSAGE,
+        ),
+      );
       return;
     }
     const hasValue = Object.values(patch).some(v => v != null && String(v).length > 0);
     if (!hasValue) {
-      res.status(400).json({ error: 'At least one contact field must be non-empty' });
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.DISCOVER_CONTACT_EMPTY, DISCOVER_CONTACT_EMPTY_MESSAGE));
       return;
     }
 
@@ -442,16 +495,26 @@ discoverRouter.patch('/:token/contact', discoverPublicReadLimiter, async (req, r
       .maybeSingle();
     if (loadError) {
       logger.error('discover.contact_load_failed', { component: 'discover', error: loadError.message });
-      res.status(500).json({ error: 'Failed to save contact info' });
+      res
+        .status(500)
+        .json(apiErrorJson(API_ERROR_CODES.DISCOVER_CONTACT_SAVE_FAILED, DISCOVER_CONTACT_SAVE_FAILED_MESSAGE));
       return;
     }
     if (!row || row.audit_id) {
-      res.status(403).json({ error: 'Contact update not allowed for this session' });
+      res
+        .status(403)
+        .json(
+          apiErrorJson(API_ERROR_CODES.DISCOVER_CONTACT_NOT_ALLOWED, DISCOVER_CONTACT_NOT_ALLOWED_MESSAGE),
+        );
       return;
     }
     const keyValid = await verifyContactEditKey(contactEditKeyRaw, String(row.contact_edit_key_hash ?? ''));
     if (!keyValid) {
-      res.status(403).json({ error: 'Contact update not allowed for this session' });
+      res
+        .status(403)
+        .json(
+          apiErrorJson(API_ERROR_CODES.DISCOVER_CONTACT_NOT_ALLOWED, DISCOVER_CONTACT_NOT_ALLOWED_MESSAGE),
+        );
       return;
     }
 
@@ -465,18 +528,26 @@ discoverRouter.patch('/:token/contact', discoverPublicReadLimiter, async (req, r
 
     if (error) {
       logger.error('discover.contact_update_failed', { component: 'discover', error: error.message });
-      res.status(500).json({ error: 'Failed to save contact info' });
+      res
+        .status(500)
+        .json(apiErrorJson(API_ERROR_CODES.DISCOVER_CONTACT_SAVE_FAILED, DISCOVER_CONTACT_SAVE_FAILED_MESSAGE));
       return;
     }
     if (!updated) {
-      res.status(403).json({ error: 'Contact update not allowed for this session' });
+      res
+        .status(403)
+        .json(
+          apiErrorJson(API_ERROR_CODES.DISCOVER_CONTACT_NOT_ALLOWED, DISCOVER_CONTACT_NOT_ALLOWED_MESSAGE),
+        );
       return;
     }
 
     res.json({ ok: true as const });
   } catch (err) {
     logger.error('discover.contact_exception', { component: 'discover', error: (err as Error).message });
-    res.status(500).json({ error: 'Failed to save contact info' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.DISCOVER_CONTACT_SAVE_FAILED, DISCOVER_CONTACT_SAVE_FAILED_MESSAGE));
   }
 });
 
@@ -489,7 +560,9 @@ discoverRouter.post(
     try {
       const token = singleRouteParam(req.params.token);
       if (!token || !TOKEN_HEX.test(token)) {
-        res.status(400).json({ error: 'Invalid token' });
+        res
+          .status(400)
+          .json(apiErrorJson(API_ERROR_CODES.DISCOVER_INVALID_TOKEN, DISCOVER_INVALID_TOKEN_MESSAGE));
         return;
       }
 
@@ -503,6 +576,7 @@ discoverRouter.post(
           p_product_mode: 'full',
           p_review_phases: reviewPhases,
           p_domain_keys: [...DOMAIN_KEYS],
+          p_no_public_website: true,
         },
       );
       if (convertErr) {
@@ -514,7 +588,9 @@ discoverRouter.post(
           hint: (convertErr as { hint?: string }).hint,
           session_token: token,
         });
-        res.status(500).json({ error: 'Failed to convert session' });
+        res
+          .status(500)
+          .json(apiErrorJson(API_ERROR_CODES.DISCOVER_CONVERT_FAILED, DISCOVER_CONVERT_FAILED_MESSAGE));
         return;
       }
       const convertRow = parseDiscoveryConvertRpcRow(convertRows);
@@ -523,31 +599,46 @@ discoverRouter.post(
           component: 'discover',
           session_token: token,
         });
-        res.status(500).json({ error: 'Failed to convert session' });
+        res
+          .status(500)
+          .json(apiErrorJson(API_ERROR_CODES.DISCOVER_CONVERT_FAILED, DISCOVER_CONVERT_FAILED_MESSAGE));
         return;
       }
       if (convertRow.error_code === 'not_found') {
-        res.status(404).json({ error: 'Session not found' });
+        res
+          .status(404)
+          .json(apiErrorJson(API_ERROR_CODES.DISCOVER_SESSION_NOT_FOUND, DISCOVER_SESSION_NOT_FOUND_MESSAGE));
         return;
       }
       if (convertRow.error_code === 'already_converted') {
-        res.status(409).json({ error: 'Session already converted', audit_id: convertRow.audit_id });
+        res.status(409).json({
+          ...apiErrorJson(API_ERROR_CODES.DISCOVER_ALREADY_CONVERTED, DISCOVER_ALREADY_CONVERTED_MESSAGE),
+          audit_id: convertRow.audit_id,
+        });
         return;
       }
       if (convertRow.error_code === 'forbidden_owner') {
-        res.status(403).json({ error: 'Session is assigned to another consultant' });
+        res
+          .status(403)
+          .json(
+            apiErrorJson(API_ERROR_CODES.DISCOVER_FORBIDDEN_OWNER, DISCOVER_FORBIDDEN_OWNER_MESSAGE),
+          );
         return;
       }
       if (convertRow.error_code === 'claim_conflict') {
-        res.status(409).json({ error: 'Session was claimed or converted by another request' });
+        res.status(409).json(
+          apiErrorJson(API_ERROR_CODES.DISCOVER_CLAIM_CONFLICT, DISCOVER_CLAIM_CONFLICT_MESSAGE),
+        );
         return;
       }
       if (convertRow.error_code === 'link_conflict') {
-        res.status(409).json({ error: 'Session conversion conflict. Please retry.' });
+        res.status(409).json(apiErrorJson(API_ERROR_CODES.DISCOVER_LINK_CONFLICT, DISCOVER_LINK_CONFLICT_MESSAGE));
         return;
       }
       if (convertRow.error_code || !convertRow.audit_id) {
-        res.status(500).json({ error: 'Failed to convert session' });
+        res
+          .status(500)
+          .json(apiErrorJson(API_ERROR_CODES.DISCOVER_CONVERT_FAILED, DISCOVER_CONVERT_FAILED_MESSAGE));
         return;
       }
       const auditId = convertRow.audit_id;
@@ -583,7 +674,9 @@ discoverRouter.post(
       res.status(201).json({ audit_id: auditId });
     } catch (err) {
       logger.error('discover.convert_exception', { component: 'discover', error: (err as Error).message });
-      res.status(500).json({ error: 'Failed to convert session' });
+      res
+        .status(500)
+        .json(apiErrorJson(API_ERROR_CODES.DISCOVER_CONVERT_FAILED, DISCOVER_CONVERT_FAILED_MESSAGE));
     }
   },
 );

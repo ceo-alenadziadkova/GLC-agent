@@ -10,17 +10,20 @@ import { type BaseCollector } from '../collectors/base.js';
 import type { DomainResult, DomainKey } from '../types/audit.js';
 import { followupQuestionsFromUnknowns } from '../lib/post-audit-followups.js';
 import { zodToJsonSchema } from '../schemas/domain-output.js';
+import {
+  CLAUDE_CB_THRESHOLD,
+  CLAUDE_CB_TTL_SEC,
+  CLAUDE_MAX_RETRIES,
+  CLAUDE_RETRY_BASE_MS,
+  CLAUDE_RETRY_JITTER_MS,
+  CLAUDE_TIMEOUT_MS,
+  claudeCircuitBreakerRedisKey,
+} from '../config/claude-client.js';
 import { CLAUDE_MODEL, MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import { logger } from '../services/logger.js';
 import { getContext, updateContext } from '../services/observability-context.js';
 import type { z } from 'zod';
 import { createClient } from 'redis';
-
-const MAX_RETRIES = 3;
-const RETRY_BASE_MS = 1500;
-const CLAUDE_TIMEOUT_MS = Number(process.env.CLAUDE_TIMEOUT_MS ?? 90_000);
-const CLAUDE_CB_THRESHOLD = Number(process.env.CLAUDE_CB_THRESHOLD ?? 3);
-const CLAUDE_CB_TTL_SEC = Number(process.env.CLAUDE_CB_TTL_SEC ?? 60);
 
 let localCircuitFailures = 0;
 type ClaudeCircuitRedisClient = ReturnType<typeof createClient>;
@@ -46,7 +49,7 @@ async function getConsecutiveClaudeFailures(): Promise<number> {
   const client = getClaudeCircuitRedisClient();
   if (!client) return localCircuitFailures;
   try {
-    const raw = await client.get('cb:claude:failures');
+    const raw = await client.get(claudeCircuitBreakerRedisKey());
     const parsed = Number(raw ?? 0);
     return Number.isFinite(parsed) ? parsed : 0;
   } catch {
@@ -59,9 +62,10 @@ async function recordClaudeFailure(): Promise<void> {
   const client = getClaudeCircuitRedisClient();
   if (!client) return;
   try {
-    const n = await client.incr('cb:claude:failures');
+    const key = claudeCircuitBreakerRedisKey();
+    const n = await client.incr(key);
     if (n === 1) {
-      await client.expire('cb:claude:failures', CLAUDE_CB_TTL_SEC);
+      await client.expire(key, CLAUDE_CB_TTL_SEC);
     }
   } catch {
     // Best-effort only; local fallback remains active.
@@ -73,7 +77,7 @@ async function resetClaudeFailures(): Promise<void> {
   const client = getClaudeCircuitRedisClient();
   if (!client) return;
   try {
-    await client.del('cb:claude:failures');
+    await client.del(claudeCircuitBreakerRedisKey());
   } catch {
     // Best-effort only.
   }
@@ -153,7 +157,7 @@ export abstract class BaseAgent {
    * Run the full agent pipeline.
    */
   async run(): Promise<DomainResult> {
-    const companyUrl = await this.getCompanyUrl();
+    const { companyUrl, noPublicWebsite } = await this.getAuditWebContext();
 
     // ─── Step 1: Collect data (NO AI) ────────────────────
     await this.emit('collecting', 'Collecting raw data...');
@@ -161,7 +165,7 @@ export abstract class BaseAgent {
 
     for (const collector of this.collectors) {
       try {
-        const result = await collector.run(this.auditId, companyUrl);
+        const result = await collector.run(this.auditId, companyUrl, { noPublicWebsite });
         collectedData[result.collector_key] = result.data;
         await this.emit('log', `✓ Collected: ${result.collector_key}`);
       } catch (err) {
@@ -229,7 +233,7 @@ export abstract class BaseAgent {
     }
     const jsonSchema = zodToJsonSchema(schema);
 
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    for (let attempt = 1; attempt <= CLAUDE_MAX_RETRIES; attempt++) {
       try {
         const consecutiveFailures = await getConsecutiveClaudeFailures();
         if (consecutiveFailures >= CLAUDE_CB_THRESHOLD) {
@@ -281,8 +285,10 @@ export abstract class BaseAgent {
         const parsed = schema.safeParse(toolBlock.input);
         if (!parsed.success) {
           await this.emit('log', `⚠ Validation error (attempt ${attempt}): ${parsed.error.message}`);
-          if (attempt === MAX_RETRIES) {
-            throw new Error(`Response validation failed after ${MAX_RETRIES} attempts: ${parsed.error.message}`);
+          if (attempt === CLAUDE_MAX_RETRIES) {
+            throw new Error(
+              `Response validation failed after ${CLAUDE_MAX_RETRIES} attempts: ${parsed.error.message}`,
+            );
           }
           continue;
         }
@@ -292,12 +298,12 @@ export abstract class BaseAgent {
         const error = err as Error & { status?: number };
 
         // Retry on rate limit or server errors
-        if ((error.status === 429 || error.status === 500 || error.status === 529) && attempt < MAX_RETRIES) {
+        if ((error.status === 429 || error.status === 500 || error.status === 529) && attempt < CLAUDE_MAX_RETRIES) {
           if (error.status === 500 || error.status === 529) {
             await recordClaudeFailure();
           }
-          const jitter = Math.floor(Math.random() * 300);
-          const delay = RETRY_BASE_MS * Math.pow(2, attempt - 1) + jitter;
+          const jitter = Math.floor(Math.random() * CLAUDE_RETRY_JITTER_MS);
+          const delay = CLAUDE_RETRY_BASE_MS * Math.pow(2, attempt - 1) + jitter;
           await this.emit('log', `⚠ API error (${error.status}), retrying in ${delay}ms...`);
           await sleep(delay);
           continue;
@@ -445,10 +451,10 @@ export abstract class BaseAgent {
    * [C2] Throws if the audit row is missing or inaccessible — prevents silent
    * empty-string company URLs from propagating into collectors and Claude prompts.
    */
-  protected async getCompanyUrl(): Promise<string> {
+  protected async getAuditWebContext(): Promise<{ companyUrl: string; noPublicWebsite: boolean }> {
     const { data, error } = await supabase
       .from('audits')
-      .select('company_url')
+      .select('company_url, no_public_website')
       .eq('id', this.auditId)
       .single();
 
@@ -456,7 +462,15 @@ export abstract class BaseAgent {
       throw new Error(`Audit not found or inaccessible: ${this.auditId}`);
     }
 
-    return data.company_url;
+    return {
+      companyUrl: data.company_url as string,
+      noPublicWebsite: data.no_public_website === true,
+    };
+  }
+
+  protected async getCompanyUrl(): Promise<string> {
+    const { companyUrl } = await this.getAuditWebContext();
+    return companyUrl;
   }
 }
 

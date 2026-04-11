@@ -24,9 +24,12 @@ const AUTH_STUB = {
   loading: false,
   isAuthenticated: false,
   authError: null as string | null,
+  passwordRecoveryMode: false,
   signInWithPassword: vi.fn(),
   signUpWithPassword: vi.fn(),
   signInWithGoogle: vi.fn(),
+  requestPasswordReset: vi.fn(),
+  completePasswordRecovery: vi.fn(),
   signOut: vi.fn(),
 };
 

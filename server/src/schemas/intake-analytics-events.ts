@@ -3,6 +3,7 @@
  * Public: POST /api/discover/analytics-events
  * Auth: POST /api/audits/:id/brief/analytics-events
  */
+import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 import { z } from 'zod';
 
 export const INTAKE_ANALYTICS_EVENT_TYPES = [
@@ -30,8 +31,8 @@ const intakeVersionsPartialSchema = z
 export const intakeAnalyticsEventSchema = z
   .object({
     event_type: z.enum(INTAKE_ANALYTICS_EVENT_TYPES),
-    question_id: z.string().min(1).max(64).optional(),
-    step_index: z.number().int().min(0).max(500).optional(),
+    question_id: z.string().min(1).max(REQUEST_FIELD_LIMITS.traceQuestionIdMax).optional(),
+    step_index: z.number().int().min(0).max(REQUEST_FIELD_LIMITS.intakeAnalyticsStepIndexMax).optional(),
     client_ts: z.string().datetime().optional(),
   })
   .strict();

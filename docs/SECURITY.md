@@ -150,35 +150,23 @@ Security intent:
 
 ## Rate Limiting
 
-`middleware/rate-limit.ts` using `express-rate-limit`:
+Implementation: **`server/src/middleware/rate-limit.ts`** (`express-rate-limit`), with **numeric defaults and env names** centralized in **`server/src/config/rate-limits.ts`**.
 
-```typescript
-// General API rate limit
-export const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,     // 1 minute
-  max: 60,                  // 60 requests per minute per IP
-});
-
-// Audit creation limit (to prevent cost abuse)
-export const auditCreationLimiter = rateLimit({
-  windowMs: 24 * 60 * 60 * 1000,  // 24 hours
-  max: 5,                           // 5 audits per day per user
-  keyGenerator: (req) => req.userId ?? req.ip,
-});
-
-// Pipeline start limit
-export const pipelineLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,  // 1 hour
-  max: 10,                    // 10 pipeline starts per hour
-  keyGenerator: (req) => req.userId ?? req.ip,
-});
-```
+| Export (examples) | Role |
+| --- | --- |
+| `generalLimiter` | Authenticated API traffic — default **100** requests per rolling window per user/IP; window length tunable via **`RATE_LIMIT_GENERAL_*`**. |
+| `createAuditLimiter` | New audit creation — default **5** per rolling **24h** per user (`RATE_LIMIT_AUDIT_CREATE_*`). |
+| `pipelineLimiter` | Pipeline start/next — default **30** per rolling hour (`RATE_LIMIT_PIPELINE_*`). |
+| `snapshotPublicLimiter` / `getSnapshotPublicQuota` | Public free snapshot starts — default **3** per rolling **24h** per IP (`RATE_LIMIT_SNAPSHOT_PUBLIC_*`). |
+| Public Discover / intake / marketing split limiters | Per-route hourly caps; env names `PUBLIC_*` (see source). |
 
 Production notes:
 
-- Set `RATE_LIMIT_REDIS_URL` for multi-instance deployments.
-- Set `STRICT_RATE_LIMIT_REDIS=true` to fail fast on startup if Redis is missing.
-- Snapshot quota (`/api/snapshot` + `/api/snapshot/quota`) uses shared Redis counters when available.
+- Set **`RATE_LIMIT_REDIS_URL`** for multi-instance deployments (shared counters).
+- Set **`STRICT_RATE_LIMIT_REDIS=true`** to fail fast on startup if Redis is missing.
+- Snapshot quota (`POST /api/snapshot` + `GET /api/snapshot/quota`) uses the same Redis-backed store when configured.
+
+Full variable list: [DEPLOYMENT.md — Production Environment Variables](./DEPLOYMENT.md#production-environment-variables).
 
 ---
 
@@ -214,9 +202,9 @@ Budget is configurable per audit via `audits.token_budget`.
 
 Backend only reflects browser origins that appear in an explicit allowlist (`getCorsAllowedOrigins` in `server/src/config/cors-origins.ts`): **production** merges `ALLOWED_ORIGINS` (comma-separated) with `FRONTEND_URL`; **development** adds default localhost dev ports. `credentials: true` is set; origins are never `*`.
 
-In production set at least one of:
+In production **`FRONTEND_URL` is required** (API startup fails if unset when `NODE_ENV=production`). Set **`ALLOWED_ORIGINS`** to every browser origin that must call the API with cookies (often the same as `FRONTEND_URL` plus any extra marketing hostnames):
 
-`ALLOWED_ORIGINS=https://www.example.com,https://example.com` and/or `FRONTEND_URL=https://www.example.com`
+`ALLOWED_ORIGINS=https://www.example.com,https://example.com` and `FRONTEND_URL=https://www.example.com` (example)
 
 ---
 

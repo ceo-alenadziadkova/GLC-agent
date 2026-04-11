@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ElementType } from 'react';
 import { motion } from 'motion/react';
 import { Link, useParams } from 'react-router';
 import {
@@ -15,25 +15,33 @@ import { api } from '../data/apiService';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 import { logger } from '../lib/logger';
+import {
+  REPORT_PROFILE_DESCRIPTIONS,
+  REPORT_PROFILE_DOMAINS,
+  REPORT_PROFILE_LABELS,
+  REPORT_PROFILES,
+  type ReportProfile,
+} from '@glc/intake-core';
 
-type ReportProfile = 'full' | 'owner' | 'tech' | 'marketing' | 'onepager';
-
-const PROFILES: Array<{ id: ReportProfile; label: string; icon: React.ElementType; description: string }> = [
-  { id: 'full',      label: 'Full Report',       icon: ChartBar,          description: 'All 6 domains — consulting team' },
-  { id: 'owner',     label: 'Owner Summary',      icon: User,              description: 'Exec summary + roadmap + costs' },
-  { id: 'tech',      label: 'Technical',          icon: Code,              description: 'Tech & Security deep-dive' },
-  { id: 'marketing', label: 'Marketing & Growth', icon: Megaphone,         description: 'SEO, UX, Marketing analysis' },
-  { id: 'onepager',  label: 'One-Pager',          icon: Article,           description: 'Summary + top findings, 1 page' },
-];
-
-// Mirrors server/src/services/report-profiler.ts PROFILE_DOMAINS
-const PROFILE_DOMAIN_FILTER: Record<ReportProfile, string[] | 'all'> = {
-  full:      'all',
-  owner:     'all',
-  tech:      ['tech_infrastructure', 'security_compliance'],
-  marketing: ['seo_digital', 'ux_conversion', 'marketing_utp'],
-  onepager:  'all',
+const PROFILE_ICONS: Record<ReportProfile, ElementType> = {
+  full: ChartBar,
+  owner: User,
+  tech: Code,
+  marketing: Megaphone,
+  onepager: Article,
 };
+
+const PROFILES: Array<{ id: ReportProfile; label: string; icon: ElementType; description: string }> =
+  REPORT_PROFILES.map(id => ({
+    id,
+    label: REPORT_PROFILE_LABELS[id],
+    icon: PROFILE_ICONS[id],
+    description: REPORT_PROFILE_DESCRIPTIONS[id],
+  }));
+
+const PROFILE_DOMAIN_FILTER: Record<ReportProfile, string[] | 'all'> = REPORT_PROFILE_DOMAINS;
+
+const EASE_GLC = [0.16, 1, 0.3, 1] as const;
 
 // Max items to show per section per profile
 const PROFILE_MAX_ITEMS: Record<ReportProfile, number> = {
@@ -50,7 +58,7 @@ const listVariants = {
 };
 const itemVariants = {
   hidden:  { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: EASE_GLC } },
 };
 
 export function ReportViewer() {
@@ -109,7 +117,9 @@ export function ReportViewer() {
   }
 
   const companyName =
-    audit.meta.company_name || formatAuditWebsiteDisplay(audit.meta.company_url) || audit.meta.company_url;
+    audit.meta.company_name ||
+    formatAuditWebsiteDisplay(audit.meta.company_url, audit.meta.no_public_website) ||
+    audit.meta.company_url;
   const allDomains = DOMAIN_KEYS.map(key => ({
     key,
     label: DOMAIN_LABELS[key],
@@ -220,7 +230,7 @@ export function ReportViewer() {
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.38, ease: EASE_GLC }}
           className="relative overflow-hidden"
           style={{
             background: 'var(--gradient-ink-rich)',
@@ -235,7 +245,7 @@ export function ReportViewer() {
 
           <div className="relative flex items-start justify-between gap-6">
             <div className="flex-1 min-w-0">
-              <SectionLabel className="opacity-50" style={{ color: 'var(--primary-foreground)' } as React.CSSProperties}>
+              <SectionLabel className="opacity-50 [color:var(--primary-foreground)]">
                 Executive Summary
               </SectionLabel>
 
@@ -307,7 +317,7 @@ export function ReportViewer() {
                   strokeDasharray={2 * Math.PI * 28}
                   initial={{ strokeDashoffset: 2 * Math.PI * 28 }}
                   animate={{ strokeDashoffset: 2 * Math.PI * 28 * (1 - avg / 5) }}
-                  transition={{ duration: 1, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                  transition={{ duration: 1, delay: 0.3, ease: EASE_GLC }}
                   transform="rotate(-90 36 36)"
                   style={{ filter: 'drop-shadow(0 0 8px rgba(28,189,255,0.6))' }}
                 />
@@ -403,7 +413,7 @@ export function ReportViewer() {
               key={title}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ delay: 0.2, duration: 0.32, ease: EASE_GLC }}
               className="p-5"
               style={{
                 backgroundColor: bg,
@@ -451,7 +461,7 @@ export function ReportViewer() {
                   key={qw.id || i}
                   initial={{ opacity: 0, x: -6 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.07 + 0.15, duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                  transition={{ delay: i * 0.07 + 0.15, duration: 0.28, ease: EASE_GLC }}
                   className="flex items-center gap-4 px-5 py-3.5"
                 >
                   <span

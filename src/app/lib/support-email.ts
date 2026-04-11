@@ -1,8 +1,9 @@
+import { GLC_DEV_SUPPORT_EMAIL } from '@glc/dev-brand-defaults';
+
 /**
  * Public support contact for marketing UI and error copy.
  * Production builds require VITE_SUPPORT_EMAIL (no default brand email in prod).
  */
-import { GLC_DEV_SUPPORT_EMAIL } from '@glc/dev-brand-defaults';
 
 function trimEnv(v: unknown): string {
   return typeof v === 'string' ? v.trim() : '';

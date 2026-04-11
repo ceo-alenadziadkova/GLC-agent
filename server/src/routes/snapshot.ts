@@ -22,6 +22,8 @@ import {
   snapshotCompareLimiter,
   snapshotPublicLimiter,
 } from '../middleware/rate-limit.js';
+import { ensureHttpsUrl } from '@glc/intake-core';
+import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import type { CrawledPage, FreeSnapshotPreview, SnapshotScanCoverageApi } from '../types/audit.js';
 import { maybeBuildCompetitorMini } from '../lib/snapshot-competitor.js';
@@ -43,10 +45,44 @@ import { getSnapshotSharedMetricsForOperator } from '../snapshot/snapshot-operat
 import { deleteSnapshotDomainCache } from '../snapshot/cache.js';
 import { computePublicSnapshotAccessFlags } from '../snapshot/snapshot-access-state.js';
 import { normalizeScanCoverageFromStoredJson } from '../snapshot/scan-coverage-from-stored-json.js';
+import {
+  getFreeSnapshotTokenBudget,
+  getGuestFunnelRetentionMs,
+  SNAPSHOT_COMPETITOR_TIMEOUT_MS,
+  SNAPSHOT_GUEST_HEADER_MAX_LEN,
+  SNAPSHOT_TOKEN_TTL_HOURS,
+  SNAPSHOT_UX_SUMMARY_MAX_CHARS,
+} from '../config/snapshot-public.js';
+import {
+  API_ERROR_CODES,
+  SNAPSHOT_CLAIM_CONFLICT_MESSAGE,
+  SNAPSHOT_CLAIM_FAILED_MESSAGE,
+  SNAPSHOT_COMPANY_URL_REQUIRED_MESSAGE,
+  SNAPSHOT_CREATE_FAILED_MESSAGE,
+  SNAPSHOT_DOMAIN_FRESH_COOLDOWN_MESSAGE,
+  SNAPSHOT_FETCH_FAILED_MESSAGE,
+  SNAPSHOT_HOST_REQUIRED_MESSAGE,
+  SNAPSHOT_INIT_ROLLBACK_MESSAGE,
+  SNAPSHOT_INVALID_TOKEN_MESSAGE,
+  SNAPSHOT_METRICS_FAILED_MESSAGE,
+  SNAPSHOT_NOT_FOUND_MESSAGE,
+  SNAPSHOT_PURGE_FAILED_MESSAGE,
+  SNAPSHOT_QUOTA_READ_FAILED_MESSAGE,
+  SNAPSHOT_RESOURCE_NOT_FOUND_MESSAGE,
+  SNAPSHOT_START_FAILED_MESSAGE,
+  SNAPSHOT_TOKEN_EXPIRED_MESSAGE,
+  SNAPSHOT_TOKEN_REQUIRED_MESSAGE,
+  apiErrorJson,
+  snapshotCompanyUrlNotAllowedMessage,
+} from '../config/api-error-codes.js';
+import {
+  SNAPSHOT_CLAIMED_NOTIFICATION_MESSAGE_EN,
+  SNAPSHOT_CLAIMED_NOTIFICATION_TITLE_EN,
+  snapshotClaimedInAppRoute,
+} from '../config/snapshot-notification-copy.en.js';
 
 export const snapshotRouter = Router();
-const SNAPSHOT_TTL_HOURS = Number(process.env.SNAPSHOT_TOKEN_TTL_HOURS ?? 72);
-const GUEST_FUNNEL_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+
 const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** Best-effort funnel row for public snapshot (cookie-bound guest). */
@@ -59,10 +95,12 @@ async function upsertSnapshotGuestSessionRow(params: {
 }): Promise<void> {
   const ipHash = hashSnapshotGuestIp(params.req);
   const uaRaw = params.req.headers['user-agent'];
-  const ua = typeof uaRaw === 'string' ? uaRaw.slice(0, 2000) : null;
+  const ua =
+    typeof uaRaw === 'string' ? uaRaw.slice(0, SNAPSHOT_GUEST_HEADER_MAX_LEN) : null;
   const refRaw = params.req.headers.referer;
-  const referrer = typeof refRaw === 'string' ? refRaw.slice(0, 2000) : null;
-  const expiresAt = new Date(Date.now() + GUEST_FUNNEL_RETENTION_MS).toISOString();
+  const referrer =
+    typeof refRaw === 'string' ? refRaw.slice(0, SNAPSHOT_GUEST_HEADER_MAX_LEN) : null;
+  const expiresAt = new Date(Date.now() + getGuestFunnelRetentionMs()).toISOString();
 
   const { error } = await supabase.from('snapshot_guest_sessions').upsert(
     {
@@ -234,7 +272,9 @@ snapshotRouter.get('/quota', async (req, res) => {
   } catch (err) {
     const e = err as Error;
     logger.error('snapshot.quota_failed', { component: 'snapshot', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to read quota' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_QUOTA_READ_FAILED, SNAPSHOT_QUOTA_READ_FAILED_MESSAGE));
   }
 });
 
@@ -245,7 +285,9 @@ snapshotRouter.post('/claim', requireAuth, async (req: AuthRequest, res) => {
     const raw = body?.snapshot_token;
     const snapshotToken = typeof raw === 'string' ? raw.trim() : '';
     if (!snapshotToken || !UUID_V4_RE.test(snapshotToken)) {
-      res.status(400).json({ error: 'snapshot_token is required' });
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_TOKEN_REQUIRED, SNAPSHOT_TOKEN_REQUIRED_MESSAGE));
       return;
     }
 
@@ -257,18 +299,22 @@ snapshotRouter.post('/claim', requireAuth, async (req: AuthRequest, res) => {
       .single();
 
     if (auditErr || !audit) {
-      res.status(404).json({ error: 'Snapshot not found' });
+      res.status(404).json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_NOT_FOUND, SNAPSHOT_NOT_FOUND_MESSAGE));
       return;
     }
 
     const createdAt = new Date(audit.created_at as string).getTime();
     if (!Number.isFinite(createdAt)) {
-      res.status(410).json({ error: 'Snapshot token expired' });
+      res
+        .status(410)
+        .json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_TOKEN_EXPIRED, SNAPSHOT_TOKEN_EXPIRED_MESSAGE));
       return;
     }
     const ageHours = (Date.now() - createdAt) / (1000 * 60 * 60);
-    if (ageHours > SNAPSHOT_TTL_HOURS) {
-      res.status(410).json({ error: 'Snapshot token expired' });
+    if (ageHours > SNAPSHOT_TOKEN_TTL_HOURS) {
+      res
+        .status(410)
+        .json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_TOKEN_EXPIRED, SNAPSHOT_TOKEN_EXPIRED_MESSAGE));
       return;
     }
 
@@ -297,10 +343,9 @@ snapshotRouter.post('/claim', requireAuth, async (req: AuthRequest, res) => {
         component: 'snapshot',
         audit_id: audit.id,
       });
-      res.status(409).json({
-        error: 'This snapshot cannot be saved to your account.',
-        code: 'SNAPSHOT_CLAIM_CONFLICT',
-      });
+      res
+        .status(409)
+        .json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_CLAIM_CONFLICT, SNAPSHOT_CLAIM_CONFLICT_MESSAGE));
       return;
     }
 
@@ -328,10 +373,9 @@ snapshotRouter.post('/claim', requireAuth, async (req: AuthRequest, res) => {
         return;
       }
       logger.info('snapshot.claim_conflict', { component: 'snapshot', audit_id: audit.id });
-      res.status(409).json({
-        error: 'This snapshot cannot be saved to your account.',
-        code: 'SNAPSHOT_CLAIM_CONFLICT',
-      });
+      res
+        .status(409)
+        .json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_CLAIM_CONFLICT, SNAPSHOT_CLAIM_CONFLICT_MESSAGE));
       return;
     }
 
@@ -356,9 +400,9 @@ snapshotRouter.post('/claim', requireAuth, async (req: AuthRequest, res) => {
       priority: 'low',
       audience: 'consultants',
       auditId: updated.id as string,
-      title: 'Snapshot claimed',
-      message: 'A public snapshot was linked to a registered account.',
-      route: `/audit/${updated.id as string}?brief=1`,
+      title: SNAPSHOT_CLAIMED_NOTIFICATION_TITLE_EN,
+      message: SNAPSHOT_CLAIMED_NOTIFICATION_MESSAGE_EN,
+      route: snapshotClaimedInAppRoute(updated.id as string),
       payload: {
         audit_id: updated.id,
         claimed_by_user_id: userId,
@@ -374,7 +418,7 @@ snapshotRouter.post('/claim', requireAuth, async (req: AuthRequest, res) => {
   } catch (err) {
     const e = err as Error;
     logger.error('snapshot.claim_exception', { component: 'snapshot', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to claim snapshot' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_CLAIM_FAILED, SNAPSHOT_CLAIM_FAILED_MESSAGE));
   }
 });
 
@@ -384,27 +428,29 @@ snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
     const { company_url } = req.body;
 
     if (!company_url || typeof company_url !== 'string') {
-      res.status(400).json({ error: 'company_url is required' });
+      res
+        .status(400)
+        .json(
+          apiErrorJson(API_ERROR_CODES.SNAPSHOT_COMPANY_URL_REQUIRED, SNAPSHOT_COMPANY_URL_REQUIRED_MESSAGE),
+        );
       return;
     }
 
     const guestToken = getOrIssueSnapshotGuestToken(req, res);
     const utm = extractUtmFromBody(req.body);
 
-    // Normalize URL
-    let url = company_url.trim();
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = `https://${url}`;
-    }
+    let url = ensureHttpsUrl(company_url);
 
     try {
       url = await validatePublicAuditUrl(url);
     } catch (e) {
       if (e instanceof PublicUrlNotAllowedError) {
-        res.status(400).json({
-          error: `company_url is not allowed: ${e.message}`,
-          code: 'INVALID_COMPANY_URL',
-        });
+        res.status(400).json(
+          apiErrorJson(
+            API_ERROR_CODES.SNAPSHOT_INVALID_COMPANY_URL,
+            snapshotCompanyUrlNotAllowedMessage(e.message),
+          ),
+        );
         return;
       }
       throw e;
@@ -415,12 +461,12 @@ snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
       const cacheHit = await readSnapshotCache(snapHost);
       if (!cacheHit && (await isSnapshotDomainFreshCooldownActiveAsync(snapHost))) {
         const retrySec = await getSnapshotDomainFreshCooldownRetryAfterSecondsAsync(snapHost);
-        res.status(429).json({
-          error:
-            'This website was just scanned from our free tool. Please wait a few minutes before starting another fresh check for the same site.',
-          code: 'DOMAIN_FRESH_COOLDOWN',
-          retry_after_seconds: retrySec > 0 ? retrySec : undefined,
-        });
+        const body = apiErrorJson(
+          API_ERROR_CODES.SNAPSHOT_DOMAIN_FRESH_COOLDOWN,
+          SNAPSHOT_DOMAIN_FRESH_COOLDOWN_MESSAGE,
+        );
+        if (retrySec > 0) body.retry_after_seconds = retrySec;
+        res.status(429).json(body);
         return;
       }
     }
@@ -429,7 +475,7 @@ snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
 
     const resolved = await resolveSelfServeAuditOwnerUserId();
     if (!resolved.ok) {
-      res.status(resolved.statusCode).json({ error: resolved.error, code: resolved.code });
+      res.status(resolved.statusCode).json(apiErrorJson(resolved.code, resolved.error));
       return;
     }
     const ownerUserId = resolved.userId;
@@ -441,7 +487,7 @@ snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
         company_url: url,
         product_mode: 'free_snapshot',
         snapshot_token: snapshotToken,
-        token_budget: 80000,
+        token_budget: getFreeSnapshotTokenBudget(),
         user_id: ownerUserId,
         client_id: clientId,
       })
@@ -457,7 +503,9 @@ snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
         details: pe?.details,
         hint: pe?.hint,
       });
-      res.status(500).json({ error: 'Failed to create snapshot' });
+      res
+        .status(500)
+        .json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_CREATE_FAILED, SNAPSHOT_CREATE_FAILED_MESSAGE));
       return;
     }
 
@@ -518,7 +566,9 @@ snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
         audit_id: auditId,
         init_errors: initErrors,
       });
-      res.status(500).json({ error: 'Failed to initialize snapshot — rolled back' });
+      res
+        .status(500)
+        .json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_INIT_ROLLBACK, SNAPSHOT_INIT_ROLLBACK_MESSAGE));
       return;
     }
 
@@ -557,14 +607,18 @@ snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
   } catch (err) {
     const e = err as Error;
     logger.error('snapshot.post_exception', { component: 'snapshot', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to start snapshot' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_START_FAILED, SNAPSHOT_START_FAILED_MESSAGE));
   }
 });
 
 // ─── Operator-only (404 when SNAPSHOT_OPERATOR_TOKEN unset; auth via Bearer or X-Snapshot-Operator-Token) ─
 snapshotRouter.get('/operator/metrics', async (req, res) => {
   if (!snapshotOperatorAuthorized(req)) {
-    res.status(404).json({ error: 'Not found' });
+    res
+      .status(404)
+      .json(
+        apiErrorJson(API_ERROR_CODES.SNAPSHOT_RESOURCE_NOT_FOUND, SNAPSHOT_RESOURCE_NOT_FOUND_MESSAGE),
+      );
     return;
   }
   try {
@@ -573,18 +627,24 @@ snapshotRouter.get('/operator/metrics', async (req, res) => {
   } catch (err) {
     const e = err as Error;
     logger.error('snapshot.operator_metrics_failed', { component: 'snapshot', error: e.message });
-    res.status(500).json({ error: 'Metrics failed' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_METRICS_FAILED, SNAPSHOT_METRICS_FAILED_MESSAGE));
   }
 });
 
 snapshotRouter.post('/operator/purge-cache', async (req, res) => {
   if (!snapshotOperatorAuthorized(req)) {
-    res.status(404).json({ error: 'Not found' });
+    res
+      .status(404)
+      .json(
+        apiErrorJson(API_ERROR_CODES.SNAPSHOT_RESOURCE_NOT_FOUND, SNAPSHOT_RESOURCE_NOT_FOUND_MESSAGE),
+      );
     return;
   }
   const host = typeof req.body?.host === 'string' ? req.body.host.trim() : '';
   if (!host) {
-    res.status(400).json({ error: 'host is required' });
+    res.status(400).json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_HOST_REQUIRED, SNAPSHOT_HOST_REQUIRED_MESSAGE));
     return;
   }
   try {
@@ -593,7 +653,7 @@ snapshotRouter.post('/operator/purge-cache', async (req, res) => {
   } catch (err) {
     const e = err as Error;
     logger.error('snapshot.operator_purge_failed', { component: 'snapshot', error: e.message });
-    res.status(500).json({ error: 'Purge failed' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_PURGE_FAILED, SNAPSHOT_PURGE_FAILED_MESSAGE));
   }
 });
 
@@ -604,7 +664,9 @@ snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
     const token = typeof rawTok === 'string' ? rawTok : rawTok?.[0] ?? '';
 
     if (!token || !UUID_V4_RE.test(token)) {
-      res.status(400).json({ error: 'Invalid snapshot token' });
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_INVALID_TOKEN, SNAPSHOT_INVALID_TOKEN_MESSAGE));
       return;
     }
 
@@ -617,7 +679,7 @@ snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
       .single();
 
     if (auditErr || !audit) {
-      res.status(404).json({ error: 'Snapshot not found' });
+      res.status(404).json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_NOT_FOUND, SNAPSHOT_NOT_FOUND_MESSAGE));
       return;
     }
 
@@ -629,18 +691,22 @@ snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
         .update({ snapshot_token: null })
         .eq('id', audit.id)
         .eq('product_mode', 'free_snapshot');
-      res.status(410).json({ error: 'Snapshot token expired' });
+      res
+        .status(410)
+        .json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_TOKEN_EXPIRED, SNAPSHOT_TOKEN_EXPIRED_MESSAGE));
       return;
     }
     const ageHours = (Date.now() - createdAt) / (1000 * 60 * 60);
-    if (ageHours > SNAPSHOT_TTL_HOURS) {
+    if (ageHours > SNAPSHOT_TOKEN_TTL_HOURS) {
       // Best-effort token invalidation so leaked URLs stop working permanently.
       await supabase
         .from('audits')
         .update({ snapshot_token: null })
         .eq('id', audit.id)
         .eq('product_mode', 'free_snapshot');
-      res.status(410).json({ error: 'Snapshot token expired' });
+      res
+        .status(410)
+        .json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_TOKEN_EXPIRED, SNAPSHOT_TOKEN_EXPIRED_MESSAGE));
       return;
     }
 
@@ -716,8 +782,11 @@ snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
       ux_score: (uxDomain.score as number | null) ?? null,
       ux_label: (uxDomain.label as string | null) ?? null,
       ux_summary: (uxDomain.summary as string | null) ?? null,
-      issues: ((uxDomain.issues as unknown[]) ?? []).slice(0, 2) as FreeSnapshotPreview['issues'],
-      quick_wins: ((uxDomain.quick_wins as unknown[]) ?? []).slice(0, 2) as FreeSnapshotPreview['quick_wins'],
+      issues: ((uxDomain.issues as unknown[]) ?? []).slice(0, REQUEST_FIELD_LIMITS.freeSnapshotPreviewItemsMax) as FreeSnapshotPreview['issues'],
+      quick_wins: ((uxDomain.quick_wins as unknown[]) ?? []).slice(
+        0,
+        REQUEST_FIELD_LIMITS.freeSnapshotPreviewItemsMax,
+      ) as FreeSnapshotPreview['quick_wins'],
     };
 
     applyDeterministicRecordToPreview(preview, det);
@@ -767,7 +836,8 @@ snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
       preview.ux_label = uxLegacyLabel(preview.ux_score);
       if (!preview.ux_summary && typeof preview.scan_basis === 'string' && preview.scan_basis.length > 0) {
         const s = preview.scan_basis;
-        preview.ux_summary = `${s.slice(0, 280)}${s.length > 280 ? '…' : ''}`;
+        const uxm = SNAPSHOT_UX_SUMMARY_MAX_CHARS;
+        preview.ux_summary = `${s.slice(0, uxm)}${s.length > uxm ? '…' : ''}`;
       }
     }
 
@@ -777,7 +847,7 @@ snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
       req.query.include_competitor === '1';
     if (wantCompetitor) {
       const competitorSettled = await Promise.allSettled([
-        maybeBuildCompetitorMini(companyUrl, pagesCrawled, 3000),
+        maybeBuildCompetitorMini(companyUrl, pagesCrawled, SNAPSHOT_COMPETITOR_TIMEOUT_MS),
       ]);
       if (competitorSettled[0].status === 'fulfilled' && competitorSettled[0].value) {
         preview.competitor_mini = competitorSettled[0].value;
@@ -799,6 +869,8 @@ snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
   } catch (err) {
     const e = err as Error;
     logger.error('snapshot.get_exception', { component: 'snapshot', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to fetch snapshot' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_FETCH_FAILED, SNAPSHOT_FETCH_FAILED_MESSAGE));
   }
 });

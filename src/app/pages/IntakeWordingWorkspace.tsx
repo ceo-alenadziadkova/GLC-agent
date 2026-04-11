@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { NotePencil } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import type { IntakeBriefCollectionMode, ProductMode } from '../data/auditTypes';
 import { bankIdToBriefQuestion } from '../data/bankQuestionUiCatalog';
-import { buildIntakePlan } from '@glc/intake-core';
+import { buildIntakePlan, INTAKE_TRACE_PUBLICATION_LOG_DEFAULT_LIMIT } from '@glc/intake-core';
+import { apiIntakeTracePublicationLog } from '../config/api-paths';
 import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import type { IntakePlan, IntakeSurface } from '@glc/intake-core';
 import { useIntakeWordingDrafts } from '../hooks/useIntakeWordingDrafts';
@@ -18,6 +19,23 @@ import {
   trackIntakeWordingRollback,
 } from '../lib/intake-trace-tool-telemetry';
 import { apiFetch } from '../data/api-http';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog';
 
 const PRODUCT_OPTIONS: { value: ProductMode; label: string }[] = [
   { value: 'full', label: 'full' },
@@ -74,10 +92,14 @@ export function IntakeWordingWorkspace() {
   const [draftText, setDraftText] = useState('');
   const [syncStatus, setSyncStatus] = useState<'idle' | 'ok' | 'error'>('idle');
   const [publicationLog, setPublicationLog] = useState<PublicationLogEntry[]>([]);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importJsonText, setImportJsonText] = useState('');
+  const [importParseError, setImportParseError] = useState<string | null>(null);
 
   const refreshPublicationLog = useCallback(() => {
     return apiFetch<{ ok: true; entries: PublicationLogEntry[] }>(
-      '/api/intake-trace-tool/wording-publication-log?limit=40',
+      apiIntakeTracePublicationLog(INTAKE_TRACE_PUBLICATION_LOG_DEFAULT_LIMIT),
     )
       .then(r => setPublicationLog(r.entries))
       .catch(() => undefined);
@@ -112,7 +134,7 @@ export function IntakeWordingWorkspace() {
     }
   }, [responsesText, productMode, collectionMode, surface]);
 
-  const displayError = trace.ok ? null : trace.message;
+  const displayError = trace.ok === false ? trace.message : null;
 
   const resolveLabel = (id: string): string => {
     const draft = wordingDrafts[id]?.trim();
@@ -182,12 +204,35 @@ export function IntakeWordingWorkspace() {
     setResponsesText(preset.responsesText);
   };
 
+  const applyImportedWordingJson = () => {
+    const raw = importJsonText.trim();
+    if (!raw) return;
+    setImportParseError(null);
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const next: Record<string, string> = {};
+        for (const [k, v] of Object.entries(parsed)) {
+          if (typeof v === 'string') next[k] = v;
+        }
+        setWordingDrafts(next);
+        setImportDialogOpen(false);
+        setImportJsonText('');
+      } else {
+        setImportParseError('JSON must be an object mapping question ids to string wording.');
+      }
+    } catch {
+      setImportParseError('Invalid JSON. Fix the payload and try again.');
+    }
+  };
+
   return (
     <AppShell
       title="Intake wording workspace"
       subtitle="Drafts, optional publish snapshot, and rollback — branch logic unchanged"
       actions={<NotePencil className="w-6 h-6 text-[var(--glc-muted)]" aria-hidden />}
     >
+      <Fragment>
       <div className="glc-page-content max-w-5xl mx-auto space-y-4">
         <p className="text-sm text-[var(--glc-muted)]">
           Edit draft question wording per bank id. Open{' '}
@@ -366,7 +411,9 @@ export function IntakeWordingWorkspace() {
                           trackIntakeWordingPublished({ route: ROUTE, count: n });
                           setSyncStatus(n > 0 ? 'ok' : 'error');
                           if (n === 0) {
-                            window.alert('Nothing published. Sync this draft to the server first, or ensure draft text is non-empty on the server.');
+                            setInfoMessage(
+                              'Nothing published. Sync this draft to the server first, or ensure draft text is non-empty on the server.',
+                            );
                           }
                         })
                         .then(() => {
@@ -388,7 +435,7 @@ export function IntakeWordingWorkspace() {
                           setDraftText(res.drafts[selectedDraftId] ?? '');
                           setSyncStatus(n > 0 ? 'ok' : 'error');
                           if (n === 0) {
-                            window.alert('No rollback: no published snapshot for this id.');
+                            setInfoMessage('No rollback: no published snapshot for this id.');
                           }
                         })
                         .then(() => {
@@ -405,7 +452,7 @@ export function IntakeWordingWorkspace() {
                     onClick={() => {
                       const ids = allPlanIds.filter(id => (wordingDrafts[id] ?? '').trim().length > 0);
                       if (ids.length === 0) {
-                        window.alert('No drafts in the current plan to publish.');
+                        setInfoMessage('No drafts in the current plan to publish.');
                         return;
                       }
                       void publishWording(ids)
@@ -414,7 +461,7 @@ export function IntakeWordingWorkspace() {
                           trackIntakeWordingPublished({ route: ROUTE, count: n });
                           setSyncStatus('ok');
                           if (n < ids.length) {
-                            window.alert(
+                            setInfoMessage(
                               `Published ${n} of ${ids.length}. Missing rows or empty server drafts were skipped; use Sync to server for each id first.`,
                             );
                           }
@@ -441,20 +488,9 @@ export function IntakeWordingWorkspace() {
                     type="button"
                     className="glc-btn-secondary text-xs px-2 py-1"
                     onClick={() => {
-                      const raw = window.prompt('Paste wording draft JSON');
-                      if (!raw) return;
-                      try {
-                        const parsed = JSON.parse(raw) as Record<string, unknown>;
-                        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-                          const next: Record<string, string> = {};
-                          for (const [k, v] of Object.entries(parsed)) {
-                            if (typeof v === 'string') next[k] = v;
-                          }
-                          setWordingDrafts(next);
-                        }
-                      } catch {
-                        // no-op
-                      }
+                      setImportJsonText('');
+                      setImportParseError(null);
+                      setImportDialogOpen(true);
                     }}
                   >
                     Import JSON
@@ -506,6 +542,72 @@ export function IntakeWordingWorkspace() {
           </details>
         )}
       </div>
+
+      <AlertDialog
+        open={infoMessage !== null}
+        onOpenChange={open => {
+          if (!open) setInfoMessage(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Notice</AlertDialogTitle>
+            <AlertDialogDescription className="whitespace-pre-wrap">
+              {infoMessage ?? ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction type="button" onClick={() => setInfoMessage(null)}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog
+        open={importDialogOpen}
+        onOpenChange={open => {
+          setImportDialogOpen(open);
+          if (!open) setImportParseError(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Import wording draft JSON</DialogTitle>
+            <DialogDescription>
+              Paste a JSON object mapping question bank ids to draft strings.
+            </DialogDescription>
+          </DialogHeader>
+          {importParseError && (
+            <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+              {importParseError}
+            </p>
+          )}
+          <textarea
+            className="glc-input min-h-[160px] w-full text-xs font-mono"
+            value={importJsonText}
+            onChange={e => setImportJsonText(e.target.value)}
+            placeholder='{ "q_id_1": "Wording...", ... }'
+            aria-label="Wording draft JSON"
+          />
+          <DialogFooter className="gap-2 sm:gap-0">
+            <button
+              type="button"
+              className="glc-btn-secondary"
+              onClick={() => {
+                setImportDialogOpen(false);
+                setImportJsonText('');
+              }}
+            >
+              Cancel
+            </button>
+            <button type="button" className="glc-btn-primary" onClick={applyImportedWordingJson}>
+              Import
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      </Fragment>
     </AppShell>
   );
 }

@@ -4,11 +4,29 @@
  */
 import { createHash, randomBytes } from 'crypto';
 import type { Request, Response } from 'express';
+import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 
-export const SNAPSHOT_GUEST_COOKIE_NAME = 'glc_snapshot_guest';
+const DEFAULT_SNAPSHOT_GUEST_COOKIE_NAME = 'glc_snapshot_guest';
+
+/** Override with `SNAPSHOT_GUEST_COOKIE_NAME` for multi-product on one registrable domain. */
+export const SNAPSHOT_GUEST_COOKIE_NAME =
+  process.env.SNAPSHOT_GUEST_COOKIE_NAME?.trim() || DEFAULT_SNAPSHOT_GUEST_COOKIE_NAME;
+
 const GUEST_TOKEN_BYTES = 32;
-/** Browser cookie lifetime aligns with funnel retention (90 days). */
-export const GUEST_SESSION_MAX_AGE_SEC = 90 * 24 * 60 * 60;
+
+function readGuestSessionMaxAgeSec(): number {
+  const raw = process.env.SNAPSHOT_GUEST_SESSION_MAX_AGE_SEC?.trim();
+  if (!raw) return 90 * 24 * 60 * 60;
+  const n = Number(raw);
+  const maxCap = 365 * 24 * 60 * 60;
+  if (Number.isFinite(n) && n > 0 && n <= maxCap) {
+    return Math.floor(n);
+  }
+  return 90 * 24 * 60 * 60;
+}
+
+/** Browser cookie lifetime; default 90 days. Cap 365 days. */
+export const GUEST_SESSION_MAX_AGE_SEC = readGuestSessionMaxAgeSec();
 
 const DEV_FALLBACK_IP_SALT = 'dev-only-snapshot-guest-ip-salt';
 
@@ -112,7 +130,9 @@ export function extractUtmFromBody(body: unknown): {
   }
   const s = (k: string): string | null => {
     const v = b[k];
-    return typeof v === 'string' && v.trim().length > 0 ? v.trim().slice(0, 512) : null;
+    return typeof v === 'string' && v.trim().length > 0
+      ? v.trim().slice(0, REQUEST_FIELD_LIMITS.storedUserAgentMax)
+      : null;
   };
   return {
     utm_source: s('utm_source'),

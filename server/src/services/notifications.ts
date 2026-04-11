@@ -1,3 +1,4 @@
+import { getTelegramApiBase } from '../config/integrations.js';
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
 
@@ -94,7 +95,7 @@ async function sendTelegramMessage(text: string): Promise<void> {
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (!token || !chatId) return;
   try {
-    const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const response = await fetch(`${getTelegramApiBase()}/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chatId, text }),

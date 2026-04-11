@@ -1,7 +1,9 @@
 /**
  * Consultant-only Intake trace tool: telemetry batches + wording draft payloads.
  */
+import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 import { z } from 'zod';
+import { INTAKE_TRACE_PUBLICATION_LOG_DEFAULT_LIMIT } from '@glc/intake-core';
 
 export const INTAKE_TRACE_TOOL_EVENT_TYPES = [
   'intake_trace_tab_opened',
@@ -51,7 +53,7 @@ export const intakeTraceToolWordingDraftsPutSchema = z
 export type IntakeTraceToolWordingDraftsPutBody = z.infer<typeof intakeTraceToolWordingDraftsPutSchema>;
 
 const questionIdListSchema = z
-  .array(z.string().min(1).max(64))
+  .array(z.string().min(1).max(REQUEST_FIELD_LIMITS.traceQuestionIdMax))
   .max(500)
   .optional();
 
@@ -70,16 +72,17 @@ export const intakeTraceToolWordingRollbackSchema = z
 export type IntakeTraceToolWordingPublishBody = z.infer<typeof intakeTraceToolWordingPublishSchema>;
 export type IntakeTraceToolWordingRollbackBody = z.infer<typeof intakeTraceToolWordingRollbackSchema>;
 
-/** Express `req.query`: `limit` 1..100, default 30. */
+/** Express `req.query`: `limit` 1..100, default from intake-core. */
 export const intakeTraceToolPublicationLogQuerySchema = z.object({
   limit: z.preprocess(
     val => (Array.isArray(val) ? val[0] : val),
     z
       .union([z.string(), z.number(), z.undefined()])
       .transform(v => {
-        if (v === undefined || v === '') return 30;
+        const fallback = INTAKE_TRACE_PUBLICATION_LOG_DEFAULT_LIMIT;
+        if (v === undefined || v === '') return fallback;
         const n = typeof v === 'number' ? v : Number.parseInt(String(v), 10);
-        if (!Number.isFinite(n)) return 30;
+        if (!Number.isFinite(n)) return fallback;
         return Math.min(100, Math.max(1, Math.floor(n)));
       }),
   ),

@@ -188,6 +188,17 @@ export interface Database {
         };
         Update: Partial<Database['public']['Tables']['review_points']['Insert']>;
       };
+      consultant_email_allowlist: {
+        Row: {
+          email_normalized: string;
+          created_at: string;
+        };
+        Insert: {
+          email_normalized: string;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['consultant_email_allowlist']['Insert']>;
+      };
     };
   };
 }

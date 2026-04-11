@@ -1,4 +1,4 @@
-import { BaseCollector } from './base.js';
+import { BaseCollector, type CollectorCollectContext } from './base.js';
 import { supabase } from '../services/supabase.js';
 
 /**
@@ -9,7 +9,7 @@ export class MarketingCollector extends BaseCollector {
   get key() { return 'marketing_signals'; }
   get phase() { return 5; }
 
-  async collect(auditId: string, _companyUrl: string) {
+  async collect(auditId: string, _companyUrl: string, _ctx?: CollectorCollectContext) {
     // Pull crawled data
     const { data: crawlData } = await supabase
       .from('collected_data')

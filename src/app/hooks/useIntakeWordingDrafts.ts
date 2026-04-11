@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { API_PATHS } from '../config/api-paths';
 import { apiFetch } from '../data/api-http';
 
 const LOCAL_STORAGE_KEY = 'intake_trace_wording_drafts_v1';
@@ -61,7 +62,7 @@ export function useIntakeWordingDrafts() {
     const local = readLocalDrafts();
     setDraftsInternal(local);
 
-    apiFetch<WordingApiOk>('/api/intake-trace-tool/wording-drafts')
+    apiFetch<WordingApiOk>(API_PATHS.intakeWordingDrafts)
       .then(res => {
         const mergedDrafts = { ...local, ...res.drafts };
         const pub = res.published ?? {};
@@ -76,7 +77,7 @@ export function useIntakeWordingDrafts() {
   }, [applyDraftsAndPublished]);
 
   const syncToServer = useCallback(async (snapshot: Record<string, string>, replaceAll = false) => {
-    const res = await apiFetch<WordingApiOk>('/api/intake-trace-tool/wording-drafts', {
+    const res = await apiFetch<WordingApiOk>(API_PATHS.intakeWordingDrafts, {
       method: 'PUT',
       body: JSON.stringify({ drafts: snapshot, replace_all: replaceAll }),
     });
@@ -86,7 +87,7 @@ export function useIntakeWordingDrafts() {
 
   const publishWording = useCallback(
     async (questionIds?: string[]) => {
-      const res = await apiFetch<WordingApiOk>('/api/intake-trace-tool/wording-drafts/publish', {
+      const res = await apiFetch<WordingApiOk>(API_PATHS.intakeWordingDraftsPublish, {
         method: 'POST',
         body: JSON.stringify(questionIds?.length ? { question_ids: questionIds } : {}),
       });
@@ -98,7 +99,7 @@ export function useIntakeWordingDrafts() {
 
   const rollbackWording = useCallback(
     async (questionIds?: string[]) => {
-      const res = await apiFetch<WordingApiOk>('/api/intake-trace-tool/wording-drafts/rollback', {
+      const res = await apiFetch<WordingApiOk>(API_PATHS.intakeWordingDraftsRollback, {
         method: 'POST',
         body: JSON.stringify(questionIds?.length ? { question_ids: questionIds } : {}),
       });

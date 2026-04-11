@@ -2,7 +2,9 @@
 
 ## Overview
 
-PostgreSQL on **Supabase**. Apply migrations **in numeric order** so foreign keys, RLS, and triggers exist before later tables reference them:
+PostgreSQL on **Supabase**. Persisted **per-entity** state and policies that must vary by row (and sit under **RLS**) belong here — not in server env vars; see [ARCHITECTURE.md — Configuration layering](./ARCHITECTURE.md#configuration-layering-config-vs-database-vs-services-vs-ui) §2.
+
+Apply migrations **in numeric order** so foreign keys, RLS, and triggers exist before later tables reference them:
 
 1. `001_initial_schema.sql` — core audit tables
 2. `002_stability_indexes.sql`
@@ -49,8 +51,11 @@ PostgreSQL on **Supabase**. Apply migrations **in numeric order** so foreign key
 43. `043_db_hardening_rls_views_functions.sql` — **`security_invoker`** on intake analytics views; fixed **`search_path`** on key functions; RLS **`(select auth.uid())`** pattern; explicit deny policies; FK indexes
 44. `044_rls_merge_permissive_select.sql` — merges duplicate permissive **`SELECT`** RLS on **`audits`**, **`audit_domains`**, **`audit_strategy`**, **`pipeline_events`**, **`review_points`**; splits consultant **`INSERT`/`UPDATE`/`DELETE`** into separate policies (lint **`0006_multiple_permissive_policies`**)
 45. `045_query_performance_indexes.sql` — **`pipeline_events(created_at DESC)`**, **`discovery_sessions(consultant_id, created_at DESC)`** (partial), **`audit_requests(created_at DESC)`**; **`notifications`** already indexed in **`014`**
+46. `046_marketing_brief_preferred_audit_depth.sql` — **`marketing_brief_submissions.preferred_audit_depth`** (`express` \| `full`, nullable when unsure or no site)
+47. `047_audits_no_public_website_flag.sql` — **`audits.no_public_website`** (`boolean`, default false); backfill for dev sentinel URL; **`discovery_convert_session_atomic`** adds **`p_no_public_website`** (7-arg RPC + `GRANT`)
+48. `048_consultant_email_allowlist.sql` — **`consultant_email_allowlist`** (normalized email PK) for consultant role bootstrap; RLS deny for `anon`/`authenticated` (server uses service role)
 
-**Tables (core list):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`, `snapshot_guest_sessions`, `discovery_sessions`, `marketing_brief_submissions`, `intake_analytics_events`, `intake_question_wording_drafts`, `intake_wording_publication_log`, `phase_runs`, `job_runs`.
+**Tables (core list):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `consultant_email_allowlist`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`, `snapshot_guest_sessions`, `discovery_sessions`, `marketing_brief_submissions`, `intake_analytics_events`, `intake_question_wording_drafts`, `intake_wording_publication_log`, `phase_runs`, `job_runs`.
 
 Row Level Security is enabled on these tables; exact policies differ by table (consultant vs client access). **Canonical SQL:** the migration files — this doc summarises shapes.
 
@@ -78,7 +83,7 @@ Master record for each audit run.
 id              uuid PRIMARY KEY DEFAULT gen_random_uuid()
 user_id         uuid REFERENCES auth.users(id)  -- NULL allowed only for product_mode = 'free_snapshot' (see migration 004)
 client_id       uuid REFERENCES profiles(id)    -- optional; client portal (migration 005)
-company_url     text NOT NULL
+company_url     text NOT NULL  -- normal HTTPS URL, or canonical "no site" sentinel (see below)
 company_name    text
 industry        text
 product_mode    text NOT NULL DEFAULT 'full'      -- 'free_snapshot' | 'express' | 'full' (migration 004)
@@ -95,6 +100,8 @@ brief_help_client_message text         -- optional short note from client (migra
 ```
 
 **`status` values:** `created` → `recon` → `auto` → `analytic` → `review` → `completed` | `failed`
+
+**`company_url` — no public website:** When the client has no public site, the API stores the stable sentinel **`NO_PUBLIC_WEBSITE_URL`** from **`@glc/intake-core`** (`https://glc-audit.placeholder/no-public-website`). Collectors and snapshot code detect it via **`isNoPublicWebsiteUrl`** and skip outbound HTTP crawls. Do not hand-edit to an arbitrary placeholder without updating the shared package and all consumers. See [DEPLOYMENT.md — Immutable product constants](./DEPLOYMENT.md#immutable-product-constants).
 
 ---
 

@@ -3,6 +3,11 @@ import { render, screen } from '@testing-library/react';
 import type { FreeSnapshotPreview } from '../../data/auditTypes';
 import { PortalSnapshotAccountMirror } from '../PortalSnapshotAccountMirror';
 
+const snapshotDiagnosticsMocks = vi.hoisted(() => ({
+  getSnapshotAccessBlockedState: vi.fn(),
+  formatScanCoverageLine: vi.fn(() => null),
+}));
+
 vi.mock('../snapshot/SnapshotScoreKit', () => ({
   SNAPSHOT_SCORE_COLORS: { 1: '#111', 2: '#222', 3: '#333', 4: '#444', 5: '#555' },
   SNAPSHOT_SCORE_LABELS: { 1: 'Critical', 2: 'Needs Work', 3: 'Moderate', 4: 'Good', 5: 'Excellent' },
@@ -21,13 +26,12 @@ vi.mock('../snapshot/SnapshotAccessBlockedCallout', () => ({
   SnapshotAccessBlockedCallout: () => <div data-testid="blocked-callout" />,
 }));
 
-const mockGetSnapshotAccessBlockedState = vi.fn();
-const mockFormatScanCoverageLine = vi.fn(() => null);
-
 vi.mock('../../lib/snapshot-diagnostics', () => ({
-  getSnapshotAccessBlockedState: (...args: unknown[]) => mockGetSnapshotAccessBlockedState(...args),
-  formatScanCoverageLine: (...args: unknown[]) => mockFormatScanCoverageLine(...args),
+  getSnapshotAccessBlockedState: snapshotDiagnosticsMocks.getSnapshotAccessBlockedState,
+  formatScanCoverageLine: snapshotDiagnosticsMocks.formatScanCoverageLine,
 }));
+
+const mockGetSnapshotAccessBlockedState = snapshotDiagnosticsMocks.getSnapshotAccessBlockedState;
 
 function makeSnapshot(overrides: Partial<FreeSnapshotPreview> = {}): FreeSnapshotPreview {
   return {

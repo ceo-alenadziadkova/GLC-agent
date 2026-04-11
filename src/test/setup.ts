@@ -1,6 +1,9 @@
 import { vi } from 'vitest';
 import '@testing-library/jest-dom';
 
+vi.stubEnv('VITE_SUPABASE_URL', 'http://127.0.0.1:54321');
+vi.stubEnv('VITE_SUPABASE_ANON_KEY', 'vitest-supabase-anon-key');
+
 // jsdom has no matchMedia; theme hooks and marketing layout use it.
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

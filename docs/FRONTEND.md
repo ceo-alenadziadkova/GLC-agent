@@ -2,15 +2,41 @@
 
 Product context (modes, deliverables): [PRODUCT.md](./PRODUCT.md). System diagram: [ARCHITECTURE.md](./ARCHITECTURE.md).
 
+**Where frontend fits in configuration:** presentation, routes, and copy live in the UI layer; tunable deployment and API invariants are **not** reimplemented here — see [ARCHITECTURE.md — Configuration layering](./ARCHITECTURE.md#configuration-layering-config-vs-database-vs-services-vs-ui) (§4 UI) and [Strict layer boundaries — FRONT](./ARCHITECTURE.md#strict-layer-boundaries-operational-policy) (`VITE_*` only for browser-safe build-time values).
+
 **Design system (Figma-style guide):** [Design system (style guide)](#design-system-style-guide) — tokens, themes, typography, spacing, components. Canonical CSS: `src/styles/theme.css`.
 
 ## Stack
 
 React 18 + TypeScript + Vite. Tailwind CSS v4 (`src/styles/tailwind.css`), glassmorphism and brand gradients where specified in tokens. Animation: Framer Motion. UI primitives: shadcn-style semantic variables mapped in `theme.css` (`--background`, `--primary`, …).
 
+### Build-time configuration (Vite env)
+
+| Variable | Role |
+| --- | --- |
+| `VITE_API_URL` | Backend origin for `getApiBaseUrl()` — **required in production** (throws if missing when the app runs under `import.meta.env.PROD`). |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Supabase client — **required at module load** in every environment (production build throws if missing; local dev needs `.env.local`; Vitest stubs both in `src/test/setup.ts`). |
+| `VITE_SUPPORT_EMAIL` | **Required in production builds** at module load (marketing footer + public brief errors). In dev, optional with fallback `contact@glctech.es` (`src/app/lib/support-email.ts`). |
+| `VITE_DISCOVERY_ANALYTICS_FLUSH_MS`, `VITE_DISCOVERY_ANALYTICS_MAX_BATCH` | Optional; Discovery analytics batching (`src/app/lib/discovery-analytics-config.ts`). |
+| `VITE_QUERY_DEFAULT_RETRY`, `VITE_QUERY_STALE_TIME_MS`, `VITE_QUERY_GC_TIME_MS` | Optional; TanStack Query defaults (`src/app/lib/glc-query-client-defaults.ts`). |
+| `VITE_NO_PUBLIC_WEBSITE_URL` | Optional; must match server **`NO_PUBLIC_WEBSITE_URL`** when overriding the no-public-website sentinel (`packages/intake-core` / `src/app/data/no-public-website.ts`). |
+
+Cross-page persistence keys for consultant flows live in **`src/app/lib/storage-keys.ts`** (e.g. `GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY` for post–Discovery login handoff). See [DEPLOYMENT.md](./DEPLOYMENT.md#production-environment-variables) for the full production matrix.
+
 ### UI languages (i18n target list)
 
 Planned in-app locales (BCP-47): **English (`en`, default), German (`de`), Spanish (`es`), Catalan (`ca`), Russian (`ru`), Italian (`it`).** Canonical definitions: `src/app/lib/supported-ui-locales.ts` (`GlcUiLocale`, labels for choosers). Full message catalogs and runtime i18n are a separate rollout; until then see the **Browser auto-translate vs React** paragraph in the Routing section below.
+
+### User-visible strings and API errors (strategy)
+
+**Governance:** copy zones, namespaces (`intake.*`, `api.*`, `app.*`, `brand.public.*`), single-source rules, and PR checklist live in [ARCHITECTURE.md — §6 User-visible copy layering](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone).
+
+- **API:** error bodies use `{ "error", "code" }` where possible — see [API.md — Error Responses](./API.md#error-responses). The SPA should prefer **`code`** for branching and localized messages; keep **`error`** as a dev/legacy fallback. Avoid duplicating the same API `error` text in `src/app/config/*-copy.en.ts` unless product requires a different UX string; if you map `code` → message on the client, keep that map in **one** module.
+- **Shared domain copy:** `@glc/intake-core` exports stable keys next to English defaults where the server and UI must agree. Example: **`NO_PUBLIC_WEBSITE_DISPLAY_I18N_KEY`** (`glc.audit.noPublicWebsite`) and **`NO_PUBLIC_WEBSITE_DISPLAY_EN`** for the “no public website” label used by **`formatAuditWebsiteDisplay`**. Report/domain/score/marketing-route wording used by PDFs and the SPA is centralized in **`ui-copy-registry.v1.json`** (see [ARCHITECTURE.md — versioned copy](./ARCHITECTURE.md#5-versioned-product-copy-intake-core-json)). Until message catalogs exist, components keep calling **`formatAuditWebsiteDisplay`** (English); when adding i18n, introduce a small mapper `key → string` per locale and use the key for sentinel rows while preserving the same URL logic (**`isNoPublicWebsiteUrl`**).
+- **Public brand:** use **`fetchPublicBrandConfig()`** ([`src/app/lib/public-brand.ts`](../src/app/lib/public-brand.ts)) on marketing/public surfaces for **`brand_name`**, **`footer`**, and **`public_site_url`** instead of repeating product name strings. Production SPA still requires **`VITE_SUPPORT_EMAIL`** at build time ([`support-email.ts`](../src/app/lib/support-email.ts)); align with server **`PUBLIC_SUPPORT_EMAIL`** when both are set — see [DEPLOYMENT.md — White-label](./DEPLOYMENT.md#white-label-and-dev-defaults-environment-matrix).
+- **Page-level copy:** prefer **`src/app/config/*-copy.en.ts`** per flow (e.g. login). Marketing/dashboard strings may stay in components until i18n; group future translations under `src/app/locales/` (or a library) rather than scattering literals.
+- **Snapshot diagnostics and long explainers:** strings in `src/app/lib/snapshot-diagnostics.ts` (and similar “product explanation” modules) should follow the same future layout: **English defaults in code today**, **locale files keyed by stable ids** when i18n ships (avoid duplicating score/domain wording — import **`SCORE_LABELS` / `DOMAIN_DISPLAY_LABELS`** from `@glc/intake-core` / `auditTypes` re-exports so labels stay aligned with PDF and reports).
+- **SPA route paths:** public and app paths are centralized in `@glc/intake-core` as **`SPA_ROUTE_SEGMENTS`** (marketing brief) and **`APP_ROUTE_SEGMENTS`** (full router); use these for new links and redirects instead of new string literals in `routes.tsx`.
 
 ---
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { computeNextRecommended } from '@glc/intake-core';
 import type { IntakeQuestionStub } from '@glc/intake-core';
@@ -9,6 +9,22 @@ const stub = (id: string, priority: IntakeQuestionStub['priority']): IntakeQuest
 });
 
 describe('computeNextRecommended', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('uses INTAKE_NEXT_RECOMMENDED_MAX when max is omitted', () => {
+    vi.stubEnv('INTAKE_NEXT_RECOMMENDED_MAX', '2');
+    const stubs = [stub('a', 'required'), stub('b', 'required'), stub('c', 'required')];
+    const out = computeNextRecommended({
+      visibleOrdered: ['a', 'b', 'c'],
+      stubs,
+      responses: {},
+      missingForReport: [],
+    });
+    expect(out).toEqual(['a', 'b']);
+  });
+
   it('lists required before recommended in visible order', () => {
     const stubs = [stub('r1', 'required'), stub('x1', 'recommended'), stub('r2', 'required')];
     const out = computeNextRecommended({

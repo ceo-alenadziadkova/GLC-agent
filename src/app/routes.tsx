@@ -27,6 +27,7 @@ import { QuestionBankStudioPage } from './pages/QuestionBankStudioPage';
 import { ProtectedRoute }   from './components/ProtectedRoute';
 import { ClientPortalPipelineProvider } from './context/ClientPortalPipelineContext';
 import { RouteErrorPage }   from './components/RouteErrorPage';
+import { APP_ROUTE_SEGMENTS as P, SPA_ROUTE_SEGMENTS as R } from '@glc/intake-core';
 
 function PNoGuest({ children }: { children: ReactNode }) {
   return <ProtectedRoute blockedForRoles={['guest']}>{children}</ProtectedRoute>;
@@ -65,42 +66,42 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorPage />,
     children: [
       { index: true, element: <RootEntry /> },
-      { path: 'login', element: <Login /> },
-      { path: 'snapshot', element: <SnapshotPage /> },
-      { path: 'express-audit', element: <ExpressAuditPage /> },
-      { path: 'brief', element: <PublicBriefPage /> },
-      { path: 'faq', element: <FaqPage /> },
-      { path: 'intake/:token', element: <IntakeBrief /> },
-      { path: 'audit/discover', element: <DiscoveryPublicPage /> },
-      { path: 'discovery', element: <DiscoveryPublicPage /> },
+      { path: P.login, element: <Login /> },
+      { path: R.snapshot, element: <SnapshotPage /> },
+      { path: R.expressAudit, element: <ExpressAuditPage /> },
+      { path: P.brief, element: <PublicBriefPage /> },
+      { path: P.faq, element: <FaqPage /> },
+      { path: P.intakeToken, element: <IntakeBrief /> },
+      { path: P.discoveryPublicLegacy, element: <DiscoveryPublicPage /> },
+      { path: R.discovery, element: <DiscoveryPublicPage /> },
 
       // Static / audit paths before :id (avoid "new" and "discover" captured as ids)
-      { path: 'audit/new', element: <Consultant><NewAudit /></Consultant> },
-      { path: 'audit/:id/:domainId', element: <Consultant><AuditWorkspace /></Consultant> },
-      { path: 'audit/:id', element: <Consultant><AuditWorkspace /></Consultant> },
-      { path: 'audit', element: <FullAuditPage /> },
+      { path: P.auditNew, element: <Consultant><NewAudit /></Consultant> },
+      { path: P.auditByDomain, element: <Consultant><AuditWorkspace /></Consultant> },
+      { path: P.auditById, element: <Consultant><AuditWorkspace /></Consultant> },
+      { path: R.fullAudit, element: <FullAuditPage /> },
 
       // ── Consultant routes ──────────────────────────────────────────────────
-      { path: 'dashboard', element: <Consultant><Dashboard /></Consultant> },
-      { path: 'portfolio', element: <Navigate to="/dashboard" replace /> },
-      { path: 'admin/requests', element: <Consultant><AdminRequestQueue /></Consultant> },
-      { path: 'admin/snapshots', element: <Consultant><AdminSnapshotQueue /></Consultant> },
-      { path: 'admin/discovery', element: <Consultant><DiscoveryQueue /></Consultant> },
+      { path: P.dashboard, element: <Consultant><Dashboard /></Consultant> },
+      { path: P.portfolio, element: <Navigate to={`/${P.dashboard}`} replace /> },
+      { path: P.adminRequests, element: <Consultant><AdminRequestQueue /></Consultant> },
+      { path: P.adminSnapshots, element: <Consultant><AdminSnapshotQueue /></Consultant> },
+      { path: P.adminDiscovery, element: <Consultant><DiscoveryQueue /></Consultant> },
       // TODO(next iteration): routes remain accessible by direct URL while links are hidden in admin nav.
-      { path: 'admin/intake-trace', element: <Consultant><IntakeTraceTool /></Consultant> },
-      { path: 'admin/intake-wording', element: <Consultant><IntakeWordingWorkspace /></Consultant> },
-      { path: 'admin/question-bank-studio', element: <Consultant><QuestionBankStudioPage /></Consultant> },
-      { path: 'pipeline/:id', element: <Consultant><PipelineMonitor /></Consultant> },
-      { path: 'reports/:id', element: <Consultant><ReportViewer /></Consultant> },
-      { path: 'strategy/:id', element: <Consultant><StrategyLab /></Consultant> },
-      { path: 'settings', element: <PNoGuest><SettingsPage /></PNoGuest> },
+      { path: P.adminIntakeTrace, element: <Consultant><IntakeTraceTool /></Consultant> },
+      { path: P.adminIntakeWording, element: <Consultant><IntakeWordingWorkspace /></Consultant> },
+      { path: P.adminQuestionBankStudio, element: <Consultant><QuestionBankStudioPage /></Consultant> },
+      { path: P.pipelineById, element: <Consultant><PipelineMonitor /></Consultant> },
+      { path: P.reportsById, element: <Consultant><ReportViewer /></Consultant> },
+      { path: P.strategyById, element: <Consultant><StrategyLab /></Consultant> },
+      { path: P.settings, element: <PNoGuest><SettingsPage /></PNoGuest> },
 
       // ── Client portal (literal routes before :id) ───────────────────────────
-      { path: 'portal/audit/new', element: <ClientPortalShell><NewAudit variant="client_self_serve" /></ClientPortalShell> },
-      { path: 'portal/pipeline/:id', element: <ClientPortalShell><PipelineMonitor /></ClientPortalShell> },
-      { path: 'portal/reports/:id', element: <ClientPortalShell><ReportViewer /></ClientPortalShell> },
-      { path: 'portal/audit/:id', element: <ClientPortalShell><ClientAuditView /></ClientPortalShell> },
-      { path: 'portal', element: <ClientPortalShell><ClientPortal /></ClientPortalShell> },
+      { path: P.portalAuditNew, element: <ClientPortalShell><NewAudit variant="client_self_serve" /></ClientPortalShell> },
+      { path: P.portalPipelineById, element: <ClientPortalShell><PipelineMonitor /></ClientPortalShell> },
+      { path: P.portalReportsById, element: <ClientPortalShell><ReportViewer /></ClientPortalShell> },
+      { path: P.portalAuditById, element: <ClientPortalShell><ClientAuditView /></ClientPortalShell> },
+      { path: P.portal, element: <ClientPortalShell><ClientPortal /></ClientPortalShell> },
     ],
   },
 ]);

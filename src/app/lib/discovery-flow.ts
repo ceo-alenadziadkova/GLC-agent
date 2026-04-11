@@ -9,15 +9,15 @@
  * shared intake-core (`buildIntakePlan`) to avoid a separate questionnaire model.
  */
 
-import { buildIntakePlan } from '@glc/intake-core';
-import { buildPublicDiscoveryUiFragment } from '@glc/intake-core';
 import {
+  buildIntakePlan,
+  buildPublicDiscoveryUiFragment,
   DISCOVERY_FINDINGS_CONFIG,
   DISCOVERY_FINDINGS_COPY,
+  DISCOVERY_GLUE_COPY,
+  DISCOVERY_SOCIAL_PLATFORM_OPTIONS,
   fillDiscoveryFindingTemplate,
-} from '@glc/intake-core';
-import { getQuestionBankSchemaMeta } from '@glc/intake-core';
-import {
+  getQuestionBankSchemaMeta,
   includesCrmTool,
   normalizeIndustry,
   normalizeOnlinePresence,
@@ -27,6 +27,7 @@ import {
 } from '@glc/intake-core';
 
 const FC = DISCOVERY_FINDINGS_CONFIG;
+const GLUE = DISCOVERY_GLUE_COPY;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -81,16 +82,7 @@ function makeDiscoveryQuestion(
   };
 }
 
-export const DISCOVERY_SOCIAL_PLATFORM_OPTIONS = [
-  'Instagram',
-  'Facebook',
-  'LinkedIn',
-  'TikTok',
-  'YouTube',
-  'X (Twitter)',
-  'Telegram',
-  'WhatsApp Business / channel',
-] as const;
+export { DISCOVERY_SOCIAL_PLATFORM_OPTIONS };
 
 /** Bundled fallback when GET /api/discover/ui-fragment fails — exact same payload source as the server route. */
 const FALLBACK_QUESTIONS: DiscoveryQuestion[] = buildPublicDiscoveryUiFragment().questions.map(row =>
@@ -185,30 +177,31 @@ export function computeScore(answers: DiscoveryAnswers): number {
 // ── Findings engine ───────────────────────────────────────────────────────────
 
 function industryLabel(answers: DiscoveryAnswers): string {
-  return (answers['a2'] as string | null) ?? 'your industry';
+  return (answers['a2'] as string | null) ?? GLUE.industryDefault;
 }
 
 function teamLabel(answers: DiscoveryAnswers): string {
   const t = normalizeTeamSize(answers['a4']);
-  if (t === 'solo' || t === 'unknown') return 'as a solo operator';
-  if (t === 'small') return 'with a small team';
-  return 'at your team size';
+  if (t === 'solo' || t === 'unknown') return GLUE.team.soloOrUnknown;
+  if (t === 'small') return GLUE.team.small;
+  return GLUE.team.other;
 }
 
 /** Natural-language list for enquiry channels (c_nosite_4). */
 function channelsLabel(chs: string[]): string {
-  if (chs.length === 0) return 'your enquiry channels';
+  const { empty, listSeparator, twoJoiner, manyLastPrefix } = GLUE.channels;
+  if (chs.length === 0) return empty;
   if (chs.length === 1) return chs[0];
-  if (chs.length === 2) return `${chs[0]} and ${chs[1]}`;
-  return `${chs.slice(0, -1).join(', ')}, and ${chs[chs.length - 1]}`;
+  if (chs.length === 2) return `${chs[0]}${twoJoiner}${chs[1]}`;
+  return `${chs.slice(0, -1).join(listSeparator)}${manyLastPrefix}${chs[chs.length - 1]}`;
 }
 
 function stageLabel(stage: string | null): string {
   const bucket = normalizeStage(stage);
-  if (bucket === 'launching') return 'while you are launching';
-  if (bucket === 'growing') return 'while you are growing fast';
-  if (!stage) return 'at your stage';
-  return 'at your current stage';
+  if (bucket === 'launching') return GLUE.stage.launching;
+  if (bucket === 'growing') return GLUE.stage.growing;
+  if (!stage) return GLUE.stage.missing;
+  return GLUE.stage.other;
 }
 
 /** True when d1 is empty or only trivial / spreadsheet-only tooling. */

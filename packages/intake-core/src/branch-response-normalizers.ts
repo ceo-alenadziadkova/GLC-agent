@@ -26,6 +26,16 @@ const file = raw as NormalizersFile;
 
 const PASSTHROUGH = '__passthrough__';
 
+/**
+ * Raw a4 (team size) value matches bank "solo" variants before rule-table normalization.
+ * Keeps branch predicates and AI readiness penalties aligned (single source of truth).
+ */
+export function isSoloTeamRaw(raw: unknown): boolean {
+  const s = String(raw ?? '').trim().toLowerCase();
+  if (!s) return false;
+  return s.includes('just me') || s === 'just_me' || s === 'solo';
+}
+
 /** Normalize a5 website answers to gate enum. */
 export function normalizeWebsiteGate(responses: IntakeResponsesMap): WebsiteGate {
   const rawVal = unwrapIntakeValue(responses.a5);

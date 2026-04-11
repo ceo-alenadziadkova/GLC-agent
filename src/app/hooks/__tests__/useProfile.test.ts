@@ -2,28 +2,42 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { Session } from '@supabase/supabase-js';
 
-const mockGetSession = vi.fn();
 type AuthListener = (event: string, session: Session | null) => void;
-let authListener: AuthListener | null = null;
 
-const mockOnAuthStateChange = vi.fn((callback: AuthListener) => {
-  authListener = callback;
+const profileSupabaseMocks = vi.hoisted(() => {
+  const ctx = { authListener: null as AuthListener | null };
+  const mockGetSession = vi.fn();
+  const mockOnAuthStateChange = vi.fn((callback: AuthListener) => {
+    ctx.authListener = callback;
+    return {
+      data: { subscription: { unsubscribe: vi.fn() } },
+    };
+  });
+  const mockSingle = vi.fn();
   return {
-    data: { subscription: { unsubscribe: vi.fn() } },
+    ctx,
+    mockGetSession,
+    mockOnAuthStateChange,
+    mockSingle,
+    resetAuthListener: () => {
+      ctx.authListener = null;
+    },
+    fireAuthEvent: (event: string, session: Session | null) => {
+      ctx.authListener?.(event, session);
+    },
   };
 });
-const mockSingle = vi.fn();
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     auth: {
-      getSession: () => mockGetSession(),
-      onAuthStateChange: (...args: unknown[]) => mockOnAuthStateChange(...args),
+      getSession: () => profileSupabaseMocks.mockGetSession(),
+      onAuthStateChange: profileSupabaseMocks.mockOnAuthStateChange,
     },
     from: () => ({
       select: () => ({
         eq: () => ({
-          single: () => mockSingle(),
+          single: () => profileSupabaseMocks.mockSingle(),
         }),
       }),
     }),
@@ -32,11 +46,14 @@ vi.mock('../../lib/supabase', () => ({
 
 import { useProfile } from '../useProfile';
 
+const { mockGetSession, mockOnAuthStateChange, mockSingle, resetAuthListener, fireAuthEvent } =
+  profileSupabaseMocks;
+
 beforeEach(() => {
   vi.clearAllMocks();
-  authListener = null;
+  resetAuthListener();
   mockOnAuthStateChange.mockImplementation((callback: AuthListener) => {
-    authListener = callback;
+    profileSupabaseMocks.ctx.authListener = callback;
     return {
       data: { subscription: { unsubscribe: vi.fn() } },
     };
@@ -178,8 +195,8 @@ describe('useProfile', () => {
     await waitFor(() => expect(mockSingle).toHaveBeenCalledTimes(1));
 
     await act(async () => {
-      authListener?.('TOKEN_REFRESHED', sessionFixture('user-auth-ev'));
-      authListener?.('INITIAL_SESSION', sessionFixture('user-auth-ev'));
+      fireAuthEvent('TOKEN_REFRESHED', sessionFixture('user-auth-ev'));
+      fireAuthEvent('INITIAL_SESSION', sessionFixture('user-auth-ev'));
       await Promise.resolve();
     });
 
@@ -214,7 +231,7 @@ describe('useProfile', () => {
     expect(mockSingle).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      authListener?.('USER_UPDATED', sessionFixture('user-bg'));
+      fireAuthEvent('USER_UPDATED', sessionFixture('user-bg'));
     });
 
     expect(mockSingle).toHaveBeenCalledTimes(2);
@@ -267,7 +284,7 @@ describe('useProfile', () => {
     });
 
     await act(async () => {
-      authListener?.('SIGNED_IN', sessionFixture('user-in'));
+      fireAuthEvent('SIGNED_IN', sessionFixture('user-in'));
       await Promise.resolve();
     });
 

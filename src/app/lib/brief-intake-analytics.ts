@@ -3,6 +3,10 @@
  */
 import type { IntakeVersionTuple } from '../data/auditTypes';
 import { briefProfilePlatformApi } from '../data/api/brief-profile-platform';
+import {
+  CLIENT_ANALYTICS_FLUSH_MS_DEFAULT,
+  CLIENT_ANALYTICS_MAX_BATCH_DEFAULT,
+} from '../config/client-analytics-batching';
 
 export type BriefIntakeAnalyticsSurface = 'consultant_interview' | 'client_form' | 'client_portal';
 export type BriefIntakeAnalyticsExperimentVariant = 'A' | 'B';
@@ -14,8 +18,8 @@ export type BriefIntakeAnalyticsEventType =
   | 'wizard_completed'
   | 'results_viewed';
 
-const FLUSH_MS = 3200;
-const MAX_BATCH = 24;
+const FLUSH_MS = CLIENT_ANALYTICS_FLUSH_MS_DEFAULT;
+const MAX_BATCH = CLIENT_ANALYTICS_MAX_BATCH_DEFAULT;
 
 function sessionKey(auditId: string): string {
   return `glc_brief_analytics_v1_${auditId}`;

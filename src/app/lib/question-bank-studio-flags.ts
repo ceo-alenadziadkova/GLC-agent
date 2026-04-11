@@ -1,3 +1,5 @@
+import { QUESTION_BANK_STUDIO_ENABLED_DEFAULT } from '../config/question-bank-studio-defaults';
+
 function envFlagEnabled(raw: string | undefined, defaultWhenUnset: boolean): boolean {
   if (raw === undefined || raw.trim() === '') return defaultWhenUnset;
   const v = raw.trim().toLowerCase();
@@ -13,5 +15,5 @@ function envFlagEnabled(raw: string | undefined, defaultWhenUnset: boolean): boo
 export function isQuestionBankStudioEnabled(): boolean {
   const raw = import.meta.env.VITE_QUESTION_BANK_STUDIO;
   const s = typeof raw === 'string' ? raw : undefined;
-  return envFlagEnabled(s, true);
+  return envFlagEnabled(s, QUESTION_BANK_STUDIO_ENABLED_DEFAULT);
 }

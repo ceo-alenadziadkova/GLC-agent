@@ -106,7 +106,7 @@ export function IntakeTraceTool() {
     }
   }, [responsesText, productMode, collectionMode, surface]);
 
-  const displayError = trace.ok ? null : trace.message;
+  const displayError = trace.ok === false ? trace.message : null;
   const displayText = trace.ok ? trace.text : '';
 
   const resolveLabel = (id: string): string => {

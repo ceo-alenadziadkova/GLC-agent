@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
+import { ensureHttpsUrl } from '@glc/intake-core';
 import type { User } from '@supabase/supabase-js';
 import {
   Globe,
@@ -31,6 +32,7 @@ import {
 } from '../lib/snapshot-diagnostics';
 import { SnapshotAccessBlockedCallout } from '../components/snapshot/SnapshotAccessBlockedCallout';
 import { toUiErrorMessage, type SnapshotApiErrorPayload } from '../lib/snapshot-api-errors';
+import { API_PATHS } from '../config/api-paths';
 import { snapshotPublicRequest } from '../data/apiService';
 import {
   PHASE_LABELS,
@@ -50,6 +52,12 @@ import {
   SnapshotScoreContextNotes,
   SnapshotScoreDonut,
 } from './snapshot-landing';
+import {
+  SNAPSHOT_LANDING_COPY,
+  SNAPSHOT_LANDING_PHASE_LABEL_INTERVAL_MS,
+  SNAPSHOT_LANDING_POLL_FAILURE_THRESHOLD,
+  SNAPSHOT_LANDING_POLL_INTERVAL_MS,
+} from '../lib/snapshot-polling-config';
 
 type Stage = 'idle' | 'submitting' | 'running' | 'done' | 'error';
 
@@ -88,7 +96,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
 
   async function refreshQuotaPreview() {
     try {
-      const res = await snapshotPublicRequest('/api/snapshot/quota');
+      const res = await snapshotPublicRequest(API_PATHS.snapshotQuota);
       if (!res.ok) return;
       const data = (await res.json()) as { remaining?: number; limit?: number };
       if (typeof data.remaining === 'number' && typeof data.limit === 'number') {
@@ -108,7 +116,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
     if (stage !== 'running') return;
     const t = setInterval(() => {
       setPhaseIdx(i => (i + 1) % PHASE_LABELS.length);
-    }, 4500);
+    }, SNAPSHOT_LANDING_PHASE_LABEL_INTERVAL_MS);
     return () => clearInterval(t);
   }, [stage]);
 
@@ -121,30 +129,34 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
 
     const poll = async () => {
       try {
-        const res = await snapshotPublicRequest(`/api/snapshot/${tokenRef.current}`);
+        const res = await snapshotPublicRequest(`${API_PATHS.snapshot}/${tokenRef.current}`);
         const data = (await res.json()) as FreeSnapshotPreview & SnapshotApiErrorPayload;
         if (!res.ok) {
-          throw new Error(toUiErrorMessage(res.status, data, 'Could not load snapshot status.'));
+          throw new Error(
+            toUiErrorMessage(res.status, data, SNAPSHOT_LANDING_COPY.loadStatusDefaultHint),
+          );
         }
         pollFailuresRef.current = 0;
         if (data.status === 'completed') {
           setResult(data);
           setStage('done');
         } else if (data.status === 'failed') {
-          setErrorMsg('Analysis failed on the server. Please retry with the same URL in a few moments.');
+          setErrorMsg(SNAPSHOT_LANDING_COPY.analysisFailedOnServer);
           setStage('error');
         }
       } catch (err) {
         pollFailuresRef.current += 1;
         // Allow a couple of transient failures before surfacing an actionable message.
-        if (pollFailuresRef.current >= 3) {
-          setErrorMsg(err instanceof Error ? err.message : 'Could not fetch snapshot status. Please try again.');
+        if (pollFailuresRef.current >= SNAPSHOT_LANDING_POLL_FAILURE_THRESHOLD) {
+          setErrorMsg(
+            err instanceof Error ? err.message : SNAPSHOT_LANDING_COPY.pollStatusGenericError,
+          );
           setStage('error');
         }
       }
     };
 
-    pollRef.current = setInterval(poll, 3000);
+    pollRef.current = setInterval(poll, SNAPSHOT_LANDING_POLL_INTERVAL_MS);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [stage]);
 
@@ -158,7 +170,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
     setRateLimitDetail(null);
 
     try {
-      const res = await snapshotPublicRequest('/api/snapshot', {
+      const res = await snapshotPublicRequest(API_PATHS.snapshot, {
         method: 'POST',
         body: JSON.stringify({ company_url: trimmed }),
       });
@@ -166,7 +178,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
       const data = (await res.json()) as SnapshotApiErrorPayload;
 
       if (!res.ok) {
-        setErrorMsg(toUiErrorMessage(res.status, data, 'Could not start analysis.'));
+        setErrorMsg(toUiErrorMessage(res.status, data, SNAPSHOT_LANDING_COPY.startAnalysisDefaultHint));
         if (
           res.status === 429 &&
           typeof data.limit === 'number'
@@ -228,9 +240,9 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
       const bearer = await getSnapshotAccessToken();
       const headers: Record<string, string> = {};
       if (bearer) headers.Authorization = `Bearer ${bearer}`;
-      const res = await snapshotPublicRequest(`/api/snapshot/${token}?compare=1`, { headers });
+      const res = await snapshotPublicRequest(`${API_PATHS.snapshot}/${token}?compare=1`, { headers });
       if (!res.ok) {
-        setCompetitorLoadError('Could not load comparison. Try again in a moment.');
+        setCompetitorLoadError(SNAPSHOT_LANDING_COPY.competitorLoadFailed);
         return;
       }
       const data = (await res.json()) as FreeSnapshotPreview;
@@ -695,7 +707,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                     color: 'var(--text-primary)',
                   }}
                 >
-                  {result.company_name ?? new URL(result.company_url.startsWith('http') ? result.company_url : `https://${result.company_url}`).hostname}
+                  {result.company_name ?? new URL(ensureHttpsUrl(result.company_url)).hostname}
                 </h2>
                 {result.location && (
                   <p className="mt-1 text-sm lg:mt-1.5" style={{ color: 'var(--text-tertiary)' }}>{result.location}</p>

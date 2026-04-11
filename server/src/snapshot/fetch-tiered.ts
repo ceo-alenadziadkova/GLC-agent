@@ -16,39 +16,38 @@ import {
 } from './robots-guard.js';
 import { isLikelyHtmlDocument } from './html-detect.js';
 import { detectPageAnomalies } from './page-anomaly.js';
+import {
+  SNAPSHOT_HEAD_PROBE_BROWSER_UA,
+  SNAPSHOT_SCANNER_USER_AGENT,
+} from '../config/bot-identity.js';
+import { getSnapshotFetchBudgetMs } from '../config/snapshot-fetch-budget.js';
+import {
+  SNAPSHOT_CRAWL_DELAY_ROOM_SUBTRACT_MS,
+  SNAPSHOT_FETCH_MIN_REMAINING_MS,
+  SNAPSHOT_FETCH_SINGLE_PAGE_BUDGET_CAP_MS,
+  SNAPSHOT_HEAD_BUDGET_CAP_MS,
+  SNAPSHOT_HEAD_MIN_REMAINING_MS,
+  SNAPSHOT_MAX_DISCOVERY_LINKS,
+  SNAPSHOT_MAX_EXTRA_PAGES,
+  SNAPSHOT_MAX_HTML_BYTES,
+  SNAPSHOT_PLAYWRIGHT_MIN_BUDGET_MS,
+  SNAPSHOT_PLAYWRIGHT_REMAINING_RESERVE_MS,
+  SNAPSHOT_PW_VISIBLE_SHORT_BEFORE_MAX,
+  SNAPSHOT_PW_VISIBLE_SHORT_GAIN_MIN,
+  SNAPSHOT_PW_VISIBLE_TEXT_MIN_CHARS,
+  SNAPSHOT_PW_VISIBLE_TEXT_RATIO,
+  SNAPSHOT_ROBOTS_ABORT_MAX_MS,
+  SNAPSHOT_ROBOTS_ABORT_MIN_MS,
+} from '../config/snapshot-timing.js';
+import {
+  SNAPSHOT_FETCH_ACCEPT_LANGUAGE,
+  SNAPSHOT_HEAD_ACCEPT_LANGUAGE,
+  SNAPSHOT_PATH_HINT_REGEXES,
+  SNAPSHOT_ROBOTS_FALLBACK_HTML_PATHS,
+} from '../config/snapshot-fetch-heuristics.js';
 
-const MAX_EXTRA_PAGES = 3;
 /** When the homepage is robots-blocked, try up to this many allowed same-origin HTML paths (no homepage GET). */
-const MAX_ROBOTS_FALLBACK_HTML_PAGES = MAX_EXTRA_PAGES + 1;
-const MAX_DISCOVERY_LINKS = 80;
-/** ADR wall-clock target ~8–12s; default 10s (override with SNAPSHOT_FETCH_BUDGET_MS). */
-const DEFAULT_TOTAL_BUDGET_MS = 10_000;
-const MAX_HTML_BYTES = 3_000_000;
-
-const PATH_HINTS = [
-  /\/about/i,
-  /\/contact/i,
-  /\/services?\/?$/i,
-  /\/pricing/i,
-  /\/book/i,
-  /\/appointment/i,
-];
-
-/** Same-origin paths often allowed when `/` is disallowed (HTML only; XML sitemap excluded here). */
-const ROBOTS_FALLBACK_HTML_PATHS: string[] = [
-  '/about',
-  '/about/',
-  '/about-us',
-  '/company',
-  '/team',
-  '/contact',
-  '/pricing',
-  '/services',
-];
-
-const SNAPSHOT_UA = 'GLC-SnapshotScanner/1.0 (+https://glctech.es)';
-const BROWSER_COMPAT_UA =
-  'Mozilla/5.0 (compatible; GLC-SnapshotHeadProbe/1.0; +https://glctech.es) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const MAX_ROBOTS_FALLBACK_HTML_PAGES = SNAPSHOT_MAX_EXTRA_PAGES + 1;
 
 function abortAfter(ms: number): AbortSignal {
   if (typeof AbortSignal.timeout === 'function') {
@@ -64,8 +63,8 @@ function abortAfter(ms: number): AbortSignal {
 
 function truncateHtml(html: string): string {
   const buf = Buffer.byteLength(html, 'utf8');
-  if (buf <= MAX_HTML_BYTES) return html;
-  return Buffer.from(html, 'utf8').subarray(0, MAX_HTML_BYTES).toString('utf8');
+  if (buf <= SNAPSHOT_MAX_HTML_BYTES) return html;
+  return Buffer.from(html, 'utf8').subarray(0, SNAPSHOT_MAX_HTML_BYTES).toString('utf8');
 }
 
 function visibleTextLength(html: string): number {
@@ -91,17 +90,17 @@ async function fetchHomePage(
   | { ok: false; reason: HomeFetchFailureReason; httpStatus?: number }
 > {
   const remaining = deadlineMs - Date.now();
-  if (remaining < 800) {
+  if (remaining < SNAPSHOT_FETCH_MIN_REMAINING_MS) {
     return { ok: false, reason: 'network_or_timeout' };
   }
-  const budget = Math.min(remaining, 8000);
+  const budget = Math.min(remaining, SNAPSHOT_FETCH_SINGLE_PAGE_BUDGET_CAP_MS);
   try {
     const res = await fetchPublicHttpUrl(url, {
       signal: abortAfter(budget),
       headers: {
-        'User-Agent': SNAPSHOT_UA,
+        'User-Agent': SNAPSHOT_SCANNER_USER_AGENT,
         Accept: 'text/html,application/xhtml+xml',
-        'Accept-Language': 'en,es,de,fr,nl,pt,it,pl,ru,uk,ja,zh-CN,zh;q=0.9',
+        'Accept-Language': SNAPSHOT_FETCH_ACCEPT_LANGUAGE,
       },
     });
     const raw = await res.text();
@@ -141,15 +140,15 @@ async function fetchOne(
   deadlineMs: number,
 ): Promise<FetchedPage | null> {
   const remaining = deadlineMs - Date.now();
-  if (remaining < 800) return null;
-  const budget = Math.min(remaining, 8000);
+  if (remaining < SNAPSHOT_FETCH_MIN_REMAINING_MS) return null;
+  const budget = Math.min(remaining, SNAPSHOT_FETCH_SINGLE_PAGE_BUDGET_CAP_MS);
   try {
     const res = await fetchPublicHttpUrl(url, {
       signal: abortAfter(budget),
       headers: {
-        'User-Agent': SNAPSHOT_UA,
+        'User-Agent': SNAPSHOT_SCANNER_USER_AGENT,
         Accept: 'text/html,application/xhtml+xml',
-        'Accept-Language': 'en,es,de,fr,nl,pt,it,pl,ru,uk,ja,zh-CN,zh;q=0.9',
+        'Accept-Language': SNAPSHOT_FETCH_ACCEPT_LANGUAGE,
       },
     });
     const raw = await res.text();
@@ -184,8 +183,8 @@ async function fetchHeadHomeWhenRobotsBlock(
   deadlineMs: number,
 ): Promise<HeadProbeResult | undefined> {
   const remaining = deadlineMs - Date.now();
-  if (remaining < 500) return undefined;
-  const budget = Math.min(remaining, 3500);
+  if (remaining < SNAPSHOT_HEAD_MIN_REMAINING_MS) return undefined;
+  const budget = Math.min(remaining, SNAPSHOT_HEAD_BUDGET_CAP_MS);
 
   const runHead = async (ua: string, uaUsed: HeadProbeResult['uaUsed']): Promise<HeadProbeResult | undefined> => {
     try {
@@ -197,7 +196,7 @@ async function fetchHeadHomeWhenRobotsBlock(
           headers: {
             'User-Agent': ua,
             Accept: '*/*',
-            'Accept-Language': 'en,es;q=0.9',
+            'Accept-Language': SNAPSHOT_HEAD_ACCEPT_LANGUAGE,
           },
         },
         5,
@@ -218,11 +217,11 @@ async function fetchHeadHomeWhenRobotsBlock(
     }
   };
 
-  let probe = await runHead(SNAPSHOT_UA, 'glc_scanner');
+  let probe = await runHead(SNAPSHOT_SCANNER_USER_AGENT, 'glc_scanner');
   const allowAltUa = process.env.SNAPSHOT_ROBOTS_HEAD_BROWSER_UA === '1';
   if (!probe && allowAltUa) {
     logger.info('snapshot.robots_head_retry_browser_ua', { url });
-    probe = await runHead(BROWSER_COMPAT_UA, 'browser_compat');
+    probe = await runHead(SNAPSHOT_HEAD_PROBE_BROWSER_UA, 'browser_compat');
   }
   return probe;
 }
@@ -255,7 +254,7 @@ function discoverCandidateUrls(homeHtml: string, baseUrl: string): string[] {
     consider($(el).attr('href'));
   });
   $('a[href]').each((_, el) => {
-    if (out.length >= MAX_DISCOVERY_LINKS) return false;
+    if (out.length >= SNAPSHOT_MAX_DISCOVERY_LINKS) return false;
     consider($(el).attr('href'));
     return undefined;
   });
@@ -277,7 +276,7 @@ function scorePath(urlStr: string): number {
   let s = 0;
   try {
     const p = new URL(urlStr).pathname.toLowerCase();
-    for (const re of PATH_HINTS) {
+    for (const re of SNAPSHOT_PATH_HINT_REGEXES) {
       if (re.test(p)) s += 3;
     }
     if (p.split('/').filter(Boolean).length <= 2) s += 1;
@@ -317,7 +316,7 @@ function buildCoverage(
     budgetMs: totalBudgetMs,
     elapsedMs,
     pagesFetched: pages.length,
-    maxPagesPlanned: 1 + MAX_EXTRA_PAGES,
+    maxPagesPlanned: 1 + SNAPSHOT_MAX_EXTRA_PAGES,
     pages: pages.map(p => {
       let pathname = '/';
       try {
@@ -355,14 +354,16 @@ export async function fetchTieredPages(companyUrl: string): Promise<{
   coverage: SnapshotScanCoverage;
 }> {
   const baseHref = await validatePublicAuditUrl(companyUrl);
-  const totalBudgetMs = Number(process.env.SNAPSHOT_FETCH_BUDGET_MS ?? DEFAULT_TOTAL_BUDGET_MS);
+  const totalBudgetMs = getSnapshotFetchBudgetMs();
   const startedAt = Date.now();
   const deadline = startedAt + totalBudgetMs;
 
   const origin = new URL(baseHref).origin;
   const robotsPolicy = await getSnapshotRobotsPolicy(
     origin,
-    abortAfter(Math.min(2500, Math.max(500, deadline - Date.now()))),
+    abortAfter(
+      Math.min(SNAPSHOT_ROBOTS_ABORT_MAX_MS, Math.max(SNAPSHOT_ROBOTS_ABORT_MIN_MS, deadline - Date.now())),
+    ),
   );
 
   if (!robotsSnapshotHomeAllowed(robotsPolicy, origin)) {
@@ -376,7 +377,7 @@ export async function fetchTieredPages(companyUrl: string): Promise<{
     let crawlDelayMsApplied = 0;
     const triedPath = new Set<string>();
 
-    for (const path of ROBOTS_FALLBACK_HTML_PATHS) {
+    for (const path of SNAPSHOT_ROBOTS_FALLBACK_HTML_PATHS) {
       if (pages.length >= MAX_ROBOTS_FALLBACK_HTML_PAGES) break;
       let fullUrl: string;
       try {
@@ -400,7 +401,7 @@ export async function fetchTieredPages(companyUrl: string): Promise<{
       }
 
       if (robotsPolicy.crawlDelayMs > 0 && pages.length >= 1) {
-        const room = deadline - Date.now() - 400;
+        const room = deadline - Date.now() - SNAPSHOT_CRAWL_DELAY_ROOM_SUBTRACT_MS;
         const wait = Math.min(robotsPolicy.crawlDelayMs, Math.max(0, room));
         if (wait > 0) {
           await new Promise<void>(resolve => {
@@ -452,8 +453,8 @@ export async function fetchTieredPages(companyUrl: string): Promise<{
   if (!playwrightDisabled && playwrightEligible) {
     const remainingAfterHttp = deadline - Date.now();
     const pwCap = Number(process.env.SNAPSHOT_PLAYWRIGHT_BUDGET_MS ?? 14_000);
-    const pwBudget = Math.min(pwCap, Math.max(0, remainingAfterHttp - 1200));
-    if (pwBudget >= 4500) {
+    const pwBudget = Math.min(pwCap, Math.max(0, remainingAfterHttp - SNAPSHOT_PLAYWRIGHT_REMAINING_RESERVE_MS));
+    if (pwBudget >= SNAPSHOT_PLAYWRIGHT_MIN_BUDGET_MS) {
       try {
         const { fetchRenderedHomeHtml } = await import('./playwright-fetch.js');
         const rendered = await fetchRenderedHomeHtml(homePage.finalUrl, pwBudget);
@@ -461,7 +462,11 @@ export async function fetchTieredPages(companyUrl: string): Promise<{
           const truncated = truncateHtml(rendered.html);
           const beforeLen = visibleTextLength(homePage.html);
           const afterLen = visibleTextLength(truncated);
-          if (afterLen >= Math.max(280, beforeLen * 1.1) || (beforeLen < 220 && afterLen > beforeLen + 80)) {
+          if (
+            afterLen >= Math.max(SNAPSHOT_PW_VISIBLE_TEXT_MIN_CHARS, beforeLen * SNAPSHOT_PW_VISIBLE_TEXT_RATIO) ||
+            (beforeLen < SNAPSHOT_PW_VISIBLE_SHORT_BEFORE_MAX &&
+              afterLen > beforeLen + SNAPSHOT_PW_VISIBLE_SHORT_GAIN_MIN)
+          ) {
             homePage = {
               ...homePage,
               html: truncated,
@@ -497,7 +502,7 @@ export async function fetchTieredPages(companyUrl: string): Promise<{
   let robotsExtrasSkipped = 0;
   let crawlDelayMsApplied = 0;
   for (const u of candidates) {
-    if (pages.length >= 1 + MAX_EXTRA_PAGES) break;
+    if (pages.length >= 1 + SNAPSHOT_MAX_EXTRA_PAGES) break;
     let norm: string;
     try {
       norm = new URL(u).href;
@@ -511,7 +516,7 @@ export async function fetchTieredPages(companyUrl: string): Promise<{
     }
     picked.add(norm);
     if (robotsPolicy.crawlDelayMs > 0 && pages.length >= 1) {
-      const room = deadline - Date.now() - 400;
+      const room = deadline - Date.now() - SNAPSHOT_CRAWL_DELAY_ROOM_SUBTRACT_MS;
       const wait = Math.min(robotsPolicy.crawlDelayMs, Math.max(0, room));
       if (wait > 0) {
         await new Promise<void>(resolve => {

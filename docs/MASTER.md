@@ -12,7 +12,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | --- | --- |
 | Product concept and operating principles | [CONCEPT.md](./CONCEPT.md) |
 | Product, modes, deliverables | [PRODUCT.md](./PRODUCT.md) |
-| System architecture, data flow | [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| System architecture, data flow, **config vs DB vs services vs UI**, **strict ENV/CONFIG/SERVICES boundaries**, **copy zones (single source)** | [ARCHITECTURE.md](./ARCHITECTURE.md) ([layering](./ARCHITECTURE.md#configuration-layering-config-vs-database-vs-services-vs-ui), [strict boundaries](./ARCHITECTURE.md#strict-layer-boundaries-operational-policy), [copy layering](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone)) |
 | Phases, wings, review gates, tokens | [PIPELINE.md](./PIPELINE.md) |
 | Agents, collectors, fact-check, weights | [AGENTS.md](./AGENTS.md) |
 | Database tables, migrations, RLS overview | [DATABASE.md](./DATABASE.md) |
@@ -27,7 +27,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | ADR: free snapshot — cheap deterministic scanner | [ADR-FREE-SNAPSHOT-SCANNER.md](adrs/ADR-FREE-SNAPSHOT-SCANNER.md) |
 | ADR: wording lifecycle + intake trace IA split | [ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md](adrs/ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md) |
 | Local dev, migrations order, demo seed | [SETUP.md](./SETUP.md) |
-| Production deploy (Vercel, Railway, Supabase) | [DEPLOYMENT.md](./DEPLOYMENT.md) |
+| Production deploy (Vercel, Railway, Supabase) | [DEPLOYMENT.md](./DEPLOYMENT.md) (includes **config module map**, optional env tables; links to [configuration layering](./ARCHITECTURE.md#configuration-layering-config-vs-database-vs-services-vs-ui)) |
 | Test strategy, matrix, coverage, doc alignment, dead-code signals, E2E | [TESTING.md](../TESTING.md) (repo root) |
 | Security CI gates (secret scan, migration smoke, policy tests) | [.github/workflows/test.yml](../.github/workflows/test.yml) |
 

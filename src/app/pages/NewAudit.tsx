@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router';
+import { ensureHttpsUrl } from '@glc/intake-core';
 import type { BriefResponseSource, IntakeVersionTuple } from '../data/auditTypes';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -47,6 +48,7 @@ import {
   writeClientPortalNewAuditDraft,
   type ClientPortalNewAuditDraftV1,
 } from '../lib/client-portal-new-audit-draft';
+import type { BriefIntakeAnalyticsSurface } from '../lib/brief-intake-analytics';
 import {
   buildStep0IntakePatch,
   defaultConsultantDisplayName,
@@ -70,6 +72,7 @@ import {
   type BriefResponses,
 } from '../data/briefQuestions';
 import { logger } from '../lib/logger';
+import { GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY } from '../lib/storage-keys';
 
 export type NewAuditVariant = 'consultant' | 'client_self_serve';
 
@@ -282,7 +285,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
   // stored discovery session and merge its bank-ID answers into the wizard.
   useEffect(() => {
     if (!fromDiscovery) return;
-    const token = localStorage.getItem('glc_discovery_token');
+    const token = localStorage.getItem(GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY);
     if (!token) return;
 
     let cancelled = false;
@@ -308,7 +311,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         if (a2) setIndustry(a2);
 
         setDiscoveryPrefilled(true);
-        localStorage.removeItem('glc_discovery_token');
+        localStorage.removeItem(GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY);
       } catch {
         // Non-critical — wizard opens blank if session can't be loaded
       }
@@ -321,7 +324,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
     const trimmed = raw.trim();
     if (!trimmed) return false;
     try {
-      const prefixed = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+      const prefixed = ensureHttpsUrl(trimmed);
       return new URL(prefixed).hostname.includes('.');
     } catch { return false; }
   }
@@ -360,17 +363,21 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
 
   const layoutSelected = briefLayoutChoice === 'classic' || briefLayoutChoice === 'wizard';
 
-  const briefWizardIntakeAnalytics = useMemo(
-    () =>
-      draftAuditId && !noPublicWebsite && briefLayoutChoice === 'wizard'
-        ? {
-            auditId: draftAuditId,
-            surface: isClientSelfServe ? 'client_form' : 'consultant_interview',
-            getIntakeVersions: (): IntakeVersionTuple | null => draftIntakeVersions,
-          }
-        : undefined,
-    [draftAuditId, noPublicWebsite, briefLayoutChoice, isClientSelfServe, draftIntakeVersions],
-  );
+  const briefWizardIntakeAnalytics = useMemo(():
+    | {
+        auditId: string;
+        surface: BriefIntakeAnalyticsSurface;
+        getIntakeVersions: () => IntakeVersionTuple | null;
+      }
+    | undefined => {
+    if (!draftAuditId || noPublicWebsite || briefLayoutChoice !== 'wizard') return undefined;
+    const surface: BriefIntakeAnalyticsSurface = isClientSelfServe ? 'client_form' : 'consultant_interview';
+    return {
+      auditId: draftAuditId,
+      surface,
+      getIntakeVersions: (): IntakeVersionTuple | null => draftIntakeVersions,
+    };
+  }, [draftAuditId, noPublicWebsite, briefLayoutChoice, isClientSelfServe, draftIntakeVersions]);
 
   function handleSelectConsultantBriefLayout(mode: 'classic' | 'wizard') {
     if (isClientSelfServe) {

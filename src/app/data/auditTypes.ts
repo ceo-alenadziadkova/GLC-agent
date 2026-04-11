@@ -1,5 +1,7 @@
 // ─── Types matching the backend/DB schema ──────────────────
 
+import type { DomainKey } from '@glc/intake-core';
+
 export type ProductMode = 'free_snapshot' | 'express' | 'full';
 
 export type UserRole = 'consultant' | 'client' | 'guest';
@@ -212,41 +214,14 @@ export interface FreeSnapshotPreview {
   }>;
 }
 
-export const DOMAIN_KEYS = [
-  'tech_infrastructure',
-  'security_compliance',
-  'seo_digital',
-  'ux_conversion',
-  'marketing_utp',
-  'automation_processes',
-] as const;
+export {
+  DOMAIN_DISPLAY_LABELS as DOMAIN_LABELS,
+  DOMAIN_KEYS,
+  SCORE_COLORS,
+  SCORE_LABELS,
+} from '@glc/intake-core';
 
-export type DomainKey = (typeof DOMAIN_KEYS)[number];
-
-export const DOMAIN_LABELS: Record<DomainKey, string> = {
-  tech_infrastructure: 'Tech Infrastructure',
-  security_compliance: 'Security & Compliance',
-  seo_digital: 'SEO & Digital',
-  ux_conversion: 'UX & Conversion',
-  marketing_utp: 'Marketing & Positioning',
-  automation_processes: 'Automation & Processes',
-};
-
-export const SCORE_LABELS: Record<number, string> = {
-  1: 'Critical',
-  2: 'Needs Work',
-  3: 'Moderate',
-  4: 'Good',
-  5: 'Excellent',
-};
-
-export const SCORE_COLORS: Record<number, string> = {
-  1: '#EF4444',
-  2: '#F97316',
-  3: '#EAB308',
-  4: '#22C55E',
-  5: '#0ECF82',
-};
+export type { DomainKey };
 
 // ─── Data structures ───────────────────────────────────────
 
@@ -255,6 +230,7 @@ export interface AuditMeta {
   user_id: string;
   client_id: string | null;
   company_url: string;
+  no_public_website?: boolean;
   company_name: string | null;
   industry: string | null;
   status: string;

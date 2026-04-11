@@ -1,4 +1,7 @@
+import { FACT_CHECKER_THRESHOLDS } from '../config/fact-checker-thresholds.js';
 import type { DomainResult, DomainKey, ConfidenceLevel } from '../types/audit.js';
+
+const T = FACT_CHECKER_THRESHOLDS;
 
 interface FactCheckResult {
   result: DomainResult;
@@ -78,7 +81,7 @@ export class FactChecker {
         raw_evidence: 'SSL check returned invalid',
         action: 'override',
         original_value: result.score,
-        corrected_value: Math.min(result.score, 2),
+        corrected_value: Math.min(result.score, T.security.invalidSslMaxScore),
       });
     }
 
@@ -89,7 +92,10 @@ export class FactChecker {
         ) && !h.present
       );
 
-      if (missingCritical.length >= 2 && result.score >= 4) {
+      if (
+        missingCritical.length >= T.security.missingCriticalHeadersMinCount &&
+        result.score >= T.security.missingCriticalHeadersFlagMinScore
+      ) {
         corrections.push({
           field: 'score',
           issue: `Score too high: ${missingCritical.length} critical security headers missing (CSP, HSTS)`,
@@ -113,7 +119,7 @@ export class FactChecker {
     const pageAnalysis = seoData.page_analysis as { issues: string[]; meta_coverage: { with_description: number; total: number } } | undefined;
 
     // Can't score 5 without sitemap
-    if (sitemap && !sitemap.exists && result.score === 5) {
+    if (sitemap && !sitemap.exists && result.score === T.seo.perfectScore) {
       corrections.push({
         field: 'score',
         issue: 'Score 5/5 but no sitemap.xml found',
@@ -123,7 +129,7 @@ export class FactChecker {
     }
 
     // Can't score 5 without robots.txt
-    if (robotsTxt && !robotsTxt.exists && result.score === 5) {
+    if (robotsTxt && !robotsTxt.exists && result.score === T.seo.perfectScore) {
       corrections.push({
         field: 'score',
         issue: 'Score 5/5 but no robots.txt found',
@@ -135,7 +141,7 @@ export class FactChecker {
     // Low meta coverage should lower score
     if (pageAnalysis?.meta_coverage) {
       const coverage = pageAnalysis.meta_coverage.with_description / pageAnalysis.meta_coverage.total;
-      if (coverage < 0.5 && result.score >= 4) {
+      if (coverage < T.seo.metaDescriptionMinCoverage && result.score >= T.seo.metaDescriptionFlagMinScore) {
         corrections.push({
           field: 'score',
           issue: `Score too high: only ${Math.round(coverage * 100)}% of pages have meta descriptions`,
@@ -157,7 +163,7 @@ export class FactChecker {
     const headers = perfData.headers as { compression: { enabled: boolean }; caching: { has_cache_policy: boolean } } | undefined;
 
     if (headers) {
-      if (!headers.compression.enabled && result.score >= 4) {
+      if (!headers.compression.enabled && result.score >= T.tech.flagMinScore) {
         corrections.push({
           field: 'score',
           issue: 'Score too high: no HTTP compression detected',
@@ -166,7 +172,7 @@ export class FactChecker {
         });
       }
 
-      if (!headers.caching.has_cache_policy && result.score >= 4) {
+      if (!headers.caching.has_cache_policy && result.score >= T.tech.flagMinScore) {
         corrections.push({
           field: 'score',
           issue: 'Score too high: no cache policy detected',
@@ -187,7 +193,11 @@ export class FactChecker {
 
     const imageA11y = a11y.image_accessibility as { alt_coverage_percent: number } | undefined;
 
-    if (imageA11y && imageA11y.alt_coverage_percent < 50 && result.score >= 4) {
+    if (
+      imageA11y &&
+      imageA11y.alt_coverage_percent < T.ux.imageAltMinCoveragePercent &&
+      result.score >= T.ux.flagMinScore
+    ) {
       corrections.push({
         field: 'score',
         issue: `Score too high: only ${imageA11y.alt_coverage_percent}% image alt text coverage`,
@@ -199,7 +209,7 @@ export class FactChecker {
 
   private checkScoreConsistency(result: DomainResult, corrections: FactCorrection[]) {
     // Score 5 should not have critical issues
-    if (result.score === 5 && result.issues.some(i => i.severity === 'critical')) {
+    if (result.score === T.consistency.maxScore && result.issues.some(i => i.severity === 'critical')) {
       corrections.push({
         field: 'score',
         issue: 'Score 5/5 but critical issues found',
@@ -209,7 +219,10 @@ export class FactChecker {
     }
 
     // Score 1 should have at least one critical issue
-    if (result.score === 1 && !result.issues.some(i => i.severity === 'critical' || i.severity === 'high')) {
+    if (
+      result.score === T.consistency.minScore &&
+      !result.issues.some(i => i.severity === 'critical' || i.severity === 'high')
+    ) {
       corrections.push({
         field: 'score',
         issue: 'Score 1/5 but no critical or high issues listed',
@@ -219,7 +232,10 @@ export class FactChecker {
     }
 
     // Strengths/weaknesses balance
-    if (result.score >= 4 && result.weaknesses.length > result.strengths.length * 2) {
+    if (
+      result.score >= T.consistency.highScoreFlagMin &&
+      result.weaknesses.length > result.strengths.length * T.consistency.strengthsToWeaknessesRatio
+    ) {
       corrections.push({
         field: 'score',
         issue: 'High score but significantly more weaknesses than strengths',
@@ -246,8 +262,8 @@ export class FactChecker {
 
     const overrideCount = corrections.filter(c => c.action === 'override').length;
     const flagCount = corrections.filter(c => c.action === 'flag').length;
-    score -= overrideCount * 0.2;
-    score -= Math.min(flagCount * 0.1, 0.2); // cap flag deduction at -0.2
+    score -= overrideCount * T.confidence.perOverrideDeduction;
+    score -= Math.min(flagCount * T.confidence.perFlagDeduction, T.confidence.maxFlagDeduction);
 
     // Factor in per-finding confidence levels
     if (result.issues.length > 0) {
@@ -255,8 +271,9 @@ export class FactChecker {
       const mediumCount = result.issues.filter(i => (i.confidence as ConfidenceLevel) === 'medium').length;
       const ratio = (level: number) => level / result.issues.length;
 
-      if (ratio(lowCount) > 0.5) score -= 0.15;
-      else if (ratio(mediumCount) > 0.5) score -= 0.05;
+      if (ratio(lowCount) > T.confidence.lowConfidenceIssueRatio) score -= T.confidence.lowConfidencePenalty;
+      else if (ratio(mediumCount) > T.confidence.lowConfidenceIssueRatio)
+        score -= T.confidence.mediumConfidencePenalty;
     }
 
     return Math.max(0, Math.min(1, score));
@@ -278,8 +295,8 @@ export class FactChecker {
     //    This prevents over-correction while still forcing inflated scores down.
     const scoreFlags = corrections.filter(c => c.action === 'flag' && c.field === 'score');
     if (scoreFlags.length > 0) {
-      const reduction = Math.min(scoreFlags.length, 2);
-      score = Math.max(1, score - reduction);
+      const reduction = Math.min(scoreFlags.length, T.applyScore.maxReductionSteps);
+      score = Math.max(T.applyScore.minScoreAfterReduction, score - reduction);
     }
 
     if (score === result.score) return result; // No change needed

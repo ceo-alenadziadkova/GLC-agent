@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { REVIEW_GATE_NOTES_MAX } from '@glc/intake-core';
 import { motion } from 'motion/react';
 import { Star, CheckCircle, ArrowRight, MagnifyingGlass, HardDrives, Shield, Globe, Cursor, Target, Lightning, MapTrifold, WarningCircle, Info } from '@phosphor-icons/react';
 import type { QualityGateReport } from '../../data/auditTypes';
@@ -216,6 +217,7 @@ export function ReviewPointModal({ reviewPoint, open, onClose, onApprove, qualit
             <textarea
               rows={3}
               value={consultantNotes}
+              maxLength={REVIEW_GATE_NOTES_MAX}
               onChange={e => setConsultantNotes(e.target.value)}
               placeholder="e.g. Tech stack is significantly outdated. Security issues are blocking — need to address before proceeding with marketing analysis."
               style={inputStyle}
@@ -246,6 +248,7 @@ export function ReviewPointModal({ reviewPoint, open, onClose, onApprove, qualit
             <textarea
               rows={3}
               value={interviewNotes}
+              maxLength={REVIEW_GATE_NOTES_MAX}
               onChange={e => setInterviewNotes(e.target.value)}
               placeholder="e.g. Client confirmed they are aware of WordPress issues but delayed due to budget. Priority: quick wins first."
               style={inputStyle}

@@ -2,11 +2,9 @@
  * Explicit CORS allowlist. Comma-separated full origins (scheme + host + optional port).
  * Example: https://www.example.com,https://example.com
  */
-const DEFAULT_DEV_ORIGINS = [
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:3000',
-] as const;
+import { GLC_DEV_CORS_EXTRA_ORIGINS, GLC_DEV_SPA_ORIGIN } from '@glc/dev-brand-defaults';
+
+const DEFAULT_DEV_ORIGINS = [GLC_DEV_SPA_ORIGIN, ...GLC_DEV_CORS_EXTRA_ORIGINS] as const;
 
 function normalizeOrigin(o: string): string {
   const t = o.trim();

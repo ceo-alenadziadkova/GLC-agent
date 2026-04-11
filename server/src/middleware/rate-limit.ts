@@ -4,6 +4,24 @@ import { RedisStore } from 'rate-limit-redis';
 import { createClient } from 'redis';
 import type { AuthRequest } from './auth.js';
 import { logger } from '../services/logger.js';
+import {
+  HOUR_MS,
+  MINUTE_MS,
+  parsePositiveIntFromEnv,
+  RATE_LIMIT_AUDIT_CREATE_MAX_PER_DAY,
+  RATE_LIMIT_AUDIT_CREATE_WINDOW_MS,
+  RATE_LIMIT_GENERAL_MAX_PER_WINDOW,
+  RATE_LIMIT_GENERAL_WINDOW_MS,
+  RATE_LIMIT_LOG_INGEST_MAX_PER_WINDOW,
+  RATE_LIMIT_LOG_INGEST_WINDOW_MS,
+  RATE_LIMIT_PIPELINE_MAX_PER_WINDOW,
+  RATE_LIMIT_PIPELINE_WINDOW_MS,
+  SNAPSHOT_COMPARE_MAX_PER_HOUR,
+  SNAPSHOT_COMPARE_WINDOW_MS,
+  SNAPSHOT_LOG_INGEST_MAX_PER_MIN,
+  SNAPSHOT_PUBLIC_MAX_PER_DAY,
+  SNAPSHOT_PUBLIC_WINDOW_MS,
+} from '../config/rate-limits.js';
 
 /** Inferred from `createClient` so assignments stay compatible when redis adds optional modules / RESP versions. */
 type RateLimitRedisClient = ReturnType<typeof createClient>;
@@ -58,62 +76,69 @@ logger.info('[rate-limit] store mode initialized', {
 });
 
 /**
- * Rate limiter for audit creation: max 5 audits per user per day.
+ * Rate limiter for audit creation (defaults: max 5 per user per rolling 24h; env-tunable).
  */
 export const createAuditLimiter = rateLimit({
-  windowMs: 24 * 60 * 60 * 1000, // 24 hours
-  max: 5,
+  windowMs: RATE_LIMIT_AUDIT_CREATE_WINDOW_MS,
+  max: RATE_LIMIT_AUDIT_CREATE_MAX_PER_DAY,
   store: distributedStore('audit_create'),
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   message: {
-    error: 'Too many audits created. Maximum 5 per day.',
-    retry_after_hours: 24,
+    error: `Too many audits created. Maximum ${RATE_LIMIT_AUDIT_CREATE_MAX_PER_DAY} per rolling window.`,
+    code: 'AUDIT_CREATE_RATE_LIMITED',
+    retry_after_hours: Math.max(1, Math.ceil(RATE_LIMIT_AUDIT_CREATE_WINDOW_MS / HOUR_MS)),
   },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 /**
- * Rate limiter for pipeline operations: max 30 phase runs per hour.
+ * Rate limiter for pipeline operations (defaults: 30 per rolling hour; env-tunable).
  */
 export const pipelineLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 30,
+  windowMs: RATE_LIMIT_PIPELINE_WINDOW_MS,
+  max: RATE_LIMIT_PIPELINE_MAX_PER_WINDOW,
   store: distributedStore('pipeline_ops'),
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   message: {
     error: 'Too many pipeline operations. Please wait before retrying.',
-    retry_after_minutes: 60,
+    code: 'PIPELINE_RATE_LIMITED',
+    retry_after_minutes: Math.max(1, Math.ceil(RATE_LIMIT_PIPELINE_WINDOW_MS / MINUTE_MS)),
   },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 /**
- * General API rate limiter: 100 requests per minute.
+ * General API rate limiter (defaults: 100 req/min per identity; env-tunable).
  */
 export const generalLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 100,
+  windowMs: RATE_LIMIT_GENERAL_WINDOW_MS,
+  max: RATE_LIMIT_GENERAL_MAX_PER_WINDOW,
   store: distributedStore('general_api'),
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
+  message: {
+    error: 'Too many API requests. Please wait before retrying.',
+    code: 'GENERAL_API_RATE_LIMITED',
+    retry_after_seconds: Math.max(1, Math.ceil(RATE_LIMIT_GENERAL_WINDOW_MS / 1000)),
+  },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-/** Free website check starts (POST) per IP per rolling 24h window — abuse control. */
-export const SNAPSHOT_PUBLIC_MAX_PER_DAY = 3;
-export const SNAPSHOT_PUBLIC_WINDOW_MS = 24 * 60 * 60 * 1000;
-
 /** Single store for POST limiter and read-only quota peek (`GET /api/snapshot/quota`). */
 export const snapshotPublicQuotaStore = distributedStore('snapshot_public_quota') ?? new MemoryStore();
 
-/** Stricter cap for opt-in competitor compare on `GET /api/snapshot/:token?compare=1` (per IP, rolling 1h). */
-export const SNAPSHOT_COMPARE_MAX_PER_HOUR = Number(process.env.SNAPSHOT_COMPARE_MAX_PER_HOUR ?? 15);
+export {
+  SNAPSHOT_COMPARE_MAX_PER_HOUR,
+  SNAPSHOT_COMPARE_WINDOW_MS,
+  SNAPSHOT_PUBLIC_MAX_PER_DAY,
+  SNAPSHOT_PUBLIC_WINDOW_MS,
+} from '../config/rate-limits.js';
 
 export const snapshotCompareLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: Number.isFinite(SNAPSHOT_COMPARE_MAX_PER_HOUR) && SNAPSHOT_COMPARE_MAX_PER_HOUR > 0 ? SNAPSHOT_COMPARE_MAX_PER_HOUR : 15,
+  windowMs: SNAPSHOT_COMPARE_WINDOW_MS,
+  max: SNAPSHOT_COMPARE_MAX_PER_HOUR,
   store: distributedStore('snapshot_compare'),
   keyGenerator: (req) => `${req.ip ?? 'unknown'}:snapshot_compare`,
   skip: (req) => {
@@ -125,7 +150,7 @@ export const snapshotCompareLimiter = rateLimit({
   message: {
     error: 'Too many competitor comparisons. Try again later.',
     code: 'COMPARE_RATE_LIMITED',
-    retry_after_minutes: 60,
+    retry_after_minutes: Math.max(1, Math.ceil(SNAPSHOT_COMPARE_WINDOW_MS / MINUTE_MS)),
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -183,27 +208,21 @@ export const snapshotPublicLimiter = rateLimit({
     limit: SNAPSHOT_PUBLIC_MAX_PER_DAY,
     remaining: 0,
     period: 'day',
-    retry_after_hours: 24,
+    retry_after_hours: Math.max(1, Math.ceil(SNAPSHOT_PUBLIC_WINDOW_MS / HOUR_MS)),
   },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-function parsePositiveInt(raw: string | undefined, fallback: number): number {
-  const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
-}
-
-const HOUR_MS = 60 * 60 * 1000;
-
 /** @deprecated Prefer split limiters (discover/intake read vs write). Kept for tests and gradual rollout. */
 export const intakePublicLimiter = rateLimit({
   windowMs: HOUR_MS,
-  max: parsePositiveInt(process.env.PUBLIC_INTAKE_LEGACY_MAX_PER_HOUR, 30),
+  max: parsePositiveIntFromEnv(process.env.PUBLIC_INTAKE_LEGACY_MAX_PER_HOUR, 30),
   store: distributedStore('intake_public_legacy'),
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
     error: 'Too many requests to this intake link. Try again later.',
+    code: 'INTAKE_LEGACY_RATE_LIMITED',
     retry_after_minutes: 60,
   },
   standardHeaders: true,
@@ -213,7 +232,7 @@ export const intakePublicLimiter = rateLimit({
 /** POST /api/discover — session creation (spam surface). */
 export const discoverSessionCreateLimiter = rateLimit({
   windowMs: HOUR_MS,
-  max: parsePositiveInt(process.env.PUBLIC_DISCOVER_CREATE_MAX_PER_HOUR, 12),
+  max: parsePositiveIntFromEnv(process.env.PUBLIC_DISCOVER_CREATE_MAX_PER_HOUR, 12),
   store: distributedStore('discover_create'),
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
@@ -228,7 +247,7 @@ export const discoverSessionCreateLimiter = rateLimit({
 /** GET discovery session / ui-fragment / PATCH contact — reads and light writes. */
 export const discoverPublicReadLimiter = rateLimit({
   windowMs: HOUR_MS,
-  max: parsePositiveInt(process.env.PUBLIC_DISCOVER_READ_MAX_PER_HOUR, 80),
+  max: parsePositiveIntFromEnv(process.env.PUBLIC_DISCOVER_READ_MAX_PER_HOUR, 80),
   store: distributedStore('discover_read'),
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
@@ -243,7 +262,7 @@ export const discoverPublicReadLimiter = rateLimit({
 /** POST /api/discover/analytics-events — batched telemetry. */
 export const discoverAnalyticsPublicLimiter = rateLimit({
   windowMs: HOUR_MS,
-  max: parsePositiveInt(process.env.PUBLIC_DISCOVER_ANALYTICS_MAX_PER_HOUR, 200),
+  max: parsePositiveIntFromEnv(process.env.PUBLIC_DISCOVER_ANALYTICS_MAX_PER_HOUR, 200),
   store: distributedStore('discover_analytics'),
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
@@ -258,7 +277,7 @@ export const discoverAnalyticsPublicLimiter = rateLimit({
 /** GET /api/intake/:token — public load. */
 export const intakePublicReadLimiter = rateLimit({
   windowMs: HOUR_MS,
-  max: parsePositiveInt(process.env.PUBLIC_INTAKE_READ_MAX_PER_HOUR, 60),
+  max: parsePositiveIntFromEnv(process.env.PUBLIC_INTAKE_READ_MAX_PER_HOUR, 60),
   store: distributedStore('intake_public_read'),
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
@@ -273,7 +292,7 @@ export const intakePublicReadLimiter = rateLimit({
 /** POST /api/intake/:token/respond — public saves. */
 export const intakePublicWriteLimiter = rateLimit({
   windowMs: HOUR_MS,
-  max: parsePositiveInt(process.env.PUBLIC_INTAKE_WRITE_MAX_PER_HOUR, 30),
+  max: parsePositiveIntFromEnv(process.env.PUBLIC_INTAKE_WRITE_MAX_PER_HOUR, 30),
   store: distributedStore('intake_public_write'),
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
@@ -288,7 +307,7 @@ export const intakePublicWriteLimiter = rateLimit({
 /** POST /api/marketing/brief — public lead form. */
 export const marketingBriefPublicLimiter = rateLimit({
   windowMs: HOUR_MS,
-  max: parsePositiveInt(process.env.PUBLIC_MARKETING_BRIEF_MAX_PER_HOUR, 24),
+  max: parsePositiveIntFromEnv(process.env.PUBLIC_MARKETING_BRIEF_MAX_PER_HOUR, 24),
   store: distributedStore('marketing_brief_public'),
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
@@ -305,24 +324,23 @@ export const marketingBriefPublicLimiter = rateLimit({
  * lock out for an hour (the old 120/hour limit was easy to hit with HMR + realtime).
  */
 export const logIngestLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 180,
+  windowMs: RATE_LIMIT_LOG_INGEST_WINDOW_MS,
+  max: RATE_LIMIT_LOG_INGEST_MAX_PER_WINDOW,
   store: distributedStore('log_ingest'),
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   message: {
     error: 'Too many log events. Please wait before retrying.',
-    retry_after_seconds: 60,
+    code: 'LOG_INGEST_RATE_LIMITED',
+    retry_after_seconds: Math.max(1, Math.ceil(RATE_LIMIT_LOG_INGEST_WINDOW_MS / 1000)),
   },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-const snapshotLogMaxPerMin = Number(process.env.SNAPSHOT_LOG_INGEST_MAX_PER_MIN ?? 40);
-
 /** Anonymous / guest snapshot page log ingest — stricter cap than full accounts. */
 export const snapshotLogIngestLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: Number.isFinite(snapshotLogMaxPerMin) && snapshotLogMaxPerMin > 0 ? snapshotLogMaxPerMin : 40,
+  max: SNAPSHOT_LOG_INGEST_MAX_PER_MIN,
   store: distributedStore('snapshot_log_ingest'),
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   message: {

@@ -1,24 +1,20 @@
-/** Mirrors server logic for optimistic UI; server response is authoritative. */
+/**
+ * Marketing brief route labels and client-side preview (same rules as `@glc/intake-core`).
+ * `POST /api/marketing/brief` response is authoritative after submit.
+ */
 
-export type MarketingRecommendedRoute = '/snapshot' | '/express-audit' | '/audit' | '/discovery';
+import {
+  computeMarketingBriefRecommendedRoute,
+  MARKETING_BRIEF_ROUTE_LABELS_EN,
+  type MarketingBriefRoutingInput,
+  type MarketingBriefRoute,
+} from '@glc/intake-core';
 
-export function computeMarketingRecommendedRoute(input: {
-  unsure_choice: boolean;
-  no_website: boolean;
-  urgency: string;
-}): MarketingRecommendedRoute {
-  if (input.unsure_choice) return '/snapshot';
-  if (input.no_website) return '/discovery';
-  const u = input.urgency.toLowerCase();
-  if (u.includes('urgent') || u.includes('2 weeks') || u.includes('two weeks')) {
-    return '/express-audit';
-  }
-  return '/audit';
+export type MarketingRecommendedRoute = MarketingBriefRoute;
+
+export function computeMarketingRecommendedRoute(input: MarketingBriefRoutingInput): MarketingRecommendedRoute {
+  return computeMarketingBriefRecommendedRoute(input);
 }
 
-export const ROUTE_LABELS: Record<MarketingRecommendedRoute, string> = {
-  '/snapshot': 'Snapshot — quick check',
-  '/express-audit': 'Express audit',
-  '/audit': 'Full audit',
-  '/discovery': 'Discovery',
-};
+/** English labels from `ui-copy-registry.v1.json` (i18n keys: `MARKETING_BRIEF_ROUTE_I18N_KEYS`). */
+export const ROUTE_LABELS: Record<MarketingRecommendedRoute, string> = MARKETING_BRIEF_ROUTE_LABELS_EN;

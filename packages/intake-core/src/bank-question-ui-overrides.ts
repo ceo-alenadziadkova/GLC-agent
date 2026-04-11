@@ -3,6 +3,7 @@
  * Industry list for `a2` uses `optionsRef: "industry"` → `question-bank.v1.json` `optionCatalogs`.
  */
 import type { BriefQuestion } from './audit-contract.js';
+import { BRIEF_ANSWER_STRING_MAX } from './brief-answer-limits.js';
 import { QUESTION_BANK_OPTION_CATALOGS } from './question-bank.js';
 import type { IntakeAnswerContract } from './types.js';
 import raw from './bank-question-ui-overrides.v1.json' with { type: 'json' };
@@ -54,7 +55,7 @@ export function listBankQuestionUiOverrideIds(): string[] {
 export function buildCanonAnswerContractForBankId(id: string): IntakeAnswerContract {
   const row = OVERRIDES_RAW[id];
   if (!row || row.type === 'free_text' || row.type === undefined) {
-    return { type: 'textarea', maxLength: 12_000 };
+    return { type: 'textarea', maxLength: BRIEF_ANSWER_STRING_MAX };
   }
   if (row.type === 'single_choice') {
     if (row.optionsRef) {
@@ -73,5 +74,5 @@ export function buildCanonAnswerContractForBankId(id: string): IntakeAnswerContr
     }
     return { type: 'multi_select', options: [...opts] };
   }
-  return { type: 'textarea', maxLength: 12_000 };
+  return { type: 'textarea', maxLength: BRIEF_ANSWER_STRING_MAX };
 }

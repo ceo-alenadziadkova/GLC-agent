@@ -1,6 +1,15 @@
 import type { AuthRequest } from '../middleware/auth.js';
+import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 import { supabase } from '../services/supabase.js';
 import { logger } from '../services/logger.js';
+
+/** Internal throw message; clients receive `IDEMPOTENCY_PAYLOAD_MISMATCH` + safe copy from api-error-codes. */
+export const IDEMPOTENCY_PAYLOAD_CONFLICT_MESSAGE =
+  'Idempotency key reuse with different payload is not allowed';
+
+export function isIdempotencyPayloadConflictError(err: unknown): boolean {
+  return err instanceof Error && err.message === IDEMPOTENCY_PAYLOAD_CONFLICT_MESSAGE;
+}
 
 const TTL_HOURS = 24;
 
@@ -27,7 +36,7 @@ function safeStringify(value: unknown): string {
 function getKey(req: AuthRequest): string | null {
   const raw = req.header('Idempotency-Key') ?? req.header('idempotency-key');
   if (!raw) return null;
-  return raw.trim().slice(0, 128);
+  return raw.trim().slice(0, REQUEST_FIELD_LIMITS.idempotencyKeyMax);
 }
 
 export async function getStoredIdempotentResponse(
@@ -54,7 +63,7 @@ export async function getStoredIdempotentResponse(
   }
 
   if (data.request_hash !== hash) {
-    throw new Error('Idempotency key reuse with different payload is not allowed');
+    throw new Error(IDEMPOTENCY_PAYLOAD_CONFLICT_MESSAGE);
   }
 
   logger.info('Idempotent replay', { route });

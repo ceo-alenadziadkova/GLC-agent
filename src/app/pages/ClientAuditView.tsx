@@ -17,7 +17,7 @@ import {
 } from '../lib/client-portal-pipeline-access';
 import { freeSnapshotPreviewFromAuditState } from '../lib/free-snapshot-preview-from-audit-state';
 import { getSnapshotAccessBlockedState } from '../lib/snapshot-diagnostics';
-import { formatAuditWebsiteDisplay, isNoPublicWebsiteUrl } from '../data/no-public-website';
+import { auditSkipsPublicWebsiteFetches, formatAuditWebsiteDisplay } from '../data/no-public-website';
 import { effectiveBriefForPipelineGates } from '../data/intakeBriefMap';
 import {
   countAnswered,
@@ -28,6 +28,7 @@ import { useAudit } from '../hooks/useAudit';
 import { useIntakeBankMetrics } from '../hooks/useIntakeWizard';
 import { useBriefLayoutPrefsSync } from '../hooks/useBriefLayoutPrefsSync';
 import { getGlcQueryClient } from '../lib/glc-query-client';
+import { PORTAL_BRIEF_SAVED_FEEDBACK_MS } from '../lib/snapshot-polling-config';
 import { glcKeys } from '../lib/glc-keys';
 import { invalidateAuditRelatedQueries } from '../lib/glc-invalidate-queries';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
@@ -151,7 +152,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
       await queryClient.invalidateQueries({ queryKey: glcKeys.brief.detail(auditId) });
       setSaved(true);
       onBriefSaved?.();
-      setTimeout(() => setSaved(false), 3000);
+      setTimeout(() => setSaved(false), PORTAL_BRIEF_SAVED_FEEDBACK_MS);
     } catch (err) {
       setBriefError((err as Error).message);
     } finally {
@@ -343,8 +344,8 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
   const { setPipelineAccess } = useClientPortalPipeline();
 
   const domain = auditState
-    ? (isNoPublicWebsiteUrl(auditState.meta.company_url)
-      ? formatAuditWebsiteDisplay(auditState.meta.company_url)
+    ? (auditSkipsPublicWebsiteFetches(auditState.meta.no_public_website, auditState.meta.company_url)
+      ? formatAuditWebsiteDisplay(auditState.meta.company_url, auditState.meta.no_public_website)
       : (() => {
         try {
           return new URL(auditState.meta.company_url).hostname;
@@ -506,7 +507,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                   >
                     {domain}
                   </div>
-                  {!isNoPublicWebsiteUrl(meta.company_url) && (
+                  {!auditSkipsPublicWebsiteFetches(meta.no_public_website, meta.company_url) && (
                     <div className="flex items-center gap-2 mt-1 min-w-0">
                       <Globe className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--text-tertiary)' }} />
                       <span className="break-all" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>{meta.company_url}</span>

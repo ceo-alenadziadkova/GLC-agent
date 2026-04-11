@@ -12,7 +12,7 @@
  *    · 200 + req.userId set when token is valid
  *
  *  attachProfile
- *    · attaches role 'consultant' when email is in CONSULTANT_EMAILS
+ *    · attaches role 'consultant' when email is in CONSULTANT_EMAILS (deprecated) or consultant_email_allowlist
  *    · attaches role 'client' for any other email
  *    · 500 when Supabase profile upsert fails
  *
@@ -38,6 +38,7 @@ const {
   setProfileSelectQueue,
   setProfileInsertResult,
   setProfileUpdateResult,
+  setAllowlistMaybeSingleResult,
 } = vi.hoisted(() => {
   let getUserResult: { data: { user: { id: string; email: string } | null }; error: Error | null } = {
     data: { user: { id: 'user-001', email: 'user@example.com' } },
@@ -58,6 +59,11 @@ const {
     error: null,
   };
 
+  let allowlistMaybeSingleResult: {
+    data: { email_normalized: string } | null;
+    error: { message: string } | null;
+  } = { data: null, error: null };
+
   const setGetUserResult = (v: typeof getUserResult) => { getUserResult = v; };
   const setProfileSelectResult = (v: typeof profileSelectResult) => { profileSelectResult = v; };
   const setProfileSelectQueue = (q: Array<typeof profileSelectResult> | null) => {
@@ -65,6 +71,11 @@ const {
   };
   const setProfileInsertResult = (v: typeof profileInsertResult) => { profileInsertResult = v; };
   const setProfileUpdateResult = (v: typeof profileUpdateResult) => { profileUpdateResult = v; };
+  const setAllowlistMaybeSingleResult = (v: typeof allowlistMaybeSingleResult) => {
+    allowlistMaybeSingleResult = v;
+  };
+
+  const mockAllowlistMaybeSingle = vi.fn(() => Promise.resolve(allowlistMaybeSingleResult));
 
   const mockGetUser = vi.fn(() => Promise.resolve(getUserResult));
 
@@ -98,6 +109,7 @@ const {
   (globalThis as Record<string, unknown>).__authMockProfileSelect = mockProfileSelect;
   (globalThis as Record<string, unknown>).__authMockProfileInsert = mockProfileInsert;
   (globalThis as Record<string, unknown>).__authMockProfileUpdate = mockProfileUpdate;
+  (globalThis as Record<string, unknown>).__authMockAllowlistMaybeSingle = mockAllowlistMaybeSingle;
 
   return {
     mockGetUser,
@@ -109,6 +121,7 @@ const {
     setProfileSelectQueue,
     setProfileInsertResult,
     setProfileUpdateResult,
+    setAllowlistMaybeSingleResult,
   };
 });
 
@@ -119,11 +132,22 @@ vi.mock('../services/supabase.js', () => ({
     auth: {
       getUser: (globalThis as Record<string, unknown>).__authMockGetUser,
     },
-    from: vi.fn(() => ({
-      select: (globalThis as Record<string, unknown>).__authMockProfileSelect,
-      insert: (globalThis as Record<string, unknown>).__authMockProfileInsert,
-      update: (globalThis as Record<string, unknown>).__authMockProfileUpdate,
-    })),
+    from: vi.fn((table: string) => {
+      if (table === 'consultant_email_allowlist') {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: (globalThis as Record<string, unknown>).__authMockAllowlistMaybeSingle,
+            })),
+          })),
+        };
+      }
+      return {
+        select: (globalThis as Record<string, unknown>).__authMockProfileSelect,
+        insert: (globalThis as Record<string, unknown>).__authMockProfileInsert,
+        update: (globalThis as Record<string, unknown>).__authMockProfileUpdate,
+      };
+    }),
   },
 }));
 
@@ -177,6 +201,8 @@ beforeEach(() => {
   (mockProfileSelect as Mock).mockClear();
   (mockProfileInsert as Mock).mockClear();
   (mockProfileUpdate as Mock).mockClear();
+  delete process.env.CONSULTANT_EMAILS;
+  setAllowlistMaybeSingleResult({ data: null, error: null });
   // Reset to valid defaults
   setGetUserResult({ data: { user: { id: 'user-001', email: 'user@example.com' } }, error: null });
   setProfileSelectResult({ data: null, error: { code: 'PGRST116' } });
@@ -253,6 +279,21 @@ describe('attachProfile', () => {
     expect(res.status).toBe(200);
     const body = await res.json() as { role: string };
     expect(body.role).toBe('client');
+  });
+
+  it('assigns role "consultant" when email is in DB allowlist (no env)', async () => {
+    process.env.CONSULTANT_EMAILS = '';
+    setAllowlistMaybeSingleResult({ data: { email_normalized: 'consultant@glc.com' }, error: null });
+    setGetUserResult({ data: { user: { id: 'user-c', email: 'consultant@glc.com' } }, error: null });
+    setProfileSelectResult({ data: null, error: { code: 'PGRST116' } });
+    setProfileInsertResult({ data: { role: 'consultant' }, error: null });
+
+    const res = await fetch(`${fullChainBase}/test`, {
+      headers: { Authorization: 'Bearer tok' },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { role: string };
+    expect(body.role).toBe('consultant');
   });
 
   it('assigns role "consultant" when email matches CONSULTANT_EMAILS', async () => {

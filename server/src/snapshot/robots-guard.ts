@@ -112,7 +112,7 @@ export async function getSnapshotRobotsPolicy(origin: string, signal: AbortSigna
     const res = await fetchPublicHttpUrl(robotsResourceUrl, {
       signal,
       headers: {
-        'User-Agent': 'GLC-SnapshotScanner/1.0 (+https://glctech.es)',
+        'User-Agent': SNAPSHOT_ROBOTS_USER_AGENT,
         Accept: 'text/plain,text/*,*/*',
       },
     });

@@ -2,6 +2,15 @@ import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
 import { requireAuth, attachProfile, rejectGuestFromPortal, type AuthRequest } from '../middleware/auth.js';
 import { logger } from '../services/logger.js';
+import {
+  API_ERROR_CODES,
+  NOTIFICATIONS_LIST_FAILED_MESSAGE,
+  NOTIFICATIONS_MARK_ALL_FAILED_MESSAGE,
+  NOTIFICATIONS_MARK_READ_FAILED_MESSAGE,
+  NOTIFICATIONS_NOT_FOUND_MESSAGE,
+  NOTIFICATIONS_UNREAD_COUNT_FAILED_MESSAGE,
+  apiErrorJson,
+} from '../config/api-error-codes.js';
 
 export const notificationsRouter = Router();
 
@@ -38,7 +47,9 @@ notificationsRouter.get('/', async (req: AuthRequest, res) => {
   } catch (err) {
     const e = err as Error;
     logger.error('route.notifications_list_failed', { component: 'notifications', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to list notifications' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.NOTIFICATIONS_LIST_FAILED, NOTIFICATIONS_LIST_FAILED_MESSAGE));
   }
 });
 
@@ -54,7 +65,11 @@ notificationsRouter.get('/unread-count', async (req: AuthRequest, res) => {
   } catch (err) {
     const e = err as Error;
     logger.error('route.notifications_unread_failed', { component: 'notifications', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to fetch unread count' });
+    res
+      .status(500)
+      .json(
+        apiErrorJson(API_ERROR_CODES.NOTIFICATIONS_UNREAD_COUNT_FAILED, NOTIFICATIONS_UNREAD_COUNT_FAILED_MESSAGE),
+      );
   }
 });
 
@@ -70,14 +85,20 @@ notificationsRouter.post('/:id/read', async (req: AuthRequest, res) => {
       .maybeSingle();
     if (error) throw error;
     if (!data) {
-      res.status(404).json({ error: 'Notification not found' });
+      res
+        .status(404)
+        .json(apiErrorJson(API_ERROR_CODES.NOTIFICATIONS_NOT_FOUND, NOTIFICATIONS_NOT_FOUND_MESSAGE));
       return;
     }
     res.json({ ok: true });
   } catch (err) {
     const e = err as Error;
     logger.error('route.notifications_mark_read_failed', { component: 'notifications', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to mark notification as read' });
+    res
+      .status(500)
+      .json(
+        apiErrorJson(API_ERROR_CODES.NOTIFICATIONS_MARK_READ_FAILED, NOTIFICATIONS_MARK_READ_FAILED_MESSAGE),
+      );
   }
 });
 
@@ -93,6 +114,10 @@ notificationsRouter.post('/read-all', async (req: AuthRequest, res) => {
   } catch (err) {
     const e = err as Error;
     logger.error('route.notifications_read_all_failed', { component: 'notifications', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to mark all notifications as read' });
+    res
+      .status(500)
+      .json(
+        apiErrorJson(API_ERROR_CODES.NOTIFICATIONS_MARK_ALL_FAILED, NOTIFICATIONS_MARK_ALL_FAILED_MESSAGE),
+      );
   }
 });

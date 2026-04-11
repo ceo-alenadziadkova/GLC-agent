@@ -12,36 +12,25 @@
  *   onepager   — executive summary + scorecard + top 3 issues + top 3 quick wins, fits one page
  */
 
-import { SCORE_LABELS, type DomainKey } from '../types/audit.js';
+import {
+  REPORT_PROFILE_DESCRIPTIONS,
+  REPORT_PROFILE_DOMAINS,
+  REPORT_PROFILE_LABELS,
+  REPORT_PROFILE_MARKDOWN_FOCUS_TITLE,
+  REPORT_PROFILES,
+  SCORE_LABELS,
+  displayDomainLabel,
+  type DomainKey,
+  type ReportProfile,
+} from '@glc/intake-core';
+import { glcBrandSiteHostname } from '../config/glc-brand-host.js';
 
-export type ReportProfile = 'full' | 'owner' | 'tech' | 'marketing' | 'onepager';
+export type { ReportProfile };
+export { REPORT_PROFILES };
+export const PROFILE_LABELS = REPORT_PROFILE_LABELS;
+export const PROFILE_DESCRIPTIONS = REPORT_PROFILE_DESCRIPTIONS;
 
-export const REPORT_PROFILES: ReportProfile[] = ['full', 'owner', 'tech', 'marketing', 'onepager'];
-
-export const PROFILE_LABELS: Record<ReportProfile, string> = {
-  full:      'Full Report',
-  owner:     'Owner Summary',
-  tech:      'Technical Deep-Dive',
-  marketing: 'Marketing & Growth',
-  onepager:  'One-Pager',
-};
-
-export const PROFILE_DESCRIPTIONS: Record<ReportProfile, string> = {
-  full:      'Complete audit with all 6 domains — for the consulting team',
-  owner:     'Executive summary, scorecard, roadmap, and costs — for the business owner',
-  tech:      'Tech infrastructure and security with technical detail — for the dev team',
-  marketing: 'SEO, UX, and marketing analysis — for the marketing team',
-  onepager:  'Summary + scorecard + top findings — fits one printed page',
-};
-
-// Which domain keys are included per profile
-const PROFILE_DOMAINS: Record<ReportProfile, DomainKey[] | 'all'> = {
-  full:      'all',
-  owner:     'all',
-  tech:      ['tech_infrastructure', 'security_compliance'],
-  marketing: ['seo_digital', 'ux_conversion', 'marketing_utp'],
-  onepager:  'all',
-};
+const PROFILE_DOMAINS = REPORT_PROFILE_DOMAINS;
 
 interface AuditRow {
   company_url: string;
@@ -109,8 +98,22 @@ export class ReportProfiler {
     switch (profile) {
       case 'onepager':  markdown = this.buildOnepager(input, filteredDomains, company); break;
       case 'owner':     markdown = this.buildOwner(input, company); break;
-      case 'tech':      markdown = this.buildDomainFocused(input, filteredDomains, company, 'Technical Deep-Dive'); break;
-      case 'marketing': markdown = this.buildDomainFocused(input, filteredDomains, company, 'Marketing & Growth Report'); break;
+      case 'tech':
+        markdown = this.buildDomainFocused(
+          input,
+          filteredDomains,
+          company,
+          REPORT_PROFILE_MARKDOWN_FOCUS_TITLE.tech,
+        );
+        break;
+      case 'marketing':
+        markdown = this.buildDomainFocused(
+          input,
+          filteredDomains,
+          company,
+          REPORT_PROFILE_MARKDOWN_FOCUS_TITLE.marketing,
+        );
+        break;
       default:          markdown = this.buildFull(input, domains, company); break;
     }
 
@@ -126,7 +129,7 @@ export class ReportProfiler {
     rows.push(['Title', 'Domain', 'Type', 'Priority', 'Severity', 'Effort', 'Est. Cost', 'Est. Time', 'Impact'].join(','));
 
     for (const domain of domains) {
-      const domainLabel = formatDomainName(domain.domain_key);
+      const domainLabel = displayDomainLabel(domain.domain_key);
 
       // Issues → action items
       for (const issue of domain.issues ?? []) {
@@ -224,7 +227,7 @@ export class ReportProfiler {
       lines.push('');
       for (const issue of topIssues) {
         lines.push(`### ${issue.title}`);
-        lines.push(`**Domain:** ${formatDomainName(issue.domain)} · **Severity:** ${issue.severity.toUpperCase()}`);
+        lines.push(`**Domain:** ${displayDomainLabel(issue.domain)} · **Severity:** ${issue.severity.toUpperCase()}`);
         lines.push('');
         lines.push(issue.impact ?? '');
         lines.push('');
@@ -244,7 +247,7 @@ export class ReportProfiler {
       lines.push('## Recommended Actions');
       lines.push('');
       for (const rec of recs) {
-        lines.push(`- **${rec.title}** (${formatDomainName(rec.domain)})`);
+        lines.push(`- **${rec.title}** (${displayDomainLabel(rec.domain)})`);
         if (rec.estimated_cost || rec.estimated_time) {
           lines.push(`  Est. cost: ${rec.estimated_cost ?? '—'} · Time: ${rec.estimated_time ?? '—'}`);
         }
@@ -300,7 +303,7 @@ export class ReportProfiler {
     lines.push('| Domain | Score |');
     lines.push('|--------|-------|');
     for (const d of domains) {
-      if (d.score) lines.push(`| ${formatDomainName(d.domain_key)} | ${d.score}/5 |`);
+      if (d.score) lines.push(`| ${displayDomainLabel(d.domain_key)} | ${d.score}/5 |`);
     }
     lines.push('');
     lines.push('---');
@@ -371,7 +374,7 @@ export class ReportProfiler {
     lines.push('|--------|-------|--------|');
     for (const d of domains) {
       if (d.score) {
-        lines.push(`| ${formatDomainName(d.domain_key)} | ${d.score}/5 | ${d.label ?? SCORE_LABELS[d.score] ?? ''} |`);
+        lines.push(`| ${displayDomainLabel(d.domain_key)} | ${d.score}/5 | ${d.label ?? SCORE_LABELS[d.score] ?? ''} |`);
       }
     }
     lines.push('');
@@ -387,7 +390,7 @@ export class ReportProfiler {
     for (const d of domains) {
       if (d.status !== 'completed') continue;
 
-      lines.push(`## ${formatDomainName(d.domain_key)}`);
+      lines.push(`## ${displayDomainLabel(d.domain_key)}`);
       lines.push('');
 
       if (d.summary) { lines.push(d.summary); lines.push(''); }
@@ -466,25 +469,13 @@ export class ReportProfiler {
   }
 
   private addFooter(lines: string[]): void {
-    lines.push('*Generated by GLC Audit Platform — glctech.es*');
+    lines.push(`*Generated by GLC Audit Platform — ${glcBrandSiteHostname()}*`);
   }
 }
 
 export const reportProfiler = new ReportProfiler();
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-function formatDomainName(key: string): string {
-  const names: Record<string, string> = {
-    tech_infrastructure: 'Tech Infrastructure',
-    security_compliance: 'Security & Compliance',
-    seo_digital:         'SEO & Digital Presence',
-    ux_conversion:       'UX & Conversion',
-    marketing_utp:       'Marketing & Positioning',
-    automation_processes: 'Automation & Processes',
-  };
-  return names[key] ?? key;
-}
 
 function csvCell(value: string): string {
   if (!value) return '';

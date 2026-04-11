@@ -1,3 +1,5 @@
+import { INTAKE_TRACE_IA_V2_ENABLED_DEFAULT } from '../config/intake-trace-defaults';
+
 function envFlagEnabled(raw: string | undefined, defaultWhenUnset: boolean): boolean {
   if (raw === undefined || raw.trim() === '') return defaultWhenUnset;
   const v = raw.trim().toLowerCase();
@@ -14,5 +16,5 @@ function envFlagEnabled(raw: string | undefined, defaultWhenUnset: boolean): boo
 export function isIntakeTraceIaV2Enabled(): boolean {
   const raw = import.meta.env.VITE_INTAKE_TRACE_IA_V2;
   const s = typeof raw === 'string' ? raw : undefined;
-  return envFlagEnabled(s, true);
+  return envFlagEnabled(s, INTAKE_TRACE_IA_V2_ENABLED_DEFAULT);
 }

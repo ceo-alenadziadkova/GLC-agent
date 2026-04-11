@@ -7,6 +7,7 @@ import { NextStepsCta } from '../marketing/blocks/NextStepsCta';
 import { api, ApiError } from '../data/apiService';
 import { ROUTE_LABELS, type MarketingRecommendedRoute } from '../marketing/brief-logic';
 import { LOGIN_PATH } from '../marketing/marketing-nav';
+import { GLC_SUPPORT_EMAIL } from '../lib/support-email';
 
 type FormValues = {
   name: string;
@@ -15,17 +16,10 @@ type FormValues = {
   no_website: boolean;
   concern: string;
   improve: string;
-  urgency: string;
   contact_method: string;
   unsure_choice: boolean;
+  preferred_audit_depth: 'express' | 'full';
 };
-
-const URGENCY_OPTIONS = [
-  'Within a month',
-  'Urgent (within 2 weeks)',
-  'No fixed deadline',
-  'Just exploring options',
-];
 
 const CONTACT_OPTIONS = ['Email', 'Phone / WhatsApp', 'Either is fine'];
 
@@ -46,14 +40,15 @@ export function PublicBriefPage() {
       no_website: false,
       concern: '',
       improve: '',
-      urgency: URGENCY_OPTIONS[0],
       contact_method: CONTACT_OPTIONS[0],
       unsure_choice: false,
+      preferred_audit_depth: 'express',
     },
   });
 
   const noWebsite = watch('no_website');
   const unsure = watch('unsure_choice');
+  const showDepthChoice = !unsure && !noWebsite;
 
   async function onSubmit(values: FormValues) {
     setSubmitError(null);
@@ -65,16 +60,17 @@ export function PublicBriefPage() {
         no_website: values.no_website,
         concern: values.concern.trim(),
         improve: values.improve.trim(),
-        urgency: values.urgency,
         contact_method: values.contact_method,
         unsure_choice: values.unsure_choice,
+        preferred_audit_depth:
+          values.unsure_choice || values.no_website ? undefined : values.preferred_audit_depth,
       });
       setDone({ route: res.recommended_route as MarketingRecommendedRoute, id: res.id });
     } catch (e) {
       const msg =
         e instanceof ApiError
           ? e.message
-          : 'Could not submit. Try again later or email contact@glctech.es';
+          : `Could not submit. Try again later or email ${GLC_SUPPORT_EMAIL}`;
       setSubmitError(msg);
     }
   }
@@ -91,8 +87,9 @@ export function PublicBriefPage() {
           Want help from a specialist?
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          A short brief without tech jargon: describe what worries you and what you want to improve. We suggest a sensible
-          next step—Snapshot, Express, or full audit.
+          A short brief without tech jargon. We suggest a next step by format: a quick Snapshot, Discovery when there is no
+          public site yet, or an audit path chosen by <strong>depth of analysis</strong> (Express = focused scope, Full =
+          broadest coverage)—not by how fast you need an answer.
         </p>
       </MarketingSection>
 
@@ -223,20 +220,25 @@ export function PublicBriefPage() {
               {errors.improve && <span style={{ color: 'var(--score-1)', fontSize: 12 }}>{errors.improve.message}</span>}
             </label>
 
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>How urgent is it?</span>
-              <select
-                {...register('urgency')}
-                className="rounded-lg border px-3 py-2.5 outline-none"
-                style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-              >
-                {URGENCY_OPTIONS.map(o => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {showDepthChoice && (
+              <fieldset className="flex flex-col gap-2 text-sm">
+                <legend style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                  How deep should the first audit path go?
+                </legend>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
+                  Express = focused scope and fewer domains. Full = maximum coverage across the programme. This is about
+                  depth of analysis, not delivery speed.
+                </p>
+                <label className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+                  <input type="radio" value="express" {...register('preferred_audit_depth')} />
+                  Express — enough to see the picture and first steps
+                </label>
+                <label className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+                  <input type="radio" value="full" {...register('preferred_audit_depth')} />
+                  Full — broadest audit depth
+                </label>
+              </fieldset>
+            )}
 
             <label className="flex flex-col gap-1.5 text-sm">
               <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Preferred contact</span>
@@ -255,13 +257,13 @@ export function PublicBriefPage() {
 
             <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
               <input type="checkbox" {...register('unsure_choice')} />
-              I am not sure what to choose—please suggest a format
+              I am not sure what to choose—suggest a format (Snapshot if I have a site, Discovery if not)
             </label>
 
             {unsure && (
               <p className="rounded-lg px-3 py-2 text-xs leading-relaxed" style={{ backgroundColor: 'var(--callout-info-bg)', color: 'var(--text-secondary)' }}>
-                After submit we suggest a starting route (often Snapshot or Discovery). Final logic matches server-side
-                validation.
+                We will recommend Snapshot when you have a public URL to scan, or Discovery when you do not. The server
+                decides the exact route after submit.
               </p>
             )}
 

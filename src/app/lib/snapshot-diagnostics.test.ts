@@ -90,7 +90,7 @@ describe('isAiVisibilityGap', () => {
 
 describe('isRobotsHomeBlockingSnapshot', () => {
   it('true when scan_coverage flag', () => {
-    expect(isRobotsHomeBlockingSnapshot({ scan_coverage: { robots_home_disallowed: true } })).toBe(true);
+    expect(isRobotsHomeBlockingSnapshot({ scan_coverage: baseCov({ robots_home_disallowed: true }) })).toBe(true);
   });
 
   it('true for degraded + limitations mention', () => {
@@ -103,7 +103,7 @@ describe('isRobotsHomeBlockingSnapshot', () => {
   });
 
   it('false when not degraded without flag', () => {
-    expect(isRobotsHomeBlockingSnapshot({ scan_basis_code: 'full' })).toBe(false);
+    expect(isRobotsHomeBlockingSnapshot({ scan_basis_code: 'homepage_only' })).toBe(false);
   });
 });
 
@@ -120,7 +120,7 @@ describe('isSnapshotWithoutFetchedPages', () => {
   it('false when not degraded', () => {
     expect(
       isSnapshotWithoutFetchedPages({
-        scan_basis_code: 'full',
+        scan_basis_code: 'homepage_only',
         scan_coverage: baseCov({ pages_fetched: 0, pages: [] }),
       }),
     ).toBe(false);
@@ -142,8 +142,8 @@ describe('getSnapshotAccessBlockedState', () => {
   it('infers robots from ux_summary', () => {
     const s = getSnapshotAccessBlockedState({
       ux_summary: 'Blocked by robots.txt disallow rule',
-      scan_basis_code: 'full',
-    } as FreeSnapshotPreview);
+      scan_basis_code: 'homepage_only',
+    } as unknown as FreeSnapshotPreview);
     expect(s.robotsBlocked).toBe(true);
     expect(s.showCallout).toBe(true);
   });

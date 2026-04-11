@@ -69,7 +69,7 @@ Data gatherers in `server/src/collectors/`. Run before any AI call. Results cach
 
 | Collector | File | Collects |
 |---|---|---|
-| `CrawlerCollector` | `crawler.ts` | Fetches up to 20 pages; parses HTML with cheerio; returns page tree |
+| `CrawlerCollector` | `crawler.ts` | Fetches up to **`CRAWLER_MAX_PAGES`** pages (default 20, clamped 1–100 via `server/src/config/crawler-limits.ts`); parses HTML with cheerio; returns page tree |
 | `ReconCollector` | `recon.ts` | Tech stack detection (80+ patterns), social profiles, contact info, structured data, image analysis |
 | `SecurityCollector` | `security.ts` | HTTP security headers (CSP, HSTS, X-Frame-Options, X-Content-Type), SSL validity, cookie flags, CORS config |
 | `SeoCollector` | `seo.ts` | Meta title/description, structured data from crawl; **robots-parser** for robots.txt; **fast-xml-parser** for sitemap urlset/index (bounded) |

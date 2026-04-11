@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "dependencies": {
+    "@glc/dev-brand-defaults": "workspace:*"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
@@ -26,6 +29,10 @@
     "./intake-brief-catalog-meta.v1.json": "./src/intake-brief-catalog-meta.v1.json",
     "./discovery-findings-config.v1.json": "./src/discovery-findings-config.v1.json",
     "./discovery-findings-copy.v1.json": "./src/discovery-findings-copy.v1.json",
+    "./discovery-brief-contract.v1.json": "./src/discovery-brief-contract.v1.json",
+    "./discovery-brief-fallbacks.v1.json": "./src/discovery-brief-fallbacks.v1.json",
+    "./ui-copy-registry.v1.json": "./src/ui-copy-registry.v1.json",
+    "./discovery-glue-copy.v1.json": "./src/discovery-glue-copy.v1.json",
     "./intake-policy.v1.json": "./src/intake-policy.v1.json",
     "./artifacts/layout-rules-1.1.0.json": "./src/artifacts/layout-rules-1.1.0.json",
     "./lint-node": {

@@ -3,10 +3,10 @@
  * Never throws to callers — failures omit competitor_mini.
  */
 import * as cheerio from 'cheerio';
+import { SNAPSHOT_COMPETITOR_USER_AGENT } from '../config/bot-identity.js';
+import { SNAPSHOT_COMPETITOR_BLOCKED_HOST_PATTERN } from '../config/snapshot-competitor-external-blocklist.js';
 import { fetchPublicHttpUrl, PublicUrlNotAllowedError } from './public-http-url.js';
 import type { CrawledPage, FreeSnapshotPreview, SnapshotCompetitorComparison } from '../types/audit.js';
-
-const BLOCKED_EXTERNAL = /facebook\.com|instagram\.com|twitter\.com|x\.com|linkedin\.com|youtube\.com|tiktok\.com|google\.com|gstatic\.com|doubleclick\.net|googletagmanager\.com|analytics\.google|googleadservices\.com|clk\.|fonts\.googleapis\.com|cdnjs\.|jsdelivr\.net/i;
 
 /** AbortSignal.timeout() polyfill for Node < 18.17 */
 function abortAfter(ms: number): AbortSignal {
@@ -54,7 +54,7 @@ export function pickCompetitorCandidate(
       const u = new URL(link, clientUrl);
       const h = normHost(u.hostname);
       if (!h || h === clientHost) continue;
-      if (BLOCKED_EXTERNAL.test(u.hostname)) continue;
+      if (SNAPSHOT_COMPETITOR_BLOCKED_HOST_PATTERN.test(u.hostname)) continue;
       const base = `${u.protocol}//${u.hostname}`;
       return { url: base, name: h };
     } catch {
@@ -73,7 +73,7 @@ export async function fetchLightSiteMetrics(
     const res = await fetchPublicHttpUrl(url, {
       signal,
       headers: {
-        'User-Agent': 'GLC-SnapshotCompetitor/1.0',
+        'User-Agent': SNAPSHOT_COMPETITOR_USER_AGENT,
         Accept: 'text/html,application/xhtml+xml',
       },
     });

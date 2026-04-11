@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { chromium } from 'playwright';
 
+import { PLAYWRIGHT_AUDITBOT_USER_AGENT } from '../config/bot-identity.js';
+import { SNAPSHOT_AXE_NAV_TIMEOUT_MAX_MS, SNAPSHOT_AXE_NAV_TIMEOUT_MIN_MS } from '../config/snapshot-timing.js';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from './public-http-url.js';
 
 export type AxePageResult = {
@@ -31,7 +33,7 @@ export async function runAxeOnPublicUrls(
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
     const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (compatible; GLC-AuditBot/1.0; +https://glctech.es) Chrome/120 Safari/537.36',
+      userAgent: PLAYWRIGHT_AUDITBOT_USER_AGENT,
       locale: 'en-US',
     });
 
@@ -66,7 +68,10 @@ export async function runAxeOnPublicUrls(
       try {
         await page.goto(validated, {
           waitUntil: 'domcontentloaded',
-          timeout: Math.min(Math.max(navigateTimeoutMs, 4000), 30_000),
+          timeout: Math.min(
+            Math.max(navigateTimeoutMs, SNAPSHOT_AXE_NAV_TIMEOUT_MIN_MS),
+            SNAPSHOT_AXE_NAV_TIMEOUT_MAX_MS,
+          ),
         });
         const result = await new AxeBuilder({ page }).withTags([...DEFAULT_TAGS]).analyze();
         const critSerious = result.violations.filter(

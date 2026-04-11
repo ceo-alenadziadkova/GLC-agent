@@ -8,6 +8,7 @@ import { INTAKE_POLICY_V1 } from './core/load-policy.js';
 import type { BriefQuestion, IntakeVersionTuple } from './audit-contract.js';
 import { buildDiscoveryWizardQuestions } from './discovery-wizard-questions.js';
 import { currentIntakeVersionTuple } from './core/versions.js';
+import { PUBLIC_DISCOVERY_UI_FRAGMENT_CONTRACT_VERSION } from './ui-copy-registry.js';
 
 export type DiscoveryUiFragmentQuestion = {
   id: string;
@@ -35,7 +36,7 @@ export function buildPublicDiscoveryUiFragment(): PublicDiscoveryUiFragment {
   const included = new Set(INTAKE_POLICY_V1.modes.discovery.included);
   const questions = buildWizardQuestions().filter(q => included.has(q.id));
   return {
-    version: '1',
+    version: PUBLIC_DISCOVERY_UI_FRAGMENT_CONTRACT_VERSION,
     policyVersion: INTAKE_POLICY_V1.version,
     questionBankVersion: QUESTION_BANK_VERSION,
     intake_versions: currentIntakeVersionTuple(),

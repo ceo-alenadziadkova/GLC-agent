@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import type { User, Session } from '@supabase/supabase-js';
+import { GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY } from '../../lib/storage-keys';
 import { Login } from '../Login';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -39,14 +40,19 @@ vi.mock('react-router', async importOriginal => {
 const signInWithPassword = vi.fn().mockResolvedValue({ error: null });
 const signUpWithPassword = vi.fn().mockResolvedValue({ error: null });
 const signInWithGoogle = vi.fn().mockResolvedValue({ error: null });
+const requestPasswordReset = vi.fn().mockResolvedValue({ error: null });
+const completePasswordRecovery = vi.fn().mockResolvedValue({ error: null });
 
 const AUTH_BASE = {
   session: null as Session | null,
   loading: false,
   authError: null as string | null,
+  passwordRecoveryMode: false,
   signInWithPassword,
   signUpWithPassword,
   signInWithGoogle,
+  requestPasswordReset,
+  completePasswordRecovery,
   signOut: vi.fn(),
 };
 
@@ -97,11 +103,11 @@ describe('Login', () => {
 
     renderLogin('/login?discovery=disc-xyz');
 
-    expect(localStorage.getItem('glc_discovery_token')).toBe('disc-xyz');
+    expect(localStorage.getItem(GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY)).toBe('disc-xyz');
   });
 
   it('navigates to audit new when authenticated with discovery token', async () => {
-    localStorage.setItem('glc_discovery_token', 't1');
+    localStorage.setItem(GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY, 't1');
     mockUseAuth.mockReturnValue({
       ...AUTH_BASE,
       isAuthenticated: true,
@@ -175,7 +181,7 @@ describe('Login', () => {
   });
 
   it('prefers discovery redirect over ?next= when both are set', async () => {
-    localStorage.setItem('glc_discovery_token', 'disc-1');
+    localStorage.setItem(GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY, 'disc-1');
     stubLocation('?next=%2Fdashboard');
     mockUseAuth.mockReturnValue({
       ...AUTH_BASE,

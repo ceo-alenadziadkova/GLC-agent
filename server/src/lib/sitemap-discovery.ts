@@ -3,6 +3,7 @@ import robotsParser from 'robots-parser';
 
 import { fetchPublicHttpUrl } from './public-http-url.js';
 import { AUDIT_ROBOTS_USER_AGENT } from './robots-policy-shared.js';
+import { SITEMAP_FETCH_TIMEOUT_MS } from '../config/collector-http.js';
 
 const MAX_SITEMAP_FETCHES = 24;
 const MAX_NESTING_DEPTH = 5;
@@ -72,7 +73,7 @@ async function fetchSitemapBody(sitemapUrl: string): Promise<string | null> {
   try {
     const res = await fetchPublicHttpUrl(sitemapUrl, {
       headers: { 'User-Agent': AUDIT_ROBOTS_USER_AGENT },
-      signal: AbortSignal.timeout(25_000),
+      signal: AbortSignal.timeout(SITEMAP_FETCH_TIMEOUT_MS),
     });
     if (!res.ok) return null;
     const text = await res.text();

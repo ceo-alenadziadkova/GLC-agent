@@ -12,6 +12,7 @@ import { supabase } from '../services/supabase.js';
 import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../middleware/auth.js';
 import { generalLimiter } from '../middleware/rate-limit.js';
 import { logger } from '../services/logger.js';
+import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 import {
   intakeTraceToolAnalyticsBatchSchema,
   intakeTraceToolWordingDraftsPutSchema,
@@ -19,6 +20,23 @@ import {
   intakeTraceToolWordingRollbackSchema,
   intakeTraceToolPublicationLogQuerySchema,
 } from '../schemas/intake-trace-tool.js';
+import {
+  API_ERROR_CODES,
+  INTAKE_TRACE_ANALYTICS_ACCEPT_FAILED_MESSAGE,
+  INTAKE_TRACE_ANALYTICS_PAYLOAD_INVALID_MESSAGE,
+  INTAKE_TRACE_ANALYTICS_STORE_FAILED_MESSAGE,
+  INTAKE_TRACE_PUBLICATION_LOG_FAILED_MESSAGE,
+  INTAKE_TRACE_PUBLICATION_LOG_QUERY_INVALID_MESSAGE,
+  INTAKE_TRACE_PUBLISH_FAILED_MESSAGE,
+  INTAKE_TRACE_PUBLISH_PAYLOAD_INVALID_MESSAGE,
+  INTAKE_TRACE_ROLLBACK_FAILED_MESSAGE,
+  INTAKE_TRACE_ROLLBACK_PAYLOAD_INVALID_MESSAGE,
+  INTAKE_TRACE_WORDING_LOAD_FAILED_MESSAGE,
+  INTAKE_TRACE_WORDING_PAYLOAD_INVALID_MESSAGE,
+  INTAKE_TRACE_WORDING_SAVE_FAILED_MESSAGE,
+  INTAKE_TRACE_WORDING_UPDATE_FAILED_MESSAGE,
+  apiErrorJson,
+} from '../config/api-error-codes.js';
 
 export const intakeTraceToolRouter = Router();
 
@@ -51,7 +69,13 @@ intakeTraceToolRouter.post('/analytics-events', async (req: AuthRequest, res) =>
   try {
     const parsed = intakeTraceToolAnalyticsBatchSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid analytics payload', details: parsed.error.flatten() });
+      res.status(400).json(
+        apiErrorJson(
+          API_ERROR_CODES.INTAKE_TRACE_ANALYTICS_PAYLOAD_INVALID,
+          INTAKE_TRACE_ANALYTICS_PAYLOAD_INVALID_MESSAGE,
+          parsed.error.flatten(),
+        ),
+      );
       return;
     }
     const body = parsed.data;
@@ -67,9 +91,15 @@ intakeTraceToolRouter.post('/analytics-events', async (req: AuthRequest, res) =>
       client_session_id: body.client_session_id,
       user_id: userId,
       audit_id: null,
-      question_id: typeof e.payload?.question_id === 'string' ? (e.payload.question_id as string).slice(0, 64) : null,
+      question_id:
+        typeof e.payload?.question_id === 'string'
+          ? (e.payload.question_id as string).slice(0, REQUEST_FIELD_LIMITS.traceQuestionIdMax)
+          : null,
       step_index: typeof e.payload?.step_index === 'number' && Number.isFinite(e.payload.step_index)
-        ? Math.max(0, Math.min(500, Math.round(e.payload.step_index)))
+        ? Math.max(
+            0,
+            Math.min(REQUEST_FIELD_LIMITS.intakeAnalyticsStepIndexMax, Math.round(e.payload.step_index)),
+          )
         : null,
       intake_versions: Object.keys(metaPayload).length > 0 ? metaPayload : null,
       client_ts: e.client_ts ?? null,
@@ -79,7 +109,14 @@ intakeTraceToolRouter.post('/analytics-events', async (req: AuthRequest, res) =>
     const { error } = await supabase.from('intake_analytics_events').insert(rows);
     if (error) {
       logger.error('intake_trace_tool.analytics_insert_failed', { error: error.message });
-      res.status(500).json({ error: 'Failed to store analytics events' });
+      res
+        .status(500)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.INTAKE_TRACE_ANALYTICS_STORE_FAILED,
+            INTAKE_TRACE_ANALYTICS_STORE_FAILED_MESSAGE,
+          ),
+        );
       return;
     }
 
@@ -87,7 +124,14 @@ intakeTraceToolRouter.post('/analytics-events', async (req: AuthRequest, res) =>
   } catch (err) {
     const e = err as Error;
     logger.error('intake_trace_tool.analytics_failed', { error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to accept analytics events' });
+    res
+      .status(500)
+      .json(
+        apiErrorJson(
+          API_ERROR_CODES.INTAKE_TRACE_ANALYTICS_ACCEPT_FAILED,
+          INTAKE_TRACE_ANALYTICS_ACCEPT_FAILED_MESSAGE,
+        ),
+      );
   }
 });
 
@@ -101,7 +145,14 @@ intakeTraceToolRouter.get('/wording-drafts', async (req: AuthRequest, res) => {
 
     if (error) {
       logger.error('intake_trace_tool.wording_drafts_get_failed', { error: error.message });
-      res.status(500).json({ error: 'Failed to load wording drafts' });
+      res
+        .status(500)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.INTAKE_TRACE_WORDING_LOAD_FAILED,
+            INTAKE_TRACE_WORDING_LOAD_FAILED_MESSAGE,
+          ),
+        );
       return;
     }
 
@@ -123,7 +174,14 @@ intakeTraceToolRouter.get('/wording-drafts', async (req: AuthRequest, res) => {
   } catch (err) {
     const e = err as Error;
     logger.error('intake_trace_tool.wording_drafts_get_exception', { error: e.message });
-    res.status(500).json({ error: 'Failed to load wording drafts' });
+    res
+      .status(500)
+      .json(
+        apiErrorJson(
+          API_ERROR_CODES.INTAKE_TRACE_WORDING_LOAD_FAILED,
+          INTAKE_TRACE_WORDING_LOAD_FAILED_MESSAGE,
+        ),
+      );
   }
 });
 
@@ -131,7 +189,13 @@ intakeTraceToolRouter.put('/wording-drafts', async (req: AuthRequest, res) => {
   try {
     const parsed = intakeTraceToolWordingDraftsPutSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid wording drafts payload', details: parsed.error.flatten() });
+      res.status(400).json(
+        apiErrorJson(
+          API_ERROR_CODES.INTAKE_TRACE_WORDING_PAYLOAD_INVALID,
+          INTAKE_TRACE_WORDING_PAYLOAD_INVALID_MESSAGE,
+          parsed.error.flatten(),
+        ),
+      );
       return;
     }
     const body = parsed.data;
@@ -161,7 +225,14 @@ intakeTraceToolRouter.put('/wording-drafts', async (req: AuthRequest, res) => {
         .in('question_id', deleteIds);
       if (delErr) {
         logger.error('intake_trace_tool.wording_drafts_delete_failed', { error: delErr.message });
-        res.status(500).json({ error: 'Failed to update wording drafts' });
+        res
+          .status(500)
+          .json(
+            apiErrorJson(
+              API_ERROR_CODES.INTAKE_TRACE_WORDING_UPDATE_FAILED,
+              INTAKE_TRACE_WORDING_UPDATE_FAILED_MESSAGE,
+            ),
+          );
         return;
       }
     }
@@ -175,7 +246,14 @@ intakeTraceToolRouter.put('/wording-drafts', async (req: AuthRequest, res) => {
 
       if (listErr) {
         logger.error('intake_trace_tool.wording_drafts_list_failed', { error: listErr.message });
-        res.status(500).json({ error: 'Failed to update wording drafts' });
+        res
+          .status(500)
+          .json(
+            apiErrorJson(
+              API_ERROR_CODES.INTAKE_TRACE_WORDING_UPDATE_FAILED,
+              INTAKE_TRACE_WORDING_UPDATE_FAILED_MESSAGE,
+            ),
+          );
         return;
       }
 
@@ -191,7 +269,14 @@ intakeTraceToolRouter.put('/wording-drafts', async (req: AuthRequest, res) => {
           .in('question_id', toRemove);
         if (bulkDelErr) {
           logger.error('intake_trace_tool.wording_drafts_bulk_delete_failed', { error: bulkDelErr.message });
-          res.status(500).json({ error: 'Failed to update wording drafts' });
+          res
+            .status(500)
+            .json(
+              apiErrorJson(
+                API_ERROR_CODES.INTAKE_TRACE_WORDING_UPDATE_FAILED,
+                INTAKE_TRACE_WORDING_UPDATE_FAILED_MESSAGE,
+              ),
+            );
           return;
         }
       }
@@ -203,7 +288,14 @@ intakeTraceToolRouter.put('/wording-drafts', async (req: AuthRequest, res) => {
         .upsert(upserts, { onConflict: 'user_id,question_id' });
       if (upErr) {
         logger.error('intake_trace_tool.wording_drafts_upsert_failed', { error: upErr.message });
-        res.status(500).json({ error: 'Failed to save wording drafts' });
+        res
+          .status(500)
+          .json(
+            apiErrorJson(
+              API_ERROR_CODES.INTAKE_TRACE_WORDING_SAVE_FAILED,
+              INTAKE_TRACE_WORDING_SAVE_FAILED_MESSAGE,
+            ),
+          );
         return;
       }
     }
@@ -219,7 +311,14 @@ intakeTraceToolRouter.put('/wording-drafts', async (req: AuthRequest, res) => {
   } catch (err) {
     const e = err as Error;
     logger.error('intake_trace_tool.wording_drafts_put_exception', { error: e.message });
-    res.status(500).json({ error: 'Failed to save wording drafts' });
+    res
+      .status(500)
+      .json(
+        apiErrorJson(
+          API_ERROR_CODES.INTAKE_TRACE_WORDING_SAVE_FAILED,
+          INTAKE_TRACE_WORDING_SAVE_FAILED_MESSAGE,
+        ),
+      );
   }
 });
 
@@ -227,7 +326,13 @@ intakeTraceToolRouter.post('/wording-drafts/publish', async (req: AuthRequest, r
   try {
     const parsed = intakeTraceToolWordingPublishSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid publish payload', details: parsed.error.flatten() });
+      res.status(400).json(
+        apiErrorJson(
+          API_ERROR_CODES.INTAKE_TRACE_PUBLISH_PAYLOAD_INVALID,
+          INTAKE_TRACE_PUBLISH_PAYLOAD_INVALID_MESSAGE,
+          parsed.error.flatten(),
+        ),
+      );
       return;
     }
     const userId = req.userId!;
@@ -240,7 +345,11 @@ intakeTraceToolRouter.post('/wording-drafts/publish', async (req: AuthRequest, r
 
     if (listErr) {
       logger.error('intake_trace_tool.wording_publish_list_failed', { error: listErr.message });
-      res.status(500).json({ error: 'Failed to publish wording' });
+      res
+        .status(500)
+        .json(
+          apiErrorJson(API_ERROR_CODES.INTAKE_TRACE_PUBLISH_FAILED, INTAKE_TRACE_PUBLISH_FAILED_MESSAGE),
+        );
       return;
     }
 
@@ -262,7 +371,11 @@ intakeTraceToolRouter.post('/wording-drafts/publish', async (req: AuthRequest, r
         .eq('question_id', t.question_id);
       if (upErr) {
         logger.error('intake_trace_tool.wording_publish_update_failed', { error: upErr.message });
-        res.status(500).json({ error: 'Failed to publish wording' });
+        res
+          .status(500)
+          .json(
+            apiErrorJson(API_ERROR_CODES.INTAKE_TRACE_PUBLISH_FAILED, INTAKE_TRACE_PUBLISH_FAILED_MESSAGE),
+          );
         return;
       }
     }
@@ -284,7 +397,9 @@ intakeTraceToolRouter.post('/wording-drafts/publish', async (req: AuthRequest, r
   } catch (err) {
     const e = err as Error;
     logger.error('intake_trace_tool.wording_publish_exception', { error: e.message });
-    res.status(500).json({ error: 'Failed to publish wording' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.INTAKE_TRACE_PUBLISH_FAILED, INTAKE_TRACE_PUBLISH_FAILED_MESSAGE));
   }
 });
 
@@ -292,7 +407,13 @@ intakeTraceToolRouter.post('/wording-drafts/rollback', async (req: AuthRequest, 
   try {
     const parsed = intakeTraceToolWordingRollbackSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid rollback payload', details: parsed.error.flatten() });
+      res.status(400).json(
+        apiErrorJson(
+          API_ERROR_CODES.INTAKE_TRACE_ROLLBACK_PAYLOAD_INVALID,
+          INTAKE_TRACE_ROLLBACK_PAYLOAD_INVALID_MESSAGE,
+          parsed.error.flatten(),
+        ),
+      );
       return;
     }
     const userId = req.userId!;
@@ -306,7 +427,11 @@ intakeTraceToolRouter.post('/wording-drafts/rollback', async (req: AuthRequest, 
 
     if (listErr) {
       logger.error('intake_trace_tool.wording_rollback_list_failed', { error: listErr.message });
-      res.status(500).json({ error: 'Failed to rollback wording' });
+      res
+        .status(500)
+        .json(
+          apiErrorJson(API_ERROR_CODES.INTAKE_TRACE_ROLLBACK_FAILED, INTAKE_TRACE_ROLLBACK_FAILED_MESSAGE),
+        );
       return;
     }
 
@@ -328,7 +453,11 @@ intakeTraceToolRouter.post('/wording-drafts/rollback', async (req: AuthRequest, 
         .eq('question_id', t.question_id);
       if (upErr) {
         logger.error('intake_trace_tool.wording_rollback_update_failed', { error: upErr.message });
-        res.status(500).json({ error: 'Failed to rollback wording' });
+        res
+          .status(500)
+          .json(
+            apiErrorJson(API_ERROR_CODES.INTAKE_TRACE_ROLLBACK_FAILED, INTAKE_TRACE_ROLLBACK_FAILED_MESSAGE),
+          );
         return;
       }
     }
@@ -350,7 +479,11 @@ intakeTraceToolRouter.post('/wording-drafts/rollback', async (req: AuthRequest, 
   } catch (err) {
     const e = err as Error;
     logger.error('intake_trace_tool.wording_rollback_exception', { error: e.message });
-    res.status(500).json({ error: 'Failed to rollback wording' });
+    res
+      .status(500)
+      .json(
+        apiErrorJson(API_ERROR_CODES.INTAKE_TRACE_ROLLBACK_FAILED, INTAKE_TRACE_ROLLBACK_FAILED_MESSAGE),
+      );
   }
 });
 
@@ -358,7 +491,13 @@ intakeTraceToolRouter.get('/wording-publication-log', async (req: AuthRequest, r
   try {
     const parsed = intakeTraceToolPublicationLogQuerySchema.safeParse(req.query ?? {});
     if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid query', details: parsed.error.flatten() });
+      res.status(400).json(
+        apiErrorJson(
+          API_ERROR_CODES.INTAKE_TRACE_PUBLICATION_LOG_QUERY_INVALID,
+          INTAKE_TRACE_PUBLICATION_LOG_QUERY_INVALID_MESSAGE,
+          parsed.error.flatten(),
+        ),
+      );
       return;
     }
     const userId = req.userId!;
@@ -373,7 +512,14 @@ intakeTraceToolRouter.get('/wording-publication-log', async (req: AuthRequest, r
 
     if (error) {
       logger.error('intake_trace_tool.wording_publication_log_failed', { error: error.message });
-      res.status(500).json({ error: 'Failed to load publication log' });
+      res
+        .status(500)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.INTAKE_TRACE_PUBLICATION_LOG_FAILED,
+            INTAKE_TRACE_PUBLICATION_LOG_FAILED_MESSAGE,
+          ),
+        );
       return;
     }
 
@@ -388,6 +534,13 @@ intakeTraceToolRouter.get('/wording-publication-log', async (req: AuthRequest, r
   } catch (err) {
     const e = err as Error;
     logger.error('intake_trace_tool.wording_publication_log_exception', { error: e.message });
-    res.status(500).json({ error: 'Failed to load publication log' });
+    res
+      .status(500)
+      .json(
+        apiErrorJson(
+          API_ERROR_CODES.INTAKE_TRACE_PUBLICATION_LOG_FAILED,
+          INTAKE_TRACE_PUBLICATION_LOG_FAILED_MESSAGE,
+        ),
+      );
   }
 });

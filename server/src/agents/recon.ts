@@ -3,7 +3,7 @@ import { CrawlerCollector } from '../collectors/crawler.js';
 import { ReconOutputSchema } from '../schemas/domain-output.js';
 import { supabase } from '../services/supabase.js';
 import { MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
-import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
+import { auditSkipsPublicWebsiteFetches } from '@glc/intake-core';
 import type { DomainResult } from '../types/audit.js';
 import { writeReconPrefillsAfterPhase0 } from '../services/recon-prefill.js';
 
@@ -24,8 +24,8 @@ export class ReconAgent extends BaseAgent {
    * Override run() to save to audit_recon instead of audit_domains.
    */
   async run(): Promise<DomainResult> {
-    const companyUrl = await this.getCompanyUrl();
-    const noPublicSite = isNoPublicWebsiteUrl(companyUrl);
+    const { companyUrl, noPublicWebsite } = await this.getAuditWebContext();
+    const noPublicSite = auditSkipsPublicWebsiteFetches(noPublicWebsite, companyUrl);
 
     // Step 1: Collect
     await this.emit(
@@ -33,7 +33,7 @@ export class ReconAgent extends BaseAgent {
       noPublicSite ? 'No public website — skipping web crawl...' : 'Crawling company website...'
     );
     const crawler = new CrawlerCollector();
-    const crawlResult = await crawler.run(this.auditId, companyUrl);
+    const crawlResult = await crawler.run(this.auditId, companyUrl, { noPublicWebsite });
     const crawledPageCount = (crawlResult.data.pages_crawled as unknown[])?.length ?? 0;
     await this.emit(
       'log',

@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { GLC_DEV_API_PORT } from '@glc/dev-brand-defaults';
 import express from 'express';
 import cors from 'cors';
 import { initSentry, Sentry } from './config/sentry.js';
@@ -16,19 +17,24 @@ import { analyticsRouter } from './routes/analytics.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { profileRouter } from './routes/profile.js';
 import { platformRouter } from './routes/platform.js';
+import { publicBrandRouter } from './routes/public-brand.js';
 import { traceMiddleware } from './middleware/trace.js';
 import { requestLogMiddleware } from './middleware/request-log.js';
 import { logger } from './services/logger.js';
 import { startAlertsWorker } from './services/alerts.js';
 import { updateContext } from './services/observability-context.js';
 import { getCorsAllowedOrigins } from './config/cors-origins.js';
+import { assertProductionRuntimeConfig } from './config/runtime-assert.js';
+import { getExpressJsonBodyLimit } from './config/http-server.js';
 import { assertSnapshotGuestSaltIfProduction } from './lib/guest-session.js';
+import { setStandardSecurityHeaders } from './config/security-headers.js';
 import { recoverStalledPipelines } from './services/pipeline.js';
 import { startPipelineWorker } from './services/pipeline-jobs.js';
 
 const app = express();
-const PORT = parseInt(process.env.PORT ?? '3001', 10);
+const PORT = parseInt(process.env.PORT ?? String(GLC_DEV_API_PORT), 10);
 initSentry();
+assertProductionRuntimeConfig();
 
 const corsAllowedOrigins = getCorsAllowedOrigins();
 if (process.env.NODE_ENV === 'production' && corsAllowedOrigins.length === 0) {
@@ -49,14 +55,9 @@ app.use(cors({
     'Retry-After',
   ],
 }));
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: getExpressJsonBodyLimit() }));
 app.use((_req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  if (process.env.NODE_ENV === 'production') {
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  }
+  setStandardSecurityHeaders(res, process.env.NODE_ENV === 'production');
   next();
 });
 app.use((req, _res, next) => {
@@ -77,6 +78,8 @@ app.use((req, res, next) => {
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+app.use('/api/public', publicBrandRouter);
 
 // ─── Routes ────────────────────────────────────────────────
 app.use('/api/profile', profileRouter);

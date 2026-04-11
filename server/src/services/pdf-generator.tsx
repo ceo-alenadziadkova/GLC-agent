@@ -4,14 +4,14 @@
  * Produces a branded A4 PDF from ReportInput + ReportProfile.
  * Uses @react-pdf/renderer (pure JS — no Chromium, Railway-safe).
  *
- * Design system: GLC brand identity from glctech.es
- *   - Navy cover page (#0F1729)
+ * Design system: GLC brand identity (public site from GLC_PUBLIC_SITE_URL / bot-identity)
+ *   - Navy cover page and palette from `config/pdf-theme.ts` (env overrides)
  *   - White content pages, Helvetica typography
- *   - Brand accents: green #0ECF82 / orange #F24F1D / blue #1CBDFF
  *   - GLC logo reproduced as 3 overlapping coloured squares (matches logo.svg)
  */
 
 import React from 'react';
+
 import {
   Document,
   Page,
@@ -21,70 +21,47 @@ import {
   renderToBuffer,
   type DocumentProps,
 } from '@react-pdf/renderer';
+import {
+  REPORT_PROFILE_DOMAINS,
+  REPORT_PROFILE_LABELS,
+  displayDomainLabel,
+  scoreBandColorFrom1To5,
+  scoreLabelFrom1To5,
+  type ReportProfile,
+} from '@glc/intake-core';
+
+import { glcBrandSiteHostname } from '../config/glc-brand-host.js';
+import { PDF_THEME, pdfLocaleTag } from '../config/pdf-theme.js';
 import type { ReportInput } from './report-profiler.js';
-import { PROFILE_LABELS, type ReportProfile } from './report-profiler.js';
 
-// ─── Brand Palette ────────────────────────────────────────────────────────────
+const BRAND_SITE_HOST = glcBrandSiteHostname();
+const C = PDF_THEME;
 
-const C = {
-  navy:   '#0F1729',
-  green:  '#0ECF82',
-  orange: '#F24F1D',
-  blue:   '#1CBDFF',
-  white:  '#FFFFFF',
-  text:   '#111827',
-  sub:    '#6B7280',
-  bg:     '#F9FAFB',
-  border: '#E5E7EB',
-} as const;
-
-// Which domain keys each profile shows (mirrors report-profiler.ts PROFILE_DOMAINS)
-const PROFILE_DOMAIN_FILTER: Record<ReportProfile, string[] | 'all'> = {
-  full:      'all',
-  owner:     'all',
-  tech:      ['tech_infrastructure', 'security_compliance'],
-  marketing: ['seo_digital', 'ux_conversion', 'marketing_utp'],
-  onepager:  'all',
-};
+const PROFILE_DOMAIN_FILTER = REPORT_PROFILE_DOMAINS;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function scoreColor(score: number): string {
-  if (score >= 4.5) return C.green;
-  if (score >= 3.5) return '#22C55E';
-  if (score >= 2.5) return '#EAB308';
-  if (score >= 1.5) return '#F97316';
-  return '#EF4444';
+  return scoreBandColorFrom1To5(score);
 }
 
 function sevColor(sev: string): string {
-  if (sev === 'critical') return '#EF4444';
-  if (sev === 'high')     return '#F97316';
-  if (sev === 'medium')   return '#EAB308';
+  if (sev === 'critical') return C.sevCritical;
+  if (sev === 'high') return C.sevHigh;
+  if (sev === 'medium') return C.sevMedium;
   return C.sub;
 }
 
 function domainName(key: string): string {
-  const m: Record<string, string> = {
-    tech_infrastructure:  'Tech Infrastructure',
-    security_compliance:  'Security & Compliance',
-    seo_digital:          'SEO & Digital Presence',
-    ux_conversion:        'UX & Conversion',
-    marketing_utp:        'Marketing & Positioning',
-    automation_processes: 'Automation & Processes',
-  };
-  return m[key] ?? key;
+  return displayDomainLabel(key);
 }
 
 function scoreLabel(score: number): string {
-  const m: Record<number, string> = {
-    1: 'Critical', 2: 'Needs Work', 3: 'Moderate', 4: 'Good', 5: 'Excellent',
-  };
-  return m[Math.round(score)] ?? '';
+  return scoreLabelFrom1To5(score);
 }
 
 function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-GB', {
+  return new Date(iso).toLocaleDateString(pdfLocaleTag(), {
     day: '2-digit', month: 'short', year: 'numeric',
   });
 }
@@ -106,7 +83,7 @@ const s = StyleSheet.create({
   coverBadgeText: { fontSize: 7.5, fontFamily: 'Helvetica-Bold', color: C.navy },
 
   coverTitle:     { fontSize: 28, fontFamily: 'Helvetica-Bold', color: C.white, marginBottom: 8, lineHeight: 1.2 },
-  coverUrl:       { fontSize: 10.5, color: '#8BA3C7', marginBottom: 40 },
+  coverUrl:       { fontSize: 10.5, color: C.coverUrlMuted, marginBottom: 40 },
   coverMeta:      { flexDirection: 'row' },
   coverMetaItem:  { marginRight: 28 },
   coverMetaLabel: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: '#5B7299', marginBottom: 2 },
@@ -233,7 +210,7 @@ const CoverPage: React.FC<CoverProps> = ({ company, url, date, industry, profile
 
     <View style={s.coverBody}>
       <View style={s.coverBadge}>
-        <Text style={s.coverBadgeText}>{PROFILE_LABELS[profile].toUpperCase()}</Text>
+        <Text style={s.coverBadgeText}>{REPORT_PROFILE_LABELS[profile].toUpperCase()}</Text>
       </View>
 
       <Text style={s.coverTitle}>{safeName(company)}</Text>
@@ -263,7 +240,7 @@ const CoverPage: React.FC<CoverProps> = ({ company, url, date, industry, profile
 
     <View style={s.coverBar}>
       <Text style={s.coverBarBrand}>GLC Audit Platform</Text>
-      <Text style={s.coverBarUrl}>glctech.es</Text>
+      <Text style={s.coverBarUrl}>{BRAND_SITE_HOST}</Text>
     </View>
   </Page>
 );
@@ -284,7 +261,7 @@ const PageHeader: React.FC<{ company: string; report: string; date: string }> = 
 
 const PageFooter: React.FC = () => (
   <View style={s.pFtr} fixed>
-    <Text style={s.pFtrLeft}>GLC Audit Platform · glctech.es</Text>
+    <Text style={s.pFtrLeft}>GLC Audit Platform · {BRAND_SITE_HOST}</Text>
     <Text
       style={s.pFtrRight}
       render={({ pageNumber, totalPages }: { pageNumber: number; totalPages: number }) =>
@@ -507,7 +484,7 @@ const AuditDocument: React.FC<AuditDocumentProps> = ({ input, profile }) => {
   const company     = recon?.company_name ?? audit.company_url;
   const date        = fmtDate(audit.created_at);
   const industry    = recon?.industry ?? audit.industry ?? null;
-  const reportTitle = PROFILE_LABELS[profile];
+  const reportTitle = REPORT_PROFILE_LABELS[profile];
   const overallScore = audit.overall_score ?? null;
 
   // Filter to completed domains allowed by this profile
@@ -519,7 +496,11 @@ const AuditDocument: React.FC<AuditDocumentProps> = ({ input, profile }) => {
   ).filter(d => d.status === 'completed');
 
   const coverProps: CoverProps = { company, url: audit.company_url, date, industry, profile, score: overallScore };
-  const docMeta = { title: `GLC Audit — ${safeName(company)}`, author: 'GLC Audit Platform', producer: 'glctech.es' };
+  const docMeta = {
+    title: `GLC Audit — ${safeName(company)}`,
+    author: 'GLC Audit Platform',
+    producer: BRAND_SITE_HOST,
+  };
 
   // ── Onepager ──────────────────────────────────────────────────────────────
   if (profile === 'onepager') {

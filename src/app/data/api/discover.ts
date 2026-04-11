@@ -1,3 +1,4 @@
+import { API_PATHS } from '../../config/api-paths';
 import { apiFetch, publicApiFetch } from '../api-http';
 import type { IntakeVersionTuple } from '../auditTypes';
 
@@ -43,7 +44,7 @@ export const discoverApi = {
     maturity_level: number;
     findings: unknown[];
   }) {
-    return publicApiFetch<{ token: string; created_at: string; contact_edit_key: string }>('/api/discover', {
+    return publicApiFetch<{ token: string; created_at: string; contact_edit_key: string }>(API_PATHS.discover, {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -51,12 +52,12 @@ export const discoverApi = {
 
   /** Public: server-driven Discovery wizard copy and option lists. */
   async getUiFragment() {
-    return publicApiFetch<DiscoveryUiFragmentPayload>('/api/discover/ui-fragment');
+    return publicApiFetch<DiscoveryUiFragmentPayload>(API_PATHS.discoverUiFragment);
   },
 
   /** Public: batched funnel analytics (non-blocking for callers). */
   async postAnalyticsEvents(payload: DiscoveryAnalyticsBatchPayload) {
-    return publicApiFetch<{ ok: true; received: number }>('/api/discover/analytics-events', {
+    return publicApiFetch<{ ok: true; received: number }>(API_PATHS.discoverAnalyticsEvents, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -70,7 +71,7 @@ export const discoverApi = {
       findings: unknown[];
       created_at: string;
       audit_id: string | null;
-    }>(`/api/discover/${encodeURIComponent(token)}`);
+    }>(`${API_PATHS.discover}/${encodeURIComponent(token)}`);
   },
 
   /** Public: attach contact info to a discovery session (called from results page). */
@@ -84,7 +85,7 @@ export const discoverApi = {
       contact_company?: string;
     },
   ) {
-    return publicApiFetch<{ ok: true }>(`/api/discover/${encodeURIComponent(token)}/contact`, {
+    return publicApiFetch<{ ok: true }>(`${API_PATHS.discover}/${encodeURIComponent(token)}/contact`, {
       method: 'PATCH',
       body: JSON.stringify({
         ...contact,
@@ -109,12 +110,12 @@ export const discoverApi = {
         biz_description: string | null;
         industry: string | null;
       }>;
-    }>('/api/discover/sessions');
+    }>(API_PATHS.discoverSessions);
   },
 
   /** Consultant: convert a discovery session into a full audit. */
   async convertDiscoverySession(token: string) {
-    return apiFetch<{ audit_id: string }>(`/api/discover/${encodeURIComponent(token)}/convert`, {
+    return apiFetch<{ audit_id: string }>(`${API_PATHS.discover}/${encodeURIComponent(token)}/convert`, {
       method: 'POST',
     });
   },

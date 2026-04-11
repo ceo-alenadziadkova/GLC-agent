@@ -1,4 +1,4 @@
-const DEV_FALLBACK = 'http://localhost:5173';
+import { GLC_DEV_SPA_ORIGIN } from '@glc/dev-brand-defaults';
 
 /**
  * Base URL for absolute intake links (no trailing slash).
@@ -10,5 +10,5 @@ export function resolveFrontendBaseUrl(): string {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('FRONTEND_URL is required when NODE_ENV=production');
   }
-  return DEV_FALLBACK.replace(/\/+$/, '');
+  return GLC_DEV_SPA_ORIGIN.replace(/\/+$/, '');
 }

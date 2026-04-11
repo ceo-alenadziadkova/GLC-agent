@@ -27,6 +27,13 @@ jobs:
       PGPASSWORD: postgres
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: pnpm/action-setup@v4
         with:
@@ -98,6 +105,17 @@ jobs:
 
       - name: Lint
         run: pnpm run lint
+
+      - name: Hardcode inventory (report-only)
+        run: bash scripts/hardcode-inventory.sh | head -n 200
+
+      - name: Verify DEPLOYMENT env-pair documentation
+        run: |
+          test -f docs/DEPLOYMENT.md
+          grep -q 'NO_PUBLIC_WEBSITE_URL' docs/DEPLOYMENT.md
+          grep -q 'VITE_NO_PUBLIC_WEBSITE_URL' docs/DEPLOYMENT.md
+          grep -q 'Server and SPA variables that must match' docs/DEPLOYMENT.md
+          grep -q 'snapshot-fetch-heuristics' docs/DEPLOYMENT.md
 
       - name: Frontend unit tests
         run: pnpm test

@@ -62,8 +62,7 @@ export const INTAKE_BRIEF_TRIGGERS_FOLLOWUP: Readonly<Record<string, readonly st
 export const INTAKE_BRIEF_UI_SECTION_BY_ID: Readonly<Record<string, string>> =
   file.uiSectionByQuestionId;
 
-/** Max length for free-text / textarea answers (classic brief + bank). */
-export const BRIEF_ANSWER_STRING_MAX = 12_000;
+export { BRIEF_ANSWER_STRING_MAX } from './brief-answer-limits.js';
 
 const preBriefIdentity = INTAKE_POLICY_V1.modes.pre_brief.identityFieldIds;
 if (!preBriefIdentity?.length) {

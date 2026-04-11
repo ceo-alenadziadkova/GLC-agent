@@ -4,6 +4,12 @@ import { PipelineOrchestrator } from './pipeline.js';
 import { emitPhaseErrorDurable } from './pipeline-error.js';
 import { getRedisUrl } from './redis.js';
 import { supabase } from './supabase.js';
+import {
+  PIPELINE_QUEUE_BACKOFF_DELAY_MS,
+  PIPELINE_QUEUE_DEFAULT_ATTEMPTS,
+  PIPELINE_QUEUE_REMOVE_ON_COMPLETE,
+  PIPELINE_QUEUE_REMOVE_ON_FAIL,
+} from '../config/pipeline-queue.js';
 
 type PipelineJobPayload = {
   auditId: string;
@@ -24,10 +30,10 @@ function ensureQueue(): Queue<PipelineJobPayload> | null {
   queue = new Queue<PipelineJobPayload>(QUEUE_NAME, {
     connection: { url },
     defaultJobOptions: {
-      removeOnComplete: 1000,
-      removeOnFail: 1000,
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 1500 },
+      removeOnComplete: PIPELINE_QUEUE_REMOVE_ON_COMPLETE,
+      removeOnFail: PIPELINE_QUEUE_REMOVE_ON_FAIL,
+      attempts: PIPELINE_QUEUE_DEFAULT_ATTEMPTS,
+      backoff: { type: 'exponential', delay: PIPELINE_QUEUE_BACKOFF_DELAY_MS },
     },
   });
   return queue;

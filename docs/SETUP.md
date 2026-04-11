@@ -76,6 +76,9 @@ ANTHROPIC_API_KEY=sk-ant-...
 # AUDIT_AXE_PLAYWRIGHT=1
 # AUDIT_LIGHTHOUSE_BUDGET_MS=55000
 # AUDIT_AXE_NAV_TIMEOUT_MS=12000
+
+# Optional — collector HTTP limits, phase-0 crawler caps, public snapshot GET truncation/competitor budget, Claude pricing overrides for token-tracker:
+# see [DEPLOYMENT.md](./DEPLOYMENT.md#configuration-centralization-avoid-drift) (optional tuning table) and `server/.env.example` (COLLECTOR_*, CRAWLER_*, SNAPSHOT_*, ANTHROPIC_PRICING_JSON).
 ```
 
 > The frontend uses the anon key (safe to expose). The backend uses the service role key (bypasses RLS for server-side operations — never expose to client).
@@ -113,6 +116,19 @@ pnpm dev
 - Frontend: [http://localhost:5173](http://localhost:5173)
 - Backend API: [http://localhost:3001](http://localhost:3001)
 - Vite proxies `/api/*` requests to the backend automatically (configured in `vite.config.ts`)
+
+### Local dev port and URL matrix (keep in sync)
+
+Changing one of these without the others is a common cause of CORS errors, failed fetches, or broken absolute links in emails.
+
+| Concern | Default | Where it is defined |
+|--------|---------|---------------------|
+| Vite dev server port | `5173` | `pnpm dev` (Vite default); Playwright `playwright.config.ts` `baseURL` / `webServer.url` |
+| `/api` proxy upstream | `http://localhost:3001` | [`vite.config.ts`](../vite.config.ts) `server.proxy['/api'].target` |
+| Express listen port | `3001` (`PORT` env) | [`server/src/index.ts`](../server/src/index.ts); [`server/.env.example`](../server/.env.example) |
+| SPA → API base URL | `http://localhost:3001` | Root `.env` `VITE_API_URL`; dev fallback in [`src/app/lib/api-base-url.ts`](../src/app/lib/api-base-url.ts) |
+| CORS browser origins (dev) | `5173`, `5174`, `3000` | [`server/src/config/cors-origins.ts`](../server/src/config/cors-origins.ts) `DEFAULT_DEV_ORIGINS` |
+| Absolute frontend base (e.g. intake links) | `http://localhost:5173` | `FRONTEND_URL` in `server/.env`; non-production fallback in [`server/src/config/frontend-url.ts`](../server/src/config/frontend-url.ts) |
 
 ---
 

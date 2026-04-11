@@ -2,6 +2,7 @@
  * AI Readiness score (0–100) — weights and strings from `ai-readiness.v1.json` (docs/QUESTION_BANK.md §8).
  */
 import type { AiReadinessResult, IntakeResponsesMap } from './types.js';
+import { isSoloTeamRaw } from './branch-response-normalizers.js';
 import { getResponseString, unwrapIntakeValue } from './unwrap.js';
 import { normalizeWebsiteGate } from './branch-rules.js';
 import {
@@ -47,7 +48,7 @@ function teamNotSolo(responses: IntakeResponsesMap): boolean {
   const raw = unwrapIntakeValue(responses.a4);
   const s = String(raw ?? '').trim().toLowerCase();
   if (!s) return false;
-  return !s.includes('just me') && s !== 'just_me' && s !== 'solo';
+  return !isSoloTeamRaw(raw);
 }
 
 function automationAttemptHelpedSignal(responses: IntakeResponsesMap): boolean {

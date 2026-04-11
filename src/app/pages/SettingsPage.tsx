@@ -59,6 +59,8 @@ export function SettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [savingEmail, setSavingEmail] = useState(false);
 
   const [clientBriefDefault, setClientBriefDefault] = useState<ClientBriefLayoutStored | null>(() =>
     readClientBriefLayoutDefault(),
@@ -170,7 +172,14 @@ export function SettingsPage() {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) {
-        toast.error(error.message);
+        const msg = (error.message ?? '').toLowerCase();
+        if (msg.includes('reauth') || msg.includes('recent') || msg.includes('session')) {
+          toast.error(
+            'Sign in again (session must be recent to change password). Sign out, sign back in, then update your password.',
+          );
+        } else {
+          toast.error(error.message);
+        }
         return;
       }
       setNewPassword('');
@@ -178,6 +187,32 @@ export function SettingsPage() {
       toast.success('Password updated');
     } finally {
       setSavingPassword(false);
+    }
+  };
+
+  const changeEmail = async () => {
+    const trimmed = newEmail.trim().toLowerCase();
+    if (!trimmed || !trimmed.includes('@')) {
+      toast.error('Enter a valid email address');
+      return;
+    }
+    if (trimmed === (user?.email ?? '').toLowerCase()) {
+      toast.error('That is already your current email');
+      return;
+    }
+    setSavingEmail(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ email: trimmed });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      setNewEmail('');
+      toast.success(
+        'Confirmation emails sent. With secure email change, confirm from both your current and new inboxes.',
+      );
+    } finally {
+      setSavingEmail(false);
     }
   };
 
@@ -583,6 +618,37 @@ export function SettingsPage() {
             }}
           >
             {user?.email ?? 'unknown'}
+          </div>
+          <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
+            Change email
+          </div>
+          <p className="text-xs leading-relaxed mb-2" style={{ color: 'var(--text-quaternary)' }}>
+            We will send confirmation links. If your project uses secure email change, you must confirm from both the old and new addresses.
+          </p>
+          <div className="flex flex-col gap-2 mb-5 mobile:flex-row mobile:items-center">
+            <input
+              type="email"
+              value={newEmail}
+              onChange={e => setNewEmail(e.target.value)}
+              placeholder="new@company.com"
+              autoComplete="email"
+              className="w-full mobile:flex-1 px-3 py-2 text-sm"
+              style={{
+                backgroundColor: 'var(--bg-canvas)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--text-primary)',
+              }}
+            />
+            <button
+              type="button"
+              className="glc-btn-primary whitespace-nowrap"
+              disabled={savingEmail || !newEmail.trim()}
+              style={{ opacity: savingEmail || !newEmail.trim() ? 0.55 : 1 }}
+              onClick={() => void changeEmail()}
+            >
+              {savingEmail ? 'Sending…' : 'Request email change'}
+            </button>
           </div>
           <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
             Change password

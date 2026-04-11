@@ -1,8 +1,19 @@
 import { Link } from 'react-router';
 import { EnvelopeSimple } from '@phosphor-icons/react';
+import { glcSupportMailtoHref } from '../lib/support-email';
 import { LOGIN_PATH, MARKETING_LINKS } from './marketing-nav';
+import { usePublicBrand } from './PublicBrandContext';
+
+function supportMailtoHref(email: string): string {
+  return `mailto:${email}`;
+}
 
 export function MarketingFooter() {
+  const { footer, supportEmail, payload } = usePublicBrand();
+  const mailHref = payload?.support_email?.trim()
+    ? supportMailtoHref(supportEmail)
+    : glcSupportMailtoHref();
+
   return (
     <footer
       className="mt-auto border-t"
@@ -12,24 +23,23 @@ export function MarketingFooter() {
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-              GLC Tech
+              {footer.brandTitle}
             </p>
             <p className="mt-2 max-w-sm text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              Audits of digital systems, processes, and your website. Bottlenecks, priorities, automation, and a clear
-              roadmap—from diagnosis to implementation.
+              {footer.introParagraph}
             </p>
             <a
-              href="mailto:contact@glctech.es"
+              href={mailHref}
               className="mt-4 inline-flex items-center gap-2 text-sm font-medium"
               style={{ color: 'var(--glc-blue)' }}
             >
               <EnvelopeSimple className="h-4 w-4" aria-hidden />
-              contact@glctech.es
+              {supportEmail}
             </a>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-              Routes
+              {footer.routesSectionTitle}
             </p>
             <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               {MARKETING_LINKS.map(({ to, label }) => (
@@ -41,30 +51,30 @@ export function MarketingFooter() {
               ))}
               <li>
                 <Link to={LOGIN_PATH} className="transition-colors hover:underline" style={{ color: 'var(--text-secondary)' }}>
-                  Client sign-in
+                  {footer.clientSignInLabel}
                 </Link>
               </li>
             </ul>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-              Next step
+              {footer.nextStepSectionTitle}
             </p>
             <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              Not sure where to start? Try{' '}
+              {footer.nextStepBeforeSnapshot}
               <Link to="/snapshot" className="font-medium underline-offset-2 hover:underline" style={{ color: 'var(--glc-blue)' }}>
-                Snapshot
+                {footer.snapshotLinkLabel}
               </Link>
-              . Want a human in the loop—{' '}
+              {footer.nextStepBetweenSnapshotAndBrief}
               <Link to="/brief" className="font-medium underline-offset-2 hover:underline" style={{ color: 'var(--glc-blue)' }}>
-                short brief
+                {footer.briefLinkLabel}
               </Link>
-              .
+              {footer.nextStepAfterBrief}
             </p>
           </div>
         </div>
         <p className="mt-10 text-center text-xs" style={{ color: 'var(--text-quaternary)' }}>
-          Palma de Mallorca · Spain · GLC Tech / GLCTech
+          {footer.legalLine}
         </p>
       </div>
     </footer>

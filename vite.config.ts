@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { GLC_DEV_API_ORIGIN } from '@glc/dev-brand-defaults'
 
 export default defineConfig(({ mode }) => ({
   esbuild: {
@@ -34,6 +35,7 @@ export default defineConfig(({ mode }) => ({
         __dirname,
         './packages/intake-core/src/artifacts/layout-rules-1.1.0.json',
       ),
+      '@glc/dev-brand-defaults': path.resolve(__dirname, './packages/glc-dev-brand-defaults/src/index.ts'),
       '@glc/intake-core': path.resolve(__dirname, './packages/intake-core/src/index.ts'),
     },
   },
@@ -44,7 +46,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: GLC_DEV_API_ORIGIN,
         changeOrigin: true,
       },
     },

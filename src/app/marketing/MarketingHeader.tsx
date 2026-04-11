@@ -5,9 +5,11 @@ import { GlcLogo } from '../components/GlcLogo';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { LOGIN_PATH, MARKETING_LINKS } from './marketing-nav';
 import { cn } from '../components/ui/utils';
+import { usePublicBrand } from './PublicBrandContext';
 
 export function MarketingHeader() {
   const [open, setOpen] = useState(false);
+  const { footer } = usePublicBrand();
 
   return (
     <header
@@ -19,7 +21,12 @@ export function MarketingHeader() {
       }}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Link to="/" className="flex min-w-0 shrink-0 items-center gap-2" onClick={() => setOpen(false)}>
+        <Link
+          to="/"
+          className="flex min-w-0 shrink-0 items-center gap-2"
+          onClick={() => setOpen(false)}
+          aria-label={footer.brandTitle}
+        >
           <GlcLogo className="h-8 sm:h-9" />
         </Link>
 
@@ -55,7 +62,7 @@ export function MarketingHeader() {
               border: '1px solid color-mix(in oklab, var(--glc-blue) 35%, var(--border-default))',
             }}
           >
-            Sign in
+            {footer.clientSignInLabel}
           </Link>
           <button
             type="button"
@@ -104,7 +111,7 @@ export function MarketingHeader() {
                 className="block rounded-lg px-3 py-2.5 text-sm font-semibold"
                 style={{ color: 'var(--glc-blue)' }}
               >
-                Client sign-in
+                {footer.clientSignInLabel}
               </Link>
             </li>
           </ul>
