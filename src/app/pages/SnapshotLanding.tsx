@@ -213,7 +213,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
       void refreshQuotaPreview();
       setStage('running');
     } catch {
-      setErrorMsg('Network error: could not reach the server. Check your connection and try again.');
+      setErrorMsg(SNAPSHOT_LANDING_COPY.startNetworkError);
       setStage('error');
     }
   }
@@ -251,12 +251,10 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
           prev ? { ...prev, competitor_mini: data.competitor_mini } : prev,
         );
       } else {
-        setCompetitorLoadError(
-          'We could not find a suitable external site linked from your homepage, or the check timed out.',
-        );
+        setCompetitorLoadError(SNAPSHOT_LANDING_COPY.competitorNotFoundOrTimeout);
       }
     } catch {
-      setCompetitorLoadError('Network error while loading comparison.');
+      setCompetitorLoadError(SNAPSHOT_LANDING_COPY.competitorNetworkError);
     } finally {
       setCompetitorLoading(false);
     }

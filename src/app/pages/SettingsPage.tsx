@@ -22,6 +22,7 @@ import {
   writeConsultantBriefLayoutDefault,
   applyConsultantBriefLayoutAskEachTime,
 } from '../lib/client-brief-layout-preference';
+import { SETTINGS_SELF_SERVE_COPY } from '../config/settings-self-serve-copy.en';
 
 type NotificationPrefs = {
   auditStatusReminders: boolean;
@@ -368,10 +369,26 @@ export function SettingsPage() {
                   </div>
                 )}
                 {selfServe.env_fallback_active && (
-                  <p className="text-xs leading-relaxed mb-3 m-0" style={{ color: 'var(--text-tertiary)' }}>
-                    No consultant is saved here yet; a backup default may still apply. Setting someone below makes the
-                    choice explicit for your team.
-                  </p>
+                  <div className="mb-3 space-y-2">
+                    <div
+                      className="px-3 py-2 rounded-lg text-xs leading-relaxed"
+                      style={{
+                        backgroundColor: 'var(--callout-info-bg)',
+                        border: '1px solid var(--callout-info-border)',
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      <p className="font-semibold m-0 mb-1" style={{ color: 'var(--text-primary)' }}>
+                        {SETTINGS_SELF_SERVE_COPY.envFallbackCalloutTitle}
+                      </p>
+                      <p className="m-0" style={{ color: 'var(--text-secondary)' }}>
+                        {SETTINGS_SELF_SERVE_COPY.envFallbackCalloutBody}
+                      </p>
+                    </div>
+                    <p className="text-xs leading-relaxed m-0" style={{ color: 'var(--text-tertiary)' }}>
+                      {SETTINGS_SELF_SERVE_COPY.envFallbackHintShort}
+                    </p>
+                  </div>
                 )}
                 {!selfServe.can_manage && (
                   <p className="text-xs leading-relaxed mb-3 m-0" style={{ color: 'var(--text-tertiary)' }}>

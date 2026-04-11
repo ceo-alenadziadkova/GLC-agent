@@ -122,7 +122,7 @@ Tightening boundaries is **rules + structure + checks**, not one large refactor.
 
 **Allowed:** service URLs, API keys, connection strings, `NODE_ENV`, host/port when the platform injects it, public URLs for CORS and brand/sentinel parity (as in production today).
 
-**Do not use env for:** product limits as the *primary* source, alert thresholds, industry weights, or role/allowlist membership (consultant allowlist is `**consultant_email_allowlist`** in Postgres; `**CONSULTANT_EMAILS**` is deprecated — see `server/.env.example`).
+**Do not use env for:** product limits as the *primary* source, alert thresholds, industry weights, or consultant allowlist membership (source of truth: **`consultant_email_allowlist`** in Postgres; platform admin ACL: **`profiles.is_platform_admin`** plus optional legacy **`PLATFORM_ADMIN_USER_IDS`** — see `docs/DEPLOYMENT.md`).
 
 **Process:** do not add a new `process.env.FOO` without documenting it in `**server/.env.example`** (or the ops-tuning tables in [DEPLOYMENT.md](./DEPLOYMENT.md)) with a one-line purpose.
 
@@ -201,7 +201,7 @@ Use these **logical prefixes** in docs and in future i18n catalogs (no requireme
 #### Cross-cutting brand and support email
 
 - **Marketing shell / public pages** should prefer `**fetchPublicBrandConfig()`** (`[src/app/lib/public-brand.ts](../src/app/lib/public-brand.ts)`) for `**brand_name**`, `**footer**`, and `**public_site_url**` instead of hardcoding the product name in every route.
-- **Support email in the SPA (production):** `**VITE_SUPPORT_EMAIL**` is required at build time (`[src/app/lib/support-email.ts](../src/app/lib/support-email.ts)`). The server may set `support_email` in `[server/src/config/public-brand-defaults.v1.json](../server/src/config/public-brand-defaults.v1.json)` so `**GET /api/public/brand**` returns it; use that for surfaces driven by the brand payload. Do not introduce a third divergent “contact” string without documenting precedence — see [DEPLOYMENT.md — White-label and dev defaults](./DEPLOYMENT.md#white-label-and-dev-defaults-environment-matrix).
+- **Support email (marketing SPA):** canonical value is `**support_email**` in `[server/src/config/public-brand-defaults.v1.json](../server/src/config/public-brand-defaults.v1.json)`, exposed by `**GET /api/public/brand**` and consumed via `[PublicBrandContext](../src/app/marketing/PublicBrandContext.tsx)`. `[src/app/lib/support-email.ts](../src/app/lib/support-email.ts)` re-exports **`GLC_DEV_SUPPORT_EMAIL`** as a synchronous placeholder before the brand request resolves. Do not introduce a divergent contact string without documenting precedence — see [DEPLOYMENT.md — White-label and dev defaults](./DEPLOYMENT.md#white-label-and-dev-defaults-environment-matrix).
 
 #### API errors vs SPA copy
 

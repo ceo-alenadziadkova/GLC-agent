@@ -17,7 +17,7 @@ export const PUBLIC_BRAND_DEFAULTS_VERSION = raw.version as string;
 
 export type PublicBrandPayload = {
   brand_name: string;
-  /** Public contact; null means SPA should use build-time VITE_SUPPORT_EMAIL only. */
+  /** Public contact; JSON `null` hides it in the SPA; empty/omitted falls back to `GLC_DEV_SUPPORT_EMAIL`. */
   support_email: string | null;
   public_site_url: string;
   footer: MarketingFooterCopyEn;
@@ -31,13 +31,13 @@ export function getPublicBrandConfig(): PublicBrandPayload {
   const legalLine = String(raw.legal_line ?? '').trim() || GLC_DEV_BRAND_LEGAL_LINE;
 
   const rawSupport = raw.support_email as string | null | undefined;
-  const trimmedSupport = typeof rawSupport === 'string' ? rawSupport.trim() : '';
-  const support_email: string | null =
-    trimmedSupport !== ''
-      ? trimmedSupport
-      : process.env.NODE_ENV === 'production'
-        ? null
-        : GLC_DEV_SUPPORT_EMAIL;
+  let support_email: string | null;
+  if (rawSupport === null) {
+    support_email = null;
+  } else {
+    const trimmed = typeof rawSupport === 'string' ? rawSupport.trim() : '';
+    support_email = trimmed !== '' ? trimmed : GLC_DEV_SUPPORT_EMAIL;
+  }
 
   const footerBase = raw.footer as Omit<MarketingFooterCopyEn, 'brandTitle' | 'legalLine'>;
   const footer: MarketingFooterCopyEn = {

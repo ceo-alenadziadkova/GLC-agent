@@ -40,7 +40,7 @@ platformRouter.use(attachProfile);
 platformRouter.get('/self-serve-owner', requireRole('consultant'), async (req: AuthRequest, res) => {
   try {
     const uid = req.userId!;
-    const canManage = canManagePlatformSettings(uid);
+    const canManage = await canManagePlatformSettings(uid);
     const stored = await getStoredSelfServeAuditOwnerUserId();
     const envSet = Boolean(process.env.SELF_SERVE_AUDIT_OWNER_USER_ID?.trim());
     const resolved = await resolveSelfServeAuditOwnerUserId();
@@ -71,7 +71,7 @@ platformRouter.get('/self-serve-owner', requireRole('consultant'), async (req: A
 platformRouter.patch('/self-serve-owner', requireRole('consultant'), async (req: AuthRequest, res) => {
   try {
     const uid = req.userId!;
-    if (!canManagePlatformSettings(uid)) {
+    if (!(await canManagePlatformSettings(uid))) {
       res.status(403).json(apiErrorJson(API_ERROR_CODES.PLATFORM_ADMIN_ONLY, PLATFORM_ADMIN_ONLY_MESSAGE));
       return;
     }
@@ -146,7 +146,7 @@ platformRouter.patch('/self-serve-owner', requireRole('consultant'), async (req:
 platformRouter.get('/consultant-allowlist', requireRole('consultant'), async (req: AuthRequest, res) => {
   try {
     const uid = req.userId!;
-    if (!canManagePlatformSettings(uid)) {
+    if (!(await canManagePlatformSettings(uid))) {
       res.status(403).json(apiErrorJson(API_ERROR_CODES.PLATFORM_ADMIN_ONLY, PLATFORM_ADMIN_ONLY_MESSAGE));
       return;
     }
@@ -178,7 +178,7 @@ platformRouter.get('/consultant-allowlist', requireRole('consultant'), async (re
 platformRouter.post('/consultant-allowlist', requireRole('consultant'), async (req: AuthRequest, res) => {
   try {
     const uid = req.userId!;
-    if (!canManagePlatformSettings(uid)) {
+    if (!(await canManagePlatformSettings(uid))) {
       res.status(403).json(apiErrorJson(API_ERROR_CODES.PLATFORM_ADMIN_ONLY, PLATFORM_ADMIN_ONLY_MESSAGE));
       return;
     }
@@ -242,7 +242,7 @@ platformRouter.post('/consultant-allowlist', requireRole('consultant'), async (r
 platformRouter.delete('/consultant-allowlist', requireRole('consultant'), async (req: AuthRequest, res) => {
   try {
     const uid = req.userId!;
-    if (!canManagePlatformSettings(uid)) {
+    if (!(await canManagePlatformSettings(uid))) {
       res.status(403).json(apiErrorJson(API_ERROR_CODES.PLATFORM_ADMIN_ONLY, PLATFORM_ADMIN_ONLY_MESSAGE));
       return;
     }

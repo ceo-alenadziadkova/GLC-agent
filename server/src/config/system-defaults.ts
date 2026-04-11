@@ -188,4 +188,11 @@ export const SYSTEM_DEFAULTS = {
     axeNavigateTimeoutMsMin: 4000,
     axeNavigateTimeoutMsMax: 30_000,
   },
+  /**
+   * Version token in `GLC-*` product names inside outbound user-agents (not the Chromium build string).
+   * Bump when you intentionally change how we identify bots to external sites.
+   */
+  outboundBot: {
+    uaProductVersion: '1.0',
+  },
 } as const;

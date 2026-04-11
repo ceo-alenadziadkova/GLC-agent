@@ -21,7 +21,7 @@ export type PublicBrandContextValue = {
   brandName: string;
   /** Footer copy merged from API or dev template. */
   footer: MarketingFooterCopyEn;
-  /** Public support address for mailto (Vite dev fallback or `support_email` from API when set). */
+  /** Public support address from API; empty when JSON `support_email` is null (hidden). */
   supportEmail: string;
 };
 
@@ -50,7 +50,15 @@ export function PublicBrandProvider({ children }: { children: ReactNode }) {
   const value = useMemo((): PublicBrandContextValue => {
     const brandName = payload?.brand_name?.trim() || GLC_DEV_BRAND_NAME;
     const footer = payload?.footer ?? { ...GLC_DEV_MARKETING_FOOTER_EN };
-    const supportEmail = payload?.support_email?.trim() || GLC_SUPPORT_EMAIL;
+    let supportEmail: string;
+    if (!payload) {
+      supportEmail = GLC_SUPPORT_EMAIL;
+    } else if (payload.support_email === null) {
+      supportEmail = '';
+    } else {
+      const t = payload.support_email.trim();
+      supportEmail = t || GLC_SUPPORT_EMAIL;
+    }
     return { payload, brandName, footer, supportEmail };
   }, [payload]);
 

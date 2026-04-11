@@ -181,7 +181,7 @@ Below is an ordered checklist for **product admin / QA** on a staging environmen
 | Topic | Where in the product |
 | --- | --- |
 | **Admin** label in UI | DB: `profiles.role = 'consultant'`; shell shows **Admin** ([`useProfile`](src/app/hooks/useProfile.ts), [`AppShell`](src/app/components/AppShell.tsx)). |
-| Who counts as admin | Server: emails in **`consultant_email_allowlist`** (see migration `048`) or deprecated **`CONSULTANT_EMAILS`** env; case-insensitive. Platform admins manage the table via **`GET` / `POST` / `DELETE /api/platform/consultant-allowlist`**. Must match on `attachProfile` / `GET /api/profile`. |
+| Who counts as consultant (bootstrap) | Server: emails in **`consultant_email_allowlist`** (see migration `048`); case-insensitive. Platform admins manage the table via **`GET` / `POST` / `DELETE /api/platform/consultant-allowlist`**. Must match on `attachProfile` / `GET /api/profile`. |
 | Snapshot without password | [`/snapshot`](src/app/pages/SnapshotLanding.tsx): `POST /api/snapshot` with **`credentials: 'include'`** (guest cookie); **`glc_pending_snapshot_token`** + **`POST /api/snapshot/claim`** after login ([docs/AUTH.md](./docs/AUTH.md)). |
 | Guest upgrade to client | Sign in then **claim** attaches `audits.client_id`. Legacy anonymous/`linkIdentity` paths are optional. |
 
@@ -191,7 +191,7 @@ Below is an ordered checklist for **product admin / QA** on a staging environmen
 
 #### Identity and role
 
-- [ ] Admin email is in **`consultant_email_allowlist`** (SQL or platform API) or listed in deprecated **`CONSULTANT_EMAILS`** on the server.
+- [ ] Admin email is in **`consultant_email_allowlist`** (SQL or platform API).
 - [ ] After sign-in (email/password or Google), shell shows **Admin**; DB has `profiles.role = consultant`.
 
 #### Primary product entry (operations)
@@ -250,7 +250,7 @@ Below is an ordered checklist for **product admin / QA** on a staging environmen
 
 #### Registration from Snapshot / Discovery
 
-- [ ] **Google** registration from guest session: after upgrade, **`guest` → `client`** (or consultant if email is allowlisted / in deprecated `CONSULTANT_EMAILS`).
+- [ ] **Google** registration from guest session: after upgrade, **`guest` → `client`** (or consultant if email is allowlisted).
 - [ ] **Settings** (after full account): **name** and **email** show where the product collects them (Google usually provides email; name from profile / `full_name`).
 
 #### Snapshot result in "profile"
@@ -267,7 +267,7 @@ Below is an ordered checklist for **product admin / QA** on a staging environmen
 
 ### Link to automated tests
 
-Partially covered today: tables A–D above and [e2e/smoke.spec.ts](e2e/smoke.spec.ts). Full walkthrough of this section needs **staging with real Supabase and consultant allowlist (or `CONSULTANT_EMAILS`)**.
+Partially covered today: tables A–D above and [e2e/smoke.spec.ts](e2e/smoke.spec.ts). Full walkthrough of this section needs **staging with real Supabase and consultant allowlist**.
 
 ## P0 Quality Policy and Regression Pack
 

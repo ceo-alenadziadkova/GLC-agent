@@ -21,7 +21,7 @@ Values that are **secrets, connectivity, or deploy wiring** — not product defa
 
 ### Deprecated / ops-only
 
-- **`CONSULTANT_EMAILS`** — **deprecated** duplicate of the **`consultant_email_allowlist`** table (source of truth for consultant promotion on first login). Do not rely on this env for new deployments; populate the DB table via migrations or platform admin flows. The server still merges env entries as a temporary bootstrap fallback; remove this env once every environment uses the table exclusively (see `server/src/services/consultant-allowlist.ts`).
+- **`CONSULTANT_EMAILS`** — **removed.** Consultant promotion on first login uses **`consultant_email_allowlist`** only (SQL or **`/api/platform/consultant-allowlist`**). Delete this env from any legacy deploy configs.
 - **Product numerics** (rate limits, snapshot timings, pipeline/Claude, alerts, etc.) are **static TypeScript** in **`SYSTEM_DEFAULTS`** and focused modules — not Railway env. Remaining backend env is mostly **secrets, URLs, Redis, Sentry/Telegram, operator tokens**.
 
 **Rule:** new product limits and thresholds get a **code default in config** first; env only **overrides** when operators need to tune without a release.
@@ -62,9 +62,9 @@ Values that are **secrets, connectivity, or deploy wiring** — not product defa
    SNAPSHOT_GUEST_IP_SALT=<long-random-secret>
    GLC_PUBLIC_SITE_URL=https://your-marketing-site.example
    ```
-   **Do not set `PORT` manually** unless you know what you are doing: Railway injects **`PORT`**; the app must listen on that value (`server/src/index.ts`). In **Public networking**, **Target port** must match that same `PORT` (often not `3001`). If the deploy healthcheck passes but `https://…up.railway.app/api/health` returns **502**, fix the domain’s target port or remove a conflicting custom `PORT` variable.
+   **Do not set `PORT` manually** unless you know what you are doing: Railway injects **`PORT`**; the app must listen on that value (`server/src/index.ts`). In **Public networking**, **Target port** must match that same `PORT` (often not `3001`). If the deploy healthcheck passes but `https://…up.railway.app/api/health` returns **502**, fix the domain’s target port or remove a conflicting custom `PORT` variable. **`LISTEN_HOST`** (optional) defaults to **`0.0.0.0`** for containers; set **`127.0.0.1`** only for local hardening when you intentionally avoid exposing the API on all interfaces.
 
-   **Client self-serve (portal):** after migration `018_platform_settings.sql`, a **lead administrator** (consultant) sets the default audit owner under **Settings → Client portal — audit owner** (`PATCH /api/platform/self-serve-owner`). Optionally keep **`SELF_SERVE_AUDIT_OWNER_USER_ID`** as a bootstrap / backup consultant UUID when the database value is empty. **`PLATFORM_ADMIN_USER_IDS`** (comma-separated consultant `profiles.id`) restricts who may PATCH platform settings; if omitted, any consultant may change the assignment.
+   **Client self-serve (portal):** after migration `018_platform_settings.sql`, persist the default audit owner in **`platform_settings`** via **Settings → Client portal — audit owner** (`PATCH /api/platform/self-serve-owner`). **`SELF_SERVE_AUDIT_OWNER_USER_ID`** is **bootstrap / disaster-recovery only**: it applies when the DB row is empty so the API can resolve an owner before anyone saves in the UI. Once a consultant clicks **Save assignment**, normal operation should **not** depend on that env var (the Settings screen shows a callout while the env fallback is still active). **Platform admin ACL:** migration **`049_profiles_platform_admin.sql`** adds **`profiles.is_platform_admin`**. When at least one consultant has this flag **`true`**, only those users (plus any legacy **`PLATFORM_ADMIN_USER_IDS`** entries) may manage platform settings; when no row has the flag and **`PLATFORM_ADMIN_USER_IDS`** is unset, any consultant may manage (open mode). Set the first admins with SQL: `UPDATE profiles SET is_platform_admin = true WHERE id = '<consultant uuid>';`
 
 6. **Build / start (dashboard):** with **root `railway.json` + `server/Dockerfile`**, the image builds inside Docker (`pnpm run build` in `server/`) and starts with **`node dist/index.js`** (working directory `server/` in the image). Clear conflicting custom build/start overrides in the UI if needed.
 7. Railway provides a public URL like `https://glc-api.up.railway.app`
@@ -76,7 +76,7 @@ Values that are **secrets, connectivity, or deploy wiring** — not product defa
 Headless Chromium **runs by default** when the static homepage looks like an empty client shell (thin text + many scripts, or known SPA root mounts). Set **`SNAPSHOT_PLAYWRIGHT=0`** (or `false`) to disable and use only HTTP HTML.
 
 - **Env:** optional `SNAPSHOT_PLAYWRIGHT_BUDGET_MS` (default `14000`, capped by remaining `SNAPSHOT_FETCH_BUDGET_MS`). **`SNAPSHOT_FETCH_BUDGET_MS`** defaults to **`10000`** (10s wall clock for the tiered fetch). Optional **`SNAPSHOT_OPERATOR_TOKEN`** enables **`GET /api/snapshot/operator/metrics`** and **`POST /api/snapshot/operator/purge-cache`** (see [API.md](./API.md#snapshot-operator-optional)); keep the token long and rotate like any secret.
-- **Build (Docker / Railway):** `server/Dockerfile` installs Chromium via **`playwright install --with-deps chromium`**. For non-Docker hosts (e.g. local dev), run `pnpm playwright:install` in `server/` once. The `playwright` package is in `server/package.json`.
+- **Build (Docker / Railway):** `server/Dockerfile` installs Chromium via **`playwright install --with-deps chromium`**. For non-Docker hosts (e.g. local dev), run `pnpm playwright:install` in `server/` once. The `playwright` package is in `server/package.json`. Outbound Mozilla-style snapshot UAs embed a **Chrome major token** from **`server/src/config/playwright-user-agent.ts`** (`PLAYWRIGHT_CHROME_MAJOR_FOR_UA`); it is a **site-compatibility hint**, not necessarily the bundled Chromium revision — review it when upgrading the **`playwright`** dependency. Sanity test: `pnpm -C server exec vitest run src/config/playwright-user-agent.test.ts`.
 - If Chromium is missing or launch fails, the scanner logs a warning and continues with the original HTTP HTML.
 
 **Abuse controls (public snapshot):** optional env — `SNAPSHOT_DOMAIN_FRESH_COOLDOWN_MS` (default `600000`, `0` = off), `SNAPSHOT_MAX_CONCURRENT` (default `4`), `SNAPSHOT_COMPARE_MAX_PER_HOUR` (default `15`). **`SNAPSHOT_GUEST_IP_SALT`** — **required in production** (non-empty secret mixed into **`ip_hash`** for **`snapshot_guest_sessions`**; the API exits at startup if missing when `NODE_ENV=production`). **`SNAPSHOT_ROBOTS_CACHE_MS`** — TTL for in-memory `robots.txt` parse per origin (default `1200000`, i.e. 20 minutes). **`SNAPSHOT_SHARED_ABUSE_STORE`** — set to `1` / `true` / `yes` after applying migrations **`021_snapshot_domain_cooldown.sql`** and **`022_snapshot_fresh_lease.sql`** so (1) per-domain fresh cooldown and (2) **max concurrent fresh scans** are coordinated **across Railway instances** via Supabase; if unset, both stay per-process only. **`SNAPSHOT_FRESH_LEASE_TTL_SECONDS`** — optional; defaults to **max(300, 5 × fetch budget seconds)** so leases survive long Playwright runs; raise if scans can exceed that wall time.
@@ -97,7 +97,8 @@ Shared constants and env-driven defaults introduced to reduce duplicated literal
 | --- | --- |
 | No-public-website sentinel URL + `isNoPublicWebsiteUrl` / display helper | `packages/intake-core` (`no-public-website.ts`); server/app re-export from `@glc/intake-core` |
 | Discovery → brief patch (`a5` canon, legacy `c_nosite_1` labels) | `packages/intake-core/src/discovery-brief-mapping.ts` |
-| Crawler/snapshot/playwright user-agents + public site URL | `server/src/config/bot-identity.ts` (`GLC_PUBLIC_SITE_URL`, **required in production**) |
+| Crawler/snapshot/playwright user-agents + public site URL | `server/src/config/bot-identity.ts` (`GLC_PUBLIC_SITE_URL`, **required in production**); GLC product token `GLC-*/x.y` from **`SYSTEM_DEFAULTS.outboundBot.uaProductVersion`** |
+| HTTP listen bind address | `LISTEN_HOST` env (default `0.0.0.0`) in `server/src/index.ts` |
 | Full-audit crawler limits (max pages, per-page timeout, total crawl budget) | `SYSTEM_DEFAULTS.crawler` via `server/src/config/crawler-limits.ts` |
 | Collector HTTP timeouts and header truncation (security / performance / SEO / sitemap) | `SYSTEM_DEFAULTS.collectorsHttp` via `server/src/config/collector-http.ts` |
 | SSRF-safe public fetch (redirect cap, retries, backoff) | `server/src/config/public-http-fetch.ts` |
@@ -135,10 +136,10 @@ Shared constants and env-driven defaults introduced to reduce duplicated literal
 | --- | --- | --- |
 | **Dev template (fork)** | `packages/glc-dev-brand-defaults` (`GLC_DEV_*`) | Local API/SPA ports and origins, extra dev CORS origins, **`GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL`** (re-exported as **`NO_PUBLIC_WEBSITE_URL`** from **`@glc/intake-core`**), shared dev defaults — **not** the server’s live brand JSON; production must set **`FRONTEND_URL`**, **`GLC_PUBLIC_SITE_URL`**, **`VITE_*`** for deploy wiring |
 | **Server — public JSON** | `server/src/config/public-brand-defaults.v1.json` + **`GLC_PUBLIC_SITE_URL`** (required in production) | `GET /api/public/brand` for marketing shell |
-| **Vite / browser** | `VITE_API_URL` (required prod), `VITE_SUPPORT_EMAIL` (required prod) | API base URL, public contact in UI/errors |
+| **Vite / browser** | `VITE_API_URL` (required prod), `VITE_SUPABASE_*` | API base URL, Supabase client |
 | **Notifications (optional)** | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_API_BASE` (default `https://api.telegram.org`) | Telegram outbound; override base only behind a corporate proxy |
 
-**Copy and brand:** which strings belong in intake JSON vs server vs SPA, and how **`public-brand-defaults.v1.json`** `support_email` (null in production unless set) relates to **`VITE_SUPPORT_EMAIL`**, is documented in [ARCHITECTURE.md — §6 User-visible copy layering](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone).
+**Copy and brand:** public contact for marketing surfaces comes from **`public-brand-defaults.v1.json`** `support_email` (served by **`GET /api/public/brand`**). JSON **`null`** hides the footer mail link; omitted or empty string falls back to **`GLC_DEV_SUPPORT_EMAIL`** in server config. See [ARCHITECTURE.md — §6 User-visible copy layering](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone).
 
 See also § **White-label and cross-stack parity** in [`server/.env.example`](../server/.env.example).
 
@@ -184,7 +185,6 @@ There is **no** required Vite env mirror for the no-public sentinel beyond shipp
    VITE_API_URL=https://glc-api.up.railway.app
    VITE_SUPABASE_URL=https://xxxx.supabase.co
    VITE_SUPABASE_ANON_KEY=eyJ...
-   VITE_SUPPORT_EMAIL=hello@yourdomain.com
    ```
 5. Deploy — Vercel builds with `pnpm build` and serves `dist/`
 6. Add your custom domain in Vercel → update Supabase Site URL + Redirect URLs
@@ -202,7 +202,6 @@ There is **no** required Vite env mirror for the no-public sentinel beyond shipp
 | `VITE_API_URL` | Railway backend URL (**required** for production builds; the SPA throws at runtime if unset when `import.meta.env.PROD`) |
 | `VITE_SUPABASE_URL` | Supabase project URL (**required** in production builds together with anon key) |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon/public key (**required** in production builds) |
-| `VITE_SUPPORT_EMAIL` | **Required** in production builds. Public contact in marketing footer and brief error copy (no default in prod). In local dev, set in `.env.local` or rely on dev fallback `contact@glctech.es` in `src/app/lib/support-email.ts`. |
 
 Client analytics batching, TanStack Query defaults, and HTTP client timeouts are **static TypeScript** under `src/app/config/` (see `client-analytics-batching.ts`, `query-client-defaults.ts`, `http-client-defaults.ts`, `app-feature-flags.ts`) — not `VITE_*` env vars.
 
@@ -230,8 +229,8 @@ Client analytics batching, TanStack Query defaults, and HTTP client timeouts are
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token for reliability alerts |
 | `TELEGRAM_CHAT_ID` | Telegram channel or chat ID for alerts |
 | `TELEGRAM_API_BASE` | Optional Bot API base (proxy); default official endpoint |
-| `SELF_SERVE_AUDIT_OWNER_USER_ID` | Optional fallback consultant `profiles.id` when `platform_settings.self_serve_audit_owner_user_id` is null |
-| `PLATFORM_ADMIN_USER_IDS` | Optional comma-separated consultant `profiles.id` values allowed to PATCH `/api/platform/self-serve-owner`; if unset, any consultant may manage the stored assignment |
+| `SELF_SERVE_AUDIT_OWNER_USER_ID` | Optional bootstrap: consultant `profiles.id` used only while **`platform_settings.self_serve_audit_owner_user_id`** is null; prefer **Save assignment** in Settings so production does not rely on this env |
+| `PLATFORM_ADMIN_USER_IDS` | Optional legacy comma-separated consultant `profiles.id` values allowed to manage platform settings; merged with **`profiles.is_platform_admin`** when restrictions apply (see migration `049_profiles_platform_admin.sql`) |
 | `SNAPSHOT_OPERATOR_TOKEN` | Optional operator-only snapshot actions (see `server/src/routes/snapshot.ts`) |
 
 **Not env (change in code / release):** rate-limit numerics and windows, public-route hourly caps, Express JSON body limit, Claude model id and `max_tokens` / token reserve / budget warning, Claude HTTP retries and timeouts, BullMQ queue retention and backoff, worker concurrency and lease TTL, pipeline stall and parallel-failure thresholds, snapshot fetch/Playwright/axe timing, snapshot abuse and domain-cache TTL, page-anomaly thresholds, audit deep-scan (Lighthouse/axe) enablement and budgets, reliability alert thresholds and intervals — all live in **`server/src/config/system-defaults.ts`** and re-exported modules (`rate-limits.ts`, `snapshot-timing.ts`, `alerts-config.ts`, `model.ts`, …). Marketing brief routing stays in **`@glc/intake-core`**.

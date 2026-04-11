@@ -7,7 +7,7 @@ import { NextStepsCta } from '../marketing/blocks/NextStepsCta';
 import { api, ApiError } from '../data/apiService';
 import { ROUTE_LABELS, type MarketingRecommendedRoute } from '../marketing/brief-logic';
 import { LOGIN_PATH } from '../marketing/marketing-nav';
-import { GLC_SUPPORT_EMAIL } from '../lib/support-email';
+import { usePublicBrand } from '../marketing/PublicBrandContext';
 
 type FormValues = {
   name: string;
@@ -24,6 +24,7 @@ type FormValues = {
 const CONTACT_OPTIONS = ['Email', 'Phone / WhatsApp', 'Either is fine'];
 
 export function PublicBriefPage() {
+  const { supportEmail } = usePublicBrand();
   const [done, setDone] = useState<{ route: MarketingRecommendedRoute; id: string } | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -67,10 +68,14 @@ export function PublicBriefPage() {
       });
       setDone({ route: res.recommended_route as MarketingRecommendedRoute, id: res.id });
     } catch (e) {
+      const contact =
+        supportEmail.trim() !== ''
+          ? ` or email ${supportEmail.trim()}`
+          : '';
       const msg =
         e instanceof ApiError
           ? e.message
-          : `Could not submit. Try again later or email ${GLC_SUPPORT_EMAIL}`;
+          : `Could not submit. Try again later${contact}.`;
       setSubmitError(msg);
     }
   }

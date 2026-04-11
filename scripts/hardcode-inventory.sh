@@ -86,3 +86,5 @@ fi
 
 echo
 echo "Done. Truncated with head; remove head for full lists."
+echo
+echo "For aggregate counts (same exclusions): pnpm run audit:hardcode:metrics"

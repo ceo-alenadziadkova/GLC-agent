@@ -1,4 +1,5 @@
 import type { MarketingFooterCopyEn } from '@glc/dev-brand-defaults';
+import { API_PATHS } from '../config/api-paths';
 import { getApiBaseUrl } from './api-base-url';
 
 export type PublicBrandPayload = {
@@ -13,7 +14,7 @@ export type PublicBrandPayload = {
  */
 export async function fetchPublicBrandConfig(signal?: AbortSignal): Promise<PublicBrandPayload> {
   const base = getApiBaseUrl();
-  const r = await fetch(`${base}/api/public/brand`, { signal, credentials: 'omit' });
+  const r = await fetch(`${base}${API_PATHS.publicBrand}`, { signal, credentials: 'omit' });
   if (!r.ok) {
     throw new Error(`public brand fetch failed: ${r.status}`);
   }

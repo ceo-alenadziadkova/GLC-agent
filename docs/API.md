@@ -25,7 +25,7 @@ This prevents storing user-specific audit data in shared caches.
 
 **Auth:** none.
 
-Returns non-secret marketing defaults (`brand_name`, `support_email`, `public_site_url`, structured `footer` strings). Source: `server/src/config/public-brand-defaults.v1.json` (edit for white-label); `public_site_url` comes from **`GLC_PUBLIC_SITE_URL`**. The SPA uses bundled `@glc/dev-brand-defaults` until the request succeeds. In production, `support_email` is `null` when JSON `support_email` is null — the UI then relies on `VITE_SUPPORT_EMAIL` from the build.
+Returns non-secret marketing defaults (`brand_name`, `support_email`, `public_site_url`, structured `footer` strings). Source: `server/src/config/public-brand-defaults.v1.json` (edit for white-label); `public_site_url` comes from **`GLC_PUBLIC_SITE_URL`**. The SPA uses bundled `@glc/dev-brand-defaults` until the request succeeds. JSON **`support_email`:** explicit **`null`** hides public contact in the SPA; omitted or empty string falls back to **`GLC_DEV_SUPPORT_EMAIL`** in server config (`public-brand-config.ts`).
 
 ---
 
@@ -108,7 +108,7 @@ Same body as `POST /api/log`. **Response:** `204`.
 
 Assigns which consultant owns **client self-serve** audits (`audits.user_id` when `POST /api/audits` is called with a client JWT). UI: **Settings → Client portal — audit owner** (consultant / admin shell).
 
-**Optional env:** `PLATFORM_ADMIN_USER_IDS` — comma-separated consultant `profiles.id` values allowed to **PATCH** this setting. If unset or empty, any consultant may change it.
+**Access control:** migration **`049_profiles_platform_admin.sql`** adds **`profiles.is_platform_admin`**. When at least one consultant has **`is_platform_admin = true`**, only those consultants (and any ids listed in legacy env **`PLATFORM_ADMIN_USER_IDS`**) may manage platform settings. **Open mode:** when no profile has the flag and **`PLATFORM_ADMIN_USER_IDS`** is unset or empty, any consultant may manage.
 
 ### `GET /api/platform/self-serve-owner`
 
@@ -128,11 +128,11 @@ Assigns which consultant owns **client self-serve** audits (`audits.user_id` whe
 ```
 
 - `effective_ready` — `POST /api/audits` as a client would succeed (stored consultant valid, or valid env fallback).
-- `env_fallback_active` — effective owner comes from `SELF_SERVE_AUDIT_OWNER_USER_ID` because nothing is stored in `platform_settings` yet.
+- `env_fallback_active` — effective owner comes from `SELF_SERVE_AUDIT_OWNER_USER_ID` because nothing is stored in `platform_settings` yet. Operators should **`PATCH`** a stored owner so production does not depend on that env var (the SPA Settings screen surfaces this state).
 
 ### `PATCH /api/platform/self-serve-owner`
 
-**Auth:** consultant JWT and `can_manage` (see `PLATFORM_ADMIN_USER_IDS` above).
+**Auth:** consultant JWT and `can_manage` (see access control above).
 
 **Body:** `{ "owner_user_id": "<uuid>" | null }` — `null` clears the stored consultant (env fallback may still apply).
 
@@ -142,7 +142,7 @@ Assigns which consultant owns **client self-serve** audits (`audits.user_id` whe
 
 ### `GET /api/platform/consultant-allowlist`
 
-**Auth:** consultant JWT. **Access:** same as `PATCH /api/platform/self-serve-owner` — only when `PLATFORM_ADMIN_USER_IDS` allows this user (or the list is unset, in which case any consultant may call).
+**Auth:** consultant JWT. **Access:** same as `PATCH /api/platform/self-serve-owner` — platform admins only when restrictions apply (see access control above).
 
 **Response `200`:** `{ "emails": ["admin@example.com", ...] }` — lowercase, sorted.
 
@@ -160,7 +160,7 @@ Assigns which consultant owns **client self-serve** audits (`audits.user_id` whe
 
 **Errors:** `400` missing/invalid email, `403` not platform admin.
 
-**Note:** New consultant bootstrap emails should live in table `consultant_email_allowlist` (this API). Deprecated: comma-separated `CONSULTANT_EMAILS` env is still merged on login until removed.
+**Note:** Consultant promotion on first login uses table **`consultant_email_allowlist`** only (this API or SQL). The **`CONSULTANT_EMAILS`** env is no longer read by the server.
 
 ---
 

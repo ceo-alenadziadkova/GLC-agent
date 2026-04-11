@@ -111,7 +111,7 @@ export async function optionalAuth(req: AuthRequest, _res: Response, next: NextF
  * Reads the user's profile from the DB and attaches their role to the request.
  * Must be called AFTER requireAuth (req.userId must be set).
  * Handles first-login profile creation and one-way promotion to 'consultant'
- * when the email is in `consultant_email_allowlist` (DB) or deprecated CONSULTANT_EMAILS env.
+ * when the email is in `consultant_email_allowlist` (DB).
  * It does not auto-downgrade an existing consultant when allowlist or env changes.
  *
  * Concurrency: parallel HTTP calls right after first login may both see "no row" and INSERT.

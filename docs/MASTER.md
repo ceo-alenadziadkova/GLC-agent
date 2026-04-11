@@ -26,6 +26,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | ADR: unified bank, policy/layout, IntakePlan | [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) |
 | ADR: free snapshot — cheap deterministic scanner | [ADR-FREE-SNAPSHOT-SCANNER.md](adrs/ADR-FREE-SNAPSHOT-SCANNER.md) |
 | ADR: wording lifecycle + intake trace IA split | [ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md](adrs/ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md) |
+| ADR: frontend i18n (strategy, catalogs, rollout) | [ADR-FRONTEND-I18N.md](adrs/ADR-FRONTEND-I18N.md) |
 | Local dev, migrations order, demo seed | [SETUP.md](./SETUP.md) |
 | Production deploy (Vercel, Railway, Supabase) | [DEPLOYMENT.md](./DEPLOYMENT.md) (includes **config module map**, optional env tables; links to [configuration layering](./ARCHITECTURE.md#configuration-layering-config-vs-database-vs-services-vs-ui)) |
 | Test strategy, matrix, coverage, doc alignment, dead-code signals, E2E | [TESTING.md](../TESTING.md) (repo root) |

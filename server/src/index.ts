@@ -33,6 +33,8 @@ import { startPipelineWorker } from './services/pipeline-jobs.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? String(GLC_DEV_API_PORT), 10);
+/** Bind address: default 0.0.0.0 for Docker/Railway; override with LISTEN_HOST (e.g. 127.0.0.1) for local hardening. */
+const LISTEN_HOST = (process.env.LISTEN_HOST ?? '0.0.0.0').trim() || '0.0.0.0';
 initSentry();
 assertProductionRuntimeConfig();
 
@@ -116,10 +118,10 @@ try {
   process.exit(1);
 }
 
-// Bind 0.0.0.0 so Docker / Railway edge can reach the process (not only loopback).
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, LISTEN_HOST, () => {
   logger.info('Server started', {
     port: PORT,
+    host: LISTEN_HOST,
     env: process.env.NODE_ENV ?? 'development',
   });
   void recoverStalledPipelines().then((count) => {

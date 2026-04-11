@@ -12,7 +12,7 @@
  *    · 200 + req.userId set when token is valid
  *
  *  attachProfile
- *    · attaches role 'consultant' when email is in CONSULTANT_EMAILS (deprecated) or consultant_email_allowlist
+ *    · attaches role 'consultant' when email is in consultant_email_allowlist
  *    · attaches role 'client' for any other email
  *    · 500 when Supabase profile upsert fails
  *
@@ -201,7 +201,6 @@ beforeEach(() => {
   (mockProfileSelect as Mock).mockClear();
   (mockProfileInsert as Mock).mockClear();
   (mockProfileUpdate as Mock).mockClear();
-  delete process.env.CONSULTANT_EMAILS;
   setAllowlistMaybeSingleResult({ data: null, error: null });
   // Reset to valid defaults
   setGetUserResult({ data: { user: { id: 'user-001', email: 'user@example.com' } }, error: null });
@@ -267,8 +266,7 @@ describe('requireAuth', () => {
 // ─── attachProfile tests ──────────────────────────────────────────────────────
 
 describe('attachProfile', () => {
-  it('assigns role "client" when email is not in CONSULTANT_EMAILS', async () => {
-    process.env.CONSULTANT_EMAILS = 'boss@company.com';
+  it('assigns role "client" when email is not in consultant_email_allowlist', async () => {
     setGetUserResult({ data: { user: { id: 'user-001', email: 'random@other.com' } }, error: null });
     setProfileSelectResult({ data: null, error: { code: 'PGRST116' } });
     setProfileInsertResult({ data: { role: 'client' }, error: null });
@@ -281,8 +279,7 @@ describe('attachProfile', () => {
     expect(body.role).toBe('client');
   });
 
-  it('assigns role "consultant" when email is in DB allowlist (no env)', async () => {
-    process.env.CONSULTANT_EMAILS = '';
+  it('assigns role "consultant" when email is in DB allowlist', async () => {
     setAllowlistMaybeSingleResult({ data: { email_normalized: 'consultant@glc.com' }, error: null });
     setGetUserResult({ data: { user: { id: 'user-c', email: 'consultant@glc.com' } }, error: null });
     setProfileSelectResult({ data: null, error: { code: 'PGRST116' } });
@@ -296,23 +293,9 @@ describe('attachProfile', () => {
     expect(body.role).toBe('consultant');
   });
 
-  it('assigns role "consultant" when email matches CONSULTANT_EMAILS', async () => {
-    process.env.CONSULTANT_EMAILS = 'consultant@glc.com,another@glc.com';
-    setGetUserResult({ data: { user: { id: 'user-c', email: 'consultant@glc.com' } }, error: null });
-    setProfileSelectResult({ data: null, error: { code: 'PGRST116' } });
-    setProfileInsertResult({ data: { role: 'consultant' }, error: null });
-
-    const res = await fetch(`${fullChainBase}/test`, {
-      headers: { Authorization: 'Bearer tok' },
-    });
-    expect(res.status).toBe(200);
-    const body = await res.json() as { role: string };
-    expect(body.role).toBe('consultant');
-  });
-
-  it('is case-insensitive for CONSULTANT_EMAILS match', async () => {
-    process.env.CONSULTANT_EMAILS = 'BOSS@COMPANY.COM';
-    setGetUserResult({ data: { user: { id: 'user-b', email: 'boss@company.com' } }, error: null });
+  it('is case-insensitive for DB allowlist match', async () => {
+    setAllowlistMaybeSingleResult({ data: { email_normalized: 'boss@company.com' }, error: null });
+    setGetUserResult({ data: { user: { id: 'user-b', email: 'BOSS@COMPANY.COM' } }, error: null });
     setProfileSelectResult({ data: null, error: { code: 'PGRST116' } });
     setProfileInsertResult({ data: { role: 'consultant' }, error: null });
 
@@ -334,7 +317,6 @@ describe('attachProfile', () => {
   });
 
   it('refetches profile when insert hits unique violation (concurrent first requests)', async () => {
-    process.env.CONSULTANT_EMAILS = 'boss@company.com';
     setGetUserResult({ data: { user: { id: 'user-race', email: 'user@example.com' } }, error: null });
     setProfileSelectQueue([
       { data: null, error: { code: 'PGRST116' } },

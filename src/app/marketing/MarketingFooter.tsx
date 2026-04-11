@@ -1,6 +1,5 @@
 import { Link } from 'react-router';
 import { EnvelopeSimple } from '@phosphor-icons/react';
-import { glcSupportMailtoHref } from '../lib/support-email';
 import { LOGIN_PATH, MARKETING_LINKS } from './marketing-nav';
 import { usePublicBrand } from './PublicBrandContext';
 
@@ -9,10 +8,8 @@ function supportMailtoHref(email: string): string {
 }
 
 export function MarketingFooter() {
-  const { footer, supportEmail, payload } = usePublicBrand();
-  const mailHref = payload?.support_email?.trim()
-    ? supportMailtoHref(supportEmail)
-    : glcSupportMailtoHref();
+  const { footer, supportEmail } = usePublicBrand();
+  const mailHref = supportEmail.trim() ? supportMailtoHref(supportEmail.trim()) : null;
 
   return (
     <footer
@@ -28,14 +25,16 @@ export function MarketingFooter() {
             <p className="mt-2 max-w-sm text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               {footer.introParagraph}
             </p>
-            <a
-              href={mailHref}
-              className="mt-4 inline-flex items-center gap-2 text-sm font-medium"
-              style={{ color: 'var(--glc-blue)' }}
-            >
-              <EnvelopeSimple className="h-4 w-4" aria-hidden />
-              {supportEmail}
-            </a>
+            {mailHref ? (
+              <a
+                href={mailHref}
+                className="mt-4 inline-flex items-center gap-2 text-sm font-medium"
+                style={{ color: 'var(--glc-blue)' }}
+              >
+                <EnvelopeSimple className="h-4 w-4" aria-hidden />
+                {supportEmail.trim()}
+              </a>
+            ) : null}
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>

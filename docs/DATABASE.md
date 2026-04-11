@@ -54,6 +54,7 @@ Apply migrations **in numeric order** so foreign keys, RLS, and triggers exist b
 46. `046_marketing_brief_preferred_audit_depth.sql` — **`marketing_brief_submissions.preferred_audit_depth`** (`express` \| `full`, nullable when unsure or no site)
 47. `047_audits_no_public_website_flag.sql` — **`audits.no_public_website`** (`boolean`, default false); backfill for dev sentinel URL; **`discovery_convert_session_atomic`** adds **`p_no_public_website`** (7-arg RPC + `GRANT`)
 48. `048_consultant_email_allowlist.sql` — **`consultant_email_allowlist`** (normalized email PK) for consultant role bootstrap; RLS deny for `anon`/`authenticated` (server uses service role)
+49. `049_profiles_platform_admin.sql` — **`profiles.is_platform_admin`** (`boolean`, default false) for platform settings ACL (see [API.md](./API.md#platform-consultant))
 
 **Tables (core list):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `consultant_email_allowlist`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`, `snapshot_guest_sessions`, `discovery_sessions`, `marketing_brief_submissions`, `intake_analytics_events`, `intake_question_wording_drafts`, `intake_wording_publication_log`, `phase_runs`, `job_runs`.
 
@@ -257,7 +258,7 @@ quality_gate_passed boolean                -- added by migration 009
 
 ### `profiles`
 
-User roles and display metadata. **`role`:** `consultant` | `client` | `guest` (migrations **`005`**, **`023`** — `guest` for snapshot / anonymous flows until promoted).
+User roles and display metadata. **`role`:** `consultant` | `client` | `guest` (migrations **`005`**, **`023`** — `guest` for snapshot / anonymous flows until promoted). **`is_platform_admin`** (`boolean`, migration **`049`**) — when any consultant has **`true`**, only flagged users (plus legacy env **`PLATFORM_ADMIN_USER_IDS`**) may manage **`platform_settings`** and **`consultant_email_allowlist`** via **`/api/platform/*`**; otherwise any consultant may manage (open mode).
 
 ---
 

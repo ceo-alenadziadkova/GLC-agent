@@ -3,6 +3,7 @@
  */
 
 export const API_PATHS = {
+  publicBrand: '/api/public/brand',
   analyticsDashboard: '/api/analytics/dashboard',
   auditRequests: '/api/audit-requests',
   audits: '/api/audits',

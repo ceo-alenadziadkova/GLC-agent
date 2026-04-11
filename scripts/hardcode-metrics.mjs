@@ -28,7 +28,8 @@ const SKIP_DIR_NAMES = new Set([
   'test-results',
 ]);
 
-const SKIP_FILE_BASENAMES = new Set(['seed-demo.ts']);
+/** Repo-relative POSIX paths always skipped (exact match). */
+const SKIP_EXACT_REPO_PATHS = new Set(['server/scripts/seed-demo.ts']);
 
 const SKIP_FILE_SUFFIXES = ['.test.ts', '.test.tsx'];
 
@@ -36,29 +37,34 @@ function shouldSkipDir(rel) {
   const norm = rel.replace(/\\/g, '/');
   // Walk roots at server/src — first segment `snapshot` is the engine tree to exclude.
   if (norm === 'snapshot' || norm.startsWith('snapshot/')) return true;
+  // Walk roots at src — Vitest harness lives under src/test (not production).
+  if (norm === 'test' || norm.startsWith('test/')) return true;
   const parts = rel.split(path.sep);
   return parts.some((p) => SKIP_DIR_NAMES.has(p));
 }
 
-function shouldSkipFile(rel) {
+function shouldSkipFile(rel, repoRelPrefix) {
   const base = path.basename(rel);
-  if (SKIP_FILE_BASENAMES.has(base)) return true;
-  if (rel.includes(`${path.sep}__tests__${path.sep}`)) return true;
-  if (rel.startsWith(`server${path.sep}src${path.sep}tests${path.sep}`)) return true;
+  const norm = rel.replace(/\\/g, '/');
+  const repoRel = repoRelPrefix ? `${repoRelPrefix}/${norm}` : norm;
+  if (SKIP_EXACT_REPO_PATHS.has(repoRel)) return true;
+  if (norm.includes('/__tests__/')) return true;
+  // walk(server/src) yields paths like tests/bank-brief-fixtures.ts
+  if (norm.startsWith('tests/') || norm === 'tests') return true;
   if (base === 'wappalyzer-imported-rules.ts' || base === 'site-html-signals.ts') return true;
   return SKIP_FILE_SUFFIXES.some((s) => rel.endsWith(s));
 }
 
-function* walk(dir, relBase = '') {
+function* walk(dir, relBase = '', repoRelPrefix = '') {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const e of entries) {
     const rel = relBase ? `${relBase}/${e.name}` : e.name;
     const full = path.join(dir, e.name);
     if (e.isDirectory()) {
       if (shouldSkipDir(rel)) continue;
-      yield* walk(full, rel);
+      yield* walk(full, rel, repoRelPrefix);
     } else if (e.isFile() && (e.name.endsWith('.ts') || e.name.endsWith('.tsx'))) {
-      if (!shouldSkipFile(rel)) yield { full, rel };
+      if (!shouldSkipFile(rel, repoRelPrefix)) yield { full, rel, repoRelPrefix };
     }
   }
 }
@@ -76,9 +82,18 @@ const RE = {
   processEnv: /process\.env\.[A-Z0-9_]+/g,
 };
 
+/** Strip `//` comments without treating `://` in URLs as a comment start. */
 function stripLineComment(line) {
-  const i = line.indexOf('//');
-  return i === -1 ? line : line.slice(0, i);
+  let from = 0;
+  while (true) {
+    const i = line.indexOf('//', from);
+    if (i === -1) return line;
+    if (i > 0 && line[i - 1] === ':') {
+      from = i + 2;
+      continue;
+    }
+    return line.slice(0, i);
+  }
 }
 
 function analyzeFile(content, rel) {
@@ -138,9 +153,13 @@ function main() {
     processEnvHits: 0,
   };
 
-  for (const { full, rel } of walk(path.join(ROOT, 'server', 'src'))) {
+  for (const { full, rel, repoRelPrefix } of walk(
+    path.join(ROOT, 'server', 'src'),
+    '',
+    'server/src',
+  )) {
     const content = fs.readFileSync(full, 'utf8');
-    const a = analyzeFile(content, `server/src/${rel.replace(/\\/g, '/')}`);
+    const a = analyzeFile(content, `${repoRelPrefix}/${rel.replace(/\\/g, '/')}`);
     totals.files += 1;
     totals.urlHits += a.urlHits;
     totals.localhostHits += a.localhostHits;
@@ -151,9 +170,9 @@ function main() {
     if (a.score > 0) byFile.push(a);
   }
 
-  for (const { full, rel } of walk(path.join(ROOT, 'packages'))) {
+  for (const { full, rel, repoRelPrefix } of walk(path.join(ROOT, 'packages'), '', 'packages')) {
     const content = fs.readFileSync(full, 'utf8');
-    const a = analyzeFile(content, `packages/${rel.replace(/\\/g, '/')}`);
+    const a = analyzeFile(content, `${repoRelPrefix}/${rel.replace(/\\/g, '/')}`);
     totals.files += 1;
     totals.urlHits += a.urlHits;
     totals.localhostHits += a.localhostHits;
@@ -164,9 +183,9 @@ function main() {
     if (a.score > 0) byFile.push(a);
   }
 
-  for (const { full, rel } of walk(path.join(ROOT, 'src'))) {
+  for (const { full, rel, repoRelPrefix } of walk(path.join(ROOT, 'src'), '', 'src')) {
     const content = fs.readFileSync(full, 'utf8');
-    const a = analyzeFile(content, `src/${rel.replace(/\\/g, '/')}`);
+    const a = analyzeFile(content, `${repoRelPrefix}/${rel.replace(/\\/g, '/')}`);
     totals.files += 1;
     totals.urlHits += a.urlHits;
     totals.localhostHits += a.localhostHits;
@@ -182,11 +201,15 @@ function main() {
   console.log('=== hardcode-metrics (heuristic counts, exclusions applied) ===');
   console.log(`Repo root: ${ROOT}`);
   console.log('');
-  console.log('Totals (server/src + packages/* + src, excluding snapshot/tests/__tests__/*.test.* / wappalyzer / site-html-signals / seed-demo):');
+  console.log(
+    'Totals (server/src + packages/* + src; excluding snapshot/tests/__tests__/*.test.* / wappalyzer / site-html-signals / server/scripts/seed-demo.ts):',
+  );
   console.log(`  Files scanned:              ${totals.files}`);
   console.log(`  http(s):// substring hits:  ${totals.urlHits}`);
   console.log(`  localhost / 127.0.0.1 hits: ${totals.localhostHits}`);
-  console.log(`  setTimeout/Interval(, N)    ${totals.timerLiteralHits}  (numeric delay literals)`);
+  console.log(
+    `  setTimeout/Interval(, N)    ${totals.timerLiteralHits}  (same-line 2nd arg only; multiline callbacks undercounted)`,
+  );
   console.log(`  4+ digit number tokens:     ${totals.bigNumHits}  (noisy — includes limits, years, HTTP codes in strings)`);
   console.log(`  import.meta.env.* reads:    ${totals.importMetaHits}`);
   console.log(`  process.env.* reads:        ${totals.processEnvHits}`);

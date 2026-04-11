@@ -1,5 +1,5 @@
 -- Consultant role bootstrap: normalized emails that receive `consultant` on first `attachProfile`.
--- Managed via API (platform admins) or direct SQL. Deprecated: CONSULTANT_EMAILS env (comma-separated)
+-- Managed via API (platform admins) or direct SQL.
 -- is still merged for one release; prefer rows in this table.
 
 CREATE TABLE IF NOT EXISTS public.consultant_email_allowlist (
@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS public.consultant_email_allowlist (
 );
 
 COMMENT ON TABLE public.consultant_email_allowlist IS
-  'Lowercase emails promoted to consultant on profile attach. Server merges with deprecated CONSULTANT_EMAILS env.';
+  'Lowercase emails promoted to consultant on profile attach.';
 
 ALTER TABLE public.consultant_email_allowlist ENABLE ROW LEVEL SECURITY;
 
