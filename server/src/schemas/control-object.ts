@@ -1,7 +1,7 @@
 /**
  * CONTROL_OBJECT v1 — Governance contract between FactChecker and Decision Layer.
  *
- * This is the advisory-only v1 contract (Phase 1 MVP).
+ * This is the advisory-only v1/v1.5 contract (Phase 1–2 MVP).
  * Downstream services MUST NOT depend on this structure until v3+.
  *
  * Version history:
@@ -17,8 +17,8 @@ import type { DomainKey } from '../types/audit.js';
 // ─── Version ───────────────────────────────────────────────
 
 export const CONTROL_OBJECT_VERSIONS = {
-  system_version: 'v1.0',
-  fact_checker_version: 'v1.0',
+  system_version: 'v1.5',
+  fact_checker_version: 'v1.5',
   decision_layer_version: 'v1.0',
 } as const;
 
@@ -46,6 +46,11 @@ export interface ControlObjectContext {
   phase_id: PhaseId;
   /** 'normal' = standard run; 'safe' = stricter guardrails (Phase 4+) */
   execution_mode: ExecutionMode;
+  /**
+   * v1.5+: References the PHASE_PROFILES key used during this run.
+   * null for recon/strategy phases (no profile defined).
+   */
+  truth_profile_id: string | null;
 }
 
 export interface ControlObjectConfidence {
@@ -85,11 +90,30 @@ export interface ControlObjectErrors {
 }
 
 /** v1: light assumptions (no risk/related_claim_ids — added in Phase 2) */
-export interface ControlObjectAssumption {
+export interface ControlObjectAssumptionV1 {
   id: string;
   statement: string;
   /** Where this assumption came from */
   source: AssumptionSource;
+}
+
+/**
+ * v1.5+: Full assumption with risk level and claim dependency tracking.
+ * Extends v1 with risk and related_claim_ids (added in Phase 2).
+ */
+export interface ControlObjectAssumption extends ControlObjectAssumptionV1 {
+  /**
+   * Risk level: how dangerous is it if this assumption is wrong?
+   * - 'low'   — obvious, documented, non-critical
+   * - 'medium' — reasonable inference, not confirmed
+   * - 'high'  — load-bearing assumption; if wrong, output is invalid
+   */
+  risk: 'low' | 'medium' | 'high';
+  /**
+   * IDs of claims that depend on this assumption being true.
+   * Used in Phase 5+ to trace root causes during auto-loop.
+   */
+  related_claim_ids: number[];
 }
 
 export interface ControlObjectClaimSource {
@@ -139,7 +163,8 @@ export interface ControlObjectV1 {
 export function createControlObjectV1(
   auditId: string,
   phaseId: PhaseId,
-  executionMode: ExecutionMode = 'normal'
+  executionMode: ExecutionMode = 'normal',
+  truthProfileId: string | null = null
 ): ControlObjectV1 {
   return {
     versions: { ...CONTROL_OBJECT_VERSIONS },
@@ -147,6 +172,7 @@ export function createControlObjectV1(
       audit_id: auditId,
       phase_id: phaseId,
       execution_mode: executionMode,
+      truth_profile_id: truthProfileId,
     },
     confidence: {
       overall: 100,

@@ -7,6 +7,10 @@ import {
   type PhaseId,
   type ExecutionMode,
 } from '../schemas/control-object.js';
+import {
+  getPhaseProfile,
+  mapDataSourceToTruthSource,
+} from '../config/truth-registry.js';
 
 const T = FACT_CHECKER_THRESHOLDS;
 
@@ -376,7 +380,12 @@ export class FactChecker {
     executionMode: ExecutionMode = 'normal'
   ): ControlObjectV1 {
     const { result, corrections, confidence: factualRaw } = factCheckResult;
-    const co = createControlObjectV1(auditId, domainKey as PhaseId, executionMode);
+
+    // v1.5: load phase profile for truth_profile_id and domain-specific error types
+    const profile = getPhaseProfile(domainKey);
+    const truthProfileId = profile?.phase_id ?? null;
+
+    const co = createControlObjectV1(auditId, domainKey as PhaseId, executionMode, truthProfileId);
 
     // ─── Counts ───────────────────────────────────────────────
     const issues = result.issues ?? [];
@@ -421,6 +430,20 @@ export class FactChecker {
       co.errors.structural.push('score_evidence_mismatch');
     }
 
+    // v1.5: domain-specific structural errors from phase profile
+    // If any correction's issue text matches a known error_type pattern, surface it
+    if (profile) {
+      for (const errorType of profile.error_types) {
+        const keyword = errorType.replace(/_/g, ' ');
+        const matchesCorrection = corrections.some(c =>
+          c.issue.toLowerCase().includes(keyword) || c.raw_evidence.toLowerCase().includes(keyword)
+        );
+        if (matchesCorrection && !co.errors.structural.includes(errorType)) {
+          co.errors.structural.push(errorType);
+        }
+      }
+    }
+
     // fixable: flag-type corrections that are tone/wording issues
     if (corrections.some(c => c.action === 'flag')) {
       co.errors.fixable.push('score_consistency_flag');
@@ -431,15 +454,35 @@ export class FactChecker {
       co.errors.fixable.push('risky_promise_language');
     }
 
-    // ─── Assumptions (v1: light) ──────────────────────────────
+    // ─── Assumptions (v1.5: with risk + related_claim_ids) ───────────────────
     // Map low-confidence inferred findings → explicit assumptions
+    // Build a claim_id lookup keyed by issue title for related_claim_ids
+    const issueTitleToClaimId = new Map<string, number>(
+      issues.map((iss, idx) => [iss.title, idx + 1])
+    );
+
     let assumptionIdx = 1;
-    for (const issue of issues) {
+    for (let issueIdx = 0; issueIdx < issues.length; issueIdx++) {
+      const issue = issues[issueIdx];
       if (issue.confidence === 'low' && issue.data_source === 'inferred') {
+        // Determine risk based on phase profile default + severity boost
+        const baseRisk = profile?.default_assumption_risk ?? 'low';
+        const risk: 'low' | 'medium' | 'high' =
+          issue.severity === 'critical' ? 'high'
+          : issue.severity === 'high' ? (baseRisk === 'low' ? 'medium' : baseRisk)
+          : baseRisk;
+
+        // related_claim_ids: same-section issues that reference this finding
+        // For v1.5 we link the assumption to its source claim only
+        const relatedClaimId = issueTitleToClaimId.get(issue.title);
+        const relatedIds = relatedClaimId !== undefined ? [relatedClaimId] : [];
+
         co.assumptions.push({
           id: `A${assumptionIdx++}`,
           statement: `Finding inferred without direct evidence: "${issue.title}"`,
           source: 'inferred_from_pattern',
+          risk,
+          related_claim_ids: relatedIds,
         });
       }
     }
@@ -447,11 +490,10 @@ export class FactChecker {
 
     // ─── Trace ────────────────────────────────────────────────
     // Map each issue to a claim source (phase = agent number for v1)
+    // v1.5: truth_source resolved via Truth Registry helper (canonical mapping)
     for (let i = 0; i < issues.length; i++) {
       const issue = issues[i];
-      const truthSource = issue.data_source === 'auto_detected' ? 'internal_metrics'
-        : issue.data_source === 'from_brief' ? 'user_brief'
-        : 'external_search'; // 'inferred' → nearest match
+      const truthSource = mapDataSourceToTruthSource(issue.data_source ?? 'inferred');
 
       co.trace.claim_sources.push({
         claim_id: i + 1,
@@ -484,9 +526,13 @@ export class FactChecker {
 
     // ─── Human Attention ──────────────────────────────────────
     const dataGapCount = co.errors.data_gaps.length;
-    const highRiskAssumptions = co.assumptions.length; // all inferred low-conf findings
+    // v1.5: count only high-risk assumptions (not all) — low/medium are advisory only
+    const highRiskAssumptionCount = co.assumptions.filter(a => a.risk === 'high').length;
+    // also escalate if many medium-risk assumptions accumulate
+    const mediumRiskAssumptionCount = co.assumptions.filter(a => a.risk === 'medium').length;
+    const assumptionsEscalate = highRiskAssumptionCount >= 2 || mediumRiskAssumptionCount >= 5;
 
-    if (co.counts.statuses.likely_hallucination >= 3 || dataGapCount >= 5 || highRiskAssumptions >= 3) {
+    if (co.counts.statuses.likely_hallucination >= 3 || dataGapCount >= 5 || assumptionsEscalate) {
       co.human_attention_required.required = true;
 
       if (co.counts.statuses.likely_hallucination >= 3) {
@@ -495,7 +541,7 @@ export class FactChecker {
       if (dataGapCount >= 5) {
         co.human_attention_required.reasons.push('critical_data_gaps');
       }
-      if (highRiskAssumptions >= 3) {
+      if (assumptionsEscalate) {
         co.human_attention_required.reasons.push('high_risk_assumptions');
       }
     }
