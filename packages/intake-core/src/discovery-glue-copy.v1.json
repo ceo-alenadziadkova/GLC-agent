@@ -1,10 +1,15 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "industryDefault": "your industry",
   "team": {
     "soloOrUnknown": "as a solo operator",
     "small": "with a small team",
     "other": "at your team size"
+  },
+  "teamClauseAfterPeriod": {
+    "soloOrUnknown": "As a solo operator",
+    "small": "With a small team",
+    "other": "At your current team size"
   },
   "channels": {
     "empty": "your enquiry channels",

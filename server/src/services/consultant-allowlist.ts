@@ -49,11 +49,11 @@ export async function listConsultantAllowlistEmails(): Promise<{ ok: true; email
 
 export async function addConsultantAllowlistEmail(
   emailNormalized: string,
-): Promise<{ ok: true } | { ok: false; error: string; conflict?: boolean }> {
+): Promise<{ ok: true } | { ok: false; conflict: true } | { ok: false; error: string }> {
   const { error } = await supabase.from('consultant_email_allowlist').insert({ email_normalized: emailNormalized });
   if (error) {
     if (error.code === '23505') {
-      return { ok: false, error: 'Email already in allowlist', conflict: true };
+      return { ok: false, conflict: true };
     }
     logger.warn('consultant_allowlist.add_failed', { error: error.message });
     return { ok: false, error: error.message };

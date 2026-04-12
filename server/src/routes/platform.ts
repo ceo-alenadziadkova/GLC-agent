@@ -19,6 +19,7 @@ import {
   API_ERROR_CODES,
   PLATFORM_ADMIN_ONLY_MESSAGE,
   PLATFORM_CONSULTANT_ALLOWLIST_ADD_FAILED_MESSAGE,
+  PLATFORM_CONSULTANT_ALLOWLIST_DUPLICATE_MESSAGE,
   PLATFORM_CONSULTANT_ALLOWLIST_EMAIL_INVALID_MESSAGE,
   PLATFORM_CONSULTANT_ALLOWLIST_LOAD_FAILED_MESSAGE,
   PLATFORM_CONSULTANT_ALLOWLIST_REMOVE_FAILED_MESSAGE,
@@ -211,9 +212,9 @@ platformRouter.post('/consultant-allowlist', requireRole('consultant'), async (r
     }
     const added = await addConsultantAllowlistEmail(normalized);
     if (!added.ok) {
-      if (added.conflict) {
+      if ('conflict' in added && added.conflict) {
         res.status(409).json(
-          apiErrorJson(API_ERROR_CODES.PLATFORM_CONSULTANT_ALLOWLIST_ADD_FAILED, added.error, {
+          apiErrorJson(API_ERROR_CODES.PLATFORM_CONSULTANT_ALLOWLIST_DUPLICATE, PLATFORM_CONSULTANT_ALLOWLIST_DUPLICATE_MESSAGE, {
             details: { conflict: true },
           }),
         );

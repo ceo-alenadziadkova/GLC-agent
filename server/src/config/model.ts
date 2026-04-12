@@ -1,7 +1,8 @@
 /**
  * Centralized Anthropic model configuration.
  * Default: `SYSTEM_DEFAULTS.pipelineModel.claudeModelId`.
- * Infra override (no release): `PIPELINE_CLAUDE_MODEL_ID` or `ANTHROPIC_MODEL` (first non-empty wins).
+ * Documented ops exception (no release): `PIPELINE_CLAUDE_MODEL_ID` or `ANTHROPIC_MODEL` (first non-empty wins).
+ * See `server/.env.example` — "Documented ops exceptions".
  *
  * Never hardcode the model string anywhere else — always import `CLAUDE_MODEL` from here.
  */

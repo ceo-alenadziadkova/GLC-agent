@@ -15,6 +15,7 @@ Some responses add a machine-readable **`code`** next to **`error`** (client bra
 | `PUBLIC_URL_*` | 400 | Same JSON | SSRF-safe URL validation (`server/src/lib/public-http-url.ts`) — returned by audits, audit-requests, snapshot when `company_url` / `url` fails checks |
 | `INTERNAL_SERVER_ERROR` | 500 | Same JSON | Express global error handler (`server/src/index.ts`) — includes optional `request_id` (trace id) when request context exists |
 | `MARKETING_*` | 400 / 500 | Same JSON | `POST /api/marketing/brief` |
+| `PLATFORM_*` | 400 / 403 / 409 / 500 | Same JSON | `server/src/routes/platform.ts` (consultant allowlist duplicate → **409** `PLATFORM_CONSULTANT_ALLOWLIST_DUPLICATE`) |
 | `AUDIT_CREATE_RATE_LIMITED`, `PIPELINE_RATE_LIMITED`, `GENERAL_API_RATE_LIMITED`, `COMPARE_RATE_LIMITED`, `RATE_LIMITED`, `INTAKE_LEGACY_RATE_LIMITED`, `LOG_INGEST_RATE_LIMITED`, `SNAPSHOT_LOG_RATE_LIMITED`, `DISCOVER_*`, `INTAKE_*`, `MARKETING_BRIEF_RATE_LIMITED` | 429 | See `message.error` in [`server/src/middleware/rate-limit.ts`](../server/src/middleware/rate-limit.ts) | `express-rate-limit` middleware |
 
 ---

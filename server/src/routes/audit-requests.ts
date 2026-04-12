@@ -15,6 +15,7 @@ import { supabase } from '../services/supabase.js';
 import { requireAuth, attachProfile, requireRole, type AuthRequest, type UserRole } from '../middleware/auth.js';
 import { generalLimiter, createAuditLimiter } from '../middleware/rate-limit.js';
 import {
+  DEFAULT_AUDIT_PRODUCT_MODE,
   DOMAIN_KEYS,
   EXPRESS_DOMAIN_KEYS,
   reviewPhasesForMode,
@@ -24,7 +25,10 @@ import { ensureHttpsUrl } from '@glc/intake-core';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import { idempotencyPostAuditRequestApproveKey } from '../config/api-http-paths.js';
 import { NO_PUBLIC_WEBSITE_URL, isNoPublicWebsiteUrl } from '../config/no-public-website.js';
-import { AUDITS_LIST_DEFAULT_LIMIT, AUDITS_LIST_MAX_LIMIT } from '../config/audits-list-limits.js';
+import {
+  AUDIT_REQUESTS_LIST_DEFAULT_LIMIT,
+  AUDIT_REQUESTS_LIST_MAX_LIMIT,
+} from '../config/route-query-limits.js';
 import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 import {
   getStoredIdempotentResponse,
@@ -271,8 +275,9 @@ auditRequestsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) 
 auditRequestsRouter.get('/', async (req: AuthRequest, res) => {
   try {
     const limit = Math.min(
-      parseInt(String(req.query.limit ?? String(AUDITS_LIST_DEFAULT_LIMIT)), 10) || AUDITS_LIST_DEFAULT_LIMIT,
-      AUDITS_LIST_MAX_LIMIT,
+      parseInt(String(req.query.limit ?? String(AUDIT_REQUESTS_LIST_DEFAULT_LIMIT)), 10) ||
+        AUDIT_REQUESTS_LIST_DEFAULT_LIMIT,
+      AUDIT_REQUESTS_LIST_MAX_LIMIT,
     );
     const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
 
@@ -618,7 +623,7 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
     if (auditErr) throw auditErr;
 
     // Pre-create audit child records — mirror the same mode-aware logic as POST /api/audits
-    const requestMode = (requestRow.product_mode ?? 'full') as ProductMode;
+    const requestMode = (requestRow.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE) as ProductMode;
     const activeDomainKeys = requestMode === 'express' ? EXPRESS_DOMAIN_KEYS : DOMAIN_KEYS;
     const activeReviewPhases = reviewPhasesForMode(requestMode);
 

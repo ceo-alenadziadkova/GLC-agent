@@ -20,6 +20,7 @@ import {
   buildMobileBottomNavItems,
   isNavItemActive,
 } from '../lib/app-shell-nav';
+import { APP_SHELL_COPY } from '../config/app-shell-copy';
 
 export type { AppShellNavItem } from '../lib/app-shell-nav';
 
@@ -51,6 +52,8 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
   } = useProfile();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  /** Tailwind `sm` (640px): only one page `<h1>` should be in the accessibility tree at a time. */
+  const [isSmUp, setIsSmUp] = useState(false);
   const {
     items: notifications,
     unreadCount,
@@ -76,19 +79,28 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
       : isClient
         ? buildClientNav(auditId, clientPipelineNavAllowed)
         : buildConsultantNav(auditId);
+  const { aria: shellAria, sectionLabels: shellSections, sidebar: shellSidebar, mobileHeader: shellMobile } = APP_SHELL_COPY;
   const sectionLabel = isGuest
-    ? 'SNAPSHOT'
+    ? shellSections.snapshot
     : roleUnknown
-      ? 'WORKSPACE'
+      ? shellSections.workspaceUnknown
       : isClient
-        ? 'CLIENT WORKSPACE'
-        : 'ADMIN WORKSPACE';
+        ? shellSections.clientWorkspace
+        : shellSections.adminWorkspace;
 
   const mobileBottomNav = buildMobileBottomNavItems(NAV, {
     isClient: Boolean(isClient || roleUnknown),
     isGuest: Boolean(isGuest),
     roleUnknown,
   });
+
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 640px)');
+    const onMq = () => setIsSmUp(mql.matches);
+    onMq();
+    mql.addEventListener('change', onMq);
+    return () => mql.removeEventListener('change', onMq);
+  }, []);
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -228,7 +240,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           className="relative flex items-center gap-2 px-4 pt-5 pb-4"
           style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
         >
-          <Link to="/" className="inline-flex items-center" aria-label="Go to home page">
+          <Link to="/" className="inline-flex items-center" aria-label={shellAria.home}>
             <GlcLogo variant="on-dark" className="h-12" />
           </Link>
         </div>
@@ -256,7 +268,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               }}
             >
               <MagnifyingGlass className="w-3.5 h-3.5 flex-shrink-0" />
-              <span className="flex-1 text-left">Search...</span>
+              <span className="flex-1 text-left">{shellSidebar.searchPlaceholder}</span>
               <span
                 className="px-1 py-0.5 rounded"
                 style={{
@@ -267,7 +279,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                   letterSpacing: '0',
                 }}
               >
-                ⌘K
+                {shellSidebar.searchShortcut}
               </span>
             </button>
           </div>
@@ -318,7 +330,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               onClick={() => setMobileMenuOpen(false)}
             >
               <PlusCircle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
-              <span>New audit</span>
+              <span>{shellSidebar.newAudit}</span>
             </NavLink>
           ) : !isGuest ? (
             <NavLink
@@ -340,7 +352,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               onClick={() => setMobileMenuOpen(false)}
             >
               <Lightning className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-orange)' }} />
-              <span>New Audit</span>
+              <span>{shellSidebar.newAuditConsultant}</span>
             </NavLink>
           ) : (
             <NavLink
@@ -362,7 +374,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               onClick={() => setMobileMenuOpen(false)}
             >
               <PlusCircle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
-              <span>Register to continue</span>
+              <span>{shellSidebar.registerToContinue}</span>
             </NavLink>
           )}
         </nav>
@@ -376,7 +388,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
             style={{ borderRadius: 'var(--radius-md)' }}
           >
             <span className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.45)' }}>
-              Theme
+              {shellSidebar.theme}
             </span>
             <ThemeToggle variant="sidebar" />
           </div>
@@ -395,7 +407,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
             }}
           >
             <Bell className="w-3.5 h-3.5" />
-            <span className="flex-1 text-left">Notifications</span>
+            <span className="flex-1 text-left">{shellSidebar.notifications}</span>
             {unreadCount > 0 && (
               <span
                 className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold tabular-nums"
@@ -411,7 +423,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           </button>
           {!isGuest &&
             [
-              { icon: GearSix, label: 'Settings', to: '/settings' },
+              { icon: GearSix, label: shellSidebar.settings, to: '/settings' },
             ].map(({ icon: I, label, to }) => {
               const active = location.pathname === '/settings';
               return (
@@ -456,14 +468,14 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                   boxShadow: '0 0 8px rgba(28,189,255,0.30)',
                 }}
               >
-                {(user.email || (isGuest ? 'G' : 'U'))[0].toUpperCase()}
+                {(user.email || (isGuest ? shellSidebar.guestInitial : shellSidebar.userInitial))[0].toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium leading-none" style={{ color: 'rgba(255,255,255,0.85)' }}>
-                  {profile?.full_name?.trim() || user.email?.split('@')[0] || (isGuest ? 'Guest' : 'User')}
+                  {profile?.full_name?.trim() || user.email?.split('@')[0] || (isGuest ? shellSidebar.guestDisplay : shellSidebar.userDisplay)}
                 </div>
                 <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.28)', marginTop: 3, letterSpacing: '0.03em' }}>
-                  {roleDisplayName ?? (isClient ? 'Client' : isGuest ? 'Guest' : 'Admin')}
+                  {roleDisplayName ?? (isClient ? shellSidebar.fallbackRoleClient : isGuest ? shellSidebar.fallbackRoleGuest : shellSidebar.fallbackRoleAdmin)}
                 </div>
               </div>
               <button
@@ -471,7 +483,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                 onClick={signOut}
                 className="flex-shrink-0 glc-touch-target"
                 style={{ color: 'rgba(255,255,255,0.30)' }}
-                title="Sign out"
+                title={shellSidebar.signOutTitle}
               >
                 <SignOut className="w-3 h-3" />
               </button>
@@ -483,6 +495,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden min-w-0">
         <header
           className="sm:hidden flex-shrink-0 flex items-center gap-2 border-b glc-safe-pad-x glc-safe-pad-t"
+          aria-hidden={title ? isSmUp : undefined}
           style={{
             backgroundColor: 'var(--bg-surface)',
             borderColor: 'var(--border-subtle)',
@@ -491,7 +504,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
             paddingBottom: 'var(--space-2)',
           }}
         >
-          <Link to="/" className="inline-flex items-center flex-shrink-0" aria-label="Go to home page">
+          <Link to="/" className="inline-flex items-center flex-shrink-0" aria-label={shellAria.home}>
             <GlcLogo variant="auto" className="h-9" />
           </Link>
           <div className="flex-1 min-w-0">
@@ -524,7 +537,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                 ) : null}
               </>
             ) : (
-              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)' }}>GLC</span>
+              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)' }}>{shellMobile.glcShortBrand}</span>
             )}
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
@@ -538,7 +551,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               className="relative glc-touch-target rounded-lg border-0 inline-flex items-center justify-center"
               style={{ backgroundColor: 'var(--bg-muted)', color: 'var(--text-secondary)' }}
               onClick={() => setNotificationsOpen(true)}
-              aria-label="Open notifications"
+              aria-label={shellAria.openNotifications}
             >
               <Bell className="w-5 h-5" />
               {unreadCount > 0 ? (
@@ -561,7 +574,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               className="glc-touch-target rounded-lg border-0"
               style={{ backgroundColor: 'var(--bg-muted)', color: 'var(--text-secondary)' }}
               onClick={() => setMobileMenuOpen(true)}
-              aria-label="Open menu"
+              aria-label={shellAria.openMenu}
             >
               <List className="w-5 h-5" weight="bold" />
             </button>
@@ -571,6 +584,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
         {(title || actions) && (
           <header
             className="hidden sm:flex flex-shrink-0 items-center justify-between px-7"
+            aria-hidden={title ? !isSmUp : undefined}
             style={{
               backgroundColor: 'var(--bg-surface)',
               borderBottom: '1px solid var(--border-subtle)',
@@ -624,7 +638,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               paddingBottom: 'max(var(--space-2), env(safe-area-inset-bottom, 0px))',
               boxShadow: '0 -4px 12px rgba(11,17,32,0.06)',
             }}
-            aria-label="Primary"
+            aria-label={shellAria.primaryNav}
           >
             {mobileBottomNav.map(({ to, icon: Icon, label }) => {
               const active = to ? isNavItemActive(location.pathname, to) : false;
@@ -652,12 +666,12 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
       </div>
 
       {mobileMenuOpen && (
-        <div className="sm:hidden fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-label="Navigation menu">
+        <div className="sm:hidden fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-label={shellAria.navigationMenu}>
           <button
             type="button"
             className="absolute inset-0 border-0 cursor-default"
             style={{ backgroundColor: 'rgba(8,15,30,0.45)' }}
-            aria-label="Close menu"
+            aria-label={shellAria.closeMenu}
             onClick={() => setMobileMenuOpen(false)}
           />
           <div
@@ -672,14 +686,14 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
             >
               <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
-                Menu
+                {shellSidebar.menu}
               </span>
               <button
                 type="button"
                 className="glc-touch-target rounded-lg border-0 flex items-center justify-center"
                 style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.85)' }}
                 onClick={() => setMobileMenuOpen(false)}
-                aria-label="Close menu"
+                aria-label={shellAria.closeMenu}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -695,7 +709,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                 renderSidebarNavLink(to, Icon, label, badge, `drawer-${label}`))}
               {roleUnknown && (
                 <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: 'var(--text-sm)', padding: 'var(--space-3)' }}>
-                  Loading workspace…
+                  {shellSidebar.loadingWorkspace}
                 </p>
               )}
 
@@ -709,7 +723,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <PlusCircle className="w-5 h-5 flex-shrink-0" />
-                  New audit
+                  {shellSidebar.newAudit}
                 </NavLink>
               )}
               {!isGuest && !isClient && !roleUnknown && (
@@ -720,7 +734,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <Lightning className="w-5 h-5 flex-shrink-0" />
-                  New Audit
+                  {shellSidebar.newAuditConsultant}
                 </NavLink>
               )}
               {isGuest && (
@@ -731,7 +745,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <PlusCircle className="w-5 h-5 flex-shrink-0" />
-                  Register to continue
+                  {shellSidebar.registerToContinue}
                 </NavLink>
               )}
 
@@ -743,7 +757,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   <GearSix className="w-5 h-5 flex-shrink-0" />
-                  Settings
+                  {shellSidebar.settings}
                 </NavLink>
               )}
 
@@ -758,7 +772,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
                   }}
                 >
                   <SignOut className="w-5 h-5 flex-shrink-0" />
-                  Sign out
+                  {shellSidebar.signOut}
                 </button>
               )}
             </nav>

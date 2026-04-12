@@ -13,11 +13,14 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@shared/snapshot-scan-coverage": [
-        "./server/src/snapshot/scan-coverage-from-stored-json.ts"
+      "@glc/snapshot-scan-coverage": [
+        "./packages/glc-snapshot-scan-coverage/src/index.ts"
       ],
+      "@glc/api-paths": ["./packages/glc-api-paths/src/index.ts"],
+      "@glc/brand-tokens": ["./packages/glc-brand-tokens/src/index.ts"],
       "@glc/dev-brand-defaults": ["./packages/glc-dev-brand-defaults/src/index.ts"],
       "@glc/intake-core": ["./packages/intake-core/src/index.ts"],
+      "@glc/route-limits": ["./packages/glc-route-limits/src/index.ts"],
       "@glc/intake-core/question-bank.v1.json": ["./packages/intake-core/src/question-bank.v1.json"],
       "@glc/intake-core/intake-policy.v1.json": ["./packages/intake-core/src/intake-policy.v1.json"],
       "@glc/intake-core/artifacts/layout-rules-1.1.0.json": [

@@ -20,6 +20,7 @@ import {
   formatPipelineTokenBurnMessageEn,
   pipelineAlertTitlesEn,
 } from '../config/alert-messages.en.js';
+import { REDIS_KEYS } from '../config/redis-keys.js';
 
 const WINDOW_MIN = ALERT_CHECK_WINDOW_MINUTES;
 const INTERVAL_MS = ALERT_CHECK_INTERVAL_MS;
@@ -30,7 +31,7 @@ const COOLDOWN_MS = ALERT_COOLDOWN_MS;
 
 const cooldown = new Map<string, number>();
 let alertChecksRunning = false;
-const ALERT_LOCK_KEY = 'lock:alerts:run';
+const ALERT_LOCK_KEY = REDIS_KEYS.alertsRunLock;
 
 function shouldNotify(key: string): boolean {
   const now = Date.now();

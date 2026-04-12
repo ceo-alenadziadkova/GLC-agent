@@ -1,6 +1,6 @@
 /**
  * Express `app.use(prefix, router)` table — single source for API mounts (`server/src/index.ts`).
- * Contract: every path in `src/app/config/api-paths.ts` must fall under one of these prefixes.
+ * Contract: every path in `@glc/api-paths` (`API_PATHS`) must fall under one of these prefixes.
  */
 
 import type { Express, Router } from 'express';

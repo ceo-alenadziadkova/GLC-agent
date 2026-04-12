@@ -8,7 +8,7 @@
  * ux_summary, degraded + score zero). Do not rely on persisted flags alone in the portal.
  */
 
-import { normalizeScanCoverageFromStoredJson } from '@shared/snapshot-scan-coverage';
+import { normalizeScanCoverageFromStoredJson } from '@glc/snapshot-scan-coverage';
 import type {
   AuditState,
   AuditIssue,

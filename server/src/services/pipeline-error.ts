@@ -5,6 +5,7 @@ import {
   PIPELINE_PHASE_NOTIFICATION_FALLBACK_MESSAGE,
   SUPABASE_REST_V1_SUFFIX,
 } from '../config/pipeline-error-fallback.js';
+import { PIPELINE_PHASE_FAILED_NOTIFICATION_TITLE } from '../config/route-notification-messages.js';
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
 import { emitStructuredNotification } from './notifications.js';
@@ -79,7 +80,7 @@ export async function emitPhaseErrorDurable(auditId: string, phase: number, err:
     priority: 'critical',
     audience: 'audit_participants',
     auditId,
-    title: 'Pipeline failure',
+    title: PIPELINE_PHASE_FAILED_NOTIFICATION_TITLE,
     message: err.message ?? PIPELINE_PHASE_NOTIFICATION_FALLBACK_MESSAGE,
     route: `/pipeline/${auditId}`,
     payload: {

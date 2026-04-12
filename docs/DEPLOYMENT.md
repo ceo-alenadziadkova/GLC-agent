@@ -13,7 +13,7 @@
 
 ## Environment layers: infrastructure vs ops overrides
 
-Canonical policy: [ARCHITECTURE.md — Strict layer boundaries](./ARCHITECTURE.md#strict-layer-boundaries-operational-policy). **`server/.env.example`** is the working allowlist comment template; extend it whenever you add a new server env read. **Deprecated vars** (e.g. superseded by DB tables) are called out in the file and below.
+Canonical policy: [ARCHITECTURE.md — Strict layer boundaries](./ARCHITECTURE.md#strict-layer-boundaries-operational-policy). **`server/.env.example`** is the working allowlist comment template; extend it whenever you add a new server env read. **Deprecated vars** (e.g. superseded by DB tables) are called out in the file and below. **Ops escape hatches** (pipeline model id, Sentry trace sampling / link templates, Anthropic base URL) are tabulated under [ARCHITECTURE.md — Documented ops exceptions](./ARCHITECTURE.md#documented-ops-exceptions-env-overrides-for-incidents).
 
 ### Infrastructure (typical allowlist)
 

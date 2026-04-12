@@ -24,6 +24,8 @@ import { api } from '../data/apiService';
 import { clientCanViewPortalPipeline } from '../lib/client-portal-pipeline-access';
 import type { PipelineEvent, QualityGateReport } from '../data/auditTypes';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
+import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
+import { PIPELINE_MONITOR_COPY as PM } from '../config/pipeline-monitor-copy';
 import {
   ANALYTIC_WING_IDS,
   AUTO_WING_IDS,
@@ -117,7 +119,7 @@ export function PipelineMonitor() {
       return PHASE_META.map(pm => ({
         id: pm.id,
         name: pm.name,
-        label: `Phase ${pm.id}`,
+        label: `${PM.phasePrefix} ${pm.id}`,
         icon: pm.icon,
         status: (isExpress && pm.id > EXPRESS_MAX_PHASE ? 'skipped' : 'pending') as PhSt,
         score: null,
@@ -149,7 +151,7 @@ export function PipelineMonitor() {
       return {
         id: pm.id,
         name: pm.name,
-        label: `Phase ${pm.id}`,
+        label: `${PM.phasePrefix} ${pm.id}`,
         icon: pm.icon,
         status,
         score,
@@ -186,7 +188,7 @@ export function PipelineMonitor() {
     audit?.meta.company_name
     || formatAuditWebsiteDisplay(audit?.meta.company_url, audit?.meta.no_public_website)
     || audit?.meta.company_url
-    || 'Loading...';
+    || PM.loadingCompany;
 
   const workspacePath = id ? (isClient ? `/portal/audit/${id}` : `/audit/${id}`) : '/';
 
@@ -198,7 +200,7 @@ export function PipelineMonitor() {
 
   if (pipeLoading && !pipelineState) {
     return (
-      <AppShell title="Pipeline Monitor" subtitle="Loading...">
+      <AppShell title={PM.pageTitle} subtitle={PM.loading}>
         <div className="flex items-center justify-center h-64">
           <ArrowsClockwise className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
         </div>
@@ -208,7 +210,7 @@ export function PipelineMonitor() {
 
   if (isClient && clientPortalOk === 'pending' && id) {
     return (
-      <AppShell title="Pipeline Monitor" subtitle="Loading...">
+      <AppShell title={PM.pageTitle} subtitle={PM.loading}>
         <div className="flex items-center justify-center h-64">
           <ArrowsClockwise className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
         </div>
@@ -225,8 +227,8 @@ export function PipelineMonitor() {
 
   return (
     <AppShell
-      title="Pipeline Monitor"
-      subtitle={`${companyName} · Audit #${id?.slice(0, 8) ?? ''}`}
+      title={PM.pageTitle}
+      subtitle={`${companyName} · ${PM.auditIdPrefix}${id?.slice(0, 8) ?? ''}`}
       actions={
         <div className="flex items-center gap-3">
           {isExpress && (
@@ -240,7 +242,7 @@ export function PipelineMonitor() {
                 letterSpacing: '0.04em',
               }}
             >
-              Express
+              {PM.expressBadge}
             </span>
           )}
           <div className="flex items-center gap-2.5">
@@ -265,20 +267,20 @@ export function PipelineMonitor() {
           className="w-[252px] flex-shrink-0 overflow-y-auto flex flex-col gap-1.5 p-3"
           style={{ borderRight: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }}
         >
-          <div className="px-1 pb-1.5"><SectionLabel>Phases</SectionLabel></div>
+          <div className="px-1 pb-1.5"><SectionLabel>{PM.sidebar.phases}</SectionLabel></div>
 
           <PhCard ph={phases[0]} active={sel === 0} onSel={() => setSel(0)} />
           <RevBanner
             review={getReviewForPhase(0)}
-            label="Review Point #1"
-            onOpenModal={() => setModalReview({ afterPhase: 0, label: 'Review Point #1' })}
+            label={PM.reviewPoints.one}
+            onOpenModal={() => setModalReview({ afterPhase: 0, label: PM.reviewPoints.one })}
             hasWarnings={!getQualityGateForPhase(0)?.passed && (getQualityGateForPhase(0)?.flags.some(f => f.severity === 'warning') ?? false)}
             canApprove={!isClient}
           />
 
           {/* Auto wing — 2×2 grid to reflect parallel execution */}
           <div className="px-1 pt-2 pb-1 flex items-center gap-2">
-            <SectionLabel>Auto Wing</SectionLabel>
+            <SectionLabel>{PM.sidebar.autoWing}</SectionLabel>
             <span
               className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
               style={{
@@ -289,7 +291,7 @@ export function PipelineMonitor() {
                 fontFamily: 'var(--font-display)',
               }}
             >
-              PARALLEL
+              {PM.sidebar.parallelBadge}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-1.5">
@@ -300,15 +302,15 @@ export function PipelineMonitor() {
 
           <RevBanner
             review={getReviewForPhase(4)}
-            label={isExpress ? 'Review Point #2 (Final)' : 'Review Point #2'}
-            onOpenModal={() => setModalReview({ afterPhase: 4, label: isExpress ? 'Review Point #2 (Final)' : 'Review Point #2' })}
+            label={isExpress ? PM.reviewPoints.twoFinal : PM.reviewPoints.two}
+            onOpenModal={() => setModalReview({ afterPhase: 4, label: isExpress ? PM.reviewPoints.twoFinal : PM.reviewPoints.two })}
             hasWarnings={!getQualityGateForPhase(4)?.passed && (getQualityGateForPhase(4)?.flags.some(f => f.severity === 'warning') ?? false)}
             canApprove={!isClient}
           />
 
           {/* Analytic wing — 2-column grid */}
           <div className="px-1 pt-2 pb-1 flex items-center gap-2" style={{ opacity: isExpress ? 0.4 : 1 }}>
-            <SectionLabel>Analytic Wing</SectionLabel>
+            <SectionLabel>{PM.sidebar.analyticWing}</SectionLabel>
             {!isExpress && (
               <span
                 className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
@@ -320,7 +322,7 @@ export function PipelineMonitor() {
                   fontFamily: 'var(--font-display)',
                 }}
               >
-                PARALLEL
+                {PM.sidebar.parallelBadge}
               </span>
             )}
           </div>
@@ -331,15 +333,15 @@ export function PipelineMonitor() {
           </div>
 
           <div className="px-1 pt-2 pb-1" style={{ opacity: isExpress ? 0.4 : 1 }}>
-            <SectionLabel>Synthesis</SectionLabel>
+            <SectionLabel>{PM.sidebar.synthesis}</SectionLabel>
           </div>
           <PhCard ph={phases[7]} active={sel === 7} onSel={() => !phases[7].skipped && setSel(7)} />
 
           {!isExpress && (
             <RevBanner
               review={getReviewForPhase(7)}
-              label="Review Point #3"
-              onOpenModal={() => setModalReview({ afterPhase: 7, label: 'Review Point #3' })}
+              label={PM.reviewPoints.three}
+              onOpenModal={() => setModalReview({ afterPhase: 7, label: PM.reviewPoints.three })}
               hasWarnings={!getQualityGateForPhase(7)?.passed && (getQualityGateForPhase(7)?.flags.some(f => f.severity === 'warning') ?? false)}
               canApprove={!isClient}
             />
@@ -357,12 +359,12 @@ export function PipelineMonitor() {
                   className="font-semibold mb-2"
                   style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)', fontSize: 'var(--text-lg)' }}
                 >
-                  Ready to start
+                  {WORKSPACE_PAGE_COPY.pipelineMonitor.startReadyTitle}
                 </h3>
                 <p className="text-sm mb-4" style={{ color: 'var(--text-tertiary)' }}>
                   {isExpress
-                    ? 'This will begin the Express audit (5 phases: Recon + 4 domains). Estimated cost: ~$0.30 in API credits.'
-                    : 'This will begin the full 8-phase audit pipeline. Estimated cost: ~$0.50 in API credits.'}
+                    ? WORKSPACE_PAGE_COPY.pipelineMonitor.startExpressDescription
+                    : WORKSPACE_PAGE_COPY.pipelineMonitor.startFullDescription}
                 </p>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
@@ -370,7 +372,7 @@ export function PipelineMonitor() {
                   onClick={startPipeline}
                   className="glc-btn-primary mx-auto"
                 >
-                  <Play className="w-4 h-4" /> Start Pipeline
+                  <Play className="w-4 h-4" /> {WORKSPACE_PAGE_COPY.pipelineMonitor.startPipelineButton}
                 </motion.button>
               </div>
             )}
@@ -380,7 +382,7 @@ export function PipelineMonitor() {
                 className="rounded-xl p-4 mb-4"
                 style={{ backgroundColor: 'var(--score-1-bg)', border: '1px solid var(--score-1-border)', color: 'var(--score-1)' }}
               >
-                <p className="text-sm font-medium">Error: {pipeError}</p>
+                <p className="text-sm font-medium">{PM.errorPrefix} {pipeError}</p>
               </div>
             )}
 
@@ -389,13 +391,13 @@ export function PipelineMonitor() {
               {phases.some(p => AUTO_WING_IDS.includes(p.id) && p.status === 'running') && (
                 <ParallelWingBanner
                   phases={phases.filter(p => AUTO_WING_IDS.includes(p.id))}
-                  wingName="Auto Wing"
+                  wingName={PM.parallelWing.autoName}
                 />
               )}
               {phases.some(p => ANALYTIC_WING_IDS.includes(p.id) && p.status === 'running') && (
                 <ParallelWingBanner
                   phases={phases.filter(p => ANALYTIC_WING_IDS.includes(p.id))}
-                  wingName="Analytic Wing"
+                  wingName={PM.parallelWing.analyticName}
                 />
               )}
             </AnimatePresence>
@@ -466,7 +468,7 @@ export function PipelineMonitor() {
                     <div className="flex items-center gap-2 mb-3">
                       <ArrowsClockwise className="w-4 h-4 animate-spin" style={{ color: 'var(--glc-blue)' }} />
                       <span className="text-sm font-semibold" style={{ color: 'var(--glc-blue-deeper)', fontFamily: 'var(--font-display)' }}>
-                        Agent running...
+                        {PM.detail.agentRunning}
                       </span>
                     </div>
                     <div className="rounded-full overflow-hidden" style={{ height: 4, backgroundColor: 'rgba(28,189,255,0.15)' }}>
@@ -488,8 +490,8 @@ export function PipelineMonitor() {
                     style={{ borderStyle: 'dashed', borderRadius: 'var(--radius-xl)' }}
                   >
                     <Clock className="w-8 h-8 mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
-                    <p className="text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>Waiting for previous phases</p>
-                    <p className="text-xs mt-1" style={{ color: 'var(--text-quaternary)' }}>This phase will start automatically</p>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>{PM.detail.waitingTitle}</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--text-quaternary)' }}>{PM.detail.waitingSubtitle}</p>
                   </div>
                 )}
 
@@ -505,11 +507,11 @@ export function PipelineMonitor() {
                     <div className="flex items-center gap-2 mb-1">
                       <WarningCircle className="w-4 h-4 flex-shrink-0" style={{ color: '#EF4444' }} />
                       <span className="text-sm font-semibold" style={{ color: '#EF4444', fontFamily: 'var(--font-display)' }}>
-                        Domain unavailable
+                        {PM.detail.domainUnavailableTitle}
                       </span>
                     </div>
                     <p className="text-xs ml-6" style={{ color: 'var(--text-secondary)' }}>
-                      This domain could not be analysed. The pipeline has continued and the Strategy Agent will note this gap explicitly.
+                      {PM.detail.domainUnavailableBody}
                     </p>
                   </div>
                 )}
@@ -528,7 +530,7 @@ export function PipelineMonitor() {
                       </div>
                       <Terminal className="w-3.5 h-3.5 ml-2" style={{ color: 'rgba(255,255,255,0.35)' }} />
                       <span className="glc-label" style={{ color: 'rgba(255,255,255,0.30)', letterSpacing: '0.10em' }}>
-                        Agent Log · {ph.name}
+                        {PM.detail.agentLogPrefix} {ph.name}
                       </span>
                     </div>
                     <div
@@ -573,7 +575,7 @@ export function PipelineMonitor() {
                 {ph.status === 'completed' && ph.score !== null && (
                   <div className="glc-card p-5" style={{ borderRadius: 'var(--radius-xl)' }}>
                     <div className="flex items-center justify-between mb-4">
-                      <SectionLabel>Domain Score</SectionLabel>
+                      <SectionLabel>{PM.detail.domainScore}</SectionLabel>
                       <ScoreBadge score={ph.score} showLabel size="lg" />
                     </div>
                   </div>
@@ -587,7 +589,7 @@ export function PipelineMonitor() {
                       className="glc-btn-secondary"
                       style={{ textDecoration: 'none' }}
                     >
-                      View in Workspace <CaretRight className="w-4 h-4" />
+                      {PM.detail.viewInWorkspace} <CaretRight className="w-4 h-4" />
                     </Link>
                   )}
                   {ph.status === 'review' && !isClient && (
@@ -597,7 +599,7 @@ export function PipelineMonitor() {
                       onClick={() => runNextPhase()}
                       className="glc-btn-primary"
                     >
-                      <Play className="w-4 h-4" /> Continue Pipeline
+                      <Play className="w-4 h-4" /> {PM.detail.continuePipeline}
                     </motion.button>
                   )}
                 </div>
@@ -607,7 +609,7 @@ export function PipelineMonitor() {
             {/* Token usage */}
             {pipelineState && (
               <div className="mt-6 flex items-center gap-4 text-xs" style={{ color: 'var(--text-quaternary)' }}>
-                <span>Tokens used: <strong className="font-mono">{pipelineState.tokens_used.toLocaleString()}</strong> / {pipelineState.token_budget.toLocaleString()}</span>
+                <span>{PM.detail.tokensUsedPrefix}<strong className="font-mono">{pipelineState.tokens_used.toLocaleString()}</strong>{PM.detail.tokensBudgetSeparator}{pipelineState.token_budget.toLocaleString()}</span>
               </div>
             )}
           </div>
@@ -616,7 +618,7 @@ export function PipelineMonitor() {
 
       <ReviewPointModal
         open={!isClient && modalReview !== null}
-        reviewPoint={modalReview ? { id: modalReview.afterPhase, label: modalReview.label, note: 'Add your observations before continuing', after: modalReview.afterPhase } : null}
+        reviewPoint={modalReview ? { id: modalReview.afterPhase, label: modalReview.label, note: PM.reviewModal.defaultNote, after: modalReview.afterPhase } : null}
         onClose={() => setModalReview(null)}
         onApprove={handleApprove}
         qualityGate={modalReview ? getQualityGateForPhase(modalReview.afterPhase) : null}

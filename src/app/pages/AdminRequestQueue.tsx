@@ -1,4 +1,5 @@
-import { useState, useCallback, type CSSProperties } from 'react';
+import { useState, useCallback, useEffect, type CSSProperties } from 'react';
+import { GLC_AUDITS_AND_AUDIT_REQUESTS_LIST } from '@glc/route-limits';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import {
@@ -22,11 +23,19 @@ import {
 } from '../data/briefQuestions';
 import { getQuestionLabel } from '../lib/intake-question-lookup';
 import { UI_FEEDBACK_FLASH_MS } from '../config/ui-feedback-defaults';
+import {
+  ADMIN_REQUEST_QUEUE_CHROME,
+  ADMIN_REQUEST_QUEUE_COPY,
+  ADMIN_REQUEST_QUEUE_STATUS,
+} from '../config/admin-request-queue-copy.en';
 
 type IntakeSubmissionRow = Awaited<ReturnType<typeof api.listIntakeSubmissions>>['submissions'][number];
 
 type AdminQueuePayload = {
   requests: AuditRequest[];
+  auditRequestsTotal: number;
+  auditRequestsLimit: number;
+  auditRequestsOffset: number;
   intakeSubmissions: IntakeSubmissionRow[];
   intakeLoadErrorT: string | null;
 };
@@ -54,28 +63,8 @@ const ORDERED_PRE_BRIEF = [
   } as BriefQuestion)),
 ];
 
-function intakeSummaryLine(norm: BriefResponses, auditId: string | null, expired: boolean): string {
-  const n = countPreBriefSatisfied(norm);
-  const total = getPreBriefSubmitSlotIds(norm).length;
-  const parts = [`Pre-brief · ${n}/${total} fields answered`];
-  if (auditId) parts.push('linked to audit');
-  else parts.push('not linked');
-  if (expired) parts.push('link expired');
-  return parts.join(' · ');
-}
-
-const STATUS_CONFIG: Record<AuditRequestStatus, { label: string; color: string }> = {
-  draft:        { label: 'Draft',        color: 'rgba(255,255,255,0.30)' },
-  submitted:    { label: 'Submitted',    color: 'var(--callout-warning-icon)' },
-  under_review: { label: 'Under Review', color: '#3B82F6' },
-  approved:     { label: 'Approved',     color: '#10B981' },
-  rejected:     { label: 'Rejected',     color: '#EF4444' },
-  running:      { label: 'In Progress',  color: '#1CBDFF' },
-  delivered:    { label: 'Delivered',    color: '#10B981' },
-};
-
 function StatusBadge({ status }: { status: AuditRequestStatus }) {
-  const { label, color } = STATUS_CONFIG[status] ?? STATUS_CONFIG.draft;
+  const { label, color } = ADMIN_REQUEST_QUEUE_STATUS[status] ?? ADMIN_REQUEST_QUEUE_STATUS.draft;
   return (
     <span className="text-xs font-medium" style={{ color }}>{label}</span>
   );
@@ -83,17 +72,30 @@ function StatusBadge({ status }: { status: AuditRequestStatus }) {
 
 export function AdminRequestQueue() {
   const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<'all' | 'pending'>('pending');
+  const [auditReqOffset, setAuditReqOffset] = useState(0);
+
+  useEffect(() => {
+    setAuditReqOffset(0);
+  }, [filter]);
+
   const q = useQuery({
-    queryKey: glcKeys.adminRequestQueue(),
+    queryKey: glcKeys.adminRequestQueue(filter, auditReqOffset),
     queryFn: async (): Promise<AdminQueuePayload> => {
       let intakeLoadErrorT: string | null = null;
-      const reqRes = await api.listAuditRequests(100, 0);
+      const { defaultLimit, maxLimit } = GLC_AUDITS_AND_AUDIT_REQUESTS_LIST;
+      const reqLimit = filter === 'pending' ? maxLimit : defaultLimit;
+      const reqOffset = filter === 'pending' ? 0 : auditReqOffset;
+      const reqRes = await api.listAuditRequests(reqLimit, reqOffset);
       const intakeRes = await api.listIntakeSubmissions().catch((e) => {
         intakeLoadErrorT = (e as Error).message;
         return { submissions: [] as IntakeSubmissionRow[] };
       });
       return {
         requests: reqRes.data,
+        auditRequestsTotal: reqRes.total,
+        auditRequestsLimit: reqRes.limit,
+        auditRequestsOffset: reqRes.offset,
         intakeSubmissions: intakeRes.submissions,
         intakeLoadErrorT,
       };
@@ -102,6 +104,9 @@ export function AdminRequestQueue() {
   });
 
   const requests = q.data?.requests ?? [];
+  const auditReqTotal = q.data?.auditRequestsTotal ?? 0;
+  const auditReqLimit = q.data?.auditRequestsLimit ?? GLC_AUDITS_AND_AUDIT_REQUESTS_LIST.defaultLimit;
+  const auditReqPageOffset = q.data?.auditRequestsOffset ?? 0;
   const intakeSubmissions = q.data?.intakeSubmissions ?? [];
   const intakeLoadError = q.data?.intakeLoadErrorT ?? null;
   const loading = q.isPending && !q.data;
@@ -109,8 +114,6 @@ export function AdminRequestQueue() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const error = actionError ?? fetchError;
-
-  const [filter, setFilter] = useState<'all' | 'pending'>('pending');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState<{ id: string; text: string } | null>(null);
   const [expandedIntakeToken, setExpandedIntakeToken] = useState<string | null>(null);
@@ -118,7 +121,7 @@ export function AdminRequestQueue() {
 
   const refetchQueue = useCallback(() => {
     setActionError(null);
-    void queryClient.invalidateQueries({ queryKey: glcKeys.adminRequestQueue() });
+    void queryClient.invalidateQueries({ queryKey: glcKeys.adminRequestQueueRoot });
   }, [queryClient]);
 
   const pending = (s: AuditRequestStatus) => s === 'submitted' || s === 'under_review';
@@ -128,6 +131,11 @@ export function AdminRequestQueue() {
   const visible = filter === 'pending'
     ? pendingRequestsList
     : requests;
+
+  const showAuditRequestsPagination =
+    filter === 'all' && auditReqTotal > auditReqLimit;
+  const rangeFrom = auditReqTotal === 0 ? 0 : auditReqPageOffset + 1;
+  const rangeTo = Math.min(auditReqPageOffset + requests.length, auditReqTotal);
 
   type QueueRow =
     | { kind: 'request'; req: AuditRequest; at: number }
@@ -177,18 +185,18 @@ export function AdminRequestQueue() {
 
   return (
     <AppShell
-      title="Request queue"
-      subtitle="Incoming client audit requests (Admin)"
+      title={ADMIN_REQUEST_QUEUE_COPY.pageTitle}
+      subtitle={ADMIN_REQUEST_QUEUE_COPY.pageSubtitle}
       actions={
         <div className="flex flex-col gap-2 w-full sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:w-auto">
           <Link to="/admin/snapshots" className="glc-btn-secondary no-underline text-sm glc-touch-target sm:min-h-0 sm:min-w-0 justify-center">
-            Snapshots
+            {ADMIN_REQUEST_QUEUE_COPY.navSnapshots}
           </Link>
           <Link to="/admin/discovery" className="glc-btn-secondary no-underline text-sm glc-touch-target sm:min-h-0 sm:min-w-0 justify-center">
-            Discovery
+            {ADMIN_REQUEST_QUEUE_COPY.navDiscovery}
           </Link>
           <Link to="/portfolio" className="glc-btn-secondary no-underline text-sm glc-touch-target sm:min-h-0 sm:min-w-0 justify-center">
-            Portfolio
+            {ADMIN_REQUEST_QUEUE_COPY.navPortfolio}
           </Link>
         </div>
       }
@@ -202,13 +210,13 @@ export function AdminRequestQueue() {
               type="button"
               className="px-3 py-2 rounded-lg text-xs font-medium transition-colors glc-touch-target sm:min-h-0 sm:px-3 sm:py-1.5"
               style={{
-                background: filter === f ? 'rgba(28,189,255,0.15)' : 'var(--bg-surface)',
-                border: `1px solid ${filter === f ? 'rgba(28,189,255,0.35)' : 'var(--border-subtle)'}`,
+                background: filter === f ? ADMIN_REQUEST_QUEUE_CHROME.filterActiveBackground : 'var(--bg-surface)',
+                border: `1px solid ${filter === f ? ADMIN_REQUEST_QUEUE_CHROME.filterActiveBorder : 'var(--border-subtle)'}`,
                 color: filter === f ? 'var(--glc-blue)' : 'var(--text-secondary)',
               }}
               onClick={() => setFilter(f)}
             >
-              {f === 'pending' ? 'Awaiting Review' : 'All requests'}
+              {f === 'pending' ? ADMIN_REQUEST_QUEUE_COPY.filterAwaiting : ADMIN_REQUEST_QUEUE_COPY.filterAll}
             </button>
           ))}
         </div>
@@ -222,7 +230,11 @@ export function AdminRequestQueue() {
         {!loading && error && (
           <div
             className="flex items-center gap-3 px-4 py-3 rounded-lg"
-            style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)', color: '#EF4444' }}
+            style={{
+              backgroundColor: ADMIN_REQUEST_QUEUE_CHROME.errorPanelBackground,
+              border: `1px solid ${ADMIN_REQUEST_QUEUE_CHROME.errorPanelBorder}`,
+              color: ADMIN_REQUEST_QUEUE_CHROME.errorText,
+            }}
           >
             <Warning className="w-4 h-4 flex-shrink-0" />
             <span className="text-sm">{error}</span>
@@ -233,9 +245,7 @@ export function AdminRequestQueue() {
           <div className="text-center py-16" style={{ color: 'var(--text-tertiary)' }}>
             <Tray className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
             <p className="text-sm font-medium">
-              {filter === 'pending'
-                ? 'Nothing awaiting review — no audit requests or client pre-brief submissions.'
-                : 'No requests in this view'}
+              {filter === 'pending' ? ADMIN_REQUEST_QUEUE_COPY.emptyAwaiting : ADMIN_REQUEST_QUEUE_COPY.emptyAll}
             </p>
           </div>
         )}
@@ -244,12 +254,12 @@ export function AdminRequestQueue() {
           <section className="space-y-3">
             {intakeLoadError && (
               <p className="text-xs" style={{ color: 'var(--score-2)' }}>
-                Pre-brief list unavailable: {intakeLoadError}
+                {ADMIN_REQUEST_QUEUE_COPY.preBriefListUnavailablePrefix} {intakeLoadError}
               </p>
             )}
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between flex-wrap">
               <h2 className="text-sm font-semibold m-0" style={{ color: 'var(--text-primary)' }}>
-                Awaiting Review
+                {ADMIN_REQUEST_QUEUE_COPY.awaitingSectionTitle}
               </h2>
               <p className="text-xs m-0" style={{ color: 'var(--text-tertiary)' }}>
                 {awaitingRows.length} total
@@ -418,7 +428,12 @@ export function AdminRequestQueue() {
                         </div>
                         <div className="font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>{title}</div>
                         <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                          {intakeSummaryLine(norm, s.audit_id, expired)}
+                          {ADMIN_REQUEST_QUEUE_COPY.intakeSummaryLine(
+                            countPreBriefSatisfied(norm),
+                            getPreBriefSubmitSlotIds(norm).length,
+                            s.audit_id,
+                            expired,
+                          )}
                         </div>
                         <div className="text-xs mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5" style={{ color: 'var(--text-tertiary)' }}>
                           <span className="inline-flex items-center gap-1">
@@ -620,6 +635,48 @@ export function AdminRequestQueue() {
               );
             })}
           </div>
+        )}
+
+        {!loading && !error && filter === 'all' && showAuditRequestsPagination && (
+          <nav
+            className="flex flex-wrap items-center justify-between gap-3 border-t pt-4"
+            style={{ borderColor: 'var(--border-subtle)' }}
+            aria-label={ADMIN_REQUEST_QUEUE_COPY.auditRequestsPaginationLabel}
+          >
+            <p className="text-xs m-0" style={{ color: 'var(--text-tertiary)' }}>
+              {ADMIN_REQUEST_QUEUE_COPY.paginationRange(rangeFrom, rangeTo, auditReqTotal)}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="px-3 py-2 rounded-lg text-xs font-medium glc-touch-target sm:min-h-0 sm:py-1.5"
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-secondary)',
+                  opacity: auditReqPageOffset <= 0 ? 0.45 : 1,
+                }}
+                disabled={auditReqPageOffset <= 0}
+                onClick={() => setAuditReqOffset(o => Math.max(0, o - auditReqLimit))}
+              >
+                {ADMIN_REQUEST_QUEUE_COPY.paginationPrev}
+              </button>
+              <button
+                type="button"
+                className="px-3 py-2 rounded-lg text-xs font-medium glc-touch-target sm:min-h-0 sm:py-1.5"
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-secondary)',
+                  opacity: auditReqPageOffset + auditReqLimit >= auditReqTotal ? 0.45 : 1,
+                }}
+                disabled={auditReqPageOffset + auditReqLimit >= auditReqTotal}
+                onClick={() => setAuditReqOffset(o => o + auditReqLimit)}
+              >
+                {ADMIN_REQUEST_QUEUE_COPY.paginationNext}
+              </button>
+            </div>
+          </nav>
         )}
       </div>
     </AppShell>

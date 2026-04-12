@@ -8,6 +8,7 @@ import {
   WarningCircle,
 } from '@phosphor-icons/react';
 import { ScoreBadge } from '../../components/glc/ScoreBadge';
+import { PIPELINE_MONITOR_COPY as PM } from '../../config/pipeline-monitor-copy';
 import type { PhaseView } from './types';
 
 export function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: () => void }) {
@@ -27,7 +28,7 @@ export function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; 
           letterSpacing: '0.05em',
         }}
       >
-        SKIP
+        {PM.phaseCard.skip}
       </span>
     ),
   }[ph.status];
@@ -138,13 +139,13 @@ export function RevBanner({
             {label}
           </span>
           {!done && hasWarnings && (
-            <span title="Quality warnings" className="inline-flex flex-shrink-0">
+            <span title={PM.revBanner.qualityWarningsTitle} className="inline-flex flex-shrink-0">
               <WarningCircle size={12} weight="fill" style={{ color: '#F97316', flexShrink: 0 }} />
             </span>
           )}
         </div>
         <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-          {done ? 'Approved' : hasWarnings ? 'Quality warnings — notes required' : 'Waiting for approval'}
+          {done ? PM.revBanner.approved : hasWarnings ? PM.revBanner.qualityWarningsNotes : PM.revBanner.waitingApproval}
         </p>
       </div>
       {!done && canApprove && (
@@ -162,7 +163,7 @@ export function RevBanner({
             fontSize: '11px',
           }}
         >
-          Approve <ArrowRight className="w-3 h-3" />
+          {PM.revBanner.approve} <ArrowRight className="w-3 h-3" />
         </motion.button>
       )}
       {!done && !canApprove && (
@@ -170,7 +171,7 @@ export function RevBanner({
           className="text-[10px] font-medium px-2 py-1 rounded-md flex-shrink-0"
           style={{ color: 'var(--text-tertiary)', border: '1px solid var(--border-subtle)' }}
         >
-          Consultant approval
+          {PM.revBanner.consultantApproval}
         </span>
       )}
     </div>
@@ -242,19 +243,19 @@ function ParallelMiniCard({ ph }: { ph: PhaseView }) {
       {isCompleted && ph.score === null && (
         <div className="flex items-center gap-1">
           <CheckCircle className="w-3 h-3" style={{ color: 'var(--glc-green)' }} />
-          <span style={{ fontSize: 10, color: 'var(--glc-green)', fontFamily: 'var(--font-display)' }}>Done</span>
+          <span style={{ fontSize: 10, color: 'var(--glc-green)', fontFamily: 'var(--font-display)' }}>{PM.miniCard.done}</span>
         </div>
       )}
       {isFailed && (
         <div className="flex items-center gap-1">
           <WarningCircle className="w-3 h-3" style={{ color: '#EF4444' }} />
-          <span style={{ fontSize: 10, color: '#EF4444', fontFamily: 'var(--font-display)' }}>Failed</span>
+          <span style={{ fontSize: 10, color: '#EF4444', fontFamily: 'var(--font-display)' }}>{PM.miniCard.failed}</span>
         </div>
       )}
       {!isRunning && !isCompleted && !isFailed && (
         <div className="flex items-center gap-1">
           <Clock className="w-3 h-3" style={{ color: 'var(--text-quaternary)' }} />
-          <span style={{ fontSize: 10, color: 'var(--text-quaternary)', fontFamily: 'var(--font-display)' }}>Waiting</span>
+          <span style={{ fontSize: 10, color: 'var(--text-quaternary)', fontFamily: 'var(--font-display)' }}>{PM.miniCard.waiting}</span>
         </div>
       )}
     </div>
@@ -285,7 +286,7 @@ export function ParallelWingBanner({ phases, wingName }: { phases: PhaseView[]; 
       <div className="flex items-center gap-2 mb-3">
         <ArrowsClockwise className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--glc-blue)' }} />
         <span className="text-xs font-bold" style={{ color: 'var(--glc-blue-deeper)', fontFamily: 'var(--font-display)' }}>
-          {wingName} · Running in parallel
+          {wingName}{PM.parallelWing.runningSuffix}
         </span>
       </div>
       <div className="flex gap-2">

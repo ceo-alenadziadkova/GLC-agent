@@ -67,6 +67,8 @@ export function briefHelpRequestedNotificationMessage(auditIdPrefix: string): st
 
 const pl = raw.pipeline;
 
+export const PIPELINE_PHASE_FAILED_NOTIFICATION_TITLE = pl.phaseFailedTitle;
+
 export const PIPELINE_RETRY_STARTED_NOTIFICATION_TITLE = pl.retryStartedTitle;
 
 export function pipelineRetryStartedNotificationMessage(phase: number): string {
@@ -77,6 +79,14 @@ export const PIPELINE_REVIEW_APPROVED_NOTIFICATION_TITLE = pl.reviewApprovedTitl
 
 export function pipelineReviewApprovedMessage(phase: number): string {
   return interpolateRouteNotificationMessage(pl.reviewApprovedMessageTemplate, { phase });
+}
+
+const reg = raw.registration;
+
+export const REGISTRATION_GUEST_REGISTERED_NOTIFICATION_TITLE = reg.guestRegisteredTitle;
+
+export function registrationGuestRegisteredMessage(role: string): string {
+  return interpolateRouteNotificationMessage(reg.guestRegisteredMessageTemplate, { role });
 }
 
 const rp = raw.reports;

@@ -8,6 +8,7 @@ import { api, ApiError } from '../data/apiService';
 import { ROUTE_LABELS, type MarketingRecommendedRoute } from '../marketing/brief-logic';
 import { LOGIN_PATH } from '../marketing/marketing-nav';
 import { usePublicBrand } from '../marketing/PublicBrandContext';
+import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 
 type FormValues = {
   name: string;
@@ -21,7 +22,7 @@ type FormValues = {
   preferred_audit_depth: 'express' | 'full';
 };
 
-const CONTACT_OPTIONS = ['Email', 'Phone / WhatsApp', 'Either is fine'];
+const PB = WORKSPACE_PAGE_COPY.publicBrief;
 
 export function PublicBriefPage() {
   const { supportEmail } = usePublicBrand();
@@ -41,7 +42,7 @@ export function PublicBriefPage() {
       no_website: false,
       concern: '',
       improve: '',
-      contact_method: CONTACT_OPTIONS[0],
+      contact_method: PB.contactOptions[0],
       unsure_choice: false,
       preferred_audit_depth: 'express',
     },
@@ -68,14 +69,13 @@ export function PublicBriefPage() {
       });
       setDone({ route: res.recommended_route as MarketingRecommendedRoute, id: res.id });
     } catch (e) {
-      const contact =
-        supportEmail.trim() !== ''
-          ? ` or email ${supportEmail.trim()}`
-          : '';
+      const email = supportEmail.trim();
+      const emailPart =
+        email !== '' ? PB.submitErrorEmailSuffix.replace('{{email}}', email) : '';
       const msg =
         e instanceof ApiError
           ? e.message
-          : `Could not submit. Try again later${contact}.`;
+          : `${PB.submitErrorGeneric}${emailPart}`;
       setSubmitError(msg);
     }
   }
@@ -83,18 +83,18 @@ export function PublicBriefPage() {
   return (
     <MarketingLayout
       breadcrumbs={[
-        { label: 'Home', to: '/' },
-        { label: 'Brief' },
+        { label: PB.breadcrumbsHome, to: '/' },
+        { label: PB.breadcrumbsBrief },
       ]}
     >
       <MarketingSection>
         <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: 'var(--text-primary)' }}>
-          Want help from a specialist?
+          {PB.heroTitle}
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          A short brief without tech jargon. We suggest a next step by format: a quick Snapshot, Discovery when there is no
-          public site yet, or an audit path chosen by <strong>depth of analysis</strong> (Express = focused scope, Full =
-          broadest coverage)—not by how fast you need an answer.
+          {PB.heroIntroBefore}
+          <strong>{PB.heroIntroStrong}</strong>
+          {PB.heroIntroAfter}
         </p>
       </MarketingSection>
 
@@ -105,13 +105,13 @@ export function PublicBriefPage() {
             style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-card)' }}
           >
             <p className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--glc-green-dark)' }}>
-              Sent
+              {PB.sentBadge}
             </p>
             <h2 className="mt-2 font-display text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-              We suggest starting with: {ROUTE_LABELS[done.route]}
+              {PB.sentTitlePrefix} {ROUTE_LABELS[done.route]}
             </h2>
             <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              The link below opens that path. We will reach out via your preferred channel.
+              {PB.sentBody}
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
@@ -119,39 +119,39 @@ export function PublicBriefPage() {
                 className="inline-flex rounded-xl px-5 py-3 text-sm font-semibold"
                 style={{ background: 'var(--gradient-brand)', color: 'var(--primary-foreground)' }}
               >
-                Go to: {ROUTE_LABELS[done.route]}
+                {PB.goToPrefix} {ROUTE_LABELS[done.route]}
               </Link>
               <Link
                 to="/snapshot"
                 className="inline-flex rounded-xl border px-5 py-3 text-sm font-semibold"
                 style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
               >
-                Snapshot
+                {PB.linkSnapshot}
               </Link>
               <Link
                 to="/express-audit"
                 className="inline-flex rounded-xl border px-5 py-3 text-sm font-semibold"
                 style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
               >
-                Express
+                {PB.linkExpress}
               </Link>
               <Link
                 to="/audit"
                 className="inline-flex rounded-xl border px-5 py-3 text-sm font-semibold"
                 style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
               >
-                Full audit
+                {PB.linkFullAudit}
               </Link>
               <Link
                 to="/discovery"
                 className="inline-flex rounded-xl border px-5 py-3 text-sm font-semibold"
                 style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
               >
-                Discovery
+                {PB.linkDiscovery}
               </Link>
             </div>
             <p className="mt-6 text-xs" style={{ color: 'var(--text-quaternary)' }}>
-              Ref: {done.id}
+              {PB.refPrefix} {done.id}
             </p>
           </div>
         </MarketingSection>
@@ -163,9 +163,9 @@ export function PublicBriefPage() {
             style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-card)' }}
           >
             <label className="flex flex-col gap-1.5 text-sm">
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Name *</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.formNameLabel}</span>
               <input
-                {...register('name', { required: 'Please enter your name' })}
+                {...register('name', { required: PB.formNameRequired })}
                 className="rounded-lg border px-3 py-2.5 outline-none"
                 style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
               />
@@ -173,7 +173,7 @@ export function PublicBriefPage() {
             </label>
 
             <label className="flex flex-col gap-1.5 text-sm">
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Company</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.formCompanyLabel}</span>
               <input
                 {...register('company')}
                 className="rounded-lg border px-3 py-2.5 outline-none"
@@ -184,17 +184,17 @@ export function PublicBriefPage() {
             <div className="flex flex-col gap-2">
               <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
                 <input type="checkbox" {...register('no_website')} />
-                No public site yet
+                {PB.noPublicSiteYet}
               </label>
               {!noWebsite && (
                 <label className="flex flex-col gap-1.5 text-sm">
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Website (URL)</span>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.websiteLabel}</span>
                   <input
                     {...register('website', {
                       validate: v =>
-                        noWebsite || (v && v.trim().length > 0) || 'Enter a URL or check “no public site yet”',
+                        noWebsite || (v && v.trim().length > 0) || PB.websiteOrNoPublic,
                     })}
-                    placeholder="https://"
+                    placeholder={PB.websitePlaceholder}
                     className="rounded-lg border px-3 py-2.5 outline-none"
                     style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
                   />
@@ -204,9 +204,9 @@ export function PublicBriefPage() {
             </div>
 
             <label className="flex flex-col gap-1.5 text-sm">
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>What is bothering you right now?</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.concernLabel}</span>
               <textarea
-                {...register('concern', { required: 'Please add a short description' })}
+                {...register('concern', { required: PB.concernRequired })}
                 rows={3}
                 className="resize-y rounded-lg border px-3 py-2.5 outline-none"
                 style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
@@ -215,9 +215,9 @@ export function PublicBriefPage() {
             </label>
 
             <label className="flex flex-col gap-1.5 text-sm">
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>What do you want to improve?</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.improveLabel}</span>
               <textarea
-                {...register('improve', { required: 'Please add a short description' })}
+                {...register('improve', { required: PB.improveRequired })}
                 rows={3}
                 className="resize-y rounded-lg border px-3 py-2.5 outline-none"
                 style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
@@ -228,31 +228,30 @@ export function PublicBriefPage() {
             {showDepthChoice && (
               <fieldset className="flex flex-col gap-2 text-sm">
                 <legend style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-                  How deep should the first audit path go?
+                  {PB.depthLegend}
                 </legend>
                 <p className="text-xs leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
-                  Express = focused scope and fewer domains. Full = maximum coverage across the programme. This is about
-                  depth of analysis, not delivery speed.
+                  {PB.depthHint}
                 </p>
                 <label className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
                   <input type="radio" value="express" {...register('preferred_audit_depth')} />
-                  Express — enough to see the picture and first steps
+                  {PB.depthExpress}
                 </label>
                 <label className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
                   <input type="radio" value="full" {...register('preferred_audit_depth')} />
-                  Full — broadest audit depth
+                  {PB.depthFull}
                 </label>
               </fieldset>
             )}
 
             <label className="flex flex-col gap-1.5 text-sm">
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Preferred contact</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.preferredContactLabel}</span>
               <select
                 {...register('contact_method')}
                 className="rounded-lg border px-3 py-2.5 outline-none"
                 style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
               >
-                {CONTACT_OPTIONS.map(o => (
+                {PB.contactOptions.map(o => (
                   <option key={o} value={o}>
                     {o}
                   </option>
@@ -262,13 +261,12 @@ export function PublicBriefPage() {
 
             <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
               <input type="checkbox" {...register('unsure_choice')} />
-              I am not sure what to choose—suggest a format (Snapshot if I have a site, Discovery if not)
+              {PB.unsureCheckbox}
             </label>
 
             {unsure && (
               <p className="rounded-lg px-3 py-2 text-xs leading-relaxed" style={{ backgroundColor: 'var(--callout-info-bg)', color: 'var(--text-secondary)' }}>
-                We will recommend Snapshot when you have a public URL to scan, or Discovery when you do not. The server
-                decides the exact route after submit.
+                {PB.unsureHelp}
               </p>
             )}
 
@@ -280,7 +278,7 @@ export function PublicBriefPage() {
               className="w-full rounded-xl py-3.5 text-sm font-semibold disabled:opacity-60"
               style={{ background: 'var(--gradient-accent)', color: 'var(--primary-foreground)' }}
             >
-              {isSubmitting ? 'Sending…' : 'Submit brief'}
+              {isSubmitting ? PB.submitSending : PB.submitButton}
             </button>
           </form>
         </MarketingSection>
@@ -288,11 +286,9 @@ export function PublicBriefPage() {
 
       <div className="mt-14">
         <NextStepsCta
-          steps={[
-            { to: '/faq', label: 'FAQ', hint: 'Answers before you reach out.' },
-            { to: '/snapshot', label: 'Snapshot', hint: 'If you want a fast automated read first.' },
-            { to: LOGIN_PATH, label: 'Sign in', hint: 'Already a client.' },
-          ]}
+          steps={PB.nextSteps.map((s, i) =>
+            i === 2 ? { ...s, to: LOGIN_PATH } : s,
+          )}
         />
       </div>
     </MarketingLayout>

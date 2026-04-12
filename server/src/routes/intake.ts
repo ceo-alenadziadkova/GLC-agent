@@ -22,14 +22,19 @@ import {
   INTAKE_SUBMISSION_RECEIVED_NOTIFICATION_TITLE,
   intakePreBriefSubmittedNotificationMessage,
 } from '../config/route-notification-messages.js';
-import { buildIntakePlan } from '@glc/intake-core';
-import { choiceSpecifyResponseKey } from '@glc/intake-core';
-import { INTAKE_REVENUE_BANK_ID } from '@glc/intake-core';
-import { formatPlanTrace } from '@glc/intake-core';
-import { parseIntakeVersionTuple } from '@glc/intake-core';
-import { isSupportedIntakeArtifactTuple } from '@glc/intake-core';
+import {
+  buildIntakePlan,
+  choiceSpecifyResponseKey,
+  formatPlanTrace,
+  INTAKE_PLAN_TRACE_COLLECTION_MODE_VALUES,
+  INTAKE_PLAN_TRACE_PRODUCT_MODE_VALUES,
+  INTAKE_REVENUE_BANK_ID,
+  INTAKE_SURFACE_VALUES,
+  isSupportedIntakeArtifactTuple,
+  parseIntakeVersionTuple,
+} from '@glc/intake-core';
 import type { IntakeSurface } from '@glc/intake-core';
-import type { IntakeBriefCollectionMode, ProductMode } from '../types/audit.js';
+import { DEFAULT_AUDIT_PRODUCT_MODE, type IntakeBriefCollectionMode, type ProductMode } from '../types/audit.js';
 import {
   API_ERROR_CODES,
   INTAKE_AUDIT_ID_FORMAT_INVALID_MESSAGE,
@@ -81,7 +86,7 @@ function toClientEntries(raw: Record<string, unknown>): Record<string, unknown> 
 function buildPreBriefQuestionsForResponses(raw: Record<string, unknown>) {
   const preBriefPlan = buildIntakePlan({
     responses: raw,
-    productMode: 'full',
+    productMode: DEFAULT_AUDIT_PRODUCT_MODE,
     collectionMode: 'pre_brief',
     surface: 'client_form',
   });
@@ -119,7 +124,7 @@ async function mergePreBriefFromParsedResponses(
   const mergedForPlan = { ...existing, ...entries };
   const preBriefPlan = buildIntakePlan({
     responses: mergedForPlan,
-    productMode: 'full',
+    productMode: DEFAULT_AUDIT_PRODUCT_MODE,
     collectionMode: 'pre_brief',
     surface: 'client_form',
   });
@@ -421,15 +426,9 @@ intakeRouter.get(
  *   intakeVersionTuple?: IntakeVersionTuple  // omit to use current artifacts
  * }
  */
-const VALID_PRODUCT_MODES = new Set<string>(['full', 'express', 'discovery', 'pre_brief', 'free_snapshot']);
-const VALID_COLLECTION_MODES = new Set<string>(['full', 'discovery', 'pre_brief', 'express', 'free_snapshot']);
-const VALID_SURFACES = new Set<string>([
-  'consultant_interview',
-  'client_form',
-  'client_portal',
-  'internal_review',
-  'public_discovery',
-]);
+const VALID_PRODUCT_MODES = new Set<string>(INTAKE_PLAN_TRACE_PRODUCT_MODE_VALUES);
+const VALID_COLLECTION_MODES = new Set<string>(INTAKE_PLAN_TRACE_COLLECTION_MODE_VALUES);
+const VALID_SURFACES = new Set<string>(INTAKE_SURFACE_VALUES);
 
 intakeRouter.post(
   '/plan-trace',
@@ -445,7 +444,7 @@ intakeRouter.post(
           ? (body.responses as Record<string, unknown>)
           : {};
 
-      const rawMode = typeof body.productMode === 'string' ? body.productMode : 'full';
+      const rawMode = typeof body.productMode === 'string' ? body.productMode : DEFAULT_AUDIT_PRODUCT_MODE;
       if (!VALID_PRODUCT_MODES.has(rawMode)) {
         res
           .status(400)

@@ -3,7 +3,8 @@ import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 // Bare @glc/dev-brand-defaults resolves to dist/ during config preload; use source so CI need not prebuild.
-import { GLC_DEV_API_ORIGIN } from './packages/glc-dev-brand-defaults/src/index.ts'
+import { GLC_DEV_API_ORIGIN } from '@glc/dev-brand-defaults'
+import { API_HTTP_ROOT_PREFIX } from '@glc/api-paths'
 
 export default defineConfig(({ mode }) => ({
   esbuild: {
@@ -20,9 +21,9 @@ export default defineConfig(({ mode }) => ({
       // Alias @ to the src directory
       '@': path.resolve(__dirname, './src'),
       // Shared snapshot helpers consumed by the SPA (must stay free of Node-only imports)
-      '@shared/snapshot-scan-coverage': path.resolve(
+      '@glc/snapshot-scan-coverage': path.resolve(
         __dirname,
-        './server/src/snapshot/scan-coverage-from-stored-json.ts',
+        './packages/glc-snapshot-scan-coverage/src/index.ts',
       ),
       '@glc/intake-core/question-bank.v1.json': path.resolve(
         __dirname,
@@ -40,8 +41,10 @@ export default defineConfig(({ mode }) => ({
         __dirname,
         './packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json',
       ),
+      '@glc/brand-tokens': path.resolve(__dirname, './packages/glc-brand-tokens/src/index.ts'),
       '@glc/dev-brand-defaults': path.resolve(__dirname, './packages/glc-dev-brand-defaults/src/index.ts'),
       '@glc/intake-core': path.resolve(__dirname, './packages/intake-core/src/index.ts'),
+      '@glc/route-limits': path.resolve(__dirname, './packages/glc-route-limits/src/index.ts'),
     },
   },
 
@@ -50,7 +53,7 @@ export default defineConfig(({ mode }) => ({
 
   server: {
     proxy: {
-      '/api': {
+      [API_HTTP_ROOT_PREFIX]: {
         target: GLC_DEV_API_ORIGIN,
         changeOrigin: true,
       },

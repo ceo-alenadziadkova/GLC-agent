@@ -1,0 +1,87 @@
+{
+  "pipelineMonitor": {
+    "startReadyTitle": "Ready to start",
+    "startExpressDescription": "This will begin the Express audit (5 phases: Recon + 4 domains). Estimated cost depends on site size and crawl depth; typical runs use modest API credits.",
+    "startFullDescription": "This will begin the full 8-phase audit pipeline. Estimated cost depends on site size and depth; it uses more API credits than Express. See billing for details.",
+    "startPipelineButton": "Start Pipeline"
+  },
+  "newAudit": {
+    "draftNoticeIncomplete": "Draft saved in this browser. Add website (or no public site) and industry so we can also save to your account.",
+    "draftSavedAccountAndBrowser": "Draft saved to your account and this browser. You can continue from My Portal or keep editing here.",
+    "draftSavedLocalSyncFailed": "Draft saved in this browser. We could not save a copy to your account just now—you can keep working here. Try again later, or contact the GLC team if this keeps happening.",
+    "startAuditFailed": "We could not start your audit just now. Your answers are still saved in this browser tab. Please try again later, or contact the GLC team for help.",
+    "preBriefIndustryOtherRequired": "Describe the sector when Industry is Other.",
+    "appShellSubtitleClient": "Fill the brief and start your audit when you are ready",
+    "appShellSubtitleConsultant": "Start a comprehensive 8-domain business analysis",
+    "interviewModeHintOn": "Coaching prompts visible. Answers tagged as consultant-sourced.",
+    "interviewModeHintOff": "I'm filling this during a live call — show coaching hints"
+  },
+  "discoveryPublic": {
+    "breadcrumbHome": "Home",
+    "breadcrumbDiscovery": "Discovery",
+    "badge": "No URL required",
+    "heroTitle": "Clarify your digital next step before a big build",
+    "heroIntro": "When there is no public site, the brief is fuzzy, or the structure is unclear—Discovery is a structured questionnaire. We map channels, maturity, and priorities so you see a clear path: audit, site strategy, or implementation—without committing to a large project upfront.",
+    "bullets": [
+      "Good for launches, rebrands, or “we need something digital” with no live site.",
+      "Takes a few minutes; no account required to see your findings.",
+      "Sign in or register to save your answers on your account and continue toward your full audit."
+    ]
+  },
+  "settings": {
+    "passwordReauthRequired": "Sign in again (session must be recent to change password). Sign out, sign back in, then update your password.",
+    "emailChangeDualConfirm": "Confirmation emails sent. With secure email change, confirm from both your current and new inboxes."
+  },
+  "snapshotLanding": {
+    "trustSignedIn": "Signed in — results save to your account. Use Workspace for the full Express Audit.",
+    "trustAnonymous": "Try instantly — sign in anytime to unlock the full Express Audit"
+  },
+  "publicBrief": {
+    "breadcrumbsHome": "Home",
+    "breadcrumbsBrief": "Brief",
+    "heroTitle": "Want help from a specialist?",
+    "heroIntroBefore": "A short brief without tech jargon. We suggest a next step by format: a quick Snapshot, Discovery when there is no public site yet, or an audit path chosen by ",
+    "heroIntroStrong": "depth of analysis",
+    "heroIntroAfter": " (Express = focused scope, Full = broadest coverage)—not by how fast you need an answer.",
+    "sentBadge": "Sent",
+    "sentTitlePrefix": "We suggest starting with:",
+    "sentBody": "The link below opens that path. We will reach out via your preferred channel.",
+    "goToPrefix": "Go to:",
+    "linkSnapshot": "Snapshot",
+    "linkExpress": "Express",
+    "linkFullAudit": "Full audit",
+    "linkDiscovery": "Discovery",
+    "refPrefix": "Ref:",
+    "formNameLabel": "Name *",
+    "formNameRequired": "Please enter your name",
+    "formCompanyLabel": "Company",
+    "noPublicSiteYet": "No public site yet",
+    "websiteLabel": "Website (URL)",
+    "websitePlaceholder": "https://",
+    "websiteOrNoPublic": "Enter a URL or check “no public site yet”",
+    "concernLabel": "What is bothering you right now?",
+    "concernRequired": "Please add a short description",
+    "improveLabel": "What do you want to improve?",
+    "improveRequired": "Please add a short description",
+    "depthLegend": "How deep should the first audit path go?",
+    "depthHint": "Express = focused scope and fewer domains. Full = maximum coverage across the programme. This is about depth of analysis, not delivery speed.",
+    "depthExpress": "Express — enough to see the picture and first steps",
+    "depthFull": "Full — broadest audit depth",
+    "preferredContactLabel": "Preferred contact",
+    "contactOptions": ["Email", "Phone / WhatsApp", "Either is fine"],
+    "unsureCheckbox": "I am not sure what to choose—suggest a format (Snapshot if I have a site, Discovery if not)",
+    "unsureHelp": "We will recommend Snapshot when you have a public URL to scan, or Discovery when you do not. The server decides the exact route after submit.",
+    "submitSending": "Sending…",
+    "submitButton": "Submit brief",
+    "submitErrorGeneric": "Could not submit. Try again later.",
+    "submitErrorEmailSuffix": " or email {{email}}",
+    "nextSteps": [
+      { "to": "/faq", "label": "FAQ", "hint": "Answers before you reach out." },
+      { "to": "/snapshot", "label": "Snapshot", "hint": "If you want a fast automated read first." },
+      { "to": "/login", "label": "Sign in", "hint": "Already a client." }
+    ]
+  },
+  "portfolio": {
+    "appShellSubtitle": "All client audits and pipeline history (GLC team)"
+  }
+}

@@ -32,9 +32,6 @@ warnPlatformAdminUserIdsEnvBootstrap(logger);
 warnSelfServeAuditOwnerEnvIfSet(logger);
 
 const corsAllowedOrigins = getCorsAllowedOrigins();
-if (process.env.NODE_ENV === 'production' && corsAllowedOrigins.length === 0) {
-  logger.warn('CORS allowlist is empty: set ALLOWED_ORIGINS and/or FRONTEND_URL or browser API calls will fail CORS');
-}
 
 // ─── Middleware ─────────────────────────────────────────────
 app.use(traceMiddleware);

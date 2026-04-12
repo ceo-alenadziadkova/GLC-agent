@@ -12,6 +12,12 @@ export type DiscoveryGlueCopyV1 = {
     small: string;
     other: string;
   };
+  /** Sentence-leading clause after a period in long findings (see `teamClauseAfterPeriod` in discovery-flow). */
+  teamClauseAfterPeriod: {
+    soloOrUnknown: string;
+    small: string;
+    other: string;
+  };
   channels: {
     empty: string;
     listSeparator: string;

@@ -5,6 +5,9 @@ export type ProductMode = 'free_snapshot' | 'express' | 'full';
 
 export const PRODUCT_MODES: ProductMode[] = ['free_snapshot', 'express', 'full'];
 
+/** Default `audits.product_mode` when absent in DB or API input (not to be confused with report `profile`). */
+export const DEFAULT_AUDIT_PRODUCT_MODE: ProductMode = 'full';
+
 // ─── Domain Keys ───────────────────────────────────────────
 export const DOMAIN_KEYS = [
   'tech_infrastructure',

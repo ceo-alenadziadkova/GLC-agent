@@ -19,6 +19,10 @@ import { updateContext } from '../services/observability-context.js';
 import { logger } from '../services/logger.js';
 import { emitStructuredNotification } from '../services/notifications.js';
 import { isConsultantEmailRegistered } from '../services/consultant-allowlist.js';
+import {
+  REGISTRATION_GUEST_REGISTERED_NOTIFICATION_TITLE,
+  registrationGuestRegisteredMessage,
+} from '../config/route-notification-messages.js';
 
 export type UserRole = 'consultant' | 'client' | 'guest';
 
@@ -273,8 +277,8 @@ export async function attachProfile(req: AuthRequest, res: Response, next: NextF
         event: 'user_registered',
         priority: 'low',
         audience: 'consultants',
-        title: 'New user registered',
-        message: `Guest user completed registration as ${resolvedRole}.`,
+        title: REGISTRATION_GUEST_REGISTERED_NOTIFICATION_TITLE,
+        message: registrationGuestRegisteredMessage(resolvedRole),
         payload: {
           user_id: req.userId,
           role: resolvedRole,

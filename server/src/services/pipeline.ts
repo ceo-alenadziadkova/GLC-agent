@@ -21,12 +21,14 @@ import { logger } from './logger.js';
 import { getContext, updateContext } from './observability-context.js';
 import { emitStructuredNotification } from './notifications.js';
 import {
+  DEFAULT_AUDIT_PRODUCT_MODE,
   PHASE_DOMAIN_MAP,
   maxPhaseForMode,
   reviewPhasesForMode,
   type FreeSnapshotPreview,
   type ProductMode,
 } from '../types/audit.js';
+import { PIPELINE_EVENT_ERROR_CODES } from '../config/pipeline-event-error-codes.js';
 
 type AgentConstructor = new (auditId: string) => BaseAgent;
 
@@ -70,14 +72,14 @@ export class PipelineOrchestrator {
     this.auditId = auditId;
   }
 
-  /** Fetch the product_mode for this audit. Falls back to 'full' on error. */
+  /** Fetch the product_mode for this audit. Falls back to `DEFAULT_AUDIT_PRODUCT_MODE` on error. */
   private async getProductMode(): Promise<ProductMode> {
     const { data } = await supabase
       .from('audits')
       .select('product_mode')
       .eq('id', this.auditId)
       .single();
-    return (data?.product_mode as ProductMode) ?? 'full';
+    return (data?.product_mode as ProductMode) ?? DEFAULT_AUDIT_PRODUCT_MODE;
   }
 
   /**
@@ -296,7 +298,7 @@ export class PipelineOrchestrator {
         -1,
         'error',
         interpolateOrchestratorMessage(ocPar.parallel.allFailedTemplate, { domains: joined }),
-        { error_code: 'ALL_PARALLEL_PHASES_FAILED', domains_unavailable: failedDomains },
+        { error_code: PIPELINE_EVENT_ERROR_CODES.ALL_PARALLEL_PHASES_FAILED, domains_unavailable: failedDomains },
       );
       throw new Error(`All parallel phases failed: ${joined}`);
     }
@@ -459,7 +461,7 @@ export class PipelineOrchestrator {
         logger.warn('Free snapshot capacity', { audit_id: this.auditId });
         await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
         await this.emitEvent(0, 'error', ocFs.freeSnapshot.errorCapacity, {
-          error_code: 'SNAPSHOT_AT_CAPACITY',
+          error_code: PIPELINE_EVENT_ERROR_CODES.SNAPSHOT_AT_CAPACITY,
         });
         throw err;
       }
@@ -470,7 +472,7 @@ export class PipelineOrchestrator {
       });
       await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
       await this.emitEvent(0, 'error', ocFs.freeSnapshot.errorGeneric, {
-        error_code: 'FREE_SNAPSHOT_FAILED',
+        error_code: PIPELINE_EVENT_ERROR_CODES.FREE_SNAPSHOT_FAILED,
       });
       throw err;
     }

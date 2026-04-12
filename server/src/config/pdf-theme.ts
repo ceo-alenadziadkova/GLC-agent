@@ -1,26 +1,16 @@
 /**
  * PDF report palette and locale for @react-pdf/renderer.
- * Source of truth: constants in this module.
+ * Hex values come from `@glc/brand-tokens` (shared with SPA).
  */
 
-/** Brand and layout colors for @react-pdf/renderer. */
-export const PDF_THEME = {
-  navy: '#0F1729',
-  green: '#0ECF82',
-  orange: '#F24F1D',
-  blue: '#1CBDFF',
-  white: '#FFFFFF',
-  text: '#111827',
-  sub: '#6B7280',
-  bg: '#F9FAFB',
-  border: '#E5E7EB',
-  sevCritical: '#EF4444',
-  sevHigh: '#F97316',
-  sevMedium: '#EAB308',
-  coverUrlMuted: '#8BA3C7',
-} as const;
+import { GLC_BRAND_HEX } from '@glc/brand-tokens';
 
-/** BCP 47 tag for `toLocaleDateString` (report dates). */
+import { SYSTEM_DEFAULTS } from './system-defaults.js';
+
+/** Brand and layout colors for @react-pdf/renderer. */
+export const PDF_THEME = GLC_BRAND_HEX;
+
+/** BCP 47 tag for `toLocaleDateString` (report dates). Source: `SYSTEM_DEFAULTS.reportPdf.localeTag`. */
 export function pdfLocaleTag(): string {
-  return 'en-GB';
+  return SYSTEM_DEFAULTS.reportPdf.localeTag;
 }

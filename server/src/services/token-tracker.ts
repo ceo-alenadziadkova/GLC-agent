@@ -1,5 +1,7 @@
 import { supabase } from './supabase.js';
 import { getModelPricing, BUDGET_WARNING_THRESHOLD } from '../config/model.js';
+import { roundTokenCostUsd } from '../config/token-cost-rounding.js';
+import { formatTokenUsagePipelineEventMessage } from '../config/token-usage-messages.en.js';
 import { logger } from './logger.js';
 
 interface TokenUsage {
@@ -31,13 +33,13 @@ export class TokenTracker {
       audit_id: auditId,
       phase,
       event_type: 'token_usage',
-      message: `Phase ${phase}: ${totalTokens} tokens ($${costUsd.toFixed(4)})`,
+      message: formatTokenUsagePipelineEventMessage({ phase, totalTokens, costUsd }),
       data: {
         input_tokens: usage.input_tokens,
         output_tokens: usage.output_tokens,
         total_tokens: totalTokens,
         model: usage.model,
-        cost_usd: Math.round(costUsd * 10000) / 10000,
+        cost_usd: roundTokenCostUsd(costUsd),
       },
     });
 
@@ -110,6 +112,6 @@ export class TokenTracker {
       perPhase[event.phase].cost += cost;
     }
 
-    return { total_tokens: totalTokens, total_cost_usd: Math.round(totalCost * 10000) / 10000, per_phase: perPhase };
+    return { total_tokens: totalTokens, total_cost_usd: roundTokenCostUsd(totalCost), per_phase: perPhase };
   }
 }

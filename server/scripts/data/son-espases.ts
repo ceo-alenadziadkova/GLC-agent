@@ -12,6 +12,10 @@
 
 import { randomUUID } from 'crypto';
 
+import { SYSTEM_DEFAULTS } from '../../src/config/system-defaults.js';
+
+const DEMO_PIPELINE_MODEL_ID = SYSTEM_DEFAULTS.pipelineModel.claudeModelId;
+
 // ---------------------------------------------------------------------------
 // Shared IDs (fixed so the seed is idempotent / re-runnable)
 // ---------------------------------------------------------------------------
@@ -908,7 +912,7 @@ function buildEvents(auditId: string) {
   push(0, 'collecting', 'Extracting tech stack and social profiles…', { collector: 'recon' }, 2);
   push(0, 'assembling_context', null, {}, 3);
   push(0, 'analyzing', 'Calling Claude — Recon phase…', {}, 4);
-  push(0, 'token_usage', null, { input_tokens: 8400, output_tokens: 1200, model: 'claude-sonnet-4-20250514', cost_usd: 0.034 }, 6);
+  push(0, 'token_usage', null, { input_tokens: 8400, output_tokens: 1200, model: DEMO_PIPELINE_MODEL_ID, cost_usd: 0.034 }, 6);
   push(0, 'completed', 'Recon complete — Healthcare / Palma de Mallorca', { score: null }, 7);
   push(0, 'review_needed', 'Review Gate 1 — please add consultant notes before continuing', { after_phase: 0 }, 7);
 
@@ -917,14 +921,14 @@ function buildEvents(auditId: string) {
   push(1, 'assembling_context', null, {}, 15);
   push(1, 'analyzing', 'Calling Claude — Tech Infrastructure…', {}, 16);
   push(1, 'fact_check', 'No CDN header detected — score cap applied', { corrections: [{ field: 'cdn_present', expected: false, found: false }] }, 18);
-  push(1, 'token_usage', null, { input_tokens: 12200, output_tokens: 1800, model: 'claude-sonnet-4-20250514', cost_usd: 0.051 }, 19);
+  push(1, 'token_usage', null, { input_tokens: 12200, output_tokens: 1800, model: DEMO_PIPELINE_MODEL_ID, cost_usd: 0.051 }, 19);
   push(1, 'completed', 'Tech Infrastructure — Score: 2 / Needs Work', { score: 2 }, 19);
 
   // Phase 2 — Security
   push(2, 'collecting', 'Checking SSL, security headers, cookies…', { collector: 'security_headers' }, 20);
   push(2, 'assembling_context', null, {}, 21);
   push(2, 'analyzing', 'Calling Claude — Security & Compliance…', {}, 22);
-  push(2, 'token_usage', null, { input_tokens: 11800, output_tokens: 1600, model: 'claude-sonnet-4-20250514', cost_usd: 0.047 }, 24);
+  push(2, 'token_usage', null, { input_tokens: 11800, output_tokens: 1600, model: DEMO_PIPELINE_MODEL_ID, cost_usd: 0.047 }, 24);
   push(2, 'completed', 'Security & Compliance — Score: 3 / Moderate', { score: 3 }, 24);
 
   // Phase 3 — SEO
@@ -932,34 +936,34 @@ function buildEvents(auditId: string) {
   push(3, 'assembling_context', null, {}, 26);
   push(3, 'analyzing', 'Calling Claude — SEO & Digital…', {}, 27);
   push(3, 'fact_check', 'No JSON-LD detected — confirmed by collector', { corrections: [] }, 29);
-  push(3, 'token_usage', null, { input_tokens: 13400, output_tokens: 1900, model: 'claude-sonnet-4-20250514', cost_usd: 0.056 }, 29);
+  push(3, 'token_usage', null, { input_tokens: 13400, output_tokens: 1900, model: DEMO_PIPELINE_MODEL_ID, cost_usd: 0.056 }, 29);
   push(3, 'completed', 'SEO & Digital — Score: 2 / Needs Work', { score: 2 }, 29);
 
   // Phase 4 — UX
   push(4, 'collecting', 'Analysing page structure, navigation, CTAs, accessibility…', { collector: 'accessibility' }, 30);
   push(4, 'assembling_context', null, {}, 31);
   push(4, 'analyzing', 'Calling Claude — UX & Conversion…', {}, 32);
-  push(4, 'token_usage', null, { input_tokens: 14100, output_tokens: 2100, model: 'claude-sonnet-4-20250514', cost_usd: 0.061 }, 34);
+  push(4, 'token_usage', null, { input_tokens: 14100, output_tokens: 2100, model: DEMO_PIPELINE_MODEL_ID, cost_usd: 0.061 }, 34);
   push(4, 'completed', 'UX & Conversion — Score: 2 / Needs Work', { score: 2 }, 34);
   push(4, 'review_needed', 'Review Gate 2 — add notes before Analytic Wing', { after_phase: 4 }, 34);
 
   // Phase 5 — Marketing
   push(5, 'assembling_context', 'Including consultant + interview notes from Gate 2…', {}, 57);
   push(5, 'analyzing', 'Calling Claude — Marketing & Positioning…', {}, 58);
-  push(5, 'token_usage', null, { input_tokens: 16800, output_tokens: 2400, model: 'claude-sonnet-4-20250514', cost_usd: 0.071 }, 60);
+  push(5, 'token_usage', null, { input_tokens: 16800, output_tokens: 2400, model: DEMO_PIPELINE_MODEL_ID, cost_usd: 0.071 }, 60);
   push(5, 'completed', 'Marketing & Positioning — Score: 2 / Needs Work', { score: 2 }, 60);
 
   // Phase 6 — Automation
   push(6, 'assembling_context', null, {}, 61);
   push(6, 'analyzing', 'Calling Claude — Automation & Processes…', {}, 62);
-  push(6, 'token_usage', null, { input_tokens: 15200, output_tokens: 2200, model: 'claude-sonnet-4-20250514', cost_usd: 0.063 }, 64);
+  push(6, 'token_usage', null, { input_tokens: 15200, output_tokens: 2200, model: DEMO_PIPELINE_MODEL_ID, cost_usd: 0.063 }, 64);
   push(6, 'completed', 'Automation & Processes — Score: 2 / Needs Work', { score: 2 }, 64);
   push(6, 'review_needed', 'Review Gate 3 — final approval before Strategy synthesis', { after_phase: 6 }, 64);
 
   // Phase 7 — Strategy
   push(7, 'assembling_context', 'Synthesising all 6 domains + all review notes…', {}, 90);
   push(7, 'analyzing', 'Calling Claude — Strategy synthesis…', {}, 91);
-  push(7, 'token_usage', null, { input_tokens: 24600, output_tokens: 3800, model: 'claude-sonnet-4-20250514', cost_usd: 0.110 }, 94);
+  push(7, 'token_usage', null, { input_tokens: 24600, output_tokens: 3800, model: DEMO_PIPELINE_MODEL_ID, cost_usd: 0.110 }, 94);
   push(7, 'completed', 'Strategy complete — Overall score: 2.2', { score: 2.2 }, 95);
 
   return events;

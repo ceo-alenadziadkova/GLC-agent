@@ -22,6 +22,7 @@ import {
   SNAPSHOT_PUBLIC_MAX_PER_DAY,
   SNAPSHOT_PUBLIC_WINDOW_MS,
 } from '../config/rate-limits.js';
+import { REDIS_KEYS } from '../config/redis-keys.js';
 import {
   RATE_LIMIT_COMPARE_MESSAGE,
   RATE_LIMIT_DISCOVER_ANALYTICS_MESSAGE,
@@ -90,7 +91,7 @@ function distributedStore(prefix: string): RedisStore | undefined {
   const client = getSharedRedisClient();
   if (!client) return undefined;
   return new RedisStore({
-    prefix: `${rateLimitRedisKeyPrefix()}glc:${prefix}:`,
+    prefix: `${rateLimitRedisKeyPrefix()}${REDIS_KEYS.rateLimitNamespace}:${prefix}:`,
     sendCommand: (...args: string[]) => client.sendCommand(args),
   });
 }

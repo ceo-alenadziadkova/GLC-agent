@@ -409,6 +409,8 @@ Queue-backed execution/fallback behavior is the same as `pipeline/start`.
 
 Current pipeline state. Recent **`pipeline_events`** rows are capped at **`SYSTEM_DEFAULTS.routeQueries.pipelineStatusEventsLimit`** (default **50**; see `PIPELINE_STATUS_EVENTS_LIMIT` in `server/src/config/route-query-limits.ts`).
 
+Orchestrator-emitted `error` rows may include **`data.error_code`** for stable downstream handling. Source of truth: **`PIPELINE_EVENT_ERROR_CODES`** in `server/src/config/pipeline-event-error-codes.ts` (e.g. parallel block total failure, free snapshot capacity, free snapshot generic failure).
+
 **Response `200`:**
 
 ```json

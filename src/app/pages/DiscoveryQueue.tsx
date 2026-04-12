@@ -16,7 +16,11 @@ import { api } from '../data/apiService';
 import { AppShell } from '../components/AppShell';
 import { glcKeys } from '../lib/glc-keys';
 import { UI_FEEDBACK_FLASH_MS } from '../config/ui-feedback-defaults';
-import { DISCOVERY_QUEUE_COPY } from '../config/discovery-queue-copy.en';
+import {
+  DISCOVERY_QUEUE_COPY,
+  DISCOVERY_QUEUE_MATURITY_COLOR_FALLBACK,
+  DISCOVERY_QUEUE_MATURITY_COLORS,
+} from '../config/discovery-queue-copy.en';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -36,14 +40,6 @@ interface DiscoverySession {
 
 // ── Maturity helpers ──────────────────────────────────────────────────────────
 
-const MATURITY_COLORS: Record<number, string> = {
-  1: '#EF4444',
-  2: '#F97316',
-  3: '#F59E0B',
-  4: '#10B981',
-  5: '#6B7280',
-};
-
 function maturityLabel(level: number): string {
   const fromCopy = DISCOVERY_QUEUE_COPY.maturity[level as keyof typeof DISCOVERY_QUEUE_COPY.maturity];
   return fromCopy ?? DISCOVERY_QUEUE_COPY.maturityLevelFallback(level);
@@ -52,7 +48,7 @@ function maturityLabel(level: number): string {
 function maturityConfig(level: number): { label: string; color: string } {
   return {
     label: maturityLabel(level),
-    color: MATURITY_COLORS[level] ?? '#6B7280',
+    color: DISCOVERY_QUEUE_MATURITY_COLORS[level] ?? DISCOVERY_QUEUE_MATURITY_COLOR_FALLBACK,
   };
 }
 

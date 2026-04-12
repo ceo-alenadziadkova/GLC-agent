@@ -1,3 +1,4 @@
+import { GLC_AUDITS_AND_AUDIT_REQUESTS_LIST } from '@glc/route-limits';
 import { API_PATHS } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
 import type { AuditRequest } from '../auditTypes';
@@ -18,7 +19,7 @@ export const auditRequestsApi = {
     });
   },
 
-  async listAuditRequests(limit = 50, offset = 0) {
+  async listAuditRequests(limit = GLC_AUDITS_AND_AUDIT_REQUESTS_LIST.defaultLimit, offset = 0) {
     return apiFetch<{ data: AuditRequest[]; total: number; limit: number; offset: number }>(
       `${API_PATHS.auditRequests}?limit=${limit}&offset=${offset}`,
     );

@@ -5,6 +5,7 @@
 import { supabase } from '../services/supabase.js';
 import { saveBriefResponses } from '../services/brief-validator.js';
 import {
+  DEFAULT_AUDIT_PRODUCT_MODE,
   DOMAIN_KEYS,
   EXPRESS_DOMAIN_KEYS,
   type ProductMode,
@@ -190,7 +191,7 @@ export async function upgradeFreeSnapshotAudit(params: {
     };
   }
 
-  const nextMode: ProductMode = targetMode === 'express' ? 'express' : 'full';
+  const nextMode: ProductMode = targetMode === 'express' ? 'express' : DEFAULT_AUDIT_PRODUCT_MODE;
   const domainKeys = nextMode === 'express' ? [...EXPRESS_DOMAIN_KEYS] : [...DOMAIN_KEYS];
   const reviewPhases = reviewPhasesForMode(nextMode);
 
@@ -261,7 +262,7 @@ export async function upgradeFreeSnapshotAudit(params: {
     };
   }
 
-  if (nextMode === 'full') {
+  if (nextMode === DEFAULT_AUDIT_PRODUCT_MODE) {
     const { data: strat } = await supabase.from('audit_strategy').select('id').eq('audit_id', auditId).maybeSingle();
     if (!strat) {
       const { error: sErr } = await supabase.from('audit_strategy').insert({ audit_id: auditId });

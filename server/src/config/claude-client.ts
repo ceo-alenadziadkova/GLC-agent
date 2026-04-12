@@ -5,6 +5,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
+import { REDIS_KEYS } from './redis-keys.js';
 import { SYSTEM_DEFAULTS } from './system-defaults.js';
 
 const C = SYSTEM_DEFAULTS.claudeHttp;
@@ -24,7 +25,7 @@ export const CLAUDE_CB_TTL_SEC = C.cbTtlSec;
 
 export function claudeCircuitBreakerRedisKey(): string {
   const p = process.env.REDIS_KEY_PREFIX?.trim().replace(/:+$/, '');
-  return p ? `${p}:cb:claude:failures` : 'cb:claude:failures';
+  return p ? `${p}:${REDIS_KEYS.claudeCircuitBreakerFailures}` : REDIS_KEYS.claudeCircuitBreakerFailures;
 }
 
 /**

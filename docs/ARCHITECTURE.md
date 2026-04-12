@@ -126,6 +126,20 @@ Tightening boundaries is **rules + structure + checks**, not one large refactor.
 
 **Process:** do not add a new `process.env.FOO` without documenting it in `**server/.env.example`** (or the ops-tuning tables in [DEPLOYMENT.md](./DEPLOYMENT.md)) with a one-line purpose.
 
+#### Documented ops exceptions (env overrides for incidents)
+
+These variables tune **product-adjacent** behaviour without a deploy when operations need a quick lever. Defaults remain in **`SYSTEM_DEFAULTS`** or focused config modules; env wins when set. Prefer **database-backed feature flags** or admin settings for anything that should change often, differ per tenant, or be owned by product — treat the list below as **escape hatches**, not the primary configuration model.
+
+| Variable | Purpose | Default when unset |
+| -------- | ------- | ------------------ |
+| **`PIPELINE_CLAUDE_MODEL_ID`** / **`ANTHROPIC_MODEL`** | Override the pipeline Claude model id (`PIPELINE_CLAUDE_MODEL_ID` wins if set; else `ANTHROPIC_MODEL`). | `SYSTEM_DEFAULTS.pipelineModel.claudeModelId` (see `server/src/config/model.ts`) |
+| **`SENTRY_TRACES_SAMPLE_RATE`** | Traces sampling rate for Sentry (`0.0`–`1.0`). | `SYSTEM_DEFAULTS.observability.sentryTracesSampleRateDefault` (see `server/src/config/sentry.ts`) |
+| **`SENTRY_TRACE_LINK_TEMPLATE`** | Optional deep-link template for alert copy; `{trace_id}` placeholder. | No link; raw `trace_id` in text |
+| **`TRACE_LINK_TEMPLATE`** | Optional second trace URL template for alerts; `{trace_id}` placeholder. | Omitted |
+| **`ANTHROPIC_BASE_URL`** | Anthropic-compatible API base (proxy / regional gateway). | SDK default |
+
+**`SENTRY_DSN`**, **`TELEGRAM_BOT_TOKEN`**, **`TELEGRAM_CHAT_ID`**, Redis URLs, and similar entries are **infrastructure**, not ops exceptions — they belong in env as the normal case.
+
 #### CONFIG (`server/src/config/*.ts`)
 
 Non-secret values that define **default product behavior**: timeouts, limits, fact-checker thresholds, pagination defaults, observability trimming, etc.

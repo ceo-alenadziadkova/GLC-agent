@@ -12,6 +12,7 @@ import {
 } from '../middleware/auth.js';
 import { createAuditLimiter, generalLimiter } from '../middleware/rate-limit.js';
 import {
+  DEFAULT_AUDIT_PRODUCT_MODE,
   DOMAIN_KEYS,
   EXPRESS_DOMAIN_KEYS,
   reviewPhasesForMode,
@@ -172,7 +173,7 @@ auditsRouter.post('/', attachProfile, createAuditLimiter, async (req: AuthReques
     }
 
     const { company_url, company_name, industry, product_mode, no_public_website } = req.body;
-    const mode: ProductMode = product_mode === 'express' ? 'express' : 'full';
+    const mode: ProductMode = product_mode === 'express' ? 'express' : DEFAULT_AUDIT_PRODUCT_MODE;
     const idempotent = await getStoredIdempotentResponse(req, idempotencyPostAuditsCreateKey(), req.body);
     if (idempotent.replay) {
       res.status(idempotent.replay.statusCode).json(idempotent.replay.payload);

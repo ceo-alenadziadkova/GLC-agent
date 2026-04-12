@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.0.1",
   "auditRequest": {
     "createdConsultantsTitle": "New client request",
     "createdConsultantsMessage": "A client submitted a new audit request.",
@@ -30,7 +30,12 @@
     "retryStartedTitle": "Phase retry started",
     "retryStartedMessageTemplate": "Retry was requested for phase {{phase}}.",
     "reviewApprovedTitle": "Review approved",
-    "reviewApprovedMessageTemplate": "Review point after phase {{phase}} approved."
+    "reviewApprovedMessageTemplate": "Review point after phase {{phase}} approved.",
+    "phaseFailedTitle": "Pipeline failure"
+  },
+  "registration": {
+    "guestRegisteredTitle": "New user registered",
+    "guestRegisteredMessageTemplate": "Guest user completed registration as {{role}}."
   },
   "reports": {
     "artifactReadyTitle": "Artifact ready",

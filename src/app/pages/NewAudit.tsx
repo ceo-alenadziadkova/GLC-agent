@@ -42,6 +42,7 @@ import {
   CLIENT_BRIEF_LAYOUT_DEFAULT_KEY,
   clientBriefLayoutStorageKey,
 } from '../lib/client-brief-layout-preference';
+import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 import {
   clearClientPortalNewAuditDraft,
   readClientPortalNewAuditDraft,
@@ -428,7 +429,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         draftIntakeVersions,
       });
       if (!step1Valid) {
-        setDraftNotice('Draft saved in this browser. Add website (or no public site) and industry so we can also save to your account.');
+        setDraftNotice(WORKSPACE_PAGE_COPY.newAudit.draftNoticeIncomplete);
         return;
       }
 
@@ -472,12 +473,12 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
       });
 
       setDraftNotice(
-        'Draft saved to your account and this browser. You can continue from My Portal or keep editing here.',
+        WORKSPACE_PAGE_COPY.newAudit.draftSavedAccountAndBrowser,
       );
     } catch (err) {
       if (isSelfServeOwnerConfigApiError(err)) {
         setDraftNotice(
-          'Draft saved in this browser. We could not save a copy to your account just now—you can keep working here. Try again later, or contact the GLC team if this keeps happening.',
+          WORKSPACE_PAGE_COPY.newAudit.draftSavedLocalSyncFailed,
         );
       } else {
         setDraftError(err instanceof ApiError ? err.message : (err as Error).message);
@@ -568,7 +569,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
     } catch (err) {
       if (isClientSelfServe && isSelfServeOwnerConfigApiError(err)) {
         setError(
-          'We could not start your audit just now. Your answers are still saved in this browser tab. Please try again later, or contact the GLC team for help.',
+          WORKSPACE_PAGE_COPY.newAudit.startAuditFailed,
         );
       } else {
         setError(err instanceof ApiError ? err.message : (err as Error).message);
@@ -600,7 +601,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
     setPreBriefLink(null);
     try {
       if (preBriefIndustryField === 'Other' && !preBriefIndustrySpecify.trim()) {
-        setPreBriefErr('Describe the sector when Industry is Other.');
+        setPreBriefErr(WORKSPACE_PAGE_COPY.newAudit.preBriefIndustryOtherRequired);
         setPreBriefLoading(false);
         return;
       }
@@ -682,7 +683,11 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
   return (
     <AppShell
       title={isClientSelfServe ? 'New audit' : 'New Audit'}
-      subtitle={isClientSelfServe ? 'Fill the brief and start your audit when you are ready' : 'Start a comprehensive 8-domain business analysis'}
+      subtitle={
+        isClientSelfServe
+          ? WORKSPACE_PAGE_COPY.newAudit.appShellSubtitleClient
+          : WORKSPACE_PAGE_COPY.newAudit.appShellSubtitleConsultant
+      }
       actions={
         isClientSelfServe ? (
           <Link
@@ -984,8 +989,8 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                       </span>
                       <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
                         {interviewMode
-                          ? 'Coaching prompts visible. Answers tagged as consultant-sourced.'
-                          : "I'm filling this during a live call — show coaching hints"}
+                          ? WORKSPACE_PAGE_COPY.newAudit.interviewModeHintOn
+                          : WORKSPACE_PAGE_COPY.newAudit.interviewModeHintOff}
                       </p>
                     </div>
                   </label>

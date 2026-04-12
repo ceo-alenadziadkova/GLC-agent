@@ -12,6 +12,7 @@ import {
   Tray,
   PlusCircle,
 } from '@phosphor-icons/react';
+import { APP_SHELL_COPY } from '../config/app-shell-copy';
 
 export type AppShellNavItem = {
   to: string | null;
@@ -21,30 +22,32 @@ export type AppShellNavItem = {
 };
 
 export function buildConsultantNav(auditId: string | null): AppShellNavItem[] {
+  const n = APP_SHELL_COPY.nav.consultant;
   return [
-    { to: '/dashboard',                           icon: SquaresFour,    label: 'Dashboard',       badge: null },
-    { to: '/admin/requests',                      icon: Tray,           label: 'Request queue',   badge: null },
-    { to: '/admin/snapshots',                     icon: Lightning,      label: 'Snapshot queue',  badge: null },
-    { to: '/admin/discovery',                     icon: MagnifyingGlass,label: 'Discovery queue', badge: null },
+    { to: '/dashboard',                           icon: SquaresFour,    label: n.dashboard,       badge: null },
+    { to: '/admin/requests',                      icon: Tray,           label: n.requestQueue,   badge: null },
+    { to: '/admin/snapshots',                     icon: Lightning,      label: n.snapshotQueue,  badge: null },
+    { to: '/admin/discovery',                     icon: MagnifyingGlass,label: n.discoveryQueue, badge: null },
     // TODO(next iteration): restore Intake trace / Intake wording admin links
     // after refining owner workflows and usage criteria.
-    { to: auditId ? `/audit/${auditId}` : null,   icon: Briefcase,      label: 'Audit Workspace', badge: null },
-    { to: auditId ? `/pipeline/${auditId}` : null,icon: Pulse,          label: 'Pipeline',        badge: null },
-    { to: auditId ? `/reports/${auditId}` : null, icon: FileText,       label: 'Reports',         badge: null },
-    { to: auditId ? `/strategy/${auditId}` : null,icon: Flask,          label: 'Strategy Lab',    badge: null },
+    { to: auditId ? `/audit/${auditId}` : null,   icon: Briefcase,      label: n.auditWorkspace, badge: null },
+    { to: auditId ? `/pipeline/${auditId}` : null,icon: Pulse,          label: n.pipeline,        badge: null },
+    { to: auditId ? `/reports/${auditId}` : null, icon: FileText,       label: n.reports,         badge: null },
+    { to: auditId ? `/strategy/${auditId}` : null,icon: Flask,          label: n.strategyLab,    badge: null },
   ];
 }
 
 export function buildClientNav(auditId: string | null, showPipelineInNav: boolean): AppShellNavItem[] {
+  const n = APP_SHELL_COPY.nav.client;
   return [
-    { to: '/portal',                                        icon: HouseSimple,   label: 'My Portal',    badge: null },
-    { to: auditId ? `/portal/audit/${auditId}` : null,     icon: Eye,           label: 'Audit Status', badge: null },
-    { to: auditId && showPipelineInNav ? `/portal/pipeline/${auditId}` : null,   icon: Pulse,         label: 'Pipeline',     badge: null },
+    { to: '/portal',                                        icon: HouseSimple,   label: n.myPortal,    badge: null },
+    { to: auditId ? `/portal/audit/${auditId}` : null,     icon: Eye,           label: n.auditStatus, badge: null },
+    { to: auditId && showPipelineInNav ? `/portal/pipeline/${auditId}` : null,   icon: Pulse,         label: n.pipeline,     badge: null },
   ];
 }
 
 export function buildGuestNav(): AppShellNavItem[] {
-  return [{ to: '/snapshot', icon: Lightning, label: 'Free snapshot', badge: null }];
+  return [{ to: '/snapshot', icon: Lightning, label: APP_SHELL_COPY.nav.guest.freeSnapshot, badge: null }];
 }
 
 export function isNavItemActive(pathname: string, to: string): boolean {
@@ -67,7 +70,7 @@ export function buildMobileBottomNavItems(
     const urls = new Set(withTo.map(i => i.to));
     const out: AppShellNavItem[] = [...withTo];
     if (!urls.has('/portal/audit/new')) {
-      out.push({ to: '/portal/audit/new', icon: PlusCircle, label: 'New audit', badge: null });
+      out.push({ to: '/portal/audit/new', icon: PlusCircle, label: APP_SHELL_COPY.sidebar.newAudit, badge: null });
     }
     return out.slice(0, 4);
   }

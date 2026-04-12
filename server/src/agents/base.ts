@@ -35,7 +35,8 @@ type ClaudeCircuitRedisClient = ReturnType<typeof createClient>;
 let claudeCircuitRedis: ClaudeCircuitRedisClient | null = null;
 
 function getClaudeCircuitRedisClient(): ClaudeCircuitRedisClient | null {
-  const redisUrl = process.env.RATE_LIMIT_REDIS_URL?.trim() ?? '';
+  const redisUrl =
+    (process.env.CLAUDE_CIRCUIT_REDIS_URL?.trim() || process.env.RATE_LIMIT_REDIS_URL?.trim()) ?? '';
   if (!redisUrl) return null;
   if (claudeCircuitRedis) return claudeCircuitRedis;
   const client = createClient({ url: redisUrl });

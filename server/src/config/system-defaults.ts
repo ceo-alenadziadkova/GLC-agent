@@ -4,6 +4,14 @@
  * documented infra needs (see `server/.env.example`).
  */
 
+import {
+  GLC_AUDITS_AND_AUDIT_REQUESTS_LIST,
+  GLC_DISCOVER_SESSIONS_LIST_MAX,
+  GLC_INTAKE_SUBMISSIONS_LIST_MAX,
+  GLC_NOTIFICATIONS_LIST,
+  GLC_PIPELINE_STATUS_EVENTS_LIMIT,
+} from '@glc/route-limits';
+
 export const SYSTEM_DEFAULTS = {
   express: {
     jsonBodyLimit: '2mb',
@@ -23,18 +31,18 @@ export const SYSTEM_DEFAULTS = {
     snapshotCompareWindowHours: 1,
     snapshotLogIngestMaxPerMin: 40,
   },
-  auditsList: {
-    defaultLimit: 50,
-    maxLimit: 200,
-  },
+  auditsList: GLC_AUDITS_AND_AUDIT_REQUESTS_LIST,
   /**
    * Supabase `.limit()` caps and list pagination for dashboard / status routes.
+   * Numeric source: `@glc/route-limits` (shared with the SPA).
    */
   routeQueries: {
-    notifications: { defaultLimit: 30, maxLimit: 100, minLimit: 1 },
-    discoverSessionsMaxRows: 100,
-    intakeSubmissionsMaxRows: 100,
-    pipelineStatusEventsLimit: 50,
+    notifications: GLC_NOTIFICATIONS_LIST,
+    discoverSessionsMaxRows: GLC_DISCOVER_SESSIONS_LIST_MAX,
+    intakeSubmissionsMaxRows: GLC_INTAKE_SUBMISSIONS_LIST_MAX,
+    pipelineStatusEventsLimit: GLC_PIPELINE_STATUS_EVENTS_LIMIT,
+    /** Same caps as `auditsList` — GET /api/audit-requests pagination. */
+    auditRequestsList: GLC_AUDITS_AND_AUDIT_REQUESTS_LIST,
   },
   /** Report export / markdown profile slice sizes (`ReportProfiler`). */
   reportProfiler: {
@@ -42,6 +50,9 @@ export const SYSTEM_DEFAULTS = {
     ownerTopRecsMax: 8,
     onepagerTopIssuesMax: 3,
     onepagerTopQuickWinsMax: 3,
+    /** Per-domain caps in PDF export (`pdf-generator.tsx`); keep in family with markdown profiler limits. */
+    pdfDomainIssuesMax: 15,
+    pdfDomainQuickWinsMax: 10,
   },
   /** Upper bounds on arrays stored or shown from collectors and follow-up heuristics. */
   collectorsSampling: {
@@ -143,6 +154,10 @@ export const SYSTEM_DEFAULTS = {
     'claude-haiku-4-5-20251001': { input: 0.8, output: 4.0 },
     'claude-opus-4-20250514': { input: 15.0, output: 75.0 },
   },
+  /** Stored `cost_usd` rounding in `pipeline_events` and audit cost rollups (`TokenTracker`). */
+  tokenTracker: {
+    costUsdDecimalPlaces: 4,
+  },
   claudeHttp: {
     maxRetries: 3,
     retryBaseMs: 1500,
@@ -150,6 +165,15 @@ export const SYSTEM_DEFAULTS = {
     timeoutMs: 90_000,
     cbThreshold: 3,
     cbTtlSec: 60,
+  },
+  /**
+   * Quality gate rules (`ConsistencyChecker`) — score/confidence checks before review approval.
+   */
+  qualityGate: {
+    /** Low-confidence issues share above which we warn (Rule: low_confidence_majority). */
+    lowConfidenceRatioWarn: 0.5,
+    /** `unknown_items` length above which we flag excessive data gaps (Rule: excessive_data_gaps). */
+    maxUnknownItemsForInfo: 4,
   },
   pipelineOrchestrator: {
     stalledPhaseTimeoutMin: 15,
@@ -253,5 +277,10 @@ export const SYSTEM_DEFAULTS = {
     uxRowSummarySliceChars: 397,
     businessActivityBlurbMaxChars: 1200,
     reconPrefillTechStackLinesMax: 40,
+  },
+  /** PDF export (`pdf-generator` / `pdf-theme`). */
+  reportPdf: {
+    /** BCP 47 tag for `toLocaleDateString` in reports. */
+    localeTag: 'en-GB',
   },
 } as const;

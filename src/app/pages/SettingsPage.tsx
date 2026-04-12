@@ -23,6 +23,7 @@ import {
   applyConsultantBriefLayoutAskEachTime,
 } from '../lib/client-brief-layout-preference';
 import { SETTINGS_SELF_SERVE_COPY } from '../config/settings-self-serve-copy.en';
+import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 
 type NotificationPrefs = {
   auditStatusReminders: boolean;
@@ -175,9 +176,7 @@ export function SettingsPage() {
       if (error) {
         const msg = (error.message ?? '').toLowerCase();
         if (msg.includes('reauth') || msg.includes('recent') || msg.includes('session')) {
-          toast.error(
-            'Sign in again (session must be recent to change password). Sign out, sign back in, then update your password.',
-          );
+          toast.error(WORKSPACE_PAGE_COPY.settings.passwordReauthRequired);
         } else {
           toast.error(error.message);
         }
@@ -209,9 +208,7 @@ export function SettingsPage() {
         return;
       }
       setNewEmail('');
-      toast.success(
-        'Confirmation emails sent. With secure email change, confirm from both your current and new inboxes.',
-      );
+      toast.success(WORKSPACE_PAGE_COPY.settings.emailChangeDualConfirm);
     } finally {
       setSavingEmail(false);
     }

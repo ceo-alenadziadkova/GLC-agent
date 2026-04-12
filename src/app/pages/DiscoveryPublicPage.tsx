@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MapTrifold } from '@phosphor-icons/react';
 import { MarketingLayout } from '../marketing/MarketingLayout';
 import { DiscoverPage } from './DiscoverPage';
+import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 
 export function DiscoveryPublicPage() {
   const [discoveryWide, setDiscoveryWide] = useState(false);
@@ -16,8 +17,8 @@ export function DiscoveryPublicPage() {
     <MarketingLayout
       showFooter={false}
       breadcrumbs={[
-        { label: 'Home', to: '/' },
-        { label: 'Discovery' },
+        { label: WORKSPACE_PAGE_COPY.discoveryPublic.breadcrumbHome, to: '/' },
+        { label: WORKSPACE_PAGE_COPY.discoveryPublic.breadcrumbDiscovery },
       ]}
     >
       <div
@@ -48,7 +49,7 @@ export function DiscoveryPublicPage() {
                   }}
                 >
                   <MapTrifold className="h-3.5 w-3.5 shrink-0" weight="fill" />
-                  No URL required
+                  {WORKSPACE_PAGE_COPY.discoveryPublic.badge}
                 </div>
               </div>
 
@@ -63,24 +64,18 @@ export function DiscoveryPublicPage() {
                   lineHeight: 1.08,
                 }}
               >
-                Clarify your digital next step before a big build
+                {WORKSPACE_PAGE_COPY.discoveryPublic.heroTitle}
               </h1>
 
               <p
                 className="mx-auto max-w-md text-pretty leading-relaxed lg:mx-0 mobile:max-w-none"
                 style={{ color: 'var(--text-secondary)', fontSize: 'clamp(0.8125rem, 2.85vw, 0.975rem)' }}
               >
-                When there is no public site, the brief is fuzzy, or the structure is unclear—Discovery is a structured
-                questionnaire. We map channels, maturity, and priorities so you see a clear path: audit, site strategy,
-                or implementation—without committing to a large project upfront.
+                {WORKSPACE_PAGE_COPY.discoveryPublic.heroIntro}
               </p>
 
               <ul className="mx-auto grid max-w-md gap-2 text-left text-sm leading-relaxed lg:mx-0 lg:max-w-none" style={{ color: 'var(--text-secondary)' }}>
-                {[
-                  'Good for launches, rebrands, or “we need something digital” with no live site.',
-                  'Takes a few minutes; no account required to see your findings.',
-                  'Sign in or register to save your answers on your account and continue toward your full audit.',
-                ].map(line => (
+                {WORKSPACE_PAGE_COPY.discoveryPublic.bullets.map(line => (
                   <li key={line} className="flex gap-2">
                     <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: 'var(--glc-blue)' }} />
                     <span>{line}</span>
