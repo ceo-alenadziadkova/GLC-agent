@@ -98,10 +98,11 @@ This is more precise than v1's blanket "any 3 assumptions" threshold, which was 
 
 ### 4. Evaluation Dataset — Per-Phase Run Logging
 
-**Type file**: `server/src/types/evaluation-dataset.ts`
-**DB table**: `evaluation_datasets` (see SQL migration in type file)
+**Type file**: `server/src/types/evaluation-dataset.ts`  
+**DDL**: `server/migrations/051_evaluation_datasets_and_execution_mode.sql`  
+**Writer**: `server/src/services/evaluation-dataset-writer.ts` (best-effort insert; failures are logged only)
 
-Each phase completion triggers an async insert into `evaluation_datasets`:
+After each domain phase, once `DecisionLayer` has set `decision_hint` and `control_object` is emitted, the orchestrator calls `recordEvaluationDatasetIfEnabled()` with sanitised JSON. Inserts are **disabled** when env `EVALUATION_DATASETS_INSERT=false` (default: enabled). This is a synchronous write on the hot path, kept minimal so it does not block success of the phase.
 
 | Column | Purpose |
 |---|---|
@@ -111,14 +112,14 @@ Each phase completion triggers an async insert into `evaluation_datasets`:
 | `human_feedback` | Consultant's post-gate decision + corrections (populated at review gates) |
 | `decision_applied` | `accept` / `accept_with_warnings` / `refine` |
 | `retention_policy` | `default` (90 days) / `extended` (1 year) / `internal_only` (1 year) |
-| `pii_sanitized` | Must be `true` before insert; PII masking is caller's responsibility |
+| `pii_sanitized` | Set `true` after `sanitizeJsonForEvaluationDataset()` in the writer |
 
 **Retention**:
 - Default rows expire after 90 days. An async job (hourly) deletes expired rows.
 - Internal/learning samples use `extended` or `internal_only` policy (365 days).
 - `expires_at` is a DB-generated column — never set manually.
 
-**PII policy**: Domain names, company identifiers, and personally identifiable fields must be masked by the caller (pipeline service) before insert. The `pii_sanitized` boolean is a guard rail — inserting with `false` is blocked by application logic (not yet a DB constraint, to be added in Phase 4+).
+**PII policy**: The writer applies deterministic redaction (URLs, emails, sensitive key names) before insert and sets `pii_sanitized=true`. A DB constraint enforcing `pii_sanitized` may be added in Phase 4+.
 
 **Advisory-only in Phase 2**: `evaluation_datasets` is purely observational. No service reads from it in Phase 2. Phase 5 will add an async aggregation job to `agent_performance_aggregate`.
 

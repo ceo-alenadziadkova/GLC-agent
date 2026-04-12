@@ -73,6 +73,12 @@ After the agent run, `PipelineOrchestrator` applies `DecisionLayer.decide(contro
 
 **Post-wing quality gates** remain separate: `ConsistencyChecker` still emits `quality_gate` with `QualityGateReport` (score/consistency checks across completed domains). Do not confuse `quality_gate` with CONTROL_OBJECT.
 
+**Threshold note**: `DecisionLayer` uses **85 / 70** on `confidence.overall` for accept / accept-with-warnings. That overall score is **phase-weighted** (including feasibility since Phase 3). Some older specs assumed **80 / 65** after weighting; the implemented constants are intentionally stricter — see [ADR-DECISION-LAYER-GATES](./adrs/ADR-DECISION-LAYER-GATES.md).
+
+### Step 4c: Evaluation dataset (Phase 2, optional row)
+
+For domain phases, after governance events, the server may insert one sanitised row into **`evaluation_datasets`** (DDL: `server/migrations/051_evaluation_datasets_and_execution_mode.sql`). Disable with env `EVALUATION_DATASETS_INSERT=false` if the table is not migrated. See [ADR-TRUTH-REGISTRY-ASSUMPTIONS](./adrs/ADR-TRUTH-REGISTRY-ASSUMPTIONS.md) §4.
+
 ### Step 5: Save + Emit
 - Writes result to `audit_domains` (or `audit_recon` / `audit_strategy`)
 - Updates `audits.status` and `audits.tokens_used`

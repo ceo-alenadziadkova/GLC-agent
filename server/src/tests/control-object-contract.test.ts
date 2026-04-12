@@ -10,7 +10,7 @@ describe('CONTROL_OBJECT v1 contract', () => {
   it('createControlObjectV1 sets version keys aligned with ControlObjectVersions', () => {
     const co = createControlObjectV1('a1', 'seo_digital');
     expect(co.versions).toEqual(CONTROL_OBJECT_VERSIONS);
-    expect(co.versions.system_version).toBe('v1.0');
+    expect(co.versions.system_version).toBe(CONTROL_OBJECT_VERSIONS.system_version);
     expect(co.decision_hint).toBe('accept');
   });
 

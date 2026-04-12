@@ -26,9 +26,11 @@ import {
   PHASE_DOMAIN_MAP,
   maxPhaseForMode,
   reviewPhasesForMode,
+  type DomainKey,
   type FreeSnapshotPreview,
   type ProductMode,
 } from '../types/audit.js';
+import { recordEvaluationDatasetIfEnabled } from './evaluation-dataset-writer.js';
 import { PIPELINE_EVENT_ERROR_CODES } from '../config/pipeline-event-error-codes.js';
 import type { ControlObjectV1 } from '../schemas/control-object.js';
 
@@ -199,6 +201,13 @@ export class PipelineOrchestrator {
         const controlObject = (agent as BaseAgent).lastControlObject;
         if (controlObject) {
           await this.publishControlObjectGovernance(phase, controlObject);
+          await recordEvaluationDatasetIfEnabled({
+            auditId: this.auditId,
+            phaseId: domainKey as DomainKey,
+            controlObject,
+            rawAgentOutput: (agent as BaseAgent).lastRawDomainResult,
+            cleanedOutput: result,
+          });
         }
 
         await agent.saveDomainResult(result);
@@ -284,6 +293,13 @@ export class PipelineOrchestrator {
         const controlObject = (agent as BaseAgent).lastControlObject;
         if (controlObject) {
           await this.publishControlObjectGovernance(phase, controlObject);
+          await recordEvaluationDatasetIfEnabled({
+            auditId: this.auditId,
+            phaseId: domainKey as DomainKey,
+            controlObject,
+            rawAgentOutput: (agent as BaseAgent).lastRawDomainResult,
+            cleanedOutput: result,
+          });
         }
 
         await agent.saveDomainResult(result);

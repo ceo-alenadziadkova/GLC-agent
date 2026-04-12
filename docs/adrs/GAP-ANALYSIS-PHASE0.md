@@ -1,193 +1,84 @@
-# Phase 0 Gap Analysis — FACT-CHECKER & DECISION LAYER
+# Phase 0 Gap Analysis — FACT-CHECKER & DECISION LAYER (as-of snapshot)
 
 | Field | Value |
 |---|---|
-| **Date** | 2026-04-12 |
-| **Scope** | Preparatory audit before Phase 1 implementation |
-| **Purpose** | Internal sprint planning artifact: maps existing code to planned deliverables |
+| **Date** | 2026-04-12 (updated) |
+| **Scope** | Reconciliation of roadmap Phases 0–3 with the **current** codebase |
+| **Purpose** | Sprint planning: what is implemented, what remains, where the spec diverges |
+
+This document **supersedes** the pre-implementation narrative in the earlier revision of the same file. For architecture decisions, see the ADRs linked below.
 
 ---
 
-## What Already Exists
+## Implementation status (roadmap phases 1–3)
 
-### 1. `server/src/services/fact-checker.ts` — Rule-Based Domain Checker
-
-**Scope**: Security, SEO, Tech, UX only (Marketing + Automation are qualitative, not checked).
-
-**Returns**: `{ result: DomainResult, corrections: FactCorrection[], confidence: number }`
-
-**Reusable for CONTROL_OBJECT v1**:
-- `corrections` array → direct input for `counts.statuses.likely_hallucination` (action='override') and `errors.fixable` (action='flag')
-- `confidence` (0–1 float) → maps to `confidence.factual` (multiply ×100 for 0–100 range)
-- Domain switch logic → foundation for phase_profiles
-- `calculateConfidence()` penalty model → preserve as-is for factual confidence dimension
-
-**Not reusable** (must add):
-- Claim extraction (FACT/HYPOTHESIS/OPINION taxonomy)
-- CONFIRMED_BRIEF / UNVERIFIED / RISKY_PROMISE statuses
-- Assumptions tracking
-- Trace (agent, section, truth_source per claim)
+| Roadmap | Status | Primary code / docs |
+|---------|--------|---------------------|
+| Phase 1 — CONTROL_OBJECT + Decision Layer | **Done** | [`server/src/schemas/control-object.ts`](../../server/src/schemas/control-object.ts), [`server/src/services/decision-layer.ts`](../../server/src/services/decision-layer.ts), [`server/src/services/fact-checker.ts`](../../server/src/services/fact-checker.ts) (`buildControlObject`), [`server/src/services/pipeline.ts`](../../server/src/services/pipeline.ts), [`ADR-CONTROL-OBJECT-V1.md`](./ADR-CONTROL-OBJECT-V1.md), [`ADR-DECISION-LAYER-GATES.md`](./ADR-DECISION-LAYER-GATES.md) |
+| Phase 2 — Truth Registry, assumptions v1.5, evaluation storage | **Mostly done** | [`server/src/config/truth-registry.ts`](../../server/src/config/truth-registry.ts); assumptions + trace in `FactChecker.buildControlObject`; `evaluation_datasets` table + insert path: migration `051_evaluation_datasets_and_execution_mode.sql`, [`server/src/services/evaluation-dataset-writer.ts`](../../server/src/services/evaluation-dataset-writer.ts) |
+| Phase 3 — Feasibility + weighted confidence | **Done** | [`server/src/services/feasibility-layer.ts`](../../server/src/services/feasibility-layer.ts), [`server/src/config/phase-confidence-weights.ts`](../../server/src/config/phase-confidence-weights.ts), Decision Layer feasibility guardrail in [`server/src/services/decision-layer.ts`](../../server/src/services/decision-layer.ts), [`ADR-FEASIBILITY-RULE-ENGINE.md`](./ADR-FEASIBILITY-RULE-ENGINE.md) |
 
 ---
 
-### 2. `server/src/services/consistency-checker.ts` — Post-Wing Quality Gates
+## What exists today (concise)
 
-**Returns**: `QualityGateReport { passed, flags[], checked_at }`
+### FactChecker
 
-**Five rules**: score_severity_mismatch, low_confidence_majority, excessive_data_gaps, failed_domain, low_confidence_critical.
+- **Domain-specific `verify()`** still targets Security, SEO, Tech, UX; Marketing and Automation rely on general checks only.
+- **`buildControlObject()`** (same module as `verify`, not a separate `fact-checker-v1.ts`) produces CONTROL_OBJECT **v1.7** shape: counts, errors, assumptions (risk + `related_claim_ids`), trace with `truth_source`, feasibility, weighted `confidence.overall`, `confidence_weights`.
+- **Claim model** is structural, not NLP: each `AuditIssue` ≈ one FACT claim; recommendations ≈ strategic hypotheses; strengths/weaknesses ≈ opinion counts.
 
-**Reusable for CONTROL_OBJECT v1**:
-- `QualityFlag.rule` → maps to `error_type` in Rule Engine (e.g. `score_severity_mismatch` → `strategic_inconsistency`)
-- `QualityFlag.severity='warning'` → can feed `errors.structural`
-- `excessive_data_gaps` flag → maps to `errors.data_gaps`
-- `passed` field → can inform `decision_hint` (failed gates → refine)
-- Persists to `pipeline_events` with `event_type='quality_gate'` → same channel for CONTROL_OBJECT
+### Decision Layer + pipeline
 
-**Not reusable** (must add):
-- Cross-domain consistency checks (currently per-domain only)
-- Strategic inconsistency detection (needs cross-phase context)
+- After each domain phase, orchestrator runs `decisionLayer.decide(controlObject)`, sets `decision_hint`, emits `pipeline_events` with `event_type = 'control_object'` (full JSON under `data.control_object`).
+- If `refine`: also emits `refine_recommended` with reasoning and nested `control_object`. **Does not** block the pipeline (advisory MVP).
+- **Post-wing** quality remains **`quality_gate`** from `ConsistencyChecker` — separate from CONTROL_OBJECT (do not merge event types).
 
----
+### Truth Registry
 
-### 3. `server/src/types/audit.ts` — Core Type Definitions
+- Single module: `TRUTH_REGISTRY`, `PHASE_PROFILES`, `mapDataSourceToTruthSource`, `getPhaseProfile` (no separate `phase-profiles.ts` file).
 
-**Directly usable in CONTROL_OBJECT context**:
-- `DomainResult.unknown_items` → `errors.data_gaps` direct source
-- `DomainResult.confidence_distribution` → `counts.statuses` input (already computed post fact-check)
-- `AuditIssue.confidence` → per-finding confidence feed for `confidence.factual`
-- `AuditIssue.data_source` → `truth_source` mapping (auto_detected=internal, from_brief=user_brief, inferred=assumption)
-- `PipelineEvent.data` (JSONB) → where CONTROL_OBJECT v1 will live (`event_type='control_object'`)
+### Execution mode (Phase 4 prep)
 
-**Must add**:
-- `ControlObjectV1` type in this file (or new `server/src/schemas/control-object.ts`)
-- `DecisionHint` type: `'accept' | 'accept_with_warnings' | 'refine'`
+- Column `audits.execution_mode` (`'normal' | 'safe'`, default `'normal'`). `BaseAgent` loads it when building CONTROL_OBJECT so `context.execution_mode` reflects the audit row.
+
+### Evaluation datasets
+
+- Rows inserted after governance publish when `EVALUATION_DATASETS_INSERT` is not `false` (see `SYSTEM_DEFAULTS.evaluationDatasets` in [`server/src/config/system-defaults.ts`](../../server/src/config/system-defaults.ts)).
+- Payloads are **sanitised** (URL / sensitive-key redaction) before insert; `pii_sanitized` set accordingly.
 
 ---
 
-### 4. `server/src/agents/base.ts` — BaseAgent Pipeline
+## Spec / doc deltas to remember
 
-**Integration point for Phase 1** (lines ~226–243 in `run()`):
-```
-CURRENT:  factChecker.verify(result, domainKey, collectedData)
-          → emit 'fact_check' event
-          → attachConfidenceDistribution(verification.result)
-          → return DomainResult
-
-TARGET:   factChecker.verify(result, domainKey, collectedData)
-          → buildControlObjectV1(verification, domainKey, auditId)  ← NEW
-          → emit 'control_object' event                               ← NEW (side effect)
-          → store as this.lastControlObject                           ← NEW (for pipeline)
-          → attachConfidenceDistribution(verification.result)
-          → return DomainResult                                       ← UNCHANGED
-```
-
-**Key constraint**: `agent.run()` return type **must stay** `Promise<DomainResult>` for Phase 1 (non-breaking). Control object emitted as side effect.
+1. **Early Phase 1 spec** suggested storing CONTROL_OBJECT under `quality_gate`; **implemented** dedicated `control_object` (+ `refine_recommended`) events — see [`docs/PIPELINE.md`](../PIPELINE.md).
+2. **Phase 3 pseudocode** used accept thresholds **80 / 65** on weighted overall; **implemented** thresholds remain **85 / 70** while `confidence.overall` is already phase-weighted (documented in ADR + PIPELINE).
+3. **Phase 4+** (safety-mode config, rule engine, auto-loop) is **not** in scope of this gap file — track separately.
 
 ---
 
-### 5. `server/src/services/pipeline.ts` — Pipeline Orchestrator
+## Remaining / stretch work (not closed by Phases 1–3)
 
-**Integration points** (lines ~140–162 in `startPhase()` and `startPhaseIsolated()`):
-
-After `agent.run()`:
-```typescript
-// CURRENT (lines 141–146):
-const agent = new AgentClass(this.auditId);
-const result = await agent.run();
-if (domainKey !== 'recon' && domainKey !== 'strategy') {
-  await agent.saveDomainResult(result);
-}
-
-// TARGET (Phase 1 addition — additive only):
-const agent = new AgentClass(this.auditId);
-const result = await agent.run();
-if (domainKey !== 'recon' && domainKey !== 'strategy') {
-  const controlObject = (agent as BaseAgent).lastControlObject;
-  if (controlObject) {
-    await this.publishControlObjectGovernance(phase, controlObject);
-    // → decisionLayer.decide; set decision_hint; emit control_object; if refine → refine_recommended (+ control_object in payload)
-  }
-  await agent.saveDomainResult(result);
-}
-```
+- **Phase 4**: `safety-mode.ts`, rule-engine mapping, stricter guardrails when `execution_mode = 'safe'`.
+- **Phase 5**: auto-loop, dynamic prompt patches, `agent_performance_aggregate`, cost guardrails.
+- **Product UI**: optional expansion of consultant views to show full trace / assumptions (today: summary + refine reasoning on Pipeline Monitor / review modal).
+- **Jobs**: scheduled deletion of expired `evaluation_datasets` rows (TTL column exists; job can be ops/cron).
 
 ---
 
-## What Must Be Built (Phase 1)
+## Effort pointers (for future sprints)
 
-### New Files
-
-| File | Size | Purpose |
-|------|------|---------|
-| `server/src/schemas/control-object.ts` | ~60 LOC | ControlObjectV1 TypeScript interface + factory |
-| `server/src/services/decision-layer.ts` | ~80 LOC | Three-state routing (accept/accept_with_warnings/refine) |
-| `docs/adrs/ADR-CONTROL-OBJECT-V1.md` | ~200 LOC | Architecture decision record |
-| `docs/adrs/ADR-DECISION-LAYER-GATES.md` | ~150 LOC | Architecture decision record |
-
-### Modified Files
-
-| File | Change | Risk |
-|------|--------|------|
-| `server/src/services/fact-checker.ts` | Add `buildControlObject()` alongside `verify()` | Low — additive only |
-| `server/src/agents/base.ts` | Store `lastControlObject` after fact-check, emit event | Low — additive |
-| `server/src/services/pipeline.ts` | Read `agent.lastControlObject`, call Decision Layer | Low — advisory |
+| Item | Notes |
+|------|--------|
+| Phase 4 safety | Config + hook after `buildControlObject` / before Decision Layer |
+| Phase 5 auto-loop | Feature flag + targeted rerun; reuse `active_error_types` |
+| Evaluation TTL job | `DELETE FROM evaluation_datasets WHERE expires_at < now()` |
 
 ---
 
-## Non-Breaking Contract for Phase 1
+## Related ADRs
 
-- `agent.run()` → **return type unchanged** (`Promise<DomainResult>`)
-- `FactChecker.verify()` → **return type unchanged** (`FactCheckResult`)
-- CONTROL_OBJECT stored in `pipeline_events` with `event_type='control_object'` (new event type, no conflict)
-- `decision_hint='refine'` → **only logs/emits** in MVP; does NOT block or retry (human escalation)
-- No new DB columns needed for Phase 1 (JSON payload in existing `pipeline_events.data`)
-
----
-
-## Data Flow for Phase 1
-
-```
-BaseAgent.run()
-  ├── collector.run()          → collectedData
-  ├── contextBuilder.build()   → AgentContext
-  ├── callClaudeWithRetry()    → DomainResult (raw)
-  ├── factChecker.verify()     → { result, corrections, confidence }
-  ├── buildControlObjectV1()   → ControlObjectV1               [NEW]
-  │     ├── versions from config
-  │     ├── context: { audit_id, phase_id, execution_mode }
-  │     ├── confidence: { overall, factual, strategic, consistency }
-  │     ├── counts from corrections + confidence_distribution
-  │     ├── errors: { fixable, structural, data_gaps }
-  │     ├── assumptions: [] (light: id, statement, source)
-  │     ├── trace.claim_sources from AuditIssue.evidence_refs
-  │     ├── decision_hint (computed)
-  │     └── human_attention_required (computed)
-  ├── this.lastControlObject = controlObject                   [NEW]
-  ├── emit('control_object', controlObject)                    [NEW]
-  └── return attachConfidenceDistribution(result)              [UNCHANGED]
-
-PipelineOrchestrator.startPhase()
-  ├── agent.run()              → DomainResult
-  ├── agent.lastControlObject  → ControlObjectV1               [NEW]
-  ├── decisionLayer.decide()   → decision_hint                 [NEW]
-  ├── if refine: emit('refine_recommended', ...)               [NEW]
-  └── agent.saveDomainResult()                                  [UNCHANGED]
-```
-
----
-
-## Effort Estimates (Phase 1)
-
-| Task | Estimate | Priority |
-|------|----------|---------|
-| `control-object.ts` schema | 2h | P0 |
-| Extend `FactChecker` → `buildControlObjectV1()` | 4h | P0 |
-| `decision-layer.ts` | 2h | P0 |
-| `base.ts` integration | 2h | P0 |
-| `pipeline.ts` integration | 2h | P0 |
-| `ADR-CONTROL-OBJECT-V1.md` | 2h | P1 |
-| `ADR-DECISION-LAYER-GATES.md` | 1h | P1 |
-| Unit tests | 4h | P1 |
-| **Total** | **~19h** | — |
-
-**Sprint capacity**: 2 engineers × 5 days × 6h = 60h → Phase 1 fits comfortably in Sprint 1.
+- [ADR-CONTROL-OBJECT-V1](./ADR-CONTROL-OBJECT-V1.md)
+- [ADR-DECISION-LAYER-GATES](./ADR-DECISION-LAYER-GATES.md)
+- [ADR-TRUTH-REGISTRY-ASSUMPTIONS](./ADR-TRUTH-REGISTRY-ASSUMPTIONS.md)
+- [ADR-FEASIBILITY-RULE-ENGINE](./ADR-FEASIBILITY-RULE-ENGINE.md)

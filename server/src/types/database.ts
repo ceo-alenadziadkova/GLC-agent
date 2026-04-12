@@ -16,6 +16,8 @@ export interface Database {
           overall_score: number | null;
           token_budget: number;
           tokens_used: number;
+          /** `normal` | `safe` — governance execution mode (see migration 051). */
+          execution_mode: string;
           created_at: string;
           updated_at: string;
         };
@@ -30,6 +32,7 @@ export interface Database {
           overall_score?: number | null;
           token_budget?: number;
           tokens_used?: number;
+          execution_mode?: string;
         };
         Update: Partial<Database['public']['Tables']['audits']['Insert']>;
       };
@@ -198,6 +201,37 @@ export interface Database {
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['consultant_email_allowlist']['Insert']>;
+      };
+      evaluation_datasets: {
+        Row: {
+          id: string;
+          audit_id: string;
+          phase_id: string;
+          run_number: number;
+          control_object: Record<string, unknown>;
+          agent_output: Record<string, unknown>;
+          cleaned_output: Record<string, unknown>;
+          human_feedback: Record<string, unknown> | null;
+          decision_applied: string | null;
+          retention_policy: string;
+          pii_sanitized: boolean;
+          created_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          id?: string;
+          audit_id: string;
+          phase_id: string;
+          run_number: number;
+          control_object: Record<string, unknown>;
+          agent_output: Record<string, unknown>;
+          cleaned_output: Record<string, unknown>;
+          human_feedback?: Record<string, unknown> | null;
+          decision_applied?: string | null;
+          retention_policy?: string;
+          pii_sanitized?: boolean;
+        };
+        Update: Partial<Database['public']['Tables']['evaluation_datasets']['Insert']>;
       };
     };
   };

@@ -297,16 +297,16 @@ Details: [PIPELINE.md](./PIPELINE.md). API: [API.md](./API.md).
 
 ## Decision Layer and CONTROL_OBJECT (Phase 1)
 
-**FactChecker** (`server/src/services/fact-checker.ts`) corrects domain output and builds **CONTROL_OBJECT v1** (structured counts, confidence, errors, trace, assumptions). It does not own phase routing.
+**FactChecker** (`server/src/services/fact-checker.ts`) corrects domain output and builds **CONTROL_OBJECT** (v1.7-shaped: counts, weighted confidence including feasibility, errors, trace, assumptions). `context.execution_mode` is loaded from **`audits.execution_mode`** (`normal` \| `safe`, default `normal`; safe-mode guardrails are Phase 4+). It does not own phase routing.
 
-**DecisionLayer** (`server/src/services/decision-layer.ts`) reads the CONTROL_OBJECT and returns `accept`, `accept_with_warnings`, or `refine` using configurable thresholds (`DECISION_LAYER_THRESHOLDS`). The orchestrator sets the canonical `decision_hint` on the object and persists:
+**DecisionLayer** (`server/src/services/decision-layer.ts`) reads the CONTROL_OBJECT and returns `accept`, `accept_with_warnings`, or `refine` using **`DECISION_LAYER_THRESHOLDS`** (currently **85 / 70** on weighted `confidence.overall`, plus feasibility overrides for selected domains). The orchestrator sets the canonical `decision_hint` on the object and persists:
 
 - `pipeline_events.event_type = 'control_object'` — full snapshot under `data.control_object`.
 - `pipeline_events.event_type = 'refine_recommended'` — when `refine` (advisory; pipeline does not block or auto-rerun in Phase 1).
 
 **ConsistencyChecker** (`server/src/services/consistency-checker.ts`) remains a separate post-wing mechanism; it emits `quality_gate` and must not be confused with CONTROL_OBJECT.
 
-ADR: [ADR-CONTROL-OBJECT-V1](./adrs/ADR-CONTROL-OBJECT-V1.md), [ADR-DECISION-LAYER-GATES](./adrs/ADR-DECISION-LAYER-GATES.md).
+ADR: [ADR-CONTROL-OBJECT-V1](./adrs/ADR-CONTROL-OBJECT-V1.md), [ADR-DECISION-LAYER-GATES](./adrs/ADR-DECISION-LAYER-GATES.md), [ADR-FEASIBILITY-RULE-ENGINE](./adrs/ADR-FEASIBILITY-RULE-ENGINE.md), [ADR-TRUTH-REGISTRY-ASSUMPTIONS](./adrs/ADR-TRUTH-REGISTRY-ASSUMPTIONS.md).
 
 ---
 

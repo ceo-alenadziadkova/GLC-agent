@@ -175,6 +175,13 @@ export const SYSTEM_DEFAULTS = {
     /** `unknown_items` length above which we flag excessive data gaps (Rule: excessive_data_gaps). */
     maxUnknownItemsForInfo: 4,
   },
+  /**
+   * Per-phase evaluation rows (`evaluation_datasets`). Set `EVALUATION_DATASETS_INSERT=false` to skip
+   * writes (e.g. local DB without migration `051_evaluation_datasets_and_execution_mode.sql`).
+   */
+  evaluationDatasets: {
+    insertEnabled: process.env.EVALUATION_DATASETS_INSERT !== 'false',
+  },
   pipelineOrchestrator: {
     stalledPhaseTimeoutMin: 15,
     parallelFailureThreshold: 2,
