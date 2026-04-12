@@ -1,7 +1,7 @@
 /**
  * CONTROL_OBJECT v1 — Governance contract between FactChecker and Decision Layer.
  *
- * This is the advisory-only v1/v1.5/v1.7/v1.8 contract (Phase 1–4 MVP).
+ * This is the advisory-only v1 → v2.0 contract (Phase 1–5).
  * Downstream services MUST NOT depend on this structure until v3+.
  *
  * Version history:
@@ -17,9 +17,9 @@ import type { DomainKey } from '../types/audit.js';
 // ─── Version ───────────────────────────────────────────────
 
 export const CONTROL_OBJECT_VERSIONS = {
-  system_version: 'v1.8',
-  fact_checker_version: 'v1.8',
-  decision_layer_version: 'v1.8',
+  system_version: 'v2.0',
+  fact_checker_version: 'v2.0',
+  decision_layer_version: 'v2.0',
 } as const;
 
 // ─── Core Types ────────────────────────────────────────────
@@ -241,6 +241,53 @@ export interface ControlObjectHumanAttention {
   requirements_met: boolean | null;
 }
 
+// ─── v2.0: Cost Control ────────────────────────────────────
+
+/**
+ * v2.0+: Token cost tracking for this phase run (and any reruns).
+ * Enables the cost guardrail in auto-loop: skip rerun if cost > threshold AND gain < min.
+ */
+export interface ControlObjectCostControl {
+  /**
+   * Estimated USD cost of the primary Claude call for this phase.
+   * Derived from token counts × MODEL pricing. null if not tracked.
+   */
+  estimated_cost_usd: number | null;
+  /**
+   * Total estimated USD cost including any auto-loop reruns.
+   * null until at least one rerun has been attempted.
+   */
+  total_rerun_cost_usd: number | null;
+  /**
+   * Number of auto-loop rerun iterations performed for this phase (0 = no reruns).
+   */
+  rerun_count: number;
+  /**
+   * Whether the cost guardrail blocked a rerun.
+   * false = guard not triggered; true = rerun was skipped due to cost ceiling.
+   */
+  cost_guardrail_triggered: boolean;
+}
+
+// ─── v2.0: Agent Performance ───────────────────────────────
+
+/**
+ * v2.0+: Per-run agent performance snapshot embedded in CONTROL_OBJECT.
+ * Mirrors AgentPerformanceMetrics from agent-performance.ts.
+ * Stored for per-run observability — aggregation happens async in agent_performance_aggregate.
+ */
+export interface ControlObjectAgentPerformance {
+  agent_number: number;
+  hallucination_rate: number;
+  risky_promise_rate: number;
+  unverified_rate: number;
+  inconsistency_rate: number;
+  /** Composite 0.0–1.0 score for this run */
+  agent_score: number;
+  /** Whether this score meets the minimum evaluation count threshold for reliability */
+  score_reliable: boolean;
+}
+
 // ─── Top-level Contract ────────────────────────────────────
 
 /**
@@ -267,6 +314,16 @@ export interface ControlObjectV1 {
    * null until FeasibilityLayer has run (recon/strategy phases always null).
    */
   feasibility: ControlObjectFeasibility | null;
+  /**
+   * v2.0+: Token cost tracking for this run + any auto-loop reruns.
+   * null until auto-loop infrastructure activates (Phase 5+).
+   */
+  cost_control: ControlObjectCostControl | null;
+  /**
+   * v2.0+: Agent performance metrics snapshot for this run.
+   * null for recon/strategy phases or if performance scoring was skipped.
+   */
+  agent_performance: ControlObjectAgentPerformance | null;
   decision_hint: DecisionHint;
   human_attention_required: ControlObjectHumanAttention;
 }
@@ -322,6 +379,8 @@ export function createControlObjectV1(
       claim_sources: [],
     },
     feasibility: null,
+    cost_control: null,
+    agent_performance: null,
     decision_hint: 'accept',
     human_attention_required: {
       required: false,
