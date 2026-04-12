@@ -31,7 +31,10 @@ test.describe('staging p0 auth and claim skeleton', () => {
     await expect(page).not.toHaveURL(/\/login(?:\?|$)/);
 
     await page.getByRole('button', { name: /sign out|log out/i }).first().click();
-    await expect(page).toHaveURL(/\/login(?:\?|$)/);
+    await expect(page).toHaveURL(/\/login(?:\?|$)/, { timeout: 20_000 });
+    await expect(page.getByText(/sign in to the audit workspace and client portal/i)).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test('snapshot -> auth -> claim high-level flow', async ({ page }) => {

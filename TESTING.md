@@ -50,7 +50,7 @@ Signals that something may be unused or legacy (investigate before deleting):
 | FE integration | Yes | `SnapshotLanding.integration` with mocked fetch / session |
 | BE integration | Yes | `server/src/tests/snapshot-route.test.ts` and related |
 | BE unit (access flags) | Yes | `snapshot-access-state.test.ts` — `computePublicSnapshotAccessFlags`, `snapshotPayloadToAccessApiFields` |
-| E2E | No | `/snapshot` uses credentialed fetch + optional staging E2E for cookie/`claim` |
+| E2E | Partial | `e2e/snapshot-public-mocked.spec.ts` — mocked POST 202 → poll → completed preview, `glc_snapshot_guest` on poll, `glc_pending_snapshot_token`; real `POST /api/snapshot/claim` still `e2e/staging-auth-claim.spec.ts` + env |
 
 ## B. Register / sign in (`/login`)
 
@@ -81,20 +81,27 @@ Unit and RTL tests with **mocked** Supabase cover logic and contracts but **do n
 | --- | --- | --- |
 | `ProtectedRoute` | Yes | Role, guest, blocked roles |
 | `RootRedirect` | Yes | Pure helper `rootRedirectTarget` + component |
-| Router map | No | Optional smoke only |
+| Router map | Partial | `e2e/protected-routes.spec.ts` — unauthenticated hits on consultant/admin + client portal paths → `/login` |
 
 ## D. Sign out
 
 | Layer | Status | Notes |
 | --- | --- | --- |
 | Unit | Partial | `useAuth` signOut; UI depends on shell components |
-| E2E | No | Needs auth fixture or staging Supabase |
+| E2E | Partial | Staging only: `e2e/staging-auth-claim.spec.ts` asserts post–sign-out URL and login shell copy (requires `E2E_STAGING_*` env) |
 
 ## E. Discovery flow (public `/audit/discover`)
 
 | Layer | Status | Notes |
 | --- | --- | --- |
 | FE unit (`discovery-flow.ts`) | Partial | `discovery-flow.test.ts` — sequence, legacy presence, `computeFindings` / `computeScore` samples |
+| E2E | Partial | `e2e/smoke.spec.ts` — step-by-step, back/next, f9 (skips if fragment lacks f9); `e2e/discovery-ui-fragment.spec.ts` — `GET /api/discover/ui-fragment` contract + both `/discovery` and `/audit/discover` |
+
+## E2. Public intake link (`/intake/:token`)
+
+| Layer | Status | Notes |
+| --- | --- | --- |
+| E2E | Partial | `e2e/intake-public-mocked.spec.ts` — mocked `GET /api/intake/:token` loads `IntakeBrief` shell; submit + real tokens remain integration/staging |
 
 ## F. Client portal pipeline gate
 
@@ -265,7 +272,7 @@ Below is an ordered checklist for **product admin / QA** on a staging environmen
 
 ### Link to automated tests
 
-Partially covered today: tables A–D above and [e2e/smoke.spec.ts](e2e/smoke.spec.ts). Full walkthrough of this section needs **staging with real Supabase and consultant allowlist**.
+Partially covered today: tables A–E2 above; Playwright under [e2e/](e2e/) (see [e2e/README.md](e2e/README.md)). Full walkthrough of this section needs **staging with real Supabase and consultant allowlist**.
 
 ## P0 Quality Policy and Regression Pack
 
