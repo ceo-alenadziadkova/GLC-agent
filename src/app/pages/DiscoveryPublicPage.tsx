@@ -20,7 +20,13 @@ export function DiscoveryPublicPage() {
         { label: 'Discovery' },
       ]}
     >
-      <div className="mx-auto w-full min-w-0 max-w-5xl">
+      <div
+        className={
+          discoveryWide
+            ? 'relative left-1/2 w-screen max-w-[100vw] min-w-0 -translate-x-1/2'
+            : 'mx-auto w-full min-w-0 max-w-5xl'
+        }
+      >
         <div className="flex min-w-0 flex-col gap-8 mobile:gap-7 lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-12 lg:gap-y-6">
           <div
             className={`order-1 flex flex-col gap-6 text-center mobile:gap-5 lg:order-none lg:text-left ${
@@ -73,7 +79,7 @@ export function DiscoveryPublicPage() {
                 {[
                   'Good for launches, rebrands, or “we need something digital” with no live site.',
                   'Takes a few minutes; no account required to see your findings.',
-                  'Afterwards you can register and carry answers into the full audit.',
+                  'Sign in or register to save your answers on your account and continue toward your full audit.',
                 ].map(line => (
                   <li key={line} className="flex gap-2">
                     <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: 'var(--glc-blue)' }} />
@@ -93,12 +99,12 @@ export function DiscoveryPublicPage() {
             <div
               className={
                 discoveryWide
-                  ? 'mx-auto w-full min-w-0 max-w-3xl overflow-x-hidden rounded-2xl border'
+                  ? 'flex w-full min-w-0 max-w-full flex-col overflow-x-hidden border-y sm:mx-auto sm:max-w-4xl sm:rounded-2xl sm:border sm:border-[color:var(--border-subtle)]'
                   : 'glc-card mobile:shadow-[0_12px_40px_rgba(0,0,0,0.14)] min-w-0 overflow-hidden p-6 lg:p-7 mobile:p-5'
               }
               style={
                 discoveryWide
-                  ? { borderRadius: 'var(--radius-2xl)', borderColor: 'var(--border-subtle)' }
+                  ? { borderColor: 'var(--border-subtle)' }
                   : { borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-card)' }
               }
             >

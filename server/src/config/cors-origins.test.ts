@@ -24,6 +24,7 @@ describe('getCorsAllowedOrigins', () => {
     vi.stubEnv('FRONTEND_URL', '');
     const list = getCorsAllowedOrigins();
     expect(list).toContain('http://localhost:5173');
+    expect(list).toContain('http://127.0.0.1:5173');
     expect(list).toContain('https://preview.example.com');
   });
 });

@@ -2,9 +2,14 @@
  * Explicit CORS allowlist. Comma-separated full origins (scheme + host + optional port).
  * Example: https://www.example.com,https://example.com
  */
-import { GLC_DEV_CORS_EXTRA_ORIGINS, GLC_DEV_SPA_ORIGIN } from '@glc/dev-brand-defaults';
+import {
+  GLC_DEV_CORS_EXTRA_ORIGINS,
+  GLC_DEV_SPA_ORIGIN,
+  GLC_DEV_SPA_ORIGIN_E2E,
+} from '@glc/dev-brand-defaults';
 
-const DEFAULT_DEV_ORIGINS = [GLC_DEV_SPA_ORIGIN, ...GLC_DEV_CORS_EXTRA_ORIGINS] as const;
+/** localhost and 127.0.0.1 are different origins for CORS — include both for Vite dev. */
+const DEFAULT_DEV_ORIGINS = [GLC_DEV_SPA_ORIGIN, GLC_DEV_SPA_ORIGIN_E2E, ...GLC_DEV_CORS_EXTRA_ORIGINS] as const;
 
 function normalizeOrigin(o: string): string {
   const t = o.trim();
