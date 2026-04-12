@@ -10,6 +10,7 @@ import { type BaseCollector } from '../collectors/base.js';
 import type { DomainResult, DomainKey } from '../types/audit.js';
 import type { ControlObjectV1 } from '../schemas/control-object.js';
 import { followupQuestionsFromUnknowns } from '../lib/post-audit-followups.js';
+import { confidenceDistributionFromIssues } from '../lib/confidence-distribution.js';
 import { zodToJsonSchema } from '../schemas/domain-output.js';
 import {
   CLAUDE_CB_THRESHOLD,
@@ -160,11 +161,7 @@ export abstract class BaseAgent {
    * Called after fact-check so the distribution reflects the final set of issues.
    */
   private attachConfidenceDistribution(result: DomainResult): DomainResult {
-    const dist = { high: 0, medium: 0, low: 0 };
-    for (const issue of result.issues) {
-      dist[issue.confidence] += 1;
-    }
-    return { ...result, confidence_distribution: dist };
+    return { ...result, confidence_distribution: confidenceDistributionFromIssues(result.issues) };
   }
 
   /**
