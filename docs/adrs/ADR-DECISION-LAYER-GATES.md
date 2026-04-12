@@ -66,6 +66,12 @@ REFINE:
 
 Thresholds are defined in `DECISION_LAYER_THRESHOLDS` config object for future A/B testing without code changes.
 
+### Weighted `confidence.overall` vs numeric gates (Phase 3)
+
+`DecisionLayer` compares **`control.confidence.overall`** to the thresholds above (85 / 70). Since Phase 3, `confidence.overall` is produced by `FactChecker.buildControlObject()` using **per-domain weights** (`CONFIDENCE_WEIGHTS_BY_PHASE` in `phase-confidence-weights.ts`) over four dimensions: `factual`, `strategic`, `consistency`, and `feasibility` (the latter from `FeasibilityLayer`, scaled to 0–100).
+
+Early roadmap drafts sometimes showed **80 / 65** as accept / accept-with-warnings cutoffs after introducing weighting. The **implemented** product thresholds remain **85 / 70** so routing stays conservative until calibrated (e.g. using `evaluation_datasets` history). To change behaviour, edit `DECISION_LAYER_THRESHOLDS` explicitly.
+
 ### Phase 1 Behaviour: Advisory Only
 
 In Phase 1, `decision_hint = 'refine'` does **not** block pipeline execution or trigger automatic rerun.
@@ -111,9 +117,9 @@ Three dimensions feed into `confidence.overall`:
 | `factual` | `FactChecker.calculateConfidence()` | Existing penalty model (×100) |
 | `strategic` | Risky promise + unverified ratio | `100 - (risky_ratio×30) - (unverified_ratio×20)` |
 | `consistency` | Structural errors + hallucination count | `100 - (structural_errors×15) - (hallucinations×20)` |
-| `overall` | Simple average | `(factual + strategic + consistency) / 3` |
+| `overall` | Phase-weighted blend | `computeWeightedConfidence(...)` over factual, strategic, consistency, feasibility (0–100) |
 
-Phase 3 replaces the simple average with **per-phase weighted formula** (`CONFIDENCE_WEIGHTS_BY_PHASE`). For example, `automation_processes` weights `feasibility` highest; `security_compliance` weights `factual` highest.
+Phase 3 uses **per-phase weights** (`CONFIDENCE_WEIGHTS_BY_PHASE`). For example, `automation_processes` weights `feasibility` highest; `security_compliance` weights `factual` highest. `DecisionLayer` thresholds (85 / 70) apply to this weighted `overall`, not to an unweighted average.
 
 ---
 

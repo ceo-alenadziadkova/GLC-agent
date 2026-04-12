@@ -19,6 +19,8 @@ import {
   getConfidenceWeights,
   computeWeightedConfidence,
 } from '../config/phase-confidence-weights.js';
+import { applyExecutionMode } from '../config/safety-mode.js';
+import { computePerformanceMetrics, MIN_EVALUATION_COUNT } from './agent-performance.js';
 
 const T = FACT_CHECKER_THRESHOLDS;
 
@@ -577,6 +579,29 @@ export class FactChecker {
       if (feasibilityTooLow) {
         co.human_attention_required.reasons.push('critically_low_feasibility');
       }
+    }
+
+    // ─── v1.8: Safety Mode Guardrails ────────────────────────
+    // Mutates co.human_attention_required and co.errors.fixable if execution_mode='safe'.
+    // No-op for 'normal' mode. Always runs last so all base counts/errors are populated.
+    applyExecutionMode(co);
+
+    // ─── v2.0: Agent Performance Snapshot ────────────────────
+    // Compute per-run metrics and embed in CONTROL_OBJECT for per-run observability.
+    // Async persistence to agent_performance_aggregate is handled by the pipeline.
+    const perfMetrics = computePerformanceMetrics(co, phaseNumber);
+    if (perfMetrics) {
+      co.agent_performance = {
+        agent_number: perfMetrics.agent_number,
+        hallucination_rate: perfMetrics.hallucination_rate,
+        risky_promise_rate: perfMetrics.risky_promise_rate,
+        unverified_rate: perfMetrics.unverified_rate,
+        inconsistency_rate: perfMetrics.inconsistency_rate,
+        agent_score: perfMetrics.agent_score,
+        // Score is reliable only after MIN_EVALUATION_COUNT aggregate runs —
+        // single-run snapshot is always marked unreliable until aggregate confirms
+        score_reliable: false,
+      };
     }
 
     return co;

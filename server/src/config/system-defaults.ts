@@ -175,6 +175,42 @@ export const SYSTEM_DEFAULTS = {
     /** `unknown_items` length above which we flag excessive data gaps (Rule: excessive_data_gaps). */
     maxUnknownItemsForInfo: 4,
   },
+  /**
+   * Per-phase evaluation rows (`evaluation_datasets`). Set `EVALUATION_DATASETS_INSERT=false` to skip
+   * writes (e.g. local DB without migration `051_evaluation_datasets_and_execution_mode.sql`).
+   */
+  evaluationDatasets: {
+    insertEnabled: process.env.EVALUATION_DATASETS_INSERT !== 'false',
+  },
+  /**
+   * Auto-loop: targeted agent rerun when Decision Layer returns 'refine'.
+   * Disabled by default. Enable per-environment via AUTO_LOOP_ENABLED=true.
+   * Restricted to sandbox/internal modes until monitoring confirms stability.
+   *
+   * See ADR-AUTO-LOOP-RULE-ENGINE.md for full design rationale.
+   */
+  autoLoop: {
+    /** Master switch. Default: false. Override: AUTO_LOOP_ENABLED=true */
+    enabled: process.env.AUTO_LOOP_ENABLED === 'true',
+    /**
+     * Which execution environments allow auto-loop.
+     * Prevents accidental activation in production before monitoring period.
+     */
+    allowedModes: (process.env.AUTO_LOOP_ALLOWED_MODES ?? 'sandbox,internal')
+      .split(',').map(s => s.trim()).filter(Boolean),
+    /** Maximum rerun iterations per phase. Hard cap — no infinite loops. */
+    maxIterations: 2,
+    /**
+     * Minimum confidence gain (points, 0–100) required to accept a rerun result.
+     * If the rerun scores ≤ original + minConfidenceGain, auto-loop stops and escalates.
+     */
+    minConfidenceGain: 5,
+    /**
+     * Estimated cost guardrail in USD. If the projected rerun cost exceeds this
+     * threshold AND expected confidence gain is below minConfidenceGain, skip the rerun.
+     */
+    costGuardrailThresholdUsd: 2.5,
+  },
   pipelineOrchestrator: {
     stalledPhaseTimeoutMin: 15,
     parallelFailureThreshold: 2,

@@ -99,41 +99,5 @@ export interface EvaluationDatasetRow {
  */
 export type EvaluationDatasetInsert = Omit<EvaluationDatasetRow, 'id' | 'created_at' | 'expires_at'>;
 
-// ─── SQL Migration (reference) ────────────────────────────────────────────────
-/*
-  CREATE TABLE evaluation_datasets (
-    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    audit_id          UUID NOT NULL REFERENCES audits(id) ON DELETE CASCADE,
-    phase_id          TEXT NOT NULL,
-    run_number        INT  NOT NULL DEFAULT 1,
-    control_object    JSONB NOT NULL,
-    agent_output      JSONB NOT NULL,
-    cleaned_output    JSONB NOT NULL,
-    human_feedback    JSONB,
-    decision_applied  TEXT CHECK (decision_applied IN ('accept', 'accept_with_warnings', 'refine')),
-    retention_policy  TEXT NOT NULL DEFAULT 'default'
-                      CHECK (retention_policy IN ('default', 'extended', 'internal_only')),
-    pii_sanitized     BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    expires_at        TIMESTAMPTZ GENERATED ALWAYS AS (
-                        created_at + (
-                          CASE retention_policy
-                            WHEN 'extended'      THEN INTERVAL '365 days'
-                            WHEN 'internal_only' THEN INTERVAL '365 days'
-                            ELSE                      INTERVAL '90 days'
-                          END
-                        )
-                      ) STORED,
-    UNIQUE (audit_id, phase_id, run_number)
-  );
-
-  -- Index for expiry job
-  CREATE INDEX evaluation_datasets_expires_at_idx ON evaluation_datasets (expires_at);
-
-  -- RLS: consultants can read their own audits' datasets
-  ALTER TABLE evaluation_datasets ENABLE ROW LEVEL SECURITY;
-  CREATE POLICY "consultant_read_own" ON evaluation_datasets
-    FOR SELECT USING (
-      audit_id IN (SELECT id FROM audits WHERE user_id = auth.uid())
-    );
-*/
+// ─── SQL source of truth ─────────────────────────────────────────────────────
+// Canonical DDL: server/migrations/051_evaluation_datasets_and_execution_mode.sql

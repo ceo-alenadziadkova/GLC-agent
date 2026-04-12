@@ -26,9 +26,13 @@ import {
   PHASE_DOMAIN_MAP,
   maxPhaseForMode,
   reviewPhasesForMode,
+  type DomainKey,
   type FreeSnapshotPreview,
   type ProductMode,
 } from '../types/audit.js';
+import { recordEvaluationDatasetIfEnabled } from './evaluation-dataset-writer.js';
+import { dynamicAdjustmentService } from './dynamic-adjustment.js';
+import { recordAgentPerformance } from './agent-performance.js';
 import { PIPELINE_EVENT_ERROR_CODES } from '../config/pipeline-event-error-codes.js';
 import type { ControlObjectV1 } from '../schemas/control-object.js';
 
@@ -75,8 +79,8 @@ export class PipelineOrchestrator {
   }
 
   /**
-   * Applies DecisionLayer (sets canonical `decision_hint`), persists CONTROL_OBJECT v1, and emits
-   * `refine_recommended` when the hint is `refine`. FactChecker only builds the pre-decision snapshot.
+   * Applies DecisionLayer (sets canonical `decision_hint`), persists CONTROL_OBJECT v2.0,
+   * records agent performance, and emits `refine_recommended` (or triggers auto-loop if enabled).
    */
   private async publishControlObjectGovernance(
     phase: number,
@@ -95,6 +99,9 @@ export class PipelineOrchestrator {
       });
     }
 
+    // v2.0: persist agent performance metrics (async, best-effort)
+    void this.recordPerformanceAsync(controlObject, phase);
+
     try {
       await this.emitEvent(phase, 'control_object', '', { control_object: controlObject });
     } catch (emitErr) {
@@ -108,6 +115,14 @@ export class PipelineOrchestrator {
 
     if (decision?.hint === 'refine') {
       const oc = pipelineOrchestratorCopy();
+
+      // Phase 5: attempt auto-loop if enabled for this environment
+      if (await this.shouldAttemptAutoLoop()) {
+        const looped = await this.attemptAutoLoop(phase, controlObject, decision.active_error_types);
+        if (looped) return; // auto-loop handled the refine — no manual escalation needed
+      }
+
+      // Fallback: emit refine_recommended for manual consultant review
       await this.emitEvent(
         phase,
         'refine_recommended',
@@ -120,6 +135,237 @@ export class PipelineOrchestrator {
         },
       );
     }
+  }
+
+  /** Best-effort async agent performance recording — never throws. */
+  private async recordPerformanceAsync(controlObject: ControlObjectV1, phase: number): Promise<void> {
+    try {
+      const metrics = controlObject.agent_performance;
+      if (metrics) {
+        await recordAgentPerformance({
+          phase_id: controlObject.context.phase_id,
+          agent_number: phase,
+          evaluation_count: 1,
+          hallucination_rate: metrics.hallucination_rate,
+          risky_promise_rate: metrics.risky_promise_rate,
+          unverified_rate: metrics.unverified_rate,
+          inconsistency_rate: metrics.inconsistency_rate,
+          agent_score: metrics.agent_score,
+        });
+      }
+    } catch (err) {
+      logger.warn('pipeline.performance_record_failed', {
+        component: 'pipeline',
+        audit_id: this.auditId,
+        phase,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  /** Returns true only when auto-loop is enabled and the current environment is allowed. */
+  private async shouldAttemptAutoLoop(): Promise<boolean> {
+    const cfg = SYSTEM_DEFAULTS.autoLoop;
+    if (!cfg.enabled) return false;
+
+    // Check execution environment against allowedModes
+    const env = process.env.NODE_ENV ?? 'production';
+    if (!cfg.allowedModes.includes(env)) {
+      logger.info('pipeline.auto_loop_skipped_env', {
+        component: 'pipeline',
+        audit_id: this.auditId,
+        env,
+        allowed: cfg.allowedModes,
+      });
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Attempt auto-loop rerun for a phase that received a 'refine' decision.
+   *
+   * - Generates instruction patches from DynamicAdjustmentService
+   * - Reruns only the single affected agent (not entire pipeline)
+   * - Enforces MAX_ITERATIONS cap
+   * - Stops if confidence gain < MIN_CONFIDENCE_GAIN
+   * - Stops if estimated cost exceeds guardrail
+   *
+   * Returns true if auto-loop ran (regardless of outcome), false if skipped.
+   */
+  private async attemptAutoLoop(
+    phase: number,
+    originalControlObject: ControlObjectV1,
+    activeErrorTypes: string[]
+  ): Promise<boolean> {
+    const cfg = SYSTEM_DEFAULTS.autoLoop;
+    const AgentClass = PHASE_AGENTS[phase];
+    if (!AgentClass) return false;
+
+    const domainKey = PHASE_DOMAIN_MAP[phase];
+    if (domainKey === 'recon' || domainKey === 'strategy') return false;
+
+    const originalConfidence = originalControlObject.confidence.overall;
+
+    // Generate instruction patches
+    const { adjustments, matched_error_types } = dynamicAdjustmentService.generateAdjustments(originalControlObject);
+
+    if (adjustments.size === 0) {
+      logger.info('pipeline.auto_loop_no_adjustments', {
+        component: 'pipeline',
+        audit_id: this.auditId,
+        phase,
+        active_error_types: activeErrorTypes,
+      });
+      return false;
+    }
+
+    logger.info('pipeline.auto_loop_start', {
+      component: 'pipeline',
+      audit_id: this.auditId,
+      phase,
+      domain: domainKey,
+      matched_error_types,
+      agent_count: adjustments.size,
+    });
+
+    let currentControlObject = originalControlObject;
+
+    for (let iteration = 1; iteration <= cfg.maxIterations; iteration++) {
+      // Cost guardrail: estimate and check before rerun
+      const estimatedRerunCostUsd = 0.02; // conservative per-phase Claude Sonnet estimate
+      const rerunCostSoFar = (currentControlObject.cost_control?.total_rerun_cost_usd ?? 0);
+      const projectedTotal = rerunCostSoFar + estimatedRerunCostUsd;
+
+      if (
+        projectedTotal > cfg.costGuardrailThresholdUsd &&
+        (currentControlObject.confidence.overall - originalConfidence) < cfg.minConfidenceGain
+      ) {
+        logger.info('pipeline.auto_loop_cost_guardrail', {
+          component: 'pipeline',
+          audit_id: this.auditId,
+          phase,
+          iteration,
+          projected_cost_usd: projectedTotal,
+          confidence_gain: currentControlObject.confidence.overall - originalConfidence,
+        });
+        // Update cost_control to record the block
+        if (currentControlObject.cost_control) {
+          currentControlObject.cost_control.cost_guardrail_triggered = true;
+        }
+        break;
+      }
+
+      // Rerun the agent with adjustment patches
+      try {
+        const oc = pipelineOrchestratorCopy();
+        await this.emitEvent(
+          phase,
+          'log',
+          `Auto-loop iteration ${iteration}/${cfg.maxIterations} — applying ${matched_error_types.length} correction(s).`,
+        );
+
+        const agent = new AgentClass(this.auditId);
+        // Inject instruction patches via agent property (BaseAgent reads this in buildInstructions)
+        if ('autoLoopAdjustments' in agent) {
+          (agent as BaseAgent & { autoLoopAdjustments?: Map<number, string> }).autoLoopAdjustments = adjustments;
+        }
+
+        const rerunResult = await agent.run();
+        const rerunControlObject = (agent as BaseAgent).lastControlObject;
+
+        if (!rerunControlObject) break;
+
+        // Populate cost_control for the rerun
+        rerunControlObject.cost_control = {
+          estimated_cost_usd: estimatedRerunCostUsd,
+          total_rerun_cost_usd: projectedTotal,
+          rerun_count: iteration,
+          cost_guardrail_triggered: false,
+        };
+
+        // Re-run Decision Layer on the new output
+        const rerunDecision = decisionLayer.decide(rerunControlObject);
+        rerunControlObject.decision_hint = rerunDecision.hint;
+
+        // Record evaluation dataset for the rerun
+        await recordEvaluationDatasetIfEnabled({
+          auditId: this.auditId,
+          phaseId: domainKey as DomainKey,
+          controlObject: rerunControlObject,
+          rawAgentOutput: (agent as BaseAgent).lastRawDomainResult,
+          cleanedOutput: rerunResult,
+        });
+
+        await this.emitEvent(phase, 'control_object', '', { control_object: rerunControlObject });
+
+        const confidenceGain = rerunControlObject.confidence.overall - originalConfidence;
+
+        logger.info('pipeline.auto_loop_iteration_result', {
+          component: 'pipeline',
+          audit_id: this.auditId,
+          phase,
+          iteration,
+          original_confidence: originalConfidence,
+          new_confidence: rerunControlObject.confidence.overall,
+          confidence_gain: confidenceGain,
+          new_decision: rerunDecision.hint,
+        });
+
+        currentControlObject = rerunControlObject;
+
+        // Accept if decision improved or minimum gain achieved
+        if (rerunDecision.hint !== 'refine') {
+          await agent.saveDomainResult(rerunResult);
+          await this.emitEvent(
+            phase,
+            'log',
+            `Auto-loop: ${rerunDecision.hint} after ${iteration} iteration(s). Confidence +${confidenceGain} pts.`,
+          );
+          return true;
+        }
+
+        // Stop if gain below minimum — further reruns unlikely to help
+        if (confidenceGain < cfg.minConfidenceGain) {
+          logger.info('pipeline.auto_loop_insufficient_gain', {
+            component: 'pipeline',
+            audit_id: this.auditId,
+            phase,
+            iteration,
+            confidence_gain: confidenceGain,
+            min_required: cfg.minConfidenceGain,
+          });
+          break;
+        }
+
+      } catch (loopErr) {
+        logger.warn('pipeline.auto_loop_iteration_failed', {
+          component: 'pipeline',
+          audit_id: this.auditId,
+          phase,
+          iteration,
+          error: loopErr instanceof Error ? loopErr.message : String(loopErr),
+        });
+        break;
+      }
+    }
+
+    // Auto-loop exhausted without reaching accept — emit refine_recommended
+    const oc = pipelineOrchestratorCopy();
+    await this.emitEvent(
+      phase,
+      'refine_recommended',
+      oc.phase.refineRecommendedMessage ?? 'Auto-loop exhausted. Decision Layer recommends manual review.',
+      {
+        decision_hint: 'refine',
+        reasoning: `Auto-loop ran ${cfg.maxIterations} iteration(s) without reaching accept threshold.`,
+        active_error_types: activeErrorTypes,
+        control_object: currentControlObject,
+      },
+    );
+
+    return true; // we handled the refine path (via auto-loop + final emission)
   }
 
   /** Fetch the product_mode for this audit. Falls back to `DEFAULT_AUDIT_PRODUCT_MODE` on error. */
@@ -199,6 +445,13 @@ export class PipelineOrchestrator {
         const controlObject = (agent as BaseAgent).lastControlObject;
         if (controlObject) {
           await this.publishControlObjectGovernance(phase, controlObject);
+          await recordEvaluationDatasetIfEnabled({
+            auditId: this.auditId,
+            phaseId: domainKey as DomainKey,
+            controlObject,
+            rawAgentOutput: (agent as BaseAgent).lastRawDomainResult,
+            cleanedOutput: result,
+          });
         }
 
         await agent.saveDomainResult(result);
@@ -284,6 +537,13 @@ export class PipelineOrchestrator {
         const controlObject = (agent as BaseAgent).lastControlObject;
         if (controlObject) {
           await this.publishControlObjectGovernance(phase, controlObject);
+          await recordEvaluationDatasetIfEnabled({
+            auditId: this.auditId,
+            phaseId: domainKey as DomainKey,
+            controlObject,
+            rawAgentOutput: (agent as BaseAgent).lastRawDomainResult,
+            cleanedOutput: result,
+          });
         }
 
         await agent.saveDomainResult(result);

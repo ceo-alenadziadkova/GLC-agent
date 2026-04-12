@@ -8,7 +8,8 @@ import { FactChecker } from '../services/fact-checker.js';
 import { TokenTracker } from '../services/token-tracker.js';
 import { type BaseCollector } from '../collectors/base.js';
 import type { DomainResult, DomainKey } from '../types/audit.js';
-import type { ControlObjectV1 } from '../schemas/control-object.js';
+import type { ControlObjectV1, ExecutionMode } from '../schemas/control-object.js';
+import { fetchAuditExecutionMode } from '../lib/audit-execution-mode.js';
 import type { BriefSnapshot } from '../services/feasibility-layer.js';
 import { followupQuestionsFromUnknowns } from '../lib/post-audit-followups.js';
 import { confidenceDistributionFromIssues } from '../lib/confidence-distribution.js';
@@ -149,6 +150,14 @@ export abstract class BaseAgent {
    */
   lastControlObject: ControlObjectV1 | null = null;
 
+  /**
+   * Claude tool output before `FactChecker.verify()` (for `evaluation_datasets.agent_output`).
+   * Null for recon/strategy or if the domain branch was not executed.
+   */
+  lastRawDomainResult: Record<string, unknown> | null = null;
+
+  private executionModeCache: ExecutionMode | undefined = undefined;
+
   constructor(auditId: string) {
     this.auditId = auditId;
     this.anthropic = createAnthropicClient();
@@ -163,6 +172,14 @@ export abstract class BaseAgent {
    */
   private attachConfidenceDistribution(result: DomainResult): DomainResult {
     return { ...result, confidence_distribution: confidenceDistributionFromIssues(result.issues) };
+  }
+
+  /** Loads `audits.execution_mode` once per agent instance (one pipeline phase). */
+  private async resolveExecutionMode(): Promise<ExecutionMode> {
+    if (this.executionModeCache !== undefined) return this.executionModeCache;
+    const mode = await fetchAuditExecutionMode(this.auditId);
+    this.executionModeCache = mode;
+    return mode;
   }
 
   /**
@@ -231,6 +248,7 @@ export abstract class BaseAgent {
 
     // ─── Step 4: Fact-check ──────────────────────────────
     if (this.domainKey !== 'recon' && this.domainKey !== 'strategy') {
+      this.lastRawDomainResult = JSON.parse(JSON.stringify(result)) as Record<string, unknown>;
       const verification = this.factChecker.verify(result, this.domainKey, collectedData);
       if (verification.corrections.length > 0) {
         await this.emit(
@@ -248,13 +266,14 @@ export abstract class BaseAgent {
       try {
         // v1.7: extract BriefSnapshot from context.brief_responses for feasibility assessment
         const brief: BriefSnapshot = this.extractBriefSnapshot(context);
+        const executionMode = await this.resolveExecutionMode();
 
         const controlObject = this.factChecker.buildControlObject(
           verification,
           this.domainKey,
           this.auditId,
           this.phaseNumber,
-          'normal',
+          executionMode,
           brief,
         );
         this.lastControlObject = controlObject;

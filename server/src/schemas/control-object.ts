@@ -1,7 +1,7 @@
 /**
  * CONTROL_OBJECT v1 — Governance contract between FactChecker and Decision Layer.
  *
- * This is the advisory-only v1/v1.5/v1.7 contract (Phase 1–3 MVP).
+ * This is the advisory-only v1 → v2.0 contract (Phase 1–5).
  * Downstream services MUST NOT depend on this structure until v3+.
  *
  * Version history:
@@ -17,9 +17,9 @@ import type { DomainKey } from '../types/audit.js';
 // ─── Version ───────────────────────────────────────────────
 
 export const CONTROL_OBJECT_VERSIONS = {
-  system_version: 'v1.7',
-  fact_checker_version: 'v1.7',
-  decision_layer_version: 'v1.7',
+  system_version: 'v2.0',
+  fact_checker_version: 'v2.0',
+  decision_layer_version: 'v2.0',
 } as const;
 
 // ─── Core Types ────────────────────────────────────────────
@@ -158,10 +158,134 @@ export interface ControlObjectTrace {
   claim_sources: ControlObjectClaimSource[];
 }
 
+// ─── v1.8: Formalized error enums ─────────────────────────────────────────────
+
+/**
+ * Fixable error codes — can be addressed without full rerun (tone, wording, score calibration).
+ * Free-form strings allowed for domain-specific values not yet in this enum.
+ */
+export type FixableErrorCode =
+  | 'score_consistency_flag'
+  | 'risky_promise_language'
+  | 'forbidden_absolutes'
+  | 'missing_hypothesis_labels'
+  | 'ambiguous_wording'
+  | 'tone_overpromise'
+  | string; // open for domain-specific codes
+
+/**
+ * Structural error codes — require upstream rerun to resolve.
+ * Free-form strings allowed for domain-specific values.
+ */
+export type StructuralErrorCode =
+  | 'score_evidence_mismatch'
+  | 'positioning_conflict'
+  | 'audience_mismatch'
+  // tech_infrastructure
+  | 'infra_unverified_capacity'
+  | 'infra_unrealistic_timeline'
+  | 'infra_undocumented_dependency'
+  | 'infra_missing_monitoring_evidence'
+  // security_compliance
+  | 'security_overclaim'
+  | 'compliance_unverified'
+  | 'data_policy_mismatch'
+  | 'access_control_gap'
+  | 'missing_security_evidence'
+  // seo_digital
+  | 'seo_unverified_traffic_figure'
+  | 'seo_keyword_demand_unsubstantiated'
+  | 'seo_missing_crawl_evidence'
+  | 'seo_competitor_claim_unverified'
+  // ux_conversion
+  | 'ux_conversion_figure_unverified'
+  | 'ux_benchmark_unsubstantiated'
+  | 'ux_a11y_claim_unchecked'
+  | 'ux_missing_analytics_evidence'
+  // marketing_utp
+  | 'marketing_market_size_unverified'
+  | 'marketing_competitor_claim_unsourced'
+  | 'marketing_audience_assumption_unstated'
+  | 'marketing_roi_figure_speculative'
+  // automation_processes
+  | 'automation_time_saving_speculative'
+  | 'automation_tool_capability_unverified'
+  | 'automation_integration_complexity_underestimated'
+  | 'automation_roi_timeline_unrealistic'
+  | string; // open for future codes
+
+/** Human-attention reason codes — machine-readable escalation triggers. */
+export type HumanAttentionReasonCode =
+  | 'high_hallucination_count'
+  | 'critical_data_gaps'
+  | 'high_risk_assumptions'
+  | 'critically_low_feasibility'
+  // v1.8 safe-mode codes
+  | 'safe_mode_too_many_risky_promises'
+  | 'safe_mode_too_many_hallucinations'
+  | 'safe_mode_high_unverified_fraction'
+  | 'safe_mode_forbidden_absolutes_detected'
+  | 'safe_mode_missing_hypothesis_labels'
+  | string; // open for future codes
+
 export interface ControlObjectHumanAttention {
   required: boolean;
-  /** Machine-readable reason codes */
-  reasons: string[];
+  /** Machine-readable reason codes (see HumanAttentionReasonCode) */
+  reasons: HumanAttentionReasonCode[];
+  /**
+   * v1.8+: Whether execution-mode guardrails were satisfied.
+   * - true  = all safe-mode checks passed (or execution_mode is 'normal')
+   * - false = one or more safe-mode violations were detected
+   * - null  = not yet evaluated (pre-Phase 4 runs or recon/strategy phases)
+   */
+  requirements_met: boolean | null;
+}
+
+// ─── v2.0: Cost Control ────────────────────────────────────
+
+/**
+ * v2.0+: Token cost tracking for this phase run (and any reruns).
+ * Enables the cost guardrail in auto-loop: skip rerun if cost > threshold AND gain < min.
+ */
+export interface ControlObjectCostControl {
+  /**
+   * Estimated USD cost of the primary Claude call for this phase.
+   * Derived from token counts × MODEL pricing. null if not tracked.
+   */
+  estimated_cost_usd: number | null;
+  /**
+   * Total estimated USD cost including any auto-loop reruns.
+   * null until at least one rerun has been attempted.
+   */
+  total_rerun_cost_usd: number | null;
+  /**
+   * Number of auto-loop rerun iterations performed for this phase (0 = no reruns).
+   */
+  rerun_count: number;
+  /**
+   * Whether the cost guardrail blocked a rerun.
+   * false = guard not triggered; true = rerun was skipped due to cost ceiling.
+   */
+  cost_guardrail_triggered: boolean;
+}
+
+// ─── v2.0: Agent Performance ───────────────────────────────
+
+/**
+ * v2.0+: Per-run agent performance snapshot embedded in CONTROL_OBJECT.
+ * Mirrors AgentPerformanceMetrics from agent-performance.ts.
+ * Stored for per-run observability — aggregation happens async in agent_performance_aggregate.
+ */
+export interface ControlObjectAgentPerformance {
+  agent_number: number;
+  hallucination_rate: number;
+  risky_promise_rate: number;
+  unverified_rate: number;
+  inconsistency_rate: number;
+  /** Composite 0.0–1.0 score for this run */
+  agent_score: number;
+  /** Whether this score meets the minimum evaluation count threshold for reliability */
+  score_reliable: boolean;
 }
 
 // ─── Top-level Contract ────────────────────────────────────
@@ -190,6 +314,16 @@ export interface ControlObjectV1 {
    * null until FeasibilityLayer has run (recon/strategy phases always null).
    */
   feasibility: ControlObjectFeasibility | null;
+  /**
+   * v2.0+: Token cost tracking for this run + any auto-loop reruns.
+   * null until auto-loop infrastructure activates (Phase 5+).
+   */
+  cost_control: ControlObjectCostControl | null;
+  /**
+   * v2.0+: Agent performance metrics snapshot for this run.
+   * null for recon/strategy phases or if performance scoring was skipped.
+   */
+  agent_performance: ControlObjectAgentPerformance | null;
   decision_hint: DecisionHint;
   human_attention_required: ControlObjectHumanAttention;
 }
@@ -245,10 +379,13 @@ export function createControlObjectV1(
       claim_sources: [],
     },
     feasibility: null,
+    cost_control: null,
+    agent_performance: null,
     decision_hint: 'accept',
     human_attention_required: {
       required: false,
       reasons: [],
+      requirements_met: null,
     },
   };
 }

@@ -13,7 +13,8 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | Product concept and operating principles | [CONCEPT.md](./CONCEPT.md) |
 | Product, modes, deliverables | [PRODUCT.md](./PRODUCT.md) |
 | System architecture, data flow, **config vs DB vs services vs UI**, **strict ENV/CONFIG/SERVICES boundaries**, **copy zones (single source)** | [ARCHITECTURE.md](./ARCHITECTURE.md) ([layering](./ARCHITECTURE.md#configuration-layering-config-vs-database-vs-services-vs-ui), [strict boundaries](./ARCHITECTURE.md#strict-layer-boundaries-operational-policy), [copy layering](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone)) |
-| Phases, wings, review gates, tokens | [PIPELINE.md](./PIPELINE.md) |
+| Phases, wings, review gates, tokens, CONTROL_OBJECT v2 contract | [PIPELINE.md](./PIPELINE.md) |
+| FACT-CHECKER / Decision Layer roadmap vs code (gap analysis) | [GAP-ANALYSIS-PHASE0](./adrs/GAP-ANALYSIS-PHASE0.md) |
 | Agents, collectors, fact-check, weights | [AGENTS.md](./AGENTS.md) |
 | Database tables, migrations, RLS overview | [DATABASE.md](./DATABASE.md) |
 | REST API | [API.md](./API.md) |

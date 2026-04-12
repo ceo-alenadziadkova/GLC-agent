@@ -60,7 +60,7 @@ Single `claude-sonnet-4-20250514` call using `tool_use` with a strict JSON schem
 - If Claude says "no SSL" but collector found valid cert → override to accurate value
 - Corrections are logged in `pipeline_events` (type: `fact_check`)
 
-For **domain phases** (not Recon or Strategy), `FactChecker` also builds **CONTROL_OBJECT v1** — a structured governance snapshot (versions, context, confidence, claim counts, errors, light assumptions, trace, `human_attention_required`). See [ADR-CONTROL-OBJECT-V1](./adrs/ADR-CONTROL-OBJECT-V1.md).
+For **domain phases** (not Recon or Strategy), `FactChecker` also builds **CONTROL_OBJECT** (schema evolves v1.0 through **v2.0**; see subsection below and [ADR-CONTROL-OBJECT-V1](./adrs/ADR-CONTROL-OBJECT-V1.md)).
 
 ### Step 4b: Decision Layer (advisory, Phase 1 MVP)
 
@@ -68,10 +68,40 @@ After the agent run, `PipelineOrchestrator` applies `DecisionLayer.decide(contro
 
 | `pipeline_events.event_type` | Purpose |
 |------------------------------|---------|
-| `control_object` | Full CONTROL_OBJECT v1 JSON under `data.control_object` (includes final `decision_hint`). |
-| `refine_recommended` | Emitted only when `decision_hint === 'refine'`: `reasoning`, `active_error_types`, and `control_object` for consultant visibility. Does **not** block the phase or auto-rerun (Phase 5 may add auto-loop). |
+| `control_object` | Full CONTROL_OBJECT JSON under `data.control_object` (includes final `decision_hint`). |
+| `refine_recommended` | Emitted when `decision_hint === 'refine'` after optional **auto-loop** (see below): `reasoning`, `active_error_types`, and `control_object` for consultant visibility. Does **not** block saving the phase result (advisory). |
 
 **Post-wing quality gates** remain separate: `ConsistencyChecker` still emits `quality_gate` with `QualityGateReport` (score/consistency checks across completed domains). Do not confuse `quality_gate` with CONTROL_OBJECT.
+
+**Threshold note**: `DecisionLayer` uses **85 / 70** on `confidence.overall` for accept / accept-with-warnings. That overall score is **phase-weighted** (including feasibility). Some older specs assumed **80 / 65** after weighting; the implemented constants are intentionally stricter — see [ADR-DECISION-LAYER-GATES](./adrs/ADR-DECISION-LAYER-GATES.md).
+
+**Auto-loop (Phase 5, off by default):** When `AUTO_LOOP_ENABLED=true` and `NODE_ENV` is listed in `AUTO_LOOP_ALLOWED_MODES`, a `refine` decision may trigger a targeted rerun of the same phase agent with instruction patches from [`rule-engine.ts`](../server/src/config/rule-engine.ts) (via [`dynamic-adjustment.ts`](../server/src/services/dynamic-adjustment.ts)). Caps: `SYSTEM_DEFAULTS.autoLoop` (`maxIterations`, `minConfidenceGain`, `costGuardrailThresholdUsd`). See [ADR-AUTO-LOOP-RULE-ENGINE](./adrs/ADR-AUTO-LOOP-RULE-ENGINE.md).
+
+### CONTROL_OBJECT contract (v1.0 through v2.0)
+
+Canonical TypeScript: [`server/src/schemas/control-object.ts`](../server/src/schemas/control-object.ts) (`ControlObjectV1` name is historical; the struct carries v2 fields).
+
+| Area | Contents |
+|------|-----------|
+| **versions** | `system_version`, `fact_checker_version`, `decision_layer_version` (string tags for auditability). |
+| **context** | `audit_id`, `phase_id`, `execution_mode` (`normal` \| `safe` from `audits.execution_mode`), `truth_profile_id` (phase profile key). |
+| **confidence** | `overall`, `factual`, `strategic`, `consistency`, `feasibility` (0–100; feasibility from FeasibilityLayer). |
+| **confidence_weights** | Per-phase weights used to compute `overall` (null for phases without weighting). |
+| **counts** | Claim buckets (`fact`, `strategic_hypothesis`, `opinion`, `assumption`, `total_claims`) and `statuses` (`confirmed_brief`, `unverified`, `likely_hallucination`, `risky_promise`). |
+| **errors** | `fixable`, `structural`, `data_gaps` (string codes; enums extended over time in the schema file). |
+| **assumptions** | `id`, `statement`, `source`, `risk`, `related_claim_ids`. |
+| **trace** | `claim_sources[]` with `claim_id`, `agent` (phase number), `section`, `truth_source`. **`causal_chain` is not implemented** (deferred; see ADRs). |
+| **feasibility** | Embedded `score`, `risk_codes`, `notes` from FeasibilityLayer. |
+| **cost_control** | Nullable until auto-loop: estimated USD, rerun total, `rerun_count`, `cost_guardrail_triggered`. |
+| **agent_performance** | Nullable per-run rates and composite `agent_score`; rolling aggregates persist to **`agent_performance_aggregate`** (migration `052_agent_performance_aggregate.sql`). |
+| **decision_hint** | `accept` \| `accept_with_warnings` \| `refine` — set by Decision Layer in the orchestrator. |
+| **human_attention_required** | `required`, `reasons` (machine codes), `requirements_met` (safe-mode evaluation). |
+
+PRD vs code deltas (event types, thresholds, claim model): [GAP-ANALYSIS-PHASE0](./adrs/GAP-ANALYSIS-PHASE0.md) (section *PRD vs implementation*).
+
+### Step 4c: Evaluation dataset (Phase 2, optional row)
+
+For domain phases, after governance events, the server may insert one sanitised row into **`evaluation_datasets`** (DDL: `server/migrations/051_evaluation_datasets_and_execution_mode.sql`). Disable with env `EVALUATION_DATASETS_INSERT=false` if the table is not migrated. See [ADR-TRUTH-REGISTRY-ASSUMPTIONS](./adrs/ADR-TRUTH-REGISTRY-ASSUMPTIONS.md) §4.
 
 ### Step 5: Save + Emit
 - Writes result to `audit_domains` (or `audit_recon` / `audit_strategy`)
