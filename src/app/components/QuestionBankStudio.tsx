@@ -22,6 +22,7 @@ import {
   downloadDataUrl,
   studioSvgToPngDataUrl,
 } from '../lib/question-bank-studio-map-export';
+import { UI_SEMANTIC_COLORS } from '../config/ui-semantic-colors';
 import {
   buildQuestionBankStudioGraph,
   type StudioAnyNodeData,
@@ -146,7 +147,12 @@ function shortUserLabel(questionId: string): string {
 function statusPill(status: TracePlanStatus): { label: string; fg: string; bg: string; border: string } {
   switch (status) {
     case 'required':
-      return { label: 'Required', fg: '#b91c1c', bg: '#fee2e2', border: '#ef4444' };
+      return {
+        label: 'Required',
+        fg: UI_SEMANTIC_COLORS.dangerFgStrong,
+        bg: UI_SEMANTIC_COLORS.dangerBgPale,
+        border: UI_SEMANTIC_COLORS.danger,
+      };
     case 'visible':
       return { label: 'Visible', fg: '#1d4ed8', bg: '#dbeafe', border: '#60a5fa' };
     case 'deferred':

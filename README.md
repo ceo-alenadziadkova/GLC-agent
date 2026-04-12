@@ -56,7 +56,7 @@ A consultant submits a client's URL. The platform:
 
 ## Documentation
 
-Primary documentation lives in flat `docs/*.md` (quota: 15 files). Start here:
+Primary documentation lives in flat `docs/*.md` (quota: 20 files). Start here:
 
 | Doc | Contents |
 | --- | --- |

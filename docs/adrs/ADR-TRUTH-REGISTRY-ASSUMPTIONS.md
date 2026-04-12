@@ -30,13 +30,15 @@ Additionally, Phase 2 introduces **evaluation dataset logging** to collect per-p
 
 **File**: `server/src/config/truth-registry.ts`
 
-We maintain a single `TRUTH_REGISTRY` with three sources and a fixed priority order:
+We maintain a single `TRUTH_REGISTRY` with a fixed priority order (see `TRUTH_REGISTRY.sources` in code — the authoritative list). Phase 2 introduced three tiers; **Phase 7+ added `external_api` and `document_feed`** with ordering such that **`external_api` is stronger than `external_search`** (see ADR-MULTIMODAL-TRUTH.md). Snapshot:
 
 | Priority | Source | Description |
 |---|---|---|
 | 1 (highest) | `internal_metrics` | Collected product data: crawl results, analytics, logs |
 | 2 | `user_brief` | Client-provided BRIEF: goals, constraints, team info |
-| 3 (lowest) | `external_search` | Public data: industry reports, search results, benchmarks |
+| 3 | `external_api` | Structured external connectors (Phase 7+) |
+| 4 | `external_search` | Public data: industry reports, search results, benchmarks |
+| 5 (lowest) | `document_feed` | Client-uploaded documents / feeds (Phase 7+) |
 
 Conflict resolution strategy: **`priority_based`**. When two sources disagree on the same fact, the source with the lower priority number wins.
 
@@ -132,7 +134,7 @@ After each domain phase, once `DecisionLayer` has set `decision_hint` and `contr
 | `context.truth_profile_id` | — | `string \| null` — references PHASE_PROFILES key |
 | `assumptions[].risk` | — | `'low' \| 'medium' \| 'high'` |
 | `assumptions[].related_claim_ids` | — | `number[]` — claim IDs that depend on this assumption |
-| `trace.claim_sources[].truth_source` | String (inline) | Resolved via `mapDataSourceToTruthSource()` registry helper |
+| `trace.claim_sources[].truth_source` | String (inline) | Resolved via `mapDataSourceToTruthSource()` + connector merge; see v2.1 `truth_sources[]` in ADR-CONTROL-OBJECT-V2-FULL.md |
 | `errors.structural` | Generic strings only | Phase-specific error codes from `PHASE_PROFILES.error_types` |
 | `versions.system_version` | `'v1.0'` | `'v1.5'` |
 | `versions.fact_checker_version` | `'v1.0'` | `'v1.5'` |

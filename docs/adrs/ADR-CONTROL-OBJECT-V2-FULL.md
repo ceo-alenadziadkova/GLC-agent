@@ -140,6 +140,19 @@ counts: {
 
 `counts.assumption` was tracked as a claim type from v1.5 but not exposed as a top-level count. v2.1 promotes it for observability.
 
+**Kernel status taxonomy (documentation bridge):** The Fact-Checker kernel describes universal claim statuses such as `CONFIRMED_EXTERNAL`, `DEPENDENT_ON_BRIEF_ASSUMPTION`, and `STRATEGIC_INCONSISTENCY`. In the shipped TypeScript contract, observability for these is expressed as follows:
+
+| Kernel concept | Where it appears in CONTROL_OBJECT |
+|---|---|
+| `CONFIRMED_BRIEF` | `counts.statuses.confirmed_brief` |
+| `CONFIRMED_EXTERNAL` | `counts.statuses.confirmed_external` (claims whose `truth_sources[]` includes `external_api` or `document_feed`) |
+| `UNVERIFIED` | `counts.statuses.unverified` |
+| `LIKELY_HALLUCINATION` | `counts.statuses.likely_hallucination` |
+| `RISKY_PROMISE` | `counts.statuses.risky_promise` |
+| `DEPENDENT_ON_BRIEF_ASSUMPTION` | `counts.statuses.dependent_on_brief_assumption` (heuristic: issues with `data_source === 'from_brief'` and `confidence === 'low'`) |
+| `STRATEGIC_INCONSISTENCY` | `counts.statuses.strategic_inconsistency` (heuristic: structural `error_type` codes whose names match conflict / mismatch / inconsistency) |
+| Other kernel labels (`STRATEGIC_HYPOTHESIS`, opinion-level nuance, rule-engine-only codes) | `errors.*`, `assumptions[]`, and `human_attention_required` as appropriate — not duplicated as scalar status buckets |
+
 ---
 
 #### `errors` (required)
@@ -195,7 +208,10 @@ trace: {
     agent: number;               // domain agent number (1–12 for CMO; 1–6 for GLC domains)
     section: string;
     subsection?: string;
-    truth_source?: string;       // 'internal_metrics' | 'user_brief' | 'external_search' | 'external_api' | 'document_feed'
+    /** Winning tier after priority-based merge (lowest `TRUTH_REGISTRY` priority number wins). */
+    truth_source: string;        // 'internal_metrics' | 'user_brief' | 'external_search' | 'external_api' | 'document_feed'
+    /** v2.1+: all contributing tiers for this claim (deduped, strongest-first). See `normalizeTruthSourcesList` in truth-registry.ts */
+    truth_sources: string[];
   }>;
   error_sources: Array<{
     error_type: string;
@@ -334,7 +350,11 @@ Known consumers as of v2.1:
 | `confidence_weights` | — | `object?` |
 | `counts.assumption` | — | `number` |
 | `trace.causal_chain[]` | — | `Array? (always [])` — pre-declared |
-| `trace.claim_sources[].truth_source` | `string?` | `string?` (extended enum) |
+| `trace.claim_sources[].truth_source` | `string?` | `string` (extended enum; canonical winner) |
+| `trace.claim_sources[].truth_sources[]` | — | `string[]` (v2.1; multi-tier trace) |
+| `counts.statuses.confirmed_external` | — | `number` |
+| `counts.statuses.dependent_on_brief_assumption` | — | `number` |
+| `counts.statuses.strategic_inconsistency` | — | `number` |
 | `evaluation_link` | — | `object?` |
 | `decision_hint` | `'accept' \| 'refine'` | adds `'accept_with_warnings'` |
 | `human_attention_required.reasons[]` | enum | adds `'external_source_unavailable'` |

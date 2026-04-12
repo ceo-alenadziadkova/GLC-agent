@@ -44,9 +44,19 @@ export const TRUTH_REGISTRY = {
       description: 'Client-provided BRIEF: stated goals, constraints, team info, context',
     },
     {
-      id: 'external_search' as TruthSourceId,
+      id: 'external_api' as TruthSourceId,
       priority: 3,
+      description: 'Authoritative structured external APIs (Phase 7+ connectors)',
+    },
+    {
+      id: 'external_search' as TruthSourceId,
+      priority: 4,
       description: 'Public data: search results, industry reports, benchmarks',
+    },
+    {
+      id: 'document_feed' as TruthSourceId,
+      priority: 5,
+      description: 'Client-uploaded documents and ingested feeds (Phase 7+)',
     },
   ] as TruthSourceDef[],
 
@@ -260,4 +270,18 @@ export function getHighestPrioritySource(sources: TruthSourceId[]): TruthSourceI
     .filter(s => sources.includes(s.id))
     .sort((a, b) => a.priority - b.priority);
   return sorted[0]?.id ?? 'external_search';
+}
+
+/** Dedupe while preserving first-seen order, then sort by registry priority (1 = strongest). */
+export function normalizeTruthSourcesList(sources: TruthSourceId[]): TruthSourceId[] {
+  const seen = new Set<TruthSourceId>();
+  const deduped: TruthSourceId[] = [];
+  for (const id of sources) {
+    if (!seen.has(id)) {
+      seen.add(id);
+      deduped.push(id);
+    }
+  }
+  const priority = new Map(TRUTH_REGISTRY.sources.map(s => [s.id, s.priority] as const));
+  return [...deduped].sort((a, b) => (priority.get(a) ?? 99) - (priority.get(b) ?? 99));
 }

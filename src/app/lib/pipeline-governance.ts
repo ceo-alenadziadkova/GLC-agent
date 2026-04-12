@@ -39,9 +39,12 @@ export function parseControlObjectGovernance(
       fact: Number(counts.fact) || 0,
       statuses: {
         confirmed_brief: Number(statuses.confirmed_brief) || 0,
+        confirmed_external: Number(statuses.confirmed_external) || 0,
         unverified: Number(statuses.unverified) || 0,
         likely_hallucination: Number(statuses.likely_hallucination) || 0,
         risky_promise: Number(statuses.risky_promise) || 0,
+        dependent_on_brief_assumption: Number(statuses.dependent_on_brief_assumption) || 0,
+        strategic_inconsistency: Number(statuses.strategic_inconsistency) || 0,
       },
     },
     context: {

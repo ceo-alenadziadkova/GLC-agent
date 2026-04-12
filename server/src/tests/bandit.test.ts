@@ -19,13 +19,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Must be hoisted so vi.mock factories can close over them without TDZ issues.
 
 const mocks = vi.hoisted(() => {
-  const banditsConfig = {
-    enabled: false,
-    epsilon: 0.15,
-    minEvaluationCount: 10,
-    minPhasesWithData: 3,
-    maxVariantsPerPhase: 2,
-  };
+  const isBanditsEnabledFn = vi.fn(() => false);
 
   const hasNonDefaultVariantsFn = vi.fn<(phaseId: string) => boolean>(() => false);
   const getVariantsForPhaseFn = vi.fn<(phaseId: string) => unknown[]>(() => []);
@@ -37,7 +31,7 @@ const mocks = vi.hoisted(() => {
   };
 
   return {
-    banditsConfig,
+    isBanditsEnabledFn,
     hasNonDefaultVariantsFn,
     getVariantsForPhaseFn,
     supabase,
@@ -47,8 +41,8 @@ const mocks = vi.hoisted(() => {
 
 // ─── Module mocks ─────────────────────────────────────────────────────────────
 
-vi.mock('../config/system-defaults.js', () => ({
-  SYSTEM_DEFAULTS: { bandits: mocks.banditsConfig },
+vi.mock('../config/feature-flags.js', () => ({
+  isBanditsEnabled: () => mocks.isBanditsEnabledFn(),
 }));
 
 vi.mock('../config/agent-variants.js', () => ({
@@ -131,7 +125,7 @@ describe('BanditService', () => {
 
   beforeEach(() => {
     svc = new BanditService();
-    mocks.banditsConfig.enabled = false;
+    mocks.isBanditsEnabledFn.mockReturnValue(false);
     mocks.hasNonDefaultVariantsFn.mockReturnValue(false);
     mocks.getVariantsForPhaseFn.mockReturnValue([]);
     mocks.supabase.from.mockReset();
@@ -140,7 +134,7 @@ describe('BanditService', () => {
   // ── Gate 1: feature flag disabled ─────────────────────────────────────────
 
   it('returns default with BANDIT_DISABLED when bandits.enabled is false', async () => {
-    mocks.banditsConfig.enabled = false;
+    mocks.isBanditsEnabledFn.mockReturnValue(false);
     const result = await svc.selectVariant(PHASE);
     expect(result).toEqual({ variant_id: DEFAULT_VARIANT_ID, gate_miss: 'BANDIT_DISABLED' });
     expect(mocks.supabase.from).not.toHaveBeenCalled();
@@ -149,7 +143,7 @@ describe('BanditService', () => {
   // ── Gate 2: no non-default variants registered ────────────────────────────
 
   it('returns default with NO_NON_DEFAULT_VARIANTS when registry is empty', async () => {
-    mocks.banditsConfig.enabled = true;
+    mocks.isBanditsEnabledFn.mockReturnValue(true);
     mocks.hasNonDefaultVariantsFn.mockReturnValue(false);
     const result = await svc.selectVariant(PHASE);
     expect(result).toEqual({ variant_id: DEFAULT_VARIANT_ID, gate_miss: 'NO_NON_DEFAULT_VARIANTS' });
@@ -159,7 +153,7 @@ describe('BanditService', () => {
   // ── Gate 3: too many variants ─────────────────────────────────────────────
 
   it('returns default with TOO_MANY_VARIANTS when registered variants exceed MAX_VARIANTS_PER_PHASE', async () => {
-    mocks.banditsConfig.enabled = true;
+    mocks.isBanditsEnabledFn.mockReturnValue(true);
     mocks.hasNonDefaultVariantsFn.mockReturnValue(true);
     // 3 variants > MAX_VARIANTS_PER_PHASE (2)
     mocks.getVariantsForPhaseFn.mockReturnValue([
@@ -174,7 +168,7 @@ describe('BanditService', () => {
   // ── Gate 4: insufficient distinct phases with data ────────────────────────
 
   it('returns default with INSUFFICIENT_PHASES_WITH_DATA when fewer than MIN_PHASES_WITH_DATA phases are ready', async () => {
-    mocks.banditsConfig.enabled = true;
+    mocks.isBanditsEnabledFn.mockReturnValue(true);
     mocks.hasNonDefaultVariantsFn.mockReturnValue(true);
     mocks.getVariantsForPhaseFn.mockReturnValue(VARIANTS);
 
@@ -194,7 +188,7 @@ describe('BanditService', () => {
   // ── Gate 5: insufficient arm run counts ───────────────────────────────────
 
   it('returns default with INSUFFICIENT_ARM_RUNS when any arm has fewer than MIN_EVALUATION_COUNT runs', async () => {
-    mocks.banditsConfig.enabled = true;
+    mocks.isBanditsEnabledFn.mockReturnValue(true);
     mocks.hasNonDefaultVariantsFn.mockReturnValue(true);
     mocks.getVariantsForPhaseFn.mockReturnValue(VARIANTS);
 
@@ -232,7 +226,7 @@ describe('BanditService', () => {
   // ── DB error fallback ─────────────────────────────────────────────────────
 
   it('returns default with DB_ERROR on supabase throw', async () => {
-    mocks.banditsConfig.enabled = true;
+    mocks.isBanditsEnabledFn.mockReturnValue(true);
     mocks.hasNonDefaultVariantsFn.mockReturnValue(true);
     mocks.getVariantsForPhaseFn.mockReturnValue(VARIANTS);
 
@@ -249,7 +243,7 @@ describe('BanditService', () => {
   // ── ε-greedy: all gates pass ──────────────────────────────────────────────
 
   function setupAllGatesPass() {
-    mocks.banditsConfig.enabled = true;
+    mocks.isBanditsEnabledFn.mockReturnValue(true);
     mocks.hasNonDefaultVariantsFn.mockReturnValue(true);
     mocks.getVariantsForPhaseFn.mockReturnValue(VARIANTS);
 

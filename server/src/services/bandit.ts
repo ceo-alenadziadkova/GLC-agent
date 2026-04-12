@@ -23,6 +23,7 @@
 
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
+import { isBanditsEnabled } from '../config/feature-flags.js';
 import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import {
   getVariantsForPhase,
@@ -32,19 +33,19 @@ import {
 } from '../config/agent-variants.js';
 import type { DomainKey } from '../types/audit.js';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Constants (re-export SYSTEM_DEFAULTS.bandits for tests / ADR parity) ───
 
 /** Minimum evaluation runs before a variant arm score is considered reliable. */
-export const BANDIT_MIN_EVALUATION_COUNT = 10;
+export const BANDIT_MIN_EVALUATION_COUNT: number = SYSTEM_DEFAULTS.bandits.minEvaluationCount;
 
 /**
  * Minimum number of distinct phase_ids that must have ≥ BANDIT_MIN_EVALUATION_COUNT
  * runs before any bandit activates. Prevents a single client from skewing policy.
  */
-export const BANDIT_MIN_PHASES_WITH_DATA = 3;
+export const BANDIT_MIN_PHASES_WITH_DATA: number = SYSTEM_DEFAULTS.bandits.minPhasesWithData;
 
 /** Exploration rate for ε-greedy: probability of choosing a random arm. */
-export const BANDIT_EPSILON = 0.15;
+export const BANDIT_EPSILON: number = SYSTEM_DEFAULTS.bandits.epsilon;
 
 export const DEFAULT_VARIANT_ID = 'default';
 
@@ -87,7 +88,7 @@ export class BanditService {
    */
   async selectVariant(phaseId: DomainKey): Promise<BanditSelectionResult> {
     // Gate 1: feature flag
-    if (!SYSTEM_DEFAULTS.bandits.enabled) {
+    if (!isBanditsEnabled()) {
       return { variant_id: DEFAULT_VARIANT_ID, gate_miss: 'BANDIT_DISABLED' };
     }
 

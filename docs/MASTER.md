@@ -2,7 +2,7 @@
 
 Single source of truth **index** and **knowledge map**. Each domain has one canonical document; do not duplicate facts elsewhere — link here and to that file.
 
-**Documentation quota:** at most **15** markdown files in flat `docs/*.md` (ADR archive under `docs/adrs/` is tracked separately).
+**Documentation quota:** at most **20** markdown files in flat `docs/*.md` (ADR archive under `docs/adrs/` is tracked separately). The [TECH_DEBT.md](./TECH_DEBT.md) register counts toward this quota.
 
 ---
 
@@ -23,6 +23,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | React app, routes, hooks, design system | [FRONTEND.md](./FRONTEND.md) ([style guide](./FRONTEND.md#design-system-style-guide)) |
 | Intake question bank, branching, agent mapping | [QUESTION_BANK.md](./QUESTION_BANK.md) |
 | Deferred product/UX backlog improvements | [IMPROVEMENTS.md](./IMPROVEMENTS.md) |
+| Engineering debt, audit findings, refactor backlog | [TECH_DEBT.md](./TECH_DEBT.md) |
 | Translator / product glossary (i18n support) | [GLOSSARY.md](./GLOSSARY.md) |
 | Internal: Question Bank Studio (Settings + `/admin/question-bank-studio`, canon map + policy/trace) | [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) — `src/app/components/QuestionBankStudio.tsx` |
 | ADR: unified bank, policy/layout, IntakePlan | [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) |
@@ -236,7 +237,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 1. **One fact, one place.** If it is already documented in the canonical file, link to it (`See: /docs/<FILE>.md#anchor`).
 2. **Code and docs together.** Any change to user-visible behaviour, API contracts, auth rules, schema, pipeline sequencing, or deployment requirements must update the relevant **existing** canonical doc in the **same PR**. If the truth is unknown, add a **Needs Review** note instead of guessing.
-3. **No new doc files** unless the team agrees to replace or merge an existing file and stay within the **15-file flat-doc quota** (see top of this file).
+3. **No new doc files** unless the team agrees to replace or merge an existing file and stay within the **20-file flat-doc quota** (see top of this file).
 4. **Structure rule.** Canonical docs stay at `docs/*`; ADRs stay in `docs/adrs/*` (the only allowed docs subfolder).
 
 ### Documentation PR checklist
@@ -255,7 +256,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 ## Restructuring log
 
-### Current primary documentation tree (15 flat docs + ADR archive)
+### Current primary documentation tree (flat docs + ADR archive; quota: 20)
 
 ```text
 docs/
@@ -266,12 +267,15 @@ docs/
   PIPELINE.md
   AGENTS.md
   API.md
+  API_ERRORS_INVENTORY.md
   AUTH.md
   SECURITY.md
   DATABASE.md
   FRONTEND.md
+  GLOSSARY.md
   QUESTION_BANK.md
   IMPROVEMENTS.md
+  TECH_DEBT.md                           # Technical debt register
   SETUP.md
   DEPLOYMENT.md
   adrs/

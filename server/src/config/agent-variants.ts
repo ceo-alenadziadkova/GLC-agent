@@ -14,7 +14,7 @@
  *   5. Deploy and monitor performance in the evaluation_dataset before promoting.
  *
  * Safety constraints (from ADR-ML-BANDITS.md):
- *   - MAX_VARIANTS_PER_PHASE = 3 (ε-greedy converges poorly with larger action spaces)
+ *   - ≤ 2 non-default variants per phase (`SYSTEM_DEFAULTS.bandits.maxVariantsPerPhase`; 3 arms with implicit `default`)
  *   - Variants that are not registered here are never selected by BanditService
  *   - The 'default' variant_id is reserved; do not register a variant with that id
  *
@@ -23,6 +23,7 @@
  */
 
 import type { DomainKey } from '../types/audit.js';
+import { SYSTEM_DEFAULTS } from './system-defaults.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -89,5 +90,5 @@ export function hasNonDefaultVariants(phaseId: DomainKey): boolean {
   return getVariantsForPhase(phaseId).length > 0;
 }
 
-/** Maximum non-default variants allowed per phase (from ADR-ML-BANDITS.md). */
-export const MAX_VARIANTS_PER_PHASE = 2; // 2 non-default + 1 implicit default = 3 total
+/** Maximum non-default variants allowed per phase (`SYSTEM_DEFAULTS.bandits.maxVariantsPerPhase`). */
+export const MAX_VARIANTS_PER_PHASE = SYSTEM_DEFAULTS.bandits.maxVariantsPerPhase;

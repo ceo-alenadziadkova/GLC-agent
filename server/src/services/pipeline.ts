@@ -3,6 +3,11 @@ import {
   pipelineOrchestratorCopy,
 } from '../config/pipeline-orchestrator-copy.js';
 import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
+import {
+  getAutoLoopAllowedModes,
+  isAutoLoopEnabled,
+  isBanditsEnabled,
+} from '../config/feature-flags.js';
 import { supabase } from './supabase.js';
 import { assertBriefReady } from './brief-validator.js';
 import { consistencyChecker } from './consistency-checker.js';
@@ -158,7 +163,7 @@ export class PipelineOrchestrator {
 
   /** Updates bandit arm stats from the completed run (FEATURE_BANDITS only). Fire-and-forget. */
   private recordBanditArmAsync(controlObject: ControlObjectV1): void {
-    if (!SYSTEM_DEFAULTS.bandits.enabled) return;
+    if (!isBanditsEnabled()) return;
     const pid = controlObject.context.phase_id;
     if (pid === 'recon' || pid === 'strategy') return;
     const metrics = controlObject.agent_performance;
@@ -195,17 +200,17 @@ export class PipelineOrchestrator {
 
   /** Returns true only when auto-loop is enabled and the current environment is allowed. */
   private async shouldAttemptAutoLoop(): Promise<boolean> {
-    const cfg = SYSTEM_DEFAULTS.autoLoop;
-    if (!cfg.enabled) return false;
+    if (!isAutoLoopEnabled()) return false;
 
     // Check execution environment against allowedModes
     const env = process.env.NODE_ENV ?? 'production';
-    if (!cfg.allowedModes.includes(env)) {
+    const allowedModes = getAutoLoopAllowedModes();
+    if (!allowedModes.includes(env)) {
       logger.info('pipeline.auto_loop_skipped_env', {
         component: 'pipeline',
         audit_id: this.auditId,
         env,
-        allowed: cfg.allowedModes,
+        allowed: allowedModes,
       });
       return false;
     }

@@ -110,6 +110,22 @@ describe('ConnectorRunner', () => {
     });
   });
 
+  it('uses connector.source_tier document_feed in ConnectorRunResult', async () => {
+    mockConnectors.push(
+      makeConnector(
+        'doc-connector',
+        async () => ({
+          confirmed_fact_types: [],
+          evidence_notes: [],
+        }),
+        { source_tier: 'document_feed' },
+      ),
+    );
+
+    const results = await runner.runAll(PHASE, INPUT);
+    expect(results[0]?.source_tier).toBe('document_feed');
+  });
+
   it('marks timed_out=true and returns empty confirmed when connector exceeds timeout', async () => {
     // Connector never resolves within the 100ms timeout
     mockConnectors.push(
@@ -232,13 +248,15 @@ describe('FactChecker + ConnectorRunner enrichment', () => {
           id: '1',
           title: 'performance claim needs review',
           description: 'Page load time unverified',
+          impact: 'Unknown performance posture',
           severity: 'medium',
           confidence: 'medium',
           data_source: 'inferred',
-          recommendations: [],
+          evidence_refs: [{ type: 'synthetic_test', finding: 'connector-runner fixture' }],
         },
       ],
       recommendations: [],
+      quick_wins: [],
       unknown_items: [],
       ...overrides,
     };
@@ -274,6 +292,9 @@ describe('FactChecker + ConnectorRunner enrichment', () => {
 
     // The issue title contains "performance claim" → should be elevated
     expect(co.trace.claim_sources[0].truth_source).toBe('external_api');
+    expect(co.trace.claim_sources[0].truth_sources).toContain('external_search');
+    expect(co.trace.claim_sources[0].truth_sources).toContain('external_api');
+    expect(co.counts.statuses.confirmed_external).toBe(1);
   });
 
   it('does NOT elevate truth_source when confirmed types do not match issue title', () => {
@@ -302,6 +323,8 @@ describe('FactChecker + ConnectorRunner enrichment', () => {
 
     // Should NOT be elevated — original data_source='inferred' → 'external_search'
     expect(co.trace.claim_sources[0].truth_source).not.toBe('external_api');
+    expect(co.trace.claim_sources[0].truth_sources).toEqual(['external_search']);
+    expect(co.counts.statuses.confirmed_external).toBe(0);
   });
 
   it('adds external_source_unavailable when all connectors failed and high-risk claims exist', () => {

@@ -46,6 +46,7 @@ import {
   DISCOVER_QUESTION_SCROLL_DELAY_MS,
   DISCOVER_WIZARD_SAVE_TIMEOUT_MS,
 } from '../config/discover-page-defaults';
+import { UI_SEMANTIC_COLORS } from '../config/ui-semantic-colors';
 import discoveryUiCopy from '../data/discovery-ui-copy.en.json';
 import discoverResultsUi from '../data/discover-page-results-ui.en.json';
 
@@ -841,7 +842,7 @@ export function DiscoverPage(props?: DiscoverPageProps) {
               >
                 <CheckCircle size={22} weight="fill" className="flex-shrink-0" style={{ color: 'var(--glc-green-dark)' }} />
                 <div>
-                  <p className="font-semibold" style={{ fontSize: '1rem', color: '#10B981' }}>{discoverResultsUi.copy.contactSavedTitle}</p>
+                  <p className="font-semibold" style={{ fontSize: '1rem', color: UI_SEMANTIC_COLORS.success }}>{discoverResultsUi.copy.contactSavedTitle}</p>
                   <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
                     {discoverResultsUi.copy.contactSavedBody}
                   </p>

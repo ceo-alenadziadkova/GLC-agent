@@ -38,4 +38,41 @@ export const FACT_CHECKER_THRESHOLDS = {
     maxReductionSteps: 2,
     minScoreAfterReduction: 1,
   },
+  /**
+   * Heuristics for CONTROL_OBJECT population in `FactChecker.buildControlObject`.
+   * Keep patterns maintainable here instead of inline in the service.
+   */
+  controlObjectHeuristics: {
+    /** `errors.data_gaps` keys: truncate longer `unknown_items` strings to this max length. */
+    unknownItemKeyMaxChars: 60,
+    unknownItemKeyTruncationEllipsis: '...',
+    /**
+     * Alternation (inside word boundaries) for risky language on recommendations.
+     * Compiled as `\b(${alternation})\b` with case-insensitive flag.
+     */
+    riskyRecommendationLanguageAlternation:
+      'guarantee|guaranteed|definitely|certainly|always|never|100%|will increase|will reduce',
+    /**
+     * Structural `error_type` codes matching this pattern increment `counts.statuses.strategic_inconsistency`.
+     */
+    strategicInconsistencyStructuralCodePattern: 'conflict|mismatch|inconsistency',
+    /** Weighted blend for `co.confidence.strategic` (0–100 scale). */
+    strategicConfidence: {
+      riskyPromiseMultiplier: 30,
+      unverifiedMultiplier: 20,
+    },
+    /** Penalties subtracted from 100 for `co.confidence.consistency`. */
+    consistencyConfidence: {
+      structuralErrorMultiplier: 15,
+      hallucinationMultiplier: 20,
+    },
+    /** Gates for `human_attention_required` in buildControlObject. */
+    humanAttention: {
+      minLikelyHallucination: 3,
+      minDataGaps: 5,
+      highRiskAssumptionsGte: 2,
+      mediumRiskAssumptionsGte: 5,
+      feasibilityScoreMaxInclusive: 0.35,
+    },
+  },
 } as const;

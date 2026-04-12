@@ -21,11 +21,7 @@ This ADR is immutable once accepted. Status changes to **Accepted** when Sprint 
 
 ## Context
 
-The Truth Registry (ADR-TRUTH-REGISTRY-ASSUMPTIONS.md, Phase 2) defined a three-tier source priority:
-
-```
-internal_metrics > user_brief > external_search
-```
+The Truth Registry (ADR-TRUTH-REGISTRY-ASSUMPTIONS.md, Phase 2) defined initial source tiers; Sprint 3 extends them with `external_api` and `document_feed` (see `TRUTH_REGISTRY.sources` in `truth-registry.ts`).
 
 `external_search` covers generic web search results but cannot reach:
 - Authoritative external APIs (regulatory databases, certification registries, industry data providers)
@@ -43,14 +39,14 @@ Two additions are needed:
 
 ### 1. Extended Truth Registry Source Tiers
 
-Updated priority ordering (lower number = higher trust):
+Updated priority ordering (lower number = higher trust). **`external_api` ranks above `external_search`** so connector-corroborated claims win over generic inferred/web buckets.
 
 ```
 Priority 1: internal_metrics     (system-observed data about the client)
 Priority 2: user_brief            (data explicitly provided by the client)
-Priority 3: external_search       (general web search; remains as-is)
-Priority 4: external_api          (authoritative structured APIs — NEW)
-Priority 5: document_feed         (client-uploaded documents — NEW)
+Priority 3: external_api         (authoritative structured APIs — Phase 7+)
+Priority 4: external_search      (general web search / inferred-default bucket)
+Priority 5: document_feed        (client-uploaded documents — Phase 7+)
 ```
 
 **Conflict resolution:** The existing `priority_based` conflict resolution policy applies. When two sources disagree, the higher-priority source wins and the lower-priority source is logged as a `conflict_note` on the claim.
@@ -164,10 +160,7 @@ The connector is shipped with `enabled: false` in all environments until QA vali
 
 The document feed tier allows clients to upload PDFs or text documents that become project-level truth sources for their audit. This is higher-value than external_api for clients with proprietary market research, internal policies, or SOPs.
 
-**Implementation deferred to Sprint 3 follow-up** — document parsing infrastructure (PDF extraction, chunking, embedding-based retrieval) is a significant independent workstream. Sprint 3 delivers:
-- The interface and connector runner (required for external_api anyway)
-- The Truth Registry config extension
-- A stub `DocumentFeedConnector` that returns `null` (no-op) until the document pipeline is ready
+**Document feed:** full PDF/ingestion pipeline remains deferred. Sprint 3 ships the runner, registry tiers, and a first **live** public connector: `SecurityTxtWellKnownConnector` (`server/src/connectors/security-txt-connector.ts`) for `security_compliance`, gated by `CONNECTOR_SECURITY_TXT_ENABLED`.
 
 ---
 
@@ -175,7 +168,8 @@ The document feed tier allows clients to upload PDFs or text documents that beco
 
 | Field | Change |
 |---|---|
-| `trace.claim_sources[].truth_source` | Extended enum: adds `'external_api'`, `'document_feed'` |
+| `trace.claim_sources[].truth_source` | Extended enum: adds `'external_api'`, `'document_feed'` (priority winner) |
+| `trace.claim_sources[].truth_sources[]` | v2.1: all contributing tiers (strongest-first); see ADR-CONTROL-OBJECT-V2-FULL.md |
 | `human_attention_required.reasons[]` | Adds `'external_source_unavailable'` |
 | `context.truth_profile_id` | Now formally references a connector-extended profile |
 | `versions.system_version` | `'v2.2'` |

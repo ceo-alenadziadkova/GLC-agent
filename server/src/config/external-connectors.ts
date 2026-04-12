@@ -4,7 +4,7 @@
  * Connectors provide external data enrichment to elevate claim verification
  * beyond what internal metrics and the user brief can supply.
  *
- * Truth Registry priority: external_api = priority 4 (after internal/brief/search).
+ * Truth Registry priority: external_api ranks above external_search (see truth-registry.ts).
  *
  * NON-BLOCKING CONTRACT (ADR-MULTIMODAL-TRUTH.md §3):
  *   - Every connector must implement its own internal timeout guard.
@@ -19,10 +19,12 @@
  *   4. Write a mock-based integration test (see connector-runner.test.ts pattern).
  *
  * Version history:
- *   v2.2 — Phase 7 / Sprint 3: initial file (empty registry — infrastructure ready)
+ *   v2.2 — Phase 7 / Sprint 3: initial file (infrastructure)
+ *   v2.3 — Sprint 3: SecurityTxtWellKnownConnector (public, no API key)
  */
 
 import type { DomainKey } from '../types/audit.js';
+import { SecurityTxtWellKnownConnector } from '../connectors/security-txt-connector.js';
 
 // ─── Input / Output shapes ────────────────────────────────────────────────────
 
@@ -59,6 +61,11 @@ export interface ExternalConnector {
   /** Human-readable display name. */
   readonly name: string;
   /**
+   * Truth tier recorded in CONTROL_OBJECT when this connector succeeds.
+   * Defaults to 'external_api' in ConnectorRunner.
+   */
+  readonly source_tier?: 'external_api' | 'document_feed';
+  /**
    * Per-connector soft timeout (ms). ConnectorRunner enforces CONNECTOR_HARD_TIMEOUT_MS
    * as a ceiling and uses Math.min(connector.timeout_ms, CONNECTOR_HARD_TIMEOUT_MS).
    */
@@ -83,24 +90,10 @@ export interface ExternalConnector {
 /**
  * Registered external connectors.
  *
- * Currently empty — Phase 7 infrastructure is in place but no live connectors
- * have been provisioned. Connectors are added here once:
- *   (a) The external API has been vetted and rate-limit budgeted.
- *   (b) The connector has passed non-blocking timeout tests.
- *   (c) A corresponding env var is declared in server/.env.example.
- *
- * Example (do not activate until monitoring is confirmed):
- *
- *   import { ClearbitTechConnector } from '../connectors/clearbit-tech.js';
- *
- *   new ClearbitTechConnector({
- *     apiKey: process.env.CLEARBIT_API_KEY ?? '',
- *     applicable_phases: ['tech_infrastructure', 'security_compliance'],
- *   }),
+ * Add new entries only after: vetted API, rate-limit budget, non-blocking timeout tests,
+ * and env documentation in server/.env.example where applicable.
  */
-export const EXTERNAL_CONNECTORS: ExternalConnector[] = [
-  // Register connectors here when ready.
-];
+export const EXTERNAL_CONNECTORS: ExternalConnector[] = [new SecurityTxtWellKnownConnector()];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

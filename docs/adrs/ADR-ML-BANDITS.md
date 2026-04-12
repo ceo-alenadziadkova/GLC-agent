@@ -37,7 +37,7 @@ Two gaps remain from the Phase 5 "Deferred" table (ADR-AUTO-LOOP-RULE-ENGINE.md)
 
 **File:** `server/src/services/bandit.ts` (new)
 
-A `BanditService` selects from registered agent variants for a given phase using an ε-greedy algorithm over the `agent_performance_aggregate` table.
+A `BanditService` selects from registered agent variants for a given phase using an ε-greedy algorithm over per-arm aggregates in the **`bandit_arm_performance`** table (phase_id × variant_id, `run_count`, `avg_score`). This table is fed after each completed domain run from the CONTROL_OBJECT `agent_score` snapshot — parallel to, but distinct from, `agent_performance_aggregate`, which remains the cross-run observability rollup for dashboards and evaluation analytics.
 
 **Input:**
 - `phase_id: string` — the domain phase being run
@@ -70,14 +70,15 @@ The BanditService does **not** activate until all three readiness conditions are
 | `MIN_PHASES_WITH_DATA` | ≥ 3 distinct `phase_id`s have ≥ 10 runs each | Prevents one outlier client from skewing the policy |
 | `MAX_VARIANTS_PER_PHASE` | ≤ 3 | ε-greedy converges poorly over large action spaces at early data volumes; expand after Phase 10 benchmarks |
 
+Pseudocode aligned with `server/src/services/bandit.ts`:
+
 ```typescript
-function isReady(phase_id: string, variants: AgentVariant[], aggregates: AgentAggregate[]): boolean {
-  const phasesWithData = countPhasesWithMinRuns(aggregates, MIN_EVALUATION_COUNT);
+function isReady(phase_id: string, variants: AgentVariant[], armRows: BanditArmRow[]): boolean {
+  const phasesWithData = countDistinctPhasesWithMinRuns(armRows /* query all phases */, MIN_EVALUATION_COUNT);
   if (phasesWithData < MIN_PHASES_WITH_DATA) return false;
   if (variants.length > MAX_VARIANTS_PER_PHASE) return false;
-  const phaseAggregate = aggregates.find(a => a.phase_id === phase_id);
-  if (!phaseAggregate || phaseAggregate.run_count < MIN_EVALUATION_COUNT) return false;
-  return true;
+  const allArms = ['default', ...variants.map(v => v.variant_id)];
+  return allArms.every(vid => armRowFor(phase_id, vid)?.run_count >= MIN_EVALUATION_COUNT);
 }
 ```
 
@@ -124,7 +125,7 @@ Only variants explicitly registered in this config are eligible for bandit selec
 FEATURE_BANDITS=false   // default in all environments
 ```
 
-When `false`, `BanditService.selectVariant()` always returns `'default'` and logs `BANDIT_DISABLED`. No aggregate reads or writes occur.
+When `false`, `BanditService.selectVariant()` always returns `'default'` with gate miss `BANDIT_DISABLED` and performs **no** reads from `bandit_arm_performance`. The pipeline also **skips** `recordArmResult` (`recordBanditArmAsync` is gated on the same flag), so no bandit-table writes occur until the flag is enabled.
 
 Enable per environment after readiness gate criteria are met in that environment's data:
 1. Deploy Phase 6 with `FEATURE_BANDITS=false` — confirm aggregate table is accumulating data
@@ -151,7 +152,7 @@ Enable per environment after readiness gate criteria are met in that environment
 - No impact on existing pipeline logic: pure addition, not modification
 
 **Negative / Risks:**
-- Agent performance aggregate can drift if evaluation rows are deleted (retention expiry). Phase 6 should include a periodic full-recompute job for `agent_performance_aggregate`.
+- `bandit_arm_performance` can drift if rows are manually deleted or environments are reset. Phase 6+ may add a periodic reconcile job from `evaluation_dataset` or `agent_performance_aggregate` if long-term parity is required.
 - ε-greedy with ε=0.15 still explores 15% of the time — some audits will use a non-optimal variant intentionally. This is a feature (exploration), not a bug, but consultants may notice quality variance if they receive back-to-back audits on the same phase.
 - Variant registration in config is manual. There is no automated discovery of what variants exist. A misconfigured `variant_id` will silently fall back to `'default'`.
 
@@ -172,7 +173,8 @@ Enable per environment after readiness gate criteria are met in that environment
 
 - `server/src/services/bandit.ts` — BanditService (Sprint 2, new)
 - `server/src/config/agent-variants.ts` — variant registry (Sprint 2, new)
-- `server/src/services/agent-performance.ts` — aggregate data source
+- `server/src/services/agent-performance.ts` — `agent_performance_aggregate` (observability; not the bandit policy input)
+- `server/migrations/053_bandit_arm_performance_and_governance_risk.sql` — `bandit_arm_performance` table
 - `server/src/services/pipeline.ts` — injection site (calls BanditService before agent instantiation)
 - `server/src/schemas/control-object.ts` — context.selected_variant_id addition
 - `docs/adrs/ADR-AUTO-LOOP-RULE-ENGINE.md` — Phase 5 (deferred bandit item)

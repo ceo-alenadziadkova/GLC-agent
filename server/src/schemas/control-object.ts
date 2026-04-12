@@ -11,7 +11,7 @@
  *   v1.8  — Phase 4: safety mode guardrails, formalized error enums
  *   v2.0  — Phase 5: cost_control, agent_performance (full spec)
  *   v2.1  — Sprint 1–2: risk_profile, evaluation_link, selected_variant_id (bandits),
- *            external_api/document_feed truth source tiers (pre-declared),
+ *            external_api/document_feed truth tiers (registry: api before generic search),
  *            causal_chain pre-declaration, external_source_unavailable reason code,
  *            accept_with_warnings formalised (already in DecisionHint since v1.7)
  *   v2.3  — Phase 8 (planned): causal_chain required; upstream_claim_invalidated error type
@@ -38,8 +38,8 @@ export type ExecutionMode = 'normal' | 'safe';
 export type TruthSource =
   | 'internal_metrics'  // priority 1 — system-observed data
   | 'user_brief'        // priority 2 — explicitly provided by client
-  | 'external_search'   // priority 3 — general web search
-  | 'external_api'      // priority 4 — authoritative structured API (Phase 7+)
+  | 'external_api'      // priority 3 — authoritative structured API (Phase 7+)
+  | 'external_search'   // priority 4 — general web search
   | 'document_feed';    // priority 5 — client-uploaded documents (Phase 7+)
 export type AssumptionSource =
   | 'inferred_from_brief'
@@ -130,9 +130,21 @@ export interface ControlObjectFeasibility {
 
 export interface ControlObjectStatuses {
   confirmed_brief: number;
+  /**
+   * Claims whose winning truth tier is external_api or document_feed (connector or feed confirmed).
+   */
+  confirmed_external: number;
   unverified: number;
   likely_hallucination: number;
   risky_promise: number;
+  /**
+   * Fact claims that cite the client brief as source but remain low-confidence (load-bearing brief dependency).
+   */
+  dependent_on_brief_assumption: number;
+  /**
+   * Count of structural error codes that indicate cross-section or positioning inconsistency (keyword heuristic).
+   */
+  strategic_inconsistency: number;
 }
 
 export interface ControlObjectCounts {
@@ -184,8 +196,13 @@ export interface ControlObjectClaimSource {
   claim_id: number;
   agent: number;
   section: string;
-  /** Which source provided the evidence for this claim */
+  /** Winning source after priority-based merge (lowest registry priority number wins). */
   truth_source: TruthSource;
+  /**
+   * All contributing tiers observed for this claim (deduped, sorted strongest-first).
+   * v2.1+: supports multi-modal traces; `truth_source` remains the canonical winner for backward compatibility.
+   */
+  truth_sources: TruthSource[];
 }
 
 /**
@@ -441,9 +458,12 @@ export function createControlObjectV1(
       assumption: 0,
       statuses: {
         confirmed_brief: 0,
+        confirmed_external: 0,
         unverified: 0,
         likely_hallucination: 0,
         risky_promise: 0,
+        dependent_on_brief_assumption: 0,
+        strategic_inconsistency: 0,
       },
     },
     errors: {

@@ -5,6 +5,7 @@ import { ArrowsClockwise, Lightning, Spinner, Warning, Tray } from '@phosphor-ic
 import { AppShell } from '../components/AppShell';
 import { api } from '../data/apiService';
 import type { AuditMeta } from '../data/auditTypes';
+import { UI_SEMANTIC_COLORS } from '../config/ui-semantic-colors';
 
 type SnapshotStatusFilter = 'all' | 'running' | 'completed' | 'failed';
 
@@ -71,7 +72,14 @@ export function AdminSnapshotQueue() {
         )}
 
         {!q.isPending && q.error && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg" style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)', color: '#EF4444' }}>
+          <div
+            className="flex items-center gap-3 px-4 py-3 rounded-lg"
+            style={{
+              backgroundColor: UI_SEMANTIC_COLORS.dangerMutedBg,
+              border: UI_SEMANTIC_COLORS.dangerBorder20,
+              color: UI_SEMANTIC_COLORS.danger,
+            }}
+          >
             <Warning className="w-4 h-4 flex-shrink-0" />
             <span className="text-sm">Failed to load snapshot queue.</span>
           </div>
@@ -92,8 +100,10 @@ export function AdminSnapshotQueue() {
               .map((audit) => {
                 const createdAt = new Date(audit.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
                 const statusColor =
-                  audit.status === 'completed' ? '#10B981'
-                    : audit.status === 'failed' ? '#EF4444'
+                  audit.status === 'completed'
+                    ? UI_SEMANTIC_COLORS.success
+                    : audit.status === 'failed'
+                      ? UI_SEMANTIC_COLORS.danger
                       : 'var(--glc-blue)';
                 return (
                   <div

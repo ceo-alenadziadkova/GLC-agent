@@ -14,8 +14,7 @@
  *       · all applicable connectors unavailable + high-risk claims present
  *         → add 'external_source_unavailable' to human_attention_required.
  *
- * With an empty EXTERNAL_CONNECTORS registry (current state), runAll() returns []
- * immediately with zero DB or network calls.
+ * When no connectors apply to a phase, runAll() returns [] with zero network calls.
  *
  * Version history:
  *   v2.2 — Phase 7 / Sprint 3: initial implementation
@@ -24,6 +23,7 @@
 import type { DomainKey } from '../types/audit.js';
 import type { ExternalConnector, ConnectorFetchInput } from '../config/external-connectors.js';
 import { getConnectorsForPhase } from '../config/external-connectors.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { logger } from './logger.js';
 
 // ─── Hard timeout ─────────────────────────────────────────────────────────────
@@ -31,9 +31,9 @@ import { logger } from './logger.js';
 /**
  * Absolute ceiling for any single connector call (ms).
  * Overrides connector.timeout_ms if that value is higher.
- * Must match the value documented in ADR-MULTIMODAL-TRUTH.md §3.
+ * Source: `SYSTEM_DEFAULTS.connectors.hardTimeoutMs` (ADR-MULTIMODAL-TRUTH.md §3).
  */
-export const CONNECTOR_HARD_TIMEOUT_MS = 3_000;
+export const CONNECTOR_HARD_TIMEOUT_MS = SYSTEM_DEFAULTS.connectors.hardTimeoutMs;
 
 // ─── Result shape ─────────────────────────────────────────────────────────────
 
@@ -89,7 +89,7 @@ export class ConnectorRunner {
       });
       return {
         connector_id: connectors[i].id,
-        source_tier: 'external_api' as const,
+        source_tier: (connectors[i].source_tier ?? 'external_api') as 'external_api' | 'document_feed',
         confirmed_fact_types: [],
         evidence_notes: [],
         timed_out: false,
@@ -104,6 +104,7 @@ export class ConnectorRunner {
     input: ConnectorFetchInput,
   ): Promise<ConnectorRunResult> {
     const timeoutMs = Math.min(connector.timeout_ms, CONNECTOR_HARD_TIMEOUT_MS);
+    const sourceTier = connector.source_tier ?? 'external_api';
 
     // Sentinel value: null means "timed out"
     const timeoutSignal = new Promise<null>(resolve => setTimeout(() => resolve(null), timeoutMs));
@@ -120,7 +121,7 @@ export class ConnectorRunner {
         });
         return {
           connector_id: connector.id,
-          source_tier: 'external_api',
+          source_tier: sourceTier,
           confirmed_fact_types: [],
           evidence_notes: [],
           timed_out: true,
@@ -137,7 +138,7 @@ export class ConnectorRunner {
 
       return {
         connector_id: connector.id,
-        source_tier: 'external_api',
+        source_tier: sourceTier,
         confirmed_fact_types: outcome.confirmed_fact_types,
         evidence_notes: outcome.evidence_notes,
         timed_out: false,
@@ -152,7 +153,7 @@ export class ConnectorRunner {
       });
       return {
         connector_id: connector.id,
-        source_tier: 'external_api',
+        source_tier: sourceTier,
         confirmed_fact_types: [],
         evidence_notes: [],
         timed_out: false,

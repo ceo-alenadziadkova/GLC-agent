@@ -28,6 +28,9 @@ describe('pipeline-governance', () => {
     expect(parsed?.decision_hint).toBe('accept_with_warnings');
     expect(parsed?.confidence.overall).toBe(77);
     expect(parsed?.counts.statuses.risky_promise).toBe(1);
+    expect(parsed?.counts.statuses.confirmed_external).toBe(0);
+    expect(parsed?.counts.statuses.dependent_on_brief_assumption).toBe(0);
+    expect(parsed?.counts.statuses.strategic_inconsistency).toBe(0);
   });
 
   it('parseRefineRecommendedData accepts refine payload with nested control_object', () => {

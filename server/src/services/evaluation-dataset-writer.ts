@@ -1,6 +1,6 @@
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
-import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
+import { isEvaluationDatasetsInsertEnabled } from '../config/feature-flags.js';
 import { sanitizeJsonForEvaluationDataset } from '../lib/evaluation-dataset-sanitize.js';
 import type { ControlObjectV1 } from '../schemas/control-object.js';
 import type { DomainKey } from '../types/audit.js';
@@ -49,7 +49,7 @@ export interface RecordEvaluationDatasetArgs {
  * Best-effort: failures are logged and never throw to callers.
  */
 export async function recordEvaluationDatasetIfEnabled(args: RecordEvaluationDatasetArgs): Promise<void> {
-  if (!SYSTEM_DEFAULTS.evaluationDatasets.insertEnabled) return;
+  if (!isEvaluationDatasetsInsertEnabled()) return;
 
   const {
     auditId,

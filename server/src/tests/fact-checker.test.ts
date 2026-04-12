@@ -5,7 +5,19 @@
  * Covers: flag-based score reduction, hard overrides, score bounds,
  * label re-mapping, domain-specific checks (security, SEO, tech, UX).
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('../services/supabase.js', () => ({
+  supabase: {
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn(async () => ({ data: null, error: null })),
+      maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+    })),
+  },
+}));
+
 import { FactChecker } from '../services/fact-checker.js';
 import type { DomainResult } from '../types/audit.js';
 

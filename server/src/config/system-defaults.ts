@@ -167,6 +167,26 @@ export const SYSTEM_DEFAULTS = {
     cbTtlSec: 60,
   },
   /**
+   * External truth connectors (`ConnectorRunner`, `server/src/connectors/*`).
+   * Hard timeout caps per-connector `timeout_ms`; individual connectors may use stricter budgets.
+   */
+  connectors: {
+    hardTimeoutMs: 3_000,
+    securityTxt: {
+      fetchBudgetMs: 2_500,
+      maxBodyChars: 64_000,
+      /** HTTPS path suffixes tried after host: `https://{host}{suffix}`. */
+      pathSuffixes: ['/.well-known/security.txt', '/security.txt'],
+      /**
+       * Emitted `confirmed_fact_types` when file is well-formed.
+       * Must stay aligned with `PHASE_PROFILES.security_compliance.high_risk_fact_types`.
+       */
+      confirmedFactTypes: ['compliance_status'],
+      /** RFC 9116 `Contact:` field — RegExp source, tested per line (case-insensitive). */
+      contactFieldLinePatternSource: '^\\s*Contact\\s*:',
+    },
+  },
+  /**
    * Quality gate rules (`ConsistencyChecker`) — score/confidence checks before review approval.
    */
   qualityGate: {
@@ -176,15 +196,10 @@ export const SYSTEM_DEFAULTS = {
     maxUnknownItemsForInfo: 4,
   },
   /**
-   * Per-phase evaluation rows (`evaluation_datasets`). Set `EVALUATION_DATASETS_INSERT=false` to skip
-   * writes (e.g. local DB without migration `051_evaluation_datasets_and_execution_mode.sql`).
-   */
-  evaluationDatasets: {
-    insertEnabled: process.env.EVALUATION_DATASETS_INSERT !== 'false',
-  },
-  /**
+   * Evaluation `evaluation_datasets` inserts: `isEvaluationDatasetsInsertEnabled()` in `feature-flags.ts`.
+   *
    * ML Bandits: ε-greedy agent-variant selection per GLC domain phase.
-   * Disabled by default. Enable via FEATURE_BANDITS=true.
+   * Master on/off: `isBanditsEnabled()` in `feature-flags.ts` (FEATURE_BANDITS=true).
    *
    * Activation requires all three readiness gates to pass (see bandit.ts).
    * Falls back to 'default' variant on any gate failure, disabled flag, or DB error.
@@ -192,8 +207,6 @@ export const SYSTEM_DEFAULTS = {
    * See ADR-ML-BANDITS.md for full design rationale.
    */
   bandits: {
-    /** Master switch. Default: false. Override: FEATURE_BANDITS=true */
-    enabled: process.env.FEATURE_BANDITS === 'true',
     /** ε-greedy exploration rate: probability of picking a random arm. */
     epsilon: 0.15,
     /** Minimum evaluation runs per arm before bandit considers it reliable. */
@@ -211,20 +224,11 @@ export const SYSTEM_DEFAULTS = {
   },
   /**
    * Auto-loop: targeted agent rerun when Decision Layer returns 'refine'.
-   * Disabled by default. Enable per-environment via AUTO_LOOP_ENABLED=true.
-   * Restricted to sandbox/internal modes until monitoring confirms stability.
+   * Master on/off and allowed modes: `isAutoLoopEnabled()`, `getAutoLoopAllowedModes()` in `feature-flags.ts`.
    *
    * See ADR-AUTO-LOOP-RULE-ENGINE.md for full design rationale.
    */
   autoLoop: {
-    /** Master switch. Default: false. Override: AUTO_LOOP_ENABLED=true */
-    enabled: process.env.AUTO_LOOP_ENABLED === 'true',
-    /**
-     * Which execution environments allow auto-loop.
-     * Prevents accidental activation in production before monitoring period.
-     */
-    allowedModes: (process.env.AUTO_LOOP_ALLOWED_MODES ?? 'sandbox,internal')
-      .split(',').map(s => s.trim()).filter(Boolean),
     /** Maximum rerun iterations per phase. Hard cap — no infinite loops. */
     maxIterations: 2,
     /**

@@ -9,13 +9,14 @@ import { AppShell } from '../components/AppShell';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { useAudit } from '../hooks/useAudit';
 import type { StrategyInitiative } from '../data/auditTypes';
+import { UI_SEMANTIC_COLORS } from '../config/ui-semantic-colors';
 
 type Timeframe = 'quick' | 'medium' | 'strategic';
 
 const TABS: { key: Timeframe; label: string; icon: typeof Lightning; color: string; desc: string }[] = [
   { key: 'quick',    label: 'Quick Wins',   icon: Lightning,  color: 'var(--glc-orange)', desc: 'Under 1 week · €0–500'   },
   { key: 'medium',   label: 'Core Growth',  icon: TrendUp,    color: 'var(--glc-blue)',   desc: '1–3 months · €1K–6K'      },
-  { key: 'strategic',label: 'Strategic',    icon: MapTrifold, color: '#8B5CF6',           desc: '3–6 months · €6K–20K'    },
+  { key: 'strategic',label: 'Strategic',    icon: MapTrifold, color: UI_SEMANTIC_COLORS.strategicPurple, desc: '3–6 months · €6K–20K' },
 ];
 
 const EFFORT_COLOR: Record<string, string> = {
@@ -255,7 +256,7 @@ export function StrategyLab() {
               {[
                 { label: 'Total Initiatives', value: `${selected.size}`, color: 'var(--text-primary)' },
                 { label: 'Quick Wins', value: `${allSelected.filter(i => initiatives.quick.includes(i)).length}`, color: 'var(--glc-green)' },
-                { label: 'Strategic Items', value: `${allSelected.filter(i => initiatives.strategic.includes(i)).length}`, color: '#8B5CF6' },
+                { label: 'Strategic Items', value: `${allSelected.filter(i => initiatives.strategic.includes(i)).length}`, color: UI_SEMANTIC_COLORS.strategicPurple },
               ].map(({ label, value, color }) => (
                 <div
                   key={label}

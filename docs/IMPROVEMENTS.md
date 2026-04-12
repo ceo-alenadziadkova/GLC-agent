@@ -3,6 +3,8 @@
 This document tracks product and UX improvements that are intentionally deferred.
 It is a planning artifact, not a source of runtime truth.
 
+**Engineering debt and audit follow-ups:** [TECH_DEBT.md](./TECH_DEBT.md) (separate from this product backlog).
+
 ## Frontend internationalization (i18n)
 
 **Status:** Planned — no runtime i18n library in the SPA yet; target locales and partial key registry already exist.

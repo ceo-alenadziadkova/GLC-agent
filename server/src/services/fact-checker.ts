@@ -7,7 +7,12 @@ import {
   type PhaseId,
   type ExecutionMode,
 } from '../schemas/control-object.js';
-import { mapDataSourceToTruthSource } from '../config/truth-registry.js';
+import {
+  mapDataSourceToTruthSource,
+  getHighestPrioritySource,
+  normalizeTruthSourcesList,
+  type TruthSourceId,
+} from '../config/truth-registry.js';
 import { getExtendedPhaseProfile } from '../config/phase-profiles.js';
 import {
   feasibilityLayer,
@@ -43,11 +48,30 @@ export interface FactCorrection {
   corrected_value?: unknown;
 }
 
+type DomainCollectorCheck = (
+  self: FactChecker,
+  result: DomainResult,
+  collected: Record<string, Record<string, unknown>>,
+  corrections: FactCorrection[],
+) => void;
+
 /**
  * Validates Claude's analysis against raw collected data.
  * Catches hallucinations and score inconsistencies.
  */
 export class FactChecker {
+  /**
+   * Per-domain hooks that run collector-backed checks before global consistency rules.
+   * Phases without entries (e.g. marketing_utp, automation_processes) rely on qualitative analysis only.
+   */
+  private static readonly domainCollectorChecks: Partial<Record<DomainKey, DomainCollectorCheck>> = {
+    security_compliance: (self, result, collected, corrections) =>
+      self.checkSecurity(result, collected, corrections),
+    seo_digital: (self, result, collected, corrections) => self.checkSeo(result, collected, corrections),
+    tech_infrastructure: (self, result, collected, corrections) => self.checkTech(result, collected, corrections),
+    ux_conversion: (self, result, collected, corrections) => self.checkUx(result, collected, corrections),
+  };
+
   verify(
     result: DomainResult,
     domainKey: DomainKey,
@@ -55,23 +79,9 @@ export class FactChecker {
   ): FactCheckResult {
     const corrections: FactCorrection[] = [];
 
-    // Domain-specific checks
-    switch (domainKey) {
-      case 'security_compliance':
-        this.checkSecurity(result, collectedData, corrections);
-        break;
-      case 'seo_digital':
-        this.checkSeo(result, collectedData, corrections);
-        break;
-      case 'tech_infrastructure':
-        this.checkTech(result, collectedData, corrections);
-        break;
-      case 'ux_conversion':
-        this.checkUx(result, collectedData, corrections);
-        break;
-      default:
-        // Marketing and Automation rely more on qualitative analysis
-        break;
+    const domainHook = FactChecker.domainCollectorChecks[domainKey];
+    if (domainHook) {
+      domainHook(this, result, collectedData, corrections);
     }
 
     // General checks
@@ -435,6 +445,8 @@ export class FactChecker {
     co.counts.opinion = opinionCount;
     co.counts.total_claims = factCount + hypothesisCount + opinionCount;
 
+    const coh = FACT_CHECKER_THRESHOLDS.controlObjectHeuristics;
+
     // ─── Statuses ─────────────────────────────────────────────
     // Overrides = hard conflicts with evidence → likely_hallucination
     co.counts.statuses.likely_hallucination = corrections.filter(c => c.action === 'override').length;
@@ -445,16 +457,29 @@ export class FactChecker {
     // Brief-sourced issues = confirmed by client context
     co.counts.statuses.confirmed_brief = issues.filter(i => i.data_source === 'from_brief').length;
 
-    // Risky promise detection: look for absolute/guarantee language in issue descriptions
-    const riskyPattern = /\b(guarantee|guaranteed|definitely|certainly|always|never|100%|will increase|will reduce)\b/i;
+    co.counts.statuses.dependent_on_brief_assumption = issues.filter(
+      i => i.data_source === 'from_brief' && i.confidence === 'low',
+    ).length;
+
+    // Risky promise detection: absolute / guarantee language on recommendations
+    const riskyPattern = new RegExp(
+      `\\b(${coh.riskyRecommendationLanguageAlternation})\\b`,
+      'i',
+    );
     co.counts.statuses.risky_promise = recommendations.filter(r =>
       riskyPattern.test(r.description) || riskyPattern.test(r.impact)
     ).length;
 
+    const unknownMax = coh.unknownItemKeyMaxChars;
+    const unknownEllipsis = coh.unknownItemKeyTruncationEllipsis;
+
     // ─── Errors ───────────────────────────────────────────────
     // data_gaps from unknown_items
     for (const item of result.unknown_items ?? []) {
-      const key = item.length > 60 ? item.slice(0, 57) + '...' : item;
+      const key =
+        item.length > unknownMax
+          ? item.slice(0, unknownMax - unknownEllipsis.length) + unknownEllipsis
+          : item;
       co.errors.data_gaps.push(key);
     }
 
@@ -484,6 +509,11 @@ export class FactChecker {
     if (co.counts.statuses.risky_promise > 0) {
       co.errors.fixable.push('risky_promise_language');
     }
+
+    const strategicPattern = new RegExp(coh.strategicInconsistencyStructuralCodePattern, 'i');
+    co.counts.statuses.strategic_inconsistency = co.errors.structural.filter(e =>
+      strategicPattern.test(e),
+    ).length;
 
     // ─── Assumptions (v1.5: with risk + related_claim_ids) ───────────────────
     // Map low-confidence inferred findings → explicit assumptions
@@ -522,34 +552,49 @@ export class FactChecker {
     // ─── Trace ────────────────────────────────────────────────
     // Map each issue to a claim source (phase = agent number for v1)
     // v1.5: truth_source resolved via Truth Registry helper (canonical mapping)
-    // v2.2: elevate to 'external_api' when a connector confirmed the claim type
-    const externalConfirmedTypes = new Set(
-      connectorEnrichments.flatMap(r => r.confirmed_fact_types),
-    );
+    // v2.1: truth_sources[] lists contributing tiers; truth_source = priority winner
+    // v2.2: merge connector tier (external_api | document_feed) when connector confirmed claim type
     const highRiskTypes = new Set(profile.high_risk_fact_types);
+
+    const issueTitleMatchesConfirmedType = (title: string, ft: string): boolean =>
+      title.toLowerCase().includes(ft.replace(/_/g, ' '));
+
+    function externalTierForIssue(title: string): TruthSourceId | null {
+      let best: TruthSourceId | null = null;
+      for (const r of connectorEnrichments) {
+        if (r.timed_out || r.error !== null) continue;
+        const hit = r.confirmed_fact_types.some(ft => issueTitleMatchesConfirmedType(title, ft));
+        if (!hit) continue;
+        if (r.source_tier === 'document_feed') {
+          best = 'document_feed';
+          break;
+        }
+        if (r.source_tier === 'external_api') best = 'external_api';
+      }
+      return best;
+    }
 
     for (let i = 0; i < issues.length; i++) {
       const issue = issues[i];
-      let truthSource = mapDataSourceToTruthSource(issue.data_source ?? 'inferred');
-
-      // Elevate truth_source to 'external_api' if any connector confirmed this claim type.
-      // Match by checking whether the issue title contains any confirmed fact-type keyword.
-      if (
-        externalConfirmedTypes.size > 0 &&
-        [...externalConfirmedTypes].some(ft =>
-          issue.title.toLowerCase().includes(ft.replace(/_/g, ' '))
-        )
-      ) {
-        truthSource = 'external_api';
-      }
+      const baseSource = mapDataSourceToTruthSource(issue.data_source ?? 'inferred');
+      const tiers: TruthSourceId[] = [baseSource];
+      const ext = externalTierForIssue(issue.title);
+      if (ext) tiers.push(ext);
+      const truthSources = normalizeTruthSourcesList(tiers);
+      const truthSource = getHighestPrioritySource(truthSources);
 
       co.trace.claim_sources.push({
         claim_id: i + 1,
         agent: phaseNumber,
         section: `Phase ${phaseNumber} — ${domainKey}`,
         truth_source: truthSource,
+        truth_sources: truthSources,
       });
     }
+
+    co.counts.statuses.confirmed_external = co.trace.claim_sources.filter(
+      cs => cs.truth_sources.includes('external_api') || cs.truth_sources.includes('document_feed'),
+    ).length;
 
     // ─── Feasibility (v1.7) ───────────────────────────────────
     const feasibilityResult = feasibilityLayer.assess(domainKey, result, brief);
@@ -566,11 +611,16 @@ export class FactChecker {
     // strategic: degrade if many unverified recs or risky promises
     const riskyRatio = factCount > 0 ? co.counts.statuses.risky_promise / Math.max(hypothesisCount, 1) : 0;
     const unverifiedRatio = factCount > 0 ? co.counts.statuses.unverified / factCount : 0;
-    const strategic = Math.max(0, Math.round(100 - (riskyRatio * 30) - (unverifiedRatio * 20)));
+    const sc = coh.strategicConfidence;
+    const strategic = Math.max(
+      0,
+      Math.round(100 - (riskyRatio * sc.riskyPromiseMultiplier) - (unverifiedRatio * sc.unverifiedMultiplier)),
+    );
 
     // consistency: degrade if structural errors present
-    const structuralPenalty = co.errors.structural.length * 15;
-    const hallucinationPenalty = co.counts.statuses.likely_hallucination * 20;
+    const cc = coh.consistencyConfidence;
+    const structuralPenalty = co.errors.structural.length * cc.structuralErrorMultiplier;
+    const hallucinationPenalty = co.counts.statuses.likely_hallucination * cc.hallucinationMultiplier;
     const consistency = Math.max(0, 100 - structuralPenalty - hallucinationPenalty);
 
     // feasibility: score × 100
@@ -591,22 +641,25 @@ export class FactChecker {
     const highRiskAssumptionCount = co.assumptions.filter(a => a.risk === 'high').length;
     // also escalate if many medium-risk assumptions accumulate
     const mediumRiskAssumptionCount = co.assumptions.filter(a => a.risk === 'medium').length;
-    const assumptionsEscalate = highRiskAssumptionCount >= 2 || mediumRiskAssumptionCount >= 5;
-    // v1.7: critically low feasibility (≤0.35) also requires human attention
-    const feasibilityTooLow = feasibilityResult.score <= 0.35;
+    const ha = coh.humanAttention;
+    const assumptionsEscalate =
+      highRiskAssumptionCount >= ha.highRiskAssumptionsGte
+      || mediumRiskAssumptionCount >= ha.mediumRiskAssumptionsGte;
+    // v1.7: critically low feasibility also requires human attention
+    const feasibilityTooLow = feasibilityResult.score <= ha.feasibilityScoreMaxInclusive;
 
     if (
-      co.counts.statuses.likely_hallucination >= 3 ||
-      dataGapCount >= 5 ||
+      co.counts.statuses.likely_hallucination >= ha.minLikelyHallucination ||
+      dataGapCount >= ha.minDataGaps ||
       assumptionsEscalate ||
       feasibilityTooLow
     ) {
       co.human_attention_required.required = true;
 
-      if (co.counts.statuses.likely_hallucination >= 3) {
+      if (co.counts.statuses.likely_hallucination >= ha.minLikelyHallucination) {
         co.human_attention_required.reasons.push('high_hallucination_count');
       }
-      if (dataGapCount >= 5) {
+      if (dataGapCount >= ha.minDataGaps) {
         co.human_attention_required.reasons.push('critical_data_gaps');
       }
       if (assumptionsEscalate) {

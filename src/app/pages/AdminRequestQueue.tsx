@@ -28,6 +28,7 @@ import {
   ADMIN_REQUEST_QUEUE_COPY,
   ADMIN_REQUEST_QUEUE_STATUS,
 } from '../config/admin-request-queue-copy.en';
+import { UI_SEMANTIC_COLORS } from '../config/ui-semantic-colors';
 
 type IntakeSubmissionRow = Awaited<ReturnType<typeof api.listIntakeSubmissions>>['submissions'][number];
 
@@ -344,9 +345,9 @@ export function AdminRequestQueue() {
                             disabled={busyId === req.id}
                             className="px-3 py-1.5 rounded-lg text-xs font-medium"
                             style={{
-                              background: 'rgba(16,185,129,0.12)',
-                              color: '#10B981',
-                              border: '1px solid rgba(16,185,129,0.25)',
+                              background: UI_SEMANTIC_COLORS.successMutedBg12,
+                              color: UI_SEMANTIC_COLORS.success,
+                              border: UI_SEMANTIC_COLORS.successBorder25,
                               opacity: busyId === req.id ? 0.6 : 1,
                             }}
                             onClick={() => approve(req.id)}
@@ -368,7 +369,7 @@ export function AdminRequestQueue() {
                                 <button
                                   type="button"
                                   className="px-3 py-1.5 rounded-lg text-xs"
-                                  style={{ background: 'rgba(239,68,68,0.12)', color: '#EF4444' }}
+                                  style={{ background: UI_SEMANTIC_COLORS.dangerMutedBg12, color: UI_SEMANTIC_COLORS.danger }}
                                   onClick={() => reject(req.id, rejectNote.text)}
                                   disabled={busyId === req.id}
                                 >
@@ -385,9 +386,9 @@ export function AdminRequestQueue() {
                               disabled={busyId === req.id}
                               className="px-3 py-1.5 rounded-lg text-xs font-medium"
                               style={{
-                                background: 'rgba(239,68,68,0.08)',
-                                color: '#EF4444',
-                                border: '1px solid rgba(239,68,68,0.2)',
+                                background: UI_SEMANTIC_COLORS.dangerMutedBg,
+                                color: UI_SEMANTIC_COLORS.danger,
+                                border: UI_SEMANTIC_COLORS.dangerBorder20,
                               }}
                               onClick={() => setRejectNote({ id: req.id, text: '' })}
                             >
@@ -578,9 +579,9 @@ export function AdminRequestQueue() {
                         disabled={busyId === req.id}
                         className="px-3 py-1.5 rounded-lg text-xs font-medium"
                         style={{
-                          background: 'rgba(16,185,129,0.12)',
-                          color: '#10B981',
-                          border: '1px solid rgba(16,185,129,0.25)',
+                          background: UI_SEMANTIC_COLORS.successMutedBg12,
+                          color: UI_SEMANTIC_COLORS.success,
+                          border: UI_SEMANTIC_COLORS.successBorder25,
                           opacity: busyId === req.id ? 0.6 : 1,
                         }}
                         onClick={() => approve(req.id)}
@@ -602,7 +603,7 @@ export function AdminRequestQueue() {
                             <button
                               type="button"
                               className="px-3 py-1.5 rounded-lg text-xs"
-                              style={{ background: 'rgba(239,68,68,0.12)', color: '#EF4444' }}
+                              style={{ background: UI_SEMANTIC_COLORS.dangerMutedBg12, color: UI_SEMANTIC_COLORS.danger }}
                               onClick={() => reject(req.id, rejectNote.text)}
                               disabled={busyId === req.id}
                             >
@@ -619,9 +620,9 @@ export function AdminRequestQueue() {
                           disabled={busyId === req.id}
                           className="px-3 py-1.5 rounded-lg text-xs font-medium"
                           style={{
-                            background: 'rgba(239,68,68,0.08)',
-                            color: '#EF4444',
-                            border: '1px solid rgba(239,68,68,0.2)',
+                            background: UI_SEMANTIC_COLORS.dangerMutedBg,
+                            color: UI_SEMANTIC_COLORS.danger,
+                            border: UI_SEMANTIC_COLORS.dangerBorder20,
                           }}
                           onClick={() => setRejectNote({ id: req.id, text: '' })}
                         >
