@@ -7,13 +7,20 @@
  * Version history:
  *   v1.0  — Phase 2: priority-based sources + 6 domain phase profiles
  *   v1.5  — Phase 3: profile confidence weights added (see phase-confidence-weights.ts)
+ *   v2.1  — Sprint 1: external_api/document_feed source tiers (pre-declared, Phase 7+);
+ *            auto_remediation_scope field on PhaseProfile (Phase 9 consumer)
  */
 
 import type { DomainKey } from '../types/audit.js';
 
 // ─── Source Types (match control-object.ts TruthSource) ───────────────────────
 
-export type TruthSourceId = 'internal_metrics' | 'user_brief' | 'external_search';
+export type TruthSourceId =
+  | 'internal_metrics'  // priority 1
+  | 'user_brief'        // priority 2
+  | 'external_search'   // priority 3
+  | 'external_api'      // priority 4 — Phase 7+, pre-declared (ADR-MULTIMODAL-TRUTH.md)
+  | 'document_feed';    // priority 5 — Phase 7+, pre-declared
 
 export interface TruthSourceDef {
   id: TruthSourceId;
@@ -78,6 +85,16 @@ export interface PhaseProfile {
    * High-risk domains (security, infra) default to 'medium'; others 'low'.
    */
   default_assumption_risk: AssumptionRisk;
+  /**
+   * v2.1+: Controls Phase 9 auto-remediation scope for this domain.
+   *   'tone_only'        — auto-remediate only absolute language / hype phrases.
+   *                        Content-level corrections always route to human review.
+   *   'tone_and_content' — allow content-level fixable corrections in addition to tone.
+   *
+   * 'tone_only' is mandatory for security_compliance to avoid liability from model-
+   * rewritten compliance or legal assertions. See ADR-PHASE-PROFILES.md §3.
+   */
+  auto_remediation_scope: 'tone_only' | 'tone_and_content';
 }
 
 // ─── Phase Profiles — 6 Domains ───────────────────────────────────────────────
@@ -100,6 +117,7 @@ export const PHASE_PROFILES: Record<DomainKey, PhaseProfile> = {
       'infra_missing_monitoring_evidence',
     ],
     default_assumption_risk: 'medium',
+    auto_remediation_scope: 'tone_and_content',
   },
 
   security_compliance: {
@@ -120,6 +138,10 @@ export const PHASE_PROFILES: Record<DomainKey, PhaseProfile> = {
       'missing_security_evidence',
     ],
     default_assumption_risk: 'high',
+    // Security & Compliance: auto-remediation restricted to tone ONLY.
+    // Content-level changes to compliance claims must be reviewed by a human.
+    // See ADR-PHASE-PROFILES.md §3 and ADR-AUTO-REMEDIATION.md.
+    auto_remediation_scope: 'tone_only',
   },
 
   seo_digital: {
@@ -139,6 +161,7 @@ export const PHASE_PROFILES: Record<DomainKey, PhaseProfile> = {
       'seo_competitor_claim_unverified',
     ],
     default_assumption_risk: 'medium',
+    auto_remediation_scope: 'tone_and_content',
   },
 
   ux_conversion: {
@@ -158,6 +181,7 @@ export const PHASE_PROFILES: Record<DomainKey, PhaseProfile> = {
       'ux_missing_analytics_evidence',
     ],
     default_assumption_risk: 'low',
+    auto_remediation_scope: 'tone_and_content',
   },
 
   marketing_utp: {
@@ -177,6 +201,7 @@ export const PHASE_PROFILES: Record<DomainKey, PhaseProfile> = {
       'marketing_roi_figure_speculative',
     ],
     default_assumption_risk: 'medium',
+    auto_remediation_scope: 'tone_and_content',
   },
 
   automation_processes: {
@@ -196,6 +221,7 @@ export const PHASE_PROFILES: Record<DomainKey, PhaseProfile> = {
       'automation_roi_timeline_unrealistic',
     ],
     default_assumption_risk: 'medium',
+    auto_remediation_scope: 'tone_and_content',
   },
 };
 
