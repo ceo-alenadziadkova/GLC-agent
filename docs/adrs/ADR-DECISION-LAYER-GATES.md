@@ -74,6 +74,7 @@ It emits a `pipeline_event` with `event_type = 'refine_recommended'` including:
 - `decision_hint`
 - `reasoning` (human-readable)
 - `active_error_types` (for future Rule Engine use in Phase 5)
+- `control_object` (full CONTROL_OBJECT v1 after `decision_hint` is set, for consultant UI)
 
 The consultant UI can surface this to the reviewer before approving a gate. Auto-loop is activated in **Phase 5** via `AUTO_LOOP_ENABLED` feature flag (default: `false`).
 
@@ -118,7 +119,7 @@ Phase 3 replaces the simple average with **per-phase weighted formula** (`CONFID
 
 ## Versioning
 
-Decision Layer logic is versioned via `CONTROL_OBJECT_VERSIONS.decision_layer` (currently `v1.0`).
+Decision Layer logic is versioned via `CONTROL_OBJECT_VERSIONS.decision_layer_version` (currently `v1.0`).
 
 When thresholds or routing logic change, bump `decision_layer_version` so CONTROL_OBJECT consumers can detect the change and results can be compared across releases.
 

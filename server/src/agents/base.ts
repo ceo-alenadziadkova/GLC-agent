@@ -255,7 +255,7 @@ export abstract class BaseAgent {
           this.phaseNumber,
         );
         this.lastControlObject = controlObject;
-        await this.emit('control_object', '', { control_object: controlObject });
+        // control_object pipeline_events row is emitted by PipelineOrchestrator after DecisionLayer sets decision_hint.
       } catch (controlErr) {
         // Non-fatal: control object build failure must never break phase execution
         logger.warn('agent.control_object_build_failed', {

@@ -11,6 +11,7 @@ import {
   Check,
   X,
   CircleNotch,
+  Info,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { StatusPill } from '../components/glc/StatusPill';
@@ -23,6 +24,11 @@ import { useProfile } from '../hooks/useProfile';
 import { api } from '../data/apiService';
 import { clientCanViewPortalPipeline } from '../lib/client-portal-pipeline-access';
 import type { PipelineEvent, QualityGateReport } from '../data/auditTypes';
+import {
+  latestControlObjectForPhase,
+  latestRefineForPhase,
+  refineEventsForReviewBlock,
+} from '../lib/pipeline-governance';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 import { PIPELINE_MONITOR_COPY as PM } from '../config/pipeline-monitor-copy';
@@ -178,7 +184,21 @@ export function PipelineMonitor() {
     return event ? (event.data as unknown as QualityGateReport) : null;
   };
 
+  const governanceRefinesForModal = useMemo(() => {
+    if (!pipelineState?.events || !modalReview) return [];
+    const evs = refineEventsForReviewBlock(pipelineState.events, modalReview.afterPhase);
+    return evs.map(e => ({
+      phase: e.phase,
+      phaseLabel: PHASE_META.find(p => p.id === e.phase)?.name ?? `Phase ${e.phase}`,
+      reasoning: typeof (e.data as { reasoning?: string }).reasoning === 'string'
+        ? (e.data as { reasoning: string }).reasoning
+        : '',
+    }));
+  }, [pipelineState, modalReview]);
+
   const ph         = phases.find(p => p.id === sel) ?? phases[0];
+  const govCo      = pipelineState ? latestControlObjectForPhase(pipelineState.events, ph.id) : null;
+  const govRefine  = pipelineState ? latestRefineForPhase(pipelineState.events, ph.id) : null;
   const activePhases = phases.filter(p => !p.skipped);
   const done       = activePhases.filter(p => p.status === 'completed').length;
   const pct        = Math.round((done / activePhases.length) * 100);
@@ -516,6 +536,74 @@ export function PipelineMonitor() {
                   </div>
                 )}
 
+                {/* CONTROL_OBJECT / Decision Layer (domain phases) */}
+                {ph.status === 'completed' && govRefine && (
+                  <div
+                    className="rounded-xl p-4"
+                    style={{
+                      backgroundColor: 'rgba(234,179,8,0.08)',
+                      border: '1px solid rgba(234,179,8,0.35)',
+                    }}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <WarningCircle className="w-4 h-4 flex-shrink-0" style={{ color: '#CA8A04' }} />
+                      <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>
+                        {PM.detail.governanceRefineTitle}
+                      </span>
+                    </div>
+                    <p className="text-xs ml-6 mb-2" style={{ color: 'var(--text-secondary)' }}>
+                      {PM.detail.governanceRefineBody}
+                    </p>
+                    <p className="text-xs ml-6 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                      {govRefine.reasoning}
+                    </p>
+                  </div>
+                )}
+
+                {ph.status === 'completed' && !govRefine && govCo?.decision_hint === 'accept_with_warnings' && (
+                  <div
+                    className="rounded-xl p-4"
+                    style={{
+                      backgroundColor: 'var(--glc-blue-xlight)',
+                      border: '1px solid rgba(28,189,255,0.25)',
+                    }}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Info className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
+                      <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>
+                        {PM.detail.governanceWarningsTitle}
+                      </span>
+                    </div>
+                    <p className="text-xs ml-6" style={{ color: 'var(--text-secondary)' }}>
+                      {PM.detail.governanceWarningsBody}
+                    </p>
+                  </div>
+                )}
+
+                {ph.status === 'completed' && govCo && (
+                  <div className="glc-card p-4" style={{ borderRadius: 'var(--radius-xl)' }}>
+                    <SectionLabel className="mb-2">{PM.detail.governanceSummaryTitle}</SectionLabel>
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                      <dt>{PM.detail.governanceConfidence}</dt>
+                      <dd className="font-mono text-right">{govCo.confidence.overall}</dd>
+                      <dt>{PM.detail.governanceClaims}</dt>
+                      <dd className="font-mono text-right">{govCo.counts.total_claims}</dd>
+                      <dt>{PM.detail.governanceHallucination}</dt>
+                      <dd className="font-mono text-right">{govCo.counts.statuses.likely_hallucination}</dd>
+                      <dt>{PM.detail.governanceRiskyPromise}</dt>
+                      <dd className="font-mono text-right">{govCo.counts.statuses.risky_promise}</dd>
+                    </dl>
+                    {govCo.human_attention_required.required && (
+                      <p className="text-xs mt-3" style={{ color: 'var(--callout-warning-fg)' }}>
+                        {PM.detail.governanceHumanAttention}
+                        {govCo.human_attention_required.reasons.length > 0
+                          ? `: ${govCo.human_attention_required.reasons.join(', ')}`
+                          : ''}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* Agent log */}
                 {ph.log && ph.log.length > 0 && (
                   <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-md)' }}>
@@ -622,6 +710,9 @@ export function PipelineMonitor() {
         onClose={() => setModalReview(null)}
         onApprove={handleApprove}
         qualityGate={modalReview ? getQualityGateForPhase(modalReview.afterPhase) : null}
+        governanceRefines={governanceRefinesForModal}
+        governanceRefineSectionTitle={PM.reviewModal.governanceRefineSectionTitle}
+        governanceRefineSectionIntro={PM.reviewModal.governanceRefineSectionIntro}
       />
     </AppShell>
   );

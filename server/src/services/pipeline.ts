@@ -30,6 +30,7 @@ import {
   type ProductMode,
 } from '../types/audit.js';
 import { PIPELINE_EVENT_ERROR_CODES } from '../config/pipeline-event-error-codes.js';
+import type { ControlObjectV1 } from '../schemas/control-object.js';
 
 type AgentConstructor = new (auditId: string) => BaseAgent;
 
@@ -71,6 +72,54 @@ export class PipelineOrchestrator {
 
   constructor(auditId: string) {
     this.auditId = auditId;
+  }
+
+  /**
+   * Applies DecisionLayer (sets canonical `decision_hint`), persists CONTROL_OBJECT v1, and emits
+   * `refine_recommended` when the hint is `refine`. FactChecker only builds the pre-decision snapshot.
+   */
+  private async publishControlObjectGovernance(
+    phase: number,
+    controlObject: ControlObjectV1
+  ): Promise<void> {
+    let decision;
+    try {
+      decision = decisionLayer.decide(controlObject);
+      controlObject.decision_hint = decision.hint;
+    } catch (dlErr) {
+      logger.warn('pipeline.decision_layer_failed', {
+        component: 'pipeline',
+        audit_id: this.auditId,
+        phase,
+        error: dlErr instanceof Error ? dlErr.message : String(dlErr),
+      });
+    }
+
+    try {
+      await this.emitEvent(phase, 'control_object', '', { control_object: controlObject });
+    } catch (emitErr) {
+      logger.warn('pipeline.control_object_emit_failed', {
+        component: 'pipeline',
+        audit_id: this.auditId,
+        phase,
+        error: emitErr instanceof Error ? emitErr.message : String(emitErr),
+      });
+    }
+
+    if (decision?.hint === 'refine') {
+      const oc = pipelineOrchestratorCopy();
+      await this.emitEvent(
+        phase,
+        'refine_recommended',
+        oc.phase.refineRecommendedMessage ?? 'Decision Layer recommends manual review before proceeding.',
+        {
+          decision_hint: decision.hint,
+          reasoning: decision.reasoning,
+          active_error_types: decision.active_error_types,
+          control_object: controlObject,
+        },
+      );
+    }
   }
 
   /** Fetch the product_mode for this audit. Falls back to `DEFAULT_AUDIT_PRODUCT_MODE` on error. */
@@ -149,32 +198,7 @@ export class PipelineOrchestrator {
         // Phase 5 activates auto-loop via AUTO_LOOP_ENABLED flag.
         const controlObject = (agent as BaseAgent).lastControlObject;
         if (controlObject) {
-          try {
-            const decision = decisionLayer.decide(controlObject);
-            // Persist the decision alongside the control object for downstream
-            // consumers (dashboard, reporting) once v3+ formalises the contract.
-            if (decision.hint === 'refine') {
-              const oc = pipelineOrchestratorCopy();
-              await this.emitEvent(
-                phase,
-                'refine_recommended',
-                oc.phase.refineRecommendedMessage ?? 'Decision Layer recommends manual review before proceeding.',
-                {
-                  decision_hint: decision.hint,
-                  reasoning: decision.reasoning,
-                  active_error_types: decision.active_error_types,
-                },
-              );
-            }
-          } catch (dlErr) {
-            // Non-fatal: Decision Layer failure must never break phase execution
-            logger.warn('pipeline.decision_layer_failed', {
-              component: 'pipeline',
-              audit_id: this.auditId,
-              phase,
-              error: dlErr instanceof Error ? dlErr.message : String(dlErr),
-            });
-          }
+          await this.publishControlObjectGovernance(phase, controlObject);
         }
 
         await agent.saveDomainResult(result);
@@ -259,29 +283,7 @@ export class PipelineOrchestrator {
         // ─── Decision Layer (isolated path — same advisory logic) ──
         const controlObject = (agent as BaseAgent).lastControlObject;
         if (controlObject) {
-          try {
-            const decision = decisionLayer.decide(controlObject);
-            if (decision.hint === 'refine') {
-              const ocIsoRef = pipelineOrchestratorCopy();
-              await this.emitEvent(
-                phase,
-                'refine_recommended',
-                ocIsoRef.phase.refineRecommendedMessage ?? 'Decision Layer recommends manual review before proceeding.',
-                {
-                  decision_hint: decision.hint,
-                  reasoning: decision.reasoning,
-                  active_error_types: decision.active_error_types,
-                },
-              );
-            }
-          } catch (dlErr) {
-            logger.warn('pipeline.decision_layer_failed', {
-              component: 'pipeline',
-              audit_id: this.auditId,
-              phase,
-              error: dlErr instanceof Error ? dlErr.message : String(dlErr),
-            });
-          }
+          await this.publishControlObjectGovernance(phase, controlObject);
         }
 
         await agent.saveDomainResult(result);

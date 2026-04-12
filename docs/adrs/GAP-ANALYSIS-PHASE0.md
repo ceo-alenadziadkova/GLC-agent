@@ -104,10 +104,8 @@ const result = await agent.run();
 if (domainKey !== 'recon' && domainKey !== 'strategy') {
   const controlObject = (agent as BaseAgent).lastControlObject;
   if (controlObject) {
-    const { hint } = decisionLayer.decide(controlObject);
-    if (hint === 'refine') {
-      await this.emitEvent(phase, 'refine_recommended', 'Decision Layer: manual review recommended', { control_object: controlObject });
-    }
+    await this.publishControlObjectGovernance(phase, controlObject);
+    // → decisionLayer.decide; set decision_hint; emit control_object; if refine → refine_recommended (+ control_object in payload)
   }
   await agent.saveDomainResult(result);
 }

@@ -89,13 +89,13 @@ BaseAgent.run()
   ├── factChecker.verify()          → FactCheckResult (unchanged)
   ├── factChecker.buildControlObject()  → ControlObjectV1    ← NEW
   ├── base.lastControlObject = co       ← NEW (side effect)
-  ├── emit('control_object', co)        ← NEW (pipeline_events)
   └── return DomainResult               ← UNCHANGED
 
 PipelineOrchestrator.startPhase() / startPhaseIsolated()
   ├── agent.run()                   → DomainResult
   ├── agent.lastControlObject       → ControlObjectV1        ← NEW
-  ├── decisionLayer.decide(co)      → DecisionResult         ← NEW
+  ├── decisionLayer.decide(co)      → sets co.decision_hint  ← NEW
+  ├── emit('control_object', co)    ← pipeline_events (after Decision Layer)
   ├── if refine: emit('refine_recommended', ...)             ← NEW
   └── agent.saveDomainResult(result)                        ← UNCHANGED
 ```
@@ -137,7 +137,7 @@ Status assignment:
 
 **Mitigations**:
 - Advisory-only status is explicit in code comments and this ADR.
-- Future version bump (`v1.5`, `v2.0`) will be communicated via `CONTROL_OBJECT_VERSIONS.system`.
+- Future version bump (`v1.5`, `v2.0`) will be communicated via `CONTROL_OBJECT_VERSIONS.system_version`.
 - Phase 5 will formalise the contract with a documented migration path.
 
 ---
@@ -157,8 +157,8 @@ Status assignment:
 
 **Phase 1 — delivered**:
 - `server/src/schemas/control-object.ts` — ControlObjectV1 interface + factory
-- `server/src/services/fact-checker.ts` — added `buildControlObject()` method
+- `server/src/services/fact-checker.ts` — added `buildControlObject()` method (no `decision_hint`; Decision Layer is sole owner)
 - `server/src/agents/base.ts` — `lastControlObject` property + build call after verify()
-- `server/src/services/pipeline.ts` — reads `lastControlObject`, calls Decision Layer
+- `server/src/services/pipeline.ts` — reads `lastControlObject`, runs Decision Layer, emits `control_object` and optional `refine_recommended`
 
 **Future phases** — see main Implementation Plan.

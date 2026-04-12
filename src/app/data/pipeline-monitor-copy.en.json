@@ -35,10 +35,22 @@
     "viewInWorkspace": "View in Workspace",
     "continuePipeline": "Continue Pipeline",
     "tokensUsedPrefix": "Tokens used: ",
-    "tokensBudgetSeparator": " / "
+    "tokensBudgetSeparator": " / ",
+    "governanceRefineTitle": "Decision Layer: manual review recommended",
+    "governanceRefineBody": "Confidence and claim checks suggest refining this phase output before relying on it in downstream analysis.",
+    "governanceWarningsTitle": "Decision Layer: accepted with warnings",
+    "governanceWarningsBody": "Output was saved. Review the governance summary below before the next wing.",
+    "governanceSummaryTitle": "Governance summary",
+    "governanceConfidence": "Overall confidence",
+    "governanceClaims": "Claims tracked",
+    "governanceHallucination": "Likely hallucination flags",
+    "governanceRiskyPromise": "Risky promise flags",
+    "governanceHumanAttention": "Human attention required"
   },
   "reviewModal": {
-    "defaultNote": "Add your observations before continuing"
+    "defaultNote": "Add your observations before continuing",
+    "governanceRefineSectionTitle": "Phases flagged for manual review",
+    "governanceRefineSectionIntro": "The Decision Layer recommended refine for the following completed phases. The pipeline continued; use notes below to capture context before approving."
   },
   "phaseCard": {
     "skip": "SKIP"

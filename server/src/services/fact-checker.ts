@@ -3,7 +3,6 @@ import { factCheckerCopy, interpolateFactCheckerMessage } from '../config/fact-c
 import type { DomainResult, DomainKey, ConfidenceLevel } from '../types/audit.js';
 import {
   createControlObjectV1,
-  CONTROL_OBJECT_VERSIONS,
   type ControlObjectV1,
   type PhaseId,
   type ExecutionMode,
@@ -481,18 +480,7 @@ export class FactChecker {
 
     co.confidence = { overall, factual, strategic, consistency };
 
-    // ─── Decision Hint ─────────────────────────────────────────
-    const hallucinationFraction = factCount > 0
-      ? (co.counts.statuses.likely_hallucination + co.counts.statuses.risky_promise) / factCount
-      : 0;
-
-    if (overall >= 85 && hallucinationFraction <= 0.05) {
-      co.decision_hint = 'accept';
-    } else if (overall >= 70 && co.errors.structural.length === 0 && co.counts.statuses.likely_hallucination <= 3) {
-      co.decision_hint = 'accept_with_warnings';
-    } else {
-      co.decision_hint = 'refine';
-    }
+    // decision_hint is set only by DecisionLayer in PipelineOrchestrator (single source of truth).
 
     // ─── Human Attention ──────────────────────────────────────
     const dataGapCount = co.errors.data_gaps.length;

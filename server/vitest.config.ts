@@ -38,6 +38,7 @@ export default defineConfig({
       '@glc/dev-brand-defaults': path.join(root, 'packages/glc-dev-brand-defaults/src/index.ts'),
       '@glc/web-app/api-paths': path.join(root, 'packages/glc-api-paths/src/index.ts'),
       '@glc/api-paths': path.join(root, 'packages/glc-api-paths/src/index.ts'),
+      '@glc/route-limits': path.join(root, 'packages/glc-route-limits/src/index.ts'),
     },
   },
   test: {

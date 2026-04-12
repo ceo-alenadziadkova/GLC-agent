@@ -60,6 +60,19 @@ Single `claude-sonnet-4-20250514` call using `tool_use` with a strict JSON schem
 - If Claude says "no SSL" but collector found valid cert → override to accurate value
 - Corrections are logged in `pipeline_events` (type: `fact_check`)
 
+For **domain phases** (not Recon or Strategy), `FactChecker` also builds **CONTROL_OBJECT v1** — a structured governance snapshot (versions, context, confidence, claim counts, errors, light assumptions, trace, `human_attention_required`). See [ADR-CONTROL-OBJECT-V1](./adrs/ADR-CONTROL-OBJECT-V1.md).
+
+### Step 4b: Decision Layer (advisory, Phase 1 MVP)
+
+After the agent run, `PipelineOrchestrator` applies `DecisionLayer.decide(controlObject)` and writes the authoritative `decision_hint` onto the same object (`accept` / `accept_with_warnings` / `refine`). Events:
+
+| `pipeline_events.event_type` | Purpose |
+|------------------------------|---------|
+| `control_object` | Full CONTROL_OBJECT v1 JSON under `data.control_object` (includes final `decision_hint`). |
+| `refine_recommended` | Emitted only when `decision_hint === 'refine'`: `reasoning`, `active_error_types`, and `control_object` for consultant visibility. Does **not** block the phase or auto-rerun (Phase 5 may add auto-loop). |
+
+**Post-wing quality gates** remain separate: `ConsistencyChecker` still emits `quality_gate` with `QualityGateReport` (score/consistency checks across completed domains). Do not confuse `quality_gate` with CONTROL_OBJECT.
+
 ### Step 5: Save + Emit
 - Writes result to `audit_domains` (or `audit_recon` / `audit_strategy`)
 - Updates `audits.status` and `audits.tokens_used`

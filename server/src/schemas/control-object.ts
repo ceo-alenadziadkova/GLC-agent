@@ -17,9 +17,9 @@ import type { DomainKey } from '../types/audit.js';
 // ─── Version ───────────────────────────────────────────────
 
 export const CONTROL_OBJECT_VERSIONS = {
-  system: 'v1.0',
-  fact_checker: 'v1.0',
-  decision_layer: 'v1.0',
+  system_version: 'v1.0',
+  fact_checker_version: 'v1.0',
+  decision_layer_version: 'v1.0',
 } as const;
 
 // ─── Core Types ────────────────────────────────────────────

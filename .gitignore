@@ -20,3 +20,4 @@ coverage/
 *.docx
 test-results/
 .playwright-mcp/
+/.claude/worktrees/kind-knuth/
