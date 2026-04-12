@@ -9,6 +9,7 @@ import { TokenTracker } from '../services/token-tracker.js';
 import { type BaseCollector } from '../collectors/base.js';
 import type { DomainResult, DomainKey } from '../types/audit.js';
 import type { ControlObjectV1 } from '../schemas/control-object.js';
+import type { BriefSnapshot } from '../services/feasibility-layer.js';
 import { followupQuestionsFromUnknowns } from '../lib/post-audit-followups.js';
 import { confidenceDistributionFromIssues } from '../lib/confidence-distribution.js';
 import { zodToJsonSchema } from '../schemas/domain-output.js';
@@ -242,14 +243,19 @@ export abstract class BaseAgent {
         );
       }
 
-      // ─── Step 4b: Build CONTROL_OBJECT v1 (advisory, side effect) ──
-      // Does NOT change return value or block pipeline flow in Phase 1.
+      // ─── Step 4b: Build CONTROL_OBJECT v1.7 (advisory, side effect) ──
+      // Does NOT change return value or block pipeline flow.
       try {
+        // v1.7: extract BriefSnapshot from context.brief_responses for feasibility assessment
+        const brief: BriefSnapshot = this.extractBriefSnapshot(context);
+
         const controlObject = this.factChecker.buildControlObject(
           verification,
           this.domainKey,
           this.auditId,
           this.phaseNumber,
+          'normal',
+          brief,
         );
         this.lastControlObject = controlObject;
         // control_object pipeline_events row is emitted by PipelineOrchestrator after DecisionLayer sets decision_hint.
@@ -454,6 +460,36 @@ export abstract class BaseAgent {
     }
 
     await this.mergePostAuditFollowups(result);
+  }
+
+  /**
+   * v1.7: Extract a BriefSnapshot from AgentContext.brief_responses for FeasibilityLayer.
+   * Maps canonical brief_responses keys to the typed BriefSnapshot fields.
+   * Unknown/absent keys default to undefined (FeasibilityLayer handles missing fields gracefully).
+   */
+  private extractBriefSnapshot(context: AgentContext): BriefSnapshot {
+    const r = context.brief_responses ?? {};
+    const num = (key: string): number | undefined => {
+      const v = r[key];
+      return typeof v === 'number' ? v : typeof v === 'string' ? parseFloat(v) || undefined : undefined;
+    };
+    const bool = (key: string): boolean | undefined => {
+      const v = r[key];
+      if (typeof v === 'boolean') return v;
+      if (typeof v === 'string') return v === 'yes' || v === 'true';
+      return undefined;
+    };
+
+    return {
+      team_size: num('team_size') ?? num('company_size'),
+      has_dedicated_dev_team: bool('has_dedicated_dev_team') ?? bool('dedicated_dev_team'),
+      has_audit_policy: bool('has_audit_policy') ?? bool('compliance_policy'),
+      has_analytics: bool('has_analytics') ?? bool('uses_analytics'),
+      has_crm: bool('has_crm') ?? bool('uses_crm'),
+      monthly_budget_usd: num('monthly_budget_usd') ?? num('monthly_budget') ?? num('marketing_budget'),
+      integration_count: num('integration_count') ?? num('tool_count'),
+      tech_maturity: num('tech_maturity'),
+    };
   }
 
   /**

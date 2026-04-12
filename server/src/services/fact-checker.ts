@@ -11,6 +11,14 @@ import {
   getPhaseProfile,
   mapDataSourceToTruthSource,
 } from '../config/truth-registry.js';
+import {
+  feasibilityLayer,
+  type BriefSnapshot,
+} from './feasibility-layer.js';
+import {
+  getConfidenceWeights,
+  computeWeightedConfidence,
+} from '../config/phase-confidence-weights.js';
 
 const T = FACT_CHECKER_THRESHOLDS;
 
@@ -377,7 +385,9 @@ export class FactChecker {
     domainKey: DomainKey,
     auditId: string,
     phaseNumber: number,
-    executionMode: ExecutionMode = 'normal'
+    executionMode: ExecutionMode = 'normal',
+    /** v1.7+: brief snapshot for feasibility assessment. Pass {} or omit for phases without brief context. */
+    brief: BriefSnapshot = {}
   ): ControlObjectV1 {
     const { result, corrections, confidence: factualRaw } = factCheckResult;
 
@@ -503,8 +513,16 @@ export class FactChecker {
       });
     }
 
-    // ─── Confidence ───────────────────────────────────────────
-    // factual: from existing FactChecker.calculateConfidence() (converted 0–1 → 0–100)
+    // ─── Feasibility (v1.7) ───────────────────────────────────
+    const feasibilityResult = feasibilityLayer.assess(domainKey, result, brief);
+    co.feasibility = {
+      score: feasibilityResult.score,
+      risk_codes: feasibilityResult.risks.map(r => r.code),
+      notes: feasibilityResult.notes,
+    };
+
+    // ─── Confidence (v1.7: weighted per-phase formula) ────────
+    // factual: from FactChecker.calculateConfidence() (converted 0–1 → 0–100)
     const factual = Math.round(factualRaw * 100);
 
     // strategic: degrade if many unverified recs or risky promises
@@ -517,10 +535,15 @@ export class FactChecker {
     const hallucinationPenalty = co.counts.statuses.likely_hallucination * 20;
     const consistency = Math.max(0, 100 - structuralPenalty - hallucinationPenalty);
 
-    // overall: simple average (Phase 3 will use weighted per-phase formula)
-    const overall = Math.round((factual + strategic + consistency) / 3);
+    // feasibility: score × 100
+    const feasibilityScore = Math.round(feasibilityResult.score * 100);
 
-    co.confidence = { overall, factual, strategic, consistency };
+    // overall: phase-specific weighted formula (replaces simple average from v1.5)
+    const weights = getConfidenceWeights(domainKey);
+    const overall = computeWeightedConfidence(factual, strategic, consistency, feasibilityScore, weights);
+
+    co.confidence = { overall, factual, strategic, consistency, feasibility: feasibilityScore };
+    co.confidence_weights = weights;
 
     // decision_hint is set only by DecisionLayer in PipelineOrchestrator (single source of truth).
 
@@ -531,8 +554,15 @@ export class FactChecker {
     // also escalate if many medium-risk assumptions accumulate
     const mediumRiskAssumptionCount = co.assumptions.filter(a => a.risk === 'medium').length;
     const assumptionsEscalate = highRiskAssumptionCount >= 2 || mediumRiskAssumptionCount >= 5;
+    // v1.7: critically low feasibility (≤0.35) also requires human attention
+    const feasibilityTooLow = feasibilityResult.score <= 0.35;
 
-    if (co.counts.statuses.likely_hallucination >= 3 || dataGapCount >= 5 || assumptionsEscalate) {
+    if (
+      co.counts.statuses.likely_hallucination >= 3 ||
+      dataGapCount >= 5 ||
+      assumptionsEscalate ||
+      feasibilityTooLow
+    ) {
       co.human_attention_required.required = true;
 
       if (co.counts.statuses.likely_hallucination >= 3) {
@@ -543,6 +573,9 @@ export class FactChecker {
       }
       if (assumptionsEscalate) {
         co.human_attention_required.reasons.push('high_risk_assumptions');
+      }
+      if (feasibilityTooLow) {
+        co.human_attention_required.reasons.push('critically_low_feasibility');
       }
     }
 

@@ -1,7 +1,7 @@
 /**
  * CONTROL_OBJECT v1 — Governance contract between FactChecker and Decision Layer.
  *
- * This is the advisory-only v1/v1.5 contract (Phase 1–2 MVP).
+ * This is the advisory-only v1/v1.5/v1.7 contract (Phase 1–3 MVP).
  * Downstream services MUST NOT depend on this structure until v3+.
  *
  * Version history:
@@ -17,9 +17,9 @@ import type { DomainKey } from '../types/audit.js';
 // ─── Version ───────────────────────────────────────────────
 
 export const CONTROL_OBJECT_VERSIONS = {
-  system_version: 'v1.5',
-  fact_checker_version: 'v1.5',
-  decision_layer_version: 'v1.0',
+  system_version: 'v1.7',
+  fact_checker_version: 'v1.7',
+  decision_layer_version: 'v1.7',
 } as const;
 
 // ─── Core Types ────────────────────────────────────────────
@@ -54,7 +54,7 @@ export interface ControlObjectContext {
 }
 
 export interface ControlObjectConfidence {
-  /** Weighted aggregate of factual × strategic × consistency (0–100) */
+  /** Weighted aggregate of all dimensions (0–100). v1.7+ uses phase-specific weights. */
   overall: number;
   /** How well facts align with BRIEF and collected data (0–100) */
   factual: number;
@@ -62,6 +62,36 @@ export interface ControlObjectConfidence {
   strategic: number;
   /** How internally consistent the output is across sections (0–100) */
   consistency: number;
+  /**
+   * v1.7+: How realisable the recommendations are given brief constraints (0–100).
+   * Derived from FeasibilityLayer.score × 100.
+   * null until FeasibilityLayer has run (base phase agents that skip feasibility keep null).
+   */
+  feasibility: number | null;
+}
+
+/**
+ * v1.7+: The weights used to compute confidence.overall for this phase.
+ * Stored for auditability — allows downstream services to reproduce the score.
+ */
+export interface ControlObjectConfidenceWeights {
+  factual: number;
+  strategic: number;
+  consistency: number;
+  feasibility: number;
+}
+
+/**
+ * v1.7+: Full feasibility assessment result embedded in CONTROL_OBJECT.
+ * Mirrors FeasibilityResult from feasibility-layer.ts but import-free (self-contained schema).
+ */
+export interface ControlObjectFeasibility {
+  /** 0.0–1.0 feasibility score */
+  score: number;
+  /** Machine-readable risk codes that reduced the score */
+  risk_codes: string[];
+  /** Human-readable risk descriptions */
+  notes: string[];
 }
 
 export interface ControlObjectStatuses {
@@ -146,10 +176,20 @@ export interface ControlObjectV1 {
   versions: ControlObjectVersions;
   context: ControlObjectContext;
   confidence: ControlObjectConfidence;
+  /**
+   * v1.7+: Weights used to compute confidence.overall for this phase.
+   * null for phases that use the legacy simple-average formula (recon/strategy).
+   */
+  confidence_weights: ControlObjectConfidenceWeights | null;
   counts: ControlObjectCounts;
   errors: ControlObjectErrors;
   assumptions: ControlObjectAssumption[];
   trace: ControlObjectTrace;
+  /**
+   * v1.7+: Feasibility assessment result.
+   * null until FeasibilityLayer has run (recon/strategy phases always null).
+   */
+  feasibility: ControlObjectFeasibility | null;
   decision_hint: DecisionHint;
   human_attention_required: ControlObjectHumanAttention;
 }
@@ -179,7 +219,9 @@ export function createControlObjectV1(
       factual: 100,
       strategic: 100,
       consistency: 100,
+      feasibility: null,
     },
+    confidence_weights: null,
     counts: {
       total_claims: 0,
       fact: 0,
@@ -202,6 +244,7 @@ export function createControlObjectV1(
     trace: {
       claim_sources: [],
     },
+    feasibility: null,
     decision_hint: 'accept',
     human_attention_required: {
       required: false,
