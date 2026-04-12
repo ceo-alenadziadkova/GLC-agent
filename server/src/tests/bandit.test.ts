@@ -27,8 +27,8 @@ const mocks = vi.hoisted(() => {
     maxVariantsPerPhase: 2,
   };
 
-  const hasNonDefaultVariantsFn = vi.fn<[string], boolean>(() => false);
-  const getVariantsForPhaseFn = vi.fn<[string], unknown[]>(() => []);
+  const hasNonDefaultVariantsFn = vi.fn<(phaseId: string) => boolean>(() => false);
+  const getVariantsForPhaseFn = vi.fn<(phaseId: string) => unknown[]>(() => []);
 
   // Mutable supabase chain — reassigned per test via mockSupabaseImpl
   let supabaseImpl: Record<string, unknown> = {};

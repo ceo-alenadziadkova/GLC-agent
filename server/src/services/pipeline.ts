@@ -27,6 +27,7 @@ import {
   maxPhaseForMode,
   reviewPhasesForMode,
   type DomainKey,
+  type DomainResult,
   type FreeSnapshotPreview,
   type ProductMode,
 } from '../types/audit.js';
@@ -86,7 +87,12 @@ export class PipelineOrchestrator {
    */
   private async publishControlObjectGovernance(
     phase: number,
-    controlObject: ControlObjectV1
+    controlObject: ControlObjectV1,
+    evaluationCapture?: {
+      phaseId: DomainKey;
+      rawAgentOutput: Record<string, unknown> | null;
+      cleanedOutput: DomainResult;
+    }
   ): Promise<void> {
     let decision;
     try {
@@ -101,8 +107,19 @@ export class PipelineOrchestrator {
       });
     }
 
+    if (evaluationCapture) {
+      await recordEvaluationDatasetIfEnabled({
+        auditId: this.auditId,
+        phaseId: evaluationCapture.phaseId,
+        controlObject,
+        rawAgentOutput: evaluationCapture.rawAgentOutput,
+        cleanedOutput: evaluationCapture.cleanedOutput,
+      });
+    }
+
     // v2.0: persist agent performance metrics (async, best-effort)
     void this.recordPerformanceAsync(controlObject, phase);
+    void this.recordBanditArmAsync(controlObject);
 
     try {
       await this.emitEvent(phase, 'control_object', '', { control_object: controlObject });
@@ -137,6 +154,17 @@ export class PipelineOrchestrator {
         },
       );
     }
+  }
+
+  /** Updates bandit arm stats from the completed run (FEATURE_BANDITS only). Fire-and-forget. */
+  private recordBanditArmAsync(controlObject: ControlObjectV1): void {
+    if (!SYSTEM_DEFAULTS.bandits.enabled) return;
+    const pid = controlObject.context.phase_id;
+    if (pid === 'recon' || pid === 'strategy') return;
+    const metrics = controlObject.agent_performance;
+    if (!metrics) return;
+    const variantId = controlObject.context.selected_variant_id ?? DEFAULT_VARIANT_ID;
+    void banditService.recordArmResult(pid as DomainKey, variantId, metrics.agent_score);
   }
 
   /** Best-effort async agent performance recording — never throws. */
@@ -272,6 +300,7 @@ export class PipelineOrchestrator {
         // Inject bandit variant for the auto-loop rerun (same bandit selection as initial run)
         {
           const banditResult = await banditService.selectVariant(domainKey as DomainKey);
+          agent.selectedVariantId = banditResult.variant_id;
           if (banditResult.variant_id !== DEFAULT_VARIANT_ID) {
             const variant = findVariant(domainKey as DomainKey, banditResult.variant_id);
             if (variant) agent.variantDelta = variant;
@@ -307,6 +336,8 @@ export class PipelineOrchestrator {
           rawAgentOutput: (agent as BaseAgent).lastRawDomainResult,
           cleanedOutput: rerunResult,
         });
+
+        void this.recordBanditArmAsync(rerunControlObject);
 
         await this.emitEvent(phase, 'control_object', '', { control_object: rerunControlObject });
 
@@ -447,6 +478,7 @@ export class PipelineOrchestrator {
       const agent = new AgentClass(this.auditId);
       if (domainKey !== 'recon' && domainKey !== 'strategy') {
         const banditResult = await banditService.selectVariant(domainKey as DomainKey);
+        agent.selectedVariantId = banditResult.variant_id;
         if (banditResult.variant_id !== DEFAULT_VARIANT_ID) {
           const variant = findVariant(domainKey as DomainKey, banditResult.variant_id);
           if (variant) agent.variantDelta = variant;
@@ -461,11 +493,8 @@ export class PipelineOrchestrator {
         // Phase 5 activates auto-loop via AUTO_LOOP_ENABLED flag.
         const controlObject = (agent as BaseAgent).lastControlObject;
         if (controlObject) {
-          await this.publishControlObjectGovernance(phase, controlObject);
-          await recordEvaluationDatasetIfEnabled({
-            auditId: this.auditId,
+          await this.publishControlObjectGovernance(phase, controlObject, {
             phaseId: domainKey as DomainKey,
-            controlObject,
             rawAgentOutput: (agent as BaseAgent).lastRawDomainResult,
             cleanedOutput: result,
           });
@@ -549,6 +578,7 @@ export class PipelineOrchestrator {
       const agent = new AgentClass(this.auditId);
       if (domainKey !== 'recon' && domainKey !== 'strategy') {
         const banditResult = await banditService.selectVariant(domainKey as DomainKey);
+        agent.selectedVariantId = banditResult.variant_id;
         if (banditResult.variant_id !== DEFAULT_VARIANT_ID) {
           const variant = findVariant(domainKey as DomainKey, banditResult.variant_id);
           if (variant) agent.variantDelta = variant;
@@ -560,11 +590,8 @@ export class PipelineOrchestrator {
         // ─── Decision Layer (isolated path — same advisory logic) ──
         const controlObject = (agent as BaseAgent).lastControlObject;
         if (controlObject) {
-          await this.publishControlObjectGovernance(phase, controlObject);
-          await recordEvaluationDatasetIfEnabled({
-            auditId: this.auditId,
+          await this.publishControlObjectGovernance(phase, controlObject, {
             phaseId: domainKey as DomainKey,
-            controlObject,
             rawAgentOutput: (agent as BaseAgent).lastRawDomainResult,
             cleanedOutput: result,
           });

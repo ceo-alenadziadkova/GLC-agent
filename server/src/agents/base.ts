@@ -11,6 +11,7 @@ import type { DomainResult, DomainKey } from '../types/audit.js';
 import type { ControlObjectV1, ExecutionMode } from '../schemas/control-object.js';
 import type { AgentVariant } from '../config/agent-variants.js';
 import { fetchAuditExecutionMode } from '../lib/audit-execution-mode.js';
+import { fetchAuditGovernanceRiskProfile } from '../lib/audit-governance-risk-profile.js';
 import type { BriefSnapshot } from '../services/feasibility-layer.js';
 import { followupQuestionsFromUnknowns } from '../lib/post-audit-followups.js';
 import { confidenceDistributionFromIssues } from '../lib/confidence-distribution.js';
@@ -159,6 +160,11 @@ export abstract class BaseAgent {
   variantDelta: AgentVariant | null = null;
 
   /**
+   * Bandit arm id selected for this run (`default` or a registered variant). Set by PipelineOrchestrator.
+   */
+  selectedVariantId: string | null = null;
+
+  /**
    * Claude tool output before `FactChecker.verify()` (for `evaluation_datasets.agent_output`).
    * Null for recon/strategy or if the domain branch was not executed.
    */
@@ -291,6 +297,7 @@ export abstract class BaseAgent {
         // v1.7: extract BriefSnapshot from context.brief_responses for feasibility assessment
         const brief: BriefSnapshot = this.extractBriefSnapshot(context);
         const executionMode = await this.resolveExecutionMode();
+        const riskProfile = await fetchAuditGovernanceRiskProfile(this.auditId);
 
         const controlObject = this.factChecker.buildControlObject(
           verification,
@@ -299,6 +306,10 @@ export abstract class BaseAgent {
           this.phaseNumber,
           executionMode,
           brief,
+          {
+            riskProfile,
+            selectedVariantId: this.selectedVariantId ?? undefined,
+          },
         );
         this.lastControlObject = controlObject;
         // control_object pipeline_events row is emitted by PipelineOrchestrator after DecisionLayer sets decision_hint.

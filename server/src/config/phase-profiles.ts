@@ -93,3 +93,18 @@ export function getExtendedPhaseProfile(domainKey: string): ExtendedPhaseProfile
   }
   return profile;
 }
+
+/**
+ * Heuristic: whether free-text claim content matches any `high_risk_fact_types` token pattern
+ * for this profile. Used for tests and future deep-check routing; not a full NLP extractor.
+ */
+export function matchesHighRiskSignal(text: string, profile: ExtendedPhaseProfile): boolean {
+  const lower = text.toLowerCase();
+  for (const ft of profile.high_risk_fact_types) {
+    const stem = ft.replace(/_claim$|_statement$|_status$/, '');
+    const parts = stem.split('_').filter(p => p.length >= 3);
+    if (parts.length === 0) continue;
+    if (parts.every(p => lower.includes(p))) return true;
+  }
+  return false;
+}

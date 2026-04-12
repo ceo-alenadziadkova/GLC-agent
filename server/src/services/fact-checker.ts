@@ -7,22 +7,24 @@ import {
   type PhaseId,
   type ExecutionMode,
 } from '../schemas/control-object.js';
-import {
-  getPhaseProfile,
-  mapDataSourceToTruthSource,
-} from '../config/truth-registry.js';
+import { mapDataSourceToTruthSource } from '../config/truth-registry.js';
+import { getExtendedPhaseProfile } from '../config/phase-profiles.js';
 import {
   feasibilityLayer,
   type BriefSnapshot,
 } from './feasibility-layer.js';
-import {
-  getConfidenceWeights,
-  computeWeightedConfidence,
-} from '../config/phase-confidence-weights.js';
+import { computeWeightedConfidence } from '../config/phase-confidence-weights.js';
 import { applyExecutionMode } from '../config/safety-mode.js';
-import { computePerformanceMetrics, MIN_EVALUATION_COUNT } from './agent-performance.js';
+import { computePerformanceMetrics } from './agent-performance.js';
 
 const T = FACT_CHECKER_THRESHOLDS;
+
+/** Optional governance fields populated from audit row + pipeline (CONTROL_OBJECT v2.1+). */
+export interface BuildControlObjectGovernanceInput {
+  riskProfile?: 'low' | 'medium' | 'high' | 'enterprise' | null;
+  /** Bandit-selected variant id, including `default` when exploration uses the baseline arm. */
+  selectedVariantId?: string;
+}
 
 export interface FactCheckResult {
   result: DomainResult;
@@ -389,15 +391,23 @@ export class FactChecker {
     phaseNumber: number,
     executionMode: ExecutionMode = 'normal',
     /** v1.7+: brief snapshot for feasibility assessment. Pass {} or omit for phases without brief context. */
-    brief: BriefSnapshot = {}
+    brief: BriefSnapshot = {},
+    governance: BuildControlObjectGovernanceInput = {}
   ): ControlObjectV1 {
     const { result, corrections, confidence: factualRaw } = factCheckResult;
 
-    // v1.5: load phase profile for truth_profile_id and domain-specific error types
-    const profile = getPhaseProfile(domainKey);
-    const truthProfileId = profile?.phase_id ?? null;
+    // Extended phase profile: truth profile id, error types, confidence_weights (ADR-PHASE-PROFILES)
+    const profile = getExtendedPhaseProfile(domainKey);
+    const truthProfileId = profile.phase_id;
 
     const co = createControlObjectV1(auditId, domainKey as PhaseId, executionMode, truthProfileId);
+
+    if (governance.riskProfile !== undefined) {
+      co.context.risk_profile = governance.riskProfile;
+    }
+    if (governance.selectedVariantId !== undefined) {
+      co.context.selected_variant_id = governance.selectedVariantId;
+    }
 
     // ─── Counts ───────────────────────────────────────────────
     const issues = result.issues ?? [];
@@ -444,15 +454,13 @@ export class FactChecker {
 
     // v1.5: domain-specific structural errors from phase profile
     // If any correction's issue text matches a known error_type pattern, surface it
-    if (profile) {
-      for (const errorType of profile.error_types) {
-        const keyword = errorType.replace(/_/g, ' ');
-        const matchesCorrection = corrections.some(c =>
-          c.issue.toLowerCase().includes(keyword) || c.raw_evidence.toLowerCase().includes(keyword)
-        );
-        if (matchesCorrection && !co.errors.structural.includes(errorType)) {
-          co.errors.structural.push(errorType);
-        }
+    for (const errorType of profile.error_types) {
+      const keyword = errorType.replace(/_/g, ' ');
+      const matchesCorrection = corrections.some(c =>
+        c.issue.toLowerCase().includes(keyword) || c.raw_evidence.toLowerCase().includes(keyword)
+      );
+      if (matchesCorrection && !co.errors.structural.includes(errorType)) {
+        co.errors.structural.push(errorType);
       }
     }
 
@@ -478,7 +486,7 @@ export class FactChecker {
       const issue = issues[issueIdx];
       if (issue.confidence === 'low' && issue.data_source === 'inferred') {
         // Determine risk based on phase profile default + severity boost
-        const baseRisk = profile?.default_assumption_risk ?? 'low';
+        const baseRisk = profile.default_assumption_risk ?? 'low';
         const risk: 'low' | 'medium' | 'high' =
           issue.severity === 'critical' ? 'high'
           : issue.severity === 'high' ? (baseRisk === 'low' ? 'medium' : baseRisk)
@@ -541,7 +549,7 @@ export class FactChecker {
     const feasibilityScore = Math.round(feasibilityResult.score * 100);
 
     // overall: phase-specific weighted formula (replaces simple average from v1.5)
-    const weights = getConfidenceWeights(domainKey);
+    const weights = profile.confidence_weights;
     const overall = computeWeightedConfidence(factual, strategic, consistency, feasibilityScore, weights);
 
     co.confidence = { overall, factual, strategic, consistency, feasibility: feasibilityScore };

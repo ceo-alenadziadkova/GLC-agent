@@ -10,10 +10,10 @@
  *   v1.7  — Phase 3: confidence.feasibility, confidence_weights, feasibility object
  *   v1.8  — Phase 4: safety mode guardrails, formalized error enums
  *   v2.0  — Phase 5: cost_control, agent_performance (full spec)
- *   v2.1  — Sprint 1: risk_profile, evaluation_link, external_api/document_feed truth sources,
+ *   v2.1  — Sprint 1–2: risk_profile, evaluation_link, selected_variant_id (bandits),
+ *            external_api/document_feed truth source tiers (pre-declared),
  *            causal_chain pre-declaration, external_source_unavailable reason code,
  *            accept_with_warnings formalised (already in DecisionHint since v1.7)
- *   v2.2  — Phase 6 (planned): context.selected_variant_id (bandits)
  *   v2.3  — Phase 8 (planned): causal_chain required; upstream_claim_invalidated error type
  *   v2.4  — Phase 9 (planned): auto-remediation annotations
  *   v2.5  — Phase 10 (planned): context.benchmark_reference_id
@@ -76,8 +76,8 @@ export interface ControlObjectContext {
    */
   risk_profile?: 'low' | 'medium' | 'high' | 'enterprise' | null;
   /**
-   * v2.2+: Bandit-selected agent variant for this run (Phase 6+).
-   * undefined = bandits not active or not yet implemented.
+   * v2.1+: Bandit-selected agent variant for this run (`default` or registered id).
+   * Set by pipeline when the domain phase runs; omitted when unknown.
    */
   selected_variant_id?: string;
   /**
