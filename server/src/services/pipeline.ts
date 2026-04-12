@@ -20,6 +20,7 @@ import { BaseAgent } from '../agents/base.js';
 import { logger } from './logger.js';
 import { getContext, updateContext } from './observability-context.js';
 import { emitStructuredNotification } from './notifications.js';
+import { decisionLayer } from './decision-layer.js';
 import {
   DEFAULT_AUDIT_PRODUCT_MODE,
   PHASE_DOMAIN_MAP,
@@ -142,6 +143,40 @@ export class PipelineOrchestrator {
       const result = await agent.run();
 
       if (domainKey !== 'recon' && domainKey !== 'strategy') {
+        // ─── Decision Layer (Phase 1: advisory / log only) ──────
+        // In Phase 1, refine hint does NOT block or auto-rerun.
+        // It emits an event for consultant awareness.
+        // Phase 5 activates auto-loop via AUTO_LOOP_ENABLED flag.
+        const controlObject = (agent as BaseAgent).lastControlObject;
+        if (controlObject) {
+          try {
+            const decision = decisionLayer.decide(controlObject);
+            // Persist the decision alongside the control object for downstream
+            // consumers (dashboard, reporting) once v3+ formalises the contract.
+            if (decision.hint === 'refine') {
+              const oc = pipelineOrchestratorCopy();
+              await this.emitEvent(
+                phase,
+                'refine_recommended',
+                oc.phase.refineRecommendedMessage ?? 'Decision Layer recommends manual review before proceeding.',
+                {
+                  decision_hint: decision.hint,
+                  reasoning: decision.reasoning,
+                  active_error_types: decision.active_error_types,
+                },
+              );
+            }
+          } catch (dlErr) {
+            // Non-fatal: Decision Layer failure must never break phase execution
+            logger.warn('pipeline.decision_layer_failed', {
+              component: 'pipeline',
+              audit_id: this.auditId,
+              phase,
+              error: dlErr instanceof Error ? dlErr.message : String(dlErr),
+            });
+          }
+        }
+
         await agent.saveDomainResult(result);
       }
 
@@ -221,6 +256,34 @@ export class PipelineOrchestrator {
       const result = await agent.run();
 
       if (domainKey !== 'recon' && domainKey !== 'strategy') {
+        // ─── Decision Layer (isolated path — same advisory logic) ──
+        const controlObject = (agent as BaseAgent).lastControlObject;
+        if (controlObject) {
+          try {
+            const decision = decisionLayer.decide(controlObject);
+            if (decision.hint === 'refine') {
+              const ocIsoRef = pipelineOrchestratorCopy();
+              await this.emitEvent(
+                phase,
+                'refine_recommended',
+                ocIsoRef.phase.refineRecommendedMessage ?? 'Decision Layer recommends manual review before proceeding.',
+                {
+                  decision_hint: decision.hint,
+                  reasoning: decision.reasoning,
+                  active_error_types: decision.active_error_types,
+                },
+              );
+            }
+          } catch (dlErr) {
+            logger.warn('pipeline.decision_layer_failed', {
+              component: 'pipeline',
+              audit_id: this.auditId,
+              phase,
+              error: dlErr instanceof Error ? dlErr.message : String(dlErr),
+            });
+          }
+        }
+
         await agent.saveDomainResult(result);
       }
 

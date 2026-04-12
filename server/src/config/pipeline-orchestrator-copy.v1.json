@@ -9,7 +9,8 @@
   "phase": {
     "startedTemplate": "Phase {{phase}} started: {{domain}}",
     "completedTemplate": "Phase {{phase}} completed",
-    "reviewNeeded": "Review point: approve before continuing"
+    "reviewNeeded": "Review point: approve before continuing",
+    "refineRecommendedMessage": "Decision Layer recommends manual review before proceeding — confidence below threshold or structural issues detected."
   },
   "parallel": {
     "startedTemplate": "Parallel block: phases [{{phases}}]",

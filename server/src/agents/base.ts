@@ -8,6 +8,7 @@ import { FactChecker } from '../services/fact-checker.js';
 import { TokenTracker } from '../services/token-tracker.js';
 import { type BaseCollector } from '../collectors/base.js';
 import type { DomainResult, DomainKey } from '../types/audit.js';
+import type { ControlObjectV1 } from '../schemas/control-object.js';
 import { followupQuestionsFromUnknowns } from '../lib/post-audit-followups.js';
 import { zodToJsonSchema } from '../schemas/domain-output.js';
 import {
@@ -139,6 +140,13 @@ export abstract class BaseAgent {
   abstract get instructions(): string;
   abstract get outputSchema(): z.ZodSchema;
 
+  /**
+   * Populated after run() completes for domain phases (not recon/strategy).
+   * Read by PipelineOrchestrator to pass to Decision Layer.
+   * Advisory-only in v1 — do not gate pipeline flow on this value in Phase 1.
+   */
+  lastControlObject: ControlObjectV1 | null = null;
+
   constructor(auditId: string) {
     this.auditId = auditId;
     this.anthropic = createAnthropicClient();
@@ -236,6 +244,28 @@ export abstract class BaseAgent {
           },
         );
       }
+
+      // ─── Step 4b: Build CONTROL_OBJECT v1 (advisory, side effect) ──
+      // Does NOT change return value or block pipeline flow in Phase 1.
+      try {
+        const controlObject = this.factChecker.buildControlObject(
+          verification,
+          this.domainKey,
+          this.auditId,
+          this.phaseNumber,
+        );
+        this.lastControlObject = controlObject;
+        await this.emit('control_object', '', { control_object: controlObject });
+      } catch (controlErr) {
+        // Non-fatal: control object build failure must never break phase execution
+        logger.warn('agent.control_object_build_failed', {
+          component: 'agent',
+          audit_id: this.auditId,
+          phase: this.phaseNumber,
+          error: controlErr instanceof Error ? controlErr.message : String(controlErr),
+        });
+      }
+
       return this.attachConfidenceDistribution(verification.result);
     }
 
