@@ -14,6 +14,7 @@ import {
 } from '../schemas/intake-brief.js';
 import { arePreBriefSlotsSatisfied, saveBriefResponses } from '../services/brief-validator.js';
 import { resolveFrontendBaseUrl } from '../config/frontend-url.js';
+import { INTAKE_SUBMISSIONS_LIST_MAX } from '../config/route-query-limits.js';
 import { logger } from '../services/logger.js';
 import { emitStructuredNotification } from '../services/notifications.js';
 import {
@@ -312,7 +313,7 @@ intakeRouter.get('/submissions', requireAuth, attachProfile, requireRole('consul
       .eq('consultant_id', req.userId!)
       .not('submitted_at', 'is', null)
       .order('submitted_at', { ascending: false })
-      .limit(100);
+      .limit(INTAKE_SUBMISSIONS_LIST_MAX);
 
     if (error) {
       logger.error('intake.submissions_list_failed', { component: 'intake', error: error.message });

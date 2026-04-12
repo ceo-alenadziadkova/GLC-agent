@@ -20,10 +20,15 @@ import {
   REPORT_PROFILES,
   SCORE_LABELS,
   displayDomainLabel,
-  type DomainKey,
   type ReportProfile,
 } from '@glc/intake-core';
 import { glcBrandSiteHostname } from '../config/glc-brand-host.js';
+import {
+  REPORT_PROFILER_ONEPAGER_TOP_ISSUES_MAX,
+  REPORT_PROFILER_ONEPAGER_TOP_QUICK_WINS_MAX,
+  REPORT_PROFILER_OWNER_TOP_ISSUES_MAX,
+  REPORT_PROFILER_OWNER_TOP_RECS_MAX,
+} from '../config/report-profiler-limits.js';
 
 export type { ReportProfile };
 export { REPORT_PROFILES };
@@ -217,10 +222,12 @@ export class ReportProfiler {
     this.addExecutiveSummary(lines, strategy);
     this.addScorecard(lines, domains, audit.overall_score);
 
-    // Top 5 issues only (critical/high) — no technical detail
+    // Top N critical/high issues — cap from `SYSTEM_DEFAULTS.reportProfiler`
     const topIssues = domains.flatMap(d =>
       (d.issues ?? []).map(i => ({ ...i, domain: d.domain_key }))
-    ).filter(i => i.severity === 'critical' || i.severity === 'high').slice(0, 5);
+    )
+      .filter(i => i.severity === 'critical' || i.severity === 'high')
+      .slice(0, REPORT_PROFILER_OWNER_TOP_ISSUES_MAX);
 
     if (topIssues.length > 0) {
       lines.push('## Priority Issues');
@@ -241,7 +248,7 @@ export class ReportProfiler {
       (d.recommendations ?? []).filter(r => r.priority === 'high').map(r => ({
         ...r, domain: d.domain_key,
       }))
-    ).slice(0, 8);
+    ).slice(0, REPORT_PROFILER_OWNER_TOP_RECS_MAX);
 
     if (recs.length > 0) {
       lines.push('## Recommended Actions');
@@ -310,9 +317,10 @@ export class ReportProfiler {
     lines.push('');
 
     // Top 3 issues
-    const topIssues = domains.flatMap(d => d.issues ?? [])
+    const topIssues = domains
+      .flatMap(d => d.issues ?? [])
       .filter(i => i.severity === 'critical' || i.severity === 'high')
-      .slice(0, 3);
+      .slice(0, REPORT_PROFILER_ONEPAGER_TOP_ISSUES_MAX);
     if (topIssues.length > 0) {
       lines.push('## Top Issues');
       lines.push('');
@@ -325,7 +333,7 @@ export class ReportProfiler {
     }
 
     // Top 3 quick wins
-    const topQw = domains.flatMap(d => d.quick_wins ?? []).slice(0, 3);
+    const topQw = domains.flatMap(d => d.quick_wins ?? []).slice(0, REPORT_PROFILER_ONEPAGER_TOP_QUICK_WINS_MAX);
     if (topQw.length > 0) {
       lines.push('## Quick Wins');
       lines.push('');

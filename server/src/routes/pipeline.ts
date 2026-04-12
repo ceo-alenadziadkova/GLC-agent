@@ -24,6 +24,7 @@ import {
 import { logger } from '../services/logger.js';
 import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 import { PIPELINE_MAX_PHASE_INDEX, PIPELINE_MIN_PHASE } from '../config/pipeline-phases.js';
+import { PIPELINE_STATUS_EVENTS_LIMIT } from '../config/route-query-limits.js';
 import {
   evaluateBriefGates,
   resolveIntakeSurfaceForPlan,
@@ -421,7 +422,7 @@ pipelineRouter.get('/:id/pipeline/status', requireAuth, attachProfile, rejectGue
         .select('*')
         .eq('audit_id', id)
         .order('created_at', { ascending: false })
-        .limit(50),
+        .limit(PIPELINE_STATUS_EVENTS_LIMIT),
       supabase.from('review_points')
         .select('*')
         .eq('audit_id', id)

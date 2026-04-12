@@ -18,6 +18,7 @@ import {
   discoverSessionCreateLimiter,
 } from '../middleware/rate-limit.js';
 import { NO_PUBLIC_WEBSITE_URL } from '../config/no-public-website.js';
+import { DISCOVER_SESSIONS_LIST_MAX } from '../config/route-query-limits.js';
 import { saveBriefResponses } from '../services/brief-validator.js';
 import { DOMAIN_KEYS, reviewPhasesForMode } from '../types/audit.js';
 import { logger } from '../services/logger.js';
@@ -359,7 +360,7 @@ discoverRouter.get(
         .select('session_token, maturity_level, findings, contact_name, contact_email, contact_phone, contact_company, audit_id, created_at, answers, consultant_id')
         .or(`consultant_id.is.null,consultant_id.eq.${req.userId!}`)
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(DISCOVER_SESSIONS_LIST_MAX);
 
       if (error) {
         logger.error('discover.list_failed', { component: 'discover', error: error.message });

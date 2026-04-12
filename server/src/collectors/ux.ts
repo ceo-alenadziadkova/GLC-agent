@@ -1,3 +1,8 @@
+import {
+  COLLECTOR_UX_SAMPLE_CTAS_MAX,
+  COLLECTOR_UX_SAMPLE_H1S_MAX,
+} from '../config/collector-sampling-limits.js';
+import { UX_VIEWPORT_EXPECTED_FRAMEWORK_LABELS } from '../config/ux-collector-heuristics.js';
 import { BaseCollector, type CollectorCollectContext } from './base.js';
 import { supabase } from '../services/supabase.js';
 
@@ -94,9 +99,8 @@ export class UxCollector extends BaseCollector {
       ...(techStack.frameworks ?? []),
       ...(techStack.cms ?? []),
     ];
-    const VIEWPORT_FRAMEWORKS = ['React', 'Vue', 'Angular', 'Next', 'Nuxt', 'Gatsby', 'Astro',
-      'Svelte', 'Wix', 'Squarespace', 'Webflow', 'Shopify'];
-    const viewportMetaPresent = modernFrameworks.some(f => VIEWPORT_FRAMEWORKS.includes(f));
+    const viewportExpected = new Set<string>(UX_VIEWPORT_EXPECTED_FRAMEWORK_LABELS);
+    const viewportMetaPresent = modernFrameworks.some(f => viewportExpected.has(f));
 
     return {
       pages_analyzed: pages.length,
@@ -110,8 +114,8 @@ export class UxCollector extends BaseCollector {
       total_h2s: allH2s.length,
       pages_with_h1: pages.filter(p => ((p.h1 as string[]) ?? []).length > 0).length,
       pages_without_h1: pages.filter(p => ((p.h1 as string[]) ?? []).length === 0).length,
-      sample_h1s: allH1s.slice(0, 5),
-      sample_ctas: allText.filter(t => CTA_WORDS.some(w => t.includes(w))).slice(0, 5),
+      sample_h1s: allH1s.slice(0, COLLECTOR_UX_SAMPLE_H1S_MAX),
+      sample_ctas: allText.filter(t => CTA_WORDS.some(w => t.includes(w))).slice(0, COLLECTOR_UX_SAMPLE_CTAS_MAX),
     };
   }
 }

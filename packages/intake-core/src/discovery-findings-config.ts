@@ -30,6 +30,14 @@ export interface DiscoveryFindingsConfigV1 {
   hookSortOrder: DiscoveryFindingHook[];
   maxFindingsReturned: number;
   maxFindingsPerZone: number;
+  /** `normalizeIndustry` outcomes for Rule 5 (local service + no Google). */
+  localServiceIndustryNorms: string[];
+  /** `normalizeIndustry` outcome for Rule 12 (real estate + no CRM). */
+  realEstateIndustryNorm: string;
+  /** Copy for `d2_automatable` template when team is solo. */
+  d2AutomatableHoursRangeSolo: string;
+  /** Copy for `d2_automatable` template when team is not solo. */
+  d2AutomatableHoursRangeNonSolo: string;
 }
 
 export const DISCOVERY_FINDINGS_CONFIG = raw as DiscoveryFindingsConfigV1;

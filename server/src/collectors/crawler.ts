@@ -5,6 +5,7 @@ import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } 
 import { detectLanguagesFromPages, extractLanguagesFromHtml } from '../lib/language-utils.js';
 import { logger } from '../services/logger.js';
 import { CRAWLER_USER_AGENT } from '../config/bot-identity.js';
+import { COLLECTOR_CRAWLER_CONTACT_FIELD_MAX } from '../config/collector-sampling-limits.js';
 import {
   CRAWLER_MAX_PAGES,
   CRAWLER_PAGE_TIMEOUT_MS,
@@ -137,8 +138,8 @@ export class CrawlerCollector extends BaseCollector {
       tech_stack: techStackResult,
       social_profiles: socialProfiles,
       contact_info: {
-        emails: Array.from(emails).slice(0, 10),
-        phones: Array.from(phones).slice(0, 10),
+        emails: Array.from(emails).slice(0, COLLECTOR_CRAWLER_CONTACT_FIELD_MAX),
+        phones: Array.from(phones).slice(0, COLLECTOR_CRAWLER_CONTACT_FIELD_MAX),
         addresses: [],
       },
       languages_detected: languages,

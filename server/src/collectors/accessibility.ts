@@ -8,6 +8,7 @@ import {
 } from '../config/collector-copy-accessibility.en.js';
 import { BaseCollector, type CollectorCollectContext } from './base.js';
 import { supabase } from '../services/supabase.js';
+import { COLLECTOR_ACCESSIBILITY_AUDIT_URLS_MAX } from '../config/collector-sampling-limits.js';
 import { auditAxeNavigateTimeoutMs, auditAxePlaywrightEnabled } from '../lib/audit-deep-scan-env.js';
 import { runAxeOnPublicUrls } from '../lib/axe-playwright-audit.js';
 import { logger } from '../services/logger.js';
@@ -136,7 +137,10 @@ export class AccessibilityCollector extends BaseCollector {
       pages_analyzed: pages.length,
     };
 
-    const urls = [companyUrl, ...pages.map(p => p.url as string).filter(Boolean)].slice(0, 5);
+    const urls = [companyUrl, ...pages.map(p => p.url as string).filter(Boolean)].slice(
+      0,
+      COLLECTOR_ACCESSIBILITY_AUDIT_URLS_MAX,
+    );
     return this.attachAxeIfEnabled(auditId, companyUrl, urls, base);
   }
 

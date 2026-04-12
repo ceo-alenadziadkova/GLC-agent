@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "automatableD2Options": [
     "Following up with leads and prospects",
     "Scheduling and confirming appointments",
@@ -32,5 +32,9 @@
   },
   "hookSortOrder": ["revenue", "time", "visibility", "risk", "scale"],
   "maxFindingsReturned": 4,
-  "maxFindingsPerZone": 2
+  "maxFindingsPerZone": 2,
+  "localServiceIndustryNorms": ["hospitality", "food & beverage", "healthcare"],
+  "realEstateIndustryNorm": "real estate",
+  "d2AutomatableHoursRangeSolo": "3–5",
+  "d2AutomatableHoursRangeNonSolo": "5–10"
 }

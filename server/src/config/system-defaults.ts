@@ -27,6 +27,37 @@ export const SYSTEM_DEFAULTS = {
     defaultLimit: 50,
     maxLimit: 200,
   },
+  /**
+   * Supabase `.limit()` caps and list pagination for dashboard / status routes.
+   */
+  routeQueries: {
+    notifications: { defaultLimit: 30, maxLimit: 100, minLimit: 1 },
+    discoverSessionsMaxRows: 100,
+    intakeSubmissionsMaxRows: 100,
+    pipelineStatusEventsLimit: 50,
+  },
+  /** Report export / markdown profile slice sizes (`ReportProfiler`). */
+  reportProfiler: {
+    ownerTopIssuesMax: 5,
+    ownerTopRecsMax: 8,
+    onepagerTopIssuesMax: 3,
+    onepagerTopQuickWinsMax: 3,
+  },
+  /** Upper bounds on arrays stored or shown from collectors and follow-up heuristics. */
+  collectorsSampling: {
+    crawlerContactFieldMax: 10,
+    marketingBlogPageSamples: 3,
+    accessibilityAuditUrlsMax: 5,
+    axePlaywrightUrlsMax: 5,
+    axeViolationIdSampleMax: 8,
+    uxSampleH1sMax: 5,
+    uxSampleCtasMax: 5,
+    postAuditFollowupsMax: 2,
+  },
+  /** Tentative tech hints cap (fast snapshot heuristics). */
+  techTentative: {
+    maxHints: 8,
+  },
   crawler: {
     maxPages: 20,
     maxPagesHardCap: 100,

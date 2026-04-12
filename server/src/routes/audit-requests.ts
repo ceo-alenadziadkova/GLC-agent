@@ -24,6 +24,7 @@ import { ensureHttpsUrl } from '@glc/intake-core';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import { idempotencyPostAuditRequestApproveKey } from '../config/api-http-paths.js';
 import { NO_PUBLIC_WEBSITE_URL, isNoPublicWebsiteUrl } from '../config/no-public-website.js';
+import { AUDITS_LIST_DEFAULT_LIMIT, AUDITS_LIST_MAX_LIMIT } from '../config/audits-list-limits.js';
 import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 import {
   getStoredIdempotentResponse,
@@ -269,7 +270,10 @@ auditRequestsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) 
 // ── GET /api/audit-requests — List requests ──────────────────────────────────
 auditRequestsRouter.get('/', async (req: AuthRequest, res) => {
   try {
-    const limit = Math.min(parseInt(String(req.query.limit ?? '50'), 10) || 50, 200);
+    const limit = Math.min(
+      parseInt(String(req.query.limit ?? String(AUDITS_LIST_DEFAULT_LIMIT)), 10) || AUDITS_LIST_DEFAULT_LIMIT,
+      AUDITS_LIST_MAX_LIMIT,
+    );
     const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
 
     let query = supabase

@@ -168,7 +168,7 @@ export function IntakeBankWizard({
         </div>
       </div>
     );
-  }, [wizard.nextRecommended, wizard.currentStub?.id, wizard.visibleQuestionStubs, wizard.goToStep]);
+  }, [wizard]);
 
   return (
     <div className="space-y-5">

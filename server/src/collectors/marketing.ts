@@ -1,3 +1,4 @@
+import { COLLECTOR_MARKETING_BLOG_PAGE_SAMPLES } from '../config/collector-sampling-limits.js';
 import { BaseCollector, type CollectorCollectContext } from './base.js';
 import { supabase } from '../services/supabase.js';
 
@@ -86,7 +87,10 @@ export class MarketingCollector extends BaseCollector {
       pages_analyzed: pages.length,
       // Blog
       blog_post_count: blogPages.length,
-      blog_page_samples: blogPages.slice(0, 3).map(p => ({ url: p.url, title: p.title })),
+      blog_page_samples: blogPages.slice(0, COLLECTOR_MARKETING_BLOG_PAGE_SAMPLES).map(p => ({
+        url: p.url,
+        title: p.title,
+      })),
       // Trust signals
       testimonial_count: testimonialCount,
       certifications_count: certificationCount,

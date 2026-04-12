@@ -26,7 +26,6 @@ import {
   getQuestionBankPromptLabel,
   isSupportedIntakeArtifactTuple,
   resolveBankOptionalIds,
-  resolveExpressSlaRequiredIds,
   resolvePreBriefSubmitExpressBankIds,
   resolveIntakeArtifacts,
   currentIntakeVersionTuple,

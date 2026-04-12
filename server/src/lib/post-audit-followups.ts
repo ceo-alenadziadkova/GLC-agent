@@ -1,6 +1,7 @@
 /**
  * Map agent unknown_items to brief question IDs for post-audit enrichment (Layer 3 nudges).
  */
+import { POST_AUDIT_FOLLOWUPS_MAX } from '../config/collector-sampling-limits.js';
 import { getQuestionsForDomain } from '../schemas/intake-brief.js';
 import type { BriefQuestion, DomainKey } from '../types/audit.js';
 
@@ -36,7 +37,7 @@ export function followupQuestionsFromUnknowns(
     .sort((a, b) => b.score - a.score);
 
   const out: PostAuditQuestionRef[] = [];
-  for (const { q } of scored.slice(0, 2)) {
+  for (const { q } of scored.slice(0, POST_AUDIT_FOLLOWUPS_MAX)) {
     out.push({ domain: domainKey, id: q.id });
   }
   return out;

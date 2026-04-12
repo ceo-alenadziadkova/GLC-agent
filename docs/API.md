@@ -407,7 +407,7 @@ Queue-backed execution/fallback behavior is the same as `pipeline/start`.
 
 ### `GET /api/audits/:id/pipeline/status`
 
-Current pipeline state.
+Current pipeline state. Recent **`pipeline_events`** rows are capped at **`SYSTEM_DEFAULTS.routeQueries.pipelineStatusEventsLimit`** (default **50**; see `PIPELINE_STATUS_EVENTS_LIMIT` in `server/src/config/route-query-limits.ts`).
 
 **Response `200`:**
 
@@ -515,7 +515,7 @@ List notifications in reverse chronological order.
 
 **Query params:**
 
-- `limit` (default `30`, max `100`)
+- `limit` (defaults and max from **`SYSTEM_DEFAULTS.routeQueries.notifications`** — default **30**, max **100**, min **1**)
 - `offset` (default `0`)
 - `unreadOnly` (`true|false`, default `false`)
 
@@ -695,7 +695,7 @@ Migration: `011_intake_tokens.sql`. Table `intake_tokens` — operations via ser
 
 **Auth:** consultant JWT.
 
-Lists intake tokens **you created** where the client has already submitted (`submitted_at` is set), newest first. The query uses a hard **`.limit(100)`** in `server/src/routes/intake.ts` (not env-tunable). Used by the admin request queue to show raw pre-brief answers before or after linking to an audit. See [DEPLOYMENT.md — Consultant list endpoints](./DEPLOYMENT.md#consultant-list-endpoints-hard-cap).
+Lists intake tokens **you created** where the client has already submitted (`submitted_at` is set), newest first. Row cap: **`SYSTEM_DEFAULTS.routeQueries.intakeSubmissionsMaxRows`** (exported as `INTAKE_SUBMISSIONS_LIST_MAX` from `server/src/config/route-query-limits.ts`; default **100**). Used by the admin request queue to show raw pre-brief answers before or after linking to an audit. See [DEPLOYMENT.md — Consultant list endpoints](./DEPLOYMENT.md#consultant-list-endpoints-hard-cap).
 
 **Response `200`:** `{ "submissions": [ { "token", "metadata", "responses", "submitted_at", "expires_at", "audit_id", "intake_url" } ] }` — `intake_url` is the shareable client link (**`FRONTEND_URL`** as above + `/intake/:token`).
 
@@ -799,7 +799,7 @@ Consultant queue endpoint.
 
 Server-side scoping is enforced: only rows where `consultant_id IS NULL` (unclaimed queue) or `consultant_id = current consultant` are listed.
 
-**Pagination:** Newest first; the implementation applies a hard **`.limit(100)`** in `server/src/routes/discover.ts` (not env-tunable). See [DEPLOYMENT.md — Consultant list endpoints](./DEPLOYMENT.md#consultant-list-endpoints-hard-cap).
+**Pagination:** Newest first; row cap **`SYSTEM_DEFAULTS.routeQueries.discoverSessionsMaxRows`** (`DISCOVER_SESSIONS_LIST_MAX` in `server/src/config/route-query-limits.ts`; default **100**). See [DEPLOYMENT.md — Consultant list endpoints](./DEPLOYMENT.md#consultant-list-endpoints-hard-cap).
 
 ### `POST /api/discover/:token/convert`
 

@@ -11,6 +11,11 @@ import {
   NOTIFICATIONS_UNREAD_COUNT_FAILED_MESSAGE,
   apiErrorJson,
 } from '../config/api-error-codes.js';
+import {
+  NOTIFICATIONS_LIST_DEFAULT_LIMIT,
+  NOTIFICATIONS_LIST_MAX_LIMIT,
+  NOTIFICATIONS_LIST_MIN_LIMIT,
+} from '../config/route-query-limits.js';
 
 export const notificationsRouter = Router();
 
@@ -20,7 +25,14 @@ notificationsRouter.use(rejectGuestFromPortal);
 
 notificationsRouter.get('/', async (req: AuthRequest, res) => {
   try {
-    const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? '30'), 10) || 30, 1), 100);
+    const limit = Math.min(
+      Math.max(
+        parseInt(String(req.query.limit ?? String(NOTIFICATIONS_LIST_DEFAULT_LIMIT)), 10) ||
+          NOTIFICATIONS_LIST_DEFAULT_LIMIT,
+        NOTIFICATIONS_LIST_MIN_LIMIT,
+      ),
+      NOTIFICATIONS_LIST_MAX_LIMIT,
+    );
     const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
     const unreadOnly = String(req.query.unreadOnly ?? 'false') === 'true';
 

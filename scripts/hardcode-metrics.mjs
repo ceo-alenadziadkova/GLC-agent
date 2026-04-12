@@ -71,7 +71,7 @@ function* walk(dir, relBase = '', repoRelPrefix = '') {
 
 const RE = {
   /** Full URL-ish substring (greedy to first quote/space) */
-  httpUrl: /https?:\/\/[^\s'"`\)]+/g,
+  httpUrl: /https?:\/\/[^\s'"`)]+/g,
   localhost: /\blocalhost\b|127\.0\.0\.1/g,
   /** setTimeout(fn, 350) or setInterval(..., 1000) */
   timerMsLiteral:
@@ -115,9 +115,8 @@ function analyzeFile(content, rel) {
     const loc = line.match(RE.localhost);
     if (loc) localhostHits += loc.length;
 
-    let m;
     const timerRe = new RegExp(RE.timerMsLiteral.source, 'g');
-    while ((m = timerRe.exec(line)) !== null) timerLiteralHits += 1;
+    while (timerRe.exec(line) !== null) timerLiteralHits += 1;
 
     const big = line.match(RE.bigIntLiteral);
     if (big) bigNumHits += big.length;
@@ -143,7 +142,7 @@ function analyzeFile(content, rel) {
 
 function main() {
   const byFile = [];
-  let totals = {
+  const totals = {
     files: 0,
     urlHits: 0,
     localhostHits: 0,

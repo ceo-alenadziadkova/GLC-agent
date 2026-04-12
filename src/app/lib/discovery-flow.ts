@@ -258,8 +258,6 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
   const presence = (answers['c_nosite_1'] as string[] | null) ?? [];
   const bottleneck = answers['d2'] as string | null;
   const f1Raw = answers['f1'];
-  const goal =
-    f1Raw == null ? null : Array.isArray(f1Raw) ? (f1Raw[0] as string | undefined) ?? null : (f1Raw as string);
   const stage    = answers['a7'] as string | null;
   const industry = answers['a2'] as string | null;
   const goalBucket = normalizePrimaryGoal(f1Raw);
@@ -277,11 +275,8 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
   const isNotOnline = presenceNorm.hasNotOnline;
 
   const industryNorm = normalizeIndustry(industry);
-  const isLocalServiceBusiness =
-    industryNorm === 'hospitality' ||
-    industryNorm === 'food & beverage' ||
-    industryNorm === 'healthcare';
-  const isRealEstate = industryNorm === 'real estate';
+  const isLocalServiceBusiness = FC.localServiceIndustryNorms.includes(industryNorm);
+  const isRealEstate = industryNorm === FC.realEstateIndustryNorm;
 
   const hasGoogleSearch = presenceNorm.hasGoogleSearch;
   const hasGoogleBusinessListing = presenceNorm.hasGoogleBusiness;
@@ -343,7 +338,7 @@ export function computeFindings(answers: DiscoveryAnswers): DiscoveryFinding[] {
   // ── Rule 7: d2 bottleneck is a known automatable workflow ───────────────────
   const automatableD2 = new Set(FC.automatableD2Options);
   if (bottleneck && automatableD2.has(bottleneck)) {
-    const hourEstimate = isSolo ? '3–5' : '5–10';
+    const hourEstimate = isSolo ? FC.d2AutomatableHoursRangeSolo : FC.d2AutomatableHoursRangeNonSolo;
     pushDiscoveryCopyFinding(findings, 'd2_automatable', {
       bottleneck,
       industry: industryLabel(answers),

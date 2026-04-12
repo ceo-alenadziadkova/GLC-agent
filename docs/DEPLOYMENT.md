@@ -171,8 +171,10 @@ There is **no** required Vite env mirror for the no-public sentinel beyond shipp
 
 ### Consultant list endpoints (hard cap)
 
-- **`GET /api/intake/submissions`** — newest submitted pre-brief links for the current consultant; Supabase query uses **`.limit(100)`** in `server/src/routes/intake.ts` (not env-tunable today).
-- **`GET /api/discover/sessions`** — discovery queue for the current consultant; **`.limit(100)`** in `server/src/routes/discover.ts` (same). For larger backfills, extend the API (pagination or a raised cap + env) in a dedicated change.
+Caps are **static config** in **`SYSTEM_DEFAULTS.routeQueries`** (`server/src/config/system-defaults.ts`), re-exported from `server/src/config/route-query-limits.ts` — not environment variables.
+
+- **`GET /api/intake/submissions`** — newest submitted pre-brief links for the current consultant; default cap **`intakeSubmissionsMaxRows`** (**100**).
+- **`GET /api/discover/sessions`** — discovery queue for the current consultant; **`discoverSessionsMaxRows`** (**100**). For larger backfills, extend the API (pagination or a raised cap in `SYSTEM_DEFAULTS`) in a dedicated change.
 
 ### Reliability alerts (Telegram)
 
