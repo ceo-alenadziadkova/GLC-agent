@@ -183,6 +183,33 @@ export const SYSTEM_DEFAULTS = {
     insertEnabled: process.env.EVALUATION_DATASETS_INSERT !== 'false',
   },
   /**
+   * ML Bandits: ε-greedy agent-variant selection per GLC domain phase.
+   * Disabled by default. Enable via FEATURE_BANDITS=true.
+   *
+   * Activation requires all three readiness gates to pass (see bandit.ts).
+   * Falls back to 'default' variant on any gate failure, disabled flag, or DB error.
+   *
+   * See ADR-ML-BANDITS.md for full design rationale.
+   */
+  bandits: {
+    /** Master switch. Default: false. Override: FEATURE_BANDITS=true */
+    enabled: process.env.FEATURE_BANDITS === 'true',
+    /** ε-greedy exploration rate: probability of picking a random arm. */
+    epsilon: 0.15,
+    /** Minimum evaluation runs per arm before bandit considers it reliable. */
+    minEvaluationCount: 10,
+    /**
+     * Minimum distinct phase_ids with sufficient arm data before any bandit activates.
+     * Prevents a single outlier client from skewing the policy.
+     */
+    minPhasesWithData: 3,
+    /**
+     * Maximum non-default variants allowed per phase.
+     * 2 non-default + 1 implicit default = 3 total arms (keeps ε-greedy convergence tractable).
+     */
+    maxVariantsPerPhase: 2,
+  },
+  /**
    * Auto-loop: targeted agent rerun when Decision Layer returns 'refine'.
    * Disabled by default. Enable per-environment via AUTO_LOOP_ENABLED=true.
    * Restricted to sandbox/internal modes until monitoring confirms stability.

@@ -35,6 +35,8 @@ import { dynamicAdjustmentService } from './dynamic-adjustment.js';
 import { recordAgentPerformance } from './agent-performance.js';
 import { PIPELINE_EVENT_ERROR_CODES } from '../config/pipeline-event-error-codes.js';
 import type { ControlObjectV1 } from '../schemas/control-object.js';
+import { banditService, DEFAULT_VARIANT_ID } from './bandit.js';
+import { findVariant } from '../config/agent-variants.js';
 
 type AgentConstructor = new (auditId: string) => BaseAgent;
 
@@ -267,6 +269,14 @@ export class PipelineOrchestrator {
         );
 
         const agent = new AgentClass(this.auditId);
+        // Inject bandit variant for the auto-loop rerun (same bandit selection as initial run)
+        {
+          const banditResult = await banditService.selectVariant(domainKey as DomainKey);
+          if (banditResult.variant_id !== DEFAULT_VARIANT_ID) {
+            const variant = findVariant(domainKey as DomainKey, banditResult.variant_id);
+            if (variant) agent.variantDelta = variant;
+          }
+        }
         // Inject instruction patches via agent property (BaseAgent reads this in buildInstructions)
         if ('autoLoopAdjustments' in agent) {
           (agent as BaseAgent & { autoLoopAdjustments?: Map<number, string> }).autoLoopAdjustments = adjustments;
@@ -435,6 +445,13 @@ export class PipelineOrchestrator {
 
       // Run the agent
       const agent = new AgentClass(this.auditId);
+      if (domainKey !== 'recon' && domainKey !== 'strategy') {
+        const banditResult = await banditService.selectVariant(domainKey as DomainKey);
+        if (banditResult.variant_id !== DEFAULT_VARIANT_ID) {
+          const variant = findVariant(domainKey as DomainKey, banditResult.variant_id);
+          if (variant) agent.variantDelta = variant;
+        }
+      }
       const result = await agent.run();
 
       if (domainKey !== 'recon' && domainKey !== 'strategy') {
@@ -530,6 +547,13 @@ export class PipelineOrchestrator {
       }
 
       const agent = new AgentClass(this.auditId);
+      if (domainKey !== 'recon' && domainKey !== 'strategy') {
+        const banditResult = await banditService.selectVariant(domainKey as DomainKey);
+        if (banditResult.variant_id !== DEFAULT_VARIANT_ID) {
+          const variant = findVariant(domainKey as DomainKey, banditResult.variant_id);
+          if (variant) agent.variantDelta = variant;
+        }
+      }
       const result = await agent.run();
 
       if (domainKey !== 'recon' && domainKey !== 'strategy') {

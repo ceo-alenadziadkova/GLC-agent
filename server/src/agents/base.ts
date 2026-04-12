@@ -9,6 +9,7 @@ import { TokenTracker } from '../services/token-tracker.js';
 import { type BaseCollector } from '../collectors/base.js';
 import type { DomainResult, DomainKey } from '../types/audit.js';
 import type { ControlObjectV1, ExecutionMode } from '../schemas/control-object.js';
+import type { AgentVariant } from '../config/agent-variants.js';
 import { fetchAuditExecutionMode } from '../lib/audit-execution-mode.js';
 import type { BriefSnapshot } from '../services/feasibility-layer.js';
 import { followupQuestionsFromUnknowns } from '../lib/post-audit-followups.js';
@@ -151,6 +152,13 @@ export abstract class BaseAgent {
   lastControlObject: ControlObjectV1 | null = null;
 
   /**
+   * Optional instruction variant injected by BanditService before run().
+   * When set, getEffectiveInstructions() merges or replaces the base instructions.
+   * Set by PipelineService after bandit.selectVariant() — never set inside agents.
+   */
+  variantDelta: AgentVariant | null = null;
+
+  /**
    * Claude tool output before `FactChecker.verify()` (for `evaluation_datasets.agent_output`).
    * Null for recon/strategy or if the domain branch was not executed.
    */
@@ -172,6 +180,22 @@ export abstract class BaseAgent {
    */
   private attachConfidenceDistribution(result: DomainResult): DomainResult {
     return { ...result, confidence_distribution: confidenceDistributionFromIssues(result.issues) };
+  }
+
+  /**
+   * Returns the effective instruction string for this agent run.
+   *
+   * When variantDelta is set (bandit selected a non-default variant):
+   *   - 'append':  appends instruction_delta to the base instructions with a blank line separator.
+   *   - 'replace': substitutes instruction_delta for the entire base instructions string.
+   * When variantDelta is null, returns this.instructions unchanged.
+   */
+  protected getEffectiveInstructions(): string {
+    if (!this.variantDelta) return this.instructions;
+    if (this.variantDelta.delta_type === 'replace') {
+      return this.variantDelta.instruction_delta;
+    }
+    return `${this.instructions}\n\n${this.variantDelta.instruction_delta}`;
   }
 
   /** Loads `audits.execution_mode` once per agent instance (one pipeline phase). */
@@ -218,7 +242,7 @@ export abstract class BaseAgent {
       this.auditId,
       this.domainKey,
       collectedData,
-      this.instructions
+      this.getEffectiveInstructions()
     );
 
     // ─── Step 3: Single Claude call ──────────────────────
