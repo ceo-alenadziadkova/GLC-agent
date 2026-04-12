@@ -16,6 +16,7 @@ import {
 import { computeWeightedConfidence } from '../config/phase-confidence-weights.js';
 import { applyExecutionMode } from '../config/safety-mode.js';
 import { computePerformanceMetrics } from './agent-performance.js';
+import type { ConnectorRunResult } from './connector-runner.js';
 
 const T = FACT_CHECKER_THRESHOLDS;
 
@@ -392,7 +393,17 @@ export class FactChecker {
     executionMode: ExecutionMode = 'normal',
     /** v1.7+: brief snapshot for feasibility assessment. Pass {} or omit for phases without brief context. */
     brief: BriefSnapshot = {},
-    governance: BuildControlObjectGovernanceInput = {}
+    governance: BuildControlObjectGovernanceInput = {},
+    /**
+     * v2.2+: Phase 7 external connector enrichments (from ConnectorRunner.runAll()).
+     * Pass [] or omit when no connectors ran (zero-cost — skips enrichment logic entirely).
+     *
+     * Effects on CONTROL_OBJECT:
+     *   - Claims whose issue type matches a confirmed fact type get truth_source elevated to 'external_api'.
+     *   - If all applicable connectors timed out / errored AND the phase has high-risk claims,
+     *     adds 'external_source_unavailable' to human_attention_required.reasons.
+     */
+    connectorEnrichments: ConnectorRunResult[] = []
   ): ControlObjectV1 {
     const { result, corrections, confidence: factualRaw } = factCheckResult;
 
@@ -511,9 +522,26 @@ export class FactChecker {
     // ─── Trace ────────────────────────────────────────────────
     // Map each issue to a claim source (phase = agent number for v1)
     // v1.5: truth_source resolved via Truth Registry helper (canonical mapping)
+    // v2.2: elevate to 'external_api' when a connector confirmed the claim type
+    const externalConfirmedTypes = new Set(
+      connectorEnrichments.flatMap(r => r.confirmed_fact_types),
+    );
+    const highRiskTypes = new Set(profile.high_risk_fact_types);
+
     for (let i = 0; i < issues.length; i++) {
       const issue = issues[i];
-      const truthSource = mapDataSourceToTruthSource(issue.data_source ?? 'inferred');
+      let truthSource = mapDataSourceToTruthSource(issue.data_source ?? 'inferred');
+
+      // Elevate truth_source to 'external_api' if any connector confirmed this claim type.
+      // Match by checking whether the issue title contains any confirmed fact-type keyword.
+      if (
+        externalConfirmedTypes.size > 0 &&
+        [...externalConfirmedTypes].some(ft =>
+          issue.title.toLowerCase().includes(ft.replace(/_/g, ' '))
+        )
+      ) {
+        truthSource = 'external_api';
+      }
 
       co.trace.claim_sources.push({
         claim_id: i + 1,
@@ -586,6 +614,24 @@ export class FactChecker {
       }
       if (feasibilityTooLow) {
         co.human_attention_required.reasons.push('critically_low_feasibility');
+      }
+    }
+
+    // ─── v2.2: External source unavailability flag ────────────
+    // If connectors were registered and ALL applicable connectors failed/timed out,
+    // AND the phase has high-risk claims, flag for human attention.
+    // Condition: ≥1 connector ran, none succeeded (all timed_out or error), AND
+    //            at least one issue is of a high-risk fact type.
+    if (connectorEnrichments.length > 0) {
+      const allConnectorsFailed = connectorEnrichments.every(r => r.timed_out || r.error !== null);
+      const hasHighRiskIssue = issues.some(issue =>
+        [...highRiskTypes].some(ft => issue.title.toLowerCase().includes(ft.replace(/_/g, ' ')))
+      );
+      if (allConnectorsFailed && hasHighRiskIssue) {
+        co.human_attention_required.required = true;
+        if (!co.human_attention_required.reasons.includes('external_source_unavailable')) {
+          co.human_attention_required.reasons.push('external_source_unavailable');
+        }
       }
     }
 

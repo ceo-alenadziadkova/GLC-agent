@@ -12,6 +12,8 @@ import type { ControlObjectV1, ExecutionMode } from '../schemas/control-object.j
 import type { AgentVariant } from '../config/agent-variants.js';
 import { fetchAuditExecutionMode } from '../lib/audit-execution-mode.js';
 import { fetchAuditGovernanceRiskProfile } from '../lib/audit-governance-risk-profile.js';
+import { connectorRunner } from '../services/connector-runner.js';
+import { getExtendedPhaseProfile } from '../config/phase-profiles.js';
 import type { BriefSnapshot } from '../services/feasibility-layer.js';
 import { followupQuestionsFromUnknowns } from '../lib/post-audit-followups.js';
 import { confidenceDistributionFromIssues } from '../lib/confidence-distribution.js';
@@ -291,13 +293,24 @@ export abstract class BaseAgent {
         );
       }
 
-      // ─── Step 4b: Build CONTROL_OBJECT v1.7 (advisory, side effect) ──
+      // ─── Step 4b: Build CONTROL_OBJECT v2.2 (advisory, side effect) ──
       // Does NOT change return value or block pipeline flow.
       try {
         // v1.7: extract BriefSnapshot from context.brief_responses for feasibility assessment
         const brief: BriefSnapshot = this.extractBriefSnapshot(context);
         const executionMode = await this.resolveExecutionMode();
         const riskProfile = await fetchAuditGovernanceRiskProfile(this.auditId);
+
+        // v2.2: Run external connectors (Phase 7+). Non-blocking — always resolves.
+        // Returns [] when no connectors are registered (zero-cost default path).
+        const phaseProfile = getExtendedPhaseProfile(this.domainKey);
+        const connectorEnrichments = await connectorRunner.runAll(
+          this.domainKey as DomainKey,
+          {
+            high_risk_fact_types: phaseProfile.high_risk_fact_types,
+            company_url: companyUrl,
+          },
+        );
 
         const controlObject = this.factChecker.buildControlObject(
           verification,
@@ -310,6 +323,7 @@ export abstract class BaseAgent {
             riskProfile,
             selectedVariantId: this.selectedVariantId ?? undefined,
           },
+          connectorEnrichments,
         );
         this.lastControlObject = controlObject;
         // control_object pipeline_events row is emitted by PipelineOrchestrator after DecisionLayer sets decision_hint.
