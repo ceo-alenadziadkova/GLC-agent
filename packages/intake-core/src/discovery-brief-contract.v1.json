@@ -1,0 +1,9 @@
+{
+  "version": "1.1.0",
+  "usesCrmBriefStoredYes": "uses_crm:yes",
+  "usesCrmBriefStoredNo": "uses_crm:no",
+  "usesCrmBriefLabelEnYes": "Yes",
+  "usesCrmBriefLabelEnNo": "No",
+  "usesCrmBriefI18nKeyYes": "glc.brief.usesCrm.yes",
+  "usesCrmBriefI18nKeyNo": "glc.brief.usesCrm.no"
+}

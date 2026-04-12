@@ -1,0 +1,15 @@
+{
+  "version": "1.0.0",
+  "optionLabelsRequiringSpecify": [
+    "Other",
+    "Something else",
+    "Yes, other tool",
+    "Yes, another tool",
+    "Not quite (I will clarify)",
+    "Yes, there are additional details"
+  ],
+  "specifyResponseKeyByQuestionId": {
+    "a2": "intake_industry_specify"
+  },
+  "defaultSpecifySuffix": "__other"
+}

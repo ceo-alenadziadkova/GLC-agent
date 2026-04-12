@@ -1,3 +1,4 @@
+import { API_PATHS } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
 import type { AuditMeta, AuditState } from '../auditTypes';
 
@@ -19,7 +20,7 @@ export const auditsCrudApi = {
     } else {
       body.company_url = companyUrl;
     }
-    return apiFetch<{ id: string; status: string }>('/api/audits', {
+    return apiFetch<{ id: string; status: string }>(API_PATHS.audits, {
       method: 'POST',
       body: JSON.stringify(body),
     });
@@ -27,17 +28,17 @@ export const auditsCrudApi = {
 
   async listAudits(limit = 50, offset = 0) {
     const res = await apiFetch<{ data: AuditMeta[]; total: number; limit: number; offset: number }>(
-      `/api/audits?limit=${limit}&offset=${offset}`,
+      `${API_PATHS.audits}?limit=${limit}&offset=${offset}`,
     );
     return res;
   },
 
   async getAudit(id: string) {
-    return apiFetch<AuditState>(`/api/audits/${id}`);
+    return apiFetch<AuditState>(`${API_PATHS.audits}/${id}`);
   },
 
   async deleteAudit(id: string) {
-    return apiFetch<{ deleted: boolean }>(`/api/audits/${id}`, { method: 'DELETE' });
+    return apiFetch<{ deleted: boolean }>(`${API_PATHS.audits}/${id}`, { method: 'DELETE' });
   },
 
   /** Client: promote completed `free_snapshot` to express/full and seed intake from scraped context (or fresh). */
@@ -49,7 +50,7 @@ export const auditsCrudApi = {
       ok: boolean;
       snapshot_scrape_limited?: boolean;
       snapshot_scrape_robots_blocked?: boolean;
-    }>(`/api/audits/${id}/upgrade-from-snapshot`, {
+    }>(`${API_PATHS.audits}/${id}/upgrade-from-snapshot`, {
       method: 'POST',
       body: JSON.stringify(body),
     });

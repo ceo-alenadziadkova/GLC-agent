@@ -1,4 +1,5 @@
-import { Circle, Check, CheckCircle, Lightbulb, UserCircle } from '@phosphor-icons/react';
+import { Circle, Check, CheckCircle, Lightbulb, LockSimple, UserCircle } from '@phosphor-icons/react';
+import type { ProductMode } from '../data/auditTypes';
 import type { BriefQuestion, BriefResponseEntry } from '../data/briefQuestions';
 import { choiceValueNeedsSpecify } from '@glc/intake-core';
 
@@ -13,7 +14,6 @@ function friendlyFreeTextPlaceholder(questionId: string): string {
     b1: 'Example: "Families visiting Palma for 3-5 nights, booking 2-4 weeks ahead."',
     c6: 'Example: "People visit but rarely contact us" or "Mobile pages feel slow."',
     c8: 'Add 2-3 competitor names or URLs.',
-    d2: 'Example: "Copying inquiries from WhatsApp into spreadsheets every day."',
     f1: 'Example: "Too much manual work and unclear channel performance."',
   };
   return byId[questionId] ?? 'Write what comes to mind first. Short is fine, detailed is even better.';
@@ -28,6 +28,8 @@ export function BriefField({
   interviewMode,
   otherSpecify,
   onOtherSpecifyChange,
+  disabledOptions,
+  productMode,
 }: {
   q: BriefQuestion;
   value: string | string[] | number | boolean | null | BriefResponseEntry | undefined;
@@ -41,6 +43,10 @@ export function BriefField({
   otherSpecify?: string;
   /** Callback to update the clarification text. Required to enable the specify input. */
   onOtherSpecifyChange?: (v: string) => void;
+  /** Optional set of option labels that must be non-selectable for current mode. */
+  disabledOptions?: readonly string[];
+  /** Optional product mode for contextual hints. */
+  productMode?: ProductMode;
 }) {
   const rawValue = (value && typeof value === 'object' && !Array.isArray(value) && 'value' in value)
     ? value.value
@@ -79,6 +85,11 @@ export function BriefField({
       </div>
       {q.hint && (
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: -2 }}>{q.hint}</p>
+      )}
+      {q.id === 'f2' && productMode === 'express' && (
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: -2 }}>
+          In Express, deep analysis covers Tech/Security/SEO/UX. Marketing and Automation inputs are captured for prioritization and full-audit planning.
+        </p>
       )}
 
       {interviewMode && q.consultant_hint && (
@@ -140,19 +151,27 @@ export function BriefField({
           <div className="flex flex-wrap gap-1.5">
             {q.options.map(opt => {
               const selected = strVal === opt;
+              const locked = disabledOptions?.includes(opt) ?? false;
               return (
                 <button
                   key={opt}
                   type="button"
-                  onClick={() => onChange(selected ? null : opt)}
+                  onClick={() => {
+                    if (locked) return;
+                    onChange(selected ? null : opt);
+                  }}
+                  disabled={locked}
                   className="px-2.5 py-1 rounded-lg text-xs transition-all"
                   style={{
                     backgroundColor: selected ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)',
                     border: selected ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)',
-                    color: selected ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
+                    color: locked ? 'var(--text-quaternary)' : selected ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
                     fontWeight: selected ? 500 : 400,
+                    cursor: locked ? 'not-allowed' : 'pointer',
+                    opacity: locked ? 0.75 : 1,
                   }}
                 >
+                  {locked && <LockSimple size={11} weight="bold" style={{ display: 'inline', marginRight: 3 }} />}
                   {opt}
                 </button>
               );
@@ -183,23 +202,32 @@ export function BriefField({
           <div className="flex flex-wrap gap-1.5">
             {q.options.map(opt => {
               const selected = arrVal.includes(opt);
+              const locked = disabledOptions?.includes(opt) ?? false;
               return (
                 <button
                   key={opt}
                   type="button"
                   onClick={() => {
+                    if (locked) return;
                     const next = selected ? arrVal.filter(v => v !== opt) : [...arrVal, opt];
                     onChange(next.length ? next : null);
                   }}
+                  disabled={locked}
                   className="px-2.5 py-1 rounded-lg text-xs transition-all"
                   style={{
                     backgroundColor: selected ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)',
                     border: selected ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)',
-                    color: selected ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
+                    color: locked ? 'var(--text-quaternary)' : selected ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
                     fontWeight: selected ? 500 : 400,
+                    cursor: locked ? 'not-allowed' : 'pointer',
+                    opacity: locked ? 0.75 : 1,
                   }}
                 >
-                  {selected && <Check size={11} weight="bold" style={{ display: 'inline', marginRight: 3 }} />}
+                  {locked ? (
+                    <LockSimple size={11} weight="bold" style={{ display: 'inline', marginRight: 3 }} />
+                  ) : selected ? (
+                    <Check size={11} weight="bold" style={{ display: 'inline', marginRight: 3 }} />
+                  ) : null}
                   {opt}
                 </button>
               );
@@ -240,7 +268,7 @@ export function BriefField({
               <p style={{ color: 'var(--text-primary)' }}>
                 {interviewMode
                   ? 'Client doesn\'t know — flagged for post-audit follow-up.'
-                  : 'Marked as "don\'t know" — this counts toward progress. Your consultant can follow up.'}
+                  : 'Marked as "I don\'t know" — this counts toward progress. You can return and fill this later.'}
               </p>
               <button
                 type="button"
@@ -273,7 +301,7 @@ export function BriefField({
           >
             {interviewMode
               ? <><UserCircle size={13} className="flex-shrink-0" /> Client doesn&apos;t know — flag for follow-up</>
-              : <>I don&apos;t know — skip for now (consultant can fill in)</>}
+              : <>I don&apos;t know for now</>}
           </button>
         )}
       </div>

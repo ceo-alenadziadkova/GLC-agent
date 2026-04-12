@@ -87,7 +87,9 @@ export function ActivityFeed({ events, loading }: ActivityFeedProps) {
                       fontFamily: 'var(--font-display)',
                     }}
                   >
-                    {ev.company_name || formatAuditWebsiteDisplay(ev.company_url) || ev.audit_id.slice(0, 8)}
+                    {ev.company_name ||
+                      formatAuditWebsiteDisplay(ev.company_url, ev.no_public_website) ||
+                      ev.audit_id.slice(0, 8)}
                   </Link>
                   {ev.message && (
                     <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>

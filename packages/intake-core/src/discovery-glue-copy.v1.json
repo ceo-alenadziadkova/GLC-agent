@@ -1,0 +1,21 @@
+{
+  "version": "1.0.0",
+  "industryDefault": "your industry",
+  "team": {
+    "soloOrUnknown": "as a solo operator",
+    "small": "with a small team",
+    "other": "at your team size"
+  },
+  "channels": {
+    "empty": "your enquiry channels",
+    "listSeparator": ", ",
+    "twoJoiner": " and ",
+    "manyLastPrefix": ", and "
+  },
+  "stage": {
+    "launching": "while you are launching",
+    "growing": "while you are growing fast",
+    "missing": "at your stage",
+    "other": "at your current stage"
+  }
+}

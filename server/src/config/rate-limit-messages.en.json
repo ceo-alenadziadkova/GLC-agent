@@ -1,0 +1,16 @@
+{
+  "AUDIT_CREATE": "Too many audits created. Maximum {max} per rolling window.",
+  "PIPELINE": "Too many pipeline operations. Please wait before retrying.",
+  "GENERAL": "Too many API requests. Please wait before retrying.",
+  "COMPARE": "Too many competitor comparisons. Try again later.",
+  "SNAPSHOT_PUBLIC_DAILY_CAP": "You've used all {limit} free website checks available today from this connection. Please try again tomorrow — or sign in for a full audit.",
+  "INTAKE_LEGACY": "Too many requests to this intake link. Try again later.",
+  "DISCOVER_CREATE": "Too many discovery submissions from this connection. Try again later.",
+  "DISCOVER_READ": "Too many discovery requests from this connection. Try again later.",
+  "DISCOVER_ANALYTICS": "Too many analytics batches from this connection. Try again later.",
+  "INTAKE_READ": "Too many requests to this intake link. Try again later.",
+  "INTAKE_WRITE": "Too many save attempts to this intake link. Try again later.",
+  "MARKETING_BRIEF": "Too many submissions from this connection. Try again later.",
+  "LOG_INGEST": "Too many log events. Please wait before retrying.",
+  "SNAPSHOT_LOG_INGEST": "Too many log events from this preview session. Please wait before retrying."
+}

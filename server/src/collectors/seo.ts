@@ -3,16 +3,21 @@ import robotsParser from 'robots-parser';
 import { BaseCollector } from './base.js';
 import { supabase } from '../services/supabase.js';
 import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } from '../lib/public-http-url.js';
-import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
+import { auditSkipsPublicWebsiteFetches } from '@glc/intake-core';
+import type { CollectorCollectContext } from './base.js';
 import { discoverSitemaps } from '../lib/sitemap-discovery.js';
 import { AUDIT_ROBOTS_USER_AGENT } from '../lib/robots-policy-shared.js';
+import {
+  COLLECTOR_SEO_FETCH_TIMEOUT_MS,
+  COLLECTOR_SEO_ROBOTS_CONTENT_MAX,
+} from '../config/collector-http.js';
 
 export class SeoCollector extends BaseCollector {
   get key() { return 'seo_meta'; }
   get phase() { return 3; }
 
-  async collect(auditId: string, companyUrl: string) {
-    if (isNoPublicWebsiteUrl(companyUrl)) {
+  async collect(auditId: string, companyUrl: string, ctx?: CollectorCollectContext) {
+    if (auditSkipsPublicWebsiteFetches(ctx?.noPublicWebsite, companyUrl)) {
       return {
         no_crawl_data: true,
         warning: 'No public website — SEO checks skipped',
@@ -104,7 +109,7 @@ export class SeoCollector extends BaseCollector {
     try {
       const response = await fetchPublicHttpUrl(robotsResourceUrl, {
         headers: { 'User-Agent': AUDIT_ROBOTS_USER_AGENT },
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(COLLECTOR_SEO_FETCH_TIMEOUT_MS),
       });
 
       if (!response.ok) {
@@ -133,7 +138,7 @@ export class SeoCollector extends BaseCollector {
       return {
         robots_txt: {
           exists: true,
-          content: content.substring(0, 2000),
+          content: content.substring(0, COLLECTOR_SEO_ROBOTS_CONTENT_MAX),
           issues,
         },
         sitemap: this.formatSitemapResult(sm),

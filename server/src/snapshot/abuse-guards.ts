@@ -3,27 +3,21 @@
  * Optional shared cooldown via `snapshot_domain_cooldown` when `SNAPSHOT_SHARED_ABUSE_STORE=1`.
  */
 
+import { freeSnapshotCapacityUserMessage } from '../config/pipeline-orchestrator-copy.js';
+import { getSnapshotFetchBudgetMs } from '../config/snapshot-fetch-budget.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { supabase } from '../services/supabase.js';
 import { logger } from '../services/logger.js';
 
-const DEFAULT_MAX_CONCURRENT = 4;
-const DEFAULT_DOMAIN_FRESH_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes between fresh fetches per host
+const SA = SYSTEM_DEFAULTS.snapshotAbuse;
 
 let concurrentSnapshotFetches = 0;
-const maxConcurrent = (() => {
-  const n = Number(process.env.SNAPSHOT_MAX_CONCURRENT ?? DEFAULT_MAX_CONCURRENT);
-  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : DEFAULT_MAX_CONCURRENT;
-})();
+const maxConcurrent = SA.maxConcurrent;
 
-const domainFreshCooldownMs = (() => {
-  const n = Number(process.env.SNAPSHOT_DOMAIN_FRESH_COOLDOWN_MS ?? DEFAULT_DOMAIN_FRESH_COOLDOWN_MS);
-  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : DEFAULT_DOMAIN_FRESH_COOLDOWN_MS;
-})();
+const domainFreshCooldownMs = SA.domainFreshCooldownMs;
 
 function freshLeaseTtlSeconds(): number {
-  const fromEnv = Number(process.env.SNAPSHOT_FRESH_LEASE_TTL_SECONDS);
-  if (Number.isFinite(fromEnv) && fromEnv >= 60) return Math.floor(fromEnv);
-  const fetchMs = Number(process.env.SNAPSHOT_FETCH_BUDGET_MS ?? 10_000);
+  const fetchMs = getSnapshotFetchBudgetMs();
   const fetchSec = Number.isFinite(fetchMs) ? Math.max(1, fetchMs / 1000) : 10;
   return Math.max(300, Math.ceil(fetchSec * 5));
 }
@@ -42,8 +36,7 @@ function isLeaseRpcOrTableMissing(err: { message?: string; code?: string } | nul
 const lastFreshFetchByHost = new Map<string, number>();
 
 function useSharedAbuseStore(): boolean {
-  const v = process.env.SNAPSHOT_SHARED_ABUSE_STORE?.trim().toLowerCase();
-  return v === '1' || v === 'true' || v === 'yes';
+  return SA.useSharedAbuseStore;
 }
 
 function normHost(host: string): string {
@@ -69,7 +62,7 @@ export class SnapshotAtCapacityError extends Error {
   readonly code = 'SNAPSHOT_AT_CAPACITY' as const;
 
   constructor() {
-    super('Our free scan queue is full. Please try again in a minute.');
+    super(freeSnapshotCapacityUserMessage());
     this.name = 'SnapshotAtCapacityError';
   }
 }

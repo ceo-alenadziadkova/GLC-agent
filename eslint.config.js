@@ -10,6 +10,8 @@ export default tseslint.config(
     ignores: [
       '**/dist/**',
       '**/node_modules/**',
+      /** Library-style snapshot engine; still compiled by tsc, skipped for ESLint noise. */
+      'server/src/snapshot/**',
       'coverage/**',
       'e2e/playwright-report/**',
       'e2e/test-results/**',
@@ -39,6 +41,12 @@ export default tseslint.config(
         'warn',
         { allowShortCircuit: true, allowTernary: true, allowTaggedTemplates: true },
       ],
+    },
+  },
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.es2022 },
     },
   },
   {

@@ -1,4 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
+import {
+  GLC_DEV_SPA_HOST_FOR_E2E,
+  GLC_DEV_SPA_ORIGIN_E2E,
+  GLC_DEV_SPA_PORT,
+} from '@glc/dev-brand-defaults';
+import { PLAYWRIGHT_WEB_SERVER_TIMEOUT_MS } from './e2e/defaults';
 
 /**
  * Browser smoke tests against the Vite dev server.
@@ -12,14 +18,14 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: GLC_DEV_SPA_ORIGIN_E2E,
     trace: 'on-first-retry',
     ...devices['Desktop Chrome'],
   },
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 5173',
-    url: 'http://127.0.0.1:5173',
+    command: `npm run dev -- --host ${GLC_DEV_SPA_HOST_FOR_E2E} --port ${GLC_DEV_SPA_PORT}`,
+    url: GLC_DEV_SPA_ORIGIN_E2E,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: PLAYWRIGHT_WEB_SERVER_TIMEOUT_MS,
   },
 });

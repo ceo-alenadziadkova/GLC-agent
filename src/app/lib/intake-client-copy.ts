@@ -65,9 +65,9 @@ export function buildFollowUpExpectationLine(meta: IntakeClientMetadata): string
 }
 
 const INTAKE_METADATA_TO_RESPONSE_FIELD: Array<{ metaKey: string; fieldId: string }> = [
-  { metaKey: 'company_name', fieldId: 'intake_company_name' },
-  { metaKey: 'company_website', fieldId: 'intake_company_website' },
-  { metaKey: 'industry', fieldId: 'intake_industry' },
+  { metaKey: 'company_name', fieldId: 'a12' },
+  { metaKey: 'company_website', fieldId: 'a11' },
+  { metaKey: 'industry', fieldId: 'a2' },
 ];
 
 /**
@@ -84,13 +84,13 @@ export function applyIntakeMetadataPrefill(
     const v = metadata[metaKey];
     if (typeof v !== 'string' || !v.trim()) continue;
     const trimmed = v.trim();
-    if (fieldId === 'intake_industry' && !isIndustryOption(trimmed)) continue;
+    if (fieldId === 'a2' && !isIndustryOption(trimmed)) continue;
     out[fieldId] = { value: trimmed, source: 'client' };
   }
 
   const metaSpec = metadata.industry_specify;
   if (typeof metaSpec === 'string' && metaSpec.trim() && isBriefValueBlank(out.intake_industry_specify)) {
-    const ind = out.intake_industry;
+    const ind = out.a2 ?? out.intake_industry;
     const indVal =
       ind != null && typeof ind === 'object' && !Array.isArray(ind) && 'value' in ind
         ? (ind as { value: unknown }).value
@@ -108,7 +108,7 @@ export function hasIntakeConsultantPrefill(metadata: Record<string, unknown>): b
   const hasCore = INTAKE_METADATA_TO_RESPONSE_FIELD.some(({ metaKey, fieldId }) => {
     const v = metadata[metaKey];
     if (typeof v !== 'string' || !v.trim()) return false;
-    if (fieldId === 'intake_industry') return isIndustryOption(v.trim());
+    if (fieldId === 'a2') return isIndustryOption(v.trim());
     return true;
   });
   const ind = typeof metadata.industry === 'string' ? metadata.industry.trim() : '';

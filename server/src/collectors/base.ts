@@ -1,3 +1,4 @@
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { supabase } from '../services/supabase.js';
 
 export interface CollectorResult {
@@ -5,21 +6,29 @@ export interface CollectorResult {
   data: Record<string, unknown>;
 }
 
+export type CollectorCollectContext = { noPublicWebsite?: boolean };
+
 /**
  * BaseCollector — collects raw data WITHOUT using AI.
  * Results are cached in `collected_data` table for re-runs.
+ *
+ * User-visible pipeline copy belongs in `pipeline-events-copy.v1.json` (emitted by agents), not here.
  */
 export abstract class BaseCollector {
   abstract get key(): string;
   abstract get phase(): number;
   protected get cacheTtlMs(): number {
-    return Number(process.env.COLLECTOR_CACHE_TTL_MS ?? 24 * 60 * 60 * 1000);
+    return SYSTEM_DEFAULTS.collectorCacheTtlMs;
   }
 
   /**
    * Override this to perform actual data collection.
    */
-  abstract collect(auditId: string, companyUrl: string): Promise<Record<string, unknown>>;
+  abstract collect(
+    auditId: string,
+    companyUrl: string,
+    ctx?: CollectorCollectContext,
+  ): Promise<Record<string, unknown>>;
 
   protected validateCachedData(data: unknown): data is Record<string, unknown> {
     return Boolean(data) && typeof data === 'object' && !Array.isArray(data);
@@ -28,7 +37,13 @@ export abstract class BaseCollector {
   /**
    * Run the collector. Uses cached data if available, otherwise collects fresh.
    */
-  async run(auditId: string, companyUrl: string, forceRefresh = false): Promise<CollectorResult> {
+  async run(
+    auditId: string,
+    companyUrl: string,
+    options?: { forceRefresh?: boolean; noPublicWebsite?: boolean },
+  ): Promise<CollectorResult> {
+    const forceRefresh = options?.forceRefresh ?? false;
+    const noPublicWebsite = options?.noPublicWebsite ?? false;
     // Check cache first
     if (!forceRefresh) {
       const { data: cached } = await supabase
@@ -47,7 +62,7 @@ export abstract class BaseCollector {
     }
 
     // Collect fresh data
-    const data = await this.collect(auditId, companyUrl);
+    const data = await this.collect(auditId, companyUrl, { noPublicWebsite });
 
     // Cache result (upsert)
     await supabase

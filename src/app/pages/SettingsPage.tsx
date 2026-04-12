@@ -22,6 +22,7 @@ import {
   writeConsultantBriefLayoutDefault,
   applyConsultantBriefLayoutAskEachTime,
 } from '../lib/client-brief-layout-preference';
+import { SETTINGS_SELF_SERVE_COPY } from '../config/settings-self-serve-copy.en';
 
 type NotificationPrefs = {
   auditStatusReminders: boolean;
@@ -59,6 +60,8 @@ export function SettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [savingEmail, setSavingEmail] = useState(false);
 
   const [clientBriefDefault, setClientBriefDefault] = useState<ClientBriefLayoutStored | null>(() =>
     readClientBriefLayoutDefault(),
@@ -170,7 +173,14 @@ export function SettingsPage() {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) {
-        toast.error(error.message);
+        const msg = (error.message ?? '').toLowerCase();
+        if (msg.includes('reauth') || msg.includes('recent') || msg.includes('session')) {
+          toast.error(
+            'Sign in again (session must be recent to change password). Sign out, sign back in, then update your password.',
+          );
+        } else {
+          toast.error(error.message);
+        }
         return;
       }
       setNewPassword('');
@@ -178,6 +188,32 @@ export function SettingsPage() {
       toast.success('Password updated');
     } finally {
       setSavingPassword(false);
+    }
+  };
+
+  const changeEmail = async () => {
+    const trimmed = newEmail.trim().toLowerCase();
+    if (!trimmed || !trimmed.includes('@')) {
+      toast.error('Enter a valid email address');
+      return;
+    }
+    if (trimmed === (user?.email ?? '').toLowerCase()) {
+      toast.error('That is already your current email');
+      return;
+    }
+    setSavingEmail(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ email: trimmed });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      setNewEmail('');
+      toast.success(
+        'Confirmation emails sent. With secure email change, confirm from both your current and new inboxes.',
+      );
+    } finally {
+      setSavingEmail(false);
     }
   };
 
@@ -332,11 +368,27 @@ export function SettingsPage() {
                     Client self-serve is not ready yet: choose a consultant below (or ask your team to finish setup).
                   </div>
                 )}
-                {selfServe.env_fallback_active && (
-                  <p className="text-xs leading-relaxed mb-3 m-0" style={{ color: 'var(--text-tertiary)' }}>
-                    No consultant is saved here yet; a backup default may still apply. Setting someone below makes the
-                    choice explicit for your team.
-                  </p>
+                {selfServe.implicit_fallback_active && (
+                  <div className="mb-3 space-y-2">
+                    <div
+                      className="px-3 py-2 rounded-lg text-xs leading-relaxed"
+                      style={{
+                        backgroundColor: 'var(--callout-info-bg)',
+                        border: '1px solid var(--callout-info-border)',
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      <p className="font-semibold m-0 mb-1" style={{ color: 'var(--text-primary)' }}>
+                        {SETTINGS_SELF_SERVE_COPY.implicitFallbackCalloutTitle}
+                      </p>
+                      <p className="m-0" style={{ color: 'var(--text-secondary)' }}>
+                        {SETTINGS_SELF_SERVE_COPY.implicitFallbackCalloutBody}
+                      </p>
+                    </div>
+                    <p className="text-xs leading-relaxed m-0" style={{ color: 'var(--text-tertiary)' }}>
+                      {SETTINGS_SELF_SERVE_COPY.implicitFallbackHintShort}
+                    </p>
+                  </div>
                 )}
                 {!selfServe.can_manage && (
                   <p className="text-xs leading-relaxed mb-3 m-0" style={{ color: 'var(--text-tertiary)' }}>
@@ -400,6 +452,7 @@ export function SettingsPage() {
                                 effective_ready: updated.effective_ready,
                                 effective_owner_user_id: updated.effective_owner_user_id,
                                 env_fallback_active: updated.env_fallback_active,
+                                implicit_fallback_active: updated.implicit_fallback_active,
                               }
                             : prev,
                         );
@@ -583,6 +636,37 @@ export function SettingsPage() {
             }}
           >
             {user?.email ?? 'unknown'}
+          </div>
+          <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
+            Change email
+          </div>
+          <p className="text-xs leading-relaxed mb-2" style={{ color: 'var(--text-quaternary)' }}>
+            We will send confirmation links. If your project uses secure email change, you must confirm from both the old and new addresses.
+          </p>
+          <div className="flex flex-col gap-2 mb-5 mobile:flex-row mobile:items-center">
+            <input
+              type="email"
+              value={newEmail}
+              onChange={e => setNewEmail(e.target.value)}
+              placeholder="new@company.com"
+              autoComplete="email"
+              className="w-full mobile:flex-1 px-3 py-2 text-sm"
+              style={{
+                backgroundColor: 'var(--bg-canvas)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--text-primary)',
+              }}
+            />
+            <button
+              type="button"
+              className="glc-btn-primary whitespace-nowrap"
+              disabled={savingEmail || !newEmail.trim()}
+              style={{ opacity: savingEmail || !newEmail.trim() ? 0.55 : 1 }}
+              onClick={() => void changeEmail()}
+            >
+              {savingEmail ? 'Sending…' : 'Request email change'}
+            </button>
           </div>
           <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
             Change password

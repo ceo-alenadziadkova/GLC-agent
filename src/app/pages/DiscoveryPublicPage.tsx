@@ -1,8 +1,17 @@
+import { useEffect, useRef, useState } from 'react';
 import { MapTrifold } from '@phosphor-icons/react';
 import { MarketingLayout } from '../marketing/MarketingLayout';
 import { DiscoverPage } from './DiscoverPage';
 
 export function DiscoveryPublicPage() {
+  const [discoveryWide, setDiscoveryWide] = useState(false);
+  const discoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!discoveryWide) return;
+    discoverRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [discoveryWide]);
+
   return (
     <MarketingLayout
       showFooter={false}
@@ -11,9 +20,19 @@ export function DiscoveryPublicPage() {
         { label: 'Discovery' },
       ]}
     >
-      <div className="mx-auto w-full max-w-5xl">
-        <div className="flex flex-col gap-8 mobile:gap-7 lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-12 lg:gap-y-6">
-          <div className="order-1 flex flex-col gap-6 text-center lg:order-none lg:col-span-7 lg:text-left mobile:gap-5">
+      <div
+        className={
+          discoveryWide
+            ? 'relative left-1/2 w-screen max-w-[100vw] min-w-0 -translate-x-1/2'
+            : 'mx-auto w-full min-w-0 max-w-5xl'
+        }
+      >
+        <div className="flex min-w-0 flex-col gap-8 mobile:gap-7 lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-12 lg:gap-y-6">
+          <div
+            className={`order-1 flex flex-col gap-6 text-center mobile:gap-5 lg:order-none lg:text-left ${
+              discoveryWide ? 'hidden' : 'lg:col-span-7'
+            }`}
+          >
             <section
               aria-labelledby="discovery-hero-heading"
               className="flex flex-col items-stretch gap-4 lg:gap-4 lg:border-l-2 lg:border-[color-mix(in_oklab,var(--glc-blue)_45%,var(--border-subtle))] lg:pl-6 mobile:gap-3"
@@ -60,7 +79,7 @@ export function DiscoveryPublicPage() {
                 {[
                   'Good for launches, rebrands, or “we need something digital” with no live site.',
                   'Takes a few minutes; no account required to see your findings.',
-                  'Afterwards you can register and carry answers into the full audit.',
+                  'Sign in or register to save your answers on your account and continue toward your full audit.',
                 ].map(line => (
                   <li key={line} className="flex gap-2">
                     <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: 'var(--glc-blue)' }} />
@@ -71,12 +90,29 @@ export function DiscoveryPublicPage() {
             </section>
           </div>
 
-          <div className="order-2 w-full lg:order-none lg:col-span-5 lg:self-start lg:pt-1">
+          <div
+            ref={discoverRef}
+            className={`order-2 w-full min-w-0 scroll-mt-28 lg:order-none lg:self-start lg:pt-1 ${
+              discoveryWide ? 'lg:col-span-12' : 'lg:col-span-5'
+            }`}
+          >
             <div
-              className="glc-card p-6 lg:p-7 mobile:p-5 mobile:shadow-[0_12px_40px_rgba(0,0,0,0.14)]"
-              style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-card)' }}
+              className={
+                discoveryWide
+                  ? 'flex w-full min-w-0 max-w-full flex-col overflow-x-hidden border-y sm:mx-auto sm:max-w-4xl sm:rounded-2xl sm:border sm:border-[color:var(--border-subtle)]'
+                  : 'glc-card mobile:shadow-[0_12px_40px_rgba(0,0,0,0.14)] min-w-0 overflow-hidden p-6 lg:p-7 mobile:p-5'
+              }
+              style={
+                discoveryWide
+                  ? { borderColor: 'var(--border-subtle)' }
+                  : { borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-card)' }
+              }
             >
-              <DiscoverPage layout="split" />
+              <DiscoverPage
+                layout="split"
+                embedExpanded={discoveryWide}
+                onEmbedExpandRequest={setDiscoveryWide}
+              />
             </div>
           </div>
         </div>

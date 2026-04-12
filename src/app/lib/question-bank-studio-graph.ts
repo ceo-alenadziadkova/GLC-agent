@@ -553,9 +553,9 @@ export function buildQuestionBankStudioGraph(input: BuildStudioGraphInput): Buil
   /** Pre-brief identity fields (not bank ids) — show as attachment to root. */
   if (input.policyMode === 'pre_brief') {
     const identityIds = [
-      'intake_company_website',
-      'intake_company_name',
-      'intake_industry',
+      'a11',
+      'a12',
+      'a2',
       'intake_industry_specify',
     ];
     const idSet = new Set(identityIds);

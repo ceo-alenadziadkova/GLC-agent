@@ -1,0 +1,44 @@
+{
+  "version": "1.0.0",
+  "freeSnapshot": {
+    "started": "Free Snapshot: deterministic scan started",
+    "completed": "Free Snapshot: deterministic scan completed",
+    "errorCapacity": "Our free scan queue is full. Please try again in a minute.",
+    "errorGeneric": "Free snapshot scan failed. Please try again later."
+  },
+  "phase": {
+    "startedTemplate": "Phase {{phase}} started: {{domain}}",
+    "completedTemplate": "Phase {{phase}} completed",
+    "reviewNeeded": "Review point: approve before continuing"
+  },
+  "parallel": {
+    "startedTemplate": "Parallel block: phases [{{phases}}]",
+    "allFailedTemplate": "All parallel phases failed: {{domains}}",
+    "thresholdFailedTemplate": "Parallel block failed reliability threshold ({{failed}}/{{total}}): {{domains}}",
+    "partialFailureTemplate": "{{count}} domain(s) unavailable: {{domains}}. Pipeline continues.",
+    "completedTemplate": "Parallel block finished: phases [{{phases}}]"
+  },
+  "errors": {
+    "phaseFailedUserMessage": "Pipeline phase failed. Please retry or contact support if the issue persists.",
+    "phaseFailedCode": "PIPELINE_PHASE_FAILED",
+    "parallelPhaseFailedUserMessage": "A parallel pipeline phase failed. Please retry or contact support if the issue persists.",
+    "parallelPhaseFailedCode": "PIPELINE_PARALLEL_PHASE_FAILED"
+  },
+  "notifications": {
+    "pipelinePhaseTitles": {
+      "started": "Pipeline phase started",
+      "completed": "Pipeline phase completed",
+      "error": "Pipeline phase failed",
+      "review_needed": "Review required",
+      "default": "Pipeline update"
+    },
+    "artifactTitle": "Artifact ready",
+    "artifactStrategyMessage": "Strategy synthesis is ready.",
+    "artifactReportMessage": "Final report is ready.",
+    "artifactStrategyRouteTemplate": "/strategy/{{audit_id}}",
+    "artifactReportRouteTemplate": "/reports/{{audit_id}}"
+  },
+  "recoverStalled": {
+    "messageTemplate": "Pipeline phase stalled for more than {{timeout_minutes}} minutes"
+  }
+}

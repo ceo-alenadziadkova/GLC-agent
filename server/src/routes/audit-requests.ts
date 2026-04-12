@@ -20,12 +20,63 @@ import {
   reviewPhasesForMode,
   type ProductMode,
 } from '../types/audit.js';
+import { ensureHttpsUrl } from '@glc/intake-core';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
+import { idempotencyPostAuditRequestApproveKey } from '../config/api-http-paths.js';
 import { NO_PUBLIC_WEBSITE_URL, isNoPublicWebsiteUrl } from '../config/no-public-website.js';
-import { getStoredIdempotentResponse, storeIdempotentResponse } from '../lib/idempotency.js';
+import { AUDITS_LIST_DEFAULT_LIMIT, AUDITS_LIST_MAX_LIMIT } from '../config/audits-list-limits.js';
+import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
+import {
+  getStoredIdempotentResponse,
+  isIdempotencyPayloadConflictError,
+  storeIdempotentResponse,
+} from '../lib/idempotency.js';
+import {
+  API_ERROR_CODES,
+  AUDIT_INITIALIZATION_FAILED_MESSAGE,
+  AUDIT_REQUEST_ACCESS_DENIED_MESSAGE,
+  AUDIT_REQUEST_APPROVE_CLAIM_CONFLICT_MESSAGE,
+  AUDIT_REQUEST_APPROVE_FAILED_MESSAGE,
+  AUDIT_REQUEST_APPROVE_IN_PROGRESS_MESSAGE,
+  AUDIT_REQUEST_APPROVE_SEED_FAILED_MESSAGE,
+  AUDIT_REQUEST_BRIEF_SNAPSHOT_INDUSTRY_OTHER_MESSAGE,
+  AUDIT_REQUEST_CREATE_FAILED_MESSAGE,
+  AUDIT_REQUEST_DELIVER_FAILED_MESSAGE,
+  AUDIT_REQUEST_DELIVER_UPDATE_FAILED_MESSAGE,
+  AUDIT_REQUEST_DELIVER_WRONG_STATUS_MESSAGE,
+  AUDIT_REQUEST_FETCH_FAILED_MESSAGE,
+  AUDIT_REQUEST_GUEST_FORBIDDEN_MESSAGE,
+  AUDIT_REQUEST_LIST_FAILED_MESSAGE,
+  AUDIT_REQUEST_NOT_FOUND_MESSAGE,
+  AUDIT_REQUEST_PRODUCT_MODE_INVALID_MESSAGE,
+  AUDIT_REQUEST_REJECT_FAILED_MESSAGE,
+  AUDIT_REQUEST_REJECT_WRONG_STATUS_MESSAGE,
+  AUDIT_REQUEST_SUBMIT_FAILED_MESSAGE,
+  AUDIT_REQUEST_SUBMIT_MISSING_SITE_MESSAGE,
+  AUDIT_REQUEST_SUBMIT_NOT_DRAFT_MESSAGE,
+  AUDIT_REQUEST_SUBMIT_WRONG_STATUS_MESSAGE,
+  AUDIT_REQUEST_UPDATE_FAILED_MESSAGE,
+  AUDIT_REQUEST_URL_OMIT_WHEN_NO_SITE_MESSAGE,
+  AUDIT_REQUEST_URL_OR_FLAG_REQUIRED_MESSAGE,
+  AUDIT_REQUEST_WRONG_STATUS_FOR_UPDATE_MESSAGE,
+  IDEMPOTENCY_PAYLOAD_MISMATCH_MESSAGE,
+  apiErrorJson,
+} from '../config/api-error-codes.js';
 import { logger } from '../services/logger.js';
 import { saveBriefResponses } from '../services/brief-validator.js';
-import { notifyConsultants, notifyUser } from '../services/notifications.js';
+import { emitStructuredNotification } from '../services/notifications.js';
+import {
+  AUDIT_REQUEST_NOTIFICATION_APPROVED_USER_MESSAGE,
+  AUDIT_REQUEST_NOTIFICATION_APPROVED_USER_TITLE,
+  AUDIT_REQUEST_NOTIFICATION_CREATED_CONSULTANTS_MESSAGE,
+  AUDIT_REQUEST_NOTIFICATION_CREATED_CONSULTANTS_TITLE,
+  AUDIT_REQUEST_NOTIFICATION_DELIVERED_USER_MESSAGE,
+  AUDIT_REQUEST_NOTIFICATION_DELIVERED_USER_TITLE,
+  AUDIT_REQUEST_NOTIFICATION_REJECTED_USER_MESSAGE,
+  AUDIT_REQUEST_NOTIFICATION_REJECTED_USER_TITLE,
+  AUDIT_REQUEST_NOTIFICATION_SUBMITTED_CONSULTANTS_MESSAGE,
+  AUDIT_REQUEST_NOTIFICATION_SUBMITTED_CONSULTANTS_TITLE,
+} from '../config/route-notification-messages.js';
 
 export const auditRequestsRouter = Router();
 
@@ -33,7 +84,11 @@ auditRequestsRouter.use(requireAuth);
 auditRequestsRouter.use(attachProfile);
 auditRequestsRouter.use((req: AuthRequest, res, next) => {
   if (req.userRole === 'guest') {
-    res.status(403).json({ error: 'Complete registration (email or Google) to use the client portal.' });
+    res
+      .status(403)
+      .json(
+        apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_GUEST_FORBIDDEN, AUDIT_REQUEST_GUEST_FORBIDDEN_MESSAGE),
+      );
     return;
   }
   next();
@@ -56,7 +111,7 @@ function normalizeBriefSnapshotForIndustry(
     const raw = snap.intake_industry_specify;
     const spec = typeof raw === 'string' ? raw.trim() : '';
     if (!spec) {
-      return { ok: false, error: 'Describe your industry or sector when you select Other.' };
+      return { ok: false, error: AUDIT_REQUEST_BRIEF_SNAPSHOT_INDUSTRY_OTHER_MESSAGE };
     }
     snap.intake_industry_specify = spec;
   } else {
@@ -76,10 +131,10 @@ function initialIntakeResponsesFromAuditRequest(row: {
       ? (row.brief_snapshot as Record<string, unknown>)
       : {};
   const out: Record<string, unknown> = {
-    intake_company_website: { value: row.url, source: 'client' },
+    a11: { value: row.url, source: 'client' },
   };
   if (row.industry != null && String(row.industry).trim()) {
-    out.intake_industry = { value: String(row.industry).trim(), source: 'client' };
+    out.a2 = { value: String(row.industry).trim(), source: 'client' };
   }
   const spec = snap.intake_industry_specify;
   if (typeof spec === 'string' && spec.trim()) {
@@ -105,26 +160,37 @@ auditRequestsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) 
 
     if (noSite) {
       if (url != null && typeof url === 'string' && url.trim() !== '') {
-        res.status(400).json({ error: 'Leave the website field empty when you have no public website.' });
+        res
+          .status(400)
+          .json(
+            apiErrorJson(
+              API_ERROR_CODES.AUDIT_REQUEST_URL_OMIT_WHEN_NO_SITE,
+              AUDIT_REQUEST_URL_OMIT_WHEN_NO_SITE_MESSAGE,
+            ),
+          );
         return;
       }
       normalizedUrl = NO_PUBLIC_WEBSITE_URL;
     } else {
       if (!url || typeof url !== 'string' || !url.trim()) {
-        res.status(400).json({ error: 'Enter your website URL, or indicate that you have no public website.' });
+        res
+          .status(400)
+          .json(
+            apiErrorJson(
+              API_ERROR_CODES.AUDIT_REQUEST_URL_OR_FLAG_REQUIRED,
+              AUDIT_REQUEST_URL_OR_FLAG_REQUIRED_MESSAGE,
+            ),
+          );
         return;
       }
 
-      let u = url.trim();
-      if (!u.startsWith('http://') && !u.startsWith('https://')) {
-        u = `https://${u}`;
-      }
+      const u = ensureHttpsUrl(url);
 
       try {
         normalizedUrl = await validatePublicAuditUrl(u);
       } catch (e) {
         if (e instanceof PublicUrlNotAllowedError) {
-          res.status(400).json({ error: 'url is not allowed' });
+          res.status(400).json(apiErrorJson(e.code, e.message));
           return;
         }
         throw e;
@@ -132,7 +198,14 @@ auditRequestsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) 
     }
 
     if (!['express', 'full'].includes(product_mode)) {
-      res.status(400).json({ error: 'product_mode must be "express" or "full"' });
+      res
+        .status(400)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.AUDIT_REQUEST_PRODUCT_MODE_INVALID,
+            AUDIT_REQUEST_PRODUCT_MODE_INVALID_MESSAGE,
+          ),
+        );
       return;
     }
 
@@ -141,7 +214,11 @@ auditRequestsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) 
       : {};
     const snapResult = normalizeBriefSnapshotForIndustry(industry, snapIn);
     if (!snapResult.ok) {
-      res.status(400).json({ error: snapResult.error });
+      res
+        .status(400)
+        .json(
+          apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_BRIEF_SNAPSHOT_INVALID, snapResult.error),
+        );
       return;
     }
 
@@ -153,7 +230,7 @@ auditRequestsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) 
         industry: industry || null,
         product_mode,
         brief_snapshot: snapResult.snapshot,
-        client_notes: client_notes ? String(client_notes).slice(0, 2000) : null,
+        client_notes: client_notes ? String(client_notes).slice(0, REQUEST_FIELD_LIMITS.clientNotesMax) : null,
         status: 'draft',
       })
       .select()
@@ -162,32 +239,41 @@ auditRequestsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) 
     if (error) throw error;
 
     if (data.status === 'submitted') {
-      await notifyConsultants(
-        'intake',
-        'New client request',
-        'A client submitted a new audit request.',
-        {
+      await emitStructuredNotification({
+        category: 'request',
+        event: 'audit_request_created',
+        priority: 'medium',
+        audience: 'consultants',
+        title: AUDIT_REQUEST_NOTIFICATION_CREATED_CONSULTANTS_TITLE,
+        message: AUDIT_REQUEST_NOTIFICATION_CREATED_CONSULTANTS_MESSAGE,
+        route: '/admin/requests',
+        payload: {
           request_id: data.id,
           status: data.status,
-          route: '/admin/requests',
-          occurred_at: new Date().toISOString(),
           actor_role: 'client',
         },
-      );
+      });
     }
 
     res.status(201).json(data);
   } catch (err) {
     const e = err as Error;
     logger.error('route.audit_request_create_failed', { component: 'audit_requests', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to create audit request' });
+    res
+      .status(500)
+      .json(
+        apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_CREATE_FAILED, AUDIT_REQUEST_CREATE_FAILED_MESSAGE),
+      );
   }
 });
 
 // ── GET /api/audit-requests — List requests ──────────────────────────────────
 auditRequestsRouter.get('/', async (req: AuthRequest, res) => {
   try {
-    const limit = Math.min(parseInt(String(req.query.limit ?? '50'), 10) || 50, 200);
+    const limit = Math.min(
+      parseInt(String(req.query.limit ?? String(AUDITS_LIST_DEFAULT_LIMIT)), 10) || AUDITS_LIST_DEFAULT_LIMIT,
+      AUDITS_LIST_MAX_LIMIT,
+    );
     const offset = Math.max(parseInt(String(req.query.offset ?? '0'), 10) || 0, 0);
 
     let query = supabase
@@ -209,7 +295,9 @@ auditRequestsRouter.get('/', async (req: AuthRequest, res) => {
   } catch (err) {
     const e = err as Error;
     logger.error('route.audit_requests_list_failed', { component: 'audit_requests', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to list audit requests' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_LIST_FAILED, AUDIT_REQUEST_LIST_FAILED_MESSAGE));
   }
 });
 
@@ -230,7 +318,9 @@ auditRequestsRouter.get('/:id', async (req: AuthRequest, res) => {
     const { data, error } = await query.single();
 
     if (error || !data) {
-      res.status(404).json({ error: 'Audit request not found' });
+      res
+        .status(404)
+        .json(apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_NOT_FOUND, AUDIT_REQUEST_NOT_FOUND_MESSAGE));
       return;
     }
 
@@ -238,7 +328,9 @@ auditRequestsRouter.get('/:id', async (req: AuthRequest, res) => {
   } catch (err) {
     const e = err as Error;
     logger.error('route.audit_request_get_failed', { component: 'audit_requests', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to fetch audit request' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_FETCH_FAILED, AUDIT_REQUEST_FETCH_FAILED_MESSAGE));
   }
 });
 
@@ -256,31 +348,39 @@ auditRequestsRouter.patch('/:id', async (req: AuthRequest, res) => {
       .single();
 
     if (fetchErr || !existing) {
-      res.status(404).json({ error: 'Audit request not found' });
+      res
+        .status(404)
+        .json(apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_NOT_FOUND, AUDIT_REQUEST_NOT_FOUND_MESSAGE));
       return;
     }
 
     if (!isConsultant(req) && existing.client_id !== req.userId) {
-      res.status(403).json({ error: 'Access denied' });
+      res
+        .status(403)
+        .json(apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_ACCESS_DENIED, AUDIT_REQUEST_ACCESS_DENIED_MESSAGE));
       return;
     }
 
     if (!['draft', 'submitted'].includes(existing.status as string)) {
-      res.status(400).json({ error: 'Only draft or submitted requests can be updated' });
+      res
+        .status(400)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.AUDIT_REQUEST_WRONG_STATUS_FOR_UPDATE,
+            AUDIT_REQUEST_WRONG_STATUS_FOR_UPDATE_MESSAGE,
+          ),
+        );
       return;
     }
 
     const updates: Record<string, unknown> = {};
     if (url) {
-      let normalizedUrl = String(url).trim();
-      if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
-        normalizedUrl = `https://${normalizedUrl}`;
-      }
+      const normalizedUrl = ensureHttpsUrl(String(url));
       try {
         updates.url = await validatePublicAuditUrl(normalizedUrl);
       } catch (e) {
         if (e instanceof PublicUrlNotAllowedError) {
-          res.status(400).json({ error: 'url is not allowed' });
+          res.status(400).json(apiErrorJson(e.code, e.message));
           return;
         }
         throw e;
@@ -297,13 +397,19 @@ auditRequestsRouter.patch('/:id', async (req: AuthRequest, res) => {
     if (industry !== undefined || brief_snapshot !== undefined) {
       const snapResult = normalizeBriefSnapshotForIndustry(nextIndustry, nextSnap);
       if (!snapResult.ok) {
-        res.status(400).json({ error: snapResult.error });
+        res
+          .status(400)
+          .json(
+            apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_BRIEF_SNAPSHOT_INVALID, snapResult.error),
+          );
         return;
       }
       updates.brief_snapshot = snapResult.snapshot;
     }
 
-    if (client_notes !== undefined) updates.client_notes = client_notes ? String(client_notes).slice(0, 2000) : null;
+    if (client_notes !== undefined) {
+      updates.client_notes = client_notes ? String(client_notes).slice(0, REQUEST_FIELD_LIMITS.clientNotesMax) : null;
+    }
 
     const { data, error } = await supabase
       .from('audit_requests')
@@ -314,24 +420,30 @@ auditRequestsRouter.patch('/:id', async (req: AuthRequest, res) => {
 
     if (error) throw error;
 
-    await notifyConsultants(
-      'intake',
-      'Client request submitted',
-      'A draft request was submitted and is ready for review.',
-      {
+    await emitStructuredNotification({
+      category: 'request',
+      event: 'audit_request_submitted',
+      priority: 'medium',
+      audience: 'consultants',
+      title: AUDIT_REQUEST_NOTIFICATION_SUBMITTED_CONSULTANTS_TITLE,
+      message: AUDIT_REQUEST_NOTIFICATION_SUBMITTED_CONSULTANTS_MESSAGE,
+      route: '/admin/requests',
+      payload: {
         request_id: data.id,
         status: data.status,
-        route: '/admin/requests',
-        occurred_at: new Date().toISOString(),
         actor_role: isConsultant(req) ? 'consultant' : 'client',
       },
-    );
+    });
 
     res.json(data);
   } catch (err) {
     const e = err as Error;
     logger.error('route.audit_request_patch_failed', { component: 'audit_requests', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to update audit request' });
+    res
+      .status(500)
+      .json(
+        apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_UPDATE_FAILED, AUDIT_REQUEST_UPDATE_FAILED_MESSAGE),
+      );
   }
 });
 
@@ -347,17 +459,27 @@ auditRequestsRouter.post('/:id/submit', async (req: AuthRequest, res) => {
       .single();
 
     if (!existing) {
-      res.status(404).json({ error: 'Audit request not found' });
+      res
+        .status(404)
+        .json(apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_NOT_FOUND, AUDIT_REQUEST_NOT_FOUND_MESSAGE));
       return;
     }
 
     if (!isConsultant(req) && existing.client_id !== req.userId) {
-      res.status(403).json({ error: 'Access denied' });
+      res
+        .status(403)
+        .json(apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_ACCESS_DENIED, AUDIT_REQUEST_ACCESS_DENIED_MESSAGE));
       return;
     }
 
     if (existing.status !== 'draft') {
-      res.status(400).json({ error: 'Only draft requests can be submitted', current_status: existing.status });
+      res.status(400).json({
+        ...apiErrorJson(
+          API_ERROR_CODES.AUDIT_REQUEST_SUBMIT_NOT_DRAFT,
+          AUDIT_REQUEST_SUBMIT_NOT_DRAFT_MESSAGE,
+        ),
+        current_status: existing.status as string,
+      });
       return;
     }
 
@@ -366,13 +488,27 @@ auditRequestsRouter.post('/:id/submit', async (req: AuthRequest, res) => {
       (existing.brief_snapshot as Record<string, unknown>) ?? {},
     );
     if (!snapResult.ok) {
-      res.status(400).json({ error: snapResult.error });
+      res
+        .status(400)
+        .json(
+          apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_BRIEF_SNAPSHOT_INVALID, snapResult.error),
+        );
       return;
     }
 
     const u = String(existing.url ?? '').trim();
-    if (!u || (!isNoPublicWebsiteUrl(u) && u.length < 10)) {
-      res.status(400).json({ error: 'Request is missing a valid website or no-public-website flag.' });
+    if (
+      !u ||
+      (!isNoPublicWebsiteUrl(u) && u.length < REQUEST_FIELD_LIMITS.auditCompanyUrlMinNormalizedLength)
+    ) {
+      res
+        .status(400)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.AUDIT_REQUEST_SUBMIT_MISSING_SITE,
+            AUDIT_REQUEST_SUBMIT_MISSING_SITE_MESSAGE,
+          ),
+        );
       return;
     }
 
@@ -389,7 +525,9 @@ auditRequestsRouter.post('/:id/submit', async (req: AuthRequest, res) => {
   } catch (err) {
     const e = err as Error;
     logger.error('route.audit_request_submit_failed', { component: 'audit_requests', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to submit audit request' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_SUBMIT_FAILED, AUDIT_REQUEST_SUBMIT_FAILED_MESSAGE));
   }
 });
 
@@ -398,7 +536,7 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
   try {
     const id = req.params.id as string;
     const { consultant_note } = req.body;
-    const idempotent = await getStoredIdempotentResponse(req, `POST:/api/audit-requests/${id}/approve`, req.body);
+    const idempotent = await getStoredIdempotentResponse(req, idempotencyPostAuditRequestApproveKey(id), req.body);
     if (idempotent.replay) {
       res.status(idempotent.replay.statusCode).json(idempotent.replay.payload);
       return;
@@ -411,12 +549,20 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
       .single();
 
     if (fetchErr || !requestRow) {
-      res.status(404).json({ error: 'Audit request not found' });
+      res
+        .status(404)
+        .json(apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_NOT_FOUND, AUDIT_REQUEST_NOT_FOUND_MESSAGE));
       return;
     }
 
     if (!['submitted', 'under_review'].includes(requestRow.status as string)) {
-      res.status(400).json({ error: 'Request must be submitted or under review to approve', current_status: requestRow.status });
+      res.status(400).json({
+        ...apiErrorJson(
+          API_ERROR_CODES.AUDIT_REQUEST_SUBMIT_WRONG_STATUS,
+          AUDIT_REQUEST_SUBMIT_WRONG_STATUS_MESSAGE,
+        ),
+        current_status: requestRow.status as string,
+      });
       return;
     }
 
@@ -433,11 +579,25 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
 
     // If status was already under_review we treat it as actively claimed by another request.
     if ((!claimedRows || claimedRows.length === 0) && requestRow.status === 'submitted') {
-      res.status(409).json({ error: 'Approve request already claimed by another request' });
+      res
+        .status(409)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.AUDIT_REQUEST_APPROVE_CLAIM_CONFLICT,
+            AUDIT_REQUEST_APPROVE_CLAIM_CONFLICT_MESSAGE,
+          ),
+        );
       return;
     }
     if (requestRow.status === 'under_review') {
-      res.status(409).json({ error: 'Approve request is already in progress' });
+      res
+        .status(409)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.AUDIT_REQUEST_APPROVE_IN_PROGRESS,
+            AUDIT_REQUEST_APPROVE_IN_PROGRESS_MESSAGE,
+          ),
+        );
       return;
     }
 
@@ -450,6 +610,7 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
         company_url: requestRow.url,
         industry: requestRow.industry,
         product_mode: requestRow.product_mode,
+        no_public_website: isNoPublicWebsiteUrl(String(requestRow.url ?? '')),
       })
       .select()
       .single();
@@ -488,7 +649,11 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
     if (initFailed) {
       await supabase.from('audits').delete().eq('id', audit.id); // CASCADE deletes child rows
       logger.error('Approve request failed during placeholder init', { audit_id: audit.id, request_id: id });
-      res.status(500).json({ error: 'Failed to initialize audit — rolled back' });
+      res
+        .status(500)
+        .json(
+          apiErrorJson(API_ERROR_CODES.AUDIT_INITIALIZATION_FAILED, AUDIT_INITIALIZATION_FAILED_MESSAGE),
+        );
       return;
     }
 
@@ -508,7 +673,14 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
         request_id: id,
         error: (seedErr as Error).message,
       });
-      res.status(500).json({ error: 'Failed to seed intake brief from request' });
+      res
+        .status(500)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.AUDIT_REQUEST_APPROVE_SEED_FAILED,
+            AUDIT_REQUEST_APPROVE_SEED_FAILED_MESSAGE,
+          ),
+        );
       return;
     }
 
@@ -520,7 +692,9 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
       .update({
         audit_id: audit.id,
         status: 'approved',
-        consultant_note: consultant_note ? String(consultant_note).slice(0, 1000) : null,
+        consultant_note: consultant_note
+          ? String(consultant_note).slice(0, REQUEST_FIELD_LIMITS.consultantNoteMax)
+          : null,
       })
       .eq('id', id)
       .select()
@@ -535,37 +709,45 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
     const payload = { audit_request: updatedRequest, audit: { id: audit.id, status: audit.status } };
     await storeIdempotentResponse(
       req,
-      `POST:/api/audit-requests/${id}/approve`,
+      idempotencyPostAuditRequestApproveKey(id),
       idempotent.key,
       idempotent.hash,
       { statusCode: 201, payload },
       audit.id
     );
 
-    await notifyUser({
+    await emitStructuredNotification({
+      category: 'request',
+      event: 'audit_request_approved',
+      priority: 'low',
+      audience: 'user',
       userId: requestRow.client_id as string,
       auditId: audit.id as string,
-      kind: 'review',
-      title: 'Request approved',
-      message: 'Your audit request was approved and moved to execution.',
+      title: AUDIT_REQUEST_NOTIFICATION_APPROVED_USER_TITLE,
+      message: AUDIT_REQUEST_NOTIFICATION_APPROVED_USER_MESSAGE,
+      route: `/portal/audit/${audit.id}`,
       payload: {
         request_id: id,
         audit_id: audit.id,
         status: 'approved',
-        route: `/portal/audit/${audit.id}`,
-        occurred_at: new Date().toISOString(),
         actor_role: 'consultant',
       },
     });
 
     res.status(201).json(payload);
   } catch (err) {
-    if ((err as Error).message.includes('Idempotency key reuse')) {
-      res.status(409).json({ error: (err as Error).message });
+    if (isIdempotencyPayloadConflictError(err)) {
+      res
+        .status(409)
+        .json(
+          apiErrorJson(API_ERROR_CODES.IDEMPOTENCY_PAYLOAD_MISMATCH, IDEMPOTENCY_PAYLOAD_MISMATCH_MESSAGE),
+        );
       return;
     }
     logger.error('Approve audit request route failed', { error: (err as Error).message });
-    res.status(500).json({ error: 'Failed to approve audit request' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_APPROVE_FAILED, AUDIT_REQUEST_APPROVE_FAILED_MESSAGE));
   }
 });
 
@@ -582,12 +764,21 @@ auditRequestsRouter.post('/:id/reject', requireRole('consultant'), async (req: A
       .single();
 
     if (!existing) {
-      res.status(404).json({ error: 'Audit request not found' });
+      res
+        .status(404)
+        .json(apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_NOT_FOUND, AUDIT_REQUEST_NOT_FOUND_MESSAGE));
       return;
     }
 
     if (!['submitted', 'under_review'].includes(existing.status as string)) {
-      res.status(400).json({ error: 'Only submitted/under_review requests can be rejected' });
+      res
+        .status(400)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.AUDIT_REQUEST_REJECT_WRONG_STATUS,
+            AUDIT_REQUEST_REJECT_WRONG_STATUS_MESSAGE,
+          ),
+        );
       return;
     }
 
@@ -595,7 +786,9 @@ auditRequestsRouter.post('/:id/reject', requireRole('consultant'), async (req: A
       .from('audit_requests')
       .update({
         status: 'rejected',
-        consultant_note: consultant_note ? String(consultant_note).slice(0, 1000) : null,
+        consultant_note: consultant_note
+          ? String(consultant_note).slice(0, REQUEST_FIELD_LIMITS.consultantNoteMax)
+          : null,
       })
       .eq('id', id)
       .select()
@@ -603,16 +796,18 @@ auditRequestsRouter.post('/:id/reject', requireRole('consultant'), async (req: A
 
     if (error) throw error;
 
-    await notifyUser({
+    await emitStructuredNotification({
+      category: 'request',
+      event: 'audit_request_rejected',
+      priority: 'medium',
+      audience: 'user',
       userId: data.client_id as string,
-      kind: 'review',
-      title: 'Request rejected',
-      message: 'Your audit request was rejected. Check consultant notes for details.',
+      title: AUDIT_REQUEST_NOTIFICATION_REJECTED_USER_TITLE,
+      message: AUDIT_REQUEST_NOTIFICATION_REJECTED_USER_MESSAGE,
+      route: '/portal',
       payload: {
         request_id: id,
         status: 'rejected',
-        route: '/portal',
-        occurred_at: new Date().toISOString(),
         actor_role: 'consultant',
       },
     });
@@ -621,7 +816,9 @@ auditRequestsRouter.post('/:id/reject', requireRole('consultant'), async (req: A
   } catch (err) {
     const e = err as Error;
     logger.error('route.audit_request_reject_failed', { component: 'audit_requests', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to reject audit request' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_REJECT_FAILED, AUDIT_REQUEST_REJECT_FAILED_MESSAGE));
   }
 });
 
@@ -637,12 +834,20 @@ auditRequestsRouter.post('/:id/deliver', requireRole('consultant'), async (req: 
       .single();
 
     if (!existing) {
-      res.status(404).json({ error: 'Audit request not found' });
+      res
+        .status(404)
+        .json(apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_NOT_FOUND, AUDIT_REQUEST_NOT_FOUND_MESSAGE));
       return;
     }
 
     if (!['approved', 'running'].includes(existing.status as string)) {
-      res.status(400).json({ error: 'Only approved or running requests can be marked as delivered', current_status: existing.status });
+      res.status(400).json({
+        ...apiErrorJson(
+          API_ERROR_CODES.AUDIT_REQUEST_DELIVER_WRONG_STATUS,
+          AUDIT_REQUEST_DELIVER_WRONG_STATUS_MESSAGE,
+        ),
+        current_status: existing.status as string,
+      });
       return;
     }
 
@@ -654,22 +859,31 @@ auditRequestsRouter.post('/:id/deliver', requireRole('consultant'), async (req: 
       .single();
 
     if (error || !data) {
-      res.status(500).json({ error: 'Failed to update request' });
+      res
+        .status(500)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.AUDIT_REQUEST_DELIVER_UPDATE_FAILED,
+            AUDIT_REQUEST_DELIVER_UPDATE_FAILED_MESSAGE,
+          ),
+        );
       return;
     }
 
-    await notifyUser({
+    await emitStructuredNotification({
+      category: 'request',
+      event: 'audit_request_delivered',
+      priority: 'low',
+      audience: 'user',
       userId: data.client_id as string,
       auditId: (data.audit_id as string | null) ?? null,
-      kind: 'pipeline',
-      title: 'Deliverables ready',
-      message: 'Your audit deliverables are marked as delivered.',
+      title: AUDIT_REQUEST_NOTIFICATION_DELIVERED_USER_TITLE,
+      message: AUDIT_REQUEST_NOTIFICATION_DELIVERED_USER_MESSAGE,
+      route: data.audit_id ? `/portal/audit/${data.audit_id as string}` : '/portal',
       payload: {
         request_id: id,
         audit_id: data.audit_id,
         status: 'delivered',
-        route: data.audit_id ? `/portal/audit/${data.audit_id as string}` : '/portal',
-        occurred_at: new Date().toISOString(),
         actor_role: 'consultant',
       },
     });
@@ -678,6 +892,8 @@ auditRequestsRouter.post('/:id/deliver', requireRole('consultant'), async (req: 
   } catch (err) {
     const e = err as Error;
     logger.error('route.audit_request_deliver_failed', { component: 'audit_requests', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to mark as delivered' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.AUDIT_REQUEST_DELIVER_FAILED, AUDIT_REQUEST_DELIVER_FAILED_MESSAGE));
   }
 });

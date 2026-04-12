@@ -30,6 +30,8 @@ export interface ExpressModePolicyV1 extends PolicyRichnessV1 {
 
 export interface DiscoveryModePolicyV1 extends PolicyRichnessV1 {
   participation: 'explicit';
+  /** Ordered bank ids for public Discovery UI fragment (before `included` filter). Omitted in frozen policy bundles → runtime uses default order. */
+  publicWizardOrder?: string[];
   included: string[];
   requiredness: 'from_canon';
   syntheticRequired: string[];

@@ -7,9 +7,14 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildIntakePlan, recomputePlanIncremental } from '@glc/intake-core';
-import { currentIntakeVersionTuple } from '@glc/intake-core';
-import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
+import {
+  buildIntakePlan,
+  currentIntakeVersionTuple,
+  QUESTION_BANK_V1_STUBS,
+  recomputePlanIncremental,
+} from '@glc/intake-core';
+/** Same module as `buildIntakePlan` (Vitest aliases `@glc/intake-core` to `src/`). Package subpath resolves to `dist/` for `tsc` only. */
+import * as intakeFlags from '@glc/intake-core/config/intake-flags.js';
 import { INTAKE_PLAN_FIXTURES } from './fixtures/intake-plan-fixtures.js';
 import { type IntakePlanSnapshotPayload, computeIntakePlanSnapshotShim } from './intake-plan-shim.js';
 
@@ -94,8 +99,8 @@ describe('buildIntakePlan', () => {
     }
   });
 
-  it('omits nextRecommended when INTAKE_NEXT_RECOMMENDED_ENABLED is off', () => {
-    vi.stubEnv('INTAKE_NEXT_RECOMMENDED_ENABLED', '0');
+  it('omits nextRecommended when next-recommended feature is disabled', () => {
+    const spy = vi.spyOn(intakeFlags, 'isIntakeNextRecommendedEnabled').mockReturnValue(false);
     try {
       const plan = buildIntakePlan({
         responses: { a2: 'hospitality', a5: 'no_website' },
@@ -104,7 +109,7 @@ describe('buildIntakePlan', () => {
       });
       expect(plan.nextRecommended).toEqual([]);
     } finally {
-      vi.unstubAllEnvs();
+      spy.mockRestore();
     }
   });
 
@@ -183,7 +188,7 @@ describe('buildIntakePlan', () => {
   });
 
   it('supports policy askStrategy progressive as deferred reason', () => {
-    vi.stubEnv('INTAKE_POLICY_RICHNESS_ENABLED', '1');
+    const spy = vi.spyOn(intakeFlags, 'isIntakePolicyRichnessEnabled').mockReturnValue(true);
     try {
       const plan = buildIntakePlan({
         responses: { a2: 'hospitality', a5: 'no_website' },
@@ -194,7 +199,7 @@ describe('buildIntakePlan', () => {
         expect(plan.reasonsById.f8.some(r => r.code === 'ASK_STRATEGY_PROGRESSIVE')).toBe(true);
       }
     } finally {
-      vi.unstubAllEnvs();
+      spy.mockRestore();
     }
   });
 });

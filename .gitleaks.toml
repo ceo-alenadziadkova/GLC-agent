@@ -1,0 +1,14 @@
+# Gitleaks configuration for CI (gitleaks-action). Example env files use secret-shaped placeholders.
+title = "glc-agent"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Template env files and documented i18n key names (not secrets)"
+paths = [
+  '''\.env\.example$''',
+]
+regexes = [
+  '''MARKETING_BRIEF_ROUTE_I18N_KEYS''',
+]

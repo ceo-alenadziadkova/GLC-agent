@@ -120,7 +120,14 @@ beforeEach(() => {
     updated_at: '2026-01-01T00:00:00.000Z',
     product_mode: 'express',
   });
-  setBriefRow({ responses: { primary_goal: 'Grow', target_audience: 'SMB', revenue_model: 'Subscription / SaaS' } });
+  setBriefRow({
+    responses: {
+      f1: ['Other'],
+      f1__other: 'Grow',
+      b1: 'SMB',
+      a10: ['Subscription / membership'],
+    },
+  });
 });
 
 describe('POST /api/audits/:id/pipeline/start — payload contract', () => {

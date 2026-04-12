@@ -1,21 +1,6 @@
 /**
- * Canonical industry values for bank UI overrides (a2). Keep aligned with
- * server/src/config/industry-options.ts and src/app/data/industry-options.ts.
+ * @deprecated Import `QUESTION_BANK_OPTION_CATALOGS.industry` from `@glc/intake-core` instead.
  */
-export const INDUSTRY_OPTIONS = [
-  'E-commerce',
-  'Education',
-  'Finance',
-  'Food & Beverage',
-  'Healthcare',
-  'Hospitality',
-  'Manufacturing',
-  'Marine',
-  'Media & Entertainment',
-  'Non-profit',
-  'Professional Services',
-  'Real Estate',
-  'Retail',
-  'SaaS / Software',
-  'Other',
-] as const;
+import { QUESTION_BANK_OPTION_CATALOGS } from './question-bank.js';
+
+export const INDUSTRY_OPTIONS = QUESTION_BANK_OPTION_CATALOGS.industry;

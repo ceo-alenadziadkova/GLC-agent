@@ -1,12 +1,13 @@
 import type { RuleResult, SnapshotFacts, SnapshotAuditCategory } from '../types.js';
 import type { AuditRuleRow } from './parse-audit-rules.js';
 import { getHeroPrimaryCtaCount, getGenericMarketingHero } from '../extract-facts.js';
+import { SNAPSHOT_PARTIAL_SCORE_FACTOR } from '../../config/snapshot-partial-score.js';
 
 type Status = RuleResult['status'];
 
 function scoreStatus(max: number, status: Status): number {
   if (status === 'pass') return max;
-  if (status === 'partial') return max * 0.5;
+  if (status === 'partial') return max * SNAPSHOT_PARTIAL_SCORE_FACTOR;
   return 0;
 }
 

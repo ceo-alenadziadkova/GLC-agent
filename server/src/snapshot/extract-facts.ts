@@ -2,6 +2,7 @@
  * Build SnapshotFacts from fetched HTML pages (homepage-first merge).
  */
 import * as cheerio from 'cheerio';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import {
   detectTechStackRecord,
   extractJsonLdTypes,
@@ -14,9 +15,6 @@ const CTA_VERB_RE =
 
 const GENERIC_MARKETING_RE =
   /\b(growth|excellence|trusted partner|innovation|empower|transform|solutions?\s+for\s+everyone)\b/i;
-
-/** Max distinct path segments collected from same-origin links (all fetched pages). */
-const MAX_URL_SLUGS = 80;
 
 /** Noise tokens dropped when turning `<title>` text into pseudo-slugs for classification. */
 const TITLE_TOKEN_STOP = new Set([
@@ -379,8 +377,10 @@ export function extractFacts(
     navItems = mergeUnique(navItems, s2.navItems);
   }
 
-  const linkSegLimit = Number(process.env.SNAPSHOT_LINK_SLUG_LIMIT ?? MAX_URL_SLUGS);
-  const cap = Number.isFinite(linkSegLimit) && linkSegLimit > 0 ? Math.min(linkSegLimit, 200) : MAX_URL_SLUGS;
+  const cap = Math.min(
+    SYSTEM_DEFAULTS.snapshotLinkSlug.max,
+    SYSTEM_DEFAULTS.snapshotLinkSlug.hardCap,
+  );
   allSlugs = mergeUnique(allSlugs, collectLinkPathSegments(pages, cap));
   allSlugs = mergeUnique(allSlugs, collectTitleWordSlugs(pages, cap));
 

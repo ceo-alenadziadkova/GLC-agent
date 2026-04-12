@@ -24,7 +24,7 @@ describe('frozen intake artifacts', () => {
       a2: 'professional services',
       a3: 'Barcelona',
       a5: 'no_website',
-      revenue_model: 'b2b',
+      a10: ['Recurring services (retainers)'],
     };
     const legacy = buildIntakePlan({
       responses,
@@ -47,7 +47,7 @@ describe('frozen intake artifacts', () => {
 
   it('current tuple uses live policy artifact version', () => {
     const plan = buildIntakePlan({
-      responses: { a5: 'no_website', revenue_model: 'b2c' },
+      responses: { a5: 'no_website', a10: ['Product sales (online or offline)'] },
       productMode: 'full',
     });
     expect(plan.versions.policyVersion).toBe(INTAKE_POLICY_VERSION);

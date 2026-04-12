@@ -159,19 +159,42 @@
       "id": "a10",
       "section": "A",
       "priority": "required",
-      "label": "What is your main revenue model?",
+      "label": "Which monetization model best describes your business?",
       "reportUse": "biz_revenue_model",
       "answer": {
-        "type": "single_select",
+        "type": "multi_select",
         "options": [
-          "Subscription / SaaS",
-          "E-commerce (product sales)",
-          "Lead generation",
-          "Consulting / services",
-          "Freemium",
-          "Marketplace",
+          "One-time services (projects, consulting)",
+          "Recurring services (retainers)",
+          "Product sales (online or offline)",
+          "Subscription / membership",
+          "Commission or marketplace fees",
+          "Lead generation / referrals",
+          "Ads / sponsorships",
           "Other"
         ]
+      }
+    },
+    {
+      "id": "a11",
+      "section": "A",
+      "priority": "required",
+      "label": "Company website",
+      "reportUse": "recon_company_website_url",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
+      }
+    },
+    {
+      "id": "a12",
+      "section": "A",
+      "priority": "required",
+      "label": "Company name",
+      "reportUse": "recon_company_legal_name",
+      "answer": {
+        "type": "textarea",
+        "maxLength": 12000
       }
     },
     {
@@ -219,6 +242,27 @@
           "Unique location or experience",
           "Personal service and trust",
           "Specialised expertise",
+          "Other"
+        ]
+      }
+    },
+    {
+      "id": "b10",
+      "section": "B",
+      "priority": "recommended",
+      "label": "Marketing channels you actively invest in",
+      "reportUse": "mkt_active_investment_channels",
+      "answer": {
+        "type": "multi_select",
+        "options": [
+          "Google Ads",
+          "Facebook/Instagram Ads",
+          "LinkedIn Ads",
+          "Content/SEO",
+          "Email marketing",
+          "Influencer / affiliate",
+          "PR",
+          "None currently",
           "Other"
         ]
       }
@@ -277,7 +321,7 @@
       "id": "b7",
       "section": "B",
       "priority": "recommended",
-      "label": "Repeat vs one-off revenue",
+      "label": "How often do the same customers buy from you again?",
       "reportUse": "mkt_revenue_repeat_vs_oneoff",
       "answer": {
         "type": "single_select",
@@ -768,8 +812,16 @@
       "label": "Biggest manual time sink",
       "reportUse": "auto_manual_time_sink",
       "answer": {
-        "type": "textarea",
-        "maxLength": 12000
+        "type": "single_select",
+        "options": [
+          "Following up with leads and prospects",
+          "Scheduling and confirming appointments",
+          "Creating and sending quotes or invoices",
+          "Reporting and tracking what is working",
+          "Onboarding new clients",
+          "Managing team tasks and handoffs",
+          "Something else"
+        ]
       }
     },
     {
@@ -1003,8 +1055,17 @@
       "label": "Main business problem to solve",
       "reportUse": "strategy_pain_anchor",
       "answer": {
-        "type": "textarea",
-        "maxLength": 12000
+        "type": "multi_select",
+        "options": [
+          "Not enough qualified leads or new customers",
+          "Too many visitors but low conversion to inquiries/sales",
+          "Too much manual work and operational overload",
+          "Revenue is unstable or highly seasonal",
+          "Overdependence on one channel/platform",
+          "Low customer retention or repeat purchases",
+          "Margins are too low",
+          "Other"
+        ]
       }
     },
     {
@@ -1120,6 +1181,20 @@
           "Investor, partner, or board review",
           "Contract or compliance milestone",
           "No specific deadline"
+        ]
+      }
+    },
+    {
+      "id": "f9",
+      "section": "F",
+      "priority": "optional",
+      "label": "Anything else we should account for in your audit context?",
+      "reportUse": "strategy_additional_context_notes",
+      "answer": {
+        "type": "single_select",
+        "options": [
+          "No, I have already shared everything relevant",
+          "Yes, there are additional details"
         ]
       }
     }

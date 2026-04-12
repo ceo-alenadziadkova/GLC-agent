@@ -133,6 +133,15 @@ In Supabase dashboard (Authentication → Settings):
 
 ---
 
+## Email templates (Supabase)
+
+Branded HTML for auth and security emails lives in the repo under **`email-templates/supabase/`** (table layout + inline styles, safe for real clients). Copy each file’s **full HTML** into Supabase Dashboard → **Authentication** → **Email Templates**, set the **subject** in the same screen, and keep **Redirect URLs** / **Site URL** aligned with [§ Supabase Auth Configuration](#supabase-auth-configuration) above.
+
+- Index, suggested English subjects, and variable reference: [`email-templates/README.md`](../email-templates/README.md).
+- **Link prefetch:** some corporate inboxes pre-open links (e.g. Microsoft Safe Links). **`confirm-signup.html`**, **`email-change.html`**, and **`recovery.html`** include a visible plain **`{{ .ConfirmationURL }}`** if the CTA fails. **`reauthentication.html`** uses the **6-digit OTP** (`{{ .Token }}`) as in Supabase’s reauthentication template. Magic link / invite / other flows can still use **`{{ .Token }}`** if enabled in the project.
+
+---
+
 ## Supabase Client Setup
 
 ```typescript

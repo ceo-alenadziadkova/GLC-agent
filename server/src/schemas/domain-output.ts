@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AGENT_OUTPUT_LIMITS } from '../config/agent-output-limits.js';
 
 // ─── Recon Output Schema ───────────────────────────────────
 export const ReconOutputSchema = z.object({
@@ -74,7 +75,10 @@ export const RecommendationSchema = z.object({
 export const DomainOutputSchema = z.object({
   score: z.number().int().min(1).max(5),
   label: z.string(),
-  summary: z.string().min(50).max(2000),
+  summary: z
+    .string()
+    .min(AGENT_OUTPUT_LIMITS.domainSummaryMinChars)
+    .max(AGENT_OUTPUT_LIMITS.domainSummaryMaxChars),
   strengths: z.array(z.string()).min(1).max(8),
   weaknesses: z.array(z.string()).min(1).max(8),
   issues: z.array(IssueSchema).min(1).max(10),
@@ -101,7 +105,10 @@ export const StrategyInitiativeSchema = z.object({
 });
 
 export const StrategyOutputSchema = z.object({
-  executive_summary: z.string().min(100).max(3000),
+  executive_summary: z
+    .string()
+    .min(AGENT_OUTPUT_LIMITS.strategyExecutiveSummaryMinChars)
+    .max(AGENT_OUTPUT_LIMITS.strategyExecutiveSummaryMaxChars),
   overall_score: z.number().min(1).max(5),
   quick_wins: z.array(StrategyInitiativeSchema).min(2).max(6),
   medium_term: z.array(StrategyInitiativeSchema).min(2).max(6),

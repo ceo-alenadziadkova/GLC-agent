@@ -1,0 +1,25 @@
+{
+  "version": "1.0.0",
+  "baseScore": 45,
+  "exportDataQuick": 18,
+  "exportDataPainfulOrNo": -5,
+  "governanceClear": 17,
+  "d4aBonus": 8,
+  "d2Bonus": 5,
+  "automationAttemptHelped": 10,
+  "penaltyD4aLowWithHighManualLoad": -18,
+  "penaltyVagueTruthWithTeamNotSolo": -12,
+  "scaleBonusA8": 5,
+  "scaleBonusD6MinSelections": 3,
+  "scaleBonusD6": 5,
+  "scaleBonusNoWebsiteGreenfield": 5,
+  "vagueTruthSubstrings": [
+    "whatsapp",
+    "verbally",
+    "in person",
+    "only in",
+    "heads"
+  ],
+  "d2CatchAllOption": "Something else",
+  "d2ArticulatedMinLength": 20
+}

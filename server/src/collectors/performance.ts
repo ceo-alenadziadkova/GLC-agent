@@ -1,7 +1,10 @@
 import { BaseCollector } from './base.js';
 import { supabase } from '../services/supabase.js';
+import { CRAWLER_USER_AGENT } from '../config/bot-identity.js';
+import { COLLECTOR_FETCH_TIMEOUT_MS } from '../config/collector-http.js';
 import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } from '../lib/public-http-url.js';
-import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
+import { auditSkipsPublicWebsiteFetches } from '@glc/intake-core';
+import type { CollectorCollectContext } from './base.js';
 import { auditLighthouseBudgetMs, auditLighthouseEnabled } from '../lib/audit-deep-scan-env.js';
 import { runLighthouseAuditSummary } from '../lib/lighthouse-audit.js';
 import { logger } from '../services/logger.js';
@@ -10,8 +13,8 @@ export class PerformanceCollector extends BaseCollector {
   get key() { return 'performance'; }
   get phase() { return 1; }
 
-  async collect(auditId: string, companyUrl: string) {
-    if (isNoPublicWebsiteUrl(companyUrl)) {
+  async collect(auditId: string, companyUrl: string, ctx?: CollectorCollectContext) {
+    if (auditSkipsPublicWebsiteFetches(ctx?.noPublicWebsite, companyUrl)) {
       return {
         no_crawl_data: true,
         warning: 'No public website — performance checks skipped',
@@ -132,8 +135,8 @@ export class PerformanceCollector extends BaseCollector {
   private async analyzeHeaders(url: string) {
     try {
       const response = await fetchPublicHttpUrl(url, {
-        headers: { 'User-Agent': 'GLC-AuditBot/1.0' },
-        signal: AbortSignal.timeout(10_000),
+        headers: { 'User-Agent': CRAWLER_USER_AGENT },
+        signal: AbortSignal.timeout(COLLECTOR_FETCH_TIMEOUT_MS),
       });
 
       const headers = response.headers;

@@ -1,7 +1,19 @@
+import { getTelegramApiBase } from '../config/integrations.js';
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
 
 export type NotificationKind = 'pipeline' | 'review' | 'intake';
+export type NotificationPriority = 'critical' | 'medium' | 'low';
+export type NotificationCategory =
+  | 'pipeline'
+  | 'review'
+  | 'intake'
+  | 'request'
+  | 'snapshot'
+  | 'registration'
+  | 'help'
+  | 'system';
+export type NotificationAudience = 'user' | 'audit_participants' | 'audit_participants_except' | 'consultants';
 
 export interface NotificationPayload {
   route?: string;
@@ -15,6 +27,23 @@ export interface NotificationPayload {
   occurred_at?: string;
   actor_role?: 'consultant' | 'client' | 'system' | string;
   [key: string]: unknown;
+}
+
+export interface StructuredNotificationEvent {
+  category: NotificationCategory;
+  event: string;
+  priority: NotificationPriority;
+  audience: NotificationAudience;
+  title: string;
+  message: string;
+  route?: string;
+  userId?: string;
+  auditId?: string | null;
+  excludeUserIds?: string[];
+  payload?: NotificationPayload;
+  sendInApp?: boolean;
+  sendTelegram?: boolean;
+  occurredAt?: string;
 }
 
 interface NotifyInput {
@@ -33,6 +62,52 @@ interface AuditParticipants {
 
 interface ConsultantProfileRow {
   id: string;
+}
+
+function telegramPriorityBadge(priority: NotificationPriority): string {
+  if (priority === 'critical') return 'RED';
+  if (priority === 'medium') return 'YELLOW';
+  return 'GREEN';
+}
+
+function mapCategoryToKind(category: NotificationCategory): NotificationKind {
+  if (category === 'review') return 'review';
+  if (category === 'intake' || category === 'request' || category === 'registration' || category === 'help') {
+    return 'intake';
+  }
+  return 'pipeline';
+}
+
+function formatTelegramMessage(event: StructuredNotificationEvent): string {
+  const when = event.occurredAt ?? new Date().toISOString();
+  const scope = event.auditId ? `audit=${event.auditId}` : 'audit=n/a';
+  const route = event.route ? `\nroute=${event.route}` : '';
+  const core = [
+    `[${telegramPriorityBadge(event.priority)}|${event.priority.toUpperCase()}]`,
+    `[${event.category.toUpperCase()}]`,
+    event.title,
+  ].join(' ');
+  return `${core}\nevent=${event.event}\n${scope}\ntime=${when}\n${event.message}${route}`;
+}
+
+async function sendTelegramMessage(text: string): Promise<void> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) return;
+  try {
+    const response = await fetch(`${getTelegramApiBase()}/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text }),
+    });
+    if (!response.ok) {
+      logger.warn('notifications.telegram_send_failed', { status: response.status });
+    }
+  } catch (err) {
+    logger.warn('notifications.telegram_send_exception', {
+      error: (err as Error).message,
+    });
+  }
 }
 
 export async function notifyUser(input: NotifyInput): Promise<void> {
@@ -140,4 +215,61 @@ export async function notifyConsultants(
       notifyUser({ userId, kind, title, message, payload }),
     ),
   );
+}
+
+export async function emitStructuredNotification(event: StructuredNotificationEvent): Promise<void> {
+  const occurredAt = event.occurredAt ?? new Date().toISOString();
+  const payload: NotificationPayload = {
+    ...event.payload,
+    category: event.category,
+    event: event.event,
+    priority: event.priority,
+    route: event.route ?? event.payload?.route,
+    occurred_at: occurredAt,
+  };
+  const kind = mapCategoryToKind(event.category);
+  const sendInApp = event.sendInApp !== false;
+  const sendTelegram = event.sendTelegram !== false;
+
+  if (sendInApp) {
+    if (event.audience === 'user') {
+      if (!event.userId) {
+        logger.warn('notifications.structured_missing_user_id', { event: event.event, category: event.category });
+      } else {
+        await notifyUser({
+          userId: event.userId,
+          auditId: event.auditId ?? null,
+          kind,
+          title: event.title,
+          message: event.message,
+          payload,
+        });
+      }
+    } else if (event.audience === 'audit_participants') {
+      if (!event.auditId) {
+        logger.warn('notifications.structured_missing_audit_id', { event: event.event, category: event.category });
+      } else {
+        await notifyAuditParticipants(event.auditId, kind, event.title, event.message, payload);
+      }
+    } else if (event.audience === 'audit_participants_except') {
+      if (!event.auditId) {
+        logger.warn('notifications.structured_missing_audit_id', { event: event.event, category: event.category });
+      } else {
+        await notifyAuditParticipantsExcept(
+          event.auditId,
+          kind,
+          event.title,
+          event.message,
+          event.excludeUserIds ?? [],
+          payload,
+        );
+      }
+    } else {
+      await notifyConsultants(kind, event.title, event.message, payload);
+    }
+  }
+
+  if (sendTelegram) {
+    await sendTelegramMessage(formatTelegramMessage({ ...event, occurredAt }));
+  }
 }

@@ -6,8 +6,11 @@ type WeightMap = Record<DomainKey, number>;
  * Industry-specific weight multipliers for domain scores.
  * Default weight is 1.0. Higher = more important for this industry.
  * Overall score = sum(score * weight) / sum(weight).
+ *
+ * Tune weights in this module (or a future DB-backed policy layer), not via environment variables.
+ * Keys must match normalized industry slugs (lowercase, spaces/`&` → `_`), same as `getDomainWeight`.
  */
-export const INDUSTRY_WEIGHTS: Record<string, Partial<WeightMap>> = {
+export const INDUSTRY_WEIGHTS_DEFAULT: Record<string, Partial<WeightMap>> = {
   hospitality: {
     ux_conversion: 1.5,
     seo_digital: 1.4,
@@ -59,6 +62,9 @@ export const INDUSTRY_WEIGHTS: Record<string, Partial<WeightMap>> = {
   },
 };
 
+/** Effective map (same as `INDUSTRY_WEIGHTS_DEFAULT`; treat as read-only for callers). */
+export const INDUSTRY_WEIGHTS: Record<string, Partial<WeightMap>> = INDUSTRY_WEIGHTS_DEFAULT;
+
 const DEFAULT_WEIGHT = 1.0;
 
 /**
@@ -78,7 +84,7 @@ export function getDomainWeight(industry: string | null, domainKey: DomainKey): 
  */
 export function calculateWeightedScore(
   domainScores: Array<{ domain_key: DomainKey; score: number }>,
-  industry: string | null
+  industry: string | null,
 ): number {
   let totalWeight = 0;
   let weightedSum = 0;

@@ -8,7 +8,6 @@ import {
   buildQuestionSequence,
   computeFindings,
   computeScore,
-  getOnlinePresenceSelections,
   getQuestion,
   setDiscoveryUiFragmentQuestions,
 } from './discovery-flow';
@@ -49,20 +48,6 @@ describe('buildQuestionSequence', () => {
   });
 });
 
-describe('getOnlinePresenceSelections', () => {
-  it('returns array as-is', () => {
-    expect(getOnlinePresenceSelections({ online_presence: ['Google search'] })).toEqual([
-      'Google search',
-    ]);
-  });
-
-  it('maps legacy single values', () => {
-    expect(
-      getOnlinePresenceSelections({ online_presence: 'Social media profiles only' }),
-    ).toEqual(['Social media']);
-  });
-});
-
 describe('getQuestion', () => {
   it('returns known question', () => {
     const q = getQuestion('a2');
@@ -82,10 +67,10 @@ describe('computeFindings and computeScore', () => {
       a4: 'Just me',
       a7: 'Growing fast',
       d1: ['Email'],
-      c_nosite_1: ['Google search'],
+      c_nosite_1: ['Google / search'],
       c_nosite_4: ['WhatsApp'],
       d2: 'Following up with leads and prospects',
-      f1: 'Not enough new clients',
+      f1: ['Not enough qualified leads or new customers'],
     };
     const findings = computeFindings(answers);
     expect(findings.some(f => f.id === 'no_crm_whatsapp')).toBe(true);
@@ -95,15 +80,27 @@ describe('computeFindings and computeScore', () => {
   it('returns score 5 when no findings (answers avoid all finding rules)', () => {
     const answers = {
       a2: 'Retail',
-      a4: '6–20 people',
+      a4: '11–50',
       a7: 'Mature and optimising',
       d1: ['CRM', 'Email', 'Project or task tool'],
-      c_nosite_1: ['Google search', 'Social media'],
+      c_nosite_1: ['Google / search', 'Social media'],
       c_nosite_4: ['Email'],
       d2: 'Something else',
-      f1: 'I want to understand where to focus next',
+      f1: ['Other'],
     };
     expect(computeFindings(answers).length).toBe(0);
     expect(computeScore(answers)).toBe(5);
+  });
+
+  it('d2_automatable uses grammatical team clause (no "team with a small team")', () => {
+    const answers = {
+      a2: 'SaaS / Software',
+      a4: '2–10 people',
+      d2: 'Following up with leads and prospects',
+    };
+    const d2 = computeFindings(answers).find(f => f.id === 'd2_automatable');
+    expect(d2).toBeDefined();
+    expect(d2!.detail).not.toMatch(/for a team with a small team/i);
+    expect(d2!.detail).toMatch(/With a small team, eliminating/i);
   });
 });

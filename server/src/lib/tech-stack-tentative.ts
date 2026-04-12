@@ -3,6 +3,7 @@
  * Not counted as confirmed fingerprinting (see TECH_PATTERNS / Wappalyzer rules).
  */
 import * as cheerio from 'cheerio';
+import { TECH_TENTATIVE_MAX_HINTS } from '../config/tech-tentative-limits.js';
 
 export type TechStackTentativeItem = {
   name: string;
@@ -17,8 +18,6 @@ const SIGNAL_GENERATOR =
   'Reported by a meta generator tag — not cross-checked against script sources in this scan.';
 const SIGNAL_SPA =
   'A bundled JavaScript app was detected (type=module entry); frameworks may live inside minified files we do not fully inspect here.';
-
-const MAX_HINTS = 8;
 
 function confirmedKeySet(techStack: Record<string, string[]>): Set<string> {
   const s = new Set<string>();
@@ -129,5 +128,5 @@ export function inferTechStackTentative(
     push('Client-side SPA (bundled)', 'frameworks', SIGNAL_SPA);
   }
 
-  return out.slice(0, MAX_HINTS);
+  return out.slice(0, TECH_TENTATIVE_MAX_HINTS);
 }

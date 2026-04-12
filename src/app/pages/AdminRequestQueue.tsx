@@ -21,6 +21,7 @@ import {
   type BriefQuestion,
 } from '../data/briefQuestions';
 import { getQuestionLabel } from '../lib/intake-question-lookup';
+import { UI_FEEDBACK_FLASH_MS } from '../config/ui-feedback-defaults';
 
 type IntakeSubmissionRow = Awaited<ReturnType<typeof api.listIntakeSubmissions>>['submissions'][number];
 
@@ -445,7 +446,7 @@ export function AdminRequestQueue() {
                             onClick={() => {
                               void navigator.clipboard.writeText(s.intake_url).then(() => {
                                 setCopiedIntakeUrl(s.token);
-                                window.setTimeout(() => setCopiedIntakeUrl(null), 2000);
+                                window.setTimeout(() => setCopiedIntakeUrl(null), UI_FEEDBACK_FLASH_MS);
                               });
                             }}
                           >

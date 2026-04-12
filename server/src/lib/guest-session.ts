@@ -4,11 +4,16 @@
  */
 import { createHash, randomBytes } from 'crypto';
 import type { Request, Response } from 'express';
+import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 
-export const SNAPSHOT_GUEST_COOKIE_NAME = 'glc_snapshot_guest';
-const GUEST_TOKEN_BYTES = 32;
-/** Browser cookie lifetime aligns with funnel retention (90 days). */
-export const GUEST_SESSION_MAX_AGE_SEC = 90 * 24 * 60 * 60;
+const SG = SYSTEM_DEFAULTS.snapshotGuestSession;
+
+/** HttpOnly cookie name for public snapshot guest sessions. */
+export const SNAPSHOT_GUEST_COOKIE_NAME = SG.cookieName;
+
+/** Browser cookie lifetime (seconds). */
+export const GUEST_SESSION_MAX_AGE_SEC = SG.maxAgeSec;
 
 const DEV_FALLBACK_IP_SALT = 'dev-only-snapshot-guest-ip-salt';
 
@@ -87,7 +92,7 @@ export function getOrIssueSnapshotGuestToken(req: Request, res: Response): strin
   const existing = parseGuestCookie(req);
   if (existing) return existing;
 
-  const token = randomBytes(GUEST_TOKEN_BYTES).toString('hex');
+  const token = randomBytes(SG.tokenBytes).toString('hex');
   const { sameSite, secure } = cookieFlags(req);
   const parts = [
     `${SNAPSHOT_GUEST_COOKIE_NAME}=${token}`,
@@ -112,7 +117,9 @@ export function extractUtmFromBody(body: unknown): {
   }
   const s = (k: string): string | null => {
     const v = b[k];
-    return typeof v === 'string' && v.trim().length > 0 ? v.trim().slice(0, 512) : null;
+    return typeof v === 'string' && v.trim().length > 0
+      ? v.trim().slice(0, REQUEST_FIELD_LIMITS.storedUserAgentMax)
+      : null;
   };
   return {
     utm_source: s('utm_source'),

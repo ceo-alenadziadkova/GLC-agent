@@ -252,11 +252,15 @@ vi.mock('../lib/self-serve-audit-owner.js', () => ({
 }));
 
 // Avoid real DNS in CI/sandbox; mirrors sync checks + URL normalization from production module.
-vi.mock('../lib/public-http-url.js', () => {
+vi.mock('../lib/public-http-url.js', async () => {
+  const { API_ERROR_CODES } = await import('../config/api-error-codes.js');
+  const { resolvePublicUrlErrorMessage } = await import('../config/public-url-error-message.js');
   class PublicUrlNotAllowedError extends Error {
     override name = 'PublicUrlNotAllowedError';
-    constructor(message: string) {
-      super(message);
+    readonly code: (typeof API_ERROR_CODES)[keyof typeof API_ERROR_CODES];
+    constructor(code: (typeof API_ERROR_CODES)[keyof typeof API_ERROR_CODES]) {
+      super(resolvePublicUrlErrorMessage(code));
+      this.code = code;
     }
   }
   return {
@@ -268,17 +272,17 @@ vi.mock('../lib/public-http-url.js', () => {
       try {
         u = new URL(s);
       } catch {
-        throw new PublicUrlNotAllowedError('Invalid URL');
+        throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_INVALID);
       }
       if (u.username || u.password) {
-        throw new PublicUrlNotAllowedError('URL must not contain credentials');
+        throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_CREDENTIALS_NOT_ALLOWED);
       }
       if (u.protocol !== 'http:' && u.protocol !== 'https:') {
-        throw new PublicUrlNotAllowedError('Only http and https URLs are allowed');
+        throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_PROTOCOL_NOT_ALLOWED);
       }
       const h = u.hostname.toLowerCase();
       if (h === 'localhost' || h.endsWith('.local')) {
-        throw new PublicUrlNotAllowedError('Host is not allowed');
+        throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_HOST_NOT_ALLOWED);
       }
       return u.href;
     },
@@ -548,6 +552,22 @@ describe('GET /api/snapshot/:token', () => {
     const res = await fetch(`${baseUrl}/api/snapshot/abc`); // Too short
 
     expect(res.status).toBe(400);
+  });
+
+  it('returns 410 when snapshot token is expired', async () => {
+    setSnapshotQueryResult({
+      id: 'audit-001',
+      status: 'completed',
+      company_url: 'https://example.com',
+      company_name: null,
+      product_mode: 'free_snapshot',
+      created_at: '2000-01-01T00:00:00.000Z',
+    });
+
+    const res = await fetch(`${baseUrl}/api/snapshot/${VALID_TOKEN}`);
+    expect(res.status).toBe(410);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.error).toBe('Snapshot token expired');
   });
 
   it('returns { status: "recon" } while audit is still running', async () => {
@@ -822,6 +842,24 @@ describe('POST /api/snapshot/claim', () => {
       body: JSON.stringify({ snapshot_token: CLAIM_TOKEN }),
     });
     expect(res.status).toBe(404);
+  });
+
+  it('returns 410 when claim token is expired', async () => {
+    setSnapshotQueryResult({
+      id: 'audit-claim-expired',
+      client_id: null,
+      snapshot_token: CLAIM_TOKEN,
+      product_mode: 'free_snapshot',
+      created_at: '2000-01-01T00:00:00.000Z',
+    });
+    const res = await fetch(`${baseUrl}/api/snapshot/claim`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
+      body: JSON.stringify({ snapshot_token: CLAIM_TOKEN }),
+    });
+    expect(res.status).toBe(410);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.error).toBe('Snapshot token expired');
   });
 
   it('returns 200 with already_claimed when client_id matches user', async () => {

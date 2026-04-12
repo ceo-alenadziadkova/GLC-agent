@@ -1,0 +1,42 @@
+{
+  "version": "1.0.0",
+  "security": {
+    "invalidSslIssue": "Invalid SSL certificate caps security score at 2/5",
+    "invalidSslRawEvidence": "SSL check returned invalid",
+    "missingCriticalIssueTemplate": "Score too high: {{count}} critical security headers missing (CSP, HSTS)",
+    "missingCriticalRawEvidenceTemplate": "Missing: {{names}}"
+  },
+  "seo": {
+    "noSitemapIssue": "Score 5/5 but no sitemap.xml found",
+    "noSitemapRawEvidence": "sitemap.exists = false",
+    "noRobotsIssue": "Score 5/5 but no robots.txt found",
+    "noRobotsRawEvidence": "robots_txt.exists = false",
+    "metaCoverageIssueTemplate": "Score too high: only {{pct}}% of pages have meta descriptions",
+    "metaCoverageRawEvidenceTemplate": "{{with_desc}}/{{total}} pages"
+  },
+  "tech": {
+    "noCompressionIssue": "Score too high: no HTTP compression detected",
+    "noCompressionRawEvidence": "compression.enabled = false",
+    "noCacheIssue": "Score too high: no cache policy detected",
+    "noCacheRawEvidence": "caching.has_cache_policy = false"
+  },
+  "ux": {
+    "imageAltIssueTemplate": "Score too high: only {{pct}}% image alt text coverage",
+    "imageAltRawEvidenceTemplate": "alt_coverage_percent = {{pct}}"
+  },
+  "consistency": {
+    "criticalWithMaxScoreIssue": "Score 5/5 but critical issues found",
+    "criticalWithMaxScoreRawEvidenceTemplate": "Critical issues: {{titles}}",
+    "minScoreNoSevereIssue": "Score 1/5 but no critical or high issues listed",
+    "minScoreNoSevereRawEvidenceTemplate": "Max severity in issues: {{max_severity}}",
+    "weaknessesBalanceIssue": "High score but significantly more weaknesses than strengths",
+    "weaknessesBalanceRawEvidenceTemplate": "Strengths: {{strengths}}, Weaknesses: {{weaknesses}}"
+  },
+  "scoreLabels": {
+    "critical": "Critical",
+    "needsWork": "Needs Work",
+    "moderate": "Moderate",
+    "good": "Good",
+    "excellent": "Excellent"
+  }
+}

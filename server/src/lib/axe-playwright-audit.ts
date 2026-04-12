@@ -1,6 +1,12 @@
 import AxeBuilder from '@axe-core/playwright';
 import { chromium } from 'playwright';
 
+import {
+  COLLECTOR_AXE_PLAYWRIGHT_URLS_MAX,
+  COLLECTOR_AXE_VIOLATION_ID_SAMPLE_MAX,
+} from '../config/collector-sampling-limits.js';
+import { PLAYWRIGHT_AUDITBOT_USER_AGENT } from '../config/bot-identity.js';
+import { SNAPSHOT_AXE_NAV_TIMEOUT_MAX_MS, SNAPSHOT_AXE_NAV_TIMEOUT_MIN_MS } from '../config/snapshot-timing.js';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from './public-http-url.js';
 
 export type AxePageResult = {
@@ -21,7 +27,7 @@ export async function runAxeOnPublicUrls(
   urls: string[],
   navigateTimeoutMs: number,
 ): Promise<AxePageResult[]> {
-  const unique = [...new Set(urls)].slice(0, 5);
+  const unique = [...new Set(urls)].slice(0, COLLECTOR_AXE_PLAYWRIGHT_URLS_MAX);
   const out: AxePageResult[] = [];
 
   let browser;
@@ -31,7 +37,7 @@ export async function runAxeOnPublicUrls(
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
     const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (compatible; GLC-AuditBot/1.0; +https://glctech.es) Chrome/120 Safari/537.36',
+      userAgent: PLAYWRIGHT_AUDITBOT_USER_AGENT,
       locale: 'en-US',
     });
 
@@ -66,13 +72,16 @@ export async function runAxeOnPublicUrls(
       try {
         await page.goto(validated, {
           waitUntil: 'domcontentloaded',
-          timeout: Math.min(Math.max(navigateTimeoutMs, 4000), 30_000),
+          timeout: Math.min(
+            Math.max(navigateTimeoutMs, SNAPSHOT_AXE_NAV_TIMEOUT_MIN_MS),
+            SNAPSHOT_AXE_NAV_TIMEOUT_MAX_MS,
+          ),
         });
         const result = await new AxeBuilder({ page }).withTags([...DEFAULT_TAGS]).analyze();
         const critSerious = result.violations.filter(
           v => v.impact === 'critical' || v.impact === 'serious',
         ).length;
-        const sample = result.violations.slice(0, 8).map(v => v.id);
+        const sample = result.violations.slice(0, COLLECTOR_AXE_VIOLATION_ID_SAMPLE_MAX).map(v => v.id);
         out.push({
           url: validated,
           violations: result.violations.length,

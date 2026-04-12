@@ -1,19 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildPublicDiscoveryUiFragment } from '@glc/intake-core';
 import { INTAKE_POLICY_V1 } from '@glc/intake-core';
-
-const EXPECTED_WIZARD_IDS = [
-  'a2',
-  'a1',
-  'a4',
-  'a7',
-  'd1',
-  'd1b',
-  'c_nosite_1',
-  'c_nosite_4',
-  'd2',
-  'f1',
-] as const;
+import { PUBLIC_DISCOVERY_WIZARD_BANK_IDS } from '@glc/intake-core';
 
 describe('buildPublicDiscoveryUiFragment', () => {
   it('returns stable wizard id order and full policy coverage for the wizard', () => {
@@ -31,7 +19,7 @@ describe('buildPublicDiscoveryUiFragment', () => {
     expect(policyVersion.length).toBeGreaterThan(0);
     expect(typeof questionBankVersion).toBe('string');
 
-    const expectedFiltered = EXPECTED_WIZARD_IDS.filter(id => included.has(id));
+    const expectedFiltered = PUBLIC_DISCOVERY_WIZARD_BANK_IDS.filter(id => included.has(id));
     expect(questions.map(q => q.id)).toEqual([...expectedFiltered]);
 
     const a2 = questions.find(q => q.id === 'a2');

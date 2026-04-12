@@ -9,6 +9,17 @@ const stub = (id: string, priority: IntakeQuestionStub['priority']): IntakeQuest
 });
 
 describe('computeNextRecommended', () => {
+  it('uses CONFIG default cap when max is omitted', () => {
+    const stubs = [stub('a', 'required'), stub('b', 'required'), stub('c', 'required')];
+    const out = computeNextRecommended({
+      visibleOrdered: ['a', 'b', 'c'],
+      stubs,
+      responses: {},
+      missingForReport: [],
+    });
+    expect(out).toEqual(['a', 'b', 'c']);
+  });
+
   it('lists required before recommended in visible order', () => {
     const stubs = [stub('r1', 'required'), stub('x1', 'recommended'), stub('r2', 'required')];
     const out = computeNextRecommended({

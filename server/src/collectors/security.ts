@@ -1,6 +1,10 @@
 import { BaseCollector } from './base.js';
+import { CRAWLER_USER_AGENT } from '../config/bot-identity.js';
+import { COLLECTOR_FETCH_TIMEOUT_MS, COLLECTOR_HEADER_PREVIEW_MAX } from '../config/collector-http.js';
 import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } from '../lib/public-http-url.js';
-import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
+import { auditSkipsPublicWebsiteFetches } from '@glc/intake-core';
+import { SECURITY_COLLECTOR_COPY } from '../config/collector-copy-security.en.js';
+import type { CollectorCollectContext } from './base.js';
 
 interface SecurityHeaders {
   name: string;
@@ -13,13 +17,13 @@ export class SecurityCollector extends BaseCollector {
   get key() { return 'security_headers'; }
   get phase() { return 2; }
 
-  async collect(_auditId: string, companyUrl: string) {
-    if (isNoPublicWebsiteUrl(companyUrl)) {
+  async collect(_auditId: string, companyUrl: string, ctx?: CollectorCollectContext) {
+    if (auditSkipsPublicWebsiteFetches(ctx?.noPublicWebsite, companyUrl)) {
       return {
         ssl: { valid: false, redirects_to_https: false, status: 0 },
         headers: [],
         cookies: [],
-        mixed_content_hints: ['No public website — security headers not assessed against a live URL'],
+        mixed_content_hints: [SECURITY_COLLECTOR_COPY.mixedContentNoPublicWebsite],
         exposed_info: [],
       };
     }
@@ -32,7 +36,7 @@ export class SecurityCollector extends BaseCollector {
           ssl: { valid: false, redirects_to_https: false, status: 0 },
           headers: [],
           cookies: [],
-          mixed_content_hints: ['Target URL is not allowed for outbound requests'],
+          mixed_content_hints: [SECURITY_COLLECTOR_COPY.mixedContentUrlNotAllowed],
           exposed_info: [],
         };
       }
@@ -55,7 +59,7 @@ export class SecurityCollector extends BaseCollector {
       const httpsUrl = url.replace(/^http:/, 'https:');
       const response = await fetchPublicHttpUrl(httpsUrl, {
         method: 'HEAD',
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(COLLECTOR_FETCH_TIMEOUT_MS),
       }, 0);
 
       return {
@@ -71,66 +75,69 @@ export class SecurityCollector extends BaseCollector {
   private async checkHeaders(url: string): Promise<SecurityHeaders[]> {
     try {
       const response = await fetchPublicHttpUrl(url, {
-        headers: { 'User-Agent': 'GLC-AuditBot/1.0' },
-        signal: AbortSignal.timeout(10_000),
+        headers: { 'User-Agent': CRAWLER_USER_AGENT },
+        signal: AbortSignal.timeout(COLLECTOR_FETCH_TIMEOUT_MS),
       });
 
       const headers = response.headers;
+      const rec = SECURITY_COLLECTOR_COPY.headerRecommendations;
 
       return [
         {
           name: 'Strict-Transport-Security (HSTS)',
           present: !!headers.get('strict-transport-security'),
           value: headers.get('strict-transport-security'),
-          recommendation: 'Add HSTS header with max-age >= 31536000 and includeSubDomains',
+          recommendation: rec.hsts,
         },
         {
           name: 'Content-Security-Policy (CSP)',
           present: !!headers.get('content-security-policy'),
-          value: headers.get('content-security-policy')?.substring(0, 200) ?? null,
-          recommendation: 'Implement CSP to prevent XSS and data injection attacks',
+          value:
+            headers.get('content-security-policy')?.substring(0, COLLECTOR_HEADER_PREVIEW_MAX) ?? null,
+          recommendation: rec.csp,
         },
         {
           name: 'X-Content-Type-Options',
           present: headers.get('x-content-type-options') === 'nosniff',
           value: headers.get('x-content-type-options'),
-          recommendation: 'Set X-Content-Type-Options: nosniff',
+          recommendation: rec.xContentTypeOptions,
         },
         {
           name: 'X-Frame-Options',
           present: !!headers.get('x-frame-options'),
           value: headers.get('x-frame-options'),
-          recommendation: 'Set X-Frame-Options: DENY or SAMEORIGIN',
+          recommendation: rec.xFrameOptions,
         },
         {
           name: 'X-XSS-Protection',
           present: !!headers.get('x-xss-protection'),
           value: headers.get('x-xss-protection'),
-          recommendation: 'Set X-XSS-Protection: 1; mode=block',
+          recommendation: rec.xXssProtection,
         },
         {
           name: 'Referrer-Policy',
           present: !!headers.get('referrer-policy'),
           value: headers.get('referrer-policy'),
-          recommendation: 'Set Referrer-Policy: strict-origin-when-cross-origin',
+          recommendation: rec.referrerPolicy,
         },
         {
           name: 'Permissions-Policy',
           present: !!headers.get('permissions-policy'),
-          value: headers.get('permissions-policy')?.substring(0, 200) ?? null,
-          recommendation: 'Define Permissions-Policy to control browser features',
+          value:
+            headers.get('permissions-policy')?.substring(0, COLLECTOR_HEADER_PREVIEW_MAX) ?? null,
+          recommendation: rec.permissionsPolicy,
         },
         {
           name: 'X-Powered-By (should be absent)',
           present: !headers.get('x-powered-by'), // Inverted: present=good means header is absent
           value: headers.get('x-powered-by'),
-          recommendation: 'Remove X-Powered-By header to avoid exposing server technology',
+          recommendation: rec.xPoweredBy,
         },
         {
           name: 'Server (should be minimal)',
           present: !headers.get('server') || headers.get('server') === 'cloudflare',
           value: headers.get('server'),
-          recommendation: 'Minimize Server header information',
+          recommendation: rec.server,
         },
       ];
     } catch {
@@ -140,7 +147,9 @@ export class SecurityCollector extends BaseCollector {
 
   private async checkCookies(url: string) {
     try {
-      const response = await fetchPublicHttpUrl(url, { signal: AbortSignal.timeout(10_000) });
+      const response = await fetchPublicHttpUrl(url, {
+        signal: AbortSignal.timeout(COLLECTOR_FETCH_TIMEOUT_MS),
+      });
       const setCookieHeaders = response.headers.getSetCookie?.() ?? [];
 
       const cookies = setCookieHeaders.map(cookie => {

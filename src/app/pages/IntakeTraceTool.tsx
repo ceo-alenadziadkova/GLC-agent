@@ -20,6 +20,7 @@ import {
   trackIntakeTraceTabOpened,
   trackIntakeWordingDraftSaved,
 } from '../lib/intake-trace-tool-telemetry';
+import { INTAKE_TRACE_TOOL_COPY as T } from '../config/intake-trace-tool-copy.en';
 
 const PRODUCT_OPTIONS: { value: ProductMode; label: string }[] = [
   { value: 'full', label: 'full' },
@@ -82,10 +83,10 @@ export function IntakeTraceTool() {
     try {
       responses = JSON.parse(responsesText) as Record<string, unknown>;
       if (responses === null || typeof responses !== 'object' || Array.isArray(responses)) {
-        return { ok: false, message: 'Responses must be a JSON object.' };
+        return { ok: false, message: T.responsesNotObject };
       }
     } catch {
-      return { ok: false, message: 'Invalid JSON in responses.' };
+      return { ok: false, message: T.invalidJson };
     }
     try {
       const plan = buildIntakePlan({
@@ -106,7 +107,7 @@ export function IntakeTraceTool() {
     }
   }, [responsesText, productMode, collectionMode, surface]);
 
-  const displayError = trace.ok ? null : trace.message;
+  const displayError = trace.ok === false ? trace.message : null;
   const displayText = trace.ok ? trace.text : '';
 
   const resolveLabel = (id: string): string => {
@@ -172,23 +173,16 @@ export function IntakeTraceTool() {
     return ['trace', 'json'];
   }, [iaV2, workspaceMode]);
 
-  const panelLabel: Record<Panel, string> = {
-    tree: iaV2 ? 'Why this question appears' : 'Question trace',
-    journey: 'User journey',
-    branch: iaV2 ? 'Dependencies graph' : 'Branch map',
-    trace: iaV2 ? 'Resolver log' : 'Trace text',
-    json: 'Plan JSON',
-    wording: 'Wording drafts',
-  };
+  const panelLabel = useMemo((): Record<Panel, string> => ({
+    tree: iaV2 ? T.panelLabel.treeIaV2 : T.panelLabel.treeLegacy,
+    journey: T.panelLabel.journey,
+    branch: iaV2 ? T.panelLabel.branchIaV2 : T.panelLabel.branchLegacy,
+    trace: iaV2 ? T.panelLabel.traceIaV2 : T.panelLabel.traceLegacy,
+    json: T.panelLabel.json,
+    wording: T.panelLabel.wording,
+  }), [iaV2]);
 
-  const panelHint: Record<Panel, string> = {
-    tree: 'Inspect reasons and states per question id.',
-    journey: 'Review what users see step by step.',
-    branch: 'Inspect upstream/downstream branch dependencies.',
-    trace: 'Read the raw resolver trace text output.',
-    json: 'Inspect the full resolver tuple and plan internals.',
-    wording: 'Edit local wording drafts (open Wording workspace for focused editing).',
-  };
+  const panelHint = T.panelHint;
 
   useEffect(() => {
     if (!availablePanels.includes(panel)) {
@@ -234,41 +228,54 @@ export function IntakeTraceTool() {
 
   return (
     <AppShell
-      title="Intake plan trace"
-      subtitle="Runs buildIntakePlan locally — same resolver as the server CLI (debug only)"
+      title={T.title}
+      subtitle={T.subtitle}
       actions={<TreeStructure className="w-6 h-6 text-[var(--glc-muted)]" aria-hidden />}
     >
       <div className="glc-page-content max-w-5xl mx-auto space-y-4">
         {!iaV2 && (
           <p className="text-xs text-amber-200/90 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-            Legacy Intake trace layout: set <span className="font-mono">VITE_INTAKE_TRACE_IA_V2=1</span> (or unset) for the workspace UI.
+            {T.legacyBannerPrefix}{' '}
+            <span className="font-mono">{T.legacyBannerMonoFlag}</span> in{' '}
+            <span className="font-mono">{T.legacyBannerMonoPath}</span>.
           </p>
         )}
         <p className="text-sm text-[var(--glc-muted)]">
-          Consultant-only tool.
+          {T.introConsultantOnly}
           {iaV2 ? (
             <>
               {' '}
-              Start in <strong>Diagnose</strong> for question-level reasoning, open <strong>Advanced</strong> for raw
-              resolver outputs. Draft copy lives in{' '}
+              {T.introIaV2Part1}
+              <strong>{T.introIaV2Diagnose}</strong>
+              {T.introIaV2Part2}
+              <strong>{T.introIaV2Advanced}</strong>
+              {T.introIaV2Part3}
               <Link to="/admin/intake-wording" className="text-[var(--glc-accent)] underline-offset-2 hover:underline">
-                Intake wording
+                {T.introIaV2WordingLink}
               </Link>
-              .
+              {T.introIaV2Part4}
             </>
           ) : (
             <>
               {' '}
-              Use <strong>Question trace</strong> for <code className="text-xs">reasonsById</code>;{' '}
-              <strong>Plan JSON</strong> for <code className="text-xs">missingForReport</code> /{' '}
-              <code className="text-xs">nextRecommended</code>.
+              {T.introLegacyUse}
+              <strong>{T.introLegacyQuestionTrace}</strong>
+              {T.introLegacyForReasons}
+              <code className="text-xs">reasonsById</code>
+              {T.introLegacySemicolon}
+              <strong>{T.introLegacyPlanJson}</strong>
+              {T.introLegacyForMissing}
+              <code className="text-xs">missingForReport</code>
+              {T.introLegacySlash}
+              <code className="text-xs">nextRecommended</code>
+              {T.introLegacyEnd}
             </>
           )}
         </p>
 
         {iaV2 && (
           <details className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
-            <summary className="cursor-pointer text-sm font-medium">Start here</summary>
+            <summary className="cursor-pointer text-sm font-medium">{T.startHereSummary}</summary>
             <div className="mt-2 space-y-2 text-xs text-[var(--glc-muted)]">
               <p>
                 1) Pick a preset. 2) Open &quot;Why this question appears&quot;. 3) Use Dependencies graph only if the
@@ -293,7 +300,7 @@ export function IntakeTraceTool() {
 
         {iaV2 && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-[var(--glc-muted)]">Workspace</span>
+            <span className="text-xs text-[var(--glc-muted)]">{T.workspaceLabel}</span>
             <button
               type="button"
               className={`glc-btn-secondary text-xs px-2 py-1 ${workspaceMode === 'diagnose' ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
@@ -302,7 +309,7 @@ export function IntakeTraceTool() {
                 setPanel('tree');
               }}
             >
-              Diagnose
+              {T.diagnose}
             </button>
             <button
               type="button"
@@ -312,32 +319,32 @@ export function IntakeTraceTool() {
                 setPanel('trace');
               }}
             >
-              Advanced
+              {T.advanced}
             </button>
           </div>
         )}
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-[var(--glc-muted)]">View mode</span>
+          <span className="text-xs text-[var(--glc-muted)]">{T.viewModeLabel}</span>
           <button
             type="button"
             className={`glc-btn-secondary text-xs px-2 py-1 ${viewMode === 'simple' ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
             onClick={() => setViewMode('simple')}
           >
-            Simple
+            {T.simple}
           </button>
           <button
             type="button"
             className={`glc-btn-secondary text-xs px-2 py-1 ${viewMode === 'expert' ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
             onClick={() => setViewMode('expert')}
           >
-            Expert
+            {T.expert}
           </button>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Product mode</span>
+            <span className="font-medium">{T.productMode}</span>
             <select
               className="glc-input"
               value={productMode}
@@ -349,7 +356,7 @@ export function IntakeTraceTool() {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Collection mode</span>
+            <span className="font-medium">{T.collectionMode}</span>
             <select
               className="glc-input"
               value={collectionMode}
@@ -361,7 +368,7 @@ export function IntakeTraceTool() {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Surface</span>
+            <span className="font-medium">{T.surface}</span>
             <select
               className="glc-input"
               value={surface}
@@ -375,7 +382,7 @@ export function IntakeTraceTool() {
         </div>
 
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Responses (JSON object)</span>
+          <span className="font-medium">{T.responsesJsonLabel}</span>
           <textarea
             className="glc-input font-mono text-xs min-h-[140px]"
             value={responsesText}
@@ -393,25 +400,25 @@ export function IntakeTraceTool() {
         {trace.ok && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3 text-xs">
             <div>
-              <div className="text-[var(--glc-muted)]">Eligible / visible</div>
+              <div className="text-[var(--glc-muted)]">{T.eligibleVisible}</div>
               <div className="font-mono tabular-nums">
                 {trace.plan.eligible.length} / {trace.plan.visible.length}
               </div>
             </div>
             <div>
-              <div className="text-[var(--glc-muted)]">Required (count)</div>
+              <div className="text-[var(--glc-muted)]">{T.requiredCount}</div>
               <div className="font-mono tabular-nums">{trace.plan.required.length}</div>
             </div>
             <div>
-              <div className="text-[var(--glc-muted)]">missingForReport</div>
+              <div className="text-[var(--glc-muted)]">{T.missingForReport}</div>
               <div className="font-mono break-all">
-                {trace.plan.missingForReport.length > 0 ? trace.plan.missingForReport.join(', ') : '—'}
+                {trace.plan.missingForReport.length > 0 ? trace.plan.missingForReport.join(', ') : T.emDash}
               </div>
             </div>
             <div>
-              <div className="text-[var(--glc-muted)]">nextRecommended</div>
+              <div className="text-[var(--glc-muted)]">{T.nextRecommended}</div>
               <div className="font-mono break-all">
-                {trace.plan.nextRecommended.length > 0 ? trace.plan.nextRecommended.join(', ') : '—'}
+                {trace.plan.nextRecommended.length > 0 ? trace.plan.nextRecommended.join(', ') : T.emDash}
               </div>
             </div>
           </div>
@@ -460,23 +467,23 @@ export function IntakeTraceTool() {
           <div className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3 min-h-[200px] space-y-3">
             {iaV2 ? (
               <p className="text-sm text-[var(--glc-muted)]">
-                Draft editing moved to{' '}
+                {T.wordingMovedIaV2}{' '}
                 <Link to="/admin/intake-wording" className="text-[var(--glc-accent)] underline-offset-2 hover:underline">
-                  Intake wording workspace
+                  {T.wordingWorkspaceLink}
                 </Link>
-                . Labels below still reflect your saved drafts for trace views.
+                {T.wordingMovedIaV2Suffix}
               </p>
             ) : (
               <>
                 <p className="text-xs text-[var(--glc-muted)]">
-                  Draft wording: local + server sync. Open{' '}
+                  {T.wordingLegacyIntro}{' '}
                   <Link to="/admin/intake-wording" className="text-[var(--glc-accent)] underline-offset-2 hover:underline">
-                    Intake wording
-                  </Link>{' '}
-                  for a focused editor.
+                    {T.wordingLegacyLink}
+                  </Link>
+                  {T.wordingLegacyIntroSuffix}
                 </p>
                 <label className="flex flex-col gap-1 text-sm">
-                  <span className="font-medium">Question id</span>
+                  <span className="font-medium">{T.questionId}</span>
                   <select
                     className="glc-input font-mono text-xs"
                     value={selectedDraftId}
@@ -492,19 +499,19 @@ export function IntakeTraceTool() {
                 {selectedDraftId && (
                   <>
                     <div className="text-xs text-[var(--glc-muted)]">
-                      Current canon label:{' '}
+                      {T.currentCanonLabel}{' '}
                       {bankIdToBriefQuestion(
                         selectedDraftId,
                         priorityById.get(selectedDraftId) ?? 'recommended',
                       ).question}
                     </div>
                     <label className="flex flex-col gap-1 text-sm">
-                      <span className="font-medium">Draft wording</span>
+                      <span className="font-medium">{T.draftWording}</span>
                       <textarea
                         className="glc-input min-h-[100px] text-sm"
                         value={draftText}
                         onChange={e => setDraftText(e.target.value)}
-                        placeholder="Write a clearer wording for this question..."
+                        placeholder={T.draftPlaceholder}
                       />
                     </label>
                     <div className="flex flex-wrap gap-2 items-center">
@@ -523,14 +530,14 @@ export function IntakeTraceTool() {
                           trackIntakeWordingDraftSaved({ route: ROUTE, question_id: selectedDraftId });
                         }}
                       >
-                        Save draft (local)
+                        {T.saveDraftLocal}
                       </button>
                       <button
                         type="button"
                         className="glc-btn-secondary text-xs px-2 py-1"
                         onClick={() => setDraftText(wordingDrafts[selectedDraftId] ?? '')}
                       >
-                        Revert editor
+                        {T.revertEditor}
                       </button>
                       <button
                         type="button"
@@ -549,7 +556,7 @@ export function IntakeTraceTool() {
                             .catch(() => setWordingSyncStatus('error'));
                         }}
                       >
-                        Sync to server
+                        {T.syncToServer}
                       </button>
                       <button
                         type="button"
@@ -559,13 +566,13 @@ export function IntakeTraceTool() {
                           navigator.clipboard.writeText(payload).catch(() => undefined);
                         }}
                       >
-                        Copy JSON
+                        {T.copyJson}
                       </button>
                       {wordingSyncStatus !== 'idle' && (
                         <span
                           className={`text-xs ${wordingSyncStatus === 'ok' ? 'text-emerald-300' : 'text-red-300'}`}
                         >
-                          {wordingSyncStatus === 'ok' ? 'Server sync OK' : 'Server sync failed'}
+                          {wordingSyncStatus === 'ok' ? T.serverSyncOk : T.serverSyncFailed}
                         </span>
                       )}
                     </div>
@@ -577,7 +584,7 @@ export function IntakeTraceTool() {
         ) : (
           <pre className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3 text-xs font-mono whitespace-pre-wrap overflow-x-auto min-h-[200px]">
             {trace.ok ? (panel === 'json' ? JSON.stringify(trace.plan, null, 2) : displayText) : ''}
-            {!trace.ok && !displayError ? 'Adjust inputs to refresh trace.' : null}
+            {!trace.ok && !displayError ? T.emptyTraceHint : null}
           </pre>
         )}
       </div>

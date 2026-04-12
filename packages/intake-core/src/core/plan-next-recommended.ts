@@ -7,13 +7,12 @@
  * 3. Unanswered `optional` that are primary-feed for a domain still in `missingForReport`
  *    — closes report/agent input gaps without treating optional as globally mandatory.
  */
+import { resolveIntakeNextRecommendedMax } from '../config/intake-flags.js';
 import type { IntakeQuestionStub, IntakeResponsesMap } from '../types.js';
 import { isPrimaryFeedForDomain } from '../question-feed-roles.js';
 import { isIntakeAnswered } from '../unwrap.js';
 
 import type { IntakePlanCoverageDomain } from './types.js';
-
-const DEFAULT_MAX = 8;
 
 export function computeNextRecommended(args: {
   visibleOrdered: string[];
@@ -23,7 +22,7 @@ export function computeNextRecommended(args: {
   missingForReport?: readonly IntakePlanCoverageDomain[];
   max?: number;
 }): string[] {
-  const max = args.max ?? DEFAULT_MAX;
+  const max = args.max ?? resolveIntakeNextRecommendedMax();
   const missing = new Set(args.missingForReport ?? []);
   const priorityById = new Map(args.stubs.map(s => [s.id, s.priority]));
   const out: string[] = [];

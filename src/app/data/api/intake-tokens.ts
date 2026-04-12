@@ -1,9 +1,10 @@
+import { API_PATHS, apiIntakePrefill, apiIntakeRespond, apiIntakeToken } from '../../config/api-paths';
 import { apiFetch, publicApiFetch } from '../api-http';
 import type { BriefQuestion, BriefResponses } from '../briefQuestions';
 
 export const intakeTokensApi = {
   async createIntakeToken(data: { audit_id?: string; metadata?: Record<string, string> }) {
-    return apiFetch<{ token: string; url: string; expires_at: string }>('/api/intake', {
+    return apiFetch<{ token: string; url: string; expires_at: string }>(API_PATHS.intake, {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -11,7 +12,7 @@ export const intakeTokensApi = {
 
   /** Tie a pre-brief token to an audit and merge any submitted client answers into intake_brief. */
   async linkIntakeTokenToAudit(token: string, auditId: string) {
-    return apiFetch<{ ok: true }>('/api/intake/link-audit', {
+    return apiFetch<{ ok: true }>(API_PATHS.intakeLinkAudit, {
       method: 'POST',
       body: JSON.stringify({ token, audit_id: auditId }),
     });
@@ -29,7 +30,7 @@ export const intakeTokensApi = {
         audit_id: string | null;
         intake_url: string;
       }>;
-    }>('/api/intake/submissions');
+    }>(API_PATHS.intakeSubmissions);
   },
 
   /** Consultant: load token answers for New Audit prefill even when the public link has expired. */
@@ -41,7 +42,7 @@ export const intakeTokensApi = {
       submitted_at: string | null;
       expires_at: string;
       link_expired?: boolean;
-    }>(`/api/intake/prefill/${encodeURIComponent(token)}`);
+    }>(apiIntakePrefill(token));
   },
 
   async getIntakeToken(token: string) {
@@ -51,11 +52,11 @@ export const intakeTokensApi = {
       responses: Record<string, unknown>;
       submitted_at: string | null;
       expires_at: string;
-    }>(`/api/intake/${encodeURIComponent(token)}`);
+    }>(apiIntakeToken(token));
   },
 
   async submitIntakeResponses(token: string, responses: BriefResponses) {
-    return publicApiFetch<{ ok: true; submitted_at: string }>(`/api/intake/${encodeURIComponent(token)}/respond`, {
+    return publicApiFetch<{ ok: true; submitted_at: string }>(apiIntakeRespond(token), {
       method: 'POST',
       body: JSON.stringify({ responses }),
     });

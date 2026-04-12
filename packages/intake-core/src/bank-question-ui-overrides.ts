@@ -1,11 +1,12 @@
 /**
- * Hand-maintained UI option sets and hints for question-bank v1 wizard (single source for
- * server + Vite SPA). **Generation:** extend `server/src/tests/bank-ui-overrides-schema.test.ts`
- * when adding keys (must exist in `question-bank.v1.json`).
+ * Wizard UI copy/options — loaded from `bank-question-ui-overrides.v1.json` (canon).
+ * Industry list for `a2` uses `optionsRef: "industry"` → `question-bank.v1.json` `optionCatalogs`.
  */
 import type { BriefQuestion } from './audit-contract.js';
-import { INDUSTRY_OPTIONS } from './industry-options.js';
+import { BRIEF_ANSWER_STRING_MAX } from './brief-answer-limits.js';
+import { QUESTION_BANK_OPTION_CATALOGS } from './question-bank.js';
 import type { IntakeAnswerContract } from './types.js';
+import raw from './bank-question-ui-overrides.v1.json' with { type: 'json' };
 
 export type BankQuestionUiOverride = {
   type?: BriefQuestion['type'];
@@ -13,351 +14,65 @@ export type BankQuestionUiOverride = {
   hint?: string;
 };
 
-const OVERRIDES: Record<string, BankQuestionUiOverride> = {
-  a2: { type: 'single_choice', options: [...INDUSTRY_OPTIONS] },
-  a4: { type: 'single_choice', options: ['Just me', '2–10 people', '11–50', '51–200', '200+'] },
-  a5: {
-    type: 'single_choice',
-    options: ['Yes, multi-page site', 'Yes, single landing page', 'Under construction', 'No website yet'],
-  },
-  a6: { type: 'single_choice', options: ['Yes', 'Sometimes', 'Rarely', 'No, offline only', 'Not sure'] },
-  a7: {
-    type: 'single_choice',
-    options: ['Launching', 'Growing fast', 'Stabilising', 'Scaling', 'Mature and optimising'],
-  },
-  a8: { type: 'single_choice', options: ['< 50', '50–200', '200–1,000', '1,000+', 'Not sure'] },
-  a9: {
-    type: 'multi_choice',
-    options: ['Spanish', 'English', 'German', 'French', 'Russian', 'Other'],
-    hint: 'Automation and digital recommendations depend on which languages your customers actually use — a WhatsApp template in the wrong language does not convert.',
-  },
-  b1: {
-    type: 'free_text',
-    hint: 'Think about your three best clients from last year — what do they have in common? Industry, situation, how they found you, what they valued most.',
-  },
-  b2: {
-    type: 'multi_choice',
-    options: ['Google / search', 'Paid ads', 'Social', 'Referrals', 'Cold outreach', 'Events', 'Partners', 'Other'],
-    hint: 'Think about how customers find out you exist in the first place — word of mouth, platforms, ads, events.',
-  },
-  b3: {
-    type: 'single_choice',
-    options: [
-      'Best price / value for money',
-      'Speed and convenience',
-      'Unique location or experience',
-      'Personal service and trust',
-      'Specialised expertise',
-      'Other',
-    ],
-    hint: 'Pick the closest pattern first, then clarify in one sentence. Example: "Historic building with rooftop restaurant" or "Best-price guarantee with same-day confirmation."',
-  },
-  b4: {
-    type: 'single_choice',
-    options: ['Lower than average', 'About the same', 'Higher, premium positioning', 'Hard to compare'],
-    hint: 'A rough market position is enough. This helps us avoid recommendations that do not fit your pricing strategy.',
-  },
-  b5: {
-    type: 'single_choice',
-    options: ['Yes, very seasonal', 'Yes, slightly seasonal', 'No, steady all year', 'Not sure'],
-    hint: 'Seasonality changes channel mix, automation timing, and roadmap priorities. If unsure, pick the closest option.',
-  },
-  b6: {
-    type: 'multi_choice',
-    options: [
-      'Money-back',
-      'Best price guarantee',
-      'Free cancellation',
-      'Satisfaction guarantee',
-      'No explicit guarantees',
-      'Other',
-    ],
-    hint: 'Guarantees are trust signals. They often improve conversion without changing traffic volume.',
-  },
-  b7: {
-    type: 'single_choice',
-    options: ['Mostly repeat customers', 'Mix of repeat and one-off', 'Mostly one-off transactions', 'Not sure'],
-    hint: 'This helps us decide whether to prioritize retention systems or new acquisition channels.',
-  },
-  b_growth_attempts: {
-    type: 'multi_choice',
-    options: [
-      'Paid ads (Google, Meta)',
-      'Marketing agency or freelancer',
-      'More social media content',
-      'New platforms or directories',
-      'Improved the service itself',
-      'Nothing specific yet',
-      'Other',
-    ],
-    hint: 'This helps us avoid recommending approaches that have already been tried — so we focus on what is most likely to move the needle for your situation.',
-  },
-  c3: {
-    type: 'single_choice',
-    options: ['Yes, GA4', 'Yes, another tool', 'No', "Don't know"],
-    hint: "If you are not sure, that is fine. We will verify analytics coverage during the audit.",
-  },
-  c4: { type: 'single_choice', options: ['Yes', 'No', "What's that?"] },
-  c6: {
-    type: 'free_text',
-    hint: 'Describe the one website issue that hurts business outcomes most. Example: "Visitors do not contact us", "Mobile feels slow", or "Content updates depend on a developer".',
-  },
-  c8: {
-    type: 'free_text',
-    hint: 'Share 2-3 competitors (name or URL). This is for private benchmarking only and is not shown in your report.',
-  },
-  c7: {
-    type: 'multi_choice',
-    options: ['None / minimal', 'LinkedIn', 'Instagram', 'Facebook', 'TikTok', 'YouTube', 'Other'],
-  },
-  c9: {
-    type: 'single_choice',
-    options: ['< 6 months', '6–24 months', '2–5 years', '5+ years', 'Not sure'],
-    hint: 'Site age is a proxy for technical debt and maintenance risk. A rough range is enough.',
-  },
-  c1: {
-    type: 'single_choice',
-    options: ['Yes, correct', 'Not quite (I will clarify)', "I don't know"],
-    hint: 'We pre-filled this from automatic recon. Confirming is enough — no need to remember exact tool names.',
-  },
-  c2: {
-    type: 'single_choice',
-    options: ['Me', 'Someone in-house', 'Freelancer', 'Agency', 'No one regularly', "Don't know"],
-    hint: 'This helps us match recommendations to your real delivery model. If ownership is unclear, choose "Don\'t know".',
-  },
-  c_nosite_1: {
-    type: 'multi_choice',
-    options: ['Google / search', 'Google Business listing', 'Social media', 'OTA or marketplace', 'Word of mouth', 'Not really online yet'],
-    hint: 'When someone already knows your name or is looking for your type of service — where do they land? Google Maps, a social profile, a booking platform?',
-  },
-  c_nosite_2: {
-    type: 'single_choice',
-    options: ['Yes, soon', 'Yes, but not sure how', 'Eventually', 'Not a priority right now'],
-  },
-  c_nosite_3: {
-    type: 'multi_choice',
-    options: ['Instagram', 'Facebook', 'TikTok', 'LinkedIn', 'YouTube', 'Google Business', 'TripAdvisor', 'None', 'Other'],
-  },
-  c_nosite_4: {
-    type: 'multi_choice',
-    options: ['WhatsApp', 'Phone call', 'In-person walk-in', 'Facebook or Instagram DM', 'Email', 'Booking platform (OTA)', 'Other'],
-    hint: 'The channel where the first message arrives is usually the fastest automation win — answering the same questions repeatedly costs more time than most owners realise.',
-  },
-  c_nosite_5: {
-    type: 'single_choice',
-    options: ['Yes, I actively manage it', 'Yes, but rarely updated', 'No', 'Not sure what this is'],
-    hint: 'Your Google Business card is your digital shopfront without a website. Actively managed listings get significantly more clicks and calls.',
-  },
-  c_nosite_reviews: {
-    type: 'single_choice',
-    options: [
-      'I actively ask customers to leave a review',
-      'Reviews come in — I respond',
-      'Reviews come in but I rarely respond',
-      "I don't really manage this",
-      'No reviews yet',
-    ],
-    hint: 'For a business without a website, reviews are your most visible social proof. Automated review requests after a completed service are one of the highest-ROI quick wins we can recommend.',
-  },
-  d1: {
-    type: 'multi_choice',
-    options: [
-      'Email',
-      'Spreadsheets',
-      'CRM',
-      'Project or task tool',
-      'Booking or PMS',
-      'Accounting',
-      'Support ticketing',
-      'Voice notes or WhatsApp audio',
-      'Other',
-    ],
-  },
-  d_response_time: {
-    type: 'single_choice',
-    options: [
-      "Within minutes — I'm always on",
-      'Within a few hours',
-      'Same day',
-      'Next day or later',
-      'It depends — sometimes fast, sometimes slow',
-    ],
-    hint: 'Response speed is one of the biggest conversion factors for local businesses — especially when customers are comparing options. If this varies, that is already an automation opportunity.',
-  },
-  d_closing_flow: {
-    type: 'multi_choice',
-    options: [
-      'I send a quote or price manually',
-      'We have a call or meeting first',
-      'They visit in person',
-      'I send them to a booking platform',
-      'They pay immediately on first contact',
-      'It varies a lot',
-      'Other',
-    ],
-    hint: "This is where most small businesses lose leads without realising it. Each manual step between 'I'm interested' and 'I'm in' is a place we look to save time and improve your conversion rate.",
-  },
-  d_billing_flow: {
-    type: 'single_choice',
-    options: [
-      'WhatsApp message or voice note',
-      'Email with a document attached',
-      'In person or printed',
-      'Accounting software (Holded, Factusol…)',
-      'Booking platform handles it',
-      "We don't send formal confirmations",
-      'Other',
-    ],
-    hint: 'If you are in Spain, how you invoice is also relevant to the incoming Verifactu e-invoicing requirement — we will flag this in the audit if it applies.',
-  },
-  d3: {
-    type: 'single_choice',
-    options: ['< 5h', '5–10h', '10–20h', '20h+', 'Not sure'],
-    hint: 'A rough estimate is enough. This helps size the impact of automation opportunities.',
-  },
-  d5: {
-    type: 'single_choice',
-    options: ['Yes, actively', 'Partially', 'No'],
-    hint: 'Automated follow-ups often recover demand that already exists. This helps us size quick wins.',
-  },
-  d_automation_attempt: {
-    type: 'single_choice',
-    options: ['Yes, it helped', 'Tried, then abandoned', 'Not yet', 'Not sure'],
-    hint: 'This is not a pass/fail question. It tells us what kind of recommendation will be realistic for your team now.',
-  },
-  d1a: {
-    type: 'single_choice',
-    options: ['HubSpot', 'Pipedrive', 'Salesforce', 'Zoho', 'Monday', 'Notion', 'Other'],
-  },
-  d1b: {
-    type: 'single_choice',
-    options: ['Spreadsheet', 'Email inbox', 'Notebook', 'WhatsApp chats', "I don't really track consistently", 'Other'],
-  },
-  d4a: {
-    type: 'single_choice',
-    options: ['Daily', 'Weekly', 'Occasionally', 'Not really'],
-    hint: 'This is not about being advanced. It helps estimate implementation friction and rollout speed.',
-  },
-  d4b: {
-    type: 'single_choice',
-    options: ['Yes, usually quick', 'Sometimes', "Rarely — it's painful", 'No', "Don't know"],
-    hint: "Example: exporting last month's bookings or a full client list. Minutes = strong readiness signal; manual chasing = automation opportunity.",
-  },
-  d6: {
-    type: 'multi_choice',
-    options: ['Customer data', 'Financials', 'Inventory', 'Bookings', 'Support tickets', 'Marketing leads', 'Other'],
-    hint: 'We use this to prioritize automation by impact. Example: bookings plus invoices often signal immediate ROI opportunities.',
-  },
-  e1: {
-    type: 'single_choice',
-    options: ['Yes', 'Sometimes', 'No', 'Not sure'],
-    hint: 'This helps scope payment-risk checks. Not sure is a valid answer.',
-  },
-  e2: {
-    type: 'single_choice',
-    options: ['Yes', 'No', 'Partially / not sure'],
-    hint: 'We use this only to size compliance depth in the audit. A best guess is enough.',
-  },
-  e3: {
-    type: 'single_choice',
-    options: [
-      'Very confident',
-      "Something is in place, but I'm not sure it's complete",
-      'Probably incomplete',
-      "Haven't looked into this yet",
-    ],
-    hint: "No exam here. If you are unsure, we mark this for deeper audit validation.",
-  },
-  e4: { type: 'single_choice', options: ['Yes, in place', 'In progress', 'No', 'Not sure'] },
-  f2: {
-    type: 'multi_choice',
-    options: [
-      'Website performance and technology (speed, stability, technical health)',
-      'Online visibility and SEO (finding and attracting the right traffic)',
-      'Customer experience and conversions (turning visitors into customers)',
-      'Marketing and positioning (clarity of message and differentiation)',
-      'Process automation and efficiency (less manual work and handoffs)',
-      'Security, compliance and risk (avoiding costly surprises)',
-    ],
-  },
-  f3: { type: 'single_choice', options: ['1 — Struggling', '2', '3 — Okay-ish', '4', '5 — Nailing it'] },
-  f4: {
-    type: 'single_choice',
-    options: [
-      'Ready to move quickly on clear quick wins',
-      'Ready to invest if ROI and impact are clear',
-      'Prefer to understand the situation for now',
-      'Need to align first with partner, owner, or team',
-      'Not sure yet',
-    ],
-    hint: 'This does not lock you in. It helps us balance quick wins vs deeper system changes in the roadmap.',
-  },
-  f5: {
-    type: 'single_choice',
-    options: [
-      'Under €500',
-      '€500–2,000',
-      '€2,000–10,000',
-      'Over €10,000',
-      'No clear budget yet — depends on the recommendations',
-      'Prefer not to share yet',
-    ],
-    hint: 'A rough range is enough. We use it to match recommendations to your current ambition and risk level.',
-  },
-  f7: {
-    type: 'single_choice',
-    options: ['Me', 'Ops or office manager', 'IT provider or agency', 'Owner or partner', 'Board or investor', 'Not sure'],
-    hint: 'Knowing the approver helps sequence recommendations that can actually be implemented.',
-  },
-  f8: {
-    type: 'single_choice',
-    options: [
-      'Opening or launch soon',
-      'Seasonal peak coming',
-      'Investor, partner, or board review',
-      'Contract or compliance milestone',
-      'No specific deadline',
-    ],
-    hint: 'Deadlines help us prioritize quick wins vs deeper changes in the first roadmap wave.',
-  },
+type RawOverrideRow = {
+  type?: BriefQuestion['type'];
+  options?: string[];
+  /** Resolves to `QUESTION_BANK_OPTION_CATALOGS[optionsRef]` at runtime. */
+  optionsRef?: string;
+  hint?: string;
 };
 
+const OVERRIDES_RAW = raw.overrides as Record<string, RawOverrideRow>;
+
+function resolveOverride(id: string): BankQuestionUiOverride | undefined {
+  const row = OVERRIDES_RAW[id];
+  if (!row) return undefined;
+  if (row.optionsRef) {
+    const cat = QUESTION_BANK_OPTION_CATALOGS[row.optionsRef];
+    if (!cat?.length) {
+      throw new Error(`bank UI overrides: missing catalog "${row.optionsRef}" for "${id}"`);
+    }
+    return { type: row.type, hint: row.hint, options: [...cat] };
+  }
+  return { type: row.type, options: row.options, hint: row.hint };
+}
+
 export function getBankQuestionUiOptions(id: string): readonly string[] | undefined {
-  return OVERRIDES[id]?.options;
+  return resolveOverride(id)?.options;
 }
 
 export function getBankQuestionUiOverride(id: string): BankQuestionUiOverride | undefined {
-  return OVERRIDES[id];
+  return resolveOverride(id);
 }
 
 export function listBankQuestionUiOverrideIds(): string[] {
-  return Object.keys(OVERRIDES).sort();
+  return Object.keys(OVERRIDES_RAW).sort();
 }
 
 /**
  * Build canon `answer` metadata for `question-bank.v1.json` (kept in sync with wizard UI overrides).
  */
 export function buildCanonAnswerContractForBankId(id: string): IntakeAnswerContract {
-  const ov = OVERRIDES[id];
-  if (!ov || ov.type === 'free_text' || ov.type === undefined) {
-    return { type: 'textarea', maxLength: 12_000 };
+  const row = OVERRIDES_RAW[id];
+  if (!row || row.type === 'free_text' || row.type === undefined) {
+    return { type: 'textarea', maxLength: BRIEF_ANSWER_STRING_MAX };
   }
-  if (ov.type === 'single_choice') {
-    if (id === 'a2') {
-      return { type: 'single_select', optionsRef: 'industry' };
+  if (row.type === 'single_choice') {
+    if (row.optionsRef) {
+      return { type: 'single_select', optionsRef: row.optionsRef };
     }
-    const opts = ov.options;
+    const opts = row.options;
     if (!opts?.length) {
       throw new Error(`bank UI override: single_choice missing options for "${id}"`);
     }
     return { type: 'single_select', options: [...opts] };
   }
-  if (ov.type === 'multi_choice') {
-    const opts = ov.options;
+  if (row.type === 'multi_choice') {
+    const opts = row.options;
     if (!opts?.length) {
       throw new Error(`bank UI override: multi_choice missing options for "${id}"`);
     }
     return { type: 'multi_select', options: [...opts] };
   }
-  return { type: 'textarea', maxLength: 12_000 };
+  return { type: 'textarea', maxLength: BRIEF_ANSWER_STRING_MAX };
 }

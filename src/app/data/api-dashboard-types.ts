@@ -11,6 +11,7 @@ export interface DashboardReviewGateItem {
   id: string;
   company_name: string | null;
   company_url: string;
+  no_public_website?: boolean;
   status: string;
   updated_at: string;
   priority: DashboardPriority;
@@ -21,6 +22,7 @@ export interface DashboardSlaRiskItem {
   id: string;
   company_name: string | null;
   company_url: string;
+  no_public_website?: boolean;
   created_at: string;
   days_open: number;
   priority: DashboardPriority;
@@ -31,6 +33,7 @@ export interface DashboardFailureItem {
   id: string;
   company_name: string | null;
   company_url: string;
+  no_public_website?: boolean;
   updated_at: string;
   priority: DashboardPriority;
   urgency_rank: number;
@@ -61,6 +64,7 @@ export interface DashboardActivityEvent {
   created_at: string;
   company_name: string | null;
   company_url: string;
+  no_public_website?: boolean;
 }
 
 export interface DashboardScoreDistribution {

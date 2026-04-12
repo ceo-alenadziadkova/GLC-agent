@@ -1,3 +1,4 @@
+import { SCORE_COLORS, SCORE_LABELS } from '@glc/intake-core';
 import type { FreeSnapshotPreview, SnapshotCompetitorComparison, SnapshotSiteProfile } from '../data/auditTypes';
 
 export type SnapshotCategoryScoreKey =
@@ -17,21 +18,7 @@ export const SNAPSHOT_CATEGORY_BREAKDOWN_HINTS: Record<SnapshotCategoryScoreKey,
     'Baseline technical signals in our grab: page title, viewport meta, HTTPS/canonical hints, whether the page looks indexable, Open Graph basics, informative alt text on images, and breadth of structured data. The score is the share of those checks that passed (0–100); it is not a penetration test or performance audit.',
 };
 
-export const SCORE_COLORS: Record<number, string> = {
-  1: '#EF4444',
-  2: '#F97316',
-  3: '#EAB308',
-  4: '#22C55E',
-  5: '#0ECF82',
-};
-
-export const SCORE_LABELS: Record<number, string> = {
-  1: 'Critical',
-  2: 'Needs Work',
-  3: 'Moderate',
-  4: 'Good',
-  5: 'Excellent',
-};
+export { SCORE_COLORS, SCORE_LABELS };
 
 export function competitorComparisonCaption(
   c: SnapshotCompetitorComparison,

@@ -1,3 +1,10 @@
+import {
+  apiAuditsBriefHelpRequest,
+  apiAuditsPipelineNext,
+  apiAuditsPipelineRetry,
+  apiAuditsPipelineStart,
+  apiAuditsPipelineStatus,
+} from '../../config/api-paths';
 import { apiFetch } from '../api-http';
 import {
   assertPipelineMutationShape,
@@ -8,7 +15,7 @@ import {
 export const auditsPipelineApi = {
   async startPipeline(id: string) {
     const payload = await apiFetch<{ status: string; phase: number; intakeProgress: { progressPct: number; readinessBadge: string; nextBestAction: string } }>(
-      `/api/audits/${id}/pipeline/start`,
+      apiAuditsPipelineStart(id),
       { method: 'POST' },
     );
     assertPipelineStartShape(payload);
@@ -17,20 +24,20 @@ export const auditsPipelineApi = {
 
   /** Client-only: notify consultants that help with the brief is welcome (optional message). */
   async requestBriefHelp(auditId: string, message?: string) {
-    return apiFetch<{ ok: boolean }>(`/api/audits/${auditId}/brief/help-request`, {
+    return apiFetch<{ ok: boolean }>(apiAuditsBriefHelpRequest(auditId), {
       method: 'POST',
       body: JSON.stringify({ message: message?.trim() ?? '' }),
     });
   },
 
   async runNextPhase(id: string) {
-    const payload = await apiFetch<{ status: string; phase: number }>(`/api/audits/${id}/pipeline/next`, { method: 'POST' });
+    const payload = await apiFetch<{ status: string; phase: number }>(apiAuditsPipelineNext(id), { method: 'POST' });
     assertPipelineMutationShape(payload, 'pipeline next');
     return payload;
   },
 
   async retryPhase(id: string, phase: number) {
-    const payload = await apiFetch<{ status: string; phase: number }>(`/api/audits/${id}/pipeline/retry`, {
+    const payload = await apiFetch<{ status: string; phase: number }>(apiAuditsPipelineRetry(id), {
       method: 'POST',
       body: JSON.stringify({ phase }),
     });
@@ -55,7 +62,7 @@ export const auditsPipelineApi = {
         created_at: string;
       }>;
       reviews: Array<{ after_phase: number; status: string; consultant_notes: string | null; interview_notes: string | null }>;
-    }>(`/api/audits/${id}/pipeline/status`);
+    }>(apiAuditsPipelineStatus(id));
     assertPipelineStatusShape(payload);
     return payload;
   },

@@ -2,6 +2,7 @@
  * Full snapshot results on the client portal — parity with the public /snapshot "done" view.
  */
 
+import { ensureHttpsUrl } from '@glc/intake-core';
 import { CheckCircle, Lightning, SealCheck, Shield, Target, Warning } from '@phosphor-icons/react';
 import type { FreeSnapshotPreview } from '../data/auditTypes';
 import { formatScanCoverageLine, getSnapshotAccessBlockedState } from '../lib/snapshot-diagnostics';
@@ -42,8 +43,7 @@ export function PortalSnapshotAccountMirror({ result }: { result: FreeSnapshotPr
     result.company_name?.trim() ||
     (() => {
       try {
-        return new URL(result.company_url.startsWith('http') ? result.company_url : `https://${result.company_url}`)
-          .hostname;
+        return new URL(ensureHttpsUrl(result.company_url)).hostname;
       } catch {
         return result.company_url;
       }
@@ -68,7 +68,7 @@ export function PortalSnapshotAccountMirror({ result }: { result: FreeSnapshotPr
           This is the same quick rule-based scan you saw before sign-up. Creating an account keeps it here so you do not
           lose results.{' '}
           <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>It is not a full GLC audit</strong> — a
-          full run uses your intake brief, deeper phases, and consultant review gates. When you continue below with
+          full run uses your intake brief, deeper phases, and review gates. When you continue below with
           Express or Full, you start that separate programme.
         </p>
       </div>

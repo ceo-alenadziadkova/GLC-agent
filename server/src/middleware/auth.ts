@@ -1,7 +1,24 @@
 import type { Request, Response, NextFunction } from 'express';
+import {
+  API_ERROR_CODES,
+  AUTH_AUTHENTICATION_FAILED_MESSAGE,
+  AUTH_GUEST_PORTAL_FORBIDDEN_MESSAGE,
+  AUTH_INVALID_TOKEN_MESSAGE,
+  AUTH_MISSING_AUTHORIZATION_MESSAGE,
+  AUTH_NOT_AUTHENTICATED_MESSAGE,
+  AUTH_PROFILE_CREATE_FAILED_MESSAGE,
+  AUTH_PROFILE_LOAD_FAILED_MESSAGE,
+  AUTH_PROFILE_LOOKUP_FAILED_MESSAGE,
+  AUTH_PROFILE_UPDATE_FAILED_MESSAGE,
+  AUTH_REGISTERED_LOG_REQUIRED_MESSAGE,
+  apiErrorJson,
+  authRoleRequiredMessage,
+} from '../config/api-error-codes.js';
 import { supabase } from '../services/supabase.js';
 import { updateContext } from '../services/observability-context.js';
 import { logger } from '../services/logger.js';
+import { emitStructuredNotification } from '../services/notifications.js';
+import { isConsultantEmailRegistered } from '../services/consultant-allowlist.js';
 
 export type UserRole = 'consultant' | 'client' | 'guest';
 
@@ -37,7 +54,9 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'Missing or invalid Authorization header' });
+    res
+      .status(401)
+      .json(apiErrorJson(API_ERROR_CODES.AUTH_MISSING_AUTHORIZATION, AUTH_MISSING_AUTHORIZATION_MESSAGE));
     return;
   }
 
@@ -47,7 +66,7 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     const { data, error } = await supabase.auth.getUser(token);
 
     if (error || !data.user) {
-      res.status(401).json({ error: 'Invalid or expired token' });
+      res.status(401).json(apiErrorJson(API_ERROR_CODES.AUTH_INVALID_TOKEN, AUTH_INVALID_TOKEN_MESSAGE));
       return;
     }
 
@@ -60,7 +79,9 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     logger.warn('requireAuth: token verification failed', {
       error: err instanceof Error ? err.message : String(err),
     });
-    res.status(401).json({ error: 'Authentication failed' });
+    res
+      .status(401)
+      .json(apiErrorJson(API_ERROR_CODES.AUTH_AUTHENTICATION_FAILED, AUTH_AUTHENTICATION_FAILED_MESSAGE));
   }
 }
 
@@ -90,8 +111,8 @@ export async function optionalAuth(req: AuthRequest, _res: Response, next: NextF
  * Reads the user's profile from the DB and attaches their role to the request.
  * Must be called AFTER requireAuth (req.userId must be set).
  * Handles first-login profile creation and one-way promotion to 'consultant'
- * when the email is in CONSULTANT_EMAILS. It does not auto-downgrade an
- * existing consultant role from environment changes.
+ * when the email is in `consultant_email_allowlist` (DB).
+ * It does not auto-downgrade an existing consultant when allowlist or env changes.
  *
  * Concurrency: parallel HTTP calls right after first login may both see "no row" and INSERT.
  * The loser gets unique_violation (23505); we refetch once and continue so role resolution
@@ -99,21 +120,16 @@ export async function optionalAuth(req: AuthRequest, _res: Response, next: NextF
  */
 export async function attachProfile(req: AuthRequest, res: Response, next: NextFunction) {
   if (!req.userId) {
-    res.status(401).json({ error: 'Not authenticated' });
+    res.status(401).json(apiErrorJson(API_ERROR_CODES.AUTH_NOT_AUTHENTICATED, AUTH_NOT_AUTHENTICATED_MESSAGE));
     return;
   }
 
   try {
     const isAnon = req.userIsAnonymous === true;
 
-    const consultantEmails = (process.env.CONSULTANT_EMAILS ?? '')
-      .split(',')
-      .map(e => e.trim().toLowerCase())
-      .filter(Boolean);
-
     const emailLower = (req.userEmail ?? '').trim().toLowerCase();
-    const intendedRole: UserRole =
-      emailLower && consultantEmails.includes(emailLower) ? 'consultant' : 'client';
+    const allowlisted = emailLower ? await isConsultantEmailRegistered(emailLower) : false;
+    const intendedRole: UserRole = emailLower && allowlisted ? 'consultant' : 'client';
 
     /** Role for a brand-new profile row: anonymous → guest; otherwise client/consultant from email. */
     const roleForInsert: UserRole = isAnon ? 'guest' : intendedRole;
@@ -127,7 +143,9 @@ export async function attachProfile(req: AuthRequest, res: Response, next: NextF
     const fetchError = profileFetch.error;
 
     if (fetchError && fetchError.code !== 'PGRST116') {
-      res.status(500).json({ error: 'Failed to load user profile' });
+      res
+        .status(500)
+        .json(apiErrorJson(API_ERROR_CODES.AUTH_PROFILE_LOAD_FAILED, AUTH_PROFILE_LOAD_FAILED_MESSAGE));
       return;
     }
 
@@ -151,7 +169,9 @@ export async function attachProfile(req: AuthRequest, res: Response, next: NextF
           .eq('id', req.userId)
           .single();
         if (refetchErr || !winnerRow) {
-          res.status(500).json({ error: 'Failed to create user profile' });
+          res
+            .status(500)
+            .json(apiErrorJson(API_ERROR_CODES.AUTH_PROFILE_CREATE_FAILED, AUTH_PROFILE_CREATE_FAILED_MESSAGE));
           return;
         }
         existingProfile = winnerRow;
@@ -172,7 +192,11 @@ export async function attachProfile(req: AuthRequest, res: Response, next: NextF
             .eq('id', req.userId)
             .single();
           if (refetchErr || !winnerRow) {
-            res.status(500).json({ error: 'Failed to create user profile' });
+            res
+              .status(500)
+              .json(
+                apiErrorJson(API_ERROR_CODES.AUTH_PROFILE_CREATE_FAILED, AUTH_PROFILE_CREATE_FAILED_MESSAGE),
+              );
             return;
           }
           existingProfile = winnerRow;
@@ -181,17 +205,23 @@ export async function attachProfile(req: AuthRequest, res: Response, next: NextF
           next();
           return;
         } else {
-          res.status(500).json({ error: 'Failed to create user profile' });
+          res
+            .status(500)
+            .json(apiErrorJson(API_ERROR_CODES.AUTH_PROFILE_CREATE_FAILED, AUTH_PROFILE_CREATE_FAILED_MESSAGE));
           return;
         }
       } else {
-        res.status(500).json({ error: 'Failed to create user profile' });
+        res
+          .status(500)
+          .json(apiErrorJson(API_ERROR_CODES.AUTH_PROFILE_CREATE_FAILED, AUTH_PROFILE_CREATE_FAILED_MESSAGE));
         return;
       }
     }
 
     if (!existingProfile) {
-      res.status(500).json({ error: 'Failed to load user profile' });
+      res
+        .status(500)
+        .json(apiErrorJson(API_ERROR_CODES.AUTH_PROFILE_LOAD_FAILED, AUTH_PROFILE_LOAD_FAILED_MESSAGE));
       return;
     }
 
@@ -214,7 +244,9 @@ export async function attachProfile(req: AuthRequest, res: Response, next: NextF
             });
             resolvedRole = 'guest';
           } else {
-            res.status(500).json({ error: 'Failed to update user profile' });
+            res
+              .status(500)
+              .json(apiErrorJson(API_ERROR_CODES.AUTH_PROFILE_UPDATE_FAILED, AUTH_PROFILE_UPDATE_FAILED_MESSAGE));
             return;
           }
         } else {
@@ -230,10 +262,26 @@ export async function attachProfile(req: AuthRequest, res: Response, next: NextF
         .single();
 
       if (updateError || !updatedProfile) {
-        res.status(500).json({ error: 'Failed to update user profile' });
+        res
+          .status(500)
+          .json(apiErrorJson(API_ERROR_CODES.AUTH_PROFILE_UPDATE_FAILED, AUTH_PROFILE_UPDATE_FAILED_MESSAGE));
         return;
       }
       resolvedRole = updatedProfile.role as UserRole;
+      await emitStructuredNotification({
+        category: 'registration',
+        event: 'user_registered',
+        priority: 'low',
+        audience: 'consultants',
+        title: 'New user registered',
+        message: `Guest user completed registration as ${resolvedRole}.`,
+        payload: {
+          user_id: req.userId,
+          role: resolvedRole,
+          actor_role: 'client',
+          user_email: req.userEmail,
+        },
+      });
     }
 
     if (!isAnon && resolvedRole !== 'consultant' && intendedRole === 'consultant') {
@@ -245,7 +293,9 @@ export async function attachProfile(req: AuthRequest, res: Response, next: NextF
         .single();
 
       if (updateError || !updatedProfile) {
-        res.status(500).json({ error: 'Failed to update user profile' });
+        res
+          .status(500)
+          .json(apiErrorJson(API_ERROR_CODES.AUTH_PROFILE_UPDATE_FAILED, AUTH_PROFILE_UPDATE_FAILED_MESSAGE));
         return;
       }
 
@@ -253,14 +303,18 @@ export async function attachProfile(req: AuthRequest, res: Response, next: NextF
     }
 
     if (!resolvedRole) {
-      res.status(500).json({ error: 'Failed to load user profile' });
+      res
+        .status(500)
+        .json(apiErrorJson(API_ERROR_CODES.AUTH_PROFILE_LOAD_FAILED, AUTH_PROFILE_LOAD_FAILED_MESSAGE));
       return;
     }
 
     req.userRole = resolvedRole;
     next();
   } catch {
-    res.status(500).json({ error: 'Profile lookup failed' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.AUTH_PROFILE_LOOKUP_FAILED, AUTH_PROFILE_LOOKUP_FAILED_MESSAGE));
   }
 }
 
@@ -274,7 +328,9 @@ export async function attachProfile(req: AuthRequest, res: Response, next: NextF
 export function requireRole(role: UserRole) {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (req.userRole !== role) {
-      res.status(403).json({ error: `Access denied. Required role: ${role}` });
+      res
+        .status(403)
+        .json(apiErrorJson(API_ERROR_CODES.AUTH_ROLE_REQUIRED, authRoleRequiredMessage(role)));
       return;
     }
     next();
@@ -284,7 +340,9 @@ export function requireRole(role: UserRole) {
 /** Use after attachProfile. Blocks snapshot-only (anonymous) sessions from portal audit APIs. */
 export function rejectGuestFromPortal(req: AuthRequest, res: Response, next: NextFunction) {
   if (req.userRole === 'guest' || req.userIsAnonymous === true) {
-    res.status(403).json({ error: 'Complete registration to access this in the portal.' });
+    res
+      .status(403)
+      .json(apiErrorJson(API_ERROR_CODES.AUTH_GUEST_PORTAL_FORBIDDEN, AUTH_GUEST_PORTAL_FORBIDDEN_MESSAGE));
     return;
   }
   next();
@@ -299,5 +357,7 @@ export function allowGuestSnapshotLogIngest(req: AuthRequest, res: Response, nex
     next();
     return;
   }
-  res.status(403).json({ error: 'Use POST /api/log for registered accounts.' });
+  res
+    .status(403)
+    .json(apiErrorJson(API_ERROR_CODES.AUTH_REGISTERED_LOG_REQUIRED, AUTH_REGISTERED_LOG_REQUIRED_MESSAGE));
 }

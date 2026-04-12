@@ -1,6 +1,5 @@
 /**
- * Branch predicates — docs/QUESTION_BANK.md §6.
- * Responses use mixed legacy labels (e.g. industry dropdown) and future slug ids; normalize where needed.
+ * Branch predicates — declarative rules in `branch-rules.v1.json` (docs/QUESTION_BANK.md §6).
  */
 import type { IntakeResponsesMap } from './types.js';
 import {
@@ -8,30 +7,52 @@ import {
   getResponseStringLower,
   unwrapIntakeValue,
 } from './unwrap.js';
+import industryMapRaw from './branch-industry-map.v1.json' with { type: 'json' };
+import branchRuntimeRaw from './branch-runtime.v1.json' with { type: 'json' };
+import branchRulesCanon from './branch-rules.v1.json' with { type: 'json' };
+import {
+  isSoloTeamRaw,
+  normalizePayments,
+  normalizeWebsiteGate,
+  type WebsiteGate,
+} from './branch-response-normalizers.js';
 
 export type BranchPredicate = (responses: IntakeResponsesMap) => boolean;
 
-/** Maps canonical app industry labels (see industry-options) to QUESTION_BANK branch slugs. */
-export const INDUSTRY_LABEL_TO_BRANCH_SLUG: Record<string, string> = {
-  hospitality: 'hospitality',
-  'real estate': 'real_estate',
-  'food & beverage': 'restaurant_fb',
-  'professional services': 'professional_services',
-  healthcare: 'healthcare',
-  marine: 'marine',
-  'e-commerce': 'ecommerce',
-  education: 'education',
-  finance: 'finance',
-  manufacturing: 'manufacturing',
-  'media & entertainment': 'media',
-  'non-profit': 'nonprofit',
-  retail: 'retail',
-  'saas / software': 'saas',
-  other: 'other',
+/** Maps canonical app industry labels (see `branch-industry-map.v1.json`) to QUESTION_BANK branch slugs. */
+export const INDUSTRY_LABEL_TO_BRANCH_SLUG: Readonly<Record<string, string>> = (
+  industryMapRaw as { labelLowerToBranchSlug: Record<string, string> }
+).labelLowerToBranchSlug;
+
+const NOSITE_SOCIAL_PRESENCE_LABELS: readonly string[] = branchRuntimeRaw.nositeSocialPresenceLabels;
+
+type BranchRulesFile = {
+  version: string;
+  rules: Record<string, BranchRuleEntry>;
 };
 
+type BranchRuleEntry = {
+  reads: string[];
+  kind: string;
+  gates?: string[];
+  slug?: string;
+  questionId?: string;
+  needle?: string;
+  inner?: string;
+  anyOf?: string[];
+  value?: string;
+  substrings?: string[];
+};
+
+const RULES_RECORD = (branchRulesCanon as BranchRulesFile).rules;
+
+/** Which response keys each branch rule may read (for topo eval / invalidation). From `branch-rules.v1.json`. */
+export const BRANCH_RULE_RESPONSE_KEYS: Readonly<Record<string, readonly string[]>> = Object.fromEntries(
+  Object.entries(RULES_RECORD).map(([k, v]) => [k, [...v.reads]] as const),
+);
+
 function industryBranchSlug(responses: IntakeResponsesMap): string {
-  const raw = unwrapIntakeValue(responses.a2 ?? responses.intake_industry);
+  const raw = unwrapIntakeValue(responses.a2);
   const s = String(raw ?? '').trim().toLowerCase();
   if (!s) return '';
   if (INDUSTRY_LABEL_TO_BRANCH_SLUG[s]) return INDUSTRY_LABEL_TO_BRANCH_SLUG[s];
@@ -40,89 +61,77 @@ function industryBranchSlug(responses: IntakeResponsesMap): string {
   return s.replace(/[\s/&]+/g, '_');
 }
 
-export type WebsiteGate =
-  | 'multi'
-  | 'single_landing'
-  | 'under_construction'
-  | 'no_website'
-  | 'unknown';
-
-/** Normalize a5 / legacy website answers to gate enum. */
-export function normalizeWebsiteGate(responses: IntakeResponsesMap): WebsiteGate {
-  const raw = unwrapIntakeValue(responses.a5);
-  const s = String(raw ?? '').trim().toLowerCase();
-  if (!s) return 'unknown';
-  if (s === 'no_website' || s.includes('no website') || s === 'none') return 'no_website';
-  if (s.includes('under construction') || s === 'under_construction') return 'under_construction';
-  if (s.includes('single') || s.includes('landing')) return 'single_landing';
-  if (s.includes('multi-page') || s.includes('multi page') || (s.startsWith('yes') && s.includes('multi'))) return 'multi';
-  if (s.includes('yes') && !s.includes('no')) {
-    if (s.includes('landing')) return 'single_landing';
-    return 'multi';
-  }
-  if (raw === true) return 'multi';
-  return 'unknown';
-}
+export type { WebsiteGate } from './branch-response-normalizers.js';
+export { normalizeWebsiteGate } from './branch-response-normalizers.js';
 
 function normalizeTeamSize(responses: IntakeResponsesMap): string {
   const raw = unwrapIntakeValue(responses.a4);
   const s = String(raw ?? '').trim().toLowerCase();
   if (!s) return '';
-  if (s.includes('just me') || s === 'just_me' || s === 'solo') return 'just_me';
+  if (isSoloTeamRaw(raw)) return 'just_me';
   return s;
 }
 
-function normalizePayments(responses: IntakeResponsesMap): string {
-  const raw = unwrapIntakeValue(responses.a6);
-  const s = String(raw ?? '').trim().toLowerCase();
-  if (!s) return '';
-  if (s === 'yes' || s.startsWith('yes')) return 'yes';
-  if (s.includes('sometimes')) return 'sometimes';
-  if (s.includes('rarely')) return 'rarely';
-  if (s.includes('offline only') || s === 'no') return 'no';
-  if (s.includes('not sure')) return 'not_sure';
-  return s;
-}
+const MAX_BRANCH_RULE_DEPTH = 12;
 
-export const BRANCH_RULES: Record<string, BranchPredicate> = {
-  has_website: (r) => {
-    const g = normalizeWebsiteGate(r);
-    return g === 'multi' || g === 'single_landing';
-  },
-  no_website: (r) => {
-    const g = normalizeWebsiteGate(r);
-    return g === 'no_website' || g === 'under_construction';
-  },
-  /** `c_nosite_3` — only when no_website path and `c_nosite_1` includes the exact \"Social media\" option. */
-  nosite_social: (r) => {
-    const g = normalizeWebsiteGate(r);
-    if (g !== 'no_website' && g !== 'under_construction') return false;
-    const raw = unwrapIntakeValue(r.c_nosite_1);
-    const label = 'Social media';
+function evalNositeSocial(r: IntakeResponsesMap): boolean {
+  const g = normalizeWebsiteGate(r);
+  if (g !== 'no_website' && g !== 'under_construction') return false;
+  const raw = unwrapIntakeValue(r.c_nosite_1);
+  for (const label of NOSITE_SOCIAL_PRESENCE_LABELS) {
     if (Array.isArray(raw)) {
-      return raw.some(v => String(v).trim() === label);
+      if (raw.some(v => String(v).trim() === label)) return true;
+    } else if (typeof raw === 'string' && raw.trim() === label) {
+      return true;
     }
-    if (typeof raw === 'string') return raw.trim() === label;
-    return false;
-  },
-  is_hospitality: (r) => industryBranchSlug(r) === 'hospitality',
-  is_real_estate: (r) => industryBranchSlug(r) === 'real_estate',
-  is_restaurant: (r) => industryBranchSlug(r) === 'restaurant_fb',
-  is_services: (r) => industryBranchSlug(r) === 'professional_services',
-  is_healthcare: (r) => industryBranchSlug(r) === 'healthcare',
-  is_marine: (r) => industryBranchSlug(r) === 'marine',
-  has_crm: (r) => getResponseMultiIncludes(r, 'd1', 'crm'),
-  no_crm: (r) => !getResponseMultiIncludes(r, 'd1', 'crm'),
-  handles_payments: (r) => {
-    const p = normalizePayments(r);
-    return p === 'yes' || p === 'sometimes' || p === 'rarely';
-  },
-  not_solo: (r) => normalizeTeamSize(r) !== 'just_me',
-  spain_based: (r) => {
-    const loc = getResponseStringLower(r, 'a3');
-    return loc.includes('spain') || loc.includes('españa') || loc.includes('mallorca');
-  },
-};
+  }
+  return false;
+}
+
+function evalRuleEntry(entry: BranchRuleEntry, r: IntakeResponsesMap, depth: number): boolean {
+  if (depth > MAX_BRANCH_RULE_DEPTH) return false;
+  switch (entry.kind) {
+    case 'website_gate_in': {
+      const g = normalizeWebsiteGate(r);
+      const gates = entry.gates as WebsiteGate[];
+      return gates.includes(g);
+    }
+    case 'nosite_social':
+      return evalNositeSocial(r);
+    case 'industry_slug_eq':
+      return industryBranchSlug(r) === entry.slug;
+    case 'multi_includes':
+      return getResponseMultiIncludes(r, entry.questionId!, entry.needle!);
+    case 'not': {
+      const inner = RULES_RECORD[entry.inner!];
+      if (!inner) return false;
+      return !evalRuleEntry(inner, r, depth + 1);
+    }
+    case 'payments_normalized_in': {
+      const p = normalizePayments(r);
+      return (entry.anyOf as string[]).includes(p);
+    }
+    case 'team_size_neq':
+      return normalizeTeamSize(r) !== entry.value;
+    case 'question_lower_includes_any': {
+      const loc = getResponseStringLower(r, entry.questionId!);
+      return (entry.substrings as string[]).some(sub => loc.includes(sub));
+    }
+    default:
+      return false;
+  }
+}
+
+function buildBranchRules(): Record<string, BranchPredicate> {
+  const out: Record<string, BranchPredicate> = {};
+  for (const key of Object.keys(RULES_RECORD)) {
+    const entry = RULES_RECORD[key]!;
+    out[key] = (r: IntakeResponsesMap) => evalRuleEntry(entry, r, 0);
+  }
+  return out;
+}
+
+export const BRANCH_RULES: Record<string, BranchPredicate> = buildBranchRules();
 
 export function evalBranchCondition(
   condition: string | undefined,
@@ -131,10 +140,6 @@ export function evalBranchCondition(
   if (!condition) return true;
   const rule = BRANCH_RULES[condition];
   if (!rule) {
-    // Unknown condition: question is hidden rather than shown to everyone.
-    // Defaulting to visible would silently expose questions to all users on a typo or missing
-    // predicate. The CI linter (lintUnknownBranchRefs) catches this before deployment; the
-    // safe fallback is to hide until the predicate is added.
     return false;
   }
   return rule(responses);

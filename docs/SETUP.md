@@ -42,7 +42,7 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...
 
 # Optional — Intake trace UI: set to 0/false/off to use legacy flat tabs (default: on / unset)
-# VITE_INTAKE_TRACE_IA_V2=0
+# Intake trace IA v2: src/app/config/app-feature-flags.ts (intakeTraceIaV2Enabled)
 ```
 
 ### Backend — `server/.env`
@@ -53,23 +53,29 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_KEY=eyJ...
 ANTHROPIC_API_KEY=sk-ant-...
 
-# Optional — deeper automated checks (extra CPU/time; needs Chrome for Lighthouse)
-# AUDIT_DEEP_SCAN=1
-# AUDIT_LIGHTHOUSE=1
-# AUDIT_AXE_PLAYWRIGHT=1
-# AUDIT_LIGHTHOUSE_BUDGET_MS=55000
-# AUDIT_AXE_NAV_TIMEOUT_MS=12000
+# Recommended for local parity with production distributed runtime
+# RATE_LIMIT_REDIS_URL=redis://localhost:6379
+# STRICT_RATE_LIMIT_REDIS=false
+# PIPELINE_QUEUE_REDIS_URL=redis://localhost:6379
+
+# Pipeline, Claude HTTP, rate limits, snapshot timing, audit deep-scan (Lighthouse/axe): SYSTEM_DEFAULTS in server/src/config/system-defaults.ts — not env.
 ```
 
 > The frontend uses the anon key (safe to expose). The backend uses the service role key (bypasses RLS for server-side operations — never expose to client).
 
-**Deep audit flags:** `AUDIT_DEEP_SCAN=1` turns on both Lighthouse (performance collector) and axe-core + Playwright (accessibility collector). You can enable them separately with `AUDIT_LIGHTHOUSE=1` or `AUDIT_AXE_PLAYWRIGHT=1`. Lighthouse uses [chrome-launcher](https://github.com/GoogleChrome/chrome-launcher), which reads **`CHROME_PATH`** if set; otherwise it searches for Chrome/Chromium on the system.
+**Deep audit (full pipeline):** enable Lighthouse and/or axe+Playwright in **`SYSTEM_DEFAULTS.auditDeepScan`** (`deepScanEnabled`, `lighthouseEnabled`, `axePlaywrightEnabled`) and redeploy. Lighthouse uses [chrome-launcher](https://github.com/GoogleChrome/chrome-launcher), which reads **`CHROME_PATH`** if set; otherwise it searches for Chrome/Chromium on the system.
 
-**Docker / production image:** the server `Dockerfile` installs Debian `chromium` and sets `CHROME_PATH=/usr/bin/chromium` so Lighthouse works when deep-audit env vars are enabled. Local dev without Docker: install Chrome/Chromium or set `CHROME_PATH` to your binary (Playwright’s downloaded Chromium lives under `~/.cache/ms-playwright/` — e.g. `chromium-*/chrome-linux/chrome` on Linux).
+**Local env checklist (backend):**
+
+- Required to start API: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` (+ `ANTHROPIC_API_KEY` for live pipeline phases).
+- Required for local distributed behavior parity: `RATE_LIMIT_REDIS_URL` (and optionally `PIPELINE_QUEUE_REDIS_URL`).
+- Optional: tune numeric guardrails in `server/src/config/system-defaults.ts` to mirror production.
+
+**Docker / production image:** the server `Dockerfile` installs Debian `chromium` and sets `CHROME_PATH=/usr/bin/chromium` so Lighthouse works when deep audit is enabled in config. Local dev without Docker: install Chrome/Chromium or set `CHROME_PATH` to your binary (Playwright’s downloaded Chromium lives under `~/.cache/ms-playwright/` — e.g. `chromium-*/chrome-linux/chrome` on Linux).
 
 See [docs/ARCHITECTURE.md](./ARCHITECTURE.md#open-source-collector-libraries) for library references, Unlighthouse (future), and Context7 IDs.
 
-**Important:** `AUDIT_DEEP_SCAN` affects only the **full audit pipeline** (consultant flow: create audit → start pipeline → phases 1 and 4 run `PerformanceCollector` / `AccessibilityCollector`). It does **not** run during the **public free snapshot** (`POST /api/snapshot/`, logs like `snapshot.run_complete`, `Free snapshot started`). The snapshot scanner uses its own tiered fetch and optional Playwright for the homepage; that is unrelated to Lighthouse/axe in collectors.
+**Important:** Deep audit flags affect only the **full audit pipeline** (consultant flow: create audit → start pipeline → phases 1 and 4 run `PerformanceCollector` / `AccessibilityCollector`). It does **not** run during the **public free snapshot** (`POST /api/snapshot/`, logs like `snapshot.run_complete`, `Free snapshot started`). The snapshot scanner uses its own tiered fetch and optional Playwright for the homepage; that is unrelated to Lighthouse/axe in collectors.
 
 **Target direction:** full audit → **multi-URL** Lighthouse (Unlighthouse-class); free snapshot → **no default Lighthouse**, optional single-URL only with explicit opt-in — see [ARCHITECTURE.md](./ARCHITECTURE.md#target-architecture-lighthouse-and-unlighthouse).
 
@@ -90,6 +96,19 @@ pnpm dev
 - Frontend: [http://localhost:5173](http://localhost:5173)
 - Backend API: [http://localhost:3001](http://localhost:3001)
 - Vite proxies `/api/*` requests to the backend automatically (configured in `vite.config.ts`)
+
+### Local dev port and URL matrix (keep in sync)
+
+Changing one of these without the others is a common cause of CORS errors, failed fetches, or broken absolute links in emails.
+
+| Concern | Default | Where it is defined |
+|--------|---------|---------------------|
+| Vite dev server port | `5173` | `pnpm dev` (Vite default); Playwright `playwright.config.ts` `baseURL` / `webServer.url` |
+| `/api` proxy upstream | `http://localhost:3001` | [`vite.config.ts`](../vite.config.ts) `server.proxy['/api'].target` |
+| Express listen port | `3001` (`PORT` env) | [`server/src/index.ts`](../server/src/index.ts); [`server/.env.example`](../server/.env.example) |
+| SPA → API base URL | `http://localhost:3001` | Root `.env` `VITE_API_URL`; dev fallback in [`src/app/lib/api-base-url.ts`](../src/app/lib/api-base-url.ts) |
+| CORS browser origins (dev) | `5173`, `5174`, `3000` | [`server/src/config/cors-origins.ts`](../server/src/config/cors-origins.ts) `DEFAULT_DEV_ORIGINS` |
+| Absolute frontend base (e.g. intake links) | `http://localhost:5173` | `FRONTEND_URL` in `server/.env`; non-production fallback in [`server/src/config/frontend-url.ts`](../server/src/config/frontend-url.ts) |
 
 ---
 

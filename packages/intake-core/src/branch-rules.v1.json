@@ -1,0 +1,76 @@
+{
+  "version": "1.0.0",
+  "rules": {
+    "has_website": {
+      "reads": ["a5"],
+      "kind": "website_gate_in",
+      "gates": ["multi", "single_landing"]
+    },
+    "no_website": {
+      "reads": ["a5"],
+      "kind": "website_gate_in",
+      "gates": ["no_website", "under_construction"]
+    },
+    "nosite_social": {
+      "reads": ["a5", "c_nosite_1"],
+      "kind": "nosite_social"
+    },
+    "is_hospitality": {
+      "reads": ["a2"],
+      "kind": "industry_slug_eq",
+      "slug": "hospitality"
+    },
+    "is_real_estate": {
+      "reads": ["a2"],
+      "kind": "industry_slug_eq",
+      "slug": "real_estate"
+    },
+    "is_restaurant": {
+      "reads": ["a2"],
+      "kind": "industry_slug_eq",
+      "slug": "restaurant_fb"
+    },
+    "is_services": {
+      "reads": ["a2"],
+      "kind": "industry_slug_eq",
+      "slug": "professional_services"
+    },
+    "is_healthcare": {
+      "reads": ["a2"],
+      "kind": "industry_slug_eq",
+      "slug": "healthcare"
+    },
+    "is_marine": {
+      "reads": ["a2"],
+      "kind": "industry_slug_eq",
+      "slug": "marine"
+    },
+    "has_crm": {
+      "reads": ["d1"],
+      "kind": "multi_includes",
+      "questionId": "d1",
+      "needle": "crm"
+    },
+    "no_crm": {
+      "reads": ["d1"],
+      "kind": "not",
+      "inner": "has_crm"
+    },
+    "handles_payments": {
+      "reads": ["a6"],
+      "kind": "payments_normalized_in",
+      "anyOf": ["yes", "sometimes", "rarely"]
+    },
+    "not_solo": {
+      "reads": ["a4"],
+      "kind": "team_size_neq",
+      "value": "just_me"
+    },
+    "spain_based": {
+      "reads": ["a3"],
+      "kind": "question_lower_includes_any",
+      "questionId": "a3",
+      "substrings": ["spain", "españa", "mallorca"]
+    }
+  }
+}

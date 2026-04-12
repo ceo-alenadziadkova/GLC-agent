@@ -3,11 +3,13 @@ import robotsParser from 'robots-parser';
 
 import { fetchPublicHttpUrl } from './public-http-url.js';
 import { AUDIT_ROBOTS_USER_AGENT } from './robots-policy-shared.js';
+import { SITEMAP_FETCH_TIMEOUT_MS } from '../config/collector-http.js';
+import { SITEMAP_DISCOVERY } from '../config/sitemap-discovery-limits.js';
 
-const MAX_SITEMAP_FETCHES = 24;
-const MAX_NESTING_DEPTH = 5;
-const MAX_SITEMAP_BYTES = 5_000_000;
-const MAX_URLS_TRACKED = 50_000;
+const MAX_SITEMAP_FETCHES = SITEMAP_DISCOVERY.maxFetches;
+const MAX_NESTING_DEPTH = SITEMAP_DISCOVERY.maxNestingDepth;
+const MAX_SITEMAP_BYTES = SITEMAP_DISCOVERY.maxBytes;
+const MAX_URLS_TRACKED = SITEMAP_DISCOVERY.maxUrlsTracked;
 
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
@@ -72,7 +74,7 @@ async function fetchSitemapBody(sitemapUrl: string): Promise<string | null> {
   try {
     const res = await fetchPublicHttpUrl(sitemapUrl, {
       headers: { 'User-Agent': AUDIT_ROBOTS_USER_AGENT },
-      signal: AbortSignal.timeout(25_000),
+      signal: AbortSignal.timeout(SITEMAP_FETCH_TIMEOUT_MS),
     });
     if (!res.ok) return null;
     const text = await res.text();
@@ -140,7 +142,7 @@ async function walkSitemapUrl(sitemapUrl: string, depth: number, state: WalkStat
   }
 }
 
-const FALLBACK_SITEMAP_PATHS = ['/sitemap.xml', '/sitemap_index.xml', '/sitemap.txt'];
+const FALLBACK_SITEMAP_PATHS = [...SITEMAP_DISCOVERY.fallbackPaths];
 
 /**
  * Discover sitemaps from robots.txt directives and common paths; parse urlsets and sitemap indexes (bounded).

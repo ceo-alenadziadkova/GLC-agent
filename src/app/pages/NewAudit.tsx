@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router';
+import { ensureHttpsUrl } from '@glc/intake-core';
 import type { BriefResponseSource, IntakeVersionTuple } from '../data/auditTypes';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -47,6 +48,7 @@ import {
   writeClientPortalNewAuditDraft,
   type ClientPortalNewAuditDraftV1,
 } from '../lib/client-portal-new-audit-draft';
+import type { BriefIntakeAnalyticsSurface } from '../lib/brief-intake-analytics';
 import {
   buildStep0IntakePatch,
   defaultConsultantDisplayName,
@@ -70,6 +72,7 @@ import {
   type BriefResponses,
 } from '../data/briefQuestions';
 import { logger } from '../lib/logger';
+import { GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY } from '../lib/storage-keys';
 
 export type NewAuditVariant = 'consultant' | 'client_self_serve';
 
@@ -190,7 +193,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         setResponses(prev => ({ ...prev, ...merged }));
         setIntakePrefillActive(true);
 
-        const web = unwrapBriefString(merged, 'intake_company_website');
+        const web = unwrapBriefString(merged, 'a11') ?? unwrapBriefString(merged, 'intake_company_website');
         if (web) {
           const auditUrl = websiteAnswerToAuditUrl(web);
           if (auditUrl) {
@@ -203,13 +206,14 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         }
 
         const cname =
-          unwrapBriefString(merged, 'intake_company_name')
+          unwrapBriefString(merged, 'a12')
+          ?? unwrapBriefString(merged, 'intake_company_name')
           ?? (typeof data.metadata?.company_name === 'string' ? data.metadata.company_name.trim() : undefined);
         if (cname) {
           setName(n => (n.trim() ? n : cname));
         }
 
-        const ind = unwrapBriefString(merged, 'intake_industry');
+        const ind = unwrapBriefString(merged, 'a2') ?? unwrapBriefString(merged, 'intake_industry');
         if (ind && isIndustryOption(ind)) {
           setIndustry(i => (i ? i : ind));
         }
@@ -281,7 +285,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
   // stored discovery session and merge its bank-ID answers into the wizard.
   useEffect(() => {
     if (!fromDiscovery) return;
-    const token = localStorage.getItem('glc_discovery_token');
+    const token = localStorage.getItem(GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY);
     if (!token) return;
 
     let cancelled = false;
@@ -307,7 +311,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         if (a2) setIndustry(a2);
 
         setDiscoveryPrefilled(true);
-        localStorage.removeItem('glc_discovery_token');
+        localStorage.removeItem(GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY);
       } catch {
         // Non-critical — wizard opens blank if session can't be loaded
       }
@@ -320,7 +324,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
     const trimmed = raw.trim();
     if (!trimmed) return false;
     try {
-      const prefixed = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+      const prefixed = ensureHttpsUrl(trimmed);
       return new URL(prefixed).hostname.includes('.');
     } catch { return false; }
   }
@@ -359,17 +363,21 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
 
   const layoutSelected = briefLayoutChoice === 'classic' || briefLayoutChoice === 'wizard';
 
-  const briefWizardIntakeAnalytics = useMemo(
-    () =>
-      draftAuditId && !noPublicWebsite && briefLayoutChoice === 'wizard'
-        ? {
-            auditId: draftAuditId,
-            surface: isClientSelfServe ? 'client_form' : 'consultant_interview',
-            getIntakeVersions: (): IntakeVersionTuple | null => draftIntakeVersions,
-          }
-        : undefined,
-    [draftAuditId, noPublicWebsite, briefLayoutChoice, isClientSelfServe, draftIntakeVersions],
-  );
+  const briefWizardIntakeAnalytics = useMemo(():
+    | {
+        auditId: string;
+        surface: BriefIntakeAnalyticsSurface;
+        getIntakeVersions: () => IntakeVersionTuple | null;
+      }
+    | undefined => {
+    if (!draftAuditId || noPublicWebsite || briefLayoutChoice !== 'wizard') return undefined;
+    const surface: BriefIntakeAnalyticsSurface = isClientSelfServe ? 'client_form' : 'consultant_interview';
+    return {
+      auditId: draftAuditId,
+      surface,
+      getIntakeVersions: (): IntakeVersionTuple | null => draftIntakeVersions,
+    };
+  }, [draftAuditId, noPublicWebsite, briefLayoutChoice, isClientSelfServe, draftIntakeVersions]);
 
   function handleSelectConsultantBriefLayout(mode: 'classic' | 'wizard') {
     if (isClientSelfServe) {
@@ -1273,9 +1281,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                       <div className="max-h-[min(55vh,28rem)] sm:max-h-[55vh] overflow-y-auto pr-1">
                         <IntakeBankWizard
                           responses={responses}
-                          onResponsesChange={patch =>
-                            setResponses(prev => mergeBriefResponsesPreferFilled(prev, patch))
-                          }
+                          onResponsesChange={next => setResponses(next)}
                           interviewMode={interviewMode}
                           emphasizeClientSource={intakePrefillActive}
                           answerSource={interviewMode ? 'consultant' : 'client'}
@@ -1291,6 +1297,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                           responses={responses}
                           collectionMode={noPublicWebsite ? 'discovery' : undefined}
                           intakeSurface={noPublicWebsite ? undefined : 'consultant_interview'}
+                          productMode={productMode}
                           onChange={handleResponseChange}
                           onSetUnknown={handleSetUnknown}
                           emphasizeClientSource={intakePrefillActive}
@@ -1354,7 +1361,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                   </p>
                   {isClientSelfServe && (
                     <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-quaternary)', marginTop: 10, lineHeight: 1.5 }}>
-                      After recon completes, a consultant may need to approve review gates before the next phases run. You can track progress on the pipeline screen.
+                      After recon completes, the run may pause at review gates before the next phases continue. You can track progress on the pipeline screen.
                     </p>
                   )}
                 </div>

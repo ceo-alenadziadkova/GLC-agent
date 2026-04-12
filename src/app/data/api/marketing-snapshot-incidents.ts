@@ -1,5 +1,7 @@
+import { LOG_INCIDENT_POST_TIMEOUT_MS } from '../../config/http-client-defaults';
+import { API_PATHS } from '../../config/api-paths';
 import { getClientEnvironmentSummary } from '../../lib/client-environment';
-import { API_URL, apiFetch, createTraceparent, getAuthHeaders, publicApiFetch } from '../api-http';
+import { apiFetch, apiPostAck, getAuthHeaders, publicApiFetch } from '../api-http';
 
 export const marketingSnapshotIncidentsApi = {
   /** After login, attach a public free_snapshot audit to the current user (`audits.client_id`). */
@@ -8,7 +10,7 @@ export const marketingSnapshotIncidentsApi = {
       ok: boolean;
       audit_id: string;
       already_claimed: boolean;
-    }>('/api/snapshot/claim', {
+    }>(API_PATHS.snapshotClaim, {
       method: 'POST',
       body: JSON.stringify({ snapshot_token: snapshotToken }),
     });
@@ -22,11 +24,14 @@ export const marketingSnapshotIncidentsApi = {
     no_website: boolean;
     concern: string;
     improve: string;
-    urgency: string;
+    /** Omitted or empty from the public brief form; column still stored server-side. */
+    urgency?: string;
     contact_method: string;
     unsure_choice: boolean;
+    /** Required when `!unsure_choice && !no_website`. */
+    preferred_audit_depth?: 'express' | 'full';
   }) {
-    return publicApiFetch<{ id: string; created_at: string; recommended_route: string }>('/api/marketing/brief', {
+    return publicApiFetch<{ id: string; created_at: string; recommended_route: string }>(API_PATHS.marketingBrief, {
       method: 'POST',
       body: JSON.stringify(body),
     });
@@ -40,15 +45,9 @@ export const marketingSnapshotIncidentsApi = {
     try {
       const authHeaders = await getAuthHeaders();
       if (!authHeaders.Authorization) return false;
-      const response = await fetch(`${API_URL}/api/log`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          traceparent: createTraceparent(),
-          'x-operation-id': crypto.randomUUID(),
-          ...authHeaders,
-        },
-        body: JSON.stringify({
+      await apiPostAck(
+        API_PATHS.log,
+        {
           level: 'error',
           source: 'spa_ui_incident',
           message: args.kind,
@@ -59,10 +58,10 @@ export const marketingSnapshotIncidentsApi = {
             detail: args.detail?.slice(0, 800),
           },
           timestamp: new Date().toISOString(),
-        }),
-        signal: AbortSignal.timeout(12_000),
-      });
-      return response.ok || response.status === 204;
+        },
+        { clientTimeoutMs: LOG_INCIDENT_POST_TIMEOUT_MS },
+      );
+      return true;
     } catch {
       return false;
     }

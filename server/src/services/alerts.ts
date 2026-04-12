@@ -2,18 +2,35 @@ import { supabase } from './supabase.js';
 import { logger } from './logger.js';
 import { cleanupExpiredIdempotencyKeys } from '../lib/idempotency.js';
 import { getSharedRedisClient } from './redis.js';
+import { emitStructuredNotification } from './notifications.js';
+import {
+  ALERT_CHECK_INTERVAL_MS,
+  ALERT_CHECK_WINDOW_MINUTES,
+  ALERT_COOLDOWN_MS,
+  ALERT_FAILURE_RATE_THRESHOLD,
+  ALERT_LATENCY_P95_MS_THRESHOLD,
+  ALERT_LOCK_TTL_MS,
+  ALERT_TOKEN_BURN_THRESHOLD,
+  IDEMPOTENCY_CLEANUP_INTERVAL_MS,
+} from '../config/alerts-config.js';
+import { ALERT_LATENCY_PERCENTILE } from '../config/alert-thresholds.js';
+import {
+  formatPipelineFailureRateMessageEn,
+  formatPipelineLatencyP95MessageEn,
+  formatPipelineTokenBurnMessageEn,
+  pipelineAlertTitlesEn,
+} from '../config/alert-messages.en.js';
 
-const WINDOW_MIN = 15;
-const INTERVAL_MS = Number(process.env.ALERT_INTERVAL_MS ?? '60000');
-const FAILURE_RATE_THRESHOLD = Number(process.env.ALERT_FAILURE_RATE_THRESHOLD ?? '0.2');
-const LATENCY_P95_MS_THRESHOLD = Number(process.env.ALERT_LATENCY_P95_MS_THRESHOLD ?? '180000');
-const TOKEN_BURN_THRESHOLD = Number(process.env.ALERT_TOKEN_BURN_15M_THRESHOLD ?? '300000');
-const COOLDOWN_MS = Number(process.env.ALERT_COOLDOWN_MS ?? '900000');
+const WINDOW_MIN = ALERT_CHECK_WINDOW_MINUTES;
+const INTERVAL_MS = ALERT_CHECK_INTERVAL_MS;
+const FAILURE_RATE_THRESHOLD = ALERT_FAILURE_RATE_THRESHOLD;
+const LATENCY_P95_MS_THRESHOLD = ALERT_LATENCY_P95_MS_THRESHOLD;
+const TOKEN_BURN_THRESHOLD = ALERT_TOKEN_BURN_THRESHOLD;
+const COOLDOWN_MS = ALERT_COOLDOWN_MS;
 
 const cooldown = new Map<string, number>();
 let alertChecksRunning = false;
 const ALERT_LOCK_KEY = 'lock:alerts:run';
-const ALERT_LOCK_TTL_MS = Number(process.env.ALERT_LOCK_TTL_MS ?? 55_000);
 
 function shouldNotify(key: string): boolean {
   const now = Date.now();
@@ -23,24 +40,10 @@ function shouldNotify(key: string): boolean {
   return true;
 }
 
-async function sendTelegram(text: string): Promise<void> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  if (!token || !chatId) return;
-  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text }),
-  });
-  if (!response.ok) {
-    logger.warn('Telegram alert failed', { status: response.status });
-  }
-}
-
 function percentile95(values: number[]): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
-  const idx = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95));
+  const idx = Math.min(sorted.length - 1, Math.floor(sorted.length * ALERT_LATENCY_PERCENTILE));
   return sorted[idx];
 }
 
@@ -76,9 +79,23 @@ export async function runAlertChecks(): Promise<void> {
   const failureRate = started > 0 ? failed / started : 0;
 
   if (failureRate >= FAILURE_RATE_THRESHOLD && shouldNotify('failure_rate')) {
-    await sendTelegram(
-      `ALERT pipeline failure rate high: ${(failureRate * 100).toFixed(1)}% in last ${WINDOW_MIN}m (failed=${failed}, started=${started})${renderTraceLinks(traceId)}`
-    );
+    await emitStructuredNotification({
+      category: 'pipeline',
+      event: 'alert_failure_rate_high',
+      priority: 'critical',
+      audience: 'consultants',
+      title: pipelineAlertTitlesEn.failureRateHigh,
+      message: formatPipelineFailureRateMessageEn({
+        failureRatePct: (failureRate * 100).toFixed(1),
+        failed,
+        started,
+        windowMin: WINDOW_MIN,
+        traceSuffix: renderTraceLinks(traceId),
+      }),
+      payload: { started, failed, window_minutes: WINDOW_MIN, trace_id: traceId },
+      sendInApp: true,
+      sendTelegram: true,
+    });
   }
 
   const starts = new Map<string, number>();
@@ -98,9 +115,22 @@ export async function runAlertChecks(): Promise<void> {
 
   const p95 = percentile95(latencies);
   if (p95 >= LATENCY_P95_MS_THRESHOLD && shouldNotify('latency_p95')) {
-    await sendTelegram(
-      `ALERT pipeline latency high: p95=${Math.round(p95)}ms in last ${WINDOW_MIN}m (threshold=${LATENCY_P95_MS_THRESHOLD}ms)${renderTraceLinks(traceId)}`
-    );
+    await emitStructuredNotification({
+      category: 'pipeline',
+      event: 'alert_latency_p95_high',
+      priority: 'medium',
+      audience: 'consultants',
+      title: pipelineAlertTitlesEn.latencyP95High,
+      message: formatPipelineLatencyP95MessageEn({
+        p95Ms: Math.round(p95),
+        windowMin: WINDOW_MIN,
+        thresholdMs: LATENCY_P95_MS_THRESHOLD,
+        traceSuffix: renderTraceLinks(traceId),
+      }),
+      payload: { p95_ms: Math.round(p95), threshold_ms: LATENCY_P95_MS_THRESHOLD, window_minutes: WINDOW_MIN, trace_id: traceId },
+      sendInApp: true,
+      sendTelegram: true,
+    });
   }
 
   let tokenBurn = 0;
@@ -111,9 +141,22 @@ export async function runAlertChecks(): Promise<void> {
   }
 
   if (tokenBurn >= TOKEN_BURN_THRESHOLD && shouldNotify('token_burn')) {
-    await sendTelegram(
-      `ALERT token burn high: ${tokenBurn} tokens in last ${WINDOW_MIN}m (threshold=${TOKEN_BURN_THRESHOLD})${renderTraceLinks(traceId)}`
-    );
+    await emitStructuredNotification({
+      category: 'pipeline',
+      event: 'alert_token_burn_high',
+      priority: 'medium',
+      audience: 'consultants',
+      title: pipelineAlertTitlesEn.tokenBurnHigh,
+      message: formatPipelineTokenBurnMessageEn({
+        tokenBurn,
+        windowMin: WINDOW_MIN,
+        threshold: TOKEN_BURN_THRESHOLD,
+        traceSuffix: renderTraceLinks(traceId),
+      }),
+      payload: { token_burn: tokenBurn, threshold: TOKEN_BURN_THRESHOLD, window_minutes: WINDOW_MIN, trace_id: traceId },
+      sendInApp: true,
+      sendTelegram: true,
+    });
   }
 }
 
@@ -153,6 +196,6 @@ export function startAlertsWorker(): void {
         if (count > 0) logger.info('Expired idempotency keys cleaned', { deleted: count });
       })
       .catch((err: Error) => logger.error('Idempotency cleanup failed', { error: err.message }));
-  }, INTERVAL_MS * 5);
+  }, IDEMPOTENCY_CLEANUP_INTERVAL_MS);
   logger.info('Alert worker started', { interval_ms: INTERVAL_MS });
 }

@@ -27,6 +27,7 @@ React 18 + Vite frontend (Vercel) talks to an Express + TypeScript backend (Rail
 7. **Primary docs live flat in `/docs/*.md` with a 15-file quota.** Treat `docs/adrs/` as legacy ADR archive: do not expand it by default.
 8. **No emoji in source code.** Use Phosphor React icons instead — e.g. `<CircleIcon size={20} color="#df3434" weight="fill" />`. Emoji are allowed only in agent prompt strings (LLM instructions) and user-facing log messages emitted to `pipeline_events`.
 9. **Question bank changes are cross-system, never JSON-only.** Any change to `packages/intake-core/src/question-bank.v1.json` or answer options must be synchronized with `bank-question-ui-overrides.ts`, `choice-specify-triggers.ts`, `ai-readiness.ts`, `answer-normalizers.ts`, discovery mapping (`src/app/lib/discovery-flow.ts`, `server/src/routes/discover.ts` when relevant), tests, and docs (`docs/QUESTION_BANK.md`; `docs/API.md` if contract behavior changes). Follow `docs/QUESTION_BANK.md` §15 and `.cursor/rules/intake-question-bank-change-protocol.mdc`.
+10. **`server/src/snapshot/` in automated checks.** That tree is ignored by ESLint and excluded from server Vitest coverage (see `eslint.config.js`, `server/vitest.config.ts`). It is still compiled by `tsc`. Treat it as library-style snapshot code when auditing or refactoring.
 
 ---
 
@@ -167,3 +168,5 @@ await this.emitEvent('log', { message: 'Starting security header check' });
 Full docs in `docs/`. See [docs/MASTER.md](./docs/MASTER.md) for index, knowledge map, and governance.
 
 When you add a feature, update the relevant **existing** doc file in the same PR. Don't create new doc files without a strong reason — the quota is **15** markdown files maximum in flat `docs/*.md` (ADR archive in `docs/adrs/` is out of scope for routine updates). See [docs/MASTER.md](./docs/MASTER.md).
+
+**ENV vs config vs services:** product defaults and numeric limits belong in `server/src/config/` (e.g. `SYSTEM_DEFAULTS`) first; server env is for infrastructure/secrets or documented ops overrides — [ARCHITECTURE.md — Strict layer boundaries](./docs/ARCHITECTURE.md#strict-layer-boundaries-operational-policy), [DEPLOYMENT.md — Environment layers](./docs/DEPLOYMENT.md#environment-layers-infrastructure-vs-ops-overrides), `server/.env.example`.

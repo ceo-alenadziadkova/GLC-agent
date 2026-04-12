@@ -1,3 +1,4 @@
+import { API_PATHS } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
 import { assertIntakePayloadShape } from '../api-payload-asserts';
 import type { IntakeBrief, IntakeBriefCollectionMode, IntakeVersionTuple } from '../auditTypes';
@@ -48,7 +49,7 @@ export type BriefIntakeAnalyticsBatchPayload = {
 
 export const briefProfilePlatformApi = {
   async getBriefSchema(auditId: string) {
-    return apiFetch<BriefSchemaSnapshot>(`/api/audits/${auditId}/brief/schema`);
+    return apiFetch<BriefSchemaSnapshot>(`${API_PATHS.audits}/${auditId}/brief/schema`);
   },
 
   async getBrief(auditId: string) {
@@ -82,13 +83,13 @@ export const briefProfilePlatformApi = {
         readinessBadge: 'low' | 'medium' | 'high';
         nextBestAction: 'complete_required' | 'add_recommended' | 'confirm_prefill' | 'none';
       };
-    }>(`/api/audits/${auditId}/brief`);
+    }>(`${API_PATHS.audits}/${auditId}/brief`);
     assertIntakePayloadShape(payload);
     return payload;
   },
 
   async postBriefAnalyticsEvents(auditId: string, payload: BriefIntakeAnalyticsBatchPayload) {
-    return apiFetch<{ ok: true; received: number }>(`/api/audits/${auditId}/brief/analytics-events`, {
+    return apiFetch<{ ok: true; received: number }>(`${API_PATHS.audits}/${auditId}/brief/analytics-events`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -126,7 +127,7 @@ export const briefProfilePlatformApi = {
         readinessBadge: 'low' | 'medium' | 'high';
         nextBestAction: 'complete_required' | 'add_recommended' | 'confirm_prefill' | 'none';
       };
-    }>(`/api/audits/${auditId}/brief`, {
+    }>(`${API_PATHS.audits}/${auditId}/brief`, {
       method: 'PUT',
       body: JSON.stringify(body),
     });
@@ -135,11 +136,11 @@ export const briefProfilePlatformApi = {
   },
 
   async getProfile() {
-    return apiFetch<{ id: string; role: string; email: string | null; full_name: string | null }>('/api/profile');
+    return apiFetch<{ id: string; role: string; email: string | null; full_name: string | null }>(API_PATHS.profile);
   },
 
   async patchProfile(params: { full_name?: string | null }) {
-    return apiFetch<{ id: string; role: string; email: string | null; full_name: string | null }>('/api/profile', {
+    return apiFetch<{ id: string; role: string; email: string | null; full_name: string | null }>(API_PATHS.profile, {
       method: 'PATCH',
       body: JSON.stringify(params),
     });
@@ -150,10 +151,12 @@ export const briefProfilePlatformApi = {
       stored_owner_user_id: string | null;
       effective_owner_user_id: string | null;
       effective_ready: boolean;
+      /** Deprecated: always false; kept for API compatibility. */
       env_fallback_active: boolean;
+      implicit_fallback_active: boolean;
       consultants: Array<{ id: string; full_name: string | null; email: string | null }>;
       can_manage: boolean;
-    }>('/api/platform/self-serve-owner');
+    }>(API_PATHS.platformSelfServeOwner);
   },
 
   async patchPlatformSelfServeOwner(params: { owner_user_id: string | null }) {
@@ -163,7 +166,8 @@ export const briefProfilePlatformApi = {
       effective_ready: boolean;
       effective_owner_user_id: string | null;
       env_fallback_active: boolean;
-    }>('/api/platform/self-serve-owner', {
+      implicit_fallback_active: boolean;
+    }>(API_PATHS.platformSelfServeOwner, {
       method: 'PATCH',
       body: JSON.stringify(params),
     });

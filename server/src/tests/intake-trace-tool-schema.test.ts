@@ -1,3 +1,4 @@
+import { INTAKE_TRACE_PUBLICATION_LOG_DEFAULT_LIMIT } from '@glc/intake-core';
 import { describe, expect, it } from 'vitest';
 import {
   intakeTraceToolAnalyticsBatchSchema,
@@ -65,10 +66,10 @@ describe('intakeTraceToolWordingRollbackSchema', () => {
 });
 
 describe('intakeTraceToolPublicationLogQuerySchema', () => {
-  it('defaults limit to 30', () => {
+  it('defaults limit to INTAKE_TRACE_PUBLICATION_LOG_DEFAULT_LIMIT', () => {
     const r = intakeTraceToolPublicationLogQuerySchema.safeParse({});
     expect(r.success).toBe(true);
-    if (r.success) expect(r.data.limit).toBe(30);
+    if (r.success) expect(r.data.limit).toBe(INTAKE_TRACE_PUBLICATION_LOG_DEFAULT_LIMIT);
   });
 
   it('coerces limit and caps at 100', () => {

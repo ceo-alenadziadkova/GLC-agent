@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "dependencies": {
+    "@glc/dev-brand-defaults": "workspace:*"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
@@ -13,8 +16,27 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./config/intake-flags.js": {
+      "types": "./dist/config/intake-flags.d.ts",
+      "default": "./dist/config/intake-flags.js"
+    },
     "./question-bank.v1.json": "./src/question-bank.v1.json",
-    "./pre-brief-bank-included.json": "./src/pre-brief-bank-included.json",
+    "./question-feed-roles.v1.json": "./src/question-feed-roles.v1.json",
+    "./bank-question-ui-overrides.v1.json": "./src/bank-question-ui-overrides.v1.json",
+    "./choice-specify-triggers.v1.json": "./src/choice-specify-triggers.v1.json",
+    "./branch-industry-map.v1.json": "./src/branch-industry-map.v1.json",
+    "./branch-runtime.v1.json": "./src/branch-runtime.v1.json",
+    "./branch-rules.v1.json": "./src/branch-rules.v1.json",
+    "./branch-response-normalizers.v1.json": "./src/branch-response-normalizers.v1.json",
+    "./ai-readiness.v1.json": "./src/ai-readiness.v1.json",
+    "./answer-normalizers.v1.json": "./src/answer-normalizers.v1.json",
+    "./intake-brief-catalog-meta.v1.json": "./src/intake-brief-catalog-meta.v1.json",
+    "./discovery-findings-config.v1.json": "./src/discovery-findings-config.v1.json",
+    "./discovery-findings-copy.v1.json": "./src/discovery-findings-copy.v1.json",
+    "./discovery-brief-contract.v1.json": "./src/discovery-brief-contract.v1.json",
+    "./discovery-brief-fallbacks.v1.json": "./src/discovery-brief-fallbacks.v1.json",
+    "./ui-copy-registry.v1.json": "./src/ui-copy-registry.v1.json",
+    "./discovery-glue-copy.v1.json": "./src/discovery-glue-copy.v1.json",
     "./intake-policy.v1.json": "./src/intake-policy.v1.json",
     "./artifacts/layout-rules-1.1.0.json": "./src/artifacts/layout-rules-1.1.0.json",
     "./lint-node": {

@@ -15,6 +15,7 @@ import { supabase } from '../services/supabase.js';
 import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../middleware/auth.js';
 import { generalLimiter } from '../middleware/rate-limit.js';
 import { safeOrUserFilter } from '../lib/postgrest-filter.js';
+import { ANALYTICS_DASHBOARD_LIMITS } from '../config/analytics-dashboard-limits.js';
 
 export const analyticsRouter = Router();
 
@@ -38,6 +39,7 @@ interface ReviewGateItem {
   id: string;
   company_name: string | null;
   company_url: string;
+  no_public_website?: boolean;
   status: string;
   updated_at: string;
   priority: Priority;
@@ -48,6 +50,7 @@ interface SlaRiskItem {
   id: string;
   company_name: string | null;
   company_url: string;
+  no_public_website?: boolean;
   created_at: string;
   days_open: number;
   priority: Priority;
@@ -58,6 +61,7 @@ interface FailureItem {
   id: string;
   company_name: string | null;
   company_url: string;
+  no_public_website?: boolean;
   updated_at: string;
   priority: Priority;
   urgency_rank: number;
@@ -88,6 +92,7 @@ interface ActivityEvent {
   created_at: string;
   company_name: string | null;
   company_url: string;
+  no_public_website?: boolean;
 }
 
 interface ScoreDistribution {
@@ -141,28 +146,29 @@ analyticsRouter.get('/dashboard', async (req: AuthRequest, res) => {
   // ── Q2: Action-required sub-queries ─────────────────────────────────────────
   const reviewGatesPromise = supabase
     .from('audits')
-    .select('id, company_name, company_url, status, updated_at')
+    .select('id, company_name, company_url, no_public_website, status, updated_at')
     .or(userFilter)
     .eq('status', 'review')
     .order('updated_at', { ascending: true })
-    .limit(20);
+    .limit(ANALYTICS_DASHBOARD_LIMITS.reviewGatesList);
 
+  const slaStaleCutoffMs = ANALYTICS_DASHBOARD_LIMITS.slaRiskMinAgeDays * 24 * 60 * 60 * 1000;
   const slaRisksPromise = supabase
     .from('audits')
-    .select('id, company_name, company_url, created_at')
+    .select('id, company_name, company_url, no_public_website, created_at')
     .or(userFilter)
     .eq('status', 'created')
-    .lt('created_at', new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString())
+    .lt('created_at', new Date(Date.now() - slaStaleCutoffMs).toISOString())
     .order('created_at', { ascending: true })
-    .limit(20);
+    .limit(ANALYTICS_DASHBOARD_LIMITS.slaRisksList);
 
   const failuresPromise = supabase
     .from('audits')
-    .select('id, company_name, company_url, updated_at')
+    .select('id, company_name, company_url, no_public_website, updated_at')
     .or(userFilter)
     .eq('status', 'failed')
     .order('updated_at', { ascending: false })
-    .limit(10);
+    .limit(ANALYTICS_DASHBOARD_LIMITS.recentFailuresList);
 
   // Pending client requests — all submitted requests visible to consultant
   // (mirrors existing GET /api/audit-requests behaviour for consultant role)
@@ -171,16 +177,18 @@ analyticsRouter.get('/dashboard', async (req: AuthRequest, res) => {
     .select('id, url, industry, created_at')
     .eq('status', 'submitted')
     .order('created_at', { ascending: true })
-    .limit(20);
+    .limit(ANALYTICS_DASHBOARD_LIMITS.pendingRequestsList);
 
-  // ── Q3: Activity feed (last 15 pipeline events across user's audits) ─────────
+  // ── Q3: Activity feed (last N pipeline events across user's audits) ─────────
   // PostgREST inner-join via FK: pipeline_events.audit_id → audits.id
   const activityPromise = supabase
     .from('pipeline_events')
-    .select('id, audit_id, phase, event_type, message, created_at, audits!inner(company_name, company_url, user_id)')
+    .select(
+      'id, audit_id, phase, event_type, message, created_at, audits!inner(company_name, company_url, no_public_website, user_id)',
+    )
     .eq('audits.user_id', uid)
     .order('created_at', { ascending: false })
-    .limit(15);
+    .limit(ANALYTICS_DASHBOARD_LIMITS.activityFeedList);
 
   // ── Run all queries in parallel ──────────────────────────────────────────────
   const [
@@ -252,6 +260,7 @@ analyticsRouter.get('/dashboard', async (req: AuthRequest, res) => {
         id: r.id,
         company_name: r.company_name,
         company_url: r.company_url,
+        no_public_website: r.no_public_website === true,
         status: r.status,
         updated_at: r.updated_at,
         priority: 'high' as Priority,  // review gates always block progress
@@ -262,14 +271,16 @@ analyticsRouter.get('/dashboard', async (req: AuthRequest, res) => {
     if (slaRisksResult.status === 'fulfilled' && !slaRisksResult.value.error) {
       actionItems.sla_risks = (slaRisksResult.value.data ?? []).map(r => {
         const days = daysSince(r.created_at);
+        const highDays = ANALYTICS_DASHBOARD_LIMITS.slaRiskHighPriorityDays;
         return {
           id: r.id,
           company_name: r.company_name,
           company_url: r.company_url,
+          no_public_website: r.no_public_website === true,
           created_at: r.created_at,
           days_open: days,
-          priority: (days > 14 ? 'high' : 'medium') as Priority,
-          urgency_rank: days > 14 ? 20 : 30,
+          priority: (days > highDays ? 'high' : 'medium') as Priority,
+          urgency_rank: days > highDays ? 20 : 30,
         };
       });
     }
@@ -279,6 +290,7 @@ analyticsRouter.get('/dashboard', async (req: AuthRequest, res) => {
         id: r.id,
         company_name: r.company_name,
         company_url: r.company_url,
+        no_public_website: r.no_public_website === true,
         updated_at: r.updated_at,
         priority: 'medium' as Priority,
         urgency_rank: 40,
@@ -302,7 +314,12 @@ analyticsRouter.get('/dashboard', async (req: AuthRequest, res) => {
 
   if (activityResult.status === 'fulfilled' && !activityResult.value.error && activityResult.value.data) {
     activityFeed = activityResult.value.data.map((row: Record<string, unknown>) => {
-      const audit = (row.audits as { company_name?: string; company_url?: string } | null) ?? {};
+      const audit =
+        (row.audits as {
+          company_name?: string;
+          company_url?: string;
+          no_public_website?: boolean;
+        } | null) ?? {};
       return {
         id: row.id as number,
         audit_id: row.audit_id as string,
@@ -312,6 +329,7 @@ analyticsRouter.get('/dashboard', async (req: AuthRequest, res) => {
         created_at: row.created_at as string,
         company_name: audit.company_name ?? null,
         company_url: audit.company_url ?? '',
+        no_public_website: audit.no_public_website === true,
       };
     });
   } else {

@@ -15,6 +15,8 @@ import {
 import { api } from '../data/apiService';
 import { AppShell } from '../components/AppShell';
 import { glcKeys } from '../lib/glc-keys';
+import { UI_FEEDBACK_FLASH_MS } from '../config/ui-feedback-defaults';
+import { DISCOVERY_QUEUE_COPY } from '../config/discovery-queue-copy.en';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -34,16 +36,28 @@ interface DiscoverySession {
 
 // ── Maturity helpers ──────────────────────────────────────────────────────────
 
-const MATURITY_CONFIG: Record<number, { label: string; color: string }> = {
-  1: { label: 'Early-stage',   color: '#EF4444' },
-  2: { label: 'Developing',    color: '#F97316' },
-  3: { label: 'Intermediate',  color: '#F59E0B' },
-  4: { label: 'Advanced',      color: '#10B981' },
-  5: { label: 'Low priority',  color: '#6B7280' },
+const MATURITY_COLORS: Record<number, string> = {
+  1: '#EF4444',
+  2: '#F97316',
+  3: '#F59E0B',
+  4: '#10B981',
+  5: '#6B7280',
 };
 
+function maturityLabel(level: number): string {
+  const fromCopy = DISCOVERY_QUEUE_COPY.maturity[level as keyof typeof DISCOVERY_QUEUE_COPY.maturity];
+  return fromCopy ?? DISCOVERY_QUEUE_COPY.maturityLevelFallback(level);
+}
+
+function maturityConfig(level: number): { label: string; color: string } {
+  return {
+    label: maturityLabel(level),
+    color: MATURITY_COLORS[level] ?? '#6B7280',
+  };
+}
+
 function MaturityPill({ level }: { level: number }) {
-  const cfg = MATURITY_CONFIG[level] ?? { label: `Level ${level}`, color: '#6B7280' };
+  const cfg = maturityConfig(level);
   return (
     <span
       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
@@ -95,7 +109,7 @@ function SessionCard({
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
                 style={{ background: 'var(--glc-green-muted)', border: '1px solid rgba(14,207,130,0.30)', color: 'var(--glc-green-dark)' }}
               >
-                <CheckCircle size={10} weight="fill" /> Converted
+                <CheckCircle size={10} weight="fill" /> {DISCOVERY_QUEUE_COPY.converted}
               </span>
             )}
           </div>
@@ -120,8 +134,8 @@ function SessionCard({
             }}
           >
             {converting
-              ? <><Spinner size={13} className="animate-spin" /> Creating…</>
-              : <>Convert to audit <ArrowRight size={13} /></>}
+              ? <><Spinner size={13} className="animate-spin" /> {DISCOVERY_QUEUE_COPY.creating}</>
+              : <>{DISCOVERY_QUEUE_COPY.convertToAudit} <ArrowRight size={13} /></>}
           </button>
         )}
 
@@ -136,7 +150,7 @@ function SessionCard({
               textDecoration: 'none',
             }}
           >
-            Open audit <ArrowRight size={12} />
+            {DISCOVERY_QUEUE_COPY.openAudit} <ArrowRight size={12} />
           </a>
         )}
       </div>
@@ -176,7 +190,7 @@ function SessionCard({
           </div>
         ) : (
           <p style={{ fontSize: 11, color: 'var(--text-quaternary)', fontStyle: 'italic' }}>
-            No contact info provided
+            {DISCOVERY_QUEUE_COPY.noContactInfo}
           </p>
         )}
 
@@ -193,7 +207,7 @@ function SessionCard({
           >
             {session.industry && (
               <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                <span style={{ color: 'var(--text-quaternary)', marginRight: 4 }}>Industry</span>
+                <span style={{ color: 'var(--text-quaternary)', marginRight: 4 }}>{DISCOVERY_QUEUE_COPY.industryLabel}</span>
                 {session.industry}
               </p>
             )}
@@ -232,13 +246,13 @@ function SessionCard({
           })}
           {session.findings.length > 3 && (
             <p style={{ fontSize: 11, color: 'var(--text-quaternary)', paddingLeft: 16 }}>
-              +{session.findings.length - 3} more finding{session.findings.length - 3 > 1 ? 's' : ''}
+              {DISCOVERY_QUEUE_COPY.moreFindings(session.findings.length - 3)}
             </p>
           )}
         </div>
       )}
       {highFindings.length === 0 && session.findings.length === 0 && (
-        <p style={{ fontSize: 11, color: 'var(--text-quaternary)' }}>No findings recorded</p>
+        <p style={{ fontSize: 11, color: 'var(--text-quaternary)' }}>{DISCOVERY_QUEUE_COPY.noFindingsRecorded}</p>
       )}
     </div>
   );
@@ -260,7 +274,7 @@ export function DiscoveryQueue() {
 
   const sessions = q.data ?? [];
   const loading = q.isPending && !q.data;
-  const error = q.error ? 'Failed to load discovery sessions' : null;
+  const error = q.error ? DISCOVERY_QUEUE_COPY.loadError : null;
 
   const [converting, setConverting] = useState<string | null>(null); // token currently converting
   const [convertError, setConvertError] = useState<string | null>(null);
@@ -279,12 +293,13 @@ export function DiscoveryQueue() {
       queryClient.setQueryData<DiscoverySession[]>(glcKeys.discoverySessions(), (prev) =>
         (prev ?? []).map((s) => (s.session_token === token ? { ...s, audit_id } : s)),
       );
-      navigate(`/pipeline/${audit_id}`);
+      // New full audit with discovery answers pre-mapped into intake_brief — open workspace + brief, not pipeline.
+      navigate(`/audit/${audit_id}?brief=1`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       setConvertError(msg.includes('already converted')
-        ? 'This session was already converted to an audit.'
-        : 'Failed to create audit — please try again.');
+        ? DISCOVERY_QUEUE_COPY.convertAlreadyConverted
+        : DISCOVERY_QUEUE_COPY.convertGenericFailure);
       setConverting(null);
     }
   }
@@ -302,8 +317,8 @@ export function DiscoveryQueue() {
       title="Discovery Queue"
       subtitle={
         newCount > 0
-          ? `Mode C submissions · ${newCount} awaiting conversion`
-          : 'Mode C submissions from the public discovery questionnaire'
+          ? DISCOVERY_QUEUE_COPY.subtitleAwaiting(newCount)
+          : DISCOVERY_QUEUE_COPY.subtitleDefault
       }
       actions={(
         <div className="flex flex-col gap-2 w-full sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end sm:w-auto">
@@ -313,7 +328,7 @@ export function DiscoveryQueue() {
               const url = `${window.location.origin}/discovery`;
               void navigator.clipboard.writeText(url).then(() => {
                 setLinkCopied(true);
-                setTimeout(() => setLinkCopied(false), 2000);
+                setTimeout(() => setLinkCopied(false), UI_FEEDBACK_FLASH_MS);
               });
             }}
             className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium glc-touch-target sm:min-h-0"
@@ -331,7 +346,7 @@ export function DiscoveryQueue() {
               ) : (
                 <Copy size={12} aria-hidden />
               )}
-              {linkCopied ? 'Copied!' : 'Copy discover link'}
+              {linkCopied ? DISCOVERY_QUEUE_COPY.copied : DISCOVERY_QUEUE_COPY.copyLink}
             </span>
           </button>
           <button
@@ -345,7 +360,7 @@ export function DiscoveryQueue() {
               cursor: 'pointer',
             }}
           >
-            <ArrowsClockwise size={12} /> Refresh
+            <ArrowsClockwise size={12} /> {DISCOVERY_QUEUE_COPY.refresh}
           </button>
         </div>
       )}
@@ -388,7 +403,7 @@ export function DiscoveryQueue() {
               onClick={() => setConvertError(null)}
               style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', fontSize: 12 }}
             >
-              Dismiss
+              {DISCOVERY_QUEUE_COPY.dismiss}
             </button>
           </div>
         )}
@@ -397,7 +412,7 @@ export function DiscoveryQueue() {
         {loading && (
           <div className="flex items-center justify-center py-16 gap-3" style={{ color: 'var(--text-tertiary)' }}>
             <Spinner size={18} className="animate-spin" />
-            <span style={{ fontSize: 13 }}>Loading sessions…</span>
+            <span style={{ fontSize: 13 }}>{DISCOVERY_QUEUE_COPY.loadingSessions}</span>
           </div>
         )}
 
@@ -416,7 +431,7 @@ export function DiscoveryQueue() {
                 cursor: 'pointer',
               }}
             >
-              Try again
+              {DISCOVERY_QUEUE_COPY.tryAgain}
             </button>
           </div>
         )}
@@ -426,8 +441,8 @@ export function DiscoveryQueue() {
             <Users size={32} weight="thin" className="mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
             <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>
               {filter === 'all'
-                ? 'No discovery sessions yet. Use "Copy discover link" in the header to share the questionnaire.'
-                : `No ${filter} sessions.`}
+                ? DISCOVERY_QUEUE_COPY.emptyAll
+                : DISCOVERY_QUEUE_COPY.emptyFiltered(filter)}
             </p>
           </div>
         )}

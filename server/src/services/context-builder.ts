@@ -10,6 +10,11 @@ import type {
 } from '../types/audit.js';
 import { getDomainWeight } from '../config/industry-weights.js';
 import {
+  BRIEF_ENTRY_SORT_FALLBACK_ORDER,
+  CONTEXT_BUILDER_MAX_RAW_CHARS_PER_COLLECTOR,
+  CONTEXT_BUILDER_MAX_TOTAL_RAW_CHARS,
+} from '../config/context-builder-limits.js';
+import {
   getBriefQuestionText,
   getQuestionsForDomain,
   INTAKE_IDENTITY_FIELD_IDS,
@@ -24,7 +29,7 @@ import {
 } from '@glc/intake-core';
 import { prepareBriefForValidation } from '@glc/intake-core';
 import { getResponseString, isIntakeAnswered } from '@glc/intake-core';
-import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
+import { auditSkipsPublicWebsiteFetches } from '@glc/intake-core';
 import { isPrimaryFeedForDomain, isSecondaryFeedForDomain } from '@glc/intake-core';
 import type { IntakeSliceDomain } from '@glc/intake-core';
 import { buildIntakePlan } from '@glc/intake-core';
@@ -32,8 +37,10 @@ import { isSupportedIntakeArtifactTuple } from '@glc/intake-core';
 import { currentIntakeVersionTuple } from '@glc/intake-core';
 import { resolveIntakeSurfaceForPlan } from './brief-validator.js';
 
-function formatCompanyUrlForPrompt(url: string): string {
-  return isNoPublicWebsiteUrl(url) ? 'No public website (use intake brief and consultant notes only)' : url;
+function formatCompanyUrlForPrompt(url: string, noPublicWebsite?: boolean | null): string {
+  return auditSkipsPublicWebsiteFetches(noPublicWebsite, url)
+    ? 'No public website (use intake brief and consultant notes only)'
+    : url;
 }
 
 function computeIntakeReportAnchors(responses: Record<string, unknown>): Record<string, string> | undefined {
@@ -61,6 +68,8 @@ function escapePromptContent(input: string): string {
 
 export interface AgentContext {
   company_url: string;
+  /** When true, treat as no public site (skip live URL context); legacy rows may rely on sentinel URL only. */
+  no_public_website?: boolean;
   company_name: string | null;
   industry: string | null;
   recon: ReconData | null;
@@ -128,7 +137,7 @@ export class ContextBuilder {
     // Fetch audit meta — [C2] check error: missing audit = invalid context, must throw
     const { data: audit, error: auditError } = await supabase
       .from('audits')
-      .select('company_url, company_name, industry, product_mode')
+      .select('company_url, company_name, industry, product_mode, no_public_website')
       .eq('id', auditId)
       .single();
 
@@ -270,6 +279,7 @@ export class ContextBuilder {
 
     return {
       company_url: audit?.company_url ?? '',
+      no_public_website: audit?.no_public_website === true,
       company_name: audit?.company_name ?? recon?.company_name ?? null,
       industry,
       recon: recon as ReconData | null,
@@ -370,7 +380,8 @@ export class ContextBuilder {
     }
 
     const bySliceOrder = (a: BriefEntry, b: BriefEntry) =>
-      (orderIdx.get(a.id) ?? 9999) - (orderIdx.get(b.id) ?? 9999);
+      (orderIdx.get(a.id) ?? BRIEF_ENTRY_SORT_FALLBACK_ORDER) -
+      (orderIdx.get(b.id) ?? BRIEF_ENTRY_SORT_FALLBACK_ORDER);
     primary.sort(bySliceOrder);
     secondary.sort(bySliceOrder);
 
@@ -425,7 +436,7 @@ export class ContextBuilder {
 
     // Company profile
     sections.push(`## Company Profile
-- **URL:** ${formatCompanyUrlForPrompt(ctx.company_url)}
+- **URL:** ${formatCompanyUrlForPrompt(ctx.company_url, ctx.no_public_website)}
 - **Name:** ${ctx.company_name ?? 'Unknown'}
 - **Industry:** ${industryLine}
 - **Domain weight for this industry:** ${ctx.domain_weight}x
@@ -485,22 +496,20 @@ export class ContextBuilder {
     // Collected raw data — truncated to avoid overflowing the context window.
     // Strategy: remove top-level keys one by one (largest first) until the JSON fits.
     // This always produces valid JSON, unlike slicing the serialised string mid-byte.
-    // Each collector block: ≤40K chars (~10K tokens); total across all: ≤120K chars.
-    const MAX_PER_COLLECTOR = 40_000;
-    const MAX_TOTAL_RAW = 120_000;
+    // Each collector block: bounded by CONFIG (~10K tokens per block); total across all capped in `SYSTEM_DEFAULTS`.
     if (Object.keys(ctx.collected_data).length > 0) {
       sections.push('## Collected Data (Raw Analysis)');
       let totalRawChars = 0;
       for (const [key, data] of Object.entries(ctx.collected_data)) {
-        if (totalRawChars >= MAX_TOTAL_RAW) {
+        if (totalRawChars >= CONTEXT_BUILDER_MAX_TOTAL_RAW_CHARS) {
           sections.push(`### ${key}\n_[omitted — total raw data limit reached]_`);
           truncatedKeys.push(key);
           continue;
         }
         let json = JSON.stringify(data, null, 2);
-        if (json.length > MAX_PER_COLLECTOR) {
+        if (json.length > CONTEXT_BUILDER_MAX_RAW_CHARS_PER_COLLECTOR) {
           // Trim by removing top-level keys largest-first until JSON fits
-          const trimmed = trimByKeys(data, MAX_PER_COLLECTOR);
+          const trimmed = trimByKeys(data, CONTEXT_BUILDER_MAX_RAW_CHARS_PER_COLLECTOR);
           json = JSON.stringify(trimmed.obj, null, 2);
           if (trimmed.removed > 0) {
             json += `\n// [${trimmed.removed} large key(s) omitted: ${trimmed.removedKeys.join(', ')}]`;

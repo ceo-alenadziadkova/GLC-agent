@@ -1,5 +1,14 @@
-import { BaseCollector } from './base.js';
+import { auditSkipsPublicWebsiteFetches } from '@glc/intake-core';
+import {
+  ACCESSIBILITY_COLLECTOR_COPY,
+  accessibilityBrokenHeadingHierarchyMessage,
+  accessibilityImagesMissingAltMessage,
+  accessibilityMultipleH1Message,
+  accessibilityNoH1Message,
+} from '../config/collector-copy-accessibility.en.js';
+import { BaseCollector, type CollectorCollectContext } from './base.js';
 import { supabase } from '../services/supabase.js';
+import { COLLECTOR_ACCESSIBILITY_AUDIT_URLS_MAX } from '../config/collector-sampling-limits.js';
 import { auditAxeNavigateTimeoutMs, auditAxePlaywrightEnabled } from '../lib/audit-deep-scan-env.js';
 import { runAxeOnPublicUrls } from '../lib/axe-playwright-audit.js';
 import { logger } from '../services/logger.js';
@@ -8,7 +17,17 @@ export class AccessibilityCollector extends BaseCollector {
   get key() { return 'accessibility'; }
   get phase() { return 4; }
 
-  async collect(auditId: string, companyUrl: string) {
+  async collect(auditId: string, companyUrl: string, ctx?: CollectorCollectContext) {
+    if (auditSkipsPublicWebsiteFetches(ctx?.noPublicWebsite, companyUrl)) {
+      return {
+        no_crawl_data: true,
+        warning: ACCESSIBILITY_COLLECTOR_COPY.warningNoPublicWebsite,
+        image_accessibility: { total_images: 0, missing_alt: 0, alt_coverage_percent: 100 },
+        structured_data_present: false,
+        issues: [ACCESSIBILITY_COLLECTOR_COPY.issueNoPublicWebsite],
+        pages_analyzed: 0,
+      };
+    }
     // Get crawled pages data
     const { data: crawlData } = await supabase
       .from('collected_data')
@@ -22,10 +41,10 @@ export class AccessibilityCollector extends BaseCollector {
     if (pages.length === 0) {
       const emptyCrawl = {
         no_crawl_data: true,
-        warning: 'No crawled pages available — accessibility analysis skipped',
+        warning: ACCESSIBILITY_COLLECTOR_COPY.warningNoCrawl,
         image_accessibility: { total_images: 0, missing_alt: 0, alt_coverage_percent: 100 },
         structured_data_present: false,
-        issues: ['No pages were crawled — cannot assess accessibility'],
+        issues: [ACCESSIBILITY_COLLECTOR_COPY.issueNoPagesCrawled],
         pages_analyzed: 0,
       };
       return this.attachAxeIfEnabled(auditId, companyUrl, [companyUrl], emptyCrawl);
@@ -44,7 +63,7 @@ export class AccessibilityCollector extends BaseCollector {
     }
 
     if (missingAlt > 0) {
-      issues.push(`${missingAlt} images missing alt text across ${pages.length} pages`);
+      issues.push(accessibilityImagesMissingAltMessage(missingAlt, pages.length));
     }
 
     // Structured data (Schema.org) — aids screen readers and search engines
@@ -57,7 +76,7 @@ export class AccessibilityCollector extends BaseCollector {
     )];
 
     if (!hasStructuredData) {
-      issues.push('No structured data (Schema.org) found — impacts screen reader usability');
+      issues.push(ACCESSIBILITY_COLLECTOR_COPY.issueStructuredDataMissing);
     }
 
     // Heading hierarchy check (R8): pages should have H1 before H2
@@ -67,19 +86,19 @@ export class AccessibilityCollector extends BaseCollector {
       return h2.length > 0 && h1.length === 0; // H2 without H1 = broken hierarchy
     });
     if (pagesWithBrokenHierarchy.length > 0) {
-      issues.push(`${pagesWithBrokenHierarchy.length} page(s) have H2 headings without an H1 — broken heading hierarchy`);
+      issues.push(accessibilityBrokenHeadingHierarchyMessage(pagesWithBrokenHierarchy.length));
     }
 
     // Multiple H1s on same page (bad practice)
     const pagesWithMultipleH1 = pages.filter(p => ((p.h1 as string[]) ?? []).length > 1);
     if (pagesWithMultipleH1.length > 0) {
-      issues.push(`${pagesWithMultipleH1.length} page(s) have multiple H1 tags — should have exactly one`);
+      issues.push(accessibilityMultipleH1Message(pagesWithMultipleH1.length));
     }
 
     // Pages completely missing H1
     const pagesWithNoH1 = pages.filter(p => ((p.h1 as string[]) ?? []).length === 0);
     if (pagesWithNoH1.length > 0) {
-      issues.push(`${pagesWithNoH1.length} page(s) have no H1 tag — required for screen reader navigation`);
+      issues.push(accessibilityNoH1Message(pagesWithNoH1.length));
     }
 
     // Language attribute inference from recon
@@ -91,7 +110,7 @@ export class AccessibilityCollector extends BaseCollector {
     const detectedLanguages = (recon?.languages as string[]) ?? [];
     const langAttributePresent = detectedLanguages.length > 0;
     if (!langAttributePresent) {
-      issues.push('No HTML lang attribute detected — screen readers cannot determine page language');
+      issues.push(ACCESSIBILITY_COLLECTOR_COPY.issueHtmlLangMissing);
     }
 
     const altCoveragePercent = totalImages > 0
@@ -118,7 +137,10 @@ export class AccessibilityCollector extends BaseCollector {
       pages_analyzed: pages.length,
     };
 
-    const urls = [companyUrl, ...pages.map(p => p.url as string).filter(Boolean)].slice(0, 5);
+    const urls = [companyUrl, ...pages.map(p => p.url as string).filter(Boolean)].slice(
+      0,
+      COLLECTOR_ACCESSIBILITY_AUDIT_URLS_MAX,
+    );
     return this.attachAxeIfEnabled(auditId, companyUrl, urls, base);
   }
 

@@ -22,15 +22,48 @@ import {
   type ProductMode,
 } from '../types/audit.js';
 import { logger } from '../services/logger.js';
+import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
+import { PIPELINE_MAX_PHASE_INDEX, PIPELINE_MIN_PHASE } from '../config/pipeline-phases.js';
+import { PIPELINE_STATUS_EVENTS_LIMIT } from '../config/route-query-limits.js';
 import {
   evaluateBriefGates,
   resolveIntakeSurfaceForPlan,
   validationPerspectiveForBriefAccess,
 } from '../services/brief-validator.js';
-import { notifyAuditParticipants, notifyAuditParticipantsExcept } from '../services/notifications.js';
+import { emitStructuredNotification, notifyAuditParticipantsExcept } from '../services/notifications.js';
+import {
+  PIPELINE_RETRY_STARTED_NOTIFICATION_TITLE,
+  PIPELINE_REVIEW_APPROVED_NOTIFICATION_TITLE,
+  pipelineRetryStartedNotificationMessage,
+  pipelineReviewApprovedMessage,
+} from '../config/route-notification-messages.js';
 import { emitPhaseErrorDurable } from '../services/pipeline-error.js';
 import { enqueuePipelineJob } from '../services/pipeline-jobs.js';
-
+import {
+  API_ERROR_CODES,
+  PIPELINE_ACCESS_DENIED_MESSAGE,
+  PIPELINE_ALL_PHASES_COMPLETE_MESSAGE,
+  PIPELINE_ALREADY_STARTED_MESSAGE,
+  PIPELINE_AUDIT_NOT_FOUND_MESSAGE,
+  PIPELINE_FORBIDDEN_MESSAGE,
+  PIPELINE_NEXT_CLAIM_CONFLICT_MESSAGE,
+  PIPELINE_NEXT_FAILED_MESSAGE,
+  PIPELINE_PHASE_IN_PROGRESS_MESSAGE,
+  PIPELINE_PHASE_REQUIRED_MESSAGE,
+  PIPELINE_QUALITY_GATE_FETCH_FAILED_MESSAGE,
+  PIPELINE_QUALITY_GATE_REQUIRES_NOTES_MESSAGE,
+  PIPELINE_RETRY_CLAIM_CONFLICT_MESSAGE,
+  PIPELINE_RETRY_FAILED_MESSAGE,
+  PIPELINE_REVIEW_APPROVE_FAILED_MESSAGE,
+  PIPELINE_REVIEW_PENDING_MESSAGE,
+  PIPELINE_START_CLAIM_CONFLICT_MESSAGE,
+  PIPELINE_START_FAILED_MESSAGE,
+  PIPELINE_STATUS_FAILED_MESSAGE,
+  PIPELINE_TOKEN_BUDGET_EXCEEDED_MESSAGE,
+  apiErrorJson,
+  pipelinePhaseNotAvailableMessage,
+  pipelinePhaseOutOfRangeMessage,
+} from '../config/api-error-codes.js';
 
 export const pipelineRouter = Router();
 
@@ -59,7 +92,7 @@ pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineL
     const id = req.params.id as string;
     const role = req.userRole as UserRole | undefined;
     if (role !== 'consultant' && role !== 'client') {
-      res.status(403).json({ error: 'Forbidden' });
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.PIPELINE_FORBIDDEN, PIPELINE_FORBIDDEN_MESSAGE));
       return;
     }
 
@@ -71,23 +104,30 @@ pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineL
       .single();
 
     if (error || !audit) {
-      res.status(404).json({ error: 'Audit not found' });
+      res
+        .status(404)
+        .json(apiErrorJson(API_ERROR_CODES.PIPELINE_AUDIT_NOT_FOUND, PIPELINE_AUDIT_NOT_FOUND_MESSAGE));
       return;
     }
 
     if (!canOperatePipeline(audit as { user_id: string; client_id: string | null }, req.userId!, role)) {
-      res.status(403).json({ error: 'Access denied' });
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.PIPELINE_ACCESS_DENIED, PIPELINE_ACCESS_DENIED_MESSAGE));
       return;
     }
 
     if (audit.status !== 'created') {
-      res.status(400).json({ error: 'Pipeline already started', status: audit.status });
+      res.status(400).json({
+        ...apiErrorJson(API_ERROR_CODES.PIPELINE_ALREADY_STARTED, PIPELINE_ALREADY_STARTED_MESSAGE),
+        status: audit.status,
+      });
       return;
     }
 
     // Check token budget
     if (audit.tokens_used >= audit.token_budget) {
-      res.status(400).json({ error: 'Token budget exceeded' });
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.PIPELINE_TOKEN_BUDGET_EXCEEDED, PIPELINE_TOKEN_BUDGET_EXCEEDED_MESSAGE));
       return;
     }
 
@@ -100,7 +140,11 @@ pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineL
       .eq('updated_at', audit.updated_at)
       .select('id');
     if (!claimedStart || claimedStart.length === 0) {
-      res.status(409).json({ error: 'Pipeline start already claimed by another request' });
+      res
+        .status(409)
+        .json(
+          apiErrorJson(API_ERROR_CODES.PIPELINE_START_CLAIM_CONFLICT, PIPELINE_START_CLAIM_CONFLICT_MESSAGE),
+        );
       return;
     }
 
@@ -139,7 +183,7 @@ pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineL
     }
   } catch (err) {
     logger.error('Pipeline start route failed', { error: (err as Error).message });
-    res.status(500).json({ error: 'Failed to start pipeline' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.PIPELINE_START_FAILED, PIPELINE_START_FAILED_MESSAGE));
   }
 });
 
@@ -149,7 +193,7 @@ pipelineRouter.post('/:id/pipeline/next', requireAuth, attachProfile, pipelineLi
     const id = req.params.id as string;
     const role = req.userRole as UserRole | undefined;
     if (role !== 'consultant' && role !== 'client') {
-      res.status(403).json({ error: 'Forbidden' });
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.PIPELINE_FORBIDDEN, PIPELINE_FORBIDDEN_MESSAGE));
       return;
     }
 
@@ -161,24 +205,33 @@ pipelineRouter.post('/:id/pipeline/next', requireAuth, attachProfile, pipelineLi
       .single();
 
     if (error || !audit) {
-      res.status(404).json({ error: 'Audit not found' });
+      res
+        .status(404)
+        .json(apiErrorJson(API_ERROR_CODES.PIPELINE_AUDIT_NOT_FOUND, PIPELINE_AUDIT_NOT_FOUND_MESSAGE));
       return;
     }
 
     if (!canOperatePipeline(audit as { user_id: string; client_id: string | null }, req.userId!, role)) {
-      res.status(403).json({ error: 'Access denied' });
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.PIPELINE_ACCESS_DENIED, PIPELINE_ACCESS_DENIED_MESSAGE));
       return;
     }
 
     if (audit.tokens_used >= audit.token_budget) {
-      res.status(400).json({ error: 'Token budget exceeded', tokens_used: audit.tokens_used, token_budget: audit.token_budget });
+      res.status(400).json({
+        ...apiErrorJson(API_ERROR_CODES.PIPELINE_TOKEN_BUDGET_EXCEEDED, PIPELINE_TOKEN_BUDGET_EXCEEDED_MESSAGE),
+        tokens_used: audit.tokens_used,
+        token_budget: audit.token_budget,
+      });
       return;
     }
 
     // [C4] Concurrent phase lock: reject if a phase is actively executing.
     // DB constraint has no 'running' status — orchestrator uses 'recon'/'auto'/'analytic'/'strategy'.
     if ((PHASE_ACTIVE_STATUSES as readonly string[]).includes(audit.status)) {
-      res.status(409).json({ error: 'A phase is already in progress', status: audit.status });
+      res.status(409).json({
+        ...apiErrorJson(API_ERROR_CODES.PIPELINE_PHASE_IN_PROGRESS, PIPELINE_PHASE_IN_PROGRESS_MESSAGE),
+        status: audit.status,
+      });
       return;
     }
 
@@ -187,7 +240,11 @@ pipelineRouter.post('/:id/pipeline/next', requireAuth, attachProfile, pipelineLi
     const nextPhase = audit.current_phase + 1;
 
     if (nextPhase > maxPhase) {
-      res.status(400).json({ error: 'All phases completed' });
+      res
+        .status(400)
+        .json(
+          apiErrorJson(API_ERROR_CODES.PIPELINE_ALL_PHASES_COMPLETE, PIPELINE_ALL_PHASES_COMPLETE_MESSAGE),
+        );
       return;
     }
 
@@ -202,9 +259,8 @@ pipelineRouter.post('/:id/pipeline/next', requireAuth, attachProfile, pipelineLi
 
     if (pendingReview) {
       res.status(400).json({
-        error: 'Review point pending',
+        ...apiErrorJson(API_ERROR_CODES.PIPELINE_REVIEW_PENDING, PIPELINE_REVIEW_PENDING_MESSAGE),
         review_after_phase: audit.current_phase,
-        message: 'Approve the review point before proceeding to the next phase',
       });
       return;
     }
@@ -219,7 +275,11 @@ pipelineRouter.post('/:id/pipeline/next', requireAuth, attachProfile, pipelineLi
       .in('status', ['review', 'completed', 'failed', 'created'])
       .select('id');
     if (!claimedNext || claimedNext.length === 0) {
-      res.status(409).json({ error: 'Next phase request already claimed by another request' });
+      res
+        .status(409)
+        .json(
+          apiErrorJson(API_ERROR_CODES.PIPELINE_NEXT_CLAIM_CONFLICT, PIPELINE_NEXT_CLAIM_CONFLICT_MESSAGE),
+        );
       return;
     }
 
@@ -232,7 +292,7 @@ pipelineRouter.post('/:id/pipeline/next', requireAuth, attachProfile, pipelineLi
     }
   } catch (err) {
     logger.error('Pipeline next route failed', { error: (err as Error).message });
-    res.status(500).json({ error: 'Failed to run next phase' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.PIPELINE_NEXT_FAILED, PIPELINE_NEXT_FAILED_MESSAGE));
   }
 });
 
@@ -243,11 +303,18 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
     const { phase } = req.body;
 
     if (phase === undefined || typeof phase !== 'number') {
-      res.status(400).json({ error: 'phase is required (number)' });
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.PIPELINE_PHASE_REQUIRED, PIPELINE_PHASE_REQUIRED_MESSAGE));
       return;
     }
-    if (!Number.isInteger(phase) || phase < 0 || phase > 7) {
-      res.status(400).json({ error: 'phase must be an integer between 0 and 7' });
+    if (!Number.isInteger(phase) || phase < PIPELINE_MIN_PHASE || phase > PIPELINE_MAX_PHASE_INDEX) {
+      res.status(400).json(
+        apiErrorJson(
+          API_ERROR_CODES.PIPELINE_PHASE_OUT_OF_RANGE,
+          pipelinePhaseOutOfRangeMessage(PIPELINE_MIN_PHASE, PIPELINE_MAX_PHASE_INDEX),
+        ),
+      );
       return;
     }
 
@@ -259,24 +326,36 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
       .single();
 
     if (error || !audit) {
-      res.status(404).json({ error: 'Audit not found' });
+      res
+        .status(404)
+        .json(apiErrorJson(API_ERROR_CODES.PIPELINE_AUDIT_NOT_FOUND, PIPELINE_AUDIT_NOT_FOUND_MESSAGE));
       return;
     }
 
     if (audit.tokens_used >= audit.token_budget) {
-      res.status(400).json({ error: 'Token budget exceeded' });
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.PIPELINE_TOKEN_BUDGET_EXCEEDED, PIPELINE_TOKEN_BUDGET_EXCEEDED_MESSAGE));
       return;
     }
 
     const retryMode = (audit.product_mode ?? 'full') as ProductMode;
     if (phase > maxPhaseForMode(retryMode)) {
-      res.status(400).json({ error: `Phase ${phase} is not available for product_mode '${retryMode}'` });
+      res.status(400).json(
+        apiErrorJson(
+          API_ERROR_CODES.PIPELINE_PHASE_NOT_AVAILABLE_FOR_MODE,
+          pipelinePhaseNotAvailableMessage(phase, retryMode),
+        ),
+      );
       return;
     }
 
     // [C4] Concurrent phase lock — same guard as /next
     if ((PHASE_ACTIVE_STATUSES as readonly string[]).includes(audit.status)) {
-      res.status(409).json({ error: 'A phase is already in progress', status: audit.status });
+      res.status(409).json({
+        ...apiErrorJson(API_ERROR_CODES.PIPELINE_PHASE_IN_PROGRESS, PIPELINE_PHASE_IN_PROGRESS_MESSAGE),
+        status: audit.status,
+      });
       return;
     }
 
@@ -290,7 +369,11 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
       .in('status', ['review', 'completed', 'failed', 'created'])
       .select('id');
     if (!claimedRetry || claimedRetry.length === 0) {
-      res.status(409).json({ error: 'Retry request already claimed by another request' });
+      res
+        .status(409)
+        .json(
+          apiErrorJson(API_ERROR_CODES.PIPELINE_RETRY_CLAIM_CONFLICT, PIPELINE_RETRY_CLAIM_CONFLICT_MESSAGE),
+        );
       return;
     }
 
@@ -299,8 +382,8 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
     await notifyAuditParticipantsExcept(
       id,
       'pipeline',
-      'Phase retry started',
-      `Retry was requested for phase ${phase}.`,
+      PIPELINE_RETRY_STARTED_NOTIFICATION_TITLE,
+      pipelineRetryStartedNotificationMessage(phase),
       [req.userId!],
       {
         phase,
@@ -319,7 +402,7 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
     }
   } catch (err) {
     logger.error('Pipeline retry route failed', { error: (err as Error).message });
-    res.status(500).json({ error: 'Failed to retry phase' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.PIPELINE_RETRY_FAILED, PIPELINE_RETRY_FAILED_MESSAGE));
   }
 });
 
@@ -339,7 +422,7 @@ pipelineRouter.get('/:id/pipeline/status', requireAuth, attachProfile, rejectGue
         .select('*')
         .eq('audit_id', id)
         .order('created_at', { ascending: false })
-        .limit(50),
+        .limit(PIPELINE_STATUS_EVENTS_LIMIT),
       supabase.from('review_points')
         .select('*')
         .eq('audit_id', id)
@@ -347,7 +430,9 @@ pipelineRouter.get('/:id/pipeline/status', requireAuth, attachProfile, rejectGue
     ]);
 
     if (auditRes.error || !auditRes.data) {
-      res.status(404).json({ error: 'Audit not found' });
+      res
+        .status(404)
+        .json(apiErrorJson(API_ERROR_CODES.PIPELINE_AUDIT_NOT_FOUND, PIPELINE_AUDIT_NOT_FOUND_MESSAGE));
       return;
     }
 
@@ -359,7 +444,7 @@ pipelineRouter.get('/:id/pipeline/status', requireAuth, attachProfile, rejectGue
   } catch (err) {
     const e = err as Error;
     logger.error('route.pipeline_status_failed', { component: 'pipeline', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to get pipeline status' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.PIPELINE_STATUS_FAILED, PIPELINE_STATUS_FAILED_MESSAGE));
   }
 });
 
@@ -378,7 +463,9 @@ pipelineRouter.get('/:id/quality-gate/:phase', requireAuth, attachProfile, rejec
       .single();
 
     if (!audit) {
-      res.status(404).json({ error: 'Audit not found' });
+      res
+        .status(404)
+        .json(apiErrorJson(API_ERROR_CODES.PIPELINE_AUDIT_NOT_FOUND, PIPELINE_AUDIT_NOT_FOUND_MESSAGE));
       return;
     }
 
@@ -401,7 +488,14 @@ pipelineRouter.get('/:id/quality-gate/:phase', requireAuth, attachProfile, rejec
   } catch (err) {
     const e = err as Error;
     logger.error('route.quality_gate_failed', { component: 'pipeline', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to fetch quality gate report' });
+    res
+      .status(500)
+      .json(
+        apiErrorJson(
+          API_ERROR_CODES.PIPELINE_QUALITY_GATE_FETCH_FAILED,
+          PIPELINE_QUALITY_GATE_FETCH_FAILED_MESSAGE,
+        ),
+      );
   }
 });
 
@@ -412,12 +506,12 @@ pipelineRouter.post('/:id/reviews/:phase', ...consultantGuard, async (req: AuthR
     const phase = req.params.phase as string;
     const { consultant_notes, interview_notes } = req.body;
 
-    const MAX_NOTES_LENGTH = 5000;
+    const maxNotes = REQUEST_FIELD_LIMITS.reviewGateNotesMax;
     const sanitizedConsultantNotes = consultant_notes
-      ? String(consultant_notes).trim().slice(0, MAX_NOTES_LENGTH) || null
+      ? String(consultant_notes).trim().slice(0, maxNotes) || null
       : null;
     const sanitizedInterviewNotes = interview_notes
-      ? String(interview_notes).trim().slice(0, MAX_NOTES_LENGTH) || null
+      ? String(interview_notes).trim().slice(0, maxNotes) || null
       : null;
 
     // Verify ownership
@@ -429,7 +523,9 @@ pipelineRouter.post('/:id/reviews/:phase', ...consultantGuard, async (req: AuthR
       .single();
 
     if (!audit) {
-      res.status(404).json({ error: 'Audit not found' });
+      res
+        .status(404)
+        .json(apiErrorJson(API_ERROR_CODES.PIPELINE_AUDIT_NOT_FOUND, PIPELINE_AUDIT_NOT_FOUND_MESSAGE));
       return;
     }
 
@@ -450,10 +546,12 @@ pipelineRouter.post('/:id/reviews/:phase', ...consultantGuard, async (req: AuthR
       const qgReport = qgEvent.data as { passed: boolean; flags: Array<{ severity: string }> };
       const hasWarnings = !qgReport.passed && qgReport.flags.some(f => f.severity === 'warning');
       if (hasWarnings && !sanitizedConsultantNotes) {
-        res.status(400).json({
-          error: 'quality_gate_requires_notes',
-          message: 'This review gate has quality warnings. Consultant notes are required to acknowledge them before approving.',
-        });
+        res.status(400).json(
+          apiErrorJson(
+            API_ERROR_CODES.PIPELINE_QUALITY_GATE_REQUIRES_NOTES,
+            PIPELINE_QUALITY_GATE_REQUIRES_NOTES_MESSAGE,
+          ),
+        );
         return;
       }
     }
@@ -478,27 +576,39 @@ pipelineRouter.post('/:id/reviews/:phase', ...consultantGuard, async (req: AuthR
       return;
     }
 
-    // Emit event
+    const approvedPhase = parseInt(phase, 10);
+    const reviewApprovedMsg = pipelineReviewApprovedMessage(approvedPhase);
     await supabase.from('pipeline_events').insert({
       audit_id: id,
-      phase: parseInt(phase),
+      phase: approvedPhase,
       event_type: 'review_approved',
-      message: `Review point after phase ${phase} approved`,
+      message: reviewApprovedMsg,
       data: { consultant_notes: sanitizedConsultantNotes, interview_notes: sanitizedInterviewNotes },
     });
 
-    await notifyAuditParticipants(
-      id,
-      'review',
-      'Review approved',
-      `Review point after phase ${phase} approved`,
-      { phase: parseInt(phase) },
-    );
+    await emitStructuredNotification({
+      category: 'review',
+      event: 'review_approved',
+      priority: 'low',
+      audience: 'audit_participants',
+      auditId: id,
+      title: PIPELINE_REVIEW_APPROVED_NOTIFICATION_TITLE,
+      message: reviewApprovedMsg,
+      payload: { phase: approvedPhase },
+      route: `/audit/${id}`,
+    });
 
     res.json(data);
   } catch (err) {
     const e = err as Error;
     logger.error('route.review_approve_failed', { component: 'pipeline', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to approve review' });
+    res
+      .status(500)
+      .json(
+        apiErrorJson(
+          API_ERROR_CODES.PIPELINE_REVIEW_APPROVE_FAILED,
+          PIPELINE_REVIEW_APPROVE_FAILED_MESSAGE,
+        ),
+      );
   }
 });

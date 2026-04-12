@@ -1,5 +1,6 @@
 /**
  * Pre-brief public intake: consultant creates token; client loads and submits without auth.
+ * Payload shape matches `buildPreBriefQuestionsForResponses` + `BriefResponsesSchema` (bank id cells; see API.md).
  */
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
@@ -12,19 +13,57 @@ import {
   BriefResponsesSchema,
 } from '../schemas/intake-brief.js';
 import { arePreBriefSlotsSatisfied, saveBriefResponses } from '../services/brief-validator.js';
+import { resolveFrontendBaseUrl } from '../config/frontend-url.js';
+import { INTAKE_SUBMISSIONS_LIST_MAX } from '../config/route-query-limits.js';
 import { logger } from '../services/logger.js';
-import { notifyAuditParticipants, notifyUser } from '../services/notifications.js';
+import { emitStructuredNotification } from '../services/notifications.js';
+import {
+  INTAKE_RESPONSES_UPDATED_NOTIFICATION_TITLE,
+  INTAKE_SUBMISSION_RECEIVED_NOTIFICATION_TITLE,
+  intakePreBriefSubmittedNotificationMessage,
+} from '../config/route-notification-messages.js';
 import { buildIntakePlan } from '@glc/intake-core';
+import { choiceSpecifyResponseKey } from '@glc/intake-core';
+import { INTAKE_REVENUE_BANK_ID } from '@glc/intake-core';
 import { formatPlanTrace } from '@glc/intake-core';
 import { parseIntakeVersionTuple } from '@glc/intake-core';
 import { isSupportedIntakeArtifactTuple } from '@glc/intake-core';
 import type { IntakeSurface } from '@glc/intake-core';
 import type { IntakeBriefCollectionMode, ProductMode } from '../types/audit.js';
-import { mergeLegacyIntakeAliasesRead } from '@glc/intake-core';
+import {
+  API_ERROR_CODES,
+  INTAKE_AUDIT_ID_FORMAT_INVALID_MESSAGE,
+  INTAKE_AUDIT_ID_REQUIRED_MESSAGE,
+  INTAKE_AUDIT_NOT_FOUND_MESSAGE,
+  INTAKE_CREATE_LINK_FAILED_MESSAGE,
+  INTAKE_INVALID_TOKEN_MESSAGE,
+  INTAKE_LINK_AUDIT_FAILED_MESSAGE,
+  INTAKE_LINK_EXPIRED_MESSAGE,
+  INTAKE_LINK_NOT_FOUND_MESSAGE,
+  INTAKE_LINK_TOKEN_FAILED_MESSAGE,
+  INTAKE_LIST_SUBMISSIONS_FAILED_MESSAGE,
+  INTAKE_LOAD_FAILED_MESSAGE,
+  INTAKE_NOT_ALLOWED_MESSAGE,
+  INTAKE_PLAN_TRACE_FAILED_MESSAGE,
+  INTAKE_PREFILL_LOAD_FAILED_MESSAGE,
+  INTAKE_PREBRIEF_AUDIT_OWNER_MISMATCH_MESSAGE,
+  INTAKE_PREBRIEF_INCOMPLETE_MESSAGE,
+  INTAKE_RESPONSES_REQUIRED_MESSAGE,
+  INTAKE_SAVE_RESPONSES_FAILED_MESSAGE,
+  INTAKE_TOKEN_LINKED_CONFLICT_MESSAGE,
+  INTAKE_TOKEN_NOT_FOUND_MESSAGE,
+  INTAKE_VERSION_TUPLE_UNSUPPORTED_MESSAGE,
+  apiErrorJson,
+  intakeCollectionModeInvalidMessage,
+  intakeProductModeInvalidMessage,
+  intakeResponsesSchemaInvalidMessage,
+  intakeSurfaceInvalidMessage,
+} from '../config/api-error-codes.js';
+import { INTAKE_TOKEN_HEX_REGEX } from '../config/intake-token.js';
 
 export const intakeRouter = Router();
 
-const TOKEN_HEX = /^[a-f0-9]{40}$/i;
+type MergePreBriefOutcome = 'merged' | 'nothing_to_merge' | 'consultant_not_audit_owner';
 
 function toClientEntries(raw: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -38,10 +77,10 @@ function toClientEntries(raw: Record<string, unknown>): Record<string, unknown> 
   return out;
 }
 
+/** Question rows for public/prefill GET: policy identity block, then classic-catalog rows for `plan.visible` (pre_brief slice). */
 function buildPreBriefQuestionsForResponses(raw: Record<string, unknown>) {
-  const responses = mergeLegacyIntakeAliasesRead(raw);
   const preBriefPlan = buildIntakePlan({
-    responses,
+    responses: raw,
     productMode: 'full',
     collectionMode: 'pre_brief',
     surface: 'client_form',
@@ -50,19 +89,23 @@ function buildPreBriefQuestionsForResponses(raw: Record<string, unknown>) {
   return [...INTAKE_IDENTITY_BRIEF_QUESTIONS, ...coreQuestions];
 }
 
-/** Merges pre-brief question keys from parsed token responses into the audit's intake_brief. */
+/**
+ * Merges token submit cells into `intake_brief.responses` (whitelist only).
+ * Includes `pre_brief` `plan.visible` ids, `INTAKE_IDENTITY_FIELD_IDS`, `INTAKE_REVENUE_BANK_ID` and its specify key,
+ * and every `choiceSpecifyResponseKey` for visible + identity ids (e.g. `f1__other`, `c3__other`, `intake_industry_specify` for `a2`).
+ */
 async function mergePreBriefFromParsedResponses(
   auditId: string,
   consultantUserId: string,
   parsed: Record<string, unknown>,
-): Promise<void> {
+): Promise<MergePreBriefOutcome> {
   const { data: auditRow, error: auditErr } = await supabase
     .from('audits')
     .select('user_id')
     .eq('id', auditId)
     .single();
   if (auditErr || !auditRow || auditRow.user_id !== consultantUserId) {
-    throw new Error('audit_ownership_mismatch');
+    return 'consultant_not_audit_owner';
   }
 
   const { data: brief } = await supabase
@@ -73,7 +116,7 @@ async function mergePreBriefFromParsedResponses(
   const existing = (brief?.responses as Record<string, unknown>) ?? {};
   const preBriefPatch: Record<string, unknown> = {};
   const entries = toClientEntries(parsed);
-  const mergedForPlan = mergeLegacyIntakeAliasesRead({ ...existing, ...entries });
+  const mergedForPlan = { ...existing, ...entries };
   const preBriefPlan = buildIntakePlan({
     responses: mergedForPlan,
     productMode: 'full',
@@ -83,16 +126,19 @@ async function mergePreBriefFromParsedResponses(
   const mergeIds = new Set<string>([
     ...preBriefPlan.visible,
     ...INTAKE_IDENTITY_FIELD_IDS,
-    'revenue_model',
-    'revenue_model__other',
-    'a10',
-    'a10__other',
+    INTAKE_REVENUE_BANK_ID,
+    choiceSpecifyResponseKey(INTAKE_REVENUE_BANK_ID),
   ]);
+  const specifyScopeIds = [...preBriefPlan.visible, ...INTAKE_IDENTITY_FIELD_IDS];
+  for (const id of specifyScopeIds) {
+    mergeIds.add(choiceSpecifyResponseKey(id));
+  }
   for (const id of mergeIds) {
     if (entries[id] !== undefined) preBriefPatch[id] = entries[id];
   }
-  if (Object.keys(preBriefPatch).length === 0) return;
+  if (Object.keys(preBriefPatch).length === 0) return 'nothing_to_merge';
   await saveBriefResponses(auditId, { ...existing, ...preBriefPatch }, { validation_perspective: 'client' });
+  return 'merged';
 }
 
 /** POST /api/intake — consultant creates token */
@@ -104,7 +150,11 @@ intakeRouter.post('/', requireAuth, attachProfile, requireRole('consultant'), as
       : {};
 
     if (audit_id != null && typeof audit_id !== 'string') {
-      res.status(400).json({ error: 'audit_id must be a string UUID when provided' });
+      res
+        .status(400)
+        .json(
+          apiErrorJson(API_ERROR_CODES.INTAKE_AUDIT_ID_FORMAT_INVALID, INTAKE_AUDIT_ID_FORMAT_INVALID_MESSAGE),
+        );
       return;
     }
 
@@ -115,7 +165,7 @@ intakeRouter.post('/', requireAuth, attachProfile, requireRole('consultant'), as
         .eq('id', audit_id)
         .single();
       if (aErr || !audit || audit.user_id !== req.userId) {
-        res.status(404).json({ error: 'Audit not found' });
+        res.status(404).json(apiErrorJson(API_ERROR_CODES.INTAKE_AUDIT_NOT_FOUND, INTAKE_AUDIT_NOT_FOUND_MESSAGE));
         return;
       }
     }
@@ -132,12 +182,13 @@ intakeRouter.post('/', requireAuth, attachProfile, requireRole('consultant'), as
 
     if (error || !row) {
       logger.error('intake.create_failed', { component: 'intake', error: error?.message });
-      res.status(500).json({ error: 'Failed to create intake link' });
+      res
+        .status(500)
+        .json(apiErrorJson(API_ERROR_CODES.INTAKE_CREATE_LINK_FAILED, INTAKE_CREATE_LINK_FAILED_MESSAGE));
       return;
     }
 
-    const frontend = process.env.FRONTEND_URL ?? 'http://localhost:5173';
-    const base = frontend.replace(/\/$/, '');
+    const base = resolveFrontendBaseUrl();
     res.status(201).json({
       token: row.token as string,
       url: `${base}/intake/${row.token}`,
@@ -146,7 +197,9 @@ intakeRouter.post('/', requireAuth, attachProfile, requireRole('consultant'), as
   } catch (err) {
     const e = err as Error;
     logger.error('intake.create_exception', { component: 'intake', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to create intake link' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.INTAKE_CREATE_LINK_FAILED, INTAKE_CREATE_LINK_FAILED_MESSAGE));
   }
 });
 
@@ -158,12 +211,12 @@ intakeRouter.post('/link-audit', requireAuth, attachProfile, requireRole('consul
   try {
     const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
     const audit_id = typeof req.body?.audit_id === 'string' ? req.body.audit_id.trim() : '';
-    if (!token || !TOKEN_HEX.test(token)) {
-      res.status(400).json({ error: 'Invalid token' });
+    if (!token || !INTAKE_TOKEN_HEX_REGEX.test(token)) {
+      res.status(400).json(apiErrorJson(API_ERROR_CODES.INTAKE_INVALID_TOKEN, INTAKE_INVALID_TOKEN_MESSAGE));
       return;
     }
     if (!audit_id) {
-      res.status(400).json({ error: 'audit_id is required' });
+      res.status(400).json(apiErrorJson(API_ERROR_CODES.INTAKE_AUDIT_ID_REQUIRED, INTAKE_AUDIT_ID_REQUIRED_MESSAGE));
       return;
     }
 
@@ -174,16 +227,20 @@ intakeRouter.post('/link-audit', requireAuth, attachProfile, requireRole('consul
       .single();
 
     if (tErr || !tokRow) {
-      res.status(404).json({ error: 'Token not found' });
+      res.status(404).json(apiErrorJson(API_ERROR_CODES.INTAKE_TOKEN_NOT_FOUND, INTAKE_TOKEN_NOT_FOUND_MESSAGE));
       return;
     }
     if (tokRow.consultant_id !== req.userId) {
-      res.status(403).json({ error: 'Not allowed' });
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.INTAKE_NOT_ALLOWED, INTAKE_NOT_ALLOWED_MESSAGE));
       return;
     }
     const existingAudit = tokRow.audit_id as string | null;
     if (existingAudit && existingAudit !== audit_id) {
-      res.status(409).json({ error: 'This link is already linked to another audit' });
+      res
+        .status(409)
+        .json(
+          apiErrorJson(API_ERROR_CODES.INTAKE_TOKEN_LINKED_CONFLICT, INTAKE_TOKEN_LINKED_CONFLICT_MESSAGE),
+        );
       return;
     }
 
@@ -193,7 +250,7 @@ intakeRouter.post('/link-audit', requireAuth, attachProfile, requireRole('consul
       .eq('id', audit_id)
       .single();
     if (aErr || !audit || audit.user_id !== req.userId) {
-      res.status(404).json({ error: 'Audit not found' });
+      res.status(404).json(apiErrorJson(API_ERROR_CODES.INTAKE_AUDIT_NOT_FOUND, INTAKE_AUDIT_NOT_FOUND_MESSAGE));
       return;
     }
 
@@ -204,7 +261,9 @@ intakeRouter.post('/link-audit', requireAuth, attachProfile, requireRole('consul
 
     if (upErr) {
       logger.error('intake.link_audit_update_failed', { component: 'intake', error: upErr.message });
-      res.status(500).json({ error: 'Failed to link token' });
+      res
+        .status(500)
+        .json(apiErrorJson(API_ERROR_CODES.INTAKE_LINK_TOKEN_FAILED, INTAKE_LINK_TOKEN_FAILED_MESSAGE));
       return;
     }
 
@@ -212,7 +271,18 @@ intakeRouter.post('/link-audit', requireAuth, attachProfile, requireRole('consul
     const parsed = BriefResponsesSchema.safeParse(rawResponses);
     if (parsed.success && Object.keys(parsed.data).length > 0) {
       try {
-        await mergePreBriefFromParsedResponses(audit_id, req.userId!, parsed.data as Record<string, unknown>);
+        const outcome = await mergePreBriefFromParsedResponses(
+          audit_id,
+          req.userId!,
+          parsed.data as Record<string, unknown>,
+        );
+        if (outcome === 'consultant_not_audit_owner') {
+          logger.warn('intake.link_audit_merge_skipped', {
+            component: 'intake',
+            code: API_ERROR_CODES.INTAKE_PREBRIEF_AUDIT_OWNER_MISMATCH,
+            message: INTAKE_PREBRIEF_AUDIT_OWNER_MISMATCH_MESSAGE,
+          });
+        }
       } catch (mergeErr) {
         logger.warn('intake.link_audit_merge_skipped', {
           component: 'intake',
@@ -225,7 +295,9 @@ intakeRouter.post('/link-audit', requireAuth, attachProfile, requireRole('consul
   } catch (err) {
     const e = err as Error;
     logger.error('intake.link_audit_exception', { component: 'intake', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to link intake token' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.INTAKE_LINK_AUDIT_FAILED, INTAKE_LINK_AUDIT_FAILED_MESSAGE));
   }
 });
 
@@ -241,16 +313,19 @@ intakeRouter.get('/submissions', requireAuth, attachProfile, requireRole('consul
       .eq('consultant_id', req.userId!)
       .not('submitted_at', 'is', null)
       .order('submitted_at', { ascending: false })
-      .limit(100);
+      .limit(INTAKE_SUBMISSIONS_LIST_MAX);
 
     if (error) {
       logger.error('intake.submissions_list_failed', { component: 'intake', error: error.message });
-      res.status(500).json({ error: 'Failed to list submissions' });
+      res
+        .status(500)
+        .json(
+          apiErrorJson(API_ERROR_CODES.INTAKE_LIST_SUBMISSIONS_FAILED, INTAKE_LIST_SUBMISSIONS_FAILED_MESSAGE),
+        );
       return;
     }
 
-    const frontend = process.env.FRONTEND_URL ?? 'http://localhost:5173';
-    const base = frontend.replace(/\/$/, '');
+    const base = resolveFrontendBaseUrl();
     const submissions = (rows ?? []).map(r => ({
       token: r.token as string,
       metadata: (r.metadata as Record<string, unknown>) ?? {},
@@ -265,7 +340,11 @@ intakeRouter.get('/submissions', requireAuth, attachProfile, requireRole('consul
   } catch (err) {
     const e = err as Error;
     logger.error('intake.submissions_exception', { component: 'intake', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to list submissions' });
+    res
+      .status(500)
+      .json(
+        apiErrorJson(API_ERROR_CODES.INTAKE_LIST_SUBMISSIONS_FAILED, INTAKE_LIST_SUBMISSIONS_FAILED_MESSAGE),
+      );
   }
 });
 
@@ -281,8 +360,8 @@ intakeRouter.get(
   async (req: AuthRequest, res) => {
     try {
       const token = String(req.params.token ?? '').trim();
-      if (!token || !TOKEN_HEX.test(token)) {
-        res.status(400).json({ error: 'Invalid token' });
+      if (!token || !INTAKE_TOKEN_HEX_REGEX.test(token)) {
+        res.status(400).json(apiErrorJson(API_ERROR_CODES.INTAKE_INVALID_TOKEN, INTAKE_INVALID_TOKEN_MESSAGE));
         return;
       }
 
@@ -293,15 +372,15 @@ intakeRouter.get(
         .single();
 
       if (error || !row) {
-        res.status(404).json({ error: 'Link not found' });
+        res.status(404).json(apiErrorJson(API_ERROR_CODES.INTAKE_LINK_NOT_FOUND, INTAKE_LINK_NOT_FOUND_MESSAGE));
         return;
       }
       if (row.consultant_id !== req.userId) {
-        res.status(403).json({ error: 'Not allowed' });
+        res.status(403).json(apiErrorJson(API_ERROR_CODES.INTAKE_NOT_ALLOWED, INTAKE_NOT_ALLOWED_MESSAGE));
         return;
       }
 
-      // Same question bundle as public GET: identity + pre-brief core (see GET /api/intake/:token).
+      // Same bundle as public GET /api/intake/:token (buildPreBriefQuestionsForResponses).
       const questions = buildPreBriefQuestionsForResponses((row.responses as Record<string, unknown>) ?? {});
       const expMs = new Date(row.expires_at as string).getTime();
       const linkExpired = !Number.isFinite(expMs) || Date.now() > expMs;
@@ -317,7 +396,11 @@ intakeRouter.get(
     } catch (err) {
       const e = err as Error;
       logger.error('intake.prefill_get_exception', { component: 'intake', error: e.message, stack: e.stack });
-      res.status(500).json({ error: 'Failed to load intake prefill' });
+      res
+        .status(500)
+        .json(
+          apiErrorJson(API_ERROR_CODES.INTAKE_PREFILL_LOAD_FAILED, INTAKE_PREFILL_LOAD_FAILED_MESSAGE),
+        );
     }
   }
 );
@@ -364,21 +447,42 @@ intakeRouter.post(
 
       const rawMode = typeof body.productMode === 'string' ? body.productMode : 'full';
       if (!VALID_PRODUCT_MODES.has(rawMode)) {
-        res.status(400).json({ error: `Invalid productMode "${rawMode}". Valid values: ${[...VALID_PRODUCT_MODES].join(', ')}` });
+        res
+          .status(400)
+          .json(
+            apiErrorJson(
+              API_ERROR_CODES.INTAKE_PRODUCT_MODE_INVALID,
+              intakeProductModeInvalidMessage(rawMode, [...VALID_PRODUCT_MODES].join(', ')),
+            ),
+          );
         return;
       }
       const productMode = rawMode as ProductMode;
 
       const rawCollection = typeof body.collectionMode === 'string' ? body.collectionMode : undefined;
       if (rawCollection !== undefined && !VALID_COLLECTION_MODES.has(rawCollection)) {
-        res.status(400).json({ error: `Invalid collectionMode "${rawCollection}".` });
+        res
+          .status(400)
+          .json(
+            apiErrorJson(
+              API_ERROR_CODES.INTAKE_COLLECTION_MODE_INVALID,
+              intakeCollectionModeInvalidMessage(rawCollection),
+            ),
+          );
         return;
       }
       const collectionMode = rawCollection as IntakeBriefCollectionMode | undefined;
 
       const rawSurface = typeof body.surface === 'string' ? body.surface : undefined;
       if (rawSurface !== undefined && !VALID_SURFACES.has(rawSurface)) {
-        res.status(400).json({ error: `Invalid surface "${rawSurface}". Valid values: ${[...VALID_SURFACES].join(', ')}` });
+        res
+          .status(400)
+          .json(
+            apiErrorJson(
+              API_ERROR_CODES.INTAKE_SURFACE_INVALID,
+              intakeSurfaceInvalidMessage(rawSurface, [...VALID_SURFACES].join(', ')),
+            ),
+          );
         return;
       }
       const surface = rawSurface as IntakeSurface | undefined;
@@ -388,7 +492,14 @@ intakeRouter.post(
         : undefined;
 
       if (intakeVersionTuple !== undefined && !isSupportedIntakeArtifactTuple(intakeVersionTuple)) {
-        res.status(400).json({ error: 'Unsupported intakeVersionTuple — not current and not in frozen registry.' });
+        res
+          .status(400)
+          .json(
+            apiErrorJson(
+              API_ERROR_CODES.INTAKE_VERSION_TUPLE_UNSUPPORTED,
+              INTAKE_VERSION_TUPLE_UNSUPPORTED_MESSAGE,
+            ),
+          );
         return;
       }
 
@@ -399,7 +510,13 @@ intakeRouter.post(
     } catch (err) {
       const e = err as Error;
       logger.error('intake.plan_trace_exception', { component: 'intake', error: e.message });
-      res.status(500).json({ error: 'Failed to build intake plan trace', detail: e.message });
+      res
+        .status(500)
+        .json(
+          apiErrorJson(API_ERROR_CODES.INTAKE_PLAN_TRACE_FAILED, INTAKE_PLAN_TRACE_FAILED_MESSAGE, {
+            detail: e.message,
+          }),
+        );
     }
   },
 );
@@ -408,8 +525,8 @@ intakeRouter.post(
 intakeRouter.get('/:token', intakePublicReadLimiter, async (req, res) => {
   try {
     const token = String(req.params.token ?? '');
-    if (!token || !TOKEN_HEX.test(token)) {
-      res.status(400).json({ error: 'Invalid token' });
+    if (!token || !INTAKE_TOKEN_HEX_REGEX.test(token)) {
+      res.status(400).json(apiErrorJson(API_ERROR_CODES.INTAKE_INVALID_TOKEN, INTAKE_INVALID_TOKEN_MESSAGE));
       return;
     }
 
@@ -420,18 +537,18 @@ intakeRouter.get('/:token', intakePublicReadLimiter, async (req, res) => {
       .single();
 
     if (error || !row) {
-      res.status(404).json({ error: 'Link not found' });
+      res.status(404).json(apiErrorJson(API_ERROR_CODES.INTAKE_LINK_NOT_FOUND, INTAKE_LINK_NOT_FOUND_MESSAGE));
       return;
     }
 
     const exp = new Date(row.expires_at as string).getTime();
     if (!Number.isFinite(exp) || Date.now() > exp) {
-      res.status(410).json({ error: 'This link has expired' });
+      res.status(410).json(apiErrorJson(API_ERROR_CODES.INTAKE_LINK_EXPIRED, INTAKE_LINK_EXPIRED_MESSAGE));
       return;
     }
 
-    // Public client pre-brief must always include identity (website, name, industry, Other specify).
-    // Core pre-brief bank questions are resolved by the policy resolver for this token's current responses.
+    // Public pre-brief: INTAKE_IDENTITY_BRIEF_QUESTIONS first (policy identityFieldIds bank stubs; a2 Other uses intake_industry_specify inline),
+    // then getBriefQuestionsByIds(plan.visible) for the pre_brief bank slice.
     const questions = buildPreBriefQuestionsForResponses((row.responses as Record<string, unknown>) ?? {});
 
     res.json({
@@ -444,7 +561,7 @@ intakeRouter.get('/:token', intakePublicReadLimiter, async (req, res) => {
   } catch (err) {
     const e = err as Error;
     logger.error('intake.public_get_exception', { component: 'intake', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to load intake link' });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.INTAKE_LOAD_FAILED, INTAKE_LOAD_FAILED_MESSAGE));
   }
 });
 
@@ -452,8 +569,8 @@ intakeRouter.get('/:token', intakePublicReadLimiter, async (req, res) => {
 intakeRouter.post('/:token/respond', intakePublicWriteLimiter, async (req, res) => {
   try {
     const token = String(req.params.token ?? '');
-    if (!token || !TOKEN_HEX.test(token)) {
-      res.status(400).json({ error: 'Invalid token' });
+    if (!token || !INTAKE_TOKEN_HEX_REGEX.test(token)) {
+      res.status(400).json(apiErrorJson(API_ERROR_CODES.INTAKE_INVALID_TOKEN, INTAKE_INVALID_TOKEN_MESSAGE));
       return;
     }
 
@@ -464,32 +581,43 @@ intakeRouter.post('/:token/respond', intakePublicWriteLimiter, async (req, res) 
       .single();
 
     if (fetchErr || !row) {
-      res.status(404).json({ error: 'Link not found' });
+      res.status(404).json(apiErrorJson(API_ERROR_CODES.INTAKE_LINK_NOT_FOUND, INTAKE_LINK_NOT_FOUND_MESSAGE));
       return;
     }
 
     const exp = new Date(row.expires_at as string).getTime();
     if (!Number.isFinite(exp) || Date.now() > exp) {
-      res.status(410).json({ error: 'This link has expired' });
+      res.status(410).json(apiErrorJson(API_ERROR_CODES.INTAKE_LINK_EXPIRED, INTAKE_LINK_EXPIRED_MESSAGE));
       return;
     }
 
     const body = req.body?.responses;
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
-      res.status(400).json({ error: 'responses object is required' });
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.INTAKE_RESPONSES_REQUIRED, INTAKE_RESPONSES_REQUIRED_MESSAGE));
       return;
     }
 
     const parsed = BriefResponsesSchema.safeParse(body);
     if (!parsed.success) {
-      res.status(400).json({ error: `Invalid responses: ${parsed.error.message}` });
+      res
+        .status(400)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.INTAKE_RESPONSES_SCHEMA_INVALID,
+            intakeResponsesSchemaInvalidMessage(parsed.error.message),
+          ),
+        );
       return;
     }
 
     if (!arePreBriefSlotsSatisfied(parsed.data as Record<string, unknown>)) {
-      res.status(400).json({
-        error: 'Pre-brief incomplete. If you selected Other for industry, describe your sector in the follow-up field.',
-      });
+      res
+        .status(400)
+        .json(
+          apiErrorJson(API_ERROR_CODES.INTAKE_PREBRIEF_INCOMPLETE, INTAKE_PREBRIEF_INCOMPLETE_MESSAGE),
+        );
       return;
     }
 
@@ -504,43 +632,63 @@ intakeRouter.post('/:token/respond', intakePublicWriteLimiter, async (req, res) 
 
     if (upErr) {
       logger.error('intake.respond_update_failed', { component: 'intake', error: upErr.message });
-      res.status(500).json({ error: 'Failed to save responses' });
+      res
+        .status(500)
+        .json(apiErrorJson(API_ERROR_CODES.INTAKE_SAVE_RESPONSES_FAILED, INTAKE_SAVE_RESPONSES_FAILED_MESSAGE));
       return;
     }
 
     const auditId = row.audit_id as string | null;
     if (auditId) {
       try {
-        await mergePreBriefFromParsedResponses(auditId, row.consultant_id as string, parsed.data as Record<string, unknown>);
+        const outcome = await mergePreBriefFromParsedResponses(
+          auditId,
+          row.consultant_id as string,
+          parsed.data as Record<string, unknown>,
+        );
+        if (outcome === 'consultant_not_audit_owner') {
+          logger.warn('intake.brief_merge_skipped', {
+            component: 'intake',
+            code: API_ERROR_CODES.INTAKE_PREBRIEF_AUDIT_OWNER_MISMATCH,
+            message: INTAKE_PREBRIEF_AUDIT_OWNER_MISMATCH_MESSAGE,
+          });
+        }
       } catch (mergeErr) {
-        const reason = (mergeErr as Error).message === 'audit_ownership_mismatch' ? 'audit_ownership_mismatch' : 'merge_error';
         logger.warn('intake.brief_merge_skipped', {
           component: 'intake',
-          reason,
+          reason: 'merge_error',
           error: (mergeErr as Error).message,
         });
       }
     }
 
     const responseCount = Object.keys(parsed.data as Record<string, unknown>).length;
+    const preBriefMsg = intakePreBriefSubmittedNotificationMessage(responseCount);
     if (auditId) {
-      await notifyAuditParticipants(
+      await emitStructuredNotification({
+        category: 'intake',
+        event: 'intake_responses_updated',
+        priority: 'low',
+        audience: 'audit_participants',
         auditId,
-        'intake',
-        'Intake responses updated',
-        `Client submitted pre-brief responses (${responseCount} fields).`,
-        {
+        title: INTAKE_RESPONSES_UPDATED_NOTIFICATION_TITLE,
+        message: preBriefMsg,
+        payload: {
           token,
           submitted_at: submittedAt,
         },
-      );
+        route: `/audit/${auditId}`,
+      });
     } else {
-      await notifyUser({
+      await emitStructuredNotification({
+        category: 'intake',
+        event: 'intake_submission_received',
+        priority: 'low',
+        audience: 'user',
         userId: row.consultant_id as string,
         auditId: null,
-        kind: 'intake',
-        title: 'New intake submission',
-        message: `Client submitted pre-brief responses (${responseCount} fields).`,
+        title: INTAKE_SUBMISSION_RECEIVED_NOTIFICATION_TITLE,
+        message: preBriefMsg,
         payload: {
           token,
           submitted_at: submittedAt,
@@ -552,6 +700,8 @@ intakeRouter.post('/:token/respond', intakePublicWriteLimiter, async (req, res) 
   } catch (err) {
     const e = err as Error;
     logger.error('intake.respond_exception', { component: 'intake', error: e.message, stack: e.stack });
-    res.status(500).json({ error: 'Failed to save responses' });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.INTAKE_SAVE_RESPONSES_FAILED, INTAKE_SAVE_RESPONSES_FAILED_MESSAGE));
   }
 });

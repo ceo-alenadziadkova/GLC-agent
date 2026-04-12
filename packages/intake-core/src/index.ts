@@ -17,12 +17,14 @@ export {
   type BranchPredicate,
   type WebsiteGate,
 } from './branch-rules.js';
+export { isSoloTeamRaw } from './branch-response-normalizers.js';
 export {
   getVisibleBankStubs,
   resolveBankOptionalIds,
   resolveBankRecommendedIds,
   resolveExpressSlaRequiredIds,
   resolveFullSlaRequiredIds,
+  resolvePreBriefSubmitExpressBankIds,
   resolveSlaRequiredIds,
 } from './brief-gates.js';
 export {
@@ -42,6 +44,17 @@ export {
 } from './domain-slice-data.js';
 export type { QuestionFeedRoles } from './domain-slice-data.js';
 export { calcAiReadinessScore } from './ai-readiness.js';
+export {
+  DISCOVERY_FINDINGS_CONFIG,
+  type DiscoveryFindingsConfigV1,
+  type DiscoveryFindingHook,
+} from './discovery-findings-config.js';
+export {
+  DISCOVERY_FINDINGS_COPY,
+  fillDiscoveryFindingTemplate,
+  type DiscoveryFindingCopyRow,
+} from './discovery-findings-copy.js';
+export { DISCOVERY_GLUE_COPY, type DiscoveryGlueCopyV1 } from './discovery-glue-copy.js';
 export {
   DOMAIN_TO_QUESTION_IDS,
   formatSliceForPrompt,
@@ -80,10 +93,37 @@ export {
   intakeStubsFromBankRaw,
   QUESTION_BANK_OPTION_CATALOGS,
 } from './question-bank.js';
-export { mergeLegacyIntakeAliasesRead, isRevenueAnsweredRaw, INTAKE_REVENUE_BANK_ID } from './legacy-response-aliases.js';
+export { isRevenueAnsweredRaw, INTAKE_REVENUE_BANK_ID } from './intake-revenue.js';
 export { computeIntakePlanDerived } from './core/plan-derived.js';
 export { buildPublicDiscoveryUiFragment } from './discovery-ui-fragment.js';
-export { buildDiscoveryWizardQuestions } from './discovery-wizard-questions.js';
+export {
+  buildDiscoveryQuestionRow,
+  buildDiscoveryWizardQuestions,
+  PUBLIC_DISCOVERY_WIZARD_BANK_IDS,
+} from './discovery-wizard-questions.js';
+export { BRIEF_ANSWER_STRING_MAX } from './brief-answer-limits.js';
+export {
+  BRIEF_QUESTION_UI_SECTION,
+  BRIEF_QUESTIONS,
+  EXPRESS_REQUIRED_QUESTION_IDS,
+  getBriefQuestionText,
+  getBriefQuestionsByIds,
+  getQuestionsForDomain,
+  INTAKE_BRIEF_CONSULTANT_HINTS,
+  INTAKE_BRIEF_HIGH_REVENUE_QUESTION_IDS,
+  INTAKE_BRIEF_TRIGGERS_FOLLOWUP,
+  INTAKE_BRIEF_UI_SECTION_BY_ID,
+  INTAKE_IDENTITY_BRIEF_QUESTIONS,
+  INTAKE_IDENTITY_FIELD_IDS,
+  OPTIONAL_QUESTION_IDS,
+  PRE_BRIEF_PARTICIPATION_IDS,
+  PRE_BRIEF_QUESTION_IDS,
+  PRE_BRIEF_REQUIRED_SUBMIT_IDS,
+  RECOMMENDED_QUESTION_IDS,
+  REQUIRED_QUESTION_IDS,
+} from './intake-brief-catalog-meta.js';
+export { buildBriefQuestionStemFromBankId } from './bank-question-presentation.js';
+export type { BriefQuestionStem } from './bank-question-presentation.js';
 export {
   buildCanonAnswerContractForBankId,
   getBankQuestionUiOptions,
@@ -96,6 +136,7 @@ export {
   choiceValueNeedsSpecify,
 } from './choice-specify-triggers.js';
 export {
+  freeTextImpliesCrmTool,
   includesCrmTool,
   isA8KnownScale,
   isGovernanceClear,
@@ -120,7 +161,9 @@ export {
   isIntakeNextRecommendedEnabled,
   isIntakeIncrementalEngineEnabled,
   isIntakePolicyRichnessEnabled,
+  resolveIntakeNextRecommendedMax,
 } from './config/intake-flags.js';
+export { INTAKE_UI_CONFIG, type IntakeUiConfig } from './config/intake-ui-config.js';
 export { EXPRESS_REQUIRED_ALWAYS_IDS, EXPRESS_REQUIRED_IF_VISIBLE_IDS } from './express-policy-ids.js';
 export type {
   BriefQuestion,
@@ -129,4 +172,73 @@ export type {
   IntakeVersionMigration,
   ProductMode,
 } from './audit-contract.js';
+export { DOMAIN_KEYS } from './audit-contract.js';
+export {
+  DOMAIN_DISPLAY_LABELS,
+  REPORT_PROFILE_DESCRIPTIONS,
+  REPORT_PROFILE_DOMAINS,
+  REPORT_PROFILE_LABELS,
+  REPORT_PROFILE_MARKDOWN_FOCUS_TITLE,
+  REPORT_PROFILES,
+  SCORE_COLORS,
+  SCORE_LABELS,
+  displayDomainLabel,
+  scoreBandColorFrom1To5,
+  scoreLabelFrom1To5,
+  type ReportProfile,
+} from './audit-display.js';
+export {
+  DOMAIN_DISPLAY_I18N_KEYS,
+  MARKETING_BRIEF_ROUTE_I18N_KEYS,
+  MARKETING_BRIEF_ROUTE_LABELS_EN,
+  PUBLIC_DISCOVERY_UI_FRAGMENT_CONTRACT_VERSION,
+  REPORT_PROFILE_I18N_KEY_DESCRIPTIONS,
+  REPORT_PROFILE_I18N_KEY_LABELS,
+  REPORT_PROFILE_MARKDOWN_FOCUS_I18N_KEYS,
+  SCORE_LABEL_I18N_KEYS,
+  UI_COPY_REGISTRY_VERSION,
+} from './ui-copy-registry.js';
 export * from './core/index.js';
+export { ensureHttpsUrl } from './ensure-https-url.js';
+export {
+  computeMarketingBriefRecommendedRoute,
+  isAllowedMarketingBriefRoute,
+  MARKETING_BRIEF_ALLOWED_ROUTES,
+  type MarketingBriefPreferredAuditDepth,
+  type MarketingBriefRoute,
+  type MarketingBriefRoutingInput,
+} from './marketing-brief-routing.js';
+export {
+  APP_ROUTE_SEGMENTS,
+  SPA_MARKETING_BRIEF_PATHS,
+  SPA_ROUTE_SEGMENTS,
+  type SpaMarketingBriefSegmentKey,
+} from './spa-routes.js';
+export { DISCOVERY_SOCIAL_PLATFORM_OPTIONS } from './discovery-social-platform-options.js';
+export { INTAKE_TRACE_PUBLICATION_LOG_DEFAULT_LIMIT } from './intake-trace-publication-log-limit.js';
+export { REVIEW_GATE_NOTES_MAX } from './review-gate-notes-limit.js';
+export {
+  NO_PUBLIC_WEBSITE_DISPLAY_EN,
+  NO_PUBLIC_WEBSITE_DISPLAY_I18N_KEY,
+  NO_PUBLIC_WEBSITE_URL,
+  auditSkipsPublicWebsiteFetches,
+  formatAuditWebsiteDisplay,
+  isNoPublicWebsiteUrl,
+} from './no-public-website.js';
+export {
+  C_NOSITE_1_LEGACY_FIRST_PARTY_WEB_LABELS,
+  DISCOVERY_BRIEF_PATCH_A5_NO_WEBSITE_YET,
+  DISCOVERY_BRIEF_PATCH_C3_ANALYTICS_NOT_ON_SITE,
+  DISCOVERY_BRIEF_USES_CRM_I18N_KEY_NO,
+  DISCOVERY_BRIEF_USES_CRM_I18N_KEY_YES,
+  DISCOVERY_BRIEF_USES_CRM_LABEL_EN_NO,
+  DISCOVERY_BRIEF_USES_CRM_LABEL_EN_YES,
+  DISCOVERY_BRIEF_USES_CRM_NO,
+  DISCOVERY_BRIEF_USES_CRM_YES,
+  discoveryCnSite1SelectionsImplyFirstPartyWeb,
+  formatUsesCrmBriefDisplayEn,
+  inferDiscoveryUsesCrm,
+  normalizeUsesCrmBriefStoredValue,
+  type DiscoveryUsesCrmInference,
+  type NormalizedUsesCrmBrief,
+} from './discovery-brief-mapping.js';

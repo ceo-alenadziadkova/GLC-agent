@@ -10,8 +10,9 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 | Need | Canonical doc |
 | --- | --- |
+| Product concept and operating principles | [CONCEPT.md](./CONCEPT.md) |
 | Product, modes, deliverables | [PRODUCT.md](./PRODUCT.md) |
-| System architecture, data flow | [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| System architecture, data flow, **config vs DB vs services vs UI**, **strict ENV/CONFIG/SERVICES boundaries**, **copy zones (single source)** | [ARCHITECTURE.md](./ARCHITECTURE.md) ([layering](./ARCHITECTURE.md#configuration-layering-config-vs-database-vs-services-vs-ui), [strict boundaries](./ARCHITECTURE.md#strict-layer-boundaries-operational-policy), [copy layering](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone)) |
 | Phases, wings, review gates, tokens | [PIPELINE.md](./PIPELINE.md) |
 | Agents, collectors, fact-check, weights | [AGENTS.md](./AGENTS.md) |
 | Database tables, migrations, RLS overview | [DATABASE.md](./DATABASE.md) |
@@ -20,13 +21,17 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | Threat model, rate limits, CORS, credentials | [SECURITY.md](./SECURITY.md) |
 | React app, routes, hooks, design system | [FRONTEND.md](./FRONTEND.md) ([style guide](./FRONTEND.md#design-system-style-guide)) |
 | Intake question bank, branching, agent mapping | [QUESTION_BANK.md](./QUESTION_BANK.md) |
+| Deferred product/UX backlog improvements | [IMPROVEMENTS.md](./IMPROVEMENTS.md) |
+| Translator / product glossary (i18n support) | [GLOSSARY.md](./GLOSSARY.md) |
 | Internal: Question Bank Studio (Settings + `/admin/question-bank-studio`, canon map + policy/trace) | [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) — `src/app/components/QuestionBankStudio.tsx` |
 | ADR: unified bank, policy/layout, IntakePlan | [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) |
 | ADR: free snapshot — cheap deterministic scanner | [ADR-FREE-SNAPSHOT-SCANNER.md](adrs/ADR-FREE-SNAPSHOT-SCANNER.md) |
 | ADR: wording lifecycle + intake trace IA split | [ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md](adrs/ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md) |
+| ADR: frontend i18n (strategy, catalogs, rollout) | [ADR-FRONTEND-I18N.md](adrs/ADR-FRONTEND-I18N.md) |
 | Local dev, migrations order, demo seed | [SETUP.md](./SETUP.md) |
-| Production deploy (Vercel, Railway, Supabase) | [DEPLOYMENT.md](./DEPLOYMENT.md) |
+| Production deploy (Vercel, Railway, Supabase) | [DEPLOYMENT.md](./DEPLOYMENT.md) (includes **config module map**, optional env tables; links to [configuration layering](./ARCHITECTURE.md#configuration-layering-config-vs-database-vs-services-vs-ui)) |
 | Test strategy, matrix, coverage, doc alignment, dead-code signals, E2E | [TESTING.md](../TESTING.md) (repo root) |
+| Security CI gates (secret scan, migration smoke, policy tests) | [.github/workflows/test.yml](../.github/workflows/test.yml) |
 
 ---
 
@@ -118,7 +123,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 **Why it matters:** Contract between frontend and backend; client portal and consultant flows.
 
-**Where it is implemented:** `server/src/routes/`.
+**Where it is implemented:** `server/src/routes/`; routers are mounted from `server/src/config/api-route-mounts.ts` (`mountApiRouters` in `server/src/index.ts`). SPA paths: `src/app/config/api-paths.ts` (Vitest contract vs mounts: `server/src/tests/api-paths-mount-contract.test.ts`).
 
 **Where to find documentation:** [API.md](./API.md)
 
@@ -146,7 +151,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 ### 8. Security
 
-**What it is:** Threat assumptions, RLS summary, JWT verification, rate limiting, CORS, credential separation, GDPR notes.
+**What it is:** Threat assumptions, RLS summary, JWT verification, rate limiting, CORS, credential separation, GDPR notes, prompt trust-boundary.
 
 **Why it matters:** Operational security and compliance expectations.
 
@@ -156,7 +161,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 
 **Owner:** Full-stack / DevOps (TBD)
 
-**Status:** Documented; align RLS narrative with latest migrations via [DATABASE.md](./DATABASE.md)
+**Status:** Documented; RLS / advisor notes for migrations **`043`–`045`** live in [DATABASE.md](./DATABASE.md)
 
 ---
 
@@ -254,6 +259,7 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 ```text
 docs/
   MASTER.md                              # This file — index + knowledge map + governance + log
+  CONCEPT.md
   PRODUCT.md
   ARCHITECTURE.md
   PIPELINE.md
@@ -264,6 +270,7 @@ docs/
   DATABASE.md
   FRONTEND.md
   QUESTION_BANK.md
+  IMPROVEMENTS.md
   SETUP.md
   DEPLOYMENT.md
   adrs/

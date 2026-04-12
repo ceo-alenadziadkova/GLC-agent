@@ -138,7 +138,9 @@ export function RevBanner({
             {label}
           </span>
           {!done && hasWarnings && (
-            <WarningCircle size={12} weight="fill" style={{ color: '#F97316', flexShrink: 0 }} title="Quality warnings" />
+            <span title="Quality warnings" className="inline-flex flex-shrink-0">
+              <WarningCircle size={12} weight="fill" style={{ color: '#F97316', flexShrink: 0 }} />
+            </span>
           )}
         </div>
         <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-secondary)' }}>

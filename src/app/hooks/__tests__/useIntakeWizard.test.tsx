@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
+import { act } from 'react';
 import { makeWebsitePathFullBrief } from '../../../../server/src/tests/bank-brief-fixtures';
 import { briefResponsesToIntakeMap, useIntakeBankMetrics, useIntakeWizard } from '../useIntakeWizard';
 
@@ -19,9 +20,9 @@ describe('useIntakeBankMetrics', () => {
         f1: { value: 'Grow', source: 'client' },
         a1: { value: 'Co — SaaS', source: 'client' },
         a5: { value: 'Yes, multi-page site', source: 'client' },
-        intake_company_name: { value: 'Co', source: 'client' },
-        intake_industry: { value: 'SaaS / Software', source: 'client' },
-        intake_company_website: { value: 'https://example.com', source: 'client' },
+        a12: { value: 'Co', source: 'client' },
+        a2: { value: 'SaaS / Software', source: 'client' },
+        a11: { value: 'https://example.com', source: 'client' },
       }),
     );
     expect(result.current.dataQualityPct).toBeGreaterThanOrEqual(0);
@@ -46,12 +47,13 @@ describe('useIntakeBankMetrics', () => {
     const { result } = renderHook(() =>
       useIntakeBankMetrics(
         {
-          f1: { value: 'Grow', source: 'client' },
+          f1: { value: ['Other'], source: 'client' },
+          f1__other: { value: 'Grow', source: 'client' },
           a1: { value: 'Co — SaaS', source: 'client' },
           a5: { value: 'Yes, multi-page site', source: 'client' },
-          intake_company_name: { value: 'Co', source: 'client' },
-          intake_industry: { value: 'SaaS / Software', source: 'client' },
-          intake_company_website: { value: 'https://example.com', source: 'client' },
+          a12: { value: 'Co', source: 'client' },
+          a2: { value: 'SaaS / Software', source: 'client' },
+          a11: { value: 'https://example.com', source: 'client' },
         },
         undefined,
         undefined,
@@ -144,5 +146,26 @@ describe('useIntakeWizard', () => {
     const prevRef = result.current.visibleQuestionStubs;
     rerender({ value: { ...base, a5: 'Yes, multi-page site' } });
     expect(result.current.visibleQuestionStubs).not.toBe(prevRef);
+  });
+
+  it('setField preserves unrelated keys across sequential updates', () => {
+    const { result } = renderHook(() =>
+      useIntakeWizard({
+        initialMap: {
+          legacy_key: { value: 'legacy', source: 'client' },
+          q1: { value: 'A', source: 'consultant' },
+        },
+      }),
+    );
+
+    act(() => {
+      result.current.setField('q1', { value: 'B', source: 'consultant' });
+      result.current.setField('q2', { value: 42, source: 'consultant' });
+    });
+
+    const responses = result.current.responses as Record<string, unknown>;
+    expect(responses.legacy_key).toEqual({ value: 'legacy', source: 'client' });
+    expect(responses.q1).toEqual({ value: 'B', source: 'consultant' });
+    expect(responses.q2).toEqual({ value: 42, source: 'consultant' });
   });
 });

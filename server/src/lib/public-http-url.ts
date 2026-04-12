@@ -3,14 +3,24 @@
  * Blocks loopback, RFC1918, link-local, CGNAT, credentials in URL, and obvious internal hostnames.
  */
 import dns from 'node:dns/promises';
-import { isIPv4, isIPv6 } from 'node:net';
-import { Agent } from 'undici';
+import { isIPv4, isIPv6, type LookupFunction } from 'node:net';
+import { Agent, fetch as undiciFetch } from 'undici';
 import { isNoPublicWebsiteUrl, NO_PUBLIC_WEBSITE_URL } from '../config/no-public-website.js';
+import {
+  PUBLIC_HTTP_FETCH,
+  PUBLIC_HTTP_FETCH_METHODS_WITHOUT_RETRY,
+  PUBLIC_HTTP_FETCH_RETRYABLE_STATUS,
+} from '../config/public-http-fetch.js';
+import type { ApiErrorCode } from '../config/api-error-codes.js';
+import { API_ERROR_CODES } from '../config/api-error-codes.js';
+import { resolvePublicUrlErrorMessage } from '../config/public-url-error-message.js';
 
 export class PublicUrlNotAllowedError extends Error {
   override name = 'PublicUrlNotAllowedError';
-  constructor(message: string) {
-    super(message);
+  readonly code: ApiErrorCode;
+  constructor(code: ApiErrorCode) {
+    super(resolvePublicUrlErrorMessage(code));
+    this.code = code;
   }
 }
 
@@ -43,7 +53,7 @@ function isPrivateOrBlockedIPv6(address: string): boolean {
 function assertHostnameNotBlocked(hostname: string): void {
   const h = hostname.toLowerCase();
   if (h === 'localhost' || h.endsWith('.local')) {
-    throw new PublicUrlNotAllowedError('Host is not allowed');
+    throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_HOST_NOT_ALLOWED);
   }
 }
 
@@ -61,29 +71,30 @@ export async function validatePublicAuditUrl(urlString: string): Promise<string>
   try {
     u = new URL(trimmed);
   } catch {
-    throw new PublicUrlNotAllowedError('Invalid URL');
+    throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_INVALID);
   }
 
   if (u.username || u.password) {
-    throw new PublicUrlNotAllowedError('URL must not contain credentials');
+    throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_CREDENTIALS_NOT_ALLOWED);
   }
   if (u.protocol !== 'http:' && u.protocol !== 'https:') {
-    throw new PublicUrlNotAllowedError('Only http and https URLs are allowed');
+    throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_PROTOCOL_NOT_ALLOWED);
   }
 
   const host = u.hostname;
   assertHostnameNotBlocked(host);
 
-  if (isIPv4(host)) {
-    if (isPrivateOrBlockedIPv4(host)) {
-      throw new PublicUrlNotAllowedError('Address is not a public host');
+  const ipProbe = host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host;
+
+  if (isIPv4(ipProbe)) {
+    if (isPrivateOrBlockedIPv4(ipProbe)) {
+      throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_ADDRESS_NOT_PUBLIC);
     }
     return u.href;
   }
-  if (isIPv6(host)) {
-    const raw = host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host;
-    if (isPrivateOrBlockedIPv6(raw)) {
-      throw new PublicUrlNotAllowedError('Address is not a public host');
+  if (isIPv6(ipProbe)) {
+    if (isPrivateOrBlockedIPv6(ipProbe)) {
+      throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_ADDRESS_NOT_PUBLIC);
     }
     return u.href;
   }
@@ -92,19 +103,19 @@ export async function validatePublicAuditUrl(urlString: string): Promise<string>
   try {
     records = await dns.lookup(host, { all: true });
   } catch {
-    throw new PublicUrlNotAllowedError('Host does not resolve');
+    throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_DNS_DOES_NOT_RESOLVE);
   }
   if (records.length === 0) {
-    throw new PublicUrlNotAllowedError('Host does not resolve');
+    throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_DNS_DOES_NOT_RESOLVE);
   }
 
   for (const r of records) {
     if (r.family === 4) {
       if (isPrivateOrBlockedIPv4(r.address)) {
-        throw new PublicUrlNotAllowedError('Host resolves to a non-public address');
+        throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_DNS_NON_PUBLIC);
       }
     } else if (isPrivateOrBlockedIPv6(r.address)) {
-      throw new PublicUrlNotAllowedError('Host resolves to a non-public address');
+      throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_DNS_NON_PUBLIC);
     }
   }
 
@@ -117,40 +128,58 @@ function isRedirectStatus(status: number): boolean {
 
 async function resolvePublicIpForHost(host: string): Promise<{ address: string; family: 4 | 6 }> {
   if (isIPv4(host)) {
-    if (isPrivateOrBlockedIPv4(host)) throw new PublicUrlNotAllowedError('Address is not a public host');
+    if (isPrivateOrBlockedIPv4(host)) {
+      throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_ADDRESS_NOT_PUBLIC);
+    }
     return { address: host, family: 4 };
   }
   if (isIPv6(host)) {
     const raw = host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host;
-    if (isPrivateOrBlockedIPv6(raw)) throw new PublicUrlNotAllowedError('Address is not a public host');
+    if (isPrivateOrBlockedIPv6(raw)) {
+      throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_ADDRESS_NOT_PUBLIC);
+    }
     return { address: raw, family: 6 };
   }
   const records = await dns.lookup(host, { all: true });
-  if (records.length === 0) throw new PublicUrlNotAllowedError('Host does not resolve');
+  if (records.length === 0) {
+    throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_DNS_DOES_NOT_RESOLVE);
+  }
   const selected = records.find((r) => {
     if (r.family === 4) return !isPrivateOrBlockedIPv4(r.address);
     return !isPrivateOrBlockedIPv6(r.address);
   });
   if (!selected || (selected.family !== 4 && selected.family !== 6)) {
-    throw new PublicUrlNotAllowedError('Host resolves to a non-public address');
+    throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_DNS_NON_PUBLIC);
   }
   return { address: selected.address, family: selected.family };
 }
 
 function makePinnedAgent(pinnedAddress: string, family: 4 | 6): Agent {
+  /**
+   * Node's tls/net may call lookup with `{ all: true }` (autoSelectFamily). In that mode the
+   * callback must receive `LookupAddress[]`, not `(address, family)` — otherwise the IP is
+   * undefined and fetch fails with a generic "fetch failed".
+   */
+  const lookup: LookupFunction = (_hostname, opts, cb) => {
+    const stillPublic = family === 4
+      ? !isPrivateOrBlockedIPv4(pinnedAddress)
+      : !isPrivateOrBlockedIPv6(pinnedAddress);
+    if (!stillPublic) {
+      cb(
+        new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_DNS_REBINDING) as NodeJS.ErrnoException,
+        '',
+        family,
+      );
+      return;
+    }
+    if (opts && typeof opts === 'object' && 'all' in opts && opts.all === true) {
+      cb(null, [{ address: pinnedAddress, family }]);
+    } else {
+      cb(null, pinnedAddress, family);
+    }
+  };
   return new Agent({
-    connect: {
-      lookup: (_hostname: string, _opts: unknown, cb: (err: Error | null, address: string, family: number) => void) => {
-        const stillPublic = family === 4
-          ? !isPrivateOrBlockedIPv4(pinnedAddress)
-          : !isPrivateOrBlockedIPv6(pinnedAddress);
-        if (!stillPublic) {
-          cb(new PublicUrlNotAllowedError('IP class changed — DNS rebinding detected'), '', family);
-          return;
-        }
-        cb(null, pinnedAddress, family);
-      },
-    },
+    connect: { lookup },
   });
 }
 
@@ -163,16 +192,16 @@ function makePinnedAgent(pinnedAddress: string, family: 4 | 6): Agent {
 export async function fetchPublicHttpUrl(
   url: string,
   init: RequestInit = {},
-  maxRedirects = 5
+  maxRedirects: number = PUBLIC_HTTP_FETCH.defaultMaxRedirects,
 ): Promise<Response> {
   if (isNoPublicWebsiteUrl(url.trim())) {
-    throw new PublicUrlNotAllowedError('No public website');
+    throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_NO_PUBLIC_WEBSITE);
   }
 
   let currentUrl = await validatePublicAuditUrl(url);
-  const maxRetries = 3;
-  const retryableStatus = new Set([408, 429, 500, 502, 503, 504, 529]);
-  const methodsWithoutRetry = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
+  const maxRetries = PUBLIC_HTTP_FETCH.maxRetries;
+  const retryableStatus = PUBLIC_HTTP_FETCH_RETRYABLE_STATUS;
+  const methodsWithoutRetry = PUBLIC_HTTP_FETCH_METHODS_WITHOUT_RETRY;
   const method = String(init.method ?? 'GET').toUpperCase();
 
   for (let hop = 0; hop <= maxRedirects; hop++) {
@@ -185,7 +214,9 @@ export async function fetchPublicHttpUrl(
         const pinned = await resolvePublicIpForHost(current.hostname);
         const dispatcher = makePinnedAgent(pinned.address, pinned.family);
         const fetchInit = { ...(init as Record<string, unknown>), redirect: 'manual', dispatcher };
-        response = await fetch(currentUrl, fetchInit as unknown as RequestInit);
+        // Must use undici's fetch with npm `undici` Agent — Node's global fetch uses a different
+        // undici build and throws (e.g. "invalid onRequestStart method").
+        response = await undiciFetch(currentUrl, fetchInit as Parameters<typeof undiciFetch>[1]);
         if (!retryableStatus.has(response.status) || methodsWithoutRetry.has(method) || attempt === maxRetries) {
           break;
         }
@@ -195,16 +226,18 @@ export async function fetchPublicHttpUrl(
           throw lastErr;
         }
       }
-      const backoffMs = 300 * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 120);
+      const backoffMs =
+        PUBLIC_HTTP_FETCH.backoffBaseMs * Math.pow(2, attempt - 1) +
+        Math.floor(Math.random() * PUBLIC_HTTP_FETCH.backoffJitterMaxMs);
       await new Promise(resolve => setTimeout(resolve, backoffMs));
     }
     if (!response) {
-      throw lastErr ?? new PublicUrlNotAllowedError('Request failed');
+      throw lastErr ?? new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_REQUEST_FAILED);
     }
 
     if (isRedirectStatus(response.status)) {
       if (hop === maxRedirects) {
-        throw new PublicUrlNotAllowedError('Too many redirects');
+        throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_TOO_MANY_REDIRECTS);
       }
 
       const location = response.headers.get('location');
@@ -223,5 +256,5 @@ export async function fetchPublicHttpUrl(
     return response;
   }
 
-  throw new PublicUrlNotAllowedError('Too many redirects');
+  throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_TOO_MANY_REDIRECTS);
 }

@@ -106,13 +106,14 @@ import { resolveBankRecommendedIds, resolveFullSlaRequiredIds } from '@glc/intak
 import {
   makeWebsitePathExpressBrief,
   makeWebsitePathFullBrief,
+  wrapBriefCellsClient,
 } from './bank-brief-fixtures.js';
 import { currentIntakeVersionTuple } from '@glc/intake-core';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function makeFullRequired(): Record<string, unknown> {
-  return makeWebsitePathFullBrief();
+  return wrapBriefCellsClient(makeWebsitePathFullBrief());
 }
 
 function makeFullWithAllRecommended(): Record<string, unknown> {
@@ -127,7 +128,7 @@ function makeFullWithAllRecommended(): Record<string, unknown> {
       r[id] = 'Answer';
     }
   }
-  return r;
+  return wrapBriefCellsClient(r);
 }
 
 // ─── validateBriefResponses — pure function ───────────────────────────────────
@@ -216,7 +217,7 @@ describe('validateBriefResponses()', () => {
   });
 
   it('extra optional/recommended answers do not affect sla_met', () => {
-    const responses = { ...makeFullRequired(), extra_key: 'value', budget_for_changes: '€5k – €20k' };
+    const responses = { ...makeFullRequired(), extra_key: 'value', budget_for_changes: '€2,000–10,000' };
     const result = validateBriefResponses(responses);
     expect(result.sla_met).toBe(true);
   });
@@ -265,7 +266,9 @@ describe('assertBriefReady()', () => {
 
   it('throws for express audit with missing required questions', async () => {
     setAuditMode('express');
-    setBriefRow({ responses: { f1: 'increase revenue' } });
+    setBriefRow({
+      responses: { f1: { value: 'Not enough qualified leads or new customers', source: 'client' } },
+    });
     await expect(assertBriefReady('audit-001')).rejects.toThrow(/Intake brief incomplete/);
   });
 
@@ -315,7 +318,9 @@ describe('saveBriefResponses()', () => {
   });
 
   it('sets sla_met=false when required questions missing', async () => {
-    const { brief } = await saveBriefResponses('audit-001', { f1: 'grow' });
+    const { brief } = await saveBriefResponses('audit-001', {
+      f1: { value: 'Not enough qualified leads or new customers', source: 'client' },
+    });
     expect(brief.sla_met).toBe(false);
   });
 
@@ -347,7 +352,7 @@ describe('saveBriefResponses()', () => {
   });
 
   it('rejects responses with invalid Zod types (string over BRIEF_ANSWER_STRING_MAX)', async () => {
-    const responses = { f1: 'x'.repeat(12_001) };
+    const responses = { f1: { value: 'x'.repeat(12_001), source: 'client' as const } };
     await expect(saveBriefResponses('audit-001', responses)).rejects.toThrow(/Invalid brief responses/);
   });
 
@@ -360,8 +365,8 @@ describe('saveBriefResponses()', () => {
 // ─── Schema invariants ────────────────────────────────────────────────────────
 
 describe('BRIEF_QUESTIONS schema invariants', () => {
-  it('has 28 main brief questions (identity is separate for public /intake link only)', () => {
-    expect(BRIEF_QUESTIONS).toHaveLength(28);
+  it('has main brief questions aligned with bank-backed schema (identity a11/a12/a2/a5 is separate for public /intake)', () => {
+    expect(BRIEF_QUESTIONS).toHaveLength(20);
   });
 
   it('all question IDs are unique', () => {
@@ -410,33 +415,22 @@ describe('BRIEF_QUESTIONS schema invariants', () => {
 
 describe('arePreBriefSlotsSatisfied', () => {
   const minimalPreBrief = {
-    intake_company_website: 'https://example.com',
-    intake_company_name: 'Acme',
-    intake_industry: 'Hospitality',
+    a11: 'https://example.com',
+    a12: 'Acme',
+    a2: 'Hospitality',
     a5: 'Yes, multi-page site',
-    a10: 'Lead generation',
-    f1: 'More direct bookings',
+    a10: ['Lead generation / referrals'],
+    f1: ['Not enough qualified leads or new customers'],
     b1: 'Travelers 30–50',
     a6: 'Yes',
-    c5: 'Book now',
-    c3: 'Yes, GA4',
   };
 
-  it('passes without optional bank fields f2, a7, f8', () => {
+  it('passes without optional bank fields f2, a7, f8 and without c5/c3 (not in pre_brief bank slice)', () => {
     expect(arePreBriefSlotsSatisfied(minimalPreBrief)).toBe(true);
   });
 
   it('fails when a required submit slot is missing', () => {
-    const { c3: _, ...rest } = minimalPreBrief;
+    const { b1: _, ...rest } = minimalPreBrief;
     expect(arePreBriefSlotsSatisfied(rest)).toBe(false);
-  });
-
-  it('requires clarification when analytics choice needs specify', () => {
-    const withOtherTool = { ...minimalPreBrief, c3: 'Yes, another tool' };
-    expect(arePreBriefSlotsSatisfied(withOtherTool)).toBe(false);
-    expect(arePreBriefSlotsSatisfied({
-      ...withOtherTool,
-      c3__other: 'Plausible',
-    })).toBe(true);
   });
 });

@@ -27,6 +27,17 @@ vi.mock('../services/pipeline-error.js', () => ({
   emitPhaseErrorDurable: vi.fn(async () => undefined),
 }));
 
+vi.mock('../services/supabase.js', () => ({
+  supabase: {
+    from: vi.fn(() => ({
+      upsert: vi.fn(async () => ({ error: null })),
+      update: vi.fn(() => ({
+        eq: vi.fn().mockReturnThis(),
+      })),
+    })),
+  },
+}));
+
 describe('pipeline jobs queue', () => {
   beforeEach(() => {
     vi.resetModules();

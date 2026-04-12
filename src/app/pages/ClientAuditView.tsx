@@ -17,11 +17,10 @@ import {
 } from '../lib/client-portal-pipeline-access';
 import { freeSnapshotPreviewFromAuditState } from '../lib/free-snapshot-preview-from-audit-state';
 import { getSnapshotAccessBlockedState } from '../lib/snapshot-diagnostics';
-import { formatAuditWebsiteDisplay, isNoPublicWebsiteUrl } from '../data/no-public-website';
+import { auditSkipsPublicWebsiteFetches, formatAuditWebsiteDisplay } from '../data/no-public-website';
 import { effectiveBriefForPipelineGates } from '../data/intakeBriefMap';
 import {
   countAnswered,
-  mergeBriefResponsesPreferFilled,
   pipelineRequiredIdsForProductMode,
   type BriefResponses,
 } from '../data/briefQuestions';
@@ -29,6 +28,7 @@ import { useAudit } from '../hooks/useAudit';
 import { useIntakeBankMetrics } from '../hooks/useIntakeWizard';
 import { useBriefLayoutPrefsSync } from '../hooks/useBriefLayoutPrefsSync';
 import { getGlcQueryClient } from '../lib/glc-query-client';
+import { PORTAL_BRIEF_SAVED_FEEDBACK_MS } from '../lib/snapshot-polling-config';
 import { glcKeys } from '../lib/glc-keys';
 import { invalidateAuditRelatedQueries } from '../lib/glc-invalidate-queries';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
@@ -152,7 +152,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
       await queryClient.invalidateQueries({ queryKey: glcKeys.brief.detail(auditId) });
       setSaved(true);
       onBriefSaved?.();
-      setTimeout(() => setSaved(false), 3000);
+      setTimeout(() => setSaved(false), PORTAL_BRIEF_SAVED_FEEDBACK_MS);
     } catch (err) {
       setBriefError((err as Error).message);
     } finally {
@@ -247,9 +247,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
               {briefLayoutChoice === 'wizard' ? (
                 <IntakeBankWizard
                   responses={responses}
-                  onResponsesChange={patch =>
-                    setResponses(prev => mergeBriefResponsesPreferFilled(prev, patch))
-                  }
+                  onResponsesChange={next => setResponses(next)}
                   interviewMode={false}
                   emphasizeClientSource={false}
                   answerSource="client"
@@ -272,6 +270,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
                   responses={responses}
                   collectionMode={briefCollectionMode}
                   intakeSurface={clientIntakeSurface}
+                  productMode={productMode}
                   onChange={handleClientBriefFieldChange}
                   onSetUnknown={handleClientBriefSetUnknown}
                   interviewMode={false}
@@ -345,8 +344,8 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
   const { setPipelineAccess } = useClientPortalPipeline();
 
   const domain = auditState
-    ? (isNoPublicWebsiteUrl(auditState.meta.company_url)
-      ? formatAuditWebsiteDisplay(auditState.meta.company_url)
+    ? (auditSkipsPublicWebsiteFetches(auditState.meta.no_public_website, auditState.meta.company_url)
+      ? formatAuditWebsiteDisplay(auditState.meta.company_url, auditState.meta.no_public_website)
       : (() => {
         try {
           return new URL(auditState.meta.company_url).hostname;
@@ -508,7 +507,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                   >
                     {domain}
                   </div>
-                  {!isNoPublicWebsiteUrl(meta.company_url) && (
+                  {!auditSkipsPublicWebsiteFetches(meta.no_public_website, meta.company_url) && (
                     <div className="flex items-center gap-2 mt-1 min-w-0">
                       <Globe className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--text-tertiary)' }} />
                       <span className="break-all" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>{meta.company_url}</span>
@@ -558,7 +557,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                 >
                   <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>Run the audit</div>
                   <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
-                    When required brief fields are complete, you can start the pipeline. Review gates inside the run are handled by your GLC consultant; you can follow progress here in the portal.
+                    When required brief fields are complete, you can start the pipeline. Some phases may pause for a review step before continuing; you can follow progress here in the portal.
                   </p>
                   <button
                     type="button"
@@ -588,7 +587,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                     <span className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>Request help with the brief</span>
                   </div>
                   <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    Optional. A consultant can clarify questions or suggest wording. This does not block starting the audit whenever you are ready.
+                    Optional. You can request help to clarify questions or improve wording. This does not block starting the audit whenever you are ready.
                   </p>
                   <textarea
                     value={helpMessage}
@@ -820,7 +819,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                         </li>
                         <li>
                           <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Snapshot score hint</span> —
-                          overall /100 from the scan stored in consultant recon prefills (the full audit is re-scored from
+                          overall /100 from the scan stored in recon prefills (the full audit is re-scored from
                           scratch).
                         </li>
                         <li>

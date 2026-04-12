@@ -1,0 +1,41 @@
+{
+  "faqPreview": [
+    {
+      "q": "Where should I start?",
+      "a": "If you are unsure—Snapshot. If the problem is systemic—full audit. In between—Express."
+    },
+    {
+      "q": "How is Snapshot different from Express?",
+      "a": "Snapshot is a fast automated read on available signals. Express is a structured expert review within agreed scope."
+    },
+    {
+      "q": "Can we implement without you?",
+      "a": "Yes. The report and roadmap are written so your team or another vendor can run with them."
+    }
+  ],
+  "whoWeAreTitle": "Who we are",
+  "whatWeDoTitle": "What we do",
+  "whatWeDoLines": [
+    "Audit digital infrastructure and the customer-facing layer (site, UX, trust, baseline technical signals).",
+    "Diagnose processes: manual repeats, gaps between tools, communication friction.",
+    "Design improvements and automation with impact / effort sizing.",
+    "Roadmap: what to do now, what to defer, what to delegate—with clear next steps."
+  ],
+  "chooseEntryTitle": "Choose an entry point",
+  "chooseEntryDescription": "Same audit-first approach—different depth and speed. Pick the path that matches your readiness and horizon.",
+  "expressVsFullTitle": "Express vs full audit",
+  "expressVsFullDescription": "Both formats bring clarity; they differ in depth and how far we go into processes.",
+  "pillars": {
+    "snapshot": {
+      "description": "A quick read on public signals—see where to focus first without a heavy commitment."
+    },
+    "discovery": {
+      "description": "Shape structure and the next step when the site or scope is still fuzzy."
+    },
+    "brief": {
+      "description": "Share context—we suggest a sensible route (Snapshot, Express, or full audit)."
+    }
+  },
+  "questionsTitle": "Questions",
+  "questionsDescription": "Short answers—full detail on the FAQ page."
+}

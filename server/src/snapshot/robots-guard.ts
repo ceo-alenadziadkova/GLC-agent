@@ -6,9 +6,9 @@ import robotsParser from 'robots-parser';
 
 import { fetchPublicHttpUrl } from '../lib/public-http-url.js';
 import { SNAPSHOT_ROBOTS_USER_AGENT } from '../lib/robots-policy-shared.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { logger } from '../services/logger.js';
 
-const DEFAULT_ROBOTS_CACHE_MS = 20 * 60 * 1000; // 20 minutes
 const MAX_ROBOTS_BYTES = 512_000;
 
 export type SnapshotRobotsPolicy = {
@@ -23,8 +23,7 @@ export type SnapshotRobotsPolicy = {
 const cache = new Map<string, { expires: number; policy: SnapshotRobotsPolicy }>();
 
 function cacheTtlMs(): number {
-  const n = Number(process.env.SNAPSHOT_ROBOTS_CACHE_MS ?? DEFAULT_ROBOTS_CACHE_MS);
-  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_ROBOTS_CACHE_MS;
+  return SYSTEM_DEFAULTS.snapshotRobots.cacheMs;
 }
 
 function getRobot(policy: SnapshotRobotsPolicy) {
@@ -112,7 +111,7 @@ export async function getSnapshotRobotsPolicy(origin: string, signal: AbortSigna
     const res = await fetchPublicHttpUrl(robotsResourceUrl, {
       signal,
       headers: {
-        'User-Agent': 'GLC-SnapshotScanner/1.0 (+https://glctech.es)',
+        'User-Agent': SNAPSHOT_ROBOTS_USER_AGENT,
         Accept: 'text/plain,text/*,*/*',
       },
     });

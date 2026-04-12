@@ -1,16 +1,21 @@
+import {
+  apiAuditsQualityGate,
+  apiAuditsReportQuery,
+  apiAuditsReview,
+} from '../../config/api-paths';
 import { API_URL, apiFetch, getAuthHeaders } from '../api-http';
 import type { QualityGateReport } from '../auditTypes';
 
 export const auditsReviewsReportsApi = {
   async approveReview(id: string, phase: number, consultantNotes?: string, interviewNotes?: string) {
-    return apiFetch(`/api/audits/${id}/reviews/${phase}`, {
+    return apiFetch(apiAuditsReview(id, phase), {
       method: 'POST',
       body: JSON.stringify({ consultant_notes: consultantNotes, interview_notes: interviewNotes }),
     });
   },
 
   async getQualityGate(id: string, phase: number) {
-    return apiFetch<QualityGateReport | null>(`/api/audits/${id}/quality-gate/${phase}`);
+    return apiFetch<QualityGateReport | null>(apiAuditsQualityGate(id, phase));
   },
 
   async getReport(
@@ -19,17 +24,16 @@ export const auditsReviewsReportsApi = {
     profile: 'full' | 'owner' | 'tech' | 'marketing' | 'onepager' = 'full',
   ) {
     return apiFetch<{ audit_id: string; company: string; profile: string; profile_label: string; generated_at: string; markdown: string }>(
-      `/api/audits/${id}/report?format=${format}&profile=${profile}`,
+      apiAuditsReportQuery(id, format, profile),
     );
   },
 
   /** Downloads branded A4 PDF report with auth headers. Triggers browser file save. */
   async downloadReportPdf(auditId: string, profile: 'full' | 'owner' | 'tech' | 'marketing' | 'onepager' = 'full') {
     const authHeaders = await getAuthHeaders();
-    const res = await fetch(
-      `${API_URL}/api/audits/${auditId}/report?format=pdf&profile=${profile}`,
-      { headers: authHeaders },
-    );
+    const res = await fetch(`${API_URL}${apiAuditsReportQuery(auditId, 'pdf', profile)}`, {
+      headers: authHeaders,
+    });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }));
       throw new Error((err as { error?: string }).error ?? `API error: ${res.status}`);
@@ -46,10 +50,9 @@ export const auditsReviewsReportsApi = {
   /** Downloads action-plan CSV with auth headers. Triggers browser file save. */
   async downloadReportCsv(auditId: string, profile: 'full' | 'owner' | 'tech' | 'marketing' | 'onepager' = 'full') {
     const authHeaders = await getAuthHeaders();
-    const res = await fetch(
-      `${API_URL}/api/audits/${auditId}/report?format=csv&profile=${profile}`,
-      { headers: authHeaders },
-    );
+    const res = await fetch(`${API_URL}${apiAuditsReportQuery(auditId, 'csv', profile)}`, {
+      headers: authHeaders,
+    });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }));
       throw new Error((err as { error?: string }).error ?? `API error: ${res.status}`);

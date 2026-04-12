@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Link, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import {
   HardDrives, Shield, Globe, Cursor, Target, Lightning,
   CaretRight, CheckCircle, Warning, ArrowUpRight, ArrowsClockwise,
@@ -18,11 +18,11 @@ import { DOMAIN_KEYS, DOMAIN_LABELS, type IntakeBriefCollectionMode } from '../d
 import type { DomainKey, DomainData, ProductMode, ConfidenceLevel } from '../data/auditTypes';
 import { BriefField } from '../components/BriefField';
 import {
-  mergeBriefResponsesPreferFilled,
   unwrapResponse,
 } from '../data/briefQuestions';
 import type { BriefResponses } from '../data/briefQuestions';
-import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '@glc/intake-core';
+import { choiceSpecifyResponseKey, choiceValueNeedsSpecify, QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
+import { AUDIT_WORKSPACE_SAVE_FLASH_MS } from '../config/ui-feedback-defaults';
 import { api } from '../data/apiService';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
@@ -37,7 +37,7 @@ import {
   writeConsultantBriefLayout,
   clearConsultantBriefLayout,
 } from '../lib/client-brief-layout-preference';
-import { getQuestionLabel } from '../lib/intake-question-lookup';
+import { bankIdToBriefQuestion } from '../data/bankQuestionUiCatalog';
 import { logger } from '../lib/logger';
 
 const EXPRESS_DOMAIN_KEYS: readonly DomainKey[] = [
@@ -89,6 +89,8 @@ const CONF_BG: Record<ConfidenceLevel, string> = {
 
 export function AuditWorkspace() {
   const { id, domainId } = useParams<{ id: string; domainId?: string }>();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { audit, loading, error, reload } = useAudit(id);
   const [openRec, setOpenRec] = useState<number | null>(null);
   const [enrichOpen, setEnrichOpen] = useState(true);
@@ -104,6 +106,15 @@ export function AuditWorkspace() {
   const [activeDomain, setActiveDomain] = useState<DomainKey>(
     (domainId && DOMAIN_KEYS.includes(domainId as DomainKey)) ? (domainId as DomainKey) : DOMAIN_KEYS[0]
   );
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('brief') !== '1') return;
+    setBriefPanelOpen(true);
+    params.delete('brief');
+    const q = params.toString();
+    void navigate(`${location.pathname}${q ? `?${q}` : ''}`, { replace: true });
+  }, [location.pathname, location.search, navigate]);
 
   const queueFollowupBriefSave = useCallback((
     qid: string,
@@ -131,7 +142,7 @@ export function AuditWorkspace() {
           });
           setEnrichSaved(true);
           reload();
-          window.setTimeout(() => setEnrichSaved(false), 2200);
+          window.setTimeout(() => setEnrichSaved(false), AUDIT_WORKSPACE_SAVE_FLASH_MS);
         } catch (err) {
           logger.error('[AuditWorkspace] brief save', {
             error: err instanceof Error ? err.message : String(err),
@@ -152,7 +163,7 @@ export function AuditWorkspace() {
     } else {
       setWorkspaceBriefResponses({});
     }
-  }, [audit?.id, audit?.brief?.responses, audit?.brief?.updated_at]);
+  }, [audit?.meta?.id, audit?.brief?.responses, audit?.brief?.updated_at]);
 
   /** Snapshots and partial loads omit most domain rows; keep sidebar + active tab consistent with product_mode. */
   useEffect(() => {
@@ -204,7 +215,7 @@ export function AuditWorkspace() {
             });
             setWorkspaceBriefSavedFlash(true);
             reload();
-            window.setTimeout(() => setWorkspaceBriefSavedFlash(false), 2200);
+            window.setTimeout(() => setWorkspaceBriefSavedFlash(false), AUDIT_WORKSPACE_SAVE_FLASH_MS);
           } catch (err) {
             logger.error('[AuditWorkspace] workspace brief save', {
               error: err instanceof Error ? err.message : String(err),
@@ -275,13 +286,17 @@ export function AuditWorkspace() {
     && typeof (x as { domain: string }).domain === 'string'
     && typeof (x as { id: string }).id === 'string'
   )).filter(x => x.domain === activeDomain);
-  const followupQuestions = followupRefs
-    .map(r => ({ id: r.id, question: getQuestionLabel(r.id) }));
+  const followupQuestions = followupRefs.map(r => {
+    const stub = QUESTION_BANK_V1_STUBS.find(s => s.id === r.id);
+    return bankIdToBriefQuestion(r.id, stub?.priority ?? 'recommended');
+  });
   const showEnrichmentBanner = Boolean(
     domainData?.status === 'completed' && followupQuestions.length > 0 && id
   );
   const companyName =
-    audit.meta.company_name || formatAuditWebsiteDisplay(audit.meta.company_url) || audit.meta.company_url;
+    audit.meta.company_name ||
+    formatAuditWebsiteDisplay(audit.meta.company_url, audit.meta.no_public_website) ||
+    audit.meta.company_url;
   const visibleDomainKeys = visibleDomainKeysForMode(audit.meta.product_mode as ProductMode);
 
   // Use server-calculated weighted overall score when available (set after Phase 7).
@@ -403,11 +418,10 @@ export function AuditWorkspace() {
                         {briefLayoutChoice === 'wizard' ? (
                           <IntakeBankWizard
                             responses={workspaceBriefResponses}
-                            onResponsesChange={patch =>
-                              setWorkspaceBriefResponses(prev => {
-                                const merged = mergeBriefResponsesPreferFilled(prev, patch);
-                                queueWorkspaceBriefSave(merged);
-                                return merged;
+                            onResponsesChange={next =>
+                              setWorkspaceBriefResponses(() => {
+                                queueWorkspaceBriefSave(next);
+                                return next;
                               })
                             }
                             interviewMode={false}
@@ -432,6 +446,7 @@ export function AuditWorkspace() {
                             responses={workspaceBriefResponses}
                             collectionMode={audit.brief.collection_mode}
                             intakeSurface={workspaceConsultantSurface}
+                            productMode={audit.meta.product_mode as ProductMode}
                             onChange={handleWorkspaceBriefFieldChange}
                             onSetUnknown={handleWorkspaceBriefSetUnknown}
                           />

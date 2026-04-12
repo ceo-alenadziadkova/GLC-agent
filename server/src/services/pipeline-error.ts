@@ -1,6 +1,13 @@
+import {
+  AUDITS_TABLE,
+  PIPELINE_EVENTS_TABLE,
+  PIPELINE_PHASE_ERROR_DEFAULT_MESSAGE,
+  PIPELINE_PHASE_NOTIFICATION_FALLBACK_MESSAGE,
+  SUPABASE_REST_V1_SUFFIX,
+} from '../config/pipeline-error-fallback.js';
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
-import { notifyAuditParticipants } from './notifications.js';
+import { emitStructuredNotification } from './notifications.js';
 
 async function fallbackWritePipelineError(auditId: string, phase: number, err: Error): Promise<void> {
   const supabaseUrl = process.env.SUPABASE_URL;
@@ -13,20 +20,20 @@ async function fallbackWritePipelineError(auditId: string, phase: number, err: E
     'Content-Type': 'application/json',
     Prefer: 'return=minimal',
   };
-  const base = `${supabaseUrl}/rest/v1`;
+  const base = `${supabaseUrl}${SUPABASE_REST_V1_SUFFIX}`;
   const payload = {
     audit_id: auditId,
     phase,
     event_type: 'error',
-    message: err.message ?? 'Phase failed unexpectedly',
+    message: err.message ?? PIPELINE_PHASE_ERROR_DEFAULT_MESSAGE,
     data: { error: err.message, source: 'fallback_rest' },
   };
-  await fetch(`${base}/pipeline_events`, {
+  await fetch(`${base}/${PIPELINE_EVENTS_TABLE}`, {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
   });
-  await fetch(`${base}/audits?id=eq.${encodeURIComponent(auditId)}`, {
+  await fetch(`${base}/${AUDITS_TABLE}?id=eq.${encodeURIComponent(auditId)}`, {
     method: 'PATCH',
     headers,
     body: JSON.stringify({ status: 'failed' }),
@@ -37,14 +44,14 @@ export async function emitPhaseErrorDurable(auditId: string, phase: number, err:
   logger.error('Pipeline phase crashed', { audit_id: auditId, phase, error: err.message });
   try {
     await Promise.all([
-      supabase.from('pipeline_events').insert({
+      supabase.from(PIPELINE_EVENTS_TABLE).insert({
         audit_id: auditId,
         phase,
         event_type: 'error',
-        message: err.message ?? 'Phase failed unexpectedly',
+        message: err.message ?? PIPELINE_PHASE_ERROR_DEFAULT_MESSAGE,
         data: { error: err.message, stack: err.stack?.split('\n')[1]?.trim() ?? '' },
       }),
-      supabase.from('audits')
+      supabase.from(AUDITS_TABLE)
         .update({ status: 'failed' })
         .eq('id', auditId),
     ]);
@@ -66,19 +73,21 @@ export async function emitPhaseErrorDurable(auditId: string, phase: number, err:
     }
   }
 
-  await notifyAuditParticipants(
+  await emitStructuredNotification({
+    category: 'pipeline',
+    event: 'pipeline_phase_failed',
+    priority: 'critical',
+    audience: 'audit_participants',
     auditId,
-    'pipeline',
-    'Pipeline failure',
-    err.message ?? 'Pipeline phase failed unexpectedly',
-    {
+    title: 'Pipeline failure',
+    message: err.message ?? PIPELINE_PHASE_NOTIFICATION_FALLBACK_MESSAGE,
+    route: `/pipeline/${auditId}`,
+    payload: {
       phase,
       status: 'failed',
-      route: `/pipeline/${auditId}`,
-      occurred_at: new Date().toISOString(),
       actor_role: 'system',
       failure_type: 'phase_failed',
     },
-  );
+  });
 }
 

@@ -2,8 +2,18 @@
  * Redirect-following fetch must re-validate each hop (snapshot SSRF matrix).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+vi.mock('undici', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('undici')>();
+  return {
+    ...actual,
+    fetch: vi.fn(),
+  };
+});
+
 import dns from 'node:dns/promises';
 import type { LookupAddress } from 'node:dns';
+import * as undici from 'undici';
 import { fetchPublicHttpUrl, PublicUrlNotAllowedError } from '../lib/public-http-url.js';
 
 function mockDnsLookupAll(records: LookupAddress[]): typeof dns.lookup {
@@ -13,53 +23,48 @@ function mockDnsLookupAll(records: LookupAddress[]): typeof dns.lookup {
 describe('fetchPublicHttpUrl', () => {
   beforeEach(() => {
     vi.spyOn(dns, 'lookup').mockImplementation(mockDnsLookupAll([{ address: '8.8.8.8', family: 4 }]));
+    vi.mocked(undici.fetch).mockReset();
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
   it('rejects redirect Location that points to SSRF-blocked literal', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (_input: string | URL) => {
-        return new Response(null, {
+    vi.mocked(undici.fetch).mockImplementation(
+      (async () =>
+        new Response(null, {
           status: 302,
           headers: { Location: 'http://127.0.0.1/pwn' },
-        });
-      }) as unknown as typeof fetch,
+        })) as unknown as typeof undici.fetch,
     );
 
     await expect(fetchPublicHttpUrl('https://public-hop.example/start')).rejects.toThrow(PublicUrlNotAllowedError);
   });
 
   it('rejects redirect chain after max hops', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: string | URL) => {
-        const u = String(input);
+    vi.mocked(undici.fetch).mockImplementation(
+      (async (input: string | URL | Request) => {
+        const u = String(input instanceof Request ? input.url : input);
         const n = (u.match(/\/r(\d+)/)?.[1] ?? '0').replace(/\D/g, '');
         const next = Number(n) + 1;
         return new Response(null, {
           status: 302,
           headers: { Location: `https://public-hop.example/r${next}` },
         });
-      }) as unknown as typeof fetch,
+      }) as unknown as typeof undici.fetch,
     );
 
     await expect(fetchPublicHttpUrl('https://public-hop.example/r0')).rejects.toThrow(PublicUrlNotAllowedError);
   });
 
   it('rejects non-http Location scheme on redirect', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        return new Response(null, {
+    vi.mocked(undici.fetch).mockImplementation(
+      (async () =>
+        new Response(null, {
           status: 302,
           headers: { Location: 'ftp://public-hop.example/file' },
-        });
-      }) as unknown as typeof fetch,
+        })) as unknown as typeof undici.fetch,
     );
 
     await expect(fetchPublicHttpUrl('https://public-hop.example/a')).rejects.toThrow(PublicUrlNotAllowedError);
@@ -75,10 +80,9 @@ describe('fetchPublicHttpUrl', () => {
       }) as unknown as typeof dns.lookup,
     );
 
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async (input: string | URL) => {
-        const u = String(input);
+    vi.mocked(undici.fetch).mockImplementation(
+      (async (input: string | URL | Request) => {
+        const u = String(input instanceof Request ? input.url : input);
         if (u.includes('start-ssrf.example')) {
           return new Response(null, {
             status: 302,
@@ -86,7 +90,7 @@ describe('fetchPublicHttpUrl', () => {
           });
         }
         return new Response('ok', { status: 200 });
-      }) as unknown as typeof fetch,
+      }) as unknown as typeof undici.fetch,
     );
 
     await expect(fetchPublicHttpUrl('https://start-ssrf.example/')).rejects.toThrow(PublicUrlNotAllowedError);

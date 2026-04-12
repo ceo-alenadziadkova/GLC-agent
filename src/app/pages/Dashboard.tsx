@@ -17,6 +17,16 @@ import { useAudits } from '../hooks/useAudits';
 import { useDashboard } from '../hooks/useDashboard';
 import type { AuditMeta } from '../data/auditTypes';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 
 function mapStatus(status: string): 'completed' | 'running' | 'pending' | 'review' {
   if (status === 'completed') return 'completed';
@@ -27,10 +37,10 @@ function mapStatus(status: string): 'completed' | 'running' | 'pending' | 'revie
 
 function DashboardAuditMobileCard({
   c,
-  onDelete,
+  onRequestDelete,
 }: {
   c: AuditMeta;
-  onDelete: (id: string) => Promise<void> | void;
+  onRequestDelete: (id: string, label: string) => void;
 }) {
   const status = mapStatus(c.status);
   return (
@@ -50,7 +60,7 @@ function DashboardAuditMobileCard({
             fontSize: '11px',
           }}
         >
-          {(c.company_name || formatAuditWebsiteDisplay(c.company_url)).slice(0, 2).toUpperCase()}
+          {(c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website)).slice(0, 2).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
           <Link
@@ -63,10 +73,10 @@ function DashboardAuditMobileCard({
               letterSpacing: '-0.01em',
             }}
           >
-            {c.company_name || formatAuditWebsiteDisplay(c.company_url)}
+            {c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website)}
           </Link>
           <div className="text-xs truncate mt-0.5" style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>
-            {formatAuditWebsiteDisplay(c.company_url)}
+            {formatAuditWebsiteDisplay(c.company_url, c.no_public_website)}
           </div>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2">
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{c.industry || '—'}</span>
@@ -101,10 +111,11 @@ function DashboardAuditMobileCard({
           type="button"
           className="glc-btn-ghost glc-touch-target"
           style={{ color: 'var(--score-1)' }}
-          onClick={async () => {
-            if (confirm(`Delete audit for ${c.company_name || formatAuditWebsiteDisplay(c.company_url)}?`)) {
-              await onDelete(c.id);
-            }
+          onClick={() => {
+            onRequestDelete(
+              c.id,
+              c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website),
+            );
           }}
         >
           <Trash className="w-4 h-4" />
@@ -121,13 +132,14 @@ export function Dashboard() {
   // Audit list — existing paginated fetch
   const { audits, loading: auditsLoading, error: auditsError, deleteAudit } = useAudits();
   const [query, setQuery] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(null);
 
   const filtered = audits.filter(c =>
     query === '' ||
     (c.company_name || '').toLowerCase().includes(query.toLowerCase()) ||
     (c.industry || '').toLowerCase().includes(query.toLowerCase()) ||
     c.company_url.toLowerCase().includes(query.toLowerCase()) ||
-    formatAuditWebsiteDisplay(c.company_url).toLowerCase().includes(query.toLowerCase())
+    formatAuditWebsiteDisplay(c.company_url, c.no_public_website).toLowerCase().includes(query.toLowerCase())
   );
 
   return (
@@ -289,7 +301,7 @@ export function Dashboard() {
                           fontSize: '11px',
                         }}
                       >
-                        {(c.company_name || formatAuditWebsiteDisplay(c.company_url)).slice(0, 2).toUpperCase()}
+                        {(c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website)).slice(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0">
                         <Link
@@ -303,10 +315,10 @@ export function Dashboard() {
                             letterSpacing: '-0.01em',
                           }}
                         >
-                          {c.company_name || formatAuditWebsiteDisplay(c.company_url)}
+                          {c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website)}
                         </Link>
                         <div className="text-xs truncate mt-0.5" style={{ color: 'var(--text-quaternary)', fontSize: '11px' }}>
-                          {formatAuditWebsiteDisplay(c.company_url)}
+                          {formatAuditWebsiteDisplay(c.company_url, c.no_public_website)}
                         </div>
                       </div>
                     </div>
@@ -337,10 +349,11 @@ export function Dashboard() {
                         type="button"
                         className="glc-btn-icon"
                         style={{ width: 28, height: 28, borderRadius: 'var(--radius-md)', color: 'var(--score-1)' }}
-                        onClick={async () => {
-                          if (confirm(`Delete audit for ${c.company_name || formatAuditWebsiteDisplay(c.company_url)}?`)) {
-                            await deleteAudit(c.id);
-                          }
+                        onClick={() => {
+                          setDeleteTarget({
+                            id: c.id,
+                            label: c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website),
+                          });
                         }}
                         title="Delete audit"
                       >
@@ -354,7 +367,11 @@ export function Dashboard() {
 
             <div className="sm:hidden space-y-3">
               {filtered.map((c: AuditMeta) => (
-                <DashboardAuditMobileCard key={c.id} c={c} onDelete={deleteAudit} />
+                <DashboardAuditMobileCard
+                  key={c.id}
+                  c={c}
+                  onRequestDelete={(id, label) => setDeleteTarget({ id, label })}
+                />
               ))}
             </div>
             </>
@@ -417,6 +434,38 @@ export function Dashboard() {
             <Plus className="w-4 h-4" /> Start Audit
           </Link>
         </motion.div>
+
+        <AlertDialog
+          open={deleteTarget !== null}
+          onOpenChange={open => {
+            if (!open) setDeleteTarget(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete audit</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteTarget
+                  ? `Delete audit for ${deleteTarget.label}? This cannot be undone.`
+                  : ''}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                type="button"
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => {
+                  const id = deleteTarget?.id;
+                  setDeleteTarget(null);
+                  if (id) void deleteAudit(id);
+                }}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
       </div>
     </AppShell>

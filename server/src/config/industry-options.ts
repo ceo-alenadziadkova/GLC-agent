@@ -1,21 +1,7 @@
 /**
- * Canonical industry values for dropdowns (audits, audit requests, pre-brief intake).
- * Keep in sync with src/app/data/industry-options.ts
+ * Canonical industry values — `question-bank.v1.json` `optionCatalogs.industry` via `@glc/intake-core`.
  */
-export const INDUSTRY_OPTIONS = [
-  'E-commerce',
-  'Education',
-  'Finance',
-  'Food & Beverage',
-  'Healthcare',
-  'Hospitality',
-  'Manufacturing',
-  'Marine',
-  'Media & Entertainment',
-  'Non-profit',
-  'Professional Services',
-  'Real Estate',
-  'Retail',
-  'SaaS / Software',
-  'Other',
-] as const;
+import { QUESTION_BANK_OPTION_CATALOGS } from '@glc/intake-core';
+
+export const INDUSTRY_OPTIONS = QUESTION_BANK_OPTION_CATALOGS.industry;
+export type IndustryOption = (typeof INDUSTRY_OPTIONS)[number];

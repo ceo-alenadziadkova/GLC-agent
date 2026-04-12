@@ -20,6 +20,15 @@ The core data isolation mechanism. **All application tables** use RLS; policies 
 
 `auth.uid()` is evaluated server-side by Supabase for queries using the anon key.
 
+Recent hardening:
+
+- **`audits`** client read is scoped by **`audits_select_scoped`** (single **`SELECT`** policy: `user_id` or `client_id` match); it does not grant blanket read for `product_mode = 'free_snapshot'` (behavior from **`038_fix_rls_snapshot.sql`**, policy names consolidated in **`044_rls_merge_permissive_select.sql`**). Other core audit child tables follow the same **`*_select_scoped` / `*_consultant`** split — see **`044_rls_merge_permissive_select.sql`** and [DATABASE.md](./DATABASE.md#row-level-security).
+- Migration **`039_pipeline_runs_and_rls_hardening.sql`**: deny-by-default RLS on operational tables (`intake_tokens`, `snapshot_guest_sessions`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `intake_analytics_events`, `phase_runs`, `job_runs`).
+- Migration **`043_db_hardening_rls_views_functions.sql`**: same explicit **deny-all** pattern for `api_idempotency_keys`, `discovery_sessions`, `marketing_brief_submissions`, `platform_settings`, `snapshot_fresh_lease`; **`security_invoker`** on intake analytics views; fixed **`search_path`** on selected functions; RLS **`(select auth.uid())`** pattern for advisor lint **0003**.
+- Migration **`045_query_performance_indexes.sql`**: targeted indexes for hot PostgREST-style queries (see **Supabase Database Advisor and migrations `043`–`045`** in [DATABASE.md](./DATABASE.md)).
+
+**Auth:** Supabase **“Prevent use of leaked passwords”** (Have I Been Pwned) is **limited to Pro plans and above** on hosted Supabase; on Free, strengthen **minimum length** / **password requirements** instead ([password security](https://supabase.com/docs/guides/auth/password-security)).
+
 **Backend uses service role key** — bypasses RLS intentionally. The backend enforces ownership at the application layer:
 
 ```typescript
@@ -141,29 +150,33 @@ Security intent:
 
 ## Rate Limiting
 
-`middleware/rate-limit.ts` using `express-rate-limit`:
+Implementation: **`server/src/middleware/rate-limit.ts`** (`express-rate-limit`), with **numeric defaults and env names** centralized in **`server/src/config/rate-limits.ts`**. JSON **`429`** bodies that expose **`retry_after_minutes`** / **`retry_after_hours`** / **`retry_after_seconds`** derive those fields from each limiter’s **`windowMs`** so hints stay aligned if windows change.
 
-```typescript
-// General API rate limit
-export const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,     // 1 minute
-  max: 60,                  // 60 requests per minute per IP
-});
+| Export (examples) | Role |
+| --- | --- |
+| `generalLimiter` | Authenticated API traffic — default **100** requests per rolling window per user/IP; window length tunable via **`RATE_LIMIT_GENERAL_*`**. |
+| `createAuditLimiter` | New audit creation — default **5** per rolling **24h** per user (`RATE_LIMIT_AUDIT_CREATE_*`). |
+| `pipelineLimiter` | Pipeline start/next — default **30** per rolling hour (`RATE_LIMIT_PIPELINE_*`). |
+| `snapshotPublicLimiter` / `getSnapshotPublicQuota` | Public free snapshot starts — default **3** per rolling **24h** per IP (`RATE_LIMIT_SNAPSHOT_PUBLIC_*`). |
+| Public Discover / intake / marketing split limiters | Per-route hourly caps; env names `PUBLIC_*` (see source). |
 
-// Audit creation limit (to prevent cost abuse)
-export const auditCreationLimiter = rateLimit({
-  windowMs: 24 * 60 * 60 * 1000,  // 24 hours
-  max: 5,                           // 5 audits per day per user
-  keyGenerator: (req) => req.userId ?? req.ip,
-});
+Production notes:
 
-// Pipeline start limit
-export const pipelineLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,  // 1 hour
-  max: 10,                    // 10 pipeline starts per hour
-  keyGenerator: (req) => req.userId ?? req.ip,
-});
-```
+- Set **`RATE_LIMIT_REDIS_URL`** for multi-instance deployments (shared counters).
+- Set **`STRICT_RATE_LIMIT_REDIS=true`** to fail fast on startup if Redis is missing.
+- Snapshot quota (`POST /api/snapshot` + `GET /api/snapshot/quota`) uses the same Redis-backed store when configured.
+
+Full variable list: [DEPLOYMENT.md — Production Environment Variables](./DEPLOYMENT.md#production-environment-variables).
+
+---
+
+## Prompt injection boundary
+
+All prompts in `server/prompts/*.md` explicitly define untrusted-input handling:
+
+- website content, intake answers, consultant notes, and interview notes are treated as untrusted data;
+- model must never execute instructions embedded in those inputs;
+- untrusted text is used only as evidence for scoring and findings.
 
 ---
 
@@ -189,9 +202,9 @@ Budget is configurable per audit via `audits.token_budget`.
 
 Backend only reflects browser origins that appear in an explicit allowlist (`getCorsAllowedOrigins` in `server/src/config/cors-origins.ts`): **production** merges `ALLOWED_ORIGINS` (comma-separated) with `FRONTEND_URL`; **development** adds default localhost dev ports. `credentials: true` is set; origins are never `*`.
 
-In production set at least one of:
+In production **`FRONTEND_URL` is required** (API startup fails if unset when `NODE_ENV=production`). Set **`ALLOWED_ORIGINS`** to every browser origin that must call the API with cookies (often the same as `FRONTEND_URL` plus any extra marketing hostnames):
 
-`ALLOWED_ORIGINS=https://www.example.com,https://example.com` and/or `FRONTEND_URL=https://www.example.com`
+`ALLOWED_ORIGINS=https://www.example.com,https://example.com` and `FRONTEND_URL=https://www.example.com` (example)
 
 ---
 

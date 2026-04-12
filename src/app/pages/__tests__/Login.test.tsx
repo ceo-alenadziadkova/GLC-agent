@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import type { User, Session } from '@supabase/supabase-js';
+import { GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY } from '../../lib/storage-keys';
 import { Login } from '../Login';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -39,14 +40,19 @@ vi.mock('react-router', async importOriginal => {
 const signInWithPassword = vi.fn().mockResolvedValue({ error: null });
 const signUpWithPassword = vi.fn().mockResolvedValue({ error: null });
 const signInWithGoogle = vi.fn().mockResolvedValue({ error: null });
+const requestPasswordReset = vi.fn().mockResolvedValue({ error: null });
+const completePasswordRecovery = vi.fn().mockResolvedValue({ error: null });
 
 const AUTH_BASE = {
   session: null as Session | null,
   loading: false,
   authError: null as string | null,
+  passwordRecoveryMode: false,
   signInWithPassword,
   signUpWithPassword,
   signInWithGoogle,
+  requestPasswordReset,
+  completePasswordRecovery,
   signOut: vi.fn(),
 };
 
@@ -97,11 +103,11 @@ describe('Login', () => {
 
     renderLogin('/login?discovery=disc-xyz');
 
-    expect(localStorage.getItem('glc_discovery_token')).toBe('disc-xyz');
+    expect(localStorage.getItem(GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY)).toBe('disc-xyz');
   });
 
   it('navigates to audit new when authenticated with discovery token', async () => {
-    localStorage.setItem('glc_discovery_token', 't1');
+    localStorage.setItem(GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY, 't1');
     mockUseAuth.mockReturnValue({
       ...AUTH_BASE,
       isAuthenticated: true,
@@ -175,7 +181,7 @@ describe('Login', () => {
   });
 
   it('prefers discovery redirect over ?next= when both are set', async () => {
-    localStorage.setItem('glc_discovery_token', 'disc-1');
+    localStorage.setItem(GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY, 'disc-1');
     stubLocation('?next=%2Fdashboard');
     mockUseAuth.mockReturnValue({
       ...AUTH_BASE,
@@ -261,6 +267,87 @@ describe('Login', () => {
     await user.click(getEmailPasswordSubmitButton());
 
     expect(signUpWithPassword).toHaveBeenCalledWith('new@example.com', 'secret12');
+  });
+
+  it('toggles password visibility from eye button', async () => {
+    const user = userEvent.setup();
+    stubLocation('');
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: false,
+      user: null,
+    });
+
+    renderLogin();
+
+    const passwordInput = screen.getByPlaceholderText(/^password$/i);
+    expect(passwordInput).toHaveAttribute('type', 'password');
+
+    await user.click(screen.getByRole('button', { name: /show password/i }));
+    expect(passwordInput).toHaveAttribute('type', 'text');
+
+    await user.click(screen.getByRole('button', { name: /hide password/i }));
+    expect(passwordInput).toHaveAttribute('type', 'password');
+  });
+
+  it('supports password visibility toggle in register mode', async () => {
+    const user = userEvent.setup();
+    stubLocation('');
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: false,
+      user: null,
+    });
+
+    renderLogin();
+
+    const createTab = screen
+      .getAllByRole('button', { name: /^register$/i })
+      .find(b => b.getAttribute('type') === 'button');
+    expect(createTab).toBeTruthy();
+    await user.click(createTab!);
+
+    const passwordInput = screen.getByPlaceholderText(/^password$/i);
+    expect(passwordInput).toHaveAttribute('type', 'password');
+
+    await user.click(screen.getByRole('button', { name: /show password/i }));
+    expect(passwordInput).toHaveAttribute('type', 'text');
+  });
+
+  it('does not submit form when clicking password visibility toggle', async () => {
+    const user = userEvent.setup();
+    stubLocation('');
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: false,
+      user: null,
+    });
+
+    renderLogin();
+
+    await user.click(screen.getByRole('button', { name: /show password/i }));
+
+    expect(signInWithPassword).not.toHaveBeenCalled();
+    expect(signUpWithPassword).not.toHaveBeenCalled();
+  });
+
+  it('updates password toggle aria-label when visibility changes', async () => {
+    const user = userEvent.setup();
+    stubLocation('');
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: false,
+      user: null,
+    });
+
+    renderLogin();
+
+    expect(screen.getByRole('button', { name: /show password/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /hide password/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /show password/i }));
+    expect(screen.getByRole('button', { name: /hide password/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /show password/i })).not.toBeInTheDocument();
   });
 
   it('shows Supabase manual-linking hint when Google linkIdentity is disabled', async () => {

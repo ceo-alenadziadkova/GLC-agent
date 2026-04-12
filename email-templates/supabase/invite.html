@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invite</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background-color:#F4F4F4;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#F4F4F4;">
+    <tr>
+      <td align="center" style="padding:24px 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;background-color:#FFFFFF;border:1px solid #E5E5E5;">
+          <tr>
+            <td align="center" style="padding:28px 24px 8px;font-family:'JetBrains Mono',Consolas,monospace;font-size:56px;font-weight:600;color:#F8F8F8;line-height:1;letter-spacing:-0.05em;">INVITE</td>
+          </tr>
+          <tr>
+            <td style="border-bottom:1px solid #E5E5E5;padding:20px 32px 28px;font-family:'JetBrains Mono',Consolas,monospace;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#000000;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td style="font-weight:600;">GLC // ACCESS GRANT</td>
+                  <td align="right" style="color:#666666;">INVITE_OPEN</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 32px 40px;font-family:'Inter',Arial,Helvetica,sans-serif;">
+              <p style="margin:0 0 8px;font-family:'JetBrains Mono',Consolas,monospace;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#666666;">SUBJECT: YOU ARE INVITED // GLC</p>
+              <h1 style="margin:0 0 24px;font-size:36px;line-height:0.95;font-weight:600;letter-spacing:-0.05em;color:#000000;text-transform:uppercase;">Workspace<br>Invite.</h1>
+              <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#666666;font-weight:400;">You have been invited to create a user on <span style="font-family:'JetBrains Mono',Consolas,monospace;color:#000000;">{{ .SiteURL }}</span>.</p>
+              <p style="margin:0 0 28px;font-size:15px;line-height:1.6;color:#666666;font-weight:400;">Use the button below to accept the invite and set a password. Email: <span style="font-family:'JetBrains Mono',Consolas,monospace;color:#000000;">{{ .Email }}</span></p>
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 28px;">
+                <tr>
+                  <td style="border:1px solid #E5E5E5;padding:24px;background-color:#FAFAFA;text-align:center;">
+                    <p style="margin:0 0 12px;font-family:'JetBrains Mono',Consolas,monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#666666;">Code (alternative to the link)</p>
+                    <p style="margin:0;font-family:'JetBrains Mono',Consolas,monospace;font-size:28px;letter-spacing:0.2em;color:#000000;font-weight:500;">{{ .Token }}</p>
+                  </td>
+                </tr>
+              </table>
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-top:1px solid #E5E5E5;padding-top:28px;">
+                <tr>
+                  <td>
+                    <a href="{{ .ConfirmationURL }}" style="display:inline-block;background-color:#000000;color:#FFFFFF;font-family:'JetBrains Mono',Consolas,monospace;font-size:11px;padding:16px 28px;text-decoration:none;text-transform:uppercase;letter-spacing:0.12em;">Accept invite</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

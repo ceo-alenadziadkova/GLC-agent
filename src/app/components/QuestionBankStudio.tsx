@@ -25,6 +25,7 @@ import {
 import {
   buildQuestionBankStudioGraph,
   type StudioAnyNodeData,
+  type StudioLayoutStepNodeData,
   type StudioLayoutSurfaceKey,
 } from '../lib/question-bank-studio-graph';
 import {
@@ -39,6 +40,7 @@ import {
   computeBranchDownstreamIds,
   computeBranchUpstreamIds,
 } from './intake/intake-trace-branch-links';
+import { QUESTION_BANK_STUDIO_DEBOUNCE_MS } from '../config/question-bank-studio-defaults';
 import { Switch } from './ui/switch';
 
 const POLICY_STRIPE_INSPECTOR: Record<StudioPolicyBaseVisualKind, string> = {
@@ -92,6 +94,13 @@ const TRACE_SURFACE_OPTIONS: { value: IntakeSurface | ''; label: string }[] = [
 
 type TraceRole = 'required' | 'visible' | 'deferred' | 'hidden';
 
+/** Trace role from `buildIntakePlan`, or `unknown` when the id is not in the current plan footprint. */
+type TracePlanStatus = TraceRole | 'unknown';
+
+function isStudioLayoutStepNode(n: Node<StudioAnyNodeData>): n is Node<StudioLayoutStepNodeData> {
+  return n.type === 'studioLayoutStep' && n.data.kind === 'layoutStep';
+}
+
 function planTraceRoles(plan: IntakePlan): Map<string, TraceRole> {
   const m = new Map<string, TraceRole>();
   for (const id of plan.hidden) m.set(id, 'hidden');
@@ -134,7 +143,7 @@ function shortUserLabel(questionId: string): string {
   return `${trimmed.slice(0, 75)}...`;
 }
 
-function statusPill(status: PlanTraceRole): { label: string; fg: string; bg: string; border: string } {
+function statusPill(status: TracePlanStatus): { label: string; fg: string; bg: string; border: string } {
   switch (status) {
     case 'required':
       return { label: 'Required', fg: '#b91c1c', bg: '#fee2e2', border: '#ef4444' };
@@ -151,7 +160,8 @@ function statusPill(status: PlanTraceRole): { label: string; fg: string; bg: str
 
 export function QuestionBankStudio() {
   const { isDark } = useGlcTheme();
-  const viewMode = 'user' as const;
+  /** `user` = consultant-focused swimlanes + trace; `logic` = full graph tooling (layout surface, export, bank diff). */
+  const [viewMode, setViewMode] = useState<'user' | 'logic'>('user');
   const [graphOrientation, setGraphOrientation] = useState<'TB' | 'LR'>('TB');
   const [policyMode, setPolicyMode] = useState<StudioPolicyMode>('full');
   const [showBranchEdges, setShowBranchEdges] = useState(false);
@@ -196,12 +206,12 @@ export function QuestionBankStudio() {
   }, [customProductMode]);
 
   useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedSearch(search.trim()), 400);
+    const t = window.setTimeout(() => setDebouncedSearch(search.trim()), QUESTION_BANK_STUDIO_DEBOUNCE_MS);
     return () => window.clearTimeout(t);
   }, [search]);
 
   useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedCustomJson(customResponsesText), 400);
+    const t = window.setTimeout(() => setDebouncedCustomJson(customResponsesText), QUESTION_BANK_STUDIO_DEBOUNCE_MS);
     return () => window.clearTimeout(t);
   }, [customResponsesText]);
 
@@ -248,9 +258,7 @@ export function QuestionBankStudio() {
   const planIdSet = useMemo(() => (tracePlan ? idsInIntakePlan(tracePlan) : null), [tracePlan]);
 
   const userStepLanes = useMemo(() => {
-    const stepNodes = layoutGraph.nodes
-      .filter(n => n.type === 'studioLayoutStep' && n.data.kind === 'layoutStep')
-      .sort((a, b) => a.data.stepIndex - b.data.stepIndex);
+    const stepNodes = layoutGraph.nodes.filter(isStudioLayoutStepNode).sort((a, b) => a.data.stepIndex - b.data.stepIndex);
     return stepNodes.map(stepNode => {
       const questionEdges = layoutGraph.edges.filter(
         e => e.source === stepNode.id && String(e.target).startsWith('qbs-q-'),
@@ -536,7 +544,7 @@ export function QuestionBankStudio() {
   }, [selectedQuestionId]);
 
   const allQuestionsForReview = useMemo(() => {
-    const statusById = new Map<string, PlanTraceRole>();
+    const statusById = new Map<string, TracePlanStatus>();
     if (tracePlan) {
       for (const id of tracePlan.hidden) statusById.set(id, 'hidden');
       for (const id of tracePlan.deferred) statusById.set(id, 'deferred');
@@ -834,9 +842,45 @@ export function QuestionBankStudio() {
         className="flex flex-col gap-3 p-4 rounded-xl"
         style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
       >
-        <div className="flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-          <TreeStructure className="w-4 h-4" weight="bold" />
-          <h2 className="text-sm font-semibold m-0">Question Bank Studio</h2>
+        <div className="flex flex-wrap items-center gap-2 justify-between" style={{ color: 'var(--text-primary)' }}>
+          <div className="flex items-center gap-2">
+            <TreeStructure className="w-4 h-4" weight="bold" />
+            <h2 className="text-sm font-semibold m-0">Question Bank Studio</h2>
+          </div>
+          <div
+            className="inline-flex rounded-lg overflow-hidden text-[11px] font-medium"
+            style={{ border: '1px solid var(--border-default)' }}
+            role="group"
+            aria-label="Studio view mode"
+          >
+            <button
+              type="button"
+              className="px-2.5 py-1.5"
+              style={{
+                backgroundColor: viewMode === 'user' ? 'var(--glc-blue-muted)' : 'var(--bg-canvas)',
+                color: 'var(--text-secondary)',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+              onClick={() => setViewMode('user')}
+            >
+              Flow simulator
+            </button>
+            <button
+              type="button"
+              className="px-2.5 py-1.5"
+              style={{
+                backgroundColor: viewMode === 'logic' ? 'var(--glc-blue-muted)' : 'var(--bg-canvas)',
+                color: 'var(--text-secondary)',
+                border: 'none',
+                borderLeft: '1px solid var(--border-default)',
+                cursor: 'pointer',
+              }}
+              onClick={() => setViewMode('logic')}
+            >
+              Full map
+            </button>
+          </div>
         </div>
         {viewMode === 'logic' ? (
           overviewUi ? (

@@ -1,25 +1,29 @@
-function truthy(v: string | undefined): boolean {
-  return v === '1' || v === 'true' || v === 'yes';
-}
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
+
+const ADS = SYSTEM_DEFAULTS.auditDeepScan;
 
 export function auditDeepScanEnabled(): boolean {
-  return truthy(process.env.AUDIT_DEEP_SCAN);
+  return ADS.deepScanEnabled;
 }
 
 export function auditLighthouseEnabled(): boolean {
-  return auditDeepScanEnabled() || truthy(process.env.AUDIT_LIGHTHOUSE);
+  return ADS.lighthouseEnabled || ADS.deepScanEnabled;
 }
 
 export function auditAxePlaywrightEnabled(): boolean {
-  return auditDeepScanEnabled() || truthy(process.env.AUDIT_AXE_PLAYWRIGHT);
+  return ADS.axePlaywrightEnabled || ADS.deepScanEnabled;
 }
 
 export function auditLighthouseBudgetMs(): number {
-  const n = Number(process.env.AUDIT_LIGHTHOUSE_BUDGET_MS ?? 55_000);
-  return Number.isFinite(n) && n >= 10_000 ? Math.min(n, 120_000) : 55_000;
+  return Math.min(
+    ADS.lighthouseBudgetMsMax,
+    Math.max(ADS.lighthouseBudgetMsMin, ADS.lighthouseBudgetMsDefault),
+  );
 }
 
 export function auditAxeNavigateTimeoutMs(): number {
-  const n = Number(process.env.AUDIT_AXE_NAV_TIMEOUT_MS ?? 12_000);
-  return Number.isFinite(n) && n >= 4000 ? Math.min(n, 30_000) : 12_000;
+  return Math.min(
+    ADS.axeNavigateTimeoutMsMax,
+    Math.max(ADS.axeNavigateTimeoutMsMin, ADS.axeNavigateTimeoutMsDefault),
+  );
 }

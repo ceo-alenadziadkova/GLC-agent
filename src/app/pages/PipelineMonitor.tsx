@@ -173,7 +173,7 @@ export function PipelineMonitor() {
     const event = pipelineState.events.find(
       (e: PipelineEvent) => e.phase === phase && e.event_type === 'quality_gate'
     );
-    return event ? (event.data as QualityGateReport) : null;
+    return event ? (event.data as unknown as QualityGateReport) : null;
   };
 
   const ph         = phases.find(p => p.id === sel) ?? phases[0];
@@ -184,7 +184,7 @@ export function PipelineMonitor() {
 
   const companyName =
     audit?.meta.company_name
-    || formatAuditWebsiteDisplay(audit?.meta.company_url)
+    || formatAuditWebsiteDisplay(audit?.meta.company_url, audit?.meta.no_public_website)
     || audit?.meta.company_url
     || 'Loading...';
 

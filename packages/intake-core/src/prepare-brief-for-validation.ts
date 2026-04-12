@@ -11,15 +11,13 @@
  * Handles both flat values and wrapped `{ value, source }` objects: the inner
  * value is sanitized and the wrapper is preserved when the caller stored one.
  *
- * Non-bank keys and bank ids without an answer contract are passed through
- * unchanged so legacy fields are not silently dropped.
+ * Non-bank keys and bank ids without an answer contract are passed through unchanged.
  */
 import {
   QUESTION_BANK_OPTION_CATALOGS,
   QUESTION_BANK_V1_STUBS,
 } from './question-bank.js';
 import type { IntakeAnswerContract, IntakeQuestionStub } from './types.js';
-import { mergeLegacyIntakeAliasesRead, syncRevenueAliasesForPersistence } from './legacy-response-aliases.js';
 
 function resolveOptions(contract: IntakeAnswerContract): readonly string[] | null {
   if (contract.options && contract.options.length > 0) return contract.options;
@@ -90,14 +88,13 @@ export function prepareBriefForValidation(
   responses: Record<string, unknown>,
   stubs: IntakeQuestionStub[] = QUESTION_BANK_V1_STUBS,
 ): Record<string, unknown> {
-  const merged = mergeLegacyIntakeAliasesRead(responses);
   const contractById = new Map(
     stubs.filter(s => s.answer != null).map(s => [s.id, s.answer!]),
   );
   const out: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(merged)) {
+  for (const [key, value] of Object.entries(responses)) {
     const contract = contractById.get(key);
     out[key] = contract ? sanitizeValue(value, contract) : value;
   }
-  return syncRevenueAliasesForPersistence(out);
+  return out;
 }

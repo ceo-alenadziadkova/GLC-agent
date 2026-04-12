@@ -131,7 +131,7 @@ BEGIN
   INSERT INTO profiles (id, role)
   VALUES (
     NEW.id,
-    'client'   -- default; consultant role assigned by server via CONSULTANT_EMAILS check
+    'client'   -- default; consultant role assigned by server via consultant_email_allowlist
   )
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;

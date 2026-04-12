@@ -1,4 +1,8 @@
-import { resolveExpressSlaRequiredIds, resolveFullSlaRequiredIds } from '@glc/intake-core';
+import {
+  resolveExpressSlaRequiredIds,
+  resolveFullSlaRequiredIds,
+  resolvePreBriefSubmitExpressBankIds,
+} from '@glc/intake-core';
 import {
   BRIEF_QUESTIONS as SERVER_BRIEF_QUESTIONS,
   INTAKE_IDENTITY_BRIEF_QUESTIONS as SERVER_INTAKE_IDENTITY_BRIEF_QUESTIONS,
@@ -6,15 +10,15 @@ import {
   getBriefQuestionText as serverGetBriefQuestionText,
   PRE_BRIEF_QUESTION_IDS as SERVER_PRE_BRIEF_QUESTION_IDS,
   REQUIRED_QUESTION_IDS as SERVER_REQUIRED_QUESTION_IDS,
-} from '../../../server/src/schemas/intake-brief-questions';
+} from '@glc/intake-core';
 import { INTAKE_IDENTITY_FIELD_IDS } from './intakeIdentityFieldIds';
 import type { IntakeBriefCollectionMode } from './auditTypes';
 import { briefResponsesToIntakeMap } from './intakeBriefMap';
 import { choiceValueNeedsSpecify } from '@glc/intake-core';
 
 /**
- * Legacy / public brief UI — **question rows** come from `server/src/schemas/intake-brief-questions.ts` (no Zod).
- * (single source of truth). This module adds SPA-only helpers and re-exports the same arrays
+ * Legacy / public brief UI — **question rows** from `@glc/intake-core` (`intake-brief-catalog-meta`, no Zod).
+ * This module adds SPA-only helpers and re-exports the same arrays
  * with the local `BriefQuestion` view type (server rows may include `domains`).
  *
  * Question-bank v1 (wizard) stays in `bankQuestionUiCatalog.ts` + `question-bank.v1.json`.
@@ -68,7 +72,7 @@ export function getBriefQuestionText(id: string): string {
 
 export const REQUIRED_IDS = SERVER_REQUIRED_QUESTION_IDS;
 
-/** Express SLA base ids; `c5`/`c3` added when website branch is visible (see `resolveExpressSlaRequiredIds`). */
+/** Express SLA base ids for pipeline gates; pre-brief link uses `resolvePreBriefSubmitExpressBankIds` (intersect `bankIncluded`). */
 export const EXPRESS_REQUIRED_QUESTION_IDS = SERVER_EXPRESS_REQUIRED_QUESTION_IDS;
 
 /** IDs checked before pipeline start — matches server `evaluateBriefGates` per product mode. */
@@ -176,7 +180,36 @@ export function countAnswered(responses: BriefResponses, ids: string[]): number 
 
 /** True when primary industry is Other (shows follow-up specify field on public pre-brief). */
 export function intakeIndustryIsOther(responses: BriefResponses): boolean {
-  return unwrapResponse(responses.intake_industry) === 'Other';
+  const v = unwrapResponse(responses.a2 ?? responses.intake_industry);
+  return v === 'Other';
+}
+
+/** Canonical `a5` label when the business has no public site (question-bank + UI overrides). */
+export const WEBSITE_PRESENCE_NO_SITE_LABEL = 'No website yet' as const;
+
+/** Stored in `a11` when `a5` is {@link WEBSITE_PRESENCE_NO_SITE_LABEL} (aligned with consultant Step 0 / `websiteAnswerToAuditUrl`). */
+export const A11_VALUE_WHEN_NO_PUBLIC_SITE = 'none' as const;
+
+export function websitePresenceMeansNoPublicSite(responses: BriefResponses): boolean {
+  return unwrapResponse(responses.a5) === WEBSITE_PRESENCE_NO_SITE_LABEL;
+}
+
+/**
+ * When website presence is "no site", ensure `a11` carries the canonical sentinel so submit validation passes.
+ * Returns the same reference if no change.
+ */
+export function coerceA11ForNoWebsitePresence(responses: BriefResponses): BriefResponses {
+  if (!websitePresenceMeansNoPublicSite(responses)) return responses;
+  const a11v = unwrapResponse(responses.a11);
+  const t = typeof a11v === 'string' ? a11v.trim() : '';
+  const lower = t.toLowerCase();
+  if (lower === 'none') return responses;
+  const emptyOrPlaceholder =
+    !t || lower === 'no website' || lower === 'n/a' || lower === 'na';
+  if (emptyOrPlaceholder) {
+    return { ...responses, a11: { value: A11_VALUE_WHEN_NO_PUBLIC_SITE, source: 'client' } };
+  }
+  return responses;
 }
 
 /** Pre-brief completion per slot (industry Other + choice "specify" options). */
@@ -195,16 +228,12 @@ export function isPreBriefQuestionSatisfied(questionId: string, responses: Brief
 
 /** Slot list for public pre-brief progress + server submit validation (identity + core). */
 export function getPreBriefSubmitSlotIds(responses: BriefResponses): string[] {
-  const ids: string[] = [
-    INTAKE_IDENTITY_FIELD_IDS[0],
-    INTAKE_IDENTITY_FIELD_IDS[1],
-    INTAKE_IDENTITY_FIELD_IDS[2],
-  ];
+  const ids: string[] = [...INTAKE_IDENTITY_FIELD_IDS];
   if (intakeIndustryIsOther(responses)) {
-    ids.push(INTAKE_IDENTITY_FIELD_IDS[3]);
+    ids.push('intake_industry_specify');
   }
   const m = briefResponsesToIntakeMap(responses);
-  ids.push(...resolveExpressSlaRequiredIds(m));
+  ids.push(...resolvePreBriefSubmitExpressBankIds(m));
   return ids;
 }
 
@@ -230,7 +259,7 @@ export function formatBriefAnswerSummary(
   else line = '—';
 
   if (allResponses && (typeof v === 'string' || Array.isArray(v)) && choiceValueNeedsSpecify(v)) {
-    const specKey = q.id === 'intake_industry' ? 'intake_industry_specify' : `${q.id}__other`;
+    const specKey = q.id === 'a2' ? 'intake_industry_specify' : `${q.id}__other`;
     const spec = unwrapResponse(allResponses[specKey]);
     if (typeof spec === 'string' && spec.trim()) {
       line = `${line} (${spec.trim()})`;

@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import type Anthropic from '@anthropic-ai/sdk';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { join, dirname } from 'path';
@@ -10,17 +10,25 @@ import { type BaseCollector } from '../collectors/base.js';
 import type { DomainResult, DomainKey } from '../types/audit.js';
 import { followupQuestionsFromUnknowns } from '../lib/post-audit-followups.js';
 import { zodToJsonSchema } from '../schemas/domain-output.js';
+import {
+  CLAUDE_CB_THRESHOLD,
+  CLAUDE_CB_TTL_SEC,
+  CLAUDE_MAX_RETRIES,
+  CLAUDE_RETRY_BASE_MS,
+  CLAUDE_RETRY_JITTER_MS,
+  CLAUDE_TIMEOUT_MS,
+  claudeCircuitBreakerRedisKey,
+  createAnthropicClient,
+} from '../config/claude-client.js';
 import { CLAUDE_MODEL, MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import { logger } from '../services/logger.js';
 import { getContext, updateContext } from '../services/observability-context.js';
+import {
+  interpolatePipelineEventMessage,
+  pipelineBaseEventCopy,
+} from '../config/pipeline-events-copy.js';
 import type { z } from 'zod';
 import { createClient } from 'redis';
-
-const MAX_RETRIES = 3;
-const RETRY_BASE_MS = 1500;
-const CLAUDE_TIMEOUT_MS = Number(process.env.CLAUDE_TIMEOUT_MS ?? 90_000);
-const CLAUDE_CB_THRESHOLD = Number(process.env.CLAUDE_CB_THRESHOLD ?? 3);
-const CLAUDE_CB_TTL_SEC = Number(process.env.CLAUDE_CB_TTL_SEC ?? 60);
 
 let localCircuitFailures = 0;
 type ClaudeCircuitRedisClient = ReturnType<typeof createClient>;
@@ -46,7 +54,7 @@ async function getConsecutiveClaudeFailures(): Promise<number> {
   const client = getClaudeCircuitRedisClient();
   if (!client) return localCircuitFailures;
   try {
-    const raw = await client.get('cb:claude:failures');
+    const raw = await client.get(claudeCircuitBreakerRedisKey());
     const parsed = Number(raw ?? 0);
     return Number.isFinite(parsed) ? parsed : 0;
   } catch {
@@ -59,9 +67,10 @@ async function recordClaudeFailure(): Promise<void> {
   const client = getClaudeCircuitRedisClient();
   if (!client) return;
   try {
-    const n = await client.incr('cb:claude:failures');
+    const key = claudeCircuitBreakerRedisKey();
+    const n = await client.incr(key);
     if (n === 1) {
-      await client.expire('cb:claude:failures', CLAUDE_CB_TTL_SEC);
+      await client.expire(key, CLAUDE_CB_TTL_SEC);
     }
   } catch {
     // Best-effort only; local fallback remains active.
@@ -73,7 +82,7 @@ async function resetClaudeFailures(): Promise<void> {
   const client = getClaudeCircuitRedisClient();
   if (!client) return;
   try {
-    await client.del('cb:claude:failures');
+    await client.del(claudeCircuitBreakerRedisKey());
   } catch {
     // Best-effort only.
   }
@@ -131,7 +140,7 @@ export abstract class BaseAgent {
 
   constructor(auditId: string) {
     this.auditId = auditId;
-    this.anthropic = new Anthropic();
+    this.anthropic = createAnthropicClient();
     this.contextBuilder = new ContextBuilder();
     this.factChecker = new FactChecker();
     this.tokenTracker = new TokenTracker();
@@ -153,24 +162,34 @@ export abstract class BaseAgent {
    * Run the full agent pipeline.
    */
   async run(): Promise<DomainResult> {
-    const companyUrl = await this.getCompanyUrl();
+    const { companyUrl, noPublicWebsite } = await this.getAuditWebContext();
+    const ev = pipelineBaseEventCopy();
 
     // ─── Step 1: Collect data (NO AI) ────────────────────
-    await this.emit('collecting', 'Collecting raw data...');
+    await this.emit('collecting', ev.collecting);
     const collectedData: Record<string, Record<string, unknown>> = {};
 
     for (const collector of this.collectors) {
       try {
-        const result = await collector.run(this.auditId, companyUrl);
+        const result = await collector.run(this.auditId, companyUrl, { noPublicWebsite });
         collectedData[result.collector_key] = result.data;
-        await this.emit('log', `✓ Collected: ${result.collector_key}`);
+        await this.emit(
+          'log',
+          interpolatePipelineEventMessage(ev.logCollected, { key: result.collector_key }),
+        );
       } catch (err) {
-        await this.emit('log', `⚠ Collector ${collector.key} failed: ${(err as Error).message}`);
+        await this.emit(
+          'log',
+          interpolatePipelineEventMessage(ev.logCollectorFailed, {
+            key: collector.key,
+            message: (err as Error).message,
+          }),
+        );
       }
     }
 
     // ─── Step 2: Assemble context ────────────────────────
-    await this.emit('assembling_context', 'Building analysis context...');
+    await this.emit('assembling_context', ev.assemblingContext);
     const context = await this.contextBuilder.build(
       this.auditId,
       this.domainKey,
@@ -179,7 +198,7 @@ export abstract class BaseAgent {
     );
 
     // ─── Step 3: Single Claude call ──────────────────────
-    await this.emit('analyzing', 'Running AI analysis...');
+    await this.emit('analyzing', ev.analyzing);
 
     // [C1] Check token budget with hard reserve and warning threshold
     const budget = await this.tokenTracker.checkBudget(this.auditId);
@@ -194,7 +213,10 @@ export abstract class BaseAgent {
     if (budget.is_approaching_limit) {
       await this.emit(
         'warning',
-        `Token budget at ${Math.round((budget.tokens_used / budget.token_budget) * 100)}% — ${budget.remaining} tokens remaining`
+        interpolatePipelineEventMessage(ev.tokenBudgetWarning, {
+          pct: Math.round((budget.tokens_used / budget.token_budget) * 100),
+          remaining: budget.remaining,
+        }),
       );
     }
 
@@ -204,10 +226,14 @@ export abstract class BaseAgent {
     if (this.domainKey !== 'recon' && this.domainKey !== 'strategy') {
       const verification = this.factChecker.verify(result, this.domainKey, collectedData);
       if (verification.corrections.length > 0) {
-        await this.emit('fact_check', `Found ${verification.corrections.length} fact-check flag(s)`, {
-          corrections: verification.corrections,
-          confidence: verification.confidence,
-        });
+        await this.emit(
+          'fact_check',
+          interpolatePipelineEventMessage(ev.factCheckFlags, { count: verification.corrections.length }),
+          {
+            corrections: verification.corrections,
+            confidence: verification.confidence,
+          },
+        );
       }
       return this.attachConfidenceDistribution(verification.result);
     }
@@ -223,13 +249,17 @@ export abstract class BaseAgent {
     schema: z.ZodSchema = this.outputSchema,
     maxTokens: number = MODEL_MAX_TOKENS.domain
   ): Promise<DomainResult> {
+    const ev = pipelineBaseEventCopy();
     const { system, prompt, truncated, truncatedKeys } = this.contextBuilder.formatPrompt(context);
     if (truncated) {
-      await this.emit('warning', `Context truncated for keys: ${truncatedKeys.join(', ')}`);
+      await this.emit(
+        'warning',
+        interpolatePipelineEventMessage(ev.contextTruncated, { keys: truncatedKeys.join(', ') }),
+      );
     }
     const jsonSchema = zodToJsonSchema(schema);
 
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    for (let attempt = 1; attempt <= CLAUDE_MAX_RETRIES; attempt++) {
       try {
         const consecutiveFailures = await getConsecutiveClaudeFailures();
         if (consecutiveFailures >= CLAUDE_CB_THRESHOLD) {
@@ -250,7 +280,7 @@ export abstract class BaseAgent {
               messages: [{ role: 'user', content: prompt }],
               tools: [{
                 name: 'submit_analysis',
-                description: 'Submit the structured analysis results',
+                description: ev.claudeToolDescription,
                 input_schema: jsonSchema as Anthropic.Tool['input_schema'],
               }],
               tool_choice: { type: 'tool', name: 'submit_analysis' },
@@ -280,9 +310,17 @@ export abstract class BaseAgent {
         // Validate with Zod
         const parsed = schema.safeParse(toolBlock.input);
         if (!parsed.success) {
-          await this.emit('log', `⚠ Validation error (attempt ${attempt}): ${parsed.error.message}`);
-          if (attempt === MAX_RETRIES) {
-            throw new Error(`Response validation failed after ${MAX_RETRIES} attempts: ${parsed.error.message}`);
+          await this.emit(
+            'log',
+            interpolatePipelineEventMessage(ev.validationErrorAttempt, {
+              attempt,
+              message: parsed.error.message,
+            }),
+          );
+          if (attempt === CLAUDE_MAX_RETRIES) {
+            throw new Error(
+              `Response validation failed after ${CLAUDE_MAX_RETRIES} attempts: ${parsed.error.message}`,
+            );
           }
           continue;
         }
@@ -292,13 +330,16 @@ export abstract class BaseAgent {
         const error = err as Error & { status?: number };
 
         // Retry on rate limit or server errors
-        if ((error.status === 429 || error.status === 500 || error.status === 529) && attempt < MAX_RETRIES) {
+        if ((error.status === 429 || error.status === 500 || error.status === 529) && attempt < CLAUDE_MAX_RETRIES) {
           if (error.status === 500 || error.status === 529) {
             await recordClaudeFailure();
           }
-          const jitter = Math.floor(Math.random() * 300);
-          const delay = RETRY_BASE_MS * Math.pow(2, attempt - 1) + jitter;
-          await this.emit('log', `⚠ API error (${error.status}), retrying in ${delay}ms...`);
+          const jitter = Math.floor(Math.random() * CLAUDE_RETRY_JITTER_MS);
+          const delay = CLAUDE_RETRY_BASE_MS * Math.pow(2, attempt - 1) + jitter;
+          await this.emit(
+            'log',
+            interpolatePipelineEventMessage(ev.apiErrorRetry, { status: error.status ?? 0, delay }),
+          );
           await sleep(delay);
           continue;
         }
@@ -425,6 +466,10 @@ export abstract class BaseAgent {
     }
   }
 
+  /**
+   * Persists to `pipeline_events` (product UI / timeline). Prefer strings from
+   * `pipeline-events-copy.v1.json` for user-facing steps; use `eventType: 'log'` for technical lines.
+   */
   protected async emit(eventType: string, message: string, data: Record<string, unknown> = {}): Promise<void> {
     updateContext({ auditId: this.auditId });
     const ctx = getContext();
@@ -445,10 +490,10 @@ export abstract class BaseAgent {
    * [C2] Throws if the audit row is missing or inaccessible — prevents silent
    * empty-string company URLs from propagating into collectors and Claude prompts.
    */
-  protected async getCompanyUrl(): Promise<string> {
+  protected async getAuditWebContext(): Promise<{ companyUrl: string; noPublicWebsite: boolean }> {
     const { data, error } = await supabase
       .from('audits')
-      .select('company_url')
+      .select('company_url, no_public_website')
       .eq('id', this.auditId)
       .single();
 
@@ -456,7 +501,15 @@ export abstract class BaseAgent {
       throw new Error(`Audit not found or inaccessible: ${this.auditId}`);
     }
 
-    return data.company_url;
+    return {
+      companyUrl: data.company_url as string,
+      noPublicWebsite: data.no_public_website === true,
+    };
+  }
+
+  protected async getCompanyUrl(): Promise<string> {
+    const { companyUrl } = await this.getAuditWebContext();
+    return companyUrl;
   }
 }
 
