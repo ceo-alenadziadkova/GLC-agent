@@ -2,7 +2,8 @@ import { defineConfig } from 'vite'
 import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { GLC_DEV_API_ORIGIN } from '@glc/dev-brand-defaults'
+// Bare @glc/dev-brand-defaults resolves to dist/ during config preload; use source so CI need not prebuild.
+import { GLC_DEV_API_ORIGIN } from './packages/glc-dev-brand-defaults/src/index.ts'
 
 export default defineConfig(({ mode }) => ({
   esbuild: {

@@ -16,5 +16,5 @@ export function computeMarketingRecommendedRoute(input: MarketingBriefRoutingInp
   return computeMarketingBriefRecommendedRoute(input);
 }
 
-/** English labels from `ui-copy-registry.v1.json` (i18n keys: `MARKETING_BRIEF_ROUTE_I18N_KEYS`). */
+/** English route labels from the same source as `@glc/intake-core` marketing brief UI copy. */
 export const ROUTE_LABELS: Record<MarketingRecommendedRoute, string> = MARKETING_BRIEF_ROUTE_LABELS_EN;
