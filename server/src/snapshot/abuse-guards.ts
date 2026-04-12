@@ -3,6 +3,7 @@
  * Optional shared cooldown via `snapshot_domain_cooldown` when `SNAPSHOT_SHARED_ABUSE_STORE=1`.
  */
 
+import { PIPELINE_EVENT_ERROR_CODES } from '../config/pipeline-event-error-codes.js';
 import { freeSnapshotCapacityUserMessage } from '../config/pipeline-orchestrator-copy.js';
 import { getSnapshotFetchBudgetMs } from '../config/snapshot-fetch-budget.js';
 import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
@@ -59,7 +60,7 @@ function memoryCooldownActive(host: string): boolean {
 }
 
 export class SnapshotAtCapacityError extends Error {
-  readonly code = 'SNAPSHOT_AT_CAPACITY' as const;
+  readonly code = PIPELINE_EVENT_ERROR_CODES.SNAPSHOT_AT_CAPACITY;
 
   constructor() {
     super(freeSnapshotCapacityUserMessage());

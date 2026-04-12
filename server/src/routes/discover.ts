@@ -20,7 +20,7 @@ import {
 import { NO_PUBLIC_WEBSITE_URL } from '../config/no-public-website.js';
 import { DISCOVER_SESSIONS_LIST_MAX } from '../config/route-query-limits.js';
 import { saveBriefResponses } from '../services/brief-validator.js';
-import { DOMAIN_KEYS, reviewPhasesForMode } from '../types/audit.js';
+import { DEFAULT_AUDIT_PRODUCT_MODE, DOMAIN_KEYS, reviewPhasesForMode } from '../types/audit.js';
 import { logger } from '../services/logger.js';
 import {
   buildPublicDiscoveryUiFragment,
@@ -570,14 +570,14 @@ discoverRouter.post(
         return;
       }
 
-      const reviewPhases = reviewPhasesForMode('full');
+      const reviewPhases = reviewPhasesForMode(DEFAULT_AUDIT_PRODUCT_MODE);
       const { data: convertRows, error: convertErr } = await supabase.rpc(
         'discovery_convert_session_atomic',
         {
           p_session_token: token,
           p_consultant_id: req.userId!,
           p_company_url: NO_PUBLIC_WEBSITE_URL,
-          p_product_mode: 'full',
+          p_product_mode: DEFAULT_AUDIT_PRODUCT_MODE,
           p_review_phases: reviewPhases,
           p_domain_keys: [...DOMAIN_KEYS],
           p_no_public_website: true,

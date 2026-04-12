@@ -12,6 +12,13 @@ import {
   CRAWLER_TOTAL_BUDGET_MS,
 } from '../config/crawler-limits.js';
 import { SOCIAL_LINK_PATTERNS } from '../config/social-link-patterns.js';
+import {
+  CRAWLER_CONTACT_EMAIL_EXCLUDED_SUBSTRINGS,
+  CRAWLER_CONTACT_EMAIL_PATTERN,
+  CRAWLER_PHONE_MAX_DIGITS,
+  CRAWLER_PHONE_MIN_DIGITS,
+  crawlerContactPhonePattern,
+} from '../config/crawler-contact-extraction.js';
 import { addTechStackFromHtml, TECH_PATTERNS } from '../lib/site-html-signals.js';
 
 interface CrawledPage {
@@ -248,24 +255,21 @@ export class CrawlerCollector extends BaseCollector {
   }
 
   private extractContacts(html: string, emails: Set<string>, phones: Set<string>) {
-    // Emails
-    const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-    const foundEmails = html.match(emailPattern);
+    const emailRe = new RegExp(CRAWLER_CONTACT_EMAIL_PATTERN.source, CRAWLER_CONTACT_EMAIL_PATTERN.flags);
+    const foundEmails = html.match(emailRe);
     if (foundEmails) {
       for (const email of foundEmails) {
-        if (!email.includes('example.com') && !email.includes('sentry')) {
-          emails.add(email.toLowerCase());
-        }
+        const skip = CRAWLER_CONTACT_EMAIL_EXCLUDED_SUBSTRINGS.some((s) => email.includes(s));
+        if (!skip) emails.add(email.toLowerCase());
       }
     }
 
-    // Phones (basic extraction)
-    const phonePattern = /(?:tel:|phone:|whatsapp:)?\+?[\d\s()-]{7,}/g;
+    const phonePattern = crawlerContactPhonePattern();
     const foundPhones = html.match(phonePattern);
     if (foundPhones) {
       for (const phone of foundPhones) {
         const cleaned = phone.replace(/[^\d+]/g, '');
-        if (cleaned.length >= 7 && cleaned.length <= 15) {
+        if (cleaned.length >= CRAWLER_PHONE_MIN_DIGITS && cleaned.length <= CRAWLER_PHONE_MAX_DIGITS) {
           phones.add(cleaned);
         }
       }

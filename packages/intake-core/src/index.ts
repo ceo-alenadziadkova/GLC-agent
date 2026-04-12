@@ -56,6 +56,10 @@ export {
 } from './discovery-findings-copy.js';
 export { DISCOVERY_GLUE_COPY, type DiscoveryGlueCopyV1 } from './discovery-glue-copy.js';
 export {
+  DISCOVERY_RESULTS_TEASER,
+  type DiscoveryResultsTeaserV1,
+} from './discovery-results-teaser.js';
+export {
   DOMAIN_TO_QUESTION_IDS,
   formatSliceForPrompt,
   sliceResponsesForDomain,
@@ -173,6 +177,13 @@ export type {
   ProductMode,
 } from './audit-contract.js';
 export { DOMAIN_KEYS } from './audit-contract.js';
+export {
+  INTAKE_PLAN_TRACE_COLLECTION_MODE_VALUES,
+  INTAKE_PLAN_TRACE_PRODUCT_MODE_VALUES,
+  INTAKE_SURFACE_VALUES,
+  type IntakePlanTraceCollectionMode,
+  type IntakePlanTraceProductMode,
+} from './intake-plan-trace-contract.js';
 export {
   DOMAIN_DISPLAY_LABELS,
   REPORT_PROFILE_DESCRIPTIONS,

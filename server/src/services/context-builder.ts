@@ -1,12 +1,13 @@
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
-import type {
-  DomainKey,
-  IntakeBriefCollectionMode,
-  IntakeVersionTuple,
-  ProductMode,
-  ReconConflict,
-  ReconData,
+import {
+  DEFAULT_AUDIT_PRODUCT_MODE,
+  type DomainKey,
+  type IntakeBriefCollectionMode,
+  type IntakeVersionTuple,
+  type ProductMode,
+  type ReconConflict,
+  type ReconData,
 } from '../types/audit.js';
 import { getDomainWeight } from '../config/industry-weights.js';
 import {
@@ -36,11 +37,10 @@ import { buildIntakePlan } from '@glc/intake-core';
 import { isSupportedIntakeArtifactTuple } from '@glc/intake-core';
 import { currentIntakeVersionTuple } from '@glc/intake-core';
 import { resolveIntakeSurfaceForPlan } from './brief-validator.js';
+import { CONTEXT_BUILDER_NO_PUBLIC_WEBSITE_LINE } from '../config/prompt-fragments.js';
 
 function formatCompanyUrlForPrompt(url: string, noPublicWebsite?: boolean | null): string {
-  return auditSkipsPublicWebsiteFetches(noPublicWebsite, url)
-    ? 'No public website (use intake brief and consultant notes only)'
-    : url;
+  return auditSkipsPublicWebsiteFetches(noPublicWebsite, url) ? CONTEXT_BUILDER_NO_PUBLIC_WEBSITE_LINE : url;
 }
 
 function computeIntakeReportAnchors(responses: Record<string, unknown>): Record<string, string> | undefined {
@@ -230,7 +230,7 @@ export class ContextBuilder {
     }
 
     // Express: one primary competitor in agent context (product promises a single confirmed peer).
-    const productMode = String(audit?.product_mode ?? 'full');
+    const productMode = String(audit?.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE);
     if (productMode === 'express' && briefResponses.main_competitors != null) {
       briefResponses.main_competitors = extractPrimaryCompetitor(briefResponses.main_competitors);
     }

@@ -5,7 +5,8 @@
  * Uses @react-pdf/renderer (pure JS — no Chromium, Railway-safe).
  *
  * Design system: GLC brand identity (public site from GLC_PUBLIC_SITE_URL / bot-identity)
- *   - Navy cover page and palette from `config/pdf-theme.ts` (env overrides)
+ *   - Navy cover page and palette from `config/pdf-theme.ts` (static config)
+ *   - Per-domain list caps from `config/report-profiler-limits.ts` (aligned with SYSTEM_DEFAULTS.reportProfiler)
  *   - White content pages, Helvetica typography
  *   - GLC logo reproduced as 3 overlapping coloured squares (matches logo.svg)
  */
@@ -32,6 +33,10 @@ import {
 
 import { glcBrandSiteHostname } from '../config/glc-brand-host.js';
 import { PDF_THEME, pdfLocaleTag } from '../config/pdf-theme.js';
+import {
+  REPORT_PDF_DOMAIN_ISSUES_MAX,
+  REPORT_PDF_DOMAIN_QUICK_WINS_MAX,
+} from '../config/report-profiler-limits.js';
 import type { ReportInput } from './report-profiler.js';
 
 const BRAND_SITE_HOST = glcBrandSiteHostname();
@@ -86,12 +91,12 @@ const s = StyleSheet.create({
   coverUrl:       { fontSize: 10.5, color: C.coverUrlMuted, marginBottom: 40 },
   coverMeta:      { flexDirection: 'row' },
   coverMetaItem:  { marginRight: 28 },
-  coverMetaLabel: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: '#5B7299', marginBottom: 2 },
+  coverMetaLabel: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: C.coverMetaLabel, marginBottom: 2 },
   coverMetaValue: { fontSize: 10, color: C.white },
 
   coverBar:       { backgroundColor: C.green, paddingHorizontal: 48, paddingVertical: 13, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   coverBarBrand:  { fontSize: 8.5, fontFamily: 'Helvetica-Bold', color: C.navy },
-  coverBarUrl:    { fontSize: 8, color: '#0A5C3B' },
+  coverBarUrl:    { fontSize: 8, color: C.coverBarUrlOnGreen },
 
   // ── Content page ─────────────────────────────────────────────────────────
   // paddingTop/Bottom leave room for the fixed header/footer (position:absolute)
@@ -183,14 +188,14 @@ const GlcLogo: React.FC<{ size?: number }> = ({ size = 28 }) => {
     <View style={{ width: size, height: size }}>
       {/* Green — top-right */}
       <View style={{ position: 'absolute', left: size - sq, top: 0,
-        width: sq, height: sq, borderRadius: r, backgroundColor: '#0ECF82' }} />
+        width: sq, height: sq, borderRadius: r, backgroundColor: C.green }} />
       {/* Orange — centre */}
       <View style={{ position: 'absolute',
         left: Math.round(size * 0.27), top: Math.round(size * 0.30),
-        width: sq, height: sq, borderRadius: r, backgroundColor: '#F24F1D' }} />
+        width: sq, height: sq, borderRadius: r, backgroundColor: C.orange }} />
       {/* Blue — bottom-left */}
       <View style={{ position: 'absolute', left: 0, top: size - sq,
-        width: sq, height: sq, borderRadius: r, backgroundColor: '#1CBDFF' }} />
+        width: sq, height: sq, borderRadius: r, backgroundColor: C.blue }} />
     </View>
   );
 };
@@ -341,7 +346,12 @@ const DomainSection: React.FC<{
   maxIssues?: number;
   maxQw?: number;
   showRecs?: boolean;
-}> = ({ domain: d, maxIssues = 999, maxQw = 999, showRecs = true }) => {
+}> = ({
+  domain: d,
+  maxIssues = REPORT_PDF_DOMAIN_ISSUES_MAX,
+  maxQw = REPORT_PDF_DOMAIN_QUICK_WINS_MAX,
+  showRecs = true,
+}) => {
   const strengths  = (d.strengths   ?? []) as string[];
   const weaknesses = (d.weaknesses  ?? []) as string[];
   const issues     = (d.issues      ?? []).slice(0, maxIssues);
@@ -466,7 +476,7 @@ const RoadmapSection: React.FC<{ strategy: ReportInput['strategy'] }> = ({ strat
     <View style={s.sec}>
       <Text style={s.secTitle}>Strategic Roadmap</Text>
       {qw.length > 0 && <RoadmapPhase color={C.green}   title="Quick Wins (up to 1 week)" items={qw} />}
-      {mt.length > 0 && <RoadmapPhase color="#EAB308"   title="Medium Term (~1 month)"     items={mt} />}
+      {mt.length > 0 && <RoadmapPhase color={C.sevMedium} title="Medium Term (~1 month)"     items={mt} />}
       {st.length > 0 && <RoadmapPhase color={C.blue}    title="Strategic (1–3 months)"     items={st} />}
     </View>
   );

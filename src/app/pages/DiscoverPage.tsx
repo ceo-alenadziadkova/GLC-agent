@@ -15,8 +15,8 @@ import {
   ArrowRight, CheckCircle, Check, Warning,
   ChartBar, ArrowLeft, PaperPlaneRight,
   Spinner, CurrencyCircleDollar, Clock, Eye, TrendUp,
-  Gear, ChartLine, MagnifyingGlass, Star, Buildings,
-  Users, HandshakeIcon, Robot,
+  Gear, ChartLine, MagnifyingGlass, Buildings,
+  Users, Robot,
 } from '@phosphor-icons/react';
 import {
   buildQuestionSequence,
@@ -31,7 +31,9 @@ import {
 import type { IntakeVersionTuple } from '../data/auditTypes';
 import { discoverApi } from '../data/api/discover';
 import { api } from '../data/apiService';
-import { choiceValueNeedsSpecify } from '@glc/intake-core';
+import { choiceValueNeedsSpecify, DISCOVERY_RESULTS_TEASER } from '@glc/intake-core';
+import { DISCOVERY_INDUSTRY_TEASER_ICONS } from '../lib/discovery-industry-teaser-icons';
+import { GLC_BRAND_HEX } from '@glc/brand-tokens';
 import {
   createDiscoveryAnalyticsSink,
   discoveryTrackQuestionAnswered,
@@ -45,6 +47,7 @@ import {
   DISCOVER_WIZARD_SAVE_TIMEOUT_MS,
 } from '../config/discover-page-defaults';
 import discoveryUiCopy from '../data/discovery-ui-copy.en.json';
+import discoverResultsUi from '../data/discover-page-results-ui.en.json';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -111,7 +114,7 @@ function QuestionInput({
           onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
         />
         <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: 0 }}>
-          Short answer is enough. You can also write in detail or use voice input.
+          {discoverResultsUi.copy.questionInputHelp}
         </p>
       </div>
     );
@@ -147,7 +150,7 @@ function QuestionInput({
             type="text"
             value={specifyValue}
             onChange={e => onSpecifyChange(e.target.value)}
-            placeholder="Add one short clarification…"
+            placeholder={discoverResultsUi.copy.specifyPlaceholder}
             className="w-full px-4 py-3 rounded-xl text-sm outline-none"
             style={{
               background: 'var(--input-background)',
@@ -196,7 +199,7 @@ function QuestionInput({
             type="text"
             value={specifyValue}
             onChange={e => onSpecifyChange(e.target.value)}
-            placeholder="Add one short clarification…"
+            placeholder={discoverResultsUi.copy.specifyPlaceholder}
             className="w-full px-4 py-3 rounded-xl text-sm outline-none"
             style={{
               background: 'var(--input-background)',
@@ -227,26 +230,37 @@ function splitFindingDetail(detail: string): string[] {
   return parts.length > 0 ? parts : [t];
 }
 
-const HOOK_META: Record<
+const HOOK_ICONS: Record<DiscoveryFinding['hook'], Icon> = {
+  revenue: CurrencyCircleDollar,
+  time: Clock,
+  visibility: Eye,
+  risk: Warning,
+  scale: TrendUp,
+};
+
+const hookMetaJson = discoverResultsUi.hookMeta as Record<
   DiscoveryFinding['hook'],
-  { Icon: Icon; label: string; color: string }
-> = {
-  revenue:    { Icon: CurrencyCircleDollar, label: 'Revenue at risk',   color: '#EF4444' },
-  time:       { Icon: Clock,               label: 'Hours recoverable',  color: '#F59E0B' },
-  visibility: { Icon: Eye,                 label: 'Visibility gap',     color: '#8B5CF6' },
-  risk:       { Icon: Warning,             label: 'Growth risk',        color: '#F97316' },
-  scale:      { Icon: TrendUp,             label: 'Scale blocker',      color: '#6366F1' },
+  { label: string; color: string }
+>;
+
+const HOOK_META: Record<DiscoveryFinding['hook'], { Icon: Icon; label: string; color: string }> = {
+  revenue: { Icon: HOOK_ICONS.revenue, ...hookMetaJson.revenue },
+  time: { Icon: HOOK_ICONS.time, ...hookMetaJson.time },
+  visibility: { Icon: HOOK_ICONS.visibility, ...hookMetaJson.visibility },
+  risk: { Icon: HOOK_ICONS.risk, ...hookMetaJson.risk },
+  scale: { Icon: HOOK_ICONS.scale, ...hookMetaJson.scale },
 };
 
 function FindingCard({ finding }: { finding: DiscoveryFinding }) {
   const isHigh = finding.impact === 'high';
   const meta = HOOK_META[finding.hook];
+  const fc = discoverResultsUi.findingCard;
   return (
     <div
       className="min-w-0 max-w-full overflow-hidden rounded-2xl p-5 sm:p-6 md:p-7"
       style={{
-        background: isHigh ? 'rgba(239,68,68,0.11)' : 'rgba(245,158,11,0.11)',
-        border: isHigh ? '1px solid rgba(239,68,68,0.32)' : '1px solid rgba(245,158,11,0.32)',
+        background: isHigh ? fc.highBackground : fc.mediumBackground,
+        border: isHigh ? `1px solid ${fc.highBorder}` : `1px solid ${fc.mediumBorder}`,
         boxSizing: 'border-box',
       }}
     >
@@ -254,20 +268,20 @@ function FindingCard({ finding }: { finding: DiscoveryFinding }) {
         <span
           className="text-[11px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-lg"
           style={{
-            background: 'rgba(255,255,255,0.08)',
-            color: isHigh ? 'rgba(252,165,165,0.98)' : 'rgba(253,224,71,0.95)',
-            border: '1px solid rgba(255,255,255,0.10)',
+            background: fc.zoneBadgeBackground,
+            color: isHigh ? fc.zoneTextHigh : fc.zoneTextMedium,
+            border: `1px solid ${fc.zoneBadgeBorder}`,
           }}
         >
           {finding.zone}
         </span>
         {isHigh && (
-          <Warning size={16} weight="fill" className="flex-shrink-0" style={{ color: '#EF4444' }} aria-hidden />
+          <Warning size={16} weight="fill" className="flex-shrink-0" style={{ color: fc.warningIcon }} aria-hidden />
         )}
       </div>
       <h2
         className="mb-3 break-words text-pretty"
-        style={{ fontSize: '1.25rem', fontWeight: 600, color: '#F8FAFC', lineHeight: 1.38 }}
+        style={{ fontSize: '1.25rem', fontWeight: 600, color: fc.headline, lineHeight: 1.38 }}
       >
         {finding.headline}
       </h2>
@@ -278,7 +292,7 @@ function FindingCard({ finding }: { finding: DiscoveryFinding }) {
             className="break-words text-pretty"
             style={{
               fontSize: '1.125rem',
-              color: '#E8EDF4',
+              color: fc.body,
               lineHeight: 1.8,
               overflowWrap: 'anywhere',
             }}
@@ -290,8 +304,8 @@ function FindingCard({ finding }: { finding: DiscoveryFinding }) {
       <div
         className="mt-5 flex items-center gap-2.5 rounded-xl px-3 py-2.5 sm:px-3.5 sm:py-3"
         style={{
-          background: 'rgba(255,255,255,0.07)',
-          border: '1px solid rgba(255,255,255,0.12)',
+          background: fc.hookRowBackground,
+          border: `1px solid ${fc.hookRowBorder}`,
         }}
       >
         <meta.Icon size={20} weight="fill" style={{ color: meta.color, opacity: 1 }} aria-hidden />
@@ -305,32 +319,32 @@ function FindingCard({ finding }: { finding: DiscoveryFinding }) {
 
 // ── Full-audit teaser ─────────────────────────────────────────────────────────
 
-const INDUSTRY_TEASER: Record<string, { Icon: Icon; text: string }> = {
-  'Hospitality':          { Icon: Star,                text: 'Reputation management — how to build reviews on autopilot' },
-  'Food & Beverage':      { Icon: Star,                text: 'Booking and review automation — consistent tables, consistent stars' },
-  'Healthcare':           { Icon: Users,               text: 'Appointment & follow-up automation — fewer no-shows, fuller calendar' },
-  'Real Estate':          { Icon: HandshakeIcon,       text: 'Pipeline visibility — tracking every lead from first contact to deal' },
-  'Professional Services':{ Icon: ChartLine,           text: 'Proposal and follow-up automation — close more without chasing' },
-  'Marine':               { Icon: Robot,               text: 'Seasonal ops automation — peak season systems that scale without stress' },
-};
-
 function AuditTeaser({ industry }: { industry: string | null }) {
-  const specific = industry ? INDUSTRY_TEASER[industry] : null;
+  const industryCopy = DISCOVERY_RESULTS_TEASER.industryTeaser;
+  const specific =
+    industry && industryCopy[industry]
+      ? {
+          Icon: DISCOVERY_INDUSTRY_TEASER_ICONS[industry] ?? Robot,
+          text: industryCopy[industry] as string,
+        }
+      : null;
 
-  const bullets: { Icon: Icon; text: string }[] = [
-    { Icon: Gear,            text: 'Automation roadmap — which manual tasks to eliminate first' },
-    { Icon: ChartLine,       text: 'Conversion analysis — where you lose clients in your pipeline' },
-    { Icon: MagnifyingGlass, text: 'Digital presence strategy — fastest path from invisible to findable' },
-    specific ?? { Icon: Robot, text: 'Tech stack review — what to keep, replace, and connect' },
-  ];
+  const teaserIcons = [Gear, ChartLine, MagnifyingGlass] as const;
+  const bullets: { Icon: Icon; text: string }[] = discoverResultsUi.teaserBullets.map((text, i) => ({
+    Icon: teaserIcons[i] ?? Robot,
+    text,
+  }));
+  bullets.push(specific ?? { Icon: Robot, text: DISCOVERY_RESULTS_TEASER.defaultFourthBullet });
+
+  const tz = discoverResultsUi.teaser;
 
   return (
     <div
       className="min-w-0 max-w-full overflow-hidden rounded-2xl p-5 sm:p-6"
-      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', boxSizing: 'border-box' }}
+      style={{ background: tz.panelBackground, border: `1px solid ${tz.panelBorder}`, boxSizing: 'border-box' }}
     >
-      <p className="text-[0.6875rem] font-semibold uppercase tracking-widest mb-4 break-words" style={{ color: 'rgba(248,250,252,0.55)' }}>
-        What a full audit would show you
+      <p className="text-[0.6875rem] font-semibold uppercase tracking-widest mb-4 break-words" style={{ color: tz.sectionLabel }}>
+        {discoverResultsUi.teaserHeading}
       </p>
       <div className="space-y-4">
         {bullets.map(({ Icon, text }, i) => (
@@ -339,9 +353,9 @@ function AuditTeaser({ industry }: { industry: string | null }) {
               size={18}
               weight="fill"
               className="mt-0.5 shrink-0"
-              style={{ color: 'rgba(28,189,255,0.85)' }}
+              style={{ color: tz.bulletIcon }}
             />
-            <p className="min-w-0 break-words text-pretty" style={{ fontSize: '1.0625rem', color: '#E8EDF4', lineHeight: 1.72, overflowWrap: 'anywhere' }}>
+            <p className="min-w-0 break-words text-pretty" style={{ fontSize: '1.0625rem', color: tz.bulletText, lineHeight: 1.72, overflowWrap: 'anywhere' }}>
               {text}
             </p>
           </div>
@@ -560,11 +574,12 @@ export function DiscoverPage(props?: DiscoverPageProps) {
           contact_company: contactCompany.trim() || undefined,
         });
       } else if (sessionToken && !contactEditKey) {
-        throw new Error('Missing contact edit key');
+        setContactError(discoverResultsUi.copy.contactMissingEditKey);
+        return;
       }
       setContactSaved(true);
     } catch {
-      setContactError('Could not save — please email us directly.');
+      setContactError(discoverResultsUi.copy.contactError);
     } finally {
       setContactSaving(false);
     }
@@ -587,7 +602,7 @@ export function DiscoverPage(props?: DiscoverPageProps) {
 
   // ── Results screen ──────────────────────────────────────────────────────────
   if (showResults) {
-    const industryStr = industry ?? 'your industry';
+    const industryStr = industry ?? discoverResultsUi.copy.signalsIndustryFallback;
     const standaloneResults = !isSplit;
     // Never use the split "compact" scroll pane for results — it hides findings below the fold and hurts readability.
     const compactSplitResults = false;
@@ -602,7 +617,7 @@ export function DiscoverPage(props?: DiscoverPageProps) {
               ? 'flex min-h-screen w-full min-w-0 flex-col items-stretch px-4 py-10 sm:px-6 sm:py-14'
               : 'relative flex w-full min-w-0 flex-col items-stretch px-4 pb-12 pt-8 sm:px-8 sm:pb-16 sm:pt-10'
         }
-        style={{ background: 'linear-gradient(135deg, #0A0F1A 0%, #0D1626 60%, #0A1020 100%)' }}
+        style={{ background: discoverResultsUi.resultsLayout.pageBackground }}
       >
         <div
           className={
@@ -612,7 +627,7 @@ export function DiscoverPage(props?: DiscoverPageProps) {
                 ? 'pointer-events-none fixed inset-0'
                 : 'pointer-events-none absolute inset-0'
           }
-          style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(28,189,255,0.10) 0%, transparent 70%)', zIndex: 0 }}
+          style={{ background: discoverResultsUi.resultsLayout.radialGlow, zIndex: 0 }}
           aria-hidden
         />
 
@@ -623,7 +638,7 @@ export function DiscoverPage(props?: DiscoverPageProps) {
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--gradient-brand)' }}>
               <ChartBar size={18} weight="bold" style={{ color: 'var(--primary-foreground)' }} />
             </div>
-            <span style={{ fontWeight: 700, fontSize: '1rem', color: '#F8FAFC', letterSpacing: '-0.01em' }}>GLC Audit</span>
+            <span style={{ fontWeight: 700, fontSize: '1rem', color: discoverResultsUi.header.brandText, letterSpacing: '-0.01em' }}>GLC Audit</span>
           </div>
 
           <div className={`w-full min-w-0 max-w-full ${compactSplitResults ? 'space-y-5' : 'space-y-6 sm:space-y-7'}`}>
@@ -634,9 +649,9 @@ export function DiscoverPage(props?: DiscoverPageProps) {
             >
               {/* Header */}
               <header className="text-center mb-1 px-0 min-w-0">
-                <div className="inline-flex max-w-full items-center gap-2 px-3 py-1.5 rounded-full mb-3 sm:mb-4" style={{ background: 'rgba(16,185,129,0.14)', border: '1px solid rgba(16,185,129,0.35)' }}>
-                  <CheckCircle size={15} weight="fill" className="shrink-0" style={{ color: '#34D399' }} />
-                  <span className="break-words text-left sm:text-center" style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6EE7B7', letterSpacing: '0.06em' }}>ANALYSIS COMPLETE</span>
+                <div className="inline-flex max-w-full items-center gap-2 px-3 py-1.5 rounded-full mb-3 sm:mb-4" style={{ background: discoverResultsUi.header.analysisBadgeBackground, border: `1px solid ${discoverResultsUi.header.analysisBadgeBorder}` }}>
+                  <CheckCircle size={15} weight="fill" className="shrink-0" style={{ color: discoverResultsUi.header.analysisIcon }} />
+                  <span className="break-words text-left sm:text-center" style={{ fontSize: '0.75rem', fontWeight: 600, color: discoverResultsUi.header.analysisLabel, letterSpacing: '0.06em' }}>{discoverResultsUi.copy.analysisComplete}</span>
                 </div>
                 <h1
                   className="break-words text-pretty px-0.5"
@@ -645,58 +660,64 @@ export function DiscoverPage(props?: DiscoverPageProps) {
                       ? 'clamp(1.125rem, 3.2vw + 0.5rem, 1.5rem)'
                       : 'clamp(1.375rem, 2.5vw, 1.75rem)',
                     fontWeight: 800,
-                    color: '#F8FAFC',
+                    color: discoverResultsUi.header.title,
                     letterSpacing: '-0.02em',
                     lineHeight: 1.25,
                   }}
                 >
-                  Here&apos;s what we found in your business
+                  {discoverResultsUi.copy.resultsTitle}
                 </h1>
                 <p
                   className="break-words text-pretty mx-auto max-w-full px-0.5"
                   style={{
                     fontSize: compactSplitResults ? '0.875rem' : '1.0625rem',
-                    color: 'rgba(248,250,252,0.82)',
+                    color: discoverResultsUi.header.subtitle,
                     marginTop: 10,
                     lineHeight: 1.6,
                     overflowWrap: 'anywhere',
                   }}
                 >
-                  Based on {signalCount} signals
-                  {industryStr && industryStr !== 'your industry' ? ` — ${industryStr}` : ''}
-                  {teamSize ? `, team of ${teamOfPhrase(teamSize)}` : ''}
+                  {discoverResultsUi.copy.signalsPrefix} {signalCount} signals
+                  {industryStr && industryStr !== discoverResultsUi.copy.signalsIndustryFallback ? ` — ${industryStr}` : ''}
+                  {teamSize ? `${discoverResultsUi.copy.teamPrefix}${teamOfPhrase(teamSize)}` : ''}
                 </p>
               </header>
 
               {/* Primary CTA — above findings so split / mobile users see it without scrolling past long cards */}
               <div
                 className="min-w-0 max-w-full overflow-hidden rounded-2xl p-5 sm:p-6 text-center"
-                style={{ background: 'rgba(28,189,255,0.10)', border: '1px solid rgba(28,189,255,0.28)', boxSizing: 'border-box' }}
+                style={{ background: discoverResultsUi.cta.panelBackground, border: `1px solid ${discoverResultsUi.cta.panelBorder}`, boxSizing: 'border-box' }}
               >
-                <Buildings size={26} className="mx-auto mb-3" style={{ color: 'rgba(56,189,248,0.9)' }} />
+                <Buildings size={26} className="mx-auto mb-3" style={{ color: discoverResultsUi.cta.icon }} />
                 <p
                   className="mx-auto mb-[18px] max-w-full break-words text-pretty sm:max-w-md"
                   style={{
                     fontSize: '1.0625rem',
                     fontWeight: 700,
-                    color: '#F8FAFC',
+                    color: discoverResultsUi.cta.title,
                     lineHeight: 1.55,
                     overflowWrap: 'anywhere',
                   }}
                 >
-                  Sign in or register so your Discovery answers stay on your account and you can continue to your full audit.
+                  {discoverResultsUi.copy.ctaTitle}
                 </p>
                 <a
                   href={sessionToken ? `/login?discovery=${sessionToken}` : '/login'}
                   className="inline-flex max-w-full flex-wrap items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold sm:px-6"
-                  style={{ fontSize: '0.9375rem', background: 'linear-gradient(135deg, #1CBDFF, #0066CC)', color: '#fff', textDecoration: 'none', boxSizing: 'border-box' }}
+                  style={{
+                    fontSize: '0.9375rem',
+                    background: `linear-gradient(135deg, ${GLC_BRAND_HEX.blue}, ${GLC_BRAND_HEX.blueDeep})`,
+                    color: '#fff',
+                    textDecoration: 'none',
+                    boxSizing: 'border-box',
+                  }}
                 >
                   <Users size={18} className="shrink-0" />
-                  <span className="break-words text-center">Sign in or register</span>
+                  <span className="break-words text-center">{discoverResultsUi.copy.ctaButton}</span>
                   <ArrowRight size={16} className="shrink-0" />
                 </a>
-                <p style={{ fontSize: '0.8125rem', color: 'rgba(248,250,252,0.45)', marginTop: 12 }}>
-                  We reply within one business day.
+                <p style={{ fontSize: '0.8125rem', color: discoverResultsUi.cta.footnote, marginTop: 12 }}>
+                  {discoverResultsUi.copy.ctaFootnote}
                 </p>
               </div>
 
@@ -712,11 +733,11 @@ export function DiscoverPage(props?: DiscoverPageProps) {
                   </div>
                 </div>
               ) : (
-                <div className="min-w-0 max-w-full overflow-hidden rounded-2xl p-5 sm:p-6 text-center" style={{ background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.28)', boxSizing: 'border-box' }}>
-                  <CheckCircle size={26} weight="fill" className="mx-auto mb-3" style={{ color: '#34D399' }} />
-                  <p className="font-semibold" style={{ fontSize: '1rem', color: '#6EE7B7' }}>Strong operational foundation</p>
-                  <p className="text-pretty max-w-md mx-auto" style={{ fontSize: '0.9375rem', color: 'rgba(248,250,252,0.72)', marginTop: 8, lineHeight: 1.65 }}>
-                    No critical gaps detected from your answers. The full audit will surface deeper optimisation opportunities.
+                <div className="min-w-0 max-w-full overflow-hidden rounded-2xl p-5 sm:p-6 text-center" style={{ background: discoverResultsUi.emptyFindings.panelBackground, border: `1px solid ${discoverResultsUi.emptyFindings.panelBorder}`, boxSizing: 'border-box' }}>
+                  <CheckCircle size={26} weight="fill" className="mx-auto mb-3" style={{ color: discoverResultsUi.emptyFindings.icon }} />
+                  <p className="font-semibold" style={{ fontSize: '1rem', color: discoverResultsUi.emptyFindings.title }}>{discoverResultsUi.copy.noGapsTitle}</p>
+                  <p className="text-pretty max-w-md mx-auto" style={{ fontSize: '0.9375rem', color: discoverResultsUi.emptyFindings.body, marginTop: 8, lineHeight: 1.65 }}>
+                    {discoverResultsUi.copy.noGapsBody}
                   </p>
                 </div>
               )}
@@ -734,18 +755,18 @@ export function DiscoverPage(props?: DiscoverPageProps) {
               >
                 <div>
                   <p className="font-semibold mb-1.5" style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>
-                    Save your results &amp; continue later
+                    {discoverResultsUi.copy.contactFormTitle}
                   </p>
                   <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                    Add your details so we can keep your answers on file — you&apos;ll pick up exactly where you left off after signing up.
+                    {discoverResultsUi.copy.contactFormHint}
                   </p>
                 </div>
                 <div className="space-y-2.5">
                   {[
-                    { placeholder: 'Your name',              value: contactName,    setter: setContactName,    type: 'text'  },
-                    { placeholder: 'Email address',          value: contactEmail,   setter: setContactEmail,   type: 'email' },
-                    { placeholder: 'Phone / WhatsApp',       value: contactPhone,   setter: setContactPhone,   type: 'tel'   },
-                    { placeholder: 'Company (optional)',     value: contactCompany, setter: setContactCompany, type: 'text'  },
+                    { placeholder: discoverResultsUi.copy.contactPlaceholders.name, value: contactName, setter: setContactName, type: 'text' },
+                    { placeholder: discoverResultsUi.copy.contactPlaceholders.email, value: contactEmail, setter: setContactEmail, type: 'email' },
+                    { placeholder: discoverResultsUi.copy.contactPlaceholders.phone, value: contactPhone, setter: setContactPhone, type: 'tel' },
+                    { placeholder: discoverResultsUi.copy.contactPlaceholders.company, value: contactCompany, setter: setContactCompany, type: 'text' },
                   ].map(({ placeholder, value, setter, type }) => (
                     <input
                       key={placeholder}
@@ -782,7 +803,7 @@ export function DiscoverPage(props?: DiscoverPageProps) {
                       || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim() && !contactCompany.trim())
                     )
                       ? 'rgba(255,255,255,0.08)'
-                      : 'linear-gradient(135deg, #1CBDFF44, #0066CC44)',
+                      : `linear-gradient(135deg, ${GLC_BRAND_HEX.blue}44, ${GLC_BRAND_HEX.blueDeep}44)`,
                     color: (
                       contactSaving
                       || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim() && !contactCompany.trim())
@@ -802,12 +823,12 @@ export function DiscoverPage(props?: DiscoverPageProps) {
                     {contactSaving ? (
                       <>
                         <Spinner size={14} className="animate-spin" aria-hidden />
-                        Saving…
+                        {discoverResultsUi.copy.contactSaving}
                       </>
                     ) : (
                       <>
                         <PaperPlaneRight size={14} aria-hidden />
-                        Save
+                        {discoverResultsUi.copy.contactSave}
                       </>
                     )}
                   </span>
@@ -820,9 +841,9 @@ export function DiscoverPage(props?: DiscoverPageProps) {
               >
                 <CheckCircle size={22} weight="fill" className="flex-shrink-0" style={{ color: 'var(--glc-green-dark)' }} />
                 <div>
-                  <p className="font-semibold" style={{ fontSize: '1rem', color: '#10B981' }}>Details saved</p>
+                  <p className="font-semibold" style={{ fontSize: '1rem', color: '#10B981' }}>{discoverResultsUi.copy.contactSavedTitle}</p>
                   <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-                    We will be in touch within one business day.
+                    {discoverResultsUi.copy.contactSavedBody}
                   </p>
                 </div>
               </div>
@@ -835,7 +856,7 @@ export function DiscoverPage(props?: DiscoverPageProps) {
               className="flex items-center gap-2 mx-auto py-2 rounded-lg"
               style={{ fontSize: '0.9375rem', color: 'rgba(248,250,252,0.55)', background: 'none', border: 'none', cursor: 'pointer' }}
             >
-              <ArrowLeft size={16} aria-hidden /> Review answers
+              <ArrowLeft size={16} aria-hidden /> {discoverResultsUi.copy.backReview}
             </button>
           </div>
         </div>

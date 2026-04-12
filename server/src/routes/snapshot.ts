@@ -44,7 +44,7 @@ import { getSnapshotMetricsSnapshot } from '../snapshot/snapshot-metrics.js';
 import { getSnapshotSharedMetricsForOperator } from '../snapshot/snapshot-operator-metrics-shared.js';
 import { deleteSnapshotDomainCache } from '../snapshot/cache.js';
 import { computePublicSnapshotAccessFlags } from '../snapshot/snapshot-access-state.js';
-import { normalizeScanCoverageFromStoredJson } from '../snapshot/scan-coverage-from-stored-json.js';
+import { normalizeScanCoverageFromStoredJson } from '@glc/snapshot-scan-coverage';
 import {
   getFreeSnapshotTokenBudget,
   getGuestFunnelRetentionMs,

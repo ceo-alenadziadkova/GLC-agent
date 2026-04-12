@@ -141,6 +141,7 @@
   "PLATFORM_CONSULTANT_ALLOWLIST_LOAD_FAILED": "Failed to load consultant email allowlist",
   "PLATFORM_CONSULTANT_ALLOWLIST_EMAIL_INVALID": "Invalid email for allowlist",
   "PLATFORM_CONSULTANT_ALLOWLIST_ADD_FAILED": "Failed to add email to allowlist",
+  "PLATFORM_CONSULTANT_ALLOWLIST_DUPLICATE": "This email is already on the consultant allowlist",
   "PLATFORM_CONSULTANT_ALLOWLIST_REMOVE_FAILED": "Failed to remove email from allowlist",
   "PROFILE_LOAD_FAILED": "Failed to load user profile",
   "PROFILE_PAYLOAD_INVALID": "Invalid profile payload",

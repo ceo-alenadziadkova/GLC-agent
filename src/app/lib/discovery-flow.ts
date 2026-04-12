@@ -190,9 +190,10 @@ function teamLabel(answers: DiscoveryAnswers): string {
 /** Sentence-leading clause after a period (not mid-phrase like `teamLabel`). */
 function teamClauseAfterPeriod(answers: DiscoveryAnswers): string {
   const t = normalizeTeamSize(answers['a4']);
-  if (t === 'solo' || t === 'unknown') return 'As a solo operator';
-  if (t === 'small') return 'With a small team';
-  return 'At your current team size';
+  const c = GLUE.teamClauseAfterPeriod;
+  if (t === 'solo' || t === 'unknown') return c.soloOrUnknown;
+  if (t === 'small') return c.small;
+  return c.other;
 }
 
 /** Natural-language list for enquiry channels (c_nosite_4). */

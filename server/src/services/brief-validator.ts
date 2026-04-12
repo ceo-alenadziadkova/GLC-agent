@@ -10,15 +10,16 @@ import {
   getBriefQuestionText,
   INTAKE_IDENTITY_FIELD_IDS,
 } from '../schemas/intake-brief.js';
-import type {
-  IntakeBrief,
-  IntakeBriefCollectionMode,
-  IntakeNextBestAction,
-  IntakeReadinessBadge,
-  IntakeVersionMigration,
-  IntakeVersionTuple,
-  ProductMode,
-  ReconConflict,
+import {
+  DEFAULT_AUDIT_PRODUCT_MODE,
+  type IntakeBrief,
+  type IntakeBriefCollectionMode,
+  type IntakeNextBestAction,
+  type IntakeReadinessBadge,
+  type IntakeVersionMigration,
+  type IntakeVersionTuple,
+  type ProductMode,
+  type ReconConflict,
 } from '../types/audit.js';
 import {
   buildIntakePlan,
@@ -202,7 +203,7 @@ function computeProgress(
 ): IntakeProgress {
   const plan =
     fullPlan ??
-    buildIntakePlan({ responses, productMode: 'full', collectionMode, surface, intakeVersionTuple });
+    buildIntakePlan({ responses, productMode: DEFAULT_AUDIT_PRODUCT_MODE, collectionMode, surface, intakeVersionTuple });
   const effective = effectiveBriefForSla(responses);
   const visibleSet = new Set(plan.visible);
   const stubs = resolveIntakeArtifacts(intakeVersionTuple ?? null).stubs;
@@ -249,7 +250,7 @@ export function validateBriefResponses(
   responses: Record<string, unknown>,
   opts?: ValidateBriefOptions,
 ): BriefValidationResult {
-  const productMode = opts?.productMode ?? 'full';
+  const productMode = opts?.productMode ?? DEFAULT_AUDIT_PRODUCT_MODE;
   const collectionMode = opts?.collectionMode;
   const surface = opts?.surface;
   const intakeVersionTuple = opts?.intakeVersionTuple;
@@ -299,7 +300,7 @@ export function evaluateBriefGates(
   });
   const fullPlan = buildIntakePlan({
     responses,
-    productMode: 'full',
+    productMode: DEFAULT_AUDIT_PRODUCT_MODE,
     collectionMode,
     surface,
     intakeVersionTuple,
@@ -331,7 +332,7 @@ export function evaluateBriefGates(
   const canStartSnapshot = answeredPreBrief >= minPreBriefAnswered;
   const canStartExpress = missingExpressRequired.length === 0;
   const canStartFull = missingFullRequired.length === 0;
-  const missingRequiredIds = mode === 'full' ? missingFullRequired : missingExpressRequired;
+  const missingRequiredIds = mode === DEFAULT_AUDIT_PRODUCT_MODE ? missingFullRequired : missingExpressRequired;
 
   return {
     canStartSnapshot,
@@ -448,7 +449,7 @@ export async function saveBriefResponses(
   }
 
   const { data: audit } = await supabase.from('audits').select('product_mode').eq('id', auditId).single();
-  const mode = ((audit?.product_mode ?? 'full') as ProductMode);
+  const mode = ((audit?.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE) as ProductMode);
 
   const { data: existingBrief } = await supabase
     .from('intake_brief')

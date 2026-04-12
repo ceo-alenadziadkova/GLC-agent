@@ -1,0 +1,60 @@
+{
+  "aria": {
+    "home": "Go to home page",
+    "openNotifications": "Open notifications",
+    "openMenu": "Open menu",
+    "navigationMenu": "Navigation menu",
+    "closeMenu": "Close menu",
+    "primaryNav": "Primary"
+  },
+  "sectionLabels": {
+    "snapshot": "SNAPSHOT",
+    "workspaceUnknown": "WORKSPACE",
+    "clientWorkspace": "CLIENT WORKSPACE",
+    "adminWorkspace": "ADMIN WORKSPACE"
+  },
+  "sidebar": {
+    "searchPlaceholder": "Search...",
+    "searchShortcut": "⌘K",
+    "theme": "Theme",
+    "notifications": "Notifications",
+    "settings": "Settings",
+    "newAudit": "New audit",
+    "newAuditConsultant": "New Audit",
+    "registerToContinue": "Register to continue",
+    "signOut": "Sign out",
+    "signOutTitle": "Sign out",
+    "loadingWorkspace": "Loading workspace…",
+    "menu": "Menu",
+    "guestInitial": "G",
+    "userInitial": "U",
+    "guestDisplay": "Guest",
+    "userDisplay": "User",
+    "fallbackRoleClient": "Client",
+    "fallbackRoleGuest": "Guest",
+    "fallbackRoleAdmin": "Admin"
+  },
+  "mobileHeader": {
+    "glcShortBrand": "GLC"
+  },
+  "nav": {
+    "consultant": {
+      "dashboard": "Dashboard",
+      "requestQueue": "Request queue",
+      "snapshotQueue": "Snapshot queue",
+      "discoveryQueue": "Discovery queue",
+      "auditWorkspace": "Audit Workspace",
+      "pipeline": "Pipeline",
+      "reports": "Reports",
+      "strategyLab": "Strategy Lab"
+    },
+    "client": {
+      "myPortal": "My Portal",
+      "auditStatus": "Audit Status",
+      "pipeline": "Pipeline"
+    },
+    "guest": {
+      "freeSnapshot": "Free snapshot"
+    }
+  }
+}

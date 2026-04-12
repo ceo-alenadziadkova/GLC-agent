@@ -16,6 +16,7 @@ import {
   isSupportedIntakeArtifactTuple,
 } from '@glc/intake-core';
 import {
+  DEFAULT_AUDIT_PRODUCT_MODE,
   maxPhaseForMode,
   type IntakeBriefCollectionMode,
   type IntakeVersionTuple,
@@ -166,7 +167,7 @@ pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineL
       iv && isSupportedIntakeArtifactTuple(iv) ? iv : currentIntakeVersionTuple();
     const gates = evaluateBriefGates(
       (brief?.responses as Record<string, unknown>) ?? {},
-      (audit.product_mode as ProductMode) ?? 'full',
+      (audit.product_mode as ProductMode) ?? DEFAULT_AUDIT_PRODUCT_MODE,
       cm,
       surface,
       intakeTuple,
@@ -235,7 +236,7 @@ pipelineRouter.post('/:id/pipeline/next', requireAuth, attachProfile, pipelineLi
       return;
     }
 
-    const mode = (audit.product_mode ?? 'full') as ProductMode;
+    const mode = (audit.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE) as ProductMode;
     const maxPhase = maxPhaseForMode(mode);
     const nextPhase = audit.current_phase + 1;
 
@@ -339,7 +340,7 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
       return;
     }
 
-    const retryMode = (audit.product_mode ?? 'full') as ProductMode;
+    const retryMode = (audit.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE) as ProductMode;
     if (phase > maxPhaseForMode(retryMode)) {
       res.status(400).json(
         apiErrorJson(

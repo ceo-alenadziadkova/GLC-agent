@@ -1,0 +1,93 @@
+{
+  "hookMeta": {
+    "revenue": { "label": "Revenue at risk", "color": "#EF4444" },
+    "time": { "label": "Hours recoverable", "color": "#F59E0B" },
+    "visibility": { "label": "Visibility gap", "color": "#8B5CF6" },
+    "risk": { "label": "Growth risk", "color": "#F97316" },
+    "scale": { "label": "Scale blocker", "color": "#6366F1" }
+  },
+  "findingCard": {
+    "highBackground": "rgba(239,68,68,0.11)",
+    "highBorder": "rgba(239,68,68,0.32)",
+    "mediumBackground": "rgba(245,158,11,0.11)",
+    "mediumBorder": "rgba(245,158,11,0.32)",
+    "zoneBadgeBackground": "rgba(255,255,255,0.08)",
+    "zoneBadgeBorder": "rgba(255,255,255,0.10)",
+    "zoneTextHigh": "rgba(252,165,165,0.98)",
+    "zoneTextMedium": "rgba(253,224,71,0.95)",
+    "warningIcon": "#EF4444",
+    "headline": "#F8FAFC",
+    "body": "#E8EDF4",
+    "hookRowBackground": "rgba(255,255,255,0.07)",
+    "hookRowBorder": "rgba(255,255,255,0.12)"
+  },
+  "resultsLayout": {
+    "pageBackground": "linear-gradient(135deg, #0A0F1A 0%, #0D1626 60%, #0A1020 100%)",
+    "radialGlow": "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(28,189,255,0.10) 0%, transparent 70%)"
+  },
+  "header": {
+    "brandText": "#F8FAFC",
+    "analysisBadgeBackground": "rgba(16,185,129,0.14)",
+    "analysisBadgeBorder": "rgba(16,185,129,0.35)",
+    "analysisIcon": "#34D399",
+    "analysisLabel": "#6EE7B7",
+    "title": "#F8FAFC",
+    "subtitle": "rgba(248,250,252,0.82)"
+  },
+  "cta": {
+    "panelBackground": "rgba(28,189,255,0.10)",
+    "panelBorder": "rgba(28,189,255,0.28)",
+    "icon": "rgba(56,189,248,0.9)",
+    "title": "#F8FAFC",
+    "footnote": "rgba(248,250,252,0.45)"
+  },
+  "emptyFindings": {
+    "panelBackground": "rgba(16,185,129,0.10)",
+    "panelBorder": "rgba(16,185,129,0.28)",
+    "icon": "#34D399",
+    "title": "#6EE7B7",
+    "body": "rgba(248,250,252,0.72)"
+  },
+  "teaser": {
+    "panelBackground": "rgba(255,255,255,0.05)",
+    "panelBorder": "rgba(255,255,255,0.12)",
+    "sectionLabel": "rgba(248,250,252,0.55)",
+    "bulletIcon": "rgba(28,189,255,0.85)",
+    "bulletText": "#E8EDF4"
+  },
+  "teaserBullets": [
+    "Automation roadmap — which manual tasks to eliminate first",
+    "Conversion analysis — where you lose clients in your pipeline",
+    "Digital presence strategy — fastest path from invisible to findable"
+  ],
+  "teaserHeading": "What a full audit would show you",
+  "copy": {
+    "analysisComplete": "ANALYSIS COMPLETE",
+    "resultsTitle": "Here's what we found in your business",
+    "signalsPrefix": "Based on",
+    "signalsIndustryFallback": "your industry",
+    "teamPrefix": ", team of ",
+    "ctaTitle": "Sign in or register so your Discovery answers stay on your account and you can continue to your full audit.",
+    "ctaButton": "Sign in or register",
+    "ctaFootnote": "We reply within one business day.",
+    "noGapsTitle": "Strong operational foundation",
+    "noGapsBody": "No critical gaps detected from your answers. The full audit will surface deeper optimisation opportunities.",
+    "contactFormTitle": "Save your results & continue later",
+    "contactFormHint": "Add your details so we can keep your answers on file — you'll pick up exactly where you left off after signing up.",
+    "contactPlaceholders": {
+      "name": "Your name",
+      "email": "Email address",
+      "phone": "Phone / WhatsApp",
+      "company": "Company (optional)"
+    },
+    "contactError": "Could not save — please email us directly.",
+    "contactMissingEditKey": "Could not save your details — please refresh the page and try again.",
+    "contactSaving": "Saving…",
+    "contactSave": "Save",
+    "contactSavedTitle": "Details saved",
+    "contactSavedBody": "We will be in touch within one business day.",
+    "backReview": "Review answers",
+    "questionInputHelp": "Short answer is enough. You can also write in detail or use voice input.",
+    "specifyPlaceholder": "Add one short clarification…"
+  }
+}

@@ -13,6 +13,7 @@ export function initSentry(): void {
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
     environment: process.env.NODE_ENV ?? 'development',
+    /** Ops exception: `SENTRY_TRACES_SAMPLE_RATE` overrides CONFIG default (see server/.env.example). */
     tracesSampleRate: Number(
       process.env.SENTRY_TRACES_SAMPLE_RATE ?? String(defaultRate),
     ),

@@ -33,6 +33,7 @@ import {
 import { SnapshotAccessBlockedCallout } from '../components/snapshot/SnapshotAccessBlockedCallout';
 import { toUiErrorMessage, type SnapshotApiErrorPayload } from '../lib/snapshot-api-errors';
 import { API_PATHS } from '../config/api-paths';
+import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 import { snapshotPublicRequest } from '../data/apiService';
 import {
   PHASE_LABELS,
@@ -441,8 +442,8 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                     >
                       <CheckCircle className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
                       {hasFullAccount
-                        ? 'Signed in — results save to your account. Use Workspace for the full Express Audit.'
-                        : 'Try instantly — sign in anytime to unlock the full Express Audit'}
+                        ? WORKSPACE_PAGE_COPY.snapshotLanding.trustSignedIn
+                        : WORKSPACE_PAGE_COPY.snapshotLanding.trustAnonymous}
                     </div>
                   </div>
                 </div>
