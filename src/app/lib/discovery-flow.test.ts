@@ -91,4 +91,16 @@ describe('computeFindings and computeScore', () => {
     expect(computeFindings(answers).length).toBe(0);
     expect(computeScore(answers)).toBe(5);
   });
+
+  it('d2_automatable uses grammatical team clause (no "team with a small team")', () => {
+    const answers = {
+      a2: 'SaaS / Software',
+      a4: '2–10 people',
+      d2: 'Following up with leads and prospects',
+    };
+    const d2 = computeFindings(answers).find(f => f.id === 'd2_automatable');
+    expect(d2).toBeDefined();
+    expect(d2!.detail).not.toMatch(/for a team with a small team/i);
+    expect(d2!.detail).toMatch(/With a small team, eliminating/i);
+  });
 });

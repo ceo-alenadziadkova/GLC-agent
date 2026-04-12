@@ -232,39 +232,51 @@ function FindingCard({ finding }: { finding: DiscoveryFinding }) {
   const meta = HOOK_META[finding.hook];
   return (
     <div
-      className="rounded-xl p-4"
+      className="min-w-0 max-w-full overflow-hidden rounded-2xl p-5 sm:p-6"
       style={{
-        background: isHigh ? 'rgba(239,68,68,0.07)' : 'rgba(245,158,11,0.07)',
-        border: isHigh ? '1px solid rgba(239,68,68,0.22)' : '1px solid rgba(245,158,11,0.22)',
+        background: isHigh ? 'rgba(239,68,68,0.09)' : 'rgba(245,158,11,0.09)',
+        border: isHigh ? '1px solid rgba(239,68,68,0.28)' : '1px solid rgba(245,158,11,0.28)',
+        boxSizing: 'border-box',
       }}
     >
-      <div className="flex flex-wrap items-center gap-2 mb-2">
+      <div className="flex flex-wrap items-center gap-2 mb-3">
         <span
-          className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md"
+          className="text-[11px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-lg"
           style={{
-            background: 'rgba(255,255,255,0.06)',
-            color: isHigh ? 'rgba(248,113,113,0.95)' : 'rgba(251,191,36,0.95)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'rgba(255,255,255,0.08)',
+            color: isHigh ? 'rgba(252,165,165,0.98)' : 'rgba(253,224,71,0.95)',
+            border: '1px solid rgba(255,255,255,0.10)',
           }}
         >
           {finding.zone}
         </span>
         {isHigh && (
-          <Warning size={14} weight="fill" className="flex-shrink-0" style={{ color: '#EF4444' }} aria-hidden />
+          <Warning size={16} weight="fill" className="flex-shrink-0" style={{ color: '#EF4444' }} aria-hidden />
         )}
       </div>
-      <p className="font-semibold text-sm mb-1.5" style={{ color: '#fff', lineHeight: 1.35 }}>
+      <h2
+        className="mb-3 break-words text-pretty"
+        style={{ fontSize: '1.125rem', fontWeight: 600, color: '#F8FAFC', lineHeight: 1.35 }}
+      >
         {finding.headline}
-      </p>
+      </h2>
       <p
-        className="line-clamp-2"
-        style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.55 }}
+        className="break-words text-pretty"
+        style={{
+          fontSize: '1.0625rem',
+          color: 'rgba(248,250,252,0.93)',
+          lineHeight: 1.68,
+          overflowWrap: 'anywhere',
+        }}
       >
         {finding.detail}
       </p>
-      <div className="flex items-center gap-1.5 mt-3 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <meta.Icon size={14} weight="fill" style={{ color: meta.color, opacity: 0.9 }} aria-hidden />
-        <span style={{ fontSize: '10px', color: meta.color, fontWeight: 600, letterSpacing: '0.04em' }}>
+      <div
+        className="flex items-center gap-2 mt-4 pt-3"
+        style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}
+      >
+        <meta.Icon size={16} weight="fill" style={{ color: meta.color, opacity: 0.95 }} aria-hidden />
+        <span style={{ fontSize: '0.75rem', color: meta.color, fontWeight: 600, letterSpacing: '0.03em' }}>
           {meta.label}
         </span>
       </div>
@@ -295,21 +307,24 @@ function AuditTeaser({ industry }: { industry: string | null }) {
 
   return (
     <div
-      className="rounded-2xl p-5"
-      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)' }}
+      className="min-w-0 max-w-full overflow-hidden rounded-2xl p-5 sm:p-6"
+      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', boxSizing: 'border-box' }}
     >
-      <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'rgba(255,255,255,0.35)' }}>
+      <p className="text-[0.6875rem] font-semibold uppercase tracking-widest mb-4 break-words" style={{ color: 'rgba(248,250,252,0.55)' }}>
         What a full audit would show you
       </p>
-      <div className="space-y-3">
+      <div className="space-y-4">
         {bullets.map(({ Icon, text }, i) => (
-          <div key={i} className="flex items-start gap-2.5">
+          <div key={i} className="flex min-w-0 items-start gap-3">
             <Icon
-              size={14}
+              size={18}
               weight="fill"
-              style={{ color: 'rgba(28,189,255,0.65)', marginTop: 2, flexShrink: 0 }}
+              className="mt-0.5 shrink-0"
+              style={{ color: 'rgba(28,189,255,0.85)' }}
             />
-            <p style={{ fontSize: '12.5px', color: 'rgba(255,255,255,0.65)', lineHeight: 1.55 }}>{text}</p>
+            <p className="min-w-0 break-words text-pretty" style={{ fontSize: '1rem', color: 'rgba(248,250,252,0.88)', lineHeight: 1.62, overflowWrap: 'anywhere' }}>
+              {text}
+            </p>
           </div>
         ))}
       </div>
@@ -317,11 +332,21 @@ function AuditTeaser({ industry }: { industry: string | null }) {
   );
 }
 
+export type DiscoverPageProps = {
+  layout?: 'page' | 'split';
+  /** When embedded in marketing split layout, parent sets true while results are visible so the column can go full width. */
+  embedExpanded?: boolean;
+  /** Called when the wizard finishes (expand) or user leaves results in split mode (collapse). */
+  onEmbedExpandRequest?: (expanded: boolean) => void;
+};
+
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
+export function DiscoverPage(props?: DiscoverPageProps) {
   const layout = props?.layout ?? 'page';
   const isSplit = layout === 'split';
+  const embedExpanded = props?.embedExpanded ?? false;
+  const onEmbedExpandRequest = props?.onEmbedExpandRequest;
   const [answers, setAnswers] = useState<DiscoveryAnswers>({});
   const [currentIdx, setCurrentIdx] = useState(0);
   const [showResults, setShowResults] = useState(false);
@@ -440,9 +465,14 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
   function teamOfPhrase(size: string | null): string {
     if (!size) return 'your team';
     if (size === 'Just me') return 'one';
+    if (size === '2–10 people') return '2–10';
+    if (size === '11–50') return '11–50';
+    if (size === '51–200') return '51–200';
+    if (size === '200+') return '200+';
+    // Legacy bank labels (older sessions)
     if (size === '2–5 people') return '2–5';
     if (size === '6–20 people') return '6–20';
-    return '20+';
+    return 'your team';
   }
 
   function handleNext() {
@@ -466,6 +496,7 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
     const nextIdx = currentIdx + 1;
 
     if (nextIdx >= nextSequence.length) {
+      if (isSplit) onEmbedExpandRequest?.(true);
       if (sink) discoveryTrackWizardCompleted(sink);
       const finalFindings = computeFindings(committed);
       const saveTimeout = new Promise<never>((_, reject) =>
@@ -516,6 +547,7 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
 
   function handleBack() {
     if (showResults) {
+      if (isSplit) onEmbedExpandRequest?.(false);
       setShowResults(false);
       setCurrentIdx(sequence.length - 1);
       setDraft(answers[sequence[sequence.length - 1]] ?? null);
@@ -531,52 +563,94 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
   // ── Results screen ──────────────────────────────────────────────────────────
   if (showResults) {
     const industryStr = industry ?? 'your industry';
+    const standaloneResults = !isSplit;
+    const compactSplitResults = isSplit && !embedExpanded;
+    const comfortableWidth = compactSplitResults ? 'max-w-full' : 'max-w-3xl';
 
     return (
       <div
-        className="min-h-screen flex flex-col items-center py-12 px-5"
+        className={
+          compactSplitResults
+            ? 'relative max-h-[min(78vh,52rem)] w-full min-w-0 max-w-full overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl'
+            : standaloneResults
+              ? 'flex min-h-screen flex-col items-center px-4 py-10 sm:px-6 sm:py-14'
+              : 'relative flex w-full flex-col items-center px-4 pb-12 pt-8 sm:px-8 sm:pb-16 sm:pt-10'
+        }
         style={{ background: 'linear-gradient(135deg, #0A0F1A 0%, #0D1626 60%, #0A1020 100%)' }}
       >
-        <div className="fixed inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(28,189,255,0.10) 0%, transparent 70%)', zIndex: 0 }} />
+        <div
+          className={
+            compactSplitResults
+              ? 'pointer-events-none absolute inset-0 overflow-hidden rounded-2xl'
+              : standaloneResults
+                ? 'pointer-events-none fixed inset-0'
+                : 'pointer-events-none absolute inset-0'
+          }
+          style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(28,189,255,0.10) 0%, transparent 70%)', zIndex: 0 }}
+          aria-hidden
+        />
 
-        <div className="relative w-full max-w-lg z-10">
-          <div className="flex items-center gap-2 mb-8 justify-center">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--gradient-brand)' }}>
-              <ChartBar size={16} weight="bold" style={{ color: 'var(--primary-foreground)' }} />
+        <div
+          className={`relative z-10 mx-auto w-full min-w-0 ${comfortableWidth} ${compactSplitResults ? 'px-3 py-6 sm:px-4 sm:py-7' : 'px-4 sm:px-6'}`}
+        >
+          <div className={`flex items-center justify-center gap-2 ${compactSplitResults ? 'mb-6' : 'mb-8 sm:mb-10'}`}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--gradient-brand)' }}>
+              <ChartBar size={18} weight="bold" style={{ color: 'var(--primary-foreground)' }} />
             </div>
-            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>GLC Audit</span>
+            <span style={{ fontWeight: 700, fontSize: '1rem', color: '#F8FAFC', letterSpacing: '-0.01em' }}>GLC Audit</span>
           </div>
 
-          <div className="space-y-5">
+          <div className={compactSplitResults ? 'space-y-5' : 'space-y-6 sm:space-y-7'}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="space-y-5"
+              className={compactSplitResults ? 'space-y-5' : 'space-y-6 sm:space-y-7'}
             >
               {/* Header */}
-              <div className="text-center mb-2">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full mb-3" style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.30)' }}>
-                  <CheckCircle size={13} weight="fill" style={{ color: '#10B981' }} />
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: '#10B981', letterSpacing: '0.04em' }}>ANALYSIS COMPLETE</span>
+              <header className="text-center mb-1 px-0 min-w-0">
+                <div className="inline-flex max-w-full items-center gap-2 px-3 py-1.5 rounded-full mb-3 sm:mb-4" style={{ background: 'rgba(16,185,129,0.14)', border: '1px solid rgba(16,185,129,0.35)' }}>
+                  <CheckCircle size={15} weight="fill" className="shrink-0" style={{ color: '#34D399' }} />
+                  <span className="break-words text-left sm:text-center" style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6EE7B7', letterSpacing: '0.06em' }}>ANALYSIS COMPLETE</span>
                 </div>
-                <h1 style={{ fontSize: 22, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1.3 }}>
+                <h1
+                  className="break-words text-pretty px-0.5"
+                  style={{
+                    fontSize: compactSplitResults
+                      ? 'clamp(1.125rem, 3.2vw + 0.5rem, 1.5rem)'
+                      : 'clamp(1.375rem, 2.5vw, 1.75rem)',
+                    fontWeight: 800,
+                    color: '#F8FAFC',
+                    letterSpacing: '-0.02em',
+                    lineHeight: 1.25,
+                  }}
+                >
                   Here&apos;s what we found in your business
                 </h1>
-                <p style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.45)', marginTop: 6, lineHeight: 1.6 }}>
+                <p
+                  className="break-words text-pretty mx-auto max-w-full px-0.5"
+                  style={{
+                    fontSize: compactSplitResults ? '0.875rem' : '1.0625rem',
+                    color: 'rgba(248,250,252,0.82)',
+                    marginTop: 10,
+                    lineHeight: 1.6,
+                    overflowWrap: 'anywhere',
+                  }}
+                >
                   Based on {signalCount} signals
                   {industryStr && industryStr !== 'your industry' ? ` — ${industryStr}` : ''}
                   {teamSize ? `, team of ${teamOfPhrase(teamSize)}` : ''}
                 </p>
-              </div>
+              </header>
 
               {/* Findings */}
               {findings.length > 0 ? (
-                <div>
-                  <div className="space-y-3">
+                <div className="min-w-0">
+                  <div className="min-w-0 space-y-4 sm:space-y-5">
                     {findings.map((f, i) => (
                       <motion.div
                         key={f.id}
+                        className="min-w-0"
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: i * 0.07 }}
@@ -587,10 +661,10 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl p-4 text-center" style={{ background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.20)' }}>
-                  <CheckCircle size={22} weight="fill" className="mx-auto mb-2" style={{ color: '#10B981' }} />
-                  <p className="font-semibold text-sm" style={{ color: '#10B981' }}>Strong operational foundation</p>
-                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.50)', marginTop: 4 }}>
+                <div className="min-w-0 max-w-full overflow-hidden rounded-2xl p-5 sm:p-6 text-center" style={{ background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.28)', boxSizing: 'border-box' }}>
+                  <CheckCircle size={26} weight="fill" className="mx-auto mb-3" style={{ color: '#34D399' }} />
+                  <p className="font-semibold" style={{ fontSize: '1rem', color: '#6EE7B7' }}>Strong operational foundation</p>
+                  <p className="text-pretty max-w-md mx-auto" style={{ fontSize: '0.9375rem', color: 'rgba(248,250,252,0.72)', marginTop: 8, lineHeight: 1.65 }}>
                     No critical gaps detected from your answers. The full audit will surface deeper optimisation opportunities.
                   </p>
                 </div>
@@ -601,26 +675,26 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
 
               {/* Primary CTA */}
               <div
-                className="rounded-2xl p-5 text-center"
-                style={{ background: 'rgba(28,189,255,0.07)', border: '1px solid rgba(28,189,255,0.22)' }}
+                className="min-w-0 max-w-full overflow-hidden rounded-2xl p-5 sm:p-6 text-center"
+                style={{ background: 'rgba(28,189,255,0.10)', border: '1px solid rgba(28,189,255,0.28)', boxSizing: 'border-box' }}
               >
-                <Buildings size={22} className="mx-auto mb-2" style={{ color: 'rgba(28,189,255,0.70)' }} />
-                <p className="font-bold mb-1" style={{ fontSize: 15, color: '#fff' }}>
+                <Buildings size={26} className="mx-auto mb-3" style={{ color: 'rgba(56,189,248,0.9)' }} />
+                <p className="mb-2 break-words text-pretty font-bold" style={{ fontSize: '1.0625rem', color: '#F8FAFC' }}>
                   Continue and get your full audit
                 </p>
-                <p style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.50)', lineHeight: 1.6, marginBottom: 16 }}>
+                <p className="mx-auto max-w-full break-words text-pretty sm:max-w-sm" style={{ fontSize: '0.9375rem', color: 'rgba(248,250,252,0.72)', lineHeight: 1.6, marginBottom: 18, overflowWrap: 'anywhere' }}>
                   Free. Takes 15 min. Your answers carry over.
                 </p>
                 <a
                   href={sessionToken ? `/login?discovery=${sessionToken}` : '/login'}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm"
-                  style={{ background: 'linear-gradient(135deg, #1CBDFF, #0066CC)', color: '#fff', textDecoration: 'none' }}
+                  className="inline-flex max-w-full flex-wrap items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold sm:px-6"
+                  style={{ fontSize: '0.9375rem', background: 'linear-gradient(135deg, #1CBDFF, #0066CC)', color: '#fff', textDecoration: 'none', boxSizing: 'border-box' }}
                 >
-                  <Users size={15} />
-                  Get your full audit
-                  <ArrowRight size={14} />
+                  <Users size={18} className="shrink-0" />
+                  <span className="break-words text-center">Get your full audit</span>
+                  <ArrowRight size={16} className="shrink-0" />
                 </a>
-                <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', marginTop: 10 }}>
+                <p style={{ fontSize: '0.8125rem', color: 'rgba(248,250,252,0.45)', marginTop: 12 }}>
                   No card required. We reply within one business day.
                 </p>
               </div>
@@ -630,18 +704,18 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
             {!contactSaved ? (
               <form
                 onSubmit={handleContactSubmit}
-                className="rounded-2xl p-5 space-y-3"
-                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+                className="min-w-0 max-w-full space-y-4 rounded-2xl p-5 sm:p-6"
+                style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', boxSizing: 'border-box' }}
               >
                 <div>
-                  <p className="font-semibold mb-0.5" style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)' }}>
+                  <p className="font-semibold mb-1.5" style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>
                     Save your results &amp; continue later
                   </p>
-                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.40)', lineHeight: 1.55 }}>
+                  <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                     Add your details so we can keep your answers on file — you&apos;ll pick up exactly where you left off after signing up.
                   </p>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {[
                     { placeholder: 'Your name',              value: contactName,    setter: setContactName,    type: 'text'  },
                     { placeholder: 'Email address',          value: contactEmail,   setter: setContactEmail,   type: 'email' },
@@ -654,8 +728,9 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
                       placeholder={placeholder}
                       value={value}
                       onChange={e => setter(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl text-sm outline-none"
+                      className="w-full px-4 py-3 rounded-xl outline-none"
                       style={{
+                        fontSize: '0.9375rem',
                         background: 'var(--input-background)',
                         border: '1px solid var(--border-default)',
                         color: 'var(--text-primary)',
@@ -666,7 +741,7 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
                   ))}
                 </div>
                 {contactError && (
-                  <p style={{ fontSize: 11, color: 'var(--score-1)' }}>{contactError}</p>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--score-1)' }}>{contactError}</p>
                 )}
                 <button
                   type="submit"
@@ -674,8 +749,9 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
                     contactSaving
                     || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim() && !contactCompany.trim())
                   }
-                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm"
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold"
                   style={{
+                    fontSize: '0.9375rem',
                     background: (
                       contactSaving
                       || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim() && !contactCompany.trim())
@@ -714,13 +790,13 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
               </form>
             ) : (
               <div
-                className="flex items-center gap-3 rounded-2xl p-4"
+                className="flex items-center gap-3 rounded-2xl p-5"
                 style={{ background: 'var(--glc-green-muted)', border: '1px solid rgba(14,207,130,0.28)' }}
               >
-                <CheckCircle size={20} weight="fill" className="flex-shrink-0" style={{ color: 'var(--glc-green-dark)' }} />
+                <CheckCircle size={22} weight="fill" className="flex-shrink-0" style={{ color: 'var(--glc-green-dark)' }} />
                 <div>
-                  <p className="font-semibold" style={{ fontSize: 13, color: '#10B981' }}>Details saved</p>
-                  <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', lineHeight: 1.5 }}>
+                  <p className="font-semibold" style={{ fontSize: '1rem', color: '#10B981' }}>Details saved</p>
+                  <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
                     We will be in touch within one business day.
                   </p>
                 </div>
@@ -731,10 +807,10 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
             <button
               type="button"
               onClick={handleBack}
-              className="flex items-center gap-1.5 text-sm mx-auto"
-              style={{ color: 'rgba(255,255,255,0.30)', background: 'none', border: 'none', cursor: 'pointer' }}
+              className="flex items-center gap-2 mx-auto py-2 rounded-lg"
+              style={{ fontSize: '0.9375rem', color: 'rgba(248,250,252,0.55)', background: 'none', border: 'none', cursor: 'pointer' }}
             >
-              <ArrowLeft size={14} /> Review answers
+              <ArrowLeft size={16} aria-hidden /> Review answers
             </button>
           </div>
         </div>
@@ -747,7 +823,7 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
     <div
       className={
         isSplit
-          ? 'w-full'
+          ? 'w-full min-w-0 max-w-full'
           : 'min-h-screen flex flex-col items-center py-10 px-5'
       }
       style={{ background: isSplit ? 'transparent' : 'var(--bg-canvas)' }}
@@ -760,7 +836,7 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
         />
       )}
 
-      <div className={`relative z-10 w-full ${isSplit ? '' : 'max-w-lg'}`}>
+      <div className={`relative z-10 w-full min-w-0 ${isSplit ? 'max-w-full' : 'max-w-lg'}`}>
         <div className={`flex items-center justify-between ${isSplit ? 'mb-6' : 'mb-8'}`}>
           {!isSplit && (
             <div className="flex items-center gap-2">
@@ -945,7 +1021,10 @@ export function DiscoverPage(props?: { layout?: 'page' | 'split' }) {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center mt-4">
             <button
               type="button"
-              onClick={() => setShowResults(true)}
+              onClick={() => {
+              if (isSplit) onEmbedExpandRequest?.(true);
+              setShowResults(true);
+            }}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm"
               style={{ background: 'var(--gradient-brand)', color: 'var(--primary-foreground)', border: 'none', cursor: 'pointer' }}
             >

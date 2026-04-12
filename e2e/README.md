@@ -9,6 +9,8 @@ pnpm run test:e2e
 
 `playwright.config.ts` starts the Vite dev server automatically unless `CI` is set and a server is already running.
 
+These tests are **not** executed in GitHub Actions; run them locally (or in staging via `e2e/staging-auth-claim.spec.ts` env vars).
+
 ## Scope
 
 Current specs only cover **public** routes that do not require a working backend API or Supabase session:
@@ -16,8 +18,10 @@ Current specs only cover **public** routes that do not require a working backend
 - `/login` renders
 - `/dashboard`, `/portal`, and `/audit/new` redirect unauthenticated users to `/login`
 - `/` renders marketing home for unauthenticated sessions
+- Marketing shells render: `/snapshot` (hero + URL field), `/express-audit`, `/audit`, `/brief` (form fields), `/faq` (first FAQ trigger)
+- `/discovery` and legacy `/audit/discover` load the discovery wizard shell
 
-Testing **Snapshot** (`/snapshot`) end-to-end needs a reachable **`VITE_API_URL`** (CORS + credentialed cookie). **Sign-out** or full email login flows need Supabase and are left for manual or staging runs.
+Testing **Snapshot** submit/poll (`/snapshot` after clicking analyse) needs a reachable **`VITE_API_URL`** (CORS + credentialed cookie). **Sign-out** or full email login flows need Supabase and are left for manual or staging runs.
 
 See [TESTING.md](../TESTING.md) for the full coverage matrix.
 

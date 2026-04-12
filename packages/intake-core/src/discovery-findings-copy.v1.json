@@ -48,7 +48,7 @@
       "impact": "high",
       "hook": "time",
       "headline": "Your biggest time drain is highly automatable",
-      "detail": "\"{{bottleneck}}\" is one of the most commonly automated workflows for {{industry}} businesses. For a team {{team}}, eliminating this typically frees {{hoursRange}} hours per week — redirected straight to client work."
+      "detail": "\"{{bottleneck}}\" is one of the most commonly automated workflows for {{industry}} businesses. {{teamClause}}, eliminating this typically frees {{hoursRange}} hours per week — redirected straight to client work."
     },
     "solo_no_tools": {
       "zone": "Operations",

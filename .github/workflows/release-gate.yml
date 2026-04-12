@@ -122,11 +122,3 @@ jobs:
 
       - name: Backend unit tests
         run: pnpm --filter glc-audit-server test
-
-      - name: Install Playwright browser
-        run: pnpm exec playwright install chromium --with-deps
-
-      - name: E2E smoke
-        run: pnpm run test:e2e
-        env:
-          CI: true

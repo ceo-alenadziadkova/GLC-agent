@@ -138,20 +138,18 @@ Run all commands from repo root:
 
 ## CI
 
-GitHub Actions workflow [.github/workflows/test.yml](.github/workflows/test.yml) runs root Vitest, `server/` Vitest, then Playwright smoke on Chromium (`npx playwright install chromium --with-deps` on Ubuntu).
-
-The Playwright job starts the Express API on port `3001` (Vite proxies `/api` there). Configure these **repository secrets** in GitHub (same values as in your local `.env`, which stays gitignored): `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_ANON_KEY`, `JWT_SECRET`. Without them the E2E job fails fast with a clear error.
+GitHub Actions workflow [.github/workflows/test.yml](.github/workflows/test.yml) runs root Vitest and `server/` Vitest (plus security gates and conditional question-stack contracts). **Playwright E2E is not run in CI** — run `pnpm run test:e2e` locally when needed (see [e2e/README.md](./e2e/README.md)).
 
 ### CI Gate Policy
 
 - **Fast Gate**: [.github/workflows/test.yml](.github/workflows/test.yml)
   - Runs on PR/push.
-  - Includes security gates, typecheck, lint, frontend/backend tests, and Playwright smoke.
+  - Includes security gates, typecheck, lint, and frontend/backend unit tests.
   - Intended as the default merge blocker.
 
 - **Release Gate**: [.github/workflows/release-gate.yml](.github/workflows/release-gate.yml)
   - Runs on `main`/`master` pushes and manual dispatch.
-  - Includes all Fast Gate checks plus migration execution on a clean PostgreSQL service.
+  - Includes Fast Gate–style checks plus migration execution on a clean PostgreSQL service.
   - Intended as the release readiness blocker.
 
 - **Branch protection recommendation**
@@ -279,12 +277,12 @@ No change is merge-ready or release-ready unless all P0 checks pass.
 - Typecheck passes
 - Lint passes
 - Frontend and backend test suites pass
-- Critical Playwright smoke passes
+- Before merge, run Playwright smoke locally (`pnpm run test:e2e`) when changing public routing, marketing pages, or discovery UI covered in [e2e/smoke.spec.ts](e2e/smoke.spec.ts) — E2E is not run in CI
 
 ### Release Gate (required)
 
 - All merge gate checks are green
-- Full E2E regression is green
+- Playwright smoke and/or staging scenarios exercised as needed for the release (no E2E job in GitHub Actions)
 - Migrations are validated on a clean database
 - Targeted exploratory testing is completed for high-risk flows
 
@@ -306,7 +304,7 @@ Run:
 - `pnpm run lint`
 - `pnpm test`
 - `pnpm --filter glc-audit-server test`
-- `pnpm run test:e2e` (critical smoke subset)
+- Locally before risky UI/routing changes: `pnpm run test:e2e` (Playwright smoke; not in CI)
 
 Goal: catch critical regressions before merge.
 

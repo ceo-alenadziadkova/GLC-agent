@@ -30,6 +30,46 @@ test.describe('public routing smoke', () => {
     ).toBeVisible();
   });
 
+  test('snapshot marketing page renders hero and URL field', async ({ page }) => {
+    await page.goto('/snapshot');
+    await expect(
+      page.getByRole('heading', { name: /how well does your website convert visitors\?/i }),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('textbox', { name: /yourcompany\.com/i })).toBeVisible();
+  });
+
+  test('express audit marketing page renders', async ({ page }) => {
+    await page.goto('/express-audit');
+    await expect(page.getByRole('heading', { name: /^express audit$/i })).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('full audit marketing page renders', async ({ page }) => {
+    await page.goto('/audit');
+    await expect(page.getByRole('heading', { name: /^full audit$/i })).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('public brief page renders form', async ({ page }) => {
+    await page.goto('/brief');
+    await expect(page.getByRole('heading', { name: /want help from a specialist\?/i })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByRole('textbox', { name: /^name \*$/i })).toBeVisible();
+  });
+
+  test('faq page renders accordion', async ({ page }) => {
+    await page.goto('/faq');
+    await expect(page.getByRole('heading', { name: /questions and answers/i })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByRole('button', { name: /where should i start\?/i })).toBeVisible();
+  });
+
+  test('legacy discovery path audit/discover loads wizard shell', async ({ page }) => {
+    await page.goto('/audit/discover');
+    const continueBtn = page.getByRole('button', { name: /continue|see my findings/i });
+    await expect(continueBtn).toBeVisible({ timeout: 20_000 });
+  });
+
   test('discovery step-by-step allows switching option and typing text', async ({ page }) => {
     await page.goto('/discovery');
 
