@@ -10,6 +10,7 @@ import type {
 } from '../types/audit.js';
 import { getDomainWeight } from '../config/industry-weights.js';
 import {
+  BRIEF_ENTRY_SORT_FALLBACK_ORDER,
   CONTEXT_BUILDER_MAX_RAW_CHARS_PER_COLLECTOR,
   CONTEXT_BUILDER_MAX_TOTAL_RAW_CHARS,
 } from '../config/context-builder-limits.js';
@@ -379,7 +380,8 @@ export class ContextBuilder {
     }
 
     const bySliceOrder = (a: BriefEntry, b: BriefEntry) =>
-      (orderIdx.get(a.id) ?? 9999) - (orderIdx.get(b.id) ?? 9999);
+      (orderIdx.get(a.id) ?? BRIEF_ENTRY_SORT_FALLBACK_ORDER) -
+      (orderIdx.get(b.id) ?? BRIEF_ENTRY_SORT_FALLBACK_ORDER);
     primary.sort(bySliceOrder);
     secondary.sort(bySliceOrder);
 

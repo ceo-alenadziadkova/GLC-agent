@@ -108,7 +108,7 @@ Same body as `POST /api/log`. **Response:** `204`.
 
 Assigns which consultant owns **client self-serve** audits (`audits.user_id` when `POST /api/audits` is called with a client JWT). UI: **Settings → Client portal — audit owner** (consultant / admin shell).
 
-**Access control:** migration **`049_profiles_platform_admin.sql`** adds **`profiles.is_platform_admin`**. When at least one consultant has **`is_platform_admin = true`**, only those consultants (and any ids listed in legacy env **`PLATFORM_ADMIN_USER_IDS`**) may manage platform settings. **Open mode:** when no profile has the flag and **`PLATFORM_ADMIN_USER_IDS`** is unset or empty, any consultant may manage.
+**Access control:** migration **`049_profiles_platform_admin.sql`** adds **`profiles.is_platform_admin`**. When at least one consultant has **`is_platform_admin = true`**, only those consultants (and any ids listed in **`platform_settings.legacy_platform_admin_user_ids`**) may manage platform settings. **Open mode:** when no profile has the flag and the legacy UUID array is empty, any consultant may manage. **`PLATFORM_ADMIN_USER_IDS`** env is deprecated and ignored at runtime.
 
 ### `GET /api/platform/self-serve-owner`
 
@@ -122,21 +122,23 @@ Assigns which consultant owns **client self-serve** audits (`audits.user_id` whe
   "effective_owner_user_id": "uuid | null",
   "effective_ready": true,
   "env_fallback_active": false,
+  "implicit_fallback_active": false,
   "consultants": [{ "id": "uuid", "full_name": "Jane", "email": "jane@example.com" }],
   "can_manage": true
 }
 ```
 
-- `effective_ready` — `POST /api/audits` as a client would succeed (stored consultant valid, or valid env fallback).
-- `env_fallback_active` — effective owner comes from `SELF_SERVE_AUDIT_OWNER_USER_ID` because nothing is stored in `platform_settings` yet. Operators should **`PATCH`** a stored owner so production does not depend on that env var (the SPA Settings screen surfaces this state).
+- `effective_ready` — `POST /api/audits` as a client would succeed (stored consultant valid, or valid implicit fallback).
+- `env_fallback_active` — deprecated, always **`false`** (kept for API compatibility). **`SELF_SERVE_AUDIT_OWNER_USER_ID`** is no longer read.
+- `implicit_fallback_active` — **`true`** when an owner is resolved without a persisted **`platform_settings.self_serve_audit_owner_user_id`** (legacy admin list or earliest consultant in open mode). Operators should **`PATCH`** a stored owner for an explicit assignment (the SPA Settings screen surfaces this state).
 
 ### `PATCH /api/platform/self-serve-owner`
 
 **Auth:** consultant JWT and `can_manage` (see access control above).
 
-**Body:** `{ "owner_user_id": "<uuid>" | null }` — `null` clears the stored consultant (env fallback may still apply).
+**Body:** `{ "owner_user_id": "<uuid>" | null }` — `null` clears the stored consultant (implicit fallback may still apply).
 
-**Response `200`:** `{ "ok": true, "stored_owner_user_id", "effective_ready", "effective_owner_user_id", "env_fallback_active" }`
+**Response `200`:** `{ "ok": true, "stored_owner_user_id", "effective_ready", "effective_owner_user_id", "env_fallback_active", "implicit_fallback_active" }`
 
 **Errors:** `400` invalid consultant, `403` not a platform admin when the allowlist is configured.
 
@@ -185,7 +187,7 @@ Use this matrix for new endpoints to keep access rules consistent. **Consultant*
 
 Create a new audit.
 
-**Roles:** **Consultant** — `user_id` is the authenticated consultant, `client_id` null. **Client (self-serve)** — allowed when a valid owner consultant is configured: **`platform_settings.self_serve_audit_owner_user_id`** (see `GET /api/platform/self-serve-owner`), else optional fallback **`SELF_SERVE_AUDIT_OWNER_USER_ID`** env. The new row uses that consultant as `user_id` (billing/ownership) and `client_id` = authenticated client profile id. **`503`** with `code: "SELF_SERVE_OWNER_UNAVAILABLE"` when neither is valid.
+**Roles:** **Consultant** — `user_id` is the authenticated consultant, `client_id` null. **Client (self-serve)** — allowed when a valid owner consultant is resolved (stored **`platform_settings.self_serve_audit_owner_user_id`**, legacy admin list, or earliest consultant in open mode — see `GET /api/platform/self-serve-owner`). The new row uses that consultant as `user_id` (billing/ownership) and `client_id` = authenticated client profile id. **`503`** with `code: "SELF_SERVE_OWNER_UNAVAILABLE"` when resolution fails.
 
 **Request body:**
 
@@ -584,7 +586,7 @@ Start a free snapshot run. **Auth:** none (public). The server sets or refreshes
 
 **`400`:** missing or non-string **`company_url`**. Rejected URLs (SSRF / policy): JSON body uses stable **`code`** values under the `PUBLIC_URL_*` family (e.g. `PUBLIC_URL_HOST_NOT_ALLOWED`, `PUBLIC_URL_DNS_NON_PUBLIC`) with English **`error`** from [`api-user-messages.en.json`](../server/src/config/api-user-messages.en.json) — same shape as **`POST /api/audits`** and audit-request URL validation.
 
-**`503`:** `{ "error", "code": "SELF_SERVE_OWNER_UNAVAILABLE" }` when the platform **self-serve audit owner** cannot be resolved (same operational requirement as client-created audits — configure `platform_settings.self_serve_audit_owner_user_id`, **`SELF_SERVE_AUDIT_OWNER_USER_ID`**, or a valid consultant fallback; see **`GET /api/platform/self-serve-owner`** above).
+**`503`:** `{ "error", "code": "SELF_SERVE_OWNER_UNAVAILABLE" }` when the platform **self-serve audit owner** cannot be resolved (same operational requirement as client-created audits — configure `platform_settings.self_serve_audit_owner_user_id` or a valid implicit fallback; see **`GET /api/platform/self-serve-owner`** above).
 
 **Implementation:** deterministic scanner — **no LLM**. Tiered HTTP fetch (homepage plus up to a few same-origin URLs), cheerio-based **facts**, YAML-driven **site profile** (classification) and **audit rules** (expanded YAML catalog; some rules may be **skipped** per `skipForSiteTypes` / `onlyForSiteTypes` using classifier `siteType`), overall score **0–100** with four category scores. Outbound HTTP user-agents for snapshot/crawl paths embed **`GLC_PUBLIC_SITE_URL`** (HTTPS origin, no trailing slash; **required in production**; dev default **`https://glctech.es`** if unset). **Wall clock:** **`SYSTEM_DEFAULTS.snapshotFetchBudgetMs`** (default **10000** ms; see `server/src/config/snapshot-fetch-budget.ts`). **robots.txt:** fetches `/robots.txt` (cached per origin; TTL **`SYSTEM_DEFAULTS.snapshotRobots.cacheMs`**, default 20 minutes). Honors `Disallow` for the snapshot user-agent (`*` and `GLC-SnapshotScanner`): if `/` is disallowed, **no HTML is fetched** (same outcome as unreachable home for the pipeline). Extra same-origin URLs are skipped when disallowed. **Crawl-delay** is applied best-effort between extra fetches within the overall fetch budget. **Playwright tier-3:** when **`SYSTEM_DEFAULTS.snapshotTieredFetch.playwrightEnabled`** is true and the static homepage matches client-shell heuristics, the server attempts to re-fetch it with headless Chromium (budget **`snapshotTieredFetch.playwrightBudgetMs`**, capped by remaining wall clock). Turn off by setting **`playwrightEnabled`** to **false** in **`server/src/config/system-defaults.ts`** and redeploying. Requires `playwright` + `npx playwright install chromium` on the host; failures are logged and the scan continues with HTTP HTML. Results for the same **registrable host** may be served from `snapshot_domain_cache` (TTL **`SYSTEM_DEFAULTS.snapshotDomainCache.ttlHours`**, default 48); **cached JSON omits raw email/phone vectors** (PII minimization). Rule catalogs: `server/config/snapshot/classification-rules.v1.yaml`, `server/config/snapshot/audit-rules.v1.yaml`.
 

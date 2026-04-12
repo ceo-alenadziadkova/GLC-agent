@@ -16,7 +16,7 @@ export async function getStoredSelfServeAuditOwnerUserId(): Promise<string | nul
   return typeof raw === 'string' && raw.length > 0 ? raw : null;
 }
 
-/** When non-empty, supersedes `PLATFORM_ADMIN_USER_IDS` env for legacy ACL lists. */
+/** When non-empty, contributes to legacy platform-admin ACL lists (with `profiles.is_platform_admin`). */
 export async function getStoredLegacyPlatformAdminUserIds(): Promise<string[]> {
   const { data, error } = await supabase
     .from('platform_settings')

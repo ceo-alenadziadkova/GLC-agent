@@ -58,10 +58,9 @@ import {
   intakeResponsesSchemaInvalidMessage,
   intakeSurfaceInvalidMessage,
 } from '../config/api-error-codes.js';
+import { INTAKE_TOKEN_HEX_REGEX } from '../config/intake-token.js';
 
 export const intakeRouter = Router();
-
-const TOKEN_HEX = /^[a-f0-9]{40}$/i;
 
 type MergePreBriefOutcome = 'merged' | 'nothing_to_merge' | 'consultant_not_audit_owner';
 
@@ -211,7 +210,7 @@ intakeRouter.post('/link-audit', requireAuth, attachProfile, requireRole('consul
   try {
     const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
     const audit_id = typeof req.body?.audit_id === 'string' ? req.body.audit_id.trim() : '';
-    if (!token || !TOKEN_HEX.test(token)) {
+    if (!token || !INTAKE_TOKEN_HEX_REGEX.test(token)) {
       res.status(400).json(apiErrorJson(API_ERROR_CODES.INTAKE_INVALID_TOKEN, INTAKE_INVALID_TOKEN_MESSAGE));
       return;
     }
@@ -360,7 +359,7 @@ intakeRouter.get(
   async (req: AuthRequest, res) => {
     try {
       const token = String(req.params.token ?? '').trim();
-      if (!token || !TOKEN_HEX.test(token)) {
+      if (!token || !INTAKE_TOKEN_HEX_REGEX.test(token)) {
         res.status(400).json(apiErrorJson(API_ERROR_CODES.INTAKE_INVALID_TOKEN, INTAKE_INVALID_TOKEN_MESSAGE));
         return;
       }
@@ -525,7 +524,7 @@ intakeRouter.post(
 intakeRouter.get('/:token', intakePublicReadLimiter, async (req, res) => {
   try {
     const token = String(req.params.token ?? '');
-    if (!token || !TOKEN_HEX.test(token)) {
+    if (!token || !INTAKE_TOKEN_HEX_REGEX.test(token)) {
       res.status(400).json(apiErrorJson(API_ERROR_CODES.INTAKE_INVALID_TOKEN, INTAKE_INVALID_TOKEN_MESSAGE));
       return;
     }
@@ -569,7 +568,7 @@ intakeRouter.get('/:token', intakePublicReadLimiter, async (req, res) => {
 intakeRouter.post('/:token/respond', intakePublicWriteLimiter, async (req, res) => {
   try {
     const token = String(req.params.token ?? '');
-    if (!token || !TOKEN_HEX.test(token)) {
+    if (!token || !INTAKE_TOKEN_HEX_REGEX.test(token)) {
       res.status(400).json(apiErrorJson(API_ERROR_CODES.INTAKE_INVALID_TOKEN, INTAKE_INVALID_TOKEN_MESSAGE));
       return;
     }

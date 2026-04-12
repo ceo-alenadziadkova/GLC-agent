@@ -12,6 +12,9 @@ export const ALERT_CHECK_WINDOW_MINUTES = D.windowMinutes;
 /** Worker tick interval (ms). */
 export const ALERT_CHECK_INTERVAL_MS = D.intervalMs;
 
+/** Background idempotency-key cleanup interval (ms). */
+export const IDEMPOTENCY_CLEANUP_INTERVAL_MS = D.intervalMs * D.idempotencyCleanupTickMultiplier;
+
 /** Failure rate (failed starts / started) above which to notify. */
 export const ALERT_FAILURE_RATE_THRESHOLD = D.failureRateThreshold;
 

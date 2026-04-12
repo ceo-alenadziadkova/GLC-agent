@@ -28,7 +28,7 @@ function unavailable(reason: string): SelfServeOwnerResult {
     component: 'self_serve_audit_owner',
     reason,
     remediation:
-      'Set platform_settings.self_serve_audit_owner_user_id or SELF_SERVE_AUDIT_OWNER_USER_ID, or set profiles.is_platform_admin / platform_settings.legacy_platform_admin_user_ids / PLATFORM_ADMIN_USER_IDS (or ensure at least one consultant profile exists).',
+      'Set platform_settings.self_serve_audit_owner_user_id, or configure profiles.is_platform_admin / platform_settings.legacy_platform_admin_user_ids, or ensure at least one consultant profile exists (open mode).',
   });
   return CLIENT_SAFE_UNAVAILABLE;
 }
@@ -91,9 +91,8 @@ async function tryFirstConsultantByCreatedAt(): Promise<SelfServeOwnerResult | n
  * Resolves the consultant `audits.user_id` for audits created by clients (self-serve) and
  * public snapshot. Order:
  * 1. `platform_settings.self_serve_audit_owner_user_id`
- * 2. `SELF_SERVE_AUDIT_OWNER_USER_ID` env
- * 3. First valid id in `platform_settings.legacy_platform_admin_user_ids` or `PLATFORM_ADMIN_USER_IDS` (legacy)
- * 4. If unrestricted (open mode): earliest consultant profile (`created_at`)
+ * 2. First valid id in `platform_settings.legacy_platform_admin_user_ids`
+ * 3. If unrestricted (open mode): earliest consultant profile (`created_at`)
  */
 export async function resolveSelfServeAuditOwnerUserId(): Promise<SelfServeOwnerResult> {
   const stored = await getStoredSelfServeAuditOwnerUserId();
@@ -107,17 +106,6 @@ export async function resolveSelfServeAuditOwnerUserId(): Promise<SelfServeOwner
       message:
         'platform_settings.self_serve_audit_owner_user_id is missing or not a consultant; trying fallbacks',
     });
-  }
-
-  const envRaw = process.env.SELF_SERVE_AUDIT_OWNER_USER_ID?.trim();
-  if (envRaw) {
-    const fromEnv = await consultantIdIfValid(envRaw);
-    if (fromEnv) {
-      return { ok: true, userId: fromEnv };
-    }
-    return unavailable(
-      'SELF_SERVE_AUDIT_OWNER_USER_ID is set but does not reference a valid consultant profile',
-    );
   }
 
   const fromAdmins = await tryFirstPlatformAdmin();
@@ -136,14 +124,26 @@ export async function resolveSelfServeAuditOwnerUserId(): Promise<SelfServeOwner
     logger.error('self_serve_audit_owner.unavailable', {
       component: 'self_serve_audit_owner',
       reason:
-        'stored self-serve owner invalid and no env / platform-admin / first-consultant fallback succeeded',
+        'stored self-serve owner invalid and no platform-admin / first-consultant fallback succeeded',
       remediation:
-        'Fix platform_settings.self_serve_audit_owner_user_id or set SELF_SERVE_AUDIT_OWNER_USER_ID / platform admin flags.',
+        'Fix platform_settings.self_serve_audit_owner_user_id or configure platform admin / consultant fallbacks.',
     });
     return CLIENT_SAFE_UNAVAILABLE;
   }
 
   return unavailable(
-    'no valid self-serve audit owner: platform_settings empty, SELF_SERVE_AUDIT_OWNER_USER_ID unset, platform admin list empty or invalid, and no consultant profiles',
+    'no valid self-serve audit owner: platform_settings empty, platform admin list empty or invalid, and no consultant profiles',
   );
+}
+
+/** Warn at startup when deprecated env is set (ignored at runtime). */
+export function warnSelfServeAuditOwnerEnvIfSet(logger: {
+  warn: (msg: string, meta?: Record<string, unknown>) => void;
+}): void {
+  const raw = process.env.SELF_SERVE_AUDIT_OWNER_USER_ID?.trim();
+  if (!raw) return;
+  logger.warn('self_serve_audit_owner.env_deprecated_ignored', {
+    message:
+      'SELF_SERVE_AUDIT_OWNER_USER_ID is set but ignored. Persist the owner via PATCH /api/platform/self-serve-owner (platform_settings.self_serve_audit_owner_user_id), then remove the env var.',
+  });
 }

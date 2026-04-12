@@ -24,10 +24,13 @@
     "check": "pnpm run typecheck && pnpm run lint && pnpm test && pnpm --filter glc-audit-server run test"
   },
   "dependencies": {
-    "@glc/dev-brand-defaults": "workspace:*",
-    "@glc/intake-core": "workspace:*",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
+    "@fontsource-variable/inter": "5.2.5",
+    "@fontsource/jetbrains-mono": "5.2.5",
+    "@fontsource/space-grotesk": "5.2.5",
+    "@glc/dev-brand-defaults": "workspace:*",
+    "@glc/intake-core": "workspace:*",
     "@mui/icons-material": "7.3.5",
     "@mui/material": "7.3.5",
     "@phosphor-icons/react": "^2.1.10",

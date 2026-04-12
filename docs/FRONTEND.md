@@ -243,7 +243,7 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 
 ### `SettingsPage.tsx`
 - Shared protected route for consultant and client
-- **Client portal — audit owner** (consultants): `GET` / `PATCH /api/platform/self-serve-owner` — pick which consultant owns audits started by clients; read-only when the server denies `can_manage` (see **`profiles.is_platform_admin`** / legacy **`PLATFORM_ADMIN_USER_IDS`** in [API.md](./API.md#platform-consultant))
+- **Client portal — audit owner** (consultants): `GET` / `PATCH /api/platform/self-serve-owner` — pick which consultant owns audits started by clients; read-only when the server denies `can_manage` (see **`profiles.is_platform_admin`** / **`platform_settings.legacy_platform_admin_user_ids`** in [API.md](./API.md#platform-consultant))
 - Profile save uses `PATCH /api/profile` (editable `full_name`)
 - Appearance has explicit `system | light | dark` selection via `useGlcTheme().setMode(...)`
 - **Intake brief layout** (`#brief-layout`): clients configure `glc_client_brief_layout_default_v1`; consultants/admins configure `glc_consultant_brief_layout_default_v1` — options **All sections**, **Step by step**, or **Ask each time** (clears defaults and all per-audit/per-scope layout keys on this device). Consultant **All sections / Step by step** also clears `glc_consultant_brief_layout_v1:new_audit` so the New Audit step follows the default without a duplicate key. Scroll-into-view when opened with hash.

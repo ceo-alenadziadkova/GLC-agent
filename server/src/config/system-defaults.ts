@@ -70,6 +70,8 @@ export const SYSTEM_DEFAULTS = {
     windowMinutesMin: 1,
     windowMinutesMax: 1440,
     intervalMs: 60_000,
+    /** Idempotency cleanup `setInterval` runs every `intervalMs * this` (see `services/alerts.ts`). */
+    idempotencyCleanupTickMultiplier: 5,
     failureRateThreshold: 0.2,
     latencyP95MsThreshold: 180_000,
     tokenBurn15mThreshold: 300_000,

@@ -8,6 +8,7 @@ import { AuditCompare } from '../marketing/blocks/AuditCompare';
 import { NextStepsCta } from '../marketing/blocks/NextStepsCta';
 import { LOGIN_PATH } from '../marketing/marketing-nav';
 import { usePublicBrand } from '../marketing/PublicBrandContext';
+import marketingHomeCopy from '../data/marketing-home-copy.en.json';
 import {
   Accordion,
   AccordionContent,
@@ -89,21 +90,6 @@ function SectionHeading({
     </div>
   );
 }
-
-const FAQ_PREVIEW = [
-  {
-    q: 'Where should I start?',
-    a: 'If you are unsure—Snapshot. If the problem is systemic—full audit. In between—Express.',
-  },
-  {
-    q: 'How is Snapshot different from Express?',
-    a: 'Snapshot is a fast automated read on available signals. Express is a structured expert review within agreed scope.',
-  },
-  {
-    q: 'Can we implement without you?',
-    a: 'Yes. The report and roadmap are written so your team or another vendor can run with them.',
-  },
-];
 
 export function MarketingHome() {
   return (
@@ -265,23 +251,18 @@ function MarketingHomeInner() {
         <MarketingSection className="mt-20 border-t border-[var(--border-subtle)] pt-16 sm:mt-24 sm:pt-20" delay={0.05}>
           <SectionHeading
             variant="rail"
-            title="Who we are"
+            title={marketingHomeCopy.whoWeAreTitle}
             description={whoWeAreDescription}
           />
         </MarketingSection>
 
         <MarketingSection className="mt-16 sm:mt-20" delay={0.08}>
-          <SectionHeading variant="minimal" title="What we do" />
+          <SectionHeading variant="minimal" title={marketingHomeCopy.whatWeDoTitle} />
           <ul
             className="mt-8 max-w-3xl divide-y border-y text-sm leading-relaxed"
             style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}
           >
-            {[
-              'Audit digital infrastructure and the customer-facing layer (site, UX, trust, baseline technical signals).',
-              'Diagnose processes: manual repeats, gaps between tools, communication friction.',
-              'Design improvements and automation with impact / effort sizing.',
-              'Roadmap: what to do now, what to defer, what to delegate—with clear next steps.',
-            ].map(line => (
+            {marketingHomeCopy.whatWeDoLines.map(line => (
               <li key={line} className="flex gap-3 py-4 first:pt-0 last:pb-0">
                 <CheckCircle className="mt-0.5 h-5 w-5 shrink-0" style={{ color: 'var(--glc-green-dark)' }} weight="fill" />
                 <span>{line}</span>
@@ -292,8 +273,8 @@ function MarketingHomeInner() {
 
         <MarketingSection className="mt-24" delay={0.1}>
           <SectionHeading
-            title="Choose an entry point"
-            description="Same audit-first approach—different depth and speed. Pick the path that matches your readiness and horizon."
+            title={marketingHomeCopy.chooseEntryTitle}
+            description={marketingHomeCopy.chooseEntryDescription}
           />
           <div className="mt-10">
             <DecisionPath />
@@ -303,8 +284,8 @@ function MarketingHomeInner() {
         <MarketingSection className="mt-24" delay={0.14}>
           <SectionHeading
             variant="rail"
-            title="Express vs full audit"
-            description="Both formats bring clarity; they differ in depth and how far we go into processes."
+            title={marketingHomeCopy.expressVsFullTitle}
+            description={marketingHomeCopy.expressVsFullDescription}
           />
           <div className="mt-10">
             <AuditCompare compact />
@@ -320,7 +301,7 @@ function MarketingHomeInner() {
                 </Link>
               </p>
               <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                A quick read on public signals—see where to focus first without a heavy commitment.
+                {marketingHomeCopy.pillars.snapshot.description}
               </p>
             </div>
             <div className="lg:border-r lg:border-[var(--border-subtle)] lg:pr-10">
@@ -330,7 +311,7 @@ function MarketingHomeInner() {
                 </Link>
               </p>
               <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                Shape structure and the next step when the site or scope is still fuzzy.
+                {marketingHomeCopy.pillars.discovery.description}
               </p>
             </div>
             <div>
@@ -340,7 +321,7 @@ function MarketingHomeInner() {
                 </Link>
               </p>
               <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                Share context—we suggest a sensible route (Snapshot, Express, or full audit).
+                {marketingHomeCopy.pillars.brief.description}
               </p>
             </div>
           </div>
@@ -349,12 +330,12 @@ function MarketingHomeInner() {
         <MarketingSection className="mt-20 sm:mt-24" delay={0.16}>
           <SectionHeading
             variant="minimal"
-            title="Questions"
-            description="Short answers—full detail on the FAQ page."
+            title={marketingHomeCopy.questionsTitle}
+            description={marketingHomeCopy.questionsDescription}
           />
           <div className="mt-6 max-w-3xl">
             <Accordion type="single" collapsible className="w-full">
-              {FAQ_PREVIEW.map((item, i) => (
+              {marketingHomeCopy.faqPreview.map((item, i) => (
                 <AccordionItem key={item.q} value={`p-${i}`}>
                   <AccordionTrigger className="text-left text-base font-semibold">{item.q}</AccordionTrigger>
                   <AccordionContent className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>

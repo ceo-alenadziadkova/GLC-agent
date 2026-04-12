@@ -42,20 +42,23 @@ platformRouter.get('/self-serve-owner', requireRole('consultant'), async (req: A
     const uid = req.userId!;
     const canManage = await canManagePlatformSettings(uid);
     const stored = await getStoredSelfServeAuditOwnerUserId();
-    const envSet = Boolean(process.env.SELF_SERVE_AUDIT_OWNER_USER_ID?.trim());
     const resolved = await resolveSelfServeAuditOwnerUserId();
     const consultants = canManage
       ? await listConsultantDirectoryRows()
       : [{ id: uid }];
 
     const effectiveReady = resolved.ok;
-    const envFallbackActive = effectiveReady && !stored && envSet;
+    /** True when the API resolved an owner without a persisted `platform_settings` row (admin list or first consultant). */
+    const implicitFallbackActive = effectiveReady && !stored;
+    /** Deprecated: always false; `SELF_SERVE_AUDIT_OWNER_USER_ID` is no longer read at runtime. */
+    const envFallbackActive = false;
 
     res.json({
       stored_owner_user_id: stored,
       effective_owner_user_id: resolved.ok ? resolved.userId : null,
       effective_ready: effectiveReady,
       env_fallback_active: envFallbackActive,
+      implicit_fallback_active: implicitFallbackActive,
       consultants,
       can_manage: canManage,
     });
@@ -125,14 +128,14 @@ platformRouter.patch('/self-serve-owner', requireRole('consultant'), async (req:
     }
 
     const resolved = await resolveSelfServeAuditOwnerUserId();
-    const envSet = Boolean(process.env.SELF_SERVE_AUDIT_OWNER_USER_ID?.trim());
-    const envFallbackActive = resolved.ok && !next && envSet;
+    const implicitFallbackActive = resolved.ok && !next;
     res.json({
       ok: true,
       stored_owner_user_id: next,
       effective_ready: resolved.ok,
       effective_owner_user_id: resolved.ok ? resolved.userId : null,
-      env_fallback_active: envFallbackActive,
+      env_fallback_active: false,
+      implicit_fallback_active: implicitFallbackActive,
     });
   } catch {
     res

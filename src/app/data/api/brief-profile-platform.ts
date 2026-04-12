@@ -151,7 +151,9 @@ export const briefProfilePlatformApi = {
       stored_owner_user_id: string | null;
       effective_owner_user_id: string | null;
       effective_ready: boolean;
+      /** Deprecated: always false; kept for API compatibility. */
       env_fallback_active: boolean;
+      implicit_fallback_active: boolean;
       consultants: Array<{ id: string; full_name: string | null; email: string | null }>;
       can_manage: boolean;
     }>(API_PATHS.platformSelfServeOwner);
@@ -164,6 +166,7 @@ export const briefProfilePlatformApi = {
       effective_ready: boolean;
       effective_owner_user_id: string | null;
       env_fallback_active: boolean;
+      implicit_fallback_active: boolean;
     }>(API_PATHS.platformSelfServeOwner, {
       method: 'PATCH',
       body: JSON.stringify(params),

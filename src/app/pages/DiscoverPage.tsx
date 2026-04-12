@@ -44,6 +44,7 @@ import {
   DISCOVER_QUESTION_SCROLL_DELAY_MS,
   DISCOVER_WIZARD_SAVE_TIMEOUT_MS,
 } from '../config/discover-page-defaults';
+import discoveryUiCopy from '../data/discovery-ui-copy.en.json';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -83,10 +84,7 @@ function QuestionInput({
   const q = getQuestion(qId);
   if (!q) return null;
 
-  const freeTextPlaceholderById: Record<string, string> = {
-    b1: 'Example: "Homeowners in Palma looking for renovation planning."',
-    f1: 'Example: "Not enough predictable new clients each month."',
-  };
+  const freeTextPlaceholderById = discoveryUiCopy.freeTextPlaceholders as Record<string, string>;
 
   const strVal = typeof value === 'string' ? value : '';
   const arrVal = Array.isArray(value) ? value : [];
@@ -99,7 +97,9 @@ function QuestionInput({
           rows={3}
           value={strVal}
           onChange={e => onChange(e.target.value || null)}
-          placeholder={freeTextPlaceholderById[qId] ?? 'Write what comes to mind first. Short is fine, detailed is great.'}
+          placeholder={
+            freeTextPlaceholderById[qId] ?? discoveryUiCopy.freeTextDefaultPlaceholder
+          }
           className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none"
           style={{
             background: 'var(--input-background)',

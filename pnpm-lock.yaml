@@ -20,6 +20,15 @@ importers:
       '@emotion/styled':
         specifier: 11.14.1
         version: 11.14.1(@emotion/react@11.14.0(@types/react@18.3.28)(react@18.3.1))(@types/react@18.3.28)(react@18.3.1)
+      '@fontsource-variable/inter':
+        specifier: 5.2.5
+        version: 5.2.5
+      '@fontsource/jetbrains-mono':
+        specifier: 5.2.5
+        version: 5.2.5
+      '@fontsource/space-grotesk':
+        specifier: 5.2.5
+        version: 5.2.5
       '@glc/dev-brand-defaults':
         specifier: workspace:*
         version: link:packages/glc-dev-brand-defaults
@@ -945,6 +954,15 @@ packages:
 
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
+
+  '@fontsource-variable/inter@5.2.5':
+    resolution: {integrity: sha512-TrWffUAFOnT8zroE9YmGybagoOgM/HjRqMQ8k9R0vVgXlnUh/vnpbGPAS/Caz1KIlOPnPGh6fvJbb7DHbFCncA==}
+
+  '@fontsource/jetbrains-mono@5.2.5':
+    resolution: {integrity: sha512-TPZ9b/uq38RMdrlZZkl0RwN8Ju9JxuqMETrw76pUQFbGtE1QbwQaNsLlnUrACNNBNbd0NZRXiJJSkC8ajPgbew==}
+
+  '@fontsource/space-grotesk@5.2.5':
+    resolution: {integrity: sha512-/9ZtHSxnBwIXbE0XD+69ww4gViWLgzMAkzHZJ8D0pNlN5nWlrDlRJGYGte0o+yxlBZZKDeXbqSP6Jh5L710d+g==}
 
   '@formatjs/ecma402-abstract@2.3.6':
     resolution: {integrity: sha512-HJnTFeRM2kVFVr5gr5kH1XP6K0JcJtE7Lzvtr3FS/so5f1kpsqqqxy5JF+FRaO6H2qmcMfAUIox7AJteieRtVw==}
@@ -5746,6 +5764,12 @@ snapshots:
       react-dom: 18.3.1(react@18.3.1)
 
   '@floating-ui/utils@0.2.11': {}
+
+  '@fontsource-variable/inter@5.2.5': {}
+
+  '@fontsource/jetbrains-mono@5.2.5': {}
+
+  '@fontsource/space-grotesk@5.2.5': {}
 
   '@formatjs/ecma402-abstract@2.3.6':
     dependencies:

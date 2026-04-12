@@ -122,7 +122,7 @@ Tightening boundaries is **rules + structure + checks**, not one large refactor.
 
 **Allowed:** service URLs, API keys, connection strings, `NODE_ENV`, host/port when the platform injects it, public URLs for CORS and brand/sentinel parity (as in production today).
 
-**Do not use env for:** product limits as the *primary* source, alert thresholds, industry weights, or consultant allowlist membership (source of truth: **`consultant_email_allowlist`** in Postgres; platform admin ACL: **`profiles.is_platform_admin`** plus optional **`platform_settings.legacy_platform_admin_user_ids`**, with legacy **`PLATFORM_ADMIN_USER_IDS`** env only when the DB array is empty — see `docs/DEPLOYMENT.md`).
+**Do not use env for:** product limits as the *primary* source, alert thresholds, industry weights, or consultant allowlist membership (source of truth: **`consultant_email_allowlist`** in Postgres; platform admin ACL: **`profiles.is_platform_admin`** plus optional **`platform_settings.legacy_platform_admin_user_ids`** — **`PLATFORM_ADMIN_USER_IDS`** is deprecated and ignored; see `docs/DEPLOYMENT.md`).
 
 **Process:** do not add a new `process.env.FOO` without documenting it in `**server/.env.example`** (or the ops-tuning tables in [DEPLOYMENT.md](./DEPLOYMENT.md)) with a one-line purpose.
 

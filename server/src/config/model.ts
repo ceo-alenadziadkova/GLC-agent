@@ -1,6 +1,7 @@
 /**
  * Centralized Anthropic model configuration.
- * Source of truth: `SYSTEM_DEFAULTS.pipelineModel`.
+ * Default: `SYSTEM_DEFAULTS.pipelineModel.claudeModelId`.
+ * Infra override (no release): `PIPELINE_CLAUDE_MODEL_ID` or `ANTHROPIC_MODEL` (first non-empty wins).
  *
  * Never hardcode the model string anywhere else — always import `CLAUDE_MODEL` from here.
  */
@@ -9,7 +10,15 @@ import { SYSTEM_DEFAULTS } from './system-defaults.js';
 
 const P = SYSTEM_DEFAULTS.pipelineModel;
 
-export const CLAUDE_MODEL = P.claudeModelId;
+function resolveClaudeModelIdFromEnv(): string {
+  const a = process.env.PIPELINE_CLAUDE_MODEL_ID?.trim();
+  if (a) return a;
+  const b = process.env.ANTHROPIC_MODEL?.trim();
+  if (b) return b;
+  return '';
+}
+
+export const CLAUDE_MODEL = resolveClaudeModelIdFromEnv() || P.claudeModelId;
 
 /** Minimum remaining token reserve before refusing to start a new Claude call. */
 export const MIN_TOKEN_RESERVE = P.minTokenReserve;

@@ -20,6 +20,7 @@ import { setStandardSecurityHeaders } from './config/security-headers.js';
 import { recoverStalledPipelines } from './services/pipeline.js';
 import { startPipelineWorker } from './services/pipeline-jobs.js';
 import { warnPlatformAdminUserIdsEnvBootstrap } from './lib/platform-admin.js';
+import { warnSelfServeAuditOwnerEnvIfSet } from './lib/self-serve-audit-owner.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? String(GLC_DEV_API_PORT), 10);
@@ -28,6 +29,7 @@ const LISTEN_HOST = (process.env.LISTEN_HOST ?? '0.0.0.0').trim() || '0.0.0.0';
 initSentry();
 assertProductionRuntimeConfig();
 warnPlatformAdminUserIdsEnvBootstrap(logger);
+warnSelfServeAuditOwnerEnvIfSet(logger);
 
 const corsAllowedOrigins = getCorsAllowedOrigins();
 if (process.env.NODE_ENV === 'production' && corsAllowedOrigins.length === 0) {

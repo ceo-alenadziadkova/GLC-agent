@@ -368,7 +368,7 @@ export function SettingsPage() {
                     Client self-serve is not ready yet: choose a consultant below (or ask your team to finish setup).
                   </div>
                 )}
-                {selfServe.env_fallback_active && (
+                {selfServe.implicit_fallback_active && (
                   <div className="mb-3 space-y-2">
                     <div
                       className="px-3 py-2 rounded-lg text-xs leading-relaxed"
@@ -379,14 +379,14 @@ export function SettingsPage() {
                       }}
                     >
                       <p className="font-semibold m-0 mb-1" style={{ color: 'var(--text-primary)' }}>
-                        {SETTINGS_SELF_SERVE_COPY.envFallbackCalloutTitle}
+                        {SETTINGS_SELF_SERVE_COPY.implicitFallbackCalloutTitle}
                       </p>
                       <p className="m-0" style={{ color: 'var(--text-secondary)' }}>
-                        {SETTINGS_SELF_SERVE_COPY.envFallbackCalloutBody}
+                        {SETTINGS_SELF_SERVE_COPY.implicitFallbackCalloutBody}
                       </p>
                     </div>
                     <p className="text-xs leading-relaxed m-0" style={{ color: 'var(--text-tertiary)' }}>
-                      {SETTINGS_SELF_SERVE_COPY.envFallbackHintShort}
+                      {SETTINGS_SELF_SERVE_COPY.implicitFallbackHintShort}
                     </p>
                   </div>
                 )}
@@ -452,6 +452,7 @@ export function SettingsPage() {
                                 effective_ready: updated.effective_ready,
                                 effective_owner_user_id: updated.effective_owner_user_id,
                                 env_fallback_active: updated.env_fallback_active,
+                                implicit_fallback_active: updated.implicit_fallback_active,
                               }
                             : prev,
                         );

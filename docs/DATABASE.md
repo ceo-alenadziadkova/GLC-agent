@@ -258,7 +258,7 @@ quality_gate_passed boolean                -- added by migration 009
 
 ### `profiles`
 
-User roles and display metadata. **`role`:** `consultant` | `client` | `guest` (migrations **`005`**, **`023`** — `guest` for snapshot / anonymous flows until promoted). **`is_platform_admin`** (`boolean`, migration **`049`**) — when any consultant has **`true`**, only flagged users (plus legacy env **`PLATFORM_ADMIN_USER_IDS`**) may manage **`platform_settings`** and **`consultant_email_allowlist`** via **`/api/platform/*`**; otherwise any consultant may manage (open mode).
+User roles and display metadata. **`role`:** `consultant` | `client` | `guest` (migrations **`005`**, **`023`** — `guest` for snapshot / anonymous flows until promoted). **`is_platform_admin`** (`boolean`, migration **`049`**) — when any consultant has **`true`**, only flagged users (plus UUIDs in **`platform_settings.legacy_platform_admin_user_ids`**) may manage **`platform_settings`** and **`consultant_email_allowlist`** via **`/api/platform/*`**; otherwise any consultant may manage (open mode). Legacy **`PLATFORM_ADMIN_USER_IDS`** env is deprecated and ignored.
 
 ---
 
@@ -382,7 +382,7 @@ Migration: `014_notifications.sql`.
 
 Singleton row (`id = 1`) for cross-tenant platform options maintained via the API (service role).
 
-- `self_serve_audit_owner_user_id` — optional `profiles.id` (role `consultant`) used as `audits.user_id` when a **client** creates an audit from the portal. If null, the API may fall back to `SELF_SERVE_AUDIT_OWNER_USER_ID` when set (see [DEPLOYMENT.md](./DEPLOYMENT.md)).
+- `self_serve_audit_owner_user_id` — optional `profiles.id` (role `consultant`) used as `audits.user_id` when a **client** creates an audit from the portal. If null, the API resolves an owner via legacy admin UUIDs or (open mode) earliest consultant; **`SELF_SERVE_AUDIT_OWNER_USER_ID`** env is deprecated and ignored (see [DEPLOYMENT.md](./DEPLOYMENT.md)).
 - `updated_at`, `updated_by` — audit metadata.
 
 **RLS** enabled with an explicit **deny-all** policy for **`anon` / `authenticated`** (migration **`043`**); server writes through the **service role**.

@@ -1,4 +1,9 @@
 import { getContext } from './observability-context.js';
+import {
+  LOG_PRETTY_CONTEXT_SINGLE_LINE_MAX,
+  LOG_SHORT_ID_LEN_DEFAULT,
+  LOG_SHORT_ID_LEN_OPERATION,
+} from '../config/logger-format.js';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -39,7 +44,7 @@ function logFormat(): 'json' | 'pretty' {
   return process.env.NODE_ENV === 'production' ? 'json' : 'pretty';
 }
 
-function shortId(id: string | undefined, len = 8): string | undefined {
+function shortId(id: string | undefined, len = LOG_SHORT_ID_LEN_DEFAULT): string | undefined {
   if (!id) return undefined;
   return id.length <= len ? id : `${id.slice(0, len)}…`;
 }
@@ -48,7 +53,7 @@ function formatPretty(record: LogRecord): string {
   const { ts, level, message, trace_id, operation_id, user_id, audit_id, context, service } = record;
   const meta: string[] = [`svc=${service}`];
   if (trace_id) meta.push(`trace=${shortId(trace_id)}`);
-  if (operation_id) meta.push(`op=${shortId(operation_id, 6)}`);
+  if (operation_id) meta.push(`op=${shortId(operation_id, LOG_SHORT_ID_LEN_OPERATION)}`);
   if (user_id) meta.push(`user=${shortId(user_id)}`);
   if (audit_id) meta.push(`audit=${shortId(audit_id)}`);
   const head = `${ts} ${level.toUpperCase().padEnd(5)} [${meta.join(' ')}] ${message}`;
@@ -57,7 +62,7 @@ function formatPretty(record: LogRecord): string {
   }
   const ctx = JSON.stringify(context, null, 2);
   const singleLine = ctx.replace(/\s+/g, ' ').trim();
-  if (singleLine.length <= 160) {
+  if (singleLine.length <= LOG_PRETTY_CONTEXT_SINGLE_LINE_MAX) {
     return `${head} ${singleLine}`;
   }
   return `${head}\n  ${ctx.split('\n').join('\n  ')}`;

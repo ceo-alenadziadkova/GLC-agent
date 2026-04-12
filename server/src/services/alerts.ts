@@ -11,6 +11,7 @@ import {
   ALERT_LATENCY_P95_MS_THRESHOLD,
   ALERT_LOCK_TTL_MS,
   ALERT_TOKEN_BURN_THRESHOLD,
+  IDEMPOTENCY_CLEANUP_INTERVAL_MS,
 } from '../config/alerts-config.js';
 import { ALERT_LATENCY_PERCENTILE } from '../config/alert-thresholds.js';
 import {
@@ -195,6 +196,6 @@ export function startAlertsWorker(): void {
         if (count > 0) logger.info('Expired idempotency keys cleaned', { deleted: count });
       })
       .catch((err: Error) => logger.error('Idempotency cleanup failed', { error: err.message }));
-  }, INTERVAL_MS * 5);
+  }, IDEMPOTENCY_CLEANUP_INTERVAL_MS);
   logger.info('Alert worker started', { interval_ms: INTERVAL_MS });
 }
