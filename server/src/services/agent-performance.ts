@@ -16,7 +16,7 @@
  * Rates are fractions of `total_facts` in the CONTROL_OBJECT counts.
  * Only meaningful after ≥ MIN_EVALUATION_COUNT runs per (phase_id, agent_number).
  *
- * DB table: `agent_performance_aggregate` (see SQL schema at bottom of file).
+ * DB table: `agent_performance_aggregate` (DDL: `server/migrations/052_agent_performance_aggregate.sql`).
  *
  * Version history:
  *   v2.0  — Phase 5: initial implementation
@@ -161,20 +161,3 @@ export async function recordAgentPerformance(metrics: AgentPerformanceMetrics): 
   }
 }
 
-// ─── SQL Schema (reference) ───────────────────────────────────────────────────
-/*
-  CREATE TABLE agent_performance_aggregate (
-    id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    phase_id                 TEXT NOT NULL,
-    agent_number             INT  NOT NULL,
-    evaluation_count         INT  NOT NULL DEFAULT 0,
-    avg_score                DECIMAL(6,4),
-    avg_hallucination_rate   DECIMAL(6,4),
-    avg_risky_promise_rate   DECIMAL(6,4),
-    updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (phase_id, agent_number)
-  );
-
-  -- RLS: service role only (no direct client access)
-  ALTER TABLE agent_performance_aggregate ENABLE ROW LEVEL SECURITY;
-*/

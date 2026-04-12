@@ -1,5 +1,6 @@
 -- Evaluation datasets (Phase 2 observability) + audit execution_mode (Phase 4 prep).
--- See docs/adrs/ADR-TRUTH-REGISTRY-ASSUMPTIONS.md, docs/adrs/GAP-ANALYSIS-PHASE0.md
+-- See docs/adrs/ADR-TRUTH-REGISTRY-ASSUMPTIONS.md, docs/adrs/GAP-ANALYSIS-PHASE0.md.
+-- Related: agent rolling metrics table in 052_agent_performance_aggregate.sql
 
 -- ─── Audits: governance execution mode ───────────────────────────────────────
 ALTER TABLE public.audits

@@ -233,6 +233,29 @@ export interface Database {
         };
         Update: Partial<Database['public']['Tables']['evaluation_datasets']['Insert']>;
       };
+      agent_performance_aggregate: {
+        Row: {
+          id: string;
+          phase_id: string;
+          agent_number: number;
+          evaluation_count: number;
+          avg_score: number | null;
+          avg_hallucination_rate: number | null;
+          avg_risky_promise_rate: number | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          phase_id: string;
+          agent_number: number;
+          evaluation_count?: number;
+          avg_score?: number | null;
+          avg_hallucination_rate?: number | null;
+          avg_risky_promise_rate?: number | null;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['agent_performance_aggregate']['Insert']>;
+      };
     };
   };
 }
