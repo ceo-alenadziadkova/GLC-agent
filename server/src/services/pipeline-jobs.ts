@@ -16,6 +16,8 @@ type PipelineJobPayload = {
   auditId: string;
   action: 'start' | 'next' | 'retry';
   phase?: number;
+  /** When true, skip Phase 9 auto-remediation for this job. */
+  disable_auto_remediate?: boolean;
 };
 
 const QUEUE_NAME = 'pipeline_execution';
@@ -113,9 +115,11 @@ export function startPipelineWorker(): void {
   worker = new Worker<PipelineJobPayload>(
     QUEUE_NAME,
     async (job) => {
-      const { auditId, action, phase } = job.data;
+      const { auditId, action, phase, disable_auto_remediate: disableAutoRemediateRaw } = job.data;
       const attempt = job.attemptsMade + 1;
-      const orchestrator = new PipelineOrchestrator(auditId);
+      const orchestrator = new PipelineOrchestrator(auditId, {
+        disableAutoRemediate: disableAutoRemediateRaw === true,
+      });
       await touchLease(job.id!, job.data, attempt, 'running');
       const heartbeatTimer = setInterval(() => {
         void touchLease(job.id!, job.data, attempt, 'running');

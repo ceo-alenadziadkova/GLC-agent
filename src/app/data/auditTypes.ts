@@ -465,6 +465,8 @@ export interface ControlObjectGovernanceView {
     required: boolean;
     reasons: string[];
   };
+  /** Phase 9: number of auto-remediation actions applied before this control_object was emitted. */
+  auto_remediation_applied_count?: number;
 }
 
 /** `pipeline_events.data` for `event_type === 'refine_recommended'`. */

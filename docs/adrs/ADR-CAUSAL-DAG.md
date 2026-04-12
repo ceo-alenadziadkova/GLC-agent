@@ -3,7 +3,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted |
 | **Date** | 2026-04-12 |
 | **Phase** | Phase 8 (Roadmap) |
 | **Authors** | Engineering |
@@ -15,7 +15,7 @@
 
 ## ADR Lifecycle
 
-This ADR is immutable once accepted. Status changes to **Accepted** when Sprint 4 begins. `causal_chain` in CONTROL_OBJECT has been pre-declared as optional since v2.1 (ADR-CONTROL-OBJECT-V2-FULL.md) in preparation for this change.
+This ADR is immutable once accepted. **Accepted** as of Sprint 4 implementation (2026-04). `trace.causal_chain` uses explicit `depends_on: { phase_id, claim_id }[]` per entry (not a single `origin` string) so premises can span multiple upstream phases.
 
 ---
 
@@ -40,16 +40,16 @@ This is the **causal chain gap** explicitly deferred in ADR-SAFETY-MODE-EXECUTIO
 ```typescript
 trace: {
   claim_sources: [...],  // unchanged
-  error_sources: [...],  // unchanged
-  causal_chain: Array<{   // v2.2: now required
-    claim_id: number;
-    depends_on: number[]; // IDs of claims this claim relies on as premises
-    origin: string;       // phase_id where the depended-on claim was produced
+  causal_chain: Array<{
+    claim_id: number;  // 1-based issue index in this phase
+    depends_on: Array<{ phase_id: PhaseId; claim_id: number }>;
   }>;
 }
 ```
 
-**Construction:** FactCheckerService builds `causal_chain` entries for high-risk claims that reference output from prior phases. A claim in Phase 5 (Marketing) that uses "audience size = 500K SMBs" from Phase 0 (Recon) gets `depends_on: [recon_claim_id]` and `origin: 'recon'`.
+**Construction:** FactCheckerService builds `causal_chain` from optional `premise_refs` on each `issues[]` entry (domain agent JSON), validated against prior phases' `CONTROL_OBJECT.trace.claim_sources`. Invalid refs (unknown phase, wrong order, missing prior CO, out-of-range claim_id) are dropped with a structured log line.
+
+**Activation:** `FEATURE_CAUSAL_DAG=true`. When disabled, `causal_chain` stays `[]` and `audit_claim_graph` is not written.
 
 **Scope for Phase 8:** Only explicit cross-phase dependencies are tracked. Intra-phase dependencies (claim A in Phase 3 depends on claim B also in Phase 3) are deferred to Phase 8 v2.
 
@@ -63,22 +63,22 @@ Cross-phase dependencies accumulate across the full pipeline run and are stored 
 
 ```sql
 CREATE TABLE audit_claim_graph (
-  id            uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  audit_id      uuid NOT NULL REFERENCES audits(id) ON DELETE CASCADE,
-  claim_id      integer NOT NULL,
-  phase_id      text NOT NULL,
-  depends_on    integer[] NOT NULL DEFAULT '{}',
-  origin_phase  text,
-  status        text NOT NULL,  -- most recent status for this claim
-  created_at    timestamptz DEFAULT now(),
-  updated_at    timestamptz DEFAULT now()
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  audit_id        uuid NOT NULL REFERENCES audits(id) ON DELETE CASCADE,
+  phase_id        text NOT NULL,
+  claim_id        integer NOT NULL,
+  depends_on_refs jsonb NOT NULL DEFAULT '[]',
+  status          text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'invalidated')),
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (audit_id, phase_id, claim_id)
 );
 
 CREATE INDEX idx_audit_claim_graph_audit_id ON audit_claim_graph(audit_id);
-CREATE INDEX idx_audit_claim_graph_depends_on ON audit_claim_graph USING GIN(depends_on);
+CREATE INDEX idx_audit_claim_graph_depends_gin ON audit_claim_graph USING gin (depends_on_refs jsonb_path_ops);
 ```
 
-The GIN index on `depends_on` enables efficient lookup: "which claims depend on claim_id X?"
+`depends_on_refs` stores `[{"phase_id":"security_compliance","claim_id":2}, ...]`.
 
 ---
 
@@ -87,15 +87,15 @@ The GIN index on `depends_on` enables efficient lookup: "which claims depend on 
 When the Decision Layer receives a `restart` or hard `refine` decision for phase N, it consults `audit_claim_graph` to identify downstream claims that transitively depend on claims from phase N.
 
 ```
-invalidate(phase_id: string, claim_ids: number[], audit_id: string):
-  1. Look up audit_claim_graph WHERE audit_id = ? AND origin_phase = phase_id AND claim_id IN claim_ids
-  2. Find all claims WHERE depends_on ∩ invalidated_claim_ids ≠ ∅
-  3. Repeat transitively (breadth-first) until no new dependents found
-  4. For each affected claim in downstream phases:
-     - Mark status = 'invalidated' in audit_claim_graph
-     - Add to CONTROL_OBJECT.errors.structural: 'upstream_claim_invalidated'
-     - Set human_attention_required.required = true (if downstream phase was already accepted)
+invalidate(seed_refs: { phase_id, claim_id }[], audit_id: string):
+  1. Load all audit_claim_graph rows for audit_id
+  2. BFS: rows with active status whose depends_on_refs contains any current queue ref
+  3. Mark each newly found row status = 'invalidated'
+  4. On a later domain phase run, FactChecker loads invalidated claim_ids for that phase and adds
+     'upstream_claim_invalidated' to errors.structural + human_attention_required
 ```
+
+Pipeline emits a `log` pipeline_event when downstream rows were marked, with payload `invalidated_downstream`.
 
 **Key constraint:** If a downstream phase is already in `status = 'accepted'` in the pipeline, upstream invalidation sets `human_attention_required.required = true` rather than automatically rerunning that phase. Automatic cascade reruns across phases are not safe without human review — the cost and consistency implications are too significant.
 
@@ -144,7 +144,7 @@ This allows Phase 8 to be deployed without activating the feature until QA valid
 **Negative / Risks:**
 - DAG construction adds per-claim analysis overhead. For a large audit with 120+ claims across 6 phases, this could add 200–500ms per phase. Mitigation: only track cross-phase dependencies (not intra-phase) in Phase 8; profile before activating on production.
 - `depends_on` references require FactCheckerService to have access to claim IDs from prior phases. This means CONTROL_OBJECT outputs from earlier phases must be available in memory during later phase checks. Pipeline must be updated to pass prior CO summaries into the context.
-- The GIN index on `depends_on` (integer array) requires PostgreSQL ≥ 10. Supabase satisfies this requirement.
+- JSONB GIN (`jsonb_path_ops`) requires PostgreSQL ≥ 9.4; Supabase satisfies this.
 
 ---
 

@@ -3,7 +3,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted |
 | **Date** | 2026-04-12 |
 | **Phase** | Phase 9 (Roadmap) |
 | **Authors** | Engineering |
@@ -15,7 +15,7 @@
 
 ## ADR Lifecycle
 
-This ADR is immutable once accepted. Status changes to **Accepted** when Sprint 5 begins.
+This ADR is immutable once accepted. Status is **Accepted** as of Sprint 5 implementation (2026-04-13).
 
 ---
 
@@ -210,8 +210,7 @@ Clicking the badge opens a detail panel listing each remediation: error_type, or
 - `server/src/services/remediation.ts` — RemediationService (Sprint 5, new)
 - `server/src/config/rule-engine.ts` — auto_remediate flag addition
 - Supabase migration: `audit_remediations` table (Sprint 5)
-- `server/src/services/pipeline.ts` — calls RemediationService after Decision Layer
-- `server/src/services/decision-layer.ts` — passes CLEANED OUTPUT to RemediationService
-- `src/app/components/PipelineMonitor` — badge + detail panel (Sprint 5, frontend)
+- `server/src/services/pipeline.ts` — calls `applyAutoRemediation` after Decision Layer inside `publishControlObjectGovernance` (and after auto-loop reruns), before evaluation dataset write and `control_object` emit
+- `src/app/pages/PipelineMonitor.tsx` — auto-remediation badge in governance summary (Sprint 5)
 - `docs/adrs/ADR-PHASE-PROFILES.md` — auto_remediation_scope per domain
 - `docs/adrs/ADR-AUTO-LOOP-RULE-ENGINE.md` — Phase 5 (instruction-patch auto-loop, predecessor)

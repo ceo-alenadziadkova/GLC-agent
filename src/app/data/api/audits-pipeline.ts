@@ -13,10 +13,12 @@ import {
 } from '../api-payload-asserts';
 
 export const auditsPipelineApi = {
-  async startPipeline(id: string) {
+  async startPipeline(id: string, opts?: { disable_auto_remediate?: boolean }) {
+    const body =
+      opts?.disable_auto_remediate === true ? JSON.stringify({ disable_auto_remediate: true }) : undefined;
     const payload = await apiFetch<{ status: string; phase: number; intakeProgress: { progressPct: number; readinessBadge: string; nextBestAction: string } }>(
       apiAuditsPipelineStart(id),
-      { method: 'POST' },
+      { method: 'POST', ...(body ? { body } : {}) },
     );
     assertPipelineStartShape(payload);
     return payload;
@@ -30,8 +32,13 @@ export const auditsPipelineApi = {
     });
   },
 
-  async runNextPhase(id: string) {
-    const payload = await apiFetch<{ status: string; phase: number }>(apiAuditsPipelineNext(id), { method: 'POST' });
+  async runNextPhase(id: string, opts?: { disable_auto_remediate?: boolean }) {
+    const body =
+      opts?.disable_auto_remediate === true ? JSON.stringify({ disable_auto_remediate: true }) : undefined;
+    const payload = await apiFetch<{ status: string; phase: number }>(apiAuditsPipelineNext(id), {
+      method: 'POST',
+      ...(body ? { body } : {}),
+    });
     assertPipelineMutationShape(payload, 'pipeline next');
     return payload;
   },

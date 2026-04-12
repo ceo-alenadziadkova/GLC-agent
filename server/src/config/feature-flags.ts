@@ -37,3 +37,13 @@ export function getAutoLoopAllowedModes(): string[] {
 export function isSecurityTxtConnectorEnabled(): boolean {
   return process.env.CONNECTOR_SECURITY_TXT_ENABLED !== 'false';
 }
+
+/** Cross-phase causal DAG (audit_claim_graph, trace.causal_chain). Env: FEATURE_CAUSAL_DAG=true */
+export function isCausalDagEnabled(): boolean {
+  return process.env.FEATURE_CAUSAL_DAG === 'true';
+}
+
+/** Auto-remediation of fixable tone issues on cleaned domain output. Env: FEATURE_AUTO_REMEDIATION=true */
+export function isAutoRemediationEnabled(): boolean {
+  return process.env.FEATURE_AUTO_REMEDIATION === 'true';
+}

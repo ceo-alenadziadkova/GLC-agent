@@ -256,6 +256,54 @@ export interface Database {
         };
         Update: Partial<Database['public']['Tables']['agent_performance_aggregate']['Insert']>;
       };
+      audit_claim_graph: {
+        Row: {
+          id: string;
+          audit_id: string;
+          phase_id: string;
+          claim_id: number;
+          depends_on_refs: unknown;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          audit_id: string;
+          phase_id: string;
+          claim_id: number;
+          depends_on_refs?: unknown;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['audit_claim_graph']['Insert']>;
+      };
+      audit_remediations: {
+        Row: {
+          id: string;
+          audit_id: string;
+          phase_id: string;
+          error_type: string;
+          remediation_type: string;
+          original_excerpt: string;
+          applied_fix: string;
+          preconditions_snapshot: unknown;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          audit_id: string;
+          phase_id: string;
+          error_type: string;
+          remediation_type: string;
+          original_excerpt: string;
+          applied_fix: string;
+          preconditions_snapshot?: unknown;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['audit_remediations']['Insert']>;
+      };
     };
   };
 }

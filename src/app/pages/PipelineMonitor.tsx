@@ -584,6 +584,26 @@ export function PipelineMonitor() {
                 {ph.status === 'completed' && govCo && (
                   <div className="glc-card p-4" style={{ borderRadius: 'var(--radius-xl)' }}>
                     <SectionLabel className="mb-2">{PM.detail.governanceSummaryTitle}</SectionLabel>
+                    {(govCo.auto_remediation_applied_count ?? 0) > 0 && (
+                      <div
+                        className="text-xs font-semibold px-2.5 py-1.5 rounded-lg mb-3 inline-block"
+                        style={{
+                          backgroundColor: 'rgba(14,207,130,0.12)',
+                          color: 'var(--glc-green-dark)',
+                          border: '1px solid rgba(14,207,130,0.28)',
+                          fontFamily: 'var(--font-display)',
+                        }}
+                        title={PM.detail.governanceAutoRemediationBadge.replace(
+                          '{count}',
+                          String(govCo.auto_remediation_applied_count),
+                        )}
+                      >
+                        {PM.detail.governanceAutoRemediationBadge.replace(
+                          '{count}',
+                          String(govCo.auto_remediation_applied_count),
+                        )}
+                      </div>
+                    )}
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
                       <dt>{PM.detail.governanceConfidence}</dt>
                       <dd className="font-mono text-right">{govCo.confidence.overall}</dd>

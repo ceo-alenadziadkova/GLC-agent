@@ -3,10 +3,16 @@ import { factCheckerCopy, interpolateFactCheckerMessage } from '../config/fact-c
 import type { DomainResult, DomainKey, ConfidenceLevel } from '../types/audit.js';
 import {
   createControlObjectV1,
+  CONTROL_OBJECT_VERSIONS_CAUSAL_DAG,
   type ControlObjectV1,
   type PhaseId,
   type ExecutionMode,
+  type ControlObjectCausalChainEntry,
+  type ControlObjectCausalClaimRef,
 } from '../schemas/control-object.js';
+import { isCausalDagEnabled } from '../config/feature-flags.js';
+import { isStrictlyBeforePhase, isKnownPhaseId } from '../config/phase-order.js';
+import { logger } from './logger.js';
 import {
   mapDataSourceToTruthSource,
   getHighestPrioritySource,
@@ -54,6 +60,18 @@ type DomainCollectorCheck = (
   collected: Record<string, Record<string, unknown>>,
   corrections: FactCorrection[],
 ) => void;
+
+function dedupeCausalRefs(refs: ControlObjectCausalClaimRef[]): ControlObjectCausalClaimRef[] {
+  const seen = new Set<string>();
+  const out: ControlObjectCausalClaimRef[] = [];
+  for (const r of refs) {
+    const k = `${r.phase_id}:${r.claim_id}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(r);
+  }
+  return out;
+}
 
 /**
  * Validates Claude's analysis against raw collected data.
@@ -413,7 +431,14 @@ export class FactChecker {
      *   - If all applicable connectors timed out / errored AND the phase has high-risk claims,
      *     adds 'external_source_unavailable' to human_attention_required.reasons.
      */
-    connectorEnrichments: ConnectorRunResult[] = []
+    connectorEnrichments: ConnectorRunResult[] = [],
+    /**
+     * v2.3+: Latest CONTROL_OBJECT per upstream phase (Phase 8 causal DAG).
+     * Used to validate premise_refs against prior trace.claim_sources.
+     */
+    priorControlObjects: Partial<Record<PhaseId, ControlObjectV1>> = {},
+    /** Claim indices (1-based) pre-flagged as invalidated in audit_claim_graph for this phase. */
+    invalidatedIssueClaimIds: ReadonlySet<number> = new Set(),
   ): ControlObjectV1 {
     const { result, corrections, confidence: factualRaw } = factCheckResult;
 
@@ -497,6 +522,18 @@ export class FactChecker {
       );
       if (matchesCorrection && !co.errors.structural.includes(errorType)) {
         co.errors.structural.push(errorType);
+      }
+    }
+
+    // v2.3: upstream invalidated claims (audit_claim_graph)
+    for (let invIdx = 0; invIdx < issues.length; invIdx++) {
+      if (!invalidatedIssueClaimIds.has(invIdx + 1)) continue;
+      if (!co.errors.structural.includes('upstream_claim_invalidated')) {
+        co.errors.structural.push('upstream_claim_invalidated');
+      }
+      co.human_attention_required.required = true;
+      if (!co.human_attention_required.reasons.includes('upstream_claim_invalidated')) {
+        co.human_attention_required.reasons.push('upstream_claim_invalidated');
       }
     }
 
@@ -595,6 +632,67 @@ export class FactChecker {
     co.counts.statuses.confirmed_external = co.trace.claim_sources.filter(
       cs => cs.truth_sources.includes('external_api') || cs.truth_sources.includes('document_feed'),
     ).length;
+
+    // ─── v2.3: Causal chain (FEATURE_CAUSAL_DAG) ─────────────────
+    if (isCausalDagEnabled()) {
+      const chain: ControlObjectCausalChainEntry[] = [];
+      const currentPhase = domainKey as PhaseId;
+
+      for (let issueIdx = 0; issueIdx < issues.length; issueIdx++) {
+        const issue = issues[issueIdx];
+        const rawRefs = issue.premise_refs ?? [];
+        const validRefs: ControlObjectCausalClaimRef[] = [];
+
+        for (const raw of rawRefs) {
+          if (!isKnownPhaseId(raw.phase_id)) {
+            logger.warn('fact_checker.causal_unknown_phase', {
+              component: 'fact_checker',
+              audit_id: auditId,
+              phase_id: domainKey,
+              premise_phase_id: raw.phase_id,
+            });
+            continue;
+          }
+          const premisePhase = raw.phase_id;
+          if (!isStrictlyBeforePhase(premisePhase, currentPhase)) {
+            logger.warn('fact_checker.causal_phase_order_violation', {
+              component: 'fact_checker',
+              audit_id: auditId,
+              phase_id: domainKey,
+              premise_phase_id: premisePhase,
+            });
+            continue;
+          }
+          const prior = priorControlObjects[premisePhase];
+          const sources = prior?.trace?.claim_sources ?? [];
+          const maxId = sources.length > 0 ? Math.max(...sources.map(c => c.claim_id)) : 0;
+          if (raw.claim_id < 1 || raw.claim_id > maxId) {
+            logger.warn('fact_checker.causal_claim_out_of_range', {
+              component: 'fact_checker',
+              audit_id: auditId,
+              phase_id: domainKey,
+              premise_phase_id: premisePhase,
+              claim_id: raw.claim_id,
+              max_claim_id: maxId,
+            });
+            continue;
+          }
+          validRefs.push({ phase_id: premisePhase, claim_id: raw.claim_id });
+        }
+
+        const deduped = dedupeCausalRefs(validRefs);
+        if (deduped.length > 0) {
+          chain.push({ claim_id: issueIdx + 1, depends_on: deduped });
+        }
+      }
+
+      co.trace.causal_chain = chain;
+      co.versions = {
+        ...co.versions,
+        system_version: CONTROL_OBJECT_VERSIONS_CAUSAL_DAG.system_version,
+        fact_checker_version: CONTROL_OBJECT_VERSIONS_CAUSAL_DAG.fact_checker_version,
+      };
+    }
 
     // ─── Feasibility (v1.7) ───────────────────────────────────
     const feasibilityResult = feasibilityLayer.assess(domainKey, result, brief);
@@ -709,6 +807,15 @@ export class FactChecker {
         // single-run snapshot is always marked unreliable until aggregate confirms
         score_reliable: false,
       };
+    }
+
+    // v2.3: seeds for downstream invalidation (exclude propagated upstream_claim_invalidated-only cases)
+    if (isCausalDagEnabled()) {
+      const structuralNative = co.errors.structural.filter(e => e !== 'upstream_claim_invalidated');
+      const hasOverride = corrections.some(c => c.action === 'override');
+      if (structuralNative.length > 0 && hasOverride && issues.length > 0) {
+        co.context.structural_invalidation_claim_ids = issues.map((_, i) => i + 1);
+      }
     }
 
     return co;

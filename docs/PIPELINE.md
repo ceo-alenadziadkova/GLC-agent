@@ -90,7 +90,7 @@ Canonical TypeScript: [`server/src/schemas/control-object.ts`](../server/src/sch
 | **counts** | Claim buckets (`fact`, `strategic_hypothesis`, `opinion`, `assumption`, `total_claims`) and `statuses` (`confirmed_brief`, `unverified`, `likely_hallucination`, `risky_promise`). |
 | **errors** | `fixable`, `structural`, `data_gaps` (string codes; enums extended over time in the schema file). |
 | **assumptions** | `id`, `statement`, `source`, `risk`, `related_claim_ids`. |
-| **trace** | `claim_sources[]` with `claim_id`, `agent` (phase number), `section`, `truth_source`. **`causal_chain` is not implemented** (deferred; see ADRs). |
+| **trace** | `claim_sources[]` with `claim_id`, `agent` (phase number), `section`, `truth_source`. **`causal_chain[]`** — cross-phase edges from optional `issues[].premise_refs` when `FEATURE_CAUSAL_DAG=true` (see `docs/adrs/ADR-CAUSAL-DAG.md`, table `audit_claim_graph`). |
 | **feasibility** | Embedded `score`, `risk_codes`, `notes` from FeasibilityLayer. |
 | **cost_control** | Nullable until auto-loop: estimated USD, rerun total, `rerun_count`, `cost_guardrail_triggered`. |
 | **agent_performance** | Nullable per-run rates and composite `agent_score`; rolling aggregates persist to **`agent_performance_aggregate`** (migration `052_agent_performance_aggregate.sql`). |

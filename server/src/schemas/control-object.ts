@@ -14,7 +14,7 @@
  *            external_api/document_feed truth tiers (registry: api before generic search),
  *            causal_chain pre-declaration, external_source_unavailable reason code,
  *            accept_with_warnings formalised (already in DecisionHint since v1.7)
- *   v2.3  — Phase 8 (planned): causal_chain required; upstream_claim_invalidated error type
+ *   v2.3  — Phase 8 (Sprint 4): causal_chain + audit_claim_graph when FEATURE_CAUSAL_DAG=true
  *   v2.4  — Phase 9 (planned): auto-remediation annotations
  *   v2.5  — Phase 10 (planned): context.benchmark_reference_id
  *
@@ -28,6 +28,20 @@ import type { DomainKey } from '../types/audit.js';
 export const CONTROL_OBJECT_VERSIONS = {
   system_version: 'v2.1',
   fact_checker_version: 'v2.1',
+  decision_layer_version: 'v2.1',
+} as const;
+
+/** Emitted when FEATURE_CAUSAL_DAG is active for a domain phase run (Phase 8). */
+export const CONTROL_OBJECT_VERSIONS_CAUSAL_DAG = {
+  system_version: 'v2.3',
+  fact_checker_version: 'v2.3',
+  decision_layer_version: 'v2.1',
+} as const;
+
+/** After Phase 9 auto-remediation applied at least one fix in this run. */
+export const CONTROL_OBJECT_VERSIONS_REMEDIATION = {
+  system_version: 'v2.4',
+  fact_checker_version: 'v2.4',
   decision_layer_version: 'v2.1',
 } as const;
 
@@ -85,6 +99,11 @@ export interface ControlObjectContext {
    * undefined = benchmarks not yet computed for this phase+industry combination.
    */
   benchmark_reference_id?: string;
+  /**
+   * v2.3+: Claim indices (1-based, issue order) in this phase that triggered structural governance.
+   * Used by the pipeline to seed causal downstream invalidation in audit_claim_graph.
+   */
+  structural_invalidation_claim_ids?: number[];
 }
 
 export interface ControlObjectConfidence {
@@ -206,16 +225,22 @@ export interface ControlObjectClaimSource {
 }
 
 /**
- * v2.3+: Single entry in a cross-phase causal dependency chain.
- * Pre-declared as optional in v2.1; becomes required in v2.3 (Phase 8 — ADR-CAUSAL-DAG.md).
+ * v2.3+: Reference to a claim produced in a specific pipeline phase (claim_id is 1-based within that phase's CONTROL_OBJECT).
+ */
+export interface ControlObjectCausalClaimRef {
+  phase_id: PhaseId;
+  claim_id: number;
+}
+
+/**
+ * v2.3+: Single entry in a cross-phase causal dependency chain (Phase 8 — ADR-CAUSAL-DAG.md).
+ * Each premise carries its phase_id so dependencies across multiple upstream phases are unambiguous.
  */
 export interface ControlObjectCausalChainEntry {
-  /** The claim whose dependencies are described */
+  /** The dependent claim in the current phase (1-based issue index). */
   claim_id: number;
-  /** IDs of claims (in prior phases) that this claim relies on as premises */
-  depends_on: number[];
-  /** phase_id where the depended-on claims were produced */
-  origin: string;
+  /** Premise claims from strictly earlier phases that this claim relies on. */
+  depends_on: ControlObjectCausalClaimRef[];
 }
 
 export interface ControlObjectTrace {
@@ -236,6 +261,14 @@ export interface ControlObjectEvaluationLink {
   evaluation_id: string;
   /** Schema version of the evaluation_dataset table at write time */
   dataset_version: string;
+}
+
+/** v2.4: Auto-remediation summary (Phase 9). */
+export interface ControlObjectAutoRemediation {
+  applied: Array<{
+    error_type: string;
+    remediation_type: 'tone' | 'content';
+  }>;
 }
 
 // ─── v1.8: Formalized error enums ─────────────────────────────────────────────
@@ -292,6 +325,8 @@ export type StructuralErrorCode =
   | 'automation_tool_capability_unverified'
   | 'automation_integration_complexity_underestimated'
   | 'automation_roi_timeline_unrealistic'
+  // Phase 8 causal DAG
+  | 'upstream_claim_invalidated'
   | string; // open for future codes
 
 /** Human-attention reason codes — machine-readable escalation triggers. */
@@ -417,6 +452,10 @@ export interface ControlObjectV1 {
    * null until EvaluationDatasetWriter records the row and sets the link.
    */
   evaluation_link: ControlObjectEvaluationLink | null;
+  /**
+   * v2.4: Populated when RemediationService applied one or more deterministic output fixes.
+   */
+  auto_remediation?: ControlObjectAutoRemediation | null;
   decision_hint: DecisionHint;
   human_attention_required: ControlObjectHumanAttention;
 }

@@ -7,7 +7,9 @@ import {
   getAutoLoopAllowedModes,
   isAutoLoopEnabled,
   isBanditsEnabled,
+  isCausalDagEnabled,
 } from '../config/feature-flags.js';
+import { applyAutoRemediation } from './remediation.js';
 import { supabase } from './supabase.js';
 import { assertBriefReady } from './brief-validator.js';
 import { consistencyChecker } from './consistency-checker.js';
@@ -40,7 +42,9 @@ import { recordEvaluationDatasetIfEnabled } from './evaluation-dataset-writer.js
 import { dynamicAdjustmentService } from './dynamic-adjustment.js';
 import { recordAgentPerformance } from './agent-performance.js';
 import { PIPELINE_EVENT_ERROR_CODES } from '../config/pipeline-event-error-codes.js';
-import type { ControlObjectV1 } from '../schemas/control-object.js';
+import type { ControlObjectV1, PhaseId } from '../schemas/control-object.js';
+import { fetchPriorControlObjectsForPhase } from './control-object-history.js';
+import { invalidateDownstreamDependents } from './audit-claim-graph.js';
 import { banditService, DEFAULT_VARIANT_ID } from './bandit.js';
 import { findVariant } from '../config/agent-variants.js';
 
@@ -81,9 +85,17 @@ const PARALLEL_FAILURE_THRESHOLD = SYSTEM_DEFAULTS.pipelineOrchestrator.parallel
  */
 export class PipelineOrchestrator {
   private auditId: string;
+  private readonly disableAutoRemediate: boolean;
 
-  constructor(auditId: string) {
+  constructor(auditId: string, options?: { disableAutoRemediate?: boolean }) {
     this.auditId = auditId;
+    this.disableAutoRemediate = options?.disableAutoRemediate ?? false;
+  }
+
+  /** Loads latest upstream CONTROL_OBJECT snapshots for causal DAG premise validation. */
+  private async attachPriorControlObjects(agent: BaseAgent, domainKey: DomainKey): Promise<void> {
+    if (!isCausalDagEnabled()) return;
+    agent.priorControlObjectsByPhase = await fetchPriorControlObjectsForPhase(this.auditId, domainKey);
   }
 
   /**
@@ -112,7 +124,52 @@ export class PipelineOrchestrator {
       });
     }
 
+    if (isCausalDagEnabled() && controlObject.errors.structural.length > 0) {
+      const pid = controlObject.context.phase_id;
+      if (pid !== 'recon' && pid !== 'strategy') {
+        const seeds = controlObject.context.structural_invalidation_claim_ids;
+        if (seeds && seeds.length > 0) {
+          const refs = seeds.map(claimId => ({ phase_id: pid as PhaseId, claim_id: claimId }));
+          const { marked } = await invalidateDownstreamDependents(this.auditId, refs);
+          if (marked.length > 0) {
+            await this.emitEvent(
+              phase,
+              'log',
+              `Causal DAG: marked ${marked.length} downstream claim(s) invalidated after upstream structural issues.`,
+              { invalidated_downstream: marked, source_phase_id: pid },
+            );
+          }
+        }
+      }
+    }
+
     if (evaluationCapture) {
+      const remediated = await applyAutoRemediation({
+        auditId: this.auditId,
+        controlObject,
+        cleanedOutput: evaluationCapture.cleanedOutput,
+        phaseNumber: phase,
+        disableAutoRemediate: this.disableAutoRemediate,
+      });
+      if (remediated > 0) {
+        try {
+          const postRem = decisionLayer.decide(controlObject);
+          controlObject.decision_hint = postRem.hint;
+        } catch (reDecideErr) {
+          logger.warn('pipeline.remediation_redecide_failed', {
+            component: 'pipeline',
+            audit_id: this.auditId,
+            phase,
+            error: reDecideErr instanceof Error ? reDecideErr.message : String(reDecideErr),
+          });
+        }
+        await this.emitEvent(
+          phase,
+          'log',
+          `Auto-remediation: corrected ${remediated} issue(s).`,
+          { auto_remediation_count: remediated },
+        );
+      }
       await recordEvaluationDatasetIfEnabled({
         auditId: this.auditId,
         phaseId: evaluationCapture.phaseId,
@@ -311,6 +368,7 @@ export class PipelineOrchestrator {
             if (variant) agent.variantDelta = variant;
           }
         }
+        await this.attachPriorControlObjects(agent, domainKey as DomainKey);
         // Inject instruction patches via agent property (BaseAgent reads this in buildInstructions)
         if ('autoLoopAdjustments' in agent) {
           (agent as BaseAgent & { autoLoopAdjustments?: Map<number, string> }).autoLoopAdjustments = adjustments;
@@ -332,6 +390,33 @@ export class PipelineOrchestrator {
         // Re-run Decision Layer on the new output
         const rerunDecision = decisionLayer.decide(rerunControlObject);
         rerunControlObject.decision_hint = rerunDecision.hint;
+
+        const remediated = await applyAutoRemediation({
+          auditId: this.auditId,
+          controlObject: rerunControlObject,
+          cleanedOutput: rerunResult,
+          phaseNumber: phase,
+          disableAutoRemediate: this.disableAutoRemediate,
+        });
+        if (remediated > 0) {
+          try {
+            const postRem = decisionLayer.decide(rerunControlObject);
+            rerunControlObject.decision_hint = postRem.hint;
+          } catch (reDecideErr) {
+            logger.warn('pipeline.remediation_redecide_failed', {
+              component: 'pipeline',
+              audit_id: this.auditId,
+              phase,
+              error: reDecideErr instanceof Error ? reDecideErr.message : String(reDecideErr),
+            });
+          }
+          await this.emitEvent(
+            phase,
+            'log',
+            `Auto-remediation: corrected ${remediated} issue(s).`,
+            { auto_remediation_count: remediated },
+          );
+        }
 
         // Record evaluation dataset for the rerun
         await recordEvaluationDatasetIfEnabled({
@@ -488,6 +573,7 @@ export class PipelineOrchestrator {
           const variant = findVariant(domainKey as DomainKey, banditResult.variant_id);
           if (variant) agent.variantDelta = variant;
         }
+        await this.attachPriorControlObjects(agent, domainKey as DomainKey);
       }
       const result = await agent.run();
 
@@ -588,6 +674,7 @@ export class PipelineOrchestrator {
           const variant = findVariant(domainKey as DomainKey, banditResult.variant_id);
           if (variant) agent.variantDelta = variant;
         }
+        await this.attachPriorControlObjects(agent, domainKey as DomainKey);
       }
       const result = await agent.run();
 

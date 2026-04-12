@@ -19,9 +19,13 @@
  * Version history:
  *   v1.8  — Phase 4: initial rule set (inert, no runtime consumer yet)
  *   v2.0  — Phase 5: DynamicAdjustmentService activates this config
+ *   v2.4  — Phase 9: optional auto_remediate + remediation_action for RemediationService
  */
 
 // ─── Rule Shape ───────────────────────────────────────────────────────────────
+
+/** How RemediationService mutates cleaned output when auto_remediate is true. */
+export type RemediationAction = 'soften_absolutes' | 'append_outcome_disclaimer';
 
 export interface RuleEngineEntry {
   /** Error code matching CONTROL_OBJECT.errors.fixable[], structural[], or data_gaps[] */
@@ -35,6 +39,14 @@ export interface RuleEngineEntry {
    * Default: 0. Use to ensure safety-critical instructions come before style fixes.
    */
   priority?: number;
+  /**
+   * Phase 9: when true and FEATURE_AUTO_REMEDIATION, RemediationService may patch cleaned output
+   * without a full agent rerun (tone/content gated by phase profile).
+   */
+  auto_remediate?: boolean;
+  remediation_type?: 'tone' | 'content';
+  /** Required when auto_remediate is true — deterministic transform applied to text fields */
+  remediation_action?: RemediationAction;
 }
 
 // ─── Rule Mapping ─────────────────────────────────────────────────────────────
@@ -117,6 +129,9 @@ export const RULE_ENGINE_MAPPING: RuleEngineEntry[] = [
       '"is expected to", "may improve", "evidence suggests". ' +
       'Frame forward-looking claims as hypotheses.',
     priority: 9,
+    auto_remediate: true,
+    remediation_type: 'tone',
+    remediation_action: 'append_outcome_disclaimer',
   },
   {
     error_type: 'forbidden_absolutes',
@@ -125,6 +140,9 @@ export const RULE_ENGINE_MAPPING: RuleEngineEntry[] = [
       'Remove absolute language: "guarantee", "certainly", "always", "never", "100%", "risk-free". ' +
       'Replace with hedged equivalents: "typically", "in most cases", "reduces risk of", "tends to".',
     priority: 9,
+    auto_remediate: true,
+    remediation_type: 'tone',
+    remediation_action: 'soften_absolutes',
   },
   {
     error_type: 'missing_hypothesis_labels',

@@ -8,7 +8,12 @@ import { FactChecker } from '../services/fact-checker.js';
 import { TokenTracker } from '../services/token-tracker.js';
 import { type BaseCollector } from '../collectors/base.js';
 import type { DomainResult, DomainKey } from '../types/audit.js';
-import type { ControlObjectV1, ExecutionMode } from '../schemas/control-object.js';
+import type { ControlObjectV1, ExecutionMode, PhaseId } from '../schemas/control-object.js';
+import { isCausalDagEnabled } from '../config/feature-flags.js';
+import {
+  fetchInvalidatedClaimIdsForPhase,
+  upsertClaimGraphRows,
+} from '../services/audit-claim-graph.js';
 import type { AgentVariant } from '../config/agent-variants.js';
 import { fetchAuditExecutionMode } from '../lib/audit-execution-mode.js';
 import { fetchAuditGovernanceRiskProfile } from '../lib/audit-governance-risk-profile.js';
@@ -167,6 +172,11 @@ export abstract class BaseAgent {
   selectedVariantId: string | null = null;
 
   /**
+   * Latest CONTROL_OBJECT per upstream phase (Phase 8 causal DAG). Set by PipelineOrchestrator before run().
+   */
+  priorControlObjectsByPhase: Partial<Record<PhaseId, ControlObjectV1>> = {};
+
+  /**
    * Claude tool output before `FactChecker.verify()` (for `evaluation_datasets.agent_output`).
    * Null for recon/strategy or if the domain branch was not executed.
    */
@@ -312,6 +322,14 @@ export abstract class BaseAgent {
           },
         );
 
+        let invalidatedIssueClaimIds = new Set<number>();
+        if (isCausalDagEnabled()) {
+          invalidatedIssueClaimIds = await fetchInvalidatedClaimIdsForPhase(
+            this.auditId,
+            this.domainKey as DomainKey,
+          );
+        }
+
         const controlObject = this.factChecker.buildControlObject(
           verification,
           this.domainKey,
@@ -324,8 +342,22 @@ export abstract class BaseAgent {
             selectedVariantId: this.selectedVariantId ?? undefined,
           },
           connectorEnrichments,
+          this.priorControlObjectsByPhase,
+          invalidatedIssueClaimIds,
         );
         this.lastControlObject = controlObject;
+
+        if (isCausalDagEnabled()) {
+          const issueCount = verification.result.issues?.length ?? 0;
+          if (issueCount > 0) {
+            await upsertClaimGraphRows(
+              this.auditId,
+              this.domainKey,
+              controlObject.trace.causal_chain,
+              issueCount,
+            );
+          }
+        }
         // control_object pipeline_events row is emitted by PipelineOrchestrator after DecisionLayer sets decision_hint.
       } catch (controlErr) {
         // Non-fatal: control object build failure must never break phase execution
