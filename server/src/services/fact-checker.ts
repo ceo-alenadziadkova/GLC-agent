@@ -19,6 +19,7 @@ import {
   getConfidenceWeights,
   computeWeightedConfidence,
 } from '../config/phase-confidence-weights.js';
+import { applyExecutionMode } from '../config/safety-mode.js';
 
 const T = FACT_CHECKER_THRESHOLDS;
 
@@ -578,6 +579,11 @@ export class FactChecker {
         co.human_attention_required.reasons.push('critically_low_feasibility');
       }
     }
+
+    // ─── v1.8: Safety Mode Guardrails ────────────────────────
+    // Mutates co.human_attention_required and co.errors.fixable if execution_mode='safe'.
+    // No-op for 'normal' mode. Always runs last so all base counts/errors are populated.
+    applyExecutionMode(co);
 
     return co;
   }
