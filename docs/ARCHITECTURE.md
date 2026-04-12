@@ -295,6 +295,21 @@ Details: [PIPELINE.md](./PIPELINE.md). API: [API.md](./API.md).
 
 ---
 
+## Decision Layer and CONTROL_OBJECT (Phase 1)
+
+**FactChecker** (`server/src/services/fact-checker.ts`) corrects domain output and builds **CONTROL_OBJECT v1** (structured counts, confidence, errors, trace, assumptions). It does not own phase routing.
+
+**DecisionLayer** (`server/src/services/decision-layer.ts`) reads the CONTROL_OBJECT and returns `accept`, `accept_with_warnings`, or `refine` using configurable thresholds (`DECISION_LAYER_THRESHOLDS`). The orchestrator sets the canonical `decision_hint` on the object and persists:
+
+- `pipeline_events.event_type = 'control_object'` — full snapshot under `data.control_object`.
+- `pipeline_events.event_type = 'refine_recommended'` — when `refine` (advisory; pipeline does not block or auto-rerun in Phase 1).
+
+**ConsistencyChecker** (`server/src/services/consistency-checker.ts`) remains a separate post-wing mechanism; it emits `quality_gate` and must not be confused with CONTROL_OBJECT.
+
+ADR: [ADR-CONTROL-OBJECT-V1](./adrs/ADR-CONTROL-OBJECT-V1.md), [ADR-DECISION-LAYER-GATES](./adrs/ADR-DECISION-LAYER-GATES.md).
+
+---
+
 ## ADR — TypeScript-first (v1)
 
 

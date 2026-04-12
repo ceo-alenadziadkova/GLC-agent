@@ -16,12 +16,22 @@ interface ReviewPoint {
   after: number; // phase index this review comes after
 }
 
+export interface GovernanceRefinePhaseSummary {
+  phase: number;
+  phaseLabel: string;
+  reasoning: string;
+}
+
 interface ReviewPointModalProps {
   reviewPoint: ReviewPoint | null;
   open: boolean;
   onClose: () => void;
   onApprove: (id: number, consultantNotes: string, interviewNotes: string) => void;
   qualityGate?: QualityGateReport | null;
+  /** Decision Layer `refine_recommended` events for domain phases in this review block */
+  governanceRefines?: GovernanceRefinePhaseSummary[];
+  governanceRefineSectionTitle?: string;
+  governanceRefineSectionIntro?: string;
 }
 
 // Phase data mirrored here for the "completed in this block" list
@@ -36,7 +46,16 @@ const ALL_PHASES = [
   { id: 7, name: 'Strategy & Roadmap', icon: MapTrifold      },
 ];
 
-export function ReviewPointModal({ reviewPoint, open, onClose, onApprove, qualityGate }: ReviewPointModalProps) {
+export function ReviewPointModal({
+  reviewPoint,
+  open,
+  onClose,
+  onApprove,
+  qualityGate,
+  governanceRefines = [],
+  governanceRefineSectionTitle = 'Phases flagged for manual review',
+  governanceRefineSectionIntro = '',
+}: ReviewPointModalProps) {
   const [consultantNotes, setConsultantNotes] = useState('');
   const [interviewNotes,  setInterviewNotes]  = useState('');
 
@@ -146,6 +165,45 @@ export function ReviewPointModal({ reviewPoint, open, onClose, onApprove, qualit
               })}
             </div>
           </div>
+
+          {/* Decision Layer refine (per-phase, advisory) */}
+          {governanceRefines.length > 0 && (
+            <div
+              className="rounded-lg overflow-hidden"
+              style={{ border: '1px solid rgba(234,179,8,0.45)', backgroundColor: 'rgba(234,179,8,0.07)' }}
+            >
+              <div
+                className="flex items-center gap-2 px-4 py-2.5"
+                style={{ borderBottom: '1px solid rgba(234,179,8,0.35)', backgroundColor: 'rgba(234,179,8,0.12)' }}
+              >
+                <WarningCircle size={15} weight="fill" style={{ color: '#CA8A04', flexShrink: 0 }} />
+                <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+                  {governanceRefineSectionTitle}
+                </span>
+              </div>
+              {governanceRefineSectionIntro ? (
+                <p className="px-4 py-2 text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  {governanceRefineSectionIntro}
+                </p>
+              ) : null}
+              <div>
+                {governanceRefines.map((row, i) => (
+                  <div
+                    key={`${row.phase}-${i}`}
+                    className="px-4 py-2.5"
+                    style={{ borderTop: i > 0 || governanceRefineSectionIntro ? '1px solid rgba(234,179,8,0.25)' : 'none' }}
+                  >
+                    <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                      Phase {row.phase}: {row.phaseLabel}
+                    </p>
+                    <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                      {row.reasoning}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Quality Gate warnings */}
           {warnings.length > 0 && (

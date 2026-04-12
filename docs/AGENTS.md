@@ -4,40 +4,17 @@
 
 Abstract class in `server/src/agents/base.ts`. All 8 domain agents + ReconAgent + StrategyAgent inherit from it.
 
-```typescript
-abstract class BaseAgent {
-  abstract get phaseNumber(): number;
-  abstract get domainKey(): string;
-  abstract getCollectors(): BaseCollector[];
-  abstract buildInstructions(ctx: AgentContext): string;
-  abstract get outputSchema(): ZodSchema;
+High-level flow (domain agents, after collect):
 
-  async run(): Promise<DomainResult> {
-    // Step 1: Collect (no AI)
-    await this.emitEvent('collecting');
-    const collectedData: Record<string, unknown> = {};
-    for (const collector of this.getCollectors()) {
-      collectedData[collector.name] = await collector.collect(this.auditId);
-    }
+1. **Assemble context** → `ContextBuilder.build(auditId, domainKey, collectedData)` (typed collector map).
+2. **Claude** → `callClaudeWithRetry` (single tool-use call, Zod-validated).
+3. **Fact-check** → `FactChecker.verify(result, domainKey, collectedData)` returns corrected `DomainResult`, corrections, and scalar confidence.
+4. **CONTROL_OBJECT v1** (domain phases only) → `FactChecker.buildControlObject(...)` stores advisory structured governance on `lastControlObject` (no `decision_hint` from FactChecker; the orchestrator’s **Decision Layer** sets the final hint before `control_object` is written to `pipeline_events`).
+5. **Return** corrected result; **persist** domain row happens in `PipelineOrchestrator` via `saveDomainResult` after governance events.
 
-    // Step 2: Assemble context
-    await this.emitEvent('assembling_context');
-    const context = await this.contextBuilder.build(this.auditId, this.domainKey, collectedData);
+Recon and Strategy skip the FactChecker / CONTROL_OBJECT path (no collector-vs-output verification in the same shape).
 
-    // Step 3: One Claude call
-    await this.emitEvent('analyzing');
-    const response = await this.callClaude(context);
-
-    // Step 4: Fact-check
-    const verified = await this.factChecker.verify(response, collectedData);
-
-    // Step 5: Save + emit
-    await this.saveDomainResult(verified.result);
-    await this.tokenTracker.log(this.auditId, this.phaseNumber, response.usage);
-    return verified.result;
-  }
-}
-```
+See [PIPELINE.md](./PIPELINE.md) (Fact-Check, Decision Layer, event types) and [ADR-CONTROL-OBJECT-V1](./adrs/ADR-CONTROL-OBJECT-V1.md).
 
 ---
 
@@ -179,6 +156,8 @@ Validates Claude's scored output against raw metrics to prevent hallucinated sco
 - Score significantly out of range for metric density → log discrepancy
 
 All corrections logged to `pipeline_events` (type: `fact_check`). Frontend shows correction count in phase details.
+
+**CONTROL_OBJECT v1:** `buildControlObject()` derives counts, confidence dimensions, errors, assumptions, and trace from the verified result (issues, recommendations, corrections). **Routing** (`accept` / `accept_with_warnings` / `refine`) is owned by `DecisionLayer` in `server/src/services/decision-layer.ts`, not duplicated inside FactChecker.
 
 ---
 

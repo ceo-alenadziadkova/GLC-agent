@@ -1,17 +1,23 @@
 import { FACT_CHECKER_THRESHOLDS } from '../config/fact-checker-thresholds.js';
 import { factCheckerCopy, interpolateFactCheckerMessage } from '../config/fact-checker-copy.js';
 import type { DomainResult, DomainKey, ConfidenceLevel } from '../types/audit.js';
+import {
+  createControlObjectV1,
+  type ControlObjectV1,
+  type PhaseId,
+  type ExecutionMode,
+} from '../schemas/control-object.js';
 
 const T = FACT_CHECKER_THRESHOLDS;
 
-interface FactCheckResult {
+export interface FactCheckResult {
   result: DomainResult;
   corrections: FactCorrection[];
   /** 0–1 overall confidence in the score, derived from corrections + finding confidences. */
   confidence: number;
 }
 
-interface FactCorrection {
+export interface FactCorrection {
   field: string;
   issue: string;
   raw_evidence: string;
@@ -342,5 +348,158 @@ export class FactChecker {
     if (score <= 3) return L.moderate;
     if (score <= 4) return L.good;
     return L.excellent;
+  }
+
+  /**
+   * Builds CONTROL_OBJECT v1 from a completed FactCheckResult.
+   *
+   * Call this AFTER verify() to produce the governance contract.
+   * Non-breaking: verify() signature and return value are unchanged.
+   *
+   * Claim extraction approach (v1 light):
+   *  - Each AuditIssue   → 1 FACT claim (high-risk if critical/high severity)
+   *  - Recommendations   → counted as STRATEGIC_HYPOTHESIS
+   *  - Strengths/weaknesses → counted as OPINION
+   *  - unknown_items     → data_gaps errors
+   *
+   * Status assignment:
+   *  - override correction → likely_hallucination
+   *  - flag correction     → unverified
+   *  - data_source='from_brief' issues → confirmed_brief
+   *  - risky language detected → risky_promise
+   */
+  buildControlObject(
+    factCheckResult: FactCheckResult,
+    domainKey: DomainKey,
+    auditId: string,
+    phaseNumber: number,
+    executionMode: ExecutionMode = 'normal'
+  ): ControlObjectV1 {
+    const { result, corrections, confidence: factualRaw } = factCheckResult;
+    const co = createControlObjectV1(auditId, domainKey as PhaseId, executionMode);
+
+    // ─── Counts ───────────────────────────────────────────────
+    const issues = result.issues ?? [];
+    const recommendations = result.recommendations ?? [];
+    const strengthsCount = (result.strengths ?? []).length;
+    const weaknessesCount = (result.weaknesses ?? []).length;
+
+    const factCount = issues.length;                                          // issues = verifiable claims
+    const hypothesisCount = recommendations.length;                           // recs are strategic bets
+    const opinionCount = strengthsCount + weaknessesCount;                    // s/w = qualitative views
+
+    co.counts.fact = factCount;
+    co.counts.strategic_hypothesis = hypothesisCount;
+    co.counts.opinion = opinionCount;
+    co.counts.total_claims = factCount + hypothesisCount + opinionCount;
+
+    // ─── Statuses ─────────────────────────────────────────────
+    // Overrides = hard conflicts with evidence → likely_hallucination
+    co.counts.statuses.likely_hallucination = corrections.filter(c => c.action === 'override').length;
+
+    // Flags = suspicious but not confirmed → unverified
+    co.counts.statuses.unverified = corrections.filter(c => c.action === 'flag').length;
+
+    // Brief-sourced issues = confirmed by client context
+    co.counts.statuses.confirmed_brief = issues.filter(i => i.data_source === 'from_brief').length;
+
+    // Risky promise detection: look for absolute/guarantee language in issue descriptions
+    const riskyPattern = /\b(guarantee|guaranteed|definitely|certainly|always|never|100%|will increase|will reduce)\b/i;
+    co.counts.statuses.risky_promise = recommendations.filter(r =>
+      riskyPattern.test(r.description) || riskyPattern.test(r.impact)
+    ).length;
+
+    // ─── Errors ───────────────────────────────────────────────
+    // data_gaps from unknown_items
+    for (const item of result.unknown_items ?? []) {
+      const key = item.length > 60 ? item.slice(0, 57) + '...' : item;
+      co.errors.data_gaps.push(key);
+    }
+
+    // structural: score-severity mismatches (derived from corrections)
+    if (corrections.some(c => c.field === 'score' && c.action === 'override')) {
+      co.errors.structural.push('score_evidence_mismatch');
+    }
+
+    // fixable: flag-type corrections that are tone/wording issues
+    if (corrections.some(c => c.action === 'flag')) {
+      co.errors.fixable.push('score_consistency_flag');
+    }
+
+    // fixable: risky promise language
+    if (co.counts.statuses.risky_promise > 0) {
+      co.errors.fixable.push('risky_promise_language');
+    }
+
+    // ─── Assumptions (v1: light) ──────────────────────────────
+    // Map low-confidence inferred findings → explicit assumptions
+    let assumptionIdx = 1;
+    for (const issue of issues) {
+      if (issue.confidence === 'low' && issue.data_source === 'inferred') {
+        co.assumptions.push({
+          id: `A${assumptionIdx++}`,
+          statement: `Finding inferred without direct evidence: "${issue.title}"`,
+          source: 'inferred_from_pattern',
+        });
+      }
+    }
+    co.counts.assumption = co.assumptions.length;
+
+    // ─── Trace ────────────────────────────────────────────────
+    // Map each issue to a claim source (phase = agent number for v1)
+    for (let i = 0; i < issues.length; i++) {
+      const issue = issues[i];
+      const truthSource = issue.data_source === 'auto_detected' ? 'internal_metrics'
+        : issue.data_source === 'from_brief' ? 'user_brief'
+        : 'external_search'; // 'inferred' → nearest match
+
+      co.trace.claim_sources.push({
+        claim_id: i + 1,
+        agent: phaseNumber,
+        section: `Phase ${phaseNumber} — ${domainKey}`,
+        truth_source: truthSource,
+      });
+    }
+
+    // ─── Confidence ───────────────────────────────────────────
+    // factual: from existing FactChecker.calculateConfidence() (converted 0–1 → 0–100)
+    const factual = Math.round(factualRaw * 100);
+
+    // strategic: degrade if many unverified recs or risky promises
+    const riskyRatio = factCount > 0 ? co.counts.statuses.risky_promise / Math.max(hypothesisCount, 1) : 0;
+    const unverifiedRatio = factCount > 0 ? co.counts.statuses.unverified / factCount : 0;
+    const strategic = Math.max(0, Math.round(100 - (riskyRatio * 30) - (unverifiedRatio * 20)));
+
+    // consistency: degrade if structural errors present
+    const structuralPenalty = co.errors.structural.length * 15;
+    const hallucinationPenalty = co.counts.statuses.likely_hallucination * 20;
+    const consistency = Math.max(0, 100 - structuralPenalty - hallucinationPenalty);
+
+    // overall: simple average (Phase 3 will use weighted per-phase formula)
+    const overall = Math.round((factual + strategic + consistency) / 3);
+
+    co.confidence = { overall, factual, strategic, consistency };
+
+    // decision_hint is set only by DecisionLayer in PipelineOrchestrator (single source of truth).
+
+    // ─── Human Attention ──────────────────────────────────────
+    const dataGapCount = co.errors.data_gaps.length;
+    const highRiskAssumptions = co.assumptions.length; // all inferred low-conf findings
+
+    if (co.counts.statuses.likely_hallucination >= 3 || dataGapCount >= 5 || highRiskAssumptions >= 3) {
+      co.human_attention_required.required = true;
+
+      if (co.counts.statuses.likely_hallucination >= 3) {
+        co.human_attention_required.reasons.push('high_hallucination_count');
+      }
+      if (dataGapCount >= 5) {
+        co.human_attention_required.reasons.push('critical_data_gaps');
+      }
+      if (highRiskAssumptions >= 3) {
+        co.human_attention_required.reasons.push('high_risk_assumptions');
+      }
+    }
+
+    return co;
   }
 }
