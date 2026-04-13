@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { executionPlanToPhases } from '../types/audit.js';
-import { defaultExecutionPlanForMode, normalizeExecutionPlan } from '../services/execution-plan.js';
+import { defaultExecutionPlanForPackage, normalizeExecutionPlan } from '../services/execution-plan.js';
 
 describe('execution-plan', () => {
-  it('builds full coverage plan from default mode mapping', () => {
-    const plan = defaultExecutionPlanForMode('full');
+  it('builds complete coverage plan by package', () => {
+    const plan = defaultExecutionPlanForPackage('complete');
     expect(plan.selected_domains).toHaveLength(6);
     expect(plan.include_strategy).toBe(true);
     expect(executionPlanToPhases(plan)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);

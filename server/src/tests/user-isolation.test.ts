@@ -228,7 +228,8 @@ describe('GET /api/audits/:id — user isolation', () => {
     setRequestUserId(ATTACKER_ID);
     const res = await fetch(`${baseUrl}/api/audits/${AUDIT_ID}`);
     expect(res.status).toBe(404);
-    const body = await res.json() as { error: string };
+    const body = await res.json() as { error: string; code: string };
+    expect(body.code).toBe('AUDITS_NOT_FOUND');
     expect(body.error).toMatch(/not found/i);
   });
 });
@@ -262,7 +263,8 @@ describe('POST /api/audits/:id/pipeline/start — user isolation', () => {
     setRequestUserId(ATTACKER_ID);
     const res = await fetch(`${baseUrl}/api/audits/${AUDIT_ID}/pipeline/start`, { method: 'POST' });
     expect(res.status).toBe(404);
-    const body = await res.json() as { error: string };
+    const body = await res.json() as { error: string; code: string };
+    expect(body.code).toBe('PIPELINE_AUDIT_NOT_FOUND');
     expect(body.error).toMatch(/not found/i);
   });
 });
@@ -274,6 +276,8 @@ describe('POST /api/audits/:id/pipeline/next — user isolation', () => {
     setRequestUserId(ATTACKER_ID);
     const res = await fetch(`${baseUrl}/api/audits/${AUDIT_ID}/pipeline/next`, { method: 'POST' });
     expect(res.status).toBe(404);
+    const body = await res.json() as { code: string };
+    expect(body.code).toBe('PIPELINE_AUDIT_NOT_FOUND');
   });
 });
 
@@ -288,5 +292,7 @@ describe('POST /api/audits/:id/reviews/:phase — user isolation', () => {
       body: JSON.stringify({ consultant_notes: 'hacked' }),
     });
     expect(res.status).toBe(404);
+    const body = await res.json() as { code: string };
+    expect(body.code).toBe('PIPELINE_AUDIT_NOT_FOUND');
   });
 });

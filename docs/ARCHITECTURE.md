@@ -244,6 +244,9 @@ Use these **logical prefixes** in docs and in future i18n catalogs (no requireme
 #### PR checklist (layers and env)
 
 - New **server env** vars are **infrastructure or documented ops override** only; product defaults for numbers live in `**server/src/config/`** (e.g. `**SYSTEM_DEFAULTS**`) first — env overrides, not invents, behavior (see [Strict layer boundaries](#strict-layer-boundaries-operational-policy)).
+- Before adding new modules/constants, confirm an equivalent does not already exist in config/shared packages; extend existing modules instead of creating parallel abstractions.
+- New feature toggles are read only via `server/src/config/feature-flags.ts`; do not add direct `process.env.FEATURE_*` checks in services/routes/components.
+- User-facing copy in pages/services is centralized in copy/config layers unless the string is strictly local and non-reusable.
 
 ### Decision checklist (where does this new knob go?)
 

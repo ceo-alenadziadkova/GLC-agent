@@ -25,7 +25,14 @@ import {
 import { ensureHttpsUrl } from '@glc/intake-core';
 import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
-import type { CrawledPage, FreeSnapshotPreview, SnapshotScanCoverageApi } from '../types/audit.js';
+import {
+  FREE_SNAPSHOT_PRODUCT_MODE,
+  STARTER_AUDIT_COVERAGE_PACKAGE,
+  type CrawledPage,
+  type FreeSnapshotPreview,
+  type SnapshotScanCoverageApi,
+} from '../types/audit.js';
+import { defaultExecutionPlanForPackage } from '../services/execution-plan.js';
 import { maybeBuildCompetitorMini } from '../lib/snapshot-competitor.js';
 import { logger } from '../services/logger.js';
 import { emitStructuredNotification } from '../services/notifications.js';
@@ -482,7 +489,8 @@ snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
       .from('audits')
       .insert({
         company_url: url,
-        product_mode: 'free_snapshot',
+        product_mode: FREE_SNAPSHOT_PRODUCT_MODE,
+        execution_plan: defaultExecutionPlanForPackage(STARTER_AUDIT_COVERAGE_PACKAGE),
         snapshot_token: snapshotToken,
         token_budget: getFreeSnapshotTokenBudget(),
         user_id: ownerUserId,

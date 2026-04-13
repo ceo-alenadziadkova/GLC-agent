@@ -18,7 +18,7 @@ const FAQ_ITEMS: { q: string; a: ReactNode }[] = [
   },
   {
     q: 'How is Snapshot different from Starter/Pro/Complete?',
-    a: 'Snapshot is a fast automated read on available site signals. Starter/Pro/Complete are paid audit packages where you control domain coverage.',
+    a: 'Snapshot is a quick first check of how automated systems and AI can read your public site: what they can access, what they understand, and where visibility is weak. If basic checks do not see enough, deeper crawl checks can be used. Starter/Pro/Complete are paid audit packages with broader scoped analysis and clearer cross-domain depth.',
   },
   {
     q: 'How do Starter, Pro, and Complete differ?',
@@ -42,7 +42,7 @@ const FAQ_ITEMS: { q: string; a: ReactNode }[] = [
   },
   {
     q: 'What do I get at the end of an audit?',
-    a: 'Structured findings, explicit scope notes, priority roadmap (impact/effort), and implementation recommendations—in a handoff-ready format for your team.',
+    a: 'Structured findings, explicit scope notes, and prioritized actions. Complete package also includes full six-domain synthesis with the strongest cross-domain comparability.',
   },
   {
     q: 'How do I know which package is enough for my case?',

@@ -21,6 +21,8 @@ import {
   DISCOVERY_QUEUE_MATURITY_COLOR_FALLBACK,
   DISCOVERY_QUEUE_MATURITY_COLORS,
 } from '../config/discovery-queue-copy.en';
+import { DISCOVERY_QUEUE_PAGE_CONFIG } from '../config/discovery-queue-page-config';
+import { buildAbsoluteUrlFromOrigin } from '../lib/public-app-url';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -209,8 +211,8 @@ function SessionCard({
             )}
             {session.biz_description && (
               <p style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                {session.biz_description.length > 120
-                  ? `${session.biz_description.slice(0, 117)}…`
+                {session.biz_description.length > DISCOVERY_QUEUE_PAGE_CONFIG.bizDescriptionPreviewMaxChars
+                  ? `${session.biz_description.slice(0, DISCOVERY_QUEUE_PAGE_CONFIG.bizDescriptionPreviewSliceChars)}…`
                   : session.biz_description}
               </p>
             )}
@@ -221,7 +223,7 @@ function SessionCard({
       {/* Top findings */}
       {session.findings.length > 0 && (
         <div className="space-y-1.5">
-          {session.findings.slice(0, 3).map(f => {
+          {session.findings.slice(0, DISCOVERY_QUEUE_PAGE_CONFIG.findingsPreviewCount).map(f => {
             const isHigh = f.impact === 'high';
             return (
               <div key={f.id} className="flex items-start gap-2">
@@ -240,9 +242,11 @@ function SessionCard({
               </div>
             );
           })}
-          {session.findings.length > 3 && (
+          {session.findings.length > DISCOVERY_QUEUE_PAGE_CONFIG.findingsPreviewCount && (
             <p style={{ fontSize: 11, color: 'var(--text-quaternary)', paddingLeft: 16 }}>
-              {DISCOVERY_QUEUE_COPY.moreFindings(session.findings.length - 3)}
+              {DISCOVERY_QUEUE_COPY.moreFindings(
+                session.findings.length - DISCOVERY_QUEUE_PAGE_CONFIG.findingsPreviewCount,
+              )}
             </p>
           )}
         </div>
@@ -265,7 +269,7 @@ export function DiscoveryQueue() {
       const { sessions: data } = await api.listDiscoverySessions();
       return data as DiscoverySession[];
     },
-    staleTime: 300_000,
+    staleTime: DISCOVERY_QUEUE_PAGE_CONFIG.staleTimeMs,
   });
 
   const sessions = q.data ?? [];
@@ -321,7 +325,7 @@ export function DiscoveryQueue() {
           <button
             type="button"
             onClick={() => {
-              const url = `${window.location.origin}/discovery`;
+              const url = buildAbsoluteUrlFromOrigin(DISCOVERY_QUEUE_PAGE_CONFIG.publicDiscoveryPath);
               void navigator.clipboard.writeText(url).then(() => {
                 setLinkCopied(true);
                 setTimeout(() => setLinkCopied(false), UI_FEEDBACK_FLASH_MS);

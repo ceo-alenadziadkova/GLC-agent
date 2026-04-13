@@ -69,7 +69,13 @@ export const auditsPipelineApi = {
       current_phase: number;
       tokens_used: number;
       token_budget: number;
-      product_mode: string;
+      execution_plan?: {
+        selected_domains: string[];
+        depth: string;
+        source: string;
+        coverage_package?: 'starter' | 'pro' | 'complete';
+        include_strategy?: boolean;
+      } | null;
       events: Array<{
         id: number;
         audit_id: string;

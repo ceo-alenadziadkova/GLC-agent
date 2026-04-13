@@ -1,3 +1,5 @@
+import { SYSTEM_DEFAULTS } from './system-defaults.js';
+
 /**
  * Server feature flags — single facade for product toggles.
  *
@@ -27,7 +29,10 @@ export function isAutoLoopEnabled(): boolean {
  * Env: AUTO_LOOP_ALLOWED_MODES (default sandbox,internal).
  */
 export function getAutoLoopAllowedModes(): string[] {
-  return (process.env.AUTO_LOOP_ALLOWED_MODES ?? 'sandbox,internal')
+  return (
+    process.env.AUTO_LOOP_ALLOWED_MODES
+    ?? SYSTEM_DEFAULTS.autoLoop.allowedModesDefault.join(',')
+  )
     .split(',')
     .map(s => s.trim())
     .filter(Boolean);

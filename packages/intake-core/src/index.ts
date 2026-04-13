@@ -126,6 +126,11 @@ export {
   RECOMMENDED_QUESTION_IDS,
   REQUIRED_QUESTION_IDS,
 } from './intake-brief-catalog-meta.js';
+export {
+  INTAKE_READINESS_THRESHOLDS,
+  readinessBadgeFromProgress,
+  type IntakeReadinessBadge,
+} from './readiness-badge.js';
 export { buildBriefQuestionStemFromBankId } from './bank-question-presentation.js';
 export type { BriefQuestionStem } from './bank-question-presentation.js';
 export {

@@ -26,18 +26,19 @@ Problem this solves:
 
 - Traditional audits are manual, slow, and hard to scale.
 - Output quality varies depending on available consultant time.
+- Small and mid-size businesses often choose tools impulsively ("need social growth", "need AI now") before diagnosing operational and process constraints.
 
 Core value:
 
 - Turn manual multi-day audits into structured, repeatable flows.
 - Keep findings evidence-based, not assumption-based.
-- Produce practical outputs: strengths, risks, improvement options, and actionable roadmaps.
+- Produce practical outputs: strengths, risks, improvement options, and actionable roadmaps aligned to the client's stage and intent.
 
 Value for clients:
 
 - Context-aware recommendations, not generic checklists.
 - Clear visibility into what already works well.
-- Practical quick wins that can be implemented immediately.
+- Practical priorities that fit current business reality (launch, stabilization, growth, or optimization), not one universal playbook.
 - Domain scorecard with understandable priority signals.
 
 Value for GLC:
@@ -60,6 +61,11 @@ The platform always follows this principle:
 
 Domain analysis is never the first step. Data readiness is.
 
+Stage-aware principle:
+
+- The product does not assume every client wants immediate growth.
+- The system first determines business stage and decision intent, then adapts recommendation priority and depth to that context.
+
 ---
 
 ## 3) Runtime sequencing and gates (canonical pointer)
@@ -69,12 +75,32 @@ This file is **not** the canonical runtime contract for phase order, gate points
 Use:
 
 - [PIPELINE.md](./PIPELINE.md) for sequencing, gates, retries, and orchestration behavior
-- [PRODUCT.md](./PRODUCT.md#product-modes) for product mode scope (`full`, `express`, `free_snapshot`)
+- [PRODUCT.md](./PRODUCT.md#coverage-packages-and-roadmap-toggle) for package scope and strategy toggle (`starter`, `pro`, `complete`, `include_strategy`)
 
 Concept-level rule that remains stable here:
 
 - The system must not claim full assessment when readiness is insufficient.
 - Unknowns must remain explicit and traceable to missing evidence.
+
+---
+
+## 4) Competitive context (concept-level)
+
+The concept competes across three decision alternatives:
+
+1. Agency and consulting audits (high-touch, often slower and coordination-heavy).
+2. DIY AI workflows (fast but context-fragmented without structured business memory).
+3. Internal fragmented tool stacks and single-operator synthesis (knowledge silos, low repeatability).
+
+Conceptual product stance:
+
+- GLC is a structured, context-persistent diagnostics and prioritization layer.
+- It combines system logic and expert review discipline to reduce both "generic advice risk" and "human bottleneck risk."
+
+For canonical product-level competitor framing and market direction, see:
+
+- [PRODUCT.md — Competitive landscape (product framing)](./PRODUCT.md#competitive-landscape-product-framing)
+- [PRODUCT.md — Market expansion direction (current strategy)](./PRODUCT.md#market-expansion-direction-current-strategy)
 
 ---
 

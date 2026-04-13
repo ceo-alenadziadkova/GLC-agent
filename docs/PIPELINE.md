@@ -28,9 +28,15 @@ Runtime sequencing is derived from `audits.execution_plan` (normalized by `serve
 
 Default plan profiles:
 
-- `full` -> `complete` package (all domains + strategy)
-- `express` -> `pro` package (auto wing domains, no strategy by default)
-- `free_snapshot` -> deterministic scanner path (no LLM phase loop)
+- `coverage_package=starter` -> light baseline, limited selected domains, strategy disabled.
+- `coverage_package=pro` -> standard-depth selected coverage, strategy optional via `include_strategy`.
+- `coverage_package=complete` -> full domain coverage, strategy enabled by default.
+- `free_snapshot` -> deterministic scanner path (no LLM phase loop).
+
+Compatibility mapping (runtime internals):
+
+- Legacy `product_mode=full` defaults to `coverage_package=complete`.
+- Legacy `product_mode=express` defaults to `coverage_package=pro`.
 
 ---
 

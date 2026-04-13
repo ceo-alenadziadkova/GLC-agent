@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BriefResponses } from '../data/briefQuestions';
-import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from '../data/auditTypes';
+import {
+  INTAKE_BRIEF_SLA_PRODUCT_MODE,
+  type IntakeBriefCollectionMode,
+  type IntakeVersionTuple,
+  type ProductMode,
+} from '../data/auditTypes';
 import { briefResponsesToIntakeMap } from '../data/intakeBriefMap';
 import {
   briefTrackQuestionAnswered,
@@ -36,7 +41,7 @@ export function useIntakeBankMetrics(
   briefResponses: BriefResponses,
   collectionMode?: IntakeBriefCollectionMode,
   surface?: IntakeSurface,
-  productMode: ProductMode = 'full',
+  productMode: ProductMode = INTAKE_BRIEF_SLA_PRODUCT_MODE,
 ) {
   return useMemo(() => {
     const merged = { ...briefResponsesToIntakeMap(briefResponses) };
@@ -71,7 +76,7 @@ export interface UseIntakeWizardOptions {
   /** Initial map when uncontrolled (only read on first mount). */
   initialMap?: Record<string, unknown>;
   collectionMode?: IntakeBriefCollectionMode;
-  /** Audit product mode (express narrows SLA vs full). */
+  /** Intake SLA axis (`INTAKE_BRIEF_SLA_PRODUCT_MODE` for paid audits). */
   productMode?: ProductMode;
   /** Layout surface (consultant interview vs client form / portal). Omit when unknown. */
   surface?: IntakeSurface;
@@ -92,8 +97,15 @@ export interface UseIntakeWizardOptions {
  * Controlled mode keeps `responses` in the parent (e.g. New Audit brief).
  */
 export function useIntakeWizard(options: UseIntakeWizardOptions) {
-  const { initialMap = {}, collectionMode, productMode = 'full', surface, value, onChange, intakeAnalytics } =
-    options;
+  const {
+    initialMap = {},
+    collectionMode,
+    productMode = INTAKE_BRIEF_SLA_PRODUCT_MODE,
+    surface,
+    value,
+    onChange,
+    intakeAnalytics,
+  } = options;
   const controlled = value !== undefined && onChange !== undefined;
   const analyticsOptRef = useRef(intakeAnalytics);
   analyticsOptRef.current = intakeAnalytics;

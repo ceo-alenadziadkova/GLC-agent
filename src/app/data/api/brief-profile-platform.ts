@@ -1,7 +1,7 @@
 import { API_PATHS } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
 import { assertIntakePayloadShape } from '../api-payload-asserts';
-import type { IntakeBrief, IntakeBriefCollectionMode, IntakeVersionTuple } from '../auditTypes';
+import type { AuditCoveragePackage, IntakeBrief, IntakeBriefCollectionMode, IntakeVersionTuple } from '../auditTypes';
 import type { BriefQuestion } from '../briefQuestions';
 
 /** `GET /api/audits/:id/brief/schema` — compact IntakePlan + bank labels (ADR Phase D). */
@@ -55,6 +55,7 @@ export const briefProfilePlatformApi = {
   async getBrief(auditId: string) {
     const payload = await apiFetch<{
       product_mode?: string;
+      coverage_package?: AuditCoveragePackage;
       brief: IntakeBrief | null;
       questions: BriefQuestion[];
       validation: {

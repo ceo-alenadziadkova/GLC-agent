@@ -200,6 +200,7 @@ describe('pipeline route concurrency guards', () => {
     const res = await fetch(`${baseUrl}/api/audits/audit-001/pipeline/start`, { method: 'POST' });
     expect(res.status).toBe(409);
     const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PIPELINE_START_CLAIM_CONFLICT');
     expect(body.error).toMatch(/already claimed/i);
     expect(getStartPhaseCalls()).toBe(0);
   });
@@ -219,6 +220,7 @@ describe('pipeline route concurrency guards', () => {
     const res = await fetch(`${baseUrl}/api/audits/audit-001/pipeline/next`, { method: 'POST' });
     expect(res.status).toBe(409);
     const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PIPELINE_PHASE_IN_PROGRESS');
     expect(body.error).toMatch(/already in progress/i);
     expect(getRunBlockCalls()).toBe(0);
   });
@@ -239,6 +241,7 @@ describe('pipeline route concurrency guards', () => {
     const res = await fetch(`${baseUrl}/api/audits/audit-001/pipeline/next`, { method: 'POST' });
     expect(res.status).toBe(409);
     const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PIPELINE_NEXT_CLAIM_CONFLICT');
     expect(body.error).toMatch(/already claimed/i);
     expect(getRunBlockCalls()).toBe(0);
   });
@@ -262,6 +265,7 @@ describe('pipeline route concurrency guards', () => {
     });
     expect(res.status).toBe(409);
     const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PIPELINE_PHASE_IN_PROGRESS');
     expect(body.error).toMatch(/already in progress/i);
   });
 
@@ -285,6 +289,7 @@ describe('pipeline route concurrency guards', () => {
     });
     expect(res.status).toBe(409);
     const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PIPELINE_RETRY_CLAIM_CONFLICT');
     expect(body.error).toMatch(/already claimed/i);
   });
 
@@ -322,6 +327,7 @@ describe('pipeline route concurrency guards', () => {
     const res = await fetch(`${baseUrl}/api/audits/audit-001/pipeline/stop`, { method: 'POST' });
     expect(res.status).toBe(400);
     const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PIPELINE_ALREADY_CANCELLED');
     expect(body.error).toMatch(/already cancelled/i);
   });
 });

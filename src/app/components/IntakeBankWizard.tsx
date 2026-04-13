@@ -6,7 +6,12 @@ import {
   type BriefResponseEntry,
   type BriefResponses,
 } from '../data/briefQuestions';
-import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from '../data/auditTypes';
+import {
+  INTAKE_BRIEF_SLA_PRODUCT_MODE,
+  type IntakeBriefCollectionMode,
+  type IntakeVersionTuple,
+  type ProductMode,
+} from '../data/auditTypes';
 import { briefResponsesToIntakeMap, useIntakeWizard } from '../hooks/useIntakeWizard';
 import type { IntakeSurface } from '@glc/intake-core';
 import type { BriefIntakeAnalyticsSurface } from '../lib/brief-intake-analytics';
@@ -54,7 +59,7 @@ export function IntakeBankWizard({
   intakeSurface,
   answerSource,
   intakeAnalytics,
-  productMode = 'full',
+  productMode = INTAKE_BRIEF_SLA_PRODUCT_MODE,
 }: {
   responses: BriefResponses;
   onResponsesChange: (next: BriefResponses) => void;

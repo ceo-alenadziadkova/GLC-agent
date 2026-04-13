@@ -15,12 +15,16 @@ import { supabase } from '../services/supabase.js';
 import { requireAuth, attachProfile, requireRole, type AuthRequest, type UserRole } from '../middleware/auth.js';
 import { generalLimiter, createAuditLimiter } from '../middleware/rate-limit.js';
 import {
-  DEFAULT_AUDIT_PRODUCT_MODE,
-  DOMAIN_KEYS,
-  EXPRESS_DOMAIN_KEYS,
-  reviewPhasesForMode,
-  type ProductMode,
+  DOMAIN_PHASES,
+  executionPlanToPhases,
+  reviewPhasesForExecutionPlan,
+  type AuditExecutionPlan,
 } from '../types/audit.js';
+import { defaultExecutionPlanForPackage } from '../services/execution-plan.js';
+import {
+  coveragePackageFromAuditRequestProductMode,
+  persistedProductModeForExecutionPlan,
+} from '../lib/audit-coverage-bridge.js';
 import { ensureHttpsUrl } from '@glc/intake-core';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import { idempotencyPostAuditRequestApproveKey } from '../config/api-http-paths.js';
@@ -607,6 +611,10 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
     }
 
     // Create audit
+    const coveragePackage = coveragePackageFromAuditRequestProductMode(requestRow.product_mode as string);
+    const executionPlan: AuditExecutionPlan = defaultExecutionPlanForPackage(coveragePackage);
+    const persistedMode = persistedProductModeForExecutionPlan(executionPlan);
+
     const { data: audit, error: auditErr } = await supabase
       .from('audits')
       .insert({
@@ -614,7 +622,8 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
         client_id: requestRow.client_id,
         company_url: requestRow.url,
         industry: requestRow.industry,
-        product_mode: requestRow.product_mode,
+        product_mode: persistedMode,
+        execution_plan: executionPlan,
         no_public_website: isNoPublicWebsiteUrl(String(requestRow.url ?? '')),
       })
       .select()
@@ -622,27 +631,27 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
 
     if (auditErr) throw auditErr;
 
-    // Pre-create audit child records — mirror the same mode-aware logic as POST /api/audits
-    const requestMode = (requestRow.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE) as ProductMode;
-    const activeDomainKeys = requestMode === 'express' ? EXPRESS_DOMAIN_KEYS : DOMAIN_KEYS;
-    const activeReviewPhases = reviewPhasesForMode(requestMode);
+    // Pre-create audit child records — aligned with POST /api/audits + execution_plan
+    const activeReviewPhases = reviewPhasesForExecutionPlan(executionPlan);
 
     const reviewInserts = activeReviewPhases.map(phase => ({
       audit_id: audit.id,
       after_phase: phase,
     }));
 
-    const domainInserts = activeDomainKeys.map((key, i) => ({
+    const domainInserts = executionPlan.selected_domains.map((key) => ({
       audit_id: audit.id,
       domain_key: key,
-      phase_number: i + 1,
+      phase_number: DOMAIN_PHASES[key],
     }));
 
     const childInserts = [
       supabase.from('review_points').insert(reviewInserts),
       supabase.from('audit_domains').insert(domainInserts),
       supabase.from('audit_recon').insert({ audit_id: audit.id }),
-      ...(requestMode !== 'express' ? [supabase.from('audit_strategy').insert({ audit_id: audit.id })] : []),
+      ...(executionPlanToPhases(executionPlan).includes(7)
+        ? [supabase.from('audit_strategy').insert({ audit_id: audit.id })]
+        : []),
     ] as const;
 
     const results = await Promise.allSettled(childInserts);

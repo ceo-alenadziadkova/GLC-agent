@@ -25,6 +25,7 @@ export const INDUSTRY_LABEL_TO_BRANCH_SLUG: Readonly<Record<string, string>> = (
 ).labelLowerToBranchSlug;
 
 const NOSITE_SOCIAL_PRESENCE_LABELS: readonly string[] = branchRuntimeRaw.nositeSocialPresenceLabels;
+const MAX_BRANCH_RULE_DEPTH = branchRuntimeRaw.maxBranchRuleDepth;
 
 type BranchRulesFile = {
   version: string;
@@ -71,8 +72,6 @@ function normalizeTeamSize(responses: IntakeResponsesMap): string {
   if (isSoloTeamRaw(raw)) return 'just_me';
   return s;
 }
-
-const MAX_BRANCH_RULE_DEPTH = 12;
 
 function evalNositeSocial(r: IntakeResponsesMap): boolean {
   const g = normalizeWebsiteGate(r);

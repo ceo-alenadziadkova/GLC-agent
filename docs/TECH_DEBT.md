@@ -43,6 +43,7 @@
 | TD-018 | open | P3 | `src/app/components/ui/use-mobile.ts` | Local hardcoded breakpoint `768` risks drift from design tokens. | Move breakpoint to a shared frontend config/token registry. | Hardcode audit 2026-04 |
 | TD-019 | open | P3 | `server/src/lib/benchmark-recompute-secret.ts` | Hardcoded custom security header name (`x-benchmark-recompute-secret`). | Move header name to server config (with stable default) and reuse from one source. | Hardcode audit 2026-04 |
 | TD-020 | open | P3 | `server/src/config/integrations.ts` | Telegram base URL fallback hardcoded (`https://api.telegram.org`). | Keep as documented fallback, but prefer explicit infra env in production (`TELEGRAM_API_BASE`). | Hardcode audit 2026-04 |
+| TD-021 | open | P2 | Audits / intake / DB | **Legacy `product_mode` (`express` / `full` / `free_snapshot`) coexists with canonical `execution_plan.coverage_package`.** | **Does not block main pipeline execution:** `PipelineOrchestrator` resolves phases via `getExecutionPlan()` → `normalizeExecutionPlan` + `executionPlanToPhases` only (`server/src/services/pipeline.ts`). Remaining uses: persisted `audits.product_mode` column, `audit_requests` CHECK (`express`\|`full`), public snapshot filters (`free_snapshot`), intake SLA gates via `full` vs `express` corridor in `@glc/intake-core`, legacy API fields/copy. | Centralize in `server/src/lib/audit-coverage-bridge.ts`; align new surfaces on `coverage_package`; later: intake-core gates keyed by package, trim `product_mode` from API responses, optional DB migration. | 2026-04-13 |
 
 ---
 

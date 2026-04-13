@@ -1,6 +1,10 @@
 import { useMemo } from 'react';
 import { BriefField } from './BriefField';
-import type { IntakeBriefCollectionMode, ProductMode } from '../data/auditTypes';
+import {
+  INTAKE_BRIEF_SLA_PRODUCT_MODE,
+  type IntakeBriefCollectionMode,
+  type ProductMode,
+} from '../data/auditTypes';
 import { getVisibleBankBriefSections } from '../data/bankClassicBrief';
 import type { BriefResponses } from '../data/briefQuestions';
 import type { IntakeSurface } from '@glc/intake-core';
@@ -24,7 +28,7 @@ export function BankClassicBriefFields({
   interviewMode,
   emphasizeClientSource,
   compact,
-  productMode = 'full',
+  productMode = INTAKE_BRIEF_SLA_PRODUCT_MODE,
 }: {
   responses: BriefResponses;
   collectionMode?: IntakeBriefCollectionMode;

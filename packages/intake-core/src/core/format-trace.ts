@@ -9,6 +9,13 @@ export interface FormatTraceMeta {
   surface?: string;
 }
 
+const TRACE_FORMAT_LIMITS = {
+  wideList: 80,
+  mediumList: 40,
+  shortList: 20,
+  maxReasonsSample: 40,
+} as const;
+
 function lines(ids: string[], maxList: number): string {
   if (ids.length <= maxList) return ids.join(', ');
   return `${ids.slice(0, maxList).join(', ')} ... (+${ids.length - maxList} more)`;
@@ -26,14 +33,14 @@ export function formatPlanTrace(plan: IntakePlan, meta?: FormatTraceMeta): strin
   parts.push(
     `counts: eligible=${plan.eligible.length} visible=${plan.visible.length} required=${plan.required.length} hidden=${plan.hidden.length} deferred=${plan.deferred.length} slaVisible=${plan.slaVisibleBankIds.length}`,
   );
-  parts.push(`eligible: ${lines(plan.eligible, 80)}`);
+  parts.push(`eligible: ${lines(plan.eligible, TRACE_FORMAT_LIMITS.wideList)}`);
   if (plan.slaVisibleBankIds.length !== plan.eligible.length) {
-    parts.push(`slaVisibleBankIds: ${lines(plan.slaVisibleBankIds, 80)}`);
+    parts.push(`slaVisibleBankIds: ${lines(plan.slaVisibleBankIds, TRACE_FORMAT_LIMITS.wideList)}`);
   }
-  parts.push(`visible: ${lines(plan.visible, 80)}`);
-  parts.push(`required: ${lines(plan.required, 40)}`);
-  parts.push(`hidden: ${lines(plan.hidden, 40)}`);
-  parts.push(`deferred: ${lines(plan.deferred, 20)}`);
+  parts.push(`visible: ${lines(plan.visible, TRACE_FORMAT_LIMITS.wideList)}`);
+  parts.push(`required: ${lines(plan.required, TRACE_FORMAT_LIMITS.mediumList)}`);
+  parts.push(`hidden: ${lines(plan.hidden, TRACE_FORMAT_LIMITS.mediumList)}`);
+  parts.push(`deferred: ${lines(plan.deferred, TRACE_FORMAT_LIMITS.shortList)}`);
 
   parts.push('--- derived ---');
   parts.push(`aiReadinessScore: ${plan.derivedFacts.aiReadinessScore}`);
@@ -63,7 +70,7 @@ export function formatPlanTrace(plan: IntakePlan, meta?: FormatTraceMeta): strin
     );
   }
   if (plan.nextRecommended.length > 0) {
-    parts.push(`nextRecommended: ${lines(plan.nextRecommended, 40)}`);
+    parts.push(`nextRecommended: ${lines(plan.nextRecommended, TRACE_FORMAT_LIMITS.mediumList)}`);
   }
 
   if (plan.debugTrace && plan.debugTrace.length > 0) {
@@ -77,7 +84,7 @@ export function formatPlanTrace(plan: IntakePlan, meta?: FormatTraceMeta): strin
     parts.push('--- reasons by question (sample) ---');
     const entries = Object.entries(plan.reasonsById).sort(([a], [b]) => a.localeCompare(b));
     let n = 0;
-    const max = 40;
+    const max = TRACE_FORMAT_LIMITS.maxReasonsSample;
     for (const [qid, reasons] of entries) {
       if (n++ >= max) {
         parts.push(`... (+${entries.length - max} questions)`);

@@ -6,6 +6,8 @@ import { AppShell } from '../components/AppShell';
 import { api } from '../data/apiService';
 import type { AuditMeta } from '../data/auditTypes';
 import { UI_SEMANTIC_COLORS } from '../config/ui-semantic-colors';
+import { isSnapshotStyleAudit } from '../lib/audit-execution-plan';
+import { ADMIN_SNAPSHOT_QUEUE_CONFIG } from '../config/admin-snapshot-queue-config';
 
 type SnapshotStatusFilter = 'all' | 'running' | 'completed' | 'failed';
 
@@ -25,10 +27,13 @@ export function AdminSnapshotQueue() {
   const q = useQuery({
     queryKey: ['glc', 'admin', 'snapshot-queue'],
     queryFn: async () => {
-      const { data } = await api.listAudits(500, 0);
-      return data.filter((a) => a.product_mode === 'free_snapshot');
+      const { data } = await api.listAudits(
+        ADMIN_SNAPSHOT_QUEUE_CONFIG.listAuditsLimit,
+        ADMIN_SNAPSHOT_QUEUE_CONFIG.listAuditsOffset,
+      );
+      return data.filter((audit) => isSnapshotStyleAudit(audit));
     },
-    staleTime: 180_000,
+    staleTime: ADMIN_SNAPSHOT_QUEUE_CONFIG.staleTimeMs,
   });
 
   const filtered = useMemo(

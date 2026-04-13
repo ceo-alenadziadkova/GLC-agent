@@ -14,6 +14,13 @@ function meta(over: Partial<AuditMeta>): AuditMeta {
     current_phase: 4,
     overall_score: null,
     product_mode: 'free_snapshot',
+    execution_plan: {
+      selected_domains: ['ux_conversion'],
+      depth: 'light',
+      source: 'system_default',
+      coverage_package: 'starter',
+      include_strategy: false,
+    },
     token_budget: 0,
     tokens_used: 0,
     snapshot_token: 'snap-tok',
@@ -58,9 +65,17 @@ function uxDomain(raw: Record<string, unknown>): DomainData {
 }
 
 describe('freeSnapshotPreviewFromAuditState', () => {
-  it('returns null when not free_snapshot mode', () => {
+  it('returns null when audit is not snapshot-style starter', () => {
     const state: AuditState = {
-      meta: meta({ product_mode: 'full' }),
+      meta: meta({
+        execution_plan: {
+          selected_domains: ['tech_infrastructure', 'security_compliance'],
+          depth: 'standard',
+          source: 'system_default',
+          coverage_package: 'pro',
+          include_strategy: false,
+        },
+      }),
       recon: null,
       domains: emptyDomains(),
       strategy: null,

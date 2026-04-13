@@ -17,13 +17,14 @@ import {
   STRATEGY_LAB_DEFAULT_BENCHMARK_PERIOD,
   STRATEGY_LAB_TAB_DESCRIPTIONS,
 } from '../config/strategy-lab';
+import { STRATEGY_LAB_COPY } from '../config/strategy-lab-copy';
 
 type Timeframe = 'quick' | 'medium' | 'strategic';
 
 const TABS: { key: Timeframe; label: string; icon: typeof Lightning; color: string; desc: string }[] = [
-  { key: 'quick',    label: 'Quick Wins',   icon: Lightning,  color: 'var(--glc-orange)', desc: STRATEGY_LAB_TAB_DESCRIPTIONS.quick },
-  { key: 'medium',   label: 'Core Growth',  icon: TrendUp,    color: 'var(--glc-blue)',   desc: STRATEGY_LAB_TAB_DESCRIPTIONS.medium },
-  { key: 'strategic',label: 'Strategic',    icon: MapTrifold, color: UI_SEMANTIC_COLORS.strategicPurple, desc: STRATEGY_LAB_TAB_DESCRIPTIONS.strategic },
+  { key: 'quick',    label: STRATEGY_LAB_COPY.tabLabels.quick,   icon: Lightning,  color: 'var(--glc-orange)', desc: STRATEGY_LAB_TAB_DESCRIPTIONS.quick },
+  { key: 'medium',   label: STRATEGY_LAB_COPY.tabLabels.medium,  icon: TrendUp,    color: 'var(--glc-blue)',   desc: STRATEGY_LAB_TAB_DESCRIPTIONS.medium },
+  { key: 'strategic',label: STRATEGY_LAB_COPY.tabLabels.strategic, icon: MapTrifold, color: UI_SEMANTIC_COLORS.strategicPurple, desc: STRATEGY_LAB_TAB_DESCRIPTIONS.strategic },
 ];
 
 function normalizeAuditIndustryKey(raw: string | null | undefined): string | null {
@@ -101,7 +102,7 @@ export function StrategyLab() {
 
   if (loading && !audit) {
     return (
-      <AppShell title="Strategy Lab" subtitle="Loading...">
+      <AppShell title={STRATEGY_LAB_COPY.appShell.title} subtitle={STRATEGY_LAB_COPY.appShell.loadingSubtitle}>
         <div className="flex items-center justify-center h-64">
           <ArrowsClockwise className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
         </div>
@@ -111,9 +112,9 @@ export function StrategyLab() {
 
   if (error || !audit) {
     return (
-      <AppShell title="Strategy Lab" subtitle="Error">
+      <AppShell title={STRATEGY_LAB_COPY.appShell.title} subtitle={STRATEGY_LAB_COPY.appShell.errorSubtitle}>
         <div className="flex items-center justify-center h-64">
-          <p style={{ color: 'var(--score-1)' }}>{error || 'Audit not found'}</p>
+          <p style={{ color: 'var(--score-1)' }}>{error || STRATEGY_LAB_COPY.messages.auditNotFound}</p>
         </div>
       </AppShell>
     );
@@ -121,12 +122,12 @@ export function StrategyLab() {
 
   if (!audit.strategy) {
     return (
-      <AppShell title="Strategy Lab" subtitle="Not available yet">
+      <AppShell title={STRATEGY_LAB_COPY.appShell.title} subtitle={STRATEGY_LAB_COPY.appShell.unavailableSubtitle}>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <MapTrifold className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
-            <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Strategy data not yet generated</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-quaternary)' }}>Complete the pipeline to generate strategy</p>
+            <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>{STRATEGY_LAB_COPY.messages.notGenerated}</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-quaternary)' }}>{STRATEGY_LAB_COPY.messages.completePipeline}</p>
           </div>
         </div>
       </AppShell>
@@ -135,8 +136,8 @@ export function StrategyLab() {
 
   return (
     <AppShell
-      title="Strategy Lab"
-      subtitle="Build a prioritised transformation roadmap"
+      title={STRATEGY_LAB_COPY.appShell.title}
+      subtitle={STRATEGY_LAB_COPY.appShell.subtitle}
       actions={
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono font-semibold" style={{ color: 'var(--glc-green)' }}>

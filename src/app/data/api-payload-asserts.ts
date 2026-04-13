@@ -40,7 +40,13 @@ export function assertPipelineStatusShape(payload: unknown): asserts payload is 
   current_phase: number;
   tokens_used: number;
   token_budget: number;
-  product_mode: string;
+  execution_plan?: {
+    selected_domains: string[];
+    depth: string;
+    source: string;
+    coverage_package?: string;
+    include_strategy?: boolean;
+  } | null;
   events: Array<{
     id: number;
     audit_id: string;
@@ -66,9 +72,6 @@ export function assertPipelineStatusShape(payload: unknown): asserts payload is 
   }
   if (typeof p?.tokens_used !== 'number' || typeof p?.token_budget !== 'number') {
     throw new Error('Invalid API payload: pipeline status missing token fields');
-  }
-  if (typeof p?.product_mode !== 'string') {
-    throw new Error('Invalid API payload: pipeline status missing product_mode');
   }
   if (!Array.isArray(p?.events)) {
     throw new Error('Invalid API payload: pipeline status events must be an array');

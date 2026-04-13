@@ -1,4 +1,5 @@
 import {
+  DEFAULT_AUDIT_COVERAGE_PACKAGE,
   DOMAIN_KEYS,
   EXPRESS_DOMAIN_KEYS,
   type AuditCoveragePackage,
@@ -8,12 +9,14 @@ import {
   type ProductMode,
   uniqueDomainKeys,
 } from '../types/audit.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 
 const ALL_DOMAINS = [...DOMAIN_KEYS] as DomainKey[];
-const PRO_MAX_DOMAINS = 3;
-const PRO_MIN_DOMAINS = 2;
-const DEFAULT_STARTER_DOMAIN: DomainKey = 'tech_infrastructure';
-const DEFAULT_PRO_DOMAINS: DomainKey[] = ['tech_infrastructure', 'security_compliance'];
+const EP = SYSTEM_DEFAULTS.executionPlan;
+const PRO_MAX_DOMAINS = EP.proMaxDomains;
+const PRO_MIN_DOMAINS = EP.proMinDomains;
+const DEFAULT_STARTER_DOMAIN: DomainKey = EP.defaultStarterDomain;
+const DEFAULT_PRO_DOMAINS: DomainKey[] = [...EP.defaultProDomains];
 
 function defaultDepthForPackage(pkg?: AuditCoveragePackage): AuditDepth {
   if (pkg === 'starter') return 'light';
@@ -25,8 +28,10 @@ function defaultIncludeStrategyForPackage(pkg?: AuditCoveragePackage): boolean {
   return pkg !== 'starter';
 }
 
-export function defaultExecutionPlanForMode(mode: ProductMode): AuditExecutionPlan {
-  if (mode === 'free_snapshot') {
+export function defaultExecutionPlanForPackage(
+  pkg: AuditCoveragePackage = DEFAULT_AUDIT_COVERAGE_PACKAGE,
+): AuditExecutionPlan {
+  if (pkg === 'starter') {
     return {
       selected_domains: ['ux_conversion'],
       depth: 'light',
@@ -35,7 +40,7 @@ export function defaultExecutionPlanForMode(mode: ProductMode): AuditExecutionPl
       include_strategy: false,
     };
   }
-  if (mode === 'express') {
+  if (pkg === 'pro') {
     return {
       selected_domains: [...EXPRESS_DOMAIN_KEYS],
       depth: 'standard',
@@ -53,17 +58,27 @@ export function defaultExecutionPlanForMode(mode: ProductMode): AuditExecutionPl
   };
 }
 
+function normalizeFallbackPackage(
+  fallback: AuditCoveragePackage | ProductMode | undefined,
+): AuditCoveragePackage {
+  if (fallback === 'starter' || fallback === 'pro' || fallback === 'complete') return fallback;
+  if (fallback === 'free_snapshot') return 'starter';
+  if (fallback === 'express') return 'pro';
+  return DEFAULT_AUDIT_COVERAGE_PACKAGE;
+}
+
 export function normalizeExecutionPlan(
   incoming: Partial<AuditExecutionPlan> | null | undefined,
-  fallbackMode: ProductMode,
+  fallbackPackage: AuditCoveragePackage | ProductMode = DEFAULT_AUDIT_COVERAGE_PACKAGE,
 ): AuditExecutionPlan {
+  const resolvedFallbackPackage = normalizeFallbackPackage(fallbackPackage);
   if (!incoming) {
-    return defaultExecutionPlanForMode(fallbackMode);
+    return defaultExecutionPlanForPackage(resolvedFallbackPackage);
   }
 
   const packageCandidate = incoming.coverage_package;
   const selectedDomains = uniqueDomainKeys(incoming.selected_domains ?? []);
-  const fallbackPlan = defaultExecutionPlanForMode(fallbackMode);
+  const fallbackPlan = defaultExecutionPlanForPackage(resolvedFallbackPackage);
 
   const domainsFromPackage = (() => {
     if (packageCandidate === 'starter') {

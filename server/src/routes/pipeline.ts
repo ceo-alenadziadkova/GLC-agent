@@ -16,6 +16,7 @@ import {
   isSupportedIntakeArtifactTuple,
 } from '@glc/intake-core';
 import {
+  DEFAULT_AUDIT_COVERAGE_PACKAGE,
   DEFAULT_AUDIT_PRODUCT_MODE,
   executionPlanToPhases,
   maxPhaseForExecutionPlan,
@@ -72,6 +73,7 @@ import {
   pipelinePhaseOutOfRangeMessage,
 } from '../config/api-error-codes.js';
 import { normalizeExecutionPlan } from '../services/execution-plan.js';
+import { intakeBriefGateModeFromExecutionPlan } from '../lib/audit-coverage-bridge.js';
 
 export const pipelineRouter = Router();
 
@@ -101,17 +103,13 @@ function statusForPhase(phase: number): 'recon' | 'auto' | 'analytic' | 'strateg
 }
 
 function resolveExecutionPlanFromAudit(audit: {
-  product_mode?: ProductMode | null;
   execution_plan?: Partial<AuditExecutionPlan> | null;
+  product_mode?: string | null;
 }): AuditExecutionPlan {
   return normalizeExecutionPlan(
     audit.execution_plan ?? null,
-    (audit.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE) as ProductMode,
+    (audit.product_mode as ProductMode | undefined) ?? DEFAULT_AUDIT_PRODUCT_MODE,
   );
-}
-
-function briefGateModeFromExecutionPlan(plan: AuditExecutionPlan): ProductMode {
-  return plan.coverage_package === 'complete' ? 'full' : 'express';
 }
 
 // ─── POST /api/audits/:id/pipeline/start — Start pipeline ──
@@ -199,10 +197,10 @@ pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineL
     const iv = brief?.intake_versions as IntakeVersionTuple | null | undefined;
     const intakeTuple =
       iv && isSupportedIntakeArtifactTuple(iv) ? iv : currentIntakeVersionTuple();
-    const gatePlan = resolveExecutionPlanFromAudit(audit as { product_mode?: ProductMode | null; execution_plan?: Partial<AuditExecutionPlan> | null });
+    const gatePlan = resolveExecutionPlanFromAudit(audit as { execution_plan?: Partial<AuditExecutionPlan> | null });
     const gates = evaluateBriefGates(
       (brief?.responses as Record<string, unknown>) ?? {},
-      briefGateModeFromExecutionPlan(gatePlan),
+      intakeBriefGateModeFromExecutionPlan(gatePlan),
       cm,
       surface,
       intakeTuple,
@@ -284,7 +282,7 @@ pipelineRouter.post('/:id/pipeline/next', requireAuth, attachProfile, pipelineLi
       return;
     }
 
-    const plan = resolveExecutionPlanFromAudit(audit as { product_mode?: ProductMode | null; execution_plan?: Partial<AuditExecutionPlan> | null });
+    const plan = resolveExecutionPlanFromAudit(audit as { execution_plan?: Partial<AuditExecutionPlan> | null });
     const maxPhase = maxPhaseForExecutionPlan(plan);
     const nextPhase = executionPlanToPhases(plan).filter((p) => p > 0).find((p) => p > audit.current_phase);
 
@@ -401,12 +399,15 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
       return;
     }
 
-    const retryPlan = resolveExecutionPlanFromAudit(audit as { product_mode?: ProductMode | null; execution_plan?: Partial<AuditExecutionPlan> | null });
+    const retryPlan = resolveExecutionPlanFromAudit(audit as { execution_plan?: Partial<AuditExecutionPlan> | null });
     if (!executionPlanToPhases(retryPlan).includes(phase)) {
       res.status(400).json(
         apiErrorJson(
           API_ERROR_CODES.PIPELINE_PHASE_NOT_AVAILABLE_FOR_MODE,
-          pipelinePhaseNotAvailableMessage(phase, (audit.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE) as ProductMode),
+            pipelinePhaseNotAvailableMessage(
+              phase,
+              retryPlan.coverage_package ?? DEFAULT_AUDIT_COVERAGE_PACKAGE,
+            ),
         ),
       );
       return;
@@ -557,7 +558,7 @@ pipelineRouter.get('/:id/pipeline/status', requireAuth, attachProfile, rejectGue
 
     const [auditRes, eventsRes, reviewsRes] = await Promise.all([
       supabase.from('audits')
-        .select('status, current_phase, tokens_used, token_budget, product_mode')
+        .select('status, current_phase, tokens_used, token_budget, execution_plan')
         .eq('id', id)
         .or(`user_id.eq.${req.userId!},client_id.eq.${req.userId!}`)
         .single(),

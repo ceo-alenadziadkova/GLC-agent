@@ -299,7 +299,7 @@ export class FeasibilityLayer {
     if (hasPaidRec && (brief.monthly_budget_usd ?? 0) < m.paidRecBudgetUsdLt) {
       risks.push({
         code: 'marketing_paid_recs_low_budget',
-        description: 'Paid acquisition recommendations but reported monthly budget < $500 — minimum viable spend may not be achievable.',
+        description: `Paid acquisition recommendations but reported monthly budget < $${m.paidRecBudgetUsdLt} — minimum viable spend may not be achievable.`,
         severity: 'medium',
       });
     }
@@ -320,7 +320,7 @@ export class FeasibilityLayer {
     if (hasComplexAutomation && (brief.integration_count ?? 0) > a.integrationCountGt) {
       risks.push({
         code: 'automation_integration_sprawl',
-        description: 'Complex automation recommended on top of high integration count (>8 tools) — orchestration complexity risk.',
+        description: `Complex automation recommended on top of high integration count (>${a.integrationCountGt} tools) — orchestration complexity risk.`,
         severity: 'medium',
       });
     }
@@ -367,7 +367,7 @@ export class FeasibilityLayer {
     ) {
       risks.push({
         code: 'universal_high_effort_low_budget',
-        description: `${criticalCount} critical issues + ${recCount} recommendations with budget < $1000/mo — prioritisation essential.`,
+        description: `${criticalCount} critical issues + ${recCount} recommendations with budget < $${u.monthlyBudgetUsdLt}/mo — prioritisation essential.`,
         severity: 'medium',
       });
     }

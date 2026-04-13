@@ -12,7 +12,7 @@ import {
 } from '../middleware/auth.js';
 import { createAuditLimiter, generalLimiter } from '../middleware/rate-limit.js';
 import {
-  DEFAULT_AUDIT_PRODUCT_MODE,
+  DEFAULT_AUDIT_COVERAGE_PACKAGE,
   DOMAIN_PHASES,
   executionPlanToPhases,
   reviewPhasesForExecutionPlan,
@@ -93,17 +93,12 @@ import {
 import { healUxDomainRowForFreeSnapshotPortal } from '../lib/snapshot-audit-response-heal.js';
 import { buildIntakePlan } from '@glc/intake-core';
 import { normalizeExecutionPlan } from '../services/execution-plan.js';
+import {
+  intakeBriefGateModeFromPartialPlan,
+  persistedProductModeForExecutionPlan,
+} from '../lib/audit-coverage-bridge.js';
 
 export const auditsRouter = Router();
-
-function resolveBriefGateMode(input: {
-  product_mode?: ProductMode | null;
-  execution_plan?: Partial<AuditExecutionPlan> | null;
-}): ProductMode {
-  const fallbackMode = (input.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE) as ProductMode;
-  const plan = normalizeExecutionPlan(input.execution_plan ?? null, fallbackMode);
-  return plan.coverage_package === 'complete' ? 'full' : 'express';
-}
 
 // All audit routes require authentication
 auditsRouter.use(requireAuth);
@@ -188,12 +183,12 @@ auditsRouter.post('/', attachProfile, createAuditLimiter, async (req: AuthReques
       return;
     }
 
-    const { company_url, company_name, industry, product_mode, execution_plan, no_public_website } = req.body;
-    const mode: ProductMode = product_mode === 'express' ? 'express' : DEFAULT_AUDIT_PRODUCT_MODE;
+    const { company_url, company_name, industry, execution_plan, no_public_website } = req.body;
     const normalizedPlan = normalizeExecutionPlan(
       (execution_plan as Partial<AuditExecutionPlan> | null | undefined) ?? null,
-      mode,
+      DEFAULT_AUDIT_COVERAGE_PACKAGE,
     );
+    const mode: ProductMode = persistedProductModeForExecutionPlan(normalizedPlan);
     const idempotent = await getStoredIdempotentResponse(req, idempotencyPostAuditsCreateKey(), req.body);
     if (idempotent.replay) {
       res.status(idempotent.replay.statusCode).json(idempotent.replay.payload);
@@ -503,9 +498,12 @@ auditsRouter.get('/:id/brief/schema', attachProfile, rejectGuestFromPortal, asyn
     const intakeTuple =
       iv && isSupportedIntakeArtifactTuple(iv) ? iv : currentIntakeVersionTuple();
 
+    const briefMode = intakeBriefGateModeFromPartialPlan(
+      (audit.execution_plan as Partial<AuditExecutionPlan> | null | undefined) ?? null,
+    );
     const schema = buildBriefSchemaSnapshot({
       responses,
-      productMode: audit.product_mode as ProductMode,
+      productMode: briefMode,
       collectionMode,
       surface,
       intakeVersionTuple: intakeTuple,
@@ -654,19 +652,18 @@ auditsRouter.get('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
     const intakeTuple =
       iv && isSupportedIntakeArtifactTuple(iv) ? iv : currentIntakeVersionTuple();
 
+    const briefMode = intakeBriefGateModeFromPartialPlan(
+      (audit.execution_plan as Partial<AuditExecutionPlan> | null | undefined) ?? null,
+    );
     const validation = validateBriefResponses(responses, {
-      productMode: audit.product_mode as ProductMode,
+      productMode: briefMode,
       collectionMode,
       surface,
       intakeVersionTuple: intakeTuple,
     });
-    const briefGateMode = resolveBriefGateMode({
-      product_mode: audit.product_mode as ProductMode,
-      execution_plan: (audit.execution_plan as Partial<AuditExecutionPlan> | null | undefined) ?? null,
-    });
     const gates = evaluateBriefGates(
       responses,
-      briefGateMode,
+      briefMode,
       collectionMode,
       surface,
       intakeTuple,
@@ -674,7 +671,7 @@ auditsRouter.get('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
 
     const plan = buildIntakePlan({
       responses,
-      productMode: audit.product_mode as ProductMode,
+      productMode: briefMode,
       collectionMode,
       surface,
       intakeVersionTuple: intakeTuple,
@@ -683,6 +680,12 @@ auditsRouter.get('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
 
     res.json({
       product_mode: audit.product_mode,
+      coverage_package: (
+        normalizeExecutionPlan(
+          (audit.execution_plan as Partial<AuditExecutionPlan> | null | undefined) ?? null,
+          DEFAULT_AUDIT_COVERAGE_PACKAGE,
+        ).coverage_package
+      ),
       brief: brief ?? null,
       questions,
       validation,
@@ -896,8 +899,11 @@ auditsRouter.put('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
       brief.intake_versions && isSupportedIntakeArtifactTuple(brief.intake_versions as IntakeVersionTuple)
         ? (brief.intake_versions as IntakeVersionTuple)
         : currentIntakeVersionTuple();
+    const liveBriefMode = intakeBriefGateModeFromPartialPlan(
+      (audit.execution_plan as Partial<AuditExecutionPlan> | null | undefined) ?? null,
+    );
     const liveValidation = validateBriefResponses(brief.responses as Record<string, unknown>, {
-      productMode: audit.product_mode as ProductMode,
+      productMode: liveBriefMode,
       collectionMode: brief.collection_mode as IntakeBriefCollectionMode,
       surface,
       intakeVersionTuple: liveTuple,

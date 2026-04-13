@@ -162,10 +162,10 @@ export function pipelinePhaseOutOfRangeMessage(min: number, max: number): string
   return raw.PIPELINE_PHASE_OUT_OF_RANGE.replace(/\{min\}/g, String(min)).replace(/\{max\}/g, String(max));
 }
 
-export function pipelinePhaseNotAvailableMessage(phase: number, mode: string): string {
+export function pipelinePhaseNotAvailableMessage(phase: number, coveragePackage: string): string {
   return raw.PIPELINE_PHASE_NOT_AVAILABLE_FOR_MODE.replace(/\{phase\}/g, String(phase)).replace(
-    /\{mode\}/g,
-    mode,
+    /\{coverage_package\}/g,
+    coveragePackage,
   );
 }
 

@@ -6,7 +6,7 @@
     },
     {
       "q": "How is Snapshot different from Starter/Pro/Complete?",
-      "a": "Snapshot is a fast automated read on available signals. Starter/Pro/Complete are structured audit packages where you choose domain coverage."
+      "a": "Snapshot is a quick first check of how automated systems can access and understand your public site: what they can see, what they miss, and where clarity breaks. If the basic pass is too limited, deeper crawl checks are used when needed. Starter/Pro/Complete are broader audit packages with explicit scope and deeper domain analysis."
     },
     {
       "q": "Can we implement without you?",

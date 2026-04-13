@@ -5,9 +5,8 @@
 import { supabase } from '../services/supabase.js';
 import { saveBriefResponses } from '../services/brief-validator.js';
 import {
-  DEFAULT_AUDIT_PRODUCT_MODE,
   DOMAIN_PHASES,
-  DOMAIN_KEYS,
+  DEFAULT_AUDIT_PRODUCT_MODE,
   executionPlanToPhases,
   maxPhaseForExecutionPlan,
   reviewPhasesForExecutionPlan,
@@ -15,6 +14,10 @@ import {
   type AuditExecutionPlan,
   type ProductMode,
 } from '../types/audit.js';
+import {
+  isFreeSnapshotUpgradeEligibleAudit,
+  persistedProductModeForExecutionPlan,
+} from './audit-coverage-bridge.js';
 import { INDUSTRY_OPTIONS } from '../config/industry-options.js';
 import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { UPGRADE_FREE_SNAPSHOT_CONTEXT_EN } from '../config/upgrade-free-snapshot-context.js';
@@ -152,7 +155,7 @@ export async function upgradeFreeSnapshotAudit(params: {
 
   const { data: audit, error: aErr } = await supabase
     .from('audits')
-    .select('id, product_mode, status, company_url, company_name, client_id, user_id')
+    .select('id, product_mode, status, company_url, company_name, client_id, user_id, snapshot_token, execution_plan')
     .eq('id', auditId)
     .single();
 
@@ -165,7 +168,13 @@ export async function upgradeFreeSnapshotAudit(params: {
     };
   }
 
-  if (audit.product_mode !== 'free_snapshot') {
+  if (
+    !isFreeSnapshotUpgradeEligibleAudit({
+      product_mode: audit.product_mode as string,
+      snapshot_token: audit.snapshot_token as string | null,
+      execution_plan: audit.execution_plan,
+    })
+  ) {
     return {
       ok: false,
       status: 400,
@@ -205,8 +214,7 @@ export async function upgradeFreeSnapshotAudit(params: {
   );
   const domainKeys = executionPlan.selected_domains;
   const reviewPhases = reviewPhasesForExecutionPlan(executionPlan);
-  const nextMode: ProductMode =
-    resolvedCoveragePackage === 'complete' ? DEFAULT_AUDIT_PRODUCT_MODE : 'express';
+  const nextMode: ProductMode = persistedProductModeForExecutionPlan(executionPlan);
 
   const { data: recon } = await supabase
     .from('audit_recon')

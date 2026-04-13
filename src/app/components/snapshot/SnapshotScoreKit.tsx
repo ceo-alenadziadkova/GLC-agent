@@ -8,23 +8,12 @@ import { SCORE_COLORS, SCORE_LABELS } from '@glc/intake-core';
 import type { FreeSnapshotPreview, SnapshotSiteProfile } from '../../data/auditTypes';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { scanConfidenceExplanation, snapshotZeroPagesScoreNote } from '../../lib/snapshot-diagnostics';
+import { SNAPSHOT_LANDING_CATEGORY_HINTS, SNAPSHOT_LANDING_SCORE_EXPLAINER } from '../../config/snapshot-landing-copy.en';
+import type { SnapshotCategoryScoreKey } from '../../config/snapshot-landing-copy.en';
 
-export type SnapshotCategoryScoreKey =
-  | 'ux_clarity'
-  | 'conversion_readiness'
-  | 'ai_readiness'
-  | 'technical_basics';
+export type { SnapshotCategoryScoreKey };
 
-const SNAPSHOT_CATEGORY_BREAKDOWN_HINTS: Record<SnapshotCategoryScoreKey, string> = {
-  ux_clarity:
-    'How clear the first screen is for someone who has never seen your brand: what you do, who it is for, primary navigation, trust signals, how easy contact is to find, and basic language/accessibility markers. The score is the share of automated UX checks that passed on the HTML we fetched (0–100)—a thin sample, not a full UX review.',
-  conversion_readiness:
-    'How easy it is to take the next step: strength of the main call-to-action, form labels and friction, whether pricing or commerce paths are discoverable, competing buttons in the hero, reassurance near actions, FAQs, and simple risk reducers. The number is the portion of those checks that passed in this snapshot (0–100), based only on pages we could load.',
-  ai_readiness:
-    'How much structured, machine-readable context we found—mainly JSON-LD (Organization, WebSite, products, offers, FAQ, breadcrumbs, etc.) that our rules expect. Higher means more of those checks passed on the sampled markup. It is not a promise about rankings or citations inside any specific AI product.',
-  technical_basics:
-    'Baseline technical signals in our grab: page title, viewport meta, HTTPS/canonical hints, whether the page looks indexable, Open Graph basics, informative alt text on images, and breadth of structured data. The score is the share of those checks that passed (0–100); it is not a penetration test or performance audit.',
-};
+const SNAPSHOT_CATEGORY_BREAKDOWN_HINTS = SNAPSHOT_LANDING_CATEGORY_HINTS;
 
 export const SNAPSHOT_SCORE_COLORS = SCORE_COLORS;
 export const SNAPSHOT_SCORE_LABELS = SCORE_LABELS;
@@ -56,14 +45,11 @@ function fivePointBandExplanation(params: {
   hasOverall100: boolean;
 }): string {
   if (params.hasOverall100) {
-    return 'The score out of 100 sums every rule we ran on the pages we could fetch in this snapshot—not a separate audit.';
+    return SNAPSHOT_LANDING_SCORE_EXPLAINER.whenHasOverall100;
   }
   const label = params.uxLabel?.trim() || SNAPSHOT_SCORE_LABELS[params.band];
   const step = params.band;
-  return (
-    `This ${step}/5 result (${label}) uses that same five-point band (1 = Critical … 5 = Excellent). ` +
-    'It reflects rule-based checks on the pages we could access—not a full consulting review.'
-  );
+  return SNAPSHOT_LANDING_SCORE_EXPLAINER.fivePointPrefix(step, label) + SNAPSHOT_LANDING_SCORE_EXPLAINER.fivePointSuffix;
 }
 
 export function SnapshotScoreContextNotes(props: {

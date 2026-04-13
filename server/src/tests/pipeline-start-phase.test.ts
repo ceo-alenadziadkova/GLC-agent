@@ -15,9 +15,9 @@
  *    · Phase 0: assertBriefReady throws → audit marked 'failed', error event emitted, rethrows
  *    · Phase 1: agent.run() throws → domain marked 'failed', audit marked 'failed', rethrows
  *
- *  Mode ceiling:
- *    · Express audit: phase 5 → throws "not available for product_mode 'express'"
- *    · Express audit: phase 4 → succeeds (max allowed)
+ *  Mode ceiling (legacy `product_mode` when `execution_plan` is absent):
+ *    · Express audit: phase 5 → throws "not available for execution plan"
+ *    · Express audit: phase 4 → succeeds (max allowed for pro-style plan)
  *
  *  Unknown phase:
  *    · startPhase(99) → throws "Unknown phase"

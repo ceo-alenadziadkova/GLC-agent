@@ -50,6 +50,7 @@ import {
   getPhaseStatus,
   type PhSt,
 } from '../lib/pipeline-monitor-helpers';
+import { isExpressLikeAudit } from '../lib/audit-execution-plan';
 import {
   ParallelWingBanner,
   PHASE_META,
@@ -99,7 +100,7 @@ export function PipelineMonitor() {
       return;
     }
     const meta = audit.meta;
-    const gateKey = `${id}:${meta.status}:${meta.product_mode ?? ''}`;
+    const gateKey = `${id}:${meta.status}:${meta.execution_plan?.coverage_package ?? ''}:${meta.execution_plan?.include_strategy === true ? 's1' : 's0'}`;
     const sameGate = portalGateKeyRef.current === gateKey;
     portalGateKeyRef.current = gateKey;
 
@@ -136,7 +137,7 @@ export function PipelineMonitor() {
     };
   }, [isClient, id, audit, auditLoading]);
 
-  const isExpress = audit?.meta.product_mode === 'express';
+  const isExpress = audit?.meta ? isExpressLikeAudit(audit.meta) : false;
   // Build phase views from pipeline state
   const phases: PhaseView[] = useMemo(() => {
     if (!pipelineState || !audit) {

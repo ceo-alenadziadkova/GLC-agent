@@ -10,8 +10,13 @@ interface PipelineState {
   current_phase: number;
   tokens_used: number;
   token_budget: number;
-  /** Present when loaded from GET /pipeline/status. */
-  product_mode?: string;
+  execution_plan?: {
+    selected_domains: string[];
+    depth: string;
+    source: string;
+    coverage_package?: 'starter' | 'pro' | 'complete';
+    include_strategy?: boolean;
+  } | null;
   events: PipelineEvent[];
   reviews: Array<{ after_phase: number; status: string; consultant_notes: string | null; interview_notes: string | null }>;
 }

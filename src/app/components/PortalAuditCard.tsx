@@ -5,15 +5,10 @@ import { CaretRight } from '@phosphor-icons/react';
 import { StatusPill } from './glc/StatusPill';
 import type { AuditMeta } from '../data/auditTypes';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
+import { auditPackageLabel, isSnapshotStyleAudit } from '../lib/audit-execution-plan';
+import { PORTAL_AUDIT_CARD_COPY } from '../config/portal-audit-card-copy.en';
 
 type PortalPillStatus = ComponentProps<typeof StatusPill>['status'];
-
-function productModeShortLabel(mode: AuditMeta['product_mode'] | undefined): string | null {
-  if (mode === 'express') return 'Pro audit';
-  if (mode === 'full') return 'Complete audit';
-  if (mode === 'free_snapshot') return 'Free snapshot';
-  return null;
-}
 
 function formatUpdatedRelative(iso: string | undefined): string {
   if (!iso) return '';
@@ -31,71 +26,71 @@ function clientPortalAuditPresentation(a: AuditMeta): {
   hint: string;
   pulse: boolean;
 } {
+  const C = PORTAL_AUDIT_CARD_COPY.statuses;
   switch (a.status) {
     case 'created':
       return {
         pill: 'pending',
-        label: 'Brief & setup',
-        hint: 'Complete the intake brief on the next screen, then start your audit when you are ready.',
+        label: C.created.label,
+        hint: C.created.hint,
         pulse: false,
       };
     case 'recon':
       return {
         pill: 'running',
-        label: 'Scanning your site',
-        hint: 'We are collecting public information about your website.',
+        label: C.recon.label,
+        hint: C.recon.hint,
         pulse: true,
       };
     case 'auto':
     case 'analytic':
       return {
         pill: 'running',
-        label: 'Analysis running',
-        hint: 'Automated phases are in progress. Open the audit to follow the pipeline.',
+        label: C.auto.label,
+        hint: C.auto.hint,
         pulse: true,
       };
     case 'review':
       return {
         pill: 'review',
-        label: 'Review pause',
-        hint: 'Waiting at a review step before the run continues.',
+        label: C.review.label,
+        hint: C.review.hint,
         pulse: false,
       };
     case 'completed':
-      if (a.product_mode === 'free_snapshot') {
+      if (isSnapshotStyleAudit(a)) {
         return {
           pill: 'completed',
-          label: 'Completed',
-          hint:
-            'Quick scan saved in your account — same view as the snapshot page. A full Pro or Complete audit is a separate programme; open the audit to continue.',
+          label: C.completedSnapshot.label,
+          hint: C.completedSnapshot.hint,
           pulse: false,
         };
       }
       return {
         pill: 'completed',
-        label: 'Completed',
-        hint: 'Your report and deliverables are ready to view.',
+        label: C.completed.label,
+        hint: C.completed.hint,
         pulse: false,
       };
     case 'failed':
       return {
         pill: 'failed',
-        label: 'Needs attention',
-        hint: 'The run stopped unexpectedly. Your GLC contact can help.',
+        label: C.failed.label,
+        hint: C.failed.hint,
         pulse: false,
       };
     case 'cancelled':
       return {
         pill: 'cancelled',
-        label: 'Cancelled',
-        hint: 'This audit was stopped and can be resumed only with a new pipeline start.',
+        label: C.cancelled.label,
+        hint: C.cancelled.hint,
         pulse: false,
       };
     default:
       return {
         pill: 'running',
         label: a.status.replace(/_/g, ' '),
-        hint: 'Open this audit for details.',
+        hint: C.defaultUnknownHint,
         pulse: false,
       };
   }
@@ -117,14 +112,16 @@ interface PortalAuditCardProps {
  */
 export function PortalAuditCard({ audit: a }: PortalAuditCardProps) {
   const title =
-    a.company_name?.trim() || formatAuditWebsiteDisplay(a.company_url, a.no_public_website) || 'Your audit';
+    a.company_name?.trim() || formatAuditWebsiteDisplay(a.company_url, a.no_public_website) || PORTAL_AUDIT_CARD_COPY.fallbackTitle;
   const websiteLine = portalCardWebsiteLine(a, title);
   const pres = clientPortalAuditPresentation(a);
-  const modeLabel = productModeShortLabel(a.product_mode);
+  const modeLabel = auditPackageLabel(a, { style: 'audit' });
   const updatedRel = formatUpdatedRelative(a.updated_at);
-  const metaParts = [a.industry?.trim(), modeLabel, updatedRel ? `Updated ${updatedRel}` : null].filter(
-    Boolean,
-  ) as string[];
+  const metaParts = [
+    a.industry?.trim(),
+    modeLabel,
+    updatedRel ? `${PORTAL_AUDIT_CARD_COPY.updatedPrefix} ${updatedRel}` : null,
+  ].filter(Boolean) as string[];
 
   return (
     <Link

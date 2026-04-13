@@ -10,11 +10,18 @@ import { AppShell } from '../components/AppShell';
 import { PortalSnapshotAccountMirror } from '../components/PortalSnapshotAccountMirror';
 import { useClientPortalPipeline } from '../context/ClientPortalPipelineContext';
 import { api } from '../data/apiService';
-import type { IntakeBriefCollectionMode } from '../data/auditTypes';
+import {
+  AUDIT_COVERAGE_PACKAGES,
+  INTAKE_BRIEF_SLA_PRODUCT_MODE,
+  type AuditCoveragePackage,
+  type IntakeBriefCollectionMode,
+} from '../data/auditTypes';
 import {
   CLIENT_PORTAL_PRODUCT_MODE_HELP,
   clientCanViewPortalPipeline,
 } from '../lib/client-portal-pipeline-access';
+import { readinessBadgeFromProgress } from '@glc/intake-core';
+import { auditPackageLabel, coveragePackageLabel, isSnapshotStyleAudit } from '../lib/audit-execution-plan';
 import { freeSnapshotPreviewFromAuditState } from '../lib/free-snapshot-preview-from-audit-state';
 import { getSnapshotAccessBlockedState } from '../lib/snapshot-diagnostics';
 import { auditSkipsPublicWebsiteFetches, formatAuditWebsiteDisplay } from '../data/no-public-website';
@@ -44,6 +51,11 @@ import {
   writeClientBriefLayout,
   clearClientBriefLayout,
 } from '../lib/client-brief-layout-preference';
+import { GLC_QUERY_STALE_TIME_MS_BRIEF } from '../config/query-client-defaults';
+import {
+  CLIENT_AUDIT_VIEW_COPY,
+  CLIENT_AUDIT_VIEW_DEFAULT_UPGRADE_COVERAGE_PACKAGE,
+} from '../config/client-audit-view-copy';
 
 // ── Inline brief form ────────────────────────────────────────────────────────
 
@@ -52,7 +64,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
   const briefQuery = useQuery({
     queryKey: glcKeys.brief.detail(auditId),
     queryFn: () => api.getBrief(auditId),
-    staleTime: 60_000,
+    staleTime: GLC_QUERY_STALE_TIME_MS_BRIEF,
   });
 
   const [responses, setResponses] = useState<BriefResponses>({});
@@ -63,7 +75,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
   const [briefError, setBriefError] = useState<string | null>(null);
 
   const [briefCollectionMode, setBriefCollectionMode] = useState<IntakeBriefCollectionMode | undefined>(undefined);
-  const [productMode, setProductMode] = useState<'full' | 'express'>('full');
+  const productMode = INTAKE_BRIEF_SLA_PRODUCT_MODE;
   const [briefLayoutChoice, setBriefLayoutChoice] = useState<'unset' | 'classic' | 'wizard'>(() =>
     resolveClientBriefLayout(auditId) ?? 'unset',
   );
@@ -88,8 +100,6 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
       setResponses(data.brief.responses as BriefResponses);
     }
     setBriefCollectionMode(data.brief?.collection_mode);
-    if (data.product_mode === 'express') setProductMode('express');
-    else setProductMode('full');
     if (data.intakeProgress) setIntakeProgress(data.intakeProgress);
     if (data.gates?.recommendedToImproveIds) setMissingRecommendedCount(data.gates.recommendedToImproveIds.length);
   }, [briefQuery.data]);
@@ -114,7 +124,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
     Math.round((answeredRequired / Math.max(1, pipelineRequiredTotal)) * 100),
   );
   const progressPct = intakeProgress?.progressPct ?? fallbackProgress;
-  const readinessBadge = intakeProgress?.readinessBadge ?? (fallbackProgress >= 80 ? 'high' : fallbackProgress >= 45 ? 'medium' : 'low');
+  const readinessBadge = intakeProgress?.readinessBadge ?? readinessBadgeFromProgress(fallbackProgress);
   const clientIntakeSurface =
     briefCollectionMode === 'discovery'
       ? undefined
@@ -325,7 +335,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
     queryKey: glcKeys.brief.detail(auditId),
     queryFn: () => api.getBrief(auditId),
     enabled: isCreated,
-    staleTime: 60_000,
+    staleTime: GLC_QUERY_STALE_TIME_MS_BRIEF,
   });
 
   const gatePayload = useMemo(() => {
@@ -345,7 +355,9 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
   const [helpBusy, setHelpBusy] = useState(false);
   const [helpOk, setHelpOk] = useState(false);
   const [helpError, setHelpError] = useState<string | null>(null);
-  const [upgradeCoveragePackage, setUpgradeCoveragePackage] = useState<'starter' | 'pro' | 'complete'>('pro');
+  const [upgradeCoveragePackage, setUpgradeCoveragePackage] = useState<AuditCoveragePackage>(
+    CLIENT_AUDIT_VIEW_DEFAULT_UPGRADE_COVERAGE_PACKAGE,
+  );
   const [upgradeBusy, setUpgradeBusy] = useState(false);
   const [upgradeError, setUpgradeError] = useState<string | null>(null);
   const { setPipelineAccess } = useClientPortalPipeline();
@@ -394,7 +406,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
 
   const meta = auditState?.meta;
   const statusLabel = meta?.status?.replace(/_/g, ' ') ?? '';
-  const isFreeSnapshot = meta?.product_mode === 'free_snapshot';
+  const isFreeSnapshot = meta ? isSnapshotStyleAudit(meta) : false;
   const snapshotPreview = useMemo(
     () => (auditState ? freeSnapshotPreviewFromAuditState(auditState) : null),
     [auditState],
@@ -530,17 +542,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                       border: '1px solid rgba(28,189,255,0.20)',
                     }}
                   >
-                    {meta.product_mode === 'free_snapshot'
-                      ? 'Free snapshot'
-                      : meta.execution_plan?.coverage_package === 'starter'
-                        ? 'Starter'
-                        : meta.execution_plan?.coverage_package === 'pro'
-                          ? 'Pro'
-                          : meta.execution_plan?.coverage_package === 'complete'
-                            ? 'Complete'
-                            : meta.product_mode === 'full'
-                              ? 'Complete'
-                              : 'Pro'}
+                    {auditPackageLabel(meta)}
                   </span>
                   <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>{statusLabel}</span>
                 </div>
@@ -708,7 +710,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                       Continue with a package
                     </div>
                     <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: 'var(--border-subtle)' }}>
-                      {(['starter', 'pro', 'complete'] as const).map(pkg => (
+                      {AUDIT_COVERAGE_PACKAGES.map(pkg => (
                         <button
                           key={pkg}
                           type="button"
@@ -723,7 +725,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                             cursor: upgradeBusy ? 'not-allowed' : 'pointer',
                           }}
                         >
-                          {pkg === 'starter' ? 'Starter' : pkg === 'pro' ? 'Pro' : 'Complete'}
+                          {coveragePackageLabel(pkg)}
                         </button>
                       ))}
                     </div>
@@ -833,42 +835,34 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                       style={{ background: 'var(--bg-inset)', border: '1px solid var(--border-subtle)' }}
                     >
                       <p className="text-xs m-0 font-medium" style={{ color: 'var(--text-secondary)' }}>
-                        We pre-fill your brief and recon notes from this quick scan:
+                        {CLIENT_AUDIT_VIEW_COPY.upgrade.prefillTitle}
                       </p>
                       <ul className="text-xs m-0 pl-4 space-y-1.5 list-disc leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
                         <li>
-                          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Tech stack</span> — tools we
-                          detected (CMS, analytics, tags, frameworks) for technical recon and phase context.
+                          {CLIENT_AUDIT_VIEW_COPY.upgrade.prefillItems.techStack}
                         </li>
                         <li>
-                          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Site profile</span> — short
-                          label, industry guess, primary offer, audience (B2B/B2C), and conversion pattern from public
-                          pages.
+                          {CLIENT_AUDIT_VIEW_COPY.upgrade.prefillItems.siteProfile}
                         </li>
                         <li>
-                          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Homepage copy</span> — title,
-                          meta description, or first substantive paragraph we captured.
+                          {CLIENT_AUDIT_VIEW_COPY.upgrade.prefillItems.homepageCopy}
                         </li>
                         <li>
-                          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Business activity draft</span>{' '}
-                          — paragraph for your primary goal field, combining profile + scan summary when available.
+                          {CLIENT_AUDIT_VIEW_COPY.upgrade.prefillItems.businessActivityDraft}
                         </li>
                         <li>
-                          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Snapshot score hint</span> —
-                          overall /100 from the scan stored in recon prefills (the full audit is re-scored from
-                          scratch).
+                          {CLIENT_AUDIT_VIEW_COPY.upgrade.prefillItems.scoreHint}
                         </li>
                         <li>
-                          <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Analytics</span> — when GA /
-                          GTM / gtag signals are present we mark analytics in the brief.
+                          {CLIENT_AUDIT_VIEW_COPY.upgrade.prefillItems.analytics}
                         </li>
                       </ul>
                       <p className="text-xs m-0 leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
                         {upgradeCoveragePackage === 'starter'
-                          ? 'Starter uses this context for recon plus one selected domain. Strategy is disabled by default.'
+                          ? CLIENT_AUDIT_VIEW_COPY.upgrade.packageContextByCoverage.starter
                           : upgradeCoveragePackage === 'pro'
-                            ? 'Pro uses this context for recon plus selected 2-3 domains; strategy inclusion depends on the execution plan.'
-                            : 'Complete uses this context across all six analysis domains and the strategy phase after your brief meets start gates.'}{' '}
+                            ? CLIENT_AUDIT_VIEW_COPY.upgrade.packageContextByCoverage.pro
+                            : CLIENT_AUDIT_VIEW_COPY.upgrade.packageContextByCoverage.complete}{' '}
                         You can edit every field before the run.
                       </p>
                     </div>
@@ -889,7 +883,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                     </button>
                     <p className="text-xs m-0 leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
                       Clears our quick-scan recon data and brief answers derived from it, and resets placeholders for a
-                      {` ${upgradeCoveragePackage === 'starter' ? 'Starter' : upgradeCoveragePackage === 'pro' ? 'Pro' : 'Complete'} `}
+                      {` ${coveragePackageLabel(upgradeCoveragePackage)} `}
                       audit. Quick scan scores are not carried into
                       the new run.
                     </p>

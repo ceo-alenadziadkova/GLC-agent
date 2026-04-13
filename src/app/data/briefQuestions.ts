@@ -1,8 +1,4 @@
-import {
-  resolveExpressSlaRequiredIds,
-  resolveFullSlaRequiredIds,
-  resolvePreBriefSubmitExpressBankIds,
-} from '@glc/intake-core';
+import { resolveFullSlaRequiredIds, resolvePreBriefSubmitExpressBankIds } from '@glc/intake-core';
 import {
   BRIEF_QUESTIONS as SERVER_BRIEF_QUESTIONS,
   INTAKE_IDENTITY_BRIEF_QUESTIONS as SERVER_INTAKE_IDENTITY_BRIEF_QUESTIONS,
@@ -75,16 +71,18 @@ export const REQUIRED_IDS = SERVER_REQUIRED_QUESTION_IDS;
 /** Express SLA base ids for pipeline gates; pre-brief link uses `resolvePreBriefSubmitExpressBankIds` (intersect `bankIncluded`). */
 export const EXPRESS_REQUIRED_QUESTION_IDS = SERVER_EXPRESS_REQUIRED_QUESTION_IDS;
 
-/** IDs checked before pipeline start — matches server `evaluateBriefGates` per product mode. */
+/**
+ * IDs checked before pipeline start — matches server `evaluateBriefGates` for paid audits.
+ * Intake SLA is always full; `mode` is kept for call-site compatibility only.
+ */
 export function pipelineRequiredIdsForProductMode(
-  mode: 'full' | 'express',
+  _mode: 'full' | 'express',
   responses: BriefResponses,
   collectionMode?: IntakeBriefCollectionMode,
 ): string[] {
+  void _mode;
   const m = briefResponsesToIntakeMap(responses);
-  return mode === 'express'
-    ? [...resolveExpressSlaRequiredIds(m, collectionMode)]
-    : [...resolveFullSlaRequiredIds(m, collectionMode)];
+  return [...resolveFullSlaRequiredIds(m, collectionMode)];
 }
 
 export const PRE_BRIEF_QUESTION_IDS = SERVER_PRE_BRIEF_QUESTION_IDS;

@@ -250,7 +250,8 @@ describe('GET /api/audits/:id/pipeline/status', () => {
     setRequestUserId(STRANGER);
     const res = await fetch(`${baseUrl}/api/audits/${AUDIT_ID}/pipeline/status`);
     expect(res.status).toBe(404);
-    const body = await res.json() as { error: string };
+    const body = await res.json() as { error: string; code: string };
+    expect(body.code).toBe('PIPELINE_AUDIT_NOT_FOUND');
     expect(body.error).toMatch(/not found/i);
   });
 

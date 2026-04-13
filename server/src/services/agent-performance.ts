@@ -25,17 +25,18 @@
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
 import type { ControlObjectV1 } from '../schemas/control-object.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /** Minimum number of evaluation runs before a score is considered meaningful. */
-export const MIN_EVALUATION_COUNT = 10;
+export const MIN_EVALUATION_COUNT = SYSTEM_DEFAULTS.agentPerformance.minEvaluationCount;
 
 const SCORE_WEIGHTS = {
-  hallucination: 0.40,
-  inconsistency: 0.25,
-  risky_promise: 0.20,
-  unverified: 0.15,
+  hallucination: SYSTEM_DEFAULTS.agentPerformance.scoreWeights.hallucination,
+  inconsistency: SYSTEM_DEFAULTS.agentPerformance.scoreWeights.inconsistency,
+  risky_promise: SYSTEM_DEFAULTS.agentPerformance.scoreWeights.riskyPromise,
+  unverified: SYSTEM_DEFAULTS.agentPerformance.scoreWeights.unverified,
 } as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────

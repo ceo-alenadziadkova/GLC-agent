@@ -100,7 +100,13 @@ function validPipelineStatusPayload(auditId: string) {
     current_phase: 0,
     tokens_used: 100,
     token_budget: 1000,
-    product_mode: 'full',
+    execution_plan: {
+      selected_domains: ['tech_infrastructure', 'security_compliance'],
+      depth: 'standard',
+      source: 'system_default',
+      coverage_package: 'pro',
+      include_strategy: false,
+    },
     events: [
       {
         id: 1,
@@ -147,12 +153,11 @@ describe('apiService pipeline status contract', () => {
     expect(data.events[0].message).toBeNull();
   });
 
-  it('getPipelineStatus throws when product_mode is missing', async () => {
+  it('getPipelineStatus accepts payload without legacy product_mode', async () => {
     const body = validPipelineStatusPayload('audit-001') as Record<string, unknown>;
-    delete body.product_mode;
+    delete body.execution_plan;
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockJsonResponse(body)));
-
-    await expect(api.getPipelineStatus('audit-001')).rejects.toThrow(/product_mode/);
+    await expect(api.getPipelineStatus('audit-001')).resolves.toBeTruthy();
   });
 
   it('getPipelineStatus throws when events is not an array', async () => {

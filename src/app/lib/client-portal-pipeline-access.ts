@@ -1,3 +1,6 @@
+import type { AuditCoveragePackage, DomainKey } from '../data/auditTypes';
+import { isSnapshotStyleAudit } from './audit-execution-plan';
+
 /**
  * Client portal: Pipeline nav + /portal/pipeline are available only after the intake brief
  * satisfies start gates (or the audit has left `created`). Free snapshot stays on the audit page;
@@ -6,7 +9,12 @@
 
 export type AuditMetaForPipelineGate = {
   status: string;
-  product_mode: string;
+  snapshot_token?: string | null;
+  execution_plan?: {
+    selected_domains?: DomainKey[];
+    coverage_package?: AuditCoveragePackage;
+    include_strategy?: boolean;
+  } | null;
 };
 
 export type BriefGatesPayload = {
@@ -20,8 +28,8 @@ export function clientCanViewPortalPipeline(args: {
   brief: BriefGatesPayload | null | undefined;
 }): boolean {
   const meta = args.auditMeta;
-  if (!meta?.status || !meta.product_mode) return false;
-  if (meta.product_mode === 'free_snapshot') return false;
+  if (!meta?.status) return false;
+  if (isSnapshotStyleAudit(meta)) return false;
   if (meta.status !== 'created') return true;
   const g = args.brief?.gates;
   if (!g) return false;

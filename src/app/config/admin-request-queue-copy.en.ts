@@ -2,7 +2,7 @@
  * Admin request queue — labels, status chrome, and empty-state copy (static front config).
  */
 
-import type { AuditRequestStatus } from '../data/auditTypes';
+import type { AuditRequestStatus, ProductMode } from '../data/auditTypes';
 
 export const ADMIN_REQUEST_QUEUE_COPY = {
   pageTitle: 'Request queue',
@@ -28,6 +28,34 @@ export const ADMIN_REQUEST_QUEUE_COPY = {
   paginationRange: (from: number, to: number, total: number) => `Showing ${from}–${to} of ${total}`,
   paginationPrev: 'Previous',
   paginationNext: 'Next',
+  /** Product mode labels for audit request rows. */
+  productModeLabel: {
+    free_snapshot: 'Free snapshot',
+    express: 'Pro',
+    full: 'Complete',
+  } satisfies Record<ProductMode, string>,
+  rowKindAuditRequest: 'Audit request',
+  rowKindClientPreBrief: 'Client pre-brief',
+  noPublicWebsite: 'No public website',
+  clientIdPrefix: 'client',
+  sectorPrefix: 'Sector:',
+  openAudit: 'Open audit',
+  approveAndCreateAudit: 'Approve & create audit',
+  rejectReasonPlaceholder: 'Reason for rejection (optional)',
+  confirmReject: 'Confirm reject',
+  cancel: 'Cancel',
+  reject: 'Reject',
+  linkExpired: 'Link expired',
+  linkedAudit: 'Linked audit',
+  notLinkedToAudit: 'Not linked to an audit yet',
+  copyClientLink: 'Copy client link',
+  copied: 'Copied',
+  newAuditWithPrefill: 'New Audit with this prefill',
+  answersSectionTitle: 'Answers',
+  rawResponsesJsonSummary: 'Raw responses (JSON)',
+  awaitingSummaryLine: (tot: number, reqCount: number, intakeCount: number) =>
+    `${tot} total — ${reqCount} audit request(s), ${intakeCount} client pre-brief(s). Sorted newest first.`,
+  intakeTitleFallback: 'Client pre-brief',
 } as const;
 
 export const ADMIN_REQUEST_QUEUE_STATUS: Record<

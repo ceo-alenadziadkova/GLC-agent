@@ -182,11 +182,14 @@ function MarketingHomeInner() {
                       boxShadow: 'var(--shadow-sm)',
                     }}
                   >
-                    Try Snapshot first
+                    Check how systems see your site
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </motion.div>
               </div>
+              <p className="mt-3 max-w-xl text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+                Snapshot is the first visibility check: what automated systems can read on your public pages, what they miss, and where clarity drops.
+              </p>
               <ul className="mt-10 flex flex-wrap gap-x-8 gap-y-2 text-sm" style={{ color: 'var(--text-tertiary)' }}>
                 {['Clear package boundaries', 'Handoff-ready report', 'Prioritized next actions'].map(line => (
                   <li key={line} className="flex items-center gap-2">

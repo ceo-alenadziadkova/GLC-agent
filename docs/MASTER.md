@@ -59,13 +59,13 @@ Selected ADR quick links:
 
 ### 1. Product and business logic
 
-**What it is:** B2B audit product: URL plus progressive intake context, multi-phase analysis, scored domains, report and strategy deliverables. Supports `full`, `express`, and `free_snapshot` modes.
+**What it is:** B2B audit product: URL plus progressive intake context, multi-phase analysis, scored domains, report and strategy deliverables. Customer-facing scope is package-driven (`starter` / `pro` / `complete`) with optional roadmap (`include_strategy`), plus `free_snapshot` entry; stage-aware diagnostics (launch/stabilize/grow/optimize) replace growth-only positioning.
 
-**Why it matters:** Defines scope of engineering work and what clients receive.
+**Why it matters:** Defines scope of engineering work and what clients receive, and clarifies competitive differentiation versus agencies/consulting, DIY AI workflows, and fragmented in-house tool stacks.
 
 **Where it is implemented:** Product behaviour is encoded in `server/src/types/audit.ts`, `server/src/services/pipeline.ts`, UI pages under `src/app/pages/`.
 
-**Where to find documentation:** [PRODUCT.md](./PRODUCT.md) (includes Intake Experience layers, readiness contract, and mode thresholds)
+**Where to find documentation:** [PRODUCT.md](./PRODUCT.md) (includes proposition, competitive landscape, stage-based goals, Intake Experience layers, readiness contract, and mode thresholds)
 
 **Owner:** Product / Tech Lead (TBD)
 

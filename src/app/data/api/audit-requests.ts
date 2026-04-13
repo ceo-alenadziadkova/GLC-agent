@@ -19,7 +19,7 @@ export const auditRequestsApi = {
     });
   },
 
-  async listAuditRequests(limit = GLC_AUDITS_AND_AUDIT_REQUESTS_LIST.defaultLimit, offset = 0) {
+  async listAuditRequests(limit: number = GLC_AUDITS_AND_AUDIT_REQUESTS_LIST.defaultLimit, offset = 0) {
     return apiFetch<{ data: AuditRequest[]; total: number; limit: number; offset: number }>(
       `${API_PATHS.auditRequests}?limit=${limit}&offset=${offset}`,
     );

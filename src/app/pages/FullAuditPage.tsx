@@ -92,6 +92,7 @@ export function FullAuditPage() {
         </h2>
         <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
           <li>Structured report with explicit coverage and comparability notes.</li>
+          <li>Cross-domain synthesis across all six domains (strongest comparability baseline).</li>
           <li>Priority matrix (impact / effort) and roadmap.</li>
           <li>Implementation options: GLC support or handoff to your team / partners.</li>
         </ul>

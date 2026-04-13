@@ -83,6 +83,13 @@ function minimalCompletedFreeSnapshotAudit(id: string): AuditState {
       current_phase: 0,
       overall_score: null,
       product_mode: 'free_snapshot',
+      execution_plan: {
+        selected_domains: ['ux_conversion'],
+        depth: 'light',
+        source: 'system_default',
+        coverage_package: 'starter',
+        include_strategy: false,
+      },
       token_budget: 0,
       tokens_used: 0,
       snapshot_token: 'snap-1',

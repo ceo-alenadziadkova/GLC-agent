@@ -95,6 +95,8 @@ describe('POST /api/platform/bandits/recompute', () => {
     mocks.canManagePlatformSettings.mockResolvedValue(false);
     const res = await fetch(`${baseUrl}/api/platform/bandits/recompute`, { method: 'POST' });
     expect(res.status).toBe(403);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.code).toBe('PLATFORM_ADMIN_ONLY');
     expect(mocks.recomputeArmPerformanceFromEvaluationDatasets).not.toHaveBeenCalled();
   });
 
@@ -118,6 +120,20 @@ describe('POST /api/platform/bandits/recompute', () => {
       body: JSON.stringify({ phase_id: 'invalid_phase' }),
     });
     expect(res.status).toBe(400);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.code).toBe('PROFILE_PAYLOAD_INVALID');
+    expect(mocks.recomputeArmPerformanceFromEvaluationDatasets).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 for invalid dry_run payload', async () => {
+    const res = await fetch(`${baseUrl}/api/platform/bandits/recompute`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ dry_run: 'yes' }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.code).toBe('PROFILE_PAYLOAD_INVALID');
     expect(mocks.recomputeArmPerformanceFromEvaluationDatasets).not.toHaveBeenCalled();
   });
 
@@ -146,5 +162,13 @@ describe('POST /api/platform/bandits/recompute', () => {
 
     resolveFirst?.();
     await first;
+  });
+
+  it('returns 500 with internal-server-error code when recompute throws', async () => {
+    mocks.recomputeArmPerformanceFromEvaluationDatasets.mockRejectedValueOnce(new Error('boom'));
+    const res = await fetch(`${baseUrl}/api/platform/bandits/recompute`, { method: 'POST' });
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.code).toBe('INTERNAL_SERVER_ERROR');
   });
 });

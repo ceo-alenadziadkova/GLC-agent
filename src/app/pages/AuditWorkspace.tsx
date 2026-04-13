@@ -14,15 +14,23 @@ import { QuickWinTag } from '../components/glc/QuickWinTag';
 import { useAudit } from '../hooks/useAudit';
 import { useBriefLayoutPrefsSync } from '../hooks/useBriefLayoutPrefsSync';
 import { useIntakeBankMetrics } from '../hooks/useIntakeWizard';
-import { DOMAIN_KEYS, DOMAIN_LABELS, type IntakeBriefCollectionMode } from '../data/auditTypes';
-import type { DomainKey, DomainData, ProductMode, ConfidenceLevel } from '../data/auditTypes';
+import {
+  DOMAIN_KEYS,
+  DOMAIN_LABELS,
+  INTAKE_BRIEF_SLA_PRODUCT_MODE,
+  type IntakeBriefCollectionMode,
+} from '../data/auditTypes';
+import type { DomainKey, DomainData, ConfidenceLevel } from '../data/auditTypes';
 import { BriefField } from '../components/BriefField';
 import {
   unwrapResponse,
 } from '../data/briefQuestions';
 import type { BriefResponses } from '../data/briefQuestions';
 import { choiceSpecifyResponseKey, choiceValueNeedsSpecify, QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
-import { AUDIT_WORKSPACE_SAVE_FLASH_MS } from '../config/ui-feedback-defaults';
+import {
+  AUDIT_WORKSPACE_SAVE_FLASH_MS,
+  AUDIT_WORKSPACE_BRIEF_SAVE_DEBOUNCE_MS,
+} from '../config/ui-feedback-defaults';
 import { api } from '../data/apiService';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
@@ -39,17 +47,15 @@ import {
 } from '../lib/client-brief-layout-preference';
 import { bankIdToBriefQuestion } from '../data/bankQuestionUiCatalog';
 import { logger } from '../lib/logger';
-
-const EXPRESS_DOMAIN_KEYS: readonly DomainKey[] = [
-  'tech_infrastructure', 'security_compliance', 'seo_digital', 'ux_conversion',
-];
-
 /** Free snapshot pipeline only materialises UX / conversion analysis. */
 const SNAPSHOT_DOMAIN_KEYS: readonly DomainKey[] = ['ux_conversion'];
 
-function visibleDomainKeysForMode(mode: ProductMode): readonly DomainKey[] {
-  if (mode === 'free_snapshot') return SNAPSHOT_DOMAIN_KEYS;
-  if (mode === 'express') return EXPRESS_DOMAIN_KEYS;
+function visibleDomainKeysForMeta(meta: { execution_plan?: { selected_domains?: DomainKey[] } | null; snapshot_token?: string | null; }): readonly DomainKey[] {
+  const selected = meta.execution_plan?.selected_domains;
+  if (Array.isArray(selected) && selected.length > 0) {
+    return selected;
+  }
+  if (meta.snapshot_token) return SNAPSHOT_DOMAIN_KEYS;
   return DOMAIN_KEYS;
 }
 
@@ -149,7 +155,7 @@ export function AuditWorkspace() {
           });
         }
       })();
-    }, 650);
+    }, AUDIT_WORKSPACE_BRIEF_SAVE_DEBOUNCE_MS);
   }, [id, audit?.brief, reload]);
 
   useEffect(() => () => {
@@ -168,7 +174,7 @@ export function AuditWorkspace() {
   /** Snapshots and partial loads omit most domain rows; keep sidebar + active tab consistent with product_mode. */
   useEffect(() => {
     if (!audit) return;
-    const keys = visibleDomainKeysForMode(audit.meta.product_mode as ProductMode);
+    const keys = visibleDomainKeysForMeta(audit.meta);
     const urlKey =
       domainId && typeof domainId === 'string' && keys.includes(domainId as DomainKey)
         ? (domainId as DomainKey)
@@ -222,7 +228,7 @@ export function AuditWorkspace() {
             });
           }
         })();
-      }, 650);
+      }, AUDIT_WORKSPACE_BRIEF_SAVE_DEBOUNCE_MS);
     },
     [id, audit?.brief, reload],
   );
@@ -256,7 +262,7 @@ export function AuditWorkspace() {
     (audit?.brief?.responses as BriefResponses) ?? {},
     briefCollectionMode,
     workspaceConsultantSurface,
-    (audit?.meta.product_mode as ProductMode) ?? 'full',
+    INTAKE_BRIEF_SLA_PRODUCT_MODE,
   );
 
   if (loading && !audit) {
@@ -297,7 +303,7 @@ export function AuditWorkspace() {
     audit.meta.company_name ||
     formatAuditWebsiteDisplay(audit.meta.company_url, audit.meta.no_public_website) ||
     audit.meta.company_url;
-  const visibleDomainKeys = visibleDomainKeysForMode(audit.meta.product_mode as ProductMode);
+  const visibleDomainKeys = visibleDomainKeysForMeta(audit.meta);
 
   // Use server-calculated weighted overall score when available (set after Phase 7).
   // Fall back to unweighted average while pipeline is still running.
@@ -450,7 +456,7 @@ export function AuditWorkspace() {
                                   }
                                 : undefined
                             }
-                            productMode={audit.meta.product_mode as ProductMode}
+                            productMode={INTAKE_BRIEF_SLA_PRODUCT_MODE}
                           />
                         ) : (
                           <BankClassicBriefFields
@@ -458,7 +464,7 @@ export function AuditWorkspace() {
                             responses={workspaceBriefResponses}
                             collectionMode={audit.brief.collection_mode}
                             intakeSurface={workspaceConsultantSurface}
-                            productMode={audit.meta.product_mode as ProductMode}
+                            productMode={INTAKE_BRIEF_SLA_PRODUCT_MODE}
                             onChange={handleWorkspaceBriefFieldChange}
                             onSetUnknown={handleWorkspaceBriefSetUnknown}
                           />

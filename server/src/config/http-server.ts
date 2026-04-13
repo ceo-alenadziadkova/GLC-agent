@@ -13,3 +13,8 @@ export const API_HEALTH_PATH = `${API_PREFIX}/health` as const;
 export function getExpressJsonBodyLimit(): string {
   return SYSTEM_DEFAULTS.express.jsonBodyLimit;
 }
+
+/**
+ * Default HTTP bind address (Docker/Railway-friendly). Override with `LISTEN_HOST` for local hardening.
+ */
+export const DEFAULT_LISTEN_HOST = '0.0.0.0' as const;

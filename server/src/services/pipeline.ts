@@ -576,13 +576,12 @@ export class PipelineOrchestrator {
   private async getExecutionPlan(): Promise<AuditExecutionPlan> {
     const { data } = await supabase
       .from('audits')
-      .select('product_mode, execution_plan')
+      .select('execution_plan, product_mode')
       .eq('id', this.auditId)
       .single();
-    const mode = (data?.product_mode as ProductMode) ?? DEFAULT_AUDIT_PRODUCT_MODE;
     return normalizeExecutionPlan(
       (data?.execution_plan as Partial<AuditExecutionPlan> | null | undefined) ?? null,
-      mode,
+      (data?.product_mode as ProductMode | undefined) ?? DEFAULT_AUDIT_PRODUCT_MODE,
     );
   }
 

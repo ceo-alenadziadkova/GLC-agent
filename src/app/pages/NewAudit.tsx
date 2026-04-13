@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router';
-import { ensureHttpsUrl } from '@glc/intake-core';
+import { ensureHttpsUrl, readinessBadgeFromProgress } from '@glc/intake-core';
 import type { BriefResponseSource, IntakeVersionTuple } from '../data/auditTypes';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -43,6 +43,7 @@ import {
   clientBriefLayoutStorageKey,
 } from '../lib/client-brief-layout-preference';
 import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
+import { NEW_AUDIT_DRAFT_SAVE_DEBOUNCE_MS } from '../config/ui-feedback-defaults';
 import {
   clearClientPortalNewAuditDraft,
   readClientPortalNewAuditDraft,
@@ -74,33 +75,24 @@ import {
 } from '../data/briefQuestions';
 import { logger } from '../lib/logger';
 import { GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY } from '../lib/storage-keys';
-import type { DomainKey } from '../data/auditTypes';
-
-const ALL_COVERAGE_DOMAINS: DomainKey[] = [
-  'tech_infrastructure',
-  'security_compliance',
-  'seo_digital',
-  'ux_conversion',
-  'marketing_utp',
-  'automation_processes',
-];
-
-const COVERAGE_DOMAIN_LABELS: Record<DomainKey, string> = {
-  tech_infrastructure: 'Tech Infrastructure',
-  security_compliance: 'Security & Compliance',
-  seo_digital: 'SEO & Digital',
-  ux_conversion: 'UX & Conversion',
-  marketing_utp: 'Marketing & Positioning',
-  automation_processes: 'Automation & Processes',
-};
-
-const INDUSTRY_DOMAIN_RECOMMENDATIONS: Record<string, DomainKey[]> = {
-  'E-commerce': ['ux_conversion', 'seo_digital', 'automation_processes'],
-  Hospitality: ['ux_conversion', 'marketing_utp', 'seo_digital'],
-  Healthcare: ['security_compliance', 'tech_infrastructure', 'ux_conversion'],
-  'SaaS / Technology': ['tech_infrastructure', 'security_compliance', 'automation_processes'],
-  'Professional Services': ['marketing_utp', 'ux_conversion', 'automation_processes'],
-};
+import {
+  AUDIT_COVERAGE_PACKAGES,
+  COMPLETE_AUDIT_COVERAGE_PACKAGE,
+  INTAKE_BRIEF_SLA_PRODUCT_MODE,
+  PRO_AUDIT_COVERAGE_PACKAGE,
+  STARTER_AUDIT_COVERAGE_PACKAGE,
+  type AuditCoveragePackage,
+  type AuditDepth,
+  type DomainKey,
+} from '../data/auditTypes';
+import { coveragePackageLabel } from '../lib/audit-execution-plan';
+import {
+  NEW_AUDIT_ALL_COVERAGE_DOMAINS,
+  NEW_AUDIT_COVERAGE_DOMAIN_COUNT_HINT,
+  NEW_AUDIT_COVERAGE_DOMAIN_LABELS,
+  NEW_AUDIT_COVERAGE_PACKAGE_DEPTH,
+  NEW_AUDIT_INDUSTRY_DOMAIN_RECOMMENDATIONS,
+} from '../config/new-audit-coverage-policy';
 
 export type NewAuditVariant = 'consultant' | 'client_self_serve';
 
@@ -124,12 +116,13 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
   const [industry,    setIndustry]    = useState(() => portalDraftSeed?.industry ?? '');
   /** Free-text sector when industry is Other (synced from client pre-brief when linking ?intake=). */
   const [industrySpecify, setIndustrySpecify] = useState(() => portalDraftSeed?.industrySpecify ?? '');
-  const productMode: 'full' = 'full';
-  const [coveragePackage, setCoveragePackage] = useState<'starter' | 'pro' | 'complete'>('complete');
-  const [selectedDomains, setSelectedDomains] = useState<DomainKey[]>([...ALL_COVERAGE_DOMAINS]);
+  /** Intake SLA / API product axis for new audits (full questionnaire; coverage is `execution_plan`). */
+  const productMode = INTAKE_BRIEF_SLA_PRODUCT_MODE;
+  const [coveragePackage, setCoveragePackage] = useState<AuditCoveragePackage>(COMPLETE_AUDIT_COVERAGE_PACKAGE);
+  const [selectedDomains, setSelectedDomains] = useState<DomainKey[]>([...NEW_AUDIT_ALL_COVERAGE_DOMAINS]);
   const recommendedDomains = useMemo<DomainKey[]>(() => {
     if (!industry) return ['tech_infrastructure', 'ux_conversion'];
-    return INDUSTRY_DOMAIN_RECOMMENDATIONS[industry] ?? ['tech_infrastructure', 'ux_conversion'];
+    return NEW_AUDIT_INDUSTRY_DOMAIN_RECOMMENDATIONS[industry] ?? ['tech_infrastructure', 'ux_conversion'];
   }, [industry]);
 
   // Step 2 fields
@@ -281,7 +274,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
 
   useEffect(() => {
     setSelectedDomains((prev) => {
-      if (coveragePackage === 'complete') return [...ALL_COVERAGE_DOMAINS] as DomainKey[];
+      if (coveragePackage === 'complete') return [...NEW_AUDIT_ALL_COVERAGE_DOMAINS] as DomainKey[];
       if (coveragePackage === 'starter') {
         const first: DomainKey = prev[0] ?? 'tech_infrastructure';
         return [first];
@@ -310,7 +303,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         draftAuditId,
         draftIntakeVersions,
       });
-    }, 350);
+    }, NEW_AUDIT_DRAFT_SAVE_DEBOUNCE_MS);
     return () => window.clearTimeout(t);
   }, [
     isClientSelfServe,
@@ -383,14 +376,14 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
   const coverageValid =
     (coveragePackage === 'starter' && selectedDomains.length === 1) ||
     (coveragePackage === 'pro' && selectedDomains.length >= 2 && selectedDomains.length <= 3) ||
-    (coveragePackage === 'complete' && selectedDomains.length === ALL_COVERAGE_DOMAINS.length);
+    (coveragePackage === 'complete' && selectedDomains.length === NEW_AUDIT_ALL_COVERAGE_DOMAINS.length);
 
   const step0Valid = step1Valid && coverageValid;
 
   function toggleDomainSelection(domain: DomainKey) {
     setSelectedDomains((prev) => {
       const has = prev.includes(domain);
-      if (coveragePackage === 'complete') return [...ALL_COVERAGE_DOMAINS] as DomainKey[];
+      if (coveragePackage === 'complete') return [...NEW_AUDIT_ALL_COVERAGE_DOMAINS] as DomainKey[];
       const next = has ? prev.filter((d) => d !== domain) : [...prev, domain];
       if (coveragePackage === 'starter') return next.slice(0, 1) as DomainKey[];
       if (next.length > 3) return next.slice(0, 3) as DomainKey[];
@@ -417,7 +410,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
   const pipelineRequiredTotal = pipelineRequiredIds.length;
   const step2Complete    = answeredRequired === pipelineRequiredTotal;
   const progressPct = Math.min(100, Math.round((answeredRequired / pipelineRequiredTotal) * 100));
-  const readinessBadge: 'low' | 'medium' | 'high' = progressPct >= 80 ? 'high' : progressPct >= 45 ? 'medium' : 'low';
+  const readinessBadge = readinessBadgeFromProgress(progressPct);
   const nextBestAction = step2Complete ? 'add_recommended' : 'complete_required';
   const bankMetrics = useIntakeBankMetrics(
     responses,
@@ -473,8 +466,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
   }
 
   function buildExecutionPlan() {
-    const depth: 'light' | 'standard' | 'deep' =
-      coveragePackage === 'starter' ? 'light' : coveragePackage === 'pro' ? 'standard' : 'deep';
+    const depth = NEW_AUDIT_COVERAGE_PACKAGE_DEPTH[coveragePackage];
     return {
       selected_domains: selectedDomains,
       depth,
@@ -1010,7 +1002,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                   <div className="space-y-2">
                     <label className="block font-medium" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>Coverage package</label>
                     <div className="grid grid-cols-3 gap-2">
-                      {(['starter', 'pro', 'complete'] as const).map(pkg => {
+                      {AUDIT_COVERAGE_PACKAGES.map(pkg => {
                         const sel = coveragePackage === pkg;
                         return (
                           <button key={pkg} type="button" onClick={() => setCoveragePackage(pkg)}
@@ -1018,17 +1010,17 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                             style={{ backgroundColor: sel ? 'var(--callout-info-bg)' : 'var(--bg-inset)', border: sel ? '1px solid var(--callout-info-border-strong)' : '1px solid var(--border-subtle)' }}
                           >
                             <div className="font-semibold" style={{ color: sel ? 'var(--glc-blue-deeper)' : 'var(--text-primary)' }}>
-                              {pkg === 'starter' ? 'Starter' : pkg === 'pro' ? 'Pro' : 'Complete'}
+                              {coveragePackageLabel(pkg)}
                             </div>
                             <div style={{ color: 'var(--text-tertiary)', marginTop: 2 }}>
-                              {pkg === 'starter' ? '1 domain' : pkg === 'pro' ? '2-3 domains' : 'All domains'}
+                              {NEW_AUDIT_COVERAGE_DOMAIN_COUNT_HINT[pkg]}
                             </div>
                           </button>
                         );
                       })}
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
-                      {ALL_COVERAGE_DOMAINS.map((domain) => {
+                      {NEW_AUDIT_ALL_COVERAGE_DOMAINS.map((domain) => {
                         const checked = selectedDomains.includes(domain);
                         const disabled =
                           coveragePackage === 'complete' ||
@@ -1048,14 +1040,14 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                               style={{ accentColor: 'var(--glc-blue)' }}
                             />
                             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-primary)' }}>
-                              {COVERAGE_DOMAIN_LABELS[domain]}
+                              {NEW_AUDIT_COVERAGE_DOMAIN_LABELS[domain]}
                             </span>
                           </label>
                         );
                       })}
                     </div>
                     <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: 6 }}>
-                      Recommended from intake context: {recommendedDomains.map((d) => COVERAGE_DOMAIN_LABELS[d]).join(', ')}.
+                      Recommended from intake context: {recommendedDomains.map((d) => NEW_AUDIT_COVERAGE_DOMAIN_LABELS[d]).join(', ')}.
                       Final selection is always yours.
                     </p>
                   </div>
@@ -1493,7 +1485,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                     industry ? ['Industry', industry] : null,
                     [
                       'Coverage',
-                      `${coveragePackage === 'starter' ? 'Starter' : coveragePackage === 'pro' ? 'Pro' : 'Complete'} · ${selectedDomains.length} domain(s)`,
+                      `${coveragePackageLabel(coveragePackage)} · ${selectedDomains.length} domain(s)`,
                     ],
                     ['Brief', `${answeredRequired}/${pipelineRequiredTotal} required answered`],
                   ].filter(Boolean).map(([label, value]) => (

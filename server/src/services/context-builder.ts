@@ -1,7 +1,9 @@
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
 import {
+  COMPLETE_AUDIT_COVERAGE_PACKAGE,
   DEFAULT_AUDIT_PRODUCT_MODE,
+  type AuditExecutionPlan,
   type DomainKey,
   type IntakeBriefCollectionMode,
   type IntakeVersionTuple,
@@ -38,6 +40,7 @@ import { isSupportedIntakeArtifactTuple } from '@glc/intake-core';
 import { currentIntakeVersionTuple } from '@glc/intake-core';
 import { resolveIntakeSurfaceForPlan } from './brief-validator.js';
 import { CONTEXT_BUILDER_NO_PUBLIC_WEBSITE_LINE } from '../config/prompt-fragments.js';
+import { normalizeExecutionPlan } from './execution-plan.js';
 
 function formatCompanyUrlForPrompt(url: string, noPublicWebsite?: boolean | null): string {
   return auditSkipsPublicWebsiteFetches(noPublicWebsite, url) ? CONTEXT_BUILDER_NO_PUBLIC_WEBSITE_LINE : url;
@@ -137,7 +140,7 @@ export class ContextBuilder {
     // Fetch audit meta — [C2] check error: missing audit = invalid context, must throw
     const { data: audit, error: auditError } = await supabase
       .from('audits')
-      .select('company_url, company_name, industry, product_mode, no_public_website')
+      .select('company_url, company_name, industry, product_mode, no_public_website, execution_plan')
       .eq('id', auditId)
       .single();
 
@@ -229,9 +232,17 @@ export class ContextBuilder {
       }
     }
 
-    // Express: one primary competitor in agent context (product promises a single confirmed peer).
-    const productMode = String(audit?.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE);
-    if (productMode === 'express' && briefResponses.main_competitors != null) {
+    const productMode = (audit.product_mode as ProductMode | undefined) ?? DEFAULT_AUDIT_PRODUCT_MODE;
+
+    // Non-complete coverage: one primary competitor in agent context (starter/pro corridor; canonical = execution_plan).
+    const executionPlan = normalizeExecutionPlan(
+      (audit.execution_plan as Partial<AuditExecutionPlan> | null | undefined) ?? null,
+      productMode,
+    );
+    if (
+      executionPlan.coverage_package !== COMPLETE_AUDIT_COVERAGE_PACKAGE &&
+      briefResponses.main_competitors != null
+    ) {
       briefResponses.main_competitors = extractPrimaryCompetitor(briefResponses.main_competitors);
     }
 
@@ -267,7 +278,7 @@ export class ContextBuilder {
           : currentIntakeVersionTuple();
       const intakePlan = buildIntakePlan({
         responses: allResponses,
-        productMode: productMode as ProductMode,
+        productMode,
         collectionMode,
         surface: intakeSurface,
         intakeVersionTuple: intakeTuple,
@@ -276,6 +287,8 @@ export class ContextBuilder {
         intakeMissingReportDomains = [...intakePlan.missingForReport];
       }
     }
+
+    const reconConflictsRaw = brief?.recon_conflicts;
 
     return {
       company_url: audit?.company_url ?? '',
@@ -308,9 +321,7 @@ export class ContextBuilder {
       ...(intakeMissingReportDomains ? { intake_missing_report_domains: intakeMissingReportDomains } : {}),
       post_audit_questions: (brief?.post_audit_questions as Array<Record<string, unknown>>) ?? [],
       recon_prefills: (brief?.recon_prefills as Record<string, unknown>) ?? {},
-      recon_conflicts: Array.isArray(brief?.recon_conflicts)
-        ? (brief.recon_conflicts as ReconConflict[])
-        : [],
+      recon_conflicts: Array.isArray(reconConflictsRaw) ? (reconConflictsRaw as ReconConflict[]) : [],
       failed_domains: (failedDomains ?? []).map(d => String(d.domain_key)),
       slice_domain: domainKey as IntakeSliceDomain,
       instructions,

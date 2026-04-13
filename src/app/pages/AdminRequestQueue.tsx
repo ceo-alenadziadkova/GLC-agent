@@ -8,7 +8,10 @@ import {
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { api } from '../data/apiService';
-import type { AuditRequest, AuditRequestStatus } from '../data/auditTypes';
+import {
+  type AuditRequest,
+  type AuditRequestStatus,
+} from '../data/auditTypes';
 import { glcKeys } from '../lib/glc-keys';
 import { isNoPublicWebsiteUrl } from '../data/no-public-website';
 import {
@@ -28,6 +31,7 @@ import {
   ADMIN_REQUEST_QUEUE_COPY,
   ADMIN_REQUEST_QUEUE_STATUS,
 } from '../config/admin-request-queue-copy.en';
+import { ADMIN_REQUEST_QUEUE_QUERY_CONFIG } from '../config/admin-request-queue-config';
 import { UI_SEMANTIC_COLORS } from '../config/ui-semantic-colors';
 
 type IntakeSubmissionRow = Awaited<ReturnType<typeof api.listIntakeSubmissions>>['submissions'][number];
@@ -101,7 +105,7 @@ export function AdminRequestQueue() {
         intakeLoadErrorT,
       };
     },
-    staleTime: 300_000,
+    staleTime: ADMIN_REQUEST_QUEUE_QUERY_CONFIG.staleTimeMs,
   });
 
   const requests = q.data?.requests ?? [];
@@ -263,12 +267,11 @@ export function AdminRequestQueue() {
                 {ADMIN_REQUEST_QUEUE_COPY.awaitingSectionTitle}
               </h2>
               <p className="text-xs m-0" style={{ color: 'var(--text-tertiary)' }}>
-                {awaitingRows.length} total
-                {' — '}
-                {awaitingRows.filter(r => r.kind === 'request').length} audit request(s)
-                {', '}
-                {awaitingRows.filter(r => r.kind === 'intake').length} client pre-brief(s)
-                . Sorted newest first.
+                {ADMIN_REQUEST_QUEUE_COPY.awaitingSummaryLine(
+                  awaitingRows.length,
+                  awaitingRows.filter(r => r.kind === 'request').length,
+                  awaitingRows.filter(r => r.kind === 'intake').length,
+                )}
               </p>
             </div>
             <div className="space-y-3">
@@ -276,7 +279,7 @@ export function AdminRequestQueue() {
                 if (row.kind === 'request') {
                   const req = row.req;
                   const domain = isNoPublicWebsiteUrl(req.url)
-                    ? 'No public website'
+                    ? ADMIN_REQUEST_QUEUE_COPY.noPublicWebsite
                     : (() => { try { return new URL(req.url).hostname; } catch { return req.url; } })();
                   const industryOtherSpec = typeof req.brief_snapshot?.intake_industry_specify === 'string'
                     ? req.brief_snapshot.intake_industry_specify.trim()
@@ -303,18 +306,18 @@ export function AdminRequestQueue() {
                           </div>
                           <div className="min-w-0">
                             <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-quaternary)' }}>
-                              Audit request
+                              {ADMIN_REQUEST_QUEUE_COPY.rowKindAuditRequest}
                             </div>
                             <div className="font-medium truncate" style={{ color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}>
                               {domain}
                             </div>
                             <div className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                              {date} · {req.product_mode === 'full' ? 'Complete' : 'Pro'} · client {req.client_id?.slice(0, 8) ?? '—'}…
+                              {date} · {ADMIN_REQUEST_QUEUE_COPY.productModeLabel[req.product_mode]} · {ADMIN_REQUEST_QUEUE_COPY.clientIdPrefix} {req.client_id?.slice(0, 8) ?? '—'}…
                               {req.industry ? ` · ${req.industry}` : ''}
                             </div>
                             {req.industry === 'Other' && industryOtherSpec && (
                               <p className="text-xs mt-1 m-0" style={{ color: 'var(--text-secondary)' }}>
-                                Sector: {industryOtherSpec}
+                                {ADMIN_REQUEST_QUEUE_COPY.sectorPrefix} {industryOtherSpec}
                               </p>
                             )}
                             {req.client_notes && (
@@ -332,7 +335,7 @@ export function AdminRequestQueue() {
                               className="text-xs font-medium no-underline flex items-center gap-1"
                               style={{ color: 'var(--glc-blue)' }}
                             >
-                              Open audit <ArrowRight className="w-3 h-3" />
+                              {ADMIN_REQUEST_QUEUE_COPY.openAudit} <ArrowRight className="w-3 h-3" />
                             </Link>
                           )}
                         </div>
@@ -353,14 +356,14 @@ export function AdminRequestQueue() {
                             onClick={() => approve(req.id)}
                           >
                             {busyId === req.id ? <Spinner className="w-3.5 h-3.5 animate-spin inline" /> : <CheckCircle className="w-3.5 h-3.5 inline mr-1" weight="bold" />}
-                            Approve & create audit
+                            {ADMIN_REQUEST_QUEUE_COPY.approveAndCreateAudit}
                           </button>
                           {rejectNote?.id === req.id ? (
                             <div className="flex flex-col gap-2 w-full">
                               <textarea
                                 className="w-full rounded-lg px-3 py-2 text-xs bg-transparent"
                                 style={{ border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                                placeholder="Reason for rejection (optional)"
+                                placeholder={ADMIN_REQUEST_QUEUE_COPY.rejectReasonPlaceholder}
                                 rows={2}
                                 value={rejectNote.text}
                                 onChange={e => setRejectNote({ id: req.id, text: e.target.value })}
@@ -373,10 +376,10 @@ export function AdminRequestQueue() {
                                   onClick={() => reject(req.id, rejectNote.text)}
                                   disabled={busyId === req.id}
                                 >
-                                  Confirm reject
+                                  {ADMIN_REQUEST_QUEUE_COPY.confirmReject}
                                 </button>
                                 <button type="button" className="px-3 py-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }} onClick={() => setRejectNote(null)}>
-                                  Cancel
+                                  {ADMIN_REQUEST_QUEUE_COPY.cancel}
                                 </button>
                               </div>
                             </div>
@@ -393,7 +396,7 @@ export function AdminRequestQueue() {
                               onClick={() => setRejectNote({ id: req.id, text: '' })}
                             >
                               <XCircle className="w-3.5 h-3.5 inline mr-1" weight="bold" />
-                              Reject
+                              {ADMIN_REQUEST_QUEUE_COPY.reject}
                             </button>
                           )}
                         </div>
@@ -404,7 +407,7 @@ export function AdminRequestQueue() {
 
                 const s = row.s;
                 const meta = s.metadata as Record<string, string | undefined>;
-                const title = (meta.company_name as string | undefined)?.trim() || 'Client pre-brief';
+                const title = (meta.company_name as string | undefined)?.trim() || ADMIN_REQUEST_QUEUE_COPY.intakeTitleFallback;
                 const submitted = new Date(s.submitted_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
                 const expired = Date.now() > new Date(s.expires_at).getTime();
                 const open = expandedIntakeToken === s.token;
@@ -425,7 +428,7 @@ export function AdminRequestQueue() {
                       <CaretDown className="w-4 h-4 shrink-0 transition-transform" style={{ transform: open ? 'rotate(180deg)' : 'none', color: 'var(--text-tertiary)' }} />
                       <div className="min-w-0 flex-1">
                         <div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-quaternary)' }}>
-                          Client pre-brief
+                          {ADMIN_REQUEST_QUEUE_COPY.rowKindClientPreBrief}
                         </div>
                         <div className="font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>{title}</div>
                         <div className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
@@ -441,13 +444,13 @@ export function AdminRequestQueue() {
                             <Clock className="w-3 h-3" />
                             {submitted}
                           </span>
-                          {expired && <span style={{ color: 'var(--score-2)' }}>Link expired</span>}
+                          {expired && <span style={{ color: 'var(--score-2)' }}>{ADMIN_REQUEST_QUEUE_COPY.linkExpired}</span>}
                           {s.audit_id ? (
                             <Link to={`/audit/${s.audit_id}`} className="no-underline font-medium" style={{ color: 'var(--glc-blue)' }} onClick={e => e.stopPropagation()}>
-                              Linked audit
+                              {ADMIN_REQUEST_QUEUE_COPY.linkedAudit}
                             </Link>
                           ) : (
-                            <span>Not linked to an audit yet</span>
+                            <span>{ADMIN_REQUEST_QUEUE_COPY.notLinkedToAudit}</span>
                           )}
                         </div>
                       </div>
@@ -467,18 +470,18 @@ export function AdminRequestQueue() {
                             }}
                           >
                             <Copy className="w-3.5 h-3.5" />
-                            {copiedIntakeUrl === s.token ? 'Copied' : 'Copy client link'}
+                            {copiedIntakeUrl === s.token ? ADMIN_REQUEST_QUEUE_COPY.copied : ADMIN_REQUEST_QUEUE_COPY.copyClientLink}
                           </button>
                           <Link
                             to={`/audit/new?intake=${encodeURIComponent(s.token)}`}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium no-underline"
                             style={{ border: '1px solid rgba(28,189,255,0.35)', color: 'var(--glc-blue)' }}
                           >
-                            New Audit with this prefill <ArrowRight className="w-3.5 h-3.5" />
+                            {ADMIN_REQUEST_QUEUE_COPY.newAuditWithPrefill} <ArrowRight className="w-3.5 h-3.5" />
                           </Link>
                         </div>
                         <div className="rounded-lg p-3 space-y-2" style={{ background: 'var(--bg-inset)', border: '1px solid var(--border-subtle)' }}>
-                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-quaternary)' }}>Answers</p>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-quaternary)' }}>{ADMIN_REQUEST_QUEUE_COPY.answersSectionTitle}</p>
                           <dl className="space-y-2 m-0">
                             {ORDERED_PRE_BRIEF.map(q => (
                               <div key={q.id}>
@@ -491,7 +494,7 @@ export function AdminRequestQueue() {
                         <details className="rounded-lg text-xs" style={{ border: '1px solid var(--border-subtle)' }}>
                           <summary className="px-3 py-2 cursor-pointer flex items-center gap-2 font-medium" style={{ color: 'var(--text-secondary)', listStyle: 'none' } as CSSProperties}>
                             <Code className="w-3.5 h-3.5" />
-                            Raw responses (JSON)
+                            {ADMIN_REQUEST_QUEUE_COPY.rawResponsesJsonSummary}
                           </summary>
                           <pre
                             className="m-0 p-3 overflow-x-auto max-h-64 overflow-y-auto text-[11px] leading-relaxed"
@@ -513,7 +516,7 @@ export function AdminRequestQueue() {
           <div className="space-y-3">
             {visible.map(req => {
               const domain = isNoPublicWebsiteUrl(req.url)
-                ? 'No public website'
+                ? ADMIN_REQUEST_QUEUE_COPY.noPublicWebsite
                 : (() => { try { return new URL(req.url).hostname; } catch { return req.url; } })();
               const industryOtherSpec = typeof req.brief_snapshot?.intake_industry_specify === 'string'
                 ? req.brief_snapshot.intake_industry_specify.trim()
@@ -544,11 +547,11 @@ export function AdminRequestQueue() {
                         </div>
                         {req.industry === 'Other' && industryOtherSpec && (
                           <p className="text-xs mt-1 m-0" style={{ color: 'var(--text-secondary)' }}>
-                            Sector: {industryOtherSpec}
+                            {ADMIN_REQUEST_QUEUE_COPY.sectorPrefix} {industryOtherSpec}
                           </p>
                         )}
                         <div className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                          {date} · {req.product_mode === 'full' ? 'Complete' : 'Pro'} · client {req.client_id?.slice(0, 8) ?? '—'}…
+                          {date} · {ADMIN_REQUEST_QUEUE_COPY.productModeLabel[req.product_mode]} · {ADMIN_REQUEST_QUEUE_COPY.clientIdPrefix} {req.client_id?.slice(0, 8) ?? '—'}…
                           {req.industry ? ` · ${req.industry}` : ''}
                         </div>
                         {req.client_notes && (
@@ -566,7 +569,7 @@ export function AdminRequestQueue() {
                           className="text-xs font-medium no-underline flex items-center gap-1"
                           style={{ color: 'var(--glc-blue)' }}
                         >
-                          Open audit <ArrowRight className="w-3 h-3" />
+                          {ADMIN_REQUEST_QUEUE_COPY.openAudit} <ArrowRight className="w-3 h-3" />
                         </Link>
                       )}
                     </div>
@@ -587,14 +590,14 @@ export function AdminRequestQueue() {
                         onClick={() => approve(req.id)}
                       >
                         {busyId === req.id ? <Spinner className="w-3.5 h-3.5 animate-spin inline" /> : <CheckCircle className="w-3.5 h-3.5 inline mr-1" weight="bold" />}
-                        Approve & create audit
+                        {ADMIN_REQUEST_QUEUE_COPY.approveAndCreateAudit}
                       </button>
                       {rejectNote?.id === req.id ? (
                         <div className="flex flex-col gap-2 w-full">
                           <textarea
                             className="w-full rounded-lg px-3 py-2 text-xs bg-transparent"
                             style={{ border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-                            placeholder="Reason for rejection (optional)"
+                            placeholder={ADMIN_REQUEST_QUEUE_COPY.rejectReasonPlaceholder}
                             rows={2}
                             value={rejectNote.text}
                             onChange={e => setRejectNote({ id: req.id, text: e.target.value })}
@@ -607,10 +610,10 @@ export function AdminRequestQueue() {
                               onClick={() => reject(req.id, rejectNote.text)}
                               disabled={busyId === req.id}
                             >
-                              Confirm reject
+                              {ADMIN_REQUEST_QUEUE_COPY.confirmReject}
                             </button>
                             <button type="button" className="px-3 py-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }} onClick={() => setRejectNote(null)}>
-                              Cancel
+                              {ADMIN_REQUEST_QUEUE_COPY.cancel}
                             </button>
                           </div>
                         </div>
@@ -627,7 +630,7 @@ export function AdminRequestQueue() {
                           onClick={() => setRejectNote({ id: req.id, text: '' })}
                         >
                           <XCircle className="w-3.5 h-3.5 inline mr-1" weight="bold" />
-                          Reject
+                          {ADMIN_REQUEST_QUEUE_COPY.reject}
                         </button>
                       )}
                     </div>

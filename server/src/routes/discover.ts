@@ -38,6 +38,11 @@ import {
   isDiscoverMaturityLevel,
 } from '../config/discover-contract.js';
 import {
+  DISCOVER_CONTACT_EDIT_KEY_RANDOM_BYTES,
+  DISCOVER_CONTACT_EDIT_KEY_SCRYPT_KEYLEN,
+  DISCOVER_CONTACT_EDIT_KEY_SCRYPT_SALT_RANDOM_BYTES,
+} from '../config/discover-contact-edit-key.js';
+import {
   API_ERROR_CODES,
   DISCOVER_ALREADY_CONVERTED_MESSAGE,
   DISCOVER_ANALYTICS_ACCEPT_FAILED_MESSAGE,
@@ -69,7 +74,7 @@ export const discoverRouter = Router();
 const scryptAsync = promisify(crypto.scrypt);
 
 function createContactEditKey(): string {
-  return crypto.randomBytes(32).toString('hex');
+  return crypto.randomBytes(DISCOVER_CONTACT_EDIT_KEY_RANDOM_BYTES).toString('hex');
 }
 
 function sha256Hex(value: string): string {
@@ -77,8 +82,8 @@ function sha256Hex(value: string): string {
 }
 
 async function hashContactEditKey(raw: string): Promise<string> {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const derived = await scryptAsync(raw, salt, 64) as Buffer;
+  const salt = crypto.randomBytes(DISCOVER_CONTACT_EDIT_KEY_SCRYPT_SALT_RANDOM_BYTES).toString('hex');
+  const derived = await scryptAsync(raw, salt, DISCOVER_CONTACT_EDIT_KEY_SCRYPT_KEYLEN) as Buffer;
   return `v2:${salt}:${derived.toString('hex')}`;
 }
 

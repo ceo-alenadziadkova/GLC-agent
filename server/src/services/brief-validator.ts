@@ -11,8 +11,8 @@ import {
   INTAKE_IDENTITY_FIELD_IDS,
 } from '../schemas/intake-brief.js';
 import {
-  DEFAULT_AUDIT_PRODUCT_MODE,
-  type AuditExecutionPlan,
+  FREE_SNAPSHOT_PRODUCT_MODE,
+  INTAKE_BRIEF_SLA_PRODUCT_MODE,
   type IntakeBrief,
   type IntakeBriefCollectionMode,
   type IntakeNextBestAction,
@@ -24,6 +24,7 @@ import {
 } from '../types/audit.js';
 import {
   buildIntakePlan,
+  readinessBadgeFromProgress,
   deriveBankV1DataQuality,
   getQuestionBankPromptLabel,
   isSupportedIntakeArtifactTuple,
@@ -39,8 +40,6 @@ import { prepareBriefForValidation } from '@glc/intake-core';
 import { mergeReconConflictsFromC1 } from '@glc/intake-core';
 import { choiceValueNeedsSpecify } from '@glc/intake-core';
 import { isRevenueAnsweredRaw } from '@glc/intake-core';
-import { normalizeExecutionPlan } from './execution-plan.js';
-
 export interface BriefValidationResult {
   passed: boolean;
   sla_met: boolean;
@@ -206,7 +205,7 @@ function computeProgress(
 ): IntakeProgress {
   const plan =
     fullPlan ??
-    buildIntakePlan({ responses, productMode: DEFAULT_AUDIT_PRODUCT_MODE, collectionMode, surface, intakeVersionTuple });
+    buildIntakePlan({ responses, productMode: INTAKE_BRIEF_SLA_PRODUCT_MODE, collectionMode, surface, intakeVersionTuple });
   const effective = effectiveBriefForSla(responses);
   const visibleSet = new Set(plan.visible);
   const stubs = resolveIntakeArtifacts(intakeVersionTuple ?? null).stubs;
@@ -223,7 +222,7 @@ function computeProgress(
   if (isRevenueAnsweredRaw(effective)) answeredWeight += revW;
 
   const progressPct = totalWeight > 0 ? Math.min(100, Math.round((answeredWeight / totalWeight) * 100)) : 0;
-  const readinessBadge: IntakeReadinessBadge = progressPct >= 80 ? 'high' : progressPct >= 45 ? 'medium' : 'low';
+  const readinessBadge: IntakeReadinessBadge = readinessBadgeFromProgress(progressPct);
 
   const fullRequired = plan.required;
   const missingRequired = fullRequired.filter(id => !isAnswered(effective[id]));
@@ -253,7 +252,7 @@ export function validateBriefResponses(
   responses: Record<string, unknown>,
   opts?: ValidateBriefOptions,
 ): BriefValidationResult {
-  const productMode = opts?.productMode ?? DEFAULT_AUDIT_PRODUCT_MODE;
+  const productMode = opts?.productMode ?? INTAKE_BRIEF_SLA_PRODUCT_MODE;
   const collectionMode = opts?.collectionMode;
   const surface = opts?.surface;
   const intakeVersionTuple = opts?.intakeVersionTuple;
@@ -303,7 +302,7 @@ export function evaluateBriefGates(
   });
   const fullPlan = buildIntakePlan({
     responses,
-    productMode: DEFAULT_AUDIT_PRODUCT_MODE,
+    productMode: INTAKE_BRIEF_SLA_PRODUCT_MODE,
     collectionMode,
     surface,
     intakeVersionTuple,
@@ -335,8 +334,8 @@ export function evaluateBriefGates(
   const canStartSnapshot = answeredPreBrief >= minPreBriefAnswered;
   const canStartExpress = missingExpressRequired.length === 0;
   const canStartFull = missingFullRequired.length === 0;
-  const missingRequiredIds = mode === DEFAULT_AUDIT_PRODUCT_MODE ? missingFullRequired : missingExpressRequired;
-  const canStartPipeline = mode === DEFAULT_AUDIT_PRODUCT_MODE ? canStartFull : canStartExpress;
+  const missingRequiredIds = mode === INTAKE_BRIEF_SLA_PRODUCT_MODE ? missingFullRequired : missingExpressRequired;
+  const canStartPipeline = mode === INTAKE_BRIEF_SLA_PRODUCT_MODE ? canStartFull : canStartExpress;
 
   return {
     canStartSnapshot,
@@ -357,12 +356,12 @@ export function evaluateBriefGates(
  * validation result. Returns passed=true if the audit is a free_snapshot
  * (no brief required).
  *
- * Throws if product_mode is express/full and SLA is not met.
+ * Throws if paid audit brief does not meet full intake SLA.
  */
 export async function assertBriefReady(auditId: string): Promise<void> {
   const { data: audit } = await supabase
     .from('audits')
-    .select('product_mode, execution_plan')
+    .select('product_mode')
     .eq('id', auditId)
     .single();
 
@@ -379,12 +378,7 @@ export async function assertBriefReady(auditId: string): Promise<void> {
   const collectedBy = brief?.collected_by as 'client' | 'consultant' | undefined;
   const validationPerspective = collectedBy === 'consultant' ? 'consultant' : 'client';
   const surface = resolveIntakeSurfaceForPlan(collectionMode ?? 'self_serve', validationPerspective);
-  const mode = normalizeExecutionPlan(
-    (audit.execution_plan as Partial<AuditExecutionPlan> | null | undefined) ?? null,
-    (audit.product_mode as ProductMode) ?? DEFAULT_AUDIT_PRODUCT_MODE,
-  ).coverage_package === 'complete'
-    ? 'full'
-    : 'express';
+  const mode: ProductMode = INTAKE_BRIEF_SLA_PRODUCT_MODE;
   const intakeTuple = coerceArtifactTupleForRead(
     brief?.intake_versions as IntakeVersionTuple | null | undefined,
     'assertBriefReady',
@@ -460,16 +454,11 @@ export async function saveBriefResponses(
 
   const { data: audit } = await supabase
     .from('audits')
-    .select('product_mode, execution_plan')
+    .select('product_mode')
     .eq('id', auditId)
     .single();
-  const fallbackMode = ((audit?.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE) as ProductMode);
-  const mode: ProductMode = normalizeExecutionPlan(
-    (audit?.execution_plan as Partial<AuditExecutionPlan> | null | undefined) ?? null,
-    fallbackMode,
-  ).coverage_package === 'complete'
-    ? 'full'
-    : 'express';
+  const mode: ProductMode =
+    audit?.product_mode === FREE_SNAPSHOT_PRODUCT_MODE ? FREE_SNAPSHOT_PRODUCT_MODE : INTAKE_BRIEF_SLA_PRODUCT_MODE;
 
   const { data: existingBrief } = await supabase
     .from('intake_brief')

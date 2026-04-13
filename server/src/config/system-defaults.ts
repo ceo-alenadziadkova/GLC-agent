@@ -11,6 +11,7 @@ import {
   GLC_NOTIFICATIONS_LIST,
   GLC_PIPELINE_STATUS_EVENTS_LIMIT,
 } from '@glc/route-limits';
+import { INTAKE_READINESS_THRESHOLDS } from '@glc/intake-core';
 
 export const SYSTEM_DEFAULTS = {
   express: {
@@ -49,6 +50,8 @@ export const SYSTEM_DEFAULTS = {
   },
   intake: {
     tokenTtlDays: 7,
+    /** Same canonical policy as `@glc/intake-core` readiness badge thresholds. */
+    readinessThresholds: INTAKE_READINESS_THRESHOLDS,
   },
   /** Report export / markdown profile slice sizes (`ReportProfiler`). */
   reportProfiler: {
@@ -255,6 +258,35 @@ export const SYSTEM_DEFAULTS = {
      * threshold AND expected confidence gain is below minConfidenceGain, skip the rerun.
      */
     costGuardrailThresholdUsd: 2.5,
+    allowedModesDefault: ['sandbox', 'internal'] as const,
+  },
+  decisionLayer: {
+    accept: {
+      minOverallConfidence: 85,
+      maxHallucinationFraction: 0.05,
+    },
+    acceptWithWarnings: {
+      minOverallConfidence: 70,
+      maxHallucinationCount: 3,
+      maxStructuralErrors: 0,
+    },
+    feasibilityForceRefineThreshold: 0.5,
+    feasibilityGatedDomains: ['tech_infrastructure', 'automation_processes'] as const,
+  },
+  executionPlan: {
+    proMaxDomains: 3,
+    proMinDomains: 2,
+    defaultStarterDomain: 'tech_infrastructure',
+    defaultProDomains: ['tech_infrastructure', 'security_compliance'] as const,
+  },
+  agentPerformance: {
+    minEvaluationCount: 10,
+    scoreWeights: {
+      hallucination: 0.4,
+      inconsistency: 0.25,
+      riskyPromise: 0.2,
+      unverified: 0.15,
+    },
   },
   /**
    * Phase 9 auto-remediation: deterministic tone fixes on cleaned domain output.

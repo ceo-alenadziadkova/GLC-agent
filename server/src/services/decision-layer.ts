@@ -18,30 +18,31 @@
 
 import { logger } from './logger.js';
 import type { ControlObjectV1, DecisionHint } from '../schemas/control-object.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 
 // ─── Thresholds (configurable for future A/B testing) ──────
 
 export const DECISION_LAYER_THRESHOLDS = {
   accept: {
-    min_overall_confidence: 85,
-    max_hallucination_fraction: 0.05,
+    min_overall_confidence: SYSTEM_DEFAULTS.decisionLayer.accept.minOverallConfidence,
+    max_hallucination_fraction: SYSTEM_DEFAULTS.decisionLayer.accept.maxHallucinationFraction,
   },
   accept_with_warnings: {
-    min_overall_confidence: 70,
-    max_hallucination_count: 3,
-    max_structural_errors: 0,
+    min_overall_confidence: SYSTEM_DEFAULTS.decisionLayer.acceptWithWarnings.minOverallConfidence,
+    max_hallucination_count: SYSTEM_DEFAULTS.decisionLayer.acceptWithWarnings.maxHallucinationCount,
+    max_structural_errors: SYSTEM_DEFAULTS.decisionLayer.acceptWithWarnings.maxStructuralErrors,
   },
   /**
    * v1.7: Feasibility guardrail.
    * If feasibility.score ≤ this value for a delivery-risk domain,
    * decision is forced to 'refine' regardless of confidence.
    */
-  feasibility_force_refine_threshold: 0.5,
+  feasibility_force_refine_threshold: SYSTEM_DEFAULTS.decisionLayer.feasibilityForceRefineThreshold,
   /**
    * Domains where poor feasibility forces 'refine'.
    * These are delivery-risk domains: a great analysis is useless if the recs can't be executed.
    */
-  feasibility_gated_domains: ['tech_infrastructure', 'automation_processes'] as string[],
+  feasibility_gated_domains: [...SYSTEM_DEFAULTS.decisionLayer.feasibilityGatedDomains] as string[],
 } as const;
 
 // ─── Result Shape ──────────────────────────────────────────
