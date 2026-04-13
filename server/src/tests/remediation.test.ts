@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createControlObjectV1 } from '../schemas/control-object.js';
+import {
+  createControlObjectV1,
+  HUMAN_ATTENTION_CONTENT_REMEDIATION_BLOCKED,
+} from '../schemas/control-object.js';
 import type { DomainResult } from '../types/audit.js';
 import * as ruleEngine from '../config/rule-engine.js';
 
@@ -162,7 +165,7 @@ describe('applyAutoRemediation', () => {
     expect(n).toBe(0);
     expect(result.summary).toBe(before);
     expect(co.human_attention_required.required).toBe(true);
-    expect(co.human_attention_required.reasons).toContain('content_remediation_blocked_by_phase_profile');
+    expect(co.human_attention_required.reasons).toContain(HUMAN_ATTENTION_CONTENT_REMEDIATION_BLOCKED);
     expect(insertMock).not.toHaveBeenCalled();
 
     spy.mockRestore();

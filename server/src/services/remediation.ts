@@ -2,32 +2,63 @@
  * RemediationService — Phase 9 auto-remediation of fixable tone issues on cleaned domain output.
  *
  * CO-CONSUMER: update when CONTROL_OBJECT or RuleEngineEntry remediation fields change.
+ * Tunables and copy: `SYSTEM_DEFAULTS.autoRemediation` in `server/src/config/system-defaults.ts`.
+ * Confidence gate: `DECISION_LAYER_THRESHOLDS` in `decision-layer.ts` (single source for min overall).
  * See docs/adrs/ADR-AUTO-REMEDIATION.md
  */
 
 import type { ControlObjectV1 } from '../schemas/control-object.js';
 import {
   CONTROL_OBJECT_VERSIONS_REMEDIATION,
+  HUMAN_ATTENTION_CONTENT_REMEDIATION_BLOCKED,
   type ControlObjectAutoRemediation,
 } from '../schemas/control-object.js';
 import type { DomainKey, DomainResult } from '../types/audit.js';
+import { DOMAIN_KEYS } from '../types/audit.js';
 import { getRulesForErrorType, type RuleEngineEntry } from '../config/rule-engine.js';
 import { getExtendedPhaseProfile } from '../config/phase-profiles.js';
 import { isAutoRemediationEnabled } from '../config/feature-flags.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
+import { DECISION_LAYER_THRESHOLDS } from './decision-layer.js';
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
 
-const DISCLAIMER =
-  '\n\n[Note: Forward-looking statements above are hypotheses pending verification with data.]';
+const AR = SYSTEM_DEFAULTS.autoRemediation;
+const AR_ABS = AR.absoluteSoftening;
 
-/** Absolute and over-strong phrasing → hedged wording (regex-based, deterministic). */
-const ABSOLUTE_PATTERN =
-  /\b(guaranteed|guarantee|always|never fails|zero risk|no risk|risk-free|certainly|definitely will|will never fail)\b|100\s*%/gi;
+function escapeRegexToken(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function buildAbsolutePattern(): RegExp {
+  const inner = AR_ABS.phraseAlternation.map(escapeRegexToken).join('|');
+  return new RegExp(`\\b(${inner})\\b|${AR_ABS.percentPatternSource}`, 'gi');
+}
+
+/** Built once — `SYSTEM_DEFAULTS` is static for the process lifetime. */
+const ABSOLUTE_PATTERN = buildAbsolutePattern();
+
+function replacementForAbsoluteMatch(match: string): string {
+  const t = match.trim().toLowerCase();
+  for (const rule of AR_ABS.rules) {
+    if (rule.type === 'starts_with' && t.startsWith(rule.prefix.toLowerCase())) {
+      return rule.replacement;
+    }
+    if (rule.type === 'exact' && rule.phrases.some(p => p.toLowerCase() === t)) {
+      return rule.replacement;
+    }
+  }
+  return AR_ABS.defaultReplacement;
+}
+
+function isGlcDomainPhaseKey(phaseId: string): phaseId is DomainKey {
+  return (DOMAIN_KEYS as readonly string[]).includes(phaseId);
+}
 
 export function canAutoRemediate(co: ControlObjectV1): boolean {
   return (
     co.errors.structural.length === 0 &&
-    co.confidence.overall >= 70 &&
+    co.confidence.overall >= DECISION_LAYER_THRESHOLDS.accept_with_warnings.min_overall_confidence &&
     !co.human_attention_required.required
   );
 }
@@ -39,7 +70,8 @@ function isRemediationAllowed(entry: RuleEngineEntry, scope: 'tone_only' | 'tone
   return false;
 }
 
-function excerptFromResult(result: DomainResult, maxLen = 500): string {
+function excerptFromResult(result: DomainResult): string {
+  const maxLen = AR.excerptMaxChars;
   const base = (result.summary ?? '').trim() || JSON.stringify(result.strengths?.slice(0, 2) ?? []);
   return base.length <= maxLen ? base : `${base.slice(0, maxLen - 1)}…`;
 }
@@ -107,24 +139,12 @@ function mapStringsInResult(result: DomainResult, map: (s: string) => string): b
 
 /** Exported for unit tests — applies absolute-language softening across all text fields. */
 export function softenAbsolutesInResult(result: DomainResult): boolean {
-  return mapStringsInResult(result, s =>
-    s.replace(ABSOLUTE_PATTERN, m => {
-      const t = m.trim().toLowerCase();
-      if (t.startsWith('100')) return 'a large share';
-      if (t === 'always') return 'often';
-      if (t === 'never fails' || t === 'will never fail') return 'may still fail';
-      if (t === 'guaranteed' || t === 'guarantee') return 'expected';
-      if (t === 'zero risk' || t === 'no risk' || t === 'risk-free') return 'residual risk';
-      if (t === 'certainly') return 'likely';
-      if (t === 'definitely will') return 'may';
-      return 'may';
-    }),
-  );
+  return mapStringsInResult(result, s => s.replace(ABSOLUTE_PATTERN, m => replacementForAbsoluteMatch(m)));
 }
 
 function appendDisclaimerToResult(result: DomainResult): boolean {
-  if (result.summary.includes('[Note: Forward-looking statements')) return false;
-  result.summary = `${result.summary.trimEnd()}${DISCLAIMER}`;
+  if (result.summary.includes(AR.outcomeDisclaimerSkipIfContains)) return false;
+  result.summary = `${result.summary.trimEnd()}${AR.outcomeDisclaimerAppend}`;
   return true;
 }
 
@@ -143,13 +163,14 @@ async function logRemediationRow(input: {
   appliedFix: string;
   preconditionsSnapshot: Record<string, unknown>;
 }): Promise<void> {
+  const max = AR.auditLogFieldMaxChars;
   const { error } = await supabase.from('audit_remediations').insert({
     audit_id: input.auditId,
     phase_id: input.phaseId,
     error_type: input.errorType,
     remediation_type: input.remediationType,
-    original_excerpt: input.originalExcerpt.slice(0, 500),
-    applied_fix: input.appliedFix.slice(0, 500),
+    original_excerpt: input.originalExcerpt.slice(0, max),
+    applied_fix: input.appliedFix.slice(0, max),
     preconditions_snapshot: input.preconditionsSnapshot,
   });
   if (error) {
@@ -171,6 +192,10 @@ export interface ApplyAutoRemediationParams {
   disableAutoRemediate?: boolean;
 }
 
+function decisionHintAllowsRemediation(hint: ControlObjectV1['decision_hint']): boolean {
+  return (AR.allowedDecisionHints as readonly string[]).includes(hint);
+}
+
 /**
  * Applies deterministic text fixes for matching fixable errors when preconditions hold
  * and Decision Layer already chose accept / accept_with_warnings.
@@ -183,13 +208,12 @@ export async function applyAutoRemediation(params: ApplyAutoRemediationParams): 
 
   if (disableAutoRemediate || !isAutoRemediationEnabled()) return 0;
 
-  const hint = controlObject.decision_hint;
-  if (hint !== 'accept' && hint !== 'accept_with_warnings') return 0;
+  if (!decisionHintAllowsRemediation(controlObject.decision_hint)) return 0;
 
   if (!canAutoRemediate(controlObject)) return 0;
 
   const phaseId = controlObject.context.phase_id;
-  if (phaseId === 'recon' || phaseId === 'strategy') return 0;
+  if (!isGlcDomainPhaseKey(phaseId)) return 0;
 
   const profile = getExtendedPhaseProfile(phaseId);
   const scope = profile.auto_remediation_scope;
@@ -212,8 +236,8 @@ export async function applyAutoRemediation(params: ApplyAutoRemediationParams): 
 
     if (!isRemediationAllowed(rule, scope)) {
       controlObject.human_attention_required.required = true;
-      if (!controlObject.human_attention_required.reasons.includes('content_remediation_blocked_by_phase_profile')) {
-        controlObject.human_attention_required.reasons.push('content_remediation_blocked_by_phase_profile');
+      if (!controlObject.human_attention_required.reasons.includes(HUMAN_ATTENTION_CONTENT_REMEDIATION_BLOCKED)) {
+        controlObject.human_attention_required.reasons.push(HUMAN_ATTENTION_CONTENT_REMEDIATION_BLOCKED);
       }
       continue;
     }
@@ -224,8 +248,8 @@ export async function applyAutoRemediation(params: ApplyAutoRemediationParams): 
 
     const fixLabel =
       rule.remediation_action === 'soften_absolutes'
-        ? 'Softened absolute or over-strong phrasing in domain text fields.'
-        : 'Appended forward-looking disclaimer to summary.';
+        ? AR.appliedFixDescription.softenAbsolutes
+        : AR.appliedFixDescription.appendOutcomeDisclaimer;
 
     await logRemediationRow({
       auditId,

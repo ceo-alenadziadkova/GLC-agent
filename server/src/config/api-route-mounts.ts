@@ -16,6 +16,7 @@ import { discoverRouter } from '../routes/discover.js';
 import { marketingRouter } from '../routes/marketing-brief.js';
 import { auditRequestsRouter } from '../routes/audit-requests.js';
 import { analyticsRouter } from '../routes/analytics.js';
+import { benchmarksRouter } from '../routes/benchmarks.js';
 import { notificationsRouter } from '../routes/notifications.js';
 import { profileRouter } from '../routes/profile.js';
 import { platformRouter } from '../routes/platform.js';
@@ -35,6 +36,7 @@ export const API_ROUTE_MOUNT_ENTRIES: readonly ApiRouteMountEntry[] = [
   { prefix: API_HTTP_PATH_PREFIX.marketing, router: marketingRouter },
   { prefix: API_HTTP_PATH_PREFIX.auditRequests, router: auditRequestsRouter },
   { prefix: API_HTTP_PATH_PREFIX.analytics, router: analyticsRouter },
+  { prefix: API_HTTP_PATH_PREFIX.benchmarks, router: benchmarksRouter },
   { prefix: API_HTTP_PATH_PREFIX.notifications, router: notificationsRouter },
   { prefix: API_HTTP_PATH_PREFIX.audits, router: auditsRouter },
   { prefix: API_HTTP_PATH_PREFIX.audits, router: pipelineRouter },

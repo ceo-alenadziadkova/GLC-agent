@@ -119,7 +119,7 @@ After each domain phase, once `DecisionLayer` has set `decision_hint` and `contr
 **Retention**:
 - Default rows expire after 90 days. An async job (hourly) deletes expired rows.
 - Internal/learning samples use `extended` or `internal_only` policy (365 days).
-- `expires_at` is a DB-generated column — never set manually.
+- `expires_at` is set by a **BEFORE INSERT/UPDATE trigger** (`set_evaluation_datasets_expires_at`) from `created_at` + `retention_policy` — not a `GENERATED` column (Postgres rejects `timestamptz + interval` as non-immutable for generation). Application code does not send `expires_at` on insert.
 
 **PII policy**: The writer applies deterministic redaction (URLs, emails, sensitive key names) before insert and sets `pii_sanitized=true`. A DB constraint enforcing `pii_sanitized` may be added in Phase 4+.
 

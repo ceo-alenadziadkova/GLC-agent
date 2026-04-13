@@ -47,3 +47,8 @@ export function isCausalDagEnabled(): boolean {
 export function isAutoRemediationEnabled(): boolean {
   return process.env.FEATURE_AUTO_REMEDIATION === 'true';
 }
+
+/** Domain benchmarks: API reads, pipeline attaches benchmark_reference_id, recompute endpoints. Env: FEATURE_BENCHMARKS=true */
+export function isBenchmarksEnabled(): boolean {
+  return process.env.FEATURE_BENCHMARKS === 'true';
+}

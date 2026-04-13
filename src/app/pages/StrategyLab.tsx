@@ -1,14 +1,17 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, useParams } from 'react-router';
 import {
   Lightning, TrendUp, MapTrifold, ArrowRight, Check,
-  Target, Sparkle, ArrowsClockwise,
+  Target, Sparkle, ArrowsClockwise, ChartBar,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { useAudit } from '../hooks/useAudit';
 import type { StrategyInitiative } from '../data/auditTypes';
+import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
+import type { DomainBenchmarkSnapshot } from '../data/api/benchmarks';
+import { api } from '../data/apiService';
 import { UI_SEMANTIC_COLORS } from '../config/ui-semantic-colors';
 
 type Timeframe = 'quick' | 'medium' | 'strategic';
@@ -18,6 +21,12 @@ const TABS: { key: Timeframe; label: string; icon: typeof Lightning; color: stri
   { key: 'medium',   label: 'Core Growth',  icon: TrendUp,    color: 'var(--glc-blue)',   desc: '1–3 months · €1K–6K'      },
   { key: 'strategic',label: 'Strategic',    icon: MapTrifold, color: UI_SEMANTIC_COLORS.strategicPurple, desc: '3–6 months · €6K–20K' },
 ];
+
+function normalizeAuditIndustryKey(raw: string | null | undefined): string | null {
+  if (raw == null) return null;
+  const t = raw.trim().toLowerCase().replace(/\s+/g, '_');
+  return t.length > 0 ? t : null;
+}
 
 const EFFORT_COLOR: Record<string, string> = {
   low:    'var(--glc-green)',
@@ -30,6 +39,34 @@ export function StrategyLab() {
   const { audit, loading, error } = useAudit(id);
   const [activeTab, setActiveTab] = useState<Timeframe>('quick');
   const [selected,  setSelected]  = useState<Set<string>>(new Set());
+  const [domainBenchmarks, setDomainBenchmarks] = useState<
+    Partial<Record<(typeof DOMAIN_KEYS)[number], DomainBenchmarkSnapshot | null>>
+  >({});
+
+  useEffect(() => {
+    if (!audit?.strategy) return;
+    let cancelled = false;
+    const ind = normalizeAuditIndustryKey(audit.industry);
+    void (async () => {
+      const entries = await Promise.all(
+        DOMAIN_KEYS.map(async (dk) => {
+          let snap = ind
+            ? await api.getLatestSnapshot({ phase_id: dk, industry: ind, period: 'last_90d' })
+            : null;
+          if (!snap) {
+            snap = await api.getLatestSnapshot({ phase_id: dk, industry: 'all', period: 'last_90d' });
+          }
+          return [dk, snap] as const;
+        }),
+      );
+      if (!cancelled) {
+        setDomainBenchmarks(Object.fromEntries(entries) as Partial<Record<(typeof DOMAIN_KEYS)[number], DomainBenchmarkSnapshot | null>>);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [audit?.strategy, audit?.industry]);
 
   const initiatives = useMemo(() => {
     if (!audit?.strategy) return { quick: [], medium: [], strategic: [] };
@@ -110,6 +147,40 @@ export function StrategyLab() {
           className="flex-1 overflow-y-auto"
           style={{ borderRight: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
         >
+          <div
+            className="p-4 space-y-3"
+            style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }}
+          >
+            <div className="flex items-center gap-2">
+              <ChartBar className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
+              <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                Domain benchmarks
+              </span>
+            </div>
+            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              Median confidence (p50) vs peer runs in the last 90 days. Uses your audit industry when set, otherwise the cross-industry pool.
+            </p>
+            <div className="space-y-2">
+              {DOMAIN_KEYS.map((dk) => {
+                const row = domainBenchmarks[dk];
+                const label = DOMAIN_LABELS[dk] ?? dk;
+                return (
+                  <div
+                    key={dk}
+                    className="flex items-center justify-between gap-3 text-xs rounded-lg px-3 py-2"
+                    style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-subtle)' }}
+                  >
+                    <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
+                    <span className="font-mono tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                      {row
+                        ? `p50 ${row.percentiles.p50} · n=${row.sample_count}`
+                        : '—'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
           {/* Tabs */}
           <div
             className="flex gap-2 p-4 sticky top-0 z-10"

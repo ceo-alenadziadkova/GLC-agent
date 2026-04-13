@@ -1,3 +1,4 @@
+export { benchmarksApi } from './benchmarks';
 export { auditRequestsApi } from './audit-requests';
 export { auditsCrudApi } from './audits-crud';
 export { auditsPipelineApi } from './audits-pipeline';

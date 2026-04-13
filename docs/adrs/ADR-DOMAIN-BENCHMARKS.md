@@ -3,7 +3,7 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Proposed |
+| **Status** | Accepted |
 | **Date** | 2026-04-12 |
 | **Phase** | Phase 10 (Roadmap) |
 | **Authors** | Engineering |
@@ -15,184 +15,92 @@
 
 ## ADR Lifecycle
 
-This ADR is immutable once accepted. Status changes to **Accepted** when Sprint 6 begins.
+This ADR is immutable once accepted. **Accepted** as of Sprint 6 implementation (2026-04).
 
 ---
 
 ## Context
 
 By Phase 9, the system accumulates structured per-run quality data in:
-- `evaluation_dataset` — full CONTROL_OBJECT + human feedback + final decision per run
-- `agent_performance_aggregate` — rolling average quality metrics per agent per phase
+- **`evaluation_datasets`** — full CONTROL_OBJECT + agent output + cleaned output per domain run; **`decision_applied`** records the Decision Layer hint at write time
+- **`agent_performance_aggregate`** — rolling average quality metrics per agent per phase (observability; not the primary benchmark input)
 
-This data is rich enough to answer questions like:
-- "What is the typical confidence score for Security audits in fintech companies?"
-- "Which phase consistently underperforms relative to other phases?"
-- "Does the new instruction variant for Marketing (selected by bandits) actually improve quality vs. the default?"
-
-Today, none of these questions can be answered from within the system. There is no aggregation layer, no cross-industry comparison, and no benchmarking surface exposed to consultants. Consultants have no reference point for whether a `confidence.overall = 72` in a Security audit is good or bad relative to the industry.
+Consultants need a reference frame for whether a `confidence.overall` score in a given domain is typical for their client’s industry cohort.
 
 ---
 
 ## Decision
 
-### 1. domain_benchmark_snapshot Table
+### 1. `domain_benchmark_snapshot` table
 
-Cross-industry performance benchmarks are computed as a nightly batch job and stored as a time-series snapshot table.
+Cross-industry performance benchmarks are computed on demand (platform admin or cron secret) and stored as a **time-series** snapshot table (each run **inserts** new rows; old rows retained for trends).
 
-```sql
-CREATE TABLE domain_benchmark_snapshot (
-  id             uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  computed_at    timestamptz NOT NULL,
-  phase_id       text NOT NULL,
-  industry       text NOT NULL,      -- from audit.industry_tag (or 'all' for cross-industry)
-  period         text NOT NULL,      -- 'last_30d' | 'last_90d' | 'all_time'
-  sample_count   integer NOT NULL,
-  p25            numeric NOT NULL,   -- 25th percentile confidence.overall
-  p50            numeric NOT NULL,   -- median
-  p75            numeric NOT NULL,
-  p90            numeric NOT NULL,
-  avg_score      numeric NOT NULL,
-  hallucination_rate_p50  numeric,
-  risky_promise_rate_p50  numeric,
-  unverified_rate_p50     numeric,
-  top_error_types         text[],    -- 3 most common error_type codes for this phase+industry
-  created_at     timestamptz DEFAULT now()
-);
+**Migration:** `server/migrations/056_domain_benchmark_snapshot.sql`
 
-CREATE INDEX idx_benchmarks_phase_industry ON domain_benchmark_snapshot(phase_id, industry, period);
-CREATE INDEX idx_benchmarks_computed_at ON domain_benchmark_snapshot(computed_at DESC);
-```
+**RLS:** enabled with **no policies** for JWT roles — only the **service role** (Express server) reads/writes. Direct Supabase client access to this table from the browser is not supported.
 
-`industry` is populated from an `industry_tag` field on the `audits` table (to be added as a nullable column in Sprint 6 migration). Audits without an industry tag contribute to the `'all'` bucket only.
+**Columns** (summary): `phase_id`, `industry` (normalized `audits.industry` bucket or `all`), `period` (`last_30d` | `last_90d` | `all_time`), `sample_count`, `p25`–`p90`, `avg_score`, optional median rates derived from CONTROL_OBJECT `counts.statuses`, `top_error_types`, `computed_at`.
 
 ---
 
-### 2. Nightly Batch Job
+### 2. Data source and filters
 
-**File:** `server/src/jobs/benchmark-snapshot.ts` (new)
+- **Table:** `evaluation_datasets` (not a separate `evaluation_dataset` view).
+- **Decision filter:** only rows where **`decision_applied`** is **`accept`** or **`accept_with_warnings`** (aligned with `SYSTEM_DEFAULTS.benchmarks.includedDecisionHints`).
+- **Industry:** from **`audits.industry`**, normalized (trim, lowercase, whitespace → `_`). Audits with **null/empty** industry contribute **only** to the **`all`** industry bucket; tagged audits contribute to **both** their specific bucket **and** **`all`**.
+- **Phase filter:** only **`DOMAIN_KEYS`** domain phases (excludes recon/strategy).
 
-The job runs nightly (default: 02:00 local time, configurable via `BENCHMARK_JOB_CRON`) and computes fresh snapshots for all `phase_id × industry` combinations with ≥ `MIN_SAMPLE_COUNT` (default: 20) runs in the period.
+**Job implementation:** `server/src/services/benchmark-snapshot.ts` (`computeAndStoreBenchmarkSnapshots`). **Thin entry re-export:** `server/src/jobs/benchmark-snapshot.ts`.
 
-```typescript
-async function computeBenchmarks(period: '30d' | '90d' | 'all_time') {
-  const rows = await db
-    .from('evaluation_dataset')
-    .select('phase_id, audit_industry, control_object')
-    .eq('final_accepted', true)  // only accepted runs
-    .gte('created_at', periodStart(period));
-
-  const grouped = groupBy(rows, r => `${r.phase_id}::${r.audit_industry ?? 'all'}`);
-
-  for (const [key, group] of Object.entries(grouped)) {
-    if (group.length < MIN_SAMPLE_COUNT) continue;
-    const scores = group.map(r => r.control_object.confidence.overall);
-    await upsertSnapshot({ phase_id, industry, period, ...computePercentiles(scores), sample_count: group.length });
-  }
-}
-```
-
-The job is idempotent — rerunning produces the same snapshot for the same data. Old snapshots are retained for trend analysis (not deleted on recompute).
+**Tunables:** `SYSTEM_DEFAULTS.benchmarks` (`minSampleCount`, `computePeriods`, `periodDays`, `evaluationPageSize`, etc.).
 
 ---
 
-### 3. /api/benchmarks Endpoint
+### 3. HTTP API
 
-New read-only endpoint (protected, consultant role):
+| Method | Path | Auth |
+|--------|------|------|
+| GET | `/api/benchmarks` | Consultant JWT; requires **`FEATURE_BENCHMARKS=true`** |
+| POST | `/api/benchmarks/recompute` | Header **`x-benchmark-recompute-secret`** = **`BENCHMARK_RECOMPUTE_SECRET`** |
+| POST | `/api/platform/benchmarks/recompute` | Consultant JWT + **`canManagePlatformSettings`** |
 
-```
-GET /api/benchmarks?phase_id=security_compliance&industry=fintech&period=last_90d
-```
-
-Response:
-```json
-{
-  "phase_id": "security_compliance",
-  "industry": "fintech",
-  "period": "last_90d",
-  "sample_count": 47,
-  "percentiles": { "p25": 61, "p50": 74, "p75": 83, "p90": 91 },
-  "avg_score": 73.4,
-  "top_error_types": ["compliance_unverified", "security_overclaim", "audit_trail_missing"],
-  "computed_at": "2026-04-12T02:03:41Z"
-}
-```
-
-`phase_id`, `industry`, and `period` are all optional — omitting returns cross-phase, cross-industry, all-time benchmarks.
+**GET** query params: optional `phase_id`, `industry`, `period`. Returns the **latest** matching snapshot by `computed_at`. Response shape and error codes are documented in **`docs/API.md`**.
 
 ---
 
-### 4. CONTROL_OBJECT Extension
+### 4. CONTROL_OBJECT extension
 
-```typescript
-context.benchmark_reference_id?: string;
-// Set to the snapshot ID used as the reference point for this audit's confidence score.
-// Populated at pipeline completion when a matching benchmark snapshot exists.
-// Enables the frontend to show: "Your Security score (72) is at the 48th percentile
-//  for fintech companies in the last 90 days."
-```
+`context.benchmark_reference_id?: string` — UUID of the snapshot row used as the peer reference for this run. Populated in **`publishControlObjectGovernance`** (after auto-remediation, before **`evaluation_datasets`** insert) when **`FEATURE_BENCHMARKS=true`**, using **`SYSTEM_DEFAULTS.benchmarks.defaultReferencePeriod`**, preferring the audit’s normalized industry bucket and falling back to **`all`**. Schema: `server/src/schemas/control-object.ts`.
 
 ---
 
-### 5. Frontend: Benchmark Comparison in AuditWorkspace / StrategyLab
+### 5. Frontend
 
-When `context.benchmark_reference_id` is set, the domain score card in AuditWorkspace displays a percentile indicator alongside the raw confidence score:
-
-```
-Security & Compliance
-Score: 72 / 100
-▼ 48th percentile for fintech (last 90 days, n=47)
-```
-
-This gives consultants immediate context without requiring them to navigate to a separate analytics view.
-
-**StrategyLab** gets a dedicated benchmark panel showing all 6 phases side-by-side against industry peers.
+- **Strategy Lab** (`src/app/pages/StrategyLab.tsx`): panel listing all six domain phases with latest **p50** and **n** for `last_90d` (industry-specific then `all` fallback). Uses **`api.getLatestSnapshot`** (`src/app/data/api/benchmarks.ts`).
+- **AuditWorkspace** percentile badge (optional in original roadmap) — deferred; Strategy Lab covers the Sprint 6 deliverable.
 
 ---
 
-### 6. Privacy and Data Governance
+### 6. Privacy and data governance
 
-Benchmark computation uses only:
-- `confidence.overall` per phase (not raw agent outputs or client data)
-- `industry_tag` (aggregated category, not client identity)
-- `final_accepted` flag (only accepted audits contribute)
-
-No client-identifiable information enters the benchmark aggregates. The `evaluation_dataset` table is the only data source; it is already sanitized of PII at write time (ADR-TRUTH-REGISTRY-ASSUMPTIONS.md, Phase 2).
+Benchmark computation uses only aggregated numeric fields from stored CONTROL_OBJECT JSON and **`audits.industry`** (category text). Raw agent outputs are not scanned for benchmarks beyond what is already persisted in **`evaluation_datasets`**. **`evaluation_datasets`** rows are subject to existing sanitisation and TTL (`expires_at`).
 
 ---
 
 ## Consequences
 
-**Positive:**
-- Consultants gain a reference frame for audit scores — absolute numbers become meaningful relative to industry
-- Cross-phase comparison surfaces systematically weak phases for engineering prioritisation
-- Bandit variant selection (Phase 6) gains a long-term quality signal: "does the 'conservative' variant score better than 'default' across industries?"
-- `top_error_types` per phase+industry directly informs Rule Engine tuning
+**Positive:** Consultants gain cohort context; engineering can compare phase health across industries; **`top_error_types`** supports rule-engine tuning.
 
-**Negative / Risks:**
-- Cold-start problem: benchmarks are meaningless with < 20 samples per bucket. Low-volume industries will show `null` percentiles. Mitigation: `MIN_SAMPLE_COUNT` gate; UI shows "insufficient data" rather than misleading percentiles.
-- Nightly compute could be slow if `evaluation_dataset` grows large. Mitigation: index on `phase_id + created_at`; compute only changed buckets using `MAX(updated_at)` watermark.
-- `industry_tag` field requires consultants to tag audits. If tagging is inconsistent, the `'all'` bucket dominates and per-industry benchmarks are thin. Mitigation: suggest industry tag at audit creation (`/audit/new` form); make it selectable from a fixed taxonomy.
-
----
-
-## Deferred
-
-| Feature | Rationale |
-|---|---|
-| Real-time benchmark updates | Nightly is sufficient; real-time adds unnecessary complexity |
-| Benchmark-driven automated prompt tuning | Requires ML infrastructure beyond Phase 10 scope |
-| Cross-client company-size segmentation | Requires additional audit metadata; post-10 roadmap |
+**Negative / risks:** Cold start when **`sample_count` < `minSampleCount`** — no snapshot row for that bucket; UI shows **—**. Recompute cost grows with `evaluation_datasets` size — mitigated by indexed `(phase_id, created_at)` and paginated range scans.
 
 ---
 
 ## References
 
-- `server/src/jobs/benchmark-snapshot.ts` — nightly batch job (Sprint 6, new)
-- Supabase migration: `domain_benchmark_snapshot` table, `audits.industry_tag` column (Sprint 6)
-- `server/src/routes/benchmarks.ts` — `/api/benchmarks` endpoint (Sprint 6, new)
-- `src/app/components/AuditWorkspace` — percentile indicator (Sprint 6, frontend)
-- `src/app/pages/StrategyLab` — benchmark panel (Sprint 6, frontend)
-- `server/src/schemas/control-object.ts` — context.benchmark_reference_id addition
-- `docs/adrs/ADR-ML-BANDITS.md` — Phase 6 (agent_performance_aggregate source)
-- `docs/adrs/ADR-CONTROL-OBJECT-V2-FULL.md` — context.benchmark_reference_id pre-declaration
+- `server/src/services/benchmark-snapshot.ts`
+- `server/migrations/056_domain_benchmark_snapshot.sql`
+- `server/src/routes/benchmarks.ts`
+- `server/src/routes/platform.ts` — `POST /benchmarks/recompute`
+- `packages/glc-api-paths/src/index.ts` — `API_PATHS.benchmarks`, `apiBenchmarksQuery`
+- `server/src/config/feature-flags.ts` — `isBenchmarksEnabled` / **`FEATURE_BENCHMARKS`**
+- `docs/API.md` — Domain benchmarks section

@@ -40,6 +40,7 @@ describe('SPA API_PATHS vs Express mount prefixes', () => {
       ApiPaths.apiIntakeToken('tok'),
       ApiPaths.apiIntakeRespond('tok'),
       ApiPaths.apiIntakeTracePublicationLog(25),
+      ApiPaths.apiBenchmarksQuery({ phase_id: 'tech_infrastructure', industry: 'saas', period: 'last_90d' }),
     ];
     for (const p of samples) {
       expect(spaPathUnderExpressMounts(p, prefixes), `unmounted builder path: ${p}`).toBe(true);

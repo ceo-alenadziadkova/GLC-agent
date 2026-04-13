@@ -28,17 +28,34 @@ CREATE TABLE IF NOT EXISTS public.evaluation_datasets (
                     CHECK (retention_policy IN ('default', 'extended', 'internal_only')),
   pii_sanitized     boolean NOT NULL DEFAULT false,
   created_at        timestamptz NOT NULL DEFAULT now(),
-  expires_at        timestamptz GENERATED ALWAYS AS (
-                      created_at + (
-                        CASE retention_policy
-                          WHEN 'extended'      THEN INTERVAL '365 days'
-                          WHEN 'internal_only' THEN INTERVAL '365 days'
-                          ELSE INTERVAL '90 days'
-                        END
-                      )
-                    ) STORED,
+  -- Not GENERATED: Postgres requires immutable generation expressions; timestamptz + interval
+  -- is STABLE (timezone/DST), so STORED generated columns fail with 42P17. Filled by trigger below.
+  expires_at        timestamptz NOT NULL,
   UNIQUE (audit_id, phase_id, run_number)
 );
+
+CREATE OR REPLACE FUNCTION public.set_evaluation_datasets_expires_at()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $fn$
+BEGIN
+  NEW.expires_at := NEW.created_at + (
+    CASE NEW.retention_policy
+      WHEN 'extended' THEN INTERVAL '365 days'
+      WHEN 'internal_only' THEN INTERVAL '365 days'
+      ELSE INTERVAL '90 days'
+    END
+  );
+  RETURN NEW;
+END;
+$fn$;
+
+DROP TRIGGER IF EXISTS evaluation_datasets_set_expires_at_trg ON public.evaluation_datasets;
+
+CREATE TRIGGER evaluation_datasets_set_expires_at_trg
+  BEFORE INSERT OR UPDATE OF retention_policy, created_at ON public.evaluation_datasets
+  FOR EACH ROW
+  EXECUTE PROCEDURE public.set_evaluation_datasets_expires_at();
 
 CREATE INDEX IF NOT EXISTS evaluation_datasets_expires_at_idx
   ON public.evaluation_datasets (expires_at);

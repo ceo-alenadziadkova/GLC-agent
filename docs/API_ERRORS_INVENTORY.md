@@ -1,6 +1,8 @@
 # API error strings inventory (`server/src/routes`)
 
-Machine-regenerated summary: run `./scripts/api-errors-inventory.sh` from the repo root.
+**Maintenance:** After changing route `error` literals, run `./scripts/api-errors-inventory.sh` (prints `rg` matches to **stdout**) and update the grouped tables (**Group A** onward) from that output — avoid letting tables drift from code. You may hand-edit the **`## Stable code field`** summary when codes change, but keep it aligned with [`api-error-codes.ts`](../server/src/config/api-error-codes.ts).
+
+**Contract and SoT:** Stable `code` values and default messages → [`server/src/config/api-error-codes.ts`](../server/src/config/api-error-codes.ts) and [`api-user-messages.en.json`](../server/src/config/api-user-messages.en.json). Human overview → [API.md — Error Responses](./API.md#error-responses).
 
 ## Stable `code` field (TypeScript source of truth)
 

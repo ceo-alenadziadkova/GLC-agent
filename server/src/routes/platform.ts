@@ -15,6 +15,8 @@ import {
   normalizeConsultantAllowlistEmail,
   removeConsultantAllowlistEmail,
 } from '../services/consultant-allowlist.js';
+import { computeAndStoreBenchmarkSnapshots } from '../services/benchmark-snapshot.js';
+import { logger } from '../services/logger.js';
 import {
   API_ERROR_CODES,
   PLATFORM_ADMIN_ONLY_MESSAGE,
@@ -29,6 +31,7 @@ import {
   PLATFORM_SELF_SERVE_LOAD_FAILED_MESSAGE,
   PLATFORM_SELF_SERVE_PERSIST_FAILED_MESSAGE,
   PLATFORM_SELF_SERVE_UPDATE_FAILED_MESSAGE,
+  INTERNAL_SERVER_ERROR_MESSAGE,
   apiErrorJson,
 } from '../config/api-error-codes.js';
 
@@ -285,5 +288,23 @@ platformRouter.delete('/consultant-allowlist', requireRole('consultant'), async 
           PLATFORM_CONSULTANT_ALLOWLIST_REMOVE_FAILED_MESSAGE,
         ),
       );
+  }
+});
+
+platformRouter.post('/benchmarks/recompute', requireRole('consultant'), async (req: AuthRequest, res) => {
+  try {
+    const uid = req.userId!;
+    if (!(await canManagePlatformSettings(uid))) {
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.PLATFORM_ADMIN_ONLY, PLATFORM_ADMIN_ONLY_MESSAGE));
+      return;
+    }
+    const out = await computeAndStoreBenchmarkSnapshots();
+    res.json({ ok: true, inserted: out.inserted });
+  } catch (e) {
+    logger.error('platform.benchmark_recompute_failed', {
+      component: 'platform_route',
+      error: e instanceof Error ? e.message : String(e),
+    });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR_MESSAGE));
   }
 });

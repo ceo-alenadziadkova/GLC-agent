@@ -304,6 +304,45 @@ export interface Database {
         };
         Update: Partial<Database['public']['Tables']['audit_remediations']['Insert']>;
       };
+      domain_benchmark_snapshot: {
+        Row: {
+          id: string;
+          computed_at: string;
+          phase_id: string;
+          industry: string;
+          period: string;
+          sample_count: number;
+          p25: number;
+          p50: number;
+          p75: number;
+          p90: number;
+          avg_score: number;
+          hallucination_rate_p50: number | null;
+          risky_promise_rate_p50: number | null;
+          unverified_rate_p50: number | null;
+          top_error_types: string[] | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          computed_at: string;
+          phase_id: string;
+          industry: string;
+          period: string;
+          sample_count: number;
+          p25: number;
+          p50: number;
+          p75: number;
+          p90: number;
+          avg_score: number;
+          hallucination_rate_p50?: number | null;
+          risky_promise_rate_p50?: number | null;
+          unverified_rate_p50?: number | null;
+          top_error_types?: string[] | null;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['domain_benchmark_snapshot']['Insert']>;
+      };
     };
   };
 }

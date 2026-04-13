@@ -12,7 +12,7 @@ A full-stack B2B SaaS platform for AI-powered business audits. A consultant subm
 
 ## Architecture in One Paragraph
 
-React 18 + Vite frontend (Vercel) talks to an Express + TypeScript backend (Railway) via REST. The backend orchestrates an 8-phase AI pipeline: programmatic collectors gather data (no AI), then one `claude-sonnet-4-20250514` call per phase analyses and scores. Results are stored in Supabase PostgreSQL. The frontend subscribes to `pipeline_events` and `audits` via Supabase Realtime for live updates. Supabase Auth handles email/password + Google OAuth; RLS enforces user data isolation.
+**Canonical detail:** [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) and the domain map in [docs/MASTER.md](./docs/MASTER.md). In short: React 18 + Vite SPA and Express + TypeScript API form a **modular monolith** (not microservices); Supabase (Postgres, Auth, Realtime) persists state; collectors run without LLMs; one Claude call per pipeline phase on the server only; consultants/clients use JWT + RLS-isolated data.
 
 ---
 
@@ -24,7 +24,7 @@ React 18 + Vite frontend (Vercel) talks to an Express + TypeScript backend (Rail
 4. **Collectors never call Claude.** Collectors are programmatic only (fetch + cheerio).
 5. **Always filter DB queries by `userId`.** Backend routes must include `user_id = req.userId` in queries, even though service role key bypasses RLS.
 6. **All protected routes need `requireAuth` middleware.** Check `server/src/routes/` patterns.
-7. **Primary docs live flat in `/docs/*.md` with a 20-file quota.** Treat `docs/adrs/` as legacy ADR archive: do not expand it by default. Engineering debt register: [docs/TECH_DEBT.md](./docs/TECH_DEBT.md).
+7. **Primary docs live flat in `/docs/*.md` with a 20-file quota.** ADRs live under `docs/adrs/` (do not rename that folder). Obsolete doc stubs only: `docs/archive/`. Single master index: [docs/MASTER.md](./docs/MASTER.md) only — no second `MASTER_DOCUMENTATION.md`. Engineering debt: [docs/TECH_DEBT.md](./docs/TECH_DEBT.md).
 8. **No emoji in source code.** Use Phosphor React icons instead — e.g. `<CircleIcon size={20} color="#df3434" weight="fill" />`. Emoji are allowed only in agent prompt strings (LLM instructions) and user-facing log messages emitted to `pipeline_events`.
 9. **Question bank changes are cross-system, never JSON-only.** Any change to `packages/intake-core/src/question-bank.v1.json` or answer options must be synchronized with `bank-question-ui-overrides.ts`, `choice-specify-triggers.ts`, `ai-readiness.ts`, `answer-normalizers.ts`, discovery mapping (`src/app/lib/discovery-flow.ts`, `server/src/routes/discover.ts` when relevant), tests, and docs (`docs/QUESTION_BANK.md`; `docs/API.md` if contract behavior changes). Follow `docs/QUESTION_BANK.md` §15 and `.cursor/rules/intake-question-bank-change-protocol.mdc`.
 10. **`server/src/snapshot/` in automated checks.** That tree is ignored by ESLint and excluded from server Vitest coverage (see `eslint.config.js`, `server/vitest.config.ts`). It is still compiled by `tsc`. Treat it as library-style snapshot code when auditing or refactoring.

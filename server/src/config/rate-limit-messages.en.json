@@ -12,5 +12,6 @@
   "INTAKE_WRITE": "Too many save attempts to this intake link. Try again later.",
   "MARKETING_BRIEF": "Too many submissions from this connection. Try again later.",
   "LOG_INGEST": "Too many log events. Please wait before retrying.",
-  "SNAPSHOT_LOG_INGEST": "Too many log events from this preview session. Please wait before retrying."
+  "SNAPSHOT_LOG_INGEST": "Too many log events from this preview session. Please wait before retrying.",
+  "BENCHMARK_RECOMPUTE": "Too many benchmark recompute requests from this connection. Try again later."
 }

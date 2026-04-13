@@ -164,6 +164,61 @@ Assigns which consultant owns **client self-serve** audits (`audits.user_id` whe
 
 **Note:** Consultant promotion on first login uses table **`consultant_email_allowlist`** only (this API or SQL). The **`CONSULTANT_EMAILS`** env is no longer read by the server.
 
+### `POST /api/platform/benchmarks/recompute`
+
+**Auth:** consultant JWT and platform admin (`can_manage` — same rules as `PATCH /api/platform/self-serve-owner`).
+
+Recomputes and inserts rows into **`domain_benchmark_snapshot`** from **`evaluation_datasets`** (all configured rolling periods). Does **not** require **`FEATURE_BENCHMARKS`** (use this to seed data before enabling the flag).
+
+**Response `200`:** `{ "ok": true, "inserted": <number> }` — `inserted` is the count of successful snapshot row inserts.
+
+**Errors:** `403` not platform admin when restricted, `500` on unexpected failure.
+
+---
+
+## Domain benchmarks
+
+Aggregated peer distributions for **`control_object.confidence.overall`** per domain phase. Source table: **`evaluation_datasets`** joined to **`audits.industry`**. Only rows with **`decision_applied`** in `accept` / `accept_with_warnings` are included. Tunables: **`SYSTEM_DEFAULTS.benchmarks`** in `server/src/config/system-defaults.ts`. See **`docs/adrs/ADR-DOMAIN-BENCHMARKS.md`**.
+
+### `GET /api/benchmarks`
+
+**Auth:** consultant JWT.
+
+**Feature flag:** **`FEATURE_BENCHMARKS=true`**. When disabled, **`503`** with code **`BENCHMARKS_FEATURE_DISABLED`**.
+
+**Query (all optional):** `phase_id`, `industry`, `period` (`last_30d` | `last_90d` | `all_time`). Omitting all three returns the globally latest snapshot row (by `computed_at`).
+
+**Response `200`:** latest matching row:
+
+```json
+{
+  "id": "uuid",
+  "phase_id": "security_compliance",
+  "industry": "fintech",
+  "period": "last_90d",
+  "sample_count": 47,
+  "percentiles": { "p25": 61, "p50": 74, "p75": 83, "p90": 91 },
+  "avg_score": 73.4,
+  "hallucination_rate_p50": 0.1,
+  "risky_promise_rate_p50": 0.05,
+  "unverified_rate_p50": 0.2,
+  "top_error_types": ["compliance_unverified", "security_overclaim"],
+  "computed_at": "2026-04-12T02:03:41.000Z"
+}
+```
+
+**Errors:** `400` invalid `period`, **`404`** `BENCHMARK_SNAPSHOT_NOT_FOUND` when no row matches.
+
+### `POST /api/benchmarks/recompute`
+
+**Auth:** none — send header **`x-benchmark-recompute-secret`** equal to **`BENCHMARK_RECOMPUTE_SECRET`**. If the env var is unset, **`503`** `BENCHMARK_RECOMPUTE_NOT_CONFIGURED`. Invalid secret: **`401`** `BENCHMARK_RECOMPUTE_UNAUTHORIZED`.
+
+**Rate limit:** per IP, hourly cap from **`SYSTEM_DEFAULTS.rateLimits.benchmarkRecomputeMaxPerHour`** (`benchmarkRecomputeLimiter`).
+
+**Response `200`:** `{ "ok": true, "inserted": <number> }`.
+
+Intended for **Railway / GitHub Actions cron** (no user session). Same aggregation logic as **`POST /api/platform/benchmarks/recompute`**.
+
 ---
 
 ## Audits
@@ -373,10 +428,12 @@ Start Phase 0 (Recon). Audit must be in `created` status; intake brief gates mus
 Supports optimistic race protection via DB compare-and-set. If another request already claimed execution, returns `409`.
 Execution is queue-backed when Redis is configured: route enqueues a pipeline job and returns immediately; worker processes perform phase execution. If queue backend is unavailable, runtime falls back to in-process execution.
 
+Optional JSON body: `{ "disable_auto_remediate": true }` skips Phase 9 auto-remediation for pipeline work triggered by this request (including BullMQ worker runs). When omitted, remediation follows `FEATURE_AUTO_REMEDIATION` in `server/src/config/feature-flags.ts`.
+
 **Response `200`:**
 
 ```json
-{ "started": true, "phase": 0 }
+{ "status": "started", "phase": 0, "intakeProgress": { ... } }
 ```
 
 ---
@@ -386,11 +443,12 @@ Execution is queue-backed when Redis is configured: route enqueues a pipeline jo
 Run the next pending phase or parallel block. Used after a review approval to continue the pipeline. **Clients** linked via `client_id` may call this when the pipeline is waiting to advance in a state the API allows (consultants still own review submissions and retry).
 Uses compare-and-set claim on the audit row to prevent duplicate concurrent starts.
 Queue-backed execution/fallback behavior is the same as `pipeline/start`.
+Optional body `{ "disable_auto_remediate": true }` — same semantics as `pipeline/start`.
 
 **Response `200`:**
 
 ```json
-{ "started": true, "phase": 1 }
+{ "status": "running", "phase": 1 }
 ```
 
 ---
@@ -400,6 +458,7 @@ Queue-backed execution/fallback behavior is the same as `pipeline/start`.
 Retry a failed phase. **Consultant-only.** Request body must include the `phase` number to retry. Behaviour and limits depend on `product_mode` (phases above the mode’s max are rejected).
 Uses compare-and-set claim on the audit row to prevent duplicate concurrent retries.
 Queue-backed execution/fallback behavior is the same as `pipeline/start`.
+Optional field `disable_auto_remediate: true` in the same JSON body — same semantics as `pipeline/start`.
 
 **Response `200`:** e.g. `{ "status": "retrying", "phase": <number> }`
 
@@ -850,6 +909,10 @@ Persists to `marketing_brief_submissions` (migrations `025`, optional column `pr
 
 ## Error Responses
 
+**Single source of truth (machine):** Stable `code` values, `apiErrorJson` helpers, and default English copy live in [`server/src/config/api-error-codes.ts`](../server/src/config/api-error-codes.ts) and [`server/src/config/api-user-messages.en.json`](../server/src/config/api-user-messages.en.json) (re-exported via `api-user-messages.en.ts`). Change those files when adding or renaming codes — not ad-hoc strings in routes.
+
+**Human-readable contract:** This section summarizes shape and common codes. **Literal `error` string inventory** (for audits and i18n gap analysis) is in [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md). Refresh matches with `./scripts/api-errors-inventory.sh` (stdout: `rg` over routes) when updating grouped tables.
+
 All errors follow:
 
 ```json
@@ -873,4 +936,4 @@ Common codes:
 - `PIPELINE_BUSY` — 409 (pipeline already running)
 - `INVALID_STATUS` — 422 (action not valid for current audit status)
 
-A grouped inventory of literal `error` strings returned by route handlers lives in [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md). Regenerate raw matches with `./scripts/api-errors-inventory.sh`.
+See [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md) for the full grouped list; after route changes, run `./scripts/api-errors-inventory.sh` from the repo root to refresh it.

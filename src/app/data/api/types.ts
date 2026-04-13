@@ -1,3 +1,4 @@
+import { benchmarksApi } from './benchmarks';
 import { auditRequestsApi } from './audit-requests';
 import { auditsCrudApi } from './audits-crud';
 import { auditsPipelineApi } from './audits-pipeline';
@@ -10,6 +11,7 @@ import { marketingSnapshotIncidentsApi } from './marketing-snapshot-incidents';
 
 /** Full SPA API client shape (all domain slices merged). */
 export type GlcApi =
+  typeof benchmarksApi &
   typeof auditsCrudApi &
   typeof auditsPipelineApi &
   typeof auditsReviewsReportsApi &

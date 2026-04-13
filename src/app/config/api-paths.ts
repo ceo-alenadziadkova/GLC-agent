@@ -5,6 +5,7 @@
 export {
   API_PATHS,
   type ApiLogPath,
+  apiBenchmarksQuery,
   apiAuditsBriefHelpRequest,
   apiAuditsPath,
   apiAuditsPipelineNext,

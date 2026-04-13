@@ -215,5 +215,10 @@
   "SNAPSHOT_DOMAIN_FRESH_COOLDOWN": "This website was just scanned from our free tool. Please wait a few minutes before starting another fresh check for the same site.",
   "PIPELINE_START_CLAIM_CONFLICT": "Pipeline start already claimed by another request",
   "PIPELINE_NEXT_CLAIM_CONFLICT": "Next phase request already claimed by another request",
-  "PIPELINE_RETRY_CLAIM_CONFLICT": "Retry request already claimed by another request"
+  "PIPELINE_RETRY_CLAIM_CONFLICT": "Retry request already claimed by another request",
+  "BENCHMARKS_FEATURE_DISABLED": "Domain benchmarks are disabled.",
+  "BENCHMARK_SNAPSHOT_NOT_FOUND": "No benchmark snapshot matches the query.",
+  "BENCHMARK_PERIOD_INVALID": "Invalid benchmark period.",
+  "BENCHMARK_RECOMPUTE_UNAUTHORIZED": "Invalid benchmark recompute credential.",
+  "BENCHMARK_RECOMPUTE_NOT_CONFIGURED": "Benchmark recompute is not configured on this server."
 }

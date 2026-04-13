@@ -347,6 +347,10 @@ export type HumanAttentionReasonCode =
   | 'upstream_claim_invalidated'             // Phase 8: a downstream claim depends on an invalidated upstream claim
   | string; // open for domain-specific codes
 
+/** Phase 9: use instead of string literals when escalating blocked content auto-remediation. */
+export const HUMAN_ATTENTION_CONTENT_REMEDIATION_BLOCKED: HumanAttentionReasonCode =
+  'content_remediation_blocked_by_phase_profile';
+
 export interface ControlObjectHumanAttention {
   required: boolean;
   /** Machine-readable reason codes (see HumanAttentionReasonCode) */

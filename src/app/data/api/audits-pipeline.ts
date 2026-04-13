@@ -43,10 +43,13 @@ export const auditsPipelineApi = {
     return payload;
   },
 
-  async retryPhase(id: string, phase: number) {
+  async retryPhase(id: string, phase: number, opts?: { disable_auto_remediate?: boolean }) {
     const payload = await apiFetch<{ status: string; phase: number }>(apiAuditsPipelineRetry(id), {
       method: 'POST',
-      body: JSON.stringify({ phase }),
+      body: JSON.stringify({
+        phase,
+        ...(opts?.disable_auto_remediate ? { disable_auto_remediate: true } : {}),
+      }),
     });
     assertPipelineMutationShape(payload, 'pipeline retry');
     return payload;

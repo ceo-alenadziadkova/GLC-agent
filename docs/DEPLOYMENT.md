@@ -31,8 +31,8 @@ Values that are **secrets, connectivity, or deploy wiring** — not product defa
 
 ## Supabase Setup
 
-1. Create project at [supabase.com](https://supabase.com) — choose **EU (Frankfurt)** region for GDPR compliance
-2. In SQL Editor → run **all** SQL migrations in numeric order through the latest file in `server/migrations/`; see [DATABASE.md](./DATABASE.md#overview)
+1. Create project at [supabase.com](https://supabase.com) — choose **EU (Frankfurt)** region for GDPR compliance (**Needs Review:** pick the region your org requires).
+2. **Schema:** apply migrations exactly as described in [DATABASE.md — Overview](./DATABASE.md#overview) (ordered list through latest `server/migrations/*.sql`). Do not duplicate that sequence here.
 3. Authentication → Settings:
    - Set **Site URL** to your production frontend URL (exact URL; wildcards are invalid here)
    - Add **Redirect URLs**: exact dev/prod origins and `/login` URLs as needed — see [AUTH.md](./AUTH.md#supabase-auth-configuration) (some dashboards reject `*` wildcards)

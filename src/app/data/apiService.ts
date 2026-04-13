@@ -1,4 +1,5 @@
 import {
+  benchmarksApi,
   auditRequestsApi,
   auditsCrudApi,
   auditsPipelineApi,
@@ -20,6 +21,7 @@ export type { GlcApi } from './api';
 // ─── API Service (composed from domain modules in ./api/) ───────────────────
 
 export const api = {
+  ...benchmarksApi,
   ...auditsCrudApi,
   ...auditsPipelineApi,
   ...auditsReviewsReportsApi,

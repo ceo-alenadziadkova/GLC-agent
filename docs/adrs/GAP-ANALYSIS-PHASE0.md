@@ -32,7 +32,7 @@ Use this when comparing an older product spec to the repo.
 |-------|----------------------|----------------------|
 | **Pipeline event for governance JSON** | Some drafts used `quality_gate` for CONTROL_OBJECT | Dedicated `control_object` plus `refine_recommended` when `decision_hint === 'refine'`. `quality_gate` remains **only** [`ConsistencyChecker`](../../server/src/services/consistency-checker.ts) (post-wing). |
 | **Decision thresholds** | Pseudocode 80 / 65 on weighted overall | **`85` / `70`** on `confidence.overall` (already phase-weighted, includes feasibility dimension). See [`ADR-DECISION-LAYER-GATES`](./ADR-DECISION-LAYER-GATES.md). |
-| **`trace.causal_chain`** | Planned for cross-phase root cause | **In schema** as `ControlObjectTrace.causal_chain[]` (optional; empty until Phase 8 / ADR-CAUSAL-DAG). Shallow linking today remains `assumptions.related_claim_ids`. |
+| **`trace.causal_chain`** | Planned for cross-phase root cause | **Implemented** when `FEATURE_CAUSAL_DAG=true`: `FactChecker` builds `causal_chain`, persists edges to `audit_claim_graph` (migration `054`), pipeline calls `invalidateDownstreamDependents` on structural errors. When the flag is off, `causal_chain` stays `[]`. Shallow linking remains `assumptions.related_claim_ids`. |
 | **Claim extraction** | NLP-style “20+ high-risk claims” | **Structural model:** one `AuditIssue` ≈ one FACT claim; recommendations ≈ strategic hypotheses; strengths/weaknesses ≈ opinion counts. Counts scale with model output size, not a separate extractor. |
 | **FactChecker module split** | `fact-checker-v1.ts` | Single [`fact-checker.ts`](../../server/src/services/fact-checker.ts): `verify()` + `buildControlObject()`. |
 | **Phase 5 auto-loop** | “MVP: manual only” | **Implemented behind flag:** `AUTO_LOOP_ENABLED=true` and `AUTO_LOOP_ALLOWED_MODES` (see `SYSTEM_DEFAULTS.autoLoop`). Default off. |
@@ -45,7 +45,7 @@ Use this when comparing an older product spec to the repo.
 ### FactChecker
 
 - **Domain-specific `verify()`** still targets Security, SEO, Tech, UX; Marketing and Automation rely on general checks only.
-- **`buildControlObject()`** produces **CONTROL_OBJECT v2.1** (see `CONTROL_OBJECT_VERSIONS` in [`control-object.ts`](../../server/src/schemas/control-object.ts)): counts, errors, assumptions (risk + `related_claim_ids`), trace with `truth_source` and `causal_chain` (empty array), feasibility, weighted `confidence.overall`, `confidence_weights` from extended phase profile, safety mutators, `agent_performance`, nullable `cost_control` (filled during auto-loop reruns), `context.risk_profile`, `context.selected_variant_id` (when pipeline supplies them), nullable `evaluation_link` (set after `evaluation_datasets` insert in [`publishControlObjectGovernance`](../../server/src/services/pipeline.ts)).
+- **`buildControlObject()`** produces **CONTROL_OBJECT v2.1+** (see `CONTROL_OBJECT_VERSIONS` in [`control-object.ts`](../../server/src/schemas/control-object.ts)): counts, errors, assumptions (risk + `related_claim_ids`), trace with `truth_source` and `causal_chain` (populated when `FEATURE_CAUSAL_DAG=true`, else `[]`), multi-modal `truth_sources[]` / connector tiers (see [`connector-runner.ts`](../../server/src/services/connector-runner.ts)), feasibility, weighted `confidence.overall`, `confidence_weights` from extended phase profile, safety mutators, `agent_performance`, nullable `cost_control` (filled during auto-loop reruns), `context.risk_profile`, `context.selected_variant_id` (when pipeline supplies them), nullable `evaluation_link` (set after `evaluation_datasets` insert in [`publishControlObjectGovernance`](../../server/src/services/pipeline.ts)), optional `context.benchmark_reference_id` when domain benchmarks are enabled (Sprint 6 / [`ADR-DOMAIN-BENCHMARKS`](./ADR-DOMAIN-BENCHMARKS.md)).
 - **Claim model** is structural, not NLP (see table above).
 
 ### Decision Layer + pipeline
@@ -75,6 +75,18 @@ Use this when comparing an older product spec to the repo.
 
 - Backend upserts rolling averages via [`recordAgentPerformance`](../../server/src/services/agent-performance.ts) after each `control_object` publish when metrics exist. Requires DB table from migration `052`.
 
+### Multi-modal truth (Sprint 3 / Phase 7)
+
+- Truth Registry tiers `external_api` and `document_feed` in [`truth-registry.ts`](../../server/src/config/truth-registry.ts); [`connector-runner.ts`](../../server/src/services/connector-runner.ts) + [`external-connectors.ts`](../../server/src/config/external-connectors.ts); FactChecker merges connector results into `trace.claim_sources[].truth_source` / `truth_sources[]`. See [`ADR-MULTIMODAL-TRUTH`](./ADR-MULTIMODAL-TRUTH.md).
+
+### Causal DAG (Sprint 4 / Phase 8)
+
+- Table `audit_claim_graph` (migration `054`), [`audit-claim-graph.ts`](../../server/src/services/audit-claim-graph.ts), `FEATURE_CAUSAL_DAG`, invalidation from [`pipeline.ts`](../../server/src/services/pipeline.ts). See [`ADR-CAUSAL-DAG`](./ADR-CAUSAL-DAG.md).
+
+### Auto-remediation (Sprint 5 / Phase 9)
+
+- [`remediation.ts`](../../server/src/services/remediation.ts), `audit_remediations` (migration `055`), `FEATURE_AUTO_REMEDIATION`, phase profile `auto_remediation_scope`. See [`ADR-AUTO-REMEDIATION`](./ADR-AUTO-REMEDIATION.md).
+
 ---
 
 ## Remaining / stretch work
@@ -83,7 +95,6 @@ Use this when comparing an older product spec to the repo.
 - **Product UI:** optional expansion to show full `trace` / `assumptions` in consultant surfaces (today: summaries + refine reasoning via `refine_recommended` / review modal props).
 - **FactChecker:** domain-specific `verify()` rules for **marketing_utp** and **automation_processes** (still `default` branch).
 - **Governance risk profile:** optional column `audits.governance_risk_profile` (migration `053`); when null, [`fetchAuditGovernanceRiskProfile`](../../server/src/lib/audit-governance-risk-profile.ts) falls back to `product_mode`. Populates `CONTROL_OBJECT.context.risk_profile`.
-- **Future (Phase 7+):** Multi-modal truth connectors, `truth_sources[]` per claim. **Phase 8+:** causal DAG population and upstream invalidation. See ADRs (`ADR-MULTIMODAL-TRUTH`, `ADR-CAUSAL-DAG`, etc.).
 
 ---
 
@@ -94,6 +105,7 @@ Use this when comparing an older product spec to the repo.
 | Evaluation TTL job | Cron or Supabase scheduled function: delete expired rows; optional cold archive |
 | Marketing / Automation fact rules | Extend `switch (domainKey)` in `FactChecker.verify()` |
 | Consultant dashboards | Read `control_object` / `evaluation_datasets` with existing RLS patterns |
+| Domain benchmarks job | Nightly or `POST` recompute (secret or platform admin); table `domain_benchmark_snapshot` — see [`ADR-DOMAIN-BENCHMARKS`](./ADR-DOMAIN-BENCHMARKS.md) |
 
 ---
 
@@ -109,3 +121,7 @@ Use this when comparing an older product spec to the repo.
 - [ADR-FEASIBILITY-RULE-ENGINE](./ADR-FEASIBILITY-RULE-ENGINE.md)
 - [ADR-SAFETY-MODE-EXECUTION](./ADR-SAFETY-MODE-EXECUTION.md)
 - [ADR-AUTO-LOOP-RULE-ENGINE](./ADR-AUTO-LOOP-RULE-ENGINE.md)
+- [ADR-MULTIMODAL-TRUTH](./ADR-MULTIMODAL-TRUTH.md)
+- [ADR-CAUSAL-DAG](./ADR-CAUSAL-DAG.md)
+- [ADR-AUTO-REMEDIATION](./ADR-AUTO-REMEDIATION.md)
+- [ADR-DOMAIN-BENCHMARKS](./ADR-DOMAIN-BENCHMARKS.md)

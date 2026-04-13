@@ -46,6 +46,7 @@ import type { ControlObjectV1, PhaseId } from '../schemas/control-object.js';
 import { fetchPriorControlObjectsForPhase } from './control-object-history.js';
 import { invalidateDownstreamDependents } from './audit-claim-graph.js';
 import { banditService, DEFAULT_VARIANT_ID } from './bandit.js';
+import { attachBenchmarkReferenceToControlObject } from './benchmark-snapshot.js';
 import { findVariant } from '../config/agent-variants.js';
 
 type AgentConstructor = new (auditId: string) => BaseAgent;
@@ -170,6 +171,11 @@ export class PipelineOrchestrator {
           { auto_remediation_count: remediated },
         );
       }
+    }
+
+    await attachBenchmarkReferenceToControlObject(this.auditId, controlObject);
+
+    if (evaluationCapture) {
       await recordEvaluationDatasetIfEnabled({
         auditId: this.auditId,
         phaseId: evaluationCapture.phaseId,
@@ -417,6 +423,8 @@ export class PipelineOrchestrator {
             { auto_remediation_count: remediated },
           );
         }
+
+        await attachBenchmarkReferenceToControlObject(this.auditId, rerunControlObject);
 
         // Record evaluation dataset for the rerun
         await recordEvaluationDatasetIfEnabled({
