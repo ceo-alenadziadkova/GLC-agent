@@ -9,6 +9,7 @@ import {
 } from '@phosphor-icons/react';
 import { ScoreBadge } from '../../components/glc/ScoreBadge';
 import { PIPELINE_MONITOR_COPY as PM } from '../../config/pipeline-monitor-copy';
+import { UI_SEMANTIC_COLORS } from '../../config/ui-semantic-colors';
 import type { PhaseView } from './types';
 
 export function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: () => void }) {
@@ -140,7 +141,7 @@ export function RevBanner({
           </span>
           {!done && hasWarnings && (
             <span title={PM.revBanner.qualityWarningsTitle} className="inline-flex flex-shrink-0">
-              <WarningCircle size={12} weight="fill" style={{ color: '#F97316', flexShrink: 0 }} />
+              <WarningCircle size={12} weight="fill" style={{ color: UI_SEMANTIC_COLORS.warningOrange, flexShrink: 0 }} />
             </span>
           )}
         </div>
@@ -203,7 +204,7 @@ function ParallelMiniCard({ ph }: { ph: PhaseView }) {
   const iconColor = isCompleted
     ? 'var(--glc-green-dark)'
     : isFailed
-      ? '#EF4444'
+      ? UI_SEMANTIC_COLORS.danger
       : isRunning
         ? 'var(--glc-blue)'
         : 'var(--text-quaternary)';
@@ -248,8 +249,8 @@ function ParallelMiniCard({ ph }: { ph: PhaseView }) {
       )}
       {isFailed && (
         <div className="flex items-center gap-1">
-          <WarningCircle className="w-3 h-3" style={{ color: '#EF4444' }} />
-          <span style={{ fontSize: 10, color: '#EF4444', fontFamily: 'var(--font-display)' }}>{PM.miniCard.failed}</span>
+          <WarningCircle className="w-3 h-3" style={{ color: UI_SEMANTIC_COLORS.danger }} />
+          <span style={{ fontSize: 10, color: UI_SEMANTIC_COLORS.danger, fontFamily: 'var(--font-display)' }}>{PM.miniCard.failed}</span>
         </div>
       )}
       {!isRunning && !isCompleted && !isFailed && (

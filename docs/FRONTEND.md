@@ -220,7 +220,6 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 | `/admin/requests` | `AdminRequestQueue.tsx` | Consultant: incoming client requests queue with triage/status actions |
 | `/admin/snapshots` | `AdminSnapshotQueue.tsx` | Consultant: all free snapshot submissions (`product_mode=free_snapshot`), requested URL, status, and current score/result |
 | `/admin/discovery` | `DiscoveryQueue.tsx` | Consultant: Mode C submissions, convert to audit; shareable URL `/discovery` |
-| `/admin/intake-trace` | `IntakeTraceTool.tsx` | Consultant: debug `buildIntakePlan` / `formatPlanTrace` on pasted responses JSON; optional telemetry + IA v2 workspace (`APP_FEATURE_FLAGS.intakeTraceIaV2Enabled` in `app-feature-flags.ts`) |
 | `/admin/intake-wording` | `IntakeWordingWorkspace.tsx` | Consultant: draft wording (local + server sync), publish / rollback, publication log (`GET /api/intake-trace-tool/wording-publication-log`) |
 | `/admin/question-bank-studio` | `QuestionBankStudioPage.tsx` | Consultant: bank/policy studio workspace for intake configuration and diagnostics |
 

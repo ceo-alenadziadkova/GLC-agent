@@ -22,13 +22,12 @@ pnpm install
 
 ## 2. Supabase Setup
 
-1. Create a project at [supabase.com](https://supabase.com)
-2. In the SQL Editor, run **all** migrations in numeric order (see [DATABASE.md](./DATABASE.md#overview)):
-   - `server/migrations/*.sql` from the first file through the latest available
-3. Note your project URL and anon key (Project Settings → API)
-4. Note your service role key (same page — keep secret)
+1. Create a project at [supabase.com](https://supabase.com).
+2. **Apply the database schema:** follow [DATABASE.md — Overview](./DATABASE.md#overview) (run every file in `server/migrations/` in numeric order). That section is the single source of truth for migration order and table notes.
+3. Note your project URL and anon key (Project Settings → API).
+4. Note your service role key (same page — keep secret).
 
-Schema summary and table list: [DATABASE.md](./DATABASE.md).
+Production-only dashboard steps (Auth URLs, providers, region): [DEPLOYMENT.md — Supabase Setup](./DEPLOYMENT.md#supabase-setup).
 
 ---
 
@@ -115,8 +114,8 @@ Changing one of these without the others is a common cause of CORS errors, faile
 ## 5. Verify Setup
 
 1. Open [http://localhost:5173](http://localhost:5173)
-2. You should see the Login page
-3. Sign in or create an account (email + password or Google) → redirected to Portfolio
+2. You should see the public marketing entry page (`RootEntry` / MarketingHome)
+3. Open `/login`, sign in or create an account (email + password or Google) → redirected to Portfolio/Dashboard
 4. Click "New Audit" → enter a URL → submit → redirected to PipelineMonitor
 5. PipelineMonitor should show Phase 0 starting (Recon crawl)
 

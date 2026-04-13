@@ -5,6 +5,7 @@
 import type { BriefResponses } from '../data/briefQuestions';
 import { isBriefValueBlank } from '../data/briefQuestions';
 import { isIndustryOption } from '../data/industry-options';
+import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 
 export type IntakeClientMetadata = {
   company_name?: string;
@@ -47,7 +48,7 @@ export function parseIntakeClientMetadata(raw: Record<string, unknown>): IntakeC
 
 function formatTimingPhrase(when: string): string {
   const t = when.trim();
-  if (!t) return 'within 24 hours';
+  if (!t) return WORKSPACE_PAGE_COPY.intakeClient.defaultExpectedContactWindow;
   if (/^(within|before|by|after)\s/i.test(t)) return t;
   return `within ${t}`;
 }
@@ -57,7 +58,7 @@ export function buildFollowUpExpectationLine(meta: IntakeClientMetadata): string
   const channel = meta.contact_channel?.trim();
   const when = meta.expected_contact?.trim();
   if (!channel && !when) return null;
-  const timing = when ? formatTimingPhrase(when) : 'within 24 hours';
+  const timing = when ? formatTimingPhrase(when) : WORKSPACE_PAGE_COPY.intakeClient.defaultExpectedContactWindow;
   if (channel) {
     return `Expect contact on ${channel} ${timing}.`;
   }

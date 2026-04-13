@@ -20,6 +20,7 @@ export const API_HTTP_PATH_PREFIX = {
   analytics: '/api/analytics',
   notifications: '/api/notifications',
   audits: '/api/audits',
+  benchmarks: '/api/benchmarks',
   log: '/api/log',
 } as const;
 
@@ -30,6 +31,9 @@ export const API_PATHS = {
   analyticsDashboard: '/api/analytics/dashboard',
   auditRequests: '/api/audit-requests',
   audits: '/api/audits',
+  benchmarks: '/api/benchmarks',
+  benchmarksRecompute: '/api/benchmarks/recompute',
+  platformBenchmarksRecompute: '/api/platform/benchmarks/recompute',
   discover: '/api/discover',
   discoverUiFragment: '/api/discover/ui-fragment',
   discoverAnalyticsEvents: '/api/discover/analytics-events',
@@ -121,4 +125,18 @@ export function apiIntakeToken(token: string): string {
 
 export function apiIntakeRespond(token: string): string {
   return `${API_PATHS.intake}/${encodeURIComponent(token)}/respond`;
+}
+
+/** GET /api/benchmarks with optional filters (consultant auth). */
+export function apiBenchmarksQuery(args: {
+  phase_id?: string;
+  industry?: string;
+  period?: string;
+}): string {
+  const q = new URLSearchParams();
+  if (args.phase_id) q.set('phase_id', args.phase_id);
+  if (args.industry) q.set('industry', args.industry);
+  if (args.period) q.set('period', args.period);
+  const qs = q.toString();
+  return qs ? `${API_PATHS.benchmarks}?${qs}` : API_PATHS.benchmarks;
 }

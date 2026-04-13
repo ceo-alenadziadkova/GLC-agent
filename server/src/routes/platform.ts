@@ -8,6 +8,10 @@ import {
   setStoredSelfServeAuditOwnerUserId,
 } from '../lib/platform-self-serve-settings.js';
 import { resolveSelfServeAuditOwnerUserId } from '../lib/self-serve-audit-owner.js';
+import {
+  getPlatformRuntimePolicySnapshot,
+  setPlatformRuntimePolicyPatch,
+} from '../lib/platform-runtime-settings.js';
 import { listConsultantDirectoryRows } from '../lib/consultant-directory.js';
 import {
   addConsultantAllowlistEmail,
@@ -15,6 +19,10 @@ import {
   normalizeConsultantAllowlistEmail,
   removeConsultantAllowlistEmail,
 } from '../services/consultant-allowlist.js';
+import { computeAndStoreBenchmarkSnapshots } from '../services/benchmark-snapshot.js';
+import { banditService } from '../services/bandit.js';
+import { DOMAIN_KEYS, type DomainKey } from '../types/audit.js';
+import { logger } from '../services/logger.js';
 import {
   API_ERROR_CODES,
   PLATFORM_ADMIN_ONLY_MESSAGE,
@@ -26,13 +34,17 @@ import {
   PLATFORM_OWNER_NOT_CONSULTANT_MESSAGE,
   PLATFORM_OWNER_REQUIRED_MESSAGE,
   PLATFORM_OWNER_UUID_INVALID_MESSAGE,
+  PLATFORM_RECOMPUTE_IN_PROGRESS_MESSAGE,
   PLATFORM_SELF_SERVE_LOAD_FAILED_MESSAGE,
   PLATFORM_SELF_SERVE_PERSIST_FAILED_MESSAGE,
   PLATFORM_SELF_SERVE_UPDATE_FAILED_MESSAGE,
+  PROFILE_PAYLOAD_INVALID_MESSAGE,
+  INTERNAL_SERVER_ERROR_MESSAGE,
   apiErrorJson,
 } from '../config/api-error-codes.js';
 
 export const platformRouter = Router();
+let isBanditRecomputeRunning = false;
 
 platformRouter.use(requireAuth);
 platformRouter.use(generalLimiter);
@@ -138,6 +150,96 @@ platformRouter.patch('/self-serve-owner', requireRole('consultant'), async (req:
       env_fallback_active: false,
       implicit_fallback_active: implicitFallbackActive,
     });
+  } catch {
+    res
+      .status(500)
+      .json(
+        apiErrorJson(API_ERROR_CODES.PLATFORM_SELF_SERVE_UPDATE_FAILED, PLATFORM_SELF_SERVE_UPDATE_FAILED_MESSAGE),
+      );
+  }
+});
+
+platformRouter.get('/runtime-policies', requireRole('consultant'), async (req: AuthRequest, res) => {
+  try {
+    const uid = req.userId!;
+    if (!(await canManagePlatformSettings(uid))) {
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.PLATFORM_ADMIN_ONLY, PLATFORM_ADMIN_ONLY_MESSAGE));
+      return;
+    }
+    const data = await getPlatformRuntimePolicySnapshot();
+    res.json(data);
+  } catch {
+    res
+      .status(500)
+      .json(
+        apiErrorJson(API_ERROR_CODES.PLATFORM_SELF_SERVE_LOAD_FAILED, PLATFORM_SELF_SERVE_LOAD_FAILED_MESSAGE),
+      );
+  }
+});
+
+platformRouter.patch('/runtime-policies', requireRole('consultant'), async (req: AuthRequest, res) => {
+  try {
+    const uid = req.userId!;
+    if (!(await canManagePlatformSettings(uid))) {
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.PLATFORM_ADMIN_ONLY, PLATFORM_ADMIN_ONLY_MESSAGE));
+      return;
+    }
+
+    const body = req.body as Record<string, unknown>;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.PROFILE_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
+      return;
+    }
+
+    const patch: {
+      intake_token_ttl_days?: number | null;
+      evaluation_retention_default_days?: number | null;
+      evaluation_retention_extended_days?: number | null;
+      evaluation_retention_internal_only_days?: number | null;
+    } = {};
+
+    const fields = [
+      'intake_token_ttl_days',
+      'evaluation_retention_default_days',
+      'evaluation_retention_extended_days',
+      'evaluation_retention_internal_only_days',
+    ] as const;
+    for (const field of fields) {
+      const raw = body[field];
+      if (raw === undefined) continue;
+      if (raw === null) {
+        patch[field] = null;
+        continue;
+      }
+      if (typeof raw !== 'number' || !Number.isInteger(raw) || raw <= 0) {
+        res
+          .status(400)
+          .json(apiErrorJson(API_ERROR_CODES.PROFILE_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
+        return;
+      }
+      patch[field] = raw;
+    }
+
+    if (Object.keys(patch).length === 0) {
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.PROFILE_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
+      return;
+    }
+
+    const updated = await setPlatformRuntimePolicyPatch(patch, uid);
+    if (!updated.ok) {
+      res
+        .status(updated.statusCode)
+        .json(
+          apiErrorJson(API_ERROR_CODES.PLATFORM_SELF_SERVE_PERSIST_FAILED, PLATFORM_SELF_SERVE_PERSIST_FAILED_MESSAGE),
+        );
+      return;
+    }
+    const data = await getPlatformRuntimePolicySnapshot();
+    res.json({ ok: true, ...data });
   } catch {
     res
       .status(500)
@@ -285,5 +387,80 @@ platformRouter.delete('/consultant-allowlist', requireRole('consultant'), async 
           PLATFORM_CONSULTANT_ALLOWLIST_REMOVE_FAILED_MESSAGE,
         ),
       );
+  }
+});
+
+platformRouter.post('/benchmarks/recompute', requireRole('consultant'), async (req: AuthRequest, res) => {
+  try {
+    const uid = req.userId!;
+    if (!(await canManagePlatformSettings(uid))) {
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.PLATFORM_ADMIN_ONLY, PLATFORM_ADMIN_ONLY_MESSAGE));
+      return;
+    }
+    const out = await computeAndStoreBenchmarkSnapshots();
+    res.json({ ok: true, inserted: out.inserted });
+  } catch (e) {
+    logger.error('platform.benchmark_recompute_failed', {
+      component: 'platform_route',
+      error: e instanceof Error ? e.message : String(e),
+    });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR_MESSAGE));
+  }
+});
+
+platformRouter.post('/bandits/recompute', requireRole('consultant'), async (req: AuthRequest, res) => {
+  let lockAcquired = false;
+  try {
+    const uid = req.userId!;
+    if (!(await canManagePlatformSettings(uid))) {
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.PLATFORM_ADMIN_ONLY, PLATFORM_ADMIN_ONLY_MESSAGE));
+      return;
+    }
+    if (isBanditRecomputeRunning) {
+      res
+        .status(409)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.PLATFORM_RECOMPUTE_IN_PROGRESS,
+            PLATFORM_RECOMPUTE_IN_PROGRESS_MESSAGE,
+          ),
+        );
+      return;
+    }
+
+    const body = (req.body ?? {}) as { phase_id?: unknown; dry_run?: unknown };
+    let phaseId: DomainKey | undefined;
+    if (body.phase_id !== undefined) {
+      if (typeof body.phase_id !== 'string' || !DOMAIN_KEYS.includes(body.phase_id as DomainKey)) {
+        res
+          .status(400)
+          .json(apiErrorJson(API_ERROR_CODES.PROFILE_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
+        return;
+      }
+      phaseId = body.phase_id as DomainKey;
+    }
+    if (body.dry_run !== undefined && typeof body.dry_run !== 'boolean') {
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.PROFILE_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
+      return;
+    }
+
+    isBanditRecomputeRunning = true;
+    lockAcquired = true;
+    const out = await banditService.recomputeArmPerformanceFromEvaluationDatasets(phaseId, {
+      dryRun: body.dry_run === true,
+    });
+    res.json({ ok: true, ...out });
+  } catch (e) {
+    logger.error('platform.bandit_recompute_failed', {
+      component: 'platform_route',
+      error: e instanceof Error ? e.message : String(e),
+    });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR_MESSAGE));
+  } finally {
+    if (lockAcquired) {
+      isBanditRecomputeRunning = false;
+    }
   }
 });

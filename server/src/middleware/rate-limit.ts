@@ -12,6 +12,8 @@ import {
   RATE_LIMIT_AUDIT_CREATE_WINDOW_MS,
   RATE_LIMIT_GENERAL_MAX_PER_WINDOW,
   RATE_LIMIT_GENERAL_WINDOW_MS,
+  RATE_LIMIT_BENCHMARK_RECOMPUTE_MAX_PER_WINDOW,
+  RATE_LIMIT_BENCHMARK_RECOMPUTE_WINDOW_MS,
   RATE_LIMIT_LOG_INGEST_MAX_PER_WINDOW,
   RATE_LIMIT_LOG_INGEST_WINDOW_MS,
   RATE_LIMIT_PIPELINE_MAX_PER_WINDOW,
@@ -32,6 +34,7 @@ import {
   RATE_LIMIT_INTAKE_LEGACY_MESSAGE,
   RATE_LIMIT_INTAKE_READ_MESSAGE,
   RATE_LIMIT_INTAKE_WRITE_MESSAGE,
+  RATE_LIMIT_BENCHMARK_RECOMPUTE_MESSAGE,
   RATE_LIMIT_LOG_INGEST_MESSAGE,
   RATE_LIMIT_MARKETING_BRIEF_MESSAGE,
   RATE_LIMIT_PIPELINE_MESSAGE,
@@ -149,6 +152,21 @@ export const generalLimiter = rateLimit({
     error: RATE_LIMIT_GENERAL_MESSAGE,
     code: 'GENERAL_API_RATE_LIMITED',
     retry_after_seconds: Math.max(1, Math.ceil(RATE_LIMIT_GENERAL_WINDOW_MS / 1000)),
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** Cron / secret-only benchmark recompute — keyed by IP. */
+export const benchmarkRecomputeLimiter = rateLimit({
+  windowMs: RATE_LIMIT_BENCHMARK_RECOMPUTE_WINDOW_MS,
+  max: RATE_LIMIT_BENCHMARK_RECOMPUTE_MAX_PER_WINDOW,
+  store: distributedStore('benchmark_recompute'),
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  message: {
+    error: RATE_LIMIT_BENCHMARK_RECOMPUTE_MESSAGE,
+    code: 'BENCHMARK_RECOMPUTE_RATE_LIMITED',
+    retry_after_minutes: Math.max(1, Math.ceil(RATE_LIMIT_BENCHMARK_RECOMPUTE_WINDOW_MS / MINUTE_MS)),
   },
   standardHeaders: true,
   legacyHeaders: false,

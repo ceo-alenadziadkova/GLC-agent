@@ -2,7 +2,7 @@
 
 ## BaseAgent
 
-Abstract class in `server/src/agents/base.ts`. All 8 domain agents + ReconAgent + StrategyAgent inherit from it.
+Abstract class in `server/src/agents/base.ts`. All domain agents plus `ReconAgent` and `StrategyAgent` inherit from it (currently 8 agents total: 6 domain + recon + strategy).
 
 High-level flow (domain agents, after collect):
 
@@ -20,15 +20,11 @@ See [PIPELINE.md](./PIPELINE.md) (Fact-Check, Decision Layer, event types) and [
 
 ## Intake context & question bank
 
-Shared runtime (resolver, gates, bank JSON, choice “specify other” helpers) ships as the **`@glc/intake-core`** workspace package under `packages/intake-core`. Import it from app and server code by package name; the old `server/src/intake` tree is removed, and ESLint blocks importing it from `src/`. Decision record: [ADR-INTAKE-UNIFIED-QUESTION-BANK](./adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md).
+**Package:** Shared intake (question bank JSON, resolver, SLA gates, `choiceValueNeedsSpecify` / `choiceSpecifyResponseKey`, `@glc/intake-core`) — import by package name only; decision record [ADR-INTAKE-UNIFIED-QUESTION-BANK](./adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md).
 
-Brief responses use **question-bank v1** ids (`a1`, `f1`, …). **Pre-brief / classic “identity”** is driven by **`modes.pre_brief.identityFieldIds`** in `intake-policy.v1.json` (currently bank stubs **`a11`**, **`a12`**, **`a2`**, **`a5`**) and built into **`INTAKE_IDENTITY_BRIEF_QUESTIONS`** / **`INTAKE_IDENTITY_FIELD_IDS`** in `@glc/intake-core` (`intake-brief-catalog-meta.ts`), plus conditional **`intake_industry_specify`** when industry is **Other**. Legacy alias keys (e.g. `intake_industry`) may still appear in stored rows; resolution projects them onto bank ids in-memory. **Revenue** is canonical bank id **`a10`**. SLA gates (`saveBriefResponses` / `assertBriefReady`) use **`resolveFullSlaRequiredIds` / `resolveExpressSlaRequiredIds`** from `@glc/intake-core` (visible stubs + branch + `collection_mode`). `ContextBuilder` maps **question-bank v1** answers per domain when responses include bank ids — mapping in [QUESTION_BANK.md](./QUESTION_BANK.md) §5; implementation via **`QUESTION_FEED_ROLES`** → domain maps in `@glc/intake-core`, `question-bank.v1.json` labels and per-id **`answer`** contract (`getQuestionBankAnswerContract`). The formatted prompt adds **Intake AI readiness (heuristic)** (0–100) when bank ids are present (`calcAiReadinessScore`, §8 in QUESTION_BANK). Choice options that need a follow-up text field use **`choiceValueNeedsSpecify` / `choiceSpecifyResponseKey`** from `@glc/intake-core` only (no duplicate SPA module). Free-text answers validate up to **`BRIEF_ANSWER_STRING_MAX`** (12k chars) in `server/src/schemas/intake-brief.ts`.
+**Canonical documentation:** Bank ids, branching, mapping into agent context, AI readiness heuristic → [QUESTION_BANK.md](./QUESTION_BANK.md). **HTTP contracts** for brief/version tuples and errors → [API.md](./API.md).
 
-**Version tuple (`intake_versions`):** Persisted `{ questionBankVersion, policyVersion, layoutVersion, resolverVersion }` should match the tuple the client used to render. Rows with **`NULL`** pre-date the matrix; the server validates those briefs with the **current** artifact bundle and resolver (see [API.md](./API.md)). On `PUT`, unsupported tuples → **400**; supported tuples are reconciled with the stored row — **the server is the source of truth** on save.
-
-**Public intake / Discover rate limits:** Split per-route limiters live in `server/src/middleware/rate-limit.ts`. Without **`RATE_LIMIT_REDIS_URL`**, limiters use an **in-process** store, so counts do not aggregate across multiple server instances — use Redis-backed limits in horizontally scaled production.
-
-**Deploy coordination:** Shipping mismatched SPA and API builds can still confuse UX even when `intake_versions` catches artifact drift on write; prefer aligned releases for `@glc/intake-core` behaviour.
+**Pipeline-relevant summary:** `ContextBuilder` maps question-bank answers into domain prompts when responses use bank ids. Persisted **`intake_versions`** must match what the client rendered; server validates on write (**server is source of truth**). **Public intake / Discover** rate limits: `server/src/middleware/rate-limit.ts` — use **`RATE_LIMIT_REDIS_URL`** when running multiple API instances. Prefer **aligned** SPA + API releases when changing `@glc/intake-core` semantics.
 
 ### Legacy removal guardrail (semantic parity)
 
@@ -47,11 +43,11 @@ Data gatherers in `server/src/collectors/`. Run before any AI call. Results cach
 | Collector | File | Collects |
 |---|---|---|
 | `CrawlerCollector` | `crawler.ts` | Fetches up to **`CRAWLER_MAX_PAGES`** pages (default 20, clamped 1–100 via `server/src/config/crawler-limits.ts`); parses HTML with cheerio; returns page tree |
-| `ReconCollector` | `recon.ts` | Tech stack detection (80+ patterns), social profiles, contact info, structured data, image analysis |
 | `SecurityCollector` | `security.ts` | HTTP security headers (CSP, HSTS, X-Frame-Options, X-Content-Type), SSL validity, cookie flags, CORS config |
 | `SeoCollector` | `seo.ts` | Meta title/description, structured data from crawl; **robots-parser** for robots.txt; **fast-xml-parser** for sitemap urlset/index (bounded) |
 | `PerformanceCollector` | `performance.ts` | Page weight from crawl, response headers; optional **Lighthouse** (today: **single-URL** on `companyUrl`) when `AUDIT_LIGHTHOUSE` or `AUDIT_DEEP_SCAN` is set — **target:** multi-URL / Unlighthouse-class sampling; see [ARCHITECTURE.md](./ARCHITECTURE.md#target-architecture-lighthouse-and-unlighthouse) |
 | `AccessibilityCollector` | `accessibility.ts` | Alt text, headings, structured-data heuristics; optional **axe-core + Playwright** when `AUDIT_AXE_PLAYWRIGHT` or `AUDIT_DEEP_SCAN` is set |
+| `MarketingCollector` | `marketing.ts` | Marketing copy and positioning signals from crawl + lightweight extraction for `marketing_utp` |
 
 ### BaseCollector interface
 
@@ -68,7 +64,7 @@ interface BaseCollector {
 
 ### ReconAgent — Phase 0
 
-**Collectors:** `CrawlerCollector`, `ReconCollector`
+**Collectors:** `CrawlerCollector`
 
 **Claude task:** Interpret crawled data → produce:
 - Company name, industry, location, business model
@@ -115,7 +111,7 @@ interface BaseCollector {
 
 ### MarketingAgent — Phase 5
 
-**Domain key:** `marketing_utp` | **Collectors:** *(none — uses recon + review notes)*
+**Domain key:** `marketing_utp` | **Collectors:** `MarketingCollector` (+ recon/review context)
 
 **Claude task:** Evaluate marketing positioning and messaging — value proposition clarity, differentiation from competitors, target audience alignment, brand voice consistency. Heavily relies on consultant + interview notes from Gate 2.
 
@@ -167,16 +163,7 @@ Defined in `server/src/config/industry-weights.ts`.
 
 Each industry has a multiplier per domain (default 1.0). Overall score = weighted average.
 
-| Industry | tech | security | seo | ux | marketing | automation |
-|---|---|---|---|---|---|---|
-| E-commerce | 1.2 | 1.1 | 1.4 | 1.5 | 1.3 | 1.0 |
-| Hospitality | 0.9 | 0.9 | 1.3 | 1.5 | 1.2 | 0.8 |
-| Healthcare | 1.1 | 1.5 | 1.0 | 1.1 | 0.9 | 1.1 |
-| SaaS / Tech | 1.4 | 1.3 | 1.0 | 1.2 | 1.2 | 1.3 |
-| Professional Services | 1.0 | 1.1 | 1.2 | 1.1 | 1.3 | 1.1 |
-| Default | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 |
-
-Weights shown in the Strategy Lab for transparency.
+Weights are versioned in code and may change over time; use `server/src/config/industry-weights.ts` as canonical source, and Strategy Lab as runtime display.
 
 ---
 

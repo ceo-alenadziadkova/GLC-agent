@@ -90,7 +90,7 @@ Canonical TypeScript: [`server/src/schemas/control-object.ts`](../server/src/sch
 | **counts** | Claim buckets (`fact`, `strategic_hypothesis`, `opinion`, `assumption`, `total_claims`) and `statuses` (`confirmed_brief`, `unverified`, `likely_hallucination`, `risky_promise`). |
 | **errors** | `fixable`, `structural`, `data_gaps` (string codes; enums extended over time in the schema file). |
 | **assumptions** | `id`, `statement`, `source`, `risk`, `related_claim_ids`. |
-| **trace** | `claim_sources[]` with `claim_id`, `agent` (phase number), `section`, `truth_source`. **`causal_chain` is not implemented** (deferred; see ADRs). |
+| **trace** | `claim_sources[]` with `claim_id`, `agent` (phase number), `section`, `truth_source`. **`causal_chain[]`** — cross-phase edges from optional `issues[].premise_refs` when `FEATURE_CAUSAL_DAG=true` (see `docs/adrs/ADR-CAUSAL-DAG.md`, table `audit_claim_graph`). |
 | **feasibility** | Embedded `score`, `risk_codes`, `notes` from FeasibilityLayer. |
 | **cost_control** | Nullable until auto-loop: estimated USD, rerun total, `rerun_count`, `cost_guardrail_triggered`. |
 | **agent_performance** | Nullable per-run rates and composite `agent_score`; rolling aggregates persist to **`agent_performance_aggregate`** (migration `052_agent_performance_aggregate.sql`). |
@@ -140,7 +140,7 @@ When a gate is reached:
 
 - **Phase-level retry**: A failed phase can be re-run without re-running previous phases
 - Cached `collected_data` is reused on retry — only the Claude call is repeated
-- **Exponential backoff**: 3 retries on Claude API errors (429, 500, timeout), delays: 1s → 4s → 16s
+- **Exponential retry with jitter**: up to 3 retries on Claude API errors (429, 500, timeout), based on `SYSTEM_DEFAULTS.claudeHttp` (`retryBaseMs=1500`, doubling per attempt, plus jitter).
 - If all retries fail, phase status → `failed`, audit status → `failed`, error logged in `pipeline_events`
 - Frontend shows "Retry Phase" button for failed phases
 
@@ -173,11 +173,10 @@ Every Claude call logs token usage via `TokenTracker`:
 The orchestrator manages the full lifecycle:
 
 ```typescript
-class PipelineService {
-  async startPipeline(auditId: string): Promise<void>    // Phase 0
-  async runNextPhase(auditId: string): Promise<void>     // Next pending phase
-  async retryPhase(auditId: string, phase: number): Promise<void>
-  async getStatus(auditId: string): Promise<PipelineStatus>
+class PipelineOrchestrator {
+  async startPhase(auditId: string, phase: number): Promise<void>
+  async runBlock(auditId: string, phases: readonly number[]): Promise<void>
+  async runFreeSnapshot(auditId: string): Promise<void>
 }
 ```
 

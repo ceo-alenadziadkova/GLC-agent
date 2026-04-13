@@ -8,8 +8,17 @@ import { FactChecker } from '../services/fact-checker.js';
 import { TokenTracker } from '../services/token-tracker.js';
 import { type BaseCollector } from '../collectors/base.js';
 import type { DomainResult, DomainKey } from '../types/audit.js';
-import type { ControlObjectV1, ExecutionMode } from '../schemas/control-object.js';
+import type { ControlObjectV1, ExecutionMode, PhaseId } from '../schemas/control-object.js';
+import { isCausalDagEnabled } from '../config/feature-flags.js';
+import {
+  fetchInvalidatedClaimIdsForPhase,
+  upsertClaimGraphRows,
+} from '../services/audit-claim-graph.js';
+import type { AgentVariant } from '../config/agent-variants.js';
 import { fetchAuditExecutionMode } from '../lib/audit-execution-mode.js';
+import { fetchAuditGovernanceRiskProfile } from '../lib/audit-governance-risk-profile.js';
+import { connectorRunner } from '../services/connector-runner.js';
+import { getExtendedPhaseProfile } from '../config/phase-profiles.js';
 import type { BriefSnapshot } from '../services/feasibility-layer.js';
 import { followupQuestionsFromUnknowns } from '../lib/post-audit-followups.js';
 import { confidenceDistributionFromIssues } from '../lib/confidence-distribution.js';
@@ -151,6 +160,29 @@ export abstract class BaseAgent {
   lastControlObject: ControlObjectV1 | null = null;
 
   /**
+   * Optional instruction variant injected by BanditService before run().
+   * When set, getEffectiveInstructions() merges or replaces the base instructions.
+   * Set by PipelineService after bandit.selectVariant() — never set inside agents.
+   */
+  variantDelta: AgentVariant | null = null;
+
+  /**
+   * Auto-loop instruction patches keyed by phase number.
+   * PipelineOrchestrator sets this before rerun; BaseAgent appends patch for its own phase.
+   */
+  autoLoopAdjustments: Map<number, string> | null = null;
+
+  /**
+   * Bandit arm id selected for this run (`default` or a registered variant). Set by PipelineOrchestrator.
+   */
+  selectedVariantId: string | null = null;
+
+  /**
+   * Latest CONTROL_OBJECT per upstream phase (Phase 8 causal DAG). Set by PipelineOrchestrator before run().
+   */
+  priorControlObjectsByPhase: Partial<Record<PhaseId, ControlObjectV1>> = {};
+
+  /**
    * Claude tool output before `FactChecker.verify()` (for `evaluation_datasets.agent_output`).
    * Null for recon/strategy or if the domain branch was not executed.
    */
@@ -172,6 +204,31 @@ export abstract class BaseAgent {
    */
   private attachConfidenceDistribution(result: DomainResult): DomainResult {
     return { ...result, confidence_distribution: confidenceDistributionFromIssues(result.issues) };
+  }
+
+  /**
+   * Returns the effective instruction string for this agent run.
+   *
+   * When variantDelta is set (bandit selected a non-default variant):
+   *   - 'append':  appends instruction_delta to the base instructions with a blank line separator.
+   *   - 'replace': substitutes instruction_delta for the entire base instructions string.
+   * When variantDelta is null, returns this.instructions unchanged.
+   */
+  protected getEffectiveInstructions(): string {
+    let effectiveInstructions = this.instructions;
+    if (this.variantDelta) {
+      if (this.variantDelta.delta_type === 'replace') {
+        effectiveInstructions = this.variantDelta.instruction_delta;
+      } else {
+        effectiveInstructions = `${effectiveInstructions}\n\n${this.variantDelta.instruction_delta}`;
+      }
+    }
+
+    const autoLoopPatch = this.autoLoopAdjustments?.get(this.phaseNumber)?.trim();
+    if (!autoLoopPatch) {
+      return effectiveInstructions;
+    }
+    return `${effectiveInstructions}\n\n${autoLoopPatch}`;
   }
 
   /** Loads `audits.execution_mode` once per agent instance (one pipeline phase). */
@@ -218,7 +275,7 @@ export abstract class BaseAgent {
       this.auditId,
       this.domainKey,
       collectedData,
-      this.instructions
+      this.getEffectiveInstructions()
     );
 
     // ─── Step 3: Single Claude call ──────────────────────
@@ -261,12 +318,32 @@ export abstract class BaseAgent {
         );
       }
 
-      // ─── Step 4b: Build CONTROL_OBJECT v1.7 (advisory, side effect) ──
+      // ─── Step 4b: Build CONTROL_OBJECT v2.2 (advisory, side effect) ──
       // Does NOT change return value or block pipeline flow.
       try {
         // v1.7: extract BriefSnapshot from context.brief_responses for feasibility assessment
         const brief: BriefSnapshot = this.extractBriefSnapshot(context);
         const executionMode = await this.resolveExecutionMode();
+        const riskProfile = await fetchAuditGovernanceRiskProfile(this.auditId);
+
+        // v2.2: Run external connectors (Phase 7+). Non-blocking — always resolves.
+        // Returns [] when no connectors are registered (zero-cost default path).
+        const phaseProfile = getExtendedPhaseProfile(this.domainKey);
+        const connectorEnrichments = await connectorRunner.runAll(
+          this.domainKey as DomainKey,
+          {
+            high_risk_fact_types: phaseProfile.high_risk_fact_types,
+            company_url: companyUrl,
+          },
+        );
+
+        let invalidatedIssueClaimIds = new Set<number>();
+        if (isCausalDagEnabled()) {
+          invalidatedIssueClaimIds = await fetchInvalidatedClaimIdsForPhase(
+            this.auditId,
+            this.domainKey as DomainKey,
+          );
+        }
 
         const controlObject = this.factChecker.buildControlObject(
           verification,
@@ -275,8 +352,27 @@ export abstract class BaseAgent {
           this.phaseNumber,
           executionMode,
           brief,
+          {
+            riskProfile,
+            selectedVariantId: this.selectedVariantId ?? undefined,
+          },
+          connectorEnrichments,
+          this.priorControlObjectsByPhase,
+          invalidatedIssueClaimIds,
         );
         this.lastControlObject = controlObject;
+
+        if (isCausalDagEnabled()) {
+          const issueCount = verification.result.issues?.length ?? 0;
+          if (issueCount > 0) {
+            await upsertClaimGraphRows(
+              this.auditId,
+              this.domainKey,
+              controlObject.trace.causal_chain,
+              issueCount,
+            );
+          }
+        }
         // control_object pipeline_events row is emitted by PipelineOrchestrator after DecisionLayer sets decision_hint.
       } catch (controlErr) {
         // Non-fatal: control object build failure must never break phase execution

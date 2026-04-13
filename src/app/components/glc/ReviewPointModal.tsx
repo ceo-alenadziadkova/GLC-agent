@@ -3,6 +3,7 @@ import { REVIEW_GATE_NOTES_MAX } from '@glc/intake-core';
 import { motion } from 'motion/react';
 import { Star, CheckCircle, ArrowRight, MagnifyingGlass, HardDrives, Shield, Globe, Cursor, Target, Lightning, MapTrifold, WarningCircle, Info } from '@phosphor-icons/react';
 import type { QualityGateReport } from '../../data/auditTypes';
+import { UI_SEMANTIC_COLORS } from '../../config/ui-semantic-colors';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '../ui/dialog';
@@ -176,7 +177,7 @@ export function ReviewPointModal({
                 className="flex items-center gap-2 px-4 py-2.5"
                 style={{ borderBottom: '1px solid rgba(234,179,8,0.35)', backgroundColor: 'rgba(234,179,8,0.12)' }}
               >
-                <WarningCircle size={15} weight="fill" style={{ color: '#CA8A04', flexShrink: 0 }} />
+                <WarningCircle size={15} weight="fill" style={{ color: UI_SEMANTIC_COLORS.warningAmber, flexShrink: 0 }} />
                 <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
                   {governanceRefineSectionTitle}
                 </span>
@@ -265,7 +266,7 @@ export function ReviewPointModal({
             <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
               Consultant Notes
               {warnings.length > 0 ? (
-                <span className="ml-1.5 text-xs font-semibold" style={{ color: '#EF4444' }}>* required</span>
+                <span className="ml-1.5 text-xs font-semibold" style={{ color: UI_SEMANTIC_COLORS.danger }}>* required</span>
               ) : (
                 <span className="ml-1.5 text-xs font-normal" style={{ color: 'var(--text-tertiary)' }}>
                   your observations after reviewing these phases
@@ -289,7 +290,7 @@ export function ReviewPointModal({
               }}
             />
             {notesRequired && (
-              <p className="text-xs mt-1" style={{ color: '#EF4444' }}>
+              <p className="text-xs mt-1" style={{ color: UI_SEMANTIC_COLORS.danger }}>
                 Notes are required to acknowledge the quality warnings above before approving.
               </p>
             )}

@@ -1,8 +1,8 @@
 /**
- * CONTROL_OBJECT v1 — Governance contract between FactChecker and Decision Layer.
+ * CONTROL_OBJECT v2.1 — Formal governance contract between FactChecker and Decision Layer.
  *
- * This is the advisory-only v1 → v2.0 contract (Phase 1–5).
- * Downstream services MUST NOT depend on this structure until v3+.
+ * From v2.0 onward this is a FORMAL CONTRACT. Any service reading CONTROL_OBJECT fields
+ * must annotate its code: // CO-CONSUMER: update when CO schema changes
  *
  * Version history:
  *   v1.0  — Phase 1: versions, context, confidence, counts, errors, assumptions (light), trace, decision_hint
@@ -10,6 +10,15 @@
  *   v1.7  — Phase 3: confidence.feasibility, confidence_weights, feasibility object
  *   v1.8  — Phase 4: safety mode guardrails, formalized error enums
  *   v2.0  — Phase 5: cost_control, agent_performance (full spec)
+ *   v2.1  — Sprint 1–2: risk_profile, evaluation_link, selected_variant_id (bandits),
+ *            external_api/document_feed truth tiers (registry: api before generic search),
+ *            causal_chain pre-declaration, external_source_unavailable reason code,
+ *            accept_with_warnings formalised (already in DecisionHint since v1.7)
+ *   v2.3  — Phase 8 (Sprint 4): causal_chain + audit_claim_graph when FEATURE_CAUSAL_DAG=true
+ *   v2.4  — Phase 9 (planned): auto-remediation annotations
+ *   v2.5  — Phase 10 (planned): context.benchmark_reference_id
+ *
+ * See docs/adrs/ADR-CONTROL-OBJECT-V2-FULL.md for full schema specification.
  */
 
 import type { DomainKey } from '../types/audit.js';
@@ -17,17 +26,40 @@ import type { DomainKey } from '../types/audit.js';
 // ─── Version ───────────────────────────────────────────────
 
 export const CONTROL_OBJECT_VERSIONS = {
-  system_version: 'v2.0',
-  fact_checker_version: 'v2.0',
-  decision_layer_version: 'v2.0',
+  system_version: 'v2.1',
+  fact_checker_version: 'v2.1',
+  decision_layer_version: 'v2.1',
+} as const;
+
+/** Emitted when FEATURE_CAUSAL_DAG is active for a domain phase run (Phase 8). */
+export const CONTROL_OBJECT_VERSIONS_CAUSAL_DAG = {
+  system_version: 'v2.3',
+  fact_checker_version: 'v2.3',
+  decision_layer_version: 'v2.1',
+} as const;
+
+/** After Phase 9 auto-remediation applied at least one fix in this run. */
+export const CONTROL_OBJECT_VERSIONS_REMEDIATION = {
+  system_version: 'v2.4',
+  fact_checker_version: 'v2.4',
+  decision_layer_version: 'v2.1',
 } as const;
 
 // ─── Core Types ────────────────────────────────────────────
 
 export type DecisionHint = 'accept' | 'accept_with_warnings' | 'refine';
 export type ExecutionMode = 'normal' | 'safe';
-export type TruthSource = 'internal_metrics' | 'user_brief' | 'external_search';
-export type AssumptionSource = 'inferred_from_brief' | 'inferred_from_pattern' | 'manual_input';
+export type TruthSource =
+  | 'internal_metrics'  // priority 1 — system-observed data
+  | 'user_brief'        // priority 2 — explicitly provided by client
+  | 'external_api'      // priority 3 — authoritative structured API (Phase 7+)
+  | 'external_search'   // priority 4 — general web search
+  | 'document_feed';    // priority 5 — client-uploaded documents (Phase 7+)
+export type AssumptionSource =
+  | 'inferred_from_brief'
+  | 'inferred_from_pattern'
+  | 'manual_input'
+  | 'external_data';    // v2.1: assumption sourced from external data connector
 
 // Phase IDs align with DomainKey + recon/strategy
 export type PhaseId = DomainKey | 'recon' | 'strategy';
@@ -51,6 +83,27 @@ export interface ControlObjectContext {
    * null for recon/strategy phases (no profile defined).
    */
   truth_profile_id: string | null;
+  /**
+   * v2.1+: Risk classification for this audit context.
+   * Enables Decision Layer to apply stricter thresholds for enterprise/compliance-heavy contexts.
+   * null = not classified (treated as 'medium' by default).
+   */
+  risk_profile?: 'low' | 'medium' | 'high' | 'enterprise' | null;
+  /**
+   * v2.1+: Bandit-selected agent variant for this run (`default` or registered id).
+   * Set by pipeline when the domain phase runs; omitted when unknown.
+   */
+  selected_variant_id?: string;
+  /**
+   * v2.5+: Reference to the benchmark snapshot used for percentile reporting (Phase 10+).
+   * undefined = benchmarks not yet computed for this phase+industry combination.
+   */
+  benchmark_reference_id?: string;
+  /**
+   * v2.3+: Claim indices (1-based, issue order) in this phase that triggered structural governance.
+   * Used by the pipeline to seed causal downstream invalidation in audit_claim_graph.
+   */
+  structural_invalidation_claim_ids?: number[];
 }
 
 export interface ControlObjectConfidence {
@@ -96,9 +149,21 @@ export interface ControlObjectFeasibility {
 
 export interface ControlObjectStatuses {
   confirmed_brief: number;
+  /**
+   * Claims whose winning truth tier is external_api or document_feed (connector or feed confirmed).
+   */
+  confirmed_external: number;
   unverified: number;
   likely_hallucination: number;
   risky_promise: number;
+  /**
+   * Fact claims that cite the client brief as source but remain low-confidence (load-bearing brief dependency).
+   */
+  dependent_on_brief_assumption: number;
+  /**
+   * Count of structural error codes that indicate cross-section or positioning inconsistency (keyword heuristic).
+   */
+  strategic_inconsistency: number;
 }
 
 export interface ControlObjectCounts {
@@ -150,12 +215,60 @@ export interface ControlObjectClaimSource {
   claim_id: number;
   agent: number;
   section: string;
-  /** Which source provided the evidence for this claim */
+  /** Winning source after priority-based merge (lowest registry priority number wins). */
   truth_source: TruthSource;
+  /**
+   * All contributing tiers observed for this claim (deduped, sorted strongest-first).
+   * v2.1+: supports multi-modal traces; `truth_source` remains the canonical winner for backward compatibility.
+   */
+  truth_sources: TruthSource[];
+}
+
+/**
+ * v2.3+: Reference to a claim produced in a specific pipeline phase (claim_id is 1-based within that phase's CONTROL_OBJECT).
+ */
+export interface ControlObjectCausalClaimRef {
+  phase_id: PhaseId;
+  claim_id: number;
+}
+
+/**
+ * v2.3+: Single entry in a cross-phase causal dependency chain (Phase 8 — ADR-CAUSAL-DAG.md).
+ * Each premise carries its phase_id so dependencies across multiple upstream phases are unambiguous.
+ */
+export interface ControlObjectCausalChainEntry {
+  /** The dependent claim in the current phase (1-based issue index). */
+  claim_id: number;
+  /** Premise claims from strictly earlier phases that this claim relies on. */
+  depends_on: ControlObjectCausalClaimRef[];
 }
 
 export interface ControlObjectTrace {
   claim_sources: ControlObjectClaimSource[];
+  /**
+   * v2.1+: Pre-declared; always [] until Phase 8 activates FEATURE_CAUSAL_DAG.
+   * v2.3+: Required. Cross-phase claim dependency graph.
+   * See docs/adrs/ADR-CAUSAL-DAG.md
+   */
+  causal_chain: ControlObjectCausalChainEntry[];
+}
+
+/**
+ * v2.1+: Links this CONTROL_OBJECT to its evaluation_dataset row for cross-run analysis.
+ */
+export interface ControlObjectEvaluationLink {
+  /** UUID of the evaluation_dataset row for this run */
+  evaluation_id: string;
+  /** Schema version of the evaluation_dataset table at write time */
+  dataset_version: string;
+}
+
+/** v2.4: Auto-remediation summary (Phase 9). */
+export interface ControlObjectAutoRemediation {
+  applied: Array<{
+    error_type: string;
+    remediation_type: 'tone' | 'content';
+  }>;
 }
 
 // ─── v1.8: Formalized error enums ─────────────────────────────────────────────
@@ -212,6 +325,8 @@ export type StructuralErrorCode =
   | 'automation_tool_capability_unverified'
   | 'automation_integration_complexity_underestimated'
   | 'automation_roi_timeline_unrealistic'
+  // Phase 8 causal DAG
+  | 'upstream_claim_invalidated'
   | string; // open for future codes
 
 /** Human-attention reason codes — machine-readable escalation triggers. */
@@ -226,7 +341,15 @@ export type HumanAttentionReasonCode =
   | 'safe_mode_high_unverified_fraction'
   | 'safe_mode_forbidden_absolutes_detected'
   | 'safe_mode_missing_hypothesis_labels'
-  | string; // open for future codes
+  // v2.1 codes
+  | 'external_source_unavailable'            // high-risk claim could not be checked; connector timed out/errored
+  | 'content_remediation_blocked_by_phase_profile' // Phase 9: auto-remediation limited to tone_only for this phase
+  | 'upstream_claim_invalidated'             // Phase 8: a downstream claim depends on an invalidated upstream claim
+  | string; // open for domain-specific codes
+
+/** Phase 9: use instead of string literals when escalating blocked content auto-remediation. */
+export const HUMAN_ATTENTION_CONTENT_REMEDIATION_BLOCKED: HumanAttentionReasonCode =
+  'content_remediation_blocked_by_phase_profile';
 
 export interface ControlObjectHumanAttention {
   required: boolean;
@@ -291,10 +414,14 @@ export interface ControlObjectAgentPerformance {
 // ─── Top-level Contract ────────────────────────────────────
 
 /**
- * CONTROL_OBJECT v1 — minimal, advisory governance contract.
+ * CONTROL_OBJECT v2.1 — formal governance contract (Phase 5+).
  *
  * Emitted as a pipeline_event (event_type: 'control_object') after each phase.
  * The Decision Layer reads this to route: accept / accept_with_warnings / refine.
+ *
+ * CO-CONSUMER: update when CO schema changes
+ * Known consumers: decision-layer.ts, pipeline.ts, dynamic-adjustment.ts,
+ * agent-performance.ts, evaluation-dataset-writer.ts, PipelineMonitor (frontend)
  */
 export interface ControlObjectV1 {
   versions: ControlObjectVersions;
@@ -324,6 +451,15 @@ export interface ControlObjectV1 {
    * null for recon/strategy phases or if performance scoring was skipped.
    */
   agent_performance: ControlObjectAgentPerformance | null;
+  /**
+   * v2.1+: Links this CO to its evaluation_dataset row for cross-run analysis.
+   * null until EvaluationDatasetWriter records the row and sets the link.
+   */
+  evaluation_link: ControlObjectEvaluationLink | null;
+  /**
+   * v2.4: Populated when RemediationService applied one or more deterministic output fixes.
+   */
+  auto_remediation?: ControlObjectAutoRemediation | null;
   decision_hint: DecisionHint;
   human_attention_required: ControlObjectHumanAttention;
 }
@@ -347,6 +483,7 @@ export function createControlObjectV1(
       phase_id: phaseId,
       execution_mode: executionMode,
       truth_profile_id: truthProfileId,
+      risk_profile: null,
     },
     confidence: {
       overall: 100,
@@ -364,9 +501,12 @@ export function createControlObjectV1(
       assumption: 0,
       statuses: {
         confirmed_brief: 0,
+        confirmed_external: 0,
         unverified: 0,
         likely_hallucination: 0,
         risky_promise: 0,
+        dependent_on_brief_assumption: 0,
+        strategic_inconsistency: 0,
       },
     },
     errors: {
@@ -377,10 +517,12 @@ export function createControlObjectV1(
     assumptions: [],
     trace: {
       claim_sources: [],
+      causal_chain: [], // pre-declared in v2.1; activated in Phase 8 (ADR-CAUSAL-DAG.md)
     },
     feasibility: null,
     cost_control: null,
     agent_performance: null,
+    evaluation_link: null,
     decision_hint: 'accept',
     human_attention_required: {
       required: false,

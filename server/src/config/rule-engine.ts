@@ -19,9 +19,13 @@
  * Version history:
  *   v1.8  — Phase 4: initial rule set (inert, no runtime consumer yet)
  *   v2.0  — Phase 5: DynamicAdjustmentService activates this config
+ *   v2.4  — Phase 9: optional auto_remediate + remediation_action for RemediationService
  */
 
 // ─── Rule Shape ───────────────────────────────────────────────────────────────
+
+/** How RemediationService mutates cleaned output when auto_remediate is true. */
+export type RemediationAction = 'soften_absolutes' | 'append_outcome_disclaimer';
 
 export interface RuleEngineEntry {
   /** Error code matching CONTROL_OBJECT.errors.fixable[], structural[], or data_gaps[] */
@@ -35,6 +39,14 @@ export interface RuleEngineEntry {
    * Default: 0. Use to ensure safety-critical instructions come before style fixes.
    */
   priority?: number;
+  /**
+   * Phase 9: when true and FEATURE_AUTO_REMEDIATION, RemediationService may patch cleaned output
+   * without a full agent rerun (tone/content gated by phase profile).
+   */
+  auto_remediate?: boolean;
+  remediation_type?: 'tone' | 'content';
+  /** Required when auto_remediate is true — deterministic transform applied to text fields */
+  remediation_action?: RemediationAction;
 }
 
 // ─── Rule Mapping ─────────────────────────────────────────────────────────────
@@ -75,6 +87,38 @@ export const RULE_ENGINE_MAPPING: RuleEngineEntry[] = [
     priority: 9,
   },
   {
+    error_type: 'security_https_redirect_gap',
+    applies_to_agents: [2],
+    instruction_append:
+      'When HTTPS redirect behavior is weak or absent, do not present transport security as healthy. ' +
+      'Prioritize enforcing HTTP-to-HTTPS redirects before higher-level optimizations.',
+    priority: 8,
+  },
+  {
+    error_type: 'security_cookie_flag_gap',
+    applies_to_agents: [2],
+    instruction_append:
+      'Cookie security findings must explicitly evaluate Secure and HttpOnly flags. ' +
+      'If missing, classify as an immediate hardening gap and avoid optimistic compliance language.',
+    priority: 8,
+  },
+  {
+    error_type: 'security_header_hygiene_gap',
+    applies_to_agents: [2],
+    instruction_append:
+      'Treat security header hygiene issues (technology disclosure or verbose server headers) as real risk signals. ' +
+      'Call out exposure reduction actions and avoid labeling posture as mature.',
+    priority: 7,
+  },
+  {
+    error_type: 'security_baseline_header_gap',
+    applies_to_agents: [2],
+    instruction_append:
+      'Validate baseline hardening headers (X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy). ' +
+      'If multiple are missing, downgrade confidence and mark the recommendation as urgent.',
+    priority: 8,
+  },
+  {
     error_type: 'seo_unverified_traffic_figure',
     applies_to_agents: [3],
     instruction_append:
@@ -91,6 +135,29 @@ export const RULE_ENGINE_MAPPING: RuleEngineEntry[] = [
     priority: 8,
   },
   {
+    error_type: 'ux_a11y_claim_unchecked',
+    applies_to_agents: [4],
+    instruction_append:
+      'Do not claim strong UX/accessibility posture when heading structure or baseline accessibility markers are missing. ' +
+      'Prioritize H1 hierarchy and fundamental accessibility hygiene before optimization claims.',
+    priority: 7,
+  },
+  {
+    error_type: 'ux_missing_analytics_evidence',
+    applies_to_agents: [4],
+    instruction_append:
+      'When UX findings rely on weak or incomplete structure signals, mark confidence conservatively and avoid definitive conversion claims.',
+    priority: 6,
+  },
+  {
+    error_type: 'ux_benchmark_unsubstantiated',
+    applies_to_agents: [4],
+    instruction_append:
+      'Avoid benchmark-style conclusions when structured data and page semantics are weak. ' +
+      'Frame recommendations as baseline remediation before comparative optimization.',
+    priority: 6,
+  },
+  {
     error_type: 'marketing_market_size_unverified',
     applies_to_agents: [5],
     instruction_append:
@@ -99,11 +166,43 @@ export const RULE_ENGINE_MAPPING: RuleEngineEntry[] = [
     priority: 7,
   },
   {
+    error_type: 'marketing_competitor_claim_unsourced',
+    applies_to_agents: [5],
+    instruction_append:
+      'Competitor claims must be tied to collected or cited evidence. ' +
+      'If source quality is unknown, mark as unverified and avoid definitive market-share phrasing.',
+    priority: 7,
+  },
+  {
+    error_type: 'marketing_roi_figure_speculative',
+    applies_to_agents: [5],
+    instruction_append:
+      'Do not state ROI/CAC/LTV uplift figures as facts without explicit supporting data. ' +
+      'Convert them to hypothesis language and list data needed for validation.',
+    priority: 8,
+  },
+  {
     error_type: 'automation_time_saving_speculative',
     applies_to_agents: [6],
     instruction_append:
       'Time-saving estimates for automation must be grounded in the current process data from the brief. ' +
       'Without baseline time data, state "estimated savings TBD pending time study" rather than specific hours.',
+    priority: 8,
+  },
+  {
+    error_type: 'automation_tool_capability_unverified',
+    applies_to_agents: [6],
+    instruction_append:
+      'Do not assert tool capability or integration guarantees unless capability is verified in current context. ' +
+      'Flag uncertain integrations as assumptions with implementation risk.',
+    priority: 7,
+  },
+  {
+    error_type: 'automation_roi_timeline_unrealistic',
+    applies_to_agents: [6],
+    instruction_append:
+      'Avoid short deterministic ROI timelines for automation unless baseline and rollout data exist. ' +
+      'Use phased milestones with conservative payback assumptions.',
     priority: 8,
   },
 
@@ -117,6 +216,9 @@ export const RULE_ENGINE_MAPPING: RuleEngineEntry[] = [
       '"is expected to", "may improve", "evidence suggests". ' +
       'Frame forward-looking claims as hypotheses.',
     priority: 9,
+    auto_remediate: true,
+    remediation_type: 'tone',
+    remediation_action: 'append_outcome_disclaimer',
   },
   {
     error_type: 'forbidden_absolutes',
@@ -125,6 +227,9 @@ export const RULE_ENGINE_MAPPING: RuleEngineEntry[] = [
       'Remove absolute language: "guarantee", "certainly", "always", "never", "100%", "risk-free". ' +
       'Replace with hedged equivalents: "typically", "in most cases", "reduces risk of", "tends to".',
     priority: 9,
+    auto_remediate: true,
+    remediation_type: 'tone',
+    remediation_action: 'soften_absolutes',
   },
   {
     error_type: 'missing_hypothesis_labels',
@@ -160,6 +265,14 @@ export const RULE_ENGINE_MAPPING: RuleEngineEntry[] = [
       'If crawl data was unavailable, limit technical SEO findings to what can be inferred from ' +
       'the page structure and headers only. Flag crawl-dependent conclusions as unverified.',
     priority: 5,
+  },
+  {
+    error_type: 'seo_competitor_claim_unverified',
+    applies_to_agents: [3],
+    instruction_append:
+      'Treat weak structured data and schema coverage as a search visibility risk. ' +
+      'Avoid overconfident comparative statements unless competitor evidence is explicitly collected.',
+    priority: 6,
   },
 
   // ── Structural ────────────────────────────────────────────────────────────

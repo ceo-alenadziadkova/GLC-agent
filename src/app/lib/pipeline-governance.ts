@@ -26,6 +26,12 @@ export function parseControlObjectGovernance(
   }
   const statuses = counts.statuses;
   if (!isRecord(statuses)) return null;
+  const autoRemediation = raw.auto_remediation;
+  let auto_remediation_applied_count: number | undefined;
+  if (isRecord(autoRemediation) && Array.isArray(autoRemediation.applied)) {
+    auto_remediation_applied_count = autoRemediation.applied.length;
+  }
+
   return {
     decision_hint: hint as GovernanceDecisionHint,
     confidence: {
@@ -39,9 +45,12 @@ export function parseControlObjectGovernance(
       fact: Number(counts.fact) || 0,
       statuses: {
         confirmed_brief: Number(statuses.confirmed_brief) || 0,
+        confirmed_external: Number(statuses.confirmed_external) || 0,
         unverified: Number(statuses.unverified) || 0,
         likely_hallucination: Number(statuses.likely_hallucination) || 0,
         risky_promise: Number(statuses.risky_promise) || 0,
+        dependent_on_brief_assumption: Number(statuses.dependent_on_brief_assumption) || 0,
+        strategic_inconsistency: Number(statuses.strategic_inconsistency) || 0,
       },
     },
     context: {
@@ -55,6 +64,9 @@ export function parseControlObjectGovernance(
         ? human.reasons.filter((x): x is string => typeof x === 'string')
         : [],
     },
+    ...(auto_remediation_applied_count !== undefined
+      ? { auto_remediation_applied_count }
+      : {}),
   };
 }
 

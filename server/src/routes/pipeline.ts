@@ -68,6 +68,11 @@ import {
 
 export const pipelineRouter = Router();
 
+function readDisableAutoRemediateFromBody(body: unknown): boolean {
+  if (!body || typeof body !== 'object') return false;
+  return Boolean((body as { disable_auto_remediate?: unknown }).disable_auto_remediate);
+}
+
 // Mutations: /start and /next allow the audit owner consultant OR the linked client (self-serve).
 // /retry and /reviews remain consultant-only.
 // Status endpoint is readable by any authenticated user (client progress tracking).
@@ -176,10 +181,16 @@ pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineL
     // Start pipeline (runs Phase 0: Recon)
     res.json({ status: 'started', phase: 0, intakeProgress: gates.intakeProgress });
 
-    const queued = await enqueuePipelineJob({ auditId: id, action: 'start', phase: 0 });
+    const disableAutoRemediate = readDisableAutoRemediateFromBody(req.body);
+    const queued = await enqueuePipelineJob({
+      auditId: id,
+      action: 'start',
+      phase: 0,
+      disable_auto_remediate: disableAutoRemediate,
+    });
     if (!queued) {
       // Fallback path when queue backend is unavailable.
-      const orchestrator = new PipelineOrchestrator(id);
+      const orchestrator = new PipelineOrchestrator(id, { disableAutoRemediate });
       orchestrator.startPhase(0).catch(err => emitPhaseErrorDurable(id, 0, err as Error));
     }
   } catch (err) {
@@ -286,9 +297,15 @@ pipelineRouter.post('/:id/pipeline/next', requireAuth, attachProfile, pipelineLi
 
     res.json({ status: 'running', phase: nextPhase });
 
-    const queued = await enqueuePipelineJob({ auditId: id, action: 'next', phase: nextPhase });
+    const disableAutoRemediate = readDisableAutoRemediateFromBody(req.body);
+    const queued = await enqueuePipelineJob({
+      auditId: id,
+      action: 'next',
+      phase: nextPhase,
+      disable_auto_remediate: disableAutoRemediate,
+    });
     if (!queued) {
-      const orchestrator = new PipelineOrchestrator(id);
+      const orchestrator = new PipelineOrchestrator(id, { disableAutoRemediate });
       orchestrator.runBlock().catch(err => emitPhaseErrorDurable(id, nextPhase, err as Error));
     }
   } catch (err) {
@@ -396,9 +413,15 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
       },
     );
 
-    const queued = await enqueuePipelineJob({ auditId: id, action: 'retry', phase });
+    const disableAutoRemediate = readDisableAutoRemediateFromBody(req.body);
+    const queued = await enqueuePipelineJob({
+      auditId: id,
+      action: 'retry',
+      phase,
+      disable_auto_remediate: disableAutoRemediate,
+    });
     if (!queued) {
-      const orchestrator = new PipelineOrchestrator(id);
+      const orchestrator = new PipelineOrchestrator(id, { disableAutoRemediate });
       orchestrator.startPhase(phase).catch(err => emitPhaseErrorDurable(id, phase as number, err as Error));
     }
   } catch (err) {

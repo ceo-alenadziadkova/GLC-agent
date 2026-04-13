@@ -43,6 +43,11 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // Minimal placeholders so modules that import `supabase` can load in unit tests.
+    env: {
+      SUPABASE_URL: 'http://127.0.0.1:54321',
+      SUPABASE_SERVICE_KEY: 'vitest-placeholder-service-role-key',
+    },
     include: ['src/**/*.test.ts'],
     coverage: {
       provider: 'v8',

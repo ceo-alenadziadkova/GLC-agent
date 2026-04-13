@@ -30,7 +30,20 @@
   },
   "settings": {
     "passwordReauthRequired": "Sign in again (session must be recent to change password). Sign out, sign back in, then update your password.",
-    "emailChangeDualConfirm": "Confirmation emails sent. With secure email change, confirm from both your current and new inboxes."
+    "emailChangeDualConfirm": "Confirmation emails sent. With secure email change, confirm from both your current and new inboxes.",
+    "loadAssignmentFailed": "Could not load client portal assignment",
+    "profileUpdated": "Profile updated",
+    "profileUpdateFailed": "Failed to update profile",
+    "passwordMinLengthError": "Password must be at least {{min}} characters",
+    "passwordMismatch": "Passwords do not match",
+    "passwordUpdated": "Password updated",
+    "emailInvalid": "Enter a valid email address",
+    "emailAlreadyCurrent": "That is already your current email",
+    "assignmentUpdated": "Assignment updated",
+    "assignmentUpdateFailed": "Could not save assignment"
+  },
+  "intakeClient": {
+    "defaultExpectedContactWindow": "within 24 hours"
   },
   "snapshotLanding": {
     "trustSignedIn": "Signed in — results save to your account. Use Workspace for the full Express Audit.",

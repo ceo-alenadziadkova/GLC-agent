@@ -29,6 +29,7 @@ import { useIntakeBankMetrics } from '../hooks/useIntakeWizard';
 import { useBriefLayoutPrefsSync } from '../hooks/useBriefLayoutPrefsSync';
 import { getGlcQueryClient } from '../lib/glc-query-client';
 import { PORTAL_BRIEF_SAVED_FEEDBACK_MS } from '../lib/snapshot-polling-config';
+import { UI_SEMANTIC_COLORS } from '../config/ui-semantic-colors';
 import { glcKeys } from '../lib/glc-keys';
 import { invalidateAuditRelatedQueries } from '../lib/glc-invalidate-queries';
 import { IntakeBankCoverageHint } from '../components/IntakeBankCoverageHint';
@@ -233,7 +234,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
 
             <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
               These answers help the GLC team tailor the audit. Fill{' '}
-              <span className="inline-flex items-center gap-0.5" style={{ color: '#EF4444' }}>
+              <span className="inline-flex items-center gap-0.5" style={{ color: UI_SEMANTIC_COLORS.danger }}>
                 <Circle size={6} weight="fill" />
                 required
               </span>{' '}
@@ -280,7 +281,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
             </div>
 
             {briefError && (
-              <div className="flex items-center gap-2 text-xs px-3 py-2 rounded" style={{ backgroundColor: 'rgba(239,68,68,0.08)', color: '#EF4444' }}>
+              <div className="flex items-center gap-2 text-xs px-3 py-2 rounded" style={{ backgroundColor: UI_SEMANTIC_COLORS.dangerMutedBg, color: UI_SEMANTIC_COLORS.danger }}>
                 <Warning className="w-3.5 h-3.5" />{briefError}
               </div>
             )}
@@ -486,7 +487,11 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
         {!loading && error && (
           <div
             className="flex items-center gap-3 px-4 py-3 rounded-lg"
-            style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)', color: '#EF4444' }}
+            style={{
+              backgroundColor: UI_SEMANTIC_COLORS.dangerMutedBg,
+              border: UI_SEMANTIC_COLORS.dangerBorder20,
+              color: UI_SEMANTIC_COLORS.danger,
+            }}
           >
             <Warning className="w-4 h-4 flex-shrink-0" />
             <span className="text-sm">{error}</span>
@@ -544,7 +549,11 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                 {startError && (
                   <div
                     className="flex items-center gap-2 text-sm px-4 py-3 rounded-lg"
-                    style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)', color: '#EF4444' }}
+                    style={{
+              backgroundColor: UI_SEMANTIC_COLORS.dangerMutedBg,
+              border: UI_SEMANTIC_COLORS.dangerBorder20,
+              color: UI_SEMANTIC_COLORS.danger,
+            }}
                   >
                     <Warning className="w-4 h-4 flex-shrink-0" />
                     {startError}
@@ -602,10 +611,10 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                     }}
                   />
                   {helpError && (
-                    <div className="text-xs" style={{ color: '#EF4444' }}>{helpError}</div>
+                    <div className="text-xs" style={{ color: UI_SEMANTIC_COLORS.danger }}>{helpError}</div>
                   )}
                   {helpOk && (
-                    <div className="flex items-center gap-2 text-xs" style={{ color: '#10B981' }}>
+                    <div className="flex items-center gap-2 text-xs" style={{ color: UI_SEMANTIC_COLORS.success }}>
                       <CheckCircle weight="fill" className="w-3.5 h-3.5" />
                       We notified the team. You can still edit the brief or start the audit.
                     </div>
@@ -673,7 +682,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                   {freeSnapshotAccess?.showCallout ? (
                     <Warning weight="fill" className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--score-2)' }} />
                   ) : (
-                    <CheckCircle weight="fill" className="w-5 h-5 flex-shrink-0" style={{ color: '#10B981' }} />
+                    <CheckCircle weight="fill" className="w-5 h-5 flex-shrink-0" style={{ color: UI_SEMANTIC_COLORS.success }} />
                   )}
                 </div>
 
@@ -762,7 +771,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                   {upgradeError && (
                     <div
                       className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
-                      style={{ backgroundColor: 'rgba(239,68,68,0.08)', color: '#EF4444' }}
+                      style={{ backgroundColor: UI_SEMANTIC_COLORS.dangerMutedBg, color: UI_SEMANTIC_COLORS.danger }}
                     >
                       <Warning className="w-3.5 h-3.5 flex-shrink-0" />
                       {upgradeError}
@@ -877,7 +886,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                     </div>
                   </div>
                 </div>
-                <CheckCircle weight="fill" className="w-5 h-5" style={{ color: '#10B981' }} />
+                <CheckCircle weight="fill" className="w-5 h-5" style={{ color: UI_SEMANTIC_COLORS.success }} />
               </Link>
             )}
 
@@ -925,7 +934,7 @@ export function ClientAuditView() {
   if (!id) {
     return (
       <AppShell title="Portal" subtitle="">
-        <div className="glc-page-content max-w-2xl mx-auto text-sm" style={{ color: '#EF4444' }}>Missing id.</div>
+        <div className="glc-page-content max-w-2xl mx-auto text-sm" style={{ color: UI_SEMANTIC_COLORS.danger }}>Missing id.</div>
       </AppShell>
     );
   }

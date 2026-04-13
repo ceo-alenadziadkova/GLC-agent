@@ -28,7 +28,7 @@ export function buildConsultantNav(auditId: string | null): AppShellNavItem[] {
     { to: '/admin/requests',                      icon: Tray,           label: n.requestQueue,   badge: null },
     { to: '/admin/snapshots',                     icon: Lightning,      label: n.snapshotQueue,  badge: null },
     { to: '/admin/discovery',                     icon: MagnifyingGlass,label: n.discoveryQueue, badge: null },
-    // TODO(next iteration): restore Intake trace / Intake wording admin links
+    // TODO(next iteration): restore Intake wording admin link
     // after refining owner workflows and usage criteria.
     { to: auditId ? `/audit/${auditId}` : null,   icon: Briefcase,      label: n.auditWorkspace, badge: null },
     { to: auditId ? `/pipeline/${auditId}` : null,icon: Pulse,          label: n.pipeline,        badge: null },

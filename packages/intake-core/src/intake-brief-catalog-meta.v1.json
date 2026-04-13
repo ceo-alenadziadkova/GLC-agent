@@ -56,6 +56,23 @@
     "f1": "Audit Scope",
     "f5": "Audit Scope"
   },
+  "enrichmentPolicy": {
+    "weightByImportance": {
+      "red": 3,
+      "yellow": 2,
+      "green": 1
+    },
+    "uxGroupQuestionIds": {
+      "basics": ["a11", "a12", "a2", "a5", "a10"],
+      "goals": ["f1", "f2", "f8"],
+      "business": ["a7"]
+    },
+    "domainUxGroups": {
+      "tech_infrastructure": "tech",
+      "security_compliance": "tech",
+      "seo_digital": "audience"
+    }
+  },
   "classicBriefSlice": {
     "version": "1.0.0",
     "identity": [

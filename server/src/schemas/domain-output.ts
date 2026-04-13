@@ -49,6 +49,19 @@ export const IssueSchema = z.object({
   evidence_refs: z.array(EvidenceRefSchema).min(1).max(5),
   /** Where the finding data came from. */
   data_source: z.enum(['auto_detected', 'from_brief', 'inferred']),
+  /**
+   * Optional cross-phase premise links for causal DAG (Phase 8).
+   * phase_id: recon | tech_infrastructure | … | strategy; claim_id: 1-based issue index in that phase's CO.
+   */
+  premise_refs: z
+    .array(
+      z.object({
+        phase_id: z.string(),
+        claim_id: z.number().int().positive(),
+      }),
+    )
+    .max(20)
+    .optional(),
 });
 
 // ─── Quick Win Schema ──────────────────────────────────────

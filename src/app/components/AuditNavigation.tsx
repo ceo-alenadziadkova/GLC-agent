@@ -4,8 +4,9 @@ import {
   Target, Lightning, MapTrifold, SquaresFour, type Icon
 } from '@phosphor-icons/react';
 import { ScoreIndicator } from './ScoreIndicator';
-import { auditDomains } from '../data/auditData';
 import { cn } from './ui/utils';
+import { APP_RELEASE_META, getAppReleaseMetaLine } from '../config/app-release-meta';
+import { AUDIT_NAVIGATION_DOMAINS } from '../config/audit-navigation-domains';
 
 const iconMap: Record<string, Icon> = {
   Search: MagnifyingGlass,
@@ -71,7 +72,7 @@ export function AuditNavigation() {
         </div>
 
         <div className="space-y-1">
-          {auditDomains.map((domain) => {
+          {AUDIT_NAVIGATION_DOMAINS.map((domain) => {
             const Icon = iconMap[domain.icon];
             const isActive = domainId === domain.id;
 
@@ -138,8 +139,8 @@ export function AuditNavigation() {
       {/* Footer */}
       <div className="p-4 border-t" style={{ borderColor: 'var(--panel-border)' }}>
         <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          <div>Generated: March 9, 2026</div>
-          <div className="mt-1">v2.1.4 • Enterprise</div>
+          <div>{APP_RELEASE_META.generatedLabel}</div>
+          <div className="mt-1">{getAppReleaseMetaLine()}</div>
         </div>
       </div>
     </nav>

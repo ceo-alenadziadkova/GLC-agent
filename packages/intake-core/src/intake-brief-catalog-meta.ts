@@ -39,6 +39,11 @@ type CatalogMetaFile = {
   consultantHints: Record<string, string>;
   triggersFollowup: Record<string, string[]>;
   uiSectionByQuestionId: Record<string, string>;
+  enrichmentPolicy: {
+    weightByImportance: Record<'red' | 'yellow' | 'green', number>;
+    uxGroupQuestionIds: Record<'basics' | 'goals' | 'business', string[]>;
+    domainUxGroups: Partial<Record<Exclude<BriefQuestion['domains'][number], 'all'>, BriefQuestion['ux_group']>>;
+  };
   classicBriefSlice: ClassicBriefSlice;
 };
 
@@ -49,6 +54,12 @@ if (!file.classicBriefSlice?.identity?.length || !file.classicBriefSlice.main?.l
 }
 
 const slice = file.classicBriefSlice;
+const enrichment = file.enrichmentPolicy;
+const uxGroupQuestionIds = {
+  basics: new Set(enrichment.uxGroupQuestionIds.basics),
+  goals: new Set(enrichment.uxGroupQuestionIds.goals),
+  business: new Set(enrichment.uxGroupQuestionIds.business),
+};
 
 export const INTAKE_BRIEF_HIGH_REVENUE_QUESTION_IDS: ReadonlySet<string> = new Set(
   file.highRevenueQuestionIds,
@@ -105,21 +116,24 @@ export { INTAKE_BRIEF_UI_SECTION_BY_ID as BRIEF_QUESTION_UI_SECTION };
 function enrichQuestion(question: BriefQuestion): BriefQuestion {
   const importance =
     question.priority === 'required' ? 'red' : question.priority === 'recommended' ? 'yellow' : 'green';
-  const weight = importance === 'red' ? 3 : importance === 'yellow' ? 2 : 1;
+  const weight = enrichment.weightByImportance[importance];
 
   let ux_group: BriefQuestion['ux_group'] = 'business';
-  if (question.id === 'a11' || question.id === 'a12' || question.id === 'a2' || question.id === 'a5') {
+  if (uxGroupQuestionIds.basics.has(question.id)) {
     ux_group = 'basics';
-  } else if (question.domains.includes('tech_infrastructure') || question.domains.includes('security_compliance')) {
-    ux_group = 'tech';
-  } else if (question.domains.includes('seo_digital')) {
-    ux_group = 'audience';
-  } else if (question.id === 'f1' || question.id === 'f2' || question.id === 'f8') {
+  } else if (uxGroupQuestionIds.goals.has(question.id)) {
     ux_group = 'goals';
-  } else if (question.id === 'a7') {
+  } else if (uxGroupQuestionIds.business.has(question.id)) {
     ux_group = 'business';
-  } else if (question.id === 'a10') {
-    ux_group = 'basics';
+  } else {
+    for (const domain of question.domains) {
+      if (domain === 'all') continue;
+      const mapped = enrichment.domainUxGroups[domain];
+      if (mapped) {
+        ux_group = mapped;
+        break;
+      }
+    }
   }
 
   let intake_layer: BriefQuestion['intake_layer'] = question.priority === 'required' ? 1 : 2;

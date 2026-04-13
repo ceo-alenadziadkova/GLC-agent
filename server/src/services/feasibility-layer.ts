@@ -14,6 +14,14 @@
 
 import type { DomainKey } from '../types/audit.js';
 import type { DomainResult } from '../types/audit.js';
+import {
+  FEASIBILITY_DEFAULT_DOMAIN_SCORE,
+  FEASIBILITY_DEFAULT_TECH_MATURITY,
+  FEASIBILITY_RECOMMENDATION_PATTERNS,
+  FEASIBILITY_SCORE_FLOOR,
+  FEASIBILITY_SCORE_PENALTIES,
+  FEASIBILITY_THRESHOLDS,
+} from '../config/feasibility-rules.js';
 import { logger } from './logger.js';
 
 // ─── Result Shape ─────────────────────────────────────────────────────────────
@@ -57,14 +65,6 @@ export interface BriefSnapshot {
   /** Self-reported tech maturity: 1 (low) – 5 (high) */
   tech_maturity?: number;
 }
-
-// ─── Severity Constants ───────────────────────────────────────────────────────
-
-const PENALTY: Record<FeasibilityRisk['severity'], number> = {
-  high: 0.25,
-  medium: 0.15,
-  low: 0.07,
-};
 
 // ─── Feasibility Layer ────────────────────────────────────────────────────────
 
@@ -138,10 +138,11 @@ export class FeasibilityLayer {
     const recs = result.recommendations ?? [];
 
     // Small team attempting core architecture overhaul
+    const t = FEASIBILITY_THRESHOLDS.techInfra;
     const hasArchRec = recs.some(r =>
-      /\b(re-architect|microservice|migrate|overhaul|rebuild|refactor core)\b/i.test(r.description)
+      FEASIBILITY_RECOMMENDATION_PATTERNS.archOverhaul.test(r.description)
     );
-    if (hasArchRec && (brief.team_size ?? 0) < 3) {
+    if (hasArchRec && (brief.team_size ?? 0) < t.archOverhaulMaxTeamExclusive) {
       risks.push({
         code: 'infra_arch_overhaul_small_team',
         description: 'Core architecture change recommended but team size < 3 — high integration risk.',
@@ -151,7 +152,7 @@ export class FeasibilityLayer {
 
     // Short timeline + many systems affected (inferred from issue count)
     const highIssueCount = (result.issues ?? []).filter(i => i.severity === 'critical' || i.severity === 'high').length;
-    if (highIssueCount > 5 && (brief.tech_maturity ?? 3) < 2) {
+    if (highIssueCount > t.highSeverityIssueCountGt && (brief.tech_maturity ?? FEASIBILITY_DEFAULT_TECH_MATURITY) < t.techMaturityLt) {
       risks.push({
         code: 'infra_high_issue_count_low_maturity',
         description: `${highIssueCount} high/critical infra issues but tech maturity is low — remediation timeline likely underestimated.`,
@@ -160,7 +161,7 @@ export class FeasibilityLayer {
     }
 
     // No dedicated dev team but heavy infra recommendations
-    if (!brief.has_dedicated_dev_team && recs.length > 3) {
+    if (!brief.has_dedicated_dev_team && recs.length > t.recCountGtNoDevTeam) {
       risks.push({
         code: 'infra_no_dev_team',
         description: 'Multiple infrastructure improvements recommended but no dedicated dev team reported.',
@@ -177,8 +178,9 @@ export class FeasibilityLayer {
     const recs = result.recommendations ?? [];
 
     // Compliance recommendations but no audit policy
+    const s = FEASIBILITY_THRESHOLDS.security;
     const hasComplianceRec = recs.some(r =>
-      /\b(gdpr|soc2|iso27001|compliance|audit trail|data protection)\b/i.test(r.description)
+      FEASIBILITY_RECOMMENDATION_PATTERNS.compliance.test(r.description)
     );
     if (hasComplianceRec && !brief.has_audit_policy) {
       risks.push({
@@ -190,7 +192,7 @@ export class FeasibilityLayer {
 
     // Many critical security issues + small team
     const criticalIssues = (result.issues ?? []).filter(i => i.severity === 'critical').length;
-    if (criticalIssues >= 3 && (brief.team_size ?? 0) < 2) {
+    if (criticalIssues >= s.criticalIssuesGte && (brief.team_size ?? 0) < s.criticalTeamSizeLt) {
       risks.push({
         code: 'security_critical_issues_insufficient_team',
         description: `${criticalIssues} critical security issues but team size < 2 — resolution timeline at risk.`,
@@ -199,7 +201,7 @@ export class FeasibilityLayer {
     }
 
     // Score is critically low — organisation may not be ready for advanced recommendations
-    if ((result.score ?? 5) <= 2 && recs.length > 4) {
+    if ((result.score ?? FEASIBILITY_DEFAULT_DOMAIN_SCORE) <= s.lowScoreMaxInclusive && recs.length > s.recCountGtLowScore) {
       risks.push({
         code: 'security_low_score_many_recs',
         description: 'Security score critical (≤2) with many recommendations — foundational fixes must precede advanced items.',
@@ -217,7 +219,7 @@ export class FeasibilityLayer {
 
     // Technical SEO recs but no dev capacity
     const hasTechSeoRec = recs.some(r =>
-      /\b(core web vitals|structured data|schema markup|site speed|crawl|canonicalization)\b/i.test(r.description)
+      FEASIBILITY_RECOMMENDATION_PATTERNS.techSeo.test(r.description)
     );
     if (hasTechSeoRec && !brief.has_dedicated_dev_team) {
       risks.push({
@@ -246,7 +248,7 @@ export class FeasibilityLayer {
 
     // A/B testing recommendations but no analytics
     const hasAbRec = recs.some(r =>
-      /\b(a\/b test|split test|experiment|multivariate)\b/i.test(r.description)
+      FEASIBILITY_RECOMMENDATION_PATTERNS.abTest.test(r.description)
     );
     if (hasAbRec && !brief.has_analytics) {
       risks.push({
@@ -258,9 +260,10 @@ export class FeasibilityLayer {
 
     // Design overhaul + small team
     const hasDesignOverhaulRec = recs.some(r =>
-      /\b(redesign|design system|full redesign|overhaul|rebrand)\b/i.test(r.description)
+      FEASIBILITY_RECOMMENDATION_PATTERNS.designOverhaul.test(r.description)
     );
-    if (hasDesignOverhaulRec && (brief.team_size ?? 0) < 2) {
+    const ux = FEASIBILITY_THRESHOLDS.ux;
+    if (hasDesignOverhaulRec && (brief.team_size ?? 0) < ux.designOverhaulTeamLt) {
       risks.push({
         code: 'ux_design_overhaul_small_team',
         description: 'Full UX redesign recommended but very small team — scope reduction may be needed.',
@@ -278,7 +281,7 @@ export class FeasibilityLayer {
 
     // Multi-channel campaign recs without CRM
     const hasMultiChannelRec = recs.some(r =>
-      /\b(omnichannel|multi-channel|crm integration|lead nurture|marketing automation)\b/i.test(r.description)
+      FEASIBILITY_RECOMMENDATION_PATTERNS.multiChannel.test(r.description)
     );
     if (hasMultiChannelRec && !brief.has_crm) {
       risks.push({
@@ -290,9 +293,10 @@ export class FeasibilityLayer {
 
     // Paid acquisition recommendations without budget clarity
     const hasPaidRec = recs.some(r =>
-      /\b(paid ads|google ads|meta ads|ppc|paid search|paid social)\b/i.test(r.description)
+      FEASIBILITY_RECOMMENDATION_PATTERNS.paidAcquisition.test(r.description)
     );
-    if (hasPaidRec && (brief.monthly_budget_usd ?? 0) < 500) {
+    const m = FEASIBILITY_THRESHOLDS.marketing;
+    if (hasPaidRec && (brief.monthly_budget_usd ?? 0) < m.paidRecBudgetUsdLt) {
       risks.push({
         code: 'marketing_paid_recs_low_budget',
         description: 'Paid acquisition recommendations but reported monthly budget < $500 — minimum viable spend may not be achievable.',
@@ -309,10 +313,11 @@ export class FeasibilityLayer {
     const recs = result.recommendations ?? [];
 
     // Complex automation with many existing integrations to connect
+    const a = FEASIBILITY_THRESHOLDS.automation;
     const hasComplexAutomation = recs.some(r =>
-      /\b(integrate|bi-directional sync|real-time sync|webhook|api integration)\b/i.test(r.description)
+      FEASIBILITY_RECOMMENDATION_PATTERNS.complexAutomation.test(r.description)
     );
-    if (hasComplexAutomation && (brief.integration_count ?? 0) > 8) {
+    if (hasComplexAutomation && (brief.integration_count ?? 0) > a.integrationCountGt) {
       risks.push({
         code: 'automation_integration_sprawl',
         description: 'Complex automation recommended on top of high integration count (>8 tools) — orchestration complexity risk.',
@@ -322,9 +327,9 @@ export class FeasibilityLayer {
 
     // Low tech maturity + advanced automation
     const hasAdvancedRec = recs.some(r =>
-      /\b(machine learning|predictive|ai-powered|nlp|intelligent automation)\b/i.test(r.description)
+      FEASIBILITY_RECOMMENDATION_PATTERNS.advancedAutomation.test(r.description)
     );
-    if (hasAdvancedRec && (brief.tech_maturity ?? 3) < 2) {
+    if (hasAdvancedRec && (brief.tech_maturity ?? FEASIBILITY_DEFAULT_TECH_MATURITY) < a.techMaturityLt) {
       risks.push({
         code: 'automation_advanced_recs_low_maturity',
         description: 'Advanced automation recommendations (ML, AI-powered) but tech maturity is low — foundational automation should come first.',
@@ -334,7 +339,7 @@ export class FeasibilityLayer {
 
     // No dev team for automation that requires custom code
     const hasCustomCodeRec = recs.some(r =>
-      /\b(custom script|api endpoint|custom integration|build a|develop a)\b/i.test(r.description)
+      FEASIBILITY_RECOMMENDATION_PATTERNS.customCode.test(r.description)
     );
     if (hasCustomCodeRec && !brief.has_dedicated_dev_team) {
       risks.push({
@@ -353,11 +358,12 @@ export class FeasibilityLayer {
     // If result score is very low AND many recommendations AND budget is tight → high effort signal
     const recCount = (result.recommendations ?? []).length;
     const criticalCount = (result.issues ?? []).filter(i => i.severity === 'critical').length;
+    const u = FEASIBILITY_THRESHOLDS.universalBudget;
 
     if (
-      criticalCount >= 3 &&
-      recCount >= 5 &&
-      (brief.monthly_budget_usd ?? Infinity) < 1000
+      criticalCount >= u.criticalIssuesGte &&
+      recCount >= u.recCountGte &&
+      (brief.monthly_budget_usd ?? Infinity) < u.monthlyBudgetUsdLt
     ) {
       risks.push({
         code: 'universal_high_effort_low_budget',
@@ -370,8 +376,8 @@ export class FeasibilityLayer {
   // ─── Score Computation ────────────────────────────────────────────────────────
 
   private computeScore(risks: FeasibilityRisk[]): number {
-    const totalPenalty = risks.reduce((sum, r) => sum + PENALTY[r.severity], 0);
-    return Math.max(0.1, parseFloat((1.0 - totalPenalty).toFixed(2)));
+    const totalPenalty = risks.reduce((sum, r) => sum + FEASIBILITY_SCORE_PENALTIES[r.severity], 0);
+    return Math.max(FEASIBILITY_SCORE_FLOOR, parseFloat((1.0 - totalPenalty).toFixed(2)));
   }
 }
 

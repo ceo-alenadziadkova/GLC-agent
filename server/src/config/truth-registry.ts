@@ -7,13 +7,20 @@
  * Version history:
  *   v1.0  — Phase 2: priority-based sources + 6 domain phase profiles
  *   v1.5  — Phase 3: profile confidence weights added (see phase-confidence-weights.ts)
+ *   v2.1  — Sprint 1: external_api/document_feed source tiers (pre-declared, Phase 7+);
+ *            auto_remediation_scope field on PhaseProfile (Phase 9 consumer)
  */
 
 import type { DomainKey } from '../types/audit.js';
 
 // ─── Source Types (match control-object.ts TruthSource) ───────────────────────
 
-export type TruthSourceId = 'internal_metrics' | 'user_brief' | 'external_search';
+export type TruthSourceId =
+  | 'internal_metrics'  // priority 1
+  | 'user_brief'        // priority 2
+  | 'external_search'   // priority 3
+  | 'external_api'      // priority 4 — Phase 7+, pre-declared (ADR-MULTIMODAL-TRUTH.md)
+  | 'document_feed';    // priority 5 — Phase 7+, pre-declared
 
 export interface TruthSourceDef {
   id: TruthSourceId;
@@ -37,9 +44,19 @@ export const TRUTH_REGISTRY = {
       description: 'Client-provided BRIEF: stated goals, constraints, team info, context',
     },
     {
-      id: 'external_search' as TruthSourceId,
+      id: 'external_api' as TruthSourceId,
       priority: 3,
+      description: 'Authoritative structured external APIs (Phase 7+ connectors)',
+    },
+    {
+      id: 'external_search' as TruthSourceId,
+      priority: 4,
       description: 'Public data: search results, industry reports, benchmarks',
+    },
+    {
+      id: 'document_feed' as TruthSourceId,
+      priority: 5,
+      description: 'Client-uploaded documents and ingested feeds (Phase 7+)',
     },
   ] as TruthSourceDef[],
 
@@ -78,6 +95,16 @@ export interface PhaseProfile {
    * High-risk domains (security, infra) default to 'medium'; others 'low'.
    */
   default_assumption_risk: AssumptionRisk;
+  /**
+   * v2.1+: Controls Phase 9 auto-remediation scope for this domain.
+   *   'tone_only'        — auto-remediate only absolute language / hype phrases.
+   *                        Content-level corrections always route to human review.
+   *   'tone_and_content' — allow content-level fixable corrections in addition to tone.
+   *
+   * 'tone_only' is mandatory for security_compliance to avoid liability from model-
+   * rewritten compliance or legal assertions. See ADR-PHASE-PROFILES.md §3.
+   */
+  auto_remediation_scope: 'tone_only' | 'tone_and_content';
 }
 
 // ─── Phase Profiles — 6 Domains ───────────────────────────────────────────────
@@ -100,6 +127,7 @@ export const PHASE_PROFILES: Record<DomainKey, PhaseProfile> = {
       'infra_missing_monitoring_evidence',
     ],
     default_assumption_risk: 'medium',
+    auto_remediation_scope: 'tone_and_content',
   },
 
   security_compliance: {
@@ -118,8 +146,16 @@ export const PHASE_PROFILES: Record<DomainKey, PhaseProfile> = {
       'data_policy_mismatch',
       'access_control_gap',
       'missing_security_evidence',
+      'security_https_redirect_gap',
+      'security_cookie_flag_gap',
+      'security_header_hygiene_gap',
+      'security_baseline_header_gap',
     ],
     default_assumption_risk: 'high',
+    // Security & Compliance: auto-remediation restricted to tone ONLY.
+    // Content-level changes to compliance claims must be reviewed by a human.
+    // See ADR-PHASE-PROFILES.md §3 and ADR-AUTO-REMEDIATION.md.
+    auto_remediation_scope: 'tone_only',
   },
 
   seo_digital: {
@@ -139,6 +175,7 @@ export const PHASE_PROFILES: Record<DomainKey, PhaseProfile> = {
       'seo_competitor_claim_unverified',
     ],
     default_assumption_risk: 'medium',
+    auto_remediation_scope: 'tone_and_content',
   },
 
   ux_conversion: {
@@ -158,6 +195,7 @@ export const PHASE_PROFILES: Record<DomainKey, PhaseProfile> = {
       'ux_missing_analytics_evidence',
     ],
     default_assumption_risk: 'low',
+    auto_remediation_scope: 'tone_and_content',
   },
 
   marketing_utp: {
@@ -177,6 +215,7 @@ export const PHASE_PROFILES: Record<DomainKey, PhaseProfile> = {
       'marketing_roi_figure_speculative',
     ],
     default_assumption_risk: 'medium',
+    auto_remediation_scope: 'tone_and_content',
   },
 
   automation_processes: {
@@ -196,6 +235,7 @@ export const PHASE_PROFILES: Record<DomainKey, PhaseProfile> = {
       'automation_roi_timeline_unrealistic',
     ],
     default_assumption_risk: 'medium',
+    auto_remediation_scope: 'tone_and_content',
   },
 };
 
@@ -234,4 +274,18 @@ export function getHighestPrioritySource(sources: TruthSourceId[]): TruthSourceI
     .filter(s => sources.includes(s.id))
     .sort((a, b) => a.priority - b.priority);
   return sorted[0]?.id ?? 'external_search';
+}
+
+/** Dedupe while preserving first-seen order, then sort by registry priority (1 = strongest). */
+export function normalizeTruthSourcesList(sources: TruthSourceId[]): TruthSourceId[] {
+  const seen = new Set<TruthSourceId>();
+  const deduped: TruthSourceId[] = [];
+  for (const id of sources) {
+    if (!seen.has(id)) {
+      seen.add(id);
+      deduped.push(id);
+    }
+  }
+  const priority = new Map(TRUTH_REGISTRY.sources.map(s => [s.id, s.priority] as const));
+  return [...deduped].sort((a, b) => (priority.get(a) ?? 99) - (priority.get(b) ?? 99));
 }

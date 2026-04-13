@@ -278,4 +278,108 @@ describe('PipelineOrchestrator governance events', () => {
 
     decideSpy.mockRestore();
   });
+
+  it('keeps strategy completion when upstream quality is mixed (accept + accept_with_warnings)', async () => {
+    setCoImpl((phase, auditId) => {
+      const dk = PHASE_DOMAIN_MAP[phase];
+      if (dk === 'recon' || dk === 'strategy') return null;
+      const co = createControlObjectV1(auditId, dk);
+      co.counts.fact = 10;
+      co.counts.total_claims = 12;
+      co.counts.statuses.likely_hallucination = 1;
+      co.errors.structural = [];
+
+      // Phase 5 (marketing) is intentionally lower quality but still warning-acceptable.
+      if (phase === 5) {
+        co.confidence.overall = 72;
+        co.confidence.factual = 70;
+        co.confidence.strategic = 71;
+        co.confidence.consistency = 74;
+        co.errors.fixable = ['marketing_roi_figure_speculative'];
+      } else {
+        co.confidence.overall = 90;
+        co.confidence.factual = 90;
+        co.confidence.strategic = 88;
+        co.confidence.consistency = 92;
+      }
+      return co as unknown as Record<string, unknown>;
+    });
+
+    const orch = new PipelineOrchestrator(GOV_AUDIT_ID);
+    for (let p = 0; p <= 7; p += 1) {
+      await orch.startPhase(p);
+    }
+
+    const events = getPipelineInserts();
+    const controlRows = events.filter(i => i.payload.event_type === 'control_object');
+    const phase5Control = controlRows.find(r => r.payload.phase === 5);
+    expect(phase5Control).toBeDefined();
+    const phase5Co = (phase5Control!.payload.data as Record<string, unknown>).control_object as ControlObjectV1;
+    expect(phase5Co.decision_hint).toBe('accept_with_warnings');
+
+    const strategyCompleted = events.find(
+      e => e.payload.event_type === 'completed' && e.payload.phase === 7,
+    );
+    expect(strategyCompleted).toBeDefined();
+    expect((strategyCompleted!.payload.message as string).toLowerCase()).toContain('phase 7');
+  });
+
+  it('is deterministic for final gate behavior across identical runs', async () => {
+    const stableCo = (phase: number, auditId: string): Record<string, unknown> | null => {
+      const dk = PHASE_DOMAIN_MAP[phase];
+      if (dk === 'recon' || dk === 'strategy') return null;
+      const co = createControlObjectV1(auditId, dk);
+      co.counts.fact = 10;
+      co.counts.total_claims = 12;
+      co.errors.structural = [];
+      co.counts.statuses.likely_hallucination = 1;
+      co.counts.statuses.risky_promise = 0;
+
+      if (phase === 5) {
+        co.confidence.overall = 72;
+        co.confidence.factual = 71;
+        co.confidence.strategic = 70;
+        co.confidence.consistency = 74;
+        co.errors.fixable = ['marketing_roi_figure_speculative'];
+      } else {
+        co.confidence.overall = 90;
+        co.confidence.factual = 90;
+        co.confidence.strategic = 89;
+        co.confidence.consistency = 91;
+      }
+      return co as unknown as Record<string, unknown>;
+    };
+
+    const runOnce = async () => {
+      clearCalls();
+      setCoImpl(stableCo);
+      const orch = new PipelineOrchestrator(GOV_AUDIT_ID);
+      for (let p = 0; p <= 7; p += 1) {
+        await orch.startPhase(p);
+      }
+      const events = getPipelineInserts();
+      const controlByPhase = events
+        .filter(i => i.payload.event_type === 'control_object')
+        .map(i => {
+          const phase = Number(i.payload.phase);
+          const data = i.payload.data as Record<string, unknown>;
+          const co = data.control_object as ControlObjectV1;
+          return { phase, hint: co.decision_hint };
+        })
+        .sort((a, b) => a.phase - b.phase);
+
+      const strategyCompleted = events.some(
+        e => e.payload.event_type === 'completed' && e.payload.phase === 7,
+      );
+      return { controlByPhase, strategyCompleted };
+    };
+
+    const first = await runOnce();
+    const second = await runOnce();
+
+    expect(first.controlByPhase).toEqual(second.controlByPhase);
+    expect(first.strategyCompleted).toBe(true);
+    expect(second.strategyCompleted).toBe(true);
+  });
+
 });

@@ -30,6 +30,8 @@ export const SYSTEM_DEFAULTS = {
     snapshotCompareMaxPerHour: 15,
     snapshotCompareWindowHours: 1,
     snapshotLogIngestMaxPerMin: 40,
+    /** Unauthenticated POST /api/benchmarks/recompute (cron secret) — per IP per hour. */
+    benchmarkRecomputeMaxPerHour: 12,
   },
   auditsList: GLC_AUDITS_AND_AUDIT_REQUESTS_LIST,
   /**
@@ -41,8 +43,12 @@ export const SYSTEM_DEFAULTS = {
     discoverSessionsMaxRows: GLC_DISCOVER_SESSIONS_LIST_MAX,
     intakeSubmissionsMaxRows: GLC_INTAKE_SUBMISSIONS_LIST_MAX,
     pipelineStatusEventsLimit: GLC_PIPELINE_STATUS_EVENTS_LIMIT,
+    controlObjectHistoryEventsLimit: 400,
     /** Same caps as `auditsList` — GET /api/audit-requests pagination. */
     auditRequestsList: GLC_AUDITS_AND_AUDIT_REQUESTS_LIST,
+  },
+  intake: {
+    tokenTtlDays: 7,
   },
   /** Report export / markdown profile slice sizes (`ReportProfiler`). */
   reportProfiler: {
@@ -167,6 +173,30 @@ export const SYSTEM_DEFAULTS = {
     cbTtlSec: 60,
   },
   /**
+   * External truth connectors (`ConnectorRunner`, `server/src/connectors/*`).
+   * Hard timeout caps per-connector `timeout_ms`; individual connectors may use stricter budgets.
+   */
+  connectors: {
+    hardTimeoutMs: 3_000,
+    /** Warn threshold for degraded connector runs: (timed_out + error) / total connectors. */
+    degradedWarnRatio: 0.5,
+    securityTxt: {
+      fetchBudgetMs: 2_500,
+      /** In-memory connector cache TTL to reduce repeat fetches in close reruns. */
+      cacheTtlMs: 5 * 60 * 1000,
+      maxBodyChars: 64_000,
+      /** HTTPS path suffixes tried after host: `https://{host}{suffix}`. */
+      pathSuffixes: ['/.well-known/security.txt', '/security.txt'],
+      /**
+       * Emitted `confirmed_fact_types` when file is well-formed.
+       * Must stay aligned with `PHASE_PROFILES.security_compliance.high_risk_fact_types`.
+       */
+      confirmedFactTypes: ['compliance_status'],
+      /** RFC 9116 `Contact:` field — RegExp source, tested per line (case-insensitive). */
+      contactFieldLinePatternSource: '^\\s*Contact\\s*:',
+    },
+  },
+  /**
    * Quality gate rules (`ConsistencyChecker`) — score/confidence checks before review approval.
    */
   qualityGate: {
@@ -176,28 +206,43 @@ export const SYSTEM_DEFAULTS = {
     maxUnknownItemsForInfo: 4,
   },
   /**
-   * Per-phase evaluation rows (`evaluation_datasets`). Set `EVALUATION_DATASETS_INSERT=false` to skip
-   * writes (e.g. local DB without migration `051_evaluation_datasets_and_execution_mode.sql`).
+   * Evaluation `evaluation_datasets` inserts: `isEvaluationDatasetsInsertEnabled()` in `feature-flags.ts`.
+   *
+   * ML Bandits: ε-greedy agent-variant selection per GLC domain phase.
+   * Master on/off: `isBanditsEnabled()` in `feature-flags.ts` (FEATURE_BANDITS=true).
+   *
+   * Activation requires all three readiness gates to pass (see bandit.ts).
+   * Falls back to 'default' variant on any gate failure, disabled flag, or DB error.
+   *
+   * See ADR-ML-BANDITS.md for full design rationale.
    */
+  bandits: {
+    /** ε-greedy exploration rate: probability of picking a random arm. */
+    epsilon: 0.15,
+    /** Minimum evaluation runs per arm before bandit considers it reliable. */
+    minEvaluationCount: 10,
+    /**
+     * Minimum distinct phase_ids with sufficient arm data before any bandit activates.
+     * Prevents a single outlier client from skewing the policy.
+     */
+    minPhasesWithData: 3,
+    /**
+     * Maximum non-default variants allowed per phase.
+     * 2 non-default + 1 implicit default = 3 total arms (keeps ε-greedy convergence tractable).
+     */
+    maxVariantsPerPhase: 2,
+  },
   evaluationDatasets: {
-    insertEnabled: process.env.EVALUATION_DATASETS_INSERT !== 'false',
+    /** Retry attempts for `(audit_id, phase_id, run_number)` insert conflicts in `evaluation_datasets`. */
+    insertMaxRetries: 3,
   },
   /**
    * Auto-loop: targeted agent rerun when Decision Layer returns 'refine'.
-   * Disabled by default. Enable per-environment via AUTO_LOOP_ENABLED=true.
-   * Restricted to sandbox/internal modes until monitoring confirms stability.
+   * Master on/off and allowed modes: `isAutoLoopEnabled()`, `getAutoLoopAllowedModes()` in `feature-flags.ts`.
    *
    * See ADR-AUTO-LOOP-RULE-ENGINE.md for full design rationale.
    */
   autoLoop: {
-    /** Master switch. Default: false. Override: AUTO_LOOP_ENABLED=true */
-    enabled: process.env.AUTO_LOOP_ENABLED === 'true',
-    /**
-     * Which execution environments allow auto-loop.
-     * Prevents accidental activation in production before monitoring period.
-     */
-    allowedModes: (process.env.AUTO_LOOP_ALLOWED_MODES ?? 'sandbox,internal')
-      .split(',').map(s => s.trim()).filter(Boolean),
     /** Maximum rerun iterations per phase. Hard cap — no infinite loops. */
     maxIterations: 2,
     /**
@@ -210,6 +255,93 @@ export const SYSTEM_DEFAULTS = {
      * threshold AND expected confidence gain is below minConfidenceGain, skip the rerun.
      */
     costGuardrailThresholdUsd: 2.5,
+  },
+  /**
+   * Phase 9 auto-remediation: deterministic tone fixes on cleaned domain output.
+   * Master on/off: `isAutoRemediationEnabled()` in `feature-flags.ts` (FEATURE_AUTO_REMEDIATION=true).
+   * Confidence gate must stay aligned with `DECISION_LAYER_THRESHOLDS.accept_with_warnings` in `decision-layer.ts`
+   * (remediation service imports that object — do not duplicate the numeric threshold here).
+   *
+   * See ADR-AUTO-REMEDIATION.md.
+   */
+  autoRemediation: {
+    /** Max chars stored in `audit_remediations.original_excerpt` / `applied_fix` (DB column budget). */
+    auditLogFieldMaxChars: 500,
+    /** Fallback excerpt length when building `original_excerpt` from summary. */
+    excerptMaxChars: 500,
+    /**
+     * Decision hints for which output remediation may run (after an initial Decision Layer pass).
+     * Refine runs are handled by auto-loop / manual review instead.
+     */
+    allowedDecisionHints: ['accept', 'accept_with_warnings'] as const,
+    outcomeDisclaimerAppend:
+      '\n\n[Note: Forward-looking statements above are hypotheses pending verification with data.]',
+    /** Skip disclaimer append when summary already contains this substring (idempotency). */
+    outcomeDisclaimerSkipIfContains: '[Note: Forward-looking statements',
+    appliedFixDescription: {
+      softenAbsolutes: 'Softened absolute or over-strong phrasing in domain text fields.',
+      appendOutcomeDisclaimer: 'Appended forward-looking disclaimer to summary.',
+    },
+    /** Regex-driven softening for `remediation_action: soften_absolutes`. */
+    absoluteSoftening: {
+      phraseAlternation: [
+        'guaranteed',
+        'guarantee',
+        'always',
+        'never fails',
+        'zero risk',
+        'no risk',
+        'risk-free',
+        'certainly',
+        'definitely will',
+        'will never fail',
+      ] as const,
+      percentPatternSource: '100\\s*%',
+      defaultReplacement: 'may',
+      rules: [
+        { type: 'starts_with' as const, prefix: '100', replacement: 'a large share' },
+        { type: 'exact' as const, phrases: ['always'], replacement: 'often' },
+        {
+          type: 'exact' as const,
+          phrases: ['never fails', 'will never fail'],
+          replacement: 'may still fail',
+        },
+        { type: 'exact' as const, phrases: ['guaranteed', 'guarantee'], replacement: 'expected' },
+        {
+          type: 'exact' as const,
+          phrases: ['zero risk', 'no risk', 'risk-free'],
+          replacement: 'residual risk',
+        },
+        { type: 'exact' as const, phrases: ['certainly'], replacement: 'likely' },
+        { type: 'exact' as const, phrases: ['definitely will'], replacement: 'may' },
+      ],
+    },
+  },
+  /**
+   * Domain benchmark snapshots (evaluation_datasets rollups). Master: `isBenchmarksEnabled()` in `feature-flags.ts`.
+   * Recompute via `POST /api/benchmarks/recompute` (cron secret) or `POST /api/platform/benchmarks/recompute` (platform admin).
+   * See ADR-DOMAIN-BENCHMARKS.md.
+   */
+  benchmarks: {
+    /** Minimum rows in a (phase_id × industry × period) bucket before a snapshot is stored. */
+    minSampleCount: 20,
+    /** Period used when attaching `context.benchmark_reference_id` during pipeline publish. */
+    defaultReferencePeriod: 'last_90d' as const,
+    /** Periods computed on each recompute run. */
+    computePeriods: ['last_30d', 'last_90d', 'all_time'] as const,
+    /**
+     * Only evaluation rows with these `decision_applied` values contribute (aligned with remediation eligibility).
+     */
+    includedDecisionHints: ['accept', 'accept_with_warnings'] as const,
+    /** How many dominant error codes to persist in `top_error_types`. */
+    topErrorTypesCount: 3,
+    /** Page size when scanning evaluation_datasets (PostgREST range). */
+    evaluationPageSize: 1000,
+    /** Rolling window length for time-bounded periods (UTC day count). */
+    periodDays: {
+      last_30d: 30,
+      last_90d: 90,
+    } as const,
   },
   pipelineOrchestrator: {
     stalledPhaseTimeoutMin: 15,

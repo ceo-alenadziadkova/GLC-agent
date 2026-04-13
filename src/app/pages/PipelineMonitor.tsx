@@ -32,6 +32,7 @@ import {
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 import { PIPELINE_MONITOR_COPY as PM } from '../config/pipeline-monitor-copy';
+import { UI_SEMANTIC_COLORS } from '../config/ui-semantic-colors';
 import {
   ANALYTIC_WING_IDS,
   AUTO_WING_IDS,
@@ -525,8 +526,8 @@ export function PipelineMonitor() {
                     }}
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <WarningCircle className="w-4 h-4 flex-shrink-0" style={{ color: '#EF4444' }} />
-                      <span className="text-sm font-semibold" style={{ color: '#EF4444', fontFamily: 'var(--font-display)' }}>
+                      <WarningCircle className="w-4 h-4 flex-shrink-0" style={{ color: UI_SEMANTIC_COLORS.danger }} />
+                      <span className="text-sm font-semibold" style={{ color: UI_SEMANTIC_COLORS.danger, fontFamily: 'var(--font-display)' }}>
                         {PM.detail.domainUnavailableTitle}
                       </span>
                     </div>
@@ -546,7 +547,7 @@ export function PipelineMonitor() {
                     }}
                   >
                     <div className="flex items-center gap-2 mb-2">
-                      <WarningCircle className="w-4 h-4 flex-shrink-0" style={{ color: '#CA8A04' }} />
+                      <WarningCircle className="w-4 h-4 flex-shrink-0" style={{ color: UI_SEMANTIC_COLORS.warningAmber }} />
                       <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>
                         {PM.detail.governanceRefineTitle}
                       </span>
@@ -583,6 +584,26 @@ export function PipelineMonitor() {
                 {ph.status === 'completed' && govCo && (
                   <div className="glc-card p-4" style={{ borderRadius: 'var(--radius-xl)' }}>
                     <SectionLabel className="mb-2">{PM.detail.governanceSummaryTitle}</SectionLabel>
+                    {(govCo.auto_remediation_applied_count ?? 0) > 0 && (
+                      <div
+                        className="text-xs font-semibold px-2.5 py-1.5 rounded-lg mb-3 inline-block"
+                        style={{
+                          backgroundColor: 'rgba(14,207,130,0.12)',
+                          color: 'var(--glc-green-dark)',
+                          border: '1px solid rgba(14,207,130,0.28)',
+                          fontFamily: 'var(--font-display)',
+                        }}
+                        title={PM.detail.governanceAutoRemediationBadge.replace(
+                          '{count}',
+                          String(govCo.auto_remediation_applied_count),
+                        )}
+                      >
+                        {PM.detail.governanceAutoRemediationBadge.replace(
+                          '{count}',
+                          String(govCo.auto_remediation_applied_count),
+                        )}
+                      </div>
+                    )}
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
                       <dt>{PM.detail.governanceConfidence}</dt>
                       <dd className="font-mono text-right">{govCo.confidence.overall}</dd>
@@ -612,7 +633,7 @@ export function PipelineMonitor() {
                       style={{ background: 'var(--gradient-ink)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
                     >
                       <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: '#EF4444' }} />
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: UI_SEMANTIC_COLORS.danger }} />
                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'var(--callout-warning-icon)' }} />
                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: 'var(--glc-green)' }} />
                       </div>
@@ -623,7 +644,7 @@ export function PipelineMonitor() {
                     </div>
                     <div
                       className="p-4 space-y-2"
-                      style={{ backgroundColor: '#0A0F1E', fontFamily: 'var(--font-mono)', fontSize: '12px' }}
+                      style={{ backgroundColor: UI_SEMANTIC_COLORS.codeSurface, fontFamily: 'var(--font-mono)', fontSize: '12px' }}
                     >
                       {ph.log.map((entry, i) => {
                         const isOk  = entry.eventType === 'completed' || entry.eventType === 'fact_check';
@@ -635,7 +656,14 @@ export function PipelineMonitor() {
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: i * 0.07, duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
                             className="flex items-start gap-1.5"
-                            style={{ color: isOk ? '#34D399' : isErr ? '#F87171' : 'rgba(148,163,184,0.80)', lineHeight: 1.6 }}
+                            style={{
+                              color: isOk
+                                ? UI_SEMANTIC_COLORS.successLight
+                                : isErr
+                                  ? UI_SEMANTIC_COLORS.dangerLight
+                                  : UI_SEMANTIC_COLORS.slateMuted,
+                              lineHeight: 1.6,
+                            }}
                           >
                             {isOk
                               ? <Check size={11} weight="bold" style={{ marginTop: 3, flexShrink: 0 }} />

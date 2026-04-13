@@ -12,17 +12,14 @@
 
 import type { ControlObjectV1 } from '../schemas/control-object.js';
 import type { DomainKey } from './audit.js';
+import { EVALUATION_DATASET_RETENTION_TTL_DAYS } from '../config/evaluation-dataset-retention.js';
 
 // ─── Retention ────────────────────────────────────────────────────────────────
 
 export type RetentionPolicy = 'default' | 'extended' | 'internal_only';
 
 /** TTL in days per retention policy (mirrors the DB CASE expression). */
-export const RETENTION_TTL_DAYS: Record<RetentionPolicy, number> = {
-  default: 90,
-  extended: 365,
-  internal_only: 365,
-};
+export const RETENTION_TTL_DAYS = EVALUATION_DATASET_RETENTION_TTL_DAYS;
 
 // ─── Human Feedback ───────────────────────────────────────────────────────────
 
@@ -67,6 +64,8 @@ export interface EvaluationDatasetRow {
 
   /** Which decision was applied in the pipeline for this run */
   decision_applied: 'accept' | 'accept_with_warnings' | 'refine' | null;
+  /** Variant id selected by bandit policy for this phase run. */
+  agent_variant_id: string | null;
 
   /**
    * Retention policy governs how long this row is kept.
@@ -85,8 +84,8 @@ export interface EvaluationDatasetRow {
 
   /**
    * DB-generated expiry timestamp.
-   * Computed as: created_at + (retention_ttl_days × INTERVAL '1 day')
-   * Managed by the DB GENERATED ALWAYS expression — do not set manually.
+   * Computed in DB trigger from created_at + retention policy TTL days.
+   * Do not set manually.
    */
   expires_at: string;
 }

@@ -28,6 +28,31 @@ describe('pipeline-governance', () => {
     expect(parsed?.decision_hint).toBe('accept_with_warnings');
     expect(parsed?.confidence.overall).toBe(77);
     expect(parsed?.counts.statuses.risky_promise).toBe(1);
+    expect(parsed?.counts.statuses.confirmed_external).toBe(0);
+    expect(parsed?.counts.statuses.dependent_on_brief_assumption).toBe(0);
+    expect(parsed?.counts.statuses.strategic_inconsistency).toBe(0);
+  });
+
+  it('parseControlObjectGovernance reads auto_remediation.applied length', () => {
+    const co = {
+      decision_hint: 'accept',
+      confidence: { overall: 90, factual: 90, strategic: 85, consistency: 88 },
+      counts: {
+        total_claims: 4,
+        fact: 4,
+        statuses: {
+          confirmed_brief: 0,
+          unverified: 0,
+          likely_hallucination: 0,
+          risky_promise: 0,
+        },
+      },
+      context: { phase_id: 'marketing_utp', execution_mode: 'normal', audit_id: 'a' },
+      human_attention_required: { required: false, reasons: [] },
+      auto_remediation: { applied: [{ error_type: 'forbidden_absolutes', remediation_type: 'tone' }] },
+    };
+    const parsed = parseControlObjectGovernance({ control_object: co });
+    expect(parsed?.auto_remediation_applied_count).toBe(1);
   });
 
   it('parseRefineRecommendedData accepts refine payload with nested control_object', () => {

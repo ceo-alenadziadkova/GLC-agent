@@ -45,7 +45,8 @@
     "governanceClaims": "Claims tracked",
     "governanceHallucination": "Likely hallucination flags",
     "governanceRiskyPromise": "Risky promise flags",
-    "governanceHumanAttention": "Human attention required"
+    "governanceHumanAttention": "Human attention required",
+    "governanceAutoRemediationBadge": "Auto-corrected {count} issue(s) (tone)"
   },
   "reviewModal": {
     "defaultNote": "Add your observations before continuing",

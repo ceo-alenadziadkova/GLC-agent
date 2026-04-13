@@ -3,6 +3,13 @@ import {
   pipelineOrchestratorCopy,
 } from '../config/pipeline-orchestrator-copy.js';
 import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
+import {
+  getAutoLoopAllowedModes,
+  isAutoLoopEnabled,
+  isBanditsEnabled,
+  isCausalDagEnabled,
+} from '../config/feature-flags.js';
+import { applyAutoRemediation } from './remediation.js';
 import { supabase } from './supabase.js';
 import { assertBriefReady } from './brief-validator.js';
 import { consistencyChecker } from './consistency-checker.js';
@@ -27,6 +34,7 @@ import {
   maxPhaseForMode,
   reviewPhasesForMode,
   type DomainKey,
+  type DomainResult,
   type FreeSnapshotPreview,
   type ProductMode,
 } from '../types/audit.js';
@@ -34,7 +42,14 @@ import { recordEvaluationDatasetIfEnabled } from './evaluation-dataset-writer.js
 import { dynamicAdjustmentService } from './dynamic-adjustment.js';
 import { recordAgentPerformance } from './agent-performance.js';
 import { PIPELINE_EVENT_ERROR_CODES } from '../config/pipeline-event-error-codes.js';
-import type { ControlObjectV1 } from '../schemas/control-object.js';
+import type { ControlObjectV1, PhaseId } from '../schemas/control-object.js';
+import { fetchPriorControlObjectsForPhase } from './control-object-history.js';
+import { invalidateDownstreamDependents } from './audit-claim-graph.js';
+import { banditService, DEFAULT_VARIANT_ID } from './bandit.js';
+import { attachBenchmarkReferenceToControlObject } from './benchmark-snapshot.js';
+import { findVariant } from '../config/agent-variants.js';
+import { CLAUDE_MODEL, MODEL_MAX_TOKENS, getModelPricing } from '../config/model.js';
+import { roundTokenCostUsd } from '../config/token-cost-rounding.js';
 
 type AgentConstructor = new (auditId: string) => BaseAgent;
 
@@ -73,9 +88,17 @@ const PARALLEL_FAILURE_THRESHOLD = SYSTEM_DEFAULTS.pipelineOrchestrator.parallel
  */
 export class PipelineOrchestrator {
   private auditId: string;
+  private readonly disableAutoRemediate: boolean;
 
-  constructor(auditId: string) {
+  constructor(auditId: string, options?: { disableAutoRemediate?: boolean }) {
     this.auditId = auditId;
+    this.disableAutoRemediate = options?.disableAutoRemediate ?? false;
+  }
+
+  /** Loads latest upstream CONTROL_OBJECT snapshots for causal DAG premise validation. */
+  private async attachPriorControlObjects(agent: BaseAgent, domainKey: DomainKey): Promise<void> {
+    if (!isCausalDagEnabled()) return;
+    agent.priorControlObjectsByPhase = await fetchPriorControlObjectsForPhase(this.auditId, domainKey);
   }
 
   /**
@@ -84,7 +107,12 @@ export class PipelineOrchestrator {
    */
   private async publishControlObjectGovernance(
     phase: number,
-    controlObject: ControlObjectV1
+    controlObject: ControlObjectV1,
+    evaluationCapture?: {
+      phaseId: DomainKey;
+      rawAgentOutput: Record<string, unknown> | null;
+      cleanedOutput: DomainResult;
+    }
   ): Promise<void> {
     let decision;
     try {
@@ -99,8 +127,69 @@ export class PipelineOrchestrator {
       });
     }
 
+    if (isCausalDagEnabled() && controlObject.errors.structural.length > 0) {
+      const pid = controlObject.context.phase_id;
+      if (pid !== 'recon' && pid !== 'strategy') {
+        const seeds = controlObject.context.structural_invalidation_claim_ids;
+        if (seeds && seeds.length > 0) {
+          const refs = seeds.map(claimId => ({ phase_id: pid as PhaseId, claim_id: claimId }));
+          const { marked } = await invalidateDownstreamDependents(this.auditId, refs);
+          if (marked.length > 0) {
+            await this.emitEvent(
+              phase,
+              'log',
+              `Causal DAG: marked ${marked.length} downstream claim(s) invalidated after upstream structural issues.`,
+              { invalidated_downstream: marked, source_phase_id: pid },
+            );
+          }
+        }
+      }
+    }
+
+    if (evaluationCapture) {
+      const remediated = await applyAutoRemediation({
+        auditId: this.auditId,
+        controlObject,
+        cleanedOutput: evaluationCapture.cleanedOutput,
+        phaseNumber: phase,
+        disableAutoRemediate: this.disableAutoRemediate,
+      });
+      if (remediated > 0) {
+        try {
+          const postRem = decisionLayer.decide(controlObject);
+          controlObject.decision_hint = postRem.hint;
+        } catch (reDecideErr) {
+          logger.warn('pipeline.remediation_redecide_failed', {
+            component: 'pipeline',
+            audit_id: this.auditId,
+            phase,
+            error: reDecideErr instanceof Error ? reDecideErr.message : String(reDecideErr),
+          });
+        }
+        await this.emitEvent(
+          phase,
+          'log',
+          `Auto-remediation: corrected ${remediated} issue(s).`,
+          { auto_remediation_count: remediated },
+        );
+      }
+    }
+
+    await attachBenchmarkReferenceToControlObject(this.auditId, controlObject);
+
+    if (evaluationCapture) {
+      await recordEvaluationDatasetIfEnabled({
+        auditId: this.auditId,
+        phaseId: evaluationCapture.phaseId,
+        controlObject,
+        rawAgentOutput: evaluationCapture.rawAgentOutput,
+        cleanedOutput: evaluationCapture.cleanedOutput,
+      });
+    }
+
     // v2.0: persist agent performance metrics (async, best-effort)
     void this.recordPerformanceAsync(controlObject, phase);
+    void this.recordBanditArmAsync(controlObject);
 
     try {
       await this.emitEvent(phase, 'control_object', '', { control_object: controlObject });
@@ -137,6 +226,17 @@ export class PipelineOrchestrator {
     }
   }
 
+  /** Updates bandit arm stats from the completed run (FEATURE_BANDITS only). Fire-and-forget. */
+  private recordBanditArmAsync(controlObject: ControlObjectV1): void {
+    if (!isBanditsEnabled()) return;
+    const pid = controlObject.context.phase_id;
+    if (pid === 'recon' || pid === 'strategy') return;
+    const metrics = controlObject.agent_performance;
+    if (!metrics) return;
+    const variantId = controlObject.context.selected_variant_id ?? DEFAULT_VARIANT_ID;
+    void banditService.recordArmResult(pid as DomainKey, variantId, metrics.agent_score);
+  }
+
   /** Best-effort async agent performance recording — never throws. */
   private async recordPerformanceAsync(controlObject: ControlObjectV1, phase: number): Promise<void> {
     try {
@@ -165,22 +265,57 @@ export class PipelineOrchestrator {
 
   /** Returns true only when auto-loop is enabled and the current environment is allowed. */
   private async shouldAttemptAutoLoop(): Promise<boolean> {
-    const cfg = SYSTEM_DEFAULTS.autoLoop;
-    if (!cfg.enabled) return false;
+    if (!isAutoLoopEnabled()) return false;
 
     // Check execution environment against allowedModes
-    const env = process.env.NODE_ENV ?? 'production';
-    if (!cfg.allowedModes.includes(env)) {
+    const env = process.env.NODE_ENV?.trim();
+    if (!env) {
+      logger.warn('pipeline.auto_loop_skipped_missing_env', {
+        component: 'pipeline',
+        audit_id: this.auditId,
+        env,
+      });
+      return false;
+    }
+    const allowedModes = getAutoLoopAllowedModes();
+    if (!allowedModes.includes(env)) {
       logger.info('pipeline.auto_loop_skipped_env', {
         component: 'pipeline',
         audit_id: this.auditId,
         env,
-        allowed: cfg.allowedModes,
+        allowed: allowedModes,
       });
       return false;
     }
 
     return true;
+  }
+
+  /**
+   * Estimates rerun cost from the latest token_usage event for this phase.
+   * Falls back to a conservative model-based estimate when historical usage is unavailable.
+   */
+  private async estimateRerunCostUsd(phase: number): Promise<number> {
+    const { data: tokenUsageEvent } = await supabase
+      .from('pipeline_events')
+      .select('data')
+      .eq('audit_id', this.auditId)
+      .eq('phase', phase)
+      .eq('event_type', 'token_usage')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const eventCost = (tokenUsageEvent?.data as { cost_usd?: unknown } | null)?.cost_usd;
+    if (typeof eventCost === 'number' && Number.isFinite(eventCost) && eventCost > 0) {
+      return roundTokenCostUsd(eventCost);
+    }
+
+    const pricing = getModelPricing(CLAUDE_MODEL);
+    const conservativeFallback =
+      (MODEL_MAX_TOKENS.domain / 1_000_000) * pricing.input +
+      (MODEL_MAX_TOKENS.domain / 1_000_000) * pricing.output;
+    return roundTokenCostUsd(conservativeFallback);
   }
 
   /**
@@ -234,7 +369,7 @@ export class PipelineOrchestrator {
 
     for (let iteration = 1; iteration <= cfg.maxIterations; iteration++) {
       // Cost guardrail: estimate and check before rerun
-      const estimatedRerunCostUsd = 0.02; // conservative per-phase Claude Sonnet estimate
+      const estimatedRerunCostUsd = await this.estimateRerunCostUsd(phase);
       const rerunCostSoFar = (currentControlObject.cost_control?.total_rerun_cost_usd ?? 0);
       const projectedTotal = rerunCostSoFar + estimatedRerunCostUsd;
 
@@ -267,6 +402,16 @@ export class PipelineOrchestrator {
         );
 
         const agent = new AgentClass(this.auditId);
+        // Inject bandit variant for the auto-loop rerun (same bandit selection as initial run)
+        {
+          const banditResult = await banditService.selectVariant(domainKey as DomainKey);
+          agent.selectedVariantId = banditResult.variant_id;
+          if (banditResult.variant_id !== DEFAULT_VARIANT_ID) {
+            const variant = findVariant(domainKey as DomainKey, banditResult.variant_id);
+            if (variant) agent.variantDelta = variant;
+          }
+        }
+        await this.attachPriorControlObjects(agent, domainKey as DomainKey);
         // Inject instruction patches via agent property (BaseAgent reads this in buildInstructions)
         if ('autoLoopAdjustments' in agent) {
           (agent as BaseAgent & { autoLoopAdjustments?: Map<number, string> }).autoLoopAdjustments = adjustments;
@@ -289,6 +434,35 @@ export class PipelineOrchestrator {
         const rerunDecision = decisionLayer.decide(rerunControlObject);
         rerunControlObject.decision_hint = rerunDecision.hint;
 
+        const remediated = await applyAutoRemediation({
+          auditId: this.auditId,
+          controlObject: rerunControlObject,
+          cleanedOutput: rerunResult,
+          phaseNumber: phase,
+          disableAutoRemediate: this.disableAutoRemediate,
+        });
+        if (remediated > 0) {
+          try {
+            const postRem = decisionLayer.decide(rerunControlObject);
+            rerunControlObject.decision_hint = postRem.hint;
+          } catch (reDecideErr) {
+            logger.warn('pipeline.remediation_redecide_failed', {
+              component: 'pipeline',
+              audit_id: this.auditId,
+              phase,
+              error: reDecideErr instanceof Error ? reDecideErr.message : String(reDecideErr),
+            });
+          }
+          await this.emitEvent(
+            phase,
+            'log',
+            `Auto-remediation: corrected ${remediated} issue(s).`,
+            { auto_remediation_count: remediated },
+          );
+        }
+
+        await attachBenchmarkReferenceToControlObject(this.auditId, rerunControlObject);
+
         // Record evaluation dataset for the rerun
         await recordEvaluationDatasetIfEnabled({
           auditId: this.auditId,
@@ -297,6 +471,8 @@ export class PipelineOrchestrator {
           rawAgentOutput: (agent as BaseAgent).lastRawDomainResult,
           cleanedOutput: rerunResult,
         });
+
+        void this.recordBanditArmAsync(rerunControlObject);
 
         await this.emitEvent(phase, 'control_object', '', { control_object: rerunControlObject });
 
@@ -356,7 +532,7 @@ export class PipelineOrchestrator {
     await this.emitEvent(
       phase,
       'refine_recommended',
-      oc.phase.refineRecommendedMessage ?? 'Auto-loop exhausted. Decision Layer recommends manual review.',
+      oc.phase.refineRecommendedMessage,
       {
         decision_hint: 'refine',
         reasoning: `Auto-loop ran ${cfg.maxIterations} iteration(s) without reaching accept threshold.`,
@@ -435,6 +611,15 @@ export class PipelineOrchestrator {
 
       // Run the agent
       const agent = new AgentClass(this.auditId);
+      if (domainKey !== 'recon' && domainKey !== 'strategy') {
+        const banditResult = await banditService.selectVariant(domainKey as DomainKey);
+        agent.selectedVariantId = banditResult.variant_id;
+        if (banditResult.variant_id !== DEFAULT_VARIANT_ID) {
+          const variant = findVariant(domainKey as DomainKey, banditResult.variant_id);
+          if (variant) agent.variantDelta = variant;
+        }
+        await this.attachPriorControlObjects(agent, domainKey as DomainKey);
+      }
       const result = await agent.run();
 
       if (domainKey !== 'recon' && domainKey !== 'strategy') {
@@ -444,11 +629,8 @@ export class PipelineOrchestrator {
         // Phase 5 activates auto-loop via AUTO_LOOP_ENABLED flag.
         const controlObject = (agent as BaseAgent).lastControlObject;
         if (controlObject) {
-          await this.publishControlObjectGovernance(phase, controlObject);
-          await recordEvaluationDatasetIfEnabled({
-            auditId: this.auditId,
+          await this.publishControlObjectGovernance(phase, controlObject, {
             phaseId: domainKey as DomainKey,
-            controlObject,
             rawAgentOutput: (agent as BaseAgent).lastRawDomainResult,
             cleanedOutput: result,
           });
@@ -530,17 +712,23 @@ export class PipelineOrchestrator {
       }
 
       const agent = new AgentClass(this.auditId);
+      if (domainKey !== 'recon' && domainKey !== 'strategy') {
+        const banditResult = await banditService.selectVariant(domainKey as DomainKey);
+        agent.selectedVariantId = banditResult.variant_id;
+        if (banditResult.variant_id !== DEFAULT_VARIANT_ID) {
+          const variant = findVariant(domainKey as DomainKey, banditResult.variant_id);
+          if (variant) agent.variantDelta = variant;
+        }
+        await this.attachPriorControlObjects(agent, domainKey as DomainKey);
+      }
       const result = await agent.run();
 
       if (domainKey !== 'recon' && domainKey !== 'strategy') {
         // ─── Decision Layer (isolated path — same advisory logic) ──
         const controlObject = (agent as BaseAgent).lastControlObject;
         if (controlObject) {
-          await this.publishControlObjectGovernance(phase, controlObject);
-          await recordEvaluationDatasetIfEnabled({
-            auditId: this.auditId,
+          await this.publishControlObjectGovernance(phase, controlObject, {
             phaseId: domainKey as DomainKey,
-            controlObject,
             rawAgentOutput: (agent as BaseAgent).lastRawDomainResult,
             cleanedOutput: result,
           });

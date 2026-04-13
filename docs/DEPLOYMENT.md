@@ -31,8 +31,8 @@ Values that are **secrets, connectivity, or deploy wiring** — not product defa
 
 ## Supabase Setup
 
-1. Create project at [supabase.com](https://supabase.com) — choose **EU (Frankfurt)** region for GDPR compliance
-2. In SQL Editor → run **all** SQL migrations in numeric order through the latest file in `server/migrations/`; see [DATABASE.md](./DATABASE.md#overview)
+1. Create project at [supabase.com](https://supabase.com) — choose **EU (Frankfurt)** region for GDPR compliance (**Needs Review:** pick the region your org requires).
+2. **Schema:** apply migrations exactly as described in [DATABASE.md — Overview](./DATABASE.md#overview) (ordered list through latest `server/migrations/*.sql`). Do not duplicate that sequence here.
 3. Authentication → Settings:
    - Set **Site URL** to your production frontend URL (exact URL; wildcards are invalid here)
    - Add **Redirect URLs**: exact dev/prod origins and `/login` URLs as needed — see [AUTH.md](./AUTH.md#supabase-auth-configuration) (some dashboards reject `*` wildcards)
@@ -225,7 +225,7 @@ Client analytics batching, TanStack Query defaults, and HTTP client timeouts are
 | `NODE_ENV` | `production` |
 | `FRONTEND_URL` | Canonical SPA origin (no trailing slash), e.g. `https://your-app.vercel.app` — **required when `NODE_ENV=production`** (process exits at startup if missing). Used for absolute intake links and merged into CORS allowlist. |
 | `GLC_PUBLIC_SITE_URL` | **Required when `NODE_ENV=production`.** HTTPS origin (no trailing slash) embedded in crawler/snapshot user-agents. In development, defaults to `https://glctech.es` if unset. |
-| `NO_PUBLIC_WEBSITE_URL` | **Required when `NODE_ENV=production`.** Sentinel for no-public-website audits; must match **`VITE_NO_PUBLIC_WEBSITE_URL`** on the SPA when that Vite var is set. |
+| `NO_PUBLIC_WEBSITE_URL` | Not an env var. Build/runtime shared constant from `@glc/intake-core` (derived from `@glc/dev-brand-defaults` JSON sentinel). |
 | `ALLOWED_ORIGINS` | `https://your-app.vercel.app` (comma-separated; merged with `FRONTEND_URL`) |
 | `RATE_LIMIT_REDIS_URL` | Redis URL for shared rate-limit counters (required for multi-instance consistency) |
 | `STRICT_RATE_LIMIT_REDIS` | `true` to fail startup when Redis for rate limits is missing |
@@ -248,7 +248,7 @@ Client analytics batching, TanStack Query defaults, and HTTP client timeouts are
 ### Minimum secure production baseline
 
 - Required:
-  - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ANTHROPIC_API_KEY`, `ALLOWED_ORIGINS`, `NODE_ENV=production`
+  - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ANTHROPIC_API_KEY`, `NODE_ENV=production`
   - `FRONTEND_URL` (required by startup guard when `NODE_ENV=production`)
   - `GLC_PUBLIC_SITE_URL` (required by startup guard and bot identity when `NODE_ENV=production`)
   - `RATE_LIMIT_REDIS_URL` (for shared public abuse controls in multi-instance runtime)

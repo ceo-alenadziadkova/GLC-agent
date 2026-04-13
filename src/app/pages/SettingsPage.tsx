@@ -24,6 +24,11 @@ import {
 } from '../lib/client-brief-layout-preference';
 import { SETTINGS_SELF_SERVE_COPY } from '../config/settings-self-serve-copy.en';
 import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
+import { SETTINGS_PAGE_DEFAULTS } from '../config/settings-page-defaults';
+
+function renderCopyTemplate(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_m, key: string) => String(vars[key] ?? ''));
+}
 
 type NotificationPrefs = {
   auditStatusReminders: boolean;
@@ -112,7 +117,7 @@ export function SettingsPage() {
       .catch(() => {
         if (cancelled) return;
         setSelfServe(null);
-        toast.error('Could not load client portal assignment');
+        toast.error(WORKSPACE_PAGE_COPY.settings.loadAssignmentFailed);
       })
       .finally(() => {
         if (!cancelled) setSelfServeLoading(false);
@@ -123,7 +128,7 @@ export function SettingsPage() {
   }, [isConsultant, profile?.id]);
 
   useEffect(() => {
-    if (window.location.hash !== '#brief-layout') {
+    if (window.location.hash !== SETTINGS_PAGE_DEFAULTS.scrollAnchorHash) {
       return;
     }
     const t = window.setTimeout(() => {
@@ -151,9 +156,9 @@ export function SettingsPage() {
     try {
       await api.patchProfile({ full_name: normalizedName });
       await refetch();
-      toast.success('Profile updated');
+      toast.success(WORKSPACE_PAGE_COPY.settings.profileUpdated);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to update profile';
+      const message = error instanceof Error ? error.message : WORKSPACE_PAGE_COPY.settings.profileUpdateFailed;
       toast.error(message);
     } finally {
       setSavingName(false);
@@ -161,12 +166,16 @@ export function SettingsPage() {
   };
 
   const changePassword = async () => {
-    if (newPassword.length < 8) {
-      toast.error('Password must be at least 8 characters');
+    if (newPassword.length < SETTINGS_PAGE_DEFAULTS.minPasswordChars) {
+      toast.error(
+        renderCopyTemplate(WORKSPACE_PAGE_COPY.settings.passwordMinLengthError, {
+          min: SETTINGS_PAGE_DEFAULTS.minPasswordChars,
+        }),
+      );
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast.error('Passwords do not match');
+      toast.error(WORKSPACE_PAGE_COPY.settings.passwordMismatch);
       return;
     }
 
@@ -184,7 +193,7 @@ export function SettingsPage() {
       }
       setNewPassword('');
       setConfirmPassword('');
-      toast.success('Password updated');
+      toast.success(WORKSPACE_PAGE_COPY.settings.passwordUpdated);
     } finally {
       setSavingPassword(false);
     }
@@ -193,11 +202,11 @@ export function SettingsPage() {
   const changeEmail = async () => {
     const trimmed = newEmail.trim().toLowerCase();
     if (!trimmed || !trimmed.includes('@')) {
-      toast.error('Enter a valid email address');
+      toast.error(WORKSPACE_PAGE_COPY.settings.emailInvalid);
       return;
     }
     if (trimmed === (user?.email ?? '').toLowerCase()) {
-      toast.error('That is already your current email');
+      toast.error(WORKSPACE_PAGE_COPY.settings.emailAlreadyCurrent);
       return;
     }
     setSavingEmail(true);
@@ -217,7 +226,10 @@ export function SettingsPage() {
   const studioTabEnabled = isQuestionBankStudioEnabled() && isConsultant;
 
   const [settingsTab, setSettingsTab] = useState<'general' | 'bank-studio'>(() => {
-    if (typeof window !== 'undefined' && window.location.hash.replace(/^#/, '') === 'question-bank-studio') {
+    if (
+      typeof window !== 'undefined' &&
+      window.location.hash.replace(/^#/, '') === SETTINGS_PAGE_DEFAULTS.questionBankStudioHash
+    ) {
       return 'bank-studio';
     }
     return 'general';
@@ -225,7 +237,7 @@ export function SettingsPage() {
 
   useEffect(() => {
     if (!studioTabEnabled) return;
-    if (window.location.hash.replace(/^#/, '') === 'question-bank-studio') {
+    if (window.location.hash.replace(/^#/, '') === SETTINGS_PAGE_DEFAULTS.questionBankStudioHash) {
       setSettingsTab('bank-studio');
     }
   }, [studioTabEnabled]);
@@ -235,7 +247,7 @@ export function SettingsPage() {
     setSettingsTab(next);
     const base = window.location.pathname + window.location.search;
     if (next === 'bank-studio') {
-      window.history.replaceState(null, '', `${base}#question-bank-studio`);
+      window.history.replaceState(null, '', `${base}#${SETTINGS_PAGE_DEFAULTS.questionBankStudioHash}`);
     } else {
       window.history.replaceState(null, '', base);
     }
@@ -453,9 +465,10 @@ export function SettingsPage() {
                               }
                             : prev,
                         );
-                        toast.success('Assignment updated');
+                        toast.success(WORKSPACE_PAGE_COPY.settings.assignmentUpdated);
                       } catch (e) {
-                        const msg = e instanceof Error ? e.message : 'Could not save assignment';
+                        const msg =
+                          e instanceof Error ? e.message : WORKSPACE_PAGE_COPY.settings.assignmentUpdateFailed;
                         toast.error(msg);
                       } finally {
                         setSelfServeSaving(false);

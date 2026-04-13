@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { IntakePlan } from '@glc/intake-core';
 import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import { computeBranchUpstreamIds } from './intake-trace-branch-links';
-import { trackIntakeWordingReviewExported } from '../../lib/intake-trace-tool-telemetry';
+import { trackIntakeWordingReviewExported } from '../../lib/intake-workspace-telemetry';
+import { UI_INTAKE_TRACE_GRAPH } from '../../config/ui-semantic-colors';
 
 interface NodePos {
   id: string;
@@ -33,17 +34,18 @@ function statusFor(id: string, plan: IntakePlan): 'required' | 'visible' | 'defe
 }
 
 function statusColors(status: ReturnType<typeof statusFor>): { fill: string; stroke: string; text: string } {
+  const p = UI_INTAKE_TRACE_GRAPH.nodeByStatus;
   switch (status) {
     case 'required':
-      return { fill: '#7c4a03', stroke: '#f59e0b', text: '#fef3c7' };
+      return p.required;
     case 'visible':
-      return { fill: '#0b3f5c', stroke: '#38bdf8', text: '#e0f2fe' };
+      return p.visible;
     case 'deferred':
-      return { fill: '#3b1f59', stroke: '#a78bfa', text: '#f3e8ff' };
+      return p.deferred;
     case 'hidden':
-      return { fill: '#2f2f34', stroke: '#71717a', text: '#f4f4f5' };
+      return p.hidden;
     default:
-      return { fill: '#1f2937', stroke: '#94a3b8', text: '#e2e8f0' };
+      return p.other;
   }
 }
 
@@ -478,8 +480,8 @@ export function IntakeTraceEdgeGraph({
     return { positions, width, height };
   }, [visibleLayers]);
 
-  const edgeStroke = '#64748b';
-  const focusEdgeStroke = '#38bdf8';
+  const edgeStroke = UI_INTAKE_TRACE_GRAPH.edgeStroke;
+  const focusEdgeStroke = UI_INTAKE_TRACE_GRAPH.focusEdgeStroke;
 
   const exportSvg = () => {
     const svg = svgRef.current;
@@ -593,7 +595,7 @@ export function IntakeTraceEdgeGraph({
     link.remove();
     URL.revokeObjectURL(url);
     trackIntakeWordingReviewExported({
-      route: typeof window !== 'undefined' ? window.location.pathname : '/admin/intake-trace',
+      route: typeof window !== 'undefined' ? window.location.pathname : '/admin/intake-wording',
     });
   };
 
@@ -819,7 +821,13 @@ export function IntakeTraceEdgeGraph({
                   width={nodeWidth}
                   height={nodeHeight}
                   fill={colors.fill}
-                  stroke={selected ? '#34d399' : focused ? '#22d3ee' : colors.stroke}
+                  stroke={
+                    selected
+                      ? UI_INTAKE_TRACE_GRAPH.selectedEdgeStroke
+                      : focused
+                        ? UI_INTAKE_TRACE_GRAPH.focusedAlternateEdgeStroke
+                        : colors.stroke
+                  }
                   strokeWidth={selected ? 3 : focused ? 2.6 : 1.4}
                 />
                 <text x={pos.x + 10} y={pos.y + 20} fill={colors.text} fontSize={11} fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">

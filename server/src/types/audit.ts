@@ -310,6 +310,15 @@ export interface EvidenceRef {
   finding: string;
 }
 
+/**
+ * Optional cross-phase premise link (Phase 8 causal DAG).
+ * `phase_id` must be a known pipeline phase; `claim_id` is 1-based within that phase's CONTROL_OBJECT issues.
+ */
+export interface AuditIssuePremiseRef {
+  phase_id: string;
+  claim_id: number;
+}
+
 export interface AuditIssue {
   id: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
@@ -322,6 +331,11 @@ export interface AuditIssue {
   evidence_refs: EvidenceRef[];
   /** Where the finding data came from. */
   data_source: DataSource;
+  /**
+   * When FEATURE_CAUSAL_DAG is enabled, links this finding to prior-phase claims it builds on.
+   * Omitted in most runs until prompts teach the model to populate it.
+   */
+  premise_refs?: AuditIssuePremiseRef[];
 }
 
 export interface Recommendation {

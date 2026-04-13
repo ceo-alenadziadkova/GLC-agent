@@ -35,3 +35,6 @@ export const SNAPSHOT_COMPARE_MAX_PER_HOUR = RL.snapshotCompareMaxPerHour;
 export const SNAPSHOT_COMPARE_WINDOW_MS = RL.snapshotCompareWindowHours * HOUR_MS;
 
 export const SNAPSHOT_LOG_INGEST_MAX_PER_MIN = RL.snapshotLogIngestMaxPerMin;
+
+export const RATE_LIMIT_BENCHMARK_RECOMPUTE_MAX_PER_WINDOW = RL.benchmarkRecomputeMaxPerHour;
+export const RATE_LIMIT_BENCHMARK_RECOMPUTE_WINDOW_MS = HOUR_MS;

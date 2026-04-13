@@ -29,7 +29,6 @@ export const APP_ROUTE_SEGMENTS = {
   adminRequests: 'admin/requests',
   adminSnapshots: 'admin/snapshots',
   adminDiscovery: 'admin/discovery',
-  adminIntakeTrace: 'admin/intake-trace',
   adminIntakeWording: 'admin/intake-wording',
   adminQuestionBankStudio: 'admin/question-bank-studio',
   pipelineById: 'pipeline/:id',

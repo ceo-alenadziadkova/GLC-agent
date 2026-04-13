@@ -3,26 +3,40 @@ import { factCheckerCopy, interpolateFactCheckerMessage } from '../config/fact-c
 import type { DomainResult, DomainKey, ConfidenceLevel } from '../types/audit.js';
 import {
   createControlObjectV1,
+  CONTROL_OBJECT_VERSIONS_CAUSAL_DAG,
   type ControlObjectV1,
   type PhaseId,
   type ExecutionMode,
+  type ControlObjectCausalChainEntry,
+  type ControlObjectCausalClaimRef,
 } from '../schemas/control-object.js';
+import { isCausalDagEnabled } from '../config/feature-flags.js';
+import { isStrictlyBeforePhase, isKnownPhaseId } from '../config/phase-order.js';
+import { logger } from './logger.js';
 import {
-  getPhaseProfile,
   mapDataSourceToTruthSource,
+  getHighestPrioritySource,
+  normalizeTruthSourcesList,
+  type TruthSourceId,
 } from '../config/truth-registry.js';
+import { getExtendedPhaseProfile } from '../config/phase-profiles.js';
 import {
   feasibilityLayer,
   type BriefSnapshot,
 } from './feasibility-layer.js';
-import {
-  getConfidenceWeights,
-  computeWeightedConfidence,
-} from '../config/phase-confidence-weights.js';
+import { computeWeightedConfidence } from '../config/phase-confidence-weights.js';
 import { applyExecutionMode } from '../config/safety-mode.js';
-import { computePerformanceMetrics, MIN_EVALUATION_COUNT } from './agent-performance.js';
+import { computePerformanceMetrics } from './agent-performance.js';
+import type { ConnectorRunResult } from './connector-runner.js';
 
 const T = FACT_CHECKER_THRESHOLDS;
+
+/** Optional governance fields populated from audit row + pipeline (CONTROL_OBJECT v2.1+). */
+export interface BuildControlObjectGovernanceInput {
+  riskProfile?: 'low' | 'medium' | 'high' | 'enterprise' | null;
+  /** Bandit-selected variant id, including `default` when exploration uses the baseline arm. */
+  selectedVariantId?: string;
+}
 
 export interface FactCheckResult {
   result: DomainResult;
@@ -40,11 +54,46 @@ export interface FactCorrection {
   corrected_value?: unknown;
 }
 
+type DomainCollectorCheck = (
+  self: FactChecker,
+  result: DomainResult,
+  collected: Record<string, Record<string, unknown>>,
+  corrections: FactCorrection[],
+) => void;
+
+function dedupeCausalRefs(refs: ControlObjectCausalClaimRef[]): ControlObjectCausalClaimRef[] {
+  const seen = new Set<string>();
+  const out: ControlObjectCausalClaimRef[] = [];
+  for (const r of refs) {
+    const k = `${r.phase_id}:${r.claim_id}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(r);
+  }
+  return out;
+}
+
 /**
  * Validates Claude's analysis against raw collected data.
  * Catches hallucinations and score inconsistencies.
  */
 export class FactChecker {
+  /**
+   * Per-domain hooks that run collector-backed checks before global consistency rules.
+   * Phases without entries (e.g. marketing_utp, automation_processes) rely on qualitative analysis only.
+   */
+  private static readonly domainCollectorChecks: Partial<Record<DomainKey, DomainCollectorCheck>> = {
+    security_compliance: (self, result, collected, corrections) =>
+      self.checkSecurity(result, collected, corrections),
+    seo_digital: (self, result, collected, corrections) => self.checkSeo(result, collected, corrections),
+    tech_infrastructure: (self, result, collected, corrections) => self.checkTech(result, collected, corrections),
+    ux_conversion: (self, result, collected, corrections) => self.checkUx(result, collected, corrections),
+    marketing_utp: (self, result, collected, corrections) =>
+      self.checkMarketing(result, collected, corrections),
+    automation_processes: (self, result, collected, corrections) =>
+      self.checkAutomation(result, collected, corrections),
+  };
+
   verify(
     result: DomainResult,
     domainKey: DomainKey,
@@ -52,23 +101,9 @@ export class FactChecker {
   ): FactCheckResult {
     const corrections: FactCorrection[] = [];
 
-    // Domain-specific checks
-    switch (domainKey) {
-      case 'security_compliance':
-        this.checkSecurity(result, collectedData, corrections);
-        break;
-      case 'seo_digital':
-        this.checkSeo(result, collectedData, corrections);
-        break;
-      case 'tech_infrastructure':
-        this.checkTech(result, collectedData, corrections);
-        break;
-      case 'ux_conversion':
-        this.checkUx(result, collectedData, corrections);
-        break;
-      default:
-        // Marketing and Automation rely more on qualitative analysis
-        break;
+    const domainHook = FactChecker.domainCollectorChecks[domainKey];
+    if (domainHook) {
+      domainHook(this, result, collectedData, corrections);
     }
 
     // General checks
@@ -92,8 +127,9 @@ export class FactChecker {
     const secData = collected['security_headers'];
     if (!secData) return;
 
-    const ssl = secData.ssl as { valid: boolean } | undefined;
+    const ssl = secData.ssl as { valid: boolean; redirects_to_https?: boolean } | undefined;
     const headers = secData.headers as Array<{ name: string; present: boolean }> | undefined;
+    const cookies = secData.cookies as { issues?: string[] } | undefined;
 
     const secCopy = factCheckerCopy().security;
     if (ssl && !ssl.valid) {
@@ -104,6 +140,19 @@ export class FactChecker {
         action: 'override',
         original_value: result.score,
         corrected_value: Math.min(result.score, T.security.invalidSslMaxScore),
+      });
+    }
+
+    if (
+      ssl?.valid &&
+      ssl.redirects_to_https === false &&
+      result.score >= T.security.missingCriticalHeadersFlagMinScore
+    ) {
+      corrections.push({
+        field: 'score',
+        issue: secCopy.noHttpsRedirectIssue,
+        raw_evidence: secCopy.noHttpsRedirectRawEvidence,
+        action: 'flag',
       });
     }
 
@@ -129,6 +178,64 @@ export class FactChecker {
           action: 'flag',
         });
       }
+
+      const missingBaseline = headers.filter(h =>
+        ['X-Content-Type-Options', 'X-Frame-Options', 'Referrer-Policy', 'Permissions-Policy'].includes(h.name) &&
+        !h.present
+      );
+
+      if (
+        missingBaseline.length >= T.security.baselineHeadersMinCount &&
+        result.score >= T.security.missingCriticalHeadersFlagMinScore
+      ) {
+        corrections.push({
+          field: 'score',
+          issue: interpolateFactCheckerMessage(secCopy.baselineHeadersIssueTemplate, {
+            count: missingBaseline.length,
+          }),
+          raw_evidence: interpolateFactCheckerMessage(secCopy.baselineHeadersRawEvidenceTemplate, {
+            names: missingBaseline.map(h => h.name).join(', '),
+          }),
+          action: 'flag',
+        });
+      }
+
+      const hygieneFailures = headers.filter(h =>
+        ['X-Powered-By (should be absent)', 'Server (should be minimal)'].includes(h.name) && !h.present
+      );
+
+      if (
+        hygieneFailures.length >= T.security.hygieneHeadersMinCount &&
+        result.score >= T.security.missingCriticalHeadersFlagMinScore
+      ) {
+        corrections.push({
+          field: 'score',
+          issue: interpolateFactCheckerMessage(secCopy.headerHygieneIssueTemplate, {
+            count: hygieneFailures.length,
+          }),
+          raw_evidence: interpolateFactCheckerMessage(secCopy.headerHygieneRawEvidenceTemplate, {
+            names: hygieneFailures.map(h => h.name).join(', '),
+          }),
+          action: 'flag',
+        });
+      }
+    }
+
+    const cookieIssues = cookies?.issues ?? [];
+    if (
+      cookieIssues.length >= T.security.cookieIssuesMinCount &&
+      result.score >= T.security.missingCriticalHeadersFlagMinScore
+    ) {
+      corrections.push({
+        field: 'score',
+        issue: interpolateFactCheckerMessage(secCopy.cookieFlagsIssueTemplate, {
+          count: cookieIssues.length,
+        }),
+        raw_evidence: interpolateFactCheckerMessage(secCopy.cookieFlagsRawEvidenceTemplate, {
+          issues: cookieIssues.slice(0, 3).join(' | '),
+        }),
+        action: 'flag',
+      });
     }
   }
 
@@ -141,8 +248,12 @@ export class FactChecker {
     if (!seoData) return;
 
     const sitemap = seoData.sitemap as { exists: boolean } | undefined;
-    const robotsTxt = seoData.robots_txt as { exists: boolean } | undefined;
+    const robotsTxt = seoData.robots_txt as { exists: boolean; issues?: string[] } | undefined;
     const pageAnalysis = seoData.page_analysis as { issues: string[]; meta_coverage: { with_description: number; total: number } } | undefined;
+    const openGraph = seoData.open_graph as {
+      pages_with_structured_data: number;
+      total_pages: number;
+    } | undefined;
     const seoCopy = factCheckerCopy().seo;
 
     // Can't score 5 without sitemap
@@ -182,6 +293,43 @@ export class FactChecker {
         });
       }
     }
+
+    const robotsIssues = robotsTxt?.issues ?? [];
+    if (
+      robotsIssues.length > T.seo.maxRobotsIssuesCount &&
+      result.score >= T.seo.metaDescriptionFlagMinScore
+    ) {
+      corrections.push({
+        field: 'score',
+        issue: interpolateFactCheckerMessage(seoCopy.robotsIssuesDetectedIssueTemplate, {
+          count: robotsIssues.length,
+        }),
+        raw_evidence: interpolateFactCheckerMessage(seoCopy.robotsIssuesDetectedRawEvidenceTemplate, {
+          issues: robotsIssues.slice(0, 3).join(' | '),
+        }),
+        action: 'flag',
+      });
+    }
+
+    if (openGraph && openGraph.total_pages > 0) {
+      const structuredCoverage = openGraph.pages_with_structured_data / openGraph.total_pages;
+      if (
+        structuredCoverage < T.seo.minStructuredDataCoverage &&
+        result.score >= T.seo.metaDescriptionFlagMinScore
+      ) {
+        corrections.push({
+          field: 'score',
+          issue: interpolateFactCheckerMessage(seoCopy.lowStructuredDataCoverageIssueTemplate, {
+            pct: Math.round(structuredCoverage * 100),
+          }),
+          raw_evidence: interpolateFactCheckerMessage(seoCopy.lowStructuredDataCoverageRawEvidenceTemplate, {
+            with_sd: openGraph.pages_with_structured_data,
+            total: openGraph.total_pages,
+          }),
+          action: 'flag',
+        });
+      }
+    }
   }
 
   private checkTech(
@@ -192,7 +340,15 @@ export class FactChecker {
     const perfData = collected['performance'];
     if (!perfData) return;
 
-    const headers = perfData.headers as { compression: { enabled: boolean }; caching: { has_cache_policy: boolean } } | undefined;
+    const headers = perfData.headers as {
+      compression: { enabled: boolean };
+      caching: { has_cache_policy: boolean };
+      https_available?: boolean;
+    } | undefined;
+    const pageWeights = perfData.page_weights as {
+      avg_load_time_ms: number;
+      lazy_load_coverage: number;
+    } | undefined;
     const techCopy = factCheckerCopy().tech;
 
     if (headers) {
@@ -213,6 +369,51 @@ export class FactChecker {
           action: 'flag',
         });
       }
+
+      if (headers.https_available === false) {
+        if (result.score >= T.tech.flagMinScore) {
+          corrections.push({
+            field: 'score',
+            issue: techCopy.noHttpsIssue,
+            raw_evidence: techCopy.noHttpsRawEvidence,
+            action: 'flag',
+          });
+        }
+      }
+    }
+
+    if (pageWeights) {
+      if (
+        pageWeights.avg_load_time_ms > T.tech.maxAvgLoadTimeMs &&
+        result.score >= T.tech.flagMinScore
+      ) {
+        corrections.push({
+          field: 'score',
+          issue: interpolateFactCheckerMessage(techCopy.slowAverageLoadIssueTemplate, {
+            ms: pageWeights.avg_load_time_ms,
+          }),
+          raw_evidence: interpolateFactCheckerMessage(techCopy.slowAverageLoadRawEvidenceTemplate, {
+            ms: pageWeights.avg_load_time_ms,
+          }),
+          action: 'flag',
+        });
+      }
+
+      if (
+        pageWeights.lazy_load_coverage < T.tech.minLazyLoadCoveragePercent &&
+        result.score >= T.tech.flagMinScore
+      ) {
+        corrections.push({
+          field: 'score',
+          issue: interpolateFactCheckerMessage(techCopy.lowLazyLoadCoverageIssueTemplate, {
+            pct: pageWeights.lazy_load_coverage,
+          }),
+          raw_evidence: interpolateFactCheckerMessage(techCopy.lowLazyLoadCoverageRawEvidenceTemplate, {
+            pct: pageWeights.lazy_load_coverage,
+          }),
+          action: 'flag',
+        });
+      }
     }
   }
 
@@ -225,6 +426,12 @@ export class FactChecker {
     if (!a11y) return;
 
     const imageA11y = a11y.image_accessibility as { alt_coverage_percent: number } | undefined;
+    const headingHierarchy = a11y.heading_hierarchy as {
+      pages_with_no_h1: number;
+      pages_with_broken_hierarchy: number;
+    } | undefined;
+    const pagesAnalyzed = (a11y.pages_analyzed as number | undefined) ?? 0;
+    const structuredDataPresent = a11y.structured_data_present as boolean | undefined;
     const uxCopy = factCheckerCopy().ux;
 
     if (
@@ -239,6 +446,177 @@ export class FactChecker {
         }),
         raw_evidence: interpolateFactCheckerMessage(uxCopy.imageAltRawEvidenceTemplate, {
           pct: imageA11y.alt_coverage_percent,
+        }),
+        action: 'flag',
+      });
+    }
+
+    if (
+      headingHierarchy &&
+      headingHierarchy.pages_with_no_h1 > T.ux.maxPagesWithoutH1 &&
+      result.score >= T.ux.flagMinScore
+    ) {
+      corrections.push({
+        field: 'score',
+        issue: interpolateFactCheckerMessage(uxCopy.pagesWithoutH1IssueTemplate, {
+          count: headingHierarchy.pages_with_no_h1,
+        }),
+        raw_evidence: interpolateFactCheckerMessage(uxCopy.pagesWithoutH1RawEvidenceTemplate, {
+          count: headingHierarchy.pages_with_no_h1,
+        }),
+        action: 'flag',
+      });
+    }
+
+    if (
+      headingHierarchy &&
+      headingHierarchy.pages_with_broken_hierarchy > T.ux.maxBrokenHeadingPages &&
+      result.score >= T.ux.flagMinScore
+    ) {
+      corrections.push({
+        field: 'score',
+        issue: interpolateFactCheckerMessage(uxCopy.brokenHeadingHierarchyIssueTemplate, {
+          count: headingHierarchy.pages_with_broken_hierarchy,
+        }),
+        raw_evidence: interpolateFactCheckerMessage(uxCopy.brokenHeadingHierarchyRawEvidenceTemplate, {
+          count: headingHierarchy.pages_with_broken_hierarchy,
+        }),
+        action: 'flag',
+      });
+    }
+
+    if (
+      pagesAnalyzed > 0 &&
+      structuredDataPresent === false &&
+      result.score >= T.ux.flagMinScore
+    ) {
+      corrections.push({
+        field: 'score',
+        issue: interpolateFactCheckerMessage(uxCopy.lowStructuredDataPresenceIssueTemplate, {
+          pct: 0,
+        }),
+        raw_evidence: interpolateFactCheckerMessage(uxCopy.lowStructuredDataPresenceRawEvidenceTemplate, {
+          with_sd: 0,
+          total: pagesAnalyzed,
+        }),
+        action: 'flag',
+      });
+    }
+  }
+
+  private checkMarketing(
+    result: DomainResult,
+    _collected: Record<string, Record<string, unknown>>,
+    corrections: FactCorrection[]
+  ) {
+    if (result.score < T.marketing.flagMinScore) return;
+
+    const mCopy = factCheckerCopy().marketing;
+    const statements = [
+      ...result.issues.map(i => i.description),
+      ...result.recommendations.map(r => `${r.description} ${r.impact}`),
+    ];
+
+    const hasNumeric = (s: string) => /\d+([.,]\d+)?\s?(%|k|m|b|€|\$)/i.test(s);
+    const hasMarketSize = (s: string) => /\b(tam|sam|som|market size|addressable market)\b/i.test(s);
+    const hasCompetitor = (s: string) => /\b(competitor|market share|category leader)\b/i.test(s);
+    const hasRoi = (s: string) => /\b(roi|return on investment|cac|ltv|conversion uplift)\b/i.test(s);
+    const hasSourceCue = (s: string) => /\b(source|according to|based on|from data)\b/i.test(s);
+
+    const marketSizeClaim = statements.find(s => hasMarketSize(s) && hasNumeric(s) && !hasSourceCue(s));
+    if (marketSizeClaim) {
+      corrections.push({
+        field: 'score',
+        issue: mCopy.marketSizeClaimIssue,
+        raw_evidence: interpolateFactCheckerMessage(mCopy.marketSizeClaimRawEvidenceTemplate, {
+          statement: marketSizeClaim,
+        }),
+        action: 'flag',
+      });
+    }
+
+    const competitorClaim = statements.find(s => hasCompetitor(s) && hasNumeric(s) && !hasSourceCue(s));
+    if (competitorClaim) {
+      corrections.push({
+        field: 'score',
+        issue: mCopy.competitorClaimIssue,
+        raw_evidence: interpolateFactCheckerMessage(mCopy.competitorClaimRawEvidenceTemplate, {
+          statement: competitorClaim,
+        }),
+        action: 'flag',
+      });
+    }
+
+    const roiClaim = statements.find(s => hasRoi(s) && hasNumeric(s) && !hasSourceCue(s));
+    if (roiClaim) {
+      corrections.push({
+        field: 'score',
+        issue: mCopy.roiFigureIssue,
+        raw_evidence: interpolateFactCheckerMessage(mCopy.roiFigureRawEvidenceTemplate, {
+          statement: roiClaim,
+        }),
+        action: 'flag',
+      });
+    }
+  }
+
+  private checkAutomation(
+    result: DomainResult,
+    _collected: Record<string, Record<string, unknown>>,
+    corrections: FactCorrection[]
+  ) {
+    if (result.score < T.automation.flagMinScore) return;
+
+    const aCopy = factCheckerCopy().automation;
+    const statements = [
+      ...result.issues.map(i => i.description),
+      ...result.recommendations.map(r => `${r.description} ${r.impact}`),
+    ];
+
+    const timeSavingPattern = /\b(save|reduce|cut)\b.*\b\d+([.,]\d+)?\s?(hours?|days?|weeks?)\b/i;
+    const toolCapabilityPattern = /\b(seamless integration|real-?time sync|fully automated|no-code integration)\b/i;
+    const roiTimelinePattern = /\b(roi|payback|break[- ]?even)\b.*\b(\d+)\s?(month|months)\b/i;
+    const sourceCuePattern = /\b(source|according to|based on|from data)\b/i;
+
+    const timeSavingClaim = statements.find(s => timeSavingPattern.test(s) && !sourceCuePattern.test(s));
+    if (timeSavingClaim) {
+      corrections.push({
+        field: 'score',
+        issue: aCopy.timeSavingIssue,
+        raw_evidence: interpolateFactCheckerMessage(aCopy.timeSavingRawEvidenceTemplate, {
+          statement: timeSavingClaim,
+        }),
+        action: 'flag',
+      });
+    }
+
+    const toolCapabilityClaim = statements.find(s => toolCapabilityPattern.test(s) && !sourceCuePattern.test(s));
+    if (toolCapabilityClaim) {
+      corrections.push({
+        field: 'score',
+        issue: aCopy.toolCapabilityIssue,
+        raw_evidence: interpolateFactCheckerMessage(aCopy.toolCapabilityRawEvidenceTemplate, {
+          statement: toolCapabilityClaim,
+        }),
+        action: 'flag',
+      });
+    }
+
+    const roiTimelineClaim = statements.find(s => {
+      const m = s.match(roiTimelinePattern);
+      if (!m) return false;
+      const months = Number(m[2]);
+      return Number.isFinite(months) && months <= T.automation.maxQuickRoiMonths && !sourceCuePattern.test(s);
+    });
+    if (roiTimelineClaim) {
+      const months = Number(roiTimelineClaim.match(roiTimelinePattern)?.[2] ?? 0);
+      corrections.push({
+        field: 'score',
+        issue: interpolateFactCheckerMessage(aCopy.roiTimelineIssueTemplate, {
+          months,
+        }),
+        raw_evidence: interpolateFactCheckerMessage(aCopy.roiTimelineRawEvidenceTemplate, {
+          statement: roiTimelineClaim,
         }),
         action: 'flag',
       });
@@ -389,15 +767,40 @@ export class FactChecker {
     phaseNumber: number,
     executionMode: ExecutionMode = 'normal',
     /** v1.7+: brief snapshot for feasibility assessment. Pass {} or omit for phases without brief context. */
-    brief: BriefSnapshot = {}
+    brief: BriefSnapshot = {},
+    governance: BuildControlObjectGovernanceInput = {},
+    /**
+     * v2.2+: Phase 7 external connector enrichments (from ConnectorRunner.runAll()).
+     * Pass [] or omit when no connectors ran (zero-cost — skips enrichment logic entirely).
+     *
+     * Effects on CONTROL_OBJECT:
+     *   - Claims whose issue type matches a confirmed fact type get truth_source elevated to 'external_api'.
+     *   - If all applicable connectors timed out / errored AND the phase has high-risk claims,
+     *     adds 'external_source_unavailable' to human_attention_required.reasons.
+     */
+    connectorEnrichments: ConnectorRunResult[] = [],
+    /**
+     * v2.3+: Latest CONTROL_OBJECT per upstream phase (Phase 8 causal DAG).
+     * Used to validate premise_refs against prior trace.claim_sources.
+     */
+    priorControlObjects: Partial<Record<PhaseId, ControlObjectV1>> = {},
+    /** Claim indices (1-based) pre-flagged as invalidated in audit_claim_graph for this phase. */
+    invalidatedIssueClaimIds: ReadonlySet<number> = new Set(),
   ): ControlObjectV1 {
     const { result, corrections, confidence: factualRaw } = factCheckResult;
 
-    // v1.5: load phase profile for truth_profile_id and domain-specific error types
-    const profile = getPhaseProfile(domainKey);
-    const truthProfileId = profile?.phase_id ?? null;
+    // Extended phase profile: truth profile id, error types, confidence_weights (ADR-PHASE-PROFILES)
+    const profile = getExtendedPhaseProfile(domainKey);
+    const truthProfileId = profile.phase_id;
 
     const co = createControlObjectV1(auditId, domainKey as PhaseId, executionMode, truthProfileId);
+
+    if (governance.riskProfile !== undefined) {
+      co.context.risk_profile = governance.riskProfile;
+    }
+    if (governance.selectedVariantId !== undefined) {
+      co.context.selected_variant_id = governance.selectedVariantId;
+    }
 
     // ─── Counts ───────────────────────────────────────────────
     const issues = result.issues ?? [];
@@ -414,6 +817,8 @@ export class FactChecker {
     co.counts.opinion = opinionCount;
     co.counts.total_claims = factCount + hypothesisCount + opinionCount;
 
+    const coh = FACT_CHECKER_THRESHOLDS.controlObjectHeuristics;
+
     // ─── Statuses ─────────────────────────────────────────────
     // Overrides = hard conflicts with evidence → likely_hallucination
     co.counts.statuses.likely_hallucination = corrections.filter(c => c.action === 'override').length;
@@ -424,16 +829,29 @@ export class FactChecker {
     // Brief-sourced issues = confirmed by client context
     co.counts.statuses.confirmed_brief = issues.filter(i => i.data_source === 'from_brief').length;
 
-    // Risky promise detection: look for absolute/guarantee language in issue descriptions
-    const riskyPattern = /\b(guarantee|guaranteed|definitely|certainly|always|never|100%|will increase|will reduce)\b/i;
+    co.counts.statuses.dependent_on_brief_assumption = issues.filter(
+      i => i.data_source === 'from_brief' && i.confidence === 'low',
+    ).length;
+
+    // Risky promise detection: absolute / guarantee language on recommendations
+    const riskyPattern = new RegExp(
+      `\\b(${coh.riskyRecommendationLanguageAlternation})\\b`,
+      'i',
+    );
     co.counts.statuses.risky_promise = recommendations.filter(r =>
       riskyPattern.test(r.description) || riskyPattern.test(r.impact)
     ).length;
 
+    const unknownMax = coh.unknownItemKeyMaxChars;
+    const unknownEllipsis = coh.unknownItemKeyTruncationEllipsis;
+
     // ─── Errors ───────────────────────────────────────────────
     // data_gaps from unknown_items
     for (const item of result.unknown_items ?? []) {
-      const key = item.length > 60 ? item.slice(0, 57) + '...' : item;
+      const key =
+        item.length > unknownMax
+          ? item.slice(0, unknownMax - unknownEllipsis.length) + unknownEllipsis
+          : item;
       co.errors.data_gaps.push(key);
     }
 
@@ -444,15 +862,105 @@ export class FactChecker {
 
     // v1.5: domain-specific structural errors from phase profile
     // If any correction's issue text matches a known error_type pattern, surface it
-    if (profile) {
-      for (const errorType of profile.error_types) {
-        const keyword = errorType.replace(/_/g, ' ');
-        const matchesCorrection = corrections.some(c =>
-          c.issue.toLowerCase().includes(keyword) || c.raw_evidence.toLowerCase().includes(keyword)
+    for (const errorType of profile.error_types) {
+      const keyword = errorType.replace(/_/g, ' ');
+      const matchesCorrection = corrections.some(c =>
+        c.issue.toLowerCase().includes(keyword) || c.raw_evidence.toLowerCase().includes(keyword)
+      );
+      if (matchesCorrection && !co.errors.structural.includes(errorType)) {
+        co.errors.structural.push(errorType);
+      }
+    }
+
+    if (domainKey === 'security_compliance') {
+      const securityHeuristicMappings: Array<{ code: string; needle: string }> = [
+        { code: 'security_https_redirect_gap', needle: 'redirect to https' },
+        { code: 'security_cookie_flag_gap', needle: 'cookie security issue' },
+        { code: 'security_header_hygiene_gap', needle: 'header hygiene issue' },
+        { code: 'security_baseline_header_gap', needle: 'baseline security header' },
+      ];
+      for (const map of securityHeuristicMappings) {
+        const hit = corrections.some(c =>
+          c.issue.toLowerCase().includes(map.needle) || c.raw_evidence.toLowerCase().includes(map.needle)
         );
-        if (matchesCorrection && !co.errors.structural.includes(errorType)) {
-          co.errors.structural.push(errorType);
+        if (hit && !co.errors.structural.includes(map.code)) {
+          co.errors.structural.push(map.code);
         }
+      }
+    }
+
+    if (domainKey === 'seo_digital') {
+      const seoHeuristicMappings: Array<{ code: string; needle: string }> = [
+        { code: 'seo_missing_crawl_evidence', needle: 'robots.txt has' },
+        { code: 'seo_competitor_claim_unverified', needle: 'structured data coverage' },
+      ];
+      for (const map of seoHeuristicMappings) {
+        const hit = corrections.some(c =>
+          c.issue.toLowerCase().includes(map.needle) || c.raw_evidence.toLowerCase().includes(map.needle)
+        );
+        if (hit && !co.errors.structural.includes(map.code)) {
+          co.errors.structural.push(map.code);
+        }
+      }
+    }
+
+    if (domainKey === 'ux_conversion') {
+      const uxHeuristicMappings: Array<{ code: string; needle: string }> = [
+        { code: 'ux_a11y_claim_unchecked', needle: 'missing h1' },
+        { code: 'ux_missing_analytics_evidence', needle: 'broken heading hierarchy' },
+        { code: 'ux_benchmark_unsubstantiated', needle: 'structured data appears on only' },
+      ];
+      for (const map of uxHeuristicMappings) {
+        const hit = corrections.some(c =>
+          c.issue.toLowerCase().includes(map.needle) || c.raw_evidence.toLowerCase().includes(map.needle)
+        );
+        if (hit && !co.errors.structural.includes(map.code)) {
+          co.errors.structural.push(map.code);
+        }
+      }
+    }
+
+    if (domainKey === 'marketing_utp') {
+      const marketingHeuristicMappings: Array<{ code: string; needle: string }> = [
+        { code: 'marketing_market_size_unverified', needle: 'market size claim' },
+        { code: 'marketing_competitor_claim_unsourced', needle: 'competitor claim' },
+        { code: 'marketing_roi_figure_speculative', needle: 'roi figure appears speculative' },
+      ];
+      for (const map of marketingHeuristicMappings) {
+        const hit = corrections.some(c =>
+          c.issue.toLowerCase().includes(map.needle) || c.raw_evidence.toLowerCase().includes(map.needle)
+        );
+        if (hit && !co.errors.structural.includes(map.code)) {
+          co.errors.structural.push(map.code);
+        }
+      }
+    }
+
+    if (domainKey === 'automation_processes') {
+      const automationHeuristicMappings: Array<{ code: string; needle: string }> = [
+        { code: 'automation_time_saving_speculative', needle: 'time-saving estimate appears speculative' },
+        { code: 'automation_tool_capability_unverified', needle: 'tool capability claim appears unverified' },
+        { code: 'automation_roi_timeline_unrealistic', needle: 'roi timeline' },
+      ];
+      for (const map of automationHeuristicMappings) {
+        const hit = corrections.some(c =>
+          c.issue.toLowerCase().includes(map.needle) || c.raw_evidence.toLowerCase().includes(map.needle)
+        );
+        if (hit && !co.errors.structural.includes(map.code)) {
+          co.errors.structural.push(map.code);
+        }
+      }
+    }
+
+    // v2.3: upstream invalidated claims (audit_claim_graph)
+    for (let invIdx = 0; invIdx < issues.length; invIdx++) {
+      if (!invalidatedIssueClaimIds.has(invIdx + 1)) continue;
+      if (!co.errors.structural.includes('upstream_claim_invalidated')) {
+        co.errors.structural.push('upstream_claim_invalidated');
+      }
+      co.human_attention_required.required = true;
+      if (!co.human_attention_required.reasons.includes('upstream_claim_invalidated')) {
+        co.human_attention_required.reasons.push('upstream_claim_invalidated');
       }
     }
 
@@ -466,6 +974,11 @@ export class FactChecker {
       co.errors.fixable.push('risky_promise_language');
     }
 
+    const strategicPattern = new RegExp(coh.strategicInconsistencyStructuralCodePattern, 'i');
+    co.counts.statuses.strategic_inconsistency = co.errors.structural.filter(e =>
+      strategicPattern.test(e),
+    ).length;
+
     // ─── Assumptions (v1.5: with risk + related_claim_ids) ───────────────────
     // Map low-confidence inferred findings → explicit assumptions
     // Build a claim_id lookup keyed by issue title for related_claim_ids
@@ -478,7 +991,7 @@ export class FactChecker {
       const issue = issues[issueIdx];
       if (issue.confidence === 'low' && issue.data_source === 'inferred') {
         // Determine risk based on phase profile default + severity boost
-        const baseRisk = profile?.default_assumption_risk ?? 'low';
+        const baseRisk = profile.default_assumption_risk ?? 'low';
         const risk: 'low' | 'medium' | 'high' =
           issue.severity === 'critical' ? 'high'
           : issue.severity === 'high' ? (baseRisk === 'low' ? 'medium' : baseRisk)
@@ -503,16 +1016,109 @@ export class FactChecker {
     // ─── Trace ────────────────────────────────────────────────
     // Map each issue to a claim source (phase = agent number for v1)
     // v1.5: truth_source resolved via Truth Registry helper (canonical mapping)
+    // v2.1: truth_sources[] lists contributing tiers; truth_source = priority winner
+    // v2.2: merge connector tier (external_api | document_feed) when connector confirmed claim type
+    const highRiskTypes = new Set(profile.high_risk_fact_types);
+
+    const issueTitleMatchesConfirmedType = (title: string, ft: string): boolean =>
+      title.toLowerCase().includes(ft.replace(/_/g, ' '));
+
+    function externalTierForIssue(title: string): TruthSourceId | null {
+      let best: TruthSourceId | null = null;
+      for (const r of connectorEnrichments) {
+        if (r.timed_out || r.error !== null) continue;
+        const hit = r.confirmed_fact_types.some(ft => issueTitleMatchesConfirmedType(title, ft));
+        if (!hit) continue;
+        if (r.source_tier === 'document_feed') {
+          best = 'document_feed';
+          break;
+        }
+        if (r.source_tier === 'external_api') best = 'external_api';
+      }
+      return best;
+    }
+
     for (let i = 0; i < issues.length; i++) {
       const issue = issues[i];
-      const truthSource = mapDataSourceToTruthSource(issue.data_source ?? 'inferred');
+      const baseSource = mapDataSourceToTruthSource(issue.data_source ?? 'inferred');
+      const tiers: TruthSourceId[] = [baseSource];
+      const ext = externalTierForIssue(issue.title);
+      if (ext) tiers.push(ext);
+      const truthSources = normalizeTruthSourcesList(tiers);
+      const truthSource = getHighestPrioritySource(truthSources);
 
       co.trace.claim_sources.push({
         claim_id: i + 1,
         agent: phaseNumber,
         section: `Phase ${phaseNumber} — ${domainKey}`,
         truth_source: truthSource,
+        truth_sources: truthSources,
       });
+    }
+
+    co.counts.statuses.confirmed_external = co.trace.claim_sources.filter(
+      cs => cs.truth_sources.includes('external_api') || cs.truth_sources.includes('document_feed'),
+    ).length;
+
+    // ─── v2.3: Causal chain (FEATURE_CAUSAL_DAG) ─────────────────
+    if (isCausalDagEnabled()) {
+      const chain: ControlObjectCausalChainEntry[] = [];
+      const currentPhase = domainKey as PhaseId;
+
+      for (let issueIdx = 0; issueIdx < issues.length; issueIdx++) {
+        const issue = issues[issueIdx];
+        const rawRefs = issue.premise_refs ?? [];
+        const validRefs: ControlObjectCausalClaimRef[] = [];
+
+        for (const raw of rawRefs) {
+          if (!isKnownPhaseId(raw.phase_id)) {
+            logger.warn('fact_checker.causal_unknown_phase', {
+              component: 'fact_checker',
+              audit_id: auditId,
+              phase_id: domainKey,
+              premise_phase_id: raw.phase_id,
+            });
+            continue;
+          }
+          const premisePhase = raw.phase_id;
+          if (!isStrictlyBeforePhase(premisePhase, currentPhase)) {
+            logger.warn('fact_checker.causal_phase_order_violation', {
+              component: 'fact_checker',
+              audit_id: auditId,
+              phase_id: domainKey,
+              premise_phase_id: premisePhase,
+            });
+            continue;
+          }
+          const prior = priorControlObjects[premisePhase];
+          const sources = prior?.trace?.claim_sources ?? [];
+          const maxId = sources.length > 0 ? Math.max(...sources.map(c => c.claim_id)) : 0;
+          if (raw.claim_id < 1 || raw.claim_id > maxId) {
+            logger.warn('fact_checker.causal_claim_out_of_range', {
+              component: 'fact_checker',
+              audit_id: auditId,
+              phase_id: domainKey,
+              premise_phase_id: premisePhase,
+              claim_id: raw.claim_id,
+              max_claim_id: maxId,
+            });
+            continue;
+          }
+          validRefs.push({ phase_id: premisePhase, claim_id: raw.claim_id });
+        }
+
+        const deduped = dedupeCausalRefs(validRefs);
+        if (deduped.length > 0) {
+          chain.push({ claim_id: issueIdx + 1, depends_on: deduped });
+        }
+      }
+
+      co.trace.causal_chain = chain;
+      co.versions = {
+        ...co.versions,
+        system_version: CONTROL_OBJECT_VERSIONS_CAUSAL_DAG.system_version,
+        fact_checker_version: CONTROL_OBJECT_VERSIONS_CAUSAL_DAG.fact_checker_version,
+      };
     }
 
     // ─── Feasibility (v1.7) ───────────────────────────────────
@@ -530,18 +1136,23 @@ export class FactChecker {
     // strategic: degrade if many unverified recs or risky promises
     const riskyRatio = factCount > 0 ? co.counts.statuses.risky_promise / Math.max(hypothesisCount, 1) : 0;
     const unverifiedRatio = factCount > 0 ? co.counts.statuses.unverified / factCount : 0;
-    const strategic = Math.max(0, Math.round(100 - (riskyRatio * 30) - (unverifiedRatio * 20)));
+    const sc = coh.strategicConfidence;
+    const strategic = Math.max(
+      0,
+      Math.round(100 - (riskyRatio * sc.riskyPromiseMultiplier) - (unverifiedRatio * sc.unverifiedMultiplier)),
+    );
 
     // consistency: degrade if structural errors present
-    const structuralPenalty = co.errors.structural.length * 15;
-    const hallucinationPenalty = co.counts.statuses.likely_hallucination * 20;
+    const cc = coh.consistencyConfidence;
+    const structuralPenalty = co.errors.structural.length * cc.structuralErrorMultiplier;
+    const hallucinationPenalty = co.counts.statuses.likely_hallucination * cc.hallucinationMultiplier;
     const consistency = Math.max(0, 100 - structuralPenalty - hallucinationPenalty);
 
     // feasibility: score × 100
     const feasibilityScore = Math.round(feasibilityResult.score * 100);
 
     // overall: phase-specific weighted formula (replaces simple average from v1.5)
-    const weights = getConfidenceWeights(domainKey);
+    const weights = profile.confidence_weights;
     const overall = computeWeightedConfidence(factual, strategic, consistency, feasibilityScore, weights);
 
     co.confidence = { overall, factual, strategic, consistency, feasibility: feasibilityScore };
@@ -555,22 +1166,25 @@ export class FactChecker {
     const highRiskAssumptionCount = co.assumptions.filter(a => a.risk === 'high').length;
     // also escalate if many medium-risk assumptions accumulate
     const mediumRiskAssumptionCount = co.assumptions.filter(a => a.risk === 'medium').length;
-    const assumptionsEscalate = highRiskAssumptionCount >= 2 || mediumRiskAssumptionCount >= 5;
-    // v1.7: critically low feasibility (≤0.35) also requires human attention
-    const feasibilityTooLow = feasibilityResult.score <= 0.35;
+    const ha = coh.humanAttention;
+    const assumptionsEscalate =
+      highRiskAssumptionCount >= ha.highRiskAssumptionsGte
+      || mediumRiskAssumptionCount >= ha.mediumRiskAssumptionsGte;
+    // v1.7: critically low feasibility also requires human attention
+    const feasibilityTooLow = feasibilityResult.score <= ha.feasibilityScoreMaxInclusive;
 
     if (
-      co.counts.statuses.likely_hallucination >= 3 ||
-      dataGapCount >= 5 ||
+      co.counts.statuses.likely_hallucination >= ha.minLikelyHallucination ||
+      dataGapCount >= ha.minDataGaps ||
       assumptionsEscalate ||
       feasibilityTooLow
     ) {
       co.human_attention_required.required = true;
 
-      if (co.counts.statuses.likely_hallucination >= 3) {
+      if (co.counts.statuses.likely_hallucination >= ha.minLikelyHallucination) {
         co.human_attention_required.reasons.push('high_hallucination_count');
       }
-      if (dataGapCount >= 5) {
+      if (dataGapCount >= ha.minDataGaps) {
         co.human_attention_required.reasons.push('critical_data_gaps');
       }
       if (assumptionsEscalate) {
@@ -578,6 +1192,24 @@ export class FactChecker {
       }
       if (feasibilityTooLow) {
         co.human_attention_required.reasons.push('critically_low_feasibility');
+      }
+    }
+
+    // ─── v2.2: External source unavailability flag ────────────
+    // If connectors were registered and ALL applicable connectors failed/timed out,
+    // AND the phase has high-risk claims, flag for human attention.
+    // Condition: ≥1 connector ran, none succeeded (all timed_out or error), AND
+    //            at least one issue is of a high-risk fact type.
+    if (connectorEnrichments.length > 0) {
+      const allConnectorsFailed = connectorEnrichments.every(r => r.timed_out || r.error !== null);
+      const hasHighRiskIssue = issues.some(issue =>
+        [...highRiskTypes].some(ft => issue.title.toLowerCase().includes(ft.replace(/_/g, ' ')))
+      );
+      if (allConnectorsFailed && hasHighRiskIssue) {
+        co.human_attention_required.required = true;
+        if (!co.human_attention_required.reasons.includes('external_source_unavailable')) {
+          co.human_attention_required.reasons.push('external_source_unavailable');
+        }
       }
     }
 
@@ -602,6 +1234,15 @@ export class FactChecker {
         // single-run snapshot is always marked unreliable until aggregate confirms
         score_reliable: false,
       };
+    }
+
+    // v2.3: seeds for downstream invalidation (exclude propagated upstream_claim_invalidated-only cases)
+    if (isCausalDagEnabled()) {
+      const structuralNative = co.errors.structural.filter(e => e !== 'upstream_claim_invalidated');
+      const hasOverride = corrections.some(c => c.action === 'override');
+      if (structuralNative.length > 0 && hasOverride && issues.length > 0) {
+        co.context.structural_invalidation_claim_ids = issues.map((_, i) => i + 1);
+      }
     }
 
     return co;
