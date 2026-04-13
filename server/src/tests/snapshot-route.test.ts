@@ -468,6 +468,7 @@ describe('POST /api/snapshot', () => {
 
     expect(res.status).toBe(400);
     const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('SNAPSHOT_COMPANY_URL_REQUIRED');
     expect(body.error).toMatch(/company_url/i);
   });
 
@@ -479,6 +480,8 @@ describe('POST /api/snapshot', () => {
     });
 
     expect(res.status).toBe(400);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PUBLIC_URL_INVALID');
   });
 
   it('starts the pipeline asynchronously (does not block response)', async () => {
@@ -520,6 +523,8 @@ describe('POST /api/snapshot', () => {
     });
 
     expect(res.status).toBe(500);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('SNAPSHOT_CREATE_FAILED');
   });
 });
 
@@ -546,12 +551,16 @@ describe('GET /api/snapshot/:token', () => {
     const res = await fetch(`${baseUrl}/api/snapshot/${VALID_TOKEN}`);
 
     expect(res.status).toBe(404);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('SNAPSHOT_NOT_FOUND');
   });
 
   it('returns 400 for obviously invalid (short) tokens', async () => {
     const res = await fetch(`${baseUrl}/api/snapshot/abc`); // Too short
 
     expect(res.status).toBe(400);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('SNAPSHOT_INVALID_TOKEN');
   });
 
   it('returns 410 when snapshot token is expired', async () => {
@@ -567,6 +576,7 @@ describe('GET /api/snapshot/:token', () => {
     const res = await fetch(`${baseUrl}/api/snapshot/${VALID_TOKEN}`);
     expect(res.status).toBe(410);
     const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('SNAPSHOT_TOKEN_EXPIRED');
     expect(body.error).toBe('Snapshot token expired');
   });
 
@@ -832,6 +842,8 @@ describe('POST /api/snapshot/claim', () => {
       body: JSON.stringify({}),
     });
     expect(res.status).toBe(400);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('SNAPSHOT_TOKEN_REQUIRED');
   });
 
   it('returns 404 when audit is not found', async () => {
@@ -842,6 +854,8 @@ describe('POST /api/snapshot/claim', () => {
       body: JSON.stringify({ snapshot_token: CLAIM_TOKEN }),
     });
     expect(res.status).toBe(404);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('SNAPSHOT_NOT_FOUND');
   });
 
   it('returns 410 when claim token is expired', async () => {
@@ -859,6 +873,7 @@ describe('POST /api/snapshot/claim', () => {
     });
     expect(res.status).toBe(410);
     const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('SNAPSHOT_TOKEN_EXPIRED');
     expect(body.error).toBe('Snapshot token expired');
   });
 
@@ -895,6 +910,8 @@ describe('POST /api/snapshot/claim', () => {
       body: JSON.stringify({ snapshot_token: CLAIM_TOKEN }),
     });
     expect(res.status).toBe(409);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('SNAPSHOT_CLAIM_CONFLICT');
     expect(mockAuditsUpdate).not.toHaveBeenCalled();
   });
 

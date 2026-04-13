@@ -202,13 +202,14 @@ Prefer composing with tokens (`bg-background`, `text-foreground`, `border-border
 
 ## Pages
 
-All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` for audit-specific pages.
+Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages include `/`, `/login`, `/snapshot`, package landing pages, `/brief`, `/faq`, `/discovery` aliases, and `/intake/:token`.
 
 | Route | Page | Purpose |
 | --- | --- | --- |
 | `/login` | `Login.tsx` | Email/password + Google OAuth |
-| `/` → redirects | — | Redirect to `/portfolio` |
-| `/portfolio` | `Portfolio.tsx` | List of all audits, KPI bar |
+| `/` | `RootEntry` | Public marketing home or role-based redirect for authenticated users |
+| `/dashboard` | `Dashboard.tsx` | Consultant dashboard (audits + KPI strip) |
+| `/portfolio` | — | Legacy alias redirect to `/dashboard` |
 | `/audit/new` | `NewAudit.tsx` | Create audit form |
 | `/pipeline/:id` | `PipelineMonitor.tsx` | Live pipeline progress |
 | `/audit/:id` | `AuditWorkspace.tsx` | Domain-by-domain results |
@@ -231,7 +232,7 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 - **Sign in** / **Create account** tabs → `signInWithPassword` / `signUp` (see `useAuth`)
 - Google OAuth on `/login` → **`signInWithOAuth`** (`redirectTo: <origin>/login`); optional **`preserveGuestSession`** on `signInWithGoogle` for legacy **`linkIdentity`** flows only
 - After a full (non-anonymous) session is established, if **`glc_pending_snapshot_token`** is set, calls **`api.claimSnapshot`** then clears it (or clears on **404/409/410**)
-- If already authenticated (`useAuth().isAuthenticated`) → redirect to `/portfolio` (or `?next=` / discovery), after the claim step above
+- If already authenticated (`useAuth().isAuthenticated`) → redirect to the role landing (`/dashboard` for consultants, `/portal` for clients) or `?next=`, after the claim step above
 - Email field is rendered with password-manager-friendly semantics (`name="username"`, sign-in `autoComplete="username"`), while sign-up keeps `autoComplete="email"` for account creation UX.
 
 ### `/snapshot` (`SnapshotLanding.tsx`)
@@ -249,12 +250,12 @@ All routes wrapped in `ProtectedRoute` except `/login`. Route params use `:id` f
 - Notification toggles persist locally in `localStorage['glc_notify_prefs_v1']` (no backend sync in MVP)
 - Password-change form includes a hidden read-only `username` field to improve browser password-manager autofill behavior for current-password/new-password fields.
 
-### `Portfolio.tsx`
+### `Dashboard.tsx`
 - Calls `useAudits()` → list of audits from `GET /api/audits`
 - KPI bar: total audits, completed, avg score, recent activity
 - Each card: company name/URL, status badge, overall score, created date
 - "New Audit" button → `/audit/new`
-- `mapStatus()` helper converts DB status strings (`created`, `auto`, `completed`, etc.) to UI status types
+- Legacy `/portfolio` path is a redirect alias to `/dashboard`
 
 ### `NewAudit.tsx`
 - Form: company URL (required), company name (optional), industry dropdown (optional)
@@ -449,17 +450,14 @@ The app uses **`createBrowserRouter`** with a root layout route (`<Outlet />`) a
 **Browser auto-translate vs React:** Chrome and other browsers inject wrapper nodes when translating a page; React then loses sync with the DOM (`insertBefore` / `NotFoundError`). There is **no reliable way** to keep a translated DOM and a client-rendered React tree in sync; the real fix is **in-app i18n**. Mitigations until then: **`index.html`** sets `translate="no"`, `class="notranslate"`, and `<meta name="google" content="notranslate">` to discourage automatic translation; **`BrowserTranslateGuard`** warns if `<html>` gets translation marker classes; **`GlcAppErrorScreen`** uses **`isLikelyTranslationOrExtensionDomCrash`** on the captured error text to show a **prioritized “What to do”** list when the failure matches typical DOM rewrite exceptions. Generic translation/extension copy remains for other errors.
 
 ```tsx
-<Routes>
-  <Route path="/login" element={<Login />} />
-  <Route path="/" element={<ProtectedRoute><Navigate to="/portfolio" /></ProtectedRoute>} />
-  <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
-  <Route path="/audit/new" element={<ProtectedRoute><NewAudit /></ProtectedRoute>} />
-  <Route path="/pipeline/:id" element={<ProtectedRoute><PipelineMonitor /></ProtectedRoute>} />
-  <Route path="/audit/:id" element={<ProtectedRoute><AuditWorkspace /></ProtectedRoute>} />
-  <Route path="/audit/:id/:domainId" element={<ProtectedRoute><AuditWorkspace /></ProtectedRoute>} />
-  <Route path="/reports/:id" element={<ProtectedRoute><ReportViewer /></ProtectedRoute>} />
-  <Route path="/strategy/:id" element={<ProtectedRoute><StrategyLab /></ProtectedRoute>} />
-</Routes>
+// Simplified current shape (createBrowserRouter):
+{ index: true, element: <RootEntry /> }
+{ path: "/login", element: <Login /> }
+{ path: "/dashboard", element: <Consultant><Dashboard /></Consultant> }
+{ path: "/portfolio", element: <Navigate to="/dashboard" replace /> } // legacy alias
+{ path: "/audit/new", element: <Consultant><NewAudit /></Consultant> }
+{ path: "/pipeline/:id", element: <Consultant><PipelineMonitor /></Consultant> }
+{ path: "/portal", element: <ClientPortalShell><ClientPortal /></ClientPortalShell> }
 ```
 
 ---

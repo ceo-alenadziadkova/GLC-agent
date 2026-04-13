@@ -5,7 +5,13 @@
 - **Development:** `http://localhost:3001`
 - **Production:** Railway deployment URL (set as `VITE_API_URL` in frontend env)
 
-All endpoints except `/api/auth/*`, `/api/snapshot/*`, **`GET /api/public/brand`**, **`POST /api/marketing/brief`**, and the **public** pre-brief routes `GET /api/intake/:token` and `POST /api/intake/:token/respond` require a valid Supabase JWT in the `Authorization: Bearer <token>` header. The frontend's `apiService.ts` adds this automatically.
+Most `/api/*` endpoints require a valid Supabase JWT in the `Authorization: Bearer <token>` header (the frontend `apiService.ts` adds this automatically for authenticated calls).
+
+Authentication exceptions (no JWT):
+
+- Public routes: `/api/snapshot` (start/poll/quota), **`GET /api/public/brand`**, **`POST /api/marketing/brief`**, `GET /api/intake/:token`, `POST /api/intake/:token/respond`, public discovery routes.
+- Token-protected operator routes: `/api/snapshot/operator/*` (requires `SNAPSHOT_OPERATOR_TOKEN`, not JWT).
+- Secret-header route: `POST /api/benchmarks/recompute` (cron/system secret header, not JWT).
 
 `POST /api/intake` (create link) requires a **consultant** JWT.
 

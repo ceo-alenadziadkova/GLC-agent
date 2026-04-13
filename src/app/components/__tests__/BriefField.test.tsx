@@ -117,4 +117,47 @@ describe('BriefField interactions', () => {
     fireEvent.change(specify, { target: { value: 'Boutique hotel' } });
     expect(specify).toHaveValue('Boutique hotel');
   });
+
+  it('shows client source badge when entry comes from client', () => {
+    const q: BriefQuestion = {
+      id: 'q4',
+      priority: 'recommended',
+      question: 'Client-sourced field',
+      type: 'free_text',
+    };
+
+    render(
+      <BriefField
+        q={q}
+        value={{ value: 'from client', source: 'client' }}
+        onChange={() => {}}
+        onSetUnknown={() => {}}
+        emphasizeClientSource
+      />,
+    );
+
+    expect(screen.getByText('Client')).toBeInTheDocument();
+  });
+
+  it('allows clearing unknown state back to editable', () => {
+    const q: BriefQuestion = {
+      id: 'q5',
+      priority: 'required',
+      question: 'Unknown answer',
+      type: 'free_text',
+    };
+    const onChange = vi.fn();
+
+    render(
+      <BriefField
+        q={q}
+        value={{ value: null, source: 'unknown' }}
+        onChange={onChange}
+        onSetUnknown={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /i'll answer myself instead/i }));
+    expect(onChange).toHaveBeenCalledWith(null);
+  });
 });

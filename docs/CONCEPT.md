@@ -12,6 +12,10 @@ For implementation details and contracts, use:
 - [API.md](./API.md)
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
 
+For the canonical product proposition (audience, value model, and control loop from findings to roadmap), see:
+
+- [PRODUCT.md — Product proposition (who, what, why)](./PRODUCT.md#product-proposition-who-what-why)
+
 ---
 
 ## 1) What this product is
@@ -58,44 +62,19 @@ Domain analysis is never the first step. Data readiness is.
 
 ---
 
-## 3) Phase concept
+## 3) Runtime sequencing and gates (canonical pointer)
 
-The full audit logic is organized as:
+This file is **not** the canonical runtime contract for phase order, gate points, or mode-specific limits.
 
-- Phase 0: Recon
-- Phases 1–4: Auto wing (parallel)
-  - Tech Infrastructure
-  - Security and Compliance
-  - SEO and Digital
-  - UX and Conversion
-- Phases 5–6: Analytic wing (parallel)
-  - Marketing and UTP
-  - Automation and Processes
-- Phase 7: Strategy synthesis
+Use:
 
-Review gates are mode-dependent:
+- [PIPELINE.md](./PIPELINE.md) for sequencing, gates, retries, and orchestration behavior
+- [PRODUCT.md](./PRODUCT.md#product-modes) for product mode scope (`full`, `express`, `free_snapshot`)
 
-- `full`: after phases `0`, `4`, `7`
-- `express`: after phases `0`, `4`
-- `free_snapshot`: no review gates
+Concept-level rule that remains stable here:
 
----
-
-## 4) Phase entry guardrails (required behavior)
-
-Before any phase starts, the system must explicitly evaluate readiness for that phase:
-
-- `sufficient`: phase can run with current evidence.
-- `insufficient`: phase should not claim full assessment.
-
-If `insufficient`, the system must:
-
-- record what is missing;
-- keep known facts visible;
-- avoid inventing unknown values;
-- allow targeted follow-up questions.
-
-This is the non-negotiable anti-hallucination guardrail at flow level.
+- The system must not claim full assessment when readiness is insufficient.
+- Unknowns must remain explicit and traceable to missing evidence.
 
 ---
 

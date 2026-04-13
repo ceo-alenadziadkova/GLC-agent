@@ -74,9 +74,14 @@ const {
   });
 
   const mockFrom = vi.fn((table: string) => {
-    const chain = {
-      eq: vi.fn(() => chain),
-      single: vi.fn(() => {
+    type SelectChain = {
+      eq: Mock;
+      single: Mock;
+      maybeSingle: Mock;
+    };
+    const chain = {} as SelectChain;
+    chain.eq = vi.fn(() => chain);
+    chain.single = vi.fn(() => {
         if (table === 'audits') {
           return Promise.resolve({
             data: auditRow,
@@ -90,8 +95,8 @@ const {
           });
         }
         return Promise.resolve({ data: null, error: null });
-      }),
-      maybeSingle: vi.fn(() => {
+      });
+    chain.maybeSingle = vi.fn(() => {
         if (table === 'intake_brief') {
           return Promise.resolve({
             data: briefRow,
@@ -99,8 +104,7 @@ const {
           });
         }
         return Promise.resolve({ data: null, error: null });
-      }),
-    };
+      });
     return {
       select: vi.fn(() => chain),
       upsert: vi.fn((payload: unknown) => {
@@ -242,8 +246,9 @@ describe('GET /api/audits/:id/brief/schema', () => {
 
   it('returns 403 when user has no access', async () => {
     setAuditRow({ id: 'audit-001', user_id: 'other-user', client_id: null, product_mode: 'full' });
-    const { status } = await getJSON('/api/audits/audit-001/brief/schema');
+    const { status, body } = await getJSON('/api/audits/audit-001/brief/schema');
     expect(status).toBe(403);
+    expect(body.code).toBe('AUDITS_ACCESS_DENIED');
   });
 });
 
@@ -325,6 +330,7 @@ describe('GET /api/audits/:id/brief', () => {
     setAuditRow(null);
     const { status, body } = await getJSON('/api/audits/nonexistent/brief');
     expect(status).toBe(404);
+    expect(body.code).toBe('AUDITS_NOT_FOUND');
     expect(body.error).toBeDefined();
   });
 
@@ -332,6 +338,7 @@ describe('GET /api/audits/:id/brief', () => {
     setAuditRow({ id: 'audit-002', user_id: 'other-user', client_id: null, product_mode: 'express' });
     const { status, body } = await getJSON('/api/audits/audit-002/brief');
     expect(status).toBe(403);
+    expect(body.code).toBe('AUDITS_ACCESS_DENIED');
     expect(body.error).toBeDefined();
   });
 
@@ -411,12 +418,14 @@ describe('PUT /api/audits/:id/brief', () => {
   it('returns 400 when responses field is missing', async () => {
     const { status, body } = await putJSON('/api/audits/audit-001/brief', {});
     expect(status).toBe(400);
+    expect(body.code).toBe('AUDITS_BRIEF_RESPONSES_NOT_OBJECT');
     expect(body.error).toMatch(/responses/i);
   });
 
   it('returns 400 when responses is an array', async () => {
     const { status, body } = await putJSON('/api/audits/audit-001/brief', { responses: ['a', 'b'] });
     expect(status).toBe(400);
+    expect(body.code).toBe('AUDITS_BRIEF_RESPONSES_NOT_OBJECT');
     expect(body.error).toBeDefined();
   });
 
@@ -425,6 +434,7 @@ describe('PUT /api/audits/:id/brief', () => {
       responses: { f1: { value: 'x'.repeat(12_001), source: 'client' as const } },
     });
     expect(status).toBe(400);
+    expect(body.code).toBe('AUDITS_BRIEF_VALIDATION_FAILED');
     expect(body.error).toMatch(/Invalid brief responses/);
   });
 
@@ -440,6 +450,7 @@ describe('PUT /api/audits/:id/brief', () => {
     setAuditRow(null);
     const { status, body } = await putJSON('/api/audits/nonexistent/brief', { responses: {} });
     expect(status).toBe(404);
+    expect(body.code).toBe('AUDITS_NOT_FOUND');
     expect(body.error).toBeDefined();
   });
 
@@ -447,6 +458,7 @@ describe('PUT /api/audits/:id/brief', () => {
     setAuditRow({ id: 'audit-other', user_id: 'someone-else', client_id: null, product_mode: 'express' });
     const { status, body } = await putJSON('/api/audits/audit-other/brief', { responses: {} });
     expect(status).toBe(403);
+    expect(body.code).toBe('AUDITS_ACCESS_DENIED');
     expect(body.error).toBeDefined();
   });
 

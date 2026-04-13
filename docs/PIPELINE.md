@@ -18,6 +18,22 @@ Phase 7  Strategy Synthesis ──┘
 
 ---
 
+## Execution plan semantics
+
+Runtime sequencing is derived from `audits.execution_plan` (normalized by `server/src/services/execution-plan.ts`), not only from `product_mode`.
+
+- Executable phases are resolved via `executionPlanToPhases(...)`.
+- Review gates are resolved via `reviewPhasesForExecutionPlan(...)`.
+- Strategy phase (`7`) runs only when `include_strategy` is enabled in the normalized plan.
+
+Default plan profiles:
+
+- `full` -> `complete` package (all domains + strategy)
+- `express` -> `pro` package (auto wing domains, no strategy by default)
+- `free_snapshot` -> deterministic scanner path (no LLM phase loop)
+
+---
+
 ## Intake Enrichment Order
 
 Intake sequencing is progressive:
@@ -120,7 +136,7 @@ Review gates pause the pipeline and let the consultant enrich the context before
 | Gate 2 | Phase 4 (last of auto wing) | Analytic wing (phases 5–6) then Strategy (phase 7) |
 | Gate 3 | Phase 7 (Strategy) | Report / delivery (no further automated phases) |
 
-**Full mode** uses review phases `[0, 4, 7]` (`server/src/types/audit.ts`). **Express** uses `[0, 4]`. **Free snapshot** uses no review gates.
+With default plans, review phases are `[0, 4, 7]` for `full` and `[0, 4]` for `express`. Effective gates always come from `reviewPhasesForExecutionPlan(...)` for the specific audit row. `free_snapshot` uses no review gates.
 
 Approve with `POST /api/audits/:id/reviews/:phase` where `phase` matches the completed block (`0`, `4`, or `7`). See [API.md](./API.md).
 
@@ -180,7 +196,7 @@ class PipelineOrchestrator {
 }
 ```
 
-Phase sequencing logic:
+Phase sequencing logic (effective plan):
 1. Determine next phase from `audit_domains` statuses
 2. Check for pending review gate — if yes, emit `review_needed` and stop
 3. Check token budget

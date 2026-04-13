@@ -55,7 +55,7 @@ The Supabase JS client handles session persistence automatically:
 
 | Product role | Stored in `profiles.role` | Primary UI |
 |--------------|---------------------------|------------|
-| **Admin** (GLC staff) | `consultant` | `/portfolio`, `/admin/requests`, full pipeline controls |
+| **Admin** (GLC staff) | `consultant` | `/dashboard`, `/admin/requests`, full pipeline controls |
 | **Client** (company contact) | `client` | `/portal`, linked audits and reports |
 
 The database keeps the legacy value `consultant` for admins; the app may display **Admin** in the shell. Clients only see audits where they are `user_id` **or** `client_id` on the `audits` row (enforced in API queries, not only RLS).

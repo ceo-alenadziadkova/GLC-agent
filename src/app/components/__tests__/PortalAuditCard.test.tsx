@@ -72,4 +72,18 @@ describe('PortalAuditCard', () => {
 
     expect(screen.queryByText(/Updated/i)).not.toBeInTheDocument();
   });
+
+  it('shows failed-state copy for client portal', () => {
+    renderCard(makeAudit({ status: 'failed' }));
+
+    expect(screen.getByText('Needs attention')).toBeInTheDocument();
+    expect(screen.getByText(/run stopped unexpectedly/i)).toBeInTheDocument();
+  });
+
+  it('uses website as title and avoids duplicate website line', () => {
+    renderCard(makeAudit({ company_name: '', company_url: 'https://example.com' }));
+
+    expect(screen.getByText('https://example.com')).toBeInTheDocument();
+    expect(screen.getAllByText('https://example.com')).toHaveLength(1);
+  });
 });

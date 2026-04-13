@@ -3,7 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { NewAudit } from '../NewAudit';
 
-const { mockDraft, apiMock } = vi.hoisted(() => ({
+const { mockDraft, apiMock, searchParamsState } = vi.hoisted(() => ({
+  searchParamsState: { value: '' },
   mockDraft: {
     v: 1 as const,
     step: 1 as 0 | 1 | 2,
@@ -24,6 +25,7 @@ const { mockDraft, apiMock } = vi.hoisted(() => ({
     startPipeline: vi.fn(),
     linkIntakeTokenToAudit: vi.fn(),
     getBrief: vi.fn(),
+    getDiscoverySession: vi.fn(),
   },
 }));
 
@@ -118,13 +120,15 @@ vi.mock('react-router', async importOriginal => {
   return {
     ...mod,
     useNavigate: () => navigate,
-    useSearchParams: () => [new URLSearchParams('')],
+    useSearchParams: () => [new URLSearchParams(searchParamsState.value)],
   };
 });
 
 describe('NewAudit wizard state wiring', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    searchParamsState.value = '';
+    localStorage.clear();
     mockDraft.step = 1;
     mockDraft.url = '';
     mockDraft.noPublicWebsite = true;
@@ -138,6 +142,7 @@ describe('NewAudit wizard state wiring', () => {
     apiMock.startPipeline.mockResolvedValue({});
     apiMock.linkIntakeTokenToAudit.mockResolvedValue({});
     apiMock.getBrief.mockResolvedValue({ brief: { responses: {}, intake_versions: null } });
+    apiMock.getDiscoverySession.mockResolvedValue({ answers: {} });
   });
 
   it('applies wizard next state directly in client self-serve flow', () => {
@@ -177,5 +182,48 @@ describe('NewAudit wizard state wiring', () => {
     expect(payload.a11).toEqual({ value: 'https://example.com', source: 'client' });
     expect(payload.a12).toEqual({ value: 'Acme Corp', source: 'client' });
     expect(payload.a2).toEqual({ value: 'Healthcare', source: 'client' });
+  });
+
+  it('surfaces launch error when pipeline start fails', async () => {
+    mockDraft.step = 2;
+    mockDraft.url = 'example.com';
+    mockDraft.noPublicWebsite = false;
+    mockDraft.name = 'Acme Corp';
+    mockDraft.industry = 'Healthcare';
+    apiMock.startPipeline.mockRejectedValueOnce(new Error('Pipeline unavailable'));
+
+    render(
+      <MemoryRouter>
+        <NewAudit variant="client_self_serve" />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Launch Audit/i }));
+
+    await vi.waitFor(() => {
+      expect(screen.getByText('Pipeline unavailable')).toBeInTheDocument();
+    });
+  });
+
+  it('prefills from discovery session token and clears it from localStorage', async () => {
+    searchParamsState.value = 'from_discovery=1';
+    localStorage.setItem('glc_discovery_token', 'disc-token-1');
+    apiMock.getDiscoverySession.mockResolvedValueOnce({
+      answers: { a2: 'Healthcare', a10: 'Need better conversion' },
+    });
+
+    render(
+      <MemoryRouter>
+        <NewAudit variant="client_self_serve" />
+      </MemoryRouter>,
+    );
+
+    await vi.waitFor(() => {
+      expect(apiMock.getDiscoverySession).toHaveBeenCalledWith('disc-token-1');
+    });
+    expect(localStorage.getItem('glc_discovery_token')).toBeNull();
+    await vi.waitFor(() => {
+      expect(screen.getByText(/discovery answers are pre-filled/i)).toBeInTheDocument();
+    });
   });
 });

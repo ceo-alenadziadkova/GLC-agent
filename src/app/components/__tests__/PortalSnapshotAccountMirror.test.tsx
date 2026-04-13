@@ -82,4 +82,36 @@ describe('PortalSnapshotAccountMirror', () => {
     expect(screen.getByText(/Preview limited.*inner pages sampled/i)).toBeInTheDocument();
     expect(screen.getByTestId('blocked-callout')).toBeInTheDocument();
   });
+
+  it('shows incomplete preview copy when pages are not loaded', () => {
+    mockGetSnapshotAccessBlockedState.mockReturnValue({
+      showCallout: true,
+      robotsBlocked: false,
+      robotsLimitedSample: false,
+      robotsFallbackSiteClass: undefined,
+      noPages: true,
+    });
+
+    render(<PortalSnapshotAccountMirror result={makeSnapshot()} />);
+
+    expect(screen.getByText(/Preview incomplete — pages not loaded/i)).toBeInTheDocument();
+  });
+
+  it('falls back to URL hostname when company name is missing', () => {
+    mockGetSnapshotAccessBlockedState.mockReturnValue({
+      showCallout: false,
+      robotsBlocked: false,
+      robotsLimitedSample: false,
+      robotsFallbackSiteClass: undefined,
+      noPages: false,
+    });
+
+    render(
+      <PortalSnapshotAccountMirror
+        result={makeSnapshot({ company_name: ' ', company_url: 'acme.test/path' })}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'acme.test' })).toBeInTheDocument();
+  });
 });

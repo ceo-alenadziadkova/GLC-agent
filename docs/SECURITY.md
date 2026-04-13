@@ -233,7 +233,7 @@ server/.env
 ## GDPR Basics
 
 - **Data minimisation:** Only publicly available website data is collected. No personal data about website visitors is stored.
-- **EU region:** Supabase project in Frankfurt — all data stored in the EU.
+- **EU region:** target setup is Supabase in Frankfurt for EU data residency. **Needs Review:** verify the actual region in your current Supabase project settings.
 - **Retention:** Future: auto-delete audits older than 12 months (cron job / pg_cron).
 - **Right to erasure:** `DELETE /api/audits/:id` wipes audit + all related data (CASCADE in schema).
 - **Privacy notice:** Shown on NewAudit form: "We collect only publicly available data from the submitted URL."

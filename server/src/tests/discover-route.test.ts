@@ -275,6 +275,7 @@ describe('POST /api/discover/:token/convert', () => {
     });
     const body = await res.json() as Record<string, unknown>;
     expect(res.status).toBe(400);
+    expect(body.code).toBe('DISCOVER_INVALID_TOKEN');
     expect(body.error).toBe('Invalid token');
   });
 
@@ -290,6 +291,7 @@ describe('POST /api/discover/:token/convert', () => {
     });
     const body = await res.json() as Record<string, unknown>;
     expect(res.status).toBe(403);
+    expect(body.code).toBe('DISCOVER_FORBIDDEN_OWNER');
     expect(body.error).toBe('Session is assigned to another consultant');
   });
 
@@ -316,6 +318,7 @@ describe('POST /api/discover/:token/convert', () => {
     const body = await res.json() as Record<string, unknown>;
 
     expect(res.status).toBe(409);
+    expect(body.code).toBe('DISCOVER_CLAIM_CONFLICT');
     expect(body.error).toBe('Session was claimed or converted by another request');
   });
 
@@ -330,6 +333,7 @@ describe('POST /api/discover/:token/convert', () => {
     const counters = state.getCounters();
 
     expect(res.status).toBe(409);
+    expect(body.code).toBe('DISCOVER_LINK_CONFLICT');
     expect(body.error).toBe('Session conversion conflict. Please retry.');
     expect(counters.auditsCreated).toBe(0);
     expect(counters.auditsDeleted).toBe(0);
@@ -341,6 +345,7 @@ describe('GET /api/discover/:token', () => {
     const res = await fetch(`${baseUrl}/api/discover/not-a-valid-token`);
     const body = await res.json() as Record<string, unknown>;
     expect(res.status).toBe(400);
+    expect(body.code).toBe('DISCOVER_INVALID_TOKEN');
     expect(body.error).toBe('Invalid token');
   });
 
@@ -349,6 +354,7 @@ describe('GET /api/discover/:token', () => {
     const res = await fetch(`${baseUrl}/api/discover/${'a'.repeat(40)}`);
     const body = await res.json() as Record<string, unknown>;
     expect(res.status).toBe(404);
+    expect(body.code).toBe('DISCOVER_SESSION_NOT_FOUND');
     expect(body.error).toBe('Session not found');
   });
 });
@@ -377,6 +383,7 @@ describe('GET /api/discover/sessions', () => {
     });
     const body = await res.json() as Record<string, unknown>;
     expect(res.status).toBe(500);
+    expect(body.code).toBe('DISCOVER_LIST_FAILED');
     expect(body.error).toBe('Failed to list sessions');
   });
 });
@@ -390,6 +397,7 @@ describe('PATCH /api/discover/:token/contact', () => {
     });
     const body = await res.json() as Record<string, unknown>;
     expect(res.status).toBe(403);
+    expect(body.code).toBe('DISCOVER_CONTACT_EDIT_KEY_INVALID');
     expect(body.error).toBe('Invalid or missing contact edit key');
   });
 
@@ -405,6 +413,7 @@ describe('PATCH /api/discover/:token/contact', () => {
     });
     const body = await res.json() as Record<string, unknown>;
     expect(res.status).toBe(400);
+    expect(body.code).toBe('DISCOVER_CONTACT_EMPTY');
     expect(body.error).toBe('At least one contact field must be non-empty');
   });
 });

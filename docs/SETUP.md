@@ -193,7 +193,7 @@ The script is **idempotent** — it replaces the demo audit cleanly on re-run.
 
 | Page | Path |
 |------|------|
-| Portfolio | `/portfolio` |
+| Dashboard (legacy alias: `/portfolio`) | `/dashboard` |
 | Pipeline log | `/pipeline/b1a2c3d4-e5f6-7890-abcd-ef1234567890` |
 | Audit workspace | `/audit/b1a2c3d4-e5f6-7890-abcd-ef1234567890` |
 | Report | `/reports/b1a2c3d4-e5f6-7890-abcd-ef1234567890` |

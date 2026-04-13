@@ -2,6 +2,8 @@
 
 ## Stack Overview
 
+**Needs Review (runtime-specific):** hosting provider names/regions in this section describe the target deployment topology. Confirm against your current live environment before using as an operational source of truth.
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        Browser                              │
@@ -59,7 +61,12 @@ Pipeline execution now uses a queue + worker runtime for durability:
 
 #### Public routes, abuse control, and scaling
 
-Unauthenticated surfaces (Discover, tokenized pre-brief intake, marketing brief) rely on **split per-route limiters** in `server/src/middleware/rate-limit.ts` (see env vars in [ADR-INTAKE-UNIFIED-QUESTION-BANK](./adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) operational notes). That mitigates abuse but is **not** a full product security boundary by itself.
+Unauthenticated surfaces (Discover, tokenized pre-brief intake, marketing brief, public snapshot) rely on **split per-route limiters** in `server/src/middleware/rate-limit.ts` (see env vars in [ADR-INTAKE-UNIFIED-QUESTION-BANK](./adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) operational notes). That mitigates abuse but is **not** a full product security boundary by itself.
+
+Some operational endpoints are intentionally **non-JWT** and use alternative controls:
+
+- `/api/snapshot/operator/*` requires `SNAPSHOT_OPERATOR_TOKEN`.
+- `POST /api/benchmarks/recompute` requires the benchmark recompute secret header.
 
 **Horizontal scale:** public limiters use `**RedisStore`** when `**RATE_LIMIT_REDIS_URL**` is set. Snapshot quota (`GET /api/snapshot/quota` and `POST /api/snapshot`) shares the same distributed store when Redis is configured. If Redis is unset, fallback is process-local memory and counters do not aggregate across instances.
 

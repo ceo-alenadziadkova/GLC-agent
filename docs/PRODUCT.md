@@ -2,6 +2,36 @@
 
 Consultant-led B2B audits: submit a company URL (plus intake context where applicable); the platform crawls and analyses the public site across business domains and produces a scored report and roadmap-style deliverables.
 
+## Product proposition (who, what, why)
+
+GLC is an always-available strategic audit workspace for business owners and consultants.
+
+It helps teams answer three practical questions in one place:
+
+1. What already works well?
+2. What is critical or weak right now?
+3. What should be improved next, and what outcome/time horizon is expected?
+
+Core audience:
+
+- Business owners and operators who want a structured, critical view of company growth and execution priorities.
+- Consultants who run audits for clients and need consistent, context-aware delivery quality.
+
+Core promise:
+
+- The user can start from either a website URL or contextual business inputs.
+- The system builds recommendations with full project context (not only surface metrics).
+- The user explicitly chooses what they want to implement.
+- The platform generates a practical roadmap from those chosen priorities.
+- Audit context is persisted and reused by the system so decisions are not rebuilt from scratch each time.
+
+MVP scope note:
+
+- Current production scope is seven analysis areas plus strategy synthesis.
+- Domain coverage and recommendation depth can expand over time, but the control model remains: user context -> findings -> user-selected priorities -> roadmap.
+
+---
+
 **Primary users:** Consultants running audits for SMB clients.  
 **Client portal (self-serve):** Clients can create an audit with the **same branching intake bank** as consultants (`/portal/audit/new`), complete the brief on **`/portal/audit/:id`**, start the pipeline without a queue approval step, and optionally **request help with the brief** (consultants are notified; help does not block starting the run). The **`audit_requests`** table and consultant **`/admin/requests`** queue remain for consultant-led intake; there is no separate client-facing request form in the portal during MVP development.  
 **Client deliverables:** Scored domain findings, executive summary, quick wins, and (full mode) strategy-style initiatives surfaced in the **report viewer** (`/portal/reports/:id` in the client shell). Consultants use Strategy Lab (`/strategy/:id`) for the same underlying strategy payload where enabled.
@@ -31,13 +61,15 @@ Technical execution details: [PIPELINE.md](./PIPELINE.md), [AGENTS.md](./AGENTS.
 
 ## Product modes
 
-Implemented in code (`server/src/types/audit.ts`, `reviewPhasesForMode`, `maxPhaseForMode`):
+Implemented via `product_mode` + normalized `execution_plan` (`server/src/services/execution-plan.ts`, `server/src/types/audit.ts`).
 
-| Mode | Scope (phases) | Review gates | Notes |
+| Mode | Default scope (phases) | Review gates | Notes |
 |------|----------------|--------------|--------|
-| `full` | 0–7 | After phases `0`, `4`, `7` | Default paid audit; strategy row and final gate |
-| `express` | 0–4 | After `0`, `4` | Shorter audit; no phases 5–7 |
+| `full` | 0–7 | After phases `0`, `4`, `7` (when strategy included) | Default plan is coverage package `complete` (all domains + strategy) |
+| `express` | 0–4 | After `0`, `4` | Default plan is coverage package `pro` (auto wing only, no strategy) |
 | `free_snapshot` | Deterministic scan (no LLM) | None | Public `POST/GET /api/snapshot`; tiered fetch (HTTP + optional Playwright when the page looks like a client shell), rule-based **site profile**, **0–100** score; competitor-style benchmark **only on explicit opt-in** (`?compare=1`); optional domain cache; upgrade path to Express/full audit |
+
+`execution_plan` may narrow or shape domain coverage (selected domains, package `starter|pro|complete`, optional strategy include flag). Treat the table above as **default plan behavior**, not a hardcoded phase matrix for every audit row.
 
 ---
 
@@ -132,11 +164,11 @@ For product semantics, "brief before anything else" means "before domain phases"
 
 ### Audit report (`/reports/:id`)
 
-Executive summary, overall score presentation, domain scorecard, issues and quick wins as implemented in the Report Viewer page.
+Executive summary, overall score presentation, domain scorecard, issues and quick wins as implemented in the Report Viewer page. The report is designed for critical decision-making: keep what works, fix what is risky, and prioritize what has meaningful business impact.
 
 ### Strategy Lab (`/strategy/:id`)
 
-Prioritised initiatives (quick wins, medium term, strategic) for full audits.
+Prioritised initiatives (quick wins, medium term, strategic) for full audits. Users can evaluate and select preferred initiatives to convert recommendations into an execution roadmap.
 
 ---
 
