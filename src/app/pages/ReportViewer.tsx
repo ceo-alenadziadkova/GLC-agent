@@ -161,7 +161,15 @@ export function ReportViewer() {
       subtitle={`${companyName} · ${id?.slice(0, 8)}`}
       actions={
         <div className="flex items-center gap-2">
-          <StatusPill status={audit.meta.status === 'completed' ? 'completed' : 'running'} />
+          <StatusPill
+            status={
+              audit.meta.status === 'completed'
+                ? 'completed'
+                : audit.meta.status === 'cancelled'
+                  ? 'cancelled'
+                  : 'running'
+            }
+          />
           <button
             type="button"
             className="glc-btn-secondary"

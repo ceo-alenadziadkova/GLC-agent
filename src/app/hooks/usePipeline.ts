@@ -122,6 +122,17 @@ export function usePipeline(auditId: string | undefined) {
     }
   }, [auditId, load]);
 
+  const stopPipeline = useCallback(async () => {
+    if (!auditId) return;
+    try {
+      await api.stopPipeline(auditId);
+      invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
+      await load();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }, [auditId, load]);
+
   const retryPhase = useCallback(async (phase: number) => {
     if (!auditId) return;
     try {
@@ -151,6 +162,7 @@ export function usePipeline(auditId: string | undefined) {
     reload: load,
     startPipeline,
     runNextPhase,
+    stopPipeline,
     retryPhase,
     approveReview,
   };

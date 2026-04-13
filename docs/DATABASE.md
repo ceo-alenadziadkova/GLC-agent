@@ -100,7 +100,7 @@ brief_help_requested_at  timestamptz   -- optional; client self-serve help ping 
 brief_help_client_message text         -- optional short note from client (migration 017)
 ```
 
-**`status` values:** `created` → `recon` → `auto` → `analytic` → `review` → `completed` | `failed`
+**`status` values:** `created` → `recon` → `auto` → `analytic` → `review` → `completed` | `failed` | `cancelled`
 
 **`company_url` — no public website:** When the client has no public site, the API stores the stable sentinel **`NO_PUBLIC_WEBSITE_URL`** from **`@glc/intake-core`** (`https://glc-audit.placeholder/no-public-website`). Collectors and snapshot code detect it via **`isNoPublicWebsiteUrl`** and skip outbound HTTP crawls. Do not hand-edit to an arbitrary placeholder without updating the shared package and all consumers. See [DEPLOYMENT.md — Immutable product constants](./DEPLOYMENT.md#immutable-product-constants).
 

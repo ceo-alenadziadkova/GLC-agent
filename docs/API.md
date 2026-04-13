@@ -279,7 +279,7 @@ Use this matrix for new endpoints to keep access rules consistent. **Consultant*
 | `GET /api/audits`, `GET /api/audits/:id` | yes | yes | Read when permitted by API/RLS |
 | `GET /api/audits/:id/brief`, `PUT /api/audits/:id/brief` | yes | yes | Intake brief + `gates`; **GET** includes `product_mode` (from audit) for express vs full required-field UX |
 | `GET /api/audits/:id/pipeline/status`, `GET /api/audits/:id/quality-gate/:phase` | yes | yes | Progress / quality gate payload |
-| `POST /api/audits/:id/pipeline/start`, `POST .../pipeline/next` | yes | yes | Client may start/continue only when `audits.client_id` matches and brief gates pass (`status === 'created'` for start). **`retry`** remains consultant-only. |
+| `POST /api/audits/:id/pipeline/start`, `POST .../pipeline/next`, `POST .../pipeline/stop` | yes | yes | Client may start/continue/stop only when `audits.client_id` matches. Start still requires brief gates (`status === 'created'`). **`retry`** remains consultant-only. |
 | `POST /api/audits/:id/pipeline/retry` | yes | no | Consultant-only |
 | `POST /api/audits/:id/reviews/:phase` | yes | no | Consultant-only |
 | `POST /api/audits/:id/brief/help-request` | no | yes | Client-only: optional brief help ping (`brief_help_*` on `audits` + consultant notification). Only while `status === 'created'`. |
@@ -510,6 +510,21 @@ Queue-backed execution/fallback behavior is the same as `pipeline/start`.
 Optional field `disable_auto_remediate: true` in the same JSON body — same semantics as `pipeline/start`.
 
 **Response `200`:** e.g. `{ "status": "retrying", "phase": <number> }`
+
+---
+
+### `POST /api/audits/:id/pipeline/stop`
+
+Cancel an in-progress or pending pipeline safely. Allowed for the audit owner consultant (`user_id`) and linked client (`client_id`).  
+This endpoint sets `audits.status = "cancelled"` via compare-and-set claim so concurrent requests cannot overwrite the cancel action.
+
+Returns `400` for terminal states (`completed`, `failed`, `cancelled`) and `409` if another request won the optimistic claim race.
+
+**Response `200`:**
+
+```json
+{ "status": "cancelled", "stopped": true }
+```
 
 ---
 

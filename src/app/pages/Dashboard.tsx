@@ -28,9 +28,10 @@ import {
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
 
-function mapStatus(status: string): 'completed' | 'running' | 'pending' | 'review' {
+function mapStatus(status: string): 'completed' | 'running' | 'pending' | 'review' | 'cancelled' {
   if (status === 'completed') return 'completed';
   if (status === 'failed') return 'review';
+  if (status === 'cancelled') return 'cancelled';
   if (status === 'created') return 'pending';
   return 'running';
 }

@@ -77,6 +77,13 @@ const STALLED_PHASE_TIMEOUT_MIN = SYSTEM_DEFAULTS.pipelineOrchestrator.stalledPh
 const STALLED_PHASE_ACTIVE_STATUSES = ['recon', 'auto', 'analytic', 'strategy'] as const;
 const PARALLEL_FAILURE_THRESHOLD = SYSTEM_DEFAULTS.pipelineOrchestrator.parallelFailureThreshold;
 
+class PipelineCancelledError extends Error {
+  constructor() {
+    super('Pipeline cancelled');
+    this.name = 'PipelineCancelledError';
+  }
+}
+
 /**
  * Pipeline Orchestrator
  *
@@ -93,6 +100,25 @@ export class PipelineOrchestrator {
   constructor(auditId: string, options?: { disableAutoRemediate?: boolean }) {
     this.auditId = auditId;
     this.disableAutoRemediate = options?.disableAutoRemediate ?? false;
+  }
+
+  private async updateAuditIfNotCancelled(patch: Record<string, unknown>): Promise<boolean> {
+    const { data: audit } = await supabase.from('audits').select('status').eq('id', this.auditId).single();
+    if (audit?.status === 'cancelled') {
+      return false;
+    }
+    const { error } = await supabase
+      .from('audits')
+      .update(patch)
+      .eq('id', this.auditId);
+    return !error;
+  }
+
+  private async assertNotCancelled(): Promise<void> {
+    const { data } = await supabase.from('audits').select('status').eq('id', this.auditId).single();
+    if (data?.status === 'cancelled') {
+      throw new PipelineCancelledError();
+    }
   }
 
   /** Loads latest upstream CONTROL_OBJECT snapshots for causal DAG premise validation. */
@@ -566,6 +592,7 @@ export class PipelineOrchestrator {
     }
 
     try {
+      await this.assertNotCancelled();
       // Mode ceiling — reject phases beyond what this product mode allows
       const mode = await this.getProductMode();
       const maxPhase = maxPhaseForMode(mode);
@@ -596,10 +623,11 @@ export class PipelineOrchestrator {
         5: 'analytic', 6: 'analytic',
         7: 'strategy',
       };
-      await supabase.from('audits').update({
+      const moved = await this.updateAuditIfNotCancelled({
         status: statusMap[phase] ?? 'auto',
         current_phase: phase,
-      }).eq('id', this.auditId);
+      });
+      if (!moved) throw new PipelineCancelledError();
 
       // Update domain status to 'collecting' (if applicable)
       const domainKey = PHASE_DOMAIN_MAP[phase];
@@ -642,7 +670,8 @@ export class PipelineOrchestrator {
       // Check if this phase triggers a review point
       if ((reviewPhasesForMode(mode) as readonly number[]).includes(phase)) {
         await this.emitEvent(phase, 'review_needed', ocStart.phase.reviewNeeded);
-        await supabase.from('audits').update({ status: 'review' }).eq('id', this.auditId);
+        const reviewSet = await this.updateAuditIfNotCancelled({ status: 'review' });
+        if (!reviewSet) throw new PipelineCancelledError();
       }
 
       await this.emitEvent(
@@ -656,6 +685,10 @@ export class PipelineOrchestrator {
 
     } catch (err) {
       const error = err as Error;
+      if (error instanceof PipelineCancelledError) {
+        logger.info('Pipeline phase cancelled', { audit_id: this.auditId, phase });
+        return;
+      }
       logger.error('Pipeline phase failed', {
         audit_id: this.auditId,
         phase,
@@ -670,7 +703,7 @@ export class PipelineOrchestrator {
           .eq('domain_key', domainKey);
       }
 
-      await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
+      await this.updateAuditIfNotCancelled({ status: 'failed' });
       const ocErr = pipelineOrchestratorCopy();
       await this.emitEvent(phase, 'error', ocErr.errors.phaseFailedUserMessage, {
         error_code: ocErr.errors.phaseFailedCode,
@@ -698,6 +731,7 @@ export class PipelineOrchestrator {
     const domainKey = PHASE_DOMAIN_MAP[phase];
 
     try {
+      await this.assertNotCancelled();
       const ocIso = pipelineOrchestratorCopy();
       await this.emitEvent(
         phase,
@@ -748,6 +782,10 @@ export class PipelineOrchestrator {
 
     } catch (err) {
       const error = err as Error;
+      if (error instanceof PipelineCancelledError) {
+        logger.info('Pipeline isolated phase cancelled', { audit_id: this.auditId, phase });
+        throw err;
+      }
       logger.error('Pipeline parallel phase failed', {
         audit_id: this.auditId,
         phase,
@@ -797,15 +835,25 @@ export class PipelineOrchestrator {
     );
 
     const failedDomains: string[] = [];
+    const cancelledErrors: Error[] = [];
     results.forEach((result, i) => {
       if (result.status === 'rejected') {
+        const reason = result.reason as Error;
+        if (reason instanceof PipelineCancelledError) {
+          cancelledErrors.push(reason);
+          return;
+        }
         failedDomains.push(String(PHASE_DOMAIN_MAP[phases[i]]));
       }
     });
 
+    if (cancelledErrors.length > 0) {
+      throw cancelledErrors[0];
+    }
+
     if (failedDomains.length === phases.length) {
       // Total failure — mark audit failed
-      await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
+      await this.updateAuditIfNotCancelled({ status: 'failed' });
       const joined = failedDomains.join(', ');
       await this.emitEvent(
         -1,
@@ -817,7 +865,7 @@ export class PipelineOrchestrator {
     }
 
     if (failedDomains.length >= PARALLEL_FAILURE_THRESHOLD) {
-      await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
+      await this.updateAuditIfNotCancelled({ status: 'failed' });
       const joined = failedDomains.join(', ');
       await this.emitEvent(
         -1,
@@ -867,35 +915,39 @@ export class PipelineOrchestrator {
    * Express mode: only auto wing (phases 1-4); no analytic or strategy.
    */
   async runBlock(): Promise<void> {
-    const { data: audit, error: auditErr } = await supabase
-      .from('audits')
-      .select('current_phase, status')
-      .eq('id', this.auditId)
-      .single();
+    try {
+      const { data: audit, error: auditErr } = await supabase
+        .from('audits')
+        .select('current_phase, status')
+        .eq('id', this.auditId)
+        .single();
 
-    if (auditErr || !audit) {
-      logger.error('Run block failed to load audit', { audit_id: this.auditId, error: auditErr?.message ?? 'missing' });
-      throw new Error('Audit not found while running block');
-    }
+      if (auditErr || !audit) {
+        logger.error('Run block failed to load audit', { audit_id: this.auditId, error: auditErr?.message ?? 'missing' });
+        throw new Error('Audit not found while running block');
+      }
 
-    const mode = await this.getProductMode();
-    const maxPhase = maxPhaseForMode(mode);
-    const reviewPhases = reviewPhasesForMode(mode) as readonly number[];
-    const nextPhase = audit.current_phase + 1;
+      const mode = await this.getProductMode();
+      const maxPhase = maxPhaseForMode(mode);
+      const reviewPhases = reviewPhasesForMode(mode) as readonly number[];
+      const nextPhase = audit.current_phase + 1;
 
-    if (nextPhase > maxPhase) return; // All phases complete
+      if (audit.status === 'cancelled') return;
+      if (nextPhase > maxPhase) return; // All phases complete
 
-    // ── Auto wing: phases 1-4 (or subset for express) ────────────────
-    if ((AUTO_WING_PHASES as readonly number[]).includes(nextPhase)) {
-      const wingPhases = AUTO_WING_PHASES.filter(p => p <= maxPhase);
-      const lastWingPhase = Math.max(...wingPhases);
+      // ── Auto wing: phases 1-4 (or subset for express) ────────────────
+      if ((AUTO_WING_PHASES as readonly number[]).includes(nextPhase)) {
+        const wingPhases = AUTO_WING_PHASES.filter(p => p <= maxPhase);
+        const lastWingPhase = Math.max(...wingPhases);
 
-      await supabase.from('audits').update({ status: 'auto', current_phase: nextPhase }).eq('id', this.auditId);
+      const movedToAuto = await this.updateAuditIfNotCancelled({ status: 'auto', current_phase: nextPhase });
+      if (!movedToAuto) throw new PipelineCancelledError();
 
       await this.runParallelBlock(wingPhases);
 
       // Record last completed wing phase
-      await supabase.from('audits').update({ current_phase: lastWingPhase }).eq('id', this.auditId);
+      const advancedAuto = await this.updateAuditIfNotCancelled({ current_phase: lastWingPhase });
+      if (!advancedAuto) throw new PipelineCancelledError();
 
       // Run consistency / quality gate checks before surfacing the review gate
       const autoGateReport = await consistencyChecker.run(this.auditId, lastWingPhase, wingPhases);
@@ -909,21 +961,24 @@ export class PipelineOrchestrator {
       // Gate after auto wing (if applicable)
       if (reviewPhases.includes(lastWingPhase)) {
         await this.emitEvent(lastWingPhase, 'review_needed', pipelineOrchestratorCopy().phase.reviewNeeded);
-        await supabase.from('audits').update({ status: 'review' }).eq('id', this.auditId);
+        const setReview = await this.updateAuditIfNotCancelled({ status: 'review' });
+        if (!setReview) throw new PipelineCancelledError();
       }
-      return;
-    }
+        return;
+      }
 
     // ── Analytic wing: phases 5-6, then Strategy ─────────────────────
-    if ((ANALYTIC_WING_PHASES as readonly number[]).includes(nextPhase)) {
+      if ((ANALYTIC_WING_PHASES as readonly number[]).includes(nextPhase)) {
       const wingPhases = ANALYTIC_WING_PHASES.filter(p => p <= maxPhase);
       const lastWingPhase = Math.max(...wingPhases);
 
-      await supabase.from('audits').update({ status: 'analytic', current_phase: nextPhase }).eq('id', this.auditId);
+      const movedToAnalytic = await this.updateAuditIfNotCancelled({ status: 'analytic', current_phase: nextPhase });
+      if (!movedToAnalytic) throw new PipelineCancelledError();
 
       await this.runParallelBlock(wingPhases);
 
-      await supabase.from('audits').update({ current_phase: lastWingPhase }).eq('id', this.auditId);
+      const advancedAnalytic = await this.updateAuditIfNotCancelled({ current_phase: lastWingPhase });
+      if (!advancedAnalytic) throw new PipelineCancelledError();
 
       // Continue to Strategy (phase 7) without an intermediate gate
       if (maxPhase >= 7) {
@@ -939,13 +994,20 @@ export class PipelineOrchestrator {
           .eq('audit_id', this.auditId)
           .eq('after_phase', 7);
       }
-      return;
-    }
+        return;
+      }
 
     // ── Strategy phase (solo) ─────────────────────────────────────────
-    if (nextPhase === 7) {
-      await this.startPhase(7);
-      return;
+      if (nextPhase === 7) {
+        await this.startPhase(7);
+        return;
+      }
+    } catch (err) {
+      if (err instanceof PipelineCancelledError) {
+        logger.info('Pipeline block cancelled', { audit_id: this.auditId });
+        return;
+      }
+      throw err;
     }
   }
 

@@ -11,6 +11,7 @@ export {
   apiAuditsPipelineNext,
   apiAuditsPipelineRetry,
   apiAuditsPipelineStart,
+  apiAuditsPipelineStop,
   apiAuditsPipelineStatus,
   apiAuditsQualityGate,
   apiAuditsReportQuery,

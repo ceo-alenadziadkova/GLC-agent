@@ -94,6 +94,10 @@ export function apiAuditsPipelineRetry(auditId: string): string {
   return `${apiAuditsPath(auditId)}/pipeline/retry`;
 }
 
+export function apiAuditsPipelineStop(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/pipeline/stop`;
+}
+
 export function apiAuditsPipelineStatus(auditId: string): string {
   return `${apiAuditsPath(auditId)}/pipeline/status`;
 }

@@ -44,6 +44,8 @@ import {
   API_ERROR_CODES,
   PIPELINE_ACCESS_DENIED_MESSAGE,
   PIPELINE_ALL_PHASES_COMPLETE_MESSAGE,
+  PIPELINE_ALREADY_CANCELLED_MESSAGE,
+  PIPELINE_ALREADY_TERMINAL_MESSAGE,
   PIPELINE_ALREADY_STARTED_MESSAGE,
   PIPELINE_AUDIT_NOT_FOUND_MESSAGE,
   PIPELINE_FORBIDDEN_MESSAGE,
@@ -55,6 +57,8 @@ import {
   PIPELINE_QUALITY_GATE_REQUIRES_NOTES_MESSAGE,
   PIPELINE_RETRY_CLAIM_CONFLICT_MESSAGE,
   PIPELINE_RETRY_FAILED_MESSAGE,
+  PIPELINE_STOP_CLAIM_CONFLICT_MESSAGE,
+  PIPELINE_STOP_FAILED_MESSAGE,
   PIPELINE_REVIEW_APPROVE_FAILED_MESSAGE,
   PIPELINE_REVIEW_PENDING_MESSAGE,
   PIPELINE_START_CLAIM_CONFLICT_MESSAGE,
@@ -84,6 +88,7 @@ function canOperatePipeline(audit: { user_id: string; client_id: string | null }
   return false;
 }
 const PHASE_ACTIVE_STATUSES = ['recon', 'auto', 'analytic', 'strategy'] as const;
+const PIPELINE_TERMINAL_STATUSES = ['completed', 'failed', 'cancelled'] as const;
 
 function statusForPhase(phase: number): 'recon' | 'auto' | 'analytic' | 'strategy' {
   if (phase === 0) return 'recon';
@@ -118,6 +123,13 @@ pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineL
 
     if (!canOperatePipeline(audit as { user_id: string; client_id: string | null }, req.userId!, role)) {
       res.status(403).json(apiErrorJson(API_ERROR_CODES.PIPELINE_ACCESS_DENIED, PIPELINE_ACCESS_DENIED_MESSAGE));
+      return;
+    }
+
+    if (audit.status === 'cancelled') {
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.PIPELINE_ALREADY_CANCELLED, PIPELINE_ALREADY_CANCELLED_MESSAGE));
       return;
     }
 
@@ -225,6 +237,13 @@ pipelineRouter.post('/:id/pipeline/next', requireAuth, attachProfile, pipelineLi
 
     if (!canOperatePipeline(audit as { user_id: string; client_id: string | null }, req.userId!, role)) {
       res.status(403).json(apiErrorJson(API_ERROR_CODES.PIPELINE_ACCESS_DENIED, PIPELINE_ACCESS_DENIED_MESSAGE));
+      return;
+    }
+
+    if (audit.status === 'cancelled') {
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.PIPELINE_ALREADY_CANCELLED, PIPELINE_ALREADY_CANCELLED_MESSAGE));
       return;
     }
 
@@ -350,6 +369,13 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
       return;
     }
 
+    if (audit.status === 'cancelled') {
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.PIPELINE_ALREADY_CANCELLED, PIPELINE_ALREADY_CANCELLED_MESSAGE));
+      return;
+    }
+
     if (audit.tokens_used >= audit.token_budget) {
       res
         .status(400)
@@ -427,6 +453,81 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
   } catch (err) {
     logger.error('Pipeline retry route failed', { error: (err as Error).message });
     res.status(500).json(apiErrorJson(API_ERROR_CODES.PIPELINE_RETRY_FAILED, PIPELINE_RETRY_FAILED_MESSAGE));
+  }
+});
+
+// ─── POST /api/audits/:id/pipeline/stop — Cancel pipeline safely ───
+pipelineRouter.post('/:id/pipeline/stop', requireAuth, attachProfile, pipelineLimiter, async (req: AuthRequest, res) => {
+  try {
+    const id = req.params.id as string;
+    const role = req.userRole as UserRole | undefined;
+    if (role !== 'consultant' && role !== 'client') {
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.PIPELINE_FORBIDDEN, PIPELINE_FORBIDDEN_MESSAGE));
+      return;
+    }
+
+    const { data: audit, error } = await supabase
+      .from('audits')
+      .select('id, status, current_phase, updated_at, user_id, client_id')
+      .eq('id', id)
+      .or(safeOrUserFilter(req.userId!))
+      .single();
+
+    if (error || !audit) {
+      res
+        .status(404)
+        .json(apiErrorJson(API_ERROR_CODES.PIPELINE_AUDIT_NOT_FOUND, PIPELINE_AUDIT_NOT_FOUND_MESSAGE));
+      return;
+    }
+
+    if (!canOperatePipeline(audit as { user_id: string; client_id: string | null }, req.userId!, role)) {
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.PIPELINE_ACCESS_DENIED, PIPELINE_ACCESS_DENIED_MESSAGE));
+      return;
+    }
+
+    if (audit.status === 'cancelled') {
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.PIPELINE_ALREADY_CANCELLED, PIPELINE_ALREADY_CANCELLED_MESSAGE));
+      return;
+    }
+
+    if ((PIPELINE_TERMINAL_STATUSES as readonly string[]).includes(audit.status)) {
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.PIPELINE_ALREADY_TERMINAL, PIPELINE_ALREADY_TERMINAL_MESSAGE));
+      return;
+    }
+
+    const { data: claimedStop } = await supabase
+      .from('audits')
+      .update({ status: 'cancelled' })
+      .eq('id', id)
+      .or(safeOrUserFilter(req.userId!))
+      .eq('updated_at', audit.updated_at)
+      .in('status', ['created', 'recon', 'auto', 'analytic', 'strategy', 'review'])
+      .select('id');
+    if (!claimedStop || claimedStop.length === 0) {
+      res
+        .status(409)
+        .json(
+          apiErrorJson(API_ERROR_CODES.PIPELINE_STOP_CLAIM_CONFLICT, PIPELINE_STOP_CLAIM_CONFLICT_MESSAGE),
+        );
+      return;
+    }
+
+    await supabase.from('pipeline_events').insert({
+      audit_id: id,
+      phase: audit.current_phase as number,
+      event_type: 'cancelled',
+      message: 'Pipeline was cancelled by user request.',
+      data: { actor_role: role, actor_user_id: req.userId },
+    });
+
+    res.json({ status: 'cancelled', stopped: true as const });
+  } catch (err) {
+    logger.error('Pipeline stop route failed', { error: (err as Error).message });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.PIPELINE_STOP_FAILED, PIPELINE_STOP_FAILED_MESSAGE));
   }
 });
 

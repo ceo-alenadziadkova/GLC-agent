@@ -51,7 +51,15 @@ import {
 
 export function PipelineMonitor() {
   const { id } = useParams<{ id: string }>();
-  const { state: pipelineState, loading: pipeLoading, error: pipeError, startPipeline, runNextPhase, approveReview } = usePipeline(id);
+  const {
+    state: pipelineState,
+    loading: pipeLoading,
+    error: pipeError,
+    startPipeline,
+    runNextPhase,
+    stopPipeline,
+    approveReview,
+  } = usePipeline(id);
   const { audit, loading: auditLoading } = useAudit(id);
   const { isClient } = useProfile();
   const [clientPortalOk, setClientPortalOk] = useState<boolean | 'pending'>(() => (isClient ? 'pending' : true));
@@ -59,6 +67,7 @@ export function PipelineMonitor() {
   const portalGateKeyRef = useRef<string | null>(null);
   const [sel, setSel] = useState(0);
   const [modalReview, setModalReview] = useState<{ afterPhase: number; label: string } | null>(null);
+  const [isStopping, setIsStopping] = useState(false);
 
   useEffect(() => {
     if (!isClient) {
@@ -219,6 +228,18 @@ export function PipelineMonitor() {
     setModalReview(null);
   }
 
+  async function handleStopPipeline() {
+    if (isStopping) return;
+    const ok = window.confirm(PM.detail.stopPipelineConfirm);
+    if (!ok) return;
+    setIsStopping(true);
+    try {
+      await stopPipeline();
+    } finally {
+      setIsStopping(false);
+    }
+  }
+
   if (pipeLoading && !pipelineState) {
     return (
       <AppShell title={PM.pageTitle} subtitle={PM.loading}>
@@ -245,6 +266,7 @@ export function PipelineMonitor() {
 
   const auditStatus = pipelineState?.status || 'created';
   const isCreated = auditStatus === 'created';
+  const canStopPipeline = !['completed', 'failed', 'cancelled'].includes(auditStatus);
 
   return (
     <AppShell
@@ -277,7 +299,35 @@ export function PipelineMonitor() {
             </div>
             <span className="text-xs font-mono font-bold tabular-nums" style={{ color: 'var(--glc-green)' }}>{pct}%</span>
           </div>
-          <StatusPill status={auditStatus === 'completed' ? 'completed' : auditStatus === 'failed' ? 'review' : 'running'} pulse={auditStatus !== 'completed' && auditStatus !== 'failed'} />
+          <StatusPill
+            status={
+              auditStatus === 'completed'
+                ? 'completed'
+                : auditStatus === 'cancelled'
+                  ? 'cancelled'
+                  : auditStatus === 'failed'
+                    ? 'review'
+                    : 'running'
+            }
+            pulse={auditStatus !== 'completed' && auditStatus !== 'failed' && auditStatus !== 'cancelled'}
+          />
+          <button
+            type="button"
+            className="glc-btn-secondary"
+            onClick={handleStopPipeline}
+            disabled={!canStopPipeline || isStopping}
+            style={{ color: 'var(--score-1)' }}
+          >
+            {isStopping ? (
+              <>
+                <ArrowsClockwise className="w-4 h-4 animate-spin" /> {PM.detail.stopPipelineStopping}
+              </>
+            ) : (
+              <>
+                <X className="w-4 h-4" /> {PM.detail.stopPipeline}
+              </>
+            )}
+          </button>
         </div>
       }
     >

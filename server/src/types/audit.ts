@@ -66,7 +66,15 @@ export function reviewPhasesForMode(mode: ProductMode): readonly number[] {
 }
 
 export type PhaseStatus = 'pending' | 'collecting' | 'analyzing' | 'completed' | 'failed';
-export type AuditStatus = 'created' | 'recon' | 'auto' | 'analytic' | 'review' | 'completed' | 'failed';
+export type AuditStatus =
+  | 'created'
+  | 'recon'
+  | 'auto'
+  | 'analytic'
+  | 'review'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
 
 // ─── Score System (single source: @glc/intake-core) ─────────
 export { SCORE_COLORS, SCORE_LABELS } from '@glc/intake-core';

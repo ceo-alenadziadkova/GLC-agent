@@ -3,6 +3,7 @@ import {
   apiAuditsPipelineNext,
   apiAuditsPipelineRetry,
   apiAuditsPipelineStart,
+  apiAuditsPipelineStop,
   apiAuditsPipelineStatus,
 } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
@@ -40,6 +41,13 @@ export const auditsPipelineApi = {
       ...(body ? { body } : {}),
     });
     assertPipelineMutationShape(payload, 'pipeline next');
+    return payload;
+  },
+
+  async stopPipeline(id: string) {
+    const payload = await apiFetch<{ status: string; stopped: true }>(apiAuditsPipelineStop(id), {
+      method: 'POST',
+    });
     return payload;
   },
 

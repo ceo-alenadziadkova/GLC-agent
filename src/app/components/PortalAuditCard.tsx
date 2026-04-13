@@ -84,6 +84,13 @@ function clientPortalAuditPresentation(a: AuditMeta): {
         hint: 'The run stopped unexpectedly. Your GLC contact can help.',
         pulse: false,
       };
+    case 'cancelled':
+      return {
+        pill: 'cancelled',
+        label: 'Cancelled',
+        hint: 'This audit was stopped and can be resumed only with a new pipeline start.',
+        pulse: false,
+      };
     default:
       return {
         pill: 'running',

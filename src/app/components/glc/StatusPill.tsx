@@ -1,4 +1,13 @@
-type Status = 'pending' | 'running' | 'completed' | 'review' | 'failed' | 'active' | 'paused' | 'skipped';
+type Status =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'review'
+  | 'failed'
+  | 'cancelled'
+  | 'active'
+  | 'paused'
+  | 'skipped';
 
 const STATUS_CONFIG: Record<Status, {
   label: string;
@@ -12,6 +21,7 @@ const STATUS_CONFIG: Record<Status, {
   completed: { label: 'Completed',     color: 'var(--glc-green-dark)',  bg: 'var(--glc-green-xlight)', dot: 'var(--glc-green)',          border: 'rgba(14,207,130,0.25)' },
   review:    { label: 'Needs Review',  color: 'var(--callout-warning-fg)', bg: 'var(--callout-warning-pill-bg)', dot: 'var(--score-3)',       border: 'var(--score-3-border)'  },
   failed:    { label: 'Failed',        color: 'var(--score-1)',         bg: 'var(--score-1-bg)',        dot: 'var(--score-1)',            border: 'var(--score-1-border)' },
+  cancelled: { label: 'Cancelled',     color: 'var(--text-secondary)',  bg: 'var(--bg-muted)',          dot: 'var(--text-quaternary)',    border: 'var(--border-subtle)'  },
   active:    { label: 'Active',        color: 'var(--glc-green-dark)',  bg: 'var(--glc-green-xlight)', dot: 'var(--glc-green)',          border: 'rgba(14,207,130,0.25)' },
   paused:    { label: 'Paused',        color: 'var(--text-secondary)',  bg: 'var(--bg-muted)',          dot: 'var(--text-quaternary)',    border: 'var(--border-subtle)'  },
   skipped:   { label: 'Skipped',       color: 'var(--text-tertiary)',   bg: 'var(--bg-muted)',         dot: 'var(--border-strong)',      border: 'var(--border-subtle)'  },

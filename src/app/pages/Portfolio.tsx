@@ -24,9 +24,10 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.28, ease: EASE_GLC } },
 };
 
-function mapStatus(status: string): 'completed' | 'running' | 'pending' | 'review' {
+function mapStatus(status: string): 'completed' | 'running' | 'pending' | 'review' | 'cancelled' {
   if (status === 'completed') return 'completed';
   if (status === 'failed') return 'review';
+  if (status === 'cancelled') return 'cancelled';
   if (status === 'created') return 'pending';
   return 'running';
 }
@@ -44,7 +45,7 @@ export function Portfolio() {
   );
 
   const totalAudits = audits.length;
-  const activeAudits = audits.filter(a => !['completed', 'failed', 'created'].includes(a.status)).length;
+  const activeAudits = audits.filter(a => !['completed', 'failed', 'cancelled', 'created'].includes(a.status)).length;
   const completedWithScores = audits.filter(a => a.overall_score !== null);
   const avgScore = completedWithScores.length > 0
     ? (completedWithScores.reduce((s, a) => s + (a.overall_score ?? 0), 0) / completedWithScores.length).toFixed(1)

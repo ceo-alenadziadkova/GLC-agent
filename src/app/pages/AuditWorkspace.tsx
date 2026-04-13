@@ -315,7 +315,15 @@ export function AuditWorkspace() {
       subtitle={`${companyName} · ${domainData ? DOMAIN_LABELS[activeDomain] : 'Select a domain'}`}
       actions={
         <div className="flex items-center gap-2">
-          <StatusPill status={audit.meta.status === 'completed' ? 'completed' : 'running'} />
+          <StatusPill
+            status={
+              audit.meta.status === 'completed'
+                ? 'completed'
+                : audit.meta.status === 'cancelled'
+                  ? 'cancelled'
+                  : 'running'
+            }
+          />
           <Link to={`/reports/${id}`} className="glc-btn-secondary" style={{ textDecoration: 'none' }}>
             Full Report <ArrowUpRight className="w-4 h-4" />
           </Link>
