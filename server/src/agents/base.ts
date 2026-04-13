@@ -167,6 +167,12 @@ export abstract class BaseAgent {
   variantDelta: AgentVariant | null = null;
 
   /**
+   * Auto-loop instruction patches keyed by phase number.
+   * PipelineOrchestrator sets this before rerun; BaseAgent appends patch for its own phase.
+   */
+  autoLoopAdjustments: Map<number, string> | null = null;
+
+  /**
    * Bandit arm id selected for this run (`default` or a registered variant). Set by PipelineOrchestrator.
    */
   selectedVariantId: string | null = null;
@@ -209,11 +215,20 @@ export abstract class BaseAgent {
    * When variantDelta is null, returns this.instructions unchanged.
    */
   protected getEffectiveInstructions(): string {
-    if (!this.variantDelta) return this.instructions;
-    if (this.variantDelta.delta_type === 'replace') {
-      return this.variantDelta.instruction_delta;
+    let effectiveInstructions = this.instructions;
+    if (this.variantDelta) {
+      if (this.variantDelta.delta_type === 'replace') {
+        effectiveInstructions = this.variantDelta.instruction_delta;
+      } else {
+        effectiveInstructions = `${effectiveInstructions}\n\n${this.variantDelta.instruction_delta}`;
+      }
     }
-    return `${this.instructions}\n\n${this.variantDelta.instruction_delta}`;
+
+    const autoLoopPatch = this.autoLoopAdjustments?.get(this.phaseNumber)?.trim();
+    if (!autoLoopPatch) {
+      return effectiveInstructions;
+    }
+    return `${effectiveInstructions}\n\n${autoLoopPatch}`;
   }
 
   /** Loads `audits.execution_mode` once per agent instance (one pipeline phase). */

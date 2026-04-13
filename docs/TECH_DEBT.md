@@ -34,8 +34,62 @@
 | TD-009 | done | P2 | `feasibility-layer` / `fact-checker` | Magic thresholds and regex embedded in services. | **Done:** `feasibility-rules.ts`, extended `fact-checker-thresholds.ts` (`controlObjectHeuristics`). | Landed 2026-04 |
 | TD-010 | done | P2 | Feature-flag scatter | Product toggles read via `process.env` in multiple places. | **Done:** `feature-flags.ts`; services use `isBanditsEnabled`, etc. | Landed 2026-04 |
 | TD-011 | open | P3 | Frontend styling | Many pages still use **inline hex**; semantic tokens added in `src/app/config/ui-semantic-colors.ts` but not applied everywhere. | Gradually migrate repeated status colours to `UI_SEMANTIC_COLORS` / CSS variables. | Partial 2026-04 |
+| TD-012 | open | P1 | `src/app/components/AuditNavigation.tsx` | Hardcoded release metadata in footer (`Generated: March 9, 2026`, `v2.1.4 • Enterprise`). | Move to frontend build metadata (`VITE_*`) + server-provided generation timestamp where applicable. | Hardcode audit 2026-04 |
+| TD-013 | open | P1 | `src/app/data/auditData.ts` | Large embedded business content and commercial ranges (timeframes, costs, impact claims) in runtime TS module. | Move business copy to CMS-json source and keep code focused on shape/types only. | Hardcode audit 2026-04 |
+| TD-014 | open | P2 | `server/src/services/control-object-history.ts` | Magic fallback query cap: `.limit(400)` for `pipeline_events`. | Add named config in `server/src/config/system-defaults.ts` and consume via service. | Hardcode audit 2026-04 |
+| TD-015 | open | P2 | `src/app/pages/StrategyLab.tsx` | Hardcoded period and value bands (`last_90d`, `Under 1 week · €0–500`, etc.). | Move benchmark period + roadmap bands to `src/app/config/*` or CMS-json. | Hardcode audit 2026-04 |
+| TD-016 | open | P2 | `server/migrations/011_intake_tokens.sql` | Mutable policy encoded in DB defaults (`gen_random_bytes(20)`, `interval '7 days'`). | Keep DB safety defaults, but source runtime policy from platform settings/config on token issuance. | Hardcode audit 2026-04 |
+| TD-017 | open | P2 | `server/migrations/051_evaluation_datasets_and_execution_mode.sql` | Retention windows hardcoded in trigger (`90/365 days`). | If retention must be runtime-tunable, store policy in DB settings and apply in service policy layer. | Hardcode audit 2026-04 |
+| TD-018 | open | P3 | `src/app/components/ui/use-mobile.ts` | Local hardcoded breakpoint `768` risks drift from design tokens. | Move breakpoint to a shared frontend config/token registry. | Hardcode audit 2026-04 |
+| TD-019 | open | P3 | `server/src/lib/benchmark-recompute-secret.ts` | Hardcoded custom security header name (`x-benchmark-recompute-secret`). | Move header name to server config (with stable default) and reuse from one source. | Hardcode audit 2026-04 |
+| TD-020 | open | P3 | `server/src/config/integrations.ts` | Telegram base URL fallback hardcoded (`https://api.telegram.org`). | Keep as documented fallback, but prefer explicit infra env in production (`TELEGRAM_API_BASE`). | Hardcode audit 2026-04 |
 
 ---
+
+## Hardcode audit report (2026-04)
+
+### High severity
+
+| File:Line | Hardcoded value | Why problematic | Recommended fix |
+| --- | --- | --- | --- |
+| `src/app/components/AuditNavigation.tsx:141` | `Generated: March 9, 2026` | Stale date in production UI; creates trust mismatch. | Read generated timestamp from backend payload or dedicated frontend runtime metadata. |
+| `src/app/components/AuditNavigation.tsx:142` | `v2.1.4 • Enterprise` | Release info drifts from actual deploy version/edition. | Inject `VITE_APP_VERSION`/`VITE_APP_EDITION` at build-time and centralize in frontend config. |
+| `src/app/data/auditData.ts` | Multiple static cost/time/impact business strings | Business logic/content mixed into runtime code; hard to localize/CMS and risky to maintain. | Move to CMS-json content source and keep TS module as typed adapter only. |
+
+### Medium severity
+
+| File:Line | Hardcoded value | Why problematic | Recommended fix |
+| --- | --- | --- | --- |
+| `server/src/services/control-object-history.ts:67` | `.limit(400)` | Query cap is operational behavior hidden in service code. | Move to `SYSTEM_DEFAULTS` and reference a named config constant. |
+| `src/app/pages/StrategyLab.tsx:20` | `Under 1 week · €0–500` | Business range embedded in UI component and locked to one market format. | Move to frontend config/CMS-json (`strategy bands`). |
+| `src/app/pages/StrategyLab.tsx:21` | `1–3 months · €1K–6K` | Same as above. | Move to frontend config/CMS-json. |
+| `src/app/pages/StrategyLab.tsx:22` | `3–6 months · €6K–20K` | Same as above. | Move to frontend config/CMS-json. |
+| `src/app/pages/StrategyLab.tsx:54` | `period: 'last_90d'` | Product policy period hardwired in page logic. | Define default benchmark period in config; allow backend override. |
+| `server/migrations/011_intake_tokens.sql:5` | `gen_random_bytes(20)` | Token policy changes require schema migration. | Keep DB-safe default, but enforce policy in service/config at issuance. |
+| `server/migrations/011_intake_tokens.sql:10` | `interval '7 days'` | Token TTL tied to DB default, not runtime policy controls. | Use platform settings/config for issuance TTL; DB default as fallback only. |
+| `server/migrations/051_evaluation_datasets_and_execution_mode.sql:44-46` | `INTERVAL '365 days'`, `INTERVAL '90 days'` | Retention policy hardcoded at DB trigger layer. | If mutable, externalize retention policy to DB settings + service policy layer. |
+
+### Low severity
+
+| File:Line | Hardcoded value | Why problematic | Recommended fix |
+| --- | --- | --- | --- |
+| `src/app/components/ui/use-mobile.ts:3` | `MOBILE_BREAKPOINT = 768` | Risks mismatch with design-system breakpoints. | Move breakpoint to shared `src/app/config/*` token/constants module. |
+| `server/src/lib/benchmark-recompute-secret.ts:3` | `x-benchmark-recompute-secret` | Security header contract hidden in utility file. | Centralize in server config and import everywhere. |
+| `server/src/config/integrations.ts:5` | `https://api.telegram.org` | Acceptable fallback, but should not become hidden environment contract. | Keep fallback documented; require env in non-dev infra profiles. |
+
+## Hardcode externalization backlog (P0/P1/P2)
+
+- **P0** Replace runtime UI hardcode that misrepresents release/business state:
+  - `AuditNavigation` footer metadata from central frontend runtime config.
+  - `auditData` business narrative moved to CMS-json source (same shape adapter).
+- **P1** Externalize behavior-affecting constants:
+  - Service query caps (`control-object-history`) into `SYSTEM_DEFAULTS`.
+  - `StrategyLab` benchmark period + range labels into frontend config/CMS-json.
+  - Token/retention mutable policy to service policy layer backed by config or platform settings.
+- **P2** Consistency cleanup:
+  - Shared UI breakpoint constants.
+  - Shared security header constants.
+  - Explicit infra-env policy for integration base URLs in production profiles.
 
 ## Intentionally excluded / library zones
 

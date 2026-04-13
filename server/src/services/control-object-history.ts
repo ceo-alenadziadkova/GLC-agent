@@ -7,6 +7,7 @@
 import type { ControlObjectV1, PhaseId } from '../schemas/control-object.js';
 import type { DomainKey } from '../types/audit.js';
 import { phaseIdsStrictlyBefore, phaseOrderIndex } from '../config/phase-order.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
 
@@ -64,7 +65,7 @@ export async function fetchPriorControlObjectsForPhase(
     .eq('audit_id', auditId)
     .eq('event_type', 'control_object')
     .order('created_at', { ascending: false })
-    .limit(400);
+    .limit(SYSTEM_DEFAULTS.routeQueries.controlObjectHistoryEventsLimit);
 
   if (e2 || !events) {
     if (e2) {

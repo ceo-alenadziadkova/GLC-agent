@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
+import { SECURITY_HEADERS } from '../config/security-headers.js';
 
-const HEADER = 'x-benchmark-recompute-secret';
+const HEADER = SECURITY_HEADERS.benchmarkRecomputeSecretHeader;
 
 /**
  * Validates the cron / ops header against `BENCHMARK_RECOMPUTE_SECRET` (constant-time when lengths match).

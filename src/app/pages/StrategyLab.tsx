@@ -13,13 +13,17 @@ import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
 import type { DomainBenchmarkSnapshot } from '../data/api/benchmarks';
 import { api } from '../data/apiService';
 import { UI_SEMANTIC_COLORS } from '../config/ui-semantic-colors';
+import {
+  STRATEGY_LAB_DEFAULT_BENCHMARK_PERIOD,
+  STRATEGY_LAB_TAB_DESCRIPTIONS,
+} from '../config/strategy-lab';
 
 type Timeframe = 'quick' | 'medium' | 'strategic';
 
 const TABS: { key: Timeframe; label: string; icon: typeof Lightning; color: string; desc: string }[] = [
-  { key: 'quick',    label: 'Quick Wins',   icon: Lightning,  color: 'var(--glc-orange)', desc: 'Under 1 week · €0–500'   },
-  { key: 'medium',   label: 'Core Growth',  icon: TrendUp,    color: 'var(--glc-blue)',   desc: '1–3 months · €1K–6K'      },
-  { key: 'strategic',label: 'Strategic',    icon: MapTrifold, color: UI_SEMANTIC_COLORS.strategicPurple, desc: '3–6 months · €6K–20K' },
+  { key: 'quick',    label: 'Quick Wins',   icon: Lightning,  color: 'var(--glc-orange)', desc: STRATEGY_LAB_TAB_DESCRIPTIONS.quick },
+  { key: 'medium',   label: 'Core Growth',  icon: TrendUp,    color: 'var(--glc-blue)',   desc: STRATEGY_LAB_TAB_DESCRIPTIONS.medium },
+  { key: 'strategic',label: 'Strategic',    icon: MapTrifold, color: UI_SEMANTIC_COLORS.strategicPurple, desc: STRATEGY_LAB_TAB_DESCRIPTIONS.strategic },
 ];
 
 function normalizeAuditIndustryKey(raw: string | null | undefined): string | null {
@@ -51,10 +55,14 @@ export function StrategyLab() {
       const entries = await Promise.all(
         DOMAIN_KEYS.map(async (dk) => {
           let snap = ind
-            ? await api.getLatestSnapshot({ phase_id: dk, industry: ind, period: 'last_90d' })
+            ? await api.getLatestSnapshot({ phase_id: dk, industry: ind, period: STRATEGY_LAB_DEFAULT_BENCHMARK_PERIOD })
             : null;
           if (!snap) {
-            snap = await api.getLatestSnapshot({ phase_id: dk, industry: 'all', period: 'last_90d' });
+            snap = await api.getLatestSnapshot({
+              phase_id: dk,
+              industry: 'all',
+              period: STRATEGY_LAB_DEFAULT_BENCHMARK_PERIOD,
+            });
           }
           return [dk, snap] as const;
         }),

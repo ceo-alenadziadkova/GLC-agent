@@ -174,6 +174,54 @@ Recomputes and inserts rows into **`domain_benchmark_snapshot`** from **`evaluat
 
 **Errors:** `403` not platform admin when restricted, `500` on unexpected failure.
 
+### `GET /api/platform/runtime-policies`
+
+**Auth:** consultant JWT and `can_manage` (same rules as `PATCH /api/platform/self-serve-owner`).
+
+Returns effective runtime values (DB override when set, otherwise app-config fallback):
+
+```json
+{
+  "intake_token_ttl_days": 7,
+  "evaluation_retention_default_days": 90,
+  "evaluation_retention_extended_days": 365,
+  "evaluation_retention_internal_only_days": 365
+}
+```
+
+### `PATCH /api/platform/runtime-policies`
+
+**Auth:** consultant JWT and `can_manage` (same rules as `PATCH /api/platform/self-serve-owner`).
+
+**Body:** any subset of:
+
+```json
+{
+  "intake_token_ttl_days": 7,
+  "evaluation_retention_default_days": 90,
+  "evaluation_retention_extended_days": 365,
+  "evaluation_retention_internal_only_days": 365
+}
+```
+
+- Accepts positive integers.
+- `null` clears a DB override and reverts that field to fallback behavior.
+- Omitted fields are not changed.
+
+**Response `200`:**
+
+```json
+{
+  "ok": true,
+  "intake_token_ttl_days": 7,
+  "evaluation_retention_default_days": 90,
+  "evaluation_retention_extended_days": 365,
+  "evaluation_retention_internal_only_days": 365
+}
+```
+
+**Errors:** `400` invalid payload, `403` not platform admin when restricted, `500` persistence failure.
+
 ---
 
 ## Domain benchmarks

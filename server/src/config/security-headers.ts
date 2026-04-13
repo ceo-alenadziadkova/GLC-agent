@@ -1,5 +1,9 @@
 import type { Response } from 'express';
 
+export const SECURITY_HEADERS = {
+  benchmarkRecomputeSecretHeader: 'x-benchmark-recompute-secret',
+} as const;
+
 /** HSTS for production only (1 year, subdomains). */
 export const STRICT_TRANSPORT_SECURITY_VALUE = 'max-age=31536000; includeSubDomains' as const;
 

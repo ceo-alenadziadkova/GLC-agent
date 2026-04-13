@@ -12,17 +12,14 @@
 
 import type { ControlObjectV1 } from '../schemas/control-object.js';
 import type { DomainKey } from './audit.js';
+import { EVALUATION_DATASET_RETENTION_TTL_DAYS } from '../config/evaluation-dataset-retention.js';
 
 // ─── Retention ────────────────────────────────────────────────────────────────
 
 export type RetentionPolicy = 'default' | 'extended' | 'internal_only';
 
 /** TTL in days per retention policy (mirrors the DB CASE expression). */
-export const RETENTION_TTL_DAYS: Record<RetentionPolicy, number> = {
-  default: 90,
-  extended: 365,
-  internal_only: 365,
-};
+export const RETENTION_TTL_DAYS = EVALUATION_DATASET_RETENTION_TTL_DAYS;
 
 // ─── Human Feedback ───────────────────────────────────────────────────────────
 

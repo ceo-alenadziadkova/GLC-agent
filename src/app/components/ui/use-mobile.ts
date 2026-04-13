@@ -1,6 +1,7 @@
 import * as React from "react";
+import { UI_BREAKPOINTS } from "../../config/ui-breakpoints";
 
-const MOBILE_BREAKPOINT = 768;
+const MOBILE_BREAKPOINT = UI_BREAKPOINTS.mobile;
 
 export function useIsMobile() {
   const [isMobile, setIsMobile] = React.useState<boolean | undefined>(

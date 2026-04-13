@@ -2,6 +2,7 @@
  * Pre-brief public intake: consultant creates token; client loads and submits without auth.
  * Payload shape matches `buildPreBriefQuestionsForResponses` + `BriefResponsesSchema` (bank id cells; see API.md).
  */
+import crypto from 'node:crypto';
 import { Router } from 'express';
 import { supabase } from '../services/supabase.js';
 import { requireAuth, attachProfile, requireRole, type AuthRequest } from '../middleware/auth.js';
@@ -65,6 +66,8 @@ import {
   intakeSurfaceInvalidMessage,
 } from '../config/api-error-codes.js';
 import { INTAKE_TOKEN_HEX_REGEX } from '../config/intake-token.js';
+import { INTAKE_TOKEN_RANDOM_BYTES } from '../config/intake-token.js';
+import { getPlatformIntakeTokenTtlDays } from '../lib/platform-runtime-settings.js';
 
 export const intakeRouter = Router();
 
@@ -175,12 +178,16 @@ intakeRouter.post('/', requireAuth, attachProfile, requireRole('consultant'), as
       }
     }
 
+    const tokenTtlDays = await getPlatformIntakeTokenTtlDays();
+
     const { data: row, error } = await supabase
       .from('intake_tokens')
       .insert({
+        token: crypto.randomBytes(INTAKE_TOKEN_RANDOM_BYTES).toString('hex'),
         consultant_id: req.userId!,
         audit_id: audit_id ?? null,
         metadata,
+        expires_at: new Date(Date.now() + tokenTtlDays * 86_400_000).toISOString(),
       })
       .select('token, expires_at')
       .single();

@@ -48,6 +48,8 @@ import { invalidateDownstreamDependents } from './audit-claim-graph.js';
 import { banditService, DEFAULT_VARIANT_ID } from './bandit.js';
 import { attachBenchmarkReferenceToControlObject } from './benchmark-snapshot.js';
 import { findVariant } from '../config/agent-variants.js';
+import { CLAUDE_MODEL, MODEL_MAX_TOKENS, getModelPricing } from '../config/model.js';
+import { roundTokenCostUsd } from '../config/token-cost-rounding.js';
 
 type AgentConstructor = new (auditId: string) => BaseAgent;
 
@@ -282,6 +284,33 @@ export class PipelineOrchestrator {
   }
 
   /**
+   * Estimates rerun cost from the latest token_usage event for this phase.
+   * Falls back to a conservative model-based estimate when historical usage is unavailable.
+   */
+  private async estimateRerunCostUsd(phase: number): Promise<number> {
+    const { data: tokenUsageEvent } = await supabase
+      .from('pipeline_events')
+      .select('data')
+      .eq('audit_id', this.auditId)
+      .eq('phase', phase)
+      .eq('event_type', 'token_usage')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const eventCost = (tokenUsageEvent?.data as { cost_usd?: unknown } | null)?.cost_usd;
+    if (typeof eventCost === 'number' && Number.isFinite(eventCost) && eventCost > 0) {
+      return roundTokenCostUsd(eventCost);
+    }
+
+    const pricing = getModelPricing(CLAUDE_MODEL);
+    const conservativeFallback =
+      (MODEL_MAX_TOKENS.domain / 1_000_000) * pricing.input +
+      (MODEL_MAX_TOKENS.domain / 1_000_000) * pricing.output;
+    return roundTokenCostUsd(conservativeFallback);
+  }
+
+  /**
    * Attempt auto-loop rerun for a phase that received a 'refine' decision.
    *
    * - Generates instruction patches from DynamicAdjustmentService
@@ -332,7 +361,7 @@ export class PipelineOrchestrator {
 
     for (let iteration = 1; iteration <= cfg.maxIterations; iteration++) {
       // Cost guardrail: estimate and check before rerun
-      const estimatedRerunCostUsd = 0.02; // conservative per-phase Claude Sonnet estimate
+      const estimatedRerunCostUsd = await this.estimateRerunCostUsd(phase);
       const rerunCostSoFar = (currentControlObject.cost_control?.total_rerun_cost_usd ?? 0);
       const projectedTotal = rerunCostSoFar + estimatedRerunCostUsd;
 

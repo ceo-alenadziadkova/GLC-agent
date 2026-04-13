@@ -8,6 +8,10 @@ import {
   setStoredSelfServeAuditOwnerUserId,
 } from '../lib/platform-self-serve-settings.js';
 import { resolveSelfServeAuditOwnerUserId } from '../lib/self-serve-audit-owner.js';
+import {
+  getPlatformRuntimePolicySnapshot,
+  setPlatformRuntimePolicyPatch,
+} from '../lib/platform-runtime-settings.js';
 import { listConsultantDirectoryRows } from '../lib/consultant-directory.js';
 import {
   addConsultantAllowlistEmail,
@@ -31,6 +35,7 @@ import {
   PLATFORM_SELF_SERVE_LOAD_FAILED_MESSAGE,
   PLATFORM_SELF_SERVE_PERSIST_FAILED_MESSAGE,
   PLATFORM_SELF_SERVE_UPDATE_FAILED_MESSAGE,
+  PROFILE_PAYLOAD_INVALID_MESSAGE,
   INTERNAL_SERVER_ERROR_MESSAGE,
   apiErrorJson,
 } from '../config/api-error-codes.js';
@@ -141,6 +146,96 @@ platformRouter.patch('/self-serve-owner', requireRole('consultant'), async (req:
       env_fallback_active: false,
       implicit_fallback_active: implicitFallbackActive,
     });
+  } catch {
+    res
+      .status(500)
+      .json(
+        apiErrorJson(API_ERROR_CODES.PLATFORM_SELF_SERVE_UPDATE_FAILED, PLATFORM_SELF_SERVE_UPDATE_FAILED_MESSAGE),
+      );
+  }
+});
+
+platformRouter.get('/runtime-policies', requireRole('consultant'), async (req: AuthRequest, res) => {
+  try {
+    const uid = req.userId!;
+    if (!(await canManagePlatformSettings(uid))) {
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.PLATFORM_ADMIN_ONLY, PLATFORM_ADMIN_ONLY_MESSAGE));
+      return;
+    }
+    const data = await getPlatformRuntimePolicySnapshot();
+    res.json(data);
+  } catch {
+    res
+      .status(500)
+      .json(
+        apiErrorJson(API_ERROR_CODES.PLATFORM_SELF_SERVE_LOAD_FAILED, PLATFORM_SELF_SERVE_LOAD_FAILED_MESSAGE),
+      );
+  }
+});
+
+platformRouter.patch('/runtime-policies', requireRole('consultant'), async (req: AuthRequest, res) => {
+  try {
+    const uid = req.userId!;
+    if (!(await canManagePlatformSettings(uid))) {
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.PLATFORM_ADMIN_ONLY, PLATFORM_ADMIN_ONLY_MESSAGE));
+      return;
+    }
+
+    const body = req.body as Record<string, unknown>;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.PROFILE_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
+      return;
+    }
+
+    const patch: {
+      intake_token_ttl_days?: number | null;
+      evaluation_retention_default_days?: number | null;
+      evaluation_retention_extended_days?: number | null;
+      evaluation_retention_internal_only_days?: number | null;
+    } = {};
+
+    const fields = [
+      'intake_token_ttl_days',
+      'evaluation_retention_default_days',
+      'evaluation_retention_extended_days',
+      'evaluation_retention_internal_only_days',
+    ] as const;
+    for (const field of fields) {
+      const raw = body[field];
+      if (raw === undefined) continue;
+      if (raw === null) {
+        patch[field] = null;
+        continue;
+      }
+      if (typeof raw !== 'number' || !Number.isInteger(raw) || raw <= 0) {
+        res
+          .status(400)
+          .json(apiErrorJson(API_ERROR_CODES.PROFILE_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
+        return;
+      }
+      patch[field] = raw;
+    }
+
+    if (Object.keys(patch).length === 0) {
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.PROFILE_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
+      return;
+    }
+
+    const updated = await setPlatformRuntimePolicyPatch(patch, uid);
+    if (!updated.ok) {
+      res
+        .status(updated.statusCode)
+        .json(
+          apiErrorJson(API_ERROR_CODES.PLATFORM_SELF_SERVE_PERSIST_FAILED, PLATFORM_SELF_SERVE_PERSIST_FAILED_MESSAGE),
+        );
+      return;
+    }
+    const data = await getPlatformRuntimePolicySnapshot();
+    res.json({ ok: true, ...data });
   } catch {
     res
       .status(500)

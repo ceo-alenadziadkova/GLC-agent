@@ -6,6 +6,7 @@ import type { ControlObjectV1 } from '../schemas/control-object.js';
 import type { DomainKey } from '../types/audit.js';
 import type { DomainResult } from '../types/audit.js';
 import type { RetentionPolicy } from '../types/evaluation-dataset.js';
+import { EVALUATION_DATASET_RETENTION_DEFAULT } from '../config/evaluation-dataset-retention.js';
 
 export { sanitizeJsonForEvaluationDataset } from '../lib/evaluation-dataset-sanitize.js';
 
@@ -57,7 +58,7 @@ export async function recordEvaluationDatasetIfEnabled(args: RecordEvaluationDat
     controlObject,
     rawAgentOutput,
     cleanedOutput,
-    retentionPolicy = 'default',
+    retentionPolicy = EVALUATION_DATASET_RETENTION_DEFAULT,
   } = args;
 
   try {

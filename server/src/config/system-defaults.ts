@@ -43,8 +43,12 @@ export const SYSTEM_DEFAULTS = {
     discoverSessionsMaxRows: GLC_DISCOVER_SESSIONS_LIST_MAX,
     intakeSubmissionsMaxRows: GLC_INTAKE_SUBMISSIONS_LIST_MAX,
     pipelineStatusEventsLimit: GLC_PIPELINE_STATUS_EVENTS_LIMIT,
+    controlObjectHistoryEventsLimit: 400,
     /** Same caps as `auditsList` — GET /api/audit-requests pagination. */
     auditRequestsList: GLC_AUDITS_AND_AUDIT_REQUESTS_LIST,
+  },
+  intake: {
+    tokenTtlDays: 7,
   },
   /** Report export / markdown profile slice sizes (`ReportProfiler`). */
   reportProfiler: {
