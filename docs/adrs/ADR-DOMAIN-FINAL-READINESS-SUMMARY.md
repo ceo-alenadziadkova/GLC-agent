@@ -1,12 +1,12 @@
+
 # ADR-DOMAIN-FINAL-READINESS-SUMMARY
+
 ## Final-readiness snapshot across 6 domains + strategy
 
-| Field | Value |
-|---|---|
-| Status | Accepted |
-| Date | 2026-04-13 |
-| Owners | Engineering |
-| Scope | Cross-domain readiness baseline and closure path to final implementation |
+- Status: Accepted
+- Date: 2026-04-13
+- Owners: Engineering
+- Scope: Cross-domain readiness baseline and closure path to final implementation
 
 ## Maturity Scale
 
@@ -16,27 +16,32 @@
 
 ## Current Readiness Baseline
 
-| Area | Stage | Primary blockers | ETA to Final-Ready (implementation effort) |
-|---|---|---|---|
-| `tech_infrastructure` | Final-Ready (domain rules) | Stretch: deeper infra evidence classes | backlog |
-| `security_compliance` | Final-Ready (domain rules) | Stretch: richer compliance artifact validation | backlog |
-| `seo_digital` | Final-Ready (domain rules) | Stretch: deeper external benchmark claim validation | backlog |
-| `ux_conversion` | Final-Ready (domain rules) | Stretch: broader conversion-event evidence | backlog |
-| `marketing_utp` | Final-Ready (domain rules) | Stretch: connector-backed claim confidence tiers | backlog |
-| `automation_processes` | Final-Ready (domain rules) | Stretch: combined feasibility + evidence scenario depth | backlog |
-| `strategy` | Operational+ | Final rubric and contradiction acceptance tests | <1 sprint |
+- `tech_infrastructure`: Final-Ready (domain rules); blocker: deeper infra evidence classes; ETA: backlog.
+- `security_compliance`: Final-Ready (domain rules); blocker: richer compliance artifact validation; ETA: backlog.
+- `seo_digital`: Final-Ready (domain rules); blocker: deeper external benchmark claim validation; ETA: backlog.
+- `ux_conversion`: Final-Ready (domain rules); blocker: broader conversion-event evidence; ETA: backlog.
+- `marketing_utp`: Final-Ready (domain rules); blocker: connector-backed claim confidence tiers; ETA: backlog.
+- `automation_processes`: Final-Ready (domain rules); blocker: combined feasibility + evidence scenario depth; ETA: backlog.
+- `strategy`: Final-Ready (acceptance checklist complete); blocker: deeper scenario coverage as stretch goal; ETA: backlog.
 
 ## Global Status
 
-The platform is now near final implementation both in governance architecture and domain-level fact-check controls. Estimated overall proximity is approximately 85-95% for core platform capabilities and 80-90% for domain-complete quality controls. Primary remaining closure work is strategy-specific readiness rubric hardening and selected stretch validations.
+The platform is at final implementation readiness for governance architecture and domain-level fact-check controls across all six domains plus strategy. Remaining work is limited to stretch validations and broader scenario depth.
 
 ## Acceptance Conditions for “Final Implementation”
 
 1. Done: all six domains now have explicit domain-specific fact-check rule branches.
 2. Done: domain error taxonomies are mapped end-to-end (FactChecker -> CONTROL_OBJECT -> Decision Layer -> Dynamic Adjustment).
 3. Done: deterministic tests cover correction generation and patch routing across domains.
-4. In progress: strategy synthesis acceptance rubric under mixed upstream quality states.
-5. In progress: broaden observability assertions from domain tests to full strategy-level integration scenarios.
+4. Done: strategy synthesis acceptance rubric and checklist execution under mixed upstream quality states.
+5. In progress: broaden observability assertions from domain tests to full strategy-level integration scenarios (stretch).
+
+## Readiness Delta (Strategy Closure)
+
+1. Mixed-quality and deterministic final-gate fixtures are covered in `server/src/tests/pipeline-governance-events.test.ts`.
+2. Contradiction and traceability strategy-context fixtures are covered in `server/src/tests/context-builder-utils.test.ts`.
+3. Strategy persistence regression contract is covered in `server/src/tests/strategy-agent-persistence.test.ts`.
+4. Report generation compatibility with strategy persistence is covered in `server/src/tests/reports-route.test.ts`.
 
 ## Linked Domain ADRs
 

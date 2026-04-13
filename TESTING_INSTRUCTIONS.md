@@ -1,5 +1,9 @@
 # TESTING_INSTRUCTIONS.md (project-specific)
 
+Single source of truth for QA strategy, risk-based testing, and release quality gates.
+
+Related router file: `INSTRUCTIONS.md` (kept minimal on purpose to avoid duplicated policy text).
+
 ## 0. Роль и контекст
 
 Ты работаешь как Senior QA Strategist / Test Architect / Quality Supervisor.
@@ -190,7 +194,7 @@ Coverage != Quality.
 
 - PR/CI (обязательно):
   - unit/component и backend integration suites;
-  - e2e smoke критичных user journeys.
+  - e2e smoke — по выделенному workflow/ручному запуску перед релизом (не в каждом PR в текущем `fast-gate`).
 - Перед релизом (обязательно):
   - полный regression suite;
   - targeted exploratory по зонам high risk;

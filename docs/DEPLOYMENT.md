@@ -225,7 +225,7 @@ Client analytics batching, TanStack Query defaults, and HTTP client timeouts are
 | `NODE_ENV` | `production` |
 | `FRONTEND_URL` | Canonical SPA origin (no trailing slash), e.g. `https://your-app.vercel.app` — **required when `NODE_ENV=production`** (process exits at startup if missing). Used for absolute intake links and merged into CORS allowlist. |
 | `GLC_PUBLIC_SITE_URL` | **Required when `NODE_ENV=production`.** HTTPS origin (no trailing slash) embedded in crawler/snapshot user-agents. In development, defaults to `https://glctech.es` if unset. |
-| `NO_PUBLIC_WEBSITE_URL` | **Required when `NODE_ENV=production`.** Sentinel for no-public-website audits; must match **`VITE_NO_PUBLIC_WEBSITE_URL`** on the SPA when that Vite var is set. |
+| `NO_PUBLIC_WEBSITE_URL` | Not an env var. Build/runtime shared constant from `@glc/intake-core` (derived from `@glc/dev-brand-defaults` JSON sentinel). |
 | `ALLOWED_ORIGINS` | `https://your-app.vercel.app` (comma-separated; merged with `FRONTEND_URL`) |
 | `RATE_LIMIT_REDIS_URL` | Redis URL for shared rate-limit counters (required for multi-instance consistency) |
 | `STRICT_RATE_LIMIT_REDIS` | `true` to fail startup when Redis for rate limits is missing |
@@ -248,7 +248,7 @@ Client analytics batching, TanStack Query defaults, and HTTP client timeouts are
 ### Minimum secure production baseline
 
 - Required:
-  - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ANTHROPIC_API_KEY`, `ALLOWED_ORIGINS`, `NODE_ENV=production`
+  - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ANTHROPIC_API_KEY`, `NODE_ENV=production`
   - `FRONTEND_URL` (required by startup guard when `NODE_ENV=production`)
   - `GLC_PUBLIC_SITE_URL` (required by startup guard and bot identity when `NODE_ENV=production`)
   - `RATE_LIMIT_REDIS_URL` (for shared public abuse controls in multi-instance runtime)

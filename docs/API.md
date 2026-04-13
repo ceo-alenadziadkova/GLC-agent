@@ -31,9 +31,8 @@ Returns non-secret marketing defaults (`brand_name`, `support_email`, `public_si
 
 ## Authentication
 
-### `POST /api/auth/session`
-
-Exchange Supabase session → confirm server-side user context. Optional; primarily for testing.
+There is no dedicated `/api/auth/session` endpoint in the current router map.
+Auth session lifecycle is handled by Supabase on the client; server-side auth context is validated via JWT on protected routes (for example `GET /api/profile`).
 
 ---
 
@@ -307,9 +306,7 @@ Create a new audit.
 ```json
 {
   "id": "uuid",
-  "status": "created",
-  "company_url": "https://example.com",
-  "created_at": "2024-01-01T00:00:00Z"
+  "status": "created"
 }
 ```
 
@@ -399,7 +396,11 @@ Full audit state: audit meta + all domain results + strategy.
 
 Delete audit and all related data (CASCADE). Irreversible.
 
-**Response `204`**
+**Response `200`:**
+
+```json
+{ "deleted": true }
+```
 
 ---
 
@@ -522,27 +523,13 @@ Orchestrator-emitted `error` rows may include **`data.error_code`** for stable d
 
 ```json
 {
-  "audit_status": "auto",
+  "status": "auto",
   "current_phase": 2,
-  "phases": [
-    { "phase": 0, "domain": "recon", "status": "completed", "score": null },
-    {
-      "phase": 1,
-      "domain": "tech_infrastructure",
-      "status": "completed",
-      "score": 4
-    },
-    {
-      "phase": 2,
-      "domain": "security_compliance",
-      "status": "analyzing",
-      "score": null
-    },
-    { "phase": 3, "domain": "seo_digital", "status": "pending", "score": null }
-  ],
   "tokens_used": 32000,
   "token_budget": 200000,
-  "review_pending": false
+  "product_mode": "full",
+  "events": [],
+  "reviews": []
 }
 ```
 
@@ -566,7 +553,15 @@ Submit review approval at a review gate. Optionally includes consultant and inte
 **Response `200`:**
 
 ```json
-{ "approved": true, "next_phase": 1 }
+{
+  "id": "uuid",
+  "audit_id": "uuid",
+  "after_phase": 4,
+  "status": "approved",
+  "consultant_notes": "Client mentioned they recently migrated to Shopify.",
+  "interview_notes": "CEO says their main challenge is converting mobile visitors.",
+  "approved_at": "2026-01-01T10:00:00.000Z"
+}
 ```
 
 If the review was already approved earlier, route returns `{ "status": "already_approved" }`.
@@ -656,12 +651,10 @@ Marks all unread notifications for the current user as read.
 
 Generate a markdown, JSON, or CSV audit report. Caller must be the audit **owner** (`user_id`) or **client** (`client_id`).
 
-#### Query Parameters
+#### Query parameters
 
-| Name      | Values                    | Default                                                 | Description                                                      |
-| --------- | ------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------- |
-| `format`  | `markdown`, `json`, `csv` | `markdown`                                              | Output format. CSV = action plan (quick wins + recommendations). |
-| `profile` | `full`, `owner`           | `full` for full audits; **express** defaults to `owner` | `owner` trims to express domains and a shorter executive layout. |
+- `format`: `json` (default), `markdown`, `csv`, `pdf`.
+- `profile`: `full` (default), `owner`, `tech`, `marketing`, `onepager`; invalid value falls back to `full`.
 
 **Response `200`**
 
@@ -878,7 +871,7 @@ Public discovery submit endpoint (no auth).
 
 **Auth:** none. **Body:** `{ "answers": object, "maturity_level": 1..5, "findings": [] }`.
 
-**Response `201`:** `{ "token", "created_at" }`.
+**Response `201`:** `{ "token", "created_at", "contact_edit_key" }`.
 
 `maturity_level` is validated as integer **1..5** and persisted under `discovery_sessions` with DB check constraint `1..5`. Bounds and session-token hex length match [`server/src/config/discover-contract.ts`](../server/src/config/discover-contract.ts) (aligned with migration **`013_discovery_sessions.sql`**).
 

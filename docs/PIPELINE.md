@@ -140,7 +140,7 @@ When a gate is reached:
 
 - **Phase-level retry**: A failed phase can be re-run without re-running previous phases
 - Cached `collected_data` is reused on retry — only the Claude call is repeated
-- **Exponential backoff**: 3 retries on Claude API errors (429, 500, timeout), delays: 1s → 4s → 16s
+- **Exponential retry with jitter**: up to 3 retries on Claude API errors (429, 500, timeout), based on `SYSTEM_DEFAULTS.claudeHttp` (`retryBaseMs=1500`, doubling per attempt, plus jitter).
 - If all retries fail, phase status → `failed`, audit status → `failed`, error logged in `pipeline_events`
 - Frontend shows "Retry Phase" button for failed phases
 
@@ -173,11 +173,10 @@ Every Claude call logs token usage via `TokenTracker`:
 The orchestrator manages the full lifecycle:
 
 ```typescript
-class PipelineService {
-  async startPipeline(auditId: string): Promise<void>    // Phase 0
-  async runNextPhase(auditId: string): Promise<void>     // Next pending phase
-  async retryPhase(auditId: string, phase: number): Promise<void>
-  async getStatus(auditId: string): Promise<PipelineStatus>
+class PipelineOrchestrator {
+  async startPhase(auditId: string, phase: number): Promise<void>
+  async runBlock(auditId: string, phases: readonly number[]): Promise<void>
+  async runFreeSnapshot(auditId: string): Promise<void>
 }
 ```
 

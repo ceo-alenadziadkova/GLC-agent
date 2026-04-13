@@ -2,7 +2,7 @@
 
 ## BaseAgent
 
-Abstract class in `server/src/agents/base.ts`. All 8 domain agents + ReconAgent + StrategyAgent inherit from it.
+Abstract class in `server/src/agents/base.ts`. All domain agents plus `ReconAgent` and `StrategyAgent` inherit from it (currently 8 agents total: 6 domain + recon + strategy).
 
 High-level flow (domain agents, after collect):
 
@@ -43,11 +43,11 @@ Data gatherers in `server/src/collectors/`. Run before any AI call. Results cach
 | Collector | File | Collects |
 |---|---|---|
 | `CrawlerCollector` | `crawler.ts` | Fetches up to **`CRAWLER_MAX_PAGES`** pages (default 20, clamped 1–100 via `server/src/config/crawler-limits.ts`); parses HTML with cheerio; returns page tree |
-| `ReconCollector` | `recon.ts` | Tech stack detection (80+ patterns), social profiles, contact info, structured data, image analysis |
 | `SecurityCollector` | `security.ts` | HTTP security headers (CSP, HSTS, X-Frame-Options, X-Content-Type), SSL validity, cookie flags, CORS config |
 | `SeoCollector` | `seo.ts` | Meta title/description, structured data from crawl; **robots-parser** for robots.txt; **fast-xml-parser** for sitemap urlset/index (bounded) |
 | `PerformanceCollector` | `performance.ts` | Page weight from crawl, response headers; optional **Lighthouse** (today: **single-URL** on `companyUrl`) when `AUDIT_LIGHTHOUSE` or `AUDIT_DEEP_SCAN` is set — **target:** multi-URL / Unlighthouse-class sampling; see [ARCHITECTURE.md](./ARCHITECTURE.md#target-architecture-lighthouse-and-unlighthouse) |
 | `AccessibilityCollector` | `accessibility.ts` | Alt text, headings, structured-data heuristics; optional **axe-core + Playwright** when `AUDIT_AXE_PLAYWRIGHT` or `AUDIT_DEEP_SCAN` is set |
+| `MarketingCollector` | `marketing.ts` | Marketing copy and positioning signals from crawl + lightweight extraction for `marketing_utp` |
 
 ### BaseCollector interface
 
@@ -64,7 +64,7 @@ interface BaseCollector {
 
 ### ReconAgent — Phase 0
 
-**Collectors:** `CrawlerCollector`, `ReconCollector`
+**Collectors:** `CrawlerCollector`
 
 **Claude task:** Interpret crawled data → produce:
 - Company name, industry, location, business model
@@ -111,7 +111,7 @@ interface BaseCollector {
 
 ### MarketingAgent — Phase 5
 
-**Domain key:** `marketing_utp` | **Collectors:** *(none — uses recon + review notes)*
+**Domain key:** `marketing_utp` | **Collectors:** `MarketingCollector` (+ recon/review context)
 
 **Claude task:** Evaluate marketing positioning and messaging — value proposition clarity, differentiation from competitors, target audience alignment, brand voice consistency. Heavily relies on consultant + interview notes from Gate 2.
 
@@ -163,16 +163,7 @@ Defined in `server/src/config/industry-weights.ts`.
 
 Each industry has a multiplier per domain (default 1.0). Overall score = weighted average.
 
-| Industry | tech | security | seo | ux | marketing | automation |
-|---|---|---|---|---|---|---|
-| E-commerce | 1.2 | 1.1 | 1.4 | 1.5 | 1.3 | 1.0 |
-| Hospitality | 0.9 | 0.9 | 1.3 | 1.5 | 1.2 | 0.8 |
-| Healthcare | 1.1 | 1.5 | 1.0 | 1.1 | 0.9 | 1.1 |
-| SaaS / Tech | 1.4 | 1.3 | 1.0 | 1.2 | 1.2 | 1.3 |
-| Professional Services | 1.0 | 1.1 | 1.2 | 1.1 | 1.3 | 1.1 |
-| Default | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 |
-
-Weights shown in the Strategy Lab for transparency.
+Weights are versioned in code and may change over time; use `server/src/config/industry-weights.ts` as canonical source, and Strategy Lab as runtime display.
 
 ---
 

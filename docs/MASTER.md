@@ -37,6 +37,8 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | Production deploy (Vercel, Railway, Supabase), env matrix, monitoring hooks | [DEPLOYMENT.md](./DEPLOYMENT.md) |
 | Engineering debt register | [TECH_DEBT.md](./TECH_DEBT.md) |
 | Test matrix, coverage, E2E | [TESTING.md](../TESTING.md) (repo root) |
+| QA/testing instruction canon | [TESTING_INSTRUCTIONS.md](../TESTING_INSTRUCTIONS.md) (repo root) |
+| Marketing strategy instruction canon | [CMO-INSTRUCTIONS.md](../CMO-INSTRUCTIONS.md) (repo root) |
 | CI workflows (tests, secret scan, migration smoke) | [.github/workflows](../.github/workflows) |
 | FACT-CHECKER / Decision Layer roadmap vs code | [GAP-ANALYSIS-PHASE0](./adrs/GAP-ANALYSIS-PHASE0.md) |
 | Other ADRs (decisions, future phases) | [docs/adrs/](./adrs/) — see tree under [Restructuring log](#restructuring-log) |
@@ -153,7 +155,7 @@ Selected ADR quick links:
 
 ### 7. Authentication and authorization
 
-**What it is:** Supabase Auth (email/password, Google); JWT to backend; roles via `profiles.role` (`consultant` / `client`); consultant-only pipeline mutations.
+**What it is:** Supabase Auth (email/password, Google); JWT to backend; roles via `profiles.role` (`consultant` / `client`); pipeline mutation access is role- and ownership-aware (`start`/`next` can run for linked clients, `retry`/`reviews` stay consultant-only).
 
 **Why it matters:** Access control for audits and pipeline execution.
 
@@ -304,6 +306,7 @@ Selected ADR quick links:
 3. **No new flat `docs/*.md` files** unless the team agrees to replace or merge an existing file and stay within the **20-file flat-doc quota** (see top of this file). **Do not** add a second master index (e.g. `MASTER_DOCUMENTATION.md`); keep **MASTER.md** as the only index.
 4. **API error inventory:** [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md) lists route `error` literals; `./scripts/api-errors-inventory.sh` prints `rg` matches to stdout — use it to refresh grouped tables after route changes; do not drift the literal tables away from code by casual edits.
 5. **Structure rule.** Canonical topic docs stay at `docs/*.md`. **ADR archive:** `docs/adrs/*`. **Obsolete stubs only:** `docs/archive/*` (short pointer + link to replacement; no duplicate facts).
+6. **Instruction-layer dedup.** Keep root `INSTRUCTIONS.md` as a router only; canonical policy content lives in `TESTING_INSTRUCTIONS.md` and `CMO-INSTRUCTIONS.md`.
 
 ### Documentation PR checklist
 
@@ -313,6 +316,7 @@ Selected ADR quick links:
 - [ ] Migrations order / schema changes reflected in [DATABASE.md](./DATABASE.md) when SQL changes
 - [ ] **Needs Review** used for anything not verified against code or production
 - [ ] If API error copy or codes changed: update `server/src/config/api-error-codes.ts` / messages JSON; refresh literal tables in [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md) using `./scripts/api-errors-inventory.sh` output where applicable
+- [ ] New guidance added to the canonical instruction file, not copied into `INSTRUCTIONS.md`
 
 ### Who updates the master document
 
@@ -399,6 +403,76 @@ docs/
 | Intake bank / tuple / API behaviour | AGENTS, QUESTION_BANK, API | AGENTS → short pointer; detail in QUESTION_BANK + API |
 | API errors: codes vs literals | API, API_ERRORS_INVENTORY, code | SoT: `api-error-codes.ts` + JSON; human summary [API.md](./API.md#error-responses); inventory generated |
 | Stack narrative | CLAUDE.md, ARCHITECTURE | CLAUDE → pointer to ARCHITECTURE + MASTER |
+
+### Consolidation (2026-04-13) — instruction-layer and ADR hygiene
+
+| Action | Item |
+| --- | --- |
+| Merged | Root instruction duplication removed: `INSTRUCTIONS.md` is now a router; QA canon stays in `TESTING_INSTRUCTIONS.md` |
+| Canonicalized | `TESTING_INSTRUCTIONS.md` now explicitly states SSOT role for QA strategy |
+| Classified | Domain final-readiness ADR files are treated as **template siblings** under one package index in [ADR-DOMAIN-FINAL-READINESS-SUMMARY.md](./adrs/ADR-DOMAIN-FINAL-READINESS-SUMMARY.md); repeated section names are intentional and no longer copied into flat docs |
+| Needs Review | Full template compaction across `docs/adrs/ADR-DOMAIN-*-FINAL-READY.md` deferred to a dedicated ADR maintenance pass (to preserve decision history granularity) |
+
+#### Structural diff summary (2026-04-13b)
+
+| Action | Item |
+| --- | --- |
+| Rewritten | `INSTRUCTIONS.md` reduced from duplicated QA manual to SSOT router |
+| Updated | `TESTING_INSTRUCTIONS.md` marked as canonical QA/testing policy |
+| Updated | `MASTER.md` quick navigation + governance + dedup records extended |
+| Kept as-is | `docs/adrs/` tree preserved; no destructive historical rewrites |
+
+#### Duplication report (2026-04-13b)
+
+| Topic | Was duplicated across | Consolidated into | Classification |
+| --- | --- | --- | --- |
+| QA methodology (test pyramid/risk gates) | `INSTRUCTIONS.md`, `TESTING_INSTRUCTIONS.md` | `TESTING_INSTRUCTIONS.md` | Redundant |
+| Marketing command routing prose | `INSTRUCTIONS.md`, `CMO-INSTRUCTIONS.md` | `CMO-INSTRUCTIONS.md` (plus minimal router in `INSTRUCTIONS.md`) | Partial duplicate |
+| Final-readiness ADR section scaffolding | `ADR-DOMAIN-*-FINAL-READY.md` | `ADR-DOMAIN-FINAL-READINESS-SUMMARY.md` package index + per-domain ADRs | Legacy repetition (intentional template) |
+
+#### New documentation tree (2026-04-13b)
+
+```text
+/
+  CLAUDE.md
+  INSTRUCTIONS.md                    # Router only (no duplicated policy payload)
+  TESTING_INSTRUCTIONS.md            # Canonical QA/testing instruction set
+  CMO-INSTRUCTIONS.md                # Canonical marketing orchestration instruction set
+  TESTING.md
+  docs/
+    MASTER.md
+    CONCEPT.md
+    PRODUCT.md
+    ARCHITECTURE.md
+    PIPELINE.md
+    AGENTS.md
+    API.md
+    API_ERRORS_INVENTORY.md
+    AUTH.md
+    SECURITY.md
+    DATABASE.md
+    FRONTEND.md
+    GLOSSARY.md
+    QUESTION_BANK.md
+    IMPROVEMENTS.md
+    TECH_DEBT.md
+    SETUP.md
+    DEPLOYMENT.md
+    archive/
+    adrs/
+```
+
+#### Knowledge domains identified (2026-04-13b)
+
+Product/business logic; System architecture; AI pipeline orchestration; Agents/collectors/scoring; Data storage; REST API contracts; Authentication/authorization; Security; Frontend application; Local setup; Deployment/infrastructure; CI/CD quality gates; Observability/operations; ADR/roadmap history; Instruction-layer governance (marketing + QA).
+
+#### Governance proposal (2026-04-13b)
+
+1. Add new facts only in the canonical file for that domain; all other docs must link (`See: /docs/<FILE>.md#anchor`).
+2. Keep root `INSTRUCTIONS.md` short and routing-only; edit `TESTING_INSTRUCTIONS.md` or `CMO-INSTRUCTIONS.md` directly for policy updates.
+3. Treat ADR package files as historical records; avoid flattening ADR details into topic docs.
+4. Use `Needs Review` labels when implementation truth is uncertain; do not write speculative statements.
+5. On every doc-affecting PR, update this master registry + duplication report row when scope spans multiple domains.
 
 ---
 

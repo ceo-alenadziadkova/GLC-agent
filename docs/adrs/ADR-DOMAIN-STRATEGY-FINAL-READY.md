@@ -1,18 +1,19 @@
+
 # ADR-DOMAIN-STRATEGY-FINAL-READY
+
 ## Final-readiness plan for `strategy`
 
-| Field | Value |
-|---|---|
-| Status | Proposed |
-| Date | 2026-04-13 |
-| Owners | Engineering |
-| Scope | Phase 7 strategy synthesis quality and dependency contract with upstream domain phases |
+- Status: Accepted
+- Date: 2026-04-13
+- Owners: Engineering
+- Scope: Phase 7 strategy synthesis quality and dependency contract with upstream domain phases
 
 ## Context
 
 `strategy` is the synthesis phase that aggregates results from phases 1–6, review notes, and weighted scoring. It has no standalone collector layer and depends on upstream domain quality.
 
 References:
+
 - `server/src/agents/strategy.ts`
 - `server/src/services/pipeline.ts`
 - `server/src/services/context-builder.ts`
@@ -49,6 +50,28 @@ References:
 1. Define strategy readiness rubric based on upstream domain indicators.
 2. Add tests ensuring stable synthesis behavior with mixed upstream quality states.
 3. Enhance observability by correlating strategy outcomes with upstream `decision_hint` patterns.
+
+## Acceptance Checklist
+
+- [x] **Mixed-quality synthesis fixture:** one upstream domain at `accept_with_warnings`, others `accept`, strategy must remain coherent and actionable.
+- [x] **Contradiction detection fixture:** conflicting upstream assumptions should surface as explicit strategy caveats, not silently merged recommendations.
+- [x] **Traceability fixture:** each high-priority strategy recommendation must map to at least one upstream domain signal.
+- [x] **Gate stability fixture:** final review gate remains deterministic under repeated runs with identical upstream artifacts.
+- [x] **Regression fixture:** report generation and strategy persistence paths remain backward-compatible.
+
+## Readiness Delta (Strategy Closure)
+
+1. Mixed-quality and deterministic final-gate fixtures are covered in `server/src/tests/pipeline-governance-events.test.ts`.
+2. Contradiction and traceability strategy-context fixtures are covered in `server/src/tests/context-builder-utils.test.ts`.
+3. Strategy persistence regression contract is covered in `server/src/tests/strategy-agent-persistence.test.ts`.
+4. Report generation compatibility with strategy persistence is covered in `server/src/tests/reports-route.test.ts`.
+
+Suggested test targets:
+
+- `server/src/tests/context-builder-utils.test.ts` (strategy context composition fixtures)
+- `server/src/tests/save-domain-result.test.ts` (strategy persistence safety)
+- `server/src/tests/pipeline-governance-events.test.ts` (final gate and event determinism)
+- `server/src/tests/decision-layer.test.ts` (routing consistency for upstream mixes used by strategy inputs)
 
 ## Readiness Criteria
 

@@ -114,8 +114,8 @@ Changing one of these without the others is a common cause of CORS errors, faile
 ## 5. Verify Setup
 
 1. Open [http://localhost:5173](http://localhost:5173)
-2. You should see the Login page
-3. Sign in or create an account (email + password or Google) → redirected to Portfolio
+2. You should see the public marketing entry page (`RootEntry` / MarketingHome)
+3. Open `/login`, sign in or create an account (email + password or Google) → redirected to Portfolio/Dashboard
 4. Click "New Audit" → enter a URL → submit → redirected to PipelineMonitor
 5. PipelineMonitor should show Phase 0 starting (Recon crawl)
 
