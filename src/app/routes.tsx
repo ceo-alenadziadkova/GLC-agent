@@ -21,7 +21,6 @@ import { DiscoveryPublicPage } from './pages/DiscoveryPublicPage';
 import { DiscoveryQueue }   from './pages/DiscoveryQueue';
 import { SettingsPage }     from './pages/SettingsPage';
 import { AdminSnapshotQueue } from './pages/AdminSnapshotQueue';
-import { IntakeTraceTool } from './pages/IntakeTraceTool';
 import { IntakeWordingWorkspace } from './pages/IntakeWordingWorkspace';
 import { QuestionBankStudioPage } from './pages/QuestionBankStudioPage';
 import { ProtectedRoute }   from './components/ProtectedRoute';
@@ -87,8 +86,6 @@ export const router = createBrowserRouter([
       { path: P.adminRequests, element: <Consultant><AdminRequestQueue /></Consultant> },
       { path: P.adminSnapshots, element: <Consultant><AdminSnapshotQueue /></Consultant> },
       { path: P.adminDiscovery, element: <Consultant><DiscoveryQueue /></Consultant> },
-      // TODO(next iteration): routes remain accessible by direct URL while links are hidden in admin nav.
-      { path: P.adminIntakeTrace, element: <Consultant><IntakeTraceTool /></Consultant> },
       { path: P.adminIntakeWording, element: <Consultant><IntakeWordingWorkspace /></Consultant> },
       { path: P.adminQuestionBankStudio, element: <Consultant><QuestionBankStudioPage /></Consultant> },
       { path: P.pipelineById, element: <Consultant><PipelineMonitor /></Consultant> },

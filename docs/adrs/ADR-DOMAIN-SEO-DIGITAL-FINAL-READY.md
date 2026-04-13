@@ -3,7 +3,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-04-13 |
 | Owners | Engineering |
 | Scope | Domain phase 3 (`seo_digital`) including sitemap/robots/meta checks and governance outputs |
@@ -27,15 +27,15 @@ References:
 
 ## Current State
 
-1. Baseline checks exist for sitemap, robots, and metadata coverage.
+1. Baseline checks exist and were expanded: sitemap/robots/meta coverage plus robots issue severity and structured-data coverage guardrails.
 2. Domain participates fully in CONTROL_OBJECT generation and pipeline event observability.
 3. Existing thresholds prevent obvious score inflation.
 
 ## Gap Analysis
 
-1. Current SEO checks are foundational, but not comprehensive for advanced claim patterns.
-2. Domain-specific error classes are not fully mapped for all recurring SEO inconsistencies.
-3. Readiness thresholds are not yet documented as domain DoD.
+1. Stretch: add deeper competitor/benchmark claim validation when external SEO connectors are enabled.
+2. Stretch: improve claim-type precision for advanced SEO scenarios (ranking/traffic assertions).
+3. Continue threshold calibration from evaluation datasets to reduce false positives.
 
 ## Decision
 
@@ -45,9 +45,9 @@ References:
 
 ## Implementation Plan
 
-1. Extend fact-check patterns for advanced SEO claim reliability.
-2. Update phase profile error catalog for SEO-specific inconsistency classes.
-3. Add regression tests for scorer consistency and routing behavior.
+1. Done: extended SEO fact checks (robots issue flags + structured-data coverage).
+2. Done: aligned structural mapping to SEO error codes and rule-engine patches.
+3. Done: added regression tests for corrections, CONTROL_OBJECT mapping, and dynamic-adjustment routing.
 
 ## Readiness Criteria
 

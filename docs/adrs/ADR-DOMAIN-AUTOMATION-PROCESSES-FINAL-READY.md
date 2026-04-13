@@ -3,7 +3,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-04-13 |
 | Owners | Engineering |
 | Scope | Domain phase 6 (`automation_processes`) with feasibility-sensitive decisioning and fact-check depth |
@@ -28,14 +28,15 @@ References:
 ## Current State
 
 1. Domain has full governance plumbing and participates in all CONTROL_OBJECT/auto-loop paths.
-2. Decision Layer already includes feasibility guardrail for this domain.
-3. Domain-specific collector-hook checks are not implemented in `FactChecker`.
+2. Decision Layer feasibility guardrail is active for this domain.
+3. Domain now has dedicated `checkAutomation` verification in FactChecker.
+4. Automation-specific structural error mapping and agent-6 rerun patch routing are covered by tests.
 
 ## Gap Analysis
 
-1. Missing dedicated automation rule branch in `FactChecker`.
-2. Generic checks are insufficient for execution-risk patterns specific to automation scope.
-3. Domain-specific test scenarios for feasibility + fact validation are incomplete.
+1. Stretch: broaden automation evidence checks with connector-derived integration metadata.
+2. Stretch: add stricter separation between optimistic timeline language and evidence-backed rollout plans.
+3. Add targeted tests around feasibility-threshold boundaries in combined scenarios.
 
 ## Decision
 
@@ -45,12 +46,10 @@ References:
 
 ## Implementation Plan
 
-1. Implement domain checks for automation evidence consistency and unsupported claims.
-2. Add profile/rule-engine error codes mapped to automation risk classes.
-3. Add tests for:
-   - low-feasibility forced refine
-   - unsupported automation assumptions
-   - stable routing around threshold boundaries.
+1. Done: implemented automation domain checks for speculative time savings, unverified tool capability, and unrealistic ROI timeline.
+2. Done: aligned automation error codes with rule-engine mappings.
+3. Done: added deterministic tests for correction generation, CONTROL_OBJECT structural mapping, and agent-6 dynamic-adjustment patches.
+4. Next: expand combined feasibility + domain-error test coverage.
 
 ## Readiness Criteria
 

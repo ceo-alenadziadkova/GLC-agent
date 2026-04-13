@@ -3,7 +3,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-04-13 |
 | Owners | Engineering |
 | Scope | Domain phase 2 (`security_compliance`) with security collector evidence and governance routing |
@@ -28,15 +28,15 @@ Primary references:
 
 ## Current State
 
-1. Domain has dedicated checks in `checkSecurity` (`SSL`, critical headers).
+1. Domain has expanded checks in `checkSecurity`: SSL validity, HTTPS redirect behavior, critical headers, baseline hardening headers, cookie security flags, and header hygiene signals.
 2. CONTROL_OBJECT emission and trace plumbing are complete and shared with other domains.
 3. Feasibility and confidence weighting are already integrated in the governance path.
 
 ## Gap Analysis
 
-1. Security checks focus on a narrow set of controls and do not yet cover richer compliance evidence patterns.
-2. Mapping from security-specific failures to structural/data-gap codes is still partially generic.
-3. Domain acceptance criteria are not formalized in a dedicated readiness matrix.
+1. Stretch: enrich compliance evidence coverage beyond header/cookie/transport layer signals (policy and control-document evidence).
+2. Stretch: tune structural-vs-fixable split for security-specific error codes from production telemetry.
+3. Keep expanding scenario fixtures for edge-case infrastructures.
 
 ## Decision
 
@@ -46,9 +46,9 @@ Primary references:
 
 ## Implementation Plan
 
-1. Extend security rule coverage for high-risk compliance claims using existing collector payload.
-2. Align `error_types` in phase profile with rule-engine instructions for security-specific refine loops.
-3. Add deterministic tests for header combinations, SSL edge cases, and decision routing outcomes.
+1. Done: extended security checks and copy/threshold controls in FactChecker.
+2. Done: aligned security `error_types` with rule-engine instructions and dynamic-adjustment routing.
+3. Done: added deterministic tests for security correction generation, CONTROL_OBJECT mapping, and patch routing.
 
 ## Readiness Criteria
 

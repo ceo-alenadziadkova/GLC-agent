@@ -88,6 +88,10 @@ export class FactChecker {
     seo_digital: (self, result, collected, corrections) => self.checkSeo(result, collected, corrections),
     tech_infrastructure: (self, result, collected, corrections) => self.checkTech(result, collected, corrections),
     ux_conversion: (self, result, collected, corrections) => self.checkUx(result, collected, corrections),
+    marketing_utp: (self, result, collected, corrections) =>
+      self.checkMarketing(result, collected, corrections),
+    automation_processes: (self, result, collected, corrections) =>
+      self.checkAutomation(result, collected, corrections),
   };
 
   verify(
@@ -123,7 +127,7 @@ export class FactChecker {
     const secData = collected['security_headers'];
     if (!secData) return;
 
-    const ssl = secData.ssl as { valid: boolean } | undefined;
+    const ssl = secData.ssl as { valid: boolean; redirects_to_https?: boolean } | undefined;
     const headers = secData.headers as Array<{ name: string; present: boolean }> | undefined;
     const cookies = secData.cookies as { issues?: string[] } | undefined;
 
@@ -136,6 +140,19 @@ export class FactChecker {
         action: 'override',
         original_value: result.score,
         corrected_value: Math.min(result.score, T.security.invalidSslMaxScore),
+      });
+    }
+
+    if (
+      ssl?.valid &&
+      ssl.redirects_to_https === false &&
+      result.score >= T.security.missingCriticalHeadersFlagMinScore
+    ) {
+      corrections.push({
+        field: 'score',
+        issue: secCopy.noHttpsRedirectIssue,
+        raw_evidence: secCopy.noHttpsRedirectRawEvidence,
+        action: 'flag',
       });
     }
 
@@ -157,6 +174,27 @@ export class FactChecker {
           }),
           raw_evidence: interpolateFactCheckerMessage(secCopy.missingCriticalRawEvidenceTemplate, {
             names: missingCritical.map(h => h.name).join(', '),
+          }),
+          action: 'flag',
+        });
+      }
+
+      const missingBaseline = headers.filter(h =>
+        ['X-Content-Type-Options', 'X-Frame-Options', 'Referrer-Policy', 'Permissions-Policy'].includes(h.name) &&
+        !h.present
+      );
+
+      if (
+        missingBaseline.length >= T.security.baselineHeadersMinCount &&
+        result.score >= T.security.missingCriticalHeadersFlagMinScore
+      ) {
+        corrections.push({
+          field: 'score',
+          issue: interpolateFactCheckerMessage(secCopy.baselineHeadersIssueTemplate, {
+            count: missingBaseline.length,
+          }),
+          raw_evidence: interpolateFactCheckerMessage(secCopy.baselineHeadersRawEvidenceTemplate, {
+            names: missingBaseline.map(h => h.name).join(', '),
           }),
           action: 'flag',
         });
@@ -210,8 +248,12 @@ export class FactChecker {
     if (!seoData) return;
 
     const sitemap = seoData.sitemap as { exists: boolean } | undefined;
-    const robotsTxt = seoData.robots_txt as { exists: boolean } | undefined;
+    const robotsTxt = seoData.robots_txt as { exists: boolean; issues?: string[] } | undefined;
     const pageAnalysis = seoData.page_analysis as { issues: string[]; meta_coverage: { with_description: number; total: number } } | undefined;
+    const openGraph = seoData.open_graph as {
+      pages_with_structured_data: number;
+      total_pages: number;
+    } | undefined;
     const seoCopy = factCheckerCopy().seo;
 
     // Can't score 5 without sitemap
@@ -246,6 +288,43 @@ export class FactChecker {
           raw_evidence: interpolateFactCheckerMessage(seoCopy.metaCoverageRawEvidenceTemplate, {
             with_desc: pageAnalysis.meta_coverage.with_description,
             total: pageAnalysis.meta_coverage.total,
+          }),
+          action: 'flag',
+        });
+      }
+    }
+
+    const robotsIssues = robotsTxt?.issues ?? [];
+    if (
+      robotsIssues.length > T.seo.maxRobotsIssuesCount &&
+      result.score >= T.seo.metaDescriptionFlagMinScore
+    ) {
+      corrections.push({
+        field: 'score',
+        issue: interpolateFactCheckerMessage(seoCopy.robotsIssuesDetectedIssueTemplate, {
+          count: robotsIssues.length,
+        }),
+        raw_evidence: interpolateFactCheckerMessage(seoCopy.robotsIssuesDetectedRawEvidenceTemplate, {
+          issues: robotsIssues.slice(0, 3).join(' | '),
+        }),
+        action: 'flag',
+      });
+    }
+
+    if (openGraph && openGraph.total_pages > 0) {
+      const structuredCoverage = openGraph.pages_with_structured_data / openGraph.total_pages;
+      if (
+        structuredCoverage < T.seo.minStructuredDataCoverage &&
+        result.score >= T.seo.metaDescriptionFlagMinScore
+      ) {
+        corrections.push({
+          field: 'score',
+          issue: interpolateFactCheckerMessage(seoCopy.lowStructuredDataCoverageIssueTemplate, {
+            pct: Math.round(structuredCoverage * 100),
+          }),
+          raw_evidence: interpolateFactCheckerMessage(seoCopy.lowStructuredDataCoverageRawEvidenceTemplate, {
+            with_sd: openGraph.pages_with_structured_data,
+            total: openGraph.total_pages,
           }),
           action: 'flag',
         });
@@ -347,6 +426,12 @@ export class FactChecker {
     if (!a11y) return;
 
     const imageA11y = a11y.image_accessibility as { alt_coverage_percent: number } | undefined;
+    const headingHierarchy = a11y.heading_hierarchy as {
+      pages_with_no_h1: number;
+      pages_with_broken_hierarchy: number;
+    } | undefined;
+    const pagesAnalyzed = (a11y.pages_analyzed as number | undefined) ?? 0;
+    const structuredDataPresent = a11y.structured_data_present as boolean | undefined;
     const uxCopy = factCheckerCopy().ux;
 
     if (
@@ -361,6 +446,177 @@ export class FactChecker {
         }),
         raw_evidence: interpolateFactCheckerMessage(uxCopy.imageAltRawEvidenceTemplate, {
           pct: imageA11y.alt_coverage_percent,
+        }),
+        action: 'flag',
+      });
+    }
+
+    if (
+      headingHierarchy &&
+      headingHierarchy.pages_with_no_h1 > T.ux.maxPagesWithoutH1 &&
+      result.score >= T.ux.flagMinScore
+    ) {
+      corrections.push({
+        field: 'score',
+        issue: interpolateFactCheckerMessage(uxCopy.pagesWithoutH1IssueTemplate, {
+          count: headingHierarchy.pages_with_no_h1,
+        }),
+        raw_evidence: interpolateFactCheckerMessage(uxCopy.pagesWithoutH1RawEvidenceTemplate, {
+          count: headingHierarchy.pages_with_no_h1,
+        }),
+        action: 'flag',
+      });
+    }
+
+    if (
+      headingHierarchy &&
+      headingHierarchy.pages_with_broken_hierarchy > T.ux.maxBrokenHeadingPages &&
+      result.score >= T.ux.flagMinScore
+    ) {
+      corrections.push({
+        field: 'score',
+        issue: interpolateFactCheckerMessage(uxCopy.brokenHeadingHierarchyIssueTemplate, {
+          count: headingHierarchy.pages_with_broken_hierarchy,
+        }),
+        raw_evidence: interpolateFactCheckerMessage(uxCopy.brokenHeadingHierarchyRawEvidenceTemplate, {
+          count: headingHierarchy.pages_with_broken_hierarchy,
+        }),
+        action: 'flag',
+      });
+    }
+
+    if (
+      pagesAnalyzed > 0 &&
+      structuredDataPresent === false &&
+      result.score >= T.ux.flagMinScore
+    ) {
+      corrections.push({
+        field: 'score',
+        issue: interpolateFactCheckerMessage(uxCopy.lowStructuredDataPresenceIssueTemplate, {
+          pct: 0,
+        }),
+        raw_evidence: interpolateFactCheckerMessage(uxCopy.lowStructuredDataPresenceRawEvidenceTemplate, {
+          with_sd: 0,
+          total: pagesAnalyzed,
+        }),
+        action: 'flag',
+      });
+    }
+  }
+
+  private checkMarketing(
+    result: DomainResult,
+    _collected: Record<string, Record<string, unknown>>,
+    corrections: FactCorrection[]
+  ) {
+    if (result.score < T.marketing.flagMinScore) return;
+
+    const mCopy = factCheckerCopy().marketing;
+    const statements = [
+      ...result.issues.map(i => i.description),
+      ...result.recommendations.map(r => `${r.description} ${r.impact}`),
+    ];
+
+    const hasNumeric = (s: string) => /\d+([.,]\d+)?\s?(%|k|m|b|€|\$)/i.test(s);
+    const hasMarketSize = (s: string) => /\b(tam|sam|som|market size|addressable market)\b/i.test(s);
+    const hasCompetitor = (s: string) => /\b(competitor|market share|category leader)\b/i.test(s);
+    const hasRoi = (s: string) => /\b(roi|return on investment|cac|ltv|conversion uplift)\b/i.test(s);
+    const hasSourceCue = (s: string) => /\b(source|according to|based on|from data)\b/i.test(s);
+
+    const marketSizeClaim = statements.find(s => hasMarketSize(s) && hasNumeric(s) && !hasSourceCue(s));
+    if (marketSizeClaim) {
+      corrections.push({
+        field: 'score',
+        issue: mCopy.marketSizeClaimIssue,
+        raw_evidence: interpolateFactCheckerMessage(mCopy.marketSizeClaimRawEvidenceTemplate, {
+          statement: marketSizeClaim,
+        }),
+        action: 'flag',
+      });
+    }
+
+    const competitorClaim = statements.find(s => hasCompetitor(s) && hasNumeric(s) && !hasSourceCue(s));
+    if (competitorClaim) {
+      corrections.push({
+        field: 'score',
+        issue: mCopy.competitorClaimIssue,
+        raw_evidence: interpolateFactCheckerMessage(mCopy.competitorClaimRawEvidenceTemplate, {
+          statement: competitorClaim,
+        }),
+        action: 'flag',
+      });
+    }
+
+    const roiClaim = statements.find(s => hasRoi(s) && hasNumeric(s) && !hasSourceCue(s));
+    if (roiClaim) {
+      corrections.push({
+        field: 'score',
+        issue: mCopy.roiFigureIssue,
+        raw_evidence: interpolateFactCheckerMessage(mCopy.roiFigureRawEvidenceTemplate, {
+          statement: roiClaim,
+        }),
+        action: 'flag',
+      });
+    }
+  }
+
+  private checkAutomation(
+    result: DomainResult,
+    _collected: Record<string, Record<string, unknown>>,
+    corrections: FactCorrection[]
+  ) {
+    if (result.score < T.automation.flagMinScore) return;
+
+    const aCopy = factCheckerCopy().automation;
+    const statements = [
+      ...result.issues.map(i => i.description),
+      ...result.recommendations.map(r => `${r.description} ${r.impact}`),
+    ];
+
+    const timeSavingPattern = /\b(save|reduce|cut)\b.*\b\d+([.,]\d+)?\s?(hours?|days?|weeks?)\b/i;
+    const toolCapabilityPattern = /\b(seamless integration|real-?time sync|fully automated|no-code integration)\b/i;
+    const roiTimelinePattern = /\b(roi|payback|break[- ]?even)\b.*\b(\d+)\s?(month|months)\b/i;
+    const sourceCuePattern = /\b(source|according to|based on|from data)\b/i;
+
+    const timeSavingClaim = statements.find(s => timeSavingPattern.test(s) && !sourceCuePattern.test(s));
+    if (timeSavingClaim) {
+      corrections.push({
+        field: 'score',
+        issue: aCopy.timeSavingIssue,
+        raw_evidence: interpolateFactCheckerMessage(aCopy.timeSavingRawEvidenceTemplate, {
+          statement: timeSavingClaim,
+        }),
+        action: 'flag',
+      });
+    }
+
+    const toolCapabilityClaim = statements.find(s => toolCapabilityPattern.test(s) && !sourceCuePattern.test(s));
+    if (toolCapabilityClaim) {
+      corrections.push({
+        field: 'score',
+        issue: aCopy.toolCapabilityIssue,
+        raw_evidence: interpolateFactCheckerMessage(aCopy.toolCapabilityRawEvidenceTemplate, {
+          statement: toolCapabilityClaim,
+        }),
+        action: 'flag',
+      });
+    }
+
+    const roiTimelineClaim = statements.find(s => {
+      const m = s.match(roiTimelinePattern);
+      if (!m) return false;
+      const months = Number(m[2]);
+      return Number.isFinite(months) && months <= T.automation.maxQuickRoiMonths && !sourceCuePattern.test(s);
+    });
+    if (roiTimelineClaim) {
+      const months = Number(roiTimelineClaim.match(roiTimelinePattern)?.[2] ?? 0);
+      corrections.push({
+        field: 'score',
+        issue: interpolateFactCheckerMessage(aCopy.roiTimelineIssueTemplate, {
+          months,
+        }),
+        raw_evidence: interpolateFactCheckerMessage(aCopy.roiTimelineRawEvidenceTemplate, {
+          statement: roiTimelineClaim,
         }),
         action: 'flag',
       });
@@ -613,6 +869,86 @@ export class FactChecker {
       );
       if (matchesCorrection && !co.errors.structural.includes(errorType)) {
         co.errors.structural.push(errorType);
+      }
+    }
+
+    if (domainKey === 'security_compliance') {
+      const securityHeuristicMappings: Array<{ code: string; needle: string }> = [
+        { code: 'security_https_redirect_gap', needle: 'redirect to https' },
+        { code: 'security_cookie_flag_gap', needle: 'cookie security issue' },
+        { code: 'security_header_hygiene_gap', needle: 'header hygiene issue' },
+        { code: 'security_baseline_header_gap', needle: 'baseline security header' },
+      ];
+      for (const map of securityHeuristicMappings) {
+        const hit = corrections.some(c =>
+          c.issue.toLowerCase().includes(map.needle) || c.raw_evidence.toLowerCase().includes(map.needle)
+        );
+        if (hit && !co.errors.structural.includes(map.code)) {
+          co.errors.structural.push(map.code);
+        }
+      }
+    }
+
+    if (domainKey === 'seo_digital') {
+      const seoHeuristicMappings: Array<{ code: string; needle: string }> = [
+        { code: 'seo_missing_crawl_evidence', needle: 'robots.txt has' },
+        { code: 'seo_competitor_claim_unverified', needle: 'structured data coverage' },
+      ];
+      for (const map of seoHeuristicMappings) {
+        const hit = corrections.some(c =>
+          c.issue.toLowerCase().includes(map.needle) || c.raw_evidence.toLowerCase().includes(map.needle)
+        );
+        if (hit && !co.errors.structural.includes(map.code)) {
+          co.errors.structural.push(map.code);
+        }
+      }
+    }
+
+    if (domainKey === 'ux_conversion') {
+      const uxHeuristicMappings: Array<{ code: string; needle: string }> = [
+        { code: 'ux_a11y_claim_unchecked', needle: 'missing h1' },
+        { code: 'ux_missing_analytics_evidence', needle: 'broken heading hierarchy' },
+        { code: 'ux_benchmark_unsubstantiated', needle: 'structured data appears on only' },
+      ];
+      for (const map of uxHeuristicMappings) {
+        const hit = corrections.some(c =>
+          c.issue.toLowerCase().includes(map.needle) || c.raw_evidence.toLowerCase().includes(map.needle)
+        );
+        if (hit && !co.errors.structural.includes(map.code)) {
+          co.errors.structural.push(map.code);
+        }
+      }
+    }
+
+    if (domainKey === 'marketing_utp') {
+      const marketingHeuristicMappings: Array<{ code: string; needle: string }> = [
+        { code: 'marketing_market_size_unverified', needle: 'market size claim' },
+        { code: 'marketing_competitor_claim_unsourced', needle: 'competitor claim' },
+        { code: 'marketing_roi_figure_speculative', needle: 'roi figure appears speculative' },
+      ];
+      for (const map of marketingHeuristicMappings) {
+        const hit = corrections.some(c =>
+          c.issue.toLowerCase().includes(map.needle) || c.raw_evidence.toLowerCase().includes(map.needle)
+        );
+        if (hit && !co.errors.structural.includes(map.code)) {
+          co.errors.structural.push(map.code);
+        }
+      }
+    }
+
+    if (domainKey === 'automation_processes') {
+      const automationHeuristicMappings: Array<{ code: string; needle: string }> = [
+        { code: 'automation_time_saving_speculative', needle: 'time-saving estimate appears speculative' },
+        { code: 'automation_tool_capability_unverified', needle: 'tool capability claim appears unverified' },
+        { code: 'automation_roi_timeline_unrealistic', needle: 'roi timeline' },
+      ];
+      for (const map of automationHeuristicMappings) {
+        const hit = corrections.some(c =>
+          c.issue.toLowerCase().includes(map.needle) || c.raw_evidence.toLowerCase().includes(map.needle)
+        );
+        if (hit && !co.errors.structural.includes(map.code)) {
+          co.errors.structural.push(map.code);
+        }
       }
     }
 

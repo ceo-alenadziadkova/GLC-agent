@@ -30,10 +30,11 @@ References:
 1. Strategy is integrated as final sequential phase with full lifecycle events.
 2. Weighted overall scoring and review-gate orchestration are implemented.
 3. Upstream governance (CONTROL_OBJECT, decisioning, auto-loop) already provides quality signals.
+4. Upstream domain fact-check depth is now improved across all six domains, reducing strategy noise and contradiction risk.
 
 ## Gap Analysis
 
-1. Strategy quality is currently constrained by uneven domain maturity (especially marketing and automation).
+1. Remaining work is mostly strategy-specific rubric/acceptance formalization rather than upstream domain parity.
 2. No explicit strategy-specific readiness rubric ties synthesis quality to upstream domain health.
 3. Limited explicit acceptance criteria for contradiction handling in synthesis output.
 

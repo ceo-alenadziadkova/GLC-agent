@@ -479,7 +479,7 @@ describe('BanditService', () => {
 
     const result = await svc.recomputeArmPerformanceFromEvaluationDatasets();
 
-    expect(result).toEqual({ phases_updated: 1, arms_upserted: 2, dataset_rows_seen: 3 });
+    expect(result).toEqual({ phases_updated: 1, arms_upserted: 2, dataset_rows_seen: 3, dry_run: false });
     expect(deleteEqFn).toHaveBeenCalledWith('phase_id', PHASE);
     expect(upsertFn).toHaveBeenCalledWith(
       expect.arrayContaining([
@@ -498,5 +498,34 @@ describe('BanditService', () => {
       ]),
       expect.objectContaining({ onConflict: 'phase_id,variant_id' }),
     );
+  });
+
+  it('supports dry_run recompute without touching bandit_arm_performance writes', async () => {
+    const upsertFn = vi.fn().mockResolvedValue({ error: null });
+    const deleteFn = vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ error: null }) }));
+    const evalRows = [
+      {
+        phase_id: PHASE,
+        agent_variant_id: null,
+        control_object: { agent_performance: { agent_score: 0.6 } },
+      },
+    ];
+
+    mocks.supabase.from.mockImplementation((table: string) => {
+      if (table === 'evaluation_datasets') {
+        return {
+          select: vi.fn().mockResolvedValue({ data: evalRows, error: null }),
+        };
+      }
+      return {
+        delete: deleteFn,
+        upsert: upsertFn,
+      };
+    });
+
+    const result = await svc.recomputeArmPerformanceFromEvaluationDatasets(undefined, { dryRun: true });
+    expect(result).toEqual({ phases_updated: 1, arms_upserted: 1, dataset_rows_seen: 1, dry_run: true });
+    expect(deleteFn).not.toHaveBeenCalled();
+    expect(upsertFn).not.toHaveBeenCalled();
   });
 });

@@ -3,7 +3,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-04-13 |
 | Owners | Engineering |
 | Scope | Domain phase 4 (`ux_conversion`) from accessibility/crawl evidence to governance and routing |
@@ -27,15 +27,15 @@ References:
 
 ## Current State
 
-1. `checkUx` already validates image-alt coverage and score consistency.
+1. `checkUx` now validates image-alt coverage, missing H1 pages, broken heading hierarchy, and structured-data absence in addition to score consistency.
 2. Domain is fully integrated with CONTROL_OBJECT, decisioning, and event emission.
 3. Review-gate flow after auto wing is already operational.
 
 ## Gap Analysis
 
-1. Validation coverage is narrow and does not yet include broader conversion/UX evidence classes.
-2. Error taxonomy remains partly generic, reducing precision for dynamic adjustments.
-3. No explicit domain-level readiness matrix for gate-quality acceptance.
+1. Stretch: add CTA/form/interaction quality signals once dedicated collector evidence is available.
+2. Stretch: separate analytics-evidence errors from semantic-structure errors with finer taxonomy.
+3. Keep gate-quality thresholds tuned from production runs.
 
 ## Decision
 
@@ -45,9 +45,9 @@ References:
 
 ## Implementation Plan
 
-1. Add additional UX/conversion evidence checks in `checkUx`.
-2. Update phase profile error types and corresponding rule-engine mappings.
-3. Expand test coverage for gate-boundary scenarios (`accept_with_warnings` vs `refine`).
+1. Done: added additional UX evidence checks in `checkUx`.
+2. Done: connected new UX patterns to error typing and rule-engine mappings.
+3. Done: expanded deterministic test coverage for corrections, CONTROL_OBJECT mapping, and agent-4 rerun patches.
 
 ## Readiness Criteria
 

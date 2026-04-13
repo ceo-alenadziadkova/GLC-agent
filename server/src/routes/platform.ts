@@ -21,6 +21,7 @@ import {
 } from '../services/consultant-allowlist.js';
 import { computeAndStoreBenchmarkSnapshots } from '../services/benchmark-snapshot.js';
 import { banditService } from '../services/bandit.js';
+import { DOMAIN_KEYS, type DomainKey } from '../types/audit.js';
 import { logger } from '../services/logger.js';
 import {
   API_ERROR_CODES,
@@ -33,6 +34,7 @@ import {
   PLATFORM_OWNER_NOT_CONSULTANT_MESSAGE,
   PLATFORM_OWNER_REQUIRED_MESSAGE,
   PLATFORM_OWNER_UUID_INVALID_MESSAGE,
+  PLATFORM_RECOMPUTE_IN_PROGRESS_MESSAGE,
   PLATFORM_SELF_SERVE_LOAD_FAILED_MESSAGE,
   PLATFORM_SELF_SERVE_PERSIST_FAILED_MESSAGE,
   PLATFORM_SELF_SERVE_UPDATE_FAILED_MESSAGE,
@@ -42,6 +44,7 @@ import {
 } from '../config/api-error-codes.js';
 
 export const platformRouter = Router();
+let isBanditRecomputeRunning = false;
 
 platformRouter.use(requireAuth);
 platformRouter.use(generalLimiter);
@@ -406,13 +409,48 @@ platformRouter.post('/benchmarks/recompute', requireRole('consultant'), async (r
 });
 
 platformRouter.post('/bandits/recompute', requireRole('consultant'), async (req: AuthRequest, res) => {
+  let lockAcquired = false;
   try {
     const uid = req.userId!;
     if (!(await canManagePlatformSettings(uid))) {
       res.status(403).json(apiErrorJson(API_ERROR_CODES.PLATFORM_ADMIN_ONLY, PLATFORM_ADMIN_ONLY_MESSAGE));
       return;
     }
-    const out = await banditService.recomputeArmPerformanceFromEvaluationDatasets();
+    if (isBanditRecomputeRunning) {
+      res
+        .status(409)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.PLATFORM_RECOMPUTE_IN_PROGRESS,
+            PLATFORM_RECOMPUTE_IN_PROGRESS_MESSAGE,
+          ),
+        );
+      return;
+    }
+
+    const body = (req.body ?? {}) as { phase_id?: unknown; dry_run?: unknown };
+    let phaseId: DomainKey | undefined;
+    if (body.phase_id !== undefined) {
+      if (typeof body.phase_id !== 'string' || !DOMAIN_KEYS.includes(body.phase_id as DomainKey)) {
+        res
+          .status(400)
+          .json(apiErrorJson(API_ERROR_CODES.PROFILE_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
+        return;
+      }
+      phaseId = body.phase_id as DomainKey;
+    }
+    if (body.dry_run !== undefined && typeof body.dry_run !== 'boolean') {
+      res
+        .status(400)
+        .json(apiErrorJson(API_ERROR_CODES.PROFILE_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
+      return;
+    }
+
+    isBanditRecomputeRunning = true;
+    lockAcquired = true;
+    const out = await banditService.recomputeArmPerformanceFromEvaluationDatasets(phaseId, {
+      dryRun: body.dry_run === true,
+    });
     res.json({ ok: true, ...out });
   } catch (e) {
     logger.error('platform.bandit_recompute_failed', {
@@ -420,5 +458,9 @@ platformRouter.post('/bandits/recompute', requireRole('consultant'), async (req:
       error: e instanceof Error ? e.message : String(e),
     });
     res.status(500).json(apiErrorJson(API_ERROR_CODES.INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR_MESSAGE));
+  } finally {
+    if (lockAcquired) {
+      isBanditRecomputeRunning = false;
+    }
   }
 });

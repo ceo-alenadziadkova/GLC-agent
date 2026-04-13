@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { IntakePlan } from '@glc/intake-core';
 import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import { computeBranchUpstreamIds } from './intake-trace-branch-links';
-import { trackIntakeWordingReviewExported } from '../../lib/intake-trace-tool-telemetry';
+import { trackIntakeWordingReviewExported } from '../../lib/intake-workspace-telemetry';
 import { UI_INTAKE_TRACE_GRAPH } from '../../config/ui-semantic-colors';
 
 interface NodePos {
@@ -595,7 +595,7 @@ export function IntakeTraceEdgeGraph({
     link.remove();
     URL.revokeObjectURL(url);
     trackIntakeWordingReviewExported({
-      route: typeof window !== 'undefined' ? window.location.pathname : '/admin/intake-trace',
+      route: typeof window !== 'undefined' ? window.location.pathname : '/admin/intake-wording',
     });
   };
 

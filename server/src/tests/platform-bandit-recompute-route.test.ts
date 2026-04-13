@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => {
     phases_updated: 2,
     arms_upserted: 5,
     dataset_rows_seen: 42,
+    dry_run: false,
   }));
   return {
     canManagePlatformSettings,
@@ -68,6 +69,7 @@ beforeEach(() => {
     phases_updated: 2,
     arms_upserted: 5,
     dataset_rows_seen: 42,
+    dry_run: false,
   });
 });
 
@@ -81,8 +83,12 @@ describe('POST /api/platform/bandits/recompute', () => {
       phases_updated: 2,
       arms_upserted: 5,
       dataset_rows_seen: 42,
+      dry_run: false,
     });
     expect(mocks.recomputeArmPerformanceFromEvaluationDatasets).toHaveBeenCalledTimes(1);
+    expect(mocks.recomputeArmPerformanceFromEvaluationDatasets).toHaveBeenCalledWith(undefined, {
+      dryRun: false,
+    });
   });
 
   it('returns 403 when caller cannot manage platform settings', async () => {
@@ -90,5 +96,55 @@ describe('POST /api/platform/bandits/recompute', () => {
     const res = await fetch(`${baseUrl}/api/platform/bandits/recompute`, { method: 'POST' });
     expect(res.status).toBe(403);
     expect(mocks.recomputeArmPerformanceFromEvaluationDatasets).not.toHaveBeenCalled();
+  });
+
+  it('passes phase_id and dry_run to service', async () => {
+    const res = await fetch(`${baseUrl}/api/platform/bandits/recompute`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ phase_id: 'security_compliance', dry_run: true }),
+    });
+    expect(res.status).toBe(200);
+    expect(mocks.recomputeArmPerformanceFromEvaluationDatasets).toHaveBeenCalledWith(
+      'security_compliance',
+      { dryRun: true },
+    );
+  });
+
+  it('returns 400 for invalid phase_id payload', async () => {
+    const res = await fetch(`${baseUrl}/api/platform/bandits/recompute`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ phase_id: 'invalid_phase' }),
+    });
+    expect(res.status).toBe(400);
+    expect(mocks.recomputeArmPerformanceFromEvaluationDatasets).not.toHaveBeenCalled();
+  });
+
+  it('returns 409 when recompute is already running', async () => {
+    let resolveFirst: (() => void) | null = null;
+    mocks.recomputeArmPerformanceFromEvaluationDatasets.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          resolveFirst = () =>
+            resolve({
+              phases_updated: 1,
+              arms_upserted: 1,
+              dataset_rows_seen: 1,
+              dry_run: false,
+            });
+        }),
+    );
+
+    const first = fetch(`${baseUrl}/api/platform/bandits/recompute`, { method: 'POST' });
+    await Promise.resolve();
+    const second = await fetch(`${baseUrl}/api/platform/bandits/recompute`, { method: 'POST' });
+
+    expect(second.status).toBe(409);
+    const body = (await second.json()) as Record<string, unknown>;
+    expect(body.code).toBe('PLATFORM_RECOMPUTE_IN_PROGRESS');
+
+    resolveFirst?.();
+    await first;
   });
 });

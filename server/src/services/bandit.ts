@@ -90,6 +90,7 @@ export interface RecomputeBanditArmsResult {
   phases_updated: number;
   arms_upserted: number;
   dataset_rows_seen: number;
+  dry_run: boolean;
 }
 
 export interface AggregatedBanditArm {
@@ -235,8 +236,10 @@ export class BanditService {
    */
   async recomputeArmPerformanceFromEvaluationDatasets(
     phaseId?: DomainKey,
+    opts?: { dryRun?: boolean },
   ): Promise<RecomputeBanditArmsResult> {
     try {
+      const dryRun = opts?.dryRun === true;
       const evalQuery = supabase
         .from('evaluation_datasets')
         .select('phase_id, agent_variant_id, control_object');
@@ -249,24 +252,27 @@ export class BanditService {
       const aggregated = aggregateBanditArmsFromEvaluationRows(datasetRows);
       const phases = [...new Set(aggregated.map(r => r.phase_id))];
 
-      for (const phase of phases) {
-        await supabase.from('bandit_arm_performance').delete().eq('phase_id', phase);
-      }
+      if (!dryRun) {
+        for (const phase of phases) {
+          await supabase.from('bandit_arm_performance').delete().eq('phase_id', phase);
+        }
 
-      if (aggregated.length > 0) {
-        await supabase.from('bandit_arm_performance').upsert(
-          aggregated.map(row => ({
-            ...row,
-            updated_at: new Date().toISOString(),
-          })),
-          { onConflict: 'phase_id,variant_id' },
-        );
+        if (aggregated.length > 0) {
+          await supabase.from('bandit_arm_performance').upsert(
+            aggregated.map(row => ({
+              ...row,
+              updated_at: new Date().toISOString(),
+            })),
+            { onConflict: 'phase_id,variant_id' },
+          );
+        }
       }
 
       return {
         phases_updated: phases.length,
         arms_upserted: aggregated.length,
         dataset_rows_seen: datasetRows.length,
+        dry_run: dryRun,
       };
     } catch (err) {
       logger.error('bandit.recompute_from_evaluation_datasets_failed', {
@@ -274,7 +280,7 @@ export class BanditService {
         phase_id: phaseId ?? null,
         error: (err as Error).message,
       });
-      return { phases_updated: 0, arms_upserted: 0, dataset_rows_seen: 0 };
+      return { phases_updated: 0, arms_upserted: 0, dataset_rows_seen: 0, dry_run: opts?.dryRun === true };
     }
   }
 

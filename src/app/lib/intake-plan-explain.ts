@@ -2,7 +2,7 @@ import type { QuestionReason } from '@glc/intake-core';
 
 /**
  * Short, human-readable lines for product UX (consultant / client wizard).
- * Full trace remains on IntakeTraceTool / CLI.
+ * Full diagnostics remain in Question Bank Studio / CLI.
  */
 const USER_REASON_MESSAGES: Partial<Record<string, string>> = {
   BRANCH_OK: 'This question is relevant based on your previous answers.',

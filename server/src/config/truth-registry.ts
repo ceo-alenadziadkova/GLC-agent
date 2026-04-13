@@ -146,6 +146,10 @@ export const PHASE_PROFILES: Record<DomainKey, PhaseProfile> = {
       'data_policy_mismatch',
       'access_control_gap',
       'missing_security_evidence',
+      'security_https_redirect_gap',
+      'security_cookie_flag_gap',
+      'security_header_hygiene_gap',
+      'security_baseline_header_gap',
     ],
     default_assumption_risk: 'high',
     // Security & Compliance: auto-remediation restricted to tone ONLY.

@@ -3,7 +3,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-04-13 |
 | Owners | Engineering |
 | Scope | Domain phase 1 (`tech_infrastructure`) from collector signals to Decision Layer routing |
@@ -29,15 +29,15 @@ Key references:
 
 ## Current State
 
-1. Domain-specific collector checks exist (`checkTech`) and enforce core guardrails (`compression`, `cache policy`).
+1. Domain-specific collector checks exist (`checkTech`) and now enforce `compression`, `cache policy`, `https_available`, average load time, and lazy-load coverage guardrails.
 2. Governance contract is already v2.x compatible through `buildControlObject()`.
 3. Auto-loop, agent-performance scoring, and evaluation dataset hooks are implemented and reusable by this domain.
 
 ## Gap Analysis
 
-1. `checkTech` currently relies on a small set of heuristics and misses richer infra signals (hosting topology, dependency health, CDN mismatch).
-2. Error typing is still mostly generic for several correction paths (`score_consistency_flag` overuse).
-3. Domain-specific readiness criteria are not formalized as acceptance tests.
+1. Stretch: add richer infra evidence checks (dependency health, CDN/path topology, uptime history) when data sources become available.
+2. Stretch: introduce infra-specific structural error codes beyond generic score/evidence signals.
+3. Keep periodic threshold calibration to avoid over-sensitive refines.
 
 ## Decision
 
@@ -48,13 +48,10 @@ Key references:
 
 ## Implementation Plan
 
-1. Add new tech evidence checks in `FactChecker.checkTech` for high-risk infra claims.
-2. Extend `phase-profiles` / `truth-registry` error vocabulary for infra-specific structural/fixable codes.
-3. Add/update tests:
-   - `server/src/tests/fact-checker.test.ts`
-   - `server/src/tests/decision-layer.test.ts`
-   - `server/src/tests/control-object-contract.test.ts`
-4. Validate event payloads in `pipeline_events` for `control_object` and `refine_recommended`.
+1. Done: extended `FactChecker.checkTech` and thresholds/copy for HTTPS, slow-load, and lazy-load risk signals.
+2. Done: added deterministic coverage in `server/src/tests/fact-checker.test.ts`.
+3. Next: add infra-specific profile/rule-engine codes when additional collector evidence is introduced.
+4. Next: keep validating `control_object` and `refine_recommended` payload compatibility in integration tests.
 
 ## Readiness Criteria
 

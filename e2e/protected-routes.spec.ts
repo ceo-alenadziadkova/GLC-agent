@@ -14,7 +14,6 @@ const CONSULTANT_AND_ADMIN_PATHS = [
   `/admin/requests`,
   `/admin/snapshots`,
   `/admin/discovery`,
-  `/admin/intake-trace`,
   `/admin/intake-wording`,
   `/admin/question-bank-studio`,
   `/audit/${PLACEHOLDER_AUDIT_ID}`,

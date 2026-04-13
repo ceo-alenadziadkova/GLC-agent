@@ -232,6 +232,37 @@ describe('FactChecker — domain-specific checks: security', () => {
     const hygieneFlag = corrections.some(c => c.issue.includes('header hygiene issue'));
     expect(hygieneFlag).toBe(true);
   });
+
+  it('valid SSL but no redirect to HTTPS + score >= 4 triggers a flag', () => {
+    const result = makeDomainResult({ score: 4 });
+    const collected = {
+      security_headers: {
+        ssl: { valid: true, redirects_to_https: false },
+        headers: [],
+      },
+    };
+    const { corrections } = checker.verify(result, 'security_compliance', collected);
+    const redirectFlag = corrections.some(c => c.issue.includes('redirect to HTTPS'));
+    expect(redirectFlag).toBe(true);
+  });
+
+  it('missing baseline hardening headers + score >= 4 triggers a flag', () => {
+    const result = makeDomainResult({ score: 4 });
+    const collected = {
+      security_headers: {
+        ssl: { valid: true, redirects_to_https: true },
+        headers: [
+          { name: 'X-Content-Type-Options', present: false },
+          { name: 'X-Frame-Options', present: false },
+          { name: 'Referrer-Policy', present: true },
+          { name: 'Permissions-Policy', present: false },
+        ],
+      },
+    };
+    const { corrections } = checker.verify(result, 'security_compliance', collected);
+    const baselineFlag = corrections.some(c => c.issue.includes('baseline security header'));
+    expect(baselineFlag).toBe(true);
+  });
 });
 
 describe('FactChecker — domain-specific checks: SEO', () => {
@@ -261,6 +292,44 @@ describe('FactChecker — domain-specific checks: SEO', () => {
     const metaFlag = corrections.some(c => c.issue.includes('meta descriptions'));
     expect(metaFlag).toBe(true);
   });
+
+  it('robots.txt issues + score >= 4 trigger a flag', () => {
+    const result = makeDomainResult({ score: 4 });
+    const collected = {
+      seo_meta: {
+        sitemap: { exists: true },
+        robots_txt: {
+          exists: true,
+          issues: ['robots.txt does not declare a Sitemap: directive'],
+        },
+        page_analysis: {
+          issues: [],
+          meta_coverage: { with_description: 10, total: 10 },
+        },
+      },
+    };
+    const { corrections } = checker.verify(result, 'seo_digital', collected);
+    const robotsFlag = corrections.some(c => c.issue.includes('robots.txt has'));
+    expect(robotsFlag).toBe(true);
+  });
+
+  it('low structured-data coverage + score >= 4 triggers a flag', () => {
+    const result = makeDomainResult({ score: 4 });
+    const collected = {
+      seo_meta: {
+        sitemap: { exists: true },
+        robots_txt: { exists: true, issues: [] },
+        open_graph: { pages_with_structured_data: 2, total_pages: 10 },
+        page_analysis: {
+          issues: [],
+          meta_coverage: { with_description: 9, total: 10 },
+        },
+      },
+    };
+    const { corrections } = checker.verify(result, 'seo_digital', collected);
+    const sdFlag = corrections.some(c => c.issue.includes('structured data coverage'));
+    expect(sdFlag).toBe(true);
+  });
 });
 
 describe('FactChecker — domain-specific checks: UX', () => {
@@ -274,6 +343,60 @@ describe('FactChecker — domain-specific checks: UX', () => {
     const { corrections } = checker.verify(result, 'ux_conversion', collected);
     const altFlag = corrections.some(c => c.issue.includes('alt text'));
     expect(altFlag).toBe(true);
+  });
+
+  it('pages missing H1 + score >= 4 trigger a flag', () => {
+    const result = makeDomainResult({ score: 4 });
+    const collected = {
+      accessibility: {
+        image_accessibility: { alt_coverage_percent: 90 },
+        heading_hierarchy: {
+          pages_with_no_h1: 3,
+          pages_with_broken_hierarchy: 0,
+        },
+        pages_analyzed: 10,
+        structured_data_present: true,
+      },
+    };
+    const { corrections } = checker.verify(result, 'ux_conversion', collected);
+    const h1Flag = corrections.some(c => c.issue.includes('missing H1'));
+    expect(h1Flag).toBe(true);
+  });
+
+  it('broken heading hierarchy + score >= 4 triggers a flag', () => {
+    const result = makeDomainResult({ score: 4 });
+    const collected = {
+      accessibility: {
+        image_accessibility: { alt_coverage_percent: 90 },
+        heading_hierarchy: {
+          pages_with_no_h1: 0,
+          pages_with_broken_hierarchy: 2,
+        },
+        pages_analyzed: 10,
+        structured_data_present: true,
+      },
+    };
+    const { corrections } = checker.verify(result, 'ux_conversion', collected);
+    const hierarchyFlag = corrections.some(c => c.issue.includes('broken heading hierarchy'));
+    expect(hierarchyFlag).toBe(true);
+  });
+
+  it('no structured data + score >= 4 triggers a flag', () => {
+    const result = makeDomainResult({ score: 4 });
+    const collected = {
+      accessibility: {
+        image_accessibility: { alt_coverage_percent: 90 },
+        heading_hierarchy: {
+          pages_with_no_h1: 0,
+          pages_with_broken_hierarchy: 0,
+        },
+        pages_analyzed: 8,
+        structured_data_present: false,
+      },
+    };
+    const { corrections } = checker.verify(result, 'ux_conversion', collected);
+    const sdFlag = corrections.some(c => c.issue.includes('structured data appears on only'));
+    expect(sdFlag).toBe(true);
   });
 });
 
@@ -353,5 +476,217 @@ describe('FactChecker — no data → no crash', () => {
   it('automation domain skips domain-specific checks', () => {
     const result = makeDomainResult({ score: 3 });
     expect(() => checker.verify(result, 'automation_processes', {})).not.toThrow();
+  });
+});
+
+describe('FactChecker — domain-specific checks: Marketing', () => {
+  it('unsourced market size numeric claim + high score triggers a flag', () => {
+    const result = makeDomainResult({
+      score: 4,
+      issues: [],
+      recommendations: [
+        {
+          title: 'Market expansion',
+          description: 'Target TAM is $5B in year one.',
+          priority: 'high',
+          effort: 'medium',
+          impact: 'Expected 30% uplift in conversion',
+          timeline: 'Q1',
+        },
+      ],
+    });
+    const { corrections } = checker.verify(result, 'marketing_utp', {});
+    const marketFlag = corrections.some(c => c.issue.includes('market size claim'));
+    expect(marketFlag).toBe(true);
+  });
+
+  it('unsourced competitor numeric claim + high score triggers a flag', () => {
+    const result = makeDomainResult({
+      score: 4,
+      issues: [],
+      recommendations: [
+        {
+          title: 'Competitive positioning',
+          description: 'Competitor controls 40% market share in this segment.',
+          priority: 'high',
+          effort: 'medium',
+          impact: 'Improve share by 10%',
+          timeline: 'Q2',
+        },
+      ],
+    });
+    const { corrections } = checker.verify(result, 'marketing_utp', {});
+    const competitorFlag = corrections.some(c => c.issue.includes('competitor claim'));
+    expect(competitorFlag).toBe(true);
+  });
+});
+
+describe('FactChecker — domain-specific checks: Automation', () => {
+  it('speculative time-saving estimate + high score triggers a flag', () => {
+    const result = makeDomainResult({
+      score: 4,
+      issues: [],
+      recommendations: [
+        {
+          title: 'Workflow automation',
+          description: 'This flow will save 20 hours per week.',
+          priority: 'high',
+          effort: 'medium',
+          impact: 'Reduce manual workload',
+          timeline: '4 weeks',
+        },
+      ],
+    });
+    const { corrections } = checker.verify(result, 'automation_processes', {});
+    const timeFlag = corrections.some(c => c.issue.includes('time-saving estimate'));
+    expect(timeFlag).toBe(true);
+  });
+
+  it('unverified tool capability claim + high score triggers a flag', () => {
+    const result = makeDomainResult({
+      score: 4,
+      issues: [],
+      recommendations: [
+        {
+          title: 'Integrations',
+          description: 'Seamless integration with all core systems via no-code connectors.',
+          priority: 'medium',
+          effort: 'low',
+          impact: 'Real-time sync in all tools',
+          timeline: '2 weeks',
+        },
+      ],
+    });
+    const { corrections } = checker.verify(result, 'automation_processes', {});
+    const toolFlag = corrections.some(c => c.issue.includes('tool capability claim'));
+    expect(toolFlag).toBe(true);
+  });
+});
+
+describe('FactChecker — security control object error typing', () => {
+  it('maps security-specific corrections to structural error codes', () => {
+    const result = makeDomainResult({ score: 4 });
+    const collected = {
+      security_headers: {
+        ssl: { valid: true, redirects_to_https: false },
+        headers: [
+          { name: 'X-Powered-By (should be absent)', present: false },
+          { name: 'X-Content-Type-Options', present: false },
+          { name: 'X-Frame-Options', present: false },
+        ],
+        cookies: {
+          issues: ['Cookie "session" missing Secure HttpOnly flag'],
+        },
+      },
+    };
+    const fact = checker.verify(result, 'security_compliance', collected);
+    const co = checker.buildControlObject(fact, 'security_compliance', 'audit-test', 2);
+    expect(co.errors.structural).toEqual(expect.arrayContaining([
+      'security_https_redirect_gap',
+      'security_cookie_flag_gap',
+      'security_header_hygiene_gap',
+      'security_baseline_header_gap',
+    ]));
+  });
+});
+
+describe('FactChecker — SEO control object error typing', () => {
+  it('maps new SEO correction patterns to structural error codes', () => {
+    const result = makeDomainResult({ score: 4 });
+    const collected = {
+      seo_meta: {
+        sitemap: { exists: true },
+        robots_txt: {
+          exists: true,
+          issues: ['robots.txt does not declare a Sitemap: directive'],
+        },
+        open_graph: { pages_with_structured_data: 1, total_pages: 10 },
+        page_analysis: {
+          issues: [],
+          meta_coverage: { with_description: 10, total: 10 },
+        },
+      },
+    };
+    const fact = checker.verify(result, 'seo_digital', collected);
+    const co = checker.buildControlObject(fact, 'seo_digital', 'audit-seo', 3);
+    expect(co.errors.structural).toEqual(expect.arrayContaining([
+      'seo_missing_crawl_evidence',
+      'seo_competitor_claim_unverified',
+    ]));
+  });
+});
+
+describe('FactChecker — UX control object error typing', () => {
+  it('maps new UX correction patterns to structural error codes', () => {
+    const result = makeDomainResult({ score: 4 });
+    const collected = {
+      accessibility: {
+        image_accessibility: { alt_coverage_percent: 95 },
+        heading_hierarchy: {
+          pages_with_no_h1: 2,
+          pages_with_broken_hierarchy: 2,
+        },
+        pages_analyzed: 10,
+        structured_data_present: false,
+      },
+    };
+    const fact = checker.verify(result, 'ux_conversion', collected);
+    const co = checker.buildControlObject(fact, 'ux_conversion', 'audit-ux', 4);
+    expect(co.errors.structural).toEqual(expect.arrayContaining([
+      'ux_a11y_claim_unchecked',
+      'ux_missing_analytics_evidence',
+      'ux_benchmark_unsubstantiated',
+    ]));
+  });
+});
+
+describe('FactChecker — Marketing/Automation control object error typing', () => {
+  it('maps marketing correction patterns to structural error codes', () => {
+    const result = makeDomainResult({
+      score: 4,
+      issues: [],
+      recommendations: [
+        {
+          title: 'Market and competition',
+          description: 'TAM is €3B and competitor has 35% market share.',
+          priority: 'high',
+          effort: 'medium',
+          impact: 'ROI uplift by 25%',
+          timeline: 'Q2',
+        },
+      ],
+    });
+    const fact = checker.verify(result, 'marketing_utp', {});
+    const co = checker.buildControlObject(fact, 'marketing_utp', 'audit-mkt', 5);
+    expect(co.errors.structural).toEqual(expect.arrayContaining([
+      'marketing_market_size_unverified',
+      'marketing_competitor_claim_unsourced',
+      'marketing_roi_figure_speculative',
+    ]));
+  });
+
+  it('maps automation correction patterns to structural error codes', () => {
+    const result = makeDomainResult({
+      score: 4,
+      issues: [],
+      recommendations: [
+        {
+          title: 'Automation rollout',
+          description:
+            'Fully automated real-time sync will save 16 hours per week with ROI in 2 months.',
+          priority: 'high',
+          effort: 'medium',
+          impact: 'Payback in 2 months',
+          timeline: 'Q1',
+        },
+      ],
+    });
+    const fact = checker.verify(result, 'automation_processes', {});
+    const co = checker.buildControlObject(fact, 'automation_processes', 'audit-auto', 6);
+    expect(co.errors.structural).toEqual(expect.arrayContaining([
+      'automation_time_saving_speculative',
+      'automation_tool_capability_unverified',
+      'automation_roi_timeline_unrealistic',
+    ]));
   });
 });

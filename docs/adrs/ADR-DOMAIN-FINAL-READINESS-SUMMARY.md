@@ -3,7 +3,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-04-13 |
 | Owners | Engineering |
 | Scope | Cross-domain readiness baseline and closure path to final implementation |
@@ -18,25 +18,25 @@
 
 | Area | Stage | Primary blockers | ETA to Final-Ready (implementation effort) |
 |---|---|---|---|
-| `tech_infrastructure` | Operational | Expand infra-specific fact rules and error taxonomy depth | 1 sprint |
-| `security_compliance` | Operational | Broader compliance evidence patterns and stronger domain error mapping | 1 sprint |
-| `seo_digital` | Operational | Additional SEO claim-risk coverage and domain-specific refine signals | 1 sprint |
-| `ux_conversion` | Operational | Wider UX/conversion evidence checks and gate-focused acceptance tests | 1 sprint |
-| `marketing_utp` | Foundation/Operational boundary | Missing dedicated FactChecker domain branch; generic error typing | 1-2 sprints |
-| `automation_processes` | Foundation/Operational boundary | Missing dedicated FactChecker domain branch; feasibility-linked rule depth | 1-2 sprints |
-| `strategy` | Operational | Explicit synthesis-readiness rubric tied to upstream quality signals | <1 sprint |
+| `tech_infrastructure` | Final-Ready (domain rules) | Stretch: deeper infra evidence classes | backlog |
+| `security_compliance` | Final-Ready (domain rules) | Stretch: richer compliance artifact validation | backlog |
+| `seo_digital` | Final-Ready (domain rules) | Stretch: deeper external benchmark claim validation | backlog |
+| `ux_conversion` | Final-Ready (domain rules) | Stretch: broader conversion-event evidence | backlog |
+| `marketing_utp` | Final-Ready (domain rules) | Stretch: connector-backed claim confidence tiers | backlog |
+| `automation_processes` | Final-Ready (domain rules) | Stretch: combined feasibility + evidence scenario depth | backlog |
+| `strategy` | Operational+ | Final rubric and contradiction acceptance tests | <1 sprint |
 
 ## Global Status
 
-The platform is close to final implementation for governance architecture (high maturity), but final-readiness at domain level is uneven. Estimated overall proximity is approximately 80-90% for core platform capabilities and 65-80% for domain-complete quality controls, with main closure work concentrated in `marketing_utp` and `automation_processes`.
+The platform is now near final implementation both in governance architecture and domain-level fact-check controls. Estimated overall proximity is approximately 85-95% for core platform capabilities and 80-90% for domain-complete quality controls. Primary remaining closure work is strategy-specific readiness rubric hardening and selected stretch validations.
 
 ## Acceptance Conditions for “Final Implementation”
 
-1. All six domains have explicit domain-specific fact-check rule branches or equivalent validated controls.
-2. Domain-specific error taxonomies are mapped end-to-end: FactChecker -> CONTROL_OBJECT -> Decision Layer -> Dynamic Adjustment.
-3. Deterministic tests cover domain edge cases and decision threshold boundaries.
-4. Cross-domain strategy synthesis remains stable under mixed upstream quality states.
-5. Observability supports domain-level root-cause analysis and regression tracking.
+1. Done: all six domains now have explicit domain-specific fact-check rule branches.
+2. Done: domain error taxonomies are mapped end-to-end (FactChecker -> CONTROL_OBJECT -> Decision Layer -> Dynamic Adjustment).
+3. Done: deterministic tests cover correction generation and patch routing across domains.
+4. In progress: strategy synthesis acceptance rubric under mixed upstream quality states.
+5. In progress: broaden observability assertions from domain tests to full strategy-level integration scenarios.
 
 ## Linked Domain ADRs
 

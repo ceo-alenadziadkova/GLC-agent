@@ -3,14 +3,14 @@
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-04-13 |
 | Owners | Engineering |
 | Scope | Domain phase 5 (`marketing_utp`) including evidence model, fact-check depth, and governance readiness |
 
 ## Context
 
-`marketing_utp` is currently a high-importance domain in the analytic wing with limited collector-backed checks compared to phases 1–4.
+`marketing_utp` is a high-importance analytic-wing domain. It now has a dedicated FactChecker branch, explicit error typing, and dynamic-adjustment coverage.
 
 References:
 - `server/src/agents/marketing.ts`
@@ -27,15 +27,16 @@ References:
 
 ## Current State
 
-1. Domain participates in generic FactChecker checks and full CONTROL_OBJECT generation.
-2. Orchestration, auto-loop, trace, and observability are already operational.
-3. Domain lacks a dedicated collector-hook rule implementation in `FactChecker.domainCollectorChecks`.
+1. Domain has dedicated `checkMarketing` verification in `FactChecker.domainCollectorChecks`.
+2. Unsourced numeric claims for market size, competitor share, and ROI are flagged at high score.
+3. Structural mappings to marketing error codes and rule-engine instructions are active for targeted refine loops.
+4. Deterministic tests now cover correction generation and dynamic-adjustment patch routing for agent 5.
 
 ## Gap Analysis
 
-1. No specialized `marketing_utp` collector-backed verification branch in `FactChecker`.
-2. Error typing for marketing-specific hallucination/overpromise patterns is still under-specified.
-3. Final-ready acceptance criteria for marketing quality are not encoded in tests.
+1. Stretch: enrich marketing validation with external-source confidence tiers when connectors are enabled.
+2. Stretch: add deeper claim decomposition for audience and positioning conflict classes.
+3. Keep false-positive tuning for persuasive-but-valid copy.
 
 ## Decision
 
@@ -45,13 +46,10 @@ References:
 
 ## Implementation Plan
 
-1. Implement `checkMarketing` and register it in `domainCollectorChecks`.
-2. Expand profile/rule-engine vocabulary for marketing-specific claim-risk patterns.
-3. Add tests covering:
-   - unsupported numeric statements
-   - risky promise language
-   - internal positioning inconsistency markers
-4. Validate Decision Layer outputs for representative marketing scenarios.
+1. Done: implemented `checkMarketing` and registered in `domainCollectorChecks`.
+2. Done: expanded marketing vocabulary and rule-engine mapping for claim-risk patterns.
+3. Done: added tests for unsupported numeric statements and CONTROL_OBJECT mapping.
+4. Done: added dynamic-adjustment tests for agent-5 patch generation.
 
 ## Readiness Criteria
 

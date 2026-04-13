@@ -9,11 +9,14 @@ export const FACT_CHECKER_THRESHOLDS = {
     missingCriticalHeadersFlagMinScore: 4,
     cookieIssuesMinCount: 1,
     hygieneHeadersMinCount: 1,
+    baselineHeadersMinCount: 2,
   },
   seo: {
     perfectScore: 5,
     metaDescriptionMinCoverage: 0.5,
     metaDescriptionFlagMinScore: 4,
+    minStructuredDataCoverage: 0.3,
+    maxRobotsIssuesCount: 0,
   },
   tech: {
     flagMinScore: 4,
@@ -23,6 +26,16 @@ export const FACT_CHECKER_THRESHOLDS = {
   ux: {
     imageAltMinCoveragePercent: 50,
     flagMinScore: 4,
+    maxPagesWithoutH1: 0,
+    maxBrokenHeadingPages: 0,
+    minStructuredDataPresencePercent: 30,
+  },
+  marketing: {
+    flagMinScore: 4,
+  },
+  automation: {
+    flagMinScore: 4,
+    maxQuickRoiMonths: 3,
   },
   consistency: {
     maxScore: 5,

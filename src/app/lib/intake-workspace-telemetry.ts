@@ -1,5 +1,5 @@
 /**
- * Batched consultant telemetry for Intake trace / wording tools.
+ * Batched consultant telemetry for intake tooling workspaces.
  * POST /api/intake-trace-tool/analytics-events (non-blocking).
  */
 import { API_PATHS } from '../config/api-paths';
@@ -10,11 +10,11 @@ import {
 } from '../config/client-analytics-batching';
 import { isIntakeTraceIaV2Enabled } from './intake-trace-flags';
 
-const SESSION_STORAGE_KEY = 'glc_intake_trace_tool_session_v1';
+const SESSION_STORAGE_KEY = 'glc_intake_workspace_session_v1';
 const FLUSH_MS = CLIENT_ANALYTICS_FLUSH_MS_DEFAULT;
 const MAX_BATCH = CLIENT_ANALYTICS_MAX_BATCH_DEFAULT;
 
-export type IntakeTraceToolTelemetryEventType =
+export type IntakeWorkspaceTelemetryEventType =
   | 'intake_trace_tab_opened'
   | 'intake_trace_advanced_toggled'
   | 'intake_trace_graph_control_used'
@@ -25,7 +25,7 @@ export type IntakeTraceToolTelemetryEventType =
   | 'intake_trace_session_completed';
 
 type QueuedEvent = {
-  event_type: IntakeTraceToolTelemetryEventType;
+  event_type: IntakeWorkspaceTelemetryEventType;
   client_ts: string;
   payload?: Record<string, unknown>;
 };
@@ -34,7 +34,7 @@ const queue: QueuedEvent[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let tabSwitchCount = 0;
 
-export function getOrCreateIntakeTraceToolSessionId(): string {
+export function getOrCreateIntakeWorkspaceSessionId(): string {
   try {
     let s = sessionStorage.getItem(SESSION_STORAGE_KEY);
     if (!s || s.length < 8) {
@@ -51,18 +51,18 @@ function scheduleFlush(): void {
   if (flushTimer != null) return;
   flushTimer = setTimeout(() => {
     flushTimer = null;
-    void flushIntakeTraceToolTelemetry();
+    void flushIntakeWorkspaceTelemetry();
   }, FLUSH_MS);
 }
 
-export async function flushIntakeTraceToolTelemetry(): Promise<void> {
+export async function flushIntakeWorkspaceTelemetry(): Promise<void> {
   if (queue.length === 0) return;
   const batch = queue.splice(0, MAX_BATCH);
   try {
     await apiFetch<{ ok: true; received: number }>(API_PATHS.intakeTraceToolAnalytics, {
       method: 'POST',
       body: JSON.stringify({
-        client_session_id: getOrCreateIntakeTraceToolSessionId(),
+        client_session_id: getOrCreateIntakeWorkspaceSessionId(),
         ia_v2_enabled: isIntakeTraceIaV2Enabled(),
         events: batch.map(e => ({
           event_type: e.event_type,
@@ -72,7 +72,7 @@ export async function flushIntakeTraceToolTelemetry(): Promise<void> {
       }),
     });
   } catch {
-    // Non-blocking: tool must work offline / without backend
+    // Non-blocking: tooling must work offline / without backend
     queue.unshift(...batch);
   }
 }
@@ -80,13 +80,13 @@ export async function flushIntakeTraceToolTelemetry(): Promise<void> {
 function enqueue(event: QueuedEvent): void {
   queue.push(event);
   if (queue.length >= MAX_BATCH) {
-    void flushIntakeTraceToolTelemetry();
+    void flushIntakeWorkspaceTelemetry();
     return;
   }
   scheduleFlush();
 }
 
-export function trackIntakeTraceTabOpened(payload: {
+export function trackIntakeWorkspaceTabOpened(payload: {
   route: string;
   workspace_mode?: string;
   panel: string;
@@ -99,7 +99,10 @@ export function trackIntakeTraceTabOpened(payload: {
   });
 }
 
-export function trackIntakeTraceAdvancedToggled(payload: { route: string; advanced_open: boolean }): void {
+export function trackIntakeWorkspaceAdvancedToggled(payload: {
+  route: string;
+  advanced_open: boolean;
+}): void {
   enqueue({
     event_type: 'intake_trace_advanced_toggled',
     client_ts: new Date().toISOString(),
@@ -107,7 +110,7 @@ export function trackIntakeTraceAdvancedToggled(payload: { route: string; advanc
   });
 }
 
-export function trackIntakeTraceGraphControlUsed(payload: {
+export function trackIntakeWorkspaceGraphControlUsed(payload: {
   route: string;
   control_id: string;
 }): void {
@@ -150,7 +153,7 @@ export function trackIntakeWordingRollback(payload: { route: string; count: numb
   });
 }
 
-export function trackIntakeTraceSessionCompleted(payload: {
+export function trackIntakeWorkspaceSessionCompleted(payload: {
   route: string;
   duration_ms?: number;
 }): void {
@@ -161,14 +164,14 @@ export function trackIntakeTraceSessionCompleted(payload: {
   });
 }
 
-export function resetIntakeTraceToolTelemetrySession(): void {
+export function resetIntakeWorkspaceTelemetrySession(): void {
   tabSwitchCount = 0;
 }
 
 /**
- * Best-effort flush when leaving the tool (still non-blocking).
+ * Best-effort flush when leaving workspace (still non-blocking).
  */
-export function flushIntakeTraceToolTelemetrySync(): void {
+export function flushIntakeWorkspaceTelemetrySync(): void {
   if (queue.length === 0) return;
-  void flushIntakeTraceToolTelemetry();
+  void flushIntakeWorkspaceTelemetry();
 }

@@ -1,5 +1,4 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router';
 import { NotePencil } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import type { IntakeBriefCollectionMode, ProductMode } from '../data/auditTypes';
@@ -11,13 +10,13 @@ import type { IntakePlan, IntakeSurface } from '@glc/intake-core';
 import { useIntakeWordingDrafts } from '../hooks/useIntakeWordingDrafts';
 import { INTAKE_TRACE_SCENARIO_PRESETS } from '../lib/intake-trace-scenarios';
 import {
-  flushIntakeTraceToolTelemetrySync,
-  trackIntakeTraceSessionCompleted,
-  trackIntakeTraceTabOpened,
+  flushIntakeWorkspaceTelemetrySync,
+  trackIntakeWorkspaceSessionCompleted,
+  trackIntakeWorkspaceTabOpened,
   trackIntakeWordingDraftSaved,
   trackIntakeWordingPublished,
   trackIntakeWordingRollback,
-} from '../lib/intake-trace-tool-telemetry';
+} from '../lib/intake-workspace-telemetry';
 import { apiFetch } from '../data/api-http';
 import {
   AlertDialog,
@@ -181,13 +180,13 @@ export function IntakeWordingWorkspace() {
 
   useEffect(() => {
     const t0 = performance.now();
-    trackIntakeTraceTabOpened({ route: ROUTE, workspace_mode: 'wording', panel: 'wording' });
+    trackIntakeWorkspaceTabOpened({ route: ROUTE, workspace_mode: 'wording', panel: 'wording' });
     return () => {
-      trackIntakeTraceSessionCompleted({
+      trackIntakeWorkspaceSessionCompleted({
         route: ROUTE,
         duration_ms: Math.round(performance.now() - t0),
       });
-      flushIntakeTraceToolTelemetrySync();
+      flushIntakeWorkspaceTelemetrySync();
     };
   }, []);
 
@@ -235,11 +234,8 @@ export function IntakeWordingWorkspace() {
       <Fragment>
       <div className="glc-page-content max-w-5xl mx-auto space-y-4">
         <p className="text-sm text-[var(--glc-muted)]">
-          Edit draft question wording per bank id. Open{' '}
-          <Link to="/admin/intake-trace" className="text-[var(--glc-accent)] underline-offset-2 hover:underline">
-            Intake trace
-          </Link>{' '}
-          for full resolver diagnostics and dependency graphs.
+          Edit draft question wording per bank id. Resolver diagnostics and dependency views are available in Question
+          Bank Studio.
         </p>
 
         <details className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
