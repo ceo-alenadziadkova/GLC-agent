@@ -69,7 +69,7 @@ export function PortalSnapshotAccountMirror({ result }: { result: FreeSnapshotPr
           lose results.{' '}
           <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>It is not a full GLC audit</strong> — a
           full run uses your intake brief, deeper phases, and review gates. When you continue below with
-          Express or Full, you start that separate programme.
+          Starter, Pro, or Complete, you start that separate programme.
         </p>
       </div>
 

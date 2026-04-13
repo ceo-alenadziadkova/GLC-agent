@@ -14,13 +14,13 @@ describe('clientCanViewPortalPipeline', () => {
     expect(
       clientCanViewPortalPipeline({
         auditMeta: { status: 'created', product_mode: '' },
-        brief: { gates: { canStartFull: true } },
+        brief: { gates: { canStartPipeline: true } },
       }),
     ).toBe(false);
     expect(
       clientCanViewPortalPipeline({
         auditMeta: { status: '', product_mode: 'full' },
-        brief: { gates: { canStartFull: true } },
+        brief: { gates: { canStartPipeline: true } },
       }),
     ).toBe(false);
   });
@@ -29,7 +29,7 @@ describe('clientCanViewPortalPipeline', () => {
     expect(
       clientCanViewPortalPipeline({
         auditMeta: { status: 'created', product_mode: 'free_snapshot' },
-        brief: { gates: { canStartFull: true, canStartExpress: true } },
+        brief: { gates: { canStartPipeline: true, canStartFull: true, canStartExpress: true } },
       }),
     ).toBe(false);
   });
@@ -58,38 +58,38 @@ describe('clientCanViewPortalPipeline', () => {
     ).toBe(false);
   });
 
-  it('uses canStartExpress when brief product_mode is express', () => {
+  it('uses canStartPipeline as canonical gate', () => {
     expect(
       clientCanViewPortalPipeline({
         auditMeta: { status: 'created', product_mode: 'full' },
-        brief: { product_mode: 'express', gates: { canStartExpress: true } },
+        brief: { gates: { canStartPipeline: true } },
       }),
     ).toBe(true);
     expect(
       clientCanViewPortalPipeline({
         auditMeta: { status: 'created', product_mode: 'full' },
-        brief: { product_mode: 'express', gates: { canStartExpress: false } },
+        brief: { gates: { canStartPipeline: false } },
       }),
     ).toBe(false);
   });
 
-  it('uses canStartFull when brief is not express', () => {
-    expect(
-      clientCanViewPortalPipeline({
-        auditMeta: { status: 'created', product_mode: 'full' },
-        brief: { product_mode: 'full', gates: { canStartFull: true } },
-      }),
-    ).toBe(true);
+  it('does not allow legacy gate flags without canStartPipeline', () => {
     expect(
       clientCanViewPortalPipeline({
         auditMeta: { status: 'created', product_mode: 'full' },
         brief: { gates: { canStartFull: true } },
       }),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       clientCanViewPortalPipeline({
         auditMeta: { status: 'created', product_mode: 'full' },
-        brief: { gates: { canStartFull: false } },
+        brief: { gates: { canStartExpress: true } },
+      }),
+    ).toBe(false);
+    expect(
+      clientCanViewPortalPipeline({
+        auditMeta: { status: 'created', product_mode: 'full' },
+        brief: { gates: { canStartFull: false, canStartExpress: false } },
       }),
     ).toBe(false);
   });

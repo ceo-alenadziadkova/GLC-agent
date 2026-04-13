@@ -45,6 +45,7 @@ describe('apiService intake contract guards', () => {
         canStartSnapshot: true,
         canStartExpress: true,
         canStartFull: true,
+        canStartPipeline: true,
         missingRequiredIds: [],
         recommendedToImproveIds: [],
         intakeProgress: { progressPct: 78, readinessBadge: 'medium', nextBestAction: 'add_recommended' },

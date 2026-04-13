@@ -27,7 +27,11 @@ export function NextStepsCta({
     >
       <div
         className="border-b px-6 py-5 sm:px-8"
-        style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'color-mix(in oklab, var(--bg-muted) 40%, transparent)' }}
+        style={{
+          borderColor: 'var(--border-subtle)',
+          background:
+            'linear-gradient(135deg, color-mix(in oklab, var(--bg-muted) 62%, transparent) 0%, color-mix(in oklab, var(--glc-blue-muted) 46%, transparent) 100%)',
+        }}
       >
         <h2 className="font-display text-xl font-bold tracking-tight sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
           {title}
@@ -43,15 +47,11 @@ export function NextStepsCta({
           <li key={s.to}>
             <Link
               to={s.to}
-              className="group flex items-start gap-4 px-6 py-4 transition-colors sm:px-8 sm:py-5"
+              className="group flex items-start gap-4 px-6 py-4 transition-[background-color] hover:bg-[var(--bg-muted)] sm:px-8 sm:py-5"
               style={{
-                backgroundColor: 'transparent',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.backgroundColor = 'var(--bg-muted)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.backgroundColor = 'transparent';
+                backgroundColor: s.primary
+                  ? 'color-mix(in oklab, var(--glc-blue-muted) 50%, transparent)'
+                  : 'transparent',
               }}
             >
               <div className="min-w-0 flex-1">

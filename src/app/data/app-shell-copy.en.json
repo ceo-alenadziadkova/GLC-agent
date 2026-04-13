@@ -5,7 +5,9 @@
     "openMenu": "Open menu",
     "navigationMenu": "Navigation menu",
     "closeMenu": "Close menu",
-    "primaryNav": "Primary"
+    "primaryNav": "Primary",
+    "collapseWorkspace": "Hide workspace sidebar",
+    "expandWorkspace": "Show workspace sidebar"
   },
   "sectionLabels": {
     "snapshot": "SNAPSHOT",

@@ -16,6 +16,8 @@ import { formatIntakeQuestionReasonsBrief } from '../lib/intake-plan-explain';
 import { buildIntakePlan } from '@glc/intake-core';
 import { EXPRESS_LOCKED_F2_OPTIONS, normalizeF2ValueForExpress } from '../lib/express-focus-area-locks';
 
+const HIDDEN_IDENTITY_BANK_IDS = new Set(['a2', 'a11', 'a12']);
+
 function intakeMapToBriefResponses(map: Record<string, unknown>): BriefResponses {
   const out: BriefResponses = {};
   for (const [k, v] of Object.entries(map)) {
@@ -93,7 +95,37 @@ export function IntakeBankWizard({
     intakeAnalytics,
   });
 
-  const q = wizard.currentStub ? bankIdToBriefQuestion(wizard.currentStub.id, wizard.currentStub.priority) : null;
+  const visibleQuestionStubs = useMemo(
+    () => wizard.visibleQuestionStubs.filter(stub => !HIDDEN_IDENTITY_BANK_IDS.has(stub.id)),
+    [wizard.visibleQuestionStubs],
+  );
+  const currentRawIndex = wizard.currentStub
+    ? wizard.visibleQuestionStubs.findIndex(stub => stub.id === wizard.currentStub?.id)
+    : -1;
+  const currentVisibleIndexFromRaw = visibleQuestionStubs.findIndex(stub => stub.id === wizard.currentStub?.id);
+  const fallbackVisibleStub = useMemo(() => {
+    if (visibleQuestionStubs.length === 0) return null;
+    if (currentRawIndex < 0) return visibleQuestionStubs[0];
+    const nextVisible = wizard.visibleQuestionStubs
+      .slice(currentRawIndex + 1)
+      .find(stub => !HIDDEN_IDENTITY_BANK_IDS.has(stub.id));
+    if (nextVisible) return nextVisible;
+    const prevVisible = [...wizard.visibleQuestionStubs]
+      .slice(0, currentRawIndex)
+      .reverse()
+      .find(stub => !HIDDEN_IDENTITY_BANK_IDS.has(stub.id));
+    return prevVisible ?? visibleQuestionStubs[0];
+  }, [currentRawIndex, visibleQuestionStubs, wizard.visibleQuestionStubs]);
+  const currentVisibleStub = currentVisibleIndexFromRaw >= 0
+    ? visibleQuestionStubs[currentVisibleIndexFromRaw]
+    : fallbackVisibleStub;
+  const currentVisibleIndex = currentVisibleStub
+    ? visibleQuestionStubs.findIndex(stub => stub.id === currentVisibleStub.id)
+    : -1;
+  const totalVisibleSteps = visibleQuestionStubs.length;
+  const isFirstVisibleStep = currentVisibleIndex <= 0;
+  const isLastVisibleStep = totalVisibleSteps > 0 && currentVisibleIndex >= totalVisibleSteps - 1;
+  const q = currentVisibleStub ? bankIdToBriefQuestion(currentVisibleStub.id, currentVisibleStub.priority) : null;
 
   const reportGapLabels = useMemo(
     () => labelsForMissingReportDomains(wizard.missingForReport),
@@ -107,20 +139,21 @@ export function IntakeBankWizard({
   }, [wizard.currentStub?.id]);
 
   const planReasonLines = useMemo(() => {
-    if (!planExplainOpen || !wizard.currentStub) return [];
+    if (!planExplainOpen || !currentVisibleStub) return [];
     const plan = buildIntakePlan({
       responses: localMap,
       productMode,
       collectionMode,
       surface: intakeSurface,
     });
-    return formatIntakeQuestionReasonsBrief(plan.reasonsById?.[wizard.currentStub.id]);
-  }, [planExplainOpen, wizard.currentStub, localMap, productMode, collectionMode, intakeSurface]);
+    return formatIntakeQuestionReasonsBrief(plan.reasonsById?.[currentVisibleStub.id]);
+  }, [planExplainOpen, currentVisibleStub, localMap, productMode, collectionMode, intakeSurface]);
 
   const suggestedNextBlock = useMemo(() => {
     if (wizard.nextRecommended.length === 0) return null;
     const chips = wizard.nextRecommended
-      .filter(id => id !== wizard.currentStub?.id)
+      .filter(id => !HIDDEN_IDENTITY_BANK_IDS.has(id))
+      .filter(id => id !== currentVisibleStub?.id)
       .slice(0, 6);
     if (chips.length === 0) return null;
     return (
@@ -168,7 +201,23 @@ export function IntakeBankWizard({
         </div>
       </div>
     );
-  }, [wizard]);
+  }, [currentVisibleStub, wizard]);
+
+  function goToNextVisibleStep() {
+    if (totalVisibleSteps === 0 || isLastVisibleStep) return;
+    const next = visibleQuestionStubs[currentVisibleIndex + 1];
+    if (!next) return;
+    const nextIndex = wizard.visibleQuestionStubs.findIndex(stub => stub.id === next.id);
+    if (nextIndex >= 0) wizard.goToStep(nextIndex);
+  }
+
+  function goToPrevVisibleStep() {
+    if (totalVisibleSteps === 0 || isFirstVisibleStep) return;
+    const prev = visibleQuestionStubs[currentVisibleIndex - 1];
+    if (!prev) return;
+    const prevIndex = wizard.visibleQuestionStubs.findIndex(stub => stub.id === prev.id);
+    if (prevIndex >= 0) wizard.goToStep(prevIndex);
+  }
 
   return (
     <div className="space-y-5">
@@ -176,7 +225,7 @@ export function IntakeBankWizard({
         <div className="flex items-center gap-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-xs)' }}>
           <ListBullets className="w-4 h-4" aria-hidden />
           <span>
-            Question-bank step {wizard.totalSteps === 0 ? 0 : wizard.stepIndex + 1} of {wizard.totalSteps}
+            Question-bank step {totalVisibleSteps === 0 ? 0 : currentVisibleIndex + 1} of {totalVisibleSteps}
           </span>
         </div>
         <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
@@ -190,8 +239,8 @@ export function IntakeBankWizard({
           className="h-full rounded-full transition-all"
           style={{
             width:
-              wizard.totalSteps > 0
-                ? `${((wizard.stepIndex + 1) / wizard.totalSteps) * 100}%`
+              totalVisibleSteps > 0
+                ? `${((currentVisibleIndex + 1) / totalVisibleSteps) * 100}%`
                 : '0%',
             background: 'var(--gradient-brand)',
           }}
@@ -276,7 +325,7 @@ export function IntakeBankWizard({
 
       {suggestedNextBlock}
 
-      {wizard.totalSteps === 0 && (
+      {totalVisibleSteps === 0 && (
         <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
           No bank questions visible yet. Answer basics (e.g. industry and website presence) in step 0 or switch to
           classic brief view.
@@ -286,32 +335,32 @@ export function IntakeBankWizard({
       <div className="flex items-center gap-3 pt-1">
         <button
           type="button"
-          onClick={wizard.goPrev}
-          disabled={wizard.isFirstStep}
+          onClick={goToPrevVisibleStep}
+          disabled={isFirstVisibleStep}
           className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm"
           style={{
-            color: wizard.isFirstStep ? 'var(--text-quaternary)' : 'var(--text-tertiary)',
+            color: isFirstVisibleStep ? 'var(--text-quaternary)' : 'var(--text-tertiary)',
             border: '1px solid var(--border-subtle)',
             backgroundColor: 'transparent',
-            cursor: wizard.isFirstStep ? 'not-allowed' : 'pointer',
+            cursor: isFirstVisibleStep ? 'not-allowed' : 'pointer',
           }}
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Back
         </button>
         <button
           type="button"
-          onClick={wizard.goNext}
-          disabled={wizard.isLastStep || wizard.totalSteps === 0}
+          onClick={goToNextVisibleStep}
+          disabled={isLastVisibleStep || totalVisibleSteps === 0}
           className="flex flex-1 items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold"
           style={{
             background:
-              wizard.isLastStep || wizard.totalSteps === 0 ? 'var(--bg-muted)' : 'var(--gradient-brand)',
+              isLastVisibleStep || totalVisibleSteps === 0 ? 'var(--bg-muted)' : 'var(--gradient-brand)',
             color:
-              wizard.isLastStep || wizard.totalSteps === 0
+              isLastVisibleStep || totalVisibleSteps === 0
                 ? 'var(--text-secondary)'
                 : 'var(--primary-foreground)',
-            border: wizard.isLastStep || wizard.totalSteps === 0 ? '1px solid var(--border-subtle)' : 'none',
-            cursor: wizard.isLastStep || wizard.totalSteps === 0 ? 'not-allowed' : 'pointer',
+            border: isLastVisibleStep || totalVisibleSteps === 0 ? '1px solid var(--border-subtle)' : 'none',
+            cursor: isLastVisibleStep || totalVisibleSteps === 0 ? 'not-allowed' : 'pointer',
           }}
         >
           Next <ArrowRight className="w-3.5 h-3.5" />

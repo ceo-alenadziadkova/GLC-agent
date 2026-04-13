@@ -2,11 +2,11 @@
   "faqPreview": [
     {
       "q": "Where should I start?",
-      "a": "If you are unsure—Snapshot. If the problem is systemic—full audit. In between—Express."
+      "a": "If you are unsure—Snapshot. If you need one domain—Starter. For 2-3 domains—Pro. For full cross-domain confidence—Complete."
     },
     {
-      "q": "How is Snapshot different from Express?",
-      "a": "Snapshot is a fast automated read on available signals. Express is a structured expert review within agreed scope."
+      "q": "How is Snapshot different from Starter/Pro/Complete?",
+      "a": "Snapshot is a fast automated read on available signals. Starter/Pro/Complete are structured audit packages where you choose domain coverage."
     },
     {
       "q": "Can we implement without you?",
@@ -23,8 +23,8 @@
   ],
   "chooseEntryTitle": "Choose an entry point",
   "chooseEntryDescription": "Same audit-first approach—different depth and speed. Pick the path that matches your readiness and horizon.",
-  "expressVsFullTitle": "Express vs full audit",
-  "expressVsFullDescription": "Both formats bring clarity; they differ in depth and how far we go into processes.",
+  "coveragePackagesTitle": "Starter, Pro, Complete",
+  "coveragePackagesDescription": "Choose coverage by business need: one domain, focused pack, or complete cross-domain audit.",
   "pillars": {
     "snapshot": {
       "description": "A quick read on public signals—see where to focus first without a heavy commitment."
@@ -33,7 +33,7 @@
       "description": "Shape structure and the next step when the site or scope is still fuzzy."
     },
     "brief": {
-      "description": "Share context—we suggest a sensible route (Snapshot, Express, or full audit)."
+      "description": "Share context—we suggest a sensible route (Snapshot, Starter, Pro, or Complete)."
     }
   },
   "questionsTitle": "Questions",

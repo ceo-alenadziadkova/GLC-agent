@@ -12,6 +12,7 @@ import {
 } from '../schemas/intake-brief.js';
 import {
   DEFAULT_AUDIT_PRODUCT_MODE,
+  type AuditExecutionPlan,
   type IntakeBrief,
   type IntakeBriefCollectionMode,
   type IntakeNextBestAction,
@@ -38,6 +39,7 @@ import { prepareBriefForValidation } from '@glc/intake-core';
 import { mergeReconConflictsFromC1 } from '@glc/intake-core';
 import { choiceValueNeedsSpecify } from '@glc/intake-core';
 import { isRevenueAnsweredRaw } from '@glc/intake-core';
+import { normalizeExecutionPlan } from './execution-plan.js';
 
 export interface BriefValidationResult {
   passed: boolean;
@@ -59,6 +61,7 @@ export interface BriefGateResult {
   canStartSnapshot: boolean;
   canStartExpress: boolean;
   canStartFull: boolean;
+  canStartPipeline: boolean;
   missingRequiredIds: string[];
   recommendedToImproveIds: string[];
   intakeProgress: IntakeProgress;
@@ -333,11 +336,13 @@ export function evaluateBriefGates(
   const canStartExpress = missingExpressRequired.length === 0;
   const canStartFull = missingFullRequired.length === 0;
   const missingRequiredIds = mode === DEFAULT_AUDIT_PRODUCT_MODE ? missingFullRequired : missingExpressRequired;
+  const canStartPipeline = mode === DEFAULT_AUDIT_PRODUCT_MODE ? canStartFull : canStartExpress;
 
   return {
     canStartSnapshot,
     canStartExpress,
     canStartFull,
+    canStartPipeline,
     missingRequiredIds,
     recommendedToImproveIds: missingRecommended,
     intakeProgress: {
@@ -357,7 +362,7 @@ export function evaluateBriefGates(
 export async function assertBriefReady(auditId: string): Promise<void> {
   const { data: audit } = await supabase
     .from('audits')
-    .select('product_mode')
+    .select('product_mode, execution_plan')
     .eq('id', auditId)
     .single();
 
@@ -374,7 +379,12 @@ export async function assertBriefReady(auditId: string): Promise<void> {
   const collectedBy = brief?.collected_by as 'client' | 'consultant' | undefined;
   const validationPerspective = collectedBy === 'consultant' ? 'consultant' : 'client';
   const surface = resolveIntakeSurfaceForPlan(collectionMode ?? 'self_serve', validationPerspective);
-  const mode = audit.product_mode as ProductMode;
+  const mode = normalizeExecutionPlan(
+    (audit.execution_plan as Partial<AuditExecutionPlan> | null | undefined) ?? null,
+    (audit.product_mode as ProductMode) ?? DEFAULT_AUDIT_PRODUCT_MODE,
+  ).coverage_package === 'complete'
+    ? 'full'
+    : 'express';
   const intakeTuple = coerceArtifactTupleForRead(
     brief?.intake_versions as IntakeVersionTuple | null | undefined,
     'assertBriefReady',
@@ -448,8 +458,18 @@ export async function saveBriefResponses(
     throw new Error(`Invalid brief responses: ${parsed.error.message}`);
   }
 
-  const { data: audit } = await supabase.from('audits').select('product_mode').eq('id', auditId).single();
-  const mode = ((audit?.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE) as ProductMode);
+  const { data: audit } = await supabase
+    .from('audits')
+    .select('product_mode, execution_plan')
+    .eq('id', auditId)
+    .single();
+  const fallbackMode = ((audit?.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE) as ProductMode);
+  const mode: ProductMode = normalizeExecutionPlan(
+    (audit?.execution_plan as Partial<AuditExecutionPlan> | null | undefined) ?? null,
+    fallbackMode,
+  ).coverage_package === 'complete'
+    ? 'full'
+    : 'express';
 
   const { data: existingBrief } = await supabase
     .from('intake_brief')

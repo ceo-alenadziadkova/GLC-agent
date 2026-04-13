@@ -3,6 +3,8 @@
 import type { DomainKey } from '@glc/intake-core';
 
 export type ProductMode = 'free_snapshot' | 'express' | 'full';
+export type AuditCoveragePackage = 'starter' | 'pro' | 'complete';
+export type AuditDepth = 'light' | 'standard' | 'deep';
 
 export type UserRole = 'consultant' | 'client' | 'guest';
 export type BriefResponseSource = 'client' | 'consultant' | 'recon_confirmed' | 'unknown';
@@ -237,6 +239,14 @@ export interface AuditMeta {
   current_phase: number;
   overall_score: number | null;
   product_mode: ProductMode;
+  execution_plan?: {
+    selected_domains: DomainKey[];
+    depth: AuditDepth;
+    source: 'user_selected' | 'system_default';
+    recommended_domains?: DomainKey[];
+    coverage_package?: AuditCoveragePackage;
+    include_strategy?: boolean;
+  } | null;
   token_budget: number;
   tokens_used: number;
   snapshot_token: string | null;

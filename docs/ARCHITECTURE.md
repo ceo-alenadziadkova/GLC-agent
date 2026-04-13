@@ -269,10 +269,12 @@ Run `[scripts/hardcode-inventory.sh](../scripts/hardcode-inventory.sh)` for a he
 
 ```
 1. User submits URL in NewAudit.tsx
-2. Frontend → POST /api/audits → backend creates audit row (status: 'created')
-3. Frontend navigates to /pipeline/:id, subscribes to pipeline_events via Realtime
-4. User clicks "Start" → POST /api/audits/:id/pipeline/start
-5. Backend:
+2. User selects coverage package/domains (Starter/Pro/Complete)
+3. Frontend → POST /api/audits with `execution_plan` → backend creates audit row (status: 'created')
+4. Backend stores normalized execution plan on `audits.execution_plan`
+5. Frontend navigates to /pipeline/:id, subscribes to pipeline_events via Realtime
+6. User clicks "Start" → POST /api/audits/:id/pipeline/start
+7. Backend:
    a. Runs ReconAgent (Phase 0):
       - CrawlerCollector fetches up to the configured page limit (no AI; see [AGENTS.md](./AGENTS.md))
       - ReconCollector extracts tech stack, social profiles, structured data (no AI)
@@ -281,14 +283,13 @@ Run `[scripts/hardcode-inventory.sh](../scripts/hardcode-inventory.sh)` for a he
       - FactChecker validates result
       - Saves to audit_recon + audit_domains
       - Emits pipeline_events rows
-6. Supabase Realtime → frontend receives events → PipelineMonitor updates UI
-7. Review gate: frontend shows "Approve" button
-8. User approves → POST /api/audits/:id/reviews/0 with optional notes
-9. Backend runs Auto Wing (Phases 1–4) **in parallel**, then emits review gate 2 if configured for the product mode
-10. User approves gate 2 → Analytic Wing (Phases 5–6) **in parallel**, then Phase 7 (Strategy) **without** a gate between 6 and 7
-11. After Strategy completes, review gate 3 (phase `7` in the reviews API) when in full mode
-12. audit.status → `completed`, overall_score set
-13. User navigates to /reports/:id and /strategy/:id
+8. Supabase Realtime → frontend receives events → PipelineMonitor updates UI
+9. Review gate: frontend shows "Approve" button
+10. User approves → POST /api/audits/:id/reviews/0 with optional notes
+11. Orchestrator runs only selected domain phases from `execution_plan.selected_domains` (auto/analytic blocks are filtered)
+12. Strategy (phase 7) runs only when `execution_plan.include_strategy` is true
+13. audit.status → `completed`, overall_score set
+14. User navigates to /reports/:id and /strategy/:id (when strategy exists)
 ```
 
 Details: [PIPELINE.md](./PIPELINE.md). API: [API.md](./API.md).

@@ -35,7 +35,7 @@ export function SnapshotAccessBlockedCallout(props: {
       ? [
           'If you control the site: allow good-faith preview crawlers on key paths you want tested (/about, /pricing, or a campaign landing page).',
           'Try another public URL if that path is allowed while the homepage is not.',
-          'For Express or Full audit: use your brief, exports, or another approved access path.',
+          'For Starter, Pro, or Complete audit: use your brief, exports, or another approved access path.',
         ]
       : robotsBlocked && robotsLimitedSample
         ? robotsFallbackSiteClass === 'major_platform'

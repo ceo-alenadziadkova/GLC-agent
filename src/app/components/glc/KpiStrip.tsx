@@ -79,7 +79,7 @@ export function KpiStrip({ kpis, loading }: KpiStripProps) {
 
   return (
     <motion.div
-      className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+      className="glc-glass-strip grid grid-cols-2 gap-3 p-3 sm:grid-cols-4"
       variants={listVariants}
       initial="hidden"
       animate="visible"

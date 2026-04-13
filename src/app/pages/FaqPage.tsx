@@ -3,7 +3,6 @@ import { Link } from 'react-router';
 import { MarketingLayout } from '../marketing/MarketingLayout';
 import { MarketingSection } from '../marketing/blocks/MarketingSection';
 import { NextStepsCta } from '../marketing/blocks/NextStepsCta';
-import { SnapshotTeaser, DiscoveryTeaser, BriefTeaser } from '../marketing/blocks/RepeatingTeasers';
 import { LOGIN_PATH } from '../marketing/marketing-nav';
 import {
   Accordion,
@@ -15,15 +14,15 @@ import {
 const FAQ_ITEMS: { q: string; a: ReactNode }[] = [
   {
     q: 'Where should I start?',
-    a: 'If you lack clarity—Snapshot. If context is clear and you need depth—full audit. In between—Express. No site—Discovery.',
+    a: 'If you lack clarity—Snapshot. If you need one domain—Starter. For 2-3 domains—Pro. For full cross-domain confidence—Complete. No site—Discovery.',
   },
   {
-    q: 'How is Snapshot different from Express?',
-    a: 'Snapshot is a fast automated read on available site signals. Express is an agreed scope of expert review with focused conclusions.',
+    q: 'How is Snapshot different from Starter/Pro/Complete?',
+    a: 'Snapshot is a fast automated read on available site signals. Starter/Pro/Complete are paid audit packages where you control domain coverage.',
   },
   {
-    q: 'How is Express different from a full audit?',
-    a: 'Express is shorter and narrower. Full audit covers processes, integrations, automation, and a full impact / effort roadmap.',
+    q: 'How do Starter, Pro, and Complete differ?',
+    a: 'Starter covers one domain, Pro covers 2-3 domains, and Complete covers all six with full synthesis and best score comparability.',
   },
   {
     q: 'What if I do not have a website yet?',
@@ -43,7 +42,11 @@ const FAQ_ITEMS: { q: string; a: ReactNode }[] = [
   },
   {
     q: 'What do I get at the end of an audit?',
-    a: 'Structured findings, priorities, roadmap, and automation / improvement recommendations—in a format easy to hand to your team.',
+    a: 'Structured findings, explicit scope notes, priority roadmap (impact/effort), and implementation recommendations—in a handoff-ready format for your team.',
+  },
+  {
+    q: 'How do I know which package is enough for my case?',
+    a: 'Use Brief for a guided recommendation. Starter is one domain, Pro is 2-3 domains, Complete is full six-domain coverage when cross-domain certainty matters most.',
   },
   {
     q: 'Do you implement afterwards?',
@@ -55,7 +58,7 @@ const FAQ_ITEMS: { q: string; a: ReactNode }[] = [
   },
   {
     q: 'How long does it take?',
-    a: 'Depends on format and scope: Express is faster; full audit takes longer. Exact timelines are fixed after the brief.',
+    a: 'Depends on package and scope: Starter is usually fastest, then Pro, then Complete. Exact timelines are fixed after the brief.',
   },
   {
     q: 'Do I need technical prep on my side?',
@@ -67,7 +70,7 @@ const FAQ_ITEMS: { q: string; a: ReactNode }[] = [
   },
   {
     q: 'I know the problem but not the solution—what then?',
-    a: 'Express or full audit fits—we help with options and tradeoffs. You can start with the brief.',
+    a: 'Starter, Pro, or Complete can fit—we help with options and tradeoffs. You can start with the brief.',
   },
   {
     q: 'Where does an existing client sign in?',
@@ -113,19 +116,11 @@ export function FaqPage() {
         </Accordion>
       </MarketingSection>
 
-      <MarketingSection className="mt-14">
-        <div className="grid gap-6 md:grid-cols-3">
-          <SnapshotTeaser />
-          <DiscoveryTeaser />
-          <BriefTeaser />
-        </div>
-      </MarketingSection>
-
       <div className="mt-14">
         <NextStepsCta
           steps={[
-            { to: '/snapshot', label: 'Snapshot', hint: 'Fast start.' },
             { to: '/brief', label: 'Brief', hint: 'Personal guidance.', primary: true },
+            { to: '/snapshot', label: 'Snapshot', hint: 'Fast start if you want an automated read first.' },
             { to: LOGIN_PATH, label: 'Sign in', hint: 'Client dashboard.' },
           ]}
         />

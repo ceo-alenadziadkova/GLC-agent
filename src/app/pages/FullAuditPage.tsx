@@ -19,31 +19,31 @@ export function FullAuditPage() {
     <MarketingLayout
       breadcrumbs={[
         { label: 'Home', to: '/' },
-        { label: 'Full audit' },
+        { label: 'Complete package' },
       ]}
     >
       <MarketingSection>
         <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: 'var(--text-primary)' }}>
-          Full audit
+          Complete package
         </h1>
         <p className="mt-4 max-w-3xl text-lg leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          Deep diagnostics: site, UX, structure, digital processes, integrations, communications, and automation—with a
-          prioritized roadmap and clear next steps.
+          Complete is full six-domain coverage for teams that need maximum comparability and end-to-end synthesis,
+          not just a focused subset.
         </p>
       </MarketingSection>
 
       <MarketingSection className="mt-14">
         <h2 className="font-display text-xl font-bold sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
-          Analysis areas
+          Included domains
         </h2>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           {[
-            'Public layer and UX: value clarity, trust, path to action.',
-            'Technical and organizational signals affecting stability and scale.',
-            'Processes and manual work: where time and quality leak.',
-            'Integrations and data: gaps, duplication, risk.',
-            'Automation: what to standardize first.',
-            'Communications and roles: who owns digital decisions.',
+            'Tech infrastructure',
+            'Security and compliance',
+            'SEO and digital visibility',
+            'UX and conversion',
+            'Marketing and positioning',
+            'Automation and processes',
           ].map(line => (
             <div
               key={line}
@@ -58,14 +58,14 @@ export function FullAuditPage() {
 
       <MarketingSection className="mt-14">
         <h2 className="mb-6 font-display text-xl font-bold sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
-          Current state → bottlenecks → recommendations → roadmap
+          Package semantics
         </h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[
-            ['Current state', 'How the system works today—a candid picture.'],
-            ['Bottlenecks', 'Where friction hits the business and the customer most.'],
-            ['Recommendations', 'What to change: quick wins and strategic initiatives.'],
-            ['Roadmap', 'Sequence, dependencies, effort and impact sizing.'],
+            ['Starter', 'One selected domain. Fast scoped output with clear action points.'],
+            ['Pro', 'Two to three domains. Better cross-signal confidence and tradeoff context.'],
+            ['Complete', 'All six domains. Complete synthesis and highest comparability.'],
+            ['Coverage note', 'Every report explicitly marks covered and not-analyzed domains.'],
           ].map(([t, b]) => (
             <div
               key={t}
@@ -91,10 +91,42 @@ export function FullAuditPage() {
           Deliverables
         </h2>
         <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          <li>Structured report with domain findings and cross-cutting themes.</li>
+          <li>Structured report with explicit coverage and comparability notes.</li>
           <li>Priority matrix (impact / effort) and roadmap.</li>
           <li>Implementation options: GLC support or handoff to your team / partners.</li>
         </ul>
+      </MarketingSection>
+
+      <MarketingSection className="mt-12">
+        <div className="grid gap-4 md:grid-cols-3">
+          {[
+            {
+              title: 'Executive confidence',
+              body: 'Complete six-domain view reduces blind spots in strategic decisions.',
+            },
+            {
+              title: 'Cross-team alignment',
+              body: 'One shared roadmap helps product, marketing, and operations move in one direction.',
+            },
+            {
+              title: 'Implementation readiness',
+              body: 'Prioritized actions are structured for immediate execution and tracking.',
+            },
+          ].map(item => (
+            <article
+              key={item.title}
+              className="glc-card p-5"
+              style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-card)' }}
+            >
+              <h3 className="font-display text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+                {item.title}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                {item.body}
+              </p>
+            </article>
+          ))}
+        </div>
       </MarketingSection>
 
       <MarketingSection className="mt-14">
@@ -103,7 +135,7 @@ export function FullAuditPage() {
 
       <MarketingSection className="mt-14">
         <h2 className="mb-6 font-display text-xl font-bold sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
-          Compared to Express
+          Starter vs Pro vs Complete
         </h2>
         <AuditCompare />
       </MarketingSection>
@@ -116,8 +148,9 @@ export function FullAuditPage() {
       <div className="mt-14">
         <NextStepsCta
           steps={[
-            { to: '/express-audit', label: 'Express audit', hint: 'If you want a shorter cycle before full coverage.' },
-            { to: '/brief', label: 'Brief', hint: 'Align depth and scope.', primary: true },
+            { to: '/starter', label: 'Starter', hint: 'One domain with a faster cycle.' },
+            { to: '/pro', label: 'Pro', hint: 'Focused 2-3 domains.' },
+            { to: '/brief', label: 'Book a brief call', hint: 'Align depth and scope.', primary: true },
             { to: '/faq', label: 'FAQ', hint: 'Delivery, timelines, collaboration.' },
             { to: LOGIN_PATH, label: 'Client sign-in', hint: 'Current reports and stages.' },
           ]}

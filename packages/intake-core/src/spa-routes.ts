@@ -5,8 +5,9 @@
 
 export const SPA_ROUTE_SEGMENTS = {
   snapshot: 'snapshot',
-  expressAudit: 'express-audit',
-  fullAudit: 'audit',
+  starterPackage: 'starter',
+  proPackage: 'pro',
+  completePackage: 'complete',
   discovery: 'discovery',
 } as const;
 
@@ -51,14 +52,16 @@ function absPath(segment: string): `/${string}` {
 /** Full paths returned by marketing brief routing (leading slash). */
 export const SPA_MARKETING_BRIEF_PATHS = {
   snapshot: absPath(SPA_ROUTE_SEGMENTS.snapshot),
-  expressAudit: absPath(SPA_ROUTE_SEGMENTS.expressAudit),
-  fullAudit: absPath(SPA_ROUTE_SEGMENTS.fullAudit),
+  starterPackage: absPath(SPA_ROUTE_SEGMENTS.starterPackage),
+  proPackage: absPath(SPA_ROUTE_SEGMENTS.proPackage),
+  completePackage: absPath(SPA_ROUTE_SEGMENTS.completePackage),
   discovery: absPath(SPA_ROUTE_SEGMENTS.discovery),
 } as const;
 
 export const MARKETING_BRIEF_ALLOWED_ROUTES = [
   SPA_MARKETING_BRIEF_PATHS.snapshot,
-  SPA_MARKETING_BRIEF_PATHS.expressAudit,
-  SPA_MARKETING_BRIEF_PATHS.fullAudit,
+  SPA_MARKETING_BRIEF_PATHS.starterPackage,
+  SPA_MARKETING_BRIEF_PATHS.proPackage,
+  SPA_MARKETING_BRIEF_PATHS.completePackage,
   SPA_MARKETING_BRIEF_PATHS.discovery,
 ] as const;

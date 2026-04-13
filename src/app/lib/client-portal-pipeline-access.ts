@@ -10,10 +10,8 @@ export type AuditMetaForPipelineGate = {
 };
 
 export type BriefGatesPayload = {
-  product_mode?: string;
   gates?: {
-    canStartExpress?: boolean;
-    canStartFull?: boolean;
+    canStartPipeline?: boolean;
   } | null;
 };
 
@@ -27,22 +25,27 @@ export function clientCanViewPortalPipeline(args: {
   if (meta.status !== 'created') return true;
   const g = args.brief?.gates;
   if (!g) return false;
-  const pm = args.brief?.product_mode === 'express' ? 'express' : 'full';
-  return pm === 'express' ? Boolean(g.canStartExpress) : Boolean(g.canStartFull);
+  return g.canStartPipeline === true;
 }
 
 /** Short copy for snapshot upgrade — users who skip /portal/audit/new still see definitions here. */
 export const CLIENT_PORTAL_PRODUCT_MODE_HELP = {
-  express: {
-    label: 'Express',
-    summary: 'Recon plus four core analysis domains (Tech, Security, SEO, UX through phase 4).',
+  starter: {
+    label: 'Starter',
+    summary: 'Recon plus one selected domain for a focused first pass.',
     detail:
-      'Marketing, Automation, and the Strategy roadmap phase are not included. Choose Express when you want focused findings on technical, security, organic, and conversion signals in less time.',
+      'Fastest option when you need a single-priority diagnosis first. Strategy phase is disabled.',
   },
-  full: {
-    label: 'Full',
-    summary: 'The complete eight-phase GLC programme after recon.',
+  pro: {
+    label: 'Pro',
+    summary: 'Recon plus 2-3 selected domains with balanced depth.',
     detail:
-      'All six domain analyses (Tech, Security, SEO, UX, Marketing, Automation) plus the Strategy & roadmap phase, with the same review gates as our standard consulting run.',
+      'Best fit for teams with several priorities. Strategy can be included based on execution plan.',
+  },
+  complete: {
+    label: 'Complete',
+    summary: 'Complete six-domain audit plus final strategy synthesis.',
+    detail:
+      'Maximum coverage across Tech, Security, SEO, UX, Marketing, and Automation with full comparability.',
   },
 } as const;

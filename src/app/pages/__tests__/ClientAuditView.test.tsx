@@ -182,6 +182,7 @@ describe('ClientAuditView', () => {
         canStartSnapshot: false,
         canStartExpress: false,
         canStartFull: false,
+        canStartPipeline: false,
         missingRequiredIds: ['a1'],
         recommendedToImproveIds: [],
         intakeProgress: {
@@ -249,7 +250,7 @@ describe('ClientAuditView', () => {
       expect(screen.getByText(/Quick scan in your account/i)).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Continue with a full audit/i)).toBeInTheDocument();
+    expect(screen.getByText(/Continue with a package/i)).toBeInTheDocument();
   });
 
 });

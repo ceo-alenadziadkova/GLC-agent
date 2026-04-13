@@ -96,7 +96,7 @@ function SubSection({ label, icon, count, children }: SubSectionProps) {
 
 function ReviewGateRow({ item }: { item: DashboardReviewGateItem }) {
   return (
-    <div className="flex items-center gap-2.5 group">
+    <div className="glc-hover-row flex items-center gap-2.5 group px-2 py-1.5">
       {priorityDot(item.priority)}
       <CompanyAvatar
         name={item.company_name}
@@ -130,7 +130,7 @@ function ReviewGateRow({ item }: { item: DashboardReviewGateItem }) {
 
 function SlaRiskRow({ item }: { item: DashboardSlaRiskItem }) {
   return (
-    <div className="flex items-center gap-2.5 group">
+    <div className="glc-hover-row flex items-center gap-2.5 group px-2 py-1.5">
       {priorityDot(item.priority)}
       <CompanyAvatar
         name={item.company_name}
@@ -162,7 +162,7 @@ function SlaRiskRow({ item }: { item: DashboardSlaRiskItem }) {
 
 function FailureRow({ item }: { item: DashboardFailureItem }) {
   return (
-    <div className="flex items-center gap-2.5 group">
+    <div className="glc-hover-row flex items-center gap-2.5 group px-2 py-1.5">
       {priorityDot(item.priority)}
       <CompanyAvatar
         name={item.company_name}
@@ -194,7 +194,7 @@ function FailureRow({ item }: { item: DashboardFailureItem }) {
 
 function PendingRequestRow({ item }: { item: DashboardPendingRequestItem }) {
   return (
-    <div className="flex items-center gap-2.5 group">
+    <div className="glc-hover-row flex items-center gap-2.5 group px-2 py-1.5">
       {priorityDot(item.priority)}
       <CompanyAvatar name={null} url={item.url} />
       <div className="flex-1 min-w-0">
@@ -234,7 +234,7 @@ export function ActionPanel({ items, loading, onRefresh: _onRefresh }: ActionPan
       className="glc-card p-5"
       style={{ borderRadius: 'var(--radius-xl)' }}
     >
-      <div className="flex items-center justify-between mb-4">
+      <div className="glc-panel-head">
         <SectionLabel>Action Required</SectionLabel>
         {totalItems > 0 && (
           <span
@@ -249,6 +249,7 @@ export function ActionPanel({ items, loading, onRefresh: _onRefresh }: ActionPan
           </span>
         )}
       </div>
+      <p className="glc-panel-meta">Priority queue across review gates, SLA risks, failures, and requests.</p>
 
       {loading && !items && (
         <div className="space-y-3">

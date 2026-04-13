@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router';
 import {
   GearSix, Bell, MagnifyingGlass, Lightning, SignOut,
-  PlusCircle, List, X,
+  PlusCircle, List, X, CaretLeft, CaretRight,
 } from '@phosphor-icons/react';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
@@ -52,6 +52,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
   } = useProfile();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
   /** Tailwind `sm` (640px): only one page `<h1>` should be in the accessibility tree at a time. */
   const [isSmUp, setIsSmUp] = useState(false);
   const {
@@ -221,13 +222,14 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
       className="min-h-0 flex flex-col sm:flex-row overflow-hidden h-[100dvh] sm:h-screen"
       style={{ backgroundColor: 'var(--bg-canvas)' }}
     >
-      <aside
-        className="hidden sm:flex w-[216px] flex-shrink-0 flex-col overflow-hidden relative"
+      {!desktopSidebarCollapsed && (
+        <aside
+          className="hidden sm:flex w-[216px] flex-shrink-0 flex-col overflow-hidden relative"
         style={{
           background: 'var(--gradient-ink-rich)',
           borderRight: '1px solid rgba(255,255,255,0.04)',
         }}
-      >
+        >
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -237,12 +239,22 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
         />
 
         <div
-          className="relative flex items-center gap-2 px-4 pt-5 pb-4"
+          className="relative flex items-center justify-between gap-2 px-4 pt-5 pb-4"
           style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
         >
           <Link to="/" className="inline-flex items-center" aria-label={shellAria.home}>
             <GlcLogo variant="on-dark" className="h-12" />
           </Link>
+          <button
+            type="button"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border-0 transition-colors"
+            style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
+            onClick={() => setDesktopSidebarCollapsed(true)}
+            aria-label={shellAria.collapseWorkspace}
+            title={shellAria.collapseWorkspace}
+          >
+            <CaretLeft className="h-4 w-4" weight="bold" />
+          </button>
         </div>
 
         {isConsultant && !roleUnknown && (
@@ -490,9 +502,26 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
             </div>
           )}
         </div>
-      </aside>
+        </aside>
+      )}
 
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden min-w-0">
+      <div className="relative flex-1 flex flex-col min-h-0 overflow-hidden min-w-0">
+        {desktopSidebarCollapsed && (
+          <button
+            type="button"
+            className="hidden sm:inline-flex absolute left-0 top-1/2 z-20 h-12 w-8 -translate-y-1/2 items-center justify-center rounded-r-lg border-0 transition-colors"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-secondary)',
+              boxShadow: 'var(--shadow-xs)',
+            }}
+            onClick={() => setDesktopSidebarCollapsed(false)}
+            aria-label={shellAria.expandWorkspace}
+            title={shellAria.expandWorkspace}
+          >
+            <CaretRight className="h-4 w-4" weight="bold" />
+          </button>
+        )}
         <header
           className="sm:hidden flex-shrink-0 flex items-center gap-2 border-b glc-safe-pad-x glc-safe-pad-t"
           aria-hidden={title ? isSmUp : undefined}

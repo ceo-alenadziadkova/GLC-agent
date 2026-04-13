@@ -18,6 +18,16 @@ import { StatusPill } from '../components/glc/StatusPill';
 import { ScoreBadge } from '../components/glc/ScoreBadge';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { ReviewPointModal } from '../components/glc/ReviewPointModal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 import { usePipeline } from '../hooks/usePipeline';
 import { useAudit } from '../hooks/useAudit';
 import { useProfile } from '../hooks/useProfile';
@@ -68,6 +78,7 @@ export function PipelineMonitor() {
   const [sel, setSel] = useState(0);
   const [modalReview, setModalReview] = useState<{ afterPhase: number; label: string } | null>(null);
   const [isStopping, setIsStopping] = useState(false);
+  const [stopDialogOpen, setStopDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!isClient) {
@@ -106,15 +117,12 @@ export function PipelineMonitor() {
         }
         const d = await api.getBrief(id);
         if (cancelled) return;
-        const pm = d.product_mode === 'express' ? 'express' : 'full';
         setClientPortalOk(
           clientCanViewPortalPipeline({
             auditMeta: meta,
             brief: {
-              product_mode: pm,
               gates: {
-                canStartExpress: Boolean(d.gates?.canStartExpress),
-                canStartFull: Boolean(d.gates?.canStartFull),
+                canStartPipeline: d.gates?.canStartPipeline === true,
               },
             },
           }),
@@ -230,11 +238,10 @@ export function PipelineMonitor() {
 
   async function handleStopPipeline() {
     if (isStopping) return;
-    const ok = window.confirm(PM.detail.stopPipelineConfirm);
-    if (!ok) return;
     setIsStopping(true);
     try {
       await stopPipeline();
+      setStopDialogOpen(false);
     } finally {
       setIsStopping(false);
     }
@@ -314,7 +321,7 @@ export function PipelineMonitor() {
           <button
             type="button"
             className="glc-btn-secondary"
-            onClick={handleStopPipeline}
+            onClick={() => setStopDialogOpen(true)}
             disabled={!canStopPipeline || isStopping}
             style={{ color: 'var(--score-1)' }}
           >
@@ -792,6 +799,20 @@ export function PipelineMonitor() {
         governanceRefineSectionTitle={PM.reviewModal.governanceRefineSectionTitle}
         governanceRefineSectionIntro={PM.reviewModal.governanceRefineSectionIntro}
       />
+      <AlertDialog open={stopDialogOpen} onOpenChange={setStopDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{PM.detail.stopPipeline}</AlertDialogTitle>
+            <AlertDialogDescription>{PM.detail.stopPipelineConfirm}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isStopping}>{PM.detail.stopPipelineCancel}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleStopPipeline} disabled={isStopping}>
+              {isStopping ? PM.detail.stopPipelineStopping : PM.detail.stopPipeline}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }

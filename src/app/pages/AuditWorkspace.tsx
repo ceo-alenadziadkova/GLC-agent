@@ -325,7 +325,7 @@ export function AuditWorkspace() {
             }
           />
           <Link to={`/reports/${id}`} className="glc-btn-secondary" style={{ textDecoration: 'none' }}>
-            Full Report <ArrowUpRight className="w-4 h-4" />
+            Open Report <ArrowUpRight className="w-4 h-4" />
           </Link>
         </div>
       }
@@ -335,7 +335,11 @@ export function AuditWorkspace() {
         {/* ── Domain binder sidebar ─────────────────── */}
         <aside
           className="w-[232px] flex-shrink-0 overflow-y-auto flex flex-col"
-          style={{ borderRight: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }}
+          style={{
+            borderRight: '1px solid var(--border-subtle)',
+            background:
+              'linear-gradient(180deg, color-mix(in oklab, var(--bg-surface) 96%, white) 0%, var(--bg-surface) 100%)',
+          }}
         >
           {/* Score overview */}
           <div
@@ -485,7 +489,6 @@ export function AuditWorkspace() {
                   style={{
                     backgroundColor: active ? 'var(--glc-blue-xlight)' : 'transparent',
                     border: `1px solid ${active ? 'rgba(28,189,255,0.22)' : 'transparent'}`,
-                    borderLeft: `3px solid ${active ? 'var(--glc-blue)' : 'transparent'}`,
                     transition: 'all var(--ease-fast)',
                   }}
                   onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--bg-canvas)'; }}
@@ -523,7 +526,8 @@ export function AuditWorkspace() {
                 className="max-w-2xl mx-auto px-7 py-6 space-y-6"
               >
                 {/* Domain header */}
-                <div className="flex items-start gap-5">
+                <div className="glc-page-hero glc-orb-decor p-5 sm:p-6">
+                  <div className="flex items-start gap-5">
                   <div
                     className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
                     style={{ background: 'var(--gradient-brand)', boxShadow: '0 6px 20px rgba(28,189,255,0.25)' }}
@@ -531,13 +535,11 @@ export function AuditWorkspace() {
                     {(() => { const DI = DOMAIN_ICONS[activeDomain]; return <DI className="w-7 h-7 text-white" />; })()}
                   </div>
                   <div className="flex-1">
+                    <p className="glc-kicker mb-2">Domain focus</p>
                     <h2
+                      className="glc-hero-title"
                       style={{
-                        fontFamily: 'var(--font-display)',
-                        fontSize: 'var(--text-xl)',
-                        fontWeight: 700,
                         color: 'var(--text-primary)',
-                        letterSpacing: 'var(--tracking-tight)',
                       }}
                     >
                       {DOMAIN_LABELS[activeDomain]}
@@ -551,6 +553,7 @@ export function AuditWorkspace() {
                         </>
                       )}
                     </div>
+                  </div>
                   </div>
                 </div>
 

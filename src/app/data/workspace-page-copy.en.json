@@ -1,8 +1,8 @@
 {
   "pipelineMonitor": {
     "startReadyTitle": "Ready to start",
-    "startExpressDescription": "This will begin the Express audit (5 phases: Recon + 4 domains). Estimated cost depends on site size and crawl depth; typical runs use modest API credits.",
-    "startFullDescription": "This will begin the full 8-phase audit pipeline. Estimated cost depends on site size and depth; it uses more API credits than Express. See billing for details.",
+    "startExpressDescription": "This will begin a focused Pro audit path (partial domain coverage). Estimated cost depends on site size and crawl depth; typical runs use modest API credits.",
+    "startFullDescription": "This will begin the Complete audit pipeline with the broadest coverage. Estimated cost depends on site size and depth; it typically uses more API credits than Pro.",
     "startPipelineButton": "Start Pipeline"
   },
   "newAudit": {
@@ -46,8 +46,8 @@
     "defaultExpectedContactWindow": "within 24 hours"
   },
   "snapshotLanding": {
-    "trustSignedIn": "Signed in — results save to your account. Use Workspace for the full Express Audit.",
-    "trustAnonymous": "Try instantly — sign in anytime to unlock the full Express Audit"
+    "trustSignedIn": "Signed in — results save to your account. Continue with Starter, Pro, or Complete from Workspace.",
+    "trustAnonymous": "Try instantly — use Brief to choose Starter, Pro, or Complete when you are ready."
   },
   "publicBrief": {
     "breadcrumbsHome": "Home",
@@ -55,14 +55,14 @@
     "heroTitle": "Want help from a specialist?",
     "heroIntroBefore": "A short brief without tech jargon. We suggest a next step by format: a quick Snapshot, Discovery when there is no public site yet, or an audit path chosen by ",
     "heroIntroStrong": "depth of analysis",
-    "heroIntroAfter": " (Express = focused scope, Full = broadest coverage)—not by how fast you need an answer.",
+    "heroIntroAfter": " (Starter = one domain, Pro = 2-3 domains, Complete = full coverage)—not by how fast you need an answer.",
     "sentBadge": "Sent",
     "sentTitlePrefix": "We suggest starting with:",
     "sentBody": "The link below opens that path. We will reach out via your preferred channel.",
     "goToPrefix": "Go to:",
     "linkSnapshot": "Snapshot",
-    "linkExpress": "Express",
-    "linkFullAudit": "Full audit",
+    "linkExpress": "Starter/Pro",
+    "linkFullAudit": "Complete",
     "linkDiscovery": "Discovery",
     "refPrefix": "Ref:",
     "formNameLabel": "Name *",
@@ -77,9 +77,9 @@
     "improveLabel": "What do you want to improve?",
     "improveRequired": "Please add a short description",
     "depthLegend": "How deep should the first audit path go?",
-    "depthHint": "Express = focused scope and fewer domains. Full = maximum coverage across the programme. This is about depth of analysis, not delivery speed.",
-    "depthExpress": "Express — enough to see the picture and first steps",
-    "depthFull": "Full — broadest audit depth",
+    "depthHint": "Starter = one focused domain. Pro = 2-3 domains. Complete = full six-domain coverage. This is about scope clarity, not delivery speed.",
+    "depthExpress": "Starter/Pro — focused route with selected domains",
+    "depthFull": "Complete — broadest audit coverage",
     "preferredContactLabel": "Preferred contact",
     "contactOptions": ["Email", "Phone / WhatsApp", "Either is fine"],
     "unsureCheckbox": "I am not sure what to choose—suggest a format (Snapshot if I have a site, Discovery if not)",

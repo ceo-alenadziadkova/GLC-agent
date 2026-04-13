@@ -30,9 +30,10 @@ import { emitStructuredNotification } from './notifications.js';
 import { decisionLayer } from './decision-layer.js';
 import {
   DEFAULT_AUDIT_PRODUCT_MODE,
+  executionPlanToPhases,
+  maxPhaseForExecutionPlan,
   PHASE_DOMAIN_MAP,
-  maxPhaseForMode,
-  reviewPhasesForMode,
+  type AuditExecutionPlan,
   type DomainKey,
   type DomainResult,
   type FreeSnapshotPreview,
@@ -50,6 +51,7 @@ import { attachBenchmarkReferenceToControlObject } from './benchmark-snapshot.js
 import { findVariant } from '../config/agent-variants.js';
 import { CLAUDE_MODEL, MODEL_MAX_TOKENS, getModelPricing } from '../config/model.js';
 import { roundTokenCostUsd } from '../config/token-cost-rounding.js';
+import { normalizeExecutionPlan } from './execution-plan.js';
 
 type AgentConstructor = new (auditId: string) => BaseAgent;
 
@@ -570,14 +572,18 @@ export class PipelineOrchestrator {
     return true; // we handled the refine path (via auto-loop + final emission)
   }
 
-  /** Fetch the product_mode for this audit. Falls back to `DEFAULT_AUDIT_PRODUCT_MODE` on error. */
-  private async getProductMode(): Promise<ProductMode> {
+  /** Fetch normalized execution plan for this audit with legacy fallback. */
+  private async getExecutionPlan(): Promise<AuditExecutionPlan> {
     const { data } = await supabase
       .from('audits')
-      .select('product_mode')
+      .select('product_mode, execution_plan')
       .eq('id', this.auditId)
       .single();
-    return (data?.product_mode as ProductMode) ?? DEFAULT_AUDIT_PRODUCT_MODE;
+    const mode = (data?.product_mode as ProductMode) ?? DEFAULT_AUDIT_PRODUCT_MODE;
+    return normalizeExecutionPlan(
+      (data?.execution_plan as Partial<AuditExecutionPlan> | null | undefined) ?? null,
+      mode,
+    );
   }
 
   /**
@@ -593,11 +599,11 @@ export class PipelineOrchestrator {
 
     try {
       await this.assertNotCancelled();
-      // Mode ceiling — reject phases beyond what this product mode allows
-      const mode = await this.getProductMode();
-      const maxPhase = maxPhaseForMode(mode);
-      if (phase > maxPhase) {
-        throw new Error(`Phase ${phase} is not available for product_mode '${mode}' (max: ${maxPhase})`);
+      const executionPlan = await this.getExecutionPlan();
+      const availablePhases = executionPlanToPhases(executionPlan);
+      const maxPhase = maxPhaseForExecutionPlan(executionPlan);
+      if (!availablePhases.includes(phase)) {
+        throw new Error(`Phase ${phase} is not available for execution plan (max: ${maxPhase})`);
       }
 
       // Brief gate — Phase 0 is blocked for express/full until SLA questions are answered
@@ -668,7 +674,7 @@ export class PipelineOrchestrator {
       }
 
       // Check if this phase triggers a review point
-      if ((reviewPhasesForMode(mode) as readonly number[]).includes(phase)) {
+      if ((executionPlanToPhases(executionPlan) as readonly number[]).includes(phase) && [0, 4, 7].includes(phase)) {
         await this.emitEvent(phase, 'review_needed', ocStart.phase.reviewNeeded);
         const reviewSet = await this.updateAuditIfNotCancelled({ status: 'review' });
         if (!reviewSet) throw new PipelineCancelledError();
@@ -927,18 +933,19 @@ export class PipelineOrchestrator {
         throw new Error('Audit not found while running block');
       }
 
-      const mode = await this.getProductMode();
-      const maxPhase = maxPhaseForMode(mode);
-      const reviewPhases = reviewPhasesForMode(mode) as readonly number[];
-      const nextPhase = audit.current_phase + 1;
+      const executionPlan = await this.getExecutionPlan();
+      const executablePhases = executionPlanToPhases(executionPlan).filter((p) => p > 0);
+      const maxPhase = maxPhaseForExecutionPlan(executionPlan);
+      const reviewPhases = [0, 4, 7].filter((p) => executionPlanToPhases(executionPlan).includes(p));
+      const nextPhase = executablePhases.find((p) => p > audit.current_phase);
 
       if (audit.status === 'cancelled') return;
-      if (nextPhase > maxPhase) return; // All phases complete
+      if (!nextPhase || nextPhase > maxPhase) return; // All phases complete
 
       // ── Auto wing: phases 1-4 (or subset for express) ────────────────
       if ((AUTO_WING_PHASES as readonly number[]).includes(nextPhase)) {
-        const wingPhases = AUTO_WING_PHASES.filter(p => p <= maxPhase);
-        const lastWingPhase = Math.max(...wingPhases);
+        const wingPhases = AUTO_WING_PHASES.filter((p) => p <= maxPhase && executablePhases.includes(p));
+        const lastWingPhase = wingPhases.length > 0 ? Math.max(...wingPhases) : nextPhase;
 
       const movedToAuto = await this.updateAuditIfNotCancelled({ status: 'auto', current_phase: nextPhase });
       if (!movedToAuto) throw new PipelineCancelledError();
@@ -969,8 +976,8 @@ export class PipelineOrchestrator {
 
     // ── Analytic wing: phases 5-6, then Strategy ─────────────────────
       if ((ANALYTIC_WING_PHASES as readonly number[]).includes(nextPhase)) {
-      const wingPhases = ANALYTIC_WING_PHASES.filter(p => p <= maxPhase);
-      const lastWingPhase = Math.max(...wingPhases);
+      const wingPhases = ANALYTIC_WING_PHASES.filter((p) => p <= maxPhase && executablePhases.includes(p));
+      const lastWingPhase = wingPhases.length > 0 ? Math.max(...wingPhases) : nextPhase;
 
       const movedToAnalytic = await this.updateAuditIfNotCancelled({ status: 'analytic', current_phase: nextPhase });
       if (!movedToAnalytic) throw new PipelineCancelledError();
@@ -981,7 +988,7 @@ export class PipelineOrchestrator {
       if (!advancedAnalytic) throw new PipelineCancelledError();
 
       // Continue to Strategy (phase 7) without an intermediate gate
-      if (maxPhase >= 7) {
+      if (executionPlanToPhases(executionPlan).includes(7)) {
         await this.startPhase(7);
 
         // Run quality gate on the full audit (all domains) after strategy completes

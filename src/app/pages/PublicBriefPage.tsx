@@ -19,10 +19,17 @@ type FormValues = {
   improve: string;
   contact_method: string;
   unsure_choice: boolean;
-  preferred_audit_depth: 'express' | 'full';
+  preferred_coverage_package: 'starter' | 'pro' | 'complete';
 };
 
 const PB = WORKSPACE_PAGE_COPY.publicBrief;
+const ROUTE_LABEL_FALLBACKS: Record<MarketingRecommendedRoute, string> = {
+  '/snapshot': 'Snapshot',
+  '/starter': 'Starter',
+  '/pro': 'Pro',
+  '/complete': 'Complete',
+  '/discovery': 'Discovery',
+};
 
 export function PublicBriefPage() {
   const { supportEmail } = usePublicBrand();
@@ -44,13 +51,16 @@ export function PublicBriefPage() {
       improve: '',
       contact_method: PB.contactOptions[0],
       unsure_choice: false,
-      preferred_audit_depth: 'express',
+      preferred_coverage_package: 'pro',
     },
   });
 
   const noWebsite = watch('no_website');
   const unsure = watch('unsure_choice');
   const showDepthChoice = !unsure && !noWebsite;
+  const recommendedRouteLabel = done
+    ? (ROUTE_LABELS[done.route] ?? ROUTE_LABEL_FALLBACKS[done.route])
+    : null;
 
   async function onSubmit(values: FormValues) {
     setSubmitError(null);
@@ -64,8 +74,8 @@ export function PublicBriefPage() {
         improve: values.improve.trim(),
         contact_method: values.contact_method,
         unsure_choice: values.unsure_choice,
-        preferred_audit_depth:
-          values.unsure_choice || values.no_website ? undefined : values.preferred_audit_depth,
+        preferred_coverage_package:
+          values.unsure_choice || values.no_website ? undefined : values.preferred_coverage_package,
       });
       setDone({ route: res.recommended_route as MarketingRecommendedRoute, id: res.id });
     } catch (e) {
@@ -119,36 +129,17 @@ export function PublicBriefPage() {
                 className="inline-flex rounded-xl px-5 py-3 text-sm font-semibold"
                 style={{ background: 'var(--gradient-brand)', color: 'var(--primary-foreground)' }}
               >
-                {PB.goToPrefix} {ROUTE_LABELS[done.route]}
+                {PB.goToPrefix} {recommendedRouteLabel}
               </Link>
-              <Link
-                to="/snapshot"
-                className="inline-flex rounded-xl border px-5 py-3 text-sm font-semibold"
-                style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
-              >
-                {PB.linkSnapshot}
-              </Link>
-              <Link
-                to="/express-audit"
-                className="inline-flex rounded-xl border px-5 py-3 text-sm font-semibold"
-                style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
-              >
-                {PB.linkExpress}
-              </Link>
-              <Link
-                to="/audit"
-                className="inline-flex rounded-xl border px-5 py-3 text-sm font-semibold"
-                style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
-              >
-                {PB.linkFullAudit}
-              </Link>
-              <Link
-                to="/discovery"
-                className="inline-flex rounded-xl border px-5 py-3 text-sm font-semibold"
-                style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
-              >
-                {PB.linkDiscovery}
-              </Link>
+              {done.route !== '/brief' && (
+                <Link
+                  to="/brief"
+                  className="inline-flex rounded-xl border px-5 py-3 text-sm font-semibold"
+                  style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
+                >
+                  Adjust with specialist
+                </Link>
+              )}
             </div>
             <p className="mt-6 text-xs" style={{ color: 'var(--text-quaternary)' }}>
               {PB.refPrefix} {done.id}
@@ -234,12 +225,16 @@ export function PublicBriefPage() {
                   {PB.depthHint}
                 </p>
                 <label className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
-                  <input type="radio" value="express" {...register('preferred_audit_depth')} />
-                  {PB.depthExpress}
+                  <input type="radio" value="starter" {...register('preferred_coverage_package')} />
+                  Starter (1 domain)
                 </label>
                 <label className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
-                  <input type="radio" value="full" {...register('preferred_audit_depth')} />
-                  {PB.depthFull}
+                  <input type="radio" value="pro" {...register('preferred_coverage_package')} />
+                  Pro (2-3 domains)
+                </label>
+                <label className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+                  <input type="radio" value="complete" {...register('preferred_coverage_package')} />
+                  Complete (all domains)
                 </label>
               </fieldset>
             )}

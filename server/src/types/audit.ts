@@ -2,6 +2,8 @@ import { PIPELINE_MAX_PHASE_INDEX } from '../config/pipeline-phases.js';
 
 // ─── Product Modes ─────────────────────────────────────────
 export type ProductMode = 'free_snapshot' | 'express' | 'full';
+export type AuditCoveragePackage = 'starter' | 'pro' | 'complete';
+export type AuditDepth = 'light' | 'standard' | 'deep';
 
 export const PRODUCT_MODES: ProductMode[] = ['free_snapshot', 'express', 'full'];
 
@@ -19,6 +21,15 @@ export const DOMAIN_KEYS = [
 ] as const;
 
 export type DomainKey = (typeof DOMAIN_KEYS)[number];
+
+export interface AuditExecutionPlan {
+  selected_domains: DomainKey[];
+  depth: AuditDepth;
+  source: 'user_selected' | 'system_default';
+  recommended_domains?: DomainKey[];
+  coverage_package?: AuditCoveragePackage;
+  include_strategy?: boolean;
+}
 
 // ─── Phase Mapping ─────────────────────────────────────────
 export const PHASE_DOMAIN_MAP: Record<number, DomainKey | 'recon' | 'strategy'> = {
@@ -65,6 +76,40 @@ export function reviewPhasesForMode(mode: ProductMode): readonly number[] {
   return REVIEW_AFTER_PHASES;
 }
 
+export const DOMAIN_PHASES: Record<DomainKey, number> = {
+  tech_infrastructure: 1,
+  security_compliance: 2,
+  seo_digital: 3,
+  ux_conversion: 4,
+  marketing_utp: 5,
+  automation_processes: 6,
+};
+
+export function uniqueDomainKeys(input: readonly DomainKey[]): DomainKey[] {
+  return DOMAIN_KEYS.filter((key) => input.includes(key));
+}
+
+export function executionPlanToPhases(plan: AuditExecutionPlan): number[] {
+  const selected = uniqueDomainKeys(plan.selected_domains);
+  const domainPhases = selected.map((d) => DOMAIN_PHASES[d]).sort((a, b) => a - b);
+  const includeStrategy = plan.include_strategy === true;
+  return [0, ...domainPhases, ...(includeStrategy ? [7] : [])];
+}
+
+export function reviewPhasesForExecutionPlan(plan: AuditExecutionPlan): number[] {
+  const phases = executionPlanToPhases(plan);
+  const reviews = new Set<number>();
+  if (phases.includes(0)) reviews.add(0);
+  if (phases.some((p) => p >= 1 && p <= 4)) reviews.add(4);
+  if (phases.includes(7)) reviews.add(7);
+  return Array.from(reviews).sort((a, b) => a - b);
+}
+
+export function maxPhaseForExecutionPlan(plan: AuditExecutionPlan): number {
+  const phases = executionPlanToPhases(plan);
+  return phases.length > 0 ? Math.max(...phases) : 0;
+}
+
 export type PhaseStatus = 'pending' | 'collecting' | 'analyzing' | 'completed' | 'failed';
 export type AuditStatus =
   | 'created'
@@ -94,6 +139,7 @@ export interface AuditMeta {
   token_budget: number;
   tokens_used: number;
   product_mode: ProductMode;
+  execution_plan?: AuditExecutionPlan | null;
   snapshot_token: string | null;
   created_at: string;
   updated_at: string;

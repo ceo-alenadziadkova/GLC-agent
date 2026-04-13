@@ -88,7 +88,7 @@ export function BriefField({
       )}
       {q.id === 'f2' && productMode === 'express' && (
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: -2 }}>
-          In Express, deep analysis covers Tech/Security/SEO/UX. Marketing and Automation inputs are captured for prioritization and full-audit planning.
+          In Pro coverage, deep analysis focuses on selected domains. Marketing and Automation inputs are still captured for prioritization and complete coverage planning.
         </p>
       )}
 

@@ -4,7 +4,8 @@
  * Rules:
  * - Unsure about format → explore: snapshot if they have a site, discovery if not.
  * - No public site → discovery.
- * - Has site and sure about format → express vs full by **depth** (`preferred_audit_depth`), not timeline/urgency.
+ * - Has site and sure about format → package by `preferred_coverage_package`.
+ * - Legacy `preferred_audit_depth` remains mapped for backward compatibility.
  */
 
 import { MARKETING_BRIEF_ALLOWED_ROUTES, SPA_MARKETING_BRIEF_PATHS } from './spa-routes.js';
@@ -19,13 +20,15 @@ export function isAllowedMarketingBriefRoute(r: string): r is MarketingBriefRout
 }
 
 export type MarketingBriefPreferredAuditDepth = 'express' | 'full';
+export type MarketingBriefPreferredCoveragePackage = 'starter' | 'pro' | 'complete';
 
 export type MarketingBriefRoutingInput = {
   unsure_choice: boolean;
   no_website: boolean;
+  preferred_coverage_package?: MarketingBriefPreferredCoveragePackage | null;
   /**
    * When `unsure_choice` or `no_website`, ignored.
-   * When user has a site and is sure: `express` = lighter-scope path, `full` = maximum depth.
+   * Legacy fallback when package is absent.
    */
   preferred_audit_depth: MarketingBriefPreferredAuditDepth | null;
 };
@@ -37,11 +40,17 @@ export function computeMarketingBriefRecommendedRoute(body: MarketingBriefRoutin
   if (body.no_website) {
     return SPA_MARKETING_BRIEF_PATHS.discovery;
   }
+  if (body.preferred_coverage_package === 'starter') {
+    return SPA_MARKETING_BRIEF_PATHS.starterPackage;
+  }
+  if (body.preferred_coverage_package === 'pro') {
+    return SPA_MARKETING_BRIEF_PATHS.proPackage;
+  }
+  if (body.preferred_coverage_package === 'complete') {
+    return SPA_MARKETING_BRIEF_PATHS.completePackage;
+  }
   if (body.preferred_audit_depth === 'express') {
-    return SPA_MARKETING_BRIEF_PATHS.expressAudit;
+    return SPA_MARKETING_BRIEF_PATHS.starterPackage;
   }
-  if (body.preferred_audit_depth === 'full') {
-    return SPA_MARKETING_BRIEF_PATHS.fullAudit;
-  }
-  return SPA_MARKETING_BRIEF_PATHS.fullAudit;
+  return SPA_MARKETING_BRIEF_PATHS.completePackage;
 }

@@ -64,7 +64,7 @@ describe('PortalAuditCard', () => {
   it('renders meta line with industry, mode and updated age', () => {
     renderCard(makeAudit({ product_mode: 'express' }));
 
-    expect(screen.getByText(/SaaS · Express audit · Updated 2 days ago/i)).toBeInTheDocument();
+    expect(screen.getByText(/SaaS · Pro audit · Updated 2 days ago/i)).toBeInTheDocument();
   });
 
   it('hides updated copy when updated_at is missing', () => {

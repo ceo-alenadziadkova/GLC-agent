@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { motion, useReducedMotion } from 'motion/react';
-import { ArrowRight, CaretRight, CheckCircle } from '@phosphor-icons/react';
+import { ArrowRight, CheckCircle } from '@phosphor-icons/react';
 import { MarketingLayout } from '../marketing/MarketingLayout';
 import { MarketingSection } from '../marketing/blocks/MarketingSection';
 import { DecisionPath } from '../marketing/blocks/DecisionPath';
@@ -111,18 +111,10 @@ function MarketingHomeInner() {
             className="pointer-events-none absolute -inset-x-4 -top-4 bottom-0 -z-10 overflow-hidden rounded-[var(--radius-2xl)] sm:-inset-x-6 sm:-top-6"
             aria-hidden
           >
-            <div
-              className="absolute -left-[15%] top-0 h-[min(420px,70vw)] w-[min(520px,90vw)] rounded-full opacity-90 blur-3xl"
-              style={{ background: 'radial-gradient(circle, color-mix(in oklab, var(--glc-blue) 22%, transparent) 0%, transparent 68%)' }}
-            />
-            <div
-              className="absolute -right-[10%] top-1/4 h-[min(320px,55vw)] w-[min(400px,80vw)] rounded-full opacity-80 blur-3xl"
-              style={{ background: 'radial-gradient(circle, color-mix(in oklab, var(--glc-green) 18%, transparent) 0%, transparent 65%)' }}
-            />
           </div>
 
           <div className="relative grid gap-12 pt-2 lg:grid-cols-12 lg:gap-10 lg:items-center">
-            <div className="lg:col-span-7">
+            <div className="lg:col-span-9">
               <p
                 className="mb-4 inline-flex items-center rounded-full border px-3.5 py-1.5 text-xs font-semibold uppercase"
                 style={{
@@ -136,7 +128,7 @@ function MarketingHomeInner() {
                 {brandName} · audit-first
               </p>
               <h1
-                className="font-display text-[clamp(1.9rem,5.2vw,3.15rem)] font-bold leading-[1.06] tracking-tight"
+                className="font-display text-[clamp(2rem,5.4vw,3.35rem)] font-bold leading-[1.03] tracking-tight"
                 style={{ color: 'var(--text-primary)' }}
               >
                 We find what slows growth across your digital stack: audits, bottlenecks, automation, and a{' '}
@@ -155,42 +147,48 @@ function MarketingHomeInner() {
                 Site, processes, integrations, and communications in one view. No fluff: what is broken, what to fix first,
                 what to automate, and which move will move the needle.
               </p>
+              <p
+                className="mt-4 max-w-xl text-sm leading-relaxed sm:text-[0.95rem]"
+                style={{ color: 'var(--text-tertiary)' }}
+              >
+                Built for founders and operating teams that need a clear next move, not another generic audit PDF.
+              </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <motion.div whileHover={reduce ? undefined : { y: -2 }} transition={{ duration: 0.2 }}>
                   <Link
-                    to="/snapshot"
-                    data-testid="hero-cta-snapshot"
+                    to="/brief"
+                    data-testid="hero-cta-brief"
                     className="group inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-semibold transition-[box-shadow,transform] duration-200 sm:w-auto"
                     style={{
                       background: 'var(--gradient-brand)',
                       color: 'var(--primary-foreground)',
-                      boxShadow: '0 8px 28px rgba(28,189,255,0.28)',
+                      boxShadow: '0 10px 30px rgba(28,189,255,0.3)',
                       textDecoration: 'none',
                     }}
                   >
-                    Not sure—try Snapshot
+                    Get your recommended path
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </Link>
                 </motion.div>
                 <motion.div whileHover={reduce ? undefined : { y: -2 }} transition={{ duration: 0.2 }}>
                   <Link
-                    to="/audit"
+                    to="/snapshot"
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-semibold transition-[border-color,box-shadow,transform] duration-200 sm:w-auto"
                     style={{
                       backgroundColor: 'var(--bg-surface)',
                       border: '1px solid var(--border-default)',
                       color: 'var(--text-primary)',
                       textDecoration: 'none',
-                      boxShadow: 'var(--shadow-xs)',
+                      boxShadow: 'var(--shadow-sm)',
                     }}
                   >
-                    Full audit
+                    Try Snapshot first
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </motion.div>
               </div>
               <ul className="mt-10 flex flex-wrap gap-x-8 gap-y-2 text-sm" style={{ color: 'var(--text-tertiary)' }}>
-                {['Eight-domain coverage', 'Prioritized roadmap', 'Automation-ready outputs'].map(line => (
+                {['Clear package boundaries', 'Handoff-ready report', 'Prioritized next actions'].map(line => (
                   <li key={line} className="flex items-center gap-2">
                     <span
                       className="h-1.5 w-1.5 shrink-0 rounded-full"
@@ -201,49 +199,6 @@ function MarketingHomeInner() {
                   </li>
                 ))}
               </ul>
-            </div>
-            <div className="lg:col-span-5">
-              <div
-                className="rounded-xl p-6 sm:p-7"
-                style={{
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-surface)',
-                  boxShadow: 'var(--shadow-xs)',
-                }}
-              >
-                <p
-                  className="text-xs font-bold uppercase tracking-[0.1em]"
-                  style={{ color: 'var(--text-tertiary)' }}
-                >
-                  Where to go next
-                </p>
-                <ul className="mt-5 space-y-0 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  {[
-                    ['Unsure about format', '/snapshot', 'Snapshot'],
-                    ['Need a fast review', '/express-audit', 'Express'],
-                    ['Need depth and a roadmap', '/audit', 'Full audit'],
-                    ['No site or brief yet', '/discovery', 'Discovery'],
-                  ].map(([label, to, cta]) => (
-                    <li
-                      key={to}
-                      className="flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] py-3.5 first:pt-0 last:border-0 last:pb-0"
-                    >
-                      <span className="leading-snug">{label}</span>
-                      <Link
-                        to={to}
-                        className="group inline-flex shrink-0 items-center gap-0.5 font-semibold transition-colors"
-                        style={{ color: 'var(--glc-blue)' }}
-                      >
-                        {cta}
-                        <CaretRight
-                          className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
-                          aria-hidden
-                        />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
             </div>
           </div>
         </MarketingSection>
@@ -276,7 +231,7 @@ function MarketingHomeInner() {
             title={marketingHomeCopy.chooseEntryTitle}
             description={marketingHomeCopy.chooseEntryDescription}
           />
-          <div className="mt-10">
+          <div className="mt-10 rounded-[var(--radius-2xl)] border p-3 sm:p-4" style={{ borderColor: 'var(--border-subtle)' }}>
             <DecisionPath />
           </div>
         </MarketingSection>
@@ -284,45 +239,76 @@ function MarketingHomeInner() {
         <MarketingSection className="mt-24" delay={0.14}>
           <SectionHeading
             variant="rail"
-            title={marketingHomeCopy.expressVsFullTitle}
-            description={marketingHomeCopy.expressVsFullDescription}
+            title={marketingHomeCopy.coveragePackagesTitle}
+            description={marketingHomeCopy.coveragePackagesDescription}
           />
-          <div className="mt-10">
+          <div className="mt-10 rounded-[var(--radius-2xl)] border p-3 sm:p-4" style={{ borderColor: 'var(--border-subtle)' }}>
             <AuditCompare compact />
           </div>
         </MarketingSection>
 
-        <MarketingSection className="mt-16 border-t border-[var(--border-subtle)] pt-14 sm:mt-20 sm:pt-16" delay={0.15}>
-          <div className="grid gap-10 lg:grid-cols-3 lg:gap-12">
-            <div className="lg:border-r lg:border-[var(--border-subtle)] lg:pr-10">
-              <p className="font-display text-lg font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                <Link to="/snapshot" className="transition-colors hover:text-[var(--glc-blue-dark)]">
-                  Snapshot
-                </Link>
-              </p>
-              <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                {marketingHomeCopy.pillars.snapshot.description}
-              </p>
-            </div>
-            <div className="lg:border-r lg:border-[var(--border-subtle)] lg:pr-10">
-              <p className="font-display text-lg font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                <Link to="/discovery" className="transition-colors hover:text-[var(--glc-blue-dark)]">
-                  Discovery
-                </Link>
-              </p>
-              <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                {marketingHomeCopy.pillars.discovery.description}
-              </p>
-            </div>
-            <div>
-              <p className="font-display text-lg font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                <Link to="/brief" className="transition-colors hover:text-[var(--glc-orange-dark)]">
-                  Brief
-                </Link>
-              </p>
-              <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                {marketingHomeCopy.pillars.brief.description}
-              </p>
+        <MarketingSection className="mt-20 sm:mt-24" delay={0.15}>
+          <SectionHeading
+            variant="minimal"
+            title="What you actually get"
+            description="Every paid package is designed for execution, not just diagnosis."
+          />
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {[
+              {
+                title: 'Decision-ready diagnosis',
+                body: 'The report shows what is blocking growth now, what is secondary, and what can wait.',
+              },
+              {
+                title: 'Priority roadmap',
+                body: 'You get an impact/effort sequence so teams know exactly what to do first.',
+              },
+              {
+                title: 'Transparent scope',
+                body: 'Covered and not-analyzed domains are explicit, so expectations stay realistic.',
+              },
+            ].map(item => (
+              <article
+                key={item.title}
+                className="glc-card p-5 sm:p-6"
+                style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-card)' }}
+              >
+                <h3 className="font-display text-lg font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+                  {item.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  {item.body}
+                </p>
+              </article>
+            ))}
+          </div>
+        </MarketingSection>
+
+        <MarketingSection className="mt-16 sm:mt-20" delay={0.155}>
+          <div
+            className="rounded-[var(--radius-2xl)] border p-5 sm:p-6"
+            style={{
+              borderColor: 'var(--border-subtle)',
+              background: 'linear-gradient(145deg, color-mix(in oklab, var(--bg-surface) 88%, var(--bg-muted)) 0%, var(--bg-surface) 100%)',
+            }}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+              Why teams trust this flow
+            </p>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              {[
+                'Package scope is explicit before delivery starts.',
+                'Reports are structured for real implementation handoff.',
+                'Entry path is flexible: Snapshot, Brief, or direct package selection.',
+              ].map(line => (
+                <div
+                  key={line}
+                  className="rounded-xl border px-4 py-3 text-sm leading-relaxed"
+                  style={{ borderColor: 'var(--border-subtle)', background: 'color-mix(in oklab, var(--bg-surface) 94%, white)' }}
+                >
+                  {line}
+                </div>
+              ))}
             </div>
           </div>
         </MarketingSection>
@@ -396,7 +382,7 @@ function MarketingHomeInner() {
             subtitle="If you want a human in the loop—brief or FAQ."
             steps={[
               { to: '/faq', label: 'FAQ', hint: 'Timelines, format, how we work.' },
-              { to: '/brief', label: 'Short brief', hint: 'We gather context and suggest a route.', primary: true },
+              { to: '/brief', label: 'Book a brief call', hint: 'We gather context and suggest a route.', primary: true },
               { to: LOGIN_PATH, label: footer.clientSignInLabel, hint: 'For current clients.' },
             ]}
           />

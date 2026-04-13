@@ -277,7 +277,7 @@ Use this matrix for new endpoints to keep access rules consistent. **Consultant*
 | Endpoint pattern | Consultant (owner) | Client (`client_id`) | Notes |
 | ---------------- | ------------------ | -------------------- | ----- |
 | `GET /api/audits`, `GET /api/audits/:id` | yes | yes | Read when permitted by API/RLS |
-| `GET /api/audits/:id/brief`, `PUT /api/audits/:id/brief` | yes | yes | Intake brief + `gates`; **GET** includes `product_mode` (from audit) for express vs full required-field UX |
+| `GET /api/audits/:id/brief`, `PUT /api/audits/:id/brief` | yes | yes | Intake brief + `gates`; **GET** includes `product_mode` (runtime compatibility field) |
 | `GET /api/audits/:id/pipeline/status`, `GET /api/audits/:id/quality-gate/:phase` | yes | yes | Progress / quality gate payload |
 | `POST /api/audits/:id/pipeline/start`, `POST .../pipeline/next`, `POST .../pipeline/stop` | yes | yes | Client may start/continue/stop only when `audits.client_id` matches. Start still requires brief gates (`status === 'created'`). **`retry`** remains consultant-only. |
 | `POST /api/audits/:id/pipeline/retry` | yes | no | Consultant-only |
@@ -297,9 +297,18 @@ Create a new audit.
 {
   "company_url": "https://example.com",
   "company_name": "Example Co", // optional
-  "industry": "E-commerce" // optional
+  "industry": "E-commerce", // optional
+  "execution_plan": {
+    "selected_domains": ["tech_infrastructure", "security_compliance"],
+    "depth": "standard",
+    "source": "user_selected",
+    "coverage_package": "pro",
+    "include_strategy": true
+  }
 }
 ```
+
+`execution_plan` is optional. If omitted on new rows, backend defaults to `coverage_package: "complete"` with all domains. Legacy rows may still derive fallback coverage from `product_mode`.
 
 **Response `201`:**
 
@@ -449,9 +458,9 @@ Migration column: deploy **`028_intake_version_migration.sql`** — `intake_brie
 
 ### `POST /api/audits/:id/upgrade-from-snapshot`
 
-**Auth:** registered **client** JWT (not guest). Promotes a **completed** `product_mode: free_snapshot` audit to **express** or **full**, resets domain rows, and either seeds the intake brief from quick-scan recon / `snapshot_deterministic` (`use_scraped_context: true`) or clears recon placeholders (`use_scraped_context: false`).
+**Auth:** registered **client** JWT (not guest). Promotes a **completed** `product_mode: free_snapshot` audit to package-based coverage (`starter` / `pro` / `complete`), resets domain rows, and either seeds the intake brief from quick-scan recon / `snapshot_deterministic` (`use_scraped_context: true`) or clears recon placeholders (`use_scraped_context: false`).
 
-**Body:** `{ "target_mode": "express" | "full", "use_scraped_context": boolean }`
+**Body:** `{ "coverage_package": "starter" | "pro" | "complete", "use_scraped_context": boolean }`
 
 When `use_scraped_context` is **true** but the snapshot **did not retrieve HTML** (e.g. `robots.txt` blocked the homepage or fetch failed — `scan_basis_code: degraded`, `pages_fetched: 0`), the response still succeeds and **`intake_brief.recon_prefills`** gains **`snapshot_scrape_limited`**, **`snapshot_scrape_robots_blocked`**, and **`snapshot_scrape_note`** so consultants know pre-fill is thin; **`overall_score_hint` is omitted** so a **0** is not treated as a real score.
 
@@ -473,11 +482,13 @@ When `use_scraped_context` is **true** but the snapshot **did not retrieve HTML*
 
 ### `POST /api/audits/:id/pipeline/start`
 
-Start Phase 0 (Recon). Audit must be in `created` status; intake brief gates must allow start for the audit’s `product_mode` (express vs full). **Consultant** callers must own the row (`user_id`). **Client** callers must match `client_id` on the audit.
+Start Phase 0 (Recon). Audit must be in `created` status; intake brief gates must allow start for the audit’s selected coverage package. **Consultant** callers must own the row (`user_id`). **Client** callers must match `client_id` on the audit.
 Supports optimistic race protection via DB compare-and-set. If another request already claimed execution, returns `409`.
 Execution is queue-backed when Redis is configured: route enqueues a pipeline job and returns immediately; worker processes perform phase execution. If queue backend is unavailable, runtime falls back to in-process execution.
 
 Optional JSON body: `{ "disable_auto_remediate": true }` skips Phase 9 auto-remediation for pipeline work triggered by this request (including BullMQ worker runs). When omitted, remediation follows `FEATURE_AUTO_REMEDIATION` in `server/src/config/feature-flags.ts`.
+
+Phase execution after recon is controlled by `audits.execution_plan.selected_domains` (partial coverage supported). `execution_plan` is canonical for phase routing.
 
 **Response `200`:**
 
@@ -493,6 +504,8 @@ Run the next pending phase or parallel block. Used after a review approval to co
 Uses compare-and-set claim on the audit row to prevent duplicate concurrent starts.
 Queue-backed execution/fallback behavior is the same as `pipeline/start`.
 Optional body `{ "disable_auto_remediate": true }` — same semantics as `pipeline/start`.
+
+For partial audits, `/next` advances to the next selected phase from `execution_plan` (not strictly `current_phase + 1` by domain index).
 
 **Response `200`:**
 
@@ -678,6 +691,18 @@ Generate a markdown, JSON, or CSV audit report. Caller must be the audit **owner
 - `format=csv` — `Content-Type: text/csv` with attachment filename `audit-{id}-action-plan.csv`
 
 ---
+
+### Report coverage metadata
+
+`GET /api/audits/:id/report?format=json` now includes:
+
+- `coverage.covered_domains`
+- `coverage.not_covered_domains`
+- `coverage.coverage_ratio`
+- `coverage.coverage_adjusted_score`
+- `coverage.comparability_note`
+
+Use this to distinguish partial audits from complete 6-domain runs when presenting scores and avoid false comparability.
 
 ## Public Snapshot
 
@@ -953,13 +978,14 @@ Success returns **`201`** with `{ "audit_id": "..." }`.
 - `contact_method` (string)
 - `urgency` (string, optional) — persisted if sent; the public **`/brief`** form does not collect it (empty in DB). Does **not** select the route.
 - `unsure_choice` (boolean) — when true: **`/snapshot`** if the lead has a public site, **`/discovery`** if `no_website`.
-- `preferred_audit_depth` (`"express"` \| `"full"`) — **required** when `unsure_choice` is false **and** `no_website` is false. Chooses **`/express-audit`** vs **`/audit`** by **depth of analysis**, not by speed.
+- `preferred_coverage_package` (`"starter"` \| `"pro"` \| `"complete"`) — preferred canonical field for package routing when `unsure_choice` is false **and** `no_website` is false.
+- `preferred_audit_depth` (`"express"` \| `"full"`) — legacy compatibility field (deprecated); server maps it to package routing when canonical field is absent.
 
-**Response `201`:** `{ "id", "created_at", "recommended_route" }` where `recommended_route` is one of `/snapshot`, `/express-audit`, `/audit`, `/discovery`.
+**Response `201`:** `{ "id", "created_at", "recommended_route" }` where `recommended_route` is one of `/snapshot`, `/starter`, `/pro`, `/complete`, `/discovery`.
 
 Route rules live in **`@glc/intake-core`** (`marketing-brief-routing.ts`).
 
-Persists to `marketing_brief_submissions` (migrations `025`, optional column `preferred_audit_depth` in `046`) and notifies consultants (`kind: intake`).
+Persists to `marketing_brief_submissions` and notifies consultants (`kind: intake`). Legacy `preferred_audit_depth` remains supported for compatibility.
 
 ---
 

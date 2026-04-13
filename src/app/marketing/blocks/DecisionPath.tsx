@@ -3,21 +3,27 @@ import { ArrowRight, MapTrifold, Question, Rocket, Stack, Timer } from '@phospho
 
 const PATHS = [
   {
+    to: '/brief',
+    title: 'I need the right path fast',
+    hint: 'Answer a short brief and get a recommended route for your case.',
+    icon: Rocket,
+  },
+  {
     to: '/snapshot',
-    title: 'I do not know where to start',
-    hint: 'Low commitment—a fast check and clear pointers.',
+    title: 'I want a quick automated read first',
+    hint: 'Low-commitment scan of public signals before paid coverage.',
     icon: Question,
   },
   {
-    to: '/express-audit',
-    title: 'I need a fast outside view',
-    hint: 'A bounded format with clear takeaways.',
+    to: '/starter',
+    title: 'I need one critical domain now',
+    hint: 'Starter: focused depth with actionable first moves.',
     icon: Timer,
   },
   {
-    to: '/audit',
-    title: 'I need deep diagnostics',
-    hint: 'Site, UX, processes, integrations, automation, roadmap.',
+    to: '/pro',
+    title: 'I need multi-domain confidence',
+    hint: 'Pro: 2-3 domains or Complete: full six-domain synthesis.',
     icon: Stack,
   },
   {
@@ -25,12 +31,6 @@ const PATHS = [
     title: 'No site / no structure yet',
     hint: 'A safe start before a fixed spec.',
     icon: MapTrifold,
-  },
-  {
-    to: '/brief',
-    title: 'I want to walk through with someone',
-    hint: 'We gather inputs together and suggest a step.',
-    icon: Rocket,
   },
 ] as const;
 

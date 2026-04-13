@@ -11,6 +11,8 @@ import { bankIdToBriefQuestion } from './bankQuestionUiCatalog';
 import type { BriefQuestion, BriefResponses } from './briefQuestions';
 import { briefResponsesToIntakeMap } from './intakeBriefMap';
 
+const HIDDEN_IDENTITY_BANK_IDS = new Set(['a2', 'a11', 'a12']);
+
 function sortStubsByBankOrder(stubs: IntakeQuestionStub[]): IntakeQuestionStub[] {
   const order = new Map(QUESTION_BANK_V1_STUBS.map((q, i) => [q.id, i] as const));
   return [...stubs].sort((a, b) => (order.get(a.id) ?? 9999) - (order.get(b.id) ?? 9999));
@@ -37,7 +39,9 @@ export function getVisibleBankBriefSections(
     surface: intakeSurface,
   });
   const visible = new Set(plan.visible);
-  const visibleStubs = sortStubsByBankOrder(QUESTION_BANK_V1_STUBS.filter(q => visible.has(q.id)));
+  const visibleStubs = sortStubsByBankOrder(
+    QUESTION_BANK_V1_STUBS.filter(q => visible.has(q.id) && !HIDDEN_IDENTITY_BANK_IDS.has(q.id)),
+  );
   const flat = visibleStubs.map(stub => bankIdToBriefQuestion(stub.id, stub.priority));
 
   const groups: BankClassicSection[] = [];

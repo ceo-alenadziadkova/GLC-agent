@@ -220,7 +220,16 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
               </span>
             </div>
             <div className="rounded-full overflow-hidden" style={{ height: 3, backgroundColor: 'var(--bg-muted)' }}>
-              <div className="h-full rounded-full" style={{ width: `${progressPct}%`, background: 'var(--gradient-brand)', transition: 'width 0.3s' }} />
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: '100%',
+                  background: 'var(--gradient-brand)',
+                  transform: `scaleX(${progressPct / 100})`,
+                  transformOrigin: 'left center',
+                  transition: 'transform 0.3s',
+                }}
+              />
             </div>
 
             <IntakeBankCoverageHint
@@ -322,11 +331,8 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
   const gatePayload = useMemo(() => {
     if (!isCreated || !briefForGatesQuery.data) return null;
     const d = briefForGatesQuery.data;
-    const pm = d.product_mode === 'express' ? 'express' : 'full';
     return {
-      product_mode: pm as 'full' | 'express',
-      canStartExpress: Boolean(d.gates?.canStartExpress),
-      canStartFull: Boolean(d.gates?.canStartFull),
+      canStartPipeline: d.gates?.canStartPipeline === true,
     };
   }, [isCreated, briefForGatesQuery.data]);
 
@@ -339,7 +345,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
   const [helpBusy, setHelpBusy] = useState(false);
   const [helpOk, setHelpOk] = useState(false);
   const [helpError, setHelpError] = useState<string | null>(null);
-  const [upgradeTarget, setUpgradeTarget] = useState<'express' | 'full'>('express');
+  const [upgradeCoveragePackage, setUpgradeCoveragePackage] = useState<'starter' | 'pro' | 'complete'>('pro');
   const [upgradeBusy, setUpgradeBusy] = useState(false);
   const [upgradeError, setUpgradeError] = useState<string | null>(null);
   const { setPipelineAccess } = useClientPortalPipeline();
@@ -356,9 +362,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
       })())
     : '';
 
-  const canStart = gatePayload
-    ? (gatePayload.product_mode === 'express' ? gatePayload.canStartExpress : gatePayload.canStartFull)
-    : false;
+  const canStart = gatePayload?.canStartPipeline ?? false;
 
   async function handleStart() {
     setStarting(true);
@@ -409,10 +413,8 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
         meta.status === 'created'
           ? gatePayload
             ? {
-                product_mode: gatePayload.product_mode,
                 gates: {
-                  canStartExpress: gatePayload.canStartExpress,
-                  canStartFull: gatePayload.canStartFull,
+                  canStartPipeline: gatePayload.canStartPipeline,
                 },
               }
             : null
@@ -433,9 +435,9 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
     isFreeSnapshot && meta?.status === 'completed'
       ? freeSnapshotAccess?.showCallout
         ? freeSnapshotAccess.robotsLimitedSample
-          ? 'Your quick scan is saved. robots.txt blocked the homepage, but we sampled other allowed pages — see the note below. Express or Full can still use your brief and anything you add.'
-          : 'Your quick scan is saved, but we could not read the live site automatically (robots policy or a fetch issue). Details are below — Express or Full can still proceed from your brief and materials you add.'
-        : 'Your quick scan is saved here — same results as on the snapshot page. Continue below when you want a full Express or Full audit.'
+          ? 'Your quick scan is saved. robots.txt blocked the homepage, but we sampled other allowed pages — see the note below. Starter, Pro, or Complete can still use your brief and anything you add.'
+          : 'Your quick scan is saved, but we could not read the live site automatically (robots policy or a fetch issue). Details are below — Starter, Pro, or Complete can still proceed from your brief and materials you add.'
+        : 'Your quick scan is saved here — same results as on the snapshot page. Continue below when you want a full Starter, Pro, or Complete audit.'
       : 'Complete your brief, then start the audit when you are ready';
 
   async function handleUpgradeFromSnapshot(useScrapedContext: boolean) {
@@ -443,7 +445,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
     setUpgradeError(null);
     try {
       await api.upgradeAuditFromSnapshot(auditId, {
-        target_mode: upgradeTarget,
+        coverage_package: upgradeCoveragePackage,
         use_scraped_context: useScrapedContext,
       });
       invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
@@ -528,11 +530,17 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                       border: '1px solid rgba(28,189,255,0.20)',
                     }}
                   >
-                    {meta.product_mode === 'full'
-                      ? 'Full audit'
-                      : meta.product_mode === 'free_snapshot'
-                        ? 'Free snapshot'
-                        : 'Express'}
+                    {meta.product_mode === 'free_snapshot'
+                      ? 'Free snapshot'
+                      : meta.execution_plan?.coverage_package === 'starter'
+                        ? 'Starter'
+                        : meta.execution_plan?.coverage_package === 'pro'
+                          ? 'Pro'
+                          : meta.execution_plan?.coverage_package === 'complete'
+                            ? 'Complete'
+                            : meta.product_mode === 'full'
+                              ? 'Complete'
+                              : 'Pro'}
                   </span>
                   <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>{statusLabel}</span>
                 </div>
@@ -668,7 +676,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                           <Link to="/snapshot" className="font-semibold underline-offset-2 hover:underline" style={{ color: 'var(--glc-blue)' }}>
                             run another free check
                           </Link>{' '}
-                          with a different allowed URL, or continue to Express / Full and add context in the brief.
+                          with a different allowed URL, or continue to Starter / Pro / Complete and add context in the brief.
                         </>
                       ) : (
                         <>
@@ -690,38 +698,37 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                   <PortalSnapshotAccountMirror result={snapshotPreview} />
                 ) : (
                   <p className="text-xs m-0" style={{ color: 'var(--text-quaternary)' }}>
-                    We could not load full snapshot fields for this audit. You can still continue with Express or Full below.
+                    We could not load full snapshot fields for this audit. You can still continue with Starter, Pro, or Complete below.
                   </p>
                 )}
 
                 <div className="space-y-4 border-t pt-4" style={{ borderColor: 'rgba(28,189,255,0.15)' }}>
                   <div>
                     <div className="text-xs font-medium mb-2" style={{ color: 'var(--text-tertiary)' }}>
-                      Continue with a full audit — choose type
+                      Continue with a package
                     </div>
                     <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: 'var(--border-subtle)' }}>
-                      {(['express', 'full'] as const).map(m => (
+                      {(['starter', 'pro', 'complete'] as const).map(pkg => (
                         <button
-                          key={m}
+                          key={pkg}
                           type="button"
                           disabled={upgradeBusy}
-                          onClick={() => setUpgradeTarget(m)}
+                          onClick={() => setUpgradeCoveragePackage(pkg)}
                           className="flex-1 py-2 text-xs font-medium"
                           style={{
                             background:
-                              upgradeTarget === m ? 'rgba(28,189,255,0.14)' : 'var(--bg-muted)',
+                              upgradeCoveragePackage === pkg ? 'rgba(28,189,255,0.14)' : 'var(--bg-muted)',
                             color: 'var(--text-primary)',
                             border: 'none',
                             cursor: upgradeBusy ? 'not-allowed' : 'pointer',
                           }}
                         >
-                          {m === 'express' ? 'Express' : 'Full'}
+                          {pkg === 'starter' ? 'Starter' : pkg === 'pro' ? 'Pro' : 'Complete'}
                         </button>
                       ))}
                     </div>
                     <p className="text-xs m-0 mt-2 leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
-                      Selected type applies to the intake brief and pipeline below. You can change it in the brief if your
-                      plan allows.
+                      Selected package applies to coverage and pipeline phases for this upgrade.
                     </p>
                   </div>
 
@@ -731,19 +738,19 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                       style={{
                         background: 'var(--bg-surface)',
                         border:
-                          upgradeTarget === 'express'
+                          upgradeCoveragePackage === 'starter'
                             ? '1px solid rgba(28,189,255,0.35)'
                             : '1px solid var(--border-subtle)',
                       }}
                     >
                       <div className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.express.label}
+                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.starter.label}
                       </div>
                       <p className="m-0 mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.express.summary}
+                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.starter.summary}
                       </p>
                       <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>
-                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.express.detail}
+                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.starter.detail}
                       </p>
                     </div>
                     <div
@@ -751,19 +758,39 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                       style={{
                         background: 'var(--bg-surface)',
                         border:
-                          upgradeTarget === 'full'
+                          upgradeCoveragePackage === 'pro'
                             ? '1px solid rgba(28,189,255,0.35)'
                             : '1px solid var(--border-subtle)',
                       }}
                     >
                       <div className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.full.label}
+                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.pro.label}
                       </div>
                       <p className="m-0 mb-1.5" style={{ color: 'var(--text-secondary)' }}>
-                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.full.summary}
+                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.pro.summary}
                       </p>
                       <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>
-                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.full.detail}
+                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.pro.detail}
+                      </p>
+                    </div>
+                    <div
+                      className="rounded-lg px-3 py-2.5 text-xs"
+                      style={{
+                        background: 'var(--bg-surface)',
+                        border:
+                          upgradeCoveragePackage === 'complete'
+                            ? '1px solid rgba(28,189,255,0.35)'
+                            : '1px solid var(--border-subtle)',
+                      }}
+                    >
+                      <div className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.complete.label}
+                      </div>
+                      <p className="m-0 mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.complete.summary}
+                      </p>
+                      <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>
+                        {CLIENT_PORTAL_PRODUCT_MODE_HELP.complete.detail}
                       </p>
                     </div>
                   </div>
@@ -837,9 +864,11 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                         </li>
                       </ul>
                       <p className="text-xs m-0 leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
-                        {upgradeTarget === 'express'
-                          ? 'Express uses this context for recon and phases 1–4 (Tech, Security, SEO, UX). Marketing, Automation, and Strategy are not included in Express.'
-                          : 'Full audit uses this context across all six analysis domains and the Strategy phase after your brief meets start gates.'}{' '}
+                        {upgradeCoveragePackage === 'starter'
+                          ? 'Starter uses this context for recon plus one selected domain. Strategy is disabled by default.'
+                          : upgradeCoveragePackage === 'pro'
+                            ? 'Pro uses this context for recon plus selected 2-3 domains; strategy inclusion depends on the execution plan.'
+                            : 'Complete uses this context across all six analysis domains and the strategy phase after your brief meets start gates.'}{' '}
                         You can edit every field before the run.
                       </p>
                     </div>
@@ -860,7 +889,8 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                     </button>
                     <p className="text-xs m-0 leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
                       Clears our quick-scan recon data and brief answers derived from it, and resets placeholders for a
-                      full {upgradeTarget === 'express' ? 'Express' : 'Full'} audit. Quick scan scores are not carried into
+                      {` ${upgradeCoveragePackage === 'starter' ? 'Starter' : upgradeCoveragePackage === 'pro' ? 'Pro' : 'Complete'} `}
+                      audit. Quick scan scores are not carried into
                       the new run.
                     </p>
                   </div>

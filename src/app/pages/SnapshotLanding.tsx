@@ -1231,13 +1231,13 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                     >
                       Narrow snapshot only.{' '}
                       <Link
-                        to="/login?next=/audit/new"
+                        to="/brief"
                         className="font-semibold"
                         style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
                       >
-                        Sign in
+                        Continue with Brief
                       </Link>{' '}
-                      to run a full Express Audit with deeper checks once you add your details.
+                      to choose the right coverage path with a specialist.
                     </p>
                   </div>
                 </div>
@@ -1324,17 +1324,17 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                     Want the full picture?
                   </h3>
                   <p className="mt-2 max-w-xl text-pretty text-sm leading-relaxed lg:mt-2" style={{ color: 'rgba(255,255,255,0.76)' }}>
-                    The Express Audit covers all 6 business domains — Tech, Security, SEO, UX, Marketing & Automation —
-                    with a full action plan and competitor benchmark.
+                    Move from a quick scan to paid coverage: Starter (1 domain), Pro (2-3 domains), or Complete
+                    (all domains) with a prioritized action plan.
                   </p>
                 </div>
                 <div className="relative z-[1] mt-5 flex w-full shrink-0 flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center lg:mt-0 lg:w-auto lg:flex-col lg:items-stretch">
                   <Link
-                    to="/login?next=/audit/new"
+                    to="/pro"
                     className="glc-btn-primary w-auto min-w-[12rem] justify-center mobile:min-h-12 mobile:w-full lg:w-full"
                     style={{ textDecoration: 'none' }}
                   >
-                    Get Express Audit <ArrowRight className="ml-1 inline h-4 w-4" />
+                    View Pro package <ArrowRight className="ml-1 inline h-4 w-4" />
                   </Link>
                   <button
                     type="button"

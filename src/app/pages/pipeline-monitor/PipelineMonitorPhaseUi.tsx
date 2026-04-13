@@ -52,7 +52,6 @@ export function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; 
       style={{
         backgroundColor: active ? 'var(--glc-blue-xlight)' : 'var(--bg-surface)',
         border: `1px solid ${active ? 'rgba(28,189,255,0.30)' : 'var(--border-subtle)'}`,
-        borderLeft: `3px solid ${active ? 'var(--glc-blue)' : accentColor}`,
         borderRadius: 'var(--radius-lg)',
         opacity: ph.status === 'pending' ? 0.5 : ph.status === 'skipped' ? 0.35 : 1,
         boxShadow: active ? '0 0 0 3px rgba(28,189,255,0.10)' : 'var(--shadow-xs)',
@@ -129,7 +128,6 @@ export function RevBanner({
       style={{
         backgroundColor: bg,
         border: `1px solid ${border}`,
-        borderLeft: `3px solid ${color}`,
         borderRadius: 'var(--radius-lg)',
       }}
     >

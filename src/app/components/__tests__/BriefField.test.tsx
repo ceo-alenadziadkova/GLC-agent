@@ -59,7 +59,7 @@ describe('BriefField interactions', () => {
     fireEvent.click(lockedButton);
     expect(onChange).not.toHaveBeenCalled();
     expect(
-      screen.getByText(/In Express, deep analysis covers Tech\/Security\/SEO\/UX/i),
+      screen.getByText(/In Pro coverage, deep analysis focuses on selected domains/i),
     ).toBeInTheDocument();
   });
 

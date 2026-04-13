@@ -42,6 +42,9 @@ interface AuditRow {
   created_at: string;
   overall_score: number | null;
   industry?: string | null;
+  execution_plan?: {
+    selected_domains?: string[];
+  } | null;
 }
 
 interface ReconRow {
@@ -86,6 +89,13 @@ export interface MarkdownReport {
   company: string;
   generated_at: string;
   markdown: string;
+  coverage: {
+    covered_domains: string[];
+    not_covered_domains: string[];
+    coverage_ratio: number;
+    coverage_adjusted_score: number | null;
+    comparability_note: string;
+  };
 }
 
 export class ReportProfiler {
@@ -99,16 +109,18 @@ export class ReportProfiler {
       ? domains
       : domains.filter(d => (allowedDomains as string[]).includes(d.domain_key));
 
+    const coverage = this.buildCoverage(input);
     let markdown: string;
     switch (profile) {
-      case 'onepager':  markdown = this.buildOnepager(input, filteredDomains, company); break;
-      case 'owner':     markdown = this.buildOwner(input, company); break;
+      case 'onepager':  markdown = this.buildOnepager(input, filteredDomains, company, coverage); break;
+      case 'owner':     markdown = this.buildOwner(input, company, coverage); break;
       case 'tech':
         markdown = this.buildDomainFocused(
           input,
           filteredDomains,
           company,
           REPORT_PROFILE_MARKDOWN_FOCUS_TITLE.tech,
+          coverage,
         );
         break;
       case 'marketing':
@@ -117,12 +129,13 @@ export class ReportProfiler {
           filteredDomains,
           company,
           REPORT_PROFILE_MARKDOWN_FOCUS_TITLE.marketing,
+          coverage,
         );
         break;
-      default:          markdown = this.buildFull(input, domains, company); break;
+      default:          markdown = this.buildFull(input, domains, company, coverage); break;
     }
 
-    return { profile, profile_label: PROFILE_LABELS[profile], company, generated_at, markdown };
+    return { profile, profile_label: PROFILE_LABELS[profile], company, generated_at, markdown, coverage };
   }
 
   // ─── CSV Action Plan ────────────────────────────────────────────────────────
@@ -200,11 +213,17 @@ export class ReportProfiler {
 
   // ─── Profile builders ───────────────────────────────────────────────────────
 
-  private buildFull(input: ReportInput, domains: DomainRow[], company: string): string {
+  private buildFull(
+    input: ReportInput,
+    domains: DomainRow[],
+    company: string,
+    coverage: MarkdownReport['coverage'],
+  ): string {
     const { audit, recon, strategy } = input;
     const lines: string[] = [];
 
     this.addHeader(lines, `IT Audit Report: ${company}`, audit, recon);
+    this.addCoverage(lines, coverage);
     this.addExecutiveSummary(lines, strategy);
     this.addScorecard(lines, domains, audit.overall_score);
     this.addDomainSections(lines, domains, { showIssues: true, showRecs: true, showQuickWins: true, showConfidence: true });
@@ -214,11 +233,12 @@ export class ReportProfiler {
     return lines.join('\n');
   }
 
-  private buildOwner(input: ReportInput, company: string): string {
+  private buildOwner(input: ReportInput, company: string, coverage: MarkdownReport['coverage']): string {
     const { audit, recon, domains, strategy } = input;
     const lines: string[] = [];
 
     this.addHeader(lines, `Business Audit Summary: ${company}`, audit, recon);
+    this.addCoverage(lines, coverage);
     this.addExecutiveSummary(lines, strategy);
     this.addScorecard(lines, domains, audit.overall_score);
 
@@ -270,11 +290,18 @@ export class ReportProfiler {
     return lines.join('\n');
   }
 
-  private buildDomainFocused(input: ReportInput, domains: DomainRow[], company: string, title: string): string {
+  private buildDomainFocused(
+    input: ReportInput,
+    domains: DomainRow[],
+    company: string,
+    title: string,
+    coverage: MarkdownReport['coverage'],
+  ): string {
     const { audit, recon } = input;
     const lines: string[] = [];
 
     this.addHeader(lines, `${title}: ${company}`, audit, recon);
+    this.addCoverage(lines, coverage);
     this.addScorecard(lines, domains, null);
     this.addDomainSections(lines, domains, { showIssues: true, showRecs: true, showQuickWins: true, showConfidence: false });
     this.addFooter(lines);
@@ -282,7 +309,12 @@ export class ReportProfiler {
     return lines.join('\n');
   }
 
-  private buildOnepager(input: ReportInput, domains: DomainRow[], company: string): string {
+  private buildOnepager(
+    input: ReportInput,
+    domains: DomainRow[],
+    company: string,
+    coverage: MarkdownReport['coverage'],
+  ): string {
     const { audit, recon, strategy } = input;
     const lines: string[] = [];
 
@@ -293,6 +325,7 @@ export class ReportProfiler {
     if (audit.overall_score) {
       lines.push(`**Overall Score:** ${audit.overall_score}/5 — ${SCORE_LABELS[Math.round(audit.overall_score)] ?? ''}`);
     }
+    lines.push(`**Coverage:** ${Math.round(coverage.coverage_ratio * 100)}% (${coverage.covered_domains.length}/6 domains)`);
     lines.push('');
     lines.push('---');
     lines.push('');
@@ -369,6 +402,53 @@ export class ReportProfiler {
     lines.push('');
     lines.push('---');
     lines.push('');
+  }
+
+  private addCoverage(lines: string[], coverage: MarkdownReport['coverage']): void {
+    lines.push('## Coverage');
+    lines.push('');
+    lines.push(`- Covered domains: ${coverage.covered_domains.join(', ') || 'none'}`);
+    lines.push(`- Not analyzed: ${coverage.not_covered_domains.join(', ') || 'none'}`);
+    lines.push(`- Coverage ratio: ${(coverage.coverage_ratio * 100).toFixed(0)}%`);
+    if (coverage.coverage_adjusted_score !== null) {
+      lines.push(`- Coverage-adjusted score: ${coverage.coverage_adjusted_score}/5`);
+    }
+    lines.push(`- Comparability note: ${coverage.comparability_note}`);
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+  }
+
+  private buildCoverage(input: ReportInput): MarkdownReport['coverage'] {
+    const selected = input.audit.execution_plan?.selected_domains;
+    const completed = input.domains.filter((d) => d.status === 'completed').map((d) => d.domain_key);
+    const covered = Array.isArray(selected) && selected.length > 0
+      ? selected.filter((domain) => completed.includes(domain))
+      : completed;
+    const coveredSet = new Set(covered);
+    const all = [
+      'tech_infrastructure',
+      'security_compliance',
+      'seo_digital',
+      'ux_conversion',
+      'marketing_utp',
+      'automation_processes',
+    ];
+    const notCovered = all.filter((d) => !coveredSet.has(d));
+    const ratio = covered.length / all.length;
+    const comparability = covered.length < all.length
+      ? 'Partial audit: do not compare this overall score directly with complete (6-domain) audits.'
+      : 'Complete coverage: overall score is comparable to other complete audits.';
+    const coverageAdjustedScore = typeof input.audit.overall_score === 'number'
+      ? Number((input.audit.overall_score * ratio).toFixed(2))
+      : null;
+    return {
+      covered_domains: covered,
+      not_covered_domains: notCovered,
+      coverage_ratio: ratio,
+      coverage_adjusted_score: coverageAdjustedScore,
+      comparability_note: comparability,
+    };
   }
 
   private addScorecard(lines: string[], domains: DomainRow[], overallScore: number | null): void {

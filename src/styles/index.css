@@ -22,39 +22,42 @@ html.dark::before {
   min-height: 100dvh;
 }
 
-/* ── Snapshot landing — animated gradient text (background-clip) ───────── */
-@keyframes glc-gradient-text-flow {
-  0%,
-  100% {
+/* ── Snapshot landing — animated gradient hero text ─────────────────────── */
+.glc-gradient-text-flow {
+  background-image: linear-gradient(
+    110deg,
+    var(--glc-blue-deeper) 0%,
+    var(--glc-blue) 30%,
+    var(--glc-green) 58%,
+    var(--glc-orange) 82%,
+    var(--glc-blue-deeper) 100%
+  );
+  background-size: 220% 220%;
+  background-position: 0% 50%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: glc-gradient-flow 5.8s ease-in-out infinite;
+  will-change: background-position;
+}
+
+@keyframes glc-gradient-flow {
+  0% {
     background-position: 0% 50%;
   }
   50% {
     background-position: 100% 50%;
   }
-}
-
-.glc-gradient-text-flow {
-  background: linear-gradient(
-    105deg,
-    var(--glc-blue) 0%,
-    var(--glc-blue-light) 18%,
-    #f24f1d 40%,
-    #ffb38a 58%,
-    var(--glc-green-light) 78%,
-    var(--glc-blue) 100%
-  );
-  background-size: 240% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  animation: glc-gradient-text-flow 6.5s ease-in-out infinite;
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .glc-gradient-text-flow {
     animation: none;
-    background-position: 0% 50%;
+    background-position: 45% 50%;
   }
 }
 

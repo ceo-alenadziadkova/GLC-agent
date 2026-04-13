@@ -91,7 +91,7 @@ export function snapshotZeroPagesScoreNote(result: FreeSnapshotPreview): string 
   const zeroish = typeof pf !== 'number' || pf < 1;
   if (!zeroish) return null;
   if (typeof result.overall_score !== 'number' || result.overall_score !== 0) return null;
-  return 'Scores are based on 0 pages sampled. A full Express or Full audit can use your brief, exports, or approved access when the live site cannot be read automatically.';
+  return 'Scores are based on 0 pages sampled. A Starter, Pro, or Complete audit can use your brief, exports, or approved access when the live site cannot be read automatically.';
 }
 
 export function scanConfidenceExplanation(band: 'high' | 'medium' | 'low'): string {

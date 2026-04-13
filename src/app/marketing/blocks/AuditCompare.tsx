@@ -2,13 +2,13 @@ import { Check, X } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { cn } from '../../components/ui/utils';
 
-const ROWS: { label: string; express: boolean | 'partial'; full: boolean | 'partial' }[] = [
-  { label: 'Time to first actionable output', express: true, full: true },
-  { label: 'Depth on processes and systems', express: 'partial', full: true },
-  { label: 'UX and conversion (hands-on review)', express: 'partial', full: true },
-  { label: 'Integrations and automation', express: false, full: true },
-  { label: 'Roadmap with impact / effort priorities', express: 'partial', full: true },
-  { label: 'Handoff-ready for another team', express: true, full: true },
+const ROWS: { label: string; starter: boolean | 'partial'; pro: boolean | 'partial'; complete: boolean | 'partial' }[] = [
+  { label: 'Coverage breadth', starter: 'partial', pro: 'partial', complete: true },
+  { label: 'Cross-domain dependency visibility', starter: false, pro: 'partial', complete: true },
+  { label: 'Speed to first focused actions', starter: true, pro: true, complete: true },
+  { label: 'System-wide comparability of score', starter: false, pro: 'partial', complete: true },
+  { label: 'Roadmap depth and sequencing', starter: 'partial', pro: true, complete: true },
+  { label: 'Handoff-ready for another team', starter: true, pro: true, complete: true },
 ];
 
 function Cell({ v }: { v: boolean | 'partial' }) {
@@ -34,29 +34,47 @@ export function AuditCompare({ compact = false }: { compact?: boolean }) {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[520px] border-collapse text-sm">
           <thead>
-            <tr style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-muted)' }}>
+            <tr
+              style={{
+                borderBottom: '1px solid var(--border-subtle)',
+                background:
+                  'linear-gradient(135deg, color-mix(in oklab, var(--bg-muted) 82%, transparent) 0%, color-mix(in oklab, var(--glc-blue-muted) 45%, transparent) 100%)',
+              }}
+            >
               <th className="px-4 py-3 text-left font-semibold sm:px-6" style={{ color: 'var(--text-primary)' }}>
                 Criterion
               </th>
               <th className="px-4 py-3 text-center font-semibold sm:px-6" style={{ color: 'var(--text-primary)' }}>
-                Express
+                Starter
               </th>
               <th className="px-4 py-3 text-center font-semibold sm:px-6" style={{ color: 'var(--text-primary)' }}>
-                Full audit
+                Pro
+              </th>
+              <th className="px-4 py-3 text-center font-semibold sm:px-6" style={{ color: 'var(--text-primary)' }}>
+                Complete
               </th>
             </tr>
           </thead>
           <tbody>
             {ROWS.map(row => (
-              <tr key={row.label} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+              <tr
+                key={row.label}
+                style={{
+                  borderBottom: '1px solid var(--border-subtle)',
+                  backgroundColor: row.label === 'Coverage breadth' ? 'color-mix(in oklab, var(--glc-blue-muted) 26%, transparent)' : 'transparent',
+                }}
+              >
                 <td className="px-4 py-3.5 sm:px-6" style={{ color: 'var(--text-secondary)' }}>
                   {row.label}
                 </td>
                 <td className="px-4 py-3.5 text-center sm:px-6">
-                  <Cell v={row.express} />
+                  <Cell v={row.starter} />
                 </td>
                 <td className="px-4 py-3.5 text-center sm:px-6">
-                  <Cell v={row.full} />
+                  <Cell v={row.pro} />
+                </td>
+                <td className="px-4 py-3.5 text-center sm:px-6">
+                  <Cell v={row.complete} />
                 </td>
               </tr>
             ))}
@@ -69,25 +87,32 @@ export function AuditCompare({ compact = false }: { compact?: boolean }) {
           style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-inset)' }}
         >
           <p className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-            Express when you need a fast external view. Full when systemic bottlenecks and a roadmap matter.
+            Starter for one urgent area, Pro for a focused pack, Complete for full cross-domain confidence.
           </p>
           <div className="flex flex-wrap gap-2">
             <Link
-              to="/express-audit"
+              to="/starter"
               className={cn('rounded-lg px-3 py-2 text-xs font-semibold')}
               style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
             >
-              Express
+              Starter
             </Link>
             <Link
-              to="/audit"
+              to="/pro"
               className="rounded-lg px-3 py-2 text-xs font-semibold"
               style={{
                 background: 'var(--gradient-brand)',
                 color: 'var(--primary-foreground)',
               }}
             >
-              Full audit
+              Pro
+            </Link>
+            <Link
+              to="/complete"
+              className={cn('rounded-lg px-3 py-2 text-xs font-semibold')}
+              style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+            >
+              Complete
             </Link>
           </div>
         </div>

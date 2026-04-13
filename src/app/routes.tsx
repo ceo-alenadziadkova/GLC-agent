@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { createBrowserRouter, Navigate, Outlet, ScrollRestoration } from 'react-router';
+import { useEffect } from 'react';
+import { createBrowserRouter, Navigate, Outlet, ScrollRestoration, useLocation } from 'react-router';
 import { Dashboard }        from './pages/Dashboard';
 import { NewAudit }         from './pages/NewAudit';
 import { AuditWorkspace }   from './pages/AuditWorkspace';
@@ -15,6 +16,7 @@ import { RootEntry }        from './components/RootEntry';
 import { SnapshotPage }     from './pages/SnapshotPage';
 import { ExpressAuditPage } from './pages/ExpressAuditPage';
 import { FullAuditPage }    from './pages/FullAuditPage';
+import { ProAuditPage }     from './pages/ProAuditPage';
 import { PublicBriefPage }  from './pages/PublicBriefPage';
 import { FaqPage }          from './pages/FaqPage';
 import { DiscoveryPublicPage } from './pages/DiscoveryPublicPage';
@@ -50,6 +52,18 @@ function ClientPortalShell({ children }: { children: ReactNode }) {
 }
 
 function RootOutlet() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const path = location.pathname.toLowerCase();
+    const skipPolish = path.includes('/snapshot') || path.includes('/discover');
+
+    document.body.classList.toggle('glc-site-polish', !skipPolish);
+    return () => {
+      document.body.classList.remove('glc-site-polish');
+    };
+  }, [location.pathname]);
+
   return (
     <>
       <ScrollRestoration />
@@ -67,7 +81,10 @@ export const router = createBrowserRouter([
       { index: true, element: <RootEntry /> },
       { path: P.login, element: <Login /> },
       { path: R.snapshot, element: <SnapshotPage /> },
-      { path: R.expressAudit, element: <ExpressAuditPage /> },
+      { path: R.starterPackage, element: <ExpressAuditPage /> },
+      { path: R.proPackage, element: <ProAuditPage /> },
+      { path: R.completePackage, element: <FullAuditPage /> },
+      { path: 'express-audit', element: <Navigate to={`/${R.starterPackage}`} replace /> },
       { path: P.brief, element: <PublicBriefPage /> },
       { path: P.faq, element: <FaqPage /> },
       { path: P.intakeToken, element: <IntakeBrief /> },
@@ -78,7 +95,7 @@ export const router = createBrowserRouter([
       { path: P.auditNew, element: <Consultant><NewAudit /></Consultant> },
       { path: P.auditByDomain, element: <Consultant><AuditWorkspace /></Consultant> },
       { path: P.auditById, element: <Consultant><AuditWorkspace /></Consultant> },
-      { path: R.fullAudit, element: <FullAuditPage /> },
+      { path: 'audit', element: <Navigate to={`/${R.completePackage}`} replace /> },
 
       // ── Consultant routes ──────────────────────────────────────────────────
       { path: P.dashboard, element: <Consultant><Dashboard /></Consultant> },

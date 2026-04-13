@@ -19,16 +19,16 @@ export function ExpressAuditPage() {
     <MarketingLayout
       breadcrumbs={[
         { label: 'Home', to: '/' },
-        { label: 'Express audit' },
+        { label: 'Starter package' },
       ]}
     >
       <MarketingSection>
         <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: 'var(--text-primary)' }}>
-          Express audit
+          Starter package
         </h1>
         <p className="mt-4 max-w-3xl text-lg leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          A fast, bounded format when you need an outside view and clear next steps without full process and integration
-          depth.
+          Starter is the focused option for one priority domain. You keep control over scope and get clear, actionable
+          output without pretending it is full coverage.
         </p>
       </MarketingSection>
 
@@ -37,9 +37,9 @@ export function ExpressAuditPage() {
           Who it is for
         </h2>
         <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          <li>You need a first read before a board or budget cycle.</li>
-          <li>You have a site and a clear pain, but not time for a long cycle.</li>
-          <li>You want to validate a hypothesis before a large rollout.</li>
+          <li>You have one urgent business problem and need fast external validation.</li>
+          <li>You want to scope risk before committing to broader coverage.</li>
+          <li>You need a clear next move and transparent limitations.</li>
         </ul>
       </MarketingSection>
 
@@ -53,9 +53,9 @@ export function ExpressAuditPage() {
               Included
             </h3>
             <ul className="mt-3 list-disc space-y-2 pl-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              <li>Focused review of the digital layer and key touchpoints.</li>
-              <li>Obvious bottlenecks and quick wins.</li>
-              <li>Priority guidance within the format.</li>
+              <li>One selected domain with detailed findings.</li>
+              <li>Quick wins and priority guidance for that domain.</li>
+              <li>Coverage disclosure in the report.</li>
             </ul>
           </div>
           <div
@@ -66,9 +66,9 @@ export function ExpressAuditPage() {
               Not included
             </h3>
             <ul className="mt-3 list-disc space-y-2 pl-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              <li>Full process and integration map.</li>
-              <li>Deep technical or security pentest.</li>
-              <li>Detailed implementation spec—that is a follow-on if needed.</li>
+              <li>Cross-domain synthesis confidence of a complete audit.</li>
+              <li>Equal-score comparability with complete 6-domain audits.</li>
+              <li>Multi-domain dependency certainty outside selected scope.</li>
             </ul>
           </div>
         </div>
@@ -79,9 +79,41 @@ export function ExpressAuditPage() {
           Outcome and timing
         </h2>
         <p className="mt-3 max-w-3xl text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          Timelines depend on context; expect shorter than a full audit. Deliverable is a structured report with clear
-          conclusions and suggested next steps.
+          Timelines depend on context; Starter is typically the shortest paid path. Deliverable includes conclusions,
+          next steps, and explicit coverage boundaries.
         </p>
+      </MarketingSection>
+
+      <MarketingSection className="mt-12">
+        <div className="grid gap-4 md:grid-cols-3">
+          {[
+            {
+              title: 'Business outcome',
+              body: 'You get one clear priority track instead of scattered fixes across teams.',
+            },
+            {
+              title: 'Decision confidence',
+              body: 'You know where Starter is enough and where you should expand to Pro/Complete.',
+            },
+            {
+              title: 'Execution handoff',
+              body: 'Report format is ready for internal execution or transfer to another vendor.',
+            },
+          ].map(item => (
+            <article
+              key={item.title}
+              className="glc-card p-5"
+              style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-card)' }}
+            >
+              <h3 className="font-display text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+                {item.title}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                {item.body}
+              </p>
+            </article>
+          ))}
+        </div>
       </MarketingSection>
 
       <MarketingSection className="mt-14">
@@ -94,8 +126,8 @@ export function ExpressAuditPage() {
           {[
             ['Signal', 'What the business and users see.'],
             ['Bottlenecks', 'Friction, loss, risk.'],
-            ['Recommendations', 'What to change and in what order within Express.'],
-            ['Next step', 'Escalate to full audit or targeted implementation.'],
+            ['Recommendations', 'What to change and in what order within Starter.'],
+            ['Next step', 'Scale to Pro/Complete or go directly into implementation.'],
           ].map(([t, d]) => (
             <div
               key={t}
@@ -119,7 +151,7 @@ export function ExpressAuditPage() {
 
       <MarketingSection className="mt-14">
         <h2 className="mb-6 font-display text-xl font-bold sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
-          When Express is enough vs when you need full audit
+          When Starter is enough vs when you need Pro or Complete
         </h2>
         <AuditCompare />
       </MarketingSection>
@@ -132,9 +164,10 @@ export function ExpressAuditPage() {
       <div className="mt-14">
         <NextStepsCta
           steps={[
-            { to: '/audit', label: 'Full audit', hint: 'When you need processes, integrations, and a full roadmap.' },
+            { to: '/pro', label: 'Pro package', hint: 'When you need 2-3 domains with better cross-signal confidence.' },
+            { to: '/complete', label: 'Complete package', hint: 'When you need full comparability and synthesis.' },
             { to: '/faq', label: 'FAQ', hint: 'Timelines, communication, delivery.' },
-            { to: '/brief', label: 'Brief with a specialist', hint: 'We match the format to your context.', primary: true },
+            { to: '/brief', label: 'Book a brief call', hint: 'We match the format to your context.', primary: true },
             { to: LOGIN_PATH, label: 'Client sign-in', hint: 'Reports and progress.' },
           ]}
         />

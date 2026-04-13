@@ -17,7 +17,9 @@ import {
 } from '@glc/intake-core';
 import {
   DEFAULT_AUDIT_PRODUCT_MODE,
-  maxPhaseForMode,
+  executionPlanToPhases,
+  maxPhaseForExecutionPlan,
+  type AuditExecutionPlan,
   type IntakeBriefCollectionMode,
   type IntakeVersionTuple,
   type ProductMode,
@@ -69,6 +71,7 @@ import {
   pipelinePhaseNotAvailableMessage,
   pipelinePhaseOutOfRangeMessage,
 } from '../config/api-error-codes.js';
+import { normalizeExecutionPlan } from '../services/execution-plan.js';
 
 export const pipelineRouter = Router();
 
@@ -97,6 +100,20 @@ function statusForPhase(phase: number): 'recon' | 'auto' | 'analytic' | 'strateg
   return 'strategy';
 }
 
+function resolveExecutionPlanFromAudit(audit: {
+  product_mode?: ProductMode | null;
+  execution_plan?: Partial<AuditExecutionPlan> | null;
+}): AuditExecutionPlan {
+  return normalizeExecutionPlan(
+    audit.execution_plan ?? null,
+    (audit.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE) as ProductMode,
+  );
+}
+
+function briefGateModeFromExecutionPlan(plan: AuditExecutionPlan): ProductMode {
+  return plan.coverage_package === 'complete' ? 'full' : 'express';
+}
+
 // ─── POST /api/audits/:id/pipeline/start — Start pipeline ──
 pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineLimiter, async (req: AuthRequest, res) => {
   try {
@@ -109,7 +126,7 @@ pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineL
 
     const { data: audit, error } = await supabase
       .from('audits')
-      .select('id, status, current_phase, tokens_used, token_budget, updated_at, product_mode, user_id, client_id')
+      .select('id, status, current_phase, tokens_used, token_budget, updated_at, product_mode, execution_plan, user_id, client_id')
       .eq('id', id)
       .or(safeOrUserFilter(req.userId!))
       .single();
@@ -182,9 +199,10 @@ pipelineRouter.post('/:id/pipeline/start', requireAuth, attachProfile, pipelineL
     const iv = brief?.intake_versions as IntakeVersionTuple | null | undefined;
     const intakeTuple =
       iv && isSupportedIntakeArtifactTuple(iv) ? iv : currentIntakeVersionTuple();
+    const gatePlan = resolveExecutionPlanFromAudit(audit as { product_mode?: ProductMode | null; execution_plan?: Partial<AuditExecutionPlan> | null });
     const gates = evaluateBriefGates(
       (brief?.responses as Record<string, unknown>) ?? {},
-      (audit.product_mode as ProductMode) ?? DEFAULT_AUDIT_PRODUCT_MODE,
+      briefGateModeFromExecutionPlan(gatePlan),
       cm,
       surface,
       intakeTuple,
@@ -223,7 +241,7 @@ pipelineRouter.post('/:id/pipeline/next', requireAuth, attachProfile, pipelineLi
 
     const { data: audit, error } = await supabase
       .from('audits')
-      .select('id, status, current_phase, tokens_used, token_budget, product_mode, updated_at, user_id, client_id')
+      .select('id, status, current_phase, tokens_used, token_budget, product_mode, execution_plan, updated_at, user_id, client_id')
       .eq('id', id)
       .or(safeOrUserFilter(req.userId!))
       .single();
@@ -266,11 +284,11 @@ pipelineRouter.post('/:id/pipeline/next', requireAuth, attachProfile, pipelineLi
       return;
     }
 
-    const mode = (audit.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE) as ProductMode;
-    const maxPhase = maxPhaseForMode(mode);
-    const nextPhase = audit.current_phase + 1;
+    const plan = resolveExecutionPlanFromAudit(audit as { product_mode?: ProductMode | null; execution_plan?: Partial<AuditExecutionPlan> | null });
+    const maxPhase = maxPhaseForExecutionPlan(plan);
+    const nextPhase = executionPlanToPhases(plan).filter((p) => p > 0).find((p) => p > audit.current_phase);
 
-    if (nextPhase > maxPhase) {
+    if (!nextPhase || nextPhase > maxPhase) {
       res
         .status(400)
         .json(
@@ -357,7 +375,7 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
 
     const { data: audit, error } = await supabase
       .from('audits')
-      .select('id, status, tokens_used, token_budget, product_mode, updated_at')
+      .select('id, status, tokens_used, token_budget, product_mode, execution_plan, updated_at')
       .eq('id', id)
       .eq('user_id', req.userId!)
       .single();
@@ -383,12 +401,12 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
       return;
     }
 
-    const retryMode = (audit.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE) as ProductMode;
-    if (phase > maxPhaseForMode(retryMode)) {
+    const retryPlan = resolveExecutionPlanFromAudit(audit as { product_mode?: ProductMode | null; execution_plan?: Partial<AuditExecutionPlan> | null });
+    if (!executionPlanToPhases(retryPlan).includes(phase)) {
       res.status(400).json(
         apiErrorJson(
           API_ERROR_CODES.PIPELINE_PHASE_NOT_AVAILABLE_FOR_MODE,
-          pipelinePhaseNotAvailableMessage(phase, retryMode),
+          pipelinePhaseNotAvailableMessage(phase, (audit.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE) as ProductMode),
         ),
       );
       return;

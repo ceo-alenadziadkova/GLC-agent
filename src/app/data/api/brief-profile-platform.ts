@@ -70,6 +70,7 @@ export const briefProfilePlatformApi = {
         canStartSnapshot: boolean;
         canStartExpress: boolean;
         canStartFull: boolean;
+        canStartPipeline: boolean;
         missingRequiredIds: string[];
         recommendedToImproveIds: string[];
         intakeProgress: {
@@ -114,6 +115,7 @@ export const briefProfilePlatformApi = {
         canStartSnapshot: boolean;
         canStartExpress: boolean;
         canStartFull: boolean;
+        canStartPipeline: boolean;
         missingRequiredIds: string[];
         recommendedToImproveIds: string[];
         intakeProgress: {

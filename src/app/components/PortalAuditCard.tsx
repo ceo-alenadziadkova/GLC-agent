@@ -9,8 +9,8 @@ import { formatAuditWebsiteDisplay } from '../data/no-public-website';
 type PortalPillStatus = ComponentProps<typeof StatusPill>['status'];
 
 function productModeShortLabel(mode: AuditMeta['product_mode'] | undefined): string | null {
-  if (mode === 'express') return 'Express audit';
-  if (mode === 'full') return 'Full audit';
+  if (mode === 'express') return 'Pro audit';
+  if (mode === 'full') return 'Complete audit';
   if (mode === 'free_snapshot') return 'Free snapshot';
   return null;
 }
@@ -67,7 +67,7 @@ function clientPortalAuditPresentation(a: AuditMeta): {
           pill: 'completed',
           label: 'Completed',
           hint:
-            'Quick scan saved in your account — same view as the snapshot page. A full Express or Full audit is a separate programme; open the audit to continue.',
+            'Quick scan saved in your account — same view as the snapshot page. A full Pro or Complete audit is a separate programme; open the audit to continue.',
           pulse: false,
         };
       }

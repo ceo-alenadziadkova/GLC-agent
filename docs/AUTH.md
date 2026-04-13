@@ -117,7 +117,7 @@ The backend's **service role key** bypasses RLS — intentional. Routes must sti
 
 Consultant and client routes use `ProtectedRoute` with **`useAuth`** + **`useProfile`**: load auth first, then (when `requiredRole` is set) wait for profile; **guest** users are redirected to **`/snapshot`** or blocked routes per `blockedForRoles`. Unauthenticated users go to `/login`. See `src/app/components/ProtectedRoute.tsx` and `src/app/routes.tsx` (`Consultant`, `Client`, `PNoGuest`).
 
-Public paths stay outside `ProtectedRoute`: `/` (marketing), `/login`, `/snapshot`, `/express-audit`, `/audit` (marketing page), `/discovery`, `/brief`, `/faq`, intake discover aliases, etc.
+Public paths stay outside `ProtectedRoute`: `/` (marketing), `/login`, `/snapshot`, `/starter`, `/pro`, `/complete`, `/discovery`, `/brief`, `/faq`, intake discover aliases, etc. Legacy marketing aliases are redirect-only.
 
 ---
 

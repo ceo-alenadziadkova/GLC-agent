@@ -309,7 +309,7 @@ export function AdminRequestQueue() {
                               {domain}
                             </div>
                             <div className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                              {date} · {req.product_mode === 'full' ? 'Full' : 'Express'} · client {req.client_id?.slice(0, 8) ?? '—'}…
+                              {date} · {req.product_mode === 'full' ? 'Complete' : 'Pro'} · client {req.client_id?.slice(0, 8) ?? '—'}…
                               {req.industry ? ` · ${req.industry}` : ''}
                             </div>
                             {req.industry === 'Other' && industryOtherSpec && (
@@ -548,7 +548,7 @@ export function AdminRequestQueue() {
                           </p>
                         )}
                         <div className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                          {date} · {req.product_mode === 'full' ? 'Full' : 'Express'} · client {req.client_id?.slice(0, 8) ?? '—'}…
+                          {date} · {req.product_mode === 'full' ? 'Complete' : 'Pro'} · client {req.client_id?.slice(0, 8) ?? '—'}…
                           {req.industry ? ` · ${req.industry}` : ''}
                         </div>
                         {req.client_notes && (

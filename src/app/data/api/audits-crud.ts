@@ -1,6 +1,6 @@
 import { API_PATHS } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
-import type { AuditMeta, AuditState } from '../auditTypes';
+import type { AuditMeta, AuditState, AuditCoveragePackage, AuditDepth, DomainKey } from '../auditTypes';
 
 export const auditsCrudApi = {
   async createAudit(
@@ -8,7 +8,17 @@ export const auditsCrudApi = {
     companyName?: string,
     industry?: string,
     productMode: 'express' | 'full' = 'full',
-    options?: { noPublicWebsite?: boolean },
+    options?: {
+      noPublicWebsite?: boolean;
+      executionPlan?: {
+        selected_domains: DomainKey[];
+        depth: AuditDepth;
+        source?: 'user_selected' | 'system_default';
+        recommended_domains?: DomainKey[];
+        coverage_package?: AuditCoveragePackage;
+        include_strategy?: boolean;
+      };
+    },
   ) {
     const body: Record<string, unknown> = {
       company_name: companyName ?? null,
@@ -19,6 +29,9 @@ export const auditsCrudApi = {
       body.no_public_website = true;
     } else {
       body.company_url = companyUrl;
+    }
+    if (options?.executionPlan) {
+      body.execution_plan = options.executionPlan;
     }
     return apiFetch<{ id: string; status: string }>(API_PATHS.audits, {
       method: 'POST',
@@ -41,10 +54,13 @@ export const auditsCrudApi = {
     return apiFetch<{ deleted: boolean }>(`${API_PATHS.audits}/${id}`, { method: 'DELETE' });
   },
 
-  /** Client: promote completed `free_snapshot` to express/full and seed intake from scraped context (or fresh). */
+  /** Client: promote completed `free_snapshot` to starter/pro/complete and seed intake from scraped context (or fresh). */
   async upgradeAuditFromSnapshot(
     id: string,
-    body: { target_mode: 'express' | 'full'; use_scraped_context: boolean },
+    body: {
+      coverage_package: 'starter' | 'pro' | 'complete';
+      use_scraped_context: boolean;
+    },
   ) {
     return apiFetch<{
       ok: boolean;

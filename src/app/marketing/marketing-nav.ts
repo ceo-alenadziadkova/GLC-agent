@@ -3,8 +3,9 @@
 export const MARKETING_LINKS = [
   { to: '/', label: 'Home' },
   { to: '/snapshot', label: 'Snapshot' },
-  { to: '/express-audit', label: 'Express audit' },
-  { to: '/audit', label: 'Full audit' },
+  { to: '/starter', label: 'Starter' },
+  { to: '/pro', label: 'Pro' },
+  { to: '/complete', label: 'Complete' },
   { to: '/discovery', label: 'Discovery' },
   { to: '/brief', label: 'Brief' },
   { to: '/faq', label: 'FAQ' },

@@ -74,6 +74,33 @@ import {
 } from '../data/briefQuestions';
 import { logger } from '../lib/logger';
 import { GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY } from '../lib/storage-keys';
+import type { DomainKey } from '../data/auditTypes';
+
+const ALL_COVERAGE_DOMAINS: DomainKey[] = [
+  'tech_infrastructure',
+  'security_compliance',
+  'seo_digital',
+  'ux_conversion',
+  'marketing_utp',
+  'automation_processes',
+];
+
+const COVERAGE_DOMAIN_LABELS: Record<DomainKey, string> = {
+  tech_infrastructure: 'Tech Infrastructure',
+  security_compliance: 'Security & Compliance',
+  seo_digital: 'SEO & Digital',
+  ux_conversion: 'UX & Conversion',
+  marketing_utp: 'Marketing & Positioning',
+  automation_processes: 'Automation & Processes',
+};
+
+const INDUSTRY_DOMAIN_RECOMMENDATIONS: Record<string, DomainKey[]> = {
+  'E-commerce': ['ux_conversion', 'seo_digital', 'automation_processes'],
+  Hospitality: ['ux_conversion', 'marketing_utp', 'seo_digital'],
+  Healthcare: ['security_compliance', 'tech_infrastructure', 'ux_conversion'],
+  'SaaS / Technology': ['tech_infrastructure', 'security_compliance', 'automation_processes'],
+  'Professional Services': ['marketing_utp', 'ux_conversion', 'automation_processes'],
+};
 
 export type NewAuditVariant = 'consultant' | 'client_self_serve';
 
@@ -97,7 +124,13 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
   const [industry,    setIndustry]    = useState(() => portalDraftSeed?.industry ?? '');
   /** Free-text sector when industry is Other (synced from client pre-brief when linking ?intake=). */
   const [industrySpecify, setIndustrySpecify] = useState(() => portalDraftSeed?.industrySpecify ?? '');
-  const [productMode, setProductMode] = useState<'full' | 'express'>(() => portalDraftSeed?.productMode ?? 'full');
+  const productMode: 'full' = 'full';
+  const [coveragePackage, setCoveragePackage] = useState<'starter' | 'pro' | 'complete'>('complete');
+  const [selectedDomains, setSelectedDomains] = useState<DomainKey[]>([...ALL_COVERAGE_DOMAINS]);
+  const recommendedDomains = useMemo<DomainKey[]>(() => {
+    if (!industry) return ['tech_infrastructure', 'ux_conversion'];
+    return INDUSTRY_DOMAIN_RECOMMENDATIONS[industry] ?? ['tech_infrastructure', 'ux_conversion'];
+  }, [industry]);
 
   // Step 2 fields
   const [responses, setResponses] = useState<BriefResponses>(() => portalDraftSeed?.responses ?? {});
@@ -246,6 +279,19 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
     };
   }, [isClientSelfServe, draftAuditId]);
 
+  useEffect(() => {
+    setSelectedDomains((prev) => {
+      if (coveragePackage === 'complete') return [...ALL_COVERAGE_DOMAINS] as DomainKey[];
+      if (coveragePackage === 'starter') {
+        const first: DomainKey = prev[0] ?? 'tech_infrastructure';
+        return [first];
+      }
+      const base: DomainKey[] =
+        prev.length > 0 ? prev.slice(0, 3) : ['tech_infrastructure', 'security_compliance'];
+      return base;
+    });
+  }, [coveragePackage]);
+
   // Persist client wizard to sessionStorage (same tab survives refresh).
   useEffect(() => {
     if (!isClientSelfServe) return;
@@ -334,6 +380,24 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
     (noPublicWebsite || isValidUrl(url))
     && (industry !== 'Other' || industrySpecify.trim().length > 0);
 
+  const coverageValid =
+    (coveragePackage === 'starter' && selectedDomains.length === 1) ||
+    (coveragePackage === 'pro' && selectedDomains.length >= 2 && selectedDomains.length <= 3) ||
+    (coveragePackage === 'complete' && selectedDomains.length === ALL_COVERAGE_DOMAINS.length);
+
+  const step0Valid = step1Valid && coverageValid;
+
+  function toggleDomainSelection(domain: DomainKey) {
+    setSelectedDomains((prev) => {
+      const has = prev.includes(domain);
+      if (coveragePackage === 'complete') return [...ALL_COVERAGE_DOMAINS] as DomainKey[];
+      const next = has ? prev.filter((d) => d !== domain) : [...prev, domain];
+      if (coveragePackage === 'starter') return next.slice(0, 1) as DomainKey[];
+      if (next.length > 3) return next.slice(0, 3) as DomainKey[];
+      return next as DomainKey[];
+    });
+  }
+
   const effectiveBriefForGates = useMemo(
     () => effectiveBriefForPipelineGates(responses),
     [responses],
@@ -408,6 +472,19 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
     setResponses(prev => ({ ...prev, [id]: { value: null, source: 'unknown' } }));
   }
 
+  function buildExecutionPlan() {
+    const depth: 'light' | 'standard' | 'deep' =
+      coveragePackage === 'starter' ? 'light' : coveragePackage === 'pro' ? 'standard' : 'deep';
+    return {
+      selected_domains: selectedDomains,
+      depth,
+      source: 'user_selected' as const,
+      recommended_domains: recommendedDomains,
+      coverage_package: coveragePackage,
+      include_strategy: coveragePackage !== 'starter',
+    };
+  }
+
   async function handleSaveClientDraft() {
     if (!isClientSelfServe) return;
     setDraftError(null);
@@ -428,7 +505,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         draftAuditId,
         draftIntakeVersions,
       });
-      if (!step1Valid) {
+      if (!step0Valid) {
         setDraftNotice(WORKSPACE_PAGE_COPY.newAudit.draftNoticeIncomplete);
         return;
       }
@@ -437,6 +514,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
       if (!auditId) {
         const created = await api.createAudit(url, name || undefined, industry || undefined, productMode, {
           noPublicWebsite,
+          executionPlan: buildExecutionPlan(),
         });
         auditId = created.id;
         setDraftAuditId(auditId);
@@ -509,6 +587,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
       } else {
         const audit = await api.createAudit(url, name || undefined, industry || undefined, productMode, {
           noPublicWebsite,
+          executionPlan: buildExecutionPlan(),
         });
         auditId = audit.id;
       }
@@ -793,7 +872,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 </motion.div>
 
                 {/* Form */}
-                <form onSubmit={e => { e.preventDefault(); if (step1Valid) setStep(1); }} className="glc-card p-4 mobile:p-5 sm:p-6 space-y-5" style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}>
+                <form onSubmit={e => { e.preventDefault(); if (step0Valid) setStep(1); }} className="glc-card p-4 mobile:p-5 sm:p-6 space-y-5" style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}>
                   {/* URL */}
                   <div className="space-y-1.5">
                     <label htmlFor="url" className="block font-medium" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
@@ -927,38 +1006,73 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                     )}
                   </div>
 
-                  {/* Product mode */}
+                  {/* Coverage selection */}
                   <div className="space-y-2">
-                    <label className="block font-medium" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>Audit Type</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(['full', 'express'] as const).map(mode => {
-                        const sel = productMode === mode;
+                    <label className="block font-medium" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>Coverage package</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['starter', 'pro', 'complete'] as const).map(pkg => {
+                        const sel = coveragePackage === pkg;
                         return (
-                          <button key={mode} type="button" onClick={() => setProductMode(mode)}
+                          <button key={pkg} type="button" onClick={() => setCoveragePackage(pkg)}
                             className="rounded-lg px-3 py-2.5 text-left text-xs transition-all"
                             style={{ backgroundColor: sel ? 'var(--callout-info-bg)' : 'var(--bg-inset)', border: sel ? '1px solid var(--callout-info-border-strong)' : '1px solid var(--border-subtle)' }}
                           >
-                            <div className="font-semibold" style={{ color: sel ? 'var(--glc-blue-deeper)' : 'var(--text-primary)' }}>{mode === 'full' ? 'Full Audit' : 'Express'}</div>
-                            <div style={{ color: 'var(--text-tertiary)', marginTop: 2 }}>{mode === 'full' ? 'All 6 domains + strategy' : '4 key domains, faster'}</div>
+                            <div className="font-semibold" style={{ color: sel ? 'var(--glc-blue-deeper)' : 'var(--text-primary)' }}>
+                              {pkg === 'starter' ? 'Starter' : pkg === 'pro' ? 'Pro' : 'Complete'}
+                            </div>
+                            <div style={{ color: 'var(--text-tertiary)', marginTop: 2 }}>
+                              {pkg === 'starter' ? '1 domain' : pkg === 'pro' ? '2-3 domains' : 'All domains'}
+                            </div>
                           </button>
                         );
                       })}
                     </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                      {ALL_COVERAGE_DOMAINS.map((domain) => {
+                        const checked = selectedDomains.includes(domain);
+                        const disabled =
+                          coveragePackage === 'complete' ||
+                          (coveragePackage === 'starter' && checked && selectedDomains.length === 1) ||
+                          (coveragePackage === 'pro' && !checked && selectedDomains.length >= 3);
+                        return (
+                          <label
+                            key={domain}
+                            className="flex items-center gap-2 cursor-pointer rounded-lg px-3 py-2"
+                            style={{ border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-inset)' }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={disabled}
+                              onChange={() => toggleDomainSelection(domain)}
+                              style={{ accentColor: 'var(--glc-blue)' }}
+                            />
+                            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-primary)' }}>
+                              {COVERAGE_DOMAIN_LABELS[domain]}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: 6 }}>
+                      Recommended from intake context: {recommendedDomains.map((d) => COVERAGE_DOMAIN_LABELS[d]).join(', ')}.
+                      Final selection is always yours.
+                    </p>
                   </div>
 
                   <div className="glc-divider" />
 
-                  <motion.button type="submit" disabled={!step1Valid}
-                    whileHover={step1Valid ? { scale: 1.015 } : {}} whileTap={step1Valid ? { scale: 0.985 } : {}}
+                  <motion.button type="submit" disabled={!step0Valid}
+                    whileHover={step0Valid ? { scale: 1.015 } : {}} whileTap={step0Valid ? { scale: 0.985 } : {}}
                     className="w-full flex items-center justify-center gap-2 py-3 font-semibold"
                     style={{
                       borderRadius: 'var(--radius-lg)',
-                      background: step1Valid ? 'var(--gradient-brand)' : 'var(--bg-muted)',
-                      color: step1Valid ? 'var(--primary-foreground)' : 'var(--text-secondary)',
-                      cursor: step1Valid ? 'pointer' : 'not-allowed',
+                      background: step0Valid ? 'var(--gradient-brand)' : 'var(--bg-muted)',
+                      color: step0Valid ? 'var(--primary-foreground)' : 'var(--text-secondary)',
+                      cursor: step0Valid ? 'pointer' : 'not-allowed',
                       fontSize: 'var(--text-sm)',
-                      border: step1Valid ? 'none' : '1px solid var(--border-subtle)',
-                      boxShadow: step1Valid ? '0 4px 14px rgba(28,189,255,0.28)' : 'none',
+                      border: step0Valid ? 'none' : '1px solid var(--border-subtle)',
+                      boxShadow: step0Valid ? '0 4px 14px rgba(28,189,255,0.28)' : 'none',
                     }}
                   >
                     Continue to Brief <ArrowRight className="w-4 h-4" />
@@ -1377,7 +1491,10 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                     ['Website', url],
                     name ? ['Company', name] : null,
                     industry ? ['Industry', industry] : null,
-                    ['Audit type', productMode === 'full' ? 'Full Audit (6 domains + strategy)' : 'Express (4 domains)'],
+                    [
+                      'Coverage',
+                      `${coveragePackage === 'starter' ? 'Starter' : coveragePackage === 'pro' ? 'Pro' : 'Complete'} · ${selectedDomains.length} domain(s)`,
+                    ],
                     ['Brief', `${answeredRequired}/${pipelineRequiredTotal} required answered`],
                   ].filter(Boolean).map(([label, value]) => (
                     <div key={label} className="flex items-start gap-3">

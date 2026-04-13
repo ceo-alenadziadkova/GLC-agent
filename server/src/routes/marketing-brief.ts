@@ -10,6 +10,7 @@ import {
   computeMarketingBriefRecommendedRoute,
   isAllowedMarketingBriefRoute,
   type MarketingBriefPreferredAuditDepth,
+  type MarketingBriefPreferredCoveragePackage,
 } from '../config/marketing-brief-routing.js';
 import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 import {
@@ -33,6 +34,14 @@ function clampStr(v: unknown, max: number): string {
   return v.trim().slice(0, max);
 }
 
+function mapCoveragePackageToDepth(
+  pkg: unknown,
+): MarketingBriefPreferredAuditDepth | null {
+  if (pkg === 'starter' || pkg === 'pro') return 'express';
+  if (pkg === 'complete') return 'full';
+  return null;
+}
+
 marketingRouter.post('/brief', marketingBriefPublicLimiter, async (req, res) => {
   try {
     const name = clampStr(req.body?.name, REQUEST_FIELD_LIMITS.marketingNameMax);
@@ -50,8 +59,16 @@ marketingRouter.post('/brief', marketingBriefPublicLimiter, async (req, res) => 
     const contactMethod = clampStr(req.body?.contact_method, REQUEST_FIELD_LIMITS.marketingContactMethodMax);
     const unsureChoice = Boolean(req.body?.unsure_choice);
     const depthRaw = req.body?.preferred_audit_depth;
+    const packageRaw = req.body?.preferred_coverage_package;
+    const preferredCoveragePackage: MarketingBriefPreferredCoveragePackage | null =
+      packageRaw === 'starter' || packageRaw === 'pro' || packageRaw === 'complete'
+        ? packageRaw
+        : null;
+    const depthFromPackage = mapCoveragePackageToDepth(preferredCoveragePackage);
     const preferredAuditDepth: MarketingBriefPreferredAuditDepth | null =
-      depthRaw === 'express' || depthRaw === 'full' ? depthRaw : null;
+      depthRaw === 'express' || depthRaw === 'full'
+        ? depthRaw
+        : depthFromPackage;
 
     if (!noWebsite && !website) {
       res
@@ -75,6 +92,7 @@ marketingRouter.post('/brief', marketingBriefPublicLimiter, async (req, res) => 
     const recommendedRoute = computeMarketingBriefRecommendedRoute({
       unsure_choice: unsureChoice,
       no_website: noWebsite,
+      preferred_coverage_package: unsureChoice || noWebsite ? null : preferredCoveragePackage,
       preferred_audit_depth: unsureChoice || noWebsite ? null : preferredAuditDepth,
     });
 

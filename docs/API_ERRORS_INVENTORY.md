@@ -62,7 +62,7 @@ This document groups **literal** `error` message strings returned by Express rou
 | `Leave the website field empty when you have no public website.` | 400 | audit-requests |
 | `Enter your website URL, or indicate that you have no public website.` | 400 | audit-requests |
 | `product_mode must be "express" or "full"` | 400 | audit-requests |
-| `Invalid payload — need target_mode and use_scraped_context` | 400 | audits |
+| `Invalid payload — need coverage_package and use_scraped_context` | 400 | audits |
 | `responses must be an object` | 400 | audits |
 | `Invalid collection_mode` | 400 | audits |
 | `intake_versions must include all of ...` | 400 | audits |

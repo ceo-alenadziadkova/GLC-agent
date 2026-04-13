@@ -23,7 +23,21 @@ export const auditsReviewsReportsApi = {
     format: 'markdown' | 'json' = 'json',
     profile: 'full' | 'owner' | 'tech' | 'marketing' | 'onepager' = 'full',
   ) {
-    return apiFetch<{ audit_id: string; company: string; profile: string; profile_label: string; generated_at: string; markdown: string }>(
+    return apiFetch<{
+      audit_id: string;
+      company: string;
+      profile: string;
+      profile_label: string;
+      generated_at: string;
+      coverage: {
+        covered_domains: string[];
+        not_covered_domains: string[];
+        coverage_ratio: number;
+        coverage_adjusted_score: number | null;
+        comparability_note: string;
+      };
+      markdown: string;
+    }>(
       apiAuditsReportQuery(id, format, profile),
     );
   },

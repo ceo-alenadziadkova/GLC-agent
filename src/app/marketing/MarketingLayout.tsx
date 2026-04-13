@@ -24,7 +24,7 @@ export function MarketingLayout({
         />
         <MarketingHeader />
         <div className="relative z-10 flex flex-1 flex-col">
-          <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6 sm:py-12">
+          <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:px-6 sm:py-12">
             {breadcrumbs && breadcrumbs.length > 0 && <MarketingBreadcrumbs items={breadcrumbs} />}
             {children}
           </div>

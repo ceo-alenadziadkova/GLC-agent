@@ -66,7 +66,7 @@ export function BriefTeaser() {
     <TeaserCard
       icon={FileText}
       title="Want a specialist involved?"
-      body="Short brief: you share context—we suggest a sensible route (Snapshot, Express, or full audit)."
+      body="Short brief: you share context—we suggest a sensible route (Snapshot, Starter, Pro, or Complete)."
       to="/brief"
       cta="Fill out the brief"
     />

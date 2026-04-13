@@ -196,7 +196,7 @@
   "MARKETING_WEBSITE_OR_FLAG_REQUIRED": "Provide a website URL or mark no website",
   "MARKETING_DEPTH_REQUIRED": "preferred_audit_depth is required (express or full) when you have a site and are sure about the format",
   "AUDITS_OMIT_COMPANY_URL_WHEN_NO_PUBLIC_WEBSITE": "Omit company_url when no_public_website is true",
-  "AUDITS_UPGRADE_PAYLOAD_INVALID": "Invalid payload — need target_mode and use_scraped_context",
+  "AUDITS_UPGRADE_PAYLOAD_INVALID": "Invalid payload — need coverage_package and use_scraped_context",
   "AUDITS_BRIEF_HELP_CLIENT_ONLY": "Only clients can request brief help from this endpoint",
   "AUDITS_BRIEF_HELP_WRONG_PHASE": "Help request is only available before the pipeline has started",
   "AUDIT_REQUEST_GUEST_FORBIDDEN": "Complete registration (email or Google) to use the client portal.",

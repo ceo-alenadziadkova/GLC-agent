@@ -28,8 +28,9 @@ export function ScoreDistributionChart({ distribution, loading }: ScoreDistribut
       className="glc-card p-5 h-full"
       style={{ borderRadius: 'var(--radius-xl)' }}
     >
-      <div className="mb-4">
+      <div className="glc-panel-head">
         <SectionLabel>Score Distribution</SectionLabel>
+        <span className="glc-panel-meta">Bands 1-5</span>
       </div>
 
       {loading && !distribution && (

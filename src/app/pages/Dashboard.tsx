@@ -160,16 +160,26 @@ export function Dashboard() {
       <div className="glc-page-content space-y-8 mobile:space-y-6">
 
         {/* ── 1. KPI strip ──────────────────────────────────────── */}
-        <KpiStrip kpis={dashData?.kpis} loading={dashLoading} />
-
-        <div className="sm:hidden">
-          <Link
-            to="/audit/new"
-            className="glc-btn-primary w-full justify-center no-underline"
-            style={{ textDecoration: 'none' }}
-          >
-            <Plus className="w-4 h-4" /> New Audit
-          </Link>
+        <div className="glc-page-hero glc-orb-decor p-4 sm:p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="glc-kicker">Control center</p>
+              <h2 className="glc-hero-title mt-2">Portfolio command overview</h2>
+              <p className="glc-hero-sub">
+                Live portfolio overview and operational health.
+              </p>
+            </div>
+            <div className="sm:hidden">
+              <Link
+                to="/audit/new"
+                className="glc-btn-primary w-full justify-center no-underline"
+                style={{ textDecoration: 'none' }}
+              >
+                <Plus className="w-4 h-4" /> New Audit
+              </Link>
+            </div>
+          </div>
+          <KpiStrip kpis={dashData?.kpis} loading={dashLoading} />
         </div>
 
         {/* ── Analytics error banner (non-fatal) ────────────────── */}
@@ -212,7 +222,7 @@ export function Dashboard() {
         />
 
         {/* ── 4. All Audits ─────────────────────────────────────── */}
-        <section>
+        <section className="glc-soft-panel p-4 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <SectionLabel>All Audits</SectionLabel>
             <div

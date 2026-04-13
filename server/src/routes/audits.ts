@@ -13,9 +13,10 @@ import {
 import { createAuditLimiter, generalLimiter } from '../middleware/rate-limit.js';
 import {
   DEFAULT_AUDIT_PRODUCT_MODE,
-  DOMAIN_KEYS,
-  EXPRESS_DOMAIN_KEYS,
-  reviewPhasesForMode,
+  DOMAIN_PHASES,
+  executionPlanToPhases,
+  reviewPhasesForExecutionPlan,
+  type AuditExecutionPlan,
   type IntakeVersionTuple,
   type ProductMode,
 } from '../types/audit.js';
@@ -91,8 +92,18 @@ import {
 } from '../config/route-notification-messages.js';
 import { healUxDomainRowForFreeSnapshotPortal } from '../lib/snapshot-audit-response-heal.js';
 import { buildIntakePlan } from '@glc/intake-core';
+import { normalizeExecutionPlan } from '../services/execution-plan.js';
 
 export const auditsRouter = Router();
+
+function resolveBriefGateMode(input: {
+  product_mode?: ProductMode | null;
+  execution_plan?: Partial<AuditExecutionPlan> | null;
+}): ProductMode {
+  const fallbackMode = (input.product_mode ?? DEFAULT_AUDIT_PRODUCT_MODE) as ProductMode;
+  const plan = normalizeExecutionPlan(input.execution_plan ?? null, fallbackMode);
+  return plan.coverage_package === 'complete' ? 'full' : 'express';
+}
 
 // All audit routes require authentication
 auditsRouter.use(requireAuth);
@@ -107,9 +118,10 @@ async function createAuditWithChildren(params: {
   company_name: string | null;
   industry: string | null;
   mode: ProductMode;
+  execution_plan?: AuditExecutionPlan | null;
   no_public_website?: boolean;
 }): Promise<{ id: string; status: string }> {
-  const { ownerUserId, clientId, company_url, company_name, industry, mode, no_public_website } = params;
+  const { ownerUserId, clientId, company_url, company_name, industry, mode, execution_plan, no_public_website } = params;
 
   const { data: audit, error: auditErr } = await supabase
     .from('audits')
@@ -120,6 +132,7 @@ async function createAuditWithChildren(params: {
       company_name,
       industry,
       product_mode: mode,
+      execution_plan: execution_plan ?? null,
       no_public_website: no_public_website === true,
     })
     .select()
@@ -127,25 +140,28 @@ async function createAuditWithChildren(params: {
 
   if (auditErr) throw auditErr;
 
-  const activeDomainKeys = mode === 'express' ? EXPRESS_DOMAIN_KEYS : DOMAIN_KEYS;
-  const activeReviewPhases = reviewPhasesForMode(mode);
+  const resolvedPlan = execution_plan ?? normalizeExecutionPlan(null, mode);
+  const activeDomainKeys = resolvedPlan.selected_domains;
+  const activeReviewPhases = reviewPhasesForExecutionPlan(resolvedPlan);
 
   const reviewInserts = activeReviewPhases.map(phase => ({
     audit_id: audit.id,
     after_phase: phase,
   }));
 
-  const domainInserts = activeDomainKeys.map((key, i) => ({
+  const domainInserts = activeDomainKeys.map((key) => ({
     audit_id: audit.id,
     domain_key: key,
-    phase_number: i + 1,
+    phase_number: DOMAIN_PHASES[key],
   }));
 
   const childInserts = [
     supabase.from('review_points').insert(reviewInserts),
     supabase.from('audit_domains').insert(domainInserts),
     supabase.from('audit_recon').insert({ audit_id: audit.id }),
-    ...(mode !== 'express' ? [supabase.from('audit_strategy').insert({ audit_id: audit.id })] : []),
+    ...(executionPlanToPhases(resolvedPlan).includes(7)
+      ? [supabase.from('audit_strategy').insert({ audit_id: audit.id })]
+      : []),
   ] as const;
 
   const results = await Promise.allSettled(childInserts);
@@ -172,8 +188,12 @@ auditsRouter.post('/', attachProfile, createAuditLimiter, async (req: AuthReques
       return;
     }
 
-    const { company_url, company_name, industry, product_mode, no_public_website } = req.body;
+    const { company_url, company_name, industry, product_mode, execution_plan, no_public_website } = req.body;
     const mode: ProductMode = product_mode === 'express' ? 'express' : DEFAULT_AUDIT_PRODUCT_MODE;
+    const normalizedPlan = normalizeExecutionPlan(
+      (execution_plan as Partial<AuditExecutionPlan> | null | undefined) ?? null,
+      mode,
+    );
     const idempotent = await getStoredIdempotentResponse(req, idempotencyPostAuditsCreateKey(), req.body);
     if (idempotent.replay) {
       res.status(idempotent.replay.statusCode).json(idempotent.replay.payload);
@@ -246,6 +266,7 @@ auditsRouter.post('/', attachProfile, createAuditLimiter, async (req: AuthReques
       company_name: typeof company_name === 'string' && company_name.trim() ? company_name.trim() : null,
       industry: typeof industry === 'string' && industry.trim() ? industry.trim() : null,
       mode,
+      execution_plan: normalizedPlan,
       no_public_website: noSite,
     });
 
@@ -378,11 +399,11 @@ auditsRouter.get('/:id', attachProfile, rejectGuestFromPortal, async (req: AuthR
 });
 
 const upgradeSnapshotBody = z.object({
-  target_mode: z.enum(['express', 'full']),
+  coverage_package: z.enum(['starter', 'pro', 'complete']),
   use_scraped_context: z.boolean(),
 });
 
-// ─── POST /api/audits/:id/upgrade-from-snapshot — free_snapshot → express/full + brief seed ─
+// ─── POST /api/audits/:id/upgrade-from-snapshot — free_snapshot → Starter/Pro/Complete ─
 auditsRouter.post('/:id/upgrade-from-snapshot', attachProfile, rejectGuestFromPortal, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
@@ -398,7 +419,7 @@ auditsRouter.post('/:id/upgrade-from-snapshot', attachProfile, rejectGuestFromPo
     const result = await upgradeFreeSnapshotAudit({
       auditId: id,
       actorUserId: req.userId!,
-      targetMode: parsed.data.target_mode,
+      coveragePackage: parsed.data.coverage_package,
       useScrapedContext: parsed.data.use_scraped_context,
     });
     if (!result.ok) {
@@ -448,7 +469,7 @@ auditsRouter.get('/:id/brief/schema', attachProfile, rejectGuestFromPortal, asyn
 
     const { data: audit } = await supabase
       .from('audits')
-      .select('id, product_mode, user_id, client_id')
+      .select('id, product_mode, execution_plan, user_id, client_id')
       .eq('id', id)
       .single();
 
@@ -598,7 +619,7 @@ auditsRouter.get('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
     // Verify access (owner or client)
     const { data: audit } = await supabase
       .from('audits')
-      .select('id, product_mode, user_id, client_id')
+      .select('id, product_mode, execution_plan, user_id, client_id')
       .eq('id', id)
       .single();
 
@@ -639,9 +660,13 @@ auditsRouter.get('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
       surface,
       intakeVersionTuple: intakeTuple,
     });
+    const briefGateMode = resolveBriefGateMode({
+      product_mode: audit.product_mode as ProductMode,
+      execution_plan: (audit.execution_plan as Partial<AuditExecutionPlan> | null | undefined) ?? null,
+    });
     const gates = evaluateBriefGates(
       responses,
-      audit.product_mode as ProductMode,
+      briefGateMode,
       collectionMode,
       surface,
       intakeTuple,
@@ -786,7 +811,7 @@ auditsRouter.put('/:id/brief', attachProfile, rejectGuestFromPortal, async (req:
     // Verify access
     const { data: audit } = await supabase
       .from('audits')
-      .select('id, user_id, client_id, product_mode')
+      .select('id, user_id, client_id, product_mode, execution_plan')
       .eq('id', id)
       .single();
 

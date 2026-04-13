@@ -142,6 +142,16 @@ export function ReportViewer() {
     : 0;
 
   const domainEntries = domains.filter(d => d.data && d.data.score !== null);
+  const plannedDomains = (Array.isArray(audit.meta.execution_plan?.selected_domains)
+    ? (audit.meta.execution_plan?.selected_domains ?? [])
+    : domainEntries.map((d) => d.key)).filter((key): key is (typeof DOMAIN_KEYS)[number] =>
+    DOMAIN_KEYS.includes(key as (typeof DOMAIN_KEYS)[number]),
+  );
+  const coveredDomains = plannedDomains.filter((key) => domainEntries.some((d) => d.key === key));
+  const missingDomains = DOMAIN_KEYS.filter((key) => !coveredDomains.includes(key));
+  const coverageRatio = coveredDomains.length / DOMAIN_KEYS.length;
+  const coverageAdjustedScore =
+    typeof audit.meta.overall_score === 'number' ? Number((audit.meta.overall_score * coverageRatio).toFixed(2)) : null;
 
   // Collect issues/strengths/quick wins scoped to visible domains
   const allIssues = domains.flatMap(d => d.data?.issues ?? []);
@@ -197,8 +207,7 @@ export function ReportViewer() {
 
         {/* ── Profile selector ──────────────────────── */}
         <div
-          className="flex items-start gap-2 flex-wrap p-1 rounded-xl"
-          style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+          className="glc-soft-panel flex items-start gap-2 flex-wrap p-2"
         >
           {PROFILES.map(p => {
             const active = profile === p.id;
@@ -239,7 +248,7 @@ export function ReportViewer() {
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.38, ease: EASE_GLC }}
-          className="relative overflow-hidden"
+          className="relative overflow-hidden glc-orb-decor"
           style={{
             background: 'var(--gradient-ink-rich)',
             borderRadius: 'var(--radius-2xl)',
@@ -253,9 +262,9 @@ export function ReportViewer() {
 
           <div className="relative flex items-start justify-between gap-6">
             <div className="flex-1 min-w-0">
-              <SectionLabel className="opacity-50 [color:var(--primary-foreground)]">
+              <p className="glc-kicker" style={{ color: 'rgba(255,255,255,0.9)', borderColor: 'rgba(255,255,255,0.28)' }}>
                 Executive Summary
-              </SectionLabel>
+              </p>
 
               <h2
                 className="mt-2"
@@ -340,6 +349,39 @@ export function ReportViewer() {
           </div>
         </motion.div>
 
+        <div className="glc-soft-panel p-4">
+          <SectionLabel>Coverage</SectionLabel>
+          <p className="mt-2" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+            {Math.round(coverageRatio * 100)}% coverage ({coveredDomains.length}/6 domains).
+          </p>
+          {coverageAdjustedScore !== null && (
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: 6 }}>
+              Coverage-adjusted score: {coverageAdjustedScore}/5
+            </p>
+          )}
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: 6 }}>
+            Covered: {coveredDomains.map((key) => DOMAIN_LABELS[key]).join(', ') || 'none'}.
+          </p>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: 6 }}>
+            Not analyzed: {missingDomains.map((key) => DOMAIN_LABELS[key]).join(', ') || 'none'}.
+          </p>
+          {missingDomains.length > 0 && (
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--score-2)', marginTop: 8 }}>
+              Partial audit: score is not directly comparable with complete 6-domain audits.
+            </p>
+          )}
+          {missingDomains.length > 0 && (
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginTop: 6 }}>
+              We keep your full intake context. You can launch additional domains at any time to expand coverage.
+            </p>
+          )}
+          {coveredDomains.length <= 1 && (
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--score-2)', marginTop: 6 }}>
+              Confidence note: single-domain audits have lower cross-domain confidence by design.
+            </p>
+          )}
+        </div>
+
         {/* ── Scorecard ─────────────────────────────── */}
         <motion.div
           variants={listVariants}
@@ -398,7 +440,7 @@ export function ReportViewer() {
         </motion.div>
 
         {/* ── Findings ──────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {[
             {
               title: 'Key Strengths',

@@ -105,8 +105,8 @@
   --shadow-xs:   0 1px 2px rgba(11,17,32,0.04);
   --shadow-sm:   0 1px 3px rgba(11,17,32,0.07), 0 1px 2px rgba(11,17,32,0.04);
   --shadow-md:   0 4px 12px rgba(11,17,32,0.08), 0 2px 4px rgba(11,17,32,0.04);
-  --shadow-lg:   0 12px 32px rgba(11,17,32,0.10), 0 4px 8px rgba(11,17,32,0.05);
-  --shadow-xl:   0 24px 48px rgba(11,17,32,0.12), 0 8px 16px rgba(11,17,32,0.06);
+  --shadow-lg:   0 12px 32px rgba(11,17,32,0.10), 0 4px 0.5rem rgba(11,17,32,0.05);
+  --shadow-xl:   0 24px 48px rgba(11,17,32,0.12), 0 0.5rem 16px rgba(11,17,32,0.06);
   --shadow-blue: 0 0 0 3px rgba(28,189,255,0.20);
   --shadow-card: 0 0 0 1px var(--border-subtle), var(--shadow-sm);
 
@@ -144,17 +144,17 @@
   /* ── Radius ─────────────────────────────────── */
   --radius-xs:   2px;
   --radius-sm:   4px;
-  --radius-md:   8px;
+  --radius-md:   0.5rem;
   --radius-lg:   12px;
   --radius-xl:   16px;
   --radius-2xl:  22px;
   --radius-pill: 999px;
 
   /* ── Spacing ────────────────────────────────── */
-  --space-1:  4px;  --space-2:  8px;  --space-3:  12px;
-  --space-4: 16px;  --space-5: 20px;  --space-6:  24px;
-  --space-8: 32px;  --space-10:40px;  --space-12: 48px;
-  --space-16:64px;
+  --space-1:  4px;  --space-1-5: 6px;  --space-2: calc(var(--space-1) * 2);  --space-2-5: 10px;
+  --space-3:  12px; --space-3-5: 14px; --space-4: 16px; --space-5: 20px;
+  --space-6:  24px; --space-7:   28px; --space-8: 32px; --space-10: 40px;
+  --space-12: 48px; --space-16: 64px;
 
   /* ── Typography ─────────────────────────────── */
   --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
@@ -276,8 +276,8 @@ html.dark {
   --shadow-xs:   0 1px 2px rgba(0,0,0,0.45);
   --shadow-sm:   0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.32);
   --shadow-md:   0 4px 12px rgba(0,0,0,0.45), 0 2px 4px rgba(0,0,0,0.28);
-  --shadow-lg:   0 12px 32px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.28);
-  --shadow-xl:   0 24px 48px rgba(0,0,0,0.55), 0 8px 16px rgba(0,0,0,0.32);
+  --shadow-lg:   0 12px 32px rgba(0,0,0,0.5), 0 4px 0.5rem rgba(0,0,0,0.28);
+  --shadow-xl:   0 24px 48px rgba(0,0,0,0.55), 0 0.5rem 16px rgba(0,0,0,0.32);
   --shadow-blue: 0 0 0 3px rgba(28,189,255,0.28);
   --shadow-card: 0 0 0 1px var(--border-subtle), var(--shadow-sm);
 
@@ -440,10 +440,14 @@ html.dark {
 
 /* Cards */
 .glc-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--bg-surface) 94%, white) 0%,
+    var(--bg-surface) 100%
+  );
+  border: 1px solid color-mix(in oklab, var(--border-subtle) 88%, var(--glc-blue-muted));
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--border-subtle) 70%, transparent), var(--shadow-md);
 }
 
 .glc-card-elevated {
@@ -680,4 +684,183 @@ html.dark {
   border-radius: inherit;
   background: radial-gradient(ellipse 55% 90% at 100% 0%, rgba(28, 189, 255, 0.14) 0%, transparent 58%);
   opacity: 0.85;
+}
+
+/* ── Global page polish (excluded on Snapshot/Discovery via route class) ── */
+body.glc-site-polish {
+  background-image:
+    radial-gradient(ellipse 70% 45% at 5% -5%, color-mix(in oklab, var(--glc-blue) 12%, transparent) 0%, transparent 65%),
+    radial-gradient(ellipse 55% 35% at 100% 0%, color-mix(in oklab, var(--glc-green) 8%, transparent) 0%, transparent 65%),
+    linear-gradient(180deg, color-mix(in oklab, var(--bg-canvas) 96%, white) 0%, var(--bg-canvas) 100%);
+  background-attachment: fixed;
+}
+
+body.glc-site-polish .glc-card,
+body.glc-site-polish .glc-card-elevated {
+  border-color: color-mix(in oklab, var(--border-subtle) 72%, var(--glc-blue-muted));
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--border-subtle) 65%, transparent),
+    0 14px 28px rgba(11, 17, 32, 0.07),
+    0 2px 6px rgba(11, 17, 32, 0.04);
+  transition:
+    transform var(--ease-base),
+    box-shadow var(--ease-base),
+    border-color var(--ease-base);
+}
+
+@media (hover: hover) {
+  body.glc-site-polish .glc-card:hover,
+  body.glc-site-polish .glc-card-elevated:hover {
+    border-color: color-mix(in oklab, var(--glc-blue) 28%, var(--border-subtle));
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--glc-blue) 18%, transparent),
+      0 20px 40px rgba(11, 17, 32, 0.11),
+      0 4px 10px rgba(11, 17, 32, 0.05);
+    transform: translateY(-2px);
+  }
+}
+
+body.glc-site-polish :is(a, button):not(:disabled) {
+  transition:
+    transform var(--ease-fast),
+    box-shadow var(--ease-fast),
+    filter var(--ease-fast);
+}
+
+@media (hover: hover) {
+  body.glc-site-polish :is(a, button):not(:disabled):hover {
+    filter: saturate(1.03);
+  }
+}
+
+.glc-page-hero {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid color-mix(in oklab, var(--border-subtle) 66%, var(--glc-blue-muted));
+  border-radius: var(--radius-2xl);
+  background:
+    radial-gradient(ellipse 95% 70% at 0% -25%, color-mix(in oklab, var(--glc-blue) 15%, transparent) 0%, transparent 64%),
+    radial-gradient(ellipse 75% 55% at 100% -10%, color-mix(in oklab, var(--glc-green) 10%, transparent) 0%, transparent 62%),
+    linear-gradient(160deg, color-mix(in oklab, var(--bg-surface) 92%, white) 0%, var(--bg-surface) 100%);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--border-subtle) 74%, transparent),
+    0 14px 32px rgba(11, 17, 32, 0.09);
+}
+
+.glc-page-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.22) 0%, transparent 34%),
+    linear-gradient(0deg, transparent 0%, color-mix(in oklab, var(--glc-blue) 4%, transparent) 100%);
+}
+
+.glc-hero-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+  line-height: 1.1;
+  font-size: clamp(1.1rem, 1.6vw, 1.45rem);
+}
+
+.glc-hero-sub {
+  margin-top: 0.35rem;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  max-width: 52ch;
+}
+
+.glc-soft-panel {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  background:
+    linear-gradient(170deg, color-mix(in oklab, var(--bg-surface) 94%, white) 0%, var(--bg-surface) 72%);
+  box-shadow: var(--shadow-sm);
+}
+
+.glc-glass-strip {
+  border: 1px solid color-mix(in oklab, var(--border-subtle) 76%, rgba(255, 255, 255, 0.8));
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--radius-xl);
+}
+
+.glc-hover-row {
+  border-radius: var(--radius-md);
+  transition: background var(--ease-fast), border-color var(--ease-fast);
+}
+
+.glc-hover-row:hover {
+  background: color-mix(in oklab, var(--bg-muted) 75%, transparent);
+}
+
+.glc-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.625rem;
+  margin-bottom: 0.875rem;
+}
+
+.glc-panel-meta {
+  font-size: 0.6875rem;
+  color: var(--text-tertiary);
+  letter-spacing: 0.01em;
+}
+
+.glc-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in oklab, var(--glc-blue) 24%, var(--border-subtle));
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--glc-blue-muted) 75%, transparent) 0%,
+    color-mix(in oklab, var(--bg-surface) 95%, white) 100%
+  );
+  padding: 0.35rem 0.65rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--glc-blue-deeper);
+}
+
+.glc-orb-decor {
+  position: relative;
+  isolation: isolate;
+}
+
+.glc-orb-decor::after {
+  content: '';
+  position: absolute;
+  top: -36px;
+  right: -44px;
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    color-mix(in oklab, var(--glc-blue) 26%, transparent) 0%,
+    transparent 68%
+  );
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.7;
+}
+
+@media (width < 40rem) {
+  .glc-page-hero {
+    border-radius: var(--radius-xl);
+  }
+  .glc-hero-sub {
+    max-width: none;
+  }
 }

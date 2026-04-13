@@ -8,6 +8,8 @@ import type { BriefResponses } from './briefQuestions';
 import type { IntakeBriefCollectionMode } from './auditTypes';
 import { makeWebsitePathFullBrief } from '../../../server/src/tests/bank-brief-fixtures';
 
+const HIDDEN_IDENTITY_BANK_IDS = new Set(['a2', 'a11', 'a12']);
+
 function wrapAsBriefResponses(raw: Record<string, unknown>): BriefResponses {
   return Object.fromEntries(
     Object.entries(raw).map(([k, v]) => [k, { value: v as never, source: 'client' as const }]),
@@ -25,7 +27,9 @@ function visibleStubIds(
     collectionMode,
   });
   const visible = new Set(plan.visible);
-  return sortStubsByBankOrder(QUESTION_BANK_V1_STUBS.filter(q => visible.has(q.id))).map(s => s.id);
+  return sortStubsByBankOrder(
+    QUESTION_BANK_V1_STUBS.filter(q => visible.has(q.id) && !HIDDEN_IDENTITY_BANK_IDS.has(q.id)),
+  ).map(s => s.id);
 }
 
 describe('getVisibleBankBriefSections', () => {

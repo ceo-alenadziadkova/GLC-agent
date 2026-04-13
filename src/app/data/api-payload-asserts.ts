@@ -1,12 +1,17 @@
 export function assertIntakePayloadShape(payload: unknown): asserts payload is {
   intakeProgress: { progressPct: number; readinessBadge: string; nextBestAction: string };
-  gates: { canStartSnapshot: boolean; canStartExpress: boolean; canStartFull: boolean };
+  gates: { canStartSnapshot: boolean; canStartExpress: boolean; canStartFull: boolean; canStartPipeline: boolean };
 } {
   const p = payload as Record<string, unknown>;
   const gates = p?.gates as Record<string, unknown> | undefined;
   const intakeProgress = p?.intakeProgress as Record<string, unknown> | undefined;
   if (!gates || !intakeProgress) throw new Error('Invalid API payload: missing intakeProgress/gates');
-  if (typeof gates.canStartSnapshot !== 'boolean' || typeof gates.canStartExpress !== 'boolean' || typeof gates.canStartFull !== 'boolean') {
+  if (
+    typeof gates.canStartSnapshot !== 'boolean' ||
+    typeof gates.canStartExpress !== 'boolean' ||
+    typeof gates.canStartFull !== 'boolean' ||
+    typeof gates.canStartPipeline !== 'boolean'
+  ) {
     throw new Error('Invalid API payload: invalid gates shape');
   }
   if (typeof intakeProgress.progressPct !== 'number' || typeof intakeProgress.readinessBadge !== 'string' || typeof intakeProgress.nextBestAction !== 'string') {

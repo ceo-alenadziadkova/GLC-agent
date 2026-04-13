@@ -35,8 +35,9 @@ export function ActivityFeed({ events, loading }: ActivityFeedProps) {
       className="glc-card p-5"
       style={{ borderRadius: 'var(--radius-xl)' }}
     >
-      <div className="flex items-center gap-2 mb-4">
+      <div className="glc-panel-head">
         <SectionLabel>Recent Activity</SectionLabel>
+        <span className="glc-panel-meta">{events?.length ?? 0} events</span>
       </div>
 
       {loading && !events && (
@@ -57,7 +58,7 @@ export function ActivityFeed({ events, loading }: ActivityFeedProps) {
       {events && events.length > 0 && (
         <div className="space-y-2.5">
           {events.map(ev => (
-            <div key={ev.id} className="flex items-start gap-3">
+            <div key={ev.id} className="glc-hover-row flex items-start gap-3 px-2 py-1.5">
               {/* Event type pill */}
               <span
                 className="rounded-md px-1.5 py-0.5 flex-shrink-0 tabular-nums"

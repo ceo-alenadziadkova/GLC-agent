@@ -10,14 +10,19 @@
       "labelEn": "Snapshot — quick automated read"
     },
     {
-      "route": "/express-audit",
+      "route": "/starter",
       "i18nKey": "glc.marketing.route.expressAudit",
-      "labelEn": "Express audit — focused scope (not “faster”, lighter depth)"
+      "labelEn": "Starter — single-domain focused package"
     },
     {
-      "route": "/audit",
+      "route": "/complete",
       "i18nKey": "glc.marketing.route.fullAudit",
-      "labelEn": "Full audit — maximum depth across domains"
+      "labelEn": "Complete — maximum depth across all domains"
+    },
+    {
+      "route": "/pro",
+      "i18nKey": "glc.marketing.route.proPackage",
+      "labelEn": "Pro — focused pack of 2-3 domains"
     },
     {
       "route": "/discovery",

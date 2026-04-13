@@ -10,13 +10,16 @@ import { usePublicBrand } from './PublicBrandContext';
 export function MarketingHeader() {
   const [open, setOpen] = useState(false);
   const { footer } = usePublicBrand();
+  const primaryLinks = MARKETING_LINKS.filter(link =>
+    ['/', '/snapshot', '/starter', '/pro', '/complete', '/brief'].includes(link.to),
+  );
 
   return (
     <header
-      className="sticky top-0 z-50 border-b backdrop-blur-md"
+      className="sticky top-0 z-50 border-b backdrop-blur-xl"
       style={{
         borderColor: 'var(--border-subtle)',
-        backgroundColor: 'color-mix(in oklab, var(--bg-canvas) 88%, transparent)',
+        backgroundColor: 'color-mix(in oklab, var(--bg-canvas) 90%, transparent)',
         paddingTop: 'max(0.5rem, env(safe-area-inset-top))',
       }}
     >
@@ -32,15 +35,15 @@ export function MarketingHeader() {
 
         <nav className="hidden lg:flex lg:flex-1 lg:justify-center" aria-label="Primary navigation">
           <ul className="flex flex-wrap items-center justify-center gap-1">
-            {MARKETING_LINKS.filter(l => l.to !== '/').map(({ to, label }) => (
+            {primaryLinks.filter(l => l.to !== '/').map(({ to, label }) => (
               <li key={to}>
                 <NavLink
                   to={to}
                   className={({ isActive }) =>
                     cn(
-                      'rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors',
+                      'rounded-lg px-3 py-1.5 text-sm font-medium transition-[color,background-color,box-shadow]',
                       isActive
-                        ? 'bg-[var(--bg-muted)] text-[var(--text-primary)] shadow-[var(--shadow-xs)]'
+                        ? 'bg-[var(--bg-muted)] text-[var(--text-primary)] shadow-[var(--shadow-sm)]'
                         : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
                     )
                   }
@@ -54,6 +57,17 @@ export function MarketingHeader() {
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <ThemeToggle />
+          <Link
+            to="/brief"
+            className="hidden rounded-lg px-3 py-2 text-sm font-semibold sm:inline-flex"
+            style={{
+              background: 'var(--gradient-brand)',
+              color: 'var(--primary-foreground)',
+              boxShadow: '0 8px 22px rgba(28,189,255,0.24)',
+            }}
+          >
+            Start with Brief
+          </Link>
           <Link
             to={LOGIN_PATH}
             className="hidden rounded-lg px-3 py-2 text-sm font-semibold sm:inline-flex"
