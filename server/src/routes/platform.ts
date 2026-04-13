@@ -20,6 +20,7 @@ import {
   removeConsultantAllowlistEmail,
 } from '../services/consultant-allowlist.js';
 import { computeAndStoreBenchmarkSnapshots } from '../services/benchmark-snapshot.js';
+import { banditService } from '../services/bandit.js';
 import { logger } from '../services/logger.js';
 import {
   API_ERROR_CODES,
@@ -397,6 +398,24 @@ platformRouter.post('/benchmarks/recompute', requireRole('consultant'), async (r
     res.json({ ok: true, inserted: out.inserted });
   } catch (e) {
     logger.error('platform.benchmark_recompute_failed', {
+      component: 'platform_route',
+      error: e instanceof Error ? e.message : String(e),
+    });
+    res.status(500).json(apiErrorJson(API_ERROR_CODES.INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR_MESSAGE));
+  }
+});
+
+platformRouter.post('/bandits/recompute', requireRole('consultant'), async (req: AuthRequest, res) => {
+  try {
+    const uid = req.userId!;
+    if (!(await canManagePlatformSettings(uid))) {
+      res.status(403).json(apiErrorJson(API_ERROR_CODES.PLATFORM_ADMIN_ONLY, PLATFORM_ADMIN_ONLY_MESSAGE));
+      return;
+    }
+    const out = await banditService.recomputeArmPerformanceFromEvaluationDatasets();
+    res.json({ ok: true, ...out });
+  } catch (e) {
+    logger.error('platform.bandit_recompute_failed', {
       component: 'platform_route',
       error: e instanceof Error ? e.message : String(e),
     });

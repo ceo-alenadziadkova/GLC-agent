@@ -103,8 +103,31 @@ Documented in project rules / audits; do not bulk-rewrite without a dedicated in
 
 ---
 
+## Hardcode externalization implementation (2026-04-13)
+
+Completed in this pass (mapped to architecture ownership):
+
+- **Backend config layer**
+  - `server/src/services/evaluation-dataset-writer.ts` now reads insert retries from `SYSTEM_DEFAULTS.evaluationDatasets.insertMaxRetries` (no inline retry cap).
+  - `server/src/services/pipeline.ts` no longer keeps a hardcoded refine fallback string; copy comes from `pipeline-orchestrator-copy.v1.json`.
+  - `server/src/config/integrations.ts` now enforces `TELEGRAM_API_BASE` in production; default URL remains dev fallback only.
+- **Frontend config + CMS-json layer**
+  - `src/app/pages/SettingsPage.tsx` moved password minimum length and route hash fragments to `src/app/config/settings-page-defaults.ts`.
+  - Settings page user-facing toasts now use `src/app/data/workspace-page-copy.en.json` instead of inline literals for key validation/error/success messages.
+  - `src/app/lib/intake-client-copy.ts` now uses CMS-json default timing (`workspace-page-copy.en.json`) instead of inline `within 24 hours`.
+- **Shared package policy config**
+  - `packages/intake-core/src/core/plan-derived.ts` moved confidence blend weights to `intake-plan-derived-policy.v1.json`.
+  - `packages/intake-core/src/intake-brief-catalog-meta.ts` moved question-ID grouping and importance weights to `intake-brief-catalog-meta.v1.json` (`enrichmentPolicy`).
+- **Cursor guardrail**
+  - Added `.cursor/rules/no-hardcode-enforcement.mdc` to enforce layer-aware externalization for new code.
+
+Remaining follow-ups stay in Register rows (especially SQL literals and broad copy migration in older pages).
+
+---
+
 ## Changelog
 
 | Date | Change |
 | --- | --- |
 | 2026-04-13 | Initial register; doc quota raised to 20 in MASTER / README / CLAUDE; merged findings from hardcode-hardening work and code-design-standards review. |
+| 2026-04-13 | Implemented hardcode externalization pass: backend retry/copy/env enforcement, frontend settings constants + copy centralization, intake-core policy JSON extraction, and new Cursor no-hardcode guardrail rule. |

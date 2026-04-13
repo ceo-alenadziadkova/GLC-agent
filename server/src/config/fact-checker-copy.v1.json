@@ -4,7 +4,11 @@
     "invalidSslIssue": "Invalid SSL certificate caps security score at 2/5",
     "invalidSslRawEvidence": "SSL check returned invalid",
     "missingCriticalIssueTemplate": "Score too high: {{count}} critical security headers missing (CSP, HSTS)",
-    "missingCriticalRawEvidenceTemplate": "Missing: {{names}}"
+    "missingCriticalRawEvidenceTemplate": "Missing: {{names}}",
+    "cookieFlagsIssueTemplate": "Score too high: {{count}} cookie security issue(s) detected",
+    "cookieFlagsRawEvidenceTemplate": "Cookie issues: {{issues}}",
+    "headerHygieneIssueTemplate": "Score too high: {{count}} header hygiene issue(s) detected",
+    "headerHygieneRawEvidenceTemplate": "Header hygiene failures: {{names}}"
   },
   "seo": {
     "noSitemapIssue": "Score 5/5 but no sitemap.xml found",
@@ -18,7 +22,13 @@
     "noCompressionIssue": "Score too high: no HTTP compression detected",
     "noCompressionRawEvidence": "compression.enabled = false",
     "noCacheIssue": "Score too high: no cache policy detected",
-    "noCacheRawEvidence": "caching.has_cache_policy = false"
+    "noCacheRawEvidence": "caching.has_cache_policy = false",
+    "noHttpsIssue": "Score too high: HTTPS is not available for the target URL",
+    "noHttpsRawEvidence": "headers.https_available = false",
+    "slowAverageLoadIssueTemplate": "Score too high: average page load time is {{ms}}ms",
+    "slowAverageLoadRawEvidenceTemplate": "page_weights.avg_load_time_ms = {{ms}}",
+    "lowLazyLoadCoverageIssueTemplate": "Score too high: lazy-load image coverage is only {{pct}}%",
+    "lowLazyLoadCoverageRawEvidenceTemplate": "page_weights.lazy_load_coverage = {{pct}}"
   },
   "ux": {
     "imageAltIssueTemplate": "Score too high: only {{pct}}% image alt text coverage",

@@ -7,6 +7,8 @@ export const FACT_CHECKER_THRESHOLDS = {
     invalidSslMaxScore: 2,
     missingCriticalHeadersMinCount: 2,
     missingCriticalHeadersFlagMinScore: 4,
+    cookieIssuesMinCount: 1,
+    hygieneHeadersMinCount: 1,
   },
   seo: {
     perfectScore: 5,
@@ -15,6 +17,8 @@ export const FACT_CHECKER_THRESHOLDS = {
   },
   tech: {
     flagMinScore: 4,
+    maxAvgLoadTimeMs: 3500,
+    minLazyLoadCoveragePercent: 30,
   },
   ux: {
     imageAltMinCoveragePercent: 50,

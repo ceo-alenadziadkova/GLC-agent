@@ -178,8 +178,12 @@ export const SYSTEM_DEFAULTS = {
    */
   connectors: {
     hardTimeoutMs: 3_000,
+    /** Warn threshold for degraded connector runs: (timed_out + error) / total connectors. */
+    degradedWarnRatio: 0.5,
     securityTxt: {
       fetchBudgetMs: 2_500,
+      /** In-memory connector cache TTL to reduce repeat fetches in close reruns. */
+      cacheTtlMs: 5 * 60 * 1000,
       maxBodyChars: 64_000,
       /** HTTPS path suffixes tried after host: `https://{host}{suffix}`. */
       pathSuffixes: ['/.well-known/security.txt', '/security.txt'],
@@ -227,6 +231,10 @@ export const SYSTEM_DEFAULTS = {
      * 2 non-default + 1 implicit default = 3 total arms (keeps ε-greedy convergence tractable).
      */
     maxVariantsPerPhase: 2,
+  },
+  evaluationDatasets: {
+    /** Retry attempts for `(audit_id, phase_id, run_number)` insert conflicts in `evaluation_datasets`. */
+    insertMaxRetries: 3,
   },
   /**
    * Auto-loop: targeted agent rerun when Decision Layer returns 'refine'.

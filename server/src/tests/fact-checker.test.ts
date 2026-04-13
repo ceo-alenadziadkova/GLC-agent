@@ -200,6 +200,38 @@ describe('FactChecker — domain-specific checks: security', () => {
     const headerFlag = corrections.some(c => c.issue.includes('critical security headers'));
     expect(headerFlag).toBe(true);
   });
+
+  it('cookie security issues + score >= 4 triggers a flag', () => {
+    const result = makeDomainResult({ score: 4 });
+    const collected = {
+      security_headers: {
+        ssl: { valid: true },
+        headers: [],
+        cookies: {
+          issues: ['Cookie "session" missing Secure HttpOnly flag'],
+        },
+      },
+    };
+    const { corrections } = checker.verify(result, 'security_compliance', collected);
+    const cookieFlag = corrections.some(c => c.issue.includes('cookie security issue'));
+    expect(cookieFlag).toBe(true);
+  });
+
+  it('header hygiene issues + score >= 4 triggers a flag', () => {
+    const result = makeDomainResult({ score: 4 });
+    const collected = {
+      security_headers: {
+        ssl: { valid: true },
+        headers: [
+          { name: 'X-Powered-By (should be absent)', present: false },
+          { name: 'Server (should be minimal)', present: false },
+        ],
+      },
+    };
+    const { corrections } = checker.verify(result, 'security_compliance', collected);
+    const hygieneFlag = corrections.some(c => c.issue.includes('header hygiene issue'));
+    expect(hygieneFlag).toBe(true);
+  });
 });
 
 describe('FactChecker — domain-specific checks: SEO', () => {
@@ -242,6 +274,64 @@ describe('FactChecker — domain-specific checks: UX', () => {
     const { corrections } = checker.verify(result, 'ux_conversion', collected);
     const altFlag = corrections.some(c => c.issue.includes('alt text'));
     expect(altFlag).toBe(true);
+  });
+});
+
+describe('FactChecker — domain-specific checks: Tech', () => {
+  it('missing HTTPS + score >= 4 triggers a flag', () => {
+    const result = makeDomainResult({ score: 4 });
+    const collected = {
+      performance: {
+        headers: {
+          compression: { enabled: true },
+          caching: { has_cache_policy: true },
+          https_available: false,
+        },
+      },
+    };
+    const { corrections } = checker.verify(result, 'tech_infrastructure', collected);
+    const httpsFlag = corrections.some(c => c.issue.includes('HTTPS'));
+    expect(httpsFlag).toBe(true);
+  });
+
+  it('slow average load time + score >= 4 triggers a flag', () => {
+    const result = makeDomainResult({ score: 4 });
+    const collected = {
+      performance: {
+        headers: {
+          compression: { enabled: true },
+          caching: { has_cache_policy: true },
+          https_available: true,
+        },
+        page_weights: {
+          avg_load_time_ms: 4200,
+          lazy_load_coverage: 80,
+        },
+      },
+    };
+    const { corrections } = checker.verify(result, 'tech_infrastructure', collected);
+    const slowFlag = corrections.some(c => c.issue.includes('average page load time'));
+    expect(slowFlag).toBe(true);
+  });
+
+  it('low lazy-load image coverage + score >= 4 triggers a flag', () => {
+    const result = makeDomainResult({ score: 4 });
+    const collected = {
+      performance: {
+        headers: {
+          compression: { enabled: true },
+          caching: { has_cache_policy: true },
+          https_available: true,
+        },
+        page_weights: {
+          avg_load_time_ms: 1200,
+          lazy_load_coverage: 20,
+        },
+      },
+    };
+    const { corrections } = checker.verify(result, 'tech_infrastructure', collected);
+    const lazyFlag = corrections.some(c => c.issue.includes('lazy-load image coverage'));
+    expect(lazyFlag).toBe(true);
   });
 });
 

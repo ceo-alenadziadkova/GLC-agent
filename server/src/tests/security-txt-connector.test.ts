@@ -1,10 +1,14 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { SecurityTxtWellKnownConnector } from '../connectors/security-txt-connector.js';
+import {
+  SecurityTxtWellKnownConnector,
+  clearSecurityTxtConnectorCacheForTests,
+} from '../connectors/security-txt-connector.js';
 
 describe('SecurityTxtWellKnownConnector', () => {
   const originalEnv = process.env.CONNECTOR_SECURITY_TXT_ENABLED;
 
   afterEach(() => {
+    clearSecurityTxtConnectorCacheForTests();
     vi.unstubAllGlobals();
     if (originalEnv === undefined) {
       delete process.env.CONNECTOR_SECURITY_TXT_ENABLED;
@@ -66,5 +70,32 @@ describe('SecurityTxtWellKnownConnector', () => {
       company_url: 'https://example.com',
     });
     expect(out).toBeNull();
+  });
+
+  it('uses in-memory cache for repeated calls to same host', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.includes('/.well-known/security.txt')) {
+        return {
+          ok: true,
+          text: async () => 'Contact: mailto:security@example.com\n',
+        };
+      }
+      return { ok: false, text: async () => '' };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const c = new SecurityTxtWellKnownConnector();
+    const input = {
+      phase_id: 'security_compliance' as const,
+      high_risk_fact_types: ['compliance_status'],
+      company_url: 'https://example.com',
+    };
+
+    const first = await c.fetch(input);
+    const second = await c.fetch(input);
+
+    expect(first).not.toBeNull();
+    expect(second).toEqual(first);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

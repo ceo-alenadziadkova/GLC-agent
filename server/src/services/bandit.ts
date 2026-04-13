@@ -58,6 +58,16 @@ interface BanditArmRow {
   avg_score: number;
 }
 
+interface EvaluationDatasetBanditRow {
+  phase_id: string;
+  agent_variant_id: string | null;
+  control_object: {
+    agent_performance?: {
+      agent_score?: number;
+    };
+  } | null;
+}
+
 // ─── Readiness gate state (returned for observability/logging) ────────────────
 
 export type BanditGateMiss =
@@ -74,6 +84,45 @@ export interface BanditSelectionResult {
   gate_miss?: BanditGateMiss;
   /** true = exploration step; false = exploitation; undefined = gate missed */
   explored?: boolean;
+}
+
+export interface RecomputeBanditArmsResult {
+  phases_updated: number;
+  arms_upserted: number;
+  dataset_rows_seen: number;
+}
+
+export interface AggregatedBanditArm {
+  phase_id: string;
+  variant_id: string;
+  run_count: number;
+  avg_score: number;
+}
+
+export function aggregateBanditArmsFromEvaluationRows(
+  rows: EvaluationDatasetBanditRow[],
+): AggregatedBanditArm[] {
+  const acc = new Map<string, { phase_id: string; variant_id: string; run_count: number; sum: number }>();
+  for (const row of rows) {
+    const score = row.control_object?.agent_performance?.agent_score;
+    if (typeof score !== 'number' || !Number.isFinite(score)) continue;
+    const variantId = row.agent_variant_id ?? DEFAULT_VARIANT_ID;
+    const key = `${row.phase_id}::${variantId}`;
+    const prev = acc.get(key);
+    if (prev) {
+      prev.run_count += 1;
+      prev.sum += score;
+    } else {
+      acc.set(key, { phase_id: row.phase_id, variant_id: variantId, run_count: 1, sum: score });
+    }
+  }
+
+  return [...acc.values()].map(v => ({
+    phase_id: v.phase_id,
+    variant_id: v.variant_id,
+    run_count: v.run_count,
+    avg_score: parseFloat((v.sum / v.run_count).toFixed(4)),
+  }));
 }
 
 // ─── BanditService ────────────────────────────────────────────────────────────
@@ -177,6 +226,55 @@ export class BanditService {
         variant_id: variantId,
         error: (err as Error).message,
       });
+    }
+  }
+
+  /**
+   * Rebuilds `bandit_arm_performance` from `evaluation_datasets` snapshots.
+   * Useful for backfills and drift recovery when arm aggregates need canonical recomputation.
+   */
+  async recomputeArmPerformanceFromEvaluationDatasets(
+    phaseId?: DomainKey,
+  ): Promise<RecomputeBanditArmsResult> {
+    try {
+      const evalQuery = supabase
+        .from('evaluation_datasets')
+        .select('phase_id, agent_variant_id, control_object');
+      const { data, error } = phaseId
+        ? await evalQuery.eq('phase_id', phaseId)
+        : await evalQuery;
+      if (error) throw error;
+
+      const datasetRows = (data ?? []) as EvaluationDatasetBanditRow[];
+      const aggregated = aggregateBanditArmsFromEvaluationRows(datasetRows);
+      const phases = [...new Set(aggregated.map(r => r.phase_id))];
+
+      for (const phase of phases) {
+        await supabase.from('bandit_arm_performance').delete().eq('phase_id', phase);
+      }
+
+      if (aggregated.length > 0) {
+        await supabase.from('bandit_arm_performance').upsert(
+          aggregated.map(row => ({
+            ...row,
+            updated_at: new Date().toISOString(),
+          })),
+          { onConflict: 'phase_id,variant_id' },
+        );
+      }
+
+      return {
+        phases_updated: phases.length,
+        arms_upserted: aggregated.length,
+        dataset_rows_seen: datasetRows.length,
+      };
+    } catch (err) {
+      logger.error('bandit.recompute_from_evaluation_datasets_failed', {
+        component: 'bandit',
+        phase_id: phaseId ?? null,
+        error: (err as Error).message,
+      });
+      return { phases_updated: 0, arms_upserted: 0, dataset_rows_seen: 0 };
     }
   }
 

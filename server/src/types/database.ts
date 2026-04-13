@@ -213,6 +213,7 @@ export interface Database {
           cleaned_output: Record<string, unknown>;
           human_feedback: Record<string, unknown> | null;
           decision_applied: string | null;
+          agent_variant_id: string | null;
           retention_policy: string;
           pii_sanitized: boolean;
           created_at: string;
@@ -228,6 +229,7 @@ export interface Database {
           cleaned_output: Record<string, unknown>;
           human_feedback?: Record<string, unknown> | null;
           decision_applied?: string | null;
+          agent_variant_id?: string | null;
           retention_policy?: string;
           pii_sanitized?: boolean;
         };

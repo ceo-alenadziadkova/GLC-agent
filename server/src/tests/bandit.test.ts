@@ -67,6 +67,7 @@ import {
   BANDIT_MIN_EVALUATION_COUNT,
   BANDIT_MIN_PHASES_WITH_DATA,
   BANDIT_EPSILON,
+  aggregateBanditArmsFromEvaluationRows,
 } from '../services/bandit.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -407,5 +408,95 @@ describe('BanditService', () => {
     expect(BANDIT_MIN_PHASES_WITH_DATA).toBe(3);
     expect(BANDIT_EPSILON).toBe(0.15);
     expect(DEFAULT_VARIANT_ID).toBe('default');
+  });
+
+  it('aggregates evaluation rows by phase+variant and defaults null variant id', () => {
+    const out = aggregateBanditArmsFromEvaluationRows([
+      {
+        phase_id: PHASE,
+        agent_variant_id: 'conservative',
+        control_object: { agent_performance: { agent_score: 0.8 } },
+      },
+      {
+        phase_id: PHASE,
+        agent_variant_id: 'conservative',
+        control_object: { agent_performance: { agent_score: 1.0 } },
+      },
+      {
+        phase_id: PHASE,
+        agent_variant_id: null,
+        control_object: { agent_performance: { agent_score: 0.6 } },
+      },
+      {
+        phase_id: PHASE,
+        agent_variant_id: 'detailed',
+        control_object: { agent_performance: {} },
+      },
+    ]);
+
+    expect(out).toEqual(
+      expect.arrayContaining([
+        { phase_id: PHASE, variant_id: 'conservative', run_count: 2, avg_score: 0.9 },
+        { phase_id: PHASE, variant_id: DEFAULT_VARIANT_ID, run_count: 1, avg_score: 0.6 },
+      ]),
+    );
+    expect(out.some(r => r.variant_id === 'detailed')).toBe(false);
+  });
+
+  it('recomputes arm performance from evaluation_datasets', async () => {
+    const upsertFn = vi.fn().mockResolvedValue({ error: null });
+    const deleteEqFn = vi.fn().mockResolvedValue({ error: null });
+    const deleteFn = vi.fn(() => ({ eq: deleteEqFn }));
+    const evalRows = [
+      {
+        phase_id: PHASE,
+        agent_variant_id: 'conservative',
+        control_object: { agent_performance: { agent_score: 0.8 } },
+      },
+      {
+        phase_id: PHASE,
+        agent_variant_id: 'conservative',
+        control_object: { agent_performance: { agent_score: 1.0 } },
+      },
+      {
+        phase_id: PHASE,
+        agent_variant_id: null,
+        control_object: { agent_performance: { agent_score: 0.6 } },
+      },
+    ];
+
+    mocks.supabase.from.mockImplementation((table: string) => {
+      if (table === 'evaluation_datasets') {
+        return {
+          select: vi.fn().mockResolvedValue({ data: evalRows, error: null }),
+        };
+      }
+      return {
+        delete: deleteFn,
+        upsert: upsertFn,
+      };
+    });
+
+    const result = await svc.recomputeArmPerformanceFromEvaluationDatasets();
+
+    expect(result).toEqual({ phases_updated: 1, arms_upserted: 2, dataset_rows_seen: 3 });
+    expect(deleteEqFn).toHaveBeenCalledWith('phase_id', PHASE);
+    expect(upsertFn).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          phase_id: PHASE,
+          variant_id: 'conservative',
+          run_count: 2,
+          avg_score: 0.9,
+        }),
+        expect.objectContaining({
+          phase_id: PHASE,
+          variant_id: DEFAULT_VARIANT_ID,
+          run_count: 1,
+          avg_score: 0.6,
+        }),
+      ]),
+      expect.objectContaining({ onConflict: 'phase_id,variant_id' }),
+    );
   });
 });

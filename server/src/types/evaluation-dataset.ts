@@ -64,6 +64,8 @@ export interface EvaluationDatasetRow {
 
   /** Which decision was applied in the pipeline for this run */
   decision_applied: 'accept' | 'accept_with_warnings' | 'refine' | null;
+  /** Variant id selected by bandit policy for this phase run. */
+  agent_variant_id: string | null;
 
   /**
    * Retention policy governs how long this row is kept.
@@ -82,8 +84,8 @@ export interface EvaluationDatasetRow {
 
   /**
    * DB-generated expiry timestamp.
-   * Computed as: created_at + (retention_ttl_days × INTERVAL '1 day')
-   * Managed by the DB GENERATED ALWAYS expression — do not set manually.
+   * Computed in DB trigger from created_at + retention policy TTL days.
+   * Do not set manually.
    */
   expires_at: string;
 }

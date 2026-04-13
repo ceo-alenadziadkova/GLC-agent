@@ -268,7 +268,15 @@ export class PipelineOrchestrator {
     if (!isAutoLoopEnabled()) return false;
 
     // Check execution environment against allowedModes
-    const env = process.env.NODE_ENV ?? 'production';
+    const env = process.env.NODE_ENV?.trim();
+    if (!env) {
+      logger.warn('pipeline.auto_loop_skipped_missing_env', {
+        component: 'pipeline',
+        audit_id: this.auditId,
+        env,
+      });
+      return false;
+    }
     const allowedModes = getAutoLoopAllowedModes();
     if (!allowedModes.includes(env)) {
       logger.info('pipeline.auto_loop_skipped_env', {
@@ -524,7 +532,7 @@ export class PipelineOrchestrator {
     await this.emitEvent(
       phase,
       'refine_recommended',
-      oc.phase.refineRecommendedMessage ?? 'Auto-loop exhausted. Decision Layer recommends manual review.',
+      oc.phase.refineRecommendedMessage,
       {
         decision_hint: 'refine',
         reasoning: `Auto-loop ran ${cfg.maxIterations} iteration(s) without reaching accept threshold.`,

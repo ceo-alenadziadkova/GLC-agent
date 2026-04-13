@@ -125,6 +125,7 @@ export class FactChecker {
 
     const ssl = secData.ssl as { valid: boolean } | undefined;
     const headers = secData.headers as Array<{ name: string; present: boolean }> | undefined;
+    const cookies = secData.cookies as { issues?: string[] } | undefined;
 
     const secCopy = factCheckerCopy().security;
     if (ssl && !ssl.valid) {
@@ -160,6 +161,43 @@ export class FactChecker {
           action: 'flag',
         });
       }
+
+      const hygieneFailures = headers.filter(h =>
+        ['X-Powered-By (should be absent)', 'Server (should be minimal)'].includes(h.name) && !h.present
+      );
+
+      if (
+        hygieneFailures.length >= T.security.hygieneHeadersMinCount &&
+        result.score >= T.security.missingCriticalHeadersFlagMinScore
+      ) {
+        corrections.push({
+          field: 'score',
+          issue: interpolateFactCheckerMessage(secCopy.headerHygieneIssueTemplate, {
+            count: hygieneFailures.length,
+          }),
+          raw_evidence: interpolateFactCheckerMessage(secCopy.headerHygieneRawEvidenceTemplate, {
+            names: hygieneFailures.map(h => h.name).join(', '),
+          }),
+          action: 'flag',
+        });
+      }
+    }
+
+    const cookieIssues = cookies?.issues ?? [];
+    if (
+      cookieIssues.length >= T.security.cookieIssuesMinCount &&
+      result.score >= T.security.missingCriticalHeadersFlagMinScore
+    ) {
+      corrections.push({
+        field: 'score',
+        issue: interpolateFactCheckerMessage(secCopy.cookieFlagsIssueTemplate, {
+          count: cookieIssues.length,
+        }),
+        raw_evidence: interpolateFactCheckerMessage(secCopy.cookieFlagsRawEvidenceTemplate, {
+          issues: cookieIssues.slice(0, 3).join(' | '),
+        }),
+        action: 'flag',
+      });
     }
   }
 
@@ -223,7 +261,15 @@ export class FactChecker {
     const perfData = collected['performance'];
     if (!perfData) return;
 
-    const headers = perfData.headers as { compression: { enabled: boolean }; caching: { has_cache_policy: boolean } } | undefined;
+    const headers = perfData.headers as {
+      compression: { enabled: boolean };
+      caching: { has_cache_policy: boolean };
+      https_available?: boolean;
+    } | undefined;
+    const pageWeights = perfData.page_weights as {
+      avg_load_time_ms: number;
+      lazy_load_coverage: number;
+    } | undefined;
     const techCopy = factCheckerCopy().tech;
 
     if (headers) {
@@ -241,6 +287,51 @@ export class FactChecker {
           field: 'score',
           issue: techCopy.noCacheIssue,
           raw_evidence: techCopy.noCacheRawEvidence,
+          action: 'flag',
+        });
+      }
+
+      if (headers.https_available === false) {
+        if (result.score >= T.tech.flagMinScore) {
+          corrections.push({
+            field: 'score',
+            issue: techCopy.noHttpsIssue,
+            raw_evidence: techCopy.noHttpsRawEvidence,
+            action: 'flag',
+          });
+        }
+      }
+    }
+
+    if (pageWeights) {
+      if (
+        pageWeights.avg_load_time_ms > T.tech.maxAvgLoadTimeMs &&
+        result.score >= T.tech.flagMinScore
+      ) {
+        corrections.push({
+          field: 'score',
+          issue: interpolateFactCheckerMessage(techCopy.slowAverageLoadIssueTemplate, {
+            ms: pageWeights.avg_load_time_ms,
+          }),
+          raw_evidence: interpolateFactCheckerMessage(techCopy.slowAverageLoadRawEvidenceTemplate, {
+            ms: pageWeights.avg_load_time_ms,
+          }),
+          action: 'flag',
+        });
+      }
+
+      if (
+        pageWeights.lazy_load_coverage < T.tech.minLazyLoadCoveragePercent &&
+        result.score >= T.tech.flagMinScore
+      ) {
+        corrections.push({
+          field: 'score',
+          issue: interpolateFactCheckerMessage(techCopy.lowLazyLoadCoverageIssueTemplate, {
+            pct: pageWeights.lazy_load_coverage,
+          }),
+          raw_evidence: interpolateFactCheckerMessage(techCopy.lowLazyLoadCoverageRawEvidenceTemplate, {
+            pct: pageWeights.lazy_load_coverage,
+          }),
           action: 'flag',
         });
       }

@@ -8,6 +8,7 @@ import { getQuestionBankReportUse } from '../question-bank.js';
 import { SLICE_DOMAIN_ORDER, QUESTION_FEED_ROLES } from '../question-feed-roles.js';
 import type { IntakeQuestionStub, IntakeResponsesMap } from '../types.js';
 import { getResponseString, isIntakeAnswered } from '../unwrap.js';
+import derivedPolicyRaw from '../intake-plan-derived-policy.v1.json' with { type: 'json' };
 
 import type {
   IntakePlanConfidence,
@@ -15,6 +16,15 @@ import type {
   IntakePlanCoverageDomain,
   IntakePlanDerivedFacts,
 } from './types.js';
+
+type DerivedPolicy = {
+  confidenceWeights: {
+    aiReadinessNormalized: number;
+    visibleDataQuality: number;
+  };
+};
+
+const DERIVED_POLICY = derivedPolicyRaw as DerivedPolicy;
 
 function visibleStubsForPlan(visibleBankIds: string[], stubs: IntakeQuestionStub[]): IntakeQuestionStub[] {
   const order = new Map(visibleBankIds.map((id, i) => [id, i]));
@@ -63,7 +73,14 @@ export function computeIntakePlanDerived(args: {
   const visibleStubs = visibleStubsForPlan(visibleBankIds, stubs);
   const dq = calcDataQualityScoreFromVisible(visibleStubs, responses);
   const arNorm = ai.score / 100;
-  const overall = Math.min(1, Math.max(0, arNorm * 0.45 + dq.score * 0.55));
+  const overall = Math.min(
+    1,
+    Math.max(
+      0,
+      arNorm * DERIVED_POLICY.confidenceWeights.aiReadinessNormalized
+      + dq.score * DERIVED_POLICY.confidenceWeights.visibleDataQuality,
+    ),
+  );
 
   const reportAnchors: Record<string, string> = {};
   for (const id of visibleBankIds) {

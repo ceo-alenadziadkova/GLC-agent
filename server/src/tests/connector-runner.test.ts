@@ -43,11 +43,16 @@ vi.mock('../services/supabase.js', () => ({
 
 // ─── Imports after mocks ──────────────────────────────────────────────────────
 
-import { ConnectorRunner, CONNECTOR_HARD_TIMEOUT_MS } from '../services/connector-runner.js';
+import {
+  ConnectorRunner,
+  CONNECTOR_HARD_TIMEOUT_MS,
+  CONNECTOR_DEGRADED_WARN_RATIO,
+} from '../services/connector-runner.js';
 import type { ExternalConnector } from '../config/external-connectors.js';
 import { getConnectorsForPhase } from '../config/external-connectors.js';
 import { FactChecker } from '../services/fact-checker.js';
 import type { DomainResult } from '../types/audit.js';
+import { logger } from '../services/logger.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -168,7 +173,7 @@ describe('ConnectorRunner', () => {
     });
   });
 
-  it('captures result when connector returns null', async () => {
+  it('treats connector null result as unavailable (not timed out)', async () => {
     mockConnectors.push(makeConnector('null-connector', async () => null));
 
     const results = await runner.runAll(PHASE, INPUT);
@@ -176,7 +181,7 @@ describe('ConnectorRunner', () => {
     expect(results).toHaveLength(1);
     expect(results[0]).toMatchObject({
       connector_id: 'null-connector',
-      timed_out: true, // null return = treated as timeout signal
+      timed_out: false,
       confirmed_fact_types: [],
       error: null,
     });
@@ -228,6 +233,75 @@ describe('ConnectorRunner', () => {
 
   it('CONNECTOR_HARD_TIMEOUT_MS is 3000ms (matches ADR-MULTIMODAL-TRUTH.md §3)', () => {
     expect(CONNECTOR_HARD_TIMEOUT_MS).toBe(3_000);
+  });
+
+  it('emits run_all_summary with outcome counters', async () => {
+    mockConnectors.push(
+      makeConnector('ok-connector', async () => ({
+        confirmed_fact_types: ['performance_claim'],
+        evidence_notes: [],
+      })),
+      makeConnector('null-connector', async () => null),
+      makeConnector('err-connector', async () => {
+        throw new Error('Auth failed');
+      }),
+    );
+
+    await runner.runAll(PHASE, INPUT);
+
+    expect(vi.mocked(logger.info)).toHaveBeenCalledWith(
+      'connector.run_all_summary',
+      expect.objectContaining({
+        component: 'connector',
+        phase_id: PHASE,
+        total: 3,
+        success: 1,
+        unavailable: 1,
+        timed_out: 0,
+        error: 1,
+      }),
+    );
+  });
+
+  it('emits degraded warn when timed_out + error ratio crosses threshold', async () => {
+    mockConnectors.push(
+      makeConnector(
+        'slow-connector',
+        () =>
+          new Promise(resolve =>
+            setTimeout(
+              () =>
+                resolve({
+                  confirmed_fact_types: ['sla_claim'],
+                  evidence_notes: [],
+                }),
+              10_000,
+            ),
+          ),
+        { timeout_ms: 100 },
+      ),
+      makeConnector('err-connector', async () => {
+        throw new Error('Auth failed');
+      }),
+      makeConnector('ok-connector', async () => ({
+        confirmed_fact_types: ['performance_claim'],
+        evidence_notes: [],
+      })),
+    );
+
+    await runner.runAll(PHASE, INPUT);
+
+    expect(vi.mocked(logger.warn)).toHaveBeenCalledWith(
+      'connector.run_all_degraded',
+      expect.objectContaining({
+        component: 'connector',
+        phase_id: PHASE,
+        total: 3,
+        timed_out: 1,
+        error: 1,
+        threshold: CONNECTOR_DEGRADED_WARN_RATIO,
+      }),
+    );
   });
 });
 

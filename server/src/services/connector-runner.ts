@@ -34,6 +34,7 @@ import { logger } from './logger.js';
  * Source: `SYSTEM_DEFAULTS.connectors.hardTimeoutMs` (ADR-MULTIMODAL-TRUTH.md §3).
  */
 export const CONNECTOR_HARD_TIMEOUT_MS = SYSTEM_DEFAULTS.connectors.hardTimeoutMs;
+export const CONNECTOR_DEGRADED_WARN_RATIO = SYSTEM_DEFAULTS.connectors.degradedWarnRatio;
 
 // ─── Result shape ─────────────────────────────────────────────────────────────
 
@@ -56,6 +57,8 @@ export interface ConnectorRunResult {
   timed_out: boolean;
   /** Non-null = connector threw or returned a runtime error */
   error: string | null;
+  /** Normalized connector execution outcome for observability and aggregate metrics. */
+  outcome: 'success' | 'unavailable' | 'timed_out' | 'error';
 }
 
 // ─── ConnectorRunner ──────────────────────────────────────────────────────────
@@ -79,7 +82,7 @@ export class ConnectorRunner {
       connectors.map(c => this.runOne(c, { ...input, phase_id: phaseId })),
     );
 
-    return settled.map((outcome, i) => {
+    const results = settled.map((outcome, i) => {
       if (outcome.status === 'fulfilled') return outcome.value;
       // runOne should never reject, but guard defensively
       logger.error('connector.unexpected_rejection', {
@@ -94,8 +97,39 @@ export class ConnectorRunner {
         evidence_notes: [],
         timed_out: false,
         error: outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason),
+        outcome: 'error' as const,
       };
     });
+
+    const summary = {
+      success: 0,
+      unavailable: 0,
+      timed_out: 0,
+      error: 0,
+    };
+    for (const r of results) {
+      summary[r.outcome] += 1;
+    }
+    logger.info('connector.run_all_summary', {
+      component: 'connector',
+      phase_id: phaseId,
+      total: results.length,
+      ...summary,
+    });
+
+    const degradedRatio = (summary.timed_out + summary.error) / results.length;
+    if (degradedRatio >= CONNECTOR_DEGRADED_WARN_RATIO) {
+      logger.warn('connector.run_all_degraded', {
+        component: 'connector',
+        phase_id: phaseId,
+        total: results.length,
+        degraded_ratio: Number(degradedRatio.toFixed(4)),
+        threshold: CONNECTOR_DEGRADED_WARN_RATIO,
+        timed_out: summary.timed_out,
+        error: summary.error,
+      });
+    }
+    return results;
   }
 
   /** Run a single connector with hard timeout. Never rejects. */
@@ -106,13 +140,14 @@ export class ConnectorRunner {
     const timeoutMs = Math.min(connector.timeout_ms, CONNECTOR_HARD_TIMEOUT_MS);
     const sourceTier = connector.source_tier ?? 'external_api';
 
-    // Sentinel value: null means "timed out"
-    const timeoutSignal = new Promise<null>(resolve => setTimeout(() => resolve(null), timeoutMs));
+    // Unique sentinel to distinguish timeout from connector fetch() returning null.
+    const timeoutSentinel = Symbol('connector-timeout');
+    const timeoutSignal = new Promise<symbol>(resolve => setTimeout(() => resolve(timeoutSentinel), timeoutMs));
 
     try {
       const outcome = await Promise.race([connector.fetch(input), timeoutSignal]);
 
-      if (outcome === null) {
+      if (outcome === timeoutSentinel) {
         logger.info('connector.timed_out', {
           component: 'connector',
           connector_id: connector.id,
@@ -126,6 +161,24 @@ export class ConnectorRunner {
           evidence_notes: [],
           timed_out: true,
           error: null,
+          outcome: 'timed_out',
+        };
+      }
+
+      if (outcome === null) {
+        logger.info('connector.unavailable', {
+          component: 'connector',
+          connector_id: connector.id,
+          phase_id: input.phase_id,
+        });
+        return {
+          connector_id: connector.id,
+          source_tier: sourceTier,
+          confirmed_fact_types: [],
+          evidence_notes: [],
+          timed_out: false,
+          error: null,
+          outcome: 'unavailable',
         };
       }
 
@@ -143,6 +196,7 @@ export class ConnectorRunner {
         evidence_notes: outcome.evidence_notes,
         timed_out: false,
         error: null,
+        outcome: 'success',
       };
     } catch (err) {
       logger.error('connector.fetch_error', {
@@ -158,6 +212,7 @@ export class ConnectorRunner {
         evidence_notes: [],
         timed_out: false,
         error: err instanceof Error ? err.message : String(err),
+        outcome: 'error',
       };
     }
   }
