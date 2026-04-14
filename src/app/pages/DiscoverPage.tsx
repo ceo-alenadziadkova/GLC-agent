@@ -135,10 +135,14 @@ function QuestionInput({
                 onClick={() => onChange(sel ? null : opt)}
                 className="px-3 py-2 rounded-lg text-sm transition-all"
                 style={{
-                  background: sel ? 'var(--callout-info-bg)' : 'var(--bg-muted)',
-                  border: sel ? '1px solid var(--callout-info-border-strong)' : '1px solid var(--border-default)',
-                  color: sel ? 'var(--glc-blue)' : 'var(--text-secondary)',
-                  fontWeight: sel ? 500 : 400,
+                  background: sel
+                    ? 'color-mix(in oklab, var(--glc-blue-muted) 78%, var(--bg-surface))'
+                    : 'var(--bg-muted)',
+                  border: sel
+                    ? '1px solid color-mix(in oklab, var(--glc-blue) 70%, var(--border-default))'
+                    : '1px solid var(--border-default)',
+                  color: sel ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
+                  fontWeight: sel ? 600 : 400,
                 }}
               >
                 {opt}
@@ -183,10 +187,14 @@ function QuestionInput({
                 }}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all"
                 style={{
-                  background: sel ? 'var(--callout-info-bg)' : 'var(--bg-muted)',
-                  border: sel ? '1px solid var(--callout-info-border-strong)' : '1px solid var(--border-default)',
-                  color: sel ? 'var(--glc-blue)' : 'var(--text-secondary)',
-                  fontWeight: sel ? 500 : 400,
+                  background: sel
+                    ? 'color-mix(in oklab, var(--glc-blue-muted) 78%, var(--bg-surface))'
+                    : 'var(--bg-muted)',
+                  border: sel
+                    ? '1px solid color-mix(in oklab, var(--glc-blue) 70%, var(--border-default))'
+                    : '1px solid var(--border-default)',
+                  color: sel ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
+                  fontWeight: sel ? 600 : 400,
                 }}
               >
                 {sel && <Check size={12} weight="bold" />}
@@ -803,15 +811,15 @@ export function DiscoverPage(props?: DiscoverPageProps) {
                       contactSaving
                       || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim() && !contactCompany.trim())
                     )
-                      ? 'rgba(255,255,255,0.08)'
-                      : `linear-gradient(135deg, ${GLC_BRAND_HEX.blue}44, ${GLC_BRAND_HEX.blueDeep}44)`,
+                      ? 'color-mix(in oklab, var(--bg-muted) 90%, var(--bg-surface))'
+                      : `linear-gradient(135deg, ${GLC_BRAND_HEX.blue}, ${GLC_BRAND_HEX.blueDeep})`,
                     color: (
                       contactSaving
                       || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim() && !contactCompany.trim())
                     )
-                      ? 'rgba(255,255,255,0.30)'
-                      : 'rgba(255,255,255,0.80)',
-                    border: '1px solid rgba(28,189,255,0.25)',
+                      ? 'var(--text-tertiary)'
+                      : 'var(--primary-foreground)',
+                    border: '1px solid color-mix(in oklab, var(--glc-blue) 32%, var(--border-default))',
                     cursor: (
                       contactSaving
                       || (!contactName.trim() && !contactEmail.trim() && !contactPhone.trim() && !contactCompany.trim())
@@ -966,7 +974,11 @@ export function DiscoverPage(props?: DiscoverPageProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
             className="rounded-2xl p-5 space-y-3"
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+            style={{
+              background: 'var(--bg-surface)',
+              border: '1px solid color-mix(in oklab, var(--glc-blue) 12%, var(--border-subtle))',
+              boxShadow: '0 4px 24px rgba(11,17,32,0.08)',
+            }}
           >
             <div className="flex items-center gap-2">
               <span
@@ -1045,12 +1057,14 @@ export function DiscoverPage(props?: DiscoverPageProps) {
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm transition-transform hover:scale-[1.02] active:scale-[0.97] disabled:hover:scale-100 disabled:active:scale-100"
                 style={{
                   background: canAdvance
-                    ? 'var(--gradient-brand)'
-                    : 'var(--bg-muted)',
-                  color: canAdvance ? 'var(--primary-foreground)' : 'var(--text-tertiary)',
-                  border: 'none',
+                    ? 'linear-gradient(135deg, var(--glc-blue) 0%, var(--glc-blue-deeper) 100%)'
+                    : 'linear-gradient(135deg, color-mix(in oklab, var(--glc-blue) 72%, var(--bg-muted)) 0%, color-mix(in oklab, var(--glc-blue-deeper) 66%, var(--bg-muted)) 100%)',
+                  color: canAdvance ? 'var(--primary-foreground)' : 'color-mix(in oklab, var(--primary-foreground) 76%, transparent)',
+                  border: canAdvance ? 'none' : '1px solid color-mix(in oklab, var(--glc-blue) 34%, var(--border-default))',
                   cursor: canAdvance ? 'pointer' : 'not-allowed',
-                  boxShadow: canAdvance ? '0 4px 14px rgba(28,189,255,0.28)' : 'none',
+                  boxShadow: canAdvance
+                    ? '0 6px 18px color-mix(in oklab, var(--glc-blue) 34%, transparent)'
+                    : '0 3px 10px color-mix(in oklab, var(--glc-blue) 20%, transparent)',
                 }}
               >
                 {currentIdx < sequence.length - 1 ? (

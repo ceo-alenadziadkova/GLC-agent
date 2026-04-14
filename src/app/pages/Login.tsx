@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { ArrowRight, Eye, EyeSlash, Lock } from '@phosphor-icons/react';
 import { useAuth, isAnonymousUser } from '../hooks/useAuth';
 import { logger } from '../lib/logger';
@@ -34,6 +34,7 @@ export function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [forgotSent, setForgotSent] = useState(false);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     const discovery = new URLSearchParams(window.location.search).get('discovery');
@@ -167,7 +168,7 @@ export function Login() {
 
   return (
     <main
-      className="relative flex min-h-screen flex-col items-center justify-center px-6 py-12"
+      className="relative flex min-h-screen flex-col items-stretch justify-center px-6 py-12 md:px-10"
       style={{ backgroundColor: 'var(--bg-canvas)' }}
     >
       <div className="absolute top-4 right-4 z-20 sm:top-6 sm:right-6">
@@ -183,10 +184,91 @@ export function Login() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full"
-        style={{ maxWidth: 440 }}
+        className="relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-10 md:flex-row md:items-center md:justify-between md:gap-14 lg:gap-16"
       >
-        <div className="text-center mb-8">
+        <motion.aside
+          className="hidden max-w-sm flex-1 md:flex md:min-h-[26rem] md:flex-col md:rounded-[var(--radius-2xl)] md:border md:p-6"
+          initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+          animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+          transition={{ duration: 0.36, delay: 0.06, ease: [0.16, 1, 0.3, 1] }}
+          style={{
+            borderColor: 'color-mix(in oklab, var(--border-default) 84%, rgba(255,255,255,0.12))',
+            background:
+              'radial-gradient(ellipse 86% 68% at 8% 12%, color-mix(in oklab, var(--glc-blue) 18%, transparent) 0%, transparent 64%), radial-gradient(ellipse 62% 50% at 95% 100%, color-mix(in oklab, var(--glc-blue-deeper) 15%, transparent) 0%, transparent 58%), linear-gradient(165deg, color-mix(in oklab, var(--bg-surface) 86%, var(--bg-canvas)) 0%, var(--bg-surface) 100%)',
+          }}
+        >
+          <div className="mb-8">
+            <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+              <span
+                className="inline-flex h-2 w-2 rounded-full"
+                style={{
+                  backgroundColor: 'var(--glc-green)',
+                  boxShadow: '0 0 0 6px color-mix(in oklab, var(--glc-green) 22%, transparent)',
+                }}
+                aria-hidden
+              />
+              Workspace access
+            </p>
+          </div>
+          <motion.p
+            className="font-display text-lg font-bold tracking-tight lg:text-xl"
+            style={{ color: 'var(--text-primary)' }}
+            initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+            animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+            transition={{ duration: 0.34, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {LC.authShellAsideTitle}
+          </motion.p>
+          <motion.p
+            className="mt-3 text-sm leading-relaxed lg:text-[0.95rem]"
+            style={{ color: 'var(--text-secondary)' }}
+            initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+            animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+            transition={{ duration: 0.34, delay: 0.14, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {LC.authShellAsideBody}
+          </motion.p>
+          <ul className="mt-5 space-y-2">
+            {LC.authShellTrustSignals.map(signal => (
+              <li key={signal} className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                <span style={{ color: 'var(--glc-green-dark)' }}>-</span>
+                {signal}
+              </li>
+            ))}
+          </ul>
+          <div
+            className="mt-6 rounded-[var(--radius-xl)] border p-4"
+            style={{
+              borderColor: 'color-mix(in oklab, var(--glc-blue) 34%, var(--border-subtle))',
+              background:
+                'linear-gradient(165deg, color-mix(in oklab, var(--glc-blue-muted) 72%, transparent) 0%, color-mix(in oklab, var(--bg-surface) 88%, transparent) 100%)',
+            }}
+          >
+            <p className="text-sm leading-relaxed italic" style={{ color: 'var(--text-secondary)' }}>{LC.authShellQuote}</p>
+            <p className="mt-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--glc-blue-light)' }}>
+              {LC.authShellQuoteAuthor}
+            </p>
+          </div>
+          <p className="mt-auto text-xs leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
+            New to GLC? Start with{' '}
+            <Link to="/snapshot" className="underline-offset-2 hover:underline" style={{ color: 'var(--glc-blue)' }}>
+              Snapshot
+            </Link>{' '}
+            or{' '}
+            <Link to="/brief" className="underline-offset-2 hover:underline" style={{ color: 'var(--glc-blue)' }}>
+              Brief
+            </Link>
+            .
+          </p>
+        </motion.aside>
+
+        <motion.div
+          className="w-full md:max-w-md md:flex-shrink-0"
+          initial={reduceMotion ? false : { opacity: 0, y: 12, clipPath: 'inset(0 0 100% 0 round var(--radius-2xl))' }}
+          animate={reduceMotion ? undefined : { opacity: 1, y: 0, clipPath: 'inset(0 0 0% 0 round var(--radius-2xl))' }}
+          transition={{ duration: 0.45, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+        >
+        <div className="text-center mb-8 md:text-left">
           <motion.div
             initial={{ scale: 0.75, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -215,8 +297,8 @@ export function Login() {
                   letterSpacing: 'var(--tracking-tight)',
                 }}
               >
-                <span className="text-[#444343] dark:text-[#DEDEDE]">{LC.brandWordmarkPrimary}</span>
-                <span className="text-[rgba(68,67,67,0.78)] dark:text-[#e5e7ebb8]">{LC.brandWordmarkSecondary}</span>
+                <span style={{ color: 'var(--text-primary)' }}>{LC.brandWordmarkPrimary}</span>
+                <span style={{ color: 'var(--text-secondary)' }}>{LC.brandWordmarkSecondary}</span>
               </h1>
             </Link>
           </motion.div>
@@ -327,12 +409,12 @@ export function Login() {
                     className="w-full flex items-center justify-center gap-2 py-3 font-semibold"
                     style={{
                       borderRadius: 'var(--radius-lg)',
-                      background: 'var(--gradient-accent)',
+                      background: 'var(--gradient-brand)',
                       color: 'var(--primary-foreground)',
                       cursor: loading ? 'not-allowed' : 'pointer',
                       fontSize: 'var(--text-sm)',
                       border: 'none',
-                      boxShadow: '0 4px 14px rgba(242,79,29,0.28)',
+                      boxShadow: '0 8px 20px color-mix(in oklab, var(--glc-blue) 34%, transparent)',
                       opacity: loading ? 0.7 : 1,
                     }}
                   >
@@ -387,7 +469,7 @@ export function Login() {
                       className="w-full flex items-center justify-center gap-2 py-3 font-semibold"
                       style={{
                         borderRadius: 'var(--radius-lg)',
-                        background: email.trim() ? 'var(--gradient-accent)' : 'var(--border-default)',
+                        background: email.trim() ? 'var(--gradient-brand)' : 'var(--border-default)',
                         color: email.trim() ? 'var(--primary-foreground)' : 'var(--text-tertiary)',
                         cursor: email.trim() && !loading ? 'pointer' : 'not-allowed',
                         fontSize: 'var(--text-sm)',
@@ -402,9 +484,17 @@ export function Login() {
             )}
 
             {!passwordRecoveryMode && mode !== 'forgot' && isAnonymousUser(user) && (
-              <p className="mb-3 rounded-lg px-3 py-2 text-xs leading-snug" style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-                {LC.anonymousHint}
-              </p>
+              <div
+                className="mb-4 rounded-[var(--radius-xl)] border px-4 py-3"
+                style={{
+                  borderColor: 'color-mix(in oklab, var(--glc-blue) 45%, var(--border-subtle))',
+                  backgroundColor: 'color-mix(in oklab, var(--glc-blue-muted) 42%, transparent)',
+                }}
+              >
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  {LC.anonymousHint}
+                </p>
+              </div>
             )}
 
             {!passwordRecoveryMode && mode !== 'forgot' && (
@@ -521,12 +611,12 @@ export function Login() {
                 className="w-full flex items-center justify-center gap-2 py-3 font-semibold"
                 style={{
                   borderRadius: 'var(--radius-lg)',
-                  background: isReady ? 'var(--gradient-accent)' : 'var(--border-default)',
+                  background: isReady ? 'var(--gradient-brand)' : 'var(--border-default)',
                   color: isReady ? 'var(--primary-foreground)' : 'var(--text-tertiary)',
                   cursor: isReady && !loading ? 'pointer' : 'not-allowed',
                   fontSize: 'var(--text-sm)',
                   border: 'none',
-                  boxShadow: isReady ? '0 4px 14px rgba(242,79,29,0.28)' : 'none',
+                  boxShadow: isReady ? '0 8px 20px color-mix(in oklab, var(--glc-blue) 34%, transparent)' : 'none',
                 }}
               >
                 {loading ? (
@@ -553,12 +643,13 @@ export function Login() {
           )}
         </div>
 
-        <p className="mt-5 text-center text-xs" style={{ color: 'var(--text-quaternary)' }}>
+        <p className="mt-5 text-center text-xs md:text-left" style={{ color: 'var(--text-quaternary)' }}>
           {LC.footerTerms}{' '}
-          <Link to="/faq" className="underline-offset-2 hover:underline" style={{ color: 'var(--text-tertiary)' }}>
+          <Link to="/faq" className="underline-offset-2 hover:underline" style={{ color: 'var(--glc-blue)' }}>
             {LC.footerFaq}
           </Link>
         </p>
+        </motion.div>
       </motion.div>
     </main>
   );

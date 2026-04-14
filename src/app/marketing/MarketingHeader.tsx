@@ -6,9 +6,11 @@ import { ThemeToggle } from '../components/ThemeToggle';
 import { LOGIN_PATH, MARKETING_LINKS } from './marketing-nav';
 import { cn } from '../components/ui/utils';
 import { usePublicBrand } from './PublicBrandContext';
+import { useScrolled } from '../hooks/useScrolled';
 
 export function MarketingHeader() {
   const [open, setOpen] = useState(false);
+  const scrolled = useScrolled();
   const { footer } = usePublicBrand();
   const primaryLinks = MARKETING_LINKS.filter(link =>
     ['/', '/snapshot', '/starter', '/pro', '/complete', '/brief'].includes(link.to),
@@ -19,7 +21,12 @@ export function MarketingHeader() {
       className="sticky top-0 z-50 border-b backdrop-blur-xl"
       style={{
         borderColor: 'var(--border-subtle)',
-        backgroundColor: 'color-mix(in oklab, var(--bg-canvas) 90%, transparent)',
+        backgroundColor: scrolled
+          ? 'color-mix(in oklab, var(--bg-canvas) 78%, transparent)'
+          : 'color-mix(in oklab, var(--bg-canvas) 90%, transparent)',
+        backdropFilter: scrolled ? 'blur(16px) saturate(180%)' : 'blur(10px)',
+        boxShadow: scrolled ? '0 1px 0 color-mix(in oklab, var(--text-primary) 8%, transparent)' : 'none',
+        transition: 'background-color 300ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 300ms cubic-bezier(0.16, 1, 0.3, 1), backdrop-filter 300ms cubic-bezier(0.16, 1, 0.3, 1)',
         paddingTop: 'max(0.5rem, env(safe-area-inset-top))',
       }}
     >
@@ -57,13 +64,13 @@ export function MarketingHeader() {
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <ThemeToggle />
-          <Link
+                   <Link
             to="/brief"
             className="hidden rounded-lg px-3 py-2 text-sm font-semibold sm:inline-flex"
             style={{
               background: 'var(--gradient-brand)',
               color: 'var(--primary-foreground)',
-              boxShadow: '0 8px 22px rgba(28,189,255,0.24)',
+              boxShadow: 'none',
             }}
           >
             Start with Brief

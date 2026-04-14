@@ -50,6 +50,7 @@ A full-stack B2B SaaS platform for AI-powered business audits. A consultant subm
 | `src/app/hooks/usePipeline.ts` | Supabase Realtime subscription to pipeline_events |
 | `src/app/components/AppShell.tsx` | Layout with audit-aware navigation (`useCurrentAuditId`) |
 | `packages/intake-core` (`@glc/intake-core`) | Shared intake: `buildIntakePlan`, question bank JSON, SLA gates, validation helpers, **choice “specify other”** (`choiceValueNeedsSpecify`, …) — import only this package from app/server (no `server/src/intake`, no duplicate `src/app/lib` shim) |
+| `src/app/config/marketing-motion.ts`, `marketing-motion-variants.ts`, `marketing-surface-tokens.ts`, `package-page-layout.ts`, `audit-compare-marketing.ts` | Unified public marketing motion (stagger, text reveal, card lift) and surface presets (hero shell, comparison, action band); package page density and compare-row focus. Primitives: `MarketingTextReveal`, `MarketingComparisonShell`, `MarketingRevealMask`, blocks under `src/app/marketing/blocks/`. |
 
 ---
 

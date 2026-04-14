@@ -88,6 +88,12 @@
     "submitButton": "Submit brief",
     "submitErrorGeneric": "Could not submit. Try again later.",
     "submitErrorEmailSuffix": " or email {{email}}",
+    "formShellTitle": "Brief request",
+    "sectionIdentityTitle": "Identity and business",
+    "sectionPainTitle": "Current pain",
+    "sectionOutcomeTitle": "Desired outcome",
+    "sectionDepthTitle": "Analysis depth",
+    "sectionContactTitle": "Contact preference",
     "nextSteps": [
       { "to": "/faq", "label": "FAQ", "hint": "Answers before you reach out." },
       { "to": "/snapshot", "label": "Snapshot", "hint": "If you want a fast automated read first." },
@@ -96,5 +102,9 @@
   },
   "portfolio": {
     "appShellSubtitle": "All client audits and pipeline history (GLC team)"
+  },
+  "faqPage": {
+    "compareMatrixTitle": "Compare workspace depth",
+    "compareMatrixLead": "Full matrix of capabilities across Focus, Context, and Strategy workspace—use it alongside the questions below."
   }
 }

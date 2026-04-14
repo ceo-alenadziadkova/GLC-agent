@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { ensureHttpsUrl } from '@glc/intake-core';
 import type { User } from '@supabase/supabase-js';
 import {
@@ -50,6 +50,7 @@ import {
 } from '../lib/snapshot-landing-helpers';
 import {
   CategoryBreakdownHint,
+  SnapshotIdlePreviewCards,
   SnapshotScoreContextNotes,
   SnapshotScoreDonut,
 } from './snapshot-landing';
@@ -59,6 +60,8 @@ import {
   SNAPSHOT_LANDING_POLL_FAILURE_THRESHOLD,
   SNAPSHOT_LANDING_POLL_INTERVAL_MS,
 } from '../lib/snapshot-polling-config';
+import { SNAPSHOT_COMMAND_SHELL_OUTLINE } from '../config/snapshot-marketing-ui';
+import { marketingHeroBillboardMotion } from '../config/marketing-motion-variants';
 
 type Stage = 'idle' | 'submitting' | 'running' | 'done' | 'error';
 
@@ -78,6 +81,8 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
   const [competitorLoading, setCompetitorLoading] = useState(false);
   const [competitorLoadError, setCompetitorLoadError] = useState('');
   const [accountUser, setAccountUser] = useState<User | null>(null);
+  const reduceMotion = useReducedMotion();
+  const heroMotion = marketingHeroBillboardMotion(reduceMotion);
 
   useEffect(() => {
     let cancelled = false;
@@ -391,11 +396,15 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
               <div className="flex flex-col gap-8 mobile:gap-7 lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-12 lg:gap-y-6">
                 {/* HERO + context column */}
                 <div className="order-1 flex flex-col gap-6 text-center lg:order-none lg:col-span-7 lg:row-start-1 lg:gap-6 lg:text-left mobile:gap-5">
-                  <section
+                  <motion.section
                     aria-labelledby="snapshot-hero-heading"
-                    className="flex flex-col items-stretch gap-4 lg:gap-4 lg:border-l-2 lg:border-[color-mix(in_oklab,var(--glc-blue)_45%,var(--border-subtle))] lg:pl-6 mobile:gap-3"
+                    className="relative flex flex-col items-stretch gap-4 overflow-hidden  px-4 py-4 lg:gap-4 lg:border-l-2 lg:border-[color-mix(in_oklab,var(--glc-blue)_45%,var(--border-subtle))] lg:px-0 lg:py-0 lg:pl-6 mobile:gap-3"
+
+                    variants={heroMotion.container}
+                    initial={reduceMotion ? false : 'hidden'}
+                    animate="visible"
                   >
-                    <div className="flex justify-center lg:justify-start">
+                    <motion.div className="flex justify-center lg:justify-start" variants={heroMotion.item}>
                       <div
                         className="inline-flex max-w-full items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide mobile:py-1.5 mobile:pl-3 mobile:pr-3.5 mobile:text-[11px] mobile:leading-tight"
                         style={{
@@ -407,10 +416,11 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                       >
                         <Lightning className="h-3.5 w-3.5 shrink-0" weight="fill" /> Quick rule-based scan
                       </div>
-                    </div>
+                    </motion.div>
 
-                    <h1
+                    <motion.h1
                       id="snapshot-hero-heading"
+                      variants={heroMotion.item}
                       className="mx-auto w-full max-w-[min(100%,22rem)] text-balance tracking-[-0.025em] lg:mx-0 lg:max-w-xl lg:tracking-[-0.035em]"
                       style={{
                         fontSize: 'clamp(2.05rem, 9.25vw, 4rem)',
@@ -424,35 +434,49 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                       <span className="glc-gradient-text-flow mt-2 block lg:mt-2.5 mobile:mt-2 lg:max-w-[14ch]">
                         convert visitors?
                       </span>
-                    </h1>
-                  </section>
+                    </motion.h1>
+                  </motion.section>
 
                   {/* Mobile: subcopy + trust in one calm band; desktop: unwrapped flow */}
-                  <div className="flex flex-col gap-3 text-center lg:contents lg:text-left">
-                    <p
+                  <motion.div
+                    className="flex flex-col gap-3 text-center lg:contents lg:text-left"
+                    variants={heroMotion.container}
+                    initial={reduceMotion ? false : 'hidden'}
+                    animate="visible"
+                  >
+                    <motion.p
                       className="mx-auto max-w-md text-pretty leading-snug lg:mx-0 mobile:max-w-none mobile:text-[0.8125rem] mobile:leading-relaxed"
                       style={{ color: 'var(--text-secondary)', fontSize: 'clamp(0.8125rem, 2.85vw, 0.975rem)' }}
+                      variants={heroMotion.item}
                     >
                       Enter your site address for a quick, plain-language read on how it feels for real visitors — what works, what gets in the way, and where to focus first.
-                    </p>
+                    </motion.p>
 
-                    <div
+                    <motion.div
                       className="mx-auto flex w-full max-w-md items-center justify-center gap-2 py-1 text-sm font-medium lg:mx-0 lg:w-auto lg:max-w-none lg:justify-start"
                       style={{ color: 'var(--text-tertiary)' }}
+                      variants={heroMotion.item}
                     >
                       <CheckCircle className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
                       {hasFullAccount
                         ? WORKSPACE_PAGE_COPY.snapshotLanding.trustSignedIn
                         : WORKSPACE_PAGE_COPY.snapshotLanding.trustAnonymous}
-                    </div>
-                  </div>
+                    </motion.div>
+                  </motion.div>
                 </div>
 
                 <div className="order-2 w-full lg:order-none lg:col-span-5 lg:row-span-2 lg:row-start-1 lg:self-start lg:pt-1">
-                  {/* Only this block reads as a card on mobile — main CTA */}
                   <div
-                    className="glc-card p-6 lg:p-7 mobile:p-5 mobile:shadow-[0_12px_40px_rgba(0,0,0,0.14)]"
-                    style={{ borderRadius: 'var(--radius-2xl)' }}
+                    className="glc-light-snapshot-shell rounded-[var(--radius-2xl)] p-px shadow-[var(--shadow-sm)]"
+                    style={{ background: SNAPSHOT_COMMAND_SHELL_OUTLINE }}
+                  >
+                  <div
+                    className="glc-light-snapshot-shell-inner p-6 lg:p-7 mobile:p-5 mobile:shadow-[0_12px_40px_rgba(0,0,0,0.14)]"
+                    style={{
+                      borderRadius: 'calc(var(--radius-2xl) - 1px)',
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)',
+                    }}
                   >
                 <p
                   className="mb-4 hidden text-left text-xs font-semibold tracking-wide lg:hidden"
@@ -476,7 +500,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                       inputMode="url"
                       autoCapitalize="none"
                       autoCorrect="off"
-                      className="w-full rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-transparent py-3 pl-10 pr-4 text-sm outline-none transition-[border-color,box-shadow] mobile:min-h-12 mobile:py-3.5 mobile:text-base"
+                      className="glc-light-snapshot-input w-full rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-transparent py-3 pl-10 pr-4 text-sm outline-none transition-[border-color,box-shadow] mobile:min-h-12 mobile:py-3.5 mobile:text-base"
                       style={{
                         backgroundColor: 'var(--bg-surface)',
                         color: 'var(--text-primary)',
@@ -492,12 +516,12 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                     disabled={!url.trim() || stage === 'submitting'}
                     whileHover={url.trim() ? { scale: 1.015 } : {}}
                     whileTap={url.trim() ? { scale: 0.985 } : {}}
-                    className="flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] py-3 text-sm font-semibold text-white mobile:min-h-12"
+                    className="glc-light-snapshot-cta flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] py-3 text-sm font-semibold text-white mobile:min-h-12"
                     style={{
                       background:
                         url.trim()
-                          ? 'var(--gradient-accent)'
-                          : 'var(--border-default)',
+                          ? 'linear-gradient(135deg, var(--glc-blue) 0%, var(--glc-blue-deeper) 100%)'
+                          : 'linear-gradient(135deg, color-mix(in oklab, var(--glc-blue) 72%, var(--bg-muted)) 0%, color-mix(in oklab, var(--glc-blue-deeper) 66%, var(--bg-muted)) 100%)',
                       border: 'none',
                       cursor:
                         url.trim() && stage !== 'submitting'
@@ -505,8 +529,8 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                           : 'not-allowed',
                       boxShadow:
                         url.trim()
-                          ? '0 4px 14px rgba(242,79,29,0.28)'
-                          : 'none',
+                          ? '0 8px 22px color-mix(in oklab, var(--glc-blue) 36%, transparent)'
+                          : '0 3px 10px color-mix(in oklab, var(--glc-blue) 18%, transparent)',
                     }}
                   >
                     {stage === 'submitting' ? (
@@ -537,6 +561,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                     )}
                   </div>
                 )}
+                  </div>
                   </div>
                 </div>
 
@@ -576,24 +601,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                 )}
               </div>
 
-              {/* What's included — mobile: 2×2 grid; desktop: wrap row */}
-              <div className="mt-10 grid w-full grid-cols-2 gap-x-4 gap-y-2.5 mobile:max-w-[20rem] mobile:mx-auto mobile:pt-1 lg:mx-0 lg:mt-14 lg:flex lg:max-w-none lg:flex-wrap lg:justify-start lg:gap-x-8 lg:gap-y-3">
-                <p
-                  className="col-span-2 text-center text-[10px] font-semibold uppercase tracking-[0.16em] lg:hidden"
-                  style={{ color: 'var(--text-quaternary)' }}
-                >
-                  You will get
-                </p>
-                {['UX score', 'Top issues', 'Quick wins', 'Tech stack'].map(item => (
-                  <div
-                    key={item}
-                    className="flex items-center justify-center gap-2 text-center text-xs text-[var(--text-tertiary)] lg:inline-flex lg:min-w-0 lg:max-w-full lg:justify-start lg:text-left"
-                  >
-                    <CheckCircle className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--glc-green)' }} />
-                    <span className="leading-tight">{item}</span>
-                  </div>
-                ))}
-              </div>
+              <SnapshotIdlePreviewCards />
             </motion.div>
           )}
 

@@ -1,0 +1,227 @@
+{
+  "marketing_home": {
+    "hero": {
+      "eyebrow": "Business context workspace",
+      "headline": "One place where your business context turns into coordinated decisions",
+      "headline_gradient_suffix": "coordinated decisions",
+      "subheadline": "GLC captures what matters once, coordinates specialist workflows, and turns inputs into shared strategy and roadmap.",
+      "supporting_line": "Built for teams that need continuity and a clear next move—not scattered one-off outputs.",
+      "snapshot_caption": "Snapshot is the first visibility check from public signals before you add deeper context.",
+      "ctas": {
+        "primary": "Start with your context",
+        "secondary": "See how it works"
+      },
+      "trust_bullets": [
+        "Explicit scope before delivery",
+        "Handoff-ready workspace output",
+        "Prioritized next actions"
+      ]
+    },
+    "client_dashboard": {
+      "title": "Already working with us?",
+      "body": "Client dashboard: workspace status, materials, and recommended actions.",
+      "cta_sign_in": "Sign in to dashboard"
+    },
+    "outcomes_section": {
+      "title": "What you actually get",
+      "description": "Every paid tier is built for decisions and handoff—not a static slide deck.",
+      "items": [
+        {
+          "title": "Shared operating picture",
+          "body": "You see what blocks progress now, what is secondary, and what can wait—with explicit coverage."
+        },
+        {
+          "title": "Priority roadmap",
+          "body": "Impact and sequencing so teams know what to do first and what depends on what."
+        },
+        {
+          "title": "Transparent scope",
+          "body": "Covered and not-analyzed domains are explicit, so expectations stay realistic."
+        }
+      ]
+    },
+    "trust_strip": {
+      "title": "Why teams trust this flow",
+      "lines": [
+        "Scope is explicit before delivery starts.",
+        "Outputs are structured for real implementation handoff.",
+        "Entry path is flexible: Snapshot, Brief, or direct tier selection."
+      ]
+    },
+    "next_steps": {
+      "title": "What to do next",
+      "subtitle": "If you want a human in the loop—brief or FAQ."
+    },
+    "mid_page_cta": {
+      "title": "Ready to capture your context once",
+      "body": "Start with a brief call or your context flow—we map scope before delivery and keep everything in one workspace.",
+      "cta_label": "Start with your context",
+      "cta_to": "/brief"
+    },
+    "landmarks": {
+      "hero": "Overview",
+      "who_we_are": "Who we are",
+      "what_we_do": "What we do",
+      "how_it_works": "How it works",
+      "coverage": "Coverage tiers",
+      "outcomes": "Deliverables",
+      "trust": "Trust",
+      "faq": "Questions",
+      "clients": "Existing clients",
+      "mid_cta": "Continue with GLC"
+    }
+  },
+  "decision_paths": [
+    {
+      "title": "Quick diagnosis",
+      "subtitle": "Public signals → first map",
+      "to": "/snapshot"
+    },
+    {
+      "title": "Full context",
+      "subtitle": "Your inputs + coordination",
+      "to": "/pro"
+    },
+    {
+      "title": "Strategy workspace",
+      "subtitle": "Synthesis → roadmap",
+      "to": "/complete"
+    }
+  ],
+  "snapshot_preview_cards": [
+    {
+      "title": "Conversion friction",
+      "status": "High",
+      "status_tone": "danger",
+      "example": "Checkout CTA is easy to miss on mobile hero."
+    },
+    {
+      "title": "Trust gaps",
+      "status": "Medium",
+      "status_tone": "warning",
+      "example": "Proof points and security cues are inconsistent above the fold."
+    },
+    {
+      "title": "Clarity issues",
+      "status": "Medium",
+      "status_tone": "neutral",
+      "example": "Core value proposition takes too long to parse on first screen."
+    },
+    {
+      "title": "First 3 actions",
+      "status": "Ready",
+      "status_tone": "success",
+      "example": "Prioritized fixes with impact and execution order."
+    }
+  ],
+  "faq": {
+    "snapshot_vs_workspace": {
+      "question": "Snapshot vs full workspace?",
+      "answer": "Snapshot gives first visibility from public signals. Workspace adds your context, coordinates domain analysis, and builds roadmap."
+    }
+  },
+  "packages": {
+    "quick": { "title": "Quick diagnosis", "subtitle": "First visibility map" },
+    "full": { "title": "Full context analysis", "subtitle": "Your inputs + domain coordination" },
+    "strategy": { "title": "Strategy workspace", "subtitle": "Synthesis + roadmap" }
+  },
+  "package_pages": {
+    "starter": {
+      "breadcrumb": "Focus package",
+      "h1": "Focus package",
+      "lead": "One priority domain with clear scope—actionable output without pretending you have full cross-domain coverage.",
+      "mid_cta": {
+        "title": "Lock scope for one priority domain",
+        "body": "Brief maps Focus to your bottleneck—we confirm coverage before delivery and keep outputs handoff-ready.",
+        "cta_label": "Book a brief call",
+        "cta_to": "/brief"
+      },
+      "next_steps": {
+        "title": "Go deeper or move faster",
+        "subtitle": "Expand coverage when one domain is not enough—or talk to us first."
+      },
+      "audience": {
+        "title": "Who Focus is for",
+        "cards": [
+          {
+            "situation": "You have traffic but weak conversion",
+            "happening_now": "Teams ship updates, but the same conversion drop keeps coming back.",
+            "best_fit": "Best fit: Focus"
+          },
+          {
+            "situation": "You need one urgent decision this quarter",
+            "happening_now": "There is one bottleneck blocking outcomes, and waiting costs more than acting.",
+            "best_fit": "Best fit: Focus"
+          },
+          {
+            "situation": "You need a roadmap before hiring support",
+            "happening_now": "You want clear scope and priorities before committing budget to agency or dev hires.",
+            "best_fit": "Best fit: Focus"
+          }
+        ]
+      }
+    },
+    "pro": {
+      "breadcrumb": "Context package",
+      "h1": "Full context analysis",
+      "lead": "When one domain is too narrow and six domains are unnecessary: choose 2–3 areas and get stronger dependency and sequencing confidence.",
+      "mid_cta": {
+        "title": "Coordinate two or three domains with confidence",
+        "body": "Brief helps pick the right Context pack—dependencies and sequencing without paying for full six-domain depth.",
+        "cta_label": "Start with your context",
+        "cta_to": "/brief"
+      },
+      "next_steps": {
+        "title": "Balance depth and speed",
+        "subtitle": "Step up to Strategy workspace or narrow to Focus when scope is clear."
+      },
+      "audience": {
+        "title": "Who Context is for",
+        "cards": [
+          {
+            "situation": "You suspect connected issues across UX + SEO",
+            "happening_now": "Single-domain fixes improve one metric while another area degrades.",
+            "best_fit": "Best fit: Context"
+          },
+          {
+            "situation": "You need better sequencing confidence",
+            "happening_now": "Stakeholders agree on problems but not on what to tackle first.",
+            "best_fit": "Best fit: Context"
+          },
+          {
+            "situation": "You need a practical roadmap without full six-domain scope",
+            "happening_now": "You need cross-signal direction now, but complete synthesis is not required yet.",
+            "best_fit": "Best fit: Context"
+          }
+        ]
+      }
+    },
+    "complete": {
+      "breadcrumb": "Strategy workspace",
+      "h1": "Strategy workspace",
+      "lead": "Full six-domain coverage for teams that need maximum comparability and end-to-end synthesis.",
+      "mid_cta": {
+        "title": "Full synthesis when comparability matters",
+        "body": "Align on six-domain scope before we run—then roadmap, priorities, and explicit coverage in one workspace.",
+        "cta_label": "Start with your context",
+        "cta_to": "/brief"
+      },
+      "next_steps": {
+        "title": "After Strategy workspace",
+        "subtitle": "Implementation, handoff, or a narrower follow-up—your call."
+      }
+    }
+  },
+  "report": {
+    "title": "Workspace report",
+    "subtitle": "Your operating map",
+    "followup_heading": "Improve future workspace",
+    "followup_hint": "Improve future workspace with more context",
+    "loading_subtitle": "Loading your operating map…",
+    "error_subtitle": "Could not load workspace",
+    "not_found": "Workspace not found",
+    "partial_coverage_note": "Partial coverage: score is not directly comparable with complete six-domain workspaces.",
+    "single_domain_note": "Confidence note: single-domain coverage has lower cross-domain confidence by design."
+  },
+  "audit_compare_footer": "Focus for one urgent area, Context for a coordinated pack, Strategy workspace for full cross-domain confidence."
+}

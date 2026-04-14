@@ -22,6 +22,9 @@ import {
   REPORT_PROFILES,
   type ReportProfile,
 } from '@glc/intake-core';
+import workspacePackaging from '../data/marketing-workspace-packaging.en.json';
+
+const reportCopy = workspacePackaging.report;
 
 const PROFILE_ICONS: Record<ReportProfile, ElementType> = {
   full: ChartBar,
@@ -98,7 +101,7 @@ export function ReportViewer() {
 
   if (loading && !audit) {
     return (
-      <AppShell title="Audit Report" subtitle="Loading...">
+      <AppShell title={reportCopy.title} subtitle={reportCopy.loading_subtitle}>
         <div className="flex items-center justify-center h-64">
           <ArrowsClockwise className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
         </div>
@@ -108,9 +111,9 @@ export function ReportViewer() {
 
   if (error || !audit) {
     return (
-      <AppShell title="Audit Report" subtitle="Error">
+      <AppShell title={reportCopy.title} subtitle={reportCopy.error_subtitle}>
         <div className="flex items-center justify-center h-64">
-          <p style={{ color: 'var(--score-1)' }}>{error || 'Audit not found'}</p>
+          <p style={{ color: 'var(--score-1)' }}>{error || reportCopy.not_found}</p>
         </div>
       </AppShell>
     );
@@ -167,8 +170,8 @@ export function ReportViewer() {
 
   return (
     <AppShell
-      title="Audit Report"
-      subtitle={`${companyName} · ${id?.slice(0, 8)}`}
+      title={reportCopy.title}
+      subtitle={`${reportCopy.subtitle} · ${companyName}`}
       actions={
         <div className="flex items-center gap-2">
           <StatusPill
@@ -367,7 +370,7 @@ export function ReportViewer() {
           </p>
           {missingDomains.length > 0 && (
             <p style={{ fontSize: 'var(--text-xs)', color: 'var(--score-2)', marginTop: 8 }}>
-              Partial audit: score is not directly comparable with complete 6-domain audits.
+              {reportCopy.partial_coverage_note}
             </p>
           )}
           {missingDomains.length > 0 && (
@@ -377,7 +380,7 @@ export function ReportViewer() {
           )}
           {coveredDomains.length <= 1 && (
             <p style={{ fontSize: 'var(--text-xs)', color: 'var(--score-2)', marginTop: 6 }}>
-              Confidence note: single-domain audits have lower cross-domain confidence by design.
+              {reportCopy.single_domain_note}
             </p>
           )}
         </div>
@@ -542,7 +545,10 @@ export function ReportViewer() {
           >
             <div className="flex items-center justify-between gap-3">
               <div>
-                <SectionLabel>Improve future audits</SectionLabel>
+                <SectionLabel>{reportCopy.followup_heading}</SectionLabel>
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: 6 }}>
+                  {reportCopy.followup_hint}
+                </p>
                 <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: 6 }}>
                   You&apos;ve answered {answeredFollowUps} of {followUpQuestions.length} follow-up questions.
                 </p>

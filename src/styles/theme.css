@@ -79,36 +79,36 @@
   --callout-info-border-strong:    rgba(28,189,255,0.30);
 
   /* ── Surfaces ───────────────────────────────── */
-  --bg-canvas:  #F5F7FB;
+  --bg-canvas:  #EFF3FA;
   --bg-surface: #FFFFFF;
   --bg-elevated:#FFFFFF;
-  --bg-muted:   #EEF1F7;
-  --bg-inset:   #F0F3F9;
+  --bg-muted:   #E5ECF7;
+  --bg-inset:   #E8EFF8;
   --bg-sidebar: var(--glc-ink);
 
   /* ── Text ───────────────────────────────────── */
   /* Tertiary / quaternary: use for captions, meta, disabled-looking UI — not sole carrier of critical copy under ~14px (quaternary often below WCAG AA 4.5:1 on light surfaces). */
   --text-primary:    #0B1120;
-  --text-secondary:  #3D4F6A;
-  --text-tertiary:   #8496B0;
-  --text-quaternary: #B2C0CF;
+  --text-secondary:  #334861;
+  --text-tertiary:   #7488A4;
+  --text-quaternary: #A3B2C4;
   --text-inverse:    #FFFFFF;
   --text-accent:     var(--glc-orange);
   --text-blue:       var(--glc-blue);
 
   /* ── Borders ────────────────────────────────── */
-  --border-subtle:  #E8ECF3;
-  --border-default: #D3DAE6;
-  --border-strong:  #9EADC4;
+  --border-subtle:  #D6E0ED;
+  --border-default: #BDCBDE;
+  --border-strong:  #95A7C0;
 
   /* ── Shadows ────────────────────────────────── */
-  --shadow-xs:   0 1px 2px rgba(11,17,32,0.04);
-  --shadow-sm:   0 1px 3px rgba(11,17,32,0.07), 0 1px 2px rgba(11,17,32,0.04);
-  --shadow-md:   0 4px 12px rgba(11,17,32,0.08), 0 2px 4px rgba(11,17,32,0.04);
-  --shadow-lg:   0 12px 32px rgba(11,17,32,0.10), 0 4px 0.5rem rgba(11,17,32,0.05);
-  --shadow-xl:   0 24px 48px rgba(11,17,32,0.12), 0 0.5rem 16px rgba(11,17,32,0.06);
+  --shadow-xs:   0 1px 2px rgba(11,17,32,0.06);
+  --shadow-sm:   0 2px 7px rgba(11,17,32,0.09), 0 1px 2px rgba(11,17,32,0.05);
+  --shadow-md:   0 9px 22px rgba(11,17,32,0.11), 0 3px 7px rgba(11,17,32,0.06);
+  --shadow-lg:   0 18px 38px rgba(11,17,32,0.13), 0 7px 16px rgba(11,17,32,0.07);
+  --shadow-xl:   0 30px 58px rgba(11,17,32,0.15), 0 11px 26px rgba(11,17,32,0.08);
   --shadow-blue: 0 0 0 3px rgba(28,189,255,0.20);
-  --shadow-card: 0 0 0 1px var(--border-subtle), var(--shadow-sm);
+  --shadow-card: 0 0 0 1px color-mix(in oklab, var(--border-subtle) 80%, transparent), var(--shadow-md);
 
   /* Colored glows */
   --glow-blue:      0 0 0 3px rgba(28,189,255,0.20), 0 0 20px rgba(28,189,255,0.10);
@@ -119,10 +119,10 @@
   --shadow-swiss:   3px 3px 0 var(--glc-ink);
 
   /* ── Glassmorphism ──────────────────────────── */
-  --glass-bg:        rgba(255,255,255,0.70);
-  --glass-border:    rgba(255,255,255,0.48);
+  --glass-bg:        rgba(255,255,255,0.86);
+  --glass-border:    rgba(255,255,255,0.68);
   --glass-blur:      blur(14px) saturate(160%);
-  --glass-shadow:    0 4px 24px rgba(11,17,32,0.08), 0 0 0 1px rgba(255,255,255,0.48);
+  --glass-shadow:    0 10px 30px rgba(11,17,32,0.11), 0 0 0 1px rgba(255,255,255,0.68);
 
   /* ── Gradients ──────────────────────────────── */
   --gradient-brand:   linear-gradient(135deg, #1CBDFF 0%, #0077A8 100%);
@@ -261,17 +261,17 @@ html.dark {
   --bg-sidebar:  #010409;
 
   --text-primary:    #e6edf3;
-  --text-secondary:  #8b949e;
-  --text-tertiary:   #6e7681;
+  --text-secondary:  #9ea8b3;
+  --text-tertiary:   #7d8793;
   /* Slightly above old #484f58 for ~4.5:1 on canvas (AA small text) */
   --text-quaternary: #6a737d;
   --text-inverse:    #0d1117;
-  --text-accent:     var(--glc-orange-light);
+  --text-accent:     var(--glc-blue-light);
   --text-blue:       var(--glc-blue);
 
-  --border-subtle:  #21262d;
-  --border-default: #30363d;
-  --border-strong:  #484f58;
+  --border-subtle:  #2a313b;
+  --border-default: #3a4451;
+  --border-strong:  #596575;
 
   --shadow-xs:   0 1px 2px rgba(0,0,0,0.45);
   --shadow-sm:   0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.32);
@@ -334,8 +334,8 @@ html.dark {
   --secondary-foreground:  var(--text-primary);
   --muted:                 var(--bg-muted);
   --muted-foreground:      var(--text-tertiary);
-  --accent:                rgba(242,79,29,0.15);
-  --accent-foreground:     var(--glc-orange-light);
+  --accent:                rgba(28,189,255,0.16);
+  --accent-foreground:     var(--glc-blue-light);
   --border:                var(--border-subtle);
   --input:                 var(--bg-muted);
   --input-background:      var(--bg-muted);
@@ -462,10 +462,10 @@ html.dark {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
-  background: var(--glc-orange);
+  padding: 14px 28px;
+  background: linear-gradient(135deg, #0070f3 0%, var(--glc-blue-deeper) 100%);
   color: var(--primary-foreground);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   font-size: var(--text-sm);
   font-weight: 600;
   font-family: var(--font-sans);
@@ -476,8 +476,8 @@ html.dark {
   white-space: nowrap;
 }
 .glc-btn-primary:hover {
-  background: var(--glc-orange-dark);
-  box-shadow: 0 4px 14px rgba(242,79,29,0.32);
+  background: linear-gradient(135deg, color-mix(in oklab, #0070f3 86%, white) 0%, var(--glc-blue-deeper) 100%);
+  box-shadow: 0 10px 24px color-mix(in oklab, #0070f3 34%, transparent);
   transform: translateY(-1px);
 }
 .glc-btn-primary:active  { transform: translateY(0); box-shadow: none; }
@@ -495,7 +495,7 @@ html.dark {
   padding: 7px 14px;
   background: var(--bg-surface);
   color: var(--text-secondary);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   font-size: var(--text-sm);
   font-weight: 500;
   font-family: var(--font-sans);
@@ -519,7 +519,7 @@ html.dark {
   padding: 7px 12px;
   background: transparent;
   color: var(--text-secondary);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   font-size: var(--text-sm);
   font-weight: 500;
   font-family: var(--font-sans);
@@ -783,6 +783,11 @@ body.glc-site-polish :is(a, button):not(:disabled) {
   box-shadow: var(--shadow-sm);
 }
 
+html:not(.dark) .glc-soft-panel {
+  border-color: color-mix(in oklab, var(--border-subtle) 78%, var(--glc-blue-muted));
+  box-shadow: 0 10px 24px rgba(11, 17, 32, 0.08), 0 1px 2px rgba(11, 17, 32, 0.04);
+}
+
 .glc-glass-strip {
   border: 1px solid color-mix(in oklab, var(--border-subtle) 76%, rgba(255, 255, 255, 0.8));
   background: var(--glass-bg);
@@ -798,6 +803,10 @@ body.glc-site-polish :is(a, button):not(:disabled) {
 
 .glc-hover-row:hover {
   background: color-mix(in oklab, var(--bg-muted) 75%, transparent);
+}
+
+html:not(.dark) .glc-hover-row:hover {
+  background: color-mix(in oklab, var(--glc-blue) 9%, var(--bg-muted));
 }
 
 .glc-panel-head {

@@ -2,29 +2,35 @@
   "faqPreview": [
     {
       "q": "Where should I start?",
-      "a": "If you are unsure—Snapshot. If you need one domain—Starter. For 2-3 domains—Pro. For full cross-domain confidence—Complete."
+      "a": "If you are unsure—Snapshot. If you need one domain—Focus. For 2-3 coordinated domains—Context. For full cross-domain synthesis—Strategy workspace. No site—Discovery."
     },
     {
-      "q": "How is Snapshot different from Starter/Pro/Complete?",
-      "a": "Snapshot is a quick first check of how automated systems can access and understand your public site: what they can see, what they miss, and where clarity breaks. If the basic pass is too limited, deeper crawl checks are used when needed. Starter/Pro/Complete are broader audit packages with explicit scope and deeper domain analysis."
+      "q": "Snapshot vs full workspace?",
+      "a": "Snapshot gives first visibility from public signals. Workspace adds your context, coordinates domain analysis, and builds roadmap."
     },
     {
       "q": "Can we implement without you?",
-      "a": "Yes. The report and roadmap are written so your team or another vendor can run with them."
+      "a": "Yes. The workspace output and roadmap are written so your team or another vendor can run with them."
     }
   ],
   "whoWeAreTitle": "Who we are",
   "whatWeDoTitle": "What we do",
   "whatWeDoLines": [
-    "Audit digital infrastructure and the customer-facing layer (site, UX, trust, baseline technical signals).",
+    "Capture business context and public signals: site, UX, trust, baseline technical visibility.",
     "Diagnose processes: manual repeats, gaps between tools, communication friction.",
-    "Design improvements and automation with impact / effort sizing.",
+    "Prioritize improvements and automation with impact / effort sizing.",
     "Roadmap: what to do now, what to defer, what to delegate—with clear next steps."
   ],
+  "whoWeAreMetrics": [
+    { "value": "6", "label": "audit domains" },
+    { "value": "72h", "label": "to first findings" },
+    { "value": "100%", "label": "handoff-ready output" }
+  ],
+  "whatWeDoActionLabel": "See workflow",
   "chooseEntryTitle": "Choose an entry point",
-  "chooseEntryDescription": "Same audit-first approach—different depth and speed. Pick the path that matches your readiness and horizon.",
-  "coveragePackagesTitle": "Starter, Pro, Complete",
-  "coveragePackagesDescription": "Choose coverage by business need: one domain, focused pack, or complete cross-domain audit.",
+  "chooseEntryDescription": "Same context-first flow—different depth and speed. Pick the path that matches your readiness and horizon.",
+  "coveragePackagesTitle": "Coverage tiers",
+  "coveragePackagesDescription": "Choose depth: one domain, a coordinated multi-domain pack, or full synthesis and roadmap.",
   "pillars": {
     "snapshot": {
       "description": "A quick read on public signals—see where to focus first without a heavy commitment."
@@ -33,7 +39,7 @@
       "description": "Shape structure and the next step when the site or scope is still fuzzy."
     },
     "brief": {
-      "description": "Share context—we suggest a sensible route (Snapshot, Starter, Pro, or Complete)."
+      "description": "Share context—we suggest a sensible route (Snapshot, Focus, Context, or Strategy workspace)."
     }
   },
   "questionsTitle": "Questions",

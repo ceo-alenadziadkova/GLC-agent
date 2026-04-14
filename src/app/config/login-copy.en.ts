@@ -9,6 +9,13 @@ export const LOGIN_PAGE_COPY_EN = {
   brandWordmarkPrimary: 'GLC',
   brandWordmarkSecondary: ' Audit Platform',
   tagline: 'Sign in to the audit workspace and client portal',
+  authShellAsideTitle: 'Your audit workspace. Every finding in one place.',
+  authShellAsideBody:
+    'Consultants run audits and pipelines here; clients follow progress, materials, and recommended actions. One account links marketing entry points and the dashboard.',
+  authShellTrustSignals: ['GDPR-compliant', 'Encrypted in transit and at rest', 'No public data exposure'],
+  authShellQuote:
+    '"We stopped guessing what to fix first. The roadmap was clear enough to brief our team in one meeting."',
+  authShellQuoteAuthor: 'Operations lead, eCommerce brand',
   ariaHome: 'Go to home page',
   tabSignIn: 'Sign in',
   tabRegister: 'Register',
