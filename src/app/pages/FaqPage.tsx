@@ -110,7 +110,7 @@ export function FaqPage() {
         </p>
       </MarketingSection>
 
-      <MarketingSection className="mt-12">
+      <MarketingSection>
         <h2 className="font-display text-xl font-bold sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
           {WORKSPACE_PAGE_COPY.faqPage.compareMatrixTitle}
         </h2>
@@ -124,7 +124,7 @@ export function FaqPage() {
         </MarketingRevealMask>
       </MarketingSection>
 
-      <MarketingSection className="mt-10">
+      <MarketingSection>
         <Accordion type="single" collapsible className="w-full max-w-3xl">
           {FAQ_ITEMS.map((item, i) => (
             <AccordionItem key={item.q} value={`faq-${i}`}>
@@ -137,7 +137,7 @@ export function FaqPage() {
         </Accordion>
       </MarketingSection>
 
-      <div className="mt-14">
+      <div>
         <NextStepsCta
           steps={[
             { to: '/brief', label: 'Brief', hint: 'Personal guidance.', primary: true },

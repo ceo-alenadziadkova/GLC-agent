@@ -4,9 +4,9 @@
       "eyebrow": "Business context workspace",
       "headline": "One place where your business context turns into coordinated decisions",
       "headline_gradient_suffix": "coordinated decisions",
-      "subheadline": "GLC captures what matters once, coordinates specialist workflows, and turns inputs into shared strategy and roadmap.",
-      "supporting_line": "Built for teams that need continuity and a clear next move—not scattered one-off outputs.",
-      "snapshot_caption": "Snapshot is the first visibility check from public signals before you add deeper context.",
+      "subheadline": "Capture what matters once, see what needs attention now, and move with a clear next-step roadmap.",
+      "supporting_line": "",
+      "snapshot_caption": "",
       "ctas": {
         "primary": "Start with your context",
         "secondary": "See how it works"
@@ -23,25 +23,25 @@
       "cta_sign_in": "Sign in to dashboard"
     },
     "outcomes_section": {
-      "title": "What you actually get",
-      "description": "Every paid tier is built for decisions and handoff—not a static slide deck.",
+      "title": "What you get",
+      "description": "",
       "items": [
         {
-          "title": "Shared operating picture",
-          "body": "You see what blocks progress now, what is secondary, and what can wait—with explicit coverage."
+          "title": "Shared picture",
+          "body": "See what blocks progress now, what is secondary, and what can wait."
         },
         {
           "title": "Priority roadmap",
-          "body": "Impact and sequencing so teams know what to do first and what depends on what."
+          "body": "Know what to do first, what depends on what, and where not to waste effort."
         },
         {
-          "title": "Transparent scope",
-          "body": "Covered and not-analyzed domains are explicit, so expectations stay realistic."
+          "title": "Clear scope",
+          "body": "See what is covered, what is not, and what the next step should be."
         }
       ]
     },
     "trust_strip": {
-      "title": "Why teams trust this flow",
+      "title": "Why teams choose this flow",
       "lines": [
         "Scope is explicit before delivery starts.",
         "Outputs are structured for real implementation handoff.",
@@ -53,8 +53,8 @@
       "subtitle": "If you want a human in the loop—brief or FAQ."
     },
     "mid_page_cta": {
-      "title": "Ready to capture your context once",
-      "body": "Start with a brief call or your context flow—we map scope before delivery and keep everything in one workspace.",
+      "title": "Ready to map what matters",
+      "body": "Start with a brief and we’ll suggest the right route.",
       "cta_label": "Start with your context",
       "cta_to": "/brief"
     },
@@ -73,17 +73,17 @@
   },
   "decision_paths": [
     {
-      "title": "Quick diagnosis",
-      "subtitle": "Public signals → first map",
+      "title": "Snapshot",
+      "subtitle": "Public signals → first visibility check",
       "to": "/snapshot"
     },
     {
-      "title": "Full context",
-      "subtitle": "Your inputs + coordination",
+      "title": "Context",
+      "subtitle": "Your inputs → multi-domain clarity",
       "to": "/pro"
     },
     {
-      "title": "Strategy workspace",
+      "title": "Strategy",
       "subtitle": "Synthesis → roadmap",
       "to": "/complete"
     }
@@ -211,6 +211,35 @@
         "subtitle": "Implementation, handoff, or a narrower follow-up—your call."
       }
     }
+  },
+  "package_page_labels": {
+    "included": "Included",
+    "notIncluded": "Not included",
+    "faqLabel": "FAQ",
+    "clientSignInLabel": "Client sign-in",
+    "bookBriefLabel": "Book a brief call",
+    "bookBriefHintStarter": "We match the format to your context.",
+    "bookBriefHintPro": "Get help selecting the right 2-3 domains.",
+    "bookBriefHintComplete": "Align depth and scope.",
+    "loadingSession": "Loading session...",
+    "stillUnsurePrefix": "Still unsure? Start with",
+    "proHintPrefix": "If you are unsure which domains to include, start with",
+    "completeHintPrefix": "No site or clear structure yet -"
+  },
+  "package_hero_labels": {
+    "coverageShape": "Coverage shape",
+    "startWithBrief": "Start with Brief",
+    "firstFindings": "72h to first findings",
+    "explicitScope": "Explicit scope",
+    "illustrativeGridNote": "Illustrative grid - actual domain selection is confirmed in scope.",
+    "domains": [
+      "Tech infra",
+      "UX & Conv.",
+      "SEO",
+      "Security",
+      "Processes",
+      "Strategy"
+    ]
   },
   "report": {
     "title": "Workspace report",

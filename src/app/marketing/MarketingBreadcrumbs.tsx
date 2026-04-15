@@ -1,12 +1,13 @@
 import { Link } from 'react-router';
 import { CaretRight } from '@phosphor-icons/react';
+import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 
 export type Crumb = { label: string; to?: string };
 
 export function MarketingBreadcrumbs({ items }: { items: Crumb[] }) {
   if (items.length === 0) return null;
   return (
-    <nav aria-label="Section navigation" className="mb-8">
+    <nav aria-label={WORKSPACE_PAGE_COPY.marketingLayout.breadcrumbsAriaLabel} className="mb-8">
       <ol className="flex flex-wrap items-center gap-1.5 text-sm" style={{ color: 'var(--text-tertiary)' }}>
         {items.map((c, i) => (
           <li key={`${c.label}-${i}`} className="flex items-center gap-1.5">
@@ -14,7 +15,7 @@ export function MarketingBreadcrumbs({ items }: { items: Crumb[] }) {
             {c.to && i < items.length - 1 ? (
               <Link
                 to={c.to}
-                className="font-medium transition-colors hover:underline"
+                className="-my-1 inline-flex min-h-10 items-center py-1 font-medium transition-colors hover:underline"
                 style={{ color: 'var(--glc-blue)' }}
               >
                 {c.label}

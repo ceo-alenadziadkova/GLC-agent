@@ -16,19 +16,31 @@
   "whoWeAreTitle": "Who we are",
   "whatWeDoTitle": "What we do",
   "whatWeDoLines": [
-    "Capture business context and public signals: site, UX, trust, baseline technical visibility.",
-    "Diagnose processes: manual repeats, gaps between tools, communication friction.",
-    "Prioritize improvements and automation with impact / effort sizing.",
-    "Roadmap: what to do now, what to defer, what to delegate—with clear next steps."
+    "See the current state.",
+    "Spot process friction.",
+    "Prioritize what matters.",
+    "Move with a roadmap."
   ],
   "whoWeAreMetrics": [
-    { "value": "6", "label": "audit domains" },
-    { "value": "72h", "label": "to first findings" },
-    { "value": "100%", "label": "handoff-ready output" }
+    {
+      "value": "Six domains",
+      "label": "Full-workspace runs cover tech, security, SEO, UX, marketing, and automation."
+    },
+    {
+      "value": "Fast first read",
+      "label": "Snapshot surfaces direction from public signals; deeper tiers add context and certainty."
+    },
+    {
+      "value": "Structured handoff",
+      "label": "Findings and next steps your team—or another vendor—can execute without guesswork."
+    }
   ],
-  "whatWeDoActionLabel": "See workflow",
+  "trustMetricsLandmark": "At a glance",
+  "trustPointsAriaLabel": "What you can expect",
+  "trustMetricsTagline": "From ambiguity to action: clear priorities, confident execution.",
+  "whatWeDoActionLabel": "",
   "chooseEntryTitle": "Choose an entry point",
-  "chooseEntryDescription": "Same context-first flow—different depth and speed. Pick the path that matches your readiness and horizon.",
+  "chooseEntryDescription": "Pick the route that matches your current depth and decision speed.",
   "coveragePackagesTitle": "Coverage tiers",
   "coveragePackagesDescription": "Choose depth: one domain, a coordinated multi-domain pack, or full synthesis and roadmap.",
   "pillars": {
@@ -43,5 +55,5 @@
     }
   },
   "questionsTitle": "Questions",
-  "questionsDescription": "Short answers—full detail on the FAQ page."
+  "questionsDescription": "Short answers now, full detail in FAQ."
 }

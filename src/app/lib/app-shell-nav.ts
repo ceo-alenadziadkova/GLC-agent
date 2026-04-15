@@ -13,6 +13,7 @@ import {
   PlusCircle,
 } from '@phosphor-icons/react';
 import { APP_SHELL_COPY } from '../config/app-shell-copy';
+import { APP_ROUTE_PATHS, buildAppRoute } from '../config/route-paths';
 
 export type AppShellNavItem = {
   to: string | null;
@@ -24,35 +25,35 @@ export type AppShellNavItem = {
 export function buildConsultantNav(auditId: string | null): AppShellNavItem[] {
   const n = APP_SHELL_COPY.nav.consultant;
   return [
-    { to: '/dashboard',                           icon: SquaresFour,    label: n.dashboard,       badge: null },
-    { to: '/admin/requests',                      icon: Tray,           label: n.requestQueue,   badge: null },
-    { to: '/admin/snapshots',                     icon: Lightning,      label: n.snapshotQueue,  badge: null },
-    { to: '/admin/discovery',                     icon: MagnifyingGlass,label: n.discoveryQueue, badge: null },
+    { to: APP_ROUTE_PATHS.dashboard,                           icon: SquaresFour,    label: n.dashboard,       badge: null },
+    { to: APP_ROUTE_PATHS.adminRequests,                      icon: Tray,           label: n.requestQueue,   badge: null },
+    { to: APP_ROUTE_PATHS.adminSnapshots,                     icon: Lightning,      label: n.snapshotQueue,  badge: null },
+    { to: APP_ROUTE_PATHS.adminDiscovery,                     icon: MagnifyingGlass,label: n.discoveryQueue, badge: null },
     // TODO(next iteration): restore Intake wording admin link
     // after refining owner workflows and usage criteria.
-    { to: auditId ? `/audit/${auditId}` : null,   icon: Briefcase,      label: n.auditWorkspace, badge: null },
-    { to: auditId ? `/pipeline/${auditId}` : null,icon: Pulse,          label: n.pipeline,        badge: null },
-    { to: auditId ? `/reports/${auditId}` : null, icon: FileText,       label: n.reports,         badge: null },
-    { to: auditId ? `/strategy/${auditId}` : null,icon: Flask,          label: n.strategyLab,    badge: null },
+    { to: auditId ? buildAppRoute.audit(auditId) : null,   icon: Briefcase,      label: n.auditWorkspace, badge: null },
+    { to: auditId ? buildAppRoute.pipeline(auditId) : null,icon: Pulse,          label: n.pipeline,        badge: null },
+    { to: auditId ? buildAppRoute.reports(auditId) : null, icon: FileText,       label: n.reports,         badge: null },
+    { to: auditId ? buildAppRoute.strategy(auditId) : null,icon: Flask,          label: n.strategyLab,    badge: null },
   ];
 }
 
 export function buildClientNav(auditId: string | null, showPipelineInNav: boolean): AppShellNavItem[] {
   const n = APP_SHELL_COPY.nav.client;
   return [
-    { to: '/portal',                                        icon: HouseSimple,   label: n.myPortal,    badge: null },
-    { to: auditId ? `/portal/audit/${auditId}` : null,     icon: Eye,           label: n.auditStatus, badge: null },
-    { to: auditId && showPipelineInNav ? `/portal/pipeline/${auditId}` : null,   icon: Pulse,         label: n.pipeline,     badge: null },
+    { to: APP_ROUTE_PATHS.portal,                                        icon: HouseSimple,   label: n.myPortal,    badge: null },
+    { to: auditId ? buildAppRoute.portalAudit(auditId) : null,     icon: Eye,           label: n.auditStatus, badge: null },
+    { to: auditId && showPipelineInNav ? buildAppRoute.portalPipeline(auditId) : null,   icon: Pulse,         label: n.pipeline,     badge: null },
   ];
 }
 
 export function buildGuestNav(): AppShellNavItem[] {
-  return [{ to: '/snapshot', icon: Lightning, label: APP_SHELL_COPY.nav.guest.freeSnapshot, badge: null }];
+  return [{ to: APP_ROUTE_PATHS.snapshot, icon: Lightning, label: APP_SHELL_COPY.nav.guest.freeSnapshot, badge: null }];
 }
 
 export function isNavItemActive(pathname: string, to: string): boolean {
   return pathname === to ||
-    (!to.startsWith('/admin/') && to !== '/dashboard' && to !== '/portal' &&
+    (!to.startsWith('/admin/') && to !== APP_ROUTE_PATHS.dashboard && to !== APP_ROUTE_PATHS.portal &&
       pathname.startsWith(to.split('/').slice(0, 2).join('/')));
 }
 
@@ -69,8 +70,8 @@ export function buildMobileBottomNavItems(
   if (opts.isClient) {
     const urls = new Set(withTo.map(i => i.to));
     const out: AppShellNavItem[] = [...withTo];
-    if (!urls.has('/portal/audit/new')) {
-      out.push({ to: '/portal/audit/new', icon: PlusCircle, label: APP_SHELL_COPY.sidebar.newAudit, badge: null });
+    if (!urls.has(APP_ROUTE_PATHS.portalAuditNew)) {
+      out.push({ to: APP_ROUTE_PATHS.portalAuditNew, icon: PlusCircle, label: APP_SHELL_COPY.sidebar.newAudit, badge: null });
     }
     return out.slice(0, 4);
   }

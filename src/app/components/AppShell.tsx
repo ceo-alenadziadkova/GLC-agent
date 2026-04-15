@@ -21,13 +21,14 @@ import {
   isNavItemActive,
 } from '../lib/app-shell-nav';
 import { APP_SHELL_COPY } from '../config/app-shell-copy';
+import { APP_ROUTE_PATHS, APP_ROUTE_PATTERNS, buildAppRoute } from '../config/route-paths';
 
 export type { AppShellNavItem } from '../lib/app-shell-nav';
 
 function useCurrentAuditId(): string | null {
   const { pathname } = useLocation();
-  const match = pathname.match(/^\/(?:audit|pipeline|reports|strategy)\/([a-f0-9-]+)/)
-    ?? pathname.match(/^\/portal\/(?:audit|pipeline)\/([a-f0-9-]+)/);
+  const match = pathname.match(APP_ROUTE_PATTERNS.mainAuditScope)
+    ?? pathname.match(APP_ROUTE_PATTERNS.portalAuditScope);
   return match ? match[1] : null;
 }
 
@@ -130,21 +131,21 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
       return;
     }
     if (requestId) {
-      navigate(isClient ? '/portal' : '/admin/requests');
+      navigate(isClient ? APP_ROUTE_PATHS.portal : APP_ROUTE_PATHS.adminRequests);
       setNotificationsOpen(false);
       return;
     }
     if (item.audit_id) {
       if (item.kind === 'pipeline' || item.kind === 'review') {
-        navigate(`/pipeline/${item.audit_id}`);
+        navigate(buildAppRoute.pipeline(item.audit_id));
       } else {
-        navigate(`/audit/${item.audit_id}`);
+        navigate(buildAppRoute.audit(item.audit_id));
       }
       setNotificationsOpen(false);
       return;
     }
     if (item.kind === 'intake' && isConsultant) {
-      navigate('/admin/requests');
+      navigate(APP_ROUTE_PATHS.adminRequests);
       setNotificationsOpen(false);
     }
   };
@@ -324,7 +325,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
 
           {!isGuest && (isClient || roleUnknown) ? (
             <NavLink
-              to="/portal/audit/new"
+              to={APP_ROUTE_PATHS.portalAuditNew}
               className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
               style={{
                 color: 'rgba(255,255,255,0.38)',
@@ -346,7 +347,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
             </NavLink>
           ) : !isGuest ? (
             <NavLink
-              to="/audit/new"
+              to={APP_ROUTE_PATHS.auditNew}
               className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
               style={{
                 color: 'rgba(255,255,255,0.38)',
@@ -368,7 +369,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
             </NavLink>
           ) : (
             <NavLink
-              to="/login"
+              to={APP_ROUTE_PATHS.login}
               className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
               style={{
                 color: 'rgba(255,255,255,0.38)',
@@ -435,9 +436,9 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           </button>
           {!isGuest &&
             [
-              { icon: GearSix, label: shellSidebar.settings, to: '/settings' },
+              { icon: GearSix, label: shellSidebar.settings, to: APP_ROUTE_PATHS.settings },
             ].map(({ icon: I, label, to }) => {
-              const active = location.pathname === '/settings';
+              const active = location.pathname === APP_ROUTE_PATHS.settings;
               return (
                 <NavLink
                   key={label}
@@ -746,7 +747,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
 
               {!isGuest && (isClient || roleUnknown) && (
                 <NavLink
-                  to="/portal/audit/new"
+                  to={APP_ROUTE_PATHS.portalAuditNew}
                   className="flex items-center gap-2.5 px-2.5 py-3 rounded-lg no-underline glc-touch-target"
                   style={{ color: 'var(--glc-blue)', fontSize: 'var(--text-sm)' }}
                   onClick={() => setMobileMenuOpen(false)}
@@ -757,7 +758,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               )}
               {!isGuest && !isClient && !roleUnknown && (
                 <NavLink
-                  to="/audit/new"
+                  to={APP_ROUTE_PATHS.auditNew}
                   className="flex items-center gap-2.5 px-2.5 py-3 rounded-lg no-underline glc-touch-target"
                   style={{ color: 'var(--glc-orange-light)', fontSize: 'var(--text-sm)' }}
                   onClick={() => setMobileMenuOpen(false)}
@@ -768,7 +769,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
               )}
               {isGuest && (
                 <NavLink
-                  to="/login"
+                  to={APP_ROUTE_PATHS.login}
                   className="flex items-center gap-2.5 px-2.5 py-3 rounded-lg no-underline glc-touch-target"
                   style={{ color: 'var(--glc-blue)', fontSize: 'var(--text-sm)' }}
                   onClick={() => setMobileMenuOpen(false)}
@@ -780,7 +781,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
 
               {!isGuest && (
                 <NavLink
-                  to="/settings"
+                  to={APP_ROUTE_PATHS.settings}
                   className="flex items-center gap-2.5 px-2.5 py-3 rounded-lg no-underline glc-touch-target"
                   style={{ color: 'rgba(255,255,255,0.75)', fontSize: 'var(--text-sm)' }}
                   onClick={() => setMobileMenuOpen(false)}

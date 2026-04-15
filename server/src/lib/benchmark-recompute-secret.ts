@@ -10,6 +10,11 @@ export function benchmarkRecomputeSecretHeaderName(): typeof HEADER {
   return HEADER;
 }
 
+/** True when `BENCHMARK_RECOMPUTE_SECRET` is set (cron recompute endpoint is operable). */
+export function isBenchmarkRecomputeConfigured(): boolean {
+  return Boolean(process.env.BENCHMARK_RECOMPUTE_SECRET?.trim());
+}
+
 export function benchmarkRecomputeSecretValid(headerValue: string | undefined): boolean {
   const secret = process.env.BENCHMARK_RECOMPUTE_SECRET?.trim();
   if (!secret || headerValue === undefined) return false;

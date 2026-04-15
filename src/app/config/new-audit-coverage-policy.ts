@@ -41,3 +41,12 @@ export const NEW_AUDIT_COVERAGE_PACKAGE_DEPTH: Record<AuditCoveragePackage, Audi
   pro: 'standard',
   complete: 'deep',
 };
+
+export const NEW_AUDIT_COVERAGE_SELECTION_LIMITS: Record<AuditCoveragePackage, { min: number; max: number }> = {
+  starter: { min: 1, max: 1 },
+  pro: { min: 2, max: 3 },
+  complete: {
+    min: NEW_AUDIT_ALL_COVERAGE_DOMAINS.length,
+    max: NEW_AUDIT_ALL_COVERAGE_DOMAINS.length,
+  },
+};

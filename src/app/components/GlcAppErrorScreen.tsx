@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { formatClientEnvironmentForSupport } from '../lib/client-environment';
 import { isLikelyTranslationOrExtensionDomCrash } from '../lib/browser-dom-crash-heuristics';
 import { api } from '../data/apiService';
+import { GLC_APP_ERROR_COPY_EN } from '../config/translation-safety-copy.en';
 
 export type GlcAppErrorScreenProps = {
   /** Stable id users can share with support (also logged server-side when reporting). */
@@ -23,14 +24,14 @@ function buildSupportPayload(
   technicalDetail?: string,
 ): string {
   const lines = [
-    'GLC Audit — incident reference',
-    `Reference: ${supportRef}`,
-    `Page: ${path}`,
-    `Time: ${new Date().toISOString()}`,
+    GLC_APP_ERROR_COPY_EN.supportPayloadTitle,
+    `${GLC_APP_ERROR_COPY_EN.supportPayloadReferenceLabel}: ${supportRef}`,
+    `${GLC_APP_ERROR_COPY_EN.supportPayloadPageLabel}: ${path}`,
+    `${GLC_APP_ERROR_COPY_EN.supportPayloadTimeLabel}: ${new Date().toISOString()}`,
     formatClientEnvironmentForSupport(),
   ];
   if (technicalDetail) {
-    lines.push(`Detail (for support): ${technicalDetail.slice(0, 1200)}`);
+    lines.push(`${GLC_APP_ERROR_COPY_EN.supportPayloadDetailLabel}: ${technicalDetail.slice(0, 1200)}`);
   }
   return lines.join('\n');
 }
@@ -44,7 +45,7 @@ export function GlcAppErrorScreen({
   onRetry,
   homeHref,
   homeLabel,
-  title = 'Something interrupted this page',
+  title = GLC_APP_ERROR_COPY_EN.defaultTitle,
 }: GlcAppErrorScreenProps) {
   const [reportSent, setReportSent] = useState(false);
   const [reportBusy, setReportBusy] = useState(false);
@@ -60,9 +61,9 @@ export function GlcAppErrorScreen({
     const text = buildSupportPayload(supportRef, path, technicalDetail);
     try {
       await navigator.clipboard.writeText(text);
-      toast.success('Details copied — you can paste them in an email to your contact at GLC.');
+      toast.success(GLC_APP_ERROR_COPY_EN.toasts.copySuccess);
     } catch {
-      toast.error('Could not copy. Please note the reference below manually.');
+      toast.error(GLC_APP_ERROR_COPY_EN.toasts.copyFailure);
     }
   }, [supportRef, path, technicalDetail]);
 
@@ -77,10 +78,10 @@ export function GlcAppErrorScreen({
       });
       if (ok) {
         setReportSent(true);
-        toast.success('Thanks — we have logged this. You can still copy the reference if support asks for it.');
+        toast.success(GLC_APP_ERROR_COPY_EN.toasts.reportSent);
       } else {
-        toast.message('We could not send a report from this session.', {
-          description: 'Copy the reference below and share it with your GLC contact, or try again after signing in.',
+        toast.message(GLC_APP_ERROR_COPY_EN.toasts.reportFailedTitle, {
+          description: GLC_APP_ERROR_COPY_EN.toasts.reportFailedDescription,
         });
       }
     } finally {
@@ -106,12 +107,12 @@ export function GlcAppErrorScreen({
             letterSpacing: 'var(--tracking-tight)',
           }}
         >
-          {likelyDomRewrite ? 'This often happens with page translation' : title}
+          {likelyDomRewrite ? GLC_APP_ERROR_COPY_EN.domRewrite.title : title}
         </h1>
         <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text-secondary)' }}>
           {likelyDomRewrite
-            ? 'The browser or an extension probably changed the page while the app was updating. Your data is usually safe.'
-            : 'A temporary problem occurred while loading or updating the screen. Your data is usually safe. Try again, go back to your home area, or share the reference below with GLC if the issue continues.'}
+            ? GLC_APP_ERROR_COPY_EN.domRewrite.description
+            : GLC_APP_ERROR_COPY_EN.generic.description}
         </p>
         {likelyDomRewrite ? (
           <div
@@ -123,12 +124,12 @@ export function GlcAppErrorScreen({
             }}
           >
             <p className="font-semibold m-0 mb-2" style={{ color: 'var(--callout-warning-fg-emphasis)' }}>
-              What to do
+              {GLC_APP_ERROR_COPY_EN.domRewrite.actionsTitle}
             </p>
             <ol className="text-xs m-0 pl-4 space-y-1.5" style={{ color: 'var(--callout-warning-fg)' }}>
-              <li>Turn off automatic translation for this site (icon in the address bar or browser menu).</li>
-              <li>Pause extensions that rewrite pages (ad blockers, grammar tools), then reload.</li>
-              <li>Tap <strong>Try again</strong>. Built-in languages for the app are planned so translate will not be required.</li>
+              {GLC_APP_ERROR_COPY_EN.domRewrite.actions.map((action) => (
+                <li key={action}>{action}</li>
+              ))}
             </ol>
           </div>
         ) : null}
@@ -141,19 +142,18 @@ export function GlcAppErrorScreen({
               color: 'var(--text-secondary)',
             }}
           >
-            If you use automatic page translation or extensions that rewrite the page, turn them off for this site and try
-            again — they can trigger this kind of error in web apps.
+            {GLC_APP_ERROR_COPY_EN.generic.translationHint}
           </p>
         ) : null}
         <p className="text-xs font-mono mb-6 px-3 py-2 rounded-lg inline-block" style={{ backgroundColor: 'var(--bg-inset)', color: 'var(--text-tertiary)' }}>
-          Reference:&nbsp;
+          {GLC_APP_ERROR_COPY_EN.labels.reference}:&nbsp;
           <span style={{ color: 'var(--text-primary)' }}>{supportRef}</span>
         </p>
         <div className="flex flex-col sm:flex-row gap-2 justify-center mb-3">
           {onRetry ? (
             <button type="button" onClick={onRetry} className="glc-btn-primary inline-flex items-center justify-center gap-2">
               <ArrowsClockwise className="w-4 h-4" />
-              Try again
+              {GLC_APP_ERROR_COPY_EN.labels.tryAgain}
             </button>
           ) : null}
           <a
@@ -173,7 +173,7 @@ export function GlcAppErrorScreen({
             style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', background: 'transparent', cursor: 'pointer' }}
           >
             <Copy className="w-4 h-4" />
-            Copy details for support
+            {GLC_APP_ERROR_COPY_EN.labels.copyDetailsForSupport}
           </button>
           <button
             type="button"
@@ -183,7 +183,11 @@ export function GlcAppErrorScreen({
             style={{ border: '1px solid var(--border-subtle)', color: 'var(--glc-blue)', background: 'transparent', cursor: reportBusy || reportSent ? 'default' : 'pointer' }}
           >
             <PaperPlaneTilt className="w-4 h-4" />
-            {reportSent ? 'Report sent' : reportBusy ? 'Sending…' : 'Send report to GLC'}
+            {reportSent
+              ? GLC_APP_ERROR_COPY_EN.labels.reportSent
+              : reportBusy
+                ? GLC_APP_ERROR_COPY_EN.labels.sending
+                : GLC_APP_ERROR_COPY_EN.labels.sendReportToGlc}
           </button>
         </div>
       </div>

@@ -91,6 +91,7 @@ import {
   NEW_AUDIT_COVERAGE_DOMAIN_COUNT_HINT,
   NEW_AUDIT_COVERAGE_DOMAIN_LABELS,
   NEW_AUDIT_COVERAGE_PACKAGE_DEPTH,
+  NEW_AUDIT_COVERAGE_SELECTION_LIMITS,
   NEW_AUDIT_INDUSTRY_DOMAIN_RECOMMENDATIONS,
 } from '../config/new-audit-coverage-policy';
 
@@ -374,9 +375,8 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
     && (industry !== 'Other' || industrySpecify.trim().length > 0);
 
   const coverageValid =
-    (coveragePackage === 'starter' && selectedDomains.length === 1) ||
-    (coveragePackage === 'pro' && selectedDomains.length >= 2 && selectedDomains.length <= 3) ||
-    (coveragePackage === 'complete' && selectedDomains.length === NEW_AUDIT_ALL_COVERAGE_DOMAINS.length);
+    selectedDomains.length >= NEW_AUDIT_COVERAGE_SELECTION_LIMITS[coveragePackage].min
+    && selectedDomains.length <= NEW_AUDIT_COVERAGE_SELECTION_LIMITS[coveragePackage].max;
 
   const step0Valid = step1Valid && coverageValid;
 
@@ -386,7 +386,9 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
       if (coveragePackage === 'complete') return [...NEW_AUDIT_ALL_COVERAGE_DOMAINS] as DomainKey[];
       const next = has ? prev.filter((d) => d !== domain) : [...prev, domain];
       if (coveragePackage === 'starter') return next.slice(0, 1) as DomainKey[];
-      if (next.length > 3) return next.slice(0, 3) as DomainKey[];
+      if (next.length > NEW_AUDIT_COVERAGE_SELECTION_LIMITS.pro.max) {
+        return next.slice(0, NEW_AUDIT_COVERAGE_SELECTION_LIMITS.pro.max) as DomainKey[];
+      }
       return next as DomainKey[];
     });
   }
@@ -741,11 +743,10 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         ) : (
           <FloppyDisk className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
         )}
-        Save draft
+        {WORKSPACE_PAGE_COPY.newAudit.draftSaveButton}
       </button>
       <p className="text-xs m-0 leading-relaxed text-center" style={{ color: 'var(--text-quaternary)' }}>
-        This tab keeps a copy as you type. Save draft also writes to your account when Basics are valid, so you can
-        continue from My Portal.
+        {WORKSPACE_PAGE_COPY.newAudit.draftSaveTabNote}
       </p>
     </div>
   ) : null;
@@ -806,11 +807,10 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
               <ClipboardText className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--glc-blue)' }} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium m-0" style={{ color: 'var(--text-primary)' }}>
-                  Draft restored
+                  {WORKSPACE_PAGE_COPY.newAudit.draftRestoredTitle}
                 </p>
                 <p className="text-xs m-0 mt-1 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                  We loaded your in-progress answers from this browser tab. Refresh-safe copy is kept automatically; use
-                  Save draft to also store on your account when Basics are complete.
+                  {WORKSPACE_PAGE_COPY.newAudit.draftRestoredBody}
                 </p>
               </div>
               <button
@@ -843,11 +843,10 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                     className="mt-2 text-2xl sm:text-[length:var(--text-3xl)]"
                     style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: 'var(--tracking-tight)' }}
                   >
-                    Start a New Audit
+                    {WORKSPACE_PAGE_COPY.newAudit.newAuditTitle}
                   </h1>
                   <p className="mt-2.5 px-1" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                    Enter a public website if there is one, or indicate there is no site — we still analyze{' '}
-                    <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>8 business domains</strong> using your brief and available signals.
+                    {WORKSPACE_PAGE_COPY.newAudit.newAuditIntro}
                   </p>
                 </div>
 
@@ -1024,8 +1023,12 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                         const checked = selectedDomains.includes(domain);
                         const disabled =
                           coveragePackage === 'complete' ||
-                          (coveragePackage === 'starter' && checked && selectedDomains.length === 1) ||
-                          (coveragePackage === 'pro' && !checked && selectedDomains.length >= 3);
+                          (coveragePackage === 'starter'
+                            && checked
+                            && selectedDomains.length === NEW_AUDIT_COVERAGE_SELECTION_LIMITS.starter.min) ||
+                          (coveragePackage === 'pro'
+                            && !checked
+                            && selectedDomains.length >= NEW_AUDIT_COVERAGE_SELECTION_LIMITS.pro.max);
                         return (
                           <label
                             key={domain}

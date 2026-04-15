@@ -1,8 +1,6 @@
 import type { IntakeQuestionStub, IntakeSliceDomain } from './types.js';
 import { SLICE_DOMAIN_ORDER } from './question-feed-roles.js';
-
-/** Fallback sort rank when a question id is missing from the stub list (stable tail ordering). */
-const UNKNOWN_QUESTION_BANK_ORDER_FALLBACK = 9999;
+import { UNKNOWN_QUESTION_BANK_ORDER_FALLBACK } from './intake-policy-constants.js';
 
 /** Sort ids within each domain by canonical question-bank order. */
 export function buildOrderedDomainToQuestionIds(

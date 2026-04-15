@@ -5,57 +5,61 @@
 
 /** Top-level HTTP prefix for all API routes (matches server `API_PREFIX` and Vite dev proxy). */
 export const API_HTTP_ROOT_PREFIX = '/api' as const;
+const withApiRoot = (segment: string): string => `${API_HTTP_ROOT_PREFIX}${segment}`;
 
 /** Express `app.use` mount prefixes (must match `API_ROUTE_MOUNT_ENTRIES`). */
 export const API_HTTP_PATH_PREFIX = {
-  public: '/api/public',
-  profile: '/api/profile',
-  platform: '/api/platform',
-  snapshot: '/api/snapshot',
-  intake: '/api/intake',
-  intakeTraceTool: '/api/intake-trace-tool',
-  discover: '/api/discover',
-  marketing: '/api/marketing',
-  auditRequests: '/api/audit-requests',
-  analytics: '/api/analytics',
-  notifications: '/api/notifications',
-  audits: '/api/audits',
-  benchmarks: '/api/benchmarks',
-  log: '/api/log',
+  public: withApiRoot('/public'),
+  profile: withApiRoot('/profile'),
+  platform: withApiRoot('/platform'),
+  briefPublic: withApiRoot('/brief-public'),
+  snapshot: withApiRoot('/snapshot'),
+  intake: withApiRoot('/intake'),
+  intakeTraceTool: withApiRoot('/intake-trace-tool'),
+  discover: withApiRoot('/discover'),
+  marketing: withApiRoot('/marketing'),
+  auditRequests: withApiRoot('/audit-requests'),
+  analytics: withApiRoot('/analytics'),
+  notifications: withApiRoot('/notifications'),
+  audits: withApiRoot('/audits'),
+  benchmarks: withApiRoot('/benchmarks'),
+  log: withApiRoot('/log'),
 } as const;
 
 export type ApiHttpPathPrefixKey = keyof typeof API_HTTP_PATH_PREFIX;
 
 export const API_PATHS = {
-  publicBrand: '/api/public/brand',
-  analyticsDashboard: '/api/analytics/dashboard',
-  auditRequests: '/api/audit-requests',
-  audits: '/api/audits',
-  benchmarks: '/api/benchmarks',
-  benchmarksRecompute: '/api/benchmarks/recompute',
-  platformBenchmarksRecompute: '/api/platform/benchmarks/recompute',
-  discover: '/api/discover',
-  discoverUiFragment: '/api/discover/ui-fragment',
-  discoverAnalyticsEvents: '/api/discover/analytics-events',
-  discoverSessions: '/api/discover/sessions',
-  intake: '/api/intake',
-  intakeLinkAudit: '/api/intake/link-audit',
-  intakeSubmissions: '/api/intake/submissions',
-  intakeTraceToolAnalytics: '/api/intake-trace-tool/analytics-events',
-  intakeWordingDrafts: '/api/intake-trace-tool/wording-drafts',
-  intakeWordingDraftsPublish: '/api/intake-trace-tool/wording-drafts/publish',
-  intakeWordingDraftsRollback: '/api/intake-trace-tool/wording-drafts/rollback',
-  log: '/api/log',
-  logSnapshot: '/api/log/snapshot',
-  marketingBrief: '/api/marketing/brief',
-  notifications: '/api/notifications',
-  notificationsUnreadCount: '/api/notifications/unread-count',
-  notificationsReadAll: '/api/notifications/read-all',
-  platformSelfServeOwner: '/api/platform/self-serve-owner',
-  profile: '/api/profile',
-  snapshot: '/api/snapshot',
-  snapshotQuota: '/api/snapshot/quota',
-  snapshotClaim: '/api/snapshot/claim',
+  publicBrand: `${API_HTTP_PATH_PREFIX.public}/brand`,
+  analyticsDashboard: `${API_HTTP_PATH_PREFIX.analytics}/dashboard`,
+  auditRequests: API_HTTP_PATH_PREFIX.auditRequests,
+  audits: API_HTTP_PATH_PREFIX.audits,
+  benchmarks: API_HTTP_PATH_PREFIX.benchmarks,
+  benchmarksRecompute: `${API_HTTP_PATH_PREFIX.benchmarks}/recompute`,
+  platformBenchmarksRecompute: `${API_HTTP_PATH_PREFIX.platform}/benchmarks/recompute`,
+  discover: API_HTTP_PATH_PREFIX.discover,
+  discoverUiFragment: `${API_HTTP_PATH_PREFIX.discover}/ui-fragment`,
+  discoverAnalyticsEvents: `${API_HTTP_PATH_PREFIX.discover}/analytics-events`,
+  discoverSessions: `${API_HTTP_PATH_PREFIX.discover}/sessions`,
+  briefPublicSession: `${API_HTTP_PATH_PREFIX.briefPublic}/session`,
+  briefPublicSubmissions: `${API_HTTP_PATH_PREFIX.briefPublic}/submissions`,
+  intake: API_HTTP_PATH_PREFIX.intake,
+  intakeLinkAudit: `${API_HTTP_PATH_PREFIX.intake}/link-audit`,
+  intakeSubmissions: `${API_HTTP_PATH_PREFIX.intake}/submissions`,
+  intakeTraceToolAnalytics: `${API_HTTP_PATH_PREFIX.intakeTraceTool}/analytics-events`,
+  intakeWordingDrafts: `${API_HTTP_PATH_PREFIX.intakeTraceTool}/wording-drafts`,
+  intakeWordingDraftsPublish: `${API_HTTP_PATH_PREFIX.intakeTraceTool}/wording-drafts/publish`,
+  intakeWordingDraftsRollback: `${API_HTTP_PATH_PREFIX.intakeTraceTool}/wording-drafts/rollback`,
+  log: API_HTTP_PATH_PREFIX.log,
+  logSnapshot: `${API_HTTP_PATH_PREFIX.log}/snapshot`,
+  marketingBrief: `${API_HTTP_PATH_PREFIX.marketing}/brief`,
+  notifications: API_HTTP_PATH_PREFIX.notifications,
+  notificationsUnreadCount: `${API_HTTP_PATH_PREFIX.notifications}/unread-count`,
+  notificationsReadAll: `${API_HTTP_PATH_PREFIX.notifications}/read-all`,
+  platformSelfServeOwner: `${API_HTTP_PATH_PREFIX.platform}/self-serve-owner`,
+  profile: API_HTTP_PATH_PREFIX.profile,
+  snapshot: API_HTTP_PATH_PREFIX.snapshot,
+  snapshotQuota: `${API_HTTP_PATH_PREFIX.snapshot}/quota`,
+  snapshotClaim: `${API_HTTP_PATH_PREFIX.snapshot}/claim`,
 } as const;
 
 export type ApiLogPath = (typeof API_PATHS)['log'] | (typeof API_PATHS)['logSnapshot'];
@@ -75,7 +79,7 @@ export function idempotencyPostAuditRequestApproveKey(requestId: string): string
 }
 
 export function apiIntakeTracePublicationLog(limit: number): string {
-  return `/api/intake-trace-tool/wording-publication-log?limit=${limit}`;
+  return `${API_HTTP_PATH_PREFIX.intakeTraceTool}/wording-publication-log?limit=${limit}`;
 }
 
 export function apiAuditsPath(auditId: string): string {
@@ -129,6 +133,18 @@ export function apiIntakeToken(token: string): string {
 
 export function apiIntakeRespond(token: string): string {
   return `${API_PATHS.intake}/${encodeURIComponent(token)}/respond`;
+}
+
+export function apiBriefPublicSession(token: string): string {
+  return `${API_PATHS.briefPublicSession}/${encodeURIComponent(token)}`;
+}
+
+export function apiBriefPublicSubmit(token: string): string {
+  return `${apiBriefPublicSession(token)}/submit`;
+}
+
+export function apiBriefPublicConvert(token: string): string {
+  return `${apiBriefPublicSession(token)}/convert`;
 }
 
 /** GET /api/benchmarks with optional filters (consultant auth). */

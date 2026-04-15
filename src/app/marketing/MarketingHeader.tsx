@@ -1,20 +1,75 @@
-import { useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link, NavLink } from 'react-router';
 import { List, X } from '@phosphor-icons/react';
 import { GlcLogo } from '../components/GlcLogo';
-import { ThemeToggle } from '../components/ThemeToggle';
+// import { ThemeToggle } from '../components/ThemeToggle';
 import { LOGIN_PATH, MARKETING_LINKS } from './marketing-nav';
 import { cn } from '../components/ui/utils';
 import { usePublicBrand } from './PublicBrandContext';
 import { useScrolled } from '../hooks/useScrolled';
+import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 
-export function MarketingHeader() {
-  const [open, setOpen] = useState(false);
+export function MarketingHeader({
+  mobileNavOpen: open,
+  onMobileNavOpenChange: setOpen,
+}: {
+  mobileNavOpen: boolean;
+  onMobileNavOpenChange: (open: boolean) => void;
+}) {
   const scrolled = useScrolled();
   const { footer } = usePublicBrand();
+  const navCopy = WORKSPACE_PAGE_COPY.marketingLayout;
+  const briefLink = MARKETING_LINKS.find(link => link.to === '/brief');
+  const menuPanelRef = useRef<HTMLDivElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const primaryLinks = MARKETING_LINKS.filter(link =>
-    ['/', '/snapshot', '/starter', '/pro', '/complete', '/brief'].includes(link.to),
+    ['/', '/snapshot', '/starter', '/pro', '/complete', '/discovery'].includes(link.to),
   );
+
+  useEffect(() => {
+    if (!open) return;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const menuButtonEl = menuButtonRef.current;
+
+    const focusableSelector =
+      'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+    const panel = menuPanelRef.current;
+    const focusable = panel?.querySelectorAll<HTMLElement>(focusableSelector);
+    focusable?.[0]?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setOpen(false);
+        return;
+      }
+
+      if (event.key !== 'Tab') return;
+      const nodes = panel?.querySelectorAll<HTMLElement>(focusableSelector);
+      if (!nodes || nodes.length === 0) return;
+
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = originalOverflow;
+      menuButtonEl?.focus();
+    };
+  }, [open, setOpen]);
 
   return (
     <header
@@ -40,7 +95,7 @@ export function MarketingHeader() {
           <GlcLogo className="h-8 sm:h-9" />
         </Link>
 
-        <nav className="hidden lg:flex lg:flex-1 lg:justify-center" aria-label="Primary navigation">
+        <nav className="hidden lg:flex lg:flex-1 lg:justify-center" aria-label={navCopy.primaryNavAriaLabel}>
           <ul className="flex flex-wrap items-center justify-center gap-1">
             {primaryLinks.filter(l => l.to !== '/').map(({ to, label }) => (
               <li key={to}>
@@ -63,9 +118,9 @@ export function MarketingHeader() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <ThemeToggle />
-                   <Link
-            to="/brief"
+          {/* <ThemeToggle /> */}
+          <Link
+            to={briefLink?.to ?? '/brief'}
             className="hidden rounded-lg px-3 py-2 text-sm font-semibold sm:inline-flex"
             style={{
               background: 'var(--gradient-brand)',
@@ -73,7 +128,7 @@ export function MarketingHeader() {
               boxShadow: 'none',
             }}
           >
-            Start with Brief
+            {briefLink?.label ?? footer.briefLinkLabel}
           </Link>
           <Link
             to={LOGIN_PATH}
@@ -87,15 +142,18 @@ export function MarketingHeader() {
           </Link>
           <button
             type="button"
-            className="inline-flex rounded-lg p-2 lg:hidden"
+            ref={menuButtonRef}
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg lg:hidden"
             style={{
               border: '1px solid var(--border-subtle)',
               backgroundColor: 'var(--bg-surface)',
               color: 'var(--text-primary)',
             }}
             aria-expanded={open}
-            aria-label={open ? 'Close menu' : 'Open menu'}
-            onClick={() => setOpen(o => !o)}
+            aria-controls="marketing-mobile-menu"
+            aria-haspopup="dialog"
+            aria-label={open ? navCopy.mobileNavCloseAriaLabel : navCopy.mobileNavOpenAriaLabel}
+            onClick={() => setOpen(!open)}
           >
             {open ? <X className="h-5 w-5" /> : <List className="h-5 w-5" />}
           </button>
@@ -104,6 +162,11 @@ export function MarketingHeader() {
 
       {open && (
         <div
+          id="marketing-mobile-menu"
+          ref={menuPanelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={navCopy.mobileNavDialogAriaLabel}
           className="border-t lg:hidden"
           style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
         >
@@ -115,7 +178,7 @@ export function MarketingHeader() {
                   onClick={() => setOpen(false)}
                   className={({ isActive }) =>
                     cn(
-                      'block rounded-lg px-3 py-2.5 text-sm font-medium',
+                      'flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium',
                       isActive ? 'bg-[var(--bg-muted)]' : '',
                     )
                   }
@@ -129,7 +192,7 @@ export function MarketingHeader() {
               <Link
                 to={LOGIN_PATH}
                 onClick={() => setOpen(false)}
-                className="block rounded-lg px-3 py-2.5 text-sm font-semibold"
+                className="flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-semibold"
                 style={{ color: 'var(--glc-blue)' }}
               >
                 {footer.clientSignInLabel}

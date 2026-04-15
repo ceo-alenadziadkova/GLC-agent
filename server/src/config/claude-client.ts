@@ -29,6 +29,14 @@ export function claudeCircuitBreakerRedisKey(): string {
 }
 
 /**
+ * Redis URL for distributed Claude circuit-breaker counters.
+ * Infra: optional `CLAUDE_CIRCUIT_REDIS_URL`, else falls back to `RATE_LIMIT_REDIS_URL`.
+ */
+export function getClaudeCircuitRedisUrl(): string {
+  return (process.env.CLAUDE_CIRCUIT_REDIS_URL?.trim() || process.env.RATE_LIMIT_REDIS_URL?.trim()) ?? '';
+}
+
+/**
  * Anthropic SDK client. Optional `ANTHROPIC_BASE_URL` (infra) for corporate proxy or compatible API gateway.
  */
 export function createAnthropicClient(): Anthropic {

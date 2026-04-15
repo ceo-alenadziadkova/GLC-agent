@@ -5,7 +5,7 @@
 export const MARKETING_SURFACE_COMPARISON_SHELL = {
   borderRadius: 'var(--radius-2xl)',
   border: '1px solid var(--border-subtle)',
-  backgroundColor: 'var(--bg-surface)',
+  backgroundColor: 'unset',
 } as const;
 
 export const MARKETING_SURFACE_MUTED_BAND = {

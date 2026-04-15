@@ -22,7 +22,11 @@ import {
   fetchLatestBenchmarkSnapshotForQuery,
   type BenchmarkPeriod,
 } from '../services/benchmark-snapshot.js';
-import { benchmarkRecomputeSecretValid, benchmarkRecomputeSecretHeaderName } from '../lib/benchmark-recompute-secret.js';
+import {
+  benchmarkRecomputeSecretValid,
+  benchmarkRecomputeSecretHeaderName,
+  isBenchmarkRecomputeConfigured,
+} from '../lib/benchmark-recompute-secret.js';
 import { logger } from '../services/logger.js';
 
 export const benchmarksRouter = Router();
@@ -81,8 +85,7 @@ benchmarksRouter.get('/', requireAuth, attachProfile, requireRole('consultant'),
 });
 
 benchmarksRouter.post('/recompute', benchmarkRecomputeLimiter, async (req, res) => {
-  const configured = Boolean(process.env.BENCHMARK_RECOMPUTE_SECRET?.trim());
-  if (!configured) {
+  if (!isBenchmarkRecomputeConfigured()) {
     res
       .status(503)
       .json(apiErrorJson(API_ERROR_CODES.BENCHMARK_RECOMPUTE_NOT_CONFIGURED, BENCHMARK_RECOMPUTE_NOT_CONFIGURED_MESSAGE));

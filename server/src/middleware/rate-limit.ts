@@ -28,6 +28,9 @@ import { REDIS_KEYS } from '../config/redis-keys.js';
 import {
   RATE_LIMIT_COMPARE_MESSAGE,
   RATE_LIMIT_DISCOVER_ANALYTICS_MESSAGE,
+  RATE_LIMIT_BRIEF_PUBLIC_CREATE_MESSAGE,
+  RATE_LIMIT_BRIEF_PUBLIC_READ_MESSAGE,
+  RATE_LIMIT_BRIEF_PUBLIC_WRITE_MESSAGE,
   RATE_LIMIT_DISCOVER_CREATE_MESSAGE,
   RATE_LIMIT_DISCOVER_READ_MESSAGE,
   RATE_LIMIT_GENERAL_MESSAGE,
@@ -42,6 +45,7 @@ import {
   rateLimitAuditCreateMessage,
   rateLimitSnapshotPublicDailyCapMessage,
 } from '../config/rate-limit-messages.js';
+import { isTruthyQueryValue } from '../config/query-bool.js';
 
 const PRL = SYSTEM_DEFAULTS.publicRouteRateLimits;
 
@@ -189,8 +193,7 @@ export const snapshotCompareLimiter = rateLimit({
   keyGenerator: (req) => `${req.ip ?? 'unknown'}:snapshot_compare`,
   skip: (req) => {
     const q = req.query as Record<string, string | undefined>;
-    const want =
-      q.compare === '1' || q.compare === 'true' || q.include_competitor === '1';
+    const want = isTruthyQueryValue(q.compare) || isTruthyQueryValue(q.include_competitor);
     return !want;
   },
   message: {
@@ -314,6 +317,51 @@ export const discoverAnalyticsPublicLimiter = rateLimit({
   message: {
     error: RATE_LIMIT_DISCOVER_ANALYTICS_MESSAGE,
     code: 'DISCOVER_ANALYTICS_RATE_LIMITED',
+    retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** POST /api/brief-public/session — starts public brief session. */
+export const briefPublicCreateLimiter = rateLimit({
+  windowMs: HOUR_MS,
+  max: PRL.briefPublicCreateMaxPerHour,
+  store: distributedStore('brief_public_create'),
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  message: {
+    error: RATE_LIMIT_BRIEF_PUBLIC_CREATE_MESSAGE,
+    code: 'BRIEF_PUBLIC_CREATE_RATE_LIMITED',
+    retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** GET /api/brief-public/session/:token — load session state. */
+export const briefPublicReadLimiter = rateLimit({
+  windowMs: HOUR_MS,
+  max: PRL.briefPublicReadMaxPerHour,
+  store: distributedStore('brief_public_read'),
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  message: {
+    error: RATE_LIMIT_BRIEF_PUBLIC_READ_MESSAGE,
+    code: 'BRIEF_PUBLIC_READ_RATE_LIMITED',
+    retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** PATCH/POST /api/brief-public/session/:token — save or submit session. */
+export const briefPublicWriteLimiter = rateLimit({
+  windowMs: HOUR_MS,
+  max: PRL.briefPublicWriteMaxPerHour,
+  store: distributedStore('brief_public_write'),
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  message: {
+    error: RATE_LIMIT_BRIEF_PUBLIC_WRITE_MESSAGE,
+    code: 'BRIEF_PUBLIC_WRITE_RATE_LIMITED',
     retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,

@@ -4,13 +4,10 @@ import { ArrowRight, CheckCircle } from '@phosphor-icons/react';
 import { MarketingLayout } from '../marketing/MarketingLayout';
 import { MarketingSection } from '../marketing/blocks/MarketingSection';
 import { DecisionPath } from '../marketing/blocks/DecisionPath';
-import { AuditCompare } from '../marketing/blocks/AuditCompare';
 import { HomeHeroCockpit } from '../marketing/blocks/HomeHeroCockpit';
 import { MarketingComparisonShell } from '../marketing/blocks/MarketingComparisonShell';
 import { MarketingMidCtaBand } from '../marketing/blocks/MarketingMidCtaBand';
 import { MarketingRevealMask } from '../marketing/blocks/MarketingRevealMask';
-import { NextStepsCta } from '../marketing/blocks/NextStepsCta';
-import { LOGIN_PATH } from '../marketing/marketing-nav';
 import { usePublicBrand } from '../marketing/PublicBrandContext';
 import marketingHomeCopy from '../data/marketing-home-copy.en.json';
 import workspacePackaging from '../data/marketing-workspace-packaging.en.json';
@@ -26,7 +23,6 @@ import {
   MARKETING_CARD_MOTION,
   MARKETING_LIST_STAGGER,
   MARKETING_MOTION_EASE_PREMIUM,
-  MARKETING_SECTION_MOTION,
 } from '../config/marketing-motion';
 
 const FOCUS_RING =
@@ -116,19 +112,6 @@ function SectionHeading({
   );
 }
 
-const whatWeDoPanelVariants: Variants = {
-  hidden: { opacity: 0, y: MARKETING_CARD_MOTION.hiddenY },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: {
-      delay: i * MARKETING_CARD_MOTION.staggerSec,
-      duration: MARKETING_CARD_MOTION.durationSec,
-      ease: MARKETING_MOTION_EASE_PREMIUM,
-    },
-  }),
-};
-
 const trustLineVariants: Variants = {
   hidden: { opacity: 0, y: MARKETING_LIST_STAGGER.itemHiddenY },
   visible: (i: number) => ({
@@ -180,37 +163,26 @@ export function MarketingHome() {
 function MarketingHomeInner() {
   const reduce = useReducedMotion();
   const heroMv = marketingHeroBillboardMotion(reduce);
-  const { brandName, footer } = usePublicBrand();
+  const { brandName } = usePublicBrand();
   const pack = workspacePackaging.marketing_home;
   const lm = pack.landmarks;
   const hero = pack.hero;
   const outcomesSection = pack.outcomes_section;
   const trustStrip = pack.trust_strip;
-  const nextStepsCopy = pack.next_steps;
   const headSuffix = hero.headline_gradient_suffix;
   const headlinePlainBefore =
     hero.headline.endsWith(headSuffix) && headSuffix.length > 0
       ? hero.headline.slice(0, hero.headline.length - headSuffix.length).trimEnd()
       : hero.headline;
-  const whoWeAreDescription = `${brandName} helps teams capture durable business context, see the real state of digital systems and processes, and turn that into a prioritized plan—from quick wins to coordinated roadmap.`;
   const outcomeItems = outcomesSection.items;
   const [outcomePrimary, ...outcomeRest] = outcomeItems;
 
   return (
-    <div data-testid="marketing-home" className="space-y-0">
+    <div data-testid="marketing-home" className="flex flex-col gap-16 sm:gap-20 lg:gap-24">
       <MarketingSection
-        className="glc-light-home-hero relative -mx-4 overflow-hidden px-4 pb-12 pt-6 sm:-mx-6 sm:px-6 sm:pb-20 sm:pt-10"
+        className="glc-light-home-hero relative -mx-4 align-top overflow-hidden px-4 pb-12 pt-6 sm:-mx-6 sm:px-6 sm:pb-20 sm:pt-10"
         aria-label={lm.hero}
       >
-        <div
-          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.92]"
-          style={{
-            background:
-              'radial-gradient(ellipse 95% 70% at 12% 0%, color-mix(in oklab, var(--glc-blue-muted) 32%, transparent) 0%, transparent 55%), radial-gradient(ellipse 60% 45% at 92% 18%, color-mix(in oklab, var(--glc-blue) 12%, transparent) 0%, transparent 50%)',
-          }}
-          aria-hidden
-        />
-
         <motion.div
           className="relative grid w-full max-w-6xl gap-12 lg:grid-cols-[minmax(0,1.2fr)_minmax(260px,1fr)] lg:items-start lg:gap-10 xl:gap-14"
           variants={heroMv.container}
@@ -252,17 +224,19 @@ function MarketingHomeInner() {
           >
             {hero.subheadline}
           </motion.p>
-          <motion.p
-            variants={heroMv.item}
-            className="glc-light-home-hero-support mt-4 max-w-[60ch] text-sm leading-relaxed sm:text-[0.95rem]"
-            style={{ color: 'var(--text-tertiary)' }}
-          >
-            {hero.supporting_line}
-          </motion.p>
+          {hero.supporting_line ? (
+            <motion.p
+              variants={heroMv.item}
+              className="glc-light-home-hero-support mt-4 max-w-[60ch] text-sm leading-relaxed sm:text-[0.95rem]"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              {hero.supporting_line}
+            </motion.p>
+          ) : null}
 
           <motion.div
             variants={heroMv.item}
-            className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center"
+            className="mt-8 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center"
           >
             <motion.div
               whileHover={reduce ? undefined : { y: -1, opacity: 0.92 }}
@@ -287,40 +261,40 @@ function MarketingHomeInner() {
               </Link>
             </motion.div>
             <motion.div
-              whileHover={reduce ? undefined : { y: -1 }}
+              whileHover={reduce ? undefined : { x: 2 }}
               transition={{ duration: 0.22, ease: MARKETING_MOTION_EASE_PREMIUM }}
             >
               <Link
                 to="/#how-it-works"
                 data-testid="hero-cta-how-it-works"
                 className={cn(
-                  'inline-flex w-full items-center justify-center gap-2 rounded-full border-2 px-8 py-3.5 text-sm font-semibold transition-[background-color,border-color,transform] duration-200 sm:w-auto',
+                  'group inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md px-2 text-sm font-semibold underline-offset-4 transition-colors hover:underline sm:w-auto sm:justify-start',
                   FOCUS_RING,
                 )}
                 style={{
-                  backgroundColor: 'transparent',
-                  borderColor: 'var(--border-default)',
-                  color: 'var(--text-primary)',
+                  color: 'var(--glc-blue)',
                   textDecoration: 'none',
                 }}
               >
                 {hero.ctas.secondary}
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
               </Link>
             </motion.div>
           </motion.div>
-          <motion.p
-            variants={heroMv.item}
-            className="mt-5 max-w-[65ch] text-xs leading-relaxed"
-            style={{ color: 'var(--text-tertiary)' }}
-          >
-            {hero.snapshot_caption}
-          </motion.p>
+          {hero.snapshot_caption ? (
+            <motion.p
+              variants={heroMv.item}
+              className="mt-5 max-w-[65ch] text-xs leading-relaxed"
+              style={{ color: 'var(--text-tertiary)' }}
+            >
+              {hero.snapshot_caption}
+            </motion.p>
+          ) : null}
           <motion.div
             variants={heroMv.item}
             className="mt-10 flex flex-wrap gap-2 sm:mt-12 sm:gap-3"
             role="list"
-            aria-label="Trust points"
+            aria-label={marketingHomeCopy.trustPointsAriaLabel}
           >
             {hero.trust_bullets.map((line, index) => (
               <motion.span
@@ -344,132 +318,42 @@ function MarketingHomeInner() {
           <motion.div
             variants={reduce ? heroMv.item : homeHeroVisualFloat}
             className="glc-light-home-cockpit"
-            animate={
-              reduce
-                ? 'visible'
-                : {
-                    y: [0, -2, 0],
-                    transition: {
-                      duration: 4.8,
-                      repeat: Infinity,
-                      ease: 'easeInOut',
-                    },
-                  }
-            }
+            initial={reduce ? false : 'hidden'}
+            animate="visible"
           >
             <HomeHeroCockpit className="lg:pt-4" />
           </motion.div>
         </motion.div>
       </MarketingSection>
 
-      <MarketingSection
-        className="-mx-4 rounded-[var(--radius-2xl)] border border-[var(--border-subtle)] bg-[var(--bg-inset)] px-4 py-16 sm:-mx-6 sm:px-6 sm:py-20"
-        delay={0.05}
-        aria-label={lm.who_we_are}
-      >
-        <div className="grid gap-10 lg:grid-cols-12 lg:gap-16 lg:items-start">
-          <motion.div
-            className="lg:col-span-4"
-            initial={reduce ? false : { opacity: 0, y: 16 }}
-            whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: MARKETING_SECTION_MOTION.viewportMargin }}
-            transition={{ duration: 0.52, ease: MARKETING_MOTION_EASE_PREMIUM }}
-          >
-            <SectionHeading variant="minimal" size="display" title={marketingHomeCopy.whoWeAreTitle} />
-          </motion.div>
-          <motion.div
-            className="lg:col-span-8 rounded-[var(--radius-xl)] border px-5 py-6 sm:px-7 sm:py-8"
-            initial={reduce ? false : { opacity: 0, y: 16 }}
-            whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: MARKETING_SECTION_MOTION.viewportMargin }}
-            transition={{
-              duration: 0.52,
-              delay: reduce ? 0 : 0.09,
-              ease: MARKETING_MOTION_EASE_PREMIUM,
-            }}
-            style={{
-              borderColor: 'var(--border-subtle)',
-              backgroundColor: 'color-mix(in oklab, var(--bg-surface) 92%, var(--bg-muted))',
-              boxShadow: 'var(--shadow-xs)',
-            }}
-          >
-            <p className="max-w-[65ch] text-base leading-[1.65] sm:text-[1.0625rem]" style={{ color: 'var(--text-secondary)' }}>
-              {whoWeAreDescription}
-            </p>
-            <div className="mt-8 grid gap-3 border-t pt-6 sm:grid-cols-3 sm:gap-4" style={{ borderColor: 'var(--border-subtle)' }}>
-              {marketingHomeCopy.whoWeAreMetrics.map(item => (
-                <div key={item.label}>
-                  <p className="font-display text-3xl font-bold leading-none" style={{ color: 'var(--text-primary)' }}>
-                    {item.value}
-                  </p>
-                  <p className="mt-1 text-xs uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
-                    {item.label}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </motion.div>
+      <MarketingSection delay={0.04} aria-label={marketingHomeCopy.trustMetricsLandmark}>
+        <div className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-7 sm:py-9">
+          <div className="grid gap-8 text-center sm:grid-cols-3 sm:gap-10 sm:text-left">
+            {marketingHomeCopy.whoWeAreMetrics.map(item => (
+              <div key={item.label} className="max-w-md sm:max-w-none">
+                <p
+                  className="font-display text-2xl font-bold leading-tight tracking-tight sm:text-[1.65rem]"
+                  style={{ color: 'var(--text-primary)' }}
+                >
+                  {item.value}
+                </p>
+                <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  {item.label}
+                </p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-8 text-center text-sm leading-relaxed sm:mt-10 sm:text-[0.95rem]" style={{ color: 'var(--text-secondary)' }}>
+            {marketingHomeCopy.trustMetricsTagline}
+          </p>
         </div>
       </MarketingSection>
 
-      <MarketingSection className="mt-20 sm:mt-28" delay={0.08} aria-label={lm.what_we_do}>
-        <div
-          className="rounded-[var(--radius-2xl)] border border-[var(--border-subtle)] px-4 py-12 sm:px-6 sm:py-14"
-          style={{ backgroundColor: 'var(--bg-muted)' }}
-        >
-          <SectionHeading variant="rail" size="display" title={marketingHomeCopy.whatWeDoTitle} />
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:gap-5">
-            {marketingHomeCopy.whatWeDoLines.map((line, idx) => (
-              <motion.article
-                key={line}
-                className="flex flex-col rounded-[var(--radius-xl)] border p-5 sm:p-6"
-                style={{
-                  borderColor: 'var(--border-subtle)',
-                  backgroundColor: 'var(--bg-surface)',
-                  boxShadow: 'var(--shadow-xs)',
-                }}
-                variants={whatWeDoPanelVariants}
-                custom={idx}
-                initial={reduce ? false : 'hidden'}
-                whileInView={reduce ? undefined : 'visible'}
-                viewport={{ once: true, margin: '-6% 0px' }}
-                whileHover={
-                  reduce
-                    ? undefined
-                    : {
-                        y: -MARKETING_CARD_MOTION.hoverLift,
-                        transition: {
-                          duration: MARKETING_CARD_MOTION.hoverDurationSec,
-                          ease: MARKETING_MOTION_EASE_PREMIUM,
-                        },
-                      }
-                }
-              >
-                <span
-                  className="font-display text-3xl font-bold tabular-nums sm:text-4xl"
-                  style={{ color: 'color-mix(in oklab, var(--glc-blue-deeper) 35%, var(--text-quaternary))' }}
-                  aria-hidden
-                >
-                  {String(idx + 1).padStart(2, '0')}
-                </span>
-                <p className="mt-4 text-sm leading-relaxed sm:text-[0.95rem]" style={{ color: 'var(--text-secondary)' }}>
-                  {line}
-                </p>
-                <div className="mt-auto pt-4 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--glc-blue)' }}>
-                  <span className="inline-flex items-center gap-1">
-                    {marketingHomeCopy.whatWeDoActionLabel}
-                    <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                  </span>
-                </div>
-              </motion.article>
-            ))}
-          </div>
-        </div>
-      </MarketingSection>
+      {/* Who we are + What we do are intentionally hidden on Home to keep a tighter product-led flow. */}
 
       <MarketingSection
         id="how-it-works"
-        className="mt-24 scroll-mt-28 sm:mt-28"
+        className="scroll-mt-28"
         delay={0.1}
         aria-label={lm.how_it_works}
       >
@@ -485,6 +369,8 @@ function MarketingHomeInner() {
         </MarketingRevealMask>
       </MarketingSection>
 
+      {/* Coverage tiers kept in code, hidden on Home for now. */}
+      {/* 
       <MarketingSection className="mt-24 sm:mt-28" delay={0.14} aria-label={lm.coverage}>
         <SectionHeading
           variant="rail"
@@ -498,6 +384,7 @@ function MarketingHomeInner() {
           </MarketingComparisonShell>
         </MarketingRevealMask>
       </MarketingSection>
+      */}
 
       <MarketingSection className="mt-24 sm:mt-28" delay={0.15} aria-label={lm.outcomes}>
         <SectionHeading
@@ -581,18 +468,7 @@ function MarketingHomeInner() {
         </div>
       </MarketingSection>
 
-      <MarketingSection className="mt-0 sm:mt-0" delay={0.152}>
-        <MarketingMidCtaBand
-          landmarkLabel={lm.mid_cta}
-          title={pack.mid_page_cta.title}
-          body={pack.mid_page_cta.body}
-          ctaLabel={pack.mid_page_cta.cta_label}
-          ctaTo={pack.mid_page_cta.cta_to}
-          className="mt-16 sm:mt-20"
-        />
-      </MarketingSection>
-
-      <MarketingSection className="mt-20 sm:mt-24" delay={0.155} aria-label={lm.trust}>
+      <MarketingSection delay={0.155} aria-label={lm.trust}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--text-tertiary)' }}>
           {trustStrip.title}
         </p>
@@ -647,68 +523,15 @@ function MarketingHomeInner() {
         </Link>
       </MarketingSection>
 
-      <MarketingSection className="mt-24 sm:mt-28" delay={0.18} aria-label={lm.clients}>
-        <motion.div
-          className="flex flex-col gap-8 p-8 sm:flex-row sm:items-center sm:justify-between sm:gap-12 sm:p-10"
-          style={{
-            borderRadius: 'var(--radius-2xl)',
-            background: 'var(--gradient-ink-rich)',
-            boxShadow: 'none',
-            border: '1px solid color-mix(in oklab, white 12%, transparent)',
-          }}
-          initial={reduce ? false : { opacity: 0, y: 22 }}
-          whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: MARKETING_SECTION_MOTION.viewportMargin }}
-          transition={{ duration: MARKETING_SECTION_MOTION.durationSec, ease: MARKETING_MOTION_EASE_PREMIUM }}
-        >
-          <div className="max-w-xl">
-            <h2
-              className="font-display text-xl font-bold tracking-tight sm:text-2xl"
-              style={{ color: 'rgba(255,255,255,0.96)' }}
-            >
-              {pack.client_dashboard.title}
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed sm:text-[0.95rem]" style={{ color: 'rgba(255,255,255,0.7)' }}>
-              {pack.client_dashboard.body}
-            </p>
-          </div>
-          <Link
-            to={LOGIN_PATH}
-            className={cn(
-              'group inline-flex shrink-0 items-center justify-center gap-2 rounded-full border-2 px-8 py-3.5 text-sm font-semibold transition-[background-color,transform] duration-200',
-              FOCUS_RING,
-              'focus-visible:ring-white/90 focus-visible:ring-offset-0',
-            )}
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.1)',
-              borderColor: 'rgba(255,255,255,0.55)',
-              color: 'rgba(255,255,255,0.96)',
-            }}
-          >
-            {pack.client_dashboard.cta_sign_in}
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
-          </Link>
-        </motion.div>
-      </MarketingSection>
-
-      <motion.div
-        className="mt-16 sm:mt-20"
-        initial={reduce ? false : { opacity: 0, y: 20 }}
-        whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: MARKETING_SECTION_MOTION.viewportMargin }}
-        transition={{ duration: MARKETING_SECTION_MOTION.durationSec, ease: MARKETING_MOTION_EASE_PREMIUM }}
-      >
-        <NextStepsCta
-          variant="home"
-          title={nextStepsCopy.title}
-          subtitle={nextStepsCopy.subtitle}
-          steps={[
-            { to: '/faq', label: 'FAQ', hint: 'Timelines, format, how we work.' },
-            { to: '/brief', label: 'Book a brief call', hint: 'We gather context and suggest a route.', primary: true },
-            { to: LOGIN_PATH, label: footer.clientSignInLabel, hint: 'For current clients.' },
-          ]}
+      <MarketingSection delay={0.18}>
+        <MarketingMidCtaBand
+          landmarkLabel={lm.mid_cta}
+          title={pack.mid_page_cta.title}
+          body={pack.mid_page_cta.body}
+          ctaLabel={pack.mid_page_cta.cta_label}
+          ctaTo={pack.mid_page_cta.cta_to}
         />
-      </motion.div>
+      </MarketingSection>
     </div>
   );
 }

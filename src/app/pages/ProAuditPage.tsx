@@ -29,6 +29,7 @@ export function ProAuditPage() {
   const pageCopy = workspacePackaging.package_pages.pro;
   const { quick, strategy } = workspacePackaging.packages;
   const homePack = workspacePackaging.marketing_home;
+  const labels = workspacePackaging.package_page_labels;
   const mid = pageCopy.mid_cta ?? homePack.mid_page_cta;
   const next = pageCopy.next_steps ?? homePack.next_steps;
 
@@ -59,7 +60,7 @@ export function ProAuditPage() {
             <div className="grid divide-y divide-[var(--border-subtle)] lg:grid-cols-2 lg:divide-x lg:divide-y-0">
               <div className="p-6 sm:p-8">
                 <h3 className="font-display text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-                  Included
+                  {labels.included}
                 </h3>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
                   <li>Two to three selected domains with focused depth.</li>
@@ -69,7 +70,7 @@ export function ProAuditPage() {
               </div>
               <div className="p-6 sm:p-8">
                 <h3 className="font-display text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-                  Not included
+                  {labels.notIncluded}
                 </h3>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
                   <li>Complete cross-domain certainty across all six domains.</li>
@@ -155,15 +156,15 @@ export function ProAuditPage() {
           steps={[
             { to: '/starter', label: quick.title, hint: quick.subtitle },
             { to: '/complete', label: strategy.title, hint: strategy.subtitle },
-            { to: '/brief', label: 'Book a brief call', hint: 'Get help selecting the right 2-3 domains.', primary: true },
-            { to: '/faq', label: 'FAQ', hint: 'Delivery, timelines, and collaboration model.' },
-            { to: LOGIN_PATH, label: 'Client sign-in', hint: 'Current workspace reports and progress.' },
+            { to: '/brief', label: labels.bookBriefLabel, hint: labels.bookBriefHintPro, primary: true },
+            { to: '/faq', label: labels.faqLabel, hint: 'Delivery, timelines, and collaboration model.' },
+            { to: LOGIN_PATH, label: labels.clientSignInLabel, hint: 'Current workspace reports and progress.' },
           ]}
         />
       </div>
 
       <p className="mt-8 text-center text-sm" style={{ color: 'var(--text-tertiary)' }}>
-        If you are unsure which domains to include, start with{' '}
+        {labels.proHintPrefix}{' '}
         <Link to="/brief" className="font-semibold" style={{ color: 'var(--glc-blue)' }}>
           Brief
         </Link>

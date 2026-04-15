@@ -1,94 +1,117 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useForm } from 'react-hook-form';
+import { BriefField } from '../components/BriefField';
 import { MarketingLayout } from '../marketing/MarketingLayout';
 import { MarketingSection } from '../marketing/blocks/MarketingSection';
-import { MarketingTextReveal } from '../marketing/blocks/MarketingTextReveal';
 import { NextStepsCta } from '../marketing/blocks/NextStepsCta';
 import { api, ApiError } from '../data/apiService';
-import { ROUTE_LABELS, type MarketingRecommendedRoute } from '../marketing/brief-logic';
 import { LOGIN_PATH } from '../marketing/marketing-nav';
 import { usePublicBrand } from '../marketing/PublicBrandContext';
 import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
-import {
-  MARKETING_FORM_FIELD_BORDER,
-  MARKETING_FORM_FIELD_FOCUS,
-  MARKETING_PRIMARY_CTA,
-} from '../config/marketing-surface-tokens';
+import { PUBLIC_BRIEF_SESSION_FLOW_ENABLED } from '../config/public-brief-flow';
+import type { BriefQuestion, BriefResponses, BriefResponseValue } from '../data/briefQuestions';
+import { groupBriefQuestionsBySection, unwrapResponse, WEBSITE_PRESENCE_NO_SITE_LABEL } from '../data/briefQuestions';
+import { choiceValueNeedsSpecify } from '@glc/intake-core';
 
 type FormValues = {
-  name: string;
-  company: string;
-  website: string;
-  no_website: boolean;
-  concern: string;
-  improve: string;
-  contact_method: string;
-  unsure_choice: boolean;
-  preferred_coverage_package: 'starter' | 'pro' | 'complete';
+  contact_name: string;
+  company_name: string;
+  website_url: string;
+  has_website: boolean;
+  email: string;
+  phone: string;
 };
 
 const PB = WORKSPACE_PAGE_COPY.publicBrief;
-const ROUTE_LABEL_FALLBACKS: Record<MarketingRecommendedRoute, string> = {
-  '/snapshot': 'Snapshot',
-  '/starter': 'Starter',
-  '/pro': 'Pro',
-  '/complete': 'Complete',
-  '/discovery': 'Discovery',
-};
-const BRIEF_CONTROL_STYLE = {
-  borderColor: MARKETING_FORM_FIELD_BORDER.borderColor,
-  backgroundColor: 'var(--bg-surface)',
-  color: 'var(--text-primary)',
-} as const;
 
 export function PublicBriefPage() {
   const { supportEmail } = usePublicBrand();
-  const [done, setDone] = useState<{ route: MarketingRecommendedRoute; id: string } | null>(null);
+  const [sessionToken, setSessionToken] = useState<string>('');
+  const [questions, setQuestions] = useState<BriefQuestion[]>([]);
+  const [responses, setResponses] = useState<BriefResponses>({});
+  const [phase, setPhase] = useState<'identity' | 'questions' | 'success'>('identity');
+  const [loadingSession, setLoadingSession] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [submittedAt, setSubmittedAt] = useState<string | null>(null);
+
+  const visibleQuestions = useMemo(
+    () => questions.filter(q => !(q.id === 'a11' && unwrapResponse(responses.a5) === WEBSITE_PRESENCE_NO_SITE_LABEL)),
+    [questions, responses],
+  );
+  const sections = useMemo(() => groupBriefQuestionsBySection(visibleQuestions), [visibleQuestions]);
 
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     defaultValues: {
-      name: '',
-      company: '',
-      website: '',
-      no_website: false,
-      concern: '',
-      improve: '',
-      contact_method: PB.contactOptions[0],
-      unsure_choice: false,
-      preferred_coverage_package: 'pro',
+      contact_name: '',
+      company_name: '',
+      website_url: '',
+      has_website: true,
+      email: '',
+      phone: '',
     },
   });
 
-  const noWebsite = watch('no_website');
-  const unsure = watch('unsure_choice');
-  const showDepthChoice = !unsure && !noWebsite;
-  const recommendedRouteLabel = done
-    ? (ROUTE_LABELS[done.route] ?? ROUTE_LABEL_FALLBACKS[done.route])
-    : null;
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('session')?.trim();
+    if (!token) return;
+    setLoadingSession(true);
+    void api.getBriefPublicSession(token)
+      .then(data => {
+        setSessionToken(data.session_token);
+        setQuestions(data.questions);
+        setResponses(data.responses as BriefResponses);
+        setPhase(data.submitted_at ? 'success' : 'questions');
+        setSubmittedAt(data.submitted_at ?? null);
+      })
+      .catch(() => undefined)
+      .finally(() => setLoadingSession(false));
+  }, []);
 
-  async function onSubmit(values: FormValues) {
+  async function onIdentitySubmit(values: FormValues) {
     setSubmitError(null);
+    if (!PUBLIC_BRIEF_SESSION_FLOW_ENABLED) {
+      try {
+        await api.submitMarketingBrief({
+          name: values.contact_name.trim(),
+          company: values.company_name.trim() || undefined,
+          website: values.has_website ? values.website_url.trim() : undefined,
+          no_website: !values.has_website,
+          concern: PB.legacyMarketingBriefPlaceholder,
+          improve: PB.legacyMarketingBriefPlaceholder,
+          contact_method: values.email.trim() ? 'Email' : 'Either is fine',
+          unsure_choice: true,
+        });
+        setPhase('success');
+      } catch (e) {
+        setSubmitError((e as Error).message);
+      }
+      return;
+    }
     try {
-      const res = await api.submitMarketingBrief({
-        name: values.name.trim(),
-        company: values.company.trim() || undefined,
-        website: values.no_website ? undefined : values.website.trim(),
-        no_website: values.no_website,
-        concern: values.concern.trim(),
-        improve: values.improve.trim(),
-        contact_method: values.contact_method,
-        unsure_choice: values.unsure_choice,
-        preferred_coverage_package:
-          values.unsure_choice || values.no_website ? undefined : values.preferred_coverage_package,
+      const res = await api.createBriefPublicSession({
+        contact_name: values.contact_name.trim(),
+        company_name: values.company_name.trim(),
+        has_website: values.has_website,
+        website_url: values.has_website ? values.website_url.trim() : undefined,
+        email: values.email.trim() || undefined,
+        phone: values.phone.trim() || undefined,
       });
-      setDone({ route: res.recommended_route as MarketingRecommendedRoute, id: res.id });
+      setSessionToken(res.session_token);
+      setQuestions(res.questions);
+      setResponses(res.responses as BriefResponses);
+      setPhase('questions');
+      const params = new URLSearchParams(window.location.search);
+      params.set('session', res.session_token);
+      window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
     } catch (e) {
       const email = supportEmail.trim();
       const emailPart =
@@ -98,6 +121,46 @@ export function PublicBriefPage() {
           ? e.message
           : `${PB.submitErrorGeneric}${emailPart}`;
       setSubmitError(msg);
+    }
+  }
+
+  function setAnswer(id: string, value: string | string[] | number | null) {
+    setResponses(prev => {
+      const next: BriefResponses = { ...prev, [id]: { value: value as BriefResponseValue, source: 'client' } };
+      if (!choiceValueNeedsSpecify(value)) delete next[`${id}__other`];
+      if (id === 'a2' && value !== 'Other') delete next.intake_industry_specify;
+      return next;
+    });
+  }
+
+  async function saveDraft() {
+    if (!sessionToken) return;
+    setSavingDraft(true);
+    setSubmitError(null);
+    try {
+      const result = await api.saveBriefPublicSession(sessionToken, responses);
+      setQuestions(result.questions);
+      setResponses(result.responses as BriefResponses);
+      setSavedAt(new Date().toISOString());
+    } catch (e) {
+      setSubmitError((e as Error).message);
+    } finally {
+      setSavingDraft(false);
+    }
+  }
+
+  async function submitFinal() {
+    if (!sessionToken) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const result = await api.submitBriefPublicSession(sessionToken, responses);
+      setSubmittedAt(result.submitted_at);
+      setPhase('success');
+    } catch (e) {
+      setSubmitError((e as Error).message);
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -119,271 +182,110 @@ export function PublicBriefPage() {
         </p>
       </MarketingSection>
 
-      {done ? (
-        <MarketingSection className="mt-10">
+      {phase === 'success' ? (
+        <MarketingSection>
           <div
             className="glc-card max-w-2xl p-6 sm:p-8"
             style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-card)' }}
           >
-            <p className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--glc-green-dark)' }}>
-              {PB.sentBadge}
-            </p>
+            <p className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--glc-green-dark)' }}>{PB.sentBadge}</p>
             <h2 className="mt-2 font-display text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-              {PB.sentTitlePrefix} {ROUTE_LABELS[done.route]}
+              {PB.successTitle}
             </h2>
             <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              {PB.sentBody}
+              {PB.successBody}
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                to={done.route}
-                className="inline-flex rounded-xl px-5 py-3 text-sm font-semibold"
-                style={{ background: 'var(--gradient-brand)', color: 'var(--primary-foreground)' }}
-              >
-                {PB.goToPrefix} {recommendedRouteLabel}
-              </Link>
-              {done.route !== '/brief' && (
-                <Link
-                  to="/brief"
-                  className="inline-flex rounded-xl border px-5 py-3 text-sm font-semibold"
-                  style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
-                >
-                  Adjust with specialist
-                </Link>
-              )}
-            </div>
             <p className="mt-6 text-xs" style={{ color: 'var(--text-quaternary)' }}>
-              {PB.refPrefix} {done.id}
+              {PB.refPrefix} {sessionToken}
             </p>
+            {submittedAt && (
+              <p className="mt-2 text-xs" style={{ color: 'var(--text-quaternary)' }}>
+                {PB.submittedAtPrefix} {new Date(submittedAt).toLocaleString()}
+              </p>
+            )}
           </div>
         </MarketingSection>
       ) : (
-        <MarketingSection className="mt-10">
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            onFocusCapture={event => {
-              const element = event.target as HTMLElement;
-              if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
-                element.style.borderColor = MARKETING_FORM_FIELD_FOCUS.borderColor;
-                element.style.boxShadow = MARKETING_FORM_FIELD_FOCUS.boxShadow;
-              }
-            }}
-            onBlurCapture={event => {
-              const element = event.target as HTMLElement;
-              if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
-                element.style.borderColor = BRIEF_CONTROL_STYLE.borderColor;
-                element.style.boxShadow = 'none';
-              }
-            }}
-            className="glc-card glc-light-brief-shell max-w-3xl overflow-hidden border"
-            style={{
-              borderRadius: 'var(--radius-2xl)',
-              borderColor: 'var(--border-subtle)',
-              boxShadow: 'var(--shadow-card)',
-              backgroundColor: 'color-mix(in oklab, var(--bg-surface) 86%, transparent)',
-              backdropFilter: 'blur(14px)',
-            }}
-          >
-            <div
-              className="border-b px-6 py-4 sm:px-8 sm:py-5"
-              style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-muted)' }}
-            >
-              <h2 className="font-display text-lg font-bold tracking-tight sm:text-xl" style={{ color: 'var(--text-primary)' }}>
-                {PB.formShellTitle}
-              </h2>
-            </div>
-
-            <div className="space-y-10 p-6 sm:p-8">
-              <MarketingTextReveal>
-                <fieldset className="glc-light-brief-section space-y-5 border-0 p-0 m-0">
-                  <legend className="mb-1 text-sm font-bold uppercase tracking-wide" style={{ color: 'var(--text-primary)' }}>
-                    {PB.sectionIdentityTitle}
-                  </legend>
-                  <label className="flex flex-col gap-1.5 text-sm">
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.formNameLabel}</span>
-                    <input
-                      {...register('name', { required: PB.formNameRequired })}
-                      className="rounded-lg border px-3 py-2.5 outline-none"
-                      style={BRIEF_CONTROL_STYLE}
-                    />
-                    {errors.name && <span style={{ color: 'var(--score-1)', fontSize: 12 }}>{errors.name.message}</span>}
-                  </label>
-                  <label className="flex flex-col gap-1.5 text-sm">
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.formCompanyLabel}</span>
-                    <input
-                      {...register('company')}
-                      className="rounded-lg border px-3 py-2.5 outline-none"
-                      style={BRIEF_CONTROL_STYLE}
-                    />
-                  </label>
-                  <div className="flex flex-col gap-2">
-                    <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                      <input
-                        type="checkbox"
-                        {...register('no_website')}
-                        className="h-4 w-4 rounded-[4px] border"
-                        style={{
-                          borderColor: BRIEF_CONTROL_STYLE.borderColor,
-                          accentColor: 'var(--glc-blue)',
-                          backgroundColor: 'var(--bg-surface)',
-                        }}
-                      />
-                      {PB.noPublicSiteYet}
-                    </label>
-                    {!noWebsite && (
-                      <label className="flex flex-col gap-1.5 text-sm">
-                        <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.websiteLabel}</span>
-                        <input
-                          {...register('website', {
-                            validate: v =>
-                              noWebsite || (v && v.trim().length > 0) || PB.websiteOrNoPublic,
-                          })}
-                          placeholder={PB.websitePlaceholder}
-                          className="rounded-lg border px-3 py-2.5 outline-none"
-                          style={BRIEF_CONTROL_STYLE}
-                        />
-                        {errors.website && <span style={{ color: 'var(--score-1)', fontSize: 12 }}>{errors.website.message}</span>}
-                      </label>
-                    )}
-                  </div>
-                </fieldset>
-              </MarketingTextReveal>
-
-              <MarketingTextReveal delay={0.05}>
-                <div className="glc-light-brief-section border-t pt-10" style={{ borderColor: 'var(--border-subtle)' }}>
-                  <h3 className="mb-4 text-sm font-bold uppercase tracking-wide" style={{ color: 'var(--text-primary)' }}>
-                    {PB.sectionPainTitle}
-                  </h3>
-                  <label className="flex flex-col gap-1.5 text-sm">
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.concernLabel}</span>
-                    <textarea
-                      {...register('concern', { required: PB.concernRequired })}
-                      rows={3}
-                      className="resize-y rounded-lg border px-3 py-2.5 outline-none"
-                      style={BRIEF_CONTROL_STYLE}
-                    />
-                    {errors.concern && <span style={{ color: 'var(--score-1)', fontSize: 12 }}>{errors.concern.message}</span>}
-                  </label>
-                </div>
-              </MarketingTextReveal>
-
-              <MarketingTextReveal delay={0.1}>
-                <div className="glc-light-brief-section border-t pt-10" style={{ borderColor: 'var(--border-subtle)' }}>
-                  <h3 className="mb-4 text-sm font-bold uppercase tracking-wide" style={{ color: 'var(--text-primary)' }}>
-                    {PB.sectionOutcomeTitle}
-                  </h3>
-                  <label className="flex flex-col gap-1.5 text-sm">
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.improveLabel}</span>
-                    <textarea
-                      {...register('improve', { required: PB.improveRequired })}
-                      rows={3}
-                      className="resize-y rounded-lg border px-3 py-2.5 outline-none"
-                      style={BRIEF_CONTROL_STYLE}
-                    />
-                    {errors.improve && <span style={{ color: 'var(--score-1)', fontSize: 12 }}>{errors.improve.message}</span>}
-                  </label>
-                </div>
-              </MarketingTextReveal>
-
-              {showDepthChoice && (
-                <MarketingTextReveal delay={0.14}>
-                  <div className="glc-light-brief-section border-t pt-10" style={{ borderColor: 'var(--border-subtle)' }}>
-                    <h3 className="mb-2 text-sm font-bold uppercase tracking-wide" style={{ color: 'var(--text-primary)' }}>
-                      {PB.sectionDepthTitle}
-                    </h3>
-                    <fieldset className="flex flex-col gap-2 text-sm">
-                      <legend className="sr-only">{PB.depthLegend}</legend>
-                      <p className="mb-2 text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-                        {PB.depthLegend}
-                      </p>
-                      <p className="text-xs leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
-                        {PB.depthHint}
-                      </p>
-                      <label className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
-                        <input type="radio" value="starter" {...register('preferred_coverage_package')} style={{ accentColor: 'var(--glc-blue)' }} />
-                        Starter (1 domain)
-                      </label>
-                      <label className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
-                        <input type="radio" value="pro" {...register('preferred_coverage_package')} style={{ accentColor: 'var(--glc-blue)' }} />
-                        Pro (2-3 domains)
-                      </label>
-                      <label className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
-                        <input type="radio" value="complete" {...register('preferred_coverage_package')} style={{ accentColor: 'var(--glc-blue)' }} />
-                        Complete (all domains)
-                      </label>
-                    </fieldset>
-                  </div>
-                </MarketingTextReveal>
-              )}
-
-              <MarketingTextReveal delay={0.18}>
-                <div className="glc-light-brief-section border-t pt-10" style={{ borderColor: 'var(--border-subtle)' }}>
-                  <h3 className="mb-4 text-sm font-bold uppercase tracking-wide" style={{ color: 'var(--text-primary)' }}>
-                    {PB.sectionContactTitle}
-                  </h3>
-                  <label className="flex flex-col gap-1.5 text-sm">
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.preferredContactLabel}</span>
-                    <select
-                      {...register('contact_method')}
-                      className="rounded-lg border px-3 py-2.5 outline-none"
-                      style={BRIEF_CONTROL_STYLE}
-                    >
-                      {PB.contactOptions.map(o => (
-                        <option key={o} value={o}>
-                          {o}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="mt-4 flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    <input
-                      type="checkbox"
-                      {...register('unsure_choice')}
-                      className="h-4 w-4 rounded-[4px] border"
-                      style={{
-                        borderColor: BRIEF_CONTROL_STYLE.borderColor,
-                        accentColor: 'var(--glc-blue)',
-                        backgroundColor: 'var(--bg-surface)',
-                      }}
-                    />
-                    {PB.unsureCheckbox}
-                  </label>
-                  {unsure && (
-                    <p className="mt-3 rounded-lg px-3 py-2 text-xs leading-relaxed" style={{ backgroundColor: 'var(--callout-info-bg)', color: 'var(--text-secondary)' }}>
-                      {PB.unsureHelp}
-                    </p>
-                  )}
-                </div>
-              </MarketingTextReveal>
-
+        <MarketingSection>
+          {loadingSession ? (
+            <p style={{ color: 'var(--text-secondary)' }}>{PB.loadingSession}</p>
+          ) : phase === 'identity' ? (
+            <form onSubmit={handleSubmit(onIdentitySubmit)} className="glc-card max-w-3xl space-y-4 p-6">
+              <h2 className="font-display text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{PB.formShellTitle}</h2>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.formNameLabel}</span>
+                <input {...register('contact_name', { required: PB.formNameRequired })} className="rounded-lg border px-3 py-2.5" />
+                {errors.contact_name && <span style={{ color: 'var(--score-1)', fontSize: 12 }}>{errors.contact_name.message}</span>}
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.formCompanyLabel}</span>
+                <input {...register('company_name', { required: PB.formCompanyRequired })} className="rounded-lg border px-3 py-2.5" />
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" {...register('has_website')} />
+                {PB.hasWebsiteLabel}
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.websiteLabel}</span>
+                <input {...register('website_url')} placeholder={PB.websitePlaceholder} className="rounded-lg border px-3 py-2.5" />
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.emailLabel}</span>
+                <input {...register('email')} className="rounded-lg border px-3 py-2.5" />
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.phoneLabel}</span>
+                <input {...register('phone')} className="rounded-lg border px-3 py-2.5" />
+              </label>
               {submitError && <p style={{ color: 'var(--score-1)', fontSize: 14 }}>{submitError}</p>}
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full rounded-xl py-3.5 text-sm font-semibold transition-[transform,box-shadow,background-color] duration-200 disabled:opacity-60"
-                style={{
-                  background: isSubmitting ? MARKETING_PRIMARY_CTA.disabledBackground : MARKETING_PRIMARY_CTA.background,
-                  color: isSubmitting ? MARKETING_PRIMARY_CTA.disabledColor : MARKETING_PRIMARY_CTA.color,
-                }}
-                onMouseEnter={event => {
-                  if (isSubmitting) return;
-                  const element = event.currentTarget;
-                  element.style.background = 'linear-gradient(135deg, var(--glc-blue-dark) 0%, var(--glc-blue-deeper) 100%)';
-                  element.style.boxShadow = '0 10px 26px color-mix(in oklab, var(--glc-blue) 38%, transparent)';
-                  element.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={event => {
-                  const element = event.currentTarget;
-                  element.style.background = isSubmitting ? MARKETING_PRIMARY_CTA.disabledBackground : MARKETING_PRIMARY_CTA.background;
-                  element.style.boxShadow = 'none';
-                  element.style.transform = 'translateY(0)';
-                }}
-              >
-                {isSubmitting ? PB.submitSending : PB.submitButton}
+              <button type="submit" disabled={isSubmitting} className="w-full rounded-xl py-3 text-sm font-semibold" style={{ background: 'var(--gradient-brand)', color: 'var(--primary-foreground)' }}>
+                {isSubmitting ? PB.startLoading : PB.startButton}
               </button>
+            </form>
+          ) : (
+            <div className="glc-card max-w-3xl space-y-6 p-6">
+              <h2 className="font-display text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{PB.personalizedTitle}</h2>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{PB.personalizedSubtitle}</p>
+              {sections.map(section => (
+                <section key={section.section} className="space-y-4">
+                  <h3 className="text-xs font-semibold uppercase" style={{ color: 'var(--text-quaternary)' }}>{section.section}</h3>
+                  {section.questions.map(q => (
+                    <BriefField
+                      key={q.id}
+                      q={q}
+                      value={responses[q.id]}
+                      onChange={v => setAnswer(q.id, v)}
+                      onSetUnknown={() => setAnswer(q.id, null)}
+                      otherSpecify={
+                        q.id === 'a2'
+                          ? (unwrapResponse(responses.intake_industry_specify) as string | undefined) ?? ''
+                          : (unwrapResponse(responses[`${q.id}__other`]) as string | undefined) ?? ''
+                      }
+                      onOtherSpecifyChange={
+                        q.id === 'a2'
+                          ? txt => setAnswer('intake_industry_specify', txt || null)
+                          : txt => setAnswer(`${q.id}__other`, txt || null)
+                      }
+                    />
+                  ))}
+                </section>
+              ))}
+              {submitError && <p style={{ color: 'var(--score-1)', fontSize: 14 }}>{submitError}</p>}
+              <div className="flex flex-wrap gap-3">
+                <button type="button" onClick={() => { void saveDraft(); }} disabled={savingDraft} className="rounded-xl border px-4 py-2.5 text-sm font-semibold">
+                  {savingDraft ? PB.saveDraftLoading : PB.saveDraftLabel}
+                </button>
+                <button type="button" onClick={() => { void submitFinal(); }} disabled={submitting} className="rounded-xl px-4 py-2.5 text-sm font-semibold" style={{ background: 'var(--gradient-brand)', color: 'var(--primary-foreground)' }}>
+                  {submitting ? PB.submitBriefLoading : PB.submitBriefLabel}
+                </button>
+              </div>
+              {savedAt && (
+                <p className="text-xs" style={{ color: 'var(--text-quaternary)' }}>
+                  {PB.savedAtPrefix} {new Date(savedAt).toLocaleString()}
+                </p>
+              )}
             </div>
-          </form>
+          )}
         </MarketingSection>
       )}
 

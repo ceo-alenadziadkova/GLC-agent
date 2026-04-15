@@ -68,6 +68,7 @@ import {
 import { INTAKE_TOKEN_HEX_REGEX } from '../config/intake-token.js';
 import { INTAKE_TOKEN_RANDOM_BYTES } from '../config/intake-token.js';
 import { getPlatformIntakeTokenTtlDays } from '../lib/platform-runtime-settings.js';
+import { DAY_MS } from '../config/time.js';
 
 export const intakeRouter = Router();
 
@@ -187,7 +188,7 @@ intakeRouter.post('/', requireAuth, attachProfile, requireRole('consultant'), as
         consultant_id: req.userId!,
         audit_id: audit_id ?? null,
         metadata,
-        expires_at: new Date(Date.now() + tokenTtlDays * 86_400_000).toISOString(),
+        expires_at: new Date(Date.now() + tokenTtlDays * DAY_MS).toISOString(),
       })
       .select('token, expires_at')
       .single();

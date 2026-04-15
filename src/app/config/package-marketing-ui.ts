@@ -1,9 +1,11 @@
+import type { CSSProperties } from 'react';
+
 /**
- * Shared surface styles for Focus / Context / Strategy marketing package pages.
+ * Inline styles for outcome triad cards on Focus / Context / Strategy marketing pages.
+ * Parent band uses `bg-muted`; cards lift slightly on `surface` for separation.
  */
 export const PACKAGE_MARKETING_OUTCOME_CARD = {
   borderRadius: 'var(--radius-xl)',
   border: '1px solid var(--border-subtle)',
   backgroundColor: 'var(--bg-surface)',
-  boxShadow: 'var(--shadow-xs)',
-} as const;
+} as const satisfies CSSProperties;

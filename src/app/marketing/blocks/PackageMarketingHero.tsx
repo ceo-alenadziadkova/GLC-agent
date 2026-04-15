@@ -8,20 +8,15 @@ import {
   MARKETING_HERO_CHIP,
   MARKETING_PACKAGE_BADGE_VARIANTS,
 } from '../../config/marketing-surface-tokens';
+import workspacePackaging from '../../data/marketing-workspace-packaging.en.json';
 
 const TIER_ACTIVE_CELLS: Record<'focus' | 'context' | 'strategy', number> = {
   focus: 1,
   context: 3,
   strategy: 6,
 };
-const COVERAGE_DOMAIN_LABELS = [
-  'Tech infra',
-  'UX & Conv.',
-  'SEO',
-  'Security',
-  'Processes',
-  'Strategy',
-] as const;
+const HERO_LABELS = workspacePackaging.package_hero_labels;
+const COVERAGE_DOMAIN_LABELS = HERO_LABELS.domains;
 
 function TierCoverageDecor({ tier }: { tier: 'focus' | 'context' | 'strategy' }) {
   const active = TIER_ACTIVE_CELLS[tier];
@@ -41,7 +36,7 @@ function TierCoverageDecor({ tier }: { tier: 'focus' | 'context' | 'strategy' })
         }}
       >
         <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-          Coverage shape
+          {HERO_LABELS.coverageShape}
         </p>
         <div className="mt-4 grid grid-cols-3 gap-2">
           {COVERAGE_DOMAIN_LABELS.map((label, i) => (
@@ -71,7 +66,7 @@ function TierCoverageDecor({ tier }: { tier: 'focus' | 'context' | 'strategy' })
           {tier}
         </span>
         <p className="mt-4 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-          Illustrative grid — actual domain selection is confirmed in scope.
+          {HERO_LABELS.illustrativeGridNote}
         </p>
       </div>
     </div>
@@ -102,15 +97,6 @@ export function PackageMarketingHero({
 
   return (
     <div className={cn('relative -mx-4 overflow-hidden px-4 sm:-mx-6 sm:px-6', pad)}>
-      <div
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.96]"
-        style={{
-          background:
-            'radial-gradient(ellipse 92% 68% at 8% -2%, color-mix(in oklab, var(--glc-blue-muted) 38%, transparent) 0%, transparent 56%), radial-gradient(ellipse 60% 44% at 92% 10%, color-mix(in oklab, var(--glc-blue) 16%, transparent) 0%, transparent 52%), linear-gradient(180deg, color-mix(in oklab, var(--bg-surface) 92%, transparent) 0%, color-mix(in oklab, var(--bg-canvas) 56%, transparent) 100%)',
-        }}
-        aria-hidden
-      />
-
       <motion.div
         className="relative grid w-full max-w-6xl gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(240px,1fr)] lg:items-center lg:gap-12"
         variants={mv.container}
@@ -149,14 +135,14 @@ export function PackageMarketingHero({
               className="glc-btn-primary inline-flex w-full items-center justify-center gap-2 text-sm font-semibold sm:w-auto"
               style={{ textDecoration: 'none' }}
             >
-              Start with Brief
+              {HERO_LABELS.startWithBrief}
             </Link>
             <div className="flex flex-wrap gap-2">
               <span className="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold" style={MARKETING_HERO_CHIP}>
-                72h to first findings
+                {HERO_LABELS.firstFindings}
               </span>
               <span className="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold" style={MARKETING_HERO_CHIP}>
-                Explicit scope
+                {HERO_LABELS.explicitScope}
               </span>
             </div>
           </motion.div>

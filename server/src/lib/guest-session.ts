@@ -15,7 +15,7 @@ export const SNAPSHOT_GUEST_COOKIE_NAME = SG.cookieName;
 /** Browser cookie lifetime (seconds). */
 export const GUEST_SESSION_MAX_AGE_SEC = SG.maxAgeSec;
 
-const DEV_FALLBACK_IP_SALT = 'dev-only-snapshot-guest-ip-salt';
+let devRuntimeIpSalt: string | null = null;
 
 function getIpSalt(): string {
   const fromEnv = (process.env.SNAPSHOT_GUEST_IP_SALT ?? '').trim();
@@ -23,7 +23,10 @@ function getIpSalt(): string {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('SNAPSHOT_GUEST_IP_SALT is required when NODE_ENV=production');
   }
-  return DEV_FALLBACK_IP_SALT;
+  if (!devRuntimeIpSalt) {
+    devRuntimeIpSalt = randomBytes(16).toString('hex');
+  }
+  return devRuntimeIpSalt;
 }
 
 /**

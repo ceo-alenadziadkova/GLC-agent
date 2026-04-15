@@ -28,6 +28,7 @@ export function FullAuditPage() {
   const pageCopy = workspacePackaging.package_pages.complete;
   const { quick, full, strategy } = workspacePackaging.packages;
   const homePack = workspacePackaging.marketing_home;
+  const labels = workspacePackaging.package_page_labels;
   const mid = pageCopy.mid_cta ?? homePack.mid_page_cta;
   const next = pageCopy.next_steps ?? homePack.next_steps;
 
@@ -201,15 +202,15 @@ export function FullAuditPage() {
           steps={[
             { to: '/starter', label: quick.title, hint: quick.subtitle },
             { to: '/pro', label: full.title, hint: full.subtitle },
-            { to: '/brief', label: 'Book a brief call', hint: 'Align depth and scope.', primary: true },
-            { to: '/faq', label: 'FAQ', hint: 'Delivery, timelines, collaboration.' },
-            { to: LOGIN_PATH, label: 'Client sign-in', hint: 'Current reports and stages.' },
+            { to: '/brief', label: labels.bookBriefLabel, hint: labels.bookBriefHintComplete, primary: true },
+            { to: '/faq', label: labels.faqLabel, hint: 'Delivery, timelines, collaboration.' },
+            { to: LOGIN_PATH, label: labels.clientSignInLabel, hint: 'Current reports and stages.' },
           ]}
         />
       </div>
 
       <p className="mt-8 text-center text-sm" style={{ color: 'var(--text-tertiary)' }}>
-        No site or clear structure yet—{' '}
+        {labels.completeHintPrefix}{' '}
         <Link to="/discovery" className="font-semibold" style={{ color: 'var(--glc-blue)' }}>
           Discovery
         </Link>

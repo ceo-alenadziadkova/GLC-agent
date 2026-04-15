@@ -55,8 +55,20 @@ Apply migrations **in numeric order** so foreign keys, RLS, and triggers exist b
 47. `047_audits_no_public_website_flag.sql` — **`audits.no_public_website`** (`boolean`, default false); backfill for dev sentinel URL; **`discovery_convert_session_atomic`** adds **`p_no_public_website`** (7-arg RPC + `GRANT`)
 48. `048_consultant_email_allowlist.sql` — **`consultant_email_allowlist`** (normalized email PK) for consultant role bootstrap; RLS deny for `anon`/`authenticated` (server uses service role)
 49. `049_profiles_platform_admin.sql` — **`profiles.is_platform_admin`** (`boolean`, default false) for platform settings ACL (see [API.md](./API.md#platform-consultant))
+50. `050_platform_settings_legacy_admin_ids.sql` — **`platform_settings.legacy_platform_admin_user_ids`** (`uuid[]`) for ACL fallback
+51. `051_evaluation_datasets_and_execution_mode.sql` — evaluation datasets + **`audits.execution_mode`**
+52. `052_agent_performance_aggregate.sql` — **`agent_performance_aggregate`** (consultant dashboard aggregates)
+53. `053_bandit_arm_performance_and_governance_risk.sql` — bandit / governance risk tables (see ADR)
+54. `054_audit_claim_graph.sql` — **`audit_claim_graph`** cross-phase claims
+55. `055_audit_remediations.sql` — **`audit_remediations`**
+56. `056_domain_benchmark_snapshot.sql` — **`domain_benchmark_snapshot`**
+57. `057_platform_runtime_retention_and_intake_ttl.sql` — platform runtime / intake TTL settings
+58. `058_evaluation_datasets_agent_variant_id.sql` — evaluation datasets **`agent_variant_id`**
+59. `059_audits_status_add_cancelled.sql` — **`audits.status`** adds **`cancelled`**
+60. `060_audits_execution_plan.sql` — **`audits.execution_plan`** (`jsonb`)
+61. `061_public_brief_sessions.sql` — **`public_brief_sessions`** (public `/brief` resumable session rows; RLS deny-all for `anon`/`authenticated`; API uses **service role**)
 
-**Tables (core list):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `consultant_email_allowlist`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`, `snapshot_guest_sessions`, `discovery_sessions`, `marketing_brief_submissions`, `intake_analytics_events`, `intake_question_wording_drafts`, `intake_wording_publication_log`, `phase_runs`, `job_runs`.
+**Tables (core list):** `audits`, `audit_recon`, `audit_domains`, `audit_strategy`, `pipeline_events`, `collected_data`, `review_points`, `profiles`, `consultant_email_allowlist`, `audit_requests`, `intake_brief`, `api_idempotency_keys`, `intake_tokens`, `notifications`, `platform_settings`, `snapshot_domain_cache`, `snapshot_domain_cooldown`, `snapshot_fresh_lease`, `snapshot_guest_sessions`, `discovery_sessions`, `marketing_brief_submissions`, **`public_brief_sessions`**, `intake_analytics_events`, `intake_question_wording_drafts`, `intake_wording_publication_log`, `phase_runs`, `job_runs`.
 
 Row Level Security is enabled on these tables; exact policies differ by table (consultant vs client access). **Canonical SQL:** the migration files — this doc summarises shapes.
 
@@ -66,7 +78,7 @@ Realtime: enabled on `pipeline_events` and `audits` (see [FRONTEND.md](./FRONTEN
 
 Use the project **Database** (or **Advisors**) UI in Supabase to run **security** and **performance** lints — see [Database Advisors](https://supabase.com/docs/guides/database/database-advisors). Typical follow-ups:
 
-- **`043_db_hardening_rls_views_functions.sql`** — intake analytics views use **`security_invoker = true`**; hot RPC/trigger functions use a fixed **`search_path`**; RLS policies use **`(select auth.uid())`** where appropriate (initplan-friendly); explicit **deny-all** policies on backend-only tables (`api_idempotency_keys`, `discovery_sessions`, `marketing_brief_submissions`, `platform_settings`, `snapshot_fresh_lease`, …); extra **FK-covering** indexes.
+- **`043_db_hardening_rls_views_functions.sql`** — intake analytics views use **`security_invoker = true`**; hot RPC/trigger functions use a fixed **`search_path`**; RLS policies use **`(select auth.uid())`** where appropriate (initplan-friendly); explicit **deny-all** policies on backend-only tables (`api_idempotency_keys`, `discovery_sessions`, `marketing_brief_submissions`, **`public_brief_sessions`**, `platform_settings`, `snapshot_fresh_lease`, …); extra **FK-covering** indexes.
 - **`044_rls_merge_permissive_select.sql`** — on `audits`, `audit_domains`, `audit_strategy`, `pipeline_events`, `review_points`: one **`*_select_scoped`** policy for reads (consultant or linked client) and separate **`*_*_consultant`** policies for writes instead of overlapping permissive **`SELECT`** rules.
 - **`045_query_performance_indexes.sql`** — **`pipeline_events(created_at DESC)`**, **`discovery_sessions(consultant_id, created_at DESC)`** (partial; replaces the older partial index from **`032`**), **`audit_requests(created_at DESC)`**. Listing notifications by user already uses **`notifications_user_created_idx`** from **`014`** (`user_id`, `created_at DESC`).
 

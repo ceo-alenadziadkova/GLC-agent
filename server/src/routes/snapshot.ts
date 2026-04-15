@@ -89,6 +89,8 @@ import {
   snapshotClaimedInAppRoute,
   snapshotStartedNotificationMessage,
 } from '../config/route-notification-messages.js';
+import { SNAPSHOT_OPERATOR_TOKEN_HEADER } from '../config/snapshot-operator.js';
+import { isTruthyQueryValue } from '../config/query-bool.js';
 
 export const snapshotRouter = Router();
 
@@ -263,7 +265,7 @@ function snapshotOperatorAuthorized(req: import('express').Request): boolean {
   if (!token) return false;
   const auth = req.headers.authorization;
   if (auth === `Bearer ${token}`) return true;
-  const hdr = req.headers['x-snapshot-operator-token'];
+  const hdr = req.headers[SNAPSHOT_OPERATOR_TOKEN_HEADER];
   return typeof hdr === 'string' && hdr === token;
 }
 
@@ -846,9 +848,8 @@ snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
     }
 
     const wantCompetitor =
-      req.query.compare === '1' ||
-      req.query.compare === 'true' ||
-      req.query.include_competitor === '1';
+      isTruthyQueryValue(req.query.compare) ||
+      isTruthyQueryValue(req.query.include_competitor);
     if (wantCompetitor) {
       const competitorSettled = await Promise.allSettled([
         maybeBuildCompetitorMini(companyUrl, pagesCrawled, SNAPSHOT_COMPETITOR_TIMEOUT_MS),

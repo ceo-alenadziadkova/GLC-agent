@@ -24,12 +24,11 @@ export function MarketingMidCtaBand({
   return (
     <aside
       className={cn(
-        '-mx-4 border-y px-4 py-12 sm:-mx-6 sm:px-8 sm:py-14',
+        'glc-info-glass-surface -mx-4 border-y px-4 py-12 sm:-mx-6 sm:px-8 sm:py-14',
         className,
       )}
       style={{
         borderColor: 'var(--border-subtle)',
-        backgroundColor: 'var(--bg-muted)',
       }}
       aria-label={landmarkLabel ?? title}
     >

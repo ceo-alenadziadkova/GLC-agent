@@ -21,7 +21,7 @@ import {
 import type { FreeSnapshotPreview } from '../data/auditTypes';
 import { GlcLogo } from '../components/GlcLogo';
 import { SyncPathLoader } from '../components/SyncPathLoader';
-import { ThemeToggle } from '../components/ThemeToggle';
+// import { ThemeToggle } from '../components/ThemeToggle';
 import { supabase } from '../lib/supabase';
 import { getSnapshotAccessToken, isAnonymousUser } from '../lib/snapshot-auth';
 import { setPendingSnapshotToken } from '../lib/snapshot-pending-token';
@@ -341,7 +341,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
               </Link>
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-              <ThemeToggle />
+              {/* <ThemeToggle /> */}
               {hasFullAccount ? (
                 <div className="flex min-w-0 max-w-[min(100%,22rem)] items-center gap-2 sm:gap-2.5">
                   <UserCircle className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
@@ -500,13 +500,11 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                       inputMode="url"
                       autoCapitalize="none"
                       autoCorrect="off"
-                      className="glc-light-snapshot-input w-full rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-transparent py-3 pl-10 pr-4 text-sm outline-none transition-[border-color,box-shadow] mobile:min-h-12 mobile:py-3.5 mobile:text-base"
+                      className="glc-field-control glc-light-snapshot-input w-full rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-transparent py-3 pl-10 pr-4 text-sm outline-none transition-[border-color,box-shadow] mobile:min-h-12 mobile:py-3.5 mobile:text-base"
                       style={{
                         backgroundColor: 'var(--bg-surface)',
                         color: 'var(--text-primary)',
                       }}
-                      onFocus={e => { e.target.style.borderColor = 'var(--glc-blue)'; e.target.style.boxShadow = 'var(--shadow-blue)'; }}
-                      onBlur={e => { e.target.style.borderColor = 'var(--border-default)'; e.target.style.boxShadow = 'none'; }}
                     />
                   </div>
 
@@ -593,7 +591,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                           }}
                         />
                       </div>
-                      <p className="mt-2.5 text-center text-xs leading-snug lg:text-left mobile:mt-3 mobile:text-[11px]" style={{ color: 'var(--text-quaternary)' }}>
+                      <p className="mt-2.5 text-center text-xs leading-snug lg:text-left mobile:mt-3 mobile:text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
                         Rolling 24-hour limit from this connection.
                       </p>
                     </div>
@@ -649,7 +647,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                 </motion.p>
               </AnimatePresence>
 
-              <p className="mt-6 text-xs" style={{ color: 'var(--text-quaternary)' }}>
+              <p className="mt-6 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                 Usually takes a few seconds to about half a minute
               </p>
               {quotaHint && (
@@ -848,7 +846,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                         </>
                       )}
                       {result.scan_confidence_band && (
-                        <p className="mt-2 text-xs" style={{ color: 'var(--text-quaternary)' }}>
+                        <p className="mt-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                           Scan confidence: {result.scan_confidence_band}
                         </p>
                       )}
@@ -940,7 +938,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
                           </p>
                         ) : null}
                         {result.scan_confidence_band && (
-                          <p className="mt-2 text-xs lg:mt-2" style={{ color: 'var(--text-quaternary)' }}>
+                          <p className="mt-2 text-xs lg:mt-2" style={{ color: 'var(--text-tertiary)' }}>
                             Scan confidence: {result.scan_confidence_band}
                           </p>
                         )}
@@ -953,7 +951,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
               {snapshotCoverageCaption && (
                 <p
                   className="mb-4 text-center text-xs px-2 lg:px-0 lg:text-left"
-                  style={{ color: 'var(--text-quaternary)' }}
+                  style={{ color: 'var(--text-tertiary)' }}
                 >
                   {snapshotCoverageCaption}
                 </p>
@@ -1373,7 +1371,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
           paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
         }}
       >
-        <p className="text-xs" style={{ color: 'var(--text-quaternary)' }}>
+        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
           Results are AI-generated and for informational purposes only. ·{' '}
           {hasFullAccount ? (
             <Link to="/dashboard" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>
@@ -1385,7 +1383,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
             </Link>
           )}
         </p>
-        <p className="text-xs mt-1.5" style={{ color: 'var(--text-quaternary)' }}>
+        <p className="text-xs mt-1.5" style={{ color: 'var(--text-tertiary)' }}>
           No website yet?{' '}
           <Link
             to="/discovery"

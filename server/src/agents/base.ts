@@ -32,6 +32,7 @@ import {
   CLAUDE_TIMEOUT_MS,
   claudeCircuitBreakerRedisKey,
   createAnthropicClient,
+  getClaudeCircuitRedisUrl,
 } from '../config/claude-client.js';
 import { CLAUDE_MODEL, MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import { logger } from '../services/logger.js';
@@ -48,8 +49,7 @@ type ClaudeCircuitRedisClient = ReturnType<typeof createClient>;
 let claudeCircuitRedis: ClaudeCircuitRedisClient | null = null;
 
 function getClaudeCircuitRedisClient(): ClaudeCircuitRedisClient | null {
-  const redisUrl =
-    (process.env.CLAUDE_CIRCUIT_REDIS_URL?.trim() || process.env.RATE_LIMIT_REDIS_URL?.trim()) ?? '';
+  const redisUrl = getClaudeCircuitRedisUrl();
   if (!redisUrl) return null;
   if (claudeCircuitRedis) return claudeCircuitRedis;
   const client = createClient({ url: redisUrl });

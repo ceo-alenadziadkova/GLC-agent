@@ -43,6 +43,7 @@ export const SYSTEM_DEFAULTS = {
     notifications: GLC_NOTIFICATIONS_LIST,
     discoverSessionsMaxRows: GLC_DISCOVER_SESSIONS_LIST_MAX,
     intakeSubmissionsMaxRows: GLC_INTAKE_SUBMISSIONS_LIST_MAX,
+    briefPublicSubmissionsMaxRows: 200,
     pipelineStatusEventsLimit: GLC_PIPELINE_STATUS_EVENTS_LIMIT,
     controlObjectHistoryEventsLimit: 400,
     /** Same caps as `auditsList` — GET /api/audit-requests pagination. */
@@ -144,6 +145,9 @@ export const SYSTEM_DEFAULTS = {
     discoverCreateMaxPerHour: 12,
     discoverReadMaxPerHour: 80,
     discoverAnalyticsMaxPerHour: 200,
+    briefPublicCreateMaxPerHour: 24,
+    briefPublicReadMaxPerHour: 80,
+    briefPublicWriteMaxPerHour: 40,
     intakeReadMaxPerHour: 60,
     intakeWriteMaxPerHour: 30,
     marketingBriefMaxPerHour: 24,

@@ -47,6 +47,7 @@ import {
   DISCOVER_WIZARD_SAVE_TIMEOUT_MS,
 } from '../config/discover-page-defaults';
 import { UI_SEMANTIC_COLORS } from '../config/ui-semantic-colors';
+import { DISCOVERY_TEAM_SIZE_PHRASES } from '../config/discovery-page-policy';
 import discoveryUiCopy from '../data/discovery-ui-copy.en.json';
 import discoverResultsUi from '../data/discover-page-results-ui.en.json';
 
@@ -104,15 +105,13 @@ function QuestionInput({
           placeholder={
             freeTextPlaceholderById[qId] ?? discoveryUiCopy.freeTextDefaultPlaceholder
           }
-          className="w-full px-4 py-3 rounded-xl text-sm outline-none resize-none"
+          className="glc-field-control w-full px-4 py-3 rounded-xl text-sm outline-none resize-none"
           style={{
             background: 'var(--input-background)',
             border: '1px solid var(--border-default)',
             color: 'var(--text-primary)',
             lineHeight: 1.6,
           }}
-          onFocus={e => { e.currentTarget.style.borderColor = 'var(--glc-blue)'; }}
-          onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
         />
         <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: 0 }}>
           {discoverResultsUi.copy.questionInputHelp}
@@ -156,14 +155,12 @@ function QuestionInput({
             value={specifyValue}
             onChange={e => onSpecifyChange(e.target.value)}
             placeholder={discoverResultsUi.copy.specifyPlaceholder}
-            className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+            className="glc-field-control w-full px-4 py-3 rounded-xl text-sm outline-none"
             style={{
               background: 'var(--input-background)',
               border: '1px solid var(--glc-blue)',
               color: 'var(--text-primary)',
             }}
-            onFocus={e => { e.currentTarget.style.borderColor = 'var(--glc-blue)'; }}
-            onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
           />
         )}
       </div>
@@ -209,14 +206,12 @@ function QuestionInput({
             value={specifyValue}
             onChange={e => onSpecifyChange(e.target.value)}
             placeholder={discoverResultsUi.copy.specifyPlaceholder}
-            className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+            className="glc-field-control w-full px-4 py-3 rounded-xl text-sm outline-none"
             style={{
               background: 'var(--input-background)',
               border: '1px solid var(--glc-blue)',
               color: 'var(--text-primary)',
             }}
-            onFocus={e => { e.currentTarget.style.borderColor = 'var(--glc-blue)'; }}
-            onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
           />
         )}
       </div>
@@ -512,15 +507,7 @@ export function DiscoverPage(props?: DiscoverPageProps) {
 
   function teamOfPhrase(size: string | null): string {
     if (!size) return 'your team';
-    if (size === 'Just me') return 'one';
-    if (size === '2–10 people') return '2–10';
-    if (size === '11–50') return '11–50';
-    if (size === '51–200') return '51–200';
-    if (size === '200+') return '200+';
-    // Legacy bank labels (older sessions)
-    if (size === '2–5 people') return '2–5';
-    if (size === '6–20 people') return '6–20';
-    return 'your team';
+    return DISCOVERY_TEAM_SIZE_PHRASES[size] ?? 'your team';
   }
 
   function handleNext() {
@@ -783,15 +770,13 @@ export function DiscoverPage(props?: DiscoverPageProps) {
                       placeholder={placeholder}
                       value={value}
                       onChange={e => setter(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl outline-none"
+                      className="glc-field-control w-full px-4 py-3 rounded-xl outline-none"
                       style={{
                         fontSize: '0.9375rem',
                         background: 'var(--input-background)',
                         border: '1px solid var(--border-default)',
                         color: 'var(--text-primary)',
                       }}
-                      onFocus={e => { e.currentTarget.style.borderColor = 'var(--glc-blue)'; }}
-                      onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; }}
                     />
                   ))}
                 </div>
@@ -901,7 +886,11 @@ export function DiscoverPage(props?: DiscoverPageProps) {
               <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>GLC Audit</span>
             </div>
           )}
-          {isSplit && <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Your answers</span>}
+          {isSplit && (
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+              {discoveryUiCopy.wizardHeader.answersLabel}
+            </span>
+          )}
           <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
             {currentIdx + 1} / {sequence.length}
           </span>
@@ -924,11 +913,10 @@ export function DiscoverPage(props?: DiscoverPageProps) {
             className="mb-6 text-center"
           >
             <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.3 }}>
-              Let&apos;s understand your business
+              {discoveryUiCopy.wizardHeader.introTitle}
             </h1>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8, lineHeight: 1.6 }}>
-              {sequence.length} quick questions — no account needed.
-              We&apos;ll show you exactly where the biggest opportunities are.
+              {discoveryUiCopy.wizardHeader.introSubtitle.replace('{{count}}', String(sequence.length))}
             </p>
           </motion.div>
         )}
@@ -1098,7 +1086,7 @@ export function DiscoverPage(props?: DiscoverPageProps) {
 
         {!isSplit && (
           <p className="text-center mt-8" style={{ fontSize: 11, color: 'var(--text-quaternary)' }}>
-            GLC Audit Platform — Discovery
+            {discoveryUiCopy.wizardHeader.footerLabel}
           </p>
         )}
       </div>

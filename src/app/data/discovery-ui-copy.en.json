@@ -1,4 +1,10 @@
 {
+  "wizardHeader": {
+    "answersLabel": "Your answers",
+    "introTitle": "Let's understand your business",
+    "introSubtitle": "{{count}} quick questions — no account needed. We'll show you exactly where the biggest opportunities are.",
+    "footerLabel": "GLC Audit Platform — Discovery"
+  },
   "freeTextPlaceholders": {
     "b1": "Example: \"Homeowners in Palma looking for renovation planning.\"",
     "f1": "Example: \"Not enough predictable new clients each month.\""

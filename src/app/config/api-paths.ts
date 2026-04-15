@@ -19,5 +19,8 @@ export {
   apiIntakePrefill,
   apiIntakeRespond,
   apiIntakeToken,
+  apiBriefPublicSession,
+  apiBriefPublicSubmit,
+  apiBriefPublicConvert,
   apiIntakeTracePublicationLog,
 } from '@glc/api-paths';

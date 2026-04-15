@@ -13,7 +13,7 @@ export function PackageAudienceSection({
 }) {
   return (
     <section
-      className="-mx-4 mt-8 rounded-[var(--radius-2xl)] border border-[var(--border-subtle)] bg-[var(--bg-inset)] px-4 py-10 sm:-mx-6 sm:mt-10 sm:px-6 sm:py-12"
+      className="glc-info-glass-surface -mx-4 mt-8 px-4 py-10 sm:-mx-6 sm:mt-10 sm:px-6 sm:py-12"
       aria-label={title}
     >
       <h2 className="font-display text-xl font-bold sm:text-2xl" style={{ color: 'var(--text-primary)' }}>

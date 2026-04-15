@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
-import { createBrowserRouter, Navigate, Outlet, ScrollRestoration, useLocation } from 'react-router';
+import { createBrowserRouter, Navigate, Outlet, ScrollRestoration } from 'react-router';
 import { Dashboard }        from './pages/Dashboard';
 import { NewAudit }         from './pages/NewAudit';
 import { AuditWorkspace }   from './pages/AuditWorkspace';
@@ -52,17 +52,12 @@ function ClientPortalShell({ children }: { children: ReactNode }) {
 }
 
 function RootOutlet() {
-  const location = useLocation();
-
   useEffect(() => {
-    const path = location.pathname.toLowerCase();
-    const skipPolish = path.includes('/snapshot') || path.includes('/discover');
-
-    document.body.classList.toggle('glc-site-polish', !skipPolish);
+    document.body.classList.add('glc-site-polish');
     return () => {
       document.body.classList.remove('glc-site-polish');
     };
-  }, [location.pathname]);
+  }, []);
 
   return (
     <>

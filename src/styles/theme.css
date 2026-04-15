@@ -122,6 +122,8 @@
   --glass-bg:        rgba(255,255,255,0.86);
   --glass-border:    rgba(255,255,255,0.68);
   --glass-blur:      blur(14px) saturate(160%);
+  /** Softer than `--glass-blur`; light home hero only (`html:not(.dark) .glc-light-home-hero`). */
+  --glc-light-home-hero-backdrop: blur(10px) saturate(120%);
   --glass-shadow:    0 10px 30px rgba(11,17,32,0.11), 0 0 0 1px rgba(255,255,255,0.68);
 
   /* ── Gradients ──────────────────────────────── */
@@ -463,7 +465,7 @@ html.dark {
   align-items: center;
   gap: 6px;
   padding: 14px 28px;
-  background: linear-gradient(135deg, #0070f3 0%, var(--glc-blue-deeper) 100%);
+  background: linear-gradient(135deg, var(--glc-blue) 0%, var(--glc-blue-deeper) 100%);
   color: var(--primary-foreground);
   border-radius: var(--radius-pill);
   font-size: var(--text-sm);
@@ -476,8 +478,8 @@ html.dark {
   white-space: nowrap;
 }
 .glc-btn-primary:hover {
-  background: linear-gradient(135deg, color-mix(in oklab, #0070f3 86%, white) 0%, var(--glc-blue-deeper) 100%);
-  box-shadow: 0 10px 24px color-mix(in oklab, #0070f3 34%, transparent);
+  background: linear-gradient(135deg, color-mix(in oklab, var(--glc-blue) 86%, white) 0%, var(--glc-blue-deeper) 100%);
+  box-shadow: 0 10px 24px color-mix(in oklab, var(--glc-blue) 34%, transparent);
   transform: translateY(-1px);
 }
 .glc-btn-primary:active  { transform: translateY(0); box-shadow: none; }
@@ -529,6 +531,17 @@ html.dark {
   white-space: nowrap;
 }
 .glc-btn-ghost:hover { background: var(--bg-muted); color: var(--text-primary); }
+
+/* Unified form control focus styling (replaces inline JS focus mutations). */
+.glc-field-control {
+  transition: border-color var(--ease-fast), box-shadow var(--ease-fast);
+}
+
+.glc-field-control:focus,
+.glc-field-control:focus-visible {
+  border-color: var(--glc-blue);
+  box-shadow: var(--shadow-blue);
+}
 
 /* ── Mobile layout utilities (safe-area, touch targets, page padding) ─ */
 .glc-safe-pad-x {
@@ -686,15 +699,7 @@ html.dark {
   opacity: 0.85;
 }
 
-/* ── Global page polish (excluded on Snapshot/Discovery via route class) ── */
-body.glc-site-polish {
-  background-image:
-    radial-gradient(ellipse 70% 45% at 5% -5%, color-mix(in oklab, var(--glc-blue) 12%, transparent) 0%, transparent 65%),
-    radial-gradient(ellipse 55% 35% at 100% 0%, color-mix(in oklab, var(--glc-green) 8%, transparent) 0%, transparent 65%),
-    linear-gradient(180deg, color-mix(in oklab, var(--bg-canvas) 96%, white) 0%, var(--bg-canvas) 100%);
-  background-attachment: fixed;
-}
-
+/* ── Global page polish: flat canvas (see `html.dark`); card/link micro-interactions only ── */
 body.glc-site-polish .glc-card,
 body.glc-site-polish .glc-card-elevated {
   border-color: color-mix(in oklab, var(--border-subtle) 72%, var(--glc-blue-muted));
@@ -739,24 +744,14 @@ body.glc-site-polish :is(a, button):not(:disabled) {
   isolation: isolate;
   border: 1px solid color-mix(in oklab, var(--border-subtle) 66%, var(--glc-blue-muted));
   border-radius: var(--radius-2xl);
-  background:
-    radial-gradient(ellipse 95% 70% at 0% -25%, color-mix(in oklab, var(--glc-blue) 15%, transparent) 0%, transparent 64%),
-    radial-gradient(ellipse 75% 55% at 100% -10%, color-mix(in oklab, var(--glc-green) 10%, transparent) 0%, transparent 62%),
-    linear-gradient(160deg, color-mix(in oklab, var(--bg-surface) 92%, white) 0%, var(--bg-surface) 100%);
+  background: unset;
   box-shadow:
     0 0 0 1px color-mix(in oklab, var(--border-subtle) 74%, transparent),
     0 14px 32px rgba(11, 17, 32, 0.09);
 }
 
 .glc-page-hero::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-  background:
-    linear-gradient(120deg, rgba(255, 255, 255, 0.22) 0%, transparent 34%),
-    linear-gradient(0deg, transparent 0%, color-mix(in oklab, var(--glc-blue) 4%, transparent) 100%);
+  display: none;
 }
 
 .glc-hero-title {

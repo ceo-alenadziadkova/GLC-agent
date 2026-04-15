@@ -8,8 +8,8 @@ export const MARKETING_MOTION_EASE_PREMIUM = [0.22, 1, 0.36, 1] as const;
 export const MARKETING_MOTION_EASE_BILLBOARD = [0.16, 1, 0.3, 1] as const;
 
 export const MARKETING_SECTION_MOTION = {
-  hiddenY: 18,
-  durationSec: 0.58,
+  hiddenY: 22,
+  durationSec: 0.64,
   /** Slightly earlier trigger so content feels “alive” before fully centered. */
   viewportMargin: '-12% 0px -8% 0px',
 } as const;

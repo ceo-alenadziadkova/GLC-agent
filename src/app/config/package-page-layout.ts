@@ -3,15 +3,16 @@
  */
 export const PACKAGE_PAGE_LAYOUT = {
   focus: {
-    sectionGapClass: 'mt-6 sm:mt-8',
+    /** Vertical rhythm between sections comes from MarketingLayout stack gap. */
+    sectionGapClass: '',
     heroShellClass: 'pb-5 pt-4 sm:pb-8 sm:pt-7',
   },
   context: {
-    sectionGapClass: 'mt-7 sm:mt-10',
+    sectionGapClass: '',
     heroShellClass: 'pb-6 pt-4 sm:pb-9 sm:pt-7',
   },
   strategy: {
-    sectionGapClass: 'mt-8 sm:mt-10',
+    sectionGapClass: '',
     heroShellClass: 'pb-7 pt-4 sm:pb-10 sm:pt-8',
   },
 } as const;

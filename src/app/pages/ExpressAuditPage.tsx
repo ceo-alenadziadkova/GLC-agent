@@ -28,6 +28,7 @@ const L = PACKAGE_PAGE_LAYOUT.focus;
 export function ExpressAuditPage() {
   const pageCopy = workspacePackaging.package_pages.starter;
   const homePack = workspacePackaging.marketing_home;
+  const labels = workspacePackaging.package_page_labels;
   const mid = pageCopy.mid_cta ?? homePack.mid_page_cta;
   const next = pageCopy.next_steps ?? homePack.next_steps;
 
@@ -58,7 +59,7 @@ export function ExpressAuditPage() {
             <div className="grid divide-y divide-[var(--border-subtle)] lg:grid-cols-2 lg:divide-x lg:divide-y-0">
               <div className="p-6 sm:p-8">
                 <h3 className="font-display text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-                  Included
+                  {labels.included}
                 </h3>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
                   <li>One selected domain with detailed findings.</li>
@@ -68,7 +69,7 @@ export function ExpressAuditPage() {
               </div>
               <div className="p-6 sm:p-8">
                 <h3 className="font-display text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-                  Not included
+                  {labels.notIncluded}
                 </h3>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
                   <li>Cross-domain synthesis confidence of a complete audit.</li>
@@ -195,15 +196,15 @@ export function ExpressAuditPage() {
           steps={[
             { to: '/pro', label: workspacePackaging.packages.full.title, hint: workspacePackaging.packages.full.subtitle },
             { to: '/complete', label: workspacePackaging.packages.strategy.title, hint: workspacePackaging.packages.strategy.subtitle },
-            { to: '/faq', label: 'FAQ', hint: 'Timelines, communication, delivery.' },
-            { to: '/brief', label: 'Book a brief call', hint: 'We match the format to your context.', primary: true },
-            { to: LOGIN_PATH, label: 'Client sign-in', hint: 'Reports and progress.' },
+            { to: '/faq', label: labels.faqLabel, hint: 'Timelines, communication, delivery.' },
+            { to: '/brief', label: labels.bookBriefLabel, hint: labels.bookBriefHintStarter, primary: true },
+            { to: LOGIN_PATH, label: labels.clientSignInLabel, hint: 'Reports and progress.' },
           ]}
         />
       </div>
 
       <p className="mt-8 text-center text-sm" style={{ color: 'var(--text-tertiary)' }}>
-        Still unsure? Start with{' '}
+        {labels.stillUnsurePrefix}{' '}
         <Link to="/snapshot" className="font-semibold" style={{ color: 'var(--glc-blue)' }}>
           Snapshot
         </Link>
