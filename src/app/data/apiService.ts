@@ -10,6 +10,7 @@ import {
   briefPublicApi,
   intakeTokensApi,
   marketingSnapshotIncidentsApi,
+  snapshotCompareApi,
   type GlcApi,
 } from './api';
 
@@ -33,4 +34,5 @@ export const api = {
   ...intakeTokensApi,
   ...discoverApi,
   ...marketingSnapshotIncidentsApi,
+  ...snapshotCompareApi,
 } satisfies GlcApi;

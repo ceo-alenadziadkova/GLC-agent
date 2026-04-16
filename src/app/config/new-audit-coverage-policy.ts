@@ -30,6 +30,18 @@ export const NEW_AUDIT_INDUSTRY_DOMAIN_RECOMMENDATIONS: Record<string, DomainKey
   'Professional Services': ['marketing_utp', 'ux_conversion', 'automation_processes'],
 };
 
+/** Fallback recommended domains when industry is missing / unknown. */
+export const NEW_AUDIT_DEFAULT_DOMAIN_RECOMMENDATIONS: DomainKey[] = ['tech_infrastructure', 'ux_conversion'];
+
+/** Fallback selected domain when Starter package has no prior user selection. */
+export const NEW_AUDIT_STARTER_FALLBACK_DOMAIN: DomainKey = 'tech_infrastructure';
+
+/** Default Pro package baseline when no domains were selected yet. */
+export const NEW_AUDIT_PRO_FALLBACK_SELECTION: DomainKey[] = [
+  'tech_infrastructure',
+  'security_compliance',
+];
+
 export const NEW_AUDIT_COVERAGE_DOMAIN_COUNT_HINT: Record<AuditCoveragePackage, string> = {
   starter: '1 domain',
   pro: '2-3 domains',

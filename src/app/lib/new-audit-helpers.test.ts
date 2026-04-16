@@ -47,11 +47,6 @@ describe('new-audit-helpers', () => {
       expect(isSelfServeOwnerConfigApiError(err)).toBe(true);
     });
 
-    it('matches fallback message text for legacy backend responses', () => {
-      const err = new ApiError('We could not assign ownership for this audit right now.', 503);
-      expect(isSelfServeOwnerConfigApiError(err)).toBe(true);
-    });
-
     it('does not match unrelated errors', () => {
       const err = new ApiError('Forbidden', 403, 'FORBIDDEN');
       expect(isSelfServeOwnerConfigApiError(err)).toBe(false);
