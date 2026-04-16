@@ -4,170 +4,58 @@ import {
 } from '@xyflow/react';
 
 import { TreeStructure } from '@phosphor-icons/react';
-import bankBundledRaw from '@glc/intake-core/question-bank.v1.json';
-import { buildIntakePlan } from '@glc/intake-core';
-import type { IntakePlan, IntakeSurface, QuestionReason } from '@glc/intake-core';
+import type { IntakeSurface, QuestionReason } from '@glc/intake-core';
 import {
-  getQuestionBankPromptLabel,
   getQuestionBankReportUse,
   getQuestionBankSchemaMeta,
-  QUESTION_BANK_VERSION,
   QUESTION_BANK_V1_STUBS,
 } from '@glc/intake-core';
 import type { IntakeBriefCollectionMode, ProductMode } from '../data/auditTypes';
 import { useGlcTheme } from '../hooks/useGlcTheme';
-import { diffQuestionBankIdSets, extractQuestionIdsFromBankJson } from '../lib/question-bank-revision-diff';
+import { QUESTION_BANK_STUDIO_COPY_EN } from '../config/question-bank-studio-copy.en';
 import {
-  buildStudioMapSvg,
-  downloadDataUrl,
-  studioSvgToPngDataUrl,
-} from '../lib/question-bank-studio-map-export';
-import { UI_SEMANTIC_COLORS } from '../config/ui-semantic-colors';
+  LEGEND_FONT_SIZE_PX,
+  LEGEND_LINE_HEIGHT,
+  LEGEND_TEXT_COLOR_VAR,
+} from '../config/question-bank-studio-ui';
+import { useDebouncedString } from './question-bank-studio/hooks/useDebouncedString';
+import { useQuestionBankStudioDiff } from './question-bank-studio/hooks/useQuestionBankStudioDiff';
+import { useQuestionBankStudioExport } from './question-bank-studio/hooks/useQuestionBankStudioExport';
+import { useQuestionBankStudioTrace } from './question-bank-studio/hooks/useQuestionBankStudioTrace';
 import {
   buildQuestionBankStudioGraph,
   type StudioAnyNodeData,
-  type StudioLayoutStepNodeData,
   type StudioLayoutSurfaceKey,
 } from '../lib/question-bank-studio-graph';
 import {
   computeStudioPolicyModeStats,
   type StudioPolicyMode,
 } from '../lib/question-bank-studio-policy';
-import {
-  type StudioPolicyBaseVisualKind,
-} from '../lib/question-bank-studio-node-style';
+// Policy stripe label mapping lives in question-bank-studio/config.ts
 import {
   collectBranchFocusQuestionIds,
   computeBranchDownstreamIds,
   computeBranchUpstreamIds,
 } from './intake/intake-trace-branch-links';
+import { idsInIntakePlan, planTraceRoles, shortUserLabel, statusPill, traceRingColor } from './question-bank-studio/selectors/trace';
+import { computeCenterOnNodeId, computeNodeHiddenById, computeUserStepLanes } from './question-bank-studio/selectors/visibility';
+import { InspectorPanel } from './question-bank-studio/panels/InspectorPanel';
+import { ContextInputsPanel } from './question-bank-studio/panels/ContextInputsPanel';
+import type { TracePlanStatus, TraceRole, ViewMode } from './question-bank-studio/types';
+import {
+  LAYOUT_SURFACE_OPTIONS,
+  POLICY_MODE_OPTIONS,
+  POLICY_STRIPE_INSPECTOR,
+} from './question-bank-studio/config';
 import { QUESTION_BANK_STUDIO_DEBOUNCE_MS } from '../config/question-bank-studio-defaults';
 import { Switch } from './ui/switch';
 
-const POLICY_STRIPE_INSPECTOR: Record<StudioPolicyBaseVisualKind, string> = {
-  outside_policy: 'Outside policy slice (not in this product mode)',
-  policy_required: 'Policy required or synthetic required (left stripe)',
-  policy_if_visible: 'Required if visible when in express SLA (amber stripe)',
-  canon_required: 'Canon required in bank JSON (blue stripe)',
-  canon_recommended: 'Canon recommended (gray stripe)',
-  canon_optional: 'Canon optional (light gray stripe)',
-};
-
-const POLICY_MODE_OPTIONS: { value: StudioPolicyMode; label: string }[] = [
-  { value: 'full', label: 'full' },
-  { value: 'express', label: 'express' },
-  { value: 'discovery', label: 'discover (discovery)' },
-  { value: 'pre_brief', label: 'brief (pre_brief)' },
-  { value: 'free_snapshot', label: 'free_snapshot' },
-];
-
-const LAYOUT_SURFACE_OPTIONS: { value: '' | StudioLayoutSurfaceKey; label: string }[] = [
-  { value: '', label: 'Flat (schema sections only)' },
-  { value: 'consultant_interview', label: 'consultant_interview' },
-  { value: 'public_discovery', label: 'public_discovery' },
-  { value: 'client_form', label: 'client_form' },
-  { value: 'client_portal', label: 'client_portal' },
-];
-
-const TRACE_PRODUCT_OPTIONS: { value: ProductMode; label: string }[] = [
-  { value: 'full', label: 'full' },
-  { value: 'express', label: 'express' },
-  { value: 'free_snapshot', label: 'free_snapshot' },
-];
-
-const TRACE_COLLECTION_OPTIONS: { value: IntakeBriefCollectionMode | ''; label: string }[] = [
-  { value: '', label: '(none)' },
-  { value: 'discovery', label: 'discovery' },
-  { value: 'pre_brief', label: 'pre_brief' },
-  { value: 'interview', label: 'interview' },
-  { value: 'self_serve', label: 'self_serve' },
-];
-
-const TRACE_SURFACE_OPTIONS: { value: IntakeSurface | ''; label: string }[] = [
-  { value: '', label: '(none)' },
-  { value: 'public_discovery', label: 'public_discovery' },
-  { value: 'consultant_interview', label: 'consultant_interview' },
-  { value: 'client_form', label: 'client_form' },
-  { value: 'client_portal', label: 'client_portal' },
-  { value: 'internal_review', label: 'internal_review' },
-];
-
-
-type TraceRole = 'required' | 'visible' | 'deferred' | 'hidden';
-
-/** Trace role from `buildIntakePlan`, or `unknown` when the id is not in the current plan footprint. */
-type TracePlanStatus = TraceRole | 'unknown';
-
-function isStudioLayoutStepNode(n: Node<StudioAnyNodeData>): n is Node<StudioLayoutStepNodeData> {
-  return n.type === 'studioLayoutStep' && n.data.kind === 'layoutStep';
-}
-
-function planTraceRoles(plan: IntakePlan): Map<string, TraceRole> {
-  const m = new Map<string, TraceRole>();
-  for (const id of plan.hidden) m.set(id, 'hidden');
-  for (const id of plan.deferred) m.set(id, 'deferred');
-  for (const id of plan.visible) if (!m.has(id)) m.set(id, 'visible');
-  for (const id of plan.required) m.set(id, 'required');
-  return m;
-}
-
-/** Bank / identity ids that appear anywhere in the resolver plan (for footprint view). */
-function idsInIntakePlan(plan: IntakePlan): Set<string> {
-  return new Set([
-    ...plan.eligible,
-    ...plan.visible,
-    ...plan.required,
-    ...plan.hidden,
-    ...plan.deferred,
-  ]);
-}
-
-function traceRingColor(role: TraceRole): string {
-  switch (role) {
-    case 'required':
-      return '#f59e0b';
-    case 'visible':
-      return '#38bdf8';
-    case 'deferred':
-      return '#a78bfa';
-    case 'hidden':
-      return '#71717a';
-    default:
-      return 'transparent';
-  }
-}
-
-function shortUserLabel(questionId: string): string {
-  const raw = getQuestionBankPromptLabel(questionId) ?? questionId;
-  const trimmed = raw.trim();
-  if (trimmed.length <= 78) return trimmed;
-  return `${trimmed.slice(0, 75)}...`;
-}
-
-function statusPill(status: TracePlanStatus): { label: string; fg: string; bg: string; border: string } {
-  switch (status) {
-    case 'required':
-      return {
-        label: 'Required',
-        fg: UI_SEMANTIC_COLORS.dangerFgStrong,
-        bg: UI_SEMANTIC_COLORS.dangerBgPale,
-        border: UI_SEMANTIC_COLORS.danger,
-      };
-    case 'visible':
-      return { label: 'Visible', fg: '#1d4ed8', bg: '#dbeafe', border: '#60a5fa' };
-    case 'deferred':
-      return { label: 'Deferred', fg: '#6d28d9', bg: '#ede9fe', border: '#a78bfa' };
-    case 'hidden':
-      return { label: 'Hidden', fg: '#374151', bg: '#f3f4f6', border: '#9ca3af' };
-    default:
-      return { label: 'Unknown', fg: '#334155', bg: '#e2e8f0', border: '#94a3b8' };
-  }
-}
+// UI config: options + trace/status presentation helpers live in separate modules.
 
 export function QuestionBankStudio() {
   const { isDark } = useGlcTheme();
   /** `user` = consultant-focused swimlanes + trace; `logic` = full graph tooling (layout surface, export, bank diff). */
-  const [viewMode, setViewMode] = useState<'user' | 'logic'>('user');
+  const [viewMode, setViewMode] = useState<ViewMode>('user');
   const [graphOrientation, setGraphOrientation] = useState<'TB' | 'LR'>('TB');
   const [policyMode, setPolicyMode] = useState<StudioPolicyMode>('full');
   const [showBranchEdges, setShowBranchEdges] = useState(false);
@@ -179,29 +67,28 @@ export function QuestionBankStudio() {
   const [colorByDomain, setColorByDomain] = useState(false);
   const [clusterByPrimaryDomain, setClusterByPrimaryDomain] = useState(false);
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debouncedSearch = useDebouncedString(search.trim(), QUESTION_BANK_STUDIO_DEBOUNCE_MS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pathHistory, setPathHistory] = useState<string[]>([]);
   const [activeUserStep, setActiveUserStep] = useState<number | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => new Set());
-  const [exportBusy, setExportBusy] = useState(false);
   /** Show only nodes that appear in the current trace preset's IntakePlan (runtime footprint). */
   const [planFootprintOnly, setPlanFootprintOnly] = useState(false);
 
-  const [tracePlan, setTracePlan] = useState<IntakePlan | null>(null);
-  const [traceError, setTraceError] = useState<string | null>(null);
   const [layoutSurface, setLayoutSurface] = useState<'' | StudioLayoutSurfaceKey>('');
   const [customResponsesText, setCustomResponsesText] = useState('{\n}\n');
-  const [debouncedCustomJson, setDebouncedCustomJson] = useState('{\n}\n');
   const [customProductMode, setCustomProductMode] = useState<ProductMode>('full');
   const [customCollectionMode, setCustomCollectionMode] = useState<IntakeBriefCollectionMode | ''>('');
   const [customSurface, setCustomSurface] = useState<IntakeSurface | ''>('');
+  const debouncedCustomJson = useDebouncedString(customResponsesText, QUESTION_BANK_STUDIO_DEBOUNCE_MS);
+  const { tracePlan, traceError } = useQuestionBankStudioTrace({
+    debouncedCustomJson,
+    customProductMode,
+    customCollectionMode,
+    customSurface,
+  });
   const [bankDiffJson, setBankDiffJson] = useState('{\n  "version": "0.0.0",\n  "questions": []\n}\n');
-  const [bankDiffError, setBankDiffError] = useState<string | null>(null);
-  const [bankDiffSummary, setBankDiffSummary] = useState<{
-    added: string[];
-    removed: string[];
-  } | null>(null);
+  const { bankDiffSummary, bankDiffError, runBankDiff } = useQuestionBankStudioDiff(bankDiffJson);
 
   useEffect(() => {
     if (!tracePlan) setPlanFootprintOnly(false);
@@ -211,15 +98,7 @@ export function QuestionBankStudio() {
     setPolicyMode(customProductMode);
   }, [customProductMode]);
 
-  useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedSearch(search.trim()), QUESTION_BANK_STUDIO_DEBOUNCE_MS);
-    return () => window.clearTimeout(t);
-  }, [search]);
-
-  useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedCustomJson(customResponsesText), QUESTION_BANK_STUDIO_DEBOUNCE_MS);
-    return () => window.clearTimeout(t);
-  }, [customResponsesText]);
+  // search/customResponsesText debounce lives in `useDebouncedString` hooks.
 
   const effectiveOrientation: 'TB' | 'LR' = viewMode === 'user' ? 'TB' : graphOrientation;
   const effectiveLayoutSurface: '' | StudioLayoutSurfaceKey =
@@ -250,6 +129,13 @@ export function QuestionBankStudio() {
     ],
   );
 
+  const { exportBusy, downloadSvgExport, downloadPngExport } = useQuestionBankStudioExport({
+    layoutNodes: layoutGraph.nodes,
+    layoutEdges: layoutGraph.edges,
+    isDark,
+    effectiveShowBranchEdges,
+  });
+
   const policyBannerStats = useMemo(() => computeStudioPolicyModeStats(policyMode), [policyMode]);
 
   const branchFocusQuestionIds = useMemo(() => {
@@ -263,170 +149,43 @@ export function QuestionBankStudio() {
 
   const planIdSet = useMemo(() => (tracePlan ? idsInIntakePlan(tracePlan) : null), [tracePlan]);
 
-  const userStepLanes = useMemo(() => {
-    const stepNodes = layoutGraph.nodes.filter(isStudioLayoutStepNode).sort((a, b) => a.data.stepIndex - b.data.stepIndex);
-    return stepNodes.map(stepNode => {
-      const questionEdges = layoutGraph.edges.filter(
-        e => e.source === stepNode.id && String(e.target).startsWith('qbs-q-'),
-      );
-      const questionIds = questionEdges
-        .map(e => {
-          const qNode = layoutGraph.nodes.find(n => n.id === e.target);
-          return qNode && qNode.type === 'studioQuestion' && qNode.data.kind === 'question'
-            ? qNode.data.questionId
-            : null;
-        })
-        .filter((v): v is string => Boolean(v));
-      return {
-        laneId: stepNode.id,
-        stepIndex: stepNode.data.stepIndex,
-        label: stepNode.data.label,
-        questionIds,
-      };
-    });
-  }, [layoutGraph.nodes, layoutGraph.edges]);
+  const userStepLanes = useMemo(
+    () => computeUserStepLanes(layoutGraph.nodes, layoutGraph.edges),
+    [layoutGraph.nodes, layoutGraph.edges],
+  );
 
-  const nodeHiddenById = useMemo(() => {
-    const flags = new Map<string, boolean>();
-    for (const n of layoutGraph.nodes) flags.set(n.id, false);
-
-    const hideQuestion = (questionId: string, participatesPolicy: boolean) => {
-      let h = false;
-      if (planFootprintOnly && planIdSet && !planIdSet.has(questionId)) h = true;
-      if (policySliceOnly && !participatesPolicy) h = true;
-      if (branchFocusQuestionIds && !branchFocusQuestionIds.has(questionId)) h = true;
-      return h;
-    };
-
-    for (const n of layoutGraph.nodes) {
-      if (n.type === 'studioRoot') {
-        flags.set(n.id, false);
-        continue;
-      }
-      if (n.type === 'studioQuestion' && n.data.kind === 'question') {
-        flags.set(n.id, hideQuestion(n.data.questionId, n.data.participatesPolicy));
-        continue;
-      }
-      if (n.type === 'studioIdentity' && n.data.kind === 'identity') {
-        let h = false;
-        if (planFootprintOnly && planIdSet && !planIdSet.has(n.data.questionId)) h = true;
-        if (policySliceOnly && !n.data.participatesPolicy) h = true;
-        flags.set(n.id, h);
-        continue;
-      }
-      if (n.type === 'studioLayoutStep' || n.type === 'studioDomainCluster') {
-        flags.set(n.id, false);
-        continue;
-      }
-      if (n.type === 'studioSection' && n.data.kind === 'section') {
-        flags.set(n.id, false);
-        continue;
-      }
-    }
-
-    for (const n of layoutGraph.nodes) {
-      if (n.type !== 'studioSection' || n.data.kind !== 'section') continue;
-      const sectionKey = n.data.sectionKey;
-      const qs = layoutGraph.nodes.filter(
-        x => x.type === 'studioQuestion' && x.data.kind === 'question' && x.data.sectionKey === sectionKey,
-      );
-      if (qs.length === 0) continue;
-      const anyVisible = qs.some(q => !flags.get(q.id));
-      flags.set(n.id, !anyVisible);
-    }
-
-    for (const n of layoutGraph.nodes) {
-      if (n.type !== 'studioLayoutStep') continue;
-      const childQEdges = layoutGraph.edges.filter(
-        e => e.source === n.id && String(e.target).startsWith('qbs-q-'),
-      );
-      if (childQEdges.length === 0) {
-        flags.set(n.id, true);
-        continue;
-      }
-      const allChildrenHidden = childQEdges.every(e => flags.get(e.target));
-      flags.set(n.id, allChildrenHidden);
-    }
-    for (const n of layoutGraph.nodes) {
-      if (n.type !== 'studioDomainCluster') continue;
-      const sectionEdges = layoutGraph.edges.filter(
-        e => e.source === n.id && e.target.startsWith('qbs-section-'),
-      );
-      if (sectionEdges.length === 0) {
-        flags.set(n.id, true);
-        continue;
-      }
-      const allSectionsHidden = sectionEdges.every(e => flags.get(e.target));
-      flags.set(n.id, allSectionsHidden);
-    }
-
-    if (viewMode === 'user' && activeUserStep !== null) {
-      const lane = userStepLanes.find(s => s.stepIndex === activeUserStep);
-      const allowedQuestions = new Set(lane?.questionIds ?? []);
-      for (const n of layoutGraph.nodes) {
-        if (n.type === 'studioQuestion' && n.data.kind === 'question') {
-          if (!allowedQuestions.has(n.data.questionId)) flags.set(n.id, true);
-        }
-      }
-      for (const n of layoutGraph.nodes) {
-        if (n.type === 'studioLayoutStep' && n.data.kind === 'layoutStep') {
-          if (n.data.stepIndex !== activeUserStep) flags.set(n.id, true);
-        }
-      }
-    }
-    return flags;
-  }, [
-    layoutGraph.nodes,
-    layoutGraph.edges,
-    planFootprintOnly,
-    planIdSet,
-    policySliceOnly,
-    branchFocusQuestionIds,
-    viewMode,
-    activeUserStep,
-    userStepLanes,
-  ]);
+  const nodeHiddenById = useMemo(
+    () =>
+      computeNodeHiddenById({
+        nodes: layoutGraph.nodes,
+        edges: layoutGraph.edges,
+        viewMode,
+        activeUserStep,
+        userStepLanes,
+        planFootprintOnly,
+        planIdSet,
+        policySliceOnly,
+        branchFocusQuestionIds,
+      }),
+    [
+      layoutGraph.nodes,
+      layoutGraph.edges,
+      planFootprintOnly,
+      planIdSet,
+      policySliceOnly,
+      branchFocusQuestionIds,
+      viewMode,
+      activeUserStep,
+      userStepLanes,
+    ],
+  );
 
   const searchLower = search.trim().toLowerCase();
 
-  const centerOnNodeId = useMemo(() => {
-    const q = debouncedSearch.toLowerCase();
-    if (q.length === 0) return null;
-    for (const n of layoutGraph.nodes) {
-      if (n.type === 'studioQuestion' && n.data.kind === 'question') {
-        const d = n.data;
-        if (d.questionId.toLowerCase().includes(q) || d.fullLabel.toLowerCase().includes(q)) {
-          return n.id;
-        }
-      }
-      if (n.type === 'studioSection' && n.data.kind === 'section') {
-        const d = n.data;
-        if (d.sectionKey.toLowerCase().includes(q) || d.label.toLowerCase().includes(q)) {
-          return n.id;
-        }
-      }
-      if (n.type === 'studioDomainCluster' && n.data.kind === 'domainCluster') {
-        const d = n.data;
-        if (d.domainKey.toLowerCase().includes(q) || d.label.toLowerCase().includes(q)) {
-          return n.id;
-        }
-      }
-      if (n.type === 'studioIdentity' && n.data.kind === 'identity') {
-        if (n.data.questionId.toLowerCase().includes(q)) return n.id;
-      }
-      if (n.type === 'studioLayoutStep' && n.data.kind === 'layoutStep') {
-        const d = n.data;
-        if (
-          d.label.toLowerCase().includes(q) ||
-          d.surfaceKey.toLowerCase().includes(q) ||
-          d.sectionKey.toLowerCase().includes(q)
-        ) {
-          return n.id;
-        }
-      }
-    }
-    return null;
-  }, [layoutGraph.nodes, debouncedSearch]);
+  const centerOnNodeId = useMemo(
+    () => computeCenterOnNodeId(layoutGraph.nodes, debouncedSearch),
+    [layoutGraph.nodes, debouncedSearch],
+  );
 
   const toggleSectionCollapse = useCallback((sectionKey: string) => {
     setCollapsedSections(prev => {
@@ -589,77 +348,13 @@ export function QuestionBankStudio() {
     return `${shortUserLabel(id)} (${id})`;
   }, []);
 
-  const runBankDiff = useCallback(() => {
-    try {
-      const bundled = extractQuestionIdsFromBankJson(bankBundledRaw);
-      const other = extractQuestionIdsFromBankJson(JSON.parse(bankDiffJson));
-      const d = diffQuestionBankIdSets(bundled, other);
-      setBankDiffSummary({ added: d.added, removed: d.removed });
-      setBankDiffError(null);
-    } catch (e) {
-      setBankDiffSummary(null);
-      setBankDiffError(e instanceof Error ? e.message : String(e));
-    }
-  }, [bankDiffJson]);
-
-  const downloadSvgExport = useCallback(() => {
-    const svg = buildStudioMapSvg(layoutGraph.nodes, layoutGraph.edges, {
-      title: `Question Bank Studio · v${QUESTION_BANK_VERSION}`,
-      theme: isDark ? 'dark' : 'light',
-      includeBranchEdges: effectiveShowBranchEdges,
-    });
-    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `question-bank-studio-v${QUESTION_BANK_VERSION}.svg`;
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }, [layoutGraph.nodes, layoutGraph.edges, isDark, effectiveShowBranchEdges]);
-
-  const downloadPngExport = useCallback(async () => {
-    setExportBusy(true);
-    try {
-      const svg = buildStudioMapSvg(layoutGraph.nodes, layoutGraph.edges, {
-        title: `Question Bank Studio · v${QUESTION_BANK_VERSION}`,
-        theme: isDark ? 'dark' : 'light',
-        includeBranchEdges: effectiveShowBranchEdges,
-      });
-      const png = await studioSvgToPngDataUrl(svg, 2);
-      downloadDataUrl(png, `question-bank-studio-v${QUESTION_BANK_VERSION}.png`);
-    } finally {
-      setExportBusy(false);
-    }
-  }, [layoutGraph.nodes, layoutGraph.edges, isDark, effectiveShowBranchEdges]);
-
-  useEffect(() => {
-    try {
-      const responses = JSON.parse(debouncedCustomJson) as Record<string, unknown>;
-      const plan = buildIntakePlan({
-        responses,
-        productMode: customProductMode,
-        collectionMode: customCollectionMode || undefined,
-        surface: customSurface || undefined,
-      });
-      setTracePlan(plan);
-      setTraceError(null);
-    } catch (e) {
-      setTracePlan(null);
-      setTraceError(e instanceof Error ? e.message : String(e));
-    }
-  }, [
-    debouncedCustomJson,
-    customProductMode,
-    customCollectionMode,
-    customSurface,
-  ]);
-
   const inspectorBody = useMemo(() => {
     if (!selectedNode) {
-      return <p className="text-xs m-0" style={{ color: 'var(--text-tertiary)' }}>Select a node on the canvas.</p>;
+      return (
+        <p className="text-xs m-0" style={{ color: 'var(--text-tertiary)' }}>
+          {QUESTION_BANK_STUDIO_COPY_EN.inspector.selectNodeOnCanvas}
+        </p>
+      );
     }
     const d = selectedNode.data;
     if (d.kind === 'root') {
@@ -837,9 +532,9 @@ export function QuestionBankStudio() {
   const { stats, sectionKeys } = layoutGraph;
 
   const legendStyle: CSSProperties = {
-    fontSize: 10,
-    color: 'var(--text-quaternary)',
-    lineHeight: 1.5,
+    fontSize: LEGEND_FONT_SIZE_PX,
+    color: LEGEND_TEXT_COLOR_VAR,
+    lineHeight: LEGEND_LINE_HEIGHT,
   };
 
   return (
@@ -851,7 +546,7 @@ export function QuestionBankStudio() {
         <div className="flex flex-wrap items-center gap-2 justify-between" style={{ color: 'var(--text-primary)' }}>
           <div className="flex items-center gap-2">
             <TreeStructure className="w-4 h-4" weight="bold" />
-            <h2 className="text-sm font-semibold m-0">Question Bank Studio</h2>
+            <h2 className="text-sm font-semibold m-0">{QUESTION_BANK_STUDIO_COPY_EN.headerTitle}</h2>
           </div>
           <div
             className="inline-flex rounded-lg overflow-hidden text-[11px] font-medium"
@@ -870,7 +565,7 @@ export function QuestionBankStudio() {
               }}
               onClick={() => setViewMode('user')}
             >
-              Flow simulator
+              {QUESTION_BANK_STUDIO_COPY_EN.viewModeButtons.flowSimulator}
             </button>
             <button
               type="button"
@@ -884,7 +579,7 @@ export function QuestionBankStudio() {
               }}
               onClick={() => setViewMode('logic')}
             >
-              Full map
+              {QUESTION_BANK_STUDIO_COPY_EN.viewModeButtons.fullMap}
             </button>
           </div>
         </div>
@@ -932,11 +627,11 @@ export function QuestionBankStudio() {
 
         <div className="flex flex-wrap gap-2 items-center">
           <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
-            Flow simulator
+            {QUESTION_BANK_STUDIO_COPY_EN.viewModeButtons.flowSimulator}
           </span>
           {viewMode === 'logic' && (
             <label className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
-              Layout surface
+              {QUESTION_BANK_STUDIO_COPY_EN.toolbar.layoutSurface}
               <select
                 className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md max-w-[200px]"
                 style={{
@@ -957,7 +652,7 @@ export function QuestionBankStudio() {
           )}
           {viewMode === 'logic' && (
             <label className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
-              Orientation
+              {QUESTION_BANK_STUDIO_COPY_EN.toolbar.orientation}
               <select
                 className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md"
                 style={{
@@ -975,7 +670,7 @@ export function QuestionBankStudio() {
           )}
           {viewMode === 'logic' && (
             <label className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
-              Policy mode
+              {QUESTION_BANK_STUDIO_COPY_EN.toolbar.policyMode}
               <select
                 className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md"
                 style={{
@@ -997,14 +692,14 @@ export function QuestionBankStudio() {
           {viewMode === 'logic' && (
             <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
               <Switch checked={showBranchEdges} onCheckedChange={setShowBranchEdges} />
-              Branch edges
+              {QUESTION_BANK_STUDIO_COPY_EN.toolbar.branchEdges}
             </label>
           )}
           {viewMode === 'logic' && (
             <>
               <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
                 <Switch checked={dimOutsidePolicy} onCheckedChange={setDimOutsidePolicy} />
-                Dim outside policy mode
+                {QUESTION_BANK_STUDIO_COPY_EN.toolbar.dimOutsidePolicyMode}
               </label>
               <label
                 className="flex items-center gap-2 text-xs"
@@ -1012,13 +707,13 @@ export function QuestionBankStudio() {
                 title="Hide nodes that do not participate in the selected policy mode (strong effect for discovery / pre_brief)."
               >
                 <Switch checked={policySliceOnly} onCheckedChange={setPolicySliceOnly} />
-                Policy slice
+                {QUESTION_BANK_STUDIO_COPY_EN.toolbar.policySlice}
               </label>
             </>
           )}
           {viewMode === 'logic' && (
             <label className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
-              Density
+              {QUESTION_BANK_STUDIO_COPY_EN.toolbar.density}
               <select
                 className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md"
                 style={{
@@ -1042,7 +737,7 @@ export function QuestionBankStudio() {
                 title="Collapse long help panels and bank diff for a quicker read."
               >
                 <Switch checked={overviewUi} onCheckedChange={setOverviewUi} />
-                Overview UI
+                {QUESTION_BANK_STUDIO_COPY_EN.toolbar.overviewUi}
               </label>
               <label
                 className="flex items-center gap-2 text-xs"
@@ -1050,7 +745,7 @@ export function QuestionBankStudio() {
                 title="After selecting a question node, hide other bank ids outside its branch neighbourhood."
               >
                 <Switch checked={branchFocusFromSelection} onCheckedChange={setBranchFocusFromSelection} />
-                Branch focus
+                {QUESTION_BANK_STUDIO_COPY_EN.toolbar.branchFocus}
               </label>
             </>
           )}
@@ -1058,11 +753,11 @@ export function QuestionBankStudio() {
             <>
               <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
                 <Switch checked={colorByDomain} onCheckedChange={setColorByDomain} />
-                Color by feed domain
+                {QUESTION_BANK_STUDIO_COPY_EN.toolbar.colorByFeedDomain}
               </label>
               <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
                 <Switch checked={clusterByPrimaryDomain} onCheckedChange={setClusterByPrimaryDomain} />
-                Cluster by primary domain
+                {QUESTION_BANK_STUDIO_COPY_EN.toolbar.clusterByPrimaryDomain}
               </label>
             </>
           )}
@@ -1082,7 +777,7 @@ export function QuestionBankStudio() {
                   disabled={!tracePlan}
                   onCheckedChange={setPlanFootprintOnly}
                 />
-                Plan footprint
+                {QUESTION_BANK_STUDIO_COPY_EN.toolbar.planFootprint}
               </label>
               <div className="flex flex-wrap gap-1 items-center">
                 <button
@@ -1098,7 +793,7 @@ export function QuestionBankStudio() {
                   }}
                   onClick={() => downloadSvgExport()}
                 >
-                  Export SVG
+                  {QUESTION_BANK_STUDIO_COPY_EN.toolbar.exportSvg}
                 </button>
                 <button
                   type="button"
@@ -1113,7 +808,7 @@ export function QuestionBankStudio() {
                   }}
                   onClick={() => void downloadPngExport()}
                 >
-                  {exportBusy ? 'PNG…' : 'Export PNG'}
+                  {exportBusy ? QUESTION_BANK_STUDIO_COPY_EN.toolbar.pngBusy : QUESTION_BANK_STUDIO_COPY_EN.toolbar.exportPng}
                 </button>
               </div>
             </>
@@ -1125,7 +820,7 @@ export function QuestionBankStudio() {
           style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}
         >
           <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-tertiary)' }}>
-            Current mode
+            {QUESTION_BANK_STUDIO_COPY_EN.panels.currentMode}
           </div>
           <p className="m-0" style={{ color: 'var(--text-secondary)' }}>
             Policy <span className="font-mono">{policyMode}</span>
@@ -1178,7 +873,7 @@ export function QuestionBankStudio() {
         {viewMode === 'logic' && (
         <div className="rounded-lg px-3 py-2" style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}>
           <div className="text-[10px] font-semibold uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
-            Legend (node types)
+            {QUESTION_BANK_STUDIO_COPY_EN.legend.title}
           </div>
           <div className="grid gap-1.5 mobile:grid-cols-2" style={legendStyle}>
             <span className="flex items-center gap-2">
@@ -1205,11 +900,11 @@ export function QuestionBankStudio() {
               <span className="inline-block rounded-sm shrink-0" style={{ width: 12, height: 12, backgroundColor: 'var(--bg-surface)', border: '1px dashed color-mix(in oklab, var(--glc-orange) 55%, var(--border-default))' }} />
               Identity (pre_brief)
             </span>
-            <span>Solid edges: structure · Blue dashed: branch (canon)</span>
-            <span>Question left stripe: orange policy req · amber if-visible · blue canon req · gray rec/opt</span>
-            <span>Trace ring (outer): amber req · blue vis · purple def · gray hid</span>
-            <span>Feed domain: thin top color when &quot;Color by feed domain&quot; is on</span>
-            <span>Search: orange outline on matches · minimap bottom · Fit top-left on canvas</span>
+            <span>{QUESTION_BANK_STUDIO_COPY_EN.legend.solidEdges}</span>
+            <span>{QUESTION_BANK_STUDIO_COPY_EN.legend.questionLeftStripe}</span>
+            <span>{QUESTION_BANK_STUDIO_COPY_EN.legend.traceRingOuter}</span>
+            <span>{QUESTION_BANK_STUDIO_COPY_EN.legend.feedDomain}</span>
+            <span>{QUESTION_BANK_STUDIO_COPY_EN.legend.search}</span>
             {planFootprintOnly && planIdSet ? (
               <span>
                 Plan footprint: <strong>{planIdSet.size}</strong> ids in trace plan.
@@ -1319,7 +1014,7 @@ export function QuestionBankStudio() {
         <div className="flex flex-col gap-1 max-w-md">
           <input
             type="search"
-            placeholder="Search id or label (debounced center on first match)…"
+              placeholder={QUESTION_BANK_STUDIO_COPY_EN.search.placeholder}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full px-3 py-2 text-xs rounded-md"
@@ -1455,109 +1150,19 @@ export function QuestionBankStudio() {
 
         <div className={viewMode === 'user' ? 'grid gap-3 items-start lg:grid-cols-[280px_1fr_320px]' : 'flex flex-wrap gap-3 items-start'}>
           {viewMode === 'user' ? (
-            <div
-              className="w-full p-3 rounded-lg text-left"
-              style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}
-            >
-              <div className="text-[10px] font-semibold uppercase mb-2" style={{ color: 'var(--text-tertiary)' }}>
-                Context inputs
-              </div>
-              <div className="space-y-2 mb-2">
-                <label className="text-[10px] block" style={{ color: 'var(--text-quaternary)' }}>
-                  Product mode
-                  <select
-                    className="block w-full mt-0.5 px-2 py-1 text-xs rounded-md"
-                    style={{
-                      backgroundColor: 'var(--bg-surface)',
-                      border: '1px solid var(--border-default)',
-                      color: 'var(--text-primary)',
-                    }}
-                    value={customProductMode}
-                    onChange={e => setCustomProductMode(e.target.value as ProductMode)}
-                  >
-                    {TRACE_PRODUCT_OPTIONS.map(o => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-[10px] block" style={{ color: 'var(--text-quaternary)' }}>
-                  Collection mode
-                  <select
-                    className="block w-full mt-0.5 px-2 py-1 text-xs rounded-md"
-                    style={{
-                      backgroundColor: 'var(--bg-surface)',
-                      border: '1px solid var(--border-default)',
-                      color: 'var(--text-primary)',
-                    }}
-                    value={customCollectionMode}
-                    onChange={e => setCustomCollectionMode(e.target.value as IntakeBriefCollectionMode | '')}
-                  >
-                    {TRACE_COLLECTION_OPTIONS.map(o => (
-                      <option key={o.value || 'none'} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-[10px] block" style={{ color: 'var(--text-quaternary)' }}>
-                  Surface
-                  <select
-                    className="block w-full mt-0.5 px-2 py-1 text-xs rounded-md"
-                    style={{
-                      backgroundColor: 'var(--bg-surface)',
-                      border: '1px solid var(--border-default)',
-                      color: 'var(--text-primary)',
-                    }}
-                    value={customSurface}
-                    onChange={e => setCustomSurface(e.target.value as IntakeSurface | '')}
-                  >
-                    {TRACE_SURFACE_OPTIONS.map(o => (
-                      <option key={o.value || 'none'} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-[10px] block" style={{ color: 'var(--text-quaternary)' }}>
-                  Responses JSON
-                </label>
-                <textarea
-                  className="w-full min-h-[110px] px-2 py-1.5 text-[11px] font-mono rounded-md"
-                  style={{
-                    backgroundColor: 'var(--bg-surface)',
-                    border: '1px solid var(--border-default)',
-                    color: 'var(--text-primary)',
-                  }}
-                  value={customResponsesText}
-                  onChange={e => setCustomResponsesText(e.target.value)}
-                  spellCheck={false}
-                />
-              </div>
-              <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                Policy mode: <span className="font-mono">{policyMode}</span>
-              </div>
-              <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                Surface: <span className="font-mono">{effectiveLayoutSurface || 'flat'}</span>
-              </div>
-              <p className="mt-2 mb-0 text-[10px]" style={{ color: 'var(--text-quaternary)' }}>
-                User view fixes orientation to vertical and keeps branch edge labels visible for business conditions.
-              </p>
-              <button
-                type="button"
-                className="mt-2 text-[11px] font-medium px-2 py-1 rounded-md"
-                style={{
-                  border: '1px solid var(--border-default)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                }}
-                onClick={() => setActiveUserStep(null)}
-              >
-                Show all steps
-              </button>
-            </div>
+            <ContextInputsPanel
+              customProductMode={customProductMode}
+              onCustomProductModeChange={next => setCustomProductMode(next)}
+              customCollectionMode={customCollectionMode}
+              onCustomCollectionModeChange={next => setCustomCollectionMode(next)}
+              customSurface={customSurface}
+              onCustomSurfaceChange={next => setCustomSurface(next)}
+              customResponsesText={customResponsesText}
+              onCustomResponsesTextChange={next => setCustomResponsesText(next)}
+              policyMode={policyMode}
+              effectiveLayoutSurface={effectiveLayoutSurface}
+              onShowAllSteps={() => setActiveUserStep(null)}
+            />
           ) : null}
           <div
             className="flex-1 min-w-0 rounded-lg overflow-hidden"
@@ -1630,221 +1235,20 @@ export function QuestionBankStudio() {
               )}
             </div>
           </div>
-          <div
-            className="w-full mobile:w-80 shrink-0 p-3 rounded-lg text-left"
-            style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}
-          >
-            <div className="text-[10px] font-semibold uppercase mb-2" style={{ color: 'var(--text-tertiary)' }}>
-              Inspector
-            </div>
-            {viewMode === 'user' && (
-              <div className="mb-3 space-y-2">
-                <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-tertiary)' }}>
-                  State delta
-                </div>
-                <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                  Current role: <span className="font-mono">{selectedQuestionRole ?? '—'}</span>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
-                    Now visible
-                  </div>
-                  <ul className="m-0 pl-4 space-y-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                    {simulation.nowVisible.length > 0 ? (
-                      simulation.nowVisible.slice(0, 8).map(id => (
-                        <li key={`now-visible-${id}`}>{renderUserQuestionInline(id)}</li>
-                      ))
-                    ) : (
-                      <li>—</li>
-                    )}
-                  </ul>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
-                    Added next
-                  </div>
-                  <ul className="m-0 pl-4 space-y-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                    {simulation.addedNext.length > 0 ? (
-                      simulation.addedNext.map(id => <li key={`added-next-${id}`}>{renderUserQuestionInline(id)}</li>)
-                    ) : (
-                      <li>—</li>
-                    )}
-                  </ul>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
-                    Removed next
-                  </div>
-                  <ul className="m-0 pl-4 space-y-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                    {simulation.removedNext.length > 0 ? (
-                      simulation.removedNext.map(id => (
-                        <li key={`removed-next-${id}`}>{renderUserQuestionInline(id)}</li>
-                      ))
-                    ) : (
-                      <li>—</li>
-                    )}
-                  </ul>
-                </div>
-                <details
-                  className="rounded-md px-2 py-1.5"
-                  style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
-                >
-                  <summary className="cursor-pointer text-[10px] uppercase" style={{ color: 'var(--text-tertiary)' }}>
-                    Next options cards
-                  </summary>
-                  <div className="mt-2 space-y-1.5">
-                    {simulation.nextIds.length === 0 ? (
-                      <div className="text-[11px]" style={{ color: 'var(--text-quaternary)' }}>
-                        No direct next options from current question.
-                      </div>
-                    ) : (
-                      simulation.nextIds.map(id => {
-                        const node = layoutGraph.nodes.find(
-                          n => n.type === 'studioQuestion' && n.data.kind === 'question' && n.data.questionId === id,
-                        );
-                        const status =
-                          tracePlan && tracePlan.required.includes(id)
-                            ? 'required'
-                            : tracePlan && tracePlan.visible.includes(id)
-                              ? 'visible'
-                              : tracePlan && tracePlan.hidden.includes(id)
-                                ? 'hidden'
-                                : tracePlan && tracePlan.deferred.includes(id)
-                                  ? 'deferred'
-                                  : 'unknown';
-                        const pill = statusPill(status);
-                        return (
-                          <button
-                            key={`next-card-${id}`}
-                            type="button"
-                            className="w-full text-left rounded-md px-2 py-1.5"
-                            style={{
-                              border: `1px solid ${pill.border}`,
-                              backgroundColor: pill.bg,
-                              color: 'var(--text-secondary)',
-                              cursor: node ? 'pointer' : 'not-allowed',
-                              opacity: node ? 1 : 0.6,
-                            }}
-                            disabled={!node}
-                            onClick={() => {
-                              if (!node) return;
-                              setSelectedId(node.id);
-                              setPathHistory(prev => (prev[prev.length - 1] === node.id ? prev : [...prev, node.id]));
-                            }}
-                          >
-                            <div className="text-[11px] font-medium">{shortUserLabel(id)}</div>
-                            <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>
-                              id: <span className="font-mono">{id}</span> ·{' '}
-                              status: {status}
-                              <span
-                                className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded"
-                                style={{ backgroundColor: pill.bg, color: pill.fg, border: `1px solid ${pill.border}` }}
-                              >
-                                {pill.label}
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })
-                    )}
-                  </div>
-                </details>
-                <div>
-                  <div className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
-                    Dependencies
-                  </div>
-                  <div className="text-[11px] space-y-2" style={{ color: 'var(--text-secondary)' }}>
-                    <div>
-                      <strong>Depends on:</strong>{' '}
-                      {selectedDependencies.dependsOn.length > 0
-                        ? selectedDependencies.dependsOn.map(shortUserLabel).join(', ')
-                        : '—'}
-                    </div>
-                    <div>
-                      <strong>Enables:</strong>{' '}
-                      {selectedDependencies.enables.length > 0
-                        ? selectedDependencies.enables.slice(0, 8).map(shortUserLabel).join(', ')
-                        : '—'}
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
-                    Why
-                  </div>
-                  <ul className="m-0 pl-4 space-y-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-                    {selectedWhy.length === 0 ? (
-                      <li>No reasons yet.</li>
-                    ) : (
-                      selectedWhy.slice(0, 6).map((r, i) => (
-                        <li key={`${r.code}-${i}`}>
-                          <span className="font-mono">{r.code}</span>
-                          {r.detail ? ` — ${r.detail}` : ''}
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </div>
-                <details
-                  className="rounded-md px-2 py-1.5"
-                  style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
-                >
-                  <summary className="cursor-pointer text-[10px] uppercase" style={{ color: 'var(--text-tertiary)' }}>
-                    Full question list ({allQuestionsForReview.length})
-                  </summary>
-                  <button
-                    type="button"
-                    className="mt-2 text-[11px] font-medium px-2 py-1 rounded-md"
-                    style={{
-                      border: '1px solid var(--border-default)',
-                      backgroundColor: 'var(--bg-canvas)',
-                      color: 'var(--text-secondary)',
-                      cursor: 'pointer',
-                    }}
-                    onClick={async () => {
-                      const lines = allQuestionsForReview.map((q, i) => `${i + 1}. ${q.id} | ${q.status} | ${q.label}`);
-                      await navigator.clipboard.writeText(lines.join('\n'));
-                    }}
-                  >
-                    Copy list for verification
-                  </button>
-                  <div className="mt-2 max-h-56 overflow-auto space-y-1">
-                    {allQuestionsForReview.map(q => {
-                      const pill = statusPill(q.status);
-                      return (
-                        <div
-                          key={`all-q-${q.id}`}
-                          className="text-[11px] rounded px-2 py-1"
-                          style={{ border: `1px solid ${pill.border}`, backgroundColor: pill.bg, color: pill.fg }}
-                        >
-                          <span className="font-mono">{q.id}</span> — {q.label}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </details>
-              </div>
-            )}
-            {inspectorBody}
-            {viewMode === 'logic' && (
-              <>
-                <div
-                  className="mt-4 pt-3 text-[10px] font-semibold uppercase mb-2 border-t"
-                  style={{ borderColor: 'var(--border-default)', color: 'var(--text-tertiary)' }}
-                >
-                  Interactive trace
-                </div>
-                {traceError ? (
-                  <p className="text-xs m-0 text-red-500">{traceError}</p>
-                ) : (
-                  <p className="text-[10px] m-0 leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
-                    Card left stripe = policy + canon; outer ring = trace outcome. Ring: amber required · blue visible · purple
-                    deferred · gray hidden (JSON + resolver).
-                  </p>
-                )}
-              </>
-            )}
-          </div>
+          <InspectorPanel
+            viewMode={viewMode}
+            selectedQuestionRole={selectedQuestionRole}
+            selectedDependencies={selectedDependencies}
+            selectedWhy={selectedWhy}
+            simulation={simulation}
+            tracePlan={tracePlan}
+            traceError={traceError}
+            allQuestionsForReview={allQuestionsForReview}
+            inspectorBody={inspectorBody}
+            layoutGraphNodes={layoutGraph.nodes}
+            setSelectedId={setSelectedId}
+            setPathHistory={setPathHistory}
+          />
         </div>
       </div>
     </div>
