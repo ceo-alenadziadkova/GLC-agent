@@ -1,3 +1,5 @@
+import { SNAPSHOT_API_ERROR_COPY } from '../config/snapshot-diagnostics-copy.en';
+
 /**
  * Maps snapshot HTTP API error payloads to user-visible strings (shared test surface).
  */
@@ -43,23 +45,23 @@ export function toUiErrorMessage(
   const retrySeconds = toRetrySeconds(payload);
 
   if (status === 401 || status === 403) {
-    return 'Session expired or invalid. Refresh the page and sign in again.';
+    return SNAPSHOT_API_ERROR_COPY.sessionExpired;
   }
   if (status === 429) {
     const wait = retrySeconds ? ` Please retry in about ${formatWaitTime(retrySeconds)}.` : '';
     if (apiMessage) return `${apiMessage}${wait}`;
-    return `Too many requests.${wait}`;
+    return `${SNAPSHOT_API_ERROR_COPY.tooManyRequests}${wait}`;
   }
   if (status >= 500) {
     if (payload.code === 'SELF_SERVE_OWNER_UNAVAILABLE') {
-      return 'This feature is temporarily unavailable. Please try again in a few minutes.';
+      return SNAPSHOT_API_ERROR_COPY.ownerUnavailable;
     }
     const gatewayOrUnavailable = status === 502 || status === 503 || status === 504;
     if (gatewayOrUnavailable && apiMessage) return apiMessage;
     if (status === 503) {
-      return 'This feature is temporarily unavailable. Please try again in a few minutes.';
+      return SNAPSHOT_API_ERROR_COPY.ownerUnavailable;
     }
-    return 'Server error while starting analysis. Please try again in a minute.';
+    return SNAPSHOT_API_ERROR_COPY.serverErrorStart;
   }
   return apiMessage ?? fallback;
 }

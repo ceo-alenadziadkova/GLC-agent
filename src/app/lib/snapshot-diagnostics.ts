@@ -3,21 +3,13 @@
  */
 
 import type { FreeSnapshotPreview, SnapshotScanCoverageApi } from '../data/auditTypes';
+import { SNAPSHOT_DIAGNOSTICS_COPY } from '../config/snapshot-diagnostics-copy.en';
 
 /** User-facing copy for `ai_visibility.gaps`. */
 export const AI_VISIBILITY_GAP_COPY: Record<
   'robots_txt' | 'sitemap_html' | 'structured_data' | 'discovery_files',
   string
-> = {
-  robots_txt:
-    'Robots.txt — we could not verify a reliable live file from what we saw: confirm crawl rules and any sitemap line with whoever owns the site.',
-  sitemap_html:
-    'Sitemap / full URL list — we did not see a clear discovery path from what we read: confirm published sitemap and that internal links or headers expose it correctly.',
-  structured_data:
-    'Structured data — reads thin on the templates we saw: strengthen JSON-LD on key pages so assistants can quote you instead of inferring.',
-  discovery_files:
-    'llms.txt / ai.txt — not surfaced on the pages we checked: add if policy allows and you want explicit guidance for AI crawlers.',
-};
+> = SNAPSHOT_DIAGNOSTICS_COPY.aiVisibilityGap;
 
 const SCAN_ROLE_LABELS: Record<SnapshotScanCoverageApi['pages'][number]['role'], string> = {
   home: 'homepage',
@@ -35,11 +27,11 @@ export function formatScanCoverageLine(cov: SnapshotScanCoverageApi | undefined)
       const cls = cov.robots_fallback_site_class;
       const plat =
         cls === 'major_platform'
-          ? 'Common on large sites: root blocked, inner pages allowed.'
-          : 'Inner pages only — not the homepage.';
+          ? SNAPSHOT_DIAGNOSTICS_COPY.robotsFallbackMajorPlatform
+          : SNAPSHOT_DIAGNOSTICS_COPY.robotsFallbackGeneric;
       return `Sampled ${cov.pages_fetched} allowed page(s); homepage not fetched (crawl policy). ${plat}`;
     }
-    return 'No HTML in this sample: homepage blocked by site crawl policy (we still follow robots.txt).';
+    return SNAPSHOT_DIAGNOSTICS_COPY.robotsNoHtmlSample;
   }
   if (cov.pages_fetched < 1) return null;
   const order: SnapshotScanCoverageApi['pages'][number]['role'][] = [
@@ -63,24 +55,28 @@ export function formatScanCoverageLine(cov: SnapshotScanCoverageApi | undefined)
   const sample = labels.length > 0 ? labels.join(', ') : `${cov.pages_fetched} page(s)`;
   const sec = (cov.elapsed_ms / 1000).toFixed(1);
   const budgetSec = (cov.budget_ms / 1000).toFixed(0);
-  let line = `Sampled ${cov.pages_fetched} of up to ${cov.max_pages_planned} pages in ${sec}s (time budget ${budgetSec}s): ${sample}. Paths from internal links on those pages also inform signals.`;
+  let line = SNAPSHOT_DIAGNOSTICS_COPY.sampledPattern
+    .replace('{pagesFetched}', String(cov.pages_fetched))
+    .replace('{maxPages}', String(cov.max_pages_planned))
+    .replace('{elapsedSec}', sec)
+    .replace('{budgetSec}', budgetSec)
+    .replace('{sample}', sample);
   if (cov.playwright_used) {
-    line += ' Homepage was also rendered in a headless browser to capture client-side content.';
+    line += ` ${SNAPSHOT_DIAGNOSTICS_COPY.renderedInBrowser}`;
   } else if (cov.playwright_eligible) {
-    line += ' Static HTML looked like a JavaScript app shell; enable server Playwright to deepen the homepage read.';
+    line += ` ${SNAPSHOT_DIAGNOSTICS_COPY.appShellHint}`;
   }
   if (cov.robots_extras_skipped && cov.robots_extras_skipped > 0) {
-    line += ` ${cov.robots_extras_skipped} extra page(s) were skipped to honor robots.txt.`;
+    line += ` ${SNAPSHOT_DIAGNOSTICS_COPY.robotsExtrasSkipped.replace('{count}', String(cov.robots_extras_skipped))}`;
   }
   if (cov.challenge_page_likely) {
-    line +=
-      ' The HTML looks like a bot challenge or security interstitial — treat scores as a rough baseline only.';
+    line += ` ${SNAPSHOT_DIAGNOSTICS_COPY.challengeLikely}`;
   }
   if (cov.parked_domain_likely) {
-    line += ' The page resembles a parked or for-sale domain.';
+    line += ` ${SNAPSHOT_DIAGNOSTICS_COPY.parkedDomainLikely}`;
   }
   if (cov.login_wall_likely) {
-    line += ' The public page looks like a sign-in gate; most content may require authentication.';
+    line += ` ${SNAPSHOT_DIAGNOSTICS_COPY.loginWallLikely}`;
   }
   return line;
 }
@@ -91,17 +87,17 @@ export function snapshotZeroPagesScoreNote(result: FreeSnapshotPreview): string 
   const zeroish = typeof pf !== 'number' || pf < 1;
   if (!zeroish) return null;
   if (typeof result.overall_score !== 'number' || result.overall_score !== 0) return null;
-  return 'Scores are based on 0 pages sampled. A Starter, Pro, or Complete audit can use your brief, exports, or approved access when the live site cannot be read automatically.';
+  return SNAPSHOT_DIAGNOSTICS_COPY.zeroPagesScoreNote;
 }
 
 export function scanConfidenceExplanation(band: 'high' | 'medium' | 'low'): string {
   switch (band) {
     case 'high':
-      return 'High scan confidence means we sampled enough of your public pages under normal conditions, so these scores should broadly match what a typical visitor sees.';
+      return SNAPSHOT_DIAGNOSTICS_COPY.scanConfidenceHigh;
     case 'medium':
-      return 'Medium scan confidence means the snapshot is still useful, but some pages were skipped, behaviour was unusual, or coverage was thin—treat the numbers as directional, not exact.';
+      return SNAPSHOT_DIAGNOSTICS_COPY.scanConfidenceMedium;
     case 'low':
-      return 'Low scan confidence means robots blocked part of the site, the HTML looked like a login wall or parking page, or we captured very little usable content—treat this as a rough signal only.';
+      return SNAPSHOT_DIAGNOSTICS_COPY.scanConfidenceLow;
   }
 }
 
@@ -140,7 +136,7 @@ export function isSnapshotWithoutFetchedPages(params: {
 }
 
 /** Stable substring from server `buildSummary` when the deterministic run could not score pages. */
-const DEGRADED_SNAPSHOT_SUMMARY_MARK = 'No automated GLC snapshot score';
+const DEGRADED_SNAPSHOT_SUMMARY_MARK = SNAPSHOT_DIAGNOSTICS_COPY.degradedSnapshotSummaryMark;
 
 function uxSummaryImpliesRobotsBlock(summary: string | null | undefined): boolean {
   if (!summary) return false;

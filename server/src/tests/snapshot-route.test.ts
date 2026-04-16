@@ -130,8 +130,9 @@ const {
   };
 });
 
-const { mockMaybeBuildCompetitorMini } = vi.hoisted(() => ({
+const { mockMaybeBuildCompetitorMini, mockCompareSiteMetricsByUrl } = vi.hoisted(() => ({
   mockMaybeBuildCompetitorMini: vi.fn().mockResolvedValue(undefined),
+  mockCompareSiteMetricsByUrl: vi.fn().mockResolvedValue(undefined),
 }));
 
 // ─── Module mocks ─────────────────────────────────────────────────────────────
@@ -139,6 +140,8 @@ const { mockMaybeBuildCompetitorMini } = vi.hoisted(() => ({
 vi.mock('../lib/snapshot-competitor.js', () => ({
   maybeBuildCompetitorMini: (clientUrl: string, pages: unknown, timeoutMs: number) =>
     mockMaybeBuildCompetitorMini(clientUrl, pages, timeoutMs),
+  compareSiteMetricsByUrl: (params: { selfUrl: string; competitorUrl: string; timeoutMs: number }) =>
+    mockCompareSiteMetricsByUrl(params),
 }));
 
 const mockReadSnapshotCache = vi.hoisted(() => vi.fn().mockResolvedValue(null));
@@ -327,6 +330,8 @@ beforeEach(() => {
   mockReadSnapshotCache.mockResolvedValue(null);
   mockMaybeBuildCompetitorMini.mockClear();
   mockMaybeBuildCompetitorMini.mockResolvedValue(undefined);
+  mockCompareSiteMetricsByUrl.mockClear();
+  mockCompareSiteMetricsByUrl.mockResolvedValue(undefined);
   mockGuestUpsert.mockResolvedValue({ error: null });
   mockAuditsUpdate.mockImplementation(() => {
     const o = {
@@ -818,6 +823,74 @@ describe('GET /api/snapshot/:token', () => {
     const body = await res.json() as Record<string, unknown>;
     expect(mockMaybeBuildCompetitorMini).toHaveBeenCalledTimes(1);
     expect(body.competitor_mini).toEqual(mini);
+  });
+});
+
+describe('POST /api/snapshot/compare', () => {
+  const mini = {
+    competitor_name: 'other.com',
+    competitor_url: 'https://other.com',
+    comparisons: [
+      { metric: 'https', client_val: true, comp_val: true, winner: 'tie' as const, label: 'HTTPS' },
+    ],
+    data_source: 'auto_detected' as const,
+    confidence: 'high' as const,
+  };
+
+  it('returns 401 without Authorization', async () => {
+    const res = await fetch(`${baseUrl}/api/snapshot/compare`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ self_url: 'https://mine.com', competitor_url: 'https://other.com' }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 400 when self_url is missing', async () => {
+    const res = await fetch(`${baseUrl}/api/snapshot/compare`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
+      body: JSON.stringify({ competitor_url: 'https://other.com' }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('SNAPSHOT_COMPARE_SELF_URL_REQUIRED');
+  });
+
+  it('returns 400 when competitor_url is missing', async () => {
+    const res = await fetch(`${baseUrl}/api/snapshot/compare`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
+      body: JSON.stringify({ self_url: 'https://mine.com' }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('SNAPSHOT_COMPARE_COMPETITOR_URL_REQUIRED');
+  });
+
+  it('returns competitor_mini when compare succeeds', async () => {
+    mockCompareSiteMetricsByUrl.mockResolvedValue(mini);
+    const res = await fetch(`${baseUrl}/api/snapshot/compare`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
+      body: JSON.stringify({ self_url: 'https://mine.com', competitor_url: 'https://other.com' }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    expect(mockCompareSiteMetricsByUrl).toHaveBeenCalledTimes(1);
+    expect(body.competitor_mini).toEqual(mini);
+  });
+
+  it('returns null competitor_mini when compare has no usable metrics', async () => {
+    mockCompareSiteMetricsByUrl.mockResolvedValue(undefined);
+    const res = await fetch(`${baseUrl}/api/snapshot/compare`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...SNAPSHOT_TEST_AUTH },
+      body: JSON.stringify({ self_url: 'https://mine.com', competitor_url: 'https://other.com' }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.competitor_mini).toBeNull();
   });
 });
 

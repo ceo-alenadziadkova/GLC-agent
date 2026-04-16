@@ -1,5 +1,6 @@
 import type { AuditCoveragePackage, DomainKey } from '../data/auditTypes';
 import { isSnapshotStyleAudit } from './audit-execution-plan';
+import { CLIENT_AUDIT_VIEW_COPY } from '../config/client-audit-view-copy';
 
 /**
  * Client portal: Pipeline nav + /portal/pipeline are available only after the intake brief
@@ -37,23 +38,4 @@ export function clientCanViewPortalPipeline(args: {
 }
 
 /** Short copy for snapshot upgrade — users who skip /portal/audit/new still see definitions here. */
-export const CLIENT_PORTAL_PRODUCT_MODE_HELP = {
-  starter: {
-    label: 'Starter',
-    summary: 'Recon plus one selected domain for a focused first pass.',
-    detail:
-      'Fastest option when you need a single-priority diagnosis first. Strategy phase is disabled.',
-  },
-  pro: {
-    label: 'Pro',
-    summary: 'Recon plus 2-3 selected domains with balanced depth.',
-    detail:
-      'Best fit for teams with several priorities. Strategy can be included based on execution plan.',
-  },
-  complete: {
-    label: 'Complete',
-    summary: 'Complete six-domain audit plus final strategy synthesis.',
-    detail:
-      'Maximum coverage across Tech, Security, SEO, UX, Marketing, and Automation with full comparability.',
-  },
-} as const;
+export const CLIENT_PORTAL_PRODUCT_MODE_HELP = CLIENT_AUDIT_VIEW_COPY.productModeHelp;

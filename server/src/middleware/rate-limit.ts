@@ -47,6 +47,7 @@ import {
 } from '../config/rate-limit-messages.js';
 import { isTruthyQueryValue } from '../config/query-bool.js';
 import { getRateLimitRedisUrl, isStrictRateLimitRedis } from '../config/redis-infra.js';
+import { API_ERROR_CODES } from '../config/api-error-codes.js';
 
 const PRL = SYSTEM_DEFAULTS.publicRouteRateLimits;
 
@@ -74,6 +75,7 @@ if (process.env.NODE_ENV === 'production' && !RATE_LIMIT_REDIS_URL) {
 }
 
 let sharedRedisClient: RateLimitRedisClient | null = null;
+let sharedRedisConnectPromise: Promise<void> | null = null;
 
 function getSharedRedisClient(): RateLimitRedisClient | null {
   if (!RATE_LIMIT_REDIS_URL) return null;
@@ -85,7 +87,12 @@ function getSharedRedisClient(): RateLimitRedisClient | null {
       error: err instanceof Error ? err.message : String(err),
     });
   });
-  void client.connect();
+  sharedRedisConnectPromise = client.connect().catch((err) => {
+    logger.warn('[rate-limit] redis connect failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
+  });
   sharedRedisClient = client;
   return client;
 }
@@ -99,7 +106,12 @@ function distributedStore(prefix: string): RedisStore | undefined {
   if (!client) return undefined;
   return new RedisStore({
     prefix: `${rateLimitRedisKeyPrefix()}${REDIS_KEYS.rateLimitNamespace}:${prefix}:`,
-    sendCommand: (...args: string[]) => client.sendCommand(args),
+    sendCommand: async (...args: string[]) => {
+      if (sharedRedisConnectPromise) {
+        await sharedRedisConnectPromise;
+      }
+      return client.sendCommand(args);
+    },
   });
 }
 
@@ -120,7 +132,7 @@ export const createAuditLimiter = rateLimit({
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   message: {
     error: rateLimitAuditCreateMessage(RATE_LIMIT_AUDIT_CREATE_MAX_PER_DAY),
-    code: 'AUDIT_CREATE_RATE_LIMITED',
+    code: API_ERROR_CODES.AUDIT_CREATE_RATE_LIMITED,
     retry_after_hours: Math.max(1, Math.ceil(RATE_LIMIT_AUDIT_CREATE_WINDOW_MS / HOUR_MS)),
   },
   standardHeaders: true,
@@ -137,7 +149,7 @@ export const pipelineLimiter = rateLimit({
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   message: {
     error: RATE_LIMIT_PIPELINE_MESSAGE,
-    code: 'PIPELINE_RATE_LIMITED',
+    code: API_ERROR_CODES.PIPELINE_RATE_LIMITED,
     retry_after_minutes: Math.max(1, Math.ceil(RATE_LIMIT_PIPELINE_WINDOW_MS / MINUTE_MS)),
   },
   standardHeaders: true,
@@ -154,7 +166,7 @@ export const generalLimiter = rateLimit({
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   message: {
     error: RATE_LIMIT_GENERAL_MESSAGE,
-    code: 'GENERAL_API_RATE_LIMITED',
+    code: API_ERROR_CODES.GENERAL_API_RATE_LIMITED,
     retry_after_seconds: Math.max(1, Math.ceil(RATE_LIMIT_GENERAL_WINDOW_MS / 1000)),
   },
   standardHeaders: true,
@@ -169,7 +181,7 @@ export const benchmarkRecomputeLimiter = rateLimit({
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
     error: RATE_LIMIT_BENCHMARK_RECOMPUTE_MESSAGE,
-    code: 'BENCHMARK_RECOMPUTE_RATE_LIMITED',
+    code: API_ERROR_CODES.BENCHMARK_RECOMPUTE_RATE_LIMITED,
     retry_after_minutes: Math.max(1, Math.ceil(RATE_LIMIT_BENCHMARK_RECOMPUTE_WINDOW_MS / MINUTE_MS)),
   },
   standardHeaders: true,
@@ -198,7 +210,7 @@ export const snapshotCompareLimiter = rateLimit({
   },
   message: {
     error: RATE_LIMIT_COMPARE_MESSAGE,
-    code: 'COMPARE_RATE_LIMITED',
+    code: API_ERROR_CODES.COMPARE_RATE_LIMITED,
     retry_after_minutes: Math.max(1, Math.ceil(SNAPSHOT_COMPARE_WINDOW_MS / MINUTE_MS)),
   },
   standardHeaders: true,
@@ -253,7 +265,7 @@ export const snapshotPublicLimiter = rateLimit({
   skipFailedRequests: true,
   message: {
     error: rateLimitSnapshotPublicDailyCapMessage(SNAPSHOT_PUBLIC_MAX_PER_DAY),
-    code: 'RATE_LIMITED',
+    code: API_ERROR_CODES.SNAPSHOT_PUBLIC_RATE_LIMITED,
     limit: SNAPSHOT_PUBLIC_MAX_PER_DAY,
     remaining: 0,
     period: 'day',
@@ -271,7 +283,7 @@ export const intakePublicLimiter = rateLimit({
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
     error: RATE_LIMIT_INTAKE_LEGACY_MESSAGE,
-    code: 'INTAKE_LEGACY_RATE_LIMITED',
+    code: API_ERROR_CODES.INTAKE_LEGACY_RATE_LIMITED,
     retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,
@@ -286,7 +298,7 @@ export const discoverSessionCreateLimiter = rateLimit({
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
     error: RATE_LIMIT_DISCOVER_CREATE_MESSAGE,
-    code: 'DISCOVER_CREATE_RATE_LIMITED',
+    code: API_ERROR_CODES.DISCOVER_CREATE_RATE_LIMITED,
     retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,
@@ -301,7 +313,7 @@ export const discoverPublicReadLimiter = rateLimit({
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
     error: RATE_LIMIT_DISCOVER_READ_MESSAGE,
-    code: 'DISCOVER_READ_RATE_LIMITED',
+    code: API_ERROR_CODES.DISCOVER_READ_RATE_LIMITED,
     retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,
@@ -316,7 +328,7 @@ export const discoverAnalyticsPublicLimiter = rateLimit({
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
     error: RATE_LIMIT_DISCOVER_ANALYTICS_MESSAGE,
-    code: 'DISCOVER_ANALYTICS_RATE_LIMITED',
+    code: API_ERROR_CODES.DISCOVER_ANALYTICS_RATE_LIMITED,
     retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,
@@ -331,7 +343,7 @@ export const briefPublicCreateLimiter = rateLimit({
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
     error: RATE_LIMIT_BRIEF_PUBLIC_CREATE_MESSAGE,
-    code: 'BRIEF_PUBLIC_CREATE_RATE_LIMITED',
+    code: API_ERROR_CODES.BRIEF_PUBLIC_CREATE_RATE_LIMITED,
     retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,
@@ -346,7 +358,7 @@ export const briefPublicReadLimiter = rateLimit({
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
     error: RATE_LIMIT_BRIEF_PUBLIC_READ_MESSAGE,
-    code: 'BRIEF_PUBLIC_READ_RATE_LIMITED',
+    code: API_ERROR_CODES.BRIEF_PUBLIC_READ_RATE_LIMITED,
     retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,
@@ -361,7 +373,7 @@ export const briefPublicWriteLimiter = rateLimit({
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
     error: RATE_LIMIT_BRIEF_PUBLIC_WRITE_MESSAGE,
-    code: 'BRIEF_PUBLIC_WRITE_RATE_LIMITED',
+    code: API_ERROR_CODES.BRIEF_PUBLIC_WRITE_RATE_LIMITED,
     retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,
@@ -376,7 +388,7 @@ export const intakePublicReadLimiter = rateLimit({
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
     error: RATE_LIMIT_INTAKE_READ_MESSAGE,
-    code: 'INTAKE_READ_RATE_LIMITED',
+    code: API_ERROR_CODES.INTAKE_READ_RATE_LIMITED,
     retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,
@@ -391,7 +403,7 @@ export const intakePublicWriteLimiter = rateLimit({
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
     error: RATE_LIMIT_INTAKE_WRITE_MESSAGE,
-    code: 'INTAKE_WRITE_RATE_LIMITED',
+    code: API_ERROR_CODES.INTAKE_WRITE_RATE_LIMITED,
     retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,
@@ -406,7 +418,7 @@ export const marketingBriefPublicLimiter = rateLimit({
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
     error: RATE_LIMIT_MARKETING_BRIEF_MESSAGE,
-    code: 'MARKETING_BRIEF_RATE_LIMITED',
+    code: API_ERROR_CODES.MARKETING_BRIEF_RATE_LIMITED,
     retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
   },
   standardHeaders: true,
@@ -424,7 +436,7 @@ export const logIngestLimiter = rateLimit({
   keyGenerator: (req) => (req as AuthRequest).userId ?? req.ip ?? 'unknown',
   message: {
     error: RATE_LIMIT_LOG_INGEST_MESSAGE,
-    code: 'LOG_INGEST_RATE_LIMITED',
+    code: API_ERROR_CODES.LOG_INGEST_RATE_LIMITED,
     retry_after_seconds: Math.max(1, Math.ceil(RATE_LIMIT_LOG_INGEST_WINDOW_MS / 1000)),
   },
   standardHeaders: true,
@@ -440,7 +452,7 @@ export const snapshotLogIngestLimiter = rateLimit({
   message: {
     error: RATE_LIMIT_SNAPSHOT_LOG_INGEST_MESSAGE,
     retry_after_seconds: Math.max(1, Math.ceil(MINUTE_MS / 1000)),
-    code: 'SNAPSHOT_LOG_RATE_LIMITED',
+    code: API_ERROR_CODES.SNAPSHOT_LOG_RATE_LIMITED,
   },
   standardHeaders: true,
   legacyHeaders: false,

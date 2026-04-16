@@ -35,7 +35,7 @@ import {
   type SnapshotScanCoverageApi,
 } from '../types/audit.js';
 import { defaultExecutionPlanForPackage } from '../services/execution-plan.js';
-import { maybeBuildCompetitorMini } from '../lib/snapshot-competitor.js';
+import { compareSiteMetricsByUrl, maybeBuildCompetitorMini } from '../lib/snapshot-competitor.js';
 import { logger } from '../services/logger.js';
 import { emitStructuredNotification } from '../services/notifications.js';
 import { readSnapshotCache, normalizeSnapshotHost } from '../snapshot/cache.js';
@@ -66,6 +66,9 @@ import {
   API_ERROR_CODES,
   SNAPSHOT_CLAIM_CONFLICT_MESSAGE,
   SNAPSHOT_CLAIM_FAILED_MESSAGE,
+  SNAPSHOT_COMPARE_COMPETITOR_URL_REQUIRED_MESSAGE,
+  SNAPSHOT_COMPARE_FAILED_MESSAGE,
+  SNAPSHOT_COMPARE_SELF_URL_REQUIRED_MESSAGE,
   SNAPSHOT_COMPANY_URL_REQUIRED_MESSAGE,
   SNAPSHOT_CREATE_FAILED_MESSAGE,
   SNAPSHOT_DOMAIN_FRESH_COOLDOWN_MESSAGE,
@@ -656,6 +659,65 @@ snapshotRouter.post('/operator/purge-cache', async (req, res) => {
     const e = err as Error;
     logger.error('snapshot.operator_purge_failed', { component: 'snapshot', error: e.message });
     res.status(500).json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_PURGE_FAILED, SNAPSHOT_PURGE_FAILED_MESSAGE));
+  }
+});
+
+// ─── POST /api/snapshot/compare — Authenticated explicit self vs competitor compare ─
+snapshotRouter.post('/compare', requireAuth, snapshotCompareLimiter, async (req: AuthRequest, res) => {
+  try {
+    const rawSelfUrl = typeof req.body?.self_url === 'string' ? req.body.self_url.trim() : '';
+    const rawCompetitorUrl =
+      typeof req.body?.competitor_url === 'string' ? req.body.competitor_url.trim() : '';
+
+    if (!rawSelfUrl) {
+      res
+        .status(400)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.SNAPSHOT_COMPARE_SELF_URL_REQUIRED,
+            SNAPSHOT_COMPARE_SELF_URL_REQUIRED_MESSAGE,
+          ),
+        );
+      return;
+    }
+    if (!rawCompetitorUrl) {
+      res
+        .status(400)
+        .json(
+          apiErrorJson(
+            API_ERROR_CODES.SNAPSHOT_COMPARE_COMPETITOR_URL_REQUIRED,
+            SNAPSHOT_COMPARE_COMPETITOR_URL_REQUIRED_MESSAGE,
+          ),
+        );
+      return;
+    }
+
+    const selfUrl = await validatePublicAuditUrl(ensureHttpsUrl(rawSelfUrl));
+    const competitorUrl = await validatePublicAuditUrl(ensureHttpsUrl(rawCompetitorUrl));
+    const competitorMini = await compareSiteMetricsByUrl({
+      selfUrl,
+      competitorUrl,
+      timeoutMs: SNAPSHOT_COMPETITOR_TIMEOUT_MS,
+    });
+
+    res.json({
+      competitor_mini: competitorMini ?? null,
+    });
+  } catch (err) {
+    if (err instanceof PublicUrlNotAllowedError) {
+      res.status(400).json(apiErrorJson(err.code, err.message));
+      return;
+    }
+    const e = err as Error;
+    logger.error('snapshot.compare_exception', {
+      component: 'snapshot',
+      user_id: req.userId,
+      error: e.message,
+      stack: e.stack,
+    });
+    res
+      .status(500)
+      .json(apiErrorJson(API_ERROR_CODES.SNAPSHOT_COMPARE_FAILED, SNAPSHOT_COMPARE_FAILED_MESSAGE));
   }
 });
 

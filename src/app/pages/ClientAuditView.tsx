@@ -52,6 +52,7 @@ import {
   clearClientBriefLayout,
 } from '../lib/client-brief-layout-preference';
 import { GLC_QUERY_STALE_TIME_MS_BRIEF } from '../config/query-client-defaults';
+import { toUiApiErrorMessage } from '../lib/api-error-ui';
 import {
   CLIENT_AUDIT_VIEW_COPY,
   CLIENT_AUDIT_VIEW_DEFAULT_UPGRADE_COVERAGE_PACKAGE,
@@ -165,7 +166,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
       onBriefSaved?.();
       setTimeout(() => setSaved(false), PORTAL_BRIEF_SAVED_FEEDBACK_MS);
     } catch (err) {
-      setBriefError((err as Error).message);
+      setBriefError(toUiApiErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -181,7 +182,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
         <div className="px-5 py-4 mobile:px-4 flex items-center justify-between flex-wrap gap-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
         <div className="flex items-center gap-2.5">
           <ClipboardText className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
-          <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Pre-Audit Brief</h3>
+          <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{CLIENT_AUDIT_VIEW_COPY.brief.title}</h3>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           {layoutSelected && (
@@ -191,12 +192,12 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
               className="text-xs font-medium underline-offset-2 hover:underline"
               style={{ color: 'var(--glc-blue)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
             >
-              Change layout
+              {CLIENT_AUDIT_VIEW_COPY.brief.changeLayout}
             </button>
           )}
           {layoutSelected && (
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
-              {answeredRequired} / {pipelineRequiredTotal} required answered
+              {answeredRequired} / {pipelineRequiredTotal} {CLIENT_AUDIT_VIEW_COPY.brief.requiredAnsweredSuffix}
             </span>
           )}
         </div>
@@ -204,15 +205,15 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
 
       <div className="px-5 py-4 mobile:px-4 space-y-4">
         <p className="text-xs leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
-          Set your default brief layout anytime in{' '}
+          {CLIENT_AUDIT_VIEW_COPY.brief.defaultLayoutPrefix}{' '}
           <Link
             to="/settings#brief-layout"
             className="font-medium underline-offset-2 hover:underline"
             style={{ color: 'var(--glc-blue)' }}
           >
-            Settings
+            {CLIENT_AUDIT_VIEW_COPY.brief.settingsLink}
           </Link>
-          . Per-audit layout below overrides that default.
+          {CLIENT_AUDIT_VIEW_COPY.brief.defaultLayoutSuffix}
         </p>
         {!layoutSelected && (
           <BriefLayoutPreferenceCards
@@ -224,7 +225,7 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
         {layoutSelected && (
           <>
             <div className="flex items-center justify-between">
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>Audit readiness: {progressPct}%</span>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{CLIENT_AUDIT_VIEW_COPY.brief.readinessPrefix} {progressPct}%</span>
               <span className="px-2 py-0.5 rounded text-xs" style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
                 {readinessBadge.toUpperCase()}
               </span>
@@ -310,10 +311,10 @@ function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBrie
               style={{ background: 'var(--gradient-brand)', color: 'var(--glc-ink)', cursor: saving ? 'not-allowed' : 'pointer', boxShadow: 'var(--glow-blue-sm)' }}
             >
               {saving
-                ? <><Spinner className="w-3.5 h-3.5 animate-spin" /> Saving...</>
+                ? <><Spinner className="w-3.5 h-3.5 animate-spin" /> {CLIENT_AUDIT_VIEW_COPY.brief.saving}</>
                 : saved
-                  ? <><CheckCircle weight="fill" className="w-3.5 h-3.5" /> Saved!</>
-                  : 'Save Brief'}
+                  ? <><CheckCircle weight="fill" className="w-3.5 h-3.5" /> {CLIENT_AUDIT_VIEW_COPY.brief.saved}</>
+                  : CLIENT_AUDIT_VIEW_COPY.brief.save}
             </button>
           </>
         )}
@@ -574,9 +575,9 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                   className="rounded-xl px-5 py-4 mobile:px-4 space-y-3"
                   style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
                 >
-                  <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>Run the audit</div>
+                  <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{CLIENT_AUDIT_VIEW_COPY.shell.runAuditTitle}</div>
                   <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
-                    When required brief fields are complete, you can start the pipeline. Some phases may pause for a review step before continuing; you can follow progress here in the portal.
+                    {CLIENT_AUDIT_VIEW_COPY.shell.runAuditBody}
                   </p>
                   <button
                     type="button"
@@ -592,8 +593,8 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                     }}
                   >
                     {starting
-                      ? <><Spinner className="w-3.5 h-3.5 animate-spin" /> Starting...</>
-                      : <><Rocket className="w-4 h-4" /> Start audit</>}
+                      ? <><Spinner className="w-3.5 h-3.5 animate-spin" /> {CLIENT_AUDIT_VIEW_COPY.shell.starting}</>
+                      : <><Rocket className="w-4 h-4" /> {CLIENT_AUDIT_VIEW_COPY.shell.startAudit}</>}
                   </button>
                 </div>
 
@@ -603,15 +604,15 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                 >
                   <div className="flex items-center gap-2">
                     <ChatCircleDots className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
-                    <span className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>Request help with the brief</span>
+                    <span className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{CLIENT_AUDIT_VIEW_COPY.help.title}</span>
                   </div>
                   <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    Optional. You can request help to clarify questions or improve wording. This does not block starting the audit whenever you are ready.
+                    {CLIENT_AUDIT_VIEW_COPY.help.body}
                   </p>
                   <textarea
                     value={helpMessage}
                     onChange={e => setHelpMessage(e.target.value)}
-                    placeholder="Add context (optional)"
+                    placeholder={CLIENT_AUDIT_VIEW_COPY.help.placeholder}
                     rows={3}
                     className="w-full rounded-lg px-3 py-2 text-sm resize-y min-h-[72px]"
                     style={{
@@ -626,7 +627,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                   {helpOk && (
                     <div className="flex items-center gap-2 text-xs" style={{ color: UI_SEMANTIC_COLORS.success }}>
                       <CheckCircle weight="fill" className="w-3.5 h-3.5" />
-                      We notified the team. You can still edit the brief or start the audit.
+                      {CLIENT_AUDIT_VIEW_COPY.help.success}
                     </div>
                   )}
                   <button
@@ -641,7 +642,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                       cursor: helpBusy ? 'not-allowed' : 'pointer',
                     }}
                   >
-                    {helpBusy ? 'Sending…' : 'Send help request'}
+                    {helpBusy ? CLIENT_AUDIT_VIEW_COPY.help.sending : CLIENT_AUDIT_VIEW_COPY.help.send}
                   </button>
                 </div>
               </>
@@ -667,8 +668,8 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
                       {freeSnapshotAccess?.showCallout
-                        ? 'Quick scan saved — automatic read was limited'
-                        : 'Quick scan in your account'}
+                        ? CLIENT_AUDIT_VIEW_COPY.snapshot.limitedTitle
+                        : CLIENT_AUDIT_VIEW_COPY.snapshot.normalTitle}
                     </div>
                     <p className="text-xs m-0 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                       {freeSnapshotAccess?.showCallout ? (
@@ -707,7 +708,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                 <div className="space-y-4 border-t pt-4" style={{ borderColor: 'rgba(28,189,255,0.15)' }}>
                   <div>
                     <div className="text-xs font-medium mb-2" style={{ color: 'var(--text-tertiary)' }}>
-                      Continue with a package
+                      {CLIENT_AUDIT_VIEW_COPY.snapshot.continuePackage}
                     </div>
                     <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: 'var(--border-subtle)' }}>
                       {AUDIT_COVERAGE_PACKAGES.map(pkg => (
@@ -730,7 +731,7 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                       ))}
                     </div>
                     <p className="text-xs m-0 mt-2 leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
-                      Selected package applies to coverage and pipeline phases for this upgrade.
+                      {CLIENT_AUDIT_VIEW_COPY.snapshot.selectedPackageHint}
                     </p>
                   </div>
 
@@ -904,9 +905,9 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                 <div className="flex items-center gap-3 min-w-0">
                   <FileText className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
                   <div>
-                    <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>View your report</div>
+                    <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{CLIENT_AUDIT_VIEW_COPY.links.viewReport}</div>
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-                      Your audit run has finished
+                      {CLIENT_AUDIT_VIEW_COPY.links.reportFinished}
                     </div>
                   </div>
                 </div>
@@ -926,9 +927,9 @@ function ClientPortalAuditById({ auditId }: { auditId: string }) {
                 <div className="flex items-center gap-3 min-w-0">
                   <Pulse className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
                   <div>
-                    <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>Pipeline status</div>
+                    <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{CLIENT_AUDIT_VIEW_COPY.links.pipelineStatus}</div>
                     <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-                      {meta?.status === 'completed' ? 'Review phases and logs' : 'Follow live progress'}
+                      {meta?.status === 'completed' ? CLIENT_AUDIT_VIEW_COPY.links.pipelineReview : CLIENT_AUDIT_VIEW_COPY.links.pipelineFollow}
                     </div>
                   </div>
                 </div>
@@ -958,7 +959,7 @@ export function ClientAuditView() {
   if (!id) {
     return (
       <AppShell title="Portal" subtitle="">
-        <div className="glc-page-content max-w-2xl mx-auto text-sm" style={{ color: UI_SEMANTIC_COLORS.danger }}>Missing id.</div>
+        <div className="glc-page-content max-w-2xl mx-auto text-sm" style={{ color: UI_SEMANTIC_COLORS.danger }}>{CLIENT_AUDIT_VIEW_COPY.page.missingId}</div>
       </AppShell>
     );
   }
