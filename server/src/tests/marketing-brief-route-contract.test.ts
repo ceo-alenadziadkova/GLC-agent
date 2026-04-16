@@ -54,6 +54,17 @@ vi.mock('../middleware/rate-limit.js', () => ({
   marketingBriefPublicLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
+vi.mock('../lib/public-http-url.js', () => ({
+  PublicUrlNotAllowedError: class PublicUrlNotAllowedError extends Error {
+    code: string;
+    constructor(code = 'PUBLIC_URL_INVALID', message = 'invalid public url') {
+      super(message);
+      this.code = code;
+    }
+  },
+  validatePublicAuditUrl: vi.fn(async (url: string) => url),
+}));
+
 vi.mock('../services/notifications.js', () => ({
   emitStructuredNotification: vi.fn(async () => undefined),
 }));

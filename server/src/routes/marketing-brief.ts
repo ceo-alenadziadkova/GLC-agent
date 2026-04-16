@@ -6,6 +6,7 @@ import { supabase } from '../services/supabase.js';
 import { marketingBriefPublicLimiter } from '../middleware/rate-limit.js';
 import { emitStructuredNotification } from '../services/notifications.js';
 import { logger } from '../services/logger.js';
+import { ensureHttpsUrl } from '@glc/intake-core';
 import {
   computeMarketingBriefRecommendedRoute,
   isAllowedMarketingBriefRoute,
@@ -13,6 +14,7 @@ import {
   type MarketingBriefPreferredCoveragePackage,
 } from '../config/marketing-brief-routing.js';
 import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
+import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import {
   API_ERROR_CODES,
   MARKETING_DEPTH_REQUIRED_MESSAGE,
@@ -26,6 +28,7 @@ import {
   MARKETING_BRIEF_SUBMITTED_NOTIFICATION_TITLE,
   marketingBriefSubmittedNotificationMessage,
 } from '../config/route-notification-messages.js';
+import { ROUTE_NOTIFICATION_PATHS } from '../config/route-notification-paths.js';
 
 export const marketingRouter = Router();
 
@@ -82,6 +85,20 @@ marketingRouter.post('/brief', marketingBriefPublicLimiter, async (req, res) => 
       return;
     }
 
+    let normalizedWebsite = website;
+    if (!noWebsite && website) {
+      const u = ensureHttpsUrl(website);
+      try {
+        normalizedWebsite = await validatePublicAuditUrl(u);
+      } catch (e) {
+        if (e instanceof PublicUrlNotAllowedError) {
+          res.status(400).json(apiErrorJson(e.code, e.message));
+          return;
+        }
+        throw e;
+      }
+    }
+
     if (!unsureChoice && !noWebsite && preferredAuditDepth == null) {
       res.status(400).json(
         apiErrorJson(API_ERROR_CODES.MARKETING_DEPTH_REQUIRED, MARKETING_DEPTH_REQUIRED_MESSAGE),
@@ -115,7 +132,7 @@ marketingRouter.post('/brief', marketingBriefPublicLimiter, async (req, res) => 
       .insert({
         name,
         company: company || null,
-        website: website || null,
+        website: normalizedWebsite || null,
         no_website: noWebsite,
         concern,
         improve,
@@ -143,7 +160,7 @@ marketingRouter.post('/brief', marketingBriefPublicLimiter, async (req, res) => 
       audience: 'consultants',
       title: MARKETING_BRIEF_SUBMITTED_NOTIFICATION_TITLE,
       message: marketingBriefSubmittedNotificationMessage(displayName, recommendedRoute),
-      route: '/admin/requests',
+      route: ROUTE_NOTIFICATION_PATHS.adminRequests,
       payload: {
         actor_role: 'client',
         recommended_route: recommendedRoute,

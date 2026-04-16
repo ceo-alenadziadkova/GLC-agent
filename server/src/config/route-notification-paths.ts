@@ -9,3 +9,12 @@ export function buildPipelineUiRoute(auditId: string): string {
   return `/pipeline/${auditId}`;
 }
 
+export const ROUTE_NOTIFICATION_PATHS = {
+  adminRequests: '/admin/requests',
+  portalHome: '/portal',
+} as const;
+
+export function buildPortalAuditRoute(auditId: string): string {
+  return `/portal/audit/${auditId}`;
+}
+
