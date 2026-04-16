@@ -1,4 +1,9 @@
-import { resolveFullSlaRequiredIds, resolvePreBriefSubmitExpressBankIds } from '@glc/intake-core';
+import {
+  choiceValueNeedsSpecify,
+  getPreBriefSubmitSlotIds as resolveSharedPreBriefSubmitSlotIds,
+  isPreBriefSubmitSlotSatisfied,
+  resolveFullSlaRequiredIds,
+} from '@glc/intake-core';
 import {
   BRIEF_QUESTIONS as SERVER_BRIEF_QUESTIONS,
   INTAKE_IDENTITY_BRIEF_QUESTIONS as SERVER_INTAKE_IDENTITY_BRIEF_QUESTIONS,
@@ -7,10 +12,8 @@ import {
   PRE_BRIEF_QUESTION_IDS as SERVER_PRE_BRIEF_QUESTION_IDS,
   REQUIRED_QUESTION_IDS as SERVER_REQUIRED_QUESTION_IDS,
 } from '@glc/intake-core';
-import { INTAKE_IDENTITY_FIELD_IDS } from './intakeIdentityFieldIds';
 import type { IntakeBriefCollectionMode } from './auditTypes';
 import { briefResponsesToIntakeMap } from './intakeBriefMap';
-import { choiceValueNeedsSpecify } from '@glc/intake-core';
 
 /**
  * Legacy / public brief UI — **question rows** from `@glc/intake-core` (`intake-brief-catalog-meta`, no Zod).
@@ -59,8 +62,6 @@ export type BriefResponses = Record<string, BriefResponseValue | BriefResponseEn
 export const BRIEF_QUESTIONS = SERVER_BRIEF_QUESTIONS as BriefQuestion[];
 
 export const INTAKE_IDENTITY_BRIEF_QUESTIONS = SERVER_INTAKE_IDENTITY_BRIEF_QUESTIONS as BriefQuestion[];
-
-export { INTAKE_IDENTITY_FIELD_IDS };
 
 export function getBriefQuestionText(id: string): string {
   return serverGetBriefQuestionText(id);
@@ -212,27 +213,12 @@ export function coerceA11ForNoWebsitePresence(responses: BriefResponses): BriefR
 
 /** Pre-brief completion per slot (industry Other + choice "specify" options). */
 export function isPreBriefQuestionSatisfied(questionId: string, responses: BriefResponses): boolean {
-  if (questionId === 'intake_industry_specify') {
-    if (!intakeIndustryIsOther(responses)) return true;
-    return countAnswered(responses, [questionId]) >= 1;
-  }
-  const mainVal = unwrapResponse(responses[questionId]);
-  if (questionId === 'c3' && typeof mainVal === 'string' && choiceValueNeedsSpecify(mainVal)) {
-    const spec = unwrapResponse(responses.c3__other);
-    return typeof spec === 'string' && spec.trim().length > 0;
-  }
-  return countAnswered(responses, [questionId]) >= 1;
+  return isPreBriefSubmitSlotSatisfied(questionId, briefResponsesToIntakeMap(responses));
 }
 
 /** Slot list for public pre-brief progress + server submit validation (identity + core). */
 export function getPreBriefSubmitSlotIds(responses: BriefResponses): string[] {
-  const ids: string[] = [...INTAKE_IDENTITY_FIELD_IDS];
-  if (intakeIndustryIsOther(responses)) {
-    ids.push('intake_industry_specify');
-  }
-  const m = briefResponsesToIntakeMap(responses);
-  ids.push(...resolvePreBriefSubmitExpressBankIds(m));
-  return ids;
+  return resolveSharedPreBriefSubmitSlotIds(briefResponsesToIntakeMap(responses));
 }
 
 export function countPreBriefSatisfied(responses: BriefResponses): number {

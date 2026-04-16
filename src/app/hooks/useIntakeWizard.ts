@@ -286,6 +286,7 @@ export function useIntakeWizard(options: UseIntakeWizardOptions) {
     const s = analyticsSink;
     return () => {
       void s?.flush();
+      s?.dispose();
     };
   }, [analyticsSink]);
 

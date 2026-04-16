@@ -39,6 +39,7 @@ export function getOrCreateDiscoveryClientSessionId(): string {
 export interface DiscoveryAnalyticsSink {
   enqueue(event: Omit<QueuedEvent, 'client_ts'> & { client_ts?: string }): void;
   flush(): Promise<void>;
+  dispose(): void;
 }
 
 function pickVariantFromSessionId(sessionId: string): DiscoveryAnalyticsExperimentVariant {
@@ -58,6 +59,7 @@ export function createDiscoveryAnalyticsSink(deps: {
   const experimentVariant = deps.getExperimentVariant?.() ?? pickVariantFromSessionId(clientSessionId);
   const queue: QueuedEvent[] = [];
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
+  let disposed = false;
 
   function scheduleFlush() {
     if (flushTimer != null) return;
@@ -68,7 +70,7 @@ export function createDiscoveryAnalyticsSink(deps: {
   }
 
   async function flush(): Promise<void> {
-    if (!queue.length) return;
+    if (disposed || !queue.length) return;
     const batch = queue.splice(0, DISCOVERY_ANALYTICS_MAX_BATCH);
     const intake_versions = deps.getIntakeVersions();
     const discovery_session_token = deps.getDiscoveryToken() ?? undefined;
@@ -92,23 +94,37 @@ export function createDiscoveryAnalyticsSink(deps: {
     }
   }
 
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') void flush();
+  };
+  const onPageHide = () => {
+    void flush();
+  };
   if (typeof document !== 'undefined') {
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') void flush();
-    });
-    window.addEventListener('pagehide', () => {
-      void flush();
-    });
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pagehide', onPageHide);
   }
 
   return {
     enqueue(event) {
+      if (disposed) return;
       const client_ts = event.client_ts ?? new Date().toISOString();
       queue.push({ ...event, client_ts } as QueuedEvent);
       if (queue.length >= DISCOVERY_ANALYTICS_MAX_BATCH) void flush();
       else scheduleFlush();
     },
     flush,
+    dispose() {
+      disposed = true;
+      if (flushTimer != null) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+        window.removeEventListener('pagehide', onPageHide);
+      }
+    },
   };
 }
 

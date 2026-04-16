@@ -19,7 +19,9 @@ export {
 } from './branch-rules.js';
 export { isSoloTeamRaw } from './branch-response-normalizers.js';
 export {
+  getPreBriefSubmitSlotIds,
   getVisibleBankStubs,
+  isPreBriefSubmitSlotSatisfied,
   resolveBankOptionalIds,
   resolveBankRecommendedIds,
   resolveExpressSlaRequiredIds,
@@ -243,6 +245,7 @@ export {
 } from './no-public-website.js';
 export {
   C_NOSITE_1_LEGACY_FIRST_PARTY_WEB_LABELS,
+  DISCOVERY_BRIEF_PATCH_A5_MULTI_PAGE_SITE,
   DISCOVERY_BRIEF_PATCH_A5_NO_WEBSITE_YET,
   DISCOVERY_BRIEF_PATCH_C3_ANALYTICS_NOT_ON_SITE,
   DISCOVERY_BRIEF_USES_CRM_I18N_KEY_NO,

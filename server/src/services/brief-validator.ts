@@ -8,7 +8,6 @@ import { supabase } from './supabase.js';
 import {
   BriefResponsesSchema,
   getBriefQuestionText,
-  INTAKE_IDENTITY_FIELD_IDS,
 } from '../schemas/intake-brief.js';
 import {
   FREE_SNAPSHOT_PRODUCT_MODE,
@@ -26,7 +25,9 @@ import {
   buildIntakePlan,
   readinessBadgeFromProgress,
   deriveBankV1DataQuality,
+  getPreBriefSubmitSlotIds as resolveSharedPreBriefSubmitSlotIds,
   getQuestionBankPromptLabel,
+  isPreBriefSubmitSlotSatisfied,
   isSupportedIntakeArtifactTuple,
   resolveBankOptionalIds,
   resolvePreBriefSubmitExpressBankIds,
@@ -38,7 +39,6 @@ import {
 import { logger } from './logger.js';
 import { prepareBriefForValidation } from '@glc/intake-core';
 import { mergeReconConflictsFromC1 } from '@glc/intake-core';
-import { choiceValueNeedsSpecify } from '@glc/intake-core';
 import { isRevenueAnsweredRaw } from '@glc/intake-core';
 export interface BriefValidationResult {
   passed: boolean;
@@ -157,20 +157,7 @@ export function isPreBriefIdSatisfied(
   responses: Record<string, unknown>,
   _collectionMode?: IntakeBriefCollectionMode,
 ): boolean {
-  if (id === 'intake_industry_specify') {
-    const ind = unwrapAnswer(responses.a2);
-    if (ind !== 'Other') return true;
-    return isAnswered(responses[id]);
-  }
-  if (id === 'c3') {
-    if (!isAnswered(responses.c3)) return false;
-    const main = unwrapAnswer(responses.c3);
-    if (choiceValueNeedsSpecify(main)) {
-      return isAnswered(responses.c3__other);
-    }
-    return true;
-  }
-  return isAnswered(responses[id]);
+  return isPreBriefSubmitSlotSatisfied(id, responses);
 }
 
 function getPreBriefSubmitSlotIds(
@@ -179,15 +166,11 @@ function getPreBriefSubmitSlotIds(
   expressRequiredBankIds?: string[],
   intakeVersionTuple?: IntakeVersionTuple,
 ): string[] {
-  const ids: string[] = [...INTAKE_IDENTITY_FIELD_IDS];
-  if (unwrapAnswer(responses.a2) === 'Other') {
-    ids.push('intake_industry_specify');
-  }
-  ids.push(
-    ...(expressRequiredBankIds ??
-      resolvePreBriefSubmitExpressBankIds(responses, collectionMode, intakeVersionTuple)),
-  );
-  return ids;
+  const sharedIds = resolveSharedPreBriefSubmitSlotIds(responses, collectionMode, intakeVersionTuple);
+  if (!expressRequiredBankIds) return sharedIds;
+  const expressSet = new Set(expressRequiredBankIds);
+  const identityAndConditional = sharedIds.filter(id => !expressSet.has(id));
+  return [...identityAndConditional, ...expressRequiredBankIds];
 }
 
 /** All pre-brief questions satisfied (used by public intake submit). */

@@ -91,6 +91,7 @@ function optionsForBankQuestion(id: string): string[] {
 const fallbacks = fallbacksRaw as {
   version: string;
   a5NoWebsiteYet: { matchPattern: string; fallbackOption: string };
+  a5MultiPageSite?: { matchPattern: string; fallbackOption: string };
   c3AnalyticsNotOnSite: { equalsNormalized: string; fallbackOption: string };
   cNosite1LegacyFirstPartyWebLabels: string[];
 };
@@ -101,6 +102,16 @@ export const DISCOVERY_BRIEF_PATCH_A5_NO_WEBSITE_YET: string = (() => {
   const re = new RegExp(fallbacks.a5NoWebsiteYet.matchPattern, 'i');
   const hit = opts.find(o => re.test(o));
   return hit ?? fallbacks.a5NoWebsiteYet.fallbackOption;
+})();
+
+/** Exact a5 option string for "multi-page public website" (from question-bank.v1.json). */
+export const DISCOVERY_BRIEF_PATCH_A5_MULTI_PAGE_SITE: string = (() => {
+  const opts = optionsForBankQuestion('a5');
+  const matchPattern = fallbacks.a5MultiPageSite?.matchPattern ?? 'multi-page';
+  const fallbackOption = fallbacks.a5MultiPageSite?.fallbackOption ?? 'Yes, multi-page site';
+  const re = new RegExp(matchPattern, 'i');
+  const hit = opts.find(o => re.test(o));
+  return hit ?? fallbackOption;
 })();
 
 /** c3 option when Discovery implies no on-site analytics tool (from question-bank.v1.json, fallbacks in JSON). */
