@@ -1,6 +1,7 @@
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
 import type { QualityFlag, QualityGateReport } from '../types/audit.js';
+import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
 import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import {
   qualityGateEventMessagePassed,
@@ -19,11 +20,11 @@ const QG = SYSTEM_DEFAULTS.qualityGate;
  * ConsistencyChecker — Sprint 16
  *
  * Rule-based quality checks run automatically after each parallel wing completes.
- * Results are stored in pipeline_events (event_type: 'quality_gate') and surfaced
+ * Results are stored in pipeline_events (event_type: PIPELINE_EVENT_TYPES.qualityGate) and surfaced
  * to the consultant in ReviewPointModal before they approve the review gate.
  *
  * Checks performed:
- *   1. score_severity_mismatch  — score ≥4 with a critical issue, or score ≤2 with no critical/high
+ *   1. score_severity_mismatch  — thresholds controlled by `SYSTEM_DEFAULTS.qualityGate`
  *   2. low_confidence_majority  — low-confidence share > SYSTEM_DEFAULTS.qualityGate.lowConfidenceRatioWarn
  *   3. excessive_data_gaps      — unknown_items.length > SYSTEM_DEFAULTS.qualityGate.maxUnknownItemsForInfo
  *   4. failed_domain            — domain.status === 'failed' in this wing
@@ -76,7 +77,7 @@ export class ConsistencyChecker {
       const hasCritical = issues.some(i => i.severity === 'critical');
       const hasCriticalOrHigh = issues.some(i => i.severity === 'critical' || i.severity === 'high');
 
-      if (score >= 4 && hasCritical) {
+      if (score >= QG.scoreSeverityMismatchCriticalMinScore && hasCritical) {
         flags.push({
           id: `score-severity:${key}`,
           severity: 'warning',
@@ -86,7 +87,7 @@ export class ConsistencyChecker {
         });
       }
 
-      if (score <= 2 && issues.length > 0 && !hasCriticalOrHigh) {
+      if (score <= QG.scoreSeverityMismatchLowMaxScore && issues.length > 0 && !hasCriticalOrHigh) {
         flags.push({
           id: `low-score-no-critical:${key}`,
           severity: 'info',
@@ -151,7 +152,7 @@ export class ConsistencyChecker {
     await supabase.from('pipeline_events').insert({
       audit_id: auditId,
       phase: gatePhase,
-      event_type: 'quality_gate',
+      event_type: PIPELINE_EVENT_TYPES.qualityGate,
       message: passed ? qualityGateEventMessagePassed() : qualityGateEventMessageWarnings(warningCount),
       data: report,
     });

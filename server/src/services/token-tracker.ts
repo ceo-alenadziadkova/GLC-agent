@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { getModelPricing, BUDGET_WARNING_THRESHOLD } from '../config/model.js';
+import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
 import { roundTokenCostUsd } from '../config/token-cost-rounding.js';
 import { formatTokenUsagePipelineEventMessage } from '../config/token-usage-messages.en.js';
 import { logger } from './logger.js';
@@ -32,7 +33,7 @@ export class TokenTracker {
     await supabase.from('pipeline_events').insert({
       audit_id: auditId,
       phase,
-      event_type: 'token_usage',
+      event_type: PIPELINE_EVENT_TYPES.tokenUsage,
       message: formatTokenUsagePipelineEventMessage({ phase, totalTokens, costUsd }),
       data: {
         input_tokens: usage.input_tokens,
@@ -92,7 +93,7 @@ export class TokenTracker {
       .from('pipeline_events')
       .select('phase, data')
       .eq('audit_id', auditId)
-      .eq('event_type', 'token_usage');
+      .eq('event_type', PIPELINE_EVENT_TYPES.tokenUsage);
 
     let totalTokens = 0;
     let totalCost = 0;

@@ -29,6 +29,7 @@ import {
   REPORT_PROFILER_OWNER_TOP_ISSUES_MAX,
   REPORT_PROFILER_OWNER_TOP_RECS_MAX,
 } from '../config/report-profiler-limits.js';
+import { DOMAIN_KEYS } from '../types/audit.js';
 
 export type { ReportProfile };
 export { REPORT_PROFILES };
@@ -36,6 +37,8 @@ export const PROFILE_LABELS = REPORT_PROFILE_LABELS;
 export const PROFILE_DESCRIPTIONS = REPORT_PROFILE_DESCRIPTIONS;
 
 const PROFILE_DOMAINS = REPORT_PROFILE_DOMAINS;
+const REPORT_DOMAIN_KEYS = [...DOMAIN_KEYS] as readonly string[];
+const REPORT_DOMAIN_COUNT = REPORT_DOMAIN_KEYS.length;
 
 interface AuditRow {
   company_url: string;
@@ -325,7 +328,7 @@ export class ReportProfiler {
     if (audit.overall_score) {
       lines.push(`**Overall Score:** ${audit.overall_score}/5 — ${SCORE_LABELS[Math.round(audit.overall_score)] ?? ''}`);
     }
-    lines.push(`**Coverage:** ${Math.round(coverage.coverage_ratio * 100)}% (${coverage.covered_domains.length}/6 domains)`);
+    lines.push(`**Coverage:** ${Math.round(coverage.coverage_ratio * 100)}% (${coverage.covered_domains.length}/${REPORT_DOMAIN_COUNT} domains)`);
     lines.push('');
     lines.push('---');
     lines.push('');
@@ -426,18 +429,11 @@ export class ReportProfiler {
       ? selected.filter((domain) => completed.includes(domain))
       : completed;
     const coveredSet = new Set(covered);
-    const all = [
-      'tech_infrastructure',
-      'security_compliance',
-      'seo_digital',
-      'ux_conversion',
-      'marketing_utp',
-      'automation_processes',
-    ];
+    const all = REPORT_DOMAIN_KEYS;
     const notCovered = all.filter((d) => !coveredSet.has(d));
     const ratio = covered.length / all.length;
     const comparability = covered.length < all.length
-      ? 'Partial audit: do not compare this overall score directly with complete (6-domain) audits.'
+      ? `Partial audit: do not compare this overall score directly with complete (${REPORT_DOMAIN_COUNT}-domain) audits.`
       : 'Complete coverage: overall score is comparable to other complete audits.';
     const coverageAdjustedScore = typeof input.audit.overall_score === 'number'
       ? Number((input.audit.overall_score * ratio).toFixed(2))

@@ -1,0 +1,69 @@
+{
+  "appShell": {
+    "title": "Intake wording workspace",
+    "subtitle": "Drafts, optional publish snapshot, and rollback — branch logic unchanged"
+  },
+  "intro": "Edit draft question wording per bank id. Resolver diagnostics and dependency views are available in Question Bank Studio.",
+  "scenarioPresets": {
+    "summaryLabel": "Scenario presets"
+  },
+  "fields": {
+    "productMode": "Product mode",
+    "collectionMode": "Collection mode",
+    "surface": "Surface",
+    "responsesJson": "Responses (JSON object)",
+    "questionId": "Question id",
+    "draftWording": "Draft wording",
+    "draftPlaceholder": "Write a clearer wording for this question...",
+    "canonLabelPrefix": "Canon label:",
+    "publishedSnapshotPrefix": "Published snapshot:",
+    "noPublishedYet": "No published snapshot yet for this id."
+  },
+  "draftsHint": {
+    "loaded": "Drafts: loaded (server merge when API available). Save updates local storage; Sync pushes drafts. Publish copies current server draft to the published snapshot; Rollback restores the editor draft from published (syncs from server).",
+    "loading": "Drafts: loading…. Save updates local storage; Sync pushes drafts. Publish copies current server draft to the published snapshot; Rollback restores the editor draft from published (syncs from server)."
+  },
+  "traceErrors": {
+    "responsesNotObject": "Responses must be a JSON object.",
+    "invalidJson": "Invalid JSON in responses."
+  },
+  "importErrors": {
+    "notObjectMap": "JSON must be an object mapping question ids to string wording.",
+    "invalidJson": "Invalid JSON. Fix the payload and try again."
+  },
+  "actions": {
+    "saveDraftLocal": "Save draft (local)",
+    "revertEditor": "Revert editor",
+    "syncServer": "Sync to server",
+    "publishSelected": "Publish selected",
+    "rollbackSelected": "Rollback selected",
+    "publishAllInPlan": "Publish all drafts in plan",
+    "copyJson": "Copy JSON",
+    "importJson": "Import JSON",
+    "refresh": "Refresh"
+  },
+  "syncStatus": {
+    "ok": "Server sync OK",
+    "error": "Server sync failed (check auth / network)"
+  },
+  "info": {
+    "nothingPublished": "Nothing published. Sync this draft to the server first, or ensure draft text is non-empty on the server.",
+    "noRollback": "No rollback: no published snapshot for this id.",
+    "noDraftsToPublish": "No drafts in the current plan to publish.",
+    "publishPartial": "Published {{published}} of {{total}}. Missing rows or empty server drafts were skipped; use Sync to server for each id first."
+  },
+  "publicationLog": {
+    "summaryLabel": "Publication log (audit trail)",
+    "empty": "No publish or rollback events recorded for this account yet."
+  },
+  "dialogs": {
+    "noticeTitle": "Notice",
+    "importTitle": "Import wording draft JSON",
+    "importDescription": "Paste a JSON object mapping question bank ids to draft strings.",
+    "importPlaceholder": "{ \"q_id_1\": \"Wording...\", ... }",
+    "importAriaLabel": "Wording draft JSON",
+    "cancel": "Cancel",
+    "import": "Import",
+    "ok": "OK"
+  }
+}

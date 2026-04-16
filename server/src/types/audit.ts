@@ -515,7 +515,7 @@ export interface PipelineEvent {
 
 /**
  * A single finding raised by the consistency checker.
- * Stored in pipeline_events (event_type: 'quality_gate') as part of QualityGateReport.
+ * Stored in pipeline_events (event_type: PIPELINE_EVENT_TYPES.qualityGate) as part of QualityGateReport.
  */
 export interface QualityFlag {
   id: string;

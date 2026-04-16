@@ -37,6 +37,7 @@ import {
   REPORT_PDF_DOMAIN_ISSUES_MAX,
   REPORT_PDF_DOMAIN_QUICK_WINS_MAX,
 } from '../config/report-profiler-limits.js';
+import { PDF_GLC_LOGO_GEOMETRY } from '../config/pdf-brand-geometry.js';
 import type { ReportInput } from './report-profiler.js';
 
 const BRAND_SITE_HOST = glcBrandSiteHostname();
@@ -181,9 +182,9 @@ const s = StyleSheet.create({
 // Recreates logo.svg: 3 rounded squares in a diagonal stack
 // Offsets derived from SVG viewBox="0 0 32 32" coordinates
 
-const GlcLogo: React.FC<{ size?: number }> = ({ size = 28 }) => {
-  const sq = Math.round(size * 0.433);             // square size ≈ 13.84/32
-  const r  = Math.max(2, Math.round(sq * 0.22));   // border radius
+const GlcLogo: React.FC<{ size?: number }> = ({ size = PDF_GLC_LOGO_GEOMETRY.defaultSize }) => {
+  const sq = Math.round(size * PDF_GLC_LOGO_GEOMETRY.squareSizeRatio); // square size ≈ 13.84/32
+  const r  = Math.max(2, Math.round(sq * PDF_GLC_LOGO_GEOMETRY.borderRadiusRatio)); // border radius
   return (
     <View style={{ width: size, height: size }}>
       {/* Green — top-right */}
@@ -191,7 +192,8 @@ const GlcLogo: React.FC<{ size?: number }> = ({ size = 28 }) => {
         width: sq, height: sq, borderRadius: r, backgroundColor: C.green }} />
       {/* Orange — centre */}
       <View style={{ position: 'absolute',
-        left: Math.round(size * 0.27), top: Math.round(size * 0.30),
+        left: Math.round(size * PDF_GLC_LOGO_GEOMETRY.orangeLeftRatio),
+        top: Math.round(size * PDF_GLC_LOGO_GEOMETRY.orangeTopRatio),
         width: sq, height: sq, borderRadius: r, backgroundColor: C.orange }} />
       {/* Blue — bottom-left */}
       <View style={{ position: 'absolute', left: 0, top: size - sq,
@@ -210,7 +212,7 @@ interface CoverProps {
 const CoverPage: React.FC<CoverProps> = ({ company, url, date, industry, profile, score }) => (
   <Page size="A4" style={s.coverPage}>
     <View style={{ position: 'absolute', top: 40, left: 48 }}>
-      <GlcLogo size={32} />
+      <GlcLogo size={PDF_GLC_LOGO_GEOMETRY.coverSize} />
     </View>
 
     <View style={s.coverBody}>

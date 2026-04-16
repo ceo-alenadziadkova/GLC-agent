@@ -5,6 +5,14 @@ import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import { computeBranchUpstreamIds } from './intake-trace-branch-links';
 import { trackIntakeWordingReviewExported } from '../../lib/intake-workspace-telemetry';
 import { UI_INTAKE_TRACE_GRAPH } from '../../config/ui-semantic-colors';
+import {
+  INTAKE_WORDING_SCORING,
+  resolveIntakeWordingScoringMode,
+} from '../../config/intake-trace-wording-scoring';
+import {
+  INTAKE_TRACE_EDGE_GRAPH_COPY,
+  formatWordingReviewTemplate,
+} from '../../config/intake-trace-edge-graph-copy';
 
 interface NodePos {
   id: string;
@@ -404,9 +412,11 @@ export function IntakeTraceEdgeGraph({
 
   const baReviewItems = useMemo(() => {
     const items: Array<{ id: string; severity: 'high' | 'medium'; reasons: string[]; score: number }> = [];
-    const penaltyMultiplier = scoringMode === 'strict' ? 1.25 : scoringMode === 'lenient' ? 0.8 : 1;
-    const longThreshold = scoringMode === 'strict' ? 80 : scoringMode === 'lenient' ? 105 : 90;
-    const shortThreshold = scoringMode === 'strict' ? 14 : scoringMode === 'lenient' ? 10 : 12;
+    const scoringVariant = resolveIntakeWordingScoringMode(scoringMode);
+    const penaltyMultiplier = INTAKE_WORDING_SCORING.penaltyMultiplier[scoringVariant];
+    const longThreshold = INTAKE_WORDING_SCORING.longThreshold[scoringVariant];
+    const shortThreshold = INTAKE_WORDING_SCORING.shortThreshold[scoringVariant];
+    const reviewCopy = INTAKE_TRACE_EDGE_GRAPH_COPY.wordingReview;
     for (const id of ids) {
       const canon = resolveCanonLabel(id).trim();
       const draft = resolveDraftLabel(id)?.trim() ?? '';
@@ -414,23 +424,36 @@ export function IntakeTraceEdgeGraph({
       const effective = (draft || published || canon).trim();
       const reasons: string[] = [];
       let penalty = 0;
-      if (effective.length > longThreshold) reasons.push(`Very long wording (>${longThreshold} chars)`);
-      if (effective.length > longThreshold) penalty += 25;
-      if (effective.length < shortThreshold) reasons.push(`Too short wording (<${shortThreshold} chars)`);
-      if (effective.length < shortThreshold) penalty += 20;
-      if (/[/|]/.test(effective)) reasons.push('Contains separators (/ or |), hard to read');
-      if (/[/|]/.test(effective)) penalty += 10;
-      if (/\b(other|misc|n\/a|na)\b/i.test(effective)) reasons.push('Potentially vague wording');
-      if (/\b(other|misc|n\/a|na)\b/i.test(effective)) penalty += 20;
-      if (!/[?]$/.test(effective)) reasons.push('No question mark at the end');
-      if (!/[?]$/.test(effective)) penalty += 8;
-      if (draft && draft === canon) penalty += 2;
+      if (effective.length > longThreshold) {
+        reasons.push(formatWordingReviewTemplate(reviewCopy.veryLongTemplate, { longThreshold }));
+        penalty += INTAKE_WORDING_SCORING.penalties.longWording;
+      }
+      if (effective.length < shortThreshold) {
+        reasons.push(formatWordingReviewTemplate(reviewCopy.tooShortTemplate, { shortThreshold }));
+        penalty += INTAKE_WORDING_SCORING.penalties.shortWording;
+      }
+      if (/[/|]/.test(effective)) {
+        reasons.push(reviewCopy.containsSeparators);
+        penalty += INTAKE_WORDING_SCORING.penalties.separator;
+      }
+      if (/\b(other|misc|n\/a|na)\b/i.test(effective)) {
+        reasons.push(reviewCopy.potentiallyVague);
+        penalty += INTAKE_WORDING_SCORING.penalties.vagueWording;
+      }
+      if (!/[?]$/.test(effective)) {
+        reasons.push(reviewCopy.missingQuestionMark);
+        penalty += INTAKE_WORDING_SCORING.penalties.missingQuestionMark;
+      }
+      if (draft && draft === canon) penalty += INTAKE_WORDING_SCORING.penalties.draftEqualsCanon;
       const tunedPenalty = Math.round(penalty * penaltyMultiplier);
-      const score = Math.max(0, Math.min(100, 100 - tunedPenalty));
+      const score = Math.max(
+        INTAKE_WORDING_SCORING.score.min,
+        Math.min(INTAKE_WORDING_SCORING.score.max, INTAKE_WORDING_SCORING.score.max - tunedPenalty),
+      );
       if (reasons.length > 0) {
         items.push({
           id,
-          severity: reasons.length >= 3 ? 'high' : 'medium',
+          severity: reasons.length >= INTAKE_WORDING_SCORING.severityHighReasonsMin ? 'high' : 'medium',
           reasons,
           score,
         });

@@ -1,10 +1,11 @@
 /**
  * Loads latest CONTROL_OBJECT snapshots from prior phases for causal linking.
  * Primary: evaluation_datasets (newest run_number per phase_id).
- * Fallback: pipeline_events event_type = control_object.
+ * Fallback: pipeline_events event_type = PIPELINE_EVENT_TYPES.controlObject.
  */
 
 import type { ControlObjectV1, PhaseId } from '../schemas/control-object.js';
+import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
 import type { DomainKey } from '../types/audit.js';
 import { phaseIdsStrictlyBefore, phaseOrderIndex } from '../config/phase-order.js';
 import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
@@ -63,7 +64,7 @@ export async function fetchPriorControlObjectsForPhase(
     .from('pipeline_events')
     .select('data')
     .eq('audit_id', auditId)
-    .eq('event_type', 'control_object')
+    .eq('event_type', PIPELINE_EVENT_TYPES.controlObject)
     .order('created_at', { ascending: false })
     .limit(SYSTEM_DEFAULTS.routeQueries.controlObjectHistoryEventsLimit);
 

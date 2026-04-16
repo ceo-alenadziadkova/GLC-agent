@@ -35,6 +35,8 @@ import {
   getClaudeCircuitRedisUrl,
 } from '../config/claude-client.js';
 import { CLAUDE_MODEL, MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
+import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
 import { logger } from '../services/logger.js';
 import { getContext, updateContext } from '../services/observability-context.js';
 import {
@@ -43,6 +45,11 @@ import {
 } from '../config/pipeline-events-copy.js';
 import type { z } from 'zod';
 import { createClient } from 'redis';
+
+const CLAUDE_RETRYABLE_HTTP_STATUSES = new Set<number>(SYSTEM_DEFAULTS.claudeHttp.retryableAnthropicStatuses);
+const CLAUDE_CIRCUIT_BREAKER_HTTP_STATUSES = new Set<number>(
+  SYSTEM_DEFAULTS.claudeHttp.circuitBreakerAnthropicStatuses,
+);
 
 let localCircuitFailures = 0;
 type ClaudeCircuitRedisClient = ReturnType<typeof createClient>;
@@ -255,12 +262,12 @@ export abstract class BaseAgent {
         const result = await collector.run(this.auditId, companyUrl, { noPublicWebsite });
         collectedData[result.collector_key] = result.data;
         await this.emit(
-          'log',
+          PIPELINE_EVENT_TYPES.log,
           interpolatePipelineEventMessage(ev.logCollected, { key: result.collector_key }),
         );
       } catch (err) {
         await this.emit(
-          'log',
+          PIPELINE_EVENT_TYPES.log,
           interpolatePipelineEventMessage(ev.logCollectorFailed, {
             key: collector.key,
             message: (err as Error).message,
@@ -460,7 +467,7 @@ export abstract class BaseAgent {
         const parsed = schema.safeParse(toolBlock.input);
         if (!parsed.success) {
           await this.emit(
-            'log',
+            PIPELINE_EVENT_TYPES.log,
             interpolatePipelineEventMessage(ev.validationErrorAttempt, {
               attempt,
               message: parsed.error.message,
@@ -477,22 +484,25 @@ export abstract class BaseAgent {
         return parsed.data as DomainResult;
       } catch (err) {
         const error = err as Error & { status?: number };
+        const status = error.status;
 
-        // Retry on rate limit or server errors
-        if ((error.status === 429 || error.status === 500 || error.status === 529) && attempt < CLAUDE_MAX_RETRIES) {
-          if (error.status === 500 || error.status === 529) {
+        // Retry on configured Anthropic HTTP statuses (see SYSTEM_DEFAULTS.claudeHttp).
+        const shouldRetry =
+          status !== undefined && CLAUDE_RETRYABLE_HTTP_STATUSES.has(status) && attempt < CLAUDE_MAX_RETRIES;
+        if (shouldRetry) {
+          if (CLAUDE_CIRCUIT_BREAKER_HTTP_STATUSES.has(status)) {
             await recordClaudeFailure();
           }
           const jitter = Math.floor(Math.random() * CLAUDE_RETRY_JITTER_MS);
           const delay = CLAUDE_RETRY_BASE_MS * Math.pow(2, attempt - 1) + jitter;
           await this.emit(
-            'log',
-            interpolatePipelineEventMessage(ev.apiErrorRetry, { status: error.status ?? 0, delay }),
+            PIPELINE_EVENT_TYPES.log,
+            interpolatePipelineEventMessage(ev.apiErrorRetry, { status: status ?? 0, delay }),
           );
           await sleep(delay);
           continue;
         }
-        if (error.status === 500 || error.status === 529) {
+        if (status !== undefined && CLAUDE_CIRCUIT_BREAKER_HTTP_STATUSES.has(status)) {
           await recordClaudeFailure();
         }
 
@@ -647,7 +657,7 @@ export abstract class BaseAgent {
 
   /**
    * Persists to `pipeline_events` (product UI / timeline). Prefer strings from
-   * `pipeline-events-copy.v1.json` for user-facing steps; use `eventType: 'log'` for technical lines.
+   * `pipeline-events-copy.v1.json` for user-facing steps; use `PIPELINE_EVENT_TYPES.log` for technical lines.
    */
   protected async emit(eventType: string, message: string, data: Record<string, unknown> = {}): Promise<void> {
     updateContext({ auditId: this.auditId });

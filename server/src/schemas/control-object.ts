@@ -416,7 +416,7 @@ export interface ControlObjectAgentPerformance {
 /**
  * CONTROL_OBJECT v2.1 — formal governance contract (Phase 5+).
  *
- * Emitted as a pipeline_event (event_type: 'control_object') after each phase.
+ * Emitted as a pipeline_event (event_type: PIPELINE_EVENT_TYPES.controlObject) after each phase.
  * The Decision Layer reads this to route: accept / accept_with_warnings / refine.
  *
  * CO-CONSUMER: update when CO schema changes

@@ -5,6 +5,7 @@ import {
 import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import {
   getAutoLoopAllowedModes,
+  getAutoLoopExecutionProfile,
   isAutoLoopEnabled,
   isBanditsEnabled,
   isCausalDagEnabled,
@@ -43,6 +44,11 @@ import { recordEvaluationDatasetIfEnabled } from './evaluation-dataset-writer.js
 import { dynamicAdjustmentService } from './dynamic-adjustment.js';
 import { recordAgentPerformance } from './agent-performance.js';
 import { PIPELINE_EVENT_ERROR_CODES } from '../config/pipeline-event-error-codes.js';
+import {
+  PIPELINE_EVENT_TYPES,
+  PIPELINE_LIFECYCLE_EVENT_TYPES,
+  PIPELINE_NOTIFY_EVENT_TYPES,
+} from '../config/pipeline-event-types.js';
 import type { ControlObjectV1, PhaseId } from '../schemas/control-object.js';
 import { fetchPriorControlObjectsForPhase } from './control-object-history.js';
 import { invalidateDownstreamDependents } from './audit-claim-graph.js';
@@ -165,7 +171,7 @@ export class PipelineOrchestrator {
           if (marked.length > 0) {
             await this.emitEvent(
               phase,
-              'log',
+              PIPELINE_EVENT_TYPES.log,
               `Causal DAG: marked ${marked.length} downstream claim(s) invalidated after upstream structural issues.`,
               { invalidated_downstream: marked, source_phase_id: pid },
             );
@@ -196,7 +202,7 @@ export class PipelineOrchestrator {
         }
         await this.emitEvent(
           phase,
-          'log',
+          PIPELINE_EVENT_TYPES.log,
           `Auto-remediation: corrected ${remediated} issue(s).`,
           { auto_remediation_count: remediated },
         );
@@ -220,7 +226,7 @@ export class PipelineOrchestrator {
     void this.recordBanditArmAsync(controlObject);
 
     try {
-      await this.emitEvent(phase, 'control_object', '', { control_object: controlObject });
+      await this.emitEvent(phase, PIPELINE_EVENT_TYPES.controlObject, '', { control_object: controlObject });
     } catch (emitErr) {
       logger.warn('pipeline.control_object_emit_failed', {
         component: 'pipeline',
@@ -242,7 +248,7 @@ export class PipelineOrchestrator {
       // Fallback: emit refine_recommended for manual consultant review
       await this.emitEvent(
         phase,
-        'refine_recommended',
+        PIPELINE_EVENT_TYPES.refineRecommended,
         oc.phase.refineRecommendedMessage ?? 'Decision Layer recommends manual review before proceeding.',
         {
           decision_hint: decision.hint,
@@ -291,26 +297,26 @@ export class PipelineOrchestrator {
     }
   }
 
-  /** Returns true only when auto-loop is enabled and the current environment is allowed. */
+  /** Returns true only when auto-loop is enabled and the deployment profile is allowed. */
   private async shouldAttemptAutoLoop(): Promise<boolean> {
     if (!isAutoLoopEnabled()) return false;
 
-    // Check execution environment against allowedModes
-    const env = process.env.NODE_ENV?.trim();
-    if (!env) {
-      logger.warn('pipeline.auto_loop_skipped_missing_env', {
+    const profile = getAutoLoopExecutionProfile();
+    if (!profile) {
+      logger.warn('pipeline.auto_loop_skipped_missing_deployment_profile', {
         component: 'pipeline',
         audit_id: this.auditId,
-        env,
+        hint:
+          'Set GLC_DEPLOYMENT_PROFILE to a value in AUTO_LOOP_ALLOWED_MODES (default sandbox,internal). Legacy: NODE_ENV is accepted only when it matches that allowlist.',
       });
       return false;
     }
     const allowedModes = getAutoLoopAllowedModes();
-    if (!allowedModes.includes(env)) {
+    if (!allowedModes.includes(profile)) {
       logger.info('pipeline.auto_loop_skipped_env', {
         component: 'pipeline',
         audit_id: this.auditId,
-        env,
+        deployment_profile: profile,
         allowed: allowedModes,
       });
       return false;
@@ -329,7 +335,7 @@ export class PipelineOrchestrator {
       .select('data')
       .eq('audit_id', this.auditId)
       .eq('phase', phase)
-      .eq('event_type', 'token_usage')
+      .eq('event_type', PIPELINE_EVENT_TYPES.tokenUsage)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -422,10 +428,9 @@ export class PipelineOrchestrator {
 
       // Rerun the agent with adjustment patches
       try {
-        const oc = pipelineOrchestratorCopy();
         await this.emitEvent(
           phase,
-          'log',
+          PIPELINE_EVENT_TYPES.log,
           `Auto-loop iteration ${iteration}/${cfg.maxIterations} — applying ${matched_error_types.length} correction(s).`,
         );
 
@@ -483,7 +488,7 @@ export class PipelineOrchestrator {
           }
           await this.emitEvent(
             phase,
-            'log',
+            PIPELINE_EVENT_TYPES.log,
             `Auto-remediation: corrected ${remediated} issue(s).`,
             { auto_remediation_count: remediated },
           );
@@ -502,7 +507,7 @@ export class PipelineOrchestrator {
 
         void this.recordBanditArmAsync(rerunControlObject);
 
-        await this.emitEvent(phase, 'control_object', '', { control_object: rerunControlObject });
+        await this.emitEvent(phase, PIPELINE_EVENT_TYPES.controlObject, '', { control_object: rerunControlObject });
 
         const confidenceGain = rerunControlObject.confidence.overall - originalConfidence;
 
@@ -524,7 +529,7 @@ export class PipelineOrchestrator {
           await agent.saveDomainResult(rerunResult);
           await this.emitEvent(
             phase,
-            'log',
+            PIPELINE_EVENT_TYPES.log,
             `Auto-loop: ${rerunDecision.hint} after ${iteration} iteration(s). Confidence +${confidenceGain} pts.`,
           );
           return true;
@@ -559,7 +564,7 @@ export class PipelineOrchestrator {
     const oc = pipelineOrchestratorCopy();
     await this.emitEvent(
       phase,
-      'refine_recommended',
+      PIPELINE_EVENT_TYPES.refineRecommended,
       oc.phase.refineRecommendedMessage,
       {
         decision_hint: 'refine',
@@ -614,7 +619,7 @@ export class PipelineOrchestrator {
       const ocStart = pipelineOrchestratorCopy();
       await this.emitEvent(
         phase,
-        'started',
+        PIPELINE_EVENT_TYPES.started,
         interpolateOrchestratorMessage(ocStart.phase.startedTemplate, {
           phase,
           domain: PHASE_DOMAIN_MAP[phase],
@@ -674,14 +679,14 @@ export class PipelineOrchestrator {
 
       // Check if this phase triggers a review point
       if ((executionPlanToPhases(executionPlan) as readonly number[]).includes(phase) && [0, 4, 7].includes(phase)) {
-        await this.emitEvent(phase, 'review_needed', ocStart.phase.reviewNeeded);
+        await this.emitEvent(phase, PIPELINE_EVENT_TYPES.reviewNeeded, ocStart.phase.reviewNeeded);
         const reviewSet = await this.updateAuditIfNotCancelled({ status: 'review' });
         if (!reviewSet) throw new PipelineCancelledError();
       }
 
       await this.emitEvent(
         phase,
-        'completed',
+        PIPELINE_EVENT_TYPES.completed,
         interpolateOrchestratorMessage(ocStart.phase.completedTemplate, { phase }),
         {
           score: result.score > 0 ? result.score : undefined,
@@ -710,7 +715,7 @@ export class PipelineOrchestrator {
 
       await this.updateAuditIfNotCancelled({ status: 'failed' });
       const ocErr = pipelineOrchestratorCopy();
-      await this.emitEvent(phase, 'error', ocErr.errors.phaseFailedUserMessage, {
+      await this.emitEvent(phase, PIPELINE_EVENT_TYPES.error, ocErr.errors.phaseFailedUserMessage, {
         error_code: ocErr.errors.phaseFailedCode,
         phase,
         domain_key: domainKey !== 'recon' && domainKey !== 'strategy' ? domainKey : undefined,
@@ -740,7 +745,7 @@ export class PipelineOrchestrator {
       const ocIso = pipelineOrchestratorCopy();
       await this.emitEvent(
         phase,
-        'started',
+        PIPELINE_EVENT_TYPES.started,
         interpolateOrchestratorMessage(ocIso.phase.startedTemplate, { phase, domain: domainKey }),
       );
 
@@ -778,7 +783,7 @@ export class PipelineOrchestrator {
 
       await this.emitEvent(
         phase,
-        'completed',
+        PIPELINE_EVENT_TYPES.completed,
         interpolateOrchestratorMessage(ocIso.phase.completedTemplate, { phase }),
         {
           score: result.score > 0 ? result.score : undefined,
@@ -805,7 +810,7 @@ export class PipelineOrchestrator {
       }
 
       const ocParErr = pipelineOrchestratorCopy();
-      await this.emitEvent(phase, 'error', ocParErr.errors.parallelPhaseFailedUserMessage, {
+      await this.emitEvent(phase, PIPELINE_EVENT_TYPES.error, ocParErr.errors.parallelPhaseFailedUserMessage, {
         error_code: ocParErr.errors.parallelPhaseFailedCode,
         phase,
         domain_key: domainKey !== 'recon' && domainKey !== 'strategy' ? domainKey : undefined,
@@ -831,7 +836,7 @@ export class PipelineOrchestrator {
     const ocPar = pipelineOrchestratorCopy();
     await this.emitEvent(
       -1,
-      'parallel_started',
+      PIPELINE_EVENT_TYPES.parallelStarted,
       interpolateOrchestratorMessage(ocPar.parallel.startedTemplate, { phases: phases.join(',') }),
     );
 
@@ -862,7 +867,7 @@ export class PipelineOrchestrator {
       const joined = failedDomains.join(', ');
       await this.emitEvent(
         -1,
-        'error',
+        PIPELINE_EVENT_TYPES.error,
         interpolateOrchestratorMessage(ocPar.parallel.allFailedTemplate, { domains: joined }),
         { error_code: PIPELINE_EVENT_ERROR_CODES.ALL_PARALLEL_PHASES_FAILED, domains_unavailable: failedDomains },
       );
@@ -874,7 +879,7 @@ export class PipelineOrchestrator {
       const joined = failedDomains.join(', ');
       await this.emitEvent(
         -1,
-        'error',
+        PIPELINE_EVENT_TYPES.error,
         interpolateOrchestratorMessage(ocPar.parallel.thresholdFailedTemplate, {
           failed: failedDomains.length,
           total: phases.length,
@@ -888,7 +893,7 @@ export class PipelineOrchestrator {
     if (failedDomains.length > 0) {
       await this.emitEvent(
         -1,
-        'partial_failure',
+        PIPELINE_EVENT_TYPES.partialFailure,
         interpolateOrchestratorMessage(ocPar.parallel.partialFailureTemplate, {
           count: failedDomains.length,
           domains: failedDomains.join(', '),
@@ -898,7 +903,7 @@ export class PipelineOrchestrator {
     } else {
       await this.emitEvent(
         -1,
-        'parallel_completed',
+        PIPELINE_EVENT_TYPES.parallelCompleted,
         interpolateOrchestratorMessage(ocPar.parallel.completedTemplate, { phases: phases.join(',') }),
       );
     }
@@ -966,7 +971,11 @@ export class PipelineOrchestrator {
 
       // Gate after auto wing (if applicable)
       if (reviewPhases.includes(lastWingPhase)) {
-        await this.emitEvent(lastWingPhase, 'review_needed', pipelineOrchestratorCopy().phase.reviewNeeded);
+        await this.emitEvent(
+          lastWingPhase,
+          PIPELINE_EVENT_TYPES.reviewNeeded,
+          pipelineOrchestratorCopy().phase.reviewNeeded,
+        );
         const setReview = await this.updateAuditIfNotCancelled({ status: 'review' });
         if (!setReview) throw new PipelineCancelledError();
       }
@@ -1027,11 +1036,11 @@ export class PipelineOrchestrator {
       logger.info('Free snapshot started', { audit_id: this.auditId });
 
       await supabase.from('audits').update({ status: 'recon', current_phase: 0 }).eq('id', this.auditId);
-      await this.emitEvent(0, 'started', ocFs.freeSnapshot.started);
+      await this.emitEvent(0, PIPELINE_EVENT_TYPES.started, ocFs.freeSnapshot.started);
 
       const { preview } = await runDeterministicSnapshot(this.auditId);
 
-      await this.emitEvent(4, 'completed', ocFs.freeSnapshot.completed);
+      await this.emitEvent(4, PIPELINE_EVENT_TYPES.completed, ocFs.freeSnapshot.completed);
 
       logger.info('Free snapshot completed', { audit_id: this.auditId });
       return preview;
@@ -1041,7 +1050,7 @@ export class PipelineOrchestrator {
       if (error instanceof SnapshotAtCapacityError) {
         logger.warn('Free snapshot capacity', { audit_id: this.auditId });
         await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
-        await this.emitEvent(0, 'error', ocFs.freeSnapshot.errorCapacity, {
+        await this.emitEvent(0, PIPELINE_EVENT_TYPES.error, ocFs.freeSnapshot.errorCapacity, {
           error_code: PIPELINE_EVENT_ERROR_CODES.SNAPSHOT_AT_CAPACITY,
         });
         throw err;
@@ -1052,7 +1061,7 @@ export class PipelineOrchestrator {
         stack: error.stack,
       });
       await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
-      await this.emitEvent(0, 'error', ocFs.freeSnapshot.errorGeneric, {
+      await this.emitEvent(0, PIPELINE_EVENT_TYPES.error, ocFs.freeSnapshot.errorGeneric, {
         error_code: PIPELINE_EVENT_ERROR_CODES.FREE_SNAPSHOT_FAILED,
       });
       throw err;
@@ -1078,10 +1087,10 @@ export class PipelineOrchestrator {
       },
     });
 
-    if (phase >= 0 && ['started', 'completed', 'error'].includes(eventType)) {
-      const mappedStatus = eventType === 'started'
+    if (phase >= 0 && (PIPELINE_LIFECYCLE_EVENT_TYPES as readonly string[]).includes(eventType)) {
+      const mappedStatus = eventType === PIPELINE_EVENT_TYPES.started
         ? 'running'
-        : eventType === 'completed'
+        : eventType === PIPELINE_EVENT_TYPES.completed
           ? 'completed'
           : 'failed';
       const now = new Date();
@@ -1094,22 +1103,26 @@ export class PipelineOrchestrator {
           lease_owner: `pid:${process.pid}`,
           lease_expires_at: new Date(now.getTime() + STALLED_PHASE_TIMEOUT_MIN * 60_000).toISOString(),
           heartbeat_at: now.toISOString(),
-          ...(eventType === 'error' ? { error_message: message } : {}),
+          ...(eventType === PIPELINE_EVENT_TYPES.error ? { error_message: message } : {}),
         },
         { onConflict: 'audit_id,phase,attempt' },
       );
     }
 
     // Keep in-app notifications concise and limited to user-relevant lifecycle changes.
-    if (['started', 'completed', 'error', 'review_needed'].includes(eventType)) {
+    if ((PIPELINE_NOTIFY_EVENT_TYPES as readonly string[]).includes(eventType)) {
       const ocN = pipelineOrchestratorCopy();
       const titles = ocN.notifications.pipelinePhaseTitles;
       const title =
         (titles as Record<string, string>)[eventType] ?? titles.default;
       await emitStructuredNotification({
-        category: eventType === 'review_needed' ? 'review' : 'pipeline',
+        category: eventType === PIPELINE_EVENT_TYPES.reviewNeeded ? 'review' : 'pipeline',
         event: `pipeline_${eventType}`,
-        priority: eventType === 'error' ? 'critical' : eventType === 'review_needed' ? 'medium' : 'low',
+        priority: eventType === PIPELINE_EVENT_TYPES.error
+          ? 'critical'
+          : eventType === PIPELINE_EVENT_TYPES.reviewNeeded
+            ? 'medium'
+            : 'low',
         audience: 'audit_participants',
         auditId: this.auditId,
         title,
@@ -1122,7 +1135,7 @@ export class PipelineOrchestrator {
       });
     }
 
-    if (eventType === 'completed' && phase === 7) {
+    if (eventType === PIPELINE_EVENT_TYPES.completed && phase === 7) {
       const ocArt = pipelineOrchestratorCopy();
       const n = ocArt.notifications;
       await emitStructuredNotification({
@@ -1182,7 +1195,7 @@ export async function recoverStalledPipelines(timeoutMinutes = STALLED_PHASE_TIM
     await supabase.from('pipeline_events').insert({
       audit_id: audit.id,
       phase: Number(audit.current_phase ?? -1),
-      event_type: 'phase_stalled',
+      event_type: PIPELINE_EVENT_TYPES.phaseStalled,
       message: interpolateOrchestratorMessage(ocStall.recoverStalled.messageTemplate, {
         timeout_minutes: timeoutMinutes,
       }),

@@ -28,7 +28,16 @@ import {
 import { logger } from '../services/logger.js';
 import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 import { PIPELINE_MAX_PHASE_INDEX, PIPELINE_MIN_PHASE } from '../config/pipeline-phases.js';
+import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
 import { PIPELINE_STATUS_EVENTS_LIMIT } from '../config/route-query-limits.js';
+import {
+  PIPELINE_CLAIMABLE_STATUSES,
+  PIPELINE_PHASE_ACTIVE_STATUSES,
+  PIPELINE_TERMINAL_STATUSES,
+  PIPELINE_STOP_CLAIMABLE_STATUSES,
+  pipelineStatusForPhase,
+} from '../config/pipeline-status.js';
+import { buildPipelineUiRoute } from '../config/route-notification-paths.js';
 import {
   evaluateBriefGates,
   resolveIntakeSurfaceForPlan,
@@ -48,6 +57,7 @@ import {
   PIPELINE_ACCESS_DENIED_MESSAGE,
   PIPELINE_ALL_PHASES_COMPLETE_MESSAGE,
   PIPELINE_ALREADY_CANCELLED_MESSAGE,
+  PIPELINE_CANCELLED_BY_USER_MESSAGE,
   PIPELINE_ALREADY_TERMINAL_MESSAGE,
   PIPELINE_ALREADY_STARTED_MESSAGE,
   PIPELINE_AUDIT_NOT_FOUND_MESSAGE,
@@ -92,16 +102,6 @@ function canOperatePipeline(audit: { user_id: string; client_id: string | null }
   if (role === 'client' && audit.client_id === uid) return true;
   return false;
 }
-const PHASE_ACTIVE_STATUSES = ['recon', 'auto', 'analytic', 'strategy'] as const;
-const PIPELINE_TERMINAL_STATUSES = ['completed', 'failed', 'cancelled'] as const;
-
-function statusForPhase(phase: number): 'recon' | 'auto' | 'analytic' | 'strategy' {
-  if (phase === 0) return 'recon';
-  if (phase >= 1 && phase <= 4) return 'auto';
-  if (phase >= 5 && phase <= 6) return 'analytic';
-  return 'strategy';
-}
-
 function resolveExecutionPlanFromAudit(audit: {
   execution_plan?: Partial<AuditExecutionPlan> | null;
   product_mode?: string | null;
@@ -274,7 +274,7 @@ pipelineRouter.post('/:id/pipeline/next', requireAuth, attachProfile, pipelineLi
 
     // [C4] Concurrent phase lock: reject if a phase is actively executing.
     // DB constraint has no 'running' status — orchestrator uses 'recon'/'auto'/'analytic'/'strategy'.
-    if ((PHASE_ACTIVE_STATUSES as readonly string[]).includes(audit.status)) {
+    if ((PIPELINE_PHASE_ACTIVE_STATUSES as readonly string[]).includes(audit.status)) {
       res.status(409).json({
         ...apiErrorJson(API_ERROR_CODES.PIPELINE_PHASE_IN_PROGRESS, PIPELINE_PHASE_IN_PROGRESS_MESSAGE),
         status: audit.status,
@@ -312,14 +312,14 @@ pipelineRouter.post('/:id/pipeline/next', requireAuth, attachProfile, pipelineLi
       return;
     }
 
-    const lockStatus = statusForPhase(nextPhase);
+    const lockStatus = pipelineStatusForPhase(nextPhase);
     const { data: claimedNext } = await supabase
       .from('audits')
       .update({ status: lockStatus })
       .eq('id', id)
       .or(safeOrUserFilter(req.userId!))
       .eq('updated_at', audit.updated_at)
-      .in('status', ['review', 'completed', 'failed', 'created'])
+      .in('status', PIPELINE_CLAIMABLE_STATUSES as unknown as string[])
       .select('id');
     if (!claimedNext || claimedNext.length === 0) {
       res
@@ -414,7 +414,7 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
     }
 
     // [C4] Concurrent phase lock — same guard as /next
-    if ((PHASE_ACTIVE_STATUSES as readonly string[]).includes(audit.status)) {
+    if ((PIPELINE_PHASE_ACTIVE_STATUSES as readonly string[]).includes(audit.status)) {
       res.status(409).json({
         ...apiErrorJson(API_ERROR_CODES.PIPELINE_PHASE_IN_PROGRESS, PIPELINE_PHASE_IN_PROGRESS_MESSAGE),
         status: audit.status,
@@ -422,14 +422,14 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
       return;
     }
 
-    const lockStatus = statusForPhase(phase);
+    const lockStatus = pipelineStatusForPhase(phase);
     const { data: claimedRetry } = await supabase
       .from('audits')
       .update({ status: lockStatus })
       .eq('id', id)
       .eq('user_id', req.userId!)
       .eq('updated_at', audit.updated_at)
-      .in('status', ['review', 'completed', 'failed', 'created'])
+      .in('status', PIPELINE_CLAIMABLE_STATUSES as unknown as string[])
       .select('id');
     if (!claimedRetry || claimedRetry.length === 0) {
       res
@@ -451,7 +451,7 @@ pipelineRouter.post('/:id/pipeline/retry', ...consultantGuard, pipelineLimiter, 
       {
         phase,
         status: 'retrying',
-        route: `/pipeline/${id}`,
+        route: buildPipelineUiRoute(id),
         occurred_at: new Date().toISOString(),
         actor_role: 'consultant',
         failure_type: 'retry_started',
@@ -524,7 +524,7 @@ pipelineRouter.post('/:id/pipeline/stop', requireAuth, attachProfile, pipelineLi
       .eq('id', id)
       .or(safeOrUserFilter(req.userId!))
       .eq('updated_at', audit.updated_at)
-      .in('status', ['created', 'recon', 'auto', 'analytic', 'strategy', 'review'])
+      .in('status', PIPELINE_STOP_CLAIMABLE_STATUSES as unknown as string[])
       .select('id');
     if (!claimedStop || claimedStop.length === 0) {
       res
@@ -538,8 +538,8 @@ pipelineRouter.post('/:id/pipeline/stop', requireAuth, attachProfile, pipelineLi
     await supabase.from('pipeline_events').insert({
       audit_id: id,
       phase: audit.current_phase as number,
-      event_type: 'cancelled',
-      message: 'Pipeline was cancelled by user request.',
+      event_type: PIPELINE_EVENT_TYPES.cancelled,
+      message: PIPELINE_CANCELLED_BY_USER_MESSAGE,
       data: { actor_role: role, actor_user_id: req.userId },
     });
 
@@ -618,7 +618,7 @@ pipelineRouter.get('/:id/quality-gate/:phase', requireAuth, attachProfile, rejec
       .select('data, created_at')
       .eq('audit_id', id)
       .eq('phase', phase)
-      .eq('event_type', 'quality_gate')
+      .eq('event_type', PIPELINE_EVENT_TYPES.qualityGate)
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
@@ -681,7 +681,7 @@ pipelineRouter.post('/:id/reviews/:phase', ...consultantGuard, async (req: AuthR
       .select('data')
       .eq('audit_id', id)
       .eq('phase', parseInt(phase))
-      .eq('event_type', 'quality_gate')
+      .eq('event_type', PIPELINE_EVENT_TYPES.qualityGate)
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
@@ -725,7 +725,7 @@ pipelineRouter.post('/:id/reviews/:phase', ...consultantGuard, async (req: AuthR
     await supabase.from('pipeline_events').insert({
       audit_id: id,
       phase: approvedPhase,
-      event_type: 'review_approved',
+      event_type: PIPELINE_EVENT_TYPES.reviewApproved,
       message: reviewApprovedMsg,
       data: { consultant_notes: sanitizedConsultantNotes, interview_notes: sanitizedInterviewNotes },
     });

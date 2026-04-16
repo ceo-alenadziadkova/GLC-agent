@@ -23,6 +23,7 @@ import {
   type ReportProfile,
 } from '@glc/intake-core';
 import workspacePackaging from '../data/marketing-workspace-packaging.en.json';
+import { REPORT_VIEWER_UI } from '../config/report-viewer-ui';
 
 const reportCopy = workspacePackaging.report;
 
@@ -44,24 +45,22 @@ const PROFILES: Array<{ id: ReportProfile; label: string; icon: ElementType; des
 
 const PROFILE_DOMAIN_FILTER: Record<ReportProfile, string[] | 'all'> = REPORT_PROFILE_DOMAINS;
 
-const EASE_GLC = [0.16, 1, 0.3, 1] as const;
+const EASE_GLC = REPORT_VIEWER_UI.easing;
 
 // Max items to show per section per profile
-const PROFILE_MAX_ITEMS: Record<ReportProfile, number> = {
-  full:      999,
-  owner:     5,
-  tech:      999,
-  marketing: 999,
-  onepager:  3,
-};
+const PROFILE_MAX_ITEMS: Record<ReportProfile, number> = REPORT_VIEWER_UI.profileMaxItems;
 
 const listVariants = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.06 } },
+  visible: { transition: { staggerChildren: REPORT_VIEWER_UI.motion.staggerChildrenSec } },
 };
 const itemVariants = {
-  hidden:  { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: EASE_GLC } },
+  hidden:  { opacity: 0, y: REPORT_VIEWER_UI.motion.itemEnterOffsetY },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: REPORT_VIEWER_UI.motion.itemEnterDurationSec, ease: EASE_GLC },
+  },
 };
 
 export function ReportViewer() {
