@@ -4,6 +4,7 @@ export const APP_ROUTE_PATHS = {
   home: '/',
   login: `/${P.login}`,
   snapshot: `/${R.snapshot}`,
+  discovery: '/discovery',
   brief: `/${P.brief}`,
   faq: `/${P.faq}`,
   dashboard: `/${P.dashboard}`,
@@ -21,15 +22,17 @@ export const APP_ROUTE_PATHS = {
 } as const;
 
 export const buildAppRoute = {
-  audit: (auditId: string): string => `/${P.audit}/${auditId}`,
-  pipeline: (auditId: string): string => `/${P.pipeline}/${auditId}`,
-  reports: (auditId: string): string => `/${P.reports}/${auditId}`,
-  strategy: (auditId: string): string => `/${P.strategy}/${auditId}`,
-  portalAudit: (auditId: string): string => `/${P.portal}/${P.audit}/${auditId}`,
-  portalPipeline: (auditId: string): string => `/${P.portal}/${P.pipeline}/${auditId}`,
+  audit: (auditId: string): string => `/${P.auditById.replace(':id', auditId)}`,
+  pipeline: (auditId: string): string => `/${P.pipelineById.replace(':id', auditId)}`,
+  reports: (auditId: string): string => `/${P.reportsById.replace(':id', auditId)}`,
+  strategy: (auditId: string): string => `/${P.strategyById.replace(':id', auditId)}`,
+  portalAudit: (auditId: string): string => `/${P.portalAuditById.replace(':id', auditId)}`,
+  portalPipeline: (auditId: string): string => `/${P.portalPipelineById.replace(':id', auditId)}`,
   loginWithDiscovery: (token: string): string => `${APP_ROUTE_PATHS.login}?discovery=${encodeURIComponent(token)}`,
   auditNewFromDiscovery: (): string => `${APP_ROUTE_PATHS.auditNew}?from_discovery=1`,
   loginWithHashAndSearch: (search: string, hash: string): string => `${APP_ROUTE_PATHS.login}${search}${hash}`,
+  loginWithNext: (nextPath: string): string =>
+    `${APP_ROUTE_PATHS.login}?next=${encodeURIComponent(nextPath)}`,
 } as const;
 
 const UUID_SEGMENT_PATTERN = '[a-f0-9-]+';

@@ -82,3 +82,73 @@ export const SNAPSHOT_LANDING_CLASSIFICATION_EXPLAINER = {
   lowConfidence:
     'Confidence is low because we only sampled a few pages; a full audit can use more of your site and brief context.',
 } as const;
+
+export const SNAPSHOT_LANDING_HERO_COPY = {
+  homeAriaLabel: 'Go to home page',
+  signedInFallback: 'Signed in',
+  workspaceLink: 'Workspace',
+  signInLink: 'Sign in',
+  quickRuleBasedScanBadge: 'Quick rule-based scan',
+  websiteFieldLabel: 'Your website',
+  websiteInputPlaceholder: 'yourcompany.com',
+  titleLead: 'How well does your website',
+  titleAccent: 'convert visitors?',
+  subtitle:
+    'Enter your site address for a quick, plain-language read on how it feels for real visitors — what works, what gets in the way, and where to focus first.',
+  ctaStart: 'Starting analysis...',
+  ctaIdle: 'Analyse my website',
+  rateLimitUsagePrefix: 'Free checks left today on this connection:',
+  quotaTitle: 'Today on this connection',
+  quotaFootnote: 'Rolling 24-hour limit from this connection.',
+  runningHint: 'Usually takes a few seconds to about half a minute',
+  runningTitle: 'Analysing your website',
+  runningLoaderText: 'Analysing your website, please wait',
+  accessLimitedSample: 'Preview limited — inner pages sampled',
+  accessLimitedRobots: 'Preview limited — robots.txt policy',
+  accessIncomplete: 'Preview incomplete — pages not loaded',
+  readyBadge: 'Your check is ready',
+  homepageSnippetTitle: 'From your homepage',
+  homepageSnippetFootnote:
+    'Taken from the HTML we fetched: page title, meta description, Open Graph text, or the first substantive paragraph when those are missing.',
+  siteReadAdvisoryTitle: 'Site read (advisory)',
+  scanConfidencePrefix: 'Scan confidence:',
+  classificationConfidencePrefix: 'Classification confidence:',
+  remainingQuotaSuffix: 'left',
+  detectedSignalsTitle: 'Detected on your pages (this scan)',
+  topIssuesTitle: 'Top Issues',
+  quickWinsTitle: 'Quick Wins',
+  techStackTitle: 'Tech stack detected',
+  tentativeTechTitle:
+    'Possibly also (weak signals — this quick scan only reads initial HTML; frameworks inside bundles may not be fingerprinted)',
+  snapshotScoreLabel: 'Snapshot score',
+  summaryLabel: 'Summary',
+  categoryBreakdownLabel: 'Category breakdown',
+  basedOnLabel: 'Based on:',
+  categoryLabels: {
+    uxClarity: 'UX clarity',
+    conversionReadiness: 'Conversion readiness',
+    aiReadiness: 'AI readiness',
+    technicalBasics: 'Technical basics',
+  },
+  neuralVisibilityTitle: 'Neural-network visibility',
+  fullPictureTitle: 'Want the full picture?',
+  fullPictureBody:
+    'Move from a quick scan to paid coverage: Starter (1 domain), Pro (2-3 domains), or Complete (all domains) with a prioritized action plan.',
+  analyzeAnotherUrl: 'Analyse another URL',
+  viewProPackageCta: 'View Pro package',
+  aiVisibilityGapsIntroParagraph:
+    'For your site, how you expose crawl rules, discovery, and machine-readable facts looks like it needs improvement. Have your web or SEO owner verify the live setup—not generic best practice, but how it is wired for you:',
+  aiVisibilityDoThisNextParagraph:
+    'Do this next: fix what applies, then line it up with Quick wins and Top issues above.',
+  aiVisibilityNoGapsParagraph:
+    'On a quick read we did not flag critical gaps for AI/search-facing signals on your side. Still worth your web or SEO owner confirming robots, sitemap, and structured data match how you actually operate.',
+  narrowSnapshotOnlyPrefix: 'Narrow snapshot only.',
+  continueWithBriefLabel: 'Continue with Brief',
+  narrowSnapshotSpecialistSuffix: 'to choose the right coverage path with a specialist.',
+  footerDisclaimer: 'Results are AI-generated and for informational purposes only.',
+  footerWorkspace: 'Open workspace',
+  footerSignIn: 'Sign in',
+  footerNoWebsite: 'No website yet?',
+  footerDiscoveryLink: 'Try our discovery flow',
+  footerDiscoverySuffix: '— get a free tech-maturity assessment without a URL.',
+} as const;
