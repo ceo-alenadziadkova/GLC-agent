@@ -2,6 +2,7 @@
  * Map agent unknown_items to brief question IDs for post-audit enrichment (Layer 3 nudges).
  */
 import { POST_AUDIT_FOLLOWUPS_MAX } from '../config/collector-sampling-limits.js';
+import { POST_AUDIT_FOLLOWUP_SCORING } from '../config/post-audit-followup-scoring.js';
 import { getQuestionsForDomain } from '../schemas/intake-brief.js';
 import type { BriefQuestion, DomainKey } from '../types/audit.js';
 
@@ -11,15 +12,16 @@ export interface PostAuditQuestionRef {
 }
 
 function scoreQuestionAgainstUnknowns(q: BriefQuestion, unknownItems: string[]): number {
+  const { idPhraseMatchScore, tokenMatchScore, minTokenLen } = POST_AUDIT_FOLLOWUP_SCORING;
   let score = 0;
   const blob = `${q.id} ${q.question} ${q.hint ?? ''}`.toLowerCase();
-  const tokens = blob.split(/\W+/).filter(w => w.length > 4);
+  const tokens = blob.split(/\W+/).filter(w => w.length > minTokenLen);
   const idPhrase = q.id.replace(/_/g, ' ');
   for (const raw of unknownItems) {
     const u = raw.toLowerCase();
-    if (u.includes(idPhrase)) score += 4;
+    if (u.includes(idPhrase)) score += idPhraseMatchScore;
     for (const t of tokens) {
-      if (t.length > 4 && u.includes(t)) score += 2;
+      if (t.length > minTokenLen && u.includes(t)) score += tokenMatchScore;
     }
   }
   return score;

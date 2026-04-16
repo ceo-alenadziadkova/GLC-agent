@@ -45,8 +45,8 @@ Data gatherers in `server/src/collectors/`. Run before any AI call. Results cach
 | `CrawlerCollector` | `crawler.ts` | Fetches up to **`CRAWLER_MAX_PAGES`** pages (default 20, clamped 1–100 via `server/src/config/crawler-limits.ts`); parses HTML with cheerio; returns page tree |
 | `SecurityCollector` | `security.ts` | HTTP security headers (CSP, HSTS, X-Frame-Options, X-Content-Type), SSL validity, cookie flags, CORS config |
 | `SeoCollector` | `seo.ts` | Meta title/description, structured data from crawl; **robots-parser** for robots.txt; **fast-xml-parser** for sitemap urlset/index (bounded) |
-| `PerformanceCollector` | `performance.ts` | Page weight from crawl, response headers; optional **Lighthouse** (today: **single-URL** on `companyUrl`) when `AUDIT_LIGHTHOUSE` or `AUDIT_DEEP_SCAN` is set — **target:** multi-URL / Unlighthouse-class sampling; see [ARCHITECTURE.md](./ARCHITECTURE.md#target-architecture-lighthouse-and-unlighthouse) |
-| `AccessibilityCollector` | `accessibility.ts` | Alt text, headings, structured-data heuristics; optional **axe-core + Playwright** when `AUDIT_AXE_PLAYWRIGHT` or `AUDIT_DEEP_SCAN` is set |
+| `PerformanceCollector` | `performance.ts` | Page weight from crawl, response headers; optional **Lighthouse** (today: **single-URL** on `companyUrl`) when `SYSTEM_DEFAULTS.auditDeepScan.lighthouseEnabled` (or umbrella `deepScanEnabled`) is enabled — **target:** multi-URL / Unlighthouse-class sampling; see [ARCHITECTURE.md](./ARCHITECTURE.md#target-architecture-lighthouse-and-unlighthouse) |
+| `AccessibilityCollector` | `accessibility.ts` | Alt text, headings, structured-data heuristics; optional **axe-core + Playwright** when `SYSTEM_DEFAULTS.auditDeepScan.axePlaywrightEnabled` (or umbrella `deepScanEnabled`) is enabled |
 | `MarketingCollector` | `marketing.ts` | Marketing copy and positioning signals from crawl + lightweight extraction for `marketing_utp` |
 
 ### BaseCollector interface

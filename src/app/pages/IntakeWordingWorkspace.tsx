@@ -35,6 +35,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
+import {
+  INTAKE_WORDING_WORKSPACE_COPY as W,
+  formatIntakeWordingPublishPartialMessage,
+} from '../config/intake-wording-workspace-copy';
 
 const PRODUCT_OPTIONS: { value: ProductMode; label: string }[] = [
   { value: 'full', label: 'full' },
@@ -114,10 +118,10 @@ export function IntakeWordingWorkspace() {
     try {
       responses = JSON.parse(responsesText) as Record<string, unknown>;
       if (responses === null || typeof responses !== 'object' || Array.isArray(responses)) {
-        return { ok: false, message: 'Responses must be a JSON object.' };
+        return { ok: false, message: W.traceErrors.responsesNotObject };
       }
     } catch {
-      return { ok: false, message: 'Invalid JSON in responses.' };
+      return { ok: false, message: W.traceErrors.invalidJson };
     }
     try {
       const plan = buildIntakePlan({
@@ -218,28 +222,27 @@ export function IntakeWordingWorkspace() {
         setImportDialogOpen(false);
         setImportJsonText('');
       } else {
-        setImportParseError('JSON must be an object mapping question ids to string wording.');
+        setImportParseError(W.importErrors.notObjectMap);
       }
     } catch {
-      setImportParseError('Invalid JSON. Fix the payload and try again.');
+      setImportParseError(W.importErrors.invalidJson);
     }
   };
 
   return (
     <AppShell
-      title="Intake wording workspace"
-      subtitle="Drafts, optional publish snapshot, and rollback — branch logic unchanged"
+      title={W.appShell.title}
+      subtitle={W.appShell.subtitle}
       actions={<NotePencil className="w-6 h-6 text-[var(--glc-muted)]" aria-hidden />}
     >
       <Fragment>
       <div className="glc-page-content max-w-5xl mx-auto space-y-4">
         <p className="text-sm text-[var(--glc-muted)]">
-          Edit draft question wording per bank id. Resolver diagnostics and dependency views are available in Question
-          Bank Studio.
+          {W.intro}
         </p>
 
         <details className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
-          <summary className="cursor-pointer text-sm font-medium">Scenario presets</summary>
+          <summary className="cursor-pointer text-sm font-medium">{W.scenarioPresets.summaryLabel}</summary>
           <div className="mt-2 flex flex-wrap gap-2">
             {INTAKE_TRACE_SCENARIO_PRESETS.map(preset => (
               <button
@@ -257,7 +260,7 @@ export function IntakeWordingWorkspace() {
 
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Product mode</span>
+            <span className="font-medium">{W.fields.productMode}</span>
             <select
               className="glc-input"
               value={productMode}
@@ -269,7 +272,7 @@ export function IntakeWordingWorkspace() {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Collection mode</span>
+            <span className="font-medium">{W.fields.collectionMode}</span>
             <select
               className="glc-input"
               value={collectionMode}
@@ -281,7 +284,7 @@ export function IntakeWordingWorkspace() {
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">Surface</span>
+            <span className="font-medium">{W.fields.surface}</span>
             <select
               className="glc-input"
               value={surface}
@@ -295,7 +298,7 @@ export function IntakeWordingWorkspace() {
         </div>
 
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Responses (JSON object)</span>
+          <span className="font-medium">{W.fields.responsesJson}</span>
           <textarea
             className="glc-input font-mono text-xs min-h-[140px]"
             value={responsesText}
@@ -313,10 +316,10 @@ export function IntakeWordingWorkspace() {
         {trace.ok && (
           <div className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3 space-y-3">
             <p className="text-xs text-[var(--glc-muted)]">
-              Drafts: {hydrated ? 'loaded (server merge when API available)' : 'loading…'}. Save updates local storage; Sync pushes drafts. Publish copies current server draft to the published snapshot; Rollback restores the editor draft from published (syncs from server).
+              {hydrated ? W.draftsHint.loaded : W.draftsHint.loading}
             </p>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium">Question id</span>
+              <span className="font-medium">{W.fields.questionId}</span>
               <select
                 className="glc-input font-mono text-xs"
                 value={selectedDraftId}
@@ -333,25 +336,25 @@ export function IntakeWordingWorkspace() {
               <>
                 <div className="text-xs text-[var(--glc-muted)] space-y-1">
                   <div>
-                    Canon label:{' '}
+                    {W.fields.canonLabelPrefix}{' '}
                     {bankIdToBriefQuestion(selectedDraftId, priorityById.get(selectedDraftId) ?? 'recommended').question}
                   </div>
                   {wordingPublished[selectedDraftId]?.trim() ? (
                     <div>
-                      Published snapshot:{' '}
+                      {W.fields.publishedSnapshotPrefix}{' '}
                       <span className="text-[var(--glc-fg)]">{wordingPublished[selectedDraftId]}</span>
                     </div>
                   ) : (
-                    <div>No published snapshot yet for this id.</div>
+                    <div>{W.fields.noPublishedYet}</div>
                   )}
                 </div>
                 <label className="flex flex-col gap-1 text-sm">
-                  <span className="font-medium">Draft wording</span>
+                  <span className="font-medium">{W.fields.draftWording}</span>
                   <textarea
                     className="glc-input min-h-[100px] text-sm"
                     value={draftText}
                     onChange={e => setDraftText(e.target.value)}
-                    placeholder="Write a clearer wording for this question..."
+                    placeholder={W.fields.draftPlaceholder}
                   />
                 </label>
                 <div className="flex flex-wrap gap-2 items-center">
@@ -370,14 +373,14 @@ export function IntakeWordingWorkspace() {
                       trackIntakeWordingDraftSaved({ route: ROUTE, question_id: selectedDraftId });
                     }}
                   >
-                    Save draft (local)
+                    {W.actions.saveDraftLocal}
                   </button>
                   <button
                     type="button"
                     className="glc-btn-secondary text-xs px-2 py-1"
                     onClick={() => setDraftText(wordingDrafts[selectedDraftId] ?? '')}
                   >
-                    Revert editor
+                    {W.actions.revertEditor}
                   </button>
                   <button
                     type="button"
@@ -395,7 +398,7 @@ export function IntakeWordingWorkspace() {
                         .catch(() => setSyncStatus('error'));
                     }}
                   >
-                    Sync to server
+                    {W.actions.syncServer}
                   </button>
                   <button
                     type="button"
@@ -407,9 +410,7 @@ export function IntakeWordingWorkspace() {
                           trackIntakeWordingPublished({ route: ROUTE, count: n });
                           setSyncStatus(n > 0 ? 'ok' : 'error');
                           if (n === 0) {
-                            setInfoMessage(
-                              'Nothing published. Sync this draft to the server first, or ensure draft text is non-empty on the server.',
-                            );
+                            setInfoMessage(W.info.nothingPublished);
                           }
                         })
                         .then(() => {
@@ -418,7 +419,7 @@ export function IntakeWordingWorkspace() {
                         .catch(() => setSyncStatus('error'));
                     }}
                   >
-                    Publish selected
+                    {W.actions.publishSelected}
                   </button>
                   <button
                     type="button"
@@ -431,7 +432,7 @@ export function IntakeWordingWorkspace() {
                           setDraftText(res.drafts[selectedDraftId] ?? '');
                           setSyncStatus(n > 0 ? 'ok' : 'error');
                           if (n === 0) {
-                            setInfoMessage('No rollback: no published snapshot for this id.');
+                            setInfoMessage(W.info.noRollback);
                           }
                         })
                         .then(() => {
@@ -440,7 +441,7 @@ export function IntakeWordingWorkspace() {
                         .catch(() => setSyncStatus('error'));
                     }}
                   >
-                    Rollback selected
+                    {W.actions.rollbackSelected}
                   </button>
                   <button
                     type="button"
@@ -448,7 +449,7 @@ export function IntakeWordingWorkspace() {
                     onClick={() => {
                       const ids = allPlanIds.filter(id => (wordingDrafts[id] ?? '').trim().length > 0);
                       if (ids.length === 0) {
-                        setInfoMessage('No drafts in the current plan to publish.');
+                        setInfoMessage(W.info.noDraftsToPublish);
                         return;
                       }
                       void publishWording(ids)
@@ -458,7 +459,7 @@ export function IntakeWordingWorkspace() {
                           setSyncStatus('ok');
                           if (n < ids.length) {
                             setInfoMessage(
-                              `Published ${n} of ${ids.length}. Missing rows or empty server drafts were skipped; use Sync to server for each id first.`,
+                              formatIntakeWordingPublishPartialMessage(W.info.publishPartial, n, ids.length),
                             );
                           }
                         })
@@ -468,7 +469,7 @@ export function IntakeWordingWorkspace() {
                         .catch(() => setSyncStatus('error'));
                     }}
                   >
-                    Publish all drafts in plan
+                    {W.actions.publishAllInPlan}
                   </button>
                   <button
                     type="button"
@@ -478,7 +479,7 @@ export function IntakeWordingWorkspace() {
                       navigator.clipboard.writeText(payload).catch(() => undefined);
                     }}
                   >
-                    Copy JSON
+                    {W.actions.copyJson}
                   </button>
                   <button
                     type="button"
@@ -489,11 +490,11 @@ export function IntakeWordingWorkspace() {
                       setImportDialogOpen(true);
                     }}
                   >
-                    Import JSON
+                    {W.actions.importJson}
                   </button>
                   {syncStatus !== 'idle' && (
                     <span className={`text-xs ${syncStatus === 'ok' ? 'text-emerald-300' : 'text-red-300'}`}>
-                      {syncStatus === 'ok' ? 'Server sync OK' : 'Server sync failed (check auth / network)'}
+                      {syncStatus === 'ok' ? W.syncStatus.ok : W.syncStatus.error}
                     </span>
                   )}
                 </div>
@@ -504,7 +505,7 @@ export function IntakeWordingWorkspace() {
 
         {hydrated && (
           <details className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
-            <summary className="cursor-pointer text-sm font-medium">Publication log (audit trail)</summary>
+            <summary className="cursor-pointer text-sm font-medium">{W.publicationLog.summaryLabel}</summary>
             <div className="mt-3 space-y-2">
               <button
                 type="button"
@@ -513,10 +514,10 @@ export function IntakeWordingWorkspace() {
                   void refreshPublicationLog();
                 }}
               >
-                Refresh
+                {W.actions.refresh}
               </button>
               {publicationLog.length === 0 ? (
-                <p className="text-xs text-[var(--glc-muted)]">No publish or rollback events recorded for this account yet.</p>
+                <p className="text-xs text-[var(--glc-muted)]">{W.publicationLog.empty}</p>
               ) : (
                 <ul className="space-y-2 text-xs font-mono max-h-[280px] overflow-auto">
                   {publicationLog.map(entry => (
@@ -547,14 +548,14 @@ export function IntakeWordingWorkspace() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Notice</AlertDialogTitle>
+            <AlertDialogTitle>{W.dialogs.noticeTitle}</AlertDialogTitle>
             <AlertDialogDescription className="whitespace-pre-wrap">
               {infoMessage ?? ''}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction type="button" onClick={() => setInfoMessage(null)}>
-              OK
+              {W.dialogs.ok}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -569,9 +570,9 @@ export function IntakeWordingWorkspace() {
       >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Import wording draft JSON</DialogTitle>
+            <DialogTitle>{W.dialogs.importTitle}</DialogTitle>
             <DialogDescription>
-              Paste a JSON object mapping question bank ids to draft strings.
+              {W.dialogs.importDescription}
             </DialogDescription>
           </DialogHeader>
           {importParseError && (
@@ -583,8 +584,8 @@ export function IntakeWordingWorkspace() {
             className="glc-input min-h-[160px] w-full text-xs font-mono"
             value={importJsonText}
             onChange={e => setImportJsonText(e.target.value)}
-            placeholder='{ "q_id_1": "Wording...", ... }'
-            aria-label="Wording draft JSON"
+            placeholder={W.dialogs.importPlaceholder}
+            aria-label={W.dialogs.importAriaLabel}
           />
           <DialogFooter className="gap-2 sm:gap-0">
             <button
@@ -595,10 +596,10 @@ export function IntakeWordingWorkspace() {
                 setImportJsonText('');
               }}
             >
-              Cancel
+              {W.dialogs.cancel}
             </button>
             <button type="button" className="glc-btn-primary" onClick={applyImportedWordingJson}>
-              Import
+              {W.dialogs.import}
             </button>
           </DialogFooter>
         </DialogContent>

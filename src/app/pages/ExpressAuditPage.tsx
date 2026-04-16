@@ -16,13 +16,6 @@ import { PACKAGE_MARKETING_OUTCOME_CARD } from '../config/package-marketing-ui';
 import { PACKAGE_PAGE_LAYOUT } from '../config/package-page-layout';
 import { cn } from '../components/ui/utils';
 
-const TIMELINE = [
-  { title: 'Kickoff', detail: 'Short brief or scope alignment—without drowning in detail.' },
-  { title: 'Signal gathering', detail: 'Site, key pages, baseline process questions within agreed volume.' },
-  { title: 'Findings', detail: 'Priorities, risks, quick wins, and recommended next step.' },
-  { title: 'Delivery', detail: 'Structured report you can use internally or with a vendor.' },
-];
-
 const L = PACKAGE_PAGE_LAYOUT.focus;
 
 export function ExpressAuditPage() {
@@ -31,11 +24,19 @@ export function ExpressAuditPage() {
   const labels = workspacePackaging.package_page_labels;
   const mid = pageCopy.mid_cta ?? homePack.mid_page_cta;
   const next = pageCopy.next_steps ?? homePack.next_steps;
+  const timeline = pageCopy.timeline;
+  const scope = pageCopy.scope_comparison;
+  const outcomeCards = pageCopy.outcome_cards;
+  const outcomeTiming = pageCopy.outcome_timing;
+  const signalToDecision = pageCopy.signal_to_decision;
+  const processTimelineTitle = pageCopy.process_timeline_title;
+  const compareHeading = pageCopy.compare_section_heading;
+  const nextHints = pageCopy.next_steps_hints;
 
   return (
     <MarketingLayout
       breadcrumbs={[
-        { label: 'Home', to: '/' },
+        { label: workspacePackaging.navigation.homeBreadcrumbLabel, to: '/' },
         { label: pageCopy.breadcrumb },
       ]}
     >
@@ -62,9 +63,9 @@ export function ExpressAuditPage() {
                   {labels.included}
                 </h3>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  <li>One selected domain with detailed findings.</li>
-                  <li>Quick wins and priority guidance for that domain.</li>
-                  <li>Coverage disclosure in the report.</li>
+                  {scope.included.map(line => (
+                    <li key={line}>{line}</li>
+                  ))}
                 </ul>
               </div>
               <div className="p-6 sm:p-8">
@@ -72,9 +73,9 @@ export function ExpressAuditPage() {
                   {labels.notIncluded}
                 </h3>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  <li>Cross-domain synthesis confidence of a complete audit.</li>
-                  <li>Equal-score comparability with complete 6-domain audits.</li>
-                  <li>Multi-domain dependency certainty outside selected scope.</li>
+                  {scope.not_included.map(line => (
+                    <li key={line}>{line}</li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -84,31 +85,17 @@ export function ExpressAuditPage() {
 
       <MarketingSection className={L.sectionGapClass} delay={0.07}>
         <h2 className="font-display text-xl font-bold sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
-          Outcome and timing
+          {outcomeTiming.title}
         </h2>
         <p className="mt-3 max-w-3xl text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          Timelines depend on context; Starter is typically the shortest paid path. Deliverable includes conclusions,
-          next steps, and explicit coverage boundaries.
+          {outcomeTiming.body}
         </p>
       </MarketingSection>
 
       <MarketingSection className={L.sectionGapClass} delay={0.08}>
         <div className="rounded-[var(--radius-2xl)] border border-[var(--border-subtle)] bg-[var(--bg-muted)] px-4 py-8 sm:px-6 sm:py-10">
           <div className="grid gap-4 md:grid-cols-3">
-            {[
-              {
-                title: 'Business outcome',
-                body: 'You get one clear priority track instead of scattered fixes across teams.',
-              },
-              {
-                title: 'Decision confidence',
-                body: 'You know where Focus is enough and where you should expand to Context or Strategy workspace.',
-              },
-              {
-                title: 'Execution handoff',
-                body: 'Report format is ready for internal execution or transfer to another vendor.',
-              },
-            ].map(item => (
+            {outcomeCards.map(item => (
               <article key={item.title} className="p-5 sm:p-6" style={PACKAGE_MARKETING_OUTCOME_CARD}>
                 <h3 className="font-display text-base font-bold" style={{ color: 'var(--text-primary)' }}>
                   {item.title}
@@ -124,27 +111,22 @@ export function ExpressAuditPage() {
 
       <MarketingSection className={L.sectionGapClass} delay={0.09}>
         <h2 className="mb-6 font-display text-xl font-bold sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
-          From signal to decision
+          {signalToDecision.title}
         </h2>
         <MarketingRevealMask>
           <MarketingComparisonShell padded>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                ['Signal', 'What the business and users see.'],
-                ['Bottlenecks', 'Friction, loss, risk.'],
-                ['Recommendations', 'What to change and in what order within Starter.'],
-                ['Next step', 'Scale to Pro/Complete or go directly into implementation.'],
-              ].map(([t, d]) => (
+              {signalToDecision.items.map(({ label, detail }) => (
                 <div
-                  key={t}
+                  key={label}
                   className="rounded-[var(--radius-xl)] border p-4 text-center"
                   style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'color-mix(in oklab, var(--bg-surface) 88%, var(--bg-muted))' }}
                 >
                   <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--glc-blue)' }}>
-                    {t}
+                    {label}
                   </p>
                   <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                    {d}
+                    {detail}
                   </p>
                 </div>
               ))}
@@ -156,14 +138,14 @@ export function ExpressAuditPage() {
       <MarketingSection className={L.sectionGapClass} delay={0.1}>
         <MarketingRevealMask>
           <MarketingComparisonShell padded>
-            <ProcessTimeline title="Typical process" steps={TIMELINE} />
+            <ProcessTimeline title={processTimelineTitle} steps={timeline} />
           </MarketingComparisonShell>
         </MarketingRevealMask>
       </MarketingSection>
 
       <MarketingSection className={L.sectionGapClass} delay={0.11}>
         <h2 className="mb-6 font-display text-xl font-bold sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
-          When Focus is enough vs when you need Context or Strategy workspace
+          {compareHeading}
         </h2>
         <MarketingRevealMask>
           <MarketingComparisonShell>
@@ -196,9 +178,9 @@ export function ExpressAuditPage() {
           steps={[
             { to: '/pro', label: workspacePackaging.packages.full.title, hint: workspacePackaging.packages.full.subtitle },
             { to: '/complete', label: workspacePackaging.packages.strategy.title, hint: workspacePackaging.packages.strategy.subtitle },
-            { to: '/faq', label: labels.faqLabel, hint: 'Timelines, communication, delivery.' },
+            { to: '/faq', label: labels.faqLabel, hint: nextHints.faq },
             { to: '/brief', label: labels.bookBriefLabel, hint: labels.bookBriefHintStarter, primary: true },
-            { to: LOGIN_PATH, label: labels.clientSignInLabel, hint: 'Reports and progress.' },
+            { to: LOGIN_PATH, label: labels.clientSignInLabel, hint: nextHints.client_sign_in },
           ]}
         />
       </div>
@@ -206,7 +188,7 @@ export function ExpressAuditPage() {
       <p className="mt-8 text-center text-sm" style={{ color: 'var(--text-tertiary)' }}>
         {labels.stillUnsurePrefix}{' '}
         <Link to="/snapshot" className="font-semibold" style={{ color: 'var(--glc-blue)' }}>
-          Snapshot
+          {workspacePackaging.navigation.links.snapshot}
         </Link>
         .
       </p>

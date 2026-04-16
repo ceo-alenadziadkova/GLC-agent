@@ -78,7 +78,7 @@ See [docs/ARCHITECTURE.md](./ARCHITECTURE.md#open-source-collector-libraries) fo
 
 **Target direction:** full audit → **multi-URL** Lighthouse (Unlighthouse-class); free snapshot → **no default Lighthouse**, optional single-URL only with explicit opt-in — see [ARCHITECTURE.md](./ARCHITECTURE.md#target-architecture-lighthouse-and-unlighthouse).
 
-**How to confirm deep audit ran:** restart the API after changing env (`AUDIT_DEEP_SCAN` is read at process start). Trigger a **full** audit and let the pipeline reach tech (phase 1) and UX (phase 4). In logs, look for `collector.performance.lighthouse_start` / `lighthouse_finished` and `collector.accessibility.axe_start` / `axe_finished`. In Supabase `collected_data`: `collector_key` = `performance` → `data.lighthouse`; `collector_key` = `accessibility` → `data.axe_playwright`. If those keys are missing, either you only ran a free snapshot, env was not loaded, the server was not restarted, or the phase has not finished yet.
+**How to confirm deep audit ran:** restart/redeploy the API after updating `SYSTEM_DEFAULTS.auditDeepScan` (config is read at process start). Trigger a **full** audit and let the pipeline reach tech (phase 1) and UX (phase 4). In logs, look for `collector.performance.lighthouse_start` / `lighthouse_finished` and `collector.accessibility.axe_start` / `axe_finished`. If those keys are missing, either you only ran a free snapshot, deep audit is disabled in config, the server wasn't restarted, or the phase has not finished yet.
 
 ---
 

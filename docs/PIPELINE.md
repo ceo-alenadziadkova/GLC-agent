@@ -3,24 +3,24 @@
 ## Phase Map
 
 ```
-Phase 0  Recon             ──┐
-                              │ Review Gate 1 (after recon)
-Phase 1  Tech Infrastructure ─┤
-Phase 2  Security & Compliance│  Auto Wing (phases 1–4 in parallel)
-Phase 3  SEO & Digital        │
-Phase 4  UX & Conversion    ──┤
-                              │ Review Gate 2 (after auto wing)
-Phase 5  Marketing & UTP    ──┤  Analytic wing (5–6 in parallel)
-Phase 6  Automation & Processes│  then Phase 7 Strategy (sequential; no gate between 6 and 7)
-Phase 7  Strategy Synthesis ──┘
-                              │ Review Gate 3 (after strategy; full mode only)
+Phase 0 Recon ──┐
+ │ Review Gate 1 (after recon)
+Phase 1 Tech Infrastructure ─┤
+Phase 2 Security & Compliance│ Auto Wing (phases 1–4 in parallel)
+Phase 3 SEO & Digital │
+Phase 4 UX & Conversion ──┤
+ │ Review Gate 2 (after auto wing)
+Phase 5 Marketing & UTP ──┤ Analytic wing (5–6 in parallel)
+Phase 6 Automation & Processes│ then Phase 7 Strategy (sequential; no gate between 6 and 7)
+Phase 7 Strategy Synthesis ──┘
+ │ Review Gate 3 (after strategy; full mode only)
 ```
 
 ---
 
 ## Execution plan semantics
 
-Runtime sequencing is derived from `audits.execution_plan` (normalized by `server/src/services/execution-plan.ts`), not only from `product_mode`.
+Runtime sequencing is derived from `audits.execution_plan` (normalized by `execution_plan`), not only from `product_mode`.
 
 - Executable phases are resolved via `executionPlanToPhases(...)`.
 - Review gates are resolved via `reviewPhasesForExecutionPlan(...)`.
@@ -97,11 +97,11 @@ After the agent run, `PipelineOrchestrator` applies `DecisionLayer.decide(contro
 
 **Threshold note**: `DecisionLayer` uses **85 / 70** on `confidence.overall` for accept / accept-with-warnings. That overall score is **phase-weighted** (including feasibility). Some older specs assumed **80 / 65** after weighting; the implemented constants are intentionally stricter — see [ADR-DECISION-LAYER-GATES](./adrs/ADR-DECISION-LAYER-GATES.md).
 
-**Auto-loop (Phase 5, off by default):** When `AUTO_LOOP_ENABLED=true` and `NODE_ENV` is listed in `AUTO_LOOP_ALLOWED_MODES`, a `refine` decision may trigger a targeted rerun of the same phase agent with instruction patches from [`rule-engine.ts`](../server/src/config/rule-engine.ts) (via [`dynamic-adjustment.ts`](../server/src/services/dynamic-adjustment.ts)). Caps: `SYSTEM_DEFAULTS.autoLoop` (`maxIterations`, `minConfidenceGain`, `costGuardrailThresholdUsd`). See [ADR-AUTO-LOOP-RULE-ENGINE](./adrs/ADR-AUTO-LOOP-RULE-ENGINE.md).
+**Auto-loop (Phase 5, off by default):** When `AUTO_LOOP_ENABLED=true` and `GLC_DEPLOYMENT_PROFILE` (see `getAutoLoopExecutionProfile()` in `feature-flags.ts`) is listed in `AUTO_LOOP_ALLOWED_MODES`, a `refine` decision may trigger a targeted rerun of the same phase agent with instruction patches from `rule-engine.ts` (via `dynamic-adjustment.ts`). Caps: `SYSTEM_DEFAULTS.autoLoop` (`maxIterations`, `minConfidenceGain`, `costGuardrailThresholdUsd`). See [ADR-AUTO-LOOP-RULE-ENGINE](./adrs/ADR-AUTO-LOOP-RULE-ENGINE.md).
 
 ### CONTROL_OBJECT contract (v1.0 through v2.0)
 
-Canonical TypeScript: [`server/src/schemas/control-object.ts`](../server/src/schemas/control-object.ts) (`ControlObjectV1` name is historical; the struct carries v2 fields).
+Canonical TypeScript: `control_object` (`ControlObjectV1` name is historical; the struct carries v2 fields).
 
 | Area | Contents |
 |------|-----------|
@@ -150,8 +150,8 @@ When a gate is reached:
 1. Backend emits `review_needed` event to `pipeline_events`
 2. Frontend `PipelineMonitor` shows the `ReviewPointModal`
 3. Consultant optionally adds:
-   - **Consultant notes** — observations not visible on the website (e.g. "recently migrated to Shopify")
-   - **Interview notes** — client's answers to generated questions
+ - **Consultant notes** — observations not visible on the website (e.g. "recently migrated to Shopify")
+ - **Interview notes** — client's answers to generated questions
 4. Approval → `POST /api/audits/:id/reviews/:phase` → notes stored in `review_points` table
 5. Backend includes notes in context for all subsequent phases
 6. Pipeline resumes with next phase
@@ -175,10 +175,10 @@ Every Claude call logs token usage via `TokenTracker`:
 ```typescript
 // Written to pipeline_events (event_type: 'token_usage')
 {
-  input_tokens: 4200,
-  output_tokens: 850,
-  model: 'claude-sonnet-4-20250514',
-  cost_usd: 0.018
+ input_tokens: 4200,
+ output_tokens: 850,
+ model: 'claude-sonnet-4-20250514',
+ cost_usd: 0.018
 }
 ```
 
@@ -196,9 +196,9 @@ The orchestrator manages the full lifecycle:
 
 ```typescript
 class PipelineOrchestrator {
-  async startPhase(auditId: string, phase: number): Promise<void>
-  async runBlock(auditId: string, phases: readonly number[]): Promise<void>
-  async runFreeSnapshot(auditId: string): Promise<void>
+ async startPhase(auditId: string, phase: number): Promise<void>
+ async runBlock(auditId: string, phases: readonly number[]): Promise<void>
+ async runFreeSnapshot(auditId: string): Promise<void>
 }
 ```
 
@@ -226,8 +226,18 @@ Computed after Phase 7 completes:
 
 ```typescript
 overallScore = domainScores.reduce((sum, { key, score }) => {
-  return sum + score * industryWeights[industry][key];
+ return sum + score * industryWeights[industry][key];
 }, 0) / totalWeight;
 ```
 
 See [AGENTS.md#industry-weights](./AGENTS.md#industry-weights) for weight tables.
+
+## Для разработчиков
+
+Ниже перечислены технические пути реализации для инженерной навигации.
+
+- `server/src/services/execution-plan.ts`
+- `server/src/schemas/control-object.ts`
+- `server/src/config/feature-flags.ts`
+- `server/src/config/rule-engine.ts`
+- `server/src/services/dynamic-adjustment.ts`

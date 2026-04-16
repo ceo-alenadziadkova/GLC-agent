@@ -181,6 +181,7 @@
   "PIPELINE_PHASE_NOT_AVAILABLE_FOR_MODE": "Phase {phase} is not available for coverage package '{coverage_package}'",
   "PIPELINE_ALREADY_TERMINAL": "Pipeline is already in a terminal status",
   "PIPELINE_ALREADY_CANCELLED": "Pipeline is already cancelled",
+  "PIPELINE_CANCELLED_BY_USER": "Pipeline was cancelled by user request.",
   "PIPELINE_STATUS_FAILED": "Failed to get pipeline status",
   "PIPELINE_QUALITY_GATE_FETCH_FAILED": "Failed to fetch quality gate report",
   "PIPELINE_REVIEW_APPROVE_FAILED": "Failed to approve review",

@@ -247,13 +247,13 @@ Competitor benchmarking is a required strategic direction for future iterations,
 Two benchmark modes are conceptually valid:
 
 1. Lightweight open-source comparison (near-term):
-   - compare against competitors named by the client;
-   - use only open/public signals;
-   - provide directional insights and differentiation opportunities.
+ - compare against competitors named by the client;
+ - use only open/public signals;
+ - provide directional insights and differentiation opportunities.
 
 2. Deeper benchmark baselines (longer-term):
-   - maintain reusable benchmark profiles (for example niche/average/global reference sets);
-   - run periodic structured benchmark audits and store them as internal comparators.
+ - maintain reusable benchmark profiles (for example niche/average/global reference sets);
+ - run periodic structured benchmark audits and store them as internal comparators.
 
 Trust and disclaimer rules:
 

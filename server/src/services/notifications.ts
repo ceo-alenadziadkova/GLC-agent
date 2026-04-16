@@ -1,4 +1,6 @@
 import { getTelegramApiBase } from '../config/integrations.js';
+import { getTelegramBotCredentials } from '../config/telegram-credentials.js';
+import { formatStructuredTelegramMessage } from '../config/telegram-notification-format.en.js';
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
 
@@ -64,12 +66,6 @@ interface ConsultantProfileRow {
   id: string;
 }
 
-function telegramPriorityBadge(priority: NotificationPriority): string {
-  if (priority === 'critical') return 'RED';
-  if (priority === 'medium') return 'YELLOW';
-  return 'GREEN';
-}
-
 function mapCategoryToKind(category: NotificationCategory): NotificationKind {
   if (category === 'review') return 'review';
   if (category === 'intake' || category === 'request' || category === 'registration' || category === 'help') {
@@ -78,27 +74,14 @@ function mapCategoryToKind(category: NotificationCategory): NotificationKind {
   return 'pipeline';
 }
 
-function formatTelegramMessage(event: StructuredNotificationEvent): string {
-  const when = event.occurredAt ?? new Date().toISOString();
-  const scope = event.auditId ? `audit=${event.auditId}` : 'audit=n/a';
-  const route = event.route ? `\nroute=${event.route}` : '';
-  const core = [
-    `[${telegramPriorityBadge(event.priority)}|${event.priority.toUpperCase()}]`,
-    `[${event.category.toUpperCase()}]`,
-    event.title,
-  ].join(' ');
-  return `${core}\nevent=${event.event}\n${scope}\ntime=${when}\n${event.message}${route}`;
-}
-
 async function sendTelegramMessage(text: string): Promise<void> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  if (!token || !chatId) return;
+  const creds = getTelegramBotCredentials();
+  if (!creds) return;
   try {
-    const response = await fetch(`${getTelegramApiBase()}/bot${token}/sendMessage`, {
+    const response = await fetch(`${getTelegramApiBase()}/bot${creds.token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text }),
+      body: JSON.stringify({ chat_id: creds.chatId, text }),
     });
     if (!response.ok) {
       logger.warn('notifications.telegram_send_failed', { status: response.status });
@@ -270,6 +253,17 @@ export async function emitStructuredNotification(event: StructuredNotificationEv
   }
 
   if (sendTelegram) {
-    await sendTelegramMessage(formatTelegramMessage({ ...event, occurredAt }));
+    await sendTelegramMessage(
+      formatStructuredTelegramMessage({
+        priority: event.priority,
+        category: event.category,
+        title: event.title,
+        event: event.event,
+        message: event.message,
+        auditId: event.auditId,
+        route: event.route,
+        occurredAt,
+      }),
+    );
   }
 }

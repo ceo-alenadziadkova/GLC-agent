@@ -24,6 +24,8 @@ import {
 } from '../middleware/rate-limit.js';
 import { ensureHttpsUrl } from '@glc/intake-core';
 import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
+import { buildPipelineUiRoute } from '../config/route-notification-paths.js';
+import { legacyUxLabelForScore } from '../config/snapshot-ux-legacy-labels.js';
 import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import {
   FREE_SNAPSHOT_PRODUCT_MODE,
@@ -89,7 +91,7 @@ import {
   snapshotClaimedInAppRoute,
   snapshotStartedNotificationMessage,
 } from '../config/route-notification-messages.js';
-import { SNAPSHOT_OPERATOR_TOKEN_HEADER } from '../config/snapshot-operator.js';
+import { getSnapshotOperatorToken, SNAPSHOT_OPERATOR_TOKEN_HEADER } from '../config/snapshot-operator.js';
 import { isTruthyQueryValue } from '../config/query-bool.js';
 
 export const snapshotRouter = Router();
@@ -162,13 +164,6 @@ async function updateGuestSessionPollStatus(snapshotToken: string, status: 'comp
 
 function normalizeSnapshotScanCoverageFromStoredDet(stored: unknown): SnapshotScanCoverageApi | null {
   return normalizeScanCoverageFromStoredJson(stored) as SnapshotScanCoverageApi | null;
-}
-
-function uxLegacyLabel(score: number): string {
-  if (score >= 4) return 'Good';
-  if (score >= 3) return 'Moderate';
-  if (score >= 2) return 'Needs Work';
-  return 'Critical';
 }
 
 /** Merge `raw_data.snapshot_deterministic` or cache-derived record into the public preview. */
@@ -261,7 +256,7 @@ function applyDeterministicRecordToPreview(
 }
 
 function snapshotOperatorAuthorized(req: import('express').Request): boolean {
-  const token = process.env.SNAPSHOT_OPERATOR_TOKEN?.trim();
+  const token = getSnapshotOperatorToken();
   if (!token) return false;
   const auth = req.headers.authorization;
   if (auth === `Bearer ${token}`) return true;
@@ -526,7 +521,7 @@ snapshotRouter.post('/', snapshotPublicLimiter, async (req, res) => {
       auditId,
       title: SNAPSHOT_STARTED_NOTIFICATION_TITLE,
       message: snapshotStartedNotificationMessage(url),
-      route: `/pipeline/${auditId}`,
+      route: buildPipelineUiRoute(auditId),
       payload: {
         audit_id: auditId,
         company_url: url,
@@ -839,7 +834,7 @@ snapshotRouter.get('/:token', snapshotCompareLimiter, async (req, res) => {
 
     if (preview.ux_score === null && typeof preview.overall_score === 'number') {
       preview.ux_score = overallToLegacyScore(preview.overall_score);
-      preview.ux_label = uxLegacyLabel(preview.ux_score);
+      preview.ux_label = legacyUxLabelForScore(preview.ux_score);
       if (!preview.ux_summary && typeof preview.scan_basis === 'string' && preview.scan_basis.length > 0) {
         const s = preview.scan_basis;
         const uxm = SNAPSHOT_UX_SUMMARY_MAX_CHARS;

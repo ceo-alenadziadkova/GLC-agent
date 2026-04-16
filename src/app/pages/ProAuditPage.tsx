@@ -16,13 +16,6 @@ import { PACKAGE_MARKETING_OUTCOME_CARD } from '../config/package-marketing-ui';
 import { PACKAGE_PAGE_LAYOUT } from '../config/package-page-layout';
 import { cn } from '../components/ui/utils';
 
-const TIMELINE = [
-  { title: 'Scope alignment', detail: 'Choose 2-3 domains that match your current bottlenecks and objectives.' },
-  { title: 'Focused diagnostics', detail: 'Deep checks inside selected domains with cross-signal context.' },
-  { title: 'Synthesis', detail: 'Tradeoffs, dependencies, and what to do first vs what can wait.' },
-  { title: 'Delivery', detail: 'Action plan with sequencing and handoff-ready recommendations.' },
-];
-
 const L = PACKAGE_PAGE_LAYOUT.context;
 
 export function ProAuditPage() {
@@ -32,11 +25,17 @@ export function ProAuditPage() {
   const labels = workspacePackaging.package_page_labels;
   const mid = pageCopy.mid_cta ?? homePack.mid_page_cta;
   const next = pageCopy.next_steps ?? homePack.next_steps;
+  const timeline = pageCopy.timeline;
+  const scope = pageCopy.scope_comparison;
+  const outcomeCards = pageCopy.outcome_cards;
+  const processTimelineTitle = pageCopy.process_timeline_title;
+  const compareHeading = pageCopy.compare_section_heading;
+  const nextHints = pageCopy.next_steps_hints;
 
   return (
     <MarketingLayout
       breadcrumbs={[
-        { label: 'Home', to: '/' },
+        { label: workspacePackaging.navigation.homeBreadcrumbLabel, to: '/' },
         { label: pageCopy.breadcrumb },
       ]}
     >
@@ -63,9 +62,9 @@ export function ProAuditPage() {
                   {labels.included}
                 </h3>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  <li>Two to three selected domains with focused depth.</li>
-                  <li>Dependency notes between selected domains.</li>
-                  <li>Impact/effort-based action sequence and next-step options.</li>
+                  {scope.included.map(line => (
+                    <li key={line}>{line}</li>
+                  ))}
                 </ul>
               </div>
               <div className="p-6 sm:p-8">
@@ -73,9 +72,9 @@ export function ProAuditPage() {
                   {labels.notIncluded}
                 </h3>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  <li>Complete cross-domain certainty across all six domains.</li>
-                  <li>Highest comparability level of Strategy workspace outputs.</li>
-                  <li>Strategy confidence of a full end-to-end synthesis run.</li>
+                  {scope.not_included.map(line => (
+                    <li key={line}>{line}</li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -86,20 +85,7 @@ export function ProAuditPage() {
       <MarketingSection className={L.sectionGapClass} delay={0.08}>
         <div className="rounded-[var(--radius-2xl)] border border-[var(--border-subtle)] bg-[var(--bg-muted)] px-4 py-10 sm:px-6 sm:py-12">
           <div className="grid gap-4 md:grid-cols-3">
-            {[
-              {
-                title: 'Business outcome',
-                body: 'You reduce decision risk where multiple domains influence one bottleneck.',
-              },
-              {
-                title: 'Planning clarity',
-                body: 'Dependencies are explicit, so teams avoid fixing isolated symptoms.',
-              },
-              {
-                title: 'Budget control',
-                body: 'You get broader confidence than Focus without full six-domain scope.',
-              },
-            ].map(item => (
+            {outcomeCards.map(item => (
               <article key={item.title} className="p-5 sm:p-6" style={PACKAGE_MARKETING_OUTCOME_CARD}>
                 <h3 className="font-display text-base font-bold" style={{ color: 'var(--text-primary)' }}>
                   {item.title}
@@ -116,14 +102,14 @@ export function ProAuditPage() {
       <MarketingSection className={L.sectionGapClass} delay={0.1}>
         <MarketingRevealMask>
           <MarketingComparisonShell padded>
-            <ProcessTimeline title="Typical Context flow" steps={TIMELINE} />
+            <ProcessTimeline title={processTimelineTitle} steps={timeline} />
           </MarketingComparisonShell>
         </MarketingRevealMask>
       </MarketingSection>
 
       <MarketingSection className={L.sectionGapClass} delay={0.11}>
         <h2 className="mb-6 font-display text-xl font-bold sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
-          Focus vs Context vs Strategy workspace
+          {compareHeading}
         </h2>
         <MarketingRevealMask>
           <MarketingComparisonShell>
@@ -157,8 +143,8 @@ export function ProAuditPage() {
             { to: '/starter', label: quick.title, hint: quick.subtitle },
             { to: '/complete', label: strategy.title, hint: strategy.subtitle },
             { to: '/brief', label: labels.bookBriefLabel, hint: labels.bookBriefHintPro, primary: true },
-            { to: '/faq', label: labels.faqLabel, hint: 'Delivery, timelines, and collaboration model.' },
-            { to: LOGIN_PATH, label: labels.clientSignInLabel, hint: 'Current workspace reports and progress.' },
+            { to: '/faq', label: labels.faqLabel, hint: nextHints.faq },
+            { to: LOGIN_PATH, label: labels.clientSignInLabel, hint: nextHints.client_sign_in },
           ]}
         />
       </div>
@@ -166,7 +152,7 @@ export function ProAuditPage() {
       <p className="mt-8 text-center text-sm" style={{ color: 'var(--text-tertiary)' }}>
         {labels.proHintPrefix}{' '}
         <Link to="/brief" className="font-semibold" style={{ color: 'var(--glc-blue)' }}>
-          Brief
+          {workspacePackaging.navigation.links.brief}
         </Link>
         .
       </p>

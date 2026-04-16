@@ -1,4 +1,5 @@
 import { createClient } from 'redis';
+import { getPipelineWorkerRedisUrl } from '../config/redis-infra.js';
 import { logger } from './logger.js';
 
 type RedisClient = ReturnType<typeof createClient>;
@@ -6,11 +7,7 @@ type RedisClient = ReturnType<typeof createClient>;
 let sharedClient: RedisClient | null = null;
 
 export function getRedisUrl(): string {
-  return (
-    process.env.PIPELINE_QUEUE_REDIS_URL?.trim()
-    || process.env.RATE_LIMIT_REDIS_URL?.trim()
-    || ''
-  );
+  return getPipelineWorkerRedisUrl();
 }
 
 export function getSharedRedisClient(): RedisClient | null {

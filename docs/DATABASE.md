@@ -93,23 +93,23 @@ Use the project **Database** (or **Advisors**) UI in Supabase to run **security*
 Master record for each audit run.
 
 ```sql
-id              uuid PRIMARY KEY DEFAULT gen_random_uuid()
-user_id         uuid REFERENCES auth.users(id)  -- NULL allowed only for product_mode = 'free_snapshot' (see migration 004)
-client_id       uuid REFERENCES profiles(id)    -- optional; client portal (migration 005)
-company_url     text NOT NULL  -- normal HTTPS URL, or canonical "no site" sentinel (see below)
-company_name    text
-industry        text
-product_mode    text NOT NULL DEFAULT 'full'      -- 'free_snapshot' | 'express' | 'full' (migration 004)
-snapshot_token  uuid                             -- public polling for free snapshot (migration 004)
-status          text DEFAULT 'created'
-current_phase   int DEFAULT 0
-overall_score   numeric(3,1)
-token_budget    int DEFAULT 200000
-tokens_used     int DEFAULT 0
-created_at      timestamptz DEFAULT now()
-updated_at      timestamptz DEFAULT now()
-brief_help_requested_at  timestamptz   -- optional; client self-serve help ping (migration 017)
-brief_help_client_message text         -- optional short note from client (migration 017)
+id uuid PRIMARY KEY DEFAULT gen_random_uuid()
+user_id uuid REFERENCES auth.users(id) -- NULL allowed only for product_mode = 'free_snapshot' (see migration 004)
+client_id uuid REFERENCES profiles(id) -- optional; client portal (migration 005)
+company_url text NOT NULL -- normal HTTPS URL, or canonical "no site" sentinel (see below)
+company_name text
+industry text
+product_mode text NOT NULL DEFAULT 'full' -- 'free_snapshot' | 'express' | 'full' (migration 004)
+snapshot_token uuid -- public polling for free snapshot (migration 004)
+status text DEFAULT 'created'
+current_phase int DEFAULT 0
+overall_score numeric(3,1)
+token_budget int DEFAULT 200000
+tokens_used int DEFAULT 0
+created_at timestamptz DEFAULT now()
+updated_at timestamptz DEFAULT now()
+brief_help_requested_at timestamptz -- optional; client self-serve help ping (migration 017)
+brief_help_client_message text -- optional short note from client (migration 017)
 ```
 
 **`status` values:** `created` → `recon` → `auto` → `analytic` → `review` → `completed` | `failed` | `cancelled`
@@ -123,20 +123,20 @@ brief_help_client_message text         -- optional short note from client (migra
 Recon phase output: company profile extracted from the crawled site.
 
 ```sql
-id              uuid PRIMARY KEY DEFAULT gen_random_uuid()
-audit_id        uuid REFERENCES audits(id) ON DELETE CASCADE
-status          text DEFAULT 'pending'
-company_name    text
-industry        text
-location        text
-languages       jsonb DEFAULT '[]'
-tech_stack      jsonb DEFAULT '{}'
+id uuid PRIMARY KEY DEFAULT gen_random_uuid()
+audit_id uuid REFERENCES audits(id) ON DELETE CASCADE
+status text DEFAULT 'pending'
+company_name text
+industry text
+location text
+languages jsonb DEFAULT '[]'
+tech_stack jsonb DEFAULT '{}'
 social_profiles jsonb DEFAULT '{}'
-contact_info    jsonb DEFAULT '{}'
-pages_crawled   jsonb DEFAULT '[]'
-brief           text
+contact_info jsonb DEFAULT '{}'
+pages_crawled jsonb DEFAULT '[]'
+brief text
 interview_answers text
-created_at      timestamptz DEFAULT now()
+created_at timestamptz DEFAULT now()
 ```
 
 ---
@@ -146,22 +146,22 @@ created_at      timestamptz DEFAULT now()
 One row per domain per audit. Stores the full Claude output for each domain.
 
 ```sql
-id              uuid PRIMARY KEY DEFAULT gen_random_uuid()
-audit_id        uuid REFERENCES audits(id) ON DELETE CASCADE
-domain_key      text NOT NULL
-phase_number    int NOT NULL
-status          text DEFAULT 'pending'
-score           int CHECK (score BETWEEN 1 AND 5)
-label           text
-version         int DEFAULT 1
-summary         text
-strengths       jsonb DEFAULT '[]'      -- string[]
-weaknesses      jsonb DEFAULT '[]'      -- string[]
-issues          jsonb DEFAULT '[]'      -- [{severity, title, description, impact}]
-quick_wins      jsonb DEFAULT '[]'      -- [{id, title, description, effort, timeframe}]
-recommendations jsonb DEFAULT '[]'      -- [{title, description, priority, cost, time, impact}]
-raw_data        jsonb DEFAULT '{}'
-created_at      timestamptz DEFAULT now()
+id uuid PRIMARY KEY DEFAULT gen_random_uuid()
+audit_id uuid REFERENCES audits(id) ON DELETE CASCADE
+domain_key text NOT NULL
+phase_number int NOT NULL
+status text DEFAULT 'pending'
+score int CHECK (score BETWEEN 1 AND 5)
+label text
+version int DEFAULT 1
+summary text
+strengths jsonb DEFAULT '[]' -- string[]
+weaknesses jsonb DEFAULT '[]' -- string[]
+issues jsonb DEFAULT '[]' -- [{severity, title, description, impact}]
+quick_wins jsonb DEFAULT '[]' -- [{id, title, description, effort, timeframe}]
+recommendations jsonb DEFAULT '[]' -- [{title, description, priority, cost, time, impact}]
+raw_data jsonb DEFAULT '{}'
+created_at timestamptz DEFAULT now()
 
 UNIQUE(audit_id, domain_key, version)
 ```
@@ -182,16 +182,16 @@ Re-running a phase increments `version` and keeps the old row history.
 Strategy phase output: cross-domain synthesis.
 
 ```sql
-id                uuid PRIMARY KEY DEFAULT gen_random_uuid()
-audit_id          uuid REFERENCES audits(id) ON DELETE CASCADE
-status            text DEFAULT 'pending'
+id uuid PRIMARY KEY DEFAULT gen_random_uuid()
+audit_id uuid REFERENCES audits(id) ON DELETE CASCADE
+status text DEFAULT 'pending'
 executive_summary text
-overall_score     numeric(3,1)
-quick_wins        jsonb DEFAULT '[]'   -- StrategyInitiative[]
-medium_term       jsonb DEFAULT '[]'   -- StrategyInitiative[]
-strategic         jsonb DEFAULT '[]'   -- StrategyInitiative[]
-scorecard         jsonb DEFAULT '[]'   -- [{domain, score, label}]
-created_at        timestamptz DEFAULT now()
+overall_score numeric(3,1)
+quick_wins jsonb DEFAULT '[]' -- StrategyInitiative[]
+medium_term jsonb DEFAULT '[]' -- StrategyInitiative[]
+strategic jsonb DEFAULT '[]' -- StrategyInitiative[]
+scorecard jsonb DEFAULT '[]' -- [{domain, score, label}]
+created_at timestamptz DEFAULT now()
 ```
 
 **`StrategyInitiative` shape:**
@@ -206,13 +206,13 @@ created_at        timestamptz DEFAULT now()
 Immutable event log. Frontend subscribes via Supabase Realtime to receive live updates.
 
 ```sql
-id          bigserial PRIMARY KEY
-audit_id    uuid REFERENCES audits(id) ON DELETE CASCADE
-phase       int NOT NULL
-event_type  text NOT NULL
-message     text
-data        jsonb DEFAULT '{}'
-created_at  timestamptz DEFAULT now()
+id bigserial PRIMARY KEY
+audit_id uuid REFERENCES audits(id) ON DELETE CASCADE
+phase int NOT NULL
+event_type text NOT NULL
+message text
+data jsonb DEFAULT '{}'
+created_at timestamptz DEFAULT now()
 ```
 
 **`event_type` values:**
@@ -237,12 +237,12 @@ created_at  timestamptz DEFAULT now()
 Cache of raw collector output. Re-running a failed phase reuses this; only the Claude call is re-executed.
 
 ```sql
-id            uuid PRIMARY KEY DEFAULT gen_random_uuid()
-audit_id      uuid REFERENCES audits(id) ON DELETE CASCADE
+id uuid PRIMARY KEY DEFAULT gen_random_uuid()
+audit_id uuid REFERENCES audits(id) ON DELETE CASCADE
 collector_key text NOT NULL
-phase         int NOT NULL
-data          jsonb NOT NULL
-created_at    timestamptz DEFAULT now()
+phase int NOT NULL
+data jsonb NOT NULL
+created_at timestamptz DEFAULT now()
 
 UNIQUE(audit_id, collector_key)
 ```
@@ -256,14 +256,14 @@ UNIQUE(audit_id, collector_key)
 Tracks review gate approvals and consultant/interview notes.
 
 ```sql
-id               uuid PRIMARY KEY DEFAULT gen_random_uuid()
-audit_id         uuid REFERENCES audits(id) ON DELETE CASCADE
-after_phase      int NOT NULL
-status           text DEFAULT 'pending'   -- pending | approved
+id uuid PRIMARY KEY DEFAULT gen_random_uuid()
+audit_id uuid REFERENCES audits(id) ON DELETE CASCADE
+after_phase int NOT NULL
+status text DEFAULT 'pending' -- pending | approved
 consultant_notes text
-interview_notes  text
-approved_at      timestamptz
-quality_gate_passed boolean                -- added by migration 009
+interview_notes text
+approved_at timestamptz
+quality_gate_passed boolean -- added by migration 009
 ```
 
 ---
@@ -297,9 +297,9 @@ Core fields:
 - `status` (`draft` | `submitted`) and SLA counters (`answered_required`, `answered_recommended`, `answered_optional`).
 - Progressive intake metadata: `layer_completed`, `collected_by`, `collection_mode`, `data_quality_score`, `recon_prefills`, `post_audit_questions`.
 - Server-derived gamification/readiness state:
-  - `progress_pct` (`0..100`),
-  - `readiness_badge` (`low|medium|high`),
-  - `next_best_action` (`complete_required|add_recommended|confirm_prefill|none`).
+ - `progress_pct` (`0..100`),
+ - `readiness_badge` (`low|medium|high`),
+ - `next_best_action` (`complete_required|add_recommended|confirm_prefill|none`).
 
 Contract rule: readiness/progress fields are derived on the backend on each save/update and treated as canonical API data (frontend renders only).
 
@@ -325,7 +325,7 @@ Migration: `037_intake_wording_publish_rollback.sql`.
 
 ### `phase_runs` and `job_runs`
 
-Durable queue / lease state for pipeline and job workers (`queued`, `running`, `completed`, `failed`, `dead_letter`), with optional lease and heartbeat columns for observability. Written by the backend (`server/src/services/pipeline.ts`, `pipeline-jobs.ts`). **RLS:** deny-all for **`anon` / `authenticated`** (migration **`039`**); only **service role** (or bypass roles) should access.
+Durable queue / lease state for pipeline and job workers (`queued`, `running`, `completed`, `failed`, `dead_letter`), with optional lease and heartbeat columns for observability. Written by the backend (`pipeline`, `pipeline-jobs.ts`). **RLS:** deny-all for **`anon` / `authenticated`** (migration **`039`**); only **service role** (or bypass roles) should access.
 
 Migration: `039_pipeline_runs_and_rls_hardening.sql`.
 
@@ -447,23 +447,23 @@ Migrations **`031_intake_analytics_dashboard_views.sql`** (initial definitions) 
 ```sql
 -- Public Discovery: completion vs results views (7d)
 SELECT date_trunc('day', created_at) AS day,
-       COUNT(*) FILTER (WHERE event_type = 'wizard_completed') AS completed,
-       COUNT(*) FILTER (WHERE event_type = 'results_viewed') AS saw_results
+ COUNT(*) FILTER (WHERE event_type = 'wizard_completed') AS completed,
+ COUNT(*) FILTER (WHERE event_type = 'results_viewed') AS saw_results
 FROM intake_analytics_events
 WHERE surface = 'public_discovery'
-  AND created_at >= now() - interval '7 days'
+ AND created_at >= now() - interval '7 days'
 GROUP BY 1
 ORDER BY 1;
 
 -- Drop-off: shown but no answered in same session (approximate — same client_session_id)
 WITH sess AS (
-  SELECT client_session_id,
-         MAX(created_at) FILTER (WHERE event_type = 'question_shown') AS last_shown,
-         MAX(created_at) FILTER (WHERE event_type = 'question_answered') AS last_answered
-  FROM intake_analytics_events
-  WHERE surface = 'public_discovery'
-    AND created_at >= now() - interval '14 days'
-  GROUP BY 1
+ SELECT client_session_id,
+ MAX(created_at) FILTER (WHERE event_type = 'question_shown') AS last_shown,
+ MAX(created_at) FILTER (WHERE event_type = 'question_answered') AS last_answered
+ FROM intake_analytics_events
+ WHERE surface = 'public_discovery'
+ AND created_at >= now() - interval '14 days'
+ GROUP BY 1
 )
 SELECT COUNT(*) FILTER (WHERE last_shown IS NOT NULL AND last_answered IS NULL) AS sessions_no_answer
 FROM sess;
@@ -494,14 +494,14 @@ Enabled on `pipeline_events` and `audits` tables. Frontend subscribes with:
 
 ```typescript
 supabase
-  .channel(`pipeline:${auditId}`)
-  .on('postgres_changes', {
-    event: 'INSERT',
-    schema: 'public',
-    table: 'pipeline_events',
-    filter: `audit_id=eq.${auditId}`,
-  }, callback)
-  .subscribe();
+ .channel(`pipeline:${auditId}`)
+ .on('postgres_changes', {
+ event: 'INSERT',
+ schema: 'public',
+ table: 'pipeline_events',
+ filter: `audit_id=eq.${auditId}`,
+ }, callback)
+ .subscribe();
 ```
 
 ---
@@ -513,3 +513,9 @@ supabase
 - The pipeline service checks `tokens_used < token_budget` before starting each phase. If exceeded, the phase fails with an error event.
 
 See [PIPELINE.md#token-tracking](./PIPELINE.md#token-tracking).
+
+## Для разработчиков
+
+Ниже перечислены технические пути реализации для инженерной навигации.
+
+- `server/src/services/pipeline.ts`

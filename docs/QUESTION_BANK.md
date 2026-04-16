@@ -10,15 +10,15 @@
 **Что не так:**
 
 
-| Проблема                     | Пример                                  | Последствие                      |
+| Проблема | Пример | Последствие |
 | ---------------------------- | --------------------------------------- | -------------------------------- |
-| Одинаковые для всех отраслей | Госпиталь отвечает на вопросы про OTA   | Клиент чувствует generic-подход  |
-| Сайтоцентричные              | "What's your CMS?" при отсутствии сайта | Без сайта клиент = пустышка      |
-| Слишком технические рано     | "Do you have staging environment?"      | Пугает нетехнического клиента    |
-| Нет эмоционального discovery | Сразу к метрикам, не к болям            | Не понимаем зачем человек пришёл |
-| Жёсткие опции без "Не знаю"  | Конверсия rate = обязательное число     | Клиент бросает заполнение        |
-| Не ветвятся по контексту     | CRM-вопрос есть, даже если клиент solo  | Нерелевантность                  |
-| Смешаны в одну кучу          | Бизнес + техника + цели в одном блоке   | Нет ощущения структуры           |
+| Одинаковые для всех отраслей | Госпиталь отвечает на вопросы про OTA | Клиент чувствует generic-подход |
+| Сайтоцентричные | "What's your CMS?" при отсутствии сайта | Без сайта клиент = пустышка |
+| Слишком технические рано | "Do you have staging environment?" | Пугает нетехнического клиента |
+| Нет эмоционального discovery | Сразу к метрикам, не к болям | Не понимаем зачем человек пришёл |
+| Жёсткие опции без "Не знаю" | Конверсия rate = обязательное число | Клиент бросает заполнение |
+| Не ветвятся по контексту | CRM-вопрос есть, даже если клиент solo | Нерелевантность |
+| Смешаны в одну кучу | Бизнес + техника + цели в одном блоке | Нет ощущения структуры |
 
 
 **Что нужно:**
@@ -39,14 +39,14 @@
 ### 2.1. Три контекста сбора
 
 
-| Контекст                              | Кто заполняет    | Сколько                         | Что получает                           |
+| Контекст | Кто заполняет | Сколько | Что получает |
 | ------------------------------------- | ---------------- | ------------------------------- | -------------------------------------- |
-| **Pre-brief** (ссылка перед встречей) | Клиент           | 5-7 вопросов, 5 мин             | Alena приходит подготовленной          |
-| **Full intake** (wizard/interview)    | Клиент или Alena | 25-35 вопросов, 30-40 мин       | Полный аудит                           |
-| **Discovery** (Mode C, нет сайта)     | Клиент + Alena   | policy-driven subset (wizard обычно 11 шагов) | Понимание бизнеса → конвертация в full |
+| **Pre-brief** (ссылка перед встречей) | Клиент | 5-7 вопросов, 5 мин | Alena приходит подготовленной |
+| **Full intake** (wizard/interview) | Клиент или Alena | 25-35 вопросов, 30-40 мин | Полный аудит |
+| **Discovery** (Mode C, нет сайта) | Клиент + Alena | policy-driven subset (wizard обычно 11 шагов) | Понимание бизнеса → конвертация в full |
 
 
-В приложении режим **«All sections»** (классическая форма) и **пошаговый wizard** используют **один и тот же** набор видимых id банка (`filterVisibleQuestions` по текущим ответам); отличается только подача — все секции сразу или один вопрос на шаг. Канонические id ответов — **question-bank v1** (плюс identity; revenue — bank id **`a10`**). **Готовность к старту пайплайна** (full vs express, pre-brief submit): `packages/intake-core/src/brief-gates.ts` — `resolveFullSlaRequiredIds` / `resolveExpressSlaRequiredIds`; на фронте зеркало — `pipelineRequiredIdsForProductMode` ([FRONTEND.md](./FRONTEND.md)). См. `getVisibleBankBriefSections` / `BankClassicBriefFields`.
+В приложении режим **«All sections»** (классическая форма) и **пошаговый wizard** используют **один и тот же** набор видимых id банка (`filterVisibleQuestions` по текущим ответам); отличается только подача — все секции сразу или один вопрос на шаг. Канонические id ответов — **question-bank v1** (плюс identity; revenue — bank id **`a10`**). **Готовность к старту пайплайна** (full vs express, pre-brief submit): `brief_gates` — `resolveFullSlaRequiredIds` / `resolveExpressSlaRequiredIds`; на фронте зеркало — `pipelineRequiredIdsForProductMode` ([FRONTEND.md](./FRONTEND.md)). См. `getVisibleBankBriefSections` / `BankClassicBriefFields`.
 
 **Guardrail for legacy removal (semantic parity):**
 
@@ -56,24 +56,24 @@
 
 **Pre-brief (публичная ссылка) и policy:**
 
-- Узкий список вопросов на экране задаётся только `**modes.pre_brief.bankIncluded`** в `intake-policy.v1.json` (плюс identity). Текущий набор bank id: **`f1`**, **`f2`**, **`f8`**, **`a7`**, **`b1`**, **`a10`**, **`a6`** (без **`c5`** / **`c3`** — они остаются в express/full intake, но не в публичном pre-brief по ссылке). В коде тот же срез доступен как **`PRE_BRIEF_BANK_INCLUDED_IDS`** из `@glc/intake-core` (см. `server/src/tests/intake-brief-policy-sync.test.ts`).
-- Линт политики: `syntheticRequired` не должен случайно дублировать произвольные bank id; **исключение** — канонический revenue **`a10`** (`ALLOWED_SYNTHETIC_BANK_OVERLAP` в `packages/intake-core/src/core/lint-bank-policy.ts`), чтобы full/discovery могли держать тот же id, что и в банке.
+- Узкий список вопросов на экране задаётся только `**modes.pre_brief.bankIncluded`** в `intake-policy.v1.json` (плюс identity). Текущий набор bank id: **`f1`**, **`f2`**, **`f8`**, **`a7`**, **`b1`**, **`a10`**, **`a6`** (без **`c5`** / **`c3`** — они остаются в express/full intake, но не в публичном pre-brief по ссылке). В коде тот же срез доступен как **`PRE_BRIEF_BANK_INCLUDED_IDS`** из `@glc/intake-core` (см. `intake_brief_policy_sync.test`).
+- Линт политики: `syntheticRequired` не должен случайно дублировать произвольные bank id; **исключение** — канонический revenue **`a10`** (`ALLOWED_SYNTHETIC_BANK_OVERLAP` в `lint_bank_policy`), чтобы full/discovery могли держать тот же id, что и в банке.
 - В **замороженных** снимках policy поле `bankIncluded` может отсутствовать (legacy): тогда pre-brief eligible шире, чем у текущей policy — сервер подгружает артефакты по сохранённому `**intake_versions`** tuple (`resolveIntakeArtifacts`, реестр в `resolve-intake-artifacts.ts`).
 - Поле `**slaVisibleBankIds**` в `IntakePlan` — это набор bank-stub id, по которому считается **required** для express/full SLA; для `collection_mode === 'pre_brief'` он шире, чем то, что показывается в узком pre-brief UI (см. `buildIntakePlan`).
-- **Производный слой плана (ADR backlog B):** `derivedFacts` (в т.ч. `aiReadinessScore` и `segmentHints.websiteGate` — см. §8), `coverage.byDomain` (доля отвеченных primary-вопросов банка в области `slaVisibleBankIds` по доменам из `QUESTION_FEED_ROLES`), `confidence.overall` (0–1, эвристика из readiness + data quality по видимым stub). Считается в `packages/intake-core/src/core/plan-derived.ts` внутри `buildIntakePlan`. Консультантский рабочий UI: `/admin/intake-wording` (черновики формулировок); CLI-диагностика: `pnpm intake-plan-debug` в `server/`.
+- **Производный слой плана (ADR backlog B):** `derivedFacts` (в т.ч. `aiReadinessScore` и `segmentHints.websiteGate` — см. §8), `coverage.byDomain` (доля отвеченных primary-вопросов банка в области `slaVisibleBankIds` по доменам из `QUESTION_FEED_ROLES`), `confidence.overall` (0–1, эвристика из readiness + data quality по видимым stub). Считается в `plan_derived` внутри `buildIntakePlan`. Консультантский рабочий UI: `/admin/intake-wording` (черновики формулировок); CLI-диагностика: `pnpm intake-plan-debug` в `server/`.
 - **Компактная схема для API (ADR Phase D):** `GET /api/audits/:id/brief/schema` — JSON с наборами плана + `questions` по видимым id банка + блок `derived`; см. [API.md](./API.md).
 - **Матрица клиентских поверхностей (Phase 5):**
 
 | Surface | Endpoint / module | Водитель списка вопросов | Примечание |
 | --- | --- | --- | --- |
-| Public pre-brief (`/intake/:token`) | `server/src/routes/intake.ts` | `buildIntakePlan(... pre_brief, client_form ...)` + `getBriefQuestionsByIds(plan.visible)` | Identity поля всегда добавляются явно |
-| Consultant/client brief (`GET /api/audits/:id/brief`) | `server/src/routes/audits.ts` | `buildIntakePlan(... context ...)` + `getBriefQuestionsByIds(plan.visible)` | Возвращает plan-driven rows вместо полного `BRIEF_QUESTIONS` |
-| Compact schema (`GET /api/audits/:id/brief/schema`) | `packages/intake-core/src/core/build-brief-schema-snapshot.ts` | `plan.visible` + `getQuestionBankSchemaMeta` | Канонический bank-only snapshot для UI/инструментов |
-| Discovery | `GET /api/discover/ui-fragment` + `src/app/lib/discovery-flow.ts` | `buildDiscoveryWizardQuestions()` (`question-bank.v1.json` + `bank-question-ui-overrides.ts`) + `buildIntakePlan` | Порядок id — `PUBLIC_DISCOVERY_WIZARD_BANK_IDS`; тексты/опции не дублируются в TS |
+| Public pre-brief (`/intake/:token`) | `intake` | `buildIntakePlan(... pre_brief, client_form ...)` + `getBriefQuestionsByIds(plan.visible)` | Identity поля всегда добавляются явно |
+| Consultant/client brief (`GET /api/audits/:id/brief`) | `audits` | `buildIntakePlan(... context ...)` + `getBriefQuestionsByIds(plan.visible)` | Возвращает plan-driven rows вместо полного `BRIEF_QUESTIONS` |
+| Compact schema (`GET /api/audits/:id/brief/schema`) | `build_brief_schema_snapshot` | `plan.visible` + `getQuestionBankSchemaMeta` | Канонический bank-only snapshot для UI/инструментов |
+| Discovery | `GET /api/discover/ui-fragment` + `discovery_flow` | `buildDiscoveryWizardQuestions()` (`question-bank.v1.json` + `bank-question-ui-overrides.ts`) + `buildIntakePlan` | Порядок id — `PUBLIC_DISCOVERY_WIZARD_BANK_IDS`; тексты/опции не дублируются в TS |
 - **Canon `reportUse` (ADR Phase E):** у **каждого** bank id в `question-bank.v1.json` задан уникальный непустой тег `reportUse` для `derivedFacts.reportAnchors` и промпта `intake_report_anchors` (`getQuestionBankReportUse`). Линтер `lintCanonQuestionMetadataKeys` в `lint-bank-policy.ts` запрещает пропуски и дубликаты тегов. Примеры имён: `recon_company_summary`, `mkt_acquisition_channels`, `seo_analytics_tool`, `strategy_pain_anchor`.
-- **Canon `answer` (ADR — answer contract):** у **каждого** bank id задан объект `**answer`** (`type`: `text` | `textarea` | `single_select` | `multi_select` | `scale` | `boolean`, опционально `maxLength`, `options` или `optionsRef` в корневой `**optionCatalogs**`). Генерация из UI-оверрайдов: `pnpm embed-question-bank-answers` в `server/` (`scripts/embed-question-bank-answers.ts`). API: `getQuestionBankAnswerContract`, `expandAnswerContractForApi` в `packages/intake-core/src/question-bank.ts`; снимок `GET .../brief/schema` включает `answer` по видимым id. Замороженный банк **1.0.0** без `answer`: `packages/intake-core/src/artifacts/question-bank-1.0.0.json` (tuple в `resolve-intake-artifacts.ts`).
-- **Ветки (ADR Phase C / C2):** `packages/intake-core/src/core/branch-condition-deps.ts` — ключи ответов на правило, топо-порядок оценки, `**QUESTION_BANK_V1_STUB_EVAL_ORDER`** для live v1 stubs; `**listBankStubIdsInvalidatedByResponseKeys**` — обратный индекс ключ → bank id (подготовка к частичному пересчёту). Кэш предикатов в `evaluateCanonEligibility`. Public Discovery: канонический порядок шагов — **`PUBLIC_DISCOVERY_WIZARD_BANK_IDS`** в `packages/intake-core/src/discovery-wizard-questions.ts`; SPA деривация **`DISCOVERY_WIZARD_BANK_IDS`** в `discovery-flow.ts` совпадает с `buildPublicDiscoveryUiFragment()`; тест ⊆ policy — `server/src/tests/discovery-policy-sync.test.ts`.
-- **Classic consultant brief UI (ADR Phase A):** каталог для классической формы собирается в **`@glc/intake-core`** (`intake-brief-catalog-meta.ts` из **`intake-policy.v1.json`** → **`modes.classic_brief`** + банк); в приложении — реэкспорт через **`server/src/schemas/intake-brief-questions.ts`** (`BRIEF_QUESTIONS`, `INTAKE_IDENTITY_BRIEF_QUESTIONS`). Тексты/типы/опции для каждой строки **`modes.classic_brief.main`** — через **`buildBriefQuestionStemFromBankId(bankId)`**; **ключ ответа в `responses` = bank id** (например `f1`, `b1`, `c5`). Исключение — уточнение для отрасли «Other»: **`intake_industry_specify`** (см. `choiceSpecifyResponseKey('a2')`). **`prepareBriefForValidation`** применяет **answer contract** только по ключу bank id. `server/src/schemas/intake-brief.ts` реэкспортирует определения и добавляет Zod. Фронт: `src/app/data/briefQuestions.ts` — типы и хелперы. **public Discovery** — `GET /api/discover/ui-fragment`. Анти-drift: `src/app/data/brief-spa-parity.test.ts`, `src/app/data/bank-question-ui-catalog-parity.test.ts`. Полная сводка A–G: [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) § «Implementation coverage matrix».
+- **Canon `answer` (ADR — answer contract):** у **каждого** bank id задан объект `**answer`** (`type`: `text` | `textarea` | `single_select` | `multi_select` | `scale` | `boolean`, опционально `maxLength`, `options` или `optionsRef` в корневой `**optionCatalogs**`). Генерация из UI-оверрайдов: `pnpm embed-question-bank-answers` в `server/` (`scripts/embed-question-bank-answers.ts`). API: `getQuestionBankAnswerContract`, `expandAnswerContractForApi` в `question_bank`; снимок `GET .../brief/schema` включает `answer` по видимым id. Замороженный банк **1.0.0** без `answer`: `question_bank_1.0.0` (tuple в `resolve-intake-artifacts.ts`).
+- **Ветки (ADR Phase C / C2):** `branch_condition_deps` — ключи ответов на правило, топо-порядок оценки, `**QUESTION_BANK_V1_STUB_EVAL_ORDER`** для live v1 stubs; `**listBankStubIdsInvalidatedByResponseKeys**` — обратный индекс ключ → bank id (подготовка к частичному пересчёту). Кэш предикатов в `evaluateCanonEligibility`. Public Discovery: канонический порядок шагов — **`PUBLIC_DISCOVERY_WIZARD_BANK_IDS`** в `discovery_wizard_questions`; SPA деривация **`DISCOVERY_WIZARD_BANK_IDS`** в `discovery-flow.ts` совпадает с `buildPublicDiscoveryUiFragment()`; тест ⊆ policy — `discovery_policy_sync.test`.
+- **Classic consultant brief UI (ADR Phase A):** каталог для классической формы собирается в **`@glc/intake-core`** (`intake-brief-catalog-meta.ts` из **`intake-policy.v1.json`** → **`modes.classic_brief`** + банк); в приложении — реэкспорт через **`intake_brief_questions`** (`BRIEF_QUESTIONS`, `INTAKE_IDENTITY_BRIEF_QUESTIONS`). Тексты/типы/опции для каждой строки **`modes.classic_brief.main`** — через **`buildBriefQuestionStemFromBankId(bankId)`**; **ключ ответа в `responses` = bank id** (например `f1`, `b1`, `c5`). Исключение — уточнение для отрасли «Other»: **`intake_industry_specify`** (см. `choiceSpecifyResponseKey('a2')`). **`prepareBriefForValidation`** применяет **answer contract** только по ключу bank id. `intake_brief` реэкспортирует определения и добавляет Zod. Фронт: `briefQuestions` — типы и хелперы. **public Discovery** — `GET /api/discover/ui-fragment`. Анти-drift: `brief_spa_parity.test`, `bank_question_ui_catalog_parity.test`. Полная сводка A–G: [ADR-INTAKE-UNIFIED-QUESTION-BANK.md](adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) § «Implementation coverage matrix».
 - `**PRE_BRIEF_REQUIRED_SUBMIT_IDS`** — это **`requiredAlways`** + **`requiredIfVisible`**, пересечённые с **`modes.pre_brief.bankIncluded`** (см. `intake-brief-catalog-meta.ts`). Публичный submit и прогресс `/intake/:token` используют **`resolvePreBriefSubmitExpressBankIds`** (ветки + tuple), чтобы слоты не требовали полей вне pre-brief UI.
 
 ### 2.2. Секции (клиент видит)
@@ -81,14 +81,14 @@
 Вопросы организованы по 6 секциям — **для клиента**, не по нашим доменам:
 
 
-| #   | Секция                        | Внутреннее название | Кормит домены                          |
+| # | Секция | Внутреннее название | Кормит домены |
 | --- | ----------------------------- | ------------------- | -------------------------------------- |
-| A   | **Your Business**             | identity            | recon, marketing_utp, strategy         |
-| B   | **Your Customers & Growth**   | growth              | marketing_utp, ux_conversion           |
-| C   | **Your Online Presence**      | digital             | tech_infra, seo_digital, ux_conversion |
-| D   | **Your Daily Operations**     | operations          | automation_processes                   |
-| E   | **Your Safety & Compliance**  | compliance          | security_compliance                    |
-| F   | **Your Goals for This Audit** | goals               | strategy, all agents (calibration)     |
+| A | **Your Business** | identity | recon, marketing_utp, strategy |
+| B | **Your Customers & Growth** | growth | marketing_utp, ux_conversion |
+| C | **Your Online Presence** | digital | tech_infra, seo_digital, ux_conversion |
+| D | **Your Daily Operations** | operations | automation_processes |
+| E | **Your Safety & Compliance** | compliance | security_compliance |
+| F | **Your Goals for This Audit** | goals | strategy, all agents (calibration) |
 
 
 Клиент может заполнять секции **в любом порядке** и **пропускать** те, которые ему неинтересны.
@@ -98,18 +98,18 @@
 ### 2.3. Ключевые ветки (branching gates)
 
 
-| Gate                                          | Вопрос                                      | Что меняется                                                                                                                              |
+| Gate | Вопрос | Что меняется |
 | --------------------------------------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `has_website`                                 | "Do you have a website?"                    | Нет → секция C переключается на light mode, site-questions скрыты                                                                         |
-| `industry`                                    | "Which industry?"                           | Появляются 2-4 отраслевых вопроса в секциях B, C, D                                                                                       |
-| `team_size`                                   | "How big is your team?"                     | Solo → процессные вопросы упрощаются; 50+ → появляются вопросы о документации                                                             |
-| `has_crm`                                     | Мультивыбор **`d1`** (инструменты/стек) + нормализация CRM-сигнала | Да → показывается **`d1a`** (какой CRM); Нет → **`d1b`** (как отслеживаете клиентов) — см. `branch-rules` / `includesCrmTool` в discover |
-| `handles_payments` / `a6`                     | Ранний ответ в секции A (или уточнение в E) | Да → раньше включаем PCI/GDPR-контекст и полный блок E; Нет → E остаётся видимым для EU/GDPR, детали про платежи можно сжать              |
-| `website_maturity` *(сигнал, не predicate)*   | `c9` (возраст сайта)                        | Попадает в **context slice** tech/strategy через §5; **не** ключ в `BRANCH_RULES` — видимость вопросов не переключается отдельным gate    |
-| `automation_attempt` *(сигнал, не predicate)* | `d_automation_attempt`                      | Ответ уходит в **automation_processes** (§5); в `question-bank.v1.json` у вопроса **нет** `branch` — это не условие `evalBranchCondition` |
+| `has_website` | "Do you have a website?" | Нет → секция C переключается на light mode, site-questions скрыты |
+| `industry` | "Which industry?" | Появляются 2-4 отраслевых вопроса в секциях B, C, D |
+| `team_size` | "How big is your team?" | Solo → процессные вопросы упрощаются; 50+ → появляются вопросы о документации |
+| `has_crm` | Мультивыбор **`d1`** (инструменты/стек) + нормализация CRM-сигнала | Да → показывается **`d1a`** (какой CRM); Нет → **`d1b`** (как отслеживаете клиентов) — см. `branch-rules` / `includesCrmTool` в discover |
+| `handles_payments` / `a6` | Ранний ответ в секции A (или уточнение в E) | Да → раньше включаем PCI/GDPR-контекст и полный блок E; Нет → E остаётся видимым для EU/GDPR, детали про платежи можно сжать |
+| `website_maturity` *(сигнал, не predicate)* | `c9` (возраст сайта) | Попадает в **context slice** tech/strategy через §5; **не** ключ в `BRANCH_RULES` — видимость вопросов не переключается отдельным gate |
+| `automation_attempt` *(сигнал, не predicate)* | `d_automation_attempt` | Ответ уходит в **automation_processes** (§5); в `question-bank.v1.json` у вопроса **нет** `branch` — это не условие `evalBranchCondition` |
 
 
-**Реализация веток:** канон — `packages/intake-core/src/branch-rules.ts` (`BRANCH_RULES`, `evalBranchCondition`). Неизвестный `branchCondition` в JSON → в лог пишется предупреждение `[branch-rules] Unknown branchCondition`, вопрос по умолчанию **показывается** (fail-open).
+**Реализация веток:** канон — `branch_rules` (`BRANCH_RULES`, `evalBranchCondition`). Неизвестный `branchCondition` в JSON → в лог пишется предупреждение `[branch-rules] Unknown branchCondition`, вопрос по умолчанию **показывается** (fail-open).
 
 **Отрасль в UI:** в выпадающем списке больше ярлыков, чем отраслевых веток с дополнительными вопросами. Явные `branch`-вопросы есть только для hospitality, real estate, restaurant & F&B, professional services, healthcare, marine; остальные индустрии калибруют общие вопросы и веса, без отраслевого пакета в банке.
 
@@ -133,7 +133,7 @@
 
 ### Источник истины по срезам агентов
 
-**Markdown не является каноном для того, какой ответ какому агенту попадает.** Единственный источник истины — объект `**QUESTION_FEED_ROLES`** в `[packages/intake-core/src/question-feed-roles.ts](../packages/intake-core/src/question-feed-roles.ts)` (от него строятся `DOMAIN_TO_QUESTIONS_RAW` → `DOMAIN_TO_QUESTION_IDS` и контекст в `ContextBuilder`).
+**Markdown не является каноном для того, какой ответ какому агенту попадает.** Единственный источник истины — объект `**QUESTION_FEED_ROLES`** в `question_feed_roles` (от него строятся `DOMAIN_TO_QUESTIONS_RAW` → `DOMAIN_TO_QUESTION_IDS` и контекст в `ContextBuilder`).
 
 - Менять срезы нужно **в TypeScript**, затем **подтянуть §3 / §5 в этом файле** как человекочитаемое зеркало (или сгенерировать его скриптом).
 - Колонка **Agent feeds (P / S)** ниже: **(P)** = primary, **(S)** = secondary (тот же ответ дублируется в срез другого агента). Формат `домен (P), …; домен (S), …` — часть после `;` опускается, если secondaries нет.
@@ -246,7 +246,7 @@
 
 **Full mode** (has_website = Yes):
 
-*Рекомендованный порядок в мастере (эмоция и GTM → конкуренты, пока клиент свежий → возраст сайта → подтверждение рекона и техника): **c5 → c6 → c8 → c9 → c1 → c2 → c3 → c4 → c7**.*  
+*Рекомендованный порядок в мастере (эмоция и GTM → конкуренты, пока клиент свежий → возраст сайта → подтверждение рекона и техника): **c5 → c6 → c8 → c9 → c1 → c2 → c3 → c4 → c7**.* 
 `c8` (конкуренты) сознательно **не** в хвосте Layer 2: к концу блока клиент устал; ранний ввод повышает качество ответов.
 
 | ID | Question | Input | Priority | Layer | Agent feeds (P / S) | Branch |
@@ -351,7 +351,7 @@
 
 ### Section E: Safety & Compliance
 
-*"Quick check on security and legal basics — important for EU businesses."*  
+*"Quick check on security and legal basics — important for EU businesses."* 
 **Framing (обязательная видимость):** секция не прячется полностью при отсутствии онлайн-платежей: клиенты в EU всё равно нуждаются в понятном GDPR/куки/политика контексте. Копия UI: «Даже если платежи офлайн, это 3 минуты, чтобы мы не промахнулись с рисками в отчёте.» При `a6 = No` блок про PCI можно сжать до одного уточняющего вопроса или опираться только на `e1`.
 
 | ID | Question | Input | Priority | Layer | Agent feeds (P / S) | Branch |
@@ -469,14 +469,14 @@ Pre-brief + дополнительно:
 #### 6-Phase Sequence
 
 
-| Phase                       | IDs                                                                          | Focus                                             |
+| Phase | IDs | Focus |
 | --------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------- |
-| **Identity**                | a1, a2, a3, a4, a6, a7, a8, a9                                               | Who, where, stage, scale, languages               |
-| **Customers**               | b1, b2, b3, b7, b_growth_attempts + [industry B]                             | ICP, acquisition channels, growth history         |
-| **Digital trace**           | c_nosite_1, c_nosite_4, c_nosite_5, c_nosite_reviews, c_nosite_2, c_nosite_3 | Online presence without a site                    |
-| **Conversion pipeline**     | d1, d1a/d1b, d_response_time, d_closing_flow, d_billing_flow                 | Inquiry → payment funnel                          |
-| **Operations & Automation** | d2, d_automation_attempt, d4a, d4b, d6, d5 + [industry D]                    | Manual bottlenecks, AI/automation readiness       |
-| **Goals**                   | f1, f2, f7, f8, f4, f9                                                       | Problem to solve, focus areas, readiness, urgency, additional context |
+| **Identity** | a1, a2, a3, a4, a6, a7, a8, a9 | Who, where, stage, scale, languages |
+| **Customers** | b1, b2, b3, b7, b_growth_attempts + [industry B] | ICP, acquisition channels, growth history |
+| **Digital trace** | c_nosite_1, c_nosite_4, c_nosite_5, c_nosite_reviews, c_nosite_2, c_nosite_3 | Online presence without a site |
+| **Conversion pipeline** | d1, d1a/d1b, d_response_time, d_closing_flow, d_billing_flow | Inquiry → payment funnel |
+| **Operations & Automation** | d2, d_automation_attempt, d4a, d4b, d6, d5 + [industry D] | Manual bottlenecks, AI/automation readiness |
+| **Goals** | f1, f2, f7, f8, f4, f9 | Problem to solve, focus areas, readiness, urgency, additional context |
 
 
 #### Full ID Set (policy-driven; currently 50 IDs)
@@ -484,24 +484,24 @@ Pre-brief + дополнительно:
 ```
 Section A (10): a1, a2, a3, a4, a5, a6, a7, a8, a9, a10
 Section B (5 universal + up to 2 industry-specific):
-  b1, b2, b3, b7, b_growth_attempts
-  b_hotel_1, b_hotel_2 (is_hospitality)
-  b_realestate_1 (is_real_estate)
-  b_restaurant_1 (is_restaurant)
-  b_services_1 (is_services)
-  b_health_1 (is_healthcare)
-  b_marine_1 (is_marine)
+ b1, b2, b3, b7, b_growth_attempts
+ b_hotel_1, b_hotel_2 (is_hospitality)
+ b_realestate_1 (is_real_estate)
+ b_restaurant_1 (is_restaurant)
+ b_services_1 (is_services)
+ b_health_1 (is_healthcare)
+ b_marine_1 (is_marine)
 Section C (6, all branch: no_website):
-  c_nosite_1, c_nosite_4, c_nosite_5, c_nosite_reviews, c_nosite_2, c_nosite_3
+ c_nosite_1, c_nosite_4, c_nosite_5, c_nosite_reviews, c_nosite_2, c_nosite_3
 Section D (13 universal + up to 2 industry-specific):
-  d1, d1a (has_crm), d1b (no_crm)
-  d_response_time, d_closing_flow, d_billing_flow
-  d2, d_automation_attempt, d4a, d4b, d6, d5
-  d_hotel_1, d_hotel_2 (is_hospitality)
-  d_realestate_1 (is_real_estate)
-  d_restaurant_1 (is_restaurant)
-Section E (4):  e1, e2, e3, e4
-Section F (6):  f1, f2, f4, f7, f8, f9
+ d1, d1a (has_crm), d1b (no_crm)
+ d_response_time, d_closing_flow, d_billing_flow
+ d2, d_automation_attempt, d4a, d4b, d6, d5
+ d_hotel_1, d_hotel_2 (is_hospitality)
+ d_realestate_1 (is_real_estate)
+ d_restaurant_1 (is_restaurant)
+Section E (4): e1, e2, e3, e4
+Section F (6): f1, f2, f4, f7, f8, f9
 ```
 
 **Intentionally excluded from the public Discovery wizard UI (not from discovery policy):**
@@ -515,7 +515,7 @@ Section F (6):  f1, f2, f4, f7, f8, f9
 
 **Architecture status (Phase 5):**
 
-- `src/app/lib/discovery-flow.ts` uses the shared resolver (`buildIntakePlan`) and shared wizard question builder.
+- `discovery_flow` uses the shared resolver (`buildIntakePlan`) and shared wizard question builder.
 - `GET /api/discover/ui-fragment` is the runtime source for public Discovery copy/options; client fallback uses the same server-side builder shape.
 - Maturity scoring/findings remain Discovery-specific product logic, but question identity/visibility are no longer maintained as a separate questionnaire.
 
@@ -527,21 +527,21 @@ This means Discovery no longer has a separate semantic question model; it is a p
 
 ## 5. Domain Agent ← Question Mapping
 
-**Не правьте эту таблицу как первичный источник.** Сначала меняйте `**QUESTION_FEED_ROLES`** в `[question-feed-roles.ts](../packages/intake-core/src/question-feed-roles.ts)`, затем обновляйте списки здесь и колонку **Agent feeds (P / S)** в §3. Иначе документация снова разойдётся с рантаймом.
+**Не правьте эту таблицу как первичный источник.** Сначала меняйте `**QUESTION_FEED_ROLES`** в `question-feed-roles.ts`, затем обновляйте списки здесь и колонку **Agent feeds (P / S)** в §3. Иначе документация снова разойдётся с рантаймом.
 
 Ниже: какой агент какие ответы получает (context slice). Состав строки = **primary ∪ secondary**; в промпте роль **P/S** не дублируется построчно — см. §3. Порядок id внутри домена — порядок банка (`DOMAIN_TO_QUESTION_IDS`).
 
 
-| Agent                    | Questions used (IDs)                                                                                                                                                                                                                                                |
+| Agent | Questions used (IDs) |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **recon**                | a1, a2, a3, a4, a5, a6, a7, **a10** (+ auto-crawl)                                                                                                                                                                                                                  |
-| **tech_infrastructure**  | a5, c9, c1, c2, c6, d1 (tools → tech signals), d_hotel_1, d_restaurant_1                                                                                                                                                                                            |
-| **security_compliance**  | a6 (gate), e1, e2, e3, e4, **d_billing_flow** (Verifactu signal)                                                                                                                                                                                                    |
-| **seo_digital**          | c3, c4, c7, c_nosite_1, c_nosite_2, c_nosite_3, **c_nosite_5** (Google Business), **c_nosite_reviews** (reputation), b2 (traffic sources)                                                                                                                           |
-| **ux_conversion**        | b1 (ideal customer), b6 (guarantees), b7 (repeat vs one-off), c5 (main action), c6 (frustrations), b_services_1, b_health_1, **d_response_time**, **d_closing_flow**                                                                                                |
-| **marketing_utp**        | **a9** (customer languages), **a10**, b1, b2, b3, b4, b5, b6, b7, **b_growth_attempts**, c7, c8 (competitors), **c_nosite_4**, **c_nosite_5**, **c_nosite_reviews**, b_hotel_1, b_hotel_2, b_realestate_1, b_marine_1                                              |
+| **recon** | a1, a2, a3, a4, a5, a6, a7, **a10** (+ auto-crawl) |
+| **tech_infrastructure** | a5, c9, c1, c2, c6, d1 (tools → tech signals), d_hotel_1, d_restaurant_1 |
+| **security_compliance** | a6 (gate), e1, e2, e3, e4, **d_billing_flow** (Verifactu signal) |
+| **seo_digital** | c3, c4, c7, c_nosite_1, c_nosite_2, c_nosite_3, **c_nosite_5** (Google Business), **c_nosite_reviews** (reputation), b2 (traffic sources) |
+| **ux_conversion** | b1 (ideal customer), b6 (guarantees), b7 (repeat vs one-off), c5 (main action), c6 (frustrations), b_services_1, b_health_1, **d_response_time**, **d_closing_flow** |
+| **marketing_utp** | **a9** (customer languages), **a10**, b1, b2, b3, b4, b5, b6, b7, **b_growth_attempts**, c7, c8 (competitors), **c_nosite_4**, **c_nosite_5**, **c_nosite_reviews**, b_hotel_1, b_hotel_2, b_realestate_1, b_marine_1 |
 | **automation_processes** | **a9**, d1, d1a/d1b, **d_response_time**, **d_closing_flow**, **d_billing_flow**, d2, d_automation_attempt, d3, d4, d4a, d4b, **d6** (data types), d5, **a8** (monthly volume), f7 (approver), **c_nosite_4**, d_hotel_1, d_hotel_2, d_realestate_1, d_restaurant_1 |
-| **strategy**             | f1, f2, f3, f4, f5, f6, f7, f8 (urgency), f9 (additional context), a4, a7, **a8** (scale), **a10** (S), b4, b5, b7, **b_growth_attempts**, d4a, d4b, **d6**                                                                                                            |
+| **strategy** | f1, f2, f3, f4, f5, f6, f7, f8 (urgency), f9 (additional context), a4, a7, **a8** (scale), **a10** (S), b4, b5, b7, **b_growth_attempts**, d4a, d4b, **d6** |
 
 
 **Правило:** агент получает только свои вопросы (context slicing), не весь бриф. Цепочка в коде: `QUESTION_FEED_ROLES` → `DOMAIN_TO_QUESTIONS_RAW` (реэкспорт в `domain-slice-data.ts`) → `DOMAIN_TO_QUESTION_IDS` в `question-bank.ts`.
@@ -550,21 +550,21 @@ This means Discovery no longer has a separate semantic question model; it is a p
 
 ## 6. Branching Logic (implementation)
 
-Каноническая реализация: `**packages/intake-core/src/branch-rules.ts`** — `BRANCH_RULES`, нормализация `a5`/`a6`/`a4`/`a2`, `evalBranchCondition`. Вызов видимости: `packages/intake-core/src/is-visible.ts`.
+Каноническая реализация: `**branch_rules`** — `BRANCH_RULES`, нормализация `a5`/`a6`/`a4`/`a2`, `evalBranchCondition`. Вызов видимости: `is_visible`.
 
 - Ключи в `branch` / `branchCondition` JSON **должны** совпадать с ключами `BRANCH_RULES`. Неизвестный ключ → `console.warn` с префиксом `[branch-rules] Unknown branchCondition`, вопрос считается **видимым** (fail-open).
 - Ниже — краткая шпаргалка по ключам (без дословного кода; детали смотри в репозитории).
 
 
-| Key                                                                                              | Назначение                                                                                              |
+| Key | Назначение |
 | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| `has_website` / `no_website`                                                                     | Ворота по ответу «сайт» (`a5`, нормализация в enum gate)                                                |
-| `nosite_social`                                                                                  | `no_website` и в `c_nosite_1` выбран пункт **Social media** (точное совпадение строки)                  |
-| `is_hospitality`, `is_real_estate`, `is_restaurant`, `is_services`, `is_healthcare`, `is_marine` | Отраслевые ветки (ярлык индустрии мапится из dropdown через `INDUSTRY_LABEL_TO_BRANCH_SLUG`)            |
-| `has_crm` / `no_crm`                                                                             | Наличие CRM в мультивыборе `d1` (в т.ч. нормализованные / синтетические значения после парсинга ответа) |
-| `handles_payments`                                                                               | Предикат читает нормализованный **`a6`** (`normalizePayments`): сначала ячейка **`a6`**, иначе legacy **`handles_payments`**; старые формулировки classic brief (карта на сайте / hosted checkout / «no payments») сводятся к **yes / sometimes / no** и согласуются с веткой |
-| `not_solo`                                                                                       | Команда ≠ solo (`a4`)                                                                                   |
-| `spain_based`                                                                                    | Локация (`a3`)                                                                                          |
+| `has_website` / `no_website` | Ворота по ответу «сайт» (`a5`, нормализация в enum gate) |
+| `nosite_social` | `no_website` и в `c_nosite_1` выбран пункт **Social media** (точное совпадение строки) |
+| `is_hospitality`, `is_real_estate`, `is_restaurant`, `is_services`, `is_healthcare`, `is_marine` | Отраслевые ветки (ярлык индустрии мапится из dropdown через `INDUSTRY_LABEL_TO_BRANCH_SLUG`) |
+| `has_crm` / `no_crm` | Наличие CRM в мультивыборе `d1` (в т.ч. нормализованные / синтетические значения после парсинга ответа) |
+| `handles_payments` | Предикат читает нормализованный **`a6`** (`normalizePayments`): сначала ячейка **`a6`**, иначе legacy **`handles_payments`**; старые формулировки classic brief (карта на сайте / hosted checkout / «no payments») сводятся к **yes / sometimes / no** и согласуются с веткой |
+| `not_solo` | Команда ≠ solo (`a4`) |
+| `spain_based` | Локация (`a3`) |
 
 
 **UX:** скрытые вопросы не показываются. Клиент не знает, что вопрос существует. Wizard адаптируется динамически.
@@ -578,14 +578,14 @@ This means Discovery no longer has a separate semantic question model; it is a p
 ### Section openers (микротексты)
 
 
-| Section               | Opener                                                                                       | Why it works                                  |
+| Section | Opener | Why it works |
 | --------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| A: Your Business      | "Let's start with who you are — this helps us tailor everything to your context."            | Клиент чувствует: персонализация, не generic  |
+| A: Your Business | "Let's start with who you are — this helps us tailor everything to your context." | Клиент чувствует: персонализация, не generic |
 | B: Customers & Growth | "Understanding your customers helps us evaluate whether your marketing is hitting the mark." | Привязка к ценности: мы поможем с маркетингом |
-| C: Online Presence    | "This helps us evaluate your visibility and technical setup."                                | Конкретная цель, не "заполните форму"         |
-| D: Operations         | "The more we understand how you work, the better we spot where time and money are wasted."   | Прямая связь с экономией                      |
-| E: Compliance         | "Quick check on security and legal basics — important for EU businesses."                    | "Quick" снижает тревогу                       |
-| F: Goals              | "Last step — help us focus on what matters most to YOU."                                     | Контроль в руках клиента                      |
+| C: Online Presence | "This helps us evaluate your visibility and technical setup." | Конкретная цель, не "заполните форму" |
+| D: Operations | "The more we understand how you work, the better we spot where time and money are wasted." | Прямая связь с экономией |
+| E: Compliance | "Quick check on security and legal basics — important for EU businesses." | "Quick" снижает тревогу |
+| F: Goals | "Last step — help us focus on what matters most to YOU." | Контроль в руках клиента |
 
 
 ### "I don't know" framing
@@ -610,8 +610,8 @@ This means Discovery no longer has a separate semantic question model; it is a p
 
 Отдельный **индикатор для UI и strategy** (не путать с доменным score 1–5): агрегирует **d4a**, экспорт данных **d4b**, поведенческий источник правды **d4**, долю ручной работы **d3**, узкие места **d2** / **d_automation_attempt**, governance **f7**, и опционально **масштаб** (**a8**, **d6**) для приоритизации «где выше потенциальный impact».
 
-**Шкала 0–100 (heuristic v1 — `calcAiReadinessScore` в `packages/intake-core/src/ai-readiness.ts`):**
-Normalization of intake answers is centralized in `packages/intake-core/src/answer-normalizers.ts` (also reused by discovery mappings), so readiness and discovery logic interpret labels consistently.
+**Шкала 0–100 (heuristic v1 — `calcAiReadinessScore` в `ai_readiness`):**
+Normalization of intake answers is centralized in `answer_normalizers` (also reused by discovery mappings), so readiness and discovery logic interpret labels consistently.
 
 | Компонент | Сигнал | Значение |
 |-----------|--------|---------|
@@ -673,7 +673,7 @@ optionalWeight = (# answered optional visible) / (# visible optional)
 dataQualityScore = 0.55 * requiredWeight + 0.35 * recommendedWeight + 0.10 * optionalWeight
 ```
 
-- «Visible» = множество `plan.visible` из **`buildIntakePlan`** (ветки + политика + layout); для сохранённого поля **`data_quality_score`** в БД используется тот же резолвер с поверхностью **`consultant_interview`** и продуктом **`full`** (см. `DATA_QUALITY_DEFAULT_PLAN_INPUT` в `packages/intake-core/src/visibility-from-plan.ts`).
+- «Visible» = множество `plan.visible` из **`buildIntakePlan`** (ветки + политика + layout); для сохранённого поля **`data_quality_score`** в БД используется тот же резолвер с поверхностью **`consultant_interview`** и продуктом **`full`** (см. `DATA_QUALITY_DEFAULT_PLAN_INPUT` в `visibility_from_plan`).
 - Пустые / whitespace-only значения не считаются answered.
 - Веса можно калибровать по режиму продукта (`express` снижает долю optional).
 
@@ -685,12 +685,12 @@ dataQualityScore = 0.55 * requiredWeight + 0.35 * recommendedWeight + 0.10 * opt
 
 ```typescript
 interface ReconConflict {
-  questionId: string;           // e.g. "c1"
-  detectedValue: string;        // from recon collector
-  clientValue: string;          // free text or structured override
-  status: 'open' | 'resolved';
-  resolvedAt?: string;          // ISO
-  notes?: string;
+ questionId: string; // e.g. "c1"
+ detectedValue: string; // from recon collector
+ clientValue: string; // free text or structured override
+ status: 'open' | 'resolved';
+ resolvedAt?: string; // ISO
+ notes?: string;
 }
 ```
 
@@ -704,13 +704,13 @@ interface ReconConflict {
 
 ```typescript
 interface PostAuditQuestionItem {
-  id: string;
-  domain?: string;
-  question: string;
-  reason: string;
-  answered: boolean;
-  answeredAt?: string;
-  source?: 'review_gate' | 'strategy' | 'consultant';
+ id: string;
+ domain?: string;
+ question: string;
+ reason: string;
+ answered: boolean;
+ answeredAt?: string;
+ source?: 'review_gate' | 'strategy' | 'consultant';
 }
 ```
 
@@ -726,36 +726,36 @@ type InputType = 'select' | 'multi' | 'text' | 'textarea' | 'number' | 'rating' 
 type Layer = 'pre' | '1' | '2' | 'disc';
 
 interface IntakeQuestion {
-  id: string;                          // e.g. "a1", "b_hotel_1"
-  section: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
-  priority: Priority;
-  inputType: InputType;
-  layers: Layer[];                     // which layers include this question
-  label: string;                       // question text
-  helperText?: string;                 // example / hint
-  options?: { value: string; label: string }[];
-  allowOther?: boolean;                // adds "Other → text" option
-  allowUnknown?: boolean;              // adds "Don't know" option
-  branchCondition?: string;            // key in BRANCH_RULES
-  feedsDomains: string[];              // which agents use this answer
+ id: string; // e.g. "a1", "b_hotel_1"
+ section: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+ priority: Priority;
+ inputType: InputType;
+ layers: Layer[]; // which layers include this question
+ label: string; // question text
+ helperText?: string; // example / hint
+ options?: { value: string; label: string }[];
+ allowOther?: boolean; // adds "Other → text" option
+ allowUnknown?: boolean; // adds "Don't know" option
+ branchCondition?: string; // key in BRANCH_RULES
+ feedsDomains: string[]; // which agents use this answer
 }
 
 interface IntakeResponse {
-  value: string | string[] | number | boolean | null;
-  source: 'client' | 'consultant' | 'recon_confirmed' | 'unknown';
-  answeredAt?: string;                 // ISO timestamp
+ value: string | string[] | number | boolean | null;
+ source: 'client' | 'consultant' | 'recon_confirmed' | 'unknown';
+ answeredAt?: string; // ISO timestamp
 }
 
 interface IntakeBrief {
-  status: 'pre_brief' | 'layer_1' | 'layer_2' | 'complete';
-  collectedBy: 'client' | 'consultant' | 'mixed';
-  collectionMode: 'self_serve' | 'interview' | 'discovery';
-  dataQualityScore: number;            // 0.0 – 1.0 (см. §10)
-  aiReadinessScore?: number;           // 0 – 100 (см. §8)
-  responses: Record<string, IntakeResponse>;
-  reconPrefills: Record<string, { detected: string; confirmedByClient: boolean | null }>;
-  reconConflicts?: ReconConflict[];
-  postAuditQuestions: PostAuditQuestionItem[];
+ status: 'pre_brief' | 'layer_1' | 'layer_2' | 'complete';
+ collectedBy: 'client' | 'consultant' | 'mixed';
+ collectionMode: 'self_serve' | 'interview' | 'discovery';
+ dataQualityScore: number; // 0.0 – 1.0 (см. §10)
+ aiReadinessScore?: number; // 0 – 100 (см. §8)
+ responses: Record<string, IntakeResponse>;
+ reconPrefills: Record<string, { detected: string; confirmedByClient: boolean | null }>;
+ reconConflicts?: ReconConflict[];
+ postAuditQuestions: PostAuditQuestionItem[];
 }
 ```
 
@@ -764,16 +764,16 @@ interface IntakeBrief {
 ## 14. Что убрано из текущего набора и почему
 
 
-| Текущий вопрос       | Решение                       | Причина                                                           |
+| Текущий вопрос | Решение | Причина |
 | -------------------- | ----------------------------- | ----------------------------------------------------------------- |
-| `monthly_visitors`   | Убран                         | Клиент редко знает точно; GA/Recon покроет если есть доступ       |
-| `monthly_revenue`    | Убран                         | Слишком личный для первого контакта; нерелевантен для tech-аудита |
-| `conversion_rate`    | Убран                         | Почти никто не знает; агент сам определит по данным               |
-| `top_keywords`       | Убран                         | Агент сам найдёт через Recon/SERP; клиент обычно не знает         |
-| `hosting_provider`   | Заменён на c1 (confirm Recon) | Recon сам определит; клиенту проще подтвердить                    |
-| `has_staging`        | Убран                         | Слишком техничный; релевантен только для 10% клиентов             |
-| `has_privacy_policy` | Убран из вопросов             | Recon сам проверит наличие; это задача Security Agent             |
-| `email_automation`   | Стал d5 (проще)               | Был слишком технический; теперь select с human-friendly опциями   |
+| `monthly_visitors` | Убран | Клиент редко знает точно; GA/Recon покроет если есть доступ |
+| `monthly_revenue` | Убран | Слишком личный для первого контакта; нерелевантен для tech-аудита |
+| `conversion_rate` | Убран | Почти никто не знает; агент сам определит по данным |
+| `top_keywords` | Убран | Агент сам найдёт через Recon/SERP; клиент обычно не знает |
+| `hosting_provider` | Заменён на c1 (confirm Recon) | Recon сам определит; клиенту проще подтвердить |
+| `has_staging` | Убран | Слишком техничный; релевантен только для 10% клиентов |
+| `has_privacy_policy` | Убран из вопросов | Recon сам проверит наличие; это задача Security Agent |
+| `email_automation` | Стал d5 (проще) | Был слишком технический; теперь select с human-friendly опциями |
 
 **Classic intake — те же опции, прежние ключи в `responses`:** в классической форме для платежей, бюджета и email-автоматизации в JSON по-прежнему пишутся **`handles_payments`**, **`budget_for_changes`**, **`email_automation`**, а тексты и option set совпадают с банком **`a6`**, **`f5`**, **`d5`** (`classicBankBriefRow` + `responseId`). При конвертации Discovery в бриф, если задан только **`a6`**, патч дублирует значение в **`handles_payments`**, чтобы ячейка classic ключа не оставалась пустой.
 
@@ -783,35 +783,70 @@ interface IntakeBrief {
 
 ## 15. Question bank change protocol (mandatory)
 
-Use this checklist for **any** change to `packages/intake-core/src/question-bank.v1.json`, answer options, or wording that affects runtime behavior.
+Use this checklist for **any** change to `question_bank.v1`, answer options, or wording that affects runtime behavior.
 
 1. **Update canon and UI overrides together**
-   - Update `question-bank.v1.json` (`answer` contract and labels where needed).
-   - Update `packages/intake-core/src/bank-question-ui-overrides.ts` when UI type/options/hints change.
-   - If needed, regenerate canon contracts via `server/scripts/embed-question-bank-answers.ts`.
+ - Update `question-bank.v1.json` (`answer` contract and labels where needed).
+ - Update `bank_question_ui_overrides` when UI type/options/hints change.
+ - If needed, regenerate canon contracts via `server/scripts/embed-question-bank-answers.ts`.
 
 2. **Keep “specify” behavior in sync**
-   - If a new option requires clarification text, update `packages/intake-core/src/choice-specify-triggers.ts`.
-   - Confirm `__other` capture works in both classic and wizard flows.
+ - If a new option requires clarification text, update `choice_specify_triggers`.
+ - Confirm `__other` capture works in both classic and wizard flows.
 
 3. **Re-evaluate derived logic and AI readiness**
-   - Review `packages/intake-core/src/ai-readiness.ts` and `packages/intake-core/src/answer-normalizers.ts` for string/value assumptions tied to changed options.
-   - Review discovery conversion and findings logic (`src/app/lib/discovery-flow.ts`, `server/src/routes/discover.ts`) for hardcoded option text. Server-side brief seeding from Discovery uses **`packages/intake-core/src/discovery-brief-mapping.ts`** (`DISCOVERY_BRIEF_PATCH_A5_NO_WEBSITE_YET` from the bank JSON, plus **`C_NOSITE_1_LEGACY_FIRST_PARTY_WEB_LABELS`** for old stored answers) — extend there instead of duplicating display strings in `discover.ts`.
-   - **Synthetic `uses_crm` cell** (not a bank id): stored values are defined in **`discovery-brief-contract.v1.json`** as **`uses_crm:yes` / `uses_crm:no`**; English display and i18n keys live in the same file. Use **`normalizeUsesCrmBriefStoredValue`** when interpreting persisted briefs (handles legacy **`Yes` / `No`**).
+ - Review `ai_readiness` and `answer_normalizers` for string/value assumptions tied to changed options.
+ - Review discovery conversion and findings logic (`discovery_flow`, `discover`) for hardcoded option text. Server-side brief seeding from Discovery uses **`discovery_brief_mapping`** (`DISCOVERY_BRIEF_PATCH_A5_NO_WEBSITE_YET` from the bank JSON, plus **`C_NOSITE_1_LEGACY_FIRST_PARTY_WEB_LABELS`** for old stored answers) — extend there instead of duplicating display strings in `discover.ts`.
+ - **Synthetic `uses_crm` cell** (not a bank id): stored values are defined in **`discovery-brief-contract.v1.json`** as **`uses_crm:yes` / `uses_crm:no`**; English display and i18n keys live in the same file. Use **`normalizeUsesCrmBriefStoredValue`** when interpreting persisted briefs (handles legacy **`Yes` / `No`**).
 
 4. **Verify API and schema surfaces**
-   - Confirm `GET /api/audits/:id/brief/schema` returns the updated `answer` contract.
-   - Ensure `buildPublicDiscoveryUiFragment` still matches expected question ids/options.
+ - Confirm `GET /api/audits/:id/brief/schema` returns the updated `answer` contract.
+ - Ensure `buildPublicDiscoveryUiFragment` still matches expected question ids/options.
 
 5. **Run required tests before merge**
-   - Frontend:
-     - `pnpm vitest src/app/data/bank-question-ui-catalog-parity.test.ts`
-     - `pnpm vitest src/app/lib/discovery-flow.test.ts`
-   - Server (`server/`):
-     - `pnpm vitest src/tests/question-bank-answer-contract.test.ts`
-     - `pnpm vitest src/tests/discovery-ui-fragment.test.ts`
+ - Frontend:
+ - `pnpm vitest bank_question_ui_catalog_parity.test`
+ - `pnpm vitest discovery_flow.test`
+ - Server (`server/`):
+ - `pnpm vitest src/tests/question-bank-answer-contract.test.ts`
+ - `pnpm vitest src/tests/discovery-ui-fragment.test.ts`
 
 6. **Update docs in the same PR**
-   - Update this file (`QUESTION_BANK.md`) wherever question type/options/flow semantics changed.
-   - Update `docs/API.md` if response contract behavior changed.
-   - Add a short note in PR summary about affected surfaces (New Audit, Audit Workspace, Discovery, API schema, AI readiness).
+ - Update this file (`QUESTION_BANK.md`) wherever question type/options/flow semantics changed.
+ - Update `docs/API.md` if response contract behavior changed.
+ - Add a short note in PR summary about affected surfaces (New Audit, Audit Workspace, Discovery, API schema, AI readiness).
+
+## Для разработчиков
+
+Ниже перечислены технические пути реализации для инженерной навигации.
+
+- `packages/intake-core/src/brief-gates.ts`
+- `server/src/tests/intake-brief-policy-sync.test.ts`
+- `packages/intake-core/src/core/lint-bank-policy.ts`
+- `packages/intake-core/src/core/plan-derived.ts`
+- `server/src/routes/intake.ts`
+- `server/src/routes/audits.ts`
+- `packages/intake-core/src/core/build-brief-schema-snapshot.ts`
+- `src/app/lib/discovery-flow.ts`
+- `packages/intake-core/src/question-bank.ts`
+- `packages/intake-core/src/artifacts/question-bank-1.0.0.json`
+- `packages/intake-core/src/core/branch-condition-deps.ts`
+- `packages/intake-core/src/discovery-wizard-questions.ts`
+- `server/src/tests/discovery-policy-sync.test.ts`
+- `server/src/schemas/intake-brief-questions.ts`
+- `server/src/schemas/intake-brief.ts`
+- `src/app/data/briefQuestions.ts`
+- `src/app/data/brief-spa-parity.test.ts`
+- `src/app/data/bank-question-ui-catalog-parity.test.ts`
+- `packages/intake-core/src/branch-rules.ts`
+- `packages/intake-core/src/is-visible.ts`
+- `packages/intake-core/src/ai-readiness.ts`
+- `packages/intake-core/src/answer-normalizers.ts`
+- `packages/intake-core/src/visibility-from-plan.ts`
+- `packages/intake-core/src/question-bank.v1.json`
+- `packages/intake-core/src/bank-question-ui-overrides.ts`
+- `packages/intake-core/src/choice-specify-triggers.ts`
+- `server/src/routes/discover.ts`
+- `packages/intake-core/src/discovery-brief-mapping.ts`
+- `packages/intake-core/src/question-feed-roles.ts`
+- `src/app/lib/discovery-flow.test.ts`

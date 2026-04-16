@@ -132,6 +132,7 @@ Two new top-level fields:
 
 ```
 AUTO_LOOP_ENABLED=true
+GLC_DEPLOYMENT_PROFILE=sandbox            # must match a token in AUTO_LOOP_ALLOWED_MODES (not NODE_ENV)
 AUTO_LOOP_ALLOWED_MODES=sandbox,internal   # never production until 2+ weeks monitoring
 ```
 

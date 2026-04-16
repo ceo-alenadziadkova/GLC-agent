@@ -130,6 +130,57 @@
       "breadcrumb": "Focus package",
       "h1": "Focus package",
       "lead": "One priority domain with clear scope—actionable output without pretending you have full cross-domain coverage.",
+      "timeline": [
+        { "title": "Kickoff", "detail": "Short brief or scope alignment—without drowning in detail." },
+        { "title": "Signal gathering", "detail": "Site, key pages, baseline process questions within agreed volume." },
+        { "title": "Findings", "detail": "Priorities, risks, quick wins, and recommended next step." },
+        { "title": "Delivery", "detail": "Structured report you can use internally or with a vendor." }
+      ],
+      "scope_comparison": {
+        "included": [
+          "One selected domain with detailed findings.",
+          "Quick wins and priority guidance for that domain.",
+          "Coverage disclosure in the report."
+        ],
+        "not_included": [
+          "Cross-domain synthesis confidence of a complete audit.",
+          "Equal-score comparability with complete 6-domain audits.",
+          "Multi-domain dependency certainty outside selected scope."
+        ]
+      },
+      "outcome_cards": [
+        {
+          "title": "Business outcome",
+          "body": "You get one clear priority track instead of scattered fixes across teams."
+        },
+        {
+          "title": "Decision confidence",
+          "body": "You know where Focus is enough and where you should expand to Context or Strategy workspace."
+        },
+        {
+          "title": "Execution handoff",
+          "body": "Report format is ready for internal execution or transfer to another vendor."
+        }
+      ],
+      "outcome_timing": {
+        "title": "Outcome and timing",
+        "body": "Timelines depend on context; Starter is typically the shortest paid path. Deliverable includes conclusions, next steps, and explicit coverage boundaries."
+      },
+      "signal_to_decision": {
+        "title": "From signal to decision",
+        "items": [
+          { "label": "Signal", "detail": "What the business and users see." },
+          { "label": "Bottlenecks", "detail": "Friction, loss, risk." },
+          { "label": "Recommendations", "detail": "What to change and in what order within Starter." },
+          { "label": "Next step", "detail": "Scale to Pro/Complete or go directly into implementation." }
+        ]
+      },
+      "process_timeline_title": "Typical process",
+      "compare_section_heading": "When Focus is enough vs when you need Context or Strategy workspace",
+      "next_steps_hints": {
+        "faq": "Timelines, communication, delivery.",
+        "client_sign_in": "Reports and progress."
+      },
       "mid_cta": {
         "title": "Lock scope for one priority domain",
         "body": "Brief maps Focus to your bottleneck—we confirm coverage before delivery and keep outputs handoff-ready.",
@@ -165,6 +216,44 @@
       "breadcrumb": "Context package",
       "h1": "Full context analysis",
       "lead": "When one domain is too narrow and six domains are unnecessary: choose 2–3 areas and get stronger dependency and sequencing confidence.",
+      "timeline": [
+        { "title": "Scope alignment", "detail": "Choose 2-3 domains that match your current bottlenecks and objectives." },
+        { "title": "Focused diagnostics", "detail": "Deep checks inside selected domains with cross-signal context." },
+        { "title": "Synthesis", "detail": "Tradeoffs, dependencies, and what to do first vs what can wait." },
+        { "title": "Delivery", "detail": "Action plan with sequencing and handoff-ready recommendations." }
+      ],
+      "scope_comparison": {
+        "included": [
+          "Two to three selected domains with focused depth.",
+          "Dependency notes between selected domains.",
+          "Impact/effort-based action sequence and next-step options."
+        ],
+        "not_included": [
+          "Complete cross-domain certainty across all six domains.",
+          "Highest comparability level of Strategy workspace outputs.",
+          "Strategy confidence of a full end-to-end synthesis run."
+        ]
+      },
+      "outcome_cards": [
+        {
+          "title": "Business outcome",
+          "body": "You reduce decision risk where multiple domains influence one bottleneck."
+        },
+        {
+          "title": "Planning clarity",
+          "body": "Dependencies are explicit, so teams avoid fixing isolated symptoms."
+        },
+        {
+          "title": "Budget control",
+          "body": "You get broader confidence than Focus without full six-domain scope."
+        }
+      ],
+      "process_timeline_title": "Typical Context flow",
+      "compare_section_heading": "Focus vs Context vs Strategy workspace",
+      "next_steps_hints": {
+        "faq": "Delivery, timelines, and collaboration model.",
+        "client_sign_in": "Current workspace reports and progress."
+      },
       "mid_cta": {
         "title": "Coordinate two or three domains with confidence",
         "body": "Brief helps pick the right Context pack—dependencies and sequencing without paying for full six-domain depth.",
@@ -252,5 +341,12 @@
     "partial_coverage_note": "Partial coverage: score is not directly comparable with complete six-domain workspaces.",
     "single_domain_note": "Confidence note: single-domain coverage has lower cross-domain confidence by design."
   },
-  "audit_compare_footer": "Focus for one urgent area, Context for a coordinated pack, Strategy workspace for full cross-domain confidence."
+  "audit_compare_footer": "Focus for one urgent area, Context for a coordinated pack, Strategy workspace for full cross-domain confidence.",
+  "navigation": {
+    "homeBreadcrumbLabel": "Home",
+    "links": {
+      "snapshot": "Snapshot",
+      "brief": "Brief"
+    }
+  }
 }

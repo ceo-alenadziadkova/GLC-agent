@@ -17,15 +17,15 @@ React 18 + TypeScript + Vite. Tailwind CSS v4 (`src/styles/tailwind.css`), glass
 | `VITE_API_URL` | Backend origin for `getApiBaseUrl()` — **required in production** (throws if missing when the app runs under `import.meta.env.PROD`). |
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Supabase client — **required at module load** in every environment (production build throws if missing; local dev needs `.env.local`; Vitest stubs both in `src/test/setup.ts`). |
 
-The no-public-website sentinel is **`NO_PUBLIC_WEBSITE_URL`** from **`@glc/intake-core`**, sourced from **`no_public_website_sentinel`** in **`@glc/dev-brand-defaults`** [`public-brand-defaults.v1.json`](../packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json), not a `VITE_*` variable.
+The no-public-website sentinel is **`NO_PUBLIC_WEBSITE_URL`** from **`@glc/intake-core`**, sourced from **`no_public_website_sentinel`** in **`@glc/dev-brand-defaults`** `public-brand-defaults.v1.json`, not a `VITE_*` variable.
 
-**Static front config (no `VITE_*`):** feature flags (`src/app/config/app-feature-flags.ts` — includes `publicBriefSessionFlowEnabled` for `/brief` session flow vs legacy `submitMarketingBrief` fallback; change there and redeploy), client analytics batching (`client-analytics-batching.ts`), TanStack Query defaults (`query-client-defaults.ts` + `glc-query-client-defaults.ts`), HTTP timeouts (`http-client-defaults.ts`).
+**Static front config (no `VITE_*`):** feature flags (`app_feature_flags` — includes `publicBriefSessionFlowEnabled` for `/brief` session flow vs legacy `submitMarketingBrief` fallback; change there and redeploy), client analytics batching (`client-analytics-batching.ts`), TanStack Query defaults (`query-client-defaults.ts` + `glc-query-client-defaults.ts`), HTTP timeouts (`http-client-defaults.ts`).
 
-Cross-page persistence keys for consultant flows live in **`src/app/lib/storage-keys.ts`** (e.g. `GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY` for post–Discovery login handoff). See [DEPLOYMENT.md](./DEPLOYMENT.md#production-environment-variables) for the full production matrix.
+Cross-page persistence keys for consultant flows live in **`storage_keys`** (e.g. `GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY` for post–Discovery login handoff). See [DEPLOYMENT.md](./DEPLOYMENT.md#production-environment-variables) for the full production matrix.
 
 ### UI languages (i18n target list)
 
-Planned in-app locales (BCP-47): **English (`en`, default), German (`de`), Spanish (`es`), Catalan (`ca`), Russian (`ru`), Italian (`it`).** Canonical definitions: `src/app/lib/supported-ui-locales.ts` (`GlcUiLocale`, labels for choosers). Full message catalogs and runtime i18n are a separate rollout; until then see the **Browser auto-translate vs React** paragraph in the Routing section below.
+Planned in-app locales (BCP-47): **English (`en`, default), German (`de`), Spanish (`es`), Catalan (`ca`), Russian (`ru`), Italian (`it`).** Canonical definitions: `supported_ui_locales` (`GlcUiLocale`, labels for choosers). Full message catalogs and runtime i18n are a separate rollout; until then see the **Browser auto-translate vs React** paragraph in the Routing section below.
 
 **Decision record (proposed):** [ADR-FRONTEND-I18N.md](./adrs/ADR-FRONTEND-I18N.md) — stable vs unstable keys, registry as English source for `i18nKey` rows, question-bank rules, fallback UX, SEO vs app routing, observability.
 
@@ -35,11 +35,11 @@ Planned in-app locales (BCP-47): **English (`en`, default), German (`de`), Spani
 
 **Governance:** copy zones, namespaces (`intake.*`, `api.*`, `app.*`, `brand.public.*`), single-source rules, and PR checklist live in [ARCHITECTURE.md — §6 User-visible copy layering](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone).
 
-- **API:** error bodies use `{ "error", "code" }` where possible — see [API.md — Error Responses](./API.md#error-responses). The SPA should prefer **`code`** for branching and localized messages; keep **`error`** as a dev/legacy fallback. Avoid duplicating the same API `error` text in `src/app/config/*-copy.en.ts` unless product requires a different UX string; if you map `code` → message on the client, keep that map in **one** module.
+- **API:** error bodies use `{ "error", "code" }` where possible — see [API.md — Error Responses](./API.md#error-responses). The SPA should prefer **`code`** for branching and localized messages; keep **`error`** as a dev/legacy fallback. Avoid duplicating the same API `error` text in `*_copy.en` unless product requires a different UX string; if you map `code` → message on the client, keep that map in **one** module.
 - **Shared domain copy:** `@glc/intake-core` exports stable keys next to English defaults where the server and UI must agree. Example: **`NO_PUBLIC_WEBSITE_DISPLAY_I18N_KEY`** (`glc.audit.noPublicWebsite`) and **`NO_PUBLIC_WEBSITE_DISPLAY_EN`** for the “no public website” label used by **`formatAuditWebsiteDisplay`**. Report/domain/score/marketing-route wording used by PDFs and the SPA is centralized in **`ui-copy-registry.v1.json`** (see [ARCHITECTURE.md — versioned copy](./ARCHITECTURE.md#5-versioned-product-copy-intake-core-json)). Until message catalogs exist, components keep calling **`formatAuditWebsiteDisplay`** (English); when adding i18n, introduce a small mapper `key → string` per locale and use the key for sentinel rows while preserving the same URL logic (**`isNoPublicWebsiteUrl`**).
-- **Public brand:** wrap marketing routes with **`PublicBrandProvider`** and use **`usePublicBrand()`** / **`fetchPublicBrandConfig()`** ([`src/app/lib/public-brand.ts`](../src/app/lib/public-brand.ts)) for **`brand_name`**, **`footer`**, **`public_site_url`**, and **`support_email`** (from server JSON). [`support-email.ts`](../src/app/lib/support-email.ts) exposes a dev fallback constant for the brief moment before `GET /api/public/brand` resolves — see [DEPLOYMENT.md — White-label](./DEPLOYMENT.md#white-label-and-dev-defaults-environment-matrix).
-- **Page-level copy:** prefer **`src/app/config/*-copy.en.ts`** per flow (e.g. login). Marketing/dashboard strings may stay in components until i18n; group future translations under `src/app/locales/` (or a library) rather than scattering literals.
-- **Snapshot diagnostics and long explainers:** strings in `src/app/lib/snapshot-diagnostics.ts` (and similar “product explanation” modules) should follow the same future layout: **English defaults in code today**, **locale files keyed by stable ids** when i18n ships (avoid duplicating score/domain wording — import **`SCORE_LABELS` / `DOMAIN_DISPLAY_LABELS`** from `@glc/intake-core` / `auditTypes` re-exports so labels stay aligned with PDF and reports).
+- **Public brand:** wrap marketing routes with **`PublicBrandProvider`** and use **`usePublicBrand()`** / **`fetchPublicBrandConfig()`** (`public_brand`) for **`brand_name`**, **`footer`**, **`public_site_url`**, and **`support_email`** (from server JSON). `support-email.ts` exposes a dev fallback constant for the brief moment before `GET /api/public/brand` resolves — see [DEPLOYMENT.md — White-label](./DEPLOYMENT.md#white-label-and-dev-defaults-environment-matrix).
+- **Page-level copy:** prefer **`*_copy.en`** per flow (e.g. login). Marketing/dashboard strings may stay in components until i18n; group future translations under `` (or a library) rather than scattering literals.
+- **Snapshot diagnostics and long explainers:** strings in `snapshot_diagnostics` (and similar “product explanation” modules) should follow the same future layout: **English defaults in code today**, **locale files keyed by stable ids** when i18n ships (avoid duplicating score/domain wording — import **`SCORE_LABELS` / `DOMAIN_DISPLAY_LABELS`** from `@glc/intake-core` / `auditTypes` re-exports so labels stay aligned with PDF and reports).
 - **SPA route paths:** public and app paths are centralized in `@glc/intake-core` as **`SPA_ROUTE_SEGMENTS`** (marketing brief) and **`APP_ROUTE_SEGMENTS`** (full router); use these for new links and redirects instead of new string literals in `routes.tsx`.
 
 ---
@@ -139,7 +139,7 @@ Base heading sizes and weights are set globally in `theme.css` (`h1`–`h4`, `la
 
 **`mobile:` variant:** `width < 40rem` (same breakpoint notion as Tailwind `sm`). Define base layout for `sm+`, narrow overrides with `mobile:` — see `src/styles/tailwind.css`.
 
-**App shell (desktop vs narrow viewports):** `AppShell` (`src/app/components/AppShell.tsx`) uses a **fixed ink sidebar** from `sm` (`40rem`) upward. Below that breakpoint it switches to a **compact top bar** (logo, page title + subtitle, notifications, theme, menu), **scrollable main** with bottom padding for the tab bar, a **bottom tab row** (up to four primary routes derived from the same nav model as the sidebar), and a **slide-in menu** for the full route list, quick actions (new audit), Settings, and Sign out. Consultant primary tabs are the first four linked destinations (Dashboard + admin queues); clients get portal routes plus **New audit** when it is not already in the first four slots. **Route lists and mobile tab selection** are implemented in `src/app/lib/app-shell-nav.ts` (unit tests in `src/app/lib/__tests__/app-shell-nav.test.ts`) so sidebar and mobile chrome stay in sync.
+**App shell (desktop vs narrow viewports):** `AppShell` (`AppShell`) uses a **fixed ink sidebar** from `sm` (`40rem`) upward. Below that breakpoint it switches to a **compact top bar** (logo, page title + subtitle, notifications, theme, menu), **scrollable main** with bottom padding for the tab bar, a **bottom tab row** (up to four primary routes derived from the same nav model as the sidebar), and a **slide-in menu** for the full route list, quick actions (new audit), Settings, and Sign out. Consultant primary tabs are the first four linked destinations (Dashboard + admin queues); clients get portal routes plus **New audit** when it is not already in the first four slots. **Route lists and mobile tab selection** are implemented in `app_shell_nav` (unit tests in `app_shell_nav.test`) so sidebar and mobile chrome stay in sync.
 
 **Manual mobile QA (recommended):** spot-check `/portal` and `/dashboard` at **320 / 375 / 390** px width for horizontal overflow, tap targets (44px utilities in `theme.css`), and that the bottom tab bar does not cover the last lines of scrollable content.
 
@@ -155,7 +155,7 @@ Base heading sizes and weights are set globally in `theme.css` (`h1`–`h4`, `la
 
 **Viewport:** `index.html` uses `viewport-fit=cover` so safe-area insets apply on notched devices.
 
-**Representative responsive pages:** `Dashboard` uses a **card list** for audits below `sm` and keeps the data grid on wider screens; `KpiStrip` is **2×2** then **4×1**. `ClientPortal` reuses **`PortalAuditCard`** (`src/app/components/PortalAuditCard.tsx`) for consistent list density. `ActionPanel` row actions use **`mobile:opacity-100`** so deep links stay visible without hover. **`ClientAuditView`** and **`NewAudit`** use **`glc-page-content`**, stacked primary actions on narrow widths, and (for client self-serve) a mobile **Back to portal** link in the page body when the shell action is hidden. Admin queues **`AdminRequestQueue`**, **`AdminSnapshotQueue`**, and **`DiscoveryQueue`** share the same padding utility, **`glc-touch-target`** on filters and primary controls where it helps, and **`DiscoveryQueue`** moves **Copy discover link** / **Refresh** into **`AppShell` actions** so they stay in the top bar on phones.
+**Representative responsive pages:** `Dashboard` uses a **card list** for audits below `sm` and keeps the data grid on wider screens; `KpiStrip` is **2×2** then **4×1**. `ClientPortal` reuses **`PortalAuditCard`** (`PortalAuditCard`) for consistent list density. `ActionPanel` row actions use **`mobile:opacity-100`** so deep links stay visible without hover. **`ClientAuditView`** and **`NewAudit`** use **`glc-page-content`**, stacked primary actions on narrow widths, and (for client self-serve) a mobile **Back to portal** link in the page body when the shell action is hidden. Admin queues **`AdminRequestQueue`**, **`AdminSnapshotQueue`**, and **`DiscoveryQueue`** share the same padding utility, **`glc-touch-target`** on filters and primary controls where it helps, and **`DiscoveryQueue`** moves **Copy discover link** / **Refresh** into **`AppShell` actions** so they stay in the top bar on phones.
 
 ### Components and patterns
 
@@ -177,16 +177,16 @@ Prefer composing with tokens (`bg-background`, `text-foreground`, `border-border
 | Concern | Implementation |
 | --- | --- |
 | Persistence | `localStorage['glc-theme']`: `'dark'`, `'light'`, or omitted = `system` |
-| Apply | `applyGlcColorScheme()` in `main.tsx`; API `setGlcColorScheme`, `useGlcTheme()` in `src/app/lib/glc-theme.ts`, `src/app/hooks/useGlcTheme.ts` |
+| Apply | `applyGlcColorScheme()` in `main.tsx`; API `setGlcColorScheme`, `useGlcTheme()` in `glc_theme`, `useGlcTheme` |
 | UI | `ThemeToggle` in `AppShell` header + sidebar; `/login`, `/snapshot`, `/intake/:token`, `/discovery`; `/settings` for explicit System / Light / Dark |
-| Toasts | `GlcToaster` (`src/app/components/GlcToaster.tsx`) — `sonner` `theme` follows `useGlcTheme().isDark` (not `next-themes`; `src/app/components/ui/sonner.tsx` is unused unless wired separately) |
+| Toasts | `GlcToaster` (`GlcToaster`) — `sonner` `theme` follows `useGlcTheme().isDark` (not `next-themes`; `sonner` is unused unless wired separately) |
 | Canvas polish | Global vignette: `src/styles/index.css` |
 
 ### Product flows (UI contracts)
 
 **Public discovery (Mode C):** `DiscoverPage` — routes **`/discovery`** and **`/audit/discover`** (same component). Styling uses **`theme.css` tokens** (`--bg-canvas`, `--text-primary`, `--callout-*`, etc.) so the flow matches light/dark like the rest of the app. **`DiscoveryQueue`** (`/admin/discovery`) uses the same tokens; **Copy discover link** copies `origin + /discovery`. Session **`maturity_level`** (1–5) is an internal triage score from the **count** of generated finding cards in `discovery-flow.ts` (`computeScore`), not from per-card severity labels. Discovery heuristics use shared `@glc/intake-core` normalizers (`normalizeTeamSize`, `normalizeStage`, `normalizePrimaryGoal`, `normalizeOnlinePresence`, `includesCrmTool`) to keep FE findings and BE patch conversion aligned.
 
-**Public pre-brief (`IntakeBrief`, `/intake/:token`):** The API returns **identity first** (`INTAKE_IDENTITY_BRIEF_QUESTIONS` — policy **`identityFieldIds`**, currently bank stubs **`a11`**, **`a12`**, **`a2`**, **`a5`**, plus conditional **`intake_industry_specify`**) and then **`plan.visible`** bank rows; each item may include **`section`** for grouping. The form and review screens use `groupBriefQuestionsBySection` (adjacent same-title blocks; repeated titles like “Business”/`Goals` may appear as separate blocks following API order). Flow: **review** (edit shortcuts) → **Confirm and submit**. Token **`metadata`** pre-fills empty **`a12` / `a11` / `a2`** via `applyIntakeMetadataPrefill` (`src/app/lib/intake-client-copy.ts`); success copy uses the same helpers. Resubmit allowed until `expires_at`. Free-text fields use friendly placeholders and a helper note that short answers are acceptable (voice input is also supported by the browser).
+**Public pre-brief (`IntakeBrief`, `/intake/:token`):** The API returns **identity first** (`INTAKE_IDENTITY_BRIEF_QUESTIONS` — policy **`identityFieldIds`**, currently bank stubs **`a11`**, **`a12`**, **`a2`**, **`a5`**, plus conditional **`intake_industry_specify`**) and then **`plan.visible`** bank rows; each item may include **`section`** for grouping. The form and review screens use `groupBriefQuestionsBySection` (adjacent same-title blocks; repeated titles like “Business”/`Goals` may appear as separate blocks following API order). Flow: **review** (edit shortcuts) → **Confirm and submit**. Token **`metadata`** pre-fills empty **`a12` / `a11` / `a2`** via `applyIntakeMetadataPrefill` (`intake_client_copy`); success copy uses the same helpers. Resubmit allowed until `expires_at`. Free-text fields use friendly placeholders and a helper note that short answers are acceptable (voice input is also supported by the browser).
 
 **Question bank coverage hint:** `IntakeBankCoverageHint` + `useIntakeBankMetrics` on **New Audit** (Brief step), **Audit Workspace** sidebar (when `intake_brief` exists), and **Client portal** pre-audit brief — same branch-aware v1 score as the API (plan + stored **`responses`**; canonical revenue is bank id **`a10`**).
 
@@ -303,7 +303,7 @@ Only protected app surfaces are wrapped in `ProtectedRoute`. Public pages includ
 
 ## Hooks
 
-All hooks in `src/app/hooks/`.
+All hooks in ``.
 
 ### `useAuth()`
 ```typescript
@@ -314,7 +314,7 @@ const { user, isAuthenticated, loading, signOut } = useAuth();
 - `loading` is true until auth state is confirmed (prevents flash of login page)
 
 ### `useIntakeBankMetrics()` / `useIntakeWizard()`
-Defined in `useIntakeWizard.ts`. **`useIntakeBankMetrics(briefResponses)`** derives branch-aware question-bank v1 coverage (same `calcDataQualityScore` as the API) for UI such as **New Audit** step “Brief”. **`useIntakeWizard`** supports controlled mode (`value` + `onChange`), canonical **`sortStubsByBankOrder`**, and step navigation (`goNext` / `goPrev`, `currentStub`, `totalSteps`). **New Audit → Brief** and **Audit Workspace** use **`BriefLayoutPreferenceCards`** to choose **`BankClassicBriefFields`** vs **`IntakeBankWizard`** (consultant keys in `client-brief-layout-preference.ts`). Both layouts share visibility rules (`filterVisibleQuestions`); **no public website** sets `collection_mode` to discovery for metrics and for both layouts. Labels/types come from `bankQuestionUiCatalog.ts` + `question-bank.v1.json` (including canonical revenue id `a10`). Canonical list helper: `getVisibleBankBriefSections` in `src/app/data/bankClassicBrief.ts`. Required-field progress on **New Audit** / **Client portal** uses **`pipelineRequiredIdsForProductMode`** + `resolveExpressSlaRequiredIds` / `resolveFullSlaRequiredIds` (same rules as `brief-gates` on the server).
+Defined in `useIntakeWizard.ts`. **`useIntakeBankMetrics(briefResponses)`** derives branch-aware question-bank v1 coverage (same `calcDataQualityScore` as the API) for UI such as **New Audit** step “Brief”. **`useIntakeWizard`** supports controlled mode (`value` + `onChange`), canonical **`sortStubsByBankOrder`**, and step navigation (`goNext` / `goPrev`, `currentStub`, `totalSteps`). **New Audit → Brief** and **Audit Workspace** use **`BriefLayoutPreferenceCards`** to choose **`BankClassicBriefFields`** vs **`IntakeBankWizard`** (consultant keys in `client-brief-layout-preference.ts`). Both layouts share visibility rules (`filterVisibleQuestions`); **no public website** sets `collection_mode` to discovery for metrics and for both layouts. Labels/types come from `bankQuestionUiCatalog.ts` + `question-bank.v1.json` (including canonical revenue id `a10`). Canonical list helper: `getVisibleBankBriefSections` in `bankClassicBrief`. Required-field progress on **New Audit** / **Client portal** uses **`pipelineRequiredIdsForProductMode`** + `resolveExpressSlaRequiredIds` / `resolveFullSlaRequiredIds` (same rules as `brief-gates` on the server).
 
 ### `useAudit(id: string | undefined)`
 ```typescript
@@ -328,12 +328,12 @@ const { audit, loading, error, refetch } = useAudit(id);
 ### `usePipeline(id: string | undefined)`
 ```typescript
 const {
-  events,
-  phases,
-  currentPhase,
-  reviewPending,
-  startPipeline,
-  approveReview,
+ events,
+ phases,
+ currentPhase,
+ reviewPending,
+ startPipeline,
+ approveReview,
 } = usePipeline(id);
 ```
 - Subscribes to `pipeline_events` for `audit_id=eq.${id}` via Supabase Realtime
@@ -351,7 +351,7 @@ const { audits, loading, error } = useAudits();
 - `GET /api/dashboard` through the same QueryClient (staleTime ~2 minutes). `reloadDashboard()` invalidates the dashboard query.
 
 ### Server data caching (overview)
-- **Query keys** live in `src/app/lib/glc-keys.ts`. **Targeted invalidation** after pipeline steps / brief saves: `invalidateAuditRelatedQueries` in `glc-invalidate-queries.ts` (audit + brief payloads).
+- **Query keys** live in `glc_keys`. **Targeted invalidation** after pipeline steps / brief saves: `invalidateAuditRelatedQueries` in `glc-invalidate-queries.ts` (audit + brief payloads).
 - **Admin Request queue** and **Discovery sessions** use a longer stale window (5 minutes).
 - **Window focus:** `refetchOnWindowFocus` is off in `glc-query-client.ts` so switching browser tabs does not trigger a blanket refetch; reconnect refetch stays on. **ProtectedRoute** blocks role-gated pages only while `profileLoading && !profile` (first load). **useProfile** treats repeat `SIGNED_IN` for the same user as a background refresh so the shell is not unmounted and local hooks (e.g. pipeline state) are not reset. Use per-page refresh / invalidation when fresh data is required.
 - **Admin Snapshot queue** uses a short stale window (3 minutes) and supports manual refresh.
@@ -364,20 +364,20 @@ const { audits, loading, error } = useAudits();
 Persistent layout wrapper — sidebar nav + header.
 
 - `useCurrentAuditId()` hook extracts audit ID from current URL path:
-  ```typescript
-  const match = pathname.match(/^\/(audit|pipeline|reports|strategy)\/([a-f0-9-]+)/);
-  return match ? match[2] : null;
-  ```
+ ```typescript
+ const match = pathname.match(/^\/(audit|pipeline|reports|strategy)\/([a-f0-9-]+)/);
+ return match ? match[2] : null;
+ ```
 - `buildNav(auditId)` builds nav items; audit-specific links are `null` when no audit in context (rendered as disabled/greyed)
 - `useAuth()` provides user email display and `signOut` button
 
 ### `ProtectedRoute.tsx`
 ```tsx
 export function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth();
-  if (loading) return <LoadingSpinner />;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
-  return <>{children}</>;
+ const { isAuthenticated, loading } = useAuth();
+ if (loading) return <LoadingSpinner />;
+ if (!isAuthenticated) return <Navigate to="/login" replace />;
+ return <>{children}</>;
 }
 ```
 
@@ -391,57 +391,57 @@ Modal shown at review gates in PipelineMonitor.
 
 ## Data Layer
 
-### `src/app/lib/supabase.ts`
+### `supabase`
 ```typescript
 import { createClient } from '@supabase/supabase-js';
 export const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
+ import.meta.env.VITE_SUPABASE_URL,
+ import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 ```
 
-### `src/app/data/apiService.ts`
+### `apiService`
 Typed fetch wrapper. Adds `Authorization: Bearer <token>` from current Supabase session:
 ```typescript
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const { data: { session } } = await supabase.auth.getSession();
-  const res = await fetch(`${import.meta.env.VITE_API_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session?.access_token}`,
-      ...options?.headers,
-    },
-  });
-  if (!res.ok) throw new Error((await res.json()).error || res.statusText);
-  return res.json();
+ const { data: { session } } = await supabase.auth.getSession();
+ const res = await fetch(`${import.meta.env.VITE_API_URL}${path}`, {
+ ...options,
+ headers: {
+ 'Content-Type': 'application/json',
+ 'Authorization': `Bearer ${session?.access_token}`,
+ ...options?.headers,
+ },
+ });
+ if (!res.ok) throw new Error((await res.json()).error || res.statusText);
+ return res.json();
 }
 
 export const api = {
-  createAudit: (url, name?, industry?) => apiFetch('/api/audits', { method: 'POST', body: JSON.stringify({ company_url: url, company_name: name, industry }) }),
-  getAudit: (id) => apiFetch(`/api/audits/${id}`),
-  getAudits: () => apiFetch('/api/audits'),
-  startPipeline: (id) => apiFetch(`/api/audits/${id}/pipeline/start`, { method: 'POST' }),
-  approveReview: (id, phase, notes) => apiFetch(`/api/audits/${id}/reviews/${phase}`, { method: 'POST', body: JSON.stringify(notes) }),
+ createAudit: (url, name?, industry?) => apiFetch('/api/audits', { method: 'POST', body: JSON.stringify({ company_url: url, company_name: name, industry }) }),
+ getAudit: (id) => apiFetch(`/api/audits/${id}`),
+ getAudits: () => apiFetch('/api/audits'),
+ startPipeline: (id) => apiFetch(`/api/audits/${id}/pipeline/start`, { method: 'POST' }),
+ approveReview: (id, phase, notes) => apiFetch(`/api/audits/${id}/reviews/${phase}`, { method: 'POST', body: JSON.stringify(notes) }),
 };
 ```
 
-### `src/app/data/auditTypes.ts`
+### `auditTypes`
 TypeScript types matching the DB schema. Includes `DOMAIN_KEYS` constant:
 ```typescript
 export const DOMAIN_KEYS = [
-  'tech_infrastructure',
-  'security_compliance',
-  'seo_digital',
-  'ux_conversion',
-  'marketing_utp',
-  'automation_processes',
+ 'tech_infrastructure',
+ 'security_compliance',
+ 'seo_digital',
+ 'ux_conversion',
+ 'marketing_utp',
+ 'automation_processes',
 ] as const;
 ```
 
 ---
 
-## Routing (`src/app/routes.tsx`)
+## Routing (`routes`)
 
 The app uses **`createBrowserRouter`** with a root layout route (`<Outlet />`) and **`errorElement: <RouteErrorPage />`** so route render failures show a neutral recovery screen (`GlcAppErrorScreen`: reference id, copy-for-support, optional `POST /api/log` via `api.reportUiIncident` when signed in). The root **`ErrorBoundary`** in `main.tsx` wraps the same UI for errors outside the router tree. Client navigation from that screen uses plain `<a href>` so it works above `RouterProvider`. Frontend **`logger`** and **`reportUiIncident`** attach a coarse **`client_env`** object (e.g. `os_family` windows/macos/android/ios, `device_class`, `browser_coarse`, short UA excerpt) for triage; copy-for-support text includes the same OS/browser line. In local dev, `logger` keeps events console-only (no remote ingest) and supports `VITE_DEV_CONSOLE_LOG_LEVEL` (`debug|info|warn|error`, default `warn`).
 
@@ -467,13 +467,44 @@ The app uses **`createBrowserRouter`** with a root layout route (`<Outlet />`) a
 `vite.config.ts` proxies `/api/*` to the backend during development:
 ```typescript
 server: {
-  proxy: {
-    '/api': {
-      target: 'http://localhost:3001',
-      changeOrigin: true,
-    },
-  },
+ proxy: {
+ '/api': {
+ target: 'http://localhost:3001',
+ changeOrigin: true,
+ },
+ },
 },
 ```
 
 This means `fetch('/api/audits')` works in dev without CORS issues. In production, the full `VITE_API_URL` is used.
+
+## Для разработчиков
+
+Ниже перечислены технические пути реализации для инженерной навигации.
+
+- `src/app/config/app-feature-flags.ts`
+- `src/app/lib/storage-keys.ts`
+- `src/app/lib/supported-ui-locales.ts`
+- `src/app/config/*-copy.en.ts`
+- `src/app/lib/public-brand.ts`
+- `src/app/locales/`
+- `src/app/lib/snapshot-diagnostics.ts`
+- `src/app/components/AppShell.tsx`
+- `src/app/lib/app-shell-nav.ts`
+- `src/app/lib/__tests__/app-shell-nav.test.ts`
+- `src/app/components/PortalAuditCard.tsx`
+- `src/app/lib/glc-theme.ts`
+- `src/app/hooks/useGlcTheme.ts`
+- `src/app/components/GlcToaster.tsx`
+- `src/app/components/ui/sonner.tsx`
+- `src/app/lib/intake-client-copy.ts`
+- `src/app/hooks/`
+- `src/app/data/bankClassicBrief.ts`
+- `src/app/lib/glc-keys.ts`
+- `src/app/lib/supabase.ts`
+- `src/app/data/apiService.ts`
+- `src/app/data/auditTypes.ts`
+- `src/app/routes.tsx`
+- `packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json`
+- `src/app/lib/support-email.ts`
+- `src/app/config/`

@@ -178,6 +178,10 @@ export const SYSTEM_DEFAULTS = {
     timeoutMs: 90_000,
     cbThreshold: 3,
     cbTtlSec: 60,
+    /** HTTP statuses on which `BaseAgent` retries the Claude API call. */
+    retryableAnthropicStatuses: [429, 500, 529] as const,
+    /** Subset of retryable statuses that increment the distributed circuit-breaker counter. */
+    circuitBreakerAnthropicStatuses: [500, 529] as const,
   },
   /**
    * External truth connectors (`ConnectorRunner`, `server/src/connectors/*`).
@@ -211,12 +215,23 @@ export const SYSTEM_DEFAULTS = {
     lowConfidenceRatioWarn: 0.5,
     /** `unknown_items` length above which we flag excessive data gaps (Rule: excessive_data_gaps). */
     maxUnknownItemsForInfo: 4,
+    /**
+     * Score threshold for Rule 1 (`score_severity_mismatch`):
+     * - if domain.score >= this value AND there is at least one `critical` issue => emit a warning.
+     */
+    scoreSeverityMismatchCriticalMinScore: 4,
+    /**
+     * Score threshold for Rule 1 (`score_severity_mismatch`):
+     * - if domain.score <= this value AND there are issues but none are `critical`/`high` => emit an info flag.
+     */
+    scoreSeverityMismatchLowMaxScore: 2,
   },
   /**
-   * Evaluation `evaluation_datasets` inserts: `isEvaluationDatasetsInsertEnabled()` in `feature-flags.ts`.
+   * Evaluation `evaluation_datasets` inserts: `isEvaluationDatasetsInsertEnabled()` in `feature-flags.ts`
+   * (default: `featureFlags.evaluationDatasetsInsertEnabled`).
    *
    * ML Bandits: ε-greedy agent-variant selection per GLC domain phase.
-   * Master on/off: `isBanditsEnabled()` in `feature-flags.ts` (FEATURE_BANDITS=true).
+   * Master on/off: `isBanditsEnabled()` in `feature-flags.ts` (default: `featureFlags.banditsEnabled`; env FEATURE_BANDITS=true enables).
    *
    * Activation requires all three readiness gates to pass (see bandit.ts).
    * Falls back to 'default' variant on any gate failure, disabled flag, or DB error.
@@ -242,6 +257,19 @@ export const SYSTEM_DEFAULTS = {
   evaluationDatasets: {
     /** Retry attempts for `(audit_id, phase_id, run_number)` insert conflicts in `evaluation_datasets`. */
     insertMaxRetries: 3,
+  },
+  /**
+   * Default on/off for product toggles when the corresponding env var is unset.
+   * Call sites: `server/src/config/feature-flags.ts` only.
+   */
+  featureFlags: {
+    evaluationDatasetsInsertEnabled: true,
+    securityTxtConnectorEnabled: true,
+    banditsEnabled: false,
+    autoLoopEnabled: false,
+    causalDagEnabled: false,
+    autoRemediationEnabled: false,
+    benchmarksEnabled: false,
   },
   /**
    * Auto-loop: targeted agent rerun when Decision Layer returns 'refine'.
@@ -466,6 +494,35 @@ export const SYSTEM_DEFAULTS = {
     axeNavigateTimeoutMsDefault: 12_000,
     axeNavigateTimeoutMsMin: 4000,
     axeNavigateTimeoutMsMax: 30_000,
+  },
+  /**
+   * Headless Lighthouse `maxWaitForLoad` clamp in `runLighthouseAuditSummary` (floor / cap around caller `budgetMs`).
+   * Narrower than `auditDeepScan` budget bounds: this caps a single Lighthouse CLI run, not the full deep-scan budget range.
+   */
+  lighthouseRun: {
+    maxWaitForLoadClampMinMs: 8000,
+    maxWaitForLoadClampMaxMs: 55_000,
+    /**
+     * Headless Chrome flags passed to `chrome-launcher` in `runLighthouseAuditSummary`.
+     * Tune for container/CI constraints alongside Lighthouse budgets above.
+     */
+    chromeLauncherFlags: [
+      '--headless',
+      '--no-sandbox',
+      '--disable-gpu',
+      '--disable-dev-shm-usage',
+    ] as const,
+    /** Lighthouse `onlyCategories` passed to the Node API. */
+    onlyCategories: ['performance', 'accessibility', 'best-practices', 'seo'] as const,
+    /** When `lhr` is missing after a run. */
+    noReportErrorMessage: 'Lighthouse returned no report',
+  },
+  /**
+   * Chrome major token in Mozilla-compatible snapshot/Playwright user-agent strings.
+   * Revisit when upgrading the `playwright` package (see `playwright-user-agent.ts`).
+   */
+  playwrightSnapshotUserAgent: {
+    chromeMajor: '120',
   },
   /**
    * Version token in `GLC-*` product names inside outbound user-agents (not the Chromium build string).

@@ -31,7 +31,7 @@ This prevents storing user-specific audit data in shared caches.
 
 **Auth:** none.
 
-Returns non-secret marketing defaults (`brand_name`, `support_email`, `public_site_url`, `no_public_website_display_en`, structured `footer` strings). Source: `packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json` (package **`@glc/dev-brand-defaults`**, edit for white-label); `public_site_url` comes from **`GLC_PUBLIC_SITE_URL`**. The SPA uses bundled `@glc/dev-brand-defaults` until the request succeeds. JSON **`support_email`:** explicit **`null`** hides public contact in the SPA; omitted or empty string falls back to **`GLC_DEV_SUPPORT_EMAIL`** in server config (`public-brand-config.ts`). Field **`no_public_website_display_en`** is the English label for audits without a public URL (stable i18n key: **`glc.audit.noPublicWebsite`** in `@glc/intake-core`).
+Returns non-secret marketing defaults (`brand_name`, `support_email`, `public_site_url`, `no_public_website_display_en`, structured `footer` strings). Source: `public_brand_defaults.v1` (package **`@glc/dev-brand-defaults`**, edit for white-label); `public_site_url` comes from **`GLC_PUBLIC_SITE_URL`**. The SPA uses bundled `@glc/dev-brand-defaults` until the request succeeds. JSON **`support_email`:** explicit **`null`** hides public contact in the SPA; omitted or empty string falls back to **`GLC_DEV_SUPPORT_EMAIL`** in server config (`public-brand-config.ts`). Field **`no_public_website_display_en`** is the English label for audits without a public URL (stable i18n key: **`glc.audit.noPublicWebsite`** in `@glc/intake-core`).
 
 ---
 
@@ -54,10 +54,10 @@ Returns current authenticated user profile metadata.
 
 ```json
 {
-  "id": "uuid",
-  "role": "consultant",
-  "email": "user@example.com",
-  "full_name": "Jane Doe"
+ "id": "uuid",
+ "role": "consultant",
+ "email": "user@example.com",
+ "full_name": "Jane Doe"
 }
 ```
 
@@ -71,7 +71,7 @@ Updates editable profile fields for the current user.
 
 ```json
 {
-  "full_name": "Jane Doe"
+ "full_name": "Jane Doe"
 }
 ```
 
@@ -85,7 +85,7 @@ Notes:
 
 ## Frontend log ingest
 
-Structured log events from the browser (`src/app/lib/logger.ts`). Failures are non-fatal for UX.
+Structured log events from the browser (`logger`). Failures are non-fatal for UX.
 
 Dev behavior: in local frontend dev (`import.meta.env.DEV`), logger events stay console-only and are not sent to `/api/log` or `/api/log/snapshot`. Console verbosity can be tuned with `VITE_DEV_CONSOLE_LOG_LEVEL` (`debug|info|warn|error`, default `warn`).
 
@@ -123,13 +123,13 @@ Assigns which consultant owns **client self-serve** audits (`audits.user_id` whe
 
 ```json
 {
-  "stored_owner_user_id": "uuid | null",
-  "effective_owner_user_id": "uuid | null",
-  "effective_ready": true,
-  "env_fallback_active": false,
-  "implicit_fallback_active": false,
-  "consultants": [{ "id": "uuid", "full_name": "Jane", "email": "jane@example.com" }],
-  "can_manage": true
+ "stored_owner_user_id": "uuid | null",
+ "effective_owner_user_id": "uuid | null",
+ "effective_ready": true,
+ "env_fallback_active": false,
+ "implicit_fallback_active": false,
+ "consultants": [{ "id": "uuid", "full_name": "Jane", "email": "jane@example.com" }],
+ "can_manage": true
 }
 ```
 
@@ -187,10 +187,10 @@ Returns effective runtime values (DB override when set, otherwise app-config fal
 
 ```json
 {
-  "intake_token_ttl_days": 7,
-  "evaluation_retention_default_days": 90,
-  "evaluation_retention_extended_days": 365,
-  "evaluation_retention_internal_only_days": 365
+ "intake_token_ttl_days": 7,
+ "evaluation_retention_default_days": 90,
+ "evaluation_retention_extended_days": 365,
+ "evaluation_retention_internal_only_days": 365
 }
 ```
 
@@ -202,10 +202,10 @@ Returns effective runtime values (DB override when set, otherwise app-config fal
 
 ```json
 {
-  "intake_token_ttl_days": 7,
-  "evaluation_retention_default_days": 90,
-  "evaluation_retention_extended_days": 365,
-  "evaluation_retention_internal_only_days": 365
+ "intake_token_ttl_days": 7,
+ "evaluation_retention_default_days": 90,
+ "evaluation_retention_extended_days": 365,
+ "evaluation_retention_internal_only_days": 365
 }
 ```
 
@@ -217,11 +217,11 @@ Returns effective runtime values (DB override when set, otherwise app-config fal
 
 ```json
 {
-  "ok": true,
-  "intake_token_ttl_days": 7,
-  "evaluation_retention_default_days": 90,
-  "evaluation_retention_extended_days": 365,
-  "evaluation_retention_internal_only_days": 365
+ "ok": true,
+ "intake_token_ttl_days": 7,
+ "evaluation_retention_default_days": 90,
+ "evaluation_retention_extended_days": 365,
+ "evaluation_retention_internal_only_days": 365
 }
 ```
 
@@ -231,7 +231,7 @@ Returns effective runtime values (DB override when set, otherwise app-config fal
 
 ## Domain benchmarks
 
-Aggregated peer distributions for **`control_object.confidence.overall`** per domain phase. Source table: **`evaluation_datasets`** joined to **`audits.industry`**. Only rows with **`decision_applied`** in `accept` / `accept_with_warnings` are included. Tunables: **`SYSTEM_DEFAULTS.benchmarks`** in `server/src/config/system-defaults.ts`. See **`docs/adrs/ADR-DOMAIN-BENCHMARKS.md`**.
+Aggregated peer distributions for **`control_object.confidence.overall`** per domain phase. Source table: **`evaluation_datasets`** joined to **`audits.industry`**. Only rows with **`decision_applied`** in `accept` / `accept_with_warnings` are included. Tunables: **`SYSTEM_DEFAULTS.benchmarks`** in `system_defaults`. See **`docs/adrs/ADR-DOMAIN-BENCHMARKS.md`**.
 
 ### `GET /api/benchmarks`
 
@@ -245,18 +245,18 @@ Aggregated peer distributions for **`control_object.confidence.overall`** per do
 
 ```json
 {
-  "id": "uuid",
-  "phase_id": "security_compliance",
-  "industry": "fintech",
-  "period": "last_90d",
-  "sample_count": 47,
-  "percentiles": { "p25": 61, "p50": 74, "p75": 83, "p90": 91 },
-  "avg_score": 73.4,
-  "hallucination_rate_p50": 0.1,
-  "risky_promise_rate_p50": 0.05,
-  "unverified_rate_p50": 0.2,
-  "top_error_types": ["compliance_unverified", "security_overclaim"],
-  "computed_at": "2026-04-12T02:03:41.000Z"
+ "id": "uuid",
+ "phase_id": "security_compliance",
+ "industry": "fintech",
+ "period": "last_90d",
+ "sample_count": 47,
+ "percentiles": { "p25": 61, "p50": 74, "p75": 83, "p90": 91 },
+ "avg_score": 73.4,
+ "hallucination_rate_p50": 0.1,
+ "risky_promise_rate_p50": 0.05,
+ "unverified_rate_p50": 0.2,
+ "top_error_types": ["compliance_unverified", "security_overclaim"],
+ "computed_at": "2026-04-12T02:03:41.000Z"
 }
 ```
 
@@ -301,16 +301,16 @@ Create a new audit.
 
 ```json
 {
-  "company_url": "https://example.com",
-  "company_name": "Example Co", // optional
-  "industry": "E-commerce", // optional
-  "execution_plan": {
-    "selected_domains": ["tech_infrastructure", "security_compliance"],
-    "depth": "standard",
-    "source": "user_selected",
-    "coverage_package": "pro",
-    "include_strategy": true
-  }
+ "company_url": "https://example.com",
+ "company_name": "Example Co", // optional
+ "industry": "E-commerce", // optional
+ "execution_plan": {
+ "selected_domains": ["tech_infrastructure", "security_compliance"],
+ "depth": "standard",
+ "source": "user_selected",
+ "coverage_package": "pro",
+ "include_strategy": true
+ }
 }
 ```
 
@@ -320,8 +320,8 @@ Create a new audit.
 
 ```json
 {
-  "id": "uuid",
-  "status": "created"
+ "id": "uuid",
+ "status": "created"
 }
 ```
 
@@ -335,24 +335,24 @@ List audits visible to the caller (summary fields only): consultants see rows th
 
 ```json
 {
-  "data": [
-    {
-      "id": "uuid",
-      "company_url": "https://example.com",
-      "company_name": "Example Co",
-      "industry": "E-commerce",
-      "product_mode": "full",
-      "status": "completed",
-      "current_phase": 7,
-      "overall_score": 3.8,
-      "tokens_used": 120000,
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-02T00:00:00Z"
-    }
-  ],
-  "total": 1,
-  "limit": 50,
-  "offset": 0
+ "data": [
+ {
+ "id": "uuid",
+ "company_url": "https://example.com",
+ "company_name": "Example Co",
+ "industry": "E-commerce",
+ "product_mode": "full",
+ "status": "completed",
+ "current_phase": 7,
+ "overall_score": 3.8,
+ "tokens_used": 120000,
+ "created_at": "2024-01-01T00:00:00Z",
+ "updated_at": "2024-01-02T00:00:00Z"
+ }
+ ],
+ "total": 1,
+ "limit": 50,
+ "offset": 0
 }
 ```
 
@@ -366,42 +366,42 @@ Full audit state: audit meta + all domain results + strategy.
 
 ```json
 {
-  "meta": {
-    "id": "uuid",
-    "company_url": "...",
-    "company_name": "...",
-    "industry": "...",
-    "status": "completed",
-    "overall_score": 3.8,
-    "tokens_used": 45000,
-    "token_budget": 200000,
-    "created_at": "..."
-  },
-  "recon": { "company_name": "...", "industry": "...", "tech_stack": {}, ... },
-  "domains": {
-    "tech_infrastructure": {
-      "score": 4,
-      "label": "Good",
-      "summary": "...",
-      "strengths": ["..."],
-      "weaknesses": ["..."],
-      "issues": [{ "severity": "high", "title": "...", "description": "...", "impact": "..." }],
-      "quick_wins": [{ "id": "uuid", "title": "...", "effort": "low", "timeframe": "3 days" }],
-      "recommendations": [{ "title": "...", "priority": "high", "cost": "€500", "time": "2 weeks", "impact": "..." }]
-    },
-    "security_compliance": { ... },
-    "seo_digital": { ... },
-    "ux_conversion": { ... },
-    "marketing_utp": { ... },
-    "automation_processes": { ... }
-  },
-  "strategy": {
-    "executive_summary": "...",
-    "overall_score": 3.8,
-    "quick_wins": [{ "id": "uuid", "title": "...", "impact": "high", "effort": "low" }],
-    "medium_term": [...],
-    "strategic": [...]
-  }
+ "meta": {
+ "id": "uuid",
+ "company_url": "...",
+ "company_name": "...",
+ "industry": "...",
+ "status": "completed",
+ "overall_score": 3.8,
+ "tokens_used": 45000,
+ "token_budget": 200000,
+ "created_at": "..."
+ },
+ "recon": { "company_name": "...", "industry": "...", "tech_stack": {}, ... },
+ "domains": {
+ "tech_infrastructure": {
+ "score": 4,
+ "label": "Good",
+ "summary": "...",
+ "strengths": ["..."],
+ "weaknesses": ["..."],
+ "issues": [{ "severity": "high", "title": "...", "description": "...", "impact": "..." }],
+ "quick_wins": [{ "id": "uuid", "title": "...", "effort": "low", "timeframe": "3 days" }],
+ "recommendations": [{ "title": "...", "priority": "high", "cost": "€500", "time": "2 weeks", "impact": "..." }]
+ },
+ "security_compliance": { ... },
+ "seo_digital": { ... },
+ "ux_conversion": { ... },
+ "marketing_utp": { ... },
+ "automation_processes": { ... }
+ },
+ "strategy": {
+ "executive_summary": "...",
+ "overall_score": 3.8,
+ "quick_wins": [{ "id": "uuid", "title": "...", "impact": "high", "effort": "low" }],
+ "medium_term": [...],
+ "strategic": [...]
+ }
 }
 ```
 
@@ -435,10 +435,10 @@ Records `brief_help_requested_at` / `brief_help_client_message` on the audit and
 
 **GET `200`:** Compact **IntakePlan**-shaped payload for the audit’s current `responses` and `collection_mode`, using the same **surface** rule as the main brief GET (consultant vs client; `surface` is `null` when no layout surface applies, e.g. `discovery`). Includes:
 
-- **`intake_versions`** — tuple used to build the plan  
-- **`eligible`**, **`visible`**, **`required`**, **`hidden`**, **`deferred`**, **`sla_visible_bank_ids`**  
-- **`step_plan`**, **`layout_slots`** — when a layout surface is active  
-- **`questions`** — rows `{ id, label, section, priority, answer? }` for each **`visible`** bank id; **`answer`** is the canon contract from `question-bank.v1.json` (`type`, `maxLength`, `options`, etc.). Any `optionsRef` is expanded to inline `options` for clients.  
+- **`intake_versions`** — tuple used to build the plan 
+- **`eligible`**, **`visible`**, **`required`**, **`hidden`**, **`deferred`**, **`sla_visible_bank_ids`** 
+- **`step_plan`**, **`layout_slots`** — when a layout surface is active 
+- **`questions`** — rows `{ id, label, section, priority, answer? }` for each **`visible`** bank id; **`answer`** is the canon contract from `question-bank.v1.json` (`type`, `maxLength`, `options`, etc.). Any `optionsRef` is expanded to inline `options` for clients. 
 - **`derived`** — `{ ai_readiness_score, confidence_overall, website_gate }` (same heuristics as `IntakePlan` derived layer)
 
 Use for tooling, previews, or clients that want a compact **IntakePlan** view. **`GET .../brief` already returns the same plan-driven `questions` shape** (`getBriefQuestionsByIds(plan.visible)` after `buildIntakePlan`); neither endpoint returns every row of the **classic brief catalog** (export **`BRIEF_QUESTIONS`** in `@glc/intake-core`, built from **`modes.classic_brief.main`** in `intake-policy.v1.json`) — only **plan.visible** ids get question rows for the current responses / surface.
@@ -474,9 +474,9 @@ When `use_scraped_context` is **true** but the snapshot **did not retrieve HTML*
 
 ```json
 {
-  "ok": true,
-  "snapshot_scrape_limited": true,
-  "snapshot_scrape_robots_blocked": true
+ "ok": true,
+ "snapshot_scrape_limited": true,
+ "snapshot_scrape_robots_blocked": true
 }
 ```
 
@@ -492,7 +492,7 @@ Start Phase 0 (Recon). Audit must be in `created` status; intake brief gates mus
 Supports optimistic race protection via DB compare-and-set. If another request already claimed execution, returns `409`.
 Execution is queue-backed when Redis is configured: route enqueues a pipeline job and returns immediately; worker processes perform phase execution. If queue backend is unavailable, runtime falls back to in-process execution.
 
-Optional JSON body: `{ "disable_auto_remediate": true }` skips Phase 9 auto-remediation for pipeline work triggered by this request (including BullMQ worker runs). When omitted, remediation follows `FEATURE_AUTO_REMEDIATION` in `server/src/config/feature-flags.ts`.
+Optional JSON body: `{ "disable_auto_remediate": true }` skips Phase 9 auto-remediation for pipeline work triggered by this request (including BullMQ worker runs). When omitted, remediation follows `FEATURE_AUTO_REMEDIATION` in `feature_flags`.
 
 Phase execution after recon is controlled by `audits.execution_plan.selected_domains` (partial coverage supported). `execution_plan` is canonical for phase routing.
 
@@ -534,7 +534,7 @@ Optional field `disable_auto_remediate: true` in the same JSON body — same sem
 
 ### `POST /api/audits/:id/pipeline/stop`
 
-Cancel an in-progress or pending pipeline safely. Allowed for the audit owner consultant (`user_id`) and linked client (`client_id`).  
+Cancel an in-progress or pending pipeline safely. Allowed for the audit owner consultant (`user_id`) and linked client (`client_id`). 
 This endpoint sets `audits.status = "cancelled"` via compare-and-set claim so concurrent requests cannot overwrite the cancel action.
 
 Returns `400` for terminal states (`completed`, `failed`, `cancelled`) and `409` if another request won the optimistic claim race.
@@ -549,21 +549,21 @@ Returns `400` for terminal states (`completed`, `failed`, `cancelled`) and `409`
 
 ### `GET /api/audits/:id/pipeline/status`
 
-Current pipeline state. Recent **`pipeline_events`** rows are capped at **`SYSTEM_DEFAULTS.routeQueries.pipelineStatusEventsLimit`** (default **50**; see `PIPELINE_STATUS_EVENTS_LIMIT` in `server/src/config/route-query-limits.ts`).
+Current pipeline state. Recent **`pipeline_events`** rows are capped at **`SYSTEM_DEFAULTS.routeQueries.pipelineStatusEventsLimit`** (default **50**; see `PIPELINE_STATUS_EVENTS_LIMIT` in `route_query_limits`).
 
-Orchestrator-emitted `error` rows may include **`data.error_code`** for stable downstream handling. Source of truth: **`PIPELINE_EVENT_ERROR_CODES`** in `server/src/config/pipeline-event-error-codes.ts` (e.g. parallel block total failure, free snapshot capacity, free snapshot generic failure).
+Orchestrator-emitted `error` rows may include **`data.error_code`** for stable downstream handling. Source of truth: **`PIPELINE_EVENT_ERROR_CODES`** in `pipeline_event_error_codes` (e.g. parallel block total failure, free snapshot capacity, free snapshot generic failure).
 
 **Response `200`:**
 
 ```json
 {
-  "status": "auto",
-  "current_phase": 2,
-  "tokens_used": 32000,
-  "token_budget": 200000,
-  "product_mode": "full",
-  "events": [],
-  "reviews": []
+ "status": "auto",
+ "current_phase": 2,
+ "tokens_used": 32000,
+ "token_budget": 200000,
+ "product_mode": "full",
+ "events": [],
+ "reviews": []
 }
 ```
 
@@ -579,8 +579,8 @@ Submit review approval at a review gate. Optionally includes consultant and inte
 
 ```json
 {
-  "consultant_notes": "Client mentioned they recently migrated to Shopify.",
-  "interview_notes": "CEO says their main challenge is converting mobile visitors."
+ "consultant_notes": "Client mentioned they recently migrated to Shopify.",
+ "interview_notes": "CEO says their main challenge is converting mobile visitors."
 }
 ```
 
@@ -588,13 +588,13 @@ Submit review approval at a review gate. Optionally includes consultant and inte
 
 ```json
 {
-  "id": "uuid",
-  "audit_id": "uuid",
-  "after_phase": 4,
-  "status": "approved",
-  "consultant_notes": "Client mentioned they recently migrated to Shopify.",
-  "interview_notes": "CEO says their main challenge is converting mobile visitors.",
-  "approved_at": "2026-01-01T10:00:00.000Z"
+ "id": "uuid",
+ "audit_id": "uuid",
+ "after_phase": 4,
+ "status": "approved",
+ "consultant_notes": "Client mentioned they recently migrated to Shopify.",
+ "interview_notes": "CEO says their main challenge is converting mobile visitors.",
+ "approved_at": "2026-01-01T10:00:00.000Z"
 }
 ```
 
@@ -732,17 +732,17 @@ Start a free snapshot run. **Auth:** none (public). The server sets or refreshes
 
 **Response `202`:** `{ "snapshot_token": "<uuid v4>", "status": "running" }`.
 
-**`400`:** missing or non-string **`company_url`**. Rejected URLs (SSRF / policy): JSON body uses stable **`code`** values under the `PUBLIC_URL_*` family (e.g. `PUBLIC_URL_HOST_NOT_ALLOWED`, `PUBLIC_URL_DNS_NON_PUBLIC`) with English **`error`** from [`api-user-messages.en.json`](../server/src/config/api-user-messages.en.json) — same shape as **`POST /api/audits`** and audit-request URL validation.
+**`400`:** missing or non-string **`company_url`**. Rejected URLs (SSRF / policy): JSON body uses stable **`code`** values under the `PUBLIC_URL_*` family (e.g. `PUBLIC_URL_HOST_NOT_ALLOWED`, `PUBLIC_URL_DNS_NON_PUBLIC`) with English **`error`** from `api-user-messages.en.json` — same shape as **`POST /api/audits`** and audit-request URL validation.
 
 **`503`:** `{ "error", "code": "SELF_SERVE_OWNER_UNAVAILABLE" }` when the platform **self-serve audit owner** cannot be resolved (same operational requirement as client-created audits — configure `platform_settings.self_serve_audit_owner_user_id` or a valid implicit fallback; see **`GET /api/platform/self-serve-owner`** above).
 
-**Implementation:** deterministic scanner — **no LLM**. Tiered HTTP fetch (homepage plus up to a few same-origin URLs), cheerio-based **facts**, YAML-driven **site profile** (classification) and **audit rules** (expanded YAML catalog; some rules may be **skipped** per `skipForSiteTypes` / `onlyForSiteTypes` using classifier `siteType`), overall score **0–100** with four category scores. Outbound HTTP user-agents for snapshot/crawl paths embed **`GLC_PUBLIC_SITE_URL`** (HTTPS origin, no trailing slash; **required in production**; dev default **`https://glctech.es`** if unset). **Wall clock:** **`SYSTEM_DEFAULTS.snapshotFetchBudgetMs`** (default **10000** ms; see `server/src/config/snapshot-fetch-budget.ts`). **robots.txt:** fetches `/robots.txt` (cached per origin; TTL **`SYSTEM_DEFAULTS.snapshotRobots.cacheMs`**, default 20 minutes). Honors `Disallow` for the snapshot user-agent (`*` and `GLC-SnapshotScanner`): if `/` is disallowed, **no HTML is fetched** (same outcome as unreachable home for the pipeline). Extra same-origin URLs are skipped when disallowed. **Crawl-delay** is applied best-effort between extra fetches within the overall fetch budget. **Playwright tier-3:** when **`SYSTEM_DEFAULTS.snapshotTieredFetch.playwrightEnabled`** is true and the static homepage matches client-shell heuristics, the server attempts to re-fetch it with headless Chromium (budget **`snapshotTieredFetch.playwrightBudgetMs`**, capped by remaining wall clock). Turn off by setting **`playwrightEnabled`** to **false** in **`server/src/config/system-defaults.ts`** and redeploying. Requires `playwright` + `npx playwright install chromium` on the host; failures are logged and the scan continues with HTTP HTML. Results for the same **registrable host** may be served from `snapshot_domain_cache` (TTL **`SYSTEM_DEFAULTS.snapshotDomainCache.ttlHours`**, default 48); **cached JSON omits raw email/phone vectors** (PII minimization). Rule catalogs: `server/config/snapshot/classification-rules.v1.yaml`, `server/config/snapshot/audit-rules.v1.yaml`.
+**Implementation:** deterministic scanner — **no LLM**. Tiered HTTP fetch (homepage plus up to a few same-origin URLs), cheerio-based **facts**, YAML-driven **site profile** (classification) and **audit rules** (expanded YAML catalog; some rules may be **skipped** per `skipForSiteTypes` / `onlyForSiteTypes` using classifier `siteType`), overall score **0–100** with four category scores. Outbound HTTP user-agents for snapshot/crawl paths embed **`GLC_PUBLIC_SITE_URL`** (HTTPS origin, no trailing slash; **required in production**; dev default **`https://glctech.es`** if unset). **Wall clock:** **`SYSTEM_DEFAULTS.snapshotFetchBudgetMs`** (default **10000** ms; see `snapshot_fetch_budget`). **robots.txt:** fetches `/robots.txt` (cached per origin; TTL **`SYSTEM_DEFAULTS.snapshotRobots.cacheMs`**, default 20 minutes). Honors `Disallow` for the snapshot user-agent (`*` and `GLC-SnapshotScanner`): if `/` is disallowed, **no HTML is fetched** (same outcome as unreachable home for the pipeline). Extra same-origin URLs are skipped when disallowed. **Crawl-delay** is applied best-effort between extra fetches within the overall fetch budget. **Playwright tier-3:** when **`SYSTEM_DEFAULTS.snapshotTieredFetch.playwrightEnabled`** is true and the static homepage matches client-shell heuristics, the server attempts to re-fetch it with headless Chromium (budget **`snapshotTieredFetch.playwrightBudgetMs`**, capped by remaining wall clock). Turn off by setting **`playwrightEnabled`** to **false** in **`system_defaults`** and redeploying. Requires `playwright` + `npx playwright install chromium` on the host; failures are logged and the scan continues with HTTP HTML. Results for the same **registrable host** may be served from `snapshot_domain_cache` (TTL **`SYSTEM_DEFAULTS.snapshotDomainCache.ttlHours`**, default 48); **cached JSON omits raw email/phone vectors** (PII minimization). Rule catalogs: `server/config/snapshot/classification-rules.v1.yaml`, `server/config/snapshot/audit-rules.v1.yaml`.
 
 **Fair use:** at most **3** successful starts per IP per rolling **24 hours** (abuse control). Only **`POST`** responses that the limiter treats as successful (typically **2xx**) increment the counter (`skipFailedRequests`), so validation **`400`** and **`429 DOMAIN_FRESH_COOLDOWN`** do not consume a daily slot. `GET` polling and `GET /quota` do not count.
 
 **Per-domain fresh cooldown:** If there is **no** valid row in `snapshot_domain_cache` for the registrable host but that host **just** completed a fresh scan (in this process **or**, when **`SYSTEM_DEFAULTS.snapshotAbuse.useSharedAbuseStore`** is true, any instance via **`snapshot_domain_cooldown`**), `POST` returns **`429`** with `code: "DOMAIN_FRESH_COOLDOWN"`, `retry_after_seconds`, and a plain-language `error`. Cached hits still return **`202`** (same host may be checked again from cache without waiting). Cooldown length is **`SYSTEM_DEFAULTS.snapshotAbuse.domainFreshCooldownMs`** (default **600000** ms = 10 minutes; set **0** in config to disable).
 
-**Concurrent fresh scans:** At most **`SYSTEM_DEFAULTS.snapshotAbuse.maxConcurrent`** parallel **fresh** fetches (cache miss path; default **4**). With **`useSharedAbuseStore`** and migration **`022_snapshot_fresh_lease.sql`**, the cap applies **cluster-wide** via TTL leases in **`snapshot_fresh_lease`**. Otherwise it is **per process** only. If the limit is reached, the audit is marked **failed** and the worker logs **`snapshot.pipeline_capacity`**; the client still received **`202`** — poll until `status: "failed"`. Lease TTL is derived from the snapshot fetch budget (see `server/src/snapshot/abuse-guards.ts`).
+**Concurrent fresh scans:** At most **`SYSTEM_DEFAULTS.snapshotAbuse.maxConcurrent`** parallel **fresh** fetches (cache miss path; default **4**). With **`useSharedAbuseStore`** and migration **`022_snapshot_fresh_lease.sql`**, the cap applies **cluster-wide** via TTL leases in **`snapshot_fresh_lease`**. Otherwise it is **per process** only. If the limit is reached, the audit is marked **failed** and the worker logs **`snapshot.pipeline_capacity`**; the client still received **`202`** — poll until `status: "failed"`. Lease TTL is derived from the snapshot fetch budget (see `abuse_guards`).
 
 **Response `429` (daily IP cap):** `RATE_LIMITED` — body includes `error`, `code`, `limit`, `remaining`, `period: "day"`, `retry_after_hours`. Successful **`202`** responses include `RateLimit-Limit` / `RateLimit-Remaining` headers (exposed to browsers via CORS).
 
@@ -764,13 +764,13 @@ Start a free snapshot run. **Auth:** none (public). The server sets or refreshes
 
 **`410`:** token TTL expired (same window as public poll).
 
-**Implementation:** deterministic scanner — **no LLM**. Tiered HTTP fetch (homepage plus up to a few same-origin URLs), cheerio-based **facts**, YAML-driven **site profile** (classification) and **audit rules** (expanded YAML catalog; some rules may be **skipped** per `skipForSiteTypes` / `onlyForSiteTypes` using classifier `siteType`), overall score **0–100** with four category scores. Outbound HTTP user-agents for snapshot/crawl paths embed **`GLC_PUBLIC_SITE_URL`** (HTTPS origin, no trailing slash; **required in production**; dev default **`https://glctech.es`** if unset). **Wall clock:** **`SYSTEM_DEFAULTS.snapshotFetchBudgetMs`** (default **10000** ms; see `server/src/config/snapshot-fetch-budget.ts`). **robots.txt:** fetches `/robots.txt` (cached per origin; TTL **`SYSTEM_DEFAULTS.snapshotRobots.cacheMs`**, default 20 minutes). Honors `Disallow` for the snapshot user-agent (`*` and `GLC-SnapshotScanner`): if `/` is disallowed, **no HTML is fetched** (same outcome as unreachable home for the pipeline). Extra same-origin URLs are skipped when disallowed. **Crawl-delay** is applied best-effort between extra fetches within the overall fetch budget. **Playwright tier-3:** when **`SYSTEM_DEFAULTS.snapshotTieredFetch.playwrightEnabled`** is true and the static homepage matches client-shell heuristics, the server attempts to re-fetch it with headless Chromium (budget **`snapshotTieredFetch.playwrightBudgetMs`**, capped by remaining wall clock). Turn off by setting **`playwrightEnabled`** to **false** in **`server/src/config/system-defaults.ts`** and redeploying. Requires `playwright` + `npx playwright install chromium` on the host; failures are logged and the scan continues with HTTP HTML. Results for the same **registrable host** may be served from `snapshot_domain_cache` (TTL **`SYSTEM_DEFAULTS.snapshotDomainCache.ttlHours`**, default 48); **cached JSON omits raw email/phone vectors** (PII minimization). Rule catalogs: `server/config/snapshot/classification-rules.v1.yaml`, `server/config/snapshot/audit-rules.v1.yaml`.
+**Implementation:** deterministic scanner — **no LLM**. Tiered HTTP fetch (homepage plus up to a few same-origin URLs), cheerio-based **facts**, YAML-driven **site profile** (classification) and **audit rules** (expanded YAML catalog; some rules may be **skipped** per `skipForSiteTypes` / `onlyForSiteTypes` using classifier `siteType`), overall score **0–100** with four category scores. Outbound HTTP user-agents for snapshot/crawl paths embed **`GLC_PUBLIC_SITE_URL`** (HTTPS origin, no trailing slash; **required in production**; dev default **`https://glctech.es`** if unset). **Wall clock:** **`SYSTEM_DEFAULTS.snapshotFetchBudgetMs`** (default **10000** ms; see `snapshot_fetch_budget`). **robots.txt:** fetches `/robots.txt` (cached per origin; TTL **`SYSTEM_DEFAULTS.snapshotRobots.cacheMs`**, default 20 minutes). Honors `Disallow` for the snapshot user-agent (`*` and `GLC-SnapshotScanner`): if `/` is disallowed, **no HTML is fetched** (same outcome as unreachable home for the pipeline). Extra same-origin URLs are skipped when disallowed. **Crawl-delay** is applied best-effort between extra fetches within the overall fetch budget. **Playwright tier-3:** when **`SYSTEM_DEFAULTS.snapshotTieredFetch.playwrightEnabled`** is true and the static homepage matches client-shell heuristics, the server attempts to re-fetch it with headless Chromium (budget **`snapshotTieredFetch.playwrightBudgetMs`**, capped by remaining wall clock). Turn off by setting **`playwrightEnabled`** to **false** in **`system_defaults`** and redeploying. Requires `playwright` + `npx playwright install chromium` on the host; failures are logged and the scan continues with HTTP HTML. Results for the same **registrable host** may be served from `snapshot_domain_cache` (TTL **`SYSTEM_DEFAULTS.snapshotDomainCache.ttlHours`**, default 48); **cached JSON omits raw email/phone vectors** (PII minimization). Rule catalogs: `server/config/snapshot/classification-rules.v1.yaml`, `server/config/snapshot/audit-rules.v1.yaml`.
 
 **Fair use:** at most **3** successful starts per IP per rolling **24 hours** (abuse control). Only **`POST`** responses that the limiter treats as successful (typically **2xx**) increment the counter (`skipFailedRequests`), so validation **`400`** and **`429 DOMAIN_FRESH_COOLDOWN`** do not consume a daily slot. `GET` polling and `GET /quota` do not count.
 
 **Per-domain fresh cooldown:** If there is **no** valid row in `snapshot_domain_cache` for the registrable host but that host **just** completed a fresh scan (in this process **or**, when **`SYSTEM_DEFAULTS.snapshotAbuse.useSharedAbuseStore`** is true, any instance via **`snapshot_domain_cooldown`**), `POST` returns **`429`** with `code: "DOMAIN_FRESH_COOLDOWN"`, `retry_after_seconds`, and a plain-language `error`. Cached hits still return **`202`** (same host may be checked again from cache without waiting). Cooldown length is **`SYSTEM_DEFAULTS.snapshotAbuse.domainFreshCooldownMs`** (default **600000** ms = 10 minutes; set **0** in config to disable).
 
-**Concurrent fresh scans:** At most **`SYSTEM_DEFAULTS.snapshotAbuse.maxConcurrent`** parallel **fresh** fetches (cache miss path; default **4**). With **`useSharedAbuseStore`** and migration **`022_snapshot_fresh_lease.sql`**, the cap applies **cluster-wide** via TTL leases in **`snapshot_fresh_lease`**. Otherwise it is **per process** only. If the limit is reached, the audit is marked **failed** and the worker logs **`snapshot.pipeline_capacity`**; the client still received **`202`** — poll until `status: "failed"`. Lease TTL is derived from the snapshot fetch budget (see `server/src/snapshot/abuse-guards.ts`).
+**Concurrent fresh scans:** At most **`SYSTEM_DEFAULTS.snapshotAbuse.maxConcurrent`** parallel **fresh** fetches (cache miss path; default **4**). With **`useSharedAbuseStore`** and migration **`022_snapshot_fresh_lease.sql`**, the cap applies **cluster-wide** via TTL leases in **`snapshot_fresh_lease`**. Otherwise it is **per process** only. If the limit is reached, the audit is marked **failed** and the worker logs **`snapshot.pipeline_capacity`**; the client still received **`202`** — poll until `status: "failed"`. Lease TTL is derived from the snapshot fetch budget (see `abuse_guards`).
 
 **Response `429` (daily IP cap):** `RATE_LIMITED` — body includes `error`, `code`, `limit`, `remaining`, `period: "day"`, `retry_after_hours`. Successful **`202`** responses include `RateLimit-Limit` / `RateLimit-Remaining` headers (exposed to browsers via CORS).
 
@@ -785,9 +785,9 @@ Poll current status or retrieve completed preview payload.
 
 When completed, the JSON may include **`snapshot_access_blocked`** (boolean) and **`snapshot_access_robots_blocked`** (boolean, meaningful only when the former is true). The API sets these when the scan could not usefully read public HTML (e.g. `robots.txt` blocks the homepage or fetch produced no pages); clients should treat this as a limited / blocked outcome rather than a full scored check. These fields are omitted when access is normal.
 
-**Access flags (HTTP vs logged-in portal):** On completed responses, the server may **recompute** those booleans with `computePublicSnapshotAccessFlags` (`server/src/snapshot/snapshot-access-state.ts`) so legacy rows and merge edge cases match the same rules as fresh persists (uses `snapshot_deterministic`, merged `scan_coverage`, `ux_summary`, `scan_basis_code`, `overall_score`). The SPA portal mirror built from audit state (`freeSnapshotPreviewFromAuditState`) only forwards **`snapshot_access_*` stored in `raw_data`**. For blocked callouts and copy, portal code **must** use **`getSnapshotAccessBlockedState`** (`src/app/lib/snapshot-diagnostics.ts`), which applies the equivalent fallback heuristics — do not rely on persisted flags alone in the portal.
+**Access flags (HTTP vs logged-in portal):** On completed responses, the server may **recompute** those booleans with `computePublicSnapshotAccessFlags` (`snapshot_access_state`) so legacy rows and merge edge cases match the same rules as fresh persists (uses `snapshot_deterministic`, merged `scan_coverage`, `ux_summary`, `scan_basis_code`, `overall_score`). The SPA portal mirror built from audit state (`freeSnapshotPreviewFromAuditState`) only forwards **`snapshot_access_*` stored in `raw_data`**. For blocked callouts and copy, portal code **must** use **`getSnapshotAccessBlockedState`** (`snapshot_diagnostics`), which applies the equivalent fallback heuristics — do not rely on persisted flags alone in the portal.
 
-**Database:** Deploy migration **`024_audit_domains_prompt_version_len.sql`** before or with any backend release that writes a longer deterministic snapshot label into **`audit_domains.prompt_version`** (column widened from `VARCHAR(20)` to `VARCHAR(64)`). Confirm applied on staging/production (e.g. Supabase Table Editor / `\d audit_domains`) so inserts are not truncated or rejected. The payload also includes **`tech_stack`** (confirmed names by category from HTML/script fingerprinting). Optional **`tech_stack_tentative`** lists *possible* technologies from weak signals only (JSON-LD text, `meta name=generator`, or a `type=module` entry when no framework matched); each item is **`{ name, category, signal }`** with **`signal`** explaining the limitation (quick scan does not inspect minified bundles). Omitted when empty. **`ai_visibility`** (when present) has **`gaps`**: `robots_txt` | `sitemap_html` | `structured_data` | `discovery_files` — heuristics from the sampled HTML plus whether `robots.txt` was retrieved; clients map codes to copy. Omitted on older snapshots. It also includes **`ux_score` / `ux_label` / `ux_summary`** (derived from the same deterministic run) plus optional extended fields when present: **`overall_score`** (0–100; **0** when **`scan_basis_code`** is **`degraded`** and no pages were scored), **`category_scores`**, human-readable **`scan_basis`**, normalized **`scan_basis_code`**: `homepage_only` | `homepage_plus_core_pages` | `homepage_rendered_fallback` | `degraded` | **`cache_hit`** (set when the run was satisfied from **`snapshot_domain_cache`**), plus boolean **`cache_hit`** when applicable, **`scanned_at`** (ISO 8601 when the payload was built on a fresh fetch), **`limitations`** (string array; robots block, fetch failure, or heuristic notes for challenge/WAF/parked/login-wall patterns), **`signals_found`**, **`scan_confidence_band`**, advisory **`site_profile`** with **`classification_confidence_band`**, optional **`scan_coverage`** (includes robots, Playwright, when the homepage failed while allowed by robots: **`home_fetch_failure`**: `network_or_timeout` | `http_error` | `non_html` | `empty_body`, optional flags **`challenge_page_likely`**, **`parked_domain_likely`**, **`login_wall_likely`**, and optional taxonomy strings **`challenge_taxonomy`**, **`parked_taxonomy`**, **`login_wall_taxonomy`** — enumerated in the next block; canonical definitions in `server/src/snapshot/page-anomaly.ts`), **`audit_rules_version`** (audit catalog), **`classification_version`**, **`fetch_strategy_version`**, **`snapshot_engine_version`**. Persisted extras are merged from `audit_domains.raw_data.snapshot_deterministic`. Classification uses path segments from same-origin links on fetched pages (cap **`SYSTEM_DEFAULTS.snapshotLinkSlug`** / **`min(max, hardCap)`**, default **80**), not only URLs that were fully downloaded.
+**Database:** Deploy migration **`024_audit_domains_prompt_version_len.sql`** before or with any backend release that writes a longer deterministic snapshot label into **`audit_domains.prompt_version`** (column widened from `VARCHAR(20)` to `VARCHAR(64)`). Confirm applied on staging/production (e.g. Supabase Table Editor / `\d audit_domains`) so inserts are not truncated or rejected. The payload also includes **`tech_stack`** (confirmed names by category from HTML/script fingerprinting). Optional **`tech_stack_tentative`** lists *possible* technologies from weak signals only (JSON-LD text, `meta name=generator`, or a `type=module` entry when no framework matched); each item is **`{ name, category, signal }`** with **`signal`** explaining the limitation (quick scan does not inspect minified bundles). Omitted when empty. **`ai_visibility`** (when present) has **`gaps`**: `robots_txt` | `sitemap_html` | `structured_data` | `discovery_files` — heuristics from the sampled HTML plus whether `robots.txt` was retrieved; clients map codes to copy. Omitted on older snapshots. It also includes **`ux_score` / `ux_label` / `ux_summary`** (derived from the same deterministic run) plus optional extended fields when present: **`overall_score`** (0–100; **0** when **`scan_basis_code`** is **`degraded`** and no pages were scored), **`category_scores`**, human-readable **`scan_basis`**, normalized **`scan_basis_code`**: `homepage_only` | `homepage_plus_core_pages` | `homepage_rendered_fallback` | `degraded` | **`cache_hit`** (set when the run was satisfied from **`snapshot_domain_cache`**), plus boolean **`cache_hit`** when applicable, **`scanned_at`** (ISO 8601 when the payload was built on a fresh fetch), **`limitations`** (string array; robots block, fetch failure, or heuristic notes for challenge/WAF/parked/login-wall patterns), **`signals_found`**, **`scan_confidence_band`**, advisory **`site_profile`** with **`classification_confidence_band`**, optional **`scan_coverage`** (includes robots, Playwright, when the homepage failed while allowed by robots: **`home_fetch_failure`**: `network_or_timeout` | `http_error` | `non_html` | `empty_body`, optional flags **`challenge_page_likely`**, **`parked_domain_likely`**, **`login_wall_likely`**, and optional taxonomy strings **`challenge_taxonomy`**, **`parked_taxonomy`**, **`login_wall_taxonomy`** — enumerated in the next block; canonical definitions in `page_anomaly`), **`audit_rules_version`** (audit catalog), **`classification_version`**, **`fetch_strategy_version`**, **`snapshot_engine_version`**. Persisted extras are merged from `audit_domains.raw_data.snapshot_deterministic`. Classification uses path segments from same-origin links on fetched pages (cap **`SYSTEM_DEFAULTS.snapshotLinkSlug`** / **`min(max, hardCap)`**, default **80**), not only URLs that were fully downloaded.
 
 **`scan_coverage` taxonomy slugs** (optional; stable for dashboards; HTML heuristics only):
 
@@ -822,12 +822,12 @@ Migration: `011_intake_tokens.sql`. Table `intake_tokens` — operations via ser
 
 - `audit_id` — UUID; if set, responses from `POST .../respond` merge into that audit’s `intake_brief` (consultant must own the audit).
 - `metadata` — JSON object for the client-facing pre-brief page. Common keys:
-  - `company_name`, `company_website`, `industry` — optional pre-fill for **identity bank cells** (client can edit before submit): maps to **`a12`**, **`a11`**, **`a2`** respectively (`applyIntakeMetadataPrefill` in the SPA). Website: full URL, or client may enter `none` / `no website` if absent. `industry` must match a canonical industry option (same catalog as **`a2`** / New Audit) or it is ignored for pre-fill. Optional **`industry_specify`** seeds **`intake_industry_specify`** when **`a2`** is **Other**. **`a5`** (website presence) is part of identity in policy but is **not** set from these metadata keys by default.
-  - `message` — header context.
-  - `consultant_name` — shown on the success screen (“X has received your answers”).
-  - `expected_contact` — timing hint (e.g. `24 hours`, `Friday`, `our Thursday call`); combined with `contact_channel` for the follow-up line. If omitted, the UI defaults to “within 24 hours”.
-  - `contact_channel` — e.g. `WhatsApp`, `phone`, `email`.
-  - `consultant_email`, `consultant_whatsapp` — optional; shown as “Questions? …” on success.
+ - `company_name`, `company_website`, `industry` — optional pre-fill for **identity bank cells** (client can edit before submit): maps to **`a12`**, **`a11`**, **`a2`** respectively (`applyIntakeMetadataPrefill` in the SPA). Website: full URL, or client may enter `none` / `no website` if absent. `industry` must match a canonical industry option (same catalog as **`a2`** / New Audit) or it is ignored for pre-fill. Optional **`industry_specify`** seeds **`intake_industry_specify`** when **`a2`** is **Other**. **`a5`** (website presence) is part of identity in policy but is **not** set from these metadata keys by default.
+ - `message` — header context.
+ - `consultant_name` — shown on the success screen (“X has received your answers”).
+ - `expected_contact` — timing hint (e.g. `24 hours`, `Friday`, `our Thursday call`); combined with `contact_channel` for the follow-up line. If omitted, the UI defaults to “within 24 hours”.
+ - `contact_channel` — e.g. `WhatsApp`, `phone`, `email`.
+ - `consultant_email`, `consultant_whatsapp` — optional; shown as “Questions? …” on success.
 
 **Response `201`:** `{ "token", "url", "expires_at" }` — `url` is built from **`FRONTEND_URL`** (required when **`NODE_ENV=production`**; otherwise defaults to `http://localhost:5173`) + `/intake/:token`.
 
@@ -843,7 +843,7 @@ Migration: `011_intake_tokens.sql`. Table `intake_tokens` — operations via ser
 
 **Auth:** consultant JWT.
 
-Lists intake tokens **you created** where the client has already submitted (`submitted_at` is set), newest first. Row cap: **`SYSTEM_DEFAULTS.routeQueries.intakeSubmissionsMaxRows`** (exported as `INTAKE_SUBMISSIONS_LIST_MAX` from `server/src/config/route-query-limits.ts`; default **100**). Used by the admin request queue to show raw pre-brief answers before or after linking to an audit. See [DEPLOYMENT.md — Consultant list endpoints](./DEPLOYMENT.md#consultant-list-endpoints-hard-cap).
+Lists intake tokens **you created** where the client has already submitted (`submitted_at` is set), newest first. Row cap: **`SYSTEM_DEFAULTS.routeQueries.intakeSubmissionsMaxRows`** (exported as `INTAKE_SUBMISSIONS_LIST_MAX` from `route_query_limits`; default **100**). Used by the admin request queue to show raw pre-brief answers before or after linking to an audit. See [DEPLOYMENT.md — Consultant list endpoints](./DEPLOYMENT.md#consultant-list-endpoints-hard-cap).
 
 **Response `200`:** `{ "submissions": [ { "token", "metadata", "responses", "submitted_at", "expires_at", "audit_id", "intake_url" } ] }` — `intake_url` is the shareable client link (**`FRONTEND_URL`** as above + `/intake/:token`).
 
@@ -853,7 +853,7 @@ Lists intake tokens **you created** where the client has already submitted (`sub
 
 **Response `200`:** `{ "metadata", "questions" (pre-brief subset), "responses", "submitted_at", "expires_at" }`.
 
-The `questions` list is **`[...INTAKE_IDENTITY_BRIEF_QUESTIONS, ...getBriefQuestionsByIds(plan.visible)]`** (see `buildPreBriefQuestionsForResponses` in `server/src/routes/intake.ts`): **identity** rows are only policy **`identityFieldIds`** as bank stems (**`a5`**, **`a11`**, **`a12`**, **`a2`**); **`intake_industry_specify`** is not a separate row — it is the clarify cell for **`a2`** when **Other** (same as classic **`BriefField`** specify). Then **pre-brief bank** rows from **`getBriefQuestionsByIds(plan.visible)`** where `plan` is `buildIntakePlan` with **`collection_mode: pre_brief`**, **`product_mode: full`**, **`surface: client_form`**, on the stored **`responses`** map (revenue uses canonical bank id **`a10`**). This is **not** “dump every **`BRIEF_QUESTIONS`** row”; **`plan.visible`** follows the same resolver as the rest of intake. See [QUESTION_BANK.md](./QUESTION_BANK.md).
+The `questions` list is **`[...INTAKE_IDENTITY_BRIEF_QUESTIONS, ...getBriefQuestionsByIds(plan.visible)]`** (see `buildPreBriefQuestionsForResponses` in `intake`): **identity** rows are only policy **`identityFieldIds`** as bank stems (**`a5`**, **`a11`**, **`a12`**, **`a2`**); **`intake_industry_specify`** is not a separate row — it is the clarify cell for **`a2`** when **Other** (same as classic **`BriefField`** specify). Then **pre-brief bank** rows from **`getBriefQuestionsByIds(plan.visible)`** where `plan` is `buildIntakePlan` with **`collection_mode: pre_brief`**, **`product_mode: full`**, **`surface: client_form`**, on the stored **`responses`** map (revenue uses canonical bank id **`a10`**). This is **not** “dump every **`BRIEF_QUESTIONS`** row”; **`plan.visible`** follows the same resolver as the rest of intake. See [QUESTION_BANK.md](./QUESTION_BANK.md).
 For `a10`, clients receive business-friendly preset options (services, product sales, subscriptions, marketplace/commission, lead generation, ads) plus `Other`, and the selected value may include `a10__other` clarification.
 For `f1`, clients receive popular business pain presets plus `Other`; when `Other` is selected, `f1__other` may carry the clarification text.
 In `express` UX, `f2` still displays all focus areas for transparency, but `Marketing and positioning` and `Process automation and efficiency` are intentionally locked (non-selectable with explanatory copy) because express deep analysis is limited to Tech/Security/SEO/UX.
@@ -870,18 +870,18 @@ Each question object includes optional **`section`** (UI heading: `Business`, `G
 
 ```json
 {
-  "responses": {
-    "a11": { "value": "https://example.com", "source": "client" },
-    "a12": { "value": "Example Hotels SL", "source": "client" },
-    "a2": { "value": "Hospitality", "source": "client" },
-    "a5": { "value": "Yes, multi-page site", "source": "client" },
-    "f1": { "value": "Low direct bookings", "source": "client" },
-    "b1": { "value": "Couples 30–55 from EU", "source": "client" },
-    "a10": { "value": ["Recurring services (retainers)"], "source": "client" },
-    "a6": { "value": "Sometimes", "source": "client" },
-    "c5": { "value": "Book", "source": "client" },
-    "c3": { "value": "Yes, GA4", "source": "client" }
-  }
+ "responses": {
+ "a11": { "value": "https://example.com", "source": "client" },
+ "a12": { "value": "Example Hotels SL", "source": "client" },
+ "a2": { "value": "Hospitality", "source": "client" },
+ "a5": { "value": "Yes, multi-page site", "source": "client" },
+ "f1": { "value": "Low direct bookings", "source": "client" },
+ "b1": { "value": "Couples 30–55 from EU", "source": "client" },
+ "a10": { "value": ["Recurring services (retainers)"], "source": "client" },
+ "a6": { "value": "Sometimes", "source": "client" },
+ "c5": { "value": "Book", "source": "client" },
+ "c3": { "value": "Yes, GA4", "source": "client" }
+ }
 }
 ```
 
@@ -895,7 +895,7 @@ Overwrites stored responses and updates `submitted_at`. Allowed until `expires_a
 
 **Prefix:** `/api/intake-trace-tool` — **Auth:** consultant JWT (`requireAuth` + `attachProfile` + `requireRole('consultant')`). Rate limit: general API limiter.
 
-- **`POST /api/intake-trace-tool/analytics-events`** — body `{ client_session_id, ia_v2_enabled?, events: [{ event_type, client_ts?, payload? }] }`. Persists rows into **`intake_analytics_events`** with **`surface` = `internal_intake_trace`**, optional **`user_id`**, optional **`payload`** (JSON). Event types are tool-specific (e.g. `intake_trace_tab_opened`, `intake_trace_session_completed`); see `server/src/schemas/intake-trace-tool.ts`.
+- **`POST /api/intake-trace-tool/analytics-events`** — body `{ client_session_id, ia_v2_enabled?, events: [{ event_type, client_ts?, payload? }] }`. Persists rows into **`intake_analytics_events`** with **`surface` = `internal_intake_trace`**, optional **`user_id`**, optional **`payload`** (JSON). Event types are tool-specific (e.g. `intake_trace_tab_opened`, `intake_trace_session_completed`); see `intake_trace_tool`.
 
 - **`GET /api/intake-trace-tool/wording-drafts`** — **`200`:** `{ ok: true, drafts, published }` for the authenticated user. Maps are keyed by **`question_id`**; **`published`** contains last published snapshot text per id (omitted keys mean no publish yet).
 
@@ -919,7 +919,7 @@ Public discovery submit endpoint (no auth).
 
 **Response `201`:** `{ "token", "created_at", "contact_edit_key" }`.
 
-`maturity_level` is validated as integer **1..5** and persisted under `discovery_sessions` with DB check constraint `1..5`. Bounds and session-token hex length match [`server/src/config/discover-contract.ts`](../server/src/config/discover-contract.ts) (aligned with migration **`013_discovery_sessions.sql`**).
+`maturity_level` is validated as integer **1..5** and persisted under `discovery_sessions` with DB check constraint `1..5`. Bounds and session-token hex length match `discover_contract` (aligned with migration **`013_discovery_sessions.sql`**).
 
 ### `GET /api/discover/ui-fragment`
 
@@ -947,7 +947,7 @@ Consultant queue endpoint.
 
 Server-side scoping is enforced: only rows where `consultant_id IS NULL` (unclaimed queue) or `consultant_id = current consultant` are listed.
 
-**Pagination:** Newest first; row cap **`SYSTEM_DEFAULTS.routeQueries.discoverSessionsMaxRows`** (`DISCOVER_SESSIONS_LIST_MAX` in `server/src/config/route-query-limits.ts`; default **100**). See [DEPLOYMENT.md — Consultant list endpoints](./DEPLOYMENT.md#consultant-list-endpoints-hard-cap).
+**Pagination:** Newest first; row cap **`SYSTEM_DEFAULTS.routeQueries.discoverSessionsMaxRows`** (`DISCOVER_SESSIONS_LIST_MAX` in `route_query_limits`; default **100**). See [DEPLOYMENT.md — Consultant list endpoints](./DEPLOYMENT.md#consultant-list-endpoints-hard-cap).
 
 ### `POST /api/discover/:token/convert`
 
@@ -964,7 +964,7 @@ Security/ownership contract:
 
 Success returns **`201`** with `{ "audit_id": "..." }`.
 
-**Seeded brief:** Discovery answers are mapped into `intake_brief.responses` under **bank ids** where applicable. The synthetic cell **`uses_crm`** (not a bank question) is set from CRM inference using **locale-agnostic stored tokens** **`uses_crm:yes`** / **`uses_crm:no`** (see `packages/intake-core/src/discovery-brief-contract.v1.json`). Older rows may still hold **`Yes`** / **`No`**; consumers should normalize via **`normalizeUsesCrmBriefStoredValue`** from **`@glc/intake-core`**.
+**Seeded brief:** Discovery answers are mapped into `intake_brief.responses` under **bank ids** where applicable. The synthetic cell **`uses_crm`** (not a bank question) is set from CRM inference using **locale-agnostic stored tokens** **`uses_crm:yes`** / **`uses_crm:no`** (see `discovery_brief_contract.v1`). Older rows may still hold **`Yes`** / **`No`**; consumers should normalize via **`normalizeUsesCrmBriefStoredValue`** from **`@glc/intake-core`**.
 
 ---
 
@@ -997,7 +997,7 @@ Persists to `marketing_brief_submissions` and notifies consultants (`kind: intak
 
 ## Error Responses
 
-**Single source of truth (machine):** Stable `code` values, `apiErrorJson` helpers, and default English copy live in [`server/src/config/api-error-codes.ts`](../server/src/config/api-error-codes.ts) and [`server/src/config/api-user-messages.en.json`](../server/src/config/api-user-messages.en.json) (re-exported via `api-user-messages.en.ts`). Change those files when adding or renaming codes — not ad-hoc strings in routes.
+**Single source of truth (machine):** Stable `code` values, `apiErrorJson` helpers, and default English copy live in `api_error_codes` and `api_user_messages.en` (re-exported via `api-user-messages.en.ts`). Change those files when adding or renaming codes — not ad-hoc strings in routes.
 
 **Human-readable contract:** This section summarizes shape and common codes. **Literal `error` string inventory** (for audits and i18n gap analysis) is in [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md). Refresh matches with `./scripts/api-errors-inventory.sh` (stdout: `rg` over routes) when updating grouped tables.
 
@@ -1005,14 +1005,14 @@ All errors follow:
 
 ```json
 {
-  "error": "Human-readable message",
-  "code": "MACHINE_READABLE_CODE"
+ "error": "Human-readable message",
+ "code": "MACHINE_READABLE_CODE"
 }
 ```
 
 **UI mapping:** prefer handling **`code`** for branching and user-facing copy. Keep **`error`** as a fallback string for logs and legacy clients. When adding new failures, always set a stable **`code`** and add the string to the client map (or future i18n catalog) in the same change. Human-readable text may be localized in the SPA without changing **`code`**.
 
-**Where defaults live:** stable **`code`** values and helpers are defined in [`server/src/config/api-error-codes.ts`](../server/src/config/api-error-codes.ts). Default English **`error`** strings for most coded responses are in [`server/src/config/api-user-messages.en.json`](../server/src/config/api-user-messages.en.json) (wired through `api-user-messages.en.ts` and re-exported from `api-error-codes.ts` as `*_MESSAGE` constants). A few responses use small interpolating functions in `api-error-codes.ts` (role, phase, Zod detail, etc.).
+**Where defaults live:** stable **`code`** values and helpers are defined in `api_error_codes`. Default English **`error`** strings for most coded responses are in `api_user_messages.en` (wired through `api-user-messages.en.ts` and re-exported from `api-error-codes.ts` as `*_MESSAGE` constants). A few responses use small interpolating functions in `api-error-codes.ts` (role, phase, Zod detail, etc.).
 
 Common codes:
 
@@ -1025,3 +1025,25 @@ Common codes:
 - `INVALID_STATUS` — 422 (action not valid for current audit status)
 
 See [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md) for the full grouped list; after route changes, run `./scripts/api-errors-inventory.sh` from the repo root to refresh it.
+
+## Для разработчиков
+
+Ниже перечислены технические пути реализации для инженерной навигации.
+
+- `packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json`
+- `src/app/lib/logger.ts`
+- `server/src/config/system-defaults.ts`
+- `server/src/config/feature-flags.ts`
+- `server/src/config/route-query-limits.ts`
+- `server/src/config/pipeline-event-error-codes.ts`
+- `server/src/config/snapshot-fetch-budget.ts`
+- `server/src/snapshot/abuse-guards.ts`
+- `server/src/snapshot/snapshot-access-state.ts`
+- `src/app/lib/snapshot-diagnostics.ts`
+- `server/src/snapshot/page-anomaly.ts`
+- `server/src/routes/intake.ts`
+- `server/src/schemas/intake-trace-tool.ts`
+- `server/src/config/discover-contract.ts`
+- `packages/intake-core/src/discovery-brief-contract.v1.json`
+- `server/src/config/api-error-codes.ts`
+- `server/src/config/api-user-messages.en.json`

@@ -24,7 +24,7 @@ import {
   SNAPSHOT_PUBLIC_MAX_PER_DAY,
   SNAPSHOT_PUBLIC_WINDOW_MS,
 } from '../config/rate-limits.js';
-import { REDIS_KEYS } from '../config/redis-keys.js';
+import { getRedisKeyPrefixWithColon, REDIS_KEYS } from '../config/redis-keys.js';
 import {
   RATE_LIMIT_COMPARE_MESSAGE,
   RATE_LIMIT_DISCOVER_ANALYTICS_MESSAGE,
@@ -46,6 +46,7 @@ import {
   rateLimitSnapshotPublicDailyCapMessage,
 } from '../config/rate-limit-messages.js';
 import { isTruthyQueryValue } from '../config/query-bool.js';
+import { getRateLimitRedisUrl, isStrictRateLimitRedis } from '../config/redis-infra.js';
 
 const PRL = SYSTEM_DEFAULTS.publicRouteRateLimits;
 
@@ -56,8 +57,8 @@ function retryAfterMinutesFromWindow(windowMs: number): number {
 /** Inferred from `createClient` so assignments stay compatible when redis adds optional modules / RESP versions. */
 type RateLimitRedisClient = ReturnType<typeof createClient>;
 
-const RATE_LIMIT_REDIS_URL = process.env.RATE_LIMIT_REDIS_URL?.trim() ?? '';
-const STRICT_RATE_LIMIT_REDIS = String(process.env.STRICT_RATE_LIMIT_REDIS ?? '').toLowerCase() === 'true';
+const RATE_LIMIT_REDIS_URL = getRateLimitRedisUrl();
+const STRICT_RATE_LIMIT_REDIS = isStrictRateLimitRedis();
 
 if (process.env.NODE_ENV === 'production' && !RATE_LIMIT_REDIS_URL && STRICT_RATE_LIMIT_REDIS) {
   throw new Error(
@@ -90,8 +91,7 @@ function getSharedRedisClient(): RateLimitRedisClient | null {
 }
 
 function rateLimitRedisKeyPrefix(): string {
-  const p = process.env.REDIS_KEY_PREFIX?.trim().replace(/:+$/, '');
-  return p ? `${p}:` : '';
+  return getRedisKeyPrefixWithColon();
 }
 
 function distributedStore(prefix: string): RedisStore | undefined {

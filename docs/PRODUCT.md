@@ -44,8 +44,8 @@ MVP scope note:
 
 ---
 
-**Primary users:** Consultants running audits for SMB clients.  
-**Client portal (self-serve):** Clients can create an audit with the **same branching intake bank** as consultants (`/portal/audit/new`), complete the brief on **`/portal/audit/:id`**, start the pipeline without a queue approval step, and optionally **request help with the brief** (consultants are notified; help does not block starting the run). The **`audit_requests`** table and consultant **`/admin/requests`** queue remain for consultant-led intake; there is no separate client-facing request form in the portal during MVP development.  
+**Primary users:** Consultants running audits for SMB clients. 
+**Client portal (self-serve):** Clients can create an audit with the **same branching intake bank** as consultants (`/portal/audit/new`), complete the brief on **`/portal/audit/:id`**, start the pipeline without a queue approval step, and optionally **request help with the brief** (consultants are notified; help does not block starting the run). The **`audit_requests`** table and consultant **`/admin/requests`** queue remain for consultant-led intake; there is no separate client-facing request form in the portal during MVP development. 
 **Client deliverables:** Scored domain findings, executive summary, quick wins, and (full mode) strategy-style initiatives surfaced in the **report viewer** (`/portal/reports/:id` in the client shell). Consultants use Strategy Lab (`/strategy/:id`) for the same underlying strategy payload where enabled.
 
 Technical execution details: [PIPELINE.md](./PIPELINE.md), [AGENTS.md](./AGENTS.md). Index of all domains: [MASTER.md](./MASTER.md).
@@ -120,8 +120,8 @@ Status:
 | 6 | `automation_processes` | Integrations, automation gaps, operational efficiency |
 | 7 | `strategy` | Cross-domain synthesis, executive summary, prioritised initiatives |
 
-**Auto wing:** phases 1–4 run in parallel (data-driven collectors).  
-**Analytic wing:** phases 5–6 run in parallel; they lean on recon plus consultant and interview notes from review gates.  
+**Auto wing:** phases 1–4 run in parallel (data-driven collectors). 
+**Analytic wing:** phases 5–6 run in parallel; they lean on recon plus consultant and interview notes from review gates. 
 **Strategy:** phase 7 runs after the analytic wing completes (see [PIPELINE.md](./PIPELINE.md)).
 
 ---
@@ -135,7 +135,7 @@ Customer-facing packaging is execution-plan based:
 - `complete`
 - optional roadmap/strategy layer via `include_strategy`
 
-Canonical runtime fields: `execution_plan.coverage_package` + `execution_plan.include_strategy` (`server/src/services/execution-plan.ts`, `server/src/types/audit.ts`).
+Canonical runtime fields: `execution_plan.coverage_package` + `execution_plan.include_strategy` (`execution_plan`, `audit`).
 
 | Package | Default scope (phases) | Review gates | Notes |
 |------|----------------|--------------|--------|
@@ -163,13 +163,13 @@ Compatibility note:
 
 ```
 URL (+ intake where required)
-    -> Phase 0: Recon
-    -> Review gate 1 (phase 0)
-    -> Phases 1–4: Auto wing (parallel)
-    -> Review gate 2 (phase 4)
-    -> Phases 5–6: Analytic wing (parallel) -> Phase 7: Strategy (sequential)
-    -> Review gate 3 (phase 7)
-    -> Report (/reports/:id) + Strategy Lab (/strategy/:id) when applicable
+ -> Phase 0: Recon
+ -> Review gate 1 (phase 0)
+ -> Phases 1–4: Auto wing (parallel)
+ -> Review gate 2 (phase 4)
+ -> Phases 5–6: Analytic wing (parallel) -> Phase 7: Strategy (sequential)
+ -> Review gate 3 (phase 7)
+ -> Report (/reports/:id) + Strategy Lab (/strategy/:id) when applicable
 ```
 
 Authoritative sequencing and API interaction: [PIPELINE.md](./PIPELINE.md).
@@ -260,3 +260,10 @@ Broader report formats (PDF, slides), deeper funnel/sales intelligence, and opti
 ## Status
 
 **Needs Review:** “Production deployment” vs “production-ready codebase” depends on your Vercel/Railway/Supabase project state — see [DEPLOYMENT.md](./DEPLOYMENT.md). Core flows are implemented in the monorepo and documented in the canonical technical files above.
+
+## Для разработчиков
+
+Ниже перечислены технические пути реализации для инженерной навигации.
+
+- `server/src/services/execution-plan.ts`
+- `server/src/types/audit.ts`

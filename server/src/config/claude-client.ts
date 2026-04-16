@@ -5,7 +5,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
-import { REDIS_KEYS } from './redis-keys.js';
+import { getRedisKeyPrefixWithColon, REDIS_KEYS } from './redis-keys.js';
 import { SYSTEM_DEFAULTS } from './system-defaults.js';
 
 const C = SYSTEM_DEFAULTS.claudeHttp;
@@ -24,17 +24,11 @@ export const CLAUDE_CB_THRESHOLD = C.cbThreshold;
 export const CLAUDE_CB_TTL_SEC = C.cbTtlSec;
 
 export function claudeCircuitBreakerRedisKey(): string {
-  const p = process.env.REDIS_KEY_PREFIX?.trim().replace(/:+$/, '');
-  return p ? `${p}:${REDIS_KEYS.claudeCircuitBreakerFailures}` : REDIS_KEYS.claudeCircuitBreakerFailures;
+  const p = getRedisKeyPrefixWithColon();
+  return p ? `${p}${REDIS_KEYS.claudeCircuitBreakerFailures}` : REDIS_KEYS.claudeCircuitBreakerFailures;
 }
 
-/**
- * Redis URL for distributed Claude circuit-breaker counters.
- * Infra: optional `CLAUDE_CIRCUIT_REDIS_URL`, else falls back to `RATE_LIMIT_REDIS_URL`.
- */
-export function getClaudeCircuitRedisUrl(): string {
-  return (process.env.CLAUDE_CIRCUIT_REDIS_URL?.trim() || process.env.RATE_LIMIT_REDIS_URL?.trim()) ?? '';
-}
+export { getClaudeCircuitRedisUrl } from './redis-infra.js';
 
 /**
  * Anthropic SDK client. Optional `ANTHROPIC_BASE_URL` (infra) for corporate proxy or compatible API gateway.

@@ -1,11 +1,15 @@
 import { getContext } from './observability-context.js';
 import {
+  getEffectiveMinLogLevel,
+  getLogFormat,
+  getLogServiceName,
+  type LogLevel,
+} from '../config/logger-env.js';
+import {
   LOG_PRETTY_CONTEXT_SINGLE_LINE_MAX,
   LOG_SHORT_ID_LEN_DEFAULT,
   LOG_SHORT_ID_LEN_OPERATION,
 } from '../config/logger-format.js';
-
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 const LEVEL_RANK: Record<LogLevel, number> = {
   debug: 10,
@@ -14,14 +18,8 @@ const LEVEL_RANK: Record<LogLevel, number> = {
   error: 40,
 };
 
-function effectiveMinLogLevel(): LogLevel {
-  const raw = process.env.LOG_LEVEL?.trim().toLowerCase();
-  if (raw === 'debug' || raw === 'info' || raw === 'warn' || raw === 'error') return raw;
-  return process.env.NODE_ENV === 'production' ? 'info' : 'debug';
-}
-
 function shouldEmit(level: LogLevel): boolean {
-  return LEVEL_RANK[level] >= LEVEL_RANK[effectiveMinLogLevel()];
+  return LEVEL_RANK[level] >= LEVEL_RANK[getEffectiveMinLogLevel()];
 }
 
 interface LogRecord {
@@ -34,14 +32,6 @@ interface LogRecord {
   user_id?: string;
   audit_id?: string;
   context?: Record<string, unknown>;
-}
-
-const SERVICE = process.env.LOG_SERVICE ?? 'glc-api';
-
-function logFormat(): 'json' | 'pretty' {
-  const raw = process.env.LOG_FORMAT?.toLowerCase();
-  if (raw === 'json' || raw === 'pretty') return raw;
-  return process.env.NODE_ENV === 'production' ? 'json' : 'pretty';
 }
 
 function shortId(id: string | undefined, len = LOG_SHORT_ID_LEN_DEFAULT): string | undefined {
@@ -72,7 +62,7 @@ function write(level: LogLevel, message: string, context?: Record<string, unknow
   if (!shouldEmit(level)) return;
   const reqCtx = getContext();
   const payload: LogRecord = {
-    service: SERVICE,
+    service: getLogServiceName(),
     level,
     message,
     ts: new Date().toISOString(),
@@ -83,7 +73,7 @@ function write(level: LogLevel, message: string, context?: Record<string, unknow
     context,
   };
 
-  const fmt = logFormat();
+  const fmt = getLogFormat();
   const line = fmt === 'json' ? JSON.stringify(payload) : formatPretty(payload);
 
   if (level === 'error') {

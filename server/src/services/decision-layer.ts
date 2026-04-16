@@ -19,6 +19,18 @@
 import { logger } from './logger.js';
 import type { ControlObjectV1, DecisionHint } from '../schemas/control-object.js';
 import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
+import {
+  DECISION_WARNING_HUMAN_ATTENTION_FLAGGED,
+  formatDecisionAcceptReasoning,
+  formatDecisionAcceptWithWarningsReasoning,
+  formatDecisionFeasibilityRefineReasoning,
+  formatDecisionRefineHallucinationCount,
+  formatDecisionRefineLowConfidence,
+  formatDecisionRefineStructuralErrors,
+  formatDecisionRefineSummary,
+  formatDecisionWarningDataGaps,
+  formatDecisionWarningFixable,
+} from '../config/decision-layer-messages.en.js';
 
 // ─── Thresholds (configurable for future A/B testing) ──────
 
@@ -90,7 +102,12 @@ export class DecisionLayer {
     ) {
       const result: DecisionResult = {
         hint: 'refine',
-        reasoning: `Feasibility score ${control.feasibility.score.toFixed(2)} ≤ ${T.feasibility_force_refine_threshold} for delivery-risk domain '${context.phase_id}'. Risks: ${control.feasibility.risk_codes.join(', ')}.`,
+        reasoning: formatDecisionFeasibilityRefineReasoning({
+          feasibilityScore: control.feasibility.score.toFixed(2),
+          threshold: T.feasibility_force_refine_threshold,
+          phaseId: context.phase_id,
+          riskCodesJoined: control.feasibility.risk_codes.join(', '),
+        }),
         active_error_types: [...activeErrorTypes, ...control.feasibility.risk_codes],
       };
 
@@ -113,7 +130,10 @@ export class DecisionLayer {
     ) {
       const result: DecisionResult = {
         hint: 'accept',
-        reasoning: `Confidence ${confidence.overall}/100. Hallucination fraction ${(hallucinationFraction * 100).toFixed(1)}% — within threshold.`,
+        reasoning: formatDecisionAcceptReasoning({
+          overall: confidence.overall,
+          hallucinationPct: (hallucinationFraction * 100).toFixed(1),
+        }),
         active_error_types: activeErrorTypes,
       };
 
@@ -137,18 +157,21 @@ export class DecisionLayer {
       const warningReasons: string[] = [];
 
       if (errors.data_gaps.length > 0) {
-        warningReasons.push(`${errors.data_gaps.length} data gap(s)`);
+        warningReasons.push(formatDecisionWarningDataGaps(errors.data_gaps.length));
       }
       if (errors.fixable.length > 0) {
-        warningReasons.push(`${errors.fixable.length} fixable issue(s): ${errors.fixable.join(', ')}`);
+        warningReasons.push(formatDecisionWarningFixable(errors.fixable.length, errors.fixable.join(', ')));
       }
       if (control.human_attention_required.required) {
-        warningReasons.push('human attention flagged');
+        warningReasons.push(DECISION_WARNING_HUMAN_ATTENTION_FLAGGED);
       }
 
       const result: DecisionResult = {
         hint: 'accept_with_warnings',
-        reasoning: `Confidence ${confidence.overall}/100. Issues: ${warningReasons.join('; ')}.`,
+        reasoning: formatDecisionAcceptWithWarningsReasoning({
+          overall: confidence.overall,
+          issuesJoined: warningReasons.join('; '),
+        }),
         active_error_types: activeErrorTypes,
       };
 
@@ -167,18 +190,18 @@ export class DecisionLayer {
     const refineReasons: string[] = [];
 
     if (confidence.overall < T.accept_with_warnings.min_overall_confidence) {
-      refineReasons.push(`low confidence (${confidence.overall}/100)`);
+      refineReasons.push(formatDecisionRefineLowConfidence(confidence.overall));
     }
     if (errors.structural.length > T.accept_with_warnings.max_structural_errors) {
-      refineReasons.push(`structural errors: ${errors.structural.join(', ')}`);
+      refineReasons.push(formatDecisionRefineStructuralErrors(errors.structural.join(', ')));
     }
     if (counts.statuses.likely_hallucination > T.accept_with_warnings.max_hallucination_count) {
-      refineReasons.push(`hallucination count: ${counts.statuses.likely_hallucination}`);
+      refineReasons.push(formatDecisionRefineHallucinationCount(counts.statuses.likely_hallucination));
     }
 
     const result: DecisionResult = {
       hint: 'refine',
-      reasoning: `Refine recommended — ${refineReasons.join('; ')}.`,
+      reasoning: formatDecisionRefineSummary(refineReasons.join('; ')),
       active_error_types: activeErrorTypes,
     };
 
