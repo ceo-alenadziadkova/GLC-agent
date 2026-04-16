@@ -46,7 +46,7 @@ function ensureQueue(): Queue<PipelineJobPayload> | null {
 export async function enqueuePipelineJob(payload: PipelineJobPayload): Promise<boolean> {
   const q = ensureQueue();
   if (!q) return false;
-  const queueJobId = `${payload.action}:${payload.auditId}:${payload.phase ?? 'block'}:${Date.now()}`;
+  const queueJobId = `${payload.action}:${payload.auditId}:${payload.phase ?? 'block'}`;
   await q.add(
     `${payload.action}:${payload.auditId}:${payload.phase ?? 'block'}`,
     payload,

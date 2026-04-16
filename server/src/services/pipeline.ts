@@ -10,25 +10,18 @@ import {
   isBanditsEnabled,
   isCausalDagEnabled,
 } from '../config/feature-flags.js';
-import { applyAutoRemediation } from './remediation.js';
 import { supabase } from './supabase.js';
 import { assertBriefReady } from './brief-validator.js';
-import { consistencyChecker } from './consistency-checker.js';
 import { ReconAgent } from '../agents/recon.js';
 import { TechAgent } from '../agents/tech.js';
 import { SecurityAgent } from '../agents/security.js';
 import { SeoAgent } from '../agents/seo.js';
 import { UxAgent } from '../agents/ux.js';
-import { runDeterministicSnapshot } from '../snapshot/run-snapshot.js';
-import { SnapshotAtCapacityError } from '../snapshot/abuse-guards.js';
 import { MarketingAgent } from '../agents/marketing.js';
 import { AutomationAgent } from '../agents/automation.js';
 import { StrategyAgent } from '../agents/strategy.js';
 import { BaseAgent } from '../agents/base.js';
 import { logger } from './logger.js';
-import { getContext, updateContext } from './observability-context.js';
-import { emitStructuredNotification } from './notifications.js';
-import { decisionLayer } from './decision-layer.js';
 import {
   DEFAULT_AUDIT_PRODUCT_MODE,
   executionPlanToPhases,
@@ -39,25 +32,36 @@ import {
   type DomainResult,
   type FreeSnapshotPreview,
   type ProductMode,
+  reviewPhasesForExecutionPlan,
 } from '../types/audit.js';
-import { recordEvaluationDatasetIfEnabled } from './evaluation-dataset-writer.js';
-import { dynamicAdjustmentService } from './dynamic-adjustment.js';
+import { pipelineStatusForPhase } from '../config/pipeline-status.js';
 import { recordAgentPerformance } from './agent-performance.js';
 import { PIPELINE_EVENT_ERROR_CODES } from '../config/pipeline-event-error-codes.js';
 import {
   PIPELINE_EVENT_TYPES,
-  PIPELINE_LIFECYCLE_EVENT_TYPES,
-  PIPELINE_NOTIFY_EVENT_TYPES,
 } from '../config/pipeline-event-types.js';
-import type { ControlObjectV1, PhaseId } from '../schemas/control-object.js';
+import type { ControlObjectV1 } from '../schemas/control-object.js';
 import { fetchPriorControlObjectsForPhase } from './control-object-history.js';
-import { invalidateDownstreamDependents } from './audit-claim-graph.js';
 import { banditService, DEFAULT_VARIANT_ID } from './bandit.js';
-import { attachBenchmarkReferenceToControlObject } from './benchmark-snapshot.js';
-import { findVariant } from '../config/agent-variants.js';
-import { CLAUDE_MODEL, MODEL_MAX_TOKENS, getModelPricing } from '../config/model.js';
-import { roundTokenCostUsd } from '../config/token-cost-rounding.js';
 import { normalizeExecutionPlan } from './execution-plan.js';
+import {
+  ANALYTIC_WING_PHASES,
+  AUTO_WING_PHASES,
+  PIPELINE_PHASE_RUN_ATTEMPT_INITIAL,
+} from '../config/pipeline-orchestrator-constants.js';
+import { writePipelineEventAndPhaseRun } from './pipeline/events/eventWriter.js';
+import { maybePublishPipelineNotification } from './pipeline/events/notificationPublisher.js';
+import {
+  runPhaseDomainExecution,
+} from './pipeline/phaseRunner.js';
+import { publishControlObjectGovernanceCore } from './pipeline/governance/controlObjectGovernance.js';
+import { attemptAutoLoop as attemptAutoLoopService, estimateRerunCostUsd as estimateRerunCostUsdService } from './pipeline/autoLoop/autoLoopService.js';
+import {
+  runAutoWingQualityGateAndMaybeReviewGate,
+  runStrategyQualityGate,
+} from './pipeline/reviewGateCoordinator.js';
+import { runFreeSnapshotService } from './pipeline/freeSnapshotService.js';
+import { recoverStalledPipelines as recoverStalledPipelinesService } from './pipeline/recovery/recoverStalledPipelines.js';
 
 type AgentConstructor = new (auditId: string) => BaseAgent;
 
@@ -79,10 +83,7 @@ const PHASE_AGENTS: Record<number, AgentConstructor> = {
  * Analytic wing (5–6): Marketing, Automation — also independent of each other.
  * Phase 7 (Strategy) remains sequential; it synthesises every prior result.
  */
-const AUTO_WING_PHASES    = [1, 2, 3, 4] as const;
-const ANALYTIC_WING_PHASES = [5, 6] as const;
 const STALLED_PHASE_TIMEOUT_MIN = SYSTEM_DEFAULTS.pipelineOrchestrator.stalledPhaseTimeoutMin;
-const STALLED_PHASE_ACTIVE_STATUSES = ['recon', 'auto', 'analytic', 'strategy'] as const;
 const PARALLEL_FAILURE_THRESHOLD = SYSTEM_DEFAULTS.pipelineOrchestrator.parallelFailureThreshold;
 
 class PipelineCancelledError extends Error {
@@ -148,100 +149,33 @@ export class PipelineOrchestrator {
       cleanedOutput: DomainResult;
     }
   ): Promise<void> {
-    let decision;
-    try {
-      decision = decisionLayer.decide(controlObject);
-      controlObject.decision_hint = decision.hint;
-    } catch (dlErr) {
-      logger.warn('pipeline.decision_layer_failed', {
-        component: 'pipeline',
-        audit_id: this.auditId,
-        phase,
-        error: dlErr instanceof Error ? dlErr.message : String(dlErr),
-      });
-    }
-
-    if (isCausalDagEnabled() && controlObject.errors.structural.length > 0) {
-      const pid = controlObject.context.phase_id;
-      if (pid !== 'recon' && pid !== 'strategy') {
-        const seeds = controlObject.context.structural_invalidation_claim_ids;
-        if (seeds && seeds.length > 0) {
-          const refs = seeds.map(claimId => ({ phase_id: pid as PhaseId, claim_id: claimId }));
-          const { marked } = await invalidateDownstreamDependents(this.auditId, refs);
-          if (marked.length > 0) {
-            await this.emitEvent(
-              phase,
-              PIPELINE_EVENT_TYPES.log,
-              `Causal DAG: marked ${marked.length} downstream claim(s) invalidated after upstream structural issues.`,
-              { invalidated_downstream: marked, source_phase_id: pid },
-            );
-          }
-        }
-      }
-    }
-
-    if (evaluationCapture) {
-      const remediated = await applyAutoRemediation({
-        auditId: this.auditId,
-        controlObject,
-        cleanedOutput: evaluationCapture.cleanedOutput,
-        phaseNumber: phase,
-        disableAutoRemediate: this.disableAutoRemediate,
-      });
-      if (remediated > 0) {
-        try {
-          const postRem = decisionLayer.decide(controlObject);
-          controlObject.decision_hint = postRem.hint;
-        } catch (reDecideErr) {
-          logger.warn('pipeline.remediation_redecide_failed', {
-            component: 'pipeline',
-            audit_id: this.auditId,
-            phase,
-            error: reDecideErr instanceof Error ? reDecideErr.message : String(reDecideErr),
-          });
-        }
-        await this.emitEvent(
-          phase,
-          PIPELINE_EVENT_TYPES.log,
-          `Auto-remediation: corrected ${remediated} issue(s).`,
-          { auto_remediation_count: remediated },
-        );
-      }
-    }
-
-    await attachBenchmarkReferenceToControlObject(this.auditId, controlObject);
-
-    if (evaluationCapture) {
-      await recordEvaluationDatasetIfEnabled({
-        auditId: this.auditId,
-        phaseId: evaluationCapture.phaseId,
-        controlObject,
-        rawAgentOutput: evaluationCapture.rawAgentOutput,
-        cleanedOutput: evaluationCapture.cleanedOutput,
-      });
-    }
-
-    // v2.0: persist agent performance metrics (async, best-effort)
-    void this.recordPerformanceAsync(controlObject, phase);
-    void this.recordBanditArmAsync(controlObject);
-
-    try {
-      await this.emitEvent(phase, PIPELINE_EVENT_TYPES.controlObject, '', { control_object: controlObject });
-    } catch (emitErr) {
-      logger.warn('pipeline.control_object_emit_failed', {
-        component: 'pipeline',
-        audit_id: this.auditId,
-        phase,
-        error: emitErr instanceof Error ? emitErr.message : String(emitErr),
-      });
-    }
+    const decision = await publishControlObjectGovernanceCore({
+      auditId: this.auditId,
+      disableAutoRemediate: this.disableAutoRemediate,
+      phase,
+      controlObject,
+      evaluationCapture,
+      emitEvent: this.emitEvent.bind(this),
+      recordPerformanceAsync: this.recordPerformanceAsync.bind(this),
+      recordBanditArmAsync: this.recordBanditArmAsync.bind(this),
+    });
 
     if (decision?.hint === 'refine') {
       const oc = pipelineOrchestratorCopy();
 
       // Phase 5: attempt auto-loop if enabled for this environment
       if (await this.shouldAttemptAutoLoop()) {
-        const looped = await this.attemptAutoLoop(phase, controlObject, decision.active_error_types);
+        const looped = await attemptAutoLoopService({
+          auditId: this.auditId,
+          phase,
+          originalControlObject: controlObject,
+          activeErrorTypes: decision.active_error_types,
+          disableAutoRemediate: this.disableAutoRemediate,
+          agentClassForPhase: (p) => PHASE_AGENTS[p],
+          attachPriorControlObjects: this.attachPriorControlObjects.bind(this),
+          recordBanditArmAsync: this.recordBanditArmAsync.bind(this),
+          emitEvent: this.emitEvent.bind(this),
+        });
         if (looped) return; // auto-loop handled the refine — no manual escalation needed
       }
 
@@ -249,7 +183,7 @@ export class PipelineOrchestrator {
       await this.emitEvent(
         phase,
         PIPELINE_EVENT_TYPES.refineRecommended,
-        oc.phase.refineRecommendedMessage ?? 'Decision Layer recommends manual review before proceeding.',
+        oc.phase.refineRecommendedMessage,
         {
           decision_hint: decision.hint,
           reasoning: decision.reasoning,
@@ -330,26 +264,7 @@ export class PipelineOrchestrator {
    * Falls back to a conservative model-based estimate when historical usage is unavailable.
    */
   private async estimateRerunCostUsd(phase: number): Promise<number> {
-    const { data: tokenUsageEvent } = await supabase
-      .from('pipeline_events')
-      .select('data')
-      .eq('audit_id', this.auditId)
-      .eq('phase', phase)
-      .eq('event_type', PIPELINE_EVENT_TYPES.tokenUsage)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const eventCost = (tokenUsageEvent?.data as { cost_usd?: unknown } | null)?.cost_usd;
-    if (typeof eventCost === 'number' && Number.isFinite(eventCost) && eventCost > 0) {
-      return roundTokenCostUsd(eventCost);
-    }
-
-    const pricing = getModelPricing(CLAUDE_MODEL);
-    const conservativeFallback =
-      (MODEL_MAX_TOKENS.domain / 1_000_000) * pricing.input +
-      (MODEL_MAX_TOKENS.domain / 1_000_000) * pricing.output;
-    return roundTokenCostUsd(conservativeFallback);
+    return estimateRerunCostUsdService({ auditId: this.auditId, phase });
   }
 
   /**
@@ -368,213 +283,17 @@ export class PipelineOrchestrator {
     originalControlObject: ControlObjectV1,
     activeErrorTypes: string[]
   ): Promise<boolean> {
-    const cfg = SYSTEM_DEFAULTS.autoLoop;
-    const AgentClass = PHASE_AGENTS[phase];
-    if (!AgentClass) return false;
-
-    const domainKey = PHASE_DOMAIN_MAP[phase];
-    if (domainKey === 'recon' || domainKey === 'strategy') return false;
-
-    const originalConfidence = originalControlObject.confidence.overall;
-
-    // Generate instruction patches
-    const { adjustments, matched_error_types } = dynamicAdjustmentService.generateAdjustments(originalControlObject);
-
-    if (adjustments.size === 0) {
-      logger.info('pipeline.auto_loop_no_adjustments', {
-        component: 'pipeline',
-        audit_id: this.auditId,
-        phase,
-        active_error_types: activeErrorTypes,
-      });
-      return false;
-    }
-
-    logger.info('pipeline.auto_loop_start', {
-      component: 'pipeline',
-      audit_id: this.auditId,
+    return attemptAutoLoopService({
+      auditId: this.auditId,
       phase,
-      domain: domainKey,
-      matched_error_types,
-      agent_count: adjustments.size,
+      originalControlObject,
+      activeErrorTypes,
+      disableAutoRemediate: this.disableAutoRemediate,
+      agentClassForPhase: (p) => PHASE_AGENTS[p],
+      attachPriorControlObjects: this.attachPriorControlObjects.bind(this),
+      recordBanditArmAsync: this.recordBanditArmAsync.bind(this),
+      emitEvent: this.emitEvent.bind(this),
     });
-
-    let currentControlObject = originalControlObject;
-
-    for (let iteration = 1; iteration <= cfg.maxIterations; iteration++) {
-      // Cost guardrail: estimate and check before rerun
-      const estimatedRerunCostUsd = await this.estimateRerunCostUsd(phase);
-      const rerunCostSoFar = (currentControlObject.cost_control?.total_rerun_cost_usd ?? 0);
-      const projectedTotal = rerunCostSoFar + estimatedRerunCostUsd;
-
-      if (
-        projectedTotal > cfg.costGuardrailThresholdUsd &&
-        (currentControlObject.confidence.overall - originalConfidence) < cfg.minConfidenceGain
-      ) {
-        logger.info('pipeline.auto_loop_cost_guardrail', {
-          component: 'pipeline',
-          audit_id: this.auditId,
-          phase,
-          iteration,
-          projected_cost_usd: projectedTotal,
-          confidence_gain: currentControlObject.confidence.overall - originalConfidence,
-        });
-        // Update cost_control to record the block
-        if (currentControlObject.cost_control) {
-          currentControlObject.cost_control.cost_guardrail_triggered = true;
-        }
-        break;
-      }
-
-      // Rerun the agent with adjustment patches
-      try {
-        await this.emitEvent(
-          phase,
-          PIPELINE_EVENT_TYPES.log,
-          `Auto-loop iteration ${iteration}/${cfg.maxIterations} — applying ${matched_error_types.length} correction(s).`,
-        );
-
-        const agent = new AgentClass(this.auditId);
-        // Inject bandit variant for the auto-loop rerun (same bandit selection as initial run)
-        {
-          const banditResult = await banditService.selectVariant(domainKey as DomainKey);
-          agent.selectedVariantId = banditResult.variant_id;
-          if (banditResult.variant_id !== DEFAULT_VARIANT_ID) {
-            const variant = findVariant(domainKey as DomainKey, banditResult.variant_id);
-            if (variant) agent.variantDelta = variant;
-          }
-        }
-        await this.attachPriorControlObjects(agent, domainKey as DomainKey);
-        // Inject instruction patches via agent property (BaseAgent reads this in buildInstructions)
-        if ('autoLoopAdjustments' in agent) {
-          (agent as BaseAgent & { autoLoopAdjustments?: Map<number, string> }).autoLoopAdjustments = adjustments;
-        }
-
-        const rerunResult = await agent.run();
-        const rerunControlObject = (agent as BaseAgent).lastControlObject;
-
-        if (!rerunControlObject) break;
-
-        // Populate cost_control for the rerun
-        rerunControlObject.cost_control = {
-          estimated_cost_usd: estimatedRerunCostUsd,
-          total_rerun_cost_usd: projectedTotal,
-          rerun_count: iteration,
-          cost_guardrail_triggered: false,
-        };
-
-        // Re-run Decision Layer on the new output
-        const rerunDecision = decisionLayer.decide(rerunControlObject);
-        rerunControlObject.decision_hint = rerunDecision.hint;
-
-        const remediated = await applyAutoRemediation({
-          auditId: this.auditId,
-          controlObject: rerunControlObject,
-          cleanedOutput: rerunResult,
-          phaseNumber: phase,
-          disableAutoRemediate: this.disableAutoRemediate,
-        });
-        if (remediated > 0) {
-          try {
-            const postRem = decisionLayer.decide(rerunControlObject);
-            rerunControlObject.decision_hint = postRem.hint;
-          } catch (reDecideErr) {
-            logger.warn('pipeline.remediation_redecide_failed', {
-              component: 'pipeline',
-              audit_id: this.auditId,
-              phase,
-              error: reDecideErr instanceof Error ? reDecideErr.message : String(reDecideErr),
-            });
-          }
-          await this.emitEvent(
-            phase,
-            PIPELINE_EVENT_TYPES.log,
-            `Auto-remediation: corrected ${remediated} issue(s).`,
-            { auto_remediation_count: remediated },
-          );
-        }
-
-        await attachBenchmarkReferenceToControlObject(this.auditId, rerunControlObject);
-
-        // Record evaluation dataset for the rerun
-        await recordEvaluationDatasetIfEnabled({
-          auditId: this.auditId,
-          phaseId: domainKey as DomainKey,
-          controlObject: rerunControlObject,
-          rawAgentOutput: (agent as BaseAgent).lastRawDomainResult,
-          cleanedOutput: rerunResult,
-        });
-
-        void this.recordBanditArmAsync(rerunControlObject);
-
-        await this.emitEvent(phase, PIPELINE_EVENT_TYPES.controlObject, '', { control_object: rerunControlObject });
-
-        const confidenceGain = rerunControlObject.confidence.overall - originalConfidence;
-
-        logger.info('pipeline.auto_loop_iteration_result', {
-          component: 'pipeline',
-          audit_id: this.auditId,
-          phase,
-          iteration,
-          original_confidence: originalConfidence,
-          new_confidence: rerunControlObject.confidence.overall,
-          confidence_gain: confidenceGain,
-          new_decision: rerunDecision.hint,
-        });
-
-        currentControlObject = rerunControlObject;
-
-        // Accept if decision improved or minimum gain achieved
-        if (rerunDecision.hint !== 'refine') {
-          await agent.saveDomainResult(rerunResult);
-          await this.emitEvent(
-            phase,
-            PIPELINE_EVENT_TYPES.log,
-            `Auto-loop: ${rerunDecision.hint} after ${iteration} iteration(s). Confidence +${confidenceGain} pts.`,
-          );
-          return true;
-        }
-
-        // Stop if gain below minimum — further reruns unlikely to help
-        if (confidenceGain < cfg.minConfidenceGain) {
-          logger.info('pipeline.auto_loop_insufficient_gain', {
-            component: 'pipeline',
-            audit_id: this.auditId,
-            phase,
-            iteration,
-            confidence_gain: confidenceGain,
-            min_required: cfg.minConfidenceGain,
-          });
-          break;
-        }
-
-      } catch (loopErr) {
-        logger.warn('pipeline.auto_loop_iteration_failed', {
-          component: 'pipeline',
-          audit_id: this.auditId,
-          phase,
-          iteration,
-          error: loopErr instanceof Error ? loopErr.message : String(loopErr),
-        });
-        break;
-      }
-    }
-
-    // Auto-loop exhausted without reaching accept — emit refine_recommended
-    const oc = pipelineOrchestratorCopy();
-    await this.emitEvent(
-      phase,
-      PIPELINE_EVENT_TYPES.refineRecommended,
-      oc.phase.refineRecommendedMessage,
-      {
-        decision_hint: 'refine',
-        reasoning: `Auto-loop ran ${cfg.maxIterations} iteration(s) without reaching accept threshold.`,
-        active_error_types: activeErrorTypes,
-        control_object: currentControlObject,
-      },
-    );
-
-    return true; // we handled the refine path (via auto-loop + final emission)
   }
 
   /** Fetch normalized execution plan for this audit with legacy fallback. */
@@ -627,58 +346,25 @@ export class PipelineOrchestrator {
       );
 
       // Update audit status + current_phase
-      const statusMap: Record<number, string> = {
-        0: 'recon',
-        1: 'auto', 2: 'auto', 3: 'auto', 4: 'auto',
-        5: 'analytic', 6: 'analytic',
-        7: 'strategy',
-      };
       const moved = await this.updateAuditIfNotCancelled({
-        status: statusMap[phase] ?? 'auto',
+        status: pipelineStatusForPhase(phase),
         current_phase: phase,
       });
       if (!moved) throw new PipelineCancelledError();
 
-      // Update domain status to 'collecting' (if applicable)
       const domainKey = PHASE_DOMAIN_MAP[phase];
-      if (domainKey !== 'recon' && domainKey !== 'strategy') {
-        await supabase.from('audit_domains').update({ status: 'collecting' })
-          .eq('audit_id', this.auditId)
-          .eq('domain_key', domainKey);
-      }
-
-      // Run the agent
-      const agent = new AgentClass(this.auditId);
-      if (domainKey !== 'recon' && domainKey !== 'strategy') {
-        const banditResult = await banditService.selectVariant(domainKey as DomainKey);
-        agent.selectedVariantId = banditResult.variant_id;
-        if (banditResult.variant_id !== DEFAULT_VARIANT_ID) {
-          const variant = findVariant(domainKey as DomainKey, banditResult.variant_id);
-          if (variant) agent.variantDelta = variant;
-        }
-        await this.attachPriorControlObjects(agent, domainKey as DomainKey);
-      }
-      const result = await agent.run();
-
-      if (domainKey !== 'recon' && domainKey !== 'strategy') {
-        // ─── Decision Layer (Phase 1: advisory / log only) ──────
-        // In Phase 1, refine hint does NOT block or auto-rerun.
-        // It emits an event for consultant awareness.
-        // Phase 5 activates auto-loop via AUTO_LOOP_ENABLED flag.
-        const controlObject = (agent as BaseAgent).lastControlObject;
-        if (controlObject) {
-          await this.publishControlObjectGovernance(phase, controlObject, {
-            phaseId: domainKey as DomainKey,
-            rawAgentOutput: (agent as BaseAgent).lastRawDomainResult,
-            cleanedOutput: result,
-          });
-        }
-
-        await agent.saveDomainResult(result);
-      }
+      const result = await runPhaseDomainExecution({
+        auditId: this.auditId,
+        phase,
+        domainKey,
+        AgentClass,
+        attachPriorControlObjects: this.attachPriorControlObjects.bind(this),
+        publishControlObjectGovernance: this.publishControlObjectGovernance.bind(this),
+      });
 
       // Check if this phase triggers a review point
-      if ((executionPlanToPhases(executionPlan) as readonly number[]).includes(phase) && [0, 4, 7].includes(phase)) {
+      const reviewPhases = reviewPhasesForExecutionPlan(executionPlan);
+      if ((reviewPhases as readonly number[]).includes(phase)) {
         await this.emitEvent(phase, PIPELINE_EVENT_TYPES.reviewNeeded, ocStart.phase.reviewNeeded);
         const reviewSet = await this.updateAuditIfNotCancelled({ status: 'review' });
         if (!reviewSet) throw new PipelineCancelledError();
@@ -749,37 +435,14 @@ export class PipelineOrchestrator {
         interpolateOrchestratorMessage(ocIso.phase.startedTemplate, { phase, domain: domainKey }),
       );
 
-      if (domainKey !== 'recon' && domainKey !== 'strategy') {
-        await supabase.from('audit_domains').update({ status: 'collecting' })
-          .eq('audit_id', this.auditId)
-          .eq('domain_key', domainKey);
-      }
-
-      const agent = new AgentClass(this.auditId);
-      if (domainKey !== 'recon' && domainKey !== 'strategy') {
-        const banditResult = await banditService.selectVariant(domainKey as DomainKey);
-        agent.selectedVariantId = banditResult.variant_id;
-        if (banditResult.variant_id !== DEFAULT_VARIANT_ID) {
-          const variant = findVariant(domainKey as DomainKey, banditResult.variant_id);
-          if (variant) agent.variantDelta = variant;
-        }
-        await this.attachPriorControlObjects(agent, domainKey as DomainKey);
-      }
-      const result = await agent.run();
-
-      if (domainKey !== 'recon' && domainKey !== 'strategy') {
-        // ─── Decision Layer (isolated path — same advisory logic) ──
-        const controlObject = (agent as BaseAgent).lastControlObject;
-        if (controlObject) {
-          await this.publishControlObjectGovernance(phase, controlObject, {
-            phaseId: domainKey as DomainKey,
-            rawAgentOutput: (agent as BaseAgent).lastRawDomainResult,
-            cleanedOutput: result,
-          });
-        }
-
-        await agent.saveDomainResult(result);
-      }
+      const result = await runPhaseDomainExecution({
+        auditId: this.auditId,
+        phase,
+        domainKey,
+        AgentClass,
+        attachPriorControlObjects: this.attachPriorControlObjects.bind(this),
+        publishControlObjectGovernance: this.publishControlObjectGovernance.bind(this),
+      });
 
       await this.emitEvent(
         phase,
@@ -940,7 +603,7 @@ export class PipelineOrchestrator {
       const executionPlan = await this.getExecutionPlan();
       const executablePhases = executionPlanToPhases(executionPlan).filter((p) => p > 0);
       const maxPhase = maxPhaseForExecutionPlan(executionPlan);
-      const reviewPhases = [0, 4, 7].filter((p) => executionPlanToPhases(executionPlan).includes(p));
+      const reviewPhases = reviewPhasesForExecutionPlan(executionPlan);
       const nextPhase = executablePhases.find((p) => p > audit.current_phase);
 
       if (audit.status === 'cancelled') return;
@@ -960,25 +623,15 @@ export class PipelineOrchestrator {
       const advancedAuto = await this.updateAuditIfNotCancelled({ current_phase: lastWingPhase });
       if (!advancedAuto) throw new PipelineCancelledError();
 
-      // Run consistency / quality gate checks before surfacing the review gate
-      const autoGateReport = await consistencyChecker.run(this.auditId, lastWingPhase, wingPhases);
-
-      // Persist quality gate result on the review_points row for this gate
-      await supabase.from('review_points')
-        .update({ quality_gate_passed: autoGateReport.passed })
-        .eq('audit_id', this.auditId)
-        .eq('after_phase', lastWingPhase);
-
-      // Gate after auto wing (if applicable)
-      if (reviewPhases.includes(lastWingPhase)) {
-        await this.emitEvent(
-          lastWingPhase,
-          PIPELINE_EVENT_TYPES.reviewNeeded,
-          pipelineOrchestratorCopy().phase.reviewNeeded,
-        );
-        const setReview = await this.updateAuditIfNotCancelled({ status: 'review' });
-        if (!setReview) throw new PipelineCancelledError();
-      }
+      await runAutoWingQualityGateAndMaybeReviewGate({
+        auditId: this.auditId,
+        afterPhase: lastWingPhase,
+        phasesInWing: wingPhases,
+        reviewPhases,
+        emitEvent: this.emitEvent.bind(this),
+        updateAuditIfNotCancelled: this.updateAuditIfNotCancelled.bind(this),
+        cancelledErrorFactory: () => new PipelineCancelledError(),
+      });
         return;
       }
 
@@ -1001,13 +654,11 @@ export class PipelineOrchestrator {
 
         // Run quality gate on the full audit (all domains) after strategy completes
         const allDomainPhases = [...wingPhases, 7];
-        const finalGateReport = await consistencyChecker.run(this.auditId, 7, allDomainPhases);
-
-        // Persist quality gate result on the final review_points row (after phase 7)
-        await supabase.from('review_points')
-          .update({ quality_gate_passed: finalGateReport.passed })
-          .eq('audit_id', this.auditId)
-          .eq('after_phase', 7);
+        await runStrategyQualityGate({
+          auditId: this.auditId,
+          afterPhase: 7,
+          phasesToCheck: allDomainPhases,
+        });
       }
         return;
       }
@@ -1031,41 +682,10 @@ export class PipelineOrchestrator {
    * Persists audit_recon + ux_conversion row; trimmed to 2 issues + 2 quick wins in API.
    */
   async runFreeSnapshot(): Promise<FreeSnapshotPreview> {
-    const ocFs = pipelineOrchestratorCopy();
-    try {
-      logger.info('Free snapshot started', { audit_id: this.auditId });
-
-      await supabase.from('audits').update({ status: 'recon', current_phase: 0 }).eq('id', this.auditId);
-      await this.emitEvent(0, PIPELINE_EVENT_TYPES.started, ocFs.freeSnapshot.started);
-
-      const { preview } = await runDeterministicSnapshot(this.auditId);
-
-      await this.emitEvent(4, PIPELINE_EVENT_TYPES.completed, ocFs.freeSnapshot.completed);
-
-      logger.info('Free snapshot completed', { audit_id: this.auditId });
-      return preview;
-
-    } catch (err) {
-      const error = err as Error;
-      if (error instanceof SnapshotAtCapacityError) {
-        logger.warn('Free snapshot capacity', { audit_id: this.auditId });
-        await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
-        await this.emitEvent(0, PIPELINE_EVENT_TYPES.error, ocFs.freeSnapshot.errorCapacity, {
-          error_code: PIPELINE_EVENT_ERROR_CODES.SNAPSHOT_AT_CAPACITY,
-        });
-        throw err;
-      }
-      logger.error('Free snapshot failed', {
-        audit_id: this.auditId,
-        error: error.message,
-        stack: error.stack,
-      });
-      await supabase.from('audits').update({ status: 'failed' }).eq('id', this.auditId);
-      await this.emitEvent(0, PIPELINE_EVENT_TYPES.error, ocFs.freeSnapshot.errorGeneric, {
-        error_code: PIPELINE_EVENT_ERROR_CODES.FREE_SNAPSHOT_FAILED,
-      });
-      throw err;
-    }
+    return runFreeSnapshotService({
+      auditId: this.auditId,
+      emitEvent: this.emitEvent.bind(this),
+    });
   }
 
   /**
@@ -1073,102 +693,22 @@ export class PipelineOrchestrator {
    * Copy is sourced from `pipeline-orchestrator-copy.v1.json` (orchestrator) and agent JSON, not ad hoc strings.
    */
   private async emitEvent(phase: number, eventType: string, message: string, data: Record<string, unknown> = {}): Promise<void> {
-    updateContext({ auditId: this.auditId });
-    const ctx = getContext();
-    await supabase.from('pipeline_events').insert({
-      audit_id: this.auditId,
+    await writePipelineEventAndPhaseRun({
+      auditId: this.auditId,
       phase,
-      event_type: eventType,
+      eventType,
       message,
-      data: {
-        ...data,
-        trace_id: ctx?.traceId,
-        operation_id: ctx?.operationId,
-      },
+      data,
+      leaseTimeoutMinutes: STALLED_PHASE_TIMEOUT_MIN,
     });
 
-    if (phase >= 0 && (PIPELINE_LIFECYCLE_EVENT_TYPES as readonly string[]).includes(eventType)) {
-      const mappedStatus = eventType === PIPELINE_EVENT_TYPES.started
-        ? 'running'
-        : eventType === PIPELINE_EVENT_TYPES.completed
-          ? 'completed'
-          : 'failed';
-      const now = new Date();
-      await supabase.from('phase_runs').upsert(
-        {
-          audit_id: this.auditId,
-          phase,
-          attempt: 1,
-          status: mappedStatus,
-          lease_owner: `pid:${process.pid}`,
-          lease_expires_at: new Date(now.getTime() + STALLED_PHASE_TIMEOUT_MIN * 60_000).toISOString(),
-          heartbeat_at: now.toISOString(),
-          ...(eventType === PIPELINE_EVENT_TYPES.error ? { error_message: message } : {}),
-        },
-        { onConflict: 'audit_id,phase,attempt' },
-      );
-    }
-
-    // Keep in-app notifications concise and limited to user-relevant lifecycle changes.
-    if ((PIPELINE_NOTIFY_EVENT_TYPES as readonly string[]).includes(eventType)) {
-      const ocN = pipelineOrchestratorCopy();
-      const titles = ocN.notifications.pipelinePhaseTitles;
-      const title =
-        (titles as Record<string, string>)[eventType] ?? titles.default;
-      await emitStructuredNotification({
-        category: eventType === PIPELINE_EVENT_TYPES.reviewNeeded ? 'review' : 'pipeline',
-        event: `pipeline_${eventType}`,
-        priority: eventType === PIPELINE_EVENT_TYPES.error
-          ? 'critical'
-          : eventType === PIPELINE_EVENT_TYPES.reviewNeeded
-            ? 'medium'
-            : 'low',
-        audience: 'audit_participants',
-        auditId: this.auditId,
-        title,
-        message,
-        payload: {
-          phase,
-          event_type: eventType,
-          ...data,
-        },
-      });
-    }
-
-    if (eventType === PIPELINE_EVENT_TYPES.completed && phase === 7) {
-      const ocArt = pipelineOrchestratorCopy();
-      const n = ocArt.notifications;
-      await emitStructuredNotification({
-        category: 'pipeline',
-        event: 'artifact_strategy_ready',
-        priority: 'low',
-        audience: 'audit_participants',
-        auditId: this.auditId,
-        title: n.artifactTitle,
-        message: n.artifactStrategyMessage,
-        route: interpolateOrchestratorMessage(n.artifactStrategyRouteTemplate, { audit_id: this.auditId }),
-        payload: {
-          audit_id: this.auditId,
-          artifact: 'strategy',
-          actor_role: 'system',
-        },
-      });
-      await emitStructuredNotification({
-        category: 'pipeline',
-        event: 'artifact_report_ready',
-        priority: 'low',
-        audience: 'audit_participants',
-        auditId: this.auditId,
-        title: n.artifactTitle,
-        message: n.artifactReportMessage,
-        route: interpolateOrchestratorMessage(n.artifactReportRouteTemplate, { audit_id: this.auditId }),
-        payload: {
-          audit_id: this.auditId,
-          artifact: 'report',
-          actor_role: 'system',
-        },
-      });
-    }
+    await maybePublishPipelineNotification({
+      auditId: this.auditId,
+      phase,
+      eventType,
+      message,
+      data,
+    });
   }
 }
 
@@ -1177,35 +717,5 @@ export class PipelineOrchestrator {
  * This is a minimal recovery guard until durable queue orchestration is introduced.
  */
 export async function recoverStalledPipelines(timeoutMinutes = STALLED_PHASE_TIMEOUT_MIN): Promise<number> {
-  const cutoff = new Date(Date.now() - timeoutMinutes * 60_000).toISOString();
-  const { data: stuck, error } = await supabase
-    .from('audits')
-    .select('id,current_phase,status')
-    .in('status', [...STALLED_PHASE_ACTIVE_STATUSES])
-    .lt('updated_at', cutoff);
-
-  if (error) {
-    logger.error('pipeline.recover_stalled_load_failed', { error: error.message, timeout_minutes: timeoutMinutes });
-    return 0;
-  }
-  if (!stuck || stuck.length === 0) return 0;
-
-  const ocStall = pipelineOrchestratorCopy();
-  for (const audit of stuck) {
-    await supabase.from('pipeline_events').insert({
-      audit_id: audit.id,
-      phase: Number(audit.current_phase ?? -1),
-      event_type: PIPELINE_EVENT_TYPES.phaseStalled,
-      message: interpolateOrchestratorMessage(ocStall.recoverStalled.messageTemplate, {
-        timeout_minutes: timeoutMinutes,
-      }),
-      data: {
-        timeout_minutes: timeoutMinutes,
-        previous_status: audit.status,
-      },
-    });
-    await supabase.from('audits').update({ status: 'failed' }).eq('id', audit.id);
-  }
-
-  return stuck.length;
+  return recoverStalledPipelinesService(timeoutMinutes);
 }
