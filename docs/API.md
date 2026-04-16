@@ -802,9 +802,20 @@ When **`SNAPSHOT_OPERATOR_TOKEN`** is set on the server, two routes accept the t
 - **`GET /api/snapshot/operator/metrics`** — counters (runs, cache vs fresh, Playwright use, fetch-failure classes, rule outcome totals, latency **p50** / **p95**) plus, when **`SNAPSHOT_SHARED_ABUSE_STORE`** is enabled: **`shared_abuse_store`**, **`snapshot_max_concurrent`**, **`snapshot_fresh_lease_ttl_seconds`**, **`snapshot_fresh_leases_active`** (DB count of non-expired leases). In-process counters reset on restart; shared lease headcount reflects the cluster.
 - **`POST /api/snapshot/operator/purge-cache`** — body **`{ "host": "example.com" }`** (registrable host, optional `https://` prefix). Deletes the row in **`snapshot_domain_cache`** for that host. Does not delete audit history.
 
-Optional **`competitor_mini`** (HTTPS, viewport meta, hreflang count, JSON-LD vs one external URL from homepage links) is returned **only** when the client requests it: `GET /api/snapshot/:token?compare=1` (or `compare=true` / `include_competitor=1`). Default completed responses omit it so no extra third-party fetch runs until the user opts in. Omitted when no suitable link exists or fetches fail.
+Public snapshot polling no longer exposes user-triggered competitor compare toggles. Completed payloads may still include `competitor_mini` only when explicitly assembled by server-side flows.
 
-**Compare rate limit:** Requests **with** one of those query flags are capped at **`SNAPSHOT_COMPARE_MAX_PER_HOUR`** per IP per rolling hour (default **15**). **`429`** body: `code: "COMPARE_RATE_LIMITED"`, `retry_after_minutes`.
+### `POST /api/snapshot/compare`
+
+Authenticated explicit comparison for client portal usage.
+
+- **Auth:** `Authorization: Bearer <access_token>` (`requireAuth`).
+- **Body:** `{ "self_url": "https://your-site.com", "competitor_url": "https://competitor.com" }`
+- **Validation:** both URLs run through the same public URL policy as snapshot/audit entrypoints (`validatePublicAuditUrl`), so rejected targets return granular `PUBLIC_URL_*` error codes.
+- **Response `200`:** `{ "competitor_mini": { ... } | null }` where `competitor_mini` carries four verifiable metrics (HTTPS, viewport meta, hreflang count, JSON-LD). `null` means comparison could not be assembled within constraints (e.g., timeout or non-HTML response).
+- **`400`:** `SNAPSHOT_COMPARE_SELF_URL_REQUIRED` or `SNAPSHOT_COMPARE_COMPETITOR_URL_REQUIRED` when inputs are missing.
+- **`401`:** missing/invalid JWT.
+- **`429`:** shared compare limiter (`COMPARE_RATE_LIMITED`) when hourly compare budget is exhausted.
+- **`500`:** `SNAPSHOT_COMPARE_FAILED` on unexpected server error.
 
 When `status === "failed"`, the body includes **`code: "SNAPSHOT_FAILED"`** (e.g. unreachable site, capacity shed, or pipeline error). Fine-grained reasons may be added later.
 

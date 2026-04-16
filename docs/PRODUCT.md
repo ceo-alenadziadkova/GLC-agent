@@ -143,7 +143,7 @@ Canonical runtime fields: `execution_plan.coverage_package` + `execution_plan.in
 | `pro` | Recon + selected domain set (commonly auto-wing depth) | Derived from plan | Standard-depth diagnostic package |
 | `complete` | Full domain coverage + strategy-ready defaults | Derived from plan | Deep coverage; strategy enabled by default |
 | `include_strategy=true` | Adds phase `7` | Adds gate after phase `7` | Works as roadmap/strategy toggle independent of package naming |
-| `free_snapshot` | Deterministic scan (no LLM) | None | Public `POST/GET /api/snapshot`; tiered fetch (HTTP + optional Playwright when the page looks like a client shell), rule-based **site profile**, **0–100** score; competitor-style benchmark **only on explicit opt-in** (`?compare=1`); optional domain cache; upgrade path to package-based audit |
+| `free_snapshot` | Deterministic scan (no LLM) | None | Public `POST/GET /api/snapshot`; tiered fetch (HTTP + optional Playwright when the page looks like a client shell), rule-based **site profile**, **0–100** score; optional domain cache; upgrade path to package-based audit. Competitor compare is available in authenticated portal flow via `POST /api/snapshot/compare` (explicit self + competitor URLs). |
 
 Compatibility note:
 
