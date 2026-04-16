@@ -47,6 +47,7 @@ import {
 } from '../lib/client-brief-layout-preference';
 import { bankIdToBriefQuestion } from '../data/bankQuestionUiCatalog';
 import { logger } from '../lib/logger';
+import { AUDIT_WORKSPACE_COPY } from '../config/audit-workspace-copy.en';
 /** Free snapshot pipeline only materialises UX / conversion analysis. */
 const SNAPSHOT_DOMAIN_KEYS: readonly DomainKey[] = ['ux_conversion'];
 
@@ -267,7 +268,7 @@ export function AuditWorkspace() {
 
   if (loading && !audit) {
     return (
-      <AppShell title="Audit Workspace" subtitle="Loading...">
+      <AppShell title={AUDIT_WORKSPACE_COPY.shell.title} subtitle={AUDIT_WORKSPACE_COPY.shell.loadingSubtitle}>
         <div className="flex items-center justify-center h-64">
           <ArrowsClockwise className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
         </div>
@@ -277,9 +278,9 @@ export function AuditWorkspace() {
 
   if (error || !audit) {
     return (
-      <AppShell title="Audit Workspace" subtitle="Error">
+      <AppShell title={AUDIT_WORKSPACE_COPY.shell.title} subtitle={AUDIT_WORKSPACE_COPY.shell.errorSubtitle}>
         <div className="flex items-center justify-center h-64">
-          <p style={{ color: 'var(--score-1)' }}>{error || 'Audit not found'}</p>
+          <p style={{ color: 'var(--score-1)' }}>{error || AUDIT_WORKSPACE_COPY.shell.notFound}</p>
         </div>
       </AppShell>
     );
@@ -317,8 +318,8 @@ export function AuditWorkspace() {
 
   return (
     <AppShell
-      title="Audit Workspace"
-      subtitle={`${companyName} · ${domainData ? DOMAIN_LABELS[activeDomain] : 'Select a domain'}`}
+      title={AUDIT_WORKSPACE_COPY.shell.title}
+      subtitle={`${companyName} · ${domainData ? DOMAIN_LABELS[activeDomain] : AUDIT_WORKSPACE_COPY.shell.selectDomain}`}
       actions={
         <div className="flex items-center gap-2">
           <StatusPill
@@ -331,7 +332,7 @@ export function AuditWorkspace() {
             }
           />
           <Link to={`/reports/${id}`} className="glc-btn-secondary" style={{ textDecoration: 'none' }}>
-            Open Report <ArrowUpRight className="w-4 h-4" />
+            {AUDIT_WORKSPACE_COPY.shell.openReport} <ArrowUpRight className="w-4 h-4" />
           </Link>
         </div>
       }
@@ -355,10 +356,10 @@ export function AuditWorkspace() {
             <ScoreRing score={overallScore} size={48} />
             <div>
               <p className="font-bold text-sm" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}>
-                Overall Score
+                {AUDIT_WORKSPACE_COPY.sidebar.overallScore}
               </p>
               <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                {domainEntries.length} domains analysed
+                {domainEntries.length} {AUDIT_WORKSPACE_COPY.sidebar.domainsAnalyzedSuffix}
               </p>
             </div>
           </div>
@@ -389,23 +390,23 @@ export function AuditWorkspace() {
                       color: 'var(--glc-blue)',
                     }}
                   />
-                  Edit intake brief
+                  {AUDIT_WORKSPACE_COPY.sidebar.editIntakeBrief}
                 </button>
                 {briefPanelOpen && (
                   <div className="px-3 pb-3 space-y-2 max-h-[42vh] overflow-y-auto">
                     {workspaceBriefSavedFlash && (
                       <p className="text-[10px] font-medium" style={{ color: 'var(--glc-green)' }}>
-                        Brief saved
+                        {AUDIT_WORKSPACE_COPY.sidebar.briefSaved}
                       </p>
                     )}
                     <p className="text-[10px] leading-snug" style={{ color: 'var(--text-quaternary)' }}>
-                      Default layout:{' '}
+                      {AUDIT_WORKSPACE_COPY.sidebar.defaultLayoutPrefix}{' '}
                       <Link
                         to="/settings#brief-layout"
                         className="font-medium underline-offset-2 hover:underline"
                         style={{ color: 'var(--glc-blue)' }}
                       >
-                        Settings
+                        {AUDIT_WORKSPACE_COPY.sidebar.settingsLink}
                       </Link>
                     </p>
                     {briefLayoutChoice === 'unset' ? (
@@ -430,7 +431,7 @@ export function AuditWorkspace() {
                             className="text-[10px] font-medium underline-offset-2 hover:underline"
                             style={{ color: 'var(--glc-blue)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                           >
-                            Change layout
+                            {AUDIT_WORKSPACE_COPY.sidebar.changeLayout}
                           </button>
                         </div>
                         {briefLayoutChoice === 'wizard' ? (
@@ -479,7 +480,7 @@ export function AuditWorkspace() {
 
           {/* Domain nav */}
           <div className="px-2 py-2 space-y-0.5 flex-1">
-            <div className="px-2 pb-1.5"><SectionLabel>Domains</SectionLabel></div>
+            <div className="px-2 pb-1.5"><SectionLabel>{AUDIT_WORKSPACE_COPY.sidebar.domains}</SectionLabel></div>
             {visibleDomainKeys.map(key => {
               const I = DOMAIN_ICONS[key];
               const d = audit.domains[key];
@@ -541,7 +542,7 @@ export function AuditWorkspace() {
                     {(() => { const DI = DOMAIN_ICONS[activeDomain]; return <DI className="w-7 h-7 text-white" />; })()}
                   </div>
                   <div className="flex-1">
-                    <p className="glc-kicker mb-2">Domain focus</p>
+                    <p className="glc-kicker mb-2">{AUDIT_WORKSPACE_COPY.sections.domainFocus}</p>
                     <h2
                       className="glc-hero-title"
                       style={{
@@ -568,7 +569,7 @@ export function AuditWorkspace() {
                   <div className="glc-card p-5" style={{ borderRadius: 'var(--radius-xl)' }}>
                     <div className="flex items-center gap-2 mb-3">
                       <CheckCircle className="w-4 h-4" style={{ color: 'var(--glc-green)' }} />
-                      <SectionLabel>Strengths</SectionLabel>
+                      <SectionLabel>{AUDIT_WORKSPACE_COPY.sections.strengths}</SectionLabel>
                     </div>
                     <ul className="space-y-2">
                       {domainData.strengths.map((s, i) => (
@@ -592,7 +593,7 @@ export function AuditWorkspace() {
                       style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
                     >
                       <Warning className="w-4 h-4" style={{ color: 'var(--score-1)' }} />
-                      <SectionLabel>Issues Found</SectionLabel>
+                      <SectionLabel>{AUDIT_WORKSPACE_COPY.sections.issuesFound}</SectionLabel>
                       <span
                         className="ml-auto px-2 py-0.5 rounded-full text-xs font-bold"
                         style={{ backgroundColor: 'var(--score-1-bg)', color: 'var(--score-1)', fontSize: '10px' }}
@@ -685,7 +686,7 @@ export function AuditWorkspace() {
                     >
                       <CaretRight className="w-4 h-4 flex-shrink-0 transition-transform" style={{ transform: enrichOpen ? 'rotate(90deg)' : 'none', color: 'var(--glc-blue)' }} />
                       <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                        Refine {DOMAIN_LABELS[activeDomain]} score — answer {followupQuestions.length} question{followupQuestions.length === 1 ? '' : 's'}
+                        {AUDIT_WORKSPACE_COPY.enrichment.refinePrefix} {DOMAIN_LABELS[activeDomain]} {AUDIT_WORKSPACE_COPY.enrichment.refineMiddle} {followupQuestions.length} {followupQuestions.length === 1 ? AUDIT_WORKSPACE_COPY.enrichment.refineQuestionSingular : AUDIT_WORKSPACE_COPY.enrichment.refineQuestionPlural}
                       </span>
                     </button>
                     <AnimatePresence>
@@ -704,7 +705,7 @@ export function AuditWorkspace() {
                               className="text-xs font-medium"
                               style={{ color: 'var(--glc-green)' }}
                             >
-                              Brief updated — readiness refreshed
+                              {AUDIT_WORKSPACE_COPY.enrichment.saved}
                             </motion.p>
                           )}
                           {followupQuestions.map(q => {
@@ -742,9 +743,9 @@ export function AuditWorkspace() {
                 {domainData.recommendations.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <SectionLabel>Recommendations</SectionLabel>
+                      <SectionLabel>{AUDIT_WORKSPACE_COPY.sections.recommendations}</SectionLabel>
                       <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                        {domainData.recommendations.length} actions
+                        {domainData.recommendations.length} {AUDIT_WORKSPACE_COPY.sections.actionsSuffix}
                       </span>
                     </div>
 
@@ -782,8 +783,8 @@ export function AuditWorkspace() {
                                 {isQuickWin && <QuickWinTag time={rec.estimated_time} cost={rec.estimated_cost} />}
                               </div>
                               <div className="flex items-center gap-3 mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                                <span>Priority: <strong style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{rec.priority}</strong></span>
-                                <span>Impact: <strong style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{rec.impact}</strong></span>
+                                <span>{AUDIT_WORKSPACE_COPY.recommendation.priorityLabel} <strong style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{rec.priority}</strong></span>
+                                <span>{AUDIT_WORKSPACE_COPY.recommendation.impactLabel} <strong style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{rec.impact}</strong></span>
                                 {rec.estimated_time && <span>{rec.estimated_time}</span>}
                               </div>
                             </div>
@@ -815,8 +816,8 @@ export function AuditWorkspace() {
                                 >
                                   <p className="pt-3">
                                     {rec.description}
-                                    {rec.estimated_cost && ` Estimated cost: ${rec.estimated_cost}.`}
-                                    {rec.estimated_time && ` Estimated time: ${rec.estimated_time}.`}
+                                    {rec.estimated_cost && ` ${AUDIT_WORKSPACE_COPY.recommendation.estimatedCostPrefix} ${rec.estimated_cost}.`}
+                                    {rec.estimated_time && ` ${AUDIT_WORKSPACE_COPY.recommendation.estimatedTimePrefix} ${rec.estimated_time}.`}
                                   </p>
                                 </div>
                               </motion.div>
@@ -833,9 +834,9 @@ export function AuditWorkspace() {
                   <div className="glc-card p-5" style={{ borderRadius: 'var(--radius-xl)' }}>
                     <div className="flex items-center gap-2 mb-3">
                       <Question className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
-                      <SectionLabel>Data Gaps</SectionLabel>
+                      <SectionLabel>{AUDIT_WORKSPACE_COPY.sections.dataGaps}</SectionLabel>
                       <span className="text-xs ml-1" style={{ color: 'var(--text-tertiary)' }}>
-                        — areas not assessable from crawl data
+                        {AUDIT_WORKSPACE_COPY.sections.dataGapsHint}
                       </span>
                     </div>
                     <ul className="space-y-1.5">
@@ -863,10 +864,10 @@ export function AuditWorkspace() {
               >
                 <div className="text-center">
                   <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
-                    No data yet for this domain
+                    {AUDIT_WORKSPACE_COPY.emptyDomain.title}
                   </p>
                   <p className="text-xs mt-1" style={{ color: 'var(--text-quaternary)' }}>
-                    Run the pipeline to generate analysis
+                    {AUDIT_WORKSPACE_COPY.emptyDomain.hint}
                   </p>
                 </div>
               </motion.div>

@@ -8,6 +8,7 @@ import type { AuditMeta } from '../data/auditTypes';
 import { UI_SEMANTIC_COLORS } from '../config/ui-semantic-colors';
 import { isSnapshotStyleAudit } from '../lib/audit-execution-plan';
 import { ADMIN_SNAPSHOT_QUEUE_CONFIG } from '../config/admin-snapshot-queue-config';
+import { ADMIN_SNAPSHOT_QUEUE_COPY } from '../config/admin-snapshot-queue-copy.en';
 
 type SnapshotStatusFilter = 'all' | 'running' | 'completed' | 'failed';
 
@@ -18,7 +19,7 @@ function matchesStatusFilter(audit: AuditMeta, filter: SnapshotStatusFilter): bo
 }
 
 function scoreText(score: number | null): string {
-  if (score == null || !Number.isFinite(score)) return 'No score yet';
+  if (score == null || !Number.isFinite(score)) return ADMIN_SNAPSHOT_QUEUE_COPY.noScoreYet;
   return `${Math.round(score * 10) / 10}/5`;
 }
 
@@ -43,11 +44,11 @@ export function AdminSnapshotQueue() {
 
   return (
     <AppShell
-      title="Snapshot queue"
-      subtitle="All free snapshot submissions and their current results"
+      title={ADMIN_SNAPSHOT_QUEUE_COPY.title}
+      subtitle={ADMIN_SNAPSHOT_QUEUE_COPY.subtitle}
       actions={(
         <button type="button" className="glc-btn-secondary text-sm glc-touch-target sm:min-h-0" onClick={() => void q.refetch()}>
-          <ArrowsClockwise className="w-4 h-4" /> Refresh
+          <ArrowsClockwise className="w-4 h-4" /> {ADMIN_SNAPSHOT_QUEUE_COPY.refresh}
         </button>
       )}
     >
@@ -86,14 +87,14 @@ export function AdminSnapshotQueue() {
             }}
           >
             <Warning className="w-4 h-4 flex-shrink-0" />
-            <span className="text-sm">Failed to load snapshot queue.</span>
+            <span className="text-sm">{ADMIN_SNAPSHOT_QUEUE_COPY.loadFailed}</span>
           </div>
         )}
 
         {!q.isPending && !q.error && filtered.length === 0 && (
           <div className="text-center py-16" style={{ color: 'var(--text-tertiary)' }}>
             <Tray className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
-            <p className="text-sm font-medium">No snapshots in this view</p>
+            <p className="text-sm font-medium">{ADMIN_SNAPSHOT_QUEUE_COPY.emptyState}</p>
           </div>
         )}
 
@@ -123,17 +124,19 @@ export function AdminSnapshotQueue() {
                           <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{audit.company_url}</span>
                         </div>
                         <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
-                          Submitted: {createdAt}
-                          {audit.client_id ? ` · client ${audit.client_id.slice(0, 8)}...` : ''}
+                          {ADMIN_SNAPSHOT_QUEUE_COPY.submittedPrefix} {createdAt}
+                          {audit.client_id
+                            ? ` · ${ADMIN_SNAPSHOT_QUEUE_COPY.clientPrefix} ${audit.client_id.slice(0, 8)}...`
+                            : ''}
                         </div>
                         <div className="text-xs mt-1.5" style={{ color: 'var(--text-secondary)' }}>
-                          Snapshot result: {scoreText(audit.overall_score)}
+                          {ADMIN_SNAPSHOT_QUEUE_COPY.snapshotResultPrefix} {scoreText(audit.overall_score)}
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-shrink-0 sm:justify-end">
                         <span className="text-xs font-medium capitalize" style={{ color: statusColor }}>{audit.status}</span>
                         <Link to={`/audit/${audit.id}`} className="text-xs font-medium no-underline glc-touch-target sm:min-h-0 px-1 -mx-1 rounded-md" style={{ color: 'var(--glc-blue)' }}>
-                          Open audit
+                          {ADMIN_SNAPSHOT_QUEUE_COPY.openAudit}
                         </Link>
                       </div>
                     </div>

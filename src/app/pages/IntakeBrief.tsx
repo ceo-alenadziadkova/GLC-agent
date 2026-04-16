@@ -26,6 +26,7 @@ import {
   hasIntakeConsultantPrefill,
 } from '../lib/intake-client-copy';
 import { choiceValueNeedsSpecify } from '@glc/intake-core';
+import { toUiApiErrorMessage } from '../lib/api-error-ui';
 
 function normalizeStoredResponses(raw: Record<string, unknown>): BriefResponses {
   const out: BriefResponses = {};
@@ -107,10 +108,13 @@ export function IntakeBrief() {
         setLastSubmittedIso(null);
       } catch (e) {
         if (cancelled) return;
-        if (e instanceof ApiError && e.status === 410) {
+        if (
+          e instanceof ApiError &&
+          (e.code === 'INTAKE_LINK_EXPIRED' || e.status === 410)
+        ) {
           setExpired(true);
         } else {
-          setLoadError((e as Error).message);
+          setLoadError(toUiApiErrorMessage(e));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -202,10 +206,10 @@ export function IntakeBrief() {
       setSubmittedAt(result.submitted_at);
       setPhase('success');
     } catch (err) {
-      if (err instanceof ApiError && err.status === 410) {
+      if (err instanceof ApiError && (err.code === 'INTAKE_LINK_EXPIRED' || err.status === 410)) {
         setExpired(true);
       } else {
-        setSubmitError((err as Error).message);
+        setSubmitError(toUiApiErrorMessage(err));
       }
     } finally {
       setSubmitting(false);

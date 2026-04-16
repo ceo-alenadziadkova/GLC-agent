@@ -2,8 +2,11 @@
  * Login / auth UI copy (English). Supabase-specific operator hints stay here until a CMS catalog ships.
  */
 
+export const LOGIN_SUPABASE_DOCS_URL =
+  'https://supabase.com/docs/guides/auth/general-configuration';
+
 export const LOGIN_GOOGLE_MANUAL_LINKING_HINT_EN =
-  'In Supabase Dashboard: Authentication → enable "Allow manual linking" (Auth general settings). See docs: supabase.com/docs/guides/auth/general-configuration';
+  `In Supabase Dashboard: Authentication → enable "Allow manual linking" (Auth general settings). See docs: ${LOGIN_SUPABASE_DOCS_URL}`;
 
 export const LOGIN_PAGE_COPY_EN = {
   brandWordmarkPrimary: 'GLC',

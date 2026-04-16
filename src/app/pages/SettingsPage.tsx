@@ -23,6 +23,7 @@ import {
   applyConsultantBriefLayoutAskEachTime,
 } from '../lib/client-brief-layout-preference';
 import { SETTINGS_SELF_SERVE_COPY } from '../config/settings-self-serve-copy.en';
+import { SETTINGS_PAGE_COPY } from '../config/settings-page-copy.en';
 import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 import { SETTINGS_PAGE_DEFAULTS } from '../config/settings-page-defaults';
 
@@ -276,17 +277,17 @@ export function SettingsPage() {
         >
           <div className="flex items-center gap-2 mb-4" style={{ color: 'var(--text-primary)' }}>
             <User className="w-4 h-4" />
-            <h2 className="text-sm font-semibold">Profile</h2>
+            <h2 className="text-sm font-semibold">{SETTINGS_PAGE_COPY.profile.title}</h2>
           </div>
           <label className="block text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
-            Display name
+            {SETTINGS_PAGE_COPY.profile.displayName}
           </label>
           <div className="flex items-center gap-3">
             <input
               type="text"
               value={fullName}
               onChange={e => setFullName(e.target.value)}
-              placeholder="Your name"
+              placeholder={SETTINGS_PAGE_COPY.profile.yourNamePlaceholder}
               className="flex-1 px-3 py-2 text-sm"
               style={{
                 backgroundColor: 'var(--bg-canvas)',
@@ -301,7 +302,7 @@ export function SettingsPage() {
               disabled={savingName || !nameChanged}
               style={{ opacity: savingName || !nameChanged ? 0.6 : 1 }}
             >
-              {savingName ? 'Saving...' : 'Save'}
+              {savingName ? SETTINGS_PAGE_COPY.profile.saving : SETTINGS_PAGE_COPY.profile.save}
             </button>
           </div>
         </section>
@@ -316,7 +317,7 @@ export function SettingsPage() {
         >
           <div className="flex items-center gap-2 mb-4" style={{ color: 'var(--text-primary)' }}>
             <PaintBucket className="w-4 h-4" />
-            <h2 className="text-sm font-semibold">Appearance</h2>
+            <h2 className="text-sm font-semibold">{SETTINGS_PAGE_COPY.appearance.title}</h2>
           </div>
           <div className="flex items-center gap-2">
             {(['system', 'light', 'dark'] as const).map(themeMode => (
@@ -349,19 +350,18 @@ export function SettingsPage() {
           >
             <div className="flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
               <Users className="w-4 h-4" />
-              <h2 className="text-sm font-semibold">Client portal — audit owner</h2>
+              <h2 className="text-sm font-semibold">{SETTINGS_PAGE_COPY.selfServe.title}</h2>
             </div>
             <p className="text-xs leading-relaxed mb-4" style={{ color: 'var(--text-quaternary)' }}>
-              When clients start an audit from the portal, the selected consultant becomes the audit owner (access and
-              billing). With several consultants, the lead administrator picks who receives these audits.
+              {SETTINGS_PAGE_COPY.selfServe.description}
             </p>
             {selfServeLoading ? (
               <p className="text-xs m-0" style={{ color: 'var(--text-tertiary)' }}>
-                Loading…
+                {SETTINGS_PAGE_COPY.selfServe.loading}
               </p>
             ) : !selfServe ? (
               <p className="text-xs m-0" style={{ color: 'var(--text-tertiary)' }}>
-                Assignment settings could not be loaded.
+                {SETTINGS_PAGE_COPY.selfServe.loadFailed}
               </p>
             ) : (
               <>
@@ -374,7 +374,7 @@ export function SettingsPage() {
                       color: 'var(--text-secondary)',
                     }}
                   >
-                    Client self-serve is not ready yet: choose a consultant below (or ask your team to finish setup).
+                    {SETTINGS_PAGE_COPY.selfServe.notReady}
                   </div>
                 )}
                 {selfServe.implicit_fallback_active && (
@@ -401,12 +401,11 @@ export function SettingsPage() {
                 )}
                 {!selfServe.can_manage && (
                   <p className="text-xs leading-relaxed mb-3 m-0" style={{ color: 'var(--text-tertiary)' }}>
-                    Only designated platform administrators can change this. Ask your lead administrator if you need a
-                    different assignment.
+                    {SETTINGS_PAGE_COPY.selfServe.adminOnly}
                   </p>
                 )}
                 <label className="block text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
-                  Default consultant for client-started audits
+                  {SETTINGS_PAGE_COPY.selfServe.defaultConsultantLabel}
                 </label>
                 <div className="flex flex-col gap-3 mobile:flex-row mobile:items-center">
                   <select
@@ -421,10 +420,11 @@ export function SettingsPage() {
                     onChange={e => setSelfServeSelect(e.target.value)}
                     disabled={!selfServe.can_manage || selfServeSaving}
                   >
-                    <option value="">Not set — use backup default only</option>
+                    <option value="">{SETTINGS_PAGE_COPY.selfServe.notSetFallback}</option>
                     {selfServe.consultants.map(c => {
                       const label =
-                        [c.full_name?.trim(), c.email].filter(Boolean).join(' — ') || c.id.slice(0, 8) + '…';
+                        [c.full_name?.trim(), c.email].filter(Boolean).join(' — ') ||
+                        `${SETTINGS_PAGE_COPY.selfServe.fallbackUserIdLabelPrefix} ${c.id.slice(0, 8)}…`;
                       return (
                         <option key={c.id} value={c.id}>
                           {label}
@@ -475,7 +475,7 @@ export function SettingsPage() {
                       }
                     }}
                   >
-                    {selfServeSaving ? 'Saving…' : 'Save assignment'}
+                    {selfServeSaving ? SETTINGS_PAGE_COPY.selfServe.savingAssignment : SETTINGS_PAGE_COPY.selfServe.saveAssignment}
                   </button>
                 </div>
               </>
@@ -494,21 +494,19 @@ export function SettingsPage() {
         >
           <div className="flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
             <ClipboardText className="w-4 h-4" />
-            <h2 className="text-sm font-semibold">Intake brief layout</h2>
+            <h2 className="text-sm font-semibold">{SETTINGS_PAGE_COPY.briefLayout.title}</h2>
           </div>
           <p className="text-xs leading-relaxed mb-4" style={{ color: 'var(--text-quaternary)' }}>
-            Choose how long questionnaires open by default (all sections on one page vs one step at a time).
-            You can still switch layout on the brief screen for a specific audit. Clients and internal users each
-            have their own saved default on this device.
+            {SETTINGS_PAGE_COPY.briefLayout.description}
           </p>
 
           {profile && isClient && (
             <div className="space-y-2 mb-5">
               <h3 className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                Client portal (pre-audit brief)
+                {SETTINGS_PAGE_COPY.briefLayout.clientTitle}
               </h3>
               <p className="text-xs leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
-                Used when you fill the brief after your audit request is approved.
+                {SETTINGS_PAGE_COPY.briefLayout.clientDescription}
               </p>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -519,7 +517,7 @@ export function SettingsPage() {
                   }}
                   style={briefLayoutBtnStyle(clientBriefDefault === 'classic')}
                 >
-                  All sections
+                  {SETTINGS_PAGE_COPY.briefLayout.classic}
                 </button>
                 <button
                   type="button"
@@ -529,7 +527,7 @@ export function SettingsPage() {
                   }}
                   style={briefLayoutBtnStyle(clientBriefDefault === 'wizard')}
                 >
-                  Step by step
+                  {SETTINGS_PAGE_COPY.briefLayout.wizard}
                 </button>
                 <button
                   type="button"
@@ -539,7 +537,7 @@ export function SettingsPage() {
                   }}
                   style={briefLayoutBtnStyle(clientBriefDefault === null)}
                 >
-                  Ask each time
+                  {SETTINGS_PAGE_COPY.briefLayout.askEachTime}
                 </button>
               </div>
             </div>
@@ -548,11 +546,10 @@ export function SettingsPage() {
           {profile && isConsultant && (
             <div className="space-y-2">
               <h3 className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                Consultant / admin (new audit & workspace)
+                {SETTINGS_PAGE_COPY.briefLayout.consultantTitle}
               </h3>
               <p className="text-xs leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
-                Used for the Brief step when creating an audit and for &quot;Edit intake brief&quot; in the audit
-                workspace unless you pick a different layout there.
+                {SETTINGS_PAGE_COPY.briefLayout.consultantDescription}
               </p>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -563,7 +560,7 @@ export function SettingsPage() {
                   }}
                   style={briefLayoutBtnStyle(consultantBriefDefault === 'classic')}
                 >
-                  All sections
+                  {SETTINGS_PAGE_COPY.briefLayout.classic}
                 </button>
                 <button
                   type="button"
@@ -573,7 +570,7 @@ export function SettingsPage() {
                   }}
                   style={briefLayoutBtnStyle(consultantBriefDefault === 'wizard')}
                 >
-                  Step by step
+                  {SETTINGS_PAGE_COPY.briefLayout.wizard}
                 </button>
                 <button
                   type="button"
@@ -583,7 +580,7 @@ export function SettingsPage() {
                   }}
                   style={briefLayoutBtnStyle(consultantBriefDefault === null)}
                 >
-                  Ask each time
+                  {SETTINGS_PAGE_COPY.briefLayout.askEachTime}
                 </button>
               </div>
             </div>
@@ -601,12 +598,12 @@ export function SettingsPage() {
         >
           <div className="flex items-center gap-2 mb-4" style={{ color: 'var(--text-primary)' }}>
             <Bell className="w-4 h-4" />
-            <h2 className="text-sm font-semibold">Notifications</h2>
+            <h2 className="text-sm font-semibold">{SETTINGS_PAGE_COPY.notifications.title}</h2>
           </div>
           <div className="space-y-3">
             <label className="flex items-center justify-between gap-3">
               <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Audit status reminders
+                {SETTINGS_PAGE_COPY.notifications.auditStatusReminders}
               </span>
               <Switch
                 checked={notifyPrefs.auditStatusReminders}
@@ -615,7 +612,7 @@ export function SettingsPage() {
             </label>
             <label className="flex items-center justify-between gap-3">
               <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Product updates
+                {SETTINGS_PAGE_COPY.notifications.productUpdates}
               </span>
               <Switch
                 checked={notifyPrefs.productUpdates}
@@ -634,7 +631,7 @@ export function SettingsPage() {
           }}
         >
           <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-            Signed in email
+            {SETTINGS_PAGE_COPY.account.signedInEmail}
           </div>
           <div
             className="text-sm mb-4 px-3 py-2"
@@ -645,20 +642,20 @@ export function SettingsPage() {
               borderRadius: 'var(--radius-md)',
             }}
           >
-            {user?.email ?? 'unknown'}
+            {user?.email ?? SETTINGS_PAGE_COPY.account.unknownEmail}
           </div>
           <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
-            Change email
+            {SETTINGS_PAGE_COPY.account.changeEmail}
           </div>
           <p className="text-xs leading-relaxed mb-2" style={{ color: 'var(--text-quaternary)' }}>
-            We will send confirmation links. If your project uses secure email change, you must confirm from both the old and new addresses.
+            {SETTINGS_PAGE_COPY.account.changeEmailDescription}
           </p>
           <div className="flex flex-col gap-2 mb-5 mobile:flex-row mobile:items-center">
             <input
               type="email"
               value={newEmail}
               onChange={e => setNewEmail(e.target.value)}
-              placeholder="new@company.com"
+              placeholder={SETTINGS_PAGE_COPY.account.newEmailPlaceholder}
               autoComplete="email"
               className="w-full mobile:flex-1 px-3 py-2 text-sm"
               style={{
@@ -675,11 +672,11 @@ export function SettingsPage() {
               style={{ opacity: savingEmail || !newEmail.trim() ? 0.55 : 1 }}
               onClick={() => void changeEmail()}
             >
-              {savingEmail ? 'Sending…' : 'Request email change'}
+              {savingEmail ? SETTINGS_PAGE_COPY.account.sendingEmailChange : SETTINGS_PAGE_COPY.account.requestEmailChange}
             </button>
           </div>
           <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
-            Change password
+            {SETTINGS_PAGE_COPY.account.changePassword}
           </div>
           <form
             onSubmit={e => {
@@ -704,7 +701,7 @@ export function SettingsPage() {
                 autoComplete="new-password"
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
-                placeholder="New password"
+                placeholder={SETTINGS_PAGE_COPY.account.newPasswordPlaceholder}
                 className="w-full px-3 py-2 text-sm"
                 style={{
                   backgroundColor: 'var(--bg-canvas)',
@@ -719,7 +716,7 @@ export function SettingsPage() {
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
+                placeholder={SETTINGS_PAGE_COPY.account.confirmNewPasswordPlaceholder}
                 className="w-full px-3 py-2 text-sm"
                 style={{
                   backgroundColor: 'var(--bg-canvas)',
@@ -735,20 +732,20 @@ export function SettingsPage() {
               disabled={savingPassword}
               style={{ opacity: savingPassword ? 0.6 : 1 }}
             >
-              {savingPassword ? 'Updating...' : 'Update password'}
+              {savingPassword ? SETTINGS_PAGE_COPY.account.updatingPassword : SETTINGS_PAGE_COPY.account.updatePassword}
             </button>
           </form>
           <div className="h-3" />
           <button className="glc-btn-ghost" onClick={signOut}>
             <SignOut className="w-4 h-4" />
-            Sign out
+            {SETTINGS_PAGE_COPY.account.signOut}
           </button>
         </section>
     </div>
   );
 
   return (
-    <AppShell title="Settings" subtitle="Manage profile, appearance, intake brief layout, and notifications">
+    <AppShell title={SETTINGS_PAGE_COPY.page.title} subtitle={SETTINGS_PAGE_COPY.page.subtitle}>
       {studioTabEnabled ? (
         <Tabs value={settingsTab} onValueChange={onSettingsTabChange} className="w-full">
           <div className="px-7 pt-6 pb-0">
@@ -760,14 +757,14 @@ export function SettingsPage() {
                 value="general"
                 className="!shadow-none rounded-md border border-[var(--border-default)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] data-[state=active]:border-[var(--glc-blue)] data-[state=active]:text-[var(--glc-blue)] data-[state=active]:bg-[rgba(28,189,255,0.08)]"
               >
-                General
+                {SETTINGS_PAGE_COPY.page.generalTab}
               </TabsTrigger>
               <TabsTrigger
                 value="bank-studio"
                 className="!shadow-none rounded-md border border-[var(--border-default)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] data-[state=active]:border-[var(--glc-blue)] data-[state=active]:text-[var(--glc-blue)] data-[state=active]:bg-[rgba(28,189,255,0.08)] flex items-center gap-1.5"
               >
                 <TreeStructure size={16} weight="bold" />
-                Question Bank Studio
+                {SETTINGS_PAGE_COPY.page.questionBankStudioTab}
               </TabsTrigger>
             </TabsList>
           </div>
@@ -777,11 +774,11 @@ export function SettingsPage() {
           <TabsContent value="bank-studio" className="mt-0">
             <div className="px-7 py-6">
               <p className="text-[11px] m-0 mb-3" style={{ color: 'var(--text-quaternary)' }}>
-                Full-page view:{' '}
+                {SETTINGS_PAGE_COPY.page.studioFullPageViewPrefix}{' '}
                 <Link to="/admin/question-bank-studio" className="underline" style={{ color: 'var(--text-tertiary)' }}>
                   /admin/question-bank-studio
                 </Link>{' '}
-                (same flag and consultant gate).
+                {SETTINGS_PAGE_COPY.page.studioFullPageViewSuffix}
               </p>
               <QuestionBankStudio />
             </div>

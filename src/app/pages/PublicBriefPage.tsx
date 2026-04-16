@@ -10,6 +10,7 @@ import { LOGIN_PATH } from '../marketing/marketing-nav';
 import { usePublicBrand } from '../marketing/PublicBrandContext';
 import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 import { PUBLIC_BRIEF_SESSION_FLOW_ENABLED } from '../config/public-brief-flow';
+import { toUiApiErrorMessage } from '../lib/api-error-ui';
 import type { BriefQuestion, BriefResponses, BriefResponseValue } from '../data/briefQuestions';
 import { groupBriefQuestionsBySection, unwrapResponse, WEBSITE_PRESENCE_NO_SITE_LABEL } from '../data/briefQuestions';
 import { choiceValueNeedsSpecify } from '@glc/intake-core';
@@ -92,7 +93,7 @@ export function PublicBriefPage() {
         });
         setPhase('success');
       } catch (e) {
-        setSubmitError((e as Error).message);
+        setSubmitError(toUiApiErrorMessage(e));
       }
       return;
     }
@@ -143,7 +144,7 @@ export function PublicBriefPage() {
       setResponses(result.responses as BriefResponses);
       setSavedAt(new Date().toISOString());
     } catch (e) {
-      setSubmitError((e as Error).message);
+      setSubmitError(toUiApiErrorMessage(e));
     } finally {
       setSavingDraft(false);
     }
@@ -158,7 +159,7 @@ export function PublicBriefPage() {
       setSubmittedAt(result.submitted_at);
       setPhase('success');
     } catch (e) {
-      setSubmitError((e as Error).message);
+      setSubmitError(toUiApiErrorMessage(e));
     } finally {
       setSubmitting(false);
     }

@@ -11,10 +11,11 @@ import { clearPendingSnapshotToken, getPendingSnapshotToken } from '../lib/snaps
 import { LOGIN_GOOGLE_MANUAL_LINKING_HINT_EN, LOGIN_PAGE_COPY_EN as LC } from '../config/login-copy.en';
 import { BACKGROUND_VIDEO_CONFIG } from '../config/background-video';
 import { APP_ROUTE_PATHS, buildAppRoute } from '../config/route-paths';
+import { UI_POLICY } from '../config/ui-policy';
 
 type AuthMode = 'signin' | 'signup' | 'forgot';
 const EMAIL_VALIDATION_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD_LENGTH = 8;
+const MIN_PASSWORD_LENGTH = UI_POLICY.login.minPasswordLength;
 const LOGIN_TAB_ORDER: readonly AuthMode[] = ['signin', 'signup'];
 
 type FieldErrors = {
@@ -128,7 +129,7 @@ export function Login() {
   }, []);
 
   useEffect(() => {
-    const desktopMedia = window.matchMedia('(min-width: 1024px)');
+    const desktopMedia = window.matchMedia(`(min-width: ${UI_POLICY.login.desktopTwoColumnMinWidthPx}px)`);
     const applyMediaState = () => setIsDesktopTwoColumn(desktopMedia.matches);
     applyMediaState();
     desktopMedia.addEventListener('change', applyMediaState);
@@ -479,7 +480,7 @@ export function Login() {
                       }}
                       placeholder={LC.placeholderNewPassword}
                       required
-                      minLength={8}
+                      minLength={MIN_PASSWORD_LENGTH}
                       autoComplete="new-password"
                       aria-invalid={Boolean(fieldErrors.recoveryPassword)}
                       aria-describedby={fieldErrors.recoveryPassword ? recoveryPasswordErrorId : undefined}
@@ -518,7 +519,7 @@ export function Login() {
                     }}
                     placeholder={LC.placeholderConfirmNewPassword}
                     required
-                    minLength={8}
+                    minLength={MIN_PASSWORD_LENGTH}
                     autoComplete="new-password"
                     aria-invalid={Boolean(fieldErrors.recoveryConfirm)}
                     aria-describedby={fieldErrors.recoveryConfirm ? recoveryConfirmErrorId : undefined}

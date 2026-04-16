@@ -141,10 +141,10 @@ export function StrategyLab() {
       actions={
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono font-semibold" style={{ color: 'var(--glc-green)' }}>
-            {selected.size} selected
+            {selected.size} {STRATEGY_LAB_COPY.panel.selectedSuffix}
           </span>
           <button className="glc-btn-primary">
-            <Sparkle className="w-4 h-4" /> Generate Roadmap
+            <Sparkle className="w-4 h-4" /> {STRATEGY_LAB_COPY.panel.generateRoadmap}
           </button>
         </div>
       }
@@ -163,11 +163,11 @@ export function StrategyLab() {
             <div className="flex items-center gap-2">
               <ChartBar className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
               <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                Domain benchmarks
+                {STRATEGY_LAB_COPY.panel.domainBenchmarksTitle}
               </span>
             </div>
             <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-              Median confidence (p50) vs peer runs in the last 90 days. Uses your audit industry when set, otherwise the cross-industry pool.
+              {STRATEGY_LAB_COPY.panel.domainBenchmarksHint}
             </p>
             <div className="space-y-2">
               {DOMAIN_KEYS.map((dk) => {
@@ -183,7 +183,7 @@ export function StrategyLab() {
                     <span className="font-mono tabular-nums" style={{ color: 'var(--text-primary)' }}>
                       {row
                         ? `p50 ${row.percentiles.p50} · n=${row.sample_count}`
-                        : '—'}
+                        : STRATEGY_LAB_COPY.panel.emptyBenchmarksValue}
                     </span>
                   </div>
                 );
@@ -243,7 +243,9 @@ export function StrategyLab() {
               >
                 {visible.length === 0 && (
                   <div className="text-center py-10">
-                    <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>No initiatives in this category</p>
+                    <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+                      {STRATEGY_LAB_COPY.panel.noInitiativesInCategory}
+                    </p>
                   </div>
                 )}
                 {visible.map((init: StrategyInitiative, i: number) => {
@@ -326,17 +328,17 @@ export function StrategyLab() {
         >
           <div className="p-5 flex-1 space-y-5">
             <div>
-              <SectionLabel>Your Roadmap</SectionLabel>
+              <SectionLabel>{STRATEGY_LAB_COPY.panel.yourRoadmap}</SectionLabel>
               <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                {selected.size} initiatives selected
+                {selected.size} {STRATEGY_LAB_COPY.panel.initiativesSelectedSuffix}
               </p>
             </div>
 
             <div className="space-y-2">
               {[
-                { label: 'Total Initiatives', value: `${selected.size}`, color: 'var(--text-primary)' },
-                { label: 'Quick Wins', value: `${allSelected.filter(i => initiatives.quick.includes(i)).length}`, color: 'var(--glc-green)' },
-                { label: 'Strategic Items', value: `${allSelected.filter(i => initiatives.strategic.includes(i)).length}`, color: UI_SEMANTIC_COLORS.strategicPurple },
+                { label: STRATEGY_LAB_COPY.panel.totalInitiatives, value: `${selected.size}`, color: 'var(--text-primary)' },
+                { label: STRATEGY_LAB_COPY.panel.quickWins, value: `${allSelected.filter(i => initiatives.quick.includes(i)).length}`, color: 'var(--glc-green)' },
+                { label: STRATEGY_LAB_COPY.panel.strategicItems, value: `${allSelected.filter(i => initiatives.strategic.includes(i)).length}`, color: UI_SEMANTIC_COLORS.strategicPurple },
               ].map(({ label, value, color }) => (
                 <div
                   key={label}
@@ -353,7 +355,7 @@ export function StrategyLab() {
 
             {/* Effort mix */}
             <div>
-              <SectionLabel className="mb-2">Effort Mix</SectionLabel>
+              <SectionLabel className="mb-2">{STRATEGY_LAB_COPY.panel.effortMix}</SectionLabel>
               {(['low', 'medium', 'high'] as const).map(effort => {
                 const count = allSelected.filter(i => i.effort === effort).length;
                 const pct   = selected.size > 0 ? (count / selected.size) * 100 : 0;
@@ -379,7 +381,7 @@ export function StrategyLab() {
             {/* Selected list */}
             {allSelected.length > 0 && (
               <div>
-                <SectionLabel className="mb-2">Selected</SectionLabel>
+                <SectionLabel className="mb-2">{STRATEGY_LAB_COPY.panel.selectedTitle}</SectionLabel>
                 <div className="space-y-1.5">
                   {allSelected.slice(0, 8).map(init => (
                     <div
@@ -393,7 +395,7 @@ export function StrategyLab() {
                   ))}
                   {allSelected.length > 8 && (
                     <p className="text-xs text-center py-1" style={{ color: 'var(--text-quaternary)' }}>
-                      +{allSelected.length - 8} more items
+                      +{allSelected.length - 8} {STRATEGY_LAB_COPY.panel.moreItemsSuffix}
                     </p>
                   )}
                 </div>
@@ -411,14 +413,14 @@ export function StrategyLab() {
               style={{ opacity: selected.size === 0 ? 0.4 : 1, fontSize: 'var(--text-sm)' }}
             >
               <Sparkle className="w-4 h-4" />
-              Generate Roadmap
+              {STRATEGY_LAB_COPY.panel.generateRoadmap}
             </motion.button>
             <Link
               to={`/reports/${id}`}
               className="w-full glc-btn-ghost justify-center py-2 block text-center"
               style={{ textDecoration: 'none', fontSize: 'var(--text-sm)' }}
             >
-              View Report <ArrowRight className="inline w-3.5 h-3.5 ml-1" />
+              {STRATEGY_LAB_COPY.panel.viewReport} <ArrowRight className="inline w-3.5 h-3.5 ml-1" />
             </Link>
           </div>
         </div>
