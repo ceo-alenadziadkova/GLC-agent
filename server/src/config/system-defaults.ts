@@ -253,6 +253,8 @@ export const SYSTEM_DEFAULTS = {
      * 2 non-default + 1 implicit default = 3 total arms (keeps ε-greedy convergence tractable).
      */
     maxVariantsPerPhase: 2,
+    /** Distributed lock TTL for platform-triggered bandit recompute. */
+    recomputeLockTtlMs: 10 * 60 * 1000,
   },
   evaluationDatasets: {
     /** Retry attempts for `(audit_id, phase_id, run_number)` insert conflicts in `evaluation_datasets`. */

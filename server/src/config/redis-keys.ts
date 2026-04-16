@@ -17,6 +17,7 @@ export function getRedisKeyPrefixWithColon(): string {
 export const REDIS_KEYS = {
   claudeCircuitBreakerFailures: 'cb:claude:failures',
   alertsRunLock: 'lock:alerts:run',
+  banditsRecomputeLock: 'lock:bandits:recompute',
   /** Segment in rate-limit store keys: `{prefix}{namespace}:{routePrefix}:` */
   rateLimitNamespace: 'glc',
 } as const;

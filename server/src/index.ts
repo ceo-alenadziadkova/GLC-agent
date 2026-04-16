@@ -53,7 +53,10 @@ app.use((_req, res, next) => {
   next();
 });
 app.use((req, _res, next) => {
-  const auditId = req.params?.id;
+  const fromParams = req.params?.id;
+  const fromPath = req.path.match(/^\/api\/audits\/([^/]+)/)?.[1];
+  const fromBody = typeof req.body?.audit_id === 'string' ? req.body.audit_id : undefined;
+  const auditId = fromParams ?? fromPath ?? fromBody;
   updateContext({ auditId: typeof auditId === 'string' ? auditId : undefined });
   next();
 });

@@ -13,6 +13,9 @@ const mocks = vi.hoisted(() => {
   return {
     canManagePlatformSettings,
     recomputeArmPerformanceFromEvaluationDatasets,
+    redisSet: vi.fn(async () => 'OK'),
+    redisGet: vi.fn(async () => null),
+    redisDel: vi.fn(async () => 1),
   };
 });
 
@@ -44,6 +47,14 @@ vi.mock('../services/bandit.js', () => ({
   },
 }));
 
+vi.mock('../services/redis.js', () => ({
+  getSharedRedisClient: () => ({
+    set: mocks.redisSet,
+    get: mocks.redisGet,
+    del: mocks.redisDel,
+  }),
+}));
+
 import { platformRouter } from '../routes/platform.js';
 
 let server: Server;
@@ -71,6 +82,9 @@ beforeEach(() => {
     dataset_rows_seen: 42,
     dry_run: false,
   });
+  mocks.redisSet.mockResolvedValue('OK');
+  mocks.redisGet.mockResolvedValue(null);
+  mocks.redisDel.mockResolvedValue(1);
 });
 
 describe('POST /api/platform/bandits/recompute', () => {
@@ -121,7 +135,7 @@ describe('POST /api/platform/bandits/recompute', () => {
     });
     expect(res.status).toBe(400);
     const body = (await res.json()) as Record<string, unknown>;
-    expect(body.code).toBe('PROFILE_PAYLOAD_INVALID');
+    expect(body.code).toBe('PLATFORM_PAYLOAD_INVALID');
     expect(mocks.recomputeArmPerformanceFromEvaluationDatasets).not.toHaveBeenCalled();
   });
 
@@ -133,7 +147,7 @@ describe('POST /api/platform/bandits/recompute', () => {
     });
     expect(res.status).toBe(400);
     const body = (await res.json()) as Record<string, unknown>;
-    expect(body.code).toBe('PROFILE_PAYLOAD_INVALID');
+    expect(body.code).toBe('PLATFORM_PAYLOAD_INVALID');
     expect(mocks.recomputeArmPerformanceFromEvaluationDatasets).not.toHaveBeenCalled();
   });
 
@@ -152,6 +166,7 @@ describe('POST /api/platform/bandits/recompute', () => {
         }),
     );
 
+    mocks.redisSet.mockResolvedValueOnce('OK').mockResolvedValueOnce(null);
     const first = fetch(`${baseUrl}/api/platform/bandits/recompute`, { method: 'POST' });
     await Promise.resolve();
     const second = await fetch(`${baseUrl}/api/platform/bandits/recompute`, { method: 'POST' });
@@ -162,6 +177,15 @@ describe('POST /api/platform/bandits/recompute', () => {
 
     resolveFirst?.();
     await first;
+  });
+
+  it('returns 409 when distributed lock is already held', async () => {
+    mocks.redisSet.mockResolvedValueOnce(null);
+    const res = await fetch(`${baseUrl}/api/platform/bandits/recompute`, { method: 'POST' });
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.code).toBe('PLATFORM_RECOMPUTE_IN_PROGRESS');
+    expect(mocks.recomputeArmPerformanceFromEvaluationDatasets).not.toHaveBeenCalled();
   });
 
   it('returns 500 with internal-server-error code when recompute throws', async () => {

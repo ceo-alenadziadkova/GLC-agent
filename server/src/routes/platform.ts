@@ -23,6 +23,9 @@ import { computeAndStoreBenchmarkSnapshots } from '../services/benchmark-snapsho
 import { banditService } from '../services/bandit.js';
 import { DOMAIN_KEYS, type DomainKey } from '../types/audit.js';
 import { logger } from '../services/logger.js';
+import { getSharedRedisClient } from '../services/redis.js';
+import { REDIS_KEYS } from '../config/redis-keys.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import {
   API_ERROR_CODES,
   PLATFORM_ADMIN_ONLY_MESSAGE,
@@ -44,7 +47,8 @@ import {
 } from '../config/api-error-codes.js';
 
 export const platformRouter = Router();
-let isBanditRecomputeRunning = false;
+const BANDIT_RECOMPUTE_LOCK_TTL_MS = SYSTEM_DEFAULTS.bandits.recomputeLockTtlMs;
+let isBanditRecomputeRunningLocal = false;
 
 platformRouter.use(requireAuth);
 platformRouter.use(generalLimiter);
@@ -189,7 +193,7 @@ platformRouter.patch('/runtime-policies', requireRole('consultant'), async (req:
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       res
         .status(400)
-        .json(apiErrorJson(API_ERROR_CODES.PROFILE_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
+        .json(apiErrorJson(API_ERROR_CODES.PLATFORM_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
       return;
     }
 
@@ -216,7 +220,7 @@ platformRouter.patch('/runtime-policies', requireRole('consultant'), async (req:
       if (typeof raw !== 'number' || !Number.isInteger(raw) || raw <= 0) {
         res
           .status(400)
-          .json(apiErrorJson(API_ERROR_CODES.PROFILE_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
+          .json(apiErrorJson(API_ERROR_CODES.PLATFORM_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
         return;
       }
       patch[field] = raw;
@@ -225,7 +229,7 @@ platformRouter.patch('/runtime-policies', requireRole('consultant'), async (req:
     if (Object.keys(patch).length === 0) {
       res
         .status(400)
-        .json(apiErrorJson(API_ERROR_CODES.PROFILE_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
+        .json(apiErrorJson(API_ERROR_CODES.PLATFORM_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
       return;
     }
 
@@ -409,32 +413,23 @@ platformRouter.post('/benchmarks/recompute', requireRole('consultant'), async (r
 });
 
 platformRouter.post('/bandits/recompute', requireRole('consultant'), async (req: AuthRequest, res) => {
-  let lockAcquired = false;
+  let localLockAcquired = false;
+  let distributedLockAcquired = false;
+  const redis = getSharedRedisClient();
+  const lockToken = `${process.pid}:${Date.now()}`;
   try {
     const uid = req.userId!;
     if (!(await canManagePlatformSettings(uid))) {
       res.status(403).json(apiErrorJson(API_ERROR_CODES.PLATFORM_ADMIN_ONLY, PLATFORM_ADMIN_ONLY_MESSAGE));
       return;
     }
-    if (isBanditRecomputeRunning) {
-      res
-        .status(409)
-        .json(
-          apiErrorJson(
-            API_ERROR_CODES.PLATFORM_RECOMPUTE_IN_PROGRESS,
-            PLATFORM_RECOMPUTE_IN_PROGRESS_MESSAGE,
-          ),
-        );
-      return;
-    }
-
     const body = (req.body ?? {}) as { phase_id?: unknown; dry_run?: unknown };
     let phaseId: DomainKey | undefined;
     if (body.phase_id !== undefined) {
       if (typeof body.phase_id !== 'string' || !DOMAIN_KEYS.includes(body.phase_id as DomainKey)) {
         res
           .status(400)
-          .json(apiErrorJson(API_ERROR_CODES.PROFILE_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
+          .json(apiErrorJson(API_ERROR_CODES.PLATFORM_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
         return;
       }
       phaseId = body.phase_id as DomainKey;
@@ -442,12 +437,44 @@ platformRouter.post('/bandits/recompute', requireRole('consultant'), async (req:
     if (body.dry_run !== undefined && typeof body.dry_run !== 'boolean') {
       res
         .status(400)
-        .json(apiErrorJson(API_ERROR_CODES.PROFILE_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
+        .json(apiErrorJson(API_ERROR_CODES.PLATFORM_PAYLOAD_INVALID, PROFILE_PAYLOAD_INVALID_MESSAGE));
       return;
     }
 
-    isBanditRecomputeRunning = true;
-    lockAcquired = true;
+    if (redis) {
+      const lock = await redis.set(REDIS_KEYS.banditsRecomputeLock, lockToken, {
+        NX: true,
+        PX: BANDIT_RECOMPUTE_LOCK_TTL_MS,
+      });
+      if (lock !== 'OK') {
+        res
+          .status(409)
+          .json(
+            apiErrorJson(
+              API_ERROR_CODES.PLATFORM_RECOMPUTE_IN_PROGRESS,
+              PLATFORM_RECOMPUTE_IN_PROGRESS_MESSAGE,
+            ),
+          );
+        return;
+      }
+      distributedLockAcquired = true;
+    } else {
+      // Fallback safety when redis is unavailable.
+      if (isBanditRecomputeRunningLocal) {
+        res
+          .status(409)
+          .json(
+            apiErrorJson(
+              API_ERROR_CODES.PLATFORM_RECOMPUTE_IN_PROGRESS,
+              PLATFORM_RECOMPUTE_IN_PROGRESS_MESSAGE,
+            ),
+          );
+        return;
+      }
+      isBanditRecomputeRunningLocal = true;
+      localLockAcquired = true;
+    }
+
     const out = await banditService.recomputeArmPerformanceFromEvaluationDatasets(phaseId, {
       dryRun: body.dry_run === true,
     });
@@ -459,8 +486,19 @@ platformRouter.post('/bandits/recompute', requireRole('consultant'), async (req:
     });
     res.status(500).json(apiErrorJson(API_ERROR_CODES.INTERNAL_SERVER_ERROR, INTERNAL_SERVER_ERROR_MESSAGE));
   } finally {
-    if (lockAcquired) {
-      isBanditRecomputeRunning = false;
+    if (distributedLockAcquired && redis) {
+      try {
+        const value = await redis.get(REDIS_KEYS.banditsRecomputeLock);
+        if (value === lockToken) {
+          await redis.del(REDIS_KEYS.banditsRecomputeLock);
+        }
+      } catch (releaseError) {
+        logger.warn('platform.bandit_recompute_lock_release_failed', {
+          component: 'platform_route',
+          error: releaseError instanceof Error ? releaseError.message : String(releaseError),
+        });
+      }
     }
+    if (localLockAcquired) isBanditRecomputeRunningLocal = false;
   }
 });

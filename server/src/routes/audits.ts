@@ -13,9 +13,6 @@ import {
 import { createAuditLimiter, generalLimiter } from '../middleware/rate-limit.js';
 import {
   DEFAULT_AUDIT_COVERAGE_PACKAGE,
-  DOMAIN_PHASES,
-  executionPlanToPhases,
-  reviewPhasesForExecutionPlan,
   type AuditExecutionPlan,
   type IntakeVersionTuple,
   type ProductMode,
@@ -84,6 +81,7 @@ import {
 import { AUDITS_LIST_DEFAULT_LIMIT, AUDITS_LIST_MAX_LIMIT } from '../config/audits-list-limits.js';
 import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 import { logger } from '../services/logger.js';
+import { createAuditWithChildren } from '../services/audit-initialization.js';
 import { resolveSelfServeAuditOwnerUserId } from '../lib/self-serve-audit-owner.js';
 import { emitStructuredNotification } from '../services/notifications.js';
 import {
@@ -105,74 +103,6 @@ auditsRouter.use(requireAuth);
 auditsRouter.use(generalLimiter);
 
 const consultantGuard = [attachProfile, requireRole('consultant')] as const;
-
-async function createAuditWithChildren(params: {
-  ownerUserId: string;
-  clientId: string | null;
-  company_url: string;
-  company_name: string | null;
-  industry: string | null;
-  mode: ProductMode;
-  execution_plan?: AuditExecutionPlan | null;
-  no_public_website?: boolean;
-}): Promise<{ id: string; status: string }> {
-  const { ownerUserId, clientId, company_url, company_name, industry, mode, execution_plan, no_public_website } = params;
-
-  const { data: audit, error: auditErr } = await supabase
-    .from('audits')
-    .insert({
-      user_id: ownerUserId,
-      client_id: clientId,
-      company_url,
-      company_name,
-      industry,
-      product_mode: mode,
-      execution_plan: execution_plan ?? null,
-      no_public_website: no_public_website === true,
-    })
-    .select()
-    .single();
-
-  if (auditErr) throw auditErr;
-
-  const resolvedPlan = execution_plan ?? normalizeExecutionPlan(null, mode);
-  const activeDomainKeys = resolvedPlan.selected_domains;
-  const activeReviewPhases = reviewPhasesForExecutionPlan(resolvedPlan);
-
-  const reviewInserts = activeReviewPhases.map(phase => ({
-    audit_id: audit.id,
-    after_phase: phase,
-  }));
-
-  const domainInserts = activeDomainKeys.map((key) => ({
-    audit_id: audit.id,
-    domain_key: key,
-    phase_number: DOMAIN_PHASES[key],
-  }));
-
-  const childInserts = [
-    supabase.from('review_points').insert(reviewInserts),
-    supabase.from('audit_domains').insert(domainInserts),
-    supabase.from('audit_recon').insert({ audit_id: audit.id }),
-    ...(executionPlanToPhases(resolvedPlan).includes(7)
-      ? [supabase.from('audit_strategy').insert({ audit_id: audit.id })]
-      : []),
-  ] as const;
-
-  const results = await Promise.allSettled(childInserts);
-
-  const initFailed = results.some(
-    r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.error)
-  );
-
-  if (initFailed) {
-    await supabase.from('audits').delete().eq('id', audit.id);
-    logger.error('Audit initialization failed, rollback applied', { audit_id: audit.id });
-    throw new Error(AUDIT_CHILD_ROWS_INIT_ROLLBACK_MESSAGE);
-  }
-
-  return { id: audit.id as string, status: audit.status as string };
-}
 
 // ─── POST /api/audits — Create audit (consultant: own user_id; client: self-serve owner + client_id) ─
 auditsRouter.post('/', attachProfile, createAuditLimiter, async (req: AuthRequest, res) => {
@@ -430,7 +360,7 @@ auditsRouter.post('/:id/upgrade-from-snapshot', attachProfile, rejectGuestFromPo
       .json(
         apiErrorJson(
           API_ERROR_CODES.AUDITS_UPGRADE_FAILED,
-          e.message?.trim() ? e.message : AUDITS_UPGRADE_FAILED_MESSAGE,
+          AUDITS_UPGRADE_FAILED_MESSAGE,
         ),
       );
   }

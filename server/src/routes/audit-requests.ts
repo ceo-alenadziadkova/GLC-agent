@@ -15,9 +15,8 @@ import { supabase } from '../services/supabase.js';
 import { requireAuth, attachProfile, requireRole, type AuthRequest, type UserRole } from '../middleware/auth.js';
 import { generalLimiter, createAuditLimiter } from '../middleware/rate-limit.js';
 import {
-  DOMAIN_PHASES,
-  executionPlanToPhases,
-  reviewPhasesForExecutionPlan,
+  EXPRESS_PRODUCT_MODE,
+  FULL_PRODUCT_MODE,
   type AuditExecutionPlan,
 } from '../types/audit.js';
 import { defaultExecutionPlanForPackage } from '../services/execution-plan.js';
@@ -71,6 +70,8 @@ import {
   apiErrorJson,
 } from '../config/api-error-codes.js';
 import { logger } from '../services/logger.js';
+import { createAuditWithChildren } from '../services/audit-initialization.js';
+import { isAuditChildRowsInitRollbackError } from '../lib/audit-init-error.js';
 import { saveBriefResponses } from '../services/brief-validator.js';
 import { emitStructuredNotification } from '../services/notifications.js';
 import {
@@ -85,6 +86,10 @@ import {
   AUDIT_REQUEST_NOTIFICATION_SUBMITTED_CONSULTANTS_MESSAGE,
   AUDIT_REQUEST_NOTIFICATION_SUBMITTED_CONSULTANTS_TITLE,
 } from '../config/route-notification-messages.js';
+import {
+  buildPortalAuditRoute,
+  ROUTE_NOTIFICATION_PATHS,
+} from '../config/route-notification-paths.js';
 
 export const auditRequestsRouter = Router();
 
@@ -107,6 +112,12 @@ auditRequestsRouter.use(generalLimiter);
 
 function isConsultant(req: AuthRequest) {
   return (req.userRole as UserRole) === 'consultant';
+}
+
+const AUDIT_REQUEST_ALLOWED_PRODUCT_MODES = [EXPRESS_PRODUCT_MODE, FULL_PRODUCT_MODE] as const;
+
+function isAllowedAuditRequestProductMode(mode: unknown): mode is typeof AUDIT_REQUEST_ALLOWED_PRODUCT_MODES[number] {
+  return typeof mode === 'string' && AUDIT_REQUEST_ALLOWED_PRODUCT_MODES.includes(mode as typeof AUDIT_REQUEST_ALLOWED_PRODUCT_MODES[number]);
 }
 
 /** Ensures Other industry always has a non-empty sector description in brief_snapshot. */
@@ -205,7 +216,7 @@ auditRequestsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) 
       }
     }
 
-    if (!['express', 'full'].includes(product_mode)) {
+    if (!isAllowedAuditRequestProductMode(product_mode)) {
       res
         .status(400)
         .json(
@@ -254,7 +265,7 @@ auditRequestsRouter.post('/', createAuditLimiter, async (req: AuthRequest, res) 
         audience: 'consultants',
         title: AUDIT_REQUEST_NOTIFICATION_CREATED_CONSULTANTS_TITLE,
         message: AUDIT_REQUEST_NOTIFICATION_CREATED_CONSULTANTS_MESSAGE,
-        route: '/admin/requests',
+        route: ROUTE_NOTIFICATION_PATHS.adminRequests,
         payload: {
           request_id: data.id,
           status: data.status,
@@ -396,7 +407,20 @@ auditRequestsRouter.patch('/:id', async (req: AuthRequest, res) => {
       }
     }
     if (industry !== undefined) updates.industry = industry || null;
-    if (product_mode) updates.product_mode = product_mode;
+    if (product_mode !== undefined) {
+      if (!isAllowedAuditRequestProductMode(product_mode)) {
+        res
+          .status(400)
+          .json(
+            apiErrorJson(
+              API_ERROR_CODES.AUDIT_REQUEST_PRODUCT_MODE_INVALID,
+              AUDIT_REQUEST_PRODUCT_MODE_INVALID_MESSAGE,
+            ),
+          );
+        return;
+      }
+      updates.product_mode = product_mode;
+    }
 
     const nextIndustry = industry !== undefined ? industry : (existing.industry as string | null);
     let nextSnap = (existing.brief_snapshot as Record<string, unknown>) ?? {};
@@ -429,20 +453,23 @@ auditRequestsRouter.patch('/:id', async (req: AuthRequest, res) => {
 
     if (error) throw error;
 
-    await emitStructuredNotification({
-      category: 'request',
-      event: 'audit_request_submitted',
-      priority: 'medium',
-      audience: 'consultants',
-      title: AUDIT_REQUEST_NOTIFICATION_SUBMITTED_CONSULTANTS_TITLE,
-      message: AUDIT_REQUEST_NOTIFICATION_SUBMITTED_CONSULTANTS_MESSAGE,
-      route: '/admin/requests',
-      payload: {
-        request_id: data.id,
-        status: data.status,
-        actor_role: isConsultant(req) ? 'consultant' : 'client',
-      },
-    });
+    const shouldNotifySubmittedTransition = existing.status !== 'submitted' && data.status === 'submitted';
+    if (shouldNotifySubmittedTransition) {
+      await emitStructuredNotification({
+        category: 'request',
+        event: 'audit_request_submitted',
+        priority: 'medium',
+        audience: 'consultants',
+        title: AUDIT_REQUEST_NOTIFICATION_SUBMITTED_CONSULTANTS_TITLE,
+        message: AUDIT_REQUEST_NOTIFICATION_SUBMITTED_CONSULTANTS_MESSAGE,
+        route: ROUTE_NOTIFICATION_PATHS.adminRequests,
+        payload: {
+          request_id: data.id,
+          status: data.status,
+          actor_role: isConsultant(req) ? 'consultant' : 'client',
+        },
+      });
+    }
 
     res.json(data);
   } catch (err) {
@@ -610,65 +637,32 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
       return;
     }
 
-    // Create audit
+    // Create audit + child placeholders in one rollback-safe use-case.
     const coveragePackage = coveragePackageFromAuditRequestProductMode(requestRow.product_mode as string);
     const executionPlan: AuditExecutionPlan = defaultExecutionPlanForPackage(coveragePackage);
     const persistedMode = persistedProductModeForExecutionPlan(executionPlan);
 
-    const { data: audit, error: auditErr } = await supabase
-      .from('audits')
-      .insert({
-        user_id: req.userId!,
-        client_id: requestRow.client_id,
-        company_url: requestRow.url,
-        industry: requestRow.industry,
-        product_mode: persistedMode,
+    let audit: { id: string; status: string };
+    try {
+      audit = await createAuditWithChildren({
+        ownerUserId: req.userId!,
+        clientId: requestRow.client_id,
+        company_url: requestRow.url as string,
+        company_name: null,
+        industry: requestRow.industry ?? null,
+        mode: persistedMode,
         execution_plan: executionPlan,
         no_public_website: isNoPublicWebsiteUrl(String(requestRow.url ?? '')),
-      })
-      .select()
-      .single();
-
-    if (auditErr) throw auditErr;
-
-    // Pre-create audit child records — aligned with POST /api/audits + execution_plan
-    const activeReviewPhases = reviewPhasesForExecutionPlan(executionPlan);
-
-    const reviewInserts = activeReviewPhases.map(phase => ({
-      audit_id: audit.id,
-      after_phase: phase,
-    }));
-
-    const domainInserts = executionPlan.selected_domains.map((key) => ({
-      audit_id: audit.id,
-      domain_key: key,
-      phase_number: DOMAIN_PHASES[key],
-    }));
-
-    const childInserts = [
-      supabase.from('review_points').insert(reviewInserts),
-      supabase.from('audit_domains').insert(domainInserts),
-      supabase.from('audit_recon').insert({ audit_id: audit.id }),
-      ...(executionPlanToPhases(executionPlan).includes(7)
-        ? [supabase.from('audit_strategy').insert({ audit_id: audit.id })]
-        : []),
-    ] as const;
-
-    const results = await Promise.allSettled(childInserts);
-
-    const initFailed = results.some(
-      r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.error)
-    );
-
-    if (initFailed) {
-      await supabase.from('audits').delete().eq('id', audit.id); // CASCADE deletes child rows
-      logger.error('Approve request failed during placeholder init', { audit_id: audit.id, request_id: id });
-      res
-        .status(500)
-        .json(
-          apiErrorJson(API_ERROR_CODES.AUDIT_INITIALIZATION_FAILED, AUDIT_INITIALIZATION_FAILED_MESSAGE),
-        );
-      return;
+      });
+    } catch (err) {
+      if (isAuditChildRowsInitRollbackError(err)) {
+        logger.error('Approve request failed during placeholder init', { request_id: id });
+        res
+          .status(500)
+          .json(apiErrorJson(API_ERROR_CODES.AUDIT_INITIALIZATION_FAILED, AUDIT_INITIALIZATION_FAILED_MESSAGE));
+        return;
+      }
+      throw err;
     }
 
     try {
@@ -739,7 +733,7 @@ auditRequestsRouter.post('/:id/approve', requireRole('consultant'), async (req: 
       auditId: audit.id as string,
       title: AUDIT_REQUEST_NOTIFICATION_APPROVED_USER_TITLE,
       message: AUDIT_REQUEST_NOTIFICATION_APPROVED_USER_MESSAGE,
-      route: `/portal/audit/${audit.id}`,
+      route: buildPortalAuditRoute(audit.id as string),
       payload: {
         request_id: id,
         audit_id: audit.id,
@@ -818,7 +812,7 @@ auditRequestsRouter.post('/:id/reject', requireRole('consultant'), async (req: A
       userId: data.client_id as string,
       title: AUDIT_REQUEST_NOTIFICATION_REJECTED_USER_TITLE,
       message: AUDIT_REQUEST_NOTIFICATION_REJECTED_USER_MESSAGE,
-      route: '/portal',
+      route: ROUTE_NOTIFICATION_PATHS.portalHome,
       payload: {
         request_id: id,
         status: 'rejected',
@@ -893,7 +887,9 @@ auditRequestsRouter.post('/:id/deliver', requireRole('consultant'), async (req: 
       auditId: (data.audit_id as string | null) ?? null,
       title: AUDIT_REQUEST_NOTIFICATION_DELIVERED_USER_TITLE,
       message: AUDIT_REQUEST_NOTIFICATION_DELIVERED_USER_MESSAGE,
-      route: data.audit_id ? `/portal/audit/${data.audit_id as string}` : '/portal',
+      route: data.audit_id
+        ? buildPortalAuditRoute(data.audit_id as string)
+        : ROUTE_NOTIFICATION_PATHS.portalHome,
       payload: {
         request_id: id,
         audit_id: data.audit_id,

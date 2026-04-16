@@ -224,7 +224,7 @@ describe('platform self-serve/runtime contract', () => {
     });
     expect(res.status).toBe(400);
     const body = (await res.json()) as Record<string, unknown>;
-    expect(body.code).toBe('PROFILE_PAYLOAD_INVALID');
+    expect(body.code).toBe('PLATFORM_PAYLOAD_INVALID');
   });
 
   it('PATCH /runtime-policies returns 400 with payload-invalid code for empty patch', async () => {
@@ -235,7 +235,7 @@ describe('platform self-serve/runtime contract', () => {
     });
     expect(res.status).toBe(400);
     const body = (await res.json()) as Record<string, unknown>;
-    expect(body.code).toBe('PROFILE_PAYLOAD_INVALID');
+    expect(body.code).toBe('PLATFORM_PAYLOAD_INVALID');
   });
 
   it('PATCH /runtime-policies returns 400 with payload-invalid code for non-integer field', async () => {
@@ -246,7 +246,7 @@ describe('platform self-serve/runtime contract', () => {
     });
     expect(res.status).toBe(400);
     const body = (await res.json()) as Record<string, unknown>;
-    expect(body.code).toBe('PROFILE_PAYLOAD_INVALID');
+    expect(body.code).toBe('PLATFORM_PAYLOAD_INVALID');
   });
 
   it('PATCH /runtime-policies returns persist-failed code when update cannot be stored', async () => {

@@ -1,4 +1,5 @@
 import { supabase } from '../services/supabase.js';
+import { PLATFORM_SELF_SERVE_PERSIST_FAILED_MESSAGE } from '../config/api-error-codes.js';
 
 const SINGLETON_ID = 1;
 
@@ -47,7 +48,7 @@ export async function setStoredSelfServeAuditOwnerUserId(
     .eq('id', SINGLETON_ID);
 
   if (error) {
-    return { ok: false, statusCode: 500, error: 'Failed to update platform settings' };
+    return { ok: false, statusCode: 500, error: PLATFORM_SELF_SERVE_PERSIST_FAILED_MESSAGE };
   }
   return { ok: true };
 }
