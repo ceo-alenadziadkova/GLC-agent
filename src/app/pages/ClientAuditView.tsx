@@ -1,6 +1,6 @@
 import { useParams } from 'react-router';
 import { AppShell } from '../components/AppShell';
-import { UI_SEMANTIC_COLORS } from '../config/ui-semantic-colors';
+import { UI_SEMANTIC_COLORS } from '../../design-system/tokens/ui-semantic-colors';
 import { CLIENT_AUDIT_VIEW_COPY } from '../config/client-audit-view-copy';
 import { ClientAuditScreen } from './client-audit-view/ClientAuditScreen';
 

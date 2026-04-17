@@ -25,7 +25,7 @@ export function HomeFaqPreviewSection({ data }: HomeFaqPreviewSectionProps) {
           {data.items.map((item, i) => (
             <AccordionItem key={item.q} value={`p-${i}`}>
               <AccordionTrigger className="text-left text-base font-semibold">{item.q}</AccordionTrigger>
-              <AccordionContent className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              <AccordionContent className="text-sm leading-relaxed text-[var(--text-secondary)]">
                 {item.a}
               </AccordionContent>
             </AccordionItem>
@@ -35,11 +35,10 @@ export function HomeFaqPreviewSection({ data }: HomeFaqPreviewSectionProps) {
       <Link
         to="/faq"
         className={cn(
-          'group mt-6 inline-flex items-center gap-1 text-sm font-semibold transition-[color,transform] duration-300 ease-out',
+          'group mt-6 inline-flex items-center gap-1 text-sm font-semibold text-[var(--glc-blue)] transition-[color,transform] duration-300 ease-out',
           HOME_FOCUS_RING,
           'rounded-md',
         )}
-        style={{ color: 'var(--glc-blue)' }}
       >
         {data.allQuestionsLabel}
         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />

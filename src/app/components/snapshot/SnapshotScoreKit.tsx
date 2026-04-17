@@ -71,24 +71,23 @@ export function SnapshotScoreContextNotes(props: {
       }
     >
       <p
-        className="mb-3 text-xs font-semibold uppercase tracking-wide"
-        style={{ color: 'var(--text-tertiary)' }}
+        className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]"
       >
         What these numbers mean
       </p>
       <div className="space-y-3">
         {zeroPagesNote ? (
-          <p className="text-sm font-medium leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-sm font-medium leading-relaxed text-[var(--text-secondary)]">
             {zeroPagesNote}
           </p>
         ) : null}
-        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
           {has100
             ? fivePointBandExplanation({ band, uxLabel: result.ux_label, hasOverall100: true })
             : fivePointBandExplanation({ band, uxLabel: result.ux_label, hasOverall100: false })}
         </p>
         {scan && (
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
             {scanConfidenceExplanation(scan)}
           </p>
         )}
@@ -180,7 +179,7 @@ export function SnapshotCategoryBreakdownList({ result }: { result: FreeSnapshot
     >
       <div className="glc-snapshot-section-h glc-snapshot-section-h--neutral">
         <span className="glc-snapshot-section-h__rule" aria-hidden />
-        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
           Category breakdown
         </span>
       </div>
@@ -191,7 +190,7 @@ export function SnapshotCategoryBreakdownList({ result }: { result: FreeSnapshot
           return (
             <li key={key}>
               <div className="mb-1.5 flex items-center justify-between gap-3">
-                <span className="inline-flex min-w-0 items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
+                <span className="inline-flex min-w-0 items-center gap-1.5 text-[var(--text-secondary)]">
                   <span className="truncate">{label}</span>
                   <CategoryBreakdownHint label={label} categoryKey={key} />
                 </span>
@@ -214,10 +213,7 @@ export function SnapshotCategoryBreakdownList({ result }: { result: FreeSnapshot
         })}
       </ul>
       {result.scan_basis && (
-        <p
-          className="mt-4 border-t border-[var(--border-subtle)] pt-4 text-xs leading-relaxed"
-          style={{ color: 'var(--text-quaternary)' }}
-        >
+        <p className="mt-4 border-t border-[var(--border-subtle)] pt-4 text-xs leading-relaxed text-[var(--text-quaternary)]">
           Based on: {result.scan_basis}
         </p>
       )}

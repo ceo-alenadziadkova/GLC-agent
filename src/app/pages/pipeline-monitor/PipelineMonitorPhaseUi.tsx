@@ -9,26 +9,19 @@ import {
 } from '@phosphor-icons/react';
 import { ScoreBadge } from '../../components/glc/ScoreBadge';
 import { PIPELINE_MONITOR_COPY as PM } from '../../config/pipeline-monitor-copy';
-import { UI_SEMANTIC_COLORS } from '../../config/ui-semantic-colors';
 import type { PhaseView } from './types';
+import { cn } from '../../components/ui/utils';
 
 export function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: () => void }) {
   const I = ph.icon;
   const stIcon = {
-    completed: <CheckCircle className="w-3.5 h-3.5" style={{ color: 'var(--glc-green)' }} />,
-    running: <ArrowsClockwise className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--glc-blue)' }} />,
-    pending: <Clock className="w-3.5 h-3.5" style={{ color: 'var(--text-quaternary)' }} />,
-    review: <WarningCircle className="w-3.5 h-3.5" style={{ color: 'var(--score-3)' }} />,
-    failed: <WarningCircle className="w-3.5 h-3.5" style={{ color: 'var(--score-1)' }} />,
+    completed: <CheckCircle className="text-success h-3.5 w-3.5" />,
+    running: <ArrowsClockwise className="text-info h-3.5 w-3.5 animate-spin" />,
+    pending: <Clock className="text-muted-foreground h-3.5 w-3.5" />,
+    review: <WarningCircle className="text-warning h-3.5 w-3.5" />,
+    failed: <WarningCircle className="text-destructive h-3.5 w-3.5" />,
     skipped: (
-      <span
-        className="text-[9px] font-bold px-1 py-0.5 rounded"
-        style={{
-          backgroundColor: 'var(--bg-muted)',
-          color: 'var(--text-quaternary)',
-          letterSpacing: '0.05em',
-        }}
-      >
+      <span className="bg-muted text-muted-foreground rounded px-1 py-0.5 text-[9px] font-bold tracking-[0.05em]">
         {PM.phaseCard.skip}
       </span>
     ),
@@ -39,49 +32,37 @@ export function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; 
       onClick={onSel}
       whileHover={{ x: 1 }}
       transition={{ duration: 0.15 }}
-      className="w-full text-left p-3 rounded-xl"
-      style={{
-        backgroundColor: active ? 'var(--glc-blue-xlight)' : 'var(--bg-surface)',
-        border: `1px solid ${active ? 'rgba(28,189,255,0.30)' : 'var(--border-subtle)'}`,
-        borderRadius: 'var(--radius-lg)',
-        opacity: ph.status === 'pending' ? 0.5 : ph.status === 'skipped' ? 0.35 : 1,
-        boxShadow: active ? '0 0 0 3px rgba(28,189,255,0.10)' : 'var(--shadow-xs)',
-        transition: 'all var(--ease-fast)',
-      }}
+      className={cn(
+        'w-full rounded-xl border p-3 text-left transition-all',
+        active ? 'border-info/40 bg-info/10 ring-2 ring-info/10' : 'bg-card',
+        ph.status === 'pending' ? 'opacity-50' : ph.status === 'skipped' ? 'opacity-35' : '',
+      )}
     >
       <div className="flex items-center gap-2.5">
         <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{
-            background: active
-              ? 'var(--gradient-brand)'
+          className={cn(
+            'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md',
+            active
+              ? 'bg-gradient-to-br from-sky-400 to-sky-600'
               : ph.status === 'completed'
-                ? 'var(--glc-green-xlight)'
-                : 'var(--bg-inset)',
-            borderRadius: 'var(--radius-md)',
-          }}
+                ? 'bg-emerald-500/15'
+                : 'bg-muted',
+          )}
         >
           <I
-            className="w-3.5 h-3.5"
-            style={{
-              color: active
-                ? 'var(--primary-foreground)'
+            className={cn(
+              'h-3.5 w-3.5',
+              active
+                ? 'text-primary-foreground'
                 : ph.status === 'completed'
-                  ? 'var(--glc-green-dark)'
-                  : 'var(--text-tertiary)',
-            }}
+                  ? 'text-success'
+                  : 'text-muted-foreground',
+            )}
           />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-1">
-            <span
-              className="text-xs truncate"
-              style={{
-                color: active ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
-                fontWeight: active ? 600 : 400,
-                fontFamily: active ? 'var(--font-display)' : 'var(--font-sans)',
-              }}
-            >
+            <span className={cn('truncate text-xs', active ? 'text-info font-semibold' : 'text-muted-foreground font-normal')}>
               {ph.name}
             </span>
             {stIcon}
@@ -109,32 +90,21 @@ export function RevBanner({
   canApprove: boolean;
 }) {
   const done = review.status === 'approved';
-  const color = done ? 'var(--glc-green)' : 'var(--score-3)';
-  const bg = done ? 'var(--glc-green-xlight)' : 'var(--score-3-bg)';
-  const border = done ? 'rgba(14,207,130,0.25)' : 'rgba(234,179,8,0.25)';
-
   return (
-    <div
-      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl"
-      style={{
-        backgroundColor: bg,
-        border: `1px solid ${border}`,
-        borderRadius: 'var(--radius-lg)',
-      }}
-    >
-      <Star className="w-3.5 h-3.5 flex-shrink-0" style={{ color, fill: color, stroke: 'none' }} />
+    <div className={cn('flex items-center gap-2.5 rounded-xl border px-3 py-2.5', done ? 'border-success/40 bg-success/10' : 'border-warning/40 bg-warning/10')}>
+      <Star className={cn('h-3.5 w-3.5 flex-shrink-0', done ? 'text-success' : 'text-warning')} weight="fill" />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="text-xs font-bold" style={{ color, fontFamily: 'var(--font-display)' }}>
+          <span className={cn('text-xs font-bold', done ? 'text-success' : 'text-warning')}>
             {label}
           </span>
           {!done && hasWarnings && (
             <span title={PM.revBanner.qualityWarningsTitle} className="inline-flex flex-shrink-0">
-              <WarningCircle size={12} weight="fill" style={{ color: UI_SEMANTIC_COLORS.warningOrange, flexShrink: 0 }} />
+              <WarningCircle size={12} weight="fill" className="text-warning flex-shrink-0" />
             </span>
           )}
         </div>
-        <p className="text-xs truncate mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-muted-foreground mt-0.5 truncate text-xs">
           {done ? PM.revBanner.approved : hasWarnings ? PM.revBanner.qualityWarningsNotes : PM.revBanner.waitingApproval}
         </p>
       </div>
@@ -143,24 +113,13 @@ export function RevBanner({
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           onClick={onOpenModal}
-          className="text-xs font-bold px-2.5 py-1.5 rounded-lg flex-shrink-0 flex items-center gap-1"
-          style={{
-            background: 'var(--gradient-accent)',
-            color: 'var(--primary-foreground)',
-            border: 'none',
-            cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(242,79,29,0.28)',
-            fontSize: '11px',
-          }}
+          className="flex flex-shrink-0 items-center gap-1 rounded-lg bg-gradient-to-r from-orange-500 to-rose-500 px-2.5 py-1.5 text-xs font-bold text-white shadow-[0_2px_8px_rgba(242,79,29,0.28)]"
         >
           {PM.revBanner.approve} <ArrowRight className="w-3 h-3" />
         </motion.button>
       )}
       {!done && !canApprove && (
-        <span
-          className="text-[10px] font-medium px-2 py-1 rounded-md flex-shrink-0"
-          style={{ color: 'var(--text-tertiary)', border: '1px solid var(--border-subtle)' }}
-        >
+        <span className="text-muted-foreground flex-shrink-0 rounded-md border px-2 py-1 text-[length:var(--text-2xs)] font-medium">
           {PM.revBanner.consultantApproval}
         </span>
       )}
@@ -174,55 +133,21 @@ function ParallelMiniCard({ ph }: { ph: PhaseView }) {
   const isCompleted = ph.status === 'completed';
   const isFailed = ph.status === 'failed';
 
-  const borderColor = isCompleted
-    ? 'rgba(14,207,130,0.30)'
-    : isFailed
-      ? 'rgba(239,68,68,0.30)'
-      : isRunning
-        ? 'rgba(28,189,255,0.25)'
-        : 'var(--border-subtle)';
-
-  const iconBg = isCompleted
-    ? 'var(--glc-green-xlight)'
-    : isFailed
-      ? 'rgba(239,68,68,0.12)'
-      : isRunning
-        ? 'var(--glc-blue-xlight)'
-        : 'var(--bg-inset)';
-
-  const iconColor = isCompleted
-    ? 'var(--glc-green-dark)'
-    : isFailed
-      ? UI_SEMANTIC_COLORS.danger
-      : isRunning
-        ? 'var(--glc-blue)'
-        : 'var(--text-quaternary)';
-
   return (
-    <div
-      className="rounded-xl p-2.5"
-      style={{ backgroundColor: 'var(--bg-surface)', border: `1px solid ${borderColor}`, flex: '1 1 0' }}
-    >
+    <div className={cn('bg-card flex-1 rounded-xl border p-2.5', isCompleted ? 'border-success/40' : isFailed ? 'border-destructive/40' : isRunning ? 'border-info/40' : 'border-border')}>
       <div className="flex items-center gap-1.5 mb-1.5">
-        <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ backgroundColor: iconBg }}>
-          <I className="w-3 h-3" style={{ color: iconColor }} />
+        <div className={cn('flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md', isCompleted ? 'bg-success/10' : isFailed ? 'bg-destructive/10' : isRunning ? 'bg-info/10' : 'bg-muted')}>
+          <I className={cn('h-3 w-3', isCompleted ? 'text-success' : isFailed ? 'text-destructive' : isRunning ? 'text-info' : 'text-muted-foreground')} />
         </div>
-        <span
-          className="text-[10px] font-semibold truncate"
-          style={{
-            color: isRunning ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
-            fontFamily: 'var(--font-display)',
-          }}
-        >
+        <span className={cn('truncate text-[length:var(--text-2xs)] font-semibold', isRunning ? 'text-info' : 'text-muted-foreground')}>
           {ph.name}
         </span>
       </div>
 
       {isRunning && (
-        <div className="rounded-full overflow-hidden" style={{ height: 3, backgroundColor: 'rgba(28,189,255,0.15)' }}>
+        <div className="bg-info/20 h-[3px] overflow-hidden rounded-full">
           <motion.div
-            className="h-full rounded-full"
-            style={{ background: 'var(--gradient-brand)' }}
+            className="h-full rounded-full bg-gradient-to-r from-sky-400 to-sky-600"
             initial={{ width: '10%' }}
             animate={{ width: '80%' }}
             transition={{ duration: 3.5, ease: 'easeInOut', repeat: Infinity, repeatType: 'mirror' }}
@@ -232,20 +157,20 @@ function ParallelMiniCard({ ph }: { ph: PhaseView }) {
       {isCompleted && ph.score !== null && <ScoreBadge score={ph.score} size="sm" />}
       {isCompleted && ph.score === null && (
         <div className="flex items-center gap-1">
-          <CheckCircle className="w-3 h-3" style={{ color: 'var(--glc-green)' }} />
-          <span style={{ fontSize: 10, color: 'var(--glc-green)', fontFamily: 'var(--font-display)' }}>{PM.miniCard.done}</span>
+          <CheckCircle className="text-success h-3 w-3" />
+          <span className="text-success text-[length:var(--text-2xs)]">{PM.miniCard.done}</span>
         </div>
       )}
       {isFailed && (
         <div className="flex items-center gap-1">
-          <WarningCircle className="w-3 h-3" style={{ color: UI_SEMANTIC_COLORS.danger }} />
-          <span style={{ fontSize: 10, color: UI_SEMANTIC_COLORS.danger, fontFamily: 'var(--font-display)' }}>{PM.miniCard.failed}</span>
+          <WarningCircle className="text-destructive h-3 w-3" />
+          <span className="text-destructive text-[length:var(--text-2xs)]">{PM.miniCard.failed}</span>
         </div>
       )}
       {!isRunning && !isCompleted && !isFailed && (
         <div className="flex items-center gap-1">
-          <Clock className="w-3 h-3" style={{ color: 'var(--text-quaternary)' }} />
-          <span style={{ fontSize: 10, color: 'var(--text-quaternary)', fontFamily: 'var(--font-display)' }}>{PM.miniCard.waiting}</span>
+          <Clock className="text-muted-foreground h-3 w-3" />
+          <span className="text-muted-foreground text-[length:var(--text-2xs)]">{PM.miniCard.waiting}</span>
         </div>
       )}
     </div>
@@ -266,16 +191,11 @@ export function ParallelWingBanner({ phases, wingName }: { phases: PhaseView[]; 
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="rounded-xl p-4"
-      style={{
-        backgroundColor: 'var(--glc-blue-xlight)',
-        border: '1px solid rgba(28,189,255,0.20)',
-        marginBottom: 8,
-      }}
+      className="bg-info/10 border-info/30 mb-2 rounded-xl border p-4"
     >
       <div className="flex items-center gap-2 mb-3">
-        <ArrowsClockwise className="w-3.5 h-3.5 animate-spin" style={{ color: 'var(--glc-blue)' }} />
-        <span className="text-xs font-bold" style={{ color: 'var(--glc-blue-deeper)', fontFamily: 'var(--font-display)' }}>
+        <ArrowsClockwise className="text-info h-3.5 w-3.5 animate-spin" />
+        <span className="text-info text-xs font-bold">
           {wingName}{PM.parallelWing.runningSuffix}
         </span>
       </div>

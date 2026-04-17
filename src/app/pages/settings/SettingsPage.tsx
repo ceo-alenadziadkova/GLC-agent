@@ -100,7 +100,7 @@ export function SettingsPage() {
           </TabsContent>
           <TabsContent value="bank-studio" className="mt-0">
             <div className="px-7 py-6">
-              <p className="text-[11px] m-0 mb-3" style={{ color: 'var(--text-quaternary)' }}>
+              <p className="text-xs m-0 mb-3" style={{ color: 'var(--text-quaternary)' }}>
                 {SETTINGS_PAGE_COPY.page.studioFullPageViewPrefix}{' '}
                 <Link to="/admin/question-bank-studio" className="underline" style={{ color: 'var(--text-tertiary)' }}>
                   /admin/question-bank-studio

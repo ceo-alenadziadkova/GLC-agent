@@ -10,16 +10,16 @@ export function HomeMetricsSection({ data }: HomeMetricsSectionProps) {
       <div className="grid gap-8 text-center sm:grid-cols-3 sm:gap-10 sm:text-left">
         {data.items.map(item => (
           <div key={item.label} className="max-w-md sm:max-w-none">
-            <p className="font-display text-2xl font-bold leading-tight tracking-tight sm:text-[1.65rem]" style={{ color: 'var(--text-primary)' }}>
+            <p className="font-display text-2xl font-bold leading-tight tracking-tight text-[var(--text-primary)] sm:text-[1.65rem]">
               {item.value}
             </p>
-            <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]">
               {item.label}
             </p>
           </div>
         ))}
       </div>
-      <p className="mt-8 text-center text-sm leading-relaxed sm:mt-10 sm:text-[0.95rem]" style={{ color: 'var(--text-secondary)' }}>
+      <p className="mt-8 text-center text-sm leading-relaxed text-[var(--text-secondary)] sm:mt-10 sm:text-[0.95rem]">
         {data.tagline}
       </p>
     </div>

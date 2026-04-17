@@ -13,13 +13,13 @@ type NotificationsSectionProps = {
 export function NotificationsSection({ notifyPrefs, setNotifyPrefs }: NotificationsSectionProps) {
   return (
     <SettingsCard id="notifications">
-      <div className="flex items-center gap-2 mb-4" style={{ color: 'var(--text-primary)' }}>
+      <div className="mb-4 flex items-center gap-2 text-[var(--text-primary)]">
         <Bell className="w-4 h-4" />
         <h2 className="text-sm font-semibold">{SETTINGS_PAGE_COPY.notifications.title}</h2>
       </div>
       <div className="space-y-3">
         <label className="flex items-center justify-between gap-3">
-          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <span className="text-sm text-[var(--text-secondary)]">
             {SETTINGS_PAGE_COPY.notifications.auditStatusReminders}
           </span>
           <Switch
@@ -28,7 +28,7 @@ export function NotificationsSection({ notifyPrefs, setNotifyPrefs }: Notificati
           />
         </label>
         <label className="flex items-center justify-between gap-3">
-          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <span className="text-sm text-[var(--text-secondary)]">
             {SETTINGS_PAGE_COPY.notifications.productUpdates}
           </span>
           <Switch

@@ -32,7 +32,7 @@ export function StudioUserFlowSection(props: StudioUserFlowSectionProps) {
       className="rounded-lg px-3 py-2 space-y-2 text-xs"
       style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}
     >
-      <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-tertiary)' }}>
+      <div className="text-[length:var(--text-2xs)] font-semibold uppercase" style={{ color: 'var(--text-tertiary)' }}>
         Breadcrumbs (current path)
       </div>
       <div style={{ color: 'var(--text-secondary)' }}>
@@ -41,7 +41,7 @@ export function StudioUserFlowSection(props: StudioUserFlowSectionProps) {
       <div className="flex flex-wrap gap-1.5">
         <button
           type="button"
-          className="text-[11px] font-medium px-2 py-1 rounded-md"
+          className="text-xs font-medium px-2 py-1 rounded-md"
           style={{
             border: '1px solid var(--border-default)',
             backgroundColor: 'var(--bg-surface)',
@@ -55,7 +55,7 @@ export function StudioUserFlowSection(props: StudioUserFlowSectionProps) {
         </button>
         <button
           type="button"
-          className="text-[11px] font-medium px-2 py-1 rounded-md"
+          className="text-xs font-medium px-2 py-1 rounded-md"
           style={{
             border: '1px solid var(--border-default)',
             backgroundColor: 'var(--bg-surface)',
@@ -69,7 +69,7 @@ export function StudioUserFlowSection(props: StudioUserFlowSectionProps) {
         </button>
         <button
           type="button"
-          className="text-[11px] font-medium px-2 py-1 rounded-md"
+          className="text-xs font-medium px-2 py-1 rounded-md"
           style={{
             border: '1px solid var(--border-default)',
             backgroundColor: 'var(--bg-surface)',
@@ -83,13 +83,13 @@ export function StudioUserFlowSection(props: StudioUserFlowSectionProps) {
       </div>
       {userStepLanes.length > 0 && (
         <div className="pt-1 border-t" style={{ borderColor: 'var(--border-default)' }}>
-          <div className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
+          <div className="text-[length:var(--text-2xs)] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
             Swimlanes by step
           </div>
           <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
-              className="text-[11px] font-medium px-2 py-1 rounded-md"
+              className="text-xs font-medium px-2 py-1 rounded-md"
               style={{
                 border: '1px solid var(--border-default)',
                 backgroundColor: activeUserStep === null ? 'var(--glc-blue-muted)' : 'var(--bg-surface)',
@@ -104,7 +104,7 @@ export function StudioUserFlowSection(props: StudioUserFlowSectionProps) {
               <button
                 key={step.laneId}
                 type="button"
-                className="text-[11px] font-medium px-2 py-1 rounded-md"
+                className="text-xs font-medium px-2 py-1 rounded-md"
                 style={{
                   border: '1px solid var(--border-default)',
                   backgroundColor: activeUserStep === step.stepIndex ? 'var(--glc-blue-muted)' : 'var(--bg-surface)',

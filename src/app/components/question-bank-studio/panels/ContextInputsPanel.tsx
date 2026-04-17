@@ -35,20 +35,15 @@ export function ContextInputsPanel(props: ContextInputsPanelProps) {
   } = props;
 
   return (
-    <div className="w-full p-3 rounded-lg text-left" style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}>
-      <div className="text-[10px] font-semibold uppercase mb-2" style={{ color: 'var(--text-tertiary)' }}>
+    <div className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-canvas)] p-3 text-left">
+      <div className="mb-2 text-[length:var(--text-2xs)] font-semibold uppercase text-[var(--text-tertiary)]">
         Context inputs
       </div>
       <div className="space-y-2 mb-2">
-        <label className="text-[10px] block" style={{ color: 'var(--text-quaternary)' }}>
+        <label className="block text-[length:var(--text-2xs)] text-[var(--text-quaternary)]">
           Product mode
           <select
-            className="block w-full mt-0.5 px-2 py-1 text-xs rounded-md"
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-            }}
+            className="mt-0.5 block w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-primary)]"
             value={customProductMode}
             onChange={e => onCustomProductModeChange(e.target.value as ProductMode)}
           >
@@ -59,15 +54,10 @@ export function ContextInputsPanel(props: ContextInputsPanelProps) {
             ))}
           </select>
         </label>
-        <label className="text-[10px] block" style={{ color: 'var(--text-quaternary)' }}>
+        <label className="block text-[length:var(--text-2xs)] text-[var(--text-quaternary)]">
           Collection mode
           <select
-            className="block w-full mt-0.5 px-2 py-1 text-xs rounded-md"
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-            }}
+            className="mt-0.5 block w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-primary)]"
             value={customCollectionMode}
             onChange={e => onCustomCollectionModeChange(e.target.value as IntakeBriefCollectionMode | '')}
           >
@@ -78,15 +68,10 @@ export function ContextInputsPanel(props: ContextInputsPanelProps) {
             ))}
           </select>
         </label>
-        <label className="text-[10px] block" style={{ color: 'var(--text-quaternary)' }}>
+        <label className="block text-[length:var(--text-2xs)] text-[var(--text-quaternary)]">
           Surface
           <select
-            className="block w-full mt-0.5 px-2 py-1 text-xs rounded-md"
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-            }}
+            className="mt-0.5 block w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-primary)]"
             value={customSurface}
             onChange={e => onCustomSurfaceChange(e.target.value as IntakeSurface | '')}
           >
@@ -97,33 +82,28 @@ export function ContextInputsPanel(props: ContextInputsPanelProps) {
             ))}
           </select>
         </label>
-        <label className="text-[10px] block" style={{ color: 'var(--text-quaternary)' }}>
+        <label className="block text-[length:var(--text-2xs)] text-[var(--text-quaternary)]">
           Responses JSON
         </label>
         <textarea
-          className="w-full min-h-[110px] px-2 py-1.5 text-[11px] font-mono rounded-md"
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid var(--border-default)',
-            color: 'var(--text-primary)',
-          }}
+          className="min-h-[110px] w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-surface)] px-2 py-1.5 font-mono text-xs text-[var(--text-primary)]"
           value={customResponsesText}
           onChange={e => onCustomResponsesTextChange(e.target.value)}
           spellCheck={false}
         />
       </div>
-      <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+      <div className="text-xs text-[var(--text-secondary)]">
         Policy mode: <span className="font-mono">{policyMode}</span>
       </div>
-      <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+      <div className="text-xs text-[var(--text-secondary)]">
         Surface: <span className="font-mono">{effectiveLayoutSurface || 'flat'}</span>
       </div>
-      <p className="mt-2 mb-0 text-[10px]" style={{ color: 'var(--text-quaternary)' }}>
+      <p className="mb-0 mt-2 text-[length:var(--text-2xs)] text-[var(--text-quaternary)]">
         User view fixes orientation to vertical and keeps branch edge labels visible for business conditions.
       </p>
       <button
         type="button"
-        className="mt-2 text-[11px] font-medium px-2 py-1 rounded-md"
+        className="mt-2 text-xs font-medium px-2 py-1 rounded-md"
         style={{
           border: '1px solid var(--border-default)',
           backgroundColor: 'var(--bg-surface)',

@@ -31,7 +31,7 @@ import { IntakeBankWizard } from '../../../components/IntakeBankWizard';
 import { BankClassicBriefFields } from '../../../components/BankClassicBriefFields';
 import { BriefLayoutPreferenceCards } from '../../../components/BriefLayoutPreferenceCards';
 import { Callout } from '../../../components/ui/callout';
-import { UI_SEMANTIC_COLORS } from '../../../config/ui-semantic-colors';
+import { UI_SEMANTIC_COLORS } from '../../../../design-system/tokens/ui-semantic-colors';
 import { PORTAL_BRIEF_SAVED_FEEDBACK_MS } from '../../../lib/snapshot-polling-config';
 import { toUiApiErrorMessage } from '../../../lib/api-error-ui';
 import { CLIENT_AUDIT_VIEW_COPY } from '../../../config/client-audit-view-copy';

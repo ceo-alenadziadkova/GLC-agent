@@ -32,8 +32,8 @@ export function StepIndicator({ current }: { current: number }) {
                 }}
               >
                 {done
-                  ? <CheckCircle weight="fill" className="w-4 h-4" style={{ color: 'var(--score-5)' }} />
-                  : <s.icon className="w-4 h-4" style={{ color: active ? 'var(--primary-foreground)' : 'var(--text-tertiary)' }} />}
+                  ? <CheckCircle weight="fill" className="h-4 w-4 text-[var(--score-5)]" />
+                  : <s.icon className={`h-4 w-4 ${active ? 'text-[var(--primary-foreground)]' : 'text-[var(--text-tertiary)]'}`} />}
               </div>
               <span
                 style={{
@@ -48,8 +48,7 @@ export function StepIndicator({ current }: { current: number }) {
             </div>
             {i < STEPS.length - 1 && (
               <div
-                className="w-6 mobile:w-4 sm:w-10 h-px mb-4 mobile:mb-3.5"
-                style={{ background: i < current ? 'var(--score-5)' : 'var(--border-default)' }}
+                className={`mb-4 h-px w-6 mobile:mb-3.5 mobile:w-4 sm:w-10 ${i < current ? 'bg-[var(--score-5)]' : 'bg-[var(--border-default)]'}`}
               />
             )}
           </div>

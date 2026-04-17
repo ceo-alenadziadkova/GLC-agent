@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { ArrowLeft, Spinner, Warning } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { AppShell } from '../../components/AppShell';
-import { UI_SEMANTIC_COLORS } from '../../config/ui-semantic-colors';
 import { CLIENT_AUDIT_VIEW_COPY } from '../../config/client-audit-view-copy';
 import { useClientPortalPipeline } from '../../context/ClientPortalPipelineContext';
 import { getGlcQueryClient } from '../../lib/glc-query-client';
@@ -64,25 +63,25 @@ export function ClientAuditScreen({ auditId }: { auditId: string }) {
       title={domain || CLIENT_AUDIT_VIEW_COPY.shell.fallbackTitle}
       subtitle={portalSubtitle}
       actions={
-        <Link to="/portal" className="hidden sm:inline-flex items-center gap-1.5 text-sm no-underline" style={{ color: 'var(--text-tertiary)' }}>
+        <Link to="/portal" className="hidden items-center gap-1.5 text-sm text-[var(--text-tertiary)] no-underline sm:inline-flex">
           <ArrowLeft className="w-3.5 h-3.5" />
           {CLIENT_AUDIT_VIEW_COPY.shell.backToPortal}
         </Link>
       }
     >
       <div className="glc-page-content max-w-2xl mx-auto space-y-4 mobile:space-y-3">
-        <Link to="/portal" className="sm:hidden inline-flex items-center gap-1.5 text-sm font-medium no-underline glc-touch-target -mt-1" style={{ color: 'var(--glc-blue)' }}>
+        <Link to="/portal" className="-mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--glc-blue)] no-underline glc-touch-target sm:hidden">
           <ArrowLeft className="w-4 h-4" />
           {CLIENT_AUDIT_VIEW_COPY.shell.backToPortal}
         </Link>
         {loading && (
           <div className="flex items-center justify-center py-20">
-            <Spinner className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+            <Spinner className="h-6 w-6 animate-spin text-[var(--glc-blue)]" />
           </div>
         )}
 
         {!loading && error && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg" style={{ backgroundColor: UI_SEMANTIC_COLORS.dangerMutedBg, border: UI_SEMANTIC_COLORS.dangerBorder20, color: UI_SEMANTIC_COLORS.danger }}>
+          <div className="flex items-center gap-3 rounded-lg border border-[var(--ui-danger-border-20)] bg-[var(--ui-danger-muted-bg)] px-4 py-3 text-[var(--ui-danger-fg-strong)]">
             <Warning className="w-4 h-4 flex-shrink-0" />
             <span className="text-sm">{error}</span>
           </div>
@@ -100,7 +99,7 @@ export function ClientAuditScreen({ auditId }: { auditId: string }) {
                 />
 
                 {startError && (
-                  <div className="flex items-center gap-2 text-sm px-4 py-3 rounded-lg" style={{ backgroundColor: UI_SEMANTIC_COLORS.dangerMutedBg, border: UI_SEMANTIC_COLORS.dangerBorder20, color: UI_SEMANTIC_COLORS.danger }}>
+                  <div className="flex items-center gap-2 rounded-lg border border-[var(--ui-danger-border-20)] bg-[var(--ui-danger-muted-bg)] px-4 py-3 text-sm text-[var(--ui-danger-fg-strong)]">
                     <Warning className="w-4 h-4 flex-shrink-0" />
                     {startError}
                   </div>

@@ -20,6 +20,7 @@ import {
   useNewAuditWizard,
   type NewAuditVariant,
 } from './new-audit';
+import { cn } from '../components/ui/utils';
 
 export function NewAudit(props?: { variant?: NewAuditVariant }) {
   const wizard = useNewAuditWizard(props);
@@ -27,21 +28,15 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
   const isClientSelfServe = variant === 'client_self_serve';
 
   const clientDraftSaveSection = isClientSelfServe ? (
-    <div className="mt-5 pt-5 space-y-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+    <div className="mt-5 space-y-3 border-t pt-5">
       {wizard.draftError && (
-        <div
-          className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
-          style={{ backgroundColor: 'var(--callout-error-bg)', border: '1px solid var(--callout-error-border)', color: 'var(--score-1)' }}
-        >
+        <div className="bg-destructive/10 text-destructive border-destructive/40 flex items-center gap-2 rounded-lg border px-3 py-2 text-xs">
           <Warning className="w-3.5 h-3.5 flex-shrink-0" />
           {wizard.draftError}
         </div>
       )}
       {wizard.draftNotice && !wizard.draftError && (
-        <div
-          className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg"
-          style={{ backgroundColor: 'rgba(14,207,130,0.08)', color: 'var(--glc-green-dark)' }}
-        >
+        <div className="text-success flex items-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-2 text-xs">
           <CheckCircle weight="fill" className="w-3.5 h-3.5 flex-shrink-0" />
           {wizard.draftNotice}
         </div>
@@ -52,22 +47,19 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         onClick={() => {
           void wizard.handleSaveClientDraft();
         }}
-        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all"
-        style={{
-          border: '1px solid var(--border-default)',
-          backgroundColor: 'var(--bg-surface)',
-          color: 'var(--text-primary)',
-          cursor: wizard.draftSaving ? 'wait' : 'pointer',
-        }}
+        className={cn(
+          'text-foreground bg-card flex w-full items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-medium transition-all',
+          wizard.draftSaving ? 'cursor-wait' : 'cursor-pointer',
+        )}
       >
         {wizard.draftSaving ? (
-          <Spinner className="w-4 h-4 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+          <Spinner className="text-info h-4 w-4 animate-spin" />
         ) : (
-          <FloppyDisk className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
+          <FloppyDisk className="text-info h-4 w-4" />
         )}
         {WORKSPACE_PAGE_COPY.newAudit.draftSaveButton}
       </button>
-      <p className="text-xs m-0 leading-relaxed text-center" style={{ color: 'var(--text-quaternary)' }}>
+      <p className="text-muted-foreground m-0 text-center text-xs leading-relaxed">
         {WORKSPACE_PAGE_COPY.newAudit.draftSaveTabNote}
       </p>
     </div>
@@ -86,19 +78,15 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
         isClientSelfServe ? (
           <Link
             to="/portal"
-            className="hidden sm:inline text-sm no-underline"
-            style={{ color: 'var(--text-tertiary)' }}
+            className="text-muted-foreground hidden text-sm no-underline sm:inline"
           >
             {WORKSPACE_PAGE_COPY.newAudit.backToPortalLabel}
           </Link>
         ) : undefined
       }
     >
-      <div
-        className="min-h-full flex flex-col items-center justify-center py-8 mobile:py-6 glc-page-content relative"
-        style={{ backgroundColor: 'var(--bg-canvas)' }}
-      >
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'var(--mesh-brand)', opacity: 0.55 }} />
+      <div className="bg-background glc-page-content relative flex min-h-full flex-col items-center justify-center py-8 mobile:py-6">
+        <div className="pointer-events-none absolute inset-0 bg-[var(--mesh-brand)] opacity-55" />
 
         <motion.div
           initial={{ opacity: 0, y: 18 }}
@@ -109,8 +97,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
           {isClientSelfServe && (
             <Link
               to="/portal"
-              className="sm:hidden inline-flex items-center gap-1.5 text-sm font-medium no-underline glc-touch-target mb-4"
-              style={{ color: 'var(--glc-blue)' }}
+              className="text-info glc-touch-target mb-4 inline-flex items-center gap-1.5 text-sm font-medium no-underline sm:hidden"
             >
               <ArrowLeft className="w-4 h-4" />
             {WORKSPACE_PAGE_COPY.newAudit.backToPortalLabel}
@@ -119,26 +106,19 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
           <StepIndicator current={wizard.step} />
 
           {isClientSelfServe && wizard.draftRestoredVisible && (
-            <div
-              className="mb-5 flex items-start gap-3 px-4 py-3 rounded-xl"
-              style={{
-                backgroundColor: 'var(--callout-info-bg)',
-                border: '1px solid var(--callout-info-border)',
-              }}
-            >
-              <ClipboardText className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--glc-blue)' }} />
+            <div className="bg-info/10 border-info/40 mb-5 flex items-start gap-3 rounded-xl border px-4 py-3">
+              <ClipboardText className="text-info mt-0.5 h-4 w-4 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium m-0" style={{ color: 'var(--text-primary)' }}>
+                <p className="text-foreground m-0 text-sm font-medium">
                   {WORKSPACE_PAGE_COPY.newAudit.draftRestoredTitle}
                 </p>
-                <p className="text-xs m-0 mt-1 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-muted-foreground m-0 mt-1 text-xs leading-relaxed">
                   {WORKSPACE_PAGE_COPY.newAudit.draftRestoredBody}
                 </p>
               </div>
               <button
                 type="button"
-                className="p-1 rounded-md flex-shrink-0"
-                style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}
+                className="text-muted-foreground flex-shrink-0 rounded-md bg-transparent p-1"
                 aria-label={WORKSPACE_PAGE_COPY.newAudit.dismissAriaLabel}
                 onClick={() => wizard.setDraftRestoredVisible(false)}
               >

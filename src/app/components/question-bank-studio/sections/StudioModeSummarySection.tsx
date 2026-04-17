@@ -19,7 +19,7 @@ export function StudioModeSummarySection(props: StudioModeSummarySectionProps) {
 
   return (
     <div className="rounded-lg px-3 py-2 space-y-1 text-xs leading-snug" style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}>
-      <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-tertiary)' }}>
+      <div className="text-[length:var(--text-2xs)] font-semibold uppercase" style={{ color: 'var(--text-tertiary)' }}>
         {QUESTION_BANK_STUDIO_COPY_EN.panels.currentMode}
       </div>
       <p className="m-0" style={{ color: 'var(--text-secondary)' }}>

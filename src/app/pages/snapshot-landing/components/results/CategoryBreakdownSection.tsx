@@ -16,7 +16,7 @@ export function CategoryBreakdownSection(props: { result: FreeSnapshotPreview })
     >
       <div className="glc-snapshot-section-h glc-snapshot-section-h--neutral">
         <span className="glc-snapshot-section-h__rule" aria-hidden />
-        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
           {SNAPSHOT_LANDING_HERO_COPY.categoryBreakdownLabel}
         </span>
       </div>
@@ -24,7 +24,7 @@ export function CategoryBreakdownSection(props: { result: FreeSnapshotPreview })
         {rows.map(row => (
           <li key={row.key}>
             <div className="mb-1.5 flex items-center justify-between gap-3">
-              <span className="inline-flex items-center gap-1.5 min-w-0" style={{ color: 'var(--text-secondary)' }}>
+              <span className="inline-flex min-w-0 items-center gap-1.5 text-[var(--text-secondary)]">
                 <span className="truncate">{row.label}</span>
                 <CategoryBreakdownHint label={row.label} categoryKey={row.key} />
               </span>
@@ -33,8 +33,7 @@ export function CategoryBreakdownSection(props: { result: FreeSnapshotPreview })
               </span>
             </div>
             <div
-              className="h-2 w-full overflow-hidden rounded-full"
-              style={{ backgroundColor: 'var(--bg-muted)' }}
+              className="h-2 w-full overflow-hidden rounded-full bg-[var(--bg-muted)]"
               aria-hidden
             >
               <div
@@ -50,10 +49,7 @@ export function CategoryBreakdownSection(props: { result: FreeSnapshotPreview })
         ))}
       </ul>
       {result.scan_basis && (
-        <p
-          className="mt-4 border-t border-[var(--border-subtle)] pt-4 text-xs leading-relaxed"
-          style={{ color: 'var(--text-quaternary)' }}
-        >
+        <p className="mt-4 border-t border-[var(--border-subtle)] pt-4 text-xs leading-relaxed text-[var(--text-quaternary)]">
           {SNAPSHOT_LANDING_HERO_COPY.basedOnLabel} {result.scan_basis}
         </p>
       )}

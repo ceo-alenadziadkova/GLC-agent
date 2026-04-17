@@ -1,5 +1,6 @@
 import { INTAKE_TRACE_SCENARIO_PRESETS } from '../../../lib/intake-trace-scenarios';
 import { INTAKE_WORDING_WORKSPACE_COPY as W } from '../../../config/intake-wording-workspace-copy';
+import { Button } from '../../../components/ui/button';
 
 export function ScenarioPresetsPanel({ onApplyPreset }: { onApplyPreset: (id: string) => void }) {
   return (
@@ -7,15 +8,17 @@ export function ScenarioPresetsPanel({ onApplyPreset }: { onApplyPreset: (id: st
       <summary className="cursor-pointer text-sm font-medium">{W.scenarioPresets.summaryLabel}</summary>
       <div className="mt-2 flex flex-wrap gap-2">
         {INTAKE_TRACE_SCENARIO_PRESETS.map(preset => (
-          <button
+          <Button
             key={preset.id}
             type="button"
-            className="glc-btn-secondary text-xs px-2 py-1"
+            variant="outline"
+            size="sm"
+            className="h-auto px-2 py-1 text-xs"
             onClick={() => onApplyPreset(preset.id)}
             title={preset.hint}
           >
             {preset.label}
-          </button>
+          </Button>
         ))}
       </div>
     </details>

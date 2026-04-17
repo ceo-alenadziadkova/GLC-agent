@@ -95,7 +95,7 @@ export function IntakeTraceBranchMap({
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
-          <div className="text-[10px] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Upstream (reads)</div>
+          <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Upstream (reads)</div>
           <ul className="space-y-1 text-xs">
             {upstream.length === 0 ? (
               <li className="text-[var(--glc-muted)]">No upstream dependency</li>
@@ -110,17 +110,17 @@ export function IntakeTraceBranchMap({
           </ul>
         </div>
         <div className={`rounded-lg border p-3 ${statusClass(tracePlanNodeStatusFor(focusId, plan))}`}>
-          <div className="text-[10px] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Current node</div>
+          <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Current node</div>
           <div className="text-xs">
             <div className="font-mono">{focusId}</div>
             <div className="text-[var(--glc-muted)]">{resolveLabel(focusId)}</div>
-            <div className="mt-2 text-[10px] uppercase tracking-wide text-[var(--glc-muted)]">
+            <div className="mt-2 text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--glc-muted)]">
               status: {tracePlanNodeStatusFor(focusId, plan)}
             </div>
           </div>
         </div>
         <div className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
-          <div className="text-[10px] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Downstream (dependents)</div>
+          <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Downstream (dependents)</div>
           <ul className="space-y-1 text-xs">
             {downstream.length === 0 ? (
               <li className="text-[var(--glc-muted)]">No downstream dependency</li>

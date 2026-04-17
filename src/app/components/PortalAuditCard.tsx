@@ -126,37 +126,30 @@ export function PortalAuditCard({ audit: a }: PortalAuditCardProps) {
   return (
     <Link
       to={`/portal/audit/${a.id}`}
-      className="block no-underline rounded-xl px-4 py-3.5 transition-all active:opacity-90 mobile:py-3"
-      style={{
-        backgroundColor: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)',
-      }}
+      className="block no-underline rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3.5 transition-all active:opacity-90 mobile:py-3"
     >
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0 space-y-1.5">
-          <div
-            className="font-semibold truncate"
-            style={{ color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}
-          >
+          <div className="text-[length:var(--text-sm)] font-semibold truncate text-[var(--text-primary)]">
             {title}
           </div>
           {websiteLine ? (
-            <div className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
+            <div className="text-xs truncate text-[var(--text-secondary)]">
               {websiteLine}
             </div>
           ) : null}
-          <p className="text-xs m-0 leading-relaxed mobile:line-clamp-3" style={{ color: 'var(--text-quaternary)' }}>
+          <p className="text-xs m-0 leading-relaxed text-[var(--text-quaternary)] mobile:line-clamp-3">
             {pres.hint}
           </p>
           {metaParts.length > 0 ? (
-            <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            <div className="text-xs text-[var(--text-tertiary)]">
               {metaParts.join(' · ')}
             </div>
           ) : null}
         </div>
         <div className="flex flex-col items-end gap-2 flex-shrink-0 pt-0.5">
           <StatusPill status={pres.pill} label={pres.label} pulse={pres.pulse} />
-          <CaretRight className="w-4 h-4" style={{ color: 'var(--text-quaternary)' }} aria-hidden />
+          <CaretRight className="h-4 w-4 text-[var(--text-quaternary)]" aria-hidden />
         </div>
       </div>
     </Link>

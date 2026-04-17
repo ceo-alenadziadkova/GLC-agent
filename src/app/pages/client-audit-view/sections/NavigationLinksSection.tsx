@@ -2,7 +2,7 @@ import { CaretRight, CheckCircle, FileText, Pulse } from '@phosphor-icons/react'
 import { Link } from 'react-router';
 import { Callout } from '../../../components/ui/callout';
 import { CLIENT_AUDIT_VIEW_COPY } from '../../../config/client-audit-view-copy';
-import { UI_SEMANTIC_COLORS } from '../../../config/ui-semantic-colors';
+import { UI_SEMANTIC_COLORS } from '../../../../design-system/tokens/ui-semantic-colors';
 import { CLIENT_AUDIT_VIEW_UI } from '../config/ui';
 
 export function NavigationLinksSection({

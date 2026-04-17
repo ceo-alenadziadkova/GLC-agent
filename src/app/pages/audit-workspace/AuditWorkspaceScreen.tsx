@@ -24,6 +24,7 @@ import { IssuesSection } from './sections/IssuesSection';
 import { RecommendationsSection } from './sections/RecommendationsSection';
 import { DataGapsSection } from './sections/DataGapsSection';
 import { EnrichmentSection } from './sections/EnrichmentSection';
+import { Button } from '../../components/ui/button';
 
 export function AuditWorkspaceScreen() {
   const { id, domainId } = useAuditWorkspaceRouteParams();
@@ -59,7 +60,7 @@ export function AuditWorkspaceScreen() {
     return (
       <AppShell title={AUDIT_WORKSPACE_COPY.shell.title} subtitle={AUDIT_WORKSPACE_COPY.shell.loadingSubtitle}>
         <div className="flex items-center justify-center h-64">
-          <ArrowsClockwise className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+          <ArrowsClockwise className="text-info h-6 w-6 animate-spin" />
         </div>
       </AppShell>
     );
@@ -69,7 +70,7 @@ export function AuditWorkspaceScreen() {
     return (
       <AppShell title={AUDIT_WORKSPACE_COPY.shell.title} subtitle={AUDIT_WORKSPACE_COPY.shell.errorSubtitle}>
         <div className="flex items-center justify-center h-64">
-          <p style={{ color: 'var(--score-1)' }}>{error || AUDIT_WORKSPACE_COPY.shell.notFound}</p>
+          <p className="text-destructive">{error || AUDIT_WORKSPACE_COPY.shell.notFound}</p>
         </div>
       </AppShell>
     );
@@ -94,13 +95,15 @@ export function AuditWorkspaceScreen() {
                   : 'running'
             }
           />
-          <Link to={`/reports/${id}`} className="glc-btn-secondary" style={{ textDecoration: 'none' }}>
-            {AUDIT_WORKSPACE_COPY.shell.openReport} <ArrowUpRight className="w-4 h-4" />
-          </Link>
+          <Button asChild variant="outline" size="sm" className="no-underline">
+            <Link to={`/reports/${id}`}>
+              {AUDIT_WORKSPACE_COPY.shell.openReport} <ArrowUpRight className="w-4 h-4" />
+            </Link>
+          </Button>
         </div>
       }
     >
-      <div className="flex" style={{ height: AUDIT_WORKSPACE_UI.layout.viewportOffset }}>
+      <div className="flex h-[calc(100vh-56px)]">
         <WorkspaceSidebar
           id={id}
           audit={audit}
@@ -139,7 +142,7 @@ export function AuditWorkspaceScreen() {
           bankMetrics={bankMetrics}
         />
 
-        <div className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--bg-canvas)' }}>
+        <div className="bg-background flex-1 overflow-y-auto">
           <AnimatePresence mode="wait">
             {domainData ? (
               <motion.div
@@ -189,10 +192,10 @@ export function AuditWorkspaceScreen() {
                 className="flex items-center justify-center h-64"
               >
                 <div className="text-center">
-                  <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+                  <p className="text-muted-foreground text-sm">
                     {AUDIT_WORKSPACE_COPY.emptyDomain.title}
                   </p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--text-quaternary)' }}>
+                  <p className="text-muted-foreground mt-1 text-xs">
                     {AUDIT_WORKSPACE_COPY.emptyDomain.hint}
                   </p>
                 </div>

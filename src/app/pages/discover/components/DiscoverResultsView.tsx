@@ -1,5 +1,4 @@
 import { ArrowLeft, ArrowRight, Buildings, ChartBar, CheckCircle, Users } from '@phosphor-icons/react';
-import { GLC_BRAND_HEX } from '@glc/brand-tokens';
 import { APP_ROUTE_PATHS, buildAppRoute } from '../../../config/route-paths';
 import type { DiscoveryFinding } from '../../../lib/discovery-flow';
 import discoverResultsUi from '../../../data/discover-page-results-ui.en.json';
@@ -65,34 +64,32 @@ export function DiscoverResultsView(props: DiscoverResultsViewProps) {
 
   return (
     <div
-      className={
+      className={`${
         compactSplitResults
           ? 'relative max-h-[min(78vh,52rem)] w-full min-w-0 max-w-full overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl'
           : standaloneResults
             ? 'flex min-h-screen w-full min-w-0 flex-col items-stretch px-4 py-10 sm:px-6 sm:py-14'
             : 'relative flex w-full min-w-0 flex-col items-stretch px-4 pb-12 pt-8 sm:px-8 sm:pb-16 sm:pt-10'
-      }
-      style={{ background: discoverResultsUi.resultsLayout.pageBackground }}
+      } bg-background`}
     >
       <div
-        className={
+        className={`${
           compactSplitResults
             ? 'pointer-events-none absolute inset-0 overflow-hidden rounded-2xl'
             : standaloneResults
               ? 'pointer-events-none fixed inset-0'
               : 'pointer-events-none absolute inset-0'
-        }
-        style={{ background: discoverResultsUi.resultsLayout.radialGlow, zIndex: 0 }}
+        } z-0 bg-[radial-gradient(circle_at_top,rgba(30,58,138,0.22),transparent_55%),radial-gradient(circle_at_bottom,rgba(14,165,233,0.18),transparent_60%)]`}
         aria-hidden
       />
       <div
         className={`relative z-10 mx-auto w-full min-w-0 ${comfortableWidth} ${compactSplitResults ? 'px-3 py-6 sm:px-4 sm:py-7' : 'px-4 sm:px-6'}`}
       >
         <div className={`flex items-center justify-center gap-2 ${compactSplitResults ? 'mb-6' : 'mb-8 sm:mb-10'}`}>
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--gradient-brand)' }}>
-            <ChartBar size={18} weight="bold" style={{ color: 'var(--primary-foreground)' }} />
+          <div className="bg-gradient-to-r from-sky-400 to-sky-600 flex h-8 w-8 items-center justify-center rounded-lg">
+            <ChartBar size={18} weight="bold" className="text-primary-foreground" />
           </div>
-          <span style={{ fontWeight: 700, fontSize: '1rem', color: discoverResultsUi.header.brandText, letterSpacing: '-0.01em' }}>
+          <span className="text-foreground text-base font-bold tracking-[-0.01em]">
             GLC Audit
           </span>
         </div>
@@ -103,37 +100,26 @@ export function DiscoverResultsView(props: DiscoverResultsViewProps) {
           >
             <header className="text-center mb-1 px-0 min-w-0">
               <div
-                className="inline-flex max-w-full items-center gap-2 px-3 py-1.5 rounded-full mb-3 sm:mb-4"
-                style={{ background: discoverResultsUi.header.analysisBadgeBackground, border: `1px solid ${discoverResultsUi.header.analysisBadgeBorder}` }}
+                className="bg-info/10 border-info/40 mb-3 inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 sm:mb-4"
               >
-                <CheckCircle size={15} weight="fill" className="shrink-0" style={{ color: discoverResultsUi.header.analysisIcon }} />
-                <span className="break-words text-left sm:text-center" style={{ fontSize: '0.75rem', fontWeight: 600, color: discoverResultsUi.header.analysisLabel, letterSpacing: '0.06em' }}>
+                <CheckCircle size={15} weight="fill" className="text-info shrink-0" />
+                <span className="text-info break-words text-left text-xs font-semibold tracking-[0.06em] sm:text-center">
                   {discoverResultsUi.copy.analysisComplete}
                 </span>
               </div>
               <h1
-                className="break-words text-pretty px-0.5"
-                style={{
-                  fontSize: compactSplitResults
-                    ? 'clamp(1.125rem, 3.2vw + 0.5rem, 1.5rem)'
-                    : 'clamp(1.375rem, 2.5vw, 1.75rem)',
-                  fontWeight: 800,
-                  color: discoverResultsUi.header.title,
-                  letterSpacing: '-0.02em',
-                  lineHeight: 1.25,
-                }}
+                className={`text-foreground break-words px-0.5 text-pretty font-extrabold tracking-[-0.02em] leading-tight ${
+                  compactSplitResults
+                    ? 'text-[clamp(1.125rem,3.2vw+0.5rem,1.5rem)]'
+                    : 'text-[clamp(1.375rem,2.5vw,1.75rem)]'
+                }`}
               >
                 {discoverResultsUi.copy.resultsTitle}
               </h1>
               <p
-                className="break-words text-pretty mx-auto max-w-full px-0.5"
-                style={{
-                  fontSize: compactSplitResults ? '0.875rem' : '1.0625rem',
-                  color: discoverResultsUi.header.subtitle,
-                  marginTop: 10,
-                  lineHeight: 1.6,
-                  overflowWrap: 'anywhere',
-                }}
+                className={`text-muted-foreground mx-auto mt-2.5 max-w-full break-words px-0.5 text-pretty leading-relaxed ${
+                  compactSplitResults ? 'text-sm' : 'text-[1.0625rem]'
+                }`}
               >
                 {discoverResultsUi.copy.signalsPrefix} {signalCount} signals
                 {industryStr && industryStr !== discoverResultsUi.copy.signalsIndustryFallback ? ` — ${industryStr}` : ''}
@@ -141,29 +127,21 @@ export function DiscoverResultsView(props: DiscoverResultsViewProps) {
               </p>
             </header>
             <div
-              className="min-w-0 max-w-full overflow-hidden rounded-2xl p-5 sm:p-6 text-center"
-              style={{ background: discoverResultsUi.cta.panelBackground, border: `1px solid ${discoverResultsUi.cta.panelBorder}`, boxSizing: 'border-box' }}
+              className="bg-card min-w-0 max-w-full overflow-hidden rounded-2xl border p-5 text-center sm:p-6"
             >
-              <Buildings size={26} className="mx-auto mb-3" style={{ color: discoverResultsUi.cta.icon }} />
-              <p className="mx-auto mb-[18px] max-w-full break-words text-pretty sm:max-w-md" style={{ fontSize: '1.0625rem', fontWeight: 700, color: discoverResultsUi.cta.title, lineHeight: 1.55, overflowWrap: 'anywhere' }}>
+              <Buildings size={26} className="text-info mx-auto mb-3" />
+              <p className="text-foreground mx-auto mb-[18px] max-w-full break-words text-pretty text-[1.0625rem] font-bold leading-[1.55] sm:max-w-md">
                 {discoverResultsUi.copy.ctaTitle}
               </p>
               <a
                 href={loginTarget}
-                className="inline-flex max-w-full flex-wrap items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold sm:px-6"
-                style={{
-                  fontSize: '0.9375rem',
-                  background: `linear-gradient(135deg, ${GLC_BRAND_HEX.blue}, ${GLC_BRAND_HEX.blueDeep})`,
-                  color: '#fff',
-                  textDecoration: 'none',
-                  boxSizing: 'border-box',
-                }}
+                className="inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-400 to-sky-600 px-5 py-3 text-[0.9375rem] font-semibold text-white no-underline sm:px-6"
               >
                 <Users size={18} className="shrink-0" />
                 <span className="break-words text-center">{discoverResultsUi.copy.ctaButton}</span>
                 <ArrowRight size={16} className="shrink-0" />
               </a>
-              <p style={{ fontSize: '0.8125rem', color: discoverResultsUi.cta.footnote, marginTop: 12 }}>
+              <p className="text-muted-foreground mt-3 text-[0.8125rem]">
                 {discoverResultsUi.copy.ctaFootnote}
               </p>
             </div>
@@ -178,12 +156,12 @@ export function DiscoverResultsView(props: DiscoverResultsViewProps) {
                 </div>
               </div>
             ) : (
-              <div className="min-w-0 max-w-full overflow-hidden rounded-2xl p-5 sm:p-6 text-center" style={{ background: discoverResultsUi.emptyFindings.panelBackground, border: `1px solid ${discoverResultsUi.emptyFindings.panelBorder}`, boxSizing: 'border-box' }}>
-                <CheckCircle size={26} weight="fill" className="mx-auto mb-3" style={{ color: discoverResultsUi.emptyFindings.icon }} />
-                <p className="font-semibold" style={{ fontSize: '1rem', color: discoverResultsUi.emptyFindings.title }}>
+              <div className="bg-card min-w-0 max-w-full overflow-hidden rounded-2xl border p-5 text-center sm:p-6">
+                <CheckCircle size={26} weight="fill" className="text-success mx-auto mb-3" />
+                <p className="text-foreground text-base font-semibold">
                   {discoverResultsUi.copy.noGapsTitle}
                 </p>
-                <p className="text-pretty max-w-md mx-auto" style={{ fontSize: '0.9375rem', color: discoverResultsUi.emptyFindings.body, marginTop: 8, lineHeight: 1.65 }}>
+                <p className="text-muted-foreground mx-auto mt-2 max-w-md text-pretty text-[0.9375rem] leading-[1.65]">
                   {discoverResultsUi.copy.noGapsBody}
                 </p>
               </div>
@@ -207,8 +185,7 @@ export function DiscoverResultsView(props: DiscoverResultsViewProps) {
           <button
             type="button"
             onClick={onBack}
-            className="flex items-center gap-2 mx-auto py-2 rounded-lg"
-            style={{ fontSize: '0.9375rem', color: 'rgba(248,250,252,0.55)', background: 'none', border: 'none', cursor: 'pointer' }}
+            className="text-muted-foreground mx-auto flex items-center gap-2 rounded-lg bg-transparent py-2 text-[0.9375rem]"
           >
             <ArrowLeft size={16} aria-hidden /> {discoverResultsUi.copy.backReview}
           </button>

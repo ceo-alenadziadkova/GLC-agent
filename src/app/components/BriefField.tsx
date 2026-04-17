@@ -2,11 +2,13 @@ import { Circle, Check, CheckCircle, Lightbulb, LockSimple, UserCircle } from '@
 import type { ProductMode } from '../data/auditTypes';
 import type { BriefQuestion, BriefResponseEntry } from '../data/briefQuestions';
 import { choiceValueNeedsSpecify } from '@glc/intake-core';
+import { Input, Textarea } from '../../design-system/ui';
+import { cn } from './ui/utils';
 
-export const PRIORITY_BADGE: Record<string, { label: string; color: string }> = {
-  required: { label: 'Required', color: 'var(--score-1)' },
-  recommended: { label: 'Recommended', color: 'var(--callout-warning-icon)' },
-  optional: { label: 'Optional', color: 'var(--glc-green-dark)' },
+export const PRIORITY_BADGE: Record<string, { label: string; className: string }> = {
+  required: { label: 'Required', className: 'text-destructive' },
+  recommended: { label: 'Recommended', className: 'text-warning' },
+  optional: { label: 'Optional', className: 'text-success' },
 };
 
 function friendlyFreeTextPlaceholder(questionId: string): string {
@@ -62,21 +64,19 @@ export function BriefField({
   return (
     <div className="space-y-1.5">
       <div className="flex items-start justify-between gap-2">
-        <label className="block text-sm leading-snug" style={{ color: 'var(--text-primary)', flex: 1 }}>
+        <label className="text-foreground block flex-1 text-sm leading-snug">
           {q.question}
         </label>
         <div className="flex flex-col items-end gap-0.5 flex-shrink-0 mt-0.5">
           {emphasizeClientSource && entrySource === 'client' && (
             <span
-              className="px-1.5 py-0.5 rounded text-[10px] font-medium"
-              style={{ background: 'rgba(28,189,255,0.12)', color: 'var(--glc-blue)', border: '1px solid rgba(28,189,255,0.25)' }}
+              className="text-info border-info/40 bg-info/10 rounded px-1.5 py-0.5 text-[length:var(--text-2xs)] font-medium"
             >
               Client
             </span>
           )}
           <span
-            className="flex items-center gap-0.5"
-            style={{ color: badge.color, opacity: 0.75, fontSize: '10px' }}
+            className={cn('flex items-center gap-0.5 text-[length:var(--text-2xs)] opacity-75', badge.className)}
           >
             <Circle size={6} weight="fill" />
             {badge.label}
@@ -84,25 +84,20 @@ export function BriefField({
         </div>
       </div>
       {q.hint && (
-        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: -2 }}>{q.hint}</p>
+        <p className="text-muted-foreground -mt-0.5 text-xs">{q.hint}</p>
       )}
       {q.id === 'f2' && productMode === 'express' && (
-        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: -2 }}>
+        <p className="text-muted-foreground -mt-0.5 text-xs">
           In Pro coverage, deep analysis focuses on selected domains. Marketing and Automation inputs are still captured for prioritization and complete coverage planning.
         </p>
       )}
 
       {interviewMode && q.consultant_hint && (
         <div
-          className="flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg"
-          style={{
-            background: 'var(--callout-warning-bg)',
-            border: '1px solid var(--callout-warning-border)',
-            marginTop: 2,
-          }}
+          className="bg-warning/10 border-warning/40 mt-0.5 flex items-start gap-1.5 rounded-lg border px-2.5 py-1.5"
         >
-          <Lightbulb size={13} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: 'var(--callout-warning-icon)' }} />
-          <p style={{ fontSize: '11px', color: 'var(--callout-warning-fg)', lineHeight: 1.5, margin: 0 }}>
+          <Lightbulb size={13} weight="fill" className="text-warning mt-0.5 flex-shrink-0" />
+          <p className="text-warning-foreground m-0 text-xs leading-[1.5]">
             {q.consultant_hint}
           </p>
         </div>
@@ -110,39 +105,25 @@ export function BriefField({
 
       {q.type === 'free_text' && (
         <div className="space-y-1.5">
-          <textarea
+          <Textarea
             rows={interviewMode ? 3 : 2}
             value={strVal}
             onChange={e => onChange(e.target.value || null)}
             placeholder={friendlyFreeTextPlaceholder(q.id)}
-            className="w-full px-3 py-2 rounded-lg text-sm outline-none resize-none"
-            style={{
-              backgroundColor: 'var(--bg-inset)',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--text-primary)',
-            }}
-            onFocus={e => { (e.target as HTMLElement).style.borderColor = 'var(--glc-blue)'; }}
-            onBlur={e => { (e.target as HTMLElement).style.borderColor = 'var(--border-subtle)'; }}
+            className="bg-muted resize-none text-sm"
           />
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', margin: 0 }}>
+          <p className="text-muted-foreground m-0 text-xs">
             Short answer is enough. If you want, write in detail. Voice input is also welcome.
           </p>
         </div>
       )}
 
       {q.type === 'number' && (
-        <input
+        <Input
           type="number"
           value={typeof rawValue === 'number' ? rawValue : ''}
           onChange={e => onChange(e.target.value ? Number(e.target.value) : null)}
-          className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-          style={{
-            backgroundColor: 'var(--bg-inset)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-primary)',
-          }}
-          onFocus={e => { (e.target as HTMLElement).style.borderColor = 'var(--glc-blue)'; }}
-          onBlur={e => { (e.target as HTMLElement).style.borderColor = 'var(--border-subtle)'; }}
+          className="bg-muted text-sm"
         />
       )}
 
@@ -161,37 +142,26 @@ export function BriefField({
                     onChange(selected ? null : opt);
                   }}
                   disabled={locked}
-                  className="px-2.5 py-1 rounded-lg text-xs transition-all"
-                  style={{
-                    backgroundColor: selected ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)',
-                    border: selected ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)',
-                    color: locked ? 'var(--text-quaternary)' : selected ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
-                    fontWeight: selected ? 500 : 400,
-                    cursor: locked ? 'not-allowed' : 'pointer',
-                    opacity: locked ? 0.75 : 1,
-                  }}
+                  className={cn(
+                    'rounded-lg border px-2.5 py-1 text-xs transition-all',
+                    selected ? 'border-info/50 bg-info/10 text-info font-medium' : 'bg-muted text-muted-foreground',
+                    locked ? 'cursor-not-allowed opacity-75' : 'cursor-pointer',
+                  )}
                 >
-                  {locked && <LockSimple size={11} weight="bold" style={{ display: 'inline', marginRight: 3 }} />}
+                  {locked && <LockSimple size={11} weight="bold" className="mr-0.5 inline" />}
                   {opt}
                 </button>
               );
             })}
           </div>
           {choiceValueNeedsSpecify(strVal) && onOtherSpecifyChange !== undefined && (
-            <input
+            <Input
               type="text"
               value={otherSpecify ?? ''}
               onChange={e => onOtherSpecifyChange(e.target.value)}
               placeholder="Add one short clarification..."
               autoFocus
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-              style={{
-                backgroundColor: 'var(--bg-inset)',
-                border: '1px solid var(--glc-blue)',
-                color: 'var(--text-primary)',
-              }}
-              onBlur={e => { (e.target as HTMLElement).style.borderColor = 'var(--border-subtle)'; }}
-              onFocus={e => { (e.target as HTMLElement).style.borderColor = 'var(--glc-blue)'; }}
+              className="bg-muted border-info text-sm"
             />
           )}
         </div>
@@ -213,20 +183,16 @@ export function BriefField({
                     onChange(next.length ? next : null);
                   }}
                   disabled={locked}
-                  className="px-2.5 py-1 rounded-lg text-xs transition-all"
-                  style={{
-                    backgroundColor: selected ? 'rgba(28,189,255,0.12)' : 'var(--bg-inset)',
-                    border: selected ? '1px solid rgba(28,189,255,0.35)' : '1px solid var(--border-subtle)',
-                    color: locked ? 'var(--text-quaternary)' : selected ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
-                    fontWeight: selected ? 500 : 400,
-                    cursor: locked ? 'not-allowed' : 'pointer',
-                    opacity: locked ? 0.75 : 1,
-                  }}
+                  className={cn(
+                    'rounded-lg border px-2.5 py-1 text-xs transition-all',
+                    selected ? 'border-info/50 bg-info/10 text-info font-medium' : 'bg-muted text-muted-foreground',
+                    locked ? 'cursor-not-allowed opacity-75' : 'cursor-pointer',
+                  )}
                 >
                   {locked ? (
-                    <LockSimple size={11} weight="bold" style={{ display: 'inline', marginRight: 3 }} />
+                    <LockSimple size={11} weight="bold" className="mr-0.5 inline" />
                   ) : selected ? (
-                    <Check size={11} weight="bold" style={{ display: 'inline', marginRight: 3 }} />
+                    <Check size={11} weight="bold" className="mr-0.5 inline" />
                   ) : null}
                   {opt}
                 </button>
@@ -234,20 +200,13 @@ export function BriefField({
             })}
           </div>
           {choiceValueNeedsSpecify(arrVal) && onOtherSpecifyChange !== undefined && (
-            <input
+            <Input
               type="text"
               value={otherSpecify ?? ''}
               onChange={e => onOtherSpecifyChange(e.target.value)}
               placeholder="Add one short clarification..."
               autoFocus
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-              style={{
-                backgroundColor: 'var(--bg-inset)',
-                border: '1px solid var(--glc-blue)',
-                color: 'var(--text-primary)',
-              }}
-              onBlur={e => { (e.target as HTMLElement).style.borderColor = 'var(--border-subtle)'; }}
-              onFocus={e => { (e.target as HTMLElement).style.borderColor = 'var(--glc-blue)'; }}
+              className="bg-muted border-info text-sm"
             />
           )}
         </div>
@@ -256,16 +215,11 @@ export function BriefField({
       <div className="mt-2 space-y-1.5">
         {markedUnknown ? (
           <div
-            className="flex flex-wrap items-start gap-2 rounded-lg px-2.5 py-2 text-left text-xs leading-snug"
-            style={{
-              background: 'rgba(16,207,130,0.08)',
-              border: '1px solid rgba(16,207,130,0.28)',
-              color: 'var(--text-secondary)',
-            }}
+            className="bg-success/10 border-success/40 text-muted-foreground flex flex-wrap items-start gap-2 rounded-lg border px-2.5 py-2 text-left text-xs leading-snug"
           >
-            <CheckCircle className="h-4 w-4 shrink-0 mt-0.5" weight="fill" style={{ color: 'var(--glc-green)' }} />
+            <CheckCircle className="text-success mt-0.5 h-4 w-4 shrink-0" weight="fill" />
             <div className="min-w-0 flex-1 space-y-1.5">
-              <p style={{ color: 'var(--text-primary)' }}>
+              <p className="text-foreground">
                 {interviewMode
                   ? 'Client doesn\'t know — flagged for post-audit follow-up.'
                   : 'Marked as "I don\'t know" — this counts toward progress. You can return and fill this later.'}
@@ -273,8 +227,7 @@ export function BriefField({
               <button
                 type="button"
                 onClick={() => onChange(null)}
-                className="text-xs font-medium underline underline-offset-2 cursor-pointer"
-                style={{ color: 'var(--glc-blue)' }}
+                className="text-info cursor-pointer text-xs font-medium underline underline-offset-2"
               >
                 {interviewMode ? 'Clear — enter answer instead' : 'I\'ll answer myself instead'}
               </button>
@@ -284,20 +237,7 @@ export function BriefField({
           <button
             type="button"
             onClick={onSetUnknown}
-            className="flex items-center gap-1.5 rounded-lg border px-2.5 py-2 text-left text-xs font-medium transition-colors cursor-pointer"
-            style={{
-              borderColor: 'var(--border-default)',
-              color: 'var(--text-secondary)',
-              backgroundColor: 'var(--bg-surface)',
-            }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLElement).style.borderColor = 'var(--glc-blue)';
-              (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-default)';
-              (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
-            }}
+            className="bg-card text-muted-foreground hover:text-foreground hover:border-info flex cursor-pointer items-center gap-1.5 rounded-lg border px-2.5 py-2 text-left text-xs font-medium transition-colors"
           >
             {interviewMode
               ? <><UserCircle size={13} className="flex-shrink-0" /> Client doesn&apos;t know — flag for follow-up</>

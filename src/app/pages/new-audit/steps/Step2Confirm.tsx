@@ -49,20 +49,18 @@ export function Step2Confirm({
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.28 }}
       onSubmit={onLaunchSubmit}
-      className="glc-card p-4 mobile:p-5 sm:p-6 space-y-5"
-      style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}
+      className="glc-card space-y-5 rounded-[var(--radius-2xl)] p-4 shadow-[var(--shadow-lg)] mobile:p-5 sm:p-6"
     >
       <div className="text-center mb-2">
         <div
-          className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
-          style={{ background: 'var(--gradient-brand)', boxShadow: '0 6px 20px rgba(28,189,255,0.30)' }}
+          className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--gradient-brand)] shadow-[0_6px_20px_rgba(28,189,255,0.30)]"
         >
-          <Rocket className="w-6 h-6" style={{ color: 'var(--primary-foreground)' }} />
+          <Rocket className="h-6 w-6 text-[var(--primary-foreground)]" />
         </div>
-        <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--text-primary)' }}>{WORKSPACE_PAGE_COPY.newAudit.step2.readyToLaunchTitle}</h2>
-        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)', marginTop: 6 }}>{WORKSPACE_PAGE_COPY.newAudit.step2.readyToLaunchSubtitle}</p>
+        <h2 className="text-[length:var(--text-xl)] font-bold text-[var(--text-primary)]">{WORKSPACE_PAGE_COPY.newAudit.step2.readyToLaunchTitle}</h2>
+        <p className="mt-[6px] text-[length:var(--text-sm)] text-[var(--text-tertiary)]">{WORKSPACE_PAGE_COPY.newAudit.step2.readyToLaunchSubtitle}</p>
         {isClientSelfServe && (
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-quaternary)', marginTop: 10, lineHeight: 1.5 }}>
+          <p className="mt-[10px] text-[length:var(--text-xs)] leading-[1.5] text-[var(--text-quaternary)]">
             {WORKSPACE_PAGE_COPY.newAudit.step2.afterReconPauseText}
           </p>
         )}
@@ -99,8 +97,7 @@ export function Step2Confirm({
         <button
           type="button"
           onClick={onBackToStep1}
-          className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-sm glc-touch-target sm:min-h-0 sm:min-w-0"
-          style={{ color: 'var(--text-tertiary)', border: '1px solid var(--border-subtle)', backgroundColor: 'transparent' }}
+          className="glc-touch-target flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-transparent px-4 py-2.5 text-sm text-[var(--text-tertiary)] sm:min-h-0 sm:min-w-0"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> {WORKSPACE_PAGE_COPY.newAudit.step2.navigationBackText}
         </button>
@@ -109,8 +106,8 @@ export function Step2Confirm({
           disabled={loading}
           whileHover={!loading ? { scale: 1.015 } : {}}
           whileTap={!loading ? { scale: 0.985 } : {}}
-          className="flex-1 flex items-center justify-center gap-2 py-3 sm:py-2.5 rounded-lg text-sm font-semibold glc-touch-target sm:min-h-0"
-          style={{ background: 'var(--gradient-accent)', color: 'var(--primary-foreground)', cursor: loading ? 'not-allowed' : 'pointer', border: 'none', boxShadow: '0 4px 14px rgba(242,79,29,0.30)' }}
+          className="glc-touch-target flex flex-1 items-center justify-center gap-2 rounded-lg border-none bg-[var(--gradient-accent)] py-3 text-sm font-semibold text-[var(--primary-foreground)] shadow-[0_4px_14px_rgba(242,79,29,0.30)] sm:min-h-0 sm:py-2.5"
+          style={{ cursor: loading ? 'not-allowed' : 'pointer' }}
         >
           {loading ? (
             <span className="flex items-center gap-2">

@@ -1,4 +1,5 @@
 import { SignOut } from '@phosphor-icons/react';
+import { Button } from '../../../components/ui/button';
 import { SETTINGS_PAGE_COPY } from '../../../config/settings-page-copy.en';
 import { SETTINGS_UI_STYLES } from '../config/settings-ui-policy';
 import { SettingsCard } from '../components/SettingsCard';
@@ -34,24 +35,16 @@ export function AccountSecuritySection({
 }: AccountSecuritySectionProps) {
   return (
     <SettingsCard>
-      <div className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
+      <div className="mb-1 text-xs text-[var(--text-tertiary)]">
         {SETTINGS_PAGE_COPY.account.signedInEmail}
       </div>
-      <div
-        className="text-sm mb-4 px-3 py-2"
-        style={{
-          color: 'var(--text-secondary)',
-          backgroundColor: 'var(--bg-canvas)',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-md)',
-        }}
-      >
+      <div className="mb-4 rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-secondary)]">
         {email || SETTINGS_PAGE_COPY.account.unknownEmail}
       </div>
-      <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
+      <div className="mb-2 text-xs text-[var(--text-tertiary)]">
         {SETTINGS_PAGE_COPY.account.changeEmail}
       </div>
-      <p className="text-xs leading-relaxed mb-2" style={{ color: 'var(--text-quaternary)' }}>
+      <p className="mb-2 text-xs leading-relaxed text-[var(--text-quaternary)]">
         {SETTINGS_PAGE_COPY.account.changeEmailDescription}
       </p>
       <div className="flex flex-col gap-2 mb-5 mobile:flex-row mobile:items-center">
@@ -64,18 +57,19 @@ export function AccountSecuritySection({
           className="w-full mobile:flex-1 px-3 py-2 text-sm"
           style={SETTINGS_UI_STYLES.fieldInput}
         />
-        <button
+        <Button
           type="button"
-          className="glc-btn-primary whitespace-nowrap"
+          variant="default"
+          className="whitespace-nowrap"
           disabled={savingEmail || !newEmail.trim()}
           style={{ opacity: savingEmail || !newEmail.trim() ? 0.55 : 1 }}
           onClick={onChangeEmail}
         >
           {savingEmail ? SETTINGS_PAGE_COPY.account.sendingEmailChange : SETTINGS_PAGE_COPY.account.requestEmailChange}
-        </button>
+        </Button>
       </div>
 
-      <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
+      <div className="mb-2 text-xs text-[var(--text-tertiary)]">
         {SETTINGS_PAGE_COPY.account.changePassword}
       </div>
       <form
@@ -107,15 +101,15 @@ export function AccountSecuritySection({
             style={SETTINGS_UI_STYLES.fieldInput}
           />
         </div>
-        <button type="submit" className="glc-btn-primary mb-3" disabled={savingPassword} style={{ opacity: savingPassword ? 0.6 : 1 }}>
+        <Button type="submit" variant="default" className="mb-3" disabled={savingPassword} style={{ opacity: savingPassword ? 0.6 : 1 }}>
           {savingPassword ? SETTINGS_PAGE_COPY.account.updatingPassword : SETTINGS_PAGE_COPY.account.updatePassword}
-        </button>
+        </Button>
       </form>
       <div className="h-3" />
-      <button className="glc-btn-ghost" onClick={onSignOut}>
+      <Button type="button" variant="ghost" onClick={onSignOut}>
         <SignOut className="w-4 h-4" />
         {SETTINGS_PAGE_COPY.account.signOut}
-      </button>
+      </Button>
     </SettingsCard>
   );
 }

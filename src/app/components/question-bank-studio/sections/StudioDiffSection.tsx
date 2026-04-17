@@ -17,14 +17,14 @@ export function StudioDiffSection(props: StudioDiffSectionProps) {
       className="rounded-lg px-3 py-2 space-y-2"
       style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}
     >
-      <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-tertiary)' }}>
+      <div className="text-[length:var(--text-2xs)] font-semibold uppercase" style={{ color: 'var(--text-tertiary)' }}>
         {STUDIO_COPY_EN.logicDiffTitle}
       </div>
-      <p className="text-[10px] m-0" style={{ color: 'var(--text-quaternary)' }}>
+      <p className="text-[length:var(--text-2xs)] m-0" style={{ color: 'var(--text-quaternary)' }}>
         {STUDIO_COPY_EN.logicDiffDescription}
       </p>
       <textarea
-        className="w-full min-h-[72px] px-2 py-1.5 text-[11px] font-mono rounded-md"
+        className="w-full min-h-[72px] px-2 py-1.5 text-xs font-mono rounded-md"
         style={{
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border-default)',
@@ -49,7 +49,7 @@ export function StudioDiffSection(props: StudioDiffSectionProps) {
       </button>
       {bankDiffError ? <p className="text-xs m-0 text-red-500">{bankDiffError}</p> : null}
       {bankDiffSummary ? (
-        <div className="text-[10px] space-y-1 font-mono" style={{ color: 'var(--text-secondary)' }}>
+        <div className="text-[length:var(--text-2xs)] space-y-1 font-mono" style={{ color: 'var(--text-secondary)' }}>
           <div style={{ color: 'var(--text-tertiary)' }}>
             Added ({bankDiffSummary.added.length}): {bankDiffSummary.added.length ? bankDiffSummary.added.join(', ') : '—'}
           </div>

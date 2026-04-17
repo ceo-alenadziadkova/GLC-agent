@@ -9,6 +9,7 @@ import { shortUserLabel, statusPill } from '../selectors/trace';
 import { NOW_VISIBLE_PREVIEW_MAX_ITEMS, WHY_PREVIEW_MAX_ITEMS } from '../../../config/question-bank-studio-ui';
 
 import type { UserStepSimulationLike } from './types';
+import { cn } from '../../../components/ui/utils';
 
 export type InspectorPanelProps = {
   viewMode: ViewMode;
@@ -42,29 +43,41 @@ export function InspectorPanel(props: InspectorPanelProps) {
   } = props;
 
   const renderUserQuestionInline = (id: string) => `${shortUserLabel(id)} (${id})`;
+  const statusToneClass = (status: TracePlanStatus) => {
+    switch (status) {
+      case 'required':
+        return 'border-warning/50 bg-warning/10 text-warning';
+      case 'visible':
+        return 'border-info/50 bg-info/10 text-info';
+      case 'hidden':
+        return 'border-border bg-muted text-muted-foreground';
+      case 'deferred':
+        return 'border-violet-400/50 bg-violet-400/10 text-violet-300';
+      case 'unknown':
+      default:
+        return 'border-border bg-background text-foreground';
+    }
+  };
 
   return (
-    <div
-      className="w-full mobile:w-80 shrink-0 p-3 rounded-lg text-left"
-      style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}
-    >
-      <div className="text-[10px] font-semibold uppercase mb-2" style={{ color: 'var(--text-tertiary)' }}>
+    <div className="bg-background w-full shrink-0 rounded-lg border p-3 text-left mobile:w-80">
+      <div className="text-muted-foreground mb-2 text-[length:var(--text-2xs)] font-semibold uppercase">
         Inspector
       </div>
 
       {viewMode === 'user' && (
         <div className="mb-3 space-y-2">
-          <div className="text-[10px] font-semibold uppercase" style={{ color: 'var(--text-tertiary)' }}>
+          <div className="text-muted-foreground text-[length:var(--text-2xs)] font-semibold uppercase">
             State delta
           </div>
-          <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+          <div className="text-muted-foreground text-xs">
             Current role: <span className="font-mono">{selectedQuestionRole ?? '—'}</span>
           </div>
           <div>
-            <div className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
+            <div className="text-muted-foreground mb-1 text-[length:var(--text-2xs)] uppercase">
               Now visible
             </div>
-            <ul className="m-0 pl-4 space-y-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+            <ul className="text-muted-foreground m-0 space-y-1 pl-4 text-xs">
               {simulation.nowVisible.length > 0 ? (
                 simulation.nowVisible.slice(0, NOW_VISIBLE_PREVIEW_MAX_ITEMS).map(id => (
                   <li key={`now-visible-${id}`}>{renderUserQuestionInline(id)}</li>
@@ -75,10 +88,10 @@ export function InspectorPanel(props: InspectorPanelProps) {
             </ul>
           </div>
           <div>
-            <div className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
+            <div className="text-muted-foreground mb-1 text-[length:var(--text-2xs)] uppercase">
               Added next
             </div>
-            <ul className="m-0 pl-4 space-y-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+            <ul className="text-muted-foreground m-0 space-y-1 pl-4 text-xs">
               {simulation.addedNext.length > 0 ? (
                 simulation.addedNext.map(id => <li key={`added-next-${id}`}>{renderUserQuestionInline(id)}</li>)
               ) : (
@@ -87,10 +100,10 @@ export function InspectorPanel(props: InspectorPanelProps) {
             </ul>
           </div>
           <div>
-            <div className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
+            <div className="text-muted-foreground mb-1 text-[length:var(--text-2xs)] uppercase">
               Removed next
             </div>
-            <ul className="m-0 pl-4 space-y-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+            <ul className="text-muted-foreground m-0 space-y-1 pl-4 text-xs">
               {simulation.removedNext.length > 0 ? (
                 simulation.removedNext.map(id => (
                   <li key={`removed-next-${id}`}>{renderUserQuestionInline(id)}</li>
@@ -101,16 +114,13 @@ export function InspectorPanel(props: InspectorPanelProps) {
             </ul>
           </div>
 
-          <details
-            className="rounded-md px-2 py-1.5"
-            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
-          >
-            <summary className="cursor-pointer text-[10px] uppercase" style={{ color: 'var(--text-tertiary)' }}>
+          <details className="bg-card rounded-md border px-2 py-1.5">
+            <summary className="text-muted-foreground cursor-pointer text-[length:var(--text-2xs)] uppercase">
               Next options cards
             </summary>
             <div className="mt-2 space-y-1.5">
               {simulation.nextIds.length === 0 ? (
-                <div className="text-[11px]" style={{ color: 'var(--text-quaternary)' }}>
+                <div className="text-muted-foreground text-xs">
                   No direct next options from current question.
                 </div>
               ) : (
@@ -136,14 +146,11 @@ export function InspectorPanel(props: InspectorPanelProps) {
                     <button
                       key={`next-card-${id}`}
                       type="button"
-                      className="w-full text-left rounded-md px-2 py-1.5"
-                      style={{
-                        border: `1px solid ${pill.border}`,
-                        backgroundColor: pill.bg,
-                        color: 'var(--text-secondary)',
-                        cursor: node ? 'pointer' : 'not-allowed',
-                        opacity: node ? 1 : 0.6,
-                      }}
+                      className={cn(
+                        'text-muted-foreground w-full rounded-md border px-2 py-1.5 text-left',
+                        statusToneClass(status),
+                        node ? 'cursor-pointer opacity-100' : 'cursor-not-allowed opacity-60',
+                      )}
                       disabled={!node}
                       onClick={() => {
                         if (!node) return;
@@ -153,13 +160,10 @@ export function InspectorPanel(props: InspectorPanelProps) {
                         );
                       }}
                     >
-                      <div className="text-[11px] font-medium">{shortUserLabel(id)}</div>
-                      <div className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>
+                      <div className="text-xs font-medium">{shortUserLabel(id)}</div>
+                      <div className="text-muted-foreground text-[length:var(--text-2xs)]">
                         id: <span className="font-mono">{id}</span> · status: {status}
-                        <span
-                          className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded"
-                          style={{ backgroundColor: pill.bg, color: pill.fg, border: `1px solid ${pill.border}` }}
-                        >
+                        <span className={cn('ml-1 inline-flex items-center rounded border px-1.5 py-0.5', statusToneClass(status))}>
                           {pill.label}
                         </span>
                       </div>
@@ -171,10 +175,10 @@ export function InspectorPanel(props: InspectorPanelProps) {
           </details>
 
           <div>
-            <div className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
+            <div className="text-muted-foreground mb-1 text-[length:var(--text-2xs)] uppercase">
               Dependencies
             </div>
-            <div className="text-[11px] space-y-2" style={{ color: 'var(--text-secondary)' }}>
+            <div className="text-muted-foreground space-y-2 text-xs">
               <div>
                 <strong>Depends on:</strong>{' '}
                 {selectedDependencies.dependsOn.length > 0
@@ -191,10 +195,10 @@ export function InspectorPanel(props: InspectorPanelProps) {
           </div>
 
           <div>
-            <div className="text-[10px] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
+            <div className="text-muted-foreground mb-1 text-[length:var(--text-2xs)] uppercase">
               Why
             </div>
-            <ul className="m-0 pl-4 space-y-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+            <ul className="text-muted-foreground m-0 space-y-1 pl-4 text-xs">
               {selectedWhy.length === 0 ? (
                 <li>No reasons yet.</li>
               ) : (
@@ -208,22 +212,13 @@ export function InspectorPanel(props: InspectorPanelProps) {
             </ul>
           </div>
 
-          <details
-            className="rounded-md px-2 py-1.5"
-            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
-          >
-            <summary className="cursor-pointer text-[10px] uppercase" style={{ color: 'var(--text-tertiary)' }}>
+          <details className="bg-card rounded-md border px-2 py-1.5">
+            <summary className="text-muted-foreground cursor-pointer text-[length:var(--text-2xs)] uppercase">
               Full question list ({allQuestionsForReview.length})
             </summary>
             <button
               type="button"
-              className="mt-2 text-[11px] font-medium px-2 py-1 rounded-md"
-              style={{
-                border: '1px solid var(--border-default)',
-                backgroundColor: 'var(--bg-canvas)',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-              }}
+              className="text-muted-foreground bg-background mt-2 cursor-pointer rounded-md border px-2 py-1 text-xs font-medium"
               onClick={async () => {
                 const lines = allQuestionsForReview.map((q, i) => `${i + 1}. ${q.id} | ${q.status} | ${q.label}`);
                 await navigator.clipboard.writeText(lines.join('\n'));
@@ -238,8 +233,7 @@ export function InspectorPanel(props: InspectorPanelProps) {
                 return (
                   <div
                     key={`all-q-${q.id}`}
-                    className="text-[11px] rounded px-2 py-1"
-                    style={{ border: `1px solid ${pill.border}`, backgroundColor: pill.bg, color: pill.fg }}
+                    className={cn('rounded border px-2 py-1 text-xs', statusToneClass(q.status))}
                   >
                     <span className="font-mono">{q.id}</span> — {q.label}
                   </div>
@@ -255,15 +249,14 @@ export function InspectorPanel(props: InspectorPanelProps) {
       {viewMode === 'logic' && (
         <>
           <div
-            className="mt-4 pt-3 text-[10px] font-semibold uppercase mb-2 border-t"
-            style={{ borderColor: 'var(--border-default)', color: 'var(--text-tertiary)' }}
+            className="text-muted-foreground mt-4 mb-2 border-t pt-3 text-[length:var(--text-2xs)] font-semibold uppercase"
           >
             Interactive trace
           </div>
           {traceError ? (
             <p className="text-xs m-0 text-red-500">{traceError}</p>
           ) : (
-            <p className="text-[10px] m-0 leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
+            <p className="text-muted-foreground m-0 text-[length:var(--text-2xs)] leading-relaxed">
               Card left stripe = policy + canon; outer ring = trace outcome. Ring: amber required · blue visible · purple
               deferred · gray hidden (JSON + resolver).
             </p>

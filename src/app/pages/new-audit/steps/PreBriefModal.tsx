@@ -89,41 +89,39 @@ export function PreBriefModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.55)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4"
       onClick={onClose}
       onKeyDown={onEscape}
       role="presentation"
       tabIndex={-1}
     >
       <div
-        className="glc-card p-4 mobile:p-5 sm:p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto"
-        style={{ borderRadius: 'var(--radius-xl)' }}
+        className="glc-card max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-[var(--radius-xl)] p-4 mobile:p-5 sm:p-6"
         onClick={e => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="prebrief-title"
       >
         <div className="flex items-start justify-between gap-2 mb-4">
-          <h3 id="prebrief-title" className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+          <h3 id="prebrief-title" className="text-base font-bold text-[var(--text-primary)]">
             {WORKSPACE_PAGE_COPY.newAudit.preBriefModal.title}
           </h3>
           <button
             type="button"
             aria-label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.closeAriaLabel}
             onClick={onClose}
-            style={{ color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer' }}
+            className="cursor-pointer border-none bg-none text-[var(--text-tertiary)]"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+        <p className="mb-4 text-sm text-[var(--text-secondary)]">
           {WORKSPACE_PAGE_COPY.newAudit.preBriefModal.description}
         </p>
 
         <div className="space-y-3 mb-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-quaternary)' }}>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-quaternary)]">
             {WORKSPACE_PAGE_COPY.newAudit.preBriefModal.preFillOnClientFormLabel}
           </p>
 
@@ -149,8 +147,7 @@ export function PreBriefModal({
             <select
               value={industryField}
               onChange={onIndustryChange}
-              className={baseFieldClassName}
-              style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: industryField ? 'var(--text-primary)' : 'var(--text-tertiary)' }}
+              className={`${baseFieldClassName} ${industryField ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'}`}
             >
               <option value="">{WORKSPACE_PAGE_COPY.newAudit.preBriefModal.industrySelectPlaceholder}</option>
               {INDUSTRY_OPTIONS.map(i => (
@@ -239,18 +236,16 @@ export function PreBriefModal({
 
         {link ? (
           <div className="space-y-2">
-            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{WORKSPACE_PAGE_COPY.newAudit.preBriefModal.shareLinkLabel}</p>
+            <p className="text-xs text-[var(--text-tertiary)]">{WORKSPACE_PAGE_COPY.newAudit.preBriefModal.shareLinkLabel}</p>
             <div className="flex gap-2">
               <input
                 readOnly
                 value={link}
-                className="flex-1 px-2 py-1.5 rounded text-xs"
-                style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-inset)', color: 'var(--text-primary)' }}
+                className="flex-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-inset)] px-2 py-1.5 text-xs text-[var(--text-primary)]"
               />
               <button
                 type="button"
-                className="px-2 py-1.5 rounded-lg text-xs"
-                style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', cursor: 'pointer' }}
+                className="cursor-pointer rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-1.5 text-xs"
                 onClick={() => {
                   void navigator.clipboard.writeText(link);
                 }}
@@ -260,8 +255,7 @@ export function PreBriefModal({
             </div>
             <button
               type="button"
-              className="text-sm mt-2"
-              style={{ color: 'var(--glc-blue)', background: 'none', border: 'none', cursor: 'pointer' }}
+              className="mt-2 cursor-pointer border-none bg-none text-sm text-[var(--glc-blue)]"
               onClick={onClose}
             >
               {WORKSPACE_PAGE_COPY.newAudit.preBriefModal.doneText}
@@ -271,8 +265,8 @@ export function PreBriefModal({
           <button
             type="button"
             disabled={loading}
-            className="w-full py-2.5 rounded-lg text-sm font-semibold"
-            style={{ background: 'var(--gradient-brand)', color: 'var(--primary-foreground)', border: 'none', cursor: loading ? 'wait' : 'pointer' }}
+            className="w-full rounded-lg border-none bg-[var(--gradient-brand)] py-2.5 text-sm font-semibold text-[var(--primary-foreground)]"
+            style={{ cursor: loading ? 'wait' : 'pointer' }}
             onClick={() => {
               void onCreate();
             }}

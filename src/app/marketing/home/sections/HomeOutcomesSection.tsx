@@ -36,10 +36,10 @@ export function HomeOutcomesSection({ data, reduceMotion }: HomeOutcomesSectionP
           }
         >
           <div>
-            <h3 className="font-display text-xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+            <h3 className="font-display text-xl font-bold tracking-tight text-[var(--text-primary)]">
               {data.primary.title}
             </h3>
-            <p className="mt-4 max-w-[60ch] text-sm leading-relaxed sm:text-base" style={{ color: 'var(--text-secondary)' }}>
+            <p className="mt-4 max-w-[60ch] text-sm leading-relaxed text-[var(--text-secondary)] sm:text-base">
               {data.primary.body}
             </p>
           </div>
@@ -67,10 +67,10 @@ export function HomeOutcomesSection({ data, reduceMotion }: HomeOutcomesSectionP
                     }
               }
             >
-              <h3 className="font-display text-base font-bold tracking-tight sm:text-lg" style={{ color: 'var(--text-primary)' }}>
+              <h3 className="font-display text-base font-bold tracking-tight text-[var(--text-primary)] sm:text-lg">
                 {item.title}
               </h3>
-              <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]">
                 {item.body}
               </p>
             </motion.article>

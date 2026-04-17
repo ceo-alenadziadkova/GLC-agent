@@ -74,7 +74,7 @@ export function SignInUpForm(props: SignInUpFormProps) {
 
       <div className="flex items-center gap-3 my-5">
         <div className="h-px flex-1 bg-[var(--border-subtle)]" />
-        <span className="text-[11px] text-[var(--text-tertiary)]">{LC.dividerOr}</span>
+        <span className="text-xs text-[var(--text-tertiary)]">{LC.dividerOr}</span>
         <div className="h-px flex-1 bg-[var(--border-subtle)]" />
       </div>
 

@@ -13,9 +13,8 @@ export function MobileBottomNav({ items, pathname, navAriaLabel }: MobileBottomN
 
   return (
     <nav
-      className="sm:hidden flex flex-shrink-0 border-t glc-safe-pad-x items-stretch justify-around"
+      className="sm:hidden flex flex-shrink-0 items-stretch justify-around border-t bg-[var(--bg-surface)] glc-safe-pad-x"
       style={{
-        backgroundColor: 'var(--bg-surface)',
         borderColor: 'var(--border-subtle)',
         minHeight: 'var(--glc-mobile-nav-height)',
         paddingBottom: 'max(var(--space-2), env(safe-area-inset-bottom, 0px))',
@@ -31,13 +30,11 @@ export function MobileBottomNav({ items, pathname, navAriaLabel }: MobileBottomN
             key={to}
             to={to}
             className="flex flex-1 flex-col items-center justify-center gap-0.5 no-underline min-w-0 py-1 glc-touch-target"
-            style={{
-              color: active ? 'var(--glc-blue)' : 'var(--text-tertiary)',
-            }}
+            style={{ color: active ? 'var(--glc-blue)' : 'var(--text-tertiary)' }}
           >
-            <Icon className="w-5 h-5 flex-shrink-0" style={{ color: 'inherit' }} />
+            <Icon className="h-5 w-5 shrink-0" />
             <span
-              className="truncate w-full text-center px-0.5"
+              className="w-full truncate px-0.5 text-center"
               style={{
                 fontSize: APP_SHELL_UI_POLICY.nav.itemLabelSizePx,
                 fontWeight: active ? 600 : 500,

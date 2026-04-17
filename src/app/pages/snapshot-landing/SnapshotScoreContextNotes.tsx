@@ -22,24 +22,23 @@ export function SnapshotScoreContextNotes(props: {
       }
     >
       <p
-        className="mb-3 text-xs font-semibold uppercase tracking-wide"
-        style={{ color: 'var(--text-tertiary)' }}
+        className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]"
       >
         What these numbers mean
       </p>
       <div className="space-y-3">
         {zeroPagesNote ? (
-          <p className="text-sm font-medium leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-sm font-medium leading-relaxed text-[var(--text-secondary)]">
             {zeroPagesNote}
           </p>
         ) : null}
-        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
           {has100
             ? fivePointBandExplanation({ band, uxLabel: result.ux_label, hasOverall100: true })
             : fivePointBandExplanation({ band, uxLabel: result.ux_label, hasOverall100: false })}
         </p>
         {scan && (
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-sm leading-relaxed text-[var(--text-secondary)]">
             {scanConfidenceExplanation(scan)}
           </p>
         )}

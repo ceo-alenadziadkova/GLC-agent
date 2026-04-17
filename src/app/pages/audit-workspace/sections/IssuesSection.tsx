@@ -12,21 +12,19 @@ export function IssuesSection({ domainData }: Props) {
   if (domainData.issues.length === 0) return null;
 
   return (
-    <div className="glc-card overflow-hidden" style={{ borderRadius: 'var(--radius-xl)' }}>
+    <div className="glc-card overflow-hidden rounded-[var(--radius-xl)]">
       <div
-        className="flex items-center gap-2 px-5 py-3"
-        style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
+        className="flex items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-5 py-3"
       >
-        <Warning className="w-4 h-4" style={{ color: 'var(--score-1)' }} />
+        <Warning className="h-4 w-4 text-[var(--score-1)]" />
         <SectionLabel>{AUDIT_WORKSPACE_COPY.sections.issuesFound}</SectionLabel>
         <span
-          className="ml-auto px-2 py-0.5 rounded-full text-xs font-bold"
-          style={{ backgroundColor: 'var(--score-1-bg)', color: 'var(--score-1)', fontSize: '10px' }}
+          className="ml-auto rounded-full bg-[var(--score-1-bg)] px-2 py-0.5 text-[length:var(--text-2xs)] font-bold text-[var(--score-1)]"
         >
           {domainData.issues.length}
         </span>
       </div>
-      <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="divide-y [border-color:var(--border-subtle)]">
         {domainData.issues.map((issue, index) => {
           const conf = (issue.confidence ?? 'medium') as ConfidenceLevel;
           return (
@@ -56,7 +54,7 @@ export function IssuesSection({ domainData }: Props) {
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                  <span className="text-sm text-[var(--text-secondary)]">
                     {issue.title}
                   </span>
                   <span
@@ -73,7 +71,7 @@ export function IssuesSection({ domainData }: Props) {
                   </span>
                 </div>
                 {issue.description && (
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+                  <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">
                     {issue.description}
                   </p>
                 )}
@@ -82,13 +80,7 @@ export function IssuesSection({ domainData }: Props) {
                     {issue.evidence_refs.map((ref, refIndex) => (
                       <span
                         key={refIndex}
-                        className="flex items-center gap-1 px-1.5 py-0.5 rounded"
-                        style={{
-                          backgroundColor: 'var(--bg-muted)',
-                          fontSize: '10px',
-                          color: 'var(--text-tertiary)',
-                          fontFamily: 'monospace',
-                        }}
+                        className="flex items-center gap-1 rounded bg-[var(--bg-muted)] px-1.5 py-0.5 font-mono text-[length:var(--text-2xs)] text-[var(--text-tertiary)]"
                         title={ref.url ? `URL: ${ref.url}` : undefined}
                       >
                         {ref.url && <LinkIcon size={9} />}

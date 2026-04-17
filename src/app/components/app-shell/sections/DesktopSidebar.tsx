@@ -60,31 +60,17 @@ export function DesktopSidebar({
 
   return (
     <aside
-      className="hidden sm:flex w-[216px] flex-shrink-0 flex-col overflow-hidden relative"
-      style={{
-        background: 'var(--gradient-ink-rich)',
-        borderRight: `1px solid ${APP_SHELL_UI_POLICY.colors.white06}`,
-      }}
+      className="border-r-[var(--sidebar-border)] hidden w-[216px] flex-shrink-0 flex-col overflow-hidden bg-[var(--gradient-ink-rich)] sm:flex"
     >
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: 'var(--mesh-ink)',
-          opacity: 0.5,
-        }}
-      />
+      <div className="pointer-events-none absolute inset-0 bg-[var(--mesh-ink)] opacity-50" />
 
-      <div
-        className="relative flex items-center justify-between gap-2 px-4 pt-5 pb-4"
-        style={{ borderBottom: `1px solid ${APP_SHELL_UI_POLICY.colors.white05}` }}
-      >
+      <div className="border-b-[var(--overlay-white-15)] relative flex items-center justify-between gap-2 px-4 pb-4 pt-5">
         <Link to="/" className="inline-flex items-center" aria-label={shellCopy.aria.home}>
           <GlcLogo variant="on-dark" className="h-12" />
         </Link>
         <button
           type="button"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border-0 transition-colors"
-          style={{ backgroundColor: APP_SHELL_UI_POLICY.colors.white08, color: 'rgba(255,255,255,0.72)' }}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border-0 bg-[var(--overlay-white-20)] text-[var(--sidebar-foreground)] transition-colors"
           onClick={onCollapse}
           aria-label={shellCopy.aria.collapseWorkspace}
           title={shellCopy.aria.collapseWorkspace}
@@ -97,27 +83,12 @@ export function DesktopSidebar({
         <div className="relative px-3 py-3">
           <button
             type="button"
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg"
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.05)',
-              color: APP_SHELL_UI_POLICY.colors.white03,
-              fontSize: 'var(--text-xs)',
-              border: '1px solid rgba(255,255,255,0.07)',
-              borderRadius: 'var(--radius-md)',
-              transition: 'background var(--ease-fast), border-color var(--ease-fast)',
-            }}
+            className="w-full rounded-lg border border-[var(--overlay-white-15)] bg-[var(--overlay-white-15)] px-3 py-2 text-xs text-[var(--overlay-white-30)] transition-[background,border-color] duration-200"
           >
             <MagnifyingGlass className="w-3.5 h-3.5 flex-shrink-0" />
             <span className="flex-1 text-left">{shellCopy.sidebar.searchPlaceholder}</span>
             <span
-              className="px-1 py-0.5 rounded"
-              style={{
-                fontSize: '9px',
-                fontFamily: 'var(--font-mono)',
-                backgroundColor: APP_SHELL_UI_POLICY.colors.white08,
-                color: APP_SHELL_UI_POLICY.colors.white035,
-                letterSpacing: '0',
-              }}
+              className="rounded bg-[var(--overlay-white-20)] px-1 py-0.5 font-mono text-[9px] tracking-normal text-[var(--overlay-white-35)]"
             >
               {shellCopy.sidebar.searchShortcut}
             </span>
@@ -126,23 +97,14 @@ export function DesktopSidebar({
       )}
 
       <nav className="relative flex-1 px-2 pb-2 space-y-0.5 overflow-y-auto">
-        <div
-          className="px-2 py-1.5"
-          style={{
-            color: 'rgba(255,255,255,0.20)',
-            fontSize: APP_SHELL_UI_POLICY.nav.sectionCaptionSizePx,
-            letterSpacing: '0.14em',
-            fontWeight: 700,
-          }}
-        >
+        <div className="px-2 py-1.5 text-[var(--overlay-white-20)] text-xs font-bold tracking-[0.14em]">
           {sectionLabel}
         </div>
 
         {roleUnknown && Array.from({ length: APP_SHELL_UI_POLICY.nav.skeletonCount }).map((_, i) => (
           <div
             key={`nav-skeleton-${i}`}
-            className="mx-2 mb-1 h-8 rounded-lg animate-pulse"
-            style={{ backgroundColor: APP_SHELL_UI_POLICY.colors.white08 }}
+            className="mx-2 mb-1 h-8 animate-pulse rounded-lg bg-[var(--overlay-white-20)]"
           />
         ))}
 
@@ -156,82 +118,57 @@ export function DesktopSidebar({
           />
         ))}
 
-        <div className="mx-2 my-2" style={{ height: '1px', background: APP_SHELL_UI_POLICY.colors.white06 }} />
+        <div className="mx-2 my-2 h-px bg-[var(--sidebar-border)]" />
 
         {!isGuest && (isClient || roleUnknown) ? (
           <NavLink
             to={APP_ROUTE_PATHS.portalAuditNew}
-            className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
-            style={{
-              color: 'rgba(255,255,255,0.38)',
-              fontSize: 'var(--text-sm)',
-              transition: 'color var(--ease-fast), background var(--ease-fast)',
-            }}
+            className="relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[var(--overlay-white-38)] no-underline transition-[color,background] duration-200"
             onClick={onCloseMobileMenu}
           >
-            <PlusCircle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
+            <PlusCircle className="text-info h-4 w-4 flex-shrink-0" />
             <span>{shellCopy.sidebar.newAudit}</span>
           </NavLink>
         ) : !isGuest ? (
           <NavLink
             to={APP_ROUTE_PATHS.auditNew}
-            className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
-            style={{
-              color: 'rgba(255,255,255,0.38)',
-              fontSize: 'var(--text-sm)',
-              transition: 'color var(--ease-fast), background var(--ease-fast)',
-            }}
+            className="relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[var(--overlay-white-38)] no-underline transition-[color,background] duration-200"
             onClick={onCloseMobileMenu}
           >
-            <Lightning className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-orange)' }} />
+            <Lightning className="text-warning h-4 w-4 flex-shrink-0" />
             <span>{shellCopy.sidebar.newAuditConsultant}</span>
           </NavLink>
         ) : (
           <NavLink
             to={APP_ROUTE_PATHS.login}
-            className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline"
-            style={{
-              color: 'rgba(255,255,255,0.38)',
-              fontSize: 'var(--text-sm)',
-              transition: 'color var(--ease-fast), background var(--ease-fast)',
-            }}
+            className="relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[var(--overlay-white-38)] no-underline transition-[color,background] duration-200"
             onClick={onCloseMobileMenu}
           >
-            <PlusCircle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
+            <PlusCircle className="text-info h-4 w-4 flex-shrink-0" />
             <span>{shellCopy.sidebar.registerToContinue}</span>
           </NavLink>
         )}
       </nav>
 
-      <div
-        className="relative px-2 py-2 space-y-0.5"
-        style={{ borderTop: `1px solid ${APP_SHELL_UI_POLICY.colors.white05}` }}
-      >
+      <div className="border-t-[var(--overlay-white-15)] relative space-y-0.5 px-2 py-2">
         <div
           className="mb-1 flex items-center justify-between gap-2 rounded-lg px-2.5 py-2"
-          style={{ borderRadius: 'var(--radius-md)' }}
         >
-          <span className="text-xs font-medium" style={{ color: APP_SHELL_UI_POLICY.colors.white045 }}>
+          <span className="text-xs font-medium text-[var(--overlay-white-45)]">
             {shellCopy.sidebar.theme}
           </span>
           <ThemeToggle variant="sidebar" />
         </div>
         <button
           type="button"
-          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all"
-          style={{ color: APP_SHELL_UI_POLICY.colors.white03, borderRadius: 'var(--radius-md)' }}
+          className="w-full rounded-lg px-2.5 py-2 text-sm text-[var(--overlay-white-30)] transition-all"
           onClick={onOpenNotifications}
         >
           <Bell className="w-3.5 h-3.5" />
           <span className="flex-1 text-left">{shellCopy.sidebar.notifications}</span>
           {unreadCount > 0 && (
             <span
-              className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold tabular-nums"
-              style={{
-                backgroundColor: 'rgba(28,189,255,0.15)',
-                color: 'var(--glc-blue)',
-                border: '1px solid rgba(28,189,255,0.25)',
-              }}
+              className="text-info rounded-full border border-info/25 bg-info/15 px-1.5 py-0.5 text-[length:var(--text-2xs)] font-semibold tabular-nums"
             >
               {unreadCount}
             </span>
@@ -240,12 +177,11 @@ export function DesktopSidebar({
         {!isGuest && (
           <NavLink
             to={APP_ROUTE_PATHS.settings}
-            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all no-underline"
-            style={{
-              color: pathname === APP_ROUTE_PATHS.settings ? 'rgba(255,255,255,0.80)' : 'rgba(255,255,255,0.30)',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: pathname === APP_ROUTE_PATHS.settings ? 'rgba(255,255,255,0.08)' : 'transparent',
-            }}
+            className={`w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm no-underline transition-all ${
+              pathname === APP_ROUTE_PATHS.settings
+                ? 'bg-[var(--overlay-white-20)] text-[var(--text-inverse)]'
+                : 'bg-transparent text-[var(--overlay-white-30)]'
+            }`}
             onClick={onCloseMobileMenu}
           >
             <GearSix className="w-3.5 h-3.5" />
@@ -255,36 +191,25 @@ export function DesktopSidebar({
 
         {isAuthenticated && user && (
           <div
-            className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg mt-1 cursor-pointer"
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.04)',
-              border: `1px solid ${APP_SHELL_UI_POLICY.colors.white06}`,
-              borderRadius: 'var(--radius-md)',
-            }}
+            className="mt-1 flex cursor-pointer items-center gap-2.5 rounded-lg border border-[var(--sidebar-border)] bg-[var(--glc-blue-muted-faint)] px-2.5 py-2"
           >
             <div
-              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-              style={{
-                background: 'var(--gradient-brand)',
-                color: 'var(--glc-ink)',
-                boxShadow: '0 0 8px rgba(28,189,255,0.30)',
-              }}
+              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[var(--gradient-brand)] text-xs font-bold text-[var(--glc-ink)] shadow-[var(--glow-blue-sm)]"
             >
               {(user.email || (isGuest ? shellCopy.sidebar.guestInitial : shellCopy.sidebar.userInitial))[0].toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium leading-none" style={{ color: 'rgba(255,255,255,0.85)' }}>
+              <div className="text-xs font-medium leading-none text-[var(--text-inverse)]">
                 {profile?.full_name?.trim() || user.email?.split('@')[0] || (isGuest ? shellCopy.sidebar.guestDisplay : shellCopy.sidebar.userDisplay)}
               </div>
-              <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.28)', marginTop: 3, letterSpacing: '0.03em' }}>
+              <div className="mt-[3px] text-[9px] tracking-[0.03em] text-[var(--overlay-white-30)]">
                 {roleDisplayName ?? (isClient ? shellCopy.sidebar.fallbackRoleClient : isGuest ? shellCopy.sidebar.fallbackRoleGuest : shellCopy.sidebar.fallbackRoleAdmin)}
               </div>
             </div>
             <button
               type="button"
               onClick={onSignOut}
-              className="flex-shrink-0 glc-touch-target"
-              style={{ color: APP_SHELL_UI_POLICY.colors.white03 }}
+              className="glc-touch-target flex-shrink-0 text-[var(--overlay-white-30)]"
               title={shellCopy.sidebar.signOutTitle}
             >
               <SignOut className="w-3 h-3" />

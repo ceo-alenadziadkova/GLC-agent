@@ -13,6 +13,7 @@ import { toUiApiErrorMessage } from '../lib/api-error-ui';
 import type { BriefQuestion, BriefResponses, BriefResponseValue } from '../data/briefQuestions';
 import { groupBriefQuestionsBySection, unwrapResponse, WEBSITE_PRESENCE_NO_SITE_LABEL } from '../data/briefQuestions';
 import { choiceValueNeedsSpecify } from '@glc/intake-core';
+import { Input } from '../../design-system/ui';
 
 type FormValues = {
   contact_name: string;
@@ -172,10 +173,10 @@ export function PublicBriefPage() {
       ]}
     >
       <MarketingSection>
-        <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: 'var(--text-primary)' }}>
+        <h1 className="text-foreground font-display text-3xl font-bold tracking-tight sm:text-4xl">
           {PB.heroTitle}
         </h1>
-        <p className="mt-4 max-w-2xl text-base leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-muted-foreground mt-4 max-w-2xl text-base leading-relaxed">
           {PB.heroIntroBefore}
           <strong>{PB.heroIntroStrong}</strong>
           {PB.heroIntroAfter}
@@ -185,21 +186,20 @@ export function PublicBriefPage() {
       {phase === 'success' ? (
         <MarketingSection>
           <div
-            className="glc-card max-w-2xl p-6 sm:p-8"
-            style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-card)' }}
+            className="glc-card max-w-2xl rounded-2xl p-6 shadow-[var(--shadow-card)] sm:p-8"
           >
-            <p className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--glc-green-dark)' }}>{PB.sentBadge}</p>
-            <h2 className="mt-2 font-display text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            <p className="text-success text-sm font-semibold uppercase tracking-wide">{PB.sentBadge}</p>
+            <h2 className="text-foreground mt-2 font-display text-xl font-bold">
               {PB.successTitle}
             </h2>
-            <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
               {PB.successBody}
             </p>
-            <p className="mt-6 text-xs" style={{ color: 'var(--text-quaternary)' }}>
+            <p className="text-muted-foreground mt-6 text-xs">
               {PB.refPrefix} {sessionToken}
             </p>
             {submittedAt && (
-              <p className="mt-2 text-xs" style={{ color: 'var(--text-quaternary)' }}>
+              <p className="text-muted-foreground mt-2 text-xs">
                 {PB.submittedAtPrefix} {new Date(submittedAt).toLocaleString()}
               </p>
             )}
@@ -208,47 +208,47 @@ export function PublicBriefPage() {
       ) : (
         <MarketingSection>
           {loadingSession ? (
-            <p style={{ color: 'var(--text-secondary)' }}>{PB.loadingSession}</p>
+            <p className="text-muted-foreground">{PB.loadingSession}</p>
           ) : phase === 'identity' ? (
             <form onSubmit={handleSubmit(onIdentitySubmit)} className="glc-card max-w-3xl space-y-4 p-6">
-              <h2 className="font-display text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{PB.formShellTitle}</h2>
+              <h2 className="text-foreground font-display text-lg font-bold">{PB.formShellTitle}</h2>
               <label className="flex flex-col gap-1.5 text-sm">
-                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.formNameLabel}</span>
-                <input {...register('contact_name', { required: PB.formNameRequired })} className="rounded-lg border px-3 py-2.5" />
-                {errors.contact_name && <span style={{ color: 'var(--score-1)', fontSize: 12 }}>{errors.contact_name.message}</span>}
+                <span className="text-foreground font-semibold">{PB.formNameLabel}</span>
+                <Input {...register('contact_name', { required: PB.formNameRequired })} className="rounded-lg px-3 py-2.5" />
+                {errors.contact_name && <span className="text-destructive text-xs">{errors.contact_name.message}</span>}
               </label>
               <label className="flex flex-col gap-1.5 text-sm">
-                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.formCompanyLabel}</span>
-                <input {...register('company_name', { required: PB.formCompanyRequired })} className="rounded-lg border px-3 py-2.5" />
+                <span className="text-foreground font-semibold">{PB.formCompanyLabel}</span>
+                <Input {...register('company_name', { required: PB.formCompanyRequired })} className="rounded-lg px-3 py-2.5" />
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" {...register('has_website')} />
                 {PB.hasWebsiteLabel}
               </label>
               <label className="flex flex-col gap-1.5 text-sm">
-                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.websiteLabel}</span>
-                <input {...register('website_url')} placeholder={PB.websitePlaceholder} className="rounded-lg border px-3 py-2.5" />
+                <span className="text-foreground font-semibold">{PB.websiteLabel}</span>
+                <Input {...register('website_url')} placeholder={PB.websitePlaceholder} className="rounded-lg px-3 py-2.5" />
               </label>
               <label className="flex flex-col gap-1.5 text-sm">
-                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.emailLabel}</span>
-                <input {...register('email')} className="rounded-lg border px-3 py-2.5" />
+                <span className="text-foreground font-semibold">{PB.emailLabel}</span>
+                <Input {...register('email')} className="rounded-lg px-3 py-2.5" />
               </label>
               <label className="flex flex-col gap-1.5 text-sm">
-                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.phoneLabel}</span>
-                <input {...register('phone')} className="rounded-lg border px-3 py-2.5" />
+                <span className="text-foreground font-semibold">{PB.phoneLabel}</span>
+                <Input {...register('phone')} className="rounded-lg px-3 py-2.5" />
               </label>
-              {submitError && <p style={{ color: 'var(--score-1)', fontSize: 14 }}>{submitError}</p>}
-              <button type="submit" disabled={isSubmitting} className="w-full rounded-xl py-3 text-sm font-semibold" style={{ background: 'var(--gradient-brand)', color: 'var(--primary-foreground)' }}>
+              {submitError && <p className="text-destructive text-sm">{submitError}</p>}
+              <button type="submit" disabled={isSubmitting} className="w-full rounded-xl bg-[var(--gradient-brand)] py-3 text-sm font-semibold text-primary-foreground">
                 {isSubmitting ? PB.startLoading : PB.startButton}
               </button>
             </form>
           ) : (
             <div className="glc-card max-w-3xl space-y-6 p-6">
-              <h2 className="font-display text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{PB.personalizedTitle}</h2>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{PB.personalizedSubtitle}</p>
+              <h2 className="text-foreground font-display text-lg font-bold">{PB.personalizedTitle}</h2>
+              <p className="text-muted-foreground text-sm">{PB.personalizedSubtitle}</p>
               {sections.map(section => (
                 <section key={section.section} className="space-y-4">
-                  <h3 className="text-xs font-semibold uppercase" style={{ color: 'var(--text-quaternary)' }}>{section.section}</h3>
+                  <h3 className="text-muted-foreground text-xs font-semibold uppercase">{section.section}</h3>
                   {section.questions.map(q => (
                     <BriefField
                       key={q.id}
@@ -270,17 +270,17 @@ export function PublicBriefPage() {
                   ))}
                 </section>
               ))}
-              {submitError && <p style={{ color: 'var(--score-1)', fontSize: 14 }}>{submitError}</p>}
+              {submitError && <p className="text-destructive text-sm">{submitError}</p>}
               <div className="flex flex-wrap gap-3">
-                <button type="button" onClick={() => { void saveDraft(); }} disabled={savingDraft} className="rounded-xl border px-4 py-2.5 text-sm font-semibold">
+                <button type="button" onClick={() => { void saveDraft(); }} disabled={savingDraft} className="rounded-xl border border-[var(--border-default)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)]">
                   {savingDraft ? PB.saveDraftLoading : PB.saveDraftLabel}
                 </button>
-                <button type="button" onClick={() => { void submitFinal(); }} disabled={submitting} className="rounded-xl px-4 py-2.5 text-sm font-semibold" style={{ background: 'var(--gradient-brand)', color: 'var(--primary-foreground)' }}>
+                <button type="button" onClick={() => { void submitFinal(); }} disabled={submitting} className="rounded-xl bg-[var(--gradient-brand)] px-4 py-2.5 text-sm font-semibold text-primary-foreground">
                   {submitting ? PB.submitBriefLoading : PB.submitBriefLabel}
                 </button>
               </div>
               {savedAt && (
-                <p className="text-xs" style={{ color: 'var(--text-quaternary)' }}>
+                <p className="text-muted-foreground text-xs">
                   {PB.savedAtPrefix} {new Date(savedAt).toLocaleString()}
                 </p>
               )}

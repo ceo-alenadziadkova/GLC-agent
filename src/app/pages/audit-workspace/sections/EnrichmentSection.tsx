@@ -48,20 +48,18 @@ export function EnrichmentSection({
 
   return (
     <div
-      className="glc-card overflow-hidden"
-      style={{ borderRadius: 'var(--radius-xl)', border: '1px solid rgba(28,189,255,0.2)' }}
+      className="glc-card overflow-hidden rounded-[var(--radius-xl)] border border-[var(--ui-info-border-20)]"
     >
       <button
         type="button"
-        className="w-full flex items-center gap-2 px-4 py-3 text-left"
-        style={{ background: 'rgba(28,189,255,0.06)' }}
+        className="flex w-full items-center gap-2 bg-[var(--ui-info-muted-bg)] px-4 py-3 text-left"
         onClick={() => setEnrichOpen(prev => !prev)}
       >
         <CaretRight
-          className="w-4 h-4 flex-shrink-0 transition-transform"
-          style={{ transform: enrichOpen ? 'rotate(90deg)' : 'none', color: 'var(--glc-blue)' }}
+          className="h-4 w-4 shrink-0 text-[var(--glc-blue)] transition-transform"
+          style={{ transform: enrichOpen ? 'rotate(90deg)' : 'none' }}
         />
-        <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <span className="text-sm font-semibold text-[var(--text-primary)]">
           {AUDIT_WORKSPACE_COPY.enrichment.refinePrefix} {DOMAIN_LABELS[activeDomain]}{' '}
           {AUDIT_WORKSPACE_COPY.enrichment.refineMiddle} {followupQuestions.length}{' '}
           {followupQuestions.length === 1
@@ -75,15 +73,13 @@ export function EnrichmentSection({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="px-4 pb-4 space-y-4"
-            style={{ borderTop: '1px solid var(--border-subtle)' }}
+            className="space-y-4 border-t border-[var(--border-subtle)] px-4 pb-4"
           >
             {enrichSaved && (
               <motion.p
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-xs font-medium"
-                style={{ color: 'var(--glc-green)' }}
+                className="text-xs font-medium text-[var(--glc-green)]"
               >
                 {AUDIT_WORKSPACE_COPY.enrichment.saved}
               </motion.p>

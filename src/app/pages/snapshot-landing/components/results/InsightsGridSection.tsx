@@ -23,8 +23,8 @@ export function InsightsGridSection(props: {
         <Surface className="glc-card glc-snapshot-result-card p-5 lg:p-6" style={{ borderRadius: 'var(--radius-xl)' }}>
           <div className="glc-snapshot-section-h glc-snapshot-section-h--warning">
             <span className="glc-snapshot-section-h__rule" aria-hidden />
-            <Warning className="h-4 w-4 shrink-0" style={{ color: 'var(--score-2)' }} />
-            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+            <Warning className="h-4 w-4 shrink-0 text-[var(--score-2)]" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               {SNAPSHOT_LANDING_HERO_COPY.topIssuesTitle}
             </span>
           </div>
@@ -39,10 +39,10 @@ export function InsightsGridSection(props: {
                   }}
                 />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">
                     {issue.title}
                   </p>
-                  <p className="mt-0.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                  <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">
                     {issue.description}
                   </p>
                 </div>
@@ -56,20 +56,20 @@ export function InsightsGridSection(props: {
         <Surface className="glc-card glc-snapshot-result-card p-5 lg:p-6" style={{ borderRadius: 'var(--radius-xl)' }}>
           <div className="glc-snapshot-section-h glc-snapshot-section-h--positive">
             <span className="glc-snapshot-section-h__rule" aria-hidden />
-            <Lightning className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
-            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+            <Lightning className="h-4 w-4 shrink-0 text-[var(--glc-green)]" weight="fill" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               {SNAPSHOT_LANDING_HERO_COPY.quickWinsTitle}
             </span>
           </div>
           <div className="space-y-1">
             {result.quick_wins.map((qw, i) => (
               <div key={i} className="glc-snapshot-insight-row flex gap-3">
-                <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0" style={{ color: 'var(--glc-green)' }} />
+                <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--glc-green)]" />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">
                     {qw.title}
                   </p>
-                  <p className="mt-0.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                  <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">
                     {qw.effort} effort · {qw.timeframe}
                   </p>
                 </div>
@@ -86,8 +86,8 @@ export function InsightsGridSection(props: {
         >
           <div className="glc-snapshot-section-h glc-snapshot-section-h--info !mb-3">
             <span className="glc-snapshot-section-h__rule" aria-hidden />
-            <Shield className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-blue)' }} />
-            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+            <Shield className="h-4 w-4 shrink-0 text-[var(--glc-blue)]" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               {SNAPSHOT_LANDING_HERO_COPY.techStackTitle}
             </span>
           </div>
@@ -110,7 +110,7 @@ export function InsightsGridSection(props: {
           )}
           {(result.tech_stack_tentative?.length ?? 0) > 0 && (
             <div className={detectedTech.length > 0 ? 'mt-4' : ''}>
-              <p className="mb-2 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="mb-2 text-xs leading-relaxed text-[var(--text-tertiary)]">
                 {SNAPSHOT_LANDING_HERO_COPY.tentativeTechTitle}
               </p>
               <div className="flex flex-wrap gap-2">

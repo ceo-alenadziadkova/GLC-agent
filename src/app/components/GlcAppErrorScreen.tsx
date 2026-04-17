@@ -5,6 +5,7 @@ import { formatClientEnvironmentForSupport } from '../lib/client-environment';
 import { isLikelyTranslationOrExtensionDomCrash } from '../lib/browser-dom-crash-heuristics';
 import { api } from '../data/apiService';
 import { GLC_APP_ERROR_COPY_EN } from '../config/translation-safety-copy.en';
+import { Button } from './ui/button';
 
 export type GlcAppErrorScreenProps = {
   /** Stable id users can share with support (also logged server-side when reporting). */
@@ -90,43 +91,29 @@ export function GlcAppErrorScreen({
   }, [supportRef, path, technicalDetail]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-12" style={{ backgroundColor: 'var(--bg-surface)' }}>
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg-surface)] px-6 py-12">
       <div className="w-full max-w-md text-center">
         <div
-          className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-5"
-          style={{ backgroundColor: 'var(--callout-info-bg)', border: '1px solid var(--callout-info-border)' }}
+          className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--callout-info-border)] bg-[var(--callout-info-bg)]"
         >
-          <ArrowsClockwise className="w-6 h-6" style={{ color: 'var(--glc-blue)' }} />
+          <ArrowsClockwise className="h-6 w-6 text-[var(--glc-blue)]" />
         </div>
-        <h1
-          className="font-semibold mb-2"
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 'var(--text-xl)',
-            color: 'var(--text-primary)',
-            letterSpacing: 'var(--tracking-tight)',
-          }}
-        >
+        <h1 className="mb-2 font-semibold [font-family:var(--font-display)] text-[length:var(--text-xl)] tracking-[var(--tracking-tight)] text-[var(--text-primary)]">
           {likelyDomRewrite ? GLC_APP_ERROR_COPY_EN.domRewrite.title : title}
         </h1>
-        <p className="text-sm leading-relaxed mb-4" style={{ color: 'var(--text-secondary)' }}>
+        <p className="mb-4 text-sm leading-relaxed text-[var(--text-secondary)]">
           {likelyDomRewrite
             ? GLC_APP_ERROR_COPY_EN.domRewrite.description
             : GLC_APP_ERROR_COPY_EN.generic.description}
         </p>
         {likelyDomRewrite ? (
           <div
-            className="text-sm leading-relaxed mb-4 mx-auto max-w-sm rounded-xl px-4 py-3 text-left"
-            style={{
-              backgroundColor: 'var(--callout-warning-bg)',
-              border: '1px solid var(--callout-warning-border)',
-              color: 'var(--callout-warning-fg)',
-            }}
+            className="mx-auto mb-4 max-w-sm rounded-xl border border-[var(--callout-warning-border)] bg-[var(--callout-warning-bg)] px-4 py-3 text-left text-sm leading-relaxed text-[var(--callout-warning-fg)]"
           >
-            <p className="font-semibold m-0 mb-2" style={{ color: 'var(--callout-warning-fg-emphasis)' }}>
+            <p className="m-0 mb-2 font-semibold text-[var(--callout-warning-fg-emphasis)]">
               {GLC_APP_ERROR_COPY_EN.domRewrite.actionsTitle}
             </p>
-            <ol className="text-xs m-0 pl-4 space-y-1.5" style={{ color: 'var(--callout-warning-fg)' }}>
+            <ol className="m-0 space-y-1.5 pl-4 text-xs text-[var(--callout-warning-fg)]">
               {GLC_APP_ERROR_COPY_EN.domRewrite.actions.map((action) => (
                 <li key={action}>{action}</li>
               ))}
@@ -134,32 +121,24 @@ export function GlcAppErrorScreen({
           </div>
         ) : null}
         {!likelyDomRewrite ? (
-          <p
-            className="text-xs leading-relaxed mb-4 mx-auto max-w-sm rounded-lg px-3 py-2.5"
-            style={{
-              backgroundColor: 'var(--callout-info-bg)',
-              border: '1px solid var(--callout-info-border)',
-              color: 'var(--text-secondary)',
-            }}
-          >
+          <p className="mx-auto mb-4 max-w-sm rounded-lg border border-[var(--callout-info-border)] bg-[var(--callout-info-bg)] px-3 py-2.5 text-xs leading-relaxed text-[var(--text-secondary)]">
             {GLC_APP_ERROR_COPY_EN.generic.translationHint}
           </p>
         ) : null}
-        <p className="text-xs font-mono mb-6 px-3 py-2 rounded-lg inline-block" style={{ backgroundColor: 'var(--bg-inset)', color: 'var(--text-tertiary)' }}>
+        <p className="mb-6 inline-block rounded-lg bg-[var(--bg-inset)] px-3 py-2 font-mono text-xs text-[var(--text-tertiary)]">
           {GLC_APP_ERROR_COPY_EN.labels.reference}:&nbsp;
-          <span style={{ color: 'var(--text-primary)' }}>{supportRef}</span>
+          <span className="text-[var(--text-primary)]">{supportRef}</span>
         </p>
         <div className="flex flex-col sm:flex-row gap-2 justify-center mb-3">
           {onRetry ? (
-            <button type="button" onClick={onRetry} className="glc-btn-primary inline-flex items-center justify-center gap-2">
+            <Button type="button" variant="default" onClick={onRetry} className="inline-flex items-center justify-center gap-2">
               <ArrowsClockwise className="w-4 h-4" />
               {GLC_APP_ERROR_COPY_EN.labels.tryAgain}
-            </button>
+            </Button>
           ) : null}
           <a
             href={homeHref}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold no-underline transition-opacity hover:opacity-90"
-            style={{ border: '1px solid var(--border-default)', color: 'var(--text-primary)', backgroundColor: 'var(--bg-muted)' }}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-muted)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)] no-underline transition-opacity hover:opacity-90"
           >
             <House className="w-4 h-4" />
             {homeLabel}
@@ -169,8 +148,7 @@ export function GlcAppErrorScreen({
           <button
             type="button"
             onClick={() => { void copyDetails(); }}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium"
-            style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', background: 'transparent', cursor: 'pointer' }}
+            className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-transparent px-4 py-2 text-sm font-medium text-[var(--text-secondary)]"
           >
             <Copy className="w-4 h-4" />
             {GLC_APP_ERROR_COPY_EN.labels.copyDetailsForSupport}
@@ -179,8 +157,8 @@ export function GlcAppErrorScreen({
             type="button"
             disabled={reportBusy || reportSent}
             onClick={() => { void sendReport(); }}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
-            style={{ border: '1px solid var(--border-subtle)', color: 'var(--glc-blue)', background: 'transparent', cursor: reportBusy || reportSent ? 'default' : 'pointer' }}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-transparent px-4 py-2 text-sm font-medium text-[var(--glc-blue)] disabled:cursor-default disabled:opacity-50"
+            style={{ cursor: reportBusy || reportSent ? 'default' : 'pointer' }}
           >
             <PaperPlaneTilt className="w-4 h-4" />
             {reportSent

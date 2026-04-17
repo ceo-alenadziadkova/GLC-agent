@@ -17,14 +17,10 @@ export function MobileHeader({
 }: AppShellHeaderProps) {
   return (
     <header
-      className="sm:hidden flex-shrink-0 flex items-center gap-2 border-b glc-safe-pad-x glc-safe-pad-t"
+      className="sm:hidden flex shrink-0 items-center gap-2 border-b border-[var(--border-subtle)] pb-[var(--space-2)] shadow-[var(--shadow-xs)] glc-safe-pad-x glc-safe-pad-t"
       aria-hidden={title ? isSmUp : undefined}
       style={{
-        backgroundColor: 'var(--bg-surface)',
-        borderColor: 'var(--border-subtle)',
         minHeight: 'var(--glc-mobile-header-height)',
-        boxShadow: 'var(--shadow-xs)',
-        paddingBottom: 'var(--space-2)',
       }}
     >
       <Link to="/" className="inline-flex items-center flex-shrink-0" aria-label={shellCopy.aria.home}>
@@ -34,33 +30,18 @@ export function MobileHeader({
         {title ? (
           <>
             <h1
-              className="truncate m-0"
-              style={{
-                color: 'var(--text-primary)',
-                fontSize: 'var(--text-base)',
-                fontWeight: 600,
-                letterSpacing: 'var(--tracking-tight)',
-                fontFamily: 'var(--font-display)',
-                lineHeight: 'var(--leading-tight)',
-              }}
+              className="m-0 truncate [font-family:var(--font-display)] text-[length:var(--text-base)] font-semibold leading-[var(--leading-tight)] tracking-[var(--tracking-tight)] text-[var(--text-primary)]"
             >
               {title}
             </h1>
             {subtitle ? (
-              <p
-                className="truncate m-0 mt-0.5"
-                style={{
-                  color: 'var(--text-tertiary)',
-                  fontSize: 'var(--text-xs)',
-                  letterSpacing: '0.01em',
-                }}
-              >
+              <p className="m-0 mt-0.5 truncate text-[length:var(--text-xs)] tracking-[0.01em] text-[var(--text-tertiary)]">
                 {subtitle}
               </p>
             ) : null}
           </>
         ) : (
-          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)' }}>
+          <span className="text-[length:var(--text-sm)] text-[var(--text-tertiary)]">
             {shellCopy.mobileHeader.glcShortBrand}
           </span>
         )}
@@ -73,19 +54,14 @@ export function MobileHeader({
         ) : null}
         <button
           type="button"
-          className="relative glc-touch-target rounded-lg border-0 inline-flex items-center justify-center"
-          style={{ backgroundColor: 'var(--bg-muted)', color: 'var(--text-secondary)' }}
+          className="relative inline-flex glc-touch-target items-center justify-center rounded-lg border-0 bg-[var(--bg-muted)] text-[var(--text-secondary)]"
           onClick={onOpenNotifications}
           aria-label={shellCopy.aria.openNotifications}
         >
           <Bell className="w-5 h-5" />
           {unreadCount > 0 ? (
             <span
-              className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center"
-              style={{
-                backgroundColor: 'var(--glc-blue)',
-                color: 'var(--primary-foreground)',
-              }}
+              className="absolute right-1 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--glc-blue)] px-1 text-[length:var(--text-2xs)] font-bold text-[var(--primary-foreground)]"
             >
               {unreadCount > APP_SHELL_UI_POLICY.mobile.unreadBadgeCap
                 ? `${APP_SHELL_UI_POLICY.mobile.unreadBadgeCap}+`
@@ -98,8 +74,7 @@ export function MobileHeader({
         </div>
         <button
           type="button"
-          className="glc-touch-target rounded-lg border-0"
-          style={{ backgroundColor: 'var(--bg-muted)', color: 'var(--text-secondary)' }}
+          className="glc-touch-target rounded-lg border-0 bg-[var(--bg-muted)] text-[var(--text-secondary)]"
           onClick={onOpenMobileMenu}
           aria-label={shellCopy.aria.openMenu}
         >

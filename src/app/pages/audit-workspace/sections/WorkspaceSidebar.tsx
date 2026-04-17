@@ -71,18 +71,16 @@ export function WorkspaceSidebar({
       }}
     >
       <div
-        className="p-4 flex items-center gap-3"
-        style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
+        className="flex items-center gap-3 border-b border-[var(--border-subtle)] bg-[var(--bg-canvas)] p-4"
       >
         <ScoreRing score={overallScore} size={AUDIT_WORKSPACE_UI.scoreRingSize} />
         <div>
           <p
-            className="font-bold text-sm"
-            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
+            className="text-sm font-bold [font-family:var(--font-display)] tracking-[-0.01em] text-[var(--text-primary)]"
           >
             {AUDIT_WORKSPACE_COPY.sidebar.overallScore}
           </p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+          <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">
             {domainCount} {AUDIT_WORKSPACE_COPY.sidebar.domainsAnalyzedSuffix}
           </p>
         </div>
@@ -90,7 +88,7 @@ export function WorkspaceSidebar({
 
       {audit.brief && (
         <>
-          <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+          <div className="border-b border-[var(--border-subtle)] px-4 py-3">
             <IntakeBankCoverageHint
               dataQualityPct={bankMetrics.dataQualityPct}
               visibleRequiredAnswered={bankMetrics.visibleRequiredAnswered}
@@ -100,11 +98,10 @@ export function WorkspaceSidebar({
               reportInputGapLabels={labelsForMissingReportDomains(bankMetrics.missingForReport)}
             />
           </div>
-          <div style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+          <div className="border-b border-[var(--border-subtle)]">
             <button
               type="button"
-              className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-xs font-semibold"
-              style={{ color: 'var(--text-secondary)' }}
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-semibold text-[var(--text-secondary)]"
               onClick={() => setBriefPanelOpen(prev => !prev)}
             >
               <CaretRight
@@ -119,16 +116,15 @@ export function WorkspaceSidebar({
             {briefPanelOpen && (
               <div className={`px-3 pb-3 space-y-2 ${AUDIT_WORKSPACE_UI.layout.briefPanelMaxHeightClass} overflow-y-auto`}>
                 {workspaceBriefSavedFlash && (
-                  <p className="text-[10px] font-medium" style={{ color: 'var(--glc-green)' }}>
+                  <p className="text-[length:var(--text-2xs)] font-medium text-[var(--glc-green)]">
                     {AUDIT_WORKSPACE_COPY.sidebar.briefSaved}
                   </p>
                 )}
-                <p className="text-[10px] leading-snug" style={{ color: 'var(--text-quaternary)' }}>
+                <p className="text-[length:var(--text-2xs)] leading-snug text-[var(--text-quaternary)]">
                   {AUDIT_WORKSPACE_COPY.sidebar.defaultLayoutPrefix}{' '}
                   <Link
                     to="/settings#brief-layout"
-                    className="font-medium underline-offset-2 hover:underline"
-                    style={{ color: 'var(--glc-blue)' }}
+                    className="font-medium text-[var(--glc-blue)] underline-offset-2 hover:underline"
                   >
                     {AUDIT_WORKSPACE_COPY.sidebar.settingsLink}
                   </Link>
@@ -141,13 +137,9 @@ export function WorkspaceSidebar({
                       <button
                         type="button"
                         onClick={clearBriefLayout}
-                        className="text-[10px] font-medium underline-offset-2 hover:underline"
+                        className="cursor-pointer bg-none p-0 text-[length:var(--text-2xs)] font-medium text-[var(--glc-blue)] underline-offset-2 hover:underline"
                         style={{
-                          color: 'var(--glc-blue)',
-                          background: 'none',
                           border: 'none',
-                          cursor: 'pointer',
-                          padding: 0,
                         }}
                       >
                         {AUDIT_WORKSPACE_COPY.sidebar.changeLayout}

@@ -4,8 +4,8 @@ import type { AdminQueueFilter } from '../hooks/useAdminRequestQueue';
 
 export function AdminRequestQueueEmptyState({ filter }: { filter: AdminQueueFilter }) {
   return (
-    <div className="text-center py-16" style={{ color: 'var(--text-tertiary)' }}>
-      <Tray className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
+    <div className="py-16 text-center text-[var(--text-tertiary)]">
+      <Tray className="mx-auto mb-3 h-10 w-10 text-[var(--text-quaternary)]" />
       <p className="text-sm font-medium">
         {filter === 'pending' ? ADMIN_REQUEST_QUEUE_COPY.emptyAwaiting : ADMIN_REQUEST_QUEUE_COPY.emptyAll}
       </p>

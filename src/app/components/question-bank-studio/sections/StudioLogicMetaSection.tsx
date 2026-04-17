@@ -34,7 +34,7 @@ export function StudioLogicMetaSection(props: StudioLogicMetaSectionProps) {
   return (
     <>
       <div className="rounded-lg px-3 py-2" style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}>
-        <div className="text-[10px] font-semibold uppercase mb-2" style={{ color: 'var(--text-tertiary)' }}>
+        <div className="text-[length:var(--text-2xs)] font-semibold uppercase mb-2" style={{ color: 'var(--text-tertiary)' }}>
           Collapse sections
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -44,7 +44,7 @@ export function StudioLogicMetaSection(props: StudioLogicMetaSectionProps) {
               <button
                 key={key}
                 type="button"
-                className="text-[10px] font-medium px-2 py-1 rounded-md"
+                className="text-[length:var(--text-2xs)] font-medium px-2 py-1 rounded-md"
                 style={{
                   border: on ? '1px solid var(--glc-orange)' : '1px solid var(--border-default)',
                   backgroundColor: on ? 'var(--glc-orange-muted)' : 'var(--bg-surface)',
@@ -60,7 +60,7 @@ export function StudioLogicMetaSection(props: StudioLogicMetaSectionProps) {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+      <div className="flex flex-wrap gap-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
         <span>Questions: {stats.questionCount}</span>
         <span>Sections: {stats.sectionCount}</span>
         <span>Structure edges: {stats.structureEdgeCount}</span>
@@ -82,7 +82,7 @@ export function StudioLogicMetaSection(props: StudioLogicMetaSectionProps) {
           style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
         />
         {debouncedSearch.length > 0 ? (
-          <span className="text-[10px]" style={{ color: 'var(--text-quaternary)' }}>
+          <span className="text-[length:var(--text-2xs)]" style={{ color: 'var(--text-quaternary)' }}>
             {centerOnNodeId ? 'Centered on first match.' : 'No match in visible graph.'}
           </span>
         ) : null}

@@ -54,7 +54,7 @@ export function IntakeBriefSuccessPhase(props: {
           }}
         >
           <p
-            className="text-[11px] font-semibold uppercase tracking-[0.14em]"
+            className="text-xs font-semibold uppercase tracking-[0.14em]"
             style={{ color: 'var(--glc-green)', marginBottom: 6 }}
           >
             {successIsUpdate ? copy.successBadgeUpdate : copy.successBadgeNew}
@@ -88,7 +88,7 @@ export function IntakeBriefSuccessPhase(props: {
             </div>
             <div className="min-w-0 pt-0.5">
               <p
-                className="text-[10px] font-semibold uppercase tracking-wider"
+                className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider"
                 style={{ color: 'var(--text-quaternary)', marginBottom: 2 }}
               >
                 {successIsUpdate ? copy.successTimeLabelUpdate : copy.successTimeLabelNew}
@@ -146,7 +146,7 @@ export function IntakeBriefSuccessPhase(props: {
                   }}
                 >
                   <p
-                    className="text-[10px] font-semibold uppercase tracking-wider m-0 mb-2"
+                    className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider m-0 mb-2"
                     style={{ color: 'var(--text-quaternary)' }}
                   >
                     {copy.contactHeading}

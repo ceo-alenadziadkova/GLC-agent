@@ -266,9 +266,9 @@ src/app/pages/DiscoveryPublicPage.tsx:72 [unit-literal] 0.8125rem
 src/app/pages/DiscoveryPublicPage.tsx:72 [unit-literal] 0.975rem
 src/app/pages/DiscoveryPublicPage.tsx:77 [inline-visual-style] <ul className="mx-auto grid max-w-md gap-2 text-left text-sm leading-relaxed lg:mx-0 lg:max-w-none" style={{ color: 'var(--text-secondary)' }}>
 src/app/pages/DiscoveryPublicPage.tsx:80 [inline-visual-style] <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: 'var(--glc-blue)' }} />
-src/app/pages/DiscoveryQueue.tsx:200 [unit-literal] 0.04em
-src/app/pages/DiscoveryQueue.tsx:346 [unit-literal] 13px
-src/app/pages/DiscoveryQueue.tsx:361 [unit-literal] 13px
+src/app/pages/DiscoveryQueue.tsx:199 [unit-literal] 0.04em
+src/app/pages/DiscoveryQueue.tsx:345 [unit-literal] 13px
+src/app/pages/DiscoveryQueue.tsx:360 [unit-literal] 13px
 src/app/pages/DiscoveryQueue.tsx:61 [unit-literal] 0.03em
 src/app/pages/FaqPage.tsx:105 [inline-visual-style] <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: 'var(--text-primary)' }}>
 src/app/pages/FaqPage.tsx:108 [inline-visual-style] <p className="mt-4 max-w-2xl text-base leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
@@ -402,25 +402,24 @@ src/app/pages/discover/components/DiscoverQuestionnaireView.tsx:159 [unit-litera
 src/app/pages/discover/components/DiscoverQuestionnaireView.tsx:83 [unit-literal] 0.01em
 src/app/pages/discover/components/DiscoverQuestionnaireView.tsx:83 [unit-literal] 15px
 src/app/pages/discover/components/DiscoverQuestionnaireView.tsx:89 [unit-literal] 13px
-src/app/pages/discover/components/DiscoverResultsView.tsx:105 [unit-literal] 0.01em
-src/app/pages/discover/components/DiscoverResultsView.tsx:119 [unit-literal] 0.06em
-src/app/pages/discover/components/DiscoverResultsView.tsx:124 [unit-literal] 0.02em
-src/app/pages/discover/components/DiscoverResultsView.tsx:126 [unit-literal] 0.5rem
-src/app/pages/discover/components/DiscoverResultsView.tsx:126 [unit-literal] 1.125rem
-src/app/pages/discover/components/DiscoverResultsView.tsx:126 [unit-literal] 1.5rem
-src/app/pages/discover/components/DiscoverResultsView.tsx:127 [unit-literal] 1.375rem
-src/app/pages/discover/components/DiscoverResultsView.tsx:127 [unit-literal] 1.75rem
-src/app/pages/discover/components/DiscoverResultsView.tsx:134 [unit-literal] 1.0625rem
-src/app/pages/discover/components/DiscoverResultsView.tsx:146 [unit-literal] 1.0625rem
-src/app/pages/discover/components/DiscoverResultsView.tsx:146 [unit-literal] 18px
-src/app/pages/discover/components/DiscoverResultsView.tsx:151 [unit-literal] 0.9375rem
-src/app/pages/discover/components/DiscoverResultsView.tsx:157 [unit-literal] 0.8125rem
-src/app/pages/discover/components/DiscoverResultsView.tsx:177 [unit-literal] 0.9375rem
-src/app/pages/discover/components/DiscoverResultsView.tsx:201 [unit-literal] 0.9375rem
 src/app/pages/discover/components/DiscoverResultsView.tsx:69 [unit-literal] 52rem
-src/app/pages/discover/components/DiscoverResultsView.tsx:75 [unit-literal] 52rem
-src/app/pages/discover/components/DiscoverResultsView.tsx:95 [rgb-color] rgba(14,165,233,0.18)
-src/app/pages/discover/components/DiscoverResultsView.tsx:95 [rgb-color] rgba(30,58,138,0.22)
+src/app/pages/discover/components/DiscoverResultsView.tsx:82 [rgb-color] rgba(14,165,233,0.18)
+src/app/pages/discover/components/DiscoverResultsView.tsx:82 [rgb-color] rgba(30,58,138,0.22)
+src/app/pages/discover/components/DiscoverResultsView.tsx:92 [unit-literal] 0.01em
+src/app/pages/discover/components/DiscoverResultsView.tsx:106 [unit-literal] 0.06em
+src/app/pages/discover/components/DiscoverResultsView.tsx:111 [unit-literal] 0.02em
+src/app/pages/discover/components/DiscoverResultsView.tsx:113 [unit-literal] 0.5rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:113 [unit-literal] 1.125rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:113 [unit-literal] 1.5rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:114 [unit-literal] 1.375rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:114 [unit-literal] 1.75rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:121 [unit-literal] 1.0625rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:133 [unit-literal] 1.0625rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:133 [unit-literal] 18px
+src/app/pages/discover/components/DiscoverResultsView.tsx:138 [unit-literal] 0.9375rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:144 [unit-literal] 0.8125rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:164 [unit-literal] 0.9375rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:188 [unit-literal] 0.9375rem
 src/app/pages/discover/components/FindingCard.tsx:100 [inline-visual-style] <meta.Icon size={20} weight="fill" style={{ color: meta.color, opacity: 1 }} aria-hidden />
 src/app/pages/discover/components/FindingCard.tsx:101 [inline-visual-style] <span style={{ fontSize: '0.875rem', color: meta.color, fontWeight: 700, letterSpacing: '0.02em' }}>
 src/app/pages/discover/components/FindingCard.tsx:101 [unit-literal] 0.02em

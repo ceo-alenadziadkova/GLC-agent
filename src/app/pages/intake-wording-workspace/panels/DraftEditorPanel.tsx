@@ -1,5 +1,6 @@
 import { bankIdToBriefQuestion } from '../../../data/bankQuestionUiCatalog';
 import { INTAKE_WORDING_WORKSPACE_COPY as W } from '../../../config/intake-wording-workspace-copy';
+import { Button } from '../../../components/ui/button';
 
 export function DraftEditorPanel(props: {
   hydrated: boolean;
@@ -70,14 +71,14 @@ export function DraftEditorPanel(props: {
             <textarea className="glc-input min-h-[100px] text-sm" value={draftText} onChange={e => onDraftTextChange(e.target.value)} placeholder={W.fields.draftPlaceholder} />
           </label>
           <div className="flex flex-wrap gap-2 items-center">
-            <button type="button" className="glc-btn-secondary text-xs px-2 py-1" onClick={onSaveDraftLocal}>{W.actions.saveDraftLocal}</button>
-            <button type="button" className="glc-btn-secondary text-xs px-2 py-1" onClick={onRevertEditor}>{W.actions.revertEditor}</button>
-            <button type="button" className="glc-btn-primary text-xs px-2 py-1" onClick={onSyncServer}>{W.actions.syncServer}</button>
-            <button type="button" className="glc-btn-secondary text-xs px-2 py-1" onClick={onPublishSelected}>{W.actions.publishSelected}</button>
-            <button type="button" className="glc-btn-secondary text-xs px-2 py-1" onClick={onRollbackSelected}>{W.actions.rollbackSelected}</button>
-            <button type="button" className="glc-btn-secondary text-xs px-2 py-1" onClick={onPublishAllInPlan}>{W.actions.publishAllInPlan}</button>
-            <button type="button" className="glc-btn-secondary text-xs px-2 py-1" onClick={onCopyJson}>{W.actions.copyJson}</button>
-            <button type="button" className="glc-btn-secondary text-xs px-2 py-1" onClick={onOpenImport}>{W.actions.importJson}</button>
+            <Button type="button" variant="outline" size="sm" className="h-auto px-2 py-1 text-xs" onClick={onSaveDraftLocal}>{W.actions.saveDraftLocal}</Button>
+            <Button type="button" variant="outline" size="sm" className="h-auto px-2 py-1 text-xs" onClick={onRevertEditor}>{W.actions.revertEditor}</Button>
+            <Button type="button" variant="default" size="sm" className="h-auto px-2 py-1 text-xs" onClick={onSyncServer}>{W.actions.syncServer}</Button>
+            <Button type="button" variant="outline" size="sm" className="h-auto px-2 py-1 text-xs" onClick={onPublishSelected}>{W.actions.publishSelected}</Button>
+            <Button type="button" variant="outline" size="sm" className="h-auto px-2 py-1 text-xs" onClick={onRollbackSelected}>{W.actions.rollbackSelected}</Button>
+            <Button type="button" variant="outline" size="sm" className="h-auto px-2 py-1 text-xs" onClick={onPublishAllInPlan}>{W.actions.publishAllInPlan}</Button>
+            <Button type="button" variant="outline" size="sm" className="h-auto px-2 py-1 text-xs" onClick={onCopyJson}>{W.actions.copyJson}</Button>
+            <Button type="button" variant="outline" size="sm" className="h-auto px-2 py-1 text-xs" onClick={onOpenImport}>{W.actions.importJson}</Button>
             {syncStatus !== 'idle' && (
               <span className={`text-xs ${syncStatus === 'ok' ? 'text-emerald-300' : 'text-red-300'}`}>
                 {syncStatus === 'ok' ? W.syncStatus.ok : W.syncStatus.error}

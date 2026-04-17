@@ -85,8 +85,7 @@ export function LoginAuthCardSection(props: LoginAuthCardSectionProps) {
 
   return (
     <div
-      className="glc-card glc-auth-card p-6 space-y-5"
-      style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}
+      className="glc-card glc-auth-card space-y-5 rounded-[var(--radius-2xl)] p-6 shadow-[var(--shadow-lg)]"
     >
       {!passwordRecoveryMode && mode !== 'forgot' && (
         <AuthTabs
@@ -151,7 +150,7 @@ export function LoginAuthCardSection(props: LoginAuthCardSectionProps) {
               backgroundColor: 'color-mix(in oklab, var(--glc-blue-muted) 42%, transparent)',
             }}
           >
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
               {LC.anonymousHint}
             </p>
           </div>

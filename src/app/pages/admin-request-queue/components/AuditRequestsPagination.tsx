@@ -21,23 +21,16 @@ export function AuditRequestsPagination({
 }: Props) {
   return (
     <nav
-      className="flex flex-wrap items-center justify-between gap-3 border-t pt-4"
-      style={{ borderColor: 'var(--border-subtle)' }}
+      className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-subtle)] pt-4"
       aria-label={ADMIN_REQUEST_QUEUE_COPY.auditRequestsPaginationLabel}
     >
-      <p className="text-xs m-0" style={{ color: 'var(--text-tertiary)' }}>
+      <p className="m-0 text-xs text-[var(--text-tertiary)]">
         {ADMIN_REQUEST_QUEUE_COPY.paginationRange(rangeFrom, rangeTo, total)}
       </p>
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          className="px-3 py-2 rounded-lg text-xs font-medium glc-touch-target sm:min-h-0 sm:py-1.5"
-          style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-secondary)',
-            opacity: pageOffset <= 0 ? 0.45 : 1,
-          }}
+          className="glc-touch-target rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2 text-xs font-medium text-[var(--text-secondary)] disabled:opacity-45 sm:min-h-0 sm:py-1.5"
           disabled={pageOffset <= 0}
           onClick={onPrev}
         >
@@ -45,13 +38,7 @@ export function AuditRequestsPagination({
         </button>
         <button
           type="button"
-          className="px-3 py-2 rounded-lg text-xs font-medium glc-touch-target sm:min-h-0 sm:py-1.5"
-          style={{
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            color: 'var(--text-secondary)',
-            opacity: pageOffset + limit >= total ? 0.45 : 1,
-          }}
+          className="glc-touch-target rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2 text-xs font-medium text-[var(--text-secondary)] disabled:opacity-45 sm:min-h-0 sm:py-1.5"
           disabled={pageOffset + limit >= total}
           onClick={onNext}
         >

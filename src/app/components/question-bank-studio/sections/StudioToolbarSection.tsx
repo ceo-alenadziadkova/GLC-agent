@@ -72,11 +72,11 @@ export function StudioToolbarSection(props: StudioToolbarSectionProps) {
 
   return (
     <div className="flex flex-wrap gap-2 items-center">
-      <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+      <span className="text-[length:var(--text-2xs)] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
         {QUESTION_BANK_STUDIO_COPY_EN.viewModeButtons.flowSimulator}
       </span>
       {viewMode === 'logic' && (
-        <label className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+        <label className="text-[length:var(--text-2xs)] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
           {QUESTION_BANK_STUDIO_COPY_EN.toolbar.layoutSurface}
           <select
             className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md max-w-[200px]"
@@ -91,7 +91,7 @@ export function StudioToolbarSection(props: StudioToolbarSectionProps) {
         </label>
       )}
       {viewMode === 'logic' && (
-        <label className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+        <label className="text-[length:var(--text-2xs)] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
           {QUESTION_BANK_STUDIO_COPY_EN.toolbar.orientation}
           <select
             className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md"
@@ -105,7 +105,7 @@ export function StudioToolbarSection(props: StudioToolbarSectionProps) {
         </label>
       )}
       {viewMode === 'logic' && (
-        <label className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+        <label className="text-[length:var(--text-2xs)] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
           {QUESTION_BANK_STUDIO_COPY_EN.toolbar.policyMode}
           <select
             className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md"
@@ -135,7 +135,7 @@ export function StudioToolbarSection(props: StudioToolbarSectionProps) {
             <Switch checked={policySliceOnly} onCheckedChange={onPolicySliceOnlyChange} />
             {QUESTION_BANK_STUDIO_COPY_EN.toolbar.policySlice}
           </label>
-          <label className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+          <label className="text-[length:var(--text-2xs)] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
             {QUESTION_BANK_STUDIO_COPY_EN.toolbar.density}
             <select
               className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md"

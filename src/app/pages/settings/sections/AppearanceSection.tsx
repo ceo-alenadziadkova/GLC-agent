@@ -14,7 +14,7 @@ const THEME_MODES: GlcThemeMode[] = ['system', 'light', 'dark'];
 export function AppearanceSection({ mode, onModeChange }: AppearanceSectionProps) {
   return (
     <SettingsCard>
-      <div className="flex items-center gap-2 mb-4" style={{ color: 'var(--text-primary)' }}>
+      <div className="mb-4 flex items-center gap-2 text-[var(--text-primary)]">
         <PaintBucket className="w-4 h-4" />
         <h2 className="text-sm font-semibold">{SETTINGS_PAGE_COPY.appearance.title}</h2>
       </div>

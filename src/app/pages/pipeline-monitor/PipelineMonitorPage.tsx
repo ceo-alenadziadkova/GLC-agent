@@ -66,7 +66,7 @@ export function PipelineMonitorPage() {
     return (
       <AppShell title={PM.pageTitle} subtitle={PM.loading}>
         <div className={`flex items-center justify-center ${PIPELINE_MONITOR_UI_POLICY.layout.loaderHeightClassName}`}>
-          <ArrowsClockwise className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+          <ArrowsClockwise className="h-6 w-6 animate-spin text-[var(--glc-blue)]" />
         </div>
       </AppShell>
     );
@@ -76,7 +76,7 @@ export function PipelineMonitorPage() {
     return (
       <AppShell title={PM.pageTitle} subtitle={PM.loading}>
         <div className={`flex items-center justify-center ${PIPELINE_MONITOR_UI_POLICY.layout.loaderHeightClassName}`}>
-          <ArrowsClockwise className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+          <ArrowsClockwise className="h-6 w-6 animate-spin text-[var(--glc-blue)]" />
         </div>
       </AppShell>
     );

@@ -1,6 +1,5 @@
 import { ChatCircleDots, CheckCircle } from '@phosphor-icons/react';
 import { CLIENT_AUDIT_VIEW_COPY } from '../../../config/client-audit-view-copy';
-import { UI_SEMANTIC_COLORS } from '../../../config/ui-semantic-colors';
 import { Callout } from '../../../components/ui/callout';
 import { Surface } from '../../../components/ui/surface';
 
@@ -20,10 +19,7 @@ export function BriefHelpSection({
   onHelp: () => void;
 }) {
   return (
-    <Surface
-      className="mobile:px-4 space-y-3 px-5 py-4"
-      style={{ backgroundColor: 'rgba(28,189,255,0.04)', borderColor: 'rgba(28,189,255,0.12)' }}
-    >
+    <Surface className="mobile:px-4 space-y-3 border-[var(--ui-info-border-20)] bg-[var(--ui-info-muted-bg)] px-5 py-4">
       <div className="flex items-center gap-2">
         <ChatCircleDots className="h-4 w-4 text-[var(--glc-blue)]" />
         <span className="text-sm font-medium text-[var(--text-primary)]">{CLIENT_AUDIT_VIEW_COPY.help.title}</span>
@@ -36,8 +32,7 @@ export function BriefHelpSection({
         onChange={(event) => setHelpMessage(event.target.value)}
         placeholder={CLIENT_AUDIT_VIEW_COPY.help.placeholder}
         rows={3}
-        className="w-full rounded-lg px-3 py-2 text-sm resize-y min-h-[72px]"
-        style={{ backgroundColor: 'var(--bg-muted)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}
+        className="min-h-[72px] w-full resize-y rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-muted)] px-3 py-2 text-sm text-[var(--text-primary)]"
       />
       {helpError && (
         <Callout intent="danger">
@@ -45,7 +40,7 @@ export function BriefHelpSection({
         </Callout>
       )}
       {helpOk && (
-        <div className="flex items-center gap-2 text-xs" style={{ color: UI_SEMANTIC_COLORS.success }}>
+        <div className="flex items-center gap-2 text-xs text-[var(--ui-success-fg-strong)]">
           <CheckCircle weight="fill" className="w-3.5 h-3.5" />
           {CLIENT_AUDIT_VIEW_COPY.help.success}
         </div>
@@ -54,11 +49,8 @@ export function BriefHelpSection({
         type="button"
         onClick={onHelp}
         disabled={helpBusy}
-        className="px-4 py-2 rounded-lg text-sm font-medium glc-touch-target"
+        className="glc-touch-target rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] disabled:cursor-not-allowed"
         style={{
-          backgroundColor: 'var(--bg-elevated)',
-          border: '1px solid var(--border-default)',
-          color: 'var(--text-primary)',
           cursor: helpBusy ? 'not-allowed' : 'pointer',
         }}
       >

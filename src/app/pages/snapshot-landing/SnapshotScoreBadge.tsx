@@ -41,10 +41,10 @@ export function SnapshotScoreBadge(props: {
     return (
       <SnapshotScoreDonut fillPercent={fillPercent} accentColor={accentColor} size={cfg.size} strokeWidth={cfg.strokeWidth}>
         <p
+          className="[font-family:var(--font-display)]"
           style={{
             fontSize: cfg.overallFontSize,
             fontWeight: 800,
-            fontFamily: 'var(--font-display)',
             color: accentColor,
             lineHeight: 1.05,
           }}
@@ -69,10 +69,10 @@ export function SnapshotScoreBadge(props: {
       strokeWidth={cfg.strokeWidth}
     >
       <p
+        className="[font-family:var(--font-display)]"
         style={{
           fontSize: cfg.overallFontSize,
           fontWeight: 800,
-          fontFamily: 'var(--font-display)',
           color: accentColor,
           lineHeight: 1.05,
         }}

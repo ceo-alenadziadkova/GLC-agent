@@ -80,4 +80,53 @@ export default tseslint.config(
       'react-hooks/exhaustive-deps': 'warn',
     },
   },
+  {
+    files: ['src/design-system/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "Literal[value=/^#(?:[0-9a-fA-F]{3,8})$/]",
+          message: 'Raw HEX colors are not allowed. Use design system tokens/variables.',
+        },
+        {
+          selector: "Literal[value=/^rgba?\\(/i]",
+          message: 'Raw rgb/rgba colors are not allowed. Use design system tokens/variables.',
+        },
+        {
+          selector: "Literal[value=/^hsla?\\(/i]",
+          message: 'Raw hsl/hsla colors are not allowed. Use design system tokens/variables.',
+        },
+        {
+          selector: "Literal[value=/^\\d*\\.?\\d+(px|rem|em)$/]",
+          message:
+            'Raw spacing/size values are not allowed in DS/UI layers. Use spacing/typography/radius tokens.',
+        },
+      ],
+    },
+  },
+  {
+    files: [
+      'src/app/config/**/*.{ts,tsx}',
+      'src/app/components/app-shell/**/*.{ts,tsx}',
+      'src/app/pages/**/*.{ts,tsx}',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'warn',
+        {
+          selector: "Literal[value=/^#(?:[0-9a-fA-F]{3,8})$/]",
+          message: 'Prefer design tokens over raw HEX colors.',
+        },
+        {
+          selector: "Literal[value=/^rgba?\\(/i]",
+          message: 'Prefer semantic/tokenized overlays over raw rgb/rgba colors.',
+        },
+        {
+          selector: "Literal[value=/^hsla?\\(/i]",
+          message: 'Prefer design tokens over raw hsl/hsla colors.',
+        },
+      ],
+    },
+  },
 );

@@ -22,8 +22,8 @@ export function MirrorInsightsSection({
         <div className="glc-card glc-snapshot-result-card p-5 lg:p-6" style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardRadius}>
           <div className="glc-snapshot-section-h glc-snapshot-section-h--warning">
             <span className="glc-snapshot-section-h__rule" aria-hidden />
-            <Warning className="h-4 w-4 shrink-0" style={{ color: 'var(--score-2)' }} />
-            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+            <Warning className="h-4 w-4 shrink-0 text-[var(--score-2)]" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               {PORTAL_SNAPSHOT_MIRROR_COPY.issues.title}
             </span>
           </div>
@@ -38,10 +38,10 @@ export function MirrorInsightsSection({
                   }}
                 />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">
                     {issue.title}
                   </p>
-                  <p className="mt-0.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                  <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">
                     {issue.description}
                   </p>
                 </div>
@@ -54,20 +54,20 @@ export function MirrorInsightsSection({
         <div className="glc-card glc-snapshot-result-card p-5 lg:p-6" style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardRadius}>
           <div className="glc-snapshot-section-h glc-snapshot-section-h--positive">
             <span className="glc-snapshot-section-h__rule" aria-hidden />
-            <Lightning className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
-            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+            <Lightning className="h-4 w-4 shrink-0 text-[var(--glc-green)]" weight="fill" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               {PORTAL_SNAPSHOT_MIRROR_COPY.quickWins.title}
             </span>
           </div>
           <div className="space-y-1">
             {quickWins.map(qw => (
               <div key={qw.id} className="glc-snapshot-insight-row flex gap-3">
-                <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0" style={{ color: 'var(--glc-green)' }} />
+                <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--glc-green)]" />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">
                     {qw.title}
                   </p>
-                  <p className="mt-0.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                  <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">
                     {qw.effort} · {qw.timeframe}
                   </p>
                 </div>
@@ -80,8 +80,8 @@ export function MirrorInsightsSection({
         <div className="glc-card glc-snapshot-result-card p-5 lg:p-6 lg:col-span-2" style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardRadius}>
           <div className="glc-snapshot-section-h glc-snapshot-section-h--info !mb-3">
             <span className="glc-snapshot-section-h__rule" aria-hidden />
-            <Shield className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-blue)' }} />
-            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+            <Shield className="h-4 w-4 shrink-0 text-[var(--glc-blue)]" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               {PORTAL_SNAPSHOT_MIRROR_COPY.techStack.title}
             </span>
           </div>

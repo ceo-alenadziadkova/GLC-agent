@@ -8,7 +8,7 @@ import { Callout } from '../../../components/ui/callout';
 import { Surface } from '../../../components/ui/surface';
 import { CLIENT_AUDIT_VIEW_COPY } from '../../../config/client-audit-view-copy';
 import { CLIENT_PORTAL_PRODUCT_MODE_HELP } from '../../../lib/client-portal-pipeline-access';
-import { UI_SEMANTIC_COLORS } from '../../../config/ui-semantic-colors';
+import { UI_SEMANTIC_COLORS } from '../../../../design-system/tokens/ui-semantic-colors';
 import { CLIENT_AUDIT_VIEW_UI } from '../config/ui';
 
 type SnapshotAccessState = {

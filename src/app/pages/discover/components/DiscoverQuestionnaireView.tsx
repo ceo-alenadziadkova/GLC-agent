@@ -8,6 +8,8 @@ import { DISCOVER_QUESTION_SCROLL_DELAY_MS } from '../../../config/discover-page
 import { QuestionInput } from './QuestionInput';
 import { summariseAnswer } from '../services';
 import { DISCOVER_PAGE_UI } from '../config';
+import { cn } from '../../../components/ui/utils';
+import { Progress } from '../../../components/ui/progress';
 
 type DiscoverQuestionnaireViewProps = {
   isSplit: boolean;
@@ -63,18 +65,10 @@ export function DiscoverQuestionnaireView(props: DiscoverQuestionnaireViewProps)
   }, [bottomRef, currentIdx, showResults]);
 
   return (
-    <div
-      className={
-        isSplit
-          ? 'w-full min-w-0 max-w-full'
-          : 'min-h-screen flex flex-col items-center py-10 px-5'
-      }
-      style={{ background: isSplit ? 'transparent' : 'var(--bg-canvas)' }}
-    >
+    <div className={isSplit ? 'w-full min-w-0 max-w-full' : 'bg-background min-h-screen flex flex-col items-center px-5 py-10'}>
       {!isSplit && (
         <div
-          className="fixed inset-0 pointer-events-none"
-          style={{ background: 'var(--mesh-brand)', zIndex: 0 }}
+          className="fixed inset-0 z-0 pointer-events-none bg-[var(--mesh-brand)]"
           aria-hidden
         />
       )}
@@ -83,39 +77,38 @@ export function DiscoverQuestionnaireView(props: DiscoverQuestionnaireViewProps)
         <div className={`flex items-center justify-between ${isSplit ? 'mb-6' : 'mb-8'}`}>
           {!isSplit && (
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--gradient-brand)' }}>
-                <ChartBar size={16} weight="bold" style={{ color: 'var(--primary-foreground)' }} />
+              <div className="bg-gradient-to-r from-sky-400 to-sky-600 flex h-7 w-7 items-center justify-center rounded-lg">
+                <ChartBar size={16} weight="bold" className="text-primary-foreground" />
               </div>
-              <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+              <span className="text-foreground text-[15px] font-bold tracking-[-0.01em]">
                 GLC Audit
               </span>
             </div>
           )}
           {isSplit && (
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+            <span className="text-foreground text-[13px] font-semibold">
               {discoveryUiCopy.wizardHeader.answersLabel}
             </span>
           )}
-          <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+          <span className="text-muted-foreground text-xs">
             {currentIdx + 1} / {sequence.length}
           </span>
         </div>
 
-        <div className={`rounded-full overflow-hidden ${isSplit ? 'mb-6' : 'mb-8'}`} style={{ height: 2, background: 'var(--bg-muted)' }}>
-          <motion.div
-            className="h-full rounded-full"
-            style={{ background: 'var(--gradient-brand)' }}
-            animate={{ width: `${((currentIdx + (canAdvance ? 1 : 0)) / sequence.length) * 100}%` }}
-            transition={{ duration: 0.35, ease: 'easeOut' }}
-          />
-        </div>
+        <Progress
+          value={((currentIdx + (canAdvance ? 1 : 0)) / sequence.length) * 100}
+          className={cn(
+            'h-[2px] bg-muted [&>[data-slot=progress-indicator]]:bg-gradient-to-r [&>[data-slot=progress-indicator]]:from-sky-400 [&>[data-slot=progress-indicator]]:to-sky-600',
+            isSplit ? 'mb-6' : 'mb-8',
+          )}
+        />
 
         {!isSplit && currentIdx === 0 && (
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-6 text-center">
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.3 }}>
+            <h1 className="text-foreground text-[22px] font-extrabold tracking-[-0.02em] leading-[1.3]">
               {discoveryUiCopy.wizardHeader.introTitle}
             </h1>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8, lineHeight: 1.6 }}>
+            <p className="text-muted-foreground mt-2 text-[13px] leading-[1.6]">
               {discoveryUiCopy.wizardHeader.introSubtitle.replace('{{count}}', String(sequence.length))}
             </p>
           </motion.div>
@@ -129,21 +122,12 @@ export function DiscoverQuestionnaireView(props: DiscoverQuestionnaireViewProps)
               return (
                 <div
                   key={id}
-                  className="flex items-start gap-3 px-3 py-2.5 rounded-xl"
-                  style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+                  className="bg-card flex items-start gap-3 rounded-xl border px-3 py-2.5"
                 >
-                  <CheckCircle size={14} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: 'var(--glc-green-dark)' }} />
+                  <CheckCircle size={14} weight="fill" className="text-success mt-0.5 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: 1 }}>{question.question}</p>
-                    <p
-                      style={{
-                        fontSize: '12px',
-                        color: 'var(--text-secondary)',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
+                    <p className="text-muted-foreground mb-0.5 text-xs">{question.question}</p>
+                    <p className="text-muted-foreground truncate text-xs">
                       {summariseAnswer(answers[id], id, answers)}
                     </p>
                   </div>
@@ -159,33 +143,25 @@ export function DiscoverQuestionnaireView(props: DiscoverQuestionnaireViewProps)
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-            className="rounded-2xl p-5 space-y-3"
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid color-mix(in oklab, var(--glc-blue) 12%, var(--border-subtle))',
-              boxShadow: '0 4px 24px rgba(11,17,32,0.08)',
-            }}
+            className="bg-card border-info/20 space-y-3 rounded-2xl border p-5 shadow-[0_4px_24px_rgba(11,17,32,0.08)]"
           >
             <div className="flex items-center gap-2">
-              <span
-                className="inline-flex items-center justify-center rounded-full text-[10px] font-bold"
-                style={{ width: 20, height: 20, background: 'var(--gradient-brand)', color: 'var(--primary-foreground)' }}
-              >
+              <span className="bg-gradient-to-r from-sky-400 to-sky-600 text-primary-foreground inline-flex h-5 w-5 items-center justify-center rounded-full text-[length:var(--text-2xs)] font-bold">
                 {currentIdx + 1}
               </span>
               {currentQuestion.type === 'multi_choice' && (
-                <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', letterSpacing: '0.04em' }}>
+                <span className="text-muted-foreground text-[length:var(--text-2xs)] tracking-[0.04em]">
                   {DISCOVER_PAGE_UI.questionnaire.multiChoiceHintLabel}
                 </span>
               )}
             </div>
 
-            <label className="block font-semibold" style={{ fontSize: 15, color: 'var(--text-primary)', lineHeight: 1.4 }}>
+            <label className="text-foreground block text-[15px] font-semibold leading-[1.4]">
               {currentQuestion.question}
             </label>
 
             {currentQuestion.hint && (
-              <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: -4 }}>
+              <p className="text-muted-foreground -mt-1 text-xs">
                 {currentQuestion.hint}
               </p>
             )}
@@ -206,12 +182,7 @@ export function DiscoverQuestionnaireView(props: DiscoverQuestionnaireViewProps)
                 <button
                   type="button"
                   onClick={onBack}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm"
-                  style={{
-                    color: 'var(--text-tertiary)',
-                    background: 'transparent',
-                    border: '1px solid var(--border-default)',
-                  }}
+                  className="text-muted-foreground flex items-center gap-1 rounded-lg border bg-transparent px-3 py-2 text-sm"
                 >
                   <ArrowLeft size={14} /> {DISCOVER_PAGE_UI.questionnaire.backButtonLabel}
                 </button>
@@ -220,18 +191,12 @@ export function DiscoverQuestionnaireView(props: DiscoverQuestionnaireViewProps)
                 type="button"
                 onClick={onNext}
                 disabled={!canAdvance}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm transition-transform hover:scale-[1.02] active:scale-[0.97] disabled:hover:scale-100 disabled:active:scale-100"
-                style={{
-                  background: canAdvance
-                    ? 'linear-gradient(135deg, var(--glc-blue) 0%, var(--glc-blue-deeper) 100%)'
-                    : 'linear-gradient(135deg, color-mix(in oklab, var(--glc-blue) 72%, var(--bg-muted)) 0%, color-mix(in oklab, var(--glc-blue-deeper) 66%, var(--bg-muted)) 100%)',
-                  color: canAdvance ? 'var(--primary-foreground)' : 'color-mix(in oklab, var(--primary-foreground) 76%, transparent)',
-                  border: canAdvance ? 'none' : '1px solid color-mix(in oklab, var(--glc-blue) 34%, var(--border-default))',
-                  cursor: canAdvance ? 'pointer' : 'not-allowed',
-                  boxShadow: canAdvance
-                    ? '0 6px 18px color-mix(in oklab, var(--glc-blue) 34%, transparent)'
-                    : '0 3px 10px color-mix(in oklab, var(--glc-blue) 20%, transparent)',
-                }}
+                className={cn(
+                  'flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-transform hover:scale-[1.02] active:scale-[0.97] disabled:hover:scale-100 disabled:active:scale-100',
+                  canAdvance
+                    ? 'bg-gradient-to-r from-sky-400 to-sky-600 text-primary-foreground shadow-[0_6px_18px_rgba(28,189,255,0.34)]'
+                    : 'bg-gradient-to-r from-sky-400/70 to-sky-700/70 text-primary-foreground/80 cursor-not-allowed border border-info/35 shadow-[0_3px_10px_rgba(28,189,255,0.2)]',
+                )}
               >
                 {currentIdx < sequence.length - 1 ? (
                   <>
@@ -252,8 +217,7 @@ export function DiscoverQuestionnaireView(props: DiscoverQuestionnaireViewProps)
             <button
               type="button"
               onClick={onShowResults}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm"
-              style={{ background: 'var(--gradient-brand)', color: 'var(--primary-foreground)', border: 'none', cursor: 'pointer' }}
+              className="text-primary-foreground inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-400 to-sky-600 px-6 py-3 text-sm font-semibold"
             >
               <CheckCircle size={16} /> {DISCOVER_PAGE_UI.questionnaire.viewFindingsButtonLabel}
             </button>
@@ -262,7 +226,7 @@ export function DiscoverQuestionnaireView(props: DiscoverQuestionnaireViewProps)
 
         <div ref={bottomRef} />
         {!isSplit && (
-          <p className="text-center mt-8" style={{ fontSize: 11, color: 'var(--text-quaternary)' }}>
+          <p className="text-muted-foreground mt-8 text-center text-xs">
             {discoveryUiCopy.wizardHeader.footerLabel}
           </p>
         )}

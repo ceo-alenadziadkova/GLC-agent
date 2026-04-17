@@ -9,6 +9,7 @@ import { IntakeBankCoverageHint } from '../../../components/IntakeBankCoverageHi
 import { Callout } from '../../../components/ui/callout';
 import { IntakeBankWizard } from '../../../components/IntakeBankWizard';
 import { BankClassicBriefFields } from '../../../components/BankClassicBriefFields';
+import { Progress } from '../../../components/ui/progress';
 import type { BriefResponses } from '../../../data/briefQuestions';
 import type {
   IntakeNextBestAction,
@@ -18,6 +19,7 @@ import type {
 } from '../../../data/auditTypes';
 import { labelsForMissingReportDomains } from '../../../lib/intake-coverage-domain-labels';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
+import { cn } from '../../../components/ui/utils';
 
 export type BriefLayoutChoice = 'unset' | 'classic' | 'wizard';
 
@@ -105,29 +107,17 @@ export function Step1Brief({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.28 }}
-      className="glc-card p-4 mobile:p-5 sm:p-6"
-      style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}
+      className="glc-card rounded-2xl p-4 shadow-lg mobile:p-5 sm:p-6"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <h2
-            style={{
-              fontSize: 'var(--text-lg)',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-            }}
-          >
+          <h2 className="text-foreground text-lg font-bold">
             {WORKSPACE_PAGE_COPY.newAudit.step1.intakeBriefTitle}
           </h2>
           {interviewMode && (
             <span
-              className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
-              style={{
-                background: 'var(--callout-warning-bg-strong)',
-                border: '1px solid var(--callout-warning-border-strong)',
-                color: 'var(--callout-warning-fg-emphasis)',
-              }}
+              className="bg-warning/15 text-warning border-warning/40 rounded-full border px-2 py-0.5 text-[length:var(--text-2xs)] font-semibold"
             >
               {WORKSPACE_PAGE_COPY.newAudit.step1.interviewBadgeLabel}
             </span>
@@ -139,27 +129,20 @@ export function Step1Brief({
             <button
               type="button"
               onClick={onChangeConsultantBriefLayout}
-              className="text-xs font-medium underline-offset-2 hover:underline"
-              style={{
-                color: 'var(--glc-blue)',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: 0,
-              }}
+              className="text-info bg-transparent p-0 text-xs font-medium underline-offset-2 hover:underline"
             >
               {WORKSPACE_PAGE_COPY.newAudit.step1.changeLayoutButton}
             </button>
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+            <span className="text-muted-foreground text-xs">
               {answeredRequired} / {pipelineRequiredTotal} {WORKSPACE_PAGE_COPY.newAudit.step1.requiredLowercase}
             </span>
           </div>
         )}
       </div>
 
-      <p className="text-xs leading-relaxed mb-3" style={{ color: 'var(--text-quaternary)' }}>
+      <p className="text-muted-foreground mb-3 text-xs leading-relaxed">
         {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsPrefix}
-        <Link to="/settings#brief-layout" className="font-medium underline-offset-2 hover:underline" style={{ color: 'var(--glc-blue)' }}>
+        <Link to="/settings#brief-layout" className="text-info font-medium underline-offset-2 hover:underline">
           {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsLinkText}
         </Link>
         {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsMidSuffix}
@@ -180,9 +163,9 @@ export function Step1Brief({
                 <CheckCircle
                   size={15}
                   weight="fill"
-                  className="mt-0.5 flex-shrink-0 text-[var(--glc-blue)]"
+                  className="text-info mt-0.5 flex-shrink-0"
                 />
-                <p className="text-xs leading-[1.55] text-[var(--text-secondary)]">
+                <p className="text-muted-foreground text-xs leading-[1.55]">
                   {WORKSPACE_PAGE_COPY.newAudit.step1.discoveryPrefilledBannerText}
                 </p>
               </div>
@@ -190,11 +173,11 @@ export function Step1Brief({
           )}
 
           <div className="flex items-center justify-between mb-3">
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+            <span className="text-muted-foreground text-xs">
               {WORKSPACE_PAGE_COPY.newAudit.step1.auditReadinessPrefix}
               {progressPct}%
             </span>
-            <span className="px-2 py-0.5 rounded text-xs" style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+            <span className="text-muted-foreground rounded border px-2 py-0.5 text-xs">
               {readinessBadge.toUpperCase()}
             </span>
           </div>
@@ -212,7 +195,7 @@ export function Step1Brief({
 
           {interviewMode && (
             <Callout intent="warning" className="mb-3">
-              <div className="flex items-start gap-2 text-xs text-[var(--callout-warning-fg)]">
+              <div className="text-warning-foreground flex items-start gap-2 text-xs">
                 <span className="mt-[1px] flex-shrink-0">&#9679;</span>
                 <span>
                   {WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsPrefix}
@@ -227,32 +210,27 @@ export function Step1Brief({
 
           {intakePrefillActive && (
             <Callout intent="info" className="mb-4">
-              <span className="text-sm text-[var(--text-secondary)]">
+              <span className="text-muted-foreground text-sm">
                 {WORKSPACE_PAGE_COPY.newAudit.step1.prefilledFromClientPreBriefText}
               </span>
             </Callout>
           )}
 
-          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)', marginBottom: 20 }}>
+          <p className="text-muted-foreground mb-5 text-sm">
             {WORKSPACE_PAGE_COPY.newAudit.step1.questionsFeedTextPrefix}{' '}
-            <strong className="inline-flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
-              <Circle size={7} weight="fill" style={{ color: 'var(--score-1)' }} />
+            <strong className="text-muted-foreground inline-flex items-center gap-1">
+              <Circle size={7} weight="fill" className="text-destructive" />
               {WORKSPACE_PAGE_COPY.newAudit.step1.requiredLabel}
             </strong>{' '}
             {WORKSPACE_PAGE_COPY.newAudit.step1.questionsMustBeAnsweredText}
           </p>
 
-          <div className="rounded-full overflow-hidden mb-6" style={{ height: 3, backgroundColor: 'var(--bg-muted)' }}>
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${(answeredRequired / pipelineRequiredTotal) * 100}%`,
-                background: 'var(--gradient-brand)',
-              }}
-            />
-          </div>
+          <Progress
+            value={(answeredRequired / pipelineRequiredTotal) * 100}
+            className="mb-6 h-[3px] bg-muted [&>[data-slot=progress-indicator]]:bg-gradient-to-r [&>[data-slot=progress-indicator]]:from-sky-400 [&>[data-slot=progress-indicator]]:to-sky-600"
+          />
 
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginBottom: 14 }}>
+          <p className="text-muted-foreground mb-3.5 text-xs">
             {WORKSPACE_PAGE_COPY.newAudit.nextActionText[nextBestAction]}
           </p>
 
@@ -294,8 +272,7 @@ export function Step1Brief({
         <button
           type="button"
           onClick={onBackToStep0}
-          className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-sm glc-touch-target sm:min-h-0 sm:min-w-0"
-          style={{ color: 'var(--text-tertiary)', border: '1px solid var(--border-subtle)', backgroundColor: 'transparent' }}
+          className="text-muted-foreground glc-touch-target flex items-center justify-center gap-1.5 rounded-lg border bg-transparent px-4 py-2.5 text-sm sm:min-h-0 sm:min-w-0"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> {WORKSPACE_PAGE_COPY.newAudit.step1.navigationBackText}
         </button>
@@ -303,14 +280,12 @@ export function Step1Brief({
           type="button"
           onClick={onGoToStep2}
           disabled={!step2Complete}
-          className="flex-1 flex items-center justify-center gap-2 py-3 sm:py-2.5 rounded-lg text-sm font-semibold transition-all glc-touch-target sm:min-h-0"
-          style={{
-            background: step2Complete ? 'var(--gradient-brand)' : 'var(--bg-muted)',
-            color: step2Complete ? 'var(--primary-foreground)' : 'var(--text-secondary)',
-            cursor: step2Complete ? 'pointer' : 'not-allowed',
-            border: step2Complete ? 'none' : '1px solid var(--border-subtle)',
-            boxShadow: step2Complete ? '0 4px 14px rgba(28,189,255,0.25)' : 'none',
-          }}
+          className={cn(
+            'glc-touch-target flex flex-1 items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold transition-all sm:min-h-0 sm:py-2.5',
+            step2Complete
+              ? 'bg-gradient-to-r from-sky-400 to-sky-600 text-primary-foreground shadow-[0_4px_14px_rgba(28,189,255,0.25)]'
+              : 'bg-muted text-muted-foreground cursor-not-allowed border',
+          )}
         >
           {step2Complete ? (
             <>

@@ -1,8 +1,7 @@
 import { CheckCircle, PaperPlaneRight, Spinner } from '@phosphor-icons/react';
-import { GLC_BRAND_HEX } from '@glc/brand-tokens';
-import { UI_SEMANTIC_COLORS } from '../../../config/ui-semantic-colors';
 import discoverResultsUi from '../../../data/discover-page-results-ui.en.json';
 import { hasAnyContactValue } from '../services';
+import { cn } from '../../../components/ui/utils';
 
 type ContactCaptureFormProps = {
   contactName: string;
@@ -43,16 +42,13 @@ export function ContactCaptureForm(props: ContactCaptureFormProps) {
 
   if (contactSaved) {
     return (
-      <div
-        className="flex items-center gap-3 rounded-2xl p-5"
-        style={{ background: 'var(--glc-green-muted)', border: '1px solid rgba(14,207,130,0.28)' }}
-      >
-        <CheckCircle size={22} weight="fill" className="flex-shrink-0" style={{ color: 'var(--glc-green-dark)' }} />
+      <div className="bg-success/10 border-success/40 flex items-center gap-3 rounded-2xl border p-5">
+        <CheckCircle size={22} weight="fill" className="text-success flex-shrink-0" />
         <div>
-          <p className="font-semibold" style={{ fontSize: '1rem', color: UI_SEMANTIC_COLORS.success }}>
+          <p className="text-success text-base font-semibold">
             {discoverResultsUi.copy.contactSavedTitle}
           </p>
-          <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+          <p className="text-muted-foreground text-[0.9375rem] leading-[1.55]">
             {discoverResultsUi.copy.contactSavedBody}
           </p>
         </div>
@@ -63,14 +59,13 @@ export function ContactCaptureForm(props: ContactCaptureFormProps) {
   return (
     <form
       onSubmit={onSubmit}
-      className="min-w-0 max-w-full space-y-4 rounded-2xl p-5 sm:p-6"
-      style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', boxSizing: 'border-box' }}
+      className="bg-card min-w-0 max-w-full space-y-4 rounded-2xl border p-5 sm:p-6"
     >
       <div>
-        <p className="font-semibold mb-1.5" style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>
+        <p className="text-foreground mb-1.5 text-base font-semibold">
           {discoverResultsUi.copy.contactFormTitle}
         </p>
-        <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+        <p className="text-muted-foreground text-[0.9375rem] leading-[1.6]">
           {discoverResultsUi.copy.contactFormHint}
         </p>
       </div>
@@ -87,34 +82,20 @@ export function ContactCaptureForm(props: ContactCaptureFormProps) {
             placeholder={placeholder}
             value={value}
             onChange={event => setter(event.target.value)}
-            className="glc-field-control w-full px-4 py-3 rounded-xl outline-none"
-            style={{
-              fontSize: '0.9375rem',
-              background: 'var(--input-background)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-primary)',
-            }}
+            className="glc-field-control text-foreground w-full rounded-xl border bg-[var(--input-background)] px-4 py-3 text-[0.9375rem] outline-none"
           />
         ))}
       </div>
-      {contactError && <p style={{ fontSize: '0.875rem', color: 'var(--score-1)' }}>{contactError}</p>}
+      {contactError && <p className="text-destructive text-sm">{contactError}</p>}
       <button
         type="submit"
         disabled={contactSaving || !hasAnyValue}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold"
-        style={{
-          fontSize: '0.9375rem',
-          background:
-            contactSaving || !hasAnyValue
-              ? 'color-mix(in oklab, var(--bg-muted) 90%, var(--bg-surface))'
-              : `linear-gradient(135deg, ${GLC_BRAND_HEX.blue}, ${GLC_BRAND_HEX.blueDeep})`,
-          color:
-            contactSaving || !hasAnyValue
-              ? 'var(--text-tertiary)'
-              : 'var(--primary-foreground)',
-          border: '1px solid color-mix(in oklab, var(--glc-blue) 32%, var(--border-default))',
-          cursor: contactSaving || !hasAnyValue ? 'not-allowed' : 'pointer',
-        }}
+        className={cn(
+          'w-full rounded-xl py-3 text-[0.9375rem] font-semibold',
+          contactSaving || !hasAnyValue
+            ? 'bg-muted text-muted-foreground cursor-not-allowed border'
+            : 'bg-gradient-to-r from-sky-400 to-sky-600 text-primary-foreground border-info/40 border',
+        )}
       >
         <span key={contactSaving ? 'saving' : 'idle'} className="inline-flex items-center justify-center gap-2">
           {contactSaving ? (

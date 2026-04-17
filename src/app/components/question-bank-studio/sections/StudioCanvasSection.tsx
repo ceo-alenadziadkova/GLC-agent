@@ -55,7 +55,7 @@ export function StudioCanvasSection(props: StudioCanvasSectionProps) {
                 </div>
                 <div className="grid gap-2">
                   {step.questionIds.length === 0 ? (
-                    <div className="text-[11px]" style={{ color: 'var(--text-quaternary)' }}>
+                    <div className="text-xs" style={{ color: 'var(--text-quaternary)' }}>
                       {STUDIO_COPY_EN.userModeNoQuestionsInStepHint}
                     </div>
                   ) : (
@@ -82,8 +82,8 @@ export function StudioCanvasSection(props: StudioCanvasSectionProps) {
                             onSelectNode(nodeId);
                           }}
                         >
-                          <div className="text-[12px] font-medium">{shortUserLabel(questionId)}</div>
-                          <div className="text-[10px] flex items-center gap-1.5" style={{ color: 'var(--text-quaternary)' }}>
+                          <div className="text-xs font-medium">{shortUserLabel(questionId)}</div>
+                          <div className="text-[length:var(--text-2xs)] flex items-center gap-1.5" style={{ color: 'var(--text-quaternary)' }}>
                             id: <span className="font-mono">{questionId}</span> · status: {status}
                             <span
                               className="inline-flex items-center px-1.5 py-0.5 rounded"

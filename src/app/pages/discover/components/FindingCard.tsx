@@ -49,7 +49,7 @@ export function FindingCard({ finding }: { finding: DiscoveryFinding }) {
     >
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <span
-          className="text-[11px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-lg"
+          className="text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-lg"
           style={{
             background: fc.zoneBadgeBackground,
             color: isHigh ? fc.zoneTextHigh : fc.zoneTextMedium,

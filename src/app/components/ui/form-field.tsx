@@ -31,7 +31,7 @@ export function FormField({
         {label}
         {requiredMark && <span className="text-[var(--glc-orange)]">*</span>}
         {optionalHint ? (
-          <span className="text-[11px] font-normal text-[var(--text-quaternary)]">{optionalHint}</span>
+          <span className="text-xs font-normal text-[var(--text-quaternary)]">{optionalHint}</span>
         ) : null}
       </label>
       {children}

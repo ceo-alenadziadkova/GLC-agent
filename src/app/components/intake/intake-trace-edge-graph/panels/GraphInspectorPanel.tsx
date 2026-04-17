@@ -22,7 +22,7 @@ export function GraphInspectorPanel(props: GraphInspectorPanelProps) {
   return (
     <aside className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
       <div className="text-xs font-semibold mb-2">{copy.inspectorTitle}</div>
-      <div className="text-[11px] text-[var(--glc-muted)] mb-2">{copy.inspectorHint}</div>
+      <div className="text-xs text-[var(--glc-muted)] mb-2">{copy.inspectorHint}</div>
       {props.selectedReasons.length === 0 ? (
         <div className="text-xs text-[var(--glc-muted)]">{copy.selectNodeToInspect}</div>
       ) : (
@@ -31,7 +31,7 @@ export function GraphInspectorPanel(props: GraphInspectorPanelProps) {
             <div key={item.id} className="rounded border border-[var(--glc-border)] bg-[var(--glc-surface)] p-2">
               <div className="text-xs font-mono">{item.id}</div>
               <div className="text-xs text-[var(--glc-muted)] mb-1">{props.resolveLabel(item.id)}</div>
-              <div className="text-[10px] uppercase tracking-wide text-[var(--glc-muted)] mb-1">
+              <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--glc-muted)] mb-1">
                 {copy.statusLabel}: {item.status}
               </div>
               {item.reasons.length === 0 ? (
@@ -69,16 +69,16 @@ export function GraphInspectorPanel(props: GraphInspectorPanelProps) {
                 <li key={item.id} className="rounded border border-[var(--glc-border)] bg-[var(--glc-surface)] p-2">
                   <button type="button" className="text-left w-full" onClick={() => props.onFocusWordingItem(item.id)}>
                     <div className="text-xs font-mono">{item.id}</div>
-                    <div className="text-[11px] text-[var(--glc-muted)]">{props.resolveLabel(item.id)}</div>
+                    <div className="text-xs text-[var(--glc-muted)]">{props.resolveLabel(item.id)}</div>
                     <div
-                      className={`text-[10px] uppercase tracking-wide ${item.severity === 'high' ? 'text-rose-300' : 'text-amber-300'}`}
+                      className={`text-[length:var(--text-2xs)] uppercase tracking-wide ${item.severity === 'high' ? 'text-rose-300' : 'text-amber-300'}`}
                     >
                       {item.severity}
                     </div>
-                    <div className="text-[10px] text-[var(--glc-muted)]">
+                    <div className="text-[length:var(--text-2xs)] text-[var(--glc-muted)]">
                       {copy.qualityLabel}: {item.score}/100
                     </div>
-                    <ul className="mt-1 space-y-0.5 text-[11px] text-[var(--glc-muted)]">
+                    <ul className="mt-1 space-y-0.5 text-xs text-[var(--glc-muted)]">
                       {item.reasons.map(reason => (
                         <li key={`${item.id}-${reason}`}>- {reason}</li>
                       ))}

@@ -34,19 +34,16 @@ export function IntakeBankCoverageHint({
       : null;
   return (
     <div
-      className={`px-3 py-2 rounded-lg text-xs ${className}`}
+      className={`rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-muted)] px-3 py-2 text-xs text-[var(--text-secondary)] ${className}`}
       style={{
-        background: 'var(--bg-muted)',
-        border: '1px solid var(--border-subtle)',
-        color: 'var(--text-secondary)',
         ...style,
       }}
       title="Branch-aware question bank v1 coverage (docs/QUESTION_BANK.md). Legacy field answers map into bank ids for agents automatically."
     >
-      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Question bank coverage</span>
+      <span className="font-semibold text-[var(--text-primary)]">Question bank coverage</span>
       {' '}
       {dataQualityPct}%
-      <span style={{ color: 'var(--text-tertiary)', marginLeft: 6 }}>
+      <span className="ml-1.5 text-[var(--text-tertiary)]">
         ({visibleRequiredAnswered}/{visibleRequiredTotal} visible required
         {visibleRecommendedTotal > 0
           ? `, ${visibleRecommendedAnswered}/${visibleRecommendedTotal} recommended`
@@ -55,10 +52,9 @@ export function IntakeBankCoverageHint({
       </span>
       {gapPreview && (
         <div
-          className="mt-2 pt-2"
-          style={{ borderTop: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)', lineHeight: 1.45 }}
+          className="mt-2 border-t border-[var(--border-subtle)] pt-2 text-[var(--text-tertiary)] leading-[1.45]"
         >
-          <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Report input gaps: </span>
+          <span className="font-semibold text-[var(--text-secondary)]">Report input gaps: </span>
           {gapPreview}
         </div>
       )}

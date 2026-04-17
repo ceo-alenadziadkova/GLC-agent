@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 import type { IntakePlan } from '@glc/intake-core';
+import { Button } from '../../components/ui/button';
 import {
   TRACE_LAYERS,
   TRACE_STATES,
@@ -59,22 +60,24 @@ export function IntakePlanQuestionTrace({
 
   const filterBar = (
     <div className="flex flex-wrap items-center gap-2 border-b border-[var(--glc-border)] pb-3">
-      <button type="button" className="glc-btn-secondary text-xs px-2 py-1" onClick={resetFilters}>
+      <Button type="button" variant="outline" size="sm" className="h-auto px-2 py-1 text-xs" onClick={resetFilters}>
         Reset filters
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        className="glc-btn-secondary text-xs px-2 py-1"
+        variant="outline"
+        size="sm"
+        className="h-auto px-2 py-1 text-xs"
         onClick={expandAllVisible}
         disabled={filteredIds.length === 0}
       >
         Expand all (visible list)
-      </button>
-      <button type="button" className="glc-btn-secondary text-xs px-2 py-1" onClick={collapseAllRows}>
+      </Button>
+      <Button type="button" variant="outline" size="sm" className="h-auto px-2 py-1 text-xs" onClick={collapseAllRows}>
         Collapse all
-      </button>
+      </Button>
       {useVirtual && (
-        <span className="text-[10px] text-[var(--glc-muted)]">Virtual scroll on ({filteredIds.length} rows)</span>
+        <span className="text-[length:var(--text-2xs)] text-[var(--glc-muted)]">Virtual scroll on ({filteredIds.length} rows)</span>
       )}
     </div>
   );
@@ -218,7 +221,7 @@ export function IntakePlanQuestionTrace({
       {(plan.debugTrace?.length ?? 0) > 0 && (
         <div className="space-y-2">
           <div className="text-sm font-medium text-[var(--glc-fg)]">Resolver debug trace</div>
-          <ul className="max-h-48 overflow-y-auto rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-2 font-mono text-[11px] text-[var(--glc-muted)]">
+          <ul className="max-h-48 overflow-y-auto rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-2 font-mono text-xs text-[var(--glc-muted)]">
             {debugFiltered.map((e, i) => (
               <li key={`${e.code}-${i}`} className="border-b border-[var(--glc-border)] py-1 last:border-0">
                 <span className="text-[var(--glc-fg)]">[{e.layer}]</span> {e.level.toUpperCase()} {e.code}

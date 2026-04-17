@@ -27,6 +27,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
+import { Input } from '../components/ui/input';
+import { Callout } from '../components/ui/callout';
+import { Button } from '../components/ui/button';
 
 function mapStatus(status: string): 'completed' | 'running' | 'pending' | 'review' | 'cancelled' {
   if (status === 'completed') return 'completed';
@@ -46,45 +49,30 @@ function DashboardAuditMobileCard({
   const status = mapStatus(c.status);
   return (
     <div
-      className="glc-card p-4"
-      style={{ borderRadius: 'var(--radius-xl)' }}
+      className="glc-card rounded-xl p-4"
     >
       <div className="flex items-start gap-3 min-w-0">
         <div
-          className="w-10 h-10 flex items-center justify-center text-xs font-bold flex-shrink-0"
-          style={{
-            background: 'linear-gradient(135deg, var(--glc-blue-xlight) 0%, rgba(28,189,255,0.06) 100%)',
-            color: 'var(--glc-blue-deeper)',
-            border: '1px solid rgba(28,189,255,0.14)',
-            borderRadius: 'var(--radius-lg)',
-            fontFamily: 'var(--font-display)',
-            fontSize: '11px',
-          }}
+          className="text-info border-info/30 bg-info/10 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold"
         >
           {(c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website)).slice(0, 2).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
           <Link
             to={`/audit/${c.id}`}
-            className="font-semibold block truncate no-underline"
-            style={{
-              color: 'var(--text-primary)',
-              fontSize: 'var(--text-sm)',
-              fontFamily: 'var(--font-display)',
-              letterSpacing: '-0.01em',
-            }}
+            className="text-foreground block truncate font-semibold no-underline"
           >
             {c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website)}
           </Link>
-          <div className="text-xs truncate mt-0.5" style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>
+          <div className="text-muted-foreground mt-0.5 truncate text-xs">
             {formatAuditWebsiteDisplay(c.company_url, c.no_public_website)}
           </div>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2">
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>{c.industry || '—'}</span>
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-quaternary)' }} aria-hidden>
+            <span className="text-muted-foreground text-xs">{c.industry || '—'}</span>
+            <span className="text-muted-foreground text-xs" aria-hidden>
               ·
             </span>
-            <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-xs)' }}>
+            <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
               <Calendar className="w-3 h-3 flex-shrink-0" />
               {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </span>
@@ -93,25 +81,24 @@ function DashboardAuditMobileCard({
             {c.overall_score !== null ? (
               <ScoreBadge score={Math.round(c.overall_score)} size="sm" />
             ) : (
-              <span style={{ color: 'var(--text-quaternary)', fontSize: 'var(--text-sm)' }}>—</span>
+              <span className="text-muted-foreground text-sm">—</span>
             )}
             <StatusPill status={status} pulse={status === 'running'} />
           </div>
         </div>
       </div>
-      <div className="flex items-center justify-end gap-2 mt-4 pt-3" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-        <Link
-          to={c.status === 'created' ? `/pipeline/${c.id}` : `/audit/${c.id}`}
-          className="glc-btn-secondary no-underline glc-touch-target"
-          style={{ textDecoration: 'none' }}
-        >
-          <ArrowUpRight className="w-4 h-4" />
-          Open
-        </Link>
-        <button
+      <div className="mt-4 flex items-center justify-end gap-2 border-t pt-3">
+        <Button asChild variant="outline" size="sm" className="glc-touch-target no-underline">
+          <Link to={c.status === 'created' ? `/pipeline/${c.id}` : `/audit/${c.id}`}>
+            <ArrowUpRight className="w-4 h-4" />
+            Open
+          </Link>
+        </Button>
+        <Button
           type="button"
-          className="glc-btn-ghost glc-touch-target"
-          style={{ color: 'var(--score-1)' }}
+          variant="ghost"
+          size="sm"
+          className="text-destructive glc-touch-target"
           onClick={() => {
             onRequestDelete(
               c.id,
@@ -121,7 +108,7 @@ function DashboardAuditMobileCard({
         >
           <Trash className="w-4 h-4" />
           Delete
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -148,13 +135,11 @@ export function Dashboard() {
       title="Dashboard"
       subtitle="Operational overview — audits, pipeline health, and client requests"
       actions={
-        <Link
-          to="/audit/new"
-          className="glc-btn-primary hidden sm:inline-flex"
-          style={{ textDecoration: 'none' }}
-        >
-          <Plus className="w-4 h-4" /> New Audit
-        </Link>
+        <Button asChild variant="default" className="hidden sm:inline-flex">
+          <Link to="/audit/new">
+            <Plus className="w-4 h-4" /> New Audit
+          </Link>
+        </Button>
       }
     >
       <div className="glc-page-content space-y-8 mobile:space-y-6">
@@ -170,13 +155,11 @@ export function Dashboard() {
               </p>
             </div>
             <div className="sm:hidden">
-              <Link
-                to="/audit/new"
-                className="glc-btn-primary w-full justify-center no-underline"
-                style={{ textDecoration: 'none' }}
-              >
-                <Plus className="w-4 h-4" /> New Audit
-              </Link>
+              <Button asChild variant="default" className="w-full justify-center no-underline">
+                <Link to="/audit/new">
+                  <Plus className="w-4 h-4" /> New Audit
+                </Link>
+              </Button>
             </div>
           </div>
           <KpiStrip kpis={dashData?.kpis} loading={dashLoading} />
@@ -184,18 +167,10 @@ export function Dashboard() {
 
         {/* ── Analytics error banner (non-fatal) ────────────────── */}
         {dashError && !dashLoading && (
-          <div
-            className="px-4 py-2.5 rounded-lg text-xs flex items-center gap-2"
-            style={{
-              backgroundColor: 'rgba(239,68,68,0.08)',
-              border: '1px solid rgba(239,68,68,0.2)',
-              color: 'var(--score-1)',
-              borderRadius: 'var(--radius-md)',
-            }}
-          >
+          <Callout intent="danger" className="text-destructive flex items-center gap-2 rounded-md px-4 py-2.5 text-xs">
             <ArrowsClockwise className="w-3.5 h-3.5 flex-shrink-0" />
             Some dashboard panels are temporarily unavailable. Audit list is unaffected.
-          </div>
+          </Callout>
         )}
 
         {/* ── 2. Action Required (2/3) + Score Distribution (1/3) ── */}
@@ -225,55 +200,35 @@ export function Dashboard() {
         <section className="glc-soft-panel p-4 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <SectionLabel>All Audits</SectionLabel>
-            <div
-              className="flex items-center gap-2 px-3 py-2 w-full sm:w-auto sm:min-w-[220px]"
-              style={{
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-md)',
-              }}
-            >
-              <MagnifyingGlass className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--text-tertiary)' }} />
-              <input
+            <div className="bg-card flex w-full items-center gap-2 rounded-md border px-3 py-2 sm:min-w-[220px] sm:w-auto">
+              <MagnifyingGlass className="text-muted-foreground h-3.5 w-3.5 flex-shrink-0" />
+              <Input
                 type="search"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="Search audits..."
-                className="flex-1 min-w-0 bg-transparent outline-none"
-                style={{ fontSize: 'var(--text-base)', color: 'var(--text-primary)' }}
+                className="h-auto min-w-0 flex-1 border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
               />
             </div>
           </div>
 
           {auditsLoading && audits.length === 0 && (
             <div className="flex items-center justify-center py-10">
-              <ArrowsClockwise className="w-5 h-5 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+              <ArrowsClockwise className="text-info h-5 w-5 animate-spin" />
             </div>
           )}
 
           {auditsError && (
             <div className="text-center py-4">
-              <p className="text-sm" style={{ color: 'var(--score-1)' }}>{auditsError}</p>
+              <p className="text-destructive text-sm">{auditsError}</p>
             </div>
           )}
 
           {filtered.length > 0 && (
             <>
-            <div className="hidden sm:block glc-card overflow-hidden" style={{ borderRadius: 'var(--radius-xl)' }}>
+            <div className="glc-card hidden overflow-hidden rounded-xl sm:block">
               {/* Header */}
-              <div
-                className="grid px-5 py-3"
-                style={{
-                  gridTemplateColumns: '2fr 1fr 1fr 88px 128px 40px',
-                  color: 'var(--text-quaternary)',
-                  borderBottom: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-canvas)',
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  letterSpacing: '0.09em',
-                  textTransform: 'uppercase',
-                }}
-              >
+              <div className="text-muted-foreground bg-background grid border-b px-5 py-3 text-[length:var(--text-2xs)] font-bold uppercase tracking-[0.09em] [grid-template-columns:2fr_1fr_1fr_88px_128px_40px]">
                 <span>Company</span>
                 <span>Industry</span>
                 <span>Created</span>
@@ -290,60 +245,40 @@ export function Dashboard() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
                     transition={{ delay: i * 0.025, duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                    className="grid items-center px-5 py-3.5 group cursor-pointer"
-                    style={{
-                      gridTemplateColumns: '2fr 1fr 1fr 88px 128px 40px',
-                      borderBottom: i < filtered.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-                      transition: 'background var(--ease-fast)',
-                    }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--bg-canvas)'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; }}
+                    className={`group grid cursor-pointer items-center px-5 py-3.5 transition-colors [grid-template-columns:2fr_1fr_1fr_88px_128px_40px] ${
+                      i < filtered.length - 1 ? 'border-b' : ''
+                    } hover:bg-background`}
                   >
                     {/* Company */}
                     <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className="w-8 h-8 flex items-center justify-center text-xs font-bold flex-shrink-0"
-                        style={{
-                          background: 'linear-gradient(135deg, var(--glc-blue-xlight) 0%, rgba(28,189,255,0.06) 100%)',
-                          color: 'var(--glc-blue-deeper)',
-                          border: '1px solid rgba(28,189,255,0.14)',
-                          borderRadius: 'var(--radius-lg)',
-                          fontFamily: 'var(--font-display)',
-                          fontSize: '11px',
-                        }}
+                        className="text-info border-info/30 bg-info/10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold"
                       >
                         {(c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website)).slice(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0">
                         <Link
                           to={`/audit/${c.id}`}
-                          className="font-semibold truncate block"
-                          style={{
-                            color: 'var(--text-primary)',
-                            textDecoration: 'none',
-                            fontSize: 'var(--text-sm)',
-                            fontFamily: 'var(--font-display)',
-                            letterSpacing: '-0.01em',
-                          }}
+                          className="text-foreground block truncate text-sm font-semibold no-underline"
                         >
                           {c.company_name || formatAuditWebsiteDisplay(c.company_url, c.no_public_website)}
                         </Link>
-                        <div className="text-xs truncate mt-0.5" style={{ color: 'var(--text-quaternary)', fontSize: '11px' }}>
+                        <div className="text-muted-foreground mt-0.5 truncate text-xs">
                           {formatAuditWebsiteDisplay(c.company_url, c.no_public_website)}
                         </div>
                       </div>
                     </div>
 
-                    <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>{c.industry || '—'}</span>
+                    <span className="text-muted-foreground text-sm">{c.industry || '—'}</span>
 
-                    <div className="flex items-center gap-1.5" style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)' }}>
+                    <div className="text-muted-foreground flex items-center gap-1.5 text-sm">
                       <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
                       {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </div>
 
                     {c.overall_score !== null
                       ? <ScoreBadge score={Math.round(c.overall_score)} size="sm" />
-                      : <span style={{ color: 'var(--text-quaternary)', fontSize: 'var(--text-sm)' }}>—</span>
+                      : <span className="text-muted-foreground text-sm">—</span>
                     }
 
                     <StatusPill status={mapStatus(c.status)} pulse={mapStatus(c.status) === 'running'} />
@@ -351,15 +286,13 @@ export function Dashboard() {
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Link
                         to={c.status === 'created' ? `/pipeline/${c.id}` : `/audit/${c.id}`}
-                        className="glc-btn-icon"
-                        style={{ width: 28, height: 28, borderRadius: 'var(--radius-md)' }}
+                        className="glc-btn-icon h-7 w-7 rounded-md"
                       >
                         <ArrowUpRight className="w-3.5 h-3.5" />
                       </Link>
                       <button
                         type="button"
-                        className="glc-btn-icon"
-                        style={{ width: 28, height: 28, borderRadius: 'var(--radius-md)', color: 'var(--score-1)' }}
+                        className="text-destructive glc-btn-icon h-7 w-7 rounded-md"
                         onClick={() => {
                           setDeleteTarget({
                             id: c.id,
@@ -389,14 +322,14 @@ export function Dashboard() {
           )}
 
           {query && filtered.length === 0 && audits.length > 0 && !auditsLoading && !auditsError && (
-            <div className="py-10 text-center" style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)' }}>
+            <div className="text-muted-foreground py-10 text-center text-sm">
               No audits match "{query}"
             </div>
           )}
 
           {!auditsLoading && audits.length === 0 && !auditsError && (
-            <div className="text-center py-14" style={{ color: 'var(--text-tertiary)' }}>
-              <Buildings className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
+            <div className="text-muted-foreground py-14 text-center">
+              <Buildings className="text-muted-foreground mx-auto mb-3 h-10 w-10" />
               <p className="text-sm font-medium">No audits yet</p>
               <p className="text-xs mt-1">Start your first audit to see it here</p>
             </div>
@@ -407,43 +340,30 @@ export function Dashboard() {
         <motion.div
           whileHover={{ y: -1 }}
           transition={{ duration: 0.18 }}
-          className="p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-          style={{
-            border: '1.5px dashed var(--border-default)',
-            borderRadius: 'var(--radius-xl)',
-            backgroundColor: 'var(--bg-surface)',
-          }}
+          className="bg-card flex flex-col gap-4 rounded-xl border border-dashed p-5 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="flex items-center gap-3 min-w-0">
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{
-                background: 'linear-gradient(135deg, var(--glc-blue-xlight), rgba(28,189,255,0.06))',
-                color: 'var(--glc-blue)',
-                border: '1px solid rgba(28,189,255,0.15)',
-              }}
+              className="text-info border-info/30 bg-info/10 flex h-10 w-10 items-center justify-center rounded-xl border"
             >
               <Buildings className="w-5 h-5" />
             </div>
             <div>
               <p
-                className="font-semibold"
-                style={{ color: 'var(--text-primary)', fontSize: 'var(--text-sm)', fontFamily: 'var(--font-display)' }}
+                className="text-foreground text-sm font-semibold"
               >
                 Add a new client
               </p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="text-muted-foreground mt-0.5 text-xs">
                 Start a new audit by entering a company URL
               </p>
             </div>
           </div>
-          <Link
-            to="/audit/new"
-            className="glc-btn-primary w-full sm:w-auto justify-center glc-touch-target"
-            style={{ textDecoration: 'none' }}
-          >
-            <Plus className="w-4 h-4" /> Start Audit
-          </Link>
+          <Button asChild variant="default" className="glc-touch-target w-full justify-center sm:w-auto">
+            <Link to="/audit/new">
+              <Plus className="w-4 h-4" /> Start Audit
+            </Link>
+          </Button>
         </motion.div>
 
         <AlertDialog

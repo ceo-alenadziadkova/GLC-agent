@@ -2,19 +2,14 @@ import { ArrowRight } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { APP_ROUTE_PATHS } from '../../../../config/route-paths';
 import { SNAPSHOT_LANDING_HERO_COPY } from '../../../../config/snapshot-landing-copy.en';
+import { Button } from '../../../../components/ui/button';
 
 export function ResultsCtaBand(props: { quotaHint: string; reset: () => void }) {
   const { quotaHint, reset } = props;
 
   return (
     <div
-      className="glc-snapshot-cta-band overflow-hidden p-6 text-center mobile:p-5 lg:flex lg:items-center lg:justify-between lg:gap-10 lg:p-8 lg:text-left"
-      style={{
-        borderRadius: 'var(--radius-xl)',
-        background: 'var(--gradient-ink-rich)',
-        border: '1px solid rgba(255,255,255,0.09)',
-        boxShadow: 'var(--shadow-ink)',
-      }}
+      className="glc-snapshot-cta-band overflow-hidden rounded-[var(--radius-xl)] border border-[color:rgba(255,255,255,0.09)] bg-[var(--gradient-ink-rich)] p-6 text-center shadow-[var(--shadow-ink)] mobile:p-5 lg:flex lg:items-center lg:justify-between lg:gap-10 lg:p-8 lg:text-left"
     >
       <div className="relative z-[1] min-w-0 flex-1">
         {quotaHint && (
@@ -23,13 +18,7 @@ export function ResultsCtaBand(props: { quotaHint: string; reset: () => void }) 
           </p>
         )}
         <h3
-          style={{
-            fontSize: 'var(--text-xl)',
-            fontFamily: 'var(--font-display)',
-            fontWeight: 700,
-            color: 'var(--text-inverse)',
-            letterSpacing: 'var(--tracking-tight)',
-          }}
+          className="text-[length:var(--text-xl)] [font-family:var(--font-display)] font-bold tracking-[var(--tracking-tight)] text-[var(--text-inverse)]"
         >
           {SNAPSHOT_LANDING_HERO_COPY.fullPictureTitle}
         </h3>
@@ -38,13 +27,11 @@ export function ResultsCtaBand(props: { quotaHint: string; reset: () => void }) 
         </p>
       </div>
       <div className="relative z-[1] mt-5 flex w-full shrink-0 flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center lg:mt-0 lg:w-auto lg:flex-col lg:items-stretch">
-        <Link
-          to={APP_ROUTE_PATHS.proPackage}
-          className="glc-btn-primary w-auto min-w-[12rem] justify-center mobile:min-h-12 mobile:w-full lg:w-full"
-          style={{ textDecoration: 'none' }}
-        >
-          {SNAPSHOT_LANDING_HERO_COPY.viewProPackageCta} <ArrowRight className="ml-1 inline h-4 w-4" />
-        </Link>
+        <Button asChild variant="default" className="w-auto min-w-[12rem] justify-center mobile:min-h-12 mobile:w-full lg:w-full">
+          <Link to={APP_ROUTE_PATHS.proPackage}>
+            {SNAPSHOT_LANDING_HERO_COPY.viewProPackageCta} <ArrowRight className="ml-1 inline h-4 w-4" />
+          </Link>
+        </Button>
         <button
           type="button"
           onClick={reset}

@@ -33,10 +33,10 @@ function ScoreDonut({
         strokeWidth={strokeWidth}
       >
         <p
+          className="[font-family:var(--font-display)]"
           style={{
             fontSize: compact ? 'var(--text-3xl)' : 'clamp(1.75rem, 4vw, 2.5rem)',
             fontWeight: 800,
-            fontFamily: 'var(--font-display)',
             color,
             lineHeight: 1.05,
           }}
@@ -58,10 +58,10 @@ function ScoreDonut({
       strokeWidth={strokeWidth}
     >
       <p
+        className="[font-family:var(--font-display)]"
         style={{
           fontSize: compact ? 'var(--text-3xl)' : 'clamp(1.75rem, 4vw, 2.5rem)',
           fontWeight: 800,
-          fontFamily: 'var(--font-display)',
           color: c,
           lineHeight: 1.05,
         }}
@@ -100,7 +100,7 @@ export function MirrorScoreSection({
           </p>
           <ScoreDonut scoreVisual={scoreVisual} size={preset.size} strokeWidth={preset.strokeWidth} />
           {result.scan_confidence_band ? (
-            <p className="mt-2 text-xs" style={{ color: 'var(--text-quaternary)' }}>
+          <p className="mt-2 text-xs text-[var(--text-quaternary)]">
               {PORTAL_SNAPSHOT_MIRROR_COPY.score.confidencePrefix} {result.scan_confidence_band}
             </p>
           ) : null}
@@ -108,11 +108,11 @@ export function MirrorScoreSection({
         <div className="glc-card glc-snapshot-result-card flex flex-col justify-center p-6 text-left lg:col-span-7 lg:p-8" style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardRadius}>
           <div className="glc-snapshot-section-h glc-snapshot-section-h--neutral !mb-3">
             <span className="glc-snapshot-section-h__rule" aria-hidden />
-            <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+            <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
               {PORTAL_SNAPSHOT_MIRROR_COPY.score.summary}
             </span>
           </div>
-          <p className="text-pretty text-sm leading-relaxed lg:text-[0.9375rem]" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-pretty text-sm leading-relaxed text-[var(--text-secondary)] lg:text-[0.9375rem]">
             {result.ux_summary}
           </p>
           <SnapshotScoreContextNotes result={result} />
@@ -139,12 +139,12 @@ export function MirrorScoreSection({
             {PORTAL_SNAPSHOT_MIRROR_COPY.score.title}
           </p>
           {scoreVisual.mode === 'legacy' && scoreVisual.uxLabel ? (
-            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            <p className="text-xs text-[var(--text-tertiary)]">
               {scoreVisual.uxLabel}
             </p>
           ) : null}
           {result.scan_confidence_band ? (
-            <p className="mt-2 text-xs lg:mt-2" style={{ color: 'var(--text-quaternary)' }}>
+            <p className="mt-2 text-xs text-[var(--text-quaternary)] lg:mt-2">
               {PORTAL_SNAPSHOT_MIRROR_COPY.score.confidencePrefix} {result.scan_confidence_band}
             </p>
           ) : null}

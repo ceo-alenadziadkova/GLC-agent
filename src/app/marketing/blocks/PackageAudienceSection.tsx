@@ -29,13 +29,13 @@ export function PackageAudienceSection({
               background: 'linear-gradient(160deg, color-mix(in oklab, var(--bg-surface) 94%, var(--glc-blue-muted)) 0%, var(--bg-surface) 100%)',
             }}
           >
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--text-tertiary)' }}>
+            <p className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--text-tertiary)' }}>
               Situation
             </p>
             <p className="mt-1 text-sm font-semibold leading-relaxed" style={{ color: 'var(--text-primary)' }}>
               {card.situation}
             </p>
-            <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--text-tertiary)' }}>
+            <p className="mt-3 text-[length:var(--text-2xs)] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--text-tertiary)' }}>
               What is happening now
             </p>
             <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>

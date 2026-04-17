@@ -12,8 +12,8 @@ export function MirrorRecommendationsSection({ recommendations }: { recommendati
     >
       <div className="glc-snapshot-section-h glc-snapshot-section-h--info !mb-3">
         <span className="glc-snapshot-section-h__rule" aria-hidden />
-        <Target className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-blue)' }} />
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+        <Target className="h-4 w-4 shrink-0 text-[var(--glc-blue)]" />
+        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
           {PORTAL_SNAPSHOT_MIRROR_COPY.recommendations.title}
         </span>
       </div>
@@ -21,13 +21,13 @@ export function MirrorRecommendationsSection({ recommendations }: { recommendati
         {recommendations.map(rec => (
           <div key={rec.id} className="glc-snapshot-insight-row flex gap-3">
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+              <p className="text-sm font-medium text-[var(--text-primary)]">
                 {rec.title}
               </p>
-              <p className="mt-0.5 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="mt-0.5 text-xs leading-relaxed text-[var(--text-tertiary)]">
                 {rec.description}
               </p>
-              <p className="mt-1 mb-0 text-[0.65rem] uppercase tracking-wide" style={{ color: 'var(--text-quaternary)' }}>
+              <p className="mb-0 mt-1 text-[0.65rem] uppercase tracking-wide text-[var(--text-quaternary)]">
                 {PORTAL_SNAPSHOT_MIRROR_COPY.recommendations.priorityPrefix} {rec.priority}
               </p>
             </div>

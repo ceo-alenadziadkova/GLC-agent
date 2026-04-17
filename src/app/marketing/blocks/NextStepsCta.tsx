@@ -63,7 +63,7 @@ export function NextStepsCta({
           {s.label}
           {s.primary && (
             <span
-              className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+              className="rounded-full px-2 py-0.5 text-[length:var(--text-2xs)] font-bold uppercase tracking-wide"
               style={{
                 backgroundColor: 'var(--glc-orange-xlight)',
                 color: 'var(--glc-orange-dark)',

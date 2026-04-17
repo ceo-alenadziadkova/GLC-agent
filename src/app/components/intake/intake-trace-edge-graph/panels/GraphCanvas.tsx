@@ -1,4 +1,4 @@
-import { UI_INTAKE_TRACE_GRAPH } from '../../../../config/ui-semantic-colors';
+import { UI_INTAKE_TRACE_GRAPH } from '../../../../../design-system/tokens/ui-semantic-colors';
 import { INTAKE_TRACE_GRAPH_CONFIG } from '../config/graph-config';
 import { INTAKE_TRACE_EDGE_GRAPH_UI_COPY } from '../config/graph-copy';
 import { shortNodeLabel } from '../domain/layout';

@@ -1,6 +1,7 @@
 import { motion } from 'motion/react';
 import { ArrowsClockwise, X } from '@phosphor-icons/react';
 import { StatusBadge } from '../../../components/ui/status-badge';
+import { Button } from '../../../components/ui/button';
 import { StatusPill } from '../../../components/glc/StatusPill';
 import { PIPELINE_MONITOR_COPY as PM } from '../../../config/pipeline-monitor-copy';
 import { PIPELINE_MONITOR_UI_POLICY } from '../config/pipeline-monitor-ui-policy';
@@ -25,17 +26,16 @@ export function MonitorHeaderActions(props: {
       )}
       <div className="flex items-center gap-2.5">
         <div
-          className="w-28 rounded-full overflow-hidden"
-          style={{ height: PIPELINE_MONITOR_UI_POLICY.sizing.progressBarHeightPx, backgroundColor: 'var(--border-subtle)' }}
+          className="w-28 overflow-hidden rounded-full bg-[var(--border-subtle)]"
+          style={{ height: PIPELINE_MONITOR_UI_POLICY.sizing.progressBarHeightPx }}
         >
           <motion.div
-            className="h-full rounded-full"
-            style={{ backgroundColor: 'var(--glc-green)', boxShadow: '0 0 6px var(--glc-green)' }}
+            className="h-full rounded-full bg-[var(--glc-green)] shadow-[0_0_6px_var(--glc-green)]"
             animate={{ width: `${progressPct}%` }}
             transition={{ duration: PIPELINE_MONITOR_UI_POLICY.animation.progressDurationSec, ease: [0.16, 1, 0.3, 1] }}
           />
         </div>
-        <span className="text-xs font-mono font-bold tabular-nums" style={{ color: 'var(--glc-green)' }}>
+        <span className="text-xs font-mono font-bold tabular-nums text-[var(--glc-green)]">
           {progressPct}%
         </span>
       </div>
@@ -51,12 +51,13 @@ export function MonitorHeaderActions(props: {
         }
         pulse={auditStatus !== 'completed' && auditStatus !== 'failed' && auditStatus !== 'cancelled'}
       />
-      <button
+      <Button
         type="button"
-        className="glc-btn-secondary"
+        variant="outline"
+        size="sm"
+        className="text-[var(--score-1)]"
         onClick={onOpenStopDialog}
         disabled={!canStopPipeline || isStopping}
-        style={{ color: 'var(--score-1)' }}
       >
         {isStopping ? (
           <>
@@ -67,7 +68,7 @@ export function MonitorHeaderActions(props: {
             <X className="w-4 h-4" /> {PM.detail.stopPipeline}
           </>
         )}
-      </button>
+      </Button>
     </div>
   );
 }

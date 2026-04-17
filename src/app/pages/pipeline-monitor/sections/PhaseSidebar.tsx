@@ -30,8 +30,8 @@ export function PhaseSidebar(props: {
 
   return (
     <aside
-      className={`${PIPELINE_MONITOR_UI_POLICY.layout.sidebarWidthClassName} flex-shrink-0 overflow-y-auto flex flex-col gap-1.5 p-3`}
-      style={{ borderRight: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }}
+      className={`${PIPELINE_MONITOR_UI_POLICY.layout.sidebarWidthClassName} flex-shrink-0 overflow-y-auto bg-[var(--bg-surface)] flex flex-col gap-1.5 p-3`}
+      style={{ borderRight: '1px solid var(--border-subtle)' }}
     >
       <div className="px-1 pb-1.5">
         <SectionLabel>{PM.sidebar.phases}</SectionLabel>

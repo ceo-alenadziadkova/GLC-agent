@@ -28,7 +28,7 @@ export function HomeHeroSection({ reduceMotion, data }: HomeHeroSectionProps) {
         <div className="min-w-0 max-w-4xl">
           <motion.p
             variants={heroMv.item}
-            className="mb-6 inline-flex items-center rounded-full border px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.1em] sm:text-xs"
+            className="mb-6 inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.1em] sm:text-xs"
             style={{
               backgroundColor: 'color-mix(in oklab, var(--bg-surface) 94%, transparent)',
               borderColor: 'var(--border-subtle)',
@@ -39,13 +39,12 @@ export function HomeHeroSection({ reduceMotion, data }: HomeHeroSectionProps) {
           </motion.p>
           <motion.h1
             variants={heroMv.item}
-            className="glc-light-home-hero-title max-w-[22ch] font-display text-[clamp(2.5rem,6.2vw,4.125rem)] font-bold leading-[1.04] tracking-[-0.03em] sm:max-w-none sm:tracking-[-0.02em]"
-            style={{ color: 'var(--text-primary)' }}
+            className="glc-light-home-hero-title max-w-[22ch] font-display text-[clamp(2.5rem,6.2vw,4.125rem)] font-bold leading-[1.04] tracking-[-0.03em] text-[var(--text-primary)] sm:max-w-none sm:tracking-[-0.02em]"
           >
             {hero.headline.hasGradientSuffix ? (
               <>
                 {hero.headline.plainBefore}{' '}
-                <span className="font-bold" style={{ color: 'var(--glc-blue-deeper)' }}>
+                <span className="font-bold text-[var(--glc-blue-deeper)]">
                   {hero.headline.gradientSuffix}
                 </span>
               </>
@@ -55,16 +54,14 @@ export function HomeHeroSection({ reduceMotion, data }: HomeHeroSectionProps) {
           </motion.h1>
           <motion.p
             variants={heroMv.item}
-            className="glc-light-home-hero-subhead mt-8 max-w-[65ch] text-base leading-[1.6] sm:text-lg"
-            style={{ color: 'var(--text-secondary)' }}
+            className="glc-light-home-hero-subhead mt-8 max-w-[65ch] text-base leading-[1.6] text-[var(--text-secondary)] sm:text-lg"
           >
             {hero.subheadline}
           </motion.p>
           {hero.supportingLine ? (
             <motion.p
               variants={heroMv.item}
-              className="glc-light-home-hero-support mt-4 max-w-[60ch] text-sm leading-relaxed sm:text-[0.95rem]"
-              style={{ color: 'var(--text-tertiary)' }}
+              className="glc-light-home-hero-support mt-4 max-w-[60ch] text-sm leading-relaxed text-[var(--text-tertiary)] sm:text-[0.95rem]"
             >
               {hero.supportingLine}
             </motion.p>
@@ -78,10 +75,9 @@ export function HomeHeroSection({ reduceMotion, data }: HomeHeroSectionProps) {
                 to="/brief"
                 data-testid="hero-cta-brief"
                 className={cn(
-                  'group inline-flex w-full items-center justify-center gap-2 rounded-full px-8 py-3.5 text-sm font-semibold transition-[opacity,transform] duration-200 sm:w-auto',
+                  'group inline-flex w-full items-center justify-center gap-2 rounded-full bg-[var(--gradient-brand)] px-8 py-3.5 text-sm font-semibold text-[var(--primary-foreground)] no-underline shadow-none transition-[opacity,transform] duration-200 sm:w-auto',
                   HOME_FOCUS_RING,
                 )}
-                style={{ background: 'var(--gradient-brand)', color: 'var(--primary-foreground)', boxShadow: 'none', textDecoration: 'none' }}
               >
                 {hero.ctas.primary}
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -95,10 +91,9 @@ export function HomeHeroSection({ reduceMotion, data }: HomeHeroSectionProps) {
                 to="/#how-it-works"
                 data-testid="hero-cta-how-it-works"
                 className={cn(
-                  'group inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md px-2 text-sm font-semibold underline-offset-4 transition-colors hover:underline sm:w-auto sm:justify-start',
+                  'group inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-md px-2 text-sm font-semibold text-[var(--glc-blue)] no-underline underline-offset-4 transition-colors hover:underline sm:w-auto sm:justify-start',
                   HOME_FOCUS_RING,
                 )}
-                style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
               >
                 {hero.ctas.secondary}
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
@@ -106,7 +101,7 @@ export function HomeHeroSection({ reduceMotion, data }: HomeHeroSectionProps) {
             </motion.div>
           </motion.div>
           {hero.snapshotCaption ? (
-            <motion.p variants={heroMv.item} className="mt-5 max-w-[65ch] text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+            <motion.p variants={heroMv.item} className="mt-5 max-w-[65ch] text-xs leading-relaxed text-[var(--text-tertiary)]">
               {hero.snapshotCaption}
             </motion.p>
           ) : null}
@@ -125,7 +120,7 @@ export function HomeHeroSection({ reduceMotion, data }: HomeHeroSectionProps) {
                 variants={homeTrustLineVariants}
                 custom={index}
               >
-                <CheckCircle className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-green-dark)' }} weight="fill" aria-hidden />
+                <CheckCircle className="h-4 w-4 shrink-0 text-[var(--glc-green-dark)]" weight="fill" aria-hidden />
                 {line}
               </motion.span>
             ))}

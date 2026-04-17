@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { ArrowRight } from '@phosphor-icons/react';
 import { cn } from '../../components/ui/utils';
+import { Button } from '../../components/ui/button';
 
 const FOCUS =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--glc-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-muted)]';
@@ -41,19 +42,24 @@ export function MarketingMidCtaBand({
             {body}
           </p>
         </div>
-        <Link
-          to={ctaTo}
+        <Button
+          asChild
+          variant="default"
           className={cn(
             'glc-btn-primary group inline-flex shrink-0 items-center justify-center gap-2 text-sm font-semibold transition-[opacity,transform] duration-200',
             FOCUS,
           )}
-          style={{
-            textDecoration: 'none',
-          }}
         >
-          {ctaLabel}
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
-        </Link>
+          <Link
+            to={ctaTo}
+            style={{
+              textDecoration: 'none',
+            }}
+          >
+            {ctaLabel}
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+          </Link>
+        </Button>
       </div>
     </aside>
   );

@@ -1,5 +1,6 @@
 import { useLayoutEffect, useState, type ReactNode } from 'react';
 import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
+import { LAYOUT_CONTRACTS } from '../../design-system/patterns/Layouts/layout-contracts';
 import { GLC_THEME_STORAGE_KEY, setGlcColorScheme } from '../lib/glc-theme';
 import { cn } from '../components/ui/utils';
 import { MarketingBreadcrumbs, type Crumb } from './MarketingBreadcrumbs';
@@ -60,13 +61,20 @@ export function MarketingLayout({
             tabIndex={-1}
             className="flex min-w-0 flex-1 flex-col outline-none"
           >
-            <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-12 sm:px-6 sm:py-16 md:py-20">
+            <div
+              className={cn(
+                LAYOUT_CONTRACTS.container.page,
+                'flex-1',
+                LAYOUT_CONTRACTS.spacing.pageX,
+                LAYOUT_CONTRACTS.spacing.pageY,
+              )}
+            >
               {breadcrumbs && breadcrumbs.length > 0 ? (
                 <div className="mb-8 sm:mb-10">
                   <MarketingBreadcrumbs items={breadcrumbs} />
                 </div>
               ) : null}
-              <div className="flex flex-col gap-14 sm:gap-20 lg:gap-24">{children}</div>
+              <div className={LAYOUT_CONTRACTS.spacing.sectionFlow}>{children}</div>
             </div>
           </main>
           {showFooter ? <MarketingFooter /> : null}

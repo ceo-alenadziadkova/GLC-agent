@@ -39,17 +39,27 @@ function Button({
   variant,
   size,
   asChild = false,
+  loading = false,
+  disabled,
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
+    loading?: boolean;
   }) {
   const Comp = asChild ? Slot : "button";
+  const isDisabled = Boolean(disabled || loading);
 
   return (
     <Comp
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      data-loading={loading ? "true" : "false"}
+      aria-busy={loading || undefined}
+      disabled={isDisabled}
+      className={cn(
+        buttonVariants({ variant, size, className }),
+        "data-[loading=true]:cursor-wait data-[loading=true]:opacity-75",
+      )}
       {...props}
     />
   );

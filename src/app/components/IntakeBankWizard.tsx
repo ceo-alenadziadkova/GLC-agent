@@ -227,19 +227,19 @@ export function IntakeBankWizard({
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-xs)' }}>
+        <div className="flex items-center gap-2 text-[length:var(--text-xs)] text-[var(--text-secondary)]">
           <ListBullets className="w-4 h-4" aria-hidden />
           <span>
             Question-bank step {totalVisibleSteps === 0 ? 0 : currentVisibleIndex + 1} of {totalVisibleSteps}
           </span>
         </div>
-        <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+        <div className="text-xs text-[var(--text-tertiary)]">
           Score {Math.round(wizard.dataQuality.score * 100)}% · required {wizard.dataQuality.answeredRequired}/
           {wizard.dataQuality.visibleRequired}
         </div>
       </div>
 
-      <div className="rounded-full overflow-hidden" style={{ height: 3, backgroundColor: 'var(--bg-muted)' }}>
+      <div className="h-[3px] rounded-full overflow-hidden bg-[var(--bg-muted)]">
         <div
           className="h-full rounded-full transition-all"
           style={{
@@ -253,8 +253,8 @@ export function IntakeBankWizard({
       </div>
 
       {reportGapLabels.length > 0 && (
-        <p className="text-xs leading-snug" style={{ color: 'var(--text-tertiary)' }}>
-          <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Report input gaps: </span>
+        <p className="text-xs leading-snug text-[var(--text-tertiary)]">
+          <span className="font-semibold text-[var(--text-secondary)]">Report input gaps: </span>
           {reportGapLabels.slice(0, 5).join(' · ')}
           {reportGapLabels.length > 5 ? ` · +${reportGapLabels.length - 5} more` : ''}
         </p>
@@ -270,8 +270,7 @@ export function IntakeBankWizard({
               <button
                 type="button"
                 onClick={() => setPlanExplainOpen(o => !o)}
-                className="inline-flex items-center gap-1.5 text-xs font-medium rounded-md px-2 py-1 -ml-2"
-                style={{ color: 'var(--text-tertiary)', cursor: 'pointer' }}
+                className="inline-flex -ml-2 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-[var(--text-tertiary)] cursor-pointer"
                 aria-expanded={planExplainOpen}
               >
                 <Info className="w-3.5 h-3.5 shrink-0" aria-hidden weight="bold" />
@@ -279,8 +278,7 @@ export function IntakeBankWizard({
               </button>
               {planExplainOpen && (
                 <ul
-                  className="list-disc pl-5 mt-2 space-y-1 text-xs leading-snug"
-                  style={{ color: 'var(--text-tertiary)' }}
+                  className="mt-2 list-disc space-y-1 pl-5 text-xs leading-snug text-[var(--text-tertiary)]"
                 >
                   {planReasonLines.map((line, i) => (
                     <li key={`${line}-${i}`}>{line}</li>
@@ -331,7 +329,7 @@ export function IntakeBankWizard({
       {suggestedNextBlock}
 
       {totalVisibleSteps === 0 && (
-        <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+        <p className="text-sm text-[var(--text-tertiary)]">
           No bank questions visible yet. Answer basics (e.g. industry and website presence) in step 0 or switch to
           classic brief view.
         </p>

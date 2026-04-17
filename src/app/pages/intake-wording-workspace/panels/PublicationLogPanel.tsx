@@ -1,6 +1,7 @@
 import type { PublicationLogEntry } from '../types';
 import { formatPublicationLogTimestamp } from '../model';
 import { INTAKE_WORDING_WORKSPACE_COPY as W } from '../../../config/intake-wording-workspace-copy';
+import { Button } from '../../../components/ui/button';
 
 export function PublicationLogPanel(props: {
   hydrated: boolean;
@@ -13,9 +14,9 @@ export function PublicationLogPanel(props: {
     <details className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
       <summary className="cursor-pointer text-sm font-medium">{W.publicationLog.summaryLabel}</summary>
       <div className="mt-3 space-y-2">
-        <button type="button" className="glc-btn-secondary text-xs px-2 py-1" onClick={onRefresh}>
+        <Button type="button" variant="outline" size="sm" className="h-auto px-2 py-1 text-xs" onClick={onRefresh}>
           {W.actions.refresh}
-        </button>
+        </Button>
         {publicationLog.length === 0 ? (
           <p className="text-xs text-[var(--glc-muted)]">{W.publicationLog.empty}</p>
         ) : (

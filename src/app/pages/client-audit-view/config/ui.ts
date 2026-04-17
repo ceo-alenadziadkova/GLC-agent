@@ -29,29 +29,32 @@ export const CLIENT_AUDIT_VIEW_UI = {
   },
   snapshot: {
     panelLimited: {
-      border: '1px solid rgba(249,115,22,0.28)',
-      background: 'linear-gradient(135deg, rgba(249,115,22,0.08) 0%, rgba(28,189,255,0.04) 100%)',
+      border: '1px solid var(--callout-warning-border)',
+      background:
+        'linear-gradient(135deg, var(--callout-warning-bg) 0%, var(--glc-blue-muted-faint) 100%)',
     },
     panelNormal: {
-      border: '1px solid rgba(28,189,255,0.22)',
-      background: 'linear-gradient(135deg, rgba(28,189,255,0.10) 0%, rgba(28,189,255,0.03) 100%)',
+      border: '1px solid var(--callout-info-border)',
+      background:
+        'linear-gradient(135deg, var(--glc-blue-muted) 0%, var(--glc-blue-muted-faint) 100%)',
     },
-    dividerBorderColor: 'rgba(28,189,255,0.15)',
-    packageButtonActiveBg: 'rgba(28,189,255,0.14)',
+    dividerBorderColor: 'var(--glc-blue-muted-strong)',
+    packageButtonActiveBg: 'var(--glc-blue-muted-strong)',
     limitedHint: {
-      background: 'rgba(249,115,22,0.08)',
-      border: '1px solid rgba(249,115,22,0.2)',
+      background: 'var(--callout-warning-bg)',
+      border: '1px solid var(--score-2-border)',
     },
-    packageCardActiveBorder: '1px solid rgba(28,189,255,0.35)',
+    packageCardActiveBorder: '1px solid var(--callout-info-border-strong)',
   },
   links: {
     reportCard: {
-      background: 'linear-gradient(135deg, rgba(28,189,255,0.15) 0%, rgba(28,189,255,0.06) 100%)',
-      border: '1px solid rgba(28,189,255,0.25)',
+      background:
+        'linear-gradient(135deg, var(--glc-blue-muted-strong) 0%, var(--glc-blue-muted-soft) 100%)',
+      border: '1px solid var(--callout-info-border)',
     },
     pipelineCard: {
-      backgroundColor: 'rgba(28,189,255,0.05)',
-      border: '1px solid rgba(28,189,255,0.15)',
+      backgroundColor: 'var(--glc-blue-muted-soft)',
+      border: '1px solid var(--glc-blue-muted-strong)',
     },
   },
 } as const;

@@ -16,18 +16,17 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
       {items.map((item, index) => (
         <div key={index} className="flex items-center gap-2">
           {index > 0 && (
-            <CaretRight className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
+            <CaretRight className="h-4 w-4 text-[var(--text-tertiary)]" />
           )}
           {item.href ? (
             <Link
               to={item.href}
-              className="text-sm hover:underline"
-              style={{ color: 'var(--text-secondary)' }}
+              className="text-sm text-[var(--text-secondary)] hover:underline"
             >
               {item.label}
             </Link>
           ) : (
-            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            <span className="text-sm font-medium text-[var(--text-primary)]">
               {item.label}
             </span>
           )}

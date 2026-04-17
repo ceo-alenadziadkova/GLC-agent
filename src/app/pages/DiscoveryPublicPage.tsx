@@ -40,7 +40,7 @@ export function DiscoveryPublicPage() {
             >
               <div className="flex justify-center lg:justify-start">
                 <div
-                  className="inline-flex max-w-full items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide mobile:text-[11px]"
+                  className="inline-flex max-w-full items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide mobile:text-xs"
                   style={{
                     background: 'linear-gradient(135deg, rgba(28,189,255,0.12) 0%, rgba(242,79,29,0.08) 100%)',
                     border: '1px solid var(--border-default)',

@@ -95,19 +95,19 @@ export function BranchDependenciesPanel(props: {
         )}
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="rounded border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-2">
-            <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-[var(--glc-muted)]">
+            <div className="mb-1 text-[length:var(--text-2xs)] font-medium uppercase tracking-wide text-[var(--glc-muted)]">
               Reads (upstream)
             </div>
             {upstream.length === 0 ? (
               <p className="text-[var(--glc-muted)]">None (root inputs for this branch)</p>
             ) : (
-              <ul className="space-y-1 font-mono text-[11px] text-[var(--glc-fg)]">
+              <ul className="space-y-1 font-mono text-xs text-[var(--glc-fg)]">
                 {upstream.map(parent => (
                   <li key={parent}>
                     <span className="text-[var(--glc-muted)]">{parent}</span>
                     <span className="text-[var(--glc-muted)]"> → </span>
                     <span>{graphFocusId}</span>
-                    <div className="text-[10px] font-sans text-[var(--glc-muted)]">
+                    <div className="text-[length:var(--text-2xs)] font-sans text-[var(--glc-muted)]">
                       {resolveLabel(parent)} → {resolveLabel(graphFocusId)}
                     </div>
                   </li>
@@ -116,19 +116,19 @@ export function BranchDependenciesPanel(props: {
             )}
           </div>
           <div className="rounded border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-2">
-            <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-[var(--glc-muted)]">
+            <div className="mb-1 text-[length:var(--text-2xs)] font-medium uppercase tracking-wide text-[var(--glc-muted)]">
               Dependents (downstream)
             </div>
             {downstream.length === 0 ? (
               <p className="text-[var(--glc-muted)]">No other stub lists this id in branch key deps</p>
             ) : (
-              <ul className="space-y-1 font-mono text-[11px] text-[var(--glc-fg)]">
+              <ul className="space-y-1 font-mono text-xs text-[var(--glc-fg)]">
                 {downstream.map(child => (
                   <li key={child}>
                     <span>{graphFocusId}</span>
                     <span className="text-[var(--glc-muted)]"> → </span>
                     <span className="text-[var(--glc-muted)]">{child}</span>
-                    <div className="text-[10px] font-sans text-[var(--glc-muted)]">
+                    <div className="text-[length:var(--text-2xs)] font-sans text-[var(--glc-muted)]">
                       {resolveLabel(graphFocusId)} → {resolveLabel(child)}
                     </div>
                   </li>
@@ -173,11 +173,11 @@ export function QuestionTraceRow(props: {
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-[var(--glc-fg)]">{id}</span>
             {mode === 'simple' && (
-              <span className="text-[11px] text-[var(--glc-muted)] break-all">{label}</span>
+              <span className="text-xs text-[var(--glc-muted)] break-all">{label}</span>
             )}
             <button
               type="button"
-              className="rounded border border-[var(--glc-border)] bg-[var(--glc-surface)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--glc-muted)] hover:text-[var(--glc-fg)]"
+              className="rounded border border-[var(--glc-border)] bg-[var(--glc-surface)] px-1.5 py-0.5 text-[length:var(--text-2xs)] font-medium text-[var(--glc-muted)] hover:text-[var(--glc-fg)]"
               onClick={event => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -188,43 +188,43 @@ export function QuestionTraceRow(props: {
             </button>
           </div>
           {mode === 'simple' && (
-            <div className="text-[11px] text-[var(--glc-muted)]">{statusSummary}</div>
+            <div className="text-xs text-[var(--glc-muted)]">{statusSummary}</div>
           )}
           <div className="flex flex-wrap gap-1">
             {sets.eligible.has(id) && (
-              <span className={`rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${membershipClass('eligible')}`}>
+              <span className={`rounded border px-1.5 py-0.5 text-[length:var(--text-2xs)] uppercase tracking-wide ${membershipClass('eligible')}`}>
                 eligible
               </span>
             )}
             {sets.visible.has(id) && (
-              <span className={`rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${membershipClass('visible')}`}>
+              <span className={`rounded border px-1.5 py-0.5 text-[length:var(--text-2xs)] uppercase tracking-wide ${membershipClass('visible')}`}>
                 visible
               </span>
             )}
             {sets.required.has(id) && (
-              <span className={`rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${membershipClass('required')}`}>
+              <span className={`rounded border px-1.5 py-0.5 text-[length:var(--text-2xs)] uppercase tracking-wide ${membershipClass('required')}`}>
                 required
               </span>
             )}
             {sets.hidden.has(id) && (
-              <span className={`rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${membershipClass('hidden')}`}>
+              <span className={`rounded border px-1.5 py-0.5 text-[length:var(--text-2xs)] uppercase tracking-wide ${membershipClass('hidden')}`}>
                 hidden
               </span>
             )}
             {sets.deferred.has(id) && (
-              <span className={`rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${membershipClass('deferred')}`}>
+              <span className={`rounded border px-1.5 py-0.5 text-[length:var(--text-2xs)] uppercase tracking-wide ${membershipClass('deferred')}`}>
                 deferred
               </span>
             )}
             {sets.sla.has(id) && (
-              <span className={`rounded border px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${membershipClass('sla')}`}>
+              <span className={`rounded border px-1.5 py-0.5 text-[length:var(--text-2xs)] uppercase tracking-wide ${membershipClass('sla')}`}>
                 sla visible
               </span>
             )}
           </div>
         </div>
       </summary>
-      <ol className="space-y-1 border-t border-[var(--glc-border)] bg-[var(--glc-surface)] px-3 py-2 pl-10 font-mono text-[11px] text-[var(--glc-muted)]">
+      <ol className="space-y-1 border-t border-[var(--glc-border)] bg-[var(--glc-surface)] px-3 py-2 pl-10 font-mono text-xs text-[var(--glc-muted)]">
         {reasons.length === 0 ? (
           <li className="text-[var(--glc-muted)]">No reason entries</li>
         ) : (

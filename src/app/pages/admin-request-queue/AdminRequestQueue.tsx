@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import { AppShell } from '../../components/AppShell';
+import { Button } from '../../components/ui/button';
 import { APP_ROUTE_PATHS } from '../../config/route-paths';
 import { ADMIN_REQUEST_QUEUE_COPY } from '../../config/admin-request-queue-copy.en';
 import { AuditRequestQueueCard } from './components/AuditRequestQueueCard';
@@ -44,15 +45,15 @@ export function AdminRequestQueue() {
       subtitle={ADMIN_REQUEST_QUEUE_COPY.pageSubtitle}
       actions={
         <div className="flex flex-col gap-2 w-full sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:w-auto">
-          <Link to={APP_ROUTE_PATHS.adminSnapshots} className="glc-btn-secondary no-underline text-sm glc-touch-target sm:min-h-0 sm:min-w-0 justify-center">
-            {ADMIN_REQUEST_QUEUE_COPY.navSnapshots}
-          </Link>
-          <Link to={APP_ROUTE_PATHS.adminDiscovery} className="glc-btn-secondary no-underline text-sm glc-touch-target sm:min-h-0 sm:min-w-0 justify-center">
-            {ADMIN_REQUEST_QUEUE_COPY.navDiscovery}
-          </Link>
-          <Link to={APP_ROUTE_PATHS.portfolio} className="glc-btn-secondary no-underline text-sm glc-touch-target sm:min-h-0 sm:min-w-0 justify-center">
-            {ADMIN_REQUEST_QUEUE_COPY.navPortfolio}
-          </Link>
+          <Button asChild variant="outline" size="sm" className="glc-touch-target justify-center no-underline sm:min-h-0 sm:min-w-0">
+            <Link to={APP_ROUTE_PATHS.adminSnapshots}>{ADMIN_REQUEST_QUEUE_COPY.navSnapshots}</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="glc-touch-target justify-center no-underline sm:min-h-0 sm:min-w-0">
+            <Link to={APP_ROUTE_PATHS.adminDiscovery}>{ADMIN_REQUEST_QUEUE_COPY.navDiscovery}</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="glc-touch-target justify-center no-underline sm:min-h-0 sm:min-w-0">
+            <Link to={APP_ROUTE_PATHS.portfolio}>{ADMIN_REQUEST_QUEUE_COPY.navPortfolio}</Link>
+          </Button>
         </div>
       }
     >
@@ -68,15 +69,15 @@ export function AdminRequestQueue() {
         {!loading && !error && filter === 'pending' && awaitingRows.length > 0 && (
           <section className="space-y-3">
             {intakeLoadError && (
-              <p className="text-xs" style={{ color: 'var(--score-2)' }}>
+              <p className="text-xs text-[var(--score-2)]">
                 {ADMIN_REQUEST_QUEUE_COPY.preBriefListUnavailablePrefix} {intakeLoadError}
               </p>
             )}
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between flex-wrap">
-              <h2 className="text-sm font-semibold m-0" style={{ color: 'var(--text-primary)' }}>
+              <h2 className="m-0 text-sm font-semibold text-[var(--text-primary)]">
                 {ADMIN_REQUEST_QUEUE_COPY.awaitingSectionTitle}
               </h2>
-              <p className="text-xs m-0" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="m-0 text-xs text-[var(--text-tertiary)]">
                 {ADMIN_REQUEST_QUEUE_COPY.awaitingSummaryLine(
                   awaitingRows.length,
                   awaitingRows.filter(r => r.kind === 'request').length,

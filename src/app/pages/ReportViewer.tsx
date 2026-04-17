@@ -14,6 +14,7 @@ import { CoverageCard } from '../features/report-viewer/components/CoverageCard'
 import { DomainScorecard } from '../features/report-viewer/components/DomainScorecard';
 import { ReportFindings } from '../features/report-viewer/components/ReportFindings';
 import { FollowUpCard } from '../features/report-viewer/components/FollowUpCard';
+import { Button } from '../components/ui/button';
 import { REPORT_VIEWER_COPY } from '../features/report-viewer/config/report-viewer.copy.en';
 import { REPORT_VIEWER_CONSTANTS } from '../features/report-viewer/config/report-viewer.constants';
 import {
@@ -101,26 +102,14 @@ export function ReportViewer() {
                   : 'running'
             }
           />
-          <button
-            type="button"
-            className="glc-btn-secondary"
-            onClick={handleDownloadCsv}
-            disabled={csvLoading}
-            title={REPORT_VIEWER_COPY.buttons.actionPlanCsvTitle}
-          >
+          <Button type="button" variant="outline" onClick={handleDownloadCsv} disabled={csvLoading} title={REPORT_VIEWER_COPY.buttons.actionPlanCsvTitle}>
             <DownloadSimple className="w-4 h-4" />
             {csvLoading ? REPORT_VIEWER_COPY.status.generating : REPORT_VIEWER_COPY.buttons.actionPlanCsv}
-          </button>
-          <button
-            type="button"
-            className="glc-btn-secondary"
-            onClick={handleExportPdf}
-            disabled={pdfLoading}
-            title={REPORT_VIEWER_COPY.buttons.exportPdfTitle}
-          >
+          </Button>
+          <Button type="button" variant="outline" onClick={handleExportPdf} disabled={pdfLoading} title={REPORT_VIEWER_COPY.buttons.exportPdfTitle}>
             <FileText className="w-4 h-4" />
             {pdfLoading ? REPORT_VIEWER_COPY.status.generating : REPORT_VIEWER_COPY.buttons.exportPdf}
-          </button>
+          </Button>
         </div>
       }
     >
@@ -167,13 +156,11 @@ export function ReportViewer() {
         {/* Strategy link */}
         {audit.strategy && (
           <div className="text-center">
-            <Link
-              to={`/strategy/${id}`}
-              className="glc-btn-secondary inline-flex"
-              style={{ textDecoration: 'none' }}
-            >
-              {REPORT_VIEWER_COPY.buttons.viewStrategyLab} <ArrowUpRight className="w-4 h-4" />
-            </Link>
+            <Button asChild variant="outline" className="inline-flex no-underline">
+              <Link to={`/strategy/${id}`}>
+                {REPORT_VIEWER_COPY.buttons.viewStrategyLab} <ArrowUpRight className="w-4 h-4" />
+              </Link>
+            </Button>
           </div>
         )}
       </div>

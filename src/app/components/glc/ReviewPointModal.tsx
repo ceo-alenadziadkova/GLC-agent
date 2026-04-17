@@ -3,10 +3,11 @@ import { REVIEW_GATE_NOTES_MAX } from '@glc/intake-core';
 import { motion } from 'motion/react';
 import { Star, CheckCircle, ArrowRight, MagnifyingGlass, HardDrives, Shield, Globe, Cursor, Target, Lightning, MapTrifold, WarningCircle, Info } from '@phosphor-icons/react';
 import type { QualityGateReport } from '../../data/auditTypes';
-import { UI_SEMANTIC_COLORS } from '../../config/ui-semantic-colors';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '../ui/dialog';
+import { Textarea } from '../ui/textarea';
+import { Button } from '../ui/button';
 import { StatusPill } from './StatusPill';
 import { SectionLabel } from './SectionLabel';
 
@@ -76,56 +77,25 @@ export function ReviewPointModal({
     setInterviewNotes('');
   }
 
-  const inputStyle = {
-    width: '100%',
-    padding: '10px 12px',
-    borderRadius: 'var(--radius-md)',
-    border: '1px solid var(--border-default)',
-    backgroundColor: 'var(--bg-canvas)',
-    color: 'var(--text-primary)',
-    fontSize: 'var(--text-sm)',
-    fontFamily: 'var(--font-sans)',
-    resize: 'vertical' as const,
-    outline: 'none',
-    lineHeight: 'var(--leading-relaxed)',
-  };
-
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent
-        style={{
-          maxWidth: 560,
-          padding: 0,
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          overflow: 'hidden',
-          boxShadow: 'var(--shadow-lg)',
-        }}
+        className="max-w-[560px] overflow-hidden p-0"
       >
         {/* ── Header ──────────────────────────────── */}
-        <DialogHeader
-          style={{
-            padding: '20px 24px 16px',
-            borderBottom: '1px solid var(--border-subtle)',
-            backgroundColor: 'var(--bg-surface)',
-          }}
-        >
+        <DialogHeader className="border-b bg-card px-6 pb-4 pt-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: 'var(--score-3-bg)', borderRadius: 'var(--radius-md)' }}
+                className="bg-warning/15 text-warning flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg"
               >
-                <Star className="w-4 h-4" style={{ color: 'var(--score-3)' }} />
+                <Star className="h-4 w-4" />
               </div>
               <div>
-                <DialogTitle
-                  className="text-base font-semibold"
-                  style={{ color: 'var(--text-primary)' }}
-                >
+                <DialogTitle className="text-base font-semibold">
                   {reviewPoint.label}
                 </DialogTitle>
-                <DialogDescription className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                <DialogDescription className="text-muted-foreground text-xs">
                   {reviewPoint.note}
                 </DialogDescription>
               </div>
@@ -135,32 +105,23 @@ export function ReviewPointModal({
         </DialogHeader>
 
         {/* ── Body ────────────────────────────────── */}
-        <div
-          className="overflow-y-auto space-y-5"
-          style={{ padding: '20px 24px', backgroundColor: 'var(--bg-canvas)', maxHeight: 440 }}
-        >
+        <div className="max-h-[440px] space-y-5 overflow-y-auto bg-background px-6 py-5">
           {/* Completed phases in this block */}
           <div>
             <SectionLabel className="mb-2.5">Completed in this block</SectionLabel>
-            <div
-              className="rounded-lg overflow-hidden"
-              style={{ border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }}
-            >
+            <div className="overflow-hidden rounded-lg border bg-card">
               {blockPhases.map((ph, i) => {
                 const I = ph.icon;
                 return (
                   <div
                     key={ph.id}
-                    className="flex items-center gap-3 px-4 py-2.5"
-                    style={{
-                      borderBottom: i < blockPhases.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-                    }}
+                    className={`flex items-center gap-3 px-4 py-2.5 ${i < blockPhases.length - 1 ? 'border-b' : ''}`}
                   >
-                    <I className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--text-tertiary)' }} />
-                    <span className="text-sm flex-1" style={{ color: 'var(--text-secondary)' }}>
+                    <I className="text-muted-foreground h-3.5 w-3.5 flex-shrink-0" />
+                    <span className="text-muted-foreground flex-1 text-sm">
                       Phase {ph.id}: {ph.name}
                     </span>
-                    <CheckCircle className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--glc-green)' }} />
+                    <CheckCircle className="text-success h-4 w-4 flex-shrink-0" />
                   </div>
                 );
               })}
@@ -169,21 +130,15 @@ export function ReviewPointModal({
 
           {/* Decision Layer refine (per-phase, advisory) */}
           {governanceRefines.length > 0 && (
-            <div
-              className="rounded-lg overflow-hidden"
-              style={{ border: '1px solid rgba(234,179,8,0.45)', backgroundColor: 'rgba(234,179,8,0.07)' }}
-            >
-              <div
-                className="flex items-center gap-2 px-4 py-2.5"
-                style={{ borderBottom: '1px solid rgba(234,179,8,0.35)', backgroundColor: 'rgba(234,179,8,0.12)' }}
-              >
-                <WarningCircle size={15} weight="fill" style={{ color: UI_SEMANTIC_COLORS.warningAmber, flexShrink: 0 }} />
-                <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+            <div className="bg-warning/10 border-warning/40 overflow-hidden rounded-lg border">
+              <div className="bg-warning/15 border-warning/35 flex items-center gap-2 border-b px-4 py-2.5">
+                <WarningCircle size={15} weight="fill" className="text-warning flex-shrink-0" />
+                <span className="text-foreground text-xs font-bold">
                   {governanceRefineSectionTitle}
                 </span>
               </div>
               {governanceRefineSectionIntro ? (
-                <p className="px-4 py-2 text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-muted-foreground px-4 py-2 text-xs leading-relaxed">
                   {governanceRefineSectionIntro}
                 </p>
               ) : null}
@@ -191,13 +146,12 @@ export function ReviewPointModal({
                 {governanceRefines.map((row, i) => (
                   <div
                     key={`${row.phase}-${i}`}
-                    className="px-4 py-2.5"
-                    style={{ borderTop: i > 0 || governanceRefineSectionIntro ? '1px solid rgba(234,179,8,0.25)' : 'none' }}
+                    className={`px-4 py-2.5 ${i > 0 || governanceRefineSectionIntro ? 'border-warning/25 border-t' : ''}`}
                   >
-                    <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    <p className="text-foreground text-xs font-semibold">
                       Phase {row.phase}: {row.phaseLabel}
                     </p>
-                    <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                    <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
                       {row.reasoning}
                     </p>
                   </div>
@@ -208,16 +162,10 @@ export function ReviewPointModal({
 
           {/* Quality Gate warnings */}
           {warnings.length > 0 && (
-            <div
-              className="rounded-lg overflow-hidden"
-              style={{ border: '1px solid rgba(249,115,22,0.35)', backgroundColor: 'rgba(249,115,22,0.06)' }}
-            >
-              <div
-                className="flex items-center gap-2 px-4 py-2.5"
-                style={{ borderBottom: '1px solid var(--score-2-border)', backgroundColor: 'var(--score-2-bg)' }}
-              >
-                <WarningCircle size={15} weight="fill" style={{ color: 'var(--score-2)', flexShrink: 0 }} />
-                <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+            <div className="bg-warning/10 border-warning/40 overflow-hidden rounded-lg border">
+              <div className="bg-warning/15 border-warning/35 flex items-center gap-2 border-b px-4 py-2.5">
+                <WarningCircle size={15} weight="fill" className="text-warning flex-shrink-0" />
+                <span className="text-foreground text-xs font-bold">
                   {warnings.length} Quality Warning{warnings.length > 1 ? 's' : ''} — Notes Required
                 </span>
               </div>
@@ -225,10 +173,9 @@ export function ReviewPointModal({
                 {warnings.map((flag, i) => (
                   <div
                     key={flag.id}
-                    className="px-4 py-2.5"
-                    style={{ borderTop: i > 0 ? '1px solid var(--score-2-border)' : 'none' }}
+                    className={`px-4 py-2.5 ${i > 0 ? 'border-warning/35 border-t' : ''}`}
                   >
-                    <p className="text-xs leading-relaxed" style={{ color: 'var(--callout-warning-fg)' }}>{flag.message}</p>
+                    <p className="text-warning-foreground text-xs leading-relaxed">{flag.message}</p>
                   </div>
                 ))}
               </div>
@@ -237,13 +184,10 @@ export function ReviewPointModal({
 
           {/* Quality Gate info flags */}
           {infoFlags.length > 0 && (
-            <div
-              className="rounded-lg overflow-hidden"
-              style={{ border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }}
-            >
-              <div className="flex items-center gap-2 px-4 py-2" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                <Info size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
-                <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+            <div className="overflow-hidden rounded-lg border bg-card">
+              <div className="flex items-center gap-2 border-b px-4 py-2">
+                <Info size={14} className="text-muted-foreground flex-shrink-0" />
+                <span className="text-muted-foreground text-xs font-medium">
                   {infoFlags.length} Informational Note{infoFlags.length > 1 ? 's' : ''}
                 </span>
               </div>
@@ -251,10 +195,9 @@ export function ReviewPointModal({
                 {infoFlags.map((flag, i) => (
                   <div
                     key={flag.id}
-                    className="px-4 py-2.5"
-                    style={{ borderTop: i > 0 ? '1px solid var(--border-subtle)' : 'none' }}
+                    className={`px-4 py-2.5 ${i > 0 ? 'border-t' : ''}`}
                   >
-                    <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{flag.message}</p>
+                    <p className="text-muted-foreground text-xs leading-relaxed">{flag.message}</p>
                   </div>
                 ))}
               </div>
@@ -263,34 +206,26 @@ export function ReviewPointModal({
 
           {/* Consultant notes */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            <label className="text-foreground block text-sm font-medium">
               Consultant Notes
               {warnings.length > 0 ? (
-                <span className="ml-1.5 text-xs font-semibold" style={{ color: UI_SEMANTIC_COLORS.danger }}>* required</span>
+                <span className="text-destructive ml-1.5 text-xs font-semibold">* required</span>
               ) : (
-                <span className="ml-1.5 text-xs font-normal" style={{ color: 'var(--text-tertiary)' }}>
+                <span className="text-muted-foreground ml-1.5 text-xs font-normal">
                   your observations after reviewing these phases
                 </span>
               )}
             </label>
-            <textarea
+            <Textarea
               rows={3}
               value={consultantNotes}
               maxLength={REVIEW_GATE_NOTES_MAX}
               onChange={e => setConsultantNotes(e.target.value)}
               placeholder="e.g. Tech stack is significantly outdated. Security issues are blocking — need to address before proceeding with marketing analysis."
-              style={inputStyle}
-              onFocus={e => {
-                (e.target as HTMLTextAreaElement).style.borderColor = 'var(--glc-blue)';
-                (e.target as HTMLTextAreaElement).style.boxShadow = 'var(--shadow-blue)';
-              }}
-              onBlur={e => {
-                (e.target as HTMLTextAreaElement).style.borderColor = 'var(--border-default)';
-                (e.target as HTMLTextAreaElement).style.boxShadow = 'none';
-              }}
+              className="resize-y bg-background"
             />
             {notesRequired && (
-              <p className="text-xs mt-1" style={{ color: UI_SEMANTIC_COLORS.danger }}>
+              <p className="text-destructive mt-1 text-xs">
                 Notes are required to acknowledge the quality warnings above before approving.
               </p>
             )}
@@ -298,69 +233,43 @@ export function ReviewPointModal({
 
           {/* Interview notes */}
           <div className="space-y-1.5">
-            <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            <label className="text-foreground block text-sm font-medium">
               Interview Notes
-              <span className="ml-1.5 text-xs font-normal" style={{ color: 'var(--text-tertiary)' }}>
+              <span className="text-muted-foreground ml-1.5 text-xs font-normal">
                 key points from client conversation
               </span>
             </label>
-            <textarea
+            <Textarea
               rows={3}
               value={interviewNotes}
               maxLength={REVIEW_GATE_NOTES_MAX}
               onChange={e => setInterviewNotes(e.target.value)}
               placeholder="e.g. Client confirmed they are aware of WordPress issues but delayed due to budget. Priority: quick wins first."
-              style={inputStyle}
-              onFocus={e => {
-                (e.target as HTMLTextAreaElement).style.borderColor = 'var(--glc-blue)';
-                (e.target as HTMLTextAreaElement).style.boxShadow = 'var(--shadow-blue)';
-              }}
-              onBlur={e => {
-                (e.target as HTMLTextAreaElement).style.borderColor = 'var(--border-default)';
-                (e.target as HTMLTextAreaElement).style.boxShadow = 'none';
-              }}
+              className="resize-y bg-background"
             />
           </div>
 
           {/* Info strip */}
-          <div
-            className="rounded-lg px-4 py-3 text-xs leading-relaxed"
-            style={{ backgroundColor: 'var(--glc-blue-xlight)', color: 'var(--glc-blue-dark)', border: '1px solid var(--glc-blue-light)' }}
-          >
+          <div className="bg-info/10 text-info-foreground border-info/40 rounded-lg border px-4 py-3 text-xs leading-relaxed">
             <strong>After approving:</strong> the next wing of the pipeline will start automatically.
             Notes are saved to the audit record and appear in the final report.
           </div>
         </div>
 
         {/* ── Footer ──────────────────────────────── */}
-        <DialogFooter
-          style={{
-            padding: '16px 24px',
-            borderTop: '1px solid var(--border-subtle)',
-            backgroundColor: 'var(--bg-surface)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: 10,
-          }}
-        >
-          <button
-            onClick={onClose}
-            className="glc-btn-ghost"
-          >
+        <DialogFooter className="flex items-center justify-end gap-2.5 border-t bg-card px-6 py-4">
+          <Button onClick={onClose} variant="ghost">
             Cancel
-          </button>
-          <motion.button
-            onClick={handleApprove}
+          </Button>
+          <motion.div
             whileHover={notesRequired ? {} : { scale: 1.01 }}
             whileTap={notesRequired ? {} : { scale: 0.98 }}
-            disabled={notesRequired}
-            className="glc-btn-primary"
-            style={notesRequired ? { opacity: 0.45, cursor: 'not-allowed' } : undefined}
           >
-            Approve & Continue
-            <ArrowRight className="w-4 h-4" />
-          </motion.button>
+            <Button type="button" variant="default" onClick={handleApprove} disabled={notesRequired}>
+              Approve & Continue
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </motion.div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

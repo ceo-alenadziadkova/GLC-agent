@@ -6,21 +6,69 @@ interface ScoreBadgeProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
+const SCORE_SIZE_STYLE = {
+  sm: {
+    padding: 'var(--space-0-5) var(--space-2)',
+    fontSize: 'var(--text-xs)',
+    dotSize: 5,
+    labelOffset: 'var(--space-0-5)',
+  },
+  md: {
+    padding: 'var(--space-1) var(--space-2-5)',
+    fontSize: 'var(--text-xs)',
+    dotSize: 6,
+    labelOffset: 'var(--space-0-5)',
+  },
+  lg: {
+    padding: 'var(--space-1-5) var(--space-3)',
+    fontSize: 'var(--text-sm)',
+    dotSize: 7,
+    labelOffset: 'var(--space-1)',
+  },
+} as const;
+
 const SCORE_CONFIG = {
-  5: { color: 'var(--score-5)', bg: 'var(--score-5-bg)', border: 'var(--score-5-border)', label: 'Excellent',     gradient: 'linear-gradient(135deg, #0ECF82, #0AB36F)' },
-  4: { color: 'var(--score-4)', bg: 'var(--score-4-bg)', border: 'var(--score-4-border)', label: 'Good',           gradient: 'linear-gradient(135deg, #22C55E, #16A34A)' },
-  3: { color: 'var(--score-3)', bg: 'var(--score-3-bg)', border: 'var(--score-3-border)', label: 'Needs Attention', gradient: 'linear-gradient(135deg, #EAB308, #CA8A04)' },
-  2: { color: 'var(--score-2)', bg: 'var(--score-2-bg)', border: 'var(--score-2-border)', label: 'Issues',          gradient: 'linear-gradient(135deg, #F97316, #EA580C)' },
-  1: { color: 'var(--score-1)', bg: 'var(--score-1-bg)', border: 'var(--score-1-border)', label: 'Critical',        gradient: 'linear-gradient(135deg, #EF4444, #DC2626)' },
+  5: {
+    color: 'var(--score-5)',
+    bg: 'var(--score-5-bg)',
+    border: 'var(--score-5-border)',
+    label: 'Excellent',
+    gradient: 'var(--gradient-success)',
+  },
+  4: {
+    color: 'var(--score-4)',
+    bg: 'var(--score-4-bg)',
+    border: 'var(--score-4-border)',
+    label: 'Good',
+    gradient: 'var(--gradient-success)',
+  },
+  3: {
+    color: 'var(--score-3)',
+    bg: 'var(--score-3-bg)',
+    border: 'var(--score-3-border)',
+    label: 'Needs Attention',
+    gradient: 'var(--gradient-accent)',
+  },
+  2: {
+    color: 'var(--score-2)',
+    bg: 'var(--score-2-bg)',
+    border: 'var(--score-2-border)',
+    label: 'Issues',
+    gradient: 'var(--gradient-accent)',
+  },
+  1: {
+    color: 'var(--score-1)',
+    bg: 'var(--score-1-bg)',
+    border: 'var(--score-1-border)',
+    label: 'Critical',
+    gradient: 'var(--gradient-accent)',
+  },
 } as const;
 
 export function ScoreBadge({ score, showLabel = false, size = 'md' }: ScoreBadgeProps) {
   const clamp = Math.min(5, Math.max(1, Math.round(score)));
   const cfg   = SCORE_CONFIG[clamp as keyof typeof SCORE_CONFIG];
-
-  const pad = { sm: '2px 8px', md: '3px 10px', lg: '5px 13px' }[size];
-  const fs  = { sm: '11px',    md: '12px',      lg: '13px'     }[size];
-  const dot = { sm: 5,         md: 6,            lg: 7          }[size];
+  const sizeCfg = SCORE_SIZE_STYLE[size];
 
   return (
     <span
@@ -29,10 +77,10 @@ export function ScoreBadge({ score, showLabel = false, size = 'md' }: ScoreBadge
         backgroundColor: cfg.bg,
         color: cfg.color,
         border: `1px solid ${cfg.border}`,
-        padding: pad,
-        fontSize: fs,
+        padding: sizeCfg.padding,
+        fontSize: sizeCfg.fontSize,
         fontFamily: 'var(--font-mono)',
-        letterSpacing: '-0.01em',
+        letterSpacing: 'var(--tracking-tight)',
       }}
       aria-label={`Score ${clamp}/5 — ${cfg.label}`}
     >
@@ -40,15 +88,24 @@ export function ScoreBadge({ score, showLabel = false, size = 'md' }: ScoreBadge
       <span
         className="rounded-full flex-shrink-0"
         style={{
-          width: dot,
-          height: dot,
+          width: sizeCfg.dotSize,
+          height: sizeCfg.dotSize,
           background: cfg.gradient,
-          boxShadow: `0 0 ${dot}px ${cfg.color}80`,
+          boxShadow: `0 0 ${sizeCfg.dotSize}px color-mix(in oklab, ${cfg.color} 80%, transparent)`,
         }}
       />
       {clamp}/5
       {showLabel && (
-        <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 500, marginLeft: 2, fontSize: fs }}>{cfg.label}</span>
+        <span
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontWeight: 500,
+            marginLeft: sizeCfg.labelOffset,
+            fontSize: sizeCfg.fontSize,
+          }}
+        >
+          {cfg.label}
+        </span>
       )}
     </span>
   );
@@ -75,7 +132,12 @@ export function ScoreBar({ score }: { score: number }) {
       </div>
       <span
         className="font-semibold text-right flex-shrink-0 tabular-nums"
-        style={{ color: cfg.color, fontSize: '11px', fontFamily: 'var(--font-mono)', width: 16 }}
+        style={{
+          color: cfg.color,
+          fontSize: 'var(--text-xs)',
+          fontFamily: 'var(--font-mono)',
+          width: 'var(--space-4)',
+        }}
       >
         {score}
       </span>
@@ -93,7 +155,7 @@ export function ScoreDot({ score, size = 7 }: { score: number; size?: number }) 
         width: size,
         height: size,
         background: cfg.gradient,
-        boxShadow: `0 0 ${size}px ${cfg.color}60`,
+        boxShadow: `0 0 ${size}px color-mix(in oklab, ${cfg.color} 60%, transparent)`,
       }}
     />
   );

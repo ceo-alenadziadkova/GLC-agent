@@ -1,4 +1,5 @@
 import { INTAKE_TRACE_EDGE_GRAPH_UI_COPY } from '../config/graph-copy';
+import { Button } from '../../../ui/button';
 
 interface GraphToolbarProps {
   pathOnlyMode: boolean;
@@ -19,47 +20,56 @@ interface GraphToolbarProps {
 
 export function GraphToolbar(props: GraphToolbarProps) {
   const copy = INTAKE_TRACE_EDGE_GRAPH_UI_COPY.actions;
+  const secondaryButtonClassName = 'h-auto px-2 py-1 text-xs';
   return (
     <div className="flex flex-wrap gap-2">
-      <button
+      <Button
         type="button"
-        className={`glc-btn-secondary text-xs px-2 py-1 ${props.pathOnlyMode ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+        variant="outline"
+        size="sm"
+        className={`${secondaryButtonClassName} ${props.pathOnlyMode ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
         onClick={props.onTogglePathOnlyMode}
       >
         {props.pathOnlyMode ? copy.showFullGraph : copy.showPathOnly}
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        className={`glc-btn-secondary text-xs px-2 py-1 ${props.isFocusedSubtreeCollapsed ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+        variant="outline"
+        size="sm"
+        className={`${secondaryButtonClassName} ${props.isFocusedSubtreeCollapsed ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
         onClick={props.onToggleCollapseFocused}
         disabled={!props.canCollapseFocused}
       >
         {props.isFocusedSubtreeCollapsed ? copy.expandFocusedSubtree : copy.collapseFocusedSubtree}
-      </button>
-      <button type="button" className="glc-btn-secondary text-xs px-2 py-1" onClick={props.onExpandAll}>
+      </Button>
+      <Button type="button" variant="outline" size="sm" className={secondaryButtonClassName} onClick={props.onExpandAll}>
         {copy.expandAllSubtrees}
-      </button>
-      <button type="button" className="glc-btn-secondary text-xs px-2 py-1" onClick={props.onExportSvg}>
+      </Button>
+      <Button type="button" variant="outline" size="sm" className={secondaryButtonClassName} onClick={props.onExportSvg}>
         {copy.exportSvg}
-      </button>
-      <button type="button" className="glc-btn-secondary text-xs px-2 py-1" onClick={props.onClearSelection}>
+      </Button>
+      <Button type="button" variant="outline" size="sm" className={secondaryButtonClassName} onClick={props.onClearSelection}>
         {copy.clearMultiSelect}
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        className={`glc-btn-secondary text-xs px-2 py-1 ${props.hasPinnedFocus ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+        variant="outline"
+        size="sm"
+        className={`${secondaryButtonClassName} ${props.hasPinnedFocus ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
         onClick={props.onTogglePin}
         disabled={!props.canPinFocused}
       >
         {props.isCurrentFocusPinned ? copy.unpinPath : copy.pinFocusedPath}
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        className={`glc-btn-secondary text-xs px-2 py-1 ${props.showBeforeAfter ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+        variant="outline"
+        size="sm"
+        className={`${secondaryButtonClassName} ${props.showBeforeAfter ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
         onClick={props.onToggleShowBeforeAfter}
       >
         {props.showBeforeAfter ? copy.hideBeforeAfter : copy.showBeforeAfter}
-      </button>
+      </Button>
     </div>
   );
 }

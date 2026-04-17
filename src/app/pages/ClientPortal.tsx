@@ -8,6 +8,8 @@ import { useAudits } from '../hooks/useAudits';
 import { api } from '../data/apiService';
 import { competitorComparisonCaption } from '../lib/snapshot-landing-helpers';
 import { PORTAL_COMPETITOR_COMPARE_COPY } from '../config/portal-competitor-compare-copy.en';
+import { cn } from '../components/ui/utils';
+import { Input } from '../components/ui/input';
 
 export function ClientPortal() {
   const { audits: myAudits, loading: auditsLoading, error: auditsError } = useAudits(30);
@@ -47,12 +49,7 @@ export function ClientPortal() {
   const actions = (
     <Link
       to="/portal/audit/new"
-      className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium no-underline transition-all"
-      style={{
-        background: 'var(--gradient-brand)',
-        color: 'var(--glc-ink)',
-        boxShadow: 'var(--glow-blue-sm)',
-      }}
+      className="hidden sm:inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-sky-400 to-sky-600 px-4 py-2 text-sm font-medium text-slate-950 no-underline shadow-[var(--glow-blue-sm)] transition-all"
     >
       <PlusCircle className="w-4 h-4" />
       New audit
@@ -64,15 +61,12 @@ export function ClientPortal() {
       <div className="glc-page-content max-w-3xl mx-auto space-y-8 mobile:space-y-6">
         {auditsLoading && (
           <div className="flex items-center justify-center py-20">
-            <Spinner className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+            <Spinner className="text-info h-6 w-6 animate-spin" />
           </div>
         )}
 
         {auditsError && (
-          <div
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm"
-            style={{ backgroundColor: 'var(--callout-error-bg)', border: '1px solid var(--callout-error-border)', color: 'var(--score-1)' }}
-          >
+          <div className="bg-destructive/10 text-destructive border-destructive/40 flex items-center gap-3 rounded-lg border px-4 py-3 text-sm">
             <Warning className="w-4 h-4 flex-shrink-0" />
             {auditsError}
           </div>
@@ -80,10 +74,7 @@ export function ClientPortal() {
 
         {!auditsLoading && !auditsError && myAudits.length > 0 && (
           <section>
-            <h3
-              className="font-semibold mb-3"
-              style={{ color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}
-            >
+            <h3 className="text-foreground mb-3 text-sm font-semibold">
               My audits
             </h3>
             <div className="space-y-2">
@@ -96,60 +87,49 @@ export function ClientPortal() {
 
         {!auditsLoading && !auditsError && (
           <section
-            className="glc-card p-4 sm:p-5"
-            style={{ borderRadius: 'var(--radius-xl)' }}
+            className="glc-card rounded-xl p-4 sm:p-5"
           >
-            <h3
-              className="font-semibold mb-2"
-              style={{ color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}
-            >
+            <h3 className="text-foreground mb-2 text-sm font-semibold">
               {PORTAL_COMPETITOR_COMPARE_COPY.sectionTitle}
             </h3>
-            <p className="text-sm mb-4" style={{ color: 'var(--text-tertiary)' }}>
+            <p className="text-muted-foreground mb-4 text-sm">
               {PORTAL_COMPETITOR_COMPARE_COPY.sectionBody}
             </p>
 
             {!selfSiteUrl ? (
-              <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="text-muted-foreground text-sm">
                 {PORTAL_COMPETITOR_COMPARE_COPY.noComparableSite}
               </p>
             ) : (
               <>
                 <form className="space-y-3" onSubmit={handleCompareSubmit}>
                   <div>
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-quaternary)' }}>
+                    <p className="text-muted-foreground mb-1 text-xs font-semibold uppercase tracking-wide">
                       {PORTAL_COMPETITOR_COMPARE_COPY.selfWebsiteLabel}
                     </p>
-                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    <p className="text-muted-foreground text-sm">
                       {new URL(ensureHttpsUrl(selfSiteUrl)).hostname}
                     </p>
                   </div>
                   <label className="block">
-                    <span className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-quaternary)' }}>
+                    <span className="text-muted-foreground mb-1 block text-xs font-semibold uppercase tracking-wide">
                       {PORTAL_COMPETITOR_COMPARE_COPY.competitorWebsiteLabel}
                     </span>
-                    <input
+                    <Input
                       type="text"
                       value={competitorUrl}
                       onChange={event => setCompetitorUrl(event.target.value)}
                       placeholder={PORTAL_COMPETITOR_COMPARE_COPY.competitorWebsitePlaceholder}
-                      className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
-                      style={{
-                        borderColor: 'var(--border-default)',
-                        backgroundColor: 'var(--bg-surface)',
-                        color: 'var(--text-primary)',
-                      }}
+                      className="h-auto w-full rounded-lg border px-3 py-2 text-sm"
                     />
                   </label>
                   <button
                     type="submit"
                     disabled={compareLoading || competitorUrl.trim().length === 0}
-                    className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium mobile:min-h-11"
-                    style={{
-                      background: 'var(--gradient-brand)',
-                      color: 'var(--glc-ink)',
-                      opacity: compareLoading || competitorUrl.trim().length === 0 ? 0.6 : 1,
-                    }}
+                    className={cn(
+                      'inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-sky-400 to-sky-600 px-4 py-2 text-sm font-medium text-slate-950 mobile:min-h-11',
+                      compareLoading || competitorUrl.trim().length === 0 ? 'opacity-60' : '',
+                    )}
                   >
                     {compareLoading
                       ? PORTAL_COMPETITOR_COMPARE_COPY.loadingAction
@@ -158,24 +138,24 @@ export function ClientPortal() {
                 </form>
 
                 {compareError && (
-                  <p className="mt-3 text-sm" style={{ color: 'var(--score-1)' }}>
+                  <p className="text-destructive mt-3 text-sm">
                     {compareError}
                   </p>
                 )}
 
                 {comparison && (
-                  <div className="mt-4 rounded-lg border p-4" style={{ borderColor: 'var(--border-subtle)' }}>
-                    <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+                  <div className="mt-4 rounded-lg border p-4">
+                    <p className="text-foreground mb-3 text-sm font-semibold">
                       {PORTAL_COMPETITOR_COMPARE_COPY.comparedToPrefix} {comparison.competitor_name}
                     </p>
                     <ul className="space-y-2">
                       {comparison.comparisons.map((row, index) => {
                         const { kind, text } = competitorComparisonCaption(row, comparison.competitor_name);
                         const Icon = kind === 'tie' ? Equals : kind === 'client' ? Check : X;
-                        const color = kind === 'tie' ? 'var(--text-tertiary)' : kind === 'client' ? 'var(--glc-green)' : 'var(--score-1)';
+                        const colorClass = kind === 'tie' ? 'text-muted-foreground' : kind === 'client' ? 'text-success' : 'text-destructive';
                         return (
-                          <li key={`${row.metric}-${index}`} className="flex items-start gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                            <Icon className="w-4 h-4 mt-0.5 shrink-0" style={{ color }} weight="bold" />
+                          <li key={`${row.metric}-${index}`} className="text-muted-foreground flex items-start gap-2 text-sm">
+                            <Icon className={cn('mt-0.5 h-4 w-4 shrink-0', colorClass)} weight="bold" />
                             <span>{text}</span>
                           </li>
                         );
@@ -190,25 +170,18 @@ export function ClientPortal() {
 
         {!auditsLoading && !auditsError && myAudits.length === 0 && (
           <div className="text-center py-16 mobile:py-12">
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-              style={{ backgroundColor: 'var(--callout-info-bg)', border: '1px solid var(--callout-info-border)' }}
-            >
-              <ClipboardText className="w-7 h-7" style={{ color: 'var(--glc-blue)' }} />
+            <div className="bg-info/10 border-info/40 mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border">
+              <ClipboardText className="text-info h-7 w-7" />
             </div>
-            <h3
-              className="font-semibold mb-2"
-              style={{ color: 'var(--text-primary)', fontSize: 'var(--text-base)' }}
-            >
+            <h3 className="text-foreground mb-2 text-base font-semibold">
               No audits yet
             </h3>
-            <p style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-sm)', marginBottom: 20 }}>
+            <p className="text-muted-foreground mb-5 text-sm">
               Create an audit, complete the branching intake brief, then start the run when you are ready.
             </p>
             <Link
               to="/portal/audit/new"
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium no-underline glc-touch-target"
-              style={{ background: 'var(--gradient-brand)', color: 'var(--glc-ink)' }}
+              className="glc-touch-target inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-sky-400 to-sky-600 px-5 py-2.5 text-sm font-medium text-slate-950 no-underline"
             >
               <PlusCircle className="w-4 h-4" />
               New audit

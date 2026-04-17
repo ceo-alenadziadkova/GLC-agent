@@ -23,8 +23,7 @@ export function LoginBrandSection({ loginTagline, motionTransition }: LoginBrand
       >
         <Link
           to={APP_ROUTE_PATHS.home}
-          className="inline-flex items-center justify-center gap-3"
-          style={{ textDecoration: 'none' }}
+          className="inline-flex items-center justify-center gap-3 no-underline"
           aria-label={LC.ariaHome}
         >
           <img
@@ -36,19 +35,14 @@ export function LoginBrandSection({ loginTagline, motionTransition }: LoginBrand
             decoding="async"
           />
           <h1
-            className="font-logo leading-none"
-            style={{
-              fontSize: 'var(--text-2xl)',
-              fontWeight: 700,
-              letterSpacing: 'var(--tracking-tight)',
-            }}
+            className="font-logo text-[length:var(--text-2xl)] leading-none font-bold tracking-[var(--tracking-tight)]"
           >
-            <span style={{ color: 'var(--text-primary)' }}>{LC.brandWordmarkPrimary}</span>
-            <span style={{ color: 'var(--text-secondary)' }}>{LC.brandWordmarkSecondary}</span>
+            <span className="text-[var(--text-primary)]">{LC.brandWordmarkPrimary}</span>
+            <span className="text-[var(--text-secondary)]">{LC.brandWordmarkSecondary}</span>
           </h1>
         </Link>
       </motion.div>
-      <p className="glc-login-brand-tagline mt-2" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+      <p className="glc-login-brand-tagline mt-2 text-[length:var(--text-sm)] text-[var(--text-secondary)]">
         {loginTagline}
       </p>
     </div>

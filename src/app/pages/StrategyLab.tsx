@@ -12,19 +12,21 @@ import type { StrategyInitiative } from '../data/auditTypes';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
 import type { DomainBenchmarkSnapshot } from '../data/api/benchmarks';
 import { api } from '../data/apiService';
-import { UI_SEMANTIC_COLORS } from '../config/ui-semantic-colors';
+import { UI_SEMANTIC_COLORS } from '../../design-system/tokens/ui-semantic-colors';
 import {
   STRATEGY_LAB_DEFAULT_BENCHMARK_PERIOD,
   STRATEGY_LAB_TAB_DESCRIPTIONS,
 } from '../config/strategy-lab';
 import { STRATEGY_LAB_COPY } from '../config/strategy-lab-copy';
+import { cn } from '../components/ui/utils';
+import { Button } from '../components/ui/button';
 
 type Timeframe = 'quick' | 'medium' | 'strategic';
 
-const TABS: { key: Timeframe; label: string; icon: typeof Lightning; color: string; desc: string }[] = [
-  { key: 'quick',    label: STRATEGY_LAB_COPY.tabLabels.quick,   icon: Lightning,  color: 'var(--glc-orange)', desc: STRATEGY_LAB_TAB_DESCRIPTIONS.quick },
-  { key: 'medium',   label: STRATEGY_LAB_COPY.tabLabels.medium,  icon: TrendUp,    color: 'var(--glc-blue)',   desc: STRATEGY_LAB_TAB_DESCRIPTIONS.medium },
-  { key: 'strategic',label: STRATEGY_LAB_COPY.tabLabels.strategic, icon: MapTrifold, color: UI_SEMANTIC_COLORS.strategicPurple, desc: STRATEGY_LAB_TAB_DESCRIPTIONS.strategic },
+const TABS: { key: Timeframe; label: string; icon: typeof Lightning; toneClass: string; desc: string }[] = [
+  { key: 'quick', label: STRATEGY_LAB_COPY.tabLabels.quick, icon: Lightning, toneClass: 'text-warning', desc: STRATEGY_LAB_TAB_DESCRIPTIONS.quick },
+  { key: 'medium', label: STRATEGY_LAB_COPY.tabLabels.medium, icon: TrendUp, toneClass: 'text-info', desc: STRATEGY_LAB_TAB_DESCRIPTIONS.medium },
+  { key: 'strategic', label: STRATEGY_LAB_COPY.tabLabels.strategic, icon: MapTrifold, toneClass: 'text-violet-500', desc: STRATEGY_LAB_TAB_DESCRIPTIONS.strategic },
 ];
 
 function normalizeAuditIndustryKey(raw: string | null | undefined): string | null {
@@ -33,10 +35,10 @@ function normalizeAuditIndustryKey(raw: string | null | undefined): string | nul
   return t.length > 0 ? t : null;
 }
 
-const EFFORT_COLOR: Record<string, string> = {
-  low:    'var(--glc-green)',
-  medium: 'var(--score-3)',
-  high:   'var(--score-1)',
+const EFFORT_CLASS: Record<string, string> = {
+  low: 'text-success',
+  medium: 'text-warning',
+  high: 'text-destructive',
 };
 
 export function StrategyLab() {
@@ -104,7 +106,7 @@ export function StrategyLab() {
     return (
       <AppShell title={STRATEGY_LAB_COPY.appShell.title} subtitle={STRATEGY_LAB_COPY.appShell.loadingSubtitle}>
         <div className="flex items-center justify-center h-64">
-          <ArrowsClockwise className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+          <ArrowsClockwise className="text-info h-6 w-6 animate-spin" />
         </div>
       </AppShell>
     );
@@ -114,7 +116,7 @@ export function StrategyLab() {
     return (
       <AppShell title={STRATEGY_LAB_COPY.appShell.title} subtitle={STRATEGY_LAB_COPY.appShell.errorSubtitle}>
         <div className="flex items-center justify-center h-64">
-          <p style={{ color: 'var(--score-1)' }}>{error || STRATEGY_LAB_COPY.messages.auditNotFound}</p>
+          <p className="text-destructive">{error || STRATEGY_LAB_COPY.messages.auditNotFound}</p>
         </div>
       </AppShell>
     );
@@ -125,9 +127,9 @@ export function StrategyLab() {
       <AppShell title={STRATEGY_LAB_COPY.appShell.title} subtitle={STRATEGY_LAB_COPY.appShell.unavailableSubtitle}>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <MapTrifold className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
-            <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>{STRATEGY_LAB_COPY.messages.notGenerated}</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-quaternary)' }}>{STRATEGY_LAB_COPY.messages.completePipeline}</p>
+            <MapTrifold className="text-muted-foreground mx-auto mb-3 h-10 w-10" />
+            <p className="text-muted-foreground text-sm">{STRATEGY_LAB_COPY.messages.notGenerated}</p>
+            <p className="text-muted-foreground mt-1 text-xs">{STRATEGY_LAB_COPY.messages.completePipeline}</p>
           </div>
         </div>
       </AppShell>
@@ -140,33 +142,29 @@ export function StrategyLab() {
       subtitle={STRATEGY_LAB_COPY.appShell.subtitle}
       actions={
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono font-semibold" style={{ color: 'var(--glc-green)' }}>
+          <span className="text-success text-xs font-mono font-semibold">
             {selected.size} {STRATEGY_LAB_COPY.panel.selectedSuffix}
           </span>
-          <button className="glc-btn-primary">
+          <Button type="button" variant="default">
             <Sparkle className="w-4 h-4" /> {STRATEGY_LAB_COPY.panel.generateRoadmap}
-          </button>
+          </Button>
         </div>
       }
     >
-      <div className="flex" style={{ height: 'calc(100vh - 56px)' }}>
+      <div className="flex h-[calc(100vh-56px)]">
 
         {/* ── Initiative picker ─────────────────────── */}
-        <div
-          className="flex-1 overflow-y-auto"
-          style={{ borderRight: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
-        >
+        <div className="bg-background flex-1 overflow-y-auto border-r">
           <div
-            className="p-4 space-y-3"
-            style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }}
+            className="space-y-3 border-b bg-card p-4"
           >
             <div className="flex items-center gap-2">
-              <ChartBar className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
-              <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              <ChartBar className="text-info h-4 w-4" />
+              <span className="text-foreground text-sm font-semibold">
                 {STRATEGY_LAB_COPY.panel.domainBenchmarksTitle}
               </span>
             </div>
-            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            <p className="text-muted-foreground text-xs">
               {STRATEGY_LAB_COPY.panel.domainBenchmarksHint}
             </p>
             <div className="space-y-2">
@@ -176,11 +174,10 @@ export function StrategyLab() {
                 return (
                   <div
                     key={dk}
-                    className="flex items-center justify-between gap-3 text-xs rounded-lg px-3 py-2"
-                    style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-subtle)' }}
+                    className="bg-background flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs"
                   >
-                    <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
-                    <span className="font-mono tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                    <span className="text-muted-foreground">{label}</span>
+                    <span className="text-foreground font-mono tabular-nums">
                       {row
                         ? `p50 ${row.percentiles.p50} · n=${row.sample_count}`
                         : STRATEGY_LAB_COPY.panel.emptyBenchmarksValue}
@@ -192,8 +189,7 @@ export function StrategyLab() {
           </div>
           {/* Tabs */}
           <div
-            className="flex gap-2 p-4 sticky top-0 z-10"
-            style={{ backgroundColor: 'var(--bg-canvas)', borderBottom: '1px solid var(--border-subtle)', backdropFilter: 'blur(8px)' }}
+            className="bg-background/90 sticky top-0 z-10 flex gap-2 border-b p-4 backdrop-blur"
           >
             {TABS.map(tab => {
               const I = tab.icon;
@@ -203,26 +199,21 @@ export function StrategyLab() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className="relative flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-xl text-sm transition-all"
-                  style={{
-                    backgroundColor: active ? 'var(--bg-surface)' : 'transparent',
-                    border: active ? '1px solid var(--border-subtle)' : '1px solid transparent',
-                    boxShadow: active ? 'var(--shadow-sm)' : 'none',
-                    color: active ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                    transition: 'all var(--ease-fast)',
-                  }}
+                  className={cn(
+                    'relative flex flex-1 flex-col items-center gap-1 rounded-xl border px-2 py-3 text-sm transition-all',
+                    active ? 'text-foreground bg-card shadow-sm' : 'text-muted-foreground border-transparent bg-transparent',
+                  )}
                 >
                   {active && (
                     <motion.span
                       layoutId="tab-indicator"
-                      className="absolute inset-0 rounded-xl"
-                      style={{ background: `${tab.color}08`, border: `1px solid ${tab.color}28` }}
+                      className={cn('absolute inset-0 rounded-xl border bg-current/10', tab.toneClass)}
                       transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }}
                     />
                   )}
-                  <I className="relative w-4 h-4" style={{ color: active ? tab.color : 'inherit' }} />
+                  <I className={cn('relative h-4 w-4', active ? tab.toneClass : 'text-current')} />
                   <span className="relative font-semibold text-xs">{tab.label} ({count})</span>
-                  <span className="relative" style={{ fontSize: '10px', color: active ? tab.color : 'var(--text-quaternary)', opacity: active ? 0.8 : 1 }}>
+                  <span className={cn('relative text-[length:var(--text-2xs)]', active ? tab.toneClass : 'text-muted-foreground')}>
                     {tab.desc}
                   </span>
                 </button>
@@ -243,7 +234,7 @@ export function StrategyLab() {
               >
                 {visible.length === 0 && (
                   <div className="text-center py-10">
-                    <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+                    <p className="text-muted-foreground text-sm">
                       {STRATEGY_LAB_COPY.panel.noInitiativesInCategory}
                     </p>
                   </div>
@@ -257,22 +248,17 @@ export function StrategyLab() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.045, duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                       onClick={() => toggle(init.id)}
-                      className="w-full text-left p-4 rounded-xl transition-all"
-                      style={{
-                        backgroundColor: sel ? `${activeTabCfg.color}08` : 'var(--bg-surface)',
-                        border: `1px solid ${sel ? `${activeTabCfg.color}30` : 'var(--border-subtle)'}`,
-                        boxShadow: sel ? `0 0 0 3px ${activeTabCfg.color}10` : 'var(--shadow-xs)',
-                        transition: 'all var(--ease-fast)',
-                      }}
+                      className={cn(
+                        'w-full rounded-xl border p-4 text-left transition-all',
+                        sel ? 'border-primary/40 bg-primary/10 shadow-xs ring-2 ring-primary/10' : 'border-border bg-card shadow-xs',
+                      )}
                     >
                       <div className="flex items-start gap-3">
                         <div
-                          className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5"
-                          style={{
-                            backgroundColor: sel ? activeTabCfg.color : 'var(--bg-inset)',
-                            border: `2px solid ${sel ? activeTabCfg.color : 'var(--border-default)'}`,
-                            transition: 'all var(--ease-fast)',
-                          }}
+                          className={cn(
+                            'mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border-2 transition-all',
+                            sel ? 'border-primary bg-primary' : 'border-border bg-muted',
+                          )}
                         >
                           {sel && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
                         </div>
@@ -280,33 +266,26 @@ export function StrategyLab() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap mb-1.5">
                             <span
-                              className="font-medium text-sm"
-                              style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
+                              className="text-foreground text-sm font-medium"
                             >
                               {init.title}
                             </span>
                           </div>
 
                           {init.description && (
-                            <p className="text-xs mb-2" style={{ color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
+                            <p className="text-muted-foreground mb-2 text-xs leading-relaxed">
                               {init.description}
                             </p>
                           )}
 
                           <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
                             <span
-                              className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                              style={{
-                                backgroundColor: `${activeTabCfg.color}15`,
-                                color: activeTabCfg.color,
-                                fontSize: '10px',
-                              }}
+                              className="bg-primary/15 text-primary rounded-full px-2 py-0.5 text-[length:var(--text-2xs)] font-semibold"
                             >
                               {init.impact} impact
                             </span>
                             <span
-                              className="text-xs font-semibold"
-                              style={{ color: EFFORT_COLOR[init.effort] || 'var(--text-tertiary)', fontSize: '11px' }}
+                              className={cn('text-xs font-semibold', EFFORT_CLASS[init.effort] ?? 'text-muted-foreground')}
                             >
                               {init.effort} effort
                             </span>
@@ -322,14 +301,11 @@ export function StrategyLab() {
         </div>
 
         {/* ── Plan summary ──────────────────────────── */}
-        <div
-          className="w-[280px] flex-shrink-0 overflow-y-auto flex flex-col"
-          style={{ backgroundColor: 'var(--bg-surface)' }}
-        >
+        <div className="bg-card flex w-[280px] flex-shrink-0 flex-col overflow-y-auto">
           <div className="p-5 flex-1 space-y-5">
             <div>
               <SectionLabel>{STRATEGY_LAB_COPY.panel.yourRoadmap}</SectionLabel>
-              <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="text-muted-foreground mt-1 text-xs">
                 {selected.size} {STRATEGY_LAB_COPY.panel.initiativesSelectedSuffix}
               </p>
             </div>
@@ -342,11 +318,10 @@ export function StrategyLab() {
               ].map(({ label, value, color }) => (
                 <div
                   key={label}
-                  className="flex items-center justify-between py-2.5 px-3 rounded-lg"
-                  style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-subtle)' }}
+                  className="bg-background flex items-center justify-between rounded-lg border px-3 py-2.5"
                 >
-                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{label}</span>
-                  <span className="font-bold tabular-nums text-sm" style={{ color, fontFamily: 'var(--font-mono)' }}>
+                  <span className="text-muted-foreground text-xs">{label}</span>
+                  <span className={cn('text-sm font-bold tabular-nums', color === 'var(--text-primary)' ? 'text-foreground' : color === 'var(--glc-green)' ? 'text-success' : 'text-violet-500')}>
                     {value}
                   </span>
                 </div>
@@ -361,16 +336,15 @@ export function StrategyLab() {
                 const pct   = selected.size > 0 ? (count / selected.size) * 100 : 0;
                 return (
                   <div key={effort} className="flex items-center gap-2 mb-2">
-                    <span className="text-xs w-14 flex-shrink-0 capitalize" style={{ color: 'var(--text-tertiary)' }}>{effort}</span>
-                    <div className="flex-1 rounded-full overflow-hidden" style={{ height: 4, backgroundColor: 'var(--border-subtle)' }}>
+                    <span className="text-muted-foreground w-14 flex-shrink-0 text-xs capitalize">{effort}</span>
+                    <div className="bg-border h-1 flex-1 overflow-hidden rounded-full">
                       <motion.div
-                        className="h-full rounded-full"
-                        style={{ backgroundColor: EFFORT_COLOR[effort] }}
+                        className={cn('h-full rounded-full', effort === 'low' ? 'bg-success' : effort === 'medium' ? 'bg-warning' : 'bg-destructive')}
                         animate={{ width: `${pct}%` }}
                         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                       />
                     </div>
-                    <span className="text-xs font-mono tabular-nums w-6 text-right flex-shrink-0" style={{ color: EFFORT_COLOR[effort] }}>
+                    <span className={cn('w-6 flex-shrink-0 text-right font-mono text-xs tabular-nums', EFFORT_CLASS[effort])}>
                       {count}
                     </span>
                   </div>
@@ -386,15 +360,14 @@ export function StrategyLab() {
                   {allSelected.slice(0, 8).map(init => (
                     <div
                       key={init.id}
-                      className="flex items-start gap-2 text-xs py-1.5 px-2 rounded-lg"
-                      style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-subtle)' }}
+                      className="bg-background flex items-start gap-2 rounded-lg border px-2 py-1.5 text-xs"
                     >
-                      <Target className="w-3 h-3 flex-shrink-0 mt-0.5" style={{ color: 'var(--glc-blue)' }} />
-                      <span style={{ color: 'var(--text-secondary)', lineHeight: 1.4 }}>{init.title}</span>
+                      <Target className="text-info mt-0.5 h-3 w-3 flex-shrink-0" />
+                      <span className="text-muted-foreground leading-snug">{init.title}</span>
                     </div>
                   ))}
                   {allSelected.length > 8 && (
-                    <p className="text-xs text-center py-1" style={{ color: 'var(--text-quaternary)' }}>
+                    <p className="text-muted-foreground py-1 text-center text-xs">
                       +{allSelected.length - 8} {STRATEGY_LAB_COPY.panel.moreItemsSuffix}
                     </p>
                   )}
@@ -404,24 +377,26 @@ export function StrategyLab() {
           </div>
 
           {/* CTA */}
-          <div className="p-4 space-y-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-            <motion.button
-              disabled={selected.size === 0}
+          <div className="space-y-2 border-t p-4">
+            <motion.div
               whileHover={selected.size > 0 ? { scale: 1.01 } : {}}
               whileTap={selected.size  > 0 ? { scale: 0.99 } : {}}
-              className="w-full glc-btn-primary justify-center py-2.5"
-              style={{ opacity: selected.size === 0 ? 0.4 : 1, fontSize: 'var(--text-sm)' }}
             >
-              <Sparkle className="w-4 h-4" />
-              {STRATEGY_LAB_COPY.panel.generateRoadmap}
-            </motion.button>
-            <Link
-              to={`/reports/${id}`}
-              className="w-full glc-btn-ghost justify-center py-2 block text-center"
-              style={{ textDecoration: 'none', fontSize: 'var(--text-sm)' }}
-            >
-              {STRATEGY_LAB_COPY.panel.viewReport} <ArrowRight className="inline w-3.5 h-3.5 ml-1" />
-            </Link>
+              <Button
+                type="button"
+                variant="default"
+                className={cn('w-full justify-center py-2.5', selected.size === 0 ? 'opacity-40' : '')}
+                disabled={selected.size === 0}
+              >
+                <Sparkle className="w-4 h-4" />
+                {STRATEGY_LAB_COPY.panel.generateRoadmap}
+              </Button>
+            </motion.div>
+            <Button asChild variant="ghost" className="w-full justify-center py-2">
+              <Link to={`/reports/${id}`}>
+                {STRATEGY_LAB_COPY.panel.viewReport} <ArrowRight className="ml-1 inline h-3.5 w-3.5" />
+              </Link>
+            </Button>
           </div>
         </div>
       </div>

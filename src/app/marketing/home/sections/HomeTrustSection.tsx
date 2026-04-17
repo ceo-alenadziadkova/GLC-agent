@@ -10,15 +10,14 @@ type HomeTrustSectionProps = {
 export function HomeTrustSection({ data, reduceMotion }: HomeTrustSectionProps) {
   return (
     <>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--text-tertiary)' }}>
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
         {data.title}
       </p>
       <ul className="mt-8 grid gap-10 sm:grid-cols-3 sm:gap-12">
         {data.lines.map((line, i) => (
           <motion.li
             key={line}
-            className="text-sm leading-relaxed"
-            style={{ color: 'var(--text-secondary)' }}
+            className="text-sm leading-relaxed text-[var(--text-secondary)]"
             variants={homeTrustLineVariants}
             custom={i}
             initial={reduceMotion ? false : 'hidden'}

@@ -17,6 +17,7 @@ import {
   NEW_AUDIT_COVERAGE_SELECTION_LIMITS,
 } from '../../../config/new-audit-coverage-policy';
 import { coveragePackageLabel } from '../../../lib/audit-execution-plan';
+import { cn } from '../../../components/ui/utils';
 
 export type Step0BasicsProps = {
   step0Valid: boolean;
@@ -92,21 +93,10 @@ export function Step0Basics({
       {/* Header */}
       <div className="text-center mb-6 mobile:mb-5 sm:mb-8">
         <SectionLabel accent>{WORKSPACE_PAGE_COPY.newAudit.step0.sectionLabel}</SectionLabel>
-        <h1
-          className="mt-2 text-2xl sm:text-[length:var(--text-3xl)]"
-          style={{
-            color: 'var(--text-primary)',
-            fontFamily: 'var(--font-display)',
-            fontWeight: 700,
-            letterSpacing: 'var(--tracking-tight)',
-          }}
-        >
+        <h1 className="text-foreground mt-2 text-2xl font-bold tracking-tight sm:text-[length:var(--text-3xl)]">
           {WORKSPACE_PAGE_COPY.newAudit.newAuditTitle}
         </h1>
-        <p
-          className="mt-2.5 px-1"
-          style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', lineHeight: 1.6 }}
-        >
+        <p className="text-muted-foreground mt-2.5 px-1 text-sm leading-relaxed">
           {WORKSPACE_PAGE_COPY.newAudit.newAuditIntro}
         </p>
       </div>
@@ -118,17 +108,16 @@ export function Step0Basics({
         animate="visible"
         variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.045 } } }}
       >
-        {DOMAIN_PILLS.map(({ icon: I, label, color }) => (
+        {DOMAIN_PILLS.map(({ icon: I, label }) => (
           <motion.span
             key={label}
             variants={{
               hidden: { opacity: 0, scale: 0.85 },
               visible: { opacity: 1, scale: 1, transition: { duration: 0.3 } },
             }}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-medium"
-            style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', fontSize: '11px' }}
+            className="text-muted-foreground bg-card inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium"
           >
-            <I className="w-3 h-3" style={{ color }} />
+            <I className="h-3 w-3 text-current" />
             {label}
           </motion.span>
         ))}
@@ -140,8 +129,7 @@ export function Step0Basics({
           e.preventDefault();
           if (step0Valid) onContinue();
         }}
-        className="glc-card p-4 mobile:p-5 sm:p-6 space-y-5"
-        style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}
+        className="glc-card space-y-5 rounded-2xl p-4 shadow-lg mobile:p-5 sm:p-6"
       >
         {/* URL */}
         <FormField
@@ -153,21 +141,15 @@ export function Step0Basics({
           }
         >
           <div
-            className="flex items-center overflow-hidden"
-            style={{
-              borderRadius: 'var(--radius-lg)',
-              border: noPublicWebsite ? '1px solid var(--border-subtle)' : url ? '1px solid var(--glc-blue)' : '1px solid var(--border-default)',
-              boxShadow: !noPublicWebsite && url ? 'var(--shadow-blue)' : 'none',
-              backgroundColor: 'var(--bg-surface)',
-              opacity: noPublicWebsite ? 0.65 : 1,
-              transition: 'border-color var(--ease-fast)',
-            }}
+            className={cn(
+              'bg-card rounded-lg border transition-colors',
+              noPublicWebsite ? 'border-border opacity-65' : url ? 'border-info shadow-[var(--shadow-blue)]' : 'border-border',
+            )}
           >
             <div
-              className="flex items-center justify-center px-3 self-stretch flex-shrink-0"
-              style={{ borderRight: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-inset)', minWidth: 44 }}
+              className="bg-muted flex min-w-11 flex-shrink-0 items-center self-stretch justify-center border-r px-3"
             >
-              <Globe className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
+              <Globe className="text-muted-foreground h-4 w-4" />
             </div>
             <input
               id="url"
@@ -184,11 +166,10 @@ export function Step0Basics({
               required={!noPublicWebsite}
               disabled={noPublicWebsite}
               autoFocus
-              className="flex-1 px-4 py-3 bg-transparent outline-none disabled:cursor-not-allowed"
-              style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}
+              className="text-foreground flex-1 bg-transparent px-4 py-3 text-sm outline-none disabled:cursor-not-allowed"
             />
           </div>
-          <label className="flex items-center gap-2 cursor-pointer select-none" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+          <label className="text-muted-foreground flex cursor-pointer select-none items-center gap-2 text-sm">
             <input
               type="checkbox"
               checked={noPublicWebsite}
@@ -197,8 +178,7 @@ export function Step0Basics({
                 setNoPublicWebsite(on);
                 if (on) setUrl('');
               }}
-              className="rounded border-[var(--border-default)]"
-              style={{ accentColor: 'var(--glc-blue)' }}
+              className="accent-info rounded"
             />
             {WORKSPACE_PAGE_COPY.newAudit.step0.noPublicWebsiteLabel}
           </label>
@@ -241,8 +221,10 @@ export function Step0Basics({
                 });
               }
             }}
-            className="glc-field-control w-full appearance-none rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-[var(--text-sm)] outline-none"
-            style={{ color: industry ? 'var(--text-primary)' : 'var(--text-tertiary)' }}
+            className={cn(
+              'glc-field-control w-full appearance-none rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-[var(--text-sm)] outline-none',
+              industry ? 'text-foreground' : 'text-muted-foreground',
+            )}
           >
             <option value="">{WORKSPACE_PAGE_COPY.newAudit.step0.industrySelectPlaceholder}</option>
             {INDUSTRY_OPTIONS.map((i: IndustryOption) => (
@@ -279,7 +261,7 @@ export function Step0Basics({
                 placeholder={WORKSPACE_PAGE_COPY.newAudit.step0.industryOtherPlaceholder}
                 className="glc-field-control w-full rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none"
               />
-              <p className="text-xs m-0" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="text-muted-foreground m-0 text-xs">
                 {WORKSPACE_PAGE_COPY.newAudit.step0.industryOtherRequiredNote}
               </p>
               </FormField>
@@ -289,7 +271,7 @@ export function Step0Basics({
 
         {/* Coverage selection */}
         <div className="space-y-2">
-          <label className="block font-medium" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
+          <label className="text-foreground block text-sm font-medium">
             {WORKSPACE_PAGE_COPY.newAudit.step0.coveragePackageLabel}
           </label>
           <div className="grid grid-cols-3 gap-2">
@@ -300,16 +282,15 @@ export function Step0Basics({
                   key={pkg}
                   type="button"
                   onClick={() => setCoveragePackage(pkg)}
-                  className="rounded-lg px-3 py-2.5 text-left text-xs transition-all"
-                  style={{
-                    backgroundColor: sel ? 'var(--callout-info-bg)' : 'var(--bg-inset)',
-                    border: sel ? '1px solid var(--callout-info-border-strong)' : '1px solid var(--border-subtle)',
-                  }}
+                  className={cn(
+                    'rounded-lg border px-3 py-2.5 text-left text-xs transition-all',
+                    sel ? 'border-info/50 bg-info/10' : 'bg-muted border-border',
+                  )}
                 >
-                  <div className="font-semibold" style={{ color: sel ? 'var(--glc-blue-deeper)' : 'var(--text-primary)' }}>
+                  <div className={cn('font-semibold', sel ? 'text-info' : 'text-foreground')}>
                     {coveragePackageLabel(pkg)}
                   </div>
-                  <div style={{ color: 'var(--text-tertiary)', marginTop: 2 }}>{NEW_AUDIT_COVERAGE_DOMAIN_COUNT_HINT[pkg]}</div>
+                  <div className="text-muted-foreground mt-0.5">{NEW_AUDIT_COVERAGE_DOMAIN_COUNT_HINT[pkg]}</div>
                 </button>
               );
             })}
@@ -324,22 +305,21 @@ export function Step0Basics({
               return (
                 <label
                   key={domain}
-                  className="flex items-center gap-2 cursor-pointer rounded-lg px-3 py-2"
-                  style={{ border: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-inset)' }}
+                  className="bg-muted flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2"
                 >
                   <input
                     type="checkbox"
                     checked={checked}
                     disabled={disabled}
                     onChange={() => toggleDomainSelection(domain)}
-                    style={{ accentColor: 'var(--glc-blue)' }}
+                    className="accent-info"
                   />
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-primary)' }}>{NEW_AUDIT_COVERAGE_DOMAIN_LABELS[domain]}</span>
+                  <span className="text-foreground text-xs">{NEW_AUDIT_COVERAGE_DOMAIN_LABELS[domain]}</span>
                 </label>
               );
             })}
           </div>
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: 6 }}>
+          <p className="text-muted-foreground mt-1.5 text-xs">
             {WORKSPACE_PAGE_COPY.newAudit.step0.recommendedFromIntakeContextPrefix}
             {recommendedDomains.map(d => NEW_AUDIT_COVERAGE_DOMAIN_LABELS[d]).join(', ')}
             {WORKSPACE_PAGE_COPY.newAudit.step0.recommendedFromIntakeContextSuffix}
@@ -353,16 +333,12 @@ export function Step0Basics({
           disabled={!step0Valid}
           whileHover={step0Valid ? { scale: 1.015 } : {}}
           whileTap={step0Valid ? { scale: 0.985 } : {}}
-          className="w-full flex items-center justify-center gap-2 py-3 font-semibold"
-          style={{
-            borderRadius: 'var(--radius-lg)',
-            background: step0Valid ? 'var(--gradient-brand)' : 'var(--bg-muted)',
-            color: step0Valid ? 'var(--primary-foreground)' : 'var(--text-secondary)',
-            cursor: step0Valid ? 'pointer' : 'not-allowed',
-            fontSize: 'var(--text-sm)',
-            border: step0Valid ? 'none' : '1px solid var(--border-subtle)',
-            boxShadow: step0Valid ? '0 4px 14px rgba(28,189,255,0.28)' : 'none',
-          }}
+          className={cn(
+            'w-full rounded-lg py-3 text-sm font-semibold',
+            step0Valid
+              ? 'bg-gradient-to-r from-sky-400 to-sky-600 text-primary-foreground shadow-[0_4px_14px_rgba(28,189,255,0.28)]'
+              : 'bg-muted text-muted-foreground cursor-not-allowed border',
+          )}
         >
           {WORKSPACE_PAGE_COPY.newAudit.step0.continueToBriefButton} <ArrowRight className="w-4 h-4" />
         </motion.button>
@@ -378,14 +354,13 @@ export function Step0Basics({
                   type="checkbox"
                   checked={interviewMode}
                   onChange={e => setInterviewMode(e.target.checked)}
-                  className="h-[15px] w-[15px] flex-shrink-0 rounded"
-                  style={{ accentColor: 'var(--callout-warning-icon)' }}
+                  className="accent-warning h-[15px] w-[15px] flex-shrink-0 rounded"
                 />
                 <div>
-                  <span className="text-sm font-medium text-[var(--text-primary)]">
+                  <span className="text-foreground text-sm font-medium">
                     {WORKSPACE_PAGE_COPY.newAudit.step0.interviewModeLabel}
                   </span>
-                  <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">
+                  <p className="text-muted-foreground mt-0.5 text-xs">
                     {interviewMode ? WORKSPACE_PAGE_COPY.newAudit.interviewModeHintOn : WORKSPACE_PAGE_COPY.newAudit.interviewModeHintOff}
                   </p>
                 </div>
@@ -394,8 +369,7 @@ export function Step0Basics({
 
             <button
               type="button"
-              className="w-full text-center text-sm pt-2"
-              style={{ color: 'var(--glc-blue)', background: 'none', border: 'none', cursor: 'pointer' }}
+              className="text-info w-full bg-transparent pt-2 text-center text-sm"
               onClick={onOpenPreBrief}
             >
               {WORKSPACE_PAGE_COPY.newAudit.step0.sendPreBriefToClientButton}

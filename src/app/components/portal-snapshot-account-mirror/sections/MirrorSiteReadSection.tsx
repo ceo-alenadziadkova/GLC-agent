@@ -16,19 +16,19 @@ export function MirrorSiteReadSection({
       className="glc-card glc-snapshot-result-card p-5 text-left lg:p-6"
       style={PORTAL_SNAPSHOT_MIRROR_CONSTANTS.styles.cardOutlined}
     >
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
         {PORTAL_SNAPSHOT_MIRROR_COPY.siteRead.title}
       </p>
-      <p className="m-0 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+      <p className="m-0 text-sm leading-relaxed text-[var(--text-secondary)]">
         {siteLine}
       </p>
       {confidenceBand ? (
-        <p className="mt-2 mb-0 text-xs" style={{ color: 'var(--text-quaternary)' }}>
+        <p className="mb-0 mt-2 text-xs text-[var(--text-quaternary)]">
           {PORTAL_SNAPSHOT_MIRROR_COPY.siteRead.confidencePrefix} {confidenceBand}
         </p>
       ) : null}
       {classificationExplainer ? (
-        <p className="mt-2 mb-0 text-xs leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
+        <p className="mb-0 mt-2 text-xs leading-relaxed text-[var(--text-quaternary)]">
           {classificationExplainer}
         </p>
       ) : null}

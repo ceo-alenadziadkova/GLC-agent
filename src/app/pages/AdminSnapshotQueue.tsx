@@ -5,10 +5,11 @@ import { ArrowsClockwise, Lightning, Spinner, Warning, Tray } from '@phosphor-ic
 import { AppShell } from '../components/AppShell';
 import { api } from '../data/apiService';
 import type { AuditMeta } from '../data/auditTypes';
-import { UI_SEMANTIC_COLORS } from '../config/ui-semantic-colors';
 import { isSnapshotStyleAudit } from '../lib/audit-execution-plan';
 import { ADMIN_SNAPSHOT_QUEUE_CONFIG } from '../config/admin-snapshot-queue-config';
 import { ADMIN_SNAPSHOT_QUEUE_COPY } from '../config/admin-snapshot-queue-copy.en';
+import { cn } from '../components/ui/utils';
+import { Button } from '../components/ui/button';
 
 type SnapshotStatusFilter = 'all' | 'running' | 'completed' | 'failed';
 
@@ -47,9 +48,9 @@ export function AdminSnapshotQueue() {
       title={ADMIN_SNAPSHOT_QUEUE_COPY.title}
       subtitle={ADMIN_SNAPSHOT_QUEUE_COPY.subtitle}
       actions={(
-        <button type="button" className="glc-btn-secondary text-sm glc-touch-target sm:min-h-0" onClick={() => void q.refetch()}>
+        <Button type="button" variant="outline" size="sm" className="glc-touch-target text-sm sm:min-h-0" onClick={() => void q.refetch()}>
           <ArrowsClockwise className="w-4 h-4" /> {ADMIN_SNAPSHOT_QUEUE_COPY.refresh}
-        </button>
+        </Button>
       )}
     >
       <div className="glc-page-content max-w-5xl mx-auto space-y-4">
@@ -58,12 +59,10 @@ export function AdminSnapshotQueue() {
             <button
               key={tab}
               type="button"
-              className="px-3 py-2 rounded-lg text-xs font-medium capitalize glc-touch-target sm:min-h-0 sm:py-1.5"
-              style={{
-                background: filter === tab ? 'rgba(28,189,255,0.15)' : 'var(--bg-surface)',
-                border: `1px solid ${filter === tab ? 'rgba(28,189,255,0.35)' : 'var(--border-subtle)'}`,
-                color: filter === tab ? 'var(--glc-blue)' : 'var(--text-secondary)',
-              }}
+              className={cn(
+                'glc-touch-target rounded-lg border px-3 py-2 text-xs font-medium capitalize sm:min-h-0 sm:py-1.5',
+                filter === tab ? 'border-info/50 bg-info/10 text-info' : 'bg-card text-muted-foreground',
+              )}
               onClick={() => setFilter(tab)}
             >
               {tab}
@@ -73,27 +72,20 @@ export function AdminSnapshotQueue() {
 
         {q.isPending && !q.data && (
           <div className="flex justify-center py-16">
-            <Spinner className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+            <Spinner className="text-info h-6 w-6 animate-spin" />
           </div>
         )}
 
         {!q.isPending && q.error && (
-          <div
-            className="flex items-center gap-3 px-4 py-3 rounded-lg"
-            style={{
-              backgroundColor: UI_SEMANTIC_COLORS.dangerMutedBg,
-              border: UI_SEMANTIC_COLORS.dangerBorder20,
-              color: UI_SEMANTIC_COLORS.danger,
-            }}
-          >
+          <div className="bg-destructive/10 text-destructive border-destructive/40 flex items-center gap-3 rounded-lg border px-4 py-3">
             <Warning className="w-4 h-4 flex-shrink-0" />
             <span className="text-sm">{ADMIN_SNAPSHOT_QUEUE_COPY.loadFailed}</span>
           </div>
         )}
 
         {!q.isPending && !q.error && filtered.length === 0 && (
-          <div className="text-center py-16" style={{ color: 'var(--text-tertiary)' }}>
-            <Tray className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
+          <div className="text-muted-foreground py-16 text-center">
+            <Tray className="text-muted-foreground mx-auto mb-3 h-10 w-10" />
             <p className="text-sm font-medium">{ADMIN_SNAPSHOT_QUEUE_COPY.emptyState}</p>
           </div>
         )}
@@ -105,37 +97,36 @@ export function AdminSnapshotQueue() {
               .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
               .map((audit) => {
                 const createdAt = new Date(audit.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-                const statusColor =
+                const statusClass =
                   audit.status === 'completed'
-                    ? UI_SEMANTIC_COLORS.success
+                    ? 'text-success'
                     : audit.status === 'failed'
-                      ? UI_SEMANTIC_COLORS.danger
-                      : 'var(--glc-blue)';
+                      ? 'text-destructive'
+                      : 'text-info';
                 return (
                   <div
                     key={audit.id}
-                    className="rounded-xl px-4 py-4 mobile:px-5"
-                    style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+                    className="bg-card rounded-xl border px-4 py-4 mobile:px-5"
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <Lightning className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
-                          <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{audit.company_url}</span>
+                          <Lightning className="text-info h-4 w-4" />
+                          <span className="text-foreground truncate text-sm font-medium">{audit.company_url}</span>
                         </div>
-                        <div className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                        <div className="text-muted-foreground mt-1 text-xs">
                           {ADMIN_SNAPSHOT_QUEUE_COPY.submittedPrefix} {createdAt}
                           {audit.client_id
                             ? ` · ${ADMIN_SNAPSHOT_QUEUE_COPY.clientPrefix} ${audit.client_id.slice(0, 8)}...`
                             : ''}
                         </div>
-                        <div className="text-xs mt-1.5" style={{ color: 'var(--text-secondary)' }}>
+                        <div className="text-muted-foreground mt-1.5 text-xs">
                           {ADMIN_SNAPSHOT_QUEUE_COPY.snapshotResultPrefix} {scoreText(audit.overall_score)}
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-shrink-0 sm:justify-end">
-                        <span className="text-xs font-medium capitalize" style={{ color: statusColor }}>{audit.status}</span>
-                        <Link to={`/audit/${audit.id}`} className="text-xs font-medium no-underline glc-touch-target sm:min-h-0 px-1 -mx-1 rounded-md" style={{ color: 'var(--glc-blue)' }}>
+                        <span className={cn('text-xs font-medium capitalize', statusClass)}>{audit.status}</span>
+                        <Link to={`/audit/${audit.id}`} className="text-info glc-touch-target -mx-1 rounded-md px-1 text-xs font-medium no-underline sm:min-h-0">
                           {ADMIN_SNAPSHOT_QUEUE_COPY.openAudit}
                         </Link>
                       </div>

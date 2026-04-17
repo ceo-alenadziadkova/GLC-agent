@@ -147,7 +147,7 @@ export function IntakeBriefFormPhase(props: {
           >
             <h2
               id={`intake-section-${blockIdx}`}
-              className="text-[11px] font-semibold uppercase tracking-[0.12em] m-0 pb-1"
+              className="text-xs font-semibold uppercase tracking-[0.12em] m-0 pb-1"
               style={{
                 color: 'var(--text-quaternary)',
                 borderBottom: '1px solid var(--border-subtle)',

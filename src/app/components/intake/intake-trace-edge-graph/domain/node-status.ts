@@ -1,6 +1,6 @@
 import type { IntakePlan } from '@glc/intake-core';
 
-import { UI_INTAKE_TRACE_GRAPH } from '../../../../config/ui-semantic-colors';
+import { UI_INTAKE_TRACE_GRAPH } from '../../../../../design-system/tokens/ui-semantic-colors';
 import type { NodeStatus } from '../types';
 
 export function statusFor(id: string, plan: IntakePlan): NodeStatus {

@@ -32,9 +32,6 @@ importers:
       '@glc/api-paths':
         specifier: workspace:*
         version: link:packages/glc-api-paths
-      '@glc/brand-tokens':
-        specifier: workspace:*
-        version: link:packages/glc-brand-tokens
       '@glc/dev-brand-defaults':
         specifier: workspace:*
         version: link:packages/glc-dev-brand-defaults
@@ -297,8 +294,6 @@ importers:
 
   packages/glc-api-paths: {}
 
-  packages/glc-brand-tokens: {}
-
   packages/glc-dev-brand-defaults: {}
 
   packages/glc-route-limits: {}
@@ -326,9 +321,6 @@ importers:
       '@glc/api-paths':
         specifier: workspace:*
         version: link:../packages/glc-api-paths
-      '@glc/brand-tokens':
-        specifier: workspace:*
-        version: link:../packages/glc-brand-tokens
       '@glc/dev-brand-defaults':
         specifier: workspace:*
         version: link:../packages/glc-dev-brand-defaults

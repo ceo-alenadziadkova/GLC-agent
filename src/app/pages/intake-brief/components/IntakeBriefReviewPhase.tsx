@@ -71,7 +71,7 @@ export function IntakeBriefReviewPhase(props: {
             style={blockIdx > 0 ? { borderColor: 'var(--border-subtle)' } : undefined}
           >
             <div
-              className="px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider"
+              className="px-4 py-2.5 text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider"
               style={{
                 background: 'var(--bg-muted)',
                 color: 'var(--text-quaternary)',

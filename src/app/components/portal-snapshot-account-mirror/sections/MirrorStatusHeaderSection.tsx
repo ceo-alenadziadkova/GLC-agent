@@ -30,32 +30,31 @@ export function MirrorStatusHeaderSection({
         {access.showCallout ? (
           access.robotsBlocked ? (
             <>
-              <SealCheck className="h-3 w-3 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
+              <SealCheck className="h-3 w-3 shrink-0 text-[var(--glc-green)]" weight="fill" />
               {access.robotsLimitedSample
                 ? PORTAL_SNAPSHOT_MIRROR_COPY.status.sampledLimited
                 : PORTAL_SNAPSHOT_MIRROR_COPY.status.robotsLimited}
             </>
           ) : (
             <>
-              <Warning className="h-3 w-3 shrink-0" style={{ color: 'var(--score-2)' }} weight="fill" />
+              <Warning className="h-3 w-3 shrink-0 text-[var(--score-2)]" weight="fill" />
               {PORTAL_SNAPSHOT_MIRROR_COPY.status.incomplete}
             </>
           )
         ) : (
           <>
-            <CheckCircle className="h-3 w-3" style={{ color: 'var(--glc-green)' }} />
+            <CheckCircle className="h-3 w-3 text-[var(--glc-green)]" />
             {PORTAL_SNAPSHOT_MIRROR_COPY.status.ready}
           </>
         )}
       </div>
       <h2
-        className="m-0 break-words text-xl font-bold tracking-tight lg:text-2xl"
-        style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}
+        className="m-0 break-words text-xl font-bold tracking-tight text-[var(--text-primary)] [font-family:var(--font-display)] lg:text-2xl"
       >
         {hostname}
       </h2>
       {location ? (
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-tertiary)' }}>
+        <p className="mt-1 text-sm text-[var(--text-tertiary)]">
           {location}
         </p>
       ) : null}

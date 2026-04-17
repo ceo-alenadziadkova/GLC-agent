@@ -1,4 +1,5 @@
 import { Lightning } from '@phosphor-icons/react';
+import { Badge } from '../../../design-system/ui';
 
 interface QuickWinTagProps {
   time?: string;
@@ -7,25 +8,18 @@ interface QuickWinTagProps {
 
 export function QuickWinTag({ time, cost }: QuickWinTagProps) {
   return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full font-semibold"
-      style={{
-        backgroundColor: 'var(--glc-orange-xlight)',
-        color: 'var(--glc-orange)',
-        border: '1px solid rgba(242,79,29,0.22)',
-        padding: '2px 8px 2px 6px',
-        fontSize: '11px',
-        letterSpacing: '0.01em',
-      }}
+    <Badge
+      variant="secondary"
+      className="inline-flex items-center gap-1.5 rounded-full border border-[var(--score-2-border)] bg-[var(--glc-orange-xlight)] px-[var(--space-2)] py-[var(--space-0-5)] pl-[var(--space-1-5)] text-[color:var(--glc-orange)] text-[length:var(--text-xs)] font-semibold tracking-[var(--tracking-normal)]"
     >
-      <Lightning className="w-3 h-3 flex-shrink-0" style={{ fill: 'var(--glc-orange)', stroke: 'none' }} />
+      <Lightning className="h-3 w-3 flex-shrink-0 fill-[var(--glc-orange)] stroke-none" />
       Quick Win
       {(time || cost) && (
-        <span style={{ opacity: 0.55, fontWeight: 400 }}>
+        <span className="opacity-[0.55] font-normal">
           {time && ` · ${time}`}
           {cost && ` · ${cost}`}
         </span>
       )}
-    </span>
+    </Badge>
   );
 }

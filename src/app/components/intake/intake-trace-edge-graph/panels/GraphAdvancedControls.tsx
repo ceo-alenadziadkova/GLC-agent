@@ -1,6 +1,7 @@
 import { INTAKE_TRACE_GRAPH_CONFIG } from '../config/graph-config';
 import { INTAKE_TRACE_EDGE_GRAPH_UI_COPY } from '../config/graph-copy';
 import type { WordingScoringMode } from '../types';
+import { Button } from '../../../ui/button';
 
 interface GraphAdvancedControlsProps {
   showWordingReview: boolean;
@@ -19,6 +20,7 @@ interface GraphAdvancedControlsProps {
 export function GraphAdvancedControls(props: GraphAdvancedControlsProps) {
   const copy = INTAKE_TRACE_EDGE_GRAPH_UI_COPY.actions;
   const depthRange = INTAKE_TRACE_GRAPH_CONFIG.prefs.downstreamDepth;
+  const secondaryButtonClassName = 'h-auto px-2 py-1 text-xs';
 
   return (
     <details className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-2">
@@ -26,17 +28,25 @@ export function GraphAdvancedControls(props: GraphAdvancedControlsProps) {
       <div className="mt-2 space-y-2">
         <div className="flex flex-wrap gap-2">
           {props.showWordingReview && (
-            <button
+            <Button
               type="button"
-              className={`glc-btn-secondary text-xs px-2 py-1 ${props.baReviewMode ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+              variant="outline"
+              size="sm"
+              className={`${secondaryButtonClassName} ${props.baReviewMode ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
               onClick={props.onToggleBaReviewMode}
             >
               {props.baReviewMode ? copy.hideBaReview : copy.showBaReview}
-            </button>
+            </Button>
           )}
-          <button type="button" className="glc-btn-secondary text-xs px-2 py-1" onClick={props.onResetPreferences}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={secondaryButtonClassName}
+            onClick={props.onResetPreferences}
+          >
             {copy.resetPreferences}
-          </button>
+          </Button>
         </div>
         <div className="grid gap-2 sm:grid-cols-3">
           <label className="flex flex-col gap-1 text-xs">
@@ -63,7 +73,7 @@ export function GraphAdvancedControls(props: GraphAdvancedControlsProps) {
           </label>
           <div className="text-xs rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface)] p-2">
             <div className="font-medium mb-1">{copy.legend}</div>
-            <div className="grid grid-cols-2 gap-1 text-[11px]">
+            <div className="grid grid-cols-2 gap-1 text-xs">
               {INTAKE_TRACE_EDGE_GRAPH_UI_COPY.legendRows.map(row => (
                 <span key={row.status} className="contents">
                   <span>{row.status}</span>
@@ -75,14 +85,16 @@ export function GraphAdvancedControls(props: GraphAdvancedControlsProps) {
         </div>
         <div className="flex flex-wrap gap-1">
           {props.sections.map(([section, count]) => (
-            <button
+            <Button
               key={section}
               type="button"
               onClick={() => props.onToggleSection(section)}
-              className={`glc-btn-secondary text-[11px] px-2 py-1 ${props.collapsedSections.has(section) ? 'opacity-60' : ''}`}
+              variant="outline"
+              size="sm"
+              className={`h-auto px-2 py-1 text-xs ${props.collapsedSections.has(section) ? 'opacity-60' : ''}`}
             >
               {copy.section} {section} ({count}) {props.collapsedSections.has(section) ? copy.collapsed : copy.shown}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -101,33 +113,44 @@ interface WordingReviewPanelControlsProps {
 
 export function WordingReviewPanelControls(props: WordingReviewPanelControlsProps) {
   const copy = INTAKE_TRACE_EDGE_GRAPH_UI_COPY.actions;
+  const secondaryButtonClassName = 'h-auto px-2 py-1 text-xs';
   return (
     <div className="mb-2 flex flex-wrap gap-2">
-      <span className="text-[11px] text-[var(--glc-muted)]">
+      <span className="text-xs text-[var(--glc-muted)]">
         {copy.averageQuality}: {props.averageWordingScore}/100
       </span>
       <div className="flex flex-wrap gap-1">
         {(['strict', 'normal', 'lenient'] as const).map(mode => (
-          <button
+          <Button
             key={mode}
             type="button"
-            className={`glc-btn-secondary text-[11px] px-2 py-1 ${props.scoringMode === mode ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+            variant="outline"
+            size="sm"
+            className={`${secondaryButtonClassName} ${props.scoringMode === mode ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
             onClick={() => props.onScoringModeChange(mode)}
           >
             {mode}
-          </button>
+          </Button>
         ))}
       </div>
-      <button
+      <Button
         type="button"
-        className={`glc-btn-secondary text-[11px] px-2 py-1 ${props.highOnly ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
+        variant="outline"
+        size="sm"
+        className={`${secondaryButtonClassName} ${props.highOnly ? 'ring-1 ring-[var(--glc-accent)]' : ''}`}
         onClick={props.onToggleHighOnly}
       >
         {props.highOnly ? copy.showAllSeverities : copy.showHighOnly}
-      </button>
-      <button type="button" className="glc-btn-secondary text-[11px] px-2 py-1" onClick={props.onExportMarkdown}>
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className={secondaryButtonClassName}
+        onClick={props.onExportMarkdown}
+      >
         {copy.exportReviewMarkdown}
-      </button>
+      </Button>
     </div>
   );
 }

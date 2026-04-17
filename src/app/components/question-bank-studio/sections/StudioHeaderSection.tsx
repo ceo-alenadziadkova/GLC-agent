@@ -21,7 +21,7 @@ export function StudioHeaderSection(props: StudioHeaderSectionProps) {
           <h2 className="text-sm font-semibold m-0">{QUESTION_BANK_STUDIO_COPY_EN.headerTitle}</h2>
         </div>
         <div
-          className="inline-flex rounded-lg overflow-hidden text-[11px] font-medium"
+          className="inline-flex rounded-lg overflow-hidden text-xs font-medium"
           style={{ border: '1px solid var(--border-default)' }}
           role="group"
           aria-label="Studio view mode"

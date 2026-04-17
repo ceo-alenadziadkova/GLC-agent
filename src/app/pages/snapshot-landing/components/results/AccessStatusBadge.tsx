@@ -26,20 +26,20 @@ export function AccessStatusBadge(props: {
       {snapshotShowsAccessCallout ? (
         snapshotAccessRobotsBlocked ? (
           <>
-            <SealCheck className="w-3 h-3 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
+            <SealCheck className="h-3 w-3 shrink-0 text-[var(--glc-green)]" weight="fill" />
             {snapshotAccessRobotsLimited
               ? SNAPSHOT_LANDING_HERO_COPY.accessLimitedSample
               : SNAPSHOT_LANDING_HERO_COPY.accessLimitedRobots}
           </>
         ) : (
           <>
-            <Warning className="w-3 h-3 shrink-0" style={{ color: 'var(--score-2)' }} weight="fill" />
+            <Warning className="h-3 w-3 shrink-0 text-[var(--score-2)]" weight="fill" />
             {SNAPSHOT_LANDING_HERO_COPY.accessIncomplete}
           </>
         )
       ) : (
         <>
-          <CheckCircle className="w-3 h-3" style={{ color: 'var(--glc-green)' }} /> {SNAPSHOT_LANDING_HERO_COPY.readyBadge}
+          <CheckCircle className="h-3 w-3 text-[var(--glc-green)]" /> {SNAPSHOT_LANDING_HERO_COPY.readyBadge}
         </>
       )}
     </div>

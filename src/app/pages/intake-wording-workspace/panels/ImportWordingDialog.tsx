@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../../components/ui/dialog';
+import { Button } from '../../../components/ui/button';
 import { INTAKE_WORDING_WORKSPACE_COPY as W } from '../../../config/intake-wording-workspace-copy';
 
 export function ImportWordingDialog(props: {
@@ -36,8 +37,8 @@ export function ImportWordingDialog(props: {
           aria-label={W.dialogs.importAriaLabel}
         />
         <DialogFooter className="gap-2 sm:gap-0">
-          <button type="button" className="glc-btn-secondary" onClick={onCancel}>{W.dialogs.cancel}</button>
-          <button type="button" className="glc-btn-primary" onClick={onImport}>{W.dialogs.import}</button>
+          <Button type="button" variant="outline" onClick={onCancel}>{W.dialogs.cancel}</Button>
+          <Button type="button" variant="default" onClick={onImport}>{W.dialogs.import}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -23,7 +23,7 @@ export function SnapshotIdlePreviewCards() {
       className="mt-10 w-full lg:col-span-12 lg:mt-14"
       aria-hidden
     >
-      <p className="mb-3 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-quaternary)] lg:text-left">
+      <p className="mb-3 text-center text-[length:var(--text-2xs)] font-semibold uppercase tracking-[0.16em] text-[var(--text-quaternary)] lg:text-left">
         Preview of what you will see
       </p>
       <motion.div
@@ -70,7 +70,7 @@ export function SnapshotIdlePreviewCards() {
             <div className="mb-3 flex items-center justify-between gap-2">
               <div className="h-2 w-10 rounded-full bg-[color-mix(in_oklab,var(--border-default)_55%,transparent)]" />
               <span
-                className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_TONE_BADGE_CLASS[tone]}`}
+                className={`rounded-full border px-2 py-0.5 text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide ${STATUS_TONE_BADGE_CLASS[tone]}`}
               >
                 {item.status}
               </span>

@@ -31,10 +31,7 @@ function truncate(s: string | null, n: number): string {
 
 export function ActivityFeed({ events, loading }: ActivityFeedProps) {
   return (
-    <div
-      className="glc-card p-5"
-      style={{ borderRadius: 'var(--radius-xl)' }}
-    >
+    <div className="glc-card rounded-[var(--radius-xl)] p-5">
       <div className="glc-panel-head">
         <SectionLabel>Recent Activity</SectionLabel>
         <span className="glc-panel-meta">{events?.length ?? 0} events</span>
@@ -43,15 +40,15 @@ export function ActivityFeed({ events, loading }: ActivityFeedProps) {
       {loading && !events && (
         <div className="space-y-3">
           {[0, 1, 2, 3].map(i => (
-            <div key={i} className="h-8 rounded-lg animate-pulse" style={{ backgroundColor: 'var(--bg-canvas)' }} />
+            <div key={i} className="h-8 animate-pulse rounded-lg bg-[var(--bg-canvas)]" />
           ))}
         </div>
       )}
 
       {!loading && events && events.length === 0 && (
         <div className="flex flex-col items-center justify-center py-8 gap-2">
-          <Pulse className="w-7 h-7" style={{ color: 'var(--text-quaternary)' }} />
-          <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>No pipeline activity yet</p>
+          <Pulse className="h-7 w-7 text-[var(--text-quaternary)]" />
+          <p className="text-sm text-[var(--text-tertiary)]">No pipeline activity yet</p>
         </div>
       )}
 
@@ -92,19 +89,12 @@ export function ActivityFeed({ events, loading }: ActivityFeedProps) {
                       formatAuditWebsiteDisplay(ev.company_url, ev.no_public_website) ||
                       ev.audit_id.slice(0, 8)}
                   </Link>
-                  {ev.message && (
-                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                      — {truncate(ev.message, 80)}
-                    </span>
-                  )}
+                  {ev.message && <span className="text-xs text-[var(--text-secondary)]">— {truncate(ev.message, 80)}</span>}
                 </div>
               </div>
 
               {/* Relative time */}
-              <span
-                className="flex-shrink-0 tabular-nums"
-                style={{ fontSize: '11px', color: 'var(--text-quaternary)', whiteSpace: 'nowrap' }}
-              >
+              <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-[var(--text-quaternary)]">
                 {formatRelativeTime(ev.created_at)}
               </span>
             </div>

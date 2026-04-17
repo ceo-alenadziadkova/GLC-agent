@@ -9,22 +9,18 @@ export function StrengthsSection({ domainData }: Props) {
   if (domainData.strengths.length === 0) return null;
 
   return (
-    <div className="glc-card p-5" style={{ borderRadius: 'var(--radius-xl)' }}>
+    <div className="glc-card rounded-[var(--radius-xl)] p-5">
       <div className="flex items-center gap-2 mb-3">
-        <CheckCircle className="w-4 h-4" style={{ color: 'var(--glc-green)' }} />
+        <CheckCircle className="h-4 w-4 text-[var(--glc-green)]" />
         <SectionLabel>{AUDIT_WORKSPACE_COPY.sections.strengths}</SectionLabel>
       </div>
       <ul className="space-y-2">
         {domainData.strengths.map((strength, index) => (
           <li
             key={index}
-            className="flex items-start gap-2.5 text-sm"
-            style={{ color: 'var(--text-secondary)' }}
+            className="flex items-start gap-2.5 text-sm text-[var(--text-secondary)]"
           >
-            <span
-              className="mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0"
-              style={{ background: 'var(--gradient-success)' }}
-            />
+            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--gradient-success)]" />
             {strength}
           </li>
         ))}

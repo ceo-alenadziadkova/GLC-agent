@@ -15,17 +15,9 @@ export function SidebarNavLink({ item, pathname, itemKey, onClick }: SidebarNavL
     return (
       <div
         key={itemKey}
-        className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg"
-        style={{
-          color: APP_SHELL_UI_POLICY.colors.white02,
-          fontSize: 'var(--text-sm)',
-          cursor: 'not-allowed',
-        }}
+        className="relative flex cursor-not-allowed items-center gap-2.5 rounded-lg px-2.5 py-2 text-[length:var(--text-sm)] text-[color:var(--overlay-white-20)]"
       >
-        <Icon
-          className="relative w-4 h-4 flex-shrink-0"
-          style={{ color: APP_SHELL_UI_POLICY.colors.white015 }}
-        />
+        <Icon className="relative h-4 w-4 shrink-0 text-[color:var(--overlay-white-15)]" />
         <span className="relative flex-1 truncate">{label}</span>
       </div>
     );
@@ -36,10 +28,9 @@ export function SidebarNavLink({ item, pathname, itemKey, onClick }: SidebarNavL
     <NavLink
       key={itemKey}
       to={to}
-      className="relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg no-underline transition-all"
+      className="relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[length:var(--text-sm)] no-underline transition-all"
       style={{
         color: active ? 'var(--primary-foreground)' : APP_SHELL_UI_POLICY.colors.white046,
-        fontSize: 'var(--text-sm)',
         fontWeight: active ? 500 : 400,
         transition: 'color var(--ease-fast)',
       }}
@@ -71,13 +62,12 @@ export function SidebarNavLink({ item, pathname, itemKey, onClick }: SidebarNavL
       <span className="relative flex-1 truncate">{label}</span>
       {badge && (
         <span
-          className="relative text-xs px-1.5 py-0.5 rounded-full font-semibold tabular-nums"
+          className="relative rounded-full px-1.5 py-0.5 text-[length:var(--text-2xs)] font-semibold tabular-nums"
           style={{
             backgroundColor: active
               ? APP_SHELL_UI_POLICY.brand.activeBadgeBackground
               : APP_SHELL_UI_POLICY.colors.white08,
             color: active ? 'var(--glc-blue)' : APP_SHELL_UI_POLICY.colors.white038,
-            fontSize: '10px',
             border: active ? APP_SHELL_UI_POLICY.brand.activeBadgeBorder : '1px solid transparent',
           }}
         >

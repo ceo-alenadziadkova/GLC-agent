@@ -22,20 +22,20 @@ export function BriefLayoutSection({
 }: BriefLayoutSectionProps) {
   return (
     <SettingsCard id="brief-layout">
-      <div className="flex items-center gap-2 mb-2" style={{ color: 'var(--text-primary)' }}>
+      <div className="mb-2 flex items-center gap-2 text-[var(--text-primary)]">
         <ClipboardText className="w-4 h-4" />
         <h2 className="text-sm font-semibold">{SETTINGS_PAGE_COPY.briefLayout.title}</h2>
       </div>
-      <p className="text-xs leading-relaxed mb-4" style={{ color: 'var(--text-quaternary)' }}>
+      <p className="mb-4 text-xs leading-relaxed text-[var(--text-quaternary)]">
         {SETTINGS_PAGE_COPY.briefLayout.description}
       </p>
 
       {showClient && (
         <div className="space-y-2 mb-5">
-          <h3 className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+          <h3 className="text-xs font-semibold text-[var(--text-secondary)]">
             {SETTINGS_PAGE_COPY.briefLayout.clientTitle}
           </h3>
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
+          <p className="text-xs leading-relaxed text-[var(--text-quaternary)]">
             {SETTINGS_PAGE_COPY.briefLayout.clientDescription}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -54,10 +54,10 @@ export function BriefLayoutSection({
 
       {showConsultant && (
         <div className="space-y-2">
-          <h3 className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+          <h3 className="text-xs font-semibold text-[var(--text-secondary)]">
             {SETTINGS_PAGE_COPY.briefLayout.consultantTitle}
           </h3>
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
+          <p className="text-xs leading-relaxed text-[var(--text-quaternary)]">
             {SETTINGS_PAGE_COPY.briefLayout.consultantDescription}
           </p>
           <div className="flex flex-wrap gap-2">
