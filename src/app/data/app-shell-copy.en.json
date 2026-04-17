@@ -45,6 +45,7 @@
       "requestQueue": "Request queue",
       "snapshotQueue": "Snapshot queue",
       "discoveryQueue": "Discovery queue",
+      "designSystem": "Design system",
       "auditWorkspace": "Audit Workspace",
       "pipeline": "Pipeline",
       "reports": "Reports",

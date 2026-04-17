@@ -16,6 +16,7 @@ const CONSULTANT_AND_ADMIN_PATHS = [
   `/admin/discovery`,
   `/admin/intake-wording`,
   `/admin/question-bank-studio`,
+  `/admin/design-system`,
   `/audit/${PLACEHOLDER_AUDIT_ID}`,
   `/audit/${PLACEHOLDER_AUDIT_ID}/tech_infrastructure`,
 ] as const;

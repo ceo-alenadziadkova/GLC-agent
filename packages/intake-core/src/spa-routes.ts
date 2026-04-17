@@ -32,6 +32,8 @@ export const APP_ROUTE_SEGMENTS = {
   adminDiscovery: 'admin/discovery',
   adminIntakeWording: 'admin/intake-wording',
   adminQuestionBankStudio: 'admin/question-bank-studio',
+  /** Consultant-only: internal design system index (not linked for clients). */
+  adminDesignSystem: 'admin/design-system',
   pipelineById: 'pipeline/:id',
   reportsById: 'reports/:id',
   strategyById: 'strategy/:id',

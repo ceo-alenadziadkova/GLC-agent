@@ -25,6 +25,7 @@ import { SettingsPage }     from './pages/SettingsPage';
 import { AdminSnapshotQueue } from './pages/AdminSnapshotQueue';
 import { IntakeWordingWorkspace } from './pages/IntakeWordingWorkspace';
 import { QuestionBankStudioPage } from './pages/QuestionBankStudioPage';
+import { AdminDesignSystemPage } from './pages/AdminDesignSystemPage';
 import { ProtectedRoute }   from './components/ProtectedRoute';
 import { ClientPortalPipelineProvider } from './context/ClientPortalPipelineContext';
 import { RouteErrorPage }   from './components/RouteErrorPage';
@@ -100,6 +101,7 @@ export const router = createBrowserRouter([
       { path: P.adminDiscovery, element: <Consultant><DiscoveryQueue /></Consultant> },
       { path: P.adminIntakeWording, element: <Consultant><IntakeWordingWorkspace /></Consultant> },
       { path: P.adminQuestionBankStudio, element: <Consultant><QuestionBankStudioPage /></Consultant> },
+      { path: P.adminDesignSystem, element: <Consultant><AdminDesignSystemPage /></Consultant> },
       { path: P.pipelineById, element: <Consultant><PipelineMonitor /></Consultant> },
       { path: P.reportsById, element: <Consultant><ReportViewer /></Consultant> },
       { path: P.strategyById, element: <Consultant><StrategyLab /></Consultant> },

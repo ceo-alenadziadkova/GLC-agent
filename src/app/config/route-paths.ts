@@ -14,6 +14,7 @@ export const APP_ROUTE_PATHS = {
   adminRequests: `/${P.adminRequests}`,
   adminSnapshots: `/${P.adminSnapshots}`,
   adminDiscovery: `/${P.adminDiscovery}`,
+  adminDesignSystem: `/${P.adminDesignSystem}`,
   auditNew: `/${P.auditNew}`,
   portalAuditNew: `/${P.portalAuditNew}`,
   starterPackage: `/${R.starterPackage}`,
