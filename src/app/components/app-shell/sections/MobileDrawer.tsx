@@ -42,11 +42,12 @@ export function MobileDrawer({
         onClick={onClose}
       />
       <div
-        className="relative ml-auto flex h-full flex-col overflow-hidden bg-[var(--gradient-ink-rich)] shadow-[var(--shadow-ink)] glc-safe-pad-t glc-safe-pad-b"
+        className="ds-app-shell-sidebar relative ml-auto flex h-full flex-col overflow-hidden shadow-[var(--shadow-ink)] glc-safe-pad-t glc-safe-pad-b"
         style={{
           width: APP_SHELL_UI_POLICY.mobile.drawerWidth,
         }}
       >
+        <div className="ds-app-shell-sidebar-mesh" aria-hidden />
         <div
           className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--sidebar-border)] px-4 py-3 glc-safe-pad-x"
         >
@@ -64,7 +65,7 @@ export function MobileDrawer({
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5 glc-safe-pad-x">
           <div
-            className="px-2 py-1.5 text-[length:var(--text-2xs)] font-bold tracking-[var(--tracking-drawer-caps)] text-[color:var(--overlay-white-35)]"
+            className="px-2 py-1.5 text-[length:var(--text-2xs)] font-bold tracking-[var(--tracking-drawer-caps)] text-[color:var(--app-shell-sidebar-caps-fg)]"
           >
             {sectionLabel}
           </div>
@@ -98,7 +99,7 @@ export function MobileDrawer({
           {!isGuest && !isClient && !roleUnknown && (
             <NavLink
               to={APP_ROUTE_PATHS.auditNew}
-              className="flex items-center gap-2.5 rounded-lg px-2.5 py-3 text-[var(--glc-orange-light)] no-underline glc-touch-target"
+              className="flex items-center gap-2.5 rounded-lg px-2.5 py-3 text-[var(--glc-orange)] no-underline glc-touch-target"
               onClick={onClose}
             >
               <Lightning className="w-5 h-5 flex-shrink-0" />

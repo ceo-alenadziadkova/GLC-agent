@@ -30,7 +30,7 @@ export function RecommendationsSection({ domainData, openRec, setOpenRec }: Prop
         return (
           <div
             key={rec.id || index}
-            className={`glc-card overflow-hidden rounded-[var(--radius-xl)] border-l-[3px] ${
+            className={`glc-card overflow-hidden rounded-[var(--radius-xl)] border-l border-solid ds-rec-card-accent-border ${
               isQuickWin ? 'border-l-[var(--glc-orange)]' : 'border-l-[var(--border-default)]'
             }`}
           >
@@ -42,7 +42,7 @@ export function RecommendationsSection({ domainData, openRec, setOpenRec }: Prop
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span
-                    className="text-sm font-medium [font-family:var(--font-display)] tracking-[-0.01em] text-[var(--text-primary)]"
+                    className="text-sm font-medium [font-family:var(--font-display)] ds-letterspace-tight-01 text-[var(--text-primary)]"
                   >
                     {rec.title}
                   </span>

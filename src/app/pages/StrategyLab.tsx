@@ -151,7 +151,7 @@ export function StrategyLab() {
         </div>
       }
     >
-      <div className="flex h-[calc(100vh-56px)]">
+      <div className="flex ds-audit-workspace-main-h">
 
         {/* ── Initiative picker ─────────────────────── */}
         <div className="bg-background flex-1 overflow-y-auto border-r">
@@ -301,7 +301,7 @@ export function StrategyLab() {
         </div>
 
         {/* ── Plan summary ──────────────────────────── */}
-        <div className="bg-card flex w-[280px] flex-shrink-0 flex-col overflow-y-auto">
+        <div className="bg-card flex ds-strategy-lab-plan-column flex-shrink-0 flex-col overflow-y-auto">
           <div className="p-5 flex-1 space-y-5">
             <div>
               <SectionLabel>{STRATEGY_LAB_COPY.panel.yourRoadmap}</SectionLabel>

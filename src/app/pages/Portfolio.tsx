@@ -135,7 +135,7 @@ export function Portfolio() {
         {filtered.length > 0 && (
           <div className="glc-card overflow-hidden rounded-xl">
             {/* Header */}
-            <div className="text-muted-foreground bg-background grid border-b px-5 py-3 text-[length:var(--text-2xs)] font-bold uppercase tracking-[0.09em] [grid-template-columns:2fr_1fr_1fr_88px_128px_40px]">
+            <div className="text-muted-foreground bg-background grid border-b px-5 py-3 text-[length:var(--text-2xs)] font-bold uppercase ds-data-table-header-caps [grid-template-columns:2fr_1fr_1fr_88px_128px_40px]">
               <span>Company</span>
               <span>Industry</span>
               <span>Created</span>

@@ -13,7 +13,7 @@ export function SnapshotLandingProgress(props: { phaseIdx: number; quotaHint: st
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className="flex w-full max-w-[min(100%,26rem)] flex-col items-center px-0 text-center mobile:px-1"
+      className="ds-snapshot-progress-max flex w-full flex-col items-center px-0 text-center mobile:px-1"
     >
       <SyncPathLoader
         layout="embedded"

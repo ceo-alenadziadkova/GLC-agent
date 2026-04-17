@@ -13,9 +13,9 @@ type ThemeToggleProps = {
 export function ThemeToggle({ variant = 'default', className }: ThemeToggleProps) {
   const { isDark, setDark } = useGlcTheme();
   const iconMuted =
-    variant === 'sidebar' ? 'rgba(255,255,255,0.42)' : 'var(--text-tertiary)';
+    variant === 'sidebar' ? 'var(--app-shell-sidebar-theme-icon-muted)' : 'var(--text-tertiary)';
   const iconActive =
-    variant === 'sidebar' ? 'rgba(255,255,255,0.78)' : 'var(--text-secondary)';
+    variant === 'sidebar' ? 'var(--app-shell-sidebar-theme-icon-active)' : 'var(--text-secondary)';
 
   const cssVars = {
     '--theme-toggle-sun': isDark ? iconMuted : iconActive,
@@ -38,7 +38,11 @@ export function ThemeToggle({ variant = 'default', className }: ThemeToggleProps
         checked={isDark}
         onCheckedChange={setDark}
         aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
-        className={variant === 'sidebar' ? 'data-[state=unchecked]:bg-white/15' : undefined}
+        className={
+          variant === 'sidebar'
+            ? 'ds-theme-switch-on-ink data-[state=unchecked]:bg-[var(--app-shell-sidebar-switch-track)]'
+            : undefined
+        }
       />
       <Moon
         className="ds-theme-toggle-moon h-4 w-4 shrink-0"

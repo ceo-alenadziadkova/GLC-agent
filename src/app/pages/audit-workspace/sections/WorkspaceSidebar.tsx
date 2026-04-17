@@ -65,7 +65,7 @@ export function WorkspaceSidebar({
     <aside
       className={`${AUDIT_WORKSPACE_UI.layout.sidebarWidthClass} flex-shrink-0 overflow-y-auto flex flex-col`}
       style={{
-        borderRight: '1px solid var(--border-subtle)',
+        borderRight: 'var(--border-width-default) solid var(--border-subtle)',
         background:
           'linear-gradient(180deg, color-mix(in oklab, var(--bg-surface) 96%, white) 0%, var(--bg-surface) 100%)',
       }}
@@ -76,7 +76,7 @@ export function WorkspaceSidebar({
         <ScoreRing score={overallScore} size={AUDIT_WORKSPACE_UI.scoreRingSize} />
         <div>
           <p
-            className="text-sm font-bold [font-family:var(--font-display)] tracking-[-0.01em] text-[var(--text-primary)]"
+            className="text-sm font-bold [font-family:var(--font-display)] ds-letterspace-tight-01 text-[var(--text-primary)]"
           >
             {AUDIT_WORKSPACE_COPY.sidebar.overallScore}
           </p>

@@ -58,8 +58,8 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
     >
       {!embedded && (
         <>
-          <div className="pointer-events-none fixed inset-0 bg-[var(--mesh-brand)] opacity-40" />
-          <header className="relative z-10 flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-6 py-4 pt-[max(0.75rem,env(safe-area-inset-top))] mobile:px-4 mobile:py-3">
+          <div className="ds-bg-fill-mesh-brand pointer-events-none fixed inset-0 opacity-40" />
+          <header className="ds-snapshot-landing-header-pt relative z-10 flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-6 py-4 mobile:px-4 mobile:py-3">
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <Link to={APP_ROUTE_PATHS.home} className="inline-flex items-center" aria-label={SNAPSHOT_LANDING_HERO_COPY.homeAriaLabel}>
                 <GlcLogo className="h-9 mobile:h-8" />
@@ -68,10 +68,10 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
               {/* <ThemeToggle /> */}
               {hasFullAccount ? (
-                <div className="flex min-w-0 max-w-[min(100%,22rem)] items-center gap-2 sm:gap-2.5">
+                <div className="ds-snapshot-header-account-cluster">
                   <UserCircle className="h-4 w-4 shrink-0 text-[var(--glc-green)]" weight="fill" />
                   <span
-                    className="hidden min-w-0 truncate text-xs font-medium text-[var(--text-secondary)] sm:inline sm:max-w-[10rem] md:max-w-[13rem]"
+                    className="ds-snapshot-email-truncate font-medium text-[var(--text-secondary)]"
                     title={workspaceEmail ?? SNAPSHOT_LANDING_HERO_COPY.signedInFallback}
                   >
                     {workspaceEmail ?? SNAPSHOT_LANDING_HERO_COPY.signedInFallback}
@@ -160,7 +160,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-[var(--border-subtle)] px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center mobile:px-4">
+      <footer className="ds-snapshot-landing-footer-pb relative z-10 border-t border-[var(--border-subtle)] px-6 py-4 text-center mobile:px-4">
         <p className="text-xs text-[var(--text-tertiary)]">
           {SNAPSHOT_LANDING_HERO_COPY.footerDisclaimer} ·{' '}
           {hasFullAccount ? (

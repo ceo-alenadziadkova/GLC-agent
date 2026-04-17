@@ -58,9 +58,9 @@ export function Step2Confirm({
           <Rocket className="h-6 w-6 text-[var(--primary-foreground)]" />
         </div>
         <h2 className="text-[length:var(--text-xl)] font-bold text-[var(--text-primary)]">{WORKSPACE_PAGE_COPY.newAudit.step2.readyToLaunchTitle}</h2>
-        <p className="mt-[6px] text-[length:var(--text-sm)] text-[var(--text-tertiary)]">{WORKSPACE_PAGE_COPY.newAudit.step2.readyToLaunchSubtitle}</p>
+        <p className="mt-[length:var(--space-1-5)] text-[length:var(--text-sm)] text-[var(--text-tertiary)]">{WORKSPACE_PAGE_COPY.newAudit.step2.readyToLaunchSubtitle}</p>
         {isClientSelfServe && (
-          <p className="mt-[10px] text-[length:var(--text-xs)] leading-[1.5] text-[var(--text-quaternary)]">
+          <p className="mt-[length:var(--space-2-5)] text-[length:var(--text-xs)] leading-[1.5] text-[var(--text-quaternary)]">
             {WORKSPACE_PAGE_COPY.newAudit.step2.afterReconPauseText}
           </p>
         )}
@@ -78,7 +78,7 @@ export function Step2Confirm({
           .filter((row): row is [string, string] => row != null)
           .map(([label, value]) => (
             <div key={label} className="flex items-start gap-3">
-              <span className="min-w-[90px] pt-[1px] text-xs text-[var(--text-tertiary)]">{label}</span>
+              <span className="ds-step2-summary-label-col pt-[length:var(--border-width-default)] text-xs text-[var(--text-tertiary)]">{label}</span>
               <span className="break-words text-sm text-[var(--text-primary)]">{value}</span>
             </div>
           ))}
@@ -106,7 +106,7 @@ export function Step2Confirm({
           disabled={loading}
           whileHover={!loading ? { scale: 1.015 } : {}}
           whileTap={!loading ? { scale: 0.985 } : {}}
-          className="glc-touch-target flex flex-1 items-center justify-center gap-2 rounded-lg border-none bg-[var(--gradient-accent)] py-3 text-sm font-semibold text-[var(--primary-foreground)] shadow-[0_4px_14px_rgba(242,79,29,0.30)] sm:min-h-0 sm:py-2.5"
+          className="glc-touch-target flex flex-1 items-center justify-center gap-2 rounded-lg border-none bg-[var(--gradient-accent)] py-3 text-sm font-semibold text-[var(--on-warm-gradient-fg)] shadow-[0_4px_14px_rgba(242,79,29,0.30)] sm:min-h-0 sm:py-2.5"
           style={{ cursor: loading ? 'not-allowed' : 'pointer' }}
         >
           {loading ? (

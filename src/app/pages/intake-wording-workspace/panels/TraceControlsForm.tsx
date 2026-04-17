@@ -57,7 +57,7 @@ export function TraceControlsForm(props: {
       <label className="flex flex-col gap-1 text-sm">
         <span className="font-medium">{W.fields.responsesJson}</span>
         <textarea
-          className="glc-input font-mono text-xs min-h-[140px]"
+          className="glc-input ds-intake-wording-trace-textarea font-mono text-xs"
           value={responsesText}
           onChange={e => onResponsesTextChange(e.target.value)}
           spellCheck={false}

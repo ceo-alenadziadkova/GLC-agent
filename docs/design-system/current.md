@@ -40,6 +40,7 @@ Date: 2026-04-17
   - `src/design-system/ui/index.ts`
   - `src/app/components/ui/**`
   - `src/design-system/patterns/Layouts/layout-contracts.ts`
+  - `src/design-system/patterns/ReportViewer/layout.ts`
   - `src/app/marketing/MarketingLayout.tsx`
 - Style config with raw visuals:
   - `src/app/config/admin-request-queue-copy.en.ts`
@@ -61,11 +62,13 @@ Date: 2026-04-17
 | UI semantic | `--ui-danger-*`, `--ui-success-*`, `--ui-warning-*`, `--ui-code-surface`, `--ui-slate-muted`, `--ui-strategic-purple` | `src/styles/tokens.css` |
 | Intake graph semantic | `--ui-intake-edge-*`, `--ui-intake-node-*` | `src/styles/tokens.css` |
 | Surface/text/border | `--bg-*`, `--text-*`, `--border-*`, `--surface`, `--surface-elevated`, `--panel-border` | `src/styles/tokens.css` |
-| Component semantic aliases | `--background`, `--foreground`, `--card`, `--primary`, `--secondary`, `--accent`, `--destructive`, `--input`, `--ring`, `--sidebar-*`, `--chart-*` | `src/styles/tokens.css` |
+| Component semantic aliases | `--background`, `--foreground`, `--card`, `--primary`, `--secondary`, `--accent`, `--destructive`, `--input`, `--ring`, `--sidebar-*`, `--chart-*`, `--on-warm-gradient-fg` (text on `--gradient-accent`) | `src/styles/tokens.css` |
 | Overlay colors | `--overlay-backdrop`, `--overlay-backdrop-strong`, `--overlay-shadow-soft`, `--overlay-white-*` | `src/styles/tokens.css` |
 | Theme inline aliases | `--color-background`, `--color-foreground`, `--color-primary`, etc. | `src/styles/tokens.css` |
 
 Light/dark overrides are defined via `:root` and `html.dark` in `src/styles/tokens.css`.
+
+**Light theme verification routes (manual QA):** after theme or token changes, spot-check the same screens in **light** and **dark**: `/login` (toggle), `/settings` (Appearance), `/dashboard`, `/reports/:id` (report viewer, profile tabs), `/portal/audit/:id` (client portal / snapshot mirror when present), `/` and `/snapshot` (marketing shell), `/discovery` (marketing shell). Native controls and scrollbars follow `color-scheme` on `html`.
 
 ### 1.2 Typography tokens
 

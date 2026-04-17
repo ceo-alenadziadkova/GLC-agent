@@ -27,7 +27,7 @@ export function SnapshotIdlePreviewCards() {
       className="mt-10 w-full lg:col-span-12 lg:mt-14"
       aria-hidden
     >
-      <p className="mb-3 text-center text-[length:var(--text-2xs)] font-semibold uppercase tracking-[0.16em] text-[var(--text-quaternary)] lg:text-left">
+      <p className="ds-snapshot-preview-caps-tracking mb-3 text-center text-[length:var(--text-2xs)] font-semibold uppercase text-[var(--text-quaternary)] lg:text-left">
         Preview of what you will see
       </p>
       <motion.div

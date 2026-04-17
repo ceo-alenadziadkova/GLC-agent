@@ -44,7 +44,7 @@ export function IssuesSection({ domainData }: Props) {
                 style={{
                   backgroundColor: SEV_BG[issue.severity] || SEV_BG.medium,
                   color: SEV_COLOR[issue.severity] || SEV_COLOR.medium,
-                  fontSize: '10px',
+                  fontSize: 'var(--text-2xs)',
                   minWidth: AUDIT_WORKSPACE_UI.issueSeverityMinWidth,
                   textAlign: 'center',
                 }}
@@ -58,12 +58,10 @@ export function IssuesSection({ domainData }: Props) {
                     {issue.title}
                   </span>
                   <span
-                    className="px-1.5 py-0.5 rounded font-medium capitalize flex-shrink-0"
+                    className="ds-issue-confidence-pill px-1.5 py-0.5 rounded font-medium capitalize flex-shrink-0"
                     style={{
                       backgroundColor: CONF_BG[conf],
                       color: CONF_COLOR[conf],
-                      fontSize: '9px',
-                      letterSpacing: '0.03em',
                     }}
                     title={`Confidence: ${conf}${issue.data_source ? ` — ${issue.data_source.replace(/_/g, ' ')}` : ''}`}
                   >

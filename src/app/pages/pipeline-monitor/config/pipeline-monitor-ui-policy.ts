@@ -1,11 +1,11 @@
 export const PIPELINE_MONITOR_UI_POLICY = {
   layout: {
-    contentHeight: 'calc(100vh - 56px)',
-    sidebarWidthClassName: 'w-[252px]',
+    contentHeight: 'calc(100vh - var(--glc-mobile-nav-height))',
+    sidebarWidthClassName: 'ds-pipeline-monitor-sidebar-w',
     loaderHeightClassName: 'h-64',
   },
   sizing: {
-    progressBarHeightPx: 4,
+    progressBarHeight: 'var(--space-1)',
   },
   opacity: {
     disabledWing: 0.4,

@@ -21,7 +21,7 @@ export function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; 
     review: <WarningCircle className="text-warning h-3.5 w-3.5" />,
     failed: <WarningCircle className="text-destructive h-3.5 w-3.5" />,
     skipped: (
-      <span className="bg-muted text-muted-foreground rounded px-1 py-0.5 text-[9px] font-bold tracking-[0.05em]">
+      <span className="bg-muted text-muted-foreground rounded px-1 py-0.5 ds-ph-card-skip-badge">
         {PM.phaseCard.skip}
       </span>
     ),
@@ -145,7 +145,7 @@ function ParallelMiniCard({ ph }: { ph: PhaseView }) {
       </div>
 
       {isRunning && (
-        <div className="bg-info/20 h-[3px] overflow-hidden rounded-full">
+        <div className="bg-info/20 ds-step1-brief-progress-thin overflow-hidden rounded-full">
           <motion.div
             className="h-full rounded-full bg-gradient-to-r from-sky-400 to-sky-600"
             initial={{ width: '10%' }}

@@ -31,7 +31,7 @@ export function AuditHeader({ title, subtitle }: AuditHeaderProps) {
             <span className="text-sm font-medium">Share</span>
           </button>
           <button
-            className="flex items-center gap-2 rounded-lg border border-[var(--panel-border)] bg-[var(--text-primary)] px-4 py-2 text-white transition-all"
+            className="flex items-center gap-2 rounded-lg border border-[var(--panel-border)] bg-[var(--text-primary)] px-4 py-2 text-[var(--text-inverse)] transition-all"
           >
             <DownloadSimple className="w-4 h-4" />
             <span className="text-sm font-medium">Export PDF</span>

@@ -354,7 +354,7 @@ export function Step0Basics({
                   type="checkbox"
                   checked={interviewMode}
                   onChange={e => setInterviewMode(e.target.checked)}
-                  className="accent-warning h-[15px] w-[15px] flex-shrink-0 rounded"
+                  className="accent-warning ds-interview-checkbox-size flex-shrink-0 rounded"
                 />
                 <div>
                   <span className="text-foreground text-sm font-medium">

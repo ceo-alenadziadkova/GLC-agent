@@ -29,7 +29,7 @@ export function LoginBrandSection({ loginTagline, motionTransition }: LoginBrand
           <img
             src="/logo-simple.svg"
             alt=""
-            className="h-10 w-auto max-w-[min(72px,20vw)] shrink-0"
+            className="ds-login-brand-logo-max h-10 w-auto shrink-0"
             width={68}
             height={72}
             decoding="async"

@@ -68,7 +68,7 @@ export function DraftEditorPanel(props: {
           </div>
           <label className="flex flex-col gap-1 text-sm">
             <span className="font-medium">{W.fields.draftWording}</span>
-            <textarea className="glc-input min-h-[100px] text-sm" value={draftText} onChange={e => onDraftTextChange(e.target.value)} placeholder={W.fields.draftPlaceholder} />
+            <textarea className="glc-input ds-intake-wording-draft-minh text-sm" value={draftText} onChange={e => onDraftTextChange(e.target.value)} placeholder={W.fields.draftPlaceholder} />
           </label>
           <div className="flex flex-wrap gap-2 items-center">
             <Button type="button" variant="outline" size="sm" className="h-auto px-2 py-1 text-xs" onClick={onSaveDraftLocal}>{W.actions.saveDraftLocal}</Button>

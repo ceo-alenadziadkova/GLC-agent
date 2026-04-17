@@ -36,7 +36,7 @@ export function LoginAsideSection({ reduceMotion, motionTransition }: LoginAside
         {LC.authShellAsideTitle}
       </motion.p>
 
-      <div className="glc-login-aside-content glc-login-layout-side-panel w-full md:max-w-[34rem] md:p-6">
+      <div className="glc-login-aside-content glc-login-layout-side-panel ds-login-aside-panel-max w-full md:p-6">
         <div className="glc-login-side-bottom">
           <ul className="glc-login-side-signals grid grid-cols-3 gap-2">
             {LC.authShellTrustSignals.map(signal => (

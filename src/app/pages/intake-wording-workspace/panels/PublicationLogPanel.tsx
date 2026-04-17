@@ -20,7 +20,7 @@ export function PublicationLogPanel(props: {
         {publicationLog.length === 0 ? (
           <p className="text-xs text-[var(--glc-muted)]">{W.publicationLog.empty}</p>
         ) : (
-          <ul className="space-y-2 text-xs font-mono max-h-[280px] overflow-auto">
+          <ul className="ds-intake-wording-log-maxh space-y-2 overflow-auto text-xs font-mono">
             {publicationLog.map(entry => (
               <li key={entry.id} className="rounded border border-[var(--glc-border)] bg-[var(--glc-surface)] px-2 py-1.5">
                 <div className="text-[var(--glc-muted)]">

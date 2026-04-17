@@ -7,6 +7,8 @@ export const TYPOGRAPHY_TOKENS = {
   },
   fontSize: {
     '2xs': 'var(--text-2xs)',
+    /** Report viewer profile tabs — alias to `--report-profile-tab-font-size` in tokens.css */
+    reportProfileTab: 'var(--report-profile-tab-font-size)',
     xs: 'var(--text-xs)',
     sm: 'var(--text-sm)',
     base: 'var(--text-base)',

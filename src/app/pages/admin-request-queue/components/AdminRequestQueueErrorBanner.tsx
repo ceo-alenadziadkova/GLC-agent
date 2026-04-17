@@ -7,7 +7,7 @@ export function AdminRequestQueueErrorBanner({ message }: { message: string }) {
       className="flex items-center gap-3 px-4 py-3 rounded-lg"
       style={{
         backgroundColor: ADMIN_REQUEST_QUEUE_CHROME.errorPanelBackground,
-        border: `1px solid ${ADMIN_REQUEST_QUEUE_CHROME.errorPanelBorder}`,
+        border: `var(--border-width-default) solid ${ADMIN_REQUEST_QUEUE_CHROME.errorPanelBorder}`,
         color: ADMIN_REQUEST_QUEUE_CHROME.errorText,
       }}
     >

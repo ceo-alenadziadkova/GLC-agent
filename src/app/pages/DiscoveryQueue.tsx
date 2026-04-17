@@ -58,7 +58,7 @@ function MaturityPill({ level }: { level: number }) {
   const cfg = maturityConfig(level);
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[length:var(--text-2xs)] font-bold tracking-[0.03em] ${cfg.toneClass}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[length:var(--text-2xs)] font-bold ds-discovery-maturity-tracking ${cfg.toneClass}`}
     >
       {level} · {cfg.label}
     </span>
@@ -196,7 +196,7 @@ function SessionCard({
                   : <Lightbulb size={12} weight="fill" className="text-warning mt-0.5 flex-shrink-0" />}
                 <span className="text-muted-foreground text-xs leading-relaxed">
                   <span
-                    className={`mr-1 text-[length:var(--text-2xs)] font-semibold uppercase tracking-[0.04em] ${isHigh ? 'text-destructive' : 'text-warning'}`}
+                    className={`mr-1 text-[length:var(--text-2xs)] font-semibold uppercase ds-discovery-zone-caps ${isHigh ? 'text-destructive' : 'text-warning'}`}
                   >
                     {f.zone}
                   </span>
@@ -342,7 +342,7 @@ export function DiscoveryQueue() {
         {convertError && (
           <div className="bg-destructive/10 border-destructive/40 mb-4 flex items-center gap-2 rounded-xl border px-4 py-3">
             <Warning size={14} weight="fill" className="text-destructive" />
-            <span className="text-destructive text-[13px]">{convertError}</span>
+            <span className="text-destructive text-[length:var(--text-sm)]">{convertError}</span>
             <button
               type="button"
               onClick={() => setConvertError(null)}
@@ -357,7 +357,7 @@ export function DiscoveryQueue() {
         {loading && (
           <div className="text-muted-foreground flex items-center justify-center gap-3 py-16">
             <Spinner size={18} className="animate-spin" />
-            <span className="text-[13px]">{DISCOVERY_QUEUE_COPY.loadingSessions}</span>
+            <span className="text-[length:var(--text-sm)]">{DISCOVERY_QUEUE_COPY.loadingSessions}</span>
           </div>
         )}
 

@@ -68,7 +68,7 @@ export function DiscoverQuestionnaireView(props: DiscoverQuestionnaireViewProps)
     <div className={isSplit ? 'w-full min-w-0 max-w-full' : 'bg-background min-h-screen flex flex-col items-center px-5 py-10'}>
       {!isSplit && (
         <div
-          className="fixed inset-0 z-0 pointer-events-none bg-[var(--mesh-brand)]"
+          className="ds-bg-fill-mesh-brand fixed inset-0 z-0 pointer-events-none"
           aria-hidden
         />
       )}

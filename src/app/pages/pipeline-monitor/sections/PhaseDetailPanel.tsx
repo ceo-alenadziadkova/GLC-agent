@@ -274,7 +274,7 @@ export function PhaseDetailPanel(props: {
                     <span className="bg-success h-2.5 w-2.5 rounded-full" />
                   </div>
                   <Terminal className="ml-2 h-3.5 w-3.5 text-[var(--overlay-white-35)]" />
-                  <span className="text-[var(--overlay-white-30)] text-xs font-bold tracking-[0.10em] uppercase">
+                  <span className="text-[var(--overlay-white-30)] text-xs font-bold ds-pipeline-log-header-tracking uppercase">
                     {PM.detail.agentLogPrefix} {selectedPhase.name}
                   </span>
                 </div>
@@ -298,11 +298,11 @@ export function PhaseDetailPanel(props: {
                         )}
                       >
                         {isOk ? (
-                          <Check size={11} weight="bold" className="mt-[3px] shrink-0" />
+                          <Check size={11} weight="bold" className="ds-pipeline-log-icon-mt shrink-0" />
                         ) : isErr ? (
-                          <X size={11} weight="bold" className="mt-[3px] shrink-0" />
+                          <X size={11} weight="bold" className="ds-pipeline-log-icon-mt shrink-0" />
                         ) : (
-                          <CircleNotch size={11} className="mt-[3px] shrink-0" />
+                          <CircleNotch size={11} className="ds-pipeline-log-icon-mt shrink-0" />
                         )}
                         <span>{entry.text}</span>
                       </motion.div>

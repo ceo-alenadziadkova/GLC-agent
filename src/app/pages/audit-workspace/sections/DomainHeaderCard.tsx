@@ -15,7 +15,7 @@ export function DomainHeaderCard({ activeDomain, domainData }: Props) {
     <div className="glc-page-hero glc-orb-decor p-5 sm:p-6">
       <div className="flex items-start gap-5">
         <div
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--gradient-brand)] shadow-[0_6px_20px_rgba(28,189,255,0.25)]"
+          className="ds-bg-fill-gradient-brand flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-[0_6px_20px_rgba(28,189,255,0.25)]"
         >
           <DomainIcon className="w-7 h-7 text-white" />
         </div>

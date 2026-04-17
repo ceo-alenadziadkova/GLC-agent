@@ -105,7 +105,8 @@
   --bg-elevated: #FFFFFF;
   --bg-muted: #E5ECF7;
   --bg-inset: #E8EFF8;
-  --bg-sidebar: var(--glc-ink);
+  /** Light app: sidebar is a panel (not ink); dark app overrides in html.dark */
+  --bg-sidebar: var(--bg-muted);
 
   --text-primary: #0B1120;
   --text-secondary: #334861;
@@ -119,6 +120,18 @@
   --border-default: #BDCBDE;
   --border-strong: #95A7C0;
   --border-width-default: 1px;
+
+  /**
+   * Vendor UI primitives (shadcn/Radix class strings).
+   * Values match previous literals for visual parity; used via var() in components/ui.
+   */
+  --primitive-focus-ring-width: 3px;
+  --primitive-popover-anchor-width: 8rem;
+  --primitive-switch-track-height: 1.15rem;
+  --primitive-command-dialog-width: 300px;
+  --primitive-drawer-drag-handle-height: 100px;
+  --primitive-menubar-viewport-width: 12rem;
+  --primitive-calendar-cell-text-size: 0.8rem;
 
   --shadow-xs: 0 1px 2px rgba(11, 17, 32, 0.06);
   --shadow-sm: 0 2px 7px rgba(11, 17, 32, 0.09), 0 1px 2px rgba(11, 17, 32, 0.05);
@@ -143,6 +156,12 @@
 
   --gradient-brand: linear-gradient(135deg, #1CBDFF 0%, #0077A8 100%);
   --gradient-accent: linear-gradient(135deg, #F24F1D 0%, #C93B0C 100%);
+  /**
+   * Foreground for text/icons on --gradient-accent (and similar warm fills).
+   * White (--primary-foreground) on this orange band is often below WCAG AA for body copy;
+   * ink stays >= 4.5:1 across the gradient stops.
+   */
+  --on-warm-gradient-fg: var(--glc-ink);
   --gradient-success: linear-gradient(135deg, #0ECF82 0%, #0AB36F 100%);
   --gradient-ink: linear-gradient(160deg, #0D1628 0%, #080F1E 100%);
   --gradient-ink-rich: linear-gradient(160deg, #111E38 0%, #080F1E 55%, #0A1930 100%);
@@ -308,13 +327,38 @@
   --radius: 0.5rem;
 
   --sidebar: var(--bg-sidebar);
-  --sidebar-foreground: rgba(255, 255, 255, 0.82);
+  --sidebar-foreground: var(--text-primary);
   --sidebar-primary: var(--glc-blue);
   --sidebar-primary-foreground: var(--glc-ink);
-  --sidebar-accent: var(--glc-ink-2);
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-accent: var(--bg-inset);
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border: var(--border-subtle);
   --sidebar-ring: rgba(28, 189, 255, 0.4);
+
+  /**
+   * App shell sidebar surface + copy (DesktopSidebar / MobileDrawer).
+   * Surface matches --bg-canvas; nav chrome still switches copy/control tokens in html.dark.
+   */
+  /** Same plane as main app canvas (no separate sidebar “card”). */
+  --app-shell-sidebar-bg: var(--bg-canvas);
+  --app-shell-sidebar-mesh-opacity: 0;
+  --app-shell-sidebar-hairline: var(--border-subtle);
+  --app-shell-sidebar-control-bg: var(--bg-muted);
+  --app-shell-sidebar-control-border: var(--border-subtle);
+  --app-shell-sidebar-search-slot-bg: var(--bg-inset);
+  --app-shell-sidebar-kbd-bg: var(--bg-muted);
+  --app-shell-sidebar-kbd-fg: var(--text-tertiary);
+  --app-shell-sidebar-active-row-bg: var(--glc-blue-muted);
+  --app-shell-sidebar-theme-icon-muted: var(--text-tertiary);
+  --app-shell-sidebar-theme-icon-active: var(--text-secondary);
+  --app-shell-sidebar-switch-track: color-mix(in oklab, var(--text-primary) 16%, transparent);
+
+  --app-shell-sidebar-caps-fg: var(--text-tertiary);
+  --app-shell-sidebar-link-fg: var(--text-secondary);
+  --app-shell-sidebar-link-icon: var(--text-tertiary);
+  --app-shell-sidebar-search-fg: var(--text-secondary);
+  --app-shell-sidebar-disabled-fg: var(--text-quaternary);
+  --app-shell-sidebar-disabled-icon: var(--text-quaternary);
 
   --overlay-backdrop: rgba(8, 15, 30, 0.45);
   --overlay-backdrop-strong: rgba(8, 15, 30, 0.5);
@@ -377,12 +421,19 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
+  /* Report viewer — profile tab triggers (size SSOT; colors from semantic tokens) */
+  --report-profile-tab-font-size: var(--text-xs);
+
   --sync-loader-path-idle: #94A3B8;
   --sync-loader-path-pulse: #CBD5E1;
 
   --glc-mobile-nav-height: 56px;
   --glc-mobile-header-height: 52px;
   --glc-touch-target-min: 44px;
+}
+
+html:not(.dark) {
+  color-scheme: light;
 }
 
 html.dark {
@@ -471,6 +522,32 @@ html.dark {
   --input: var(--bg-muted);
   --input-background: var(--bg-muted);
   --switch-background: var(--border-default);
+
+  /* Shadcn sidebar on dark canvas: ink chrome + light copy */
+  --sidebar-foreground: rgba(255, 255, 255, 0.82);
+  --sidebar-accent: var(--glc-ink-2);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+
+  --app-shell-sidebar-bg: var(--bg-canvas);
+  --app-shell-sidebar-mesh-opacity: 0;
+  --app-shell-sidebar-hairline: rgba(255, 255, 255, 0.15);
+  --app-shell-sidebar-control-bg: rgba(255, 255, 255, 0.2);
+  --app-shell-sidebar-control-border: rgba(255, 255, 255, 0.15);
+  --app-shell-sidebar-search-slot-bg: rgba(255, 255, 255, 0.15);
+  --app-shell-sidebar-kbd-bg: rgba(255, 255, 255, 0.2);
+  --app-shell-sidebar-kbd-fg: rgba(255, 255, 255, 0.35);
+  --app-shell-sidebar-active-row-bg: rgba(255, 255, 255, 0.2);
+  --app-shell-sidebar-theme-icon-muted: rgba(255, 255, 255, 0.42);
+  --app-shell-sidebar-theme-icon-active: rgba(255, 255, 255, 0.78);
+  --app-shell-sidebar-switch-track: rgba(255, 255, 255, 0.22);
+
+  --app-shell-sidebar-caps-fg: rgba(255, 255, 255, 0.62);
+  --app-shell-sidebar-link-fg: rgba(255, 255, 255, 0.8);
+  --app-shell-sidebar-link-icon: rgba(255, 255, 255, 0.7);
+  --app-shell-sidebar-search-fg: rgba(255, 255, 255, 0.76);
+  --app-shell-sidebar-disabled-fg: rgba(255, 255, 255, 0.5);
+  --app-shell-sidebar-disabled-icon: rgba(255, 255, 255, 0.45);
 }
 
 @theme inline {

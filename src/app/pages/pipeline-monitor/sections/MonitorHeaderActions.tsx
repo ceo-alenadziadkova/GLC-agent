@@ -20,14 +20,14 @@ export function MonitorHeaderActions(props: {
       {isExpress && (
         <StatusBadge
           label={PM.expressBadge}
-          toneClassName="border border-[color:var(--glc-blue-alpha-25)] bg-[var(--glc-blue-muted)] font-bold tracking-[0.04em] text-[var(--glc-blue)]"
+          toneClassName="border border-[color:var(--glc-blue-alpha-25)] bg-[var(--glc-blue-muted)] font-bold ds-pipeline-express-badge-tracking text-[var(--glc-blue)]"
           className="font-[var(--font-display)]"
         />
       )}
       <div className="flex items-center gap-2.5">
         <div
           className="w-28 overflow-hidden rounded-full bg-[var(--border-subtle)]"
-          style={{ height: PIPELINE_MONITOR_UI_POLICY.sizing.progressBarHeightPx }}
+          style={{ height: PIPELINE_MONITOR_UI_POLICY.sizing.progressBarHeight }}
         >
           <motion.div
             className="h-full rounded-full bg-[var(--glc-green)] shadow-[0_0_6px_var(--glc-green)]"

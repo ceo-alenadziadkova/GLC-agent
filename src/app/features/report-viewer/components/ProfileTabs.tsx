@@ -1,4 +1,5 @@
 import type { ReportProfile } from '@glc/intake-core';
+import { cn } from '../../../components/ui/utils';
 import type { ReportProfileUiOption } from '../domain/types';
 
 type ProfileTabsProps = {
@@ -19,17 +20,7 @@ export function ProfileTabs({ options, profile, onSelect }: ProfileTabsProps) {
             type="button"
             onClick={() => onSelect(option.id)}
             title={option.description}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ds-letterspace-tight-01"
-            style={{
-              fontSize: 'var(--space-3)',
-              fontWeight: active ? 700 : 500,
-              fontFamily: 'var(--font-display)',
-              color: active ? 'var(--primary-foreground)' : 'var(--text-secondary)',
-              background: active ? 'var(--gradient-accent)' : 'transparent',
-              border: active ? 'none' : 'var(--border-width-default) solid transparent',
-              boxShadow: active ? 'var(--shadow-orange-tab)' : 'none',
-              cursor: 'pointer',
-            }}
+            className={cn('ds-report-profile-tab', active && 'ds-report-profile-tab--active')}
           >
             <Icon size={13} weight={active ? 'fill' : 'regular'} />
             {option.label}

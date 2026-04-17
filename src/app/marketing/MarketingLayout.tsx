@@ -1,7 +1,6 @@
-import { useLayoutEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 import { LAYOUT_CONTRACTS } from '../../design-system/patterns/Layouts/layout-contracts';
-import { GLC_THEME_STORAGE_KEY, setGlcColorScheme } from '../lib/glc-theme';
 import { cn } from '../components/ui/utils';
 import { MarketingBreadcrumbs, type Crumb } from './MarketingBreadcrumbs';
 import { MarketingFooter } from './MarketingFooter';
@@ -20,19 +19,6 @@ export function MarketingLayout({
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const skipLabel = WORKSPACE_PAGE_COPY.marketingLayout.skipToMainContent;
-
-  /** Marketing surfaces: fixed dark chrome; restore saved preference when leaving (theme toggle hidden for now). */
-  useLayoutEffect(() => {
-    const raw = localStorage.getItem(GLC_THEME_STORAGE_KEY);
-    setGlcColorScheme('dark');
-    return () => {
-      if (raw === 'light' || raw === 'dark') {
-        setGlcColorScheme(raw);
-      } else {
-        setGlcColorScheme('system');
-      }
-    };
-  }, []);
 
   return (
     <PublicBrandProvider>

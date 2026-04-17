@@ -33,6 +33,8 @@ export const COLOR_TOKENS = {
       orange: 'var(--glc-orange)',
       green: 'var(--glc-green)',
     },
+    /** Use on fills using `var(--gradient-accent)` (see tokens.css). */
+    onWarmGradientFg: 'var(--on-warm-gradient-fg)',
     score: {
       critical: 'var(--score-1)',
       needsWork: 'var(--score-2)',

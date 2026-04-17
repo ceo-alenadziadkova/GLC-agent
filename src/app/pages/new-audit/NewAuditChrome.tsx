@@ -16,33 +16,14 @@ export function StepIndicator({ current }: { current: number }) {
           <div key={s.label} className="flex items-center gap-0.5 mobile:gap-0">
             <div className="flex flex-col items-center gap-1">
               <div
-                className="w-8 h-8 mobile:w-7 mobile:h-7 rounded-full flex items-center justify-center"
-                style={{
-                  background: done
-                    ? 'var(--score-5-bg)'
-                    : active
-                      ? 'var(--gradient-brand)'
-                      : 'var(--bg-muted)',
-                  border: done
-                    ? '1px solid var(--score-5-border)'
-                    : active
-                      ? 'none'
-                      : '1px solid var(--border-subtle)',
-                  boxShadow: active ? 'var(--glow-step-ring)' : 'none',
-                }}
+                className="ds-new-audit-step-indicator-circle"
+                data-state={done ? 'done' : active ? 'active' : 'idle'}
               >
                 {done
                   ? <CheckCircle weight="fill" className="h-4 w-4 text-[var(--score-5)]" />
                   : <s.icon className={`h-4 w-4 ${active ? 'text-[var(--primary-foreground)]' : 'text-[var(--text-tertiary)]'}`} />}
               </div>
-              <span
-                style={{
-                  fontSize: '10px',
-                  color: active ? 'var(--text-blue)' : 'var(--text-tertiary)',
-                  letterSpacing: '0.04em',
-                  fontWeight: active ? 600 : 400,
-                }}
-              >
+              <span className="ds-new-audit-step-label" data-active={active ? 'true' : 'false'}>
                 {s.label}
               </span>
             </div>

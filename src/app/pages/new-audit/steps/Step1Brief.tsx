@@ -227,7 +227,7 @@ export function Step1Brief({
 
           <Progress
             value={(answeredRequired / pipelineRequiredTotal) * 100}
-            className="mb-6 h-[3px] bg-muted [&>[data-slot=progress-indicator]]:bg-gradient-to-r [&>[data-slot=progress-indicator]]:from-sky-400 [&>[data-slot=progress-indicator]]:to-sky-600"
+            className="ds-step1-brief-progress-thin mb-6 bg-muted [&>[data-slot=progress-indicator]]:bg-gradient-to-r [&>[data-slot=progress-indicator]]:from-sky-400 [&>[data-slot=progress-indicator]]:to-sky-600"
           />
 
           <p className="text-muted-foreground mb-3.5 text-xs">
@@ -235,7 +235,7 @@ export function Step1Brief({
           </p>
 
           {briefLayoutChoice === 'wizard' ? (
-            <div className="max-h-[min(55vh,28rem)] sm:max-h-[55vh] overflow-y-auto pr-1">
+            <div className="ds-step1-brief-scroll">
               <IntakeBankWizard
                 responses={responses}
                 onResponsesChange={onResponsesChange}
@@ -249,7 +249,7 @@ export function Step1Brief({
               />
             </div>
           ) : (
-            <div className="max-h-[min(55vh,28rem)] sm:max-h-[55vh] overflow-y-auto pr-1">
+            <div className="ds-step1-brief-scroll">
               <BankClassicBriefFields
                 responses={responses}
                 collectionMode={noPublicWebsite ? 'discovery' : undefined}

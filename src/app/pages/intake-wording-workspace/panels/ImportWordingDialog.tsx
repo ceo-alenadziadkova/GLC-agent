@@ -30,7 +30,7 @@ export function ImportWordingDialog(props: {
           <p className="text-sm text-red-600 dark:text-red-400" role="alert">{importParseError}</p>
         )}
         <textarea
-          className="glc-input min-h-[160px] w-full text-xs font-mono"
+          className="glc-input ds-intake-wording-textarea-import w-full text-xs font-mono"
           value={importJsonText}
           onChange={e => onImportTextChange(e.target.value)}
           placeholder={W.dialogs.importPlaceholder}

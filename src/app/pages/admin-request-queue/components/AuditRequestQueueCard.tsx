@@ -56,7 +56,7 @@ export function AuditRequestQueueCard({
             className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{
               backgroundColor: ADMIN_REQUEST_QUEUE_CHROME.rowIconBackground,
-              border: `1px solid ${ADMIN_REQUEST_QUEUE_CHROME.rowIconBorder}`,
+              border: `var(--border-width-default) solid ${ADMIN_REQUEST_QUEUE_CHROME.rowIconBorder}`,
             }}
           >
             <ClipboardText className="h-5 w-5 text-[var(--glc-blue)]" />
@@ -108,7 +108,7 @@ export function AuditRequestQueueCard({
             style={{
               background: UI_SEMANTIC_COLORS.successMutedBg12,
               color: UI_SEMANTIC_COLORS.success,
-              border: `1px solid ${UI_SEMANTIC_COLORS.successBorder25}`,
+              border: `var(--border-width-default) solid ${UI_SEMANTIC_COLORS.successBorder25}`,
               opacity: busyId === req.id ? 0.6 : 1,
             }}
             onClick={() => onApprove(req.id)}
@@ -151,7 +151,7 @@ export function AuditRequestQueueCard({
               style={{
                 background: UI_SEMANTIC_COLORS.dangerMutedBg,
                 color: UI_SEMANTIC_COLORS.danger,
-                border: `1px solid ${UI_SEMANTIC_COLORS.dangerBorder20}`,
+                border: `var(--border-width-default) solid ${UI_SEMANTIC_COLORS.dangerBorder20}`,
               }}
               onClick={() => setRejectNote({ id: req.id, text: '' })}
             >

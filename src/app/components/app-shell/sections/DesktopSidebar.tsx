@@ -12,6 +12,7 @@ import type { User } from '@supabase/supabase-js';
 import { APP_ROUTE_PATHS } from '../../../config/route-paths';
 import { GlcLogo } from '../../GlcLogo';
 import { ThemeToggle } from '../../ThemeToggle';
+import { cn } from '../../ui/utils';
 import { APP_SHELL_UI_POLICY } from '../config/app-shell-ui-policy';
 import { SidebarNavLink } from './SidebarNavLink';
 
@@ -60,17 +61,17 @@ export function DesktopSidebar({
 
   return (
     <aside
-      className="border-r-[var(--sidebar-border)] hidden w-[var(--app-shell-sidebar-narrow-width)] flex-shrink-0 flex-col overflow-hidden bg-[var(--gradient-ink-rich)] sm:flex"
+      className="ds-app-shell-sidebar relative border-r-[var(--sidebar-border)] hidden w-[var(--app-shell-sidebar-narrow-width)] flex-shrink-0 flex-col overflow-hidden sm:flex"
     >
-      <div className="pointer-events-none absolute inset-0 bg-[var(--mesh-ink)] opacity-50" />
+      <div className="ds-app-shell-sidebar-mesh" aria-hidden />
 
-      <div className="border-b-[var(--overlay-white-15)] relative flex items-center justify-between gap-2 px-4 pb-4 pt-5">
+      <div className="ds-app-shell-sidebar-header relative">
         <Link to="/" className="inline-flex items-center" aria-label={shellCopy.aria.home}>
-          <GlcLogo variant="on-dark" className="h-12" />
+          <GlcLogo variant="auto" className="h-8" />
         </Link>
         <button
           type="button"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border-0 bg-[var(--overlay-white-20)] text-[var(--sidebar-foreground)] transition-colors"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-lg border-0 bg-[var(--app-shell-sidebar-control-bg)] text-[var(--sidebar-foreground)] transition-colors"
           onClick={onCollapse}
           aria-label={shellCopy.aria.collapseWorkspace}
           title={shellCopy.aria.collapseWorkspace}
@@ -83,12 +84,12 @@ export function DesktopSidebar({
         <div className="relative px-3 py-3">
           <button
             type="button"
-            className="w-full rounded-lg border border-[var(--overlay-white-15)] bg-[var(--overlay-white-15)] px-3 py-2 text-xs text-[var(--overlay-white-30)] transition-[background,border-color] duration-200"
+            className="flex w-full items-center gap-2 rounded-lg border border-[var(--app-shell-sidebar-control-border)] bg-[var(--app-shell-sidebar-search-slot-bg)] px-3 py-2 text-left text-xs text-[var(--app-shell-sidebar-search-fg)] transition-[background,border-color] duration-200"
           >
             <MagnifyingGlass className="w-3.5 h-3.5 flex-shrink-0" />
             <span className="flex-1 text-left">{shellCopy.sidebar.searchPlaceholder}</span>
             <span
-              className="rounded bg-[var(--overlay-white-20)] px-1 py-0.5 font-mono text-[length:var(--text-2xs)] tracking-normal text-[var(--overlay-white-35)]"
+              className="rounded bg-[var(--app-shell-sidebar-kbd-bg)] px-1 py-0.5 font-mono text-[length:var(--text-2xs)] tracking-normal text-[var(--app-shell-sidebar-kbd-fg)]"
             >
               {shellCopy.sidebar.searchShortcut}
             </span>
@@ -97,14 +98,14 @@ export function DesktopSidebar({
       )}
 
       <nav className="relative flex-1 px-2 pb-2 space-y-0.5 overflow-y-auto">
-        <div className="px-2 py-1.5 text-[var(--overlay-white-20)] text-xs font-bold tracking-[var(--tracking-drawer-caps)]">
+        <div className="px-2 py-1.5 text-[var(--app-shell-sidebar-caps-fg)] text-xs font-bold tracking-[var(--tracking-drawer-caps)]">
           {sectionLabel}
         </div>
 
         {roleUnknown && Array.from({ length: APP_SHELL_UI_POLICY.nav.skeletonCount }).map((_, i) => (
           <div
             key={`nav-skeleton-${i}`}
-            className="mx-2 mb-1 h-8 animate-pulse rounded-lg bg-[var(--overlay-white-20)]"
+            className="mx-2 mb-1 h-8 animate-pulse rounded-lg bg-[var(--app-shell-sidebar-control-bg)]"
           />
         ))}
 
@@ -123,7 +124,14 @@ export function DesktopSidebar({
         {!isGuest && (isClient || roleUnknown) ? (
           <NavLink
             to={APP_ROUTE_PATHS.portalAuditNew}
-            className="relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[var(--overlay-white-38)] no-underline transition-[color,background] duration-200"
+            className={({ isActive }) =>
+              cn(
+                'relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm no-underline transition-[color,background] duration-200',
+                isActive
+                  ? 'bg-[var(--app-shell-sidebar-active-row-bg)] text-[var(--sidebar-foreground)]'
+                  : 'text-[var(--app-shell-sidebar-link-fg)]',
+              )
+            }
             onClick={onCloseMobileMenu}
           >
             <PlusCircle className="text-info h-4 w-4 flex-shrink-0" />
@@ -132,7 +140,14 @@ export function DesktopSidebar({
         ) : !isGuest ? (
           <NavLink
             to={APP_ROUTE_PATHS.auditNew}
-            className="relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[var(--overlay-white-38)] no-underline transition-[color,background] duration-200"
+            className={({ isActive }) =>
+              cn(
+                'relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm no-underline transition-[color,background] duration-200',
+                isActive
+                  ? 'bg-[var(--app-shell-sidebar-active-row-bg)] text-[var(--sidebar-foreground)]'
+                  : 'text-[var(--app-shell-sidebar-link-fg)]',
+              )
+            }
             onClick={onCloseMobileMenu}
           >
             <Lightning className="text-warning h-4 w-4 flex-shrink-0" />
@@ -141,7 +156,14 @@ export function DesktopSidebar({
         ) : (
           <NavLink
             to={APP_ROUTE_PATHS.login}
-            className="relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-[var(--overlay-white-38)] no-underline transition-[color,background] duration-200"
+            className={({ isActive }) =>
+              cn(
+                'relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm no-underline transition-[color,background] duration-200',
+                isActive
+                  ? 'bg-[var(--app-shell-sidebar-active-row-bg)] text-[var(--sidebar-foreground)]'
+                  : 'text-[var(--app-shell-sidebar-link-fg)]',
+              )
+            }
             onClick={onCloseMobileMenu}
           >
             <PlusCircle className="text-info h-4 w-4 flex-shrink-0" />
@@ -150,18 +172,18 @@ export function DesktopSidebar({
         )}
       </nav>
 
-      <div className="border-t-[var(--overlay-white-15)] relative space-y-0.5 px-2 py-2">
+      <div className="relative space-y-0.5 border-t-[length:var(--border-width-default)] border-t-[var(--app-shell-sidebar-hairline)] px-2 py-2">
         <div
           className="mb-1 flex items-center justify-between gap-2 rounded-lg px-2.5 py-2"
         >
-          <span className="text-xs font-medium text-[var(--overlay-white-45)]">
+          <span className="text-xs font-medium text-[var(--app-shell-sidebar-caps-fg)]">
             {shellCopy.sidebar.theme}
           </span>
           <ThemeToggle variant="sidebar" />
         </div>
         <button
           type="button"
-          className="w-full rounded-lg px-2.5 py-2 text-sm text-[var(--overlay-white-30)] transition-all"
+          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-[var(--app-shell-sidebar-search-fg)] transition-all"
           onClick={onOpenNotifications}
         >
           <Bell className="w-3.5 h-3.5" />
@@ -179,8 +201,8 @@ export function DesktopSidebar({
             to={APP_ROUTE_PATHS.settings}
             className={`w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm no-underline transition-all ${
               pathname === APP_ROUTE_PATHS.settings
-                ? 'bg-[var(--overlay-white-20)] text-[var(--text-inverse)]'
-                : 'bg-transparent text-[var(--overlay-white-30)]'
+                ? 'bg-[var(--app-shell-sidebar-active-row-bg)] text-[var(--sidebar-foreground)]'
+                : 'bg-transparent text-[var(--app-shell-sidebar-link-fg)]'
             }`}
             onClick={onCloseMobileMenu}
           >
@@ -199,17 +221,17 @@ export function DesktopSidebar({
               {(user.email || (isGuest ? shellCopy.sidebar.guestInitial : shellCopy.sidebar.userInitial))[0].toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium leading-none text-[var(--text-inverse)]">
+              <div className="text-xs font-medium leading-none text-[var(--sidebar-foreground)]">
                 {profile?.full_name?.trim() || user.email?.split('@')[0] || (isGuest ? shellCopy.sidebar.guestDisplay : shellCopy.sidebar.userDisplay)}
               </div>
-              <div className="mt-[var(--space-0-5)] text-[length:var(--text-2xs)] tracking-[var(--tracking-role-meta)] text-[var(--overlay-white-30)]">
+              <div className="mt-[var(--space-0-5)] text-[length:var(--text-2xs)] tracking-[var(--tracking-role-meta)] text-[var(--app-shell-sidebar-caps-fg)]">
                 {roleDisplayName ?? (isClient ? shellCopy.sidebar.fallbackRoleClient : isGuest ? shellCopy.sidebar.fallbackRoleGuest : shellCopy.sidebar.fallbackRoleAdmin)}
               </div>
             </div>
             <button
               type="button"
               onClick={onSignOut}
-              className="glc-touch-target flex-shrink-0 text-[var(--overlay-white-30)]"
+              className="glc-touch-target flex-shrink-0 text-[var(--app-shell-sidebar-link-icon)]"
               title={shellCopy.sidebar.signOutTitle}
             >
               <SignOut className="w-3 h-3" />

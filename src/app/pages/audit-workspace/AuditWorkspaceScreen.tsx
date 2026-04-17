@@ -103,7 +103,7 @@ export function AuditWorkspaceScreen() {
         </div>
       }
     >
-      <div className="flex h-[calc(100vh-56px)]">
+      <div className="flex ds-audit-workspace-main-h">
         <WorkspaceSidebar
           id={id}
           audit={audit}

@@ -200,7 +200,7 @@ export function Dashboard() {
         <section className="glc-soft-panel p-4 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <SectionLabel>All Audits</SectionLabel>
-            <div className="bg-card flex w-full items-center gap-2 rounded-md border px-3 py-2 sm:min-w-[220px] sm:w-auto">
+            <div className="bg-card flex w-full items-center gap-2 rounded-md border px-3 py-2 sm:w-auto ds-dashboard-search-minw">
               <MagnifyingGlass className="text-muted-foreground h-3.5 w-3.5 flex-shrink-0" />
               <Input
                 type="search"
@@ -228,7 +228,7 @@ export function Dashboard() {
             <>
             <div className="glc-card hidden overflow-hidden rounded-xl sm:block">
               {/* Header */}
-              <div className="text-muted-foreground bg-background grid border-b px-5 py-3 text-[length:var(--text-2xs)] font-bold uppercase tracking-[0.09em] [grid-template-columns:2fr_1fr_1fr_88px_128px_40px]">
+              <div className="text-muted-foreground bg-background grid border-b px-5 py-3 text-[length:var(--text-2xs)] font-bold uppercase ds-data-table-header-caps [grid-template-columns:2fr_1fr_1fr_88px_128px_40px]">
                 <span>Company</span>
                 <span>Industry</span>
                 <span>Created</span>

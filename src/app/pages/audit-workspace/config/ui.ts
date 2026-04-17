@@ -1,7 +1,7 @@
 export const AUDIT_WORKSPACE_UI = {
   layout: {
-    viewportOffset: 'calc(100vh - 56px)',
-    sidebarWidthClass: 'w-[232px]',
+    viewportOffset: 'calc(100vh - var(--glc-mobile-nav-height))',
+    sidebarWidthClass: 'ds-audit-workspace-sidebar-w',
     briefPanelMaxHeightClass: 'max-h-[42vh]',
     contentMaxWidthClass: 'max-w-2xl',
   },

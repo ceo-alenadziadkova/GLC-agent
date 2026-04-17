@@ -92,7 +92,10 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
-          className={`relative w-full max-w-full ${wizard.step === 1 ? 'sm:max-w-[40rem]' : 'sm:max-w-[28.75rem]'}`}
+          className={cn(
+            'relative w-full max-w-full',
+            wizard.step === 1 ? 'ds-new-audit-wizard-shell--wide' : 'ds-new-audit-wizard-shell--narrow',
+          )}
         >
           {isClientSelfServe && (
             <Link

@@ -1,5 +1,7 @@
+import type { CSSProperties } from 'react';
 import { motion } from 'motion/react';
 import { CheckCircle, Clock, Lightning, Warning } from '@phosphor-icons/react';
+import { REPORT_VIEWER_LAYOUT } from '../../../../design-system/patterns/ReportViewer/layout';
 import { SectionLabel } from '../../../components/glc/SectionLabel';
 import type { AuditIssue, QuickWin } from '../../../data/auditTypes';
 import { REPORT_VIEWER_CONSTANTS } from '../config/report-viewer.constants';
@@ -28,7 +30,7 @@ export function ReportFindings({
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className={REPORT_VIEWER_LAYOUT.findingsGrid}>
         {[
           {
             title: REPORT_VIEWER_COPY.sections.keyStrengths,
@@ -56,31 +58,27 @@ export function ReportFindings({
               duration: REPORT_VIEWER_CONSTANTS.motion.cardEnterDurationSec,
               ease: REPORT_VIEWER_CONSTANTS.easing,
             }}
-            className="p-5"
-            style={{
-              backgroundColor: bg,
-              border: `var(--border-width-default) solid ${border}`,
-              borderRadius: 'var(--radius-xl)',
-            }}
+            className="ds-report-finding-well"
+            style={
+              {
+                ['--ds-report-finding-bg' as string]: bg,
+                ['--ds-report-finding-border' as string]: border,
+                ['--ds-report-finding-accent' as string]: color,
+              } as CSSProperties
+            }
           >
-            <div className="flex items-center gap-2 mb-3">
-              <Icon className="w-4 h-4 flex-shrink-0" style={{ color }} />
-              <span className="font-semibold text-sm" style={{ color, fontFamily: 'var(--font-display)' }}>
-                {title}
-              </span>
+            <div className="mb-3 flex items-center gap-2">
+              <Icon className="h-4 w-4 flex-shrink-0 [color:var(--ds-report-finding-accent)]" />
+              <span className="ds-report-finding-title">{title}</span>
             </div>
             <ul className="space-y-2">
               {items.length > 0 ? (
                 items.map((item) => (
                   <li
                     key={item}
-                    className="text-xs leading-relaxed flex items-start gap-2 ds-text-secondary"
-                    
+                    className="flex items-start gap-2 text-xs leading-relaxed ds-text-secondary"
                   >
-                    <span
-                      className="mt-1.5 w-1 h-1 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: color }}
-                    />
+                    <span className="ds-report-finding-list-dot" aria-hidden />
                     {item}
                   </li>
                 ))
@@ -96,22 +94,13 @@ export function ReportFindings({
 
       {quickWins.length > 0 && (
         <div className="glc-card overflow-hidden ds-radius-xl" >
-          <div
-            className="flex items-center justify-between px-5 py-3"
-            style={{
-              borderBottom: 'var(--border-width-default) solid var(--border-subtle)',
-              backgroundColor: 'var(--bg-canvas)',
-            }}
-          >
+          <div className="ds-report-quick-wins-header">
             <div className="flex items-center gap-2">
-              <Lightning
-                className="w-4 h-4"
-                style={{ color: 'var(--glc-orange)', fill: 'var(--glc-orange)', stroke: 'none' }}
-              />
+              <Lightning className="h-4 w-4 ds-icon-orange-fill" weight="fill" />
               <SectionLabel>{REPORT_VIEWER_COPY.sections.quickWins}</SectionLabel>
             </div>
           </div>
-          <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+          <div className="divide-y divide-[color:var(--border-subtle)]">
             {quickWins
               .slice(0, Math.min(REPORT_VIEWER_CONSTANTS.quickWins.maxItems, maxItems))
               .map((quickWin, index) => (
@@ -128,14 +117,7 @@ export function ReportFindings({
                   }}
                   className="flex items-center gap-4 px-5 py-3.5"
                 >
-                  <span
-                    className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 font-mono text-xs font-bold"
-                    style={{
-                      backgroundColor: 'var(--glc-orange-xlight)',
-                      color: 'var(--glc-orange)',
-                      fontSize: 'var(--text-2xs)',
-                    }}
-                  >
+                  <span className="ds-report-quick-win-index">
                     {index + 1}
                   </span>
                   <span className="flex-1 text-sm ds-text-primary" >

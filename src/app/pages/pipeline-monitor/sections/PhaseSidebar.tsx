@@ -31,7 +31,7 @@ export function PhaseSidebar(props: {
   return (
     <aside
       className={`${PIPELINE_MONITOR_UI_POLICY.layout.sidebarWidthClassName} flex-shrink-0 overflow-y-auto bg-[var(--bg-surface)] flex flex-col gap-1.5 p-3`}
-      style={{ borderRight: '1px solid var(--border-subtle)' }}
+      style={{ borderRight: 'var(--border-width-default) solid var(--border-subtle)' }}
     >
       <div className="px-1 pb-1.5">
         <SectionLabel>{PM.sidebar.phases}</SectionLabel>
@@ -50,7 +50,7 @@ export function PhaseSidebar(props: {
         <SectionLabel>{PM.sidebar.autoWing}</SectionLabel>
         <StatusBadge
           label={PM.sidebar.parallelBadge}
-          toneClassName="border border-[color:var(--glc-blue-alpha-25)] bg-[var(--glc-blue-alpha-12)] text-[9px] font-bold tracking-[0.06em] text-[var(--glc-blue)]"
+          toneClassName="border border-[color:var(--glc-blue-alpha-25)] bg-[var(--glc-blue-alpha-12)] ds-pipeline-parallel-badge text-[var(--glc-blue)]"
           className="font-[var(--font-display)]"
         />
       </div>
@@ -75,7 +75,7 @@ export function PhaseSidebar(props: {
         {!isExpress && (
           <StatusBadge
             label={PM.sidebar.parallelBadge}
-            toneClassName="border border-[color:var(--glc-blue-alpha-18)] bg-[var(--callout-info-bg)] text-[9px] font-bold tracking-[0.06em] text-[var(--glc-blue)]"
+            toneClassName="border border-[color:var(--glc-blue-alpha-18)] bg-[var(--callout-info-bg)] ds-pipeline-parallel-badge text-[var(--glc-blue)]"
             className="font-[var(--font-display)]"
           />
         )}

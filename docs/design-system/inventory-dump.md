@@ -7,12 +7,18 @@ It is an appendix to [current.md](./current.md) (as-is §1–10). Governance and
 
 ## Custom properties defined in tokens.css
 
-Total: **357**
+Total: **365**
 
 - `--accent`
 - `--accent-foreground`
 - `--app-shell-drawer-width`
+- `--app-shell-sidebar-caps-fg`
+- `--app-shell-sidebar-disabled-fg`
+- `--app-shell-sidebar-disabled-icon`
+- `--app-shell-sidebar-link-fg`
+- `--app-shell-sidebar-link-icon`
 - `--app-shell-sidebar-narrow-width`
+- `--app-shell-sidebar-search-fg`
 - `--background`
 - `--bg-canvas`
 - `--bg-elevated`
@@ -184,6 +190,7 @@ Total: **357**
 - `--mesh-ink`
 - `--muted`
 - `--muted-foreground`
+- `--on-warm-gradient-fg`
 - `--overlay-backdrop`
 - `--overlay-backdrop-strong`
 - `--overlay-shadow-soft`
@@ -220,6 +227,7 @@ Total: **357**
 - `--radius-sm`
 - `--radius-xl`
 - `--radius-xs`
+- `--report-profile-tab-font-size`
 - `--ring`
 - `--score-1`
 - `--score-1-bg`
@@ -500,7 +508,7 @@ Count: **122**
 
 ### rgb-color
 
-Count: **159**
+Count: **164**
 
 ```
 rgba(0, 0, 0, 0.14)
@@ -602,10 +610,14 @@ rgba(255, 255, 255, 0.4)
 rgba(255, 255, 255, 0.40)
 rgba(255, 255, 255, 0.45)
 rgba(255, 255, 255, 0.46)
+rgba(255, 255, 255, 0.5)
 rgba(255, 255, 255, 0.55)
+rgba(255, 255, 255, 0.62)
 rgba(255, 255, 255, 0.68)
+rgba(255, 255, 255, 0.7)
 rgba(255, 255, 255, 0.72)
 rgba(255, 255, 255, 0.75)
+rgba(255, 255, 255, 0.76)
 rgba(255, 255, 255, 0.78)
 rgba(255, 255, 255, 0.8)
 rgba(255, 255, 255, 0.80)
@@ -613,6 +625,7 @@ rgba(255, 255, 255, 0.82)
 rgba(255, 255, 255, 0.85)
 rgba(255, 255, 255, 0.86)
 rgba(255, 255, 255, 0.90)
+rgba(255, 255, 255, 0.94)
 rgba(255,255,255,0.42)
 rgba(255,255,255,0.78)
 rgba(28, 189, 255, 0.02)
@@ -673,10 +686,9 @@ Count: **0**
 
 ### unit-literal
 
-Count: **170**
+Count: **172**
 
 ```
--56px
 0.01em
 0.025em
 0.02em
@@ -695,6 +707,7 @@ Count: **170**
 0.16em
 0.1em
 0.24em
+0.25rem
 0.2rem
 0.35rem
 0.38rem
@@ -749,7 +762,6 @@ Count: **170**
 12px
 12rem
 13.5rem
-13px
 13rem
 140px
 14px
@@ -830,12 +842,14 @@ Count: **170**
 58px
 5px
 6.4rem
+639px
 640px
 64px
 64rem
 6px
 7.5rem
 72px
+72rem
 768px
 7px
 80px
@@ -844,6 +858,7 @@ Count: **170**
 8px
 8rem
 90px
+9999px
 999px
 9px
 ```
@@ -871,8 +886,8 @@ clamp(1.75rem, 5vw, 2.75rem)
 clamp(1rem, 1.3vw, 1.45rem)
 clamp(1rem, 3.5vw, 1.5rem)
 clamp(2.05rem, 9.25vw, 4rem)
-clamp(2.5rem,6.2vw,4.125rem)
+clamp(2.5rem, 6.2vw, 4.125rem)
 clamp(2rem, 5vh, 3.6rem)
-clamp(2rem,5vw,3.25rem)
+clamp(2rem, 5vw, 3.25rem)
 clamp(3.2rem, 9vh, 6.4rem)
 ```
