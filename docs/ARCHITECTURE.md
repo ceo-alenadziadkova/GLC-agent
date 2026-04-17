@@ -334,7 +334,11 @@ Details: [PIPELINE.md](./PIPELINE.md). API: [API.md](./API.md).
 
 ## Decision Layer and CONTROL_OBJECT (Phases 1–5)
 
-**FactChecker** (`server/src/services/fact-checker.ts`) corrects domain output and builds **CONTROL_OBJECT** (TypeScript contract in `server/src/schemas/control-object.ts` — fields span **v1.0 through v2.0** as described in [PIPELINE.md](./PIPELINE.md) *CONTROL_OBJECT contract*). Includes weighted confidence (with feasibility), trace, assumptions, safe-mode side effects (`server/src/config/safety-mode.ts`), per-run **`agent_performance`**, and nullable **`cost_control`** filled when auto-loop reruns run.
+**FactChecker** (`server/src/services/fact-checker.ts`) corrects domain output and builds **CONTROL_OBJECT** (TypeScript contract is modular under `server/src/schemas/control-object/` with compatibility facade `server/src/schemas/control-object.ts`; fields span **v1.0 through v2.4** as described in [PIPELINE.md](./PIPELINE.md) *CONTROL_OBJECT contract*). Includes weighted confidence (with feasibility), trace, assumptions, safe-mode side effects (`server/src/config/safety-mode.ts`), per-run **`agent_performance`**, and nullable **`cost_control`** filled when auto-loop reruns run.
+
+Import convention for CONTROL_OBJECT:
+- Runtime helpers (for example `createControlObjectV1`) are imported via the compatibility facade `server/src/schemas/control-object.ts`.
+- Type-only and schema constants are imported from `server/src/schemas/control-object/index.ts`.
 
 `context.execution_mode` is loaded from **`audits.execution_mode`** (`normal` \| `safe`, default `normal`). FactChecker does not own phase routing.
 
