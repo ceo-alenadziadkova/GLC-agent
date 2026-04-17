@@ -65,6 +65,11 @@ export function validateReportCatalogFallback(domains: CatalogAuditDomain[]): vo
     throw new Error('Fallback domain ids must be unique');
   }
 
+  const domainOrder = domains.map((domain) => domain.id);
+  if (domainOrder.some((domainId, index) => domainId !== AUDIT_DOMAIN_ORDER[index])) {
+    throw new Error('Fallback domain order must match AUDIT_DOMAIN_ORDER');
+  }
+
   for (const domainId of AUDIT_DOMAIN_ORDER) {
     const domain = domains.find((item) => item.id === domainId);
     if (!domain) {

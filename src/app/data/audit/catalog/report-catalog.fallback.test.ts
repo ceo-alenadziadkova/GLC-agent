@@ -44,4 +44,20 @@ describe('report catalog fallback', () => {
 
     expect(() => validateReportCatalogFallback(domains)).toThrow(/malformed quick wins/i);
   });
+
+  it('rejects duplicated recommendation ids inside a domain', () => {
+    const domains = cloneDomains(auditDomains);
+    domains[0].recommendations[1].id = domains[0].recommendations[0].id;
+
+    expect(() => validateReportCatalogFallback(domains)).toThrow(/duplicated recommendation ids/i);
+  });
+
+  it('rejects wrong domain order', () => {
+    const domains = cloneDomains(auditDomains);
+    const [first, second] = domains;
+    domains[0] = second;
+    domains[1] = first;
+
+    expect(() => validateReportCatalogFallback(domains)).toThrow(/domain order/i);
+  });
 });
