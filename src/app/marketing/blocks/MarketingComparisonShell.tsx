@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { MARKETING_SURFACE_COMPARISON_SHELL } from '../../config/marketing-surface-tokens';
 import { cn } from '../../components/ui/utils';
 
 /**
@@ -16,11 +17,8 @@ export function MarketingComparisonShell({
 }) {
   return (
     <div
-      className={cn(
-        'ds-marketing-surface-comparison-shell overflow-hidden will-change-transform',
-        padded && 'p-4 sm:p-5',
-        className,
-      )}
+      className={cn('overflow-hidden will-change-transform', padded && 'p-4 sm:p-5', className)}
+      style={MARKETING_SURFACE_COMPARISON_SHELL}
     >
       {children}
     </div>

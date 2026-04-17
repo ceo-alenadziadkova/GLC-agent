@@ -597,6 +597,55 @@ html:not(.dark) .glc-hover-row:hover {
   box-shadow: var(--shadow-mobile-bottom-nav);
 }
 
+/* Pattern layer bridges: visuals for layout contracts live in CSS (see patterns-lock CI). */
+.ds-pattern-section-shell-root {
+  border-radius: var(--radius-2xl);
+  border: var(--border-width-default) solid var(--border-default);
+  background-color: var(--bg-surface);
+  padding: var(--space-4);
+}
+
+@media (width >= 40rem) {
+  .ds-pattern-section-shell-root {
+    padding: var(--space-5);
+  }
+}
+
+@media (width >= 64rem) {
+  .ds-pattern-section-shell-root {
+    padding: var(--space-6);
+  }
+}
+
+.ds-pattern-form-section-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  border-radius: var(--radius-xl);
+  border: var(--border-width-default) solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  padding: var(--space-4);
+}
+
+@media (width >= 40rem) {
+  .ds-pattern-form-section-root {
+    padding: var(--space-5);
+  }
+}
+
+.ds-pattern-page-shell-body {
+  padding: var(--space-6);
+}
+
+@media (width < 40rem) {
+  .ds-pattern-page-shell-body {
+    padding-left: max(var(--space-4), env(safe-area-inset-left, 0px));
+    padding-right: max(var(--space-4), env(safe-area-inset-right, 0px));
+    padding-top: var(--space-4);
+    padding-bottom: var(--space-4);
+  }
+}
+
 /* Report viewer hero (ink mesh): literals live in CSS, not TSX. */
 .ds-report-hero-shell {
   background: var(--gradient-ink-rich);
@@ -1691,10 +1740,30 @@ html:not(.dark) .glc-hover-row:hover {
   color: var(--text-primary);
 }
 
-.ds-home-hero-cockpit-floating-panel {
+/* Home hero cockpit: surface visuals in CSS; motion.div keeps transform/zIndex/opacity in style for Framer merge. */
+.ds-home-hero-cockpit-surface-a,
+.ds-home-hero-cockpit-surface-b {
   border-radius: var(--radius-xl);
-  border: 1px solid var(--border-subtle);
+  border-color: var(--border-subtle);
   background-color: var(--bg-surface);
+}
+
+.ds-home-hero-cockpit-skeleton-track {
+  background-color: color-mix(in oklab, var(--border-default) 55%, transparent);
+}
+
+.ds-home-hero-cockpit-floating-panel {
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  border: var(--border-width-default) solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-xs);
+  transition: border-color 200ms;
+}
+
+.ds-home-hero-cockpit-floating-panel:hover {
+  border-color: var(--border-default);
 }
 
 .ds-audit-teaser-panel {
@@ -2039,6 +2108,14 @@ html:not(.dark) .glc-hover-row:hover {
 
 .ds-home-hero-cockpit-cell {
   border: var(--border-width-default) solid var(--border-subtle);
+}
+
+.ds-home-hero-cockpit-cell[data-cockpit-cell-tone='muted'] {
+  background-color: color-mix(in oklab, var(--bg-muted) 90%, transparent);
+}
+
+.ds-home-hero-cockpit-cell[data-cockpit-cell-tone='accent'] {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 80%, transparent);
 }
 
 .ds-home-section-desc-size {

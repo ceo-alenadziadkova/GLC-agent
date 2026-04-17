@@ -1,8 +1,1 @@
-src/app/marketing/blocks/HomeHeroCockpit.tsx:21 [inline-visual-style] {{ width, backgroundColor: 'color-mix(in oklab, var(--border-default) 55%, transparent)', }}
-src/app/marketing/blocks/HomeHeroCockpit.tsx:21 [primitive-boundary-inline] {{ width, backgroundColor: 'color-mix(in oklab, var(--border-default) 55%, transparent)', }}
-src/app/marketing/blocks/HomeHeroCockpit.tsx:53 [inline-visual-style] {{ borderRadius: 'var(--radius-xl)', borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-surface)', transform: 'rotate(-2.5deg)', transformOrigin: 'center top', zIndex: 1, opacity: 0.92, }}
-src/app/marketing/blocks/HomeHeroCockpit.tsx:53 [primitive-boundary-inline] {{ borderRadius: 'var(--radius-xl)', borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-surface)', transform: 'rotate(-2.5deg)', transformOrigin: 'center top', zIndex: 1, opacity: 0.92, }}
-src/app/marketing/blocks/HomeHeroCockpit.tsx:79 [inline-visual-style] {{ borderRadius: 'var(--radius-xl)', borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-surface)', transform: 'rotate(1.2deg)', zIndex: 2, }}
-src/app/marketing/blocks/HomeHeroCockpit.tsx:79 [primitive-boundary-inline] {{ borderRadius: 'var(--radius-xl)', borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-surface)', transform: 'rotate(1.2deg)', zIndex: 2, }}
-src/app/marketing/blocks/HomeHeroCockpit.tsx:96 [inline-visual-style] {{ backgroundColor: i % 3 === 0 ? 'color-mix(in oklab, var(--glc-blue-muted) 80%, transparent)' : 'color-mix(in oklab, var(--bg-muted) 90%, transparent)', }}
-src/app/marketing/blocks/HomeHeroCockpit.tsx:96 [primitive-boundary-inline] {{ backgroundColor: i % 3 === 0 ? 'color-mix(in oklab, var(--glc-blue-muted) 80%, transparent)' : 'color-mix(in oklab, var(--bg-muted) 90%, transparent)', }}
+

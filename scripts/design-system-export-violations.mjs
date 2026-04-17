@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Regenerate docs/design-system/violations-export.md from DS audits with no allowlist.
- * Usage: node scripts/design-system-export-violations.mjs
+ * Regenerate docs/design-system/violations-export.md — §4.1 migration drift mirror
+ * (baseline + primitive-boundary subprocesses without grandfather allowlists).
+ * Usage: pnpm run audit:ds:migration-report
  */
 
 import { execSync } from 'node:child_process';
@@ -64,12 +65,14 @@ const rawOut = run('node scripts/design-system-raw-values-check.mjs');
 const enfOut = run('node scripts/design-system-enforcement-check.mjs');
 const tsColorOut = run('node scripts/design-system-ts-color-literals-check.mjs');
 const primitiveBoundaryOut = run('node scripts/design-system-primitive-boundary-check.mjs');
+const patternsLockOut = run('node scripts/design-system-patterns-lock-check.mjs');
 
 const rawSigs = parseLines(rawOut);
 const enfSigs = parseLines(enfOut);
 const tsColorSigs = parseLines(tsColorOut);
 const primitiveBoundarySigs = parseLines(primitiveBoundaryOut);
-const merged = [...rawSigs, ...enfSigs, ...tsColorSigs, ...primitiveBoundarySigs];
+const patternsLockSigs = parseLines(patternsLockOut);
+const merged = [...rawSigs, ...enfSigs, ...tsColorSigs, ...primitiveBoundarySigs, ...patternsLockSigs];
 
 const seenSig = new Set();
 const deduped = [];
@@ -87,11 +90,11 @@ const fullText = deduped.map((s) => `${s.file}:${s.line} [${s.type}] ${s.value}`
 
 const date = new Date().toISOString().slice(0, 10);
 const lines = [
-  '# Design system violations export (no allowlist)',
+  '# Design system violations export (§4.1 migration drift mirror)',
   '',
-  `Generated: ${date} via \`node scripts/design-system-export-violations.mjs\`.`,
+  `Generated: ${date} via \`pnpm run audit:ds:migration-report\` (\`node scripts/design-system-export-violations.mjs\`).`,
   '',
-  'This report lists findings **before** applying `scripts/design-system-baseline.allowlist.txt` and `scripts/design-system-primitive-boundary.allowlist.txt`. CI uses those allowlists to grandfather existing lines until they are migrated.',
+  '**§4.1 Migration pipeline:** same audits as **§4.2** but baseline and primitive-boundary subprocesses run **without** grandfather allowlists (env matches strict `audit:ds:runtime`). This file is **not** the merge gate — use it to see drift while shrinking toward zero. **§4.2 Runtime governance:** `pnpm run audit:ds:ci` / `audit:ds:runtime` — **0** baseline/PB grandfather violations; only `scripts/design-system-ts-color-allowlist.txt` (PDF bridge) may suppress ts-color findings.',
   '',
   '## Summary',
   '',
@@ -101,7 +104,8 @@ const lines = [
   `| design-system-enforcement-check (app scope) | ${enfSigs.length} |`,
   `| design-system-ts-color-literals-check (src + server/src) | ${tsColorSigs.length} |`,
   `| design-system-primitive-boundary-check | ${primitiveBoundarySigs.length} |`,
-  `| **Total rows** (merged raw + enforcement + ts-color + primitive-boundary) | **${merged.length}** |`,
+  `| design-system-patterns-lock-check | ${patternsLockSigs.length} |`,
+  `| **Total rows** (merged raw + enforcement + ts-color + primitive-boundary + patterns-lock) | **${merged.length}** |`,
   `| **Deduped rows** (written to \`compliance-findings.full.txt\`) | **${deduped.length}** |`,
   '',
   '## By violation type (merged)',
@@ -118,14 +122,15 @@ const lines = [
   '',
   '## Full findings (machine-readable)',
   '',
-  `One line per finding: \`file:line [type] value\`. Deduped merge of audits (no allowlist / no primitive-boundary allowlist).`,
+  `One line per finding: \`file:line [type] value\`. Deduped merge of §4.1 subprocess output (no baseline / no primitive-boundary grandfather; patterns-lock has no allowlist).`,
   '',
   `- [\`compliance-findings.full.txt\`](./compliance-findings.full.txt) — **${deduped.length}** lines`,
   '',
   '## Regenerate',
   '',
   '```bash',
-  'node scripts/design-system-export-violations.mjs',
+  'pnpm run audit:ds:migration-report',
+  '# or: node scripts/design-system-export-violations.mjs',
   '```',
   '',
 ];

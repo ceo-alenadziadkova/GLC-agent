@@ -1,5 +1,5 @@
 /**
- * Report viewer — layout composition only (no colors, shadows, or typography literals).
+ * Report viewer — layout composition only (enforced by `audit:ds:patterns-lock`).
  * Visuals: tokens + `.ds-report-*` bridge classes in `src/styles/components.css`.
  */
 export const REPORT_VIEWER_LAYOUT = {

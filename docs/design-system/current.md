@@ -13,7 +13,7 @@ Date: 2026-04-17
 | This file (`current.md`) | As-is narrative spec: §1–10 (tokens, inventory summary, components, API, hierarchy, layout, states, a11y signals, naming, derived rules) |
 | [`roadmap-notes.md`](./roadmap-notes.md) | Enforcement commands, baseline/audit pointers, rollout status, §11 reference-stack alignment (not part of as-is §1–10) |
 | [`inventory-dump.md`](./inventory-dump.md) | Generated appendix: **every** `--*` name assigned in `src/styles/tokens.css`, plus **deduplicated** hex/rgb/hsl/unit/clamp literals under `src/**` (regenerate: `pnpm run audit:ds:inventory-dump`) |
-| [`violations-export.md`](./violations-export.md) | Generated audit listing: raw-value, enforcement, TS color-literal, and **primitive-boundary** findings **without** those audits’ allowlists (regenerate: `pnpm run audit:ds:export-violations`). CI runs `audit:ds:ts-color` and `audit:ds:primitive-boundary` (see [`roadmap-notes.md`](./roadmap-notes.md)). |
+| [`violations-export.md`](./violations-export.md) | **§4.1 Migration** drift mirror (regenerate: `pnpm run audit:ds:migration-report` or `pnpm run audit:ds:export-violations`). Same audits as runtime but baseline/PB subprocesses run without grandfather files. **§4.2** merge gate: `pnpm run audit:ds:ci` / `audit:ds:runtime` — see [`roadmap-notes.md`](./roadmap-notes.md). |
 
 ## Extraction Sources
 
@@ -39,15 +39,14 @@ Date: 2026-04-17
 - Reusable UI and layout:
   - `src/design-system/ui/index.ts`
   - `src/app/components/ui/**`
-  - `src/design-system/patterns/Layouts/layout-contracts.ts`
-  - `src/design-system/patterns/ReportViewer/layout.ts`
+  - `src/design-system/patterns/**` (layout contract strings; **no** raw color/shadow/typography Tailwind in TS — CI: `pnpm run audit:ds:patterns-lock`; surface bridges: `.ds-pattern-*` in `components.css`)
   - `src/app/marketing/MarketingLayout.tsx`
 - Style config with raw visuals:
   - `src/app/config/admin-request-queue-copy.en.ts`
   - `src/app/config/ui-breakpoints.ts`
 - Generated appendices (regenerable; mirror of repo state):
   - [`docs/design-system/inventory-dump.md`](./inventory-dump.md) — `pnpm run audit:ds:inventory-dump`
-  - [`docs/design-system/violations-export.md`](./violations-export.md) — `pnpm run audit:ds:export-violations`
+  - [`docs/design-system/violations-export.md`](./violations-export.md) — `pnpm run audit:ds:migration-report`
 
 ## 1. Design Tokens (Foundation)
 
@@ -478,7 +477,7 @@ Derived from folder structure and composition.
 
 ### 6.1 Contracts
 
-Source: `src/design-system/patterns/Layouts/layout-contracts.ts`.
+Sources: `src/design-system/patterns/Layouts/*.ts`, `src/design-system/patterns/ReportViewer/layout.ts`. Pattern TS holds **layout / composition** class fragments only; any card-like surface (radius, border, background) for shared shells is expressed as `.ds-pattern-section-shell-root`, `.ds-pattern-form-section-root`, or `.ds-pattern-page-shell-body` in [`src/styles/components.css`](../../src/styles/components.css).
 
 - `container.page`: `mx-auto w-full max-w-7xl`
 - `container.content`: `mx-auto w-full max-w-5xl`
@@ -492,7 +491,7 @@ Source: `src/styles/utilities.css`.
 
 - Safe-area helpers: `glc-safe-pad-x`, `glc-safe-pad-t`, `glc-safe-pad-b`
 - Touch target helper: `glc-touch-target` (uses `--glc-touch-target-min`)
-- Page and mobile nav spacing: `glc-page-content`, `glc-main-mobile-nav-pad`
+- Page and mobile nav spacing: `glc-page-content` (legacy direct use), `glc-main-mobile-nav-pad`; `PAGE_SHELL_CONTRACTS.body` uses **`ds-pattern-page-shell-body`** (same padding/safe-area behavior as `glc-page-content`, defined next to other pattern bridges in `components.css`).
 
 ### 6.3 Breakpoint implementation
 
@@ -581,7 +580,7 @@ Derived only from observed implementation.
 5. State expression is mixed: pseudo-classes (`:hover`, `:focus-visible`, `:disabled`) plus data/aria-driven selectors (`data-[state=*]`, `data-[active=true]`, `aria-invalid`).
 6. Layout uses both explicit contracts (`LAYOUT_CONTRACTS`) and utility/media usage in component and feature style layers.
 7. Legacy compatibility selectors (`glc-*`) coexist with primitive-based class compositions.
-8. CI enforcement (`pnpm run audit:ds:ci`) uses `scripts/design-system-baseline.allowlist.txt` for grandfathered `inline-visual-style` lines only where migration would harm layout parity; that list is **4** line-accurate signatures, all in `src/app/marketing/blocks/HomeHeroCockpit.tsx` (refresh with `pnpm run audit:ds:refresh-allowlist` whenever line numbers shift). **Primitive boundary** uses a separate allowlist (`scripts/design-system-primitive-boundary.allowlist.txt`) for the same four blocks under type `primitive-boundary-inline` (refresh: `pnpm run audit:ds:refresh-primitive-boundary-allowlist`). That module is **frozen** for DS refactors — see [`roadmap-notes.md`](./roadmap-notes.md) § HomeHeroCockpit (frozen). The no-allowlist audit mirror is [`violations-export.md`](./violations-export.md) (currently **8** deduped rows: four `inline-visual-style` plus four `primitive-boundary-inline` for the same lines).
+8. **§4.2 Runtime:** `pnpm run audit:ds:ci` (alias `audit:ds:runtime`) runs [`scripts/design-system-runtime-ci.mjs`](../../scripts/design-system-runtime-ci.mjs) — **0** violations; baseline and primitive-boundary grandfather files are **not** applied. **§4.1 Migration:** `pnpm run audit:ds:migration-report` regenerates [`violations-export.md`](./violations-export.md); optional `audit:ds:migration-gate` uses on-disk allowlists if you reintroduce grandfather rows during a branch. **Patterns lock** has no allowlist. **TS color** PDF bridge: `scripts/design-system-ts-color-allowlist.txt`. Home hero cockpit: product freeze for layout/motion; visuals in `.ds-home-hero-cockpit-*` — see [`roadmap-notes.md`](./roadmap-notes.md).
 
 ## Related (outside as-is §1–10)
 

@@ -8,6 +8,22 @@ Date: 2026-04-17
 
 ---
 
+## §4.1 Migration pipeline vs §4.2 Runtime governance
+
+### §4.2 Runtime governance (merge / release gate)
+
+- **Command:** `pnpm run audit:ds:ci` (same as `pnpm run audit:ds:runtime`) — orchestrator [`scripts/design-system-runtime-ci.mjs`](../../scripts/design-system-runtime-ci.mjs).
+- **Policy:** **0** violations. Baseline and primitive-boundary **grandfather allowlists are not applied** (subprocess env sets missing paths). [`scripts/design-system-ts-color-allowlist.txt`](../../scripts/design-system-ts-color-allowlist.txt) remains the **only** intentional suppression (PDF / report bridge on `server/src/**`).
+- **Checks (order):** raw-values (app scope), enforcement (app), ts-color, primitive-boundary, patterns-lock.
+
+### §4.1 Migration pipeline (drift tracking and allowlist hygiene)
+
+- **Drift report:** `pnpm run audit:ds:migration-report` (alias: `pnpm run audit:ds:export-violations`) — regenerates [`violations-export.md`](./violations-export.md) and `compliance-findings.full.txt` with baseline/PB allowlists disabled in captured subprocess output (same shape as runtime, for visibility when re-introducing grandfather rows).
+- **Optional soft gate (grandfather on disk):** `pnpm run audit:ds:migration-gate` — runs the five checks **with** normal `scripts/design-system-baseline.allowlist.txt` and `scripts/design-system-primitive-boundary.allowlist.txt` resolution (use locally if you temporarily re-add grandfather lines during a migration branch).
+- **Refresh after shrinking drift:** `pnpm run audit:ds:refresh-allowlist`, `pnpm run audit:ds:refresh-primitive-boundary-allowlist`.
+
+---
+
 ## Enforcement Policy Snapshot
 
 - Canonical token source: `src/styles/tokens.css`.
@@ -17,41 +33,39 @@ Date: 2026-04-17
   - pseudo-classes (`hover/focus-visible/active/disabled`) for interaction styles.
 - **As-is inventory (mirror of repo):**
   - `pnpm run audit:ds:inventory-dump` — regenerates [`docs/design-system/inventory-dump.md`](./inventory-dump.md) (full token-name list from `tokens.css` + deduplicated literals under `src/`).
-  - `pnpm run audit:ds:export-violations` — regenerates [`docs/design-system/violations-export.md`](./violations-export.md): merged output of raw-values, enforcement, ts-color, and primitive-boundary audits **with allowlists disabled**, for tracking remaining drift; not a “clean” checklist.
+  - `pnpm run audit:ds:migration-report` / `pnpm run audit:ds:export-violations` — **§4.1** drift mirror (see section above); not the merge gate.
 - Enforcement scripts:
   - `scripts/design-system-raw-values-check.mjs`
   - `scripts/design-system-enforcement-check.mjs` (inline visual detection spans multiline `style={{ ... }}` blocks, not single-line only; shared parser: `scripts/design-system-jsx-style-blocks.mjs`)
   - `scripts/design-system-ts-color-literals-check.mjs` — fails on `#hex`, `rgb(a)(...)`, `hsl(a)(...)` in `src/**` and `server/src/**` TypeScript; TS should reference `var(--*)` only. Allowlist: `scripts/design-system-ts-color-allowlist.txt` (PDF/report bridge files until codegen).
-  - `scripts/design-system-primitive-boundary-check.mjs` — **primitive boundary (P0):** same multiline inline visual keys as enforcement, but only **outside** `src/app/components/ui/**` and `src/design-system/ui/**` (scans `src/app/**` and `src/design-system/**` TSX except those islands and `*.test.*`). Violation type `primitive-boundary-inline`. Allowlist: `scripts/design-system-primitive-boundary.allowlist.txt`. **`pnpm run audit:ds:ci`** includes this check.
+  - `scripts/design-system-primitive-boundary-check.mjs` — **primitive boundary (P0):** same multiline inline visual keys as enforcement, but only **outside** `src/app/components/ui/**` and `src/design-system/ui/**` (scans `src/app/**` and `src/design-system/**` TSX except those islands and `*.test.*`). Violation type `primitive-boundary-inline`. Optional grandfather file: `scripts/design-system-primitive-boundary.allowlist.txt` (**ignored in §4.2 runtime**; used only by `audit:ds:migration-gate` if populated).
+  - `scripts/design-system-patterns-lock-check.mjs` — **`src/design-system/patterns/**` composition-only:** forbids inline `style=`, raw `#hex` / `rgb` / `hsl`, and Tailwind visual cues (`bg-*`, `rounded-*`, `shadow-*`, semantic `border-*`, palette `text-*`, `font-*`, `glc-*` in class strings, etc.). Surface visuals for shared pattern shells live in `.ds-pattern-*` classes in `components.css`. **No allowlist**; part of **§4.2** runtime.
   - **P1 (optional):** `DS_PRIMITIVE_BOUNDARY_TAILWIND=1` enables heuristics for Tailwind **palette** utilities (`text-red-500`, `from-sky-400`, …) and arbitrary bracket color literals on lines that look like `className` / `cn(`; semantic classes (`bg-background`, `bg-[var(--*)]`) are not targeted. Not part of default CI until drift is reduced.
-  - baseline isolation allowlist: `scripts/design-system-baseline.allowlist.txt`
+  - baseline grandfather file (optional): `scripts/design-system-baseline.allowlist.txt` — **ignored in §4.2 runtime**; consumed by `audit:ds:migration-gate` when non-empty.
 - Reporting / allowlist maintenance:
   - `pnpm run audit:ds:refresh-allowlist` — regenerates `scripts/design-system-baseline.allowlist.txt` from current audit output after migrations (line-accurate signatures).
   - `pnpm run audit:ds:refresh-primitive-boundary-allowlist` — same for `scripts/design-system-primitive-boundary.allowlist.txt` (boundary audit only, default P0; run with `DS_PRIMITIVE_BOUNDARY_TAILWIND=1` if refreshing P1 signatures).
 - TSX token bridge: prefer `.ds-*` classes in `src/styles/components.css` over inline visual `style={{...}}` where enforcement flags `color` / `background` / etc. (same CSS variables as before).
 
-### HomeHeroCockpit (frozen)
+### HomeHeroCockpit (product freeze)
 
-- **`src/app/marketing/blocks/HomeHeroCockpit.tsx` must not be edited** for design-system refactors, token passes, or “cleanup” (see the `@file` banner in source). Visual parity of the marketing hero cockpit is intentional.
-- **`inline-visual-style`:** enforcement flags **four** multiline `style={{...}}` blocks (line numbers drift if anything above them changes). **`pnpm run audit:ds:refresh-allowlist`** rewrites [`scripts/design-system-baseline.allowlist.txt`](../../scripts/design-system-baseline.allowlist.txt) with line-accurate signatures **without** modifying this TSX file.
-- **`primitive-boundary-inline`:** the same four blocks are also reported by the boundary checker outside primitive islands; **`pnpm run audit:ds:refresh-primitive-boundary-allowlist`** maintains [`scripts/design-system-primitive-boundary.allowlist.txt`](../../scripts/design-system-primitive-boundary.allowlist.txt) (duplicate signatures by design until the cockpit is migrated off inline visual keys).
-- An additional `style={{ transform, zIndex }}` block is **not** classified as `inline-visual-style` (those keys are outside [`INLINE_STYLE_VISUAL_KEYS`](../../scripts/design-system-jsx-style-blocks.mjs)); merged export still lists **four** `inline-visual-style` rows for HomeHero plus **four** `primitive-boundary-inline` rows for the same blocks.
+- **`src/app/marketing/blocks/HomeHeroCockpit.tsx`:** still **frozen for layout, motion, and decorative structure** without product approval. Cockpit **surface visuals** live in [`src/styles/components.css`](../../src/styles/components.css) under `.ds-home-hero-cockpit-*` so **§4.2 runtime** stays at zero inline visual violations; only non-visual `style={{ width }}` remains on skeleton lines.
 
 ### Vendor primitives vs literal-zero (explicit gate)
 
 - **`src/app/components/ui/**`:** Tailwind + CVA class strings contain many `unit-literal` matches (e.g. `h-8`, `p-3`). CI does **not** require literal-zero there today; a dedicated epic would narrow `DS_RAW_SCOPE` or adjust the checker for that tree.
-- **Baseline allowlist (`scripts/design-system-baseline.allowlist.txt`):** as of the last sync, **4** `inline-visual-style` signatures — all in `HomeHeroCockpit.tsx` (decorative cockpit parity). After each inline migration batch, run `pnpm run audit:ds:refresh-allowlist` to rewrite line-accurate signatures.
-- **Product / feature / marketing layers:** migrate literals to `tokens.css` + `.ds-*`, then refresh the allowlist. No-allowlist drift tracking: [`violations-export.md`](./violations-export.md) (merged row count includes both enforcement and primitive-boundary types for the same cockpit lines until one check is retired).
+- **Baseline / primitive-boundary allowlists:** may stay **empty** while runtime is strict; re-populate only if you intentionally use `audit:ds:migration-gate` during a branch and need grandfather lines, then shrink via migration and refresh scripts.
+- **Product / feature / marketing layers:** migrate literals to `tokens.css` + `.ds-*`. Drift tracking: [`violations-export.md`](./violations-export.md) (**§4.1**).
 
 ## Target Maturity Rollout Notes
 
 ### 2026-04-17 implementation status
 
-- **Vendor primitives token pass:** `src/app/components/ui/**` class strings now reference `--primitive-*` and spacing/border tokens where the no-allowlist export listed `unit-literal` findings; `audit:ds:ci` (app scope) stays green. Follow-up: optional MEDIUM waves for any new `style={{` drift outside the cockpit allowlist.
-- **Safe inline purge (product + marketing):** remaining low-risk `inline-visual-style` blocks were moved to `.ds-*` in `components.css` (intake brief / wizard, activity feed, score distribution + chart legend via CSS custom properties, workspace sidebar, portal mirror, question-bank studio, login anonymous hint, full-audit domain chips). Dynamic width/% and data-driven colors use `style` with non-visual keys or `--*` bridges only. **`HomeHeroCockpit.tsx`** stays inline with **4** baseline allowlist lines and **4** primitive-boundary allowlist lines; merged export lists both violation types for drift tracking.
+- **Vendor primitives token pass:** `src/app/components/ui/**` class strings now reference `--primitive-*` and spacing/border tokens where the §4.1 export listed `unit-literal` findings; `audit:ds:ci` (app scope) stays green. Follow-up: optional MEDIUM waves for any new `style={{` drift outside primitives / approved bridges.
+- **Safe inline purge (product + marketing):** low-risk `inline-visual-style` blocks were moved to `.ds-*` in `components.css` (intake brief / wizard, activity feed, score distribution + chart legend, workspace sidebar, portal mirror, question-bank studio, login anonymous hint, full-audit domain chips, **HomeHero cockpit**). Dynamic skeleton widths use `style={{ width }}` only (non-visual key).
 - **MEDIUM wave (ongoing):** `CollapsibleSection`, `MobileHeader`, `GlcAppErrorScreen`, `AdminRequestQueueErrorBanner` — visual props moved to token-backed classes where safe; `current.md` §6.3 + `ui-breakpoints.ts` document **640px (`40rem`) vs 768px (`UI_BREAKPOINTS.mobile`)** coexistence.
-- **DS refactor program (SAFE wave):** additional `.ds-*` bridges in `src/styles/components.css` (snapshot score badge sizes, next-steps rail width, marketing header shell, home display H2, intake form section heading, tentative tech pills, letter-spacing utility). Product TSX prefers `var(--border-width-default)` instead of `1px` in inline borders, `text-[length:var(--text-base)]` instead of raw `rem` in Tailwind arbitrary font sizes, and CSS-only motion/sizing where the raw-values checker flags literals. After each batch: `pnpm run audit:ds:export-violations`, `pnpm run audit:ds:refresh-allowlist`, `pnpm run audit:ds:ci`. Mapping table: [`token-replacement-matrix.md`](./token-replacement-matrix.md) (Wave SAFE — product bridge).
-- **Phase 1 (token pass — app shell, policies, marketing/report):** `APP_SHELL_UI_POLICY` uses `BREAKPOINT_TOKENS` and shell tokens (`--app-shell-drawer-width`, `--shadow-mobile-bottom-nav`, `--app-shell-sidebar-narrow-width`, border width vars). Desktop/mobile shell chrome moved to `.ds-desktop-header*`, `.ds-mobile-bottom-nav`, tokenized overlays (`--overlay-white-75`, etc.). Client audit and settings UI policies use `var(--border-width-default)` and `var(--callout-info-bg)` where literals were flagged. `AuditCompare` and `ReportHeroCard` use `.ds-audit-compare-*` / `.ds-report-hero-*` in `components.css` instead of inline visual styles. Regenerate allowlist after pull: `pnpm run audit:ds:refresh-allowlist`. Remaining no-allowlist `inline-visual-style` drift: **4** rows (`HomeHeroCockpit` only); broader literal inventory still in [`inventory-dump.md`](./inventory-dump.md).
+- **DS refactor program (SAFE wave):** additional `.ds-*` bridges in `src/styles/components.css` (snapshot score badge sizes, next-steps rail width, marketing header shell, home display H2, intake form section heading, tentative tech pills, letter-spacing utility). Product TSX prefers `var(--border-width-default)` instead of `1px` in inline borders, `text-[length:var(--text-base)]` instead of raw `rem` in Tailwind arbitrary font sizes, and CSS-only motion/sizing where the raw-values checker flags literals. After each batch: `pnpm run audit:ds:migration-report`, `pnpm run audit:ds:refresh-allowlist` (if using migration-gate grandfather), `pnpm run audit:ds:ci`. Mapping table: [`token-replacement-matrix.md`](./token-replacement-matrix.md) (Wave SAFE — product bridge).
+- **Phase 1 (token pass — app shell, policies, marketing/report):** `APP_SHELL_UI_POLICY` uses `BREAKPOINT_TOKENS` and shell tokens (`--app-shell-drawer-width`, `--shadow-mobile-bottom-nav`, `--app-shell-sidebar-narrow-width`, border width vars). Desktop/mobile shell chrome moved to `.ds-desktop-header*`, `.ds-mobile-bottom-nav`, tokenized overlays (`--overlay-white-75`, etc.). Client audit and settings UI policies use `var(--border-width-default)` and `var(--callout-info-bg)` where literals were flagged. `AuditCompare` and `ReportHeroCard` use `.ds-audit-compare-*` / `.ds-report-hero-*` in `components.css` instead of inline visual styles. **§4.2** runtime expects **zero** `inline-visual-style` drift; broader literal inventory still in [`inventory-dump.md`](./inventory-dump.md).
 - Allowlist shrink + bridge classes: batch migrations removed many inline styles (marketing, portal mirror notice, process timeline, score bar track, theme toggle icon colors via custom properties on wrapper, etc.). Legacy CTA styling: `.ds-cta-primary` shares rules with `.glc-btn-primary` in `components.css`; marketing heroes use `ds-cta-primary` on `<Button>` instead of the `glc-btn-primary` class name.
 - `src/styles/tokens.css` remains the canonical token source, now with shared DS infra tokens:
   - `--border-width-default`
@@ -69,7 +83,7 @@ Date: 2026-04-17
 - CI governance now runs DS checks on both fast and release gates:
   - `.github/workflows/test.yml`
   - `.github/workflows/release-gate.yml`
-  - command: `pnpm run audit:ds:ci` (includes `audit:ds:ts-color`)
+  - command: `pnpm run audit:ds:ci` (**§4.2** strict runtime; includes ts-color with PDF allowlist only)
 
 ### PDF / server color literals (intentional duplicate, temporary)
 
@@ -92,7 +106,7 @@ Date: 2026-04-17
 - **FormField collision:** resolve duplicate export name between `form-field.tsx` and `form.tsx` (rename + codemod or namespaced imports; breaking-change coordination).
 - **CTA class consolidation:** converge `.ds-cta-primary` and `.glc-btn-primary` usage to one documented pattern.
 - **Breakpoint semantics:** document and gradually align new code on when to use `UI_BREAKPOINTS.mobile` (768px) vs CSS `40rem` / Tailwind `mobile` variant.
-- **Inline style purge:** batch-migrate remaining `style={{ ... }}` in `src/app/pages`, `marketing`, `features` to `.ds-*` / token-backed classes where safe; **`HomeHeroCockpit`** may stay inline (allowlisted). Use CSS variable bridges for data-driven colors; inventory via search.
+- **Inline style purge:** batch-migrate remaining `style={{ ... }}` in `src/app/pages`, `marketing`, `features` to `.ds-*` / token-backed classes where safe. Use CSS variable bridges for data-driven colors; inventory via search.
 
 ## Reference stack alignment (engineering assessment)
 

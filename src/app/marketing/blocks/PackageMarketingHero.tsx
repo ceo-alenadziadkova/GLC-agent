@@ -3,6 +3,12 @@ import { motion, useReducedMotion } from 'motion/react';
 import { marketingHeroBillboardMotion } from '../../config/marketing-motion-variants';
 import { cn } from '../../components/ui/utils';
 import { Button } from '../../components/ui/button';
+import {
+  MARKETING_COVERAGE_GRID_CELL,
+  MARKETING_COVERAGE_GRID_LABEL,
+  MARKETING_HERO_CHIP,
+  MARKETING_PACKAGE_BADGE_VARIANTS,
+} from '../../config/marketing-surface-tokens';
 import workspacePackaging from '../../data/marketing-workspace-packaging.en.json';
 
 const TIER_ACTIVE_CELLS: Record<'focus' | 'context' | 'strategy', number> = {
@@ -15,12 +21,7 @@ const COVERAGE_DOMAIN_LABELS = HERO_LABELS.domains;
 
 function TierCoverageDecor({ tier }: { tier: 'focus' | 'context' | 'strategy' }) {
   const active = TIER_ACTIVE_CELLS[tier];
-  const badgeClass =
-    tier === 'focus'
-      ? 'ds-marketing-package-badge-focus'
-      : tier === 'context'
-        ? 'ds-marketing-package-badge-context'
-        : 'ds-marketing-package-badge-strategy';
+  const badgeStyle = MARKETING_PACKAGE_BADGE_VARIANTS[tier];
   return (
     <div className="relative ds-package-marketing-hero-cover" aria-hidden>
       <div className="ds-package-marketing-hero-card rounded-[var(--radius-2xl)] border p-6 shadow-[var(--shadow-xs)]">
@@ -31,18 +32,17 @@ function TierCoverageDecor({ tier }: { tier: 'focus' | 'context' | 'strategy' })
           {COVERAGE_DOMAIN_LABELS.map((label, i) => (
             <motion.div
               key={label}
-              className={cn(
-                'aspect-square rounded-md border p-1 ds-marketing-coverage-cell',
-                i < active && 'ds-marketing-coverage-cell--active',
-              )}
+              className="aspect-square rounded-md border p-1"
+              style={{
+                ...MARKETING_COVERAGE_GRID_CELL.base,
+                ...(i < active ? MARKETING_COVERAGE_GRID_CELL.active : null),
+              }}
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             >
               <span
-                className={cn(
-                  'flex h-full items-center justify-center text-center text-[length:var(--text-2xs)] font-semibold leading-tight',
-                  i < active ? 'ds-marketing-coverage-label-active' : 'ds-marketing-coverage-label-inactive',
-                )}
+                className="flex h-full items-center justify-center text-center text-[length:var(--text-2xs)] font-semibold leading-tight"
+                style={i < active ? MARKETING_COVERAGE_GRID_LABEL.active : MARKETING_COVERAGE_GRID_LABEL.inactive}
               >
                 {label}
               </span>
@@ -50,10 +50,8 @@ function TierCoverageDecor({ tier }: { tier: 'focus' | 'context' | 'strategy' })
           ))}
         </div>
         <span
-          className={cn(
-            'mt-4 inline-flex rounded-full border px-2.5 py-1 text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide',
-            badgeClass,
-          )}
+          className="mt-4 inline-flex rounded-full border px-2.5 py-1 text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide"
+          style={badgeStyle}
         >
           {tier}
         </span>
@@ -125,10 +123,10 @@ export function PackageMarketingHero({
               </Link>
             </Button>
             <div className="flex flex-wrap gap-2">
-              <span className="ds-marketing-package-hero-chip inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold">
+              <span className="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold" style={MARKETING_HERO_CHIP}>
                 {HERO_LABELS.firstFindings}
               </span>
-              <span className="ds-marketing-package-hero-chip inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold">
+              <span className="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold" style={MARKETING_HERO_CHIP}>
                 {HERO_LABELS.explicitScope}
               </span>
             </div>
