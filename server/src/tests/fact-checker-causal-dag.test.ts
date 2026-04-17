@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { FactChecker } from '../services/fact-checker.js';
 import type { DomainResult } from '../types/audit.js';
-import { createControlObjectV1 } from '../schemas/control-object/index.js';
+import { createControlObjectV1 } from '../schemas/control-object.js';
 
 describe('FactChecker buildControlObject — causal DAG', () => {
   const fc = new FactChecker();

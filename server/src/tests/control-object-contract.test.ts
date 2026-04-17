@@ -14,7 +14,7 @@ vi.mock('../services/supabase.js', () => ({
 import {
   CONTROL_OBJECT_VERSIONS,
   createControlObjectV1,
-} from '../schemas/control-object/index.js';
+} from '../schemas/control-object.js';
 import { FactChecker } from '../services/fact-checker.js';
 import type { DomainResult, DomainKey } from '../types/audit.js';
 

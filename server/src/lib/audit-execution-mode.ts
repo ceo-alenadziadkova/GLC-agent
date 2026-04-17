@@ -1,6 +1,6 @@
 import { supabase } from '../services/supabase.js';
 import { logger } from '../services/logger.js';
-import type { ExecutionMode } from '../schemas/control-object.js';
+import type { ExecutionMode } from '../schemas/control-object/index.js';
 
 /**
  * Loads `audits.execution_mode` for CONTROL_OBJECT.context.

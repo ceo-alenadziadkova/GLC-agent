@@ -6,7 +6,7 @@ import {
     type ControlObjectV1,
     type PhaseId,
     type ExecutionMode,
-} from '../schemas/control-object/index.js';
+} from '../schemas/control-object.js';
 import {getExtendedPhaseProfile} from '../config/phase-profiles.js';
 import type {ConnectorRunResult} from './connector-runner.js';
 import {verifyKernel} from './fact-checker/verify/verify-kernel.js';

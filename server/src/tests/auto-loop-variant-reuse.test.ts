@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createControlObjectV1 } from '../schemas/control-object/index.js';
-import type { ControlObjectV1 } from '../schemas/control-object/index.js';
+import { createControlObjectV1 } from '../schemas/control-object.js';
+import type { ControlObjectV1 } from '../schemas/control-object.js';
 import type { DomainKey, DomainResult } from '../types/audit.js';
 import type { BaseAgent } from '../agents/base.js';
 import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';

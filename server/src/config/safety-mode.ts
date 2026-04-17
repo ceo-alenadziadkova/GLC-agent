@@ -16,7 +16,7 @@
  *   v1.8  — Phase 4: initial safety mode guardrails
  */
 
-import type { ControlObjectV1 } from '../schemas/control-object.js';
+import type { ControlObjectV1 } from '../schemas/control-object/index.js';
 
 // ─── Guardrail Config ─────────────────────────────────────────────────────────
 
