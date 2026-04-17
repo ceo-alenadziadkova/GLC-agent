@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { motion } from 'motion/react';
 import { SectionLabel } from './SectionLabel';
 import type { DashboardScoreDistribution } from '../../data/apiService';
@@ -61,23 +62,13 @@ export function ScoreDistributionChart({ distribution, loading }: ScoreDistribut
                   </span>
                 </div>
                 {/* Track */}
-                <div
-                  className="w-full overflow-hidden"
-                  style={{
-                    height: 6,
-                    borderRadius: 'var(--radius-full)',
-                    backgroundColor: 'var(--border-subtle)',
-                  }}
-                >
+                <div className="w-full overflow-hidden ds-score-distribution-track">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${pct}%` }}
                     transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                    style={{
-                      height: '100%',
-                      backgroundColor: band.color,
-                      borderRadius: 'var(--radius-full)',
-                    }}
+                    className="ds-score-distribution-fill"
+                    style={{ ['--score-distribution-fill' as string]: band.color } as CSSProperties}
                   />
                 </div>
               </div>

@@ -60,16 +60,7 @@ export function IntakeBriefFormPhase(props: {
       className="w-full space-y-6"
     >
       <div className="text-center space-y-2">
-        <h1
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontWeight: 700,
-            fontSize: 'var(--text-xl)',
-            color: 'var(--text-primary)',
-          }}
-        >
-          {title}
-        </h1>
+        <h1 className="ds-intake-brief-form-title">{title}</h1>
         {message && (
           <p className="text-sm ds-type-sm-secondary-leading" >
             {message}
@@ -78,14 +69,7 @@ export function IntakeBriefFormPhase(props: {
       </div>
 
       {submittedAt && (
-        <p
-          className="text-xs text-center px-3 py-2 rounded-lg"
-          style={{
-            background: 'var(--bg-surface)',
-            border: 'var(--border-width-default) solid var(--border-subtle)',
-            color: 'var(--text-secondary)',
-          }}
-        >
+        <p className="text-xs text-center px-3 py-2 rounded-lg ds-intake-brief-inline-notice">
           {expiresDisplay
             ? replaceIntakePublicCopyPlaceholders(copy.alreadySubmittedWithExpiry, {
                 submittedAt: formatIntakeBriefSavedAt(submittedAt),
@@ -98,27 +82,11 @@ export function IntakeBriefFormPhase(props: {
       )}
 
       {consultantPrefilledIdentity && (
-        <p
-          className="text-xs text-center px-3 py-2 rounded-lg"
-          style={{
-            background: 'var(--callout-info-bg)',
-            border: 'var(--border-width-default) solid var(--glc-blue-alpha-20)',
-            color: 'var(--text-secondary)',
-          }}
-        >
+        <p className="text-xs text-center px-3 py-2 rounded-lg ds-intake-brief-inline-notice ds-intake-brief-inline-notice--info">
           {copy.consultantPrefillNotice}
         </p>
       )}
-      <p
-        className="text-xs text-center px-3 py-2 rounded-lg"
-        style={{
-          background: 'var(--bg-surface)',
-          border: 'var(--border-width-default) solid var(--border-subtle)',
-          color: 'var(--text-secondary)',
-        }}
-      >
-        {copy.shortAnswersHint}
-      </p>
+      <p className="text-xs text-center px-3 py-2 rounded-lg ds-intake-brief-inline-notice">{copy.shortAnswersHint}</p>
 
       <div>
         <div className="flex justify-between text-xs mb-1 ds-text-tertiary" >
@@ -201,13 +169,7 @@ export function IntakeBriefFormPhase(props: {
       <button
         type="button"
         disabled={!formComplete}
-        className="w-full flex items-center justify-center gap-2 py-3 font-semibold rounded-xl text-sm"
-        style={{
-          background: formComplete ? 'var(--gradient-brand)' : 'var(--bg-muted)',
-          color: formComplete ? 'var(--primary-foreground)' : 'var(--text-secondary)',
-          border: formComplete ? 'none' : 'var(--border-width-default) solid var(--border-subtle)',
-          cursor: formComplete ? 'pointer' : 'not-allowed',
-        }}
+        className="ds-intake-brief-review-cta w-full flex items-center justify-center gap-2 py-3 font-semibold rounded-xl text-sm"
         onClick={onGoReview}
       >
         {copy.reviewAnswers} <ArrowRight className="w-4 h-4" />

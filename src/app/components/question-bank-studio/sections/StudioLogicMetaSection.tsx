@@ -1,3 +1,5 @@
+import { cn } from '../../ui/utils';
+
 type StudioLogicMetaSectionProps = {
   sectionKeys: string[];
   collapsedSections: Set<string>;
@@ -44,13 +46,10 @@ export function StudioLogicMetaSection(props: StudioLogicMetaSectionProps) {
               <button
                 key={key}
                 type="button"
-                className="text-[length:var(--text-2xs)] font-medium px-2 py-1 rounded-md"
-                style={{
-                  border: on ? '1px solid var(--glc-orange)' : '1px solid var(--border-default)',
-                  backgroundColor: on ? 'var(--glc-orange-muted)' : 'var(--bg-surface)',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                }}
+                className={cn(
+                  'text-[length:var(--text-2xs)] font-medium px-2 py-1 rounded-md ds-qb-studio-section-toggle',
+                  on && 'ds-qb-studio-section-toggle--collapsed',
+                )}
                 onClick={() => onToggleSection(key)}
               >
                 {on ? `+ ${key}` : `− ${key}`}

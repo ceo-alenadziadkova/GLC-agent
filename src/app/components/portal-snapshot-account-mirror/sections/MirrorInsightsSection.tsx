@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { CheckCircle, Lightning, Shield, Warning } from '@phosphor-icons/react';
 import type { SnapshotIssue, SnapshotQuickWin } from '../config/portal-snapshot-account-mirror.constants';
 import {
@@ -31,11 +32,13 @@ export function MirrorInsightsSection({
             {issues.map(issue => (
               <div key={issue.id} className="glc-snapshot-insight-row flex gap-3">
                 <div
-                  className="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full"
-                  style={{
-                    backgroundColor: PORTAL_SNAPSHOT_SEVERITY_COLOR[issue.severity] ?? 'var(--text-tertiary)',
-                    marginTop: 6,
-                  }}
+                  className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ds-mirror-severity-dot"
+                  style={
+                    {
+                      ['--mirror-severity-dot' as string]:
+                        PORTAL_SNAPSHOT_SEVERITY_COLOR[issue.severity] ?? 'var(--text-tertiary)',
+                    } as CSSProperties
+                  }
                 />
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-[var(--text-primary)]">

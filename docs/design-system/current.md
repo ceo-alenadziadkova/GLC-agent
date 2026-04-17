@@ -582,6 +582,7 @@ Derived only from observed implementation.
 5. State expression is mixed: pseudo-classes (`:hover`, `:focus-visible`, `:disabled`) plus data/aria-driven selectors (`data-[state=*]`, `data-[active=true]`, `aria-invalid`).
 6. Layout uses both explicit contracts (`LAYOUT_CONTRACTS`) and utility/media usage in component and feature style layers.
 7. Legacy compatibility selectors (`glc-*`) coexist with primitive-based class compositions.
+8. CI enforcement (`pnpm run audit:ds:ci`) uses `scripts/design-system-baseline.allowlist.txt` for grandfathered `inline-visual-style` lines only where migration would harm layout parity; as of the last doc sync that list is **4** lines, all in `src/app/marketing/blocks/HomeHeroCockpit.tsx`. The no-allowlist audit mirror is [`violations-export.md`](./violations-export.md) (same **4** deduped rows).
 
 ## Related (outside as-is §1–10)
 

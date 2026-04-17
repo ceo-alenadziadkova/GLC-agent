@@ -4,24 +4,20 @@ import { SectionLabel } from './SectionLabel';
 import { formatRelativeTime } from '../../lib/relativeTime';
 import type { DashboardActivityEvent } from '../../data/apiService';
 import { formatAuditWebsiteDisplay } from '../../data/no-public-website';
+import { cn } from '../ui/utils';
 
 interface ActivityFeedProps {
   events: DashboardActivityEvent[] | undefined;
   loading: boolean;
 }
 
-function eventPillStyle(eventType: string): React.CSSProperties {
-  if (eventType.includes('error') || eventType.includes('fail')) {
-    return { backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--score-1)', border: '1px solid rgba(239,68,68,0.2)' };
-  }
+function activityFeedPillVariant(eventType: string): string {
+  if (eventType.includes('error') || eventType.includes('fail')) return 'ds-activity-feed-pill--danger';
   if (eventType.includes('complete') || eventType.includes('done') || eventType.includes('finish')) {
-    return { backgroundColor: 'rgba(14,207,130,0.1)', color: 'var(--glc-green)', border: '1px solid rgba(14,207,130,0.2)' };
+    return 'ds-activity-feed-pill--success';
   }
-  if (eventType.includes('review') || eventType.includes('gate')) {
-    return { backgroundColor: 'rgba(242,79,29,0.1)', color: 'var(--glc-orange)', border: '1px solid rgba(242,79,29,0.2)' };
-  }
-  // default — blue
-  return { backgroundColor: 'rgba(28,189,255,0.1)', color: 'var(--glc-blue)', border: '1px solid rgba(28,189,255,0.2)' };
+  if (eventType.includes('review') || eventType.includes('gate')) return 'ds-activity-feed-pill--accent';
+  return 'ds-activity-feed-pill--default';
 }
 
 function truncate(s: string | null, n: number): string {
@@ -58,16 +54,10 @@ export function ActivityFeed({ events, loading }: ActivityFeedProps) {
             <div key={ev.id} className="glc-hover-row flex items-start gap-3 px-2 py-1.5">
               {/* Event type pill */}
               <span
-                className="rounded-md px-1.5 py-0.5 flex-shrink-0 tabular-nums"
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
-                  whiteSpace: 'nowrap',
-                  marginTop: 1,
-                  ...eventPillStyle(ev.event_type),
-                }}
+                className={cn(
+                  'rounded-md px-1.5 py-0.5 flex-shrink-0 tabular-nums ds-activity-feed-pill',
+                  activityFeedPillVariant(ev.event_type),
+                )}
               >
                 {ev.event_type.replace(/_/g, ' ')}
               </span>
@@ -77,13 +67,7 @@ export function ActivityFeed({ events, loading }: ActivityFeedProps) {
                 <div className="flex items-baseline gap-1.5 flex-wrap">
                   <Link
                     to={`/audit/${ev.audit_id}`}
-                    className="font-medium"
-                    style={{
-                      fontSize: 'var(--text-sm)',
-                      color: 'var(--text-primary)',
-                      textDecoration: 'none',
-                      fontFamily: 'var(--font-display)',
-                    }}
+                    className="font-medium text-[length:var(--text-sm)] text-[var(--text-primary)] no-underline [font-family:var(--font-display)]"
                   >
                     {ev.company_name ||
                       formatAuditWebsiteDisplay(ev.company_url, ev.no_public_website) ||

@@ -290,10 +290,10 @@ function ChartLegendContent({
               <itemConfig.icon />
             ) : (
               <div
-                className="h-2 w-2 shrink-0 rounded-[var(--radius-xs)]"
-                style={{
-                  backgroundColor: item.color,
-                }}
+                className="h-2 w-2 shrink-0 rounded-[var(--radius-xs)] ds-chart-legend-swatch"
+                style={
+                  { ["--chart-legend-swatch-color" as string]: item.color } as React.CSSProperties
+                }
               />
             )}
             {itemConfig?.label}

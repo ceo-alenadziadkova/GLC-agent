@@ -11,6 +11,7 @@ import type { BriefResponses } from '../../../data/briefQuestions';
 import { labelsForMissingReportDomains } from '../../../lib/intake-coverage-domain-labels';
 import type { useIntakeBankMetrics } from '../../../hooks/useIntakeWizard';
 import { AUDIT_WORKSPACE_UI } from '../config/ui';
+import { cn } from '../../../components/ui/utils';
 import { DomainNav } from './DomainNav';
 
 type BriefLayoutChoice = 'unset' | 'classic' | 'wizard';
@@ -63,12 +64,10 @@ export function WorkspaceSidebar({
 }: Props) {
   return (
     <aside
-      className={`${AUDIT_WORKSPACE_UI.layout.sidebarWidthClass} flex-shrink-0 overflow-y-auto flex flex-col`}
-      style={{
-        borderRight: 'var(--border-width-default) solid var(--border-subtle)',
-        background:
-          'linear-gradient(180deg, color-mix(in oklab, var(--bg-surface) 96%, white) 0%, var(--bg-surface) 100%)',
-      }}
+      className={cn(
+        AUDIT_WORKSPACE_UI.layout.sidebarWidthClass,
+        'flex-shrink-0 overflow-y-auto flex flex-col ds-workspace-sidebar-aside',
+      )}
     >
       <div
         className="flex items-center gap-3 border-b border-[var(--border-subtle)] bg-[var(--bg-canvas)] p-4"
@@ -105,11 +104,10 @@ export function WorkspaceSidebar({
               onClick={() => setBriefPanelOpen(prev => !prev)}
             >
               <CaretRight
-                className="w-3.5 h-3.5 flex-shrink-0 transition-transform"
-                style={{
-                  transform: briefPanelOpen ? 'rotate(90deg)' : 'none',
-                  color: 'var(--glc-blue)',
-                }}
+                className={cn(
+                  'w-3.5 h-3.5 flex-shrink-0 transition-transform text-[var(--glc-blue)]',
+                  briefPanelOpen && 'rotate-90',
+                )}
               />
               {AUDIT_WORKSPACE_COPY.sidebar.editIntakeBrief}
             </button>
@@ -137,10 +135,7 @@ export function WorkspaceSidebar({
                       <button
                         type="button"
                         onClick={clearBriefLayout}
-                        className="cursor-pointer bg-none p-0 text-[length:var(--text-2xs)] font-medium text-[var(--glc-blue)] underline-offset-2 hover:underline"
-                        style={{
-                          border: 'none',
-                        }}
+                        className="cursor-pointer border-0 bg-none p-0 text-[length:var(--text-2xs)] font-medium text-[var(--glc-blue)] underline-offset-2 hover:underline"
                       >
                         {AUDIT_WORKSPACE_COPY.sidebar.changeLayout}
                       </button>

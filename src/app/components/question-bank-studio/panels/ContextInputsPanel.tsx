@@ -103,13 +103,7 @@ export function ContextInputsPanel(props: ContextInputsPanelProps) {
       </p>
       <button
         type="button"
-        className="mt-2 text-xs font-medium px-2 py-1 rounded-md"
-        style={{
-          border: '1px solid var(--border-default)',
-          backgroundColor: 'var(--bg-surface)',
-          color: 'var(--text-secondary)',
-          cursor: 'pointer',
-        }}
+        className="mt-2 text-xs font-medium px-2 py-1 rounded-md ds-qb-context-show-all"
         onClick={onShowAllSteps}
       >
         Show all steps

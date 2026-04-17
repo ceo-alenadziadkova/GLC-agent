@@ -941,7 +941,7 @@ html:not(.dark) .glc-hover-row:hover {
 /* BankClassicBriefFields.tsx */
 .ds-bank-classic-section-header-tint {
   background-color: color-mix(in oklab, var(--glc-blue) 5%, transparent);
-  border-left: var(--border-width-default) solid color-mix(in oklab, var(--glc-blue) 25%, transparent);
+  border-left: 2px solid color-mix(in oklab, var(--glc-blue) 25%, transparent);
 }
 
 .ds-bank-classic-section-label {

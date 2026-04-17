@@ -1,4 +1,5 @@
 import { CheckCircle, SealCheck, Warning } from '@phosphor-icons/react';
+import { cn } from '../../ui/utils';
 import { PORTAL_SNAPSHOT_MIRROR_COPY } from '../config/portal-snapshot-account-mirror-copy.en';
 import type { SnapshotMirrorAccessState } from '../model/portal-snapshot-mirror.types';
 
@@ -14,18 +15,10 @@ export function MirrorStatusHeaderSection({
   return (
     <div className="text-center lg:text-left">
       <div
-        className="mb-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs"
-        style={{
-          background:
-            access.showCallout && access.robotsBlocked
-              ? 'color-mix(in oklab, var(--glc-green) 10%, var(--bg-surface))'
-              : 'var(--bg-surface)',
-          border:
-            access.showCallout && access.robotsBlocked
-              ? '1px solid color-mix(in oklab, var(--glc-green) 38%, var(--border-subtle))'
-              : '1px solid var(--border-subtle)',
-          color: 'var(--text-tertiary)',
-        }}
+        className={cn(
+          'mb-3 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs ds-mirror-status-pill',
+          access.showCallout && access.robotsBlocked && 'ds-mirror-status-pill--robots-callout',
+        )}
       >
         {access.showCallout ? (
           access.robotsBlocked ? (

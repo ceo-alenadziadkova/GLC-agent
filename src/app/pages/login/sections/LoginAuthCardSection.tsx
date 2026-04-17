@@ -143,13 +143,7 @@ export function LoginAuthCardSection(props: LoginAuthCardSectionProps) {
         )}
 
         {!passwordRecoveryMode && mode !== 'forgot' && isAnonymousUser(user) && (
-          <div
-            className="mb-4 rounded-[var(--radius-xl)] border px-4 py-3"
-            style={{
-              borderColor: 'color-mix(in oklab, var(--glc-blue) 45%, var(--border-subtle))',
-              backgroundColor: 'color-mix(in oklab, var(--glc-blue-muted) 42%, transparent)',
-            }}
-          >
+          <div className="mb-4 rounded-[var(--radius-xl)] border px-4 py-3 ds-login-anonymous-hint">
             <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
               {LC.anonymousHint}
             </p>

@@ -67,11 +67,7 @@ export function FullAuditPage() {
           ].map(line => (
             <div
               key={line}
-              className="rounded-[var(--radius-xl)] border px-4 py-3 text-sm leading-relaxed shadow-[var(--shadow-xs)] transition-[transform,background-color] duration-200 ease-out hover:scale-[1.02]"
-              style={{
-                borderColor: 'var(--border-subtle)',
-                backgroundColor: 'color-mix(in oklab, var(--glc-blue-muted) 78%, var(--bg-surface))',
-              }}
+              className="rounded-[var(--radius-xl)] border px-4 py-3 text-sm leading-relaxed shadow-[var(--shadow-xs)] transition-[transform,background-color] duration-200 ease-out hover:scale-[1.02] ds-full-audit-domain-chip"
             >
               {line}
             </div>

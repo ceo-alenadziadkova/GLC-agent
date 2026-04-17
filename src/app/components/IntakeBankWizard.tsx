@@ -20,6 +20,7 @@ import { labelsForMissingReportDomains } from '../lib/intake-coverage-domain-lab
 import { formatIntakeQuestionReasonsBrief } from '../lib/intake-plan-explain';
 import { buildIntakePlan } from '@glc/intake-core';
 import { EXPRESS_LOCKED_F2_OPTIONS, normalizeF2ValueForExpress } from '../lib/express-focus-area-locks';
+import { cn } from './ui/utils';
 
 const HIDDEN_IDENTITY_BANK_IDS = new Set(['a2', 'a11', 'a12']);
 
@@ -188,13 +189,7 @@ export function IntakeBankWizard({
                 onClick={() => {
                   if (step >= 0) wizard.goToStep(step);
                 }}
-                className="text-left text-xs px-2.5 py-1.5 rounded-md max-w-full sm:max-w-[240px] line-clamp-2"
-                style={{
-                  border: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-surface)',
-                  color: 'var(--text-secondary)',
-                  cursor: step >= 0 ? 'pointer' : 'not-allowed',
-                }}
+                className="ds-intake-bank-wizard-chip text-left text-xs px-2.5 py-1.5 rounded-md max-w-full sm:max-w-[240px] line-clamp-2"
                 disabled={step < 0}
                 title={labelText}
                 aria-label={`Go to: ${labelText}`}
@@ -241,13 +236,12 @@ export function IntakeBankWizard({
 
       <div className="h-[3px] rounded-full overflow-hidden bg-[var(--bg-muted)]">
         <div
-          className="h-full rounded-full transition-all"
+          className="h-full rounded-full transition-all ds-intake-bank-wizard-progress-fill"
           style={{
             width:
               totalVisibleSteps > 0
                 ? `${((currentVisibleIndex + 1) / totalVisibleSteps) * 100}%`
                 : '0%',
-            background: 'var(--gradient-brand)',
           }}
         />
       </div>
@@ -340,13 +334,7 @@ export function IntakeBankWizard({
           type="button"
           onClick={goToPrevVisibleStep}
           disabled={isFirstVisibleStep}
-          className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm"
-          style={{
-            color: isFirstVisibleStep ? 'var(--text-quaternary)' : 'var(--text-tertiary)',
-            border: '1px solid var(--border-subtle)',
-            backgroundColor: 'transparent',
-            cursor: isFirstVisibleStep ? 'not-allowed' : 'pointer',
-          }}
+          className="ds-intake-bank-wizard-back flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Back
         </button>
@@ -354,17 +342,12 @@ export function IntakeBankWizard({
           type="button"
           onClick={goToNextVisibleStep}
           disabled={isLastVisibleStep || totalVisibleSteps === 0}
-          className="flex flex-1 items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold"
-          style={{
-            background:
-              isLastVisibleStep || totalVisibleSteps === 0 ? 'var(--bg-muted)' : 'var(--gradient-brand)',
-            color:
-              isLastVisibleStep || totalVisibleSteps === 0
-                ? 'var(--text-secondary)'
-                : 'var(--primary-foreground)',
-            border: isLastVisibleStep || totalVisibleSteps === 0 ? '1px solid var(--border-subtle)' : 'none',
-            cursor: isLastVisibleStep || totalVisibleSteps === 0 ? 'not-allowed' : 'pointer',
-          }}
+          className={cn(
+            'flex flex-1 items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold',
+            isLastVisibleStep || totalVisibleSteps === 0
+              ? 'ds-intake-bank-wizard-next--disabled'
+              : 'ds-intake-bank-wizard-next--active',
+          )}
         >
           Next <ArrowRight className="w-3.5 h-3.5" />
         </button>

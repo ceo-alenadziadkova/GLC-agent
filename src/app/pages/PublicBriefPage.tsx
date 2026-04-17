@@ -247,7 +247,10 @@ export function PublicBriefPage() {
               <h2 className="text-foreground font-display text-lg font-bold">{PB.personalizedTitle}</h2>
               <p className="text-muted-foreground text-sm">{PB.personalizedSubtitle}</p>
               {sections.map(section => (
-                <section key={section.section} className="space-y-4">
+                <section
+                  key={section.questions.map(q => q.id).join('-')}
+                  className="space-y-4"
+                >
                   <h3 className="text-muted-foreground text-xs font-semibold uppercase">{section.section}</h3>
                   {section.questions.map(q => (
                     <BriefField
