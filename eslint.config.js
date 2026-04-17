@@ -20,10 +20,8 @@ export default tseslint.config(
       '.claude/**',
       '.claire/**',
       '**/*.test.ts',
-      '**/*.test.tsx',
       'server/src/tests/**',
       'server/scripts/**',
-      'src/**/__tests__/**',
     ],
   },
   {

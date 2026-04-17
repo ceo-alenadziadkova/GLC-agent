@@ -1,4 +1,5 @@
 import { cn } from '../components/ui/utils';
+import { getScoreTone } from '../design-system/tokens/report-semantic-tokens';
 
 interface ScoreIndicatorProps {
   score: number;
@@ -8,12 +9,17 @@ interface ScoreIndicatorProps {
 }
 
 export function ScoreIndicator({ score, size = 'md', showLabel = false, className }: ScoreIndicatorProps) {
-  const getScoreColor = (score: number) => {
-    if (score >= 4) return 'var(--status-excellent)';
-    if (score === 3) return 'var(--status-moderate)';
-    if (score === 2) return 'var(--status-needs-improvement)';
-    return 'var(--status-critical)';
-  };
+  const scoreTone = getScoreTone(score);
+  const scoreBgClassName =
+    score >= 5
+      ? 'bg-[var(--score-5)]'
+      : score === 4
+        ? 'bg-[var(--score-4)]'
+        : score === 3
+          ? 'bg-[var(--score-3)]'
+          : score === 2
+            ? 'bg-[var(--score-2)]'
+            : 'bg-[var(--score-1)]';
 
   const getScoreLabel = (score: number) => {
     if (score === 5) return 'Excellent';
@@ -33,17 +39,15 @@ export function ScoreIndicator({ score, size = 'md', showLabel = false, classNam
     <div className={cn('flex items-center gap-2', className)}>
       <div
         className={cn(
-          'rounded-full flex items-center justify-center font-semibold text-white',
+          'flex items-center justify-center rounded-full font-semibold text-white',
+          scoreBgClassName,
           sizeClasses[size]
         )}
-        style={{ backgroundColor: getScoreColor(score) }}
       >
         {score}
       </div>
       {showLabel && (
-        <span className="text-sm font-medium" style={{ color: getScoreColor(score) }}>
-          {getScoreLabel(score)}
-        </span>
+        <span className={cn('text-sm font-medium', scoreTone.textClassName)}>{getScoreLabel(score)}</span>
       )}
     </div>
   );

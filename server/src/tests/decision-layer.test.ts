@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createControlObjectV1 } from '../schemas/control-object.js';
+import { createControlObjectV1 } from '../schemas/control-object/index.js';
 import { DecisionLayer } from '../services/decision-layer.js';
 
 function freshTechCo() {

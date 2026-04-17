@@ -34,15 +34,6 @@ export function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; 
     ),
   }[ph.status];
 
-  const accentColor = {
-    completed: 'var(--glc-green)',
-    running: 'var(--glc-blue)',
-    pending: 'var(--border-default)',
-    review: 'var(--score-3)',
-    failed: 'var(--score-1)',
-    skipped: 'var(--border-subtle)',
-  }[ph.status];
-
   return (
     <motion.button
       onClick={onSel}

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createControlObjectV1 } from '../schemas/control-object.js';
-import type { ControlObjectV1, type DomainKey } from '../schemas/control-object.js';
-import type { DomainResult } from '../types/audit.js';
+import { createControlObjectV1 } from '../schemas/control-object/index.js';
+import type { ControlObjectV1 } from '../schemas/control-object/index.js';
+import type { DomainKey, DomainResult } from '../types/audit.js';
 import type { BaseAgent } from '../agents/base.js';
 import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
 
@@ -182,9 +182,12 @@ describe('Auto-loop: variant reuse semantics', () => {
     expect(ok).toBe(true);
     expect(saveDomainResultCalls).toBe(0);
 
-    const refineCalls = emitEvent.mock.calls.filter((c) => c[1] === PIPELINE_EVENT_TYPES.refineRecommended);
+    type EmitArgs = [number, string, string, { decision_hint?: string }];
+    const refineCalls = (emitEvent.mock.calls as unknown as EmitArgs[]).filter(
+      (c) => c[1] === PIPELINE_EVENT_TYPES.refineRecommended,
+    );
     expect(refineCalls.length).toBe(1);
-    const refineData = refineCalls[0][3] as { decision_hint?: string };
+    const refineData = refineCalls[0][3];
     expect(refineData.decision_hint).toBe('refine');
   });
 });

@@ -1,7 +1,7 @@
 import { FACT_CHECKER_THRESHOLDS } from '../../../config/fact-checker-thresholds.js';
 import { computeWeightedConfidence } from '../../../config/phase-confidence-weights.js';
 import { feasibilityLayer, type BriefSnapshot, type FeasibilityResult } from '../../feasibility-layer.js';
-import type { ControlObjectV1 } from '../../../schemas/control-object.js';
+import type { ControlObjectV1 } from '../../../schemas/control-object/index.js';
 import type { DomainKey, DomainResult } from '../../../types/audit.js';
 import type { ExtendedPhaseProfile } from '../../../config/phase-profiles.js';
 

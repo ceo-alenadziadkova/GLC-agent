@@ -2,6 +2,37 @@ import { API_PATHS } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
 import type { AuditMeta, AuditState, AuditCoveragePackage, AuditDepth, DomainKey } from '../auditTypes';
 
+function normalizeAuditState(raw: AuditState): AuditState {
+  const reportCoverage = raw.report_coverage;
+  if (!reportCoverage) {
+    return raw;
+  }
+
+  return {
+    ...raw,
+    report_coverage: {
+      covered_domains: Array.isArray(reportCoverage.covered_domains)
+        ? reportCoverage.covered_domains
+        : [],
+      not_covered_domains: Array.isArray(reportCoverage.not_covered_domains)
+        ? reportCoverage.not_covered_domains
+        : [],
+      coverage_ratio:
+        typeof reportCoverage.coverage_ratio === 'number'
+          ? reportCoverage.coverage_ratio
+          : 0,
+      coverage_adjusted_score:
+        typeof reportCoverage.coverage_adjusted_score === 'number'
+          ? reportCoverage.coverage_adjusted_score
+          : null,
+      comparability_note:
+        typeof reportCoverage.comparability_note === 'string'
+          ? reportCoverage.comparability_note
+          : '',
+    },
+  };
+}
+
 export const auditsCrudApi = {
   async createAudit(
     companyUrl: string,
@@ -47,7 +78,8 @@ export const auditsCrudApi = {
   },
 
   async getAudit(id: string) {
-    return apiFetch<AuditState>(`${API_PATHS.audits}/${id}`);
+    const audit = await apiFetch<AuditState>(`${API_PATHS.audits}/${id}`);
+    return normalizeAuditState(audit);
   },
 
   async deleteAudit(id: string) {

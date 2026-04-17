@@ -1,6 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import type { Server } from 'node:http';
+import {
+  discoverPublicReadLimiter,
+  discoverUiFragmentReadLimiter,
+} from '../middleware/rate-limit.js';
 
 const state = vi.hoisted(() => {
   let sessionRow: Record<string, unknown> | null = null;
@@ -220,6 +224,16 @@ import { discoverRouter } from '../routes/discover.js';
 let server: Server;
 let baseUrl = '';
 
+function resetLimiterLocalhostKeys(
+  limiter: unknown,
+): void {
+  const withReset = limiter as { resetKey?: (key: string) => void };
+  if (!withReset.resetKey) return;
+  withReset.resetKey('::1');
+  withReset.resetKey('::ffff:127.0.0.1');
+  withReset.resetKey('127.0.0.1');
+}
+
 beforeAll(async () => {
   const app = express();
   app.use(express.json());
@@ -234,6 +248,8 @@ beforeAll(async () => {
 afterAll(() => server.close());
 
 beforeEach(() => {
+  resetLimiterLocalhostKeys(discoverPublicReadLimiter);
+  resetLimiterLocalhostKeys(discoverUiFragmentReadLimiter);
   state.resetCounters();
   state.setClaimConflict(false);
   state.setLinkConflict(false);
@@ -356,6 +372,23 @@ describe('GET /api/discover/:token', () => {
     expect(res.status).toBe(404);
     expect(body.code).toBe('DISCOVER_SESSION_NOT_FOUND');
     expect(body.error).toBe('Session not found');
+  });
+});
+
+describe('GET /api/discover/ui-fragment', () => {
+  it('is not blocked when discover read limiter bucket is exhausted', async () => {
+    // Exhaust the shared discover public read limiter via token reads.
+    for (let i = 0; i < 80; i += 1) {
+      const okRes = await fetch(`${baseUrl}/api/discover/${'a'.repeat(40)}`);
+      expect(okRes.status).toBe(200);
+    }
+
+    const limitedRes = await fetch(`${baseUrl}/api/discover/${'a'.repeat(40)}`);
+    expect(limitedRes.status).toBe(429);
+
+    // ui-fragment must use an independent limiter bucket.
+    const uiFragmentRes = await fetch(`${baseUrl}/api/discover/ui-fragment`);
+    expect(uiFragmentRes.status).toBe(200);
   });
 });
 

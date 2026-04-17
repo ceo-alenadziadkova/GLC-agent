@@ -187,7 +187,7 @@ vi.mock('../services/consistency-checker.js', () => ({
 
 import { PipelineOrchestrator } from '../services/pipeline.js';
 import { decisionLayer } from '../services/decision-layer.js';
-import { createControlObjectV1, type ControlObjectV1 } from '../schemas/control-object.js';
+import { createControlObjectV1, type ControlObjectV1 } from '../schemas/control-object/index.js';
 import { PHASE_DOMAIN_MAP } from '../types/audit.js';
 
 function getPipelineInserts() {

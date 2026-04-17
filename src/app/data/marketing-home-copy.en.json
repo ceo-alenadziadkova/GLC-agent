@@ -55,5 +55,6 @@
     }
   },
   "questionsTitle": "Questions",
-  "questionsDescription": "Short answers now, full detail in FAQ."
+  "questionsDescription": "Short answers now, full detail in FAQ.",
+  "faqAllQuestionsLabel": "All questions and answers"
 }

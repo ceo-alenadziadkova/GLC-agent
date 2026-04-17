@@ -1,0 +1,102 @@
+import { TreeStructure } from '@phosphor-icons/react';
+
+import type { ViewMode } from '../types';
+import { QUESTION_BANK_STUDIO_COPY_EN } from '../../../config/question-bank-studio-copy.en';
+import { STUDIO_COPY_EN } from '../config/studio-copy.en';
+
+type StudioHeaderSectionProps = {
+  viewMode: ViewMode;
+  overviewUi: boolean;
+  onViewModeChange: (next: ViewMode) => void;
+};
+
+export function StudioHeaderSection(props: StudioHeaderSectionProps) {
+  const { viewMode, overviewUi, onViewModeChange } = props;
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2 justify-between" style={{ color: 'var(--text-primary)' }}>
+        <div className="flex items-center gap-2">
+          <TreeStructure className="w-4 h-4" weight="bold" />
+          <h2 className="text-sm font-semibold m-0">{QUESTION_BANK_STUDIO_COPY_EN.headerTitle}</h2>
+        </div>
+        <div
+          className="inline-flex rounded-lg overflow-hidden text-[11px] font-medium"
+          style={{ border: '1px solid var(--border-default)' }}
+          role="group"
+          aria-label="Studio view mode"
+        >
+          <button
+            type="button"
+            className="px-2.5 py-1.5"
+            style={{
+              backgroundColor: viewMode === 'user' ? 'var(--glc-blue-muted)' : 'var(--bg-canvas)',
+              color: 'var(--text-secondary)',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+            onClick={() => onViewModeChange('user')}
+          >
+            {QUESTION_BANK_STUDIO_COPY_EN.viewModeButtons.flowSimulator}
+          </button>
+          <button
+            type="button"
+            className="px-2.5 py-1.5"
+            style={{
+              backgroundColor: viewMode === 'logic' ? 'var(--glc-blue-muted)' : 'var(--bg-canvas)',
+              color: 'var(--text-secondary)',
+              border: 'none',
+              borderLeft: '1px solid var(--border-default)',
+              cursor: 'pointer',
+            }}
+            onClick={() => onViewModeChange('logic')}
+          >
+            {QUESTION_BANK_STUDIO_COPY_EN.viewModeButtons.fullMap}
+          </button>
+        </div>
+      </div>
+
+      {viewMode === 'logic' ? (
+        overviewUi ? (
+          <p
+            className="m-0 text-xs rounded-lg px-3 py-2"
+            style={{
+              backgroundColor: 'var(--bg-canvas)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-quaternary)',
+            }}
+          >
+            {STUDIO_COPY_EN.logicOverviewHint}
+          </p>
+        ) : (
+          <div
+            className="rounded-lg px-3 py-2 space-y-2 text-xs leading-relaxed"
+            style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}
+          >
+            <p className="m-0" style={{ color: 'var(--text-secondary)' }}>
+              <strong style={{ color: 'var(--text-primary)' }}>Canon map (default):</strong> every bank id and section
+              from <span className="font-mono">question-bank.v1.json</span> — this is the full semantic tree, not
+              “what one product screen asks in one step”.
+            </p>
+            <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>
+              <strong style={{ color: 'var(--text-tertiary)' }}>Left stripe</strong> = policy + canon priority;{' '}
+              <strong style={{ color: 'var(--text-tertiary)' }}>outer glow ring</strong> = trace result (answers +{' '}
+              <span className="font-mono">buildIntakePlan</span>) when the trace runs.
+            </p>
+            <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>
+              <strong style={{ color: 'var(--text-tertiary)' }}>Policy mode</strong> adjusts participation /
+              requiredness overlays.
+            </p>
+          </div>
+        )
+      ) : (
+        <div
+          className="rounded-lg px-3 py-2 text-xs"
+          style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}
+        >
+          {STUDIO_COPY_EN.userModeHint}
+        </div>
+      )}
+    </>
+  );
+}

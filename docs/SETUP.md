@@ -125,7 +125,7 @@ If Phase 0 fails: check `server/.env` has valid Anthropic + Supabase keys, and S
 
 ## Automated tests
 
-From the repo root: `pnpm test` (frontend Vitest), `pnpm --filter glc-audit-server test` (backend). Playwright smoke: `pnpm exec playwright install chromium` then `pnpm run test:e2e`. Coverage matrix: [TESTING.md](../TESTING.md).
+From the repo root: `pnpm test` (frontend Vitest), `pnpm --filter glc-audit-server test` (backend). Playwright smoke: `pnpm exec playwright install chromium` then `pnpm run test:e2e`. Coverage matrix: [TESTING.md](instructions/TESTING.md).
 
 ---
 

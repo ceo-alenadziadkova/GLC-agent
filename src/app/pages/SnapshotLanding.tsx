@@ -52,22 +52,14 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
 
   return (
     <div
-      className={embedded ? 'flex min-h-0 flex-col' : 'flex min-h-[100dvh] flex-col'}
-      style={{ backgroundColor: embedded ? 'transparent' : 'var(--bg-canvas)' }}
+      className={
+        embedded ? 'flex min-h-0 flex-col' : 'flex min-h-[100dvh] flex-col bg-[var(--bg-canvas)]'
+      }
     >
       {!embedded && (
         <>
-          <div
-            className="fixed inset-0 pointer-events-none"
-            style={{ background: 'var(--mesh-brand)', opacity: 0.4 }}
-          />
-          <header
-            className="relative z-10 flex items-center justify-between gap-3 px-6 py-4 mobile:px-4 mobile:py-3"
-            style={{
-              borderBottom: '1px solid var(--border-subtle)',
-              paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
-            }}
-          >
+          <div className="pointer-events-none fixed inset-0 bg-[var(--mesh-brand)] opacity-40" />
+          <header className="relative z-10 flex items-center justify-between gap-3 border-b border-[var(--border-subtle)] px-6 py-4 pt-[max(0.75rem,env(safe-area-inset-top))] mobile:px-4 mobile:py-3">
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <Link to={APP_ROUTE_PATHS.home} className="inline-flex items-center" aria-label={SNAPSHOT_LANDING_HERO_COPY.homeAriaLabel}>
                 <GlcLogo className="h-9 mobile:h-8" />
@@ -77,18 +69,16 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
               {/* <ThemeToggle /> */}
               {hasFullAccount ? (
                 <div className="flex min-w-0 max-w-[min(100%,22rem)] items-center gap-2 sm:gap-2.5">
-                  <UserCircle className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
+                  <UserCircle className="h-4 w-4 shrink-0 text-[var(--glc-green)]" weight="fill" />
                   <span
-                    className="hidden min-w-0 truncate text-xs font-medium sm:inline sm:max-w-[10rem] md:max-w-[13rem]"
-                    style={{ color: 'var(--text-secondary)' }}
+                    className="hidden min-w-0 truncate text-xs font-medium text-[var(--text-secondary)] sm:inline sm:max-w-[10rem] md:max-w-[13rem]"
                     title={workspaceEmail ?? SNAPSHOT_LANDING_HERO_COPY.signedInFallback}
                   >
                     {workspaceEmail ?? SNAPSHOT_LANDING_HERO_COPY.signedInFallback}
                   </span>
                   <Link
                     to={APP_ROUTE_PATHS.dashboard}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-lg text-sm font-medium mobile:min-h-11 mobile:px-2"
-                    style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg text-sm font-medium text-[var(--glc-blue)] no-underline mobile:min-h-11 mobile:px-2"
                   >
                     {SNAPSHOT_LANDING_HERO_COPY.workspaceLink} <CaretRight className="h-3.5 w-3.5 shrink-0" />
                   </Link>
@@ -96,8 +86,7 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
               ) : (
                 <Link
                   to={buildAppRoute.loginWithNext(APP_ROUTE_PATHS.snapshot)}
-                  className="inline-flex items-center justify-end gap-1 rounded-lg text-sm font-medium mobile:min-h-11 mobile:min-w-11 mobile:px-2"
-                  style={{ color: 'var(--glc-blue)', textDecoration: 'none' }}
+                  className="inline-flex items-center justify-end gap-1 rounded-lg text-sm font-medium text-[var(--glc-blue)] no-underline mobile:min-h-11 mobile:min-w-11 mobile:px-2"
                 >
                   {SNAPSHOT_LANDING_HERO_COPY.signInLink} <CaretRight className="h-3.5 w-3.5 shrink-0" />
                 </Link>
@@ -171,34 +160,29 @@ export function SnapshotLanding(props?: { embedded?: boolean }) {
       </main>
 
       {/* Footer */}
-      <footer
-        className="relative z-10 px-6 py-4 text-center mobile:px-4"
-        style={{
-          borderTop: '1px solid var(--border-subtle)',
-          paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
-        }}
-      >
-        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+      <footer className="relative z-10 border-t border-[var(--border-subtle)] px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center mobile:px-4">
+        <p className="text-xs text-[var(--text-tertiary)]">
           {SNAPSHOT_LANDING_HERO_COPY.footerDisclaimer} ·{' '}
           {hasFullAccount ? (
-            <Link to={APP_ROUTE_PATHS.dashboard} style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>
+            <Link to={APP_ROUTE_PATHS.dashboard} className="text-[var(--text-tertiary)] no-underline">
               {SNAPSHOT_LANDING_HERO_COPY.footerWorkspace}
             </Link>
           ) : (
-            <Link to={buildAppRoute.loginWithNext(APP_ROUTE_PATHS.snapshot)} style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>
+            <Link
+              to={buildAppRoute.loginWithNext(APP_ROUTE_PATHS.snapshot)}
+              className="text-[var(--text-tertiary)] no-underline"
+            >
               {SNAPSHOT_LANDING_HERO_COPY.footerSignIn}
             </Link>
           )}
         </p>
-        <p className="text-xs mt-1.5" style={{ color: 'var(--text-tertiary)' }}>
+        <p className="mt-1.5 text-xs text-[var(--text-tertiary)]">
           {SNAPSHOT_LANDING_HERO_COPY.footerNoWebsite}{' '}
-          <Link
-            to={APP_ROUTE_PATHS.discovery}
-            style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}
-          >
+          <Link to={APP_ROUTE_PATHS.discovery} className="text-[var(--text-tertiary)] no-underline">
             {SNAPSHOT_LANDING_HERO_COPY.footerDiscoveryLink}
           </Link>
-          {' '}{SNAPSHOT_LANDING_HERO_COPY.footerDiscoverySuffix}
+          {' '}
+          {SNAPSHOT_LANDING_HERO_COPY.footerDiscoverySuffix}
         </p>
       </footer>
     </div>

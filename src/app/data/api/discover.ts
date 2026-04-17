@@ -37,6 +37,14 @@ export type DiscoveryAnalyticsBatchPayload = {
   }>;
 };
 
+let uiFragmentInFlight: Promise<DiscoveryUiFragmentPayload> | null = null;
+let uiFragmentCache: DiscoveryUiFragmentPayload | null = null;
+
+export function resetDiscoverApiUiFragmentCacheForTests(): void {
+  uiFragmentInFlight = null;
+  uiFragmentCache = null;
+}
+
 export const discoverApi = {
   /** Public: save a completed discovery session. Returns a session token. */
   async saveDiscoverySession(data: {
@@ -52,7 +60,17 @@ export const discoverApi = {
 
   /** Public: server-driven Discovery wizard copy and option lists. */
   async getUiFragment() {
-    return publicApiFetch<DiscoveryUiFragmentPayload>(API_PATHS.discoverUiFragment);
+    if (uiFragmentCache) return uiFragmentCache;
+    if (uiFragmentInFlight) return uiFragmentInFlight;
+    uiFragmentInFlight = publicApiFetch<DiscoveryUiFragmentPayload>(API_PATHS.discoverUiFragment)
+      .then((payload) => {
+        uiFragmentCache = payload;
+        return payload;
+      })
+      .finally(() => {
+        uiFragmentInFlight = null;
+      });
+    return uiFragmentInFlight;
   },
 
   /** Public: batched funnel analytics (non-blocking for callers). */

@@ -3,6 +3,7 @@ import { choiceValueNeedsSpecify } from '@glc/intake-core';
 import type { IntakeVersionTuple } from '../../../data/auditTypes';
 import {
   buildQuestionSequence,
+  DISCOVERY_WIZARD_BANK_IDS,
   computeFindings,
   computeScore,
   getQuestion,
@@ -52,14 +53,26 @@ export function useDiscoverController(params: {
     saveContact,
   } = useDiscoverySessionPersistence();
 
-  const sequence = useMemo(() => buildQuestionSequence(answers), [answers]);
+  const sequence = useMemo(() => {
+    const planned = buildQuestionSequence(answers);
+    if (planned.length > 0) return planned;
+    // Defensive fallback: keep questionnaire operable if remote fragment/policy sync degrades.
+    return DISCOVERY_WIZARD_BANK_IDS.filter(id => getQuestion(id) != null);
+  }, [answers]);
   const currentId = sequence[currentIdx] ?? null;
   const currentQuestion = currentId ? getQuestion(currentId) ?? null : null;
+  const currentCommittedAnswer = currentId ? (answers[currentId] ?? null) : null;
   const answeredIds = useMemo(() => sequence.slice(0, currentIdx), [currentIdx, sequence]);
 
   useEffect(() => {
-    setDraft(currentId ? (answers[currentId] ?? null) : null);
-  }, [answers, currentId]);
+    if (sequence.length === 0) return;
+    if (currentIdx < sequence.length) return;
+    setCurrentIdx(sequence.length - 1);
+  }, [currentIdx, sequence]);
+
+  useEffect(() => {
+    setDraft(currentCommittedAnswer);
+  }, [currentId, currentCommittedAnswer]);
 
   const sinkRef = useDiscoveryAnalytics({
     intakeVersions,
@@ -94,10 +107,17 @@ export function useDiscoverController(params: {
   };
 
   function handleSpecifyChange(questionId: string, value: string): void {
-    setAnswers(prev => ({
-      ...prev,
-      [`${questionId}__other`]: value.trim() || null,
-    }));
+    setAnswers(prev => {
+      const key = `${questionId}__other`;
+      const nextValue = value.trim() || null;
+      const prevValue = (prev[key] as string | null | undefined) ?? null;
+      if (prevValue === nextValue) return prev;
+      if (nextValue == null && !(key in prev)) return prev;
+      return {
+        ...prev,
+        [key]: nextValue,
+      };
+    });
   }
 
   function handleDraftChange(value: DiscoveryAnswers[string]): void {

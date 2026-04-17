@@ -1,5 +1,5 @@
 import { FACT_CHECKER_THRESHOLDS } from '../../../config/fact-checker-thresholds.js';
-import type { ControlObjectV1 } from '../../../schemas/control-object.js';
+import type { ControlObjectV1 } from '../../../schemas/control-object/index.js';
 import type { DomainResult } from '../../../types/audit.js';
 import type { FactCorrection } from '../types.js';
 

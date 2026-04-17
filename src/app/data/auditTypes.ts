@@ -506,6 +506,13 @@ export interface RefineRecommendedEventData {
 
 export interface AuditState {
   meta: AuditMeta;
+  report_coverage?: {
+    covered_domains: DomainKey[];
+    not_covered_domains: DomainKey[];
+    coverage_ratio: number;
+    coverage_adjusted_score: number | null;
+    comparability_note: string;
+  };
   recon: ReconData | null;
   domains: Record<string, DomainData | null>;
   strategy: StrategyRoadmap | null;

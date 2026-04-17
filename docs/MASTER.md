@@ -36,9 +36,9 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | Local dev, demo seed | [SETUP.md](./SETUP.md) |
 | Production deploy (Vercel, Railway, Supabase), env matrix, monitoring hooks | [DEPLOYMENT.md](./DEPLOYMENT.md) |
 | Engineering debt register | [TECH_DEBT.md](./TECH_DEBT.md) |
-| Test matrix, coverage, E2E | [TESTING.md](../TESTING.md) (repo root) |
-| QA/testing instruction canon | [TESTING_INSTRUCTIONS.md](../TESTING_INSTRUCTIONS.md) (repo root) |
-| Marketing strategy instruction canon | [CMO-INSTRUCTIONS.md](../CMO-INSTRUCTIONS.md) (repo root) |
+| Test matrix, coverage, E2E | [TESTING.md](instructions/TESTING.md) (repo root) |
+| QA/testing instruction canon | [TESTING_INSTRUCTIONS.md](instructions/TESTING_INSTRUCTIONS.md) (repo root) |
+| Marketing strategy instruction canon | [CMO-INSTRUCTIONS.md](instructions/CMO-INSTRUCTIONS.md) (repo root) |
 | CI workflows (tests, secret scan, migration smoke) | [.github/workflows](../.github/workflows) |
 | FACT-CHECKER / Decision Layer roadmap vs code | [GAP-ANALYSIS-PHASE0](./adrs/GAP-ANALYSIS-PHASE0.md) |
 | Other ADRs (decisions, future phases) | [docs/adrs/](./adrs/) — see tree under [Restructuring log](#restructuring-log) |
@@ -257,7 +257,7 @@ Selected ADR quick links:
 
 **Where it is implemented:** [`.github/workflows`](../.github/workflows), root `package.json` / `server/package.json` scripts.
 
-**Where to find documentation:** [TESTING.md](../TESTING.md); workflow YAML for exact job list.
+**Where to find documentation:** [TESTING.md](instructions/TESTING.md); workflow YAML for exact job list.
 
 **Owner:** Tech Lead / DevOps (TBD)
 

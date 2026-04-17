@@ -24,13 +24,7 @@ export function SnapshotLandingProgress(props: { phaseIdx: number; quotaHint: st
         className="mb-4 px-2"
       />
 
-      <h2
-        className="text-balance text-xl font-bold mobile:px-1 mobile:text-lg"
-        style={{
-          fontFamily: 'var(--font-display)',
-          color: 'var(--text-primary)',
-        }}
-      >
+      <h2 className="text-balance text-xl font-bold text-[var(--text-primary)] [font-family:var(--font-display)] mobile:px-1 mobile:text-lg">
         {SNAPSHOT_LANDING_HERO_COPY.runningTitle}
       </h2>
 
@@ -41,22 +35,15 @@ export function SnapshotLandingProgress(props: { phaseIdx: number; quotaHint: st
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.3 }}
-          className="mt-3"
-          style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)' }}
+          className="mt-3 text-[length:var(--text-sm)] text-[var(--text-secondary)]"
         >
           {PHASE_LABELS[phaseIdx]}
         </motion.p>
       </AnimatePresence>
 
-      <p className="mt-6 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-        {SNAPSHOT_LANDING_HERO_COPY.runningHint}
-      </p>
+      <p className="mt-6 text-xs text-[var(--text-tertiary)]">{SNAPSHOT_LANDING_HERO_COPY.runningHint}</p>
 
-      {quotaHint && (
-        <p className="mt-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-          {quotaHint}
-        </p>
-      )}
+      {quotaHint && <p className="mt-2 text-xs text-[var(--text-tertiary)]">{quotaHint}</p>}
     </motion.div>
   );
 }

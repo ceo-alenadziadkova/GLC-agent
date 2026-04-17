@@ -11,5 +11,13 @@ export const CONTEXT_BUILDER_MAX_RAW_CHARS_PER_COLLECTOR = C.maxRawCharsPerColle
 
 export const CONTEXT_BUILDER_MAX_TOTAL_RAW_CHARS = C.maxTotalRawChars;
 
+export const CONTEXT_BUILDER_TRIM_MIN_OBJECT_CHARS = C.trimMinObjectChars;
+
+export const CONTEXT_BUILDER_TRIM_ARRAY_HALVE_MIN_LENGTH = C.trimArrayHalveMinLength;
+
+export const CONTEXT_BUILDER_TRIM_ARRAY_SIZE_FRACTION_OF_MAX = C.trimArraySizeFractionOfMax;
+
+export const CONTEXT_BUILDER_DEFAULT_BRIEF_RESPONSE_SOURCE = C.defaultBriefResponseSource;
+
 /** Sort key for brief entries missing from the bank order index (stable tail). */
 export const BRIEF_ENTRY_SORT_FALLBACK_ORDER = 9999;

@@ -1,5 +1,5 @@
 import { ScoreIndicator } from './ScoreIndicator';
-import type { AuditDomain } from '../data/auditData';
+import type { AuditDomain } from '../data/audit';
 
 interface DomainContextProps {
   domain: AuditDomain;

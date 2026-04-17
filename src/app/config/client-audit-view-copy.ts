@@ -8,8 +8,8 @@ export const CLIENT_AUDIT_VIEW_COPY = {
     defaultLayoutSuffix: '. Per-audit layout below overrides that default.',
     readinessPrefix: 'Audit readiness:',
     requiredLabel: 'required',
-    helpTailoring:
-      'These answers help the GLC team tailor the audit. Fill required questions before the audit starts.',
+    helpTailoringPrefix: 'These answers help the GLC team tailor the audit. Fill',
+    helpTailoringSuffix: 'questions before the audit starts.',
     improveQualityPrefix: 'Want to improve audit quality? Answer',
     improveQualitySuffix: 'more recommended question(s).',
     saving: 'Saving...',

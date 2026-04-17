@@ -1,0 +1,204 @@
+import { CaretRight } from '@phosphor-icons/react';
+import { Link } from 'react-router';
+import { ScoreRing } from '../../../components/glc/ScoreBadge';
+import { IntakeBankCoverageHint } from '../../../components/IntakeBankCoverageHint';
+import { IntakeBankWizard } from '../../../components/IntakeBankWizard';
+import { BankClassicBriefFields } from '../../../components/BankClassicBriefFields';
+import { BriefLayoutPreferenceCards } from '../../../components/BriefLayoutPreferenceCards';
+import { AUDIT_WORKSPACE_COPY } from '../../../config/audit-workspace-copy.en';
+import { INTAKE_BRIEF_SLA_PRODUCT_MODE, type AuditState, type DomainKey } from '../../../data/auditTypes';
+import type { BriefResponses } from '../../../data/briefQuestions';
+import { labelsForMissingReportDomains } from '../../../lib/intake-coverage-domain-labels';
+import type { useIntakeBankMetrics } from '../../../hooks/useIntakeWizard';
+import { AUDIT_WORKSPACE_UI } from '../config/ui';
+import { DomainNav } from './DomainNav';
+
+type BriefLayoutChoice = 'unset' | 'classic' | 'wizard';
+type BankMetrics = ReturnType<typeof useIntakeBankMetrics>;
+
+type Props = {
+  id?: string;
+  audit: AuditState;
+  overallScore: number;
+  domainCount: number;
+  briefPanelOpen: boolean;
+  setBriefPanelOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
+  briefLayoutChoice: BriefLayoutChoice;
+  selectBriefLayout: (mode: Exclude<BriefLayoutChoice, 'unset'>) => void;
+  clearBriefLayout: () => void;
+  workspaceBriefResponses: BriefResponses;
+  workspaceBriefSavedFlash: boolean;
+  onWizardResponsesChange: (next: BriefResponses) => void;
+  onFieldChange: (qid: string, value: string | string[] | number | null) => void;
+  onFieldUnknown: (qid: string) => void;
+  visibleDomainKeys: readonly DomainKey[];
+  activeDomain: DomainKey;
+  setActiveDomain: (value: DomainKey) => void;
+  resetOpenRecommendation: () => void;
+  workspaceConsultantSurface: 'consultant_interview' | undefined;
+  bankMetrics: BankMetrics;
+};
+
+export function WorkspaceSidebar({
+  id,
+  audit,
+  overallScore,
+  domainCount,
+  briefPanelOpen,
+  setBriefPanelOpen,
+  briefLayoutChoice,
+  selectBriefLayout,
+  clearBriefLayout,
+  workspaceBriefResponses,
+  workspaceBriefSavedFlash,
+  onWizardResponsesChange,
+  onFieldChange,
+  onFieldUnknown,
+  visibleDomainKeys,
+  activeDomain,
+  setActiveDomain,
+  resetOpenRecommendation,
+  workspaceConsultantSurface,
+  bankMetrics,
+}: Props) {
+  return (
+    <aside
+      className={`${AUDIT_WORKSPACE_UI.layout.sidebarWidthClass} flex-shrink-0 overflow-y-auto flex flex-col`}
+      style={{
+        borderRight: '1px solid var(--border-subtle)',
+        background:
+          'linear-gradient(180deg, color-mix(in oklab, var(--bg-surface) 96%, white) 0%, var(--bg-surface) 100%)',
+      }}
+    >
+      <div
+        className="p-4 flex items-center gap-3"
+        style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
+      >
+        <ScoreRing score={overallScore} size={AUDIT_WORKSPACE_UI.scoreRingSize} />
+        <div>
+          <p
+            className="font-bold text-sm"
+            style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}
+          >
+            {AUDIT_WORKSPACE_COPY.sidebar.overallScore}
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+            {domainCount} {AUDIT_WORKSPACE_COPY.sidebar.domainsAnalyzedSuffix}
+          </p>
+        </div>
+      </div>
+
+      {audit.brief && (
+        <>
+          <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            <IntakeBankCoverageHint
+              dataQualityPct={bankMetrics.dataQualityPct}
+              visibleRequiredAnswered={bankMetrics.visibleRequiredAnswered}
+              visibleRequiredTotal={bankMetrics.visibleRequiredTotal}
+              visibleRecommendedAnswered={bankMetrics.visibleRecommendedAnswered}
+              visibleRecommendedTotal={bankMetrics.visibleRecommendedTotal}
+              reportInputGapLabels={labelsForMissingReportDomains(bankMetrics.missingForReport)}
+            />
+          </div>
+          <div style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            <button
+              type="button"
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-left text-xs font-semibold"
+              style={{ color: 'var(--text-secondary)' }}
+              onClick={() => setBriefPanelOpen(prev => !prev)}
+            >
+              <CaretRight
+                className="w-3.5 h-3.5 flex-shrink-0 transition-transform"
+                style={{
+                  transform: briefPanelOpen ? 'rotate(90deg)' : 'none',
+                  color: 'var(--glc-blue)',
+                }}
+              />
+              {AUDIT_WORKSPACE_COPY.sidebar.editIntakeBrief}
+            </button>
+            {briefPanelOpen && (
+              <div className={`px-3 pb-3 space-y-2 ${AUDIT_WORKSPACE_UI.layout.briefPanelMaxHeightClass} overflow-y-auto`}>
+                {workspaceBriefSavedFlash && (
+                  <p className="text-[10px] font-medium" style={{ color: 'var(--glc-green)' }}>
+                    {AUDIT_WORKSPACE_COPY.sidebar.briefSaved}
+                  </p>
+                )}
+                <p className="text-[10px] leading-snug" style={{ color: 'var(--text-quaternary)' }}>
+                  {AUDIT_WORKSPACE_COPY.sidebar.defaultLayoutPrefix}{' '}
+                  <Link
+                    to="/settings#brief-layout"
+                    className="font-medium underline-offset-2 hover:underline"
+                    style={{ color: 'var(--glc-blue)' }}
+                  >
+                    {AUDIT_WORKSPACE_COPY.sidebar.settingsLink}
+                  </Link>
+                </p>
+                {briefLayoutChoice === 'unset' ? (
+                  <BriefLayoutPreferenceCards selected={null} onSelect={selectBriefLayout} />
+                ) : (
+                  <>
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={clearBriefLayout}
+                        className="text-[10px] font-medium underline-offset-2 hover:underline"
+                        style={{
+                          color: 'var(--glc-blue)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: 0,
+                        }}
+                      >
+                        {AUDIT_WORKSPACE_COPY.sidebar.changeLayout}
+                      </button>
+                    </div>
+                    {briefLayoutChoice === 'wizard' ? (
+                      <IntakeBankWizard
+                        responses={workspaceBriefResponses}
+                        onResponsesChange={onWizardResponsesChange}
+                        interviewMode={false}
+                        emphasizeClientSource={false}
+                        answerSource="consultant"
+                        collectionMode={audit.brief.collection_mode}
+                        intakeSurface={workspaceConsultantSurface}
+                        intakeAnalytics={
+                          id && workspaceConsultantSurface && audit.brief
+                            ? {
+                                auditId: id,
+                                surface: workspaceConsultantSurface,
+                                getIntakeVersions: () => audit.brief?.intake_versions ?? null,
+                              }
+                            : undefined
+                        }
+                        productMode={INTAKE_BRIEF_SLA_PRODUCT_MODE}
+                      />
+                    ) : (
+                      <BankClassicBriefFields
+                        compact
+                        responses={workspaceBriefResponses}
+                        collectionMode={audit.brief.collection_mode}
+                        intakeSurface={workspaceConsultantSurface}
+                        productMode={INTAKE_BRIEF_SLA_PRODUCT_MODE}
+                        onChange={onFieldChange}
+                        onSetUnknown={onFieldUnknown}
+                      />
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      <DomainNav
+        audit={audit}
+        visibleDomainKeys={visibleDomainKeys}
+        activeDomain={activeDomain}
+        setActiveDomain={setActiveDomain}
+        resetOpenRecommendation={resetOpenRecommendation}
+      />
+    </aside>
+  );
+}

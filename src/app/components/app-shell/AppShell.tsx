@@ -78,10 +78,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
   };
 
   return (
-    <div
-      className="min-h-0 flex flex-col sm:flex-row overflow-hidden h-[100dvh] sm:h-screen"
-      style={{ backgroundColor: 'var(--bg-canvas)' }}
-    >
+    <div className="min-h-0 flex h-[100dvh] flex-col overflow-hidden bg-[var(--bg-canvas)] sm:h-screen sm:flex-row">
       <DesktopSidebar
         open={!desktopSidebarCollapsed}
         navItems={navItems}
@@ -107,12 +104,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
         {desktopSidebarCollapsed && (
           <button
             type="button"
-            className="hidden sm:inline-flex absolute left-0 top-1/2 z-20 h-12 w-8 -translate-y-1/2 items-center justify-center rounded-r-lg border-0 transition-colors"
-            style={{
-              backgroundColor: 'var(--bg-surface)',
-              color: 'var(--text-secondary)',
-              boxShadow: 'var(--shadow-xs)',
-            }}
+            className="absolute left-0 top-1/2 z-20 hidden h-12 w-8 -translate-y-1/2 items-center justify-center rounded-r-lg border-0 bg-[var(--bg-surface)] text-[var(--text-secondary)] shadow-[var(--shadow-xs)] transition-colors sm:inline-flex"
             onClick={() => setDesktopSidebarCollapsed(false)}
             aria-label={APP_SHELL_COPY.aria.expandWorkspace}
             title={APP_SHELL_COPY.aria.expandWorkspace}

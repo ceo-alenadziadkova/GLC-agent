@@ -486,12 +486,13 @@ describe('FactChecker — domain-specific checks: Marketing', () => {
       issues: [],
       recommendations: [
         {
+          id: 'rec-mkt-1',
           title: 'Market expansion',
           description: 'Target TAM is $5B in year one.',
           priority: 'high',
-          effort: 'medium',
+          estimated_cost: 'Medium',
+          estimated_time: 'Q1',
           impact: 'Expected 30% uplift in conversion',
-          timeline: 'Q1',
         },
       ],
     });
@@ -506,12 +507,13 @@ describe('FactChecker — domain-specific checks: Marketing', () => {
       issues: [],
       recommendations: [
         {
+          id: 'rec-mkt-2',
           title: 'Competitive positioning',
           description: 'Competitor controls 40% market share in this segment.',
           priority: 'high',
-          effort: 'medium',
+          estimated_cost: 'Medium',
+          estimated_time: 'Q2',
           impact: 'Improve share by 10%',
-          timeline: 'Q2',
         },
       ],
     });
@@ -528,12 +530,13 @@ describe('FactChecker — domain-specific checks: Automation', () => {
       issues: [],
       recommendations: [
         {
+          id: 'rec-auto-1',
           title: 'Workflow automation',
           description: 'This flow will save 20 hours per week.',
           priority: 'high',
-          effort: 'medium',
+          estimated_cost: 'Medium',
+          estimated_time: '4 weeks',
           impact: 'Reduce manual workload',
-          timeline: '4 weeks',
         },
       ],
     });
@@ -548,12 +551,13 @@ describe('FactChecker — domain-specific checks: Automation', () => {
       issues: [],
       recommendations: [
         {
+          id: 'rec-auto-2',
           title: 'Integrations',
           description: 'Seamless integration with all core systems via no-code connectors.',
           priority: 'medium',
-          effort: 'low',
+          estimated_cost: 'Low',
+          estimated_time: '2 weeks',
           impact: 'Real-time sync in all tools',
-          timeline: '2 weeks',
         },
       ],
     });
@@ -647,12 +651,13 @@ describe('FactChecker — Marketing/Automation control object error typing', () 
       issues: [],
       recommendations: [
         {
+          id: 'rec-mkt-3',
           title: 'Market and competition',
           description: 'TAM is €3B and competitor has 35% market share.',
           priority: 'high',
-          effort: 'medium',
+          estimated_cost: 'Medium',
+          estimated_time: 'Q2',
           impact: 'ROI uplift by 25%',
-          timeline: 'Q2',
         },
       ],
     });
@@ -671,13 +676,14 @@ describe('FactChecker — Marketing/Automation control object error typing', () 
       issues: [],
       recommendations: [
         {
+          id: 'rec-auto-3',
           title: 'Automation rollout',
           description:
             'Fully automated real-time sync will save 16 hours per week with ROI in 2 months.',
           priority: 'high',
-          effort: 'medium',
+          estimated_cost: 'Medium',
+          estimated_time: 'Q1',
           impact: 'Payback in 2 months',
-          timeline: 'Q1',
         },
       ],
     });

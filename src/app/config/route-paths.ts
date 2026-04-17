@@ -30,6 +30,9 @@ export const buildAppRoute = {
   portalPipeline: (auditId: string): string => `/${P.portalPipelineById.replace(':id', auditId)}`,
   loginWithDiscovery: (token: string): string => `${APP_ROUTE_PATHS.login}?discovery=${encodeURIComponent(token)}`,
   auditNewFromDiscovery: (): string => `${APP_ROUTE_PATHS.auditNew}?from_discovery=1`,
+  /** Public intake token prefill for consultant New Audit wizard (`useNewAuditWizard` reads `intake`). */
+  auditNewWithIntakeToken: (token: string): string =>
+    `${APP_ROUTE_PATHS.auditNew}?intake=${encodeURIComponent(token)}`,
   loginWithHashAndSearch: (search: string, hash: string): string => `${APP_ROUTE_PATHS.login}${search}${hash}`,
   loginWithNext: (nextPath: string): string =>
     `${APP_ROUTE_PATHS.login}?next=${encodeURIComponent(nextPath)}`,

@@ -1,6 +1,6 @@
 # Testing matrix — user flows (Snapshot, auth, routing)
 
-This document tracks coverage for main client journeys. Commands: from repo root `pnpm install` once, then `pnpm test` (Vitest + RTL), `pnpm --filter glc-audit-server test` (or `cd server && pnpm test`), E2E `pnpm run test:e2e` after `pnpm exec playwright install chromium` (see [e2e/README.md](./e2e/README.md)). Full gate: `pnpm run check` (typecheck + lint + both test suites).
+This document tracks coverage for main client journeys. Commands: from repo root `pnpm install` once, then `pnpm test` (Vitest + RTL), `pnpm --filter glc-audit-server test` (or `cd server && pnpm test`), E2E `pnpm run test:e2e` after `pnpm exec playwright install chromium` (see [e2e/README.md](../../e2e/README.md)). Full gate: `pnpm run check` (typecheck + lint + both test suites).
 
 ## Strategy: stability, documentation, and dead code
 
@@ -8,11 +8,11 @@ This document tracks coverage for main client journeys. Commands: from repo root
 
 - **Regression and stability:** Automated tests catch accidental breaks when refactoring or shipping features. CI runs them on every push (see **CI** below).
 - **Logic and edge cases:** Tests encode expected behaviour (happy path, errors, role boundaries). Gaps in the matrix sections A–D highlight where behaviour is still implicit or only verified manually.
-- **Security:** Tests are **not** a substitute for threat modeling, dependency review, or penetration testing. They *can* lock down documented contracts (for example, auth headers on protected routes, snapshot access rules) so changes that violate [docs/SECURITY.md](./docs/SECURITY.md) or [docs/AUTH.md](./docs/AUTH.md) fail in CI. Treat security-sensitive logic as explicitly documented first, then tested against that doc.
+- **Security:** Tests are **not** a substitute for threat modeling, dependency review, or penetration testing. They *can* lock down documented contracts (for example, auth headers on protected routes, snapshot access rules) so changes that violate [docs/SECURITY.md](../SECURITY.md) or [docs/AUTH.md](../AUTH.md) fail in CI. Treat security-sensitive logic as explicitly documented first, then tested against that doc.
 
 ### Tests as living documentation
 
-- **Canonical behaviour** for the product lives in `/docs` (especially [AUTH.md](./docs/AUTH.md), [API.md](./docs/API.md), [ARCHITECTURE.md](./docs/ARCHITECTURE.md), [PIPELINE.md](./docs/PIPELINE.md)).
+- **Canonical behaviour** for the product lives in `/docs` (especially [AUTH.md](../AUTH.md), [API.md](../API.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [PIPELINE.md](../PIPELINE.md)).
 - **Convention:** In non-trivial test files, add a short top-of-file comment (or the first `describe` title) pointing to the doc section that defines the behaviour under test, e.g. `// Behaviour: docs/AUTH.md — anonymous snapshot JWT`.
 - If a test and a doc disagree, **fix the doc or the code** so they match; the passing test then **confirms** the documented contract until someone intentionally changes both.
 
@@ -63,7 +63,7 @@ Signals that something may be unused or legacy (investigate before deleting):
 | BE `/api/profile` | Yes | `profile-route.test.ts` |
 | E2E | Partial | Playwright: `/login` visible (see `e2e/smoke.spec.ts`) |
 
-Contract reference: [docs/AUTH.md](./docs/AUTH.md) (roles, snapshot guest cookie, `POST /api/snapshot/claim`).
+Contract reference: [docs/AUTH.md](../AUTH.md) (roles, snapshot guest cookie, `POST /api/snapshot/claim`).
 
 ### Note: unit/RTL vs browser and E2E (sign-in, flicker, races)
 
@@ -145,16 +145,16 @@ Run all commands from repo root:
 
 ## CI
 
-GitHub Actions workflow [.github/workflows/test.yml](.github/workflows/test.yml) runs root Vitest and `server/` Vitest (plus security gates and conditional question-stack contracts). **Playwright E2E is not run in CI** — run `pnpm run test:e2e` locally when needed (see [e2e/README.md](./e2e/README.md)).
+GitHub Actions workflow [.github/workflows/test.yml](../../.github/workflows/test.yml) runs root Vitest and `server/` Vitest (plus security gates and conditional question-stack contracts). **Playwright E2E is not run in CI** — run `pnpm run test:e2e` locally when needed (see [e2e/README.md](../../e2e/README.md)).
 
 ### CI Gate Policy
 
-- **Fast Gate**: [.github/workflows/test.yml](.github/workflows/test.yml)
+- **Fast Gate**: [.github/workflows/test.yml](../../.github/workflows/test.yml)
   - Runs on PR/push.
   - Includes security gates, typecheck, lint, and frontend/backend unit tests.
   - Intended as the default merge blocker.
 
-- **Release Gate**: [.github/workflows/release-gate.yml](.github/workflows/release-gate.yml)
+- **Release Gate**: [.github/workflows/release-gate.yml](../../.github/workflows/release-gate.yml)
   - Runs on `main`/`master` pushes and manual dispatch.
   - Includes Fast Gate–style checks plus migration execution on a clean PostgreSQL service.
   - Intended as the release readiness blocker.
@@ -173,21 +173,21 @@ Open the HTML report and sort by coverage to find **never-executed** modules; co
 
 Approximate **line** coverage when last checked (Vitest v8): frontend **~20%**, server **~42%**. Frontend is dominated by large pages with few tests; extracted libs and snapshot-related code are higher. Server snapshot pipeline and routes have mixed coverage; many pure helpers and types are fully covered.
 
-See also [docs/MASTER.md](./docs/MASTER.md) for architecture links.
+See also [docs/MASTER.md](../MASTER.md) for architecture links.
 
 ---
 
 ## Role acceptance scenarios (manual QA)
 
-Below is an ordered checklist for **product admin / QA** on a staging environment (not automated tests). Technical details align with the code and [docs/AUTH.md](./docs/AUTH.md).
+Below is an ordered checklist for **product admin / QA** on a staging environment (not automated tests). Technical details align with the code and [docs/AUTH.md](../AUTH.md).
 
 ### Shared reference
 
 | Topic | Where in the product |
 | --- | --- |
-| **Admin** label in UI | DB: `profiles.role = 'consultant'`; shell shows **Admin** ([`useProfile`](src/app/hooks/useProfile.ts), [`AppShell`](src/app/components/AppShell.tsx)). |
+| **Admin** label in UI | DB: `profiles.role = 'consultant'`; shell shows **Admin** ([`useProfile`](../../src/app/hooks/useProfile.ts), [`AppShell`](../../src/app/components/AppShell.tsx)). |
 | Who counts as consultant (bootstrap) | Server: emails in **`consultant_email_allowlist`** (see migration `048`); case-insensitive. Platform admins manage the table via **`GET` / `POST` / `DELETE /api/platform/consultant-allowlist`**. Must match on `attachProfile` / `GET /api/profile`. |
-| Snapshot without password | [`/snapshot`](src/app/pages/SnapshotLanding.tsx): `POST /api/snapshot` with **`credentials: 'include'`** (guest cookie); **`glc_pending_snapshot_token`** + **`POST /api/snapshot/claim`** after login ([docs/AUTH.md](./docs/AUTH.md)). |
+| Snapshot without password | [`/snapshot`](../../src/app/pages/SnapshotLanding.tsx): `POST /api/snapshot` with **`credentials: 'include'`** (guest cookie); **`glc_pending_snapshot_token`** + **`POST /api/snapshot/claim`** after login ([docs/AUTH.md](../AUTH.md)). |
 | Guest upgrade to client | Sign in then **claim** attaches `audits.client_id`. Legacy anonymous/`linkIdentity` paths are optional. |
 
 ---
@@ -203,16 +203,16 @@ Below is an ordered checklist for **product admin / QA** on a staging environmen
 
 - [ ] Expected: admin signs in via **normal login** (`/login`), not primarily through public Snapshot — Snapshot/Discovery are for **client** onboarding.
 - [ ] After login, **`/dashboard`** opens (`/portfolio` redirect goes there too).
-- [ ] Dashboard shows **operational blocks**: KPI strip (`KpiStrip`), action panels / score distribution, activity feed, **audit list**, audit search ([`Dashboard.tsx`](src/app/pages/Dashboard.tsx)).
+- [ ] Dashboard shows **operational blocks**: KPI strip (`KpiStrip`), action panels / score distribution, activity feed, **audit list**, audit search ([`Dashboard.tsx`](../../src/app/pages/Dashboard.tsx)).
 
 #### Snapshot / Discovery before login (do not mix with admin work context)
 
 - [ ] If admin uses `/snapshot` **while signed out**, then signs in with **full admin account**: consultant data must **not** be lost; snapshot is a separate `free_snapshot` row until **claim** if applicable.
-- [ ] After login, admin sees **consultant navigation**: Dashboard, Request queue, Discovery queue, contextual Audit / Pipeline / Reports / Strategy when an audit is selected ([`buildConsultantNav`](src/app/components/AppShell.tsx)).
+- [ ] After login, admin sees **consultant navigation**: Dashboard, Request queue, Discovery queue, contextual Audit / Pipeline / Reports / Strategy when an audit is selected ([`buildConsultantNav`](../../src/app/components/AppShell.tsx)).
 
 #### Settings, other areas, sign-out
 
-- [ ] **Settings** in sidebar exists for full accounts (not guest) — both Admin and Client ([`AppShell`](src/app/components/AppShell.tsx): `!isGuest`).
+- [ ] **Settings** in sidebar exists for full accounts (not guest) — both Admin and Client ([`AppShell`](../../src/app/components/AppShell.tsx): `!isGuest`).
 - [ ] Browse available settings and confirm content matches Admin role (no client `/portal` without an explicit scenario).
 - [ ] **Sign out** clears session; visiting `/dashboard` again goes to `/login`.
 
@@ -233,7 +233,7 @@ Below is an ordered checklist for **product admin / QA** on a staging environmen
 #### Snapshot or Discovery with an existing account
 
 - [ ] User is already **client**, runs public **Snapshot** or **Discovery**, then **signs in with the same account**; **claim** attaches the snapshot when pending token is present.
-- [ ] Confirm: new snapshot/discovery **attaches** to the user / appears in portal, and **previous audits and quick snapshots are not missing** or replaced by a false single-audit state. Backend `user_id` / `client_id` wiring — cross-check [docs/API.md](./docs/API.md) and audit routes.
+- [ ] Confirm: new snapshot/discovery **attaches** to the user / appears in portal, and **previous audits and quick snapshots are not missing** or replaced by a false single-audit state. Backend `user_id` / `client_id` wiring — cross-check [docs/API.md](../API.md) and audit routes.
 
 #### Sign-out
 
@@ -245,7 +245,7 @@ Below is an ordered checklist for **product admin / QA** on a staging environmen
 
 #### First visit and role
 
-- [ ] If still using **anonymous** Supabase sessions, profile may be **`guest`**, shell shows **Guest**, **SNAPSHOT** nav ([`buildGuestNav`](src/app/components/AppShell.tsx)). Cookie-only snapshot does not require anonymous auth.
+- [ ] If still using **anonymous** Supabase sessions, profile may be **`guest`**, shell shows **Guest**, **SNAPSHOT** nav ([`buildGuestNav`](../../src/app/components/AppShell.tsx)). Cookie-only snapshot does not require anonymous auth.
 - [ ] **Settings** hidden for guest (`isGuest`).
 
 #### Snapshot and Discovery
@@ -272,7 +272,7 @@ Below is an ordered checklist for **product admin / QA** on a staging environmen
 
 ### Link to automated tests
 
-Partially covered today: tables A–E2 above; Playwright under [e2e/](e2e/) (see [e2e/README.md](e2e/README.md)). Full walkthrough of this section needs **staging with real Supabase and consultant allowlist**.
+Partially covered today: tables A–E2 above; Playwright under [e2e/](e2e/) (see [e2e/README.md](../../e2e/README.md)). Full walkthrough of this section needs **staging with real Supabase and consultant allowlist**.
 
 ## P0 Quality Policy and Regression Pack
 
@@ -284,7 +284,7 @@ No change is merge-ready or release-ready unless all P0 checks pass.
 - Typecheck passes
 - Lint passes
 - Frontend and backend test suites pass
-- Before merge, run Playwright smoke locally (`pnpm run test:e2e`) when changing public routing, marketing pages, or discovery UI covered in [e2e/smoke.spec.ts](e2e/smoke.spec.ts) — E2E is not run in CI
+- Before merge, run Playwright smoke locally (`pnpm run test:e2e`) when changing public routing, marketing pages, or discovery UI covered in [e2e/smoke.spec.ts](../../e2e/smoke.spec.ts) — E2E is not run in CI
 
 ### Release Gate (required)
 

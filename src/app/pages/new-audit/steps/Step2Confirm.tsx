@@ -4,6 +4,7 @@ import { ArrowLeft, Lightning, Rocket, Warning } from '@phosphor-icons/react';
 import type { DomainKey, AuditCoveragePackage } from '../../../data/auditTypes';
 import { coveragePackageLabel } from '../../../lib/audit-execution-plan';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
+import { Callout } from '../../../components/ui/callout';
 
 export type Step2ConfirmProps = {
   url: string;
@@ -68,7 +69,7 @@ export function Step2Confirm({
       </div>
 
       {/* Summary */}
-      <div className="space-y-2 rounded-xl p-4" style={{ backgroundColor: 'var(--bg-inset)', border: '1px solid var(--border-subtle)' }}>
+      <Callout intent="neutral" className="space-y-2 rounded-xl p-4">
         {[
           [WORKSPACE_PAGE_COPY.newAudit.step2.summaryWebsiteLabel, url],
           name ? [WORKSPACE_PAGE_COPY.newAudit.step2.summaryCompanyLabel, name] : null,
@@ -79,17 +80,19 @@ export function Step2Confirm({
           .filter((row): row is [string, string] => row != null)
           .map(([label, value]) => (
             <div key={label} className="flex items-start gap-3">
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', minWidth: 90, paddingTop: 1 }}>{label}</span>
-              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', wordBreak: 'break-word' }}>{value}</span>
+              <span className="min-w-[90px] pt-[1px] text-xs text-[var(--text-tertiary)]">{label}</span>
+              <span className="break-words text-sm text-[var(--text-primary)]">{value}</span>
             </div>
           ))}
-      </div>
+      </Callout>
 
       {error && (
-        <div className="flex items-center gap-2.5 px-4 py-3 rounded-lg text-sm" style={{ backgroundColor: 'var(--callout-error-bg)', border: '1px solid var(--callout-error-border)', color: 'var(--score-1)' }}>
-          <Warning className="w-4 h-4 flex-shrink-0" />
-          {error}
-        </div>
+        <Callout intent="danger">
+          <div className="flex items-center gap-2.5 text-sm text-[var(--score-1)]">
+            <Warning className="h-4 w-4 flex-shrink-0" />
+            {error}
+          </div>
+        </Callout>
       )}
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-3">

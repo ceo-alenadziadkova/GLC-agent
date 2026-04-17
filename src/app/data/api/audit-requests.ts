@@ -19,7 +19,11 @@ export const auditRequestsApi = {
     });
   },
 
-  async listAuditRequests(limit: number = GLC_AUDITS_AND_AUDIT_REQUESTS_LIST.defaultLimit, offset = 0) {
+  /** List audit requests with server-enforced caps (`@glc/route-limits`). */
+  async listAuditRequests(
+    limit: number = GLC_AUDITS_AND_AUDIT_REQUESTS_LIST.defaultLimit,
+    offset: number = 0,
+  ) {
     return apiFetch<{ data: AuditRequest[]; total: number; limit: number; offset: number }>(
       `${API_PATHS.auditRequests}?limit=${limit}&offset=${offset}`,
     );

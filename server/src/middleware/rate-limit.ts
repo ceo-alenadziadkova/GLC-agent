@@ -75,7 +75,7 @@ if (process.env.NODE_ENV === 'production' && !RATE_LIMIT_REDIS_URL) {
 }
 
 let sharedRedisClient: RateLimitRedisClient | null = null;
-let sharedRedisConnectPromise: Promise<void> | null = null;
+let sharedRedisConnectPromise: Promise<RateLimitRedisClient> | null = null;
 
 function getSharedRedisClient(): RateLimitRedisClient | null {
   if (!RATE_LIMIT_REDIS_URL) return null;
@@ -87,7 +87,7 @@ function getSharedRedisClient(): RateLimitRedisClient | null {
       error: err instanceof Error ? err.message : String(err),
     });
   });
-  sharedRedisConnectPromise = client.connect().catch((err) => {
+  sharedRedisConnectPromise = client.connect().catch((err: unknown) => {
     logger.warn('[rate-limit] redis connect failed', {
       error: err instanceof Error ? err.message : String(err),
     });
@@ -310,6 +310,21 @@ export const discoverPublicReadLimiter = rateLimit({
   windowMs: HOUR_MS,
   max: PRL.discoverReadMaxPerHour,
   store: distributedStore('discover_read'),
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  message: {
+    error: RATE_LIMIT_DISCOVER_READ_MESSAGE,
+    code: API_ERROR_CODES.DISCOVER_READ_RATE_LIMITED,
+    retry_after_minutes: retryAfterMinutesFromWindow(HOUR_MS),
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** GET /api/discover/ui-fragment — high-read static payload for public wizard bootstrapping. */
+export const discoverUiFragmentReadLimiter = rateLimit({
+  windowMs: HOUR_MS,
+  max: PRL.discoverUiFragmentReadMaxPerHour,
+  store: distributedStore('discover_ui_fragment_read'),
   keyGenerator: (req) => req.ip ?? 'unknown',
   message: {
     error: RATE_LIMIT_DISCOVER_READ_MESSAGE,

@@ -12,6 +12,7 @@
 import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest';
 import type { Server } from 'node:http';
 import express from 'express';
+import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 
 const {
   OWNER,
@@ -234,7 +235,7 @@ describe('GET /api/audits/:id/pipeline/status', () => {
     expect(Array.isArray(body.reviews)).toBe(true);
     expect((body.reviews as unknown[])).toHaveLength(1);
 
-    expect(getLastOrFilter()).toBe(`user_id.eq.${OWNER},client_id.eq.${OWNER}`);
+    expect(getLastOrFilter()).toBe(safeOrUserFilter(OWNER));
   });
 
   it('returns 200 for client_id when user is the linked client', async () => {
@@ -243,7 +244,7 @@ describe('GET /api/audits/:id/pipeline/status', () => {
     expect(res.status).toBe(200);
     const body = await res.json() as Record<string, unknown>;
     expect(body.status).toBe('review');
-    expect(getLastOrFilter()).toBe(`user_id.eq.${CLIENT},client_id.eq.${CLIENT}`);
+    expect(getLastOrFilter()).toBe(safeOrUserFilter(CLIENT));
   });
 
   it('returns 404 when user is neither owner nor client', async () => {

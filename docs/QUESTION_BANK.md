@@ -822,7 +822,7 @@ Use this checklist for **any** change to `question_bank.v1`, answer options, or 
 
 - `packages/intake-core/src/brief-gates.ts`
 - `server/src/tests/intake-brief-policy-sync.test.ts`
-- `packages/intake-core/src/core/lint-bank-policy.ts`
+- `packages/intake-core/src/core/lint-bank-policy/` (facade: `lint-bank-policy.ts`)
 - `packages/intake-core/src/core/plan-derived.ts`
 - `server/src/routes/intake.ts`
 - `server/src/routes/audits.ts`

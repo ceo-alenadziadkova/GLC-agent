@@ -4,7 +4,7 @@
  * Fallback: pipeline_events event_type = PIPELINE_EVENT_TYPES.controlObject.
  */
 
-import type { ControlObjectV1, PhaseId } from '../schemas/control-object.js';
+import type { ControlObjectV1, PhaseId } from '../schemas/control-object/index.js';
 import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
 import type { DomainKey } from '../types/audit.js';
 import { phaseIdsStrictlyBefore, phaseOrderIndex } from '../config/phase-order.js';

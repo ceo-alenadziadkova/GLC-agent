@@ -7,7 +7,7 @@ import {
   STRUCTURAL_ERROR_SCORE_EVIDENCE_MISMATCH,
   STRUCTURAL_ERROR_UPSTREAM_CLAIM_INVALIDATED,
 } from '../../../config/fact-checker/control-object-error-codes.js';
-import type { ControlObjectV1 } from '../../../schemas/control-object.js';
+import type { ControlObjectV1 } from '../../../schemas/control-object/index.js';
 import type { DomainKey, DomainResult } from '../../../types/audit.js';
 import type { ExtendedPhaseProfile } from '../../../config/phase-profiles.js';
 import type { FactCorrection } from '../types.js';

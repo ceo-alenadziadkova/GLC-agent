@@ -1,7 +1,7 @@
 import { supabase } from '../supabase.js';
 import { banditService, DEFAULT_VARIANT_ID } from '../bandit.js';
 import type { BaseAgent } from '../../agents/base.js';
-import type { ControlObjectV1 } from '../../schemas/control-object.js';
+import type { ControlObjectV1 } from '../../schemas/control-object/index.js';
 import { findVariant } from '../../config/agent-variants.js';
 import {
   interpolateOrchestratorMessage,

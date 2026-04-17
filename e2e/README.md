@@ -33,7 +33,7 @@ Most specs target **public** routes and do not require a Supabase session.
 - **Snapshot** full guest funnel without a live pipeline: `snapshot-public-mocked.spec.ts` (mocks `/api/snapshot*`). Against a **real** API, credentialed cookie behaviour still depends on `VITE_API_URL` / proxy (see `src/app/lib/api-base-url.ts`).
 - **Sign-out** and **claim** with a real session: `staging-auth-claim.spec.ts` + `E2E_STAGING_*` env vars.
 
-See [TESTING.md](../TESTING.md) for the full coverage matrix.
+See [TESTING.md](../docs/instructions/TESTING.md) for the full coverage matrix.
 
 ## Staging P0 skeleton
 

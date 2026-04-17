@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createControlObjectV1 } from '../schemas/control-object.js';
+import { createControlObjectV1 } from '../schemas/control-object/index.js';
 import { dynamicAdjustmentService } from '../services/dynamic-adjustment.js';
 
 describe('DynamicAdjustmentService — security routing', () => {

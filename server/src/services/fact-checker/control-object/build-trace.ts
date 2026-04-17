@@ -1,4 +1,4 @@
-import type { ControlObjectV1 } from '../../../schemas/control-object.js';
+import type { ControlObjectV1 } from '../../../schemas/control-object/index.js';
 import type { DomainKey, DomainResult } from '../../../types/audit.js';
 import type { ConnectorRunResult } from '../../connector-runner.js';
 import {

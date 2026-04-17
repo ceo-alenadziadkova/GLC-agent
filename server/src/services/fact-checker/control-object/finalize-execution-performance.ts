@@ -2,7 +2,7 @@ import { applyExecutionMode } from '../../../config/safety-mode.js';
 import { isCausalDagEnabled } from '../../../config/feature-flags.js';
 import { computePerformanceMetrics } from '../../agent-performance.js';
 import { STRUCTURAL_ERROR_UPSTREAM_CLAIM_INVALIDATED } from '../../../config/fact-checker/control-object-error-codes.js';
-import type { ControlObjectV1 } from '../../../schemas/control-object.js';
+import type { ControlObjectV1 } from '../../../schemas/control-object/index.js';
 import type { DomainResult } from '../../../types/audit.js';
 import type { FactCorrection } from '../types.js';
 

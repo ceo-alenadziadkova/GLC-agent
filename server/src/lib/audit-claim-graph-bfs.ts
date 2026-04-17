@@ -2,7 +2,7 @@
  * Pure transitive dependent walk for audit_claim_graph rows (no Supabase import).
  */
 
-import type { ControlObjectCausalClaimRef, PhaseId } from '../schemas/control-object.js';
+import type { ControlObjectCausalClaimRef, PhaseId } from '../schemas/control-object/index.js';
 
 export interface AuditClaimGraphRowShape {
   phase_id: string;

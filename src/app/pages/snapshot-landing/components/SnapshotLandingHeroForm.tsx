@@ -2,6 +2,7 @@ import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, CheckCircle, Globe, Lightning } from '@phosphor-icons/react';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
+import { Callout } from '../../../components/ui/callout';
 import { SNAPSHOT_COMMAND_SHELL_OUTLINE } from '../../../config/snapshot-marketing-ui';
 import { SNAPSHOT_LANDING_HERO_COPY } from '../../../config/snapshot-landing-copy.en';
 import { marketingHeroBillboardMotion } from '../../../config/marketing-motion-variants';
@@ -197,14 +198,15 @@ export function SnapshotLandingHeroForm(props: {
 
               {stage === 'error' && errorMsg && (
                 <div className="mt-3 space-y-1 text-center mobile:text-left">
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-sm"
-                    style={{ color: 'var(--score-1)' }}
-                  >
-                    {errorMsg}
-                  </motion.p>
+                  <Callout intent="danger">
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="text-sm text-[var(--score-1)]"
+                    >
+                      {errorMsg}
+                    </motion.p>
+                  </Callout>
                   {rateLimitDetail && (
                     <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                       {SNAPSHOT_LANDING_HERO_COPY.rateLimitUsagePrefix} {rateLimitDetail.remaining} of {rateLimitDetail.limit}.

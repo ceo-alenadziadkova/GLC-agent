@@ -78,4 +78,9 @@ export const ADMIN_REQUEST_QUEUE_CHROME = {
   filterActiveBackground: 'rgba(28,189,255,0.15)',
   filterActiveBorder: 'rgba(28,189,255,0.35)',
   rejectNoteBackground: 'rgba(239,68,68,0.12)',
+  /** Clipboard / audit-request row icon tile */
+  rowIconBackground: 'rgba(28,189,255,0.08)',
+  rowIconBorder: 'rgba(28,189,255,0.15)',
+  /** Outline for “New audit with prefill” CTA */
+  prefillCtaBorder: 'rgba(28,189,255,0.35)',
 } as const;

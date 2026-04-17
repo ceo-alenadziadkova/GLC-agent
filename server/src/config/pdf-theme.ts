@@ -14,3 +14,8 @@ export const PDF_THEME = GLC_BRAND_HEX;
 export function pdfLocaleTag(): string {
   return SYSTEM_DEFAULTS.reportPdf.localeTag;
 }
+
+/** Fixed page header middle-dot separator color. Source: `SYSTEM_DEFAULTS.reportPdf.headerSepMuted`. */
+export function pdfHeaderSeparatorColor(): string {
+  return SYSTEM_DEFAULTS.reportPdf.headerSepMuted;
+}

@@ -245,7 +245,7 @@ describe('BaseAgent.callClaudeWithRetry — AI output contract', () => {
       phase_id: 'tech_infrastructure',
       instruction_delta: 'replacement prompt',
       delta_type: 'replace',
-      rationale: 'test',
+      description: 'test',
     };
     agent.autoLoopAdjustments = new Map([[1, 'auto-loop patch']]);
 

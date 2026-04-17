@@ -10,7 +10,7 @@ import { pipelineRouter } from '../routes/pipeline.js';
 import { reportsRouter } from '../routes/reports.js';
 import { logRouter } from '../routes/log.js';
 import { snapshotRouter } from '../routes/snapshot.js';
-import { intakeRouter } from '../routes/intake.js';
+import { intakeRouter } from '../routes/intake/index.js';
 import { intakeTraceToolRouter } from '../routes/intake-trace-tool.js';
 import { discoverRouter } from '../routes/discover.js';
 import { marketingRouter } from '../routes/marketing-brief.js';

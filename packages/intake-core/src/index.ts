@@ -177,7 +177,12 @@ export {
 export { INTAKE_UI_CONFIG, type IntakeUiConfig } from './config/intake-ui-config.js';
 export { EXPRESS_REQUIRED_ALWAYS_IDS, EXPRESS_REQUIRED_IF_VISIBLE_IDS } from './express-policy-ids.js';
 export type {
+  BriefPriority,
   BriefQuestion,
+  BriefResponseEntry,
+  BriefResponseSource,
+  BriefResponseValue,
+  BriefRevenueSignal,
   DomainKey,
   IntakeBriefCollectionMode,
   IntakeVersionMigration,
@@ -223,6 +228,7 @@ export {
   isAllowedMarketingBriefRoute,
   MARKETING_BRIEF_ALLOWED_ROUTES,
   type MarketingBriefPreferredAuditDepth,
+  type MarketingBriefPreferredCoveragePackage,
   type MarketingBriefRoute,
   type MarketingBriefRoutingInput,
 } from './marketing-brief-routing.js';

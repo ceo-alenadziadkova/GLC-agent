@@ -18,7 +18,7 @@ export function ResultsCtaBand(props: { quotaHint: string; reset: () => void }) 
     >
       <div className="relative z-[1] min-w-0 flex-1">
         {quotaHint && (
-          <p className="mb-3 text-xs lg:mb-2" style={{ color: 'rgba(255,255,255,0.55)' }}>
+          <p className="mb-3 text-xs text-white/55 lg:mb-2">
             {quotaHint}
           </p>
         )}
@@ -33,7 +33,7 @@ export function ResultsCtaBand(props: { quotaHint: string; reset: () => void }) 
         >
           {SNAPSHOT_LANDING_HERO_COPY.fullPictureTitle}
         </h3>
-        <p className="mt-2 max-w-xl text-pretty text-sm leading-relaxed lg:mt-2" style={{ color: 'rgba(255,255,255,0.76)' }}>
+        <p className="mt-2 max-w-xl text-pretty text-sm leading-relaxed text-white/75 lg:mt-2">
           {SNAPSHOT_LANDING_HERO_COPY.fullPictureBody}
         </p>
       </div>

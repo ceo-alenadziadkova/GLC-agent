@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { discoverApi } from '../../../data/api/discover';
 import {
   setDiscoveryUiFragmentQuestions,
@@ -10,6 +10,11 @@ export function useDiscoveryUiFragment(params: {
   onIntakeVersionsResolved: (versions: IntakeVersionTuple) => void;
 }): void {
   const { onIntakeVersionsResolved } = params;
+  const onIntakeVersionsResolvedRef = useRef(onIntakeVersionsResolved);
+
+  useEffect(() => {
+    onIntakeVersionsResolvedRef.current = onIntakeVersionsResolved;
+  }, [onIntakeVersionsResolved]);
 
   useEffect(() => {
     let cancelled = false;
@@ -18,7 +23,7 @@ export function useDiscoveryUiFragment(params: {
         const data = await discoverApi.getUiFragment();
         if (cancelled || !data?.questions?.length) return;
         if (data.intake_versions) {
-          onIntakeVersionsResolved(data.intake_versions);
+          onIntakeVersionsResolvedRef.current(data.intake_versions);
         }
         const mapped: DiscoveryQuestion[] = data.questions.map(question => ({
           id: question.id,
@@ -36,5 +41,5 @@ export function useDiscoveryUiFragment(params: {
     return () => {
       cancelled = true;
     };
-  }, [onIntakeVersionsResolved]);
+  }, []);
 }

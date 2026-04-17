@@ -2,19 +2,27 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { Server } from 'node:http';
 import express from 'express';
 
+type PlatformSettingsWriteOk = { ok: true };
+type PlatformSettingsWriteErr = { ok: false; error: string; statusCode: number };
+type PlatformSettingsWriteResult = PlatformSettingsWriteOk | PlatformSettingsWriteErr;
+
 const mocks = vi.hoisted(() => {
-  const canManagePlatformSettings = vi.fn(async () => true);
+  const canManagePlatformSettings = vi.fn(async (_userId: string) => true);
   const getStoredSelfServeAuditOwnerUserId = vi.fn(async () => 'consultant-001');
   const resolveSelfServeAuditOwnerUserId = vi.fn(async () => ({ ok: true as const, userId: 'consultant-001' }));
   const listConsultantDirectoryRows = vi.fn(async () => [{ id: 'consultant-001' }]);
-  const setStoredSelfServeAuditOwnerUserId = vi.fn(async () => ({ ok: true as const, statusCode: 200 }));
+  const setStoredSelfServeAuditOwnerUserId = vi.fn(
+    async (): Promise<PlatformSettingsWriteResult> => ({ ok: true }),
+  );
   const getPlatformRuntimePolicySnapshot = vi.fn(async () => ({
     intake_token_ttl_days: 14,
     evaluation_retention_default_days: 30,
     evaluation_retention_extended_days: 90,
     evaluation_retention_internal_only_days: 365,
   }));
-  const setPlatformRuntimePolicyPatch = vi.fn(async () => ({ ok: true as const, statusCode: 200 }));
+  const setPlatformRuntimePolicyPatch = vi.fn(
+    async (): Promise<PlatformSettingsWriteResult> => ({ ok: true }),
+  );
 
   let profileLookup:
     | { data: { id: string; role: string }; error: null }
@@ -74,29 +82,29 @@ vi.mock('../middleware/rate-limit.js', () => ({
 }));
 
 vi.mock('../services/supabase.js', () => ({
-  supabase: { from: (...args: unknown[]) => mocks.mockFrom(...args) },
+  supabase: { from: mocks.mockFrom },
 }));
 
 vi.mock('../lib/platform-admin.js', () => ({
-  canManagePlatformSettings: (...args: unknown[]) => mocks.canManagePlatformSettings(...args),
+  canManagePlatformSettings: mocks.canManagePlatformSettings,
 }));
 
 vi.mock('../lib/platform-self-serve-settings.js', () => ({
-  getStoredSelfServeAuditOwnerUserId: (...args: unknown[]) => mocks.getStoredSelfServeAuditOwnerUserId(...args),
-  setStoredSelfServeAuditOwnerUserId: (...args: unknown[]) => mocks.setStoredSelfServeAuditOwnerUserId(...args),
+  getStoredSelfServeAuditOwnerUserId: mocks.getStoredSelfServeAuditOwnerUserId,
+  setStoredSelfServeAuditOwnerUserId: mocks.setStoredSelfServeAuditOwnerUserId,
 }));
 
 vi.mock('../lib/self-serve-audit-owner.js', () => ({
-  resolveSelfServeAuditOwnerUserId: (...args: unknown[]) => mocks.resolveSelfServeAuditOwnerUserId(...args),
+  resolveSelfServeAuditOwnerUserId: mocks.resolveSelfServeAuditOwnerUserId,
 }));
 
 vi.mock('../lib/platform-runtime-settings.js', () => ({
-  getPlatformRuntimePolicySnapshot: (...args: unknown[]) => mocks.getPlatformRuntimePolicySnapshot(...args),
-  setPlatformRuntimePolicyPatch: (...args: unknown[]) => mocks.setPlatformRuntimePolicyPatch(...args),
+  getPlatformRuntimePolicySnapshot: mocks.getPlatformRuntimePolicySnapshot,
+  setPlatformRuntimePolicyPatch: mocks.setPlatformRuntimePolicyPatch,
 }));
 
 vi.mock('../lib/consultant-directory.js', () => ({
-  listConsultantDirectoryRows: (...args: unknown[]) => mocks.listConsultantDirectoryRows(...args),
+  listConsultantDirectoryRows: mocks.listConsultantDirectoryRows,
 }));
 
 vi.mock('../services/benchmark-snapshot.js', () => ({
@@ -138,14 +146,14 @@ beforeEach(() => {
   mocks.getStoredSelfServeAuditOwnerUserId.mockResolvedValue('consultant-001');
   mocks.resolveSelfServeAuditOwnerUserId.mockResolvedValue({ ok: true, userId: 'consultant-001' });
   mocks.listConsultantDirectoryRows.mockResolvedValue([{ id: 'consultant-001' }]);
-  mocks.setStoredSelfServeAuditOwnerUserId.mockResolvedValue({ ok: true, statusCode: 200 });
+  mocks.setStoredSelfServeAuditOwnerUserId.mockResolvedValue({ ok: true });
   mocks.getPlatformRuntimePolicySnapshot.mockResolvedValue({
     intake_token_ttl_days: 14,
     evaluation_retention_default_days: 30,
     evaluation_retention_extended_days: 90,
     evaluation_retention_internal_only_days: 365,
   });
-  mocks.setPlatformRuntimePolicyPatch.mockResolvedValue({ ok: true, statusCode: 200 });
+  mocks.setPlatformRuntimePolicyPatch.mockResolvedValue({ ok: true });
   mocks.setProfileLookup({ data: { id: 'consultant-001', role: 'consultant' }, error: null });
 });
 
@@ -197,7 +205,11 @@ describe('platform self-serve/runtime contract', () => {
   });
 
   it('PATCH /self-serve-owner returns persist-failed code when storage update fails', async () => {
-    mocks.setStoredSelfServeAuditOwnerUserId.mockResolvedValueOnce({ ok: false, statusCode: 503 });
+    mocks.setStoredSelfServeAuditOwnerUserId.mockResolvedValueOnce({
+      ok: false,
+      statusCode: 503,
+      error: 'persist failed',
+    });
     const res = await fetch(`${baseUrl}/api/platform/self-serve-owner`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -250,7 +262,11 @@ describe('platform self-serve/runtime contract', () => {
   });
 
   it('PATCH /runtime-policies returns persist-failed code when update cannot be stored', async () => {
-    mocks.setPlatformRuntimePolicyPatch.mockResolvedValueOnce({ ok: false, statusCode: 503 });
+    mocks.setPlatformRuntimePolicyPatch.mockResolvedValueOnce({
+      ok: false,
+      statusCode: 503,
+      error: 'persist failed',
+    });
     const res = await fetch(`${baseUrl}/api/platform/runtime-policies`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },

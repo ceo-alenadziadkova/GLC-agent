@@ -1,66 +1,53 @@
 import { ScoreIndicator } from './ScoreIndicator';
 import { ProgressBar } from './ProgressBar';
-import type { AuditDomain } from '../data/auditData';
+import type { AuditDomain } from '../data/audit';
+import { Surface } from './ui/surface';
+import { getScoreTone } from '../design-system/tokens/report-semantic-tokens';
 
 interface ScorecardOverviewProps {
   domain: AuditDomain;
 }
 
 export function ScorecardOverview({ domain }: ScorecardOverviewProps) {
+  const scoreTone = getScoreTone(domain.score);
   const metrics = [
-    { label: 'Strengths Identified', value: domain.strengths.length, color: 'var(--status-excellent)' },
-    { label: 'Weaknesses Found', value: domain.weaknesses.length, color: 'var(--text-secondary)' },
-    { label: 'Critical Issues', value: domain.issues.filter(i => i.severity === 'critical').length, color: 'var(--status-critical)' },
-    { label: 'Recommendations', value: domain.recommendations.length, color: 'var(--text-primary)' },
+    { label: 'Strengths Identified', value: domain.strengths.length, color: 'text-[var(--score-5)]' },
+    { label: 'Weaknesses Found', value: domain.weaknesses.length, color: 'text-[var(--text-secondary)]' },
+    { label: 'Critical Issues', value: domain.issues.filter(i => i.severity === 'critical').length, color: 'text-[var(--score-1)]' },
+    { label: 'Recommendations', value: domain.recommendations.length, color: 'text-[var(--text-primary)]' },
   ];
-
-  const getScoreColor = (score: number) => {
-    if (score >= 4) return 'var(--status-excellent)';
-    if (score === 3) return 'var(--status-moderate)';
-    if (score === 2) return 'var(--status-needs-improvement)';
-    return 'var(--status-critical)';
-  };
 
   return (
     <section className="mb-12">
-      <div className="text-xs font-semibold tracking-wide mb-4" style={{ color: 'var(--text-tertiary)' }}>
+      <div className="mb-4 text-xs font-semibold tracking-wide text-[var(--text-tertiary)]">
         SCORECARD OVERVIEW
       </div>
-      
-      <div 
-        className="p-6 rounded-lg" 
-        style={{ 
-          backgroundColor: 'var(--surface)',
-          border: '1px solid var(--panel-border)',
-          boxShadow: 'var(--shadow-sm)'
-        }}
-      >
+
+      <Surface padding="lg" className="bg-[var(--surface)]">
         <div className="flex items-center gap-6 mb-6">
           <ScoreIndicator score={domain.score} size="lg" />
           <div className="flex-1">
-            <div className="text-sm mb-2" style={{ color: 'var(--text-tertiary)' }}>
+            <div className="mb-2 text-sm text-[var(--text-tertiary)]">
               Overall Score
             </div>
-            <div className="text-2xl font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+            <div className="mb-3 text-2xl font-semibold text-[var(--text-primary)]">
               {domain.score}/5
             </div>
-            <ProgressBar value={domain.score} max={5} color={getScoreColor(domain.score)} />
+            <ProgressBar value={domain.score} max={5} toneClassName={scoreTone.textClassName} />
           </div>
         </div>
-        
+
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {metrics.map((metric) => (
             <div key={metric.label}>
-              <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>
+              <div className="mb-2 text-xs text-[var(--text-tertiary)]">
                 {metric.label}
               </div>
-              <div className="text-2xl font-semibold" style={{ color: metric.color }}>
-                {metric.value}
-              </div>
+              <div className={`text-2xl font-semibold ${metric.color}`}>{metric.value}</div>
             </div>
           ))}
         </div>
-      </div>
+      </Surface>
     </section>
   );
 }

@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 
 import { trackIntakeWordingReviewExported } from '../../lib/intake-workspace-telemetry';
+import { collectPlanQuestionIds } from './domain/trace-plan-selectors';
 import { INTAKE_TRACE_EDGE_GRAPH_UI_COPY } from './intake-trace-edge-graph/config/graph-copy';
 import { INTAKE_TRACE_GRAPH_CONFIG } from './intake-trace-edge-graph/config/graph-config';
 import { buildGraphModel } from './intake-trace-edge-graph/domain/graph-model';
@@ -48,14 +49,7 @@ export function IntakeTraceEdgeGraph({
   const { onMouseDown, onMouseMove, onMouseUp } = useCanvasPan(containerRef);
 
   const ids = useMemo(() => {
-    const set = new Set<string>([
-      ...plan.eligible,
-      ...plan.visible,
-      ...plan.required,
-      ...plan.hidden,
-      ...plan.deferred,
-    ]);
-    return [...set].sort((a, b) => a.localeCompare(b));
+    return collectPlanQuestionIds(plan);
   }, [plan]);
 
   const { edges, layers, upstreamById, downstreamById } = useMemo(() => buildGraphModel(ids), [ids]);

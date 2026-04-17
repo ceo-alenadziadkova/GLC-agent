@@ -3,6 +3,8 @@ import { Copy, X } from '@phosphor-icons/react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import { INDUSTRY_OPTIONS } from '../../../data/industry-options';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
+import { Callout } from '../../../components/ui/callout';
+import { FormField } from '../../../components/ui/form-field';
 
 export type PreBriefModalProps = {
   isOpen: boolean;
@@ -72,6 +74,8 @@ export function PreBriefModal({
   footer,
 }: PreBriefModalProps) {
   if (!isOpen) return null;
+  const baseFieldClassName =
+    'w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)]';
 
   function onIndustryChange(e: ChangeEvent<HTMLSelectElement>) {
     const v = e.target.value;
@@ -123,40 +127,29 @@ export function PreBriefModal({
             {WORKSPACE_PAGE_COPY.newAudit.preBriefModal.preFillOnClientFormLabel}
           </p>
 
-          <div>
-            <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-              {WORKSPACE_PAGE_COPY.newAudit.preBriefModal.companyNameLabel}
-            </label>
+          <FormField label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.companyNameLabel}>
             <input
               value={company}
               onChange={e => setCompany(e.target.value)}
               placeholder={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.companyNamePlaceholder}
-              className="w-full px-3 py-2 rounded-lg text-sm"
-              style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+              className={baseFieldClassName}
             />
-          </div>
+          </FormField>
 
-          <div>
-            <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-              {WORKSPACE_PAGE_COPY.newAudit.preBriefModal.companyWebsiteLabel}
-            </label>
+          <FormField label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.companyWebsiteLabel}>
             <input
               value={website}
               onChange={e => setWebsite(e.target.value)}
               placeholder={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.companyWebsitePlaceholder}
-              className="w-full px-3 py-2 rounded-lg text-sm"
-              style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+              className={baseFieldClassName}
             />
-          </div>
+          </FormField>
 
-          <div>
-            <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-              {WORKSPACE_PAGE_COPY.newAudit.preBriefModal.industryLabel}
-            </label>
+          <FormField label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.industryLabel}>
             <select
               value={industryField}
               onChange={onIndustryChange}
-              className="w-full px-3 py-2 rounded-lg text-sm"
+              className={baseFieldClassName}
               style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: industryField ? 'var(--text-primary)' : 'var(--text-tertiary)' }}
             >
               <option value="">{WORKSPACE_PAGE_COPY.newAudit.preBriefModal.industrySelectPlaceholder}</option>
@@ -166,105 +159,83 @@ export function PreBriefModal({
                 </option>
               ))}
             </select>
-          </div>
+          </FormField>
 
           {industryField === 'Other' && (
-            <div>
-              <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-                {WORKSPACE_PAGE_COPY.newAudit.preBriefModal.industryOtherLabel}
-                <span style={{ color: 'var(--glc-orange)' }}>*</span>
-              </label>
+            <FormField
+              label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.industryOtherLabel}
+              requiredMark
+            >
               <input
                 value={industrySpecify}
                 onChange={e => setIndustrySpecify(e.target.value)}
                 placeholder={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.industryOtherPlaceholder}
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+                className={baseFieldClassName}
               />
-            </div>
+            </FormField>
           )}
 
-          <div>
-            <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-              {WORKSPACE_PAGE_COPY.newAudit.preBriefModal.messageOptionalLabel}
-            </label>
+          <FormField label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.messageOptionalLabel}>
             <textarea
               value={message}
               onChange={e => setMessage(e.target.value)}
               rows={2}
-              className="w-full px-3 py-2 rounded-lg text-sm resize-none"
-              style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+              className={`${baseFieldClassName} resize-none`}
             />
-          </div>
+          </FormField>
 
-          <div>
-            <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-              {WORKSPACE_PAGE_COPY.newAudit.preBriefModal.consultantNameLabel}
-            </label>
+          <FormField label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.consultantNameLabel}>
             <input
               value={consultantName}
               onChange={e => setConsultantName(e.target.value)}
               placeholder={consultantNamePlaceholder}
-              className="w-full px-3 py-2 rounded-lg text-sm"
-              style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+              className={baseFieldClassName}
             />
-          </div>
+          </FormField>
 
-          <div>
-            <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-              {WORKSPACE_PAGE_COPY.newAudit.preBriefModal.expectedContactLabel}
-            </label>
+          <FormField label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.expectedContactLabel}>
             <input
               value={expectedContact}
               onChange={e => setExpectedContact(e.target.value)}
               placeholder={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.expectedContactPlaceholder}
-              className="w-full px-3 py-2 rounded-lg text-sm"
-              style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+              className={baseFieldClassName}
             />
-          </div>
+          </FormField>
 
-          <div>
-            <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-              {WORKSPACE_PAGE_COPY.newAudit.preBriefModal.contactChannelLabel}
-            </label>
+          <FormField label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.contactChannelLabel}>
             <input
               value={contactChannel}
               onChange={e => setContactChannel(e.target.value)}
               placeholder={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.contactChannelPlaceholder}
-              className="w-full px-3 py-2 rounded-lg text-sm"
-              style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+              className={baseFieldClassName}
             />
-          </div>
+          </FormField>
 
-          <div>
-            <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-              {WORKSPACE_PAGE_COPY.newAudit.preBriefModal.emailOptionalLabel}
-            </label>
+          <FormField label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.emailOptionalLabel}>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.emailPlaceholder}
-              className="w-full px-3 py-2 rounded-lg text-sm"
-              style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+              className={baseFieldClassName}
             />
-          </div>
+          </FormField>
 
-          <div>
-            <label className="block text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
-              {WORKSPACE_PAGE_COPY.newAudit.preBriefModal.whatsappOptionalLabel}
-            </label>
+          <FormField label={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.whatsappOptionalLabel}>
             <input
               value={whatsapp}
               onChange={e => setWhatsapp(e.target.value)}
               placeholder={WORKSPACE_PAGE_COPY.newAudit.preBriefModal.whatsappPlaceholder}
-              className="w-full px-3 py-2 rounded-lg text-sm"
-              style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+              className={baseFieldClassName}
             />
-          </div>
+          </FormField>
         </div>
 
-        {err && <p className="text-sm mb-2" style={{ color: 'var(--score-1)' }}>{err}</p>}
+        {err && (
+          <Callout intent="danger" className="mb-2">
+            <p className="text-sm text-[var(--score-1)]">{err}</p>
+          </Callout>
+        )}
 
         {link ? (
           <div className="space-y-2">

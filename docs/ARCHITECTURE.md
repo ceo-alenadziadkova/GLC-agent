@@ -121,6 +121,32 @@ Use this split when adding a new “setting” so it lands in the right place an
 
 **Rule of thumb:** the **server remains the source of truth** for data invariants (e.g. stored sentinel URLs, validation). The UI displays what the API returns; avoid duplicating server-only rules in the client except for UX hints — and keep those hints aligned with `**@glc/intake-core`** where the contract is shared.
 
+#### UI design-system contract (frontend)
+
+To prevent fragmented styling and one-off component APIs, the SPA follows a single design-system pipeline:
+
+- **Styling stack:** Tailwind utility classes + CSS variable tokens (`src/styles/theme.css`) + CVA variants for primitive APIs.
+- **Single semantic mapping layer:** domain states (`severity`, `priority`, `effort`, `impact`, domain `status`, score bands) map to UI tones via `src/app/design-system/tokens/report-semantic-tokens.ts`.
+- **No ad-hoc styling in feature components:** avoid new inline style blocks for surfaces, badges, typography, spacing, and shadows. Use primitives + tokenized classes.
+- **Canonical primitives:** use `src/app/components/ui/*` as the base layer (`Badge`, `Table`, `Progress`, `Surface`, `StatusBadge`, layout primitives).
+- **Component API consistency:** shared primitives expose stable props (`variant`, `size`, `intent`, optional `state`), while domain components compose primitives and do not own color maps.
+
+#### UI migration waves (incremental, no big-bang)
+
+1. **Governance + guardrails:** freeze the contract above and block new ad-hoc style patterns in review.
+2. **Primitive unification:** normalize base building blocks (button/input/badge/progress/table/surface/layout).
+3. **Composite unification:** introduce reusable form/section/callout patterns.
+4. **Feature adoption:** migrate feature folders by groups (`login/new-audit` -> `client-audit-view/audit-workspace` -> `pipeline-monitor/snapshot-landing` -> report components).
+5. **Stabilization:** remove dead style helpers, run visual regression, and keep DS metrics in PR checks.
+
+#### UI quality gates
+
+Track these metrics in PR review (and automation where possible):
+
+- Count of new inline style declarations in `src/app/**/*.{tsx,ts}`.
+- Count of new raw color literals (`#`, `rgb`, `rgba`) outside token files.
+- Count of duplicate badge/progress/card implementations outside `src/app/components/ui/*`.
+
 ### Strict layer boundaries (operational policy)
 
 Tightening boundaries is **rules + structure + checks**, not one large refactor. Env allowlist lives in `[server/.env.example](../server/.env.example)` (secrets + deploy wiring + integrations); product numerics belong in **`SYSTEM_DEFAULTS`**. See [DEPLOYMENT.md — Environment layers](./DEPLOYMENT.md#environment-layers-infrastructure-vs-ops-overrides).

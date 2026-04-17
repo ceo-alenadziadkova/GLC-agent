@@ -1,4 +1,5 @@
 import type { FreeSnapshotPreview } from '../../../../data/auditTypes';
+import { Surface } from '../../../../components/ui/surface';
 import { SNAPSHOT_LANDING_HERO_COPY } from '../../../../config/snapshot-landing-copy.en';
 import { CategoryBreakdownHint } from '../..';
 import { createCategoryScoreRows } from '../../selectors';
@@ -9,7 +10,7 @@ export function CategoryBreakdownSection(props: { result: FreeSnapshotPreview })
   if (rows.length === 0) return null;
 
   return (
-    <div
+    <Surface
       className="glc-card glc-snapshot-result-card glc-snapshot-surface-category mb-4 p-5 lg:p-6"
       style={{ borderRadius: 'var(--radius-xl)' }}
     >
@@ -56,6 +57,6 @@ export function CategoryBreakdownSection(props: { result: FreeSnapshotPreview })
           {SNAPSHOT_LANDING_HERO_COPY.basedOnLabel} {result.scan_basis}
         </p>
       )}
-    </div>
+    </Surface>
   );
 }

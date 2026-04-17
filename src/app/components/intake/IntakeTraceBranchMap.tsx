@@ -4,6 +4,7 @@ import type { IntakePlan } from '@glc/intake-core';
 import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import { computeBranchDownstreamIds, computeBranchUpstreamIds } from './intake-trace-branch-links';
 import { IntakeTraceEdgeGraph } from './IntakeTraceEdgeGraph';
+import { collectPlanQuestionIds, tracePlanNodeStatusFor } from './domain/trace-plan-selectors';
 
 function statusClass(status: 'required' | 'visible' | 'deferred' | 'hidden' | 'other'): string {
   switch (status) {
@@ -18,14 +19,6 @@ function statusClass(status: 'required' | 'visible' | 'deferred' | 'hidden' | 'o
     default:
       return 'border-[var(--glc-border)] bg-[var(--glc-surface)]';
   }
-}
-
-function statusFor(id: string, plan: IntakePlan): 'required' | 'visible' | 'deferred' | 'hidden' | 'other' {
-  if (plan.required.includes(id)) return 'required';
-  if (plan.visible.includes(id)) return 'visible';
-  if (plan.deferred.includes(id)) return 'deferred';
-  if (plan.hidden.includes(id)) return 'hidden';
-  return 'other';
 }
 
 export function IntakeTraceBranchMap({
@@ -44,14 +37,7 @@ export function IntakeTraceBranchMap({
   showWordingReview?: boolean;
 }) {
   const ids = useMemo(() => {
-    const set = new Set<string>([
-      ...plan.eligible,
-      ...plan.visible,
-      ...plan.required,
-      ...plan.hidden,
-      ...plan.deferred,
-    ]);
-    return [...set].sort((a, b) => a.localeCompare(b));
+    return collectPlanQuestionIds(plan);
   }, [plan]);
 
   const [focusId, setFocusId] = useState(ids[0] ?? '');
@@ -115,7 +101,7 @@ export function IntakeTraceBranchMap({
               <li className="text-[var(--glc-muted)]">No upstream dependency</li>
             ) : (
               upstream.map(id => (
-                <li key={id} className={`rounded border px-2 py-1 ${statusClass(statusFor(id, plan))}`}>
+                <li key={id} className={`rounded border px-2 py-1 ${statusClass(tracePlanNodeStatusFor(id, plan))}`}>
                   <span className="font-mono">{id}</span>
                   <span className="text-[var(--glc-muted)]"> — {resolveLabel(id)}</span>
                 </li>
@@ -123,13 +109,13 @@ export function IntakeTraceBranchMap({
             )}
           </ul>
         </div>
-        <div className={`rounded-lg border p-3 ${statusClass(statusFor(focusId, plan))}`}>
+        <div className={`rounded-lg border p-3 ${statusClass(tracePlanNodeStatusFor(focusId, plan))}`}>
           <div className="text-[10px] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Current node</div>
           <div className="text-xs">
             <div className="font-mono">{focusId}</div>
             <div className="text-[var(--glc-muted)]">{resolveLabel(focusId)}</div>
             <div className="mt-2 text-[10px] uppercase tracking-wide text-[var(--glc-muted)]">
-              status: {statusFor(focusId, plan)}
+              status: {tracePlanNodeStatusFor(focusId, plan)}
             </div>
           </div>
         </div>
@@ -140,7 +126,7 @@ export function IntakeTraceBranchMap({
               <li className="text-[var(--glc-muted)]">No downstream dependency</li>
             ) : (
               downstream.map(id => (
-                <li key={id} className={`rounded border px-2 py-1 ${statusClass(statusFor(id, plan))}`}>
+                <li key={id} className={`rounded border px-2 py-1 ${statusClass(tracePlanNodeStatusFor(id, plan))}`}>
                   <span className="font-mono">{id}</span>
                   <span className="text-[var(--glc-muted)]"> — {resolveLabel(id)}</span>
                 </li>

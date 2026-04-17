@@ -7,7 +7,7 @@ import {
   type ControlObjectCausalClaimRef,
   type ControlObjectV1,
   type PhaseId,
-} from '../../../schemas/control-object.js';
+} from '../../../schemas/control-object/index.js';
 import type { DomainKey, DomainResult } from '../../../types/audit.js';
 
 function dedupeCausalRefs(refs: ControlObjectCausalClaimRef[]): ControlObjectCausalClaimRef[] {

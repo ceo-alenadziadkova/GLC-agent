@@ -6,27 +6,24 @@ import workspacePackaging from '../../data/marketing-workspace-packaging.en.json
  */
 const PREVIEW_ITEMS = workspacePackaging.snapshot_preview_cards;
 
-const STATUS_TONE_STYLE = {
-  danger: { color: 'var(--score-1)', border: 'var(--score-1-border)', background: 'var(--score-1-bg)' },
-  warning: { color: 'var(--score-2)', border: 'var(--score-2-border)', background: 'var(--score-2-bg)' },
-  neutral: { color: 'var(--text-tertiary)', border: 'var(--border-default)', background: 'var(--bg-muted)' },
-  success: { color: 'var(--glc-green-dark)', border: 'var(--score-5-border)', background: 'var(--score-5-bg)' },
+const STATUS_TONE_BADGE_CLASS = {
+  danger: 'text-[var(--score-1)] border-[var(--score-1-border)] bg-[var(--score-1-bg)]',
+  warning: 'text-[var(--score-2)] border-[var(--score-2-border)] bg-[var(--score-2-bg)]',
+  neutral: 'text-[var(--text-tertiary)] border-[var(--border-default)] bg-[var(--bg-muted)]',
+  success: 'text-[var(--glc-green-dark)] border-[var(--score-5-border)] bg-[var(--score-5-bg)]',
 } as const;
 
-type SnapshotStatusTone = keyof typeof STATUS_TONE_STYLE;
+type SnapshotStatusTone = keyof typeof STATUS_TONE_BADGE_CLASS;
 
 export function SnapshotIdlePreviewCards() {
   const reduce = useReducedMotion();
 
   return (
     <div
-      className="mt-10 w-full lg:mt-14"
+      className="mt-10 w-full lg:col-span-12 lg:mt-14"
       aria-hidden
     >
-      <p
-        className="mb-3 text-center text-[10px] font-semibold uppercase tracking-[0.16em] lg:text-left"
-        style={{ color: 'var(--text-quaternary)' }}
-      >
+      <p className="mb-3 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-quaternary)] lg:text-left">
         Preview of what you will see
       </p>
       <motion.div
@@ -48,13 +45,7 @@ export function SnapshotIdlePreviewCards() {
           return (
           <motion.div
             key={item.title}
-            className="rounded-[var(--radius-xl)] border p-4"
-            style={{
-              borderColor: 'color-mix(in oklab, rgba(255,255,255,0.2) 42%, var(--border-subtle))',
-              background:
-                'linear-gradient(170deg, color-mix(in oklab, var(--bg-surface) 94%, var(--glc-blue-muted)) 0%, color-mix(in oklab, var(--bg-muted) 84%, var(--bg-surface)) 100%)',
-              boxShadow: 'var(--shadow-sm)',
-            }}
+            className="rounded-[var(--radius-xl)] border border-[color-mix(in_oklab,rgba(255,255,255,0.2)_42%,var(--border-subtle))] bg-[linear-gradient(170deg,color-mix(in_oklab,var(--bg-surface)_94%,var(--glc-blue-muted))_0%,color-mix(in_oklab,var(--bg-muted)_84%,var(--bg-surface))_100%)] p-4 shadow-[var(--shadow-sm)]"
             variants={{
               hidden: { opacity: 0, y: MARKETING_CARD_MOTION.hiddenY },
               visible: { opacity: 1, y: 0 },
@@ -77,22 +68,15 @@ export function SnapshotIdlePreviewCards() {
             }
           >
             <div className="mb-3 flex items-center justify-between gap-2">
-              <div className="h-2 w-10 rounded-full" style={{ backgroundColor: 'color-mix(in oklab, var(--border-default) 55%, transparent)' }} />
+              <div className="h-2 w-10 rounded-full bg-[color-mix(in_oklab,var(--border-default)_55%,transparent)]" />
               <span
-                className="rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                style={{
-                  color: STATUS_TONE_STYLE[tone].color,
-                  borderColor: STATUS_TONE_STYLE[tone].border,
-                  backgroundColor: STATUS_TONE_STYLE[tone].background,
-                }}
+                className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_TONE_BADGE_CLASS[tone]}`}
               >
                 {item.status}
               </span>
             </div>
-            <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-              {item.title}
-            </p>
-            <p className="mt-1 text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-xs font-semibold text-[var(--text-primary)]">{item.title}</p>
+            <p className="mt-1 text-[length:var(--text-xs)] leading-relaxed text-[var(--text-secondary)]">
               {item.example}
             </p>
           </motion.div>

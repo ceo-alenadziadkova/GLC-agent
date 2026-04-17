@@ -1,5 +1,6 @@
 import { CheckCircle, Lightning, Shield, Warning } from '@phosphor-icons/react';
 import type { FreeSnapshotPreview } from '../../../../data/auditTypes';
+import { Surface } from '../../../../components/ui/surface';
 import { SNAPSHOT_LANDING_HERO_COPY } from '../../../../config/snapshot-landing-copy.en';
 import { UI_POLICY } from '../../../../config/ui-policy';
 import { SEVERITY_COLOR } from '../../../../lib/snapshot-landing-helpers';
@@ -19,7 +20,7 @@ export function InsightsGridSection(props: {
   return (
     <div className={`mb-6 ${snapshotInsightGridClass}`}>
       {result.issues.length > 0 && (
-        <div className="glc-card glc-snapshot-result-card p-5 lg:p-6" style={{ borderRadius: 'var(--radius-xl)' }}>
+        <Surface className="glc-card glc-snapshot-result-card p-5 lg:p-6" style={{ borderRadius: 'var(--radius-xl)' }}>
           <div className="glc-snapshot-section-h glc-snapshot-section-h--warning">
             <span className="glc-snapshot-section-h__rule" aria-hidden />
             <Warning className="h-4 w-4 shrink-0" style={{ color: 'var(--score-2)' }} />
@@ -48,11 +49,11 @@ export function InsightsGridSection(props: {
               </div>
             ))}
           </div>
-        </div>
+        </Surface>
       )}
 
       {result.quick_wins.length > 0 && (
-        <div className="glc-card glc-snapshot-result-card p-5 lg:p-6" style={{ borderRadius: 'var(--radius-xl)' }}>
+        <Surface className="glc-card glc-snapshot-result-card p-5 lg:p-6" style={{ borderRadius: 'var(--radius-xl)' }}>
           <div className="glc-snapshot-section-h glc-snapshot-section-h--positive">
             <span className="glc-snapshot-section-h__rule" aria-hidden />
             <Lightning className="h-4 w-4 shrink-0" style={{ color: 'var(--glc-green)' }} weight="fill" />
@@ -75,11 +76,11 @@ export function InsightsGridSection(props: {
               </div>
             ))}
           </div>
-        </div>
+        </Surface>
       )}
 
       {(techEntries.length > 0 || (result.tech_stack_tentative?.length ?? 0) > 0) && (
-        <div
+        <Surface
           className={`glc-card glc-snapshot-result-card p-5 lg:p-6 ${snapshotTechColClass}`}
           style={{ borderRadius: 'var(--radius-xl)' }}
         >
@@ -130,7 +131,7 @@ export function InsightsGridSection(props: {
               </div>
             </div>
           )}
-        </div>
+        </Surface>
       )}
     </div>
   );

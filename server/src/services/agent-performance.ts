@@ -24,7 +24,7 @@
 
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
-import type { ControlObjectV1 } from '../schemas/control-object.js';
+import type { ControlObjectV1 } from '../schemas/control-object/index.js';
 import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 
 // ─── Constants ────────────────────────────────────────────────────────────────

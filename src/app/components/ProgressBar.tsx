@@ -1,18 +1,19 @@
+import { cn } from './ui/utils';
 import { motion } from 'motion/react';
 
 interface ProgressBarProps {
   value: number;
   max?: number;
-  color?: string;
-  height?: string;
+  toneClassName?: string;
+  heightClassName?: string;
   showLabel?: boolean;
 }
 
 export function ProgressBar({ 
   value, 
   max = 5, 
-  color = 'var(--status-excellent)',
-  height = '8px',
+  toneClassName = 'bg-[var(--score-5)]',
+  heightClassName = 'h-2',
   showLabel = false 
 }: ProgressBarProps) {
   const percentage = (value / max) * 100;
@@ -21,27 +22,20 @@ export function ProgressBar({
     <div>
       {showLabel && (
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+          <span className="text-xs font-medium text-[var(--text-secondary)]">
             Progress
           </span>
-          <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <span className="text-xs font-semibold text-[var(--text-primary)]">
             {value}/{max}
           </span>
         </div>
       )}
-      <div
-        className="w-full rounded-full overflow-hidden"
-        style={{
-          backgroundColor: 'var(--surface)',
-          height
-        }}
-      >
+      <div className={cn('w-full overflow-hidden rounded-full bg-[var(--surface)]', heightClassName)}>
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${percentage}%` }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="h-full rounded-full"
-          style={{ backgroundColor: color }}
+          className={cn('h-full rounded-full', toneClassName)}
         />
       </div>
     </div>

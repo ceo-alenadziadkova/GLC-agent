@@ -26,6 +26,18 @@ export const PIPELINE_STOP_CLAIMABLE_STATUSES = ['created', 'recon', 'auto', 'an
 export type PipelinePhaseStatus = 'recon' | 'auto' | 'analytic' | 'strategy';
 
 /**
+ * Subset of persisted `audits.status` values used by the pipeline orchestrator
+ * (updates and comparisons). Keeps string literals out of service code.
+ */
+export const PIPELINE_AUDIT_ORCHESTRATOR_STATUS = {
+  cancelled: 'cancelled',
+  failed: 'failed',
+  review: 'review',
+  auto: 'auto',
+  analytic: 'analytic',
+} as const;
+
+/**
  * Map pipeline phase number to persisted `audits.status`.
  * - 0 => recon
  * - 1..4 => auto

@@ -40,7 +40,7 @@ import { DAY_MS } from '../config/time.js';
 
 export const briefPublicRouter = Router();
 
-function clampStr(value: unknown, max = BRIEF_PUBLIC_TEXT_INPUT_LIMITS.fallbackMax): string {
+function clampStr(value: unknown, max: number = BRIEF_PUBLIC_TEXT_INPUT_LIMITS.fallbackMax): string {
   if (typeof value !== 'string') return '';
   return value.trim().slice(0, max);
 }

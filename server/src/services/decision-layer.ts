@@ -17,7 +17,7 @@
  */
 
 import { logger } from './logger.js';
-import type { ControlObjectV1, DecisionHint } from '../schemas/control-object.js';
+import type { ControlObjectV1, DecisionHint } from '../schemas/control-object/index.js';
 import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import {
   DECISION_WARNING_HUMAN_ATTENTION_FLAGGED,

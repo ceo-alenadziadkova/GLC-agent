@@ -115,6 +115,16 @@ export function unwrapResponse(value: BriefResponseValue | BriefResponseEntry | 
   return value as BriefResponseValue | undefined;
 }
 
+/** Trimmed string from a brief response cell (public intake, “other specify” fields). */
+export function briefResponseTrimmedString(raw: BriefResponses[string] | undefined): string {
+  if (raw == null) return '';
+  if (typeof raw === 'object' && !Array.isArray(raw) && 'value' in raw) {
+    const v = (raw as BriefResponseEntry).value;
+    return typeof v === 'string' ? v.trim() : '';
+  }
+  return typeof raw === 'string' ? raw.trim() : '';
+}
+
 /** True if the field has no usable answer yet (used to apply consultant metadata prefill on public intake). */
 export function isBriefValueBlank(raw: BriefResponses[string] | undefined): boolean {
   if (raw === undefined) return true;

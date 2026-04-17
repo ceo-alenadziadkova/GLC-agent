@@ -3,6 +3,8 @@ import { Globe, ArrowRight } from '@phosphor-icons/react';
 import type { Dispatch, SetStateAction, ReactNode } from 'react';
 
 import { SectionLabel } from '../../../components/glc/SectionLabel';
+import { Callout } from '../../../components/ui/callout';
+import { FormField } from '../../../components/ui/form-field';
 import { DOMAIN_PILLS } from '..';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
 import { INDUSTRY_OPTIONS, type IndustryOption } from '../../../data/industry-options';
@@ -142,17 +144,14 @@ export function Step0Basics({
         style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}
       >
         {/* URL */}
-        <div className="space-y-1.5">
-          <label htmlFor="url" className="block font-medium" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
-            {WORKSPACE_PAGE_COPY.newAudit.step0.companyWebsiteLabel}{' '}
-            {!noPublicWebsite ? (
-              <span style={{ color: 'var(--glc-orange)' }}>*</span>
-            ) : (
-              <span className="font-normal" style={{ color: 'var(--text-quaternary)', fontSize: '11px' }}>
-                {WORKSPACE_PAGE_COPY.newAudit.step0.skippedLabel}
-              </span>
-            )}
-          </label>
+        <FormField
+          htmlFor="url"
+          label={WORKSPACE_PAGE_COPY.newAudit.step0.companyWebsiteLabel}
+          requiredMark={!noPublicWebsite}
+          optionalHint={
+            noPublicWebsite ? WORKSPACE_PAGE_COPY.newAudit.step0.skippedLabel : undefined
+          }
+        >
           <div
             className="flex items-center overflow-hidden"
             style={{
@@ -203,41 +202,30 @@ export function Step0Basics({
             />
             {WORKSPACE_PAGE_COPY.newAudit.step0.noPublicWebsiteLabel}
           </label>
-        </div>
+        </FormField>
 
         {/* Name */}
-        <div className="space-y-1.5">
-          <label htmlFor="cname" className="flex items-center gap-2 font-medium" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
-            {WORKSPACE_PAGE_COPY.newAudit.step0.companyNameLabel}{' '}
-            <span className="font-normal" style={{ color: 'var(--text-quaternary)', fontSize: '11px' }}>
-              {WORKSPACE_PAGE_COPY.newAudit.step0.optionalLabel}
-            </span>
-          </label>
+        <FormField
+          htmlFor="cname"
+          label={WORKSPACE_PAGE_COPY.newAudit.step0.companyNameLabel}
+          optionalHint={WORKSPACE_PAGE_COPY.newAudit.step0.optionalLabel}
+        >
           <input
             id="cname"
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder={WORKSPACE_PAGE_COPY.newAudit.step0.companyNamePlaceholder}
-            className="w-full px-4 py-3 bg-transparent outline-none"
-            style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-default)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}
-            onFocus={e => {
-              e.currentTarget.style.borderColor = 'var(--glc-blue)';
-            }}
-            onBlur={e => {
-              e.currentTarget.style.borderColor = 'var(--border-default)';
-            }}
+            className="glc-field-control w-full rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none"
           />
-        </div>
+        </FormField>
 
         {/* Industry */}
-        <div className="space-y-1.5">
-          <label htmlFor="industry" className="flex items-center gap-2 font-medium" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
-            {WORKSPACE_PAGE_COPY.newAudit.step0.industryLabel}{' '}
-            <span className="font-normal" style={{ color: 'var(--text-quaternary)', fontSize: '11px' }}>
-              {WORKSPACE_PAGE_COPY.newAudit.step0.industryTailorsRecommendations}
-            </span>
-          </label>
+        <FormField
+          htmlFor="industry"
+          label={WORKSPACE_PAGE_COPY.newAudit.step0.industryLabel}
+          optionalHint={WORKSPACE_PAGE_COPY.newAudit.step0.industryTailorsRecommendations}
+        >
           <select
             id="industry"
             value={industry}
@@ -253,14 +241,8 @@ export function Step0Basics({
                 });
               }
             }}
-            className="w-full px-4 py-3 outline-none appearance-none"
-            style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-default)', backgroundColor: 'var(--bg-surface)', color: industry ? 'var(--text-primary)' : 'var(--text-tertiary)', fontSize: 'var(--text-sm)' }}
-            onFocus={e => {
-              e.currentTarget.style.borderColor = 'var(--glc-blue)';
-            }}
-            onBlur={e => {
-              e.currentTarget.style.borderColor = 'var(--border-default)';
-            }}
+            className="glc-field-control w-full appearance-none rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-[var(--text-sm)] outline-none"
+            style={{ color: industry ? 'var(--text-primary)' : 'var(--text-tertiary)' }}
           >
             <option value="">{WORKSPACE_PAGE_COPY.newAudit.step0.industrySelectPlaceholder}</option>
             {INDUSTRY_OPTIONS.map((i: IndustryOption) => (
@@ -271,10 +253,11 @@ export function Step0Basics({
           </select>
           {industry === 'Other' && (
             <div className="space-y-1 pt-1">
-              <label htmlFor="industry-specify" className="block font-medium" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>
-                {WORKSPACE_PAGE_COPY.newAudit.step0.industryOtherLabel}{' '}
-                <span style={{ color: 'var(--glc-orange)' }}>*</span>
-              </label>
+              <FormField
+                htmlFor="industry-specify"
+                label={WORKSPACE_PAGE_COPY.newAudit.step0.industryOtherLabel}
+                requiredMark
+              >
               <input
                 id="industry-specify"
                 type="text"
@@ -294,21 +277,15 @@ export function Step0Basics({
                   });
                 }}
                 placeholder={WORKSPACE_PAGE_COPY.newAudit.step0.industryOtherPlaceholder}
-                className="w-full px-4 py-3 bg-transparent outline-none"
-                style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-default)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}
-                onFocus={e => {
-                  e.currentTarget.style.borderColor = 'var(--glc-blue)';
-                }}
-                onBlur={e => {
-                  e.currentTarget.style.borderColor = 'var(--border-default)';
-                }}
+                className="glc-field-control w-full rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-surface)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none"
               />
               <p className="text-xs m-0" style={{ color: 'var(--text-tertiary)' }}>
                 {WORKSPACE_PAGE_COPY.newAudit.step0.industryOtherRequiredNote}
               </p>
+              </FormField>
             </div>
           )}
-        </div>
+        </FormField>
 
         {/* Coverage selection */}
         <div className="space-y-2">
@@ -395,29 +372,25 @@ export function Step0Basics({
         {!isClientSelfServe && (
           <>
             {/* Interview mode toggle */}
-            <label
-              className="flex items-center gap-2.5 cursor-pointer select-none rounded-lg px-3 py-2.5 transition-all"
-              style={{
-                border: interviewMode ? '1px solid var(--callout-warning-border-focus)' : '1px solid var(--border-subtle)',
-                background: interviewMode ? 'var(--callout-warning-bg-subtle)' : 'var(--bg-inset)',
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={interviewMode}
-                onChange={e => setInterviewMode(e.target.checked)}
-                className="rounded"
-                style={{ accentColor: 'var(--callout-warning-icon)', width: 15, height: 15, flexShrink: 0 }}
-              />
-              <div>
-                <span className="text-sm font-medium" style={{ color: interviewMode ? 'var(--callout-warning-fg-emphasis)' : 'var(--text-primary)' }}>
-                  {WORKSPACE_PAGE_COPY.newAudit.step0.interviewModeLabel}
-                </span>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                  {interviewMode ? WORKSPACE_PAGE_COPY.newAudit.interviewModeHintOn : WORKSPACE_PAGE_COPY.newAudit.interviewModeHintOff}
-                </p>
-              </div>
-            </label>
+            <Callout intent={interviewMode ? 'warning' : 'neutral'}>
+              <label className="flex cursor-pointer select-none items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={interviewMode}
+                  onChange={e => setInterviewMode(e.target.checked)}
+                  className="h-[15px] w-[15px] flex-shrink-0 rounded"
+                  style={{ accentColor: 'var(--callout-warning-icon)' }}
+                />
+                <div>
+                  <span className="text-sm font-medium text-[var(--text-primary)]">
+                    {WORKSPACE_PAGE_COPY.newAudit.step0.interviewModeLabel}
+                  </span>
+                  <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">
+                    {interviewMode ? WORKSPACE_PAGE_COPY.newAudit.interviewModeHintOn : WORKSPACE_PAGE_COPY.newAudit.interviewModeHintOff}
+                  </p>
+                </div>
+              </label>
+            </Callout>
 
             <button
               type="button"

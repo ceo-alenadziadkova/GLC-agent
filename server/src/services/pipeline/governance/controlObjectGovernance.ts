@@ -6,7 +6,7 @@ import { isCausalDagEnabled } from '../../../config/feature-flags.js';
 import { PIPELINE_EVENT_TYPES } from '../../../config/pipeline-event-types.js';
 import { attachBenchmarkReferenceToControlObject } from '../../benchmark-snapshot.js';
 import { recordEvaluationDatasetIfEnabled } from '../../evaluation-dataset-writer.js';
-import type { ControlObjectV1, PhaseId } from '../../../schemas/control-object.js';
+import type { ControlObjectV1, PhaseId } from '../../../schemas/control-object/index.js';
 import type { DomainKey, DomainResult } from '../../../types/audit.js';
 import type { DecisionResult } from '../../decision-layer.js';
 

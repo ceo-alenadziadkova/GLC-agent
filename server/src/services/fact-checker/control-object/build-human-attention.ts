@@ -6,7 +6,7 @@ import {
   HUMAN_ATTENTION_HIGH_HALLUCINATION_COUNT,
   HUMAN_ATTENTION_HIGH_RISK_ASSUMPTIONS,
 } from '../../../config/fact-checker/control-object-error-codes.js';
-import type { ControlObjectV1 } from '../../../schemas/control-object.js';
+import type { ControlObjectV1 } from '../../../schemas/control-object/index.js';
 import type { DomainKey, DomainResult } from '../../../types/audit.js';
 import type { ExtendedPhaseProfile } from '../../../config/phase-profiles.js';
 import type { ConnectorRunResult } from '../../connector-runner.js';

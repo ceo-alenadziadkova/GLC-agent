@@ -1,5 +1,5 @@
 import type { DomainKey } from '../../types/audit.js';
-import type { StructuralErrorCode } from '../../schemas/control-object.js';
+import type { StructuralErrorCode } from '../../schemas/control-object/index.js';
 
 export const DOMAIN_STRUCTURAL_HEURISTICS: Partial<
   Record<DomainKey, Array<{ code: StructuralErrorCode; needle: string }>>

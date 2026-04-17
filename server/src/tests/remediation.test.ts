@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createControlObjectV1,
   HUMAN_ATTENTION_CONTENT_REMEDIATION_BLOCKED,
-} from '../schemas/control-object.js';
+} from '../schemas/control-object/index.js';
 import type { DomainResult } from '../types/audit.js';
 import * as ruleEngine from '../config/rule-engine.js';
 
