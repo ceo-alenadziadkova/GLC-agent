@@ -72,15 +72,15 @@ export function StudioToolbarSection(props: StudioToolbarSectionProps) {
 
   return (
     <div className="flex flex-wrap gap-2 items-center">
-      <span className="text-[length:var(--text-2xs)] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+      <span className="text-[length:var(--text-2xs)] uppercase tracking-wide ds-text-tertiary" >
         {QUESTION_BANK_STUDIO_COPY_EN.viewModeButtons.flowSimulator}
       </span>
       {viewMode === 'logic' && (
-        <label className="text-[length:var(--text-2xs)] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+        <label className="text-[length:var(--text-2xs)] uppercase tracking-wide ds-text-tertiary" >
           {QUESTION_BANK_STUDIO_COPY_EN.toolbar.layoutSurface}
           <select
-            className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md max-w-[200px]"
-            style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+            className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md max-w-[200px] ds-panel-canvas-primary"
+            
             value={layoutSurface}
             onChange={e => onLayoutSurfaceChange(e.target.value as '' | StudioLayoutSurfaceKey)}
           >
@@ -91,11 +91,11 @@ export function StudioToolbarSection(props: StudioToolbarSectionProps) {
         </label>
       )}
       {viewMode === 'logic' && (
-        <label className="text-[length:var(--text-2xs)] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+        <label className="text-[length:var(--text-2xs)] uppercase tracking-wide ds-text-tertiary" >
           {QUESTION_BANK_STUDIO_COPY_EN.toolbar.orientation}
           <select
-            className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md"
-            style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+            className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md ds-panel-canvas-primary"
+            
             value={graphOrientation}
             onChange={e => onGraphOrientationChange(e.target.value as 'TB' | 'LR')}
           >
@@ -105,11 +105,11 @@ export function StudioToolbarSection(props: StudioToolbarSectionProps) {
         </label>
       )}
       {viewMode === 'logic' && (
-        <label className="text-[length:var(--text-2xs)] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+        <label className="text-[length:var(--text-2xs)] uppercase tracking-wide ds-text-tertiary" >
           {QUESTION_BANK_STUDIO_COPY_EN.toolbar.policyMode}
           <select
-            className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md"
-            style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+            className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md ds-panel-canvas-primary"
+            
             value={policyMode}
             onChange={e => onPolicyModeChange(e.target.value as StudioPolicyMode)}
           >
@@ -120,26 +120,26 @@ export function StudioToolbarSection(props: StudioToolbarSectionProps) {
         </label>
       )}
       {viewMode === 'logic' && (
-        <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+        <label className="flex items-center gap-2 text-xs ds-text-secondary" >
           <Switch checked={showBranchEdges} onCheckedChange={onShowBranchEdgesChange} />
           {QUESTION_BANK_STUDIO_COPY_EN.toolbar.branchEdges}
         </label>
       )}
       {viewMode === 'logic' && (
         <>
-          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex items-center gap-2 text-xs ds-text-secondary" >
             <Switch checked={dimOutsidePolicy} onCheckedChange={onDimOutsidePolicyChange} />
             {QUESTION_BANK_STUDIO_COPY_EN.toolbar.dimOutsidePolicyMode}
           </label>
-          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex items-center gap-2 text-xs ds-text-secondary" >
             <Switch checked={policySliceOnly} onCheckedChange={onPolicySliceOnlyChange} />
             {QUESTION_BANK_STUDIO_COPY_EN.toolbar.policySlice}
           </label>
-          <label className="text-[length:var(--text-2xs)] uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+          <label className="text-[length:var(--text-2xs)] uppercase tracking-wide ds-text-tertiary" >
             {QUESTION_BANK_STUDIO_COPY_EN.toolbar.density}
             <select
-              className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md"
-              style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+              className="ml-1 block mt-1 px-2 py-1.5 text-xs rounded-md ds-panel-canvas-primary"
+              
               value={viewDensity}
               onChange={e => onViewDensityChange(e.target.value as 'comfortable' | 'compact')}
             >
@@ -147,19 +147,19 @@ export function StudioToolbarSection(props: StudioToolbarSectionProps) {
               <option value="compact">Compact</option>
             </select>
           </label>
-          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex items-center gap-2 text-xs ds-text-secondary" >
             <Switch checked={overviewUi} onCheckedChange={onOverviewUiChange} />
             {QUESTION_BANK_STUDIO_COPY_EN.toolbar.overviewUi}
           </label>
-          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex items-center gap-2 text-xs ds-text-secondary" >
             <Switch checked={branchFocusFromSelection} onCheckedChange={onBranchFocusFromSelectionChange} />
             {QUESTION_BANK_STUDIO_COPY_EN.toolbar.branchFocus}
           </label>
-          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex items-center gap-2 text-xs ds-text-secondary" >
             <Switch checked={colorByDomain} onCheckedChange={onColorByDomainChange} />
             {QUESTION_BANK_STUDIO_COPY_EN.toolbar.colorByFeedDomain}
           </label>
-          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+          <label className="flex items-center gap-2 text-xs ds-text-secondary" >
             <Switch checked={clusterByPrimaryDomain} onCheckedChange={onClusterByPrimaryDomainChange} />
             {QUESTION_BANK_STUDIO_COPY_EN.toolbar.clusterByPrimaryDomain}
           </label>

@@ -219,7 +219,7 @@ export function SyncPathLoader({
               d="M4 0C6.20914 0 8 1.79086 8 4C8 6.20914 6.20914 8 4 8C1.79086 8 0 6.20914 0 4C0 1.79086 1.79086 0 4 0Z"
               fill="var(--glc-blue)"
               stroke="none"
-              style={{ filter: 'drop-shadow(0 0 8px rgba(28, 189, 255, 0.6))' }}
+              className="ds-sync-loader-ball-glow"
             />
           </g>
         </svg>

@@ -46,7 +46,7 @@ export function IntakeBriefReviewPhase(props: {
         >
           {copy.reviewTitle}
         </h1>
-        <p className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+        <p className="text-sm ds-type-sm-secondary-leading" >
           {copy.reviewSubtitle}
         </p>
       </div>
@@ -84,10 +84,10 @@ export function IntakeBriefReviewPhase(props: {
               {block.questions.map(q => (
                 <div key={q.id} className="flex gap-3 px-4 py-3.5 items-start">
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>
+                    <p className="text-xs font-medium mb-1 ds-text-tertiary" >
                       {q.question}
                     </p>
-                    <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                    <p className="text-sm ds-text-primary" >
                       {formatBriefAnswerSummary(q, responses[q.id], responses)}
                     </p>
                   </div>
@@ -113,7 +113,7 @@ export function IntakeBriefReviewPhase(props: {
       </div>
 
       {submitError && (
-        <p className="text-sm text-center" style={{ color: 'var(--score-1)' }}>
+        <p className="text-sm text-center ds-text-score-1" >
           {submitError}
         </p>
       )}

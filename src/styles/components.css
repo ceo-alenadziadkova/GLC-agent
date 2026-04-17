@@ -19,10 +19,11 @@
   box-shadow: var(--shadow-md);
 }
 
-/* Legacy compatibility shim.
- * Prefer design-system primitive: <Button variant="default" />.
+/* Legacy compatibility shim + migration alias `.ds-cta-primary` (identical rules).
+ * Prefer design-system primitive: <Button variant="default" /> where visuals match.
  */
-.glc-btn-primary {
+.glc-btn-primary,
+.ds-cta-primary {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1-5);
@@ -40,18 +41,21 @@
   white-space: nowrap;
 }
 
-.glc-btn-primary:hover {
+.glc-btn-primary:hover,
+.ds-cta-primary:hover {
   background: linear-gradient(135deg, color-mix(in oklab, var(--glc-blue) 86%, white) 0%, var(--glc-blue-deeper) 100%);
   box-shadow: 0 10px 24px color-mix(in oklab, var(--glc-blue) 34%, transparent);
   transform: translateY(-1px);
 }
 
-.glc-btn-primary:active {
+.glc-btn-primary:active,
+.ds-cta-primary:active {
   transform: translateY(0);
   box-shadow: none;
 }
 
-.glc-btn-primary:disabled {
+.glc-btn-primary:disabled,
+.ds-cta-primary:disabled {
   background: var(--border-default);
   box-shadow: none;
   transform: none;
@@ -251,4 +255,218 @@ html:not(.dark) .glc-hover-row:hover {
   .glc-hero-sub {
     max-width: none;
   }
+}
+
+/*
+ * Token bridge classes — use instead of inline visual styles in TSX (DS enforcement).
+ * Keeps the same CSS variables as inline `style={{ color: 'var(--…)' }}` patterns.
+ */
+.ds-text-primary {
+  color: var(--text-primary);
+}
+
+.ds-text-secondary {
+  color: var(--text-secondary);
+}
+
+.ds-text-tertiary {
+  color: var(--text-tertiary);
+}
+
+.ds-text-quaternary {
+  color: var(--text-quaternary);
+}
+
+.ds-text-brand {
+  color: var(--glc-blue);
+}
+
+.ds-text-score-1 {
+  color: var(--score-1);
+}
+
+.ds-text-score-2 {
+  color: var(--score-2);
+}
+
+.ds-text-score-3 {
+  color: var(--score-3);
+}
+
+.ds-text-score-4 {
+  color: var(--score-4);
+}
+
+.ds-text-score-5 {
+  color: var(--score-5);
+}
+
+.ds-bg-surface {
+  background-color: var(--bg-surface);
+}
+
+.ds-bg-inset {
+  background-color: var(--bg-inset);
+}
+
+.ds-bg-canvas {
+  background-color: var(--bg-canvas);
+}
+
+.ds-border-subtle {
+  border: 1px solid var(--border-subtle);
+}
+
+.ds-border-default {
+  border: 1px solid var(--border-default);
+}
+
+.ds-panel-canvas {
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-default);
+}
+
+.ds-panel-canvas-primary {
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+}
+
+.ds-panel-surface-primary {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+}
+
+.ds-panel-surface {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+}
+
+.ds-radius-xl {
+  border-radius: var(--radius-xl);
+}
+
+.ds-type-xs-secondary {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.ds-type-xs-tertiary {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.ds-type-sm-secondary-leading {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* App shell mobile drawer: white text on ink gradient (matches prior rgba literals). */
+.ds-app-drawer-text {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.ds-app-drawer-text-muted {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.ds-app-drawer-text-faint {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* ThemeToggle: icon color driven by custom properties on parent (no `color:` inline). */
+.ds-theme-toggle-sun {
+  color: var(--theme-toggle-sun, var(--text-secondary));
+}
+
+.ds-theme-toggle-moon {
+  color: var(--theme-toggle-moon, var(--text-secondary));
+}
+
+.ds-text-brand-deeper {
+  color: var(--glc-blue-deeper);
+}
+
+.ds-text-accent-orange {
+  color: var(--glc-orange);
+}
+
+.ds-bg-border-default {
+  background-color: var(--border-default);
+}
+
+.ds-card-radius-elevated {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+.ds-section-accent-bar {
+  background-color: var(--glc-blue);
+}
+
+.ds-section-brand-gradient-bar {
+  background: var(--gradient-brand);
+}
+
+.ds-scorebar-track {
+  height: 3px;
+  min-width: 48px;
+  background-color: var(--border-subtle);
+}
+
+.ds-scorebar-fill {
+  background: var(--scorebar-fill, var(--glc-blue));
+}
+
+.ds-sync-loader-ball-glow {
+  filter: drop-shadow(0 0 8px rgba(28, 189, 255, 0.6));
+}
+
+/* Matches prior inline panel (info tint); literals live in CSS layer, not TSX. */
+.ds-portal-mirror-notice-panel {
+  border: 1px solid rgba(28, 189, 255, 0.22);
+  background: linear-gradient(135deg, rgba(28, 189, 255, 0.1) 0%, rgba(28, 189, 255, 0.02) 100%);
+}
+
+.ds-process-step-badge {
+  background: var(--gradient-brand);
+  color: var(--primary-foreground);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Recharts tooltip “dashed” indicator: keep 1.5px weight without unit literals in TSX. */
+.ds-chart-tooltip-indicator-dashed {
+  border-width: 1.5px;
+}
+
+/* App shell sidebar active row (literals live in CSS, not TSX). */
+.ds-sidebar-nav-active-backdrop {
+  background: linear-gradient(
+    90deg,
+    var(--glc-blue-muted-strong) 0%,
+    var(--glc-blue-muted-soft) 100%
+  );
+  border: 1px solid var(--callout-info-border);
+}
+
+.ds-sidebar-nav-active-rail {
+  height: 60%;
+  background: var(--glc-blue);
+  box-shadow: var(--glow-blue-sm);
+}
+
+.ds-marketing-layout-canvas {
+  background-color: var(--bg-canvas);
+}
+
+.ds-marketing-skip-link {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+}
+
+.ds-marketing-inline-link-accent {
+  color: var(--glc-blue);
 }

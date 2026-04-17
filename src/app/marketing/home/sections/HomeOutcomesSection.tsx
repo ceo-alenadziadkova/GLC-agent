@@ -1,5 +1,9 @@
 import { motion } from 'motion/react';
-import { MARKETING_CARD_MOTION, MARKETING_MOTION_EASE_PREMIUM } from '../../../config/marketing-motion';
+import {
+  MARKETING_CARD_MOTION,
+  MARKETING_IN_VIEW_MARGIN,
+  MARKETING_MOTION_EASE_PREMIUM,
+} from '../../../config/marketing-motion';
 import { HOME_SURFACE_CARD_STYLE } from '../config/home-ui.config';
 import { homeOutcomeCardVariants } from '../motion/home-motion';
 import { SectionHeading } from '../components/SectionHeading';
@@ -22,7 +26,7 @@ export function HomeOutcomesSection({ data, reduceMotion }: HomeOutcomesSectionP
           custom={0}
           initial={reduceMotion ? false : 'hidden'}
           whileInView={reduceMotion ? undefined : 'visible'}
-          viewport={{ once: true, margin: '-8% 0px' }}
+          viewport={{ once: true, margin: MARKETING_IN_VIEW_MARGIN.card }}
           whileHover={
             reduceMotion
               ? undefined
@@ -54,7 +58,7 @@ export function HomeOutcomesSection({ data, reduceMotion }: HomeOutcomesSectionP
               custom={cardIdx + 1}
               initial={reduceMotion ? false : 'hidden'}
               whileInView={reduceMotion ? undefined : 'visible'}
-              viewport={{ once: true, margin: '-8% 0px' }}
+              viewport={{ once: true, margin: MARKETING_IN_VIEW_MARGIN.card }}
               whileHover={
                 reduceMotion
                   ? undefined

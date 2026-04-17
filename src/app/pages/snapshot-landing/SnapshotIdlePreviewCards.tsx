@@ -1,5 +1,9 @@
 import { motion, useReducedMotion } from 'motion/react';
-import { MARKETING_CARD_MOTION, MARKETING_MOTION_EASE_PREMIUM } from '../../config/marketing-motion';
+import {
+  MARKETING_CARD_MOTION,
+  MARKETING_IN_VIEW_MARGIN,
+  MARKETING_MOTION_EASE_PREMIUM,
+} from '../../config/marketing-motion';
 import workspacePackaging from '../../data/marketing-workspace-packaging.en.json';
 /**
  * Static skeleton-style tiles shown before a scan completes — product narrative, not live data.
@@ -30,7 +34,7 @@ export function SnapshotIdlePreviewCards() {
         className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:gap-4"
         initial={reduce ? false : 'hidden'}
         whileInView={reduce ? undefined : 'visible'}
-        viewport={{ once: true, margin: '-5% 0px' }}
+        viewport={{ once: true, margin: MARKETING_IN_VIEW_MARGIN.tight }}
         variants={{
           hidden: {},
           visible: {

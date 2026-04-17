@@ -14,9 +14,9 @@ export function QuestionBankStudioPage() {
   return (
     <AppShell title="Question Bank Studio" subtitle="Internal canon map — consultants only">
       <div className="px-7 py-6">
-        <p className="text-xs mb-4 m-0" style={{ color: 'var(--text-quaternary)' }}>
+        <p className="text-xs mb-4 m-0 ds-text-quaternary" >
           This tool also lives under{' '}
-          <Link to="/settings#question-bank-studio" className="underline" style={{ color: 'var(--text-tertiary)' }}>
+          <Link to="/settings#question-bank-studio" className="underline ds-text-tertiary" >
             Settings
           </Link>
           . Toggle in <span className="font-mono">src/app/config/app-feature-flags.ts</span>.

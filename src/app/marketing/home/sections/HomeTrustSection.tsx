@@ -1,4 +1,5 @@
 import { motion } from 'motion/react';
+import { MARKETING_IN_VIEW_MARGIN } from '../../../config/marketing-motion';
 import { homeTrustLineVariants } from '../motion/home-motion';
 import type { MarketingHomeViewModel } from '../types/home-content.types';
 
@@ -22,7 +23,7 @@ export function HomeTrustSection({ data, reduceMotion }: HomeTrustSectionProps) 
             custom={i}
             initial={reduceMotion ? false : 'hidden'}
             whileInView={reduceMotion ? undefined : 'visible'}
-            viewport={{ once: true, margin: '-5% 0px' }}
+            viewport={{ once: true, margin: MARKETING_IN_VIEW_MARGIN.tight }}
           >
             {line}
           </motion.li>

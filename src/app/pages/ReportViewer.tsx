@@ -68,7 +68,7 @@ export function ReportViewer() {
     return (
       <AppShell title={REPORT_VIEWER_COPY.pageTitle} subtitle={REPORT_VIEWER_COPY.loadingSubtitle}>
         <div className="flex items-center justify-center h-64">
-          <ArrowsClockwise className="w-6 h-6 animate-spin" style={{ color: 'var(--glc-blue)' }} />
+          <ArrowsClockwise className="w-6 h-6 animate-spin ds-text-brand"  />
         </div>
       </AppShell>
     );

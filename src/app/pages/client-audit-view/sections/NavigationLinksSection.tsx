@@ -27,9 +27,9 @@ export function NavigationLinksSection({
           style={CLIENT_AUDIT_VIEW_UI.links.reportCard}
         >
           <div className="flex items-center gap-3 min-w-0">
-            <FileText className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
+            <FileText className="w-5 h-5 flex-shrink-0 ds-text-brand"  />
             <div>
-              <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{CLIENT_AUDIT_VIEW_COPY.links.viewReport}</div>
+              <div className="font-medium text-sm ds-text-primary" >{CLIENT_AUDIT_VIEW_COPY.links.viewReport}</div>
               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
                 {CLIENT_AUDIT_VIEW_COPY.links.reportFinished}
               </div>
@@ -46,15 +46,15 @@ export function NavigationLinksSection({
           style={CLIENT_AUDIT_VIEW_UI.links.pipelineCard}
         >
           <div className="flex items-center gap-3 min-w-0">
-            <Pulse className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--glc-blue)' }} />
+            <Pulse className="w-5 h-5 flex-shrink-0 ds-text-brand"  />
             <div>
-              <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{CLIENT_AUDIT_VIEW_COPY.links.pipelineStatus}</div>
+              <div className="font-medium text-sm ds-text-primary" >{CLIENT_AUDIT_VIEW_COPY.links.pipelineStatus}</div>
               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
                 {isCompleted ? CLIENT_AUDIT_VIEW_COPY.links.pipelineReview : CLIENT_AUDIT_VIEW_COPY.links.pipelineFollow}
               </div>
             </div>
           </div>
-          <CaretRight className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
+          <CaretRight className="w-4 h-4 ds-text-brand"  />
         </Link>
       )}
 

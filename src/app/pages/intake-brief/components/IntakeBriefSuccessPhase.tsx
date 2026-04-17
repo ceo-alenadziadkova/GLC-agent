@@ -84,7 +84,7 @@ export function IntakeBriefSuccessPhase(props: {
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
               style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
             >
-              <Clock className="h-4 w-4" style={{ color: 'var(--text-tertiary)' }} />
+              <Clock className="h-4 w-4 ds-text-tertiary"  />
             </div>
             <div className="min-w-0 pt-0.5">
               <p
@@ -103,7 +103,7 @@ export function IntakeBriefSuccessPhase(props: {
           </div>
 
           {successIsUpdate ? (
-            <p className="text-sm leading-relaxed m-0" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-sm leading-relaxed m-0 ds-text-secondary" >
               <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
                 {consultantNamed || consultantLabel}
               </span>{' '}
@@ -111,7 +111,7 @@ export function IntakeBriefSuccessPhase(props: {
             </p>
           ) : (
             <>
-              <p className="text-sm leading-relaxed m-0" style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-sm leading-relaxed m-0 ds-text-secondary" >
                 {consultantNamed ? (
                   <>
                     <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{consultantNamed}</span>{' '}
@@ -122,11 +122,11 @@ export function IntakeBriefSuccessPhase(props: {
                 )}
               </p>
               {followUpLine ? (
-                <p className="text-sm leading-relaxed m-0" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-sm leading-relaxed m-0 ds-text-secondary" >
                   {followUpLine}
                 </p>
               ) : (
-                <p className="text-sm leading-relaxed m-0" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-sm leading-relaxed m-0 ds-text-secondary" >
                   {consultantNamed
                     ? replaceIntakePublicCopyPlaceholders(copy.followUpFallbackNamed, {
                         name: consultantNamed,
@@ -146,12 +146,12 @@ export function IntakeBriefSuccessPhase(props: {
                   }}
                 >
                   <p
-                    className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider m-0 mb-2"
-                    style={{ color: 'var(--text-quaternary)' }}
+                    className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider m-0 mb-2 ds-text-quaternary"
+                    
                   >
                     {copy.contactHeading}
                   </p>
-                  <ul className="text-sm space-y-1.5 m-0 pl-0 list-none" style={{ color: 'var(--text-secondary)' }}>
+                  <ul className="text-sm space-y-1.5 m-0 pl-0 list-none ds-text-secondary" >
                     {contactFooter.map(line => (
                       <li key={line}>{line}</li>
                     ))}

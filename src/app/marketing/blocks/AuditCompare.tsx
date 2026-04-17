@@ -25,12 +25,12 @@ function Cell({ v }: { v: boolean | 'partial' }) {
   }
   if (v === 'partial') {
     return (
-      <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>
+      <span className="text-xs font-medium ds-text-tertiary" >
         Partial
       </span>
     );
   }
-  return <X className="mx-auto h-5 w-5" style={{ color: 'var(--text-quaternary)' }} aria-label="No" />;
+  return <X className="mx-auto h-5 w-5 ds-text-quaternary"  aria-label="No" />;
 }
 
 export function AuditCompare({
@@ -178,7 +178,7 @@ export function AuditCompare({
                   backgroundColor: row.label === 'Coverage breadth' ? 'color-mix(in oklab, var(--glc-blue-muted) 26%, transparent)' : 'transparent',
                 }}
               >
-                <td className="px-4 py-3.5 sm:px-6" style={{ color: 'var(--text-secondary)' }}>
+                <td className="px-4 py-3.5 sm:px-6 ds-text-secondary" >
                   {row.label}
                 </td>
                 <td className="px-4 py-3.5 text-center sm:px-6" style={colStyle('starter')}>
@@ -200,7 +200,7 @@ export function AuditCompare({
           className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-4 sm:px-6"
           style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-inset)' }}
         >
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+          <p className="text-xs leading-relaxed ds-text-tertiary" >
             {workspacePackaging.audit_compare_footer}
           </p>
           <div className="flex flex-wrap gap-2">

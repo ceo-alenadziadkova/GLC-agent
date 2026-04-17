@@ -43,16 +43,16 @@ export function SnapshotUpgradeSection({
       }
     >
       <div className="flex items-start gap-3">
-        <ChartBar className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--glc-blue)' }} />
+        <ChartBar className="w-5 h-5 flex-shrink-0 mt-0.5 ds-text-brand"  />
         <div className="min-w-0 flex-1 space-y-1">
-          <div className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
+          <div className="font-medium text-sm ds-text-primary" >
             {freeSnapshotAccess?.showCallout ? CLIENT_AUDIT_VIEW_COPY.snapshot.limitedTitle : CLIENT_AUDIT_VIEW_COPY.snapshot.normalTitle}
           </div>
-          <p className="text-xs m-0 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-xs m-0 leading-relaxed ds-text-secondary" >
             {freeSnapshotAccess?.showCallout ? (
               <>
                 {CLIENT_AUDIT_VIEW_COPY.snapshot.limitedBodyPrefix}{' '}
-                <Link to="/snapshot" className="font-semibold underline-offset-2 hover:underline" style={{ color: 'var(--glc-blue)' }}>
+                <Link to="/snapshot" className="font-semibold underline-offset-2 hover:underline ds-text-brand" >
                   {CLIENT_AUDIT_VIEW_COPY.snapshot.rerunLink}
                 </Link>{' '}
                 {CLIENT_AUDIT_VIEW_COPY.snapshot.limitedBodySuffix}
@@ -63,7 +63,7 @@ export function SnapshotUpgradeSection({
           </p>
         </div>
         {freeSnapshotAccess?.showCallout ? (
-          <Warning weight="fill" className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--score-2)' }} />
+          <Warning weight="fill" className="w-5 h-5 flex-shrink-0 ds-text-score-2"  />
         ) : (
           <CheckCircle weight="fill" className="w-5 h-5 flex-shrink-0" style={{ color: UI_SEMANTIC_COLORS.success }} />
         )}
@@ -72,14 +72,14 @@ export function SnapshotUpgradeSection({
       {snapshotPreview ? (
         <PortalSnapshotAccountMirror result={snapshotPreview} />
       ) : (
-        <p className="text-xs m-0" style={{ color: 'var(--text-quaternary)' }}>
+        <p className="text-xs m-0 ds-text-quaternary" >
           {CLIENT_AUDIT_VIEW_COPY.snapshot.missingMirror}
         </p>
       )}
 
       <div className="space-y-4 border-t pt-4" style={{ borderColor: CLIENT_AUDIT_VIEW_UI.snapshot.dividerBorderColor }}>
         <div>
-          <div className="text-xs font-medium mb-2" style={{ color: 'var(--text-tertiary)' }}>
+          <div className="text-xs font-medium mb-2 ds-text-tertiary" >
             {CLIENT_AUDIT_VIEW_COPY.snapshot.continuePackage}
           </div>
           <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: 'var(--border-subtle)' }}>
@@ -101,7 +101,7 @@ export function SnapshotUpgradeSection({
               </button>
             ))}
           </div>
-          <p className="text-xs m-0 mt-2 leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
+          <p className="text-xs m-0 mt-2 leading-relaxed ds-text-quaternary" >
             {CLIENT_AUDIT_VIEW_COPY.snapshot.selectedPackageHint}
           </p>
         </div>
@@ -178,7 +178,7 @@ export function SnapshotUpgradeSection({
           >
             {CLIENT_AUDIT_VIEW_COPY.snapshot.startFresh}
           </button>
-          <p className="text-xs m-0 leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
+          <p className="text-xs m-0 leading-relaxed ds-text-quaternary" >
             {CLIENT_AUDIT_VIEW_COPY.snapshot.startFreshBodyPrefix}
             {` ${coveragePackageLabel(upgradeCoveragePackage)} `}
             {CLIENT_AUDIT_VIEW_COPY.snapshot.startFreshBodyMiddle}
@@ -192,9 +192,9 @@ export function SnapshotUpgradeSection({
 function PackageCard({ active, label, summary, detail }: { active: boolean; label: string; summary: string; detail: string }) {
   return (
     <div className="rounded-lg px-3 py-2.5 text-xs" style={{ background: 'var(--bg-surface)', border: active ? CLIENT_AUDIT_VIEW_UI.snapshot.packageCardActiveBorder : '1px solid var(--border-subtle)' }}>
-      <div className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{label}</div>
-      <p className="m-0 mb-1.5" style={{ color: 'var(--text-secondary)' }}>{summary}</p>
-      <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>{detail}</p>
+      <div className="font-semibold mb-1 ds-text-primary" >{label}</div>
+      <p className="m-0 mb-1.5 ds-text-secondary" >{summary}</p>
+      <p className="m-0 ds-text-quaternary" >{detail}</p>
     </div>
   );
 }

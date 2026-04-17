@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router';
 import { isNavItemActive, type AppShellNavItem } from '../../../lib/app-shell-nav';
+import { cn } from '../../ui/utils';
 import { APP_SHELL_UI_POLICY } from '../config/app-shell-ui-policy';
 
 type MobileBottomNavProps = {
@@ -29,17 +30,17 @@ export function MobileBottomNav({ items, pathname, navAriaLabel }: MobileBottomN
           <NavLink
             key={to}
             to={to}
-            className="flex flex-1 flex-col items-center justify-center gap-0.5 no-underline min-w-0 py-1 glc-touch-target"
-            style={{ color: active ? 'var(--glc-blue)' : 'var(--text-tertiary)' }}
+            className={cn(
+              'flex flex-1 flex-col items-center justify-center gap-0.5 no-underline min-w-0 py-1 glc-touch-target',
+              active ? 'text-[color:var(--glc-blue)]' : 'text-[color:var(--text-tertiary)]',
+            )}
           >
             <Icon className="h-5 w-5 shrink-0" />
             <span
-              className="w-full truncate px-0.5 text-center"
-              style={{
-                fontSize: APP_SHELL_UI_POLICY.nav.itemLabelSizePx,
-                fontWeight: active ? 600 : 500,
-                lineHeight: 1.2,
-              }}
+              className={cn(
+                'w-full truncate px-0.5 text-center text-[length:var(--text-2xs)] leading-[1.2]',
+                active ? 'font-semibold' : 'font-medium',
+              )}
             >
               {label}
             </span>

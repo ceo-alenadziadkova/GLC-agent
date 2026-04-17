@@ -74,8 +74,8 @@ export function ReportFindings({
                 items.map((item) => (
                   <li
                     key={item}
-                    className="text-xs leading-relaxed flex items-start gap-2"
-                    style={{ color: 'var(--text-secondary)' }}
+                    className="text-xs leading-relaxed flex items-start gap-2 ds-text-secondary"
+                    
                   >
                     <span
                       className="mt-1.5 w-1 h-1 rounded-full flex-shrink-0"
@@ -85,7 +85,7 @@ export function ReportFindings({
                   </li>
                 ))
               ) : (
-                <li className="text-xs" style={{ color: 'var(--text-quaternary)' }}>
+                <li className="text-xs ds-text-quaternary" >
                   {REPORT_VIEWER_COPY.findings.noDataYet}
                 </li>
               )}
@@ -95,7 +95,7 @@ export function ReportFindings({
       </div>
 
       {quickWins.length > 0 && (
-        <div className="glc-card overflow-hidden" style={{ borderRadius: 'var(--radius-xl)' }}>
+        <div className="glc-card overflow-hidden ds-radius-xl" >
           <div
             className="flex items-center justify-between px-5 py-3"
             style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
@@ -135,11 +135,11 @@ export function ReportFindings({
                   >
                     {index + 1}
                   </span>
-                  <span className="flex-1 text-sm" style={{ color: 'var(--text-primary)' }}>
+                  <span className="flex-1 text-sm ds-text-primary" >
                     {quickWin.title}
                   </span>
                   {quickWin.timeframe && (
-                    <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                    <span className="flex items-center gap-1 text-xs ds-text-tertiary" >
                       <Clock className="w-3 h-3" />
                       {quickWin.timeframe}
                     </span>

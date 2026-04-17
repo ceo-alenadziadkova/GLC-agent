@@ -174,8 +174,8 @@ export function SnapshotCategoryBreakdownList({ result }: { result: FreeSnapshot
   ];
   return (
     <div
-      className="glc-card glc-snapshot-result-card glc-snapshot-surface-category mb-4 p-5 lg:p-6"
-      style={{ borderRadius: 'var(--radius-xl)' }}
+      className="glc-card glc-snapshot-result-card glc-snapshot-surface-category mb-4 p-5 lg:p-6 ds-radius-xl"
+      
     >
       <div className="glc-snapshot-section-h glc-snapshot-section-h--neutral">
         <span className="glc-snapshot-section-h__rule" aria-hidden />

@@ -39,11 +39,11 @@ export function NextStepsCta({
           : 'linear-gradient(135deg, color-mix(in oklab, var(--bg-muted) 62%, transparent) 0%, color-mix(in oklab, var(--glc-blue-muted) 46%, transparent) 100%)',
       }}
     >
-      <h2 className="font-display text-xl font-bold tracking-tight sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
+      <h2 className="font-display text-xl font-bold tracking-tight sm:text-2xl ds-text-primary" >
         {title}
       </h2>
       {subtitle && (
-        <p className="mt-1 max-w-2xl text-sm leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+        <p className="mt-1 max-w-2xl text-sm leading-relaxed ds-text-tertiary" >
           {subtitle}
         </p>
       )}
@@ -74,14 +74,14 @@ export function NextStepsCta({
           )}
         </p>
         {s.hint && (
-          <p className="mt-0.5 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-0.5 text-sm leading-relaxed ds-text-secondary" >
             {s.hint}
           </p>
         )}
       </div>
       <ArrowRight
-        className="mt-0.5 h-5 w-5 shrink-0 opacity-45 transition-[transform,opacity] duration-200 group-hover:translate-x-1 group-hover:opacity-100"
-        style={{ color: 'var(--glc-blue)' }}
+        className="mt-0.5 h-5 w-5 shrink-0 opacity-45 transition-[transform,opacity] duration-200 group-hover:translate-x-1 group-hover:opacity-100 ds-text-brand"
+        
         aria-hidden
       />
     </>
@@ -98,7 +98,7 @@ export function NextStepsCta({
         }}
       >
         {header}
-        <ul className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5" style={{ borderColor: 'var(--border-subtle)' }}>
+        <ul className="grid gap-3 border border-[var(--border-subtle)] p-4 sm:grid-cols-2 sm:p-5">
           {steps.map(s => (
             <li key={s.to}>
               <Link
@@ -121,8 +121,8 @@ export function NextStepsCta({
           ))}
         </ul>
         {footnote ? (
-          <div className="px-6 py-4 sm:px-8" style={{ backgroundColor: 'var(--bg-inset)' }}>
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+          <div className="px-6 py-4 sm:px-8 ds-bg-inset" >
+            <p className="text-xs leading-relaxed ds-text-tertiary" >
               {footnote}
             </p>
           </div>
@@ -164,8 +164,8 @@ export function NextStepsCta({
           </ul>
         </div>
         {footnote ? (
-          <div className="px-6 py-4 sm:px-8" style={{ backgroundColor: 'var(--bg-inset)' }}>
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+          <div className="px-6 py-4 sm:px-8 ds-bg-inset" >
+            <p className="text-xs leading-relaxed ds-text-tertiary" >
               {footnote}
             </p>
           </div>
@@ -184,7 +184,7 @@ export function NextStepsCta({
       }}
     >
       {header}
-      <ul className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+      <ul className="divide-y divide-[var(--border-subtle)]">
         {steps.map(s => (
           <li key={s.to}>
             <Link
@@ -206,8 +206,8 @@ export function NextStepsCta({
         ))}
       </ul>
       {footnote && (
-        <div className="px-6 py-4 sm:px-8" style={{ backgroundColor: 'var(--bg-inset)' }}>
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+        <div className="px-6 py-4 sm:px-8 ds-bg-inset" >
+          <p className="text-xs leading-relaxed ds-text-tertiary" >
             {footnote}
           </p>
         </div>

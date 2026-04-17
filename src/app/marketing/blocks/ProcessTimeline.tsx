@@ -13,7 +13,7 @@ export function ProcessTimeline({
   return (
     <div>
       {title && (
-        <h3 className="mb-6 font-display text-lg font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="mb-6 font-display text-lg font-bold tracking-tight ds-text-primary" >
           {title}
         </h3>
       )}
@@ -29,26 +29,18 @@ export function ProcessTimeline({
           >
             {i < steps.length - 1 && (
               <span
-                className="absolute left-[15px] top-8 bottom-0 w-px"
-                style={{ backgroundColor: 'var(--border-default)' }}
+                className="ds-bg-border-default absolute left-[15px] top-8 bottom-0 w-px"
                 aria-hidden
               />
             )}
-            <div
-              className="relative z-[1] flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-              style={{
-                background: 'var(--gradient-brand)',
-                color: 'var(--primary-foreground)',
-                boxShadow: 'var(--shadow-sm)',
-              }}
-            >
+            <div className="ds-process-step-badge relative z-[1] flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">
               {i + 1}
             </div>
             <div className="min-w-0 pt-0.5">
-              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+              <p className="font-semibold ds-text-primary" >
                 {s.title}
               </p>
-              <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              <p className="mt-1 text-sm leading-relaxed ds-text-secondary" >
                 {s.detail}
               </p>
             </div>

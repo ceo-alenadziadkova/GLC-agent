@@ -96,9 +96,9 @@ export function Login() {
             motionPolicy={controller.motionPolicy}
           />
 
-          <p className="mt-5 w-full text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          <p className="mt-5 w-full text-center text-xs ds-text-tertiary" >
             {LC.footerTerms}{' '}
-            <Link to={APP_ROUTE_PATHS.faq} className="underline-offset-2 hover:underline" style={{ color: 'var(--glc-blue)' }}>
+            <Link to={APP_ROUTE_PATHS.faq} className="underline-offset-2 hover:underline ds-text-brand" >
               {LC.footerFaq}
             </Link>
           </p>

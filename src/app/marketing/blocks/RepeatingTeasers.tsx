@@ -15,21 +15,17 @@ function TeaserCard({
   cta: string;
 }) {
   return (
-    <div
-      className="glc-card flex h-full flex-col p-5 sm:p-6"
-      style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-card)' }}
-    >
-      <Icon className="h-8 w-8" style={{ color: 'var(--glc-blue)' }} aria-hidden />
-      <h3 className="mt-3 font-display text-lg font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+    <div className="glc-card ds-card-radius-elevated flex h-full flex-col p-5 sm:p-6">
+      <Icon className="h-8 w-8 ds-text-brand" aria-hidden />
+      <h3 className="mt-3 font-display text-lg font-bold tracking-tight ds-text-primary" >
         {title}
       </h3>
-      <p className="mt-2 flex-1 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+      <p className="mt-2 flex-1 text-sm leading-relaxed ds-text-secondary" >
         {body}
       </p>
       <Link
         to={to}
-        className="mt-4 inline-flex text-sm font-semibold"
-        style={{ color: 'var(--glc-orange)' }}
+        className="ds-text-accent-orange mt-4 inline-flex text-sm font-semibold"
       >
         {cta}
       </Link>

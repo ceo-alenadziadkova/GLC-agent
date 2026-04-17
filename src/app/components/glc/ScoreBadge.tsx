@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { motion } from 'motion/react';
 
 interface ScoreBadgeProps {
@@ -118,13 +119,10 @@ export function ScoreBar({ score }: { score: number }) {
 
   return (
     <div className="flex items-center gap-2">
-      <div
-        className="flex-1 rounded-full overflow-hidden"
-        style={{ height: 3, backgroundColor: 'var(--border-subtle)', minWidth: 48 }}
-      >
+      <div className="ds-scorebar-track flex-1 rounded-full overflow-hidden">
         <motion.div
-          className="h-full rounded-full"
-          style={{ background: cfg.gradient }}
+          className="ds-scorebar-fill h-full rounded-full"
+          style={{ ['--scorebar-fill' as string]: cfg.gradient } as CSSProperties}
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}

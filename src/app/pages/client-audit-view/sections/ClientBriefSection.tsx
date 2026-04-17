@@ -141,8 +141,8 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
     <div className="rounded-xl" style={CLIENT_AUDIT_VIEW_UI.brief.card}>
       <div className="px-5 py-4 mobile:px-4 flex items-center justify-between flex-wrap gap-2" style={CLIENT_AUDIT_VIEW_UI.brief.headerBorder}>
         <div className="flex items-center gap-2.5">
-          <ClipboardText className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
-          <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{CLIENT_AUDIT_VIEW_COPY.brief.title}</h3>
+          <ClipboardText className="w-4 h-4 ds-text-brand"  />
+          <h3 className="font-semibold text-sm ds-text-primary" >{CLIENT_AUDIT_VIEW_COPY.brief.title}</h3>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           {layoutSelected && (
@@ -167,9 +167,9 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
       </div>
 
       <div className="px-5 py-4 mobile:px-4 space-y-4">
-        <p className="text-xs leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
+        <p className="text-xs leading-relaxed ds-text-quaternary" >
           {CLIENT_AUDIT_VIEW_COPY.brief.defaultLayoutPrefix}{' '}
-          <Link to="/settings#brief-layout" className="font-medium underline-offset-2 hover:underline" style={{ color: 'var(--glc-blue)' }}>
+          <Link to="/settings#brief-layout" className="font-medium underline-offset-2 hover:underline ds-text-brand" >
             {CLIENT_AUDIT_VIEW_COPY.brief.settingsLink}
           </Link>
           {CLIENT_AUDIT_VIEW_COPY.brief.defaultLayoutSuffix}

@@ -74,7 +74,7 @@ export function DiscoveryPublicPage() {
                 {WORKSPACE_PAGE_COPY.discoveryPublic.heroIntro}
               </p>
 
-              <ul className="mx-auto grid max-w-md gap-2 text-left text-sm leading-relaxed lg:mx-0 lg:max-w-none" style={{ color: 'var(--text-secondary)' }}>
+              <ul className="mx-auto grid max-w-md gap-2 text-left text-sm leading-relaxed lg:mx-0 lg:max-w-none ds-text-secondary" >
                 {WORKSPACE_PAGE_COPY.discoveryPublic.bullets.map(line => (
                   <li key={line} className="flex gap-2">
                     <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: 'var(--glc-blue)' }} />

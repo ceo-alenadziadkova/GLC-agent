@@ -255,7 +255,7 @@ export function QuestionBankStudioContainer() {
 
   return (
     <div className="flex flex-col gap-3" style={{ minHeight: STUDIO_CARD_MIN_HEIGHT_PX }}>
-      <div className="flex flex-col gap-3 p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}>
+      <div className="flex flex-col gap-3 p-4 rounded-xl ds-panel-surface" >
         <StudioHeaderSection viewMode={viewMode} overviewUi={overviewUi} onViewModeChange={setViewMode} />
         <StudioToolbarSection
           viewMode={viewMode}

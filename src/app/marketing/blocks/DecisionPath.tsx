@@ -57,15 +57,15 @@ export function DecisionPath({
                 <Icon className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: accent.icon }} weight="duotone" />
               </div>
               <h3
-                className="mt-4 font-display text-base font-bold tracking-tight sm:text-lg"
-                style={{ color: 'var(--text-primary)' }}
+                className="mt-4 font-display text-base font-bold tracking-tight sm:text-lg ds-text-primary"
+                
               >
                 {title}
               </h3>
-              <p className="mt-2 flex-1 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              <p className="mt-2 flex-1 text-sm leading-relaxed ds-text-secondary" >
                 {subtitle}
               </p>
-              <div className="mt-4 flex items-center gap-1 text-sm font-semibold" style={{ color: 'var(--glc-blue)' }}>
+              <div className="mt-4 flex items-center gap-1 text-sm font-semibold ds-text-brand" >
                 <span>Explore</span>
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden />
               </div>
@@ -102,16 +102,16 @@ export function DecisionPath({
               <Icon className="h-5 w-5 sm:h-[22px] sm:w-[22px]" style={{ color: accent.icon }} weight="duotone" />
             </div>
             <div className="min-w-0 flex-1">
-              <h3 className="font-display text-base font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+              <h3 className="font-display text-base font-bold tracking-tight ds-text-primary" >
                 {title}
               </h3>
-              <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              <p className="mt-1 text-sm leading-relaxed ds-text-secondary" >
                 {subtitle}
               </p>
             </div>
             <ArrowRight
-              className="mt-1 h-5 w-5 shrink-0 self-start opacity-35 transition-all group-hover:translate-x-0.5 group-hover:opacity-100 sm:mt-1.5"
-              style={{ color: 'var(--glc-blue)' }}
+              className="mt-1 h-5 w-5 shrink-0 self-start opacity-35 transition-all group-hover:translate-x-0.5 group-hover:opacity-100 sm:mt-1.5 ds-text-brand"
+              
               aria-hidden
             />
           </Link>

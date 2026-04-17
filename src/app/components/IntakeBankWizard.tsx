@@ -163,12 +163,12 @@ export function IntakeBankWizard({
     if (chips.length === 0) return null;
     return (
       <div
-        className="rounded-lg p-3 space-y-2"
-        style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-inset)' }}
+        className="rounded-lg p-3 space-y-2 ds-border-subtle ds-bg-inset"
+        
       >
         <div
-          className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide"
-          style={{ color: 'var(--text-tertiary)' }}
+          className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide ds-text-tertiary"
+          
         >
           <Signpost className="w-4 h-4 shrink-0" aria-hidden weight="bold" />
           Suggested next

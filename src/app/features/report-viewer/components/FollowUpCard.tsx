@@ -22,8 +22,8 @@ export function FollowUpCard({ followUpQuestionsCount, answeredFollowUps }: Foll
       initial={{ opacity: 0, y: REPORT_VIEWER_CONSTANTS.motion.followUpEnterOffsetY }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: REPORT_VIEWER_CONSTANTS.motion.followUpEnterDurationSec }}
-      className="glc-card p-5"
-      style={{ borderRadius: 'var(--radius-xl)' }}
+      className="glc-card p-5 ds-radius-xl"
+      
     >
       <div className="flex items-center justify-between gap-3">
         <div>

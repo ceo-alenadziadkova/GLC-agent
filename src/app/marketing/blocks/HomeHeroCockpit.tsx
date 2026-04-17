@@ -54,7 +54,7 @@ export function HomeHeroCockpit({ className }: { className?: string }) {
           }}
           whileHover={hover}
         >
-          <p className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+          <p className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider ds-text-tertiary" >
             Workspace
           </p>
           <div className="mt-3 space-y-2">
@@ -75,7 +75,7 @@ export function HomeHeroCockpit({ className }: { className?: string }) {
           }}
           whileHover={hover}
         >
-          <p className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+          <p className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider ds-text-tertiary" >
             Coverage map
           </p>
           <div className="mt-3 grid grid-cols-3 gap-2">
@@ -106,7 +106,7 @@ export function HomeHeroCockpit({ className }: { className?: string }) {
           }}
           whileHover={hover}
         >
-          <p className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+          <p className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider ds-text-tertiary" >
             Next actions
           </p>
           <div className="mt-3 space-y-2.5">

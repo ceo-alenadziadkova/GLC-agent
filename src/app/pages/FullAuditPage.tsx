@@ -53,7 +53,7 @@ export function FullAuditPage() {
         className="-mx-4 mt-12 rounded-[var(--radius-2xl)] border border-[var(--border-subtle)] bg-[var(--bg-inset)] px-4 py-14 sm:-mx-6 sm:mt-16 sm:px-6 sm:py-16"
         delay={0.04}
       >
-        <h2 className="font-display text-xl font-bold sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
+        <h2 className="font-display text-xl font-bold sm:text-2xl ds-text-primary" >
           Included domains
         </h2>
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -80,7 +80,7 @@ export function FullAuditPage() {
       </MarketingSection>
 
       <MarketingSection className={L.sectionGapClass} delay={0.06}>
-        <h2 className="mb-6 font-display text-xl font-bold sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
+        <h2 className="mb-6 font-display text-xl font-bold sm:text-2xl ds-text-primary" >
           Package semantics
         </h2>
         <MarketingRevealMask>
@@ -105,7 +105,7 @@ export function FullAuditPage() {
                   <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--glc-blue-light)' }}>
                     {t}
                   </p>
-                  <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+                  <p className="mt-2 text-sm leading-relaxed ds-text-primary" >
                     {b}
                   </p>
                 </div>
@@ -119,10 +119,10 @@ export function FullAuditPage() {
         className={cn(L.sectionGapClass, 'rounded-[var(--radius-2xl)] border border-[var(--border-subtle)] bg-[var(--bg-muted)] px-4 py-12 sm:px-6 sm:py-14')}
         delay={0.07}
       >
-        <h2 className="font-display text-xl font-bold sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
+        <h2 className="font-display text-xl font-bold sm:text-2xl ds-text-primary" >
           Deliverables
         </h2>
-        <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed ds-text-secondary" >
           <li>Structured workspace output with explicit coverage and comparability notes.</li>
           <li>Cross-domain synthesis across all six domains (strongest comparability baseline).</li>
           <li>Priority matrix (impact / effort) and roadmap.</li>
@@ -148,10 +148,10 @@ export function FullAuditPage() {
               },
             ].map(item => (
               <article key={item.title} className="p-5 sm:p-6" style={PACKAGE_MARKETING_OUTCOME_CARD}>
-                <h3 className="font-display text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+                <h3 className="font-display text-base font-bold ds-text-primary" >
                   {item.title}
                 </h3>
-                <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                <p className="mt-2 text-sm leading-relaxed ds-text-secondary" >
                   {item.body}
                 </p>
               </article>
@@ -169,7 +169,7 @@ export function FullAuditPage() {
       </MarketingSection>
 
       <MarketingSection className={L.sectionGapClass} delay={0.11}>
-        <h2 className="mb-6 font-display text-xl font-bold sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
+        <h2 className="mb-6 font-display text-xl font-bold sm:text-2xl ds-text-primary" >
           Focus vs Context vs Strategy workspace
         </h2>
         <MarketingRevealMask>
@@ -209,9 +209,9 @@ export function FullAuditPage() {
         />
       </div>
 
-      <p className="mt-8 text-center text-sm" style={{ color: 'var(--text-tertiary)' }}>
+      <p className="mt-8 text-center text-sm ds-text-tertiary" >
         {labels.completeHintPrefix}{' '}
-        <Link to="/discovery" className="font-semibold" style={{ color: 'var(--glc-blue)' }}>
+        <Link to="/discovery" className="font-semibold ds-text-brand" >
           Discovery
         </Link>
         .

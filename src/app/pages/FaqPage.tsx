@@ -36,7 +36,7 @@ const FAQ_ITEMS: { q: string; a: ReactNode }[] = [
     a: (
       <>
         Start with{' '}
-        <Link to="/discovery" style={{ color: 'var(--glc-blue)' }}>
+        <Link to="/discovery" className="ds-marketing-inline-link-accent">
           Discovery
         </Link>
         —we help clarify the problem and next step before a fixed brief.
@@ -84,7 +84,7 @@ const FAQ_ITEMS: { q: string; a: ReactNode }[] = [
     a: (
       <>
         Use the{' '}
-        <Link to={LOGIN_PATH} style={{ color: 'var(--glc-blue)' }}>
+        <Link to={LOGIN_PATH} className="ds-marketing-inline-link-accent">
           sign-in page
         </Link>
         —dashboard, reports, progress, and materials for active projects.
@@ -102,19 +102,19 @@ export function FaqPage() {
       ]}
     >
       <MarketingSection>
-        <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: 'var(--text-primary)' }}>
+        <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl ds-text-primary" >
           Questions and answers
         </h1>
-        <p className="mt-4 max-w-2xl text-base leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <p className="mt-4 max-w-2xl text-base leading-relaxed ds-text-secondary" >
           Short notes on formats, timelines, and how we work—practical detail without fluff.
         </p>
       </MarketingSection>
 
       <MarketingSection>
-        <h2 className="font-display text-xl font-bold sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
+        <h2 className="font-display text-xl font-bold sm:text-2xl ds-text-primary" >
           {WORKSPACE_PAGE_COPY.faqPage.compareMatrixTitle}
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed ds-text-secondary" >
           {WORKSPACE_PAGE_COPY.faqPage.compareMatrixLead}
         </p>
         <MarketingRevealMask className="mt-8">
@@ -129,7 +129,7 @@ export function FaqPage() {
           {FAQ_ITEMS.map((item, i) => (
             <AccordionItem key={item.q} value={`faq-${i}`}>
               <AccordionTrigger className="text-left text-base font-semibold">{item.q}</AccordionTrigger>
-              <AccordionContent className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              <AccordionContent className="text-sm leading-relaxed ds-text-secondary" >
                 {item.a}
               </AccordionContent>
             </AccordionItem>

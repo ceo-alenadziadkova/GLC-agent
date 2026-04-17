@@ -50,12 +50,12 @@ export function MobileDrawer({
         <div
           className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--sidebar-border)] px-4 py-3 glc-safe-pad-x"
         >
-          <span className="text-[length:var(--text-sm)] font-semibold text-[rgba(255,255,255,0.85)]">
+          <span className="text-[length:var(--text-sm)] font-semibold ds-app-drawer-text">
             {shellCopy.sidebar.menu}
           </span>
           <button
             type="button"
-            className="glc-touch-target flex items-center justify-center rounded-lg border-0 bg-[var(--sidebar-border)] text-[rgba(255,255,255,0.85)]"
+            className="glc-touch-target ds-app-drawer-text flex items-center justify-center rounded-lg border-0 bg-[var(--sidebar-border)]"
             onClick={onClose}
             aria-label={shellCopy.aria.closeMenu}
           >
@@ -130,7 +130,7 @@ export function MobileDrawer({
           {isAuthenticated && (
             <button
               type="button"
-              className="glc-touch-target w-full rounded-lg border-0 px-2.5 py-3 text-left text-[rgba(255,255,255,0.55)]"
+              className="ds-app-drawer-text-faint glc-touch-target w-full rounded-lg border-0 px-2.5 py-3 text-left"
               onClick={onSignOut}
             >
               <SignOut className="w-5 h-5 flex-shrink-0" />

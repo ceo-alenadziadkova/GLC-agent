@@ -71,7 +71,7 @@ export function IntakeBriefFormPhase(props: {
           {title}
         </h1>
         {message && (
-          <p className="text-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+          <p className="text-sm ds-type-sm-secondary-leading" >
             {message}
           </p>
         )}
@@ -121,7 +121,7 @@ export function IntakeBriefFormPhase(props: {
       </p>
 
       <div>
-        <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>
+        <div className="flex justify-between text-xs mb-1 ds-text-tertiary" >
           <span>{copy.progressLabel}</span>
           <span>
             {answered} / {total}
@@ -138,7 +138,7 @@ export function IntakeBriefFormPhase(props: {
         </div>
       </div>
 
-      <div className="glc-card overflow-hidden p-5 space-y-8" style={{ borderRadius: 'var(--radius-xl)' }}>
+      <div className="glc-card overflow-hidden p-5 space-y-8 ds-radius-xl" >
         {questionSections.map((block, blockIdx) => (
           <section
             key={`intake-form-section-${blockIdx}`}
@@ -200,7 +200,7 @@ export function IntakeBriefFormPhase(props: {
       </div>
 
       {submitError && (
-        <p className="text-sm text-center" style={{ color: 'var(--score-1)' }}>
+        <p className="text-sm text-center ds-text-score-1" >
           {submitError}
         </p>
       )}

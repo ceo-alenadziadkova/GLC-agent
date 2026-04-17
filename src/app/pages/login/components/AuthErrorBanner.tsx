@@ -7,7 +7,7 @@ export function AuthErrorBanner({ message }: AuthErrorBannerProps) {
     return null;
   }
   return (
-    <p role="alert" aria-live="assertive" className="text-center text-sm" style={{ color: 'var(--score-1)' }}>
+    <p role="alert" aria-live="assertive" className="text-center text-sm ds-text-score-1" >
       {message}
     </p>
   );

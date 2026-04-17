@@ -37,7 +37,7 @@ export function ProfileTabs({ options, profile, onSelect }: ProfileTabsProps) {
           </button>
         );
       })}
-      <span className="ml-auto text-xs self-center pr-1" style={{ color: 'var(--text-tertiary)' }}>
+      <span className="ml-auto text-xs self-center pr-1 ds-text-tertiary" >
         {options.find((option) => option.id === profile)?.description ?? ''}
       </span>
     </div>

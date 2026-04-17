@@ -36,9 +36,9 @@ export function StudioCanvasSection(props: StudioCanvasSectionProps) {
         minHeight: STUDIO_CANVAS_MIN_HEIGHT_PX,
       }}
     >
-      <div className="h-full overflow-auto p-3 space-y-3" style={{ backgroundColor: 'var(--bg-surface)' }}>
+      <div className="h-full overflow-auto p-3 space-y-3 ds-bg-surface" >
         {userStepLanes.length === 0 ? (
-          <div className="text-sm" style={{ color: 'var(--text-quaternary)' }}>
+          <div className="text-sm ds-text-quaternary" >
             {STUDIO_COPY_EN.userModeNoStepLayoutHint}
           </div>
         ) : (
@@ -50,12 +50,12 @@ export function StudioCanvasSection(props: StudioCanvasSectionProps) {
                 className="rounded-lg p-3"
                 style={{ border: '1px solid var(--border-default)', backgroundColor: 'var(--bg-canvas)' }}
               >
-                <div className="text-xs font-semibold mb-2" style={{ color: 'var(--text-tertiary)' }}>
+                <div className="text-xs font-semibold mb-2 ds-text-tertiary" >
                   {`Step ${step.stepIndex + 1} — ${step.label}`}
                 </div>
                 <div className="grid gap-2">
                   {step.questionIds.length === 0 ? (
-                    <div className="text-xs" style={{ color: 'var(--text-quaternary)' }}>
+                    <div className="text-xs ds-text-quaternary" >
                       {STUDIO_COPY_EN.userModeNoQuestionsInStepHint}
                     </div>
                   ) : (
@@ -83,7 +83,7 @@ export function StudioCanvasSection(props: StudioCanvasSectionProps) {
                           }}
                         >
                           <div className="text-xs font-medium">{shortUserLabel(questionId)}</div>
-                          <div className="text-[length:var(--text-2xs)] flex items-center gap-1.5" style={{ color: 'var(--text-quaternary)' }}>
+                          <div className="text-[length:var(--text-2xs)] flex items-center gap-1.5 ds-text-quaternary" >
                             id: <span className="font-mono">{questionId}</span> · status: {status}
                             <span
                               className="inline-flex items-center px-1.5 py-0.5 rounded"

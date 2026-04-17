@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { Moon, Sun } from '@phosphor-icons/react';
 import { Switch } from './ui/switch';
 import { cn } from './ui/utils';
@@ -16,15 +17,20 @@ export function ThemeToggle({ variant = 'default', className }: ThemeToggleProps
   const iconActive =
     variant === 'sidebar' ? 'rgba(255,255,255,0.78)' : 'var(--text-secondary)';
 
+  const cssVars = {
+    '--theme-toggle-sun': isDark ? iconMuted : iconActive,
+    '--theme-toggle-moon': isDark ? iconActive : iconMuted,
+  } as CSSProperties;
+
   return (
     <div
       className={cn('flex items-center gap-2', className)}
+      style={cssVars}
       title={isDark ? 'Dark theme on' : 'Light theme on'}
     >
       <Sun
-        className="h-4 w-4 shrink-0"
+        className="ds-theme-toggle-sun h-4 w-4 shrink-0"
         weight={isDark ? 'regular' : 'fill'}
-        style={{ color: isDark ? iconMuted : iconActive }}
         aria-hidden
         focusable="false"
       />
@@ -35,9 +41,8 @@ export function ThemeToggle({ variant = 'default', className }: ThemeToggleProps
         className={variant === 'sidebar' ? 'data-[state=unchecked]:bg-white/15' : undefined}
       />
       <Moon
-        className="h-4 w-4 shrink-0"
+        className="ds-theme-toggle-moon h-4 w-4 shrink-0"
         weight={isDark ? 'fill' : 'regular'}
-        style={{ color: isDark ? iconActive : iconMuted }}
         aria-hidden
         focusable="false"
       />

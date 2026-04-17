@@ -270,6 +270,7 @@ body.glc-site-polish :is(a, button):not(:disabled) {
   nav,
   header nav,
   .glc-btn-primary,
+  .ds-cta-primary,
   .glc-btn-secondary,
   .glc-btn-icon,
   [data-pipeline-controls],

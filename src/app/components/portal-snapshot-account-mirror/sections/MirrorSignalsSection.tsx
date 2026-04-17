@@ -6,8 +6,8 @@ export function MirrorSignalsSection({ signalsFound }: { signalsFound: string[] 
   return (
     <div className="mb-2">
       <p
-        className="mb-2 text-center text-[0.65rem] font-medium uppercase tracking-wider sm:text-xs lg:text-left"
-        style={{ color: 'var(--text-tertiary)' }}
+        className="mb-2 text-center text-[0.65rem] font-medium uppercase tracking-wider sm:text-xs lg:text-left ds-text-tertiary"
+        
       >
         {PORTAL_SNAPSHOT_MIRROR_COPY.limitations.heading}
       </p>

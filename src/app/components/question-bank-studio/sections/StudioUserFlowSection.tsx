@@ -29,10 +29,10 @@ export function StudioUserFlowSection(props: StudioUserFlowSectionProps) {
 
   return (
     <div
-      className="rounded-lg px-3 py-2 space-y-2 text-xs"
-      style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}
+      className="rounded-lg px-3 py-2 space-y-2 text-xs ds-panel-canvas"
+      
     >
-      <div className="text-[length:var(--text-2xs)] font-semibold uppercase" style={{ color: 'var(--text-tertiary)' }}>
+      <div className="text-[length:var(--text-2xs)] font-semibold uppercase ds-text-tertiary" >
         Breadcrumbs (current path)
       </div>
       <div style={{ color: 'var(--text-secondary)' }}>
@@ -83,7 +83,7 @@ export function StudioUserFlowSection(props: StudioUserFlowSectionProps) {
       </div>
       {userStepLanes.length > 0 && (
         <div className="pt-1 border-t" style={{ borderColor: 'var(--border-default)' }}>
-          <div className="text-[length:var(--text-2xs)] uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
+          <div className="text-[length:var(--text-2xs)] uppercase mb-1 ds-text-tertiary" >
             Swimlanes by step
           </div>
           <div className="flex flex-wrap gap-1.5">

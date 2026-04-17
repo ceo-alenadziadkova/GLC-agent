@@ -141,7 +141,7 @@ export function SignInUpForm(props: SignInUpFormProps) {
           </div>
         )}
         {mode === 'signup' && (
-          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          <p className="text-xs ds-text-tertiary" >
             {LC.signupPasswordHint}
           </p>
         )}

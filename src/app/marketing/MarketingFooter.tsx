@@ -21,14 +21,14 @@ export function MarketingFooter() {
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between sm:gap-10">
           <div className="min-w-0 text-center sm:max-w-md sm:text-left">
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <p className="text-sm font-semibold ds-text-primary" >
               {footer.brandTitle}
             </p>
             {mailHref ? (
               <a
                 href={mailHref}
-                className="mt-3 inline-flex min-h-10 items-center text-sm font-medium"
-                style={{ color: 'var(--glc-blue)' }}
+                className="mt-3 inline-flex min-h-10 items-center text-sm font-medium ds-text-brand"
+                
               >
                 {supportEmail.trim()}
               </a>
@@ -41,8 +41,8 @@ export function MarketingFooter() {
                 <li key={to}>
                   <Link
                     to={to}
-                    className="inline-flex min-h-10 items-center px-1 py-1.5 text-sm"
-                    style={{ color: 'var(--text-secondary)' }}
+                    className="inline-flex min-h-10 items-center px-1 py-1.5 text-sm ds-text-secondary"
+                    
                   >
                     {label}
                   </Link>
@@ -51,8 +51,8 @@ export function MarketingFooter() {
               <li>
                 <Link
                   to={LOGIN_PATH}
-                  className="inline-flex min-h-10 items-center px-1 py-1.5 text-sm"
-                  style={{ color: 'var(--text-secondary)' }}
+                  className="inline-flex min-h-10 items-center px-1 py-1.5 text-sm ds-text-secondary"
+                  
                 >
                   {footer.clientSignInLabel}
                 </Link>

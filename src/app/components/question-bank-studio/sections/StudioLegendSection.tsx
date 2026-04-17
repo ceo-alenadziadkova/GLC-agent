@@ -14,8 +14,8 @@ export function StudioLegendSection(props: StudioLegendSectionProps) {
   const { legendStyle, markerSizePx, domainBorderColor, layoutBorderColor, planFootprintSize } = props;
 
   return (
-    <div className="rounded-lg px-3 py-2" style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}>
-      <div className="text-[length:var(--text-2xs)] font-semibold uppercase mb-1" style={{ color: 'var(--text-tertiary)' }}>
+    <div className="rounded-lg px-3 py-2 ds-panel-canvas" >
+      <div className="text-[length:var(--text-2xs)] font-semibold uppercase mb-1 ds-text-tertiary" >
         {QUESTION_BANK_STUDIO_COPY_EN.legend.title}
       </div>
       <div className="grid gap-1.5 mobile:grid-cols-2" style={legendStyle}>

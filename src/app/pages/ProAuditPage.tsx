@@ -58,20 +58,20 @@ export function ProAuditPage() {
           <MarketingComparisonShell>
             <div className="grid divide-y divide-[var(--border-subtle)] lg:grid-cols-2 lg:divide-x lg:divide-y-0">
               <div className="p-6 sm:p-8">
-                <h3 className="font-display text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+                <h3 className="font-display text-lg font-bold ds-text-primary" >
                   {labels.included}
                 </h3>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm ds-text-secondary" >
                   {scope.included.map(line => (
                     <li key={line}>{line}</li>
                   ))}
                 </ul>
               </div>
               <div className="p-6 sm:p-8">
-                <h3 className="font-display text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+                <h3 className="font-display text-lg font-bold ds-text-primary" >
                   {labels.notIncluded}
                 </h3>
-                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                <ul className="mt-3 list-disc space-y-2 pl-5 text-sm ds-text-secondary" >
                   {scope.not_included.map(line => (
                     <li key={line}>{line}</li>
                   ))}
@@ -87,10 +87,10 @@ export function ProAuditPage() {
           <div className="grid gap-4 md:grid-cols-3">
             {outcomeCards.map(item => (
               <article key={item.title} className="p-5 sm:p-6" style={PACKAGE_MARKETING_OUTCOME_CARD}>
-                <h3 className="font-display text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+                <h3 className="font-display text-base font-bold ds-text-primary" >
                   {item.title}
                 </h3>
-                <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                <p className="mt-2 text-sm leading-relaxed ds-text-secondary" >
                   {item.body}
                 </p>
               </article>
@@ -108,7 +108,7 @@ export function ProAuditPage() {
       </MarketingSection>
 
       <MarketingSection className={L.sectionGapClass} delay={0.11}>
-        <h2 className="mb-6 font-display text-xl font-bold sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
+        <h2 className="mb-6 font-display text-xl font-bold sm:text-2xl ds-text-primary" >
           {compareHeading}
         </h2>
         <MarketingRevealMask>
@@ -149,9 +149,9 @@ export function ProAuditPage() {
         />
       </div>
 
-      <p className="mt-8 text-center text-sm" style={{ color: 'var(--text-tertiary)' }}>
+      <p className="mt-8 text-center text-sm ds-text-tertiary" >
         {labels.proHintPrefix}{' '}
-        <Link to="/brief" className="font-semibold" style={{ color: 'var(--glc-blue)' }}>
+        <Link to="/brief" className="font-semibold ds-text-brand" >
           {workspacePackaging.navigation.links.brief}
         </Link>
         .

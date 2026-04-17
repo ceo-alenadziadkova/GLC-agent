@@ -17,7 +17,7 @@ export function LoadingSpinner() {
             ease: 'linear'
           }}
         />
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-sm ds-text-secondary" >
           Loading audit report...
         </p>
       </div>

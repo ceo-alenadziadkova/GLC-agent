@@ -18,11 +18,11 @@ export function StudioModeSummarySection(props: StudioModeSummarySectionProps) {
   const { policyMode, policyBannerStats, tracePlan, traceError, branchFocusSize } = props;
 
   return (
-    <div className="rounded-lg px-3 py-2 space-y-1 text-xs leading-snug" style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}>
-      <div className="text-[length:var(--text-2xs)] font-semibold uppercase" style={{ color: 'var(--text-tertiary)' }}>
+    <div className="rounded-lg px-3 py-2 space-y-1 text-xs leading-snug ds-panel-canvas" >
+      <div className="text-[length:var(--text-2xs)] font-semibold uppercase ds-text-tertiary" >
         {QUESTION_BANK_STUDIO_COPY_EN.panels.currentMode}
       </div>
-      <p className="m-0" style={{ color: 'var(--text-secondary)' }}>
+      <p className="m-0 ds-text-secondary" >
         Policy <span className="font-mono">{policyMode}</span> · Bank in policy: <strong>{policyBannerStats.bankParticipating}</strong> / {policyBannerStats.bankTotal}
         {policyBannerStats.bankOutsidePolicy > 0 ? <> (<span style={{ color: 'var(--text-quaternary)' }}>{policyBannerStats.bankOutsidePolicy} outside slice</span>)</> : null}
         {policyBannerStats.bankPolicyRequired > 0 ? <> · Policy required: <strong style={{ color: 'var(--glc-orange)' }}>{policyBannerStats.bankPolicyRequired}</strong></> : null}

@@ -18,21 +18,22 @@ export function SectionHeading({
   size = 'default',
 }: SectionHeadingProps) {
   const h2Class = size === 'display' ? HOME_DISPLAY_H2 : HOME_DEFAULT_H2;
-  const headingStyle = {
-    color: 'var(--text-primary)',
-    letterSpacing: size === 'display' ? undefined : 'var(--tracking-tight)',
-  };
+  const h2Combined = cn(
+    h2Class,
+    'ds-text-primary',
+    size !== 'display' && 'tracking-[var(--tracking-tight)]',
+  );
 
   if (variant === 'minimal') {
     return (
       <div className={cn('max-w-3xl', className)}>
-        <h2 className={h2Class} style={headingStyle}>
+        <h2 className={h2Combined}>
           {title}
         </h2>
         {description ? (
           <p
-            className="mt-3 max-w-[65ch] text-base leading-relaxed sm:text-[1.02rem]"
-            style={{ color: 'var(--text-secondary)' }}
+            className="mt-3 max-w-[65ch] text-base leading-relaxed sm:text-[1.02rem] ds-text-secondary"
+            
           >
             {description}
           </p>
@@ -45,15 +46,15 @@ export function SectionHeading({
     return (
       <div className={cn('max-w-3xl', className)}>
         <div className="flex items-center gap-3">
-          <span className="h-px w-10 shrink-0 sm:w-14" style={{ backgroundColor: 'var(--glc-blue)' }} aria-hidden />
-          <h2 className={h2Class} style={headingStyle}>
+          <span className="ds-section-accent-bar h-px w-10 shrink-0 sm:w-14" aria-hidden />
+          <h2 className={h2Combined}>
             {title}
           </h2>
         </div>
         {description ? (
           <p
-            className="mt-4 max-w-[65ch] pl-0 text-base leading-relaxed sm:pl-[3.25rem] sm:text-[1.02rem]"
-            style={{ color: 'var(--text-secondary)' }}
+            className="mt-4 max-w-[65ch] pl-0 text-base leading-relaxed sm:pl-[3.25rem] sm:text-[1.02rem] ds-text-secondary"
+            
           >
             {description}
           </p>
@@ -64,14 +65,14 @@ export function SectionHeading({
 
   return (
     <div className={cn('max-w-3xl', className)}>
-      <div className="mb-4 h-1 w-12 rounded-full sm:w-14" style={{ background: 'var(--gradient-brand)' }} aria-hidden />
-      <h2 className={h2Class} style={headingStyle}>
+      <div className="ds-section-brand-gradient-bar mb-4 h-1 w-12 rounded-full sm:w-14" aria-hidden />
+      <h2 className={h2Combined}>
         {title}
       </h2>
       {description ? (
         <p
-          className="mt-3 max-w-[65ch] text-base leading-relaxed sm:text-[1.02rem]"
-          style={{ color: 'var(--text-secondary)' }}
+          className="mt-3 max-w-[65ch] text-base leading-relaxed sm:text-[1.02rem] ds-text-secondary"
+          
         >
           {description}
         </p>

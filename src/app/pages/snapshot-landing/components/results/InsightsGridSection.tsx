@@ -20,7 +20,7 @@ export function InsightsGridSection(props: {
   return (
     <div className={`mb-6 ${snapshotInsightGridClass}`}>
       {result.issues.length > 0 && (
-        <Surface className="glc-card glc-snapshot-result-card p-5 lg:p-6" style={{ borderRadius: 'var(--radius-xl)' }}>
+        <Surface className="glc-card glc-snapshot-result-card p-5 lg:p-6 ds-radius-xl" >
           <div className="glc-snapshot-section-h glc-snapshot-section-h--warning">
             <span className="glc-snapshot-section-h__rule" aria-hidden />
             <Warning className="h-4 w-4 shrink-0 text-[var(--score-2)]" />
@@ -53,7 +53,7 @@ export function InsightsGridSection(props: {
       )}
 
       {result.quick_wins.length > 0 && (
-        <Surface className="glc-card glc-snapshot-result-card p-5 lg:p-6" style={{ borderRadius: 'var(--radius-xl)' }}>
+        <Surface className="glc-card glc-snapshot-result-card p-5 lg:p-6 ds-radius-xl" >
           <div className="glc-snapshot-section-h glc-snapshot-section-h--positive">
             <span className="glc-snapshot-section-h__rule" aria-hidden />
             <Lightning className="h-4 w-4 shrink-0 text-[var(--glc-green)]" weight="fill" />

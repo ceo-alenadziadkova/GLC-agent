@@ -192,8 +192,8 @@ export function MarketingHeader({
               <Link
                 to={LOGIN_PATH}
                 onClick={() => setOpen(false)}
-                className="flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-semibold"
-                style={{ color: 'var(--glc-blue)' }}
+                className="flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-semibold ds-text-brand"
+                
               >
                 {footer.clientSignInLabel}
               </Link>

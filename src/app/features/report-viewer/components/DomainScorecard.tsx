@@ -46,15 +46,15 @@ export function DomainScorecard({
       variants={listVariants}
       initial="hidden"
       animate="visible"
-      className="glc-card overflow-hidden"
-      style={{ borderRadius: 'var(--radius-xl)' }}
+      className="glc-card overflow-hidden ds-radius-xl"
+      
     >
       <div
         className="flex items-center justify-between px-5 py-3"
         style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
       >
         <div className="flex items-center gap-2">
-          <ChartBar className="w-4 h-4" style={{ color: 'var(--glc-blue)' }} />
+          <ChartBar className="w-4 h-4 ds-text-brand"  />
           <SectionLabel>{REPORT_VIEWER_COPY.sections.scorecard}</SectionLabel>
         </div>
         <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
@@ -96,7 +96,7 @@ export function DomainScorecard({
             {domain.score > 0 ? (
               <ScoreBadge score={domain.score} size="sm" />
             ) : (
-              <span className="text-xs" style={{ color: 'var(--text-quaternary)' }}>
+              <span className="text-xs ds-text-quaternary" >
                 —
               </span>
             )}

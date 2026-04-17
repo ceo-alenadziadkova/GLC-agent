@@ -36,18 +36,13 @@ export function MarketingLayout({
 
   return (
     <PublicBrandProvider>
-      <div className="flex min-h-[100dvh] flex-col" style={{ backgroundColor: 'var(--bg-canvas)' }}>
+      <div className="ds-marketing-layout-canvas flex min-h-[100dvh] flex-col">
         <a
           href="#main-content"
           className={cn(
-            'fixed left-4 top-0 z-[100] -translate-y-full rounded-lg border px-4 py-2.5 text-sm font-semibold shadow-md transition-transform',
+            'ds-marketing-skip-link fixed left-4 top-0 z-[100] -translate-y-full rounded-lg border px-4 py-2.5 text-sm font-semibold shadow-md transition-transform',
             'focus:translate-y-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--glc-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-canvas)]',
           )}
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            borderColor: 'var(--border-default)',
-            color: 'var(--text-primary)',
-          }}
         >
           {skipLabel}
         </a>

@@ -4,7 +4,7 @@ const copy = WORKSPACE_PAGE_COPY.intakePublicPrebrief;
 
 export function IntakeBriefLoading() {
   return (
-    <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+    <p className="text-sm ds-text-tertiary" >
       {copy.loading}
     </p>
   );

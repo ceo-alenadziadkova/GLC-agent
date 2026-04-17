@@ -7,11 +7,25 @@ export const MARKETING_MOTION_EASE_PREMIUM = [0.22, 1, 0.36, 1] as const;
 /** Hero / billboard blocks (matches prior home hero curve). */
 export const MARKETING_MOTION_EASE_BILLBOARD = [0.16, 1, 0.3, 1] as const;
 
+/**
+ * Motion `whileInView` passes `margin` to `IntersectionObserver`.
+ * Chromium requires pixel (or strictly valid) rootMargin strings — percentage values throw at construction time.
+ * These `px` literals are browser API constraints, not UI design tokens (see design-system-enforcement-check).
+ */
+export const MARKETING_IN_VIEW_MARGIN = {
+  /** Section / text reveal — approx. former `-12% 0 -8% 0`. */
+  section: '-120px 0px -80px 0px',
+  /** Tighter trigger — approx. former `-5% 0px`. */
+  tight: '-50px 0px',
+  /** Card blocks — approx. former `-8% 0px`. */
+  card: '-80px 0px',
+} as const;
+
 export const MARKETING_SECTION_MOTION = {
   hiddenY: 22,
   durationSec: 0.64,
   /** Slightly earlier trigger so content feels “alive” before fully centered. */
-  viewportMargin: '-12% 0px -8% 0px',
+  viewportMargin: MARKETING_IN_VIEW_MARGIN.section,
 } as const;
 
 export const MARKETING_LIST_STAGGER = {
@@ -34,7 +48,7 @@ export const MARKETING_BLOCK_REVEAL = {
   durationSec: 0.56,
 } as const;
 
-/** Clip-path “curtain” reveal for large panels (matches --radius-2xl / 22px). */
+/** Clip-path “curtain” reveal for large panels (matches --radius-2xl). */
 export const MARKETING_MASK_REVEAL = {
   durationSec: 0.62,
   /** Pixel radius passed to `inset(... round Npx)` — keep aligned with `--radius-2xl`. */

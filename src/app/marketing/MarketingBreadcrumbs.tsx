@@ -8,15 +8,15 @@ export function MarketingBreadcrumbs({ items }: { items: Crumb[] }) {
   if (items.length === 0) return null;
   return (
     <nav aria-label={WORKSPACE_PAGE_COPY.marketingLayout.breadcrumbsAriaLabel} className="mb-8">
-      <ol className="flex flex-wrap items-center gap-1.5 text-sm" style={{ color: 'var(--text-tertiary)' }}>
+      <ol className="flex flex-wrap items-center gap-1.5 text-sm ds-text-tertiary" >
         {items.map((c, i) => (
           <li key={`${c.label}-${i}`} className="flex items-center gap-1.5">
             {i > 0 && <CaretRight className="h-3.5 w-3.5 shrink-0 opacity-60" aria-hidden />}
             {c.to && i < items.length - 1 ? (
               <Link
                 to={c.to}
-                className="-my-1 inline-flex min-h-10 items-center py-1 font-medium transition-colors hover:underline"
-                style={{ color: 'var(--glc-blue)' }}
+                className="-my-1 inline-flex min-h-10 items-center py-1 font-medium transition-colors hover:underline ds-text-brand"
+                
               >
                 {c.label}
               </Link>

@@ -39,6 +39,8 @@ const TARGET_DIRS = scopeMode === 'ds'
         'src/app/components/app-shell',
         'src/app/pages',
         'src/app/config',
+        'src/app/marketing',
+        'src/app/features',
       ];
 
 const FILE_EXT = new Set(['.ts', '.tsx']);
@@ -67,7 +69,13 @@ function walk(dir) {
   return out;
 }
 
+/** Same as enforcement: IO rootMargin strings are px-only browser API, not UI tokens. */
+const RAW_SKIP_TOKEN_SCAN_BASENAMES = new Set(['marketing-motion.ts']);
+
 function checkFile(filePath) {
+  if (RAW_SKIP_TOKEN_SCAN_BASENAMES.has(path.basename(filePath))) {
+    return [];
+  }
   const content = fs.readFileSync(filePath, 'utf8');
   const lines = content.split(/\r?\n/);
   const violations = [];

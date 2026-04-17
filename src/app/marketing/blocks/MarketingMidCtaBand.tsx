@@ -25,20 +25,17 @@ export function MarketingMidCtaBand({
   return (
     <aside
       className={cn(
-        'glc-info-glass-surface -mx-4 border-y px-4 py-12 sm:-mx-6 sm:px-8 sm:py-14',
+        'glc-info-glass-surface -mx-4 border-y border-[var(--border-subtle)] px-4 py-12 sm:-mx-6 sm:px-8 sm:py-14',
         className,
       )}
-      style={{
-        borderColor: 'var(--border-subtle)',
-      }}
       aria-label={landmarkLabel ?? title}
     >
       <div className="mx-auto flex max-w-4xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between sm:gap-10">
         <div className="min-w-0">
-          <h2 className="font-display text-xl font-bold tracking-tight sm:text-2xl" style={{ color: 'var(--text-primary)' }}>
+          <h2 className="font-display text-xl font-bold tracking-tight sm:text-2xl ds-text-primary" >
             {title}
           </h2>
-          <p className="mt-2 max-w-[60ch] text-sm leading-relaxed sm:text-[0.95rem]" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-2 max-w-[60ch] text-sm leading-relaxed sm:text-[0.95rem] ds-text-secondary" >
             {body}
           </p>
         </div>
@@ -46,7 +43,7 @@ export function MarketingMidCtaBand({
           asChild
           variant="default"
           className={cn(
-            'glc-btn-primary group inline-flex shrink-0 items-center justify-center gap-2 text-sm font-semibold transition-[opacity,transform] duration-200',
+            'ds-cta-primary group inline-flex shrink-0 items-center justify-center gap-2 text-sm font-semibold transition-[opacity,transform] duration-200',
             FOCUS,
           )}
         >

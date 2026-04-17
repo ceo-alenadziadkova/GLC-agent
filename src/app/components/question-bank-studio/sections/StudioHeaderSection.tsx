@@ -15,7 +15,7 @@ export function StudioHeaderSection(props: StudioHeaderSectionProps) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 justify-between" style={{ color: 'var(--text-primary)' }}>
+      <div className="flex flex-wrap items-center gap-2 justify-between ds-text-primary" >
         <div className="flex items-center gap-2">
           <TreeStructure className="w-4 h-4" weight="bold" />
           <h2 className="text-sm font-semibold m-0">{QUESTION_BANK_STUDIO_COPY_EN.headerTitle}</h2>
@@ -70,20 +70,20 @@ export function StudioHeaderSection(props: StudioHeaderSectionProps) {
           </p>
         ) : (
           <div
-            className="rounded-lg px-3 py-2 space-y-2 text-xs leading-relaxed"
-            style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}
+            className="rounded-lg px-3 py-2 space-y-2 text-xs leading-relaxed ds-panel-canvas"
+            
           >
-            <p className="m-0" style={{ color: 'var(--text-secondary)' }}>
+            <p className="m-0 ds-text-secondary" >
               <strong style={{ color: 'var(--text-primary)' }}>Canon map (default):</strong> every bank id and section
               from <span className="font-mono">question-bank.v1.json</span> — this is the full semantic tree, not
               “what one product screen asks in one step”.
             </p>
-            <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>
+            <p className="m-0 ds-text-quaternary" >
               <strong style={{ color: 'var(--text-tertiary)' }}>Left stripe</strong> = policy + canon priority;{' '}
               <strong style={{ color: 'var(--text-tertiary)' }}>outer glow ring</strong> = trace result (answers +{' '}
               <span className="font-mono">buildIntakePlan</span>) when the trace runs.
             </p>
-            <p className="m-0" style={{ color: 'var(--text-quaternary)' }}>
+            <p className="m-0 ds-text-quaternary" >
               <strong style={{ color: 'var(--text-tertiary)' }}>Policy mode</strong> adjusts participation /
               requiredness overlays.
             </p>
@@ -91,8 +91,8 @@ export function StudioHeaderSection(props: StudioHeaderSectionProps) {
         )
       ) : (
         <div
-          className="rounded-lg px-3 py-2 text-xs"
-          style={{ backgroundColor: 'var(--bg-canvas)', border: '1px solid var(--border-default)' }}
+          className="rounded-lg px-3 py-2 text-xs ds-panel-canvas"
+          
         >
           {STUDIO_COPY_EN.userModeHint}
         </div>

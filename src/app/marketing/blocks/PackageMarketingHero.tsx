@@ -36,7 +36,7 @@ function TierCoverageDecor({ tier }: { tier: 'focus' | 'context' | 'strategy' })
           backgroundColor: 'color-mix(in oklab, var(--bg-surface) 94%, var(--bg-muted))',
         }}
       >
-        <p className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+        <p className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider ds-text-tertiary" >
           {HERO_LABELS.coverageShape}
         </p>
         <div className="mt-4 grid grid-cols-3 gap-2">
@@ -66,7 +66,7 @@ function TierCoverageDecor({ tier }: { tier: 'focus' | 'context' | 'strategy' })
         >
           {tier}
         </span>
-        <p className="mt-4 text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+        <p className="mt-4 text-xs leading-relaxed ds-text-tertiary" >
           {HERO_LABELS.illustrativeGridNote}
         </p>
       </div>
@@ -118,15 +118,13 @@ export function PackageMarketingHero({
           </motion.p>
           <motion.h1
             variants={mv.item}
-            className="font-display text-[clamp(2rem,5vw,3.25rem)] font-bold leading-[1.08] tracking-[-0.03em] sm:tracking-[-0.02em]"
-            style={{ color: 'var(--text-primary)' }}
+            className="font-display text-[clamp(2rem,5vw,3.25rem)] font-bold leading-[1.08] tracking-[-0.03em] sm:tracking-[-0.02em] ds-text-primary"
           >
             {title}
           </motion.h1>
           <motion.p
             variants={mv.item}
-            className="mt-6 max-w-[65ch] text-base leading-[1.65] sm:text-lg"
-            style={{ color: 'var(--text-secondary)' }}
+            className="mt-6 max-w-[65ch] text-base leading-[1.65] sm:text-lg ds-text-secondary"
           >
             {lead}
           </motion.p>
@@ -134,7 +132,7 @@ export function PackageMarketingHero({
             <Button
               asChild
               variant="default"
-              className="glc-btn-primary inline-flex w-full items-center justify-center gap-2 text-sm font-semibold sm:w-auto"
+              className="ds-cta-primary inline-flex w-full items-center justify-center gap-2 text-sm font-semibold sm:w-auto"
             >
               <Link to="/brief" style={{ textDecoration: 'none' }}>
                 {HERO_LABELS.startWithBrief}

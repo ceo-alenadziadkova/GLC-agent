@@ -55,6 +55,12 @@ Date: 2026-04-17
 - Visual utility logic (colors/background/typography/shadows/radius) must remain in tokens + primitives.
 - Legacy `glc-*` visual classes are treated as migration-only compatibility and must not be added in new UI changes.
 
+### Deferred epics (not in routine DS migration PRs)
+
+- **Score / badge widgets:** consolidating `ScoreBadge`, `SnapshotScoreBadge`, `SnapshotScoreDonut`, and similar into one component is a separate epic (API + visual regression budget).
+- **Import surface:** mass migration of imports from `src/app/components/ui/*` to `src/design-system/ui` is a separate codemod pass.
+- **Legacy `glc-*` removal:** only after consumers are on primitives / `.ds-*` bridge classes.
+
 ## Reference stack alignment (engineering assessment)
 
 *This section is **not** part of the as-is extraction in [`current.md`](./current.md) §1–10. It maps the repository’s **target** four-layer stack — Design Tokens → Primitive components → Composition (patterns/layouts) → Utilities (limited) — to mature public systems such as **Material Design 3** and the **Atlassian Design System**, for roadmap and governance context.*

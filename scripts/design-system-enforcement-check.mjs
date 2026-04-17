@@ -95,11 +95,17 @@ function checkInlineVisualStyles() {
   return violations;
 }
 
+/** IntersectionObserver rootMargin must use px strings in Chromium — not design tokens. */
+const CONFIG_SKIP_TOKEN_LIKE_RAW_BASENAMES = new Set(['marketing-motion.ts']);
+
 function checkConfigTokenLikeRawValues() {
   if (scopeMode !== 'app') return [];
   const targets = walk(path.join(ROOT, 'src', 'app', 'config'), new Set(['.ts', '.tsx']));
   const violations = [];
   for (const filePath of targets) {
+    const r = rel(filePath);
+    const base = path.basename(filePath);
+    if (CONFIG_SKIP_TOKEN_LIKE_RAW_BASENAMES.has(base)) continue;
     const content = fs.readFileSync(filePath, 'utf8');
     const lines = content.split(/\r?\n/);
     lines.forEach((line, i) => {
@@ -108,7 +114,7 @@ function checkConfigTokenLikeRawValues() {
       if (!matches) return;
       for (const value of matches) {
         violations.push({
-          file: rel(filePath),
+          file: r,
           line: i + 1,
           type: 'config-token-like-raw',
           value,
