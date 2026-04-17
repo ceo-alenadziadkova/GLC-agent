@@ -9,8 +9,7 @@ import {
   writeClientBriefLayoutDefault,
   writeConsultantBriefLayoutDefault,
 } from '../../../lib/client-brief-layout-preference';
-
-const NOTIFY_PREFS_KEY = 'glc_notify_prefs_v1';
+import { NOTIFY_PREFS_LOCAL_STORAGE_ID } from '../../../config/settings-page-defaults';
 
 const NOTIFY_PREFS_FALLBACK: NotificationPrefs = {
   auditStatusReminders: true,
@@ -19,7 +18,7 @@ const NOTIFY_PREFS_FALLBACK: NotificationPrefs = {
 
 export function readNotifyPrefs(): NotificationPrefs {
   try {
-    const raw = localStorage.getItem(NOTIFY_PREFS_KEY);
+    const raw = localStorage.getItem(NOTIFY_PREFS_LOCAL_STORAGE_ID);
     if (!raw) return NOTIFY_PREFS_FALLBACK;
     const parsed = JSON.parse(raw) as Partial<NotificationPrefs>;
     return {
@@ -32,7 +31,7 @@ export function readNotifyPrefs(): NotificationPrefs {
 }
 
 export function writeNotifyPrefs(prefs: NotificationPrefs): void {
-  localStorage.setItem(NOTIFY_PREFS_KEY, JSON.stringify(prefs));
+  localStorage.setItem(NOTIFY_PREFS_LOCAL_STORAGE_ID, JSON.stringify(prefs));
 }
 
 export function readBriefLayoutPrefs(): {
