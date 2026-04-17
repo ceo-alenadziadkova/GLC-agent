@@ -30,6 +30,9 @@ export const TYPOGRAPHY_TOKENS = {
     wide: 'var(--tracking-wide)',
     wider: 'var(--tracking-wider)',
     widest: 'var(--tracking-widest)',
+    subtitle: 'var(--tracking-subtitle)',
+    drawerCaps: 'var(--tracking-drawer-caps)',
+    roleMeta: 'var(--tracking-role-meta)',
   },
   fontWeight: {
     regular: 'var(--font-weight-normal)',

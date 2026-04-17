@@ -1,26 +1,3 @@
-src/app/components/app-shell/config/app-shell-ui-policy.ts:3 [unit-literal] 640px
-src/app/components/app-shell/config/app-shell-ui-policy.ts:19 [unit-literal] 1px
-src/app/components/app-shell/config/app-shell-ui-policy.ts:22 [unit-literal] 1px
-src/app/components/app-shell/config/app-shell-ui-policy.ts:28 [unit-literal] 20rem
-src/app/components/app-shell/config/app-shell-ui-policy.ts:30 [unit-literal] 12px
-src/app/components/app-shell/config/app-shell-ui-policy.ts:30 [unit-literal] 4px
-src/app/components/app-shell/config/app-shell-ui-policy.ts:34 [unit-literal] 9px
-src/app/components/app-shell/config/app-shell-ui-policy.ts:35 [unit-literal] 10px
-src/app/components/app-shell/sections/DesktopHeader.tsx:20 [unit-literal] 1px
-src/app/components/app-shell/sections/DesktopHeader.tsx:21 [unit-literal] 56px
-src/app/components/app-shell/sections/DesktopHeader.tsx:45 [unit-literal] 0.01em
-src/app/components/app-shell/sections/DesktopSidebar.tsx:63 [unit-literal] 216px
-src/app/components/app-shell/sections/DesktopSidebar.tsx:91 [unit-literal] 9px
-src/app/components/app-shell/sections/DesktopSidebar.tsx:100 [unit-literal] 0.14em
-src/app/components/app-shell/sections/DesktopSidebar.tsx:205 [unit-literal] 0.03em
-src/app/components/app-shell/sections/DesktopSidebar.tsx:205 [unit-literal] 3px
-src/app/components/app-shell/sections/DesktopSidebar.tsx:205 [unit-literal] 9px
-src/app/components/app-shell/sections/MobileBottomNav.tsx:21 [unit-literal] 0px
-src/app/components/app-shell/sections/MobileDrawer.tsx:67 [unit-literal] 0.14em
-src/app/components/app-shell/sections/MobileDrawer.tsx:67 [unit-literal] 9px
-src/app/components/app-shell/sections/MobileDrawer.tsx:122 [rgb-color] rgba(255,255,255,0.75)
-src/app/components/app-shell/sections/MobileHeader.tsx:38 [unit-literal] 0.01em
-src/app/components/app-shell/sections/MobileHeader.tsx:64 [unit-literal] 18px
 src/app/components/glc/ScoreBadge.tsx:190 [inline-visual-style] style={{ filter: `drop-shadow(0 0 ${strokeW * 2}px ${cfg.color}80)` }}
 src/app/components/portal-snapshot-account-mirror/sections/MirrorScoreSection.tsx:45 [inline-visual-style] <span style={{ color: 'var(--text-quaternary)', fontWeight: 700, fontSize: compact ? '0.5em' : '0.45em' }}>
 src/app/components/portal-snapshot-account-mirror/sections/MirrorScoreSection.tsx:71 [inline-visual-style] <p className={compact ? 'mt-0.5 text-sm font-semibold' : 'mt-0.5 text-xs font-semibold sm:text-sm'} style={{ color: c }}>
@@ -100,49 +77,6 @@ src/app/features/report-viewer/components/ReportFindings.tsx:38 [rgb-color] rgba
 src/app/features/report-viewer/components/ReportFindings.tsx:62 [unit-literal] 1px
 src/app/features/report-viewer/components/ReportFindings.tsx:101 [unit-literal] 1px
 src/app/features/report-viewer/components/ReportFindings.tsx:133 [unit-literal] 10px
-src/app/features/report-viewer/components/ReportHeroCard.tsx:40 [unit-literal] 32px
-src/app/features/report-viewer/components/ReportHeroCard.tsx:40 [unit-literal] 36px
-src/app/features/report-viewer/components/ReportHeroCard.tsx:49 [rgb-color] rgba(255,255,255,0.28)
-src/app/features/report-viewer/components/ReportHeroCard.tsx:49 [rgb-color] rgba(255,255,255,0.9)
-src/app/features/report-viewer/components/ReportHeroCard.tsx:65 [rgb-color] rgba(255,255,255,0.45)
-src/app/features/report-viewer/components/ReportHeroCard.tsx:76 [rgb-color] rgba(255,255,255,0.72)
-src/app/features/report-viewer/components/ReportHeroCard.tsx:101 [rgb-color] rgba(255,255,255,0.07)
-src/app/features/report-viewer/components/ReportHeroCard.tsx:102 [rgb-color] rgba(255,255,255,0.10)
-src/app/features/report-viewer/components/ReportHeroCard.tsx:102 [unit-literal] 1px
-src/app/features/report-viewer/components/ReportHeroCard.tsx:103 [unit-literal] 11px
-src/app/features/report-viewer/components/ReportHeroCard.tsx:104 [rgb-color] rgba(255,255,255,0.80)
-src/app/features/report-viewer/components/ReportHeroCard.tsx:117 [rgb-color] rgba(255,255,255,0.06)
-src/app/features/report-viewer/components/ReportHeroCard.tsx:118 [rgb-color] rgba(255,255,255,0.10)
-src/app/features/report-viewer/components/ReportHeroCard.tsx:118 [unit-literal] 1px
-src/app/features/report-viewer/components/ReportHeroCard.tsx:119 [unit-literal] 12px
-src/app/features/report-viewer/components/ReportHeroCard.tsx:129 [rgb-color] rgba(255,255,255,0.10)
-src/app/features/report-viewer/components/ReportHeroCard.tsx:148 [rgb-color] rgba(28,189,255,0.6)
-src/app/features/report-viewer/components/ReportHeroCard.tsx:148 [unit-literal] 8px
-src/app/features/report-viewer/components/ReportHeroCard.tsx:164 [rgb-color] rgba(255,255,255,0.40)
-src/app/features/report-viewer/components/ReportHeroCard.tsx:165 [unit-literal] 10px
-src/app/features/report-viewer/components/ReportHeroCard.tsx:166 [unit-literal] 0.1em
-src/app/marketing/blocks/AuditCompare.tsx:24 [inline-visual-style] return <Check className="mx-auto h-5 w-5" style={{ color: 'var(--glc-green-dark)' }} weight="bold" aria-label="Yes" />;
-src/app/marketing/blocks/AuditCompare.tsx:86 [unit-literal] 32.5rem
-src/app/marketing/blocks/AuditCompare.tsx:89 [unit-literal] 520px
-src/app/marketing/blocks/AuditCompare.tsx:93 [unit-literal] 1px
-src/app/marketing/blocks/AuditCompare.tsx:99 [unit-literal] 0.04em
-src/app/marketing/blocks/AuditCompare.tsx:99 [unit-literal] 13px
-src/app/marketing/blocks/AuditCompare.tsx:107 [unit-literal] 1px
-src/app/marketing/blocks/AuditCompare.tsx:116 [unit-literal] 0.04em
-src/app/marketing/blocks/AuditCompare.tsx:116 [unit-literal] 13px
-src/app/marketing/blocks/AuditCompare.tsx:125 [unit-literal] 1px
-src/app/marketing/blocks/AuditCompare.tsx:134 [unit-literal] 0.04em
-src/app/marketing/blocks/AuditCompare.tsx:134 [unit-literal] 13px
-src/app/marketing/blocks/AuditCompare.tsx:145 [unit-literal] 1px
-src/app/marketing/blocks/AuditCompare.tsx:154 [unit-literal] 0.04em
-src/app/marketing/blocks/AuditCompare.tsx:154 [unit-literal] 13px
-src/app/marketing/blocks/AuditCompare.tsx:162 [unit-literal] 1px
-src/app/marketing/blocks/AuditCompare.tsx:177 [unit-literal] 1px
-src/app/marketing/blocks/AuditCompare.tsx:201 [inline-visual-style] style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-inset)' }}
-src/app/marketing/blocks/AuditCompare.tsx:210 [inline-visual-style] style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-src/app/marketing/blocks/AuditCompare.tsx:210 [unit-literal] 1px
-src/app/marketing/blocks/AuditCompare.tsx:227 [inline-visual-style] style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-src/app/marketing/blocks/AuditCompare.tsx:227 [unit-literal] 1px
 src/app/marketing/blocks/DecisionPath.tsx:44 [unit-literal] 180px
 src/app/marketing/blocks/DecisionPath.tsx:44 [unit-literal] 200px
 src/app/marketing/blocks/DecisionPath.tsx:55 [inline-visual-style] style={{ backgroundColor: accent.bg }}
@@ -221,15 +155,6 @@ src/app/pages/audit-workspace/sections/RecommendationsSection.tsx:33 [unit-liter
 src/app/pages/audit-workspace/sections/RecommendationsSection.tsx:45 [unit-literal] 0.01em
 src/app/pages/audit-workspace/sections/WorkspaceSidebar.tsx:68 [unit-literal] 1px
 src/app/pages/audit-workspace/sections/WorkspaceSidebar.tsx:79 [unit-literal] 0.01em
-src/app/pages/client-audit-view/config/ui.ts:4 [unit-literal] 28rem
-src/app/pages/client-audit-view/config/ui.ts:7 [unit-literal] 1px
-src/app/pages/client-audit-view/config/ui.ts:10 [unit-literal] 1px
-src/app/pages/client-audit-view/config/ui.ts:32 [unit-literal] 1px
-src/app/pages/client-audit-view/config/ui.ts:37 [unit-literal] 1px
-src/app/pages/client-audit-view/config/ui.ts:45 [unit-literal] 1px
-src/app/pages/client-audit-view/config/ui.ts:47 [unit-literal] 1px
-src/app/pages/client-audit-view/config/ui.ts:53 [unit-literal] 1px
-src/app/pages/client-audit-view/config/ui.ts:57 [unit-literal] 1px
 src/app/pages/client-audit-view/sections/AuditHeaderCard.tsx:26 [rgb-color] rgba(28,189,255,0.08)
 src/app/pages/client-audit-view/sections/AuditHeaderCard.tsx:26 [rgb-color] rgba(28,189,255,0.20)
 src/app/pages/client-audit-view/sections/BriefHelpSection.tsx:35 [unit-literal] 72px
@@ -423,11 +348,6 @@ src/app/pages/ReportViewer.tsx:81 [inline-visual-style] <p style={{ color: 'var(
 src/app/pages/settings/components/OptionPill.tsx:15 [unit-literal] 10px
 src/app/pages/settings/components/OptionPill.tsx:15 [unit-literal] 6px
 src/app/pages/settings/components/OptionPill.tsx:16 [unit-literal] 11px
-src/app/pages/settings/config/settings-ui-policy.ts:21 [unit-literal] 1px
-src/app/pages/settings/config/settings-ui-policy.ts:26 [unit-literal] 1px
-src/app/pages/settings/config/settings-ui-policy.ts:31 [unit-literal] 1px
-src/app/pages/settings/config/settings-ui-policy.ts:33 [rgb-color] rgba(28,189,255,0.08)
-src/app/pages/settings/config/settings-ui-policy.ts:36 [unit-literal] 1px
 src/app/pages/settings/SettingsPage.tsx:81 [inline-visual-style] style={{ background: 'transparent' }}
 src/app/pages/settings/SettingsPage.tsx:85 [rgb-color] rgba(28,189,255,0.08)
 src/app/pages/settings/SettingsPage.tsx:91 [rgb-color] rgba(28,189,255,0.08)

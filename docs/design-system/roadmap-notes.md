@@ -30,6 +30,7 @@ Date: 2026-04-17
 
 ### 2026-04-17 implementation status
 
+- **Phase 1 (token pass — app shell, policies, marketing/report):** `APP_SHELL_UI_POLICY` uses `BREAKPOINT_TOKENS` and shell tokens (`--app-shell-drawer-width`, `--shadow-mobile-bottom-nav`, `--app-shell-sidebar-narrow-width`, border width vars). Desktop/mobile shell chrome moved to `.ds-desktop-header*`, `.ds-mobile-bottom-nav`, tokenized overlays (`--overlay-white-75`, etc.). Client audit and settings UI policies use `var(--border-width-default)` and `var(--callout-info-bg)` where literals were flagged. `AuditCompare` and `ReportHeroCard` use `.ds-audit-compare-*` / `.ds-report-hero-*` in `components.css` instead of inline visual styles. Regenerate allowlist after pull: `pnpm run audit:ds:refresh-allowlist`. Remaining no-allowlist drift: see [`violations-export.md`](./violations-export.md) / [`compliance-findings.full.txt`](./compliance-findings.full.txt) (discover/intake/snapshot and some marketing blocks still carry literals or dynamic inline accents).
 - Allowlist shrink + bridge classes: batch migrations removed many inline styles (marketing, portal mirror notice, process timeline, score bar track, theme toggle icon colors via custom properties on wrapper, etc.). Legacy CTA styling: `.ds-cta-primary` shares rules with `.glc-btn-primary` in `components.css`; marketing heroes use `ds-cta-primary` on `<Button>` instead of the `glc-btn-primary` class name.
 - `src/styles/tokens.css` remains the canonical token source, now with shared DS infra tokens:
   - `--border-width-default`
@@ -60,6 +61,7 @@ Date: 2026-04-17
 - **Score / badge widgets:** consolidating `ScoreBadge`, `SnapshotScoreBadge`, `SnapshotScoreDonut`, and similar into one component is a separate epic (API + visual regression budget).
 - **Import surface:** mass migration of imports from `src/app/components/ui/*` to `src/design-system/ui` is a separate codemod pass.
 - **Legacy `glc-*` removal:** only after consumers are on primitives / `.ds-*` bridge classes.
+- **Primitives / unified state / full literal zero:** `src/app/components/ui/**` remains largely vendor-style (CVA + Tailwind); a single `data-state` vs pseudo-class model across the whole catalog is explicitly out of scope for routine PRs (see DS refactor program RISKY tier).
 
 ## Reference stack alignment (engineering assessment)
 

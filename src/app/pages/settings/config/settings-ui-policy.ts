@@ -18,22 +18,22 @@ export const SETTINGS_UI_POLICY = {
 export const SETTINGS_UI_STYLES = {
   sectionCard: {
     backgroundColor: 'var(--bg-surface)',
-    border: '1px solid var(--border-default)',
+    border: 'var(--border-width-default) solid var(--border-default)',
     borderRadius: 'var(--radius-lg)',
   } satisfies CSSProperties,
   fieldInput: {
     backgroundColor: 'var(--bg-canvas)',
-    border: '1px solid var(--border-default)',
+    border: 'var(--border-width-default) solid var(--border-default)',
     borderRadius: 'var(--radius-md)',
     color: 'var(--text-primary)',
   } satisfies CSSProperties,
   selectedOption: {
-    border: '1px solid var(--glc-blue)',
+    border: 'var(--border-width-default) solid var(--glc-blue)',
     color: 'var(--glc-blue)',
-    backgroundColor: 'rgba(28,189,255,0.08)',
+    backgroundColor: 'var(--callout-info-bg)',
   } satisfies CSSProperties,
   unselectedOption: {
-    border: '1px solid var(--border-default)',
+    border: 'var(--border-width-default) solid var(--border-default)',
     color: 'var(--text-secondary)',
     backgroundColor: 'transparent',
   } satisfies CSSProperties,

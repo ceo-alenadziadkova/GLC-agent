@@ -1,5 +1,6 @@
 import { motion } from 'motion/react';
 import { Lightning, Warning } from '@phosphor-icons/react';
+import { cn } from '../../../components/ui/utils';
 import { REPORT_VIEWER_CONSTANTS } from '../config/report-viewer.constants';
 import { REPORT_VIEWER_COPY } from '../config/report-viewer.copy.en';
 
@@ -33,36 +34,18 @@ export function ReportHeroCard({
         duration: REPORT_VIEWER_CONSTANTS.motion.heroEnterDurationSec,
         ease: REPORT_VIEWER_CONSTANTS.easing,
       }}
-      className="relative overflow-hidden glc-orb-decor"
-      style={{
-        background: 'var(--gradient-ink-rich)',
-        borderRadius: 'var(--radius-2xl)',
-        padding: '32px 36px',
-      }}
+      className="relative overflow-hidden glc-orb-decor ds-report-hero-shell"
     >
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: 'var(--mesh-ink)', opacity: 0.7 }}
-      />
+      <div className="ds-report-hero-mesh pointer-events-none absolute inset-0" />
       <div className="relative flex items-start justify-between gap-6">
-        <div className="flex-1 min-w-0">
-          <p className="glc-kicker" style={{ color: 'rgba(255,255,255,0.9)', borderColor: 'rgba(255,255,255,0.28)' }}>
+        <div className="min-w-0 flex-1">
+          <p className="glc-kicker ds-report-hero-kicker">
             {REPORT_VIEWER_COPY.sections.executiveSummary}
           </p>
-          <h2
-            className="mt-2"
-            style={{
-              color: 'var(--primary-foreground)',
-              fontFamily: 'var(--font-display)',
-              fontSize: 'var(--text-2xl)',
-              fontWeight: 700,
-              letterSpacing: 'var(--tracking-tight)',
-              lineHeight: 1.2,
-            }}
-          >
+          <h2 className="ds-report-hero-title mt-2">
             {companyName}
           </h2>
-          <p className="mt-1" style={{ color: 'rgba(255,255,255,0.45)', fontSize: 'var(--text-sm)' }}>
+          <p className="ds-report-hero-meta mt-1">
             {industry || 'General'} ·{' '}
             {new Date(createdAt).toLocaleDateString(REPORT_VIEWER_CONSTANTS.dateLocale, {
               month: 'long',
@@ -70,63 +53,42 @@ export function ReportHeroCard({
             })}
           </p>
           {executiveSummary && (
-            <p
-              className="mt-4 leading-relaxed"
-              style={{
-                color: 'rgba(255,255,255,0.72)',
-                fontSize: 'var(--text-sm)',
-                maxWidth: REPORT_VIEWER_CONSTANTS.summaryPreviewMaxWidthPx,
-              }}
-            >
+            <p className="ds-report-hero-summary mt-4 leading-relaxed">
               {executiveSummary}
             </p>
           )}
-          <div className="flex flex-wrap gap-2 mt-5">
+          <div className="mt-5 flex flex-wrap gap-2">
             {[
               {
                 icon: Warning,
                 label: `${criticalIssueCount} ${REPORT_VIEWER_COPY.findings.criticalIssuesSuffix}`,
-                color: 'var(--score-1)',
+                iconClass: 'text-[color:var(--score-1)]',
               },
               {
                 icon: Lightning,
                 label: `${quickWinsCount} ${REPORT_VIEWER_COPY.findings.quickWinsSuffix}`,
-                color: 'var(--glc-green)',
+                iconClass: 'text-[color:var(--glc-green)]',
               },
-            ].map(({ icon: Icon, label, color }) => (
+            ].map(({ icon: Icon, label, iconClass }) => (
               <div
                 key={label}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.07)',
-                  border: '1px solid rgba(255,255,255,0.10)',
-                  fontSize: '11px',
-                  color: 'rgba(255,255,255,0.80)',
-                }}
+                className="ds-report-hero-pill flex items-center gap-1.5 rounded-full px-3 py-1.5"
               >
-                <Icon className="w-3 h-3 flex-shrink-0" style={{ color }} />
+                <Icon className={cn('h-3 w-3 shrink-0', iconClass)} />
                 {label}
               </div>
             ))}
           </div>
         </div>
 
-        <div
-          className="flex-shrink-0 flex flex-col items-center gap-2 px-6 py-5 rounded-2xl"
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.10)',
-            backdropFilter: 'blur(12px)',
-            minWidth: 120,
-          }}
-        >
-          <svg width={sizePx} height={sizePx} style={{ flexShrink: 0 }}>
+        <div className="ds-report-hero-score-panel flex shrink-0 flex-col items-center gap-2 rounded-2xl px-6 py-5">
+          <svg width={sizePx} height={sizePx} className="shrink-0">
             <circle
               cx={center}
               cy={center}
               r={radius}
               fill="none"
-              stroke="rgba(255,255,255,0.10)"
+              className="ds-report-hero-ring-track"
               strokeWidth={strokeWidth}
             />
             <motion.circle
@@ -145,29 +107,18 @@ export function ReportHeroCard({
               }}
               transition={{ duration: 1, delay: 0.3, ease: REPORT_VIEWER_CONSTANTS.easing }}
               transform={`rotate(-90 ${center} ${center})`}
-              style={{ filter: 'drop-shadow(0 0 8px rgba(28,189,255,0.6))' }}
+              className="ds-report-hero-ring-glow"
             />
             <text
               x={center}
               y={center + 4}
               textAnchor="middle"
-              fontSize="20"
-              fontWeight="700"
-              fill="white"
-              fontFamily="var(--font-mono)"
+              className="ds-report-hero-score-value"
             >
               {averageScore.toFixed(1)}
             </text>
           </svg>
-          <span
-            style={{
-              color: 'rgba(255,255,255,0.40)',
-              fontSize: '10px',
-              letterSpacing: '0.1em',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-            }}
-          >
+          <span className="ds-report-hero-score-label">
             {REPORT_VIEWER_COPY.sections.overall}
           </span>
         </div>

@@ -64,7 +64,7 @@ export function MobileDrawer({
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5 glc-safe-pad-x">
           <div
-            className="px-2 py-1.5 text-[9px] font-bold tracking-[0.14em] text-[color:var(--overlay-white-35)]"
+            className="px-2 py-1.5 text-[length:var(--text-2xs)] font-bold tracking-[var(--tracking-drawer-caps)] text-[color:var(--overlay-white-35)]"
           >
             {sectionLabel}
           </div>
@@ -119,7 +119,7 @@ export function MobileDrawer({
           {!isGuest && (
             <NavLink
               to={APP_ROUTE_PATHS.settings}
-              className="flex items-center gap-2.5 rounded-lg px-2.5 py-3 text-[rgba(255,255,255,0.75)] no-underline glc-touch-target"
+              className="ds-app-drawer-text-muted flex items-center gap-2.5 rounded-lg px-2.5 py-3 no-underline glc-touch-target"
               onClick={onClose}
             >
               <GearSix className="w-5 h-5 flex-shrink-0" />

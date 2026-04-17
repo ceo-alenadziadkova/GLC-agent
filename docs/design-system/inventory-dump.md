@@ -7,10 +7,12 @@ It is an appendix to [current.md](./current.md) (as-is §1–10). Governance and
 
 ## Custom properties defined in tokens.css
 
-Total: **290**
+Total: **305**
 
 - `--accent`
 - `--accent-foreground`
+- `--app-shell-drawer-width`
+- `--app-shell-sidebar-narrow-width`
 - `--background`
 - `--bg-canvas`
 - `--bg-elevated`
@@ -48,6 +50,7 @@ Total: **290**
 - `--chart-3`
 - `--chart-4`
 - `--chart-5`
+- `--client-audit-brief-form-max-height`
 - `--color-accent`
 - `--color-accent-foreground`
 - `--color-background`
@@ -154,13 +157,21 @@ Total: **290**
 - `--overlay-backdrop`
 - `--overlay-backdrop-strong`
 - `--overlay-shadow-soft`
+- `--overlay-white-07`
+- `--overlay-white-10`
 - `--overlay-white-15`
 - `--overlay-white-20`
+- `--overlay-white-28`
 - `--overlay-white-30`
 - `--overlay-white-35`
 - `--overlay-white-38`
+- `--overlay-white-40`
 - `--overlay-white-45`
 - `--overlay-white-46`
+- `--overlay-white-72`
+- `--overlay-white-75`
+- `--overlay-white-80`
+- `--overlay-white-90`
 - `--panel-border`
 - `--popover`
 - `--popover-foreground`
@@ -197,6 +208,7 @@ Total: **290**
 - `--shadow-ink`
 - `--shadow-lg`
 - `--shadow-md`
+- `--shadow-mobile-bottom-nav`
 - `--shadow-sm`
 - `--shadow-swiss`
 - `--shadow-xl`
@@ -250,7 +262,10 @@ Total: **290**
 - `--text-tertiary`
 - `--text-xl`
 - `--text-xs`
+- `--tracking-drawer-caps`
 - `--tracking-normal`
+- `--tracking-role-meta`
+- `--tracking-subtitle`
 - `--tracking-tight`
 - `--tracking-tighter`
 - `--tracking-wide`
@@ -434,7 +449,7 @@ Count: **123**
 
 ### rgb-color
 
-Count: **172**
+Count: **167**
 
 ```
 rgba(0, 0, 0, 0.28)
@@ -519,7 +534,9 @@ rgba(249, 115, 22, 0.12)
 rgba(249, 115, 22, 0.18)
 rgba(249, 115, 22, 0.35)
 rgba(255, 255, 255, 0.06)
+rgba(255, 255, 255, 0.07)
 rgba(255, 255, 255, 0.08)
+rgba(255, 255, 255, 0.10)
 rgba(255, 255, 255, 0.12)
 rgba(255, 255, 255, 0.14)
 rgba(255, 255, 255, 0.15)
@@ -532,33 +549,27 @@ rgba(255, 255, 255, 0.34)
 rgba(255, 255, 255, 0.35)
 rgba(255, 255, 255, 0.38)
 rgba(255, 255, 255, 0.4)
+rgba(255, 255, 255, 0.40)
 rgba(255, 255, 255, 0.45)
 rgba(255, 255, 255, 0.46)
 rgba(255, 255, 255, 0.55)
 rgba(255, 255, 255, 0.68)
+rgba(255, 255, 255, 0.72)
 rgba(255, 255, 255, 0.75)
 rgba(255, 255, 255, 0.78)
 rgba(255, 255, 255, 0.8)
+rgba(255, 255, 255, 0.80)
 rgba(255, 255, 255, 0.82)
 rgba(255, 255, 255, 0.85)
 rgba(255, 255, 255, 0.86)
-rgba(255,255,255,0.06)
-rgba(255,255,255,0.07)
+rgba(255, 255, 255, 0.90)
 rgba(255,255,255,0.08)
 rgba(255,255,255,0.09)
-rgba(255,255,255,0.10)
 rgba(255,255,255,0.14)
 rgba(255,255,255,0.2)
-rgba(255,255,255,0.28)
-rgba(255,255,255,0.40)
 rgba(255,255,255,0.42)
-rgba(255,255,255,0.45)
-rgba(255,255,255,0.72)
-rgba(255,255,255,0.75)
 rgba(255,255,255,0.78)
-rgba(255,255,255,0.80)
 rgba(255,255,255,0.85)
-rgba(255,255,255,0.9)
 rgba(28, 189, 255, 0.02)
 rgba(28, 189, 255, 0.04)
 rgba(28, 189, 255, 0.06)
@@ -590,7 +601,6 @@ rgba(28,189,255,0.20)
 rgba(28,189,255,0.22)
 rgba(28,189,255,0.25)
 rgba(28,189,255,0.30)
-rgba(28,189,255,0.6)
 rgba(28,189,255,0.7)
 rgba(30,58,138,0.22)
 rgba(34, 197, 94, 0.12)
@@ -620,7 +630,7 @@ Count: **0**
 
 ### unit-literal
 
-Count: **167**
+Count: **170**
 
 ```
 -56px
@@ -695,6 +705,7 @@ Count: **167**
 1280px
 12px
 12rem
+13.5rem
 13px
 13rem
 140px
@@ -719,7 +730,6 @@ Count: **167**
 200px
 20px
 20rem
-216px
 220px
 22px
 22rem
@@ -742,6 +752,7 @@ Count: **167**
 3.6rem
 300px
 30px
+30rem
 32.5rem
 32px
 32rem
@@ -780,7 +791,9 @@ Count: **167**
 64px
 64rem
 6px
+7.5rem
 72px
+768px
 7px
 80px
 80rem

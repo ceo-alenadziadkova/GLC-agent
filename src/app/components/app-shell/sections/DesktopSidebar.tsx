@@ -60,7 +60,7 @@ export function DesktopSidebar({
 
   return (
     <aside
-      className="border-r-[var(--sidebar-border)] hidden w-[216px] flex-shrink-0 flex-col overflow-hidden bg-[var(--gradient-ink-rich)] sm:flex"
+      className="border-r-[var(--sidebar-border)] hidden w-[var(--app-shell-sidebar-narrow-width)] flex-shrink-0 flex-col overflow-hidden bg-[var(--gradient-ink-rich)] sm:flex"
     >
       <div className="pointer-events-none absolute inset-0 bg-[var(--mesh-ink)] opacity-50" />
 
@@ -88,7 +88,7 @@ export function DesktopSidebar({
             <MagnifyingGlass className="w-3.5 h-3.5 flex-shrink-0" />
             <span className="flex-1 text-left">{shellCopy.sidebar.searchPlaceholder}</span>
             <span
-              className="rounded bg-[var(--overlay-white-20)] px-1 py-0.5 font-mono text-[9px] tracking-normal text-[var(--overlay-white-35)]"
+              className="rounded bg-[var(--overlay-white-20)] px-1 py-0.5 font-mono text-[length:var(--text-2xs)] tracking-normal text-[var(--overlay-white-35)]"
             >
               {shellCopy.sidebar.searchShortcut}
             </span>
@@ -97,7 +97,7 @@ export function DesktopSidebar({
       )}
 
       <nav className="relative flex-1 px-2 pb-2 space-y-0.5 overflow-y-auto">
-        <div className="px-2 py-1.5 text-[var(--overlay-white-20)] text-xs font-bold tracking-[0.14em]">
+        <div className="px-2 py-1.5 text-[var(--overlay-white-20)] text-xs font-bold tracking-[var(--tracking-drawer-caps)]">
           {sectionLabel}
         </div>
 
@@ -202,7 +202,7 @@ export function DesktopSidebar({
               <div className="text-xs font-medium leading-none text-[var(--text-inverse)]">
                 {profile?.full_name?.trim() || user.email?.split('@')[0] || (isGuest ? shellCopy.sidebar.guestDisplay : shellCopy.sidebar.userDisplay)}
               </div>
-              <div className="mt-[3px] text-[9px] tracking-[0.03em] text-[var(--overlay-white-30)]">
+              <div className="mt-[var(--space-0-5)] text-[length:var(--text-2xs)] tracking-[var(--tracking-role-meta)] text-[var(--overlay-white-30)]">
                 {roleDisplayName ?? (isClient ? shellCopy.sidebar.fallbackRoleClient : isGuest ? shellCopy.sidebar.fallbackRoleGuest : shellCopy.sidebar.fallbackRoleAdmin)}
               </div>
             </div>

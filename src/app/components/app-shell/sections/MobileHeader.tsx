@@ -35,7 +35,7 @@ export function MobileHeader({
               {title}
             </h1>
             {subtitle ? (
-              <p className="m-0 mt-0.5 truncate text-[length:var(--text-xs)] tracking-[0.01em] text-[var(--text-tertiary)]">
+              <p className="m-0 mt-0.5 truncate text-[length:var(--text-xs)] tracking-[var(--tracking-subtitle)] text-[var(--text-tertiary)]">
                 {subtitle}
               </p>
             ) : null}
@@ -61,7 +61,7 @@ export function MobileHeader({
           <Bell className="w-5 h-5" />
           {unreadCount > 0 ? (
             <span
-              className="absolute right-1 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--glc-blue)] px-1 text-[length:var(--text-2xs)] font-bold text-[var(--primary-foreground)]"
+              className="absolute right-1 top-1 flex h-[length:var(--space-4-5)] min-w-[length:var(--space-4-5)] items-center justify-center rounded-full bg-[var(--glc-blue)] px-1 text-[length:var(--text-2xs)] font-bold text-[var(--primary-foreground)]"
             >
               {unreadCount > APP_SHELL_UI_POLICY.mobile.unreadBadgeCap
                 ? `${APP_SHELL_UI_POLICY.mobile.unreadBadgeCap}+`

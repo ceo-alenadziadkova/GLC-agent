@@ -10,6 +10,7 @@ export const SHADOW_TOKENS = {
   glowBlue: 'var(--glow-blue)',
   glowOrange: 'var(--glow-orange)',
   glowGreen: 'var(--glow-green)',
+  mobileBottomNav: 'var(--shadow-mobile-bottom-nav)',
 } as const;
 
 export type ShadowTokens = typeof SHADOW_TOKENS;

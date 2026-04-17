@@ -132,6 +132,7 @@
   --glow-green: 0 0 0 3px rgba(14, 207, 130, 0.20);
   --shadow-ink: 0 4px 16px rgba(8, 15, 30, 0.60), 0 1px 4px rgba(8, 15, 30, 0.40);
   --shadow-swiss: 3px 3px 0 var(--glc-ink);
+  --shadow-mobile-bottom-nav: 0 -4px 12px var(--overlay-shadow-soft);
 
   --glass-bg: rgba(255, 255, 255, 0.86);
   --glass-border: rgba(255, 255, 255, 0.68);
@@ -181,6 +182,9 @@
   --sidebar-width: 16rem;
   --sidebar-width-mobile: 18rem;
   --sidebar-width-icon: 3rem;
+  --app-shell-sidebar-narrow-width: 13.5rem;
+  --app-shell-drawer-width: min(20rem, 88vw);
+  --client-audit-brief-form-max-height: min(55vh, 28rem);
 
   --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
@@ -209,6 +213,9 @@
   --tracking-wide: 0.04em;
   --tracking-wider: 0.07em;
   --tracking-widest: 0.12em;
+  --tracking-subtitle: 0.01em;
+  --tracking-drawer-caps: 0.14em;
+  --tracking-role-meta: 0.03em;
 
   --ease-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
   --ease-base: 220ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -269,6 +276,14 @@
   --overlay-backdrop-strong: rgba(8, 15, 30, 0.5);
   --overlay-shadow-soft: rgba(11, 17, 32, 0.06);
   --overlay-white-46: rgba(255, 255, 255, 0.46);
+  --overlay-white-75: rgba(255, 255, 255, 0.75);
+  --overlay-white-90: rgba(255, 255, 255, 0.90);
+  --overlay-white-80: rgba(255, 255, 255, 0.80);
+  --overlay-white-72: rgba(255, 255, 255, 0.72);
+  --overlay-white-40: rgba(255, 255, 255, 0.40);
+  --overlay-white-28: rgba(255, 255, 255, 0.28);
+  --overlay-white-10: rgba(255, 255, 255, 0.10);
+  --overlay-white-07: rgba(255, 255, 255, 0.07);
   --overlay-white-45: rgba(255, 255, 255, 0.45);
   --overlay-white-38: rgba(255, 255, 255, 0.38);
   --overlay-white-35: rgba(255, 255, 255, 0.35);

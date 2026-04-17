@@ -369,11 +369,205 @@ html:not(.dark) .glc-hover-row:hover {
 }
 
 .ds-app-drawer-text-muted {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--overlay-white-75);
 }
 
 .ds-app-drawer-text-faint {
   color: rgba(255, 255, 255, 0.55);
+}
+
+/* App shell desktop header: token-driven shell chrome (avoids inline visual styles in TSX). */
+.ds-desktop-header {
+  background-color: var(--bg-surface);
+  border-bottom: var(--border-width-default) solid var(--border-subtle);
+  min-height: 3.5rem;
+  box-shadow: var(--shadow-xs);
+}
+
+.ds-desktop-header-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--text-base);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  font-family: var(--font-display);
+}
+
+.ds-desktop-header-subtitle {
+  margin: 0;
+  margin-top: var(--space-0-5);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-subtitle);
+}
+
+.ds-mobile-bottom-nav {
+  border-top: var(--border-width-default) solid var(--border-subtle);
+  min-height: var(--glc-mobile-nav-height);
+  padding-bottom: max(var(--space-2), env(safe-area-inset-bottom, 0rem));
+  box-shadow: var(--shadow-mobile-bottom-nav);
+}
+
+/* Report viewer hero (ink mesh): literals live in CSS, not TSX. */
+.ds-report-hero-shell {
+  background: var(--gradient-ink-rich);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-8) 2.25rem;
+}
+
+.ds-report-hero-mesh {
+  background: var(--mesh-ink);
+  opacity: 0.7;
+}
+
+.ds-report-hero-kicker {
+  color: var(--overlay-white-90);
+  border-color: var(--overlay-white-28);
+}
+
+.ds-report-hero-title {
+  color: var(--primary-foreground);
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  line-height: 1.2;
+}
+
+.ds-report-hero-meta {
+  color: var(--overlay-white-45);
+  font-size: var(--text-sm);
+}
+
+.ds-report-hero-summary {
+  color: var(--overlay-white-72);
+  font-size: var(--text-sm);
+  max-width: 30rem;
+}
+
+.ds-report-hero-pill {
+  background-color: var(--overlay-white-07);
+  border: var(--border-width-default) solid var(--overlay-white-10);
+  font-size: var(--text-2xs);
+  color: var(--overlay-white-80);
+}
+
+.ds-report-hero-score-panel {
+  background-color: var(--sidebar-border);
+  border: var(--border-width-default) solid var(--overlay-white-10);
+  backdrop-filter: blur(12px);
+  min-width: 7.5rem;
+}
+
+.ds-report-hero-ring-glow {
+  filter: drop-shadow(0 0 8px rgba(28, 189, 255, 0.6));
+}
+
+.ds-report-hero-score-label {
+  color: var(--overlay-white-40);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.ds-report-hero-ring-track {
+  stroke: var(--overlay-white-10);
+}
+
+.ds-report-hero-score-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  fill: var(--text-inverse);
+  font-family: var(--font-mono);
+}
+
+/* Marketing AuditCompare matrix: token-driven surfaces (no inline visual styles in TSX). */
+.ds-audit-compare-root-flat {
+  overflow: hidden;
+  border: var(--border-width-default) solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: none;
+}
+
+.ds-audit-compare-thead-row {
+  border-bottom: var(--border-width-default) solid var(--border-subtle);
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--bg-muted) 82%, transparent) 0%,
+    color-mix(in oklab, var(--glc-blue-muted) 45%, transparent) 100%
+  );
+}
+
+.ds-audit-compare-th-base {
+  color: var(--text-primary);
+}
+
+.ds-audit-compare-th-sticky-shadow {
+  box-shadow: 0 1px 0 var(--border-subtle);
+}
+
+.ds-audit-compare-th-bg-header {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--bg-muted) 82%, transparent) 0%,
+    color-mix(in oklab, var(--glc-blue-muted) 45%, transparent) 100%
+  );
+}
+
+.ds-audit-compare-th-bg-strategy {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 44%, var(--bg-surface));
+}
+
+.ds-audit-compare-th-bg-pro {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 62%, var(--bg-surface));
+}
+
+.ds-audit-compare-row {
+  border-bottom: var(--border-width-default) solid var(--border-subtle);
+}
+
+.ds-audit-compare-row-highlight {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 26%, transparent);
+}
+
+.ds-audit-compare-col-emphasis {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 34%, transparent);
+}
+
+.ds-audit-compare-col-strategy {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 24%, transparent);
+}
+
+.ds-audit-compare-footer {
+  border-top: var(--border-width-default) solid var(--border-subtle);
+  background-color: var(--bg-inset);
+}
+
+.ds-audit-compare-footer-link {
+  background-color: var(--bg-surface);
+  border: var(--border-width-default) solid var(--border-default);
+  color: var(--text-primary);
+}
+
+.ds-audit-compare-footer-link-primary {
+  background: var(--gradient-brand);
+  color: var(--primary-foreground);
+}
+
+.ds-audit-compare-table {
+  min-width: 32.5rem;
+}
+
+.ds-audit-compare-scroll-region {
+  overflow-x: auto;
+}
+
+@media (min-width: 768px) {
+  .ds-audit-compare-scroll-region--sticky {
+    max-height: min(70vh, 32.5rem);
+    overflow-y: auto;
+  }
 }
 
 /* ThemeToggle: icon color driven by custom properties on parent (no `color:` inline). */

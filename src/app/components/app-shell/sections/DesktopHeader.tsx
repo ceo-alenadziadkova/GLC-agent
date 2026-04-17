@@ -13,41 +13,12 @@ export function DesktopHeader({ title, subtitle, actions, isSmUp }: DesktopHeade
 
   return (
     <header
-      className="hidden sm:flex flex-shrink-0 items-center justify-between px-7"
+      className="ds-desktop-header hidden sm:flex flex-shrink-0 items-center justify-between px-7"
       aria-hidden={title ? !isSmUp : undefined}
-      style={{
-        backgroundColor: 'var(--bg-surface)',
-        borderBottom: '1px solid var(--border-subtle)',
-        minHeight: '56px',
-        boxShadow: 'var(--shadow-xs)',
-      }}
     >
       <div>
-        {title && (
-          <h1
-            style={{
-              color: 'var(--text-primary)',
-              fontSize: 'var(--text-base)',
-              fontWeight: 600,
-              letterSpacing: 'var(--tracking-tight)',
-              fontFamily: 'var(--font-display)',
-            }}
-          >
-            {title}
-          </h1>
-        )}
-        {subtitle && (
-          <p
-            style={{
-              color: 'var(--text-tertiary)',
-              fontSize: 'var(--text-xs)',
-              marginTop: 2,
-              letterSpacing: '0.01em',
-            }}
-          >
-            {subtitle}
-          </p>
-        )}
+        {title && <h1 className="ds-desktop-header-title">{title}</h1>}
+        {subtitle && <p className="ds-desktop-header-subtitle">{subtitle}</p>}
       </div>
       <div className="flex items-center gap-2">
         <ThemeToggle />
@@ -56,4 +27,3 @@ export function DesktopHeader({ title, subtitle, actions, isSmUp }: DesktopHeade
     </header>
   );
 }
-
