@@ -120,7 +120,7 @@ export function AdminDesignSystemPage() {
             {COPY.machineBlockTitle}
           </h2>
           <p className="text-xs m-0 ds-text-quaternary">{COPY.machineBlockHint}</p>
-          <pre className="m-0 p-4 rounded-lg border border-border bg-muted/40 text-xs font-mono overflow-x-auto max-h-[min(70vh,720px)] overflow-y-auto whitespace-pre-wrap break-words">
+          <pre className="m-0 p-4 rounded-lg border border-border bg-muted/40 text-xs font-mono overflow-x-auto ds-admin-design-system-json-scroll whitespace-pre-wrap break-words">
             {json}
           </pre>
         </section>

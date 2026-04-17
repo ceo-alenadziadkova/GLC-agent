@@ -28,9 +28,9 @@ export function buildAuditReportCoverage(
   audit: AuditCoverageInput,
   domains: DomainRowCoverageInput[],
 ): AuditReportCoverageView {
-  const completed = domains
+  const completed: DomainKey[] = domains
     .filter((domain) => domain.status === 'completed' && isDomainKey(domain.domain_key))
-    .map((domain) => domain.domain_key);
+    .map((domain) => domain.domain_key as DomainKey);
   const selected = Array.isArray(audit.execution_plan?.selected_domains)
     ? audit.execution_plan?.selected_domains.filter(isDomainKey)
     : [];

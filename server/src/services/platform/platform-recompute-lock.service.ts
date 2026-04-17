@@ -10,7 +10,7 @@ export class PlatformRecomputeLockUnavailableError extends Error {
 }
 
 type BanditRecomputeLockHandle = {
-  redis: ReturnType<typeof getSharedRedisClient>;
+  redis: NonNullable<ReturnType<typeof getSharedRedisClient>>;
   lockToken: string;
 };
 

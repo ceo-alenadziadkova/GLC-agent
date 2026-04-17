@@ -46,61 +46,68 @@ test.describe('snapshot public flow (mocked API)', () => {
     let pollCount = 0;
     let cookieHeaderOnPoll: string | undefined;
 
-    await page.route(url => url.toString().includes('/api/snapshot'), async route => {
-      const req = route.request();
-      const path = new URL(req.url()).pathname;
-      const method = req.method();
+    const pollPath = `/api/snapshot/${MOCK_SNAPSHOT_UUID}`;
 
-      if (path === '/api/snapshot/quota' && method === 'GET') {
+    // Register specific routes first (Playwright matches in registration order).
+    await page.route('**/api/snapshot/quota', async route => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ remaining: 10, limit: 10 }),
+      });
+    });
+
+    await page.route(`**${pollPath}*`, async route => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      const urlObj = new URL(route.request().url());
+      if (urlObj.searchParams.get('compare') === '1') {
+        await route.fulfill({ status: 404, body: '{}' });
+        return;
+      }
+      pollCount += 1;
+      cookieHeaderOnPoll = route.request().headers()['cookie'];
+      if (pollCount === 1) {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ remaining: 10, limit: 10 }),
+          body: JSON.stringify({ status: 'running', snapshot_token: MOCK_SNAPSHOT_UUID }),
         });
         return;
       }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(completedPreviewBody(MOCK_SNAPSHOT_UUID)),
+      });
+    });
 
-      if (path === '/api/snapshot' && method === 'POST') {
-        await route.fulfill({
-          status: 202,
-          contentType: 'application/json',
-          headers: {
-            'Set-Cookie': `glc_snapshot_guest=${MOCK_GUEST_COOKIE_VALUE}; Path=/; HttpOnly; SameSite=Lax`,
-          },
-          body: JSON.stringify({ snapshot_token: MOCK_SNAPSHOT_UUID, status: 'running' }),
-        });
+    await page.route('**/api/snapshot', async route => {
+      if (route.request().method() !== 'POST') {
+        await route.continue();
         return;
       }
-
-      if (path === `/api/snapshot/${MOCK_SNAPSHOT_UUID}` && method === 'GET') {
-        const urlObj = new URL(req.url());
-        if (urlObj.searchParams.get('compare') === '1') {
-          await route.fulfill({ status: 404, body: '{}' });
-          return;
-        }
-        pollCount += 1;
-        cookieHeaderOnPoll = req.headers()['cookie'];
-        if (pollCount === 1) {
-          await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify({ status: 'running', snapshot_token: MOCK_SNAPSHOT_UUID }),
-          });
-          return;
-        }
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(completedPreviewBody(MOCK_SNAPSHOT_UUID)),
-        });
-        return;
-      }
-
-      await route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
+      await route.fulfill({
+        status: 202,
+        contentType: 'application/json',
+        headers: {
+          'Set-Cookie': `glc_snapshot_guest=${MOCK_GUEST_COOKIE_VALUE}; Path=/; HttpOnly; SameSite=Lax`,
+        },
+        body: JSON.stringify({ snapshot_token: MOCK_SNAPSHOT_UUID, status: 'running' }),
+      });
     });
 
     await page.goto('/snapshot');
-    await page.getByRole('textbox', { name: /yourcompany\.com/i }).fill('example.com');
+    await expect(
+      page.getByRole('heading', { name: /how well does your website convert visitors\?/i }),
+    ).toBeVisible({ timeout: 20_000 });
+    await page.locator('input.glc-light-snapshot-input').fill('example.com');
     await page.getByRole('button', { name: /analyse my website/i }).click();
 
     await expect.poll(() => pollCount, { timeout: 20_000 }).toBeGreaterThanOrEqual(2);

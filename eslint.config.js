@@ -19,6 +19,8 @@ export default tseslint.config(
       'eslint.config.js',
       '.claude/**',
       '.claire/**',
+      '.agents/**',
+      'revolut/**',
       '**/*.test.ts',
       'server/src/tests/**',
       'server/scripts/**',

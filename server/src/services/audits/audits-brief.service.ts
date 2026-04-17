@@ -21,6 +21,7 @@ import {
   makeIncompleteIntakeVersionsError,
   makeIntakeVersionConflictError,
   makeInvalidCollectionModeError,
+  makeSaveBriefFailedError,
   makeUnsupportedIntakeVersionError,
 } from '../../config/brief-validation-errors.js';
 
@@ -133,6 +134,7 @@ export async function saveBriefWithValidation(args: {
         received: body.received,
       });
     }
+    throw makeSaveBriefFailedError('unexpected intake version validation outcome');
   }
 
   const perspective = validationPerspectiveForBriefAccess(

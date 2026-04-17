@@ -65,7 +65,7 @@ describe('resolveNotificationRoute', () => {
 
   it('routes other audit notifications to audit workspace', () => {
     const auditId = 'f4f072f3-56d7-4fdf-a7c8-439f95fdc8da';
-    const item = makeNotification({ audit_id: auditId, kind: 'pipeline' });
+    const item = makeNotification({ audit_id: auditId, kind: 'intake' });
 
     const route = resolveNotificationRoute({
       item,
