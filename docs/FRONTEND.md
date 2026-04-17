@@ -48,6 +48,8 @@ Planned in-app locales (BCP-47): **English (`en`, default), German (`de`), Spani
 
 Single source of truth for **visual language** in code is `src/styles/theme.css` (“GLC Design System v2”). Use **CSS variables** (not hard-coded hex) for surfaces, text, and borders. Tailwind utilities that reference `@theme inline` map to those tokens.
 
+**Specification:** as-is token/component map (§1–10) is in [`docs/design-system/current.md`](./design-system/current.md). Generated inventories, enforcement commands, rollout notes, and **reference stack alignment** vs mature systems (e.g. Material Design / Atlassian DS) are in [`docs/design-system/roadmap-notes.md`](./design-system/roadmap-notes.md).
+
 ### Brand and principles
 
 | Token | Role |

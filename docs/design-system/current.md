@@ -1,7 +1,19 @@
 # Design System Specification (As-Is Extraction)
 
 Date: 2026-04-17  
-Scope: extracted strictly from existing code.
+**Repository scope:** GLC-agent — Vite/React SPA under `src/` (including `src/styles/**`, `src/app/**`, `src/design-system/**`). This specification does not cover server-only UI.  
+**Extraction scope:** strictly from existing code in that tree; no prescribed redesigns or new tokens.
+
+**SSOT (as-is §1–10):** This file is the single source of truth for the mirrored design system **as implemented**. Governance, enforcement tooling, rollout notes, and reference-model assessment are in [`roadmap-notes.md`](./roadmap-notes.md).
+
+**Documentation layout (same scope, split for size):**
+
+| Artifact | Role |
+| --- | --- |
+| This file (`current.md`) | As-is narrative spec: §1–10 (tokens, inventory summary, components, API, hierarchy, layout, states, a11y signals, naming, derived rules) |
+| [`roadmap-notes.md`](./roadmap-notes.md) | Enforcement commands, baseline/audit pointers, rollout status, §11 reference-stack alignment (not part of as-is §1–10) |
+| [`inventory-dump.md`](./inventory-dump.md) | Generated appendix: **every** `--*` name assigned in `src/styles/tokens.css`, plus **deduplicated** hex/rgb/hsl/unit/clamp literals under `src/**` (regenerate: `pnpm run audit:ds:inventory-dump`) |
+| [`violations-export.md`](./violations-export.md) | Generated audit listing: raw-value and enforcement findings **without** allowlist (regenerate: `pnpm run audit:ds:export-violations`) |
 
 ## Extraction Sources
 
@@ -32,6 +44,9 @@ Scope: extracted strictly from existing code.
 - Style config with raw visuals:
   - `src/app/config/admin-request-queue-copy.en.ts`
   - `src/app/config/ui-breakpoints.ts`
+- Generated appendices (regenerable; mirror of repo state):
+  - [`docs/design-system/inventory-dump.md`](./inventory-dump.md) — `pnpm run audit:ds:inventory-dump`
+  - [`docs/design-system/violations-export.md`](./violations-export.md) — `pnpm run audit:ds:export-violations`
 
 ## 1. Design Tokens (Foundation)
 
@@ -122,6 +137,10 @@ Source: `src/styles/tokens.css`.
 - `BREAKPOINT_TOKENS`: `src/design-system/tokens/breakpoints.ts`
 - `UI_SEMANTIC_COLORS`, `UI_INTAKE_TRACE_GRAPH`: `src/design-system/tokens/ui-semantic-colors.ts`
 
+### 1.9 Full custom property index (`tokens.css`)
+
+All custom properties assigned in [`src/styles/tokens.css`](../../src/styles/tokens.css) are listed verbatim in [`inventory-dump.md`](./inventory-dump.md) under **Custom properties defined in tokens.css** (regenerate after token edits). The grouped tables in §1.1–§1.7 above remain the human-oriented summary; the dump is the complete enumerated mirror.
+
 ## 2. Style Inventory
 
 Raw unique values observed in extracted sources.
@@ -157,6 +176,20 @@ Raw unique values observed in extracted sources.
   - `0 24px 46px rgba(6, 12, 26, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.16)`
   - multiple `drop-shadow(...)`, `text-shadow(...)`, and `backdrop-filter: blur(...)`.
 
+### 2.6 Repository-wide literal inventory (full lists + counts)
+
+**Full deduplicated sets** (hex, rgb/rgba, hsl/hsla, px/rem/em unit literals, and `clamp(...)` spans) for all `src/**/*.css`, `*.ts`, `*.tsx` are in [`inventory-dump.md`](./inventory-dump.md), produced by `pnpm run audit:ds:inventory-dump`. That file also lists **every** `--*` name assigned in `src/styles/tokens.css`.
+
+Historical snapshot counts (same patterns as the dump script; counts drift as code changes):
+
+| Pattern class | Unique count (example snapshot 2026-04-17) |
+| --- | ---: |
+| Hex (`#` + 3–8 hex digits) | 124 |
+| `rgb(...)` / `rgba(...)` | 169 |
+| `hsl(...)` / `hsla(...)` | 0 |
+
+For enforcement-oriented **per-line** raw-value detection (not the same as deduplicated inventory), see `scripts/design-system-raw-values-check.mjs`.
+
 ## 3. Component Mapping
 
 ### 3.1 Design-system exported primitives
@@ -173,7 +206,7 @@ Source: `src/design-system/ui/index.ts`.
 
 ### 3.2 Reusable UI library inventory
 
-Source: `src/app/components/ui/**` (57 files).
+Source: `src/app/components/ui/**` (62 `*.ts` / `*.tsx` files).
 
 - Form/input: `Input`, `Textarea`, `Checkbox`, `RadioGroup`, `Select`, `Slider`, `InputOTP`, `Label`, `Form`, `FormField`, `Switch`.
 - Buttons/chips: `Button`, `Badge`, `Toggle`, `ToggleGroup`, `StatusBadge`.
@@ -199,24 +232,211 @@ Source: `src/app/components/ui/**` (57 files).
 | `SheetContent` | Directional `side` branch | `top`, `right`, `bottom`, `left` (`side`) | `data-[state=open]`, `data-[state=closed]` |
 | `StatusBadge` | fixed `Badge variant="secondary"` | Not observed | No component-level interactive states |
 
+### 3.4 UI module matrix (`src/app/components/ui`)
+
+One row per implementation file. **Exports:** public symbols from that file. **Variants:** `class-variance-authority` keys or other explicit visual branches. **States:** selectors/data attributes observed in that file’s `className` strings (not an a11y audit).
+
+| Path | Exports | Variants / branches | States / hooks (observed) |
+| --- | --- | --- | --- |
+| `accordion.tsx` | `Accordion`, `AccordionItem`, `AccordionTrigger`, `AccordionContent` | — | Radix `data-state` |
+| `alert-dialog.tsx` | `AlertDialog`, `AlertDialogPortal`, `AlertDialogOverlay`, `AlertDialogTrigger`, `AlertDialogContent`, `AlertDialogHeader`, `AlertDialogFooter`, `AlertDialogTitle`, `AlertDialogDescription`, `AlertDialogAction`, `AlertDialogCancel` | — | Radix open/close |
+| `alert.tsx` | `Alert`, `AlertTitle`, `AlertDescription`, `alertVariants` | `variant`: `default`, `destructive` | `role="alert"`, `data-slot` |
+| `aspect-ratio.tsx` | `AspectRatio` | — | — |
+| `avatar.tsx` | `Avatar`, `AvatarImage`, `AvatarFallback` | — | — |
+| `badge.tsx` | `Badge`, `badgeVariants` | `variant`: `default`, `secondary`, `destructive`, `outline` | `focus-visible`, `aria-invalid`, `[a&]:hover` |
+| `breadcrumb.tsx` | `Breadcrumb`, `BreadcrumbList`, `BreadcrumbItem`, `BreadcrumbLink`, `BreadcrumbPage`, `BreadcrumbSeparator`, `BreadcrumbEllipsis` | — | `aria-current` on page |
+| `button.tsx` | `Button`, `buttonVariants` | `variant`, `size` (see §3.3) | `hover`, `focus-visible`, `disabled`, `aria-invalid`, `data-loading`, `aria-busy` |
+| `calendar.tsx` | `Calendar` | — | day-picker UI |
+| `callout.tsx` | `Callout` | `intent`: `info`, `warning`, `danger`, `success`, `neutral` | static container |
+| `card.tsx` | `Card`, `CardHeader`, `CardFooter`, `CardTitle`, `CardAction`, `CardDescription`, `CardContent` | — | `data-slot` |
+| `carousel.tsx` | `Carousel`, `CarouselContent`, `CarouselItem`, `CarouselPrevious`, `CarouselNext`, type `CarouselApi` | — | embla + `disabled` on nav buttons |
+| `chart.tsx` | `ChartContainer`, `ChartTooltip`, `ChartTooltipContent`, `ChartLegend`, `ChartLegendContent`, `ChartStyle` | — | — |
+| `checkbox.tsx` | `Checkbox` | — | `focus-visible`, `disabled`, checked styling |
+| `collapsible.tsx` | `Collapsible`, `CollapsibleTrigger`, `CollapsibleContent` | — | Radix `data-state` |
+| `command.tsx` | `Command`, `CommandDialog`, `CommandInput`, `CommandList`, `CommandEmpty`, `CommandGroup`, `CommandItem`, `CommandShortcut`, `CommandSeparator` | — | cmdk `data-selected` |
+| `context-menu.tsx` | `ContextMenu`, `ContextMenuTrigger`, `ContextMenuContent`, `ContextMenuItem`, `ContextMenuCheckboxItem`, `ContextMenuRadioItem`, `ContextMenuLabel`, `ContextMenuSeparator`, `ContextMenuShortcut`, `ContextMenuGroup`, `ContextMenuPortal`, `ContextMenuSub`, `ContextMenuSubContent`, `ContextMenuSubTrigger`, `ContextMenuRadioGroup` | — | Radix menus |
+| `dialog.tsx` | `Dialog`, `DialogClose`, `DialogContent`, `DialogDescription`, `DialogFooter`, `DialogHeader`, `DialogOverlay`, `DialogPortal`, `DialogTitle`, `DialogTrigger` | — | `data-state`, focus |
+| `drawer.tsx` | `Drawer`, `DrawerPortal`, `DrawerOverlay`, `DrawerTrigger`, `DrawerClose`, `DrawerContent`, `DrawerHeader`, `DrawerFooter`, `DrawerTitle`, `DrawerDescription` | — | vaul / `data-state` |
+| `dropdown-menu.tsx` | `DropdownMenu`, `DropdownMenuPortal`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuGroup`, `DropdownMenuLabel`, `DropdownMenuItem`, `DropdownMenuCheckboxItem`, `DropdownMenuRadioGroup`, `DropdownMenuRadioItem`, `DropdownMenuSeparator`, `DropdownMenuShortcut`, `DropdownMenuSub`, `DropdownMenuSubTrigger`, `DropdownMenuSubContent` | — | Radix |
+| `form-field.tsx` | `FormField` | — | error vs hint rendering |
+| `form.tsx` | `Form`, `FormItem`, `FormLabel`, `FormControl`, `FormDescription`, `FormMessage`, `FormField`, `useFormField` | — | `aria-*` via field ids |
+| `hover-card.tsx` | `HoverCard`, `HoverCardTrigger`, `HoverCardContent` | — | Radix |
+| `input-otp.tsx` | `InputOTP`, `InputOTPGroup`, `InputOTPSlot`, `InputOTPSeparator` | — | focus ring classes |
+| `input.tsx` | `Input` | — | `focus-visible`, `disabled`, `aria-invalid` |
+| `label.tsx` | `Label` | — | — |
+| `menubar.tsx` | `Menubar`, `MenubarPortal`, `MenubarMenu`, `MenubarTrigger`, `MenubarContent`, `MenubarGroup`, `MenubarSeparator`, `MenubarLabel`, `MenubarItem`, `MenubarShortcut`, `MenubarCheckboxItem`, `MenubarRadioGroup`, `MenubarRadioItem`, `MenubarSub`, `MenubarSubTrigger`, `MenubarSubContent` | — | Radix |
+| `navigation-menu.tsx` | `NavigationMenu`, `NavigationMenuList`, `NavigationMenuItem`, `NavigationMenuContent`, `NavigationMenuTrigger`, `NavigationMenuLink`, `NavigationMenuIndicator`, `NavigationMenuViewport`, `navigationMenuTriggerStyle` | `navigationMenuTriggerStyle` uses `cva` | Radix `data-state` |
+| `pagination.tsx` | `Pagination`, `PaginationContent`, `PaginationLink`, `PaginationItem`, `PaginationPrevious`, `PaginationNext`, `PaginationEllipsis` | link uses `buttonVariants` | `aria-current`, `data-active` |
+| `popover.tsx` | `Popover`, `PopoverTrigger`, `PopoverContent`, `PopoverAnchor` | — | Radix |
+| `progress.tsx` | `Progress` | — | — |
+| `radio-group.tsx` | `RadioGroup`, `RadioGroupItem` | — | — |
+| `resizable.tsx` | `ResizablePanelGroup`, `ResizablePanel`, `ResizableHandle` | — | — |
+| `scroll-area.tsx` | `ScrollArea`, `ScrollBar` | — | — |
+| `select.tsx` | `Select`, `SelectGroup`, `SelectValue`, `SelectTrigger`, `SelectContent`, `SelectLabel`, `SelectItem`, `SelectSeparator`, `SelectScrollUpButton`, `SelectScrollDownButton` | `SelectTrigger` `size`: `sm`, `default` | `data-placeholder`, `focus-visible`, `disabled`, `aria-invalid`, `data-state` on content |
+| `separator.tsx` | `Separator` | — | — |
+| `sheet.tsx` | `Sheet`, `SheetTrigger`, `SheetClose`, `SheetContent`, `SheetHeader`, `SheetFooter`, `SheetTitle`, `SheetDescription` | `SheetContent` `side`: `top`, `right`, `bottom`, `left` | `data-state` |
+| `sidebar.tsx` | Re-exports from `sidebar/index` | — | public entry |
+| `skeleton.tsx` | `Skeleton` | — | — |
+| `slider.tsx` | `Slider` | — | — |
+| `sonner.tsx` | `Toaster` | — | — |
+| `stack.tsx` | `Stack`, `stackVariants` | `gap`: `xs`, `sm`, `md`, `lg`, `xl` | — |
+| `status-badge.tsx` | `StatusBadge`, `STATUS_BADGE_TONE_CLASS`, type `StatusBadgeTone` | `tone` keys: `neutral`, `info`, `success`, `warning`, `danger` | wraps `Badge` |
+| `surface.tsx` | `Surface`, `surfaceVariants` | `elevation`, `padding` (see §3.3) | — |
+| `switch.tsx` | `Switch` | — | `data-state` |
+| `table.tsx` | `Table`, `TableHeader`, `TableBody`, `TableFooter`, `TableHead`, `TableRow`, `TableCell`, `TableCaption` | — | — |
+| `tabs.tsx` | `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` | — | `data-state` |
+| `textarea.tsx` | `Textarea` | — | `focus-visible`, `disabled`, `aria-invalid` |
+| `toggle-group.tsx` | `ToggleGroup`, `ToggleGroupItem` | inherits `toggleVariants` `variant` / `size` via context | `data-variant`, `data-size` on root |
+| `toggle.tsx` | `Toggle`, `toggleVariants` | `variant`, `size` (see §3.3) | `data-state=on`, `disabled`, `focus-visible`, `aria-invalid` |
+| `tooltip.tsx` | `Tooltip`, `TooltipTrigger`, `TooltipContent`, `TooltipProvider` | — | — |
+| `utils.ts` | `cn` | — | — |
+| `use-mobile.ts` | `useIsMobile` | — | — |
+| `sidebar/sidebar-chrome.tsx` | `SidebarTrigger`, `SidebarRail`, `SidebarInset`, `SidebarInput`, `SidebarHeader`, `SidebarFooter`, `SidebarSeparator`, `SidebarContent` | — | `data-slot`, `data-sidebar` |
+| `sidebar/sidebar-context.tsx` | `SidebarContext`, `useSidebar` | — | — |
+| `sidebar/sidebar-copy.en.ts` | `SIDEBAR_COPY_EN` | — | copy constants |
+| `sidebar/sidebar-groups.tsx` | `SidebarGroup`, `SidebarGroupLabel`, `SidebarGroupAction`, `SidebarGroupContent` | — | `data-sidebar` |
+| `sidebar/sidebar-menu.tsx` | `SidebarMenu`, `SidebarMenuItem`, `SidebarMenuButton`, `SidebarMenuAction`, `SidebarMenuBadge`, `SidebarMenuSkeleton`, `SidebarMenuSub`, `SidebarMenuSubItem`, `SidebarMenuSubButton` | `SidebarMenuButton`: `variant`, `size`; `SidebarMenuSubButton`: `size` `sm`/`md` | `hover`, `active`, `focus-visible`, `disabled`, `data-active`, `aria-disabled`, `data-state` |
+| `sidebar/sidebar-provider.tsx` | `SidebarProvider` | — | cookie / layout state |
+| `sidebar/sidebar-root.tsx` | `Sidebar` | `side`, `variant`, `collapsible` (see §3.3) | `data-state`, `data-collapsible`, mobile `Sheet` |
+| `sidebar/sidebar-types.ts` | `SidebarContextProps` (type) | — | — |
+| `sidebar/index.ts` | Re-exports chrome, groups, menu, provider, root | — | app import surface |
+
+**Design-system façade:** [`src/design-system/ui/*`](../../src/design-system/ui) re-exports the same primitives from `src/app/components/ui/*` (no parallel implementations).
+
 ## 4. Component API (Inferred)
 
-Only props observed in code are listed.
+Only props **actually declared** in this repo’s wrappers are spelled out below. For components defined as `React.ComponentProps<typeof SomePrimitive.Root>` (or native elements) with only `className` / `...props` forwarding, the public API is that primitive’s API; see the corresponding file under `src/app/components/ui/`.
+
+### 4.1 Explicit wrapper props (TypeScript)
+
+```ts
+// button.tsx — extends button + cva
+type ButtonProps = React.ComponentProps<'button'> &
+  VariantProps<typeof buttonVariants> & { asChild?: boolean; loading?: boolean };
+
+// badge.tsx
+type BadgeProps = React.ComponentProps<'span'> &
+  VariantProps<typeof badgeVariants> & { asChild?: boolean };
+
+// toggle.tsx — extends Radix Toggle.Root + cva
+type ToggleProps = React.ComponentProps<typeof TogglePrimitive.Root> &
+  VariantProps<typeof toggleVariants>;
+
+// toggle-group.tsx
+type ToggleGroupProps = React.ComponentProps<typeof ToggleGroupPrimitive.Root> &
+  VariantProps<typeof toggleVariants>;
+
+// alert.tsx
+type AlertProps = React.ComponentProps<'div'> & VariantProps<typeof alertVariants>;
+
+// callout.tsx
+interface CalloutProps extends VariantProps<typeof calloutVariants> {
+  title?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}
+
+// surface.tsx
+type SurfaceProps = React.ComponentProps<'div'> & VariantProps<typeof surfaceVariants>;
+
+// stack.tsx
+type StackProps = React.ComponentProps<'div'> & VariantProps<typeof stackVariants>;
+
+// form-field.tsx
+interface FormFieldProps {
+  label: ReactNode;
+  htmlFor?: string;
+  requiredMark?: boolean;
+  optionalHint?: ReactNode;
+  error?: ReactNode;
+  hint?: ReactNode;
+  className?: string;
+  children: ReactNode;
+}
+
+// status-badge.tsx
+interface StatusBadgeProps {
+  label: string;
+  toneClassName?: string;
+  tone?: StatusBadgeTone;
+  dotClassName?: string;
+  pulse?: boolean;
+  pulseClassName?: string;
+  className?: string;
+}
+
+// select.tsx — extra prop on trigger only
+type SelectTriggerProps = React.ComponentProps<typeof SelectPrimitive.Trigger> & {
+  size?: 'sm' | 'default';
+};
+
+// pagination.tsx
+type PaginationLinkProps = { isActive?: boolean } &
+  Pick<React.ComponentProps<typeof Button>, 'size'> &
+  React.ComponentProps<'a'>;
+
+// sidebar-root.tsx — Sidebar
+type SidebarProps = React.ComponentProps<'div'> & {
+  side?: 'left' | 'right';
+  variant?: 'sidebar' | 'floating' | 'inset';
+  collapsible?: 'offcanvas' | 'icon' | 'none';
+};
+
+// sidebar-menu.tsx — SidebarMenuButton
+type SidebarMenuButtonProps = React.ComponentProps<'button'> & {
+  asChild?: boolean;
+  isActive?: boolean;
+  tooltip?: string | React.ComponentProps<typeof TooltipContent>;
+} & VariantProps<typeof sidebarMenuButtonVariants>;
+
+// sidebar-menu.tsx — SidebarMenuSubButton
+type SidebarMenuSubButtonProps = React.ComponentProps<'a'> & {
+  asChild?: boolean;
+  size?: 'sm' | 'md';
+  isActive?: boolean;
+};
+
+// sidebar-menu.tsx — SidebarMenuAction
+type SidebarMenuActionProps = React.ComponentProps<'button'> & {
+  asChild?: boolean;
+  showOnHover?: boolean;
+};
+
+// sidebar-menu.tsx — SidebarMenuSkeleton
+type SidebarMenuSkeletonProps = React.ComponentProps<'div'> & {
+  showIcon?: boolean;
+  textWidthPercent?: number;
+};
+
+// sheet.tsx — SheetContent
+type SheetContentProps = React.ComponentProps<typeof SheetPrimitive.Content> & {
+  side?: 'top' | 'right' | 'bottom' | 'left';
+};
+
+// input.tsx, textarea.tsx — native element props only (via ComponentProps)
+type InputProps = React.ComponentProps<'input'>;
+type TextareaProps = React.ComponentProps<'textarea'>;
+```
+
+### 4.2 Usage shorthand (JSX)
 
 ```tsx
 <Button variant="default|destructive|outline|secondary|ghost|link" size="default|sm|lg|icon" asChild loading />
 <Badge variant="default|secondary|destructive|outline" asChild />
 <Toggle variant="default|outline" size="default|sm|lg" />
+<ToggleGroup variant="..." size="...">{/* ToggleGroupItem */}</ToggleGroup>
 <Alert variant="default|destructive" />
 <Callout intent="info|warning|danger|success|neutral" title>{children}</Callout>
 <Surface elevation="base|raised" padding="sm|md|lg|none" />
+<Stack gap="xs|sm|md|lg|xl" />
 <SelectTrigger size="default|sm" />
 <PaginationLink isActive size />
 <Sidebar side="left|right" variant="sidebar|floating|inset" collapsible="offcanvas|icon|none" />
 <SidebarMenuButton asChild isActive variant="default|outline" size="default|sm|lg" tooltip />
 <SidebarMenuSubButton asChild isActive size="sm|md" />
 <SheetContent side="top|right|bottom|left" />
-<StatusBadge label toneClassName className />
+<StatusBadge label tone toneClassName dotClassName pulse pulseClassName className />
+<FormField label htmlFor requiredMark optionalHint error hint className>{children}</FormField>
 ```
 
 ## 5. Hierarchy (Atomic Structure)
@@ -331,42 +551,6 @@ Derived only from observed implementation.
 6. Layout uses both explicit contracts (`LAYOUT_CONTRACTS`) and utility/media usage in component and feature style layers.
 7. Legacy compatibility selectors (`glc-*`) coexist with primitive-based class compositions.
 
-## Enforcement Policy Snapshot
+## Related (outside as-is §1–10)
 
-- Canonical token source: `src/styles/tokens.css`.
-- Canonical TS token façade: `src/design-system/tokens/**`.
-- Canonical state policy:
-  - `data-[state=*]` for stateful primitives.
-  - pseudo-classes (`hover/focus-visible/active/disabled`) for interaction styles.
-- Enforcement scripts:
-  - `scripts/design-system-raw-values-check.mjs`
-  - `scripts/design-system-enforcement-check.mjs`
-  - baseline isolation allowlist: `scripts/design-system-baseline.allowlist.txt`
-
-## Target Maturity Rollout Notes
-
-### 2026-04-17 implementation status
-
-- `src/styles/tokens.css` remains the canonical token source, now with shared DS infra tokens:
-  - `--border-width-default`
-  - `--sidebar-width`, `--sidebar-width-mobile`, `--sidebar-width-icon`
-- `src/app/config/sidebar-ui.ts` consumes sidebar sizing via token vars instead of direct rem literals.
-- `src/app/config/marketing-surface-tokens.ts` and `src/app/config/package-marketing-ui.ts` consume the shared border width token instead of inline `1px`.
-- DS public UI ownership was hardened by exposing all current public primitives through local DS modules under `src/design-system/ui/**`:
-  - `Callout`, `Surface`, `Textarea`, `StatusBadge`
-- Composition contracts were expanded in `src/design-system/patterns/Layouts/**` with reusable layout presets:
-  - `PAGE_SHELL_CONTRACTS`
-  - `SECTION_SHELL_CONTRACTS`
-  - `CARD_GRID_CONTRACTS`
-  - `FORM_SECTION_CONTRACTS`
-  - `HEADER_ACTIONS_CONTRACTS`
-- CI governance now runs DS checks on both fast and release gates:
-  - `.github/workflows/test.yml`
-  - `.github/workflows/release-gate.yml`
-  - command: `pnpm run audit:ds:ci`
-
-### Utility and legacy policy (target)
-
-- `src/styles/utilities.css` stays layout/runtime-only (safe area, touch target, page spacing).
-- Visual utility logic (colors/background/typography/shadows/radius) must remain in tokens + primitives.
-- Legacy `glc-*` visual classes are treated as migration-only compatibility and must not be added in new UI changes.
+Enforcement commands, audit baselines, rollout status, and reference-model assessment (former §11) live in [`roadmap-notes.md`](./roadmap-notes.md). The as-is extraction **ends** at §10 above.
