@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => {
     redisSet: vi.fn(async (): Promise<string | null> => 'OK'),
     redisGet: vi.fn(async () => null),
     redisDel: vi.fn(async () => 1),
+    redisAvailable: true,
   };
 });
 
@@ -49,11 +50,14 @@ vi.mock('../services/bandit.js', () => ({
 }));
 
 vi.mock('../services/redis.js', () => ({
-  getSharedRedisClient: () => ({
-    set: mocks.redisSet,
-    get: mocks.redisGet,
-    del: mocks.redisDel,
-  }),
+  getSharedRedisClient: () =>
+    mocks.redisAvailable
+      ? ({
+          set: mocks.redisSet,
+          get: mocks.redisGet,
+          del: mocks.redisDel,
+        } as const)
+      : null,
 }));
 
 import { platformRouter } from '../routes/platform.js';
@@ -86,6 +90,7 @@ beforeEach(() => {
   mocks.redisSet.mockResolvedValue('OK');
   mocks.redisGet.mockResolvedValue(null);
   mocks.redisDel.mockResolvedValue(1);
+  mocks.redisAvailable = true;
 });
 
 describe('POST /api/platform/bandits/recompute', () => {
@@ -200,5 +205,14 @@ describe('POST /api/platform/bandits/recompute', () => {
     expect(res.status).toBe(500);
     const body = (await res.json()) as Record<string, unknown>;
     expect(body.code).toBe('INTERNAL_SERVER_ERROR');
+  });
+
+  it('returns 503 with lock-unavailable code when redis lock backend is not configured', async () => {
+    mocks.redisAvailable = false;
+    const res = await fetch(`${baseUrl}/api/platform/bandits/recompute`, { method: 'POST' });
+    expect(res.status).toBe(503);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.code).toBe('PLATFORM_RECOMPUTE_LOCK_UNAVAILABLE');
+    expect(mocks.recomputeArmPerformanceFromEvaluationDatasets).not.toHaveBeenCalled();
   });
 });

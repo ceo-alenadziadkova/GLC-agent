@@ -139,6 +139,7 @@
   "PLATFORM_SELF_SERVE_PERSIST_FAILED": "Failed to update platform settings",
   "PLATFORM_SELF_SERVE_UPDATE_FAILED": "Failed to update platform settings",
   "PLATFORM_RECOMPUTE_IN_PROGRESS": "A platform recompute job is already running. Please retry shortly.",
+  "PLATFORM_RECOMPUTE_LOCK_UNAVAILABLE": "Platform recompute is temporarily unavailable because the lock service is not configured.",
   "PLATFORM_CONSULTANT_ALLOWLIST_LOAD_FAILED": "Failed to load consultant email allowlist",
   "PLATFORM_CONSULTANT_ALLOWLIST_EMAIL_INVALID": "Invalid email for allowlist",
   "PLATFORM_CONSULTANT_ALLOWLIST_ADD_FAILED": "Failed to add email to allowlist",
