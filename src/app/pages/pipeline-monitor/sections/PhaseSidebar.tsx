@@ -50,7 +50,7 @@ export function PhaseSidebar(props: {
         <SectionLabel>{PM.sidebar.autoWing}</SectionLabel>
         <StatusBadge
           label={PM.sidebar.parallelBadge}
-          toneClassName="border border-[rgba(28,189,255,0.25)] bg-[rgba(28,189,255,0.12)] text-[9px] font-bold tracking-[0.06em] text-[var(--glc-blue)]"
+          toneClassName="border border-[color:var(--glc-blue-alpha-25)] bg-[var(--glc-blue-alpha-12)] text-[9px] font-bold tracking-[0.06em] text-[var(--glc-blue)]"
           className="font-[var(--font-display)]"
         />
       </div>
@@ -75,7 +75,7 @@ export function PhaseSidebar(props: {
         {!isExpress && (
           <StatusBadge
             label={PM.sidebar.parallelBadge}
-            toneClassName="border border-[rgba(28,189,255,0.18)] bg-[rgba(28,189,255,0.08)] text-[9px] font-bold tracking-[0.06em] text-[var(--glc-blue)]"
+            toneClassName="border border-[color:var(--glc-blue-alpha-18)] bg-[var(--callout-info-bg)] text-[9px] font-bold tracking-[0.06em] text-[var(--glc-blue)]"
             className="font-[var(--font-display)]"
           />
         )}

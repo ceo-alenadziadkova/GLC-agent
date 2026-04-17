@@ -196,7 +196,7 @@ export function Step1Brief({
           {interviewMode && (
             <Callout intent="warning" className="mb-3">
               <div className="text-warning-foreground flex items-start gap-2 text-xs">
-                <span className="mt-[1px] flex-shrink-0">&#9679;</span>
+                <Circle className="mt-px h-3 w-3 shrink-0 text-current" weight="fill" aria-hidden />
                 <span>
                   {WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsPrefix}
                   <strong>{WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsConsultantTag}</strong>

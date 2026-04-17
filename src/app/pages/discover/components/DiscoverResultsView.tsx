@@ -66,7 +66,7 @@ export function DiscoverResultsView(props: DiscoverResultsViewProps) {
     <div
       className={`${
         compactSplitResults
-          ? 'relative max-h-[min(78vh,52rem)] w-full min-w-0 max-w-full overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl'
+          ? 'relative max-h-[var(--discover-results-split-max-height)] w-full min-w-0 max-w-full overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl'
           : standaloneResults
             ? 'flex min-h-screen w-full min-w-0 flex-col items-stretch px-4 py-10 sm:px-6 sm:py-14'
             : 'relative flex w-full min-w-0 flex-col items-stretch px-4 pb-12 pt-8 sm:px-8 sm:pb-16 sm:pt-10'
@@ -79,7 +79,7 @@ export function DiscoverResultsView(props: DiscoverResultsViewProps) {
             : standaloneResults
               ? 'pointer-events-none fixed inset-0'
               : 'pointer-events-none absolute inset-0'
-        } z-0 bg-[radial-gradient(circle_at_top,rgba(30,58,138,0.22),transparent_55%),radial-gradient(circle_at_bottom,rgba(14,165,233,0.18),transparent_60%)]`}
+        } z-0 ds-discover-results-mesh-bg`}
         aria-hidden
       />
       <div
@@ -89,7 +89,7 @@ export function DiscoverResultsView(props: DiscoverResultsViewProps) {
           <div className="bg-gradient-to-r from-sky-400 to-sky-600 flex h-8 w-8 items-center justify-center rounded-lg">
             <ChartBar size={18} weight="bold" className="text-primary-foreground" />
           </div>
-          <span className="text-foreground text-base font-bold tracking-[-0.01em]">
+          <span className="text-foreground text-base font-bold tracking-[var(--tracking-discover-results-brand)]">
             GLC Audit
           </span>
         </div>
@@ -103,22 +103,22 @@ export function DiscoverResultsView(props: DiscoverResultsViewProps) {
                 className="bg-info/10 border-info/40 mb-3 inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 sm:mb-4"
               >
                 <CheckCircle size={15} weight="fill" className="text-info shrink-0" />
-                <span className="text-info break-words text-left text-xs font-semibold tracking-[0.06em] sm:text-center">
+                <span className="text-info break-words text-left text-xs font-semibold tracking-[var(--tracking-snapshot-badge)] sm:text-center">
                   {discoverResultsUi.copy.analysisComplete}
                 </span>
               </div>
               <h1
-                className={`text-foreground break-words px-0.5 text-pretty font-extrabold tracking-[-0.02em] leading-tight ${
+                className={`text-foreground break-words px-0.5 text-pretty font-extrabold tracking-[var(--tracking-tight)] leading-tight ${
                   compactSplitResults
-                    ? 'text-[clamp(1.125rem,3.2vw+0.5rem,1.5rem)]'
-                    : 'text-[clamp(1.375rem,2.5vw,1.75rem)]'
+                    ? 'text-[length:var(--discover-results-title-compact)]'
+                    : 'text-[length:var(--discover-results-title-default)]'
                 }`}
               >
                 {discoverResultsUi.copy.resultsTitle}
               </h1>
               <p
                 className={`text-muted-foreground mx-auto mt-2.5 max-w-full break-words px-0.5 text-pretty leading-relaxed ${
-                  compactSplitResults ? 'text-sm' : 'text-[1.0625rem]'
+                  compactSplitResults ? 'text-sm' : 'text-[length:var(--text-lg)]'
                 }`}
               >
                 {discoverResultsUi.copy.signalsPrefix} {signalCount} signals
@@ -130,18 +130,18 @@ export function DiscoverResultsView(props: DiscoverResultsViewProps) {
               className="bg-card min-w-0 max-w-full overflow-hidden rounded-2xl border p-5 text-center sm:p-6"
             >
               <Buildings size={26} className="text-info mx-auto mb-3" />
-              <p className="text-foreground mx-auto mb-[18px] max-w-full break-words text-pretty text-[1.0625rem] font-bold leading-[1.55] sm:max-w-md">
+              <p className="text-foreground mx-auto mb-[length:var(--space-4-5)] max-w-full break-words text-pretty text-[length:var(--text-lg)] font-bold leading-[1.55] sm:max-w-md">
                 {discoverResultsUi.copy.ctaTitle}
               </p>
               <a
                 href={loginTarget}
-                className="inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-400 to-sky-600 px-5 py-3 text-[0.9375rem] font-semibold text-white no-underline sm:px-6"
+                className="inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-400 to-sky-600 px-5 py-3 text-[length:var(--text-base)] font-semibold text-white no-underline sm:px-6"
               >
                 <Users size={18} className="shrink-0" />
                 <span className="break-words text-center">{discoverResultsUi.copy.ctaButton}</span>
                 <ArrowRight size={16} className="shrink-0" />
               </a>
-              <p className="text-muted-foreground mt-3 text-[0.8125rem]">
+              <p className="text-muted-foreground mt-3 text-[length:var(--text-sm)]">
                 {discoverResultsUi.copy.ctaFootnote}
               </p>
             </div>
@@ -161,7 +161,7 @@ export function DiscoverResultsView(props: DiscoverResultsViewProps) {
                 <p className="text-foreground text-base font-semibold">
                   {discoverResultsUi.copy.noGapsTitle}
                 </p>
-                <p className="text-muted-foreground mx-auto mt-2 max-w-md text-pretty text-[0.9375rem] leading-[1.65]">
+                <p className="text-muted-foreground mx-auto mt-2 max-w-md text-pretty text-[length:var(--text-base)] leading-[1.65]">
                   {discoverResultsUi.copy.noGapsBody}
                 </p>
               </div>
@@ -185,7 +185,7 @@ export function DiscoverResultsView(props: DiscoverResultsViewProps) {
           <button
             type="button"
             onClick={onBack}
-            className="text-muted-foreground mx-auto flex items-center gap-2 rounded-lg bg-transparent py-2 text-[0.9375rem]"
+            className="text-muted-foreground mx-auto flex items-center gap-2 rounded-lg bg-transparent py-2 text-[length:var(--text-base)]"
           >
             <ArrowLeft size={16} aria-hidden /> {discoverResultsUi.copy.backReview}
           </button>

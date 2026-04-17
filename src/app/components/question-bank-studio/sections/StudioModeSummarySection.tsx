@@ -24,11 +24,21 @@ export function StudioModeSummarySection(props: StudioModeSummarySectionProps) {
       </div>
       <p className="m-0 ds-text-secondary" >
         Policy <span className="font-mono">{policyMode}</span> · Bank in policy: <strong>{policyBannerStats.bankParticipating}</strong> / {policyBannerStats.bankTotal}
-        {policyBannerStats.bankOutsidePolicy > 0 ? <> (<span style={{ color: 'var(--text-quaternary)' }}>{policyBannerStats.bankOutsidePolicy} outside slice</span>)</> : null}
-        {policyBannerStats.bankPolicyRequired > 0 ? <> · Policy required: <strong style={{ color: 'var(--glc-orange)' }}>{policyBannerStats.bankPolicyRequired}</strong></> : null}
+        {policyBannerStats.bankOutsidePolicy > 0 ? (
+          <>
+            {' '}
+            (<span className="ds-text-quaternary">{policyBannerStats.bankOutsidePolicy} outside slice</span>)
+          </>
+        ) : null}
+        {policyBannerStats.bankPolicyRequired > 0 ? (
+          <>
+            {' '}
+            · Policy required: <strong className="ds-text-accent-orange">{policyBannerStats.bankPolicyRequired}</strong>
+          </>
+        ) : null}
         {policyBannerStats.bankPolicyIfVisible > 0 ? <> · If visible: <strong>{policyBannerStats.bankPolicyIfVisible}</strong></> : null}
       </p>
-      <p className="m-0" style={{ color: 'var(--text-quaternary)', fontSize: 10 }}>
+      <p className="m-0 ds-type-2xs-quaternary">
         Runtime trace
         {tracePlan ? (
           <>

@@ -73,17 +73,8 @@ export function MarketingHeader({
 
   return (
     <header
-      className="sticky top-0 z-50 border-b backdrop-blur-xl"
-      style={{
-        borderColor: 'var(--border-subtle)',
-        backgroundColor: scrolled
-          ? 'color-mix(in oklab, var(--bg-canvas) 78%, transparent)'
-          : 'color-mix(in oklab, var(--bg-canvas) 90%, transparent)',
-        backdropFilter: scrolled ? 'blur(16px) saturate(180%)' : 'blur(10px)',
-        boxShadow: scrolled ? '0 1px 0 color-mix(in oklab, var(--text-primary) 8%, transparent)' : 'none',
-        transition: 'background-color 300ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 300ms cubic-bezier(0.16, 1, 0.3, 1), backdrop-filter 300ms cubic-bezier(0.16, 1, 0.3, 1)',
-        paddingTop: 'max(0.5rem, env(safe-area-inset-top))',
-      }}
+      className="sticky top-0 z-50 border-b ds-marketing-header-shell"
+      data-scrolled={scrolled ? 'true' : 'false'}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link
@@ -135,7 +126,7 @@ export function MarketingHeader({
             className="hidden rounded-lg px-3 py-2 text-sm font-semibold sm:inline-flex"
             style={{
               color: 'var(--glc-blue)',
-              border: '1px solid color-mix(in oklab, var(--glc-blue) 35%, var(--border-default))',
+              border: 'var(--border-width-default) solid color-mix(in oklab, var(--glc-blue) 35%, var(--border-default))',
             }}
           >
             {footer.clientSignInLabel}
@@ -145,7 +136,7 @@ export function MarketingHeader({
             ref={menuButtonRef}
             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg lg:hidden"
             style={{
-              border: '1px solid var(--border-subtle)',
+              border: 'var(--border-width-default) solid var(--border-subtle)',
               backgroundColor: 'var(--bg-surface)',
               color: 'var(--text-primary)',
             }}
@@ -167,8 +158,7 @@ export function MarketingHeader({
           role="dialog"
           aria-modal="true"
           aria-label={navCopy.mobileNavDialogAriaLabel}
-          className="border-t lg:hidden"
-          style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
+          className="border-t lg:hidden ds-marketing-header-popover"
         >
           <ul className="mx-auto flex max-w-6xl flex-col gap-0.5 px-4 py-3">
             {MARKETING_LINKS.map(({ to, label }) => (
@@ -178,11 +168,10 @@ export function MarketingHeader({
                   onClick={() => setOpen(false)}
                   className={({ isActive }) =>
                     cn(
-                      'flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium',
+                      'flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium ds-marketing-header-link-primary',
                       isActive ? 'bg-[var(--bg-muted)]' : '',
                     )
                   }
-                  style={{ color: 'var(--text-primary)' }}
                 >
                   {label}
                 </NavLink>

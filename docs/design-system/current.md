@@ -139,7 +139,7 @@ Source: `src/styles/tokens.css`.
 
 ### 1.9 Full custom property index (`tokens.css`)
 
-All custom properties assigned in [`src/styles/tokens.css`](../../src/styles/tokens.css) are listed verbatim in [`inventory-dump.md`](./inventory-dump.md) under **Custom properties defined in tokens.css** (regenerate after token edits). The grouped tables in §1.1–§1.7 above remain the human-oriented summary; the dump is the complete enumerated mirror.
+All custom properties assigned in [`src/styles/tokens.css`](../../src/styles/tokens.css) are listed verbatim in [`inventory-dump.md`](./inventory-dump.md) under **Custom properties defined in tokens.css** (regenerate after token edits). The grouped tables in §1.1–§1.7 above remain the human-oriented summary; the dump is the complete enumerated mirror. Count in the latest regenerated dump: **357** names.
 
 ## 2. Style Inventory
 
@@ -182,10 +182,10 @@ Raw unique values observed in extracted sources.
 
 Historical snapshot counts (same patterns as the dump script; counts drift as code changes):
 
-| Pattern class | Unique count (example snapshot 2026-04-17) |
+| Pattern class | Unique count (aligned to latest `inventory-dump.md`, 2026-04-17) |
 | --- | ---: |
-| Hex (`#` + 3–8 hex digits) | 124 |
-| `rgb(...)` / `rgba(...)` | 169 |
+| Hex (`#` + 3–8 hex digits) | 122 |
+| `rgb(...)` / `rgba(...)` | 159 |
 | `hsl(...)` / `hsla(...)` | 0 |
 
 For enforcement-oriented **per-line** raw-value detection (not the same as deduplicated inventory), see `scripts/design-system-raw-values-check.mjs`.

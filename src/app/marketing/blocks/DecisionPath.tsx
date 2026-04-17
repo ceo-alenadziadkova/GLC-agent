@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { Link } from 'react-router';
 import { ArrowRight, MapTrifold, Question, Stack } from '@phosphor-icons/react';
 import { cn } from '../../components/ui/utils';
@@ -25,13 +26,8 @@ export function DecisionPath({
       <div
         className={cn(
           'grid gap-4 sm:gap-5 md:grid-cols-3',
-          !flush && 'rounded-[var(--radius-2xl)] border p-4 sm:p-5',
+          !flush && 'rounded-[var(--radius-2xl)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 sm:p-5',
         )}
-        style={
-          flush
-            ? { backgroundColor: 'transparent' }
-            : { borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }
-        }
       >
         {paths.map(({ to, title, subtitle }, index) => {
           const Icon = PATH_ICONS[index] ?? Question;
@@ -41,20 +37,20 @@ export function DecisionPath({
               key={to}
               to={to}
               className={cn(
-                'group flex h-full min-h-[180px] flex-col rounded-[var(--radius-2xl)] border p-6 transition-[transform,box-shadow,border-color,background-color] duration-200 sm:min-h-[200px] sm:p-7',
+                'group flex h-full min-h-[length:var(--decision-path-card-min-height)] flex-col rounded-[var(--radius-2xl)] border border-[var(--border-subtle)] bg-[color-mix(in_oklab,var(--bg-surface)_92%,var(--bg-muted))] p-6 shadow-[var(--shadow-sm)] transition-[transform,box-shadow,border-color,background-color] duration-200 sm:min-h-[length:var(--decision-path-card-min-height-sm)] sm:p-7',
                 'hover:-translate-y-1 hover:border-[var(--glc-blue)]',
               )}
-              style={{
-                borderColor: 'var(--border-subtle)',
-                backgroundColor: 'color-mix(in oklab, var(--bg-surface) 92%, var(--bg-muted))',
-                boxShadow: 'var(--shadow-sm)',
-              }}
             >
               <div
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full sm:h-12 sm:w-12"
-                style={{ backgroundColor: accent.bg }}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--decision-path-icon-bg)] sm:h-12 sm:w-12"
+                style={
+                  {
+                    ['--decision-path-icon-bg']: accent.bg,
+                    ['--decision-path-icon-fg']: accent.icon,
+                  } as CSSProperties
+                }
               >
-                <Icon className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: accent.icon }} weight="duotone" />
+                <Icon className="h-5 w-5 text-[var(--decision-path-icon-fg)] sm:h-6 sm:w-6" weight="duotone" />
               </div>
               <h3
                 className="mt-4 font-display text-base font-bold tracking-tight sm:text-lg ds-text-primary"
@@ -78,12 +74,10 @@ export function DecisionPath({
 
   return (
     <div
-      className={flush ? 'overflow-hidden' : 'overflow-hidden rounded-xl border'}
-      style={
-        flush
-          ? { backgroundColor: 'var(--bg-surface)' }
-          : { borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }
-      }
+      className={cn(
+        'overflow-hidden bg-[var(--bg-surface)]',
+        !flush && 'rounded-xl border border-[var(--border-subtle)]',
+      )}
     >
       {paths.map(({ to, title, subtitle }, index) => {
         const Icon = PATH_ICONS[index] ?? Question;
@@ -92,14 +86,21 @@ export function DecisionPath({
           <Link
             key={to}
             to={to}
-            className="group flex gap-4 border-b px-4 py-4 transition-colors last:border-b-0 hover:bg-[var(--bg-muted)] sm:gap-5 sm:px-8 sm:py-6"
-            style={{ borderColor: 'var(--border-subtle)' }}
+            className="group flex gap-4 border-b border-[var(--border-subtle)] px-4 py-4 transition-colors last:border-b-0 hover:bg-[var(--bg-muted)] sm:gap-5 sm:px-8 sm:py-6"
           >
             <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full sm:h-11 sm:w-11"
-              style={{ backgroundColor: accent.bg }}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--decision-path-icon-bg)] sm:h-11 sm:w-11"
+              style={
+                {
+                  ['--decision-path-icon-bg']: accent.bg,
+                  ['--decision-path-icon-fg']: accent.icon,
+                } as CSSProperties
+              }
             >
-              <Icon className="h-5 w-5 sm:h-[22px] sm:w-[22px]" style={{ color: accent.icon }} weight="duotone" />
+              <Icon
+                className="h-5 w-5 text-[var(--decision-path-icon-fg)] sm:h-[length:var(--decision-path-stack-icon-size)] sm:w-[length:var(--decision-path-stack-icon-size)]"
+                weight="duotone"
+              />
             </div>
             <div className="min-w-0 flex-1">
               <h3 className="font-display text-base font-bold tracking-tight ds-text-primary" >

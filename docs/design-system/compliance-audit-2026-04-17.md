@@ -1,182 +1,186 @@
-# Design system compliance audit (factual)
+# Отчёт аудита соответствия дизайн-системе (strict, без рекомендаций)
 
-Date: 2026-04-17  
-**SSOT (target specification):** [current.md](./current.md) (as-is §1–10).  
-**Method:** No redesign; detection only. Findings derive from `design-system-raw-values-check` + `design-system-enforcement-check` with **allowlist disabled** (same as [violations-export.md](./violations-export.md)), plus repository facts referenced below.
+**Дата снимка:** 2026-04-17 (согласовано с шапкой [violations-export.md](./violations-export.md) после `pnpm run audit:ds:export-violations` и с [inventory-dump.md](./inventory-dump.md) после `pnpm run audit:ds:inventory-dump`).
 
-**Exhaustive machine list:** [compliance-findings.full.txt](./compliance-findings.full.txt) (deduped lines: `file:line [type] value`).
+**SSOT:** [current.md](./current.md) §1–§10.  
+**Первичные машинные источники (no allowlist):** [violations-export.md](./violations-export.md), [compliance-findings.full.txt](./compliance-findings.full.txt) (дедуп: см. Summary в `violations-export.md`; после волны SAFE — преимущественно `unit-literal` в app scope; перегенерировать после миграций).  
+**Контекст внедрения/политики:** [roadmap-notes.md](./roadmap-notes.md), allowlist: [scripts/design-system-baseline.allowlist.txt](../../scripts/design-system-baseline.allowlist.txt).  
+**Скрипты правил:** [scripts/design-system-raw-values-check.mjs](../../scripts/design-system-raw-values-check.mjs) (`unit-literal`, `hex-color`, `rgb-color` в app scope), [scripts/design-system-enforcement-check.mjs](../../scripts/design-system-enforcement-check.mjs) (`inline-visual-style`, `config-token-like-raw`, `utility-visual-style`; в текущем снимке экспорта в merged-типах доминируют два класса ниже).
+
+**Ограничение охвата:** автоматический аудит не претендует на полный перечень ARIA/ролей по всему приложению; раздел 7 фиксирует только то, что следует из SSOT и из типов находок.
 
 ---
 
 ## 1. HARD VIOLATIONS (CRITICAL)
 
-### 1.1 Hardcoded values instead of tokens
+### 1.1 Hardcoded values вместо токенов (агрегат)
 
-Policy reference: canonical CSS variables in `src/styles/tokens.css`; TS maps in `src/design-system/tokens/**` (see [current.md](./current.md) §1, [roadmap-notes.md](./roadmap-notes.md)).
+Сводка по [violations-export.md](./violations-export.md) (merged raw + enforcement, allowlist отключён):
 
-**Quantitative summary (no allowlist, deduped merge):**
+| Тип | Количество | Смысл (как определено скриптами) |
+| --- | ---: | --- |
+| `unit-literal` | *см. violations-export* | Литералы `px` / `rem` / `em` в целевых TS/TSX (app scope raw-values); после миграции инлайнов — основной остаток дрифта |
+| `inline-visual-style` | 0 | *(в актуальном снимке enforcement app — нет строк в merged-выгрузке)* |
+| `rgb-color` | 0 | *(в текущем снимке app-scope — нет строк в merged-выгрузке)* |
+| `hex-color` | 0 | *(в текущем снимке app-scope — нет строк в merged-выгрузке)* |
+| **Итого дедуп** | *см. violations-export* | Один файл [compliance-findings.full.txt](./compliance-findings.full.txt) |
 
-| Metric | Value |
-| --- | ---: |
-| Deduped findings | 488 |
-| `unit-literal` | 337 |
-| `inline-visual-style` | 101 |
-| `rgb-color` | 44 |
-| `hex-color` | 6 |
+Точные счётчики и сырые строки до дедупа: таблица Summary в [violations-export.md](./violations-export.md) (регенерация: `pnpm run audit:ds:export-violations`).
 
-Raw audit rows (pre-dedupe): 393 + 101 from the two scripts (see [violations-export.md](./violations-export.md)).
+**Формат детализации:** каждая строка — точная трассировка (файл, строка, значение/фрагмент строки). Литералы `rgb`/`hex` в целевых app-деревьях в этом снимке не попали в merged-типы `hex-color` / `rgb-color`; репозиторий в целом по-прежнему содержит hex/rgb в CSS/прочих путях — см. [inventory-dump.md](./inventory-dump.md) и §2.6 [current.md](./current.md). Историческая выборка: [token-replacement-matrix.md](./token-replacement-matrix.md).
 
-**Expected token:** Not inferred in bulk. Each literal would need manual or heuristic mapping to `var(--*)`; this report does not assign replacements.
+Колонку «Expected token» **не заполняю**: это было бы нормативным исправлением; SSOT задаёт канон в [src/styles/tokens.css](../../src/styles/tokens.css), а литералы — факт отклонения.
 
-**Sample rows (first 10 lines of `compliance-findings.full.txt`):**
+### 1.2 Дублирование значений по слоям (факт)
 
-| File | Line | Type | Value |
-| --- | ---: | --- | --- |
-| `src/app/components/app-shell/config/app-shell-ui-policy.ts` | 3 | `unit-literal` | `640px` |
-| `src/app/components/app-shell/config/app-shell-ui-policy.ts` | 19 | `unit-literal` | `1px` |
-| `src/app/components/app-shell/config/app-shell-ui-policy.ts` | 22 | `unit-literal` | `1px` |
-| `src/app/components/app-shell/config/app-shell-ui-policy.ts` | 28 | `unit-literal` | `20rem` |
-| `src/app/components/app-shell/config/app-shell-ui-policy.ts` | 30 | `unit-literal` | `12px` |
-| `src/app/components/app-shell/config/app-shell-ui-policy.ts` | 30 | `unit-literal` | `4px` |
-| `src/app/components/app-shell/config/app-shell-ui-policy.ts` | 34 | `unit-literal` | `9px` |
-| `src/app/components/app-shell/config/app-shell-ui-policy.ts` | 35 | `unit-literal` | `10px` |
-| `src/app/components/app-shell/sections/DesktopHeader.tsx` | 20 | `unit-literal` | `1px` |
-| `src/app/components/app-shell/sections/DesktopHeader.tsx` | 21 | `unit-literal` | `56px` |
+- **CSS:** [src/styles/tokens.css](../../src/styles/tokens.css) — канон переменных (зафиксировано в [roadmap-notes.md](./roadmap-notes.md)).
+- **TS-фасад:** [src/design-system/tokens/](../../src/design-system/tokens/index.ts) отражает `var(--…)` (SSOT §1.8, §10.2).
+- **Повтор тех же величин вне токенов:** в актуальном no-allowlist снимке остаются преимущественно `unit-literal` и `inline-visual-style`; цветовые литералы в TS/TSX целевых путях в классах `hex-color` / `rgb-color` не эмитятся. Полный перечень совпадений по значению не автоматизирован в отчёте; машинный список значений — [inventory-dump.md](./inventory-dump.md) (литералы) против имён `--*`.
 
-Full trace: [compliance-findings.full.txt](./compliance-findings.full.txt).
+### 1.3 Обход темы / семантики
 
-**Scope note:** `design-system-raw-values-check` scans TS/TSX under configured app trees (see script header). `design-system-enforcement-check` flags inline visual `style={{...}}` keys, config token-like raw values (with documented basename skips), `utilities.css` visual rules, and optional legacy button classes.
-
-### 1.2 Token duplication across layers
-
-**Observed architecture (factual):**
-
-- Values are defined in `src/styles/tokens.css` and referenced as `var(--...)` from TS token maps and CSS.
-- The same **numeric/color literal** can still appear in TSX/TS (listed in §1.1) **in addition** to tokens — that is duplication of *expression*, not necessarily duplicate token definitions.
-- TS maps in `src/design-system/tokens/**` are wrappers over CSS variables per [current.md](./current.md) §1.8 / [roadmap-notes.md](./roadmap-notes.md).
-
-No single automated diff of “same hex in tokens.css and in file X” is attached; the raw-value audit is the primary detector for literals outside token usage.
-
-### 1.3 Theme bypass
-
-**Factual patterns in findings:**
-
-- `inline-visual-style` and `hex-color` / `rgb-color` in feature and page TSX bypass semantic theme variables for those lines.
-- `rgba(...)` and fixed hex in components (e.g. app shell, discover, marketing) appear in [compliance-findings.full.txt](./compliance-findings.full.txt); whether `html.dark` is bypassed per surface requires line-level review (not asserted here as pass/fail).
+- **Инлайн-визуал:** при появлении в снимке — обход слоя «токены + классы» (правила: [design-system-enforcement-check.mjs](../../scripts/design-system-enforcement-check.mjs), `INLINE_STYLE_VISUAL_KEYS`). Волна SAFE свела merged `inline-visual-style` к нулю; дальнейший контроль — через `audit:ds:export-violations`.
+- **Литеральные RGBA в app-scope находках:** в текущем [compliance-findings.full.txt](./compliance-findings.full.txt) строк с `rgba(` нет; цветовой дрифт в кодовой базе вне этого снимка по-прежнему отражён в [inventory-dump.md](./inventory-dump.md) (секция rgb-color) и в §2.1 [current.md](./current.md).
+- **Тёмная тема:** любой литерал/инлайн, не завязанный на переменные с переопределением в `html.dark`, потенциально обходит токенную схему SSOT §1.1; отдельного скрипта «dark bypass» в репозитории нет — фиксируется как класс риска при наличии `rgb-color` / `hex-color` / `inline-visual-style`.
 
 ---
 
 ## 2. STRUCTURAL VIOLATIONS
 
-### 2.1 Mixed styling paradigms
+### 2.1 Смешанные парадигмы стилей
 
-Documented coexistence: Tailwind utilities, `src/styles/components.css` / `features.css`, legacy `glc-*`, bridge `ds-*` classes ([roadmap-notes.md](./roadmap-notes.md), [current.md](./current.md) §2, §10).
+Зафиксировано в SSOT §10 и [roadmap-notes.md](./roadmap-notes.md): сосуществуют **CSS variables**, **Tailwind utility**, **feature/components.css / features.css**, **legacy `glc-*`**, **inline `style`**. Аудит количественно подтверждает инлайн и литералы; CVA+Tailwind в [src/app/components/ui](../../src/app/components/ui) даёт плотность `unit-literal` (в т.ч. в примитивах).
 
-**Quantitative signal:** 101 `inline-visual-style` rows indicate React `style={{...}}` with visual keys alongside class-based styling in scoped files.
+### 2.2 Границы компонентов
 
-### 2.2 Component boundary violations
+- Примитивы реализованы в [src/app/components/ui](../../src/app/components/ui); «официальный» узкий экспорт — [src/design-system/ui](../../src/design-system/ui) (7 символов) при глубоком каталоге UI — **двойная поверхность потребления** (roadmap: «Import surface» deferred).
+- Находки `inline-visual-style` на уровне страниц/фич (`SnapshotScoreKit`, `ScoreBadge`, studio sections и др.) — стили вне примитивного API на участках продукта.
 
-Not exhaustively enumerated file-by-file. **Signal:** policy and UI literals live in `src/app/pages/**/config/*.ts` and feature components (see top files in [violations-export.md](./violations-export.md)).
+### 2.3 Несогласованное использование / дубли паттернов
 
-### 2.3 Inconsistent component usage
-
-**Recorded product fact:** multiple score/snapshot badge implementations called out as parallel patterns in [roadmap-notes.md](./roadmap-notes.md) (“Score / badge widgets” deferred epic).
+Явно задокументировано как технический долг: **Score / badge / snapshot виджеты** — несколько реализаций ([roadmap-notes.md](./roadmap-notes.md) «Deferred epics»); это дублирование структуры/назначения, не сведённое к одному API.
 
 ---
 
 ## 3. TOKEN SYSTEM ISSUES
 
-### 3.1 Unused tokens
+### 3.1 Неиспользуемые токены
 
-`src/styles/tokens.css` defines **290** custom property names (see [inventory-dump.md](./inventory-dump.md)).  
-**Unused-token set:** not computed in this audit run (would require each `--name` searched against `src/**`).
+Полный индекс имён `--*` в [inventory-dump.md](./inventory-dump.md) (**357** имён в снимке `tokens.css`). **Обратный анализ «определён, но ни разу не встречается в src»** в данном отчёте не выполнялся отдельным скриптом — для исчерпывающего списка нужна отдельная машинная crosswalk-процедура (не входит в текущий экспорт нарушений).
 
-### 3.2 Missing tokens (inferred)
+### 3.2 Повторяющиеся нетокенизированные значения
 
-**Signal:** 337 deduped `unit-literal` + 44 `rgb-color` + 6 `hex-color` findings indicate repeated literals in audited files without going through token variables on those lines.
+- **122** уникальных hex + **159** записей в группе rgb/rgba в литеральном инвентаре репозитория — см. [current.md](./current.md) §2.6 и счётчики в [inventory-dump.md](./inventory-dump.md) (hex-color / rgb-color).
+- В `compliance-findings` для текущего снимка преобладают кластеры вроде `1px`, `3px`, `0.9375rem` и инлайн-стили с `var(--…)` (всё равно фиксируются как `inline-visual-style` по ключам); частотный срез по полю value — `grep`/`awk` по [compliance-findings.full.txt](./compliance-findings.full.txt).
 
-Full literal sets: [inventory-dump.md](./inventory-dump.md) (deduplicated repo literals).
+### 3.3 Фрагментация семантики
 
-### 3.3 Token fragmentation
-
-**As documented:** multiple semantic families (`--glc-*`, `--bg-*`, `--text-*`, `--callout-*`, `--ui-*`, score scale, etc.) listed in [current.md](./current.md) §1.1; same section notes light/dark overrides in `tokens.css`.
+SSOT §2.1 перечисляет множество групп (`--glc-*`, `--score-*`, `--callout-*`, `--ui-*`, shadcn-совместимые `--primary` и т.д.) — **несколько семантических осей** на схожие роли; плюс литералы в коде дают третью ось представления одного и того же оттенка.
 
 ---
 
 ## 4. STATE SYSTEM ISSUES
 
-Per [current.md](./current.md) §7 (State Definitions) and §10 (System Rules):
+По SSOT [current.md](./current.md) §7:
 
-- Interaction states use a **mix** of pseudo-classes (`:hover`, `:focus-visible`, `:disabled`) and data/ARIA-driven selectors (`data-[state=*]`, `aria-invalid`, etc.).
-- **Documented gaps:** no generic shared `loading` across all primitives (Button implements `loading`); no universal `success`/`error` variant contract across primitives.
-
-**Inconsistency (factual):** same section notes differing state expression between primitives vs feature-built UI; feature files in §1 top list should be assumed heterogeneous unless proven otherwise.
+- **Отсутствующие глобальные контракты:** нет единого `success`/`error` variant contract для всех примитивов; `loading` только у `Button`.
+- **Смешанная реализация:** псевдоклассы + `data-[state=*]` + `aria-*` — зафиксировано как факт §7 и §10.5.
+- **Несогласованность между контекстами:** не измеряется отдельным скриптом; риск следует из смешения парадигм и feature-local стилей.
 
 ---
 
 ## 5. LAYOUT SYSTEM VIOLATIONS
 
-**Declared contracts:** `LAYOUT_CONTRACTS` in [`src/design-system/patterns/Layouts/layout-contracts.ts`](../../src/design-system/patterns/Layouts/layout-contracts.ts):
-
-- `container.page`: `max-w-7xl`
-- `container.content`: `max-w-5xl`
-- Section rhythm: `gap-14 sm:gap-20 lg:gap-24` (see file).
-
-**Ad hoc usage:** multiple marketing and page modules use Tailwind `max-w-*` directly (non-exhaustive grep shows hits across `PublicBriefPage`, `DiscoverResultsView`, `MarketingHeader`, `FaqPage`, `audit-workspace/config/ui.ts`, etc.). This coexists with contracts — **pattern multiplicity** without judging correctness.
+- SSOT §6: контракты `LAYOUT_CONTRACTS` **и** дополнительные media query (`1024px`, `1280px`, …) **и** `UI_BREAKPOINTS.mobile = 768` — **несколько шкал breakpoints** для схожих задач.
+- `unit-literal` концентрируется в маркетинге, discover, snapshot, pipeline monitor (см. топ файлов ниже) — отступы/размеры вне единого выражения через `--space-*` / контракты.
 
 ---
 
 ## 6. NAMING VIOLATIONS
 
-Formal patterns: [current.md](./current.md) §9 (`glc-*`, `--*` families, `PascalCase` components, `data-slot` / `data-sidebar`).
-
-**Factual drift signal:** legacy `glc-btn-*` detection exists in enforcement script; current deduped export shows **zero** `legacy-button-class` rows (informational path may still apply when findings exist).
+SSOT §9: сосуществуют `glc-*`, BEM-подобные `__`/`--`, Tailwind, `data-slot`, префиксы `--*`.  
+Дополнительно: **два пути импорта примитивов** (`src/design-system/ui` vs `src/app/components/ui`) — несогласованность потребительской поверхности (roadmap).
 
 ---
 
 ## 7. ACCESSIBILITY GAPS (FACTUAL ONLY)
 
-Signals documented in [current.md](./current.md) §8: global `:focus-visible` in `base.css`, `aria-*` usage in primitives, `sr-only` patterns, skip link in `MarketingLayout`, `prefers-reduced-motion` in feature styles.
-
-**This audit does not** scan every interactive element for missing `aria-*` or focus rings. Rows in §1.1 do not imply a11y failure; they only flag styling implementation.
+- DS-аудит **не** эмитит типы вроде `missing-aria`; отчёт ограничен тем, что видно из SSOT §8 (что уже реализовано в части примитивов) и из отсутствия таких находок в `compliance-findings.full.txt`.
+- Утверждать «нет focus style на экране X» без построчного обхода TSX **нельзя** в рамках данного артефакта.
 
 ---
 
-## 8. DUPLICATION MAP
+## 8. DUPLICATION MAP (группировка)
 
-**By violation density (top areas from [violations-export.md](./violations-export.md) top files):**
+**Повтор цветовых литералов / акцентов (репозиторий в целом):** см. секции hex-color и rgb-color в [inventory-dump.md](./inventory-dump.md); в текущем app-scope merged-экспорте типов `hex-color` / `rgb-color` нет (§1.1).
 
-| Area / pattern | Signal |
-| --- | --- |
-| `pages/discover/**` | High finding count in multiple components |
-| `marketing/blocks/**` | High finding count (e.g. AuditCompare, DecisionPath, heroes) |
-| `pages/snapshot-landing/**` | Forms, results, CTAs |
-| `pages/intake-brief/**` | Multiple phases |
-| `features/report-viewer/**` | Hero card, tabs, findings |
-| `components/ui/**` | Raw `unit-literal` in shared primitives (audit flags vendor-style literals) |
-| `components/app-shell/**` | Policy TS + chrome sections |
-| `pages/client-audit-view/**` | Config + sections |
+**Топ файлов по числу находок (merged: `unit-literal` + `inline-visual-style`, без allowlist)** — копия [violations-export.md](./violations-export.md) § Top files на дату снимка:
 
-**By finding type:** see §1.1 table (`unit-literal` dominates).
+| Файл | Count |
+| --- | ---: |
+| `src/app/marketing/MarketingHeader.tsx` | 8 |
+| `src/app/marketing/blocks/HomeHeroCockpit.tsx` | 7 |
+| `src/app/marketing/blocks/PackageMarketingHero.tsx` | 7 |
+| `src/app/marketing/home/sections/HomeHeroSection.tsx` | 7 |
+| `src/app/pages/intake-brief/components/IntakeBriefFormPhase.tsx` | 7 |
+| `src/app/pages/intake-brief/components/IntakeBriefReviewPhase.tsx` | 7 |
+| `src/app/pages/snapshot-landing/components/SnapshotLandingResults.tsx` | 7 |
+| `src/app/marketing/blocks/NextStepsCta.tsx` | 6 |
+| `src/app/pages/snapshot-landing/SnapshotScoreBadge.tsx` | 6 |
+| `src/app/components/question-bank-studio/sections/StudioHeaderSection.tsx` | 5 |
+| `src/app/pages/discover/components/AuditTeaser.tsx` | 5 |
+| `src/app/pages/pipeline-monitor/sections/PhaseSidebar.tsx` | 5 |
+| `src/app/pages/SnapshotLanding.tsx` | 5 |
+| `src/app/marketing/home/components/SectionHeading.tsx` | 4 |
+| `src/app/pages/discover/components/ContactCaptureForm.tsx` | 4 |
+| `src/app/pages/DiscoveryQueue.tsx` | 4 |
+| `src/app/pages/new-audit/NewAuditChrome.tsx` | 4 |
+| `src/app/pages/new-audit/steps/Step2Confirm.tsx` | 4 |
+| `src/app/pages/pipeline-monitor/sections/PhaseDetailPanel.tsx` | 4 |
+| `src/app/components/question-bank-studio/sections/StudioModeSummarySection.tsx` | 3 |
+| `src/app/components/question-bank-studio/sections/StudioToolbarSection.tsx` | 3 |
+| `src/app/components/snapshot/SnapshotAccessBlockedCallout.tsx` | 3 |
+| `src/app/components/snapshot/SnapshotScoreKit.tsx` | 3 |
+| `src/app/components/ui/switch.tsx` | 3 |
+| `src/app/components/ui/tabs.tsx` | 3 |
+| `src/app/features/report-viewer/components/DomainScorecard.tsx` | 3 |
+| `src/app/features/report-viewer/components/ProfileTabs.tsx` | 3 |
+| `src/app/features/report-viewer/components/ReportFindings.tsx` | 3 |
+| `src/app/marketing/home/config/home-ui.config.ts` | 3 |
+| `src/app/pages/admin-request-queue/components/AuditRequestQueueCard.tsx` | 3 |
+| `src/app/pages/audit-workspace/sections/IssuesSection.tsx` | 3 |
+| `src/app/pages/client-audit-view/sections/NavigationLinksSection.tsx` | 3 |
+| `src/app/pages/login/config/login-ui-policy.ts` | 3 |
+| `src/app/pages/new-audit/steps/Step1Brief.tsx` | 3 |
+| `src/app/pages/pipeline-monitor/PipelineMonitorPhaseUi.tsx` | 3 |
+| `src/app/pages/settings/components/OptionPill.tsx` | 3 |
+| `src/app/pages/snapshot-landing/components/results/InsightsGridSection.tsx` | 3 |
+| `src/app/components/portal-snapshot-account-mirror/sections/MirrorScoreSection.tsx` | 2 |
+| `src/app/components/question-bank-studio/sections/StudioCanvasSection.tsx` | 2 |
+| `src/app/components/question-bank-studio/sections/StudioDiffSection.tsx` | 2 |
+
+**Дубли компонентных паттернов:** score/snapshot/badge — см. roadmap deferred epic.
 
 ---
 
 ## 9. SYSTEM FRAGMENTATION SUMMARY
 
-| Region | Observation |
+| Зона | Наблюдение |
 | --- | --- |
-| **Cohesive** | Central token file `tokens.css`; TS token façade; shared UI primitives under `src/app/components/ui/**`; layout contracts under `src/design-system/patterns/Layouts/**`. |
-| **Fragmented** | Product pages, marketing, discover, intake, snapshot, report viewer concentrate literals and inline styles (§1, [violations-export.md](./violations-export.md)). |
-| **Bypassed most often** | Highest file-level counts: marketing blocks, report viewer, snapshot landing, discover, intake brief (see top files table). |
-| **CI vs truth** | `pnpm run audit:ds:ci` uses [scripts/design-system-baseline.allowlist.txt](../../scripts/design-system-baseline.allowlist.txt); **this audit** mirrors **no-allowlist** exports. |
+| **Связная** | Канон токенов в `tokens.css`; TS-зеркала; layout-контракты в `design-system/patterns`; utilities.css ограничены layout (политика). |
+| **Фрагментирована** | Страницы discover / intake / snapshot / marketing / studio — высокая концентрация литералов и инлайна; несколько breakpoint-источников; два импорт-пути UI. |
+| **Наибольший bypass** | **196** `unit-literal` + **58** `inline-visual-style` в no-allowlist снимке (**254** дедуп-строки); горячие файлы — [violations-export.md](./violations-export.md). |
+| **CI vs полный дрифт** | Продакшен CI использует allowlist ([roadmap-notes](./roadmap-notes.md)); данный отчёт — **полный снимок без allowlist** (**254** дедуп-строк в [compliance-findings.full.txt](./compliance-findings.full.txt) на дату снимка). |
 
 ---
 
-## Regeneration
+## Как воспроизвести количества
 
 ```bash
+pnpm run audit:ds:export-violations
 pnpm run audit:ds:inventory-dump
-node scripts/design-system-export-violations.mjs
 ```
 
-Then update this narrative if counts or governance change materially.
+После изменений кода перегенерировать [violations-export.md](./violations-export.md), [compliance-findings.full.txt](./compliance-findings.full.txt) и при необходимости [inventory-dump.md](./inventory-dump.md); обновить этот документ при смене даты/снимка.
+
+**Связанные артефакты:** полный перечень находок — [compliance-findings.full.txt](./compliance-findings.full.txt); сводка и топ файлов — [violations-export.md](./violations-export.md).

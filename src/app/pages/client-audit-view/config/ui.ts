@@ -27,25 +27,6 @@ export const CLIENT_AUDIT_VIEW_UI = {
       boxShadow: 'var(--glow-blue-sm)',
     },
   },
-  snapshot: {
-    panelLimited: {
-      border: 'var(--border-width-default) solid var(--callout-warning-border)',
-      background:
-        'linear-gradient(135deg, var(--callout-warning-bg) 0%, var(--glc-blue-muted-faint) 100%)',
-    },
-    panelNormal: {
-      border: 'var(--border-width-default) solid var(--callout-info-border)',
-      background:
-        'linear-gradient(135deg, var(--glc-blue-muted) 0%, var(--glc-blue-muted-faint) 100%)',
-    },
-    dividerBorderColor: 'var(--glc-blue-muted-strong)',
-    packageButtonActiveBg: 'var(--glc-blue-muted-strong)',
-    limitedHint: {
-      background: 'var(--callout-warning-bg)',
-      border: 'var(--border-width-default) solid var(--score-2-border)',
-    },
-    packageCardActiveBorder: 'var(--border-width-default) solid var(--callout-info-border-strong)',
-  },
   links: {
     reportCard: {
       background:

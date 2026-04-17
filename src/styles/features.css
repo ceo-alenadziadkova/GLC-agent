@@ -112,6 +112,43 @@ html:not(.dark) .glc-light-snapshot-input:focus {
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--glc-blue) 20%, transparent);
 }
 
+.ds-snapshot-command-shell-hairline {
+  background: var(--snapshot-command-shell-outline);
+}
+
+.glc-light-snapshot-cta {
+  border: none;
+}
+
+.glc-light-snapshot-cta:disabled {
+  cursor: not-allowed;
+}
+
+.glc-light-snapshot-cta:not(:disabled) {
+  cursor: pointer;
+}
+
+.glc-light-snapshot-cta[data-snapshot-cta-filled="false"] {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--glc-blue) 72%, var(--bg-muted)) 0%,
+    color-mix(in oklab, var(--glc-blue-deeper) 66%, var(--bg-muted)) 100%
+  );
+  box-shadow: var(--shadow-snapshot-cta-muted);
+}
+
+.glc-light-snapshot-cta[data-snapshot-cta-filled="true"] {
+  background: linear-gradient(135deg, var(--glc-blue) 0%, var(--glc-blue-deeper) 100%);
+  box-shadow: var(--shadow-snapshot-cta-active);
+}
+
+.ds-snapshot-quota-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--gradient-snapshot-quota-fill);
+  transition: width 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 html:not(.dark) .glc-light-snapshot-cta:not(:disabled):hover {
   box-shadow: 0 8px 24px color-mix(in oklab, var(--glc-orange) 36%, transparent);
   transform: translateY(-2px);

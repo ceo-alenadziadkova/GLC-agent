@@ -28,7 +28,7 @@ export function StepIndicator({ current }: { current: number }) {
                     : active
                       ? 'none'
                       : '1px solid var(--border-subtle)',
-                  boxShadow: active ? '0 0 12px rgba(28,189,255,0.30)' : 'none',
+                  boxShadow: active ? 'var(--glow-step-ring)' : 'none',
                 }}
               >
                 {done
@@ -60,7 +60,7 @@ export function StepIndicator({ current }: { current: number }) {
 
 export const DOMAIN_PILLS = [
   { icon: MagnifyingGlass, label: 'Recon', color: 'var(--glc-blue)' },
-  { icon: HardDrives, label: 'Tech', color: '#8B5CF6' },
+  { icon: HardDrives, label: 'Tech', color: 'var(--ui-strategic-purple)' },
   { icon: Shield, label: 'Security', color: 'var(--score-1)' },
   { icon: Globe, label: 'SEO', color: 'var(--glc-green)' },
   { icon: Cursor, label: 'UX', color: 'var(--score-3)' },

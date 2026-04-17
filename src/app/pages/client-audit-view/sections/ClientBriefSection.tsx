@@ -31,7 +31,6 @@ import { IntakeBankWizard } from '../../../components/IntakeBankWizard';
 import { BankClassicBriefFields } from '../../../components/BankClassicBriefFields';
 import { BriefLayoutPreferenceCards } from '../../../components/BriefLayoutPreferenceCards';
 import { Callout } from '../../../components/ui/callout';
-import { UI_SEMANTIC_COLORS } from '../../../../design-system/tokens/ui-semantic-colors';
 import { PORTAL_BRIEF_SAVED_FEEDBACK_MS } from '../../../lib/snapshot-polling-config';
 import { toUiApiErrorMessage } from '../../../lib/api-error-ui';
 import { CLIENT_AUDIT_VIEW_COPY } from '../../../config/client-audit-view-copy';
@@ -159,7 +158,7 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
             </button>
           )}
           {layoutSelected && (
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+            <span className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
               {answeredRequired} / {pipelineRequiredTotal} {CLIENT_AUDIT_VIEW_COPY.brief.requiredAnsweredSuffix}
             </span>
           )}
@@ -187,14 +186,14 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
         {layoutSelected && (
           <>
             <div className="flex items-center justify-between">
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+              <span className="text-[length:var(--text-xs)] text-[var(--text-secondary)]">
                 {CLIENT_AUDIT_VIEW_COPY.brief.readinessPrefix} {progressPct}%
               </span>
-              <span className="px-2 py-0.5 rounded text-xs" style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+              <span className="px-2 py-0.5 rounded text-xs border border-[var(--border-subtle)] text-[var(--text-secondary)]">
                 {readinessBadge.toUpperCase()}
               </span>
             </div>
-            <div className="rounded-full overflow-hidden" style={{ height: 3, backgroundColor: 'var(--bg-muted)' }}>
+            <div className="rounded-full overflow-hidden h-[length:var(--client-audit-brief-progress-track-height)] bg-[var(--bg-muted)]">
               <div
                 className="h-full rounded-full"
                 style={{
@@ -212,15 +211,15 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
               visibleRecommendedTotal={bankMetrics.visibleRecommendedTotal}
               reportInputGapLabels={labelsForMissingReportDomains(bankMetrics.missingForReport)}
             />
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+            <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
               {CLIENT_AUDIT_VIEW_COPY.brief.helpTailoringPrefix}{' '}
-              <span className="inline-flex items-center gap-0.5" style={{ color: UI_SEMANTIC_COLORS.danger }}>
+              <span className="inline-flex items-center gap-0.5 text-[var(--score-1)]">
                 <Circle size={6} weight="fill" />
                 {CLIENT_AUDIT_VIEW_COPY.brief.requiredLabel}
               </span>{' '}
               {CLIENT_AUDIT_VIEW_COPY.brief.helpTailoringSuffix}
             </p>
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+            <p className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
               {CLIENT_AUDIT_VIEW_COPY.brief.improveQualityPrefix} {missingRecommendedCount}{' '}
               {CLIENT_AUDIT_VIEW_COPY.brief.improveQualitySuffix}
             </p>

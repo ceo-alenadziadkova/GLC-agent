@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react';
+
 import {
   SNAPSHOT_SCORE_COLORS,
   SNAPSHOT_SCORE_LABELS,
@@ -33,18 +35,11 @@ function ScoreDonut({
         strokeWidth={strokeWidth}
       >
         <p
-          className="[font-family:var(--font-display)]"
-          style={{
-            fontSize: compact ? 'var(--text-3xl)' : 'clamp(1.75rem, 4vw, 2.5rem)',
-            fontWeight: 800,
-            color,
-            lineHeight: 1.05,
-          }}
+          className={`[font-family:var(--font-display)] ds-mirror-score-big-number${compact ? ' ds-mirror-score-big-number--compact' : ''}`}
+          style={{ ['--mirror-score-fg' as string]: color } as CSSProperties}
         >
           {scoreVisual.overallScore}
-          <span style={{ color: 'var(--text-quaternary)', fontWeight: 700, fontSize: compact ? '0.5em' : '0.45em' }}>
-            /100
-          </span>
+          <span className={`ds-mirror-score-denom${compact ? ' ds-mirror-score-denom--compact' : ''}`}>/100</span>
         </p>
       </SnapshotScoreDonut>
     );
@@ -58,17 +53,15 @@ function ScoreDonut({
       strokeWidth={strokeWidth}
     >
       <p
-        className="[font-family:var(--font-display)]"
-        style={{
-          fontSize: compact ? 'var(--text-3xl)' : 'clamp(1.75rem, 4vw, 2.5rem)',
-          fontWeight: 800,
-          color: c,
-          lineHeight: 1.05,
-        }}
+        className={`[font-family:var(--font-display)] ds-mirror-score-big-number${compact ? ' ds-mirror-score-big-number--compact' : ''}`}
+        style={{ ['--mirror-score-fg' as string]: c } as CSSProperties}
       >
         {scoreVisual.band}/5
       </p>
-      <p className={compact ? 'mt-0.5 text-sm font-semibold' : 'mt-0.5 text-xs font-semibold sm:text-sm'} style={{ color: c }}>
+      <p
+        className={`ds-mirror-score-band-label mt-0.5 font-semibold ${compact ? 'text-sm' : 'text-xs sm:text-sm'}`}
+        style={{ ['--mirror-label-fg' as string]: c } as CSSProperties}
+      >
         {SNAPSHOT_SCORE_LABELS[scoreVisual.band]}
       </p>
     </SnapshotScoreDonut>

@@ -3,12 +3,12 @@ import { motion } from 'motion/react';
 import { ArrowRight, CheckCircle, Globe, Lightning } from '@phosphor-icons/react';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
 import { Callout } from '../../../components/ui/callout';
-import { SNAPSHOT_COMMAND_SHELL_OUTLINE } from '../../../config/snapshot-marketing-ui';
 import { SNAPSHOT_LANDING_HERO_COPY } from '../../../config/snapshot-landing-copy.en';
 import { marketingHeroBillboardMotion } from '../../../config/marketing-motion-variants';
 import { SnapshotIdlePreviewCards } from '..';
-import { SNAPSHOT_LANDING_HERO_COPY as Copy } from '../../../config/snapshot-landing-copy.en';
 import type { SnapshotLandingStage } from '../../snapshot-landing/hooks/useSnapshotLandingController';
+
+const Copy = SNAPSHOT_LANDING_HERO_COPY;
 
 type HeroMotion = ReturnType<typeof marketingHeroBillboardMotion>;
 
@@ -62,7 +62,7 @@ export function SnapshotLandingHeroForm(props: {
           >
             <motion.div className="flex justify-center lg:justify-start" variants={heroMotion.item}>
               <div
-                className="inline-flex max-w-full items-center gap-2 rounded-full border border-[var(--border-default)] bg-[linear-gradient(135deg,rgba(28,189,255,0.12)_0%,rgba(242,79,29,0.08)_100%)] px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.06em] text-[var(--glc-blue)] mobile:py-1.5 mobile:pl-3 mobile:pr-3.5 mobile:text-xs mobile:leading-tight"
+                className="ds-bg-gradient-badge-blue-orange inline-flex max-w-full items-center gap-2 rounded-full border border-[var(--border-default)] px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[var(--tracking-snapshot-badge)] text-[var(--glc-blue)] mobile:py-1.5 mobile:pl-3 mobile:pr-3.5 mobile:text-xs mobile:leading-tight"
               >
                 <Lightning className="h-3.5 w-3.5 shrink-0" weight="fill" /> {SNAPSHOT_LANDING_HERO_COPY.quickRuleBasedScanBadge}
               </div>
@@ -71,10 +71,7 @@ export function SnapshotLandingHeroForm(props: {
             <motion.h1
               id="snapshot-hero-heading"
               variants={heroMotion.item}
-              className="mx-auto w-full max-w-[min(100%,22rem)] text-balance [font-family:var(--font-display)] font-bold leading-[1.04] text-[var(--text-primary)] tracking-[-0.025em] lg:mx-0 lg:max-w-xl lg:tracking-[-0.035em]"
-              style={{
-                fontSize: 'clamp(2.05rem, 9.25vw, 4rem)',
-              }}
+              className="mx-auto w-full max-w-[min(100%,var(--snapshot-hero-title-max-width))] text-balance text-[length:var(--snapshot-hero-title-size)] [font-family:var(--font-display)] font-bold leading-[1.04] text-[var(--text-primary)] tracking-[var(--tracking-snapshot-hero)] lg:mx-0 lg:max-w-xl lg:tracking-[var(--tracking-snapshot-hero-lg)]"
             >
               <span className="block lg:max-w-[15ch]">{Copy.titleLead}</span>
               <span className="glc-gradient-text-flow mt-2 block lg:mt-2.5 mobile:mt-2 lg:max-w-[14ch]">
@@ -91,8 +88,7 @@ export function SnapshotLandingHeroForm(props: {
             animate="visible"
           >
             <motion.p
-              className="mx-auto max-w-md text-pretty leading-snug lg:mx-0 mobile:max-w-none mobile:text-[0.8125rem] mobile:leading-relaxed"
-              style={{ fontSize: 'clamp(0.8125rem, 2.85vw, 0.975rem)' }}
+              className="mx-auto max-w-md text-pretty text-[length:var(--snapshot-hero-subtitle-size)] leading-snug lg:mx-0 mobile:max-w-none mobile:text-[length:var(--text-sm)] mobile:leading-relaxed"
               variants={heroMotion.item}
             >
               {Copy.subtitle}
@@ -109,13 +105,8 @@ export function SnapshotLandingHeroForm(props: {
         </div>
 
         <div className="order-2 w-full lg:order-none lg:col-span-5 lg:row-span-2 lg:row-start-1 lg:self-start lg:pt-1">
-          <div
-            className="glc-light-snapshot-shell rounded-[var(--radius-2xl)] p-px shadow-[var(--shadow-sm)]"
-            style={{ background: SNAPSHOT_COMMAND_SHELL_OUTLINE }}
-          >
-            <div
-              className="glc-light-snapshot-shell-inner rounded-[calc(var(--radius-2xl)-1px)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 lg:p-7 mobile:p-5 mobile:shadow-[0_12px_40px_rgba(0,0,0,0.14)]"
-            >
+          <div className="glc-light-snapshot-shell ds-snapshot-command-shell-hairline rounded-[var(--radius-2xl)] p-px shadow-[var(--shadow-sm)]">
+            <div className="glc-light-snapshot-shell-inner rounded-[var(--radius-2xl-inner)] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 lg:p-7 mobile:p-5 mobile:shadow-[var(--shadow-snapshot-shell-inner-mobile)]">
               <p
                 className="mb-4 hidden text-left text-xs font-semibold tracking-wide text-[var(--text-primary)] lg:hidden"
               >
@@ -145,19 +136,8 @@ export function SnapshotLandingHeroForm(props: {
                   disabled={!url.trim() || stage === 'submitting'}
                   whileHover={url.trim() ? { scale: 1.015 } : {}}
                   whileTap={url.trim() ? { scale: 0.985 } : {}}
+                  data-snapshot-cta-filled={url.trim() ? 'true' : 'false'}
                   className="glc-light-snapshot-cta flex w-full items-center justify-center gap-2 rounded-[var(--radius-lg)] py-3 text-sm font-semibold text-white mobile:min-h-12"
-                  style={{
-                    background:
-                      url.trim()
-                        ? 'linear-gradient(135deg, var(--glc-blue) 0%, var(--glc-blue-deeper) 100%)'
-                        : 'linear-gradient(135deg, color-mix(in oklab, var(--glc-blue) 72%, var(--bg-muted)) 0%, color-mix(in oklab, var(--glc-blue-deeper) 66%, var(--bg-muted)) 100%)',
-                    border: 'none',
-                    cursor: url.trim() && stage !== 'submitting' ? 'pointer' : 'not-allowed',
-                    boxShadow:
-                      url.trim()
-                        ? '0 8px 22px color-mix(in oklab, var(--glc-blue) 36%, transparent)'
-                        : '0 3px 10px color-mix(in oklab, var(--glc-blue) 18%, transparent)',
-                  }}
                 >
                   {stage === 'submitting' ? (
                     <>
@@ -203,17 +183,16 @@ export function SnapshotLandingHeroForm(props: {
                 <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mobile:text-[length:var(--text-2xs)] mobile:tracking-widest">
                   {SNAPSHOT_LANDING_HERO_COPY.quotaTitle}
                 </span>
-                <span className="text-base font-bold tabular-nums text-[var(--text-primary)] mobile:text-[0.9375rem]">
+                <span className="text-base font-bold tabular-nums text-[var(--text-primary)] mobile:text-[length:var(--text-base)]">
                   {quotaPreview.remaining} / {quotaPreview.limit} left
                 </span>
               </div>
 
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--border-subtle)]" aria-hidden>
                 <div
-                  className="h-full rounded-full transition-[width] duration-500 ease-out"
+                  className="ds-snapshot-quota-bar-fill"
                   style={{
                     width: `${Math.min(100, Math.round((quotaPreview.remaining / Math.max(1, quotaPreview.limit)) * 100))}%`,
-                    background: 'linear-gradient(90deg, var(--glc-blue), var(--glc-green))',
                   }}
                 />
               </div>

@@ -7,7 +7,7 @@ It is an appendix to [current.md](./current.md) (as-is §1–10). Governance and
 
 ## Custom properties defined in tokens.css
 
-Total: **305**
+Total: **357**
 
 - `--accent`
 - `--accent-foreground`
@@ -25,6 +25,10 @@ Total: **305**
 - `--border-strong`
 - `--border-subtle`
 - `--border-width-default`
+- `--brand-oauth-google-blue`
+- `--brand-oauth-google-green`
+- `--brand-oauth-google-red`
+- `--brand-oauth-google-yellow`
 - `--breakpoint-lg`
 - `--breakpoint-sm`
 - `--breakpoint-xl`
@@ -51,6 +55,7 @@ Total: **305**
 - `--chart-4`
 - `--chart-5`
 - `--client-audit-brief-form-max-height`
+- `--client-audit-brief-progress-track-height`
 - `--color-accent`
 - `--color-accent-foreground`
 - `--color-background`
@@ -85,8 +90,23 @@ Total: **305**
 - `--color-sidebar-primary-foreground`
 - `--color-sidebar-ring`
 - `--color-switch-background`
+- `--decision-path-card-min-height`
+- `--decision-path-card-min-height-sm`
+- `--decision-path-stack-icon-size`
 - `--destructive`
 - `--destructive-foreground`
+- `--discover-finding-detail-size`
+- `--discover-finding-hook-label-size`
+- `--discover-progress-track-height`
+- `--discover-question-help-font-size`
+- `--discover-question-input-line-height`
+- `--discover-results-mesh-indigo`
+- `--discover-results-mesh-sky`
+- `--discover-results-split-max-height`
+- `--discover-results-title-compact`
+- `--discover-results-title-default`
+- `--discover-wizard-intro-title-size`
+- `--discovery-public-hero-title-size`
 - `--ease-base`
 - `--ease-fast`
 - `--ease-slow`
@@ -105,6 +125,11 @@ Total: **305**
 - `--glass-border`
 - `--glass-shadow`
 - `--glc-blue`
+- `--glc-blue-alpha-12`
+- `--glc-blue-alpha-18`
+- `--glc-blue-alpha-20`
+- `--glc-blue-alpha-25`
+- `--glc-blue-alpha-30`
 - `--glc-blue-dark`
 - `--glc-blue-deeper`
 - `--glc-blue-light`
@@ -114,6 +139,7 @@ Total: **305**
 - `--glc-blue-muted-strong`
 - `--glc-blue-xlight`
 - `--glc-green`
+- `--glc-green-alpha-06`
 - `--glc-green-dark`
 - `--glc-green-light`
 - `--glc-green-muted`
@@ -137,14 +163,18 @@ Total: **305**
 - `--glow-blue-sm`
 - `--glow-green`
 - `--glow-orange`
+- `--glow-step-ring`
 - `--gradient-accent`
+- `--gradient-badge-blue-orange`
 - `--gradient-brand`
 - `--gradient-ink`
 - `--gradient-ink-rich`
+- `--gradient-snapshot-quota-fill`
 - `--gradient-success`
 - `--gradient-surface`
 - `--input`
 - `--input-background`
+- `--leading-discover-finding-detail`
 - `--leading-none`
 - `--leading-normal`
 - `--leading-relaxed`
@@ -158,7 +188,10 @@ Total: **305**
 - `--overlay-backdrop-strong`
 - `--overlay-shadow-soft`
 - `--overlay-white-07`
+- `--overlay-white-08`
+- `--overlay-white-09`
 - `--overlay-white-10`
+- `--overlay-white-14`
 - `--overlay-white-15`
 - `--overlay-white-20`
 - `--overlay-white-28`
@@ -171,6 +204,7 @@ Total: **305**
 - `--overlay-white-72`
 - `--overlay-white-75`
 - `--overlay-white-80`
+- `--overlay-white-85`
 - `--overlay-white-90`
 - `--panel-border`
 - `--popover`
@@ -179,6 +213,7 @@ Total: **305**
 - `--primary-foreground`
 - `--radius`
 - `--radius-2xl`
+- `--radius-2xl-inner`
 - `--radius-lg`
 - `--radius-md`
 - `--radius-pill`
@@ -193,6 +228,7 @@ Total: **305**
 - `--score-2-bg`
 - `--score-2-border`
 - `--score-3`
+- `--score-3-alpha-10`
 - `--score-3-bg`
 - `--score-3-border`
 - `--score-4`
@@ -205,11 +241,18 @@ Total: **305**
 - `--secondary-foreground`
 - `--shadow-blue`
 - `--shadow-card`
+- `--shadow-discover-cta-active`
+- `--shadow-discover-cta-muted`
+- `--shadow-discover-question-card`
 - `--shadow-ink`
 - `--shadow-lg`
 - `--shadow-md`
 - `--shadow-mobile-bottom-nav`
+- `--shadow-orange-tab`
 - `--shadow-sm`
+- `--shadow-snapshot-cta-active`
+- `--shadow-snapshot-cta-muted`
+- `--shadow-snapshot-shell-inner-mobile`
 - `--shadow-swiss`
 - `--shadow-xl`
 - `--shadow-xs`
@@ -224,6 +267,10 @@ Total: **305**
 - `--sidebar-width`
 - `--sidebar-width-icon`
 - `--sidebar-width-mobile`
+- `--snapshot-command-shell-outline`
+- `--snapshot-hero-subtitle-size`
+- `--snapshot-hero-title-max-width`
+- `--snapshot-hero-title-size`
 - `--space-0-5`
 - `--space-1`
 - `--space-1-4`
@@ -262,9 +309,14 @@ Total: **305**
 - `--text-tertiary`
 - `--text-xl`
 - `--text-xs`
+- `--tracking-discover-finding-hook`
+- `--tracking-discover-results-brand`
 - `--tracking-drawer-caps`
 - `--tracking-normal`
 - `--tracking-role-meta`
+- `--tracking-snapshot-badge`
+- `--tracking-snapshot-hero`
+- `--tracking-snapshot-hero-lg`
 - `--tracking-subtitle`
 - `--tracking-tight`
 - `--tracking-tighter`
@@ -319,7 +371,7 @@ Total: **305**
 
 ### hex-color
 
-Count: **123**
+Count: **122**
 
 ```
 #0077A8
@@ -361,14 +413,14 @@ Count: **123**
 #30363D
 #333
 #334861
-#34A853
+#34a853
 #34d399
 #34D399
 #38bdf8
 #3A4451
 #3b1f59
 #3f4654
-#4285F4
+#4285f4
 #444
 #484f58
 #484F58
@@ -389,7 +441,6 @@ Count: **123**
 #94a3b8
 #94A3B8
 #95A7C0
-#9679
 #9aa3b2
 #9EA8B3
 #A3B2C4
@@ -415,7 +466,7 @@ Count: **123**
 #E6FAF3
 #e8eaef
 #E8EFF8
-#EA4335
+#ea4335
 #ea580c
 #EAB308
 #EF4444
@@ -432,7 +483,7 @@ Count: **123**
 #F8FAFD
 #F97316
 #F9A48A
-#FBBC05
+#fbbc05
 #FBBF24
 #FCD34D
 #fee2e2
@@ -449,9 +500,10 @@ Count: **123**
 
 ### rgb-color
 
-Count: **167**
+Count: **159**
 
 ```
+rgba(0, 0, 0, 0.14)
 rgba(0, 0, 0, 0.28)
 rgba(0, 0, 0, 0.32)
 rgba(0, 0, 0, 0.35)
@@ -472,6 +524,7 @@ rgba(11, 17, 32, 0.12)
 rgba(11, 17, 32, 0.13)
 rgba(11, 17, 32, 0.15)
 rgba(139, 92, 246, 0.07)
+rgba(14, 165, 233, 0.18)
 rgba(14, 207, 130, 0.06)
 rgba(14, 207, 130, 0.09)
 rgba(14, 207, 130, 0.10)
@@ -480,10 +533,8 @@ rgba(14, 207, 130, 0.14)
 rgba(14, 207, 130, 0.18)
 rgba(14, 207, 130, 0.20)
 rgba(14, 207, 130, 0.38)
-rgba(14,165,233,0.18)
 rgba(14,207,130,0.1)
 rgba(14,207,130,0.2)
-rgba(14,207,130,0.20)
 rgba(147,51,234,0.10)
 rgba(148, 163, 184, 0.80)
 rgba(15, 21, 36, 0.05)
@@ -491,15 +542,14 @@ rgba(15, 21, 36, 0.1)
 rgba(16, 185, 129, 0.12)
 rgba(16, 185, 129, 0.25)
 rgba(16, 27, 57, 0.32)
-rgba(16,207,130,0.06)
 rgba(22, 27, 34, 0.72)
 rgba(230, 237, 243, 0.06)
 rgba(230, 237, 243, 0.08)
+rgba(234, 179, 8, 0.10)
 rgba(234, 179, 8, 0.12)
 rgba(234, 179, 8, 0.14)
 rgba(234, 179, 8, 0.18)
 rgba(234, 179, 8, 0.35)
-rgba(234,179,8,0.1)
 rgba(239, 68, 68, 0.07)
 rgba(239, 68, 68, 0.08)
 rgba(239, 68, 68, 0.12)
@@ -515,11 +565,10 @@ rgba(242, 79, 29, 0.06)
 rgba(242, 79, 29, 0.07)
 rgba(242, 79, 29, 0.08)
 rgba(242, 79, 29, 0.18)
-rgba(242,79,29,0.08)
+rgba(242, 79, 29, 0.28)
 rgba(242,79,29,0.1)
 rgba(242,79,29,0.10)
 rgba(242,79,29,0.2)
-rgba(242,79,29,0.28)
 rgba(245, 158, 11, 0.06)
 rgba(245, 158, 11, 0.07)
 rgba(245, 158, 11, 0.10)
@@ -536,6 +585,7 @@ rgba(249, 115, 22, 0.35)
 rgba(255, 255, 255, 0.06)
 rgba(255, 255, 255, 0.07)
 rgba(255, 255, 255, 0.08)
+rgba(255, 255, 255, 0.09)
 rgba(255, 255, 255, 0.10)
 rgba(255, 255, 255, 0.12)
 rgba(255, 255, 255, 0.14)
@@ -563,13 +613,8 @@ rgba(255, 255, 255, 0.82)
 rgba(255, 255, 255, 0.85)
 rgba(255, 255, 255, 0.86)
 rgba(255, 255, 255, 0.90)
-rgba(255,255,255,0.08)
-rgba(255,255,255,0.09)
-rgba(255,255,255,0.14)
-rgba(255,255,255,0.2)
 rgba(255,255,255,0.42)
 rgba(255,255,255,0.78)
-rgba(255,255,255,0.85)
 rgba(28, 189, 255, 0.02)
 rgba(28, 189, 255, 0.04)
 rgba(28, 189, 255, 0.06)
@@ -577,32 +622,30 @@ rgba(28, 189, 255, 0.08)
 rgba(28, 189, 255, 0.09)
 rgba(28, 189, 255, 0.1)
 rgba(28, 189, 255, 0.10)
+rgba(28, 189, 255, 0.12)
 rgba(28, 189, 255, 0.13)
 rgba(28, 189, 255, 0.15)
 rgba(28, 189, 255, 0.16)
+rgba(28, 189, 255, 0.18)
+rgba(28, 189, 255, 0.2)
 rgba(28, 189, 255, 0.20)
 rgba(28, 189, 255, 0.22)
+rgba(28, 189, 255, 0.25)
 rgba(28, 189, 255, 0.28)
 rgba(28, 189, 255, 0.3)
 rgba(28, 189, 255, 0.30)
+rgba(28, 189, 255, 0.34)
 rgba(28, 189, 255, 0.36)
 rgba(28, 189, 255, 0.4)
 rgba(28, 189, 255, 0.6)
 rgba(28,189,255,0.05)
 rgba(28,189,255,0.06)
-rgba(28,189,255,0.08)
 rgba(28,189,255,0.1)
-rgba(28,189,255,0.10)
-rgba(28,189,255,0.12)
 rgba(28,189,255,0.14)
-rgba(28,189,255,0.18)
 rgba(28,189,255,0.2)
-rgba(28,189,255,0.20)
-rgba(28,189,255,0.22)
 rgba(28,189,255,0.25)
-rgba(28,189,255,0.30)
 rgba(28,189,255,0.7)
-rgba(30,58,138,0.22)
+rgba(30, 58, 138, 0.22)
 rgba(34, 197, 94, 0.12)
 rgba(34, 197, 94, 0.18)
 rgba(34, 197, 94, 0.35)
@@ -817,9 +860,9 @@ clamp(0.8rem, 1.5vw, 1.2rem)
 clamp(0.95rem, 1.4vw, 1.3rem)
 clamp(0rem, 0.7vw, 0.45rem)
 clamp(0rem, 0.9vh, 0.45rem)
-clamp(1.125rem,3.2vw+0.5rem,1.5rem)
+clamp(1.125rem, calc(3.2vw + 0.5rem)
 clamp(1.25rem, 5vw, 2rem)
-clamp(1.375rem,2.5vw,1.75rem)
+clamp(1.375rem, 2.5vw, 1.75rem)
 clamp(1.45rem, 1.2rem + 0.6vw, 1.95rem)
 clamp(1.5rem, 4vw, 3.5rem)
 clamp(1.5rem, 6vw, 2.25rem)

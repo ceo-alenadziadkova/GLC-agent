@@ -78,7 +78,7 @@ export function ReportViewer() {
     return (
       <AppShell title={REPORT_VIEWER_COPY.pageTitle} subtitle={REPORT_VIEWER_COPY.errorSubtitle}>
         <div className="flex items-center justify-center h-64">
-          <p style={{ color: 'var(--score-1)' }}>{error || REPORT_VIEWER_COPY.reportNotFound}</p>
+          <p className="ds-text-score-1">{error || REPORT_VIEWER_COPY.reportNotFound}</p>
         </div>
       </AppShell>
     );

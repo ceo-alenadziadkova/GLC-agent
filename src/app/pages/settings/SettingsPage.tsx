@@ -76,19 +76,16 @@ export function SettingsPage() {
       {studioTabEnabled ? (
         <Tabs value={settingsTab} onValueChange={onSettingsTabChange} className="w-full">
           <div className="px-7 pt-6 pb-0">
-            <TabsList
-              className="!bg-transparent !h-auto !p-0 flex flex-wrap gap-2 justify-start rounded-none"
-              style={{ background: 'transparent' }}
-            >
+            <TabsList className="!bg-transparent !h-auto !p-0 flex flex-wrap gap-2 justify-start rounded-none ds-settings-tabs-trigger-transparent">
               <TabsTrigger
                 value="general"
-                className="!shadow-none rounded-md border border-[var(--border-default)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] data-[state=active]:border-[var(--glc-blue)] data-[state=active]:text-[var(--glc-blue)] data-[state=active]:bg-[rgba(28,189,255,0.08)]"
+                className="!shadow-none rounded-md border border-[var(--border-default)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] data-[state=active]:border-[var(--glc-blue)] data-[state=active]:text-[var(--glc-blue)] data-[state=active]:bg-[var(--callout-info-bg)]"
               >
                 {SETTINGS_PAGE_COPY.page.generalTab}
               </TabsTrigger>
               <TabsTrigger
                 value="bank-studio"
-                className="!shadow-none rounded-md border border-[var(--border-default)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] data-[state=active]:border-[var(--glc-blue)] data-[state=active]:text-[var(--glc-blue)] data-[state=active]:bg-[rgba(28,189,255,0.08)] flex items-center gap-1.5"
+                className="!shadow-none rounded-md border border-[var(--border-default)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] data-[state=active]:border-[var(--glc-blue)] data-[state=active]:text-[var(--glc-blue)] data-[state=active]:bg-[var(--callout-info-bg)] flex items-center gap-1.5"
               >
                 <TreeStructure size={16} weight="bold" />
                 {SETTINGS_PAGE_COPY.page.questionBankStudioTab}

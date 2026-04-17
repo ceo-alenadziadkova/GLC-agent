@@ -14,10 +14,7 @@ export function MarketingFooter() {
   const footerNavLabel = WORKSPACE_PAGE_COPY.marketingLayout.footerNavAriaLabel;
 
   return (
-    <footer
-      className="mt-auto border-t"
-      style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'color-mix(in oklab, var(--bg-muted) 55%, var(--bg-canvas))' }}
-    >
+    <footer className="mt-auto border-t ds-marketing-footer-shell">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between sm:gap-10">
           <div className="min-w-0 text-center sm:max-w-md sm:text-left">
@@ -61,10 +58,7 @@ export function MarketingFooter() {
           </nav>
         </div>
 
-        <p
-          className="mt-8 border-t pt-6 text-center text-xs leading-relaxed sm:mt-10 sm:pt-7"
-          style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-quaternary)' }}
-        >
+        <p className="mt-8 border-t pt-6 text-center text-xs leading-relaxed sm:mt-10 sm:pt-7 ds-marketing-footer-legal">
           {footer.legalLine}
         </p>
       </div>

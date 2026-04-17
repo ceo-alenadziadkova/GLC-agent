@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { Icon } from '@phosphor-icons/react';
 import {
   CurrencyCircleDollar,
@@ -40,21 +41,24 @@ export function FindingCard({ finding }: { finding: DiscoveryFinding }) {
   const fc = discoverResultsUi.findingCard;
   return (
     <div
-      className="min-w-0 max-w-full overflow-hidden rounded-2xl p-5 sm:p-6 md:p-7"
-      style={{
-        background: isHigh ? fc.highBackground : fc.mediumBackground,
-        border: isHigh ? `1px solid ${fc.highBorder}` : `1px solid ${fc.mediumBorder}`,
-        boxSizing: 'border-box',
-      }}
+      className="ds-discover-finding-card min-w-0 max-w-full overflow-hidden p-5 sm:p-6 md:p-7"
+      style={
+        {
+          ['--finding-card-bg']: isHigh ? fc.highBackground : fc.mediumBackground,
+          ['--finding-card-border-color']: isHigh ? fc.highBorder : fc.mediumBorder,
+        } as CSSProperties
+      }
     >
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <span
-          className="text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-lg"
-          style={{
-            background: fc.zoneBadgeBackground,
-            color: isHigh ? fc.zoneTextHigh : fc.zoneTextMedium,
-            border: `1px solid ${fc.zoneBadgeBorder}`,
-          }}
+          className="ds-discover-finding-zone-badge text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-lg"
+          style={
+            {
+              ['--zone-badge-bg']: fc.zoneBadgeBackground,
+              ['--zone-badge-border-color']: fc.zoneBadgeBorder,
+              ['--zone-badge-text-color']: isHigh ? fc.zoneTextHigh : fc.zoneTextMedium,
+            } as CSSProperties
+          }
         >
           {finding.zone}
         </span>
@@ -62,15 +66,15 @@ export function FindingCard({ finding }: { finding: DiscoveryFinding }) {
           <Warning
             size={16}
             weight="fill"
-            className="flex-shrink-0"
-            style={{ color: fc.warningIcon }}
+            className="shrink-0 text-[var(--warning-icon-color)]"
+            style={{ ['--warning-icon-color']: fc.warningIcon } as CSSProperties}
             aria-hidden
           />
         )}
       </div>
       <h2
-        className="mb-3 break-words text-pretty"
-        style={{ fontSize: '1.25rem', fontWeight: 600, color: fc.headline, lineHeight: 1.38 }}
+        className="mb-3 break-words text-pretty text-[length:var(--text-xl)] font-semibold leading-[1.38] text-[var(--finding-headline-color)]"
+        style={{ ['--finding-headline-color']: fc.headline } as CSSProperties}
       >
         {finding.headline}
       </h2>
@@ -78,27 +82,25 @@ export function FindingCard({ finding }: { finding: DiscoveryFinding }) {
         {splitFindingDetail(finding.detail).map((chunk, index) => (
           <p
             key={index}
-            className="break-words text-pretty"
-            style={{
-              fontSize: '1.125rem',
-              color: fc.body,
-              lineHeight: 1.8,
-              overflowWrap: 'anywhere',
-            }}
+            className="break-words text-pretty text-[length:var(--discover-finding-detail-size)] leading-[var(--leading-discover-finding-detail)] text-[var(--finding-body-color)]"
+            style={{ ['--finding-body-color']: fc.body } as CSSProperties}
           >
             {chunk}
           </p>
         ))}
       </div>
       <div
-        className="mt-5 flex items-center gap-2.5 rounded-xl px-3 py-2.5 sm:px-3.5 sm:py-3"
-        style={{
-          background: fc.hookRowBackground,
-          border: `1px solid ${fc.hookRowBorder}`,
-        }}
+        className="ds-discover-finding-hook-row mt-5 flex items-center gap-2.5 rounded-xl px-3 py-2.5 sm:px-3.5 sm:py-3"
+        style={
+          {
+            ['--hook-row-bg']: fc.hookRowBackground,
+            ['--hook-row-border-color']: fc.hookRowBorder,
+            ['--hook-accent']: meta.color,
+          } as CSSProperties
+        }
       >
-        <meta.Icon size={20} weight="fill" style={{ color: meta.color, opacity: 1 }} aria-hidden />
-        <span style={{ fontSize: '0.875rem', color: meta.color, fontWeight: 700, letterSpacing: '0.02em' }}>
+        <meta.Icon size={20} weight="fill" className="text-[var(--hook-accent)]" aria-hidden />
+        <span className="text-[length:var(--discover-finding-hook-label-size)] font-bold tracking-[var(--tracking-discover-finding-hook)] text-[var(--hook-accent)]">
           {meta.label}
         </span>
       </div>

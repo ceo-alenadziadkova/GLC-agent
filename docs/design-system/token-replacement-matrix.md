@@ -22,7 +22,7 @@ Scope: token-first refactor execution
 | `#10B981` | `var(--glc-green)` |
 | `#1CBDFF` | `var(--glc-blue)` |
 | `#8B5CF6` | `var(--ui-strategic-purple)` |
-| `rgba(28,189,255,0.25)` | `var(--callout-info-border)` |
+| `rgba(28,189,255,0.25)` | `var(--glc-blue-alpha-25)` |
 | `rgba(14,207,130,0.25)` | `var(--score-5-border)` |
 | `rgba(249,115,22,0.28)` | `var(--callout-warning-border)` |
 | `rgba(249,115,22,0.20)` | `var(--score-2-border)` |
@@ -46,8 +46,28 @@ Scope: token-first refactor execution
 | `rgba(255,255,255,0.30)` | `var(--overlay-white-30)` |
 | `rgba(255,255,255,0.20)` | `var(--overlay-white-20)` |
 | `rgba(255,255,255,0.15)` | `var(--overlay-white-15)` |
-| `rgba(255,255,255,0.08)` | `var(--sidebar-border)` |
+| `rgba(255,255,255,0.85)` | `var(--overlay-white-85)` |
+| `rgba(255,255,255,0.14)` | `var(--overlay-white-14)` |
+| `rgba(255,255,255,0.09)` | `var(--overlay-white-09)` |
+| `rgba(255,255,255,0.08)` | `var(--overlay-white-08)` (on dark marketing shells; `var(--sidebar-border)` when matching legacy sidebar) |
 | `rgba(255,255,255,0.06)` | `var(--sidebar-border)` |
+| `#4285F4` (Google OAuth mark) | `var(--brand-oauth-google-blue)` |
+| `#34A853` | `var(--brand-oauth-google-green)` |
+| `#FBBC05` | `var(--brand-oauth-google-yellow)` |
+| `#EA4335` | `var(--brand-oauth-google-red)` |
+| `rgba(30,58,138,0.22)` + `rgba(14,165,233,0.18)` (discover mesh) | `var(--discover-results-mesh-indigo)` + `var(--discover-results-mesh-sky)` via `.ds-discover-results-mesh-bg` |
+| `linear-gradient(135deg, rgba(28,189,255,0.12) 0%, rgba(242,79,29,0.08) 100%)` | `var(--gradient-badge-blue-orange)` / `.ds-bg-gradient-badge-blue-orange` |
+| `rgba(28,189,255,0.12)` | `var(--glc-blue-alpha-12)` |
+| `rgba(28,189,255,0.18)` | `var(--glc-blue-alpha-18)` |
+| `rgba(28,189,255,0.20)` | `var(--glc-blue-alpha-20)` |
+| `rgba(28,189,255,0.25)` | `var(--glc-blue-alpha-25)` |
+| `rgba(28,189,255,0.30)` | `var(--glc-blue-alpha-30)` |
+| `rgba(234,179,8,0.10)` | `var(--score-3-alpha-10)` |
+| `rgba(14,207,130,0.06)` (success header fade) | `var(--glc-green-alpha-06)` |
+| `rgba(14,207,130,0.1)` (confidence high bg) | `var(--glc-green-muted)` |
+| `0 2px 8px rgba(242,79,29,0.28)` | `var(--shadow-orange-tab)` |
+| `0 0 12px rgba(28,189,255,0.30)` | `var(--glow-step-ring)` |
+| `rgba(14,207,130,0.20)` (report strengths border) | `var(--score-5-border)` (nearest band; was 0.20) |
 | `11px` | `var(--text-xs)` |
 | `2px 8px 2px 6px` | `var(--space-0-5) var(--space-2) var(--space-0-5) var(--space-1-5)` |
 | `0.625rem` | `var(--space-2-5)` |
@@ -69,7 +89,6 @@ Scope: token-first refactor execution
 | `5px 12px`/`5px 13px` | `var(--space-1-5) var(--space-3)` |
 | `16px` (badge width) | `var(--space-4)` |
 | `rgba(28,189,255,0.35)` | `var(--overlay-white-35)` |
-| `rgba(28,189,255,0.25)` | `var(--callout-info-border)` |
 
 ## Baseline Violations (tracked targets)
 
@@ -166,6 +185,26 @@ Only aliases required by repeated usage (>=3 occurrences) are added:
 - Keep compatibility shims until each feature area is migrated.
 - Remove legacy selectors only after per-feature visual checks pass.
 - For each removal batch, keep one revertable commit boundary per feature area.
+
+## Wave SAFE — product bridge (2026-04-17)
+
+| Raw / pattern in TS/TSX | Bridge / token |
+| --- | --- |
+| `1px solid …` in inline `style` | `var(--border-width-default) solid …` |
+| `0.6875rem` section label (discover teaser) | `font-size: var(--text-xs)` on `.ds-audit-teaser-section-label` |
+| `text-[0.9375rem]` (discover contact form) | `text-[length:var(--text-base)]` |
+| `clamp(1.75rem, 4vw, 2.5rem)` + `/100` denom (snapshot badge) | `.ds-snapshot-badge-score-value--bento`, `.ds-snapshot-badge-denom--bento` / `--compact` in `components.css` |
+| `18rem` rail card width (`NextStepsCta`) | `.ds-next-steps-rail-card` in `components.css` |
+| Dashed tentative tech pill border | `.ds-snapshot-tentative-tech-pill` |
+| Intake section `tracking-[0.12em]` + border | `.ds-intake-form-section-heading` |
+| Marketing header blur / padding / shadow | `.ds-marketing-header-shell` + `data-scrolled` |
+| Home hero display H2 (Tailwind with `2.75rem` / `-0.02em`) | `.ds-home-display-h2` |
+| Login submit glow `0 8px 20px` | `0 var(--space-2) var(--space-5) …` |
+| `11px` meta text (report scorecard) | `text-[length:var(--text-xs)]` |
+| `12px` tab label (report profile tabs) | `font-size: var(--space-3)` (12px spacing token) |
+| `10px` quick-win index (report findings) | `font-size: var(--text-2xs)` |
+| `-0.01em` letter-spacing | `.ds-letterspace-tight-01` |
+| Custom properties on wrappers (`DecisionPath`, `FindingCard`) | `style={… as CSSProperties}` for `--*` keys |
 
 ## Migration strategy (execution order)
 

@@ -96,11 +96,8 @@ export function HomeHeroCockpit({ className }: { className?: string }) {
         </motion.div>
 
         <motion.div
-          className={cn('absolute bottom-0 left-[6%] w-[82%]', panel)}
+          className={cn('absolute bottom-0 left-[6%] w-[82%] ds-home-hero-cockpit-floating-panel', panel)}
           style={{
-            borderRadius: 'var(--radius-xl)',
-            borderColor: 'var(--border-subtle)',
-            backgroundColor: 'var(--bg-surface)',
             transform: 'rotate(-0.8deg)',
             zIndex: 3,
           }}
@@ -111,21 +108,15 @@ export function HomeHeroCockpit({ className }: { className?: string }) {
           </p>
           <div className="mt-3 space-y-2.5">
             <div className="flex items-center gap-2">
-              <span
-                className="h-1.5 w-1.5 shrink-0 rounded-full"
-                style={{ backgroundColor: 'var(--glc-green-dark)' }}
-              />
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full ds-marketing-hero-dot-green-dark" />
               <SkeletonLine width="64%" />
             </div>
             <div className="flex items-center gap-2">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: 'var(--glc-blue)' }} />
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full ds-marketing-hero-signal-dot" />
               <SkeletonLine width="52%" />
             </div>
             <div className="flex items-center gap-2">
-              <span
-                className="h-1.5 w-1.5 shrink-0 rounded-full"
-                style={{ backgroundColor: 'var(--text-quaternary)' }}
-              />
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full ds-marketing-hero-bar-muted" />
               <SkeletonLine width="70%" />
             </div>
           </div>

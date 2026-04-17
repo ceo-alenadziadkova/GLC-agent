@@ -8,8 +8,6 @@ import { Callout } from '../../../components/ui/callout';
 import { Surface } from '../../../components/ui/surface';
 import { CLIENT_AUDIT_VIEW_COPY } from '../../../config/client-audit-view-copy';
 import { CLIENT_PORTAL_PRODUCT_MODE_HELP } from '../../../lib/client-portal-pipeline-access';
-import { UI_SEMANTIC_COLORS } from '../../../../design-system/tokens/ui-semantic-colors';
-import { CLIENT_AUDIT_VIEW_UI } from '../config/ui';
 
 type SnapshotAccessState = {
   showCallout: boolean;
@@ -35,12 +33,9 @@ export function SnapshotUpgradeSection({
 }) {
   return (
     <div
-      className="rounded-xl overflow-hidden space-y-4 px-5 py-5 mobile:px-4 mobile:py-4"
-      style={
-        freeSnapshotAccess?.showCallout
-          ? CLIENT_AUDIT_VIEW_UI.snapshot.panelLimited
-          : CLIENT_AUDIT_VIEW_UI.snapshot.panelNormal
-      }
+      className={`rounded-xl overflow-hidden space-y-4 px-5 py-5 mobile:px-4 mobile:py-4 ${
+        freeSnapshotAccess?.showCallout ? 'ds-client-snapshot-upgrade-panel-limited' : 'ds-client-snapshot-upgrade-panel-normal'
+      }`}
     >
       <div className="flex items-start gap-3">
         <ChartBar className="w-5 h-5 flex-shrink-0 mt-0.5 ds-text-brand"  />
@@ -65,7 +60,7 @@ export function SnapshotUpgradeSection({
         {freeSnapshotAccess?.showCallout ? (
           <Warning weight="fill" className="w-5 h-5 flex-shrink-0 ds-text-score-2"  />
         ) : (
-          <CheckCircle weight="fill" className="w-5 h-5 flex-shrink-0" style={{ color: UI_SEMANTIC_COLORS.success }} />
+          <CheckCircle weight="fill" className="w-5 h-5 flex-shrink-0 text-[var(--glc-green)]" />
         )}
       </div>
 
@@ -77,25 +72,20 @@ export function SnapshotUpgradeSection({
         </p>
       )}
 
-      <div className="space-y-4 border-t pt-4" style={{ borderColor: CLIENT_AUDIT_VIEW_UI.snapshot.dividerBorderColor }}>
+      <div className="space-y-4 border-t border-[var(--glc-blue-muted-strong)] pt-4">
         <div>
           <div className="text-xs font-medium mb-2 ds-text-tertiary" >
             {CLIENT_AUDIT_VIEW_COPY.snapshot.continuePackage}
           </div>
-          <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: 'var(--border-subtle)' }}>
+          <div className="flex overflow-hidden rounded-lg border border-[var(--border-subtle)]">
             {AUDIT_COVERAGE_PACKAGES.map((pkg) => (
               <button
                 key={pkg}
                 type="button"
                 disabled={upgradeBusy}
                 onClick={() => setUpgradeCoveragePackage(pkg)}
-                className="flex-1 py-2 text-xs font-medium"
-                style={{
-                  background: upgradeCoveragePackage === pkg ? CLIENT_AUDIT_VIEW_UI.snapshot.packageButtonActiveBg : 'var(--bg-muted)',
-                  color: 'var(--text-primary)',
-                  border: 'none',
-                  cursor: upgradeBusy ? 'not-allowed' : 'pointer',
-                }}
+                data-snapshot-package-active={upgradeCoveragePackage === pkg ? 'true' : 'false'}
+                className="ds-client-snapshot-package-segment py-2 text-xs font-medium"
               >
                 {coveragePackageLabel(pkg)}
               </button>
@@ -135,14 +125,8 @@ export function SnapshotUpgradeSection({
             type="button"
             disabled={upgradeBusy}
             onClick={() => void onUpgrade(true)}
-            className="w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2"
-            style={{
-              background: upgradeBusy ? 'var(--bg-muted)' : 'var(--gradient-brand)',
-              color: upgradeBusy ? 'var(--text-quaternary)' : 'var(--glc-ink)',
-              cursor: upgradeBusy ? 'not-allowed' : 'pointer',
-              boxShadow: upgradeBusy ? 'none' : 'var(--glow-blue-sm)',
-              border: 'none',
-            }}
+            data-snapshot-upgrade-busy={upgradeBusy ? 'true' : 'false'}
+            className="ds-client-snapshot-upgrade-primary-cta"
           >
             {upgradeBusy ? <Spinner className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
             {freeSnapshotAccess?.showCallout ? CLIENT_AUDIT_VIEW_COPY.snapshot.continueLimited : CLIENT_AUDIT_VIEW_COPY.snapshot.continueDetected}
@@ -173,8 +157,7 @@ export function SnapshotUpgradeSection({
             type="button"
             disabled={upgradeBusy}
             onClick={() => void onUpgrade(false)}
-            className="w-full py-2.5 rounded-lg text-sm font-medium"
-            style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', cursor: upgradeBusy ? 'not-allowed' : 'pointer' }}
+            className="ds-client-snapshot-upgrade-secondary-cta"
           >
             {CLIENT_AUDIT_VIEW_COPY.snapshot.startFresh}
           </button>
@@ -191,7 +174,7 @@ export function SnapshotUpgradeSection({
 
 function PackageCard({ active, label, summary, detail }: { active: boolean; label: string; summary: string; detail: string }) {
   return (
-    <div className="rounded-lg px-3 py-2.5 text-xs" style={{ background: 'var(--bg-surface)', border: active ? CLIENT_AUDIT_VIEW_UI.snapshot.packageCardActiveBorder : '1px solid var(--border-subtle)' }}>
+    <div data-snapshot-package-card-active={active ? 'true' : 'false'} className="ds-client-snapshot-package-card">
       <div className="font-semibold mb-1 ds-text-primary" >{label}</div>
       <p className="m-0 mb-1.5 ds-text-secondary" >{summary}</p>
       <p className="m-0 ds-text-quaternary" >{detail}</p>

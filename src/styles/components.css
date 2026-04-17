@@ -19,6 +19,170 @@
   box-shadow: var(--shadow-md);
 }
 
+/* Token-driven backgrounds (replaces inline / arbitrary Tailwind gradients in audits) */
+.ds-bg-gradient-badge-blue-orange {
+  background-image: var(--gradient-badge-blue-orange);
+}
+
+.ds-discover-results-mesh-bg {
+  background-image: radial-gradient(
+      circle at top,
+      var(--discover-results-mesh-indigo),
+      transparent 55%
+    ),
+    radial-gradient(circle at bottom, var(--discover-results-mesh-sky), transparent 60%);
+}
+
+/* Discover results — finding card (colors from CMS JSON via CSS variables on the node). */
+.ds-discover-finding-card {
+  box-sizing: border-box;
+  border-radius: var(--radius-2xl);
+  border-width: var(--border-width-default);
+  border-style: solid;
+  border-color: var(--finding-card-border-color);
+  background: var(--finding-card-bg);
+}
+
+.ds-discover-finding-zone-badge {
+  background: var(--zone-badge-bg);
+  border-width: var(--border-width-default);
+  border-style: solid;
+  border-color: var(--zone-badge-border-color);
+  color: var(--zone-badge-text-color);
+}
+
+.ds-discover-finding-hook-row {
+  background: var(--hook-row-bg);
+  border-width: var(--border-width-default);
+  border-style: solid;
+  border-color: var(--hook-row-border-color);
+}
+
+.ds-discover-question-textarea {
+  background: var(--input-background);
+  border-width: var(--border-width-default);
+  border-style: solid;
+  border-color: var(--border-default);
+  color: var(--text-primary);
+  line-height: var(--discover-question-input-line-height);
+}
+
+.ds-discover-choice-chip {
+  border-width: var(--border-width-default);
+  border-style: solid;
+  border-color: var(--border-default);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.ds-discover-choice-chip[data-discover-choice-selected='true'] {
+  background: color-mix(in oklab, var(--glc-blue-muted) 78%, var(--bg-surface));
+  border-color: color-mix(in oklab, var(--glc-blue) 70%, var(--border-default));
+  color: var(--glc-blue-deeper);
+  font-weight: 600;
+}
+
+.ds-discover-specify-field {
+  background: var(--input-background);
+  border-width: var(--border-width-default);
+  border-style: solid;
+  border-color: var(--glc-blue);
+  color: var(--text-primary);
+}
+
+/* Client portal — snapshot upgrade (panel + package controls; avoids inline object styles from config). */
+.ds-client-snapshot-upgrade-panel-limited {
+  border: var(--border-width-default) solid var(--callout-warning-border);
+  background: linear-gradient(
+    135deg,
+    var(--callout-warning-bg) 0%,
+    var(--glc-blue-muted-faint) 100%
+  );
+}
+
+.ds-client-snapshot-upgrade-panel-normal {
+  border: var(--border-width-default) solid var(--callout-info-border);
+  background: linear-gradient(
+    135deg,
+    var(--glc-blue-muted) 0%,
+    var(--glc-blue-muted-faint) 100%
+  );
+}
+
+.ds-client-snapshot-package-segment {
+  flex: 1 1 0%;
+  border: none;
+  background: var(--bg-muted);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.ds-client-snapshot-package-segment[data-snapshot-package-active='true'] {
+  background: var(--glc-blue-muted-strong);
+}
+
+.ds-client-snapshot-package-segment:disabled {
+  cursor: not-allowed;
+}
+
+.ds-client-snapshot-upgrade-primary-cta {
+  width: 100%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2-5) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.ds-client-snapshot-upgrade-primary-cta[data-snapshot-upgrade-busy='false'] {
+  background: var(--gradient-brand);
+  color: var(--glc-ink);
+  box-shadow: var(--glow-blue-sm);
+  cursor: pointer;
+}
+
+.ds-client-snapshot-upgrade-primary-cta[data-snapshot-upgrade-busy='true'] {
+  background: var(--bg-muted);
+  color: var(--text-quaternary);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.ds-client-snapshot-upgrade-secondary-cta {
+  width: 100%;
+  border-radius: var(--radius-lg);
+  padding: var(--space-2-5) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  background: var(--bg-elevated);
+  border: var(--border-width-default) solid var(--border-default);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.ds-client-snapshot-upgrade-secondary-cta:disabled {
+  cursor: not-allowed;
+}
+
+.ds-client-snapshot-package-card {
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-3);
+  font-size: var(--text-xs);
+  background: var(--bg-surface);
+  border-width: var(--border-width-default);
+  border-style: solid;
+  border-color: var(--border-subtle);
+}
+
+.ds-client-snapshot-package-card[data-snapshot-package-card-active='true'] {
+  border-color: var(--callout-info-border-strong);
+}
+
 /* Legacy compatibility shim + migration alias `.ds-cta-primary` (identical rules).
  * Prefer design-system primitive: <Button variant="default" /> where visuals match.
  */
@@ -663,4 +827,470 @@ html:not(.dark) .glc-hover-row:hover {
 
 .ds-marketing-inline-link-accent {
   color: var(--glc-blue);
+}
+
+/* Question bank studio — legend swatches (marker square size via numeric width/height from TSX). */
+.ds-studio-legend-marker {
+  display: inline-block;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.ds-studio-legend-marker--root,
+.ds-studio-legend-marker--question {
+  background: var(--bg-surface);
+  border: var(--border-width-default) solid var(--border-default);
+}
+
+.ds-studio-legend-marker--section {
+  background: var(--glc-blue-muted);
+  border: var(--border-width-default) solid var(--glc-blue);
+}
+
+.ds-studio-legend-marker--domain,
+.ds-studio-legend-marker--layout {
+  background: var(--bg-surface);
+  border: var(--border-width-default) dashed var(--studio-legend-marker-dash, var(--border-default));
+}
+
+.ds-studio-legend-marker--identity {
+  background: var(--bg-surface);
+  border: var(--border-width-default) dashed color-mix(in oklab, var(--glc-orange) 55%, var(--border-default));
+}
+
+/* Question bank studio — replace inline visual styles (DS enforcement). */
+.ds-studio-view-mode-shell {
+  border: 1px solid var(--border-default);
+}
+
+.ds-studio-view-mode-btn {
+  padding: var(--space-1-5) var(--space-2-5);
+  background-color: var(--bg-canvas);
+  color: var(--text-secondary);
+  border: none;
+  cursor: pointer;
+}
+
+.ds-studio-view-mode-btn--active {
+  background-color: var(--glc-blue-muted);
+}
+
+.ds-studio-view-mode-btn--segment {
+  border-left: 1px solid var(--border-default);
+}
+
+.ds-studio-logic-overview-hint {
+  background-color: var(--bg-canvas);
+  border: 1px solid var(--border-default);
+  color: var(--text-quaternary);
+}
+
+.ds-type-2xs-quaternary {
+  font-size: var(--text-2xs);
+  color: var(--text-quaternary);
+}
+
+.ds-studio-canvas-section-card {
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-canvas);
+}
+
+.ds-studio-question-card {
+  border: 1px solid var(--studio-q-border, var(--border-default));
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: var(--studio-q-cursor, pointer);
+  opacity: var(--studio-q-opacity, 1);
+}
+
+.ds-studio-question-card[data-studio-q-active='true'] {
+  background-color: var(--studio-q-active-bg);
+}
+
+.ds-studio-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-1-5);
+  border-radius: var(--radius-md);
+  background-color: var(--studio-pill-bg);
+  color: var(--studio-pill-fg);
+  border: 1px solid var(--studio-pill-border);
+}
+
+.ds-studio-canvas-outer {
+  border: 1px solid var(--border-default);
+}
+
+.ds-studio-diff-textarea {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+}
+
+.ds-studio-tool-btn {
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.ds-studio-toolbar-export-btn {
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-canvas);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.ds-studio-toolbar-export-btn:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.ds-studio-user-flow-btn {
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.ds-studio-user-flow-btn[data-studio-lane-active='true'] {
+  background-color: var(--glc-blue-muted);
+}
+
+.ds-studio-user-flow-btn--muted {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ds-studio-user-flow-divider {
+  border-color: var(--border-default);
+}
+
+.ds-mirror-score-denom {
+  color: var(--text-quaternary);
+  font-weight: 700;
+  font-size: 0.45em;
+}
+
+.ds-mirror-score-denom--compact {
+  font-size: 0.5em;
+}
+
+.ds-score-bar-track {
+  background-color: var(--bg-muted);
+}
+
+.ds-score-bar-fill {
+  background-color: var(--ds-score-bar-fill, var(--glc-blue));
+  opacity: 0.92;
+}
+
+.ds-score-bar-label {
+  color: var(--ds-score-bar-label, var(--text-primary));
+}
+
+.ds-marketing-hero-signal-dot {
+  background-color: var(--glc-blue);
+}
+
+.ds-marketing-hero-dot-green-dark {
+  background-color: var(--glc-green-dark);
+}
+
+.ds-marketing-hero-bar-muted {
+  background-color: var(--text-quaternary);
+}
+
+.ds-marketing-header-shell {
+  border-color: var(--border-subtle);
+  backdrop-filter: blur(10px);
+  background-color: color-mix(in oklab, var(--bg-canvas) 90%, transparent);
+  box-shadow: none;
+  transition:
+    background-color 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 300ms cubic-bezier(0.16, 1, 0.3, 1),
+    backdrop-filter 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+.ds-marketing-header-shell[data-scrolled='true'] {
+  background-color: color-mix(in oklab, var(--bg-canvas) 78%, transparent);
+  backdrop-filter: blur(16px) saturate(180%);
+  box-shadow: 0 var(--border-width-default) 0 color-mix(in oklab, var(--text-primary) 8%, transparent);
+}
+
+.ds-letterspace-tight-01 {
+  letter-spacing: -0.01em;
+}
+
+.ds-home-display-h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+@media (min-width: 640px) {
+  .ds-home-display-h2 {
+    font-size: var(--text-4xl);
+  }
+}
+
+@media (min-width: 1024px) {
+  .ds-home-display-h2 {
+    font-size: 2.75rem;
+    line-height: 1.1;
+  }
+}
+
+.ds-next-step-title-primary {
+  color: var(--text-primary);
+}
+
+.ds-next-step-title-secondary {
+  color: var(--text-secondary);
+}
+
+.ds-next-steps-rail-card {
+  width: min(18rem, 78vw);
+}
+
+.ds-next-step-recommended-badge {
+  background-color: var(--glc-orange-xlight);
+  color: var(--glc-orange-dark);
+}
+
+.ds-marketing-footer-shell {
+  border-color: var(--border-subtle);
+  background-color: color-mix(in oklab, var(--bg-muted) 55%, var(--bg-canvas));
+}
+
+.ds-marketing-footer-legal {
+  border-color: var(--border-subtle);
+  color: var(--text-quaternary);
+}
+
+.ds-marketing-header-popover {
+  border-color: var(--border-subtle);
+  background-color: var(--bg-canvas);
+}
+
+.ds-marketing-header-link-primary {
+  color: var(--text-primary);
+}
+
+.ds-home-hero-cockpit-floating-panel {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface);
+}
+
+.ds-audit-teaser-panel {
+  box-sizing: border-box;
+  background: var(--audit-teaser-panel-bg);
+  border: 1px solid var(--audit-teaser-panel-border);
+}
+
+.ds-audit-teaser-section-label {
+  font-size: var(--text-xs);
+  color: var(--audit-teaser-section-label);
+}
+
+.ds-audit-teaser-bullet-text {
+  font-size: 1.0625rem;
+  color: var(--audit-teaser-bullet-text);
+  line-height: 1.72;
+  overflow-wrap: anywhere;
+}
+
+.ds-full-audit-tier-card {
+  border-color: var(--border-subtle);
+  background: linear-gradient(
+    165deg,
+    var(--bg-surface) 0%,
+    color-mix(in oklab, var(--bg-muted) 65%, var(--bg-surface)) 100%
+  );
+  box-shadow: var(--shadow-xs);
+}
+
+.ds-text-glc-blue-light {
+  color: var(--glc-blue-light);
+}
+
+.ds-intake-progress-fill {
+  background: var(--gradient-brand);
+}
+
+.ds-intake-review-card-shell {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-subtle);
+}
+
+.ds-intake-review-section-bar {
+  background: var(--bg-muted);
+  color: var(--text-quaternary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ds-intake-review-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-xl);
+  color: var(--text-primary);
+}
+
+.ds-intake-review-edit-btn {
+  border: 1px solid var(--border-subtle);
+  color: var(--glc-blue);
+  background: var(--bg-surface);
+  cursor: pointer;
+}
+
+.ds-intake-review-submit {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  font-weight: 600;
+  border-radius: var(--radius-xl);
+  font-size: var(--text-sm);
+}
+
+.ds-intake-review-submit[data-submitting='false'] {
+  background: var(--gradient-brand);
+  color: var(--primary-foreground);
+  border: none;
+  cursor: pointer;
+}
+
+.ds-intake-review-submit[data-submitting='true'] {
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  cursor: wait;
+}
+
+.ds-auth-tablist-border {
+  border: 1px solid var(--border-subtle);
+}
+
+.ds-auth-tab-active {
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+  border: none;
+  cursor: pointer;
+}
+
+.ds-auth-tab-inactive {
+  background-color: transparent;
+  color: var(--text-tertiary);
+  box-shadow: none;
+  border: none;
+  cursor: pointer;
+}
+
+.ds-intake-brief-progress-track {
+  height: var(--space-0-5);
+  background-color: var(--bg-muted);
+}
+
+.ds-intake-review-link-btn {
+  color: var(--glc-blue);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.ds-intake-review-summary-box {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-subtle);
+}
+
+.ds-intake-brief-mesh-backdrop {
+  background: var(--mesh-brand);
+  opacity: 0.4;
+}
+
+.ds-login-mesh-backdrop {
+  background: var(--mesh-brand);
+  opacity: 0.55;
+}
+
+.ds-settings-tabs-trigger-transparent {
+  background: transparent;
+}
+
+.ds-snapshot-badge-denom {
+  color: var(--text-quaternary);
+  font-weight: 700;
+  font-size: var(--text-2xs);
+}
+
+.ds-snapshot-badge-denom--bento {
+  font-size: 0.45em;
+}
+
+.ds-snapshot-badge-denom--compact {
+  font-size: 0.5em;
+}
+
+.ds-snapshot-badge-score-value {
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 1.05;
+  color: var(--mirror-score-fg);
+}
+
+.ds-snapshot-badge-score-value--bento {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+.ds-snapshot-badge-score-value--compact {
+  font-size: var(--text-3xl);
+}
+
+.ds-snapshot-tech-pill {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.ds-snapshot-tentative-tech-pill {
+  background: transparent;
+  border: 1px dashed var(--border-default);
+  color: var(--text-tertiary);
+}
+
+.ds-intake-form-section-heading {
+  letter-spacing: 0.12em;
+  border-bottom: var(--border-width-default) solid var(--border-subtle);
+  color: var(--text-quaternary);
+}
+
+.ds-score-badge-filter-host {
+  filter: var(--score-badge-filter);
+}
+
+.ds-mirror-score-big-number {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 800;
+  line-height: 1.05;
+  color: var(--mirror-score-fg);
+}
+
+.ds-mirror-score-big-number--compact {
+  font-size: var(--text-3xl);
+}
+
+.ds-mirror-score-band-label {
+  color: var(--mirror-label-fg);
+}
+
+.ds-snapshot-callout-panel {
+  background: var(--snapshot-callout-panel-bg);
 }

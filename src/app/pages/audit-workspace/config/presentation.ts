@@ -42,7 +42,7 @@ export const CONF_COLOR: Record<ConfidenceLevel, string> = {
 };
 
 export const CONF_BG: Record<ConfidenceLevel, string> = {
-  high: 'rgba(14,207,130,0.1)',
-  medium: 'rgba(234,179,8,0.1)',
+  high: 'var(--glc-green-muted)',
+  medium: 'var(--score-3-alpha-10)',
   low: 'var(--bg-muted)',
 };

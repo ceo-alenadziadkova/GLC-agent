@@ -20,7 +20,7 @@ export function MonitorHeaderActions(props: {
       {isExpress && (
         <StatusBadge
           label={PM.expressBadge}
-          toneClassName="border border-[rgba(28,189,255,0.25)] bg-[rgba(28,189,255,0.10)] font-bold tracking-[0.04em] text-[var(--glc-blue)]"
+          toneClassName="border border-[color:var(--glc-blue-alpha-25)] bg-[var(--glc-blue-muted)] font-bold tracking-[0.04em] text-[var(--glc-blue)]"
           className="font-[var(--font-display)]"
         />
       )}

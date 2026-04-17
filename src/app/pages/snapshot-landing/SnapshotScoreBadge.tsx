@@ -1,4 +1,5 @@
-import { SnapshotScoreDonut } from './SnapshotScoreDonut';
+import type { CSSProperties } from 'react';
+import { SnapshotScoreDonut } from '../../components/snapshot/SnapshotScoreDonut';
 import {
   SCORE_COLORS,
   SCORE_LABELS,
@@ -22,15 +23,15 @@ export function SnapshotScoreBadge(props: {
       ? {
           size: 180,
           strokeWidth: 12,
-          overallFontSize: 'clamp(1.75rem, 4vw, 2.5rem)',
-          overallSpanFontSize: '0.45em',
+          scoreValueClassName: 'ds-snapshot-badge-score-value--bento',
+          denomClassName: 'ds-snapshot-badge-denom--bento',
           bandLabelClassName: 'mt-0.5 text-xs font-semibold sm:text-sm',
         }
       : {
           size: 148,
           strokeWidth: 10,
-          overallFontSize: 'var(--text-3xl)',
-          overallSpanFontSize: '0.5em',
+          scoreValueClassName: 'ds-snapshot-badge-score-value--compact',
+          denomClassName: 'ds-snapshot-badge-denom--compact',
           bandLabelClassName: 'mt-0.5 text-sm font-semibold',
         };
 
@@ -41,16 +42,11 @@ export function SnapshotScoreBadge(props: {
     return (
       <SnapshotScoreDonut fillPercent={fillPercent} accentColor={accentColor} size={cfg.size} strokeWidth={cfg.strokeWidth}>
         <p
-          className="[font-family:var(--font-display)]"
-          style={{
-            fontSize: cfg.overallFontSize,
-            fontWeight: 800,
-            color: accentColor,
-            lineHeight: 1.05,
-          }}
+          className={`ds-snapshot-badge-score-value ${cfg.scoreValueClassName}`}
+          style={{ ['--mirror-score-fg' as string]: accentColor } as CSSProperties}
         >
           {overallScore}
-          <span style={{ color: 'var(--text-quaternary)', fontWeight: 700, fontSize: cfg.overallSpanFontSize }}>/100</span>
+          <span className={`ds-snapshot-badge-denom ${cfg.denomClassName}`}>/100</span>
         </p>
       </SnapshotScoreDonut>
     );
@@ -69,20 +65,17 @@ export function SnapshotScoreBadge(props: {
       strokeWidth={cfg.strokeWidth}
     >
       <p
-        className="[font-family:var(--font-display)]"
-        style={{
-          fontSize: cfg.overallFontSize,
-          fontWeight: 800,
-          color: accentColor,
-          lineHeight: 1.05,
-        }}
+        className={`ds-snapshot-badge-score-value ${cfg.scoreValueClassName}`}
+        style={{ ['--mirror-score-fg' as string]: accentColor } as CSSProperties}
       >
         {band}/5
       </p>
-      <p className={cfg.bandLabelClassName} style={{ color: accentColor }}>
+      <p
+        className={`ds-mirror-score-band-label ${cfg.bandLabelClassName}`}
+        style={{ ['--mirror-label-fg' as string]: accentColor } as CSSProperties}
+      >
         {SCORE_LABELS[band]}
       </p>
     </SnapshotScoreDonut>
   );
 }
-

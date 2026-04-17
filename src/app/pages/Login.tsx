@@ -14,18 +14,12 @@ export function Login() {
   const controller = useLoginController();
 
   return (
-    <main
-      className="glc-login-main relative"
-      style={{ backgroundColor: 'var(--bg-canvas)' }}
-    >
+    <main className="glc-login-main relative ds-marketing-layout-canvas">
       <div className="glc-login-theme-toggle absolute top-4 right-4 sm:top-6 sm:right-6">
         <ThemeToggle />
       </div>
 
-      <div
-        className="glc-login-bg-mesh absolute inset-0 pointer-events-none"
-        style={{ background: 'var(--mesh-brand)', opacity: 0.55 }}
-      />
+      <div className="glc-login-bg-mesh absolute inset-0 pointer-events-none ds-login-mesh-backdrop" />
 
       <motion.div
         initial={{ opacity: 0, y: 18 }}

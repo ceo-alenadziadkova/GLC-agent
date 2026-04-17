@@ -1,3 +1,2 @@
-/** Gradient hairline for Snapshot idle command surface (CSS variables only). */
-export const SNAPSHOT_COMMAND_SHELL_OUTLINE =
-  'linear-gradient(135deg, color-mix(in oklab, var(--glc-blue) 22%, var(--border-subtle)) 0%, color-mix(in oklab, var(--glc-blue-muted) 55%, transparent) 100%)';
+/** Snapshot idle command surface hairline; canonical gradient is `--snapshot-command-shell-outline` in tokens.css. */
+export const SNAPSHOT_COMMAND_SHELL_OUTLINE = 'var(--snapshot-command-shell-outline)' as const;

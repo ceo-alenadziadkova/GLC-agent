@@ -24,6 +24,7 @@
   --glc-green-light: #7EEBB9;
   --glc-green-xlight: #E6FAF3;
   --glc-green-muted: rgba(14, 207, 130, 0.10);
+  --glc-green-alpha-06: rgba(14, 207, 130, 0.06);
 
   --glc-neutral: #E5E7EB;
   --glc-ink: #080F1E;
@@ -160,6 +161,8 @@
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-2xl: 22px;
+  /** Inner radius for 1px hairline shells (e.g. snapshot command card). */
+  --radius-2xl-inner: calc(var(--radius-2xl) - var(--border-width-default));
   --radius-pill: 999px;
 
   --space-1: 4px;
@@ -185,6 +188,47 @@
   --app-shell-sidebar-narrow-width: 13.5rem;
   --app-shell-drawer-width: min(20rem, 88vw);
   --client-audit-brief-form-max-height: min(55vh, 28rem);
+  --client-audit-brief-progress-track-height: 3px;
+
+  /* Snapshot landing (marketing hero + quota) */
+  --snapshot-command-shell-outline: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--glc-blue) 22%, var(--border-subtle)) 0%,
+    color-mix(in oklab, var(--glc-blue-muted) 55%, transparent) 100%
+  );
+  --snapshot-hero-title-size: clamp(2.05rem, 9.25vw, 4rem);
+  --snapshot-hero-subtitle-size: clamp(0.8125rem, 2.85vw, 0.975rem);
+  --snapshot-hero-title-max-width: 22rem;
+  --tracking-snapshot-badge: 0.06em;
+  --tracking-snapshot-hero: -0.025em;
+  --tracking-snapshot-hero-lg: -0.035em;
+  --shadow-snapshot-cta-active: 0 8px 22px color-mix(in oklab, var(--glc-blue) 36%, transparent);
+  --shadow-snapshot-cta-muted: 0 3px 10px color-mix(in oklab, var(--glc-blue) 18%, transparent);
+  --gradient-snapshot-quota-fill: linear-gradient(90deg, var(--glc-blue), var(--glc-green));
+  --shadow-snapshot-shell-inner-mobile: 0 12px 40px rgba(0, 0, 0, 0.14);
+
+  /* Discover questionnaire — results surface */
+  --discover-results-split-max-height: min(78vh, 52rem);
+  --discover-results-title-compact: clamp(1.125rem, calc(3.2vw + 0.5rem), 1.5rem);
+  --discover-results-title-default: clamp(1.375rem, 2.5vw, 1.75rem);
+  --tracking-discover-results-brand: -0.01em;
+  --discover-finding-detail-size: 1.125rem;
+  --discover-finding-hook-label-size: 0.875rem;
+  --tracking-discover-finding-hook: 0.02em;
+  --leading-discover-finding-detail: 1.8;
+  --discovery-public-hero-title-size: clamp(1.75rem, 5vw, 2.75rem);
+  --discover-question-help-font-size: 0.75rem;
+  --discover-question-input-line-height: 1.6;
+  --discover-wizard-intro-title-size: 1.375rem;
+  --discover-progress-track-height: 2px;
+  --shadow-discover-question-card: 0 4px 24px rgba(11, 17, 32, 0.08);
+  --shadow-discover-cta-active: 0 6px 18px rgba(28, 189, 255, 0.34);
+  --shadow-discover-cta-muted: 0 3px 10px rgba(28, 189, 255, 0.2);
+
+  /* Marketing — decision path cards */
+  --decision-path-card-min-height: 180px;
+  --decision-path-card-min-height-sm: 200px;
+  --decision-path-stack-icon-size: 22px;
 
   --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
@@ -290,6 +334,37 @@
   --overlay-white-30: rgba(255, 255, 255, 0.30);
   --overlay-white-20: rgba(255, 255, 255, 0.20);
   --overlay-white-15: rgba(255, 255, 255, 0.15);
+  --overlay-white-85: rgba(255, 255, 255, 0.85);
+  --overlay-white-14: rgba(255, 255, 255, 0.14);
+  --overlay-white-09: rgba(255, 255, 255, 0.09);
+  --overlay-white-08: rgba(255, 255, 255, 0.08);
+
+  /* Third-party brand (OAuth SVG fills; SSOT for design-system raw-value audits) */
+  --brand-oauth-google-blue: #4285f4;
+  --brand-oauth-google-green: #34a853;
+  --brand-oauth-google-yellow: #fbbc05;
+  --brand-oauth-google-red: #ea4335;
+
+  /* Discover results hero mesh */
+  --discover-results-mesh-indigo: rgba(30, 58, 138, 0.22);
+  --discover-results-mesh-sky: rgba(14, 165, 233, 0.18);
+
+  /* Shared marketing / discovery pill gradient (blue + orange stops) */
+  --gradient-badge-blue-orange: linear-gradient(135deg, rgba(28, 189, 255, 0.12) 0%, rgba(242, 79, 29, 0.08) 100%);
+
+  /* Blue alpha stops (pills, tabs, pipeline badges) */
+  --glc-blue-alpha-12: rgba(28, 189, 255, 0.12);
+  --glc-blue-alpha-18: rgba(28, 189, 255, 0.18);
+  --glc-blue-alpha-20: rgba(28, 189, 255, 0.20);
+  --glc-blue-alpha-25: rgba(28, 189, 255, 0.25);
+  --glc-blue-alpha-30: rgba(28, 189, 255, 0.30);
+
+  /* Confidence / translucent score backgrounds */
+  --score-3-alpha-10: rgba(234, 179, 8, 0.10);
+
+  /* Component shadows tied to brand orange / blue glow */
+  --shadow-orange-tab: 0 2px 8px rgba(242, 79, 29, 0.28);
+  --glow-step-ring: 0 0 12px rgba(28, 189, 255, 0.30);
 
   --chart-1: var(--glc-blue);
   --chart-2: var(--glc-green);

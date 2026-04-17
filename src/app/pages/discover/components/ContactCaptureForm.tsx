@@ -48,7 +48,7 @@ export function ContactCaptureForm(props: ContactCaptureFormProps) {
           <p className="text-success text-base font-semibold">
             {discoverResultsUi.copy.contactSavedTitle}
           </p>
-          <p className="text-muted-foreground text-[0.9375rem] leading-[1.55]">
+          <p className="text-muted-foreground text-[length:var(--text-base)] leading-[1.55]">
             {discoverResultsUi.copy.contactSavedBody}
           </p>
         </div>
@@ -65,7 +65,7 @@ export function ContactCaptureForm(props: ContactCaptureFormProps) {
         <p className="text-foreground mb-1.5 text-base font-semibold">
           {discoverResultsUi.copy.contactFormTitle}
         </p>
-        <p className="text-muted-foreground text-[0.9375rem] leading-[1.6]">
+        <p className="text-muted-foreground text-[length:var(--text-base)] leading-[1.6]">
           {discoverResultsUi.copy.contactFormHint}
         </p>
       </div>
@@ -82,7 +82,7 @@ export function ContactCaptureForm(props: ContactCaptureFormProps) {
             placeholder={placeholder}
             value={value}
             onChange={event => setter(event.target.value)}
-            className="glc-field-control text-foreground w-full rounded-xl border bg-[var(--input-background)] px-4 py-3 text-[0.9375rem] outline-none"
+            className="glc-field-control text-foreground w-full rounded-xl border bg-[var(--input-background)] px-4 py-3 text-[length:var(--text-base)] outline-none"
           />
         ))}
       </div>
@@ -91,7 +91,7 @@ export function ContactCaptureForm(props: ContactCaptureFormProps) {
         type="submit"
         disabled={contactSaving || !hasAnyValue}
         className={cn(
-          'w-full rounded-xl py-3 text-[0.9375rem] font-semibold',
+          'w-full rounded-xl py-3 text-[length:var(--text-base)] font-semibold',
           contactSaving || !hasAnyValue
             ? 'bg-muted text-muted-foreground cursor-not-allowed border'
             : 'bg-gradient-to-r from-sky-400 to-sky-600 text-primary-foreground border-info/40 border',

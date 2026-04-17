@@ -80,13 +80,13 @@ export function DiscoverQuestionnaireView(props: DiscoverQuestionnaireViewProps)
               <div className="bg-gradient-to-r from-sky-400 to-sky-600 flex h-7 w-7 items-center justify-center rounded-lg">
                 <ChartBar size={16} weight="bold" className="text-primary-foreground" />
               </div>
-              <span className="text-foreground text-[15px] font-bold tracking-[-0.01em]">
+              <span className="text-foreground text-[length:var(--text-base)] font-bold tracking-[var(--tracking-discover-results-brand)]">
                 GLC Audit
               </span>
             </div>
           )}
           {isSplit && (
-            <span className="text-foreground text-[13px] font-semibold">
+            <span className="text-foreground text-[length:var(--text-sm)] font-semibold">
               {discoveryUiCopy.wizardHeader.answersLabel}
             </span>
           )}
@@ -98,17 +98,17 @@ export function DiscoverQuestionnaireView(props: DiscoverQuestionnaireViewProps)
         <Progress
           value={((currentIdx + (canAdvance ? 1 : 0)) / sequence.length) * 100}
           className={cn(
-            'h-[2px] bg-muted [&>[data-slot=progress-indicator]]:bg-gradient-to-r [&>[data-slot=progress-indicator]]:from-sky-400 [&>[data-slot=progress-indicator]]:to-sky-600',
+            'h-[length:var(--discover-progress-track-height)] bg-muted [&>[data-slot=progress-indicator]]:bg-gradient-to-r [&>[data-slot=progress-indicator]]:from-sky-400 [&>[data-slot=progress-indicator]]:to-sky-600',
             isSplit ? 'mb-6' : 'mb-8',
           )}
         />
 
         {!isSplit && currentIdx === 0 && (
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-6 text-center">
-            <h1 className="text-foreground text-[22px] font-extrabold tracking-[-0.02em] leading-[1.3]">
+            <h1 className="text-foreground text-[length:var(--discover-wizard-intro-title-size)] font-extrabold leading-[1.3] tracking-[var(--tracking-tight)]">
               {discoveryUiCopy.wizardHeader.introTitle}
             </h1>
-            <p className="text-muted-foreground mt-2 text-[13px] leading-[1.6]">
+            <p className="text-muted-foreground mt-2 text-[length:var(--text-sm)] leading-[1.6]">
               {discoveryUiCopy.wizardHeader.introSubtitle.replace('{{count}}', String(sequence.length))}
             </p>
           </motion.div>
@@ -143,20 +143,20 @@ export function DiscoverQuestionnaireView(props: DiscoverQuestionnaireViewProps)
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-            className="bg-card border-info/20 space-y-3 rounded-2xl border p-5 shadow-[0_4px_24px_rgba(11,17,32,0.08)]"
+            className="bg-card border-info/20 space-y-3 rounded-2xl border p-5 shadow-[var(--shadow-discover-question-card)]"
           >
             <div className="flex items-center gap-2">
               <span className="bg-gradient-to-r from-sky-400 to-sky-600 text-primary-foreground inline-flex h-5 w-5 items-center justify-center rounded-full text-[length:var(--text-2xs)] font-bold">
                 {currentIdx + 1}
               </span>
               {currentQuestion.type === 'multi_choice' && (
-                <span className="text-muted-foreground text-[length:var(--text-2xs)] tracking-[0.04em]">
+                <span className="text-muted-foreground text-[length:var(--text-2xs)] tracking-[var(--tracking-wide)]">
                   {DISCOVER_PAGE_UI.questionnaire.multiChoiceHintLabel}
                 </span>
               )}
             </div>
 
-            <label className="text-foreground block text-[15px] font-semibold leading-[1.4]">
+            <label className="text-foreground block text-[length:var(--text-base)] font-semibold leading-[1.4]">
               {currentQuestion.question}
             </label>
 
@@ -194,8 +194,8 @@ export function DiscoverQuestionnaireView(props: DiscoverQuestionnaireViewProps)
                 className={cn(
                   'flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-transform hover:scale-[1.02] active:scale-[0.97] disabled:hover:scale-100 disabled:active:scale-100',
                   canAdvance
-                    ? 'bg-gradient-to-r from-sky-400 to-sky-600 text-primary-foreground shadow-[0_6px_18px_rgba(28,189,255,0.34)]'
-                    : 'bg-gradient-to-r from-sky-400/70 to-sky-700/70 text-primary-foreground/80 cursor-not-allowed border border-info/35 shadow-[0_3px_10px_rgba(28,189,255,0.2)]',
+                    ? 'bg-gradient-to-r from-sky-400 to-sky-600 text-primary-foreground shadow-[var(--shadow-discover-cta-active)]'
+                    : 'bg-gradient-to-r from-sky-400/70 to-sky-700/70 text-primary-foreground/80 cursor-not-allowed border border-info/35 shadow-[var(--shadow-discover-cta-muted)]',
                 )}
               >
                 {currentIdx < sequence.length - 1 ? (

@@ -49,7 +49,7 @@ export function SnapshotIdlePreviewCards() {
           return (
           <motion.div
             key={item.title}
-            className="rounded-[var(--radius-xl)] border border-[color-mix(in_oklab,rgba(255,255,255,0.2)_42%,var(--border-subtle))] bg-[linear-gradient(170deg,color-mix(in_oklab,var(--bg-surface)_94%,var(--glc-blue-muted))_0%,color-mix(in_oklab,var(--bg-muted)_84%,var(--bg-surface))_100%)] p-4 shadow-[var(--shadow-sm)]"
+            className="rounded-[var(--radius-xl)] border border-[color-mix(in_oklab,var(--overlay-white-20)_42%,var(--border-subtle))] bg-[linear-gradient(170deg,color-mix(in_oklab,var(--bg-surface)_94%,var(--glc-blue-muted))_0%,color-mix(in_oklab,var(--bg-muted)_84%,var(--bg-surface))_100%)] p-4 shadow-[var(--shadow-sm)]"
             variants={{
               hidden: { opacity: 0, y: MARKETING_CARD_MOTION.hiddenY },
               visible: { opacity: 1, y: 0 },

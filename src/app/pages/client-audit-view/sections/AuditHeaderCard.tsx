@@ -23,7 +23,7 @@ export function AuditHeaderCard({ domain, meta, statusLabel }: { domain: string;
         <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 sm:gap-1 flex-shrink-0">
           <StatusBadge
             label={auditPackageLabel(meta)}
-            toneClassName="border border-[rgba(28,189,255,0.20)] bg-[rgba(28,189,255,0.08)] text-[var(--glc-blue)] capitalize"
+            toneClassName="border border-[color:var(--glc-blue-alpha-20)] bg-[var(--callout-info-bg)] text-[var(--glc-blue)] capitalize"
           />
           <span className="text-xs text-[var(--text-tertiary)]">{statusLabel}</span>
         </div>

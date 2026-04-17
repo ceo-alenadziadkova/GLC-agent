@@ -80,10 +80,7 @@ export function InsightsGridSection(props: {
       )}
 
       {(techEntries.length > 0 || (result.tech_stack_tentative?.length ?? 0) > 0) && (
-        <Surface
-          className={`glc-card glc-snapshot-result-card p-5 lg:p-6 ${snapshotTechColClass}`}
-          style={{ borderRadius: 'var(--radius-xl)' }}
-        >
+        <Surface className={`glc-card glc-snapshot-result-card p-5 lg:p-6 ds-radius-xl ${snapshotTechColClass}`}>
           <div className="glc-snapshot-section-h glc-snapshot-section-h--info !mb-3">
             <span className="glc-snapshot-section-h__rule" aria-hidden />
             <Shield className="h-4 w-4 shrink-0 text-[var(--glc-blue)]" />
@@ -96,12 +93,7 @@ export function InsightsGridSection(props: {
               {detectedTech.slice(0, UI_POLICY.snapshotLanding.maxDetectedTechPills).map((tech, i) => (
                 <span
                   key={i}
-                  className="glc-snapshot-signal-pill rounded-full px-2.5 py-1 text-xs font-medium"
-                  style={{
-                    background: 'var(--bg-inset)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'var(--text-secondary)',
-                  }}
+                  className="glc-snapshot-signal-pill rounded-full px-2.5 py-1 text-xs font-medium ds-snapshot-tech-pill"
                 >
                   {tech}
                 </span>
@@ -118,12 +110,7 @@ export function InsightsGridSection(props: {
                   <span
                     key={i}
                     title={t.signal}
-                    className="glc-snapshot-signal-pill rounded-full px-2.5 py-1 text-xs font-medium"
-                    style={{
-                      background: 'transparent',
-                      border: '1px dashed var(--border-default)',
-                      color: 'var(--text-tertiary)',
-                    }}
+                    className="glc-snapshot-signal-pill rounded-full px-2.5 py-1 text-xs font-medium ds-snapshot-tentative-tech-pill"
                   >
                     {t.name}
                   </span>

@@ -9,7 +9,7 @@ export function ResultsCtaBand(props: { quotaHint: string; reset: () => void }) 
 
   return (
     <div
-      className="glc-snapshot-cta-band overflow-hidden rounded-[var(--radius-xl)] border border-[color:rgba(255,255,255,0.09)] bg-[var(--gradient-ink-rich)] p-6 text-center shadow-[var(--shadow-ink)] mobile:p-5 lg:flex lg:items-center lg:justify-between lg:gap-10 lg:p-8 lg:text-left"
+      className="glc-snapshot-cta-band overflow-hidden rounded-[var(--radius-xl)] border border-[color:var(--overlay-white-09)] bg-[var(--gradient-ink-rich)] p-6 text-center shadow-[var(--shadow-ink)] mobile:p-5 lg:flex lg:items-center lg:justify-between lg:gap-10 lg:p-8 lg:text-left"
     >
       <div className="relative z-[1] min-w-0 flex-1">
         {quotaHint && (
@@ -37,9 +37,9 @@ export function ResultsCtaBand(props: { quotaHint: string; reset: () => void }) 
           onClick={reset}
           className="rounded-lg py-2 text-sm font-medium mobile:min-h-11"
           style={{
-            color: 'rgba(255,255,255,0.85)',
-            background: 'rgba(255,255,255,0.08)',
-            border: '1px solid rgba(255,255,255,0.14)',
+            color: 'var(--overlay-white-85)',
+            background: 'var(--overlay-white-08)',
+            border: '1px solid var(--overlay-white-14)',
             cursor: 'pointer',
           }}
         >

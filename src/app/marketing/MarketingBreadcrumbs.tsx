@@ -21,12 +21,7 @@ export function MarketingBreadcrumbs({ items }: { items: Crumb[] }) {
                 {c.label}
               </Link>
             ) : (
-              <span
-                className={i === items.length - 1 ? 'font-medium' : undefined}
-                style={{ color: i === items.length - 1 ? 'var(--text-secondary)' : undefined }}
-              >
-                {c.label}
-              </span>
+              <span className={i === items.length - 1 ? 'font-medium ds-text-secondary' : undefined}>{c.label}</span>
             )}
           </li>
         ))}

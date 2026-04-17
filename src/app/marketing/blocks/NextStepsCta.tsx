@@ -57,18 +57,11 @@ export function NextStepsCta({
     <>
       <div className="min-w-0 flex-1">
         <p
-          className="flex flex-wrap items-center gap-2 font-semibold"
-          style={{ color: s.primary ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+          className={`flex flex-wrap items-center gap-2 font-semibold ${s.primary ? 'ds-next-step-title-primary' : 'ds-next-step-title-secondary'}`}
         >
           {s.label}
           {s.primary && (
-            <span
-              className="rounded-full px-2 py-0.5 text-[length:var(--text-2xs)] font-bold uppercase tracking-wide"
-              style={{
-                backgroundColor: 'var(--glc-orange-xlight)',
-                color: 'var(--glc-orange-dark)',
-              }}
-            >
+            <span className="rounded-full px-2 py-0.5 text-[length:var(--text-2xs)] font-bold uppercase tracking-wide ds-next-step-recommended-badge">
               Recommended
             </span>
           )}
@@ -94,7 +87,7 @@ export function NextStepsCta({
         style={{
           borderRadius: 'var(--radius-2xl)',
           boxShadow: isHome ? 'none' : 'var(--shadow-card)',
-          border: isHome ? '1px solid var(--border-subtle)' : undefined,
+          border: isHome ? 'var(--border-width-default) solid var(--border-subtle)' : undefined,
         }}
       >
         {header}
@@ -138,14 +131,14 @@ export function NextStepsCta({
         style={{
           borderRadius: 'var(--radius-2xl)',
           boxShadow: isHome ? 'none' : 'var(--shadow-card)',
-          border: isHome ? '1px solid var(--border-subtle)' : undefined,
+          border: isHome ? 'var(--border-width-default) solid var(--border-subtle)' : undefined,
         }}
       >
         {header}
         <div className="overflow-x-auto">
           <ul className="flex gap-3 px-4 py-4 sm:px-6" style={{ width: 'max-content' }}>
             {steps.map(s => (
-              <li key={s.to} className="w-[min(18rem,78vw)] shrink-0">
+              <li key={s.to} className="shrink-0 ds-next-steps-rail-card">
                 <Link
                   to={s.to}
                   className={cn(stepLinkClass, 'rounded-[var(--radius-xl)] border p-4')}
@@ -180,7 +173,7 @@ export function NextStepsCta({
       style={{
         borderRadius: 'var(--radius-2xl)',
         boxShadow: isHome ? 'none' : 'var(--shadow-card)',
-        border: isHome ? '1px solid var(--border-subtle)' : undefined,
+        border: isHome ? 'var(--border-width-default) solid var(--border-subtle)' : undefined,
       }}
     >
       {header}
@@ -196,7 +189,9 @@ export function NextStepsCta({
                     ? 'color-mix(in oklab, var(--glc-blue-muted) 35%, transparent)'
                     : 'color-mix(in oklab, var(--glc-blue-muted) 50%, transparent)'
                   : 'transparent',
-                border: s.primary ? '1px solid color-mix(in oklab, var(--glc-blue) 38%, var(--border-subtle))' : '1px solid transparent',
+                border: s.primary
+                  ? 'var(--border-width-default) solid color-mix(in oklab, var(--glc-blue) 38%, var(--border-subtle))'
+                  : 'var(--border-width-default) solid transparent',
                 textDecoration: 'none',
               }}
             >

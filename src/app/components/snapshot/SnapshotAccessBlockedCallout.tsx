@@ -2,6 +2,7 @@
  * When robots.txt or fetch failure prevented sampling HTML — explain clearly and suggest next steps.
  */
 
+import type { CSSProperties } from 'react';
 import { SealCheck, Warning } from '@phosphor-icons/react';
 import { cn } from '../ui/utils';
 
@@ -57,19 +58,19 @@ export function SnapshotAccessBlockedCallout(props: {
   return (
     <div
       className={cn(
-        'glc-card mb-5 border p-5 text-left lg:mb-6 lg:p-6',
+        'glc-card mb-5 border p-5 text-left lg:mb-6 lg:p-6 ds-snapshot-callout-panel',
         policyVisual
           ? 'border-[color-mix(in_oklab,var(--glc-green)_35%,var(--border-default))] shadow-[inset_3px_0_0_var(--glc-green)]'
           : 'border-[var(--border-default)] shadow-[inset_3px_0_0_var(--score-2)]',
       )}
-      style={{ background: panelBg }}
+      style={{ ['--snapshot-callout-panel-bg' as string]: panelBg } as CSSProperties}
       role="status"
     >
       <div className="mb-3 flex items-start gap-3">
         {policyVisual ? (
-          <SealCheck className="mt-0.5 h-5 w-5 shrink-0" style={{ color: accent }} weight="fill" aria-hidden />
+          <SealCheck className="mt-0.5 h-5 w-5 shrink-0" color={accent} weight="fill" aria-hidden />
         ) : (
-          <Warning className="mt-0.5 h-5 w-5 shrink-0" style={{ color: accent }} weight="fill" aria-hidden />
+          <Warning className="mt-0.5 h-5 w-5 shrink-0" color={accent} weight="fill" aria-hidden />
         )}
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">

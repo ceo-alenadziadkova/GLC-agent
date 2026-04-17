@@ -30,12 +30,10 @@ export function NavigationLinksSection({
             <FileText className="w-5 h-5 flex-shrink-0 ds-text-brand"  />
             <div>
               <div className="font-medium text-sm ds-text-primary" >{CLIENT_AUDIT_VIEW_COPY.links.viewReport}</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-                {CLIENT_AUDIT_VIEW_COPY.links.reportFinished}
-              </div>
+              <div className="ds-type-xs-secondary">{CLIENT_AUDIT_VIEW_COPY.links.reportFinished}</div>
             </div>
           </div>
-          <CheckCircle weight="fill" className="w-5 h-5" style={{ color: UI_SEMANTIC_COLORS.success }} />
+          <CheckCircle weight="fill" className="w-5 h-5" color={UI_SEMANTIC_COLORS.success} />
         </Link>
       )}
 
@@ -49,7 +47,7 @@ export function NavigationLinksSection({
             <Pulse className="w-5 h-5 flex-shrink-0 ds-text-brand"  />
             <div>
               <div className="font-medium text-sm ds-text-primary" >{CLIENT_AUDIT_VIEW_COPY.links.pipelineStatus}</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+              <div className="ds-type-xs-secondary">
                 {isCompleted ? CLIENT_AUDIT_VIEW_COPY.links.pipelineReview : CLIENT_AUDIT_VIEW_COPY.links.pipelineFollow}
               </div>
             </div>

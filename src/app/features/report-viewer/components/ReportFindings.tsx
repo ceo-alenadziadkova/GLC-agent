@@ -35,7 +35,7 @@ export function ReportFindings({
             icon: CheckCircle,
             color: 'var(--glc-green)',
             bg: 'var(--glc-green-xlight)',
-            border: 'rgba(14,207,130,0.20)',
+            border: 'var(--score-5-border)',
             items: strengthItems,
           },
           {
@@ -59,7 +59,7 @@ export function ReportFindings({
             className="p-5"
             style={{
               backgroundColor: bg,
-              border: `1px solid ${border}`,
+              border: `var(--border-width-default) solid ${border}`,
               borderRadius: 'var(--radius-xl)',
             }}
           >
@@ -98,7 +98,10 @@ export function ReportFindings({
         <div className="glc-card overflow-hidden ds-radius-xl" >
           <div
             className="flex items-center justify-between px-5 py-3"
-            style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
+            style={{
+              borderBottom: 'var(--border-width-default) solid var(--border-subtle)',
+              backgroundColor: 'var(--bg-canvas)',
+            }}
           >
             <div className="flex items-center gap-2">
               <Lightning
@@ -130,7 +133,7 @@ export function ReportFindings({
                     style={{
                       backgroundColor: 'var(--glc-orange-xlight)',
                       color: 'var(--glc-orange)',
-                      fontSize: '10px',
+                      fontSize: 'var(--text-2xs)',
                     }}
                   >
                     {index + 1}

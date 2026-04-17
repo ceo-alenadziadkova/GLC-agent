@@ -51,13 +51,13 @@ export function DomainScorecard({
     >
       <div
         className="flex items-center justify-between px-5 py-3"
-        style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
+        style={{ borderBottom: 'var(--border-width-default) solid var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
       >
         <div className="flex items-center gap-2">
           <ChartBar className="w-4 h-4 ds-text-brand"  />
           <SectionLabel>{REPORT_VIEWER_COPY.sections.scorecard}</SectionLabel>
         </div>
-        <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+        <span className="text-[length:var(--text-xs)]" style={{ color: 'var(--text-tertiary)' }}>
           {domainEntriesCount} {isFilteredProfile ? `of ${REPORT_VIEWER_CONSTANTS.totalDomainCount}` : ''}{' '}
           domains · avg {averageScore.toFixed(1)}/{REPORT_VIEWER_CONSTANTS.scoreMax}
         </span>
@@ -83,11 +83,10 @@ export function DomainScorecard({
               {String(index + 1).padStart(2, '0')}
             </span>
             <span
-              className="flex-1 font-medium text-sm"
+              className="flex-1 font-medium text-sm ds-letterspace-tight-01"
               style={{
                 color: 'var(--text-primary)',
                 fontFamily: 'var(--font-display)',
-                letterSpacing: '-0.01em',
               }}
             >
               {domain.label}

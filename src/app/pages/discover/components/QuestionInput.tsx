@@ -35,15 +35,9 @@ export function QuestionInput({
           value={strVal}
           onChange={event => onChange(event.target.value || null)}
           placeholder={freeTextPlaceholderById[qId] ?? discoveryUiCopy.freeTextDefaultPlaceholder}
-          className="glc-field-control w-full px-4 py-3 rounded-xl text-sm outline-none resize-none"
-          style={{
-            background: 'var(--input-background)',
-            border: '1px solid var(--border-default)',
-            color: 'var(--text-primary)',
-            lineHeight: 1.6,
-          }}
+          className="ds-discover-question-textarea glc-field-control w-full resize-none rounded-xl px-4 py-3 text-sm outline-none"
         />
-        <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: 0 }}>
+        <p className="m-0 text-[length:var(--discover-question-help-font-size)] ds-text-tertiary">
           {discoverResultsUi.copy.questionInputHelp}
         </p>
       </div>
@@ -62,17 +56,8 @@ export function QuestionInput({
                 key={option}
                 type="button"
                 onClick={() => onChange(selected ? null : option)}
-                className="px-3 py-2 rounded-lg text-sm transition-all"
-                style={{
-                  background: selected
-                    ? 'color-mix(in oklab, var(--glc-blue-muted) 78%, var(--bg-surface))'
-                    : 'var(--bg-muted)',
-                  border: selected
-                    ? '1px solid color-mix(in oklab, var(--glc-blue) 70%, var(--border-default))'
-                    : '1px solid var(--border-default)',
-                  color: selected ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
-                  fontWeight: selected ? 600 : 400,
-                }}
+                data-discover-choice-selected={selected ? 'true' : 'false'}
+                className="ds-discover-choice-chip rounded-lg px-3 py-2 text-sm transition-all"
               >
                 {option}
               </button>
@@ -85,12 +70,7 @@ export function QuestionInput({
             value={specifyValue}
             onChange={event => onSpecifyChange(event.target.value)}
             placeholder={discoverResultsUi.copy.specifyPlaceholder}
-            className="glc-field-control w-full px-4 py-3 rounded-xl text-sm outline-none"
-            style={{
-              background: 'var(--input-background)',
-              border: '1px solid var(--glc-blue)',
-              color: 'var(--text-primary)',
-            }}
+            className="ds-discover-specify-field glc-field-control w-full rounded-xl px-4 py-3 text-sm outline-none"
           />
         )}
       </div>
@@ -112,17 +92,8 @@ export function QuestionInput({
                   const next = selected ? arrVal.filter(valueItem => valueItem !== option) : [...arrVal, option];
                   onChange(next.length ? next : null);
                 }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-all"
-                style={{
-                  background: selected
-                    ? 'color-mix(in oklab, var(--glc-blue-muted) 78%, var(--bg-surface))'
-                    : 'var(--bg-muted)',
-                  border: selected
-                    ? '1px solid color-mix(in oklab, var(--glc-blue) 70%, var(--border-default))'
-                    : '1px solid var(--border-default)',
-                  color: selected ? 'var(--glc-blue-deeper)' : 'var(--text-secondary)',
-                  fontWeight: selected ? 600 : 400,
-                }}
+                data-discover-choice-selected={selected ? 'true' : 'false'}
+                className="ds-discover-choice-chip flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm transition-all"
               >
                 {selected && <Check size={12} weight="bold" />}
                 {option}
@@ -136,12 +107,7 @@ export function QuestionInput({
             value={specifyValue}
             onChange={event => onSpecifyChange(event.target.value)}
             placeholder={discoverResultsUi.copy.specifyPlaceholder}
-            className="glc-field-control w-full px-4 py-3 rounded-xl text-sm outline-none"
-            style={{
-              background: 'var(--input-background)',
-              border: '1px solid var(--glc-blue)',
-              color: 'var(--text-primary)',
-            }}
+            className="ds-discover-specify-field glc-field-control w-full rounded-xl px-4 py-3 text-sm outline-none"
           />
         )}
       </div>

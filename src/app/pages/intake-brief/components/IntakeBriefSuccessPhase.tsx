@@ -35,68 +35,28 @@ export function IntakeBriefSuccessPhase(props: {
       className="w-full space-y-6 text-left"
     >
       <div className="text-center">
-        <CheckCircle className="w-12 h-12 mx-auto mb-1" style={{ color: 'var(--glc-green)' }} weight="fill" />
+        <CheckCircle className="w-12 h-12 mx-auto mb-1 text-[var(--glc-green)]" weight="fill" />
       </div>
 
-      <div
-        className="glc-card overflow-hidden"
-        style={{
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          boxShadow: 'var(--shadow-lg)',
-        }}
-      >
-        <div
-          className="px-5 py-4"
-          style={{
-            borderBottom: '1px solid var(--border-subtle)',
-            background: 'linear-gradient(180deg, rgba(16,207,130,0.06) 0%, transparent 100%)',
-          }}
-        >
-          <p
-            className="text-xs font-semibold uppercase tracking-[0.14em]"
-            style={{ color: 'var(--glc-green)', marginBottom: 6 }}
-          >
+      <div className="glc-card overflow-hidden rounded-[var(--radius-xl)] border border-[var(--border-subtle)] shadow-[var(--shadow-lg)]">
+        <div className="px-5 py-4 border-b border-[var(--border-subtle)] bg-[linear-gradient(180deg,var(--glc-green-alpha-06)_0%,transparent_100%)]">
+          <p className="text-xs font-semibold uppercase tracking-[var(--tracking-drawer-caps)] text-[var(--glc-green)] mb-1.5">
             {successIsUpdate ? copy.successBadgeUpdate : copy.successBadgeNew}
           </p>
-          <h2
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontWeight: 700,
-              fontSize: 'var(--text-xl)',
-              color: 'var(--text-primary)',
-              letterSpacing: 'var(--tracking-tight)',
-              lineHeight: 1.25,
-            }}
-          >
+          <h2 className="font-[family-name:var(--font-display)] font-bold text-[length:var(--text-xl)] text-[var(--text-primary)] tracking-[var(--tracking-tight)] leading-tight">
             {successIsUpdate ? copy.successTitleUpdate : copy.successTitleNew}
           </h2>
         </div>
         <div className="px-5 py-4 space-y-4">
-          <div
-            className="flex items-start gap-3 rounded-xl px-3 py-3"
-            style={{
-              backgroundColor: 'var(--bg-inset)',
-              border: '1px solid var(--border-subtle)',
-            }}
-          >
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-              style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
-            >
+          <div className="flex items-start gap-3 rounded-xl px-3 py-3 bg-[var(--bg-inset)] border border-[var(--border-subtle)]">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
               <Clock className="h-4 w-4 ds-text-tertiary"  />
             </div>
             <div className="min-w-0 pt-0.5">
-              <p
-                className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider"
-                style={{ color: 'var(--text-quaternary)', marginBottom: 2 }}
-              >
+              <p className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider text-[var(--text-quaternary)] mb-0.5">
                 {successIsUpdate ? copy.successTimeLabelUpdate : copy.successTimeLabelNew}
               </p>
-              <p
-                className="text-sm font-medium tabular-nums"
-                style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}
-              >
+              <p className="text-sm font-medium tabular-nums text-[var(--text-primary)]">
                 {formatIntakeBriefSavedAt(lastSubmittedIso)}
               </p>
             </div>
@@ -104,7 +64,7 @@ export function IntakeBriefSuccessPhase(props: {
 
           {successIsUpdate ? (
             <p className="text-sm leading-relaxed m-0 ds-text-secondary" >
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+              <span className="text-[var(--text-primary)] font-semibold">
                 {consultantNamed || consultantLabel}
               </span>{' '}
               {copy.successUpdateAfterName}
@@ -114,7 +74,7 @@ export function IntakeBriefSuccessPhase(props: {
               <p className="text-sm leading-relaxed m-0 ds-text-secondary" >
                 {consultantNamed ? (
                   <>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{consultantNamed}</span>{' '}
+                    <span className="text-[var(--text-primary)] font-semibold">{consultantNamed}</span>{' '}
                     {copy.successNewAfterName}
                   </>
                 ) : (
@@ -138,13 +98,7 @@ export function IntakeBriefSuccessPhase(props: {
                 </p>
               )}
               {contactFooter.length > 0 && (
-                <div
-                  className="rounded-xl px-3 py-3"
-                  style={{
-                    backgroundColor: 'var(--bg-inset)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
+                <div className="rounded-xl px-3 py-3 bg-[var(--bg-inset)] border border-[var(--border-subtle)]">
                   <p
                     className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider m-0 mb-2 ds-text-quaternary"
                     

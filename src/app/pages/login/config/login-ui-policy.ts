@@ -37,7 +37,7 @@ export const LOGIN_UI_POLICY = {
 export const LOGIN_FORM_STYLE_PRESETS = {
   inputBase: {
     borderRadius: 'var(--radius-lg)',
-    border: '1px solid var(--border-default)',
+    border: 'var(--border-width-default) solid var(--border-default)',
     backgroundColor: 'var(--bg-surface)',
     color: 'var(--text-primary)',
     fontSize: 'var(--text-sm)',
@@ -62,7 +62,7 @@ export const LOGIN_FORM_STYLE_PRESETS = {
   submitButtonReady: {
     background: 'var(--gradient-brand)',
     color: 'var(--primary-foreground)',
-    boxShadow: '0 8px 20px color-mix(in oklab, var(--glc-blue) 34%, transparent)',
+    boxShadow: '0 var(--space-2) var(--space-5) color-mix(in oklab, var(--glc-blue) 34%, transparent)',
   },
   submitButtonDisabled: {
     background: 'var(--border-default)',

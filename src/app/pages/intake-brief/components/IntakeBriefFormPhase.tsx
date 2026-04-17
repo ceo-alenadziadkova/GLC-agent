@@ -82,7 +82,7 @@ export function IntakeBriefFormPhase(props: {
           className="text-xs text-center px-3 py-2 rounded-lg"
           style={{
             background: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
+            border: 'var(--border-width-default) solid var(--border-subtle)',
             color: 'var(--text-secondary)',
           }}
         >
@@ -101,8 +101,8 @@ export function IntakeBriefFormPhase(props: {
         <p
           className="text-xs text-center px-3 py-2 rounded-lg"
           style={{
-            background: 'rgba(28,189,255,0.08)',
-            border: '1px solid rgba(28,189,255,0.2)',
+            background: 'var(--callout-info-bg)',
+            border: 'var(--border-width-default) solid var(--glc-blue-alpha-20)',
             color: 'var(--text-secondary)',
           }}
         >
@@ -113,7 +113,7 @@ export function IntakeBriefFormPhase(props: {
         className="text-xs text-center px-3 py-2 rounded-lg"
         style={{
           background: 'var(--bg-surface)',
-          border: '1px solid var(--border-subtle)',
+          border: 'var(--border-width-default) solid var(--border-subtle)',
           color: 'var(--text-secondary)',
         }}
       >
@@ -127,13 +127,10 @@ export function IntakeBriefFormPhase(props: {
             {answered} / {total}
           </span>
         </div>
-        <div className="rounded-full overflow-hidden" style={{ height: 3, backgroundColor: 'var(--bg-muted)' }}>
+        <div className="rounded-full overflow-hidden ds-intake-brief-progress-track">
           <div
-            className="h-full rounded-full transition-all"
-            style={{
-              width: `${total ? (answered / total) * 100 : 0}%`,
-              background: 'var(--gradient-brand)',
-            }}
+            className="h-full rounded-full transition-all ds-intake-progress-fill"
+            style={{ width: `${total ? (answered / total) * 100 : 0}%` }}
           />
         </div>
       </div>
@@ -147,11 +144,7 @@ export function IntakeBriefFormPhase(props: {
           >
             <h2
               id={`intake-section-${blockIdx}`}
-              className="text-xs font-semibold uppercase tracking-[0.12em] m-0 pb-1"
-              style={{
-                color: 'var(--text-quaternary)',
-                borderBottom: '1px solid var(--border-subtle)',
-              }}
+              className="text-xs font-semibold uppercase m-0 pb-1 ds-intake-form-section-heading"
             >
               {block.section}
             </h2>
@@ -212,7 +205,7 @@ export function IntakeBriefFormPhase(props: {
         style={{
           background: formComplete ? 'var(--gradient-brand)' : 'var(--bg-muted)',
           color: formComplete ? 'var(--primary-foreground)' : 'var(--text-secondary)',
-          border: formComplete ? 'none' : '1px solid var(--border-subtle)',
+          border: formComplete ? 'none' : 'var(--border-width-default) solid var(--border-subtle)',
           cursor: formComplete ? 'pointer' : 'not-allowed',
         }}
         onClick={onGoReview}

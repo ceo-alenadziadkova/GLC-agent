@@ -163,19 +163,27 @@ export function StudioToolbarSection(props: StudioToolbarSectionProps) {
             <Switch checked={clusterByPrimaryDomain} onCheckedChange={onClusterByPrimaryDomainChange} />
             {QUESTION_BANK_STUDIO_COPY_EN.toolbar.clusterByPrimaryDomain}
           </label>
-          <label className={`flex items-center gap-2 text-xs ${!tracePlanReady ? 'opacity-50' : ''}`} style={{ color: 'var(--text-secondary)' }}>
+          <label
+            className={`flex items-center gap-2 text-xs ds-text-secondary ${!tracePlanReady ? 'opacity-50' : ''}`}
+          >
             <Switch checked={planFootprintOnly} disabled={!tracePlanReady} onCheckedChange={onPlanFootprintOnlyChange} />
             {QUESTION_BANK_STUDIO_COPY_EN.toolbar.planFootprint}
           </label>
           <div className="flex flex-wrap gap-1 items-center">
-            <button type="button" disabled={exportBusy} className="text-xs font-medium px-2 py-1.5 rounded-md"
-              style={{ border: '1px solid var(--border-default)', backgroundColor: 'var(--bg-canvas)', color: 'var(--text-secondary)', cursor: exportBusy ? 'wait' : 'pointer', opacity: exportBusy ? 0.6 : 1 }}
-              onClick={onExportSvg}>
+            <button
+              type="button"
+              disabled={exportBusy}
+              className="text-xs font-medium px-2 py-1.5 rounded-md ds-studio-toolbar-export-btn"
+              onClick={onExportSvg}
+            >
               {QUESTION_BANK_STUDIO_COPY_EN.toolbar.exportSvg}
             </button>
-            <button type="button" disabled={exportBusy} className="text-xs font-medium px-2 py-1.5 rounded-md"
-              style={{ border: '1px solid var(--border-default)', backgroundColor: 'var(--bg-canvas)', color: 'var(--text-secondary)', cursor: exportBusy ? 'wait' : 'pointer', opacity: exportBusy ? 0.6 : 1 }}
-              onClick={onExportPng}>
+            <button
+              type="button"
+              disabled={exportBusy}
+              className="text-xs font-medium px-2 py-1.5 rounded-md ds-studio-toolbar-export-btn"
+              onClick={onExportPng}
+            >
               {exportBusy ? QUESTION_BANK_STUDIO_COPY_EN.toolbar.pngBusy : QUESTION_BANK_STUDIO_COPY_EN.toolbar.exportPng}
             </button>
           </div>

@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { Icon } from '@phosphor-icons/react';
 import {
   Gear,
@@ -28,39 +29,24 @@ export function AuditTeaser({ industry }: { industry: string | null }) {
 
   return (
     <div
-      className="min-w-0 max-w-full overflow-hidden rounded-2xl p-5 sm:p-6"
-      style={{
-        background: teaserUi.panelBackground,
-        border: `1px solid ${teaserUi.panelBorder}`,
-        boxSizing: 'border-box',
-      }}
+      className="min-w-0 max-w-full overflow-hidden rounded-2xl p-5 sm:p-6 ds-audit-teaser-panel"
+      style={
+        {
+          ['--audit-teaser-panel-bg' as string]: teaserUi.panelBackground,
+          ['--audit-teaser-panel-border' as string]: teaserUi.panelBorder,
+          ['--audit-teaser-section-label' as string]: teaserUi.sectionLabel,
+          ['--audit-teaser-bullet-text' as string]: teaserUi.bulletText,
+        } as CSSProperties
+      }
     >
-      <p
-        className="text-[0.6875rem] font-semibold uppercase tracking-widest mb-4 break-words"
-        style={{ color: teaserUi.sectionLabel }}
-      >
+      <p className="font-semibold uppercase tracking-widest mb-4 break-words ds-audit-teaser-section-label">
         {discoverResultsUi.teaserHeading}
       </p>
       <div className="space-y-4">
         {bullets.map(({ Icon, text }, index) => (
           <div key={index} className="flex min-w-0 items-start gap-3">
-            <Icon
-              size={18}
-              weight="fill"
-              className="mt-0.5 shrink-0"
-              style={{ color: teaserUi.bulletIcon }}
-            />
-            <p
-              className="min-w-0 break-words text-pretty"
-              style={{
-                fontSize: '1.0625rem',
-                color: teaserUi.bulletText,
-                lineHeight: 1.72,
-                overflowWrap: 'anywhere',
-              }}
-            >
-              {text}
-            </p>
+            <Icon size={18} weight="fill" className="mt-0.5 shrink-0" color={teaserUi.bulletIcon} />
+            <p className="min-w-0 break-words text-pretty ds-audit-teaser-bullet-text">{text}</p>
           </div>
         ))}
       </div>

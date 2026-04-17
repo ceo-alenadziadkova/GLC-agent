@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { Node } from '@xyflow/react';
 
 import { shortUserLabel, statusPill } from '../selectors/trace';
@@ -29,35 +30,26 @@ export function StudioCanvasSection(props: StudioCanvasSectionProps) {
 
   return (
     <div
-      className="flex-1 min-w-0 rounded-lg overflow-hidden"
+      className="flex-1 min-w-0 rounded-lg overflow-hidden ds-studio-canvas-outer"
       style={{
-        border: '1px solid var(--border-default)',
         height: `calc(100vh - ${STUDIO_CANVAS_HEIGHT_OFFSET_PX}px)`,
         minHeight: STUDIO_CANVAS_MIN_HEIGHT_PX,
       }}
     >
-      <div className="h-full overflow-auto p-3 space-y-3 ds-bg-surface" >
+      <div className="h-full overflow-auto p-3 space-y-3 ds-bg-surface">
         {userStepLanes.length === 0 ? (
-          <div className="text-sm ds-text-quaternary" >
-            {STUDIO_COPY_EN.userModeNoStepLayoutHint}
-          </div>
+          <div className="text-sm ds-text-quaternary">{STUDIO_COPY_EN.userModeNoStepLayoutHint}</div>
         ) : (
           userStepLanes
             .filter(step => activeUserStep === null || step.stepIndex === activeUserStep)
             .map(step => (
-              <section
-                key={`flow-step-${step.laneId}`}
-                className="rounded-lg p-3"
-                style={{ border: '1px solid var(--border-default)', backgroundColor: 'var(--bg-canvas)' }}
-              >
-                <div className="text-xs font-semibold mb-2 ds-text-tertiary" >
+              <section key={`flow-step-${step.laneId}`} className="rounded-lg p-3 ds-studio-canvas-section-card">
+                <div className="text-xs font-semibold mb-2 ds-text-tertiary">
                   {`Step ${step.stepIndex + 1} — ${step.label}`}
                 </div>
                 <div className="grid gap-2">
                   {step.questionIds.length === 0 ? (
-                    <div className="text-xs ds-text-quaternary" >
-                      {STUDIO_COPY_EN.userModeNoQuestionsInStepHint}
-                    </div>
+                    <div className="text-xs ds-text-quaternary">{STUDIO_COPY_EN.userModeNoQuestionsInStepHint}</div>
                   ) : (
                     step.questionIds.map(questionId => {
                       const nodeId = questionNodeIdByQuestionId.get(questionId);
@@ -68,14 +60,16 @@ export function StudioCanvasSection(props: StudioCanvasSectionProps) {
                         <button
                           key={`step-card-${step.laneId}-${questionId}`}
                           type="button"
-                          className="w-full text-left rounded-md px-3 py-2"
-                          style={{
-                            border: `1px solid ${pill.border}`,
-                            backgroundColor: active ? pill.bg : 'var(--bg-surface)',
-                            color: 'var(--text-secondary)',
-                            cursor: nodeId ? 'pointer' : 'not-allowed',
-                            opacity: nodeId ? 1 : 0.6,
-                          }}
+                          className="w-full text-left rounded-md px-3 py-2 ds-studio-question-card"
+                          style={
+                            {
+                              ['--studio-q-border' as string]: pill.border,
+                              ['--studio-q-active-bg' as string]: pill.bg,
+                              ['--studio-q-opacity' as string]: nodeId ? 1 : 0.6,
+                              ['--studio-q-cursor' as string]: nodeId ? 'pointer' : 'not-allowed',
+                            } as CSSProperties
+                          }
+                          data-studio-q-active={active ? 'true' : 'false'}
                           disabled={!nodeId}
                           onClick={() => {
                             if (!nodeId) return;
@@ -83,11 +77,17 @@ export function StudioCanvasSection(props: StudioCanvasSectionProps) {
                           }}
                         >
                           <div className="text-xs font-medium">{shortUserLabel(questionId)}</div>
-                          <div className="text-[length:var(--text-2xs)] flex items-center gap-1.5 ds-text-quaternary" >
+                          <div className="text-[length:var(--text-2xs)] flex items-center gap-1.5 ds-text-quaternary">
                             id: <span className="font-mono">{questionId}</span> · status: {status}
                             <span
-                              className="inline-flex items-center px-1.5 py-0.5 rounded"
-                              style={{ backgroundColor: pill.bg, color: pill.fg, border: `1px solid ${pill.border}` }}
+                              className="inline-flex items-center px-1.5 py-0.5 rounded ds-studio-status-pill"
+                              style={
+                                {
+                                  ['--studio-pill-bg' as string]: pill.bg,
+                                  ['--studio-pill-fg' as string]: pill.fg,
+                                  ['--studio-pill-border' as string]: pill.border,
+                                } as CSSProperties
+                              }
                             >
                               {pill.label}
                             </span>

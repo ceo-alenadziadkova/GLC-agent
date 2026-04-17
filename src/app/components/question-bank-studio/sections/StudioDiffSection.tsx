@@ -24,36 +24,25 @@ export function StudioDiffSection(props: StudioDiffSectionProps) {
         {STUDIO_COPY_EN.logicDiffDescription}
       </p>
       <textarea
-        className="w-full min-h-[72px] px-2 py-1.5 text-xs font-mono rounded-md"
-        style={{
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px solid var(--border-default)',
-          color: 'var(--text-primary)',
-        }}
+        className="w-full min-h-[72px] px-2 py-1.5 text-xs font-mono rounded-md ds-studio-diff-textarea"
         value={bankDiffJson}
         onChange={e => onBankDiffJsonChange(e.target.value)}
         spellCheck={false}
       />
       <button
         type="button"
-        className="text-xs font-medium px-2 py-1.5 rounded-md"
-        style={{
-          border: '1px solid var(--border-default)',
-          backgroundColor: 'var(--bg-surface)',
-          color: 'var(--text-secondary)',
-          cursor: 'pointer',
-        }}
+        className="text-xs font-medium px-2 py-1.5 rounded-md ds-studio-tool-btn"
         onClick={onRunBankDiff}
       >
         {STUDIO_COPY_EN.logicDiffCompareButton}
       </button>
       {bankDiffError ? <p className="text-xs m-0 text-red-500">{bankDiffError}</p> : null}
       {bankDiffSummary ? (
-        <div className="text-[length:var(--text-2xs)] space-y-1 font-mono ds-text-secondary" >
-          <div style={{ color: 'var(--text-tertiary)' }}>
+        <div className="text-[length:var(--text-2xs)] space-y-1 font-mono ds-text-secondary">
+          <div className="ds-text-tertiary">
             Added ({bankDiffSummary.added.length}): {bankDiffSummary.added.length ? bankDiffSummary.added.join(', ') : '—'}
           </div>
-          <div style={{ color: 'var(--text-tertiary)' }}>
+          <div className="ds-text-tertiary">
             Removed ({bankDiffSummary.removed.length}):{' '}
             {bankDiffSummary.removed.length ? bankDiffSummary.removed.join(', ') : '—'}
           </div>

@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { FreeSnapshotPreview } from '../../../../data/auditTypes';
 import { Surface } from '../../../../components/ui/surface';
 import { SNAPSHOT_LANDING_HERO_COPY } from '../../../../config/snapshot-landing-copy.en';
@@ -28,21 +29,22 @@ export function CategoryBreakdownSection(props: { result: FreeSnapshotPreview })
                 <span className="truncate">{row.label}</span>
                 <CategoryBreakdownHint label={row.label} categoryKey={row.key} />
               </span>
-              <span className="font-semibold tabular-nums" style={{ color: row.barColor }}>
+              <span
+                className="font-semibold tabular-nums ds-score-bar-label"
+                style={{ ['--ds-score-bar-label' as string]: row.barColor } as CSSProperties}
+              >
                 {row.value}/100
               </span>
             </div>
-            <div
-              className="h-2 w-full overflow-hidden rounded-full bg-[var(--bg-muted)]"
-              aria-hidden
-            >
+            <div className="h-2 w-full overflow-hidden rounded-full ds-score-bar-track" aria-hidden>
               <div
-                className="h-full rounded-full transition-[width] duration-500 ease-out"
-                style={{
-                  width: `${row.percentage}%`,
-                  backgroundColor: row.barColor,
-                  opacity: 0.92,
-                }}
+                className="h-full rounded-full transition-[width] duration-500 ease-out ds-score-bar-fill"
+                style={
+                  {
+                    width: `${row.percentage}%`,
+                    ['--ds-score-bar-fill' as string]: row.barColor,
+                  } as CSSProperties
+                }
               />
             </div>
           </li>

@@ -26,11 +26,17 @@ Date: 2026-04-17
   - `pnpm run audit:ds:refresh-allowlist` — regenerates `scripts/design-system-baseline.allowlist.txt` from current audit output after migrations (line-accurate signatures).
 - TSX token bridge: prefer `.ds-*` classes in `src/styles/components.css` over inline visual `style={{...}}` where enforcement flags `color` / `background` / etc. (same CSS variables as before).
 
+### Vendor primitives vs literal-zero (explicit gate)
+
+- **`src/app/components/ui/**`:** Tailwind + CVA class strings contain many `unit-literal` matches (e.g. `h-8`, `p-3`). CI does **not** require literal-zero there today: violations are **grandfathered** in `scripts/design-system-baseline.allowlist.txt` until either (a) a dedicated epic narrows `DS_RAW_SCOPE` / adjusts the checker for this tree, or (b) primitives are rewritten to token-only class pipelines.
+- **Product / feature / marketing layers:** expect continued tightening: migrate literals to `tokens.css` + `.ds-*`, then `pnpm run audit:ds:refresh-allowlist` to shrink the baseline. No-allowlist drift tracking: [`violations-export.md`](./violations-export.md).
+
 ## Target Maturity Rollout Notes
 
 ### 2026-04-17 implementation status
 
-- **Phase 1 (token pass — app shell, policies, marketing/report):** `APP_SHELL_UI_POLICY` uses `BREAKPOINT_TOKENS` and shell tokens (`--app-shell-drawer-width`, `--shadow-mobile-bottom-nav`, `--app-shell-sidebar-narrow-width`, border width vars). Desktop/mobile shell chrome moved to `.ds-desktop-header*`, `.ds-mobile-bottom-nav`, tokenized overlays (`--overlay-white-75`, etc.). Client audit and settings UI policies use `var(--border-width-default)` and `var(--callout-info-bg)` where literals were flagged. `AuditCompare` and `ReportHeroCard` use `.ds-audit-compare-*` / `.ds-report-hero-*` in `components.css` instead of inline visual styles. Regenerate allowlist after pull: `pnpm run audit:ds:refresh-allowlist`. Remaining no-allowlist drift: see [`violations-export.md`](./violations-export.md) / [`compliance-findings.full.txt`](./compliance-findings.full.txt) (discover/intake/snapshot and some marketing blocks still carry literals or dynamic inline accents).
+- **DS refactor program (SAFE wave):** additional `.ds-*` bridges in `src/styles/components.css` (snapshot score badge sizes, next-steps rail width, marketing header shell, home display H2, intake form section heading, tentative tech pills, letter-spacing utility). Product TSX prefers `var(--border-width-default)` instead of `1px` in inline borders, `text-[length:var(--text-base)]` instead of raw `rem` in Tailwind arbitrary font sizes, and CSS-only motion/sizing where the raw-values checker flags literals. After each batch: `pnpm run audit:ds:export-violations`, `pnpm run audit:ds:refresh-allowlist`, `pnpm run audit:ds:ci`. Mapping table: [`token-replacement-matrix.md`](./token-replacement-matrix.md) (Wave SAFE — product bridge).
+- **Phase 1 (token pass — app shell, policies, marketing/report):** `APP_SHELL_UI_POLICY` uses `BREAKPOINT_TOKENS` and shell tokens (`--app-shell-drawer-width`, `--shadow-mobile-bottom-nav`, `--app-shell-sidebar-narrow-width`, border width vars). Desktop/mobile shell chrome moved to `.ds-desktop-header*`, `.ds-mobile-bottom-nav`, tokenized overlays (`--overlay-white-75`, etc.). Client audit and settings UI policies use `var(--border-width-default)` and `var(--callout-info-bg)` where literals were flagged. `AuditCompare` and `ReportHeroCard` use `.ds-audit-compare-*` / `.ds-report-hero-*` in `components.css` instead of inline visual styles. Regenerate allowlist after pull: `pnpm run audit:ds:refresh-allowlist`. Remaining no-allowlist drift: see [`violations-export.md`](./violations-export.md) / [`compliance-findings.full.txt`](./compliance-findings.full.txt) (vendor `components/ui`, marketing motion literals, workspace/snapshot policies, etc.).
 - Allowlist shrink + bridge classes: batch migrations removed many inline styles (marketing, portal mirror notice, process timeline, score bar track, theme toggle icon colors via custom properties on wrapper, etc.). Legacy CTA styling: `.ds-cta-primary` shares rules with `.glc-btn-primary` in `components.css`; marketing heroes use `ds-cta-primary` on `<Button>` instead of the `glc-btn-primary` class name.
 - `src/styles/tokens.css` remains the canonical token source, now with shared DS infra tokens:
   - `--border-width-default`
@@ -58,6 +64,7 @@ Date: 2026-04-17
 
 ### Deferred epics (not in routine DS migration PRs)
 
+- **DS convergence (RISKY tier):** full single-import surface, unified interactive state model across the entire Radix/shadcn catalog, and literal-zero inside `src/app/components/ui/**` are **program-level** efforts. Routine PRs should only shrink drift in pages, marketing, features, and app components outside the vendor kit unless a PR is explicitly scoped to primitives.
 - **Score / badge widgets:** consolidating `ScoreBadge`, `SnapshotScoreBadge`, `SnapshotScoreDonut`, and similar into one component is a separate epic (API + visual regression budget).
 - **Import surface:** mass migration of imports from `src/app/components/ui/*` to `src/design-system/ui` is a separate codemod pass.
 - **Legacy `glc-*` removal:** only after consumers are on primitives / `.ds-*` bridge classes.

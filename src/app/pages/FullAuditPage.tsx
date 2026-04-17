@@ -92,17 +92,8 @@ export function FullAuditPage() {
                 [strategy.title, `${strategy.subtitle}. All six domains—full synthesis and highest comparability.`],
                 ['Coverage note', 'Every workspace output marks covered and not-analyzed domains.'],
               ].map(([t, b]) => (
-                <div
-                  key={t}
-                  className="relative rounded-[var(--radius-xl)] border p-5"
-                  style={{
-                    borderColor: 'var(--border-subtle)',
-                    background:
-                      'linear-gradient(165deg, var(--bg-surface) 0%, color-mix(in oklab, var(--bg-muted) 65%, var(--bg-surface)) 100%)',
-                    boxShadow: 'var(--shadow-xs)',
-                  }}
-                >
-                  <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--glc-blue-light)' }}>
+                <div key={t} className="relative rounded-[var(--radius-xl)] border p-5 ds-full-audit-tier-card">
+                  <p className="text-xs font-bold uppercase tracking-wide ds-text-glc-blue-light">
                     {t}
                   </p>
                   <p className="mt-2 text-sm leading-relaxed ds-text-primary" >

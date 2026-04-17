@@ -187,7 +187,12 @@ export function ScoreRing({ score, size = 48 }: { score: number; size?: number }
         initial={{ strokeDashoffset: circ }}
         animate={{ strokeDashoffset: circ * (1 - pct) }}
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        style={{ filter: `drop-shadow(0 0 ${strokeW * 2}px ${cfg.color}80)` }}
+        className="ds-score-badge-filter-host"
+        style={
+          {
+            ['--score-badge-filter' as string]: `drop-shadow(0 0 ${strokeW * 2}px ${cfg.color}80)`,
+          } as CSSProperties
+        }
       />
       {/* Number */}
       <text

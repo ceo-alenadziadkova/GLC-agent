@@ -43,7 +43,7 @@ export function DomainNav({
             transition={{ duration: AUDIT_WORKSPACE_UI.transitions.hoverSlideDuration }}
             className={`relative flex w-full items-center gap-2.5 rounded-xl border px-2.5 py-2.5 text-left transition-all duration-150 ${
               active
-                ? 'border-[rgba(28,189,255,0.22)] bg-[var(--glc-blue-xlight)]'
+                ? 'border-[color:var(--callout-info-border)] bg-[var(--glc-blue-xlight)]'
                 : 'border-transparent bg-transparent hover:bg-[var(--bg-canvas)]'
             }`}
           >

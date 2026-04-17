@@ -19,17 +19,16 @@ export function ProfileTabs({ options, profile, onSelect }: ProfileTabsProps) {
             type="button"
             onClick={() => onSelect(option.id)}
             title={option.description}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ds-letterspace-tight-01"
             style={{
-              fontSize: '12px',
+              fontSize: 'var(--space-3)',
               fontWeight: active ? 700 : 500,
               fontFamily: 'var(--font-display)',
               color: active ? 'var(--primary-foreground)' : 'var(--text-secondary)',
               background: active ? 'var(--gradient-accent)' : 'transparent',
-              border: active ? 'none' : '1px solid transparent',
-              boxShadow: active ? '0 2px 8px rgba(242,79,29,0.28)' : 'none',
+              border: active ? 'none' : 'var(--border-width-default) solid transparent',
+              boxShadow: active ? 'var(--shadow-orange-tab)' : 'none',
               cursor: 'pointer',
-              letterSpacing: '-0.01em',
             }}
           >
             <Icon size={13} weight={active ? 'fill' : 'regular'} />
