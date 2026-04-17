@@ -1,0 +1,488 @@
+src/app/components/app-shell/config/app-shell-ui-policy.ts:3 [unit-literal] 640px
+src/app/components/app-shell/config/app-shell-ui-policy.ts:19 [unit-literal] 1px
+src/app/components/app-shell/config/app-shell-ui-policy.ts:22 [unit-literal] 1px
+src/app/components/app-shell/config/app-shell-ui-policy.ts:28 [unit-literal] 20rem
+src/app/components/app-shell/config/app-shell-ui-policy.ts:30 [unit-literal] 12px
+src/app/components/app-shell/config/app-shell-ui-policy.ts:30 [unit-literal] 4px
+src/app/components/app-shell/config/app-shell-ui-policy.ts:34 [unit-literal] 9px
+src/app/components/app-shell/config/app-shell-ui-policy.ts:35 [unit-literal] 10px
+src/app/components/app-shell/sections/DesktopHeader.tsx:20 [unit-literal] 1px
+src/app/components/app-shell/sections/DesktopHeader.tsx:21 [unit-literal] 56px
+src/app/components/app-shell/sections/DesktopHeader.tsx:45 [unit-literal] 0.01em
+src/app/components/app-shell/sections/DesktopSidebar.tsx:63 [unit-literal] 216px
+src/app/components/app-shell/sections/DesktopSidebar.tsx:91 [unit-literal] 9px
+src/app/components/app-shell/sections/DesktopSidebar.tsx:100 [unit-literal] 0.14em
+src/app/components/app-shell/sections/DesktopSidebar.tsx:205 [unit-literal] 0.03em
+src/app/components/app-shell/sections/DesktopSidebar.tsx:205 [unit-literal] 3px
+src/app/components/app-shell/sections/DesktopSidebar.tsx:205 [unit-literal] 9px
+src/app/components/app-shell/sections/MobileBottomNav.tsx:21 [unit-literal] 0px
+src/app/components/app-shell/sections/MobileDrawer.tsx:67 [unit-literal] 0.14em
+src/app/components/app-shell/sections/MobileDrawer.tsx:67 [unit-literal] 9px
+src/app/components/app-shell/sections/MobileDrawer.tsx:122 [rgb-color] rgba(255,255,255,0.75)
+src/app/components/app-shell/sections/MobileHeader.tsx:38 [unit-literal] 0.01em
+src/app/components/app-shell/sections/MobileHeader.tsx:64 [unit-literal] 18px
+src/app/components/glc/ScoreBadge.tsx:190 [inline-visual-style] style={{ filter: `drop-shadow(0 0 ${strokeW * 2}px ${cfg.color}80)` }}
+src/app/components/portal-snapshot-account-mirror/sections/MirrorScoreSection.tsx:45 [inline-visual-style] <span style={{ color: 'var(--text-quaternary)', fontWeight: 700, fontSize: compact ? '0.5em' : '0.45em' }}>
+src/app/components/portal-snapshot-account-mirror/sections/MirrorScoreSection.tsx:71 [inline-visual-style] <p className={compact ? 'mt-0.5 text-sm font-semibold' : 'mt-0.5 text-xs font-semibold sm:text-sm'} style={{ color: c }}>
+src/app/components/question-bank-studio/sections/StudioCanvasSection.tsx:51 [inline-visual-style] style={{ border: '1px solid var(--border-default)', backgroundColor: 'var(--bg-canvas)' }}
+src/app/components/question-bank-studio/sections/StudioCanvasSection.tsx:90 [inline-visual-style] style={{ backgroundColor: pill.bg, color: pill.fg, border: `1px solid ${pill.border}` }}
+src/app/components/question-bank-studio/sections/StudioDiffSection.tsx:53 [inline-visual-style] <div style={{ color: 'var(--text-tertiary)' }}>
+src/app/components/question-bank-studio/sections/StudioDiffSection.tsx:56 [inline-visual-style] <div style={{ color: 'var(--text-tertiary)' }}>
+src/app/components/question-bank-studio/sections/StudioHeaderSection.tsx:25 [inline-visual-style] style={{ border: '1px solid var(--border-default)' }}
+src/app/components/question-bank-studio/sections/StudioHeaderSection.tsx:77 [inline-visual-style] <strong style={{ color: 'var(--text-primary)' }}>Canon map (default):</strong> every bank id and section
+src/app/components/question-bank-studio/sections/StudioHeaderSection.tsx:82 [inline-visual-style] <strong style={{ color: 'var(--text-tertiary)' }}>Left stripe</strong> = policy + canon priority;{' '}
+src/app/components/question-bank-studio/sections/StudioHeaderSection.tsx:83 [inline-visual-style] <strong style={{ color: 'var(--text-tertiary)' }}>outer glow ring</strong> = trace result (answers +{' '}
+src/app/components/question-bank-studio/sections/StudioHeaderSection.tsx:87 [inline-visual-style] <strong style={{ color: 'var(--text-tertiary)' }}>Policy mode</strong> adjusts participation /
+src/app/components/question-bank-studio/sections/StudioLegendSection.tsx:23 [inline-visual-style] <span className="inline-block rounded-sm shrink-0" style={{ width: markerSizePx, height: markerSizePx, backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)' }} />
+src/app/components/question-bank-studio/sections/StudioLegendSection.tsx:27 [inline-visual-style] <span className="inline-block rounded-sm shrink-0" style={{ width: markerSizePx, height: markerSizePx, backgroundColor: 'var(--glc-blue-muted)', border: '1px solid var(--glc-blue)' }} />
+src/app/components/question-bank-studio/sections/StudioLegendSection.tsx:31 [inline-visual-style] <span className="inline-block rounded-sm shrink-0" style={{ width: markerSizePx, height: markerSizePx, backgroundColor: 'var(--bg-surface)', border: `1px dashed ${domainBorderColor}` }} />
+src/app/components/question-bank-studio/sections/StudioLegendSection.tsx:35 [inline-visual-style] <span className="inline-block rounded-sm shrink-0" style={{ width: markerSizePx, height: markerSizePx, backgroundColor: 'var(--bg-surface)', border: `1px dashed ${layoutBorderColor}` }} />
+src/app/components/question-bank-studio/sections/StudioLegendSection.tsx:39 [inline-visual-style] <span className="inline-block rounded-sm shrink-0" style={{ width: markerSizePx, height: markerSizePx, backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)' }} />
+src/app/components/question-bank-studio/sections/StudioLegendSection.tsx:43 [inline-visual-style] <span className="inline-block rounded-sm shrink-0" style={{ width: markerSizePx, height: markerSizePx, backgroundColor: 'var(--bg-surface)', border: '1px dashed color-mix(in oklab, var(--glc-orange) 55%, var(--border-def
+src/app/components/question-bank-studio/sections/StudioModeSummarySection.tsx:27 [inline-visual-style] {policyBannerStats.bankOutsidePolicy > 0 ? <> (<span style={{ color: 'var(--text-quaternary)' }}>{policyBannerStats.bankOutsidePolicy} outside slice</span>)</> : null}
+src/app/components/question-bank-studio/sections/StudioModeSummarySection.tsx:28 [inline-visual-style] {policyBannerStats.bankPolicyRequired > 0 ? <> · Policy required: <strong style={{ color: 'var(--glc-orange)' }}>{policyBannerStats.bankPolicyRequired}</strong></> : null}
+src/app/components/question-bank-studio/sections/StudioModeSummarySection.tsx:31 [inline-visual-style] <p className="m-0" style={{ color: 'var(--text-quaternary)', fontSize: 10 }}>
+src/app/components/question-bank-studio/sections/StudioToolbarSection.tsx:166 [inline-visual-style] <label className={`flex items-center gap-2 text-xs ${!tracePlanReady ? 'opacity-50' : ''}`} style={{ color: 'var(--text-secondary)' }}>
+src/app/components/question-bank-studio/sections/StudioToolbarSection.tsx:172 [inline-visual-style] style={{ border: '1px solid var(--border-default)', backgroundColor: 'var(--bg-canvas)', color: 'var(--text-secondary)', cursor: exportBusy ? 'wait' : 'pointer', opacity: exportBusy ? 0.6 : 1 }}
+src/app/components/question-bank-studio/sections/StudioToolbarSection.tsx:177 [inline-visual-style] style={{ border: '1px solid var(--border-default)', backgroundColor: 'var(--bg-canvas)', color: 'var(--text-secondary)', cursor: exportBusy ? 'wait' : 'pointer', opacity: exportBusy ? 0.6 : 1 }}
+src/app/components/question-bank-studio/sections/StudioUserFlowSection.tsx:38 [inline-visual-style] <div style={{ color: 'var(--text-secondary)' }}>
+src/app/components/question-bank-studio/sections/StudioUserFlowSection.tsx:85 [inline-visual-style] <div className="pt-1 border-t" style={{ borderColor: 'var(--border-default)' }}>
+src/app/components/snapshot/SnapshotAccessBlockedCallout.tsx:65 [inline-visual-style] style={{ background: panelBg }}
+src/app/components/snapshot/SnapshotAccessBlockedCallout.tsx:70 [inline-visual-style] <SealCheck className="mt-0.5 h-5 w-5 shrink-0" style={{ color: accent }} weight="fill" aria-hidden />
+src/app/components/snapshot/SnapshotAccessBlockedCallout.tsx:72 [inline-visual-style] <Warning className="mt-0.5 h-5 w-5 shrink-0" style={{ color: accent }} weight="fill" aria-hidden />
+src/app/components/snapshot/SnapshotScoreKit.tsx:197 [inline-visual-style] <span className="font-semibold tabular-nums" style={{ color: barColor }}>
+src/app/components/snapshot/SnapshotScoreKit.tsx:203 [inline-visual-style] style={{ backgroundColor: 'var(--bg-muted)' }}
+src/app/components/snapshot/SnapshotScoreKit.tsx:208 [inline-visual-style] style={{ width: `${pct}%`, backgroundColor: barColor, opacity: 0.92 }}
+src/app/components/ui/accordion.tsx:39 [unit-literal] 3px
+src/app/components/ui/alert-dialog.tsx:57 [unit-literal] 2rem
+src/app/components/ui/badge.tsx:8 [unit-literal] 3px
+src/app/components/ui/button.tsx:8 [unit-literal] 3px
+src/app/components/ui/calendar.tsx:35 [unit-literal] 0.8rem
+src/app/components/ui/checkbox.tsx:17 [unit-literal] 3px
+src/app/components/ui/checkbox.tsx:17 [unit-literal] 4px
+src/app/components/ui/command.tsx:86 [unit-literal] 300px
+src/app/components/ui/context-menu.tsx:88 [unit-literal] 8rem
+src/app/components/ui/context-menu.tsx:105 [unit-literal] 8rem
+src/app/components/ui/dialog.tsx:60 [unit-literal] 2rem
+src/app/components/ui/drawer.tsx:70 [unit-literal] 100px
+src/app/components/ui/dropdown-menu.tsx:45 [unit-literal] 8rem
+src/app/components/ui/dropdown-menu.tsx:233 [unit-literal] 8rem
+src/app/components/ui/input-otp.tsx:54 [unit-literal] 3px
+src/app/components/ui/input.tsx:12 [unit-literal] 3px
+src/app/components/ui/menubar.tsx:82 [unit-literal] 12rem
+src/app/components/ui/menubar.tsx:251 [unit-literal] 8rem
+src/app/components/ui/radio-group.tsx:30 [unit-literal] 3px
+src/app/components/ui/scroll-area.tsx:21 [unit-literal] 3px
+src/app/components/ui/select.tsx:44 [unit-literal] 3px
+src/app/components/ui/select.tsx:68 [unit-literal] 8rem
+src/app/components/ui/sidebar/sidebar-chrome.tsx:53 [unit-literal] 2px
+src/app/components/ui/sidebar/sidebar-root.tsx:104 [unit-literal] 2px
+src/app/components/ui/switch.tsx:16 [unit-literal] 1.15rem
+src/app/components/ui/switch.tsx:16 [unit-literal] 3px
+src/app/components/ui/switch.tsx:24 [unit-literal] 2px
+src/app/components/ui/table.tsx:73 [unit-literal] 2px
+src/app/components/ui/table.tsx:86 [unit-literal] 2px
+src/app/components/ui/tabs.tsx:29 [unit-literal] 3px
+src/app/components/ui/tabs.tsx:45 [unit-literal] 1px
+src/app/components/ui/tabs.tsx:45 [unit-literal] 3px
+src/app/components/ui/textarea.tsx:10 [unit-literal] 3px
+src/app/components/ui/toggle.tsx:10 [unit-literal] 3px
+src/app/features/report-viewer/components/DomainScorecard.tsx:54 [unit-literal] 1px
+src/app/features/report-viewer/components/DomainScorecard.tsx:60 [unit-literal] 11px
+src/app/features/report-viewer/components/DomainScorecard.tsx:90 [unit-literal] 0.01em
+src/app/features/report-viewer/components/ProfileTabs.tsx:24 [unit-literal] 12px
+src/app/features/report-viewer/components/ProfileTabs.tsx:29 [unit-literal] 1px
+src/app/features/report-viewer/components/ProfileTabs.tsx:30 [rgb-color] rgba(242,79,29,0.28)
+src/app/features/report-viewer/components/ProfileTabs.tsx:30 [unit-literal] 2px
+src/app/features/report-viewer/components/ProfileTabs.tsx:30 [unit-literal] 8px
+src/app/features/report-viewer/components/ProfileTabs.tsx:32 [unit-literal] 0.01em
+src/app/features/report-viewer/components/ReportFindings.tsx:38 [rgb-color] rgba(14,207,130,0.20)
+src/app/features/report-viewer/components/ReportFindings.tsx:62 [unit-literal] 1px
+src/app/features/report-viewer/components/ReportFindings.tsx:101 [unit-literal] 1px
+src/app/features/report-viewer/components/ReportFindings.tsx:133 [unit-literal] 10px
+src/app/features/report-viewer/components/ReportHeroCard.tsx:40 [unit-literal] 32px
+src/app/features/report-viewer/components/ReportHeroCard.tsx:40 [unit-literal] 36px
+src/app/features/report-viewer/components/ReportHeroCard.tsx:49 [rgb-color] rgba(255,255,255,0.28)
+src/app/features/report-viewer/components/ReportHeroCard.tsx:49 [rgb-color] rgba(255,255,255,0.9)
+src/app/features/report-viewer/components/ReportHeroCard.tsx:65 [rgb-color] rgba(255,255,255,0.45)
+src/app/features/report-viewer/components/ReportHeroCard.tsx:76 [rgb-color] rgba(255,255,255,0.72)
+src/app/features/report-viewer/components/ReportHeroCard.tsx:101 [rgb-color] rgba(255,255,255,0.07)
+src/app/features/report-viewer/components/ReportHeroCard.tsx:102 [rgb-color] rgba(255,255,255,0.10)
+src/app/features/report-viewer/components/ReportHeroCard.tsx:102 [unit-literal] 1px
+src/app/features/report-viewer/components/ReportHeroCard.tsx:103 [unit-literal] 11px
+src/app/features/report-viewer/components/ReportHeroCard.tsx:104 [rgb-color] rgba(255,255,255,0.80)
+src/app/features/report-viewer/components/ReportHeroCard.tsx:117 [rgb-color] rgba(255,255,255,0.06)
+src/app/features/report-viewer/components/ReportHeroCard.tsx:118 [rgb-color] rgba(255,255,255,0.10)
+src/app/features/report-viewer/components/ReportHeroCard.tsx:118 [unit-literal] 1px
+src/app/features/report-viewer/components/ReportHeroCard.tsx:119 [unit-literal] 12px
+src/app/features/report-viewer/components/ReportHeroCard.tsx:129 [rgb-color] rgba(255,255,255,0.10)
+src/app/features/report-viewer/components/ReportHeroCard.tsx:148 [rgb-color] rgba(28,189,255,0.6)
+src/app/features/report-viewer/components/ReportHeroCard.tsx:148 [unit-literal] 8px
+src/app/features/report-viewer/components/ReportHeroCard.tsx:164 [rgb-color] rgba(255,255,255,0.40)
+src/app/features/report-viewer/components/ReportHeroCard.tsx:165 [unit-literal] 10px
+src/app/features/report-viewer/components/ReportHeroCard.tsx:166 [unit-literal] 0.1em
+src/app/marketing/blocks/AuditCompare.tsx:24 [inline-visual-style] return <Check className="mx-auto h-5 w-5" style={{ color: 'var(--glc-green-dark)' }} weight="bold" aria-label="Yes" />;
+src/app/marketing/blocks/AuditCompare.tsx:86 [unit-literal] 32.5rem
+src/app/marketing/blocks/AuditCompare.tsx:89 [unit-literal] 520px
+src/app/marketing/blocks/AuditCompare.tsx:93 [unit-literal] 1px
+src/app/marketing/blocks/AuditCompare.tsx:99 [unit-literal] 0.04em
+src/app/marketing/blocks/AuditCompare.tsx:99 [unit-literal] 13px
+src/app/marketing/blocks/AuditCompare.tsx:107 [unit-literal] 1px
+src/app/marketing/blocks/AuditCompare.tsx:116 [unit-literal] 0.04em
+src/app/marketing/blocks/AuditCompare.tsx:116 [unit-literal] 13px
+src/app/marketing/blocks/AuditCompare.tsx:125 [unit-literal] 1px
+src/app/marketing/blocks/AuditCompare.tsx:134 [unit-literal] 0.04em
+src/app/marketing/blocks/AuditCompare.tsx:134 [unit-literal] 13px
+src/app/marketing/blocks/AuditCompare.tsx:145 [unit-literal] 1px
+src/app/marketing/blocks/AuditCompare.tsx:154 [unit-literal] 0.04em
+src/app/marketing/blocks/AuditCompare.tsx:154 [unit-literal] 13px
+src/app/marketing/blocks/AuditCompare.tsx:162 [unit-literal] 1px
+src/app/marketing/blocks/AuditCompare.tsx:177 [unit-literal] 1px
+src/app/marketing/blocks/AuditCompare.tsx:201 [inline-visual-style] style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-inset)' }}
+src/app/marketing/blocks/AuditCompare.tsx:210 [inline-visual-style] style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+src/app/marketing/blocks/AuditCompare.tsx:210 [unit-literal] 1px
+src/app/marketing/blocks/AuditCompare.tsx:227 [inline-visual-style] style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
+src/app/marketing/blocks/AuditCompare.tsx:227 [unit-literal] 1px
+src/app/marketing/blocks/DecisionPath.tsx:44 [unit-literal] 180px
+src/app/marketing/blocks/DecisionPath.tsx:44 [unit-literal] 200px
+src/app/marketing/blocks/DecisionPath.tsx:55 [inline-visual-style] style={{ backgroundColor: accent.bg }}
+src/app/marketing/blocks/DecisionPath.tsx:57 [inline-visual-style] <Icon className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: accent.icon }} weight="duotone" />
+src/app/marketing/blocks/DecisionPath.tsx:96 [inline-visual-style] style={{ borderColor: 'var(--border-subtle)' }}
+src/app/marketing/blocks/DecisionPath.tsx:100 [inline-visual-style] style={{ backgroundColor: accent.bg }}
+src/app/marketing/blocks/DecisionPath.tsx:102 [inline-visual-style] <Icon className="h-5 w-5 sm:h-[22px] sm:w-[22px]" style={{ color: accent.icon }} weight="duotone" />
+src/app/marketing/blocks/DecisionPath.tsx:102 [unit-literal] 22px
+src/app/marketing/blocks/HomeHeroCockpit.tsx:40 [unit-literal] 420px
+src/app/marketing/blocks/HomeHeroCockpit.tsx:43 [unit-literal] 360px
+src/app/marketing/blocks/HomeHeroCockpit.tsx:68 [unit-literal] 5.5rem
+src/app/marketing/blocks/HomeHeroCockpit.tsx:91 [unit-literal] 1px
+src/app/marketing/blocks/HomeHeroCockpit.tsx:116 [inline-visual-style] style={{ backgroundColor: 'var(--glc-green-dark)' }}
+src/app/marketing/blocks/HomeHeroCockpit.tsx:121 [inline-visual-style] <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: 'var(--glc-blue)' }} />
+src/app/marketing/blocks/HomeHeroCockpit.tsx:127 [inline-visual-style] style={{ backgroundColor: 'var(--text-quaternary)' }}
+src/app/marketing/blocks/MarketingMidCtaBand.tsx:38 [unit-literal] 0.95rem
+src/app/marketing/blocks/NextStepsCta.tsx:61 [inline-visual-style] style={{ color: s.primary ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+src/app/marketing/blocks/NextStepsCta.tsx:97 [unit-literal] 1px
+src/app/marketing/blocks/NextStepsCta.tsx:141 [unit-literal] 1px
+src/app/marketing/blocks/NextStepsCta.tsx:148 [unit-literal] 18rem
+src/app/marketing/blocks/NextStepsCta.tsx:183 [unit-literal] 1px
+src/app/marketing/blocks/NextStepsCta.tsx:199 [unit-literal] 1px
+src/app/marketing/blocks/PackageAudienceSection.tsx:32 [unit-literal] 0.12em
+src/app/marketing/blocks/PackageAudienceSection.tsx:38 [unit-literal] 0.12em
+src/app/marketing/blocks/PackageMarketingHero.tsx:28 [unit-literal] 340px
+src/app/marketing/blocks/PackageMarketingHero.tsx:102 [unit-literal] 240px
+src/app/marketing/blocks/PackageMarketingHero.tsx:110 [unit-literal] 0.1em
+src/app/marketing/blocks/PackageMarketingHero.tsx:121 [unit-literal] 0.02em
+src/app/marketing/blocks/PackageMarketingHero.tsx:121 [unit-literal] 0.03em
+src/app/marketing/blocks/PackageMarketingHero.tsx:121 [unit-literal] 2rem
+src/app/marketing/blocks/PackageMarketingHero.tsx:121 [unit-literal] 3.25rem
+src/app/marketing/blocks/ProcessTimeline.tsx:32 [unit-literal] 15px
+src/app/marketing/home/components/SectionHeading.tsx:35 [unit-literal] 1.02rem
+src/app/marketing/home/components/SectionHeading.tsx:56 [unit-literal] 1.02rem
+src/app/marketing/home/components/SectionHeading.tsx:56 [unit-literal] 3.25rem
+src/app/marketing/home/components/SectionHeading.tsx:74 [unit-literal] 1.02rem
+src/app/marketing/home/config/home-ui.config.ts:5 [unit-literal] 0.02em
+src/app/marketing/home/config/home-ui.config.ts:5 [unit-literal] 2.75rem
+src/app/marketing/home/config/home-ui.config.ts:11 [unit-literal] 1px
+src/app/marketing/home/sections/HomeHeroSection.tsx:23 [unit-literal] 260px
+src/app/marketing/home/sections/HomeHeroSection.tsx:31 [unit-literal] 0.1em
+src/app/marketing/home/sections/HomeHeroSection.tsx:42 [unit-literal] 0.02em
+src/app/marketing/home/sections/HomeHeroSection.tsx:42 [unit-literal] 0.03em
+src/app/marketing/home/sections/HomeHeroSection.tsx:42 [unit-literal] 2.5rem
+src/app/marketing/home/sections/HomeHeroSection.tsx:42 [unit-literal] 4.125rem
+src/app/marketing/home/sections/HomeHeroSection.tsx:64 [unit-literal] 0.95rem
+src/app/marketing/home/sections/HomeMetricsSection.tsx:13 [unit-literal] 1.65rem
+src/app/marketing/home/sections/HomeMetricsSection.tsx:22 [unit-literal] 0.95rem
+src/app/marketing/home/sections/HomeTrustSection.tsx:14 [unit-literal] 0.14em
+src/app/marketing/MarketingBreadcrumbs.tsx:26 [inline-visual-style] style={{ color: i === items.length - 1 ? 'var(--text-secondary)' : undefined }}
+src/app/marketing/MarketingFooter.tsx:19 [inline-visual-style] style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'color-mix(in oklab, var(--bg-muted) 55%, var(--bg-canvas))' }}
+src/app/marketing/MarketingFooter.tsx:66 [inline-visual-style] style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-quaternary)' }}
+src/app/marketing/MarketingHeader.tsx:82 [unit-literal] 10px
+src/app/marketing/MarketingHeader.tsx:82 [unit-literal] 16px
+src/app/marketing/MarketingHeader.tsx:83 [unit-literal] 1px
+src/app/marketing/MarketingHeader.tsx:85 [unit-literal] 0.5rem
+src/app/marketing/MarketingHeader.tsx:138 [unit-literal] 1px
+src/app/marketing/MarketingHeader.tsx:148 [unit-literal] 1px
+src/app/marketing/MarketingHeader.tsx:171 [inline-visual-style] style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-canvas)' }}
+src/app/marketing/MarketingHeader.tsx:185 [inline-visual-style] style={{ color: 'var(--text-primary)' }}
+src/app/pages/admin-request-queue/components/AdminRequestQueueErrorBanner.tsx:10 [unit-literal] 1px
+src/app/pages/admin-request-queue/components/AdminRequestQueueFilters.tsx:22 [unit-literal] 1px
+src/app/pages/admin-request-queue/components/AuditRequestQueueCard.tsx:59 [unit-literal] 1px
+src/app/pages/admin-request-queue/components/AuditRequestQueueCard.tsx:111 [unit-literal] 1px
+src/app/pages/admin-request-queue/components/AuditRequestQueueCard.tsx:154 [unit-literal] 1px
+src/app/pages/audit-workspace/AuditWorkspaceScreen.tsx:106 [unit-literal] 56px
+src/app/pages/audit-workspace/config/presentation.ts:45 [rgb-color] rgba(14,207,130,0.1)
+src/app/pages/audit-workspace/config/presentation.ts:46 [rgb-color] rgba(234,179,8,0.1)
+src/app/pages/audit-workspace/config/ui.ts:3 [unit-literal] 56px
+src/app/pages/audit-workspace/config/ui.ts:4 [unit-literal] 232px
+src/app/pages/audit-workspace/sections/DomainNav.tsx:46 [rgb-color] rgba(28,189,255,0.22)
+src/app/pages/audit-workspace/sections/IssuesSection.tsx:47 [unit-literal] 10px
+src/app/pages/audit-workspace/sections/IssuesSection.tsx:65 [unit-literal] 9px
+src/app/pages/audit-workspace/sections/IssuesSection.tsx:66 [unit-literal] 0.03em
+src/app/pages/audit-workspace/sections/RecommendationsSection.tsx:33 [unit-literal] 3px
+src/app/pages/audit-workspace/sections/RecommendationsSection.tsx:45 [unit-literal] 0.01em
+src/app/pages/audit-workspace/sections/WorkspaceSidebar.tsx:68 [unit-literal] 1px
+src/app/pages/audit-workspace/sections/WorkspaceSidebar.tsx:79 [unit-literal] 0.01em
+src/app/pages/client-audit-view/config/ui.ts:4 [unit-literal] 28rem
+src/app/pages/client-audit-view/config/ui.ts:7 [unit-literal] 1px
+src/app/pages/client-audit-view/config/ui.ts:10 [unit-literal] 1px
+src/app/pages/client-audit-view/config/ui.ts:32 [unit-literal] 1px
+src/app/pages/client-audit-view/config/ui.ts:37 [unit-literal] 1px
+src/app/pages/client-audit-view/config/ui.ts:45 [unit-literal] 1px
+src/app/pages/client-audit-view/config/ui.ts:47 [unit-literal] 1px
+src/app/pages/client-audit-view/config/ui.ts:53 [unit-literal] 1px
+src/app/pages/client-audit-view/config/ui.ts:57 [unit-literal] 1px
+src/app/pages/client-audit-view/sections/AuditHeaderCard.tsx:26 [rgb-color] rgba(28,189,255,0.08)
+src/app/pages/client-audit-view/sections/AuditHeaderCard.tsx:26 [rgb-color] rgba(28,189,255,0.20)
+src/app/pages/client-audit-view/sections/BriefHelpSection.tsx:35 [unit-literal] 72px
+src/app/pages/client-audit-view/sections/ClientBriefSection.tsx:162 [inline-visual-style] <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+src/app/pages/client-audit-view/sections/ClientBriefSection.tsx:190 [inline-visual-style] <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+src/app/pages/client-audit-view/sections/ClientBriefSection.tsx:193 [inline-visual-style] <span className="px-2 py-0.5 rounded text-xs" style={{ border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)' }}>
+src/app/pages/client-audit-view/sections/ClientBriefSection.tsx:193 [unit-literal] 1px
+src/app/pages/client-audit-view/sections/ClientBriefSection.tsx:197 [inline-visual-style] <div className="rounded-full overflow-hidden" style={{ height: 3, backgroundColor: 'var(--bg-muted)' }}>
+src/app/pages/client-audit-view/sections/ClientBriefSection.tsx:215 [inline-visual-style] <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+src/app/pages/client-audit-view/sections/ClientBriefSection.tsx:217 [inline-visual-style] <span className="inline-flex items-center gap-0.5" style={{ color: UI_SEMANTIC_COLORS.danger }}>
+src/app/pages/client-audit-view/sections/ClientBriefSection.tsx:223 [inline-visual-style] <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)' }}>
+src/app/pages/client-audit-view/sections/NavigationLinksSection.tsx:33 [inline-visual-style] <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+src/app/pages/client-audit-view/sections/NavigationLinksSection.tsx:38 [inline-visual-style] <CheckCircle weight="fill" className="w-5 h-5" style={{ color: UI_SEMANTIC_COLORS.success }} />
+src/app/pages/client-audit-view/sections/NavigationLinksSection.tsx:52 [inline-visual-style] <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+src/app/pages/client-audit-view/sections/SnapshotUpgradeSection.tsx:68 [inline-visual-style] <CheckCircle weight="fill" className="w-5 h-5 flex-shrink-0" style={{ color: UI_SEMANTIC_COLORS.success }} />
+src/app/pages/client-audit-view/sections/SnapshotUpgradeSection.tsx:80 [inline-visual-style] <div className="space-y-4 border-t pt-4" style={{ borderColor: CLIENT_AUDIT_VIEW_UI.snapshot.dividerBorderColor }}>
+src/app/pages/client-audit-view/sections/SnapshotUpgradeSection.tsx:85 [inline-visual-style] <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: 'var(--border-subtle)' }}>
+src/app/pages/client-audit-view/sections/SnapshotUpgradeSection.tsx:177 [inline-visual-style] style={{ backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', cursor: upgradeBusy ? 'not-allowed' : 'pointer' }}
+src/app/pages/client-audit-view/sections/SnapshotUpgradeSection.tsx:177 [unit-literal] 1px
+src/app/pages/client-audit-view/sections/SnapshotUpgradeSection.tsx:194 [inline-visual-style] <div className="rounded-lg px-3 py-2.5 text-xs" style={{ background: 'var(--bg-surface)', border: active ? CLIENT_AUDIT_VIEW_UI.snapshot.packageCardActiveBorder : '1px solid var(--border-subtle)' }}>
+src/app/pages/client-audit-view/sections/SnapshotUpgradeSection.tsx:194 [unit-literal] 1px
+src/app/pages/ClientAuditView.tsx:16 [inline-visual-style] <div className="glc-page-content max-w-2xl mx-auto text-sm" style={{ color: UI_SEMANTIC_COLORS.danger }}>{CLIENT_AUDIT_VIEW_COPY.page.missingId}</div>
+src/app/pages/Dashboard.tsx:203 [unit-literal] 220px
+src/app/pages/Dashboard.tsx:231 [unit-literal] 0.09em
+src/app/pages/discover/components/AuditTeaser.tsx:34 [unit-literal] 1px
+src/app/pages/discover/components/AuditTeaser.tsx:39 [unit-literal] 0.6875rem
+src/app/pages/discover/components/AuditTeaser.tsx:40 [inline-visual-style] style={{ color: teaserUi.sectionLabel }}
+src/app/pages/discover/components/AuditTeaser.tsx:51 [inline-visual-style] style={{ color: teaserUi.bulletIcon }}
+src/app/pages/discover/components/AuditTeaser.tsx:56 [unit-literal] 1.0625rem
+src/app/pages/discover/components/ContactCaptureForm.tsx:51 [unit-literal] 0.9375rem
+src/app/pages/discover/components/ContactCaptureForm.tsx:68 [unit-literal] 0.9375rem
+src/app/pages/discover/components/ContactCaptureForm.tsx:85 [unit-literal] 0.9375rem
+src/app/pages/discover/components/ContactCaptureForm.tsx:94 [unit-literal] 0.9375rem
+src/app/pages/discover/components/DiscoverQuestionnaireView.tsx:83 [unit-literal] 0.01em
+src/app/pages/discover/components/DiscoverQuestionnaireView.tsx:83 [unit-literal] 15px
+src/app/pages/discover/components/DiscoverQuestionnaireView.tsx:89 [unit-literal] 13px
+src/app/pages/discover/components/DiscoverQuestionnaireView.tsx:101 [unit-literal] 2px
+src/app/pages/discover/components/DiscoverQuestionnaireView.tsx:108 [unit-literal] 0.02em
+src/app/pages/discover/components/DiscoverQuestionnaireView.tsx:108 [unit-literal] 22px
+src/app/pages/discover/components/DiscoverQuestionnaireView.tsx:111 [unit-literal] 13px
+src/app/pages/discover/components/DiscoverQuestionnaireView.tsx:153 [unit-literal] 0.04em
+src/app/pages/discover/components/DiscoverQuestionnaireView.tsx:159 [unit-literal] 15px
+src/app/pages/discover/components/DiscoverResultsView.tsx:69 [unit-literal] 52rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:82 [rgb-color] rgba(14,165,233,0.18)
+src/app/pages/discover/components/DiscoverResultsView.tsx:82 [rgb-color] rgba(30,58,138,0.22)
+src/app/pages/discover/components/DiscoverResultsView.tsx:92 [unit-literal] 0.01em
+src/app/pages/discover/components/DiscoverResultsView.tsx:106 [unit-literal] 0.06em
+src/app/pages/discover/components/DiscoverResultsView.tsx:111 [unit-literal] 0.02em
+src/app/pages/discover/components/DiscoverResultsView.tsx:113 [unit-literal] 0.5rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:113 [unit-literal] 1.125rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:113 [unit-literal] 1.5rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:114 [unit-literal] 1.375rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:114 [unit-literal] 1.75rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:121 [unit-literal] 1.0625rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:133 [unit-literal] 1.0625rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:133 [unit-literal] 18px
+src/app/pages/discover/components/DiscoverResultsView.tsx:138 [unit-literal] 0.9375rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:144 [unit-literal] 0.8125rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:164 [unit-literal] 0.9375rem
+src/app/pages/discover/components/DiscoverResultsView.tsx:188 [unit-literal] 0.9375rem
+src/app/pages/discover/components/FindingCard.tsx:46 [unit-literal] 1px
+src/app/pages/discover/components/FindingCard.tsx:56 [unit-literal] 1px
+src/app/pages/discover/components/FindingCard.tsx:66 [inline-visual-style] style={{ color: fc.warningIcon }}
+src/app/pages/discover/components/FindingCard.tsx:73 [inline-visual-style] style={{ fontSize: '1.25rem', fontWeight: 600, color: fc.headline, lineHeight: 1.38 }}
+src/app/pages/discover/components/FindingCard.tsx:73 [unit-literal] 1.25rem
+src/app/pages/discover/components/FindingCard.tsx:83 [unit-literal] 1.125rem
+src/app/pages/discover/components/FindingCard.tsx:97 [unit-literal] 1px
+src/app/pages/discover/components/FindingCard.tsx:100 [inline-visual-style] <meta.Icon size={20} weight="fill" style={{ color: meta.color, opacity: 1 }} aria-hidden />
+src/app/pages/discover/components/FindingCard.tsx:101 [inline-visual-style] <span style={{ fontSize: '0.875rem', color: meta.color, fontWeight: 700, letterSpacing: '0.02em' }}>
+src/app/pages/discover/components/FindingCard.tsx:101 [unit-literal] 0.02em
+src/app/pages/discover/components/FindingCard.tsx:101 [unit-literal] 0.875rem
+src/app/pages/discover/components/QuestionInput.tsx:41 [unit-literal] 1px
+src/app/pages/discover/components/QuestionInput.tsx:46 [inline-visual-style] <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', margin: 0 }}>
+src/app/pages/discover/components/QuestionInput.tsx:46 [unit-literal] 12px
+src/app/pages/discover/components/QuestionInput.tsx:71 [unit-literal] 1px
+src/app/pages/discover/components/QuestionInput.tsx:72 [unit-literal] 1px
+src/app/pages/discover/components/QuestionInput.tsx:91 [unit-literal] 1px
+src/app/pages/discover/components/QuestionInput.tsx:121 [unit-literal] 1px
+src/app/pages/discover/components/QuestionInput.tsx:122 [unit-literal] 1px
+src/app/pages/discover/components/QuestionInput.tsx:142 [unit-literal] 1px
+src/app/pages/DiscoveryPublicPage.tsx:45 [rgb-color] rgba(242,79,29,0.08)
+src/app/pages/DiscoveryPublicPage.tsx:45 [rgb-color] rgba(28,189,255,0.12)
+src/app/pages/DiscoveryPublicPage.tsx:46 [unit-literal] 1px
+src/app/pages/DiscoveryPublicPage.tsx:48 [unit-literal] 0.06em
+src/app/pages/DiscoveryPublicPage.tsx:58 [unit-literal] 0.025em
+src/app/pages/DiscoveryPublicPage.tsx:58 [unit-literal] 0.035em
+src/app/pages/DiscoveryPublicPage.tsx:60 [unit-literal] 1.75rem
+src/app/pages/DiscoveryPublicPage.tsx:60 [unit-literal] 2.75rem
+src/app/pages/DiscoveryPublicPage.tsx:72 [inline-visual-style] style={{ color: 'var(--text-secondary)', fontSize: 'clamp(0.8125rem, 2.85vw, 0.975rem)' }}
+src/app/pages/DiscoveryPublicPage.tsx:72 [unit-literal] 0.8125rem
+src/app/pages/DiscoveryPublicPage.tsx:72 [unit-literal] 0.975rem
+src/app/pages/DiscoveryPublicPage.tsx:80 [inline-visual-style] <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: 'var(--glc-blue)' }} />
+src/app/pages/DiscoveryQueue.tsx:61 [unit-literal] 0.03em
+src/app/pages/DiscoveryQueue.tsx:199 [unit-literal] 0.04em
+src/app/pages/DiscoveryQueue.tsx:345 [unit-literal] 13px
+src/app/pages/DiscoveryQueue.tsx:360 [unit-literal] 13px
+src/app/pages/FullAuditPage.tsx:105 [inline-visual-style] <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--glc-blue-light)' }}>
+src/app/pages/intake-brief/components/IntakeBriefExpired.tsx:10 [inline-visual-style] <p style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{copy.expiredTitle}</p>
+src/app/pages/intake-brief/components/IntakeBriefFormPhase.tsx:85 [unit-literal] 1px
+src/app/pages/intake-brief/components/IntakeBriefFormPhase.tsx:104 [rgb-color] rgba(28,189,255,0.08)
+src/app/pages/intake-brief/components/IntakeBriefFormPhase.tsx:105 [rgb-color] rgba(28,189,255,0.2)
+src/app/pages/intake-brief/components/IntakeBriefFormPhase.tsx:105 [unit-literal] 1px
+src/app/pages/intake-brief/components/IntakeBriefFormPhase.tsx:116 [unit-literal] 1px
+src/app/pages/intake-brief/components/IntakeBriefFormPhase.tsx:130 [inline-visual-style] <div className="rounded-full overflow-hidden" style={{ height: 3, backgroundColor: 'var(--bg-muted)' }}>
+src/app/pages/intake-brief/components/IntakeBriefFormPhase.tsx:150 [unit-literal] 0.12em
+src/app/pages/intake-brief/components/IntakeBriefFormPhase.tsx:153 [unit-literal] 1px
+src/app/pages/intake-brief/components/IntakeBriefFormPhase.tsx:215 [unit-literal] 1px
+src/app/pages/intake-brief/components/IntakeBriefHeader.tsx:12 [unit-literal] 1px
+src/app/pages/intake-brief/components/IntakeBriefReviewPhase.tsx:57 [inline-visual-style] style={{ color: 'var(--glc-blue)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+src/app/pages/intake-brief/components/IntakeBriefReviewPhase.tsx:65 [inline-visual-style] style={{ borderRadius: 'var(--radius-xl)', border: '1px solid var(--border-subtle)' }}
+src/app/pages/intake-brief/components/IntakeBriefReviewPhase.tsx:65 [unit-literal] 1px
+src/app/pages/intake-brief/components/IntakeBriefReviewPhase.tsx:78 [unit-literal] 1px
+src/app/pages/intake-brief/components/IntakeBriefReviewPhase.tsx:83 [inline-visual-style] <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+src/app/pages/intake-brief/components/IntakeBriefReviewPhase.tsx:99 [unit-literal] 1px
+src/app/pages/intake-brief/components/IntakeBriefReviewPhase.tsx:128 [unit-literal] 1px
+src/app/pages/intake-brief/components/IntakeBriefShell.tsx:5 [inline-visual-style] <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--bg-canvas)' }}>
+src/app/pages/intake-brief/components/IntakeBriefShell.tsx:8 [inline-visual-style] style={{ background: 'var(--mesh-brand)', opacity: 0.4 }}
+src/app/pages/intake-brief/components/IntakeBriefSuccessPhase.tsx:38 [inline-visual-style] <CheckCircle className="w-12 h-12 mx-auto mb-1" style={{ color: 'var(--glc-green)' }} weight="fill" />
+src/app/pages/intake-brief/components/IntakeBriefSuccessPhase.tsx:45 [unit-literal] 1px
+src/app/pages/intake-brief/components/IntakeBriefSuccessPhase.tsx:52 [unit-literal] 1px
+src/app/pages/intake-brief/components/IntakeBriefSuccessPhase.tsx:53 [rgb-color] rgba(16,207,130,0.06)
+src/app/pages/intake-brief/components/IntakeBriefSuccessPhase.tsx:57 [unit-literal] 0.14em
+src/app/pages/intake-brief/components/IntakeBriefSuccessPhase.tsx:58 [inline-visual-style] style={{ color: 'var(--glc-green)', marginBottom: 6 }}
+src/app/pages/intake-brief/components/IntakeBriefSuccessPhase.tsx:80 [unit-literal] 1px
+src/app/pages/intake-brief/components/IntakeBriefSuccessPhase.tsx:85 [inline-visual-style] style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
+src/app/pages/intake-brief/components/IntakeBriefSuccessPhase.tsx:85 [unit-literal] 1px
+src/app/pages/intake-brief/components/IntakeBriefSuccessPhase.tsx:92 [inline-visual-style] style={{ color: 'var(--text-quaternary)', marginBottom: 2 }}
+src/app/pages/intake-brief/components/IntakeBriefSuccessPhase.tsx:98 [inline-visual-style] style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}
+src/app/pages/intake-brief/components/IntakeBriefSuccessPhase.tsx:107 [inline-visual-style] <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+src/app/pages/intake-brief/components/IntakeBriefSuccessPhase.tsx:117 [inline-visual-style] <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{consultantNamed}</span>{' '}
+src/app/pages/intake-brief/components/IntakeBriefSuccessPhase.tsx:145 [unit-literal] 1px
+src/app/pages/intake-wording-workspace/panels/DraftEditorPanel.tsx:71 [unit-literal] 100px
+src/app/pages/intake-wording-workspace/panels/ImportWordingDialog.tsx:33 [unit-literal] 160px
+src/app/pages/intake-wording-workspace/panels/PublicationLogPanel.tsx:23 [unit-literal] 280px
+src/app/pages/intake-wording-workspace/panels/TraceControlsForm.tsx:60 [unit-literal] 140px
+src/app/pages/Login.tsx:19 [inline-visual-style] style={{ backgroundColor: 'var(--bg-canvas)' }}
+src/app/pages/Login.tsx:27 [inline-visual-style] style={{ background: 'var(--mesh-brand)', opacity: 0.55 }}
+src/app/pages/login/components/AuthTabs.tsx:32 [inline-visual-style] style={{ border: '1px solid var(--border-subtle)' }}
+src/app/pages/login/components/AuthTabs.tsx:32 [unit-literal] 1px
+src/app/pages/login/components/forms/SignInUpForm.tsx:67 [hex-color] #4285F4
+src/app/pages/login/components/forms/SignInUpForm.tsx:68 [hex-color] #34A853
+src/app/pages/login/components/forms/SignInUpForm.tsx:69 [hex-color] #FBBC05
+src/app/pages/login/components/forms/SignInUpForm.tsx:70 [hex-color] #EA4335
+src/app/pages/login/config/login-ui-policy.ts:40 [unit-literal] 1px
+src/app/pages/login/config/login-ui-policy.ts:65 [unit-literal] 20px
+src/app/pages/login/config/login-ui-policy.ts:65 [unit-literal] 8px
+src/app/pages/login/sections/LoginAsideSection.tsx:39 [unit-literal] 34rem
+src/app/pages/login/sections/LoginBrandSection.tsx:32 [unit-literal] 72px
+src/app/pages/new-audit/NewAuditChrome.tsx:27 [unit-literal] 1px
+src/app/pages/new-audit/NewAuditChrome.tsx:30 [unit-literal] 1px
+src/app/pages/new-audit/NewAuditChrome.tsx:31 [rgb-color] rgba(28,189,255,0.30)
+src/app/pages/new-audit/NewAuditChrome.tsx:31 [unit-literal] 12px
+src/app/pages/new-audit/NewAuditChrome.tsx:40 [unit-literal] 10px
+src/app/pages/new-audit/NewAuditChrome.tsx:42 [unit-literal] 0.04em
+src/app/pages/new-audit/NewAuditChrome.tsx:63 [hex-color] #8B5CF6
+src/app/pages/new-audit/steps/Step0Basics.tsx:357 [unit-literal] 15px
+src/app/pages/new-audit/steps/Step1Brief.tsx:199 [hex-color] #9679
+src/app/pages/new-audit/steps/Step1Brief.tsx:199 [unit-literal] 1px
+src/app/pages/new-audit/steps/Step1Brief.tsx:230 [unit-literal] 3px
+src/app/pages/new-audit/steps/Step1Brief.tsx:238 [unit-literal] 28rem
+src/app/pages/new-audit/steps/Step1Brief.tsx:252 [unit-literal] 28rem
+src/app/pages/new-audit/steps/Step2Confirm.tsx:61 [unit-literal] 6px
+src/app/pages/new-audit/steps/Step2Confirm.tsx:63 [unit-literal] 10px
+src/app/pages/new-audit/steps/Step2Confirm.tsx:81 [unit-literal] 1px
+src/app/pages/new-audit/steps/Step2Confirm.tsx:81 [unit-literal] 90px
+src/app/pages/NewAudit.tsx:95 [unit-literal] 28.75rem
+src/app/pages/NewAudit.tsx:95 [unit-literal] 40rem
+src/app/pages/pipeline-monitor/config/pipeline-monitor-ui-policy.ts:3 [unit-literal] 56px
+src/app/pages/pipeline-monitor/config/pipeline-monitor-ui-policy.ts:4 [unit-literal] 252px
+src/app/pages/pipeline-monitor/PipelineMonitorPhaseUi.tsx:24 [unit-literal] 0.05em
+src/app/pages/pipeline-monitor/PipelineMonitorPhaseUi.tsx:24 [unit-literal] 9px
+src/app/pages/pipeline-monitor/PipelineMonitorPhaseUi.tsx:148 [unit-literal] 3px
+src/app/pages/pipeline-monitor/sections/MonitorHeaderActions.tsx:23 [rgb-color] rgba(28,189,255,0.10)
+src/app/pages/pipeline-monitor/sections/MonitorHeaderActions.tsx:23 [rgb-color] rgba(28,189,255,0.25)
+src/app/pages/pipeline-monitor/sections/MonitorHeaderActions.tsx:23 [unit-literal] 0.04em
+src/app/pages/pipeline-monitor/sections/PhaseDetailPanel.tsx:277 [unit-literal] 0.10em
+src/app/pages/pipeline-monitor/sections/PhaseDetailPanel.tsx:301 [unit-literal] 3px
+src/app/pages/pipeline-monitor/sections/PhaseDetailPanel.tsx:303 [unit-literal] 3px
+src/app/pages/pipeline-monitor/sections/PhaseDetailPanel.tsx:305 [unit-literal] 3px
+src/app/pages/pipeline-monitor/sections/PhaseSidebar.tsx:34 [unit-literal] 1px
+src/app/pages/pipeline-monitor/sections/PhaseSidebar.tsx:53 [rgb-color] rgba(28,189,255,0.12)
+src/app/pages/pipeline-monitor/sections/PhaseSidebar.tsx:53 [rgb-color] rgba(28,189,255,0.25)
+src/app/pages/pipeline-monitor/sections/PhaseSidebar.tsx:53 [unit-literal] 0.06em
+src/app/pages/pipeline-monitor/sections/PhaseSidebar.tsx:53 [unit-literal] 9px
+src/app/pages/pipeline-monitor/sections/PhaseSidebar.tsx:78 [rgb-color] rgba(28,189,255,0.08)
+src/app/pages/pipeline-monitor/sections/PhaseSidebar.tsx:78 [rgb-color] rgba(28,189,255,0.18)
+src/app/pages/pipeline-monitor/sections/PhaseSidebar.tsx:78 [unit-literal] 0.06em
+src/app/pages/pipeline-monitor/sections/PhaseSidebar.tsx:78 [unit-literal] 9px
+src/app/pages/Portfolio.tsx:138 [unit-literal] 0.09em
+src/app/pages/ReportViewer.tsx:81 [inline-visual-style] <p style={{ color: 'var(--score-1)' }}>{error || REPORT_VIEWER_COPY.reportNotFound}</p>
+src/app/pages/settings/components/OptionPill.tsx:15 [unit-literal] 10px
+src/app/pages/settings/components/OptionPill.tsx:15 [unit-literal] 6px
+src/app/pages/settings/components/OptionPill.tsx:16 [unit-literal] 11px
+src/app/pages/settings/config/settings-ui-policy.ts:21 [unit-literal] 1px
+src/app/pages/settings/config/settings-ui-policy.ts:26 [unit-literal] 1px
+src/app/pages/settings/config/settings-ui-policy.ts:31 [unit-literal] 1px
+src/app/pages/settings/config/settings-ui-policy.ts:33 [rgb-color] rgba(28,189,255,0.08)
+src/app/pages/settings/config/settings-ui-policy.ts:36 [unit-literal] 1px
+src/app/pages/settings/SettingsPage.tsx:81 [inline-visual-style] style={{ background: 'transparent' }}
+src/app/pages/settings/SettingsPage.tsx:85 [rgb-color] rgba(28,189,255,0.08)
+src/app/pages/settings/SettingsPage.tsx:91 [rgb-color] rgba(28,189,255,0.08)
+src/app/pages/snapshot-landing/CategoryBreakdownHint.tsx:25 [unit-literal] 22rem
+src/app/pages/snapshot-landing/components/results/AccessStatusBadge.tsx:21 [unit-literal] 1px
+src/app/pages/snapshot-landing/components/results/AccessStatusBadge.tsx:22 [unit-literal] 1px
+src/app/pages/snapshot-landing/components/results/CategoryBreakdownSection.tsx:31 [inline-visual-style] <span className="font-semibold tabular-nums" style={{ color: row.barColor }}>
+src/app/pages/snapshot-landing/components/results/InsightsGridSection.tsx:85 [inline-visual-style] style={{ borderRadius: 'var(--radius-xl)' }}
+src/app/pages/snapshot-landing/components/results/InsightsGridSection.tsx:102 [unit-literal] 1px
+src/app/pages/snapshot-landing/components/results/InsightsGridSection.tsx:124 [unit-literal] 1px
+src/app/pages/snapshot-landing/components/results/ResultsCtaBand.tsx:12 [rgb-color] rgba(255,255,255,0.09)
+src/app/pages/snapshot-landing/components/results/ResultsCtaBand.tsx:30 [unit-literal] 12rem
+src/app/pages/snapshot-landing/components/results/ResultsCtaBand.tsx:40 [rgb-color] rgba(255,255,255,0.85)
+src/app/pages/snapshot-landing/components/results/ResultsCtaBand.tsx:41 [rgb-color] rgba(255,255,255,0.08)
+src/app/pages/snapshot-landing/components/results/ResultsCtaBand.tsx:42 [rgb-color] rgba(255,255,255,0.14)
+src/app/pages/snapshot-landing/components/results/ResultsCtaBand.tsx:42 [unit-literal] 1px
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:65 [rgb-color] rgba(242,79,29,0.08)
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:65 [rgb-color] rgba(28,189,255,0.12)
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:65 [unit-literal] 0.06em
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:74 [unit-literal] 0.025em
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:74 [unit-literal] 0.035em
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:74 [unit-literal] 22rem
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:76 [unit-literal] 2.05rem
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:76 [unit-literal] 4rem
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:94 [unit-literal] 0.8125rem
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:95 [inline-visual-style] style={{ fontSize: 'clamp(0.8125rem, 2.85vw, 0.975rem)' }}
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:95 [unit-literal] 0.8125rem
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:95 [unit-literal] 0.975rem
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:114 [inline-visual-style] style={{ background: SNAPSHOT_COMMAND_SHELL_OUTLINE }}
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:117 [unit-literal] 1px
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:158 [unit-literal] 22px
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:158 [unit-literal] 8px
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:159 [unit-literal] 10px
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:159 [unit-literal] 3px
+src/app/pages/snapshot-landing/components/SnapshotLandingHeroForm.tsx:206 [unit-literal] 0.9375rem
+src/app/pages/snapshot-landing/components/SnapshotLandingProgress.tsx:16 [unit-literal] 26rem
+src/app/pages/snapshot-landing/components/SnapshotLandingResults.tsx:66 [unit-literal] 38.75rem
+src/app/pages/snapshot-landing/components/SnapshotLandingResults.tsx:101 [unit-literal] 15rem
+src/app/pages/snapshot-landing/components/SnapshotLandingResults.tsx:103 [unit-literal] 0.08em
+src/app/pages/snapshot-landing/components/SnapshotLandingResults.tsx:127 [unit-literal] 0.9375rem
+src/app/pages/snapshot-landing/components/SnapshotLandingResults.tsx:140 [unit-literal] 0.08em
+src/app/pages/snapshot-landing/components/SnapshotLandingResults.tsx:150 [unit-literal] 0.08em
+src/app/pages/snapshot-landing/components/SnapshotLandingResults.tsx:187 [unit-literal] 0.65rem
+src/app/pages/snapshot-landing/SnapshotIdlePreviewCards.tsx:30 [unit-literal] 0.16em
+src/app/pages/snapshot-landing/SnapshotIdlePreviewCards.tsx:52 [rgb-color] rgba(255,255,255,0.2)
+src/app/pages/snapshot-landing/SnapshotScoreBadge.tsx:25 [unit-literal] 1.75rem
+src/app/pages/snapshot-landing/SnapshotScoreBadge.tsx:25 [unit-literal] 2.5rem
+src/app/pages/snapshot-landing/SnapshotScoreBadge.tsx:26 [unit-literal] 0.45em
+src/app/pages/snapshot-landing/SnapshotScoreBadge.tsx:33 [unit-literal] 0.5em
+src/app/pages/snapshot-landing/SnapshotScoreBadge.tsx:53 [inline-visual-style] <span style={{ color: 'var(--text-quaternary)', fontWeight: 700, fontSize: cfg.overallSpanFontSize }}>/100</span>
+src/app/pages/snapshot-landing/SnapshotScoreBadge.tsx:82 [inline-visual-style] <p className={cfg.bandLabelClassName} style={{ color: accentColor }}>
+src/app/pages/SnapshotLanding.tsx:62 [unit-literal] 0.75rem
+src/app/pages/SnapshotLanding.tsx:71 [unit-literal] 22rem
+src/app/pages/SnapshotLanding.tsx:74 [unit-literal] 10rem
+src/app/pages/SnapshotLanding.tsx:74 [unit-literal] 13rem
+src/app/pages/SnapshotLanding.tsx:163 [unit-literal] 1rem
+src/app/pages/StrategyLab.tsx:154 [unit-literal] 56px
+src/app/pages/StrategyLab.tsx:304 [unit-literal] 280px

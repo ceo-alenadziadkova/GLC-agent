@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const OUT = path.join(ROOT, 'docs', 'design-system', 'violations-export.md');
+const FULL_FINDINGS = path.join(ROOT, 'docs', 'design-system', 'compliance-findings.full.txt');
 
 function run(cmd) {
   try {
@@ -62,6 +63,20 @@ const rawSigs = parseLines(rawOut);
 const enfSigs = parseLines(enfOut);
 const merged = [...rawSigs, ...enfSigs];
 
+const seenSig = new Set();
+const deduped = [];
+for (const s of merged) {
+  const line = `${s.file}:${s.line} [${s.type}] ${s.value}`;
+  if (seenSig.has(line)) continue;
+  seenSig.add(line);
+  deduped.push(s);
+}
+deduped.sort(
+  (a, b) =>
+    a.file.localeCompare(b.file) || a.line - b.line || a.type.localeCompare(b.type) || a.value.localeCompare(b.value),
+);
+const fullText = deduped.map((s) => `${s.file}:${s.line} [${s.type}] ${s.value}`).join('\n') + '\n';
+
 const date = new Date().toISOString().slice(0, 10);
 const lines = [
   '# Design system violations export (no allowlist)',
@@ -76,19 +91,26 @@ const lines = [
   '| --- | ---: |',
   `| design-system-raw-values-check (app scope) | ${rawSigs.length} |`,
   `| design-system-enforcement-check (app scope) | ${enfSigs.length} |`,
-  `| **Total rows** (raw + enforcement; duplicates possible across audits) | **${merged.length}** |`,
+  `| **Total rows** (merged raw + enforcement) | **${merged.length}** |`,
+  `| **Deduped rows** (written to \`compliance-findings.full.txt\`) | **${deduped.length}** |`,
   '',
   '## By violation type (merged)',
   '',
   '| Type | Count |',
   '| --- | ---: |',
-  ...tallyByType(merged).map(([t, c]) => `| \`${t}\` | ${c} |`),
+  ...tallyByType(deduped).map(([t, c]) => `| \`${t}\` | ${c} |`),
   '',
   '## Top files by finding count (merged)',
   '',
   '| File | Count |',
   '| --- | ---: |',
-  ...tallyByFile(merged, 40).map(([f, c]) => `| \`${f}\` | ${c} |`),
+  ...tallyByFile(deduped, 40).map(([f, c]) => `| \`${f}\` | ${c} |`),
+  '',
+  '## Full findings (machine-readable)',
+  '',
+  `One line per finding: \`file:line [type] value\`. Deduped merge of both audits (no allowlist).`,
+  '',
+  `- [\`compliance-findings.full.txt\`](./compliance-findings.full.txt) — **${deduped.length}** lines`,
   '',
   '## Regenerate',
   '',
@@ -100,4 +122,6 @@ const lines = [
 
 fs.mkdirSync(path.dirname(OUT), { recursive: true });
 fs.writeFileSync(OUT, lines.join('\n'), 'utf8');
+fs.writeFileSync(FULL_FINDINGS, fullText, 'utf8');
 console.log(`Wrote ${path.relative(ROOT, OUT)}`);
+console.log(`Wrote ${path.relative(ROOT, FULL_FINDINGS)}`);
