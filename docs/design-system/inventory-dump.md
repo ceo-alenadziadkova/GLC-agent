@@ -304,7 +304,7 @@ Total: **290**
 
 ### hex-color
 
-Count: **124**
+Count: **123**
 
 ```
 #0077A8
@@ -386,7 +386,6 @@ Count: **124**
 #ca8a04
 #CA8A04
 #CBD5E1
-#ccc
 #D43A0C
 #D6E0ED
 #D97706
