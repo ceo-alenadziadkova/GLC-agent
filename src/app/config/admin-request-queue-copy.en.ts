@@ -62,25 +62,25 @@ export const ADMIN_REQUEST_QUEUE_STATUS: Record<
   AuditRequestStatus,
   { label: string; color: string }
 > = {
-  draft: { label: 'Draft', color: 'rgba(255,255,255,0.30)' },
+  draft: { label: 'Draft', color: 'var(--overlay-white-30)' },
   submitted: { label: 'Submitted', color: 'var(--callout-warning-icon)' },
-  under_review: { label: 'Under Review', color: '#3B82F6' },
-  approved: { label: 'Approved', color: '#10B981' },
-  rejected: { label: 'Rejected', color: '#EF4444' },
-  running: { label: 'In Progress', color: '#1CBDFF' },
-  delivered: { label: 'Delivered', color: '#10B981' },
+  under_review: { label: 'Under Review', color: 'var(--glc-blue)' },
+  approved: { label: 'Approved', color: 'var(--glc-green)' },
+  rejected: { label: 'Rejected', color: 'var(--score-1)' },
+  running: { label: 'In Progress', color: 'var(--glc-blue)' },
+  delivered: { label: 'Delivered', color: 'var(--glc-green)' },
 };
 
 export const ADMIN_REQUEST_QUEUE_CHROME = {
-  errorPanelBackground: 'rgba(239,68,68,0.08)',
-  errorPanelBorder: 'rgba(239,68,68,0.20)',
-  errorText: '#EF4444',
-  filterActiveBackground: 'rgba(28,189,255,0.15)',
-  filterActiveBorder: 'rgba(28,189,255,0.35)',
-  rejectNoteBackground: 'rgba(239,68,68,0.12)',
+  errorPanelBackground: 'var(--ui-danger-muted-bg)',
+  errorPanelBorder: 'var(--ui-danger-border-20)',
+  errorText: 'var(--score-1)',
+  filterActiveBackground: 'var(--glc-blue-muted-strong)',
+  filterActiveBorder: 'var(--callout-info-border-strong)',
+  rejectNoteBackground: 'var(--ui-danger-muted-bg-12)',
   /** Clipboard / audit-request row icon tile */
-  rowIconBackground: 'rgba(28,189,255,0.08)',
-  rowIconBorder: 'rgba(28,189,255,0.15)',
+  rowIconBackground: 'var(--callout-info-bg)',
+  rowIconBorder: 'var(--glc-blue-muted-strong)',
   /** Outline for “New audit with prefill” CTA */
-  prefillCtaBorder: 'rgba(28,189,255,0.35)',
+  prefillCtaBorder: 'var(--callout-info-border-strong)',
 } as const;

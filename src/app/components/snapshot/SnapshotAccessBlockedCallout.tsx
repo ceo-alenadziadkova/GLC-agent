@@ -3,6 +3,7 @@
  */
 
 import { SealCheck, Warning } from '@phosphor-icons/react';
+import { cn } from '../ui/utils';
 
 export function SnapshotAccessBlockedCallout(props: {
   robotsBlocked: boolean;
@@ -55,13 +56,13 @@ export function SnapshotAccessBlockedCallout(props: {
 
   return (
     <div
-      className="glc-card mb-5 border p-5 text-left lg:mb-6 lg:p-6"
-      style={{
-        borderRadius: 'var(--radius-xl)',
-        borderColor: policyVisual ? 'color-mix(in oklab, var(--glc-green) 35%, var(--border-default))' : 'var(--border-default)',
-        background: panelBg,
-        boxShadow: policyVisual ? 'inset 3px 0 0 var(--glc-green)' : 'inset 3px 0 0 var(--score-2)',
-      }}
+      className={cn(
+        'glc-card mb-5 border p-5 text-left lg:mb-6 lg:p-6',
+        policyVisual
+          ? 'border-[color-mix(in_oklab,var(--glc-green)_35%,var(--border-default))] shadow-[inset_3px_0_0_var(--glc-green)]'
+          : 'border-[var(--border-default)] shadow-[inset_3px_0_0_var(--score-2)]',
+      )}
+      style={{ background: panelBg }}
       role="status"
     >
       <div className="mb-3 flex items-start gap-3">
@@ -71,23 +72,23 @@ export function SnapshotAccessBlockedCallout(props: {
           <Warning className="mt-0.5 h-5 w-5 shrink-0" style={{ color: accent }} weight="fill" aria-hidden />
         )}
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
             {robotsBlocked
               ? robotsLimitedSample
                 ? 'Preview limited: inner pages sampled'
                 : 'Preview limited: robots.txt policy'
               : 'We could not load public pages for this check'}
           </p>
-          <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
             {robotsBlocked && robotsLimitedSample ? (
               <>
-                Site crawl rules blocked downloading the <strong style={{ color: 'var(--text-primary)' }}>homepage</strong>. We did not GET that URL; other <strong style={{ color: 'var(--text-primary)' }}>allowed</strong> same-origin pages were sampled within normal limits. Treat scores as{' '}
-                <strong style={{ color: 'var(--text-primary)' }}>directional</strong>, not a full homepage read.
+                Site crawl rules blocked downloading the <strong className="text-[var(--text-primary)]">homepage</strong>. We did not GET that URL; other <strong className="text-[var(--text-primary)]">allowed</strong> same-origin pages were sampled within normal limits. Treat scores as{' '}
+                <strong className="text-[var(--text-primary)]">directional</strong>, not a full homepage read.
               </>
             ) : robotsBlocked ? (
               <>
-                <strong style={{ color: 'var(--text-primary)' }}>GLC-SnapshotScanner</strong> respects robots.txt, so we did not download homepage HTML.{headClause} Scores below are{' '}
-                <strong style={{ color: 'var(--text-primary)' }}>placeholders</strong> — not a judgment of business quality.
+                <strong className="text-[var(--text-primary)]">GLC-SnapshotScanner</strong> respects robots.txt, so we did not download homepage HTML.{headClause} Scores below are{' '}
+                <strong className="text-[var(--text-primary)]">placeholders</strong> — not a judgment of business quality.
                 {robotsFallbackSiteClass === 'major_platform' ? (
                   <> Common on large platforms.</>
                 ) : null}
@@ -102,14 +103,14 @@ export function SnapshotAccessBlockedCallout(props: {
         </div>
       </div>
       {robotsBlocked && suggestionLines.length > 0 && (
-        <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed text-[var(--text-secondary)]">
           {suggestionLines.map((line, i) => (
             <li key={i}>{line}</li>
           ))}
         </ul>
       )}
       {limitations.length > 0 && (
-        <ul className="mt-4 list-disc space-y-1.5 pl-5 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <ul className="mt-4 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-[var(--text-secondary)]">
           {limitations.map((line, i) => (
             <li key={i}>{line}</li>
           ))}

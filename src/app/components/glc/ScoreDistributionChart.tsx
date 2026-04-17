@@ -14,20 +14,17 @@ interface Band {
 }
 
 const BANDS: Band[] = [
-  { key: 'band_1', label: '1–2  Critical',  color: '#EF4444' },
-  { key: 'band_2', label: '2–3  Issues',    color: '#F97316' },
-  { key: 'band_3', label: '3–4  Moderate',  color: '#EAB308' },
-  { key: 'band_4', label: '4–5  Good',      color: '#22C55E' },
+  { key: 'band_1', label: '1–2  Critical',  color: 'var(--score-1)' },
+  { key: 'band_2', label: '2–3  Issues',    color: 'var(--score-2)' },
+  { key: 'band_3', label: '3–4  Moderate',  color: 'var(--score-3)' },
+  { key: 'band_4', label: '4–5  Good',      color: 'var(--score-4)' },
 ];
 
 export function ScoreDistributionChart({ distribution, loading }: ScoreDistributionChartProps) {
   const total = distribution?.total_scored ?? 0;
 
   return (
-    <div
-      className="glc-card p-5 h-full"
-      style={{ borderRadius: 'var(--radius-xl)' }}
-    >
+    <div className="glc-card h-full rounded-[var(--radius-xl)] p-5">
       <div className="glc-panel-head">
         <SectionLabel>Score Distribution</SectionLabel>
         <span className="glc-panel-meta">Bands 1-5</span>
@@ -37,8 +34,8 @@ export function ScoreDistributionChart({ distribution, loading }: ScoreDistribut
         <div className="space-y-4">
           {[0, 1, 2, 3].map(i => (
             <div key={i} className="space-y-1.5">
-              <div className="h-3 w-24 rounded animate-pulse" style={{ backgroundColor: 'var(--bg-canvas)' }} />
-              <div className="h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--bg-canvas)' }} />
+              <div className="h-3 w-24 animate-pulse rounded bg-[var(--bg-canvas)]" />
+              <div className="h-2 animate-pulse rounded-full bg-[var(--bg-canvas)]" />
             </div>
           ))}
         </div>
@@ -46,7 +43,7 @@ export function ScoreDistributionChart({ distribution, loading }: ScoreDistribut
 
       {!loading && distribution && total === 0 && (
         <div className="flex flex-col items-center justify-center py-8 gap-2">
-          <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>No scored audits yet</p>
+          <p className="text-sm text-[var(--text-tertiary)]">No scored audits yet</p>
         </div>
       )}
 
@@ -58,11 +55,8 @@ export function ScoreDistributionChart({ distribution, loading }: ScoreDistribut
             return (
               <div key={band.key}>
                 <div className="flex items-center justify-between mb-1">
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{band.label}</span>
-                  <span
-                    className="tabular-nums"
-                    style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}
-                  >
+                  <span className="text-xs text-[var(--text-secondary)]">{band.label}</span>
+                  <span className="text-xs tabular-nums text-[var(--text-tertiary)]">
                     {count}
                   </span>
                 </div>
@@ -90,14 +84,10 @@ export function ScoreDistributionChart({ distribution, loading }: ScoreDistribut
             );
           })}
           <div
-            className="pt-2 flex items-center justify-between"
-            style={{ borderTop: '1px solid var(--border-subtle)' }}
+            className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-2"
           >
-            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Total scored</span>
-            <span
-              className="tabular-nums font-semibold"
-              style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'var(--font-display)' }}
-            >
+            <span className="text-xs text-[var(--text-tertiary)]">Total scored</span>
+            <span className="text-xs font-semibold tabular-nums [font-family:var(--font-display)] text-[var(--text-secondary)]">
               {total}
             </span>
           </div>

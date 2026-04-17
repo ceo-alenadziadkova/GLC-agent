@@ -37,11 +37,11 @@ export const DISCOVERY_QUEUE_COPY = {
 
 /** Maturity level pill colors (static UI config). */
 export const DISCOVERY_QUEUE_MATURITY_COLORS: Record<number, string> = {
-  1: '#EF4444',
-  2: '#F97316',
-  3: '#F59E0B',
-  4: '#10B981',
-  5: '#6B7280',
+  1: 'var(--score-1)',
+  2: 'var(--score-2)',
+  3: 'var(--score-3)',
+  4: 'var(--glc-green)',
+  5: 'var(--text-tertiary)',
 };
 
-export const DISCOVERY_QUEUE_MATURITY_COLOR_FALLBACK = '#6B7280' as const;
+export const DISCOVERY_QUEUE_MATURITY_COLOR_FALLBACK = 'var(--text-tertiary)' as const;
