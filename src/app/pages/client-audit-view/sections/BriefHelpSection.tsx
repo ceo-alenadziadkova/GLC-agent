@@ -2,6 +2,7 @@ import { ChatCircleDots, CheckCircle } from '@phosphor-icons/react';
 import { CLIENT_AUDIT_VIEW_COPY } from '../../../config/client-audit-view-copy';
 import { Callout } from '../../../components/ui/callout';
 import { Surface } from '../../../components/ui/surface';
+import { cn } from '../../../components/ui/utils';
 
 export function BriefHelpSection({
   helpMessage,
@@ -49,10 +50,10 @@ export function BriefHelpSection({
         type="button"
         onClick={onHelp}
         disabled={helpBusy}
-        className="glc-touch-target rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] disabled:cursor-not-allowed"
-        style={{
-          cursor: helpBusy ? 'not-allowed' : 'pointer',
-        }}
+        className={cn(
+          'glc-touch-target rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] disabled:cursor-not-allowed',
+          helpBusy ? 'cursor-not-allowed' : 'cursor-pointer',
+        )}
       >
         {helpBusy ? CLIENT_AUDIT_VIEW_COPY.help.sending : CLIENT_AUDIT_VIEW_COPY.help.send}
       </button>

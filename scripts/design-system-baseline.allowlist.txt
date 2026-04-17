@@ -1,106 +1,29 @@
-src/app/components/ui/accordion.tsx:39 [unit-literal] 3px
-src/app/components/ui/alert-dialog.tsx:57 [unit-literal] 2rem
-src/app/components/ui/badge.tsx:8 [unit-literal] 3px
-src/app/components/ui/button.tsx:8 [unit-literal] 3px
-src/app/components/ui/calendar.tsx:35 [unit-literal] 0.8rem
-src/app/components/ui/checkbox.tsx:17 [unit-literal] 3px
-src/app/components/ui/checkbox.tsx:17 [unit-literal] 4px
-src/app/components/ui/command.tsx:86 [unit-literal] 300px
-src/app/components/ui/context-menu.tsx:105 [unit-literal] 8rem
-src/app/components/ui/context-menu.tsx:88 [unit-literal] 8rem
-src/app/components/ui/dialog.tsx:60 [unit-literal] 2rem
-src/app/components/ui/drawer.tsx:70 [unit-literal] 100px
-src/app/components/ui/dropdown-menu.tsx:233 [unit-literal] 8rem
-src/app/components/ui/dropdown-menu.tsx:45 [unit-literal] 8rem
-src/app/components/ui/input-otp.tsx:54 [unit-literal] 3px
-src/app/components/ui/input.tsx:12 [unit-literal] 3px
-src/app/components/ui/menubar.tsx:251 [unit-literal] 8rem
-src/app/components/ui/menubar.tsx:82 [unit-literal] 12rem
-src/app/components/ui/radio-group.tsx:30 [unit-literal] 3px
-src/app/components/ui/scroll-area.tsx:21 [unit-literal] 3px
-src/app/components/ui/select.tsx:44 [unit-literal] 3px
-src/app/components/ui/select.tsx:68 [unit-literal] 8rem
-src/app/components/ui/sidebar/sidebar-chrome.tsx:53 [unit-literal] 2px
-src/app/components/ui/sidebar/sidebar-root.tsx:104 [unit-literal] 2px
-src/app/components/ui/switch.tsx:16 [unit-literal] 1.15rem
-src/app/components/ui/switch.tsx:16 [unit-literal] 3px
-src/app/components/ui/switch.tsx:24 [unit-literal] 2px
-src/app/components/ui/table.tsx:73 [unit-literal] 2px
-src/app/components/ui/table.tsx:86 [unit-literal] 2px
-src/app/components/ui/tabs.tsx:29 [unit-literal] 3px
-src/app/components/ui/tabs.tsx:45 [unit-literal] 1px
-src/app/components/ui/tabs.tsx:45 [unit-literal] 3px
-src/app/components/ui/textarea.tsx:10 [unit-literal] 3px
-src/app/components/ui/toggle.tsx:10 [unit-literal] 3px
-src/app/pages/Dashboard.tsx:203 [unit-literal] 220px
-src/app/pages/Dashboard.tsx:231 [unit-literal] 0.09em
-src/app/pages/DiscoveryQueue.tsx:199 [unit-literal] 0.04em
-src/app/pages/DiscoveryQueue.tsx:345 [unit-literal] 13px
-src/app/pages/DiscoveryQueue.tsx:360 [unit-literal] 13px
-src/app/pages/DiscoveryQueue.tsx:61 [unit-literal] 0.03em
-src/app/pages/NewAudit.tsx:95 [unit-literal] 28.75rem
-src/app/pages/NewAudit.tsx:95 [unit-literal] 40rem
-src/app/pages/Portfolio.tsx:138 [unit-literal] 0.09em
-src/app/pages/SnapshotLanding.tsx:163 [unit-literal] 1rem
-src/app/pages/SnapshotLanding.tsx:62 [unit-literal] 0.75rem
-src/app/pages/SnapshotLanding.tsx:71 [unit-literal] 22rem
-src/app/pages/SnapshotLanding.tsx:74 [unit-literal] 10rem
-src/app/pages/SnapshotLanding.tsx:74 [unit-literal] 13rem
-src/app/pages/StrategyLab.tsx:154 [unit-literal] 56px
-src/app/pages/StrategyLab.tsx:304 [unit-literal] 280px
-src/app/pages/admin-request-queue/components/AdminRequestQueueErrorBanner.tsx:10 [unit-literal] 1px
-src/app/pages/admin-request-queue/components/AdminRequestQueueFilters.tsx:22 [unit-literal] 1px
-src/app/pages/admin-request-queue/components/AuditRequestQueueCard.tsx:111 [unit-literal] 1px
-src/app/pages/admin-request-queue/components/AuditRequestQueueCard.tsx:154 [unit-literal] 1px
-src/app/pages/admin-request-queue/components/AuditRequestQueueCard.tsx:59 [unit-literal] 1px
-src/app/pages/audit-workspace/AuditWorkspaceScreen.tsx:106 [unit-literal] 56px
-src/app/pages/audit-workspace/config/ui.ts:3 [unit-literal] 56px
-src/app/pages/audit-workspace/config/ui.ts:4 [unit-literal] 232px
-src/app/pages/audit-workspace/sections/IssuesSection.tsx:47 [unit-literal] 10px
-src/app/pages/audit-workspace/sections/IssuesSection.tsx:65 [unit-literal] 9px
-src/app/pages/audit-workspace/sections/IssuesSection.tsx:66 [unit-literal] 0.03em
-src/app/pages/audit-workspace/sections/RecommendationsSection.tsx:33 [unit-literal] 3px
-src/app/pages/audit-workspace/sections/RecommendationsSection.tsx:45 [unit-literal] 0.01em
-src/app/pages/audit-workspace/sections/WorkspaceSidebar.tsx:68 [unit-literal] 1px
-src/app/pages/audit-workspace/sections/WorkspaceSidebar.tsx:79 [unit-literal] 0.01em
-src/app/pages/client-audit-view/sections/BriefHelpSection.tsx:35 [unit-literal] 72px
-src/app/pages/intake-brief/components/IntakeBriefHeader.tsx:12 [unit-literal] 1px
-src/app/pages/intake-wording-workspace/panels/DraftEditorPanel.tsx:71 [unit-literal] 100px
-src/app/pages/intake-wording-workspace/panels/ImportWordingDialog.tsx:33 [unit-literal] 160px
-src/app/pages/intake-wording-workspace/panels/PublicationLogPanel.tsx:23 [unit-literal] 280px
-src/app/pages/intake-wording-workspace/panels/TraceControlsForm.tsx:60 [unit-literal] 140px
-src/app/pages/login/sections/LoginAsideSection.tsx:39 [unit-literal] 34rem
-src/app/pages/login/sections/LoginBrandSection.tsx:32 [unit-literal] 72px
-src/app/pages/new-audit/NewAuditChrome.tsx:27 [unit-literal] 1px
-src/app/pages/new-audit/NewAuditChrome.tsx:30 [unit-literal] 1px
-src/app/pages/new-audit/NewAuditChrome.tsx:40 [unit-literal] 10px
-src/app/pages/new-audit/NewAuditChrome.tsx:42 [unit-literal] 0.04em
-src/app/pages/new-audit/steps/Step0Basics.tsx:357 [unit-literal] 15px
-src/app/pages/new-audit/steps/Step1Brief.tsx:230 [unit-literal] 3px
-src/app/pages/new-audit/steps/Step1Brief.tsx:238 [unit-literal] 28rem
-src/app/pages/new-audit/steps/Step1Brief.tsx:252 [unit-literal] 28rem
-src/app/pages/new-audit/steps/Step2Confirm.tsx:61 [unit-literal] 6px
-src/app/pages/new-audit/steps/Step2Confirm.tsx:63 [unit-literal] 10px
-src/app/pages/new-audit/steps/Step2Confirm.tsx:81 [unit-literal] 1px
-src/app/pages/new-audit/steps/Step2Confirm.tsx:81 [unit-literal] 90px
-src/app/pages/pipeline-monitor/PipelineMonitorPhaseUi.tsx:148 [unit-literal] 3px
-src/app/pages/pipeline-monitor/PipelineMonitorPhaseUi.tsx:24 [unit-literal] 0.05em
-src/app/pages/pipeline-monitor/PipelineMonitorPhaseUi.tsx:24 [unit-literal] 9px
-src/app/pages/pipeline-monitor/config/pipeline-monitor-ui-policy.ts:3 [unit-literal] 56px
-src/app/pages/pipeline-monitor/config/pipeline-monitor-ui-policy.ts:4 [unit-literal] 252px
-src/app/pages/pipeline-monitor/sections/MonitorHeaderActions.tsx:23 [unit-literal] 0.04em
-src/app/pages/pipeline-monitor/sections/PhaseDetailPanel.tsx:277 [unit-literal] 0.10em
-src/app/pages/pipeline-monitor/sections/PhaseDetailPanel.tsx:301 [unit-literal] 3px
-src/app/pages/pipeline-monitor/sections/PhaseDetailPanel.tsx:303 [unit-literal] 3px
-src/app/pages/pipeline-monitor/sections/PhaseDetailPanel.tsx:305 [unit-literal] 3px
-src/app/pages/pipeline-monitor/sections/PhaseSidebar.tsx:34 [unit-literal] 1px
-src/app/pages/pipeline-monitor/sections/PhaseSidebar.tsx:53 [unit-literal] 0.06em
-src/app/pages/pipeline-monitor/sections/PhaseSidebar.tsx:53 [unit-literal] 9px
-src/app/pages/pipeline-monitor/sections/PhaseSidebar.tsx:78 [unit-literal] 0.06em
-src/app/pages/pipeline-monitor/sections/PhaseSidebar.tsx:78 [unit-literal] 9px
-src/app/pages/settings/components/OptionPill.tsx:15 [unit-literal] 10px
-src/app/pages/settings/components/OptionPill.tsx:15 [unit-literal] 6px
-src/app/pages/settings/components/OptionPill.tsx:16 [unit-literal] 11px
-src/app/pages/snapshot-landing/CategoryBreakdownHint.tsx:25 [unit-literal] 22rem
-src/app/pages/snapshot-landing/SnapshotIdlePreviewCards.tsx:30 [unit-literal] 0.16em
-src/app/pages/snapshot-landing/components/SnapshotLandingProgress.tsx:16 [unit-literal] 26rem
+src/app/components/BankClassicBriefFields.tsx:60 [inline-visual-style] {{ backgroundColor: 'rgba(28,189,255,0.05)', borderLeft: '2px solid rgba(28,189,255,0.25)', }}
+src/app/components/BankClassicBriefFields.tsx:66 [inline-visual-style] {{ fontSize: hx.label, fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(28,189,255,0.7)', textTransform: 'uppercase', }}
+src/app/components/IntakeBankWizard.tsx:192 [inline-visual-style] {{ border: '1px solid var(--border-subtle)', background: 'var(--bg-surface)', color: 'var(--text-secondary)', cursor: step >= 0 ? 'pointer' : 'not-allowed', }}
+src/app/components/IntakeBankWizard.tsx:245 [inline-visual-style] {{ width: totalVisibleSteps > 0 ? `${((currentVisibleIndex + 1) / totalVisibleSteps) * 100}%` : '0%', background: 'var(--gradient-brand)', }}
+src/app/components/IntakeBankWizard.tsx:344 [inline-visual-style] {{ color: isFirstVisibleStep ? 'var(--text-quaternary)' : 'var(--text-tertiary)', border: '1px solid var(--border-subtle)', backgroundColor: 'transparent', cursor: isFirstVisibleStep ? 'not-allowed' : 'pointer', }}
+src/app/components/IntakeBankWizard.tsx:358 [inline-visual-style] {{ background: isLastVisibleStep || totalVisibleSteps === 0 ? 'var(--bg-muted)' : 'var(--gradient-brand)', color: isLastVisibleStep || totalVisibleSteps === 0 ? 'var(--text-secondary)' : 'var(--primary-foreground)', bord
+src/app/components/glc/ActivityFeed.tsx:62 [inline-visual-style] {{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', whiteSpace: 'nowrap', marginTop: 1, ...eventPillStyle(ev.event_type), }}
+src/app/components/glc/ActivityFeed.tsx:81 [inline-visual-style] {{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', textDecoration: 'none', fontFamily: 'var(--font-display)', }}
+src/app/components/glc/ScoreDistributionChart.tsx:66 [inline-visual-style] {{ height: 6, borderRadius: 'var(--radius-full)', backgroundColor: 'var(--border-subtle)', }}
+src/app/components/glc/ScoreDistributionChart.tsx:76 [inline-visual-style] {{ height: '100%', backgroundColor: band.color, borderRadius: 'var(--radius-full)', }}
+src/app/components/portal-snapshot-account-mirror/sections/MirrorInsightsSection.tsx:35 [inline-visual-style] {{ backgroundColor: PORTAL_SNAPSHOT_SEVERITY_COLOR[issue.severity] ?? 'var(--text-tertiary)', marginTop: 6, }}
+src/app/components/portal-snapshot-account-mirror/sections/MirrorStatusHeaderSection.tsx:18 [inline-visual-style] {{ background: access.showCallout && access.robotsBlocked ? 'color-mix(in oklab, var(--glc-green) 10%, var(--bg-surface))' : 'var(--bg-surface)', border: access.showCallout && access.robotsBlocked ? '1px solid color-mix(
+src/app/components/question-bank-studio/panels/ContextInputsPanel.tsx:107 [inline-visual-style] {{ border: '1px solid var(--border-default)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)', cursor: 'pointer', }}
+src/app/components/question-bank-studio/sections/StudioLogicMetaSection.tsx:48 [inline-visual-style] {{ border: on ? '1px solid var(--glc-orange)' : '1px solid var(--border-default)', backgroundColor: on ? 'var(--glc-orange-muted)' : 'var(--bg-surface)', color: 'var(--text-secondary)', cursor: 'pointer', }}
+src/app/components/ui/chart.tsx:294 [inline-visual-style] {{ backgroundColor: item.color, }}
+src/app/pages/FullAuditPage.tsx:71 [inline-visual-style] {{ borderColor: 'var(--border-subtle)', backgroundColor: 'color-mix(in oklab, var(--glc-blue-muted) 78%, var(--bg-surface))', }}
+src/app/pages/audit-workspace/sections/WorkspaceSidebar.tsx:109 [inline-visual-style] {{ transform: briefPanelOpen ? 'rotate(90deg)' : 'none', color: 'var(--glc-blue)', }}
+src/app/pages/audit-workspace/sections/WorkspaceSidebar.tsx:141 [inline-visual-style] {{ border: 'none', }}
+src/app/pages/audit-workspace/sections/WorkspaceSidebar.tsx:67 [inline-visual-style] {{ borderRight: 'var(--border-width-default) solid var(--border-subtle)', background: 'linear-gradient(180deg, color-mix(in oklab, var(--bg-surface) 96%, white) 0%, var(--bg-surface) 100%)', }}
+src/app/pages/intake-brief/components/IntakeBriefFormPhase.tsx:103 [inline-visual-style] {{ background: 'var(--callout-info-bg)', border: 'var(--border-width-default) solid var(--glc-blue-alpha-20)', color: 'var(--text-secondary)', }}
+src/app/pages/intake-brief/components/IntakeBriefFormPhase.tsx:114 [inline-visual-style] {{ background: 'var(--bg-surface)', border: 'var(--border-width-default) solid var(--border-subtle)', color: 'var(--text-secondary)', }}
+src/app/pages/intake-brief/components/IntakeBriefFormPhase.tsx:205 [inline-visual-style] {{ background: formComplete ? 'var(--gradient-brand)' : 'var(--bg-muted)', color: formComplete ? 'var(--primary-foreground)' : 'var(--text-secondary)', border: formComplete ? 'none' : 'var(--border-width-default) solid v
+src/app/pages/intake-brief/components/IntakeBriefFormPhase.tsx:64 [inline-visual-style] {{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 'var(--text-xl)', color: 'var(--text-primary)', }}
+src/app/pages/intake-brief/components/IntakeBriefFormPhase.tsx:83 [inline-visual-style] {{ background: 'var(--bg-surface)', border: 'var(--border-width-default) solid var(--border-subtle)', color: 'var(--text-secondary)', }}
+src/app/pages/login/sections/LoginAuthCardSection.tsx:148 [inline-visual-style] {{ borderColor: 'color-mix(in oklab, var(--glc-blue) 45%, var(--border-subtle))', backgroundColor: 'color-mix(in oklab, var(--glc-blue-muted) 42%, transparent)', }}
+src/app/marketing/blocks/HomeHeroCockpit.tsx:12 [inline-visual-style] {{ width, backgroundColor: 'color-mix(in oklab, var(--border-default) 55%, transparent)', }}
+src/app/marketing/blocks/HomeHeroCockpit.tsx:44 [inline-visual-style] {{ borderRadius: 'var(--radius-xl)', borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-surface)', transform: 'rotate(-2.5deg)', transformOrigin: 'center top', zIndex: 1, opacity: 0.92, }}
+src/app/marketing/blocks/HomeHeroCockpit.tsx:70 [inline-visual-style] {{ borderRadius: 'var(--radius-xl)', borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-surface)', transform: 'rotate(1.2deg)', zIndex: 2, }}
+src/app/marketing/blocks/HomeHeroCockpit.tsx:87 [inline-visual-style] {{ backgroundColor: i % 3 === 0 ? 'color-mix(in oklab, var(--glc-blue-muted) 80%, transparent)' : 'color-mix(in oklab, var(--bg-muted) 90%, transparent)', }}

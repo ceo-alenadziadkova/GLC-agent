@@ -28,12 +28,7 @@ export function HomeHeroSection({ reduceMotion, data }: HomeHeroSectionProps) {
         <div className="min-w-0 max-w-4xl">
           <motion.p
             variants={heroMv.item}
-            className="mb-6 inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold uppercase ds-tracking-marketing-eyebrow sm:text-xs"
-            style={{
-              backgroundColor: 'color-mix(in oklab, var(--bg-surface) 94%, transparent)',
-              borderColor: 'var(--border-subtle)',
-              color: 'var(--text-secondary)',
-            }}
+            className="ds-home-hero-eyebrow-chip mb-6 inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold uppercase ds-tracking-marketing-eyebrow sm:text-xs"
           >
             {brandName} · {hero.eyebrow}
           </motion.p>

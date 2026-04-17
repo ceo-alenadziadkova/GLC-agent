@@ -110,36 +110,24 @@ export function MarketingHeader({
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {/* <ThemeToggle /> */}
+          {/* TODO(ds): Spec and implement dedicated marketing-header CTA appearance in the design system (Brief link). */}
           <Link
             to={briefLink?.to ?? '/brief'}
-            className="hidden rounded-lg px-3 py-2 text-sm font-semibold sm:inline-flex"
-            style={{
-              background: 'var(--gradient-brand)',
-              color: 'var(--primary-foreground)',
-              boxShadow: 'none',
-            }}
+            className="ds-marketing-header-brief-cta hidden rounded-lg px-3 py-2 text-sm font-semibold sm:inline-flex"
           >
             {briefLink?.label ?? footer.briefLinkLabel}
           </Link>
+          {/* TODO(ds): Spec and implement dedicated marketing-header CTA appearance in the design system (client sign-in link). */}
           <Link
             to={LOGIN_PATH}
-            className="hidden rounded-lg px-3 py-2 text-sm font-semibold sm:inline-flex"
-            style={{
-              color: 'var(--glc-blue)',
-              border: 'var(--border-width-default) solid color-mix(in oklab, var(--glc-blue) 35%, var(--border-default))',
-            }}
+            className="ds-marketing-header-signin-link hidden rounded-lg px-3 py-2 text-sm font-semibold sm:inline-flex"
           >
             {footer.clientSignInLabel}
           </Link>
           <button
             type="button"
             ref={menuButtonRef}
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg lg:hidden"
-            style={{
-              border: 'var(--border-width-default) solid var(--border-subtle)',
-              backgroundColor: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-            }}
+            className="ds-marketing-header-menu-button inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg lg:hidden"
             aria-expanded={open}
             aria-controls="marketing-mobile-menu"
             aria-haspopup="dialog"

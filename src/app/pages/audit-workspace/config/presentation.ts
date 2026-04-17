@@ -21,28 +21,16 @@ export const DOMAIN_ICONS: Record<
   automation_processes: Lightning,
 };
 
-export const SEV_COLOR: Record<string, string> = {
-  critical: 'var(--score-1)',
-  high: 'var(--score-1)',
-  medium: 'var(--score-3)',
-  low: 'var(--text-tertiary)',
+/** Tailwind class bundles for issue severity / confidence pills (design tokens via var()). */
+export const SEV_ISSUE_PILL_VARIANT_CLASS: Record<string, string> = {
+  critical: 'bg-[var(--score-1-bg)] text-[var(--score-1)]',
+  high: 'bg-[var(--score-1-bg)] text-[var(--score-1)]',
+  medium: 'bg-[var(--score-3-bg)] text-[var(--score-3)]',
+  low: 'bg-[var(--bg-muted)] text-[var(--text-tertiary)]',
 };
 
-export const SEV_BG: Record<string, string> = {
-  critical: 'var(--score-1-bg)',
-  high: 'var(--score-1-bg)',
-  medium: 'var(--score-3-bg)',
-  low: 'var(--bg-muted)',
-};
-
-export const CONF_COLOR: Record<ConfidenceLevel, string> = {
-  high: 'var(--glc-green)',
-  medium: 'var(--score-3)',
-  low: 'var(--text-tertiary)',
-};
-
-export const CONF_BG: Record<ConfidenceLevel, string> = {
-  high: 'var(--glc-green-muted)',
-  medium: 'var(--score-3-alpha-10)',
-  low: 'var(--bg-muted)',
+export const CONF_ISSUE_PILL_VARIANT_CLASS: Record<ConfidenceLevel, string> = {
+  high: 'bg-[var(--glc-green-muted)] text-[var(--glc-green)]',
+  medium: 'bg-[var(--score-3-alpha-10)] text-[var(--score-3)]',
+  low: 'bg-[var(--bg-muted)] text-[var(--text-tertiary)]',
 };

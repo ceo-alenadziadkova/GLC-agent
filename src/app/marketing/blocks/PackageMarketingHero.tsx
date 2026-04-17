@@ -24,13 +24,7 @@ function TierCoverageDecor({ tier }: { tier: 'focus' | 'context' | 'strategy' })
   const badgeStyle = MARKETING_PACKAGE_BADGE_VARIANTS[tier];
   return (
     <div className="relative ds-package-marketing-hero-cover" aria-hidden>
-      <div
-        className="rounded-[var(--radius-2xl)] border p-6 shadow-[var(--shadow-xs)]"
-        style={{
-          borderColor: 'var(--border-subtle)',
-          backgroundColor: 'color-mix(in oklab, var(--bg-surface) 94%, var(--bg-muted))',
-        }}
-      >
+      <div className="ds-package-marketing-hero-card rounded-[var(--radius-2xl)] border p-6 shadow-[var(--shadow-xs)]">
         <p className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider ds-text-tertiary" >
           {HERO_LABELS.coverageShape}
         </p>
@@ -102,12 +96,7 @@ export function PackageMarketingHero({
         <div className="min-w-0 max-w-4xl">
           <motion.p
             variants={mv.item}
-            className="mb-5 inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold uppercase ds-tracking-marketing-eyebrow sm:text-xs"
-            style={{
-              backgroundColor: 'color-mix(in oklab, var(--bg-surface) 94%, transparent)',
-              borderColor: 'var(--border-subtle)',
-              color: 'var(--text-secondary)',
-            }}
+            className="ds-home-hero-eyebrow-chip mb-5 inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold uppercase ds-tracking-marketing-eyebrow sm:text-xs"
           >
             {eyebrow}
           </motion.p>
@@ -129,7 +118,7 @@ export function PackageMarketingHero({
               variant="default"
               className="ds-cta-primary inline-flex w-full items-center justify-center gap-2 text-sm font-semibold sm:w-auto"
             >
-              <Link to="/brief" style={{ textDecoration: 'none' }}>
+              <Link to="/brief" className="no-underline">
                 {HERO_LABELS.startWithBrief}
               </Link>
             </Button>

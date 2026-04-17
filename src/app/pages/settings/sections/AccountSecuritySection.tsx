@@ -1,7 +1,6 @@
 import { SignOut } from '@phosphor-icons/react';
 import { Button } from '../../../components/ui/button';
 import { SETTINGS_PAGE_COPY } from '../../../config/settings-page-copy.en';
-import { SETTINGS_UI_STYLES } from '../config/settings-ui-policy';
 import { SettingsCard } from '../components/SettingsCard';
 
 type AccountSecuritySectionProps = {
@@ -54,15 +53,13 @@ export function AccountSecuritySection({
           onChange={e => setNewEmail(e.target.value)}
           placeholder={SETTINGS_PAGE_COPY.account.newEmailPlaceholder}
           autoComplete="email"
-          className="w-full mobile:flex-1 px-3 py-2 text-sm"
-          style={SETTINGS_UI_STYLES.fieldInput}
+          className="ds-settings-field-input w-full px-3 py-2 text-sm mobile:flex-1"
         />
         <Button
           type="button"
           variant="default"
-          className="whitespace-nowrap"
+          className="whitespace-nowrap disabled:opacity-[0.55]"
           disabled={savingEmail || !newEmail.trim()}
-          style={{ opacity: savingEmail || !newEmail.trim() ? 0.55 : 1 }}
           onClick={onChangeEmail}
         >
           {savingEmail ? SETTINGS_PAGE_COPY.account.sendingEmailChange : SETTINGS_PAGE_COPY.account.requestEmailChange}
@@ -87,8 +84,7 @@ export function AccountSecuritySection({
             value={newPassword}
             onChange={e => setNewPassword(e.target.value)}
             placeholder={SETTINGS_PAGE_COPY.account.newPasswordPlaceholder}
-            className="w-full px-3 py-2 text-sm"
-            style={SETTINGS_UI_STYLES.fieldInput}
+            className="ds-settings-field-input w-full px-3 py-2 text-sm"
           />
           <input
             type="password"
@@ -97,11 +93,10 @@ export function AccountSecuritySection({
             value={confirmPassword}
             onChange={e => setConfirmPassword(e.target.value)}
             placeholder={SETTINGS_PAGE_COPY.account.confirmNewPasswordPlaceholder}
-            className="w-full px-3 py-2 text-sm"
-            style={SETTINGS_UI_STYLES.fieldInput}
+            className="ds-settings-field-input w-full px-3 py-2 text-sm"
           />
         </div>
-        <Button type="submit" variant="default" className="mb-3" disabled={savingPassword} style={{ opacity: savingPassword ? 0.6 : 1 }}>
+        <Button type="submit" variant="default" className="mb-3 disabled:opacity-60" disabled={savingPassword}>
           {savingPassword ? SETTINGS_PAGE_COPY.account.updatingPassword : SETTINGS_PAGE_COPY.account.updatePassword}
         </Button>
       </form>

@@ -23,9 +23,8 @@ export function AppearanceSection({ mode, onModeChange }: AppearanceSectionProps
           <OptionPill
             key={themeMode}
             active={mode === themeMode}
-            className="px-3 py-2 text-xs font-medium"
+            className="px-3 py-2 text-xs font-medium capitalize"
             onClick={() => onModeChange(themeMode)}
-            style={{ textTransform: 'capitalize' }}
           >
             {themeMode}
           </OptionPill>

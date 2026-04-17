@@ -25,10 +25,7 @@ export function MonitorHeaderActions(props: {
         />
       )}
       <div className="flex items-center gap-2.5">
-        <div
-          className="w-28 overflow-hidden rounded-full bg-[var(--border-subtle)]"
-          style={{ height: PIPELINE_MONITOR_UI_POLICY.sizing.progressBarHeight }}
-        >
+        <div className="h-[var(--space-1)] w-28 overflow-hidden rounded-full bg-[var(--border-subtle)]">
           <motion.div
             className="h-full rounded-full bg-[var(--glc-green)] shadow-[0_0_6px_var(--glc-green)]"
             animate={{ width: `${progressPct}%` }}

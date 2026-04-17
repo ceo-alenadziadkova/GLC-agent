@@ -4,7 +4,11 @@ import { SectionLabel } from '../../../components/glc/SectionLabel';
 import { AUDIT_WORKSPACE_COPY } from '../../../config/audit-workspace-copy.en';
 import type { ConfidenceLevel, DomainData } from '../../../data/auditTypes';
 import { AUDIT_WORKSPACE_UI } from '../config/ui';
-import { CONF_BG, CONF_COLOR, SEV_BG, SEV_COLOR } from '../config/presentation';
+import {
+  CONF_ISSUE_PILL_VARIANT_CLASS,
+  SEV_ISSUE_PILL_VARIANT_CLASS,
+} from '../config/presentation';
+import { cn } from '../../../components/ui/utils';
 
 type Props = { domainData: DomainData };
 
@@ -40,14 +44,10 @@ export function IssuesSection({ domainData }: Props) {
               className="flex items-start gap-3 px-5 py-3"
             >
               <span
-                className="px-2 py-0.5 rounded-full font-bold capitalize flex-shrink-0 mt-0.5"
-                style={{
-                  backgroundColor: SEV_BG[issue.severity] || SEV_BG.medium,
-                  color: SEV_COLOR[issue.severity] || SEV_COLOR.medium,
-                  fontSize: 'var(--text-2xs)',
-                  minWidth: AUDIT_WORKSPACE_UI.issueSeverityMinWidth,
-                  textAlign: 'center',
-                }}
+                className={cn(
+                  'mt-0.5 min-w-12 flex-shrink-0 rounded-full px-2 py-0.5 text-center text-[length:var(--text-2xs)] font-bold capitalize',
+                  SEV_ISSUE_PILL_VARIANT_CLASS[issue.severity] ?? SEV_ISSUE_PILL_VARIANT_CLASS.medium,
+                )}
               >
                 {issue.severity}
               </span>
@@ -58,11 +58,10 @@ export function IssuesSection({ domainData }: Props) {
                     {issue.title}
                   </span>
                   <span
-                    className="ds-issue-confidence-pill px-1.5 py-0.5 rounded font-medium capitalize flex-shrink-0"
-                    style={{
-                      backgroundColor: CONF_BG[conf],
-                      color: CONF_COLOR[conf],
-                    }}
+                    className={cn(
+                      'ds-issue-confidence-pill flex-shrink-0 rounded px-1.5 py-0.5 font-medium capitalize',
+                      CONF_ISSUE_PILL_VARIANT_CLASS[conf],
+                    )}
                     title={`Confidence: ${conf}${issue.data_source ? ` — ${issue.data_source.replace(/_/g, ' ')}` : ''}`}
                   >
                     {conf}

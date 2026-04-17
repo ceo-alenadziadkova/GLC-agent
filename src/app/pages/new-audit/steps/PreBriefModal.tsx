@@ -5,6 +5,7 @@ import { INDUSTRY_OPTIONS } from '../../../data/industry-options';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
 import { Callout } from '../../../components/ui/callout';
 import { FormField } from '../../../components/ui/form-field';
+import { cn } from '../../../components/ui/utils';
 
 export type PreBriefModalProps = {
   isOpen: boolean;
@@ -265,8 +266,10 @@ export function PreBriefModal({
           <button
             type="button"
             disabled={loading}
-            className="w-full rounded-lg border-none bg-[var(--gradient-brand)] py-2.5 text-sm font-semibold text-[var(--primary-foreground)]"
-            style={{ cursor: loading ? 'wait' : 'pointer' }}
+            className={cn(
+              'w-full rounded-lg border-none bg-[var(--gradient-brand)] py-2.5 text-sm font-semibold text-[var(--primary-foreground)]',
+              loading ? 'cursor-wait' : 'cursor-pointer',
+            )}
             onClick={() => {
               void onCreate();
             }}

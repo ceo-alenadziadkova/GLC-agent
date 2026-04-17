@@ -100,7 +100,7 @@ export function GraphCanvas(props: GraphCanvasProps) {
           return (
             <g
               key={id}
-              style={{ cursor: 'pointer' }}
+              className="cursor-pointer"
               onClick={event => {
                 props.onFocusIdChange(id);
                 if (event.shiftKey || event.metaKey || event.ctrlKey) props.onToggleSelected(id);

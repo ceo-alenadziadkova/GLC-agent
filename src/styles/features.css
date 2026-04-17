@@ -472,6 +472,15 @@ body.glc-site-polish :is(a, button):not(:disabled) {
   transition: border-color var(--ease-fast), box-shadow var(--ease-fast), background-color var(--ease-fast);
 }
 
+/* Login email/password fields: surface + border (replaces former LOGIN_FORM_STYLE_PRESETS.inputBase). */
+.glc-auth-input--field {
+  border-radius: var(--radius-lg);
+  border: var(--border-width-default) solid var(--border-default);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
 .glc-auth-input:focus-visible {
   border-color: var(--glc-blue) !important;
   box-shadow: var(--shadow-blue) !important;
@@ -513,6 +522,32 @@ body.glc-site-polish :is(a, button):not(:disabled) {
 .glc-auth-primary-btn {
   min-height: var(--glc-touch-target-min);
   transition: transform var(--ease-fast), box-shadow var(--ease-fast), opacity var(--ease-fast);
+}
+
+/* Primary submit row on auth forms (replaces LOGIN_FORM_STYLE_PRESETS submit presets). */
+.glc-auth-submit-btn {
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  border: none;
+}
+
+.glc-auth-submit-btn--ready {
+  background: var(--gradient-brand);
+  color: var(--primary-foreground);
+  box-shadow: 0 var(--space-2) var(--space-5) color-mix(in oklab, var(--glc-blue) 34%, transparent);
+}
+
+.glc-auth-submit-btn--disabled {
+  background: var(--border-default);
+  color: var(--text-tertiary);
+  box-shadow: none;
+}
+
+.glc-auth-secondary-link {
+  color: var(--glc-blue);
+  border: none;
+  background: transparent;
+  cursor: pointer;
 }
 
 .glc-auth-inline-mono {

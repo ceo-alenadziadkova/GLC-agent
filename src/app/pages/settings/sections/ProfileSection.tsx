@@ -1,7 +1,6 @@
 import { User } from '@phosphor-icons/react';
 import { Button } from '../../../components/ui/button';
 import { SETTINGS_PAGE_COPY } from '../../../config/settings-page-copy.en';
-import { SETTINGS_UI_STYLES } from '../config/settings-ui-policy';
 import { SettingsCard } from '../components/SettingsCard';
 
 type ProfileSectionProps = {
@@ -28,15 +27,14 @@ export function ProfileSection({ fullName, onFullNameChange, onSave, saving, dis
           value={fullName}
           onChange={e => onFullNameChange(e.target.value)}
           placeholder={SETTINGS_PAGE_COPY.profile.yourNamePlaceholder}
-          className="flex-1 px-3 py-2 text-sm"
-          style={SETTINGS_UI_STYLES.fieldInput}
+          className="ds-settings-field-input flex-1 px-3 py-2 text-sm"
         />
         <Button
           type="button"
           variant="default"
+          className="disabled:opacity-60"
           onClick={onSave}
           disabled={saving || disabled}
-          style={{ opacity: saving || disabled ? 0.6 : 1 }}
         >
           {saving ? SETTINGS_PAGE_COPY.profile.saving : SETTINGS_PAGE_COPY.profile.save}
         </Button>

@@ -17,11 +17,8 @@ export function MobileHeader({
 }: AppShellHeaderProps) {
   return (
     <header
-      className="sm:hidden flex shrink-0 items-center gap-2 border-b border-[var(--border-subtle)] pb-[var(--space-2)] shadow-[var(--shadow-xs)] glc-safe-pad-x glc-safe-pad-t"
+      className="sm:hidden flex min-h-[var(--glc-mobile-header-height)] shrink-0 items-center gap-2 border-b border-[var(--border-subtle)] pb-[var(--space-2)] shadow-[var(--shadow-xs)] glc-safe-pad-x glc-safe-pad-t"
       aria-hidden={title ? isSmUp : undefined}
-      style={{
-        minHeight: 'var(--glc-mobile-header-height)',
-      }}
     >
       <Link to="/" className="inline-flex items-center flex-shrink-0" aria-label={shellCopy.aria.home}>
         <GlcLogo variant="auto" className="h-9" />

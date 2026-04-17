@@ -31,13 +31,8 @@ export function NextStepsCta({
 
   const header = (
     <div
-      className="border-b px-6 py-5 sm:px-8"
-      style={{
-        borderColor: 'var(--border-subtle)',
-        background: isHome
-          ? 'var(--bg-muted)'
-          : 'linear-gradient(135deg, color-mix(in oklab, var(--bg-muted) 62%, transparent) 0%, color-mix(in oklab, var(--glc-blue-muted) 46%, transparent) 100%)',
-      }}
+      className="ds-next-steps-header border-b px-6 py-5 sm:px-8"
+      data-home={isHome ? 'true' : 'false'}
     >
       <h2 className="font-display text-xl font-bold tracking-tight sm:text-2xl ds-text-primary" >
         {title}
@@ -82,14 +77,7 @@ export function NextStepsCta({
 
   if (layout === 'compact-grid') {
     return (
-      <div
-        className="glc-card overflow-hidden"
-        style={{
-          borderRadius: 'var(--radius-2xl)',
-          boxShadow: isHome ? 'none' : 'var(--shadow-card)',
-          border: isHome ? 'var(--border-width-default) solid var(--border-subtle)' : undefined,
-        }}
-      >
+      <div className="ds-next-steps-card glc-card overflow-hidden" data-home={isHome ? 'true' : 'false'}>
         {header}
         <ul className="grid gap-3 border border-[var(--border-subtle)] p-4 sm:grid-cols-2 sm:p-5">
           {steps.map(s => (
@@ -98,15 +86,9 @@ export function NextStepsCta({
                 to={s.to}
                 className={cn(
                   stepLinkClass,
-                  'h-full rounded-[var(--radius-xl)] border p-4',
+                  'ds-next-steps-tile-link h-full rounded-[var(--radius-xl)] border p-4',
                 )}
-                style={{
-                  borderColor: 'var(--border-subtle)',
-                  backgroundColor: s.primary
-                    ? 'color-mix(in oklab, var(--glc-blue-muted) 40%, transparent)'
-                    : 'var(--bg-surface)',
-                  textDecoration: 'none',
-                }}
+                data-primary={s.primary ? 'true' : 'false'}
               >
                 {stepInner(s)}
               </Link>
@@ -126,29 +108,19 @@ export function NextStepsCta({
 
   if (layout === 'rail') {
     return (
-      <div
-        className="glc-card overflow-hidden"
-        style={{
-          borderRadius: 'var(--radius-2xl)',
-          boxShadow: isHome ? 'none' : 'var(--shadow-card)',
-          border: isHome ? 'var(--border-width-default) solid var(--border-subtle)' : undefined,
-        }}
-      >
+      <div className="ds-next-steps-card glc-card overflow-hidden" data-home={isHome ? 'true' : 'false'}>
         {header}
         <div className="overflow-x-auto">
-          <ul className="flex gap-3 px-4 py-4 sm:px-6" style={{ width: 'max-content' }}>
+          <ul className="flex w-max gap-3 px-4 py-4 sm:px-6">
             {steps.map(s => (
               <li key={s.to} className="shrink-0 ds-next-steps-rail-card">
                 <Link
                   to={s.to}
-                  className={cn(stepLinkClass, 'rounded-[var(--radius-xl)] border p-4')}
-                  style={{
-                    borderColor: 'var(--border-subtle)',
-                    backgroundColor: s.primary
-                      ? 'color-mix(in oklab, var(--glc-blue-muted) 40%, transparent)'
-                      : 'var(--bg-surface)',
-                    textDecoration: 'none',
-                  }}
+                  className={cn(
+                    stepLinkClass,
+                    'ds-next-steps-tile-link rounded-[var(--radius-xl)] border p-4',
+                  )}
+                  data-primary={s.primary ? 'true' : 'false'}
                 >
                   {stepInner(s)}
                 </Link>
@@ -168,32 +140,16 @@ export function NextStepsCta({
   }
 
   return (
-    <div
-      className="glc-card overflow-hidden"
-      style={{
-        borderRadius: 'var(--radius-2xl)',
-        boxShadow: isHome ? 'none' : 'var(--shadow-card)',
-        border: isHome ? 'var(--border-width-default) solid var(--border-subtle)' : undefined,
-      }}
-    >
+    <div className="ds-next-steps-card glc-card overflow-hidden" data-home={isHome ? 'true' : 'false'}>
       {header}
       <ul className="divide-y divide-[var(--border-subtle)]">
         {steps.map(s => (
           <li key={s.to}>
             <Link
               to={s.to}
-              className={cn(stepLinkClass, 'px-6 py-4 sm:px-8 sm:py-5')}
-              style={{
-                backgroundColor: s.primary
-                  ? isHome
-                    ? 'color-mix(in oklab, var(--glc-blue-muted) 35%, transparent)'
-                    : 'color-mix(in oklab, var(--glc-blue-muted) 50%, transparent)'
-                  : 'transparent',
-                border: s.primary
-                  ? 'var(--border-width-default) solid color-mix(in oklab, var(--glc-blue) 38%, var(--border-subtle))'
-                  : 'var(--border-width-default) solid transparent',
-                textDecoration: 'none',
-              }}
+              className={cn(stepLinkClass, 'ds-next-steps-row-link px-6 py-4 sm:px-8 sm:py-5')}
+              data-primary={s.primary ? 'true' : 'false'}
+              data-home={isHome ? 'true' : 'false'}
             >
               {stepInner(s)}
             </Link>

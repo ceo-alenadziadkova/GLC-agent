@@ -101,7 +101,7 @@ export function PipelineMonitorPage() {
         />
       }
     >
-      <div className="flex" style={{ height: PIPELINE_MONITOR_UI_POLICY.layout.contentHeight }}>
+      <div className={`flex ${PIPELINE_MONITOR_UI_POLICY.layout.contentClassName}`}>
         <PhaseSidebar
           phases={phases}
           selectedPhaseId={selectedPhaseId}

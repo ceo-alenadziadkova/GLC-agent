@@ -20,7 +20,7 @@ Date: 2026-04-17
   - `pnpm run audit:ds:export-violations` — regenerates [`docs/design-system/violations-export.md`](./violations-export.md): merged output of raw-values and enforcement audits **with allowlist disabled**, for tracking remaining drift; not a “clean” checklist.
 - Enforcement scripts:
   - `scripts/design-system-raw-values-check.mjs`
-  - `scripts/design-system-enforcement-check.mjs`
+  - `scripts/design-system-enforcement-check.mjs` (inline visual detection spans multiline `style={{ ... }}` blocks, not single-line only)
   - baseline isolation allowlist: `scripts/design-system-baseline.allowlist.txt`
 - Reporting / allowlist maintenance:
   - `pnpm run audit:ds:refresh-allowlist` — regenerates `scripts/design-system-baseline.allowlist.txt` from current audit output after migrations (line-accurate signatures).
@@ -35,6 +35,8 @@ Date: 2026-04-17
 
 ### 2026-04-17 implementation status
 
+- **Vendor primitives token pass:** `src/app/components/ui/**` class strings now reference `--primitive-*` and spacing/border tokens where the no-allowlist export listed `unit-literal` findings; merged `audit:ds:export-violations` + `audit:ds:ci` (app scope) report **zero** violations after regeneration. Follow-up: continue MEDIUM waves for remaining `style={{` in product/marketing layers.
+- **MEDIUM wave (ongoing):** `CollapsibleSection`, `MobileHeader`, `GlcAppErrorScreen`, `AdminRequestQueueErrorBanner` — visual props moved to token-backed classes where safe; `current.md` §6.3 + `ui-breakpoints.ts` document **640px (`40rem`) vs 768px (`UI_BREAKPOINTS.mobile`)** coexistence.
 - **DS refactor program (SAFE wave):** additional `.ds-*` bridges in `src/styles/components.css` (snapshot score badge sizes, next-steps rail width, marketing header shell, home display H2, intake form section heading, tentative tech pills, letter-spacing utility). Product TSX prefers `var(--border-width-default)` instead of `1px` in inline borders, `text-[length:var(--text-base)]` instead of raw `rem` in Tailwind arbitrary font sizes, and CSS-only motion/sizing where the raw-values checker flags literals. After each batch: `pnpm run audit:ds:export-violations`, `pnpm run audit:ds:refresh-allowlist`, `pnpm run audit:ds:ci`. Mapping table: [`token-replacement-matrix.md`](./token-replacement-matrix.md) (Wave SAFE — product bridge).
 - **Phase 1 (token pass — app shell, policies, marketing/report):** `APP_SHELL_UI_POLICY` uses `BREAKPOINT_TOKENS` and shell tokens (`--app-shell-drawer-width`, `--shadow-mobile-bottom-nav`, `--app-shell-sidebar-narrow-width`, border width vars). Desktop/mobile shell chrome moved to `.ds-desktop-header*`, `.ds-mobile-bottom-nav`, tokenized overlays (`--overlay-white-75`, etc.). Client audit and settings UI policies use `var(--border-width-default)` and `var(--callout-info-bg)` where literals were flagged. `AuditCompare` and `ReportHeroCard` use `.ds-audit-compare-*` / `.ds-report-hero-*` in `components.css` instead of inline visual styles. Regenerate allowlist after pull: `pnpm run audit:ds:refresh-allowlist`. Remaining no-allowlist drift: see [`violations-export.md`](./violations-export.md) / [`compliance-findings.full.txt`](./compliance-findings.full.txt) (vendor `components/ui`, marketing motion literals, workspace/snapshot policies, etc.).
 - Allowlist shrink + bridge classes: batch migrations removed many inline styles (marketing, portal mirror notice, process timeline, score bar track, theme toggle icon colors via custom properties on wrapper, etc.). Legacy CTA styling: `.ds-cta-primary` shares rules with `.glc-btn-primary` in `components.css`; marketing heroes use `ds-cta-primary` on `<Button>` instead of the `glc-btn-primary` class name.
@@ -69,6 +71,10 @@ Date: 2026-04-17
 - **Import surface:** mass migration of imports from `src/app/components/ui/*` to `src/design-system/ui` is a separate codemod pass.
 - **Legacy `glc-*` removal:** only after consumers are on primitives / `.ds-*` bridge classes.
 - **Primitives / unified state / full literal zero:** `src/app/components/ui/**` remains largely vendor-style (CVA + Tailwind); a single `data-state` vs pseudo-class model across the whole catalog is explicitly out of scope for routine PRs (see DS refactor program RISKY tier).
+- **FormField collision:** resolve duplicate export name between `form-field.tsx` and `form.tsx` (rename + codemod or namespaced imports; breaking-change coordination).
+- **CTA class consolidation:** converge `.ds-cta-primary` and `.glc-btn-primary` usage to one documented pattern.
+- **Breakpoint semantics:** document and gradually align new code on when to use `UI_BREAKPOINTS.mobile` (768px) vs CSS `40rem` / Tailwind `mobile` variant.
+- **Inline style purge:** batch-migrate remaining `style={{ ... }}` in `src/app/pages`, `marketing`, `features` to `.ds-*` / token-backed classes (inventory via search; no single-PR requirement).
 
 ## Reference stack alignment (engineering assessment)
 

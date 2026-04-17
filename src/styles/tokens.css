@@ -132,6 +132,8 @@
   --primitive-drawer-drag-handle-height: 100px;
   --primitive-menubar-viewport-width: 12rem;
   --primitive-calendar-cell-text-size: 0.8rem;
+  /** SectionLabel (glc) — preserves previous 0.10em tracking */
+  --section-label-tracking: 0.10em;
 
   --shadow-xs: 0 1px 2px rgba(11, 17, 32, 0.06);
   --shadow-sm: 0 2px 7px rgba(11, 17, 32, 0.09), 0 1px 2px rgba(11, 17, 32, 0.05);
@@ -430,6 +432,9 @@
   --glc-mobile-nav-height: 56px;
   --glc-mobile-header-height: 52px;
   --glc-touch-target-min: 44px;
+
+  /** Intake brief main column — pixel parity with legacy 560px at 16px root */
+  --intake-brief-max-width: 35rem;
 }
 
 html:not(.dark) {

@@ -4,11 +4,11 @@ Product context (modes, deliverables): [PRODUCT.md](./PRODUCT.md). System diagra
 
 **Where frontend fits in configuration:** presentation, routes, and copy live in the UI layer; tunable deployment and API invariants are **not** reimplemented here — see [ARCHITECTURE.md — Configuration layering](./ARCHITECTURE.md#configuration-layering-config-vs-database-vs-services-vs-ui) (§4 UI) and [Strict layer boundaries — FRONT](./ARCHITECTURE.md#strict-layer-boundaries-operational-policy) (`VITE_*` only for browser-safe build-time values).
 
-**Design system (Figma-style guide):** [Design system (style guide)](#design-system-style-guide) — tokens, themes, typography, spacing, components. Canonical CSS: `src/styles/theme.css`.
+**Design system (Figma-style guide):** [Design system (style guide)](#design-system-style-guide) — tokens, themes, typography, spacing, components. **Canonical values** live in [`src/styles/tokens.css`](../src/styles/tokens.css); [`src/styles/theme.css`](../src/styles/theme.css) is the **import aggregator** (tokens, base, utilities, components).
 
 ## Stack
 
-React 18 + TypeScript + Vite. Tailwind CSS v4 (`src/styles/tailwind.css`), glassmorphism and brand gradients where specified in tokens. Animation: Framer Motion. UI primitives: shadcn-style semantic variables mapped in `theme.css` (`--background`, `--primary`, …).
+React 18 + TypeScript + Vite. Tailwind CSS v4 (`src/styles/tailwind.css`), glassmorphism and brand gradients where specified in tokens. Animation: Framer Motion. UI primitives: shadcn-style semantic variables from `tokens.css` (loaded via `theme.css`) (`--background`, `--primary`, …).
 
 ### Build-time configuration (Vite env)
 
@@ -46,7 +46,7 @@ Planned in-app locales (BCP-47): **English (`en`, default), German (`de`), Spani
 
 ## Design system (style guide)
 
-Single source of truth for **visual language** in code is `src/styles/theme.css` (“GLC Design System v2”). Use **CSS variables** (not hard-coded hex) for surfaces, text, and borders. Tailwind utilities that reference `@theme inline` map to those tokens.
+Single source of truth for **visual values** is `src/styles/tokens.css` (light/dark, primitives, semantic aliases). `src/styles/theme.css` wires tokens into base, utilities, and `components.css` (“GLC Design System v2” bundle). Use **CSS variables** (not hard-coded hex) for surfaces, text, and borders. Tailwind utilities that reference `@theme inline` map to those tokens.
 
 **Specification:** as-is token/component map (§1–10) is in [`docs/design-system/current.md`](./design-system/current.md). Generated inventories, enforcement commands, rollout notes, and **reference stack alignment** vs mature systems (e.g. Material Design / Atlassian DS) are in [`docs/design-system/roadmap-notes.md`](./design-system/roadmap-notes.md).
 

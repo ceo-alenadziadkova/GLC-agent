@@ -17,10 +17,7 @@ export function IntakeBrief() {
   return (
     <IntakeBriefShell>
       <IntakeBriefHeader />
-      <main
-        className="relative z-10 flex-1 flex flex-col items-center px-6 py-10"
-        style={{ maxWidth: 560, margin: '0 auto', width: '100%' }}
-      >
+      <main className="relative z-10 flex w-full max-w-[var(--intake-brief-max-width)] flex-1 flex-col items-center mx-auto px-6 py-10">
         {c.loading && <IntakeBriefLoading />}
 
         {!c.loading && c.expired && <IntakeBriefExpired />}

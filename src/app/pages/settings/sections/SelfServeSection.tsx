@@ -3,7 +3,6 @@ import { Button } from '../../../components/ui/button';
 import { SETTINGS_PAGE_COPY } from '../../../config/settings-page-copy.en';
 import { SETTINGS_SELF_SERVE_COPY } from '../../../config/settings-self-serve-copy.en';
 import type { SelfServePayload } from '../domain/settings.types';
-import { SETTINGS_UI_STYLES } from '../config/settings-ui-policy';
 import { SettingsCard } from '../components/SettingsCard';
 
 type SelfServeSectionProps = {
@@ -79,8 +78,7 @@ export function SelfServeSection({
           </label>
           <div className="flex flex-col gap-3 mobile:flex-row mobile:items-center">
             <select
-              className="w-full mobile:flex-1 px-3 py-2 text-sm"
-              style={SETTINGS_UI_STYLES.fieldInput}
+              className="ds-settings-field-input w-full px-3 py-2 text-sm mobile:flex-1"
               value={selfServeSelect}
               onChange={e => onSelfServeSelectChange(e.target.value)}
               disabled={!selfServe.can_manage || selfServeSaving}
@@ -95,14 +93,8 @@ export function SelfServeSection({
             <Button
               type="button"
               variant="default"
-              className="whitespace-nowrap"
+              className="whitespace-nowrap disabled:opacity-[0.55]"
               disabled={!selfServe.can_manage || selfServeSaving || selfServeSelect === (selfServe.stored_owner_user_id ?? '')}
-              style={{
-                opacity:
-                  !selfServe.can_manage || selfServeSaving || selfServeSelect === (selfServe.stored_owner_user_id ?? '')
-                    ? 0.55
-                    : 1,
-              }}
               onClick={onSave}
             >
               {selfServeSaving ? SETTINGS_PAGE_COPY.selfServe.savingAssignment : SETTINGS_PAGE_COPY.selfServe.saveAssignment}

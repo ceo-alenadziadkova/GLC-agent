@@ -23,11 +23,7 @@ export function PackageAudienceSection({
         {cards.map(card => (
           <article
             key={card.situation}
-            className="rounded-[var(--radius-xl)] border p-4"
-            style={{
-              borderColor: 'color-mix(in oklab, var(--glc-blue) 22%, var(--border-subtle))',
-              background: 'linear-gradient(160deg, color-mix(in oklab, var(--bg-surface) 94%, var(--glc-blue-muted)) 0%, var(--bg-surface) 100%)',
-            }}
+            className="ds-package-audience-section-card rounded-[var(--radius-xl)] border p-4"
           >
             <p className="text-[length:var(--text-2xs)] font-semibold uppercase ds-package-audience-caps ds-text-tertiary">
               Situation

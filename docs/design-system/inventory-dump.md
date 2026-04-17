@@ -7,18 +7,30 @@ It is an appendix to [current.md](./current.md) (as-is §1–10). Governance and
 
 ## Custom properties defined in tokens.css
 
-Total: **365**
+Total: **386**
 
 - `--accent`
 - `--accent-foreground`
 - `--app-shell-drawer-width`
+- `--app-shell-sidebar-active-row-bg`
+- `--app-shell-sidebar-bg`
 - `--app-shell-sidebar-caps-fg`
+- `--app-shell-sidebar-control-bg`
+- `--app-shell-sidebar-control-border`
 - `--app-shell-sidebar-disabled-fg`
 - `--app-shell-sidebar-disabled-icon`
+- `--app-shell-sidebar-hairline`
+- `--app-shell-sidebar-kbd-bg`
+- `--app-shell-sidebar-kbd-fg`
 - `--app-shell-sidebar-link-fg`
 - `--app-shell-sidebar-link-icon`
+- `--app-shell-sidebar-mesh-opacity`
 - `--app-shell-sidebar-narrow-width`
 - `--app-shell-sidebar-search-fg`
+- `--app-shell-sidebar-search-slot-bg`
+- `--app-shell-sidebar-switch-track`
+- `--app-shell-sidebar-theme-icon-active`
+- `--app-shell-sidebar-theme-icon-muted`
 - `--background`
 - `--bg-canvas`
 - `--bg-elevated`
@@ -180,6 +192,7 @@ Total: **365**
 - `--gradient-surface`
 - `--input`
 - `--input-background`
+- `--intake-brief-max-width`
 - `--leading-discover-finding-detail`
 - `--leading-none`
 - `--leading-normal`
@@ -218,6 +231,13 @@ Total: **365**
 - `--popover-foreground`
 - `--primary`
 - `--primary-foreground`
+- `--primitive-calendar-cell-text-size`
+- `--primitive-command-dialog-width`
+- `--primitive-drawer-drag-handle-height`
+- `--primitive-focus-ring-width`
+- `--primitive-menubar-viewport-width`
+- `--primitive-popover-anchor-width`
+- `--primitive-switch-track-height`
 - `--radius`
 - `--radius-2xl`
 - `--radius-2xl-inner`
@@ -247,6 +267,7 @@ Total: **365**
 - `--score-5-border`
 - `--secondary`
 - `--secondary-foreground`
+- `--section-label-tracking`
 - `--shadow-blue`
 - `--shadow-card`
 - `--shadow-discover-cta-active`
@@ -508,7 +529,7 @@ Count: **122**
 
 ### rgb-color
 
-Count: **164**
+Count: **163**
 
 ```
 rgba(0, 0, 0, 0.14)
@@ -599,7 +620,9 @@ rgba(255, 255, 255, 0.12)
 rgba(255, 255, 255, 0.14)
 rgba(255, 255, 255, 0.15)
 rgba(255, 255, 255, 0.16)
+rgba(255, 255, 255, 0.2)
 rgba(255, 255, 255, 0.20)
+rgba(255, 255, 255, 0.22)
 rgba(255, 255, 255, 0.26)
 rgba(255, 255, 255, 0.28)
 rgba(255, 255, 255, 0.30)
@@ -608,10 +631,10 @@ rgba(255, 255, 255, 0.35)
 rgba(255, 255, 255, 0.38)
 rgba(255, 255, 255, 0.4)
 rgba(255, 255, 255, 0.40)
+rgba(255, 255, 255, 0.42)
 rgba(255, 255, 255, 0.45)
 rgba(255, 255, 255, 0.46)
 rgba(255, 255, 255, 0.5)
-rgba(255, 255, 255, 0.55)
 rgba(255, 255, 255, 0.62)
 rgba(255, 255, 255, 0.68)
 rgba(255, 255, 255, 0.7)
@@ -626,8 +649,6 @@ rgba(255, 255, 255, 0.85)
 rgba(255, 255, 255, 0.86)
 rgba(255, 255, 255, 0.90)
 rgba(255, 255, 255, 0.94)
-rgba(255,255,255,0.42)
-rgba(255,255,255,0.78)
 rgba(28, 189, 255, 0.02)
 rgba(28, 189, 255, 0.04)
 rgba(28, 189, 255, 0.06)
@@ -652,7 +673,6 @@ rgba(28, 189, 255, 0.36)
 rgba(28, 189, 255, 0.4)
 rgba(28, 189, 255, 0.6)
 rgba(28,189,255,0.05)
-rgba(28,189,255,0.06)
 rgba(28,189,255,0.1)
 rgba(28,189,255,0.14)
 rgba(28,189,255,0.2)
@@ -686,7 +706,7 @@ Count: **0**
 
 ### unit-literal
 
-Count: **172**
+Count: **173**
 
 ```
 0.01em
@@ -814,6 +834,7 @@ Count: **172**
 340px
 34px
 34rem
+35rem
 360px
 36px
 38.75rem

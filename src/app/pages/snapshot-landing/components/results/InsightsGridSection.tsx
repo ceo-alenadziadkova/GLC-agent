@@ -3,8 +3,15 @@ import type { FreeSnapshotPreview } from '../../../../data/auditTypes';
 import { Surface } from '../../../../components/ui/surface';
 import { SNAPSHOT_LANDING_HERO_COPY } from '../../../../config/snapshot-landing-copy.en';
 import { UI_POLICY } from '../../../../config/ui-policy';
-import { SEVERITY_COLOR } from '../../../../lib/snapshot-landing-helpers';
+import { cn } from '../../../../components/ui/utils';
 import { flattenDetectedTech } from '../../selectors';
+
+const INSIGHT_ISSUE_DOT_CLASS: Record<string, string> = {
+  critical: 'bg-[var(--score-1)]',
+  high: 'bg-[var(--score-2)]',
+  medium: 'bg-[var(--score-3)]',
+  low: 'bg-[var(--score-4)]',
+};
 
 export function InsightsGridSection(props: {
   result: FreeSnapshotPreview;
@@ -32,11 +39,10 @@ export function InsightsGridSection(props: {
             {result.issues.map((issue, i) => (
               <div key={i} className="glc-snapshot-insight-row flex gap-3">
                 <div
-                  className="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full"
-                  style={{
-                    backgroundColor: SEVERITY_COLOR[issue.severity] ?? 'var(--text-tertiary)',
-                    marginTop: 6,
-                  }}
+                  className={cn(
+                    'mt-1.5 h-2 w-2 flex-shrink-0 rounded-full',
+                    INSIGHT_ISSUE_DOT_CLASS[issue.severity] ?? 'bg-[var(--text-tertiary)]',
+                  )}
                 />
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-[var(--text-primary)]">

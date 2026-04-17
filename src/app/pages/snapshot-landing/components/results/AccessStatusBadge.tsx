@@ -1,5 +1,6 @@
 import { CheckCircle, SealCheck, Warning } from '@phosphor-icons/react';
 import { SNAPSHOT_LANDING_HERO_COPY } from '../../../../config/snapshot-landing-copy.en';
+import { cn } from '../../../../components/ui/utils';
 
 export function AccessStatusBadge(props: {
   snapshotShowsAccessCallout: boolean;
@@ -7,21 +8,17 @@ export function AccessStatusBadge(props: {
   snapshotAccessRobotsLimited: boolean;
 }) {
   const { snapshotShowsAccessCallout, snapshotAccessRobotsBlocked, snapshotAccessRobotsLimited } = props;
+  const robotsLimitedBadge = snapshotShowsAccessCallout && snapshotAccessRobotsBlocked;
 
   return (
     <div
-      className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-xs lg:mb-3"
-      style={{
-        background:
-          snapshotShowsAccessCallout && snapshotAccessRobotsBlocked
-            ? 'color-mix(in oklab, var(--glc-green) 10%, var(--bg-surface))'
-            : 'var(--bg-surface)',
-        border:
-          snapshotShowsAccessCallout && snapshotAccessRobotsBlocked
-            ? 'var(--border-width-default) solid color-mix(in oklab, var(--glc-green) 38%, var(--border-subtle))'
-            : 'var(--border-width-default) solid var(--border-subtle)',
-        color: 'var(--text-tertiary)',
-      }}
+      className={cn(
+        'mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs text-[var(--text-tertiary)] lg:mb-3',
+        'border-[length:var(--border-width-default)] border-solid',
+        robotsLimitedBadge
+          ? 'border-[color-mix(in_oklab,var(--glc-green)_38%,var(--border-subtle))] bg-[color-mix(in_oklab,var(--glc-green)_10%,var(--bg-surface))]'
+          : 'border-[var(--border-subtle)] bg-[var(--bg-surface)]',
+      )}
     >
       {snapshotShowsAccessCallout ? (
         snapshotAccessRobotsBlocked ? (

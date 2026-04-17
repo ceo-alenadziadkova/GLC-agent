@@ -318,7 +318,7 @@
   "package_hero_labels": {
     "coverageShape": "Coverage shape",
     "startWithBrief": "Start with Brief",
-    "firstFindings": "72h to first findings",
+    "firstFindings": "20min to first findings",
     "explicitScope": "Explicit scope",
     "illustrativeGridNote": "Illustrative grid - actual domain selection is confirmed in scope.",
     "domains": [

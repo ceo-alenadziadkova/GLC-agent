@@ -7,6 +7,7 @@ import {
   Warning,
   TrendUp,
 } from '@phosphor-icons/react';
+import { DISCOVER_HOOK_ACCENT_TOKEN } from '../../../config/discover-hook-accent-tokens';
 import type { DiscoveryFinding } from '../../../lib/discovery-flow';
 import discoverResultsUi from '../../../data/discover-page-results-ui.en.json';
 import { splitFindingDetail } from '../services';
@@ -95,7 +96,7 @@ export function FindingCard({ finding }: { finding: DiscoveryFinding }) {
           {
             ['--hook-row-bg']: fc.hookRowBackground,
             ['--hook-row-border-color']: fc.hookRowBorder,
-            ['--hook-accent']: meta.color,
+            ['--hook-accent']: DISCOVER_HOOK_ACCENT_TOKEN[finding.hook],
           } as CSSProperties
         }
       >

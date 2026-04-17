@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from 'react';
-import { SETTINGS_UI_STYLES } from '../config/settings-ui-policy';
+import { cn } from '../../../components/ui/utils';
 
 type SettingsCardProps = PropsWithChildren<{
   id?: string;
@@ -8,7 +8,7 @@ type SettingsCardProps = PropsWithChildren<{
 
 export function SettingsCard({ id, className = 'p-5', children }: SettingsCardProps) {
   return (
-    <section id={id} className={className} style={SETTINGS_UI_STYLES.sectionCard}>
+    <section id={id} className={cn('ds-settings-section-card', className)}>
       {children}
     </section>
   );

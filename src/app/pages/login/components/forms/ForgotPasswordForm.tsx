@@ -1,8 +1,8 @@
 import type { FormEvent } from 'react';
 import { motion } from 'motion/react';
 import { LOGIN_PAGE_COPY_EN as LC } from '../../../../config/login-copy.en';
-import { LOGIN_FORM_STYLE_PRESETS } from '../../config/login-ui-policy';
 import type { FieldErrors } from '../../types';
+import { cn } from '../../../../components/ui/utils';
 import { Callout } from '../../../../components/ui/callout';
 import { FormField } from '../../../../components/ui/form-field';
 
@@ -21,9 +21,6 @@ type ForgotPasswordFormProps = {
 export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
   const { email, forgotSent, loading, emailError, emailErrorId, buttonHoverScale, onBack, onSubmit, onEmailChange } = props;
   const canSubmit = Boolean(email.trim());
-  const submitStyle = canSubmit
-    ? LOGIN_FORM_STYLE_PRESETS.submitButtonReady
-    : LOGIN_FORM_STYLE_PRESETS.submitButtonDisabled;
   return (
     <div className="space-y-4">
       <button
@@ -58,20 +55,18 @@ export function ForgotPasswordForm(props: ForgotPasswordFormProps) {
               autoComplete="email"
               aria-invalid={Boolean(emailError)}
               aria-describedby={emailError ? emailErrorId : undefined}
-              className="glc-auth-input w-full px-4 py-3 bg-transparent outline-none"
-              style={LOGIN_FORM_STYLE_PRESETS.inputBase}
+              className="glc-auth-input glc-auth-input--field w-full px-4 py-3 outline-none"
             />
           </FormField>
           <motion.button
             type="submit"
             disabled={loading || !canSubmit}
             whileHover={!loading && canSubmit ? { scale: buttonHoverScale } : {}}
-            className="w-full flex items-center justify-center gap-2 py-3 font-semibold"
-            style={{
-              ...LOGIN_FORM_STYLE_PRESETS.submitButtonBase,
-              ...submitStyle,
-              cursor: canSubmit && !loading ? 'pointer' : 'not-allowed',
-            }}
+            className={cn(
+              'glc-auth-primary-btn glc-auth-submit-btn flex w-full items-center justify-center gap-2 py-3 font-semibold',
+              canSubmit ? 'glc-auth-submit-btn--ready' : 'glc-auth-submit-btn--disabled',
+              canSubmit && !loading ? 'cursor-pointer' : 'cursor-not-allowed',
+            )}
           >
             {loading ? LC.forgotSending : LC.forgotSendLink}
           </motion.button>

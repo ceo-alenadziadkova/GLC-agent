@@ -29,6 +29,7 @@ Date: 2026-04-17
 - Design-system tokens:
   - `src/design-system/tokens/index.ts`
   - `src/design-system/tokens/colors.ts`
+  - `src/design-system/tokens/primitives.ts`
   - `src/design-system/tokens/spacing.ts`
   - `src/design-system/tokens/typography.ts`
   - `src/design-system/tokens/radius.ts`
@@ -77,7 +78,7 @@ Light/dark overrides are defined via `:root` and `html.dark` in `src/styles/toke
 | Font families | `--font-display`, `--font-sans`, `--font-mono`, `--font-logo` | `src/styles/tokens.css` |
 | Font sizes | `--text-2xs`, `--text-xs`, `--text-sm`, `--text-base`, `--text-lg`, `--text-xl`, `--text-2xl`, `--text-3xl`, `--text-4xl` | `src/styles/tokens.css` |
 | Line height | `--leading-none`, `--leading-tight`, `--leading-snug`, `--leading-normal`, `--leading-relaxed` | `src/styles/tokens.css` |
-| Letter spacing | `--tracking-tighter`, `--tracking-tight`, `--tracking-normal`, `--tracking-wide`, `--tracking-wider`, `--tracking-widest` | `src/styles/tokens.css` |
+| Letter spacing | `--tracking-tighter`, `--tracking-tight`, `--tracking-normal`, `--tracking-wide`, `--tracking-wider`, `--tracking-widest`, `--section-label-tracking` | `src/styles/tokens.css` |
 | Font weights | `--font-weight-normal`, `--font-weight-medium`, `--font-weight-semibold`, `--font-weight-bold` | `src/styles/tokens.css` |
 
 ### 1.3 Spacing tokens
@@ -103,6 +104,21 @@ Light/dark overrides are defined via `:root` and `html.dark` in `src/styles/toke
 | `--space-16` | `64px` |
 
 Source: `src/styles/tokens.css`.
+
+### 1.3a Vendor UI primitives (`components/ui`)
+
+| Token | Value (parity) | Source |
+| --- | --- | --- |
+| `--primitive-focus-ring-width` | `3px` | `src/styles/tokens.css` |
+| `--primitive-popover-anchor-width` | `8rem` | `src/styles/tokens.css` |
+| `--primitive-switch-track-height` | `1.15rem` | `src/styles/tokens.css` |
+| `--primitive-command-dialog-width` | `300px` | `src/styles/tokens.css` |
+| `--primitive-drawer-drag-handle-height` | `100px` | `src/styles/tokens.css` |
+| `--primitive-menubar-viewport-width` | `12rem` | `src/styles/tokens.css` |
+| `--primitive-calendar-cell-text-size` | `0.8rem` | `src/styles/tokens.css` |
+| `--section-label-tracking` | `0.10em` | `src/styles/tokens.css` (`SectionLabel`) |
+
+TS façade: `PRIMITIVE_TOKENS` in `src/design-system/tokens/primitives.ts`.
 
 ### 1.4 Radius tokens
 
@@ -132,6 +148,7 @@ Source: `src/styles/tokens.css`.
 ### 1.8 TS token maps (design-system layer)
 
 - `COLOR_TOKENS` (`cssVars` + `semantic`): `src/design-system/tokens/colors.ts`
+- `PRIMITIVE_TOKENS`: `src/design-system/tokens/primitives.ts`
 - `SPACING_TOKENS`: `src/design-system/tokens/spacing.ts`
 - `TYPOGRAPHY_TOKENS`: `src/design-system/tokens/typography.ts`
 - `RADIUS_TOKENS`: `src/design-system/tokens/radius.ts`
@@ -142,7 +159,7 @@ Source: `src/styles/tokens.css`.
 
 ### 1.9 Full custom property index (`tokens.css`)
 
-All custom properties assigned in [`src/styles/tokens.css`](../../src/styles/tokens.css) are listed verbatim in [`inventory-dump.md`](./inventory-dump.md) under **Custom properties defined in tokens.css** (regenerate after token edits). The grouped tables in §1.1–§1.7 above remain the human-oriented summary; the dump is the complete enumerated mirror. Count in the latest regenerated dump: **357** names.
+All custom properties assigned in [`src/styles/tokens.css`](../../src/styles/tokens.css) are listed verbatim in [`inventory-dump.md`](./inventory-dump.md) under **Custom properties defined in tokens.css** (regenerate after token edits). The grouped tables in §1.1–§1.7 above remain the human-oriented summary; the dump is the complete enumerated mirror. Count in the latest regenerated dump: **386** names.
 
 ## 2. Style Inventory
 
@@ -188,8 +205,10 @@ Historical snapshot counts (same patterns as the dump script; counts drift as co
 | Pattern class | Unique count (aligned to latest `inventory-dump.md`, 2026-04-17) |
 | --- | ---: |
 | Hex (`#` + 3–8 hex digits) | 122 |
-| `rgb(...)` / `rgba(...)` | 159 |
+| `rgb(...)` / `rgba(...)` | 163 |
 | `hsl(...)` / `hsla(...)` | 0 |
+| `px` / `rem` / `em` unit literals | 173 |
+| `clamp(...)` spans | 22 |
 
 For enforcement-oriented **per-line** raw-value detection (not the same as deduplicated inventory), see `scripts/design-system-raw-values-check.mjs`.
 
@@ -481,7 +500,17 @@ Source: `src/styles/utilities.css`.
 - CSS token breakpoints: `40rem`, `64rem`, `80rem`.
 - Tailwind custom variant: `mobile` (`width < 40rem`).
 - Additional explicit media queries in styles: `1024px`, `1280px`, `1023px`.
-- Config breakpoint: `UI_BREAKPOINTS.mobile = 768`.
+- Config breakpoint: `UI_BREAKPOINTS.mobile = 768` ([`src/app/config/ui-breakpoints.ts`](../../src/app/config/ui-breakpoints.ts)).
+
+**Usage guidance (coexistence, not a single merged threshold):**
+
+| Mechanism | Typical use |
+| --- | --- |
+| `40rem` / `mobile:` / `--breakpoint-*` | New page layout, marketing shells, token-aligned CSS (`max-*` containers, `sm:`/`md:`/`lg:` with Tailwind defaults). |
+| `UI_BREAKPOINTS.mobile` (768px) | `useIsMobile`, `matchMedia`, chart sizing, or legacy hooks already keyed to 768px — keep until a deliberate unification PR. |
+| Raw `1024px` / `1280px` in CSS | Historical feature CSS; prefer extending layout contracts or tokens when touching those files. |
+
+At default `16px` root font, `40rem` = **640px**, which is **not** equal to **768px**. Do not assume interchangeability without a visual QA pass on both sides of 640–768px.
 
 ## 7. State Definitions
 

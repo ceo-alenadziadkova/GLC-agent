@@ -1,7 +1,6 @@
 import { GearSix, Lightning, PlusCircle, SignOut, X } from '@phosphor-icons/react';
 import { NavLink } from 'react-router';
 import { APP_ROUTE_PATHS } from '../../../config/route-paths';
-import { APP_SHELL_UI_POLICY } from '../config/app-shell-ui-policy';
 import { SidebarNavLink } from './SidebarNavLink';
 
 type MobileDrawerProps = {
@@ -42,10 +41,7 @@ export function MobileDrawer({
         onClick={onClose}
       />
       <div
-        className="ds-app-shell-sidebar relative ml-auto flex h-full flex-col overflow-hidden shadow-[var(--shadow-ink)] glc-safe-pad-t glc-safe-pad-b"
-        style={{
-          width: APP_SHELL_UI_POLICY.mobile.drawerWidth,
-        }}
+        className="ds-app-shell-sidebar relative ml-auto flex h-full w-[var(--app-shell-drawer-width)] flex-col overflow-hidden shadow-[var(--shadow-ink)] glc-safe-pad-t glc-safe-pad-b"
       >
         <div className="ds-app-shell-sidebar-mesh" aria-hidden />
         <div

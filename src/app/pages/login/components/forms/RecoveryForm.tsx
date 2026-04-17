@@ -2,9 +2,9 @@ import type { FormEvent } from 'react';
 import { motion } from 'motion/react';
 import { Eye, EyeSlash, Lock } from '@phosphor-icons/react';
 import { LOGIN_PAGE_COPY_EN as LC } from '../../../../config/login-copy.en';
-import { LOGIN_FORM_STYLE_PRESETS } from '../../config/login-ui-policy';
 import type { FieldErrors } from '../../types';
 import { FormField } from '../../../../components/ui/form-field';
+import { cn } from '../../../../components/ui/utils';
 
 type RecoveryFormProps = {
   userEmail: string | null | undefined;
@@ -69,8 +69,7 @@ export function RecoveryForm(props: RecoveryFormProps) {
               autoComplete="new-password"
               aria-invalid={Boolean(fieldErrors.recoveryPassword)}
               aria-describedby={fieldErrors.recoveryPassword ? recoveryPasswordErrorId : undefined}
-              className="glc-auth-input w-full bg-transparent py-3 pl-9 pr-11 outline-none"
-              style={LOGIN_FORM_STYLE_PRESETS.inputBase}
+              className="glc-auth-input glc-auth-input--field w-full py-3 pl-9 pr-11 outline-none"
             />
             <button
               type="button"
@@ -98,8 +97,7 @@ export function RecoveryForm(props: RecoveryFormProps) {
             autoComplete="new-password"
             aria-invalid={Boolean(fieldErrors.recoveryConfirm)}
             aria-describedby={fieldErrors.recoveryConfirm ? recoveryConfirmErrorId : undefined}
-            className="glc-auth-input w-full px-4 py-3 bg-transparent outline-none"
-            style={LOGIN_FORM_STYLE_PRESETS.inputBase}
+            className="glc-auth-input glc-auth-input--field w-full px-4 py-3 outline-none"
           />
         </FormField>
         <motion.button
@@ -107,13 +105,10 @@ export function RecoveryForm(props: RecoveryFormProps) {
           disabled={loading}
           whileHover={!loading ? { scale: buttonHoverScale } : {}}
           whileTap={!loading ? { scale: buttonTapScale } : {}}
-          className="w-full flex items-center justify-center gap-2 py-3 font-semibold"
-          style={{
-            ...LOGIN_FORM_STYLE_PRESETS.submitButtonBase,
-            ...LOGIN_FORM_STYLE_PRESETS.submitButtonReady,
-            cursor: loading ? 'not-allowed' : 'pointer',
-            opacity: loading ? 0.7 : 1,
-          }}
+          className={cn(
+            'glc-auth-primary-btn glc-auth-submit-btn glc-auth-submit-btn--ready flex w-full items-center justify-center gap-2 py-3 font-semibold',
+            loading ? 'cursor-not-allowed disabled:opacity-70' : 'cursor-pointer',
+          )}
         >
           {loading ? LC.recoverySubmitSaving : LC.recoverySubmit}
         </motion.button>

@@ -40,17 +40,7 @@ function CompanyAvatar({
 }) {
   const initials = (name || formatAuditWebsiteDisplay(url, noPublicWebsite)).slice(0, 2).toUpperCase();
   return (
-    <div
-      className="w-7 h-7 flex items-center justify-center text-xs font-bold flex-shrink-0"
-      style={{
-        background: 'linear-gradient(135deg, var(--glc-blue-xlight) 0%, rgba(28,189,255,0.06) 100%)',
-        color: 'var(--glc-blue-deeper)',
-        border: '1px solid rgba(28,189,255,0.14)',
-        borderRadius: 'var(--radius-md)',
-        fontFamily: 'var(--font-display)',
-        fontSize: '10px',
-      }}
-    >
+    <div className="ds-action-panel-avatar">
       {initials}
     </div>
   );
@@ -100,8 +90,7 @@ function ReviewGateRow({ item }: { item: DashboardReviewGateItem }) {
       </div>
       <Link
         to={`/pipeline/${item.id}`}
-        className="glc-btn-icon mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
-        style={{ width: 44, height: 44 }}
+        className="glc-btn-icon ds-action-panel-icon-link mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
         title="Go to pipeline"
       >
         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -129,8 +118,7 @@ function SlaRiskRow({ item }: { item: DashboardSlaRiskItem }) {
       </div>
       <Link
         to={`/pipeline/${item.id}`}
-        className="glc-btn-icon mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
-        style={{ width: 44, height: 44 }}
+        className="glc-btn-icon ds-action-panel-icon-link mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
         title="Start pipeline"
       >
         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -158,8 +146,7 @@ function FailureRow({ item }: { item: DashboardFailureItem }) {
       </div>
       <Link
         to={`/audit/${item.id}`}
-        className="glc-btn-icon mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
-        style={{ width: 44, height: 44 }}
+        className="glc-btn-icon ds-action-panel-icon-link mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
         title="View audit"
       >
         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -183,8 +170,7 @@ function PendingRequestRow({ item }: { item: DashboardPendingRequestItem }) {
       </div>
       <Link
         to="/admin/requests"
-        className="glc-btn-icon mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
-        style={{ width: 44, height: 44 }}
+        className="glc-btn-icon ds-action-panel-icon-link mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
         title="View request queue"
       >
         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -207,14 +193,7 @@ export function ActionPanel({ items, loading, onRefresh: _onRefresh }: ActionPan
       <div className="glc-panel-head">
         <SectionLabel>Action Required</SectionLabel>
         {totalItems > 0 && (
-          <span
-            className="tabular-nums px-2 py-0.5 rounded-full text-xs font-semibold"
-            style={{
-              backgroundColor: 'rgba(239,68,68,0.1)',
-              color: 'var(--score-1)',
-              border: '1px solid rgba(239,68,68,0.2)',
-            }}
-          >
+          <span className="ds-action-panel-count-badge tabular-nums">
             {totalItems}
           </span>
         )}

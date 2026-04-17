@@ -1,6 +1,7 @@
 import { Rocket, Spinner } from '@phosphor-icons/react';
 import { CLIENT_AUDIT_VIEW_COPY } from '../../../config/client-audit-view-copy';
 import { Surface } from '../../../components/ui/surface';
+import { cn } from '../../../components/ui/utils';
 
 export function RunAuditSection({
   canStart,
@@ -21,14 +22,12 @@ export function RunAuditSection({
         type="button"
         onClick={onStart}
         disabled={!canStart || starting}
-        className="w-full py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2"
-        style={{
-          background: canStart && !starting ? 'var(--gradient-brand)' : 'var(--bg-muted)',
-          color: canStart && !starting ? 'var(--glc-ink)' : 'var(--text-quaternary)',
-          cursor: canStart && !starting ? 'pointer' : 'not-allowed',
-          boxShadow: canStart && !starting ? 'var(--glow-blue-sm)' : 'none',
-          border: 'none',
-        }}
+        className={cn(
+          'flex w-full items-center justify-center gap-2 rounded-lg border-0 py-2.5 text-sm font-medium',
+          canStart && !starting
+            ? 'cursor-pointer bg-[var(--gradient-brand)] text-[var(--glc-ink)] shadow-[var(--glow-blue-sm)]'
+            : 'cursor-not-allowed bg-[var(--bg-muted)] text-[var(--text-quaternary)] shadow-none',
+        )}
       >
         {starting ? (
           <><Spinner className="w-3.5 h-3.5 animate-spin" /> {CLIENT_AUDIT_VIEW_COPY.shell.starting}</>

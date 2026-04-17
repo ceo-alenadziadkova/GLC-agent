@@ -1,15 +1,9 @@
 export const PIPELINE_MONITOR_UI_POLICY = {
   layout: {
-    contentHeight: 'calc(100vh - var(--glc-mobile-nav-height))',
+    /** Main column height below mobile nav (see `.ds-audit-workspace-main-h`). */
+    contentClassName: 'ds-audit-workspace-main-h',
     sidebarWidthClassName: 'ds-pipeline-monitor-sidebar-w',
     loaderHeightClassName: 'h-64',
-  },
-  sizing: {
-    progressBarHeight: 'var(--space-1)',
-  },
-  opacity: {
-    disabledWing: 0.4,
-    disabledWingGrid: 0.35,
   },
   animation: {
     progressDurationSec: 1,

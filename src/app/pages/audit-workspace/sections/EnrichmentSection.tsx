@@ -5,6 +5,7 @@ import {
   choiceValueNeedsSpecify,
 } from '@glc/intake-core';
 import { BriefField } from '../../../components/BriefField';
+import { cn } from '../../../components/ui/utils';
 import { AUDIT_WORKSPACE_COPY } from '../../../config/audit-workspace-copy.en';
 import {
   unwrapResponse,
@@ -56,8 +57,10 @@ export function EnrichmentSection({
         onClick={() => setEnrichOpen(prev => !prev)}
       >
         <CaretRight
-          className="h-4 w-4 shrink-0 text-[var(--glc-blue)] transition-transform"
-          style={{ transform: enrichOpen ? 'rotate(90deg)' : 'none' }}
+          className={cn(
+            'h-4 w-4 shrink-0 text-[var(--glc-blue)] transition-transform',
+            enrichOpen ? 'rotate-90' : 'rotate-0',
+          )}
         />
         <span className="text-sm font-semibold text-[var(--text-primary)]">
           {AUDIT_WORKSPACE_COPY.enrichment.refinePrefix} {DOMAIN_LABELS[activeDomain]}{' '}

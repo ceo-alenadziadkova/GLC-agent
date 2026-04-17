@@ -79,7 +79,7 @@ export function RecommendationsSection({ domainData, openRec, setOpenRec }: Prop
                     duration: AUDIT_WORKSPACE_UI.transitions.expandDuration,
                     ease: AUDIT_WORKSPACE_UI.transitions.panelEase,
                   }}
-                  style={{ overflow: 'hidden' }}
+                  className="overflow-hidden"
                 >
                   <div
                     className="border-t border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-4 pb-4 pt-1 text-sm leading-relaxed text-[var(--text-secondary)]"

@@ -6,6 +6,7 @@ import { isLikelyTranslationOrExtensionDomCrash } from '../lib/browser-dom-crash
 import { api } from '../data/apiService';
 import { GLC_APP_ERROR_COPY_EN } from '../config/translation-safety-copy.en';
 import { Button } from './ui/button';
+import { cn } from './ui/utils';
 
 export type GlcAppErrorScreenProps = {
   /** Stable id users can share with support (also logged server-side when reporting). */
@@ -157,8 +158,10 @@ export function GlcAppErrorScreen({
             type="button"
             disabled={reportBusy || reportSent}
             onClick={() => { void sendReport(); }}
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-transparent px-4 py-2 text-sm font-medium text-[var(--glc-blue)] disabled:cursor-default disabled:opacity-50"
-            style={{ cursor: reportBusy || reportSent ? 'default' : 'pointer' }}
+            className={cn(
+              'inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-transparent px-4 py-2 text-sm font-medium text-[var(--glc-blue)] disabled:cursor-default disabled:opacity-50',
+              reportBusy || reportSent ? 'cursor-default' : 'cursor-pointer',
+            )}
           >
             <PaperPlaneTilt className="w-4 h-4" />
             {reportSent

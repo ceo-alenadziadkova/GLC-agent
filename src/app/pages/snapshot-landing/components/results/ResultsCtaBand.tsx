@@ -39,13 +39,7 @@ export function ResultsCtaBand(props: { quotaHint: string; reset: () => void }) 
         <button
           type="button"
           onClick={reset}
-          className="rounded-lg py-2 text-sm font-medium mobile:min-h-11"
-          style={{
-            color: 'var(--overlay-white-85)',
-            background: 'var(--overlay-white-08)',
-            border: 'var(--border-width-default) solid var(--overlay-white-14)',
-            cursor: 'pointer',
-          }}
+          className="cursor-pointer rounded-lg border-[length:var(--border-width-default)] border-solid border-[var(--overlay-white-14)] bg-[var(--overlay-white-08)] py-2 text-sm font-medium text-[var(--overlay-white-85)] mobile:min-h-11"
         >
           {SNAPSHOT_LANDING_HERO_COPY.analyzeAnotherUrl}
         </button>

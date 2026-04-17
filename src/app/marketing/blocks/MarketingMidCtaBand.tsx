@@ -47,12 +47,7 @@ export function MarketingMidCtaBand({
             FOCUS,
           )}
         >
-          <Link
-            to={ctaTo}
-            style={{
-              textDecoration: 'none',
-            }}
-          >
+          <Link to={ctaTo} className="no-underline">
             {ctaLabel}
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
           </Link>

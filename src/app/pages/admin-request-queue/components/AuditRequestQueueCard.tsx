@@ -3,11 +3,8 @@ import {
 } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { buildAppRoute } from '../../../config/route-paths';
-import {
-  ADMIN_REQUEST_QUEUE_CHROME,
-  ADMIN_REQUEST_QUEUE_COPY,
-} from '../../../config/admin-request-queue-copy.en';
-import { UI_SEMANTIC_COLORS } from '../../../../design-system/tokens/ui-semantic-colors';
+import { ADMIN_REQUEST_QUEUE_COPY } from '../../../config/admin-request-queue-copy.en';
+import { cn } from '../../../components/ui/utils';
 import type { AuditRequest } from '../../../data/auditTypes';
 import {
   auditRequestAwaitingAdminAction,
@@ -52,13 +49,7 @@ export function AuditRequestQueueCard({
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0">
-          <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{
-              backgroundColor: ADMIN_REQUEST_QUEUE_CHROME.rowIconBackground,
-              border: `var(--border-width-default) solid ${ADMIN_REQUEST_QUEUE_CHROME.rowIconBorder}`,
-            }}
-          >
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border-[length:var(--border-width-default)] border-solid border-[var(--glc-blue-muted-strong)] bg-[var(--callout-info-bg)]">
             <ClipboardText className="h-5 w-5 text-[var(--glc-blue)]" />
           </div>
           <div className="min-w-0">
@@ -104,13 +95,10 @@ export function AuditRequestQueueCard({
           <button
             type="button"
             disabled={busyId === req.id}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium"
-            style={{
-              background: UI_SEMANTIC_COLORS.successMutedBg12,
-              color: UI_SEMANTIC_COLORS.success,
-              border: `var(--border-width-default) solid ${UI_SEMANTIC_COLORS.successBorder25}`,
-              opacity: busyId === req.id ? 0.6 : 1,
-            }}
+            className={cn(
+              'rounded-lg border-[length:var(--border-width-default)] border-solid border-[var(--ui-success-border-25)] bg-[var(--ui-success-muted-bg-12)] px-3 py-1.5 text-xs font-medium text-[var(--glc-green)]',
+              'disabled:opacity-60',
+            )}
             onClick={() => onApprove(req.id)}
           >
             {busyId === req.id ? <Spinner className="w-3.5 h-3.5 animate-spin inline" /> : <CheckCircle className="w-3.5 h-3.5 inline mr-1" weight="bold" />}
@@ -147,12 +135,7 @@ export function AuditRequestQueueCard({
             <button
               type="button"
               disabled={busyId === req.id}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium"
-              style={{
-                background: UI_SEMANTIC_COLORS.dangerMutedBg,
-                color: UI_SEMANTIC_COLORS.danger,
-                border: `var(--border-width-default) solid ${UI_SEMANTIC_COLORS.dangerBorder20}`,
-              }}
+              className="rounded-lg border-[length:var(--border-width-default)] border-solid border-[var(--ui-danger-border-20)] bg-[var(--ui-danger-muted-bg)] px-3 py-1.5 text-xs font-medium text-[var(--score-1)] disabled:opacity-60"
               onClick={() => setRejectNote({ id: req.id, text: '' })}
             >
               <XCircle className="w-3.5 h-3.5 inline mr-1" weight="bold" />

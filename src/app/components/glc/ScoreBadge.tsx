@@ -1,6 +1,8 @@
 import type { CSSProperties } from 'react';
 import { motion } from 'motion/react';
 
+import { cn } from '../ui/utils';
+
 interface ScoreBadgeProps {
   score: number;
   showLabel?: boolean;
@@ -9,20 +11,14 @@ interface ScoreBadgeProps {
 
 const SCORE_SIZE_STYLE = {
   sm: {
-    padding: 'var(--space-0-5) var(--space-2)',
-    fontSize: 'var(--text-xs)',
     dotSize: 5,
     labelOffset: 'var(--space-0-5)',
   },
   md: {
-    padding: 'var(--space-1) var(--space-2-5)',
-    fontSize: 'var(--text-xs)',
     dotSize: 6,
     labelOffset: 'var(--space-0-5)',
   },
   lg: {
-    padding: 'var(--space-1-5) var(--space-3)',
-    fontSize: 'var(--text-sm)',
     dotSize: 7,
     labelOffset: 'var(--space-1)',
   },
@@ -66,56 +62,48 @@ const SCORE_CONFIG = {
   },
 } as const;
 
+function scoreBadgeCssVars(
+  cfg: (typeof SCORE_CONFIG)[keyof typeof SCORE_CONFIG],
+  sizeCfg: (typeof SCORE_SIZE_STYLE)['sm'],
+): CSSProperties {
+  return {
+    ['--ds-score-badge-bg' as string]: cfg.bg,
+    ['--ds-score-badge-fg' as string]: cfg.color,
+    ['--ds-score-badge-border' as string]: cfg.border,
+    ['--ds-score-badge-label-offset' as string]: sizeCfg.labelOffset,
+    ['--ds-score-badge-dot-size' as string]: `${sizeCfg.dotSize}px`,
+    ['--ds-score-badge-dot-gradient' as string]: cfg.gradient,
+    ['--ds-score-badge-dot-glow' as string]: cfg.color,
+  };
+}
+
 export function ScoreBadge({ score, showLabel = false, size = 'md' }: ScoreBadgeProps) {
   const clamp = Math.min(5, Math.max(1, Math.round(score)));
-  const cfg   = SCORE_CONFIG[clamp as keyof typeof SCORE_CONFIG];
+  const cfg = SCORE_CONFIG[clamp as keyof typeof SCORE_CONFIG];
   const sizeCfg = SCORE_SIZE_STYLE[size];
 
   return (
     <span
-      className="inline-flex items-center gap-1.5 font-semibold rounded-full"
-      style={{
-        backgroundColor: cfg.bg,
-        color: cfg.color,
-        border: `1px solid ${cfg.border}`,
-        padding: sizeCfg.padding,
-        fontSize: sizeCfg.fontSize,
-        fontFamily: 'var(--font-mono)',
-        letterSpacing: 'var(--tracking-tight)',
-      }}
+      className={cn(
+        'ds-score-badge',
+        size === 'sm' && 'ds-score-badge--sm',
+        size === 'md' && 'ds-score-badge--md',
+        size === 'lg' && 'ds-score-badge--lg',
+      )}
+      style={scoreBadgeCssVars(cfg, sizeCfg)}
       aria-label={`Score ${clamp}/5 — ${cfg.label}`}
     >
-      {/* Filled dot with glow */}
-      <span
-        className="rounded-full flex-shrink-0"
-        style={{
-          width: sizeCfg.dotSize,
-          height: sizeCfg.dotSize,
-          background: cfg.gradient,
-          boxShadow: `0 0 ${sizeCfg.dotSize}px color-mix(in oklab, ${cfg.color} 80%, transparent)`,
-        }}
-      />
+      <span className="ds-score-badge-dot" />
       {clamp}/5
-      {showLabel && (
-        <span
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontWeight: 500,
-            marginLeft: sizeCfg.labelOffset,
-            fontSize: sizeCfg.fontSize,
-          }}
-        >
-          {cfg.label}
-        </span>
-      )}
+      {showLabel && <span className="ds-score-badge-label">{cfg.label}</span>}
     </span>
   );
 }
 
 export function ScoreBar({ score }: { score: number }) {
   const clamp = Math.min(5, Math.max(1, Math.round(score)));
-  const cfg   = SCORE_CONFIG[clamp as keyof typeof SCORE_CONFIG];
-  const pct   = (score / 5) * 100;
+  const cfg = SCORE_CONFIG[clamp as keyof typeof SCORE_CONFIG];
+  const pct = (score / 5) * 100;
 
   return (
     <div className="flex items-center gap-2">
@@ -129,13 +117,8 @@ export function ScoreBar({ score }: { score: number }) {
         />
       </div>
       <span
-        className="font-semibold text-right flex-shrink-0 tabular-nums"
-        style={{
-          color: cfg.color,
-          fontSize: 'var(--text-xs)',
-          fontFamily: 'var(--font-mono)',
-          width: 'var(--space-4)',
-        }}
+        className="ds-scorebar-value"
+        style={{ ['--ds-scorebar-value-fg' as string]: cfg.color } as CSSProperties}
       >
         {score}
       </span>
@@ -145,40 +128,42 @@ export function ScoreBar({ score }: { score: number }) {
 
 export function ScoreDot({ score, size = 7 }: { score: number; size?: number }) {
   const clamp = Math.min(5, Math.max(1, Math.round(score)));
-  const cfg   = SCORE_CONFIG[clamp as keyof typeof SCORE_CONFIG];
+  const cfg = SCORE_CONFIG[clamp as keyof typeof SCORE_CONFIG];
   return (
     <span
-      className="inline-block rounded-full flex-shrink-0"
-      style={{
-        width: size,
-        height: size,
-        background: cfg.gradient,
-        boxShadow: `0 0 ${size}px color-mix(in oklab, ${cfg.color} 60%, transparent)`,
-      }}
+      className="ds-score-dot"
+      style={
+        {
+          ['--ds-score-dot-size' as string]: `${size}px`,
+          ['--ds-score-dot-gradient' as string]: cfg.gradient,
+          ['--ds-score-dot-glow' as string]: cfg.color,
+        } as CSSProperties
+      }
     />
   );
 }
 
 export function ScoreRing({ score, size = 48 }: { score: number; size?: number }) {
   const clamp = Math.min(5, Math.max(1, Math.round(score)));
-  const cfg   = SCORE_CONFIG[clamp as keyof typeof SCORE_CONFIG];
+  const cfg = SCORE_CONFIG[clamp as keyof typeof SCORE_CONFIG];
   const strokeW = size > 60 ? 4 : 3;
-  const r    = (size - strokeW * 2) / 2;
+  const r = (size - strokeW * 2) / 2;
   const circ = 2 * Math.PI * r;
-  const pct  = score / 5;
+  const pct = score / 5;
+  const half = size / 2;
 
   return (
-    <svg width={size} height={size} className="flex-shrink-0" style={{ transform: 'rotate(-90deg)' }}>
-      {/* Track */}
-      <circle
-        cx={size / 2} cy={size / 2} r={r}
-        fill="none"
-        stroke="var(--border-subtle)"
-        strokeWidth={strokeW}
-      />
-      {/* Progress */}
+    <svg
+      width={size}
+      height={size}
+      className="flex-shrink-0 ds-score-ring-svg"
+      style={{ ['--ds-score-ring-half' as string]: `${half}px` } as CSSProperties}
+    >
+      <circle cx={half} cy={half} r={r} fill="none" stroke="var(--border-subtle)" strokeWidth={strokeW} />
       <motion.circle
-        cx={size / 2} cy={size / 2} r={r}
+        cx={half}
+        cy={half}
+        r={r}
         fill="none"
         stroke={cfg.color}
         strokeWidth={strokeW}
@@ -194,15 +179,14 @@ export function ScoreRing({ score, size = 48 }: { score: number; size?: number }
           } as CSSProperties
         }
       />
-      {/* Number */}
       <text
-        x={size / 2} y={size / 2 + 5}
+        x={half}
+        y={half + 5}
         textAnchor="middle"
-        fontSize={size > 60 ? 18 : 13}
         fontWeight="700"
         fill={cfg.color}
         fontFamily="var(--font-mono)"
-        style={{ transform: `rotate(90deg)`, transformOrigin: `${size / 2}px ${size / 2}px` }}
+        className={cn('ds-score-ring-value', size > 60 ? 'ds-score-ring-value--lg' : 'ds-score-ring-value--sm')}
       >
         {score}
       </text>

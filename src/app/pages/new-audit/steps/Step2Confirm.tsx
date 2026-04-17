@@ -5,6 +5,7 @@ import type { DomainKey, AuditCoveragePackage } from '../../../data/auditTypes';
 import { coveragePackageLabel } from '../../../lib/audit-execution-plan';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
 import { Callout } from '../../../components/ui/callout';
+import { cn } from '../../../components/ui/utils';
 
 export type Step2ConfirmProps = {
   url: string;
@@ -106,8 +107,10 @@ export function Step2Confirm({
           disabled={loading}
           whileHover={!loading ? { scale: 1.015 } : {}}
           whileTap={!loading ? { scale: 0.985 } : {}}
-          className="glc-touch-target flex flex-1 items-center justify-center gap-2 rounded-lg border-none bg-[var(--gradient-accent)] py-3 text-sm font-semibold text-[var(--on-warm-gradient-fg)] shadow-[0_4px_14px_rgba(242,79,29,0.30)] sm:min-h-0 sm:py-2.5"
-          style={{ cursor: loading ? 'not-allowed' : 'pointer' }}
+          className={cn(
+            'glc-touch-target flex flex-1 items-center justify-center gap-2 rounded-lg border-none bg-[var(--gradient-accent)] py-3 text-sm font-semibold text-[var(--on-warm-gradient-fg)] shadow-[0_4px_14px_rgba(242,79,29,0.30)] sm:min-h-0 sm:py-2.5',
+            loading ? 'cursor-not-allowed' : 'cursor-pointer',
+          )}
         >
           {loading ? (
             <span className="flex items-center gap-2">

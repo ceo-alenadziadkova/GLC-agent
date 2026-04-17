@@ -19,6 +19,7 @@ function SkeletonLine({ width }: { width: string }) {
 
 /**
  * Decorative “audit cockpit” for marketing hero — no live data; subtle hover motion only.
+ * Inline visuals kept for parity with the light-home cockpit shell (glc-light-home-cockpit).
  */
 export function HomeHeroCockpit({ className }: { className?: string }) {
   const reduce = useReducedMotion();
@@ -62,7 +63,10 @@ export function HomeHeroCockpit({ className }: { className?: string }) {
         </motion.div>
 
         <motion.div
-          className={cn('absolute right-0 ds-home-hero-cockpit-panel-offset w-[86%]', panel)}
+          className={cn(
+            'absolute right-0 ds-home-hero-cockpit-panel-offset w-[86%]',
+            panel,
+          )}
           style={{
             borderRadius: 'var(--radius-xl)',
             borderColor: 'var(--border-subtle)',
@@ -92,7 +96,10 @@ export function HomeHeroCockpit({ className }: { className?: string }) {
         </motion.div>
 
         <motion.div
-          className={cn('absolute bottom-0 left-[6%] w-[82%] ds-home-hero-cockpit-floating-panel', panel)}
+          className={cn(
+            'absolute bottom-0 left-[6%] w-[82%] ds-home-hero-cockpit-floating-panel',
+            panel,
+          )}
           style={{
             transform: 'rotate(-0.8deg)',
             zIndex: 3,

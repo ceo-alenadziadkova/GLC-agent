@@ -23,19 +23,18 @@ export function FollowUpCard({ followUpQuestionsCount, answeredFollowUps }: Foll
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: REPORT_VIEWER_CONSTANTS.motion.followUpEnterDurationSec }}
       className="glc-card p-5 ds-radius-xl"
-      
     >
       <div className="flex items-center justify-between gap-3">
         <div>
           <SectionLabel>{REPORT_VIEWER_COPY.followUpHeading}</SectionLabel>
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: 6 }}>
+          <p className="mt-1.5 text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
             {REPORT_VIEWER_COPY.followUpHint}
           </p>
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary)', marginTop: 6 }}>
+          <p className="mt-1.5 text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
             {progressText}
           </p>
         </div>
-        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+        <span className="text-[length:var(--text-xs)] text-[var(--text-secondary)]">
           {REPORT_VIEWER_COPY.followUp.answerNowLabel}
         </span>
       </div>

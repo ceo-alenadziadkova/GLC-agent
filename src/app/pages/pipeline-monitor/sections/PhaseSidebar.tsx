@@ -1,6 +1,7 @@
 import { SectionLabel } from '../../../components/glc/SectionLabel';
 import { StatusBadge } from '../../../components/ui/status-badge';
 import { PIPELINE_MONITOR_COPY as PM } from '../../../config/pipeline-monitor-copy';
+import { cn } from '../../../components/ui/utils';
 import { PIPELINE_MONITOR_UI_POLICY } from '../config/pipeline-monitor-ui-policy';
 import { PhCard, RevBanner } from '../PipelineMonitorPhaseUi';
 import type { PhaseView } from '../types';
@@ -30,8 +31,10 @@ export function PhaseSidebar(props: {
 
   return (
     <aside
-      className={`${PIPELINE_MONITOR_UI_POLICY.layout.sidebarWidthClassName} flex-shrink-0 overflow-y-auto bg-[var(--bg-surface)] flex flex-col gap-1.5 p-3`}
-      style={{ borderRight: 'var(--border-width-default) solid var(--border-subtle)' }}
+      className={cn(
+        PIPELINE_MONITOR_UI_POLICY.layout.sidebarWidthClassName,
+        'flex flex-shrink-0 flex-col gap-1.5 overflow-y-auto border-r-[length:var(--border-width-default)] border-r-[var(--border-subtle)] bg-[var(--bg-surface)] p-3',
+      )}
     >
       <div className="px-1 pb-1.5">
         <SectionLabel>{PM.sidebar.phases}</SectionLabel>
@@ -70,7 +73,12 @@ export function PhaseSidebar(props: {
         canApprove={!isClient}
       />
 
-      <div className="px-1 pt-2 pb-1 flex items-center gap-2" style={{ opacity: isExpress ? PIPELINE_MONITOR_UI_POLICY.opacity.disabledWing : 1 }}>
+      <div
+        className={cn(
+          'flex items-center gap-2 px-1 pb-1 pt-2',
+          isExpress ? 'opacity-40' : 'opacity-100',
+        )}
+      >
         <SectionLabel>{PM.sidebar.analyticWing}</SectionLabel>
         {!isExpress && (
           <StatusBadge
@@ -80,7 +88,7 @@ export function PhaseSidebar(props: {
           />
         )}
       </div>
-      <div className="grid grid-cols-2 gap-1.5" style={{ opacity: isExpress ? PIPELINE_MONITOR_UI_POLICY.opacity.disabledWingGrid : 1 }}>
+      <div className={cn('grid grid-cols-2 gap-1.5', isExpress ? 'opacity-[0.35]' : 'opacity-100')}>
         {phases
           .filter(phase => phase.wing === 'analytic')
           .map(phase => (
@@ -93,7 +101,7 @@ export function PhaseSidebar(props: {
           ))}
       </div>
 
-      <div className="px-1 pt-2 pb-1" style={{ opacity: isExpress ? PIPELINE_MONITOR_UI_POLICY.opacity.disabledWing : 1 }}>
+      <div className={cn('px-1 pb-1 pt-2', isExpress ? 'opacity-40' : 'opacity-100')}>
         <SectionLabel>{PM.sidebar.synthesis}</SectionLabel>
       </div>
       <PhCard ph={phaseSeven} active={selectedPhaseId === 7} onSel={() => !phaseSeven.skipped && onSelectPhase(7)} />

@@ -74,23 +74,121 @@ function inlineStyleTargetDirs() {
   return ['src/design-system', 'src/app/components/ui', 'src/app/components', 'src/app/pages', 'src/app/marketing'];
 }
 
+/**
+ * JSX `style={{ ... }}` may span lines; balance `{`/`}` from the opening `{` of the
+ * outer `{ ... }` expression (same as prior single-line check, extended).
+ */
+function extractJsxExpressionBlocksOpeningWithDoubleBrace(content) {
+  const blocks = [];
+  const re = /\bstyle=\{\{/g;
+  let m;
+  while ((m = re.exec(content)) !== null) {
+    const exprOpen = m.index + 'style='.length;
+    const end = findMatchingBraceEnd(content, exprOpen);
+    if (end === -1) continue;
+    const block = content.slice(exprOpen, end + 1);
+    const startLine = content.slice(0, exprOpen).split('\n').length;
+    blocks.push({ startLine, block });
+  }
+  return blocks;
+}
+
+function findMatchingBraceEnd(content, openBraceIndex) {
+  let depth = 0;
+  let inStr = null;
+  let escape = false;
+  let inTemplateExpr = false; // ${ inside `
+
+  for (let i = openBraceIndex; i < content.length; i++) {
+    const c = content[i];
+
+    if (inStr === '`') {
+      if (inTemplateExpr) {
+        if (c === '}') {
+          inTemplateExpr = false;
+          continue;
+        }
+        continue;
+      }
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (c === '\\') {
+        escape = true;
+        continue;
+      }
+      if (c === '$' && content[i + 1] === '{') {
+        inTemplateExpr = true;
+        i++;
+        continue;
+      }
+      if (c === '`') {
+        inStr = null;
+        continue;
+      }
+      continue;
+    }
+
+    if (inStr === '"' || inStr === "'") {
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (c === '\\') {
+        escape = true;
+        continue;
+      }
+      if (c === inStr) {
+        inStr = null;
+        continue;
+      }
+      continue;
+    }
+
+    if (c === '/' && content[i + 1] === '/') {
+      while (i < content.length && content[i] !== '\n') i++;
+      continue;
+    }
+    if (c === '/' && content[i + 1] === '*') {
+      i += 2;
+      while (i < content.length - 1 && !(content[i] === '*' && content[i + 1] === '/')) i++;
+      i++;
+      continue;
+    }
+
+    if (c === '"' || c === "'" || c === '`') {
+      inStr = c;
+      continue;
+    }
+
+    if (c === '{') depth++;
+    if (c === '}') {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+function styleBlockHasVisualKey(block) {
+  return INLINE_STYLE_VISUAL_KEYS.some((key) => new RegExp(`\\b${key}\\s*:`).test(block));
+}
+
 function checkInlineVisualStyles() {
   const targets = inlineStyleTargetDirs().flatMap((dir) => walk(path.join(ROOT, dir), new Set(['.tsx'])));
   const violations = [];
   for (const filePath of targets) {
     const content = fs.readFileSync(filePath, 'utf8');
-    const lines = content.split(/\r?\n/);
-    lines.forEach((line, i) => {
-      if (!line.includes('style={{')) return;
-      const hasVisual = INLINE_STYLE_VISUAL_KEYS.some((key) => line.includes(`${key}:`));
-      if (!hasVisual) return;
+    for (const { startLine, block } of extractJsxExpressionBlocksOpeningWithDoubleBrace(content)) {
+      if (!styleBlockHasVisualKey(block)) continue;
       violations.push({
         file: rel(filePath),
-        line: i + 1,
+        line: startLine,
         type: 'inline-visual-style',
-        value: line.trim().slice(0, 220),
+        value: block.replace(/\s+/g, ' ').trim().slice(0, 220),
       });
-    });
+    }
   }
   return violations;
 }

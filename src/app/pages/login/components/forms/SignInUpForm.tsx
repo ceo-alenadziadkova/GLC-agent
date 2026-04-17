@@ -2,9 +2,9 @@ import type { FormEvent } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, Eye, EyeSlash, Lock } from '@phosphor-icons/react';
 import { LOGIN_PAGE_COPY_EN as LC } from '../../../../config/login-copy.en';
-import { LOGIN_FORM_STYLE_PRESETS } from '../../config/login-ui-policy';
 import type { AuthMode, FieldErrors } from '../../types';
 import { FormField } from '../../../../components/ui/form-field';
+import { cn } from '../../../../components/ui/utils';
 
 type SignInUpFormProps = {
   mode: AuthMode;
@@ -52,10 +52,6 @@ export function SignInUpForm(props: SignInUpFormProps) {
     onPasswordChange,
     onTogglePassword,
   } = props;
-  const submitStyle = isReady
-    ? LOGIN_FORM_STYLE_PRESETS.submitButtonReady
-    : LOGIN_FORM_STYLE_PRESETS.submitButtonDisabled;
-
   return (
     <>
       <button
@@ -97,8 +93,7 @@ export function SignInUpForm(props: SignInUpFormProps) {
             autoComplete="email"
             aria-invalid={Boolean(fieldErrors.email)}
             aria-describedby={fieldErrors.email ? emailErrorId : undefined}
-            className="glc-auth-input w-full bg-transparent px-4 py-3 outline-none"
-            style={LOGIN_FORM_STYLE_PRESETS.inputBase}
+            className="glc-auth-input glc-auth-input--field w-full px-4 py-3 outline-none"
           />
         </FormField>
         <FormField label={<span className="sr-only">{LC.labelPassword}</span>} htmlFor="auth-password" error={fieldErrors.password ? <span id={passwordErrorId}>{fieldErrors.password}</span> : undefined}>
@@ -115,8 +110,7 @@ export function SignInUpForm(props: SignInUpFormProps) {
               autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
               aria-invalid={Boolean(fieldErrors.password)}
               aria-describedby={fieldErrors.password ? passwordErrorId : undefined}
-              className="glc-auth-input w-full bg-transparent py-3 pl-9 pr-11 outline-none"
-              style={LOGIN_FORM_STYLE_PRESETS.inputBase}
+              className="glc-auth-input glc-auth-input--field w-full py-3 pl-9 pr-11 outline-none"
             />
             <button
               type="button"
@@ -132,8 +126,7 @@ export function SignInUpForm(props: SignInUpFormProps) {
           <div className="flex justify-end -mt-1">
             <button
               type="button"
-              className="glc-touch-target text-xs font-medium"
-              style={LOGIN_FORM_STYLE_PRESETS.secondaryLinkButton}
+              className="glc-auth-secondary-link glc-touch-target text-xs font-medium"
               onClick={onForgotClick}
             >
               {LC.forgotPasswordLink}
@@ -150,12 +143,11 @@ export function SignInUpForm(props: SignInUpFormProps) {
           disabled={loading || !isReady}
           whileHover={!loading ? { scale: buttonHoverScale } : {}}
           whileTap={!loading ? { scale: buttonTapScale } : {}}
-          className="glc-auth-primary-btn w-full flex items-center justify-center gap-2 py-3 font-semibold"
-          style={{
-            ...LOGIN_FORM_STYLE_PRESETS.submitButtonBase,
-            ...submitStyle,
-            cursor: isReady && !loading ? 'pointer' : 'not-allowed',
-          }}
+          className={cn(
+            'glc-auth-primary-btn glc-auth-submit-btn flex w-full items-center justify-center gap-2 py-3 font-semibold',
+            isReady ? 'glc-auth-submit-btn--ready' : 'glc-auth-submit-btn--disabled',
+            isReady && !loading ? 'cursor-pointer' : 'cursor-not-allowed',
+          )}
         >
           {loading ? (
             <span className="flex items-center gap-2">
