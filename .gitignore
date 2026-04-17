@@ -21,3 +21,9 @@ coverage/
 test-results/
 .playwright-mcp/
 /.claude/worktrees/kind-knuth/
+/.agents/
+/.claude/
+/.junie/
+/.kiro/
+/.windsurf/
+/revolut/

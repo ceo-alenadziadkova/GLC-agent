@@ -15,9 +15,9 @@
  *    · Phase 0: assertBriefReady throws → audit marked 'failed', error event emitted, rethrows
  *    · Phase 1: agent.run() throws → domain marked 'failed', audit marked 'failed', rethrows
  *
- *  Mode ceiling:
- *    · Express audit: phase 5 → throws "not available for product_mode 'express'"
- *    · Express audit: phase 4 → succeeds (max allowed)
+ *  Mode ceiling (legacy `product_mode` when `execution_plan` is absent):
+ *    · Express audit: phase 5 → throws "not available for execution plan"
+ *    · Express audit: phase 4 → succeeds (max allowed for pro-style plan)
  *
  *  Unknown phase:
  *    · startPhase(99) → throws "Unknown phase"
@@ -206,11 +206,11 @@ describe('PipelineOrchestrator.startPhase() — unknown phase', () => {
   });
 });
 
-describe('PipelineOrchestrator.startPhase() — mode ceiling', () => {
+describe('PipelineOrchestrator.startPhase() — execution plan availability', () => {
   it('throws when phase exceeds express mode maximum (phase 5 on express)', async () => {
     setProductMode('express');
     const orch = new PipelineOrchestrator(AUDIT_ID);
-    await expect(orch.startPhase(5)).rejects.toThrow(/not available for product_mode 'express'/i);
+    await expect(orch.startPhase(5)).rejects.toThrow(/not available for execution plan/i);
   });
 
   it('does not throw for phase 4 on express mode (max allowed)', async () => {
@@ -222,7 +222,7 @@ describe('PipelineOrchestrator.startPhase() — mode ceiling', () => {
   it('throws when phase exceeds free_snapshot maximum (phase 5)', async () => {
     setProductMode('free_snapshot');
     const orch = new PipelineOrchestrator(AUDIT_ID);
-    await expect(orch.startPhase(5)).rejects.toThrow(/not available for product_mode 'free_snapshot'/i);
+    await expect(orch.startPhase(5)).rejects.toThrow(/not available for execution plan/i);
   });
 });
 

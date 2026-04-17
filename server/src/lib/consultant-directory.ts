@@ -1,4 +1,8 @@
 import { supabase } from '../services/supabase.js';
+import {
+  CONSULTANT_DIRECTORY_USERS_MAX_PAGES,
+  CONSULTANT_DIRECTORY_USERS_PER_PAGE,
+} from '../config/consultant-directory-config.js';
 
 export type ConsultantDirectoryRow = {
   id: string;
@@ -24,7 +28,7 @@ export async function listConsultantDirectoryRows(): Promise<ConsultantDirectory
   const emailById = new Map<string, string>();
   try {
     let page = 1;
-    const perPage = 200;
+    const perPage = CONSULTANT_DIRECTORY_USERS_PER_PAGE;
     for (;;) {
       const { data: pageData, error: uErr } = await supabase.auth.admin.listUsers({ page, perPage });
       if (uErr) {
@@ -40,7 +44,7 @@ export async function listConsultantDirectoryRows(): Promise<ConsultantDirectory
         break;
       }
       page += 1;
-      if (page > 50) {
+      if (page > CONSULTANT_DIRECTORY_USERS_MAX_PAGES) {
         break;
       }
     }

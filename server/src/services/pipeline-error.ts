@@ -3,29 +3,30 @@ import {
   PIPELINE_EVENTS_TABLE,
   PIPELINE_PHASE_ERROR_DEFAULT_MESSAGE,
   PIPELINE_PHASE_NOTIFICATION_FALLBACK_MESSAGE,
-  SUPABASE_REST_V1_SUFFIX,
 } from '../config/pipeline-error-fallback.js';
+import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
+import { getSupabaseServiceRestConfig } from '../config/supabase-service-env.js';
 import { PIPELINE_PHASE_FAILED_NOTIFICATION_TITLE } from '../config/route-notification-messages.js';
+import { buildPipelineUiRoute } from '../config/route-notification-paths.js';
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
 import { emitStructuredNotification } from './notifications.js';
 
 async function fallbackWritePipelineError(auditId: string, phase: number, err: Error): Promise<void> {
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_KEY;
-  if (!supabaseUrl || !serviceKey) return;
+  const cfg = getSupabaseServiceRestConfig();
+  if (!cfg) return;
 
   const headers = {
-    apikey: serviceKey,
-    Authorization: `Bearer ${serviceKey}`,
+    apikey: cfg.serviceKey,
+    Authorization: `Bearer ${cfg.serviceKey}`,
     'Content-Type': 'application/json',
     Prefer: 'return=minimal',
   };
-  const base = `${supabaseUrl}${SUPABASE_REST_V1_SUFFIX}`;
+  const base = cfg.restBase;
   const payload = {
     audit_id: auditId,
     phase,
-    event_type: 'error',
+    event_type: PIPELINE_EVENT_TYPES.error,
     message: err.message ?? PIPELINE_PHASE_ERROR_DEFAULT_MESSAGE,
     data: { error: err.message, source: 'fallback_rest' },
   };
@@ -48,7 +49,7 @@ export async function emitPhaseErrorDurable(auditId: string, phase: number, err:
       supabase.from(PIPELINE_EVENTS_TABLE).insert({
         audit_id: auditId,
         phase,
-        event_type: 'error',
+        event_type: PIPELINE_EVENT_TYPES.error,
         message: err.message ?? PIPELINE_PHASE_ERROR_DEFAULT_MESSAGE,
         data: { error: err.message, stack: err.stack?.split('\n')[1]?.trim() ?? '' },
       }),
@@ -82,7 +83,7 @@ export async function emitPhaseErrorDurable(auditId: string, phase: number, err:
     auditId,
     title: PIPELINE_PHASE_FAILED_NOTIFICATION_TITLE,
     message: err.message ?? PIPELINE_PHASE_NOTIFICATION_FALLBACK_MESSAGE,
-    route: `/pipeline/${auditId}`,
+    route: buildPipelineUiRoute(auditId),
     payload: {
       phase,
       status: 'failed',

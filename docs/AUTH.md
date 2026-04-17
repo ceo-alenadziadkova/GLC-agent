@@ -40,10 +40,10 @@ The Supabase JS client handles session persistence automatically:
 `useAuth()` hook subscribes to this and exposes:
 ```typescript
 {
-  user: User | null,
-  isAuthenticated: boolean,
-  loading: boolean,         // true until first auth state confirmed
-  signOut: () => Promise<void>
+ user: User | null,
+ isAuthenticated: boolean,
+ loading: boolean, // true until first auth state confirmed
+ signOut: () => Promise<void>
 }
 ```
 
@@ -55,7 +55,7 @@ The Supabase JS client handles session persistence automatically:
 
 | Product role | Stored in `profiles.role` | Primary UI |
 |--------------|---------------------------|------------|
-| **Admin** (GLC staff) | `consultant` | `/portfolio`, `/admin/requests`, full pipeline controls |
+| **Admin** (GLC staff) | `consultant` | `/dashboard`, `/admin/requests`, full pipeline controls |
 | **Client** (company contact) | `client` | `/portal`, linked audits and reports |
 
 The database keeps the legacy value `consultant` for admins; the app may display **Admin** in the shell. Clients only see audits where they are `user_id` **or** `client_id` on the `audits` row (enforced in API queries, not only RLS).
@@ -67,22 +67,22 @@ The database keeps the legacy value `consultant` for admins; the app may display
 ## JWT Flow (Frontend → Backend)
 
 ```
-Browser (supabase client)               Backend (Express)
-        │                                       │
-        │  GET /api/audits                       │
-        │  Authorization: Bearer <access_token>  │
-        ├───────────────────────────────────────►│
-        │                                        │ auth.ts middleware:
-        │                                        │ supabase.auth.getUser(token)
-        │                                        │ → verifies JWT, extracts user_id
-        │                                        │ → req.userId = user.id
-        │◄───────────────────────────────────────┤
-        │  200 OK (user's audits only)           │
+Browser (supabase client) Backend (Express)
+ │ │
+ │ GET /api/audits │
+ │ Authorization: Bearer <access_token> │
+ ├───────────────────────────────────────►│
+ │ │ auth.ts middleware:
+ │ │ supabase.auth.getUser(token)
+ │ │ → verifies JWT, extracts user_id
+ │ │ → req.userId = user.id
+ │◄───────────────────────────────────────┤
+ │ 200 OK (user's audits only) │
 ```
 
 `requireAuth` reads `Authorization: Bearer`, calls `supabase.auth.getUser(token)` on the **server** Supabase client, and sets `req.userId`, `req.userEmail`, and **`req.userIsAnonymous`** from the returned user. Invalid or expired tokens yield **401**.
 
-The server client is created with the **service role** key (see `server/src/services/supabase.ts`): DB queries bypass RLS by design. **JWT verification** is still done via `getUser(token)`; isolation is enforced in route handlers (`user_id` / `client_id` filters, `rejectGuestFromPortal`, `requireRole`). This matches [SECURITY.md](./SECURITY.md).
+The server client is created with the **service role** key (see `supabase`): DB queries bypass RLS by design. **JWT verification** is still done via `getUser(token)`; isolation is enforced in route handlers (`user_id` / `client_id` filters, `rejectGuestFromPortal`, `requireRole`). This matches [SECURITY.md](./SECURITY.md).
 
 ---
 
@@ -115,9 +115,9 @@ The backend's **service role key** bypasses RLS — intentional. Routes must sti
 
 ## ProtectedRoute
 
-Consultant and client routes use `ProtectedRoute` with **`useAuth`** + **`useProfile`**: load auth first, then (when `requiredRole` is set) wait for profile; **guest** users are redirected to **`/snapshot`** or blocked routes per `blockedForRoles`. Unauthenticated users go to `/login`. See `src/app/components/ProtectedRoute.tsx` and `src/app/routes.tsx` (`Consultant`, `Client`, `PNoGuest`).
+Consultant and client routes use `ProtectedRoute` with **`useAuth`** + **`useProfile`**: load auth first, then (when `requiredRole` is set) wait for profile; **guest** users are redirected to **`/snapshot`** or blocked routes per `blockedForRoles`. Unauthenticated users go to `/login`. See `ProtectedRoute` and `routes` (`Consultant`, `Client`, `PNoGuest`).
 
-Public paths stay outside `ProtectedRoute`: `/` (marketing), `/login`, `/snapshot`, `/express-audit`, `/audit` (marketing page), `/discovery`, `/brief`, `/faq`, intake discover aliases, etc.
+Public paths stay outside `ProtectedRoute`: `/` (marketing), `/login`, `/snapshot`, `/starter`, `/pro`, `/complete`, `/discovery`, `/brief`, `/faq`, intake discover aliases, etc. Legacy marketing aliases are redirect-only.
 
 ---
 
@@ -145,12 +145,12 @@ Branded HTML for auth and security emails lives in the repo under **`email-templ
 ## Supabase Client Setup
 
 ```typescript
-// src/app/lib/supabase.ts
+// supabase
 import { createClient } from '@supabase/supabase-js';
 
 export const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
+ import.meta.env.VITE_SUPABASE_URL,
+ import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 ```
 
@@ -163,9 +163,18 @@ export const supabase = createClient(
 ```typescript
 // useAuth.ts
 const signOut = async () => {
-  await supabase.auth.signOut();
-  navigate('/login');
+ await supabase.auth.signOut();
+ navigate('/login');
 };
 ```
 
 AppShell shows a "Sign Out" button with `LogOut` icon that calls `signOut()`. On sign out, Supabase clears the session from localStorage and fires `onAuthStateChange` with a `SIGNED_OUT` event, which `useAuth()` picks up to reset state.
+
+## Для разработчиков
+
+Ниже перечислены технические пути реализации для инженерной навигации.
+
+- `server/src/services/supabase.ts`
+- `src/app/components/ProtectedRoute.tsx`
+- `src/app/routes.tsx`
+- `src/app/lib/supabase.ts`

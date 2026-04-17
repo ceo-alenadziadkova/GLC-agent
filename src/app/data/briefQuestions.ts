@@ -1,7 +1,8 @@
 import {
-  resolveExpressSlaRequiredIds,
+  choiceValueNeedsSpecify,
+  getPreBriefSubmitSlotIds as resolveSharedPreBriefSubmitSlotIds,
+  isPreBriefSubmitSlotSatisfied,
   resolveFullSlaRequiredIds,
-  resolvePreBriefSubmitExpressBankIds,
 } from '@glc/intake-core';
 import {
   BRIEF_QUESTIONS as SERVER_BRIEF_QUESTIONS,
@@ -11,10 +12,8 @@ import {
   PRE_BRIEF_QUESTION_IDS as SERVER_PRE_BRIEF_QUESTION_IDS,
   REQUIRED_QUESTION_IDS as SERVER_REQUIRED_QUESTION_IDS,
 } from '@glc/intake-core';
-import { INTAKE_IDENTITY_FIELD_IDS } from './intakeIdentityFieldIds';
-import type { IntakeBriefCollectionMode } from './auditTypes';
+import type { IntakeBriefCollectionMode } from './audit/contracts/intake/intake-brief.types';
 import { briefResponsesToIntakeMap } from './intakeBriefMap';
-import { choiceValueNeedsSpecify } from '@glc/intake-core';
 
 /**
  * Legacy / public brief UI — **question rows** from `@glc/intake-core` (`intake-brief-catalog-meta`, no Zod).
@@ -64,8 +63,6 @@ export const BRIEF_QUESTIONS = SERVER_BRIEF_QUESTIONS as BriefQuestion[];
 
 export const INTAKE_IDENTITY_BRIEF_QUESTIONS = SERVER_INTAKE_IDENTITY_BRIEF_QUESTIONS as BriefQuestion[];
 
-export { INTAKE_IDENTITY_FIELD_IDS };
-
 export function getBriefQuestionText(id: string): string {
   return serverGetBriefQuestionText(id);
 }
@@ -75,16 +72,18 @@ export const REQUIRED_IDS = SERVER_REQUIRED_QUESTION_IDS;
 /** Express SLA base ids for pipeline gates; pre-brief link uses `resolvePreBriefSubmitExpressBankIds` (intersect `bankIncluded`). */
 export const EXPRESS_REQUIRED_QUESTION_IDS = SERVER_EXPRESS_REQUIRED_QUESTION_IDS;
 
-/** IDs checked before pipeline start — matches server `evaluateBriefGates` per product mode. */
+/**
+ * IDs checked before pipeline start — matches server `evaluateBriefGates` for paid audits.
+ * Intake SLA is always full; `mode` is kept for call-site compatibility only.
+ */
 export function pipelineRequiredIdsForProductMode(
-  mode: 'full' | 'express',
+  _mode: 'full' | 'express',
   responses: BriefResponses,
   collectionMode?: IntakeBriefCollectionMode,
 ): string[] {
+  void _mode;
   const m = briefResponsesToIntakeMap(responses);
-  return mode === 'express'
-    ? [...resolveExpressSlaRequiredIds(m, collectionMode)]
-    : [...resolveFullSlaRequiredIds(m, collectionMode)];
+  return [...resolveFullSlaRequiredIds(m, collectionMode)];
 }
 
 export const PRE_BRIEF_QUESTION_IDS = SERVER_PRE_BRIEF_QUESTION_IDS;
@@ -114,6 +113,16 @@ export function unwrapResponse(value: BriefResponseValue | BriefResponseEntry | 
     return value.value;
   }
   return value as BriefResponseValue | undefined;
+}
+
+/** Trimmed string from a brief response cell (public intake, “other specify” fields). */
+export function briefResponseTrimmedString(raw: BriefResponses[string] | undefined): string {
+  if (raw == null) return '';
+  if (typeof raw === 'object' && !Array.isArray(raw) && 'value' in raw) {
+    const v = (raw as BriefResponseEntry).value;
+    return typeof v === 'string' ? v.trim() : '';
+  }
+  return typeof raw === 'string' ? raw.trim() : '';
 }
 
 /** True if the field has no usable answer yet (used to apply consultant metadata prefill on public intake). */
@@ -214,27 +223,12 @@ export function coerceA11ForNoWebsitePresence(responses: BriefResponses): BriefR
 
 /** Pre-brief completion per slot (industry Other + choice "specify" options). */
 export function isPreBriefQuestionSatisfied(questionId: string, responses: BriefResponses): boolean {
-  if (questionId === 'intake_industry_specify') {
-    if (!intakeIndustryIsOther(responses)) return true;
-    return countAnswered(responses, [questionId]) >= 1;
-  }
-  const mainVal = unwrapResponse(responses[questionId]);
-  if (questionId === 'c3' && typeof mainVal === 'string' && choiceValueNeedsSpecify(mainVal)) {
-    const spec = unwrapResponse(responses.c3__other);
-    return typeof spec === 'string' && spec.trim().length > 0;
-  }
-  return countAnswered(responses, [questionId]) >= 1;
+  return isPreBriefSubmitSlotSatisfied(questionId, briefResponsesToIntakeMap(responses));
 }
 
 /** Slot list for public pre-brief progress + server submit validation (identity + core). */
 export function getPreBriefSubmitSlotIds(responses: BriefResponses): string[] {
-  const ids: string[] = [...INTAKE_IDENTITY_FIELD_IDS];
-  if (intakeIndustryIsOther(responses)) {
-    ids.push('intake_industry_specify');
-  }
-  const m = briefResponsesToIntakeMap(responses);
-  ids.push(...resolvePreBriefSubmitExpressBankIds(m));
-  return ids;
+  return resolveSharedPreBriefSubmitSlotIds(briefResponsesToIntakeMap(responses));
 }
 
 export function countPreBriefSatisfied(responses: BriefResponses): number {

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { toast } from 'sonner';
+import { BROWSER_TRANSLATE_COPY_EN } from '../config/translation-safety-copy.en';
 
 const TOAST_ID = 'glc-browser-translate-warning';
 
@@ -10,13 +11,12 @@ function isDocumentElementTranslated(): boolean {
 }
 
 /**
- * Warns if live translation is active so users can turn it off before the SPA hits NotFoundError / insertBefore crashes.
- * Does not block translation — only surfaces recovery guidance.
+ * Warns when live translation is active. Translation stays allowed, but users get
+ * guidance because browser/extensions can rewrite DOM and break React updates.
  */
 export function BrowserTranslateGuard() {
   useEffect(() => {
-    const message =
-      'Automatic page translation can interfere with this app. Turn off translation for this site in your browser, then refresh if anything looks wrong.';
+    const message = BROWSER_TRANSLATE_COPY_EN.translationDetectedWarning;
 
     const fire = () => {
       toast.warning(message, { duration: 14_000, id: TOAST_ID });

@@ -53,7 +53,7 @@ export async function runAxeOnPublicUrls(
             incomplete: 0,
             critical_and_serious: 0,
             rule_ids_sample: [],
-            error: 'URL not allowed for outbound requests',
+            error: e.message,
           });
           continue;
         }

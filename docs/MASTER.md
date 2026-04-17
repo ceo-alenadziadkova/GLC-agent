@@ -36,9 +36,9 @@ Single source of truth **index** and **knowledge map**. Each domain has one cano
 | Local dev, demo seed | [SETUP.md](./SETUP.md) |
 | Production deploy (Vercel, Railway, Supabase), env matrix, monitoring hooks | [DEPLOYMENT.md](./DEPLOYMENT.md) |
 | Engineering debt register | [TECH_DEBT.md](./TECH_DEBT.md) |
-| Test matrix, coverage, E2E | [TESTING.md](../TESTING.md) (repo root) |
-| QA/testing instruction canon | [TESTING_INSTRUCTIONS.md](../TESTING_INSTRUCTIONS.md) (repo root) |
-| Marketing strategy instruction canon | [CMO-INSTRUCTIONS.md](../CMO-INSTRUCTIONS.md) (repo root) |
+| Test matrix, coverage, E2E | [TESTING.md](instructions/TESTING.md) (repo root) |
+| QA/testing instruction canon | [TESTING_INSTRUCTIONS.md](instructions/TESTING_INSTRUCTIONS.md) (repo root) |
+| Marketing strategy instruction canon | [CMO-INSTRUCTIONS.md](instructions/CMO-INSTRUCTIONS.md) (repo root) |
 | CI workflows (tests, secret scan, migration smoke) | [.github/workflows](../.github/workflows) |
 | FACT-CHECKER / Decision Layer roadmap vs code | [GAP-ANALYSIS-PHASE0](./adrs/GAP-ANALYSIS-PHASE0.md) |
 | Other ADRs (decisions, future phases) | [docs/adrs/](./adrs/) — see tree under [Restructuring log](#restructuring-log) |
@@ -59,13 +59,13 @@ Selected ADR quick links:
 
 ### 1. Product and business logic
 
-**What it is:** B2B audit product: URL plus progressive intake context, multi-phase analysis, scored domains, report and strategy deliverables. Supports `full`, `express`, and `free_snapshot` modes.
+**What it is:** B2B audit product: URL plus progressive intake context, multi-phase analysis, scored domains, report and strategy deliverables. Customer-facing scope is package-driven (`starter` / `pro` / `complete`) with optional roadmap (`include_strategy`), plus `free_snapshot` entry; stage-aware diagnostics (launch/stabilize/grow/optimize) replace growth-only positioning.
 
-**Why it matters:** Defines scope of engineering work and what clients receive.
+**Why it matters:** Defines scope of engineering work and what clients receive, and clarifies competitive differentiation versus agencies/consulting, DIY AI workflows, and fragmented in-house tool stacks.
 
-**Where it is implemented:** Product behaviour is encoded in `server/src/types/audit.ts`, `server/src/services/pipeline.ts`, UI pages under `src/app/pages/`.
+**Where it is implemented:** Product behaviour is encoded in `audit`, `pipeline`, UI pages under ``.
 
-**Where to find documentation:** [PRODUCT.md](./PRODUCT.md) (includes Intake Experience layers, readiness contract, and mode thresholds)
+**Where to find documentation:** [PRODUCT.md](./PRODUCT.md) (includes proposition, competitive landscape, stage-based goals, Intake Experience layers, readiness contract, and mode thresholds)
 
 **Owner:** Product / Tech Lead (TBD)
 
@@ -79,7 +79,7 @@ Selected ADR quick links:
 
 **Why it matters:** Boundaries (no Claude on client, service role server-only) prevent security and cost failures.
 
-**Where it is implemented:** `src/app/`, `server/src/`, `server/src/middleware/auth.ts`.
+**Where it is implemented:** `src/app/`, `server/src/`, `auth`.
 
 **Where to find documentation:** [ARCHITECTURE.md](./ARCHITECTURE.md)
 
@@ -95,7 +95,7 @@ Selected ADR quick links:
 
 **Why it matters:** Correct sequencing and gates match `PipelineOrchestrator` behaviour and API contracts.
 
-**Where it is implemented:** `server/src/services/pipeline.ts`, `server/src/services/consistency-checker.ts`.
+**Where it is implemented:** `pipeline`, `consistency_checker`.
 
 **Where to find documentation:** [PIPELINE.md](./PIPELINE.md)
 
@@ -111,7 +111,7 @@ Selected ADR quick links:
 
 **Why it matters:** Enforces data-first execution and reduces hallucinated scores.
 
-**Where it is implemented:** `server/src/agents/`, `server/src/collectors/`, `server/src/services/fact-checker.ts`, `server/src/config/industry-weights.ts`.
+**Where it is implemented:** ``, ``, `fact_checker`, `industry_weights`.
 
 **Where to find documentation:** [AGENTS.md](./AGENTS.md)
 
@@ -143,7 +143,7 @@ Selected ADR quick links:
 
 **Why it matters:** Contract between frontend and backend; client portal and consultant flows.
 
-**Where it is implemented:** `server/src/routes/`; routers are mounted from `server/src/config/api-route-mounts.ts` (`mountApiRouters` in `server/src/index.ts`). SPA paths: `src/app/config/api-paths.ts` (Vitest contract vs mounts: `server/src/tests/api-paths-mount-contract.test.ts`).
+**Where it is implemented:** ``; routers are mounted from `api_route_mounts` (`mountApiRouters` in `index`). SPA paths: `api_paths` (Vitest contract vs mounts: `api_paths_mount_contract.test`).
 
 **Where to find documentation:** [API.md](./API.md)
 
@@ -159,7 +159,7 @@ Selected ADR quick links:
 
 **Why it matters:** Access control for audits and pipeline execution.
 
-**Where it is implemented:** `server/src/middleware/auth.ts`, `server/src/routes/pipeline.ts` (consultant guards), `src/app/lib/supabase.ts`.
+**Where it is implemented:** `auth`, `pipeline` (consultant guards), `supabase`.
 
 **Where to find documentation:** [AUTH.md](./AUTH.md)
 
@@ -175,7 +175,7 @@ Selected ADR quick links:
 
 **Why it matters:** Operational security and compliance expectations.
 
-**Where it is implemented:** `server/src/middleware/rate-limit.ts`, Supabase policies in migrations, frontend hosting config.
+**Where it is implemented:** `rate_limit`, Supabase policies in migrations, frontend hosting config.
 
 **Where to find documentation:** [SECURITY.md](./SECURITY.md)
 
@@ -239,7 +239,7 @@ Selected ADR quick links:
 
 **Why it matters:** Cost control and fair cross-industry scoring.
 
-**Where it is implemented:** `audits.token_budget`, `pipeline_events`, `server/src/config/industry-weights.ts`.
+**Where it is implemented:** `audits.token_budget`, `pipeline_events`, `industry_weights`.
 
 **Where to find documentation:** [PIPELINE.md#token-tracking](./PIPELINE.md#token-tracking), [AGENTS.md#industry-weights](./AGENTS.md#industry-weights)
 
@@ -257,7 +257,7 @@ Selected ADR quick links:
 
 **Where it is implemented:** [`.github/workflows`](../.github/workflows), root `package.json` / `server/package.json` scripts.
 
-**Where to find documentation:** [TESTING.md](../TESTING.md); workflow YAML for exact job list.
+**Where to find documentation:** [TESTING.md](instructions/TESTING.md); workflow YAML for exact job list.
 
 **Owner:** Tech Lead / DevOps (TBD)
 
@@ -315,7 +315,7 @@ Selected ADR quick links:
 - [ ] [MASTER.md](./MASTER.md) domain registry updated if a new concern spans domains or ownership changes
 - [ ] Migrations order / schema changes reflected in [DATABASE.md](./DATABASE.md) when SQL changes
 - [ ] **Needs Review** used for anything not verified against code or production
-- [ ] If API error copy or codes changed: update `server/src/config/api-error-codes.ts` / messages JSON; refresh literal tables in [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md) using `./scripts/api-errors-inventory.sh` output where applicable
+- [ ] If API error copy or codes changed: update `api_error_codes` / messages JSON; refresh literal tables in [API_ERRORS_INVENTORY.md](./API_ERRORS_INVENTORY.md) using `./scripts/api-errors-inventory.sh` output where applicable
 - [ ] New guidance added to the canonical instruction file, not copied into `INSTRUCTIONS.md`
 
 ### Who updates the master document
@@ -330,54 +330,54 @@ Selected ADR quick links:
 
 ```text
 docs/
-  MASTER.md                              # Only master index + knowledge map + governance + log
-  CONCEPT.md
-  PRODUCT.md
-  ARCHITECTURE.md
-  PIPELINE.md
-  AGENTS.md
-  API.md
-  API_ERRORS_INVENTORY.md              # Generated — see governance rules
-  AUTH.md
-  SECURITY.md
-  DATABASE.md
-  FRONTEND.md
-  GLOSSARY.md
-  QUESTION_BANK.md
-  IMPROVEMENTS.md
-  TECH_DEBT.md
-  SETUP.md
-  DEPLOYMENT.md
-  archive/
-    README.md                            # Policy for obsolete doc stubs only
-  adrs/
-    ADR-AUTO-LOOP-RULE-ENGINE.md
-    ADR-AUTO-REMEDIATION.md
-    ADR-CAUSAL-DAG.md
-    ADR-CONTROL-OBJECT-V1.md
-    ADR-CONTROL-OBJECT-V2-FULL.md
-    ADR-DECISION-LAYER-GATES.md
-    ADR-DOMAIN-BENCHMARKS.md
-    ADR-DOMAIN-AUTOMATION-PROCESSES-FINAL-READY.md
-    ADR-DOMAIN-FINAL-READINESS-SUMMARY.md
-    ADR-DOMAIN-MARKETING-UTP-FINAL-READY.md
-    ADR-DOMAIN-SECURITY-COMPLIANCE-FINAL-READY.md
-    ADR-DOMAIN-SEO-DIGITAL-FINAL-READY.md
-    ADR-DOMAIN-STRATEGY-FINAL-READY.md
-    ADR-DOMAIN-TECH-INFRASTRUCTURE-FINAL-READY.md
-    ADR-DOMAIN-UX-CONVERSION-FINAL-READY.md
-    ADR-FACT-CHECKER-UNIFIED-KERNEL.md
-    ADR-FEASIBILITY-RULE-ENGINE.md
-    ADR-FREE-SNAPSHOT-SCANNER.md
-    ADR-FRONTEND-I18N.md
-    ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md
-    ADR-INTAKE-UNIFIED-QUESTION-BANK.md
-    ADR-ML-BANDITS.md
-    ADR-MULTIMODAL-TRUTH.md
-    ADR-PHASE-PROFILES.md
-    ADR-SAFETY-MODE-EXECUTION.md
-    ADR-TRUTH-REGISTRY-ASSUMPTIONS.md
-    GAP-ANALYSIS-PHASE0.md
+ MASTER.md # Only master index + knowledge map + governance + log
+ CONCEPT.md
+ PRODUCT.md
+ ARCHITECTURE.md
+ PIPELINE.md
+ AGENTS.md
+ API.md
+ API_ERRORS_INVENTORY.md # Generated — see governance rules
+ AUTH.md
+ SECURITY.md
+ DATABASE.md
+ FRONTEND.md
+ GLOSSARY.md
+ QUESTION_BANK.md
+ IMPROVEMENTS.md
+ TECH_DEBT.md
+ SETUP.md
+ DEPLOYMENT.md
+ archive/
+ README.md # Policy for obsolete doc stubs only
+ adrs/
+ ADR-AUTO-LOOP-RULE-ENGINE.md
+ ADR-AUTO-REMEDIATION.md
+ ADR-CAUSAL-DAG.md
+ ADR-CONTROL-OBJECT-V1.md
+ ADR-CONTROL-OBJECT-V2-FULL.md
+ ADR-DECISION-LAYER-GATES.md
+ ADR-DOMAIN-BENCHMARKS.md
+ ADR-DOMAIN-AUTOMATION-PROCESSES-FINAL-READY.md
+ ADR-DOMAIN-FINAL-READINESS-SUMMARY.md
+ ADR-DOMAIN-MARKETING-UTP-FINAL-READY.md
+ ADR-DOMAIN-SECURITY-COMPLIANCE-FINAL-READY.md
+ ADR-DOMAIN-SEO-DIGITAL-FINAL-READY.md
+ ADR-DOMAIN-STRATEGY-FINAL-READY.md
+ ADR-DOMAIN-TECH-INFRASTRUCTURE-FINAL-READY.md
+ ADR-DOMAIN-UX-CONVERSION-FINAL-READY.md
+ ADR-FACT-CHECKER-UNIFIED-KERNEL.md
+ ADR-FEASIBILITY-RULE-ENGINE.md
+ ADR-FREE-SNAPSHOT-SCANNER.md
+ ADR-FRONTEND-I18N.md
+ ADR-INTAKE-QUESTION-WORDING-LIFECYCLE.md
+ ADR-INTAKE-UNIFIED-QUESTION-BANK.md
+ ADR-ML-BANDITS.md
+ ADR-MULTIMODAL-TRUTH.md
+ ADR-PHASE-PROFILES.md
+ ADR-SAFETY-MODE-EXECUTION.md
+ ADR-TRUTH-REGISTRY-ASSUMPTIONS.md
+ GAP-ANALYSIS-PHASE0.md
 ```
 
 ### Consolidation (2026-04)
@@ -434,32 +434,32 @@ docs/
 
 ```text
 /
-  CLAUDE.md
-  INSTRUCTIONS.md                    # Router only (no duplicated policy payload)
-  TESTING_INSTRUCTIONS.md            # Canonical QA/testing instruction set
-  CMO-INSTRUCTIONS.md                # Canonical marketing orchestration instruction set
-  TESTING.md
-  docs/
-    MASTER.md
-    CONCEPT.md
-    PRODUCT.md
-    ARCHITECTURE.md
-    PIPELINE.md
-    AGENTS.md
-    API.md
-    API_ERRORS_INVENTORY.md
-    AUTH.md
-    SECURITY.md
-    DATABASE.md
-    FRONTEND.md
-    GLOSSARY.md
-    QUESTION_BANK.md
-    IMPROVEMENTS.md
-    TECH_DEBT.md
-    SETUP.md
-    DEPLOYMENT.md
-    archive/
-    adrs/
+ CLAUDE.md
+ INSTRUCTIONS.md # Router only (no duplicated policy payload)
+ TESTING_INSTRUCTIONS.md # Canonical QA/testing instruction set
+ CMO-INSTRUCTIONS.md # Canonical marketing orchestration instruction set
+ TESTING.md
+ docs/
+ MASTER.md
+ CONCEPT.md
+ PRODUCT.md
+ ARCHITECTURE.md
+ PIPELINE.md
+ AGENTS.md
+ API.md
+ API_ERRORS_INVENTORY.md
+ AUTH.md
+ SECURITY.md
+ DATABASE.md
+ FRONTEND.md
+ GLOSSARY.md
+ QUESTION_BANK.md
+ IMPROVEMENTS.md
+ TECH_DEBT.md
+ SETUP.md
+ DEPLOYMENT.md
+ archive/
+ adrs/
 ```
 
 #### Knowledge domains identified (2026-04-13b)
@@ -474,6 +474,63 @@ Product/business logic; System architecture; AI pipeline orchestration; Agents/c
 4. Use `Needs Review` labels when implementation truth is uncertain; do not write speculative statements.
 5. On every doc-affecting PR, update this master registry + duplication report row when scope spans multiple domains.
 
+### Consolidation (2026-04-13c) — code-alignment and SSOT cleanup
+
+#### Structural diff summary (2026-04-13c)
+
+| Action | Item |
+| --- | --- |
+| Updated | `API.md` auth boundary now reflects current route reality: JWT vs public vs token/secret protected endpoints |
+| Kept canonical | `MASTER.md` remains single index and knowledge registry (no `MASTER_DOCUMENTATION.md`) |
+| Classified | `CONCEPT.md` retained as high-level product intent; implementation contracts stay in `PRODUCT.md` / `PIPELINE.md` / `API.md` |
+| No archive move | `docs/archive/` unchanged in this pass (no file became empty after migration) |
+
+#### Duplication report (2026-04-13c)
+
+| Topic | Was repeated across | Canonical source | Classification |
+| --- | --- | --- | --- |
+| Auth boundary phrasing for API | `API.md`, historical architecture prose, route comments | `API.md` base section + per-endpoint auth notes | Partial duplicate |
+| Product concept vs runtime contract | `CONCEPT.md`, `PRODUCT.md`, `PIPELINE.md` | `PRODUCT.md` (product contract), `PIPELINE.md` (runtime sequencing), `CONCEPT.md` (intent only) | Legacy repetition |
+| Public/operator snapshot access rules | `API.md` intro, snapshot section, route code | `API.md` snapshot section | Partial duplicate |
+
+#### New documentation tree (2026-04-13c)
+
+```text
+docs/
+ MASTER.md # only master index + governance + dedup log
+ CONCEPT.md # intent and principles (high-level)
+ PRODUCT.md # product behavior and modes
+ ARCHITECTURE.md # system and layering
+ PIPELINE.md # orchestration and gates
+ AGENTS.md # agent/collector contract
+ API.md # API contract and auth boundaries
+ API_ERRORS_INVENTORY.md # route error literals inventory
+ AUTH.md # AuthN/AuthZ
+ SECURITY.md # security model and hardening
+ DATABASE.md # schema, RLS, migrations
+ FRONTEND.md # SPA architecture and UI system
+ GLOSSARY.md
+ QUESTION_BANK.md
+ IMPROVEMENTS.md
+ TECH_DEBT.md
+ SETUP.md
+ DEPLOYMENT.md
+ archive/
+ adrs/
+```
+
+#### Knowledge domains identified (2026-04-13c)
+
+Business logic; Product modes and deliverables; Architecture and layering; Pipeline orchestration; Agents/collectors; API contracts; Authentication/authorization; Security and abuse controls; Data storage and migrations; Frontend routes/UI system; Local setup; Deployment and infrastructure; CI/CD quality gates; Observability and operations; ADR and roadmap history; Documentation governance.
+
+#### Governance proposal (2026-04-13c)
+
+1. Any route auth rule change must update `docs/API.md` in the same PR (no duplicate auth matrices in other docs).
+2. Keep `CONCEPT.md` strategy-level only; all executable behavior belongs to canonical technical docs.
+3. Use `Needs Review` labels for environment-specific claims (hosting/live-state) unless verified from runtime.
+4. Add a dedup line in this restructuring log whenever content is moved, merged, or reclassified.
+5. Preserve `docs/archive/*` for obsolete stubs only; do not place active instructions there.
+
 ---
 
 ### Historical: restructuring (2026-03)
@@ -484,10 +541,10 @@ Previously the index lived in `MASTER_DOCUMENTATION.md` with `MASTER.md` as a sh
 
 ```text
 docs/
-  MASTER_DOCUMENTATION.md
-  MASTER.md
-  PRODUCT.md
-  ...
+ MASTER_DOCUMENTATION.md
+ MASTER.md
+ PRODUCT.md
+ ...
 ```
 
 #### Structural diff summary (2026-03)
@@ -514,3 +571,26 @@ docs/
 #### Knowledge domains identified
 
 Product; System architecture; AI pipeline; Agents and collectors; Data storage; REST API; Authentication and authorization; Security; Frontend; Local setup and demo; Deployment; Token economics and industry weights (cross-linked to Pipeline and Agents).
+
+## Для разработчиков
+
+Ниже перечислены технические пути реализации для инженерной навигации.
+
+- `server/src/types/audit.ts`
+- `server/src/services/pipeline.ts`
+- `src/app/pages/`
+- `server/src/middleware/auth.ts`
+- `server/src/services/consistency-checker.ts`
+- `server/src/agents/`
+- `server/src/collectors/`
+- `server/src/services/fact-checker.ts`
+- `server/src/config/industry-weights.ts`
+- `server/src/routes/`
+- `server/src/config/api-route-mounts.ts`
+- `server/src/index.ts`
+- `src/app/config/api-paths.ts`
+- `server/src/tests/api-paths-mount-contract.test.ts`
+- `server/src/routes/pipeline.ts`
+- `src/app/lib/supabase.ts`
+- `server/src/middleware/rate-limit.ts`
+- `server/src/config/api-error-codes.ts`

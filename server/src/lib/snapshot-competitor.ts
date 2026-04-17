@@ -152,3 +152,44 @@ export async function maybeBuildCompetitorMini(
     confidence: 'high',
   };
 }
+
+/**
+ * Explicit comparison between two URLs (self vs competitor) for authenticated flows.
+ */
+export async function compareSiteMetricsByUrl(params: {
+  selfUrl: string;
+  competitorUrl: string;
+  timeoutMs: number;
+}): Promise<FreeSnapshotPreview['competitor_mini'] | undefined> {
+  const { selfUrl, competitorUrl, timeoutMs } = params;
+  let competitorHost = '';
+  try {
+    competitorHost = normHost(new URL(competitorUrl).hostname);
+  } catch {
+    return undefined;
+  }
+
+  const settled = await Promise.allSettled([
+    fetchLightSiteMetrics(selfUrl, timeoutMs),
+    fetchLightSiteMetrics(competitorUrl, timeoutMs),
+  ]);
+  if (settled[0].status !== 'fulfilled' || settled[1].status !== 'fulfilled') return undefined;
+  const selfMetrics = settled[0].value;
+  const competitorMetrics = settled[1].value;
+  if (!selfMetrics || !competitorMetrics) return undefined;
+
+  const comparisons: SnapshotCompetitorComparison[] = [
+    cmpBool('https', 'HTTPS', selfMetrics.https, competitorMetrics.https),
+    cmpBool('mobile_viewport', 'Mobile viewport meta', selfMetrics.mobile_viewport, competitorMetrics.mobile_viewport),
+    cmpNumber('hreflang_count', 'hreflang locale signals', selfMetrics.hreflang_count, competitorMetrics.hreflang_count),
+    cmpBool('structured_data', 'JSON-LD structured data', selfMetrics.structured_data, competitorMetrics.structured_data),
+  ];
+
+  return {
+    competitor_name: competitorHost || competitorUrl,
+    competitor_url: competitorUrl,
+    comparisons,
+    data_source: 'auto_detected',
+    confidence: 'high',
+  };
+}

@@ -1,16 +1,14 @@
-import { ensureHttpsUrl } from '@glc/intake-core';
+import {
+  DISCOVERY_BRIEF_PATCH_A5_MULTI_PAGE_SITE,
+  DISCOVERY_BRIEF_PATCH_A5_NO_WEBSITE_YET,
+  ensureHttpsUrl,
+} from '@glc/intake-core';
 import type { User } from '@supabase/supabase-js';
 import type { BriefResponseSource } from '../data/auditTypes';
 import { ApiError } from '../data/api-error';
 import type { BriefResponseEntry, BriefResponses } from '../data/briefQuestions';
+import { A11_VALUE_WHEN_NO_PUBLIC_SITE } from '../data/briefQuestions';
 import { isIndustryOption } from '../data/industry-options';
-
-export const NEXT_ACTION_TEXT: Record<string, string> = {
-  complete_required: 'Complete required fields to start the audit.',
-  add_recommended: 'Add a few recommended details to improve audit quality.',
-  confirm_prefill: 'Confirm auto-detected prefill data before launch.',
-  none: 'Your intake is ready.',
-};
 
 export function unwrapBriefString(responses: BriefResponses, id: string): string | undefined {
   const raw = responses[id];
@@ -29,7 +27,12 @@ export function websiteAnswerToAuditUrl(raw: string): string | undefined {
   const t = raw.trim();
   if (!t) return undefined;
   const lower = t.toLowerCase();
-  if (lower === 'none' || lower === 'no website' || lower === 'n/a' || lower === 'na') return undefined;
+  const isNoWebsitePlaceholder =
+    lower === A11_VALUE_WHEN_NO_PUBLIC_SITE ||
+    lower === 'no website' ||
+    lower === 'n/a' ||
+    lower === 'na';
+  if (isNoWebsitePlaceholder) return undefined;
   return ensureHttpsUrl(t);
 }
 
@@ -55,8 +58,8 @@ export function buildStep0IntakePatch(
     patch.intake_industry_specify = { value: spec, source };
   }
   if (noPublicWebsite) {
-    patch.a11 = { value: 'none', source };
-    patch.a5 = { value: 'No website yet', source };
+    patch.a11 = { value: A11_VALUE_WHEN_NO_PUBLIC_SITE, source };
+    patch.a5 = { value: DISCOVERY_BRIEF_PATCH_A5_NO_WEBSITE_YET, source };
   } else {
     const ut = url.trim();
     if (ut) {
@@ -64,7 +67,7 @@ export function buildStep0IntakePatch(
         value: ensureHttpsUrl(ut),
         source,
       };
-      patch.a5 = { value: 'Yes, multi-page site', source };
+      patch.a5 = { value: DISCOVERY_BRIEF_PATCH_A5_MULTI_PAGE_SITE, source };
     }
   }
   return patch;
@@ -83,6 +86,6 @@ export function isSelfServeOwnerConfigApiError(err: unknown): boolean {
   if (!(err instanceof ApiError)) return false;
   if (err.status !== 503) return false;
   if (err.code === 'SELF_SERVE_OWNER_UNAVAILABLE') return true;
-  const m = err.message;
-  return m.includes('We could not assign ownership for this audit');
+  // For correctness we rely on stable machine-readable `code` only.
+  return false;
 }

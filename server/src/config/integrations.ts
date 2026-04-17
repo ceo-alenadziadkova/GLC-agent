@@ -1,5 +1,8 @@
 /**
  * Default base URLs for outbound integrations (override via env in the caller).
+ *
+ * `DEFAULT_TELEGRAM_API_BASE` is static CONFIG (public vendor endpoint). Production callers must set
+ * `TELEGRAM_API_BASE` when enabling Telegram (see `getTelegramApiBase()`).
  */
 
 export const DEFAULT_TELEGRAM_API_BASE = 'https://api.telegram.org' as const;

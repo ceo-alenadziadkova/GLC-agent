@@ -18,7 +18,7 @@ export default mergeConfig(resolvedVite, defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.{ts,tsx}', 'packages/intake-core/src/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'text'],

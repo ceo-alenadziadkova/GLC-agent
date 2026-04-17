@@ -32,33 +32,33 @@ describe('computeMarketingBriefRecommendedRoute', () => {
     ).toBe('/discovery');
   });
 
-  it('has site + express depth → express-audit', () => {
+  it('has site + express depth → starter', () => {
     expect(
       computeMarketingBriefRecommendedRoute({
         unsure_choice: false,
         no_website: false,
         preferred_audit_depth: 'express',
       }),
-    ).toBe('/express-audit');
+    ).toBe('/starter');
   });
 
-  it('has site + full depth → audit', () => {
+  it('has site + full depth → complete', () => {
     expect(
       computeMarketingBriefRecommendedRoute({
         unsure_choice: false,
         no_website: false,
         preferred_audit_depth: 'full',
       }),
-    ).toBe('/audit');
+    ).toBe('/complete');
   });
 
-  it('has site + null depth defaults to full path', () => {
+  it('has site + null depth defaults to complete path', () => {
     expect(
       computeMarketingBriefRecommendedRoute({
         unsure_choice: false,
         no_website: false,
         preferred_audit_depth: null,
       }),
-    ).toBe('/audit');
+    ).toBe('/complete');
   });
 });

@@ -19,16 +19,13 @@ interface ActionPanelProps {
 }
 
 function priorityDot(p: DashboardPriority) {
-  const colors: Record<DashboardPriority, string> = {
-    high:   'var(--score-1)',
-    medium: 'var(--score-3)',
-    low:    'var(--text-tertiary)',
+  const dotClassName: Record<DashboardPriority, string> = {
+    high: 'bg-[var(--score-1)]',
+    medium: 'bg-[var(--score-3)]',
+    low: 'bg-[var(--text-tertiary)]',
   };
   return (
-    <span
-      className="inline-block flex-shrink-0 rounded-full"
-      style={{ width: 6, height: 6, backgroundColor: colors[p], marginTop: 5 }}
-    />
+    <span className={`mt-[5px] inline-block h-[6px] w-[6px] shrink-0 rounded-full ${dotClassName[p]}`} />
   );
 }
 
@@ -43,17 +40,7 @@ function CompanyAvatar({
 }) {
   const initials = (name || formatAuditWebsiteDisplay(url, noPublicWebsite)).slice(0, 2).toUpperCase();
   return (
-    <div
-      className="w-7 h-7 flex items-center justify-center text-xs font-bold flex-shrink-0"
-      style={{
-        background: 'linear-gradient(135deg, var(--glc-blue-xlight) 0%, rgba(28,189,255,0.06) 100%)',
-        color: 'var(--glc-blue-deeper)',
-        border: '1px solid rgba(28,189,255,0.14)',
-        borderRadius: 'var(--radius-md)',
-        fontFamily: 'var(--font-display)',
-        fontSize: '10px',
-      }}
-    >
+    <div className="ds-action-panel-avatar">
       {initials}
     </div>
   );
@@ -70,22 +57,10 @@ function SubSection({ label, icon, count, children }: SubSectionProps) {
   if (count === 0) return null;
   return (
     <div className="mb-4 last:mb-0">
-      <div
-        className="flex items-center gap-1.5 mb-2"
-        style={{ color: 'var(--text-tertiary)', fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}
-      >
+      <div className="mb-2 flex items-center gap-1.5 text-[length:var(--text-2xs)] font-bold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
         {icon}
         {label}
-        <span
-          className="ml-auto tabular-nums px-1.5 py-0.5"
-          style={{
-            backgroundColor: 'var(--bg-canvas)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-sm)',
-            fontSize: '10px',
-            color: 'var(--text-secondary)',
-          }}
-        >
+          <span className="ml-auto rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-1.5 py-0.5 text-[length:var(--text-2xs)] tabular-nums text-[var(--text-secondary)]">
           {count}
         </span>
       </div>
@@ -96,7 +71,7 @@ function SubSection({ label, icon, count, children }: SubSectionProps) {
 
 function ReviewGateRow({ item }: { item: DashboardReviewGateItem }) {
   return (
-    <div className="flex items-center gap-2.5 group">
+    <div className="glc-hover-row flex items-center gap-2.5 group px-2 py-1.5">
       {priorityDot(item.priority)}
       <CompanyAvatar
         name={item.company_name}
@@ -105,21 +80,17 @@ function ReviewGateRow({ item }: { item: DashboardReviewGateItem }) {
       />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span
-            className="font-medium truncate"
-            style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
-          >
+          <span className="truncate font-medium [font-family:var(--font-display)] text-[length:var(--text-sm)] text-[var(--text-primary)]">
             {item.company_name || formatAuditWebsiteDisplay(item.company_url, item.no_public_website)}
           </span>
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+        <div className="text-xs text-[var(--text-tertiary)]">
           Waiting at review gate · {formatRelativeTime(item.updated_at)}
         </div>
       </div>
       <Link
         to={`/pipeline/${item.id}`}
-        className="glc-btn-icon mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
-        style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', flexShrink: 0 }}
+        className="glc-btn-icon ds-action-panel-icon-link mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
         title="Go to pipeline"
       >
         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -130,7 +101,7 @@ function ReviewGateRow({ item }: { item: DashboardReviewGateItem }) {
 
 function SlaRiskRow({ item }: { item: DashboardSlaRiskItem }) {
   return (
-    <div className="flex items-center gap-2.5 group">
+    <div className="glc-hover-row flex items-center gap-2.5 group px-2 py-1.5">
       {priorityDot(item.priority)}
       <CompanyAvatar
         name={item.company_name}
@@ -138,20 +109,16 @@ function SlaRiskRow({ item }: { item: DashboardSlaRiskItem }) {
         noPublicWebsite={item.no_public_website}
       />
       <div className="flex-1 min-w-0">
-        <div
-          className="font-medium truncate"
-          style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
-        >
+        <div className="truncate font-medium [font-family:var(--font-display)] text-[length:var(--text-sm)] text-[var(--text-primary)]">
           {item.company_name || formatAuditWebsiteDisplay(item.company_url, item.no_public_website)}
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+        <div className="text-xs text-[var(--text-tertiary)]">
           Not started · {item.days_open}d open
         </div>
       </div>
       <Link
         to={`/pipeline/${item.id}`}
-        className="glc-btn-icon mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
-        style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', flexShrink: 0 }}
+        className="glc-btn-icon ds-action-panel-icon-link mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
         title="Start pipeline"
       >
         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -162,7 +129,7 @@ function SlaRiskRow({ item }: { item: DashboardSlaRiskItem }) {
 
 function FailureRow({ item }: { item: DashboardFailureItem }) {
   return (
-    <div className="flex items-center gap-2.5 group">
+    <div className="glc-hover-row flex items-center gap-2.5 group px-2 py-1.5">
       {priorityDot(item.priority)}
       <CompanyAvatar
         name={item.company_name}
@@ -170,20 +137,16 @@ function FailureRow({ item }: { item: DashboardFailureItem }) {
         noPublicWebsite={item.no_public_website}
       />
       <div className="flex-1 min-w-0">
-        <div
-          className="font-medium truncate"
-          style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
-        >
+        <div className="truncate font-medium [font-family:var(--font-display)] text-[length:var(--text-sm)] text-[var(--text-primary)]">
           {item.company_name || formatAuditWebsiteDisplay(item.company_url, item.no_public_website)}
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+        <div className="text-xs text-[var(--text-tertiary)]">
           Pipeline failed · {formatRelativeTime(item.updated_at)}
         </div>
       </div>
       <Link
         to={`/audit/${item.id}`}
-        className="glc-btn-icon mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
-        style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', flexShrink: 0 }}
+        className="glc-btn-icon ds-action-panel-icon-link mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
         title="View audit"
       >
         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -194,24 +157,20 @@ function FailureRow({ item }: { item: DashboardFailureItem }) {
 
 function PendingRequestRow({ item }: { item: DashboardPendingRequestItem }) {
   return (
-    <div className="flex items-center gap-2.5 group">
+    <div className="glc-hover-row flex items-center gap-2.5 group px-2 py-1.5">
       {priorityDot(item.priority)}
       <CompanyAvatar name={null} url={item.url} />
       <div className="flex-1 min-w-0">
-        <div
-          className="font-medium truncate"
-          style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}
-        >
+        <div className="truncate font-medium [font-family:var(--font-display)] text-[length:var(--text-sm)] text-[var(--text-primary)]">
           {item.url}
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+        <div className="text-xs text-[var(--text-tertiary)]">
           {item.industry || 'Unknown industry'} · submitted {formatRelativeTime(item.created_at)}
         </div>
       </div>
       <Link
         to="/admin/requests"
-        className="glc-btn-icon mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
-        style={{ width: 44, height: 44, borderRadius: 'var(--radius-md)', flexShrink: 0 }}
+        className="glc-btn-icon ds-action-panel-icon-link mobile:opacity-100 opacity-0 group-hover:opacity-100 transition-opacity glc-touch-target"
         title="View request queue"
       >
         <ArrowUpRight className="w-3.5 h-3.5" />
@@ -230,39 +189,30 @@ export function ActionPanel({ items, loading, onRefresh: _onRefresh }: ActionPan
   const isEmpty = !loading && items !== undefined && totalItems === 0;
 
   return (
-    <div
-      className="glc-card p-5"
-      style={{ borderRadius: 'var(--radius-xl)' }}
-    >
-      <div className="flex items-center justify-between mb-4">
+    <div className="glc-card rounded-[var(--radius-xl)] p-5">
+      <div className="glc-panel-head">
         <SectionLabel>Action Required</SectionLabel>
         {totalItems > 0 && (
-          <span
-            className="tabular-nums px-2 py-0.5 rounded-full text-xs font-semibold"
-            style={{
-              backgroundColor: 'rgba(239,68,68,0.1)',
-              color: 'var(--score-1)',
-              border: '1px solid rgba(239,68,68,0.2)',
-            }}
-          >
+          <span className="ds-action-panel-count-badge tabular-nums">
             {totalItems}
           </span>
         )}
       </div>
+      <p className="glc-panel-meta">Priority queue across review gates, SLA risks, failures, and requests.</p>
 
       {loading && !items && (
         <div className="space-y-3">
           {[0, 1, 2].map(i => (
-            <div key={i} className="h-9 rounded-lg animate-pulse" style={{ backgroundColor: 'var(--bg-canvas)' }} />
+            <div key={i} className="h-9 animate-pulse rounded-lg bg-[var(--bg-canvas)]" />
           ))}
         </div>
       )}
 
       {isEmpty && (
         <div className="flex flex-col items-center justify-center py-8 gap-2">
-          <CheckCircle className="w-8 h-8" style={{ color: 'var(--glc-green)' }} weight="fill" />
-          <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>No items requiring action</p>
-          <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>All audits are on track</p>
+          <CheckCircle className="h-8 w-8 text-[var(--glc-green)]" weight="fill" />
+          <p className="text-sm font-medium text-[var(--text-secondary)]">No items requiring action</p>
+          <p className="text-xs text-[var(--text-tertiary)]">All audits are on track</p>
         </div>
       )}
 

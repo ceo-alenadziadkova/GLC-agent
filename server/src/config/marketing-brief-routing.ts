@@ -7,6 +7,7 @@ export {
   isAllowedMarketingBriefRoute,
   MARKETING_BRIEF_ALLOWED_ROUTES,
   type MarketingBriefPreferredAuditDepth,
+  type MarketingBriefPreferredCoveragePackage,
   type MarketingBriefRoute,
   type MarketingBriefRoutingInput,
 } from '@glc/intake-core';

@@ -132,6 +132,7 @@ reportsRouter.get('/:id/report', attachProfile, rejectGuestFromPortal, async (re
         profile:       report.profile,
         profile_label: report.profile_label,
         generated_at:  report.generated_at,
+        coverage:      report.coverage,
         markdown:      report.markdown,
       });
     } else {

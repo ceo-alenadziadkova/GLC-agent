@@ -1,0 +1,71 @@
+/**
+ * Motion defaults for public marketing surfaces (Revolut-inspired: smooth ease-out, staggered reveals).
+ * Used by MarketingSection and key landing blocks — keep timings here, not inline in pages.
+ */
+export const MARKETING_MOTION_EASE_PREMIUM = [0.22, 1, 0.36, 1] as const;
+
+/** Hero / billboard blocks (matches prior home hero curve). */
+export const MARKETING_MOTION_EASE_BILLBOARD = [0.16, 1, 0.3, 1] as const;
+
+/**
+ * Motion `whileInView` passes `margin` to `IntersectionObserver`.
+ * Chromium requires pixel (or strictly valid) rootMargin strings — percentage values throw at construction time.
+ * These `px` literals are browser API constraints, not UI design tokens (see design-system-enforcement-check).
+ */
+export const MARKETING_IN_VIEW_MARGIN = {
+  /** Section / text reveal — approx. former `-12% 0 -8% 0`. */
+  section: '-120px 0px -80px 0px',
+  /** Tighter trigger — approx. former `-5% 0px`. */
+  tight: '-50px 0px',
+  /** Card blocks — approx. former `-8% 0px`. */
+  card: '-80px 0px',
+} as const;
+
+export const MARKETING_SECTION_MOTION = {
+  hiddenY: 22,
+  durationSec: 0.64,
+  /** Slightly earlier trigger so content feels “alive” before fully centered. */
+  viewportMargin: MARKETING_IN_VIEW_MARGIN.section,
+} as const;
+
+export const MARKETING_LIST_STAGGER = {
+  itemDelaySec: 0.068,
+  itemDurationSec: 0.5,
+  itemHiddenY: 14,
+} as const;
+
+export const MARKETING_CARD_MOTION = {
+  hiddenY: 20,
+  durationSec: 0.52,
+  staggerSec: 0.09,
+  hoverLift: 3,
+  hoverDurationSec: 0.22,
+} as const;
+
+export const MARKETING_BLOCK_REVEAL = {
+  hiddenY: 22,
+  hiddenScale: 0.988,
+  durationSec: 0.56,
+} as const;
+
+/** Clip-path “curtain” reveal for large panels (matches --radius-2xl). */
+export const MARKETING_MASK_REVEAL = {
+  durationSec: 0.62,
+  /** Pixel radius passed to `inset(... round Npx)` — keep aligned with `--radius-2xl`. */
+  cornerRadiusPx: 22,
+} as const;
+
+/** Short copy / subheads: opacity + small translateY (Revolut-like calm reveal). */
+export const MARKETING_TEXT_REVEAL = {
+  hiddenY: 10,
+  durationSec: 0.48,
+} as const;
+
+/** Stagger preset for home / package billboard heroes — keep in sync with motion variants. */
+export const MARKETING_HERO_BILLBOARD = {
+  staggerChildrenSec: 0.09,
+  delayChildrenSec: 0.06,
+  itemHiddenY: 28,
+  itemDurationSec: 0.52,
+} as const;
+

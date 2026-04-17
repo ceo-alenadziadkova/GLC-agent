@@ -1,6 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import type { Server } from 'node:http';
+import {
+  discoverPublicReadLimiter,
+  discoverUiFragmentReadLimiter,
+} from '../middleware/rate-limit.js';
 
 const state = vi.hoisted(() => {
   let sessionRow: Record<string, unknown> | null = null;
@@ -220,6 +224,16 @@ import { discoverRouter } from '../routes/discover.js';
 let server: Server;
 let baseUrl = '';
 
+function resetLimiterLocalhostKeys(
+  limiter: unknown,
+): void {
+  const withReset = limiter as { resetKey?: (key: string) => void };
+  if (!withReset.resetKey) return;
+  withReset.resetKey('::1');
+  withReset.resetKey('::ffff:127.0.0.1');
+  withReset.resetKey('127.0.0.1');
+}
+
 beforeAll(async () => {
   const app = express();
   app.use(express.json());
@@ -234,6 +248,8 @@ beforeAll(async () => {
 afterAll(() => server.close());
 
 beforeEach(() => {
+  resetLimiterLocalhostKeys(discoverPublicReadLimiter);
+  resetLimiterLocalhostKeys(discoverUiFragmentReadLimiter);
   state.resetCounters();
   state.setClaimConflict(false);
   state.setLinkConflict(false);
@@ -275,6 +291,7 @@ describe('POST /api/discover/:token/convert', () => {
     });
     const body = await res.json() as Record<string, unknown>;
     expect(res.status).toBe(400);
+    expect(body.code).toBe('DISCOVER_INVALID_TOKEN');
     expect(body.error).toBe('Invalid token');
   });
 
@@ -290,6 +307,7 @@ describe('POST /api/discover/:token/convert', () => {
     });
     const body = await res.json() as Record<string, unknown>;
     expect(res.status).toBe(403);
+    expect(body.code).toBe('DISCOVER_FORBIDDEN_OWNER');
     expect(body.error).toBe('Session is assigned to another consultant');
   });
 
@@ -316,6 +334,7 @@ describe('POST /api/discover/:token/convert', () => {
     const body = await res.json() as Record<string, unknown>;
 
     expect(res.status).toBe(409);
+    expect(body.code).toBe('DISCOVER_CLAIM_CONFLICT');
     expect(body.error).toBe('Session was claimed or converted by another request');
   });
 
@@ -330,6 +349,7 @@ describe('POST /api/discover/:token/convert', () => {
     const counters = state.getCounters();
 
     expect(res.status).toBe(409);
+    expect(body.code).toBe('DISCOVER_LINK_CONFLICT');
     expect(body.error).toBe('Session conversion conflict. Please retry.');
     expect(counters.auditsCreated).toBe(0);
     expect(counters.auditsDeleted).toBe(0);
@@ -341,6 +361,7 @@ describe('GET /api/discover/:token', () => {
     const res = await fetch(`${baseUrl}/api/discover/not-a-valid-token`);
     const body = await res.json() as Record<string, unknown>;
     expect(res.status).toBe(400);
+    expect(body.code).toBe('DISCOVER_INVALID_TOKEN');
     expect(body.error).toBe('Invalid token');
   });
 
@@ -349,7 +370,25 @@ describe('GET /api/discover/:token', () => {
     const res = await fetch(`${baseUrl}/api/discover/${'a'.repeat(40)}`);
     const body = await res.json() as Record<string, unknown>;
     expect(res.status).toBe(404);
+    expect(body.code).toBe('DISCOVER_SESSION_NOT_FOUND');
     expect(body.error).toBe('Session not found');
+  });
+});
+
+describe('GET /api/discover/ui-fragment', () => {
+  it('is not blocked when discover read limiter bucket is exhausted', async () => {
+    // Exhaust the shared discover public read limiter via token reads.
+    for (let i = 0; i < 80; i += 1) {
+      const okRes = await fetch(`${baseUrl}/api/discover/${'a'.repeat(40)}`);
+      expect(okRes.status).toBe(200);
+    }
+
+    const limitedRes = await fetch(`${baseUrl}/api/discover/${'a'.repeat(40)}`);
+    expect(limitedRes.status).toBe(429);
+
+    // ui-fragment must use an independent limiter bucket.
+    const uiFragmentRes = await fetch(`${baseUrl}/api/discover/ui-fragment`);
+    expect(uiFragmentRes.status).toBe(200);
   });
 });
 
@@ -377,6 +416,7 @@ describe('GET /api/discover/sessions', () => {
     });
     const body = await res.json() as Record<string, unknown>;
     expect(res.status).toBe(500);
+    expect(body.code).toBe('DISCOVER_LIST_FAILED');
     expect(body.error).toBe('Failed to list sessions');
   });
 });
@@ -390,6 +430,7 @@ describe('PATCH /api/discover/:token/contact', () => {
     });
     const body = await res.json() as Record<string, unknown>;
     expect(res.status).toBe(403);
+    expect(body.code).toBe('DISCOVER_CONTACT_EDIT_KEY_INVALID');
     expect(body.error).toBe('Invalid or missing contact edit key');
   });
 
@@ -405,6 +446,7 @@ describe('PATCH /api/discover/:token/contact', () => {
     });
     const body = await res.json() as Record<string, unknown>;
     expect(res.status).toBe(400);
+    expect(body.code).toBe('DISCOVER_CONTACT_EMPTY');
     expect(body.error).toBe('At least one contact field must be non-empty');
   });
 });

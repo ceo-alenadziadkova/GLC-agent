@@ -142,7 +142,9 @@ export class ConnectorRunner {
 
     // Unique sentinel to distinguish timeout from connector fetch() returning null.
     const timeoutSentinel = Symbol('connector-timeout');
-    const timeoutSignal = new Promise<symbol>(resolve => setTimeout(() => resolve(timeoutSentinel), timeoutMs));
+    const timeoutSignal = new Promise<typeof timeoutSentinel>(resolve =>
+      setTimeout(() => resolve(timeoutSentinel), timeoutMs),
+    );
 
     try {
       const outcome = await Promise.race([connector.fetch(input), timeoutSignal]);

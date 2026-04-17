@@ -7,6 +7,12 @@ import type { StudioAnyNodeData } from './question-bank-studio-graph';
 
 export type StudioMapExportTheme = 'light' | 'dark';
 
+/** Resolve design token at runtime (requires `tokens.css` on document; tests load it in setup). */
+function cssVar(name: string): string {
+  if (typeof document === 'undefined') return '';
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
 function escapeXml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -57,26 +63,26 @@ function labelLinesForData(d: StudioAnyNodeData): string[] {
 function themePalette(theme: StudioMapExportTheme) {
   if (theme === 'dark') {
     return {
-      bg: '#121418',
-      structureStroke: '#3f4654',
-      branchStroke: '#1CBDFF',
-      text: '#e8eaef',
-      subtext: '#9aa3b2',
+      bg: cssVar('--studio-map-export-dark-bg'),
+      structureStroke: cssVar('--studio-map-export-dark-structure-stroke'),
+      branchStroke: cssVar('--studio-map-export-dark-branch-stroke'),
+      text: cssVar('--studio-map-export-dark-text'),
+      subtext: cssVar('--studio-map-export-dark-subtext'),
     };
   }
   return {
-    bg: '#f5f7fb',
-    structureStroke: '#c8ced9',
-    branchStroke: '#0ea3e0',
-    text: '#1a1d24',
-    subtext: '#5c6578',
+    bg: cssVar('--studio-map-export-light-bg'),
+    structureStroke: cssVar('--studio-map-export-light-structure-stroke'),
+    branchStroke: cssVar('--studio-map-export-light-branch-stroke'),
+    text: cssVar('--studio-map-export-light-text'),
+    subtext: cssVar('--studio-map-export-light-subtext'),
   };
 }
 
 /** Straight edges between node centers (good enough for discussion snapshots). */
 export function buildStudioMapSvg(
-  nodes: Node<StudioAnyNodeData>[],
-  edges: Edge[],
+  nodes: readonly Node<StudioAnyNodeData>[],
+  edges: readonly Edge[],
   options?: {
     theme?: StudioMapExportTheme;
     title?: string;
@@ -155,25 +161,25 @@ export function buildStudioMapSvg(
     const y = n.position.y + oy;
     const fill =
       n.type === 'studioSection'
-        ? 'rgba(28,189,255,0.14)'
+        ? cssVar('--studio-map-node-fill-section')
         : n.type === 'studioDomainCluster'
-          ? 'rgba(8,145,178,0.12)'
+          ? cssVar('--studio-map-node-fill-domain-cluster')
           : n.type === 'studioLayoutStep'
-            ? 'rgba(147,51,234,0.10)'
+            ? cssVar('--studio-map-node-fill-layout-step')
             : n.type === 'studioIdentity'
-              ? 'rgba(242,79,29,0.10)'
+              ? cssVar('--studio-map-node-fill-identity')
               : theme === 'dark'
-                ? '#1c2128'
-                : '#ffffff';
+                ? cssVar('--studio-map-node-fill-question-dark')
+                : cssVar('--studio-map-node-fill-question-light');
     const stroke =
       n.type === 'studioSection'
         ? pal.branchStroke
         : n.type === 'studioDomainCluster'
-          ? '#0891b2'
+          ? cssVar('--studio-map-node-stroke-domain-cluster')
           : n.type === 'studioLayoutStep'
-            ? '#9333ea'
+            ? cssVar('--studio-map-node-stroke-layout-step')
             : n.type === 'studioIdentity'
-              ? '#f24f1d'
+              ? cssVar('--studio-map-node-stroke-identity')
               : pal.structureStroke;
     const strokeW = n.type === 'studioQuestion' ? 1 : 1.2;
     const dash =

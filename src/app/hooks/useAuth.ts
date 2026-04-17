@@ -8,11 +8,13 @@ import {
   isAnonymousUser,
   persistPreviewSessionBackupIfAnonymous,
 } from '../lib/snapshot-auth';
+import { APP_ROUTE_PATHS } from '../config/route-paths';
 
 export { isAnonymousUser } from '../lib/snapshot-auth';
 
 /** Supabase GoTrue emits this when the user opens a password recovery link. */
 const PASSWORD_RECOVERY_EVENT = 'PASSWORD_RECOVERY' as const;
+const AUTH_REDIRECT_PATH = APP_ROUTE_PATHS.login;
 
 type SignInWithGoogleOptions = {
   /**
@@ -103,6 +105,7 @@ export function useAuth() {
           const { data, error } = await supabase.auth.exchangeCodeForSession(url.href);
           if (error) {
             logger.error('exchangeCodeForSession error', { error });
+            cleanupAuthUrl(url);
             if (isMounted) {
               setAuthError('Sign-in failed. The link may be invalid or expired — try again.');
             }
@@ -139,6 +142,7 @@ export function useAuth() {
             });
             if (error) {
               logger.error('setSession error', { error });
+              cleanupAuthUrl(url);
               if (isMounted) {
                 setAuthError('Sign-in failed. The link may be invalid or expired — try again.');
               }
@@ -202,7 +206,7 @@ export function useAuth() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/login`,
+        emailRedirectTo: `${window.location.origin}${AUTH_REDIRECT_PATH}`,
       },
     });
     return { error };
@@ -211,7 +215,7 @@ export function useAuth() {
   const requestPasswordReset = async (email: string) => {
     const origin = window.location.origin;
     return supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${origin}/login`,
+      redirectTo: `${origin}${AUTH_REDIRECT_PATH}`,
     });
   };
 
@@ -231,7 +235,7 @@ export function useAuth() {
       const { error } = await supabase.auth.linkIdentity({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/login`,
+          redirectTo: `${window.location.origin}${AUTH_REDIRECT_PATH}`,
         },
       });
       const msg = (error?.message ?? '').toLowerCase();
@@ -239,7 +243,7 @@ export function useAuth() {
         const { error: oauthError } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
-            redirectTo: `${window.location.origin}/login`,
+            redirectTo: `${window.location.origin}${AUTH_REDIRECT_PATH}`,
           },
         });
         return { error: oauthError };
@@ -252,7 +256,7 @@ export function useAuth() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/login`,
+        redirectTo: `${window.location.origin}${AUTH_REDIRECT_PATH}`,
       },
     });
     return { error };

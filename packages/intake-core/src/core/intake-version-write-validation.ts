@@ -6,6 +6,7 @@ import type { IntakeVersionMigration, IntakeVersionTuple } from '../audit-contra
 import { currentIntakeVersionTuple } from './versions.js';
 import { isSupportedIntakeArtifactTuple } from './resolve-intake-artifacts.js';
 import { tuplesEqual } from './intake-version-tuple.js';
+import { INTAKE_VERSION_WRITE_MESSAGES } from './intake-version-write-messages.en.js';
 
 export type IntakeVersionWriteResult =
   | { ok: true; effective: IntakeVersionTuple; migration: IntakeVersionMigration | null }
@@ -44,9 +45,9 @@ export function validateIntakeVersionsForBriefWrite(args: {
       status: 400,
       body: {
         code: 'UNSUPPORTED_INTAKE_VERSION',
-        message: 'intake_versions tuple is not a supported artifact bundle',
+        message: INTAKE_VERSION_WRITE_MESSAGES.unsupportedTuple,
         received: args.parsedFromBody,
-        supportedHint: 'Send current engine tuple or omit intake_versions to reuse the stored tuple.',
+        supportedHint: INTAKE_VERSION_WRITE_MESSAGES.supportedHint,
       },
     };
   }
@@ -74,7 +75,7 @@ export function validateIntakeVersionsForBriefWrite(args: {
     status: 409,
     body: {
       code: 'INTAKE_VERSION_CONFLICT',
-      message: 'intake_versions does not match this brief row; refresh the brief or send the stored tuple.',
+      message: INTAKE_VERSION_WRITE_MESSAGES.versionConflict,
       stored: args.stored,
       received: args.parsedFromBody,
     },

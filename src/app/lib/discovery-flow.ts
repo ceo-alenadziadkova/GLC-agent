@@ -15,6 +15,7 @@ import {
   DISCOVERY_FINDINGS_CONFIG,
   DISCOVERY_FINDINGS_COPY,
   DISCOVERY_GLUE_COPY,
+  DISCOVERY_BRIEF_PATCH_A5_NO_WEBSITE_YET,
   DISCOVERY_SOCIAL_PLATFORM_OPTIONS,
   fillDiscoveryFindingTemplate,
   getQuestionBankSchemaMeta,
@@ -132,14 +133,15 @@ function hasCrm(answers: DiscoveryAnswers): boolean {
  * Returns the ordered question-id sequence for this set of answers.
  * Called on every answer change so the sequence adapts as the user progresses.
  * Order and deferral come from server `layout-rules.v1.json` (public_discovery) +
- * `buildIntakePlan` (branch + discovery policy). `a5` defaults to `no_website` because
+ * `buildIntakePlan` (branch + discovery policy). `a5` defaults to the canonical
+ * "no website yet" option because
  * this flow targets businesses without a public site (the page does not ask `a5`).
  */
 export function buildQuestionSequence(answers: DiscoveryAnswers): string[] {
   const plan = buildIntakePlan({
     responses: {
       ...(answers as Record<string, unknown>),
-      a5: (answers as Record<string, unknown>)['a5'] ?? 'no_website',
+      a5: (answers as Record<string, unknown>)['a5'] ?? DISCOVERY_BRIEF_PATCH_A5_NO_WEBSITE_YET,
     },
     productMode: 'full',
     collectionMode: 'discovery',

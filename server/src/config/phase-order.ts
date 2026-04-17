@@ -5,7 +5,7 @@
  * See docs/adrs/ADR-CAUSAL-DAG.md (cycle prevention).
  */
 
-import type { PhaseId } from '../schemas/control-object.js';
+import type { PhaseId } from '../schemas/control-object/index.js';
 
 const PHASE_ORDER_INDEX: Record<string, number> = {
   recon: 0,

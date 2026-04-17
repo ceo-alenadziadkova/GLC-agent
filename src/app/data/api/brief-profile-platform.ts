@@ -1,7 +1,12 @@
 import { API_PATHS } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
 import { assertIntakePayloadShape } from '../api-payload-asserts';
-import type { IntakeBrief, IntakeBriefCollectionMode, IntakeVersionTuple } from '../auditTypes';
+import type { AuditCoveragePackage } from '../audit/contracts/core/audit-meta.types';
+import type {
+  IntakeBrief,
+  IntakeBriefCollectionMode,
+  IntakeVersionTuple,
+} from '../audit/contracts/intake/intake-brief.types';
 import type { BriefQuestion } from '../briefQuestions';
 
 /** `GET /api/audits/:id/brief/schema` — compact IntakePlan + bank labels (ADR Phase D). */
@@ -55,6 +60,7 @@ export const briefProfilePlatformApi = {
   async getBrief(auditId: string) {
     const payload = await apiFetch<{
       product_mode?: string;
+      coverage_package?: AuditCoveragePackage;
       brief: IntakeBrief | null;
       questions: BriefQuestion[];
       validation: {
@@ -70,6 +76,7 @@ export const briefProfilePlatformApi = {
         canStartSnapshot: boolean;
         canStartExpress: boolean;
         canStartFull: boolean;
+        canStartPipeline: boolean;
         missingRequiredIds: string[];
         recommendedToImproveIds: string[];
         intakeProgress: {
@@ -114,6 +121,7 @@ export const briefProfilePlatformApi = {
         canStartSnapshot: boolean;
         canStartExpress: boolean;
         canStartFull: boolean;
+        canStartPipeline: boolean;
         missingRequiredIds: string[];
         recommendedToImproveIds: string[];
         intakeProgress: {

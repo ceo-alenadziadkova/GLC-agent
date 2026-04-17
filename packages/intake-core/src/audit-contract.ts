@@ -1,6 +1,6 @@
 /**
- * Subset of server audit types required by intake-core (no server/runtime imports).
- * Keep aligned with server/src/types/audit.ts.
+ * Shared audit / intake contracts consumed by intake-core and re-exported from the server
+ * via `server/src/types/audit/` (no server/runtime imports in this file).
  */
 export const DOMAIN_KEYS = [
   'tech_infrastructure',
@@ -47,6 +47,13 @@ export interface ReconConflict {
 }
 
 export type IntakeBriefCollectionMode = 'self_serve' | 'interview' | 'pre_brief' | 'discovery';
+
+export type BriefResponseValue = string | string[] | number | boolean | null;
+
+export interface BriefResponseEntry {
+  value: BriefResponseValue;
+  source: BriefResponseSource;
+}
 
 export interface IntakeVersionTuple {
   questionBankVersion: string;

@@ -18,6 +18,12 @@ import type {
   SnapshotScanCoverageApi,
   SnapshotSiteProfile,
 } from '../data/auditTypes';
+import { isSnapshotStyleAudit } from './audit-execution-plan';
+import {
+  SNAPSHOT_PREVIEW_LEGACY_SCORE_THRESHOLDS,
+  SNAPSHOT_PREVIEW_LEGACY_UX_LABELS,
+  SNAPSHOT_PREVIEW_SUMMARY_MAX_CHARS,
+} from '../config/snapshot-preview-config';
 
 function asIssueArray(raw: unknown): AuditIssue[] {
   if (!Array.isArray(raw)) return [];
@@ -43,18 +49,18 @@ function asRecommendationArray(raw: unknown): NonNullable<FreeSnapshotPreview['p
 
 /** Match server `overallToLegacyScore` for portal preview when only 0–100 score exists. */
 function overallToLegacyScore(overall: number): number {
-  if (overall >= 81) return 5;
-  if (overall >= 61) return 4;
-  if (overall >= 41) return 3;
-  if (overall >= 21) return 2;
+  if (overall >= SNAPSHOT_PREVIEW_LEGACY_SCORE_THRESHOLDS.score5MinOverall) return 5;
+  if (overall >= SNAPSHOT_PREVIEW_LEGACY_SCORE_THRESHOLDS.score4MinOverall) return 4;
+  if (overall >= SNAPSHOT_PREVIEW_LEGACY_SCORE_THRESHOLDS.score3MinOverall) return 3;
+  if (overall >= SNAPSHOT_PREVIEW_LEGACY_SCORE_THRESHOLDS.score2MinOverall) return 2;
   return 1;
 }
 
 function legacyUxLabel(score: number): string {
-  if (score >= 4) return 'Good';
-  if (score >= 3) return 'Moderate';
-  if (score >= 2) return 'Needs Work';
-  return 'Critical';
+  if (score >= SNAPSHOT_PREVIEW_LEGACY_UX_LABELS.goodMinScore) return SNAPSHOT_PREVIEW_LEGACY_UX_LABELS.labels.good;
+  if (score >= SNAPSHOT_PREVIEW_LEGACY_UX_LABELS.moderateMinScore) return SNAPSHOT_PREVIEW_LEGACY_UX_LABELS.labels.moderate;
+  if (score >= SNAPSHOT_PREVIEW_LEGACY_UX_LABELS.needsWorkMinScore) return SNAPSHOT_PREVIEW_LEGACY_UX_LABELS.labels.needsWork;
+  return SNAPSHOT_PREVIEW_LEGACY_UX_LABELS.labels.critical;
 }
 
 function asScanCoverage(raw: unknown): SnapshotScanCoverageApi | undefined {
@@ -63,7 +69,7 @@ function asScanCoverage(raw: unknown): SnapshotScanCoverageApi | undefined {
 }
 
 export function freeSnapshotPreviewFromAuditState(state: AuditState): FreeSnapshotPreview | null {
-  if (state.meta.product_mode !== 'free_snapshot') return null;
+  if (!isSnapshotStyleAudit(state.meta)) return null;
   const ux = state.domains['ux_conversion'];
   const recon = state.recon;
   const raw = ux?.raw_data as Record<string, unknown> | undefined;
@@ -146,7 +152,7 @@ export function freeSnapshotPreviewFromAuditState(state: AuditState): FreeSnapsh
     uxLabelOut = uxLabelOut ?? legacyUxLabel(uxScoreOut);
     if (!uxSummaryOut?.trim() && typeof det?.scan_basis === 'string' && det.scan_basis.trim()) {
       const s = det.scan_basis;
-      uxSummaryOut = `${s.slice(0, 280)}${s.length > 280 ? '…' : ''}`;
+      uxSummaryOut = `${s.slice(0, SNAPSHOT_PREVIEW_SUMMARY_MAX_CHARS)}${s.length > SNAPSHOT_PREVIEW_SUMMARY_MAX_CHARS ? '…' : ''}`;
     }
   }
 

@@ -22,6 +22,7 @@ import {
   FEASIBILITY_SCORE_PENALTIES,
   FEASIBILITY_THRESHOLDS,
 } from '../config/feasibility-rules.js';
+import { feasibilityRiskDescription } from '../config/feasibility-risk-messages.js';
 import { logger } from './logger.js';
 
 // ─── Result Shape ─────────────────────────────────────────────────────────────
@@ -145,7 +146,7 @@ export class FeasibilityLayer {
     if (hasArchRec && (brief.team_size ?? 0) < t.archOverhaulMaxTeamExclusive) {
       risks.push({
         code: 'infra_arch_overhaul_small_team',
-        description: 'Core architecture change recommended but team size < 3 — high integration risk.',
+        description: feasibilityRiskDescription('infra_arch_overhaul_small_team'),
         severity: 'high',
       });
     }
@@ -155,7 +156,7 @@ export class FeasibilityLayer {
     if (highIssueCount > t.highSeverityIssueCountGt && (brief.tech_maturity ?? FEASIBILITY_DEFAULT_TECH_MATURITY) < t.techMaturityLt) {
       risks.push({
         code: 'infra_high_issue_count_low_maturity',
-        description: `${highIssueCount} high/critical infra issues but tech maturity is low — remediation timeline likely underestimated.`,
+        description: feasibilityRiskDescription('infra_high_issue_count_low_maturity', { count: highIssueCount }),
         severity: 'medium',
       });
     }
@@ -164,7 +165,7 @@ export class FeasibilityLayer {
     if (!brief.has_dedicated_dev_team && recs.length > t.recCountGtNoDevTeam) {
       risks.push({
         code: 'infra_no_dev_team',
-        description: 'Multiple infrastructure improvements recommended but no dedicated dev team reported.',
+        description: feasibilityRiskDescription('infra_no_dev_team'),
         severity: 'medium',
       });
     }
@@ -185,7 +186,7 @@ export class FeasibilityLayer {
     if (hasComplianceRec && !brief.has_audit_policy) {
       risks.push({
         code: 'security_compliance_no_policy_foundation',
-        description: 'Compliance recommendations present but no existing audit policy — prerequisite work needed first.',
+        description: feasibilityRiskDescription('security_compliance_no_policy_foundation'),
         severity: 'high',
       });
     }
@@ -195,7 +196,9 @@ export class FeasibilityLayer {
     if (criticalIssues >= s.criticalIssuesGte && (brief.team_size ?? 0) < s.criticalTeamSizeLt) {
       risks.push({
         code: 'security_critical_issues_insufficient_team',
-        description: `${criticalIssues} critical security issues but team size < 2 — resolution timeline at risk.`,
+        description: feasibilityRiskDescription('security_critical_issues_insufficient_team', {
+          count: criticalIssues,
+        }),
         severity: 'high',
       });
     }
@@ -204,7 +207,7 @@ export class FeasibilityLayer {
     if ((result.score ?? FEASIBILITY_DEFAULT_DOMAIN_SCORE) <= s.lowScoreMaxInclusive && recs.length > s.recCountGtLowScore) {
       risks.push({
         code: 'security_low_score_many_recs',
-        description: 'Security score critical (≤2) with many recommendations — foundational fixes must precede advanced items.',
+        description: feasibilityRiskDescription('security_low_score_many_recs'),
         severity: 'medium',
       });
     }
@@ -224,7 +227,7 @@ export class FeasibilityLayer {
     if (hasTechSeoRec && !brief.has_dedicated_dev_team) {
       risks.push({
         code: 'seo_tech_recs_no_dev_capacity',
-        description: 'Technical SEO improvements recommended but no dedicated dev team — implementation dependency risk.',
+        description: feasibilityRiskDescription('seo_tech_recs_no_dev_capacity'),
         severity: 'medium',
       });
     }
@@ -233,7 +236,7 @@ export class FeasibilityLayer {
     if (!brief.has_analytics) {
       risks.push({
         code: 'seo_missing_analytics',
-        description: 'No analytics platform detected — SEO performance measurement and iteration will be blind.',
+        description: feasibilityRiskDescription('seo_missing_analytics'),
         severity: 'medium',
       });
     }
@@ -253,7 +256,7 @@ export class FeasibilityLayer {
     if (hasAbRec && !brief.has_analytics) {
       risks.push({
         code: 'ux_ab_test_no_analytics',
-        description: 'A/B testing recommended but no analytics platform in place — testing infrastructure prerequisite missing.',
+        description: feasibilityRiskDescription('ux_ab_test_no_analytics'),
         severity: 'high',
       });
     }
@@ -266,7 +269,7 @@ export class FeasibilityLayer {
     if (hasDesignOverhaulRec && (brief.team_size ?? 0) < ux.designOverhaulTeamLt) {
       risks.push({
         code: 'ux_design_overhaul_small_team',
-        description: 'Full UX redesign recommended but very small team — scope reduction may be needed.',
+        description: feasibilityRiskDescription('ux_design_overhaul_small_team'),
         severity: 'medium',
       });
     }
@@ -286,7 +289,7 @@ export class FeasibilityLayer {
     if (hasMultiChannelRec && !brief.has_crm) {
       risks.push({
         code: 'marketing_multichannel_no_crm',
-        description: 'Multi-channel or CRM-dependent marketing recommendations without a CRM in place.',
+        description: feasibilityRiskDescription('marketing_multichannel_no_crm'),
         severity: 'high',
       });
     }
@@ -299,7 +302,9 @@ export class FeasibilityLayer {
     if (hasPaidRec && (brief.monthly_budget_usd ?? 0) < m.paidRecBudgetUsdLt) {
       risks.push({
         code: 'marketing_paid_recs_low_budget',
-        description: 'Paid acquisition recommendations but reported monthly budget < $500 — minimum viable spend may not be achievable.',
+        description: feasibilityRiskDescription('marketing_paid_recs_low_budget', {
+          budgetUsd: m.paidRecBudgetUsdLt,
+        }),
         severity: 'medium',
       });
     }
@@ -320,7 +325,9 @@ export class FeasibilityLayer {
     if (hasComplexAutomation && (brief.integration_count ?? 0) > a.integrationCountGt) {
       risks.push({
         code: 'automation_integration_sprawl',
-        description: 'Complex automation recommended on top of high integration count (>8 tools) — orchestration complexity risk.',
+        description: feasibilityRiskDescription('automation_integration_sprawl', {
+          integrationGt: a.integrationCountGt,
+        }),
         severity: 'medium',
       });
     }
@@ -332,7 +339,7 @@ export class FeasibilityLayer {
     if (hasAdvancedRec && (brief.tech_maturity ?? FEASIBILITY_DEFAULT_TECH_MATURITY) < a.techMaturityLt) {
       risks.push({
         code: 'automation_advanced_recs_low_maturity',
-        description: 'Advanced automation recommendations (ML, AI-powered) but tech maturity is low — foundational automation should come first.',
+        description: feasibilityRiskDescription('automation_advanced_recs_low_maturity'),
         severity: 'high',
       });
     }
@@ -344,7 +351,7 @@ export class FeasibilityLayer {
     if (hasCustomCodeRec && !brief.has_dedicated_dev_team) {
       risks.push({
         code: 'automation_custom_code_no_dev_team',
-        description: 'Custom-coded automation recommended without a dedicated dev team.',
+        description: feasibilityRiskDescription('automation_custom_code_no_dev_team'),
         severity: 'medium',
       });
     }
@@ -367,7 +374,11 @@ export class FeasibilityLayer {
     ) {
       risks.push({
         code: 'universal_high_effort_low_budget',
-        description: `${criticalCount} critical issues + ${recCount} recommendations with budget < $1000/mo — prioritisation essential.`,
+        description: feasibilityRiskDescription('universal_high_effort_low_budget', {
+          criticalCount,
+          recCount,
+          monthlyBudgetUsd: u.monthlyBudgetUsdLt,
+        }),
         severity: 'medium',
       });
     }

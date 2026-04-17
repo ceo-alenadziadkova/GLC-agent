@@ -28,6 +28,8 @@ A full-stack B2B SaaS platform for AI-powered business audits. A consultant subm
 8. **No emoji in source code.** Use Phosphor React icons instead — e.g. `<CircleIcon size={20} color="#df3434" weight="fill" />`. Emoji are allowed only in agent prompt strings (LLM instructions) and user-facing log messages emitted to `pipeline_events`.
 9. **Question bank changes are cross-system, never JSON-only.** Any change to `packages/intake-core/src/question-bank.v1.json` or answer options must be synchronized with `bank-question-ui-overrides.ts`, `choice-specify-triggers.ts`, `ai-readiness.ts`, `answer-normalizers.ts`, discovery mapping (`src/app/lib/discovery-flow.ts`, `server/src/routes/discover.ts` when relevant), tests, and docs (`docs/QUESTION_BANK.md`; `docs/API.md` if contract behavior changes). Follow `docs/QUESTION_BANK.md` §15 and `.cursor/rules/intake-question-bank-change-protocol.mdc`.
 10. **`server/src/snapshot/` in automated checks.** That tree is ignored by ESLint and excluded from server Vitest coverage (see `eslint.config.js`, `server/vitest.config.ts`). It is still compiled by `tsc`. Treat it as library-style snapshot code when auditing or refactoring.
+11. **Implementation consistency gate is mandatory for new code.** Before coding, search and reuse existing modules/patterns; do not introduce parallel abstractions. Keep ENV/config/feature-flags/services boundaries strict and avoid inline business magic numbers or long user-facing copy in services/pages when config/copy layers already exist.
+12. **No ad-hoc feature env checks outside the facade.** Read feature toggles only through `server/src/config/feature-flags.ts`; defaults for that facade must come from config (`SYSTEM_DEFAULTS`), not inline literals.
 
 ---
 
@@ -48,6 +50,7 @@ A full-stack B2B SaaS platform for AI-powered business audits. A consultant subm
 | `src/app/hooks/usePipeline.ts` | Supabase Realtime subscription to pipeline_events |
 | `src/app/components/AppShell.tsx` | Layout with audit-aware navigation (`useCurrentAuditId`) |
 | `packages/intake-core` (`@glc/intake-core`) | Shared intake: `buildIntakePlan`, question bank JSON, SLA gates, validation helpers, **choice “specify other”** (`choiceValueNeedsSpecify`, …) — import only this package from app/server (no `server/src/intake`, no duplicate `src/app/lib` shim) |
+| `src/app/config/marketing-motion.ts`, `marketing-motion-variants.ts`, `package-page-layout.ts`, `audit-compare-marketing.ts` | Unified public marketing motion (stagger, text reveal, card lift); package page density and compare-row focus. Marketing surface presets live as `.ds-marketing-*` in `src/styles/components.css` (token-backed). Primitives: `MarketingTextReveal`, `MarketingComparisonShell`, `MarketingRevealMask`, blocks under `src/app/marketing/blocks/`. |
 
 ---
 

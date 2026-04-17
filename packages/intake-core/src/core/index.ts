@@ -7,6 +7,8 @@ export { LAYOUT_RULES_V1, loadLayoutRules } from './load-layout.js';
 export type { LayoutRulesV1, LayoutStepV1, LayoutSurfaceV1 } from './layout-types.js';
 export {
   lintBankAndPolicyAll,
+  lintBranchRulesNotReferences,
+  lintCanonQuestionMetadataKeys,
   lintDeprecatedStillRequired,
   lintDuplicateDiscoveryIncluded,
   lintLayoutReferencesUnknownBankIds,
@@ -14,6 +16,8 @@ export {
   lintOrphanPolicyDiscoveryIds,
   lintOrphanPolicyPreBriefBankIds,
   lintPreBriefBankIncludedBranchConflicts,
+  lintPublicDiscoveryWizardOrder,
+  lintQuestionFeedRolesAlignBank,
   lintSyntheticCollision,
   lintUnknownBranchRefs,
   type LintFinding,

@@ -20,7 +20,10 @@ import {
   formatPipelineTokenBurnMessageEn,
   pipelineAlertTitlesEn,
 } from '../config/alert-messages.en.js';
+import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
 import { REDIS_KEYS } from '../config/redis-keys.js';
+import { formatObservabilityTraceSuffixForAlerts } from '../config/trace-link-templates.js';
+import { isTelegramBotConfigured } from '../config/telegram-credentials.js';
 
 const WINDOW_MIN = ALERT_CHECK_WINDOW_MINUTES;
 const INTERVAL_MS = ALERT_CHECK_INTERVAL_MS;
@@ -56,16 +59,6 @@ function firstTraceId(events: Array<{ data?: unknown }>): string | undefined {
   return undefined;
 }
 
-function renderTraceLinks(traceId?: string): string {
-  if (!traceId) return '';
-  const sentryTemplate = process.env.SENTRY_TRACE_LINK_TEMPLATE;
-  const traceTemplate = process.env.TRACE_LINK_TEMPLATE;
-  const sentryLink = sentryTemplate ? sentryTemplate.replace('{trace_id}', traceId) : undefined;
-  const traceLink = traceTemplate ? traceTemplate.replace('{trace_id}', traceId) : undefined;
-  const parts = [sentryLink ? `Sentry: ${sentryLink}` : null, traceLink ? `Trace: ${traceLink}` : null].filter(Boolean);
-  return parts.length > 0 ? `\n${parts.join('\n')}` : `\ntrace_id=${traceId}`;
-}
-
 export async function runAlertChecks(): Promise<void> {
   const since = new Date(Date.now() - WINDOW_MIN * 60 * 1000).toISOString();
 
@@ -74,8 +67,8 @@ export async function runAlertChecks(): Promise<void> {
     .select('audit_id,phase,event_type,created_at,data')
     .gte('created_at', since);
 
-  const started = (events ?? []).filter(e => e.event_type === 'started').length;
-  const failed = (events ?? []).filter(e => e.event_type === 'error').length;
+  const started = (events ?? []).filter(e => e.event_type === PIPELINE_EVENT_TYPES.started).length;
+  const failed = (events ?? []).filter(e => e.event_type === PIPELINE_EVENT_TYPES.error).length;
   const traceId = firstTraceId(events ?? []);
   const failureRate = started > 0 ? failed / started : 0;
 
@@ -91,7 +84,7 @@ export async function runAlertChecks(): Promise<void> {
         failed,
         started,
         windowMin: WINDOW_MIN,
-        traceSuffix: renderTraceLinks(traceId),
+        traceSuffix: formatObservabilityTraceSuffixForAlerts(traceId),
       }),
       payload: { started, failed, window_minutes: WINDOW_MIN, trace_id: traceId },
       sendInApp: true,
@@ -103,10 +96,10 @@ export async function runAlertChecks(): Promise<void> {
   const latencies: number[] = [];
   for (const event of events ?? []) {
     const key = `${event.audit_id}:${event.phase}`;
-    if (event.event_type === 'started') {
+    if (event.event_type === PIPELINE_EVENT_TYPES.started) {
       starts.set(key, new Date(event.created_at as string).getTime());
     }
-    if (event.event_type === 'completed' || event.event_type === 'error') {
+    if (event.event_type === PIPELINE_EVENT_TYPES.completed || event.event_type === PIPELINE_EVENT_TYPES.error) {
       const startedAt = starts.get(key);
       if (startedAt) {
         latencies.push(new Date(event.created_at as string).getTime() - startedAt);
@@ -126,7 +119,7 @@ export async function runAlertChecks(): Promise<void> {
         p95Ms: Math.round(p95),
         windowMin: WINDOW_MIN,
         thresholdMs: LATENCY_P95_MS_THRESHOLD,
-        traceSuffix: renderTraceLinks(traceId),
+        traceSuffix: formatObservabilityTraceSuffixForAlerts(traceId),
       }),
       payload: { p95_ms: Math.round(p95), threshold_ms: LATENCY_P95_MS_THRESHOLD, window_minutes: WINDOW_MIN, trace_id: traceId },
       sendInApp: true,
@@ -136,7 +129,7 @@ export async function runAlertChecks(): Promise<void> {
 
   let tokenBurn = 0;
   for (const event of events ?? []) {
-    if (event.event_type !== 'token_usage') continue;
+    if (event.event_type !== PIPELINE_EVENT_TYPES.tokenUsage) continue;
     const total = (event.data as { total_tokens?: number } | null)?.total_tokens ?? 0;
     tokenBurn += total;
   }
@@ -152,7 +145,7 @@ export async function runAlertChecks(): Promise<void> {
         tokenBurn,
         windowMin: WINDOW_MIN,
         threshold: TOKEN_BURN_THRESHOLD,
-        traceSuffix: renderTraceLinks(traceId),
+        traceSuffix: formatObservabilityTraceSuffixForAlerts(traceId),
       }),
       payload: { token_burn: tokenBurn, threshold: TOKEN_BURN_THRESHOLD, window_minutes: WINDOW_MIN, trace_id: traceId },
       sendInApp: true,
@@ -162,7 +155,7 @@ export async function runAlertChecks(): Promise<void> {
 }
 
 export function startAlertsWorker(): void {
-  if (!process.env.TELEGRAM_BOT_TOKEN || !process.env.TELEGRAM_CHAT_ID) return;
+  if (!isTelegramBotConfigured()) return;
   setInterval(async () => {
     if (alertChecksRunning) {
       logger.warn('Alert worker tick skipped: previous run still active');

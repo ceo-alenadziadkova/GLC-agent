@@ -9,7 +9,7 @@
   },
   "type": "module",
   "scripts": {
-    "build:workspace-deps": "pnpm --filter @glc/api-paths run build && pnpm --filter @glc/snapshot-scan-coverage run build && pnpm --filter @glc/route-limits run build && pnpm --filter @glc/brand-tokens run build && pnpm --filter @glc/dev-brand-defaults run build && pnpm --filter @glc/intake-core run build",
+    "build:workspace-deps": "pnpm --filter @glc/api-paths run build && pnpm --filter @glc/snapshot-scan-coverage run build && pnpm --filter @glc/route-limits run build && pnpm --filter @glc/dev-brand-defaults run build && pnpm --filter @glc/intake-core run build",
     "dev": "pnpm run build:workspace-deps && tsx watch src/index.ts",
     "build": "pnpm run build:workspace-deps && tsc",
     "start": "node dist/index.js",
@@ -29,7 +29,6 @@
   "dependencies": {
     "@glc/api-paths": "workspace:*",
     "@glc/snapshot-scan-coverage": "workspace:*",
-    "@glc/brand-tokens": "workspace:*",
     "@glc/route-limits": "workspace:*",
     "@glc/dev-brand-defaults": "workspace:*",
     "@anthropic-ai/sdk": "^0.39.0",

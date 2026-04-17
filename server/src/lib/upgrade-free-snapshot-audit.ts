@@ -1,16 +1,23 @@
 /**
- * Promote a completed free_snapshot audit to express or full pipeline.
+ * Promote a completed free_snapshot audit to package-based coverage pipeline.
  * Resets domain placeholders and intake state; optionally prefills brief from scraped recon + UX raw_data.
  */
 import { supabase } from '../services/supabase.js';
 import { saveBriefResponses } from '../services/brief-validator.js';
 import {
+  DOMAIN_PHASES,
   DEFAULT_AUDIT_PRODUCT_MODE,
-  DOMAIN_KEYS,
-  EXPRESS_DOMAIN_KEYS,
+  executionPlanToPhases,
+  maxPhaseForExecutionPlan,
+  reviewPhasesForExecutionPlan,
+  type AuditCoveragePackage,
+  type AuditExecutionPlan,
   type ProductMode,
-  reviewPhasesForMode,
 } from '../types/audit.js';
+import {
+  isFreeSnapshotUpgradeEligibleAudit,
+  persistedProductModeForExecutionPlan,
+} from './audit-coverage-bridge.js';
 import { INDUSTRY_OPTIONS } from '../config/industry-options.js';
 import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { UPGRADE_FREE_SNAPSHOT_CONTEXT_EN } from '../config/upgrade-free-snapshot-context.js';
@@ -28,11 +35,10 @@ import {
   AUDITS_UPGRADE_NOT_FREE_SNAPSHOT_MESSAGE,
   AUDITS_UPGRADE_RESET_DOMAINS_FAILED_MESSAGE,
 } from '../config/api-error-codes.js';
+import { normalizeExecutionPlan } from '../services/execution-plan.js';
 
 const UFP = SYSTEM_DEFAULTS.upgradeFreeSnapshotPrefill;
 const UFCTX = UPGRADE_FREE_SNAPSHOT_CONTEXT_EN;
-
-export type UpgradeSnapshotTarget = 'express' | 'full';
 
 function flattenTechStack(tech: Record<string, string[]> | null | undefined): string[] {
   if (!tech || typeof tech !== 'object') return [];
@@ -140,16 +146,16 @@ export type UpgradeFreeSnapshotAuditSuccess = {
 export async function upgradeFreeSnapshotAudit(params: {
   auditId: string;
   actorUserId: string;
-  targetMode: UpgradeSnapshotTarget;
+  coveragePackage?: AuditCoveragePackage;
   useScrapedContext: boolean;
 }): Promise<
   UpgradeFreeSnapshotAuditSuccess | { ok: false; status: number; error: string; code: ApiErrorCode }
 > {
-  const { auditId, actorUserId, targetMode, useScrapedContext } = params;
+  const { auditId, actorUserId, coveragePackage, useScrapedContext } = params;
 
   const { data: audit, error: aErr } = await supabase
     .from('audits')
-    .select('id, product_mode, status, company_url, company_name, client_id, user_id')
+    .select('id, product_mode, status, company_url, company_name, client_id, user_id, snapshot_token, execution_plan')
     .eq('id', auditId)
     .single();
 
@@ -162,7 +168,13 @@ export async function upgradeFreeSnapshotAudit(params: {
     };
   }
 
-  if (audit.product_mode !== 'free_snapshot') {
+  if (
+    !isFreeSnapshotUpgradeEligibleAudit({
+      product_mode: audit.product_mode as string,
+      snapshot_token: audit.snapshot_token as string | null,
+      execution_plan: audit.execution_plan,
+    })
+  ) {
     return {
       ok: false,
       status: 400,
@@ -191,9 +203,18 @@ export async function upgradeFreeSnapshotAudit(params: {
     };
   }
 
-  const nextMode: ProductMode = targetMode === 'express' ? 'express' : DEFAULT_AUDIT_PRODUCT_MODE;
-  const domainKeys = nextMode === 'express' ? [...EXPRESS_DOMAIN_KEYS] : [...DOMAIN_KEYS];
-  const reviewPhases = reviewPhasesForMode(nextMode);
+  const resolvedCoveragePackage = coveragePackage ?? 'pro';
+  const modeForFallback: ProductMode = resolvedCoveragePackage === 'complete' ? DEFAULT_AUDIT_PRODUCT_MODE : 'express';
+  const executionPlan: AuditExecutionPlan = normalizeExecutionPlan(
+    {
+      coverage_package: resolvedCoveragePackage,
+      source: 'user_selected',
+    },
+    modeForFallback,
+  );
+  const domainKeys = executionPlan.selected_domains;
+  const reviewPhases = reviewPhasesForExecutionPlan(executionPlan);
+  const nextMode: ProductMode = persistedProductModeForExecutionPlan(executionPlan);
 
   const { data: recon } = await supabase
     .from('audit_recon')
@@ -230,10 +251,10 @@ export async function upgradeFreeSnapshotAudit(params: {
 
   await supabase.from('review_points').delete().eq('audit_id', auditId);
 
-  const domainInserts = domainKeys.map((key, i) => ({
+  const domainInserts = domainKeys.map((key) => ({
     audit_id: auditId,
     domain_key: key,
-    phase_number: i + 1,
+    phase_number: DOMAIN_PHASES[key],
   }));
 
   const { error: insDom } = await supabase.from('audit_domains').insert(domainInserts);
@@ -262,7 +283,7 @@ export async function upgradeFreeSnapshotAudit(params: {
     };
   }
 
-  if (nextMode === DEFAULT_AUDIT_PRODUCT_MODE) {
+  if (executionPlanToPhases(executionPlan).includes(7)) {
     const { data: strat } = await supabase.from('audit_strategy').select('id').eq('audit_id', auditId).maybeSingle();
     if (!strat) {
       const { error: sErr } = await supabase.from('audit_strategy').insert({ audit_id: auditId });
@@ -299,6 +320,7 @@ export async function upgradeFreeSnapshotAudit(params: {
       .from('audits')
       .update({
         product_mode: nextMode,
+        execution_plan: executionPlan,
         status: 'created',
         current_phase: 0,
         overall_score: null,
@@ -372,6 +394,7 @@ export async function upgradeFreeSnapshotAudit(params: {
       .from('audits')
       .update({
         product_mode: nextMode,
+        execution_plan: executionPlan,
         status: 'created',
         current_phase: 0,
         overall_score: null,
@@ -438,7 +461,9 @@ export async function upgradeFreeSnapshotAudit(params: {
 
   logger.info('upgrade_snapshot.completed', {
     audit_id: auditId,
-    target_mode: nextMode,
+    product_mode: nextMode,
+    coverage_package: resolvedCoveragePackage,
+    max_phase: maxPhaseForExecutionPlan(executionPlan),
     use_scraped_context: useScrapedContext,
     snapshot_scrape_limited: useScrapedContext && snapshotAccess.showCallout,
     snapshot_scrape_robots_blocked:

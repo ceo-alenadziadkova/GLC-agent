@@ -2,7 +2,7 @@ import { supabase } from './supabase.js';
 import { logger } from './logger.js';
 import { isEvaluationDatasetsInsertEnabled } from '../config/feature-flags.js';
 import { sanitizeJsonForEvaluationDataset } from '../lib/evaluation-dataset-sanitize.js';
-import type { ControlObjectV1 } from '../schemas/control-object.js';
+import type { ControlObjectV1 } from '../schemas/control-object/index.js';
 import type { DomainKey } from '../types/audit.js';
 import type { DomainResult } from '../types/audit.js';
 import type { RetentionPolicy } from '../types/evaluation-dataset.js';

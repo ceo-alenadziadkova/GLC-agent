@@ -350,6 +350,7 @@ describe('FactChecker + ConnectorRunner enrichment', () => {
         evidence_notes: [],
         timed_out: false,
         error: null,
+        outcome: 'success' as const,
       },
     ];
 
@@ -381,6 +382,7 @@ describe('FactChecker + ConnectorRunner enrichment', () => {
         evidence_notes: [],
         timed_out: false,
         error: null,
+        outcome: 'success' as const,
       },
     ];
 
@@ -411,6 +413,7 @@ describe('FactChecker + ConnectorRunner enrichment', () => {
         evidence_notes: [],
         timed_out: true,
         error: null,
+        outcome: 'timed_out' as const,
       },
     ];
 
@@ -456,6 +459,7 @@ describe('FactChecker + ConnectorRunner enrichment', () => {
         evidence_notes: [],
         timed_out: false,
         error: null,
+        outcome: 'success' as const,
       },
     ];
 

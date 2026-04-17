@@ -1,73 +1,118 @@
-import { useState } from 'react';
-import { Link } from 'react-router';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { BriefField } from '../components/BriefField';
 import { MarketingLayout } from '../marketing/MarketingLayout';
 import { MarketingSection } from '../marketing/blocks/MarketingSection';
 import { NextStepsCta } from '../marketing/blocks/NextStepsCta';
 import { api, ApiError } from '../data/apiService';
-import { ROUTE_LABELS, type MarketingRecommendedRoute } from '../marketing/brief-logic';
 import { LOGIN_PATH } from '../marketing/marketing-nav';
 import { usePublicBrand } from '../marketing/PublicBrandContext';
 import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
+import { PUBLIC_BRIEF_SESSION_FLOW_ENABLED } from '../config/public-brief-flow';
+import { toUiApiErrorMessage } from '../lib/api-error-ui';
+import type { BriefQuestion, BriefResponses, BriefResponseValue } from '../data/briefQuestions';
+import { groupBriefQuestionsBySection, unwrapResponse, WEBSITE_PRESENCE_NO_SITE_LABEL } from '../data/briefQuestions';
+import { choiceValueNeedsSpecify } from '@glc/intake-core';
+import { Input } from '../../design-system/ui';
 
 type FormValues = {
-  name: string;
-  company: string;
-  website: string;
-  no_website: boolean;
-  concern: string;
-  improve: string;
-  contact_method: string;
-  unsure_choice: boolean;
-  preferred_audit_depth: 'express' | 'full';
+  contact_name: string;
+  company_name: string;
+  website_url: string;
+  has_website: boolean;
+  email: string;
+  phone: string;
 };
 
 const PB = WORKSPACE_PAGE_COPY.publicBrief;
 
 export function PublicBriefPage() {
   const { supportEmail } = usePublicBrand();
-  const [done, setDone] = useState<{ route: MarketingRecommendedRoute; id: string } | null>(null);
+  const [sessionToken, setSessionToken] = useState<string>('');
+  const [questions, setQuestions] = useState<BriefQuestion[]>([]);
+  const [responses, setResponses] = useState<BriefResponses>({});
+  const [phase, setPhase] = useState<'identity' | 'questions' | 'success'>('identity');
+  const [loadingSession, setLoadingSession] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [submittedAt, setSubmittedAt] = useState<string | null>(null);
+
+  const visibleQuestions = useMemo(
+    () => questions.filter(q => !(q.id === 'a11' && unwrapResponse(responses.a5) === WEBSITE_PRESENCE_NO_SITE_LABEL)),
+    [questions, responses],
+  );
+  const sections = useMemo(() => groupBriefQuestionsBySection(visibleQuestions), [visibleQuestions]);
 
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     defaultValues: {
-      name: '',
-      company: '',
-      website: '',
-      no_website: false,
-      concern: '',
-      improve: '',
-      contact_method: PB.contactOptions[0],
-      unsure_choice: false,
-      preferred_audit_depth: 'express',
+      contact_name: '',
+      company_name: '',
+      website_url: '',
+      has_website: true,
+      email: '',
+      phone: '',
     },
   });
 
-  const noWebsite = watch('no_website');
-  const unsure = watch('unsure_choice');
-  const showDepthChoice = !unsure && !noWebsite;
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('session')?.trim();
+    if (!token) return;
+    setLoadingSession(true);
+    void api.getBriefPublicSession(token)
+      .then(data => {
+        setSessionToken(data.session_token);
+        setQuestions(data.questions);
+        setResponses(data.responses as BriefResponses);
+        setPhase(data.submitted_at ? 'success' : 'questions');
+        setSubmittedAt(data.submitted_at ?? null);
+      })
+      .catch(() => undefined)
+      .finally(() => setLoadingSession(false));
+  }, []);
 
-  async function onSubmit(values: FormValues) {
+  async function onIdentitySubmit(values: FormValues) {
     setSubmitError(null);
+    if (!PUBLIC_BRIEF_SESSION_FLOW_ENABLED) {
+      try {
+        await api.submitMarketingBrief({
+          name: values.contact_name.trim(),
+          company: values.company_name.trim() || undefined,
+          website: values.has_website ? values.website_url.trim() : undefined,
+          no_website: !values.has_website,
+          concern: PB.legacyMarketingBriefPlaceholder,
+          improve: PB.legacyMarketingBriefPlaceholder,
+          contact_method: values.email.trim() ? 'Email' : 'Either is fine',
+          unsure_choice: true,
+        });
+        setPhase('success');
+      } catch (e) {
+        setSubmitError(toUiApiErrorMessage(e));
+      }
+      return;
+    }
     try {
-      const res = await api.submitMarketingBrief({
-        name: values.name.trim(),
-        company: values.company.trim() || undefined,
-        website: values.no_website ? undefined : values.website.trim(),
-        no_website: values.no_website,
-        concern: values.concern.trim(),
-        improve: values.improve.trim(),
-        contact_method: values.contact_method,
-        unsure_choice: values.unsure_choice,
-        preferred_audit_depth:
-          values.unsure_choice || values.no_website ? undefined : values.preferred_audit_depth,
+      const res = await api.createBriefPublicSession({
+        contact_name: values.contact_name.trim(),
+        company_name: values.company_name.trim(),
+        has_website: values.has_website,
+        website_url: values.has_website ? values.website_url.trim() : undefined,
+        email: values.email.trim() || undefined,
+        phone: values.phone.trim() || undefined,
       });
-      setDone({ route: res.recommended_route as MarketingRecommendedRoute, id: res.id });
+      setSessionToken(res.session_token);
+      setQuestions(res.questions);
+      setResponses(res.responses as BriefResponses);
+      setPhase('questions');
+      const params = new URLSearchParams(window.location.search);
+      params.set('session', res.session_token);
+      window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
     } catch (e) {
       const email = supportEmail.trim();
       const emailPart =
@@ -80,6 +125,46 @@ export function PublicBriefPage() {
     }
   }
 
+  function setAnswer(id: string, value: string | string[] | number | null) {
+    setResponses(prev => {
+      const next: BriefResponses = { ...prev, [id]: { value: value as BriefResponseValue, source: 'client' } };
+      if (!choiceValueNeedsSpecify(value)) delete next[`${id}__other`];
+      if (id === 'a2' && value !== 'Other') delete next.intake_industry_specify;
+      return next;
+    });
+  }
+
+  async function saveDraft() {
+    if (!sessionToken) return;
+    setSavingDraft(true);
+    setSubmitError(null);
+    try {
+      const result = await api.saveBriefPublicSession(sessionToken, responses);
+      setQuestions(result.questions);
+      setResponses(result.responses as BriefResponses);
+      setSavedAt(new Date().toISOString());
+    } catch (e) {
+      setSubmitError(toUiApiErrorMessage(e));
+    } finally {
+      setSavingDraft(false);
+    }
+  }
+
+  async function submitFinal() {
+    if (!sessionToken) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const result = await api.submitBriefPublicSession(sessionToken, responses);
+      setSubmittedAt(result.submitted_at);
+      setPhase('success');
+    } catch (e) {
+      setSubmitError(toUiApiErrorMessage(e));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <MarketingLayout
       breadcrumbs={[
@@ -88,199 +173,122 @@ export function PublicBriefPage() {
       ]}
     >
       <MarketingSection>
-        <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: 'var(--text-primary)' }}>
+        <h1 className="text-foreground font-display text-3xl font-bold tracking-tight sm:text-4xl">
           {PB.heroTitle}
         </h1>
-        <p className="mt-4 max-w-2xl text-base leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-muted-foreground mt-4 max-w-2xl text-base leading-relaxed">
           {PB.heroIntroBefore}
           <strong>{PB.heroIntroStrong}</strong>
           {PB.heroIntroAfter}
         </p>
       </MarketingSection>
 
-      {done ? (
-        <MarketingSection className="mt-10">
+      {phase === 'success' ? (
+        <MarketingSection>
           <div
-            className="glc-card max-w-2xl p-6 sm:p-8"
-            style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-card)' }}
+            className="glc-card max-w-2xl rounded-2xl p-6 shadow-[var(--shadow-card)] sm:p-8"
           >
-            <p className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--glc-green-dark)' }}>
-              {PB.sentBadge}
-            </p>
-            <h2 className="mt-2 font-display text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-              {PB.sentTitlePrefix} {ROUTE_LABELS[done.route]}
+            <p className="text-success text-sm font-semibold uppercase tracking-wide">{PB.sentBadge}</p>
+            <h2 className="text-foreground mt-2 font-display text-xl font-bold">
+              {PB.successTitle}
             </h2>
-            <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-              {PB.sentBody}
+            <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
+              {PB.successBody}
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                to={done.route}
-                className="inline-flex rounded-xl px-5 py-3 text-sm font-semibold"
-                style={{ background: 'var(--gradient-brand)', color: 'var(--primary-foreground)' }}
-              >
-                {PB.goToPrefix} {ROUTE_LABELS[done.route]}
-              </Link>
-              <Link
-                to="/snapshot"
-                className="inline-flex rounded-xl border px-5 py-3 text-sm font-semibold"
-                style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
-              >
-                {PB.linkSnapshot}
-              </Link>
-              <Link
-                to="/express-audit"
-                className="inline-flex rounded-xl border px-5 py-3 text-sm font-semibold"
-                style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
-              >
-                {PB.linkExpress}
-              </Link>
-              <Link
-                to="/audit"
-                className="inline-flex rounded-xl border px-5 py-3 text-sm font-semibold"
-                style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
-              >
-                {PB.linkFullAudit}
-              </Link>
-              <Link
-                to="/discovery"
-                className="inline-flex rounded-xl border px-5 py-3 text-sm font-semibold"
-                style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
-              >
-                {PB.linkDiscovery}
-              </Link>
-            </div>
-            <p className="mt-6 text-xs" style={{ color: 'var(--text-quaternary)' }}>
-              {PB.refPrefix} {done.id}
+            <p className="text-muted-foreground mt-6 text-xs">
+              {PB.refPrefix} {sessionToken}
             </p>
+            {submittedAt && (
+              <p className="text-muted-foreground mt-2 text-xs">
+                {PB.submittedAtPrefix} {new Date(submittedAt).toLocaleString()}
+              </p>
+            )}
           </div>
         </MarketingSection>
       ) : (
-        <MarketingSection className="mt-10">
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="glc-card max-w-2xl space-y-5 p-6 sm:p-8"
-            style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-card)' }}
-          >
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.formNameLabel}</span>
-              <input
-                {...register('name', { required: PB.formNameRequired })}
-                className="rounded-lg border px-3 py-2.5 outline-none"
-                style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-              />
-              {errors.name && <span style={{ color: 'var(--score-1)', fontSize: 12 }}>{errors.name.message}</span>}
-            </label>
-
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.formCompanyLabel}</span>
-              <input
-                {...register('company')}
-                className="rounded-lg border px-3 py-2.5 outline-none"
-                style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-              />
-            </label>
-
-            <div className="flex flex-col gap-2">
-              <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                <input type="checkbox" {...register('no_website')} />
-                {PB.noPublicSiteYet}
+        <MarketingSection>
+          {loadingSession ? (
+            <p className="text-muted-foreground">{PB.loadingSession}</p>
+          ) : phase === 'identity' ? (
+            <form onSubmit={handleSubmit(onIdentitySubmit)} className="glc-card max-w-3xl space-y-4 p-6">
+              <h2 className="text-foreground font-display text-lg font-bold">{PB.formShellTitle}</h2>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="text-foreground font-semibold">{PB.formNameLabel}</span>
+                <Input {...register('contact_name', { required: PB.formNameRequired })} className="rounded-lg px-3 py-2.5" />
+                {errors.contact_name && <span className="text-destructive text-xs">{errors.contact_name.message}</span>}
               </label>
-              {!noWebsite && (
-                <label className="flex flex-col gap-1.5 text-sm">
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.websiteLabel}</span>
-                  <input
-                    {...register('website', {
-                      validate: v =>
-                        noWebsite || (v && v.trim().length > 0) || PB.websiteOrNoPublic,
-                    })}
-                    placeholder={PB.websitePlaceholder}
-                    className="rounded-lg border px-3 py-2.5 outline-none"
-                    style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-                  />
-                  {errors.website && <span style={{ color: 'var(--score-1)', fontSize: 12 }}>{errors.website.message}</span>}
-                </label>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="text-foreground font-semibold">{PB.formCompanyLabel}</span>
+                <Input {...register('company_name', { required: PB.formCompanyRequired })} className="rounded-lg px-3 py-2.5" />
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" {...register('has_website')} />
+                {PB.hasWebsiteLabel}
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="text-foreground font-semibold">{PB.websiteLabel}</span>
+                <Input {...register('website_url')} placeholder={PB.websitePlaceholder} className="rounded-lg px-3 py-2.5" />
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="text-foreground font-semibold">{PB.emailLabel}</span>
+                <Input {...register('email')} className="rounded-lg px-3 py-2.5" />
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="text-foreground font-semibold">{PB.phoneLabel}</span>
+                <Input {...register('phone')} className="rounded-lg px-3 py-2.5" />
+              </label>
+              {submitError && <p className="text-destructive text-sm">{submitError}</p>}
+              <button type="submit" disabled={isSubmitting} className="w-full rounded-xl bg-[var(--gradient-brand)] py-3 text-sm font-semibold text-primary-foreground">
+                {isSubmitting ? PB.startLoading : PB.startButton}
+              </button>
+            </form>
+          ) : (
+            <div className="glc-card max-w-3xl space-y-6 p-6">
+              <h2 className="text-foreground font-display text-lg font-bold">{PB.personalizedTitle}</h2>
+              <p className="text-muted-foreground text-sm">{PB.personalizedSubtitle}</p>
+              {sections.map(section => (
+                <section
+                  key={section.questions.map(q => q.id).join('-')}
+                  className="space-y-4"
+                >
+                  <h3 className="text-muted-foreground text-xs font-semibold uppercase">{section.section}</h3>
+                  {section.questions.map(q => (
+                    <BriefField
+                      key={q.id}
+                      q={q}
+                      value={responses[q.id]}
+                      onChange={v => setAnswer(q.id, v)}
+                      onSetUnknown={() => setAnswer(q.id, null)}
+                      otherSpecify={
+                        q.id === 'a2'
+                          ? (unwrapResponse(responses.intake_industry_specify) as string | undefined) ?? ''
+                          : (unwrapResponse(responses[`${q.id}__other`]) as string | undefined) ?? ''
+                      }
+                      onOtherSpecifyChange={
+                        q.id === 'a2'
+                          ? txt => setAnswer('intake_industry_specify', txt || null)
+                          : txt => setAnswer(`${q.id}__other`, txt || null)
+                      }
+                    />
+                  ))}
+                </section>
+              ))}
+              {submitError && <p className="text-destructive text-sm">{submitError}</p>}
+              <div className="flex flex-wrap gap-3">
+                <button type="button" onClick={() => { void saveDraft(); }} disabled={savingDraft} className="rounded-xl border border-[var(--border-default)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)]">
+                  {savingDraft ? PB.saveDraftLoading : PB.saveDraftLabel}
+                </button>
+                <button type="button" onClick={() => { void submitFinal(); }} disabled={submitting} className="rounded-xl bg-[var(--gradient-brand)] px-4 py-2.5 text-sm font-semibold text-primary-foreground">
+                  {submitting ? PB.submitBriefLoading : PB.submitBriefLabel}
+                </button>
+              </div>
+              {savedAt && (
+                <p className="text-muted-foreground text-xs">
+                  {PB.savedAtPrefix} {new Date(savedAt).toLocaleString()}
+                </p>
               )}
             </div>
-
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.concernLabel}</span>
-              <textarea
-                {...register('concern', { required: PB.concernRequired })}
-                rows={3}
-                className="resize-y rounded-lg border px-3 py-2.5 outline-none"
-                style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-              />
-              {errors.concern && <span style={{ color: 'var(--score-1)', fontSize: 12 }}>{errors.concern.message}</span>}
-            </label>
-
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.improveLabel}</span>
-              <textarea
-                {...register('improve', { required: PB.improveRequired })}
-                rows={3}
-                className="resize-y rounded-lg border px-3 py-2.5 outline-none"
-                style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-              />
-              {errors.improve && <span style={{ color: 'var(--score-1)', fontSize: 12 }}>{errors.improve.message}</span>}
-            </label>
-
-            {showDepthChoice && (
-              <fieldset className="flex flex-col gap-2 text-sm">
-                <legend style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-                  {PB.depthLegend}
-                </legend>
-                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-quaternary)' }}>
-                  {PB.depthHint}
-                </p>
-                <label className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
-                  <input type="radio" value="express" {...register('preferred_audit_depth')} />
-                  {PB.depthExpress}
-                </label>
-                <label className="flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
-                  <input type="radio" value="full" {...register('preferred_audit_depth')} />
-                  {PB.depthFull}
-                </label>
-              </fieldset>
-            )}
-
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{PB.preferredContactLabel}</span>
-              <select
-                {...register('contact_method')}
-                className="rounded-lg border px-3 py-2.5 outline-none"
-                style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-              >
-                {PB.contactOptions.map(o => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              <input type="checkbox" {...register('unsure_choice')} />
-              {PB.unsureCheckbox}
-            </label>
-
-            {unsure && (
-              <p className="rounded-lg px-3 py-2 text-xs leading-relaxed" style={{ backgroundColor: 'var(--callout-info-bg)', color: 'var(--text-secondary)' }}>
-                {PB.unsureHelp}
-              </p>
-            )}
-
-            {submitError && <p style={{ color: 'var(--score-1)', fontSize: 14 }}>{submitError}</p>}
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full rounded-xl py-3.5 text-sm font-semibold disabled:opacity-60"
-              style={{ background: 'var(--gradient-accent)', color: 'var(--primary-foreground)' }}
-            >
-              {isSubmitting ? PB.submitSending : PB.submitButton}
-            </button>
-          </form>
+          )}
         </MarketingSection>
       )}
 

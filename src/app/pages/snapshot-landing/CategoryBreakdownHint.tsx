@@ -22,7 +22,7 @@ export function CategoryBreakdownHint(props: { label: string; categoryKey: Snaps
       <TooltipContent
         side="top"
         sideOffset={6}
-        className="max-w-[min(22rem,92vw)] border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2.5 text-left text-xs font-normal leading-relaxed text-[var(--text-primary)] shadow-lg [&>svg]:hidden"
+        className="ds-category-hint-tooltip-max border border-[var(--border-default)] bg-[var(--bg-elevated)] px-3 py-2.5 text-left text-xs font-normal leading-relaxed text-[var(--text-primary)] shadow-lg [&>svg]:hidden"
       >
         {copy}
       </TooltipContent>

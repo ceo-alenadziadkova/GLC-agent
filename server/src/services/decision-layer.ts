@@ -17,31 +17,44 @@
  */
 
 import { logger } from './logger.js';
-import type { ControlObjectV1, DecisionHint } from '../schemas/control-object.js';
+import type { ControlObjectV1, DecisionHint } from '../schemas/control-object/index.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
+import {
+  DECISION_WARNING_HUMAN_ATTENTION_FLAGGED,
+  formatDecisionAcceptReasoning,
+  formatDecisionAcceptWithWarningsReasoning,
+  formatDecisionFeasibilityRefineReasoning,
+  formatDecisionRefineHallucinationCount,
+  formatDecisionRefineLowConfidence,
+  formatDecisionRefineStructuralErrors,
+  formatDecisionRefineSummary,
+  formatDecisionWarningDataGaps,
+  formatDecisionWarningFixable,
+} from '../config/decision-layer-messages.en.js';
 
 // ─── Thresholds (configurable for future A/B testing) ──────
 
 export const DECISION_LAYER_THRESHOLDS = {
   accept: {
-    min_overall_confidence: 85,
-    max_hallucination_fraction: 0.05,
+    min_overall_confidence: SYSTEM_DEFAULTS.decisionLayer.accept.minOverallConfidence,
+    max_hallucination_fraction: SYSTEM_DEFAULTS.decisionLayer.accept.maxHallucinationFraction,
   },
   accept_with_warnings: {
-    min_overall_confidence: 70,
-    max_hallucination_count: 3,
-    max_structural_errors: 0,
+    min_overall_confidence: SYSTEM_DEFAULTS.decisionLayer.acceptWithWarnings.minOverallConfidence,
+    max_hallucination_count: SYSTEM_DEFAULTS.decisionLayer.acceptWithWarnings.maxHallucinationCount,
+    max_structural_errors: SYSTEM_DEFAULTS.decisionLayer.acceptWithWarnings.maxStructuralErrors,
   },
   /**
    * v1.7: Feasibility guardrail.
    * If feasibility.score ≤ this value for a delivery-risk domain,
    * decision is forced to 'refine' regardless of confidence.
    */
-  feasibility_force_refine_threshold: 0.5,
+  feasibility_force_refine_threshold: SYSTEM_DEFAULTS.decisionLayer.feasibilityForceRefineThreshold,
   /**
    * Domains where poor feasibility forces 'refine'.
    * These are delivery-risk domains: a great analysis is useless if the recs can't be executed.
    */
-  feasibility_gated_domains: ['tech_infrastructure', 'automation_processes'] as string[],
+  feasibility_gated_domains: [...SYSTEM_DEFAULTS.decisionLayer.feasibilityGatedDomains] as string[],
 } as const;
 
 // ─── Result Shape ──────────────────────────────────────────
@@ -89,7 +102,12 @@ export class DecisionLayer {
     ) {
       const result: DecisionResult = {
         hint: 'refine',
-        reasoning: `Feasibility score ${control.feasibility.score.toFixed(2)} ≤ ${T.feasibility_force_refine_threshold} for delivery-risk domain '${context.phase_id}'. Risks: ${control.feasibility.risk_codes.join(', ')}.`,
+        reasoning: formatDecisionFeasibilityRefineReasoning({
+          feasibilityScore: control.feasibility.score.toFixed(2),
+          threshold: T.feasibility_force_refine_threshold,
+          phaseId: context.phase_id,
+          riskCodesJoined: control.feasibility.risk_codes.join(', '),
+        }),
         active_error_types: [...activeErrorTypes, ...control.feasibility.risk_codes],
       };
 
@@ -112,7 +130,10 @@ export class DecisionLayer {
     ) {
       const result: DecisionResult = {
         hint: 'accept',
-        reasoning: `Confidence ${confidence.overall}/100. Hallucination fraction ${(hallucinationFraction * 100).toFixed(1)}% — within threshold.`,
+        reasoning: formatDecisionAcceptReasoning({
+          overall: confidence.overall,
+          hallucinationPct: (hallucinationFraction * 100).toFixed(1),
+        }),
         active_error_types: activeErrorTypes,
       };
 
@@ -136,18 +157,21 @@ export class DecisionLayer {
       const warningReasons: string[] = [];
 
       if (errors.data_gaps.length > 0) {
-        warningReasons.push(`${errors.data_gaps.length} data gap(s)`);
+        warningReasons.push(formatDecisionWarningDataGaps(errors.data_gaps.length));
       }
       if (errors.fixable.length > 0) {
-        warningReasons.push(`${errors.fixable.length} fixable issue(s): ${errors.fixable.join(', ')}`);
+        warningReasons.push(formatDecisionWarningFixable(errors.fixable.length, errors.fixable.join(', ')));
       }
       if (control.human_attention_required.required) {
-        warningReasons.push('human attention flagged');
+        warningReasons.push(DECISION_WARNING_HUMAN_ATTENTION_FLAGGED);
       }
 
       const result: DecisionResult = {
         hint: 'accept_with_warnings',
-        reasoning: `Confidence ${confidence.overall}/100. Issues: ${warningReasons.join('; ')}.`,
+        reasoning: formatDecisionAcceptWithWarningsReasoning({
+          overall: confidence.overall,
+          issuesJoined: warningReasons.join('; '),
+        }),
         active_error_types: activeErrorTypes,
       };
 
@@ -166,18 +190,18 @@ export class DecisionLayer {
     const refineReasons: string[] = [];
 
     if (confidence.overall < T.accept_with_warnings.min_overall_confidence) {
-      refineReasons.push(`low confidence (${confidence.overall}/100)`);
+      refineReasons.push(formatDecisionRefineLowConfidence(confidence.overall));
     }
     if (errors.structural.length > T.accept_with_warnings.max_structural_errors) {
-      refineReasons.push(`structural errors: ${errors.structural.join(', ')}`);
+      refineReasons.push(formatDecisionRefineStructuralErrors(errors.structural.join(', ')));
     }
     if (counts.statuses.likely_hallucination > T.accept_with_warnings.max_hallucination_count) {
-      refineReasons.push(`hallucination count: ${counts.statuses.likely_hallucination}`);
+      refineReasons.push(formatDecisionRefineHallucinationCount(counts.statuses.likely_hallucination));
     }
 
     const result: DecisionResult = {
       hint: 'refine',
-      reasoning: `Refine recommended — ${refineReasons.join('; ')}.`,
+      reasoning: formatDecisionRefineSummary(refineReasons.join('; ')),
       active_error_types: activeErrorTypes,
     };
 

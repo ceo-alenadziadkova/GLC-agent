@@ -2,11 +2,108 @@
 
 Consultant-led B2B audits: submit a company URL (plus intake context where applicable); the platform crawls and analyses the public site across business domains and produces a scored report and roadmap-style deliverables.
 
-**Primary users:** Consultants running audits for SMB clients.  
-**Client portal (self-serve):** Clients can create an audit with the **same branching intake bank** as consultants (`/portal/audit/new`), complete the brief on **`/portal/audit/:id`**, start the pipeline without a queue approval step, and optionally **request help with the brief** (consultants are notified; help does not block starting the run). The **`audit_requests`** table and consultant **`/admin/requests`** queue remain for consultant-led intake; there is no separate client-facing request form in the portal during MVP development.  
+## Product proposition (who, what, why)
+
+GLC is an always-available strategic audit workspace for business owners and consultants.
+
+It helps teams answer three practical questions in one place:
+
+1. What already works well?
+2. What is critical or weak right now?
+3. What should be improved next, and what outcome/time horizon is expected?
+
+Core audience:
+
+- Business owners and operators who need a structured, critical view of the current business state before committing to new tools, channels, or hires.
+- Consultants who run audits for clients and need consistent, context-aware delivery quality.
+
+Client intent is stage-dependent (not growth-only):
+
+- Early stage / launch: validate setup, avoid wrong first investments, and build workable operating basics.
+- Stabilising stage: reduce routine chaos, improve decision quality, and remove operational bottlenecks.
+- Growth / scaling stage: prioritize high-impact opportunities and sequence execution with clear dependencies.
+
+Core promise:
+
+- The user can start from either a website URL or contextual business inputs.
+- The system builds recommendations with full project context (not only surface metrics or generic best practices).
+- The user explicitly chooses what they want to implement.
+- The platform generates a practical roadmap from those chosen priorities.
+- Audit context is persisted and reused by the system so decisions are not rebuilt from scratch each time.
+
+What this is not:
+
+- Not a "one-size-fits-all growth checklist."
+- Not a generic AI Q&A chat without persistent business context.
+- Not a replacement for every consultant workflow; it is a structured decision and prioritization layer that can work with consultant expertise.
+
+MVP scope note:
+
+- Current production scope is seven analysis areas plus strategy synthesis.
+- Domain coverage and recommendation depth can expand over time, but the control model remains: user context -> findings -> user-selected priorities -> roadmap.
+
+---
+
+**Primary users:** Consultants running audits for SMB clients. 
+**Client portal (self-serve):** Clients can create an audit with the **same branching intake bank** as consultants (`/portal/audit/new`), complete the brief on **`/portal/audit/:id`**, start the pipeline without a queue approval step, and optionally **request help with the brief** (consultants are notified; help does not block starting the run). The **`audit_requests`** table and consultant **`/admin/requests`** queue remain for consultant-led intake; there is no separate client-facing request form in the portal during MVP development. 
 **Client deliverables:** Scored domain findings, executive summary, quick wins, and (full mode) strategy-style initiatives surfaced in the **report viewer** (`/portal/reports/:id` in the client shell). Consultants use Strategy Lab (`/strategy/:id`) for the same underlying strategy payload where enabled.
 
 Technical execution details: [PIPELINE.md](./PIPELINE.md), [AGENTS.md](./AGENTS.md). Index of all domains: [MASTER.md](./MASTER.md).
+
+---
+
+## Competitive landscape (product framing)
+
+Direct competitors:
+
+- Audit agencies and consulting teams (strong brand and trust, slower cycle and higher coordination/price overhead).
+- Established audit tool vendors (broad capability, but often less context-native for SMB operating realities).
+
+Alternative / indirect competitors:
+
+- DIY AI workflows (for example, Claude plus ad-hoc prompts/agents) without structured persistent context.
+- Internal tool stack plus one key operator (spreadsheets, CRM, analytics dashboards, manual synthesis).
+- "Do nothing yet" inertia in small businesses (decisions remain in owner's head until pain becomes critical).
+
+GLC differentiation in this field:
+
+- Structured question logic plus evidence-first analysis, not prompt-only diagnostics.
+- Persistent context and reusable decision history, not one-off answers.
+- Stage-aware recommendations (launch/stabilize/scale context), not universal "best practice" dumping.
+
+---
+
+## Customer goals by business stage
+
+The platform should be positioned as goal-flexible diagnostics, not only a growth instrument.
+
+| Stage intent | Typical client goal | Product output emphasis |
+|---|---|---|
+| Launching / validating | Avoid wrong first moves, define practical baseline | Foundational risks, minimum viable process setup, must-do sequence |
+| Stabilizing operations | Reduce routine friction and hidden leakage | Process bottlenecks, automation opportunities, response-speed and handoff clarity |
+| Growing / scaling | Prioritize investments and improve ROI of change | Highest-impact initiatives, dependency map, execution horizons |
+| Mature / optimizing | Improve efficiency and resilience | Incremental gains, quality controls, risk and governance hygiene |
+
+This mapping complements product modes and execution plans; it does not replace runtime mode contracts.
+
+---
+
+## Market expansion direction (current strategy)
+
+Primary market:
+
+- SMB owners and operators who need practical, context-specific business diagnostics.
+- Consultants serving SMB clients and requiring repeatable, auditable delivery quality.
+
+Expansion direction:
+
+- From consultant-led and mixed self-serve SMB workflows toward wider SMB segments that currently rely on fragmented tools or single-person operational memory.
+- Increase depth by stage-specific guidance and stronger context reuse, while preserving evidence boundaries (`known` / `unknown` / `assumption`).
+
+Status:
+
+- Strategic direction is active at product narrative level.
+- Segment-by-segment commercial rollout and pricing tiers remain **Needs Review** unless explicitly confirmed in go-to-market docs.
 
 ---
 
@@ -23,21 +120,35 @@ Technical execution details: [PIPELINE.md](./PIPELINE.md), [AGENTS.md](./AGENTS.
 | 6 | `automation_processes` | Integrations, automation gaps, operational efficiency |
 | 7 | `strategy` | Cross-domain synthesis, executive summary, prioritised initiatives |
 
-**Auto wing:** phases 1–4 run in parallel (data-driven collectors).  
-**Analytic wing:** phases 5–6 run in parallel; they lean on recon plus consultant and interview notes from review gates.  
+**Auto wing:** phases 1–4 run in parallel (data-driven collectors). 
+**Analytic wing:** phases 5–6 run in parallel; they lean on recon plus consultant and interview notes from review gates. 
 **Strategy:** phase 7 runs after the analytic wing completes (see [PIPELINE.md](./PIPELINE.md)).
 
 ---
 
-## Product modes
+## Coverage packages and roadmap toggle
 
-Implemented in code (`server/src/types/audit.ts`, `reviewPhasesForMode`, `maxPhaseForMode`):
+Customer-facing packaging is execution-plan based:
 
-| Mode | Scope (phases) | Review gates | Notes |
+- `starter` (commercial label often "Standard")
+- `pro`
+- `complete`
+- optional roadmap/strategy layer via `include_strategy`
+
+Canonical runtime fields: `execution_plan.coverage_package` + `execution_plan.include_strategy` (`execution_plan`, `audit`).
+
+| Package | Default scope (phases) | Review gates | Notes |
 |------|----------------|--------------|--------|
-| `full` | 0–7 | After phases `0`, `4`, `7` | Default paid audit; strategy row and final gate |
-| `express` | 0–4 | After `0`, `4` | Shorter audit; no phases 5–7 |
-| `free_snapshot` | Deterministic scan (no LLM) | None | Public `POST/GET /api/snapshot`; tiered fetch (HTTP + optional Playwright when the page looks like a client shell), rule-based **site profile**, **0–100** score; competitor-style benchmark **only on explicit opt-in** (`?compare=1`); optional domain cache; upgrade path to Express/full audit |
+| `starter` | Recon + selected light coverage | Derived from plan (`reviewPhasesForExecutionPlan`) | Light depth baseline; strategy disabled by default |
+| `pro` | Recon + selected domain set (commonly auto-wing depth) | Derived from plan | Standard-depth diagnostic package |
+| `complete` | Full domain coverage + strategy-ready defaults | Derived from plan | Deep coverage; strategy enabled by default |
+| `include_strategy=true` | Adds phase `7` | Adds gate after phase `7` | Works as roadmap/strategy toggle independent of package naming |
+| `free_snapshot` | Deterministic scan (no LLM) | None | Public `POST/GET /api/snapshot`; tiered fetch (HTTP + optional Playwright when the page looks like a client shell), rule-based **site profile**, **0–100** score; optional domain cache; upgrade path to package-based audit. Competitor compare is available in authenticated portal flow via `POST /api/snapshot/compare` (explicit self + competitor URLs). |
+
+Compatibility note:
+
+- `audits.product_mode` (`free_snapshot` / `express` / `full`) remains in runtime and API for backward compatibility.
+- New commercial positioning and scope control should be documented via `coverage_package` + `include_strategy`.
 
 ---
 
@@ -52,13 +163,13 @@ Implemented in code (`server/src/types/audit.ts`, `reviewPhasesForMode`, `maxPha
 
 ```
 URL (+ intake where required)
-    -> Phase 0: Recon
-    -> Review gate 1 (phase 0)
-    -> Phases 1–4: Auto wing (parallel)
-    -> Review gate 2 (phase 4)
-    -> Phases 5–6: Analytic wing (parallel) -> Phase 7: Strategy (sequential)
-    -> Review gate 3 (phase 7)
-    -> Report (/reports/:id) + Strategy Lab (/strategy/:id) when applicable
+ -> Phase 0: Recon
+ -> Review gate 1 (phase 0)
+ -> Phases 1–4: Auto wing (parallel)
+ -> Review gate 2 (phase 4)
+ -> Phases 5–6: Analytic wing (parallel) -> Phase 7: Strategy (sequential)
+ -> Review gate 3 (phase 7)
+ -> Report (/reports/:id) + Strategy Lab (/strategy/:id) when applicable
 ```
 
 Authoritative sequencing and API interaction: [PIPELINE.md](./PIPELINE.md).
@@ -132,11 +243,11 @@ For product semantics, "brief before anything else" means "before domain phases"
 
 ### Audit report (`/reports/:id`)
 
-Executive summary, overall score presentation, domain scorecard, issues and quick wins as implemented in the Report Viewer page.
+Executive summary, overall score presentation, domain scorecard, issues and quick wins as implemented in the Report Viewer page. The report is designed for critical decision-making: keep what works, fix what is risky, and prioritize what has meaningful business impact.
 
 ### Strategy Lab (`/strategy/:id`)
 
-Prioritised initiatives (quick wins, medium term, strategic) for full audits.
+Prioritised initiatives (quick wins, medium term, strategic) for full audits. Users can evaluate and select preferred initiatives to convert recommendations into an execution roadmap.
 
 ---
 
@@ -149,3 +260,10 @@ Broader report formats (PDF, slides), deeper funnel/sales intelligence, and opti
 ## Status
 
 **Needs Review:** “Production deployment” vs “production-ready codebase” depends on your Vercel/Railway/Supabase project state — see [DEPLOYMENT.md](./DEPLOYMENT.md). Core flows are implemented in the monorepo and documented in the canonical technical files above.
+
+## Для разработчиков
+
+Ниже перечислены технические пути реализации для инженерной навигации.
+
+- `server/src/services/execution-plan.ts`
+- `server/src/types/audit.ts`

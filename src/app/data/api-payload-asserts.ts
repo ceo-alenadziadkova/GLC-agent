@@ -1,12 +1,17 @@
 export function assertIntakePayloadShape(payload: unknown): asserts payload is {
   intakeProgress: { progressPct: number; readinessBadge: string; nextBestAction: string };
-  gates: { canStartSnapshot: boolean; canStartExpress: boolean; canStartFull: boolean };
+  gates: { canStartSnapshot: boolean; canStartExpress: boolean; canStartFull: boolean; canStartPipeline: boolean };
 } {
   const p = payload as Record<string, unknown>;
   const gates = p?.gates as Record<string, unknown> | undefined;
   const intakeProgress = p?.intakeProgress as Record<string, unknown> | undefined;
   if (!gates || !intakeProgress) throw new Error('Invalid API payload: missing intakeProgress/gates');
-  if (typeof gates.canStartSnapshot !== 'boolean' || typeof gates.canStartExpress !== 'boolean' || typeof gates.canStartFull !== 'boolean') {
+  if (
+    typeof gates.canStartSnapshot !== 'boolean' ||
+    typeof gates.canStartExpress !== 'boolean' ||
+    typeof gates.canStartFull !== 'boolean' ||
+    typeof gates.canStartPipeline !== 'boolean'
+  ) {
     throw new Error('Invalid API payload: invalid gates shape');
   }
   if (typeof intakeProgress.progressPct !== 'number' || typeof intakeProgress.readinessBadge !== 'string' || typeof intakeProgress.nextBestAction !== 'string') {
@@ -35,7 +40,13 @@ export function assertPipelineStatusShape(payload: unknown): asserts payload is 
   current_phase: number;
   tokens_used: number;
   token_budget: number;
-  product_mode: string;
+  execution_plan?: {
+    selected_domains: string[];
+    depth: string;
+    source: string;
+    coverage_package?: string;
+    include_strategy?: boolean;
+  } | null;
   events: Array<{
     id: number;
     audit_id: string;
@@ -61,9 +72,6 @@ export function assertPipelineStatusShape(payload: unknown): asserts payload is 
   }
   if (typeof p?.tokens_used !== 'number' || typeof p?.token_budget !== 'number') {
     throw new Error('Invalid API payload: pipeline status missing token fields');
-  }
-  if (typeof p?.product_mode !== 'string') {
-    throw new Error('Invalid API payload: pipeline status missing product_mode');
   }
   if (!Array.isArray(p?.events)) {
     throw new Error('Invalid API payload: pipeline status events must be an array');

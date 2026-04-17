@@ -2,7 +2,7 @@
  * Classic "All sections" brief UI: same visible question set and order as IntakeBankWizard
  * (`buildIntakePlan` + bank JSON order).
  */
-import type { IntakeBriefCollectionMode } from './auditTypes';
+import type { IntakeBriefCollectionMode } from './audit/contracts/intake/intake-brief.types';
 import { buildIntakePlan } from '@glc/intake-core';
 import type { IntakeSurface } from '@glc/intake-core';
 import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
@@ -10,6 +10,8 @@ import type { IntakeQuestionStub } from '@glc/intake-core';
 import { bankIdToBriefQuestion } from './bankQuestionUiCatalog';
 import type { BriefQuestion, BriefResponses } from './briefQuestions';
 import { briefResponsesToIntakeMap } from './intakeBriefMap';
+
+const HIDDEN_IDENTITY_BANK_IDS = new Set(['a2', 'a11', 'a12']);
 
 function sortStubsByBankOrder(stubs: IntakeQuestionStub[]): IntakeQuestionStub[] {
   const order = new Map(QUESTION_BANK_V1_STUBS.map((q, i) => [q.id, i] as const));
@@ -37,7 +39,9 @@ export function getVisibleBankBriefSections(
     surface: intakeSurface,
   });
   const visible = new Set(plan.visible);
-  const visibleStubs = sortStubsByBankOrder(QUESTION_BANK_V1_STUBS.filter(q => visible.has(q.id)));
+  const visibleStubs = sortStubsByBankOrder(
+    QUESTION_BANK_V1_STUBS.filter(q => visible.has(q.id) && !HIDDEN_IDENTITY_BANK_IDS.has(q.id)),
+  );
   const flat = visibleStubs.map(stub => bankIdToBriefQuestion(stub.id, stub.priority));
 
   const groups: BankClassicSection[] = [];

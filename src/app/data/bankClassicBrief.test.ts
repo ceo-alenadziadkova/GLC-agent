@@ -5,8 +5,10 @@ import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import { briefResponsesToIntakeMap } from './intakeBriefMap';
 import { sortStubsByBankOrder } from '../hooks/useIntakeWizard';
 import type { BriefResponses } from './briefQuestions';
-import type { IntakeBriefCollectionMode } from './auditTypes';
+import type { IntakeBriefCollectionMode } from './audit/contracts/intake/intake-brief.types';
 import { makeWebsitePathFullBrief } from '../../../server/src/tests/bank-brief-fixtures';
+
+const HIDDEN_IDENTITY_BANK_IDS = new Set(['a2', 'a11', 'a12']);
 
 function wrapAsBriefResponses(raw: Record<string, unknown>): BriefResponses {
   return Object.fromEntries(
@@ -25,7 +27,9 @@ function visibleStubIds(
     collectionMode,
   });
   const visible = new Set(plan.visible);
-  return sortStubsByBankOrder(QUESTION_BANK_V1_STUBS.filter(q => visible.has(q.id))).map(s => s.id);
+  return sortStubsByBankOrder(
+    QUESTION_BANK_V1_STUBS.filter(q => visible.has(q.id) && !HIDDEN_IDENTITY_BANK_IDS.has(q.id)),
+  ).map(s => s.id);
 }
 
 describe('getVisibleBankBriefSections', () => {

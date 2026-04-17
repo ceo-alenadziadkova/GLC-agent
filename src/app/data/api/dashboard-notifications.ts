@@ -1,7 +1,7 @@
 import { API_PATHS } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
 import type { DashboardData } from '../api-dashboard-types';
-import type { NotificationItem } from '../auditTypes';
+import type { NotificationItem } from '../audit/contracts/notifications/notification.types';
 
 export const dashboardNotificationsApi = {
   async getDashboard() {

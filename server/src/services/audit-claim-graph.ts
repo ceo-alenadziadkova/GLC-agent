@@ -3,7 +3,7 @@
  * CO-CONSUMER: update when CONTROL_OBJECT causal types or audit_claim_graph DDL change.
  */
 
-import type { ControlObjectCausalChainEntry, ControlObjectCausalClaimRef } from '../schemas/control-object.js';
+import type { ControlObjectCausalChainEntry, ControlObjectCausalClaimRef } from '../schemas/control-object/index.js';
 import type { DomainKey } from '../types/audit.js';
 import { collectTransitiveDependents } from '../lib/audit-claim-graph-bfs.js';
 import { supabase } from './supabase.js';

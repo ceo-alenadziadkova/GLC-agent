@@ -5,11 +5,7 @@ export function LoadingSpinner() {
     <div className="flex items-center justify-center h-screen">
       <div className="text-center">
         <motion.div
-          className="w-12 h-12 border-4 rounded-full mx-auto mb-4"
-          style={{
-            borderColor: 'var(--panel-border)',
-            borderTopColor: 'var(--text-primary)'
-          }}
+          className="w-12 h-12 border-4 rounded-full mx-auto mb-4 border-[var(--panel-border)] border-t-[var(--text-primary)]"
           animate={{ rotate: 360 }}
           transition={{
             duration: 1,
@@ -17,7 +13,7 @@ export function LoadingSpinner() {
             ease: 'linear'
           }}
         />
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-sm ds-text-secondary" >
           Loading audit report...
         </p>
       </div>

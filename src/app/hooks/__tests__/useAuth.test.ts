@@ -194,6 +194,7 @@ describe('useAuth', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.user).toBeNull();
     expect(result.current.authError).toMatch(/try again/i);
+    expect(window.history.replaceState).toHaveBeenCalledWith({}, '', '/login');
   });
 
   it('applies implicit hash tokens via setSession when present', async () => {
@@ -226,6 +227,7 @@ describe('useAuth', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.authError).toMatch(/try again/i);
+    expect(window.history.replaceState).toHaveBeenCalledWith({}, '', '/login');
   });
 
   it('surfaces OAuth redirect ?error= after cleaning the URL', async () => {

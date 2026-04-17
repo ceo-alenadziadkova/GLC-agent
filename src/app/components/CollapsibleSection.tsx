@@ -26,11 +26,11 @@ export function CollapsibleSection({
         className="w-full flex items-center justify-between group mb-4"
       >
         <div className="flex-1 text-left">
-          <div className="text-xs font-semibold tracking-wide mb-1" style={{ color: 'var(--text-tertiary)' }}>
+          <div className="mb-1 text-xs font-semibold tracking-wide text-[var(--text-tertiary)]">
             {title}
           </div>
           {subtitle && (
-            <h3 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <h3 className="text-xl font-semibold text-[var(--text-primary)]">
               {subtitle}
             </h3>
           )}
@@ -42,10 +42,7 @@ export function CollapsibleSection({
             transition={{ duration: 0.2 }}
             className="p-1 rounded-lg group-hover:bg-[var(--surface)] transition-colors"
           >
-            <CaretDown
-              className="w-5 h-5"
-              style={{ color: 'var(--text-tertiary)' }}
-            />
+            <CaretDown className="h-5 w-5 text-[var(--text-tertiary)]" />
           </motion.div>
         </div>
       </button>
@@ -57,7 +54,7 @@ export function CollapsibleSection({
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
-            style={{ overflow: 'hidden' }}
+            className="overflow-hidden"
           >
             {children}
           </motion.div>

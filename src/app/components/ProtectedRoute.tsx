@@ -1,9 +1,10 @@
-import { Navigate } from 'react-router';
+import { Navigate, useLocation } from 'react-router';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
 import { logger } from '../lib/logger';
 import type { UserRole } from '../data/auditTypes';
 import { SyncPathLoader } from './SyncPathLoader';
+import { APP_ROUTE_PATHS } from '../config/route-paths';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -18,10 +19,11 @@ export function ProtectedRoute({
   children,
   requiredRole,
   blockedForRoles,
-  blockedRedirect = '/snapshot',
+  blockedRedirect = APP_ROUTE_PATHS.snapshot,
 }: ProtectedRouteProps) {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { role, loading: profileLoading, profile } = useProfile();
+  const location = useLocation();
 
   // Spin while auth resolves, or until we have a profile row on role-gated routes.
   // Do not block when profile reloads for the same session (e.g. repeat SIGNED_IN after tab focus);
@@ -36,8 +38,10 @@ export function ProtectedRoute({
   }
 
   if (!isAuthenticated) {
-    logger.info('ProtectedRoute: not authenticated, redirecting to /login');
-    return <Navigate to="/login" replace />;
+    const next = `${location.pathname}${location.search}${location.hash}`;
+    const to = `${APP_ROUTE_PATHS.login}?next=${encodeURIComponent(next)}`;
+    logger.info('ProtectedRoute: not authenticated, redirecting to /login', { next });
+    return <Navigate to={to} replace />;
   }
 
   if (blockedForRoles?.length && role != null && blockedForRoles.includes(role)) {
@@ -50,12 +54,12 @@ export function ProtectedRoute({
     // so the user re-authenticates and triggers a fresh attachProfile() upsert.
     // Do NOT redirect to a role-guarded route — that causes an infinite redirect loop.
     if (role === null) {
-      return <Navigate to="/login" replace />;
+      return <Navigate to={APP_ROUTE_PATHS.login} replace />;
     }
     if (role === 'guest') {
-      return <Navigate to="/snapshot" replace />;
+      return <Navigate to={APP_ROUTE_PATHS.snapshot} replace />;
     }
-    const redirect = role === 'consultant' ? '/portfolio' : '/portal';
+    const redirect = role === 'consultant' ? APP_ROUTE_PATHS.portfolio : APP_ROUTE_PATHS.portal;
     return <Navigate to={redirect} replace />;
   }
 

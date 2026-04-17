@@ -1,0 +1,96 @@
+import type { CatalogDomainCopy } from './domain-copy.types';
+
+export const automationDomainCopy: CatalogDomainCopy = {
+  id: 'automation',
+  name: 'Automation & Processes',
+  score: 3,
+  status: 'moderate',
+  executiveSummary: 'Business process automation shows foundational implementation with significant opportunities for efficiency gains. Current automation covers approximately 40% of repetitive tasks, with clear path to 70%+ automation rate.',
+  strengths: [
+    'Core business workflows documented',
+    'Basic CRM automation in place',
+    'Email marketing automation functional',
+    'Standard operating procedures defined',
+    'Regular process review cadence established',
+  ],
+  weaknesses: [
+    'Heavy reliance on manual data entry and transfers',
+    'Limited cross-system integration and workflow automation',
+    'Insufficient use of RPA for repetitive tasks',
+    'No centralized process orchestration platform',
+    'Manual reporting and data aggregation processes',
+  ],
+  issues: [
+    {
+      id: 'auto-1',
+      severity: 'high',
+      title: 'Manual Data Transfer Between Systems',
+      description: 'Daily manual export/import processes between CRM, accounting, and inventory systems',
+      impact: 'Estimated 15 hours/week staff time and high error rate (8%)',
+    },
+    {
+      id: 'auto-2',
+      severity: 'medium',
+      title: 'Lack of Automated Reporting',
+      description: 'Executive reports generated manually from multiple data sources',
+      impact: '20+ hours monthly spent on report generation',
+    },
+    {
+      id: 'auto-3',
+      severity: 'medium',
+      title: 'Inconsistent Approval Workflows',
+      description: 'No standardized digital approval processes for routine business decisions',
+      impact: 'Delayed decision-making and lost productivity',
+    },
+  ],
+  recommendations: [
+    {
+      id: 'auto-rec-1',
+      title: 'Implement iPaaS Solution',
+      description: 'Deploy integration platform (Zapier/Make/Workato) to connect core business systems',
+      priority: 'high',
+      estimatedCost: '$15,000 - $25,000',
+      estimatedTime: '6-8 weeks',
+      impact: 'Eliminate 80% of manual data transfers, save 12 hours/week',
+    },
+    {
+      id: 'auto-rec-2',
+      title: 'Deploy RPA for Repetitive Tasks',
+      description: 'Implement robotic process automation for high-volume repetitive workflows',
+      priority: 'medium',
+      estimatedCost: '$20,000 - $35,000',
+      estimatedTime: '8-10 weeks',
+      impact: 'Automate 25+ hours of weekly manual tasks',
+    },
+    {
+      id: 'auto-rec-3',
+      title: 'Create Automated Reporting Dashboard',
+      description: 'Build real-time executive dashboard with automated data aggregation',
+      priority: 'high',
+      estimatedCost: '$12,000 - $18,000',
+      estimatedTime: '4-6 weeks',
+      impact: 'Reduce reporting time by 90%, enable real-time insights',
+    },
+  ],
+  quickWins: [
+    {
+      id: 'auto-qw-1',
+      title: 'Automate Daily Data Sync',
+      description: 'Set up basic integration between CRM and email platform',
+      timeframe: '3-5 days',
+      effort: 'medium',
+    },
+    {
+      id: 'auto-qw-2',
+      title: 'Create Email Report Templates',
+      description: 'Build automated email reports for key metrics',
+      timeframe: '2-3 days',
+      effort: 'low',
+    },
+  ],
+  estimatedInvestment: {
+    immediate: '$4,000 - $7,000',
+    shortTerm: '$25,000 - $40,000',
+    longTerm: '$50,000 - $75,000',
+  },
+};

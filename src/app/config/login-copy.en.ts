@@ -2,16 +2,26 @@
  * Login / auth UI copy (English). Supabase-specific operator hints stay here until a CMS catalog ships.
  */
 
+export const LOGIN_SUPABASE_DOCS_URL =
+  'https://supabase.com/docs/guides/auth/general-configuration';
+
 export const LOGIN_GOOGLE_MANUAL_LINKING_HINT_EN =
-  'In Supabase Dashboard: Authentication → enable "Allow manual linking" (Auth general settings). See docs: supabase.com/docs/guides/auth/general-configuration';
+  `In Supabase Dashboard: Authentication → enable "Allow manual linking" (Auth general settings). See docs: ${LOGIN_SUPABASE_DOCS_URL}`;
 
 export const LOGIN_PAGE_COPY_EN = {
   brandWordmarkPrimary: 'GLC',
   brandWordmarkSecondary: ' Audit Platform',
   tagline: 'Sign in to the audit workspace and client portal',
+  taglineSignIn: 'Sign in to the audit workspace and client portal',
+  taglineSignUp: 'Create your account to start audits and manage client access',
+  taglineForgot: 'Reset your password to restore access to your workspace',
+  taglineRecovery: 'Set a new password and continue securely',
+  authShellAsideTitle: 'Your audit workspace. Every finding in one place.',
+  authShellTrustSignals: ['GDPR-compliant', 'Encrypted in transit and at rest', 'No public data exposure'],
+
   ariaHome: 'Go to home page',
   tabSignIn: 'Sign in',
-  tabRegister: 'Register',
+  tabRegister: 'Create account',
   recoveryHeading: 'Set a new password',
   recoveryIntroBeforeEmail: 'Your account: ',
   recoveryIntroAfterEmail: '. Choose a strong password (project rules apply).',
@@ -28,6 +38,7 @@ export const LOGIN_PAGE_COPY_EN = {
   forgotSentPrefix: 'If an account exists for ',
   forgotSentSuffix: ', check your inbox for the reset link.',
   placeholderEmail: 'your@email.com',
+  labelEmail: 'Email',
   forgotSending: 'Sending…',
   forgotSendLink: 'Send reset link',
   anonymousHint:
@@ -35,15 +46,24 @@ export const LOGIN_PAGE_COPY_EN = {
   continueGoogle: 'Continue with Google',
   dividerOr: 'or',
   placeholderPassword: 'Password',
+  labelPassword: 'Password',
+  labelNewPassword: 'New password',
+  labelConfirmNewPassword: 'Confirm new password',
   forgotPasswordLink: 'Forgot password?',
   signupPasswordHint:
-    'At least 6 characters; uppercase, lowercase, digit, and symbol required. If email confirmation is on, check your inbox after registering.',
+    'At least 8 characters; uppercase, lowercase, digit, and symbol required. If email confirmation is on, check your inbox after registering.',
   signingIn: 'Signing in…',
   creating: 'Creating…',
   submitSignIn: 'Sign in',
   submitCreateAccount: 'Create account',
   footerTerms: 'By continuing you accept the terms of use.',
   footerFaq: 'FAQ',
+  asideIntroPrefix: 'New to GLC? Start with ',
+  asideSnapshotLinkLabel: 'Snapshot',
+  asideIntroMiddle: ' or ',
+  asideBriefLinkLabel: 'Brief',
+  asideIntroSuffix: '.',
   errorPasswordMinLength: 'Password must be at least 8 characters.',
   errorPasswordsMismatch: 'Passwords do not match.',
+  errorInvalidEmail: 'Enter a valid email address.',
 } as const;

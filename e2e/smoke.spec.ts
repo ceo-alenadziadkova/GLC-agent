@@ -26,7 +26,9 @@ test.describe('public routing smoke', () => {
     await page.goto('/');
     await expect(page.getByTestId('marketing-home')).toBeVisible({ timeout: 15_000 });
     await expect(
-      page.getByRole('heading', { name: /find what slows growth across your digital stack/i }),
+      page.getByRole('heading', {
+        name: /one place where your business context turns into coordinated decisions/i,
+      }),
     ).toBeVisible();
   });
 
@@ -40,12 +42,14 @@ test.describe('public routing smoke', () => {
 
   test('express audit marketing page renders', async ({ page }) => {
     await page.goto('/express-audit');
-    await expect(page.getByRole('heading', { name: /^express audit$/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: /^focus package$/i })).toBeVisible({ timeout: 15_000 });
   });
 
   test('full audit marketing page renders', async ({ page }) => {
     await page.goto('/audit');
-    await expect(page.getByRole('heading', { name: /^full audit$/i })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: /^strategy workspace$/i })).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test('public brief page renders form', async ({ page }) => {

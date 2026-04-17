@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router';
 import { ProtectedRoute } from '../ProtectedRoute';
 import { useAuth } from '../../hooks/useAuth';
 import { useProfile } from '../../hooks/useProfile';
@@ -46,6 +46,11 @@ beforeEach(() => {
 });
 
 describe('ProtectedRoute', () => {
+  function LoginProbe() {
+    const location = useLocation();
+    return <div data-testid="login-location">{`${location.pathname}${location.search}`}</div>;
+  }
+
   it('shows loading spinner while auth is resolving', () => {
     mockUseAuth.mockReturnValue({ ...AUTH_STUB, loading: true });
 
@@ -74,6 +79,32 @@ describe('ProtectedRoute', () => {
     );
 
     expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
+  });
+
+  it('redirects unauthenticated users to /login with next param', async () => {
+    mockUseAuth.mockReturnValue({ ...AUTH_STUB, loading: false, isAuthenticated: false });
+
+    render(
+      <MemoryRouter initialEntries={['/portfolio?tab=active']}>
+        <Routes>
+          <Route
+            path="/portfolio"
+            element={
+              <ProtectedRoute>
+                <div>Protected content</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/login" element={<LoginProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('login-location')).toHaveTextContent(
+        '/login?next=%2Fportfolio%3Ftab%3Dactive',
+      );
+    });
   });
 
   it('renders children when authenticated', () => {

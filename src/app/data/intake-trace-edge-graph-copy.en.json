@@ -1,0 +1,9 @@
+{
+  "wordingReview": {
+    "veryLongTemplate": "Very long wording (>{{longThreshold}} chars)",
+    "tooShortTemplate": "Too short wording (<{{shortThreshold}} chars)",
+    "containsSeparators": "Contains separators (/ or |), hard to read",
+    "potentiallyVague": "Potentially vague wording",
+    "missingQuestionMark": "No question mark at the end"
+  }
+}

@@ -17,7 +17,7 @@
 
 import { RULE_ENGINE_MAPPING, type RuleEngineEntry } from '../config/rule-engine.js';
 import { logger } from './logger.js';
-import type { ControlObjectV1 } from '../schemas/control-object.js';
+import type { ControlObjectV1 } from '../schemas/control-object/index.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

@@ -23,8 +23,8 @@ interface Card {
   label: string;
   value: string;
   sub: string;
-  Icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
-  color: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  tone: 'info' | 'warning' | 'success' | 'muted';
 }
 
 function buildCards(kpis: DashboardKpis | undefined): Card[] {
@@ -34,31 +34,50 @@ function buildCards(kpis: DashboardKpis | undefined): Card[] {
       value: kpis ? String(kpis.total_audits) : '—',
       sub: 'All time',
       Icon: SquaresFour,
-      color: 'var(--glc-blue)',
+      tone: 'info',
     },
     {
       label: 'Active',
       value: kpis ? String(kpis.active_audits) : '—',
       sub: 'In pipeline',
       Icon: Pulse,
-      color: 'var(--glc-orange)',
+      tone: 'warning',
     },
     {
       label: 'Avg Score',
       value: kpis?.avg_score != null ? String(kpis.avg_score) : '—',
       sub: 'Completed audits',
       Icon: TrendUp,
-      color: 'var(--glc-green)',
+      tone: 'success',
     },
     {
       label: 'Awaiting Review',
       value: kpis ? String(kpis.awaiting_review) : '—',
       sub: 'Gates pending',
       Icon: Warning,
-      color: kpis && kpis.awaiting_review > 0 ? 'var(--glc-orange)' : 'var(--text-tertiary)',
+      tone: kpis && kpis.awaiting_review > 0 ? 'warning' : 'muted',
     },
   ];
 }
+
+const KPI_ICON_TONE_CLASS: Record<Card['tone'], { container: string; icon: string }> = {
+  info: {
+    container: 'bg-[color:color-mix(in_oklab,var(--glc-blue)_18%,transparent)]',
+    icon: 'text-[var(--glc-blue)]',
+  },
+  warning: {
+    container: 'bg-[color:color-mix(in_oklab,var(--glc-orange)_18%,transparent)]',
+    icon: 'text-[var(--glc-orange)]',
+  },
+  success: {
+    container: 'bg-[color:color-mix(in_oklab,var(--glc-green)_18%,transparent)]',
+    icon: 'text-[var(--glc-green)]',
+  },
+  muted: {
+    container: 'bg-[color:color-mix(in_oklab,var(--text-tertiary)_18%,transparent)]',
+    icon: 'text-[var(--text-tertiary)]',
+  },
+};
 
 export function KpiStrip({ kpis, loading }: KpiStripProps) {
   const cards = buildCards(kpis);
@@ -69,8 +88,7 @@ export function KpiStrip({ kpis, loading }: KpiStripProps) {
         {[0, 1, 2, 3].map(i => (
           <div
             key={i}
-            className="glc-card p-4 animate-pulse"
-            style={{ borderRadius: 'var(--radius-xl)', height: 90 }}
+            className="glc-card h-[90px] animate-pulse rounded-[var(--radius-xl)] p-4"
           />
         ))}
       </div>
@@ -79,7 +97,7 @@ export function KpiStrip({ kpis, loading }: KpiStripProps) {
 
   return (
     <motion.div
-      className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+      className="glc-glass-strip grid grid-cols-2 gap-3 p-3 sm:grid-cols-4"
       variants={listVariants}
       initial="hidden"
       animate="visible"
@@ -90,31 +108,24 @@ export function KpiStrip({ kpis, loading }: KpiStripProps) {
           variants={itemVariants}
           whileHover={{ y: -2, boxShadow: 'var(--shadow-md)' }}
           transition={{ duration: 0.18 }}
-          className="glc-card p-4 cursor-default"
-          style={{ borderRadius: 'var(--radius-xl)' }}
+          className="glc-card cursor-default rounded-[var(--radius-xl)] p-4"
         >
+          {/** tone classes keep icon/background token-driven without inline style */}
+          {(() => {
+            const tone = KPI_ICON_TONE_CLASS[m.tone];
+            return (
           <div className="flex items-start justify-between mb-3">
             <SectionLabel>{m.label}</SectionLabel>
-            <div
-              className="w-7 h-7 flex items-center justify-center flex-shrink-0"
-              style={{ background: `${m.color}18`, borderRadius: 'var(--radius-md)' }}
-            >
-              <m.Icon className="w-3.5 h-3.5" style={{ color: m.color }} />
+            <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-md)] ${tone.container}`}>
+              <m.Icon className={`h-3.5 w-3.5 ${tone.icon}`} />
             </div>
           </div>
-          <div
-            className="font-bold tabular-nums"
-            style={{
-              fontSize: 'var(--text-3xl)',
-              color: 'var(--text-primary)',
-              letterSpacing: 'var(--tracking-tight)',
-              fontFamily: 'var(--font-display)',
-              lineHeight: 1,
-            }}
-          >
+            );
+          })()}
+          <div className="font-bold tabular-nums [font-family:var(--font-display)] text-[length:var(--text-3xl)] leading-[1] tracking-[var(--tracking-tight)] text-[var(--text-primary)]">
             {m.value}
           </div>
-          <div className="mt-1.5 text-xs" style={{ color: 'var(--text-tertiary)' }}>{m.sub}</div>
+          <div className="mt-1.5 text-xs text-[var(--text-tertiary)]">{m.sub}</div>
         </motion.div>
       ))}
     </motion.div>

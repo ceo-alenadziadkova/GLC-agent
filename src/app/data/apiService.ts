@@ -7,8 +7,10 @@ import {
   briefProfilePlatformApi,
   dashboardNotificationsApi,
   discoverApi,
+  briefPublicApi,
   intakeTokensApi,
   marketingSnapshotIncidentsApi,
+  snapshotCompareApi,
   type GlcApi,
 } from './api';
 
@@ -28,7 +30,9 @@ export const api = {
   ...briefProfilePlatformApi,
   ...auditRequestsApi,
   ...dashboardNotificationsApi,
+  ...briefPublicApi,
   ...intakeTokensApi,
   ...discoverApi,
   ...marketingSnapshotIncidentsApi,
+  ...snapshotCompareApi,
 } satisfies GlcApi;

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import type { AuditState, IntakeBrief } from '../../data/auditTypes';
 import { ClientAuditView } from '../ClientAuditView';
@@ -83,6 +83,13 @@ function minimalCompletedFreeSnapshotAudit(id: string): AuditState {
       current_phase: 0,
       overall_score: null,
       product_mode: 'free_snapshot',
+      execution_plan: {
+        selected_domains: ['ux_conversion'],
+        depth: 'light',
+        source: 'system_default',
+        coverage_package: 'starter',
+        include_strategy: false,
+      },
       token_budget: 0,
       tokens_used: 0,
       snapshot_token: 'snap-1',
@@ -159,6 +166,9 @@ const mockIntakeBrief: IntakeBrief = {
 describe('ClientAuditView', () => {
   let getAuditSpy: ReturnType<typeof vi.spyOn>;
   let getBriefSpy: ReturnType<typeof vi.spyOn>;
+  let upgradeSpy: ReturnType<typeof vi.spyOn>;
+  let requestHelpSpy: ReturnType<typeof vi.spyOn>;
+  let startPipelineSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -182,6 +192,7 @@ describe('ClientAuditView', () => {
         canStartSnapshot: false,
         canStartExpress: false,
         canStartFull: false,
+        canStartPipeline: false,
         missingRequiredIds: ['a1'],
         recommendedToImproveIds: [],
         intakeProgress: {
@@ -196,11 +207,38 @@ describe('ClientAuditView', () => {
         nextBestAction: 'complete_required',
       },
     });
+    upgradeSpy = vi.spyOn(apiService.api, 'upgradeAuditFromSnapshot').mockResolvedValue({
+      ok: true,
+      snapshot_scrape_limited: false,
+      snapshot_scrape_robots_blocked: false,
+    });
+    requestHelpSpy = vi.spyOn(apiService.api, 'requestBriefHelp').mockResolvedValue(undefined);
+    startPipelineSpy = vi.spyOn(apiService.api, 'startPipeline').mockResolvedValue(undefined);
   });
 
   afterEach(() => {
     getAuditSpy.mockRestore();
     getBriefSpy.mockRestore();
+    upgradeSpy.mockRestore();
+    requestHelpSpy.mockRestore();
+    startPipelineSpy.mockRestore();
+  });
+
+  it('renders missing-id message when route param is absent', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/portal/audit']}>
+          <Routes>
+            <Route path="/portal/audit" element={<ClientAuditView />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText('Missing id.')).toBeInTheDocument();
   });
 
   it('calls getAudit exactly once per mount (no duplicate fetch from removed wrapper)', async () => {
@@ -249,7 +287,107 @@ describe('ClientAuditView', () => {
       expect(screen.getByText(/Quick scan in your account/i)).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Continue with a full audit/i)).toBeInTheDocument();
+    expect(screen.getByText(/Continue with a package/i)).toBeInTheDocument();
+  });
+
+  it('surfaces upgrade error when snapshot-to-audit upgrade fails', async () => {
+    getAuditSpy.mockImplementation(async (id: string) => minimalCompletedFreeSnapshotAudit(id));
+    upgradeSpy.mockRejectedValueOnce(new Error('Upgrade failed'));
+
+    renderClientAuditRoute('audit-snapshot-1');
+
+    await waitFor(() => {
+      expect(screen.getByText(/Continue with a package/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Continue with detected details/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Upgrade failed')).toBeInTheDocument();
+    });
+  });
+
+  it('shows success feedback after help request on created audit', async () => {
+    getAuditSpy.mockImplementation(async (id: string) => minimalCreatedAudit(id));
+
+    renderClientAuditRoute('audit-created-help-ok');
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /send help request/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /send help request/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/We notified the team/i)).toBeInTheDocument();
+    });
+    expect(requestHelpSpy).toHaveBeenCalledWith('audit-created-help-ok', '');
+  });
+
+  it('shows error feedback when help request fails', async () => {
+    getAuditSpy.mockImplementation(async (id: string) => minimalCreatedAudit(id));
+    requestHelpSpy.mockRejectedValueOnce(new Error('Help queue unavailable'));
+
+    renderClientAuditRoute('audit-created-help-fail');
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /send help request/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /send help request/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Help queue unavailable')).toBeInTheDocument();
+    });
+  });
+
+  it('shows start error when launch fails even when gate allows start', async () => {
+    getAuditSpy.mockImplementation(async (id: string) => minimalCreatedAudit(id));
+    getBriefSpy.mockResolvedValue({
+      product_mode: 'full',
+      brief: mockIntakeBrief,
+      questions: [],
+      validation: {
+        passed: true,
+        sla_met: true,
+        answered_required: 1,
+        total_required: 1,
+        answered_recommended: 0,
+        total_recommended: 0,
+        missing_required: [],
+      },
+      gates: {
+        canStartSnapshot: true,
+        canStartExpress: true,
+        canStartFull: true,
+        canStartPipeline: true,
+        missingRequiredIds: [],
+        recommendedToImproveIds: [],
+        intakeProgress: {
+          progressPct: 100,
+          readinessBadge: 'high',
+          nextBestAction: 'add_recommended',
+        },
+      },
+      intakeProgress: {
+        progressPct: 100,
+        readinessBadge: 'high',
+        nextBestAction: 'add_recommended',
+      },
+    });
+    startPipelineSpy.mockRejectedValueOnce(new Error('Start blocked'));
+
+    renderClientAuditRoute('audit-created-start-fail');
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /start audit/i })).toBeEnabled();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /start audit/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Start blocked')).toBeInTheDocument();
+    });
   });
 
 });

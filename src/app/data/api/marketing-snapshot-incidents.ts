@@ -28,7 +28,9 @@ export const marketingSnapshotIncidentsApi = {
     urgency?: string;
     contact_method: string;
     unsure_choice: boolean;
-    /** Required when `!unsure_choice && !no_website`. */
+    /** Canonical package picker when `!unsure_choice && !no_website`. */
+    preferred_coverage_package?: 'starter' | 'pro' | 'complete';
+    /** Legacy compatibility field; server maps package when this is omitted. */
     preferred_audit_depth?: 'express' | 'full';
   }) {
     return publicApiFetch<{ id: string; created_at: string; recommended_route: string }>(API_PATHS.marketingBrief, {

@@ -17,12 +17,8 @@ export const SNAPSHOT_LANDING_COPY = {
   pollStatusGenericError: 'Could not fetch snapshot status. Please try again.',
   loadStatusDefaultHint: 'Could not load snapshot status.',
   startAnalysisDefaultHint: 'Could not start analysis.',
-  competitorLoadFailed: 'Could not load comparison. Try again in a moment.',
   startNetworkError:
     'Network error: could not reach the server. Check your connection and try again.',
-  competitorNotFoundOrTimeout:
-    'We could not find a suitable external site linked from your homepage, or the check timed out.',
-  competitorNetworkError: 'Network error while loading comparison.',
 } as const;
 
 /** Client portal: how long to show the brief "saved" confirmation */

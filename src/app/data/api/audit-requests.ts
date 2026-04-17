@@ -1,7 +1,7 @@
 import { GLC_AUDITS_AND_AUDIT_REQUESTS_LIST } from '@glc/route-limits';
 import { API_PATHS } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
-import type { AuditRequest } from '../auditTypes';
+import type { AuditRequest } from '../audit/contracts/core/audit-meta.types';
 
 export const auditRequestsApi = {
   async createAuditRequest(params: {
@@ -19,7 +19,11 @@ export const auditRequestsApi = {
     });
   },
 
-  async listAuditRequests(limit = GLC_AUDITS_AND_AUDIT_REQUESTS_LIST.defaultLimit, offset = 0) {
+  /** List audit requests with server-enforced caps (`@glc/route-limits`). */
+  async listAuditRequests(
+    limit: number = GLC_AUDITS_AND_AUDIT_REQUESTS_LIST.defaultLimit,
+    offset: number = 0,
+  ) {
     return apiFetch<{ data: AuditRequest[]; total: number; limit: number; offset: number }>(
       `${API_PATHS.auditRequests}?limit=${limit}&offset=${offset}`,
     );

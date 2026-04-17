@@ -70,7 +70,7 @@ export function IntakeTraceJourney({
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
-          <div className="text-[10px] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Shown in this step</div>
+          <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Shown in this step</div>
           <ul className="space-y-1 text-xs">
             {current.questionIds.map(id => (
               <li key={id}>
@@ -81,7 +81,7 @@ export function IntakeTraceJourney({
           </ul>
         </div>
         <div className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
-          <div className="text-[10px] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Newly shown vs previous</div>
+          <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--glc-muted)] mb-2">Newly shown vs previous</div>
           <ul className="space-y-1 text-xs">
             {newlyShown.length === 0 ? (
               <li className="text-[var(--glc-muted)]">No additions</li>
@@ -96,7 +96,7 @@ export function IntakeTraceJourney({
           </ul>
         </div>
         <div className="rounded-lg border border-[var(--glc-border)] bg-[var(--glc-surface-2)] p-3">
-          <div className="text-[10px] uppercase tracking-wide text-[var(--glc-muted)] mb-2">No longer shown</div>
+          <div className="text-[length:var(--text-2xs)] uppercase tracking-wide text-[var(--glc-muted)] mb-2">No longer shown</div>
           <ul className="space-y-1 text-xs">
             {noLongerShown.length === 0 ? (
               <li className="text-[var(--glc-muted)]">No removals</li>

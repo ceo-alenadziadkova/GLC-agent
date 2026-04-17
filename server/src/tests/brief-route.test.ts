@@ -37,6 +37,7 @@ const {
   setAuditRow,
   setBriefRow,
   getUpsertPayload,
+  setUpdateShouldFail,
 } = vi.hoisted(() => {
   // Default: audit owned by the test user, express mode
   let auditRow: Record<string, unknown> | null = {
@@ -44,12 +45,15 @@ const {
     user_id: 'user-001',
     client_id: null,
     product_mode: 'express',
+    execution_plan: { coverage_package: 'pro', selected_domains: ['tech_infrastructure', 'security_compliance'] },
   };
   let briefRow: Record<string, unknown> | null = null;
   let lastUpsertPayload: unknown = null;
+  let updateShouldFail = false;
 
   const setAuditRow = (v: Record<string, unknown> | null) => { auditRow = v; };
   const setBriefRow = (v: Record<string, unknown> | null) => { briefRow = v; };
+  const setUpdateShouldFail = (v: boolean) => { updateShouldFail = v; };
   const getUpsertPayload = () => lastUpsertPayload;
 
   const makeBriefUpsertChain = () => ({
@@ -74,9 +78,14 @@ const {
   });
 
   const mockFrom = vi.fn((table: string) => {
-    const chain = {
-      eq: vi.fn(() => chain),
-      single: vi.fn(() => {
+    type SelectChain = {
+      eq: Mock;
+      single: Mock;
+      maybeSingle: Mock;
+    };
+    const chain = {} as SelectChain;
+    chain.eq = vi.fn(() => chain);
+    chain.single = vi.fn(() => {
         if (table === 'audits') {
           return Promise.resolve({
             data: auditRow,
@@ -90,8 +99,8 @@ const {
           });
         }
         return Promise.resolve({ data: null, error: null });
-      }),
-      maybeSingle: vi.fn(() => {
+      });
+    chain.maybeSingle = vi.fn(() => {
         if (table === 'intake_brief') {
           return Promise.resolve({
             data: briefRow,
@@ -99,10 +108,18 @@ const {
           });
         }
         return Promise.resolve({ data: null, error: null });
-      }),
-    };
+      });
     return {
       select: vi.fn(() => chain),
+      update: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          eq: vi.fn(async () => (
+            updateShouldFail
+              ? { error: { message: 'update failed' } }
+              : { error: null }
+          )),
+        })),
+      })),
       upsert: vi.fn((payload: unknown) => {
         lastUpsertPayload = payload;
         return makeBriefUpsertChain();
@@ -114,7 +131,14 @@ const {
   (globalThis as Record<string, unknown>).__setAuditRow = setAuditRow;
   (globalThis as Record<string, unknown>).__setBriefRow = setBriefRow;
 
-  return { setAuditRow, setBriefRow, getUpsertPayload };
+  return { setAuditRow, setBriefRow, getUpsertPayload, setUpdateShouldFail };
+});
+
+const { setAuthRole } = vi.hoisted(() => {
+  let userRole = 'consultant';
+  const setAuthRole = (v: string) => { userRole = v; };
+  (globalThis as Record<string, unknown>).__briefRouteAuthRole = () => userRole;
+  return { setAuthRole };
 });
 
 // ─── Module mocks ─────────────────────────────────────────────────────────────
@@ -128,6 +152,7 @@ vi.mock('../middleware/auth.js', () => ({
   requireAuth: (_req: Record<string, unknown>, _res: unknown, next: () => void) => {
     _req.userId = 'user-001';
     _req.userEmail = 'user@example.com';
+    _req.userRole = ((globalThis as Record<string, unknown>).__briefRouteAuthRole as () => string)();
     next();
   },
   attachProfile: (_req: unknown, _res: unknown, next: () => void) => next(),
@@ -149,7 +174,7 @@ vi.mock('../middleware/rate-limit.js', () => ({
 
 import express from 'express';
 import { auditsRouter } from '../routes/audits.js';
-import { resolveExpressSlaRequiredIds } from '@glc/intake-core';
+import { resolveFullSlaRequiredIds } from '@glc/intake-core';
 import { buildIntakePlan } from '@glc/intake-core';
 import { currentIntakeVersionTuple } from '@glc/intake-core';
 import {
@@ -158,6 +183,7 @@ import {
 } from '../services/brief-validator.js';
 import { getBriefQuestionsByIds } from '../schemas/intake-brief.js';
 import { makeWebsitePathFullBrief, wrapBriefCellsClient } from './bank-brief-fixtures.js';
+import { INTAKE_BRIEF_SLA_PRODUCT_MODE } from '../types/audit.js';
 
 let server: Server;
 let baseUrl: string;
@@ -182,8 +208,16 @@ afterAll(() => server?.close());
 
 beforeEach(() => {
   vi.clearAllMocks();
-  setAuditRow({ id: 'audit-001', user_id: 'user-001', client_id: null, product_mode: 'express' });
+  setAuthRole('consultant');
+  setAuditRow({
+    id: 'audit-001',
+    user_id: 'user-001',
+    client_id: null,
+    product_mode: 'express',
+    execution_plan: { coverage_package: 'pro', selected_domains: ['tech_infrastructure', 'security_compliance'] },
+  });
   setBriefRow(null);
+  setUpdateShouldFail(false);
 });
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -221,7 +255,7 @@ describe('GET /api/audits/:id/brief/schema', () => {
     expect(typeof (body.derived as Record<string, unknown>).ai_readiness_score).toBe('number');
     expect(Array.isArray(body.missing_for_report)).toBe(true);
     expect(Array.isArray(body.next_recommended)).toBe(true);
-    expect(body.product_mode).toBe('express');
+    expect(body.product_mode).toBe(INTAKE_BRIEF_SLA_PRODUCT_MODE);
     const rows = body.questions as Array<Record<string, unknown>>;
     expect(rows.length).toBeGreaterThan(0);
     expect(rows[0].answer).toBeDefined();
@@ -241,9 +275,16 @@ describe('GET /api/audits/:id/brief/schema', () => {
   });
 
   it('returns 403 when user has no access', async () => {
-    setAuditRow({ id: 'audit-001', user_id: 'other-user', client_id: null, product_mode: 'full' });
-    const { status } = await getJSON('/api/audits/audit-001/brief/schema');
+    setAuditRow({
+      id: 'audit-001',
+      user_id: 'other-user',
+      client_id: null,
+      product_mode: 'full',
+      execution_plan: { coverage_package: 'complete', selected_domains: ['tech_infrastructure', 'security_compliance', 'seo_digital', 'ux_conversion', 'marketing_utp', 'automation_processes'], include_strategy: true },
+    });
+    const { status, body } = await getJSON('/api/audits/audit-001/brief/schema');
     expect(status).toBe(403);
+    expect(body.code).toBe('AUDITS_ACCESS_DENIED');
   });
 });
 
@@ -261,7 +302,7 @@ describe('GET /api/audits/:id/brief', () => {
     const surface = resolveIntakeSurfaceForPlan('self_serve', perspective);
     const plan = buildIntakePlan({
       responses: {},
-      productMode: 'express',
+      productMode: INTAKE_BRIEF_SLA_PRODUCT_MODE,
       collectionMode: 'self_serve',
       surface,
       intakeVersionTuple: currentIntakeVersionTuple(),
@@ -281,7 +322,7 @@ describe('GET /api/audits/:id/brief', () => {
       responses,
       status: 'submitted',
       sla_met: true,
-      answered_required: resolveExpressSlaRequiredIds(responses).length,
+      answered_required: resolveFullSlaRequiredIds(responses).length,
       answered_recommended: 0,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -300,7 +341,7 @@ describe('GET /api/audits/:id/brief', () => {
     expect(status).toBe(200);
     expect(body.validation).toBeDefined();
     const v = body.validation as Record<string, unknown>;
-    expect(v.total_required).toBe(resolveExpressSlaRequiredIds(makeFullRequired()).length);
+    expect(v.total_required).toBe(resolveFullSlaRequiredIds(makeFullRequired()).length);
     expect(v.total_recommended).toBeGreaterThan(0);
     expect(typeof v.sla_met).toBe('boolean');
     expect(typeof v.passed).toBe('boolean');
@@ -325,18 +366,32 @@ describe('GET /api/audits/:id/brief', () => {
     setAuditRow(null);
     const { status, body } = await getJSON('/api/audits/nonexistent/brief');
     expect(status).toBe(404);
+    expect(body.code).toBe('AUDITS_NOT_FOUND');
     expect(body.error).toBeDefined();
   });
 
   it('returns 403 when user does not own or is client of the audit', async () => {
-    setAuditRow({ id: 'audit-002', user_id: 'other-user', client_id: null, product_mode: 'express' });
+    setAuditRow({
+      id: 'audit-002',
+      user_id: 'other-user',
+      client_id: null,
+      product_mode: 'express',
+      execution_plan: { coverage_package: 'pro', selected_domains: ['tech_infrastructure', 'security_compliance'] },
+    });
     const { status, body } = await getJSON('/api/audits/audit-002/brief');
     expect(status).toBe(403);
+    expect(body.code).toBe('AUDITS_ACCESS_DENIED');
     expect(body.error).toBeDefined();
   });
 
   it('allows client_id access (client can view brief)', async () => {
-    setAuditRow({ id: 'audit-003', user_id: 'consultant-001', client_id: 'user-001', product_mode: 'express' });
+    setAuditRow({
+      id: 'audit-003',
+      user_id: 'consultant-001',
+      client_id: 'user-001',
+      product_mode: 'express',
+      execution_plan: { coverage_package: 'pro', selected_domains: ['tech_infrastructure', 'security_compliance'] },
+    });
     setBriefRow(null);
     const { status } = await getJSON('/api/audits/audit-003/brief');
     expect(status).toBe(200);
@@ -350,7 +405,7 @@ describe('GET /api/audits/:id/brief', () => {
     const surface = resolveIntakeSurfaceForPlan('self_serve', perspective);
     const plan = buildIntakePlan({
       responses: {},
-      productMode: 'express',
+      productMode: INTAKE_BRIEF_SLA_PRODUCT_MODE,
       collectionMode: 'self_serve',
       surface,
       intakeVersionTuple: currentIntakeVersionTuple(),
@@ -411,12 +466,14 @@ describe('PUT /api/audits/:id/brief', () => {
   it('returns 400 when responses field is missing', async () => {
     const { status, body } = await putJSON('/api/audits/audit-001/brief', {});
     expect(status).toBe(400);
+    expect(body.code).toBe('AUDITS_BRIEF_RESPONSES_NOT_OBJECT');
     expect(body.error).toMatch(/responses/i);
   });
 
   it('returns 400 when responses is an array', async () => {
     const { status, body } = await putJSON('/api/audits/audit-001/brief', { responses: ['a', 'b'] });
     expect(status).toBe(400);
+    expect(body.code).toBe('AUDITS_BRIEF_RESPONSES_NOT_OBJECT');
     expect(body.error).toBeDefined();
   });
 
@@ -425,6 +482,7 @@ describe('PUT /api/audits/:id/brief', () => {
       responses: { f1: { value: 'x'.repeat(12_001), source: 'client' as const } },
     });
     expect(status).toBe(400);
+    expect(body.code).toBe('AUDITS_BRIEF_VALIDATION_FAILED');
     expect(body.error).toMatch(/Invalid brief responses/);
   });
 
@@ -440,18 +498,32 @@ describe('PUT /api/audits/:id/brief', () => {
     setAuditRow(null);
     const { status, body } = await putJSON('/api/audits/nonexistent/brief', { responses: {} });
     expect(status).toBe(404);
+    expect(body.code).toBe('AUDITS_NOT_FOUND');
     expect(body.error).toBeDefined();
   });
 
   it('returns 403 when user does not own audit', async () => {
-    setAuditRow({ id: 'audit-other', user_id: 'someone-else', client_id: null, product_mode: 'express' });
+    setAuditRow({
+      id: 'audit-other',
+      user_id: 'someone-else',
+      client_id: null,
+      product_mode: 'express',
+      execution_plan: { coverage_package: 'pro', selected_domains: ['tech_infrastructure', 'security_compliance'] },
+    });
     const { status, body } = await putJSON('/api/audits/audit-other/brief', { responses: {} });
     expect(status).toBe(403);
+    expect(body.code).toBe('AUDITS_ACCESS_DENIED');
     expect(body.error).toBeDefined();
   });
 
   it('allows client to save their own brief', async () => {
-    setAuditRow({ id: 'audit-c1', user_id: 'consultant-001', client_id: 'user-001', product_mode: 'express' });
+    setAuditRow({
+      id: 'audit-c1',
+      user_id: 'consultant-001',
+      client_id: 'user-001',
+      product_mode: 'express',
+      execution_plan: { coverage_package: 'pro', selected_domains: ['tech_infrastructure', 'security_compliance'] },
+    });
     const { status } = await putJSON('/api/audits/audit-c1/brief', { responses: makeFullRequired() });
     expect(status).toBe(200);
   });
@@ -520,5 +592,71 @@ describe('PUT /api/audits/:id/brief', () => {
     });
     expect(status).toBe(400);
     expect(body.code).toBe('INCOMPLETE_INTAKE_VERSIONS');
+  });
+});
+
+describe('POST /api/audits/:id/brief/help-request', () => {
+  async function postHelp(path: string, body: unknown = {}) {
+    const res = await fetch(`${baseUrl}${path}`, {
+      method: 'POST',
+      headers: AUTH,
+      body: JSON.stringify(body),
+    });
+    return { status: res.status, body: await res.json() as Record<string, unknown> };
+  }
+
+  it('returns 403 with client-only code when requester is not a client', async () => {
+    setAuthRole('consultant');
+    const { status, body } = await postHelp('/api/audits/audit-001/brief/help-request', { message: 'Need help' });
+    expect(status).toBe(403);
+    expect(body.code).toBe('AUDITS_BRIEF_HELP_CLIENT_ONLY');
+  });
+
+  it('returns 404 when audit does not exist', async () => {
+    setAuthRole('client');
+    setAuditRow(null);
+    const { status, body } = await postHelp('/api/audits/missing/brief/help-request', { message: 'Need help' });
+    expect(status).toBe(404);
+    expect(body.code).toBe('AUDITS_NOT_FOUND');
+  });
+
+  it('returns 403 when audit belongs to another client', async () => {
+    setAuthRole('client');
+    setAuditRow({
+      id: 'audit-001',
+      user_id: 'consultant-001',
+      client_id: 'client-other',
+      status: 'created',
+    });
+    const { status, body } = await postHelp('/api/audits/audit-001/brief/help-request', { message: 'Need help' });
+    expect(status).toBe(403);
+    expect(body.code).toBe('AUDITS_BRIEF_HELP_ACCESS_DENIED');
+  });
+
+  it('returns 400 when audit is not in created phase', async () => {
+    setAuthRole('client');
+    setAuditRow({
+      id: 'audit-001',
+      user_id: 'consultant-001',
+      client_id: 'user-001',
+      status: 'running',
+    });
+    const { status, body } = await postHelp('/api/audits/audit-001/brief/help-request', { message: 'Need help' });
+    expect(status).toBe(400);
+    expect(body.code).toBe('AUDITS_BRIEF_HELP_WRONG_PHASE');
+  });
+
+  it('returns 500 when help-request update fails', async () => {
+    setAuthRole('client');
+    setAuditRow({
+      id: 'audit-001',
+      user_id: 'consultant-001',
+      client_id: 'user-001',
+      status: 'created',
+    });
+    setUpdateShouldFail(true);
+    const { status, body } = await postHelp('/api/audits/audit-001/brief/help-request', { message: 'Need help' });
+    expect(status).toBe(500);
+    expect(body.code).toBe('AUDITS_BRIEF_HELP_FAILED');
   });
 });

@@ -34,11 +34,11 @@ Recent hardening:
 ```typescript
 // Always filter by userId extracted from JWT
 const audit = await supabase
-  .from('audits')
-  .select('*')
-  .eq('id', auditId)
-  .eq('user_id', req.userId)  // req.userId set by auth middleware
-  .single();
+ .from('audits')
+ .select('*')
+ .eq('id', auditId)
+ .eq('user_id', req.userId) // req.userId set by auth middleware
+ .single();
 ```
 
 ### Public snapshot (cookie funnel)
@@ -57,14 +57,14 @@ Every protected Express route runs through `middleware/auth.ts`:
 
 ```typescript
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Missing token', code: 'UNAUTHORIZED' });
+ const token = req.headers.authorization?.split(' ')[1];
+ if (!token) return res.status(401).json({ error: 'Missing token', code: 'UNAUTHORIZED' });
 
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-  if (error || !user) return res.status(401).json({ error: 'Invalid token', code: 'UNAUTHORIZED' });
+ const { data: { user }, error } = await supabase.auth.getUser(token);
+ if (error || !user) return res.status(401).json({ error: 'Invalid token', code: 'UNAUTHORIZED' });
 
-  req.userId = user.id;
-  next();
+ req.userId = user.id;
+ next();
 }
 ```
 
@@ -74,7 +74,7 @@ The backend calls `supabase.auth.getUser(token)` which makes a Supabase API call
 
 ## Public snapshot (SSRF + logs)
 
-- **URL validation:** `validatePublicAuditUrl` / `fetchPublicHttpUrl` in `server/src/lib/public-http-url.ts` — **http/https only**, block credentials in URL, block literals and DNS resolutions that map to private/link-local space, **re-validate every redirect hop**, cap redirect depth. Regression coverage: `server/src/tests/public-http-url.test.ts`, `server/src/tests/fetch-public-http-url.test.ts` (including redirect targets with **per-hostname** DNS outcomes).
+- **URL validation:** `validatePublicAuditUrl` / `fetchPublicHttpUrl` in `public_http_url` — **http/https only**, block credentials in URL, block literals and DNS resolutions that map to private/link-local space, **re-validate every redirect hop**, cap redirect depth. Regression coverage: `public_http_url.test`, `fetch_public_http_url.test` (including redirect targets with **per-hostname** DNS outcomes).
 - **Logs / metrics:** Structured `snapshot.run_complete` and optional **`GET /api/snapshot/operator/metrics`** (see [API.md](./API.md#snapshot-operator-optional)) use **hashed host fingerprints**, not full marketing URLs, where possible. Do **not** paste full snapshot HTML or scraped contact dumps into tickets; use audit IDs and timeframe.
 - **DB minimization:** Free snapshot writes **`audit_recon.contact_info`** as empty arrays (same minimization as `snapshot_domain_cache` payload) so operator DB rows do not retain scraped emails/phones from the public scanner path.
 
@@ -135,12 +135,12 @@ Implemented controls:
 
 - `discovery_sessions.consultant_id` stores assignment ownership.
 - `POST /api/discover/:token/convert` enforces:
-  - **403** when a session is already assigned to another consultant,
-  - atomic claim for unassigned sessions before conversion,
-  - **409** on claim/link races, with best-effort rollback on late link conflict.
+ - **403** when a session is already assigned to another consultant,
+ - atomic claim for unassigned sessions before conversion,
+ - **409** on claim/link races, with best-effort rollback on late link conflict.
 - `GET /api/discover/sessions` is server-scoped to:
-  - unassigned sessions (`consultant_id IS NULL`), and
-  - sessions owned by the current consultant.
+ - unassigned sessions (`consultant_id IS NULL`), and
+ - sessions owned by the current consultant.
 
 Security intent:
 
@@ -150,7 +150,7 @@ Security intent:
 
 ## Rate Limiting
 
-Implementation: **`server/src/middleware/rate-limit.ts`** (`express-rate-limit`), with **numeric defaults and env names** centralized in **`server/src/config/rate-limits.ts`**. JSON **`429`** bodies that expose **`retry_after_minutes`** / **`retry_after_hours`** / **`retry_after_seconds`** derive those fields from each limiter’s **`windowMs`** so hints stay aligned if windows change.
+Implementation: **`rate_limit`** (`express-rate-limit`), with **numeric defaults and env names** centralized in **`rate_limits`**. JSON **`429`** bodies that expose **`retry_after_minutes`** / **`retry_after_hours`** / **`retry_after_seconds`** derive those fields from each limiter’s **`windowMs`** so hints stay aligned if windows change.
 
 | Export (examples) | Role |
 | --- | --- |
@@ -188,8 +188,8 @@ A hard per-audit token cap prevents runaway Claude API costs:
 // Before each phase
 const { tokens_used, token_budget } = await getAuditMeta(auditId);
 if (tokens_used >= token_budget) {
-  await emitEvent(auditId, phase, 'error', { error: 'Token budget exceeded' });
-  throw new Error('BUDGET_EXCEEDED');
+ await emitEvent(auditId, phase, 'error', { error: 'Token budget exceeded' });
+ throw new Error('BUDGET_EXCEEDED');
 }
 ```
 
@@ -200,7 +200,7 @@ Budget is configurable per audit via `audits.token_budget`.
 
 ## CORS
 
-Backend only reflects browser origins that appear in an explicit allowlist (`getCorsAllowedOrigins` in `server/src/config/cors-origins.ts`): **production** merges `ALLOWED_ORIGINS` (comma-separated) with `FRONTEND_URL`; **development** adds default localhost dev ports. `credentials: true` is set; origins are never `*`.
+Backend only reflects browser origins that appear in an explicit allowlist (`getCorsAllowedOrigins` in `cors_origins`): **production** merges `ALLOWED_ORIGINS` (comma-separated) with `FRONTEND_URL`; **development** adds default localhost dev ports. `credentials: true` is set; origins are never `*`.
 
 In production **`FRONTEND_URL` is required** (API startup fails if unset when `NODE_ENV=production`). Set **`ALLOWED_ORIGINS`** to every browser origin that must call the API with cookies (often the same as `FRONTEND_URL` plus any extra marketing hostnames):
 
@@ -233,7 +233,7 @@ server/.env
 ## GDPR Basics
 
 - **Data minimisation:** Only publicly available website data is collected. No personal data about website visitors is stored.
-- **EU region:** Supabase project in Frankfurt — all data stored in the EU.
+- **EU region:** target setup is Supabase in Frankfurt for EU data residency. **Needs Review:** verify the actual region in your current Supabase project settings.
 - **Retention:** Future: auto-delete audits older than 12 months (cron job / pg_cron).
 - **Right to erasure:** `DELETE /api/audits/:id` wipes audit + all related data (CASCADE in schema).
 - **Privacy notice:** Shown on NewAudit form: "We collect only publicly available data from the submitted URL."
@@ -246,16 +246,16 @@ Vercel adds security headers automatically. For additional headers, add `vercel.
 
 ```json
 {
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
-      ]
-    }
-  ]
+ "headers": [
+ {
+ "source": "/(.*)",
+ "headers": [
+ { "key": "X-Frame-Options", "value": "DENY" },
+ { "key": "X-Content-Type-Options", "value": "nosniff" },
+ { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+ ]
+ }
+ ]
 }
 ```
 
@@ -267,3 +267,14 @@ Vercel adds security headers automatically. For additional headers, add `vercel.
 - **No E2E encryption** — data at rest is protected by Supabase/Railway infrastructure encryption
 - **No pen testing** — MVP; add before handling enterprise clients
 - **No audit logging** — `pipeline_events` provides an operational log but not a security audit trail
+
+## Для разработчиков
+
+Ниже перечислены технические пути реализации для инженерной навигации.
+
+- `server/src/lib/public-http-url.ts`
+- `server/src/tests/public-http-url.test.ts`
+- `server/src/tests/fetch-public-http-url.test.ts`
+- `server/src/middleware/rate-limit.ts`
+- `server/src/config/rate-limits.ts`
+- `server/src/config/cors-origins.ts`

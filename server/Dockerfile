@@ -22,7 +22,6 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/intake-core ./packages/intake-core
 COPY packages/glc-dev-brand-defaults ./packages/glc-dev-brand-defaults
 COPY packages/glc-route-limits ./packages/glc-route-limits
-COPY packages/glc-brand-tokens ./packages/glc-brand-tokens
 COPY packages/glc-api-paths ./packages/glc-api-paths
 COPY packages/glc-snapshot-scan-coverage ./packages/glc-snapshot-scan-coverage
 COPY server ./server

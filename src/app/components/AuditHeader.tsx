@@ -7,17 +7,17 @@ interface AuditHeaderProps {
 
 export function AuditHeader({ title, subtitle }: AuditHeaderProps) {
   return (
-    <div className="border-b mb-8 pb-6" style={{ borderColor: 'var(--panel-border)' }}>
+    <div className="mb-8 border-b border-[var(--panel-border)] pb-6">
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <FileText className="w-6 h-6" style={{ color: 'var(--text-tertiary)' }} />
-            <h1 className="text-3xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+            <FileText className="h-6 w-6 text-[var(--text-tertiary)]" />
+            <h1 className="text-3xl font-semibold text-[var(--text-primary)]">
               {title}
             </h1>
           </div>
           {subtitle && (
-            <p className="text-base" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-base text-[var(--text-secondary)]">
               {subtitle}
             </p>
           )}
@@ -25,22 +25,13 @@ export function AuditHeader({ title, subtitle }: AuditHeaderProps) {
 
         <div className="flex items-center gap-3">
           <button
-            className="px-4 py-2 rounded-lg border transition-all flex items-center gap-2"
-            style={{
-              borderColor: 'var(--panel-border)',
-              color: 'var(--text-secondary)'
-            }}
+            className="flex items-center gap-2 rounded-lg border border-[var(--panel-border)] px-4 py-2 text-[var(--text-secondary)] transition-all"
           >
             <ShareNetwork className="w-4 h-4" />
             <span className="text-sm font-medium">Share</span>
           </button>
           <button
-            className="px-4 py-2 rounded-lg border transition-all flex items-center gap-2"
-            style={{
-              borderColor: 'var(--panel-border)',
-              backgroundColor: 'var(--text-primary)',
-              color: 'white'
-            }}
+            className="flex items-center gap-2 rounded-lg border border-[var(--panel-border)] bg-[var(--text-primary)] px-4 py-2 text-[var(--text-inverse)] transition-all"
           >
             <DownloadSimple className="w-4 h-4" />
             <span className="text-sm font-medium">Export PDF</span>

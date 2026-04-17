@@ -3,18 +3,40 @@
 ## Phase Map
 
 ```
-Phase 0  Recon             ──┐
-                              │ Review Gate 1 (after recon)
-Phase 1  Tech Infrastructure ─┤
-Phase 2  Security & Compliance│  Auto Wing (phases 1–4 in parallel)
-Phase 3  SEO & Digital        │
-Phase 4  UX & Conversion    ──┤
-                              │ Review Gate 2 (after auto wing)
-Phase 5  Marketing & UTP    ──┤  Analytic wing (5–6 in parallel)
-Phase 6  Automation & Processes│  then Phase 7 Strategy (sequential; no gate between 6 and 7)
-Phase 7  Strategy Synthesis ──┘
-                              │ Review Gate 3 (after strategy; full mode only)
+Phase 0 Recon ──┐
+ │ Review Gate 1 (after recon)
+Phase 1 Tech Infrastructure ─┤
+Phase 2 Security & Compliance│ Auto Wing (phases 1–4 in parallel)
+Phase 3 SEO & Digital │
+Phase 4 UX & Conversion ──┤
+ │ Review Gate 2 (after auto wing)
+Phase 5 Marketing & UTP ──┤ Analytic wing (5–6 in parallel)
+Phase 6 Automation & Processes│ then Phase 7 Strategy (sequential; no gate between 6 and 7)
+Phase 7 Strategy Synthesis ──┘
+ │ Review Gate 3 (after strategy; full mode only)
 ```
+
+---
+
+## Execution plan semantics
+
+Runtime sequencing is derived from `audits.execution_plan` (normalized by `execution_plan`), not only from `product_mode`.
+
+- Executable phases are resolved via `executionPlanToPhases(...)`.
+- Review gates are resolved via `reviewPhasesForExecutionPlan(...)`.
+- Strategy phase (`7`) runs only when `include_strategy` is enabled in the normalized plan.
+
+Default plan profiles:
+
+- `coverage_package=starter` -> light baseline, limited selected domains, strategy disabled.
+- `coverage_package=pro` -> standard-depth selected coverage, strategy optional via `include_strategy`.
+- `coverage_package=complete` -> full domain coverage, strategy enabled by default.
+- `free_snapshot` -> deterministic scanner path (no LLM phase loop).
+
+Compatibility mapping (runtime internals):
+
+- Legacy `product_mode=full` defaults to `coverage_package=complete`.
+- Legacy `product_mode=express` defaults to `coverage_package=pro`.
 
 ---
 
@@ -75,11 +97,11 @@ After the agent run, `PipelineOrchestrator` applies `DecisionLayer.decide(contro
 
 **Threshold note**: `DecisionLayer` uses **85 / 70** on `confidence.overall` for accept / accept-with-warnings. That overall score is **phase-weighted** (including feasibility). Some older specs assumed **80 / 65** after weighting; the implemented constants are intentionally stricter — see [ADR-DECISION-LAYER-GATES](./adrs/ADR-DECISION-LAYER-GATES.md).
 
-**Auto-loop (Phase 5, off by default):** When `AUTO_LOOP_ENABLED=true` and `NODE_ENV` is listed in `AUTO_LOOP_ALLOWED_MODES`, a `refine` decision may trigger a targeted rerun of the same phase agent with instruction patches from [`rule-engine.ts`](../server/src/config/rule-engine.ts) (via [`dynamic-adjustment.ts`](../server/src/services/dynamic-adjustment.ts)). Caps: `SYSTEM_DEFAULTS.autoLoop` (`maxIterations`, `minConfidenceGain`, `costGuardrailThresholdUsd`). See [ADR-AUTO-LOOP-RULE-ENGINE](./adrs/ADR-AUTO-LOOP-RULE-ENGINE.md).
+**Auto-loop (Phase 5, off by default):** When `AUTO_LOOP_ENABLED=true` and `GLC_DEPLOYMENT_PROFILE` (see `getAutoLoopExecutionProfile()` in `feature-flags.ts`) is listed in `AUTO_LOOP_ALLOWED_MODES`, a `refine` decision may trigger a targeted rerun of the same phase agent with instruction patches from `rule-engine.ts` (via `dynamic-adjustment.ts`). Caps: `SYSTEM_DEFAULTS.autoLoop` (`maxIterations`, `minConfidenceGain`, `costGuardrailThresholdUsd`). See [ADR-AUTO-LOOP-RULE-ENGINE](./adrs/ADR-AUTO-LOOP-RULE-ENGINE.md).
 
 ### CONTROL_OBJECT contract (v1.0 through v2.0)
 
-Canonical TypeScript: [`server/src/schemas/control-object.ts`](../server/src/schemas/control-object.ts) (`ControlObjectV1` name is historical; the struct carries v2 fields).
+Canonical TypeScript: `control_object` (`ControlObjectV1` name is historical; the struct carries v2 fields).
 
 | Area | Contents |
 |------|-----------|
@@ -120,7 +142,7 @@ Review gates pause the pipeline and let the consultant enrich the context before
 | Gate 2 | Phase 4 (last of auto wing) | Analytic wing (phases 5–6) then Strategy (phase 7) |
 | Gate 3 | Phase 7 (Strategy) | Report / delivery (no further automated phases) |
 
-**Full mode** uses review phases `[0, 4, 7]` (`server/src/types/audit.ts`). **Express** uses `[0, 4]`. **Free snapshot** uses no review gates.
+With default plans, review phases are `[0, 4, 7]` for `full` and `[0, 4]` for `express`. Effective gates always come from `reviewPhasesForExecutionPlan(...)` for the specific audit row. `free_snapshot` uses no review gates.
 
 Approve with `POST /api/audits/:id/reviews/:phase` where `phase` matches the completed block (`0`, `4`, or `7`). See [API.md](./API.md).
 
@@ -128,8 +150,8 @@ When a gate is reached:
 1. Backend emits `review_needed` event to `pipeline_events`
 2. Frontend `PipelineMonitor` shows the `ReviewPointModal`
 3. Consultant optionally adds:
-   - **Consultant notes** — observations not visible on the website (e.g. "recently migrated to Shopify")
-   - **Interview notes** — client's answers to generated questions
+ - **Consultant notes** — observations not visible on the website (e.g. "recently migrated to Shopify")
+ - **Interview notes** — client's answers to generated questions
 4. Approval → `POST /api/audits/:id/reviews/:phase` → notes stored in `review_points` table
 5. Backend includes notes in context for all subsequent phases
 6. Pipeline resumes with next phase
@@ -153,10 +175,10 @@ Every Claude call logs token usage via `TokenTracker`:
 ```typescript
 // Written to pipeline_events (event_type: 'token_usage')
 {
-  input_tokens: 4200,
-  output_tokens: 850,
-  model: 'claude-sonnet-4-20250514',
-  cost_usd: 0.018
+ input_tokens: 4200,
+ output_tokens: 850,
+ model: 'claude-sonnet-4-20250514',
+ cost_usd: 0.018
 }
 ```
 
@@ -174,13 +196,13 @@ The orchestrator manages the full lifecycle:
 
 ```typescript
 class PipelineOrchestrator {
-  async startPhase(auditId: string, phase: number): Promise<void>
-  async runBlock(auditId: string, phases: readonly number[]): Promise<void>
-  async runFreeSnapshot(auditId: string): Promise<void>
+ async startPhase(auditId: string, phase: number): Promise<void>
+ async runBlock(auditId: string, phases: readonly number[]): Promise<void>
+ async runFreeSnapshot(auditId: string): Promise<void>
 }
 ```
 
-Phase sequencing logic:
+Phase sequencing logic (effective plan):
 1. Determine next phase from `audit_domains` statuses
 2. Check for pending review gate — if yes, emit `review_needed` and stop
 3. Check token budget
@@ -204,8 +226,18 @@ Computed after Phase 7 completes:
 
 ```typescript
 overallScore = domainScores.reduce((sum, { key, score }) => {
-  return sum + score * industryWeights[industry][key];
+ return sum + score * industryWeights[industry][key];
 }, 0) / totalWeight;
 ```
 
 See [AGENTS.md#industry-weights](./AGENTS.md#industry-weights) for weight tables.
+
+## Для разработчиков
+
+Ниже перечислены технические пути реализации для инженерной навигации.
+
+- `server/src/services/execution-plan.ts`
+- `server/src/schemas/control-object.ts`
+- `server/src/config/feature-flags.ts`
+- `server/src/config/rule-engine.ts`
+- `server/src/services/dynamic-adjustment.ts`

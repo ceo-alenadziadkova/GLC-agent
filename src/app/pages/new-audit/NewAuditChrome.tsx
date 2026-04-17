@@ -16,40 +16,20 @@ export function StepIndicator({ current }: { current: number }) {
           <div key={s.label} className="flex items-center gap-0.5 mobile:gap-0">
             <div className="flex flex-col items-center gap-1">
               <div
-                className="w-8 h-8 mobile:w-7 mobile:h-7 rounded-full flex items-center justify-center"
-                style={{
-                  background: done
-                    ? 'var(--score-5-bg)'
-                    : active
-                      ? 'var(--gradient-brand)'
-                      : 'var(--bg-muted)',
-                  border: done
-                    ? '1px solid var(--score-5-border)'
-                    : active
-                      ? 'none'
-                      : '1px solid var(--border-subtle)',
-                  boxShadow: active ? '0 0 12px rgba(28,189,255,0.30)' : 'none',
-                }}
+                className="ds-new-audit-step-indicator-circle"
+                data-state={done ? 'done' : active ? 'active' : 'idle'}
               >
                 {done
-                  ? <CheckCircle weight="fill" className="w-4 h-4" style={{ color: 'var(--score-5)' }} />
-                  : <s.icon className="w-4 h-4" style={{ color: active ? 'var(--primary-foreground)' : 'var(--text-tertiary)' }} />}
+                  ? <CheckCircle weight="fill" className="h-4 w-4 text-[var(--score-5)]" />
+                  : <s.icon className={`h-4 w-4 ${active ? 'text-[var(--primary-foreground)]' : 'text-[var(--text-tertiary)]'}`} />}
               </div>
-              <span
-                style={{
-                  fontSize: '10px',
-                  color: active ? 'var(--text-blue)' : 'var(--text-tertiary)',
-                  letterSpacing: '0.04em',
-                  fontWeight: active ? 600 : 400,
-                }}
-              >
+              <span className="ds-new-audit-step-label" data-active={active ? 'true' : 'false'}>
                 {s.label}
               </span>
             </div>
             {i < STEPS.length - 1 && (
               <div
-                className="w-6 mobile:w-4 sm:w-10 h-px mb-4 mobile:mb-3.5"
-                style={{ background: i < current ? 'var(--score-5)' : 'var(--border-default)' }}
+                className={`mb-4 h-px w-6 mobile:mb-3.5 mobile:w-4 sm:w-10 ${i < current ? 'bg-[var(--score-5)]' : 'bg-[var(--border-default)]'}`}
               />
             )}
           </div>
@@ -61,7 +41,7 @@ export function StepIndicator({ current }: { current: number }) {
 
 export const DOMAIN_PILLS = [
   { icon: MagnifyingGlass, label: 'Recon', color: 'var(--glc-blue)' },
-  { icon: HardDrives, label: 'Tech', color: '#8B5CF6' },
+  { icon: HardDrives, label: 'Tech', color: 'var(--ui-strategic-purple)' },
   { icon: Shield, label: 'Security', color: 'var(--score-1)' },
   { icon: Globe, label: 'SEO', color: 'var(--glc-green)' },
   { icon: Cursor, label: 'UX', color: 'var(--score-3)' },

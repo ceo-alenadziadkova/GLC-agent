@@ -41,7 +41,6 @@ export default defineConfig(({ mode }) => ({
         __dirname,
         './packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json',
       ),
-      '@glc/brand-tokens': path.resolve(__dirname, './packages/glc-brand-tokens/src/index.ts'),
       '@glc/dev-brand-defaults': path.resolve(__dirname, './packages/glc-dev-brand-defaults/src/index.ts'),
       '@glc/intake-core': path.resolve(__dirname, './packages/intake-core/src/index.ts'),
       '@glc/route-limits': path.resolve(__dirname, './packages/glc-route-limits/src/index.ts'),

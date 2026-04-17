@@ -3,7 +3,7 @@ import {
   collectTransitiveDependents,
   type AuditClaimGraphRowShape,
 } from '../lib/audit-claim-graph-bfs.js';
-import type { ControlObjectCausalClaimRef } from '../schemas/control-object.js';
+import type { ControlObjectCausalClaimRef } from '../schemas/control-object/index.js';
 
 describe('collectTransitiveDependents', () => {
   const row = (

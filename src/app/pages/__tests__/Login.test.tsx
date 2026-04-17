@@ -176,7 +176,8 @@ describe('Login', () => {
 
     renderLogin();
 
-    expect(screen.getByRole('button', { name: /^register$/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^create account$/i })).toBeInTheDocument();
+    expect(screen.getByRole('tablist')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /continue with google/i })).toBeInTheDocument();
   });
 
@@ -206,6 +207,21 @@ describe('Login', () => {
     });
 
     renderLogin('/login?next=%2F%2Fevil.example');
+
+    await waitFor(() => {
+      expect(navigate).toHaveBeenCalledWith('/portfolio', { replace: true });
+    });
+  });
+
+  it('ignores login self-redirect in ?next and falls back to /portfolio', async () => {
+    stubLocation('?next=%2Flogin');
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: true,
+      user: { id: 'u1', email: 'a@a.com', identities: [{ provider: 'email' }] } as User,
+    });
+
+    renderLogin('/login?next=%2Flogin');
 
     await waitFor(() => {
       expect(navigate).toHaveBeenCalledWith('/portfolio', { replace: true });
@@ -257,16 +273,33 @@ describe('Login', () => {
 
     renderLogin();
 
-    const createTab = screen
-      .getAllByRole('button', { name: /^register$/i })
-      .find(b => b.getAttribute('type') === 'button');
-    expect(createTab).toBeTruthy();
-    await user.click(createTab!);
+    const createTab = screen.getByRole('tab', { name: /^create account$/i });
+    await user.click(createTab);
     await user.type(screen.getByPlaceholderText(/your@email\.com/i), 'new@example.com');
     await user.type(screen.getByPlaceholderText(/^password$/i), 'secret12');
     await user.click(getEmailPasswordSubmitButton());
 
     expect(signUpWithPassword).toHaveBeenCalledWith('new@example.com', 'secret12');
+  });
+
+  it('blocks create-account submit for passwords shorter than 8 chars', async () => {
+    const user = userEvent.setup();
+    stubLocation('');
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: false,
+      user: null,
+    });
+
+    renderLogin();
+
+    await user.click(screen.getByRole('tab', { name: /^create account$/i }));
+    await user.type(screen.getByPlaceholderText(/your@email\.com/i), 'new@example.com');
+    await user.type(screen.getByPlaceholderText(/^password$/i), 'short7');
+    await user.click(getEmailPasswordSubmitButton());
+
+    expect(signUpWithPassword).not.toHaveBeenCalled();
+    expect(screen.getByText('Password must be at least 8 characters.')).toBeInTheDocument();
   });
 
   it('toggles password visibility from eye button', async () => {
@@ -301,11 +334,8 @@ describe('Login', () => {
 
     renderLogin();
 
-    const createTab = screen
-      .getAllByRole('button', { name: /^register$/i })
-      .find(b => b.getAttribute('type') === 'button');
-    expect(createTab).toBeTruthy();
-    await user.click(createTab!);
+    const createTab = screen.getByRole('tab', { name: /^create account$/i });
+    await user.click(createTab);
 
     const passwordInput = screen.getByPlaceholderText(/^password$/i);
     expect(passwordInput).toHaveAttribute('type', 'password');
@@ -391,6 +421,59 @@ describe('Login', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Invalid login credentials')).toBeInTheDocument();
+    });
+  });
+
+  it('supports keyboard navigation for auth tabs (Arrow/Home/End)', async () => {
+    const user = userEvent.setup();
+    stubLocation('');
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: false,
+      user: null,
+    });
+
+    renderLogin();
+
+    const signInTab = screen.getByRole('tab', { name: /^sign in$/i });
+    const createTab = screen.getByRole('tab', { name: /^create account$/i });
+    signInTab.focus();
+    expect(signInTab).toHaveAttribute('aria-selected', 'true');
+
+    await user.keyboard('{ArrowRight}');
+    expect(createTab).toHaveFocus();
+    expect(createTab).toHaveAttribute('aria-selected', 'true');
+
+    await user.keyboard('{Home}');
+    expect(signInTab).toHaveFocus();
+    expect(signInTab).toHaveAttribute('aria-selected', 'true');
+
+    await user.keyboard('{End}');
+    expect(createTab).toHaveFocus();
+    expect(createTab).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('keeps form usable when sign-in throws unexpectedly', async () => {
+    const user = userEvent.setup();
+    stubLocation('');
+    signInWithPassword.mockRejectedValueOnce(new Error('Network failed'));
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: false,
+      user: null,
+    });
+
+    renderLogin();
+
+    await user.type(screen.getByPlaceholderText(/your@email\.com/i), 'x@x.com');
+    await user.type(screen.getByPlaceholderText(/^password$/i), 'wrongpass');
+    await user.click(getEmailPasswordSubmitButton());
+
+    await waitFor(() => {
+      expect(screen.getByText('Network failed')).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(getEmailPasswordSubmitButton()).not.toHaveAttribute('disabled');
     });
   });
 });

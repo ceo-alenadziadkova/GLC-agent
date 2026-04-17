@@ -48,7 +48,17 @@ const { mockFrom, setAuditMode, setBriefRow, getUpsertCalls } = vi.hoisted(() =>
           return Promise.resolve({ data: null, error: null });
         }),
         single: vi.fn(() => {
-          if (table === 'audits') return Promise.resolve({ data: { product_mode: auditMode }, error: null });
+          if (table === 'audits') {
+            const coveragePackage =
+              auditMode === 'free_snapshot' ? 'starter' : auditMode === 'express' ? 'pro' : 'complete';
+            return Promise.resolve({
+              data: {
+                product_mode: auditMode,
+                execution_plan: { coverage_package: coveragePackage },
+              },
+              error: null,
+            });
+          }
           if (table === 'intake_brief') return Promise.resolve({ data: briefRow, error: briefRow ? null : { code: 'PGRST116', message: 'No rows' } });
           return Promise.resolve({ data: null, error: null });
         }),
@@ -103,11 +113,7 @@ import {
 } from '../services/brief-validator.js';
 import { RECOMMENDED_QUESTION_IDS, BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
 import { resolveBankRecommendedIds, resolveFullSlaRequiredIds } from '@glc/intake-core';
-import {
-  makeWebsitePathExpressBrief,
-  makeWebsitePathFullBrief,
-  wrapBriefCellsClient,
-} from './bank-brief-fixtures.js';
+import { makeWebsitePathFullBrief, wrapBriefCellsClient } from './bank-brief-fixtures.js';
 import { currentIntakeVersionTuple } from '@glc/intake-core';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -246,9 +252,9 @@ describe('assertBriefReady()', () => {
     await expect(assertBriefReady('audit-001')).resolves.toBeUndefined();
   });
 
-  it('resolves for express audit with complete brief', async () => {
+  it('resolves for starter/pro audit (legacy product_mode express) with full brief SLA', async () => {
     setAuditMode('express');
-    setBriefRow({ responses: makeWebsitePathExpressBrief() });
+    setBriefRow({ responses: makeFullRequired() });
     await expect(assertBriefReady('audit-001')).resolves.toBeUndefined();
   });
 
@@ -288,7 +294,7 @@ describe('assertBriefReady()', () => {
 
   it('upserts brief stats to DB when validating', async () => {
     setAuditMode('express');
-    setBriefRow({ responses: makeWebsitePathExpressBrief() });
+    setBriefRow({ responses: makeFullRequired() });
     await assertBriefReady('audit-001');
     const briefUpsert = getUpsertCalls().find(c => c.table === 'intake_brief');
     expect(briefUpsert).toBeDefined();

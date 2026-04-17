@@ -14,6 +14,15 @@ import {
 import type { ApiErrorCode } from '../config/api-error-codes.js';
 import { API_ERROR_CODES } from '../config/api-error-codes.js';
 import { resolvePublicUrlErrorMessage } from '../config/public-url-error-message.js';
+import {
+  BLOCKED_IPV4_PREFIXES,
+  BLOCKED_IPV4_RANGES,
+  BLOCKED_IPV6_EXACT,
+  BLOCKED_IPV6_PREFIXES,
+  BLOCKED_PUBLIC_URL_HOST_SUFFIXES,
+  BLOCKED_PUBLIC_URL_HOSTS,
+  PUBLIC_URL_REDIRECT_STATUS_CODES,
+} from '../config/public-url-policy.js';
 
 export class PublicUrlNotAllowedError extends Error {
   override name = 'PublicUrlNotAllowedError';
@@ -28,21 +37,21 @@ function isPrivateOrBlockedIPv4(address: string): boolean {
   const parts = address.split('.').map(p => parseInt(p, 10));
   if (parts.length !== 4 || parts.some(n => Number.isNaN(n) || n < 0 || n > 255)) return true;
   const [a, b] = parts;
-  if (a === 10) return true;
-  if (a === 127) return true;
-  if (a === 0) return true;
-  if (a === 169 && b === 254) return true;
-  if (a === 192 && b === 168) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 100 && b >= 64 && b <= 127) return true;
+  if (BLOCKED_IPV4_PREFIXES.has(a as 0 | 10 | 127)) return true;
+  if (
+    BLOCKED_IPV4_RANGES.some(
+      (range) => range.octetA === a && b >= range.octetBMin && b <= range.octetBMax,
+    )
+  ) {
+    return true;
+  }
   return false;
 }
 
 function isPrivateOrBlockedIPv6(address: string): boolean {
   const n = address.toLowerCase();
-  if (n === '::1') return true;
-  if (n.startsWith('fe80:')) return true;
-  if (n.startsWith('fc') || n.startsWith('fd')) return true;
+  if (BLOCKED_IPV6_EXACT.has(n as '::1')) return true;
+  if (BLOCKED_IPV6_PREFIXES.some(prefix => n.startsWith(prefix))) return true;
   if (n.startsWith('::ffff:')) {
     const v4 = n.slice(7);
     return isIPv4(v4) && isPrivateOrBlockedIPv4(v4);
@@ -52,7 +61,10 @@ function isPrivateOrBlockedIPv6(address: string): boolean {
 
 function assertHostnameNotBlocked(hostname: string): void {
   const h = hostname.toLowerCase();
-  if (h === 'localhost' || h.endsWith('.local')) {
+  if (
+    BLOCKED_PUBLIC_URL_HOSTS.has(h as 'localhost') ||
+    BLOCKED_PUBLIC_URL_HOST_SUFFIXES.some(suffix => h.endsWith(suffix))
+  ) {
     throw new PublicUrlNotAllowedError(API_ERROR_CODES.PUBLIC_URL_HOST_NOT_ALLOWED);
   }
 }
@@ -123,7 +135,7 @@ export async function validatePublicAuditUrl(urlString: string): Promise<string>
 }
 
 function isRedirectStatus(status: number): boolean {
-  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
+  return PUBLIC_URL_REDIRECT_STATUS_CODES.has(status as 301 | 302 | 303 | 307 | 308);
 }
 
 async function resolvePublicIpForHost(host: string): Promise<{ address: string; family: 4 | 6 }> {

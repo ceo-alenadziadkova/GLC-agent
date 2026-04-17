@@ -50,6 +50,7 @@ Signals that something may be unused or legacy (investigate before deleting):
 | FE integration | Yes | `SnapshotLanding.integration` with mocked fetch / session |
 | BE integration | Yes | `server/src/tests/snapshot-route.test.ts` and related |
 | BE unit (access flags) | Yes | `snapshot-access-state.test.ts` — `computePublicSnapshotAccessFlags`, `snapshotPayloadToAccessApiFields` |
+| BE unit (claim + token policy) | Yes | `snapshot-claim.service.test.ts` — `claimSnapshotForUser`; `snapshot-token-policy.test.ts` — UUID format + TTL edges |
 | E2E | Partial | `e2e/snapshot-public-mocked.spec.ts` — mocked POST 202 → poll → completed preview, `glc_snapshot_guest` on poll, `glc_pending_snapshot_token`; real `POST /api/snapshot/claim` still `e2e/staging-auth-claim.spec.ts` + env |
 
 ## B. Register / sign in (`/login`)
@@ -58,6 +59,7 @@ Signals that something may be unused or legacy (investigate before deleting):
 | --- | --- | --- |
 | `useAuth` | Yes | `useAuth.test.ts` — `getSession`, PKCE `?code=`, hash tokens, OAuth `?error=`, verify-referrer message, `onAuthStateChange`, `signInWithGoogle` options, `signUp` redirect URL, `signOut` |
 | `Login` page | Yes | `Login.test.tsx` — discovery vs `next` redirect, open-redirect guard on `next`, `authError`, email/password submit + signup mode, Google manual-linking copy, API errors |
+| Post-login snapshot claim | Yes | `login-session-reconcile-service.test.ts` — `resolveLoginRedirect`, pending token + `api.claimSnapshot`, clear token on 404/409/410, discovery vs `next` |
 | `ProtectedRoute` | Yes | Loader until profile loads **only** when `requiredRole` is set (no extra spinner on generic protected routes) |
 | `useProfile` | Partial | Mocked Supabase + `/api/profile`; unmount-during-load race |
 | BE `/api/profile` | Yes | `profile-route.test.ts` |

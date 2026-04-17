@@ -3,6 +3,7 @@ import {
   apiAuditsPipelineNext,
   apiAuditsPipelineRetry,
   apiAuditsPipelineStart,
+  apiAuditsPipelineStop,
   apiAuditsPipelineStatus,
 } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
@@ -43,6 +44,13 @@ export const auditsPipelineApi = {
     return payload;
   },
 
+  async stopPipeline(id: string) {
+    const payload = await apiFetch<{ status: string; stopped: true }>(apiAuditsPipelineStop(id), {
+      method: 'POST',
+    });
+    return payload;
+  },
+
   async retryPhase(id: string, phase: number, opts?: { disable_auto_remediate?: boolean }) {
     const payload = await apiFetch<{ status: string; phase: number }>(apiAuditsPipelineRetry(id), {
       method: 'POST',
@@ -61,7 +69,13 @@ export const auditsPipelineApi = {
       current_phase: number;
       tokens_used: number;
       token_budget: number;
-      product_mode: string;
+      execution_plan?: {
+        selected_domains: string[];
+        depth: string;
+        source: string;
+        coverage_package?: 'starter' | 'pro' | 'complete';
+        include_strategy?: boolean;
+      } | null;
       events: Array<{
         id: number;
         audit_id: string;

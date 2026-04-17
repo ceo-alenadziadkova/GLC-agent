@@ -1,5 +1,15 @@
 import { Warning, WarningCircle, WarningOctagon } from '@phosphor-icons/react';
-import type { AuditIssue } from '../data/auditData';
+import type { AuditIssue } from '../data/audit';
+import { getSeverityTone } from '../design-system/tokens/report-semantic-tokens';
+import { StatusBadge } from './ui/status-badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from './ui/table';
 
 interface IssuesTableProps {
   issues: AuditIssue[];
@@ -7,88 +17,67 @@ interface IssuesTableProps {
 
 export function IssuesTable({ issues }: IssuesTableProps) {
   const getSeverityIcon = (severity: string) => {
+    const tone = getSeverityTone((severity as AuditIssue['severity']) ?? 'low');
     switch (severity) {
       case 'critical':
-        return <WarningOctagon className="w-4 h-4" style={{ color: 'var(--status-critical)' }} />;
+        return <WarningOctagon className={`h-4 w-4 ${tone.iconClassName}`} />;
       case 'high':
-        return <Warning className="w-4 h-4" style={{ color: 'var(--status-needs-improvement)' }} />;
+        return <Warning className={`h-4 w-4 ${tone.iconClassName}`} />;
       case 'medium':
-        return <WarningCircle className="w-4 h-4" style={{ color: 'var(--status-moderate)' }} />;
+        return <WarningCircle className={`h-4 w-4 ${tone.iconClassName}`} />;
       default:
-        return <WarningCircle className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />;
+        return <WarningCircle className={`h-4 w-4 ${tone.iconClassName}`} />;
     }
-  };
-
-  const getSeverityBadge = (severity: string) => {
-    const styles: Record<string, { bg: string; color: string; text: string }> = {
-      critical: { bg: 'var(--score-1-bg)', color: 'var(--status-critical)', text: 'Critical' },
-      high: { bg: 'var(--score-2-bg)', color: 'var(--status-needs-improvement)', text: 'High' },
-      medium: { bg: 'var(--score-3-bg)', color: 'var(--status-moderate)', text: 'Medium' },
-      low: { bg: 'var(--surface)', color: 'var(--text-secondary)', text: 'Low' }
-    };
-
-    const style = styles[severity] || styles.low;
-
-    return (
-      <span
-        className="inline-flex items-center px-2 py-1 text-xs font-medium rounded"
-        style={{ backgroundColor: style.bg, color: style.color }}
-      >
-        {style.text}
-      </span>
-    );
   };
 
   if (issues.length === 0) {
     return (
-      <div className="text-center py-8" style={{ color: 'var(--text-tertiary)' }}>
+      <div className="py-8 text-center text-[var(--text-tertiary)]">
         <p className="text-sm">No critical issues identified in this domain.</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border" style={{ borderColor: 'var(--panel-border)' }}>
-      <table className="w-full">
-        <thead>
-          <tr className="border-b" style={{ borderColor: 'var(--panel-border)', backgroundColor: 'var(--surface)' }}>
-            <th className="px-6 py-3 text-left text-xs font-medium tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+    <div className="overflow-hidden rounded-lg border border-[var(--panel-border)]">
+      <Table>
+        <TableHeader>
+          <TableRow className="border-[var(--panel-border)] bg-[var(--surface)]">
+            <TableHead className="px-6 py-3 text-xs font-medium tracking-wide text-[var(--text-tertiary)]">
               SEVERITY
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+            </TableHead>
+            <TableHead className="px-6 py-3 text-xs font-medium tracking-wide text-[var(--text-tertiary)]">
               ISSUE
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
+            </TableHead>
+            <TableHead className="px-6 py-3 text-xs font-medium tracking-wide text-[var(--text-tertiary)]">
               BUSINESS IMPACT
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--panel-border)' }}>
-          {issues.map((issue) => (
-            <tr key={issue.id} className="hover:bg-[var(--surface)] transition-colors">
-              <td className="px-6 py-4 whitespace-nowrap">
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody className="divide-y divide-[var(--panel-border)] bg-[var(--bg-surface)]">
+          {issues.map((issue) => {
+            const tone = getSeverityTone(issue.severity);
+            return (
+            <TableRow key={issue.id} className="transition-colors hover:bg-[var(--surface)]">
+              <TableCell className="whitespace-nowrap px-6 py-4">
                 <div className="flex items-center gap-2">
                   {getSeverityIcon(issue.severity)}
-                  {getSeverityBadge(issue.severity)}
+                  <StatusBadge label={tone.label} toneClassName={tone.badgeClassName} />
                 </div>
-              </td>
-              <td className="px-6 py-4">
-                <div className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+              </TableCell>
+              <TableCell className="px-6 py-4">
+                <div className="mb-1 text-sm font-medium text-[var(--text-primary)]">
                   {issue.title}
                 </div>
-                <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  {issue.description}
-                </div>
-              </td>
-              <td className="px-6 py-4">
-                <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                  {issue.impact}
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                <div className="text-sm text-[var(--text-secondary)]">{issue.description}</div>
+              </TableCell>
+              <TableCell className="px-6 py-4">
+                <div className="text-sm text-[var(--text-secondary)]">{issue.impact}</div>
+              </TableCell>
+            </TableRow>
+          )})}
+        </TableBody>
+      </Table>
     </div>
   );
 }

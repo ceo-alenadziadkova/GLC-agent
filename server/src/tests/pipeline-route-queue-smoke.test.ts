@@ -54,11 +54,15 @@ vi.mock('../services/brief-validator.js', () => ({
   validationPerspectiveForBriefAccess: () => 'consultant',
 }));
 
-vi.mock('@glc/intake-core', () => ({
-  currentIntakeVersionTuple: () => ({ policyVersion: 'v1', questionBankVersion: 'v1' }),
-  isSupportedIntakeArtifactTuple: () => true,
-  REVIEW_GATE_NOTES_MAX: 5000,
-}));
+vi.mock('@glc/intake-core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@glc/intake-core')>();
+  return {
+    ...actual,
+    currentIntakeVersionTuple: () => ({ policyVersion: 'v1', questionBankVersion: 'v1' }),
+    isSupportedIntakeArtifactTuple: () => true,
+    REVIEW_GATE_NOTES_MAX: 5000,
+  };
+});
 
 vi.mock('../services/supabase.js', () => ({
   supabase: {

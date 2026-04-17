@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { api } from '../data/apiService';
 import type { NotificationItem } from '../data/auditTypes';
 import { glcKeys } from '../lib/glc-keys';
+import { NOTIFICATIONS_CENTER_CONFIG } from '../config/notifications-config';
 
 type NotifData = { items: NotificationItem[]; unreadCount: number };
 
@@ -13,12 +14,16 @@ export function useNotifications() {
     queryKey: glcKeys.notifications(),
     queryFn: async (): Promise<NotifData> => {
       const [listRes, unreadRes] = await Promise.all([
-        api.listNotifications(30, 0, false),
+        api.listNotifications(
+          NOTIFICATIONS_CENTER_CONFIG.listPageSize,
+          NOTIFICATIONS_CENTER_CONFIG.listOffset,
+          false,
+        ),
         api.getUnreadNotificationCount(),
       ]);
       return { items: listRes.data, unreadCount: unreadRes.unread };
     },
-    staleTime: 90_000,
+    staleTime: NOTIFICATIONS_CENTER_CONFIG.staleTimeMs,
   });
 
   useEffect(() => {
@@ -33,7 +38,7 @@ export function useNotifications() {
             if (!prev) return prev;
             if (prev.items.some((item) => item.id === incoming.id)) return prev;
             return {
-              items: [incoming, ...prev.items].slice(0, 50),
+              items: [incoming, ...prev.items].slice(0, NOTIFICATIONS_CENTER_CONFIG.realtimeClientCap),
               unreadCount: incoming.is_read ? prev.unreadCount : prev.unreadCount + 1,
             };
           });

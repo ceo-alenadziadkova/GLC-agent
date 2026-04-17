@@ -2,6 +2,7 @@ import { Navigate, useLocation } from 'react-router';
 import { useAuth, isAnonymousUser } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
 import { MarketingHome } from '../pages/MarketingHome';
+import { APP_ROUTE_PATHS, buildAppRoute } from '../config/route-paths';
 
 /**
  * Public home. OAuth callbacks are sent to /login.
@@ -18,19 +19,19 @@ export function RootEntry() {
     hash.includes('access_token=') ||
     hash.includes('error=');
   if (hasAuthCallback) {
-    return <Navigate to={`/login${search}${hash}`} replace />;
+    return <Navigate to={buildAppRoute.loginWithHashAndSearch(search, hash)} replace />;
   }
 
   if (!authLoading && isAuthenticated && !isAnonymousUser(user)) {
     if (!profileLoading) {
       if (isConsultant) {
-        return <Navigate to="/dashboard" replace />;
+        return <Navigate to={APP_ROUTE_PATHS.dashboard} replace />;
       }
       if (isClient) {
-        return <Navigate to="/portal" replace />;
+        return <Navigate to={APP_ROUTE_PATHS.portal} replace />;
       }
       if (role === null) {
-        return <Navigate to="/login" replace />;
+        return <Navigate to={APP_ROUTE_PATHS.login} replace />;
       }
     }
   }

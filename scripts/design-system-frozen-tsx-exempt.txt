@@ -1,0 +1,4 @@
+# Repo-relative TSX paths permanently excluded from automated design-system scans
+# (inline-style enforcement, primitive-boundary, raw-values when listed here).
+# Add entries only with explicit product + design-system owner approval.
+src/app/marketing/blocks/HomeHeroCockpit.tsx

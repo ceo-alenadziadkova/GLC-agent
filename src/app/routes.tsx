@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useEffect } from 'react';
 import { createBrowserRouter, Navigate, Outlet, ScrollRestoration } from 'react-router';
 import { Dashboard }        from './pages/Dashboard';
 import { NewAudit }         from './pages/NewAudit';
@@ -7,14 +8,15 @@ import { PipelineMonitor }  from './pages/PipelineMonitor';
 import { ReportViewer }     from './pages/ReportViewer';
 import { StrategyLab }      from './pages/StrategyLab';
 import { Login }            from './pages/Login';
-import { IntakeBrief }       from './pages/IntakeBrief';
+import { IntakeBrief }       from './pages/intake-brief/IntakeBrief';
 import { ClientPortal }     from './pages/ClientPortal';
 import { ClientAuditView }  from './pages/ClientAuditView';
-import { AdminRequestQueue } from './pages/AdminRequestQueue';
+import { AdminRequestQueue } from './pages/admin-request-queue/AdminRequestQueue';
 import { RootEntry }        from './components/RootEntry';
 import { SnapshotPage }     from './pages/SnapshotPage';
 import { ExpressAuditPage } from './pages/ExpressAuditPage';
 import { FullAuditPage }    from './pages/FullAuditPage';
+import { ProAuditPage }     from './pages/ProAuditPage';
 import { PublicBriefPage }  from './pages/PublicBriefPage';
 import { FaqPage }          from './pages/FaqPage';
 import { DiscoveryPublicPage } from './pages/DiscoveryPublicPage';
@@ -23,6 +25,7 @@ import { SettingsPage }     from './pages/SettingsPage';
 import { AdminSnapshotQueue } from './pages/AdminSnapshotQueue';
 import { IntakeWordingWorkspace } from './pages/IntakeWordingWorkspace';
 import { QuestionBankStudioPage } from './pages/QuestionBankStudioPage';
+import { AdminDesignSystemPage } from './pages/AdminDesignSystemPage';
 import { ProtectedRoute }   from './components/ProtectedRoute';
 import { ClientPortalPipelineProvider } from './context/ClientPortalPipelineContext';
 import { RouteErrorPage }   from './components/RouteErrorPage';
@@ -50,6 +53,13 @@ function ClientPortalShell({ children }: { children: ReactNode }) {
 }
 
 function RootOutlet() {
+  useEffect(() => {
+    document.body.classList.add('glc-site-polish');
+    return () => {
+      document.body.classList.remove('glc-site-polish');
+    };
+  }, []);
+
   return (
     <>
       <ScrollRestoration />
@@ -67,7 +77,10 @@ export const router = createBrowserRouter([
       { index: true, element: <RootEntry /> },
       { path: P.login, element: <Login /> },
       { path: R.snapshot, element: <SnapshotPage /> },
-      { path: R.expressAudit, element: <ExpressAuditPage /> },
+      { path: R.starterPackage, element: <ExpressAuditPage /> },
+      { path: R.proPackage, element: <ProAuditPage /> },
+      { path: R.completePackage, element: <FullAuditPage /> },
+      { path: 'express-audit', element: <Navigate to={`/${R.starterPackage}`} replace /> },
       { path: P.brief, element: <PublicBriefPage /> },
       { path: P.faq, element: <FaqPage /> },
       { path: P.intakeToken, element: <IntakeBrief /> },
@@ -78,7 +91,7 @@ export const router = createBrowserRouter([
       { path: P.auditNew, element: <Consultant><NewAudit /></Consultant> },
       { path: P.auditByDomain, element: <Consultant><AuditWorkspace /></Consultant> },
       { path: P.auditById, element: <Consultant><AuditWorkspace /></Consultant> },
-      { path: R.fullAudit, element: <FullAuditPage /> },
+      { path: 'audit', element: <Navigate to={`/${R.completePackage}`} replace /> },
 
       // ── Consultant routes ──────────────────────────────────────────────────
       { path: P.dashboard, element: <Consultant><Dashboard /></Consultant> },
@@ -88,6 +101,7 @@ export const router = createBrowserRouter([
       { path: P.adminDiscovery, element: <Consultant><DiscoveryQueue /></Consultant> },
       { path: P.adminIntakeWording, element: <Consultant><IntakeWordingWorkspace /></Consultant> },
       { path: P.adminQuestionBankStudio, element: <Consultant><QuestionBankStudioPage /></Consultant> },
+      { path: P.adminDesignSystem, element: <Consultant><AdminDesignSystemPage /></Consultant> },
       { path: P.pipelineById, element: <Consultant><PipelineMonitor /></Consultant> },
       { path: P.reportsById, element: <Consultant><ReportViewer /></Consultant> },
       { path: P.strategyById, element: <Consultant><StrategyLab /></Consultant> },

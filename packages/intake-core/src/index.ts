@@ -19,7 +19,9 @@ export {
 } from './branch-rules.js';
 export { isSoloTeamRaw } from './branch-response-normalizers.js';
 export {
+  getPreBriefSubmitSlotIds,
   getVisibleBankStubs,
+  isPreBriefSubmitSlotSatisfied,
   resolveBankOptionalIds,
   resolveBankRecommendedIds,
   resolveExpressSlaRequiredIds,
@@ -126,6 +128,11 @@ export {
   RECOMMENDED_QUESTION_IDS,
   REQUIRED_QUESTION_IDS,
 } from './intake-brief-catalog-meta.js';
+export {
+  INTAKE_READINESS_THRESHOLDS,
+  readinessBadgeFromProgress,
+  type IntakeReadinessBadge,
+} from './readiness-badge.js';
 export { buildBriefQuestionStemFromBankId } from './bank-question-presentation.js';
 export type { BriefQuestionStem } from './bank-question-presentation.js';
 export {
@@ -170,7 +177,12 @@ export {
 export { INTAKE_UI_CONFIG, type IntakeUiConfig } from './config/intake-ui-config.js';
 export { EXPRESS_REQUIRED_ALWAYS_IDS, EXPRESS_REQUIRED_IF_VISIBLE_IDS } from './express-policy-ids.js';
 export type {
+  BriefPriority,
   BriefQuestion,
+  BriefResponseEntry,
+  BriefResponseSource,
+  BriefResponseValue,
+  BriefRevenueSignal,
   DomainKey,
   IntakeBriefCollectionMode,
   IntakeVersionMigration,
@@ -216,6 +228,7 @@ export {
   isAllowedMarketingBriefRoute,
   MARKETING_BRIEF_ALLOWED_ROUTES,
   type MarketingBriefPreferredAuditDepth,
+  type MarketingBriefPreferredCoveragePackage,
   type MarketingBriefRoute,
   type MarketingBriefRoutingInput,
 } from './marketing-brief-routing.js';
@@ -238,6 +251,7 @@ export {
 } from './no-public-website.js';
 export {
   C_NOSITE_1_LEGACY_FIRST_PARTY_WEB_LABELS,
+  DISCOVERY_BRIEF_PATCH_A5_MULTI_PAGE_SITE,
   DISCOVERY_BRIEF_PATCH_A5_NO_WEBSITE_YET,
   DISCOVERY_BRIEF_PATCH_C3_ANALYTICS_NOT_ON_SITE,
   DISCOVERY_BRIEF_USES_CRM_I18N_KEY_NO,

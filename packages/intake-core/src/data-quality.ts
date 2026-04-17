@@ -12,12 +12,8 @@ import type {
 
 export type { DataQualityWeights };
 import { isIntakeAnswered } from './unwrap.js';
-
-export const DEFAULT_DATA_QUALITY_WEIGHTS: DataQualityWeights = {
-  required: 0.55,
-  recommended: 0.35,
-  optional: 0.1,
-};
+import { DEFAULT_DATA_QUALITY_WEIGHTS } from './intake-policy-constants.js';
+export { DEFAULT_DATA_QUALITY_WEIGHTS };
 
 const DEFAULT_WEIGHTS = DEFAULT_DATA_QUALITY_WEIGHTS;
 

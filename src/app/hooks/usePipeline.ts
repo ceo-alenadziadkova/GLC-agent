@@ -4,14 +4,21 @@ import { api } from '../data/apiService';
 import type { PipelineEvent } from '../data/auditTypes';
 import { getGlcQueryClient } from '../lib/glc-query-client';
 import { invalidateAuditRelatedQueries } from '../lib/glc-invalidate-queries';
+import { UI_POLICY } from '../config/ui-policy';
+import { toUiApiErrorMessage } from '../lib/api-error-ui';
 
 interface PipelineState {
   status: string;
   current_phase: number;
   tokens_used: number;
   token_budget: number;
-  /** Present when loaded from GET /pipeline/status. */
-  product_mode?: string;
+  execution_plan?: {
+    selected_domains: string[];
+    depth: string;
+    source: string;
+    coverage_package?: 'starter' | 'pro' | 'complete';
+    include_strategy?: boolean;
+  } | null;
   events: PipelineEvent[];
   reviews: Array<{ after_phase: number; status: string; consultant_notes: string | null; interview_notes: string | null }>;
 }
@@ -22,6 +29,7 @@ export function usePipeline(auditId: string | undefined) {
   const [error, setError] = useState<string | null>(null);
   const subscriptionRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const stateRef = useRef<PipelineState | null>(null);
+  const loadRequestIdRef = useRef(0);
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
@@ -32,11 +40,13 @@ export function usePipeline(auditId: string | undefined) {
     const initialEmpty = stateRef.current === null;
     if (initialEmpty) setLoading(true);
     try {
+      const requestId = ++loadRequestIdRef.current;
       const data = await api.getPipelineStatus(auditId);
+      if (requestId !== loadRequestIdRef.current) return;
       setState(data);
       setError(null);
     } catch (err) {
-      setError((err as Error).message);
+      setError(toUiApiErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -64,7 +74,7 @@ export function usePipeline(auditId: string | undefined) {
             if (!prev) return prev;
             return {
               ...prev,
-              events: [newEvent, ...prev.events].slice(0, 100),
+              events: [newEvent, ...prev.events].slice(0, UI_POLICY.pipeline.maxEventsInMemory),
             };
           });
         }
@@ -107,7 +117,7 @@ export function usePipeline(auditId: string | undefined) {
       invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
       await load();
     } catch (err) {
-      setError((err as Error).message);
+      setError(toUiApiErrorMessage(err));
     }
   }, [auditId, load]);
 
@@ -118,7 +128,18 @@ export function usePipeline(auditId: string | undefined) {
       invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
       await load();
     } catch (err) {
-      setError((err as Error).message);
+      setError(toUiApiErrorMessage(err));
+    }
+  }, [auditId, load]);
+
+  const stopPipeline = useCallback(async () => {
+    if (!auditId) return;
+    try {
+      await api.stopPipeline(auditId);
+      invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
+      await load();
+    } catch (err) {
+      setError(toUiApiErrorMessage(err));
     }
   }, [auditId, load]);
 
@@ -129,7 +150,7 @@ export function usePipeline(auditId: string | undefined) {
       invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
       await load();
     } catch (err) {
-      setError((err as Error).message);
+      setError(toUiApiErrorMessage(err));
     }
   }, [auditId, load]);
 
@@ -140,7 +161,7 @@ export function usePipeline(auditId: string | undefined) {
       invalidateAuditRelatedQueries(getGlcQueryClient(), auditId);
       await load();
     } catch (err) {
-      setError((err as Error).message);
+      setError(toUiApiErrorMessage(err));
     }
   }, [auditId, load]);
 
@@ -151,6 +172,7 @@ export function usePipeline(auditId: string | undefined) {
     reload: load,
     startPipeline,
     runNextPhase,
+    stopPipeline,
     retryPhase,
     approveReview,
   };

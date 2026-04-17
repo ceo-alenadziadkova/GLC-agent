@@ -10,7 +10,7 @@ import { pipelineRouter } from '../routes/pipeline.js';
 import { reportsRouter } from '../routes/reports.js';
 import { logRouter } from '../routes/log.js';
 import { snapshotRouter } from '../routes/snapshot.js';
-import { intakeRouter } from '../routes/intake.js';
+import { intakeRouter } from '../routes/intake/index.js';
 import { intakeTraceToolRouter } from '../routes/intake-trace-tool.js';
 import { discoverRouter } from '../routes/discover.js';
 import { marketingRouter } from '../routes/marketing-brief.js';
@@ -21,6 +21,7 @@ import { notificationsRouter } from '../routes/notifications.js';
 import { profileRouter } from '../routes/profile.js';
 import { platformRouter } from '../routes/platform.js';
 import { publicBrandRouter } from '../routes/public-brand.js';
+import { briefPublicRouter } from '../routes/brief-public.js';
 
 export type ApiRouteMountEntry = { prefix: string; router: Router };
 
@@ -29,6 +30,7 @@ export const API_ROUTE_MOUNT_ENTRIES: readonly ApiRouteMountEntry[] = [
   { prefix: API_HTTP_PATH_PREFIX.public, router: publicBrandRouter },
   { prefix: API_HTTP_PATH_PREFIX.profile, router: profileRouter },
   { prefix: API_HTTP_PATH_PREFIX.platform, router: platformRouter },
+  { prefix: API_HTTP_PATH_PREFIX.briefPublic, router: briefPublicRouter },
   { prefix: API_HTTP_PATH_PREFIX.snapshot, router: snapshotRouter },
   { prefix: API_HTTP_PATH_PREFIX.intake, router: intakeRouter },
   { prefix: API_HTTP_PATH_PREFIX.intakeTraceTool, router: intakeTraceToolRouter },

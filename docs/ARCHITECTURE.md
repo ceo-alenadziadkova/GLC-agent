@@ -2,6 +2,8 @@
 
 ## Stack Overview
 
+**Needs Review (runtime-specific):** hosting provider names/regions in this section describe the target deployment topology. Confirm against your current live environment before using as an operational source of truth.
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        Browser                              │
@@ -59,7 +61,12 @@ Pipeline execution now uses a queue + worker runtime for durability:
 
 #### Public routes, abuse control, and scaling
 
-Unauthenticated surfaces (Discover, tokenized pre-brief intake, marketing brief) rely on **split per-route limiters** in `server/src/middleware/rate-limit.ts` (see env vars in [ADR-INTAKE-UNIFIED-QUESTION-BANK](./adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) operational notes). That mitigates abuse but is **not** a full product security boundary by itself.
+Unauthenticated surfaces (Discover, tokenized pre-brief intake, marketing brief, public snapshot) rely on **split per-route limiters** in `server/src/middleware/rate-limit.ts` (see env vars in [ADR-INTAKE-UNIFIED-QUESTION-BANK](./adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md) operational notes). That mitigates abuse but is **not** a full product security boundary by itself.
+
+Some operational endpoints are intentionally **non-JWT** and use alternative controls:
+
+- `/api/snapshot/operator/*` requires `SNAPSHOT_OPERATOR_TOKEN`.
+- `POST /api/benchmarks/recompute` requires the benchmark recompute secret header.
 
 **Horizontal scale:** public limiters use `**RedisStore`** when `**RATE_LIMIT_REDIS_URL**` is set. Snapshot quota (`GET /api/snapshot/quota` and `POST /api/snapshot`) shares the same distributed store when Redis is configured. If Redis is unset, fallback is process-local memory and counters do not aggregate across instances.
 
@@ -113,6 +120,32 @@ Use this split when adding a new “setting” so it lands in the right place an
 **What belongs here:** presentation, routing, loading states, and **user-visible copy**. The SPA uses `**VITE_*`** only for values that are safe to expose and fixed at build time (API base URL, public support email, optional feature flags).
 
 **Rule of thumb:** the **server remains the source of truth** for data invariants (e.g. stored sentinel URLs, validation). The UI displays what the API returns; avoid duplicating server-only rules in the client except for UX hints — and keep those hints aligned with `**@glc/intake-core`** where the contract is shared.
+
+#### UI design-system contract (frontend)
+
+To prevent fragmented styling and one-off component APIs, the SPA follows a single design-system pipeline:
+
+- **Styling stack:** Tailwind utility classes + CSS variable tokens (`src/styles/theme.css`) + CVA variants for primitive APIs.
+- **Single semantic mapping layer:** domain states (`severity`, `priority`, `effort`, `impact`, domain `status`, score bands) map to UI tones via `src/app/design-system/tokens/report-semantic-tokens.ts`.
+- **No ad-hoc styling in feature components:** avoid new inline style blocks for surfaces, badges, typography, spacing, and shadows. Use primitives + tokenized classes.
+- **Canonical primitives:** use `src/app/components/ui/*` as the base layer (`Badge`, `Table`, `Progress`, `Surface`, `StatusBadge`, layout primitives).
+- **Component API consistency:** shared primitives expose stable props (`variant`, `size`, `intent`, optional `state`), while domain components compose primitives and do not own color maps.
+
+#### UI migration waves (incremental, no big-bang)
+
+1. **Governance + guardrails:** freeze the contract above and block new ad-hoc style patterns in review.
+2. **Primitive unification:** normalize base building blocks (button/input/badge/progress/table/surface/layout).
+3. **Composite unification:** introduce reusable form/section/callout patterns.
+4. **Feature adoption:** migrate feature folders by groups (`login/new-audit` -> `client-audit-view/audit-workspace` -> `pipeline-monitor/snapshot-landing` -> report components).
+5. **Stabilization:** remove dead style helpers, run visual regression, and keep DS metrics in PR checks.
+
+#### UI quality gates
+
+Track these metrics in PR review (and automation where possible):
+
+- Count of new inline style declarations in `src/app/**/*.{tsx,ts}`.
+- Count of new raw color literals (`#`, `rgb`, `rgba`) outside token files.
+- Count of duplicate badge/progress/card implementations outside `src/app/components/ui/*`.
 
 ### Strict layer boundaries (operational policy)
 
@@ -237,6 +270,9 @@ Use these **logical prefixes** in docs and in future i18n catalogs (no requireme
 #### PR checklist (layers and env)
 
 - New **server env** vars are **infrastructure or documented ops override** only; product defaults for numbers live in `**server/src/config/`** (e.g. `**SYSTEM_DEFAULTS**`) first — env overrides, not invents, behavior (see [Strict layer boundaries](#strict-layer-boundaries-operational-policy)).
+- Before adding new modules/constants, confirm an equivalent does not already exist in config/shared packages; extend existing modules instead of creating parallel abstractions.
+- New feature toggles are read only via `server/src/config/feature-flags.ts`; do not add direct `process.env.FEATURE_*` checks in services/routes/components.
+- User-facing copy in pages/services is centralized in copy/config layers unless the string is strictly local and non-reusable.
 
 ### Decision checklist (where does this new knob go?)
 
@@ -269,10 +305,12 @@ Run `[scripts/hardcode-inventory.sh](../scripts/hardcode-inventory.sh)` for a he
 
 ```
 1. User submits URL in NewAudit.tsx
-2. Frontend → POST /api/audits → backend creates audit row (status: 'created')
-3. Frontend navigates to /pipeline/:id, subscribes to pipeline_events via Realtime
-4. User clicks "Start" → POST /api/audits/:id/pipeline/start
-5. Backend:
+2. User selects coverage package/domains (Starter/Pro/Complete)
+3. Frontend → POST /api/audits with `execution_plan` → backend creates audit row (status: 'created')
+4. Backend stores normalized execution plan on `audits.execution_plan`
+5. Frontend navigates to /pipeline/:id, subscribes to pipeline_events via Realtime
+6. User clicks "Start" → POST /api/audits/:id/pipeline/start
+7. Backend:
    a. Runs ReconAgent (Phase 0):
       - CrawlerCollector fetches up to the configured page limit (no AI; see [AGENTS.md](./AGENTS.md))
       - ReconCollector extracts tech stack, social profiles, structured data (no AI)
@@ -281,14 +319,13 @@ Run `[scripts/hardcode-inventory.sh](../scripts/hardcode-inventory.sh)` for a he
       - FactChecker validates result
       - Saves to audit_recon + audit_domains
       - Emits pipeline_events rows
-6. Supabase Realtime → frontend receives events → PipelineMonitor updates UI
-7. Review gate: frontend shows "Approve" button
-8. User approves → POST /api/audits/:id/reviews/0 with optional notes
-9. Backend runs Auto Wing (Phases 1–4) **in parallel**, then emits review gate 2 if configured for the product mode
-10. User approves gate 2 → Analytic Wing (Phases 5–6) **in parallel**, then Phase 7 (Strategy) **without** a gate between 6 and 7
-11. After Strategy completes, review gate 3 (phase `7` in the reviews API) when in full mode
-12. audit.status → `completed`, overall_score set
-13. User navigates to /reports/:id and /strategy/:id
+8. Supabase Realtime → frontend receives events → PipelineMonitor updates UI
+9. Review gate: frontend shows "Approve" button
+10. User approves → POST /api/audits/:id/reviews/0 with optional notes
+11. Orchestrator runs only selected domain phases from `execution_plan.selected_domains` (auto/analytic blocks are filtered)
+12. Strategy (phase 7) runs only when `execution_plan.include_strategy` is true
+13. audit.status → `completed`, overall_score set
+14. User navigates to /reports/:id and /strategy/:id (when strategy exists)
 ```
 
 Details: [PIPELINE.md](./PIPELINE.md). API: [API.md](./API.md).
@@ -297,7 +334,12 @@ Details: [PIPELINE.md](./PIPELINE.md). API: [API.md](./API.md).
 
 ## Decision Layer and CONTROL_OBJECT (Phases 1–5)
 
-**FactChecker** (`server/src/services/fact-checker.ts`) corrects domain output and builds **CONTROL_OBJECT** (TypeScript contract in `server/src/schemas/control-object.ts` — fields span **v1.0 through v2.0** as described in [PIPELINE.md](./PIPELINE.md) *CONTROL_OBJECT contract*). Includes weighted confidence (with feasibility), trace, assumptions, safe-mode side effects (`server/src/config/safety-mode.ts`), per-run **`agent_performance`**, and nullable **`cost_control`** filled when auto-loop reruns run.
+**FactChecker** (`server/src/services/fact-checker.ts`) corrects domain output and builds **CONTROL_OBJECT** (TypeScript contract is modular under `server/src/schemas/control-object/` with compatibility facade `server/src/schemas/control-object.ts`; fields span **v1.0 through v2.4** as described in [PIPELINE.md](./PIPELINE.md) *CONTROL_OBJECT contract*). Includes weighted confidence (with feasibility), trace, assumptions, safe-mode side effects (`server/src/config/safety-mode.ts`), per-run **`agent_performance`**, and nullable **`cost_control`** filled when auto-loop reruns run.
+
+Import convention for CONTROL_OBJECT:
+
+- Runtime helpers (for example `createControlObjectV1`) are imported via the compatibility facade `server/src/schemas/control-object.ts`.
+- Type-only and schema constants are imported from `server/src/schemas/control-object/index.ts`.
 
 `context.execution_mode` is loaded from **`audits.execution_mode`** (`normal` \| `safe`, default `normal`). FactChecker does not own phase routing.
 
@@ -362,8 +404,8 @@ Server-side crawling still uses Cheerio and custom BFS; the following libraries 
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | robots.txt (Allow/Disallow, wildcards, crawl-delay, Sitemap:) | [robots-parser](https://www.npmjs.com/package/robots-parser) ([repo](https://github.com/samclarke/robots-parser))         | Used for snapshot policy (`server/src/snapshot/robots-guard.ts`) and SEO collector checks (`server/src/collectors/seo.ts`).                                                           |
 | Sitemap urlset + sitemap index                                | [fast-xml-parser](https://www.npmjs.com/package/fast-xml-parser)                                                          | Bounded recursive fetch in `server/src/lib/sitemap-discovery.ts`.                                                                                                                     |
-| Programmatic Lighthouse                                       | [lighthouse](https://www.npmjs.com/package/lighthouse) + [chrome-launcher](https://www.npmjs.com/package/chrome-launcher) | Gated by `AUDIT_LIGHTHOUSE` / `AUDIT_DEEP_SCAN`; see [Using Lighthouse programmatically](https://github.com/GoogleChrome/lighthouse/blob/main/docs/readme.md#using-programmatically). |
-| Accessibility rules in a real browser                         | [@axe-core/playwright](https://www.npmjs.com/package/@axe-core/playwright) + [Playwright](https://playwright.dev/)        | Gated by `AUDIT_AXE_PLAYWRIGHT` / `AUDIT_DEEP_SCAN`.                                                                                                                                  |
+| Programmatic Lighthouse                                       | [lighthouse](https://www.npmjs.com/package/lighthouse) + [chrome-launcher](https://www.npmjs.com/package/chrome-launcher) | Gated by `SYSTEM_DEFAULTS.auditDeepScan.lighthouseEnabled` (or umbrella `deepScanEnabled`); see [Using Lighthouse programmatically](https://github.com/GoogleChrome/lighthouse/blob/main/docs/readme.md#using-programmatically). |
+| Accessibility rules in a real browser                         | [@axe-core/playwright](https://www.npmjs.com/package/@axe-core/playwright) + [Playwright](https://playwright.dev/)        | Gated by `SYSTEM_DEFAULTS.auditDeepScan.axePlaywrightEnabled` (or umbrella `deepScanEnabled`).                                                                                                                                  |
 | Multi-URL Lighthouse orchestration (target full audit)        | [Unlighthouse](https://github.com/harlan-zw/unlighthouse) (MIT)                                                           | **Not integrated yet.** Preferred direction for **capped** site sampling + Lighthouse runs across multiple URLs (see subsection below). Context7: `/harlan-zw/unlighthouse`.          |
 
 
@@ -374,7 +416,7 @@ Server-side crawling still uses Cheerio and custom BFS; the following libraries 
 
 | Mode                                 | Target direction                                                                                                                                                                                                                                                                                                                      | Where we are today                                                                                                                                                                                     |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Full audit** (consultant pipeline) | **Multi-URL performance sampling**: run Lighthouse across a **bounded** set of URLs derived from the crawl (key templates, not the whole site). Implement as an **Unlighthouse-class** flow (Unlighthouse itself or equivalent orchestration), with strict caps on URL count, wall time, and concurrency so deploys stay predictable. | **Interim:** `PerformanceCollector` runs **one** programmatic Lighthouse pass on the submitted `companyUrl` via `server/src/lib/lighthouse-audit.ts`, gated by `AUDIT_LIGHTHOUSE` / `AUDIT_DEEP_SCAN`. |
+| **Full audit** (consultant pipeline) | **Multi-URL performance sampling**: run Lighthouse across a **bounded** set of URLs derived from the crawl (key templates, not the whole site). Implement as an **Unlighthouse-class** flow (Unlighthouse itself or equivalent orchestration), with strict caps on URL count, wall time, and concurrency so deploys stay predictable. | **Interim:** the performance phase runs **one** programmatic Lighthouse pass on the submitted `companyUrl`, gated by `SYSTEM_DEFAULTS.auditDeepScan.lighthouseEnabled` (or umbrella `deepScanEnabled`). |
 | **Free snapshot** (`/api/snapshot`)  | **No Unlighthouse.** Stay within [ADR-FREE-SNAPSHOT-SCANNER.md](adrs/ADR-FREE-SNAPSHOT-SCANNER.md): tiered HTTP + cheerio, optional Playwright for thin homepage only. **Optional future product:** at most **one** **explicit opt-in** programmatic Lighthouse (single URL) — never a default on every anonymous completion.         | **Matches target for “no Lighthouse default”:** snapshot does not call Lighthouse; snapshot Playwright stays scoped to the ADR.                                                                        |
 
 

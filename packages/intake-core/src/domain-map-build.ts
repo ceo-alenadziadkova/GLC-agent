@@ -1,5 +1,6 @@
 import type { IntakeQuestionStub, IntakeSliceDomain } from './types.js';
 import { SLICE_DOMAIN_ORDER } from './question-feed-roles.js';
+import { UNKNOWN_QUESTION_BANK_ORDER_FALLBACK } from './intake-policy-constants.js';
 
 /** Sort ids within each domain by canonical question-bank order. */
 export function buildOrderedDomainToQuestionIds(
@@ -10,7 +11,13 @@ export function buildOrderedDomainToQuestionIds(
   const out = {} as Record<IntakeSliceDomain, string[]>;
   for (const d of SLICE_DOMAIN_ORDER) {
     const ids = raw[d];
-    out[d] = ids ? [...ids].sort((a, b) => (order.get(a) ?? 9999) - (order.get(b) ?? 9999)) : [];
+    out[d] = ids
+      ? [...ids].sort(
+          (a, b) =>
+            (order.get(a) ?? UNKNOWN_QUESTION_BANK_ORDER_FALLBACK)
+            - (order.get(b) ?? UNKNOWN_QUESTION_BANK_ORDER_FALLBACK),
+        )
+      : [];
   }
   return out;
 }

@@ -7,12 +7,12 @@
  * See docs/adrs/ADR-AUTO-REMEDIATION.md
  */
 
-import type { ControlObjectV1 } from '../schemas/control-object.js';
+import type { ControlObjectV1 } from '../schemas/control-object/index.js';
 import {
   CONTROL_OBJECT_VERSIONS_REMEDIATION,
   HUMAN_ATTENTION_CONTENT_REMEDIATION_BLOCKED,
   type ControlObjectAutoRemediation,
-} from '../schemas/control-object.js';
+} from '../schemas/control-object/index.js';
 import type { DomainKey, DomainResult } from '../types/audit.js';
 import { DOMAIN_KEYS } from '../types/audit.js';
 import { getRulesForErrorType, type RuleEngineEntry } from '../config/rule-engine.js';

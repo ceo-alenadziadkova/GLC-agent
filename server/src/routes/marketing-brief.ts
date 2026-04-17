@@ -6,12 +6,15 @@ import { supabase } from '../services/supabase.js';
 import { marketingBriefPublicLimiter } from '../middleware/rate-limit.js';
 import { emitStructuredNotification } from '../services/notifications.js';
 import { logger } from '../services/logger.js';
+import { ensureHttpsUrl } from '@glc/intake-core';
 import {
   computeMarketingBriefRecommendedRoute,
   isAllowedMarketingBriefRoute,
   type MarketingBriefPreferredAuditDepth,
+  type MarketingBriefPreferredCoveragePackage,
 } from '../config/marketing-brief-routing.js';
 import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
+import { PublicUrlNotAllowedError, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import {
   API_ERROR_CODES,
   MARKETING_DEPTH_REQUIRED_MESSAGE,
@@ -25,12 +28,21 @@ import {
   MARKETING_BRIEF_SUBMITTED_NOTIFICATION_TITLE,
   marketingBriefSubmittedNotificationMessage,
 } from '../config/route-notification-messages.js';
+import { ROUTE_NOTIFICATION_PATHS } from '../config/route-notification-paths.js';
 
 export const marketingRouter = Router();
 
 function clampStr(v: unknown, max: number): string {
   if (typeof v !== 'string') return '';
   return v.trim().slice(0, max);
+}
+
+function mapCoveragePackageToDepth(
+  pkg: unknown,
+): MarketingBriefPreferredAuditDepth | null {
+  if (pkg === 'starter' || pkg === 'pro') return 'express';
+  if (pkg === 'complete') return 'full';
+  return null;
 }
 
 marketingRouter.post('/brief', marketingBriefPublicLimiter, async (req, res) => {
@@ -50,8 +62,16 @@ marketingRouter.post('/brief', marketingBriefPublicLimiter, async (req, res) => 
     const contactMethod = clampStr(req.body?.contact_method, REQUEST_FIELD_LIMITS.marketingContactMethodMax);
     const unsureChoice = Boolean(req.body?.unsure_choice);
     const depthRaw = req.body?.preferred_audit_depth;
+    const packageRaw = req.body?.preferred_coverage_package;
+    const preferredCoveragePackage: MarketingBriefPreferredCoveragePackage | null =
+      packageRaw === 'starter' || packageRaw === 'pro' || packageRaw === 'complete'
+        ? packageRaw
+        : null;
+    const depthFromPackage = mapCoveragePackageToDepth(preferredCoveragePackage);
     const preferredAuditDepth: MarketingBriefPreferredAuditDepth | null =
-      depthRaw === 'express' || depthRaw === 'full' ? depthRaw : null;
+      depthRaw === 'express' || depthRaw === 'full'
+        ? depthRaw
+        : depthFromPackage;
 
     if (!noWebsite && !website) {
       res
@@ -65,6 +85,20 @@ marketingRouter.post('/brief', marketingBriefPublicLimiter, async (req, res) => 
       return;
     }
 
+    let normalizedWebsite = website;
+    if (!noWebsite && website) {
+      const u = ensureHttpsUrl(website);
+      try {
+        normalizedWebsite = await validatePublicAuditUrl(u);
+      } catch (e) {
+        if (e instanceof PublicUrlNotAllowedError) {
+          res.status(400).json(apiErrorJson(e.code, e.message));
+          return;
+        }
+        throw e;
+      }
+    }
+
     if (!unsureChoice && !noWebsite && preferredAuditDepth == null) {
       res.status(400).json(
         apiErrorJson(API_ERROR_CODES.MARKETING_DEPTH_REQUIRED, MARKETING_DEPTH_REQUIRED_MESSAGE),
@@ -75,6 +109,7 @@ marketingRouter.post('/brief', marketingBriefPublicLimiter, async (req, res) => 
     const recommendedRoute = computeMarketingBriefRecommendedRoute({
       unsure_choice: unsureChoice,
       no_website: noWebsite,
+      preferred_coverage_package: unsureChoice || noWebsite ? null : preferredCoveragePackage,
       preferred_audit_depth: unsureChoice || noWebsite ? null : preferredAuditDepth,
     });
 
@@ -97,7 +132,7 @@ marketingRouter.post('/brief', marketingBriefPublicLimiter, async (req, res) => 
       .insert({
         name,
         company: company || null,
-        website: website || null,
+        website: normalizedWebsite || null,
         no_website: noWebsite,
         concern,
         improve,
@@ -125,7 +160,7 @@ marketingRouter.post('/brief', marketingBriefPublicLimiter, async (req, res) => 
       audience: 'consultants',
       title: MARKETING_BRIEF_SUBMITTED_NOTIFICATION_TITLE,
       message: marketingBriefSubmittedNotificationMessage(displayName, recommendedRoute),
-      route: '/admin/requests',
+      route: ROUTE_NOTIFICATION_PATHS.adminRequests,
       payload: {
         actor_role: 'client',
         recommended_route: recommendedRoute,

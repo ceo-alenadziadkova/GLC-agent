@@ -1,7 +1,10 @@
 import { launch as launchChrome } from 'chrome-launcher';
 import lighthouse from 'lighthouse';
 
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { validatePublicAuditUrl } from './public-http-url.js';
+
+const LH = SYSTEM_DEFAULTS.lighthouseRun;
 
 export type LighthouseAuditSummary = {
   requested_url: string;
@@ -35,10 +38,13 @@ export async function runLighthouseAuditSummary(
   let chrome: Awaited<ReturnType<typeof launchChrome>> | undefined;
   try {
     const normalized = await validatePublicAuditUrl(url);
-    const maxWait = Math.min(Math.max(budgetMs, 8000), 55_000);
+    const maxWait = Math.min(
+      Math.max(budgetMs, LH.maxWaitForLoadClampMinMs),
+      LH.maxWaitForLoadClampMaxMs,
+    );
 
     chrome = await launchChrome({
-      chromeFlags: ['--headless', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
+      chromeFlags: [...LH.chromeLauncherFlags],
       logLevel: 'silent',
     });
 
@@ -48,7 +54,7 @@ export async function runLighthouseAuditSummary(
         logLevel: 'silent',
         port: chrome.port,
         output: 'json',
-        onlyCategories: ['performance', 'accessibility', 'best-practices', 'seo'],
+        onlyCategories: [...LH.onlyCategories],
         maxWaitForLoad: maxWait,
       },
       undefined,
@@ -69,7 +75,7 @@ export async function runLighthouseAuditSummary(
         lcp: null,
         cls: null,
         fcp: null,
-        error: 'Lighthouse returned no report',
+        error: LH.noReportErrorMessage,
       };
     }
 

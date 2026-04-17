@@ -1,24 +1,24 @@
-# API error strings inventory (`server/src/routes`)
+# API error strings inventory (`routes`)
 
-**Maintenance:** After changing route `error` literals, run `./scripts/api-errors-inventory.sh` (prints `rg` matches to **stdout**) and update the grouped tables (**Group A** onward) from that output — avoid letting tables drift from code. You may hand-edit the **`## Stable code field`** summary when codes change, but keep it aligned with [`api-error-codes.ts`](../server/src/config/api-error-codes.ts).
+**Maintenance:** After changing route `error` literals, run `./scripts/api-errors-inventory.sh` (prints `rg` matches to **stdout**) and update the grouped tables (**Group A** onward) from that output — avoid letting tables drift from code. You may hand-edit the **`## Stable code field`** summary when codes change, but keep it aligned with `api-error-codes.ts`.
 
-**Contract and SoT:** Stable `code` values and default messages → [`server/src/config/api-error-codes.ts`](../server/src/config/api-error-codes.ts) and [`api-user-messages.en.json`](../server/src/config/api-user-messages.en.json). Human overview → [API.md — Error Responses](./API.md#error-responses).
+**Contract and SoT:** Stable `code` values and default messages → `api_error_codes` and `api-user-messages.en.json`. Human overview → [API.md — Error Responses](./API.md#error-responses).
 
 ## Stable `code` field (TypeScript source of truth)
 
-Some responses add a machine-readable **`code`** next to **`error`** (client branching / future i18n). **`code`** values and types live in [`server/src/config/api-error-codes.ts`](../server/src/config/api-error-codes.ts); user-safe English defaults for those codes live in [`server/src/config/api-user-messages.en.json`](../server/src/config/api-user-messages.en.json) (re-exported via `api-error-codes.ts` and `api-user-messages.en.ts`).
+Some responses add a machine-readable **`code`** next to **`error`** (client branching / future i18n). **`code`** values and types live in `api_error_codes`; user-safe English defaults for those codes live in `api_user_messages.en` (re-exported via `api-error-codes.ts` and `api-user-messages.en.ts`).
 
 | `code` | Typical HTTP | `error` (English) | Routes |
 |--------|--------------|-------------------|--------|
 | `IDEMPOTENCY_PAYLOAD_MISMATCH` | 409 | `This idempotency key was already used with a different request body.` | `POST /api/audits`, `POST /api/audit-requests/:id/approve` |
 | `AUDIT_INITIALIZATION_FAILED` | 500 | `Failed to create audit` | `POST /api/audits` (child row init rollback), `POST /api/audit-requests/:id/approve` (same) |
-| `AUTH_*` | 401 / 403 / 500 | See [`api-user-messages.en.json`](../server/src/config/api-user-messages.en.json) | `requireAuth`, `attachProfile`, `requireRole`, `rejectGuestFromPortal`, `allowGuestSnapshotLogIngest` |
-| `DISCOVER_*` | 400 / 403 / 404 / 409 / 500 | Same JSON | `server/src/routes/discover.ts` |
-| `PUBLIC_URL_*` | 400 | Same JSON | SSRF-safe URL validation (`server/src/lib/public-http-url.ts`) — returned by audits, audit-requests, snapshot when `company_url` / `url` fails checks |
-| `INTERNAL_SERVER_ERROR` | 500 | Same JSON | Express global error handler (`server/src/index.ts`) — includes optional `request_id` (trace id) when request context exists |
+| `AUTH_*` | 401 / 403 / 500 | See `api-user-messages.en.json` | `requireAuth`, `attachProfile`, `requireRole`, `rejectGuestFromPortal`, `allowGuestSnapshotLogIngest` |
+| `DISCOVER_*` | 400 / 403 / 404 / 409 / 500 | Same JSON | `discover` |
+| `PUBLIC_URL_*` | 400 | Same JSON | SSRF-safe URL validation (`public_http_url`) — returned by audits, audit-requests, snapshot when `company_url` / `url` fails checks |
+| `INTERNAL_SERVER_ERROR` | 500 | Same JSON | Express global error handler (`index`) — includes optional `request_id` (trace id) when request context exists |
 | `MARKETING_*` | 400 / 500 | Same JSON | `POST /api/marketing/brief` |
-| `PLATFORM_*` | 400 / 403 / 409 / 500 | Same JSON | `server/src/routes/platform.ts` (consultant allowlist duplicate → **409** `PLATFORM_CONSULTANT_ALLOWLIST_DUPLICATE`) |
-| `AUDIT_CREATE_RATE_LIMITED`, `PIPELINE_RATE_LIMITED`, `GENERAL_API_RATE_LIMITED`, `COMPARE_RATE_LIMITED`, `RATE_LIMITED`, `INTAKE_LEGACY_RATE_LIMITED`, `LOG_INGEST_RATE_LIMITED`, `SNAPSHOT_LOG_RATE_LIMITED`, `DISCOVER_*`, `INTAKE_*`, `MARKETING_BRIEF_RATE_LIMITED` | 429 | See `message.error` in [`server/src/middleware/rate-limit.ts`](../server/src/middleware/rate-limit.ts) | `express-rate-limit` middleware |
+| `PLATFORM_*` | 400 / 403 / 409 / 500 | Same JSON | `platform` (consultant allowlist duplicate → **409** `PLATFORM_CONSULTANT_ALLOWLIST_DUPLICATE`) |
+| `AUDIT_CREATE_RATE_LIMITED`, `PIPELINE_RATE_LIMITED`, `GENERAL_API_RATE_LIMITED`, `COMPARE_RATE_LIMITED`, `RATE_LIMITED`, `INTAKE_LEGACY_RATE_LIMITED`, `LOG_INGEST_RATE_LIMITED`, `SNAPSHOT_LOG_RATE_LIMITED`, `DISCOVER_*`, `INTAKE_*`, `MARKETING_BRIEF_RATE_LIMITED` | 429 | See `message.error` in `rate_limit` | `express-rate-limit` middleware |
 
 ---
 
@@ -62,7 +62,7 @@ This document groups **literal** `error` message strings returned by Express rou
 | `Leave the website field empty when you have no public website.` | 400 | audit-requests |
 | `Enter your website URL, or indicate that you have no public website.` | 400 | audit-requests |
 | `product_mode must be "express" or "full"` | 400 | audit-requests |
-| `Invalid payload — need target_mode and use_scraped_context` | 400 | audits |
+| `Invalid payload — need coverage_package and use_scraped_context` | 400 | audits |
 | `responses must be an object` | 400 | audits |
 | `Invalid collection_mode` | 400 | audits |
 | `intake_versions must include all of ...` | 400 | audits |
@@ -85,7 +85,7 @@ This document groups **literal** `error` message strings returned by Express rou
 | `audit_id is required` | 400 | intake |
 | `responses object is required` | 400 | intake |
 | `phase is required (number)` | 400 | pipeline |
-| `phase must be an integer between 0 and 7` | 400 | pipeline (bounds from `PIPELINE_MIN_PHASE` / `PIPELINE_MAX_PHASE_INDEX` in [`server/src/config/pipeline-phases.ts`](../server/src/config/pipeline-phases.ts)) |
+| `phase must be an integer between 0 and 7` | 400 | pipeline (bounds from `PIPELINE_MIN_PHASE` / `PIPELINE_MAX_PHASE_INDEX` in `pipeline_phases`) |
 | `Invalid analytics payload` | 400 | discover, audits, intake-trace-tool |
 | `Invalid wording drafts payload` | 400 | intake-trace-tool |
 | `Invalid publish payload` | 400 | intake-trace-tool |
@@ -149,4 +149,18 @@ When audit child rows fail to initialize after insert, **`POST /api/audits`** an
 
 ## Next steps (refactor)
 
-Extend stable **`code`** + optional **`messageKey`** (and fallback **`error`**) using [`server/src/config/api-error-codes.ts`](../server/src/config/api-error-codes.ts) as the code catalog and [`server/src/config/api-user-messages.en.json`](../server/src/config/api-user-messages.en.json) for default English copy, then migrate routes incrementally without breaking clients that only read the `error` string.
+Extend stable **`code`** + optional **`messageKey`** (and fallback **`error`**) using `api_error_codes` as the code catalog and `api_user_messages.en` for default English copy, then migrate routes incrementally without breaking clients that only read the `error` string.
+
+## Для разработчиков
+
+Ниже перечислены технические пути реализации для инженерной навигации.
+
+- `server/src/routes`
+- `server/src/config/api-error-codes.ts`
+- `server/src/config/api-user-messages.en.json`
+- `server/src/routes/discover.ts`
+- `server/src/lib/public-http-url.ts`
+- `server/src/index.ts`
+- `server/src/routes/platform.ts`
+- `server/src/middleware/rate-limit.ts`
+- `server/src/config/pipeline-phases.ts`

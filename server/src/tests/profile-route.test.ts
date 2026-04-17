@@ -120,6 +120,7 @@ describe('profile route', () => {
     });
     expect(res.status).toBe(500);
     const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PROFILE_LOAD_FAILED');
     expect(body.error).toBe('Failed to load user profile');
   });
 
@@ -162,6 +163,8 @@ describe('profile route', () => {
       body: JSON.stringify({ full_name: 'x'.repeat(201) }),
     });
     expect(res.status).toBe(400);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PROFILE_PAYLOAD_INVALID');
   });
 
   it('PATCH /api/profile normalizes whitespace-only full_name to null', async () => {
@@ -188,6 +191,8 @@ describe('profile route', () => {
       body: JSON.stringify({ full_name: 42 }),
     });
     expect(res.status).toBe(400);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PROFILE_PAYLOAD_INVALID');
   });
 
   it('PATCH /api/profile returns 500 when profile update fails', async () => {
@@ -202,6 +207,7 @@ describe('profile route', () => {
     });
     expect(res.status).toBe(500);
     const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PROFILE_UPDATE_FAILED');
     expect(body.error).toBe('Failed to update user profile');
   });
 });

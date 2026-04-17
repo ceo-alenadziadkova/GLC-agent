@@ -19,7 +19,7 @@ export type IntakeTraceScenarioPreset = {
 export const INTAKE_TRACE_SCENARIO_PRESETS: IntakeTraceScenarioPreset[] = [
   {
     id: 'full-hospitality-no-site',
-    label: 'Full: hospitality without website',
+    label: 'Complete: hospitality without website',
     hint: 'Branching without site — compare visible vs hidden in trace.',
     productMode: 'full',
     collectionMode: '',
@@ -29,7 +29,7 @@ export const INTAKE_TRACE_SCENARIO_PRESETS: IntakeTraceScenarioPreset[] = [
   },
   {
     id: 'full-saas-has-site',
-    label: 'Full: SaaS with website',
+    label: 'Complete: SaaS with website',
     hint: 'Typical full path with site present.',
     productMode: 'full',
     collectionMode: '',
@@ -39,8 +39,8 @@ export const INTAKE_TRACE_SCENARIO_PRESETS: IntakeTraceScenarioPreset[] = [
   },
   {
     id: 'express-no-site',
-    label: 'Express: no website',
-    hint: 'Express SLA + no-site branch.',
+    label: 'Pro: no website',
+    hint: 'Pro SLA + no-site branch.',
     productMode: 'express',
     collectionMode: '',
     surface: '',
@@ -69,7 +69,7 @@ export const INTAKE_TRACE_SCENARIO_PRESETS: IntakeTraceScenarioPreset[] = [
   },
   {
     id: 'express-prebrief',
-    label: 'Express: pre-brief flow',
+    label: 'Pro: pre-brief flow',
     hint: 'Minimal bank bundle + identity nodes on the map.',
     productMode: 'express',
     collectionMode: 'pre_brief',

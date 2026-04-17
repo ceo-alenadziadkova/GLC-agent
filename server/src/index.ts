@@ -10,7 +10,7 @@ import { startAlertsWorker } from './services/alerts.js';
 import { updateContext } from './services/observability-context.js';
 import { getCorsAllowedOrigins } from './config/cors-origins.js';
 import { assertProductionRuntimeConfig } from './config/runtime-assert.js';
-import { API_HEALTH_PATH, API_PREFIX, getExpressJsonBodyLimit } from './config/http-server.js';
+import { API_HEALTH_PATH, API_PREFIX, DEFAULT_LISTEN_HOST, getExpressJsonBodyLimit } from './config/http-server.js';
 import { mountApiRouters } from './config/api-route-mounts.js';
 import { API_ERROR_CODES } from './config/api-error-codes.js';
 import { INTERNAL_SERVER_ERROR_MESSAGE } from './config/api-user-messages.en.js';
@@ -24,8 +24,8 @@ import { warnSelfServeAuditOwnerEnvIfSet } from './lib/self-serve-audit-owner.js
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? String(GLC_DEV_API_PORT), 10);
-/** Bind address: default 0.0.0.0 for Docker/Railway; override with LISTEN_HOST (e.g. 127.0.0.1) for local hardening. */
-const LISTEN_HOST = (process.env.LISTEN_HOST ?? '0.0.0.0').trim() || '0.0.0.0';
+/** Bind address: default from static config; override with LISTEN_HOST (e.g. 127.0.0.1) for local hardening. */
+const LISTEN_HOST = (process.env.LISTEN_HOST ?? DEFAULT_LISTEN_HOST).trim() || DEFAULT_LISTEN_HOST;
 initSentry();
 assertProductionRuntimeConfig();
 warnPlatformAdminUserIdsEnvBootstrap(logger);
@@ -53,7 +53,10 @@ app.use((_req, res, next) => {
   next();
 });
 app.use((req, _res, next) => {
-  const auditId = req.params?.id;
+  const fromParams = req.params?.id;
+  const fromPath = req.path.match(/^\/api\/audits\/([^/]+)/)?.[1];
+  const fromBody = typeof req.body?.audit_id === 'string' ? req.body.audit_id : undefined;
+  const auditId = fromParams ?? fromPath ?? fromBody;
   updateContext({ auditId: typeof auditId === 'string' ? auditId : undefined });
   next();
 });

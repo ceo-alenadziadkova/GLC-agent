@@ -4,6 +4,7 @@
 import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 import { z } from 'zod';
 import { INTAKE_TRACE_PUBLICATION_LOG_DEFAULT_LIMIT } from '@glc/intake-core';
+import { INTAKE_TRACE_TOOL_POLICY } from '../routes/intake-trace-tool/config/intake-trace-tool-policy.js';
 
 export const INTAKE_TRACE_TOOL_EVENT_TYPES = [
   'intake_trace_tab_opened',
@@ -83,7 +84,7 @@ export const intakeTraceToolPublicationLogQuerySchema = z.object({
         if (v === undefined || v === '') return fallback;
         const n = typeof v === 'number' ? v : Number.parseInt(String(v), 10);
         if (!Number.isFinite(n)) return fallback;
-        return Math.min(100, Math.max(1, Math.floor(n)));
+        return Math.min(INTAKE_TRACE_TOOL_POLICY.publicationLogLimitMax, Math.max(1, Math.floor(n)));
       }),
   ),
 });

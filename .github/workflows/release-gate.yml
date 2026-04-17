@@ -105,6 +105,10 @@ jobs:
 
       - name: Lint
         run: pnpm run lint
+      - name: Design-system drift budget (§4.1)
+        run: pnpm run audit:ds:drift-budget
+      - name: Design-system enforcement
+        run: pnpm run audit:ds:ci
 
       - name: Hardcode inventory (report-only)
         run: bash scripts/hardcode-inventory.sh | head -n 200

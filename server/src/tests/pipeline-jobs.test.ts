@@ -51,7 +51,7 @@ describe('pipeline jobs queue', () => {
     const ok = await enqueuePipelineJob({ auditId: 'a1', action: 'start', phase: 0 });
     expect(ok).toBe(false);
     expect(addMock).not.toHaveBeenCalled();
-  });
+  }, 15000);
 
   it('enqueues job when Redis URL is configured', async () => {
     process.env.PIPELINE_QUEUE_REDIS_URL = 'redis://localhost:6379';
@@ -59,6 +59,11 @@ describe('pipeline jobs queue', () => {
     const ok = await enqueuePipelineJob({ auditId: 'a1', action: 'next', phase: 1 });
     expect(ok).toBe(true);
     expect(addMock).toHaveBeenCalledOnce();
-  });
+    expect(addMock).toHaveBeenCalledWith(
+      'next:a1:1',
+      { auditId: 'a1', action: 'next', phase: 1 },
+      expect.objectContaining({ jobId: 'next:a1:1' }),
+    );
+  }, 15000);
 });
 

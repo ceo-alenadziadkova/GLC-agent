@@ -46,4 +46,18 @@ describe('formatIntakeQuestionReasonsBrief', () => {
     ]);
     expect(lines[0]).toMatch(/determined by your current answers and flow settings/i);
   });
+
+  it('does not append detail for non-layout reasons', () => {
+    const lines = formatIntakeQuestionReasonsBrief([
+      {
+        questionId: 'a3',
+        layer: 'policy',
+        state: 'hidden',
+        code: 'ASK_STRATEGY_PROGRESSIVE',
+        detail: 'after q1',
+      },
+    ]);
+    expect(lines[0]).toMatch(/appear later/i);
+    expect(lines[0]).not.toContain('after q1');
+  });
 });

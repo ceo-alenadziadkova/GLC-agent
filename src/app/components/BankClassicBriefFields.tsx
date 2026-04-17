@@ -1,11 +1,16 @@
 import { useMemo } from 'react';
 import { BriefField } from './BriefField';
-import type { IntakeBriefCollectionMode, ProductMode } from '../data/auditTypes';
+import {
+  INTAKE_BRIEF_SLA_PRODUCT_MODE,
+  type IntakeBriefCollectionMode,
+  type ProductMode,
+} from '../data/auditTypes';
 import { getVisibleBankBriefSections } from '../data/bankClassicBrief';
 import type { BriefResponses } from '../data/briefQuestions';
 import type { IntakeSurface } from '@glc/intake-core';
 import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '@glc/intake-core';
 import { EXPRESS_LOCKED_F2_OPTIONS, normalizeF2ValueForExpress } from '../lib/express-focus-area-locks';
+import { cn } from './ui/utils';
 
 function unwrapForField(raw: BriefResponses[string] | undefined): string | string[] | number | null | undefined {
   if (raw == null) return undefined;
@@ -24,7 +29,7 @@ export function BankClassicBriefFields({
   interviewMode,
   emphasizeClientSource,
   compact,
-  productMode = 'full',
+  productMode = INTAKE_BRIEF_SLA_PRODUCT_MODE,
 }: {
   responses: BriefResponses;
   collectionMode?: IntakeBriefCollectionMode;
@@ -44,28 +49,16 @@ export function BankClassicBriefFields({
   );
 
   const hx = compact
-    ? { pad: 'px-1 py-0.5 mb-1.5', label: '9px', gap: 'space-y-3', outer: 'space-y-4 pt-1' }
-    : { pad: 'px-2 py-1 mb-3', label: '10px', gap: 'space-y-5', outer: 'space-y-8' };
+    ? { pad: 'px-1 py-0.5 mb-1.5', gap: 'space-y-3', outer: 'space-y-4 pt-1' }
+    : { pad: 'px-2 py-1 mb-3', gap: 'space-y-5', outer: 'space-y-8' };
 
   return (
     <div className={hx.outer}>
       {sections.map(({ sectionTitle, questions }) => (
         <div key={sectionTitle}>
-          <div
-            className={`${hx.pad} rounded`}
-            style={{
-              backgroundColor: 'rgba(28,189,255,0.05)',
-              borderLeft: '2px solid rgba(28,189,255,0.25)',
-            }}
-          >
+          <div className={cn(`${hx.pad} rounded ds-bank-classic-section-header-tint`)}>
             <span
-              style={{
-                fontSize: hx.label,
-                fontWeight: 700,
-                letterSpacing: '0.1em',
-                color: 'rgba(28,189,255,0.7)',
-                textTransform: 'uppercase',
-              }}
+              className={cn('ds-bank-classic-section-label', compact && 'ds-bank-classic-section-label--compact')}
             >
               {sectionTitle}
             </span>

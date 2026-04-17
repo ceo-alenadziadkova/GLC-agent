@@ -10,7 +10,7 @@
  * See docs/adrs/ADR-TRUTH-REGISTRY-ASSUMPTIONS.md §Evaluation Dataset.
  */
 
-import type { ControlObjectV1 } from '../schemas/control-object.js';
+import type { ControlObjectV1 } from '../schemas/control-object/index.js';
 import type { DomainKey } from './audit.js';
 import { EVALUATION_DATASET_RETENTION_TTL_DAYS } from '../config/evaluation-dataset-retention.js';
 

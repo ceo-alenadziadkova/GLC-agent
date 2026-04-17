@@ -6,8 +6,10 @@ import { auditsReviewsReportsApi } from './audits-reviews-reports';
 import { briefProfilePlatformApi } from './brief-profile-platform';
 import { dashboardNotificationsApi } from './dashboard-notifications';
 import { discoverApi } from './discover';
+import { briefPublicApi } from './brief-public';
 import { intakeTokensApi } from './intake-tokens';
 import { marketingSnapshotIncidentsApi } from './marketing-snapshot-incidents';
+import { snapshotCompareApi } from './snapshot-compare';
 
 /** Full SPA API client shape (all domain slices merged). */
 export type GlcApi =
@@ -18,6 +20,8 @@ export type GlcApi =
   typeof briefProfilePlatformApi &
   typeof auditRequestsApi &
   typeof dashboardNotificationsApi &
+  typeof briefPublicApi &
   typeof intakeTokensApi &
   typeof discoverApi &
-  typeof marketingSnapshotIncidentsApi;
+  typeof marketingSnapshotIncidentsApi &
+  typeof snapshotCompareApi;
