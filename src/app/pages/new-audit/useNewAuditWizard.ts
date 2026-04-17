@@ -1,62 +1,40 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../../hooks/useAuth';
-import { useBriefLayoutPrefsSync } from '../../hooks/useBriefLayoutPrefsSync';
 import { useIntakeBankMetrics } from '../../hooks/useIntakeWizard';
 import { WORKSPACE_PAGE_COPY } from '../../config/workspace-page-copy';
-import { NEW_AUDIT_DRAFT_SAVE_DEBOUNCE_MS } from '../../config/ui-feedback-defaults';
-import {
-  CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE,
-  CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE,
-  CONSULTANT_BRIEF_LAYOUT_DEFAULT_KEY,
-  consultantBriefLayoutStorageKey,
-  resolveConsultantBriefLayout,
-  writeConsultantBriefLayout,
-  clearConsultantBriefLayout,
-  resolveClientBriefLayout,
-  writeClientBriefLayout,
-  clearClientBriefLayout,
-  CLIENT_BRIEF_LAYOUT_DEFAULT_KEY,
-  clientBriefLayoutStorageKey,
-} from '../../lib/client-brief-layout-preference';
 import {
   readClientPortalNewAuditDraft,
-  writeClientPortalNewAuditDraft,
   type ClientPortalNewAuditDraftV1,
 } from '../../lib/client-portal-new-audit-draft';
-import { api } from '../../data/apiService';
 import type { BriefIntakeAnalyticsSurface } from '../../lib/brief-intake-analytics';
-import {
-  defaultConsultantDisplayName,
-} from '../../lib/new-audit-helpers';
 import type {
-  BriefResponseSource,
   IntakeVersionTuple,
-  AuditCoveragePackage,
-  DomainKey,
 } from '../../data/auditTypes';
 import {
-  COMPLETE_AUDIT_COVERAGE_PACKAGE,
   INTAKE_BRIEF_SLA_PRODUCT_MODE,
 } from '../../data/auditTypes';
-import {
-  NEW_AUDIT_ALL_COVERAGE_DOMAINS,
-  NEW_AUDIT_COVERAGE_PACKAGE_DEPTH,
-  NEW_AUDIT_COVERAGE_SELECTION_LIMITS,
-  NEW_AUDIT_DEFAULT_DOMAIN_RECOMMENDATIONS,
-  NEW_AUDIT_INDUSTRY_DOMAIN_RECOMMENDATIONS,
-  NEW_AUDIT_PRO_FALLBACK_SELECTION,
-  NEW_AUDIT_STARTER_FALLBACK_DOMAIN,
-} from '../../config/new-audit-coverage-policy';
 import type { BriefResponses } from '../../data/briefQuestions';
 import { computeNewAuditWizardProgress, validateNewAuditStep0Input } from './newAuditValidation';
 import { launchNewAudit, saveClientDraft } from './newAuditExecution';
-import { useDiscoverySessionPrefill, useIntakeTokenPrefill } from './newAuditPrefill';
+import {
+  buildExecutionPlan,
+} from './wizard-services/execution-plan.builder';
+import { useCoverageSelectionState } from './wizard-state/useCoverageSelectionState';
+import { useBriefLayoutState } from './wizard-state/useBriefLayoutState';
+import { usePreBriefState } from './wizard-state/usePreBriefState';
+import { useDraftAutosaveEffect } from './wizard-effects/useDraftAutosaveEffect';
+import { useDraftIntakeVersionsEffect } from './wizard-effects/useDraftIntakeVersionsEffect';
+import { useWizardPrefillEffects } from './wizard-effects/useWizardPrefillEffects';
+import { resolveResponseSource } from './wizard-services/response-source.resolver';
+import { createPreBriefToken, validatePreBriefInput } from './wizard-services/prebrief-token.service';
+import { BRIEF_LAYOUT_WIZARD as BRIEF_LAYOUT_WIZARD_CONST, NEW_AUDIT_WIZARD_STEPS } from './wizard-config/wizard-constants';
+import type { NewAuditVariant, NewAuditWizardContract } from './wizard-contract/useNewAuditWizard.types';
 
-export type NewAuditVariant = 'consultant' | 'client_self_serve';
+export type { NewAuditVariant } from './wizard-contract/useNewAuditWizard.types';
 
-export function useNewAuditWizard(props?: { variant?: NewAuditVariant }) {
+export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAuditWizardContract {
   const variant = props?.variant ?? 'consultant';
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -78,69 +56,40 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }) {
 
   const briefProductMode: 'express' | 'full' = INTAKE_BRIEF_SLA_PRODUCT_MODE as 'express' | 'full';
 
-  const [coveragePackage, setCoveragePackage] = useState<AuditCoveragePackage>(COMPLETE_AUDIT_COVERAGE_PACKAGE);
-  const [selectedDomains, setSelectedDomains] = useState<DomainKey[]>([...NEW_AUDIT_ALL_COVERAGE_DOMAINS]);
-
-  const recommendedDomains = useMemo<DomainKey[]>(() => {
-    if (!industry) return NEW_AUDIT_DEFAULT_DOMAIN_RECOMMENDATIONS;
-    return NEW_AUDIT_INDUSTRY_DOMAIN_RECOMMENDATIONS[industry] ?? NEW_AUDIT_DEFAULT_DOMAIN_RECOMMENDATIONS;
-  }, [industry]);
+  const {
+    coveragePackage,
+    setCoveragePackage,
+    selectedDomains,
+    setSelectedDomains,
+    recommendedDomains,
+    toggleDomainSelection,
+  } = useCoverageSelectionState({ industry });
 
   // Step 2 fields
   const [responses, setResponses] = useState<BriefResponses>(() => portalDraftSeed?.responses ?? {});
   const [intakePrefillActive, setIntakePrefillActive] = useState(false);
   const [discoveryPrefilled, setDiscoveryPrefilled] = useState(false);
 
-  // Pre-brief modal (Step 0)
-  const [preBriefOpen, setPreBriefOpen] = useState(false);
-  const [preBriefCompany, setPreBriefCompany] = useState('');
-  const [preBriefWebsite, setPreBriefWebsite] = useState('');
-  const [preBriefIndustryField, setPreBriefIndustryField] = useState('');
-  const [preBriefIndustrySpecify, setPreBriefIndustrySpecify] = useState('');
-  const [preBriefMessage, setPreBriefMessage] = useState('');
-  const [preBriefConsultantName, setPreBriefConsultantName] = useState('');
-  const [preBriefExpectedContact, setPreBriefExpectedContact] = useState('');
-  const [preBriefContactChannel, setPreBriefContactChannel] = useState('');
-  const [preBriefEmail, setPreBriefEmail] = useState('');
-  const [preBriefWhatsapp, setPreBriefWhatsapp] = useState('');
-  const [preBriefLink, setPreBriefLink] = useState<string | null>(null);
-  const [preBriefToken, setPreBriefToken] = useState<string | null>(null);
-  const [preBriefLoading, setPreBriefLoading] = useState(false);
-  const [preBriefErr, setPreBriefErr] = useState<string | null>(null);
+  const preBriefState = usePreBriefState();
 
   // Interview mode — consultant fills the brief during a live call
   const [interviewMode, setInterviewMode] = useState(false);
 
-  // Brief layout choice
-  const [briefLayoutChoice, setBriefLayoutChoice] = useState<'unset' | 'classic' | 'wizard'>(() => {
-    if (isClientSelfServe) {
-      const bl = portalDraftSeed?.briefLayoutChoice;
-      if (bl === 'classic' || bl === 'wizard') return bl;
-      return resolveClientBriefLayout(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE) ?? 'unset';
-    }
-    return resolveConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE) ?? 'unset';
-  });
-
-  const briefLayoutSyncKeys = useMemo(
-    () =>
-      isClientSelfServe
-        ? [CLIENT_BRIEF_LAYOUT_DEFAULT_KEY, clientBriefLayoutStorageKey(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE)]
-        : [CONSULTANT_BRIEF_LAYOUT_DEFAULT_KEY, consultantBriefLayoutStorageKey(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE)],
-    [isClientSelfServe],
-  );
-
-  useBriefLayoutPrefsSync(briefLayoutSyncKeys, () => {
-    setBriefLayoutChoice(
-      isClientSelfServe
-        ? (resolveClientBriefLayout(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE) ?? 'unset')
-        : (resolveConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE) ?? 'unset'),
-    );
+  const {
+    briefLayoutChoice,
+    setBriefLayoutChoice,
+    layoutSelected,
+    handleSelectConsultantBriefLayout,
+    handleChangeConsultantBriefLayout,
+  } = useBriefLayoutState({
+    isClientSelfServe,
+    seededChoice: portalDraftSeed?.briefLayoutChoice ?? null,
   });
 
   // UI state
-  const [step, setStep] = useState(() => {
+  const [step, setStep] = useState<0 | 1 | 2>(() => {
     const s = portalDraftSeed?.step ?? 0;
-    return s >= 0 && s <= 2 ? s : 0;
+    return s >= NEW_AUDIT_WIZARD_STEPS.min && s <= NEW_AUDIT_WIZARD_STEPS.max ? s : 0;
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -155,9 +104,9 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }) {
   const [draftError, setDraftError] = useState<string | null>(null);
   const [draftRestoredVisible, setDraftRestoredVisible] = useState(() => Boolean(portalDraftSeed));
 
-  // Prefill effects (extracted)
-  useIntakeTokenPrefill({
+  useWizardPrefillEffects({
     intakeTokenFromUrl,
+    fromDiscovery,
     isClientSelfServe,
     setResponses,
     setIntakePrefillActive,
@@ -166,70 +115,18 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }) {
     setName,
     setIndustry,
     setIndustrySpecify,
-  });
-
-  useDiscoverySessionPrefill({
-    fromDiscovery,
-    setResponses,
     setDiscoveryPrefilled,
-    setNoPublicWebsite,
-    setIndustry,
   });
 
-  // Fetch intake versions (client self-serve only).
-  useEffect(() => {
-    if (!isClientSelfServe || !draftAuditId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const { brief } = await api.getBrief(draftAuditId);
-        if (cancelled || !brief?.intake_versions) return;
-        setDraftIntakeVersions(brief.intake_versions);
-      } catch {
-        /* ignore */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [isClientSelfServe, draftAuditId]);
-
-  // Keep selected domains aligned with coverage package.
-  useEffect(() => {
-    setSelectedDomains(prev => {
-      if (coveragePackage === 'complete') return [...NEW_AUDIT_ALL_COVERAGE_DOMAINS] as DomainKey[];
-      if (coveragePackage === 'starter') {
-        const first: DomainKey = prev[0] ?? NEW_AUDIT_STARTER_FALLBACK_DOMAIN;
-        return [first];
-      }
-      const base: DomainKey[] = prev.length > 0 ? prev.slice(0, 3) : NEW_AUDIT_PRO_FALLBACK_SELECTION;
-      return base;
-    });
-  }, [coveragePackage]);
-
-  // Persist client wizard to sessionStorage.
-  useEffect(() => {
-    if (!isClientSelfServe) return;
-    const t = window.setTimeout(() => {
-      writeClientPortalNewAuditDraft({
-        v: 1,
-        step: step as 0 | 1 | 2,
-        url,
-        noPublicWebsite,
-        name,
-        industry,
-        industrySpecify,
-        productMode: briefProductMode,
-        responses,
-        briefLayoutChoice,
-        draftAuditId,
-        draftIntakeVersions,
-      });
-    }, NEW_AUDIT_DRAFT_SAVE_DEBOUNCE_MS);
-    return () => window.clearTimeout(t);
-  }, [
+  useDraftIntakeVersionsEffect({
     isClientSelfServe,
-    step,
+    draftAuditId,
+    setDraftIntakeVersions,
+  });
+
+  useDraftAutosaveEffect({
+    isClientSelfServe,
+    step: step as 0 | 1 | 2,
     url,
     noPublicWebsite,
     name,
@@ -238,9 +135,9 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }) {
     briefProductMode,
     responses,
     briefLayoutChoice,
-    draftAuditId,
-    draftIntakeVersions,
-  ]);
+    draftAuditId: draftAuditId,
+    draftIntakeVersions: draftIntakeVersions,
+  });
 
   // Validation + progress
   const { step0Valid } = useMemo(
@@ -280,8 +177,6 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }) {
     briefProductMode,
   );
 
-  const layoutSelected = briefLayoutChoice === 'classic' || briefLayoutChoice === 'wizard';
-
   const briefWizardIntakeAnalytics = useMemo(():
     | {
         auditId: string;
@@ -289,7 +184,7 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }) {
         getIntakeVersions: () => IntakeVersionTuple | null;
       }
     | undefined => {
-    if (!draftAuditId || noPublicWebsite || briefLayoutChoice !== 'wizard') return undefined;
+    if (!draftAuditId || noPublicWebsite || briefLayoutChoice !== BRIEF_LAYOUT_WIZARD_CONST) return undefined;
     const surface: BriefIntakeAnalyticsSurface = isClientSelfServe ? 'client_form' : 'consultant_interview';
     return {
       auditId: draftAuditId,
@@ -298,61 +193,22 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }) {
     };
   }, [draftAuditId, noPublicWebsite, briefLayoutChoice, isClientSelfServe, draftIntakeVersions]);
 
-  // Handlers
-  function toggleDomainSelection(domain: DomainKey) {
-    setSelectedDomains(prev => {
-      const has = prev.includes(domain);
-      if (coveragePackage === 'complete') return [...NEW_AUDIT_ALL_COVERAGE_DOMAINS] as DomainKey[];
-      const next = has ? prev.filter(d => d !== domain) : [...prev, domain];
-      if (coveragePackage === 'starter') return next.slice(0, 1) as DomainKey[];
-      if (next.length > NEW_AUDIT_COVERAGE_SELECTION_LIMITS.pro.max) {
-        return next.slice(0, NEW_AUDIT_COVERAGE_SELECTION_LIMITS.pro.max) as DomainKey[];
-      }
-      return next as DomainKey[];
-    });
-  }
-
-  function handleSelectConsultantBriefLayout(mode: 'classic' | 'wizard') {
-    if (isClientSelfServe) {
-      writeClientBriefLayout(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE, mode);
-    } else {
-      writeConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE, mode);
-    }
-    setBriefLayoutChoice(mode);
-  }
-
-  function handleChangeConsultantBriefLayout() {
-    if (isClientSelfServe) {
-      clearClientBriefLayout(CLIENT_SELF_SERVE_NEW_AUDIT_SCOPE);
-    } else {
-      clearConsultantBriefLayout(CONSULTANT_NEW_AUDIT_BRIEF_LAYOUT_SCOPE);
-    }
-    setBriefLayoutChoice('unset');
-  }
+  const responseSource = resolveResponseSource({ isClientSelfServe, interviewMode });
 
   function handleResponseChange(id: string, value: string | string[] | number | null) {
-    const src: BriefResponseSource = isClientSelfServe ? 'client' : (interviewMode ? 'consultant' : 'client');
-    setResponses(prev => ({ ...prev, [id]: { value, source: src } }));
+    setResponses(prev => ({ ...prev, [id]: { value, source: responseSource } }));
   }
 
   function handleSetUnknown(id: string) {
     setResponses(prev => ({ ...prev, [id]: { value: null, source: 'unknown' } }));
   }
 
-  function buildExecutionPlan() {
-    const depth = NEW_AUDIT_COVERAGE_PACKAGE_DEPTH[coveragePackage];
-    return {
-      selected_domains: selectedDomains,
-      depth,
-      source: 'user_selected' as const,
-      recommended_domains: recommendedDomains,
-      coverage_package: coveragePackage,
-      include_strategy: coveragePackage !== 'starter',
-    };
-  }
-
   async function handleSaveClientDraft() {
-    const executionPlan = buildExecutionPlan();
+    const executionPlan = buildExecutionPlan({
+      coveragePackage,
+      selectedDomains,
+      recommendedDomains,
+    });
     await saveClientDraft({
       isClientSelfServe,
       step0Valid,
@@ -377,7 +233,11 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }) {
   }
 
   function handleLaunch(e: FormEvent) {
-    const executionPlan = buildExecutionPlan();
+    const executionPlan = buildExecutionPlan({
+      coveragePackage,
+      selectedDomains,
+      recommendedDomains,
+    });
     return launchNewAudit(e, {
       isClientSelfServe,
       url,
@@ -390,66 +250,59 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }) {
       briefLayoutChoice,
       executionPlan,
       draftAuditId,
-      preBriefToken,
+      preBriefToken: preBriefState.preBriefToken,
       intakeTokenFromUrl,
       setError,
       setLoading,
       navigate,
-      setPreBriefToken,
+      setPreBriefToken: preBriefState.setPreBriefToken,
       setDraftIntakeVersions,
     });
   }
 
-  function closePreBriefModal() {
-    setPreBriefOpen(false);
-    setPreBriefCompany('');
-    setPreBriefWebsite('');
-    setPreBriefIndustryField('');
-    setPreBriefIndustrySpecify('');
-    setPreBriefMessage('');
-    setPreBriefConsultantName('');
-    setPreBriefExpectedContact('');
-    setPreBriefContactChannel('');
-    setPreBriefEmail('');
-    setPreBriefWhatsapp('');
-    setPreBriefLink(null);
-    setPreBriefErr(null);
-    setPreBriefLoading(false);
-  }
-
   async function handlePreBriefCreate() {
-    setPreBriefErr(null);
-    setPreBriefLoading(true);
-    setPreBriefLink(null);
+    preBriefState.setPreBriefErr(null);
+    preBriefState.setPreBriefLoading(true);
+    preBriefState.setPreBriefLink(null);
     try {
-      if (preBriefIndustryField === 'Other' && !preBriefIndustrySpecify.trim()) {
-        setPreBriefErr(WORKSPACE_PAGE_COPY.newAudit.preBriefIndustryOtherRequired);
-        setPreBriefLoading(false);
+      const validation = validatePreBriefInput({
+        company: preBriefState.preBriefCompany,
+        website: preBriefState.preBriefWebsite,
+        industryField: preBriefState.preBriefIndustryField,
+        industrySpecify: preBriefState.preBriefIndustrySpecify,
+        message: preBriefState.preBriefMessage,
+        consultantName: preBriefState.preBriefConsultantName,
+        expectedContact: preBriefState.preBriefExpectedContact,
+        contactChannel: preBriefState.preBriefContactChannel,
+        email: preBriefState.preBriefEmail,
+        whatsapp: preBriefState.preBriefWhatsapp,
+      });
+      if (validation.hasError) {
+        preBriefState.setPreBriefErr(WORKSPACE_PAGE_COPY.newAudit.preBriefIndustryOtherRequired);
+        preBriefState.setPreBriefLoading(false);
         return;
       }
-      const consultantName = preBriefConsultantName.trim() || defaultConsultantDisplayName(user);
-      const { url, token } = await api.createIntakeToken({
-        metadata: {
-          ...(preBriefCompany.trim() ? { company_name: preBriefCompany.trim() } : {}),
-          ...(preBriefWebsite.trim() ? { company_website: preBriefWebsite.trim() } : {}),
-          ...(preBriefIndustryField.trim() ? { industry: preBriefIndustryField.trim() } : {}),
-          ...(preBriefIndustryField === 'Other' && preBriefIndustrySpecify.trim()
-            ? { industry_specify: preBriefIndustrySpecify.trim() }
-            : {}),
-          ...(preBriefMessage.trim() ? { message: preBriefMessage.trim() } : {}),
-          ...(consultantName ? { consultant_name: consultantName } : {}),
-          ...(preBriefExpectedContact.trim() ? { expected_contact: preBriefExpectedContact.trim() } : {}),
-          ...(preBriefContactChannel.trim() ? { contact_channel: preBriefContactChannel.trim() } : {}),
-          ...(preBriefEmail.trim() ? { consultant_email: preBriefEmail.trim() } : {}),
-          ...(preBriefWhatsapp.trim() ? { consultant_whatsapp: preBriefWhatsapp.trim() } : {}),
+      const { url: link, token } = await createPreBriefToken({
+        user,
+        draft: {
+          company: preBriefState.preBriefCompany,
+          website: preBriefState.preBriefWebsite,
+          industryField: preBriefState.preBriefIndustryField,
+          industrySpecify: preBriefState.preBriefIndustrySpecify,
+          message: preBriefState.preBriefMessage,
+          consultantName: preBriefState.preBriefConsultantName,
+          expectedContact: preBriefState.preBriefExpectedContact,
+          contactChannel: preBriefState.preBriefContactChannel,
+          email: preBriefState.preBriefEmail,
+          whatsapp: preBriefState.preBriefWhatsapp,
         },
       });
-      setPreBriefLink(url);
-      setPreBriefToken(token);
+      preBriefState.setPreBriefLink(link);
+      preBriefState.setPreBriefToken(token);
     } catch (e) {
-      setPreBriefErr((e as Error).message);
+      preBriefState.setPreBriefErr((e as Error).message);
     } finally {
-      setPreBriefLoading(false);
+      preBriefState.setPreBriefLoading(false);
     }
   }
 
@@ -537,38 +390,39 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }) {
     handleLaunch,
 
     // Pre-brief modal
-    preBriefOpen,
-    setPreBriefOpen,
-    preBriefCompany,
-    setPreBriefCompany,
-    preBriefWebsite,
-    setPreBriefWebsite,
-    preBriefIndustryField,
-    setPreBriefIndustryField,
-    preBriefIndustrySpecify,
-    setPreBriefIndustrySpecify,
-    preBriefMessage,
-    setPreBriefMessage,
-    preBriefConsultantName,
-    setPreBriefConsultantName,
-    preBriefExpectedContact,
-    setPreBriefExpectedContact,
-    preBriefContactChannel,
-    setPreBriefContactChannel,
-    preBriefEmail,
-    setPreBriefEmail,
-    preBriefWhatsapp,
-    setPreBriefWhatsapp,
-    preBriefLink,
-    setPreBriefLink,
-    preBriefToken,
-    setPreBriefToken,
-    preBriefLoading,
-    setPreBriefLoading,
-    preBriefErr,
-    setPreBriefErr,
-    closePreBriefModal,
+    preBriefOpen: preBriefState.preBriefOpen,
+    setPreBriefOpen: preBriefState.setPreBriefOpen,
+    preBriefCompany: preBriefState.preBriefCompany,
+    setPreBriefCompany: preBriefState.setPreBriefCompany,
+    preBriefWebsite: preBriefState.preBriefWebsite,
+    setPreBriefWebsite: preBriefState.setPreBriefWebsite,
+    preBriefIndustryField: preBriefState.preBriefIndustryField,
+    setPreBriefIndustryField: preBriefState.setPreBriefIndustryField,
+    preBriefIndustrySpecify: preBriefState.preBriefIndustrySpecify,
+    setPreBriefIndustrySpecify: preBriefState.setPreBriefIndustrySpecify,
+    preBriefMessage: preBriefState.preBriefMessage,
+    setPreBriefMessage: preBriefState.setPreBriefMessage,
+    preBriefConsultantName: preBriefState.preBriefConsultantName,
+    setPreBriefConsultantName: preBriefState.setPreBriefConsultantName,
+    preBriefExpectedContact: preBriefState.preBriefExpectedContact,
+    setPreBriefExpectedContact: preBriefState.setPreBriefExpectedContact,
+    preBriefContactChannel: preBriefState.preBriefContactChannel,
+    setPreBriefContactChannel: preBriefState.setPreBriefContactChannel,
+    preBriefEmail: preBriefState.preBriefEmail,
+    setPreBriefEmail: preBriefState.setPreBriefEmail,
+    preBriefWhatsapp: preBriefState.preBriefWhatsapp,
+    setPreBriefWhatsapp: preBriefState.setPreBriefWhatsapp,
+    preBriefLink: preBriefState.preBriefLink,
+    setPreBriefLink: preBriefState.setPreBriefLink,
+    preBriefToken: preBriefState.preBriefToken,
+    setPreBriefToken: preBriefState.setPreBriefToken,
+    preBriefLoading: preBriefState.preBriefLoading,
+    setPreBriefLoading: preBriefState.setPreBriefLoading,
+    preBriefErr: preBriefState.preBriefErr,
+    setPreBriefErr: preBriefState.setPreBriefErr,
+    closePreBriefModal: preBriefState.closePreBriefModal,
     handlePreBriefCreate,
+    responseSource,
   };
 }
 

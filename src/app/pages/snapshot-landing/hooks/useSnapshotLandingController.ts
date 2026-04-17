@@ -57,7 +57,7 @@ export function useSnapshotLandingController() {
 
   const pollSnapshotStatus = useCallback(async (signal: AbortSignal) => {
     const statusRes = await fetchSnapshotStatus(tokenRef.current, { signal });
-    if (!statusRes.ok) {
+    if (statusRes.ok === false) {
       return {
         kind: 'error' as const,
         message: toUiErrorMessage(
@@ -107,7 +107,7 @@ export function useSnapshotLandingController() {
 
     try {
       const startRes = await startSnapshot(trimmed);
-      if (!startRes.ok) {
+      if (startRes.ok === false) {
         setErrorMsg(toUiErrorMessage(
           startRes.status,
           startRes.payload,

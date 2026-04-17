@@ -51,7 +51,7 @@ export function StrategyLab() {
   useEffect(() => {
     if (!audit?.strategy) return;
     let cancelled = false;
-    const ind = normalizeAuditIndustryKey(audit.industry);
+    const ind = normalizeAuditIndustryKey(audit.meta?.industry);
     void (async () => {
       const entries = await Promise.all(
         DOMAIN_KEYS.map(async (dk) => {
@@ -75,7 +75,7 @@ export function StrategyLab() {
     return () => {
       cancelled = true;
     };
-  }, [audit?.strategy, audit?.industry]);
+  }, [audit?.strategy, audit?.meta?.industry]);
 
   const initiatives = useMemo(() => {
     if (!audit?.strategy) return { quick: [], medium: [], strategic: [] };

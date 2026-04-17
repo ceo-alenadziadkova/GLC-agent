@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 vi.mock('@glc/intake-core', () => ({
   getQuestionBankPromptLabel: vi.fn(),
@@ -15,10 +16,10 @@ import {
 
 describe('question-bank-studio trace selectors', () => {
   it('shortUserLabel trims and truncates at configured limits', () => {
-    (getQuestionBankPromptLabel as unknown as vi.Mock).mockReturnValue('  abc  ');
+    (getQuestionBankPromptLabel as unknown as Mock).mockReturnValue('  abc  ');
     expect(shortUserLabel('some-id')).toBe('abc');
 
-    (getQuestionBankPromptLabel as unknown as vi.Mock).mockReturnValue('a'.repeat(80));
+    (getQuestionBankPromptLabel as unknown as Mock).mockReturnValue('a'.repeat(80));
     expect(shortUserLabel('some-id')).toBe('a'.repeat(75) + '...');
   });
 

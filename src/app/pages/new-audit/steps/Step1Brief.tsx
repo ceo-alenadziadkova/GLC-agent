@@ -2,15 +2,16 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router';
 import type { ReactNode } from 'react';
 import { ArrowLeft, CheckCircle, Circle, Warning } from '@phosphor-icons/react';
+import type { IntakePlanCoverageDomain } from '@glc/intake-core';
 import type { BriefIntakeAnalyticsSurface } from '../../../lib/brief-intake-analytics';
 import { BriefLayoutPreferenceCards } from '../../../components/BriefLayoutPreferenceCards';
 import { IntakeBankCoverageHint } from '../../../components/IntakeBankCoverageHint';
+import { Callout } from '../../../components/ui/callout';
 import { IntakeBankWizard } from '../../../components/IntakeBankWizard';
 import { BankClassicBriefFields } from '../../../components/BankClassicBriefFields';
 import type { BriefResponses } from '../../../data/briefQuestions';
 import type {
   IntakeNextBestAction,
-  IntakePlanCoverageDomain,
   IntakeReadinessBadge,
   IntakeVersionTuple,
   ProductMode,
@@ -174,20 +175,18 @@ export function Step1Brief({
         <>
           {/* Discovery pre-fill banner */}
           {discoveryPrefilled && (
-            <div
-              className="flex items-start gap-2.5 rounded-xl px-3.5 py-2.5 mb-4"
-              style={{ background: 'var(--callout-info-bg)', border: '1px solid var(--callout-info-border)' }}
-            >
-              <CheckCircle
-                size={15}
-                weight="fill"
-                className="flex-shrink-0 mt-0.5"
-                style={{ color: 'var(--glc-blue)' }}
-              />
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-                {WORKSPACE_PAGE_COPY.newAudit.step1.discoveryPrefilledBannerText}
-              </p>
-            </div>
+            <Callout intent="info" className="mb-4">
+              <div className="flex items-start gap-2.5">
+                <CheckCircle
+                  size={15}
+                  weight="fill"
+                  className="mt-0.5 flex-shrink-0 text-[var(--glc-blue)]"
+                />
+                <p className="text-xs leading-[1.55] text-[var(--text-secondary)]">
+                  {WORKSPACE_PAGE_COPY.newAudit.step1.discoveryPrefilledBannerText}
+                </p>
+              </div>
+            </Callout>
           )}
 
           <div className="flex items-center justify-between mb-3">
@@ -212,32 +211,26 @@ export function Step1Brief({
           </div>
 
           {interviewMode && (
-            <div
-              className="mb-3 flex items-start gap-2 px-3 py-2 rounded-lg text-xs"
-              style={{
-                background: 'var(--callout-warning-bg)',
-                border: '1px solid var(--callout-warning-border)',
-                color: 'var(--callout-warning-fg)',
-              }}
-            >
-              <span style={{ flexShrink: 0, marginTop: 1 }}>&#9679;</span>
-              <span>
-                {WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsPrefix}
-                <strong>{WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsConsultantTag}</strong>
-                {WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsMid}
-                <strong>{WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsClientTag}</strong>
-                {WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsSuffix}
-              </span>
-            </div>
+            <Callout intent="warning" className="mb-3">
+              <div className="flex items-start gap-2 text-xs text-[var(--callout-warning-fg)]">
+                <span className="mt-[1px] flex-shrink-0">&#9679;</span>
+                <span>
+                  {WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsPrefix}
+                  <strong>{WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsConsultantTag}</strong>
+                  {WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsMid}
+                  <strong>{WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsClientTag}</strong>
+                  {WORKSPACE_PAGE_COPY.newAudit.step1.coachingHintsSuffix}
+                </span>
+              </div>
+            </Callout>
           )}
 
           {intakePrefillActive && (
-            <div
-              className="mb-4 px-3 py-2 rounded-lg text-sm"
-              style={{ background: 'var(--callout-info-bg)', border: '1px solid var(--callout-info-border)', color: 'var(--text-secondary)' }}
-            >
-              {WORKSPACE_PAGE_COPY.newAudit.step1.prefilledFromClientPreBriefText}
-            </div>
+            <Callout intent="info" className="mb-4">
+              <span className="text-sm text-[var(--text-secondary)]">
+                {WORKSPACE_PAGE_COPY.newAudit.step1.prefilledFromClientPreBriefText}
+              </span>
+            </Callout>
           )}
 
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-tertiary)', marginBottom: 20 }}>

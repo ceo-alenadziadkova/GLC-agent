@@ -75,8 +75,8 @@ function themePalette(theme: StudioMapExportTheme) {
 
 /** Straight edges between node centers (good enough for discussion snapshots). */
 export function buildStudioMapSvg(
-  nodes: Node<StudioAnyNodeData>[],
-  edges: Edge[],
+  nodes: readonly Node<StudioAnyNodeData>[],
+  edges: readonly Edge[],
   options?: {
     theme?: StudioMapExportTheme;
     title?: string;

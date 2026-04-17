@@ -31,7 +31,7 @@ describe('clientCanViewPortalPipeline', () => {
             include_strategy: false,
           },
         },
-        brief: { gates: { canStartPipeline: true, canStartFull: true, canStartExpress: true } },
+        brief: { gates: { canStartPipeline: true } },
       }),
     ).toBe(false);
   });
@@ -79,19 +79,19 @@ describe('clientCanViewPortalPipeline', () => {
     expect(
       clientCanViewPortalPipeline({
         auditMeta: { status: 'created' },
-        brief: { gates: { canStartFull: true } },
+        brief: { gates: {} },
       }),
     ).toBe(false);
     expect(
       clientCanViewPortalPipeline({
         auditMeta: { status: 'created' },
-        brief: { gates: { canStartExpress: true } },
+        brief: { gates: {} },
       }),
     ).toBe(false);
     expect(
       clientCanViewPortalPipeline({
         auditMeta: { status: 'created' },
-        brief: { gates: { canStartFull: false, canStartExpress: false } },
+        brief: { gates: {} },
       }),
     ).toBe(false);
   });

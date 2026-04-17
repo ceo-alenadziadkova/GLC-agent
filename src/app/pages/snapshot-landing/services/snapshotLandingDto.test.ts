@@ -17,7 +17,7 @@ describe('toSnapshotStatusResponse', () => {
     const result = toSnapshotStatusResponse(400, false, payload);
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
+    if (result.ok === false) {
       expect(result.status).toBe(400);
       expect(result.payload).toEqual(payload);
     }

@@ -5,6 +5,7 @@ import {
   FREE_SNAPSHOT_PRODUCT_MODE,
   PRO_AUDIT_COVERAGE_PACKAGE,
   STARTER_AUDIT_COVERAGE_PACKAGE,
+  type AuditDepth,
   type AuditCoveragePackage,
   type AuditMeta,
   type DomainKey,
@@ -24,23 +25,31 @@ const SNAPSHOT_STYLE_DOMAIN_COUNT = 1;
 const SNAPSHOT_STYLE_COVERAGE_PACKAGE: AuditCoveragePackage = STARTER_AUDIT_COVERAGE_PACKAGE;
 const EXPRESS_LIKE_MAX_PHASE = 4;
 
-const COVERAGE_PACKAGE_LABELS: Record<
-  AuditCoveragePackage,
-  { title: string; audit: string }
-> = {
-  [STARTER_AUDIT_COVERAGE_PACKAGE]: { title: 'Starter', audit: 'Starter audit' },
-  [PRO_AUDIT_COVERAGE_PACKAGE]: { title: 'Pro', audit: 'Pro audit' },
-  [COMPLETE_AUDIT_COVERAGE_PACKAGE]: { title: 'Complete', audit: 'Complete audit' },
+const COVERAGE_PACKAGE_LABELS: Record<AuditCoveragePackage, { title: string; audit: string }> = {
+  starter: { title: 'Starter', audit: 'Starter audit' },
+  pro: { title: 'Pro', audit: 'Pro audit' },
+  complete: { title: 'Complete', audit: 'Complete audit' },
 };
 
 const LEGACY_PRODUCT_MODE_FALLBACK_PACKAGE: Partial<Record<AuditMeta['product_mode'], AuditCoveragePackage>> = {
   [EXPRESS_PRODUCT_MODE]: PRO_AUDIT_COVERAGE_PACKAGE,
 };
 
-type SnapshotStyleMeta = Pick<AuditMeta, 'snapshot_token' | 'execution_plan' | 'product_mode'>;
+type ExecutionPlanLike = {
+  coverage_package?: AuditCoveragePackage;
+  selected_domains?: DomainKey[];
+  include_strategy?: boolean;
+  depth?: AuditDepth;
+  source?: 'user_selected' | 'system_default';
+};
+type SnapshotStyleMeta = {
+  snapshot_token?: AuditMeta['snapshot_token'];
+  execution_plan?: ExecutionPlanLike;
+  product_mode?: AuditMeta['product_mode'];
+};
 type PackageLabelStyle = 'title' | 'audit';
 
-export function coveragePackageFromMeta(meta: Pick<AuditMeta, 'execution_plan'>): AuditCoveragePackage {
+export function coveragePackageFromMeta(meta: { execution_plan?: ExecutionPlanLike }): AuditCoveragePackage {
   return meta.execution_plan?.coverage_package ?? DEFAULT_AUDIT_COVERAGE_PACKAGE;
 }
 
@@ -56,7 +65,7 @@ export function isSnapshotStyleAudit(meta: SnapshotStyleMeta): boolean {
   );
 }
 
-export function phaseIdsFromMetaPlan(meta: AuditMeta): number[] {
+export function phaseIdsFromMetaPlan(meta: { execution_plan?: ExecutionPlanLike | null }): number[] {
   const selected = meta.execution_plan?.selected_domains ?? [];
   const domainPhases = selected
     .map((domain) => DOMAIN_PHASE_MAP[domain])
@@ -70,7 +79,7 @@ export function phaseIdsFromMetaPlan(meta: AuditMeta): number[] {
  * Pro-like / express-like execution: only recon + auto wing phases (0-4), no strategy.
  * Used by UI copy and phase visibility, independent of legacy `product_mode`.
  */
-export function isExpressLikeAudit(meta: AuditMeta): boolean {
+export function isExpressLikeAudit(meta: { execution_plan?: ExecutionPlanLike | null }): boolean {
   const phases = phaseIdsFromMetaPlan(meta);
   return phases.length > 0 && phases.every((phase) => phase <= EXPRESS_LIKE_MAX_PHASE);
 }

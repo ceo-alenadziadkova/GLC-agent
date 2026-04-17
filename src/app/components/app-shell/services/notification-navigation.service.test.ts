@@ -10,7 +10,7 @@ function makeNotification(
     id: 'n1',
     user_id: 'u1',
     audit_id: null,
-    kind: 'system',
+    kind: 'pipeline',
     title: 'Title',
     message: 'Message',
     payload: {},
@@ -65,7 +65,7 @@ describe('resolveNotificationRoute', () => {
 
   it('routes other audit notifications to audit workspace', () => {
     const auditId = 'f4f072f3-56d7-4fdf-a7c8-439f95fdc8da';
-    const item = makeNotification({ audit_id: auditId, kind: 'system' });
+    const item = makeNotification({ audit_id: auditId, kind: 'pipeline' });
 
     const route = resolveNotificationRoute({
       item,

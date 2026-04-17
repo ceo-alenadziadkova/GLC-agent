@@ -209,9 +209,8 @@ describe('ClientAuditView', () => {
     });
     upgradeSpy = vi.spyOn(apiService.api, 'upgradeAuditFromSnapshot').mockResolvedValue({
       ok: true,
-      auditId: 'audit-xyz-1',
-      productMode: 'express',
-      coveragePackage: 'pro',
+      snapshot_scrape_limited: false,
+      snapshot_scrape_robots_blocked: false,
     });
     requestHelpSpy = vi.spyOn(apiService.api, 'requestBriefHelp').mockResolvedValue(undefined);
     startPipelineSpy = vi.spyOn(apiService.api, 'startPipeline').mockResolvedValue(undefined);
