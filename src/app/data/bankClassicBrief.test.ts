@@ -5,7 +5,7 @@ import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
 import { briefResponsesToIntakeMap } from './intakeBriefMap';
 import { sortStubsByBankOrder } from '../hooks/useIntakeWizard';
 import type { BriefResponses } from './briefQuestions';
-import type { IntakeBriefCollectionMode } from './auditTypes';
+import type { IntakeBriefCollectionMode } from './audit/contracts/intake/intake-brief.types';
 import { makeWebsitePathFullBrief } from '../../../server/src/tests/bank-brief-fixtures';
 
 const HIDDEN_IDENTITY_BANK_IDS = new Set(['a2', 'a11', 'a12']);

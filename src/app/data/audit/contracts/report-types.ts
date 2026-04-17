@@ -11,7 +11,7 @@ import type {
   QuickWin as BackendQuickWin,
   Recommendation as BackendRecommendation,
   StrategyInitiative as BackendStrategyInitiative,
-} from '../../auditTypes';
+} from './report/report-domain.types';
 
 export type AuditIssue = CatalogAuditIssue;
 export type Recommendation = CatalogRecommendation;

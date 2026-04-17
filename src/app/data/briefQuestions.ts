@@ -12,7 +12,7 @@ import {
   PRE_BRIEF_QUESTION_IDS as SERVER_PRE_BRIEF_QUESTION_IDS,
   REQUIRED_QUESTION_IDS as SERVER_REQUIRED_QUESTION_IDS,
 } from '@glc/intake-core';
-import type { IntakeBriefCollectionMode } from './auditTypes';
+import type { IntakeBriefCollectionMode } from './audit/contracts/intake/intake-brief.types';
 import { briefResponsesToIntakeMap } from './intakeBriefMap';
 
 /**

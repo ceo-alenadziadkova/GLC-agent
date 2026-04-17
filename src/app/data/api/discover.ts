@@ -1,6 +1,6 @@
 import { API_PATHS } from '../../config/api-paths';
 import { apiFetch, publicApiFetch } from '../api-http';
-import type { IntakeVersionTuple } from '../auditTypes';
+import type { IntakeVersionTuple } from '../audit/contracts/intake/intake-brief.types';
 
 /** Response shape for GET /api/discover/ui-fragment (server `PublicDiscoveryUiFragment`). */
 export type DiscoveryUiFragmentPayload = {

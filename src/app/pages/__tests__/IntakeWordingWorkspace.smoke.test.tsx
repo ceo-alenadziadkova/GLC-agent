@@ -40,9 +40,9 @@ describe('IntakeWordingWorkspace smoke', () => {
       published: {},
       setDrafts: vi.fn(),
       hydrated: false,
-      syncToServer: vi.fn(async () => ({ ok: true })),
-      publishWording: vi.fn(async () => ({ applied_to: [] })),
-      rollbackWording: vi.fn(async () => ({ applied_to: [], drafts: {} })),
+      syncToServer: vi.fn(async () => ({})),
+      publishWording: vi.fn(async () => ({ ok: true as const, drafts: {}, applied_to: [] })),
+      rollbackWording: vi.fn(async () => ({ ok: true as const, drafts: {}, applied_to: [] })),
     });
   });
 

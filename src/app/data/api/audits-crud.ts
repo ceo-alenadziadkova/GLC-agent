@@ -1,6 +1,8 @@
 import { API_PATHS } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
-import type { AuditMeta, AuditState, AuditCoveragePackage, AuditDepth, DomainKey } from '../auditTypes';
+import type { DomainKey } from '@glc/intake-core';
+import type { AuditCoveragePackage, AuditDepth, AuditMeta } from '../audit/contracts/core/audit-meta.types';
+import type { AuditState } from '../audit/contracts/state/audit-state.types';
 
 function normalizeAuditState(raw: AuditState): AuditState {
   const reportCoverage = raw.report_coverage;

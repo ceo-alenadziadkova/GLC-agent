@@ -4,7 +4,7 @@ import {
   apiAuditsReview,
 } from '../../config/api-paths';
 import { API_URL, apiFetch, getAuthHeaders } from '../api-http';
-import type { QualityGateReport } from '../auditTypes';
+import type { QualityGateReport } from '../audit/contracts/pipeline/pipeline.types';
 
 export const auditsReviewsReportsApi = {
   async approveReview(id: string, phase: number, consultantNotes?: string, interviewNotes?: string) {

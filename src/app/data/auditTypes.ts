@@ -1,522 +1,82 @@
-// ─── Types matching the backend/DB schema ──────────────────
-
-import type { DomainKey } from '@glc/intake-core';
-
-export type ProductMode = 'free_snapshot' | 'express' | 'full';
-export type AuditCoveragePackage = 'starter' | 'pro' | 'complete';
-export type AuditDepth = 'light' | 'standard' | 'deep';
-export const FREE_SNAPSHOT_PRODUCT_MODE: ProductMode = 'free_snapshot';
-export const EXPRESS_PRODUCT_MODE: ProductMode = 'express';
-export const FULL_PRODUCT_MODE: ProductMode = 'full';
-
-/**
- * `buildIntakePlan` / brief SLA axis for paid audits — always full questionnaire requiredness.
- * Coverage package (Starter / Pro / Complete) affects pipeline phases only.
- */
-export const INTAKE_BRIEF_SLA_PRODUCT_MODE: ProductMode = FULL_PRODUCT_MODE;
-
-export const STARTER_AUDIT_COVERAGE_PACKAGE: AuditCoveragePackage = 'starter';
-export const PRO_AUDIT_COVERAGE_PACKAGE: AuditCoveragePackage = 'pro';
-export const COMPLETE_AUDIT_COVERAGE_PACKAGE: AuditCoveragePackage = 'complete';
-export const AUDIT_COVERAGE_PACKAGES: AuditCoveragePackage[] = ['starter', 'pro', 'complete'];
-export const DEFAULT_AUDIT_COVERAGE_PACKAGE: AuditCoveragePackage = 'complete';
-
-export type UserRole = 'consultant' | 'client' | 'guest';
-export type BriefResponseSource = 'client' | 'consultant' | 'recon_confirmed' | 'unknown';
-export type IntakeReadinessBadge = 'low' | 'medium' | 'high';
-export type IntakeNextBestAction = 'complete_required' | 'add_recommended' | 'confirm_prefill' | 'none';
-export type IntakeBriefCollectionMode = 'self_serve' | 'interview' | 'pre_brief' | 'discovery';
-
-/** Bank / policy / layout / resolver versions persisted with brief saves (ADR unified intake). */
-export interface IntakeVersionTuple {
-  questionBankVersion: string;
-  policyVersion: string;
-  layoutVersion: string;
-  resolverVersion: string;
-}
-export type BriefResponseValue = string | string[] | number | boolean | null;
-
-export interface BriefResponseEntry {
-  value: BriefResponseValue;
-  source: BriefResponseSource;
-}
-
-export interface ReconConflict {
-  questionId: string;
-  detectedValue: string;
-  clientValue: string;
-  status: 'open' | 'resolved';
-  resolvedAt?: string;
-  notes?: string;
-}
-
-export type AuditRequestStatus =
-  | 'draft'
-  | 'submitted'
-  | 'under_review'
-  | 'approved'
-  | 'rejected'
-  | 'running'
-  | 'delivered';
-
-export interface IntakeBrief {
-  id: string;
-  audit_id: string;
-  responses: Record<string, BriefResponseValue | BriefResponseEntry>;
-  status: 'draft' | 'submitted';
-  layer_completed: 0 | 1 | 2 | 3;
-  collected_by: 'client' | 'consultant';
-  collection_mode: IntakeBriefCollectionMode;
-  data_quality_score: number;
-  sla_met: boolean;
-  answered_required: number;
-  answered_recommended: number;
-  answered_optional: number;
-  total_required: number;
-  total_recommended: number;
-  total_optional: number;
-  recon_prefills: Record<string, unknown>;
-  recon_conflicts: ReconConflict[];
-  post_audit_questions: Array<Record<string, unknown>>;
-  progress_pct: number;
-  readiness_badge: IntakeReadinessBadge;
-  next_best_action: IntakeNextBestAction;
-  responses_format: 2;
-  intake_versions?: IntakeVersionTuple | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface AuditRequest {
-  id: string;
-  client_id: string;
-  audit_id: string | null;
-  url: string;
-  industry: string | null;
-  product_mode: 'express' | 'full';
-  status: AuditRequestStatus;
-  brief_snapshot: Record<string, unknown>;
-  client_notes: string | null;
-  consultant_note: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-/** Verifiable competitor comparison line (free snapshot). */
-export interface SnapshotCompetitorComparison {
-  metric: string;
-  client_val: boolean | number;
-  comp_val: boolean | number;
-  winner: 'client' | 'competitor' | 'tie';
-  label: string;
-}
-
-/** Advisory classification from deterministic snapshot scan. */
-export interface SnapshotSiteProfile {
-  siteType: string;
-  industry: string;
-  conversionModel: string;
-  primaryOffer: string;
-  shortLabel: string;
-  audienceGuess: 'b2b' | 'b2c' | 'b2b2c' | 'unknown';
-  businessSignals: string[];
-  classificationConfidence: number;
-  classificationConfidenceBand: 'high' | 'medium' | 'low';
-  companyNameGuess: string | null;
-  locationGuess: string | null;
-}
-
-export interface SnapshotScanCoverageApi {
-  budget_ms: number;
-  elapsed_ms: number;
-  pages_fetched: number;
-  max_pages_planned: number;
-  pages: Array<{
-    final_url: string;
-    status: number;
-    role: 'home' | 'contact' | 'pricing' | 'about' | 'services' | 'other';
-  }>;
-  playwright_eligible?: boolean;
-  playwright_used?: boolean;
-  robots_txt_fetched?: boolean;
-  robots_home_disallowed?: boolean;
-  robots_head_probe?: {
-    status: number;
-    content_type?: string;
-    final_url?: string;
-    x_robots_tag?: string;
-    ua_used?: string;
-  };
-  robots_fallback_site_class?: 'major_platform' | 'standard';
-  robots_extras_skipped?: number;
-  crawl_delay_ms_applied?: number;
-  home_fetch_failure?: 'network_or_timeout' | 'http_error' | 'non_html' | 'empty_body';
-  challenge_page_likely?: boolean;
-  challenge_taxonomy?: string;
-  parked_domain_likely?: boolean;
-  parked_taxonomy?: string;
-  login_wall_likely?: boolean;
-  login_wall_taxonomy?: string;
-}
-
-// Free Snapshot result (public, no auth)
-export interface FreeSnapshotPreview {
-  audit_id: string;
-  snapshot_token: string;
-  status: 'running' | 'completed' | 'failed';
-  company_url: string;
-  company_name: string | null;
-  tech_stack: Record<string, string[]>;
-  tech_stack_tentative?: Array<{ name: string; category: string; signal: string }>;
-  ai_visibility?: {
-    gaps: Array<'robots_txt' | 'sitemap_html' | 'structured_data' | 'discovery_files'>;
-  };
-  location: string | null;
-  ux_score: number | null;
-  ux_label: string | null;
-  ux_summary: string | null;
-  issues: Array<{ id: string; severity: string; title: string; description: string; impact: string }>;
-  quick_wins: Array<{ id: string; title: string; description: string; effort: string; timeframe: string }>;
-  overall_score?: number;
-  category_scores?: {
-    ux_clarity: number;
-    conversion_readiness: number;
-    ai_readiness: number;
-    technical_basics: number;
-  };
-  scan_basis?: string;
-  signals_found?: string[];
-  scan_confidence_band?: 'high' | 'medium' | 'low';
-  site_profile?: SnapshotSiteProfile;
-  classification_confidence_band?: 'high' | 'medium' | 'low';
-  scan_coverage?: SnapshotScanCoverageApi;
-  audit_rules_version?: number;
-  scan_basis_code?:
-    | 'homepage_only'
-    | 'homepage_plus_core_pages'
-    | 'homepage_rendered_fallback'
-    | 'degraded'
-    | 'cache_hit';
-  cache_hit?: boolean;
-  scanned_at?: string;
-  limitations?: string[];
-  classification_version?: number;
-  classification_transparency?: {
-    matched_signals: string[];
-    runner_up_site_type: string | null;
-    runner_up_match_count: number | null;
-    tie_ambiguous: boolean;
-    score_top_two: [string, number][];
-  };
-  fetch_strategy_version?: string;
-  snapshot_engine_version?: string;
-  competitor_mini?: {
-    competitor_name: string;
-    competitor_url: string;
-    comparisons: SnapshotCompetitorComparison[];
-    data_source: 'auto_detected';
-    confidence: 'high';
-  };
-  homepage_snippet?: { title: string; description: string };
-  /** Server-set: snapshot could not usefully read public HTML. */
-  snapshot_access_blocked?: boolean;
-  /** When blocked: true if robots.txt / policy prevented homepage fetch. */
-  snapshot_access_robots_blocked?: boolean;
-  /** Snapshot-domain recommendations (e.g. upgrade to full audit); optional, not shown on public token API trim. */
-  program_recommendations?: Array<{
-    id: string;
-    title: string;
-    description: string;
-    priority: 'high' | 'medium' | 'low';
-  }>;
-}
-
 export {
   DOMAIN_DISPLAY_LABELS as DOMAIN_LABELS,
   DOMAIN_KEYS,
   SCORE_COLORS,
   SCORE_LABELS,
 } from '@glc/intake-core';
+export type { DomainKey } from '@glc/intake-core';
 
-export type { DomainKey };
+export {
+  AUDIT_COVERAGE_PACKAGES,
+  COMPLETE_AUDIT_COVERAGE_PACKAGE,
+  DEFAULT_AUDIT_COVERAGE_PACKAGE,
+  EXPRESS_PRODUCT_MODE,
+  FREE_SNAPSHOT_PRODUCT_MODE,
+  FULL_PRODUCT_MODE,
+  INTAKE_BRIEF_SLA_PRODUCT_MODE,
+  PRO_AUDIT_COVERAGE_PACKAGE,
+  STARTER_AUDIT_COVERAGE_PACKAGE,
+} from '../config/audit-product-policy';
 
-// ─── Data structures ───────────────────────────────────────
+export type {
+  AuditCoveragePackage,
+  AuditDepth,
+  AuditMeta,
+  AuditRequest,
+  AuditRequestStatus,
+  CrawledPage,
+  ProductMode,
+  ReconData,
+  UserRole,
+} from './audit/contracts/core/audit-meta.types';
 
-export interface AuditMeta {
-  id: string;
-  user_id: string;
-  client_id: string | null;
-  company_url: string;
-  no_public_website?: boolean;
-  company_name: string | null;
-  industry: string | null;
-  status: string;
-  current_phase: number;
-  overall_score: number | null;
-  product_mode: ProductMode;
-  execution_plan?: {
-    selected_domains: DomainKey[];
-    depth: AuditDepth;
-    source: 'user_selected' | 'system_default';
-    recommended_domains?: DomainKey[];
-    coverage_package?: AuditCoveragePackage;
-    include_strategy?: boolean;
-  } | null;
-  token_budget: number;
-  tokens_used: number;
-  snapshot_token: string | null;
-  created_at: string;
-  updated_at: string;
-}
+export type {
+  BriefResponseEntry,
+  BriefResponseSource,
+  BriefResponseValue,
+  IntakeBrief,
+  IntakeBriefCollectionMode,
+  IntakeNextBestAction,
+  IntakeReadinessBadge,
+  IntakeVersionTuple,
+  ReconConflict,
+} from './audit/contracts/intake/intake-brief.types';
 
-export interface ReconData {
-  id: string;
-  audit_id: string;
-  status: string;
-  company_name: string | null;
-  industry: string | null;
-  location: string | null;
-  languages: string[];
-  tech_stack: Record<string, string[]>;
-  social_profiles: Record<string, string>;
-  contact_info: { emails: string[]; phones: string[]; addresses: string[] };
-  pages_crawled: CrawledPage[];
-  brief: string | null;
-  interview_answers: string | null;
-}
+export type {
+  FreeSnapshotPreview,
+  SnapshotCompetitorComparison,
+  SnapshotScanCoverageApi,
+  SnapshotSiteProfile,
+} from './audit/contracts/snapshot/free-snapshot.types';
 
-export interface CrawledPage {
-  url: string;
-  title: string;
-  status: number;
-  meta_description: string | null;
-  h1: string[];
-  structured_data: string[];
-  images: { total: number; with_alt: number; missing_alt: number; lazy_loaded: number };
-}
+export type {
+  AuditIssue,
+  ConfidenceDistribution,
+  ConfidenceLevel,
+  DataSource,
+  DomainData,
+  EvidenceRef,
+  QuickWin,
+  Recommendation,
+  ScorecardEntry,
+  StrategyInitiative,
+  StrategyRoadmap,
+} from './audit/contracts/report/report-domain.types';
 
-// ─── Finding Provenance (Sprint 14) ───────────────────────
-export type ConfidenceLevel = 'high' | 'medium' | 'low';
-export type DataSource = 'auto_detected' | 'from_brief' | 'inferred';
+export type {
+  ControlObjectGovernanceView,
+  GovernanceDecisionHint,
+  PipelineEvent,
+  QualityFlag,
+  QualityGateReport,
+  RefineRecommendedEventData,
+  ReviewPoint,
+} from './audit/contracts/pipeline/pipeline.types';
 
-export interface EvidenceRef {
-  type: string;
-  url?: string;
-  finding: string;
-}
+export type {
+  NotificationItem,
+  NotificationKind,
+  NotificationPayload,
+} from './audit/contracts/notifications/notification.types';
 
-export interface AuditIssue {
-  id: string;
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  title: string;
-  description: string;
-  impact: string;
-  confidence: ConfidenceLevel;
-  evidence_refs: EvidenceRef[];
-  data_source: DataSource;
-}
-
-export interface Recommendation {
-  id: string;
-  title: string;
-  description: string;
-  priority: 'high' | 'medium' | 'low';
-  estimated_cost: string;
-  estimated_time: string;
-  impact: string;
-}
-
-export interface QuickWin {
-  id: string;
-  title: string;
-  description: string;
-  effort: 'low' | 'medium' | 'high';
-  timeframe: string;
-}
-
-export interface ConfidenceDistribution {
-  high: number;
-  medium: number;
-  low: number;
-}
-
-export interface DomainData {
-  id: string;
-  audit_id: string;
-  domain_key: DomainKey;
-  phase_number: number;
-  status: string;
-  score: number | null;
-  label: string | null;
-  version: number;
-  summary: string | null;
-  strengths: string[];
-  weaknesses: string[];
-  issues: AuditIssue[];
-  quick_wins: QuickWin[];
-  recommendations: Recommendation[];
-  unknown_items: string[];
-  confidence_distribution: ConfidenceDistribution | null;
-  raw_data: Record<string, unknown>;
-}
-
-export interface StrategyInitiative {
-  id: string;
-  title: string;
-  description: string;
-  impact: 'high' | 'medium' | 'low';
-  effort: 'low' | 'medium' | 'high';
-  dependencies?: string[];
-}
-
-export interface StrategyRoadmap {
-  id: string;
-  audit_id: string;
-  status: string;
-  executive_summary: string | null;
-  overall_score: number | null;
-  quick_wins: StrategyInitiative[];
-  medium_term: StrategyInitiative[];
-  strategic: StrategyInitiative[];
-  scorecard: ScorecardEntry[];
-}
-
-export interface ScorecardEntry {
-  domain_key: DomainKey;
-  label: string;
-  score: number;
-  weight: number;
-  weighted_score: number;
-}
-
-export interface ReviewPoint {
-  id: string;
-  audit_id: string;
-  after_phase: number;
-  status: 'pending' | 'approved';
-  consultant_notes: string | null;
-  interview_notes: string | null;
-  approved_at: string | null;
-}
-
-export interface PipelineEvent {
-  id: number;
-  audit_id: string;
-  phase: number;
-  event_type: string;
-  message: string | null;
-  data: Record<string, unknown>;
-  created_at: string;
-}
-
-export type NotificationKind = 'pipeline' | 'review' | 'intake';
-
-export interface NotificationPayload {
-  route?: string;
-  request_id?: string;
-  artifact?: 'strategy' | 'report' | 'report_pdf' | 'action_plan_csv' | string;
-  failure_type?: 'phase_failed' | 'retry_started' | string;
-  audit_id?: string;
-  phase?: number;
-  status?: string;
-  event_type?: string;
-  occurred_at?: string;
-  actor_role?: 'consultant' | 'client' | 'system' | string;
-  [key: string]: unknown;
-}
-
-export interface NotificationItem {
-  id: string;
-  user_id: string;
-  audit_id: string | null;
-  kind: NotificationKind;
-  title: string;
-  message: string;
-  payload: NotificationPayload;
-  is_read: boolean;
-  read_at: string | null;
-  created_at: string;
-}
-
-// ─── Quality Gate (Sprint 16) ──────────────────────────────
-
-export interface QualityFlag {
-  id: string;
-  /** 'warning' — must acknowledge before approving; 'info' — informational only */
-  severity: 'warning' | 'info';
-  domain_key: string | null;
-  rule: string;
-  message: string;
-}
-
-export interface QualityGateReport {
-  /** True when there are no 'warning'-level flags */
-  passed: boolean;
-  flags: QualityFlag[];
-  checked_at: string;
-}
-
-/** Decision Layer output persisted on CONTROL_OBJECT v1 and in `refine_recommended` events. */
-export type GovernanceDecisionHint = 'accept' | 'accept_with_warnings' | 'refine';
-
-/** Subset of CONTROL_OBJECT v1 used for consultant UI (from `pipeline_events.data.control_object`). */
-export interface ControlObjectGovernanceView {
-  decision_hint: GovernanceDecisionHint;
-  confidence: {
-    overall: number;
-    factual: number;
-    strategic: number;
-    consistency: number;
-  };
-  counts: {
-    total_claims: number;
-    fact: number;
-    statuses: {
-      confirmed_brief: number;
-      confirmed_external?: number;
-      unverified: number;
-      likely_hallucination: number;
-      risky_promise: number;
-      dependent_on_brief_assumption?: number;
-      strategic_inconsistency?: number;
-    };
-  };
-  context: {
-    phase_id: string;
-    execution_mode: string;
-    audit_id: string;
-  };
-  human_attention_required: {
-    required: boolean;
-    reasons: string[];
-  };
-  /** Phase 9: number of auto-remediation actions applied before this control_object was emitted. */
-  auto_remediation_applied_count?: number;
-}
-
-/** `pipeline_events.data` for `event_type === 'refine_recommended'`. */
-export interface RefineRecommendedEventData {
-  decision_hint: GovernanceDecisionHint;
-  reasoning: string;
-  active_error_types: string[];
-  control_object?: ControlObjectGovernanceView;
-}
-
-// ─── Full audit state ──────────────────────────────────────
-
-export interface AuditState {
-  meta: AuditMeta;
-  report_coverage?: {
-    covered_domains: DomainKey[];
-    not_covered_domains: DomainKey[];
-    coverage_ratio: number;
-    coverage_adjusted_score: number | null;
-    comparability_note: string;
-  };
-  recon: ReconData | null;
-  domains: Record<string, DomainData | null>;
-  strategy: StrategyRoadmap | null;
-  reviews: ReviewPoint[];
-  /** Present when `GET /api/audits/:id` loaded intake_brief (see server audits route). */
-  brief: IntakeBrief | null;
-}
+export type { AuditState } from './audit/contracts/state/audit-state.types';

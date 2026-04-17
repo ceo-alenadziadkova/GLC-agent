@@ -1,5 +1,5 @@
 import { API_PATHS } from '../../config/api-paths';
-import type { FreeSnapshotPreview } from '../auditTypes';
+import type { FreeSnapshotPreview } from '../audit/contracts/snapshot/free-snapshot.types';
 import { apiFetch } from '../api-http';
 
 type SnapshotCompareResponse = {

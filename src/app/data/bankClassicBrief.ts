@@ -2,7 +2,7 @@
  * Classic "All sections" brief UI: same visible question set and order as IntakeBankWizard
  * (`buildIntakePlan` + bank JSON order).
  */
-import type { IntakeBriefCollectionMode } from './auditTypes';
+import type { IntakeBriefCollectionMode } from './audit/contracts/intake/intake-brief.types';
 import { buildIntakePlan } from '@glc/intake-core';
 import type { IntakeSurface } from '@glc/intake-core';
 import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';

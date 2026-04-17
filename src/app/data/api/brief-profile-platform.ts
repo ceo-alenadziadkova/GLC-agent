@@ -1,7 +1,12 @@
 import { API_PATHS } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
 import { assertIntakePayloadShape } from '../api-payload-asserts';
-import type { AuditCoveragePackage, IntakeBrief, IntakeBriefCollectionMode, IntakeVersionTuple } from '../auditTypes';
+import type { AuditCoveragePackage } from '../audit/contracts/core/audit-meta.types';
+import type {
+  IntakeBrief,
+  IntakeBriefCollectionMode,
+  IntakeVersionTuple,
+} from '../audit/contracts/intake/intake-brief.types';
 import type { BriefQuestion } from '../briefQuestions';
 
 /** `GET /api/audits/:id/brief/schema` — compact IntakePlan + bank labels (ADR Phase D). */

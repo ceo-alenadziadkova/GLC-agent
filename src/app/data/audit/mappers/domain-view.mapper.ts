@@ -1,5 +1,7 @@
-import type { DomainKey, DomainData, StrategyRoadmap } from '../../auditTypes';
-import { DOMAIN_LABELS } from '../../auditTypes';
+import type { DomainKey } from '@glc/intake-core';
+import { DOMAIN_DISPLAY_LABELS } from '@glc/intake-core';
+import type { AuditDomainId } from '../catalog/domain-keys';
+import type { DomainData, StrategyRoadmap } from '../contracts/report/report-domain.types';
 import type { AuditDomain, StrategyInitiative } from '../contracts/report-types';
 
 const SCORE_TO_STATUS: Record<number, AuditDomain['status']> = {
@@ -8,6 +10,15 @@ const SCORE_TO_STATUS: Record<number, AuditDomain['status']> = {
   3: 'moderate',
   4: 'good',
   5: 'excellent',
+};
+
+const BACKEND_TO_CATALOG_DOMAIN_ID: Record<DomainKey, Exclude<AuditDomainId, 'recon' | 'strategy'>> = {
+  tech_infrastructure: 'tech-infrastructure',
+  security_compliance: 'security',
+  seo_digital: 'seo',
+  ux_conversion: 'ux',
+  marketing_utp: 'marketing',
+  automation_processes: 'automation',
 };
 
 function toStatus(score: number | null): AuditDomain['status'] {
@@ -32,9 +43,10 @@ function toStrategyInitiative(
 }
 
 export function mapDomainDataToAuditDomain(domain: DomainData): AuditDomain {
+  const catalogDomainId = BACKEND_TO_CATALOG_DOMAIN_ID[domain.domain_key];
   return {
-    id: domain.domain_key,
-    name: DOMAIN_LABELS[domain.domain_key],
+    id: catalogDomainId,
+    name: DOMAIN_DISPLAY_LABELS[domain.domain_key],
     icon: 'Circle',
     score: domain.score ?? 0,
     status: toStatus(domain.score),
