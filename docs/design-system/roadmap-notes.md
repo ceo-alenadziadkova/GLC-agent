@@ -15,12 +15,20 @@ Date: 2026-04-17
 - **Command:** `pnpm run audit:ds:ci` (same as `pnpm run audit:ds:runtime`) — orchestrator [`scripts/design-system-runtime-ci.mjs`](../../scripts/design-system-runtime-ci.mjs).
 - **Policy:** **0** violations. Baseline and primitive-boundary **grandfather allowlists are not applied** (subprocess env sets missing paths). [`scripts/design-system-ts-color-allowlist.txt`](../../scripts/design-system-ts-color-allowlist.txt) remains the **only** intentional suppression (PDF / report bridge on `server/src/**`).
 - **Checks (order):** raw-values (app scope), enforcement (app), ts-color, primitive-boundary, patterns-lock.
+- **CI:** GitHub workflows run **`pnpm run audit:ds:drift-budget`** (§4.1 stable drift cap) immediately before **`pnpm run audit:ds:ci`** so merge cannot increase migration drift and cannot break runtime.
 
 ### §4.1 Migration pipeline (drift tracking and allowlist hygiene)
 
 - **Drift report:** `pnpm run audit:ds:migration-report` (alias: `pnpm run audit:ds:export-violations`) — regenerates [`violations-export.md`](./violations-export.md) and `compliance-findings.full.txt` with baseline/PB allowlists disabled in captured subprocess output (same shape as runtime, for visibility when re-introducing grandfather rows).
 - **Optional soft gate (grandfather on disk):** `pnpm run audit:ds:migration-gate` — runs the five checks **with** normal `scripts/design-system-baseline.allowlist.txt` and `scripts/design-system-primitive-boundary.allowlist.txt` resolution (use locally if you temporarily re-add grandfather lines during a migration branch).
 - **Refresh after shrinking drift:** `pnpm run audit:ds:refresh-allowlist`, `pnpm run audit:ds:refresh-primitive-boundary-allowlist`.
+
+#### Drift Budget (mature §4.1 gate)
+
+- **Principle:** merge does not require literal-zero migration drift immediately, but **no PR may increase** tracked drift versus the committed baseline.
+- **Metric:** `stableSignatureCount` — count of unique keys **`file` + `type` + `value`** over the same merged §4.1 audit output as `migration-report` (ignores line-number churn). Implemented in [`scripts/design-system-migration-drift-sigs.mjs`](../../scripts/design-system-migration-drift-sigs.mjs); orchestrator [`scripts/design-system-drift-budget-check.mjs`](../../scripts/design-system-drift-budget-check.mjs).
+- **Baseline:** [`scripts/design-system-drift-budget.json`](../../scripts/design-system-drift-budget.json) (`schemaVersion`, `stableSignatureCount`, `asOf`, `note`). CI runs `pnpm run audit:ds:drift-budget` and fails if current count **>** baseline.
+- **Lowering the budget:** after fixing violations, run `pnpm run audit:ds:drift-budget:record` and commit the updated JSON in the same PR (or a dedicated “shrink drift” PR). Raising the baseline is a **policy decision** — document rationale in the PR; do not use `:record` to silently accept new violations.
 
 ---
 
@@ -34,6 +42,7 @@ Date: 2026-04-17
 - **As-is inventory (mirror of repo):**
   - `pnpm run audit:ds:inventory-dump` — regenerates [`docs/design-system/inventory-dump.md`](./inventory-dump.md) (full token-name list from `tokens.css` + deduplicated literals under `src/`).
   - `pnpm run audit:ds:migration-report` / `pnpm run audit:ds:export-violations` — **§4.1** drift mirror (see section above); not the merge gate.
+  - `pnpm run audit:ds:drift-budget` — **§4.1** Drift Budget gate (stable signature count vs [`scripts/design-system-drift-budget.json`](../../scripts/design-system-drift-budget.json)); part of CI with runtime.
 - Enforcement scripts:
   - `scripts/design-system-raw-values-check.mjs`
   - `scripts/design-system-enforcement-check.mjs` (inline visual detection spans multiline `style={{ ... }}` blocks, not single-line only; shared parser: `scripts/design-system-jsx-style-blocks.mjs`)

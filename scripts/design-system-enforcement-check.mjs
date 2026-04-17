@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Target architecture enforcement checks:
- * - no new inline visual styles in TSX
+ * - no new inline visual styles in TSX (paths in scripts/design-system-frozen-tsx-exempt.txt skipped)
  * - no token-like raw visual values in src/app/config/**
  * - utilities.css must remain layout-only (no visual glc-* utility styling)
  *

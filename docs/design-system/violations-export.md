@@ -2,7 +2,7 @@
 
 Generated: 2026-04-17 via `pnpm run audit:ds:migration-report` (`node scripts/design-system-export-violations.mjs`).
 
-**§4.1 Migration pipeline:** same audits as **§4.2** but baseline and primitive-boundary subprocesses run **without** grandfather allowlists (env matches strict `audit:ds:runtime`). This file is **not** the merge gate — use it to see drift while shrinking toward zero. **§4.2 Runtime governance:** `pnpm run audit:ds:ci` / `audit:ds:runtime` — **0** baseline/PB grandfather violations; only `scripts/design-system-ts-color-allowlist.txt` (PDF bridge) may suppress ts-color findings.
+**§4.1 Migration pipeline:** same audits as **§4.2** but baseline and primitive-boundary subprocesses run **without** grandfather allowlists (subprocess env matches strict `audit:ds:runtime`). This file is **not** the merge gate — use it to see drift while shrinking toward zero. **§4.2 Runtime governance:** `pnpm run audit:ds:ci` / `audit:ds:runtime` — **0** baseline/PB grandfather violations; only `scripts/design-system-ts-color-allowlist.txt` (PDF bridge) may suppress ts-color findings.
 
 ## Summary
 

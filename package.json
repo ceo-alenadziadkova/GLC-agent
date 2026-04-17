@@ -35,6 +35,8 @@
     "audit:ds:migration-gate": "pnpm run audit:ds:raw-values:app && pnpm run audit:ds:enforcement:app && pnpm run audit:ds:ts-color && pnpm run audit:ds:primitive-boundary && pnpm run audit:ds:patterns-lock",
     "audit:ds:migration-report": "node scripts/design-system-export-violations.mjs",
     "audit:ds:export-violations": "node scripts/design-system-export-violations.mjs",
+    "audit:ds:drift-budget": "node scripts/design-system-drift-budget-check.mjs",
+    "audit:ds:drift-budget:record": "node scripts/design-system-drift-budget-check.mjs --record",
     "audit:ds:inventory-dump": "node scripts/design-system-inventory-dump.mjs",
     "audit:ds:refresh-allowlist": "node scripts/design-system-refresh-allowlist.mjs",
     "audit:ds:refresh-primitive-boundary-allowlist": "node scripts/design-system-refresh-primitive-boundary-allowlist.mjs",
