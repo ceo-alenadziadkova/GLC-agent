@@ -212,8 +212,8 @@ Only aliases required by repeated usage (>=3 occurrences) are added:
 | --- | --- |
 | Home hero grid / title clamp / supporting 0.95rem | `.ds-home-hero-billboard-grid`, `.ds-home-hero-billboard-title`, `.ds-home-hero-supporting-line` |
 | Eyebrow `tracking-[0.1em]` | `.ds-tracking-marketing-eyebrow` |
-| Package hero grid / cover max 340px / title clamp | `.ds-package-marketing-hero-grid`, `.ds-package-marketing-hero-cover`, `.ds-package-marketing-hero-title` |
-| Cockpit 420×360, panel `top-[5.5rem]`, cell borders | `.ds-home-hero-cockpit-wrap`, `.ds-home-hero-cockpit-stage`, `.ds-home-hero-cockpit-panel-offset`, `.ds-home-hero-cockpit-cell` |
+| Package hero grid / cover max 340px / title clamp / coverage card | `.ds-package-marketing-hero-grid`, `.ds-package-marketing-hero-cover`, `.ds-package-marketing-hero-title`, `.ds-package-marketing-hero-card` + `marketing-surface-tokens.ts` (coverage cells, chips, tier badge) |
+| Cockpit 420×360, panel `top-[5.5rem]`, cell border shell | `.ds-home-hero-cockpit-wrap`, `.ds-home-hero-cockpit-stage`, `.ds-home-hero-cockpit-panel-offset`, `.ds-home-hero-cockpit-cell`, `.ds-home-hero-cockpit-floating-panel` — **TSX frozen** (`HomeHeroCockpit.tsx`; not in migration matrix) |
 | Section description `1.02rem` / rail `pl-3.25rem` | `.ds-home-section-desc-size`, `.ds-home-section-desc-rail` |
 | Mid CTA body 0.95rem | `.ds-marketing-mid-cta-body` |
 | Audience caps `0.12em` | `.ds-package-audience-caps` |

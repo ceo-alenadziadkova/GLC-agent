@@ -22,9 +22,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadFrozenTsxExemptPaths } from './design-system-frozen-tsx-exempt.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
+const FROZEN_TSX_EXEMPT = loadFrozenTsxExemptPaths(ROOT);
 
 const validScopeModes = new Set(['ds', 'ui', 'app']);
 const requestedScope = process.env.DS_RAW_SCOPE ?? 'app';
@@ -73,6 +75,10 @@ function walk(dir) {
 const RAW_SKIP_TOKEN_SCAN_BASENAMES = new Set(['marketing-motion.ts']);
 
 function checkFile(filePath) {
+  const relPath = path.relative(ROOT, filePath).replace(/\\/g, '/');
+  if (FROZEN_TSX_EXEMPT.has(relPath)) {
+    return [];
+  }
   if (RAW_SKIP_TOKEN_SCAN_BASENAMES.has(path.basename(filePath))) {
     return [];
   }

@@ -20,9 +20,11 @@ import {
   extractJsxExpressionBlocksOpeningWithDoubleBrace,
   styleBlockHasVisualKey,
 } from './design-system-jsx-style-blocks.mjs';
+import { loadFrozenTsxExemptPaths } from './design-system-frozen-tsx-exempt.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
+const FROZEN_TSX_EXEMPT = loadFrozenTsxExemptPaths(ROOT);
 
 const PRIMITIVE_ISLAND_PREFIXES = ['src/app/components/ui/', 'src/design-system/ui/'];
 
@@ -64,6 +66,7 @@ function isUnderPrimitiveIsland(r) {
 }
 
 function shouldSkipFile(r) {
+  if (FROZEN_TSX_EXEMPT.has(r)) return true;
   if (!r.endsWith('.tsx')) return true;
   if (r.endsWith('.d.tsx')) return true;
   if (r.includes('.test.')) return true;

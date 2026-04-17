@@ -1,9 +1,10 @@
 /**
  * @file HomeHeroCockpit.tsx
  *
- * Product-approved marketing “cockpit” visuals: inline `style` objects preserve exact
- * hero parity (tilt, panels, coverage cells). Do not replace with CSS bridges without
- * design sign-off — see `docs/design-system/roadmap-notes.md` (HomeHeroCockpit).
+ * PRODUCT FROZEN — do not edit this module. It is excluded from automated design-system
+ * scans via `scripts/design-system-frozen-tsx-exempt.txt` (do not remove from that list
+ * without written product and design-system owner approval). Not part of migration batches
+ * or “safe inline purge” waves — see `docs/design-system/roadmap-notes.md`.
  */
 import { motion, useReducedMotion } from 'motion/react';
 import {
@@ -26,7 +27,7 @@ function SkeletonLine({ width }: { width: string }) {
 
 /**
  * Decorative “audit cockpit” for marketing hero — no live data; subtle hover motion only.
- * Inline visuals match the light-home cockpit shell (parity with pre–DS migration).
+ * Inline visuals kept for parity with the light-home cockpit shell (glc-light-home-cockpit).
  */
 export function HomeHeroCockpit({ className }: { className?: string }) {
   const reduce = useReducedMotion();

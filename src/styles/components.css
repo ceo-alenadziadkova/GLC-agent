@@ -1740,18 +1740,7 @@ html:not(.dark) .glc-hover-row:hover {
   color: var(--text-primary);
 }
 
-/* Home hero cockpit: surface visuals in CSS; motion.div keeps transform/zIndex/opacity in style for Framer merge. */
-.ds-home-hero-cockpit-surface-a,
-.ds-home-hero-cockpit-surface-b {
-  border-radius: var(--radius-xl);
-  border-color: var(--border-subtle);
-  background-color: var(--bg-surface);
-}
-
-.ds-home-hero-cockpit-skeleton-track {
-  background-color: color-mix(in oklab, var(--border-default) 55%, transparent);
-}
-
+/* Home hero cockpit: layout chrome only — visuals stay in frozen `HomeHeroCockpit.tsx`. */
 .ds-home-hero-cockpit-floating-panel {
   overflow: hidden;
   border-radius: var(--radius-xl);
@@ -2108,14 +2097,6 @@ html:not(.dark) .glc-hover-row:hover {
 
 .ds-home-hero-cockpit-cell {
   border: var(--border-width-default) solid var(--border-subtle);
-}
-
-.ds-home-hero-cockpit-cell[data-cockpit-cell-tone='muted'] {
-  background-color: color-mix(in oklab, var(--bg-muted) 90%, transparent);
-}
-
-.ds-home-hero-cockpit-cell[data-cockpit-cell-tone='accent'] {
-  background-color: color-mix(in oklab, var(--glc-blue-muted) 80%, transparent);
 }
 
 .ds-home-section-desc-size {

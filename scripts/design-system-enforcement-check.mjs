@@ -18,9 +18,11 @@ import {
   extractJsxExpressionBlocksOpeningWithDoubleBrace,
   styleBlockHasVisualKey,
 } from './design-system-jsx-style-blocks.mjs';
+import { loadFrozenTsxExemptPaths } from './design-system-frozen-tsx-exempt.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
+const FROZEN_TSX_EXEMPT = loadFrozenTsxExemptPaths(ROOT);
 
 const TOKEN_LIKE_RAW_RE = /#(?:[0-9a-fA-F]{3,8})\b|\brgba?\([^)]*\)|\bhsla?\([^)]*\)|\b\d*\.?\d+(px|rem|em)\b/g;
 const LEGACY_BUTTON_CLASS_RE = /\bglc-btn-(primary|secondary|ghost)\b/g;
@@ -65,6 +67,7 @@ function checkInlineVisualStyles() {
   const targets = inlineStyleTargetDirs().flatMap((dir) => walk(path.join(ROOT, dir), new Set(['.tsx'])));
   const violations = [];
   for (const filePath of targets) {
+    if (FROZEN_TSX_EXEMPT.has(rel(filePath))) continue;
     const content = fs.readFileSync(filePath, 'utf8');
     for (const { startLine, block } of extractJsxExpressionBlocksOpeningWithDoubleBrace(content)) {
       if (!styleBlockHasVisualKey(block)) continue;
