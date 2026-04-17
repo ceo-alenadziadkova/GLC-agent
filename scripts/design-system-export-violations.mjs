@@ -20,7 +20,11 @@ function run(cmd) {
       cwd: ROOT,
       encoding: 'utf8',
       maxBuffer: 10 * 1024 * 1024,
-      env: { ...process.env, DS_BASELINE_ALLOWLIST_PATH: '__missing_allowlist__' },
+      env: {
+        ...process.env,
+        DS_BASELINE_ALLOWLIST_PATH: '__missing_allowlist__',
+        DS_PRIMITIVE_BOUNDARY_ALLOWLIST_PATH: '__missing_allowlist__',
+      },
     });
   } catch (e) {
     const out = [e.stdout, e.stderr].filter(Boolean).join('\n');
@@ -59,11 +63,13 @@ function tallyByFile(sigs, limit = 30) {
 const rawOut = run('node scripts/design-system-raw-values-check.mjs');
 const enfOut = run('node scripts/design-system-enforcement-check.mjs');
 const tsColorOut = run('node scripts/design-system-ts-color-literals-check.mjs');
+const primitiveBoundaryOut = run('node scripts/design-system-primitive-boundary-check.mjs');
 
 const rawSigs = parseLines(rawOut);
 const enfSigs = parseLines(enfOut);
 const tsColorSigs = parseLines(tsColorOut);
-const merged = [...rawSigs, ...enfSigs, ...tsColorSigs];
+const primitiveBoundarySigs = parseLines(primitiveBoundaryOut);
+const merged = [...rawSigs, ...enfSigs, ...tsColorSigs, ...primitiveBoundarySigs];
 
 const seenSig = new Set();
 const deduped = [];
@@ -85,7 +91,7 @@ const lines = [
   '',
   `Generated: ${date} via \`node scripts/design-system-export-violations.mjs\`.`,
   '',
-  'This report lists findings **before** applying `scripts/design-system-baseline.allowlist.txt`. CI uses the allowlist to grandfather existing lines until they are migrated.',
+  'This report lists findings **before** applying `scripts/design-system-baseline.allowlist.txt` and `scripts/design-system-primitive-boundary.allowlist.txt`. CI uses those allowlists to grandfather existing lines until they are migrated.',
   '',
   '## Summary',
   '',
@@ -94,7 +100,8 @@ const lines = [
   `| design-system-raw-values-check (app scope) | ${rawSigs.length} |`,
   `| design-system-enforcement-check (app scope) | ${enfSigs.length} |`,
   `| design-system-ts-color-literals-check (src + server/src) | ${tsColorSigs.length} |`,
-  `| **Total rows** (merged raw + enforcement + ts-color) | **${merged.length}** |`,
+  `| design-system-primitive-boundary-check | ${primitiveBoundarySigs.length} |`,
+  `| **Total rows** (merged raw + enforcement + ts-color + primitive-boundary) | **${merged.length}** |`,
   `| **Deduped rows** (written to \`compliance-findings.full.txt\`) | **${deduped.length}** |`,
   '',
   '## By violation type (merged)',
@@ -111,7 +118,7 @@ const lines = [
   '',
   '## Full findings (machine-readable)',
   '',
-  `One line per finding: \`file:line [type] value\`. Deduped merge of both audits (no allowlist).`,
+  `One line per finding: \`file:line [type] value\`. Deduped merge of audits (no allowlist / no primitive-boundary allowlist).`,
   '',
   `- [\`compliance-findings.full.txt\`](./compliance-findings.full.txt) — **${deduped.length}** lines`,
   '',

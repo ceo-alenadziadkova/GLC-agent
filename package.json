@@ -28,10 +28,12 @@
     "audit:ds:enforcement:ui": "DS_ENFORCEMENT_SCOPE=ui node scripts/design-system-enforcement-check.mjs",
     "audit:ds:enforcement:app": "DS_ENFORCEMENT_SCOPE=app node scripts/design-system-enforcement-check.mjs",
     "audit:ds:ts-color": "node scripts/design-system-ts-color-literals-check.mjs",
-    "audit:ds:ci": "pnpm run audit:ds:raw-values:app && pnpm run audit:ds:enforcement:app && pnpm run audit:ds:ts-color",
+    "audit:ds:primitive-boundary": "node scripts/design-system-primitive-boundary-check.mjs",
+    "audit:ds:ci": "pnpm run audit:ds:raw-values:app && pnpm run audit:ds:enforcement:app && pnpm run audit:ds:ts-color && pnpm run audit:ds:primitive-boundary",
     "audit:ds:export-violations": "node scripts/design-system-export-violations.mjs",
     "audit:ds:inventory-dump": "node scripts/design-system-inventory-dump.mjs",
     "audit:ds:refresh-allowlist": "node scripts/design-system-refresh-allowlist.mjs",
+    "audit:ds:refresh-primitive-boundary-allowlist": "node scripts/design-system-refresh-primitive-boundary-allowlist.mjs",
     "audit:bank-copy": "node scripts/question-bank-copy-overlap.mjs",
     "check": "pnpm run typecheck && pnpm run lint && pnpm test && pnpm --filter glc-audit-server run test"
   },

@@ -13,7 +13,7 @@ Date: 2026-04-17
 | This file (`current.md`) | As-is narrative spec: §1–10 (tokens, inventory summary, components, API, hierarchy, layout, states, a11y signals, naming, derived rules) |
 | [`roadmap-notes.md`](./roadmap-notes.md) | Enforcement commands, baseline/audit pointers, rollout status, §11 reference-stack alignment (not part of as-is §1–10) |
 | [`inventory-dump.md`](./inventory-dump.md) | Generated appendix: **every** `--*` name assigned in `src/styles/tokens.css`, plus **deduplicated** hex/rgb/hsl/unit/clamp literals under `src/**` (regenerate: `pnpm run audit:ds:inventory-dump`) |
-| [`violations-export.md`](./violations-export.md) | Generated audit listing: raw-value, enforcement, and TS color-literal findings **without** allowlist (regenerate: `pnpm run audit:ds:export-violations`). CI also runs `pnpm run audit:ds:ts-color` (hex/rgb/hsl in `src/**` and `server/src/**` TS; PDF bridge allowlisted). |
+| [`violations-export.md`](./violations-export.md) | Generated audit listing: raw-value, enforcement, TS color-literal, and **primitive-boundary** findings **without** those audits’ allowlists (regenerate: `pnpm run audit:ds:export-violations`). CI runs `audit:ds:ts-color` and `audit:ds:primitive-boundary` (see [`roadmap-notes.md`](./roadmap-notes.md)). |
 
 ## Extraction Sources
 
@@ -581,7 +581,7 @@ Derived only from observed implementation.
 5. State expression is mixed: pseudo-classes (`:hover`, `:focus-visible`, `:disabled`) plus data/aria-driven selectors (`data-[state=*]`, `data-[active=true]`, `aria-invalid`).
 6. Layout uses both explicit contracts (`LAYOUT_CONTRACTS`) and utility/media usage in component and feature style layers.
 7. Legacy compatibility selectors (`glc-*`) coexist with primitive-based class compositions.
-8. CI enforcement (`pnpm run audit:ds:ci`) uses `scripts/design-system-baseline.allowlist.txt` for grandfathered `inline-visual-style` lines only where migration would harm layout parity; that list is **4** line-accurate signatures, all in `src/app/marketing/blocks/HomeHeroCockpit.tsx` (refresh with `pnpm run audit:ds:refresh-allowlist` whenever line numbers shift). That module is **frozen** for DS refactors — see [`roadmap-notes.md`](./roadmap-notes.md) § HomeHeroCockpit (frozen). The no-allowlist audit mirror is [`violations-export.md`](./violations-export.md) (same **4** deduped rows).
+8. CI enforcement (`pnpm run audit:ds:ci`) uses `scripts/design-system-baseline.allowlist.txt` for grandfathered `inline-visual-style` lines only where migration would harm layout parity; that list is **4** line-accurate signatures, all in `src/app/marketing/blocks/HomeHeroCockpit.tsx` (refresh with `pnpm run audit:ds:refresh-allowlist` whenever line numbers shift). **Primitive boundary** uses a separate allowlist (`scripts/design-system-primitive-boundary.allowlist.txt`) for the same four blocks under type `primitive-boundary-inline` (refresh: `pnpm run audit:ds:refresh-primitive-boundary-allowlist`). That module is **frozen** for DS refactors — see [`roadmap-notes.md`](./roadmap-notes.md) § HomeHeroCockpit (frozen). The no-allowlist audit mirror is [`violations-export.md`](./violations-export.md) (currently **8** deduped rows: four `inline-visual-style` plus four `primitive-boundary-inline` for the same lines).
 
 ## Related (outside as-is §1–10)
 

@@ -14,26 +14,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  extractJsxExpressionBlocksOpeningWithDoubleBrace,
+  styleBlockHasVisualKey,
+} from './design-system-jsx-style-blocks.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
-
-const INLINE_STYLE_VISUAL_KEYS = [
-  'color',
-  'background',
-  'backgroundColor',
-  'fontSize',
-  'fontWeight',
-  'letterSpacing',
-  'lineHeight',
-  'border',
-  'borderColor',
-  'borderWidth',
-  'borderRadius',
-  'boxShadow',
-  'textShadow',
-  'filter',
-];
 
 const TOKEN_LIKE_RAW_RE = /#(?:[0-9a-fA-F]{3,8})\b|\brgba?\([^)]*\)|\bhsla?\([^)]*\)|\b\d*\.?\d+(px|rem|em)\b/g;
 const LEGACY_BUTTON_CLASS_RE = /\bglc-btn-(primary|secondary|ghost)\b/g;
@@ -72,107 +59,6 @@ function inlineStyleTargetDirs() {
   if (scopeMode === 'ds') return ['src/design-system'];
   if (scopeMode === 'ui') return ['src/design-system', 'src/app/components/ui'];
   return ['src/design-system', 'src/app/components/ui', 'src/app/components', 'src/app/pages', 'src/app/marketing'];
-}
-
-/**
- * JSX `style={{ ... }}` may span lines; balance `{`/`}` from the opening `{` of the
- * outer `{ ... }` expression (same as prior single-line check, extended).
- */
-function extractJsxExpressionBlocksOpeningWithDoubleBrace(content) {
-  const blocks = [];
-  const re = /\bstyle=\{\{/g;
-  let m;
-  while ((m = re.exec(content)) !== null) {
-    const exprOpen = m.index + 'style='.length;
-    const end = findMatchingBraceEnd(content, exprOpen);
-    if (end === -1) continue;
-    const block = content.slice(exprOpen, end + 1);
-    const startLine = content.slice(0, exprOpen).split('\n').length;
-    blocks.push({ startLine, block });
-  }
-  return blocks;
-}
-
-function findMatchingBraceEnd(content, openBraceIndex) {
-  let depth = 0;
-  let inStr = null;
-  let escape = false;
-  let inTemplateExpr = false; // ${ inside `
-
-  for (let i = openBraceIndex; i < content.length; i++) {
-    const c = content[i];
-
-    if (inStr === '`') {
-      if (inTemplateExpr) {
-        if (c === '}') {
-          inTemplateExpr = false;
-          continue;
-        }
-        continue;
-      }
-      if (escape) {
-        escape = false;
-        continue;
-      }
-      if (c === '\\') {
-        escape = true;
-        continue;
-      }
-      if (c === '$' && content[i + 1] === '{') {
-        inTemplateExpr = true;
-        i++;
-        continue;
-      }
-      if (c === '`') {
-        inStr = null;
-        continue;
-      }
-      continue;
-    }
-
-    if (inStr === '"' || inStr === "'") {
-      if (escape) {
-        escape = false;
-        continue;
-      }
-      if (c === '\\') {
-        escape = true;
-        continue;
-      }
-      if (c === inStr) {
-        inStr = null;
-        continue;
-      }
-      continue;
-    }
-
-    if (c === '/' && content[i + 1] === '/') {
-      while (i < content.length && content[i] !== '\n') i++;
-      continue;
-    }
-    if (c === '/' && content[i + 1] === '*') {
-      i += 2;
-      while (i < content.length - 1 && !(content[i] === '*' && content[i + 1] === '/')) i++;
-      i++;
-      continue;
-    }
-
-    if (c === '"' || c === "'" || c === '`') {
-      inStr = c;
-      continue;
-    }
-
-    if (c === '{') depth++;
-    if (c === '}') {
-      depth--;
-      if (depth === 0) return i;
-    }
-  }
-  return -1;
-}
-
-function styleBlockHasVisualKey(block) {
-  return INLINE_STYLE_VISUAL_KEYS.some((key) => new RegExp(`\\b${key}\\s*:`).test(block));
 }
 
 function checkInlineVisualStyles() {
