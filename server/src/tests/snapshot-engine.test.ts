@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { extractFacts, htmlLooksLikeClientShell } from '../snapshot/extract-facts.js';
+import {
+  extractFacts,
+  getGenericMarketingHero,
+  getHeroPrimaryCtaCount,
+  htmlLooksLikeClientShell,
+} from '../snapshot/extract-facts.js';
 import { SnapshotFactsSchema, type SiteProfile } from '../snapshot/types.js';
 import { runSnapshotAudit } from '../snapshot/audit/run-audit.js';
 import { runSiteProfile } from '../snapshot/classification/site-profile-runner.js';
@@ -79,6 +84,15 @@ describe('snapshot engine', () => {
     );
     expect(facts.urls.slugs).toContain('attorneys');
     expect(facts.urls.slugs).toContain('legal');
+  });
+
+  it('compat getters keep stable fallback behavior', () => {
+    const facts = extractFacts(
+      [{ url: 'https://example.com/', html: MINIMAL_HTML, status: 200, finalUrl: 'https://example.com/' }],
+      'https://example.com/',
+    );
+    expect(getHeroPrimaryCtaCount(facts)).toBeGreaterThanOrEqual(0);
+    expect(typeof getGenericMarketingHero(facts)).toBe('boolean');
   });
 
   it('runSnapshotAudit returns 0-100 and categories', () => {
