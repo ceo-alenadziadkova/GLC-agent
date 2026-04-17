@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { FreeSnapshotPreview } from '../../data/auditTypes';
 import { PortalSnapshotAccountMirror } from '../PortalSnapshotAccountMirror';
+import { PORTAL_SNAPSHOT_MIRROR_CONSTANTS } from '../portal-snapshot-account-mirror/config/portal-snapshot-account-mirror.constants';
 
 const snapshotDiagnosticsMocks = vi.hoisted(() => ({
   getSnapshotAccessBlockedState: vi.fn(),
@@ -113,5 +114,44 @@ describe('PortalSnapshotAccountMirror', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'acme.test' })).toBeInTheDocument();
+  });
+
+  it('renders overall score mode when overall_score is present', () => {
+    mockGetSnapshotAccessBlockedState.mockReturnValue({
+      showCallout: false,
+      robotsBlocked: false,
+      robotsLimitedSample: false,
+      robotsFallbackSiteClass: undefined,
+      noPages: false,
+    });
+
+    render(<PortalSnapshotAccountMirror result={makeSnapshot({ overall_score: 77 })} />);
+
+    expect(screen.getByText('77')).toBeInTheDocument();
+    expect(screen.getByText('/100')).toBeInTheDocument();
+  });
+
+  it('caps tech chips to configured limit', () => {
+    mockGetSnapshotAccessBlockedState.mockReturnValue({
+      showCallout: false,
+      robotsBlocked: false,
+      robotsLimitedSample: false,
+      robotsFallbackSiteClass: undefined,
+      noPages: false,
+    });
+    const chips = Array.from({ length: PORTAL_SNAPSHOT_MIRROR_CONSTANTS.techStackChipLimit + 5 }, (_, i) => `tech-${i}`);
+    render(
+      <PortalSnapshotAccountMirror
+        result={makeSnapshot({
+          tech_stack: {
+            frontend: chips,
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText('tech-0')).toBeInTheDocument();
+    expect(
+      screen.queryByText(`tech-${PORTAL_SNAPSHOT_MIRROR_CONSTANTS.techStackChipLimit + 4}`),
+    ).not.toBeInTheDocument();
   });
 });
