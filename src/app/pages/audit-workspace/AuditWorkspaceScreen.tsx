@@ -154,7 +154,7 @@ export function AuditWorkspaceScreen() {
                   duration: AUDIT_WORKSPACE_UI.transitions.contentFadeDuration,
                   ease: AUDIT_WORKSPACE_UI.transitions.panelEase,
                 }}
-                className={`${AUDIT_WORKSPACE_UI.layout.contentMaxWidthClass} mx-auto px-7 py-6 space-y-6`}
+                className={`${AUDIT_WORKSPACE_UI.layout.contentMaxWidthClass} mx-auto ds-pattern-page-shell-body space-y-6`}
               >
                 <DomainHeaderCard activeDomain={state.activeDomain} domainData={domainData} />
                 <StrengthsSection domainData={domainData} />

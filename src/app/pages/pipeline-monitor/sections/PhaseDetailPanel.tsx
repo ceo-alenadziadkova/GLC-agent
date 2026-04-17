@@ -73,7 +73,7 @@ export function PhaseDetailPanel(props: {
 
   return (
     <div className="bg-background flex-1 overflow-y-auto">
-      <div className="max-w-2xl mx-auto px-7 py-6">
+      <div className="max-w-2xl mx-auto ds-pattern-page-shell-body">
         {isCreated && (
           <div className="glc-card mb-6 rounded-xl p-8 text-center">
             <Play className="text-info mx-auto mb-3 h-10 w-10" />

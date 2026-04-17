@@ -52,6 +52,7 @@ export function Login() {
           animate={reduceMotion ? undefined : { opacity: 1, y: 0, clipPath: controller.formOpenClipPath }}
           transition={controller.motionPolicy.formEnter}
         >
+          <div className="glc-login-form-stack w-full">
           <LoginBrandSection
             loginTagline={controller.loginTagline}
             motionTransition={controller.motionPolicy.brandEnter}
@@ -90,12 +91,13 @@ export function Login() {
             motionPolicy={controller.motionPolicy}
           />
 
-          <p className="mt-5 w-full text-center text-xs ds-text-tertiary" >
+          <p className="mt-5 w-full text-center text-xs lg:text-left ds-text-tertiary" >
             {LC.footerTerms}{' '}
             <Link to={APP_ROUTE_PATHS.faq} className="underline-offset-2 hover:underline ds-text-brand" >
               {LC.footerFaq}
             </Link>
           </p>
+          </div>
         </motion.div>
 
         <LoginAsideSection

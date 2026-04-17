@@ -15,6 +15,62 @@ export const DESIGN_SYSTEM_INTERNAL_PAGE_COPY = {
   },
   machineBlockTitle: 'Machine-readable manifest (JSON)',
   machineBlockHint: 'Copy the block below or read script#glc-design-system-internal-manifest in the DOM.',
+  tabs: {
+    overview: 'Overview',
+    foundation: 'Foundation',
+    primitives: 'Primitives',
+    patterns: 'Patterns',
+    tooling: 'Tooling',
+    machine: 'Manifest',
+  },
+  foundation: {
+    colorsIntro: 'Swatches use SSOT variables only (values from COLOR_TOKENS → var(--*)).',
+    typographyIntro: 'Scale from TYPOGRAPHY_TOKENS.fontSize; sans family and relaxed line height from tokens.',
+    spacingIntro: 'Bar width follows SPACING_TOKENS; height is fixed for comparison.',
+    radiusIntro: 'Tiles use RADIUS_TOKENS on border-radius only; fill is elevated surface.',
+    shadowsIntro: 'Tiles apply SHADOW_TOKENS via box-shadow on a neutral card shell.',
+  },
+  primitives: {
+    intro: 'Vendor-style primitives in src/app/components/ui — same API as the rest of the product.',
+    buttons: 'Button variants',
+    badges: 'Badge variants',
+    inputs: 'Input',
+    callouts: 'Callout intents',
+  },
+  patterns: {
+    intro:
+      'Layout composition contracts from src/design-system/patterns — Tailwind layout utilities and .ds-pattern-* bridges only (audit:ds:patterns-lock). Below: source strings plus a live sandbox.',
+    layout: {
+      heading: 'LAYOUT_CONTRACTS',
+      body: 'Canonical page width caps and vertical rhythm helpers used across marketing and product shells.',
+    },
+    pageShell: {
+      heading: 'PAGE_SHELL_CONTRACTS',
+      body: 'Max-width shell, token-backed body padding (.ds-pattern-page-shell-body), and stacked section spacing.',
+    },
+    sectionShell: {
+      heading: 'SECTION_SHELL_CONTRACTS',
+      body: 'Section chrome: root uses .ds-pattern-section-shell-root; heading row + stacked content spacing.',
+    },
+    cardGrid: {
+      heading: 'CARD_GRID_CONTRACTS',
+      body: 'Responsive grids for card-heavy surfaces (1 → 2 → 3 columns at breakpoints).',
+    },
+    formSection: {
+      heading: 'FORM_SECTION_CONTRACTS',
+      body: 'Form stack: root uses .ds-pattern-form-section-root; single-column field grid and right-aligned actions.',
+    },
+    headerActions: {
+      heading: 'HEADER_ACTIONS_CONTRACTS',
+      body: 'Page header row: title block (min-w-0) + trailing actions with wrap.',
+    },
+    reportViewer: {
+      heading: 'REPORT_VIEWER_LAYOUT',
+      body: 'Report viewer findings grid — composition only; card visuals use .ds-report-* in components.css.',
+    },
+    sandboxLabel: 'Live preview',
+    codeLabel: 'Exported class strings',
+  },
   docLinks: {
     current: 'docs/design-system/current.md',
     roadmap: 'docs/design-system/roadmap-notes.md',

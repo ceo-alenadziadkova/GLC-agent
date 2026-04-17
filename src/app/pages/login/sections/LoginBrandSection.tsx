@@ -14,7 +14,7 @@ type LoginBrandSectionProps = {
 
 export function LoginBrandSection({ loginTagline, motionTransition }: LoginBrandSectionProps) {
   return (
-    <div className="glc-login-brand text-center mb-8 md:text-left">
+    <div className="glc-login-brand mb-8 w-full text-center lg:text-left">
       <motion.div
         initial={{ scale: 0.75, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -23,7 +23,7 @@ export function LoginBrandSection({ loginTagline, motionTransition }: LoginBrand
       >
         <Link
           to={APP_ROUTE_PATHS.home}
-          className="inline-flex items-center justify-center gap-3 no-underline"
+          className="inline-flex w-full items-center justify-center gap-3 no-underline lg:justify-start"
           aria-label={LC.ariaHome}
         >
           <img

@@ -571,6 +571,9 @@ html:not(.dark) .glc-hover-row:hover {
   border-bottom: var(--border-width-default) solid var(--border-subtle);
   min-height: 3.5rem;
   box-shadow: var(--shadow-xs);
+  /* Match horizontal inset of `.ds-pattern-page-shell-body` on sm+ (header is `hidden sm:flex`). */
+  padding-left: var(--space-6);
+  padding-right: var(--space-6);
 }
 
 .ds-desktop-header-title {
@@ -814,6 +817,69 @@ html:not(.dark) .glc-hover-row:hover {
   overflow-y: auto;
 }
 
+/* Internal design-system gallery (consultant-only): layout + swatches; colors/shadows/radius via inline var() only. */
+.ds-admin-design-system-showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 6.5rem), 1fr));
+  gap: var(--space-4);
+}
+
+.ds-admin-design-system-swatch {
+  border-radius: var(--radius-md);
+  border: var(--border-width-default) solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--space-1-5);
+}
+
+.ds-admin-design-system-swatch-sample {
+  background-color: var(--ds-internal-swatch-fill, transparent);
+  border-radius: var(--radius-sm);
+  flex: 1 1 auto;
+  min-height: var(--space-10);
+  min-width: 0;
+}
+
+.ds-admin-design-system-swatch-label {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  margin: 0;
+  word-break: break-word;
+}
+
+.ds-admin-design-system-spacing-bar {
+  background-color: var(--border-strong);
+  border-radius: var(--radius-xs);
+  min-height: var(--space-10);
+}
+
+.ds-admin-design-system-radius-demo {
+  background-color: var(--bg-elevated);
+  border: var(--border-width-default) solid var(--border-default);
+  border-radius: var(--ds-internal-radius-demo, var(--radius-md));
+  height: var(--space-10);
+  width: var(--space-16);
+}
+
+.ds-admin-design-system-shadow-tile {
+  background-color: var(--card);
+  border: var(--border-width-default) solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--ds-internal-shadow-demo, none);
+  min-height: var(--space-16);
+  width: 100%;
+}
+
+.ds-admin-design-system-type-sample {
+  color: var(--text-primary);
+  font-family: var(--ds-internal-type-ff, var(--font-sans));
+  font-size: var(--ds-internal-type-fs, var(--text-base));
+  line-height: var(--ds-internal-type-lh, var(--leading-normal));
+  margin: 0;
+}
+
 /* ThemeToggle: icon color driven by custom properties on parent (no `color:` inline). */
 .ds-theme-toggle-sun {
   color: var(--theme-toggle-sun, var(--text-secondary));
@@ -907,7 +973,7 @@ html:not(.dark) .glc-hover-row:hover {
   font-weight: var(--font-weight-semibold);
   text-align: right;
   flex-shrink: 0;
-  tabular-nums;
+  font-variant-numeric: tabular-nums;
   color: var(--ds-scorebar-value-fg);
   font-size: var(--text-xs);
   font-family: var(--font-mono);

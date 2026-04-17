@@ -113,7 +113,7 @@ export function ReportViewer() {
         </div>
       }
     >
-      <div className="max-w-3xl mx-auto px-7 py-6 space-y-6">
+      <div className="max-w-3xl mx-auto ds-pattern-page-shell-body space-y-6">
         <ProfileTabs options={PROFILES} profile={profile} onSelect={setProfile} />
 
         <ReportHeroCard

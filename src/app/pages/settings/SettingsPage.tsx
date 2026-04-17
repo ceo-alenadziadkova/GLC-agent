@@ -4,6 +4,8 @@ import { AppShell } from '../../components/AppShell';
 import { QuestionBankStudio } from '../../components/QuestionBankStudio';
 import { isQuestionBankStudioEnabled } from '../../lib/question-bank-studio-flags';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
+import { cn } from '../../components/ui/utils';
+import { PAGE_SHELL_CONTRACTS } from '../../../design-system/patterns/Layouts';
 import { SETTINGS_PAGE_COPY } from '../../config/settings-page-copy.en';
 import { useSettingsPageController } from './hooks/useSettingsPageController';
 import { useSettingsTabs } from './hooks/useSettingsTabs';
@@ -20,7 +22,7 @@ type GeneralSectionsProps = {
 
 function GeneralSections({ controller }: GeneralSectionsProps) {
   return (
-    <div className="px-7 py-6 space-y-5">
+    <div className="space-y-5">
       <ProfileSection
         fullName={controller.fullName}
         onFullNameChange={controller.setFullName}
@@ -71,11 +73,17 @@ export function SettingsPage() {
   const studioTabEnabled = isQuestionBankStudioEnabled() && controller.isConsultant;
   const { settingsTab, onSettingsTabChange } = useSettingsTabs(studioTabEnabled);
 
+  const pageShellClass = cn(
+    PAGE_SHELL_CONTRACTS.body,
+    studioTabEnabled ? PAGE_SHELL_CONTRACTS.settingsWideContent : PAGE_SHELL_CONTRACTS.narrowContent,
+  );
+
   return (
     <AppShell title={SETTINGS_PAGE_COPY.page.title} subtitle={SETTINGS_PAGE_COPY.page.subtitle}>
+      <div className={pageShellClass}>
       {studioTabEnabled ? (
         <Tabs value={settingsTab} onValueChange={onSettingsTabChange} className="w-full">
-          <div className="px-7 pt-6 pb-0">
+          <div className="pb-0">
             <TabsList className="!bg-transparent !h-auto !p-0 flex flex-wrap gap-2 justify-start rounded-none ds-settings-tabs-trigger-transparent">
               <TabsTrigger
                 value="general"
@@ -92,11 +100,11 @@ export function SettingsPage() {
               </TabsTrigger>
             </TabsList>
           </div>
-          <TabsContent value="general" className="mt-0">
+          <TabsContent value="general" className="mt-0 pt-2">
             <GeneralSections controller={controller} />
           </TabsContent>
           <TabsContent value="bank-studio" className="mt-0">
-            <div className="px-7 py-6">
+            <div className="space-y-3 pt-2">
               <p className="text-xs m-0 mb-3 ds-text-quaternary" >
                 {SETTINGS_PAGE_COPY.page.studioFullPageViewPrefix}{' '}
                 <Link to="/admin/question-bank-studio" className="underline ds-text-tertiary" >
@@ -111,6 +119,7 @@ export function SettingsPage() {
       ) : (
         <GeneralSections controller={controller} />
       )}
+      </div>
     </AppShell>
   );
 }

@@ -438,6 +438,13 @@ body.glc-site-polish :is(a, button):not(:disabled) {
     padding-left: clamp(1.5rem, 4vw, 3.5rem);
     padding-right: clamp(1.5rem, 4vw, 3.5rem);
   }
+
+  /* Stack brand + auth + footer to the same width on wide split layout (aligns with form). */
+  .glc-login-form-stack {
+    width: 100%;
+    max-width: 32rem;
+    margin-inline: auto;
+  }
 }
 
 .glc-login-brand-tagline {

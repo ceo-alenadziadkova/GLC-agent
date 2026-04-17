@@ -6,7 +6,7 @@ type HomeMetricsSectionProps = {
 
 export function HomeMetricsSection({ data }: HomeMetricsSectionProps) {
   return (
-    <div className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-7 sm:py-9" aria-label={data.ariaLabel}>
+    <div className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-6 sm:py-9" aria-label={data.ariaLabel}>
       <div className="grid gap-8 text-center sm:grid-cols-3 sm:gap-10 sm:text-left">
         {data.items.map(item => (
           <div key={item.label} className="max-w-md sm:max-w-none">

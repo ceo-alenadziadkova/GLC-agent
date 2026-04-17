@@ -15,6 +15,7 @@ import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 import { Input } from '../components/ui/input';
 import { cn } from '../components/ui/utils';
 import { Button } from '../components/ui/button';
+import { PAGE_SHELL_CONTRACTS } from '../../design-system/patterns/Layouts';
 
 const EASE_GLC = [0.16, 1, 0.3, 1] as const;
 
@@ -72,7 +73,7 @@ export function Portfolio() {
         </Button>
       }
     >
-      <div className="px-7 py-6 space-y-6">
+      <div className={cn('glc-page-content', PAGE_SHELL_CONTRACTS.root, 'space-y-6')}>
 
         {/* ── KPI strip ─────────────────────────────── */}
         <motion.div

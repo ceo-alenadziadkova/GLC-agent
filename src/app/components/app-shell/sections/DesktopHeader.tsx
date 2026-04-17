@@ -13,7 +13,7 @@ export function DesktopHeader({ title, subtitle, actions, isSmUp }: DesktopHeade
 
   return (
     <header
-      className="ds-desktop-header hidden sm:flex flex-shrink-0 items-center justify-between px-7"
+      className="ds-desktop-header hidden sm:flex flex-shrink-0 items-center justify-between"
       aria-hidden={title ? !isSmUp : undefined}
     >
       <div>
