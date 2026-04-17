@@ -1,15 +1,15 @@
 /**
- * Domain accent colors for Studio "color by domain" (hex for inline node borders).
+ * Domain accent colors for Studio "color by domain" (CSS variables only).
  */
-export const STUDIO_GRAPH_DOMAIN_ACCENT_HEX: Record<string, string> = {
-  tech_infrastructure: '#2563eb',
-  security_compliance: '#dc2626',
-  seo_digital: '#16a34a',
-  ux_conversion: '#9333ea',
-  marketing_utp: '#ea580c',
-  automation_processes: '#0891b2',
-  recon: '#64748b',
-  strategy: '#ca8a04',
+export const STUDIO_GRAPH_DOMAIN_ACCENT: Record<string, string> = {
+  tech_infrastructure: 'var(--studio-graph-domain-tech-infrastructure)',
+  security_compliance: 'var(--studio-graph-domain-security-compliance)',
+  seo_digital: 'var(--studio-graph-domain-seo-digital)',
+  ux_conversion: 'var(--studio-graph-domain-ux-conversion)',
+  marketing_utp: 'var(--studio-graph-domain-marketing-utp)',
+  automation_processes: 'var(--studio-graph-domain-automation-processes)',
+  recon: 'var(--studio-graph-domain-recon)',
+  strategy: 'var(--studio-graph-domain-strategy)',
 };
 
-export const STUDIO_GRAPH_DOMAIN_ACCENT_FALLBACK_HEX = '#64748b';
+export const STUDIO_GRAPH_DOMAIN_ACCENT_FALLBACK = 'var(--studio-graph-domain-fallback)';

@@ -21,10 +21,17 @@ Date: 2026-04-17
 - Enforcement scripts:
   - `scripts/design-system-raw-values-check.mjs`
   - `scripts/design-system-enforcement-check.mjs` (inline visual detection spans multiline `style={{ ... }}` blocks, not single-line only)
+  - `scripts/design-system-ts-color-literals-check.mjs` — fails on `#hex`, `rgb(a)(...)`, `hsl(a)(...)` in `src/**` and `server/src/**` TypeScript; TS should reference `var(--*)` only. Allowlist: `scripts/design-system-ts-color-allowlist.txt` (PDF/report bridge files until codegen).
   - baseline isolation allowlist: `scripts/design-system-baseline.allowlist.txt`
 - Reporting / allowlist maintenance:
   - `pnpm run audit:ds:refresh-allowlist` — regenerates `scripts/design-system-baseline.allowlist.txt` from current audit output after migrations (line-accurate signatures).
 - TSX token bridge: prefer `.ds-*` classes in `src/styles/components.css` over inline visual `style={{...}}` where enforcement flags `color` / `background` / etc. (same CSS variables as before).
+
+### HomeHeroCockpit (frozen)
+
+- **`src/app/marketing/blocks/HomeHeroCockpit.tsx` must not be edited** for design-system refactors, token passes, or “cleanup” (see the `@file` banner in source). Visual parity of the marketing hero cockpit is intentional.
+- **`inline-visual-style`:** enforcement flags **four** multiline `style={{...}}` blocks (line numbers drift if anything above them changes). **`pnpm run audit:ds:refresh-allowlist`** rewrites [`scripts/design-system-baseline.allowlist.txt`](../../scripts/design-system-baseline.allowlist.txt) with line-accurate signatures **without** modifying this TSX file.
+- An additional `style={{ transform, zIndex }}` block is **not** classified as `inline-visual-style` (those keys are outside [`INLINE_STYLE_VISUAL_KEYS`](../../scripts/design-system-enforcement-check.mjs)); [`violations-export.md`](./violations-export.md) still reports only the four flagged rows.
 
 ### Vendor primitives vs literal-zero (explicit gate)
 
@@ -46,7 +53,7 @@ Date: 2026-04-17
   - `--border-width-default`
   - `--sidebar-width`, `--sidebar-width-mobile`, `--sidebar-width-icon`
 - `src/app/config/sidebar-ui.ts` consumes sidebar sizing via token vars instead of direct rem literals.
-- `src/app/config/marketing-surface-tokens.ts` and `src/app/config/package-marketing-ui.ts` consume the shared border width token instead of inline `1px`.
+- Marketing comparison / package hero surfaces use `.ds-marketing-*` classes in `src/styles/components.css` (values via `var(--*)` from `tokens.css`); `src/app/config/package-marketing-ui.ts` remains for non-color layout/copy where needed.
 - DS public UI ownership was hardened by exposing all current public primitives through local DS modules under `src/design-system/ui/**`:
   - `Callout`, `Surface`, `Textarea`, `StatusBadge`
 - Composition contracts were expanded in `src/design-system/patterns/Layouts/**` with reusable layout presets:
@@ -58,7 +65,11 @@ Date: 2026-04-17
 - CI governance now runs DS checks on both fast and release gates:
   - `.github/workflows/test.yml`
   - `.github/workflows/release-gate.yml`
-  - command: `pnpm run audit:ds:ci`
+  - command: `pnpm run audit:ds:ci` (includes `audit:ds:ts-color`)
+
+### PDF / server color literals (intentional duplicate, temporary)
+
+- `@react-pdf/renderer` does not consume browser CSS. Until a build-time step emits a shared palette from `tokens.css` (or a generated `theme.json`), `server/src/config/pdf-theme.ts` and `server/src/config/system-defaults/reports.ts` **duplicate** a subset of token hex values. Those paths are **`@allow-file` entries** in `scripts/design-system-ts-color-allowlist.txt`. Removing the allowlist is a **separate epic**: palette codegen or shared artifact consumed by both the SPA and the PDF pipeline.
 
 ### Utility and legacy policy (target)
 
@@ -72,6 +83,7 @@ Date: 2026-04-17
 - **Score / badge widgets:** consolidating `ScoreBadge`, `SnapshotScoreBadge`, `SnapshotScoreDonut`, and similar into one component is a separate epic (API + visual regression budget).
 - **Import surface:** mass migration of imports from `src/app/components/ui/*` to `src/design-system/ui` is a separate codemod pass.
 - **Legacy `glc-*` removal:** only after consumers are on primitives / `.ds-*` bridge classes.
+- **PDF palette SSOT:** replace server-side hex duplicates with generated exports from `tokens.css` (or shared JSON) and drop `design-system-ts-color-allowlist.txt` entries for `pdf-theme.ts` / `reports.ts`.
 - **Primitives / unified state / full literal zero:** `src/app/components/ui/**` remains largely vendor-style (CVA + Tailwind); a single `data-state` vs pseudo-class model across the whole catalog is explicitly out of scope for routine PRs (see DS refactor program RISKY tier).
 - **FormField collision:** resolve duplicate export name between `form-field.tsx` and `form.tsx` (rename + codemod or namespaced imports; breaking-change coordination).
 - **CTA class consolidation:** converge `.ds-cta-primary` and `.glc-btn-primary` usage to one documented pattern.

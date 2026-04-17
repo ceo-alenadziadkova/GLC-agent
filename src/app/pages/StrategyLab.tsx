@@ -12,7 +12,7 @@ import type { StrategyInitiative } from '../data/auditTypes';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
 import type { DomainBenchmarkSnapshot } from '../data/api/benchmarks';
 import { api } from '../data/apiService';
-import { UI_SEMANTIC_COLORS } from '../../design-system/tokens/ui-semantic-colors';
+import { COLOR_TOKENS } from '../../design-system/tokens/colors';
 import {
   STRATEGY_LAB_DEFAULT_BENCHMARK_PERIOD,
   STRATEGY_LAB_TAB_DESCRIPTIONS,
@@ -314,7 +314,7 @@ export function StrategyLab() {
               {[
                 { label: STRATEGY_LAB_COPY.panel.totalInitiatives, value: `${selected.size}`, color: 'var(--text-primary)' },
                 { label: STRATEGY_LAB_COPY.panel.quickWins, value: `${allSelected.filter(i => initiatives.quick.includes(i)).length}`, color: 'var(--glc-green)' },
-                { label: STRATEGY_LAB_COPY.panel.strategicItems, value: `${allSelected.filter(i => initiatives.strategic.includes(i)).length}`, color: UI_SEMANTIC_COLORS.strategicPurple },
+                { label: STRATEGY_LAB_COPY.panel.strategicItems, value: `${allSelected.filter(i => initiatives.strategic.includes(i)).length}`, color: COLOR_TOKENS.semantic.uiSemantic.strategicPurple },
               ].map(({ label, value, color }) => (
                 <div
                   key={label}

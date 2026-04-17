@@ -41,13 +41,13 @@ export function studioPolicyBaseAccent(kind: StudioPolicyBaseVisualKind): string
     case 'policy_required':
       return 'var(--glc-orange)';
     case 'policy_if_visible':
-      return '#ca8a04';
+      return 'var(--ui-warning-amber)';
     case 'canon_required':
-      return '#2563eb';
+      return 'var(--studio-graph-domain-tech-infrastructure)';
     case 'canon_recommended':
-      return '#64748b';
+      return 'var(--ui-intake-edge-stroke)';
     case 'canon_optional':
-      return '#94a3b8';
+      return 'var(--ui-intake-node-other-stroke)';
     case 'outside_policy':
     default:
       return 'var(--border-default)';

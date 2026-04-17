@@ -1,4 +1,4 @@
-import { UI_INTAKE_TRACE_GRAPH } from '../../../../../design-system/tokens/ui-semantic-colors';
+import { COLOR_TOKENS } from '../../../../../design-system/tokens/colors';
 import { INTAKE_TRACE_GRAPH_CONFIG } from '../config/graph-config';
 import { INTAKE_TRACE_EDGE_GRAPH_UI_COPY } from '../config/graph-copy';
 import { shortNodeLabel } from '../domain/layout';
@@ -32,8 +32,9 @@ interface GraphCanvasProps {
 export function GraphCanvas(props: GraphCanvasProps) {
   const copy = INTAKE_TRACE_EDGE_GRAPH_UI_COPY;
   const layoutConfig = INTAKE_TRACE_GRAPH_CONFIG.layout;
-  const edgeStroke = UI_INTAKE_TRACE_GRAPH.edgeStroke;
-  const focusEdgeStroke = UI_INTAKE_TRACE_GRAPH.focusEdgeStroke;
+  const g = COLOR_TOKENS.semantic.intakeTraceGraph;
+  const edgeStroke = g.edgeStroke;
+  const focusEdgeStroke = g.focusEdgeStroke;
 
   return (
     <div
@@ -118,9 +119,9 @@ export function GraphCanvas(props: GraphCanvasProps) {
                 fill={colors.fill}
                 stroke={
                   selected
-                    ? UI_INTAKE_TRACE_GRAPH.selectedEdgeStroke
+                    ? g.selectedEdgeStroke
                     : focused
-                      ? UI_INTAKE_TRACE_GRAPH.focusedAlternateEdgeStroke
+                      ? g.focusedAlternateEdgeStroke
                       : colors.stroke
                 }
                 strokeWidth={selected ? 3 : focused ? 2.6 : 1.4}

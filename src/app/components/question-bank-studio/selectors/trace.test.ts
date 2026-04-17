@@ -57,8 +57,8 @@ describe('question-bank-studio trace selectors', () => {
   });
 
   it('traceRingColor + statusPill return stable presentation mappings', () => {
-    expect(traceRingColor('required')).toBe('#f59e0b');
-    expect(traceRingColor('hidden')).toBe('#71717a');
+    expect(traceRingColor('required')).toBe('var(--ui-intake-node-required-stroke)');
+    expect(traceRingColor('hidden')).toBe('var(--ui-intake-node-hidden-stroke)');
 
     expect(statusPill('required').label).toBe('Required');
     expect(statusPill('unknown').label).toBe('Unknown');

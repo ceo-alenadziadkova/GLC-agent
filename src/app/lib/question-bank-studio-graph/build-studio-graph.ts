@@ -23,8 +23,8 @@ import {
   getStudioQuestionNodeDimensions,
 } from './studio-graph-layout.config';
 import {
-  STUDIO_GRAPH_DOMAIN_ACCENT_FALLBACK_HEX,
-  STUDIO_GRAPH_DOMAIN_ACCENT_HEX,
+  STUDIO_GRAPH_DOMAIN_ACCENT,
+  STUDIO_GRAPH_DOMAIN_ACCENT_FALLBACK,
 } from './studio-graph-visual.config';
 import { primaryFeedDomain } from './primary-feed-domain';
 import { STUDIO_PRE_BRIEF_IDENTITY_FIELD_IDS } from './pre-brief-identity-ids';
@@ -34,7 +34,7 @@ import type { BuildStudioGraphInput, BuildStudioGraphResult, StudioAnyNodeData }
 function accentForDomains(domains: string[]): string | undefined {
   const first = domains[0];
   return first
-    ? (STUDIO_GRAPH_DOMAIN_ACCENT_HEX[first] ?? STUDIO_GRAPH_DOMAIN_ACCENT_FALLBACK_HEX)
+    ? (STUDIO_GRAPH_DOMAIN_ACCENT[first] ?? STUDIO_GRAPH_DOMAIN_ACCENT_FALLBACK)
     : undefined;
 }
 

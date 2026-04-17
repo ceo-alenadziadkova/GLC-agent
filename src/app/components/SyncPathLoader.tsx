@@ -65,10 +65,9 @@ export function SyncPathLoader({
     }
 
     const css = getComputedStyle(document.documentElement);
-    const pathIdleVar = (css.getPropertyValue('--sync-loader-path-idle') || '').trim() || '#30363d';
-    const pathPulseVar = (css.getPropertyValue('--sync-loader-path-pulse') || '').trim() || '#484f58';
-    const pathStrokeIdle = layout === 'embedded' ? pathIdleVar : '#30363d';
-    const pathStrokePulse = layout === 'embedded' ? pathPulseVar : '#484f58';
+    const pathStrokeIdle = 'var(--sync-loader-path-idle)';
+    const pathStrokePulse = 'var(--sync-loader-path-pulse)';
+    const logoGlowFilter = (css.getPropertyValue('--sync-loader-logo-glow-filter') || '').trim();
 
     const TOTAL_DURATION = durationSeconds;
     const progress = { value: 0 };
@@ -97,7 +96,7 @@ export function SyncPathLoader({
         statusEl.style.opacity = '1';
         gsap.to(percentEl, { opacity: 0, y: -10, duration: 0.3 });
         gsap.to(logo, {
-          filter: 'drop-shadow(0 0 20px rgba(28, 189, 255, 0.3))',
+          filter: logoGlowFilter || 'none',
           duration: 1.5,
           repeat: -1,
           yoyo: true,
@@ -178,7 +177,7 @@ export function SyncPathLoader({
       className={cn(
         'relative flex flex-col items-center justify-center font-sans',
         layout === 'fullscreen' &&
-          'min-h-screen overflow-hidden bg-[var(--glc-ink)] text-[#e6edf3]',
+          'min-h-screen overflow-hidden bg-[var(--glc-ink)] text-[var(--sync-loader-fullscreen-fg)]',
         layout === 'embedded' && 'w-full max-w-[min(100%,20rem)] text-[var(--text-primary)]',
         className,
       )}
@@ -189,7 +188,7 @@ export function SyncPathLoader({
     >
       {layout === 'fullscreen' && (
         <div
-          className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle,transparent_40%,rgba(0,0,0,0.5)_100%)]"
+          className="pointer-events-none fixed inset-0 ds-sync-loader-fullscreen-vignette"
           aria-hidden
         />
       )}
@@ -208,7 +207,7 @@ export function SyncPathLoader({
           <path
             ref={pathRef}
             d={PATH_D}
-            stroke={layout === 'embedded' ? 'var(--sync-loader-path-idle)' : '#30363d'}
+            stroke="var(--sync-loader-path-idle)"
             strokeWidth={5}
             strokeLinecap="round"
             strokeLinejoin="round"

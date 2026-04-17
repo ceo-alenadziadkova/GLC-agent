@@ -1,3 +1,12 @@
+/**
+ * @file HomeHeroCockpit.tsx
+ *
+ * CRITICAL — DO NOT TOUCH under any circumstances without explicit written approval from
+ * product and design-system owners. This marketing “cockpit” is frozen for visual parity:
+ * its inline `style={{...}}` blocks are the sole remaining `inline-visual-style` allowlist
+ * entries (`scripts/design-system-baseline.allowlist.txt`; mirror: `docs/design-system/violations-export.md`).
+ * No drive-by refactors, token migrations, or “cleanup” — any change risks breaking the hero layout.
+ */
 import { motion, useReducedMotion } from 'motion/react';
 import {
   MARKETING_CARD_MOTION,
@@ -19,7 +28,7 @@ function SkeletonLine({ width }: { width: string }) {
 
 /**
  * Decorative “audit cockpit” for marketing hero — no live data; subtle hover motion only.
- * Inline visuals kept for parity with the light-home cockpit shell (glc-light-home-cockpit).
+ * Inline visuals are frozen; see file banner — do not migrate to CSS or tokens without approval.
  */
 export function HomeHeroCockpit({ className }: { className?: string }) {
   const reduce = useReducedMotion();

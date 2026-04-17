@@ -13,7 +13,7 @@ Date: 2026-04-17
 | This file (`current.md`) | As-is narrative spec: §1–10 (tokens, inventory summary, components, API, hierarchy, layout, states, a11y signals, naming, derived rules) |
 | [`roadmap-notes.md`](./roadmap-notes.md) | Enforcement commands, baseline/audit pointers, rollout status, §11 reference-stack alignment (not part of as-is §1–10) |
 | [`inventory-dump.md`](./inventory-dump.md) | Generated appendix: **every** `--*` name assigned in `src/styles/tokens.css`, plus **deduplicated** hex/rgb/hsl/unit/clamp literals under `src/**` (regenerate: `pnpm run audit:ds:inventory-dump`) |
-| [`violations-export.md`](./violations-export.md) | Generated audit listing: raw-value and enforcement findings **without** allowlist (regenerate: `pnpm run audit:ds:export-violations`) |
+| [`violations-export.md`](./violations-export.md) | Generated audit listing: raw-value, enforcement, and TS color-literal findings **without** allowlist (regenerate: `pnpm run audit:ds:export-violations`). CI also runs `pnpm run audit:ds:ts-color` (hex/rgb/hsl in `src/**` and `server/src/**` TS; PDF bridge allowlisted). |
 
 ## Extraction Sources
 
@@ -36,7 +36,6 @@ Date: 2026-04-17
   - `src/design-system/tokens/shadows.ts`
   - `src/design-system/tokens/z-index.ts`
   - `src/design-system/tokens/breakpoints.ts`
-  - `src/design-system/tokens/ui-semantic-colors.ts`
 - Reusable UI and layout:
   - `src/design-system/ui/index.ts`
   - `src/app/components/ui/**`
@@ -155,7 +154,7 @@ Source: `src/styles/tokens.css`.
 - `SHADOW_TOKENS`: `src/design-system/tokens/shadows.ts`
 - `Z_INDEX_TOKENS`: `src/design-system/tokens/z-index.ts`
 - `BREAKPOINT_TOKENS`: `src/design-system/tokens/breakpoints.ts`
-- `UI_SEMANTIC_COLORS`, `UI_INTAKE_TRACE_GRAPH`: `src/design-system/tokens/ui-semantic-colors.ts`
+- `COLOR_TOKENS.semantic.uiSemantic` and `COLOR_TOKENS.semantic.intakeTraceGraph` (intake trace graph strokes/fills): `src/design-system/tokens/colors.ts` — values are `var(--*)` only; raw hex/rgb/hsl live in `tokens.css`.
 
 ### 1.9 Full custom property index (`tokens.css`)
 
@@ -205,9 +204,9 @@ Historical snapshot counts (same patterns as the dump script; counts drift as co
 | Pattern class | Unique count (aligned to latest `inventory-dump.md`, 2026-04-17) |
 | --- | ---: |
 | Hex (`#` + 3–8 hex digits) | 122 |
-| `rgb(...)` / `rgba(...)` | 163 |
+| `rgb(...)` / `rgba(...)` | 152 |
 | `hsl(...)` / `hsla(...)` | 0 |
-| `px` / `rem` / `em` unit literals | 173 |
+| `px` / `rem` / `em` unit literals | 174 |
 | `clamp(...)` spans | 22 |
 
 For enforcement-oriented **per-line** raw-value detection (not the same as deduplicated inventory), see `scripts/design-system-raw-values-check.mjs`.
@@ -582,7 +581,7 @@ Derived only from observed implementation.
 5. State expression is mixed: pseudo-classes (`:hover`, `:focus-visible`, `:disabled`) plus data/aria-driven selectors (`data-[state=*]`, `data-[active=true]`, `aria-invalid`).
 6. Layout uses both explicit contracts (`LAYOUT_CONTRACTS`) and utility/media usage in component and feature style layers.
 7. Legacy compatibility selectors (`glc-*`) coexist with primitive-based class compositions.
-8. CI enforcement (`pnpm run audit:ds:ci`) uses `scripts/design-system-baseline.allowlist.txt` for grandfathered `inline-visual-style` lines only where migration would harm layout parity; as of the last doc sync that list is **4** lines, all in `src/app/marketing/blocks/HomeHeroCockpit.tsx`. The no-allowlist audit mirror is [`violations-export.md`](./violations-export.md) (same **4** deduped rows).
+8. CI enforcement (`pnpm run audit:ds:ci`) uses `scripts/design-system-baseline.allowlist.txt` for grandfathered `inline-visual-style` lines only where migration would harm layout parity; that list is **4** line-accurate signatures, all in `src/app/marketing/blocks/HomeHeroCockpit.tsx` (refresh with `pnpm run audit:ds:refresh-allowlist` whenever line numbers shift). That module is **frozen** for DS refactors — see [`roadmap-notes.md`](./roadmap-notes.md) § HomeHeroCockpit (frozen). The no-allowlist audit mirror is [`violations-export.md`](./violations-export.md) (same **4** deduped rows).
 
 ## Related (outside as-is §1–10)
 

@@ -32,7 +32,7 @@ function run(cmd) {
 function parseLines(output) {
   const sigs = [];
   for (const line of output.split(/\r?\n/)) {
-    if (!line.startsWith('src/')) continue;
+    if (!line.startsWith('src/') && !line.startsWith('server/')) continue;
     const m = line.match(/^([^:]+):(\d+) \[([^\]]+)\] (.*)$/);
     if (!m) continue;
     sigs.push({ file: m[1], line: Number(m[2]), type: m[3], value: m[4] });
@@ -58,10 +58,12 @@ function tallyByFile(sigs, limit = 30) {
 
 const rawOut = run('node scripts/design-system-raw-values-check.mjs');
 const enfOut = run('node scripts/design-system-enforcement-check.mjs');
+const tsColorOut = run('node scripts/design-system-ts-color-literals-check.mjs');
 
 const rawSigs = parseLines(rawOut);
 const enfSigs = parseLines(enfOut);
-const merged = [...rawSigs, ...enfSigs];
+const tsColorSigs = parseLines(tsColorOut);
+const merged = [...rawSigs, ...enfSigs, ...tsColorSigs];
 
 const seenSig = new Set();
 const deduped = [];
@@ -91,7 +93,8 @@ const lines = [
   '| --- | ---: |',
   `| design-system-raw-values-check (app scope) | ${rawSigs.length} |`,
   `| design-system-enforcement-check (app scope) | ${enfSigs.length} |`,
-  `| **Total rows** (merged raw + enforcement) | **${merged.length}** |`,
+  `| design-system-ts-color-literals-check (src + server/src) | ${tsColorSigs.length} |`,
+  `| **Total rows** (merged raw + enforcement + ts-color) | **${merged.length}** |`,
   `| **Deduped rows** (written to \`compliance-findings.full.txt\`) | **${deduped.length}** |`,
   '',
   '## By violation type (merged)',

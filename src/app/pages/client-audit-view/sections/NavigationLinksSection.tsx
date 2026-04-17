@@ -2,7 +2,7 @@ import { CaretRight, CheckCircle, FileText, Pulse } from '@phosphor-icons/react'
 import { Link } from 'react-router';
 import { Callout } from '../../../components/ui/callout';
 import { CLIENT_AUDIT_VIEW_COPY } from '../../../config/client-audit-view-copy';
-import { UI_SEMANTIC_COLORS } from '../../../../design-system/tokens/ui-semantic-colors';
+import { COLOR_TOKENS } from '../../../../design-system/tokens/colors';
 import { CLIENT_AUDIT_VIEW_UI } from '../config/ui';
 
 export function NavigationLinksSection({
@@ -33,7 +33,7 @@ export function NavigationLinksSection({
               <div className="ds-type-xs-secondary">{CLIENT_AUDIT_VIEW_COPY.links.reportFinished}</div>
             </div>
           </div>
-          <CheckCircle weight="fill" className="w-5 h-5" color={UI_SEMANTIC_COLORS.success} />
+          <CheckCircle weight="fill" className="w-5 h-5" color={COLOR_TOKENS.semantic.uiSemantic.success} />
         </Link>
       )}
 

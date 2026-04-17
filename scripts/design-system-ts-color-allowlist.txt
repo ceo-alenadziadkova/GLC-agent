@@ -1,0 +1,3 @@
+# Whole-file bypass: @react-pdf and report defaults duplicate tokens until codegen (see roadmap-notes).
+@allow-file server/src/config/pdf-theme.ts
+@allow-file server/src/config/system-defaults/reports.ts

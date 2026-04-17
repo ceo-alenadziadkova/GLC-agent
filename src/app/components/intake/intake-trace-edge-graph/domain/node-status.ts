@@ -1,6 +1,6 @@
 import type { IntakePlan } from '@glc/intake-core';
 
-import { UI_INTAKE_TRACE_GRAPH } from '../../../../../design-system/tokens/ui-semantic-colors';
+import { COLOR_TOKENS } from '../../../../../design-system/tokens/colors';
 import type { NodeStatus } from '../types';
 
 export function statusFor(id: string, plan: IntakePlan): NodeStatus {
@@ -12,7 +12,7 @@ export function statusFor(id: string, plan: IntakePlan): NodeStatus {
 }
 
 export function statusColors(status: NodeStatus): { fill: string; stroke: string; text: string } {
-  const nodeByStatus = UI_INTAKE_TRACE_GRAPH.nodeByStatus;
+  const nodeByStatus = COLOR_TOKENS.semantic.intakeTraceGraph.nodeByStatus;
   switch (status) {
     case 'required':
       return nodeByStatus.required;

@@ -1157,6 +1157,67 @@ html:not(.dark) .glc-hover-row:hover {
   background-color: color-mix(in oklab, var(--bg-surface) 94%, var(--bg-muted));
 }
 
+/* Former `marketing-surface-tokens.ts` — surfaces and package hero (SSOT: values only in tokens.css via var). */
+.ds-marketing-surface-comparison-shell {
+  border-radius: var(--radius-2xl);
+  border: var(--border-width-default) solid var(--border-subtle);
+  background-color: unset;
+}
+
+.ds-marketing-surface-muted-band {
+  border-radius: var(--radius-2xl);
+  border: var(--border-width-default) solid var(--border-subtle);
+  background-color: var(--bg-muted);
+}
+
+.ds-marketing-surface-inset-section {
+  border-radius: var(--radius-2xl);
+  border: var(--border-width-default) solid var(--border-subtle);
+  background-color: var(--bg-inset);
+}
+
+.ds-marketing-package-badge-focus {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 66%, var(--bg-surface));
+  border-color: color-mix(in oklab, var(--glc-blue) 36%, var(--border-subtle));
+  color: var(--glc-blue-light);
+}
+
+.ds-marketing-package-badge-context {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 84%, var(--bg-surface));
+  border-color: color-mix(in oklab, var(--glc-blue) 38%, var(--border-subtle));
+  color: var(--glc-blue-light);
+}
+
+.ds-marketing-package-badge-strategy {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 72%, var(--bg-surface));
+  border-color: color-mix(in oklab, var(--glc-blue) 34%, var(--border-subtle));
+  color: var(--glc-blue-light);
+}
+
+.ds-marketing-coverage-cell {
+  border-color: color-mix(in oklab, var(--overlay-white-20) 56%, var(--border-subtle));
+  background-color: color-mix(in oklab, var(--bg-muted) 75%, var(--bg-surface));
+}
+
+.ds-marketing-coverage-cell--active {
+  border-color: color-mix(in oklab, var(--glc-blue) 48%, var(--border-default));
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 92%, var(--bg-surface));
+}
+
+.ds-marketing-coverage-label-active {
+  color: var(--glc-blue-light);
+}
+
+.ds-marketing-coverage-label-inactive {
+  color: var(--text-tertiary);
+}
+
+.ds-marketing-package-hero-chip {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 76%, transparent);
+  border-color: color-mix(in oklab, var(--glc-blue) 24%, var(--border-subtle));
+  color: var(--glc-blue-deeper);
+}
+
 .ds-package-audience-section-card {
   border-color: color-mix(in oklab, var(--glc-blue) 22%, var(--border-subtle));
   background: linear-gradient(
@@ -1230,6 +1291,10 @@ html:not(.dark) .glc-hover-row:hover {
 
 .ds-sync-loader-ball-glow {
   filter: drop-shadow(0 0 8px rgba(28, 189, 255, 0.6));
+}
+
+.ds-sync-loader-fullscreen-vignette {
+  background-image: var(--sync-loader-fullscreen-vignette);
 }
 
 /* Matches prior inline panel (info tint); literals live in CSS layer, not TSX. */

@@ -1,5 +1,5 @@
 import type { TracePlanStatus, TraceRole } from '../components/question-bank-studio/types';
-import { UI_SEMANTIC_COLORS } from '../../design-system/tokens/ui-semantic-colors';
+import { COLOR_TOKENS } from '../../design-system/tokens/colors';
 
 export const TRACE_RING_COLORS: Record<TraceRole, string> = {
   required: 'var(--ui-intake-node-required-stroke)',
@@ -16,9 +16,9 @@ export const STATUS_PILL_STYLES: Record<
 > = {
   required: {
     label: 'Required',
-    fg: UI_SEMANTIC_COLORS.dangerFgStrong,
-    bg: UI_SEMANTIC_COLORS.dangerBgPale,
-    border: UI_SEMANTIC_COLORS.danger,
+    fg: COLOR_TOKENS.semantic.uiSemantic.dangerFgStrong,
+    bg: COLOR_TOKENS.semantic.uiSemantic.dangerBgPale,
+    border: COLOR_TOKENS.semantic.uiSemantic.danger,
   },
   visible: {
     label: 'Visible',

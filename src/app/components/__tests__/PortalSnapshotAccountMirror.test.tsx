@@ -10,7 +10,13 @@ const snapshotDiagnosticsMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../snapshot/SnapshotScoreKit', () => ({
-  SNAPSHOT_SCORE_COLORS: { 1: '#111', 2: '#222', 3: '#333', 4: '#444', 5: '#555' },
+  SNAPSHOT_SCORE_COLORS: {
+    1: 'var(--score-1)',
+    2: 'var(--score-2)',
+    3: 'var(--score-3)',
+    4: 'var(--score-4)',
+    5: 'var(--score-5)',
+  },
   SNAPSHOT_SCORE_LABELS: { 1: 'Critical', 2: 'Needs Work', 3: 'Moderate', 4: 'Good', 5: 'Excellent' },
   SnapshotCategoryBreakdownList: () => <div data-testid="breakdown-list" />,
   SnapshotScoreContextNotes: () => <div data-testid="score-notes" />,
@@ -19,7 +25,7 @@ vi.mock('../snapshot/SnapshotScoreKit', () => ({
   snapshotDonutFillFromLegacyBand: () => 40,
   snapshotDonutFillFromOverall: () => 62,
   snapshotLegacyUxBand: () => 3,
-  snapshotScoreColorFrom100: () => '#333',
+  snapshotScoreColorFrom100: () => 'var(--score-3)',
   snapshotSiteProfileSoftLine: () => null,
 }));
 
