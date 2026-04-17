@@ -1294,3 +1294,258 @@ html:not(.dark) .glc-hover-row:hover {
 .ds-snapshot-callout-panel {
   background: var(--snapshot-callout-panel-bg);
 }
+
+/* Marketing home + package hero (raw-values checker: literals live in CSS only) */
+.ds-home-hero-billboard-grid {
+  position: relative;
+  display: grid;
+  width: 100%;
+  max-width: 72rem;
+  gap: 3rem;
+}
+
+@media (min-width: 1024px) {
+  .ds-home-hero-billboard-grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(260px, 1fr);
+    align-items: start;
+    gap: 2.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .ds-home-hero-billboard-grid {
+    gap: 3.5rem;
+  }
+}
+
+.ds-tracking-marketing-eyebrow {
+  letter-spacing: 0.1em;
+}
+
+.ds-home-hero-billboard-title {
+  max-width: 22ch;
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 6.2vw, 4.125rem);
+  font-weight: 700;
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+@media (min-width: 640px) {
+  .ds-home-hero-billboard-title {
+    max-width: none;
+    letter-spacing: -0.02em;
+  }
+}
+
+.ds-home-hero-supporting-line {
+  margin-top: 1rem;
+  max-width: 60ch;
+  font-size: 0.875rem;
+  line-height: 1.625;
+  color: var(--text-tertiary);
+}
+
+@media (min-width: 640px) {
+  .ds-home-hero-supporting-line {
+    font-size: 0.95rem;
+  }
+}
+
+.ds-package-marketing-hero-grid {
+  position: relative;
+  display: grid;
+  width: 100%;
+  max-width: 72rem;
+  gap: 2.5rem;
+}
+
+@media (min-width: 1024px) {
+  .ds-package-marketing-hero-grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(240px, 1fr);
+    align-items: center;
+    gap: 3rem;
+  }
+}
+
+.ds-package-marketing-hero-cover {
+  position: relative;
+  margin-left: auto;
+  margin-right: auto;
+  display: none;
+  width: 100%;
+  max-width: 340px;
+  user-select: none;
+}
+
+@media (min-width: 1024px) {
+  .ds-package-marketing-hero-cover {
+    display: block;
+  }
+}
+
+.ds-package-marketing-hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+@media (min-width: 640px) {
+  .ds-package-marketing-hero-title {
+    letter-spacing: -0.02em;
+  }
+}
+
+.ds-home-hero-cockpit-wrap {
+  position: relative;
+  margin-left: auto;
+  margin-right: auto;
+  display: none;
+  width: 100%;
+  max-width: 420px;
+  user-select: none;
+}
+
+@media (min-width: 1024px) {
+  .ds-home-hero-cockpit-wrap {
+    display: block;
+  }
+}
+
+.ds-home-hero-cockpit-stage {
+  position: relative;
+  height: min(360px, 42vw);
+  width: 100%;
+}
+
+.ds-home-hero-cockpit-panel-offset {
+  top: 5.5rem;
+}
+
+.ds-home-hero-cockpit-cell {
+  border: var(--border-width-default) solid var(--border-subtle);
+}
+
+.ds-home-section-desc-size {
+  font-size: 1rem;
+}
+
+@media (min-width: 640px) {
+  .ds-home-section-desc-size {
+    font-size: 1.02rem;
+  }
+}
+
+.ds-home-section-desc-rail {
+  padding-left: 0;
+}
+
+@media (min-width: 640px) {
+  .ds-home-section-desc-rail {
+    padding-left: 3.25rem;
+  }
+}
+
+.ds-marketing-mid-cta-body {
+  margin-top: 0.5rem;
+  max-width: 60ch;
+  font-size: 0.875rem;
+  line-height: 1.625;
+}
+
+@media (min-width: 640px) {
+  .ds-marketing-mid-cta-body {
+    font-size: 0.95rem;
+  }
+}
+
+.ds-package-audience-caps {
+  letter-spacing: 0.12em;
+}
+
+.ds-process-timeline-connector {
+  position: absolute;
+  left: 15px;
+  top: 2rem;
+  bottom: 0;
+  width: var(--border-width-default);
+}
+
+.ds-home-metric-value {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+}
+
+@media (min-width: 640px) {
+  .ds-home-metric-value {
+    font-size: 1.65rem;
+  }
+}
+
+.ds-home-metrics-tagline {
+  margin-top: 2rem;
+  text-align: center;
+  font-size: 0.875rem;
+  line-height: 1.625;
+  color: var(--text-secondary);
+}
+
+@media (min-width: 640px) {
+  .ds-home-metrics-tagline {
+    margin-top: 2.5rem;
+    font-size: 0.95rem;
+  }
+}
+
+.ds-home-trust-caps {
+  letter-spacing: 0.14em;
+}
+
+.ds-snapshot-results-stack {
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  min-width: 0;
+  max-width: min(100%, 38.75rem);
+}
+
+@media (min-width: 1024px) {
+  .ds-snapshot-results-stack {
+    max-width: 72rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ds-snapshot-score-hero-minh {
+    min-height: 15rem;
+  }
+}
+
+.ds-snapshot-section-eyebrow {
+  letter-spacing: 0.08em;
+}
+
+.ds-snapshot-signals-heading {
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+@media (min-width: 640px) {
+  .ds-snapshot-signals-heading {
+    font-size: var(--text-xs);
+  }
+}
+
+.ds-results-cta-primary-minw {
+  min-width: 12rem;
+}

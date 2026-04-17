@@ -28,10 +28,7 @@ export function ProcessTimeline({
             className="relative flex gap-4 pb-8 pl-1 last:pb-0"
           >
             {i < steps.length - 1 && (
-              <span
-                className="ds-bg-border-default absolute left-[15px] top-8 bottom-0 w-px"
-                aria-hidden
-              />
+              <span className="ds-bg-border-default ds-process-timeline-connector" aria-hidden />
             )}
             <div className="ds-process-step-badge relative z-[1] flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold">
               {i + 1}

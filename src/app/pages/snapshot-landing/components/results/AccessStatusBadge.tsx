@@ -18,8 +18,8 @@ export function AccessStatusBadge(props: {
             : 'var(--bg-surface)',
         border:
           snapshotShowsAccessCallout && snapshotAccessRobotsBlocked
-            ? '1px solid color-mix(in oklab, var(--glc-green) 38%, var(--border-subtle))'
-            : '1px solid var(--border-subtle)',
+            ? 'var(--border-width-default) solid color-mix(in oklab, var(--glc-green) 38%, var(--border-subtle))'
+            : 'var(--border-width-default) solid var(--border-subtle)',
         color: 'var(--text-tertiary)',
       }}
     >

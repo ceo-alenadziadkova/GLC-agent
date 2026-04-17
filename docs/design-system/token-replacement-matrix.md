@@ -206,6 +206,23 @@ Only aliases required by repeated usage (>=3 occurrences) are added:
 | `-0.01em` letter-spacing | `.ds-letterspace-tight-01` |
 | Custom properties on wrappers (`DecisionPath`, `FindingCard`) | `style={… as CSSProperties}` for `--*` keys |
 
+### Wave 2 (2026-04-17) — marketing home, package hero, snapshot results
+
+| Raw / pattern | Bridge |
+| --- | --- |
+| Home hero grid / title clamp / supporting 0.95rem | `.ds-home-hero-billboard-grid`, `.ds-home-hero-billboard-title`, `.ds-home-hero-supporting-line` |
+| Eyebrow `tracking-[0.1em]` | `.ds-tracking-marketing-eyebrow` |
+| Package hero grid / cover max 340px / title clamp | `.ds-package-marketing-hero-grid`, `.ds-package-marketing-hero-cover`, `.ds-package-marketing-hero-title` |
+| Cockpit 420×360, panel `top-[5.5rem]`, cell borders | `.ds-home-hero-cockpit-wrap`, `.ds-home-hero-cockpit-stage`, `.ds-home-hero-cockpit-panel-offset`, `.ds-home-hero-cockpit-cell` |
+| Section description `1.02rem` / rail `pl-3.25rem` | `.ds-home-section-desc-size`, `.ds-home-section-desc-rail` |
+| Mid CTA body 0.95rem | `.ds-marketing-mid-cta-body` |
+| Audience caps `0.12em` | `.ds-package-audience-caps` |
+| Timeline connector `left-[15px]` | `.ds-process-timeline-connector` |
+| Metrics value / tagline | `.ds-home-metric-value`, `.ds-home-metrics-tagline` |
+| Trust strip `0.14em` | `.ds-home-trust-caps` |
+| Snapshot results max width / score min-height / labels | `.ds-snapshot-results-stack`, `.ds-snapshot-score-hero-minh`, `.ds-snapshot-section-eyebrow`, `.ds-snapshot-signals-heading` |
+| CTA band `min-w-[12rem]` | `.ds-results-cta-primary-minw` |
+
 ## Migration strategy (execution order)
 
 1. Introduce/alias canonical tokens in `src/styles/tokens.css`.

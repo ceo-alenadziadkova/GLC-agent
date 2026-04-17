@@ -11,7 +11,7 @@ type HomeTrustSectionProps = {
 export function HomeTrustSection({ data, reduceMotion }: HomeTrustSectionProps) {
   return (
     <>
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-tertiary)]">
+      <p className="text-xs font-semibold uppercase ds-home-trust-caps text-[var(--text-tertiary)]">
         {data.title}
       </p>
       <ul className="mt-8 grid gap-10 sm:grid-cols-3 sm:gap-12">

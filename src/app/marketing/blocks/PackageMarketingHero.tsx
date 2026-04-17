@@ -23,12 +23,7 @@ function TierCoverageDecor({ tier }: { tier: 'focus' | 'context' | 'strategy' })
   const active = TIER_ACTIVE_CELLS[tier];
   const badgeStyle = MARKETING_PACKAGE_BADGE_VARIANTS[tier];
   return (
-    <div
-      className={cn(
-        'relative mx-auto hidden w-full max-w-[340px] select-none lg:block',
-      )}
-      aria-hidden
-    >
+    <div className="relative ds-package-marketing-hero-cover" aria-hidden>
       <div
         className="rounded-[var(--radius-2xl)] border p-6 shadow-[var(--shadow-xs)]"
         style={{
@@ -99,7 +94,7 @@ export function PackageMarketingHero({
   return (
     <div className={cn('relative -mx-4 overflow-hidden px-4 sm:-mx-6 sm:px-6', pad)}>
       <motion.div
-        className="relative grid w-full max-w-6xl gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(240px,1fr)] lg:items-center lg:gap-12"
+        className="relative ds-package-marketing-hero-grid"
         variants={mv.container}
         initial={reduce ? false : 'hidden'}
         animate="visible"
@@ -107,7 +102,7 @@ export function PackageMarketingHero({
         <div className="min-w-0 max-w-4xl">
           <motion.p
             variants={mv.item}
-            className="mb-5 inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.1em] sm:text-xs"
+            className="mb-5 inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold uppercase ds-tracking-marketing-eyebrow sm:text-xs"
             style={{
               backgroundColor: 'color-mix(in oklab, var(--bg-surface) 94%, transparent)',
               borderColor: 'var(--border-subtle)',
@@ -118,7 +113,7 @@ export function PackageMarketingHero({
           </motion.p>
           <motion.h1
             variants={mv.item}
-            className="font-display text-[clamp(2rem,5vw,3.25rem)] font-bold leading-[1.08] tracking-[-0.03em] sm:tracking-[-0.02em] ds-text-primary"
+            className="ds-package-marketing-hero-title"
           >
             {title}
           </motion.h1>

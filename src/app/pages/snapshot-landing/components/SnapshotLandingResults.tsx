@@ -63,7 +63,7 @@ export function SnapshotLandingResults(props: {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-      className="mx-auto w-full min-w-0 max-w-[min(100%,38.75rem)] lg:max-w-6xl"
+      className="ds-snapshot-results-stack"
     >
       {/* Company header — mobile centered; desktop aligned with bento column */}
       <div className="mb-8 text-center mobile:mb-6 lg:mb-7 lg:text-left">
@@ -98,9 +98,9 @@ export function SnapshotLandingResults(props: {
           <div className="mb-4 lg:grid lg:grid-cols-12 lg:items-stretch lg:gap-6">
             <Surface
               padding="none"
-              className="glc-card glc-snapshot-result-card glc-snapshot-surface-hero mb-4 flex min-h-0 flex-col items-center justify-center rounded-[var(--radius-xl)] p-6 text-center lg:col-span-5 lg:mb-0 lg:min-h-[15rem] lg:p-8"
+              className="glc-card glc-snapshot-result-card glc-snapshot-surface-hero mb-4 flex min-h-0 flex-col items-center justify-center rounded-[var(--radius-xl)] p-6 text-center lg:col-span-5 lg:mb-0 lg:p-8 ds-snapshot-score-hero-minh"
             >
-              <p className="mb-3 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-tertiary)]">
+              <p className="mb-3 text-xs font-medium uppercase ds-snapshot-section-eyebrow text-[var(--text-tertiary)]">
                 {SNAPSHOT_LANDING_HERO_COPY.snapshotScoreLabel}
               </p>
               <SnapshotScoreBadge
@@ -124,7 +124,7 @@ export function SnapshotLandingResults(props: {
                   {SNAPSHOT_LANDING_HERO_COPY.summaryLabel}
                 </span>
               </div>
-              <p className="text-pretty text-sm leading-relaxed text-[var(--text-secondary)] lg:text-[0.9375rem]">
+              <p className="text-pretty text-sm leading-relaxed text-[var(--text-secondary)] lg:text-[length:var(--text-base)]">
                 {result.ux_summary}
               </p>
               <SnapshotScoreContextNotes result={result} />
@@ -137,7 +137,7 @@ export function SnapshotLandingResults(props: {
           >
             <div className="flex min-w-0 flex-1 flex-col items-center gap-3 mobile:w-full lg:flex-row lg:items-center lg:justify-center lg:gap-10">
               <div className="flex w-full flex-col items-center text-center mobile:items-center lg:w-auto lg:shrink-0">
-                <p className="mb-1 text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-tertiary)] lg:sr-only">
+                <p className="mb-1 text-xs font-medium uppercase ds-snapshot-section-eyebrow text-[var(--text-tertiary)] lg:sr-only">
                   {SNAPSHOT_LANDING_HERO_COPY.snapshotScoreLabel}
                 </p>
                 <SnapshotScoreBadge
@@ -147,7 +147,7 @@ export function SnapshotLandingResults(props: {
                 />
               </div>
               <div className="w-full min-w-0 text-center mobile:text-center lg:flex-1 lg:text-left">
-                <p className="mb-2 hidden text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-tertiary)] lg:block">
+                <p className="mb-2 hidden text-xs font-medium uppercase ds-snapshot-section-eyebrow text-[var(--text-tertiary)] lg:block">
                   {SNAPSHOT_LANDING_HERO_COPY.snapshotScoreLabel}
                 </p>
                 {typeof result.overall_score !== 'number' && result.ux_label ? (
@@ -184,7 +184,7 @@ export function SnapshotLandingResults(props: {
 
       {result.signals_found && result.signals_found.length > 0 && (
         <div className="mb-4">
-          <p className="mb-2 text-center text-[0.65rem] font-medium uppercase tracking-wider text-[var(--text-tertiary)] sm:text-xs lg:text-left">
+          <p className="ds-snapshot-signals-heading mb-2 text-center text-[var(--text-tertiary)] lg:text-left">
             {SNAPSHOT_LANDING_HERO_COPY.detectedSignalsTitle}
           </p>
           <div className="flex flex-wrap justify-center gap-2 lg:justify-start">

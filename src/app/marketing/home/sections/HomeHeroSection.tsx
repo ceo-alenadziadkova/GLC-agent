@@ -20,7 +20,7 @@ export function HomeHeroSection({ reduceMotion, data }: HomeHeroSectionProps) {
 
   return (
     <motion.div
-      className="relative grid w-full max-w-6xl gap-12 lg:grid-cols-[minmax(0,1.2fr)_minmax(260px,1fr)] lg:items-start lg:gap-10 xl:gap-14"
+      className="relative ds-home-hero-billboard-grid"
       variants={heroMv.container}
       initial={reduceMotion ? false : 'hidden'}
       animate="visible"
@@ -28,7 +28,7 @@ export function HomeHeroSection({ reduceMotion, data }: HomeHeroSectionProps) {
         <div className="min-w-0 max-w-4xl">
           <motion.p
             variants={heroMv.item}
-            className="mb-6 inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.1em] sm:text-xs"
+            className="mb-6 inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold uppercase ds-tracking-marketing-eyebrow sm:text-xs"
             style={{
               backgroundColor: 'color-mix(in oklab, var(--bg-surface) 94%, transparent)',
               borderColor: 'var(--border-subtle)',
@@ -39,7 +39,7 @@ export function HomeHeroSection({ reduceMotion, data }: HomeHeroSectionProps) {
           </motion.p>
           <motion.h1
             variants={heroMv.item}
-            className="glc-light-home-hero-title max-w-[22ch] font-display text-[clamp(2.5rem,6.2vw,4.125rem)] font-bold leading-[1.04] tracking-[-0.03em] text-[var(--text-primary)] sm:max-w-none sm:tracking-[-0.02em]"
+            className="glc-light-home-hero-title ds-home-hero-billboard-title"
           >
             {hero.headline.hasGradientSuffix ? (
               <>
@@ -61,7 +61,7 @@ export function HomeHeroSection({ reduceMotion, data }: HomeHeroSectionProps) {
           {hero.supportingLine ? (
             <motion.p
               variants={heroMv.item}
-              className="glc-light-home-hero-support mt-4 max-w-[60ch] text-sm leading-relaxed text-[var(--text-tertiary)] sm:text-[0.95rem]"
+              className="glc-light-home-hero-support ds-home-hero-supporting-line"
             >
               {hero.supportingLine}
             </motion.p>

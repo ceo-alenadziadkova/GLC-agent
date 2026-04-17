@@ -32,7 +32,7 @@ export function SectionHeading({
         </h2>
         {description ? (
           <p
-            className="mt-3 max-w-[65ch] text-base leading-relaxed sm:text-[1.02rem] ds-text-secondary"
+            className="mt-3 max-w-[65ch] leading-relaxed ds-text-secondary ds-home-section-desc-size"
             
           >
             {description}
@@ -53,7 +53,7 @@ export function SectionHeading({
         </div>
         {description ? (
           <p
-            className="mt-4 max-w-[65ch] pl-0 text-base leading-relaxed sm:pl-[3.25rem] sm:text-[1.02rem] ds-text-secondary"
+            className="mt-4 max-w-[65ch] leading-relaxed ds-text-secondary ds-home-section-desc-size ds-home-section-desc-rail"
             
           >
             {description}
@@ -71,7 +71,7 @@ export function SectionHeading({
       </h2>
       {description ? (
         <p
-          className="mt-3 max-w-[65ch] text-base leading-relaxed sm:text-[1.02rem] ds-text-secondary"
+          className="mt-3 max-w-[65ch] leading-relaxed ds-text-secondary ds-home-section-desc-size"
           
         >
           {description}

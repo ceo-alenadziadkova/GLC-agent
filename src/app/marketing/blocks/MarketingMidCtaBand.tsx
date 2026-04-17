@@ -35,7 +35,7 @@ export function MarketingMidCtaBand({
           <h2 className="font-display text-xl font-bold tracking-tight sm:text-2xl ds-text-primary" >
             {title}
           </h2>
-          <p className="mt-2 max-w-[60ch] text-sm leading-relaxed sm:text-[0.95rem] ds-text-secondary" >
+          <p className="ds-marketing-mid-cta-body ds-text-secondary">
             {body}
           </p>
         </div>

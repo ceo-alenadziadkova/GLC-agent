@@ -36,11 +36,8 @@ export function HomeHeroCockpit({ className }: { className?: string }) {
     'overflow-hidden border p-4 shadow-[var(--shadow-xs)] transition-[border-color] duration-200 hover:border-[var(--border-default)]';
 
   return (
-    <div
-      className={cn('relative mx-auto hidden w-full max-w-[420px] select-none lg:block', className)}
-      aria-hidden
-    >
-      <div className="relative h-[min(360px,42vw)] w-full">
+    <div className={cn('relative ds-home-hero-cockpit-wrap', className)} aria-hidden>
+      <div className="relative ds-home-hero-cockpit-stage">
         <motion.div
           className={cn('absolute left-0 top-6 w-[90%]', panel)}
           style={{
@@ -65,7 +62,7 @@ export function HomeHeroCockpit({ className }: { className?: string }) {
         </motion.div>
 
         <motion.div
-          className={cn('absolute right-0 top-[5.5rem] w-[86%]', panel)}
+          className={cn('absolute right-0 ds-home-hero-cockpit-panel-offset w-[86%]', panel)}
           style={{
             borderRadius: 'var(--radius-xl)',
             borderColor: 'var(--border-subtle)',
@@ -82,13 +79,12 @@ export function HomeHeroCockpit({ className }: { className?: string }) {
             {[1, 2, 3, 4, 5, 6].map(i => (
               <div
                 key={i}
-                className="aspect-square rounded-md"
+                className="aspect-square rounded-md ds-home-hero-cockpit-cell"
                 style={{
                   backgroundColor:
                     i % 3 === 0
                       ? 'color-mix(in oklab, var(--glc-blue-muted) 80%, transparent)'
                       : 'color-mix(in oklab, var(--bg-muted) 90%, transparent)',
-                  border: '1px solid var(--border-subtle)',
                 }}
               />
             ))}

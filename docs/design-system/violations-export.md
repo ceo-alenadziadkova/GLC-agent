@@ -8,28 +8,23 @@ This report lists findings **before** applying `scripts/design-system-baseline.a
 
 | Audit | Parsed findings |
 | --- | ---: |
-| design-system-raw-values-check (app scope) | 147 |
+| design-system-raw-values-check (app scope) | 107 |
 | design-system-enforcement-check (app scope) | 0 |
-| **Total rows** (merged raw + enforcement) | **147** |
-| **Deduped rows** (written to `compliance-findings.full.txt`) | **146** |
+| **Total rows** (merged raw + enforcement) | **107** |
+| **Deduped rows** (written to `compliance-findings.full.txt`) | **106** |
 
 ## By violation type (merged)
 
 | Type | Count |
 | --- | ---: |
-| `unit-literal` | 146 |
+| `unit-literal` | 106 |
 
 ## Top files by finding count (merged)
 
 | File | Count |
 | --- | ---: |
-| `src/app/marketing/blocks/PackageMarketingHero.tsx` | 7 |
-| `src/app/marketing/home/sections/HomeHeroSection.tsx` | 7 |
-| `src/app/pages/snapshot-landing/components/SnapshotLandingResults.tsx` | 7 |
 | `src/app/pages/pipeline-monitor/sections/PhaseSidebar.tsx` | 5 |
 | `src/app/pages/SnapshotLanding.tsx` | 5 |
-| `src/app/marketing/blocks/HomeHeroCockpit.tsx` | 4 |
-| `src/app/marketing/home/components/SectionHeading.tsx` | 4 |
 | `src/app/pages/DiscoveryQueue.tsx` | 4 |
 | `src/app/pages/new-audit/NewAuditChrome.tsx` | 4 |
 | `src/app/pages/new-audit/steps/Step2Confirm.tsx` | 4 |
@@ -47,28 +42,33 @@ This report lists findings **before** applying `scripts/design-system-baseline.a
 | `src/app/components/ui/menubar.tsx` | 2 |
 | `src/app/components/ui/select.tsx` | 2 |
 | `src/app/components/ui/table.tsx` | 2 |
-| `src/app/marketing/blocks/PackageAudienceSection.tsx` | 2 |
-| `src/app/marketing/home/sections/HomeMetricsSection.tsx` | 2 |
 | `src/app/pages/audit-workspace/config/ui.ts` | 2 |
 | `src/app/pages/audit-workspace/sections/RecommendationsSection.tsx` | 2 |
 | `src/app/pages/audit-workspace/sections/WorkspaceSidebar.tsx` | 2 |
 | `src/app/pages/Dashboard.tsx` | 2 |
 | `src/app/pages/NewAudit.tsx` | 2 |
 | `src/app/pages/pipeline-monitor/config/pipeline-monitor-ui-policy.ts` | 2 |
-| `src/app/pages/snapshot-landing/components/results/AccessStatusBadge.tsx` | 2 |
-| `src/app/pages/snapshot-landing/components/results/ResultsCtaBand.tsx` | 2 |
 | `src/app/pages/StrategyLab.tsx` | 2 |
 | `src/app/components/ui/accordion.tsx` | 1 |
 | `src/app/components/ui/alert-dialog.tsx` | 1 |
 | `src/app/components/ui/badge.tsx` | 1 |
 | `src/app/components/ui/button.tsx` | 1 |
 | `src/app/components/ui/calendar.tsx` | 1 |
+| `src/app/components/ui/command.tsx` | 1 |
+| `src/app/components/ui/dialog.tsx` | 1 |
+| `src/app/components/ui/drawer.tsx` | 1 |
+| `src/app/components/ui/input-otp.tsx` | 1 |
+| `src/app/components/ui/input.tsx` | 1 |
+| `src/app/components/ui/radio-group.tsx` | 1 |
+| `src/app/components/ui/scroll-area.tsx` | 1 |
+| `src/app/components/ui/sidebar/sidebar-chrome.tsx` | 1 |
+| `src/app/components/ui/sidebar/sidebar-root.tsx` | 1 |
 
 ## Full findings (machine-readable)
 
 One line per finding: `file:line [type] value`. Deduped merge of both audits (no allowlist).
 
-- [`compliance-findings.full.txt`](./compliance-findings.full.txt) — **146** lines
+- [`compliance-findings.full.txt`](./compliance-findings.full.txt) — **106** lines
 
 ## Regenerate
 

@@ -27,7 +27,11 @@ export function ResultsCtaBand(props: { quotaHint: string; reset: () => void }) 
         </p>
       </div>
       <div className="relative z-[1] mt-5 flex w-full shrink-0 flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center lg:mt-0 lg:w-auto lg:flex-col lg:items-stretch">
-        <Button asChild variant="default" className="w-auto min-w-[12rem] justify-center mobile:min-h-12 mobile:w-full lg:w-full">
+        <Button
+          asChild
+          variant="default"
+          className="ds-results-cta-primary-minw w-auto justify-center mobile:min-h-12 mobile:w-full lg:w-full"
+        >
           <Link to={APP_ROUTE_PATHS.proPackage}>
             {SNAPSHOT_LANDING_HERO_COPY.viewProPackageCta} <ArrowRight className="ml-1 inline h-4 w-4" />
           </Link>
@@ -39,7 +43,7 @@ export function ResultsCtaBand(props: { quotaHint: string; reset: () => void }) 
           style={{
             color: 'var(--overlay-white-85)',
             background: 'var(--overlay-white-08)',
-            border: '1px solid var(--overlay-white-14)',
+            border: 'var(--border-width-default) solid var(--overlay-white-14)',
             cursor: 'pointer',
           }}
         >
