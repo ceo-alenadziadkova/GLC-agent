@@ -6,6 +6,6 @@ import type { CSSProperties } from 'react';
  */
 export const PACKAGE_MARKETING_OUTCOME_CARD = {
   borderRadius: 'var(--radius-xl)',
-  border: '1px solid var(--border-subtle)',
+  border: 'var(--border-width-default) solid var(--border-subtle)',
   backgroundColor: 'var(--bg-surface)',
 } as const satisfies CSSProperties;

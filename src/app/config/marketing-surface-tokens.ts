@@ -4,19 +4,19 @@
  */
 export const MARKETING_SURFACE_COMPARISON_SHELL = {
   borderRadius: 'var(--radius-2xl)',
-  border: '1px solid var(--border-subtle)',
+  border: 'var(--border-width-default) solid var(--border-subtle)',
   backgroundColor: 'unset',
 } as const;
 
 export const MARKETING_SURFACE_MUTED_BAND = {
   borderRadius: 'var(--radius-2xl)',
-  border: '1px solid var(--border-subtle)',
+  border: 'var(--border-width-default) solid var(--border-subtle)',
   backgroundColor: 'var(--bg-muted)',
 } as const;
 
 export const MARKETING_SURFACE_INSET_SECTION = {
   borderRadius: 'var(--radius-2xl)',
-  border: '1px solid var(--border-subtle)',
+  border: 'var(--border-width-default) solid var(--border-subtle)',
   backgroundColor: 'var(--bg-inset)',
 } as const;
 
@@ -45,7 +45,7 @@ export const MARKETING_PACKAGE_BADGE_VARIANTS = {
 /** Coverage cell states used in package hero coverage grids. */
 export const MARKETING_COVERAGE_GRID_CELL = {
   base: {
-    borderColor: 'color-mix(in oklab, rgba(255,255,255,0.2) 56%, var(--border-subtle))',
+    borderColor: 'color-mix(in oklab, var(--overlay-white-20) 56%, var(--border-subtle))',
     backgroundColor: 'color-mix(in oklab, var(--bg-muted) 75%, var(--bg-surface))',
   },
   active: {
@@ -77,7 +77,7 @@ export const MARKETING_FORM_FIELD_FOCUS = {
 
 /** Default field border for dark-aware public forms. */
 export const MARKETING_FORM_FIELD_BORDER = {
-  borderColor: 'color-mix(in oklab, rgba(255,255,255,0.15) 96%, var(--border-default))',
+  borderColor: 'color-mix(in oklab, var(--overlay-white-15) 96%, var(--border-default))',
 } as const;
 
 /** Accent CTA that stays vivid even in disabled state. */

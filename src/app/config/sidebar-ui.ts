@@ -8,11 +8,11 @@ export const SIDEBAR_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 export const SIDEBAR_COOKIE_PATH = "/" as const;
 
-export const SIDEBAR_WIDTH_CSS = "16rem" as const;
+export const SIDEBAR_WIDTH_CSS = "var(--sidebar-width)" as const;
 
-export const SIDEBAR_WIDTH_MOBILE_CSS = "18rem" as const;
+export const SIDEBAR_WIDTH_MOBILE_CSS = "var(--sidebar-width-mobile)" as const;
 
-export const SIDEBAR_WIDTH_ICON_CSS = "3rem" as const;
+export const SIDEBAR_WIDTH_ICON_CSS = "var(--sidebar-width-icon)" as const;
 
 export const SIDEBAR_KEYBOARD_SHORTCUT_KEY = "b" as const;
 

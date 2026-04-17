@@ -106,6 +106,8 @@ jobs:
         run: pnpm run typecheck
       - name: Lint
         run: pnpm run lint
+      - name: Design-system enforcement
+        run: pnpm run audit:ds:ci
       - name: Frontend unit tests
         run: pnpm test
       - name: Backend unit tests
