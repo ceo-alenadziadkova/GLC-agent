@@ -1,12 +1,17 @@
 import { QueryClient } from '@tanstack/react-query';
+import {
+  GLC_QUERY_GC_TIME_MS,
+  GLC_QUERY_STALE_TIME_MS,
+  glcQueryDefaultRetry,
+} from './glc-query-client-defaults';
 
 export function createGlcQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 120_000,
-        gcTime: 900_000,
-        retry: 1,
+        staleTime: GLC_QUERY_STALE_TIME_MS,
+        gcTime: GLC_QUERY_GC_TIME_MS,
+        retry: glcQueryDefaultRetry(),
         // Avoid full UI "reload" feel when switching browser tabs: data stays on screen until
         // staleTime expires or user navigates / triggers invalidation. Use explicit refresh actions where needed.
         refetchOnWindowFocus: false,

@@ -1,0 +1,110 @@
+{
+  "version": "1.0.0",
+  "findings": {
+    "no_crm_whatsapp": {
+      "zone": "Automation",
+      "impact": "high",
+      "hook": "revenue",
+      "headline": "Every WhatsApp thread is revenue walking out the door",
+      "detail": "You are managing leads inside WhatsApp with no CRM record.{{channelsTail}} There is no follow-up sequence, no reminder when a lead goes cold, and no count of how many enquiries slipped away. For {{industry}} {{team}}, wiring WhatsApp into a simple pipeline is often the fastest revenue win."
+    },
+    "lead_in_head": {
+      "zone": "Revenue",
+      "impact": "high",
+      "hook": "revenue",
+      "headline": "You are losing clients you never see in a pipeline",
+      "detail": "Without a system to log enquiries from {{channels}}, follow-ups live in memory and chat. Deals that close within hours of first contact are the ones you never see — every slow reply is money left on the table {{stage}}."
+    },
+    "invisible": {
+      "zone": "Visibility",
+      "impact": "high",
+      "hook": "visibility",
+      "headline": "You are invisible to clients searching for you right now",
+      "detail": "People are actively looking for {{industry}} services and none of that search traffic reaches you. The audit maps the fastest path to being found — starting with channels that take hours to set up, not months."
+    },
+    "single_channel": {
+      "zone": "Growth risk",
+      "impact": "high",
+      "hook": "risk",
+      "headline": "All new demand is flowing through a single narrow path",
+      "detail": "You indicated people find you mainly via \"{{soleChannel}}\". When that one path hiccups — algorithm, seasonality, or a quiet referral month — revenue wobbles with no backup. {{industry}} businesses {{team}} usually need at least one parallel acquisition route; the audit shows which to add first."
+    },
+    "hospitality_no_google": {
+      "zone": "Visibility",
+      "impact": "high",
+      "hook": "visibility",
+      "headline": "Your most important local discovery surface is not working for you yet",
+      "detail": "For {{industry}}, Google Maps is the first touchpoint for the majority of new clients. A verified Google Business profile is free, takes under an hour, and starts driving enquiries immediately."
+    },
+    "launching": {
+      "zone": "Operations",
+      "impact": "medium",
+      "hook": "scale",
+      "headline": "The systems you build now define your ceiling later",
+      "detail": "At the launch stage, manual workarounds feel fast — until you are busy. Every process built on WhatsApp, spreadsheets, or memory costs 3x more to replace once the business picks up. The audit identifies which shortcuts to avoid and which to invest in now."
+    },
+    "d2_automatable": {
+      "zone": "Automation",
+      "impact": "high",
+      "hook": "time",
+      "headline": "Your biggest time drain is highly automatable",
+      "detail": "\"{{bottleneck}}\" is one of the most commonly automated workflows for {{industry}} businesses. {{teamClause}}, eliminating this typically frees {{hoursRange}} hours per week — redirected straight to client work."
+    },
+    "solo_no_tools": {
+      "zone": "Operations",
+      "impact": "high",
+      "hook": "time",
+      "headline": "You are carrying the whole operation without a real stack",
+      "detail": "Running {{industry}} solo on spreadsheets and ad hoc tools caps how many clients you can serve before quality slips. The bottleneck feels like \"not enough hours\" but it is usually three repeatable workflows — the audit ranks which to automate first so you reclaim 5–10 hours a week."
+    },
+    "no_tools": {
+      "zone": "Operations",
+      "impact": "high",
+      "hook": "risk",
+      "headline": "Operating without systems is your largest hidden cost",
+      "detail": "No tools means every piece of information lives in memory or a chat thread. When you grow — or when someone is unavailable — everything stalls. The audit identifies the minimum viable stack for a {{industry}} business at your stage."
+    },
+    "crm_but_bottleneck": {
+      "zone": "Automation",
+      "impact": "medium",
+      "hook": "time",
+      "headline": "Your CRM exists but your team works around it",
+      "detail": "You have the infrastructure but it is not reducing your workload. \"{{bottleneck}}\" is still manual. This usually means the setup does not match your actual workflow — something the audit's automation phase maps in detail."
+    },
+    "fast_growth_single_channel": {
+      "zone": "Growth risk",
+      "impact": "medium",
+      "hook": "risk",
+      "headline": "Fast growth on a narrow base is structurally fragile",
+      "detail": "Growing fast with 1–2 acquisition sources means an algorithm change or a referral drought can cut your pipeline in half overnight. Diversification at this stage is cheaper than recovery later."
+    },
+    "realestate_no_crm": {
+      "zone": "Revenue",
+      "impact": "high",
+      "hook": "revenue",
+      "headline": "Real estate runs on relationships — and yours are not tracked",
+      "detail": "In real estate, the majority of deals come from repeat clients or referrals. Without a CRM, you have no visibility into your warm pipeline, no follow-up triggers, no relationship history. Each contact is effectively reset."
+    },
+    "goal_clients_no_presence": {
+      "zone": "Visibility",
+      "impact": "high",
+      "hook": "visibility",
+      "headline": "You want more clients, but they cannot find you",
+      "detail": "You said new clients are the priority, yet you also signalled you are not really online yet — so search and discovery traffic is not reaching you. The fastest fix is rarely more ad spend; it is showing up where {{industry}} buyers already look, starting with the zero-cost moves the audit sequences."
+    },
+    "goal_admin_no_tools": {
+      "zone": "Automation",
+      "impact": "high",
+      "hook": "time",
+      "headline": "Admin overload is a systems problem, not a time problem",
+      "detail": "Adding hours to the day does not fix admin overload — the right workflow setup does. The audit identifies the 20% of your processes generating 80% of your admin burden and maps them to specific automation options."
+    },
+    "phone_primary": {
+      "zone": "Automation",
+      "impact": "medium",
+      "hook": "revenue",
+      "headline": "Phone calls are high-intent — and they vanish without a system",
+      "detail": "You told us enquiries arrive by {{phoneChannelLower}}{{chTail}}. Without CRM logging, callbacks slip, voicemails stack, and revenue leaks on busy days. A lightweight capture plus SMS or WhatsApp handoff often pays for itself in one recovered job."
+    }
+  }
+}

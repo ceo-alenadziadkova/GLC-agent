@@ -13,6 +13,8 @@ const {
   mockLinkIdentity,
   mockSignInWithOAuth,
   mockSignUp,
+  mockResetPasswordForEmail,
+  mockUpdateUser,
 } = vi.hoisted(() => {
   const mockGetSession = vi.fn();
   const mockOnAuthStateChange = vi.fn(() => ({
@@ -24,6 +26,8 @@ const {
   const mockLinkIdentity = vi.fn().mockResolvedValue({ error: null });
   const mockSignInWithOAuth = vi.fn().mockResolvedValue({ error: null });
   const mockSignUp = vi.fn().mockResolvedValue({ error: null });
+  const mockResetPasswordForEmail = vi.fn().mockResolvedValue({ error: null });
+  const mockUpdateUser = vi.fn().mockResolvedValue({ data: { user: {} }, error: null });
   return {
     mockGetSession,
     mockOnAuthStateChange,
@@ -33,6 +37,8 @@ const {
     mockLinkIdentity,
     mockSignInWithOAuth,
     mockSignUp,
+    mockResetPasswordForEmail,
+    mockUpdateUser,
   };
 });
 
@@ -48,6 +54,8 @@ vi.mock('../../lib/supabase', () => ({
       signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
       signUp: mockSignUp,
       signOut: mockSignOut,
+      resetPasswordForEmail: mockResetPasswordForEmail,
+      updateUser: mockUpdateUser,
     },
   },
 }));
@@ -92,9 +100,13 @@ afterEach(() => {
 });
 
 function getAuthStateChangeCallback(): (event: string, session: unknown) => void {
-  const call = mockOnAuthStateChange.mock.calls[0];
-  expect(call).toBeDefined();
-  return call[0] as (event: string, session: unknown) => void;
+  expect(mockOnAuthStateChange).toHaveBeenCalled();
+  const calls = mockOnAuthStateChange.mock.calls as unknown as [
+    [(event: string, session: unknown) => void],
+  ];
+  const cb = calls[0]?.[0];
+  if (typeof cb !== 'function') throw new Error('expected onAuthStateChange callback');
+  return cb;
 }
 
 describe('useAuth', () => {
@@ -182,6 +194,7 @@ describe('useAuth', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.user).toBeNull();
     expect(result.current.authError).toMatch(/try again/i);
+    expect(window.history.replaceState).toHaveBeenCalledWith({}, '', '/login');
   });
 
   it('applies implicit hash tokens via setSession when present', async () => {
@@ -214,6 +227,7 @@ describe('useAuth', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.authError).toMatch(/try again/i);
+    expect(window.history.replaceState).toHaveBeenCalledWith({}, '', '/login');
   });
 
   it('surfaces OAuth redirect ?error= after cleaning the URL', async () => {
@@ -258,7 +272,7 @@ describe('useAuth', () => {
     expect(result.current.loading).toBe(false);
   });
 
-  it('signInWithGoogle uses linkIdentity for anonymous snapshot session', async () => {
+  it('signInWithGoogle uses OAuth for anonymous session by default', async () => {
     mockGetSession.mockResolvedValue({
       data: {
         session: {
@@ -274,6 +288,29 @@ describe('useAuth', () => {
 
     await act(async () => {
       await result.current.signInWithGoogle();
+    });
+
+    expect(mockSignOut).toHaveBeenCalled();
+    expect(mockSignInWithOAuth).toHaveBeenCalled();
+    expect(mockLinkIdentity).not.toHaveBeenCalled();
+  });
+
+  it('signInWithGoogle uses linkIdentity when preserveGuestSession is true', async () => {
+    mockGetSession.mockResolvedValue({
+      data: {
+        session: {
+          user: { id: 'anon', is_anonymous: true },
+          access_token: 't',
+        },
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.signInWithGoogle({ preserveGuestSession: true });
     });
 
     expect(mockLinkIdentity).toHaveBeenCalled();
@@ -321,5 +358,68 @@ describe('useAuth', () => {
         }),
       }),
     );
+  });
+
+  it('sets passwordRecoveryMode when implicit hash has type=recovery', async () => {
+    stubLocationHref('http://localhost/login#access_token=aa&refresh_token=rr&type=recovery');
+    const fakeUser = { id: 'rec-user', email: 'r@r.com' };
+    mockSetSession.mockResolvedValue({
+      data: { session: { user: fakeUser, access_token: 'aa' } },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useAuth());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.passwordRecoveryMode).toBe(true);
+    expect(result.current.user).toEqual(fakeUser);
+  });
+
+  it('requestPasswordReset calls resetPasswordForEmail with login redirectTo', async () => {
+    stubLocationHref('https://app.example.com/login');
+
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.requestPasswordReset('  x@y.com  ');
+    });
+
+    expect(mockResetPasswordForEmail).toHaveBeenCalledWith('x@y.com', {
+      redirectTo: 'https://app.example.com/login',
+    });
+  });
+
+  it('completePasswordRecovery calls updateUser and clears passwordRecoveryMode on success', async () => {
+    stubLocationHref('http://localhost/login#access_token=aa&refresh_token=rr&type=recovery');
+    mockSetSession.mockResolvedValue({
+      data: { session: { user: { id: 'u', email: 'e@e.com' }, access_token: 'aa' } },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.passwordRecoveryMode).toBe(true));
+
+    await act(async () => {
+      const { error } = await result.current.completePasswordRecovery('newpass-XX1');
+      expect(error).toBeNull();
+    });
+
+    expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'newpass-XX1' });
+    expect(result.current.passwordRecoveryMode).toBe(false);
+  });
+
+  it('sets passwordRecoveryMode on PASSWORD_RECOVERY auth event', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
+
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const cb = getAuthStateChangeCallback();
+    act(() => {
+      cb('PASSWORD_RECOVERY', { user: { id: 'u' }, access_token: 't' });
+    });
+
+    expect(result.current.passwordRecoveryMode).toBe(true);
   });
 });

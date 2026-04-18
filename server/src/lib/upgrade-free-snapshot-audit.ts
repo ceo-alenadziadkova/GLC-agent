@@ -1,20 +1,44 @@
 /**
- * Promote a completed free_snapshot audit to express or full pipeline.
+ * Promote a completed free_snapshot audit to package-based coverage pipeline.
  * Resets domain placeholders and intake state; optionally prefills brief from scraped recon + UX raw_data.
  */
 import { supabase } from '../services/supabase.js';
 import { saveBriefResponses } from '../services/brief-validator.js';
 import {
-  DOMAIN_KEYS,
-  EXPRESS_DOMAIN_KEYS,
+  DOMAIN_PHASES,
+  DEFAULT_AUDIT_PRODUCT_MODE,
+  executionPlanToPhases,
+  maxPhaseForExecutionPlan,
+  reviewPhasesForExecutionPlan,
+  type AuditCoveragePackage,
+  type AuditExecutionPlan,
   type ProductMode,
-  reviewPhasesForMode,
 } from '../types/audit.js';
+import {
+  isFreeSnapshotUpgradeEligibleAudit,
+  persistedProductModeForExecutionPlan,
+} from './audit-coverage-bridge.js';
 import { INDUSTRY_OPTIONS } from '../config/industry-options.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
+import { UPGRADE_FREE_SNAPSHOT_CONTEXT_EN } from '../config/upgrade-free-snapshot-context.js';
 import { getSnapshotAccessBlockedFromDeterministic } from '../snapshot/snapshot-access-state.js';
 import { logger } from '../services/logger.js';
+import {
+  API_ERROR_CODES,
+  type ApiErrorCode,
+  AUDITS_NOT_FOUND_MESSAGE,
+  AUDITS_UPGRADE_ACCESS_DENIED_MESSAGE,
+  AUDITS_UPGRADE_INIT_DOMAINS_FAILED_MESSAGE,
+  AUDITS_UPGRADE_INIT_REVIEWS_FAILED_MESSAGE,
+  AUDITS_UPGRADE_INIT_STRATEGY_FAILED_MESSAGE,
+  AUDITS_UPGRADE_NOT_COMPLETED_MESSAGE,
+  AUDITS_UPGRADE_NOT_FREE_SNAPSHOT_MESSAGE,
+  AUDITS_UPGRADE_RESET_DOMAINS_FAILED_MESSAGE,
+} from '../config/api-error-codes.js';
+import { normalizeExecutionPlan } from '../services/execution-plan.js';
 
-export type UpgradeSnapshotTarget = 'express' | 'full';
+const UFP = SYSTEM_DEFAULTS.upgradeFreeSnapshotPrefill;
+const UFCTX = UPGRADE_FREE_SNAPSHOT_CONTEXT_EN;
 
 function flattenTechStack(tech: Record<string, string[]> | null | undefined): string[] {
   if (!tech || typeof tech !== 'object') return [];
@@ -26,12 +50,7 @@ function flattenTechStack(tech: Record<string, string[]> | null | undefined): st
 
 function detectAnalyticsFromTech(tech: Record<string, string[]> | null | undefined): boolean {
   const blob = flattenTechStack(tech).join(' ').toLowerCase();
-  return (
-    blob.includes('google analytics') ||
-    blob.includes('ga4') ||
-    blob.includes('gtag') ||
-    blob.includes('googletagmanager')
-  );
+  return UFCTX.analyticsDetectionSubstrings.some(sub => blob.includes(sub));
 }
 
 function nearestIndustry(label: string | null | undefined): { industry: string; specify: string | null } {
@@ -44,53 +63,41 @@ function nearestIndustry(label: string | null | undefined): { industry: string; 
     i => i !== 'Other' && (lower.includes(i.toLowerCase()) || i.toLowerCase().includes(lower)),
   );
   if (partial) return { industry: partial, specify: null };
-  return { industry: 'Other', specify: raw.slice(0, 200) };
+  return { industry: 'Other', specify: raw.slice(0, UFP.industrySpecifyMaxChars) };
 }
 
 function hostFromUrl(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, '');
   } catch {
-    return url.replace(/^https?:\/\//, '').split('/')[0]?.replace(/^www\./, '') ?? 'your site';
+    return (
+      url.replace(/^https?:\/\//, '').split('/')[0]?.replace(/^www\./, '') ?? UFCTX.hostFallbackLabel
+    );
   }
 }
 
 /** Human-readable conversion funnel from YAML taxonomy ids (classification-rules). */
 function humanizeConversionModel(id: unknown): string {
-  const s = String(id ?? '');
-  switch (s) {
-    case 'ecommerce-checkout':
-      return 'online purchase / checkout';
-    case 'demo-request':
-      return 'booking or requesting a demo';
-    case 'call-booking':
-      return 'calling or booking a call or appointment';
-    case 'lead-form':
-      return 'submitting a contact or lead form';
-    case 'whatsapp-contact':
-      return 'reaching out via WhatsApp';
-    default:
-      return '';
-  }
+  const s = String(id ?? '').trim();
+  if (!s) return '';
+  const map = UFCTX.conversionModelHumanize as Record<string, string>;
+  return map[s] ?? '';
 }
 
-/** Map snapshot conversion signal to closest `revenue_model` brief option (exact string). */
+/** Map snapshot conversion signal to closest revenue-model brief option (exact label). */
 function mapConversionToRevenueModel(id: unknown): string | null {
-  const s = String(id ?? '');
-  if (s === 'ecommerce-checkout') return 'E-commerce (product sales)';
-  if (s === 'demo-request' || s === 'lead-form' || s === 'call-booking' || s === 'whatsapp-contact') {
-    return 'Lead generation';
-  }
-  return null;
+  const s = String(id ?? '').trim();
+  if (!s) return null;
+  const map = UFCTX.revenueModelLabelByConversionModel as Record<string, string>;
+  return map[s] ?? null;
 }
 
-/** Starter line for `target_audience` from classifier guess. */
+/** Starter line for bank id `b1` from classifier guess. */
 function mapAudienceGuess(ag: unknown): string | null {
-  const s = String(ag ?? '');
-  if (s === 'b2b') return 'Primarily business buyers (B2B). Please refine who you sell to.';
-  if (s === 'b2c') return 'Primarily consumers (B2C). Please refine your ideal customer.';
-  if (s === 'b2b2c') return 'Both businesses and end customers. Please refine segments.';
-  return null;
+  const s = String(ag ?? '').trim().toLowerCase();
+  if (!s) return null;
+  const lines = UFCTX.audienceGuessLines as Record<string, string>;
+  return lines[s] ?? null;
 }
 
 /**
@@ -117,9 +124,15 @@ function buildBusinessActivityContext(args: {
     parts.push(`Primary offer from public pages: ${primaryOffer}.`);
   }
   if (conversionHuman) parts.push(`The site emphasises ${conversionHuman}.`);
-  if (ux) parts.push(ux.length > 400 ? `${ux.slice(0, 397)}…` : ux);
+  if (ux) {
+    parts.push(
+      ux.length > UFP.uxRowSummarySoftMaxChars
+        ? `${ux.slice(0, UFP.uxRowSummarySliceChars)}…`
+        : ux,
+    );
+  }
 
-  const blurb = parts.join(' ').trim().slice(0, 1200);
+  const blurb = parts.join(' ').trim().slice(0, UFP.businessActivityBlurbMaxChars);
   return { blurb, primaryOffer, shortLabel, conversionHuman };
 }
 
@@ -133,38 +146,75 @@ export type UpgradeFreeSnapshotAuditSuccess = {
 export async function upgradeFreeSnapshotAudit(params: {
   auditId: string;
   actorUserId: string;
-  targetMode: UpgradeSnapshotTarget;
+  coveragePackage?: AuditCoveragePackage;
   useScrapedContext: boolean;
-}): Promise<UpgradeFreeSnapshotAuditSuccess | { ok: false; status: number; error: string }> {
-  const { auditId, actorUserId, targetMode, useScrapedContext } = params;
+}): Promise<
+  UpgradeFreeSnapshotAuditSuccess | { ok: false; status: number; error: string; code: ApiErrorCode }
+> {
+  const { auditId, actorUserId, coveragePackage, useScrapedContext } = params;
 
   const { data: audit, error: aErr } = await supabase
     .from('audits')
-    .select('id, product_mode, status, company_url, company_name, client_id, user_id')
+    .select('id, product_mode, status, company_url, company_name, client_id, user_id, snapshot_token, execution_plan')
     .eq('id', auditId)
     .single();
 
   if (aErr || !audit) {
-    return { ok: false, status: 404, error: 'Audit not found' };
+    return {
+      ok: false,
+      status: 404,
+      code: API_ERROR_CODES.AUDITS_NOT_FOUND,
+      error: AUDITS_NOT_FOUND_MESSAGE,
+    };
   }
 
-  if (audit.product_mode !== 'free_snapshot') {
-    return { ok: false, status: 400, error: 'Only free snapshot audits can use this upgrade' };
+  if (
+    !isFreeSnapshotUpgradeEligibleAudit({
+      product_mode: audit.product_mode as string,
+      snapshot_token: audit.snapshot_token as string | null,
+      execution_plan: audit.execution_plan,
+    })
+  ) {
+    return {
+      ok: false,
+      status: 400,
+      code: API_ERROR_CODES.AUDITS_UPGRADE_NOT_FREE_SNAPSHOT,
+      error: AUDITS_UPGRADE_NOT_FREE_SNAPSHOT_MESSAGE,
+    };
   }
   if (audit.status !== 'completed') {
-    return { ok: false, status: 400, error: 'Snapshot must be completed before upgrading' };
+    return {
+      ok: false,
+      status: 400,
+      code: API_ERROR_CODES.AUDITS_UPGRADE_NOT_COMPLETED,
+      error: AUDITS_UPGRADE_NOT_COMPLETED_MESSAGE,
+    };
   }
 
   const clientId = audit.client_id as string | null;
   const ownerId = audit.user_id as string;
   const canAct = clientId === actorUserId || ownerId === actorUserId;
   if (!canAct) {
-    return { ok: false, status: 403, error: 'Access denied' };
+    return {
+      ok: false,
+      status: 403,
+      code: API_ERROR_CODES.AUDITS_UPGRADE_ACCESS_DENIED,
+      error: AUDITS_UPGRADE_ACCESS_DENIED_MESSAGE,
+    };
   }
 
-  const nextMode: ProductMode = targetMode === 'express' ? 'express' : 'full';
-  const domainKeys = nextMode === 'express' ? [...EXPRESS_DOMAIN_KEYS] : [...DOMAIN_KEYS];
-  const reviewPhases = reviewPhasesForMode(nextMode);
+  const resolvedCoveragePackage = coveragePackage ?? 'pro';
+  const modeForFallback: ProductMode = resolvedCoveragePackage === 'complete' ? DEFAULT_AUDIT_PRODUCT_MODE : 'express';
+  const executionPlan: AuditExecutionPlan = normalizeExecutionPlan(
+    {
+      coverage_package: resolvedCoveragePackage,
+      source: 'user_selected',
+    },
+    modeForFallback,
+  );
+  const domainKeys = executionPlan.selected_domains;
+  const reviewPhases = reviewPhasesForExecutionPlan(executionPlan);
+  const nextMode: ProductMode = persistedProductModeForExecutionPlan(executionPlan);
 
   const { data: recon } = await supabase
     .from('audit_recon')
@@ -191,21 +241,31 @@ export async function upgradeFreeSnapshotAudit(params: {
   const { error: delDomains } = await supabase.from('audit_domains').delete().eq('audit_id', auditId);
   if (delDomains) {
     logger.error('upgrade_snapshot.delete_domains_failed', { audit_id: auditId, error: delDomains.message });
-    return { ok: false, status: 500, error: 'Failed to reset audit domains' };
+    return {
+      ok: false,
+      status: 500,
+      code: API_ERROR_CODES.AUDITS_UPGRADE_RESET_DOMAINS_FAILED,
+      error: AUDITS_UPGRADE_RESET_DOMAINS_FAILED_MESSAGE,
+    };
   }
 
   await supabase.from('review_points').delete().eq('audit_id', auditId);
 
-  const domainInserts = domainKeys.map((key, i) => ({
+  const domainInserts = domainKeys.map((key) => ({
     audit_id: auditId,
     domain_key: key,
-    phase_number: i + 1,
+    phase_number: DOMAIN_PHASES[key],
   }));
 
   const { error: insDom } = await supabase.from('audit_domains').insert(domainInserts);
   if (insDom) {
     logger.error('upgrade_snapshot.insert_domains_failed', { audit_id: auditId, error: insDom.message });
-    return { ok: false, status: 500, error: 'Failed to initialize audit domains' };
+    return {
+      ok: false,
+      status: 500,
+      code: API_ERROR_CODES.AUDITS_UPGRADE_INIT_DOMAINS_FAILED,
+      error: AUDITS_UPGRADE_INIT_DOMAINS_FAILED_MESSAGE,
+    };
   }
 
   const reviewInserts = reviewPhases.map(phase => ({
@@ -215,16 +275,26 @@ export async function upgradeFreeSnapshotAudit(params: {
   const { error: insRev } = await supabase.from('review_points').insert(reviewInserts);
   if (insRev) {
     logger.error('upgrade_snapshot.insert_reviews_failed', { audit_id: auditId, error: insRev.message });
-    return { ok: false, status: 500, error: 'Failed to initialize review points' };
+    return {
+      ok: false,
+      status: 500,
+      code: API_ERROR_CODES.AUDITS_UPGRADE_INIT_REVIEWS_FAILED,
+      error: AUDITS_UPGRADE_INIT_REVIEWS_FAILED_MESSAGE,
+    };
   }
 
-  if (nextMode === 'full') {
+  if (executionPlanToPhases(executionPlan).includes(7)) {
     const { data: strat } = await supabase.from('audit_strategy').select('id').eq('audit_id', auditId).maybeSingle();
     if (!strat) {
       const { error: sErr } = await supabase.from('audit_strategy').insert({ audit_id: auditId });
       if (sErr) {
         logger.error('upgrade_snapshot.insert_strategy_failed', { audit_id: auditId, error: sErr.message });
-        return { ok: false, status: 500, error: 'Failed to initialize strategy placeholder' };
+        return {
+          ok: false,
+          status: 500,
+          code: API_ERROR_CODES.AUDITS_UPGRADE_INIT_STRATEGY_FAILED,
+          error: AUDITS_UPGRADE_INIT_STRATEGY_FAILED_MESSAGE,
+        };
       }
     }
   }
@@ -250,6 +320,7 @@ export async function upgradeFreeSnapshotAudit(params: {
       .from('audits')
       .update({
         product_mode: nextMode,
+        execution_plan: executionPlan,
         status: 'created',
         current_phase: 0,
         overall_score: null,
@@ -263,10 +334,10 @@ export async function upgradeFreeSnapshotAudit(params: {
     await saveBriefResponses(
       auditId,
       {
-        intake_company_website: { value: siteUrl, source: 'client' },
-        intake_company_name: { value: host, source: 'client' },
-        intake_industry: { value: 'Other', source: 'client' },
-        intake_industry_specify: { value: 'To be confirmed — we will ask in the brief.', source: 'client' },
+        a11: { value: siteUrl, source: 'client' },
+        a12: { value: host, source: 'client' },
+        a2: { value: 'Other', source: 'client' },
+        intake_industry_specify: { value: UFCTX.intakeIndustryOtherPlaceholder, source: 'client' },
       },
       { collection_mode: 'self_serve' },
     );
@@ -292,7 +363,7 @@ export async function upgradeFreeSnapshotAudit(params: {
     const reconPrefills = {
       snapshot_upgrade: true,
       detected_at: new Date().toISOString(),
-      tech_stack_flat: techLines.slice(0, 40),
+      tech_stack_flat: techLines.slice(0, UFP.reconPrefillTechStackLinesMax),
       site_profile_short_label: shortLabel,
       ...(typeof det?.overall_score === 'number' && !snapshotAccess.showCallout
         ? { overall_score_hint: det.overall_score }
@@ -302,8 +373,8 @@ export async function upgradeFreeSnapshotAudit(params: {
             snapshot_scrape_limited: true,
             snapshot_scrape_robots_blocked: snapshotAccess.robotsBlocked,
             snapshot_scrape_note: snapshotAccess.robotsBlocked
-              ? 'Free snapshot did not fetch HTML (robots.txt blocks or policy). Pre-fill from pages is minimal — prioritize the client brief.'
-              : 'Free snapshot did not fetch public HTML (timeout, error, or empty response). Pre-fill from pages is minimal — prioritize the client brief.',
+              ? UFCTX.snapshotScrapeNoteRobotsBlocked
+              : UFCTX.snapshotScrapeNoteOther,
           }
         : {}),
       ...(activity.blurb ? { business_activity_summary: activity.blurb } : {}),
@@ -323,6 +394,7 @@ export async function upgradeFreeSnapshotAudit(params: {
       .from('audits')
       .update({
         product_mode: nextMode,
+        execution_plan: executionPlan,
         status: 'created',
         current_phase: 0,
         overall_score: null,
@@ -334,31 +406,30 @@ export async function upgradeFreeSnapshotAudit(params: {
       .eq('id', auditId);
 
     const responses: Record<string, unknown> = {
-      intake_company_website: { value: siteUrl, source: 'recon_confirmed' },
-      intake_company_name: { value: guessName, source: 'recon_confirmed' },
-      intake_industry: { value: ind, source: 'recon_confirmed' },
+      a11: { value: siteUrl, source: 'recon_confirmed' },
+      a12: { value: guessName, source: 'recon_confirmed' },
+      a2: { value: ind, source: 'recon_confirmed' },
     };
     if (ind === 'Other' && specify) {
       responses.intake_industry_specify = { value: specify, source: 'recon_confirmed' };
     }
     if (ga) {
-      responses.has_google_analytics = { value: 'Yes, GA4', source: 'recon_confirmed' };
+      responses.c3 = { value: 'Yes, GA4', source: 'recon_confirmed' };
     }
     if (activity.blurb) {
-      responses.primary_goal = {
-        value:
-          'Set your real #1 goal for this audit (this is a draft from our quick scan — edit freely).\n\n' +
-          activity.blurb,
+      responses.f1 = { value: ['Other'], source: 'recon_confirmed' };
+      responses.f1__other = {
+        value: UFCTX.f1OtherDraftPrefix + activity.blurb,
         source: 'recon_confirmed',
       };
     }
     const audienceLine = mapAudienceGuess(siteProfile?.audienceGuess);
     if (audienceLine) {
-      responses.target_audience = { value: audienceLine, source: 'recon_confirmed' };
+      responses.b1 = { value: audienceLine, source: 'recon_confirmed' };
     }
     const revenuePick = mapConversionToRevenueModel(siteProfile?.conversionModel);
     if (revenuePick) {
-      responses.revenue_model = { value: revenuePick, source: 'recon_confirmed' };
+      responses.a10 = { value: [revenuePick], source: 'recon_confirmed' };
     }
 
     await saveBriefResponses(auditId, responses, { collection_mode: 'self_serve' });
@@ -390,7 +461,9 @@ export async function upgradeFreeSnapshotAudit(params: {
 
   logger.info('upgrade_snapshot.completed', {
     audit_id: auditId,
-    target_mode: nextMode,
+    product_mode: nextMode,
+    coverage_package: resolvedCoveragePackage,
+    max_phase: maxPhaseForExecutionPlan(executionPlan),
     use_scraped_context: useScrapedContext,
     snapshot_scrape_limited: useScrapedContext && snapshotAccess.showCallout,
     snapshot_scrape_robots_blocked:

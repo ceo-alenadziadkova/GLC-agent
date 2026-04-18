@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from 'react';
 import { resolveGlcErrorHome } from '../lib/glc-error-home';
+import { logger } from '../lib/logger';
 import { GlcAppErrorScreen } from './GlcAppErrorScreen';
 
 interface Props {
@@ -20,7 +21,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
-    console.error('[ErrorBoundary]', error.message, info.componentStack);
+    logger.error('[ErrorBoundary]', {
+      message: error.message,
+      name: error.name,
+      component_stack: info.componentStack,
+    });
   }
 
   handleRetry = () => {

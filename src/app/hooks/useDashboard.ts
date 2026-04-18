@@ -2,13 +2,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../data/apiService';
 import type { DashboardData } from '../data/apiService';
 import { glcKeys } from '../lib/glc-keys';
+import { GLC_QUERY_STALE_TIME_MS_DEFAULT } from '../config/query-client-defaults';
 
 export function useDashboard() {
   const queryClient = useQueryClient();
   const q = useQuery<DashboardData>({
     queryKey: glcKeys.dashboard(),
     queryFn: () => api.getDashboard(),
-    staleTime: 120_000,
+    staleTime: GLC_QUERY_STALE_TIME_MS_DEFAULT,
   });
 
   return {

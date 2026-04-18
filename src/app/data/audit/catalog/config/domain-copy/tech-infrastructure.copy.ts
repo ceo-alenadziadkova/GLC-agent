@@ -1,0 +1,95 @@
+import type { CatalogDomainCopy } from './domain-copy.types';
+
+export const techInfrastructureDomainCopy: CatalogDomainCopy = {
+  id: 'tech-infrastructure',
+  name: 'Tech Infrastructure',
+  score: 3,
+  status: 'moderate',
+  executiveSummary: 'Technical infrastructure demonstrates adequate foundational capabilities but reveals critical scalability constraints and modernization needs. Current architecture requires strategic upgrades to support growth objectives.',
+  strengths: [
+    'Stable production environment with 99.5% uptime',
+    'Adequate basic monitoring and alerting systems',
+    'Documented infrastructure components and dependencies',
+    'Regular backup procedures in place',
+  ],
+  weaknesses: [
+    'Legacy monolithic architecture limiting scalability',
+    'Insufficient containerization and orchestration',
+    'Limited disaster recovery testing and documentation',
+    'Outdated technology stack components requiring modernization',
+    'Inadequate load balancing and auto-scaling capabilities',
+  ],
+  issues: [
+    {
+      id: 'tech-1',
+      severity: 'critical',
+      title: 'Scalability Bottleneck in Database Layer',
+      description: 'Current database configuration cannot handle projected 3x traffic growth',
+      impact: 'Risk of system degradation during peak load periods',
+    },
+    {
+      id: 'tech-2',
+      severity: 'high',
+      title: 'Outdated Runtime Environment',
+      description: 'Application servers running on end-of-life software versions',
+      impact: 'Security vulnerabilities and compatibility issues with modern tools',
+    },
+    {
+      id: 'tech-3',
+      severity: 'medium',
+      title: 'Insufficient Infrastructure as Code',
+      description: 'Manual configuration processes for infrastructure provisioning',
+      impact: 'Slow deployment cycles and configuration drift',
+    },
+  ],
+  recommendations: [
+    {
+      id: 'tech-rec-1',
+      title: 'Migrate to Microservices Architecture',
+      description: 'Decompose monolithic application into scalable microservices with containerization',
+      priority: 'high',
+      estimatedCost: '$80,000 - $120,000',
+      estimatedTime: '4-6 months',
+      impact: 'Enable horizontal scaling and independent service deployment',
+    },
+    {
+      id: 'tech-rec-2',
+      title: 'Implement Infrastructure as Code',
+      description: 'Adopt Terraform/CloudFormation for declarative infrastructure management',
+      priority: 'high',
+      estimatedCost: '$25,000 - $40,000',
+      estimatedTime: '6-8 weeks',
+      impact: 'Reduce deployment time by 70% and eliminate configuration drift',
+    },
+    {
+      id: 'tech-rec-3',
+      title: 'Upgrade Database Infrastructure',
+      description: 'Implement database clustering and read replicas for improved performance',
+      priority: 'high',
+      estimatedCost: '$35,000 - $50,000',
+      estimatedTime: '8-10 weeks',
+      impact: 'Support 5x traffic growth with improved query performance',
+    },
+  ],
+  quickWins: [
+    {
+      id: 'tech-qw-1',
+      title: 'Update Runtime Dependencies',
+      description: 'Upgrade to current LTS versions of runtime environments',
+      timeframe: '5-7 days',
+      effort: 'medium',
+    },
+    {
+      id: 'tech-qw-2',
+      title: 'Implement Database Connection Pooling',
+      description: 'Configure connection pooling to optimize database resource usage',
+      timeframe: '2-3 days',
+      effort: 'low',
+    },
+  ],
+  estimatedInvestment: {
+    immediate: '$10,000 - $15,000',
+    shortTerm: '$50,000 - $80,000',
+    longTerm: '$120,000 - $180,000',
+  },
+};

@@ -1,62 +1,161 @@
 import { Check, X } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { cn } from '../../components/ui/utils';
+import { AUDIT_COMPARE_FOCUSED_ROW_LABELS } from '../../config/audit-compare-marketing';
+import workspacePackaging from '../../data/marketing-workspace-packaging.en.json';
 
-const ROWS: { label: string; express: boolean | 'partial'; full: boolean | 'partial' }[] = [
-  { label: 'Time to first actionable output', express: true, full: true },
-  { label: 'Depth on processes and systems', express: 'partial', full: true },
-  { label: 'UX and conversion (hands-on review)', express: 'partial', full: true },
-  { label: 'Integrations and automation', express: false, full: true },
-  { label: 'Roadmap with impact / effort priorities', express: 'partial', full: true },
-  { label: 'Handoff-ready for another team', express: true, full: true },
+const ROWS: { label: string; starter: boolean | 'partial'; pro: boolean | 'partial'; complete: boolean | 'partial' }[] = [
+  { label: 'Coverage breadth', starter: 'partial', pro: 'partial', complete: true },
+  { label: 'Cross-domain dependency visibility', starter: false, pro: 'partial', complete: true },
+  { label: 'Speed to first focused actions', starter: true, pro: true, complete: true },
+  { label: 'System-wide comparability of score', starter: false, pro: 'partial', complete: true },
+  { label: 'Roadmap depth and sequencing', starter: 'partial', pro: true, complete: true },
+  { label: 'Handoff-ready for another team', starter: true, pro: true, complete: true },
 ];
 
 function Cell({ v }: { v: boolean | 'partial' }) {
   if (v === true) {
-    return <Check className="mx-auto h-5 w-5" style={{ color: 'var(--glc-green-dark)' }} weight="bold" aria-label="Yes" />;
+    return (
+      <Check
+        className="mx-auto h-5 w-5 text-[color:var(--glc-green-dark)]"
+        weight="bold"
+        aria-label="Yes"
+      />
+    );
   }
   if (v === 'partial') {
     return (
-      <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>
+      <span className="text-xs font-medium ds-text-tertiary">
         Partial
       </span>
     );
   }
-  return <X className="mx-auto h-5 w-5" style={{ color: 'var(--text-quaternary)' }} aria-label="No" />;
+  return <X className="mx-auto h-5 w-5 ds-text-quaternary" aria-label="No" />;
 }
 
-export function AuditCompare({ compact = false }: { compact?: boolean }) {
+function colClass(key: 'starter' | 'pro' | 'strategy', resolvedEmphasis: 'none' | 'starter' | 'pro' | 'strategy') {
+  if (resolvedEmphasis === key) return 'ds-audit-compare-col-emphasis';
+  if (resolvedEmphasis === 'none' && key === 'strategy') return 'ds-audit-compare-col-strategy';
+  return '';
+}
+
+export function AuditCompare({
+  compact = false,
+  focusedPackage,
+  emphasisColumn = 'none',
+}: {
+  compact?: boolean;
+  focusedPackage?: 'starter' | 'pro';
+  emphasisColumn?: 'none' | 'starter' | 'pro' | 'strategy';
+}) {
+  const { quick, full, strategy } = workspacePackaging.packages;
+
+  const resolvedEmphasis: 'none' | 'starter' | 'pro' | 'strategy' =
+    emphasisColumn !== 'none'
+      ? emphasisColumn
+      : focusedPackage === 'starter'
+        ? 'starter'
+        : focusedPackage === 'pro'
+          ? 'pro'
+          : 'none';
+
+  const rows =
+    focusedPackage != null
+      ? ROWS.filter(r => (AUDIT_COMPARE_FOCUSED_ROW_LABELS[focusedPackage] as readonly string[]).includes(r.label))
+      : ROWS;
+
+  const useStickyHeader = compact || focusedPackage != null;
+  const flatChrome = compact || focusedPackage != null;
+
+  const thClass =
+    'px-4 py-3 text-center text-[length:var(--text-sm)] font-bold uppercase tracking-[var(--tracking-wide)] sm:px-6';
+  const thLeftClass =
+    'px-4 py-3 text-left text-[length:var(--text-sm)] font-bold uppercase tracking-[var(--tracking-wide)] sm:px-6';
+
   return (
     <div
-      className="overflow-hidden glc-card"
-      style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-card)' }}
+      className={cn(
+        'overflow-hidden',
+        flatChrome
+          ? 'ds-audit-compare-root-flat'
+          : 'glc-card rounded-[var(--radius-2xl)] border-[var(--border-subtle)] shadow-[var(--shadow-card)]',
+      )}
     >
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[520px] border-collapse text-sm">
+      <div
+        className={cn('ds-audit-compare-scroll-region', useStickyHeader && 'ds-audit-compare-scroll-region--sticky')}
+      >
+        <table className="ds-audit-compare-table w-full border-collapse text-sm">
           <thead>
-            <tr style={{ borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-muted)' }}>
-              <th className="px-4 py-3 text-left font-semibold sm:px-6" style={{ color: 'var(--text-primary)' }}>
+            <tr className="ds-audit-compare-thead-row">
+              <th
+                className={cn(
+                  thLeftClass,
+                  'ds-audit-compare-th-base',
+                  useStickyHeader && 'md:sticky md:top-0 md:z-[2] ds-audit-compare-th-bg-header ds-audit-compare-th-sticky-shadow',
+                )}
+              >
                 Criterion
               </th>
-              <th className="px-4 py-3 text-center font-semibold sm:px-6" style={{ color: 'var(--text-primary)' }}>
-                Express
+              <th
+                className={cn(
+                  thClass,
+                  'ds-audit-compare-th-base',
+                  useStickyHeader && 'md:sticky md:top-0 md:z-[2] ds-audit-compare-th-sticky-shadow',
+                  resolvedEmphasis === 'none'
+                    ? 'ds-audit-compare-th-bg-strategy'
+                    : useStickyHeader
+                      ? 'ds-audit-compare-th-bg-header'
+                      : '',
+                )}
+              >
+                {quick.title}
               </th>
-              <th className="px-4 py-3 text-center font-semibold sm:px-6" style={{ color: 'var(--text-primary)' }}>
-                Full audit
+              <th
+                className={cn(
+                  thClass,
+                  'ds-audit-compare-th-base',
+                  useStickyHeader && 'md:sticky md:top-0 md:z-[2] ds-audit-compare-th-sticky-shadow',
+                  resolvedEmphasis === 'pro'
+                    ? 'ds-audit-compare-th-bg-pro'
+                    : useStickyHeader
+                      ? 'ds-audit-compare-th-bg-header'
+                      : '',
+                )}
+              >
+                {full.title}
+              </th>
+              <th
+                className={cn(
+                  thClass,
+                  'ds-audit-compare-th-base',
+                  useStickyHeader && 'md:sticky md:top-0 md:z-[2] ds-audit-compare-th-sticky-shadow',
+                  useStickyHeader ? 'ds-audit-compare-th-bg-header' : '',
+                )}
+              >
+                {strategy.title}
               </th>
             </tr>
           </thead>
           <tbody>
-            {ROWS.map(row => (
-              <tr key={row.label} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                <td className="px-4 py-3.5 sm:px-6" style={{ color: 'var(--text-secondary)' }}>
+            {rows.map(row => (
+              <tr
+                key={row.label}
+                className={cn(
+                  'ds-audit-compare-row transition-colors',
+                  row.label === 'Coverage breadth' && 'ds-audit-compare-row-highlight',
+                )}
+              >
+                <td className="px-4 py-3.5 sm:px-6 ds-text-secondary">
                   {row.label}
                 </td>
-                <td className="px-4 py-3.5 text-center sm:px-6">
-                  <Cell v={row.express} />
+                <td className={cn('px-4 py-3.5 text-center sm:px-6', colClass('starter', resolvedEmphasis))}>
+                  <Cell v={row.starter} />
                 </td>
-                <td className="px-4 py-3.5 text-center sm:px-6">
-                  <Cell v={row.full} />
+                <td className={cn('px-4 py-3.5 text-center sm:px-6', colClass('pro', resolvedEmphasis))}>
+                  <Cell v={row.pro} />
+                </td>
+                <td className={cn('px-4 py-3.5 text-center sm:px-6', colClass('strategy', resolvedEmphasis))}>
+                  <Cell v={row.complete} />
                 </td>
               </tr>
             ))}
@@ -64,30 +163,22 @@ export function AuditCompare({ compact = false }: { compact?: boolean }) {
         </table>
       </div>
       {!compact && (
-        <div
-          className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-4 sm:px-6"
-          style={{ borderColor: 'var(--border-subtle)', backgroundColor: 'var(--bg-inset)' }}
-        >
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-            Express when you need a fast external view. Full when systemic bottlenecks and a roadmap matter.
+        <div className="ds-audit-compare-footer flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
+          <p className="text-xs leading-relaxed ds-text-tertiary">
+            {workspacePackaging.audit_compare_footer}
           </p>
           <div className="flex flex-wrap gap-2">
-            <Link
-              to="/express-audit"
-              className={cn('rounded-lg px-3 py-2 text-xs font-semibold')}
-              style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
-            >
-              Express
+            <Link to="/starter" className={cn('rounded-lg px-3 py-2 text-xs font-semibold ds-audit-compare-footer-link')}>
+              {quick.title}
             </Link>
             <Link
-              to="/audit"
-              className="rounded-lg px-3 py-2 text-xs font-semibold"
-              style={{
-                background: 'var(--gradient-brand)',
-                color: 'var(--primary-foreground)',
-              }}
+              to="/pro"
+              className="rounded-lg px-3 py-2 text-xs font-semibold ds-audit-compare-footer-link-primary"
             >
-              Full audit
+              {full.title}
+            </Link>
+            <Link to="/complete" className={cn('rounded-lg px-3 py-2 text-xs font-semibold ds-audit-compare-footer-link')}>
+              {strategy.title}
             </Link>
           </div>
         </div>

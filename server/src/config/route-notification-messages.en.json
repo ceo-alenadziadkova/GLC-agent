@@ -1,0 +1,50 @@
+{
+  "version": "1.0.1",
+  "auditRequest": {
+    "createdConsultantsTitle": "New client request",
+    "createdConsultantsMessage": "A client submitted a new audit request.",
+    "submittedConsultantsTitle": "Client request submitted",
+    "submittedConsultantsMessage": "A draft request was submitted and is ready for review.",
+    "approvedUserTitle": "Request approved",
+    "approvedUserMessage": "Your audit request was approved and moved to execution.",
+    "rejectedUserTitle": "Request rejected",
+    "rejectedUserMessage": "Your audit request was rejected. Check consultant notes for details.",
+    "deliveredUserTitle": "Deliverables ready",
+    "deliveredUserMessage": "Your audit deliverables are marked as delivered."
+  },
+  "snapshot": {
+    "claimedTitle": "Snapshot claimed",
+    "claimedMessage": "A public snapshot was linked to a registered account.",
+    "startedTitle": "New snapshot started",
+    "startedMessageTemplate": "Public snapshot started for {{url}}."
+  },
+  "marketingBrief": {
+    "submittedTitle": "Marketing brief submitted",
+    "submittedMessageTemplate": "{{displayName}} — suggested route: {{recommendedRoute}}"
+  },
+  "briefHelp": {
+    "requestedTitle": "Client requested help with brief",
+    "requestedMessageTemplate": "A client asked for help with their intake brief (audit {{auditPrefix}}...)."
+  },
+  "pipeline": {
+    "retryStartedTitle": "Phase retry started",
+    "retryStartedMessageTemplate": "Retry was requested for phase {{phase}}.",
+    "reviewApprovedTitle": "Review approved",
+    "reviewApprovedMessageTemplate": "Review point after phase {{phase}} approved.",
+    "phaseFailedTitle": "Pipeline failure"
+  },
+  "registration": {
+    "guestRegisteredTitle": "New user registered",
+    "guestRegisteredMessageTemplate": "Guest user completed registration as {{role}}."
+  },
+  "reports": {
+    "artifactReadyTitle": "Artifact ready",
+    "pdfReadyMessage": "PDF report is ready.",
+    "csvReadyMessage": "CSV action plan export is ready."
+  },
+  "intake": {
+    "responsesUpdatedTitle": "Intake responses updated",
+    "submissionReceivedTitle": "New intake submission",
+    "preBriefSubmittedMessageTemplate": "Client submitted pre-brief responses ({{count}} fields)."
+  }
+}

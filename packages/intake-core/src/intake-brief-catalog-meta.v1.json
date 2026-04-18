@@ -1,0 +1,115 @@
+{
+  "version": "1.2.0",
+  "highRevenueQuestionIds": ["f1", "d1", "a6", "b3"],
+  "consultantHints": {
+    "a11": "Confirm live URL; social-only or pre-launch — capture where prospects actually go.",
+    "a12": "Legal vs trading name if it affects positioning or contracts.",
+    "a2": "Confirm the closest list match; probe sub-niche in the interview if needed.",
+    "intake_industry_specify": "If Other, capture how they describe the vertical in their own words.",
+    "a5": "Match to how prospects actually find you online; note social-only or pre-launch.",
+    "b1": "Probe jobs-to-be-done, regions, and budget authority.",
+    "a10": "Clarify average deal size or basket value and seasonality.",
+    "c5": "Walk through the main funnel step-by-step as a user would.",
+    "c6": "Ask for evidence: quotes, support tickets, or analytics.",
+    "b2": "Challenge single-channel reliance if they depend on one lane.",
+    "c3": "Ask who owns access and if goals are configured.",
+    "c4": "Confirm verification and coverage issues familiarity.",
+    "c1": "Use as stack confirmation — probe if recon missed the real CMS or headless setup.",
+    "a6": "Clarify PCI scope and who owns gateway configuration.",
+    "e2": "Check legal owner for privacy and consent tooling.",
+    "c8": "Get named URLs and why customers pick them.",
+    "b3": "Pick the closest option, then align wording with how customers describe you.",
+    "b10": "Prioritise spend and internal bandwidth per channel.",
+    "d1": "Capture edition, integrations, and data hygiene; branch to which CRM if selected.",
+    "d5": "Map triggers, volumes, and ownership.",
+    "f1": "Restate pain as a measurable gap they agree with.",
+    "f5": "Frame as ranges for fix vs. strategic initiatives."
+  },
+  "triggersFollowup": {
+    "d1": ["d1a"],
+    "a10": ["c5"]
+  },
+  "uiSectionByQuestionId": {
+    "a11": "Business",
+    "a12": "Business",
+    "a2": "Business",
+    "intake_industry_specify": "Business",
+    "a5": "Business",
+    "f2": "Goals",
+    "a7": "Business",
+    "f8": "Goals",
+    "b1": "Business",
+    "a10": "Business",
+    "c5": "UX & Conversion",
+    "c6": "UX & Conversion",
+    "b2": "SEO & Digital",
+    "c3": "SEO & Digital",
+    "c4": "SEO & Digital",
+    "c1": "Tech & Infrastructure",
+    "a6": "Security & Compliance",
+    "e2": "Security & Compliance",
+    "c8": "Marketing",
+    "b3": "Marketing",
+    "b10": "Marketing",
+    "d1": "Automation",
+    "d5": "Automation",
+    "f1": "Audit Scope",
+    "f5": "Audit Scope"
+  },
+  "enrichmentPolicy": {
+    "weightByImportance": {
+      "red": 3,
+      "yellow": 2,
+      "green": 1
+    },
+    "uxGroupQuestionIds": {
+      "basics": ["a11", "a12", "a2", "a5", "a10"],
+      "goals": ["f1", "f2", "f8"],
+      "business": ["a7"]
+    },
+    "domainUxGroups": {
+      "tech_infrastructure": "tech",
+      "security_compliance": "tech",
+      "seo_digital": "audience"
+    }
+  },
+  "classicBriefSlice": {
+    "version": "1.0.0",
+    "identity": [
+      { "bankId": "a5", "priority": "required", "domains": ["all"] },
+      { "bankId": "a11", "priority": "required", "domains": ["all"] },
+      { "bankId": "a12", "priority": "required", "domains": ["all"] },
+      { "bankId": "a2", "priority": "required", "domains": ["all"] }
+    ],
+    "identitySpecify": {
+      "id": "intake_industry_specify",
+      "priority": "optional",
+      "domains": ["all"],
+      "question": "Which industry or sector?",
+      "hint": "You chose Other — briefly describe your industry (e.g. niche manufacturing, creator economy).",
+      "type": "free_text"
+    },
+    "main": [
+      { "bankId": "f2", "priority": "recommended", "domains": ["all"] },
+      { "bankId": "a7", "priority": "recommended", "domains": ["all"] },
+      { "bankId": "f8", "priority": "recommended", "domains": ["all"] },
+      { "bankId": "b1", "priority": "required", "domains": ["all"] },
+      { "bankId": "a10", "priority": "required", "domains": ["all"] },
+      { "bankId": "c5", "priority": "required", "domains": ["ux_conversion"] },
+      { "bankId": "c6", "priority": "recommended", "domains": ["ux_conversion"] },
+      { "bankId": "b2", "priority": "recommended", "domains": ["seo_digital", "marketing_utp"] },
+      { "bankId": "c3", "priority": "required", "domains": ["seo_digital", "ux_conversion"] },
+      { "bankId": "c4", "priority": "recommended", "domains": ["seo_digital"] },
+      { "bankId": "c1", "priority": "recommended", "domains": ["tech_infrastructure", "seo_digital"] },
+      { "bankId": "a6", "priority": "required", "domains": ["security_compliance"] },
+      { "bankId": "e2", "priority": "recommended", "domains": ["security_compliance"] },
+      { "bankId": "c8", "priority": "recommended", "domains": ["marketing_utp", "seo_digital"] },
+      { "bankId": "b3", "priority": "required", "domains": ["marketing_utp", "ux_conversion"] },
+      { "bankId": "b10", "priority": "recommended", "domains": ["marketing_utp"] },
+      { "bankId": "d1", "priority": "recommended", "domains": ["automation_processes"] },
+      { "bankId": "d5", "priority": "recommended", "domains": ["automation_processes", "marketing_utp"] },
+      { "bankId": "f1", "priority": "required", "domains": ["all"] },
+      { "bankId": "f5", "priority": "optional", "domains": ["all"] }
+    ]
+  }
+}

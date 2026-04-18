@@ -1,23 +1,40 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import robotsParser from 'robots-parser';
+
+import { SNAPSHOT_ROBOTS_USER_AGENT } from '../lib/robots-policy-shared.js';
 import {
-  parseRobotsTxtForSnapshot,
   robotsSnapshotHomeAllowed,
   robotsSnapshotUrlAllowed,
   resetSnapshotRobotsCacheForTests,
   getSnapshotRobotsPolicy,
-  pathHitsDisallowForTests,
+  type SnapshotRobotsPolicy,
 } from '../snapshot/robots-guard.js';
 
-describe('parseRobotsTxtForSnapshot', () => {
+function policyFromRobotsText(text: string, origin = 'https://ex.com'): SnapshotRobotsPolicy {
+  const robotsResourceUrl = `${origin.replace(/\/$/, '')}/robots.txt`;
+  const robot = robotsParser(robotsResourceUrl, text);
+  const sec = robot.getCrawlDelay(SNAPSHOT_ROBOTS_USER_AGENT);
+  const crawlDelayMs =
+    sec != null && Number.isFinite(sec) ? Math.min(Math.round(sec * 1000), 60_000) : 0;
+  return {
+    hadFile: true,
+    crawlDelayMs,
+    robotsBody: text,
+    robotsResourceUrl,
+  };
+}
+
+describe('robots-parser-backed snapshot policy', () => {
   it('merges User-agent * Disallow rules', () => {
     const text = `
 User-agent: *
 Disallow: /admin
 Disallow: /tmp
 `;
-    const r = parseRobotsTxtForSnapshot(text);
-    expect(r.disallows).toContain('/admin');
-    expect(r.disallows).toContain('/tmp');
+    const p = policyFromRobotsText(text);
+    expect(robotsSnapshotUrlAllowed('https://ex.com/admin', p)).toBe(false);
+    expect(robotsSnapshotUrlAllowed('https://ex.com/tmp/foo', p)).toBe(false);
+    expect(robotsSnapshotUrlAllowed('https://ex.com/public', p)).toBe(true);
   });
 
   it('applies rules to GLC-SnapshotScanner user-agent group', () => {
@@ -25,8 +42,8 @@ Disallow: /tmp
 User-agent: GLC-SnapshotScanner
 Disallow: /secret
 `;
-    const r = parseRobotsTxtForSnapshot(text);
-    expect(r.disallows).toContain('/secret');
+    const p = policyFromRobotsText(text);
+    expect(robotsSnapshotUrlAllowed('https://ex.com/secret', p)).toBe(false);
   });
 
   it('allows multiple User-agent lines before Disallow', () => {
@@ -35,11 +52,11 @@ User-agent: *
 User-agent: GLC-SnapshotScanner
 Disallow: /x
 `;
-    const r = parseRobotsTxtForSnapshot(text);
-    expect(r.disallows).toContain('/x');
+    const p = policyFromRobotsText(text);
+    expect(robotsSnapshotUrlAllowed('https://ex.com/x', p)).toBe(false);
   });
 
-  it('starts a new group after rules when a new User-agent appears', () => {
+  it('does not apply OtherBot-only rules to our scanner', () => {
     const text = `
 User-agent: *
 Disallow: /a
@@ -47,9 +64,9 @@ Disallow: /a
 User-agent: OtherBot
 Disallow: /b
 `;
-    const r = parseRobotsTxtForSnapshot(text);
-    expect(r.disallows).toContain('/a');
-    expect(r.disallows).not.toContain('/b');
+    const p = policyFromRobotsText(text);
+    expect(robotsSnapshotUrlAllowed('https://ex.com/a', p)).toBe(false);
+    expect(robotsSnapshotUrlAllowed('https://ex.com/b', p)).toBe(true);
   });
 
   it('parses crawl-delay in seconds', () => {
@@ -58,17 +75,17 @@ User-agent: *
 Crawl-delay: 2
 Disallow:
 `;
-    const r = parseRobotsTxtForSnapshot(text);
-    expect(r.crawlDelayMs).toBe(2000);
+    const p = policyFromRobotsText(text);
+    expect(p.crawlDelayMs).toBe(2000);
   });
 
   it('ignores full-line comments', () => {
     const text = `User-agent: *
 # Disallow: /skip
 Disallow: /z`;
-    const r = parseRobotsTxtForSnapshot(text);
-    expect(r.disallows).toContain('/z');
-    expect(r.disallows).not.toContain('/skip');
+    const p = policyFromRobotsText(text);
+    expect(robotsSnapshotUrlAllowed('https://ex.com/z', p)).toBe(false);
+    expect(robotsSnapshotUrlAllowed('https://ex.com/skip', p)).toBe(true);
   });
 
   it('treats empty Disallow value as allow-all for that line', () => {
@@ -76,35 +93,22 @@ Disallow: /z`;
 Disallow:
 Disallow: /admin
 `;
-    const r = parseRobotsTxtForSnapshot(text);
-    expect(r.disallows).toEqual(['/admin']);
+    const p = policyFromRobotsText(text);
+    expect(robotsSnapshotUrlAllowed('https://ex.com/', p)).toBe(true);
+    expect(robotsSnapshotUrlAllowed('https://ex.com/admin', p)).toBe(false);
   });
 });
 
 describe('robotsSnapshotHomeAllowed / url allowed', () => {
   it('blocks home when Disallow: / for *', () => {
-    const policy = {
-      hadFile: true,
-      crawlDelayMs: 0,
-      disallowPathPrefixes: parseRobotsTxtForSnapshot('User-agent: *\nDisallow: /').disallows,
-    };
-    expect(robotsSnapshotHomeAllowed(policy)).toBe(false);
+    const p = policyFromRobotsText('User-agent: *\nDisallow: /');
+    expect(robotsSnapshotHomeAllowed(p, 'https://ex.com')).toBe(false);
   });
 
   it('allows extras when path not disallowed', () => {
-    const policy = {
-      hadFile: true,
-      crawlDelayMs: 0,
-      disallowPathPrefixes: ['/admin'],
-    };
-    expect(robotsSnapshotUrlAllowed('https://ex.com/contact', policy)).toBe(true);
-    expect(robotsSnapshotUrlAllowed('https://ex.com/admin/login', policy)).toBe(false);
-  });
-});
-
-describe('pathHitsDisallowForTests', () => {
-  it('treats Disallow / as full site', () => {
-    expect(pathHitsDisallowForTests('/foo', ['/'])).toBe(true);
+    const p = policyFromRobotsText('User-agent: *\nDisallow: /admin');
+    expect(robotsSnapshotUrlAllowed('https://ex.com/contact', p)).toBe(true);
+    expect(robotsSnapshotUrlAllowed('https://ex.com/admin/login', p)).toBe(false);
   });
 });
 
@@ -116,6 +120,6 @@ describe('getSnapshotRobotsPolicy cache', () => {
   it('returns empty policy when fetch fails (no network in unit test — uses invalid port)', async () => {
     const policy = await getSnapshotRobotsPolicy('http://127.0.0.1:9', AbortSignal.timeout(100));
     expect(policy.hadFile).toBe(false);
-    expect(policy.disallowPathPrefixes).toEqual([]);
+    expect(policy.robotsBody).toBeUndefined();
   });
 });

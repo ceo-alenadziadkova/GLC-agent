@@ -1,51 +1,12 @@
-import { cn } from './ui/utils';
+import { getDomainStatusTone, type ReportDomainStatus } from '../design-system/tokens/report-semantic-tokens';
+import { StatusBadge as UiStatusBadge } from './ui/status-badge';
 
 interface StatusBadgeProps {
-  status: 'excellent' | 'good' | 'moderate' | 'needs-improvement' | 'critical';
+  status: ReportDomainStatus;
   className?: string;
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const getStatusStyles = (status: string) => {
-    const styles: Record<string, { bg: string; color: string; text: string }> = {
-      'excellent': {
-        bg: 'var(--score-5-bg)',
-        color: 'var(--status-excellent)',
-        text: 'Excellent'
-      },
-      'good': {
-        bg: 'var(--score-4-bg)',
-        color: 'var(--status-good)',
-        text: 'Good'
-      },
-      'moderate': {
-        bg: 'var(--score-3-bg)',
-        color: 'var(--status-moderate)',
-        text: 'Moderate'
-      },
-      'needs-improvement': {
-        bg: 'var(--score-2-bg)',
-        color: 'var(--status-needs-improvement)',
-        text: 'Needs Improvement'
-      },
-      'critical': {
-        bg: 'var(--score-1-bg)',
-        color: 'var(--status-critical)',
-        text: 'Critical'
-      }
-    };
-
-    return styles[status] || styles.moderate;
-  };
-
-  const style = getStatusStyles(status);
-
-  return (
-    <span
-      className={cn('inline-flex items-center px-3 py-1 text-xs font-medium rounded-full', className)}
-      style={{ backgroundColor: style.bg, color: style.color }}
-    >
-      {style.text}
-    </span>
-  );
+  const tone = getDomainStatusTone(status);
+  return <UiStatusBadge label={tone.label} toneClassName={tone.badgeClassName} className={className} />;
 }

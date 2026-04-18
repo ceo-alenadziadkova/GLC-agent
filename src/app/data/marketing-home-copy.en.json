@@ -1,0 +1,60 @@
+{
+  "faqPreview": [
+    {
+      "q": "Where should I start?",
+      "a": "If you are unsure—Snapshot. If you need one domain—Focus. For 2-3 coordinated domains—Context. For full cross-domain synthesis—Strategy workspace. No site—Discovery."
+    },
+    {
+      "q": "Snapshot vs full workspace?",
+      "a": "Snapshot gives first visibility from public signals. Workspace adds your context, coordinates domain analysis, and builds roadmap."
+    },
+    {
+      "q": "Can we implement without you?",
+      "a": "Yes. The workspace output and roadmap are written so your team or another vendor can run with them."
+    }
+  ],
+  "whoWeAreTitle": "Who we are",
+  "whatWeDoTitle": "What we do",
+  "whatWeDoLines": [
+    "See the current state.",
+    "Spot process friction.",
+    "Prioritize what matters.",
+    "Move with a roadmap."
+  ],
+  "whoWeAreMetrics": [
+    {
+      "value": "Six domains",
+      "label": "Full-workspace runs cover tech, security, SEO, UX, marketing, and automation."
+    },
+    {
+      "value": "Fast first read",
+      "label": "Snapshot surfaces direction from public signals; deeper tiers add context and certainty."
+    },
+    {
+      "value": "Structured handoff",
+      "label": "Findings and next steps your team—or another vendor—can execute without guesswork."
+    }
+  ],
+  "trustMetricsLandmark": "At a glance",
+  "trustPointsAriaLabel": "What you can expect",
+  "trustMetricsTagline": "From ambiguity to action: clear priorities, confident execution.",
+  "whatWeDoActionLabel": "",
+  "chooseEntryTitle": "Choose an entry point",
+  "chooseEntryDescription": "Pick the route that matches your current depth and decision speed.",
+  "coveragePackagesTitle": "Coverage tiers",
+  "coveragePackagesDescription": "Choose depth: one domain, a coordinated multi-domain pack, or full synthesis and roadmap.",
+  "pillars": {
+    "snapshot": {
+      "description": "A quick read on public signals—see where to focus first without a heavy commitment."
+    },
+    "discovery": {
+      "description": "Shape structure and the next step when the site or scope is still fuzzy."
+    },
+    "brief": {
+      "description": "Share context—we suggest a sensible route (Snapshot, Focus, Context, or Strategy workspace)."
+    }
+  },
+  "questionsTitle": "Questions",
+  "questionsDescription": "Short answers now, full detail in FAQ.",
+  "faqAllQuestionsLabel": "All questions and answers"
+}

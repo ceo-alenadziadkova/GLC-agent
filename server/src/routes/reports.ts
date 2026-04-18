@@ -6,7 +6,18 @@ import { safeOrUserFilter } from '../lib/postgrest-filter.js';
 import { reportProfiler, REPORT_PROFILES, type ReportProfile } from '../services/report-profiler.js';
 import { pdfGenerator } from '../services/pdf-generator.js';
 import { logger } from '../services/logger.js';
-import { notifyAuditParticipants, notifyAuditParticipantsExcept } from '../services/notifications.js';
+import { notifyAuditParticipantsExcept } from '../services/notifications.js';
+import {
+  REPORTS_ARTIFACT_READY_NOTIFICATION_TITLE,
+  REPORTS_CSV_READY_NOTIFICATION_MESSAGE,
+  REPORTS_PDF_READY_NOTIFICATION_MESSAGE,
+} from '../config/route-notification-messages.js';
+import {
+  API_ERROR_CODES,
+  REPORTS_AUDIT_NOT_FOUND_MESSAGE,
+  REPORTS_GENERATE_FAILED_MESSAGE,
+  apiErrorJson,
+} from '../config/api-error-codes.js';
 
 export const reportsRouter = Router();
 
@@ -39,7 +50,7 @@ reportsRouter.get('/:id/report', attachProfile, rejectGuestFromPortal, async (re
 
     const auditData = auditRes.status === 'fulfilled' ? auditRes.value : null;
     if (!auditData?.data) {
-      res.status(404).json({ error: 'Audit not found' });
+      res.status(404).json(apiErrorJson(API_ERROR_CODES.REPORTS_AUDIT_NOT_FOUND, REPORTS_AUDIT_NOT_FOUND_MESSAGE));
       return;
     }
 
@@ -72,8 +83,8 @@ reportsRouter.get('/:id/report', attachProfile, rejectGuestFromPortal, async (re
       await notifyAuditParticipantsExcept(
         id,
         'pipeline',
-        'Artifact ready',
-        'PDF report is ready.',
+        REPORTS_ARTIFACT_READY_NOTIFICATION_TITLE,
+        REPORTS_PDF_READY_NOTIFICATION_MESSAGE,
         [req.userId!],
         {
           audit_id: id,
@@ -97,8 +108,8 @@ reportsRouter.get('/:id/report', attachProfile, rejectGuestFromPortal, async (re
       await notifyAuditParticipantsExcept(
         id,
         'pipeline',
-        'Artifact ready',
-        'CSV action plan export is ready.',
+        REPORTS_ARTIFACT_READY_NOTIFICATION_TITLE,
+        REPORTS_CSV_READY_NOTIFICATION_MESSAGE,
         [req.userId!],
         {
           audit_id: id,
@@ -121,6 +132,7 @@ reportsRouter.get('/:id/report', attachProfile, rejectGuestFromPortal, async (re
         profile:       report.profile,
         profile_label: report.profile_label,
         generated_at:  report.generated_at,
+        coverage:      report.coverage,
         markdown:      report.markdown,
       });
     } else {
@@ -131,7 +143,9 @@ reportsRouter.get('/:id/report', attachProfile, rejectGuestFromPortal, async (re
     const e = err as Error;
     logger.error('route.report_failed', { component: 'reports', error: e.message, stack: e.stack });
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Failed to generate report' });
+      res
+        .status(500)
+        .json(apiErrorJson(API_ERROR_CODES.REPORTS_GENERATE_FAILED, REPORTS_GENERATE_FAILED_MESSAGE));
     }
   }
 });

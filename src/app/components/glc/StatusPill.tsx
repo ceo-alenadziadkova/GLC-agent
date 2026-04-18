@@ -1,19 +1,71 @@
-type Status = 'pending' | 'running' | 'completed' | 'review' | 'failed' | 'active' | 'paused';
+import { StatusBadge, type StatusBadgeTone } from '../../../design-system/ui';
+
+type Status =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'review'
+  | 'failed'
+  | 'cancelled'
+  | 'active'
+  | 'paused'
+  | 'skipped';
 
 const STATUS_CONFIG: Record<Status, {
   label: string;
-  color: string;
-  bg: string;
-  dot: string;
-  border: string;
+  tone: StatusBadgeTone;
+  pillClassName?: string;
+  dotClassName: string;
+  pulseClassName?: string;
 }> = {
-  pending:   { label: 'Pending',       color: 'var(--text-tertiary)',   bg: 'var(--bg-muted)',         dot: 'var(--border-strong)',      border: 'var(--border-subtle)'  },
-  running:   { label: 'Running',       color: 'var(--glc-blue-deeper)', bg: 'var(--glc-blue-xlight)',  dot: 'var(--glc-blue)',           border: 'rgba(28,189,255,0.25)' },
-  completed: { label: 'Completed',     color: 'var(--glc-green-dark)',  bg: 'var(--glc-green-xlight)', dot: 'var(--glc-green)',          border: 'rgba(14,207,130,0.25)' },
-  review:    { label: 'Needs Review',  color: 'var(--callout-warning-fg)', bg: 'var(--callout-warning-pill-bg)', dot: 'var(--score-3)',       border: 'var(--score-3-border)'  },
-  failed:    { label: 'Failed',        color: 'var(--score-1)',         bg: 'var(--score-1-bg)',        dot: 'var(--score-1)',            border: 'var(--score-1-border)' },
-  active:    { label: 'Active',        color: 'var(--glc-green-dark)',  bg: 'var(--glc-green-xlight)', dot: 'var(--glc-green)',          border: 'rgba(14,207,130,0.25)' },
-  paused:    { label: 'Paused',        color: 'var(--text-secondary)',  bg: 'var(--bg-muted)',          dot: 'var(--text-quaternary)',    border: 'var(--border-subtle)'  },
+  pending: {
+    label: 'Pending',
+    tone: 'neutral',
+    dotClassName: 'bg-[var(--border-strong)]',
+  },
+  running: {
+    label: 'Running',
+    tone: 'info',
+    dotClassName: 'bg-[var(--glc-blue)] shadow-[0_0_5px_var(--glc-blue)]',
+    pulseClassName: 'bg-[var(--glc-blue)]',
+  },
+  completed: {
+    label: 'Completed',
+    tone: 'success',
+    dotClassName: 'bg-[var(--glc-green)] shadow-[0_0_5px_var(--glc-green)]',
+  },
+  review: {
+    label: 'Needs Review',
+    tone: 'warning',
+    dotClassName: 'bg-[var(--score-3)]',
+  },
+  failed: {
+    label: 'Failed',
+    tone: 'danger',
+    dotClassName: 'bg-[var(--score-1)]',
+  },
+  cancelled: {
+    label: 'Cancelled',
+    tone: 'neutral',
+    pillClassName: 'text-[var(--text-secondary)]',
+    dotClassName: 'bg-[var(--text-quaternary)]',
+  },
+  active: {
+    label: 'Active',
+    tone: 'success',
+    dotClassName: 'bg-[var(--glc-green)] shadow-[0_0_5px_var(--glc-green)]',
+  },
+  paused: {
+    label: 'Paused',
+    tone: 'neutral',
+    pillClassName: 'text-[var(--text-secondary)]',
+    dotClassName: 'bg-[var(--text-quaternary)]',
+  },
+  skipped: {
+    label: 'Skipped',
+    tone: 'neutral',
+    dotClassName: 'bg-[var(--border-strong)]',
+  },
 };
 
 interface StatusPillProps {
@@ -25,34 +77,13 @@ interface StatusPillProps {
 export function StatusPill({ status, label, pulse = false }: StatusPillProps) {
   const cfg = STATUS_CONFIG[status];
   return (
-    <span
-      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full font-medium"
-      style={{
-        backgroundColor: cfg.bg,
-        color: cfg.color,
-        border: `1px solid ${cfg.border}`,
-        fontSize: '11px',
-        letterSpacing: '0.01em',
-      }}
-    >
-      <span className="relative inline-flex rounded-full flex-shrink-0" style={{ width: 6, height: 6 }}>
-        {pulse && status === 'running' && (
-          <span
-            className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-50"
-            style={{ backgroundColor: cfg.dot }}
-          />
-        )}
-        <span
-          className="relative rounded-full w-full h-full"
-          style={{
-            backgroundColor: cfg.dot,
-            boxShadow: (status === 'running' || status === 'active' || status === 'completed')
-              ? `0 0 5px ${cfg.dot}80`
-              : 'none',
-          }}
-        />
-      </span>
-      {label ?? cfg.label}
-    </span>
+    <StatusBadge
+      label={label ?? cfg.label}
+      tone={cfg.tone}
+      toneClassName={cfg.pillClassName}
+      dotClassName={cfg.dotClassName}
+      pulse={pulse && status === 'running'}
+      pulseClassName={cfg.pulseClassName}
+    />
   );
 }

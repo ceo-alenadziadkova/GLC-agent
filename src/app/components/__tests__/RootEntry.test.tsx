@@ -24,9 +24,12 @@ const AUTH_STUB = {
   loading: false,
   isAuthenticated: false,
   authError: null as string | null,
+  passwordRecoveryMode: false,
   signInWithPassword: vi.fn(),
   signUpWithPassword: vi.fn(),
   signInWithGoogle: vi.fn(),
+  requestPasswordReset: vi.fn(),
+  completePasswordRecovery: vi.fn(),
   signOut: vi.fn(),
 };
 
@@ -67,7 +70,7 @@ describe('RootEntry', () => {
 
     renderRoot(['/']);
 
-    expect(screen.getByTestId('hero-cta-snapshot')).toBeInTheDocument();
+    expect(screen.getByTestId('hero-cta-how-it-works')).toBeInTheDocument();
   });
 
   it('renders marketing home while profile is still loading for an authenticated user', () => {
@@ -85,7 +88,7 @@ describe('RootEntry', () => {
 
     renderRoot(['/']);
 
-    expect(screen.getByTestId('hero-cta-snapshot')).toBeInTheDocument();
+    expect(screen.getByTestId('hero-cta-how-it-works')).toBeInTheDocument();
     expect(screen.queryByText('Dashboard page')).not.toBeInTheDocument();
   });
 
@@ -167,7 +170,7 @@ describe('RootEntry', () => {
 
     renderRoot(['/']);
 
-    expect(screen.getByTestId('hero-cta-snapshot')).toBeInTheDocument();
+    expect(screen.getByTestId('hero-cta-how-it-works')).toBeInTheDocument();
   });
 
   it('does not redirect anonymous preview sessions', () => {
@@ -184,6 +187,6 @@ describe('RootEntry', () => {
 
     renderRoot(['/']);
 
-    expect(screen.getByTestId('hero-cta-snapshot')).toBeInTheDocument();
+    expect(screen.getByTestId('hero-cta-how-it-works')).toBeInTheDocument();
   });
 });

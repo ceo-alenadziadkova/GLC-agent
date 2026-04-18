@@ -4,24 +4,20 @@ import { SectionLabel } from './SectionLabel';
 import { formatRelativeTime } from '../../lib/relativeTime';
 import type { DashboardActivityEvent } from '../../data/apiService';
 import { formatAuditWebsiteDisplay } from '../../data/no-public-website';
+import { cn } from '../ui/utils';
 
 interface ActivityFeedProps {
   events: DashboardActivityEvent[] | undefined;
   loading: boolean;
 }
 
-function eventPillStyle(eventType: string): React.CSSProperties {
-  if (eventType.includes('error') || eventType.includes('fail')) {
-    return { backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--score-1)', border: '1px solid rgba(239,68,68,0.2)' };
-  }
+function activityFeedPillVariant(eventType: string): string {
+  if (eventType.includes('error') || eventType.includes('fail')) return 'ds-activity-feed-pill--danger';
   if (eventType.includes('complete') || eventType.includes('done') || eventType.includes('finish')) {
-    return { backgroundColor: 'rgba(14,207,130,0.1)', color: 'var(--glc-green)', border: '1px solid rgba(14,207,130,0.2)' };
+    return 'ds-activity-feed-pill--success';
   }
-  if (eventType.includes('review') || eventType.includes('gate')) {
-    return { backgroundColor: 'rgba(242,79,29,0.1)', color: 'var(--glc-orange)', border: '1px solid rgba(242,79,29,0.2)' };
-  }
-  // default — blue
-  return { backgroundColor: 'rgba(28,189,255,0.1)', color: 'var(--glc-blue)', border: '1px solid rgba(28,189,255,0.2)' };
+  if (eventType.includes('review') || eventType.includes('gate')) return 'ds-activity-feed-pill--accent';
+  return 'ds-activity-feed-pill--default';
 }
 
 function truncate(s: string | null, n: number): string {
@@ -31,45 +27,37 @@ function truncate(s: string | null, n: number): string {
 
 export function ActivityFeed({ events, loading }: ActivityFeedProps) {
   return (
-    <div
-      className="glc-card p-5"
-      style={{ borderRadius: 'var(--radius-xl)' }}
-    >
-      <div className="flex items-center gap-2 mb-4">
+    <div className="glc-card rounded-[var(--radius-xl)] p-5">
+      <div className="glc-panel-head">
         <SectionLabel>Recent Activity</SectionLabel>
+        <span className="glc-panel-meta">{events?.length ?? 0} events</span>
       </div>
 
       {loading && !events && (
         <div className="space-y-3">
           {[0, 1, 2, 3].map(i => (
-            <div key={i} className="h-8 rounded-lg animate-pulse" style={{ backgroundColor: 'var(--bg-canvas)' }} />
+            <div key={i} className="h-8 animate-pulse rounded-lg bg-[var(--bg-canvas)]" />
           ))}
         </div>
       )}
 
       {!loading && events && events.length === 0 && (
         <div className="flex flex-col items-center justify-center py-8 gap-2">
-          <Pulse className="w-7 h-7" style={{ color: 'var(--text-quaternary)' }} />
-          <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>No pipeline activity yet</p>
+          <Pulse className="h-7 w-7 text-[var(--text-quaternary)]" />
+          <p className="text-sm text-[var(--text-tertiary)]">No pipeline activity yet</p>
         </div>
       )}
 
       {events && events.length > 0 && (
         <div className="space-y-2.5">
           {events.map(ev => (
-            <div key={ev.id} className="flex items-start gap-3">
+            <div key={ev.id} className="glc-hover-row flex items-start gap-3 px-2 py-1.5">
               {/* Event type pill */}
               <span
-                className="rounded-md px-1.5 py-0.5 flex-shrink-0 tabular-nums"
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
-                  whiteSpace: 'nowrap',
-                  marginTop: 1,
-                  ...eventPillStyle(ev.event_type),
-                }}
+                className={cn(
+                  'rounded-md px-1.5 py-0.5 flex-shrink-0 tabular-nums ds-activity-feed-pill',
+                  activityFeedPillVariant(ev.event_type),
+                )}
               >
                 {ev.event_type.replace(/_/g, ' ')}
               </span>
@@ -79,29 +67,18 @@ export function ActivityFeed({ events, loading }: ActivityFeedProps) {
                 <div className="flex items-baseline gap-1.5 flex-wrap">
                   <Link
                     to={`/audit/${ev.audit_id}`}
-                    className="font-medium"
-                    style={{
-                      fontSize: 'var(--text-sm)',
-                      color: 'var(--text-primary)',
-                      textDecoration: 'none',
-                      fontFamily: 'var(--font-display)',
-                    }}
+                    className="font-medium text-[length:var(--text-sm)] text-[var(--text-primary)] no-underline [font-family:var(--font-display)]"
                   >
-                    {ev.company_name || formatAuditWebsiteDisplay(ev.company_url) || ev.audit_id.slice(0, 8)}
+                    {ev.company_name ||
+                      formatAuditWebsiteDisplay(ev.company_url, ev.no_public_website) ||
+                      ev.audit_id.slice(0, 8)}
                   </Link>
-                  {ev.message && (
-                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                      — {truncate(ev.message, 80)}
-                    </span>
-                  )}
+                  {ev.message && <span className="text-xs text-[var(--text-secondary)]">— {truncate(ev.message, 80)}</span>}
                 </div>
               </div>
 
               {/* Relative time */}
-              <span
-                className="flex-shrink-0 tabular-nums"
-                style={{ fontSize: '11px', color: 'var(--text-quaternary)', whiteSpace: 'nowrap' }}
-              >
+              <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-[var(--text-quaternary)]">
                 {formatRelativeTime(ev.created_at)}
               </span>
             </div>

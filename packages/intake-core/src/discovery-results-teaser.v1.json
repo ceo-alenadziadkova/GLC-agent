@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "industryTeaser": {
+    "Hospitality": "Reputation management — how to build reviews on autopilot",
+    "Food & Beverage": "Booking and review automation — consistent tables, consistent stars",
+    "Healthcare": "Appointment & follow-up automation — fewer no-shows, fuller calendar",
+    "Real Estate": "Pipeline visibility — tracking every lead from first contact to deal",
+    "Professional Services": "Proposal and follow-up automation — close more without chasing",
+    "Marine": "Seasonal ops automation — peak season systems that scale without stress"
+  },
+  "defaultFourthBullet": "Tech stack review — what to keep, replace, and connect"
+}

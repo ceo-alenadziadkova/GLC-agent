@@ -1,0 +1,827 @@
+html.dark {
+  background-color: var(--bg-canvas);
+}
+
+html.dark::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-base);
+  pointer-events: none;
+  background: radial-gradient(circle, transparent 40%, var(--overlay-backdrop) 100%);
+}
+
+.glc-gradient-text-flow {
+  background-image: linear-gradient(
+    110deg,
+    var(--glc-blue-deeper) 0%,
+    var(--glc-blue) 30%,
+    var(--glc-green) 58%,
+    var(--glc-orange) 82%,
+    var(--glc-blue-deeper) 100%
+  );
+  background-size: 220% 220%;
+  background-position: 0% 50%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: glc-gradient-flow 5.8s ease-in-out infinite;
+  will-change: background-position;
+}
+
+@keyframes glc-gradient-flow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glc-gradient-text-flow {
+    animation: none;
+    background-position: 45% 50%;
+  }
+}
+
+html:not(.dark) .glc-light-home-hero {
+  border: 1px solid color-mix(in oklab, var(--border-subtle) 72%, var(--glc-blue-muted));
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
+  background: color-mix(in oklab, var(--bg-surface) 16%, transparent);
+  -webkit-backdrop-filter: var(--glc-light-home-hero-backdrop);
+  backdrop-filter: var(--glc-light-home-hero-backdrop);
+}
+
+html:not(.dark) .glc-light-home-cockpit {
+  filter: drop-shadow(0 20px 34px var(--overlay-shadow-soft));
+}
+
+html:not(.dark) .glc-light-home-hero-title {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.82), 0 9px 22px rgba(11, 17, 32, 0.07);
+}
+
+html:not(.dark) .glc-light-home-hero-subhead {
+  color: color-mix(in oklab, var(--text-secondary) 86%, var(--text-primary));
+}
+
+html:not(.dark) .glc-light-home-hero-support {
+  color: color-mix(in oklab, var(--text-tertiary) 88%, var(--text-secondary));
+}
+
+html:not(.dark) .glc-light-snapshot-shell {
+  position: relative;
+  isolation: isolate;
+  box-shadow: var(--shadow-lg);
+}
+
+html:not(.dark) .glc-light-snapshot-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--glc-blue) 50%, transparent) 0%,
+    color-mix(in oklab, var(--glc-orange) 34%, transparent) 48%,
+    color-mix(in oklab, var(--glc-green) 28%, transparent) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.82;
+}
+
+html:not(.dark) .glc-light-snapshot-shell-inner {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78), inset 0 -1px 0 rgba(11, 17, 32, 0.04);
+}
+
+html:not(.dark) .glc-light-snapshot-input {
+  border-color: color-mix(in oklab, var(--border-default) 92%, var(--glc-blue-muted));
+}
+
+html:not(.dark) .glc-light-snapshot-input:focus {
+  border-color: var(--glc-blue);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--glc-blue) 20%, transparent);
+}
+
+.ds-snapshot-command-shell-hairline {
+  background: var(--snapshot-command-shell-outline);
+}
+
+.glc-light-snapshot-cta {
+  border: none;
+}
+
+.glc-light-snapshot-cta:disabled {
+  cursor: not-allowed;
+}
+
+.glc-light-snapshot-cta:not(:disabled) {
+  cursor: pointer;
+}
+
+.glc-light-snapshot-cta[data-snapshot-cta-filled="false"] {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--glc-blue) 72%, var(--bg-muted)) 0%,
+    color-mix(in oklab, var(--glc-blue-deeper) 66%, var(--bg-muted)) 100%
+  );
+  box-shadow: var(--shadow-snapshot-cta-muted);
+}
+
+.glc-light-snapshot-cta[data-snapshot-cta-filled="true"] {
+  background: linear-gradient(135deg, var(--glc-blue) 0%, var(--glc-blue-deeper) 100%);
+  box-shadow: var(--shadow-snapshot-cta-active);
+}
+
+.ds-snapshot-quota-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--gradient-snapshot-quota-fill);
+  transition: width 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html:not(.dark) .glc-light-snapshot-cta:not(:disabled):hover {
+  box-shadow: 0 8px 24px color-mix(in oklab, var(--glc-orange) 36%, transparent);
+  transform: translateY(-2px);
+}
+
+html:not(.dark) .glc-light-brief-shell {
+  box-shadow: 0 22px 48px rgba(11, 17, 32, 0.12), 0 3px 10px rgba(11, 17, 32, 0.06);
+  border-color: color-mix(in oklab, var(--border-subtle) 70%, var(--glc-blue-muted));
+  background: linear-gradient(178deg, color-mix(in oklab, var(--bg-surface) 92%, white) 0%, var(--bg-surface) 100%);
+}
+
+html:not(.dark) .glc-light-brief-section {
+  border-radius: var(--radius-xl);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--bg-muted) 68%, white) 0%,
+    color-mix(in oklab, var(--bg-surface) 90%, white) 100%
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82), inset 0 0 0 1px rgba(11, 17, 32, 0.03);
+  padding: var(--space-4) var(--space-4) 0.2rem;
+}
+
+.glc-snapshot-result-card {
+  border-radius: var(--radius-xl);
+  transition: box-shadow var(--ease-base), border-color var(--ease-base), transform var(--ease-base);
+}
+
+@media (hover: hover) {
+  .glc-snapshot-result-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: color-mix(in oklab, var(--glc-blue) 22%, var(--border-subtle));
+    transform: translateY(-1px);
+  }
+}
+
+.glc-snapshot-result-card:active {
+  transform: translateY(0);
+}
+
+.glc-snapshot-section-h {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.glc-snapshot-section-h__rule {
+  width: 3px;
+  height: 0.875rem;
+  border-radius: var(--radius-xs);
+  flex-shrink: 0;
+}
+
+.glc-snapshot-section-h--warning .glc-snapshot-section-h__rule {
+  background: var(--score-2);
+}
+
+.glc-snapshot-section-h--positive .glc-snapshot-section-h__rule {
+  background: var(--glc-green);
+}
+
+.glc-snapshot-section-h--info .glc-snapshot-section-h__rule {
+  background: var(--glc-blue);
+}
+
+.glc-snapshot-section-h--neutral .glc-snapshot-section-h__rule {
+  background: var(--border-strong);
+}
+
+.glc-snapshot-surface-hero {
+  background:
+    radial-gradient(ellipse 85% 65% at 10% -10%, var(--glc-blue-muted-strong) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 92% 105%, var(--glc-green-muted) 0%, transparent 50%),
+    var(--bg-surface);
+}
+
+.glc-snapshot-surface-category {
+  background: linear-gradient(165deg, var(--glc-blue-muted-soft) 0%, transparent 40%), var(--bg-surface);
+}
+
+.glc-snapshot-signal-pill {
+  transition: border-color var(--ease-fast), background var(--ease-fast), color var(--ease-fast);
+}
+
+@media (hover: hover) {
+  .glc-snapshot-signal-pill:hover {
+    border-color: color-mix(in oklab, var(--glc-blue) 38%, var(--border-subtle));
+    background: var(--glc-blue-muted);
+    color: var(--text-primary);
+  }
+}
+
+.glc-snapshot-insight-row {
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-2-5) var(--space-2) var(--space-1-5);
+  margin-left: calc(var(--space-1-5) * -1);
+  margin-right: calc(var(--space-1-5) * -1);
+  transition: background var(--ease-fast);
+}
+
+@media (hover: hover) {
+  .glc-snapshot-insight-row:hover {
+    background: var(--bg-muted);
+  }
+}
+
+.glc-snapshot-limitations {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--callout-warning-border);
+  background: var(--callout-warning-bg-subtle);
+  padding: var(--space-3) var(--space-4) var(--space-3) var(--space-4-5);
+  margin-bottom: var(--space-4);
+}
+
+.glc-snapshot-cta-band {
+  position: relative;
+}
+
+.glc-snapshot-cta-band::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(ellipse 55% 90% at 100% 0%, var(--glc-blue-muted-strong) 0%, transparent 58%);
+  opacity: 0.85;
+}
+
+body.glc-site-polish .glc-card,
+body.glc-site-polish .glc-card-elevated {
+  border-color: color-mix(in oklab, var(--border-subtle) 72%, var(--glc-blue-muted));
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--border-subtle) 65%, transparent), 0 14px 28px rgba(11, 17, 32, 0.07), 0 2px 6px rgba(11, 17, 32, 0.04);
+  transition: transform var(--ease-base), box-shadow var(--ease-base), border-color var(--ease-base);
+}
+
+@media (hover: hover) {
+  body.glc-site-polish .glc-card:hover,
+  body.glc-site-polish .glc-card-elevated:hover {
+    border-color: color-mix(in oklab, var(--glc-blue) 28%, var(--border-subtle));
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--glc-blue) 18%, transparent), 0 20px 40px rgba(11, 17, 32, 0.11), 0 4px 10px rgba(11, 17, 32, 0.05);
+    transform: translateY(-2px);
+  }
+}
+
+body.glc-site-polish :is(a, button):not(:disabled) {
+  transition: transform var(--ease-fast), box-shadow var(--ease-fast), filter var(--ease-fast);
+}
+
+@media (hover: hover) {
+  body.glc-site-polish :is(a, button):not(:disabled):hover {
+    filter: saturate(1.03);
+  }
+}
+
+@media print {
+  nav,
+  header nav,
+  .glc-btn-primary,
+  .ds-cta-primary,
+  .glc-btn-secondary,
+  .glc-btn-icon,
+  [data-pipeline-controls],
+  .pipeline-controls {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .max-w-3xl {
+    max-width: none !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .glc-card,
+  .report-section {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  @page {
+    margin: 2cm;
+  }
+}
+
+.glc-login-main {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+  background:
+    radial-gradient(ellipse 90% 68% at 20% 8%, color-mix(in oklab, var(--glc-blue) 7%, transparent) 0%, transparent 66%),
+    radial-gradient(ellipse 75% 62% at 84% 92%, color-mix(in oklab, var(--glc-green) 6%, transparent) 0%, transparent 64%),
+    var(--bg-canvas);
+  padding: 0 !important;
+}
+
+.glc-login-theme-toggle {
+  z-index: var(--z-login-floating);
+}
+
+.glc-login-bg-mesh {
+  z-index: var(--z-login-mesh);
+}
+
+.glc-login-bg-shader-layer {
+  z-index: var(--z-login-decor);
+}
+
+.glc-login-layout {
+  position: relative;
+  isolation: isolate;
+  z-index: var(--z-login-layout);
+  align-items: stretch;
+  width: 100%;
+  min-height: 100svh;
+  min-height: 100dvh;
+  overflow: visible;
+  border: none;
+  border-radius: 0;
+  background: color-mix(in oklab, var(--bg-surface) 96%, white);
+  box-shadow: none;
+}
+
+.glc-login-layout > * {
+  position: relative;
+}
+
+.glc-login-form-column,
+.glc-login-layout > aside {
+  z-index: var(--z-login-content);
+}
+
+.glc-login-layout-video-layer {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-login-video);
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.glc-login-layout-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.glc-login-layout-video-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 15, 30, 0.28) 0%, rgba(8, 15, 30, 0.56) 100%);
+}
+
+.glc-login-form-column {
+  align-self: center;
+  width: 100%;
+  max-width: 34rem;
+  justify-self: center;
+  padding: 2.6rem 2.1rem 1.7rem;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--bg-surface) 97%, white) 0%, var(--bg-surface) 100%);
+}
+
+@media (min-width: 1024px) {
+  .glc-login-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .glc-login-form-column {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+    justify-self: stretch;
+    max-width: none;
+    justify-content: center;
+    min-height: 100dvh;
+    border-top-right-radius: var(--radius-2xl);
+    border-bottom-right-radius: var(--radius-2xl);
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    padding-top: clamp(3.2rem, 9vh, 6.4rem);
+    padding-bottom: clamp(2rem, 5vh, 3.6rem);
+    padding-left: clamp(1.5rem, 4vw, 3.5rem);
+    padding-right: clamp(1.5rem, 4vw, 3.5rem);
+  }
+
+  /* Stack brand + auth + footer to the same width on wide split layout (aligns with form). */
+  .glc-login-form-stack {
+    width: 100%;
+    max-width: 32rem;
+    margin-inline: auto;
+  }
+}
+
+.glc-login-brand-tagline {
+  max-width: 36ch;
+}
+
+.glc-auth-card {
+  border: 1px solid color-mix(in oklab, var(--border-subtle) 76%, rgba(255, 255, 255, 0.08));
+  background:
+    radial-gradient(ellipse 118% 78% at 12% -12%, color-mix(in oklab, var(--glc-blue-muted) 26%, transparent) 0%, transparent 64%),
+    linear-gradient(180deg, color-mix(in oklab, var(--bg-surface) 96%, var(--bg-canvas)) 0%, color-mix(in oklab, var(--bg-surface) 98%, white) 100%);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 18px 40px rgba(15, 21, 36, 0.1), 0 2px 10px rgba(15, 21, 36, 0.05);
+}
+
+.glc-auth-tabs {
+  background-color: color-mix(in oklab, var(--bg-muted) 74%, transparent);
+}
+
+.glc-auth-tab {
+  min-height: var(--glc-touch-target-min);
+  transition: background-color var(--ease-fast), color var(--ease-fast), box-shadow var(--ease-fast);
+}
+
+.glc-auth-tab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--glc-blue) 26%, transparent);
+}
+
+.glc-auth-input {
+  min-height: var(--glc-touch-target-min);
+  transition: border-color var(--ease-fast), box-shadow var(--ease-fast), background-color var(--ease-fast);
+}
+
+/* Login email/password fields: surface + border (replaces former LOGIN_FORM_STYLE_PRESETS.inputBase). */
+.glc-auth-input--field {
+  border-radius: var(--radius-lg);
+  border: var(--border-width-default) solid var(--border-default);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.glc-auth-input:focus-visible {
+  border-color: var(--glc-blue) !important;
+  box-shadow: var(--shadow-blue) !important;
+}
+
+.glc-auth-input[aria-invalid="true"] {
+  border-color: color-mix(in oklab, var(--score-1) 58%, var(--border-default)) !important;
+}
+
+.glc-auth-input[aria-invalid="true"]:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--score-1) 24%, transparent) !important;
+}
+
+.glc-auth-input::placeholder {
+  color: color-mix(in oklab, var(--text-quaternary) 84%, var(--text-tertiary));
+}
+
+.glc-auth-social-btn {
+  min-height: var(--glc-touch-target-min);
+  transition: border-color var(--ease-fast), box-shadow var(--ease-fast), transform var(--ease-fast), opacity var(--ease-fast);
+}
+
+.glc-auth-social-btn:not(:disabled):hover {
+  border-color: var(--glc-blue) !important;
+  box-shadow: var(--shadow-blue);
+  transform: translateY(-1px);
+}
+
+.glc-auth-social-btn:focus-visible {
+  outline: none;
+  border-color: var(--glc-blue) !important;
+  box-shadow: var(--shadow-blue);
+}
+
+.glc-auth-social-btn:disabled {
+  opacity: 0.72;
+}
+
+.glc-auth-primary-btn {
+  min-height: var(--glc-touch-target-min);
+  transition: transform var(--ease-fast), box-shadow var(--ease-fast), opacity var(--ease-fast);
+}
+
+/* Primary submit row on auth forms (replaces LOGIN_FORM_STYLE_PRESETS submit presets). */
+.glc-auth-submit-btn {
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  border: none;
+}
+
+.glc-auth-submit-btn--ready {
+  background: var(--gradient-brand);
+  color: var(--primary-foreground);
+  box-shadow: 0 var(--space-2) var(--space-5) color-mix(in oklab, var(--glc-blue) 34%, transparent);
+}
+
+.glc-auth-submit-btn--disabled {
+  background: var(--border-default);
+  color: var(--text-tertiary);
+  box-shadow: none;
+}
+
+.glc-auth-secondary-link {
+  color: var(--glc-blue);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.glc-auth-inline-mono {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.glc-auth-primary-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--glc-blue) 24%, transparent), 0 8px 20px color-mix(in oklab, var(--glc-blue) 34%, transparent);
+}
+
+.glc-login-aside {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  min-height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.glc-login-aside-shader {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: var(--z-base);
+  opacity: 0.95;
+  filter: saturate(1.2) contrast(1.06);
+}
+
+.glc-login-aside-content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  flex-direction: column;
+  justify-self: flex-end;
+  align-self: stretch;
+  min-height: auto;
+  justify-content: flex-end;
+  border-radius: 1.5rem;
+  border: 1px solid color-mix(in oklab, rgba(255, 255, 255, 0.4) 70%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, rgba(5, 14, 39, 0.12) 85%, transparent) 0%,
+    color-mix(in oklab, rgba(5, 14, 39, 0.46) 86%, transparent) 100%
+  );
+  backdrop-filter: blur(1.5px);
+  margin: clamp(0.8rem, 1.5vw, 1.2rem);
+  padding: clamp(0.85rem, 1.4vw, 1.15rem);
+}
+
+.glc-login-layout-side-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: auto;
+  width: 100%;
+  margin: 0;
+  border-radius: var(--radius-2xl);
+  border: 1px solid color-mix(in oklab, rgba(255, 255, 255, 0.34) 78%, transparent);
+  background:
+    radial-gradient(
+      ellipse 85% 62% at 0% 0%,
+      color-mix(in oklab, var(--glc-blue) 20%, transparent) 0%,
+      transparent 66%
+    ),
+    radial-gradient(
+      ellipse 64% 46% at 100% 100%,
+      color-mix(in oklab, var(--glc-green) 16%, transparent) 0%,
+      transparent 64%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, rgba(5, 14, 39, 0.26) 86%, transparent) 0%,
+      color-mix(in oklab, rgba(5, 14, 39, 0.58) 90%, transparent) 100%
+    );
+  box-shadow: 0 24px 46px rgba(6, 12, 26, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(4px);
+  padding: clamp(0.95rem, 1.4vw, 1.3rem);
+}
+
+.glc-login-side-title-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.glc-login-layout-side-panel .glc-login-aside-title {
+  max-width: 16ch;
+  margin: 0 auto;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.glc-login-side-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.glc-login-side-signals {
+  margin: 0;
+}
+
+.glc-login-layout-side-panel .glc-login-aside-signal {
+  width: 100%;
+  justify-content: flex-start;
+  min-height: var(--space-8);
+  padding: 0.42rem 0.68rem;
+  border-color: color-mix(in oklab, rgba(255, 255, 255, 0.28) 80%, transparent);
+  background-color: color-mix(in oklab, rgba(255, 255, 255, 0.12) 82%, transparent);
+}
+
+.glc-login-layout-side-panel .glc-login-aside-links {
+  margin-top: 0;
+  max-width: none;
+  text-align: left;
+  color: color-mix(in oklab, white 80%, var(--glc-blue-light)) !important;
+}
+
+@media (min-width: 1024px) {
+  .glc-login-layout-side-panel {
+    align-self: flex-end;
+    min-height: auto;
+    max-width: none;
+    margin-right: clamp(0rem, 0.7vw, 0.45rem);
+    margin-bottom: clamp(0rem, 0.9vh, 0.45rem);
+  }
+}
+
+@media (min-width: 1280px) {
+  .glc-login-layout-side-panel {
+    max-width: none;
+    padding: clamp(1rem, 1.3vw, 1.45rem);
+  }
+}
+
+.glc-login-aside::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse 60% 40% at 8% 0%, color-mix(in oklab, var(--glc-blue) 18%, transparent) 0%, transparent 72%),
+    radial-gradient(ellipse 48% 36% at 100% 100%, color-mix(in oklab, var(--glc-green) 16%, transparent) 0%, transparent 70%);
+  opacity: 0.84;
+}
+
+.glc-login-aside-kicker {
+  letter-spacing: 0.1em;
+  color: color-mix(in oklab, white 84%, var(--glc-blue-light)) !important;
+}
+
+.glc-login-aside-title {
+  text-wrap: balance;
+  font-size: clamp(1.45rem, 1.2rem + 0.6vw, 1.95rem);
+  line-height: 1.18;
+  color: color-mix(in oklab, white 90%, var(--glc-blue-light)) !important;
+}
+
+.glc-login-aside-floating-title {
+  z-index: 3;
+  max-width: 18ch;
+  margin: auto;
+  text-shadow: 0 10px 24px rgba(8, 15, 30, 0.4);
+}
+
+.glc-login-aside-body {
+  max-width: 34ch;
+  color: color-mix(in oklab, white 76%, var(--glc-blue-light)) !important;
+}
+
+.glc-login-aside-signal {
+  width: fit-content;
+  border: 1px solid color-mix(in oklab, rgba(255, 255, 255, 0.26) 80%, transparent);
+  border-radius: var(--radius-pill);
+  background-color: color-mix(in oklab, rgba(255, 255, 255, 0.14) 80%, transparent);
+  padding: 0.38rem 0.72rem;
+  color: color-mix(in oklab, white 82%, var(--glc-blue-light)) !important;
+}
+
+.glc-login-aside-signal-dot {
+  width: 0.38rem;
+  height: 0.38rem;
+  border-radius: var(--radius-pill);
+  background-color: color-mix(in oklab, var(--glc-green) 80%, var(--text-secondary));
+}
+
+.glc-login-aside-quote {
+  border-color: color-mix(in oklab, rgba(255, 255, 255, 0.34) 82%, transparent) !important;
+  background: linear-gradient(
+    165deg,
+    color-mix(in oklab, rgba(255, 255, 255, 0.14) 85%, transparent) 0%,
+    color-mix(in oklab, rgba(16, 27, 57, 0.32) 88%, transparent) 100%
+  ) !important;
+  box-shadow: inset 0 1px 0 color-mix(in oklab, white 38%, transparent);
+}
+
+.glc-login-aside-links a {
+  transition: color var(--ease-fast), text-underline-offset var(--ease-fast);
+  color: color-mix(in oklab, white 86%, var(--glc-blue-light)) !important;
+}
+
+.glc-login-aside-links a:hover {
+  text-underline-offset: 0.24em;
+}
+
+@media (max-width: 1023px) {
+  .glc-login-theme-toggle {
+    top: max(var(--space-3), env(safe-area-inset-top, 0px));
+    right: max(var(--space-3), env(safe-area-inset-right, 0px));
+  }
+
+  .glc-login-main {
+    background: var(--bg-canvas) !important;
+    padding:
+      clamp(1rem, 3.5vw, 1.5rem)
+      max(clamp(0.875rem, 3.5vw, 1.25rem), env(safe-area-inset-right, 0px))
+      clamp(1.25rem, 5vw, 2rem)
+      max(clamp(0.875rem, 3.5vw, 1.25rem), env(safe-area-inset-left, 0px)) !important;
+  }
+
+  .glc-login-bg-mesh {
+    opacity: 0.2 !important;
+  }
+
+  .glc-login-layout-video-layer {
+    display: none;
+  }
+
+  .glc-login-layout {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    max-width: 32rem;
+    min-height: auto;
+    padding-top: clamp(1.5rem, 6vw, 2.25rem);
+    gap: var(--space-6);
+    margin-inline: auto;
+  }
+
+  .glc-login-form-column {
+    max-width: none;
+    justify-self: stretch;
+    padding: 0;
+    background: transparent;
+  }
+
+  .glc-auth-card {
+    background: var(--bg-surface);
+    border-color: var(--border-subtle);
+    backdrop-filter: none;
+    box-shadow: var(--shadow-md);
+  }
+
+  .glc-login-brand-tagline {
+    max-width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glc-login-aside-shader {
+    opacity: 0.52;
+  }
+}

@@ -1,0 +1,8 @@
+packages:
+  - '.'
+  - 'server'
+  - 'packages/intake-core'
+  - 'packages/glc-dev-brand-defaults'
+  - 'packages/glc-route-limits'
+  - 'packages/glc-api-paths'
+  - 'packages/glc-snapshot-scan-coverage'

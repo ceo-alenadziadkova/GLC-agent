@@ -1,11 +1,11 @@
 /**
- * Behaviour: aligned with server/src/intake/choice-specify-triggers.ts (intake “Other” paths).
+ * Behavioural contract for `choice-specify-triggers` (implemented in `@glc/intake-core` only).
  */
 import { describe, expect, it } from 'vitest';
 import {
   choiceSpecifyResponseKey,
   choiceValueNeedsSpecify,
-} from './choice-specify-triggers';
+} from '@glc/intake-core';
 
 describe('choiceValueNeedsSpecify', () => {
   it('returns false for nullish', () => {
@@ -17,6 +17,7 @@ describe('choiceValueNeedsSpecify', () => {
     expect(choiceValueNeedsSpecify('Other')).toBe(true);
     expect(choiceValueNeedsSpecify('Something else')).toBe(true);
     expect(choiceValueNeedsSpecify('Yes, other tool')).toBe(true);
+    expect(choiceValueNeedsSpecify('Yes, there are additional details')).toBe(true);
     expect(choiceValueNeedsSpecify('Regular option')).toBe(false);
   });
 
@@ -27,9 +28,8 @@ describe('choiceValueNeedsSpecify', () => {
 });
 
 describe('choiceSpecifyResponseKey', () => {
-  it('maps industry question ids to intake_industry_specify', () => {
+  it('maps a2 industry to intake_industry_specify', () => {
     expect(choiceSpecifyResponseKey('a2')).toBe('intake_industry_specify');
-    expect(choiceSpecifyResponseKey('intake_industry')).toBe('intake_industry_specify');
   });
 
   it('suffixes other question ids', () => {

@@ -5,6 +5,7 @@
 import type { BriefResponses } from '../data/briefQuestions';
 import { isBriefValueBlank } from '../data/briefQuestions';
 import { isIndustryOption } from '../data/industry-options';
+import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 
 export type IntakeClientMetadata = {
   company_name?: string;
@@ -47,7 +48,7 @@ export function parseIntakeClientMetadata(raw: Record<string, unknown>): IntakeC
 
 function formatTimingPhrase(when: string): string {
   const t = when.trim();
-  if (!t) return 'within 24 hours';
+  if (!t) return WORKSPACE_PAGE_COPY.intakeClient.defaultExpectedContactWindow;
   if (/^(within|before|by|after)\s/i.test(t)) return t;
   return `within ${t}`;
 }
@@ -57,7 +58,7 @@ export function buildFollowUpExpectationLine(meta: IntakeClientMetadata): string
   const channel = meta.contact_channel?.trim();
   const when = meta.expected_contact?.trim();
   if (!channel && !when) return null;
-  const timing = when ? formatTimingPhrase(when) : 'within 24 hours';
+  const timing = when ? formatTimingPhrase(when) : WORKSPACE_PAGE_COPY.intakeClient.defaultExpectedContactWindow;
   if (channel) {
     return `Expect contact on ${channel} ${timing}.`;
   }
@@ -65,9 +66,9 @@ export function buildFollowUpExpectationLine(meta: IntakeClientMetadata): string
 }
 
 const INTAKE_METADATA_TO_RESPONSE_FIELD: Array<{ metaKey: string; fieldId: string }> = [
-  { metaKey: 'company_name', fieldId: 'intake_company_name' },
-  { metaKey: 'company_website', fieldId: 'intake_company_website' },
-  { metaKey: 'industry', fieldId: 'intake_industry' },
+  { metaKey: 'company_name', fieldId: 'a12' },
+  { metaKey: 'company_website', fieldId: 'a11' },
+  { metaKey: 'industry', fieldId: 'a2' },
 ];
 
 /**
@@ -84,13 +85,13 @@ export function applyIntakeMetadataPrefill(
     const v = metadata[metaKey];
     if (typeof v !== 'string' || !v.trim()) continue;
     const trimmed = v.trim();
-    if (fieldId === 'intake_industry' && !isIndustryOption(trimmed)) continue;
+    if (fieldId === 'a2' && !isIndustryOption(trimmed)) continue;
     out[fieldId] = { value: trimmed, source: 'client' };
   }
 
   const metaSpec = metadata.industry_specify;
   if (typeof metaSpec === 'string' && metaSpec.trim() && isBriefValueBlank(out.intake_industry_specify)) {
-    const ind = out.intake_industry;
+    const ind = out.a2 ?? out.intake_industry;
     const indVal =
       ind != null && typeof ind === 'object' && !Array.isArray(ind) && 'value' in ind
         ? (ind as { value: unknown }).value
@@ -108,7 +109,7 @@ export function hasIntakeConsultantPrefill(metadata: Record<string, unknown>): b
   const hasCore = INTAKE_METADATA_TO_RESPONSE_FIELD.some(({ metaKey, fieldId }) => {
     const v = metadata[metaKey];
     if (typeof v !== 'string' || !v.trim()) return false;
-    if (fieldId === 'intake_industry') return isIndustryOption(v.trim());
+    if (fieldId === 'a2') return isIndustryOption(v.trim());
     return true;
   });
   const ind = typeof metadata.industry === 'string' ? metadata.industry.trim() : '';

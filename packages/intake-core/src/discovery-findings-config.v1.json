@@ -1,0 +1,40 @@
+{
+  "version": "1.1.0",
+  "automatableD2Options": [
+    "Following up with leads and prospects",
+    "Scheduling and confirming appointments",
+    "Creating and sending quotes or invoices",
+    "Reporting and tracking what is working"
+  ],
+  "d1TrivialTools": [
+    "Email",
+    "Other",
+    "WhatsApp / voice notes",
+    "Voice notes or WhatsApp audio"
+  ],
+  "d1EffectivelyEmptyIfOnlyOption": "Other",
+  "d1SoloWeakSpreadsheetOnlyLabel": "Spreadsheets",
+  "channelPhoneLabel": "Phone call",
+  "channelWhatsAppSubstring": "whatsapp",
+  "trackingInformalSubstrings": ["don't really track"],
+  "trackingInformalExact": ["WhatsApp chats", "Notebook"],
+  "crmBottleneckIgnorePrefix": "Something",
+  "excludeInvisibleFindingWhenGoalBucket": "more_clients",
+  "solePresenceChannelExclude": "Not really online yet",
+  "goalBucketAdminOverload": "admin_overload",
+  "whatsappToolbarChannelLabel": "WhatsApp",
+  "triage": {
+    "ifZero": 5,
+    "ifAtMost2": 4,
+    "ifAtMost4": 3,
+    "ifAtMost6": 2,
+    "otherwise": 1
+  },
+  "hookSortOrder": ["revenue", "time", "visibility", "risk", "scale"],
+  "maxFindingsReturned": 4,
+  "maxFindingsPerZone": 2,
+  "localServiceIndustryNorms": ["hospitality", "food & beverage", "healthcare"],
+  "realEstateIndustryNorm": "real estate",
+  "d2AutomatableHoursRangeSolo": "3–5",
+  "d2AutomatableHoursRangeNonSolo": "5–10"
+}

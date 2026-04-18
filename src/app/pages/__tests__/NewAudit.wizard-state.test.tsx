@@ -1,0 +1,229 @@
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
+import { NewAudit } from '../NewAudit';
+
+const { mockDraft, apiMock, searchParamsState } = vi.hoisted(() => ({
+  searchParamsState: { value: '' },
+  mockDraft: {
+    v: 1 as const,
+    step: 1 as 0 | 1 | 2,
+    url: '',
+    noPublicWebsite: true,
+    name: 'Seed Co',
+    industry: '',
+    industrySpecify: '',
+    productMode: 'full' as const,
+    responses: { old_key: { value: 'legacy', source: 'client' as const } },
+    briefLayoutChoice: 'wizard' as const,
+    draftAuditId: null as string | null,
+    draftIntakeVersions: null,
+  },
+  apiMock: {
+    createAudit: vi.fn(),
+    saveBrief: vi.fn(),
+    startPipeline: vi.fn(),
+    linkIntakeTokenToAudit: vi.fn(),
+    getBrief: vi.fn(),
+    getDiscoverySession: vi.fn(),
+  },
+}));
+
+vi.mock('../../hooks/useAuth', () => ({
+  useAuth: () => ({ user: { id: 'u1' } }),
+}));
+
+vi.mock('../../hooks/useBriefLayoutPrefsSync', () => ({
+  useBriefLayoutPrefsSync: () => {},
+}));
+
+vi.mock('../../hooks/useIntakeWizard', () => ({
+  useIntakeBankMetrics: () => ({
+    dataQualityPct: 50,
+    visibleRequiredAnswered: 1,
+    visibleRequiredTotal: 2,
+    visibleRecommendedAnswered: 0,
+    visibleRecommendedTotal: 1,
+    missingForReport: [],
+  }),
+}));
+
+vi.mock('../../components/AppShell', () => ({
+  AppShell: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('../../components/IntakeBankCoverageHint', () => ({
+  IntakeBankCoverageHint: () => <div>coverage</div>,
+}));
+
+vi.mock('../../components/BankClassicBriefFields', () => ({
+  BankClassicBriefFields: () => <div>classic</div>,
+}));
+
+vi.mock('../../components/BriefLayoutPreferenceCards', () => ({
+  BriefLayoutPreferenceCards: () => <div>layout</div>,
+}));
+
+vi.mock('../../components/IntakeBankWizard', () => ({
+  IntakeBankWizard: ({
+    responses,
+    onResponsesChange,
+  }: {
+    responses: Record<string, unknown>;
+    onResponsesChange: (next: Record<string, unknown>) => void;
+  }) => (
+    <div>
+      <div data-testid="wizard-responses">{JSON.stringify(responses)}</div>
+      <button
+        type="button"
+        onClick={() =>
+          onResponsesChange({
+            new_only: { value: 'fresh', source: 'client' },
+          })
+        }
+      >
+        apply-wizard-update
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock('../../lib/client-portal-new-audit-draft', () => ({
+  readClientPortalNewAuditDraft: () => mockDraft,
+  writeClientPortalNewAuditDraft: () => {},
+  clearClientPortalNewAuditDraft: () => {},
+}));
+
+vi.mock('../../data/apiService', () => ({
+  api: apiMock,
+  ApiError: class ApiError extends Error {
+    status?: number;
+  },
+}));
+
+vi.mock('../../lib/glc-query-client', () => ({
+  getGlcQueryClient: () => ({}),
+}));
+
+vi.mock('../../lib/glc-invalidate-queries', () => ({
+  invalidateAuditRelatedQueries: () => {},
+  invalidateAuditsListsAndDashboard: () => {},
+}));
+
+vi.mock('../../lib/logger', () => ({
+  logger: { warn: vi.fn(), info: vi.fn(), debug: vi.fn(), error: vi.fn() },
+}));
+
+const navigate = vi.fn();
+vi.mock('react-router', async importOriginal => {
+  const mod = await importOriginal<typeof import('react-router')>();
+  return {
+    ...mod,
+    useNavigate: () => navigate,
+    useSearchParams: () => [new URLSearchParams(searchParamsState.value)],
+  };
+});
+
+describe('NewAudit wizard state wiring', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    searchParamsState.value = '';
+    localStorage.clear();
+    mockDraft.step = 1;
+    mockDraft.url = '';
+    mockDraft.noPublicWebsite = true;
+    mockDraft.name = 'Seed Co';
+    mockDraft.industry = '';
+    mockDraft.industrySpecify = '';
+    mockDraft.responses = { old_key: { value: 'legacy', source: 'client' } };
+    mockDraft.draftAuditId = null;
+    apiMock.createAudit.mockResolvedValue({ id: 'audit-1' });
+    apiMock.saveBrief.mockResolvedValue({ brief: { intake_versions: null } });
+    apiMock.startPipeline.mockResolvedValue({});
+    apiMock.linkIntakeTokenToAudit.mockResolvedValue({});
+    apiMock.getBrief.mockResolvedValue({ brief: { responses: {}, intake_versions: null } });
+    apiMock.getDiscoverySession.mockResolvedValue({ answers: {} });
+  });
+
+  it('applies wizard next state directly in client self-serve flow', () => {
+    render(
+      <MemoryRouter>
+        <NewAudit variant="client_self_serve" />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId('wizard-responses').textContent).toContain('old_key');
+
+    fireEvent.click(screen.getByRole('button', { name: 'apply-wizard-update' }));
+
+    const updated = screen.getByTestId('wizard-responses').textContent ?? '';
+    expect(updated).toContain('new_only');
+    expect(updated).not.toContain('old_key');
+  });
+
+  it('keeps basics values in save payload when launching from restored client draft', async () => {
+    mockDraft.step = 2;
+    mockDraft.url = 'example.com';
+    mockDraft.noPublicWebsite = false;
+    mockDraft.name = 'Acme Corp';
+    mockDraft.industry = 'Healthcare';
+    mockDraft.responses = { old_key: { value: 'legacy', source: 'client' } };
+
+    render(
+      <MemoryRouter>
+        <NewAudit variant="client_self_serve" />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Launch Audit/i }));
+
+    await vi.waitFor(() => expect(apiMock.saveBrief).toHaveBeenCalled());
+    const [, payload] = apiMock.saveBrief.mock.calls[0];
+    expect(payload.a11).toEqual({ value: 'https://example.com', source: 'client' });
+    expect(payload.a12).toEqual({ value: 'Acme Corp', source: 'client' });
+    expect(payload.a2).toEqual({ value: 'Healthcare', source: 'client' });
+  });
+
+  it('surfaces launch error when pipeline start fails', async () => {
+    mockDraft.step = 2;
+    mockDraft.url = 'example.com';
+    mockDraft.noPublicWebsite = false;
+    mockDraft.name = 'Acme Corp';
+    mockDraft.industry = 'Healthcare';
+    apiMock.startPipeline.mockRejectedValueOnce(new Error('Pipeline unavailable'));
+
+    render(
+      <MemoryRouter>
+        <NewAudit variant="client_self_serve" />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Launch Audit/i }));
+
+    await vi.waitFor(() => {
+      expect(screen.getByText('Pipeline unavailable')).toBeInTheDocument();
+    });
+  });
+
+  it('prefills from discovery session token and clears it from localStorage', async () => {
+    searchParamsState.value = 'from_discovery=1';
+    localStorage.setItem('glc_discovery_token', 'disc-token-1');
+    apiMock.getDiscoverySession.mockResolvedValueOnce({
+      answers: { a2: 'Healthcare', a10: 'Need better conversion' },
+    });
+
+    render(
+      <MemoryRouter>
+        <NewAudit variant="client_self_serve" />
+      </MemoryRouter>,
+    );
+
+    await vi.waitFor(() => {
+      expect(apiMock.getDiscoverySession).toHaveBeenCalledWith('disc-token-1');
+    });
+    expect(localStorage.getItem('glc_discovery_token')).toBeNull();
+    await vi.waitFor(() => {
+      expect(screen.getByText(/discovery answers are pre-filled/i)).toBeInTheDocument();
+    });
+  });
+});

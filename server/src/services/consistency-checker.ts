@@ -1,18 +1,32 @@
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
 import type { QualityFlag, QualityGateReport } from '../types/audit.js';
+import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
+import {
+  qualityGateEventMessagePassed,
+  qualityGateEventMessageWarnings,
+  qualityGateExcessiveDataGapsMessage,
+  qualityGateFailedDomainMessage,
+  qualityGateLowConfidenceCriticalMessage,
+  qualityGateLowConfidenceMajorityMessage,
+  qualityGateScoreHighWithCriticalMessage,
+  qualityGateScoreLowWithoutCriticalHighMessage,
+} from '../config/quality-gate-messages.en.js';
+
+const QG = SYSTEM_DEFAULTS.qualityGate;
 
 /**
  * ConsistencyChecker — Sprint 16
  *
  * Rule-based quality checks run automatically after each parallel wing completes.
- * Results are stored in pipeline_events (event_type: 'quality_gate') and surfaced
+ * Results are stored in pipeline_events (event_type: PIPELINE_EVENT_TYPES.qualityGate) and surfaced
  * to the consultant in ReviewPointModal before they approve the review gate.
  *
  * Checks performed:
- *   1. score_severity_mismatch  — score ≥4 with a critical issue, or score ≤2 with no critical/high
- *   2. low_confidence_majority  — >50% of issues have confidence: low
- *   3. excessive_data_gaps      — unknown_items.length > 4
+ *   1. score_severity_mismatch  — thresholds controlled by `SYSTEM_DEFAULTS.qualityGate`
+ *   2. low_confidence_majority  — low-confidence share > SYSTEM_DEFAULTS.qualityGate.lowConfidenceRatioWarn
+ *   3. excessive_data_gaps      — unknown_items.length > SYSTEM_DEFAULTS.qualityGate.maxUnknownItemsForInfo
  *   4. failed_domain            — domain.status === 'failed' in this wing
  *   5. low_confidence_critical  — any issue with confidence: low AND severity: critical
  */
@@ -45,7 +59,7 @@ export class ConsistencyChecker {
           severity: 'warning',
           domain_key: key,
           rule: 'failed_domain',
-          message: `${key} could not be analysed — pipeline continued without it. Verify the cause before approving.`,
+          message: qualityGateFailedDomainMessage(key),
         });
         continue; // no further checks on failed domain
       }
@@ -63,48 +77,53 @@ export class ConsistencyChecker {
       const hasCritical = issues.some(i => i.severity === 'critical');
       const hasCriticalOrHigh = issues.some(i => i.severity === 'critical' || i.severity === 'high');
 
-      if (score >= 4 && hasCritical) {
+      if (score >= QG.scoreSeverityMismatchCriticalMinScore && hasCritical) {
         flags.push({
           id: `score-severity:${key}`,
           severity: 'warning',
           domain_key: key,
           rule: 'score_severity_mismatch',
-          message: `${key} scored ${score}/5 (Good/Excellent) but contains a critical-severity issue. Score may be over-optimistic.`,
+          message: qualityGateScoreHighWithCriticalMessage(key, score),
         });
       }
 
-      if (score <= 2 && issues.length > 0 && !hasCriticalOrHigh) {
+      if (score <= QG.scoreSeverityMismatchLowMaxScore && issues.length > 0 && !hasCriticalOrHigh) {
         flags.push({
           id: `low-score-no-critical:${key}`,
           severity: 'info',
           domain_key: key,
           rule: 'score_severity_mismatch',
-          message: `${key} scored ${score}/5 but has no critical or high severity issues — score may be too conservative.`,
+          message: qualityGateScoreLowWithoutCriticalHighMessage(key, score),
         });
       }
 
       // ── Rule 2: low-confidence majority ─────────────────────────────
       if (confDist && issues.length > 0) {
         const lowRatio = confDist.low / issues.length;
-        if (lowRatio > 0.5) {
+        if (lowRatio > QG.lowConfidenceRatioWarn) {
           flags.push({
             id: `low-conf-majority:${key}`,
             severity: 'warning',
             domain_key: key,
             rule: 'low_confidence_majority',
-            message: `${key}: ${confDist.low} of ${issues.length} findings (${Math.round(lowRatio * 100)}%) have low confidence. Review carefully before proceeding.`,
+            message: qualityGateLowConfidenceMajorityMessage({
+              domainKey: key,
+              lowCount: confDist.low,
+              issueCount: issues.length,
+              lowRatio,
+            }),
           });
         }
       }
 
       // ── Rule 3: excessive data gaps ─────────────────────────────────
-      if (unknownItems.length > 4) {
+      if (unknownItems.length > QG.maxUnknownItemsForInfo) {
         flags.push({
           id: `data-gaps:${key}`,
           severity: 'info',
           domain_key: key,
           rule: 'excessive_data_gaps',
-          message: `${key}: ${unknownItems.length} areas could not be assessed — consider collecting additional data before the analytic phases.`,
+          message: qualityGateExcessiveDataGapsMessage(key, unknownItems.length),
         });
       }
 
@@ -116,12 +135,13 @@ export class ConsistencyChecker {
           severity: 'warning',
           domain_key: key,
           rule: 'low_confidence_critical',
-          message: `${key}: ${lowConfCritical.length} critical finding(s) with low confidence — "${lowConfCritical[0].title}". Verify these before including in the report.`,
+          message: qualityGateLowConfidenceCriticalMessage(key, lowConfCritical.length, lowConfCritical[0].title),
         });
       }
     }
 
     const passed = !flags.some(f => f.severity === 'warning');
+    const warningCount = flags.filter(f => f.severity === 'warning').length;
     const report: QualityGateReport = {
       passed,
       flags,
@@ -132,10 +152,8 @@ export class ConsistencyChecker {
     await supabase.from('pipeline_events').insert({
       audit_id: auditId,
       phase: gatePhase,
-      event_type: 'quality_gate',
-      message: passed
-        ? `Quality gate passed — no warnings found`
-        : `Quality gate: ${flags.filter(f => f.severity === 'warning').length} warning(s) require attention`,
+      event_type: PIPELINE_EVENT_TYPES.qualityGate,
+      message: passed ? qualityGateEventMessagePassed() : qualityGateEventMessageWarnings(warningCount),
       data: report,
     });
 

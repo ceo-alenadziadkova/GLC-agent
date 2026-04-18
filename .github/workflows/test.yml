@@ -1,4 +1,4 @@
-name: Test
+name: Fast Gate
 
 on:
   push:
@@ -6,34 +6,111 @@ on:
   pull_request:
 
 jobs:
-  vitest:
+  security-gates:
+    name: fast-gate / security-gates
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-      - name: Frontend unit tests
-        run: npm ci && npm test
-      - name: Backend unit tests
-        working-directory: server
-        run: npm ci && npm test
-
-  playwright:
-    runs-on: ubuntu-latest
-    needs: vitest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-      - run: npm ci
-      - run: npx playwright install chromium --with-deps
-      - name: E2E smoke
-        run: npm run test:e2e
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
         env:
-          CI: true
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Migration smoke
+        run: |
+          python - <<'PY'
+          import glob, os, re, sys
+          files = sorted(glob.glob('server/migrations/*.sql'))
+          if not files:
+            print('No migrations found')
+            sys.exit(1)
+          nums = [int(re.match(r'.*/(\d+)_', f).group(1)) for f in files if re.match(r'.*/(\d+)_', f)]
+          if nums != sorted(nums):
+            print('Migration numbering is not monotonic')
+            sys.exit(1)
+          print(f'Migration smoke passed: {len(files)} files, latest={os.path.basename(files[-1])}')
+          PY
+      - name: Security policy tests
+        run: pnpm --filter glc-audit-server test -- src/tests/user-isolation.test.ts src/tests/public-http-url.test.ts src/tests/pipeline-error-fallback.test.ts
+
+  question-stack-contracts:
+    name: fast-gate / question-stack-contracts
+    runs-on: ubuntu-latest
+    needs: security-gates
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dorny/paths-filter@v3
+        id: question_stack
+        with:
+          filters: |
+            changed:
+              - 'packages/intake-core/src/question-bank.v1.json'
+              - 'packages/intake-core/src/intake-policy.v1.json'
+              - 'packages/intake-core/src/bank-question-ui-overrides.ts'
+              - 'packages/intake-core/src/discovery-wizard-questions.ts'
+      - uses: pnpm/action-setup@v4
+        if: steps.question_stack.outputs.changed == 'true'
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        if: steps.question_stack.outputs.changed == 'true'
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install workspace
+        if: steps.question_stack.outputs.changed == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Question stack required tests
+        if: steps.question_stack.outputs.changed == 'true'
+        run: |
+          pnpm vitest src/app/data/bank-question-ui-catalog-parity.test.ts
+          pnpm vitest src/app/lib/discovery-flow.test.ts
+          pnpm --filter glc-audit-server test -- src/tests/question-bank-answer-contract.test.ts src/tests/discovery-ui-fragment.test.ts src/tests/question-stack-invariants.test.ts src/tests/question-plan-resolver-parity.test.ts
+      - name: Skip message
+        if: steps.question_stack.outputs.changed != 'true'
+        run: echo "Question stack files unchanged — skipping focused contract tests."
+
+  vitest:
+    name: fast-gate / type-lint-unit
+    runs-on: ubuntu-latest
+    needs: [security-gates, question-stack-contracts]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm run typecheck
+      - name: Lint
+        run: pnpm run lint
+      - name: Design-system drift budget (§4.1)
+        run: pnpm run audit:ds:drift-budget
+      - name: Design-system enforcement
+        run: pnpm run audit:ds:ci
+      - name: Frontend unit tests
+        run: pnpm test
+      - name: Backend unit tests
+        run: pnpm --filter glc-audit-server test

@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { isRouteErrorResponse, useNavigate, useLocation, useRouteError } from 'react-router';
 import { resolveGlcErrorHome } from '../lib/glc-error-home';
+import { logger } from '../lib/logger';
 import { GlcAppErrorScreen } from './GlcAppErrorScreen';
 
 function errorToTechnicalDetail(error: unknown): string | undefined {
@@ -15,7 +16,7 @@ function errorToTechnicalDetail(error: unknown): string | undefined {
 }
 
 /**
- * React Router `errorElement` — friendly copy; technical detail only for support payload / console.
+ * React Router `errorElement` — friendly copy; technical detail only for support payload / logs.
  */
 export function RouteErrorPage() {
   const error = useRouteError();
@@ -24,8 +25,11 @@ export function RouteErrorPage() {
   const supportRef = useMemo(() => crypto.randomUUID(), []);
 
   useEffect(() => {
-    console.error('[RouteErrorPage]', error);
-  }, [error]);
+    logger.error('[RouteErrorPage]', {
+      support_ref: supportRef,
+      detail: errorToTechnicalDetail(error),
+    });
+  }, [error, supportRef]);
 
   const technicalDetail = errorToTechnicalDetail(error);
   const { href: homeHref, label: homeLabel } = resolveGlcErrorHome(location.pathname);

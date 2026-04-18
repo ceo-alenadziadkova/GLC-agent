@@ -14,11 +14,32 @@ const { setEvents, getEvents } = vi.hoisted(() => {
 
 vi.mock('../services/supabase.js', () => ({
   supabase: {
-    from: () => ({
-      select: () => ({
-        gte: async () => ({ data: getEvents(), error: null }),
-      }),
-    }),
+    from: (table: string) => {
+      if (table === 'pipeline_events') {
+        return {
+          select: () => ({
+            gte: async () => ({ data: getEvents(), error: null }),
+          }),
+        };
+      }
+      if (table === 'profiles') {
+        return {
+          select: () => ({
+            eq: async () => ({ data: [{ id: 'consultant-1' }], error: null }),
+          }),
+        };
+      }
+      if (table === 'notifications') {
+        return {
+          insert: async () => ({ error: null }),
+        };
+      }
+      return {
+        select: () => ({
+          gte: async () => ({ data: [], error: null }),
+        }),
+      };
+    },
   },
 }));
 
@@ -31,6 +52,16 @@ vi.mock('../services/logger.js', () => ({
   },
 }));
 
+vi.mock('../config/alerts-config.js', () => ({
+  ALERT_CHECK_INTERVAL_MS: 60_000,
+  ALERT_CHECK_WINDOW_MINUTES: 15,
+  ALERT_COOLDOWN_MS: 900_000,
+  ALERT_FAILURE_RATE_THRESHOLD: 0.01,
+  ALERT_LATENCY_P95_MS_THRESHOLD: 1,
+  ALERT_LOCK_TTL_MS: 55_000,
+  ALERT_TOKEN_BURN_THRESHOLD: 1,
+}));
+
 import { runAlertChecks } from '../services/alerts.js';
 
 describe('alerts deep links', () => {
@@ -39,9 +70,6 @@ describe('alerts deep links', () => {
     vi.restoreAllMocks();
     process.env.TELEGRAM_BOT_TOKEN = 'bot-token';
     process.env.TELEGRAM_CHAT_ID = 'chat-id';
-    process.env.ALERT_FAILURE_RATE_THRESHOLD = '0.2';
-    process.env.ALERT_LATENCY_P95_MS_THRESHOLD = '1';
-    process.env.ALERT_TOKEN_BURN_15M_THRESHOLD = '1';
     process.env.SENTRY_TRACE_LINK_TEMPLATE = '';
     process.env.TRACE_LINK_TEMPLATE = '';
   });
@@ -80,6 +108,8 @@ describe('alerts deep links', () => {
 
     expect(fetchMock).toHaveBeenCalled();
     const firstPayload = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { text: string };
+    expect(firstPayload.text).toContain('[RED|CRITICAL]');
+    expect(firstPayload.text).toContain('event=alert_failure_rate_high');
     expect(firstPayload.text).toContain('https://sentry.example/traces/abc123');
     expect(firstPayload.text).toContain('https://trace.example/id/abc123');
   });
@@ -111,6 +141,7 @@ describe('alerts deep links', () => {
 
     expect(fetchMock).toHaveBeenCalled();
     const firstPayload = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { text: string };
+    expect(firstPayload.text).toContain('[RED|CRITICAL]');
     expect(firstPayload.text).toContain('trace_id=fallback-trace');
   });
 });

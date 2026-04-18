@@ -2,8 +2,21 @@ import { getClientEnvironmentSummary } from './client-environment';
 import { supabase } from './supabase';
 import { isAnonymousUser } from './snapshot-auth';
 import { getApiBaseUrl } from './api-base-url';
+import { API_PATHS, type ApiLogPath } from '../config/api-paths';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+const LOG_LEVEL_ORDER: Record<LogLevel, number> = {
+  debug: 10,
+  info: 20,
+  warn: 30,
+  error: 40,
+};
+
+function resolveDevConsoleMinLevel(): LogLevel {
+  const raw = String(import.meta.env.VITE_DEV_CONSOLE_LOG_LEVEL ?? '').trim().toLowerCase();
+  if (raw === 'debug' || raw === 'info' || raw === 'warn' || raw === 'error') return raw;
+  return 'warn';
+}
 
 interface LogPayload {
   level: LogLevel;
@@ -15,6 +28,24 @@ interface LogPayload {
   operation_id: string;
 }
 
+const SENSITIVE_KEY_RE = /(token|secret|password|authorization|auth|api[_-]?key|key)/i;
+
+function sanitizeContext(value: unknown, depth = 0): unknown {
+  if (depth > 4) return '[Truncated]';
+  if (value === null || value === undefined) return value;
+  if (Array.isArray(value)) return value.map(v => sanitizeContext(v, depth + 1));
+  if (typeof value !== 'object') return value;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (SENSITIVE_KEY_RE.test(k)) {
+      out[k] = '[REDACTED]';
+      continue;
+    }
+    out[k] = sanitizeContext(v, depth + 1);
+  }
+  return out;
+}
+
 function randomHex(bytes: number): string {
   const arr = new Uint8Array(bytes);
   crypto.getRandomValues(arr);
@@ -23,9 +54,19 @@ function randomHex(bytes: number): string {
 
 /** After a 429, pause remote ingest to avoid hammering the API and console noise. */
 let remoteLogBackoffUntil = 0;
+let remoteLoggingDisabledForSession = false;
 
 async function sendLog(payload: LogPayload) {
   try {
+    // In local development, keep logs console-only.
+    if (import.meta.env.DEV) {
+      return;
+    }
+
+    if (remoteLoggingDisabledForSession) {
+      return;
+    }
+
     if (Date.now() < remoteLogBackoffUntil) {
       return;
     }
@@ -36,7 +77,7 @@ async function sendLog(payload: LogPayload) {
     const base = getApiBaseUrl();
     const trySnapshotFirst = isAnonymousUser(session.user);
 
-    async function post(path: '/api/log' | '/api/log/snapshot') {
+    async function post(path: ApiLogPath) {
       return fetch(`${base}${path}`, {
         method: 'POST',
         headers: {
@@ -47,20 +88,21 @@ async function sendLog(payload: LogPayload) {
       });
     }
 
-    let res = trySnapshotFirst ? await post('/api/log/snapshot') : await post('/api/log');
+    let res = trySnapshotFirst ? await post(API_PATHS.logSnapshot) : await post(API_PATHS.log);
     if (!trySnapshotFirst && res.status === 403) {
-      res = await post('/api/log/snapshot');
+      res = await post(API_PATHS.logSnapshot);
     }
 
     if (res.status === 429) {
       remoteLogBackoffUntil = Date.now() + 90_000;
       if (import.meta.env.DEV) {
-        // eslint-disable-next-line no-console
         console.warn('[logger] Remote ingest rate-limited (429); pausing backend log POSTs for 90s');
       }
     }
   } catch {
-    // Swallow logging errors to avoid breaking UX
+    // Network/API unavailable (common in local dev): silence remote logger for this tab session.
+    remoteLoggingDisabledForSession = true;
+    remoteLogBackoffUntil = Date.now() + 5 * 60_000;
   }
 }
 
@@ -71,11 +113,12 @@ function baseLog(level: LogLevel, message: string, context?: Record<string, unkn
     client_env: getClientEnvironmentSummary(),
     ...context,
   };
+  const safeContext = sanitizeContext(mergedContext) as Record<string, unknown>;
   const payload: LogPayload = {
     level,
     source: 'frontend',
     message,
-    context: mergedContext,
+    context: safeContext,
     timestamp: new Date().toISOString(),
     trace_id: traceId,
     operation_id: operationId,
@@ -83,8 +126,10 @@ function baseLog(level: LogLevel, message: string, context?: Record<string, unkn
   // Send remote logs and keep dev console visibility.
   void sendLog(payload);
   if (import.meta.env.DEV) {
-    // eslint-disable-next-line no-console
-    console[level]?.(`[${payload.level.toUpperCase()}] ${payload.message}`, mergedContext);
+    const minLevel = resolveDevConsoleMinLevel();
+    if (LOG_LEVEL_ORDER[level] >= LOG_LEVEL_ORDER[minLevel]) {
+      console[level]?.(`[${payload.level.toUpperCase()}] ${payload.message}`, safeContext);
+    }
   }
 }
 

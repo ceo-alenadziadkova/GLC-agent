@@ -1,5 +1,5 @@
 # Machine-readable site classification for free snapshot (rule-based, no LLM).
-version: 4
+version: 5
 tieDeltaThreshold: 1.35
 globalCaps:
   contentQualityLow: low
@@ -62,9 +62,9 @@ siteTypes:
 
   - id: service-business
     priority: 45
-    minMatch: 2
+    minMatch: 3
     signals:
-      - { kind: slugAny, substrings: [services, service, consulting, agency, contact, about] }
+      - { kind: slugAny, substrings: [services, service, consulting, agency, solutions, capabilities, industries, testimonials, clients, team, careers, case-studies, portfolio] }
       - { kind: keywordAny, fields: [title, h1, metaDescription], substrings: ["agency", "consulting", "services", "firm", "studio"] }
       - { kind: schemaTypeAny, types: [Organization, ProfessionalService] }
 
@@ -134,7 +134,7 @@ conversionModels:
     minMatch: 2
     signals:
       - { kind: ctaSubstringAny, substrings: ["solicitar demo", "agendar demo", "book demo", "request demo", "schedule demo", "see demo", "demo vereinbaren", "richiedi demo"] }
-      - { kind: slugAny, substrings: [demo, contact, sales] }
+      - { kind: slugAny, substrings: [demo, sales, book-a-demo, "book-demo"] }
 
   - id: call-booking
     minMatch: 2

@@ -1,0 +1,16 @@
+# Gitleaks configuration for CI (gitleaks-action). Example env files use secret-shaped placeholders.
+title = "glc-agent"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Template env files, documented i18n identifiers, and browser localStorage ids (not secrets)"
+paths = [
+  '''\.env\.example$''',
+]
+regexes = [
+  '''MARKETING_BRIEF_ROUTE_I18N_KEYS''',
+  # Settings notification toggles — localStorage id; generic-api-key false positive on historical commits
+  '''glc_notify_prefs_v1''',
+]

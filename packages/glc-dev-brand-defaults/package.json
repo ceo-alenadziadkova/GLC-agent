@@ -1,0 +1,18 @@
+{
+  "name": "@glc/dev-brand-defaults",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./public-brand-defaults.v1.json": "./dist/public-brand-defaults.v1.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && cp src/public-brand-defaults.v1.json dist/public-brand-defaults.v1.json"
+  }
+}

@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../data/apiService';
 import { glcKeys } from '../lib/glc-keys';
+import { AUDITS_LIST_DEFAULTS } from '../config/audits-list-defaults';
 
-export function useAudits(limit = 50) {
+export function useAudits(limit: number = AUDITS_LIST_DEFAULTS.defaultLimit) {
   const queryClient = useQueryClient();
   const [offset, setOffset] = useState(0);
 
@@ -14,7 +15,7 @@ export function useAudits(limit = 50) {
   const q = useQuery({
     queryKey: glcKeys.audits.list(limit, offset),
     queryFn: () => api.listAudits(limit, offset),
-    staleTime: 120_000,
+    staleTime: AUDITS_LIST_DEFAULTS.staleTimeMs,
   });
 
   const audits = q.data?.data ?? [];

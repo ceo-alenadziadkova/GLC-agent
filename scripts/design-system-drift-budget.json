@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "stableSignatureCount": 0,
+  "asOf": "2026-04-17",
+  "note": "Drift Budget baseline: stable dedupe key file+type+value (§4.1). Update only via pnpm run audit:ds:drift-budget:record when intentionally shrinking drift."
+}

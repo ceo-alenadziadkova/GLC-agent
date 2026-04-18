@@ -5,15 +5,10 @@ import { CaretRight } from '@phosphor-icons/react';
 import { StatusPill } from './glc/StatusPill';
 import type { AuditMeta } from '../data/auditTypes';
 import { formatAuditWebsiteDisplay } from '../data/no-public-website';
+import { auditPackageLabel, isSnapshotStyleAudit } from '../lib/audit-execution-plan';
+import { PORTAL_AUDIT_CARD_COPY } from '../config/portal-audit-card-copy.en';
 
 type PortalPillStatus = ComponentProps<typeof StatusPill>['status'];
-
-function productModeShortLabel(mode: AuditMeta['product_mode'] | undefined): string | null {
-  if (mode === 'express') return 'Express audit';
-  if (mode === 'full') return 'Full audit';
-  if (mode === 'free_snapshot') return 'Free snapshot';
-  return null;
-}
 
 function formatUpdatedRelative(iso: string | undefined): string {
   if (!iso) return '';
@@ -31,71 +26,78 @@ function clientPortalAuditPresentation(a: AuditMeta): {
   hint: string;
   pulse: boolean;
 } {
+  const C = PORTAL_AUDIT_CARD_COPY.statuses;
   switch (a.status) {
     case 'created':
       return {
         pill: 'pending',
-        label: 'Brief & setup',
-        hint: 'Complete the intake brief on the next screen, then start your audit when you are ready.',
+        label: C.created.label,
+        hint: C.created.hint,
         pulse: false,
       };
     case 'recon':
       return {
         pill: 'running',
-        label: 'Scanning your site',
-        hint: 'We are collecting public information about your website.',
+        label: C.recon.label,
+        hint: C.recon.hint,
         pulse: true,
       };
     case 'auto':
     case 'analytic':
       return {
         pill: 'running',
-        label: 'Analysis running',
-        hint: 'Automated phases are in progress. Open the audit to follow the pipeline.',
+        label: C.auto.label,
+        hint: C.auto.hint,
         pulse: true,
       };
     case 'review':
       return {
         pill: 'review',
-        label: 'Review pause',
-        hint: 'Waiting on your GLC consultant at a review step before the run continues.',
+        label: C.review.label,
+        hint: C.review.hint,
         pulse: false,
       };
     case 'completed':
-      if (a.product_mode === 'free_snapshot') {
+      if (isSnapshotStyleAudit(a)) {
         return {
           pill: 'completed',
-          label: 'Completed',
-          hint:
-            'Quick scan saved in your account — same view as the snapshot page. A full Express or Full audit is a separate programme; open the audit to continue.',
+          label: C.completedSnapshot.label,
+          hint: C.completedSnapshot.hint,
           pulse: false,
         };
       }
       return {
         pill: 'completed',
-        label: 'Completed',
-        hint: 'Your report and deliverables are ready to view.',
+        label: C.completed.label,
+        hint: C.completed.hint,
         pulse: false,
       };
     case 'failed':
       return {
         pill: 'failed',
-        label: 'Needs attention',
-        hint: 'The run stopped unexpectedly. Your GLC contact can help.',
+        label: C.failed.label,
+        hint: C.failed.hint,
+        pulse: false,
+      };
+    case 'cancelled':
+      return {
+        pill: 'cancelled',
+        label: C.cancelled.label,
+        hint: C.cancelled.hint,
         pulse: false,
       };
     default:
       return {
         pill: 'running',
         label: a.status.replace(/_/g, ' '),
-        hint: 'Open this audit for details.',
+        hint: C.defaultUnknownHint,
         pulse: false,
       };
   }
 }
 
 function portalCardWebsiteLine(a: AuditMeta, title: string): string | null {
-  const site = formatAuditWebsiteDisplay(a.company_url);
+  const site = formatAuditWebsiteDisplay(a.company_url, a.no_public_website);
   if (!site) return null;
   if (a.company_name?.trim() && site !== title) return site;
   return null;
@@ -109,49 +111,45 @@ interface PortalAuditCardProps {
  * Single audit row/card for the client portal list. Shared layout for consistent mobile and desktop density.
  */
 export function PortalAuditCard({ audit: a }: PortalAuditCardProps) {
-  const title = a.company_name?.trim() || formatAuditWebsiteDisplay(a.company_url) || 'Your audit';
+  const title =
+    a.company_name?.trim() || formatAuditWebsiteDisplay(a.company_url, a.no_public_website) || PORTAL_AUDIT_CARD_COPY.fallbackTitle;
   const websiteLine = portalCardWebsiteLine(a, title);
   const pres = clientPortalAuditPresentation(a);
-  const modeLabel = productModeShortLabel(a.product_mode);
+  const modeLabel = auditPackageLabel(a, { style: 'audit' });
   const updatedRel = formatUpdatedRelative(a.updated_at);
-  const metaParts = [a.industry?.trim(), modeLabel, updatedRel ? `Updated ${updatedRel}` : null].filter(
-    Boolean,
-  ) as string[];
+  const metaParts = [
+    a.industry?.trim(),
+    modeLabel,
+    updatedRel ? `${PORTAL_AUDIT_CARD_COPY.updatedPrefix} ${updatedRel}` : null,
+  ].filter(Boolean) as string[];
 
   return (
     <Link
       to={`/portal/audit/${a.id}`}
-      className="block no-underline rounded-xl px-4 py-3.5 transition-all active:opacity-90 mobile:py-3"
-      style={{
-        backgroundColor: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)',
-      }}
+      className="block no-underline rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-4 py-3.5 transition-all active:opacity-90 mobile:py-3"
     >
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0 space-y-1.5">
-          <div
-            className="font-semibold truncate"
-            style={{ color: 'var(--text-primary)', fontSize: 'var(--text-sm)' }}
-          >
+          <div className="text-[length:var(--text-sm)] font-semibold truncate text-[var(--text-primary)]">
             {title}
           </div>
           {websiteLine ? (
-            <div className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>
+            <div className="text-xs truncate text-[var(--text-secondary)]">
               {websiteLine}
             </div>
           ) : null}
-          <p className="text-xs m-0 leading-relaxed mobile:line-clamp-3" style={{ color: 'var(--text-quaternary)' }}>
+          <p className="text-xs m-0 leading-relaxed text-[var(--text-quaternary)] mobile:line-clamp-3">
             {pres.hint}
           </p>
           {metaParts.length > 0 ? (
-            <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+            <div className="text-xs text-[var(--text-tertiary)]">
               {metaParts.join(' · ')}
             </div>
           ) : null}
         </div>
         <div className="flex flex-col items-end gap-2 flex-shrink-0 pt-0.5">
           <StatusPill status={pres.pill} label={pres.label} pulse={pres.pulse} />
-          <CaretRight className="w-4 h-4" style={{ color: 'var(--text-quaternary)' }} aria-hidden />
+          <CaretRight className="h-4 w-4 text-[var(--text-quaternary)]" aria-hidden />
         </div>
       </div>
     </Link>

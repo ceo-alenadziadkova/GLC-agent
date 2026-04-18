@@ -1,0 +1,18 @@
+{
+  "infra_arch_overhaul_small_team": "Core architecture change recommended but team size < 3 — high integration risk.",
+  "infra_high_issue_count_low_maturity": "{{count}} high/critical infra issues but tech maturity is low — remediation timeline likely underestimated.",
+  "infra_no_dev_team": "Multiple infrastructure improvements recommended but no dedicated dev team reported.",
+  "security_compliance_no_policy_foundation": "Compliance recommendations present but no existing audit policy — prerequisite work needed first.",
+  "security_critical_issues_insufficient_team": "{{count}} critical security issues but team size < 2 — resolution timeline at risk.",
+  "security_low_score_many_recs": "Security score critical (≤2) with many recommendations — foundational fixes must precede advanced items.",
+  "seo_tech_recs_no_dev_capacity": "Technical SEO improvements recommended but no dedicated dev team — implementation dependency risk.",
+  "seo_missing_analytics": "No analytics platform detected — SEO performance measurement and iteration will be blind.",
+  "ux_ab_test_no_analytics": "A/B testing recommended but no analytics platform in place — testing infrastructure prerequisite missing.",
+  "ux_design_overhaul_small_team": "Full UX redesign recommended but very small team — scope reduction may be needed.",
+  "marketing_multichannel_no_crm": "Multi-channel or CRM-dependent marketing recommendations without a CRM in place.",
+  "marketing_paid_recs_low_budget": "Paid acquisition recommendations but reported monthly budget < ${{budgetUsd}} — minimum viable spend may not be achievable.",
+  "automation_integration_sprawl": "Complex automation recommended on top of high integration count (>{{integrationGt}} tools) — orchestration complexity risk.",
+  "automation_advanced_recs_low_maturity": "Advanced automation recommendations (ML, AI-powered) but tech maturity is low — foundational automation should come first.",
+  "automation_custom_code_no_dev_team": "Custom-coded automation recommended without a dedicated dev team.",
+  "universal_high_effort_low_budget": "{{criticalCount}} critical issues + {{recCount}} recommendations with budget < ${{monthlyBudgetUsd}}/mo — prioritisation essential."
+}

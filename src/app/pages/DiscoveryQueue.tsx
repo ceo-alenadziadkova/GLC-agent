@@ -15,6 +15,13 @@ import {
 import { api } from '../data/apiService';
 import { AppShell } from '../components/AppShell';
 import { glcKeys } from '../lib/glc-keys';
+import { UI_FEEDBACK_FLASH_MS } from '../config/ui-feedback-defaults';
+import {
+  DISCOVERY_QUEUE_COPY,
+} from '../config/discovery-queue-copy.en';
+import { DISCOVERY_QUEUE_PAGE_CONFIG } from '../config/discovery-queue-page-config';
+import { buildAbsoluteUrlFromOrigin } from '../lib/public-app-url';
+import { Button } from '../components/ui/button';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -34,25 +41,24 @@ interface DiscoverySession {
 
 // ── Maturity helpers ──────────────────────────────────────────────────────────
 
-const MATURITY_CONFIG: Record<number, { label: string; color: string }> = {
-  1: { label: 'Early-stage',   color: '#EF4444' },
-  2: { label: 'Developing',    color: '#F97316' },
-  3: { label: 'Intermediate',  color: '#F59E0B' },
-  4: { label: 'Advanced',      color: '#10B981' },
-  5: { label: 'Low priority',  color: '#6B7280' },
-};
+function maturityLabel(level: number): string {
+  const fromCopy = DISCOVERY_QUEUE_COPY.maturity[level as keyof typeof DISCOVERY_QUEUE_COPY.maturity];
+  return fromCopy ?? DISCOVERY_QUEUE_COPY.maturityLevelFallback(level);
+}
+
+function maturityConfig(level: number): { label: string; toneClass: string } {
+  const toneClass = level >= 4 ? 'border-success/50 bg-success/10 text-success' : level >= 3 ? 'border-info/50 bg-info/10 text-info' : 'border-warning/50 bg-warning/10 text-warning';
+  return {
+    label: maturityLabel(level),
+    toneClass,
+  };
+}
 
 function MaturityPill({ level }: { level: number }) {
-  const cfg = MATURITY_CONFIG[level] ?? { label: `Level ${level}`, color: '#6B7280' };
+  const cfg = maturityConfig(level);
   return (
     <span
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
-      style={{
-        background: `${cfg.color}18`,
-        border: `1px solid ${cfg.color}40`,
-        color: cfg.color,
-        letterSpacing: '0.03em',
-      }}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[length:var(--text-2xs)] font-bold ds-discovery-maturity-tracking ${cfg.toneClass}`}
     >
       {level} · {cfg.label}
     </span>
@@ -76,15 +82,7 @@ function SessionCard({
   });
 
   return (
-    <div
-      className="rounded-2xl p-4 mobile:p-5 space-y-4"
-      style={{
-        background: 'var(--bg-surface)',
-        border: session.audit_id
-          ? '1px solid rgba(14,207,130,0.28)'
-          : '1px solid var(--border-subtle)',
-      }}
-    >
+    <div className={`space-y-4 rounded-2xl border bg-card p-4 mobile:p-5 ${session.audit_id ? 'border-success/40' : 'border-border'}`}>
       {/* Header row */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <div className="space-y-1.5 min-w-0">
@@ -92,115 +90,93 @@ function SessionCard({
             <MaturityPill level={session.maturity_level} />
             {session.audit_id && (
               <span
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                style={{ background: 'var(--glc-green-muted)', border: '1px solid rgba(14,207,130,0.30)', color: 'var(--glc-green-dark)' }}
+                className="text-success inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-[length:var(--text-2xs)] font-semibold"
               >
-                <CheckCircle size={10} weight="fill" /> Converted
+                <CheckCircle size={10} weight="fill" /> {DISCOVERY_QUEUE_COPY.converted}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1" style={{ color: 'var(--text-tertiary)', fontSize: 11 }}>
+          <div className="text-muted-foreground flex items-center gap-1 text-xs">
             <Calendar size={11} />
             <span>{date}</span>
           </div>
         </div>
 
         {!session.audit_id && (
-          <button
+          <Button
             type="button"
             disabled={converting}
             onClick={() => onConvert(session.session_token)}
-            className="flex w-full sm:w-auto items-center justify-center gap-1.5 px-3.5 py-3 sm:py-2 rounded-xl text-sm font-semibold flex-shrink-0 glc-touch-target sm:min-h-0"
-            style={{
-              background: converting ? 'var(--bg-muted)' : 'var(--gradient-brand)',
-              color: converting ? 'var(--text-tertiary)' : 'var(--primary-foreground)',
-              border: 'none',
-              cursor: converting ? 'not-allowed' : 'pointer',
-              boxShadow: converting ? 'none' : '0 3px 10px rgba(28,189,255,0.28)',
-            }}
+            variant={converting ? 'secondary' : 'default'}
+            className={`glc-touch-target flex w-full flex-shrink-0 items-center justify-center gap-1.5 rounded-xl px-3.5 py-3 text-sm font-semibold sm:min-h-0 sm:w-auto sm:py-2 ${
+              converting ? 'cursor-not-allowed bg-muted text-muted-foreground' : ''
+            }`}
           >
             {converting
-              ? <><Spinner size={13} className="animate-spin" /> Creating…</>
-              : <>Convert to audit <ArrowRight size={13} /></>}
-          </button>
+              ? <><Spinner size={13} className="animate-spin" /> {DISCOVERY_QUEUE_COPY.creating}</>
+              : <>{DISCOVERY_QUEUE_COPY.convertToAudit} <ArrowRight size={13} /></>}
+          </Button>
         )}
 
         {session.audit_id && (
           <a
             href={`/audit/${session.audit_id}`}
-            className="flex w-full sm:w-auto items-center justify-center gap-1.5 px-3 py-3 sm:py-1.5 rounded-xl text-xs font-semibold glc-touch-target sm:min-h-0 no-underline"
-            style={{
-              background: 'var(--glc-green-muted)',
-              border: '1px solid rgba(14,207,130,0.28)',
-              color: 'var(--glc-green-dark)',
-              textDecoration: 'none',
-            }}
+            className="text-success glc-touch-target flex w-full items-center justify-center gap-1.5 rounded-xl border border-success/40 bg-success/10 px-3 py-3 text-xs font-semibold no-underline sm:min-h-0 sm:w-auto sm:py-1.5"
           >
-            Open audit <ArrowRight size={12} />
+            {DISCOVERY_QUEUE_COPY.openAudit} <ArrowRight size={12} />
           </a>
         )}
       </div>
 
       {/* Business identity — contact details if provided, else biz_description + industry */}
-      <div
-        className="rounded-xl px-3 py-2 space-y-1.5"
-        style={{ background: 'var(--bg-muted)', border: '1px solid var(--border-subtle)' }}
-      >
+      <div className="space-y-1.5 rounded-xl border bg-muted/30 px-3 py-2">
         {/* Contact info row */}
         {(session.contact_name || session.contact_email || session.contact_phone || session.contact_company) ? (
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {session.contact_name && (
-              <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                <UserCircle size={13} style={{ color: 'var(--glc-blue)' }} />
+              <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                <UserCircle size={13} className="text-info" />
                 {session.contact_name}
               </span>
             )}
             {session.contact_company && (
-              <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                <Buildings size={13} style={{ color: 'var(--glc-blue)' }} />
+              <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                <Buildings size={13} className="text-info" />
                 {session.contact_company}
               </span>
             )}
             {session.contact_email && (
-              <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                <EnvelopeSimple size={13} style={{ color: 'var(--glc-blue)' }} />
+              <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                <EnvelopeSimple size={13} className="text-info" />
                 {session.contact_email}
               </span>
             )}
             {session.contact_phone && (
-              <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                <Phone size={13} style={{ color: 'var(--glc-blue)' }} />
+              <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+                <Phone size={13} className="text-info" />
                 {session.contact_phone}
               </span>
             )}
           </div>
         ) : (
-          <p style={{ fontSize: 11, color: 'var(--text-quaternary)', fontStyle: 'italic' }}>
-            No contact info provided
+          <p className="text-muted-foreground text-xs italic">
+            {DISCOVERY_QUEUE_COPY.noContactInfo}
           </p>
         )}
 
         {/* Business description / industry (always show when present — gives context for no-contact sessions) */}
         {(session.biz_description || session.industry) && (
-          <div
-            className="space-y-0.5"
-            style={{
-              borderTop: (session.contact_name || session.contact_email || session.contact_phone || session.contact_company)
-                ? '1px solid var(--border-subtle)'
-                : 'none',
-              paddingTop: (session.contact_name || session.contact_email || session.contact_phone || session.contact_company) ? 6 : 0,
-            }}
-          >
+          <div className={`space-y-0.5 ${(session.contact_name || session.contact_email || session.contact_phone || session.contact_company) ? 'border-t pt-1.5' : ''}`}>
             {session.industry && (
-              <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                <span style={{ color: 'var(--text-quaternary)', marginRight: 4 }}>Industry</span>
+              <p className="text-muted-foreground text-xs">
+                <span className="text-muted-foreground/80 mr-1">{DISCOVERY_QUEUE_COPY.industryLabel}</span>
                 {session.industry}
               </p>
             )}
             {session.biz_description && (
-              <p style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                {session.biz_description.length > 120
-                  ? `${session.biz_description.slice(0, 117)}…`
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                {session.biz_description.length > DISCOVERY_QUEUE_PAGE_CONFIG.bizDescriptionPreviewMaxChars
+                  ? `${session.biz_description.slice(0, DISCOVERY_QUEUE_PAGE_CONFIG.bizDescriptionPreviewSliceChars)}…`
                   : session.biz_description}
               </p>
             )}
@@ -211,17 +187,16 @@ function SessionCard({
       {/* Top findings */}
       {session.findings.length > 0 && (
         <div className="space-y-1.5">
-          {session.findings.slice(0, 3).map(f => {
+          {session.findings.slice(0, DISCOVERY_QUEUE_PAGE_CONFIG.findingsPreviewCount).map(f => {
             const isHigh = f.impact === 'high';
             return (
               <div key={f.id} className="flex items-start gap-2">
                 {isHigh
-                  ? <Warning size={12} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: 'var(--score-1)' }} />
-                  : <Lightbulb size={12} weight="fill" className="mt-0.5 flex-shrink-0" style={{ color: 'var(--callout-warning-icon)' }} />}
-                <span style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  ? <Warning size={12} weight="fill" className="text-destructive mt-0.5 flex-shrink-0" />
+                  : <Lightbulb size={12} weight="fill" className="text-warning mt-0.5 flex-shrink-0" />}
+                <span className="text-muted-foreground text-xs leading-relaxed">
                   <span
-                    className="font-semibold mr-1"
-                    style={{ color: isHigh ? 'var(--score-1)' : 'var(--callout-warning-icon)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}
+                    className={`mr-1 text-[length:var(--text-2xs)] font-semibold uppercase ds-discovery-zone-caps ${isHigh ? 'text-destructive' : 'text-warning'}`}
                   >
                     {f.zone}
                   </span>
@@ -230,15 +205,17 @@ function SessionCard({
               </div>
             );
           })}
-          {session.findings.length > 3 && (
-            <p style={{ fontSize: 11, color: 'var(--text-quaternary)', paddingLeft: 16 }}>
-              +{session.findings.length - 3} more finding{session.findings.length - 3 > 1 ? 's' : ''}
+          {session.findings.length > DISCOVERY_QUEUE_PAGE_CONFIG.findingsPreviewCount && (
+            <p className="text-muted-foreground pl-4 text-xs">
+              {DISCOVERY_QUEUE_COPY.moreFindings(
+                session.findings.length - DISCOVERY_QUEUE_PAGE_CONFIG.findingsPreviewCount,
+              )}
             </p>
           )}
         </div>
       )}
       {highFindings.length === 0 && session.findings.length === 0 && (
-        <p style={{ fontSize: 11, color: 'var(--text-quaternary)' }}>No findings recorded</p>
+        <p className="text-muted-foreground text-xs">{DISCOVERY_QUEUE_COPY.noFindingsRecorded}</p>
       )}
     </div>
   );
@@ -255,12 +232,12 @@ export function DiscoveryQueue() {
       const { sessions: data } = await api.listDiscoverySessions();
       return data as DiscoverySession[];
     },
-    staleTime: 300_000,
+    staleTime: DISCOVERY_QUEUE_PAGE_CONFIG.staleTimeMs,
   });
 
   const sessions = q.data ?? [];
   const loading = q.isPending && !q.data;
-  const error = q.error ? 'Failed to load discovery sessions' : null;
+  const error = q.error ? DISCOVERY_QUEUE_COPY.loadError : null;
 
   const [converting, setConverting] = useState<string | null>(null); // token currently converting
   const [convertError, setConvertError] = useState<string | null>(null);
@@ -279,12 +256,13 @@ export function DiscoveryQueue() {
       queryClient.setQueryData<DiscoverySession[]>(glcKeys.discoverySessions(), (prev) =>
         (prev ?? []).map((s) => (s.session_token === token ? { ...s, audit_id } : s)),
       );
-      navigate(`/pipeline/${audit_id}`);
+      // New full audit with discovery answers pre-mapped into intake_brief — open workspace + brief, not pipeline.
+      navigate(`/audit/${audit_id}?brief=1`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       setConvertError(msg.includes('already converted')
-        ? 'This session was already converted to an audit.'
-        : 'Failed to create audit — please try again.');
+        ? DISCOVERY_QUEUE_COPY.convertAlreadyConverted
+        : DISCOVERY_QUEUE_COPY.convertGenericFailure);
       setConverting(null);
     }
   }
@@ -302,28 +280,23 @@ export function DiscoveryQueue() {
       title="Discovery Queue"
       subtitle={
         newCount > 0
-          ? `Mode C submissions · ${newCount} awaiting conversion`
-          : 'Mode C submissions from the public discovery questionnaire'
+          ? DISCOVERY_QUEUE_COPY.subtitleAwaiting(newCount)
+          : DISCOVERY_QUEUE_COPY.subtitleDefault
       }
       actions={(
         <div className="flex flex-col gap-2 w-full sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end sm:w-auto">
           <button
             type="button"
             onClick={() => {
-              const url = `${window.location.origin}/discovery`;
+              const url = buildAbsoluteUrlFromOrigin(DISCOVERY_QUEUE_PAGE_CONFIG.publicDiscoveryPath);
               void navigator.clipboard.writeText(url).then(() => {
                 setLinkCopied(true);
-                setTimeout(() => setLinkCopied(false), 2000);
+                setTimeout(() => setLinkCopied(false), UI_FEEDBACK_FLASH_MS);
               });
             }}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium glc-touch-target sm:min-h-0"
-            style={{
-              background: linkCopied ? 'var(--glc-green-muted)' : 'var(--callout-info-bg)',
-              border: linkCopied ? '1px solid rgba(14,207,130,0.32)' : '1px solid var(--callout-info-border)',
-              color: linkCopied ? 'var(--glc-green-dark)' : 'var(--glc-blue)',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
+            className={`glc-touch-target flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium sm:min-h-0 ${
+              linkCopied ? 'border-success/40 bg-success/10 text-success' : 'border-info/40 bg-info/10 text-info'
+            }`}
           >
             <span key={linkCopied ? 'copied' : 'idle'} className="inline-flex items-center gap-1.5">
               {linkCopied ? (
@@ -331,21 +304,15 @@ export function DiscoveryQueue() {
               ) : (
                 <Copy size={12} aria-hidden />
               )}
-              {linkCopied ? 'Copied!' : 'Copy discover link'}
+              {linkCopied ? DISCOVERY_QUEUE_COPY.copied : DISCOVERY_QUEUE_COPY.copyLink}
             </span>
           </button>
           <button
             type="button"
             onClick={() => refetchSessions()}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium glc-touch-target sm:min-h-0"
-            style={{
-              background: 'var(--bg-muted)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-            }}
+            className="glc-touch-target bg-muted text-muted-foreground flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium sm:min-h-0"
           >
-            <ArrowsClockwise size={12} /> Refresh
+            <ArrowsClockwise size={12} /> {DISCOVERY_QUEUE_COPY.refresh}
           </button>
         </div>
       )}
@@ -359,13 +326,9 @@ export function DiscoveryQueue() {
               key={tab}
               type="button"
               onClick={() => setFilter(tab)}
-              className="px-3 py-2 rounded-lg text-xs font-semibold capitalize glc-touch-target sm:min-h-0 sm:py-1.5"
-              style={{
-                background: filter === tab ? 'var(--callout-info-bg)' : 'var(--bg-muted)',
-                border: filter === tab ? '1px solid var(--callout-info-border-strong)' : '1px solid var(--border-subtle)',
-                color: filter === tab ? 'var(--glc-blue)' : 'var(--text-secondary)',
-                cursor: 'pointer',
-              }}
+              className={`glc-touch-target rounded-lg border px-3 py-2 text-xs font-semibold capitalize sm:min-h-0 sm:py-1.5 ${
+                filter === tab ? 'border-info/50 bg-info/10 text-info' : 'bg-muted text-muted-foreground'
+              }`}
             >
               {tab}
               {tab === 'all' && ` (${sessions.length})`}
@@ -377,57 +340,48 @@ export function DiscoveryQueue() {
 
         {/* Error banner */}
         {convertError && (
-          <div
-            className="flex items-center gap-2 px-4 py-3 rounded-xl mb-4"
-            style={{ background: 'var(--callout-error-bg)', border: '1px solid var(--callout-error-border)' }}
-          >
-            <Warning size={14} weight="fill" style={{ color: 'var(--score-1)' }} />
-            <span style={{ fontSize: 13, color: 'var(--score-1)' }}>{convertError}</span>
+          <div className="bg-destructive/10 border-destructive/40 mb-4 flex items-center gap-2 rounded-xl border px-4 py-3">
+            <Warning size={14} weight="fill" className="text-destructive" />
+            <span className="text-destructive text-[length:var(--text-sm)]">{convertError}</span>
             <button
               type="button"
               onClick={() => setConvertError(null)}
-              style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', fontSize: 12 }}
+              className="text-muted-foreground ml-auto text-xs"
             >
-              Dismiss
+              {DISCOVERY_QUEUE_COPY.dismiss}
             </button>
           </div>
         )}
 
         {/* Content */}
         {loading && (
-          <div className="flex items-center justify-center py-16 gap-3" style={{ color: 'var(--text-tertiary)' }}>
+          <div className="text-muted-foreground flex items-center justify-center gap-3 py-16">
             <Spinner size={18} className="animate-spin" />
-            <span style={{ fontSize: 13 }}>Loading sessions…</span>
+            <span className="text-[length:var(--text-sm)]">{DISCOVERY_QUEUE_COPY.loadingSessions}</span>
           </div>
         )}
 
         {!loading && error && (
           <div className="text-center py-12">
-            <Warning size={28} weight="fill" className="mx-auto mb-3" style={{ color: 'var(--score-1)' }} />
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{error}</p>
+            <Warning size={28} weight="fill" className="text-destructive mx-auto mb-3" />
+            <p className="text-muted-foreground text-sm">{error}</p>
             <button
               type="button"
               onClick={() => refetchSessions()}
-              className="mt-4 px-4 py-2 rounded-lg text-sm font-medium"
-              style={{
-                background: 'var(--bg-muted)',
-                border: '1px solid var(--border-default)',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-              }}
+              className="bg-muted text-muted-foreground mt-4 rounded-lg border px-4 py-2 text-sm font-medium"
             >
-              Try again
+              {DISCOVERY_QUEUE_COPY.tryAgain}
             </button>
           </div>
         )}
 
         {!loading && !error && filtered.length === 0 && (
           <div className="text-center py-16">
-            <Users size={32} weight="thin" className="mx-auto mb-3" style={{ color: 'var(--text-quaternary)' }} />
-            <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>
+            <Users size={32} weight="thin" className="text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground text-sm">
               {filter === 'all'
-                ? 'No discovery sessions yet. Use "Copy discover link" in the header to share the questionnaire.'
-                : `No ${filter} sessions.`}
+                ? DISCOVERY_QUEUE_COPY.emptyAll
+                : DISCOVERY_QUEUE_COPY.emptyFiltered(filter)}
             </p>
           </div>
         )}

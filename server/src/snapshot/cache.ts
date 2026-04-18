@@ -1,3 +1,4 @@
+import { SYSTEM_DEFAULTS } from '../config/system-defaults.js';
 import { supabase } from '../services/supabase.js';
 import { logger } from '../services/logger.js';
 import type { SnapshotCachePayload } from './types.js';
@@ -10,7 +11,7 @@ export function redactSnapshotPayloadForDomainCache(p: SnapshotCachePayload): Sn
   };
 }
 
-const DEFAULT_TTL_H = Number(process.env.SNAPSHOT_DOMAIN_CACHE_TTL_HOURS ?? 48);
+const DEFAULT_TTL_H = SYSTEM_DEFAULTS.snapshotDomainCache.ttlHours;
 
 export function normalizeSnapshotHost(companyUrl: string): string {
   try {

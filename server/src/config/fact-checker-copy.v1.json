@@ -1,0 +1,82 @@
+{
+  "version": "1.0.0",
+  "security": {
+    "invalidSslIssue": "Invalid SSL certificate caps security score at 2/5",
+    "invalidSslRawEvidence": "SSL check returned invalid",
+    "missingCriticalIssueTemplate": "Score too high: {{count}} critical security headers missing (CSP, HSTS)",
+    "missingCriticalRawEvidenceTemplate": "Missing: {{names}}",
+    "noHttpsRedirectIssue": "Score too high: HTTP does not reliably redirect to HTTPS",
+    "noHttpsRedirectRawEvidence": "ssl.redirects_to_https = false",
+    "cookieFlagsIssueTemplate": "Score too high: {{count}} cookie security issue(s) detected",
+    "cookieFlagsRawEvidenceTemplate": "Cookie issues: {{issues}}",
+    "headerHygieneIssueTemplate": "Score too high: {{count}} header hygiene issue(s) detected",
+    "headerHygieneRawEvidenceTemplate": "Header hygiene failures: {{names}}",
+    "baselineHeadersIssueTemplate": "Score too high: {{count}} baseline security header(s) missing",
+    "baselineHeadersRawEvidenceTemplate": "Missing baseline headers: {{names}}"
+  },
+  "seo": {
+    "noSitemapIssue": "Score 5/5 but no sitemap.xml found",
+    "noSitemapRawEvidence": "sitemap.exists = false",
+    "noRobotsIssue": "Score 5/5 but no robots.txt found",
+    "noRobotsRawEvidence": "robots_txt.exists = false",
+    "metaCoverageIssueTemplate": "Score too high: only {{pct}}% of pages have meta descriptions",
+    "metaCoverageRawEvidenceTemplate": "{{with_desc}}/{{total}} pages",
+    "robotsIssuesDetectedIssueTemplate": "Score too high: robots.txt has {{count}} blocking issue(s)",
+    "robotsIssuesDetectedRawEvidenceTemplate": "robots_txt.issues: {{issues}}",
+    "lowStructuredDataCoverageIssueTemplate": "Score too high: structured data coverage is only {{pct}}%",
+    "lowStructuredDataCoverageRawEvidenceTemplate": "open_graph.pages_with_structured_data = {{with_sd}}/{{total}}"
+  },
+  "tech": {
+    "noCompressionIssue": "Score too high: no HTTP compression detected",
+    "noCompressionRawEvidence": "compression.enabled = false",
+    "noCacheIssue": "Score too high: no cache policy detected",
+    "noCacheRawEvidence": "caching.has_cache_policy = false",
+    "noHttpsIssue": "Score too high: HTTPS is not available for the target URL",
+    "noHttpsRawEvidence": "headers.https_available = false",
+    "slowAverageLoadIssueTemplate": "Score too high: average page load time is {{ms}}ms",
+    "slowAverageLoadRawEvidenceTemplate": "page_weights.avg_load_time_ms = {{ms}}",
+    "lowLazyLoadCoverageIssueTemplate": "Score too high: lazy-load image coverage is only {{pct}}%",
+    "lowLazyLoadCoverageRawEvidenceTemplate": "page_weights.lazy_load_coverage = {{pct}}"
+  },
+  "ux": {
+    "imageAltIssueTemplate": "Score too high: only {{pct}}% image alt text coverage",
+    "imageAltRawEvidenceTemplate": "alt_coverage_percent = {{pct}}",
+    "pagesWithoutH1IssueTemplate": "Score too high: {{count}} page(s) are missing H1",
+    "pagesWithoutH1RawEvidenceTemplate": "heading_hierarchy.pages_with_no_h1 = {{count}}",
+    "brokenHeadingHierarchyIssueTemplate": "Score too high: {{count}} page(s) have broken heading hierarchy",
+    "brokenHeadingHierarchyRawEvidenceTemplate": "heading_hierarchy.pages_with_broken_hierarchy = {{count}}",
+    "lowStructuredDataPresenceIssueTemplate": "Score too high: structured data appears on only {{pct}}% of pages",
+    "lowStructuredDataPresenceRawEvidenceTemplate": "structured_data_pages = {{with_sd}}/{{total}}"
+  },
+  "marketing": {
+    "marketSizeClaimIssue": "Score too high: market size claim is not backed by explicit source evidence",
+    "marketSizeClaimRawEvidenceTemplate": "Statement: {{statement}}",
+    "competitorClaimIssue": "Score too high: competitor claim appears unsourced",
+    "competitorClaimRawEvidenceTemplate": "Statement: {{statement}}",
+    "roiFigureIssue": "Score too high: ROI figure appears speculative",
+    "roiFigureRawEvidenceTemplate": "Statement: {{statement}}"
+  },
+  "automation": {
+    "timeSavingIssue": "Score too high: time-saving estimate appears speculative",
+    "timeSavingRawEvidenceTemplate": "Statement: {{statement}}",
+    "toolCapabilityIssue": "Score too high: tool capability claim appears unverified",
+    "toolCapabilityRawEvidenceTemplate": "Statement: {{statement}}",
+    "roiTimelineIssueTemplate": "Score too high: ROI timeline of {{months}} month(s) appears unrealistic",
+    "roiTimelineRawEvidenceTemplate": "Statement: {{statement}}"
+  },
+  "consistency": {
+    "criticalWithMaxScoreIssue": "Score 5/5 but critical issues found",
+    "criticalWithMaxScoreRawEvidenceTemplate": "Critical issues: {{titles}}",
+    "minScoreNoSevereIssue": "Score 1/5 but no critical or high issues listed",
+    "minScoreNoSevereRawEvidenceTemplate": "Max severity in issues: {{max_severity}}",
+    "weaknessesBalanceIssue": "High score but significantly more weaknesses than strengths",
+    "weaknessesBalanceRawEvidenceTemplate": "Strengths: {{strengths}}, Weaknesses: {{weaknesses}}"
+  },
+  "scoreLabels": {
+    "critical": "Critical",
+    "needsWork": "Needs Work",
+    "moderate": "Moderate",
+    "good": "Good",
+    "excellent": "Excellent"
+  }
+}

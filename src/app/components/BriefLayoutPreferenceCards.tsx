@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { ClientBriefLayoutStored } from '../lib/client-brief-layout-preference';
+import { cn } from './ui/utils';
 
 type Props = {
   onSelect: (mode: ClientBriefLayoutStored) => void;
@@ -19,7 +20,7 @@ export function BriefLayoutPreferenceCards({ onSelect, selected }: Props) {
       role="group"
       aria-label="Brief layout preference"
     >
-      <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+      <p className="text-foreground text-sm font-medium">
         Choose how you would like to fill this brief
       </p>
       <div className="grid grid-cols-1 min-[480px]:grid-cols-2 gap-3">
@@ -60,33 +61,23 @@ function LayoutOptionCard({
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className="text-left rounded-xl p-4 transition-all outline-none focus-visible:outline-2 focus-visible:outline-offset-2"
-      style={{
-        border: selected
-          ? '2px solid rgba(28,189,255,0.45)'
-          : '1px solid var(--border-subtle)',
-        backgroundColor: selected ? 'rgba(28,189,255,0.06)' : 'var(--bg-muted)',
-        boxShadow: selected ? 'var(--shadow-xs)' : 'none',
-        cursor: 'pointer',
-        outlineColor: 'var(--glc-blue)',
-      }}
+      className={cn(
+        'rounded-xl p-4 text-left outline-none transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-info cursor-pointer',
+        selected
+          ? 'border-2 border-info/50 bg-info/10 shadow-xs'
+          : 'border border-border bg-muted',
+      )}
     >
       <div
-        className="rounded-lg mb-3 overflow-hidden mx-auto"
-        style={{
-          height: 88,
-          maxWidth: 200,
-          border: '1px solid var(--border-subtle)',
-          backgroundColor: 'var(--bg-surface)',
-        }}
+        className="mx-auto mb-3 h-[88px] max-w-[200px] overflow-hidden rounded-lg border bg-card"
         aria-hidden
       >
         {mock}
       </div>
-      <div className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+      <div className="text-foreground text-sm font-semibold">
         {title}
       </div>
-      <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
+      <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
         {description}
       </p>
     </button>
@@ -96,17 +87,14 @@ function LayoutOptionCard({
 function ClassicLayoutMock() {
   return (
     <div className="h-full flex flex-col gap-1 p-2 overflow-hidden">
-      <div className="h-1.5 rounded-sm shrink-0" style={{ background: 'rgba(28,189,255,0.35)', width: '40%' }} />
-      <div className="h-2 rounded-sm shrink-0" style={{ background: 'var(--border-default)', width: '88%' }} />
-      <div className="h-2 rounded-sm shrink-0" style={{ background: 'var(--border-default)', width: '72%' }} />
-      <div className="h-1.5 rounded-sm shrink-0 mt-1" style={{ background: 'rgba(28,189,255,0.25)', width: '35%' }} />
-      <div className="h-2 rounded-sm shrink-0" style={{ background: 'var(--border-default)', width: '80%' }} />
-      <div className="h-2 rounded-sm shrink-0" style={{ background: 'var(--border-default)', width: '65%' }} />
+      <div className="h-1.5 w-[40%] rounded-sm shrink-0 bg-[var(--overlay-white-35)]" />
+      <div className="bg-border h-2 w-[88%] rounded-sm shrink-0" />
+      <div className="bg-border h-2 w-[72%] rounded-sm shrink-0" />
+      <div className="mt-1 h-1.5 w-[35%] rounded-sm shrink-0 bg-[var(--callout-info-border)]" />
+      <div className="bg-border h-2 w-[80%] rounded-sm shrink-0" />
+      <div className="bg-border h-2 w-[65%] rounded-sm shrink-0" />
       <div className="flex-1 min-h-0 flex justify-end pt-0.5">
-        <div
-          className="w-1 rounded-full"
-          style={{ background: 'var(--border-subtle)' }}
-        />
+        <div className="bg-border w-1 rounded-full" />
       </div>
     </div>
   );
@@ -115,15 +103,12 @@ function ClassicLayoutMock() {
 function WizardLayoutMock() {
   return (
     <div className="h-full flex flex-col items-center justify-center gap-2 p-2">
-      <div
-        className="w-[85%] h-8 rounded-md"
-        style={{ border: '1px solid var(--border-default)', background: 'var(--bg-muted)' }}
-      />
+      <div className="bg-muted h-8 w-[85%] rounded-md border" />
       <div className="flex gap-1.5 items-center">
-        <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--glc-blue)' }} />
-        <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--border-default)' }} />
-        <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--border-default)' }} />
-        <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--border-default)' }} />
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--glc-blue)]" />
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--border-default)]" />
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--border-default)]" />
+        <span className="h-1.5 w-1.5 rounded-full bg-[var(--border-default)]" />
       </div>
     </div>
   );

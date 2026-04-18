@@ -11,20 +11,39 @@
 
 ---
 
+## Environment layers: infrastructure vs ops overrides
+
+Canonical policy: [ARCHITECTURE.md — Strict layer boundaries](./ARCHITECTURE.md#strict-layer-boundaries-operational-policy). **`server/.env.example`** is the working allowlist comment template; extend it whenever you add a new server env read. **Deprecated vars** (e.g. superseded by DB tables) are called out in the file and below. **Ops escape hatches** (pipeline model id, Sentry trace sampling / link templates, Anthropic base URL) are tabulated under [ARCHITECTURE.md — Documented ops exceptions](./ARCHITECTURE.md#documented-ops-exceptions-env-overrides-for-incidents).
+
+### Infrastructure (typical allowlist)
+
+Values that are **secrets, connectivity, or deploy wiring** — not product defaults: **`SUPABASE_URL`**, **`SUPABASE_SERVICE_KEY`**, **`ANTHROPIC_API_KEY`**, **`NODE_ENV`**, **`PORT`** (when the host injects it), **`SNAPSHOT_GUEST_IP_SALT`** (required in production), **`RATE_LIMIT_REDIS_URL`**, **`FRONTEND_URL`** / **`ALLOWED_ORIGINS`**, **`GLC_PUBLIC_SITE_URL`** (required in production), Telegram / operator tokens where used. **Public marketing copy** (`brand_name`, footer text, optional `support_email`, sentinel URL) lives in **`public_brand_defaults.v1`** (package **`@glc/dev-brand-defaults`**), not in env. The no-public-website value (**`NO_PUBLIC_WEBSITE_URL`**) is re-exported from **`@glc/intake-core`** from that JSON (`no_public_website_sentinel`), not an env var. See [`server/.env.example`](../server/.env.example) for the authoritative commented list.
+
+### Deprecated / ops-only
+
+- **`PLATFORM_ADMIN_USER_IDS`** — **deprecated, ignored at runtime.** Copy values into **`platform_settings.legacy_platform_admin_user_ids`** or set **`profiles.is_platform_admin`**. If still present, the server logs **`platform_admin.env_deprecated_ignored`** at startup (see [Railway](#railway-backend) platform admin note).
+- **`CONSULTANT_EMAILS`** — **removed.** Consultant promotion on first login uses **`consultant_email_allowlist`** only (SQL or **`/api/platform/consultant-allowlist`**). Delete this env from any legacy deploy configs.
+- **Product numerics** (rate limits, snapshot timings, pipeline/Claude, alerts, etc.) are **static TypeScript** in **`SYSTEM_DEFAULTS`** and focused modules — not Railway env. Remaining backend env is mostly **secrets, URLs, Redis, Sentry/Telegram, operator tokens**.
+
+**Rule:** new product limits and thresholds get a **code default in config** first; env only **overrides** when operators need to tune without a release.
+
+---
+
 ## Supabase Setup
 
-1. Create project at [supabase.com](https://supabase.com) — choose **EU (Frankfurt)** region for GDPR compliance
-2. In SQL Editor → run **all** SQL migrations in order through the latest file in `server/migrations/` (including **`023`**, **`024`** for guest role + snapshot `prompt_version` width); see [DATABASE.md](./DATABASE.md#overview)
+1. Create project at [supabase.com](https://supabase.com) — choose **EU (Frankfurt)** region for GDPR compliance (**Needs Review:** pick the region your org requires).
+2. **Schema:** apply migrations exactly as described in [DATABASE.md — Overview](./DATABASE.md#overview) (ordered list through latest `server/migrations/*.sql`). Do not duplicate that sequence here.
 3. Authentication → Settings:
-   - Set **Site URL** to your production frontend URL (exact URL; wildcards are invalid here)
-   - Add **Redirect URLs**: exact dev/prod origins and `/login` URLs as needed — see [AUTH.md](./AUTH.md#supabase-auth-configuration) (some dashboards reject `*` wildcards)
+ - Set **Site URL** to your production frontend URL (exact URL; wildcards are invalid here)
+ - Add **Redirect URLs**: exact dev/prod origins and `/login` URLs as needed — see [AUTH.md](./AUTH.md#supabase-auth-configuration) (some dashboards reject `*` wildcards)
 4. Authentication → Providers:
-   - Enable **Email** and **email + password** sign-in; disable passwordless / magic-link email if you want the dashboard to match app-only password + Google flows
-   - Enable **Google** → enter Client ID + Client Secret from Google Cloud Console
-5. Note down from Project Settings → API:
-   - `SUPABASE_URL` (format: `https://xxxx.supabase.co`)
-   - `anon public` key → frontend `VITE_SUPABASE_ANON_KEY`
-   - `service_role secret` key → backend `SUPABASE_SERVICE_KEY` (keep secret, never expose)
+ - Enable **Email** and **email + password** sign-in; disable passwordless / magic-link email if you want the dashboard to match app-only password + Google flows
+ - Enable **Google** → enter Client ID + Client Secret from Google Cloud Console
+5. Optional: **Authentication → Email Templates** — paste branded bodies from repo **`email-templates/supabase/`**; see [AUTH.md](./AUTH.md#email-templates-supabase) and [`email-templates/README.md`](../email-templates/README.md).
+6. Note down from Project Settings → API:
+ - `SUPABASE_URL` (format: `https://xxxx.supabase.co`)
+ - `anon public` key → frontend `VITE_SUPABASE_ANON_KEY`
+ - `service_role secret` key → backend `SUPABASE_SERVICE_KEY` (keep secret, never expose)
 
 ---
 
@@ -32,40 +51,134 @@
 
 1. Create account at [railway.app](https://railway.app)
 2. New Project → Deploy from GitHub repo
-3. Railway auto-detects `server/package.json` — **set Root Directory to `server/`** in the service settings. If the root is the **repo root**, Nixpacks may treat the project as a **Vite SPA** and start **Caddy** only (logs like `using config from file`, `server running`, `serving initial configuration`). That is not the Express API — you will see **502** and no Node logs. The backend must build from `server/package.json` (`npm run build` → `npm start`).
-4. **Railpack build timeout / hang on `apt` or `libc-bin`:** this repo includes **`server/Dockerfile`** and **`server/railway.json`** (`builder: DOCKERFILE`) so Railway can build the API without Railpack. Commit those files and redeploy; in the service UI you can set **Config as code → file path** to `server/railway.json` if the platform does not auto-detect it. The Dockerfile runs **`pnpm exec playwright install --with-deps chromium`** after `tsc` so **free snapshot** can use headless Chromium for SPA-style homepages (see § Free snapshot — Playwright). Builds are slower and the image is larger than a minimal API-only image.
+3. **Monorepo + Docker:** set the service **Root Directory to the repository root** (not `server/`). Use **`railway.json`** at the repo root (`builder: DOCKERFILE`, `dockerfilePath: server/Dockerfile`). The Dockerfile expects build context **`.`** and runs `pnpm install --filter glc-audit-server...` from the workspace lockfile. If Root Directory stays **`server/`** alone, the Docker build cannot see `pnpm-workspace.yaml` / root `pnpm-lock.yaml` and will fail.
+4. **Railpack / Nixpacks:** if you deploy **without** Docker from **repo root**, Nixpacks may treat the project as a **Vite SPA** and start the wrong stack. Prefer the **Dockerfile** flow above. The image runs **`playwright install --with-deps chromium`** after `tsc` for **free snapshot** (see § Free snapshot — Playwright). Builds are slower than a minimal API-only image.
 5. Set environment variables in Railway dashboard:
 
-   ```env
-   SUPABASE_URL=https://xxxx.supabase.co
-   SUPABASE_SERVICE_KEY=eyJ...
-   ANTHROPIC_API_KEY=sk-ant-...
-   NODE_ENV=production
-   ```
-   **Do not set `PORT` manually** unless you know what you are doing: Railway injects **`PORT`**; the app must listen on that value (`server/src/index.ts`). In **Public networking**, **Target port** must match that same `PORT` (often not `3001`). If the deploy healthcheck passes but `https://…up.railway.app/api/health` returns **502**, fix the domain’s target port or remove a conflicting custom `PORT` variable.
+ ```env
+ SUPABASE_URL=https://xxxx.supabase.co
+ SUPABASE_SERVICE_KEY=eyJ...
+ ANTHROPIC_API_KEY=sk-ant-...
+ NODE_ENV=production
+ SNAPSHOT_GUEST_IP_SALT=<long-random-secret>
+ GLC_PUBLIC_SITE_URL=https://your-marketing-site.example
+ ```
+ **Do not set `PORT` manually** unless you know what you are doing: Railway injects **`PORT`**; the app must listen on that value (`index`). In **Public networking**, **Target port** must match that same `PORT` (often not `3001`). If the deploy healthcheck passes but `https://…up.railway.app/api/health` returns **502**, fix the domain’s target port or remove a conflicting custom `PORT` variable. **`LISTEN_HOST`** (optional) defaults to **`0.0.0.0`** for containers; set **`127.0.0.1`** only for local hardening when you intentionally avoid exposing the API on all interfaces.
 
-   **Client self-serve (portal):** after migration `018_platform_settings.sql`, a **lead administrator** (consultant) sets the default audit owner under **Settings → Client portal — audit owner** (`PATCH /api/platform/self-serve-owner`). Optionally keep **`SELF_SERVE_AUDIT_OWNER_USER_ID`** as a bootstrap / backup consultant UUID when the database value is empty. **`PLATFORM_ADMIN_USER_IDS`** (comma-separated consultant `profiles.id`) restricts who may PATCH platform settings; if omitted, any consultant may change the assignment.
+ **Client self-serve (portal):** after migration `018_platform_settings.sql`, persist the default audit owner in **`platform_settings`** via **Settings → Client portal — audit owner** (`PATCH /api/platform/self-serve-owner`). Until a row is stored, the API may still resolve an owner via legacy admin UUIDs or (in open mode) the earliest consultant; the Settings screen surfaces **`implicit_fallback_active`** when that applies. **`SELF_SERVE_AUDIT_OWNER_USER_ID`** is **deprecated and ignored** — remove it from deploy config. **Platform admin ACL:** migration **`049_profiles_platform_admin.sql`** adds **`profiles.is_platform_admin`**. When at least one consultant has this flag **`true`**, only those users (plus ids in **`platform_settings.legacy_platform_admin_user_ids`**) may manage platform settings; when no row has the flag and that array is empty, any consultant may manage (open mode). Set the first admins with SQL: `UPDATE profiles SET is_platform_admin = true WHERE id = '<consultant uuid>';`
 
-6. **Build / start (dashboard):** if Railway uses **`server/railway.json` + Dockerfile**, the image runs `pnpm run build` during `docker build` and starts with `node dist/index.js` — you can clear custom build/start overrides in the UI to avoid duplication. Otherwise use **Build:** `npm run build`, **Start:** `npm start` (runs `dist/index.js`).
+6. **Build / start (dashboard):** with **root `railway.json` + `server/Dockerfile`**, the image builds inside Docker (`pnpm run build` in `server/`) and starts with **`node dist/index.js`** (working directory `server/` in the image). Clear conflicting custom build/start overrides in the UI if needed.
 7. Railway provides a public URL like `https://glc-api.up.railway.app`
 
-**Healthcheck:** use **`/api/health`** (see `server/railway.json`). There is no `GET /` handler on the API; pinging `/` returns 404.
+**Healthcheck:** use **`/api/health`** (see root `railway.json`). There is no `GET /` handler on the API; pinging `/` returns 404.
 
 ### Free snapshot — Playwright
 
 Headless Chromium **runs by default** when the static homepage looks like an empty client shell (thin text + many scripts, or known SPA root mounts). Set **`SNAPSHOT_PLAYWRIGHT=0`** (or `false`) to disable and use only HTTP HTML.
 
 - **Env:** optional `SNAPSHOT_PLAYWRIGHT_BUDGET_MS` (default `14000`, capped by remaining `SNAPSHOT_FETCH_BUDGET_MS`). **`SNAPSHOT_FETCH_BUDGET_MS`** defaults to **`10000`** (10s wall clock for the tiered fetch). Optional **`SNAPSHOT_OPERATOR_TOKEN`** enables **`GET /api/snapshot/operator/metrics`** and **`POST /api/snapshot/operator/purge-cache`** (see [API.md](./API.md#snapshot-operator-optional)); keep the token long and rotate like any secret.
-- **Build (Docker / Railway):** `server/Dockerfile` installs Chromium via **`playwright install --with-deps chromium`**. For non-Docker hosts (e.g. local dev), run `pnpm playwright:install` in `server/` once. The `playwright` package is in `server/package.json`.
+- **Build (Docker / Railway):** `server/Dockerfile` installs Chromium via **`playwright install --with-deps chromium`**. For non-Docker hosts (e.g. local dev), run `pnpm playwright:install` in `server/` once. The `playwright` package is in `server/package.json`. Outbound Mozilla-style snapshot UAs embed a **Chrome major token** from **`playwright_user_agent`** (`PLAYWRIGHT_CHROME_MAJOR_FOR_UA`); it is a **site-compatibility hint**, not necessarily the bundled Chromium revision — review it when upgrading the **`playwright`** dependency. Sanity test: `pnpm -C server exec vitest run src/config/playwright-user-agent.test.ts`.
 - If Chromium is missing or launch fails, the scanner logs a warning and continues with the original HTTP HTML.
 
-**Abuse controls (public snapshot):** optional env — `SNAPSHOT_DOMAIN_FRESH_COOLDOWN_MS` (default `600000`, `0` = off), `SNAPSHOT_MAX_CONCURRENT` (default `4`), `SNAPSHOT_COMPARE_MAX_PER_HOUR` (default `15`). **`SNAPSHOT_ROBOTS_CACHE_MS`** — TTL for in-memory `robots.txt` parse per origin (default `1200000`, i.e. 20 minutes). **`SNAPSHOT_SHARED_ABUSE_STORE`** — set to `1` / `true` / `yes` after applying migrations **`021_snapshot_domain_cooldown.sql`** and **`022_snapshot_fresh_lease.sql`** so (1) per-domain fresh cooldown and (2) **max concurrent fresh scans** are coordinated **across Railway instances** via Supabase; if unset, both stay per-process only. **`SNAPSHOT_FRESH_LEASE_TTL_SECONDS`** — optional; defaults to **max(300, 5 × fetch budget seconds)** so leases survive long Playwright runs; raise if scans can exceed that wall time.
+**Abuse controls (public snapshot):** optional env — `SNAPSHOT_DOMAIN_FRESH_COOLDOWN_MS` (default `600000`, `0` = off), `SNAPSHOT_MAX_CONCURRENT` (default `4`), `SNAPSHOT_COMPARE_MAX_PER_HOUR` (default `15`). **`SNAPSHOT_GUEST_IP_SALT`** — **required in production** (non-empty secret mixed into **`ip_hash`** for **`snapshot_guest_sessions`**; the API exits at startup if missing when `NODE_ENV=production`). **`SNAPSHOT_ROBOTS_CACHE_MS`** — TTL for in-memory `robots.txt` parse per origin (default `1200000`, i.e. 20 minutes). **`SNAPSHOT_SHARED_ABUSE_STORE`** — set to `1` / `true` / `yes` after applying migrations **`021_snapshot_domain_cooldown.sql`** and **`022_snapshot_fresh_lease.sql`** so (1) per-domain fresh cooldown and (2) **max concurrent fresh scans** are coordinated **across Railway instances** via Supabase; if unset, both stay per-process only. **`SNAPSHOT_FRESH_LEASE_TTL_SECONDS`** — optional; defaults to **max(300, 5 × fetch budget seconds)** so leases survive long Playwright runs; raise if scans can exceed that wall time.
 
 **Hosted dashboards (logs):** Ship **JSON** logs (`LOG_FORMAT=json`, `LOG_SERVICE` set per env) to your provider’s log drain (Railway log integrations → **Grafana Loki**, **Datadog**, **Axiom**, etc.). Primary snapshot signal: **`message: "snapshot.run_complete"`** with **`domain_fp`** (SHA-256 prefix of registrable host, not the URL). Secondary: **`snapshot.pipeline_capacity`** (capacity shed), **`snapshot.shared_lease_*`** (RPC / migration issues). Build panels on **rates** of `outcome`, `cache_hit`, `playwright_used`, `home_fetch_failure`; alert on sustained **`snapshot.pipeline_capacity`** or missing `snapshot.run_complete` after `POST /api/snapshot` spikes. Operator in-process counters + shared lease headcount: **`GET /api/snapshot/operator/metrics`** (Bearer **`SNAPSHOT_OPERATOR_TOKEN`**); poll with a cron or uptime check, or point a **JSON API** datasource at that URL if your dashboard product supports auth headers.
 
 Full redaction rules: [SECURITY.md — Snapshot observability & log redaction](./SECURITY.md#snapshot-observability--log-redaction-runbook).
 
 See [API.md — Public Snapshot](./API.md#public-snapshot).
+
+### Configuration centralization (avoid drift)
+
+**Conceptual model:** where a new setting should live (env vs Postgres vs orchestration vs SPA) is described in [ARCHITECTURE.md — Configuration layering](./ARCHITECTURE.md#configuration-layering-config-vs-database-vs-services-vs-ui). **Env vs config defaults:** [Environment layers: infrastructure vs ops overrides](#environment-layers-infrastructure-vs-ops-overrides).
+
+Shared constants and env-driven defaults introduced to reduce duplicated literals:
+
+| Concern | Location |
+| --- | --- |
+| No-public-website sentinel URL + `isNoPublicWebsiteUrl` / display helper | `intake_core` (`no-public-website.ts`); server/app re-export from `@glc/intake-core` |
+| Discovery → brief patch (`a5` canon, legacy `c_nosite_1` labels) | `discovery_brief_mapping` |
+| Crawler/snapshot/playwright user-agents + public site URL | `bot_identity` (`GLC_PUBLIC_SITE_URL`, **required in production**); GLC product token `GLC-*/x.y` from **`SYSTEM_DEFAULTS.outboundBot.uaProductVersion`** |
+| HTTP listen bind address | `LISTEN_HOST` env (default `0.0.0.0`) in `index` |
+| Full-audit crawler limits (max pages, per-page timeout, total crawl budget) | `SYSTEM_DEFAULTS.crawler` via `crawler_limits` |
+| Collector HTTP timeouts and header truncation (security / performance / SEO / sitemap) | `SYSTEM_DEFAULTS.collectorsHttp` via `collector_http` |
+| Tech stack HTML fingerprint inline-script bound | `SYSTEM_DEFAULTS.techWappalyzer` (`maxInlineScriptChars`) in `tech_wappalyzer_detect` |
+| Discovery session token hex length, contact-edit key pattern, maturity bounds | `discover_contract` (see migrations 013, 032, 033) |
+| SSRF-safe public fetch (redirect cap, retries, backoff) | `public_http_fetch` |
+| Sitemap discovery bounds (fetch count, bytes, URL cap, fallback paths) | `sitemap_discovery_limits` |
+| Idempotency key TTL | `SYSTEM_DEFAULTS.idempotency` in `system_defaults` |
+| Snapshot tiered-fetch wall clock default | `SYSTEM_DEFAULTS.snapshotFetchBudgetMs` via `snapshot_fetch_budget` |
+| Snapshot route defaults (token budget, TTL, guest funnel retention, guest header caps, UX summary length, competitor mini timeout) | `SYSTEM_DEFAULTS.snapshotPublic` via `snapshot_public` |
+| Snapshot HTTP/Playwright/axe timing caps | `SYSTEM_DEFAULTS.snapshotTiming` via `snapshot_timing` |
+| Rate-limit numeric defaults | `SYSTEM_DEFAULTS.rateLimits` via `rate_limits` |
+| Express JSON body size | `SYSTEM_DEFAULTS.express.jsonBodyLimit` via `http_server` |
+| Claude model id, token reserve, max_tokens, budget warning | `SYSTEM_DEFAULTS.pipelineModel` via `model` |
+| Claude per-model USD/MTok pricing for cost estimates | `model_pricing`; `getModelPricing` re-exported from `model.ts` |
+| Intake absolute URLs | `frontend_url` (`FRONTEND_URL`) |
+| Production startup assertions | `runtime_assert` |
+| Snapshot audit partial-score multiplier | `SYSTEM_DEFAULTS.snapshotAudit.partialScoreFactor` via `snapshot_partial_score` |
+| Redis key prefix for Claude circuit breaker + distributed rate limits (optional) | `REDIS_KEY_PREFIX` — `claude_client`, `rate_limit` (`${prefix}glc:…` / `${prefix}cb:…`) |
+| Local dev API/SPA ports and default CORS dev origins | `glc_dev_brand_defaults` (`GLC_DEV_*`); consumed by Vite proxy, Playwright, `cors-origins`, `frontend-url`, `api-base-url` |
+| Marketing brief → recommended SPA route | `intake_core` (`marketing-brief-routing.ts`); re-exported from `marketing_brief_routing` (logic: unsure / no-site / preferred depth; **no env**) |
+| Snapshot tiered HTTP fetch (Accept-Language, path hints, robots fallback paths) | `snapshot_fetch_heuristics` |
+| Audit list pagination (`GET /api/audits`) | `SYSTEM_DEFAULTS.auditsList` via `audits_list_limits` |
+| Pipeline phase index bounds (full-mode max; retry validation) | `pipeline_phases` (`PIPELINE_MIN_PHASE`, `PIPELINE_MAX_PHASE_INDEX`) |
+| Stable JSON error `code` values (subset; grows over time) | `api_error_codes` (`API_ERROR_CODES`, types, `apiErrorJson`, dynamic message helpers) |
+| Default English API `error` strings for coded responses | `api_user_messages.en` + `api-user-messages.en.ts` (re-exported from `api-error-codes.ts` as `*_MESSAGE`) |
+| HTTP body truncation limits (marketing brief, logs, audit requests, intake analytics ids) | `request_field_limits` (`REQUEST_FIELD_LIMITS`) |
+| Collector user-visible copy (security headers, accessibility heuristics) | `collector_copy_security.en`, `collector_copy_accessibility.en` |
+| URL validation hint example (`{example}` in `AUDITS_COMPANY_URL_INVALID`) | `api_user_messages.en` (`COMPANY_URL_VALIDATION_EXAMPLE`) |
+| SPA → API relative paths | `api_paths` (`API_PATHS`, builder helpers) |
+| Express `app.use` API mounts (kept in sync with SPA paths) | `api_route_mounts` (`API_ROUTE_MOUNT_ENTRIES`, `mountApiRouters`); contract: `api_paths_mount_contract.test` (Vitest) |
+| Discover wizard timing (scroll delay, save timeout) | `discover_page_defaults` |
+| Login operator hints (e.g. Supabase manual linking) | `login_copy.en` |
+| Copy layering (zones, single source, PR checklist) | [ARCHITECTURE.md — §6](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone) |
+| Intake UX toggles and next-recommended cap (no env overrides) | `intake_ui_config` (`INTAKE_UI_CONFIG`); `intake-flags.ts` re-exports booleans/cap — change CONFIG and redeploy, or add a future DB/feature-flag layer for runtime toggles |
+| Platform admin UUID list (migration off `PLATFORM_ADMIN_USER_IDS`) | `platform_settings.legacy_platform_admin_user_ids` (migration `050_platform_settings_legacy_admin_ids.sql`) — when non-empty, replaces env for ACL + self-serve owner fallback; prefer `profiles.is_platform_admin` for individuals |
+
+### White-label and dev defaults: environment matrix
+
+| Layer | Variables / package | Purpose |
+| --- | --- | --- |
+| **Dev template (fork)** | `glc_dev_brand_defaults` (`GLC_DEV_*` from `dev-infra.ts`; brand/sentinel from `public-brand-defaults.v1.json` via `brand-from-json.ts`) | Local API/SPA ports and origins, extra dev CORS origins; **`no_public_website_sentinel`** in JSON → **`GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL`** → **`NO_PUBLIC_WEBSITE_URL`** (**`@glc/intake-core`**). Production must set **`FRONTEND_URL`**, **`GLC_PUBLIC_SITE_URL`**, **`VITE_*`** for deploy wiring |
+| **Server — public JSON** | `public_brand_defaults.v1` + **`GLC_PUBLIC_SITE_URL`** (required in production) | `GET /api/public/brand` for marketing shell |
+| **Vite / browser** | `VITE_API_URL` (required prod), `VITE_SUPABASE_*` | API base URL, Supabase client |
+| **Notifications (optional)** | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_API_BASE` (default `https://api.telegram.org`) | Telegram outbound; override base only behind a corporate proxy |
+
+**Copy and brand:** public contact for marketing surfaces comes from **`public_brand_defaults.v1`** field **`support_email`** (served by **`GET /api/public/brand`** via **`public-brand-config.ts`**). JSON **`null`** hides the footer mail link; omitted or empty string falls back to **`GLC_DEV_SUPPORT_EMAIL`** (same JSON). See [ARCHITECTURE.md — §6 User-visible copy layering](./ARCHITECTURE.md#6-user-visible-copy-layering-single-source-per-zone).
+
+See also § **White-label and cross-stack parity** in [`server/.env.example`](../server/.env.example).
+
+Library-style modules (`page-anomaly` rules, `site-html-signals` / `TECH_PATTERNS`, `wappalyzer-imported-rules`) are intentionally not driven by env beyond existing threshold tunables.
+
+Collector/crawler HTTP limits, snapshot public route defaults (token budget, TTL, guest funnel, header/UX caps, competitor timeout), audits list pagination, Claude cost table for token-tracker, PDF palette/locale, snapshot partial-score factor, collector `collected_data` cache TTL, and snapshot guest cookie name/age are **not** environment variables — change `SYSTEM_DEFAULTS` or the listed module and redeploy.
+
+### Product sentinel: no-public-website URL
+
+- **Source of truth:** JSON field **`no_public_website_sentinel`** in **`public_brand_defaults.v1`**, exposed as **`GLC_DEV_NO_PUBLIC_WEBSITE_SENTINEL`** from **`@glc/dev-brand-defaults`**, then as **`NO_PUBLIC_WEBSITE_URL`** from **`no_public_website`**, re-exported by the server (`no_public_website`) and SPA (`no_public_website`). API and browser bundles share the same compiled constant — **no env vars**.
+- **White-label / fork:** edit that JSON field (or replace the package defaults) and redeploy server + SPA together. When persisted as **`audits.company_url`**, collectors and snapshot logic treat it as “no public site” and **must not** crawl it.
+- **Changing the sentinel** is **breaking** for stored rows: plan a **data migration** for existing `audits.company_url` values.
+
+### Server and SPA variables that must match (when set)
+
+| Server (Railway) | Frontend (Vercel) | Notes |
+| --- | --- | --- |
+| **`@glc/intake-core` version** (lockfile / deploy) | Same workspace version in the SPA build | Marketing brief routing and **`NO_PUBLIC_WEBSITE_URL`** live in the package — **aligned releases** avoid preview vs API drift. |
+
+There is **no** required Vite env mirror for the no-public sentinel beyond shipping the same **`@glc/intake-core`** / **`@glc/dev-brand-defaults`** as the API.
+
+**Release checklist:** after changing the sentinel in code, smoke-test audit create + snapshot skip for the placeholder URL and run any data migration.
+
+### Consultant list endpoints (hard cap)
+
+Caps are **static config** in **`SYSTEM_DEFAULTS.routeQueries`** (`system_defaults`), re-exported from `route_query_limits` — not environment variables.
+
+- **`GET /api/intake/submissions`** — newest submitted pre-brief links for the current consultant; default cap **`intakeSubmissionsMaxRows`** (**100**).
+- **`GET /api/discover/sessions`** — discovery queue for the current consultant; **`discoverSessionsMaxRows`** (**100**). For larger backfills, extend the API (pagination or a raised cap in `SYSTEM_DEFAULTS`) in a dedicated change.
+
+### Reliability alerts (Telegram)
+
+- Alerts use **`TELEGRAM_BOT_TOKEN`** and **`TELEGRAM_CHAT_ID`** (`notifications`). The Bot API request URL is **`https://api.telegram.org/bot<token>/sendMessage`** (official endpoint). If Telegram ever publishes a new base URL, update the server module; it is not configured via env today.
 
 ---
 
@@ -76,11 +189,11 @@ See [API.md — Public Snapshot](./API.md#public-snapshot).
 3. Vercel auto-detects Vite — no changes needed to build settings
 4. Set environment variables in Vercel dashboard (Settings → Environment Variables):
 
-   ```env
-   VITE_API_URL=https://glc-api.up.railway.app
-   VITE_SUPABASE_URL=https://xxxx.supabase.co
-   VITE_SUPABASE_ANON_KEY=eyJ...
-   ```
+ ```env
+ VITE_API_URL=https://glc-api.up.railway.app
+ VITE_SUPABASE_URL=https://xxxx.supabase.co
+ VITE_SUPABASE_ANON_KEY=eyJ...
+ ```
 5. Deploy — Vercel builds with `pnpm build` and serves `dist/`
 6. Add your custom domain in Vercel → update Supabase Site URL + Redirect URLs
 
@@ -94,9 +207,11 @@ See [API.md — Public Snapshot](./API.md#public-snapshot).
 
 | Variable | Value |
 |---|---|
-| `VITE_API_URL` | Railway backend URL |
-| `VITE_SUPABASE_URL` | Supabase project URL |
-| `VITE_SUPABASE_ANON_KEY` | Supabase anon/public key |
+| `VITE_API_URL` | Railway backend URL (**required** for production builds; the SPA throws at runtime if unset when `import.meta.env.PROD`) |
+| `VITE_SUPABASE_URL` | Supabase project URL (**required** in production builds together with anon key) |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon/public key (**required** in production builds) |
+
+Client analytics batching, TanStack Query defaults, and HTTP client timeouts are **static TypeScript** under `` (see `client-analytics-batching.ts`, `query-client-defaults.ts`, `http-client-defaults.ts`, `app-feature-flags.ts`) — not `VITE_*` env vars.
 
 ### Backend (Railway)
 
@@ -106,28 +221,50 @@ See [API.md — Public Snapshot](./API.md#public-snapshot).
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_SERVICE_KEY` | Supabase service role key (secret) |
 | `ANTHROPIC_API_KEY` | Anthropic API key |
+| `ANTHROPIC_BASE_URL` | Optional Anthropic-compatible API base URL (corporate proxy / gateway); omit for SDK default |
 | `NODE_ENV` | `production` |
-| `ALLOWED_ORIGINS` | `https://your-app.vercel.app` |
+| `FRONTEND_URL` | Canonical SPA origin (no trailing slash), e.g. `https://your-app.vercel.app` — **required when `NODE_ENV=production`** (process exits at startup if missing). Used for absolute intake links and merged into CORS allowlist. |
+| `GLC_PUBLIC_SITE_URL` | **Required when `NODE_ENV=production`.** HTTPS origin (no trailing slash) embedded in crawler/snapshot user-agents. In development, defaults to `https://glctech.es` if unset. |
+| `NO_PUBLIC_WEBSITE_URL` | Not an env var. Build/runtime shared constant from `@glc/intake-core` (derived from `@glc/dev-brand-defaults` JSON sentinel). |
+| `ALLOWED_ORIGINS` | `https://your-app.vercel.app` (comma-separated; merged with `FRONTEND_URL`) |
+| `RATE_LIMIT_REDIS_URL` | Redis URL for shared rate-limit counters (required for multi-instance consistency) |
+| `STRICT_RATE_LIMIT_REDIS` | `true` to fail startup when Redis for rate limits is missing |
+| `PIPELINE_QUEUE_REDIS_URL` | Optional dedicated Redis URL for BullMQ (falls back to `RATE_LIMIT_REDIS_URL`) |
+| `REDIS_KEY_PREFIX` | Optional prefix for Claude circuit-breaker Redis key when sharing Redis |
 | `SENTRY_DSN` | Sentry DSN for backend error/trace capture |
 | `SENTRY_TRACES_SAMPLE_RATE` | Trace sampling ratio, e.g. `0.2` |
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token for reliability alerts |
-| `TELEGRAM_CHAT_ID` | Telegram channel or chat ID for alerts |
-| `ALERT_INTERVAL_MS` | Alert worker interval (default `60000`) |
-| `ALERT_FAILURE_RATE_THRESHOLD` | Failure rate threshold for alerting (default `0.2`) |
-| `ALERT_LATENCY_P95_MS_THRESHOLD` | p95 phase latency threshold in ms (default `180000`) |
-| `ALERT_TOKEN_BURN_15M_THRESHOLD` | Token burn threshold over 15m window (default `300000`) |
 | `SENTRY_TRACE_LINK_TEMPLATE` | Optional deep link template with `{trace_id}` placeholder |
 | `TRACE_LINK_TEMPLATE` | Optional custom trace viewer link template with `{trace_id}` |
-| `SELF_SERVE_AUDIT_OWNER_USER_ID` | Optional fallback consultant `profiles.id` when `platform_settings.self_serve_audit_owner_user_id` is null |
-| `PLATFORM_ADMIN_USER_IDS` | Optional comma-separated consultant `profiles.id` values allowed to PATCH `/api/platform/self-serve-owner`; if unset, any consultant may manage the stored assignment |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token for reliability alerts |
+| `TELEGRAM_CHAT_ID` | Telegram channel or chat ID for alerts |
+| `TELEGRAM_API_BASE` | Optional Bot API base (proxy); default official endpoint |
+| `SELF_SERVE_AUDIT_OWNER_USER_ID` | **Deprecated, ignored.** Persist owner via Settings or **`PATCH /api/platform/self-serve-owner`** |
+| `PLATFORM_ADMIN_USER_IDS` | **Deprecated, ignored.** Use **`platform_settings.legacy_platform_admin_user_ids`** or **`profiles.is_platform_admin`** |
+| `PIPELINE_CLAUDE_MODEL_ID` | Optional infra override for the Anthropic model id used by the pipeline; falls back to **`SYSTEM_DEFAULTS`** (`model`). Alias: **`ANTHROPIC_MODEL`** |
+| `SNAPSHOT_OPERATOR_TOKEN` | Optional operator-only snapshot actions (see `snapshot`) |
+
+**Not env (change in code / release):** rate-limit numerics and windows, public-route hourly caps, Express JSON body limit, default Claude model id (unless **`PIPELINE_CLAUDE_MODEL_ID`** / **`ANTHROPIC_MODEL`** is set), `max_tokens` / token reserve / budget warning, Claude HTTP retries and timeouts, BullMQ queue retention and backoff, worker concurrency and lease TTL, pipeline stall and parallel-failure thresholds, snapshot fetch/Playwright/axe timing, snapshot abuse and domain-cache TTL, page-anomaly thresholds, audit deep-scan (Lighthouse/axe) enablement and budgets, reliability alert thresholds and intervals — all live in **`system_defaults`** and re-exported modules (`rate-limits.ts`, `snapshot-timing.ts`, `alerts-config.ts`, `model.ts`, …). Marketing brief routing stays in **`@glc/intake-core`**.
+
+### Minimum secure production baseline
+
+- Required:
+ - `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ANTHROPIC_API_KEY`, `NODE_ENV=production`
+ - `FRONTEND_URL` (required by startup guard when `NODE_ENV=production`)
+ - `GLC_PUBLIC_SITE_URL` (required by startup guard and bot identity when `NODE_ENV=production`)
+ - `RATE_LIMIT_REDIS_URL` (for shared public abuse controls in multi-instance runtime)
+ - `SNAPSHOT_GUEST_IP_SALT` (required by startup guard in production)
+- Strongly recommended:
+ - `STRICT_RATE_LIMIT_REDIS=true`
+ - `PIPELINE_QUEUE_REDIS_URL` (or reuse `RATE_LIMIT_REDIS_URL`)
+ - `SENTRY_DSN`, Telegram alert vars, and trace-link templates
 
 ---
 
 ## CORS Configuration
 
-Allowlist is built in `server/src/config/cors-origins.ts` and applied in `server/src/index.ts`:
+Allowlist is built in `cors_origins` and applied in `index`:
 
-- **Production:** `ALLOWED_ORIGINS` (comma-separated full origins) **and** `FRONTEND_URL` are merged and deduped. Trailing slashes are normalized. If both are unset, the allowlist is empty and the API logs a warning (browser CORS will fail until you set at least one).
+- **Production:** `ALLOWED_ORIGINS` (comma-separated full origins) **and** `FRONTEND_URL` are merged and deduped. Trailing slashes are normalized. **`FRONTEND_URL` is required** for a healthy production boot (startup assert); if **`ALLOWED_ORIGINS`** is empty but **`FRONTEND_URL`** is set, the SPA origin is still allowed. If both were unset the API would not start in production.
 - **Development:** same merge, plus default localhost dev server ports (`5173`, `5174`, `3000`).
 
 Example on Railway:
@@ -151,14 +288,15 @@ Example on Railway:
 
 ## Deploy Checklist
 
-- [ ] Run all SQL migrations in order (through **`024`** and any newer files) in Supabase SQL editor
+- [ ] Run all SQL migrations in numeric order through the latest file in `server/migrations/` (see [DATABASE.md](./DATABASE.md#overview))
 - [ ] RLS policies active (check in Supabase → Table Editor → each table)
 - [ ] Supabase Site URL + Redirect URLs updated to production domain
 - [ ] Google OAuth configured in Supabase (if using)
 - [ ] All env vars set in Railway and Vercel
-- [ ] `ALLOWED_ORIGINS` in Railway matches Vercel domain
-- [ ] Backend `/` healthcheck returns 200
-   - [ ] Test: sign-in and sign-up (email/password and/or Google; check Supabase Auth logs if confirmations fail)
+- [ ] Railway: `FRONTEND_URL` matches the canonical Vercel (or custom) SPA origin
+- [ ] `ALLOWED_ORIGINS` in Railway matches every browser origin that calls the API with credentials
+- [ ] Backend `/api/health` healthcheck returns 200
+ - [ ] Test: sign-in and sign-up (email/password and/or Google; check Supabase Auth logs if confirmations fail)
 - [ ] Test: create audit end-to-end in production
 
 ---
@@ -179,3 +317,76 @@ Example on Railway:
 3. Query `pipeline_events` for `event_type in ('started','completed','error','token_usage')` for the same window.
 4. If retries are involved, verify idempotency records in `api_idempotency_keys` to confirm replay vs. new execution.
 5. Expired idempotency keys are cleaned up by background worker automatically.
+
+### SRE runbooks (security + reliability)
+
+1. **Incident triage (P0/P1)**
+ - Confirm blast radius using `pipeline_events`, `job_runs`, `phase_runs` and API logs.
+ - Identify affected tenant IDs/audit IDs and freeze risky endpoints with temporary stricter rate limits.
+2. **Rollback**
+ - Roll back application deploy first (Railway/Vercel), then revert only the latest unsafe migration if needed.
+ - Never roll back by deleting audit data; use status transitions (`failed`, `phase_stalled`) and replay jobs.
+3. **Key rotation**
+ - Rotate `SUPABASE_SERVICE_KEY`, `ANTHROPIC_API_KEY`, and `SNAPSHOT_OPERATOR_TOKEN` in provider dashboards.
+ - Deploy backend immediately after rotation and verify `/api/health`, queue worker startup, and snapshot endpoints.
+4. **Queue recovery**
+ - Check Redis connectivity and queue lag.
+ - Inspect `job_runs` rows with `status in ('failed','dead_letter')`; requeue targeted jobs only.
+5. **Post-incident review**
+ - Capture timeline, root cause, and guardrail actions.
+ - Add a regression test under `` for the exact failure mode before closing the incident.
+
+## Для разработчиков
+
+Ниже перечислены технические пути реализации для инженерной навигации.
+
+- `packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json`
+- `server/src/index.ts`
+- `server/src/config/playwright-user-agent.ts`
+- `packages/intake-core`
+- `packages/intake-core/src/discovery-brief-mapping.ts`
+- `server/src/config/bot-identity.ts`
+- `server/src/config/crawler-limits.ts`
+- `server/src/config/collector-http.ts`
+- `server/src/lib/tech-wappalyzer-detect.ts`
+- `server/src/config/discover-contract.ts`
+- `server/src/config/public-http-fetch.ts`
+- `server/src/config/sitemap-discovery-limits.ts`
+- `server/src/config/system-defaults.ts`
+- `server/src/config/snapshot-fetch-budget.ts`
+- `server/src/config/snapshot-public.ts`
+- `server/src/config/snapshot-timing.ts`
+- `server/src/config/rate-limits.ts`
+- `server/src/config/http-server.ts`
+- `server/src/config/model.ts`
+- `server/src/config/model-pricing.ts`
+- `server/src/config/frontend-url.ts`
+- `server/src/config/runtime-assert.ts`
+- `server/src/config/snapshot-partial-score.ts`
+- `server/src/config/claude-client.ts`
+- `server/src/middleware/rate-limit.ts`
+- `packages/glc-dev-brand-defaults`
+- `server/src/config/marketing-brief-routing.ts`
+- `server/src/config/snapshot-fetch-heuristics.ts`
+- `server/src/config/audits-list-limits.ts`
+- `server/src/config/pipeline-phases.ts`
+- `server/src/config/api-error-codes.ts`
+- `server/src/config/api-user-messages.en.json`
+- `server/src/config/request-field-limits.ts`
+- `server/src/config/collector-copy-security.en.ts`
+- `server/src/config/collector-copy-accessibility.en.ts`
+- `src/app/config/api-paths.ts`
+- `server/src/config/api-route-mounts.ts`
+- `server/src/tests/api-paths-mount-contract.test.ts`
+- `src/app/config/discover-page-defaults.ts`
+- `src/app/config/login-copy.en.ts`
+- `packages/intake-core/src/config/intake-ui-config.ts`
+- `packages/intake-core/src/no-public-website.ts`
+- `server/src/config/no-public-website.ts`
+- `src/app/data/no-public-website.ts`
+- `server/src/config/route-query-limits.ts`
+- `server/src/services/notifications.ts`
+- `src/app/config/`
+- `server/src/routes/snapshot.ts`
+- `server/src/config/cors-origins.ts`
+- `server/src/tests/`

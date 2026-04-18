@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { API_HEALTH_PATH } from '../config/http-server.js';
 import { logger } from '../services/logger.js';
 import { redactRequestPath } from '../lib/redact-log-path.js';
 
@@ -15,7 +16,7 @@ export function requestLogMiddleware(req: Request, res: Response, next: NextFunc
   const start = Date.now();
   res.on('finish', () => {
     const path = resolvePath(req);
-    if (path === '/api/health' && res.statusCode < 400) {
+    if (path === API_HEALTH_PATH && res.statusCode < 400) {
       return;
     }
     const duration_ms = Date.now() - start;

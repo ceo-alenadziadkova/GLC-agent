@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import type { User, Session } from '@supabase/supabase-js';
+import { GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY } from '../../lib/storage-keys';
 import { Login } from '../Login';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -39,14 +40,19 @@ vi.mock('react-router', async importOriginal => {
 const signInWithPassword = vi.fn().mockResolvedValue({ error: null });
 const signUpWithPassword = vi.fn().mockResolvedValue({ error: null });
 const signInWithGoogle = vi.fn().mockResolvedValue({ error: null });
+const requestPasswordReset = vi.fn().mockResolvedValue({ error: null });
+const completePasswordRecovery = vi.fn().mockResolvedValue({ error: null });
 
 const AUTH_BASE = {
   session: null as Session | null,
   loading: false,
   authError: null as string | null,
+  passwordRecoveryMode: false,
   signInWithPassword,
   signUpWithPassword,
   signInWithGoogle,
+  requestPasswordReset,
+  completePasswordRecovery,
   signOut: vi.fn(),
 };
 
@@ -97,11 +103,11 @@ describe('Login', () => {
 
     renderLogin('/login?discovery=disc-xyz');
 
-    expect(localStorage.getItem('glc_discovery_token')).toBe('disc-xyz');
+    expect(localStorage.getItem(GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY)).toBe('disc-xyz');
   });
 
   it('navigates to audit new when authenticated with discovery token', async () => {
-    localStorage.setItem('glc_discovery_token', 't1');
+    localStorage.setItem(GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY, 't1');
     mockUseAuth.mockReturnValue({
       ...AUTH_BASE,
       isAuthenticated: true,
@@ -170,12 +176,13 @@ describe('Login', () => {
 
     renderLogin();
 
-    expect(screen.getByRole('button', { name: /^register$/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^create account$/i })).toBeInTheDocument();
+    expect(screen.getByRole('tablist')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /continue with google/i })).toBeInTheDocument();
   });
 
   it('prefers discovery redirect over ?next= when both are set', async () => {
-    localStorage.setItem('glc_discovery_token', 'disc-1');
+    localStorage.setItem(GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY, 'disc-1');
     stubLocation('?next=%2Fdashboard');
     mockUseAuth.mockReturnValue({
       ...AUTH_BASE,
@@ -200,6 +207,21 @@ describe('Login', () => {
     });
 
     renderLogin('/login?next=%2F%2Fevil.example');
+
+    await waitFor(() => {
+      expect(navigate).toHaveBeenCalledWith('/portfolio', { replace: true });
+    });
+  });
+
+  it('ignores login self-redirect in ?next and falls back to /portfolio', async () => {
+    stubLocation('?next=%2Flogin');
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: true,
+      user: { id: 'u1', email: 'a@a.com', identities: [{ provider: 'email' }] } as User,
+    });
+
+    renderLogin('/login?next=%2Flogin');
 
     await waitFor(() => {
       expect(navigate).toHaveBeenCalledWith('/portfolio', { replace: true });
@@ -251,16 +273,111 @@ describe('Login', () => {
 
     renderLogin();
 
-    const createTab = screen
-      .getAllByRole('button', { name: /^register$/i })
-      .find(b => b.getAttribute('type') === 'button');
-    expect(createTab).toBeTruthy();
-    await user.click(createTab!);
+    const createTab = screen.getByRole('tab', { name: /^create account$/i });
+    await user.click(createTab);
     await user.type(screen.getByPlaceholderText(/your@email\.com/i), 'new@example.com');
     await user.type(screen.getByPlaceholderText(/^password$/i), 'secret12');
     await user.click(getEmailPasswordSubmitButton());
 
     expect(signUpWithPassword).toHaveBeenCalledWith('new@example.com', 'secret12');
+  });
+
+  it('blocks create-account submit for passwords shorter than 8 chars', async () => {
+    const user = userEvent.setup();
+    stubLocation('');
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: false,
+      user: null,
+    });
+
+    renderLogin();
+
+    await user.click(screen.getByRole('tab', { name: /^create account$/i }));
+    await user.type(screen.getByPlaceholderText(/your@email\.com/i), 'new@example.com');
+    await user.type(screen.getByPlaceholderText(/^password$/i), 'short7');
+    await user.click(getEmailPasswordSubmitButton());
+
+    expect(signUpWithPassword).not.toHaveBeenCalled();
+    expect(screen.getByText('Password must be at least 8 characters.')).toBeInTheDocument();
+  });
+
+  it('toggles password visibility from eye button', async () => {
+    const user = userEvent.setup();
+    stubLocation('');
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: false,
+      user: null,
+    });
+
+    renderLogin();
+
+    const passwordInput = screen.getByPlaceholderText(/^password$/i);
+    expect(passwordInput).toHaveAttribute('type', 'password');
+
+    await user.click(screen.getByRole('button', { name: /show password/i }));
+    expect(passwordInput).toHaveAttribute('type', 'text');
+
+    await user.click(screen.getByRole('button', { name: /hide password/i }));
+    expect(passwordInput).toHaveAttribute('type', 'password');
+  });
+
+  it('supports password visibility toggle in register mode', async () => {
+    const user = userEvent.setup();
+    stubLocation('');
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: false,
+      user: null,
+    });
+
+    renderLogin();
+
+    const createTab = screen.getByRole('tab', { name: /^create account$/i });
+    await user.click(createTab);
+
+    const passwordInput = screen.getByPlaceholderText(/^password$/i);
+    expect(passwordInput).toHaveAttribute('type', 'password');
+
+    await user.click(screen.getByRole('button', { name: /show password/i }));
+    expect(passwordInput).toHaveAttribute('type', 'text');
+  });
+
+  it('does not submit form when clicking password visibility toggle', async () => {
+    const user = userEvent.setup();
+    stubLocation('');
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: false,
+      user: null,
+    });
+
+    renderLogin();
+
+    await user.click(screen.getByRole('button', { name: /show password/i }));
+
+    expect(signInWithPassword).not.toHaveBeenCalled();
+    expect(signUpWithPassword).not.toHaveBeenCalled();
+  });
+
+  it('updates password toggle aria-label when visibility changes', async () => {
+    const user = userEvent.setup();
+    stubLocation('');
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: false,
+      user: null,
+    });
+
+    renderLogin();
+
+    expect(screen.getByRole('button', { name: /show password/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /hide password/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /show password/i }));
+    expect(screen.getByRole('button', { name: /hide password/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /show password/i })).not.toBeInTheDocument();
   });
 
   it('shows Supabase manual-linking hint when Google linkIdentity is disabled', async () => {
@@ -304,6 +421,59 @@ describe('Login', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Invalid login credentials')).toBeInTheDocument();
+    });
+  });
+
+  it('supports keyboard navigation for auth tabs (Arrow/Home/End)', async () => {
+    const user = userEvent.setup();
+    stubLocation('');
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: false,
+      user: null,
+    });
+
+    renderLogin();
+
+    const signInTab = screen.getByRole('tab', { name: /^sign in$/i });
+    const createTab = screen.getByRole('tab', { name: /^create account$/i });
+    signInTab.focus();
+    expect(signInTab).toHaveAttribute('aria-selected', 'true');
+
+    await user.keyboard('{ArrowRight}');
+    expect(createTab).toHaveFocus();
+    expect(createTab).toHaveAttribute('aria-selected', 'true');
+
+    await user.keyboard('{Home}');
+    expect(signInTab).toHaveFocus();
+    expect(signInTab).toHaveAttribute('aria-selected', 'true');
+
+    await user.keyboard('{End}');
+    expect(createTab).toHaveFocus();
+    expect(createTab).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('keeps form usable when sign-in throws unexpectedly', async () => {
+    const user = userEvent.setup();
+    stubLocation('');
+    signInWithPassword.mockRejectedValueOnce(new Error('Network failed'));
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      isAuthenticated: false,
+      user: null,
+    });
+
+    renderLogin();
+
+    await user.type(screen.getByPlaceholderText(/your@email\.com/i), 'x@x.com');
+    await user.type(screen.getByPlaceholderText(/^password$/i), 'wrongpass');
+    await user.click(getEmailPasswordSubmitButton());
+
+    await waitFor(() => {
+      expect(screen.getByText('Network failed')).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(getEmailPasswordSubmitButton()).not.toHaveAttribute('disabled');
     });
   });
 });

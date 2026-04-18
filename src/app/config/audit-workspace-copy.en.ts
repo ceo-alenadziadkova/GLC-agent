@@ -1,0 +1,46 @@
+export const AUDIT_WORKSPACE_COPY = {
+  shell: {
+    title: 'Audit Workspace',
+    loadingSubtitle: 'Loading...',
+    errorSubtitle: 'Error',
+    notFound: 'Audit not found',
+    selectDomain: 'Select a domain',
+    openReport: 'Open Report',
+  },
+  sidebar: {
+    overallScore: 'Overall Score',
+    domainsAnalyzedSuffix: 'domains analysed',
+    editIntakeBrief: 'Edit intake brief',
+    briefSaved: 'Brief saved',
+    defaultLayoutPrefix: 'Default layout:',
+    settingsLink: 'Settings',
+    changeLayout: 'Change layout',
+    domains: 'Domains',
+  },
+  sections: {
+    domainFocus: 'Domain focus',
+    strengths: 'Strengths',
+    issuesFound: 'Issues Found',
+    recommendations: 'Recommendations',
+    actionsSuffix: 'actions',
+    dataGaps: 'Data Gaps',
+    dataGapsHint: '— areas not assessable from crawl data',
+  },
+  enrichment: {
+    refinePrefix: 'Refine',
+    refineMiddle: 'score — answer',
+    refineQuestionSingular: 'question',
+    refineQuestionPlural: 'questions',
+    saved: 'Brief updated — readiness refreshed',
+  },
+  recommendation: {
+    priorityLabel: 'Priority:',
+    impactLabel: 'Impact:',
+    estimatedCostPrefix: 'Estimated cost:',
+    estimatedTimePrefix: 'Estimated time:',
+  },
+  emptyDomain: {
+    title: 'No data yet for this domain',
+    hint: 'Run the pipeline to generate analysis',
+  },
+} as const;

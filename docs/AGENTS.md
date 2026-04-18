@@ -2,48 +2,37 @@
 
 ## BaseAgent
 
-Abstract class in `server/src/agents/base.ts`. All 8 domain agents + ReconAgent + StrategyAgent inherit from it.
+Abstract class in `server/src/agents/base.ts`. All domain agents plus `ReconAgent` and `StrategyAgent` inherit from it (currently 8 agents total: 6 domain + recon + strategy).
 
-```typescript
-abstract class BaseAgent {
-  abstract get phaseNumber(): number;
-  abstract get domainKey(): string;
-  abstract getCollectors(): BaseCollector[];
-  abstract buildInstructions(ctx: AgentContext): string;
-  abstract get outputSchema(): ZodSchema;
+High-level flow (domain agents, after collect):
 
-  async run(): Promise<DomainResult> {
-    // Step 1: Collect (no AI)
-    await this.emitEvent('collecting');
-    const collectedData: Record<string, unknown> = {};
-    for (const collector of this.getCollectors()) {
-      collectedData[collector.name] = await collector.collect(this.auditId);
-    }
+1. **Assemble context** → `ContextBuilder.build(auditId, domainKey, collectedData)` (typed collector map).
+2. **Claude** → `callClaudeWithRetry` (single tool-use call, Zod-validated).
+3. **Fact-check** → `FactChecker.verify(result, domainKey, collectedData)` returns corrected `DomainResult`, corrections, and scalar confidence.
+4. **CONTROL_OBJECT v1** (domain phases only) → `FactChecker.buildControlObject(...)` stores advisory structured governance on `lastControlObject` (no `decision_hint` from FactChecker; the orchestrator’s **Decision Layer** sets the final hint before `control_object` is written to `pipeline_events`).
+5. **Return** corrected result; **persist** domain row happens in `PipelineOrchestrator` via `saveDomainResult` after governance events.
 
-    // Step 2: Assemble context
-    await this.emitEvent('assembling_context');
-    const context = await this.contextBuilder.build(this.auditId, this.domainKey, collectedData);
+Recon and Strategy skip the FactChecker / CONTROL_OBJECT path (no collector-vs-output verification in the same shape).
 
-    // Step 3: One Claude call
-    await this.emitEvent('analyzing');
-    const response = await this.callClaude(context);
-
-    // Step 4: Fact-check
-    const verified = await this.factChecker.verify(response, collectedData);
-
-    // Step 5: Save + emit
-    await this.saveDomainResult(verified.result);
-    await this.tokenTracker.log(this.auditId, this.phaseNumber, response.usage);
-    return verified.result;
-  }
-}
-```
+See [PIPELINE.md](./PIPELINE.md) (Fact-Check, Decision Layer, event types) and [ADR-CONTROL-OBJECT-V1](./adrs/ADR-CONTROL-OBJECT-V1.md).
 
 ---
 
 ## Intake context & question bank
 
-Brief responses use **question-bank v1** ids (`a1`, `f1`, …) plus identity (`intake_*`) and `revenue_model`. SLA gates (`saveBriefResponses` / `assertBriefReady`) use **`resolveFullSlaRequiredIds` / `resolveExpressSlaRequiredIds`** in `server/src/intake/brief-gates.ts` (visible stubs + branch + `collection_mode`). `ContextBuilder` maps **question-bank v1** answers per domain when responses include bank ids — mapping in [QUESTION_BANK.md](./QUESTION_BANK.md) §5; implementation in `server/src/intake/question-feed-roles.ts` (`QUESTION_FEED_ROLES` → `DOMAIN_TO_QUESTIONS_RAW` → `DOMAIN_TO_QUESTION_IDS`), `question-bank.v1.json` labels. The formatted prompt adds **Intake AI readiness (heuristic)** (0–100) when bank ids are present (`calcAiReadinessScore`, §8 in QUESTION_BANK). Free-text answers validate up to **`BRIEF_ANSWER_STRING_MAX`** (12k chars) in `server/src/schemas/intake-brief.ts`.
+**Package:** Shared intake (question bank JSON, resolver, SLA gates, `choiceValueNeedsSpecify` / `choiceSpecifyResponseKey`, `@glc/intake-core`) — import by package name only; decision record [ADR-INTAKE-UNIFIED-QUESTION-BANK](./adrs/ADR-INTAKE-UNIFIED-QUESTION-BANK.md).
+
+**Canonical documentation:** Bank ids, branching, mapping into agent context, AI readiness heuristic → [QUESTION_BANK.md](./QUESTION_BANK.md). **HTTP contracts** for brief/version tuples and errors → [API.md](./API.md).
+
+**Pipeline-relevant summary:** `ContextBuilder` maps question-bank answers into domain prompts when responses use bank ids. Persisted **`intake_versions`** must match what the client rendered; server validates on write (**server is source of truth**). **Public intake / Discover** rate limits: `server/src/middleware/rate-limit.ts` — use **`RATE_LIMIT_REDIS_URL`** when running multiple API instances. Prefer **aligned** SPA + API releases when changing `@glc/intake-core` semantics.
+
+### Legacy removal guardrail (semantic parity)
+
+Before removing a legacy compatibility branch (key alias, old payload shape, fallback mapper), verify semantic parity with the current canonical flow:
+
+1. **Meaning parity:** canonical path carries the same business signal and intent (not just a similarly named field).
+2. **Direction parity:** downstream behavior is equivalent in outcome (visibility, gates, policy decisions, persisted cells).
+3. **Coverage proof:** targeted tests and contract docs are updated in the same change; if parity cannot be proven, narrow legacy path with explicit guardrails instead of deleting blindly.
 
 ---
 
@@ -53,12 +42,12 @@ Data gatherers in `server/src/collectors/`. Run before any AI call. Results cach
 
 | Collector | File | Collects |
 |---|---|---|
-| `CrawlerCollector` | `crawler.ts` | Fetches up to 20 pages; parses HTML with cheerio; returns page tree |
-| `ReconCollector` | `recon.ts` | Tech stack detection (80+ patterns), social profiles, contact info, structured data, image analysis |
+| `CrawlerCollector` | `crawler.ts` | Fetches up to **`CRAWLER_MAX_PAGES`** pages (default 20, clamped 1–100 via `server/src/config/crawler-limits.ts`); parses HTML with cheerio; returns page tree |
 | `SecurityCollector` | `security.ts` | HTTP security headers (CSP, HSTS, X-Frame-Options, X-Content-Type), SSL validity, cookie flags, CORS config |
-| `SeoCollector` | `seo.ts` | Meta title/description, Open Graph tags, canonical URLs, sitemap.xml, robots.txt, JSON-LD schema markup |
-| `PerformanceCollector` | `performance.ts` | Page weight (HTML/CSS/JS sizes), image optimisation hints, resource hints, lazy loading |
-| `AccessibilityCollector` | `accessibility.ts` | Alt text coverage, ARIA landmark usage, form label associations, color contrast hints (heuristic) |
+| `SeoCollector` | `seo.ts` | Meta title/description, structured data from crawl; **robots-parser** for robots.txt; **fast-xml-parser** for sitemap urlset/index (bounded) |
+| `PerformanceCollector` | `performance.ts` | Page weight from crawl, response headers; optional **Lighthouse** (today: **single-URL** on `companyUrl`) when `SYSTEM_DEFAULTS.auditDeepScan.lighthouseEnabled` (or umbrella `deepScanEnabled`) is enabled — **target:** multi-URL / Unlighthouse-class sampling; see [ARCHITECTURE.md](./ARCHITECTURE.md#target-architecture-lighthouse-and-unlighthouse) |
+| `AccessibilityCollector` | `accessibility.ts` | Alt text, headings, structured-data heuristics; optional **axe-core + Playwright** when `SYSTEM_DEFAULTS.auditDeepScan.axePlaywrightEnabled` (or umbrella `deepScanEnabled`) is enabled |
+| `MarketingCollector` | `marketing.ts` | Marketing copy and positioning signals from crawl + lightweight extraction for `marketing_utp` |
 
 ### BaseCollector interface
 
@@ -75,7 +64,7 @@ interface BaseCollector {
 
 ### ReconAgent — Phase 0
 
-**Collectors:** `CrawlerCollector`, `ReconCollector`
+**Collectors:** `CrawlerCollector`
 
 **Claude task:** Interpret crawled data → produce:
 - Company name, industry, location, business model
@@ -122,7 +111,7 @@ interface BaseCollector {
 
 ### MarketingAgent — Phase 5
 
-**Domain key:** `marketing_utp` | **Collectors:** *(none — uses recon + review notes)*
+**Domain key:** `marketing_utp` | **Collectors:** `MarketingCollector` (+ recon/review context)
 
 **Claude task:** Evaluate marketing positioning and messaging — value proposition clarity, differentiation from competitors, target audience alignment, brand voice consistency. Heavily relies on consultant + interview notes from Gate 2.
 
@@ -154,7 +143,7 @@ interface BaseCollector {
 
 ## Fact Checker (`services/fact-checker.ts`)
 
-Validates Claude's scored output against raw metrics to prevent hallucinated scores.
+Validates Claude's scored output against raw metrics to prevent hallucinated scores. User-visible correction strings and score band labels load from `server/src/config/fact-checker-copy.v1.json` (thresholds stay in `fact-checker-thresholds.ts`).
 
 **Rules:**
 - SEO score ≥ 4 but no sitemap found → max score capped at 3, flag added
@@ -164,6 +153,8 @@ Validates Claude's scored output against raw metrics to prevent hallucinated sco
 
 All corrections logged to `pipeline_events` (type: `fact_check`). Frontend shows correction count in phase details.
 
+**CONTROL_OBJECT v1:** `buildControlObject()` derives counts, confidence dimensions, errors, assumptions, and trace from the verified result (issues, recommendations, corrections). **Routing** (`accept` / `accept_with_warnings` / `refine`) is owned by `DecisionLayer` in `server/src/services/decision-layer.ts`, not duplicated inside FactChecker.
+
 ---
 
 ## Industry Weights
@@ -172,16 +163,7 @@ Defined in `server/src/config/industry-weights.ts`.
 
 Each industry has a multiplier per domain (default 1.0). Overall score = weighted average.
 
-| Industry | tech | security | seo | ux | marketing | automation |
-|---|---|---|---|---|---|---|
-| E-commerce | 1.2 | 1.1 | 1.4 | 1.5 | 1.3 | 1.0 |
-| Hospitality | 0.9 | 0.9 | 1.3 | 1.5 | 1.2 | 0.8 |
-| Healthcare | 1.1 | 1.5 | 1.0 | 1.1 | 0.9 | 1.1 |
-| SaaS / Tech | 1.4 | 1.3 | 1.0 | 1.2 | 1.2 | 1.3 |
-| Professional Services | 1.0 | 1.1 | 1.2 | 1.1 | 1.3 | 1.1 |
-| Default | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 |
-
-Weights shown in the Strategy Lab for transparency.
+Weights are versioned in code and may change over time; use `server/src/config/industry-weights.ts` as canonical source, and Strategy Lab as runtime display.
 
 ---
 

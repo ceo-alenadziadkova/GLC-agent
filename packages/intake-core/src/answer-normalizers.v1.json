@@ -1,0 +1,309 @@
+{
+  "version": "1.0.0",
+  "crmToolNeedle": "crm",
+  "governanceUncertainPhrases": ["not sure", "don't know", "unsure"],
+  "a8UncertainPhrases": ["not sure", "don't know"],
+  "onlinePresence": {
+    "hasNotOnlineSubstrings": ["not really online"],
+    "hasGoogleSearchEq": ["google search", "google / search"],
+    "hasGoogleBusinessSubstrings": ["google business"]
+  },
+  "d4bExportReadiness": {
+    "rules": [
+      { "then": "unknown", "if": [{ "kind": "string_empty" }] },
+      {
+        "then": "quick",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "yes, usually quick" },
+              { "kind": "string_includes", "value": "yes easily" },
+              { "kind": "string_includes", "value": "quick" }
+            ]
+          }
+        ]
+      },
+      { "then": "sometimes", "if": [{ "kind": "string_includes", "value": "sometimes" }] },
+      {
+        "then": "painful",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "painful" },
+              { "kind": "string_includes", "value": "rarely" }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "no",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_eq", "value": "no" },
+              { "kind": "string_starts_with", "value": "no " }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "unknown",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "don't know" },
+              { "kind": "string_includes", "value": "not sure" }
+            ]
+          }
+        ]
+      },
+      { "then": "other", "if": [{ "kind": "always" }] }
+    ]
+  },
+  "d4aAiUsage": {
+    "rules": [
+      { "then": "unknown", "if": [{ "kind": "string_empty" }] },
+      { "then": "daily", "if": [{ "kind": "string_includes", "value": "daily" }] },
+      {
+        "then": "weekly_or_occasional",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "weekly" },
+              { "kind": "string_includes", "value": "occasionally" }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "low",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "not really" },
+              { "kind": "string_eq", "value": "no" },
+              { "kind": "string_starts_with", "value": "no " }
+            ]
+          }
+        ]
+      },
+      { "then": "other", "if": [{ "kind": "always" }] }
+    ]
+  },
+  "automationAttempt": {
+    "rules": [
+      { "then": "not_sure", "if": [{ "kind": "string_empty" }] },
+      {
+        "then": "helped",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "helped" },
+              { "kind": "string_includes", "value": "worked" }
+            ]
+          }
+        ]
+      },
+      { "then": "abandoned", "if": [{ "kind": "string_includes", "value": "abandoned" }] },
+      { "then": "not_yet", "if": [{ "kind": "string_includes", "value": "not yet" }] },
+      {
+        "then": "not_sure",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "not sure" },
+              { "kind": "string_includes", "value": "don't know" }
+            ]
+          }
+        ]
+      },
+      { "then": "other", "if": [{ "kind": "always" }] }
+    ]
+  },
+  "d3ManualLoad": {
+    "rules": [
+      { "then": "unknown", "if": [{ "kind": "string_empty" }] },
+      {
+        "then": "low",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "< 5" },
+              { "kind": "string_includes", "value": "5–10" },
+              { "kind": "string_includes", "value": "5-10" }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "medium",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "10–20" },
+              { "kind": "string_includes", "value": "10-20" }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "high",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "20h+" },
+              { "kind": "string_includes", "value": "20–40" },
+              { "kind": "string_includes", "value": "20-40" },
+              { "kind": "string_includes", "value": "40h+" }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "unknown",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "not sure" },
+              { "kind": "string_includes", "value": "no idea" }
+            ]
+          }
+        ]
+      },
+      { "then": "other", "if": [{ "kind": "always" }] }
+    ]
+  },
+  "stage": {
+    "rules": [
+      { "then": "unknown", "if": [{ "kind": "string_empty" }] },
+      {
+        "then": "launching",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "just getting started" },
+              { "kind": "string_includes", "value": "launch" }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "growing",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "growing fast" },
+              { "kind": "string_eq", "value": "growing" }
+            ]
+          }
+        ]
+      },
+      { "then": "other", "if": [{ "kind": "always" }] }
+    ]
+  },
+  "teamSize": {
+    "rules": [
+      { "then": "unknown", "if": [{ "kind": "string_empty" }] },
+      {
+        "then": "solo",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "just me" },
+              { "kind": "string_eq", "value": "solo" }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "small",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "2–5" },
+              { "kind": "string_includes", "value": "2-5" },
+              { "kind": "string_includes", "value": "2–10" },
+              { "kind": "string_includes", "value": "2-10" }
+            ]
+          }
+        ]
+      },
+      { "then": "other", "if": [{ "kind": "always" }] }
+    ]
+  },
+  "primaryGoal": {
+    "priorityOutcomes": ["more_clients", "admin_overload"],
+    "rules": [
+      { "then": "unknown", "if": [{ "kind": "string_empty" }] },
+      {
+        "then": "more_clients",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "not enough new clients" },
+              {
+                "kind": "all",
+                "of": [
+                  { "kind": "string_includes", "value": "new" },
+                  { "kind": "string_includes", "value": "client" }
+                ]
+              },
+              { "kind": "string_includes", "value": "qualified leads" },
+              { "kind": "string_includes", "value": "new customers" },
+              {
+                "kind": "all",
+                "of": [
+                  { "kind": "string_includes", "value": "conversion" },
+                  { "kind": "string_includes", "value": "inquiries" }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "then": "admin_overload",
+        "if": [
+          {
+            "kind": "any",
+            "of": [
+              { "kind": "string_includes", "value": "too much time on admin" },
+              {
+                "kind": "all",
+                "of": [
+                  { "kind": "string_includes", "value": "admin" },
+                  { "kind": "string_includes", "value": "operations" }
+                ]
+              },
+              {
+                "kind": "all",
+                "of": [
+                  { "kind": "string_includes", "value": "manual work" },
+                  { "kind": "string_includes", "value": "overload" }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      { "then": "other", "if": [{ "kind": "always" }] }
+    ]
+  }
+}

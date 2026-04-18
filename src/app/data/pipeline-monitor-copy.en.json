@@ -1,0 +1,76 @@
+{
+  "pageTitle": "Pipeline Monitor",
+  "loading": "Loading...",
+  "loadingCompany": "Loading...",
+  "expressBadge": "Pro",
+  "errorPrefix": "Error:",
+  "phasePrefix": "Phase",
+  "auditIdPrefix": "Audit #",
+  "sidebar": {
+    "phases": "Phases",
+    "autoWing": "Auto Wing",
+    "analyticWing": "Analytic Wing",
+    "synthesis": "Synthesis",
+    "parallelBadge": "PARALLEL"
+  },
+  "reviewPoints": {
+    "one": "Review Point #1",
+    "two": "Review Point #2",
+    "twoFinal": "Review Point #2 (Final)",
+    "three": "Review Point #3"
+  },
+  "parallelWing": {
+    "runningSuffix": " · Running in parallel",
+    "autoName": "Auto Wing",
+    "analyticName": "Analytic Wing"
+  },
+  "detail": {
+    "agentRunning": "Agent running...",
+    "waitingTitle": "Waiting for previous phases",
+    "waitingSubtitle": "This phase will start automatically",
+    "domainUnavailableTitle": "Domain unavailable",
+    "domainUnavailableBody": "This domain could not be analysed. The pipeline has continued and the Strategy Agent will note this gap explicitly.",
+    "agentLogPrefix": "Agent Log ·",
+    "domainScore": "Domain Score",
+    "viewInWorkspace": "View in Workspace",
+    "continuePipeline": "Continue Pipeline",
+    "stopPipeline": "Stop Pipeline",
+    "stopPipelineCancel": "Cancel",
+    "stopPipelineConfirm": "Stop this pipeline now? The status will change to cancelled.",
+    "stopPipelineStopping": "Stopping...",
+    "tokensUsedPrefix": "Tokens used: ",
+    "tokensBudgetSeparator": " / ",
+    "governanceRefineTitle": "Decision Layer: manual review recommended",
+    "governanceRefineBody": "Confidence and claim checks suggest refining this phase output before relying on it in downstream analysis.",
+    "governanceWarningsTitle": "Decision Layer: accepted with warnings",
+    "governanceWarningsBody": "Output was saved. Review the governance summary below before the next wing.",
+    "governanceSummaryTitle": "Governance summary",
+    "governanceConfidence": "Overall confidence",
+    "governanceClaims": "Claims tracked",
+    "governanceHallucination": "Likely hallucination flags",
+    "governanceRiskyPromise": "Risky promise flags",
+    "governanceHumanAttention": "Human attention required",
+    "governanceAutoRemediationBadge": "Auto-corrected {count} issue(s) (tone)"
+  },
+  "reviewModal": {
+    "defaultNote": "Add your observations before continuing",
+    "governanceRefineSectionTitle": "Phases flagged for manual review",
+    "governanceRefineSectionIntro": "The Decision Layer recommended refine for the following completed phases. The pipeline continued; use notes below to capture context before approving."
+  },
+  "phaseCard": {
+    "skip": "SKIP"
+  },
+  "miniCard": {
+    "done": "Done",
+    "failed": "Failed",
+    "waiting": "Waiting"
+  },
+  "revBanner": {
+    "approved": "Approved",
+    "waitingApproval": "Waiting for approval",
+    "qualityWarningsNotes": "Quality warnings — notes required",
+    "qualityWarningsTitle": "Quality warnings",
+    "approve": "Approve",
+    "consultantApproval": "Consultant approval"
+  }
+}

@@ -83,7 +83,7 @@ export const TECH_PATTERNS: Record<string, Record<string, RegExp[]>> = {
     Tailwind: [/tailwindcss/i, /@tailwind\s/],
     Remix: [/@remix-run|__remixContext|remix\.run/i],
     Preact: [/preact(?:\.min)?\.js/i, /\/preact\//i, /@preact\//i],
-    jQuery: [/jquery(?:[\.-]migrate)?(?:\.min)?\.js/i, /\/jquery\/\d/i, /code\.jquery\.com\/jquery/i],
+    jQuery: [/jquery(?:[-.]migrate)?(?:\.min)?\.js/i, /\/jquery\/\d/i, /code\.jquery\.com\/jquery/i],
     'Alpine.js': [/alpinejs|@alpinejs|Alpine\.data|x-data=/i],
     HTMX: [/htmx\.org|\/htmx(?:\.min)?\.js/i],
     SolidJS: [/solid-js|solid\.js|__SOLID__/i],

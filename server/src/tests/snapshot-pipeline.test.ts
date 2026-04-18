@@ -28,6 +28,7 @@ const { mockFrom, getUpdateCalls, getInsertCalls } = vi.hoisted(() => {
       insertCalls.push({ table, payload });
       return Promise.resolve({ error: null });
     }),
+    upsert: vi.fn(() => Promise.resolve({ error: null })),
     select: vi.fn(() => ({
       eq: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
@@ -54,6 +55,7 @@ vi.mock('../services/supabase.js', () => ({
 
 vi.mock('../services/notifications.js', () => ({
   notifyAuditParticipants: vi.fn().mockResolvedValue(undefined),
+  emitStructuredNotification: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../services/observability-context.js', () => ({

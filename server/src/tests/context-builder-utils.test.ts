@@ -106,4 +106,97 @@ describe('ContextBuilder.formatPrompt', () => {
     const { prompt } = builder.formatPrompt(minimalCtx({}));
     expect(prompt).not.toContain('Intake AI readiness (heuristic');
   });
+
+  it('includes intake report anchors when intake_report_anchors is set', () => {
+    const builder = new ContextBuilder();
+    const { prompt } = builder.formatPrompt(
+      minimalCtx({
+        intake_report_anchors: {
+          recon_company_summary: 'Acme Spa',
+          strategy_pain_anchor: 'More qualified leads',
+        },
+      }),
+    );
+    expect(prompt).toContain('Intake report anchors (canon)');
+    expect(prompt).toContain('recon_company_summary');
+    expect(prompt).toContain('Acme Spa');
+    expect(prompt).toContain('strategy_pain_anchor');
+  });
+
+  it('includes intake report gaps when intake_missing_report_domains is set', () => {
+    const builder = new ContextBuilder();
+    const { prompt } = builder.formatPrompt(
+      minimalCtx({
+        intake_missing_report_domains: ['recon', 'seo_digital'],
+      }),
+    );
+    expect(prompt).toContain('Intake report gaps (domains with unanswered primary bank questions)');
+    expect(prompt).toContain('recon');
+    expect(prompt).toContain('seo_digital');
+  });
+
+  it('preserves contradictory upstream domain signals in strategy prompt context', () => {
+    const builder = new ContextBuilder();
+    const { prompt } = builder.formatPrompt(
+      minimalCtx({
+        slice_domain: 'strategy',
+        previous_domains: [
+          {
+            domain_key: 'marketing_utp',
+            score: 4,
+            summary: 'Audience fit appears strong and conversion trend is improving.',
+            strengths: ['High message-market fit'],
+            weaknesses: ['ROI evidence remains weak'],
+          },
+          {
+            domain_key: 'automation_processes',
+            score: 2,
+            summary: 'Current automation scope is low and execution risk is high.',
+            strengths: ['Clear high-impact automation candidates'],
+            weaknesses: ['Implementation capacity mismatch'],
+          },
+        ],
+      }),
+    );
+
+    expect(prompt).toContain('## Previous Domain Analysis Results');
+    expect(prompt).toContain('### marketing_utp (Score: 4/5)');
+    expect(prompt).toContain('### automation_processes (Score: 2/5)');
+    expect(prompt).toContain('Audience fit appears strong');
+    expect(prompt).toContain('execution risk is high');
+    expect(prompt).toContain('ROI evidence remains weak');
+    expect(prompt).toContain('Implementation capacity mismatch');
+  });
+
+  it('includes upstream traceability anchors for strategy recommendations', () => {
+    const builder = new ContextBuilder();
+    const { prompt } = builder.formatPrompt(
+      minimalCtx({
+        slice_domain: 'strategy',
+        previous_domains: [
+          {
+            domain_key: 'security_compliance',
+            score: 3,
+            summary: 'Security baseline exists but cookie and header hygiene gaps remain.',
+            strengths: ['Valid TLS posture'],
+            weaknesses: ['Cookie flags are inconsistent'],
+          },
+          {
+            domain_key: 'seo_digital',
+            score: 2,
+            summary: 'Structured data coverage is low and robots directives are incomplete.',
+            strengths: ['Sitemap is present'],
+            weaknesses: ['Robots quality issues'],
+          },
+        ],
+      }),
+    );
+
+    // Domain-keyed blocks are explicit trace anchors for strategy recommendations.
+    expect(prompt).toContain('### security_compliance (Score: 3/5)');
+    expect(prompt).toContain('### seo_digital (Score: 2/5)');
+    expect(prompt).toContain('Strengths: Valid TLS posture');
+    expect(prompt).toContain('Weaknesses: Cookie flags are inconsistent');
+    expect(prompt).toContain('Weaknesses: Robots quality issues');
+  });
 });

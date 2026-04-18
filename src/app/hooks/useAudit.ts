@@ -1,6 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../data/apiService';
 import { glcKeys } from '../lib/glc-keys';
+import { GLC_QUERY_STALE_TIME_MS_DEFAULT } from '../config/query-client-defaults';
+import { AUDIT_HOOKS_COPY } from '../config/audit-hooks-copy.en';
 
 export function useAudit(auditId: string | undefined) {
   const queryClient = useQueryClient();
@@ -8,13 +10,13 @@ export function useAudit(auditId: string | undefined) {
     queryKey: glcKeys.audit.detail(auditId ?? ''),
     queryFn: () => api.getAudit(auditId!),
     enabled: Boolean(auditId),
-    staleTime: 120_000,
+    staleTime: GLC_QUERY_STALE_TIME_MS_DEFAULT,
   });
 
   const errorMsg =
     q.isError && q.error
       ? q.error instanceof ApiError && q.error.status === 404
-        ? 'We could not find this audit.'
+        ? AUDIT_HOOKS_COPY.auditNotFound
         : (q.error as Error).message
       : null;
 

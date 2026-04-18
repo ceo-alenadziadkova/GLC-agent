@@ -1,0 +1,12 @@
+export const ADMIN_SNAPSHOT_QUEUE_COPY = {
+  title: 'Snapshot queue',
+  subtitle: 'All free snapshot submissions and their current results',
+  refresh: 'Refresh',
+  loadFailed: 'Failed to load snapshot queue.',
+  emptyState: 'No snapshots in this view',
+  noScoreYet: 'No score yet',
+  submittedPrefix: 'Submitted:',
+  clientPrefix: 'client',
+  snapshotResultPrefix: 'Snapshot result:',
+  openAudit: 'Open audit',
+} as const;

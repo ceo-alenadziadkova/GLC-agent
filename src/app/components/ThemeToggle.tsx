@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { Moon, Sun } from '@phosphor-icons/react';
 import { Switch } from './ui/switch';
 import { cn } from './ui/utils';
@@ -12,19 +13,24 @@ type ThemeToggleProps = {
 export function ThemeToggle({ variant = 'default', className }: ThemeToggleProps) {
   const { isDark, setDark } = useGlcTheme();
   const iconMuted =
-    variant === 'sidebar' ? 'rgba(255,255,255,0.42)' : 'var(--text-tertiary)';
+    variant === 'sidebar' ? 'var(--app-shell-sidebar-theme-icon-muted)' : 'var(--text-tertiary)';
   const iconActive =
-    variant === 'sidebar' ? 'rgba(255,255,255,0.78)' : 'var(--text-secondary)';
+    variant === 'sidebar' ? 'var(--app-shell-sidebar-theme-icon-active)' : 'var(--text-secondary)';
+
+  const cssVars = {
+    '--theme-toggle-sun': isDark ? iconMuted : iconActive,
+    '--theme-toggle-moon': isDark ? iconActive : iconMuted,
+  } as CSSProperties;
 
   return (
     <div
       className={cn('flex items-center gap-2', className)}
+      style={cssVars}
       title={isDark ? 'Dark theme on' : 'Light theme on'}
     >
       <Sun
-        className="h-4 w-4 shrink-0"
+        className="ds-theme-toggle-sun h-4 w-4 shrink-0"
         weight={isDark ? 'regular' : 'fill'}
-        style={{ color: isDark ? iconMuted : iconActive }}
         aria-hidden
         focusable="false"
       />
@@ -32,12 +38,15 @@ export function ThemeToggle({ variant = 'default', className }: ThemeToggleProps
         checked={isDark}
         onCheckedChange={setDark}
         aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
-        className={variant === 'sidebar' ? 'data-[state=unchecked]:bg-white/15' : undefined}
+        className={
+          variant === 'sidebar'
+            ? 'ds-theme-switch-on-ink data-[state=unchecked]:bg-[var(--app-shell-sidebar-switch-track)]'
+            : undefined
+        }
       />
       <Moon
-        className="h-4 w-4 shrink-0"
+        className="ds-theme-toggle-moon h-4 w-4 shrink-0"
         weight={isDark ? 'fill' : 'regular'}
-        style={{ color: isDark ? iconActive : iconMuted }}
         aria-hidden
         focusable="false"
       />

@@ -1,6 +1,7 @@
 /**
  * Rule-based site profile from SnapshotFacts (no LLM).
  */
+import { SYSTEM_DEFAULTS } from '../../config/system-defaults.js';
 import { logger } from '../../services/logger.js';
 import type { SiteProfile, SnapshotFacts } from '../types.js';
 import { getClassificationRules, type SignalDef } from './parse-rules.js';
@@ -15,6 +16,8 @@ export interface SiteProfileDebug {
   winningIndustryRule: string;
   winningConversionRule: string;
   scoreTopTwoSiteTypes: [string, number][];
+  /** Top two site types were within `tieDeltaThreshold` (classification may be unstable). */
+  tieAmbiguous: boolean;
 }
 
 function norm(s: string): string {
@@ -333,9 +336,10 @@ export function runSiteProfile(
       [top.id, top.count],
       [second.id, second.count],
     ],
+    tieAmbiguous,
   };
 
-  if (rules.debugSignals || process.env.SNAPSHOT_CLASSIFICATION_DEBUG === '1') {
+  if (rules.debugSignals || SYSTEM_DEFAULTS.snapshotClassification.debugSignals) {
     logger.info('snapshot.classification_debug', {
       siteType: siteTypeId,
       industry: industryId,
@@ -343,7 +347,7 @@ export function runSiteProfile(
       matchedSignals,
       rejectedSignals,
       scoreTopTwo: debug.scoreTopTwoSiteTypes,
-      tieAmbiguous,
+      tieAmbiguous: debug.tieAmbiguous,
     });
   }
 

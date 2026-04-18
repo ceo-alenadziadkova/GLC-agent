@@ -139,6 +139,10 @@ class HarnessAgent extends BaseAgent {
   exerciseCall(ctx: AgentContext) {
     return this.callClaudeWithRetry(ctx);
   }
+
+  exerciseInstructions() {
+    return this.getEffectiveInstructions();
+  }
 }
 
 describe('BaseAgent.callClaudeWithRetry — AI output contract', () => {
@@ -220,5 +224,31 @@ describe('BaseAgent.callClaudeWithRetry — AI output contract', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('appends auto-loop patch for current phase', () => {
+    const agent = new HarnessAgent('audit-contract-5');
+    agent.autoLoopAdjustments = new Map([
+      [1, '[Correction for score_evidence_mismatch]\nGround all scores in collected evidence.'],
+      [2, 'ignore me'],
+    ]);
+
+    expect(agent.exerciseInstructions()).toContain('test harness');
+    expect(agent.exerciseInstructions()).toContain('[Correction for score_evidence_mismatch]');
+    expect(agent.exerciseInstructions()).not.toContain('ignore me');
+  });
+
+  it('keeps variant replacement and appends auto-loop patch', () => {
+    const agent = new HarnessAgent('audit-contract-6');
+    agent.variantDelta = {
+      variant_id: 'replacement',
+      phase_id: 'tech_infrastructure',
+      instruction_delta: 'replacement prompt',
+      delta_type: 'replace',
+      description: 'test',
+    };
+    agent.autoLoopAdjustments = new Map([[1, 'auto-loop patch']]);
+
+    expect(agent.exerciseInstructions()).toBe('replacement prompt\n\nauto-loop patch');
   });
 });

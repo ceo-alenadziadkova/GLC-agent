@@ -4,6 +4,7 @@ import {
   buildDomainToQuestionsRawFromRoles,
   calcAiReadinessScore,
   calcDataQualityScore,
+  calcDataQualityScoreFromVisible,
   DOMAIN_TO_QUESTION_IDS,
   deriveBankV1DataQuality,
   filterVisibleQuestions,
@@ -18,8 +19,9 @@ import {
   QUESTION_FEEDS_BY_ID,
   responsesUseQuestionBankV1,
   sliceResponsesForDomain,
-} from '../intake/index.js';
-import type { IntakeQuestionStub } from '../intake/types.js';
+} from '@glc/intake-core';
+import { DISCOVERY_BANK_IDS } from '@glc/intake-core';
+import type { IntakeQuestionStub } from '@glc/intake-core';
 
 describe('normalizeWebsiteGate', () => {
   it('treats multi-page and landing as has_website', () => {
@@ -56,17 +58,18 @@ describe('BRANCH_RULES', () => {
 });
 
 describe('calcDataQualityScore', () => {
+  /** Minimal shapes; visibility comes from `buildIntakePlan` (real bank ids only). */
   const qs: IntakeQuestionStub[] = [
     { id: 'a1', priority: 'required' },
     { id: 'c6', priority: 'required', branchCondition: 'has_website' },
-    { id: 'x1', priority: 'recommended' },
+    { id: 'a4', priority: 'recommended' },
   ];
 
   it('uses 0.55/0.35/0.10 weights and empty tier as 1.0', () => {
-    const emptyOpt: IntakeQuestionStub[] = [...qs, { id: 'o1', priority: 'optional', branchCondition: 'is_marine' }];
+    const emptyOpt: IntakeQuestionStub[] = [...qs, { id: 'e4', priority: 'optional', branchCondition: 'spain_based' }];
     const r = calcDataQualityScore(
       emptyOpt,
-      { a1: 'ok', x1: 'yes', a5: 'Yes, multi-page site' },
+      { a1: 'ok', a4: '2–10 people', a5: 'Yes, multi-page site' },
     );
     expect(r.visibleOptional).toBe(0);
     expect(r.optionalWeight).toBe(1);
@@ -83,12 +86,20 @@ describe('calcDataQualityScore', () => {
   it('hides branched required when gated out', () => {
     const r = calcDataQualityScore(qs, {
       a1: 'x',
-      x1: '',
+      a4: '',
       a5: 'No website yet',
     });
     expect(r.visibleRequired).toBe(1);
     expect(r.answeredRequired).toBe(1);
     expect(r.requiredWeight).toBe(1);
+  });
+
+  it('calcDataQualityScoreFromVisible matches filter path for same visible list', () => {
+    const responses = { a1: 'ok', a4: '2–10 people', a5: 'Yes, multi-page site' } as const;
+    const visible = filterVisibleQuestions(qs, responses);
+    const a = calcDataQualityScoreFromVisible(visible, responses);
+    const b = calcDataQualityScore(qs, responses);
+    expect(a).toEqual(b);
   });
 });
 
@@ -118,7 +129,7 @@ describe('discovery collection mode', () => {
     const ids = visible.map(q => q.id);
     expect(ids).toContain('a1');
     expect(ids).toContain('c_nosite_1');
-    expect(ids).toContain('b3');
+    expect(ids.every(id => DISCOVERY_BANK_IDS.has(id))).toBe(true);
   });
 
   it('shows c_nosite_3 only when c_nosite_1 includes Social media (nosite_social branch)', () => {
@@ -200,7 +211,7 @@ describe('question-bank v1', () => {
   });
 
   it('deriveBankV1DataQuality returns null when no bank keys', () => {
-    expect(deriveBankV1DataQuality({ revenue_model: 'Lead generation' })).toBe(null);
+    expect(deriveBankV1DataQuality({ revenue_model: 'Lead generation / referrals' })).toBe(null);
   });
 
   it('getQuestionBankPromptLabel returns JSON label', () => {

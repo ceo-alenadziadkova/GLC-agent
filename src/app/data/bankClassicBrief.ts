@@ -1,13 +1,17 @@
 /**
  * Classic "All sections" brief UI: same visible question set and order as IntakeBankWizard
- * (filterVisibleQuestions + bank JSON order).
+ * (`buildIntakePlan` + bank JSON order).
  */
-import { filterVisibleQuestions } from '../../../server/src/intake/is-visible';
-import { QUESTION_BANK_V1_STUBS } from '../../../server/src/intake/question-bank';
-import type { CollectionMode, IntakeQuestionStub } from '../../../server/src/intake/types';
+import type { IntakeBriefCollectionMode } from './audit/contracts/intake/intake-brief.types';
+import { buildIntakePlan } from '@glc/intake-core';
+import type { IntakeSurface } from '@glc/intake-core';
+import { QUESTION_BANK_V1_STUBS } from '@glc/intake-core';
+import type { IntakeQuestionStub } from '@glc/intake-core';
 import { bankIdToBriefQuestion } from './bankQuestionUiCatalog';
 import type { BriefQuestion, BriefResponses } from './briefQuestions';
 import { briefResponsesToIntakeMap } from './intakeBriefMap';
+
+const HIDDEN_IDENTITY_BANK_IDS = new Set(['a2', 'a11', 'a12']);
 
 function sortStubsByBankOrder(stubs: IntakeQuestionStub[]): IntakeQuestionStub[] {
   const order = new Map(QUESTION_BANK_V1_STUBS.map((q, i) => [q.id, i] as const));
@@ -24,13 +28,21 @@ export interface BankClassicSection {
  */
 export function getVisibleBankBriefSections(
   responses: BriefResponses,
-  collectionMode?: CollectionMode,
+  briefCollectionMode?: IntakeBriefCollectionMode,
+  intakeSurface?: IntakeSurface,
 ): BankClassicSection[] {
   const map = { ...briefResponsesToIntakeMap(responses) };
-  const visible = sortStubsByBankOrder(
-    filterVisibleQuestions(QUESTION_BANK_V1_STUBS, map, { collectionMode }),
+  const plan = buildIntakePlan({
+    responses: map,
+    productMode: 'full',
+    collectionMode: briefCollectionMode,
+    surface: intakeSurface,
+  });
+  const visible = new Set(plan.visible);
+  const visibleStubs = sortStubsByBankOrder(
+    QUESTION_BANK_V1_STUBS.filter(q => visible.has(q.id) && !HIDDEN_IDENTITY_BANK_IDS.has(q.id)),
   );
-  const flat = visible.map(stub => bankIdToBriefQuestion(stub.id, stub.priority));
+  const flat = visibleStubs.map(stub => bankIdToBriefQuestion(stub.id, stub.priority));
 
   const groups: BankClassicSection[] = [];
   for (const q of flat) {

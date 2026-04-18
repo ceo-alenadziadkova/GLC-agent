@@ -1,315 +1,112 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { motion } from 'motion/react';
-import { ArrowRight, Lock } from '@phosphor-icons/react';
-import { useAuth, isAnonymousUser } from '../hooks/useAuth';
-import { logger } from '../lib/logger';
+import { Link } from 'react-router';
+import { motion, useReducedMotion } from 'motion/react';
 import { ThemeToggle } from '../components/ThemeToggle';
-
-type AuthMode = 'signin' | 'signup';
+import { LOGIN_PAGE_COPY_EN as LC } from '../config/login-copy.en';
+import { BACKGROUND_VIDEO_CONFIG } from '../config/background-video';
+import { APP_ROUTE_PATHS } from '../config/route-paths';
+import { useLoginController } from './login/hooks/useLoginController';
+import { LoginBrandSection } from './login/sections/LoginBrandSection';
+import { LoginAuthCardSection } from './login/sections/LoginAuthCardSection';
+import { LoginAsideSection } from './login/sections/LoginAsideSection';
 
 export function Login() {
-  const navigate = useNavigate();
-  const { signInWithPassword, signUpWithPassword, signInWithGoogle, isAuthenticated, authError, user } = useAuth();
-  const [mode, setMode] = useState<AuthMode>('signin');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const discovery = new URLSearchParams(window.location.search).get('discovery');
-    if (discovery) localStorage.setItem('glc_discovery_token', discovery);
-  }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    if (isAnonymousUser(user)) {
-      logger.info('Login: anonymous session detected, stay on /login for account upgrade');
-      return;
-    }
-    const token = localStorage.getItem('glc_discovery_token');
-    if (token) {
-      logger.info('Login: isAuthenticated with discovery token, navigating to /audit/new');
-      navigate('/audit/new?from_discovery=1', { replace: true });
-      return;
-    }
-    const nextRaw = new URLSearchParams(window.location.search).get('next');
-    if (nextRaw && nextRaw.startsWith('/') && !nextRaw.startsWith('//')) {
-      logger.info('Login: isAuthenticated, navigating to post-login next', { next: nextRaw });
-      navigate(nextRaw, { replace: true });
-      return;
-    }
-    logger.info('Login: isAuthenticated, navigating to /portfolio');
-    navigate('/portfolio', { replace: true });
-  }, [isAuthenticated, navigate, user]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!email.trim() || !password) return;
-    setLoading(true);
-    setError(null);
-
-    if (mode === 'signin') {
-      const { error: err } = await signInWithPassword(email.trim(), password);
-      logger.info('Login: signInWithPassword result', { hasError: !!err, errorMessage: err?.message });
-      setLoading(false);
-      if (err) setError(err.message);
-      return;
-    }
-
-    const { error: err } = await signUpWithPassword(email.trim(), password);
-    logger.info('Login: signUpWithPassword result', { hasError: !!err, errorMessage: err?.message });
-    setLoading(false);
-    if (err) {
-      setError(err.message);
-    }
-  }
-
-  async function handleGoogle() {
-    setError(null);
-    const { error: err } = await signInWithGoogle();
-    if (!err) return;
-    const msg = (err.message ?? '').toLowerCase();
-    if (msg.includes('manual linking')) {
-      setError(
-        'In Supabase Dashboard: Authentication → enable "Allow manual linking" (Auth general settings). It is required to attach Google to a quick-scan session. See docs: supabase.com/docs/guides/auth/general-configuration',
-      );
-      return;
-    }
-    setError(err.message);
-  }
-
-  const isReady = email.trim() && password.length > 0;
-  const submitLabel = mode === 'signin' ? 'Sign in' : 'Create account';
+  const reduceMotion = useReducedMotion();
+  const controller = useLoginController();
 
   return (
-    <main
-      className="relative flex min-h-screen flex-col items-center justify-center px-6 py-12"
-      style={{ backgroundColor: 'var(--bg-canvas)' }}
-    >
-      <div className="absolute top-4 right-4 z-20 sm:top-6 sm:right-6">
+    <main className="glc-login-main relative ds-marketing-layout-canvas">
+      <div className="glc-login-theme-toggle absolute top-4 right-4 sm:top-6 sm:right-6">
         <ThemeToggle />
       </div>
 
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: 'var(--mesh-brand)', opacity: 0.55 }}
-      />
+      <div className="glc-login-bg-mesh absolute inset-0 pointer-events-none ds-login-mesh-backdrop" />
 
       <motion.div
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full"
-        style={{ maxWidth: 440 }}
+        transition={controller.motionPolicy.layoutEnter}
+        className="glc-login-layout relative flex w-full flex-col gap-10 lg:grid lg:grid-cols-2 lg:gap-0"
       >
-        <div className="text-center mb-8">
-          <motion.div
-            initial={{ scale: 0.75, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.08, duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className="mb-4"
-          >
-            <Link
-              to="/"
-              className="inline-flex items-center justify-center gap-3"
-              style={{ textDecoration: 'none' }}
-              aria-label="Go to home page"
+        <div className="glc-login-layout-video-layer" aria-hidden="true">
+          {!reduceMotion && (
+            <video
+              className="glc-login-layout-video"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
             >
-              <img
-                src="/logo-simple.svg"
-                alt=""
-                className="h-10 w-auto max-w-[min(72px,20vw)] shrink-0"
-                width={68}
-                height={72}
-                decoding="async"
-              />
-              <h1
-                className="font-logo leading-none"
-                style={{
-                  fontSize: 'var(--text-2xl)',
-                  fontWeight: 700,
-                  letterSpacing: 'var(--tracking-tight)',
-                }}
-              >
-                <span className="text-[#444343] dark:text-[#DEDEDE]">GLC</span>
-                <span className="text-[rgba(68,67,67,0.78)] dark:text-[#e5e7ebb8]"> Audit Platform</span>
-              </h1>
-            </Link>
-          </motion.div>
-          <p className="mt-2" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
-            Sign in to the audit workspace and client portal
-          </p>
-        </div>
-
-        <div
-          className="glc-card p-6 space-y-5"
-          style={{ borderRadius: 'var(--radius-2xl)', boxShadow: 'var(--shadow-lg)' }}
-        >
-          <div className="flex rounded-lg p-0.5" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-            <button
-              type="button"
-              onClick={() => { setMode('signin'); setError(null); }}
-              className="flex-1 py-2 text-sm font-medium rounded-md transition-colors"
-              style={{
-                backgroundColor: mode === 'signin' ? 'var(--bg-canvas)' : 'transparent',
-                color: mode === 'signin' ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                boxShadow: mode === 'signin' ? 'var(--shadow-sm)' : 'none',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              Sign in
-            </button>
-            <button
-              type="button"
-              onClick={() => { setMode('signup'); setError(null); }}
-              className="flex-1 py-2 text-sm font-medium rounded-md transition-colors"
-              style={{
-                backgroundColor: mode === 'signup' ? 'var(--bg-canvas)' : 'transparent',
-                color: mode === 'signup' ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                boxShadow: mode === 'signup' ? 'var(--shadow-sm)' : 'none',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              Register
-            </button>
-          </div>
-
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            {isAnonymousUser(user) && (
-              <p className="mb-3 rounded-lg px-3 py-2 text-xs leading-snug" style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
-                You used the quick site scan. Continue with Google to keep the same session and open the full audit.
-                Email sign-in creates a separate account unless you link Google first.
-              </p>
-            )}
-            <button
-              onClick={handleGoogle}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-medium text-sm"
-              style={{
-                backgroundColor: 'var(--bg-surface)',
-                border: '1px solid var(--border-default)',
-                color: 'var(--text-primary)',
-                cursor: 'pointer',
-                transition: 'border-color var(--ease-fast), box-shadow var(--ease-fast)',
-              }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.borderColor = 'var(--glc-blue)';
-                (e.currentTarget as HTMLElement).style.boxShadow = 'var(--shadow-blue)';
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-default)';
-                (e.currentTarget as HTMLElement).style.boxShadow = 'none';
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-              </svg>
-              Continue with Google
-            </button>
-
-            <div className="flex items-center gap-3 my-5">
-              <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border-subtle)' }} />
-              <span style={{ color: 'var(--text-quaternary)', fontSize: '11px' }}>or</span>
-              <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border-subtle)' }} />
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-3">
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                required
-                autoComplete="email"
-                className="w-full px-4 py-3 bg-transparent outline-none"
-                style={{
-                  borderRadius: 'var(--radius-lg)',
-                  border: '1px solid var(--border-default)',
-                  backgroundColor: 'var(--bg-surface)',
-                  color: 'var(--text-primary)',
-                  fontSize: 'var(--text-sm)',
-                  transition: 'border-color var(--ease-fast), box-shadow var(--ease-fast)',
-                }}
-                onFocus={e => { e.target.style.borderColor = 'var(--glc-blue)'; e.target.style.boxShadow = 'var(--shadow-blue)'; }}
-                onBlur={e => { e.target.style.borderColor = 'var(--border-default)'; e.target.style.boxShadow = 'none'; }}
-              />
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="Password"
-                  required
-                  minLength={6}
-                  autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                  className="w-full pl-9 pr-4 py-3 bg-transparent outline-none"
-                  style={{
-                    borderRadius: 'var(--radius-lg)',
-                    border: '1px solid var(--border-default)',
-                    backgroundColor: 'var(--bg-surface)',
-                    color: 'var(--text-primary)',
-                    fontSize: 'var(--text-sm)',
-                    transition: 'border-color var(--ease-fast), box-shadow var(--ease-fast)',
-                  }}
-                  onFocus={e => { e.target.style.borderColor = 'var(--glc-blue)'; e.target.style.boxShadow = 'var(--shadow-blue)'; }}
-                  onBlur={e => { e.target.style.borderColor = 'var(--border-default)'; e.target.style.boxShadow = 'none'; }}
-                />
-              </div>
-              {mode === 'signup' && (
-                <p className="text-xs" style={{ color: 'var(--text-quaternary)' }}>
-                  At least 6 characters. If Supabase email confirmation is on, check your inbox after registering.
-                </p>
-              )}
-              <motion.button
-                type="submit"
-                disabled={loading || !isReady}
-                whileHover={!loading ? { scale: 1.015 } : {}}
-                whileTap={!loading ? { scale: 0.985 } : {}}
-                className="w-full flex items-center justify-center gap-2 py-3 font-semibold"
-                style={{
-                  borderRadius: 'var(--radius-lg)',
-                  background: isReady ? 'var(--gradient-accent)' : 'var(--border-default)',
-                  color: isReady ? 'var(--primary-foreground)' : 'var(--text-tertiary)',
-                  cursor: isReady && !loading ? 'pointer' : 'not-allowed',
-                  fontSize: 'var(--text-sm)',
-                  border: 'none',
-                  boxShadow: isReady ? '0 4px 14px rgba(242,79,29,0.28)' : 'none',
-                }}
-              >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin border-[var(--primary-foreground)]" />
-                    {mode === 'signin' ? 'Signing in…' : 'Creating…'}
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    {submitLabel} <ArrowRight className="w-4 h-4" />
-                  </span>
-                )}
-              </motion.button>
-            </form>
-          </motion.div>
-
-          {(error || authError) && (
-            <p className="text-center text-sm" style={{ color: 'var(--score-1)' }}>
-              {error ?? authError}
-            </p>
+              <source src={BACKGROUND_VIDEO_CONFIG.src} type="video/webm" />
+            </video>
           )}
+          <div
+            className="glc-login-layout-video-overlay"
+            style={{ opacity: BACKGROUND_VIDEO_CONFIG.overlayOpacity }}
+          />
         </div>
 
-        <p className="mt-5 text-center text-xs" style={{ color: 'var(--text-quaternary)' }}>
-          By continuing you accept the terms of use.{' '}
-          <Link to="/faq" className="underline-offset-2 hover:underline" style={{ color: 'var(--text-tertiary)' }}>
-            FAQ
-          </Link>
-        </p>
+        <motion.div
+          className="glc-login-form-column w-full lg:order-1 lg:max-w-none lg:flex-shrink-0"
+          initial={reduceMotion ? false : { opacity: 0, y: 12, clipPath: controller.formClosedClipPath }}
+          animate={reduceMotion ? undefined : { opacity: 1, y: 0, clipPath: controller.formOpenClipPath }}
+          transition={controller.motionPolicy.formEnter}
+        >
+          <div className="glc-login-form-stack w-full">
+          <LoginBrandSection
+            loginTagline={controller.loginTagline}
+            motionTransition={controller.motionPolicy.brandEnter}
+          />
+
+          <LoginAuthCardSection
+            mode={controller.mode}
+            activateMode={controller.activateMode}
+            passwordRecoveryMode={controller.passwordRecoveryMode}
+            user={controller.user}
+            email={controller.email}
+            password={controller.password}
+            recoveryPassword={controller.recoveryPassword}
+            recoveryConfirm={controller.recoveryConfirm}
+            showPassword={controller.showPassword}
+            loading={controller.loading}
+            forgotSent={controller.forgotSent}
+            isReady={controller.isReady}
+            submitLabel={controller.submitLabel}
+            fieldErrors={controller.fieldErrors}
+            globalError={controller.globalError}
+            authError={controller.authError}
+            setEmail={controller.setEmail}
+            setPassword={controller.setPassword}
+            setRecoveryPassword={controller.setRecoveryPassword}
+            setRecoveryConfirm={controller.setRecoveryConfirm}
+            setShowPassword={controller.setShowPassword}
+            setFieldErrors={controller.setFieldErrors}
+            handleSubmit={controller.handleSubmit}
+            handleForgotSubmit={controller.handleForgotSubmit}
+            handleRecoverySubmit={controller.handleRecoverySubmit}
+            handleGoogle={controller.handleGoogle}
+            authTabIds={controller.authTabIds}
+            errorIds={controller.errorIds}
+            minPasswordLength={controller.minPasswordLength}
+            motionPolicy={controller.motionPolicy}
+          />
+
+          <p className="mt-5 w-full text-center text-xs lg:text-left ds-text-tertiary" >
+            {LC.footerTerms}{' '}
+            <Link to={APP_ROUTE_PATHS.faq} className="underline-offset-2 hover:underline ds-text-brand" >
+              {LC.footerFaq}
+            </Link>
+          </p>
+          </div>
+        </motion.div>
+
+        <LoginAsideSection
+          reduceMotion={Boolean(reduceMotion)}
+          motionTransition={{
+            asideEnter: controller.motionPolicy.asideEnter,
+            asideTitleEnter: controller.motionPolicy.asideTitleEnter,
+          }}
+        />
       </motion.div>
     </main>
   );

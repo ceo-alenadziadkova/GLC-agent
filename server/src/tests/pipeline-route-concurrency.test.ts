@@ -200,6 +200,7 @@ describe('pipeline route concurrency guards', () => {
     const res = await fetch(`${baseUrl}/api/audits/audit-001/pipeline/start`, { method: 'POST' });
     expect(res.status).toBe(409);
     const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PIPELINE_START_CLAIM_CONFLICT');
     expect(body.error).toMatch(/already claimed/i);
     expect(getStartPhaseCalls()).toBe(0);
   });
@@ -219,6 +220,7 @@ describe('pipeline route concurrency guards', () => {
     const res = await fetch(`${baseUrl}/api/audits/audit-001/pipeline/next`, { method: 'POST' });
     expect(res.status).toBe(409);
     const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PIPELINE_PHASE_IN_PROGRESS');
     expect(body.error).toMatch(/already in progress/i);
     expect(getRunBlockCalls()).toBe(0);
   });
@@ -239,6 +241,7 @@ describe('pipeline route concurrency guards', () => {
     const res = await fetch(`${baseUrl}/api/audits/audit-001/pipeline/next`, { method: 'POST' });
     expect(res.status).toBe(409);
     const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PIPELINE_NEXT_CLAIM_CONFLICT');
     expect(body.error).toMatch(/already claimed/i);
     expect(getRunBlockCalls()).toBe(0);
   });
@@ -262,6 +265,7 @@ describe('pipeline route concurrency guards', () => {
     });
     expect(res.status).toBe(409);
     const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PIPELINE_PHASE_IN_PROGRESS');
     expect(body.error).toMatch(/already in progress/i);
   });
 
@@ -285,6 +289,45 @@ describe('pipeline route concurrency guards', () => {
     });
     expect(res.status).toBe(409);
     const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PIPELINE_RETRY_CLAIM_CONFLICT');
     expect(body.error).toMatch(/already claimed/i);
+  });
+
+  it('POST /pipeline/stop returns 200 and sets cancelled status', async () => {
+    setAuditRow({
+      id: 'audit-001',
+      user_id: 'user-001',
+      client_id: null,
+      status: 'auto',
+      current_phase: 2,
+      tokens_used: 0,
+      token_budget: 1000,
+      updated_at: '2026-01-01T00:00:00.000Z',
+      product_mode: 'full',
+    });
+    const res = await fetch(`${baseUrl}/api/audits/audit-001/pipeline/stop`, { method: 'POST' });
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.status).toBe('cancelled');
+    expect(body.stopped).toBe(true);
+  });
+
+  it('POST /pipeline/stop returns 400 when audit already cancelled', async () => {
+    setAuditRow({
+      id: 'audit-001',
+      user_id: 'user-001',
+      client_id: null,
+      status: 'cancelled',
+      current_phase: 2,
+      tokens_used: 0,
+      token_budget: 1000,
+      updated_at: '2026-01-01T00:00:00.000Z',
+      product_mode: 'full',
+    });
+    const res = await fetch(`${baseUrl}/api/audits/audit-001/pipeline/stop`, { method: 'POST' });
+    expect(res.status).toBe(400);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PIPELINE_ALREADY_CANCELLED');
+    expect(body.error).toMatch(/already cancelled/i);
   });
 });

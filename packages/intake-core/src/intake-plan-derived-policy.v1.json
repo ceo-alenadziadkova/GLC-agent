@@ -1,0 +1,7 @@
+{
+  "version": "1.0.0",
+  "confidenceWeights": {
+    "aiReadinessNormalized": 0.45,
+    "visibleDataQuality": 0.55
+  }
+}

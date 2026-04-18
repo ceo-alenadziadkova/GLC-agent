@@ -1,14 +1,16 @@
 import type { IntakeBriefCollectionMode } from '../types/audit.js';
-import { resolveExpressSlaRequiredIds, resolveFullSlaRequiredIds } from '../intake/brief-gates.js';
+import { resolveExpressSlaRequiredIds, resolveFullSlaRequiredIds } from '@glc/intake-core';
 
 /**
- * Self-serve + live website: satisfies full product SLA (all visible required stubs + revenue_model).
+ * Self-serve + live website: satisfies full product SLA (all visible required stubs + a10).
  */
 export function makeWebsitePathFullBrief(
   collectionMode?: IntakeBriefCollectionMode,
 ): Record<string, unknown> {
   const r: Record<string, unknown> = {
-    revenue_model: 'Lead generation',
+    a11: 'https://example.com',
+    a12: 'Eco Goods Ltd',
+    a10: 'Lead generation / referrals',
     a1: 'We sell eco goods online.',
     a2: 'Retail',
     a3: 'Germany',
@@ -16,14 +18,14 @@ export function makeWebsitePathFullBrief(
     a6: 'Yes',
     a7: 'Growing fast',
     b1: 'Urban shoppers 25–45',
-    b2: ['Google'],
-    b3: 'Fast delivery and fair prices',
+    b2: ['Google / search'],
+    b3: 'Speed and convenience',
     c5: 'Buy now',
     c6: 'Checkout is slow',
     c3: 'Yes, GA4',
-    d1: ['Email / spreadsheets'],
-    d2: 'Copy-pasting orders into sheets',
-    f1: 'Need more qualified traffic',
+    d1: ['Email', 'Spreadsheets'],
+    d2: 'Creating and sending quotes or invoices',
+    f1: ['Not enough qualified leads or new customers'],
     f2: ['Website performance and technology (speed, stability, technical health)'],
   };
   const missing = resolveFullSlaRequiredIds(r, collectionMode).filter(id => !isFilled(r[id]));
@@ -44,13 +46,32 @@ function isFilled(v: unknown): boolean {
   return false;
 }
 
+/** Wrap flat fixture values as persisted brief cells (API / saveBriefResponses). */
+export function wrapBriefCellsClient(flat: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(flat)) {
+    if (
+      v !== null &&
+      typeof v === 'object' &&
+      !Array.isArray(v) &&
+      'value' in (v as Record<string, unknown>) &&
+      'source' in (v as Record<string, unknown>)
+    ) {
+      out[k] = v;
+    } else {
+      out[k] = { value: v, source: 'client' as const };
+    }
+  }
+  return out;
+}
+
 /** Express + website path — satisfies express SLA. */
 export function makeWebsitePathExpressBrief(
   collectionMode?: IntakeBriefCollectionMode,
 ): Record<string, unknown> {
   const r: Record<string, unknown> = {
-    revenue_model: 'Lead generation',
-    f1: 'Need more leads',
+    a10: 'Lead generation / referrals',
+    f1: ['Not enough qualified leads or new customers'],
     b1: 'B2B buyers',
     a6: 'Yes',
     a5: 'Yes, multi-page site',

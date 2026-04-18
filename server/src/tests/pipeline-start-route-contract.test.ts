@@ -120,7 +120,14 @@ beforeEach(() => {
     updated_at: '2026-01-01T00:00:00.000Z',
     product_mode: 'express',
   });
-  setBriefRow({ responses: { primary_goal: 'Grow', target_audience: 'SMB', revenue_model: 'Subscription / SaaS' } });
+  setBriefRow({
+    responses: {
+      f1: ['Other'],
+      f1__other: 'Grow',
+      b1: 'SMB',
+      a10: ['Subscription / membership'],
+    },
+  });
 });
 
 describe('POST /api/audits/:id/pipeline/start — payload contract', () => {
@@ -142,6 +149,14 @@ describe('POST /api/audits/:id/pipeline/start — payload contract', () => {
     expect(res.status).toBe(200);
     const body = await res.json() as Record<string, unknown>;
     expect(body.intakeProgress).toBeDefined();
+  });
+
+  it('returns 404 with pipeline not-found code when audit does not exist', async () => {
+    setAuditRow(null);
+    const res = await fetch(`${baseUrl}/api/audits/audit-missing/pipeline/start`, { method: 'POST' });
+    expect(res.status).toBe(404);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('PIPELINE_AUDIT_NOT_FOUND');
   });
 });
 

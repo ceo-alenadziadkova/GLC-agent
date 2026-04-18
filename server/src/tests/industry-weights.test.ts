@@ -4,7 +4,7 @@
  * Verifies industry weight application and the weighted overall score
  * calculation that drives the main audit score.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { getDomainWeight, calculateWeightedScore } from '../config/industry-weights.js';
 
 // ─── getDomainWeight ───────────────────────────────────────────────────────

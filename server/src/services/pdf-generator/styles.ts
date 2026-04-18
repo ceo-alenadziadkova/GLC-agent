@@ -1,0 +1,181 @@
+import { StyleSheet } from '@react-pdf/renderer';
+
+import { pdfHeaderSeparatorColor, PDF_THEME } from '../../config/pdf-theme.js';
+
+const C = PDF_THEME;
+
+export const pdfStyles = StyleSheet.create({
+  coverPage: { backgroundColor: C.navy, fontFamily: 'Helvetica', padding: 0 },
+  coverBody: { flex: 1, padding: 48, justifyContent: 'flex-end', paddingBottom: 44 },
+
+  coverBadge: {
+    backgroundColor: C.green,
+    alignSelf: 'flex-start',
+    borderRadius: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 3.5,
+    marginBottom: 20,
+  },
+  coverBadgeText: { fontSize: 7.5, fontFamily: 'Helvetica-Bold', color: C.navy },
+
+  coverTitle: {
+    fontSize: 28,
+    fontFamily: 'Helvetica-Bold',
+    color: C.white,
+    marginBottom: 8,
+    lineHeight: 1.2,
+  },
+  coverUrl: { fontSize: 10.5, color: C.coverUrlMuted, marginBottom: 40 },
+  coverMeta: { flexDirection: 'row' },
+  coverMetaItem: { marginRight: 28 },
+  coverMetaLabel: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: C.coverMetaLabel, marginBottom: 2 },
+  coverMetaValue: { fontSize: 10, color: C.white },
+
+  coverBar: {
+    backgroundColor: C.green,
+    paddingHorizontal: 48,
+    paddingVertical: 13,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  coverBarBrand: { fontSize: 8.5, fontFamily: 'Helvetica-Bold', color: C.navy },
+  coverBarUrl: { fontSize: 8, color: C.coverBarUrlOnGreen },
+
+  contentPage: {
+    fontFamily: 'Helvetica',
+    backgroundColor: C.white,
+    paddingTop: 60,
+    paddingBottom: 46,
+    paddingHorizontal: 44,
+    fontSize: 9.5,
+    color: C.text,
+  },
+
+  pHdr: {
+    position: 'absolute',
+    top: 14,
+    left: 44,
+    right: 44,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  pHdrLeft: { flexDirection: 'row', alignItems: 'center' },
+  pHdrCompany: { fontSize: 7.5, fontFamily: 'Helvetica-Bold', color: C.sub, marginLeft: 6 },
+  pHdrSep: { fontSize: 7.5, color: pdfHeaderSeparatorColor(), marginHorizontal: 4 },
+  pHdrReport: { fontSize: 7.5, color: C.sub },
+  pHdrDate: { fontSize: 7.5, color: C.sub },
+
+  pFtr: {
+    position: 'absolute',
+    bottom: 14,
+    left: 44,
+    right: 44,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+    paddingTop: 6,
+  },
+  pFtrLeft: { fontSize: 7, color: C.sub },
+  pFtrRight: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: C.green },
+
+  sec: { marginBottom: 22 },
+  secTitle: {
+    fontSize: 12.5,
+    fontFamily: 'Helvetica-Bold',
+    color: C.navy,
+    paddingLeft: 9,
+    borderLeftWidth: 3,
+    borderLeftColor: C.green,
+    marginBottom: 10,
+  },
+  subTitle: { fontSize: 9.5, fontFamily: 'Helvetica-Bold', color: C.text, marginTop: 10, marginBottom: 4 },
+  para: { fontSize: 9.5, lineHeight: 1.6, color: C.text },
+  divider: { borderBottomWidth: 1, borderBottomColor: C.border, marginVertical: 20 },
+
+  scoreBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.bg,
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 18,
+  },
+  scoreNum: { fontSize: 44, fontFamily: 'Helvetica-Bold', lineHeight: 1, marginRight: 16 },
+  scoreLbl: { fontSize: 13, fontFamily: 'Helvetica-Bold', color: C.text, marginBottom: 3 },
+  scoreSub: { fontSize: 8.5, color: C.sub },
+
+  tblHdr: { flexDirection: 'row', backgroundColor: C.navy, paddingVertical: 7, paddingHorizontal: 10, borderRadius: 3 },
+  tblHdrCell: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: C.white },
+  tblRow: {
+    flexDirection: 'row',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+    alignItems: 'center',
+  },
+  tblRowAlt: { backgroundColor: C.bg },
+  tblDomain: { fontSize: 9, color: C.text, flex: 1 },
+  tblScore: { fontSize: 9, fontFamily: 'Helvetica-Bold', width: 38 },
+  tblBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 3,
+    fontSize: 7.5,
+    fontFamily: 'Helvetica-Bold',
+    color: C.white,
+    width: 66,
+    textAlign: 'center',
+  },
+
+  domainWrap: { marginBottom: 20 },
+  domainHdr: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  domainTitle: {
+    fontSize: 11.5,
+    fontFamily: 'Helvetica-Bold',
+    color: C.navy,
+    paddingLeft: 9,
+    borderLeftWidth: 3,
+    borderLeftColor: C.green,
+    flex: 1,
+  },
+  domainBadge: { width: 32, height: 32, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+  domainBadgeNum: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: C.white },
+  domainSummary: { fontSize: 9.5, lineHeight: 1.6, color: C.text, marginBottom: 6 },
+
+  bulRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 3 },
+  bulDot: { width: 4, height: 4, borderRadius: 2, marginTop: 4, marginRight: 6 },
+  bulText: { flex: 1, fontSize: 9, color: C.text, lineHeight: 1.5 },
+
+  issCard: { flexDirection: 'row', marginBottom: 5 },
+  issBar: { width: 3, borderRadius: 2, marginRight: 9 },
+  issBody: { flex: 1 },
+  issTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  issBadge: { paddingHorizontal: 5, paddingVertical: 1.5, borderRadius: 3, marginRight: 5 },
+  issBadgeText: { fontSize: 6.5, fontFamily: 'Helvetica-Bold', color: C.white },
+  issTitle: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: C.text, flex: 1 },
+  issDesc: { fontSize: 8.5, color: C.sub, lineHeight: 1.5 },
+
+  qwRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 5 },
+  qwDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.green, marginTop: 2, marginRight: 7 },
+  qwBody: { flex: 1 },
+  qwTitle: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: C.text },
+  qwDesc: { fontSize: 8.5, color: C.sub, lineHeight: 1.5 },
+
+  rmSec: { marginBottom: 12 },
+  rmPhHdr: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  rmDot: { width: 8, height: 8, borderRadius: 4, marginRight: 7 },
+  rmPhTitle: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: C.text },
+  rmItem: { flexDirection: 'row', paddingLeft: 15, marginBottom: 4 },
+  rmBullet: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: C.sub, marginTop: 4, marginRight: 6 },
+  rmText: { flex: 1, fontSize: 9, color: C.text, lineHeight: 1.5 },
+});
+
+export { PDF_THEME as pdfTheme };

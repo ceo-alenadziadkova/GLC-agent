@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeScanCoverageFromStoredJson } from '../snapshot/scan-coverage-from-stored-json.js';
+import { normalizeScanCoverageFromStoredJson } from '@glc/snapshot-scan-coverage';
 
 describe('normalizeScanCoverageFromStoredJson', () => {
   it('returns null for non-objects', () => {

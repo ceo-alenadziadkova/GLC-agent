@@ -1,0 +1,119 @@
+{
+  "version": "1.0.0",
+  "contracts": {
+    "publicDiscoveryUiFragmentVersion": "1"
+  },
+  "marketingBriefRoutes": [
+    {
+      "route": "/snapshot",
+      "i18nKey": "glc.marketing.route.snapshot",
+      "labelEn": "Snapshot — quick automated read"
+    },
+    {
+      "route": "/starter",
+      "i18nKey": "glc.marketing.route.expressAudit",
+      "labelEn": "Starter — single-domain focused package"
+    },
+    {
+      "route": "/complete",
+      "i18nKey": "glc.marketing.route.fullAudit",
+      "labelEn": "Complete — maximum depth across all domains"
+    },
+    {
+      "route": "/pro",
+      "i18nKey": "glc.marketing.route.proPackage",
+      "labelEn": "Pro — focused pack of 2-3 domains"
+    },
+    {
+      "route": "/discovery",
+      "i18nKey": "glc.marketing.route.discovery",
+      "labelEn": "Discovery — shape the brief when there is no public site yet"
+    }
+  ],
+  "domainDisplay": [
+    {
+      "domainKey": "tech_infrastructure",
+      "i18nKey": "glc.audit.domain.tech_infrastructure",
+      "labelEn": "Tech Infrastructure"
+    },
+    {
+      "domainKey": "security_compliance",
+      "i18nKey": "glc.audit.domain.security_compliance",
+      "labelEn": "Security & Compliance"
+    },
+    {
+      "domainKey": "seo_digital",
+      "i18nKey": "glc.audit.domain.seo_digital",
+      "labelEn": "SEO & Digital"
+    },
+    {
+      "domainKey": "ux_conversion",
+      "i18nKey": "glc.audit.domain.ux_conversion",
+      "labelEn": "UX & Conversion"
+    },
+    {
+      "domainKey": "marketing_utp",
+      "i18nKey": "glc.audit.domain.marketing_utp",
+      "labelEn": "Marketing & Positioning"
+    },
+    {
+      "domainKey": "automation_processes",
+      "i18nKey": "glc.audit.domain.automation_processes",
+      "labelEn": "Automation & Processes"
+    }
+  ],
+  "scoreScale": {
+    "1": { "i18nKey": "glc.audit.score.1", "labelEn": "Critical", "color": "#EF4444" },
+    "2": { "i18nKey": "glc.audit.score.2", "labelEn": "Needs Work", "color": "#F97316" },
+    "3": { "i18nKey": "glc.audit.score.3", "labelEn": "Moderate", "color": "#EAB308" },
+    "4": { "i18nKey": "glc.audit.score.4", "labelEn": "Good", "color": "#22C55E" },
+    "5": { "i18nKey": "glc.audit.score.5", "labelEn": "Excellent", "color": "#0ECF82" }
+  },
+  "reportProfiles": [
+    {
+      "id": "full",
+      "i18nKeyLabel": "glc.report.profile.full.label",
+      "i18nKeyDescription": "glc.report.profile.full.description",
+      "labelEn": "Full Report",
+      "descriptionEn": "Complete audit with all 6 domains — for the consulting team"
+    },
+    {
+      "id": "owner",
+      "i18nKeyLabel": "glc.report.profile.owner.label",
+      "i18nKeyDescription": "glc.report.profile.owner.description",
+      "labelEn": "Owner Summary",
+      "descriptionEn": "Executive summary, scorecard, roadmap, and costs — for the business owner"
+    },
+    {
+      "id": "tech",
+      "i18nKeyLabel": "glc.report.profile.tech.label",
+      "i18nKeyDescription": "glc.report.profile.tech.description",
+      "labelEn": "Technical Deep-Dive",
+      "descriptionEn": "Tech infrastructure and security with technical detail — for the dev team"
+    },
+    {
+      "id": "marketing",
+      "i18nKeyLabel": "glc.report.profile.marketing.label",
+      "i18nKeyDescription": "glc.report.profile.marketing.description",
+      "labelEn": "Marketing & Growth",
+      "descriptionEn": "SEO, UX, and marketing analysis — for the marketing team"
+    },
+    {
+      "id": "onepager",
+      "i18nKeyLabel": "glc.report.profile.onepager.label",
+      "i18nKeyDescription": "glc.report.profile.onepager.description",
+      "labelEn": "One-Pager",
+      "descriptionEn": "Summary + scorecard + top findings — fits one printed page"
+    }
+  ],
+  "reportMarkdownFocusTitle": {
+    "tech": {
+      "i18nKey": "glc.report.markdownFocus.tech",
+      "labelEn": "Technical Deep-Dive"
+    },
+    "marketing": {
+      "i18nKey": "glc.report.markdownFocus.marketing",
+      "labelEn": "Marketing & Growth Report"
+    }
+  }
+}

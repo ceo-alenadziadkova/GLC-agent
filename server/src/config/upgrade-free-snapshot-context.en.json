@@ -1,0 +1,27 @@
+{
+  "snapshotScrapeNoteRobotsBlocked": "Free snapshot did not fetch HTML (robots.txt blocks or policy). Pre-fill from pages is minimal — prioritize the client brief.",
+  "snapshotScrapeNoteOther": "Free snapshot did not fetch public HTML (timeout, error, or empty response). Pre-fill from pages is minimal — prioritize the client brief.",
+  "analyticsDetectionSubstrings": ["google analytics", "ga4", "gtag", "googletagmanager"],
+  "conversionModelHumanize": {
+    "ecommerce-checkout": "online purchase / checkout",
+    "demo-request": "booking or requesting a demo",
+    "call-booking": "calling or booking a call or appointment",
+    "lead-form": "submitting a contact or lead form",
+    "whatsapp-contact": "reaching out via WhatsApp"
+  },
+  "revenueModelLabelByConversionModel": {
+    "ecommerce-checkout": "Product sales (online or offline)",
+    "demo-request": "Lead generation / referrals",
+    "lead-form": "Lead generation / referrals",
+    "call-booking": "Lead generation / referrals",
+    "whatsapp-contact": "Lead generation / referrals"
+  },
+  "audienceGuessLines": {
+    "b2b": "Primarily business buyers (B2B). Please refine who you sell to.",
+    "b2c": "Primarily consumers (B2C). Please refine your ideal customer.",
+    "b2b2c": "Both businesses and end customers. Please refine segments."
+  },
+  "f1OtherDraftPrefix": "Set your real #1 goal for this audit (this is a draft from our quick scan — edit freely).\n\n",
+  "intakeIndustryOtherPlaceholder": "To be confirmed — we will ask in the brief.",
+  "hostFallbackLabel": "your site"
+}

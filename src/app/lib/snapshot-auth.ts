@@ -94,16 +94,10 @@ export function isAnonymousUser(user: User | null): boolean {
 }
 
 /**
- * Ensures a JWT exists for the free snapshot flow: reuses the current session or calls
- * `signInAnonymously()` once per burst. Requires **Anonymous sign-ins** enabled in the Supabase project.
+ * Returns a JWT when the user already has a Supabase session (optional snapshot features).
+ * Public `POST /api/snapshot` uses an httpOnly guest cookie and does not require this token.
  */
 export async function ensureSnapshotSession(): Promise<string> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.access_token) {
-    persistPreviewSessionBackupIfAnonymous(session);
-    return session.access_token;
-  }
-
   if (!snapshotSessionEnsuring) {
     snapshotSessionEnsuring = (async () => {
       const { data: fresh } = await supabase.auth.getSession();
@@ -117,15 +111,7 @@ export async function ensureSnapshotSession(): Promise<string> {
         return fromBackup;
       }
 
-      const { data, error } = await supabase.auth.signInAnonymously();
-      if (error || !data.session?.access_token) {
-        throw new Error(
-          error?.message
-            ?? 'Could not start a preview session. Enable Anonymous sign-ins in Supabase or sign in manually.',
-        );
-      }
-      persistPreviewSessionBackupIfAnonymous(data.session);
-      return data.session.access_token;
+      return '';
     })().finally(() => {
       snapshotSessionEnsuring = null;
     });

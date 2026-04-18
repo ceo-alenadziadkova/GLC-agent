@@ -7,6 +7,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
+import { AGENT_OUTPUT_LIMITS } from '../config/agent-output-limits.js';
 import {
   zodToJsonSchema,
   DomainOutputSchema,
@@ -140,11 +141,14 @@ describe('DomainOutputSchema JSON Schema', () => {
     expect(schema.properties.score).toMatchObject({ type: 'integer', minimum: 1, maximum: 5 });
   });
 
-  it('summary has minLength 50 and maxLength 2000', () => {
+  it('summary min/max match AGENT_OUTPUT_LIMITS', () => {
     const schema = zodToJsonSchema(DomainOutputSchema) as {
       properties: Record<string, { minLength: number; maxLength: number }>;
     };
-    expect(schema.properties.summary).toMatchObject({ minLength: 50, maxLength: 2000 });
+    expect(schema.properties.summary).toMatchObject({
+      minLength: AGENT_OUTPUT_LIMITS.domainSummaryMinChars,
+      maxLength: AGENT_OUTPUT_LIMITS.domainSummaryMaxChars,
+    });
   });
 
   it('strengths array has minItems 1 and maxItems 8', () => {
@@ -170,11 +174,14 @@ describe('StrategyOutputSchema JSON Schema', () => {
     expect(schema.properties.quick_wins).toMatchObject({ minItems: 2, maxItems: 6 });
   });
 
-  it('executive_summary has minLength 100 and maxLength 3000', () => {
+  it('executive_summary min/max match AGENT_OUTPUT_LIMITS', () => {
     const schema = zodToJsonSchema(StrategyOutputSchema) as {
       properties: Record<string, { minLength: number; maxLength: number }>;
     };
-    expect(schema.properties.executive_summary).toMatchObject({ minLength: 100, maxLength: 3000 });
+    expect(schema.properties.executive_summary).toMatchObject({
+      minLength: AGENT_OUTPUT_LIMITS.strategyExecutiveSummaryMinChars,
+      maxLength: AGENT_OUTPUT_LIMITS.strategyExecutiveSummaryMaxChars,
+    });
   });
 
   it('strategic array has minItems 1 and maxItems 4', () => {

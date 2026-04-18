@@ -8,30 +8,82 @@ import {
   isAnonymousUser,
   persistPreviewSessionBackupIfAnonymous,
 } from '../lib/snapshot-auth';
+import { APP_ROUTE_PATHS } from '../config/route-paths';
 
 export { isAnonymousUser } from '../lib/snapshot-auth';
+
+/** Supabase GoTrue emits this when the user opens a password recovery link. */
+const PASSWORD_RECOVERY_EVENT = 'PASSWORD_RECOVERY' as const;
+const AUTH_REDIRECT_PATH = APP_ROUTE_PATHS.login;
+
+type SignInWithGoogleOptions = {
+  /**
+   * Preserve anonymous snapshot user id by linking Google identity.
+   * Keep this false for normal login to avoid identity-linking conflicts.
+   */
+  preserveGuestSession?: boolean;
+};
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-   const [authError, setAuthError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [passwordRecoveryMode, setPasswordRecoveryMode] = useState(false);
 
   useEffect(() => {
     logger.debug('useAuth mounted');
     let isMounted = true;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      logger.info('onAuthStateChange', { event, hasSession: !!nextSession, userId: nextSession?.user.id });
+      if (!isMounted) return;
+      if (event === PASSWORD_RECOVERY_EVENT) {
+        setPasswordRecoveryMode(true);
+      }
+      if (event === 'SIGNED_OUT') {
+        setPasswordRecoveryMode(false);
+      }
+      if (nextSession === null) {
+        invalidateGlcSessionDataCaches();
+        clearPreviewSessionBackup();
+      } else if (isAnonymousUser(nextSession.user)) {
+        persistPreviewSessionBackupIfAnonymous(nextSession);
+      } else {
+        clearPreviewSessionBackup();
+      }
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+      setLoading(false);
+    });
 
     async function initAuth() {
       logger.info('Auth init start');
       try {
         const href = window.location.href;
         const referrer = document.referrer;
-        logger.debug('Auth current URL', { href });
         logger.debug('Auth document.referrer', { referrer });
 
         const url = new URL(href);
+        const cleanupAuthUrl = (target: URL) => {
+          target.searchParams.delete('code');
+          target.searchParams.delete('access_token');
+          target.searchParams.delete('refresh_token');
+          if (target.hash) {
+            const hashParams = new URLSearchParams(target.hash.startsWith('#') ? target.hash.slice(1) : target.hash);
+            hashParams.delete('access_token');
+            hashParams.delete('refresh_token');
+            hashParams.delete('expires_in');
+            hashParams.delete('expires_at');
+            hashParams.delete('token_type');
+            hashParams.delete('type');
+            const cleanedHash = hashParams.toString();
+            target.hash = cleanedHash ? `#${cleanedHash}` : '';
+          }
+          const qs = target.searchParams.toString();
+          window.history.replaceState({}, '', `${target.pathname}${qs ? `?${qs}` : ''}${target.hash}`);
+        };
 
-        // OAuth failures: ?error= & error_description= (e.g. DB error saving new user)
         let oauthRedirectError: string | null = null;
         const oauthErr = url.searchParams.get('error');
         const oauthDesc = url.searchParams.get('error_description');
@@ -47,13 +99,13 @@ export function useAuth() {
           window.history.replaceState({}, '', `${url.pathname}${qs ? `?${qs}` : ''}${url.hash}`);
         }
 
-        // 1) PKCE flow: ?code=...
         const code = url.searchParams.get('code');
         if (code) {
           logger.info('Auth: found code param, exchanging for session');
           const { data, error } = await supabase.auth.exchangeCodeForSession(url.href);
           if (error) {
             logger.error('exchangeCodeForSession error', { error });
+            cleanupAuthUrl(url);
             if (isMounted) {
               setAuthError('Sign-in failed. The link may be invalid or expired — try again.');
             }
@@ -62,22 +114,27 @@ export function useAuth() {
             setAuthError(null);
             setSession(data.session);
             setUser(data.session?.user ?? null);
+            cleanupAuthUrl(url);
           }
           return;
         }
 
-        // 2) Legacy implicit flow: #access_token=...&refresh_token=...
         const hash = url.hash.startsWith('#') ? url.hash.slice(1) : url.hash;
         if (hash) {
           const hashParams = new URLSearchParams(hash);
           const accessToken = hashParams.get('access_token');
           const refreshToken = hashParams.get('refresh_token');
+          const linkType = hashParams.get('type');
           logger.debug('Auth: hash fragment parsed', {
             hasAccessToken: !!accessToken,
             hasRefreshToken: !!refreshToken,
+            linkType,
           });
 
           if (accessToken && refreshToken) {
+            if (linkType === 'recovery' && isMounted) {
+              setPasswordRecoveryMode(true);
+            }
             logger.info('Auth: found tokens in hash, calling setSession');
             const { data, error } = await supabase.auth.setSession({
               access_token: accessToken,
@@ -85,6 +142,7 @@ export function useAuth() {
             });
             if (error) {
               logger.error('setSession error', { error });
+              cleanupAuthUrl(url);
               if (isMounted) {
                 setAuthError('Sign-in failed. The link may be invalid or expired — try again.');
               }
@@ -93,26 +151,26 @@ export function useAuth() {
               setAuthError(null);
               setSession(data.session);
               setUser(data.session?.user ?? null);
+              cleanupAuthUrl(url);
             }
             return;
           }
         }
 
-        // 3) Default init — load any persisted session
-        const { data: { session } } = await supabase.auth.getSession();
-        logger.info('getSession result', { hasSession: !!session, userId: session?.user.id });
+        const { data: { session: existing } } = await supabase.auth.getSession();
+        logger.info('getSession result', { hasSession: !!existing, userId: existing?.user.id });
         if (isMounted) {
-          if (session) {
+          if (existing) {
             setAuthError(null);
-          } else if (!session && referrer.includes('/auth/v1/verify')) {
+          } else if (!existing && referrer.includes('/auth/v1/verify')) {
             setAuthError('Sign-in failed. The link may be invalid or expired — try again.');
           } else if (oauthRedirectError) {
             setAuthError(oauthRedirectError);
           } else {
             setAuthError(null);
           }
-          setSession(session);
-          setUser(session?.user ?? null);
+          setSession(existing);
+          setUser(existing?.user ?? null);
         }
       } catch (err) {
         logger.error('Auth init error', { err });
@@ -129,24 +187,7 @@ export function useAuth() {
       }
     }
 
-    initAuth();
-
-    // Subscribe to further changes (signOut, token refresh, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      logger.info('onAuthStateChange', { hasSession: !!session, userId: session?.user.id });
-      if (!isMounted) return;
-      if (session === null) {
-        invalidateGlcSessionDataCaches();
-        clearPreviewSessionBackup();
-      } else if (isAnonymousUser(session.user)) {
-        persistPreviewSessionBackupIfAnonymous(session);
-      } else {
-        clearPreviewSessionBackup();
-      }
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    void initAuth();
 
     return () => {
       logger.debug('useAuth unmount, unsubscribe');
@@ -165,40 +206,57 @@ export function useAuth() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/login`,
+        emailRedirectTo: `${window.location.origin}${AUTH_REDIRECT_PATH}`,
       },
     });
     return { error };
   };
 
-  const signInWithGoogle = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user ?? null;
-    if (isAnonymousUser(user)) {
+  const requestPasswordReset = async (email: string) => {
+    const origin = window.location.origin;
+    return supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${origin}${AUTH_REDIRECT_PATH}`,
+    });
+  };
+
+  const completePasswordRecovery = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (!error) {
+      setPasswordRecoveryMode(false);
+    }
+    return { error };
+  };
+
+  const signInWithGoogle = async (options?: SignInWithGoogleOptions) => {
+    const preserveGuestSession = options?.preserveGuestSession === true;
+    const { data: { session: cur } } = await supabase.auth.getSession();
+    const u = cur?.user ?? null;
+    if (isAnonymousUser(u) && preserveGuestSession) {
       const { error } = await supabase.auth.linkIdentity({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/login`,
+          redirectTo: `${window.location.origin}${AUTH_REDIRECT_PATH}`,
         },
       });
-      // If this Google identity is already linked to another account,
-      // fall back to normal OAuth sign-in instead of hard-failing upgrade flow.
       const msg = (error?.message ?? '').toLowerCase();
       if (error && (msg.includes('identity_already_exists') || msg.includes('already linked'))) {
         const { error: oauthError } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
-            redirectTo: `${window.location.origin}/login`,
+            redirectTo: `${window.location.origin}${AUTH_REDIRECT_PATH}`,
           },
         });
         return { error: oauthError };
       }
       return { error };
     }
+    if (isAnonymousUser(u) && !preserveGuestSession) {
+      await supabase.auth.signOut();
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/login`,
+        redirectTo: `${window.location.origin}${AUTH_REDIRECT_PATH}`,
       },
     });
     return { error };
@@ -207,6 +265,7 @@ export function useAuth() {
   const signOut = async () => {
     invalidateGlcSessionDataCaches();
     clearPreviewSessionBackup();
+    setPasswordRecoveryMode(false);
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
@@ -217,8 +276,11 @@ export function useAuth() {
     session,
     loading,
     authError,
+    passwordRecoveryMode,
     signInWithPassword,
     signUpWithPassword,
+    requestPasswordReset,
+    completePasswordRecovery,
     signInWithGoogle,
     signOut,
     isAuthenticated: !!user,

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Newsletter</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background-color:#F4F4F4;">
+  <!-- Replace {{HEADLINE}}, {{BODY_HTML}}, {{UNSUBSCRIBE_URL}} with your ESP merge syntax. -->
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#F4F4F4;">
+    <tr>
+      <td align="center" style="padding:24px 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;background-color:#FFFFFF;border:1px solid #E5E5E5;">
+          <tr>
+            <td align="center" style="padding:28px 24px 8px;font-family:'JetBrains Mono',Consolas,monospace;font-size:56px;font-weight:600;color:#F8F8F8;line-height:1;letter-spacing:-0.05em;">DISPATCH</td>
+          </tr>
+          <tr>
+            <td style="border-bottom:1px solid #E5E5E5;padding:20px 32px 28px;font-family:'JetBrains Mono',Consolas,monospace;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:#000000;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td style="font-weight:600;">GLC // FIELD NOTES</td>
+                  <td align="right" style="color:#666666;">NEWSLETTER</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 32px 24px;font-family:'Inter',Arial,Helvetica,sans-serif;">
+              <h1 style="margin:0 0 20px;font-size:32px;line-height:0.95;font-weight:600;letter-spacing:-0.05em;color:#000000;">{{HEADLINE}}</h1>
+              <div style="font-size:15px;line-height:1.65;color:#666666;font-weight:400;">
+                {{BODY_HTML}}
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="border-top:1px solid #E5E5E5;padding:24px 32px 32px;font-family:'JetBrains Mono',Consolas,monospace;font-size:10px;">
+              <a href="{{UNSUBSCRIBE_URL}}" style="color:#1CBDFF;text-decoration:underline;">Unsubscribe</a>
+              <span style="color:#E5E5E5;padding:0 12px;">|</span>
+              <a href="https://glctech.es" style="color:#666666;text-decoration:none;">GLCTECH.ES</a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

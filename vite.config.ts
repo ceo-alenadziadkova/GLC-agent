@@ -2,8 +2,15 @@ import { defineConfig } from 'vite'
 import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+// Resolve workspace packages from source here: Vitest/Vite pre-bundles this file via package "exports"
+// which point at dist/ — absent in CI until those packages are built.
+import { GLC_DEV_API_ORIGIN } from './packages/glc-dev-brand-defaults/src/index.ts'
+import { API_HTTP_ROOT_PREFIX } from './packages/glc-api-paths/src/index.ts'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  esbuild: {
+    drop: mode === 'production' ? (['console', 'debugger'] as const) : [],
+  },
   plugins: [
     // The React and Tailwind plugins are both required for Make, even if
     // Tailwind is not being actively used – do not remove them
@@ -15,10 +22,30 @@ export default defineConfig({
       // Alias @ to the src directory
       '@': path.resolve(__dirname, './src'),
       // Shared snapshot helpers consumed by the SPA (must stay free of Node-only imports)
-      '@shared/snapshot-scan-coverage': path.resolve(
+      '@glc/snapshot-scan-coverage': path.resolve(
         __dirname,
-        './server/src/snapshot/scan-coverage-from-stored-json.ts',
+        './packages/glc-snapshot-scan-coverage/src/index.ts',
       ),
+      '@glc/intake-core/question-bank.v1.json': path.resolve(
+        __dirname,
+        './packages/intake-core/src/question-bank.v1.json',
+      ),
+      '@glc/intake-core/intake-policy.v1.json': path.resolve(
+        __dirname,
+        './packages/intake-core/src/intake-policy.v1.json',
+      ),
+      '@glc/intake-core/artifacts/layout-rules-1.1.0.json': path.resolve(
+        __dirname,
+        './packages/intake-core/src/artifacts/layout-rules-1.1.0.json',
+      ),
+      '@glc/dev-brand-defaults/public-brand-defaults.v1.json': path.resolve(
+        __dirname,
+        './packages/glc-dev-brand-defaults/src/public-brand-defaults.v1.json',
+      ),
+      '@glc/dev-brand-defaults': path.resolve(__dirname, './packages/glc-dev-brand-defaults/src/index.ts'),
+      '@glc/intake-core': path.resolve(__dirname, './packages/intake-core/src/index.ts'),
+      '@glc/route-limits': path.resolve(__dirname, './packages/glc-route-limits/src/index.ts'),
+      '@glc/api-paths': path.resolve(__dirname, './packages/glc-api-paths/src/index.ts'),
     },
   },
 
@@ -27,10 +54,10 @@ export default defineConfig({
 
   server: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
+      [API_HTTP_ROOT_PREFIX]: {
+        target: GLC_DEV_API_ORIGIN,
         changeOrigin: true,
       },
     },
   },
-})
+}))

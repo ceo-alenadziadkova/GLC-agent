@@ -12,6 +12,9 @@ export const glcKeys = {
   },
   dashboard: () => ['glc', 'dashboard'] as const,
   notifications: () => ['glc', 'notifications'] as const,
-  adminRequestQueue: () => ['glc', 'admin', 'request-queue'] as const,
+  /** Invalidate all admin request-queue queries (any filter / offset). */
+  adminRequestQueueRoot: ['glc', 'admin', 'request-queue'] as const,
+  adminRequestQueue: (filter: 'all' | 'pending', auditRequestsOffset: number) =>
+    ['glc', 'admin', 'request-queue', filter, auditRequestsOffset] as const,
   discoverySessions: () => ['glc', 'admin', 'discovery-sessions'] as const,
 };

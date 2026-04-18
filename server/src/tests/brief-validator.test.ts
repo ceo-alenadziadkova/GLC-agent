@@ -20,6 +20,8 @@
  *    · invalid Zod schema rejects
  *    · DB error throws
  *
+ * Surface / version helpers: see `brief-intake-surface.test.ts`.
+ *
  * All Supabase calls are mocked — no real DB.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -46,7 +48,17 @@ const { mockFrom, setAuditMode, setBriefRow, getUpsertCalls } = vi.hoisted(() =>
           return Promise.resolve({ data: null, error: null });
         }),
         single: vi.fn(() => {
-          if (table === 'audits') return Promise.resolve({ data: { product_mode: auditMode }, error: null });
+          if (table === 'audits') {
+            const coveragePackage =
+              auditMode === 'free_snapshot' ? 'starter' : auditMode === 'express' ? 'pro' : 'complete';
+            return Promise.resolve({
+              data: {
+                product_mode: auditMode,
+                execution_plan: { coverage_package: coveragePackage },
+              },
+              error: null,
+            });
+          }
           if (table === 'intake_brief') return Promise.resolve({ data: briefRow, error: briefRow ? null : { code: 'PGRST116', message: 'No rows' } });
           return Promise.resolve({ data: null, error: null });
         }),
@@ -60,7 +72,7 @@ const { mockFrom, setAuditMode, setBriefRow, getUpsertCalls } = vi.hoisted(() =>
           single: vi.fn(() => Promise.resolve({
             data: {
               id: 'brief-id-001',
-              audit_id: 'audit-001',
+              audit_id: (payload as Record<string, unknown>).audit_id ?? 'audit-001',
               responses: (payload as Record<string, unknown>).responses ?? {},
               status: (payload as Record<string, unknown>).status ?? 'draft',
               sla_met: (payload as Record<string, unknown>).sla_met ?? false,
@@ -68,6 +80,7 @@ const { mockFrom, setAuditMode, setBriefRow, getUpsertCalls } = vi.hoisted(() =>
               answered_recommended: (payload as Record<string, unknown>).answered_recommended ?? 0,
               recon_conflicts: (payload as Record<string, unknown>).recon_conflicts ?? [],
               collection_mode: (payload as Record<string, unknown>).collection_mode ?? 'self_serve',
+              intake_versions: (payload as Record<string, unknown>).intake_versions ?? null,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             },
@@ -99,16 +112,14 @@ import {
   arePreBriefSlotsSatisfied,
 } from '../services/brief-validator.js';
 import { RECOMMENDED_QUESTION_IDS, BRIEF_QUESTIONS } from '../schemas/intake-brief.js';
-import { resolveBankRecommendedIds, resolveFullSlaRequiredIds } from '../intake/brief-gates.js';
-import {
-  makeWebsitePathExpressBrief,
-  makeWebsitePathFullBrief,
-} from './bank-brief-fixtures.js';
+import { resolveBankRecommendedIds, resolveFullSlaRequiredIds } from '@glc/intake-core';
+import { makeWebsitePathFullBrief, wrapBriefCellsClient } from './bank-brief-fixtures.js';
+import { currentIntakeVersionTuple } from '@glc/intake-core';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function makeFullRequired(): Record<string, unknown> {
-  return makeWebsitePathFullBrief();
+  return wrapBriefCellsClient(makeWebsitePathFullBrief());
 }
 
 function makeFullWithAllRecommended(): Record<string, unknown> {
@@ -123,7 +134,7 @@ function makeFullWithAllRecommended(): Record<string, unknown> {
       r[id] = 'Answer';
     }
   }
-  return r;
+  return wrapBriefCellsClient(r);
 }
 
 // ─── validateBriefResponses — pure function ───────────────────────────────────
@@ -212,7 +223,7 @@ describe('validateBriefResponses()', () => {
   });
 
   it('extra optional/recommended answers do not affect sla_met', () => {
-    const responses = { ...makeFullRequired(), extra_key: 'value', budget_for_changes: '€5k – €20k' };
+    const responses = { ...makeFullRequired(), extra_key: 'value', budget_for_changes: '€2,000–10,000' };
     const result = validateBriefResponses(responses);
     expect(result.sla_met).toBe(true);
   });
@@ -241,9 +252,9 @@ describe('assertBriefReady()', () => {
     await expect(assertBriefReady('audit-001')).resolves.toBeUndefined();
   });
 
-  it('resolves for express audit with complete brief', async () => {
+  it('resolves for starter/pro audit (legacy product_mode express) with full brief SLA', async () => {
     setAuditMode('express');
-    setBriefRow({ responses: makeWebsitePathExpressBrief() });
+    setBriefRow({ responses: makeFullRequired() });
     await expect(assertBriefReady('audit-001')).resolves.toBeUndefined();
   });
 
@@ -261,7 +272,9 @@ describe('assertBriefReady()', () => {
 
   it('throws for express audit with missing required questions', async () => {
     setAuditMode('express');
-    setBriefRow({ responses: { f1: 'increase revenue' } });
+    setBriefRow({
+      responses: { f1: { value: 'Not enough qualified leads or new customers', source: 'client' } },
+    });
     await expect(assertBriefReady('audit-001')).rejects.toThrow(/Intake brief incomplete/);
   });
 
@@ -281,7 +294,7 @@ describe('assertBriefReady()', () => {
 
   it('upserts brief stats to DB when validating', async () => {
     setAuditMode('express');
-    setBriefRow({ responses: makeWebsitePathExpressBrief() });
+    setBriefRow({ responses: makeFullRequired() });
     await assertBriefReady('audit-001');
     const briefUpsert = getUpsertCalls().find(c => c.table === 'intake_brief');
     expect(briefUpsert).toBeDefined();
@@ -311,7 +324,9 @@ describe('saveBriefResponses()', () => {
   });
 
   it('sets sla_met=false when required questions missing', async () => {
-    const { brief } = await saveBriefResponses('audit-001', { f1: 'grow' });
+    const { brief } = await saveBriefResponses('audit-001', {
+      f1: { value: 'Not enough qualified leads or new customers', source: 'client' },
+    });
     expect(brief.sla_met).toBe(false);
   });
 
@@ -331,8 +346,19 @@ describe('saveBriefResponses()', () => {
     expect((upsert!.payload as Record<string, unknown>).audit_id).toBe('audit-xyz');
   });
 
+  it('persists intake_versions from buildIntakePlan', async () => {
+    await saveBriefResponses('audit-001', makeFullRequired());
+    const upsert = getUpsertCalls().find(c => c.table === 'intake_brief');
+    const iv = (upsert!.payload as Record<string, unknown>).intake_versions as Record<string, string>;
+    const cur = currentIntakeVersionTuple();
+    expect(iv.questionBankVersion).toBe(cur.questionBankVersion);
+    expect(iv.policyVersion).toBe(cur.policyVersion);
+    expect(iv.layoutVersion).toBe(cur.layoutVersion);
+    expect(iv.resolverVersion).toBe(cur.resolverVersion);
+  });
+
   it('rejects responses with invalid Zod types (string over BRIEF_ANSWER_STRING_MAX)', async () => {
-    const responses = { f1: 'x'.repeat(12_001) };
+    const responses = { f1: { value: 'x'.repeat(12_001), source: 'client' as const } };
     await expect(saveBriefResponses('audit-001', responses)).rejects.toThrow(/Invalid brief responses/);
   });
 
@@ -345,8 +371,8 @@ describe('saveBriefResponses()', () => {
 // ─── Schema invariants ────────────────────────────────────────────────────────
 
 describe('BRIEF_QUESTIONS schema invariants', () => {
-  it('has 28 main brief questions (identity is separate for public /intake link only)', () => {
-    expect(BRIEF_QUESTIONS).toHaveLength(28);
+  it('has main brief questions aligned with bank-backed schema (identity a11/a12/a2/a5 is separate for public /intake)', () => {
+    expect(BRIEF_QUESTIONS).toHaveLength(20);
   });
 
   it('all question IDs are unique', () => {
@@ -395,33 +421,22 @@ describe('BRIEF_QUESTIONS schema invariants', () => {
 
 describe('arePreBriefSlotsSatisfied', () => {
   const minimalPreBrief = {
-    intake_company_website: 'https://example.com',
-    intake_company_name: 'Acme',
-    intake_industry: 'Hospitality',
+    a11: 'https://example.com',
+    a12: 'Acme',
+    a2: 'Hospitality',
     a5: 'Yes, multi-page site',
-    revenue_model: 'Lead generation',
-    f1: 'More direct bookings',
+    a10: ['Lead generation / referrals'],
+    f1: ['Not enough qualified leads or new customers'],
     b1: 'Travelers 30–50',
     a6: 'Yes',
-    c5: 'Book now',
-    c3: 'Yes, GA4',
   };
 
-  it('passes without optional bank fields f2, a7, f8', () => {
+  it('passes without optional bank fields f2, a7, f8 and without c5/c3 (not in pre_brief bank slice)', () => {
     expect(arePreBriefSlotsSatisfied(minimalPreBrief)).toBe(true);
   });
 
   it('fails when a required submit slot is missing', () => {
-    const { c3: _, ...rest } = minimalPreBrief;
+    const { b1: _, ...rest } = minimalPreBrief;
     expect(arePreBriefSlotsSatisfied(rest)).toBe(false);
-  });
-
-  it('requires clarification when analytics choice needs specify', () => {
-    const withOtherTool = { ...minimalPreBrief, c3: 'Yes, another tool' };
-    expect(arePreBriefSlotsSatisfied(withOtherTool)).toBe(false);
-    expect(arePreBriefSlotsSatisfied({
-      ...withOtherTool,
-      c3__other: 'Plausible',
-    })).toBe(true);
   });
 });

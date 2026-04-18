@@ -1,0 +1,24 @@
+import {
+  GLC_AUDITS_AND_AUDIT_REQUESTS_LIST,
+  GLC_DISCOVER_SESSIONS_LIST_MAX,
+  GLC_INTAKE_SUBMISSIONS_LIST_MAX,
+  GLC_NOTIFICATIONS_LIST,
+  GLC_PIPELINE_STATUS_EVENTS_LIMIT,
+} from '@glc/route-limits';
+
+export const SYSTEM_DEFAULTS_AUDITS_LIST = GLC_AUDITS_AND_AUDIT_REQUESTS_LIST;
+
+/**
+ * Supabase `.limit()` caps and list pagination for dashboard / status routes.
+ * Numeric source: `@glc/route-limits` (shared with the SPA).
+ */
+export const SYSTEM_DEFAULTS_ROUTE_QUERIES = {
+  notifications: GLC_NOTIFICATIONS_LIST,
+  discoverSessionsMaxRows: GLC_DISCOVER_SESSIONS_LIST_MAX,
+  intakeSubmissionsMaxRows: GLC_INTAKE_SUBMISSIONS_LIST_MAX,
+  briefPublicSubmissionsMaxRows: 200,
+  pipelineStatusEventsLimit: GLC_PIPELINE_STATUS_EVENTS_LIMIT,
+  controlObjectHistoryEventsLimit: 400,
+  /** Same caps as `auditsList` — GET /api/audit-requests pagination. */
+  auditRequestsList: GLC_AUDITS_AND_AUDIT_REQUESTS_LIST,
+} as const;

@@ -16,6 +16,8 @@ export interface Database {
           overall_score: number | null;
           token_budget: number;
           tokens_used: number;
+          /** `normal` | `safe` — governance execution mode (see migration 051). */
+          execution_mode: string;
           created_at: string;
           updated_at: string;
         };
@@ -30,6 +32,7 @@ export interface Database {
           overall_score?: number | null;
           token_budget?: number;
           tokens_used?: number;
+          execution_mode?: string;
         };
         Update: Partial<Database['public']['Tables']['audits']['Insert']>;
       };
@@ -187,6 +190,160 @@ export interface Database {
           interview_notes?: string | null;
         };
         Update: Partial<Database['public']['Tables']['review_points']['Insert']>;
+      };
+      consultant_email_allowlist: {
+        Row: {
+          email_normalized: string;
+          created_at: string;
+        };
+        Insert: {
+          email_normalized: string;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['consultant_email_allowlist']['Insert']>;
+      };
+      evaluation_datasets: {
+        Row: {
+          id: string;
+          audit_id: string;
+          phase_id: string;
+          run_number: number;
+          control_object: Record<string, unknown>;
+          agent_output: Record<string, unknown>;
+          cleaned_output: Record<string, unknown>;
+          human_feedback: Record<string, unknown> | null;
+          decision_applied: string | null;
+          agent_variant_id: string | null;
+          retention_policy: string;
+          pii_sanitized: boolean;
+          created_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          id?: string;
+          audit_id: string;
+          phase_id: string;
+          run_number: number;
+          control_object: Record<string, unknown>;
+          agent_output: Record<string, unknown>;
+          cleaned_output: Record<string, unknown>;
+          human_feedback?: Record<string, unknown> | null;
+          decision_applied?: string | null;
+          agent_variant_id?: string | null;
+          retention_policy?: string;
+          pii_sanitized?: boolean;
+        };
+        Update: Partial<Database['public']['Tables']['evaluation_datasets']['Insert']>;
+      };
+      agent_performance_aggregate: {
+        Row: {
+          id: string;
+          phase_id: string;
+          agent_number: number;
+          evaluation_count: number;
+          avg_score: number | null;
+          avg_hallucination_rate: number | null;
+          avg_risky_promise_rate: number | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          phase_id: string;
+          agent_number: number;
+          evaluation_count?: number;
+          avg_score?: number | null;
+          avg_hallucination_rate?: number | null;
+          avg_risky_promise_rate?: number | null;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['agent_performance_aggregate']['Insert']>;
+      };
+      audit_claim_graph: {
+        Row: {
+          id: string;
+          audit_id: string;
+          phase_id: string;
+          claim_id: number;
+          depends_on_refs: unknown;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          audit_id: string;
+          phase_id: string;
+          claim_id: number;
+          depends_on_refs?: unknown;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['audit_claim_graph']['Insert']>;
+      };
+      audit_remediations: {
+        Row: {
+          id: string;
+          audit_id: string;
+          phase_id: string;
+          error_type: string;
+          remediation_type: string;
+          original_excerpt: string;
+          applied_fix: string;
+          preconditions_snapshot: unknown;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          audit_id: string;
+          phase_id: string;
+          error_type: string;
+          remediation_type: string;
+          original_excerpt: string;
+          applied_fix: string;
+          preconditions_snapshot?: unknown;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['audit_remediations']['Insert']>;
+      };
+      domain_benchmark_snapshot: {
+        Row: {
+          id: string;
+          computed_at: string;
+          phase_id: string;
+          industry: string;
+          period: string;
+          sample_count: number;
+          p25: number;
+          p50: number;
+          p75: number;
+          p90: number;
+          avg_score: number;
+          hallucination_rate_p50: number | null;
+          risky_promise_rate_p50: number | null;
+          unverified_rate_p50: number | null;
+          top_error_types: string[] | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          computed_at: string;
+          phase_id: string;
+          industry: string;
+          period: string;
+          sample_count: number;
+          p25: number;
+          p50: number;
+          p75: number;
+          p90: number;
+          avg_score: number;
+          hallucination_rate_p50?: number | null;
+          risky_promise_rate_p50?: number | null;
+          unverified_rate_p50?: number | null;
+          top_error_types?: string[] | null;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['domain_benchmark_snapshot']['Insert']>;
       };
     };
   };

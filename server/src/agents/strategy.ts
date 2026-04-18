@@ -1,4 +1,8 @@
 import { BaseAgent, loadPrompt } from './base.js';
+import {
+  interpolatePipelineEventMessage,
+  pipelineStrategyEventCopy,
+} from '../config/pipeline-events-copy.js';
 import { StrategyOutputSchema } from '../schemas/domain-output.js';
 import { supabase } from '../services/supabase.js';
 import { calculateWeightedScore } from '../config/industry-weights.js';
@@ -22,21 +26,28 @@ export class StrategyAgent extends BaseAgent {
    * Override run() to handle strategy-specific saving.
    */
   async run(): Promise<DomainResult> {
+    const ev = pipelineStrategyEventCopy();
     // Step 1: No collectors — go straight to context assembly
-    await this.emit('assembling_context', 'Gathering all domain results...');
+    await this.emit('assembling_context', ev.assemblingContext);
     const context = await this.contextBuilder.build(
       this.auditId, 'strategy', {}, this.instructions
     );
 
     // Step 2: Claude call
-    await this.emit('analyzing', 'Synthesizing strategic roadmap...');
+    await this.emit('analyzing', ev.analyzing);
     const budget = await this.tokenTracker.checkBudget(this.auditId);
     if (!budget.within_budget) throw new Error('Token budget exceeded');
     if (budget.remaining < MIN_TOKEN_RESERVE) {
       throw new Error(`Insufficient token reserve: ${budget.remaining} remaining, need at least ${MIN_TOKEN_RESERVE}`);
     }
     if (budget.is_approaching_limit) {
-      await this.emit('warning', `Token budget at ${Math.round((budget.tokens_used / budget.token_budget) * 100)}% — ${budget.remaining} tokens remaining`);
+      await this.emit(
+        'warning',
+        interpolatePipelineEventMessage(ev.tokenBudgetWarning, {
+          pct: Math.round((budget.tokens_used / budget.token_budget) * 100),
+          remaining: budget.remaining,
+        }),
+      );
     }
 
     const strategyResult = await this.callClaudeWithRetry(context, StrategyOutputSchema, MODEL_MAX_TOKENS.strategy) as unknown as import('zod').infer<typeof StrategyOutputSchema>;
@@ -80,7 +91,7 @@ export class StrategyAgent extends BaseAgent {
       current_phase: 7,
     }).eq('id', this.auditId);
 
-    await this.emit('completed', 'Strategic roadmap complete', {
+    await this.emit('completed', ev.completed, {
       overall_score: weightedScore,
       quick_wins_count: strategyResult.quick_wins.length,
       medium_term_count: strategyResult.medium_term.length,

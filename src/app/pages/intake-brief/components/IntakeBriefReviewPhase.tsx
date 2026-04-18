@@ -1,0 +1,111 @@
+import { motion } from 'motion/react';
+import { ArrowRight, PencilSimple } from '@phosphor-icons/react';
+import type { BriefQuestion, BriefResponses } from '../../../data/briefQuestions';
+import { formatBriefAnswerSummary } from '../../../data/briefQuestions';
+import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
+
+const copy = WORKSPACE_PAGE_COPY.intakePublicPrebrief;
+
+type SectionBlock = { section: string; questions: BriefQuestion[] };
+
+export function IntakeBriefReviewPhase(props: {
+  questionSections: SectionBlock[];
+  responses: BriefResponses;
+  submitError: string | null;
+  submitting: boolean;
+  onBackToForm: () => void;
+  onEditQuestion: (id: string) => void;
+  onConfirmSubmit: () => void;
+}) {
+  const {
+    questionSections,
+    responses,
+    submitError,
+    submitting,
+    onBackToForm,
+    onEditQuestion,
+    onConfirmSubmit,
+  } = props;
+
+  return (
+    <motion.div
+      key="review"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      className="w-full space-y-5"
+    >
+      <div className="text-center space-y-2">
+        <h1 className="ds-intake-review-title">
+          {copy.reviewTitle}
+        </h1>
+        <p className="text-sm ds-type-sm-secondary-leading" >
+          {copy.reviewSubtitle}
+        </p>
+      </div>
+
+      <button type="button" className="text-sm font-medium ds-intake-review-link-btn" onClick={onBackToForm}>
+        {copy.backToQuestions}
+      </button>
+
+      <div className="glc-card overflow-hidden ds-intake-review-card-shell">
+        {questionSections.map((block, blockIdx) => (
+          <div
+            key={`intake-review-section-${blockIdx}`}
+            className={blockIdx > 0 ? 'border-t border-[var(--border-subtle)]' : ''}
+          >
+            <div className="px-4 py-2.5 text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider ds-intake-review-section-bar">
+              {block.section}
+            </div>
+            <div className="divide-y divide-[var(--border-subtle)]">
+              {block.questions.map(q => (
+                <div key={q.id} className="flex gap-3 px-4 py-3.5 items-start">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium mb-1 ds-text-tertiary" >
+                      {q.question}
+                    </p>
+                    <p className="text-sm ds-text-primary" >
+                      {formatBriefAnswerSummary(q, responses[q.id], responses)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={`${copy.editAriaPrefix} ${q.question}`}
+                    className="shrink-0 p-2 rounded-lg ds-intake-review-edit-btn"
+                    onClick={() => onEditQuestion(q.id)}
+                  >
+                    <PencilSimple className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {submitError && (
+        <p className="text-sm text-center ds-text-score-1" >
+          {submitError}
+        </p>
+      )}
+
+      <button
+        type="button"
+        disabled={submitting}
+        className="ds-intake-review-submit"
+        data-submitting={submitting ? 'true' : 'false'}
+        onClick={() => {
+          void onConfirmSubmit();
+        }}
+      >
+        {submitting ? (
+          copy.sending
+        ) : (
+          <>
+            {copy.confirmSubmit} <ArrowRight className="w-4 h-4" />
+          </>
+        )}
+      </button>
+    </motion.div>
+  );
+}

@@ -8,6 +8,7 @@ import {
   type AuthRequest,
 } from '../middleware/auth.js';
 import { logIngestLimiter, snapshotLogIngestLimiter } from '../middleware/rate-limit.js';
+import { REQUEST_FIELD_LIMITS } from '../config/request-field-limits.js';
 import { logger } from '../services/logger.js';
 
 interface LogBody {
@@ -21,8 +22,8 @@ interface LogBody {
 function ingestFrontendLog(req: AuthRequest, res: Response): void {
   const body = (req.body ?? {}) as LogBody;
   const level = body.level ?? 'info';
-  const source = String(body.source ?? 'frontend').slice(0, 64);
-  const message = String(body.message ?? '').slice(0, 4000);
+  const source = String(body.source ?? 'frontend').slice(0, REQUEST_FIELD_LIMITS.logSourceMax);
+  const message = String(body.message ?? '').slice(0, REQUEST_FIELD_LIMITS.logMessageMax);
   const context = body.context && typeof body.context === 'object' ? body.context : undefined;
   const timestamp = body.timestamp ?? new Date().toISOString();
 

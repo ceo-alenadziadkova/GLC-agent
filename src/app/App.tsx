@@ -1,7 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from 'react-router';
 import { BrowserTranslateGuard } from './components/BrowserTranslateGuard';
-import { GlcToaster } from './components/GlcToaster.tsx';
+import { GlcToaster } from './components/GlcToaster';
 import { getGlcQueryClient } from './lib/glc-query-client';
 import { router } from './routes';
 

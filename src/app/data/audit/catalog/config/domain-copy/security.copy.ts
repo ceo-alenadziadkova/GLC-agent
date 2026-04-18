@@ -1,0 +1,95 @@
+import type { CatalogDomainCopy } from './domain-copy.types';
+
+export const securityDomainCopy: CatalogDomainCopy = {
+  id: 'security',
+  name: 'Security & Compliance',
+  score: 2,
+  status: 'needs-improvement',
+  executiveSummary: 'Security posture requires immediate attention with multiple high-priority vulnerabilities identified. Compliance framework exists but lacks comprehensive implementation and regular audit procedures.',
+  strengths: [
+    'Basic SSL/TLS encryption in place',
+    'Password complexity requirements enforced',
+    'Regular security awareness training for staff',
+    'Incident response plan documented',
+  ],
+  weaknesses: [
+    'No multi-factor authentication implementation',
+    'Insufficient penetration testing and vulnerability assessments',
+    'Lack of comprehensive security information and event management (SIEM)',
+    'Incomplete data classification and handling procedures',
+    'Limited security automation and orchestration',
+  ],
+  issues: [
+    {
+      id: 'sec-1',
+      severity: 'critical',
+      title: 'Missing Multi-Factor Authentication',
+      description: 'MFA not enforced for administrative and privileged accounts',
+      impact: 'High risk of unauthorized access and account compromise',
+    },
+    {
+      id: 'sec-2',
+      severity: 'critical',
+      title: 'Unpatched Security Vulnerabilities',
+      description: 'Multiple CVEs identified in production dependencies',
+      impact: 'Active exploitation risk for known vulnerabilities',
+    },
+    {
+      id: 'sec-3',
+      severity: 'high',
+      title: 'Insufficient Access Controls',
+      description: 'Overly permissive role-based access control configurations',
+      impact: 'Potential for privilege escalation and data exposure',
+    },
+  ],
+  recommendations: [
+    {
+      id: 'sec-rec-1',
+      title: 'Implement Enterprise MFA Solution',
+      description: 'Deploy multi-factor authentication across all systems and user accounts',
+      priority: 'high',
+      estimatedCost: '$12,000 - $18,000',
+      estimatedTime: '3-4 weeks',
+      impact: 'Reduce account compromise risk by 99%',
+    },
+    {
+      id: 'sec-rec-2',
+      title: 'Establish Continuous Security Monitoring',
+      description: 'Implement SIEM platform with automated threat detection and response',
+      priority: 'high',
+      estimatedCost: '$45,000 - $65,000',
+      estimatedTime: '8-12 weeks',
+      impact: 'Real-time threat detection with automated incident response',
+    },
+    {
+      id: 'sec-rec-3',
+      title: 'Conduct Comprehensive Penetration Testing',
+      description: 'Engage third-party security firm for full-scope penetration test',
+      priority: 'high',
+      estimatedCost: '$20,000 - $30,000',
+      estimatedTime: '4-6 weeks',
+      impact: 'Identify and remediate critical vulnerabilities before exploitation',
+    },
+  ],
+  quickWins: [
+    {
+      id: 'sec-qw-1',
+      title: 'Patch Critical Vulnerabilities',
+      description: 'Apply security patches for all critical CVEs',
+      timeframe: '2-3 days',
+      effort: 'medium',
+    },
+    {
+      id: 'sec-qw-2',
+      title: 'Enable MFA for Admin Accounts',
+      description: 'Immediately enable MFA for all administrative access',
+      timeframe: '1 day',
+      effort: 'low',
+    },
+  ],
+  estimatedInvestment: {
+    immediate: '$5,000 - $8,000',
+    shortTerm: '$40,000 - $60,000',
+    longTerm: '$80,000 - $120,000',
+  },
+};

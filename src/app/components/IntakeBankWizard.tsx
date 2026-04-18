@@ -1,15 +1,28 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, CaretDown, CaretRight, ListBullets } from '@phosphor-icons/react';
+import { ArrowLeft, ArrowRight, Info, ListBullets, Signpost } from '@phosphor-icons/react';
 import { BriefField } from './BriefField';
 import { bankIdToBriefQuestion } from '../data/bankQuestionUiCatalog';
 import {
-  BRIEF_QUESTIONS,
-  mergeBriefResponsesPreferFilled,
   type BriefResponseEntry,
   type BriefResponses,
 } from '../data/briefQuestions';
+import {
+  INTAKE_BRIEF_SLA_PRODUCT_MODE,
+  type IntakeBriefCollectionMode,
+  type IntakeVersionTuple,
+  type ProductMode,
+} from '../data/auditTypes';
 import { briefResponsesToIntakeMap, useIntakeWizard } from '../hooks/useIntakeWizard';
-import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '../lib/choice-specify-triggers';
+import type { IntakeSurface } from '@glc/intake-core';
+import type { BriefIntakeAnalyticsSurface } from '../lib/brief-intake-analytics';
+import { choiceSpecifyResponseKey, choiceValueNeedsSpecify } from '@glc/intake-core';
+import { labelsForMissingReportDomains } from '../lib/intake-coverage-domain-labels';
+import { formatIntakeQuestionReasonsBrief } from '../lib/intake-plan-explain';
+import { buildIntakePlan } from '@glc/intake-core';
+import { EXPRESS_LOCKED_F2_OPTIONS, normalizeF2ValueForExpress } from '../lib/express-focus-area-locks';
+import { cn } from './ui/utils';
+
+const HIDDEN_IDENTITY_BANK_IDS = new Set(['a2', 'a11', 'a12']);
 
 function intakeMapToBriefResponses(map: Record<string, unknown>): BriefResponses {
   const out: BriefResponses = {};
@@ -34,14 +47,6 @@ function unwrapForField(raw: BriefResponses[string] | undefined): string | strin
   return raw as string | string[] | number | null;
 }
 
-function isRevenueModelAnswered(
-  value: string | string[] | number | null | undefined,
-): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
-}
-
-const REVENUE_MODEL = BRIEF_QUESTIONS.find(q => q.id === 'revenue_model')!;
-
 /**
  * Step-by-step questionnaire over the full question-bank v1 (branch-aware).
  * Caller owns `responses`; updates are merged so non-bank keys (e.g. legacy-only) are preserved.
@@ -52,222 +57,297 @@ export function IntakeBankWizard({
   interviewMode,
   emphasizeClientSource,
   collectionMode,
+  intakeSurface,
   answerSource,
+  intakeAnalytics,
+  productMode = INTAKE_BRIEF_SLA_PRODUCT_MODE,
 }: {
   responses: BriefResponses;
   onResponsesChange: (next: BriefResponses) => void;
   interviewMode?: boolean;
   emphasizeClientSource?: boolean;
-  collectionMode?: 'standard' | 'discovery';
+  collectionMode?: IntakeBriefCollectionMode;
+  /** Layout surface for visible ordering (omit with discovery-only flows). */
+  intakeSurface?: IntakeSurface;
   /** Source tag for new plain values from the wizard (defaults to consultant). */
   answerSource?: BriefResponseEntry['source'];
+  /** Optional funnel analytics (authenticated audit context). */
+  intakeAnalytics?: {
+    auditId: string;
+    surface: BriefIntakeAnalyticsSurface;
+    getIntakeVersions: () => IntakeVersionTuple | null;
+  };
+  /** Align resolver SLA / next-step hints with audit product mode. */
+  productMode?: ProductMode;
 }) {
   const source = answerSource ?? 'consultant';
   const map = useMemo(() => briefResponsesToIntakeMap(responses), [responses]);
-
-  const wizard = useIntakeWizard({
-    value: map,
-    onChange: next => {
-      const patch = intakeMapToBriefResponses(next);
-      onResponsesChange(mergeBriefResponsesPreferFilled(responses, patch));
-    },
-    collectionMode,
-  });
-
-  const q = wizard.currentStub ? bankIdToBriefQuestion(wizard.currentStub.id, wizard.currentStub.priority) : null;
-
-  const revenueValue = unwrapForField(responses.revenue_model);
-  const revenueAnswered = isRevenueModelAnswered(revenueValue);
-  const [revenueLaunchOpen, setRevenueLaunchOpen] = useState(() => !revenueAnswered);
+  const [localMap, setLocalMap] = useState<Record<string, unknown>>(() => map);
 
   useEffect(() => {
-    if (!revenueAnswered) {
-      setRevenueLaunchOpen(true);
-    }
-  }, [revenueAnswered]);
+    setLocalMap(map);
+  }, [map]);
+
+  const wizard = useIntakeWizard({
+    value: localMap,
+    onChange: next => {
+      setLocalMap(next);
+      const patch = intakeMapToBriefResponses(next);
+      onResponsesChange(patch);
+    },
+    collectionMode,
+    productMode,
+    surface: intakeSurface,
+    intakeAnalytics,
+  });
+
+  const visibleQuestionStubs = useMemo(
+    () => wizard.visibleQuestionStubs.filter(stub => !HIDDEN_IDENTITY_BANK_IDS.has(stub.id)),
+    [wizard.visibleQuestionStubs],
+  );
+  const currentRawIndex = wizard.currentStub
+    ? wizard.visibleQuestionStubs.findIndex(stub => stub.id === wizard.currentStub?.id)
+    : -1;
+  const currentVisibleIndexFromRaw = visibleQuestionStubs.findIndex(stub => stub.id === wizard.currentStub?.id);
+  const fallbackVisibleStub = useMemo(() => {
+    if (visibleQuestionStubs.length === 0) return null;
+    if (currentRawIndex < 0) return visibleQuestionStubs[0];
+    const nextVisible = wizard.visibleQuestionStubs
+      .slice(currentRawIndex + 1)
+      .find(stub => !HIDDEN_IDENTITY_BANK_IDS.has(stub.id));
+    if (nextVisible) return nextVisible;
+    const prevVisible = [...wizard.visibleQuestionStubs]
+      .slice(0, currentRawIndex)
+      .reverse()
+      .find(stub => !HIDDEN_IDENTITY_BANK_IDS.has(stub.id));
+    return prevVisible ?? visibleQuestionStubs[0];
+  }, [currentRawIndex, visibleQuestionStubs, wizard.visibleQuestionStubs]);
+  const currentVisibleStub = currentVisibleIndexFromRaw >= 0
+    ? visibleQuestionStubs[currentVisibleIndexFromRaw]
+    : fallbackVisibleStub;
+  const currentVisibleIndex = currentVisibleStub
+    ? visibleQuestionStubs.findIndex(stub => stub.id === currentVisibleStub.id)
+    : -1;
+  const totalVisibleSteps = visibleQuestionStubs.length;
+  const isFirstVisibleStep = currentVisibleIndex <= 0;
+  const isLastVisibleStep = totalVisibleSteps > 0 && currentVisibleIndex >= totalVisibleSteps - 1;
+  const q = currentVisibleStub ? bankIdToBriefQuestion(currentVisibleStub.id, currentVisibleStub.priority) : null;
+
+  const reportGapLabels = useMemo(
+    () => labelsForMissingReportDomains(wizard.missingForReport),
+    [wizard.missingForReport],
+  );
+
+  const [planExplainOpen, setPlanExplainOpen] = useState(false);
+
+  useEffect(() => {
+    setPlanExplainOpen(false);
+  }, [wizard.currentStub?.id]);
+
+  const planReasonLines = useMemo(() => {
+    if (!planExplainOpen || !currentVisibleStub) return [];
+    const plan = buildIntakePlan({
+      responses: localMap,
+      productMode,
+      collectionMode,
+      surface: intakeSurface,
+    });
+    return formatIntakeQuestionReasonsBrief(plan.reasonsById?.[currentVisibleStub.id]);
+  }, [planExplainOpen, currentVisibleStub, localMap, productMode, collectionMode, intakeSurface]);
+
+  const suggestedNextBlock = useMemo(() => {
+    if (wizard.nextRecommended.length === 0) return null;
+    const chips = wizard.nextRecommended
+      .filter(id => !HIDDEN_IDENTITY_BANK_IDS.has(id))
+      .filter(id => id !== currentVisibleStub?.id)
+      .slice(0, 6);
+    if (chips.length === 0) return null;
+    return (
+      <div
+        className="rounded-lg p-3 space-y-2 ds-border-subtle ds-bg-inset"
+        
+      >
+        <div
+          className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide ds-text-tertiary"
+          
+        >
+          <Signpost className="w-4 h-4 shrink-0" aria-hidden weight="bold" />
+          Suggested next
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {chips.map(id => {
+            const st = wizard.visibleQuestionStubs.find(s => s.id === id);
+            const pri = st?.priority ?? 'recommended';
+            const bq = bankIdToBriefQuestion(id, pri);
+            const labelText = bq.question;
+            const label = labelText.length > 48 ? `${labelText.slice(0, 47)}…` : labelText;
+            const step = wizard.visibleQuestionStubs.findIndex(s => s.id === id);
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  if (step >= 0) wizard.goToStep(step);
+                }}
+                className="ds-intake-bank-wizard-chip text-left text-xs px-2.5 py-1.5 rounded-md max-w-full sm:max-w-[240px] line-clamp-2"
+                disabled={step < 0}
+                title={labelText}
+                aria-label={`Go to: ${labelText}`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }, [currentVisibleStub, wizard]);
+
+  function goToNextVisibleStep() {
+    if (totalVisibleSteps === 0 || isLastVisibleStep) return;
+    const next = visibleQuestionStubs[currentVisibleIndex + 1];
+    if (!next) return;
+    const nextIndex = wizard.visibleQuestionStubs.findIndex(stub => stub.id === next.id);
+    if (nextIndex >= 0) wizard.goToStep(nextIndex);
+  }
+
+  function goToPrevVisibleStep() {
+    if (totalVisibleSteps === 0 || isFirstVisibleStep) return;
+    const prev = visibleQuestionStubs[currentVisibleIndex - 1];
+    if (!prev) return;
+    const prevIndex = wizard.visibleQuestionStubs.findIndex(stub => stub.id === prev.id);
+    if (prevIndex >= 0) wizard.goToStep(prevIndex);
+  }
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-xs)' }}>
+        <div className="flex items-center gap-2 text-[length:var(--text-xs)] text-[var(--text-secondary)]">
           <ListBullets className="w-4 h-4" aria-hidden />
           <span>
-            Question-bank step {wizard.totalSteps === 0 ? 0 : wizard.stepIndex + 1} of {wizard.totalSteps}
+            Question-bank step {totalVisibleSteps === 0 ? 0 : currentVisibleIndex + 1} of {totalVisibleSteps}
           </span>
         </div>
-        <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+        <div className="text-xs text-[var(--text-tertiary)]">
           Score {Math.round(wizard.dataQuality.score * 100)}% · required {wizard.dataQuality.answeredRequired}/
           {wizard.dataQuality.visibleRequired}
         </div>
       </div>
 
-      <div className="rounded-full overflow-hidden" style={{ height: 3, backgroundColor: 'var(--bg-muted)' }}>
+      <div className="h-[3px] rounded-full overflow-hidden bg-[var(--bg-muted)]">
         <div
-          className="h-full rounded-full transition-all"
+          className="h-full rounded-full transition-all ds-intake-bank-wizard-progress-fill"
           style={{
             width:
-              wizard.totalSteps > 0
-                ? `${((wizard.stepIndex + 1) / wizard.totalSteps) * 100}%`
+              totalVisibleSteps > 0
+                ? `${((currentVisibleIndex + 1) / totalVisibleSteps) * 100}%`
                 : '0%',
-            background: 'var(--gradient-brand)',
           }}
         />
       </div>
 
+      {reportGapLabels.length > 0 && (
+        <p className="text-xs leading-snug text-[var(--text-tertiary)]">
+          <span className="font-semibold text-[var(--text-secondary)]">Report input gaps: </span>
+          {reportGapLabels.slice(0, 5).join(' · ')}
+          {reportGapLabels.length > 5 ? ` · +${reportGapLabels.length - 5} more` : ''}
+        </p>
+      )}
+
       {q && (() => {
-        // a2 / intake_industry "Other" writes to `intake_industry_specify` (see choiceSpecifyResponseKey).
+        // a2 "Other" writes to `intake_industry_specify` (see choiceSpecifyResponseKey).
         const otherKey = choiceSpecifyResponseKey(q.id);
-        const otherSpecify = (unwrapForField(responses[otherKey]) as string | undefined) ?? '';
+        const otherSpecify = (unwrapForField(wizard.responses[otherKey] as BriefResponses[string]) as string | undefined) ?? '';
         return (
-          <BriefField
-            q={q}
-            value={unwrapForField(responses[q.id])}
-            onChange={v => {
-              wizard.setField(q.id, { value: v, source });
-              if (!choiceValueNeedsSpecify(v as string | string[] | null)) {
-                wizard.setField(choiceSpecifyResponseKey(q.id), { value: null, source });
+          <div className="space-y-3">
+            <div>
+              <button
+                type="button"
+                onClick={() => setPlanExplainOpen(o => !o)}
+                className="inline-flex -ml-2 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-[var(--text-tertiary)] cursor-pointer"
+                aria-expanded={planExplainOpen}
+              >
+                <Info className="w-3.5 h-3.5 shrink-0" aria-hidden weight="bold" />
+                {planExplainOpen ? 'Hide plan trace' : 'Why this question?'}
+              </button>
+              {planExplainOpen && (
+                <ul
+                  className="mt-2 list-disc space-y-1 pl-5 text-xs leading-snug text-[var(--text-tertiary)]"
+                >
+                  {planReasonLines.map((line, i) => (
+                    <li key={`${line}-${i}`}>{line}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <BriefField
+              q={q}
+              value={
+                q.id === 'f2' && productMode === 'express'
+                  ? normalizeF2ValueForExpress(unwrapForField(wizard.responses[q.id] as BriefResponses[string])) as string[] | null
+                  : unwrapForField(wizard.responses[q.id] as BriefResponses[string])
               }
-            }}
-            onSetUnknown={() => {
-              wizard.setField(q.id, { value: null, source: 'unknown' });
-              wizard.setField(choiceSpecifyResponseKey(q.id), { value: null, source: 'unknown' });
-            }}
-            emphasizeClientSource={emphasizeClientSource}
-            interviewMode={interviewMode}
-            otherSpecify={otherSpecify}
-            onOtherSpecifyChange={text => {
-              wizard.setField(otherKey, { value: text || null, source });
-            }}
-          />
+              onChange={v => {
+                wizard.setResponses(prev => {
+                  const normalizedValue = q.id === 'f2' && productMode === 'express'
+                    ? normalizeF2ValueForExpress(v)
+                    : v;
+                  const next = { ...prev, [q.id]: { value: normalizedValue, source } };
+                  const isChoiceQuestion = q.type === 'single_choice' || q.type === 'multi_choice';
+                  if (isChoiceQuestion && !choiceValueNeedsSpecify(normalizedValue as string | string[] | null)) {
+                    next[choiceSpecifyResponseKey(q.id)] = { value: null, source };
+                  }
+                  return next;
+                });
+              }}
+              onSetUnknown={() => {
+                wizard.setResponses(prev => ({
+                  ...prev,
+                  [q.id]: { value: null, source: 'unknown' },
+                  [choiceSpecifyResponseKey(q.id)]: { value: null, source: 'unknown' },
+                }));
+              }}
+              emphasizeClientSource={emphasizeClientSource}
+              interviewMode={interviewMode}
+              otherSpecify={otherSpecify}
+              onOtherSpecifyChange={text => {
+                wizard.setField(otherKey, { value: text || null, source });
+              }}
+              disabledOptions={q.id === 'f2' && productMode === 'express' ? EXPRESS_LOCKED_F2_OPTIONS : undefined}
+              productMode={productMode}
+            />
+          </div>
         );
       })()}
 
-      {wizard.totalSteps === 0 && (
-        <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
+      {suggestedNextBlock}
+
+      {totalVisibleSteps === 0 && (
+        <p className="text-sm text-[var(--text-tertiary)]">
           No bank questions visible yet. Answer basics (e.g. industry and website presence) in step 0 or switch to
           classic brief view.
         </p>
       )}
 
-      <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-inset)' }}>
-        {revenueAnswered && !revenueLaunchOpen ? (
-          <button
-            type="button"
-            onClick={() => setRevenueLaunchOpen(true)}
-            className="w-full flex items-start gap-2 text-left p-4 rounded-xl transition-colors"
-            style={{ color: 'var(--text-primary)', cursor: 'pointer' }}
-            aria-expanded={false}
-          >
-            <CaretRight className="w-4 h-4 shrink-0 mt-0.5" aria-hidden weight="bold" />
-            <span className="min-w-0 flex-1 space-y-1">
-              <span className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
-                Also required for launch
-              </span>
-              <span className="block text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Revenue model: {revenueValue}
-              </span>
-              <span className="block text-xs" style={{ color: 'var(--text-quaternary)' }}>
-                Expand to change
-              </span>
-            </span>
-          </button>
-        ) : (
-          <div className="p-4 space-y-3">
-            {revenueAnswered ? (
-              <button
-                type="button"
-                onClick={() => setRevenueLaunchOpen(false)}
-                className="w-full flex items-start gap-2 text-left rounded-lg -m-1 p-1"
-                style={{ color: 'var(--text-primary)', cursor: 'pointer' }}
-                aria-expanded
-              >
-                <CaretDown className="w-4 h-4 shrink-0 mt-0.5" aria-hidden weight="bold" />
-                <span className="min-w-0 flex-1 space-y-1">
-                  <span className="block text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
-                    Also required for launch
-                  </span>
-                  <span className="block text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    Tap to collapse when done (expand again from the summary row).
-                  </span>
-                </span>
-              </button>
-            ) : (
-              <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-tertiary)' }}>
-                  Also required for launch
-                </p>
-                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                  Revenue model is not in the bank JSON; capture it here if you have not already.
-                </p>
-              </div>
-            )}
-            <BriefField
-              q={REVENUE_MODEL}
-              value={unwrapForField(responses.revenue_model)}
-              onChange={v => {
-                const next: BriefResponses = {
-                  ...responses,
-                  revenue_model: { value: v, source },
-                };
-                if (!choiceValueNeedsSpecify(v as string | string[] | null)) {
-                  delete next.revenue_model__other;
-                }
-                onResponsesChange(next);
-                if (typeof v === 'string' && v.trim().length > 0) {
-                  setRevenueLaunchOpen(false);
-                }
-              }}
-              onSetUnknown={() => {
-                onResponsesChange({
-                  ...responses,
-                  revenue_model: { value: null, source: 'unknown' },
-                  revenue_model__other: { value: null, source: 'unknown' },
-                });
-              }}
-              emphasizeClientSource={emphasizeClientSource}
-              interviewMode={interviewMode}
-              otherSpecify={(unwrapForField(responses.revenue_model__other) as string | undefined) ?? ''}
-              onOtherSpecifyChange={text => {
-                onResponsesChange({
-                  ...responses,
-                  revenue_model__other: { value: text || null, source },
-                });
-              }}
-            />
-          </div>
-        )}
-      </div>
-
       <div className="flex items-center gap-3 pt-1">
         <button
           type="button"
-          onClick={wizard.goPrev}
-          disabled={wizard.isFirstStep}
-          className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm"
-          style={{
-            color: wizard.isFirstStep ? 'var(--text-quaternary)' : 'var(--text-tertiary)',
-            border: '1px solid var(--border-subtle)',
-            backgroundColor: 'transparent',
-            cursor: wizard.isFirstStep ? 'not-allowed' : 'pointer',
-          }}
+          onClick={goToPrevVisibleStep}
+          disabled={isFirstVisibleStep}
+          className="ds-intake-bank-wizard-back flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Back
         </button>
         <button
           type="button"
-          onClick={wizard.goNext}
-          disabled={wizard.isLastStep || wizard.totalSteps === 0}
-          className="flex flex-1 items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold"
-          style={{
-            background:
-              wizard.isLastStep || wizard.totalSteps === 0 ? 'var(--bg-muted)' : 'var(--gradient-brand)',
-            color:
-              wizard.isLastStep || wizard.totalSteps === 0
-                ? 'var(--text-secondary)'
-                : 'var(--primary-foreground)',
-            border: wizard.isLastStep || wizard.totalSteps === 0 ? '1px solid var(--border-subtle)' : 'none',
-            cursor: wizard.isLastStep || wizard.totalSteps === 0 ? 'not-allowed' : 'pointer',
-          }}
+          onClick={goToNextVisibleStep}
+          disabled={isLastVisibleStep || totalVisibleSteps === 0}
+          className={cn(
+            'flex flex-1 items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold',
+            isLastVisibleStep || totalVisibleSteps === 0
+              ? 'ds-intake-bank-wizard-next--disabled'
+              : 'ds-intake-bank-wizard-next--active',
+          )}
         >
           Next <ArrowRight className="w-3.5 h-3.5" />
         </button>

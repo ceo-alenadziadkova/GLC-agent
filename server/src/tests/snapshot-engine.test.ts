@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { extractFacts, htmlLooksLikeClientShell } from '../snapshot/extract-facts.js';
+import {
+  extractFacts,
+  getGenericMarketingHero,
+  getHeroPrimaryCtaCount,
+  htmlLooksLikeClientShell,
+} from '../snapshot/extract-facts.js';
 import { SnapshotFactsSchema, type SiteProfile } from '../snapshot/types.js';
 import { runSnapshotAudit } from '../snapshot/audit/run-audit.js';
 import { runSiteProfile } from '../snapshot/classification/site-profile-runner.js';
@@ -66,6 +71,30 @@ describe('snapshot engine', () => {
     }
   });
 
+  it('extractFacts merges title tokens from extra pages into slugs', () => {
+    const page2 = `<!DOCTYPE html><html lang="en"><head>
+<title>Smith Legal — Attorneys at Law</title>
+</head><body><h1>Welcome</h1></body></html>`;
+    const facts = extractFacts(
+      [
+        { url: 'https://example.com/', html: MINIMAL_HTML, status: 200, finalUrl: 'https://example.com/' },
+        { url: 'https://example.com/team', html: page2, status: 200, finalUrl: 'https://example.com/team' },
+      ],
+      'https://example.com/',
+    );
+    expect(facts.urls.slugs).toContain('attorneys');
+    expect(facts.urls.slugs).toContain('legal');
+  });
+
+  it('compat getters keep stable fallback behavior', () => {
+    const facts = extractFacts(
+      [{ url: 'https://example.com/', html: MINIMAL_HTML, status: 200, finalUrl: 'https://example.com/' }],
+      'https://example.com/',
+    );
+    expect(getHeroPrimaryCtaCount(facts)).toBeGreaterThanOrEqual(0);
+    expect(typeof getGenericMarketingHero(facts)).toBe('boolean');
+  });
+
   it('runSnapshotAudit returns 0-100 and categories', () => {
     resetAuditRulesCache();
     const facts = SnapshotFactsSchema.parse(
@@ -119,9 +148,10 @@ describe('snapshot engine', () => {
         'https://example.com/',
       ),
     );
-    const { profile } = runSiteProfile(facts);
+    const { profile, debug } = runSiteProfile(facts);
     expect(profile.siteType).toBeTruthy();
     expect(profile.classificationConfidenceBand).toMatch(/high|medium|low/);
+    expect(typeof debug.tieAmbiguous).toBe('boolean');
   });
 
   it('runSiteProfile classifies Shopify-style page as ecommerce', () => {

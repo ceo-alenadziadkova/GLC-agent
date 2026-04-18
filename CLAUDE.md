@@ -12,7 +12,7 @@ A full-stack B2B SaaS platform for AI-powered business audits. A consultant subm
 
 ## Architecture in One Paragraph
 
-React 18 + Vite frontend (Vercel) talks to an Express + TypeScript backend (Railway) via REST. The backend orchestrates an 8-phase AI pipeline: programmatic collectors gather data (no AI), then one `claude-sonnet-4-20250514` call per phase analyses and scores. Results are stored in Supabase PostgreSQL. The frontend subscribes to `pipeline_events` and `audits` via Supabase Realtime for live updates. Supabase Auth handles email/password + Google OAuth; RLS enforces user data isolation.
+**Canonical detail:** [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) and the domain map in [docs/MASTER.md](./docs/MASTER.md). In short: React 18 + Vite SPA and Express + TypeScript API form a **modular monolith** (not microservices); Supabase (Postgres, Auth, Realtime) persists state; collectors run without LLMs; one Claude call per pipeline phase on the server only; consultants/clients use JWT + RLS-isolated data.
 
 ---
 
@@ -24,8 +24,12 @@ React 18 + Vite frontend (Vercel) talks to an Express + TypeScript backend (Rail
 4. **Collectors never call Claude.** Collectors are programmatic only (fetch + cheerio).
 5. **Always filter DB queries by `userId`.** Backend routes must include `user_id = req.userId` in queries, even though service role key bypasses RLS.
 6. **All protected routes need `requireAuth` middleware.** Check `server/src/routes/` patterns.
-7. **No subfolders in `/docs/`.** Documentation lives flat in `docs/`.
+7. **Primary docs live flat in `/docs/*.md` with a 20-file quota.** ADRs live under `docs/adrs/` (do not rename that folder). Obsolete doc stubs only: `docs/archive/`. Single master index: [docs/MASTER.md](./docs/MASTER.md) only — no second `MASTER_DOCUMENTATION.md`. Engineering debt: [docs/TECH_DEBT.md](./docs/TECH_DEBT.md).
 8. **No emoji in source code.** Use Phosphor React icons instead — e.g. `<CircleIcon size={20} color="#df3434" weight="fill" />`. Emoji are allowed only in agent prompt strings (LLM instructions) and user-facing log messages emitted to `pipeline_events`.
+9. **Question bank changes are cross-system, never JSON-only.** Any change to `packages/intake-core/src/question-bank.v1.json` or answer options must be synchronized with `bank-question-ui-overrides.ts`, `choice-specify-triggers.ts`, `ai-readiness.ts`, `answer-normalizers.ts`, discovery mapping (`src/app/lib/discovery-flow.ts`, `server/src/routes/discover.ts` when relevant), tests, and docs (`docs/QUESTION_BANK.md`; `docs/API.md` if contract behavior changes). Follow `docs/QUESTION_BANK.md` §15 and `.cursor/rules/intake-question-bank-change-protocol.mdc`.
+10. **`server/src/snapshot/` in automated checks.** That tree is ignored by ESLint and excluded from server Vitest coverage (see `eslint.config.js`, `server/vitest.config.ts`). It is still compiled by `tsc`. Treat it as library-style snapshot code when auditing or refactoring.
+11. **Implementation consistency gate is mandatory for new code.** Before coding, search and reuse existing modules/patterns; do not introduce parallel abstractions. Keep ENV/config/feature-flags/services boundaries strict and avoid inline business magic numbers or long user-facing copy in services/pages when config/copy layers already exist.
+12. **No ad-hoc feature env checks outside the facade.** Read feature toggles only through `server/src/config/feature-flags.ts`; defaults for that facade must come from config (`SYSTEM_DEFAULTS`), not inline literals.
 
 ---
 
@@ -45,6 +49,8 @@ React 18 + Vite frontend (Vercel) talks to an Express + TypeScript backend (Rail
 | `src/app/lib/supabase.ts` | Supabase client init (anon key) |
 | `src/app/hooks/usePipeline.ts` | Supabase Realtime subscription to pipeline_events |
 | `src/app/components/AppShell.tsx` | Layout with audit-aware navigation (`useCurrentAuditId`) |
+| `packages/intake-core` (`@glc/intake-core`) | Shared intake: `buildIntakePlan`, question bank JSON, SLA gates, validation helpers, **choice “specify other”** (`choiceValueNeedsSpecify`, …) — import only this package from app/server (no `server/src/intake`, no duplicate `src/app/lib` shim) |
+| `src/app/config/marketing-motion.ts`, `marketing-motion-variants.ts`, `package-page-layout.ts`, `audit-compare-marketing.ts` | Unified public marketing motion (stagger, text reveal, card lift); package page density and compare-row focus. Marketing surface presets live as `.ds-marketing-*` in `src/styles/components.css` (token-backed). Primitives: `MarketingTextReveal`, `MarketingComparisonShell`, `MarketingRevealMask`, blocks under `src/app/marketing/blocks/`. |
 
 ---
 
@@ -78,33 +84,51 @@ Review gates: after phases 0, 4, 7. Consultant adds notes that become context fo
 
 ## Frontend Routes
 
+Route segments are defined in `packages/intake-core/src/spa-routes.ts` (`APP_ROUTE_SEGMENTS`, `SPA_ROUTE_SEGMENTS`).
+
 ```
-/                    RootEntry → MarketingHome (public) or redirect by role / OAuth → /login
-/snapshot            SnapshotPage       (public) — marketing shell + SnapshotLanding
-/express-audit       ExpressAuditPage   (public)
-/audit               FullAuditPage      (public marketing) — before /audit/:id
-/discovery, /audit/discover  DiscoveryPublicPage (public)
-/brief               PublicBriefPage    (public)
-/faq                 FaqPage            (public)
-/login               Login.tsx          (public)
-/dashboard           Dashboard          (protected consultant)
-/portfolio           → /dashboard       (redirect)
-/audit/new           NewAudit.tsx       (protected)
-/pipeline/:id        PipelineMonitor    (protected) — Realtime
-/audit/:id           AuditWorkspace     (protected) — Realtime
-/audit/:id/:domainId AuditWorkspace     (protected)
-/reports/:id         ReportViewer       (protected)
-/strategy/:id        StrategyLab        (protected)
-/portal              ClientPortal       (protected client)
-/portal/audit/:id    ClientAuditView    (protected client)
-/intake/:token       IntakeBrief        (public)
+/                         RootEntry → MarketingHome (public) or redirect by role / OAuth → /login
+/snapshot                 SnapshotPage          (public) — marketing shell + SnapshotLanding
+/starter                  ExpressAuditPage      (public) — Starter package marketing page
+/pro                      ProAuditPage          (public) — Pro package marketing page
+/complete                 FullAuditPage         (public) — Complete package marketing page
+/express-audit            → /starter            (redirect, legacy alias)
+/audit                    → /complete           (redirect, legacy alias)
+/discovery                DiscoveryPublicPage   (public)
+/audit/discover           DiscoveryPublicPage   (public, legacy alias)
+/brief                    PublicBriefPage       (public)
+/faq                      FaqPage               (public)
+/login                    Login.tsx             (public)
+/intake/:token            IntakeBrief           (public)
+
+/dashboard                Dashboard             (protected consultant)
+/portfolio                → /dashboard          (redirect)
+/audit/new                NewAudit              (protected consultant)
+/audit/:id                AuditWorkspace        (protected consultant) — Realtime
+/audit/:id/:domainId      AuditWorkspace        (protected consultant)
+/pipeline/:id             PipelineMonitor       (protected consultant) — Realtime
+/reports/:id              ReportViewer          (protected consultant)
+/strategy/:id             StrategyLab           (protected consultant)
+/settings                 SettingsPage          (protected, non-guest)
+/admin/requests           AdminRequestQueue     (protected consultant)
+/admin/snapshots          AdminSnapshotQueue    (protected consultant)
+/admin/discovery          DiscoveryQueue        (protected consultant)
+/admin/intake-wording     IntakeWordingWorkspace (protected consultant)
+/admin/question-bank-studio  QuestionBankStudioPage (protected consultant)
+/admin/design-system      AdminDesignSystemPage (protected consultant)
+
+/portal                   ClientPortal          (protected client)
+/portal/audit/new         NewAudit (client_self_serve variant) (protected client)
+/portal/pipeline/:id      PipelineMonitor       (protected client) — Realtime
+/portal/reports/:id       ReportViewer          (protected client)
+/portal/audit/:id         ClientAuditView       (protected client)
 ```
 
 ---
 
 ## Backend Route Patterns
 
-All routes under `/api/`. All except health check, public snapshot/intake/discover/marketing brief, require `requireAuth` middleware.
+All routes under `/api/`. All except health check, public snapshot start/poll/quota (`/api/snapshot` GET/POST except `POST /claim`), intake/discover/marketing brief, require `requireAuth` middleware.
 
 ```
 POST   /api/audits
@@ -164,4 +188,6 @@ await this.emitEvent('log', { message: 'Starting security header check' });
 
 Full docs in `docs/`. See [docs/MASTER.md](./docs/MASTER.md) for index, knowledge map, and governance.
 
-When you add a feature, update the relevant **existing** doc file in the same PR. Don't create new doc files without a strong reason — the quota is **15** markdown files maximum in `/docs/` (flat layout): MASTER plus 12 domain docs plus two ADRs. See [docs/MASTER.md](./docs/MASTER.md).
+When you add a feature, update the relevant **existing** doc file in the same PR. Don't create new doc files without a strong reason — the quota is **20** markdown files maximum in flat `docs/*.md` (ADR archive in `docs/adrs/` is out of scope for routine updates). See [docs/MASTER.md](./docs/MASTER.md).
+
+**ENV vs config vs services:** product defaults and numeric limits belong in `server/src/config/` (e.g. `SYSTEM_DEFAULTS`) first; server env is for infrastructure/secrets or documented ops overrides — [ARCHITECTURE.md — Strict layer boundaries](./docs/ARCHITECTURE.md#strict-layer-boundaries-operational-policy), [DEPLOYMENT.md — Environment layers](./docs/DEPLOYMENT.md#environment-layers-infrastructure-vs-ops-overrides), `server/.env.example`.

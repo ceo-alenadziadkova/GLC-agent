@@ -1,9 +1,24 @@
 import * as cheerio from 'cheerio';
-import { BaseCollector } from './base.js';
+import { auditSkipsPublicWebsiteFetches } from '@glc/intake-core';
+import { BaseCollector, type CollectorCollectContext } from './base.js';
 import { PublicUrlNotAllowedError, fetchPublicHttpUrl, validatePublicAuditUrl } from '../lib/public-http-url.js';
 import { detectLanguagesFromPages, extractLanguagesFromHtml } from '../lib/language-utils.js';
 import { logger } from '../services/logger.js';
-import { isNoPublicWebsiteUrl } from '../config/no-public-website.js';
+import { CRAWLER_USER_AGENT } from '../config/bot-identity.js';
+import { COLLECTOR_CRAWLER_CONTACT_FIELD_MAX } from '../config/collector-sampling-limits.js';
+import {
+  CRAWLER_MAX_PAGES,
+  CRAWLER_PAGE_TIMEOUT_MS,
+  CRAWLER_TOTAL_BUDGET_MS,
+} from '../config/crawler-limits.js';
+import { SOCIAL_LINK_PATTERNS } from '../config/social-link-patterns.js';
+import {
+  CRAWLER_CONTACT_EMAIL_EXCLUDED_SUBSTRINGS,
+  CRAWLER_CONTACT_EMAIL_PATTERN,
+  CRAWLER_PHONE_MAX_DIGITS,
+  CRAWLER_PHONE_MIN_DIGITS,
+  crawlerContactPhonePattern,
+} from '../config/crawler-contact-extraction.js';
 import { addTechStackFromHtml, TECH_PATTERNS } from '../lib/site-html-signals.js';
 
 interface CrawledPage {
@@ -22,24 +37,12 @@ interface CrawledPage {
   detected_languages?: string[];
 }
 
-const SOCIAL_PATTERNS: Record<string, RegExp> = {
-  twitter: /(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)/,
-  linkedin: /linkedin\.com\/(?:company|in)\/([a-zA-Z0-9_-]+)/,
-  facebook: /facebook\.com\/([a-zA-Z0-9._-]+)/,
-  instagram: /instagram\.com\/([a-zA-Z0-9._-]+)/,
-  youtube: /youtube\.com\/(?:@|channel\/)([a-zA-Z0-9_-]+)/,
-  github: /github\.com\/([a-zA-Z0-9_-]+)/,
-};
-
 export class CrawlerCollector extends BaseCollector {
   get key() { return 'crawler'; }
   get phase() { return 0; }
 
-  private maxPages = 20;
-  private timeout = 15_000;
-
-  async collect(auditId: string, companyUrl: string) {
-    if (isNoPublicWebsiteUrl(companyUrl)) {
+  async collect(auditId: string, companyUrl: string, ctx?: CollectorCollectContext) {
+    if (auditSkipsPublicWebsiteFetches(ctx?.noPublicWebsite, companyUrl)) {
       const techStackResult: Record<string, string[]> = {};
       for (const cat of Object.keys(TECH_PATTERNS)) {
         techStackResult[cat] = [];
@@ -80,11 +83,10 @@ export class CrawlerCollector extends BaseCollector {
     }
 
     const baseUrl = new URL(baseHref);
-    const TOTAL_TIMEOUT_MS = 90_000;
     const crawlStart = Date.now();
 
-    while (toVisit.length > 0 && pages.length < this.maxPages) {
-      if (Date.now() - crawlStart > TOTAL_TIMEOUT_MS) {
+    while (toVisit.length > 0 && pages.length < CRAWLER_MAX_PAGES) {
+      if (Date.now() - crawlStart > CRAWLER_TOTAL_BUDGET_MS) {
         logger.warn('crawler.total_timeout', { component: 'crawler', pages_crawled: pages.length });
         break;
       }
@@ -130,7 +132,7 @@ export class CrawlerCollector extends BaseCollector {
     const languages = detectLanguagesFromPages(pages);
 
     // Clean pages (remove raw HTML to save space)
-    const cleanPages = pages.map(({ html, ...rest }) => rest);
+    const cleanPages = pages.map(({ html: _html, ...rest }) => rest);
 
     // Convert sets to arrays
     const techStackResult: Record<string, string[]> = {};
@@ -143,8 +145,8 @@ export class CrawlerCollector extends BaseCollector {
       tech_stack: techStackResult,
       social_profiles: socialProfiles,
       contact_info: {
-        emails: Array.from(emails).slice(0, 10),
-        phones: Array.from(phones).slice(0, 10),
+        emails: Array.from(emails).slice(0, COLLECTOR_CRAWLER_CONTACT_FIELD_MAX),
+        phones: Array.from(phones).slice(0, COLLECTOR_CRAWLER_CONTACT_FIELD_MAX),
         addresses: [],
       },
       languages_detected: languages,
@@ -157,13 +159,13 @@ export class CrawlerCollector extends BaseCollector {
     const start = Date.now();
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+    const timeoutId = setTimeout(() => controller.abort(), CRAWLER_PAGE_TIMEOUT_MS);
 
     try {
       const response = await fetchPublicHttpUrl(url, {
         signal: controller.signal,
         headers: {
-          'User-Agent': 'GLC-AuditBot/1.0 (+https://glctech.es)',
+          'User-Agent': CRAWLER_USER_AGENT,
           'Accept': 'text/html,application/xhtml+xml',
           'Accept-Language': 'en,es,ca',
         },
@@ -243,7 +245,7 @@ export class CrawlerCollector extends BaseCollector {
   }
 
   private detectSocials(html: string, profiles: Record<string, string>) {
-    for (const [platform, pattern] of Object.entries(SOCIAL_PATTERNS)) {
+    for (const [platform, pattern] of Object.entries(SOCIAL_LINK_PATTERNS)) {
       if (profiles[platform]) continue;
       const match = html.match(pattern);
       if (match?.[1]) {
@@ -253,24 +255,21 @@ export class CrawlerCollector extends BaseCollector {
   }
 
   private extractContacts(html: string, emails: Set<string>, phones: Set<string>) {
-    // Emails
-    const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-    const foundEmails = html.match(emailPattern);
+    const emailRe = new RegExp(CRAWLER_CONTACT_EMAIL_PATTERN.source, CRAWLER_CONTACT_EMAIL_PATTERN.flags);
+    const foundEmails = html.match(emailRe);
     if (foundEmails) {
       for (const email of foundEmails) {
-        if (!email.includes('example.com') && !email.includes('sentry')) {
-          emails.add(email.toLowerCase());
-        }
+        const skip = CRAWLER_CONTACT_EMAIL_EXCLUDED_SUBSTRINGS.some((s) => email.includes(s));
+        if (!skip) emails.add(email.toLowerCase());
       }
     }
 
-    // Phones (basic extraction)
-    const phonePattern = /(?:tel:|phone:|whatsapp:)?\+?[\d\s()-]{7,}/g;
+    const phonePattern = crawlerContactPhonePattern();
     const foundPhones = html.match(phonePattern);
     if (foundPhones) {
       for (const phone of foundPhones) {
         const cleaned = phone.replace(/[^\d+]/g, '');
-        if (cleaned.length >= 7 && cleaned.length <= 15) {
+        if (cleaned.length >= CRAWLER_PHONE_MIN_DIGITS && cleaned.length <= CRAWLER_PHONE_MAX_DIGITS) {
           phones.add(cleaned);
         }
       }

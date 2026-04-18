@@ -1,5 +1,6 @@
 import { CheckCircle, WarningCircle } from '@phosphor-icons/react';
-import type { AuditDomain } from '../data/auditData';
+import type { AuditDomain } from '../data/audit';
+import { Surface } from './ui/surface';
 
 interface StrengthsWeaknessesProps {
   domain: AuditDomain;
@@ -11,60 +12,36 @@ export function StrengthsWeaknesses({ domain }: StrengthsWeaknessesProps) {
       <div className="grid md:grid-cols-2 gap-6">
         {/* Strengths */}
         <div>
-          <div className="text-xs font-semibold tracking-wide mb-4" style={{ color: 'var(--text-tertiary)' }}>
+          <div className="mb-4 text-xs font-semibold tracking-wide text-[var(--text-tertiary)]">
             STRENGTHS
           </div>
-          <div 
-            className="p-6 rounded-lg" 
-            style={{ 
-              backgroundColor: 'var(--surface-elevated)',
-              border: '1px solid var(--panel-border)',
-              boxShadow: 'var(--shadow-sm)'
-            }}
-          >
+          <Surface padding="lg" className="bg-[var(--surface-elevated)]">
             <div className="space-y-3">
               {domain.strengths.map((strength, index) => (
                 <div key={index} className="flex gap-3">
-                  <CheckCircle
-                    className="w-5 h-5 flex-shrink-0 mt-0.5"
-                    style={{ color: 'var(--status-excellent)' }}
-                  />
-                  <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>
-                    {strength}
-                  </p>
+                  <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[var(--score-5)]" />
+                  <p className="text-sm leading-relaxed text-[var(--text-primary)]">{strength}</p>
                 </div>
               ))}
             </div>
-          </div>
+          </Surface>
         </div>
 
         {/* Weaknesses */}
         <div>
-          <div className="text-xs font-semibold tracking-wide mb-4" style={{ color: 'var(--text-tertiary)' }}>
+          <div className="mb-4 text-xs font-semibold tracking-wide text-[var(--text-tertiary)]">
             WEAKNESSES
           </div>
-          <div 
-            className="p-6 rounded-lg" 
-            style={{ 
-              backgroundColor: 'var(--surface-elevated)',
-              border: '1px solid var(--panel-border)',
-              boxShadow: 'var(--shadow-sm)'
-            }}
-          >
+          <Surface padding="lg" className="bg-[var(--surface-elevated)]">
             <div className="space-y-3">
               {domain.weaknesses.map((weakness, index) => (
                 <div key={index} className="flex gap-3">
-                  <WarningCircle
-                    className="w-5 h-5 flex-shrink-0 mt-0.5"
-                    style={{ color: 'var(--status-needs-improvement)' }}
-                  />
-                  <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>
-                    {weakness}
-                  </p>
+                  <WarningCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[var(--score-2)]" />
+                  <p className="text-sm leading-relaxed text-[var(--text-primary)]">{weakness}</p>
                 </div>
               ))}
             </div>
-          </div>
+          </Surface>
         </div>
       </div>
     </section>

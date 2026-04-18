@@ -10,7 +10,7 @@ const AUDIT_ID = 'audit-report-001';
 const OWNER_ID = 'user-owner';
 const CLIENT_ID = 'user-client';
 
-const { setRequestUserId, resetSupabaseMock } = vi.hoisted(() => {
+const { setRequestUserId, resetSupabaseMock, setStrategyRow, setDomainsShouldThrow } = vi.hoisted(() => {
   const domainUx = {
     audit_id: 'audit-report-001',
     domain_key: 'ux_conversion',
@@ -35,8 +35,16 @@ const { setRequestUserId, resetSupabaseMock } = vi.hoisted(() => {
   };
 
   let requestUserId = 'user-owner';
+  let strategyRow: Record<string, unknown> | null = null;
+  let domainsShouldThrow = false;
   const setRequestUserId = (id: string) => {
     requestUserId = id;
+  };
+  const setStrategyRow = (row: Record<string, unknown> | null) => {
+    strategyRow = row;
+  };
+  const setDomainsShouldThrow = (v: boolean) => {
+    domainsShouldThrow = v;
   };
 
   const makeAuditsChain = () => {
@@ -58,7 +66,10 @@ const { setRequestUserId, resetSupabaseMock } = vi.hoisted(() => {
   const makeDomainsChain = () => ({
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
-    order: vi.fn(() => Promise.resolve({ data: [domainUx], error: null })),
+    order: vi.fn(() => {
+      if (domainsShouldThrow) throw new Error('domains failed');
+      return Promise.resolve({ data: [domainUx], error: null });
+    }),
   });
 
   const makeSingleChain = (data: unknown) => ({
@@ -71,7 +82,7 @@ const { setRequestUserId, resetSupabaseMock } = vi.hoisted(() => {
     if (table === 'audits') return makeAuditsChain();
     if (table === 'audit_domains') return makeDomainsChain();
     if (table === 'audit_recon') return makeSingleChain({ company_name: 'Example Ltd', industry: 'SaaS' });
-    if (table === 'audit_strategy') return makeSingleChain(null);
+    if (table === 'audit_strategy') return makeSingleChain(strategyRow);
     if (table === 'notifications') {
       return { insert: vi.fn(() => Promise.resolve({ error: null })) };
     }
@@ -85,7 +96,7 @@ const { setRequestUserId, resetSupabaseMock } = vi.hoisted(() => {
   (globalThis as Record<string, unknown>).__reportsGetUserId = () => requestUserId;
   (globalThis as Record<string, unknown>).__reportsMockFrom = mockFrom;
 
-  return { setRequestUserId, resetSupabaseMock };
+  return { setRequestUserId, resetSupabaseMock, setStrategyRow, setDomainsShouldThrow };
 });
 
 vi.mock('../services/supabase.js', () => ({
@@ -125,6 +136,8 @@ afterAll(() => server?.close());
 
 beforeEach(() => {
   setRequestUserId(OWNER_ID);
+  setStrategyRow(null);
+  setDomainsShouldThrow(false);
   resetSupabaseMock();
 });
 
@@ -152,5 +165,32 @@ describe('GET /api/audits/:id/report', () => {
     setRequestUserId('user-stranger');
     const res = await fetch(`${baseUrl}/api/audits/${AUDIT_ID}/report`);
     expect(res.status).toBe(404);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('REPORTS_AUDIT_NOT_FOUND');
+  });
+
+  it('renders strategy executive summary in markdown when strategy row exists', async () => {
+    setStrategyRow({
+      audit_id: AUDIT_ID,
+      executive_summary: 'Strategy summary for regression fixture.',
+      overall_score: 4,
+      quick_wins: [{ title: 'Tighten landing CTA' }],
+      medium_term: [],
+      strategic: [],
+      scorecard: [],
+    });
+
+    const res = await fetch(`${baseUrl}/api/audits/${AUDIT_ID}/report?format=markdown`);
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain('Strategy summary for regression fixture.');
+  });
+
+  it('returns 500 with reports generate failed code on unhandled route error', async () => {
+    setDomainsShouldThrow(true);
+    const res = await fetch(`${baseUrl}/api/audits/${AUDIT_ID}/report?format=json`);
+    expect(res.status).toBe(500);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('REPORTS_GENERATE_FAILED');
   });
 });
