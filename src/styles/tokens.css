@@ -236,6 +236,19 @@
   --space-10: 40px;
   --space-12: 48px;
   --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  /**
+   * Marketing section cadence — public pages use these for variable scroll rhythm.
+   * tight = related content (scope → outcome-timing)
+   * base  = default between distinct sections
+   * loose = major narrative shift (before mid-CTA, before teasers)
+   */
+  --space-marketing-section-tight: var(--space-10);
+  --space-marketing-section-base: var(--space-16);
+  --space-marketing-section-loose: var(--space-24);
+
   --sidebar-width: 16rem;
   --sidebar-width-mobile: 18rem;
   --sidebar-width-icon: 3rem;

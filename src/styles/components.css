@@ -1297,24 +1297,6 @@ html:not(.dark) .glc-hover-row:hover {
   background-color: var(--bg-inset);
 }
 
-.ds-marketing-package-badge-focus {
-  background-color: color-mix(in oklab, var(--glc-blue-muted) 66%, var(--bg-surface));
-  border-color: color-mix(in oklab, var(--glc-blue) 36%, var(--border-subtle));
-  color: var(--glc-blue-light);
-}
-
-.ds-marketing-package-badge-context {
-  background-color: color-mix(in oklab, var(--glc-blue-muted) 84%, var(--bg-surface));
-  border-color: color-mix(in oklab, var(--glc-blue) 38%, var(--border-subtle));
-  color: var(--glc-blue-light);
-}
-
-.ds-marketing-package-badge-strategy {
-  background-color: color-mix(in oklab, var(--glc-blue-muted) 72%, var(--bg-surface));
-  border-color: color-mix(in oklab, var(--glc-blue) 34%, var(--border-subtle));
-  color: var(--glc-blue-light);
-}
-
 .ds-marketing-coverage-cell {
   border-color: color-mix(in oklab, var(--overlay-white-20) 56%, var(--border-subtle));
   background-color: color-mix(in oklab, var(--bg-muted) 75%, var(--bg-surface));
@@ -1339,12 +1321,206 @@ html:not(.dark) .glc-hover-row:hover {
   color: var(--glc-blue-deeper);
 }
 
+/* Marketing — tier-differentiated package badges. Weight mirrors product tier. */
+.ds-marketing-package-badge-focus {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 52%, var(--bg-surface));
+  border-color: color-mix(in oklab, var(--glc-blue) 26%, var(--border-subtle));
+  color: var(--glc-blue-light);
+}
+
+.ds-marketing-package-badge-context {
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 84%, var(--bg-surface));
+  border-color: color-mix(in oklab, var(--glc-blue) 40%, var(--border-subtle));
+  color: var(--glc-blue-deeper);
+  box-shadow: inset 0 var(--border-width-default) 0 color-mix(in oklab, var(--glc-blue) 12%, transparent);
+}
+
+.ds-marketing-package-badge-strategy {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--glc-blue) 24%, var(--bg-surface)) 0%,
+    color-mix(in oklab, var(--glc-blue-muted) 94%, var(--bg-surface)) 100%
+  );
+  border-color: color-mix(in oklab, var(--glc-blue) 58%, var(--border-default));
+  color: var(--glc-blue-deeper);
+  box-shadow:
+    inset 0 var(--border-width-default) 0 color-mix(in oklab, var(--glc-blue) 22%, transparent),
+    0 var(--space-1) var(--space-3) color-mix(in oklab, var(--glc-blue) 16%, transparent);
+}
+
+/* Marketing — accent eyebrow chip (orange-blue gradient for signature moments). */
+.ds-marketing-eyebrow-chip--accent {
+  background: var(--gradient-badge-blue-orange);
+  border-color: color-mix(in oklab, var(--glc-orange) 24%, var(--border-subtle));
+  color: var(--glc-blue-deeper);
+}
+
+/* Marketing — elevated comparison shell variant (signal-heavy sections). */
+.ds-marketing-surface-comparison-shell--elevated {
+  border-radius: var(--radius-2xl);
+  border: var(--border-width-default) solid var(--border-subtle);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--bg-surface) 96%, var(--bg-muted)) 0%,
+    var(--bg-surface) 60%,
+    color-mix(in oklab, var(--bg-surface) 92%, var(--bg-muted)) 100%
+  );
+  box-shadow: var(--shadow-card);
+  transition: transform 0.28s ease-out, box-shadow 0.28s ease-out;
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .ds-marketing-surface-comparison-shell--elevated:hover {
+    transform: translateY(calc(var(--space-0-5) * -1));
+    box-shadow:
+      0 0 0 var(--border-width-default) color-mix(in oklab, var(--glc-blue) 18%, var(--border-subtle)),
+      var(--shadow-lg);
+  }
+}
+
+/* Marketing — "feature" surface for hero-adjacent accent panels. */
+.ds-marketing-surface-feature {
+  border-radius: var(--radius-2xl);
+  border: var(--border-width-default) solid color-mix(in oklab, var(--glc-blue) 18%, var(--border-subtle));
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--bg-surface) 92%, var(--glc-blue-muted)) 0%,
+    var(--bg-surface) 70%
+  );
+  box-shadow: var(--shadow-sm);
+}
+
+/* Marketing — icon well for anchoring Phosphor icons on cards/steps. */
+.ds-marketing-card-icon-well {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-10);
+  height: var(--space-10);
+  border-radius: var(--radius-lg);
+  background-color: color-mix(in oklab, var(--glc-blue-muted) 78%, var(--bg-surface));
+  color: var(--glc-blue-deeper);
+  border: var(--border-width-default) solid color-mix(in oklab, var(--glc-blue) 18%, var(--border-subtle));
+  flex-shrink: 0;
+}
+
+.ds-marketing-card-icon-well--accent {
+  background: var(--gradient-badge-blue-orange);
+  color: var(--glc-blue-deeper);
+  border-color: color-mix(in oklab, var(--glc-orange) 26%, var(--border-subtle));
+}
+
+.ds-marketing-card-icon-well--small {
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-md);
+}
+
+/* Marketing — larger display title for signature hero moments. */
+.ds-marketing-display-hero {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.02em;
+  line-height: 1.02;
+  color: var(--text-primary);
+  font-size: clamp(2.4rem, 5.6vw, 4.25rem);
+}
+
+/* Marketing — larger section title class for signature h2 moments. */
+.ds-marketing-section-title-display {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.01em;
+  line-height: 1.08;
+  color: var(--text-primary);
+  font-size: clamp(1.55rem, 3.2vw, 2.25rem);
+}
+
+/* Marketing — section cadence helpers (stack onto parent flex gap). */
+.ds-marketing-section-gap-tight {
+  margin-block-start: calc(
+    (var(--space-marketing-section-base) - var(--space-marketing-section-tight)) * -1
+  );
+}
+
+.ds-marketing-section-gap-base {
+  /* no-op — default cadence comes from the parent flex gap. */
+}
+
+.ds-marketing-section-gap-loose {
+  margin-block-start: calc(
+    var(--space-marketing-section-loose) - var(--space-marketing-section-base)
+  );
+}
+
+/* Marketing — coverage cell hover (scale-less, shadow-based). */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .ds-marketing-coverage-cell,
+  .ds-marketing-coverage-cell--active {
+    transition: transform 0.22s ease-out, box-shadow 0.22s ease-out;
+  }
+  .ds-marketing-coverage-cell:hover,
+  .ds-marketing-coverage-cell--active:hover {
+    transform: translateY(calc(var(--space-0-5) * -1));
+    box-shadow: var(--shadow-sm);
+  }
+}
+
 .ds-package-audience-section-card {
   border-color: color-mix(in oklab, var(--glc-blue) 22%, var(--border-subtle));
   background: linear-gradient(
     160deg,
     color-mix(in oklab, var(--bg-surface) 94%, var(--glc-blue-muted)) 0%,
     var(--bg-surface) 100%
+  );
+  transition: transform 0.22s ease-out, box-shadow 0.22s ease-out, border-color 0.22s ease-out;
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .ds-package-audience-section-card:hover {
+    transform: translateY(calc(var(--space-0-5) * -1));
+    box-shadow: var(--shadow-sm);
+    border-color: color-mix(in oklab, var(--glc-blue) 36%, var(--border-subtle));
+  }
+}
+
+/* Marketing — outcome card variants: equal, highlighted-left, keystone. */
+.ds-marketing-outcome-card {
+  border-radius: var(--radius-xl);
+  border: var(--border-width-default) solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  transition: transform 0.22s ease-out, box-shadow 0.22s ease-out, border-color 0.22s ease-out;
+}
+
+.ds-marketing-outcome-card--primary {
+  border-color: color-mix(in oklab, var(--glc-blue) 30%, var(--border-subtle));
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--bg-surface) 94%, var(--glc-blue-muted)) 0%,
+    var(--bg-surface) 70%
+  );
+  box-shadow: var(--shadow-sm);
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .ds-marketing-outcome-card:hover {
+    transform: translateY(calc(var(--space-0-5) * -1));
+    box-shadow: var(--shadow-md);
+    border-color: color-mix(in oklab, var(--glc-blue) 28%, var(--border-subtle));
+  }
+}
+
+/* Marketing — timeline step connector (brand-tinted, replaces flat border). */
+.ds-marketing-timeline-connector {
+  position: absolute;
+  left: calc(var(--space-4) - var(--border-width-default) / 2);
+  top: var(--space-10);
+  bottom: var(--space-4);
+  width: var(--border-width-default);
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--glc-blue) 40%, var(--border-subtle)) 0%,
+    var(--border-subtle) 100%
   );
 }
 

@@ -10,7 +10,7 @@ type HomeTrustSectionProps = {
 
 export function HomeTrustSection({ data, reduceMotion }: HomeTrustSectionProps) {
   return (
-    <>
+    <div className="ds-marketing-surface-inset-section px-6 py-10 sm:px-10 sm:py-14">
       <p className="text-xs font-semibold uppercase ds-home-trust-caps text-[var(--text-tertiary)]">
         {data.title}
       </p>
@@ -29,6 +29,6 @@ export function HomeTrustSection({ data, reduceMotion }: HomeTrustSectionProps) 
           </motion.li>
         ))}
       </ul>
-    </>
+    </div>
   );
 }

@@ -3,59 +3,68 @@ import { motion, useReducedMotion } from 'motion/react';
 import { marketingHeroBillboardMotion } from '../../config/marketing-motion-variants';
 import { cn } from '../../components/ui/utils';
 import { Button } from '../../components/ui/button';
-import {
-  MARKETING_COVERAGE_GRID_CELL,
-  MARKETING_COVERAGE_GRID_LABEL,
-  MARKETING_HERO_CHIP,
-  MARKETING_PACKAGE_BADGE_VARIANTS,
-} from '../../config/marketing-surface-tokens';
+import { MARKETING_HERO_CHIP } from '../../config/marketing-surface-tokens';
 import workspacePackaging from '../../data/marketing-workspace-packaging.en.json';
 
-const TIER_ACTIVE_CELLS: Record<'focus' | 'context' | 'strategy', number> = {
+type Tier = 'focus' | 'context' | 'strategy';
+
+const TIER_ACTIVE_CELLS: Record<Tier, number> = {
   focus: 1,
   context: 3,
   strategy: 6,
 };
+
+const TIER_BADGE_CLASS: Record<Tier, string> = {
+  focus: 'ds-marketing-package-badge-focus',
+  context: 'ds-marketing-package-badge-context',
+  strategy: 'ds-marketing-package-badge-strategy',
+};
+
 const HERO_LABELS = workspacePackaging.package_hero_labels;
 const COVERAGE_DOMAIN_LABELS = HERO_LABELS.domains;
 
-function TierCoverageDecor({ tier }: { tier: 'focus' | 'context' | 'strategy' }) {
+function TierCoverageDecor({ tier }: { tier: Tier }) {
   const active = TIER_ACTIVE_CELLS[tier];
-  const badgeStyle = MARKETING_PACKAGE_BADGE_VARIANTS[tier];
   return (
     <div className="relative ds-package-marketing-hero-cover" aria-hidden>
       <div className="ds-package-marketing-hero-card rounded-[var(--radius-2xl)] border p-6 shadow-[var(--shadow-xs)]">
-        <p className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider ds-text-tertiary" >
+        <p className="text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider ds-text-tertiary">
           {HERO_LABELS.coverageShape}
         </p>
         <div className="mt-4 grid grid-cols-3 gap-2">
-          {COVERAGE_DOMAIN_LABELS.map((label, i) => (
-            <motion.div
-              key={label}
-              className="aspect-square rounded-md border p-1"
-              style={{
-                ...MARKETING_COVERAGE_GRID_CELL.base,
-                ...(i < active ? MARKETING_COVERAGE_GRID_CELL.active : null),
-              }}
-              whileHover={{ scale: 1.05 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-            >
-              <span
-                className="flex h-full items-center justify-center text-center text-[length:var(--text-2xs)] font-semibold leading-tight"
-                style={i < active ? MARKETING_COVERAGE_GRID_LABEL.active : MARKETING_COVERAGE_GRID_LABEL.inactive}
+          {COVERAGE_DOMAIN_LABELS.map((label, i) => {
+            const isActive = i < active;
+            return (
+              <div
+                key={label}
+                className={cn(
+                  'aspect-square rounded-md border p-1',
+                  isActive ? 'ds-marketing-coverage-cell--active' : 'ds-marketing-coverage-cell',
+                )}
               >
-                {label}
-              </span>
-            </motion.div>
-          ))}
+                <span
+                  className={cn(
+                    'flex h-full items-center justify-center text-center text-[length:var(--text-2xs)] font-semibold leading-tight',
+                    isActive
+                      ? 'ds-marketing-coverage-label-active'
+                      : 'ds-marketing-coverage-label-inactive',
+                  )}
+                >
+                  {label}
+                </span>
+              </div>
+            );
+          })}
         </div>
         <span
-          className="mt-4 inline-flex rounded-full border px-2.5 py-1 text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide"
-          style={badgeStyle}
+          className={cn(
+            'mt-4 inline-flex rounded-full border px-2.5 py-1 text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide',
+            TIER_BADGE_CLASS[tier],
+          )}
         >
           {tier}
         </span>
-        <p className="mt-4 text-xs leading-relaxed ds-text-tertiary" >
+        <p className="mt-4 text-xs leading-relaxed ds-text-tertiary">
           {HERO_LABELS.illustrativeGridNote}
         </p>
       </div>
@@ -72,18 +81,23 @@ export function PackageMarketingHero({
   title,
   lead,
   heroPaddingClassName,
+  heroTitleScaleClassName,
+  accentEyebrow = false,
 }: {
-  tier: 'focus' | 'context' | 'strategy';
+  tier: Tier;
   eyebrow: string;
   title: string;
   lead: string;
   /** Overrides default vertical padding (per PACKAGE_PAGE_LAYOUT). */
   heroPaddingClassName?: string;
+  /** Optional scale class (per PACKAGE_PAGE_LAYOUT) — e.g. `ds-marketing-display-hero`. */
+  heroTitleScaleClassName?: string;
+  /** When true, eyebrow uses the gradient accent chip for signature moments. */
+  accentEyebrow?: boolean;
 }) {
   const reduce = useReducedMotion();
   const mv = marketingHeroBillboardMotion(reduce);
-  const pad =
-    heroPaddingClassName ?? 'pb-12 pt-4 sm:pb-16 sm:pt-8';
+  const pad = heroPaddingClassName ?? 'pb-12 pt-4 sm:pb-16 sm:pt-8';
 
   return (
     <div className={cn('relative -mx-4 overflow-hidden px-4 sm:-mx-6 sm:px-6', pad)}>
@@ -96,13 +110,16 @@ export function PackageMarketingHero({
         <div className="min-w-0 max-w-4xl">
           <motion.p
             variants={mv.item}
-            className="ds-home-hero-eyebrow-chip mb-5 inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold uppercase ds-tracking-marketing-eyebrow sm:text-xs"
+            className={cn(
+              'mb-5 inline-flex items-center rounded-full border px-4 py-2 text-xs font-semibold uppercase ds-tracking-marketing-eyebrow sm:text-xs',
+              accentEyebrow ? 'ds-marketing-eyebrow-chip--accent' : 'ds-home-hero-eyebrow-chip',
+            )}
           >
             {eyebrow}
           </motion.p>
           <motion.h1
             variants={mv.item}
-            className="ds-package-marketing-hero-title"
+            className={cn('ds-package-marketing-hero-title', heroTitleScaleClassName)}
           >
             {title}
           </motion.h1>

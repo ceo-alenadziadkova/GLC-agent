@@ -1,10 +1,12 @@
 import { Link } from 'react-router';
+import { Check, X, Target, Compass, MapTrifold, Pulse } from '@phosphor-icons/react';
 import { MarketingLayout } from '../marketing/MarketingLayout';
 import { MarketingSection } from '../marketing/blocks/MarketingSection';
 import { AuditCompare } from '../marketing/blocks/AuditCompare';
 import { MarketingComparisonShell } from '../marketing/blocks/MarketingComparisonShell';
 import { MarketingMidCtaBand } from '../marketing/blocks/MarketingMidCtaBand';
 import { MarketingRevealMask } from '../marketing/blocks/MarketingRevealMask';
+import { MarketingStaggeredReveal } from '../marketing/blocks/MarketingStaggeredReveal';
 import { PackageMarketingHero } from '../marketing/blocks/PackageMarketingHero';
 import { PackageAudienceSection } from '../marketing/blocks/PackageAudienceSection';
 import { ProcessTimeline } from '../marketing/blocks/ProcessTimeline';
@@ -16,6 +18,8 @@ import { PACKAGE_PAGE_LAYOUT } from '../config/package-page-layout';
 import { cn } from '../components/ui/utils';
 
 const L = PACKAGE_PAGE_LAYOUT.focus;
+
+const OUTCOME_ICONS = [Target, Compass, MapTrifold];
 
 export function ExpressAuditPage() {
   const pageCopy = workspacePackaging.package_pages.starter;
@@ -46,6 +50,7 @@ export function ExpressAuditPage() {
           title={pageCopy.h1}
           lead={pageCopy.lead}
           heroPaddingClassName={L.heroShellClass}
+          heroTitleScaleClassName={L.heroTitleScaleClass}
         />
       </MarketingSection>
 
@@ -53,27 +58,43 @@ export function ExpressAuditPage() {
         <PackageAudienceSection title={pageCopy.audience.title} cards={pageCopy.audience.cards} />
       </MarketingSection>
 
-      <MarketingSection className={L.sectionGapClass} delay={0.06}>
+      <MarketingSection className={cn('ds-marketing-section-gap-tight', L.sectionGapClass)} delay={0.06}>
         <MarketingRevealMask>
-          <MarketingComparisonShell>
+          <MarketingComparisonShell variant="elevated">
             <div className="grid divide-y divide-[var(--border-subtle)] lg:grid-cols-2 lg:divide-x lg:divide-y-0">
               <div className="p-6 sm:p-8">
-                <h3 className="text-foreground font-display text-lg font-bold">
+                <h3 className="font-display text-lg font-bold ds-text-primary">
                   {labels.included}
                 </h3>
-                <ul className="text-muted-foreground mt-3 list-disc space-y-2 pl-5 text-sm">
+                <ul className="mt-4 space-y-2 text-sm ds-text-secondary">
                   {scope.included.map(line => (
-                    <li key={line}>{line}</li>
+                    <li key={line} className="flex items-start gap-2.5">
+                      <Check
+                        size={16}
+                        weight="bold"
+                        className="mt-0.5 shrink-0 text-[var(--glc-green-dark)]"
+                        aria-hidden
+                      />
+                      <span>{line}</span>
+                    </li>
                   ))}
                 </ul>
               </div>
               <div className="p-6 sm:p-8">
-                <h3 className="text-foreground font-display text-lg font-bold">
+                <h3 className="font-display text-lg font-bold ds-text-primary">
                   {labels.notIncluded}
                 </h3>
-                <ul className="text-muted-foreground mt-3 list-disc space-y-2 pl-5 text-sm">
+                <ul className="mt-4 space-y-2 text-sm ds-text-secondary">
                   {scope.not_included.map(line => (
-                    <li key={line}>{line}</li>
+                    <li key={line} className="flex items-start gap-2.5">
+                      <X
+                        size={16}
+                        weight="bold"
+                        className="mt-0.5 shrink-0 ds-text-quaternary"
+                        aria-hidden
+                      />
+                      <span>{line}</span>
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -82,87 +103,109 @@ export function ExpressAuditPage() {
         </MarketingRevealMask>
       </MarketingSection>
 
-      <MarketingSection className={L.sectionGapClass} delay={0.07}>
-        <h2 className="text-foreground font-display text-xl font-bold sm:text-2xl">
+      <MarketingSection className={cn('ds-marketing-section-gap-tight', L.sectionGapClass)} delay={0.07}>
+        <h2 className="ds-marketing-section-title-display">
           {outcomeTiming.title}
         </h2>
-        <p className="text-muted-foreground mt-3 max-w-3xl text-sm leading-relaxed">
+        <p className="mt-3 max-w-3xl text-sm leading-relaxed ds-text-secondary sm:text-base">
           {outcomeTiming.body}
         </p>
       </MarketingSection>
 
       <MarketingSection className={L.sectionGapClass} delay={0.08}>
-        <div className="rounded-[var(--radius-2xl)] border border-[var(--border-subtle)] bg-[var(--bg-muted)] px-4 py-8 sm:px-6 sm:py-10">
-          <div className="grid gap-4 md:grid-cols-3">
-            {outcomeCards.map(item => (
-              <article
-                key={item.title}
-                className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[color-mix(in_oklab,var(--bg-surface)_88%,var(--bg-muted))] p-5 sm:p-6"
-              >
-                <h3 className="text-foreground font-display text-base font-bold">
-                  {item.title}
-                </h3>
-                <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-                  {item.body}
-                </p>
-              </article>
-            ))}
-          </div>
+        <div className="-mx-4 rounded-[var(--radius-2xl)] border border-[var(--border-subtle)] bg-[var(--bg-muted)] px-4 py-10 sm:-mx-6 sm:px-6 sm:py-12">
+          <MarketingStaggeredReveal className="grid gap-4 md:grid-cols-3">
+            {outcomeCards.map((item, i) => {
+              const Icon = OUTCOME_ICONS[i] ?? Target;
+              const isPrimary = i === 0;
+              return (
+                <MarketingStaggeredReveal.Item
+                  key={item.title}
+                  as="article"
+                  className={cn(
+                    'ds-marketing-outcome-card p-5 sm:p-6',
+                    isPrimary && 'ds-marketing-outcome-card--primary',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'ds-marketing-card-icon-well',
+                      isPrimary && 'ds-marketing-card-icon-well--accent',
+                    )}
+                    aria-hidden
+                  >
+                    <Icon size={20} weight="bold" aria-hidden />
+                  </span>
+                  <h3 className="mt-4 font-display text-base font-bold ds-text-primary">
+                    {item.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed ds-text-secondary">
+                    {item.body}
+                  </p>
+                </MarketingStaggeredReveal.Item>
+              );
+            })}
+          </MarketingStaggeredReveal>
         </div>
       </MarketingSection>
 
       <MarketingSection className={L.sectionGapClass} delay={0.09}>
-        <h2 className="text-foreground mb-6 font-display text-xl font-bold sm:text-2xl">
+        <h2 className="mb-6 ds-marketing-section-title-display">
           {signalToDecision.title}
         </h2>
         <MarketingRevealMask>
-          <MarketingComparisonShell padded>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <MarketingComparisonShell padded variant="elevated">
+            <MarketingStaggeredReveal className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {signalToDecision.items.map(({ label, detail }) => (
-                <div
+                <MarketingStaggeredReveal.Item
                   key={label}
-                  className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[color-mix(in_oklab,var(--bg-surface)_88%,var(--bg-muted))] p-4 text-center"
+                  className="rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[color-mix(in_oklab,var(--bg-surface)_92%,var(--bg-muted))] p-4 text-center"
                 >
-                  <p className="text-info text-xs font-bold uppercase tracking-wide">
+                  <span
+                    className="ds-marketing-card-icon-well ds-marketing-card-icon-well--small mb-3"
+                    aria-hidden
+                  >
+                    <Pulse size={16} weight="bold" aria-hidden />
+                  </span>
+                  <p className="text-xs font-bold uppercase tracking-wide ds-text-glc-blue-light">
                     {label}
                   </p>
-                  <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+                  <p className="mt-2 text-sm leading-relaxed ds-text-secondary">
                     {detail}
                   </p>
-                </div>
+                </MarketingStaggeredReveal.Item>
               ))}
-            </div>
+            </MarketingStaggeredReveal>
           </MarketingComparisonShell>
         </MarketingRevealMask>
       </MarketingSection>
 
       <MarketingSection className={L.sectionGapClass} delay={0.1}>
         <MarketingRevealMask>
-          <MarketingComparisonShell padded>
+          <MarketingComparisonShell padded variant="elevated">
             <ProcessTimeline title={processTimelineTitle} steps={timeline} />
           </MarketingComparisonShell>
         </MarketingRevealMask>
       </MarketingSection>
 
       <MarketingSection className={L.sectionGapClass} delay={0.11}>
-        <h2 className="text-foreground mb-6 font-display text-xl font-bold sm:text-2xl">
+        <h2 className="mb-6 ds-marketing-section-title-display">
           {compareHeading}
         </h2>
         <MarketingRevealMask>
-          <MarketingComparisonShell>
+          <MarketingComparisonShell variant="elevated">
             <AuditCompare focusedPackage="starter" />
           </MarketingComparisonShell>
         </MarketingRevealMask>
       </MarketingSection>
 
-      <MarketingSection className="mt-0" delay={0.12}>
+      <MarketingSection className="ds-marketing-section-gap-loose" delay={0.12}>
         <MarketingMidCtaBand
           landmarkLabel={homePack.landmarks.mid_cta}
           title={mid.title}
           body={mid.body}
           ctaLabel={mid.cta_label}
           ctaTo={mid.cta_to}
-          className="mt-10 sm:mt-14"
         />
       </MarketingSection>
 
@@ -186,7 +229,7 @@ export function ExpressAuditPage() {
         />
       </div>
 
-      <p className="text-muted-foreground mt-8 text-center text-sm">
+      <p className="mt-8 text-center text-sm ds-text-secondary">
         {labels.stillUnsurePrefix}{' '}
         <Link to="/snapshot" className="text-info font-semibold">
           {workspacePackaging.navigation.links.snapshot}
