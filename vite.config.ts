@@ -2,9 +2,10 @@ import { defineConfig } from 'vite'
 import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-// Bare @glc/dev-brand-defaults resolves to dist/ during config preload; use source so CI need not prebuild.
-import { GLC_DEV_API_ORIGIN } from '@glc/dev-brand-defaults'
-import { API_HTTP_ROOT_PREFIX } from '@glc/api-paths'
+// Resolve workspace packages from source here: Vitest/Vite pre-bundles this file via package "exports"
+// which point at dist/ — absent in CI until those packages are built.
+import { GLC_DEV_API_ORIGIN } from './packages/glc-dev-brand-defaults/src/index.ts'
+import { API_HTTP_ROOT_PREFIX } from './packages/glc-api-paths/src/index.ts'
 
 export default defineConfig(({ mode }) => ({
   esbuild: {
@@ -44,6 +45,7 @@ export default defineConfig(({ mode }) => ({
       '@glc/dev-brand-defaults': path.resolve(__dirname, './packages/glc-dev-brand-defaults/src/index.ts'),
       '@glc/intake-core': path.resolve(__dirname, './packages/intake-core/src/index.ts'),
       '@glc/route-limits': path.resolve(__dirname, './packages/glc-route-limits/src/index.ts'),
+      '@glc/api-paths': path.resolve(__dirname, './packages/glc-api-paths/src/index.ts'),
     },
   },
 

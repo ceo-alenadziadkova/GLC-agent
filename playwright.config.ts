@@ -1,9 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
+// Load from source: package.json exports point at dist/, which CI may not build before Playwright loads this file.
 import {
   GLC_DEV_SPA_HOST_FOR_E2E,
   GLC_DEV_SPA_ORIGIN_E2E,
   GLC_DEV_SPA_PORT,
-} from '@glc/dev-brand-defaults';
+} from './packages/glc-dev-brand-defaults/src/index.ts';
 import { PLAYWRIGHT_WEB_SERVER_TIMEOUT_MS } from './e2e/defaults';
 
 /**

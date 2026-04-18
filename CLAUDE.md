@@ -84,26 +84,44 @@ Review gates: after phases 0, 4, 7. Consultant adds notes that become context fo
 
 ## Frontend Routes
 
+Route segments are defined in `packages/intake-core/src/spa-routes.ts` (`APP_ROUTE_SEGMENTS`, `SPA_ROUTE_SEGMENTS`).
+
 ```
-/                    RootEntry → MarketingHome (public) or redirect by role / OAuth → /login
-/snapshot            SnapshotPage       (public) — marketing shell + SnapshotLanding
-/express-audit       ExpressAuditPage   (public)
-/audit               FullAuditPage      (public marketing) — before /audit/:id
-/discovery, /audit/discover  DiscoveryPublicPage (public)
-/brief               PublicBriefPage    (public)
-/faq                 FaqPage            (public)
-/login               Login.tsx          (public)
-/dashboard           Dashboard          (protected consultant)
-/portfolio           → /dashboard       (redirect)
-/audit/new           NewAudit.tsx       (protected)
-/pipeline/:id        PipelineMonitor    (protected) — Realtime
-/audit/:id           AuditWorkspace     (protected) — Realtime
-/audit/:id/:domainId AuditWorkspace     (protected)
-/reports/:id         ReportViewer       (protected)
-/strategy/:id        StrategyLab        (protected)
-/portal              ClientPortal       (protected client)
-/portal/audit/:id    ClientAuditView    (protected client)
-/intake/:token       IntakeBrief        (public)
+/                         RootEntry → MarketingHome (public) or redirect by role / OAuth → /login
+/snapshot                 SnapshotPage          (public) — marketing shell + SnapshotLanding
+/starter                  ExpressAuditPage      (public) — Starter package marketing page
+/pro                      ProAuditPage          (public) — Pro package marketing page
+/complete                 FullAuditPage         (public) — Complete package marketing page
+/express-audit            → /starter            (redirect, legacy alias)
+/audit                    → /complete           (redirect, legacy alias)
+/discovery                DiscoveryPublicPage   (public)
+/audit/discover           DiscoveryPublicPage   (public, legacy alias)
+/brief                    PublicBriefPage       (public)
+/faq                      FaqPage               (public)
+/login                    Login.tsx             (public)
+/intake/:token            IntakeBrief           (public)
+
+/dashboard                Dashboard             (protected consultant)
+/portfolio                → /dashboard          (redirect)
+/audit/new                NewAudit              (protected consultant)
+/audit/:id                AuditWorkspace        (protected consultant) — Realtime
+/audit/:id/:domainId      AuditWorkspace        (protected consultant)
+/pipeline/:id             PipelineMonitor       (protected consultant) — Realtime
+/reports/:id              ReportViewer          (protected consultant)
+/strategy/:id             StrategyLab           (protected consultant)
+/settings                 SettingsPage          (protected, non-guest)
+/admin/requests           AdminRequestQueue     (protected consultant)
+/admin/snapshots          AdminSnapshotQueue    (protected consultant)
+/admin/discovery          DiscoveryQueue        (protected consultant)
+/admin/intake-wording     IntakeWordingWorkspace (protected consultant)
+/admin/question-bank-studio  QuestionBankStudioPage (protected consultant)
+/admin/design-system      AdminDesignSystemPage (protected consultant)
+
+/portal                   ClientPortal          (protected client)
+/portal/audit/new         NewAudit (client_self_serve variant) (protected client)
+/portal/pipeline/:id      PipelineMonitor       (protected client) — Realtime
+/portal/reports/:id       ReportViewer          (protected client)
+/portal/audit/:id         ClientAuditView       (protected client)
 ```
 
 ---
