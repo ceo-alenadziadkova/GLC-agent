@@ -1,3 +1,9 @@
+import type { UserRole } from '../../../middleware/auth.js';
+import {
+  redactPipelineEventsReviewNotesForViewer,
+  redactReviewPointRowsForViewer,
+  viewerMayReadPipelineReviewNotes,
+} from '../../audits/review-point-read-policy.js';
 import type { AuditForStatus } from '../repository/pipeline-audit.repository.js';
 
 type ReviewRow = {
@@ -8,7 +14,12 @@ type ReviewRow = {
 };
 
 /** Normalize review rows so JSON always includes nullable note fields (client assert + UX). */
-export function toPipelineStatusPayload(audit: AuditForStatus, events: unknown[], reviews: unknown[]) {
+export function toPipelineStatusPayload(
+  audit: AuditForStatus,
+  events: unknown[],
+  reviews: unknown[],
+  viewerRole: UserRole | undefined,
+) {
   const normalizedReviews = (reviews as ReviewRow[]).map(row => ({
     after_phase: row.after_phase,
     status: row.status,
@@ -16,9 +27,14 @@ export function toPipelineStatusPayload(audit: AuditForStatus, events: unknown[]
     interview_notes: row.interview_notes ?? null,
   }));
 
+  const reviewsOut = viewerMayReadPipelineReviewNotes(viewerRole)
+    ? normalizedReviews
+    : redactReviewPointRowsForViewer(normalizedReviews as Array<Record<string, unknown>>, viewerRole);
+  const eventsOut = redactPipelineEventsReviewNotesForViewer(events, viewerRole);
+
   return {
     ...audit,
-    events,
-    reviews: normalizedReviews,
+    events: eventsOut,
+    reviews: reviewsOut,
   };
 }

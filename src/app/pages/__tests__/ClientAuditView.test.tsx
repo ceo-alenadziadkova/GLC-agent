@@ -37,7 +37,17 @@ function minimalCompletedFullAudit(id: string): AuditState {
     },
     recon: null,
     domains: {},
-    strategy: null,
+    strategy: {
+      id: 'strategy-1',
+      audit_id: id,
+      status: 'completed',
+      executive_summary: null,
+      overall_score: 4,
+      quick_wins: [],
+      medium_term: [],
+      strategic: [],
+      scorecard: [],
+    },
     reviews: [],
     brief: null,
   };
@@ -250,6 +260,24 @@ describe('ClientAuditView', () => {
 
     expect(getAuditSpy).toHaveBeenCalledTimes(1);
     expect(getAuditSpy).toHaveBeenCalledWith('audit-xyz-1');
+  });
+
+  it('renders completed client navigation links to portal report and strategy lab', async () => {
+    renderClientAuditRoute('audit-nav-1');
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: /View your report/i })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Open Strategy Lab/i })).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('link', { name: /View your report/i })).toHaveAttribute(
+      'href',
+      '/portal/reports/audit-nav-1',
+    );
+    expect(screen.getByRole('link', { name: /Open Strategy Lab/i })).toHaveAttribute(
+      'href',
+      '/portal/strategy/audit-nav-1',
+    );
   });
 
   it('shows friendly copy for 404 from getAudit', async () => {

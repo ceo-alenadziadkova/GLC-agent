@@ -54,7 +54,7 @@ Date: 2026-04-17
 
 | Group | Token examples (as defined) | Source |
 | --- | --- | --- |
-| Brand | `--glc-blue`, `--glc-blue-dark`, `--glc-blue-deeper`, `--glc-blue-light`, `--glc-blue-xlight`, `--glc-orange`, `--glc-orange-dark`, `--glc-orange-light`, `--glc-orange-xlight`, `--glc-green`, `--glc-green-dark`, `--glc-green-light`, `--glc-green-xlight`, `--glc-ink`, `--glc-ink-1`, `--glc-ink-2`, `--glc-ink-3`, `--glc-ink-4` | `src/styles/tokens.css` |
+| Brand | `--glc-blue`, `--glc-blue-dark`, `--glc-blue-deeper`, `--glc-blue-light`, `--glc-blue-xlight`, `--glc-orange`, `--glc-orange-dark`, `--glc-orange-light`, `--glc-orange-xlight`, `--glc-green`, `--glc-green-dark`, `--glc-green-light`, `--glc-green-xlight`, `--glc-ink`, `--glc-ink-1`, `--glc-ink-2`, `--glc-ink-3` | `src/styles/tokens.css` |
 | Brand muted/alpha | `--glc-blue-muted`, `--glc-blue-muted-faint`, `--glc-blue-muted-soft`, `--glc-blue-muted-strong`, `--glc-orange-muted`, `--glc-green-muted` | `src/styles/tokens.css` |
 | Score scale | `--score-1..5`, `--score-1-bg..5-bg`, `--score-1-border..5-border` | `src/styles/tokens.css` |
 | Callout semantic | `--callout-warning-*`, `--callout-error-*`, `--callout-info-*` | `src/styles/tokens.css` |
@@ -125,7 +125,7 @@ Source: `src/styles/tokens.css`.
 
 ### 1.5 Shadow tokens
 
-`--shadow-xs`, `--shadow-sm`, `--shadow-md`, `--shadow-lg`, `--shadow-xl`, `--shadow-blue`, `--shadow-card`, `--glow-blue`, `--glow-blue-sm`, `--glow-orange`, `--glow-green`, `--shadow-ink`, `--shadow-swiss`, `--glass-shadow`.  
+`--shadow-xs`, `--shadow-sm`, `--shadow-md`, `--shadow-lg`, `--shadow-xl`, `--shadow-blue`, `--shadow-card`, `--glow-blue`, `--glow-blue-sm`, `--glow-orange`, `--glow-green`, `--shadow-ink`, `--glass-shadow`.  
 Source: `src/styles/tokens.css`.
 
 ### 1.6 Z-index tokens
@@ -166,7 +166,7 @@ Raw unique values observed in extracted sources.
 ### 2.1 Color values (raw literals)
 
 - Hex examples observed:  
-  `#1CBDFF`, `#0EA3E0`, `#0077A8`, `#8ADEFF`, `#E0F6FF`, `#F24F1D`, `#D43A0C`, `#F9A48A`, `#FEF0EB`, `#0ECF82`, `#0AB36F`, `#7EEBB9`, `#E6FAF3`, `#E5E7EB`, `#080F1E`, `#0D1628`, `#111E38`, `#172849`, `#1E345C`, `#EF4444`, `#FEF2F2`, `#F97316`, `#FFF7ED`, `#EAB308`, `#FEFCE8`, `#22C55E`, `#F0FDF4`, `#92400E`, `#D97706`, `#F59E0B`, `#FFFBEB`, `#b91c1c`, `#fee2e2`, `#34D399`, `#F87171`, `#CA8A04`, `#0A0F1E`, `#8B5CF6`, `#64748b`, `#38bdf8`, `#34d399`, `#22d3ee`, `#7c4a03`, `#f59e0b`, `#fef3c7`, `#0b3f5c`, `#e0f2fe`, `#3b1f59`, `#a78bfa`, `#f3e8ff`, `#2f2f34`, `#71717a`, `#f4f4f5`, `#1f2937`, `#94a3b8`, `#e2e8f0`, `#EFF3FA`, `#FFFFFF`, `#E5ECF7`, `#E8EFF8`, `#0B1120`, `#334861`, `#7488A4`, `#A3B2C4`, `#D6E0ED`, `#BDCBDE`, `#95A7C0`, `#121418`, `#1A1D22`, `#22262C`, `#2A2E35`, `#16181C`, `#010409`, `#E6EDF3`, `#9EA8B3`, `#7D8793`, `#6A737D`, `#0D1117`, `#2A313B`, `#3A4451`, `#596575`, `#161B22`, `#30363D`, `#484F58`, `#3B82F6`, `#10B981`.
+  `#1CBDFF`, `#0EA3E0`, `#0077A8`, `#8ADEFF`, `#E0F6FF`, `#F24F1D`, `#D43A0C`, `#F9A48A`, `#FEF0EB`, `#0ECF82`, `#0AB36F`, `#7EEBB9`, `#E6FAF3`, `#E5E7EB`, `#080F1E`, `#0D1628`, `#111E38`, `#172849`, `#EF4444`, `#FEF2F2`, `#F97316`, `#FFF7ED`, `#EAB308`, `#FEFCE8`, `#22C55E`, `#F0FDF4`, `#92400E`, `#D97706`, `#F59E0B`, `#FFFBEB`, `#b91c1c`, `#fee2e2`, `#34D399`, `#F87171`, `#CA8A04`, `#0A0F1E`, `#8B5CF6`, `#64748b`, `#38bdf8`, `#34d399`, `#22d3ee`, `#7c4a03`, `#f59e0b`, `#fef3c7`, `#0b3f5c`, `#e0f2fe`, `#3b1f59`, `#a78bfa`, `#f3e8ff`, `#2f2f34`, `#71717a`, `#f4f4f5`, `#1f2937`, `#94a3b8`, `#e2e8f0`, `#EFF3FA`, `#FFFFFF`, `#E5ECF7`, `#E8EFF8`, `#0B1120`, `#334861`, `#7488A4`, `#A3B2C4`, `#D6E0ED`, `#BDCBDE`, `#95A7C0`, `#121418`, `#1A1D22`, `#22262C`, `#2A2E35`, `#16181C`, `#010409`, `#E6EDF3`, `#9EA8B3`, `#7D8793`, `#6A737D`, `#0D1117`, `#2A313B`, `#3A4451`, `#596575`, `#161B22`, `#30363D`, `#484F58`, `#3B82F6`, `#10B981`.
 - RGBA examples observed:  
   `rgba(28, 189, 255, 0.10)`, `rgba(28, 189, 255, 0.04)`, `rgba(28, 189, 255, 0.06)`, `rgba(28, 189, 255, 0.15)`, `rgba(242, 79, 29, 0.08)`, `rgba(14, 207, 130, 0.10)`, `rgba(239, 68, 68, 0.18)`, `rgba(249, 115, 22, 0.18)`, `rgba(234, 179, 8, 0.18)`, `rgba(34, 197, 94, 0.18)`, `rgba(245, 158, 11, 0.06)`, `rgba(245, 158, 11, 0.07)`, `rgba(245, 158, 11, 0.12)`, `rgba(245, 158, 11, 0.22)`, `rgba(239, 68, 68, 0.07)`, `rgba(239, 68, 68, 0.25)`, `rgba(16, 185, 129, 0.12)`, `rgba(11, 17, 32, 0.06)`, `rgba(11, 17, 32, 0.09)`, `rgba(255, 255, 255, 0.68)`, `rgba(8, 15, 30, 0.45)`, `rgba(255, 255, 255, 0.46)`, `rgba(0, 0, 0, 0.45)`, `rgba(255,255,255,0.30)`, `rgba(239,68,68,0.08)`, `rgba(239,68,68,0.20)`, `rgba(28,189,255,0.35)`.
 

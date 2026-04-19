@@ -75,15 +75,14 @@ export async function insertReviewApprovedEvent(params: {
   auditId: string;
   phase: number;
   message: string;
-  consultantNotes: string | null;
-  interviewNotes: string | null;
 }): Promise<void> {
-  const { auditId, phase, message, consultantNotes, interviewNotes } = params;
+  const { auditId, phase, message } = params;
+  // Notes live on `review_points` only; omit from events so client Realtime subscribers never see them.
   await supabase.from('pipeline_events').insert({
     audit_id: auditId,
     phase,
     event_type: PIPELINE_EVENT_TYPES.reviewApproved,
     message,
-    data: { consultant_notes: consultantNotes, interview_notes: interviewNotes },
+    data: {},
   });
 }

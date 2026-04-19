@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import React, { type ReactNode } from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { act } from 'react';
 
@@ -68,7 +69,13 @@ vi.mock('../../lib/logger', () => ({
   },
 }));
 
-import { useAuth } from '../useAuth';
+import { AuthProvider, useAuth } from '../useAuth';
+
+function authWrapper({ children }: { children: ReactNode }) {
+  return React.createElement(AuthProvider, null, children);
+}
+
+const authHookOptions = { wrapper: authWrapper };
 
 function stubLocationHref(href: string) {
   const url = new URL(href);
@@ -113,7 +120,7 @@ describe('useAuth', () => {
   it('starts with loading=true and user=null before getSession resolves', () => {
     mockGetSession.mockImplementation(() => new Promise(() => {}));
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
 
     expect(result.current.loading).toBe(true);
     expect(result.current.user).toBeNull();
@@ -127,7 +134,7 @@ describe('useAuth', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.user).toEqual(fakeUser);
@@ -137,7 +144,7 @@ describe('useAuth', () => {
   it('sets user=null and loading=false when getSession rejects', async () => {
     mockGetSession.mockRejectedValue(new Error('Network error'));
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.user).toBeNull();
@@ -151,7 +158,7 @@ describe('useAuth', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.user).toEqual(fakeUser);
 
@@ -171,7 +178,7 @@ describe('useAuth', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(mockExchangeCodeForSession).toHaveBeenCalledWith(
@@ -189,7 +196,7 @@ describe('useAuth', () => {
       error: { message: 'invalid' },
     });
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.user).toBeNull();
@@ -205,7 +212,7 @@ describe('useAuth', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(mockSetSession).toHaveBeenCalledWith({
@@ -223,7 +230,7 @@ describe('useAuth', () => {
       error: { message: 'bad token' },
     });
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.authError).toMatch(/try again/i);
@@ -235,7 +242,7 @@ describe('useAuth', () => {
       'http://localhost/login?error=server_error&error_description=User+already+registered',
     );
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(window.history.replaceState).toHaveBeenCalled();
@@ -245,7 +252,7 @@ describe('useAuth', () => {
   it('sets authError when returning from email verify with no session', async () => {
     vi.spyOn(document, 'referrer', 'get').mockReturnValue('https://proj.supabase.co/auth/v1/verify');
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.authError).toMatch(/invalid or expired/i);
@@ -258,7 +265,7 @@ describe('useAuth', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.isAuthenticated).toBe(true);
 
@@ -283,7 +290,7 @@ describe('useAuth', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -306,7 +313,7 @@ describe('useAuth', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -328,7 +335,7 @@ describe('useAuth', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -342,7 +349,7 @@ describe('useAuth', () => {
   it('signUpWithPassword passes emailRedirectTo to current origin /login', async () => {
     stubLocationHref('https://app.example.com/register');
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -368,7 +375,7 @@ describe('useAuth', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.passwordRecoveryMode).toBe(true);
@@ -378,7 +385,7 @@ describe('useAuth', () => {
   it('requestPasswordReset calls resetPasswordForEmail with login redirectTo', async () => {
     stubLocationHref('https://app.example.com/login');
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -397,7 +404,7 @@ describe('useAuth', () => {
       error: null,
     });
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
     await waitFor(() => expect(result.current.passwordRecoveryMode).toBe(true));
 
     await act(async () => {
@@ -412,7 +419,7 @@ describe('useAuth', () => {
   it('sets passwordRecoveryMode on PASSWORD_RECOVERY auth event', async () => {
     mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
 
-    const { result } = renderHook(() => useAuth());
+    const { result } = renderHook(() => useAuth(), authHookOptions);
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     const cb = getAuthStateChangeCallback();

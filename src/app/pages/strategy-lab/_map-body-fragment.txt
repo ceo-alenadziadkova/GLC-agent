@@ -451,7 +451,7 @@
                 disabled={selected.size === 0}
                 onClick={handleGenerateRoadmap}
               >
-                <Sparkle className="w-4 h-4" />
+
                 {STRATEGY_LAB_COPY.panel.generateRoadmap}
               </Button>
             </motion.div>

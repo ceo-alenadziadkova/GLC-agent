@@ -38,6 +38,7 @@
     "agentLogPrefix": "Agent Log ·",
     "domainScore": "Domain Score",
     "viewInWorkspace": "View in Workspace",
+    "viewReport": "View Report",
     "viewStrategyRoadmap": "Open Strategy roadmap",
     "continuePipeline": "Continue Pipeline",
     "continuePipelineBusy": "Starting next phase…",

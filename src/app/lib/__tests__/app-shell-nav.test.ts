@@ -55,6 +55,18 @@ describe('app-shell-nav', () => {
     expect(bottom.map(i => i.to)).toEqual(['/portal', '/portal/audit/new']);
   });
 
+  it('buildClientNav includes report and strategy links for selected audit', () => {
+    const id = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+    const nav = buildClientNav(id, true);
+    expect(nav.map(i => i.to)).toEqual([
+      '/portal',
+      `/portal/audit/${id}`,
+      `/portal/pipeline/${id}`,
+      `/portal/reports/${id}`,
+      `/portal/strategy/${id}`,
+    ]);
+  });
+
   it('buildGuestNav yields snapshot for mobile bar', () => {
     const nav = buildGuestNav();
     const bottom = buildMobileBottomNavItems(nav, { isClient: false, isGuest: true, roleUnknown: false });

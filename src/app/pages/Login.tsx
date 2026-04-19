@@ -1,5 +1,6 @@
 import { motion, useReducedMotion } from 'motion/react';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { SyncPathLoader } from '../components/SyncPathLoader';
 import { BACKGROUND_VIDEO_CONFIG } from '../config/background-video';
 import { useLoginController } from './login/hooks/useLoginController';
 import { LoginBrandSection } from './login/sections/LoginBrandSection';
@@ -9,6 +10,9 @@ import { LoginAsideSection } from './login/sections/LoginAsideSection';
 export function Login() {
   const reduceMotion = useReducedMotion();
   const controller = useLoginController();
+  if (controller.isOAuthCallbackProcessing) {
+    return <SyncPathLoader variant="indeterminate" loadingText="Signing you in..." />;
+  }
 
   return (
     <main className="glc-login-main relative ds-marketing-layout-canvas">

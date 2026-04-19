@@ -70,6 +70,8 @@ export const CLIENT_AUDIT_VIEW_COPY = {
   links: {
     viewReport: 'View your report',
     reportFinished: 'Your audit run has finished',
+    viewStrategyLab: 'Open Strategy Lab',
+    strategyReady: 'Roadmap is ready for review',
     pipelineStatus: 'Pipeline status',
     pipelineReview: 'Review phases and logs',
     pipelineFollow: 'Follow live progress',

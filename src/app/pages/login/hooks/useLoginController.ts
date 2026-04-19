@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import {
@@ -30,6 +30,7 @@ export function useLoginController() {
     signInWithGoogle,
     requestPasswordReset,
     completePasswordRecovery,
+    loading: authLoading,
     isAuthenticated,
     authError,
     user,
@@ -274,6 +275,19 @@ export function useLoginController() {
   const formOpenClipPath = isDesktopTwoColumn
     ? LOGIN_UI_POLICY.formClipPath.desktopOpen
     : LOGIN_UI_POLICY.formClipPath.mobileOpen;
+  const isOAuthCallbackProcessing = useMemo(() => {
+    if (!authLoading) {
+      return false;
+    }
+    const { search, hash } = window.location;
+    return (
+      search.includes('code=') ||
+      search.includes('error=') ||
+      hash.includes('access_token=') ||
+      hash.includes('refresh_token=') ||
+      hash.includes('error=')
+    );
+  }, [authLoading]);
 
   return {
     mode,
@@ -305,6 +319,7 @@ export function useLoginController() {
     handleGoogle,
     formClosedClipPath,
     formOpenClipPath,
+    isOAuthCallbackProcessing,
     motionPolicy: LOGIN_UI_POLICY.motion,
     authTabIds: LOGIN_UI_POLICY.authTabIds,
     errorIds: LOGIN_UI_POLICY.errorIds,

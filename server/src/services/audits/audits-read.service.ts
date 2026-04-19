@@ -1,5 +1,7 @@
+import type { UserRole } from '../../middleware/auth.js';
 import { AUDITS_LIST_DEFAULT_LIMIT, AUDITS_LIST_MAX_LIMIT } from '../../config/audits-list-limits.js';
 import { listAuditsByUser, fetchAuditByIdForUser, fetchAuditRelatedReadModel } from '../../repositories/audits/audit-read-model.repository.js';
+import { redactReviewPointRowsForViewer } from './review-point-read-policy.js';
 import { healUxDomainRowForFreeSnapshotPortal } from '../../lib/snapshot-audit-response-heal.js';
 import { FREE_SNAPSHOT_UX_DOMAIN_KEY } from '../../routes/audits/config/audits-route-policy.js';
 import { normalizeAuditStrategyRowForReadModel } from '../strategy/strategy-audit-read-normalize.js';
@@ -21,7 +23,7 @@ export async function getAuditList(userId: string, query: { limit?: string | num
   return { data, total: count ?? 0, limit, offset };
 }
 
-export async function getAuditViewModel(id: string, userId: string) {
+export async function getAuditViewModel(id: string, userId: string, viewerRole: UserRole | undefined) {
   const { data: audit, error: auditErr } = await fetchAuditByIdForUser(id, userId);
   if (auditErr || !audit) return null;
 
@@ -29,7 +31,8 @@ export async function getAuditViewModel(id: string, userId: string) {
   const recon = reconRes.status === 'fulfilled' ? (reconRes.value.data ?? null) : null;
   const domainsArr = domainsRes.status === 'fulfilled' ? (domainsRes.value.data ?? []) : [];
   const strategyRaw = strategyRes.status === 'fulfilled' ? (strategyRes.value.data ?? null) : null;
-  const reviews = reviewsRes.status === 'fulfilled' ? (reviewsRes.value.data ?? []) : [];
+  const reviewsRaw = reviewsRes.status === 'fulfilled' ? (reviewsRes.value.data ?? []) : [];
+  const reviews = redactReviewPointRowsForViewer(reviewsRaw as Array<Record<string, unknown>>, viewerRole);
   const brief = briefRes.status === 'fulfilled' ? (briefRes.value.data ?? null) : null;
 
   const domainsMap: Record<string, unknown> = {};

@@ -122,6 +122,7 @@ export const router = createBrowserRouter([
       { path: P.portalAuditNew, element: <ClientPortalShell><NewAudit variant="client_self_serve" /></ClientPortalShell> },
       { path: P.portalPipelineById, element: <ClientPortalShell><PipelineMonitor /></ClientPortalShell> },
       { path: P.portalReportsById, element: <ClientPortalShell><ReportViewer /></ClientPortalShell> },
+      { path: P.portalStrategyById, element: <ClientPortalShell><StrategyLab /></ClientPortalShell> },
       { path: P.portalAuditById, element: <ClientPortalShell><ClientAuditView /></ClientPortalShell> },
       { path: P.portal, element: <ClientPortalShell><ClientPortal /></ClientPortalShell> },
     ],

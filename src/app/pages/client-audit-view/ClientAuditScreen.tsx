@@ -136,6 +136,7 @@ export function ClientAuditScreen({ auditId }: { auditId: string }) {
               isCreated={isCreated}
               isFreeSnapshot={isFreeSnapshot}
               isCompleted={meta.status === 'completed'}
+              hasStrategy={Boolean(auditState.strategy)}
             />
           </div>
         )}

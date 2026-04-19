@@ -20,6 +20,7 @@ const {
   STRANGER,
   AUDIT_ID,
   setRequestUserId,
+  setRequestUserRole,
   setAuditRow,
   setEvents,
   setReviews,
@@ -31,6 +32,7 @@ const {
   const AUDIT_ID = 'audit-status-001';
 
   let requestUserId = OWNER;
+  let requestUserRole: 'consultant' | 'client' = 'consultant';
   type AuditShape = {
     id: string;
     user_id: string;
@@ -59,6 +61,9 @@ const {
   const setRequestUserId = (id: string) => {
     requestUserId = id;
   };
+  const setRequestUserRole = (role: 'consultant' | 'client') => {
+    requestUserRole = role;
+  };
   const setAuditRow = (row: AuditShape | null) => {
     auditRow = row;
   };
@@ -70,7 +75,10 @@ const {
   };
   const getLastOrFilter = () => lastOrFilter;
 
+  const getRequestUserRole = () => requestUserRole;
+
   (globalThis as Record<string, unknown>).__statusRouteGetUserId = getRequestUserId;
+  (globalThis as Record<string, unknown>).__statusRouteGetUserRole = getRequestUserRole;
 
   const makeAuditsChain = () => {
     let idFilter: string | undefined;
@@ -143,6 +151,7 @@ const {
     STRANGER,
     AUDIT_ID,
     setRequestUserId,
+    setRequestUserRole,
     setAuditRow,
     setEvents,
     setReviews,
@@ -159,7 +168,10 @@ vi.mock('../middleware/auth.js', () => ({
     req.userId = ((globalThis as Record<string, unknown>).__statusRouteGetUserId as () => string)();
     next();
   },
-  attachProfile: (_req: unknown, _res: unknown, next: () => void) => next(),
+  attachProfile: (req: Record<string, unknown>, _res: unknown, next: () => void) => {
+    req.userRole = ((globalThis as Record<string, unknown>).__statusRouteGetUserRole as () => 'consultant' | 'client')();
+    next();
+  },
   rejectGuestFromPortal: (_req: unknown, _res: unknown, next: () => void) => next(),
   requireRole: () => (_req: unknown, _res: unknown, next: () => void) => next(),
   optionalAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
@@ -201,6 +213,7 @@ afterAll(async () => {
 beforeEach(() => {
   vi.clearAllMocks();
   setRequestUserId(OWNER);
+  setRequestUserRole('consultant');
   setAuditRow({
     id: AUDIT_ID,
     user_id: OWNER,
@@ -240,6 +253,7 @@ describe('GET /api/audits/:id/pipeline/status', () => {
 
   it('returns 200 for client_id when user is the linked client', async () => {
     setRequestUserId(CLIENT);
+    setRequestUserRole('client');
     const res = await fetch(`${baseUrl}/api/audits/${AUDIT_ID}/pipeline/status`);
     expect(res.status).toBe(200);
     const body = await res.json() as Record<string, unknown>;
@@ -272,5 +286,75 @@ describe('GET /api/audits/:id/pipeline/status', () => {
     expect(getLastOrFilter()).toContain(OWNER);
     expect(getLastOrFilter()).toContain('user_id.eq.');
     expect(getLastOrFilter()).toContain('client_id.eq.');
+  });
+
+  it('returns review notes to consultant viewers', async () => {
+    setEvents([
+      {
+        id: 1,
+        audit_id: AUDIT_ID,
+        event_type: 'review_approved',
+        phase: 0,
+        message: 'm',
+        created_at: '2026-01-01T00:00:00Z',
+        data: { consultant_notes: 'ev-c', interview_notes: 'ev-i' },
+      },
+    ]);
+    setReviews([
+      {
+        id: 1,
+        audit_id: AUDIT_ID,
+        after_phase: 0,
+        status: 'approved',
+        consultant_notes: 'rp-c',
+        interview_notes: 'rp-i',
+      },
+    ]);
+    const res = await fetch(`${baseUrl}/api/audits/${AUDIT_ID}/pipeline/status`);
+    expect(res.status).toBe(200);
+    const body = await res.json() as {
+      reviews: Array<{ consultant_notes: string | null; interview_notes: string | null }>;
+      events: Array<{ data: Record<string, unknown> }>;
+    };
+    expect(body.reviews[0].consultant_notes).toBe('rp-c');
+    expect(body.reviews[0].interview_notes).toBe('rp-i');
+    expect(body.events[0].data.consultant_notes).toBe('ev-c');
+    expect(body.events[0].data.interview_notes).toBe('ev-i');
+  });
+
+  it('redacts review notes for client viewers', async () => {
+    setRequestUserId(CLIENT);
+    setRequestUserRole('client');
+    setEvents([
+      {
+        id: 1,
+        audit_id: AUDIT_ID,
+        event_type: 'review_approved',
+        phase: 0,
+        message: 'm',
+        created_at: '2026-01-01T00:00:00Z',
+        data: { consultant_notes: 'secret', interview_notes: 'also' },
+      },
+    ]);
+    setReviews([
+      {
+        id: 1,
+        audit_id: AUDIT_ID,
+        after_phase: 0,
+        status: 'approved',
+        consultant_notes: 'secret',
+        interview_notes: 'also',
+      },
+    ]);
+    const res = await fetch(`${baseUrl}/api/audits/${AUDIT_ID}/pipeline/status`);
+    expect(res.status).toBe(200);
+    const body = await res.json() as {
+      reviews: Array<{ consultant_notes: string | null; interview_notes: string | null }>;
+      events: Array<{ data: Record<string, unknown> }>;
+    };
+    expect(body.reviews[0].consultant_notes).toBeNull();
+    expect(body.reviews[0].interview_notes).toBeNull();
+    expect(body.events[0].data.consultant_notes).toBeNull();
+    expect(body.events[0].data.interview_notes).toBeNull();
   });
 });

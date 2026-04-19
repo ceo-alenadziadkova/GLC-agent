@@ -3,11 +3,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Link, useParams } from 'react-router';
 import {
   Lightning, TrendUp, MapTrifold, ArrowRight, Check,
-  Target, Sparkle, ArrowsClockwise, ChartBar, CaretDown, ListBullets, SlidersHorizontal,
+  Target, ArrowsClockwise, ChartBar, CaretDown, ListBullets, SlidersHorizontal,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { useAudit } from '../hooks/useAudit';
+import { useProfile } from '../hooks/useProfile';
 import type { StrategyInitiative } from '../data/auditTypes';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
 import type { DomainBenchmarkSnapshot } from '../data/api/benchmarks';
@@ -70,6 +71,7 @@ const EFFORT_CLASS: Record<string, string> = {
 export function StrategyLab() {
   const { id } = useParams<{ id: string }>();
   const { audit, loading, error, reload } = useAudit(id);
+  const { isClient } = useProfile();
   const [activeTab, setActiveTab] = useState<StrategyLabRoadmapTimeframe>('quick');
   const [selected,  setSelected]  = useState<Set<string>>(new Set());
   const [domainFilter, setDomainFilter] = useState<StrategyLabDomainFilter>(STRATEGY_LAB_DOMAIN_FILTER_ALL);
@@ -86,7 +88,7 @@ export function StrategyLab() {
   const [constraintSaving, setConstraintSaving] = useState(false);
 
   useEffect(() => {
-    if (!audit?.strategy) return;
+    if (!audit?.strategy || isClient) return;
     const ec = audit.strategy.effective_constraints;
     if (ec && typeof ec.company_stage === 'string') {
       setConstraintStageDraft(ec.company_stage);
@@ -97,10 +99,10 @@ export function StrategyLab() {
     setConstraintStageDraft('growth');
     setConstraintBudgetDraft('unknown');
     setConstraintTeamDraft('unknown');
-  }, [audit?.strategy]);
+  }, [audit?.strategy, isClient]);
 
   useEffect(() => {
-    if (!audit?.strategy) return;
+    if (!audit?.strategy || isClient) return;
     let cancelled = false;
     const ind = normalizeAuditIndustryKey(audit.meta?.industry);
     void (async () => {
@@ -126,7 +128,7 @@ export function StrategyLab() {
     return () => {
       cancelled = true;
     };
-  }, [audit?.strategy, audit?.meta?.industry]);
+  }, [audit?.strategy, audit?.meta?.industry, isClient]);
 
   const initiatives = useMemo(() => {
     if (!audit?.strategy) return { quick: [], medium: [], strategic: [] };
@@ -322,8 +324,7 @@ export function StrategyLab() {
             disabled={selected.size === 0}
             className={cn(selected.size === 0 ? 'opacity-40' : '')}
             onClick={handleGenerateRoadmap}
-          >
-            <Sparkle className="w-4 h-4" /> {STRATEGY_LAB_COPY.panel.generateRoadmap}
+          >{STRATEGY_LAB_COPY.panel.generateRoadmap}
           </Button>
         </div>
       }
@@ -332,9 +333,11 @@ export function StrategyLab() {
 
         {/* ── Initiative picker ─────────────────────── */}
         <div className="bg-background flex-1 overflow-y-auto border-r">
-          <div
-            className="space-y-3 border-b bg-card p-4"
-          >
+          {!isClient && (
+            <>
+              <div
+                className="space-y-3 border-b bg-card p-4"
+              >
             <div className="flex items-center gap-2">
               <ChartBar className="text-info h-4 w-4" />
               <span className="text-foreground text-sm font-semibold">
@@ -433,6 +436,8 @@ export function StrategyLab() {
               </Button>
             </div>
           </div>
+            </>
+          )}
           <div className="bg-background flex flex-wrap items-end gap-3 border-b px-4 py-3">
             <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
               <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.panel.filterDomainLabel}</span>
@@ -766,7 +771,6 @@ export function StrategyLab() {
                 disabled={selected.size === 0}
                 onClick={handleGenerateRoadmap}
               >
-                <Sparkle className="w-4 h-4" />
                 {STRATEGY_LAB_COPY.panel.generateRoadmap}
               </Button>
             </motion.div>

@@ -46,6 +46,8 @@ export function buildClientNav(auditId: string | null, showPipelineInNav: boolea
     { to: APP_ROUTE_PATHS.portal,                                        icon: HouseSimple,   label: n.myPortal,    badge: null },
     { to: auditId ? buildAppRoute.portalAudit(auditId) : null,     icon: Eye,           label: n.auditStatus, badge: null },
     { to: auditId && showPipelineInNav ? buildAppRoute.portalPipeline(auditId) : null,   icon: Pulse,         label: n.pipeline,     badge: null },
+    { to: auditId ? buildAppRoute.portalReports(auditId) : null, icon: FileText, label: n.reports, badge: null },
+    { to: auditId ? buildAppRoute.portalStrategy(auditId) : null, icon: Flask, label: n.strategyLab, badge: null },
   ];
 }
 

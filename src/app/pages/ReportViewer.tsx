@@ -1,5 +1,5 @@
 import { useState, type ElementType } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useLocation, useParams } from 'react-router';
 import {
   ArrowUpRight, FileText, ArrowsClockwise,
   DownloadSimple, User, Code, Megaphone, Article, ChartBar,
@@ -35,6 +35,7 @@ const PROFILES = getReportProfileOptions(PROFILE_ICONS);
 
 export function ReportViewer() {
   const { id } = useParams<{ id: string }>();
+  const { pathname } = useLocation();
   const { audit, loading, error } = useAudit(id);
   const [profile, setProfile] = useState<ReportProfile>('full');
   const [csvLoading, setCsvLoading] = useState(false);
@@ -86,6 +87,8 @@ export function ReportViewer() {
 
   const reportVm = getReportPageViewModel(audit, profile);
   const maxItems = REPORT_VIEWER_CONSTANTS.profileMaxItems[profile];
+  const isPortalReport = pathname.startsWith('/portal/reports/');
+  const strategyPath = isPortalReport ? `/portal/strategy/${id}` : `/strategy/${id}`;
 
   return (
     <AppShell
@@ -157,7 +160,7 @@ export function ReportViewer() {
         {audit.strategy && (
           <div className="text-center">
             <Button asChild variant="outline" className="inline-flex no-underline">
-              <Link to={`/strategy/${id}`}>
+              <Link to={strategyPath}>
                 {REPORT_VIEWER_COPY.buttons.viewStrategyLab} <ArrowUpRight className="w-4 h-4" />
               </Link>
             </Button>

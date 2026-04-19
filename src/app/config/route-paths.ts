@@ -35,6 +35,8 @@ export const buildAppRoute = {
   strategy: (auditId: string): string => `/${P.strategyById.replace(':id', auditId)}`,
   portalAudit: (auditId: string): string => `/${P.portalAuditById.replace(':id', auditId)}`,
   portalPipeline: (auditId: string): string => `/${P.portalPipelineById.replace(':id', auditId)}`,
+  portalReports: (auditId: string): string => `/${P.portalReportsById.replace(':id', auditId)}`,
+  portalStrategy: (auditId: string): string => `/${P.portalStrategyById.replace(':id', auditId)}`,
   loginWithDiscovery: (token: string): string => `${APP_ROUTE_PATHS.login}?discovery=${encodeURIComponent(token)}`,
   auditNewFromDiscovery: (): string => `${APP_ROUTE_PATHS.auditNew}?from_discovery=1`,
   /** Public intake token prefill for consultant New Audit wizard (`useNewAuditWizard` reads `intake`). */
@@ -47,7 +49,7 @@ export const buildAppRoute = {
 
 const UUID_SEGMENT_PATTERN = '[a-f0-9-]+';
 const MAIN_AUDIT_PREFIXES = ['audit', 'pipeline', 'reports', 'strategy'].join('|');
-const PORTAL_AUDIT_PREFIXES = ['audit', 'pipeline'].join('|');
+const PORTAL_AUDIT_PREFIXES = ['audit', 'pipeline', 'reports', 'strategy'].join('|');
 
 export const APP_ROUTE_PATTERNS = {
   mainAuditScope: new RegExp(`^/(?:${MAIN_AUDIT_PREFIXES})/(${UUID_SEGMENT_PATTERN})`),

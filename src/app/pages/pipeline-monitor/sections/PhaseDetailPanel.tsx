@@ -108,10 +108,13 @@ export function PhaseDetailPanel(props: {
     phaseId: selectedPhase.id,
     auditId,
     isClient,
+    auditStatus,
   });
   const phaseResultLinkLabel =
-    selectedPhase.id === STRATEGY_PHASE_ID && !isClient
+    selectedPhase.id === STRATEGY_PHASE_ID
       ? PM.detail.viewStrategyRoadmap
+      : isClient && auditStatus === PIPELINE_MONITOR_UI_POLICY.status.completed
+        ? PM.detail.viewReport
       : PM.detail.viewInWorkspace;
 
   const Icon = selectedPhase.icon;

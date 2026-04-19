@@ -41,6 +41,7 @@ export const APP_ROUTE_SEGMENTS = {
   portalAuditNew: 'portal/audit/new',
   portalPipelineById: 'portal/pipeline/:id',
   portalReportsById: 'portal/reports/:id',
+  portalStrategyById: 'portal/strategy/:id',
   portalAuditById: 'portal/audit/:id',
   portal: 'portal',
 } as const;

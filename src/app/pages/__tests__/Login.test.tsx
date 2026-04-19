@@ -262,6 +262,22 @@ describe('Login', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows OAuth callback loader while auth session is still resolving', () => {
+    stubLocation('?code=oauth-code');
+    mockUseAuth.mockReturnValue({
+      ...AUTH_BASE,
+      loading: true,
+      isAuthenticated: false,
+      user: null,
+    });
+
+    renderLogin('/login?code=oauth-code');
+
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.getByText(/Signing you in\.\.\./i)).toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+  });
+
   it('submits sign-in with trimmed email and password', async () => {
     const user = userEvent.setup();
     stubLocation('');

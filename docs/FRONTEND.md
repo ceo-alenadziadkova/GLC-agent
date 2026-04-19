@@ -59,7 +59,7 @@ Single source of truth for **visual values** is `src/styles/tokens.css` (light/d
 | Cyan `#1CBDFF` (`--glc-blue` …) | Primary / focus / data accent |
 | Orange `#F24F1D` (`--glc-orange` …) | CTA and emphasis (`--text-accent`, primary button utility) |
 | Green `#0ECF82` (`--glc-green` …) | Success / positive drift |
-| Ink stack (`--glc-ink` … `--glc-ink-4`) | Sidebar and deep surfaces |
+| Ink stack (`--glc-ink` … `--glc-ink-3`) | Sidebar and deep surfaces |
 
 **References:** product tone “Linear / Vercel / Stripe” is noted in `theme.css`. **Glass** panels use `--glass-*`; **mesh** backgrounds use `--mesh-brand` / `--mesh-ink`.
 
@@ -133,7 +133,7 @@ Base heading sizes and weights are set globally in `theme.css` (`h1`–`h4`, `la
 | `--shadow-card` | Default card border + shadow |
 | `--glow-blue`, `--glow-orange`, `--glow-green` | Focus / emphasis rings |
 | `--gradient-brand`, `--gradient-accent`, `--gradient-success` | Buttons, heroes |
-| `--shadow-ink`, `--shadow-swiss` | Sidebar / bold UI |
+| `--shadow-ink` | Sidebar / bold UI |
 
 ### Motion and focus
 

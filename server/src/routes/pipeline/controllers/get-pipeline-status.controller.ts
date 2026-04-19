@@ -18,7 +18,11 @@ export async function getPipelineStatusController(req: AuthRequest, res: Respons
       return;
     }
 
-    const result = await loadPipelineStatus({ auditId: idParse.data.id, userId: req.userId! });
+    const result = await loadPipelineStatus({
+      auditId: idParse.data.id,
+      userId: req.userId!,
+      viewerRole: req.userRole,
+    });
     if (!result.ok) {
       res.status(result.error.status).json(result.error.body);
       return;

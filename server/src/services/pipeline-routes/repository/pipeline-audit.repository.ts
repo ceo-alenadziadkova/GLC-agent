@@ -63,6 +63,17 @@ export type AuditForStatus = {
   execution_plan: unknown;
 };
 
+async function claimByOwnerOrClient(
+  auditId: string,
+  userId: string,
+  claim: (scope: 'user_id' | 'client_id') => Promise<{ data: unknown[] | null }>,
+): Promise<boolean> {
+  const byOwner = await claim('user_id');
+  if (Array.isArray(byOwner.data) && byOwner.data.length > 0) return true;
+  const byClient = await claim('client_id');
+  return Array.isArray(byClient.data) && byClient.data.length > 0;
+}
+
 export async function fetchAuditForStart(auditId: string, userId: string): Promise<AuditForStart | null> {
   const { data, error } = await supabase
     .from('audits')
@@ -128,15 +139,16 @@ export async function fetchConsultantOwnedAudit(auditId: string, userId: string)
 }
 
 export async function claimPipelineStart(auditId: string, userId: string, updatedAt: string): Promise<boolean> {
-  const { data } = await supabase
-    .from('audits')
-    .update({ status: 'recon', current_phase: 0 })
-    .eq('id', auditId)
-    .or(safeOrUserFilter(userId))
-    .eq('status', 'created')
-    .eq('updated_at', updatedAt)
-    .select('id');
-  return Boolean(data && data.length > 0);
+  return claimByOwnerOrClient(auditId, userId, (scope) =>
+    supabase
+      .from('audits')
+      .update({ status: 'recon', current_phase: 0 })
+      .eq('id', auditId)
+      .eq(scope, userId)
+      .eq('status', 'created')
+      .eq('updated_at', updatedAt)
+      .select('id'),
+  );
 }
 
 export async function claimPipelineNext(
@@ -145,15 +157,16 @@ export async function claimPipelineNext(
   updatedAt: string,
   lockStatus: string,
 ): Promise<boolean> {
-  const { data } = await supabase
-    .from('audits')
-    .update({ status: lockStatus })
-    .eq('id', auditId)
-    .or(safeOrUserFilter(userId))
-    .eq('updated_at', updatedAt)
-    .in('status', PIPELINE_CLAIMABLE_STATUSES as unknown as string[])
-    .select('id');
-  return Boolean(data && data.length > 0);
+  return claimByOwnerOrClient(auditId, userId, (scope) =>
+    supabase
+      .from('audits')
+      .update({ status: lockStatus })
+      .eq('id', auditId)
+      .eq(scope, userId)
+      .eq('updated_at', updatedAt)
+      .in('status', PIPELINE_CLAIMABLE_STATUSES as unknown as string[])
+      .select('id'),
+  );
 }
 
 export type PipelineRetryOwnershipFilter =
@@ -165,15 +178,16 @@ export type PipelineRetryOwnershipFilter =
  * Moves `audits.status` from `review` to `completed` (idempotent if already completed via refetch).
  */
 export async function claimPipelineFinalizeAfterLastGate(auditId: string, userId: string, updatedAt: string): Promise<boolean> {
-  const { data } = await supabase
-    .from('audits')
-    .update({ status: 'completed' })
-    .eq('id', auditId)
-    .or(safeOrUserFilter(userId))
-    .eq('updated_at', updatedAt)
-    .eq('status', 'review')
-    .select('id');
-  return Boolean(data && data.length > 0);
+  return claimByOwnerOrClient(auditId, userId, (scope) =>
+    supabase
+      .from('audits')
+      .update({ status: 'completed' })
+      .eq('id', auditId)
+      .eq(scope, userId)
+      .eq('updated_at', updatedAt)
+      .eq('status', 'review')
+      .select('id'),
+  );
 }
 
 export async function claimPipelineRetry(
@@ -196,15 +210,16 @@ export async function claimPipelineRetry(
 }
 
 export async function claimPipelineStop(auditId: string, userId: string, updatedAt: string): Promise<boolean> {
-  const { data } = await supabase
-    .from('audits')
-    .update({ status: 'cancelled' })
-    .eq('id', auditId)
-    .or(safeOrUserFilter(userId))
-    .eq('updated_at', updatedAt)
-    .in('status', PIPELINE_STOP_CLAIMABLE_STATUSES as unknown as string[])
-    .select('id');
-  return Boolean(data && data.length > 0);
+  return claimByOwnerOrClient(auditId, userId, (scope) =>
+    supabase
+      .from('audits')
+      .update({ status: 'cancelled' })
+      .eq('id', auditId)
+      .eq(scope, userId)
+      .eq('updated_at', updatedAt)
+      .in('status', PIPELINE_STOP_CLAIMABLE_STATUSES as unknown as string[])
+      .select('id'),
+  );
 }
 
 /**

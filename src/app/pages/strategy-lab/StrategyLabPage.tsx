@@ -3,11 +3,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Link, useParams } from 'react-router';
 import {
   Lightning, TrendUp, MapTrifold, ArrowRight, Check,
-  Target, Sparkle, ArrowsClockwise, ChartBar, CaretDown, ListBullets, SlidersHorizontal,
+  Target, ArrowsClockwise, ChartBar, CaretDown, ListBullets, SlidersHorizontal,
 } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { SectionLabel } from '../components/glc/SectionLabel';
 import { useAudit } from '../hooks/useAudit';
+import { useProfile } from '../hooks/useProfile';
 import type { StrategyInitiative } from '../data/auditTypes';
 import { DOMAIN_KEYS, DOMAIN_LABELS } from '../data/auditTypes';
 import type { DomainBenchmarkSnapshot } from '../data/api/benchmarks';
@@ -70,6 +71,7 @@ const EFFORT_CLASS: Record<string, string> = {
 export function StrategyLab() {
   const { id } = useParams<{ id: string }>();
   const { audit, loading, error, reload } = useAudit(id);
+  const { isClient } = useProfile();
   const [activeTab, setActiveTab] = useState<StrategyLabRoadmapTimeframe>('quick');
   const [selected,  setSelected]  = useState<Set<string>>(new Set());
   const [domainFilter, setDomainFilter] = useState<StrategyLabDomainFilter>(STRATEGY_LAB_DOMAIN_FILTER_ALL);
@@ -86,7 +88,7 @@ export function StrategyLab() {
   const [constraintSaving, setConstraintSaving] = useState(false);
 
   useEffect(() => {
-    if (!audit?.strategy) return;
+    if (!audit?.strategy || isClient) return;
     const ec = audit.strategy.effective_constraints;
     if (ec && typeof ec.company_stage === 'string') {
       setConstraintStageDraft(ec.company_stage);
@@ -126,7 +128,7 @@ export function StrategyLab() {
     return () => {
       cancelled = true;
     };
-  }, [audit?.strategy, audit?.meta?.industry]);
+  }, [audit?.strategy, audit?.meta?.industry, isClient]);
 
   const initiatives = useMemo(() => {
     if (!audit?.strategy) return { quick: [], medium: [], strategic: [] };
@@ -322,8 +324,7 @@ export function StrategyLab() {
             disabled={selected.size === 0}
             className={cn(selected.size === 0 ? 'opacity-40' : '')}
             onClick={handleGenerateRoadmap}
-          >
-            <Sparkle className="w-4 h-4" /> {STRATEGY_LAB_COPY.panel.generateRoadmap}
+          >{STRATEGY_LAB_COPY.panel.generateRoadmap}
           </Button>
         </div>
       }
@@ -332,107 +333,111 @@ export function StrategyLab() {
 
         {/* ── Initiative picker ─────────────────────── */}
         <div className="bg-background flex-1 overflow-y-auto border-r">
-          <div
-            className="space-y-3 border-b bg-card p-4"
-          >
-            <div className="flex items-center gap-2">
-              <ChartBar className="text-info h-4 w-4" />
-              <span className="text-foreground text-sm font-semibold">
-                {STRATEGY_LAB_COPY.panel.domainBenchmarksTitle}
-              </span>
-            </div>
-            <p className="text-muted-foreground text-xs">
-              {STRATEGY_LAB_COPY.panel.domainBenchmarksHint}
-            </p>
-            <div className="space-y-2">
-              {DOMAIN_KEYS.map((dk) => {
-                const row = domainBenchmarks[dk];
-                const label = DOMAIN_LABELS[dk] ?? dk;
-                return (
-                  <div
-                    key={dk}
-                    className="bg-background flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs"
+          {!isClient && (
+            <>
+              <div
+                className="space-y-3 border-b bg-card p-4"
+              >
+                <div className="flex items-center gap-2">
+                  <ChartBar className="text-info h-4 w-4" />
+                  <span className="text-foreground text-sm font-semibold">
+                    {STRATEGY_LAB_COPY.panel.domainBenchmarksTitle}
+                  </span>
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  {STRATEGY_LAB_COPY.panel.domainBenchmarksHint}
+                </p>
+                <div className="space-y-2">
+                  {DOMAIN_KEYS.map((dk) => {
+                    const row = domainBenchmarks[dk];
+                    const label = DOMAIN_LABELS[dk] ?? dk;
+                    return (
+                      <div
+                        key={dk}
+                        className="bg-background flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs"
+                      >
+                        <span className="text-muted-foreground">{label}</span>
+                        <span className="text-foreground font-mono tabular-nums">
+                          {row
+                            ? `p50 ${row.percentiles.p50} · n=${row.sample_count}`
+                            : STRATEGY_LAB_COPY.panel.emptyBenchmarksValue}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="space-y-3 border-b bg-card p-4">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="text-info h-4 w-4" />
+                  <span className="text-foreground text-sm font-semibold">{STRATEGY_LAB_COPY.constraints.sectionTitle}</span>
+                </div>
+                <p className="text-muted-foreground text-xs">{STRATEGY_LAB_COPY.constraints.sectionHint}</p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+                  <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
+                    <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.companyStage}</span>
+                    <select
+                      className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                      value={constraintStageDraft}
+                      onChange={e => setConstraintStageDraft(e.target.value)}
+                    >
+                      {STRATEGY_LAB_UI_COMPANY_STAGES.map(s => (
+                        <option key={s} value={s}>
+                          {STRATEGY_LAB_COPY.constraints.optionLabels.stage[s]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
+                    <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.budgetBand}</span>
+                    <select
+                      className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                      value={constraintBudgetDraft}
+                      onChange={e => setConstraintBudgetDraft(e.target.value)}
+                    >
+                      {STRATEGY_LAB_UI_BUDGET_BANDS.map(b => (
+                        <option key={b} value={b}>
+                          {STRATEGY_LAB_COPY.constraints.optionLabels.budget[b]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
+                    <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.teamScale}</span>
+                    <select
+                      className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                      value={constraintTeamDraft}
+                      onChange={e => setConstraintTeamDraft(e.target.value)}
+                    >
+                      {STRATEGY_LAB_UI_TEAM_SCALES.map(t => (
+                        <option key={t} value={t}>
+                          {STRATEGY_LAB_COPY.constraints.optionLabels.team[t]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="default"
+                    disabled={constraintSaving}
+                    onClick={() => void handleSaveConstraintOverrides()}
                   >
-                    <span className="text-muted-foreground">{label}</span>
-                    <span className="text-foreground font-mono tabular-nums">
-                      {row
-                        ? `p50 ${row.percentiles.p50} · n=${row.sample_count}`
-                        : STRATEGY_LAB_COPY.panel.emptyBenchmarksValue}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <div className="space-y-3 border-b bg-card p-4">
-            <div className="flex items-center gap-2">
-              <SlidersHorizontal className="text-info h-4 w-4" />
-              <span className="text-foreground text-sm font-semibold">{STRATEGY_LAB_COPY.constraints.sectionTitle}</span>
-            </div>
-            <p className="text-muted-foreground text-xs">{STRATEGY_LAB_COPY.constraints.sectionHint}</p>
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-              <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
-                <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.companyStage}</span>
-                <select
-                  className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                  value={constraintStageDraft}
-                  onChange={e => setConstraintStageDraft(e.target.value)}
-                >
-                  {STRATEGY_LAB_UI_COMPANY_STAGES.map(s => (
-                    <option key={s} value={s}>
-                      {STRATEGY_LAB_COPY.constraints.optionLabels.stage[s]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
-                <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.budgetBand}</span>
-                <select
-                  className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                  value={constraintBudgetDraft}
-                  onChange={e => setConstraintBudgetDraft(e.target.value)}
-                >
-                  {STRATEGY_LAB_UI_BUDGET_BANDS.map(b => (
-                    <option key={b} value={b}>
-                      {STRATEGY_LAB_COPY.constraints.optionLabels.budget[b]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
-                <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.constraints.teamScale}</span>
-                <select
-                  className="bg-card text-foreground border-border h-9 rounded-md border px-2 text-xs"
-                  value={constraintTeamDraft}
-                  onChange={e => setConstraintTeamDraft(e.target.value)}
-                >
-                  {STRATEGY_LAB_UI_TEAM_SCALES.map(t => (
-                    <option key={t} value={t}>
-                      {STRATEGY_LAB_COPY.constraints.optionLabels.team[t]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="flex flex-wrap gap-2 pt-1">
-              <Button
-                type="button"
-                variant="default"
-                disabled={constraintSaving}
-                onClick={() => void handleSaveConstraintOverrides()}
-              >
-                {STRATEGY_LAB_COPY.constraints.save}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={constraintSaving}
-                onClick={() => void handleClearConstraintOverrides()}
-              >
-                {STRATEGY_LAB_COPY.constraints.useBrief}
-              </Button>
-            </div>
-          </div>
+                    {STRATEGY_LAB_COPY.constraints.save}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={constraintSaving}
+                    onClick={() => void handleClearConstraintOverrides()}
+                  >
+                    {STRATEGY_LAB_COPY.constraints.useBrief}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
           <div className="bg-background flex flex-wrap items-end gap-3 border-b px-4 py-3">
             <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
               <span className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.panel.filterDomainLabel}</span>
@@ -766,7 +771,6 @@ export function StrategyLab() {
                 disabled={selected.size === 0}
                 onClick={handleGenerateRoadmap}
               >
-                <Sparkle className="w-4 h-4" />
                 {STRATEGY_LAB_COPY.panel.generateRoadmap}
               </Button>
             </motion.div>

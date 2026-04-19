@@ -869,7 +869,7 @@ describe('pipeline route use-cases with mocked repositories', () => {
 
   it('loadPipelineStatus returns not found when audit missing', async () => {
     mocks.fetchAuditForStatus.mockResolvedValue(null);
-    const result = await loadPipelineStatus({ auditId: 'a1', userId: 'u1' });
+    const result = await loadPipelineStatus({ auditId: 'a1', userId: 'u1', viewerRole: 'consultant' });
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.body.code).toBe('PIPELINE_AUDIT_NOT_FOUND');
@@ -877,12 +877,36 @@ describe('pipeline route use-cases with mocked repositories', () => {
   });
 
   it('loadPipelineStatus returns payload with events and reviews', async () => {
-    const result = await loadPipelineStatus({ auditId: 'a1', userId: 'u1' });
+    const result = await loadPipelineStatus({ auditId: 'a1', userId: 'u1', viewerRole: 'consultant' });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(Array.isArray(result.payload.events)).toBe(true);
       expect(Array.isArray(result.payload.reviews)).toBe(true);
       expect(result.payload.status).toBe('review');
+    }
+  });
+
+  it('loadPipelineStatus redacts review notes for client viewers', async () => {
+    mocks.fetchPipelineEventsForAudit.mockResolvedValue([
+      {
+        event_type: 'review_approved',
+        phase: 0,
+        message: 'ok',
+        data: { consultant_notes: 'secret', interview_notes: 'also secret' },
+      },
+    ]);
+    mocks.fetchReviewPointsForAudit.mockResolvedValue([
+      { after_phase: 0, status: 'approved', consultant_notes: 'c', interview_notes: 'i' },
+    ]);
+    const result = await loadPipelineStatus({ auditId: 'a1', userId: 'u1', viewerRole: 'client' });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const rev = result.payload.reviews as Array<{ consultant_notes: string | null; interview_notes: string | null }>;
+      expect(rev[0].consultant_notes).toBeNull();
+      expect(rev[0].interview_notes).toBeNull();
+      const ev = result.payload.events as Array<{ data: Record<string, unknown> }>;
+      expect(ev[0].data.consultant_notes).toBeNull();
+      expect(ev[0].data.interview_notes).toBeNull();
     }
   });
 

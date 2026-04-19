@@ -31,7 +31,6 @@
   --glc-ink-1: #0D1628;
   --glc-ink-2: #111E38;
   --glc-ink-3: #172849;
-  --glc-ink-4: #1E345C;
 
   --score-1: #EF4444;
   --score-1-bg: #FEF2F2;
@@ -180,7 +179,6 @@
   --glow-orange: 0 0 0 3px rgba(242, 79, 29, 0.18);
   --glow-green: 0 0 0 3px rgba(14, 207, 130, 0.20);
   --shadow-ink: 0 4px 16px rgba(8, 15, 30, 0.60), 0 1px 4px rgba(8, 15, 30, 0.40);
-  --shadow-swiss: 3px 3px 0 var(--glc-ink);
   --shadow-mobile-bottom-nav: 0 -4px 12px var(--overlay-shadow-soft);
 
   --glass-bg: rgba(255, 255, 255, 0.86);

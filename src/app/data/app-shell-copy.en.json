@@ -54,7 +54,9 @@
     "client": {
       "myPortal": "My Portal",
       "auditStatus": "Audit Status",
-      "pipeline": "Pipeline"
+      "pipeline": "Pipeline",
+      "reports": "Report",
+      "strategyLab": "Strategy Lab"
     },
     "guest": {
       "freeSnapshot": "Free snapshot"

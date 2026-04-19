@@ -33,14 +33,29 @@ export function buildStrategyLabPath(auditId: string | undefined): string {
   return `/${APP_ROUTE_SEGMENTS.strategyById.replace(':id', auditId)}`;
 }
 
+export function buildPortalStrategyLabPath(auditId: string | undefined): string {
+  if (!auditId) return '/';
+  return `/${APP_ROUTE_SEGMENTS.portalStrategyById.replace(':id', auditId)}`;
+}
+
+export function buildPortalReportPath(auditId: string | undefined): string {
+  if (!auditId) return '/';
+  return `/${APP_ROUTE_SEGMENTS.portalReportsById.replace(':id', auditId)}`;
+}
+
 export function getPhaseResultViewPath(args: {
   phaseId: number;
   auditId: string | undefined;
   isClient: boolean;
+  auditStatus: string;
 }): string {
-  const { phaseId, auditId, isClient } = args;
-  if (phaseId === STRATEGY_PHASE_ID && !isClient) {
+  const { phaseId, auditId, isClient, auditStatus } = args;
+  if (phaseId === STRATEGY_PHASE_ID) {
+    if (isClient) return buildPortalStrategyLabPath(auditId);
     return buildStrategyLabPath(auditId);
+  }
+  if (isClient && auditStatus === 'completed') {
+    return buildPortalReportPath(auditId);
   }
   return getWorkspacePath(auditId, isClient);
 }
