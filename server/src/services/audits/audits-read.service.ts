@@ -2,6 +2,7 @@ import { AUDITS_LIST_DEFAULT_LIMIT, AUDITS_LIST_MAX_LIMIT } from '../../config/a
 import { listAuditsByUser, fetchAuditByIdForUser, fetchAuditRelatedReadModel } from '../../repositories/audits/audit-read-model.repository.js';
 import { healUxDomainRowForFreeSnapshotPortal } from '../../lib/snapshot-audit-response-heal.js';
 import { FREE_SNAPSHOT_UX_DOMAIN_KEY } from '../../routes/audits/config/audits-route-policy.js';
+import { normalizeAuditStrategyRowForReadModel } from '../strategy/strategy-audit-read-normalize.js';
 import { buildAuditReportCoverage } from './audits-report-coverage.service.js';
 
 export function parseAuditsPagination(query: { limit?: string | number; offset?: string | number }) {
@@ -27,7 +28,7 @@ export async function getAuditViewModel(id: string, userId: string) {
   const [reconRes, domainsRes, strategyRes, reviewsRes, briefRes] = await fetchAuditRelatedReadModel(id);
   const recon = reconRes.status === 'fulfilled' ? (reconRes.value.data ?? null) : null;
   const domainsArr = domainsRes.status === 'fulfilled' ? (domainsRes.value.data ?? []) : [];
-  const strategy = strategyRes.status === 'fulfilled' ? (strategyRes.value.data ?? null) : null;
+  const strategyRaw = strategyRes.status === 'fulfilled' ? (strategyRes.value.data ?? null) : null;
   const reviews = reviewsRes.status === 'fulfilled' ? (reviewsRes.value.data ?? []) : [];
   const brief = briefRes.status === 'fulfilled' ? (briefRes.value.data ?? null) : null;
 
@@ -48,6 +49,22 @@ export async function getAuditViewModel(id: string, userId: string) {
       );
     }
   }
+
+  const briefResponses =
+    brief && typeof brief === 'object' && brief !== null && 'responses' in brief
+      ? (brief as { responses?: unknown }).responses
+      : undefined;
+  const strategy =
+    strategyRaw && typeof strategyRaw === 'object'
+      ? (normalizeAuditStrategyRowForReadModel({
+          strategy: strategyRaw as Record<string, unknown>,
+          domainRows: domainsArr as Array<{ domain_key: string; issues?: unknown }>,
+          briefResponses:
+            briefResponses && typeof briefResponses === 'object' && !Array.isArray(briefResponses)
+              ? (briefResponses as Record<string, unknown>)
+              : null,
+        }) as typeof strategyRaw)
+      : strategyRaw;
 
   const coverageDomains = Object.values(domainsMap)
     .filter(

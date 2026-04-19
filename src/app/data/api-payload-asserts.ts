@@ -99,12 +99,15 @@ export function assertPipelineStatusShape(payload: unknown): asserts payload is 
     if (typeof r?.after_phase !== 'number' || typeof r?.status !== 'string') {
       throw new Error(`Invalid API payload: pipeline review[${i}] missing after_phase/status`);
     }
-    if (r?.consultant_notes !== null && typeof r?.consultant_notes !== 'string') {
+    // PostgREST / serializers may omit null keys — treat missing as null.
+    if (r?.consultant_notes != null && typeof r?.consultant_notes !== 'string') {
       throw new Error(`Invalid API payload: pipeline review[${i}] invalid consultant_notes`);
     }
-    if (r?.interview_notes !== null && typeof r?.interview_notes !== 'string') {
+    if (r?.interview_notes != null && typeof r?.interview_notes !== 'string') {
       throw new Error(`Invalid API payload: pipeline review[${i}] invalid interview_notes`);
     }
+    r.consultant_notes = r.consultant_notes ?? null;
+    r.interview_notes = r.interview_notes ?? null;
   }
 }
 

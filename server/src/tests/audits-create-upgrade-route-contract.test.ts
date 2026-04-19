@@ -2,17 +2,18 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { Server } from 'node:http';
 import express from 'express';
 
-const { setAuthRole, setIdempotencyMode, setUpgradeThrows } = vi.hoisted(() => {
+const { setAuthRole, setIdempotencyMode, setUpgradeThrows, isDpaAcceptanceEffectivelyTrue } = vi.hoisted(() => {
   let role = 'consultant';
   let idempotencyMode: 'ok' | 'conflict' | 'error' = 'ok';
   let upgradeThrows = false;
   const setAuthRole = (next: string) => { role = next; };
   const setIdempotencyMode = (next: 'ok' | 'conflict' | 'error') => { idempotencyMode = next; };
   const setUpgradeThrows = (next: boolean) => { upgradeThrows = next; };
+  const isDpaAcceptanceEffectivelyTrue = vi.fn(async () => true);
   (globalThis as Record<string, unknown>).__auditsCreateRole = () => role;
   (globalThis as Record<string, unknown>).__auditsIdempotencyMode = () => idempotencyMode;
   (globalThis as Record<string, unknown>).__auditsUpgradeThrows = () => upgradeThrows;
-  return { setAuthRole, setIdempotencyMode, setUpgradeThrows };
+  return { setAuthRole, setIdempotencyMode, setUpgradeThrows, isDpaAcceptanceEffectivelyTrue };
 });
 
 vi.mock('../services/supabase.js', () => ({
@@ -64,6 +65,10 @@ vi.mock('../lib/upgrade-free-snapshot-audit.js', () => ({
   }),
 }));
 
+vi.mock('../services/legal-consent.service.js', () => ({
+  isDpaAcceptanceEffectivelyTrue,
+}));
+
 import { auditsRouter } from '../routes/audits.js';
 
 let server: Server;
@@ -87,6 +92,7 @@ beforeEach(() => {
   setAuthRole('consultant');
   setIdempotencyMode('ok');
   setUpgradeThrows(false);
+  isDpaAcceptanceEffectivelyTrue.mockResolvedValue(true);
 });
 
 describe('audits create/upgrade contract errors', () => {
@@ -100,6 +106,18 @@ describe('audits create/upgrade contract errors', () => {
     expect(res.status).toBe(403);
     const body = await res.json() as Record<string, unknown>;
     expect(body.code).toBe('AUDITS_FORBIDDEN');
+  });
+
+  it('POST /api/audits returns 403 with dpa-required when consultant has no DPA acceptance', async () => {
+    isDpaAcceptanceEffectivelyTrue.mockResolvedValueOnce(false);
+    const res = await fetch(`${baseUrl}/api/audits`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ company_url: 'https://example.com' }),
+    });
+    expect(res.status).toBe(403);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.code).toBe('AUDITS_DPA_REQUIRED');
   });
 
   it('POST /api/audits returns 400 with company-url-required code when company_url is missing', async () => {

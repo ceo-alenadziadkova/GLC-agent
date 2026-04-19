@@ -8,6 +8,10 @@ import {
 import { createAuditLimiter, generalLimiter } from '../../middleware/rate-limit.js';
 import { createAuditController } from './controllers/create-audit.controller.js';
 import { listAuditsController } from './controllers/list-audits.controller.js';
+import { tokenUsageSummaryController } from './controllers/token-usage-summary.controller.js';
+import { getStrategyExecutionPacksController } from './controllers/get-strategy-execution-packs.controller.js';
+import { patchStrategyLabContextController } from './controllers/patch-strategy-lab-context.controller.js';
+import { postStrategyExecutionPackController } from './controllers/post-strategy-execution-pack.controller.js';
 import { getAuditController } from './controllers/get-audit.controller.js';
 import { upgradeFromSnapshotController } from './controllers/upgrade-snapshot.controller.js';
 import { deleteAuditController } from './controllers/delete-audit.controller.js';
@@ -26,6 +30,30 @@ const consultantGuard = [attachProfile, requireRole('consultant')] as const;
 
 auditsRouter.post('/', attachProfile, createAuditLimiter, createAuditController);
 auditsRouter.get('/', attachProfile, rejectGuestFromPortal, listAuditsController);
+auditsRouter.get(
+  '/token-usage-summary',
+  ...consultantGuard,
+  rejectGuestFromPortal,
+  tokenUsageSummaryController,
+);
+auditsRouter.post(
+  '/:id/strategy/execution-pack',
+  attachProfile,
+  rejectGuestFromPortal,
+  postStrategyExecutionPackController,
+);
+auditsRouter.get(
+  '/:id/strategy/execution-packs',
+  attachProfile,
+  rejectGuestFromPortal,
+  getStrategyExecutionPacksController,
+);
+auditsRouter.patch(
+  '/:id/strategy/lab-context',
+  attachProfile,
+  rejectGuestFromPortal,
+  patchStrategyLabContextController,
+);
 auditsRouter.get('/:id', attachProfile, rejectGuestFromPortal, getAuditController);
 auditsRouter.post('/:id/upgrade-from-snapshot', attachProfile, rejectGuestFromPortal, upgradeFromSnapshotController);
 auditsRouter.delete('/:id', ...consultantGuard, deleteAuditController);

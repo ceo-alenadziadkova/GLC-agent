@@ -5,13 +5,18 @@ import { cn } from '../../../components/ui/utils';
 import { PIPELINE_MONITOR_UI_POLICY } from '../config/pipeline-monitor-ui-policy';
 import { PhCard, RevBanner } from '../PipelineMonitorPhaseUi';
 import type { PhaseView } from '../types';
+import type { PipelineReview } from '../types-pipeline-state';
+
+function pendingReviewFallback(afterPhase: number): PipelineReview {
+  return { after_phase: afterPhase, status: 'pending', consultant_notes: null, interview_notes: null };
+}
 
 export function PhaseSidebar(props: {
   phases: PhaseView[];
   selectedPhaseId: number;
   isExpress: boolean;
   isClient: boolean;
-  reviewStatusByPhase: Map<number, { status: string }>;
+  reviewByPhase: Map<number, PipelineReview>;
   reviewWarningsByPhase: Map<number, boolean>;
   onSelectPhase: (phaseId: number) => void;
   onOpenReviewModal: (afterPhase: number, label: string) => void;
@@ -21,7 +26,7 @@ export function PhaseSidebar(props: {
     selectedPhaseId,
     isExpress,
     isClient,
-    reviewStatusByPhase,
+    reviewByPhase,
     reviewWarningsByPhase,
     onSelectPhase,
     onOpenReviewModal,
@@ -42,7 +47,7 @@ export function PhaseSidebar(props: {
 
       <PhCard ph={phases[0]} active={selectedPhaseId === 0} onSel={() => onSelectPhase(0)} />
       <RevBanner
-        review={reviewStatusByPhase.get(0) || { status: 'pending' }}
+        review={reviewByPhase.get(0) ?? pendingReviewFallback(0)}
         label={PM.reviewPoints.one}
         onOpenModal={() => onOpenReviewModal(0, PM.reviewPoints.one)}
         hasWarnings={reviewWarningsByPhase.get(0) ?? false}
@@ -66,7 +71,7 @@ export function PhaseSidebar(props: {
       </div>
 
       <RevBanner
-        review={reviewStatusByPhase.get(4) || { status: 'pending' }}
+        review={reviewByPhase.get(4) ?? pendingReviewFallback(4)}
         label={isExpress ? PM.reviewPoints.twoFinal : PM.reviewPoints.two}
         onOpenModal={() => onOpenReviewModal(4, isExpress ? PM.reviewPoints.twoFinal : PM.reviewPoints.two)}
         hasWarnings={reviewWarningsByPhase.get(4) ?? false}
@@ -108,7 +113,7 @@ export function PhaseSidebar(props: {
 
       {!isExpress && (
         <RevBanner
-          review={reviewStatusByPhase.get(7) || { status: 'pending' }}
+          review={reviewByPhase.get(7) ?? pendingReviewFallback(7)}
           label={PM.reviewPoints.three}
           onOpenModal={() => onOpenReviewModal(7, PM.reviewPoints.three)}
           hasWarnings={reviewWarningsByPhase.get(7) ?? false}

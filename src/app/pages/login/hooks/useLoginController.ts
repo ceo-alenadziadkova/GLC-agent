@@ -5,15 +5,22 @@ import {
   LOGIN_GOOGLE_MANUAL_LINKING_HINT_EN,
   LOGIN_PAGE_COPY_EN as LC,
 } from '../../../config/login-copy.en';
+import { LEGAL_SIGNUP_COPY_EN } from '../../../config/legal-signup-copy.en';
+import { api } from '../../../data/apiService';
 import { LOGIN_UI_POLICY } from '../config/login-ui-policy';
+import { buildSignupLegalConsentEvents } from '../domain/build-signup-legal-consent-events';
 import { validateAuthCredentials, validateForgotPasswordEmail, validateRecoveryPasswords } from '../domain/login-validation';
 import { useAuth, isAnonymousUser } from '../../../hooks/useAuth';
 import { logger } from '../../../lib/logger';
 import { mapUnknownLoginError } from '../mappers/login-error.mapper';
 import { GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY } from '../../../lib/storage-keys';
-import { EMPTY_FIELD_ERRORS, type AuthMode, type FieldErrors } from '../types';
+import { EMPTY_FIELD_ERRORS, type AuthMode, type FieldErrors, type SignupLegalFieldState } from '../types';
 import { resolveLoginRedirect } from '../services/login-session-reconcile-service';
 import { createLoginAuthService } from '../services/login-auth-service';
+const INITIAL_SIGNUP_LEGAL: SignupLegalFieldState = {
+  acceptTos: false,
+  acceptPrivacy: false,
+};
 
 export function useLoginController() {
   const navigate = useNavigate();
@@ -40,6 +47,7 @@ export function useLoginController() {
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [forgotSent, setForgotSent] = useState(false);
   const [isDesktopTwoColumn, setIsDesktopTwoColumn] = useState(false);
+  const [signupLegal, setSignupLegal] = useState<SignupLegalFieldState>(INITIAL_SIGNUP_LEGAL);
   const authService = createLoginAuthService({
     signInWithPassword,
     signUpWithPassword,
@@ -57,6 +65,9 @@ export function useLoginController() {
     setMode(nextMode);
     clearErrors();
     setForgotSent(false);
+    if (nextMode === 'signup') {
+      setSignupLegal(INITIAL_SIGNUP_LEGAL);
+    }
   }
 
   useEffect(() => {
@@ -115,6 +126,17 @@ export function useLoginController() {
       return;
     }
 
+    if (mode === 'signup') {
+      if (!signupLegal.acceptTos) {
+        setGlobalError(LEGAL_SIGNUP_COPY_EN.validationTos);
+        return;
+      }
+      if (!signupLegal.acceptPrivacy) {
+        setGlobalError(LEGAL_SIGNUP_COPY_EN.validationPrivacy);
+        return;
+      }
+    }
+
     setLoading(true);
     clearErrors();
 
@@ -124,17 +146,34 @@ export function useLoginController() {
         logger.info('Login: signInWithPassword result', { hasError: !!error, errorMessage: error?.message });
         if (error) {
           setGlobalError(error.message);
+          setLoading(false);
         }
+        // Success: keep loading until session + redirect (avoids form flashing before onAuthStateChange).
         return;
       }
-      const { error } = await authService.signUp(trimmedEmail, password);
+      const { error, session: signUpSession } = await authService.signUp(trimmedEmail, password);
       logger.info('Login: signUpWithPassword result', { hasError: !!error, errorMessage: error?.message });
       if (error) {
         setGlobalError(error.message);
+        setLoading(false);
+        return;
       }
+      if (!signUpSession) {
+        // Email confirmation required — no session yet; restore the form.
+        setLoading(false);
+        return;
+      }
+      try {
+        const events = buildSignupLegalConsentEvents(signupLegal);
+        await api.postLegalConsents({ source: 'signup', events });
+      } catch (e) {
+        logger.warn('Login: legal consent post failed', {
+          message: e instanceof Error ? e.message : String(e),
+        });
+      }
+      // Session created: keep loading until redirect effect runs.
     } catch (error) {
       setGlobalError(mapUnknownLoginError(error, 'Authentication failed. Please try again.'));
-    } finally {
       setLoading(false);
     }
   }
@@ -182,13 +221,14 @@ export function useLoginController() {
       const { error } = await authService.completeRecovery(recoveryPassword);
       if (error) {
         setGlobalError(error.message);
+        setLoading(false);
         return;
       }
       setRecoveryPassword('');
       setRecoveryConfirm('');
+      // Success: keep loading until post-recovery redirect.
     } catch (error) {
       setGlobalError(mapUnknownLoginError(error, 'Unable to update password. Please try again.'));
-    } finally {
       setLoading(false);
     }
   }
@@ -199,21 +239,26 @@ export function useLoginController() {
     clearErrors();
     try {
       const { error } = await authService.signInWithGoogle();
-      if (!error) return;
+      if (!error) {
+        // Browser navigates to the IdP; keep loading to avoid a one-frame form flash.
+        return;
+      }
       const message = (error.message ?? '').toLowerCase();
       if (message.includes('manual linking')) {
         setGlobalError(LOGIN_GOOGLE_MANUAL_LINKING_HINT_EN);
+        setLoading(false);
         return;
       }
       setGlobalError(error.message);
     } catch (error) {
       setGlobalError(mapUnknownLoginError(error, 'Google sign-in failed. Please try again.'));
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   }
 
-  const isReady = email.trim().length > 0 && password.length > 0;
+  const baseReady = email.trim().length > 0 && password.length > 0;
+  const isReady =
+    mode === 'signup' ? baseReady && signupLegal.acceptTos && signupLegal.acceptPrivacy : baseReady;
   const submitLabel = mode === 'signin' ? LC.submitSignIn : LC.submitCreateAccount;
   const loginTagline = passwordRecoveryMode
     ? LC.taglineRecovery
@@ -264,5 +309,9 @@ export function useLoginController() {
     authTabIds: LOGIN_UI_POLICY.authTabIds,
     errorIds: LOGIN_UI_POLICY.errorIds,
     minPasswordLength: LOGIN_UI_POLICY.minPasswordLength,
+    signupLegal,
+    onSignupLegalChange: (patch: Partial<SignupLegalFieldState>) => {
+      setSignupLegal(prev => ({ ...prev, ...patch }));
+    },
   };
 }

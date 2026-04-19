@@ -24,16 +24,29 @@
     "autoName": "Auto Wing",
     "analyticName": "Analytic Wing"
   },
+  "header": {
+    "retryFailedPipeline": "Retry failed step"
+  },
   "detail": {
     "agentRunning": "Agent running...",
     "waitingTitle": "Waiting for previous phases",
     "waitingSubtitle": "This phase will start automatically",
+    "pipelineFailedPendingTitle": "Pipeline failed before this phase could finish",
+    "pipelineFailedPendingSubtitle": "The run was stopped (timeout, error, or worker interruption). Retry restarts from the last recorded phase on the server. If a specific domain shows Failed in the sidebar, open that phase and use Retry there.",
     "domainUnavailableTitle": "Domain unavailable",
     "domainUnavailableBody": "This domain could not be analysed. The pipeline has continued and the Strategy Agent will note this gap explicitly.",
     "agentLogPrefix": "Agent Log ·",
     "domainScore": "Domain Score",
     "viewInWorkspace": "View in Workspace",
+    "viewStrategyRoadmap": "Open Strategy roadmap",
     "continuePipeline": "Continue Pipeline",
+    "continuePipelineBusy": "Starting next phase…",
+    "resumeCancelledPlatform": "Reopen stopped pipeline",
+    "resumeCancelledPlatformHint": "Platform only: clears cancelled status so the owner can retry the current phase or press Continue.",
+    "pipelineCancelledConsultantTitle": "Pipeline is stopped",
+    "pipelineCancelledConsultantBody": "Start, Continue, and Retry are disabled while the audit is cancelled. Ask a platform administrator to reopen the pipeline, or use the support flow your organization agreed on.",
+    "resumeCancelledPlatformBusy": "Reopening…",
+    "retryFailedPhase": "Retry this phase",
     "stopPipeline": "Stop Pipeline",
     "stopPipelineCancel": "Cancel",
     "stopPipelineConfirm": "Stop this pipeline now? The status will change to cancelled.",
@@ -50,12 +63,51 @@
     "governanceHallucination": "Likely hallucination flags",
     "governanceRiskyPromise": "Risky promise flags",
     "governanceHumanAttention": "Human attention required",
-    "governanceAutoRemediationBadge": "Auto-corrected {count} issue(s) (tone)"
+    "governanceAutoRemediationBadge": "Auto-corrected {count} issue(s) (tone)",
+    "reconPreviewSectionTitle": "Recon snapshot",
+    "reconPreviewIntroTitle": "Findings from this phase",
+    "reconPreviewIntroBody": "This is the saved crawl output used as context for later phases. You can review it here before opening Approve in the sidebar after phase 0."
   },
   "reviewModal": {
     "defaultNote": "Add your observations before continuing",
+    "strategyReviseHint": "If you add consultant or client notes and approve, the Strategy phase runs again so the roadmap incorporates your corrections, then this gate reopens. If you have no changes, leave notes empty and approve to mark the audit complete.",
     "governanceRefineSectionTitle": "Phases flagged for manual review",
-    "governanceRefineSectionIntro": "The Decision Layer recommended refine for the following completed phases. The pipeline continued; use notes below to capture context before approving."
+    "governanceRefineSectionIntro": "The Decision Layer recommended refine for the following completed phases. The pipeline continued; use notes below to capture context before approving.",
+    "reconSnapshotCorrectionHint": "The recon table above is a saved crawler snapshot — it does not update while you type. If anything is wrong (for example a social profile, contact, or page signal), write the correction in Consultant notes below. Approved notes override conflicting automation for all later phases and the report.",
+    "laterGateCorrectionHint": "Earlier phases may have mis-detected facts (recon, forms, mobile, social, etc.). Use Consultant notes below to state corrections — they are treated as ground truth for Marketing, Automation, Strategy, and the exported report.",
+    "recon": {
+      "introTitle": "What you are approving",
+      "introBody": "Downstream audit phases use this saved reconnaissance snapshot as context. Confirm the crawl coverage and extracted signals look reasonable before continuing.",
+      "sectionProfile": "Company profile",
+      "sectionCrawl": "Crawled pages",
+      "sectionTech": "Detected tech signals",
+      "sectionContact": "Contact & social",
+      "sectionBrief": "Recon brief",
+      "sectionInterview": "Interview notes",
+      "labelCompany": "Company",
+      "labelIndustry": "Industry",
+      "labelLocation": "Location",
+      "labelLanguages": "Languages",
+      "crawlCount": "{count} pages",
+      "showMorePages": "Show all {count} pages",
+      "showFewerPages": "Show fewer",
+      "pageMetaNone": "No meta description",
+      "httpStatusLabel": "HTTP {status}",
+      "labelEmail": "Email",
+      "labelPhone": "Phone",
+      "labelAddress": "Address",
+      "labelSocial": "Social",
+      "structuredDataMore": "+{count} more",
+      "truncationWarningTitle": "Context was trimmed for the model",
+      "truncationWarningBody": "Some crawler content was truncated when building the AI context. URLs and summaries below still reflect what was stored from the crawl.",
+      "extractionNoteTitle": "Auto-extracted contacts",
+      "extractionNoteBody": "Emails and phone numbers are parsed from public pages and may include form placeholders or noise. Verify before relying on them.",
+      "missingDataTitle": "Recon data not available",
+      "missingDataBody": "Try refreshing the page. If this persists, recon may not have been saved yet — check the pipeline log or retry phase 0.",
+      "emptyTech": "No tech signals were recorded in recon.",
+      "emptyContact": "No contacts or social profiles were extracted.",
+      "emptyPages": "No pages were recorded in recon."
+    }
   },
   "phaseCard": {
     "skip": "SKIP"
@@ -71,6 +123,9 @@
     "qualityWarningsNotes": "Quality warnings — notes required",
     "qualityWarningsTitle": "Quality warnings",
     "approve": "Approve",
-    "consultantApproval": "Consultant approval"
+    "consultantApproval": "Consultant approval",
+    "savedConsultantNotes": "Consultant notes (saved)",
+    "savedInterviewNotes": "Client / interview notes (saved)",
+    "noNotesSaved": "No notes were saved for this gate (optional)."
   }
 }

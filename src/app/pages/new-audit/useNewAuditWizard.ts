@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../../hooks/useAuth';
+import { api, ApiError } from '../../data/apiService';
+import { GLC_LEGAL_CONSENTS_UPDATED_WINDOW_EVENT, LEGAL_CONSENT_KEYS } from '../../config/legal-consent-client-policy';
 import { useIntakeBankMetrics } from '../../hooks/useIntakeWizard';
 import { WORKSPACE_PAGE_COPY } from '../../config/workspace-page-copy';
 import {
@@ -94,6 +96,10 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [consultantDpaLoading, setConsultantDpaLoading] = useState(() => !isClientSelfServe);
+  const [consultantDpaOnFile, setConsultantDpaOnFile] = useState(false);
+  const [consultantDpaChecked, setConsultantDpaChecked] = useState(false);
+
   // Client draft
   const [draftAuditId, setDraftAuditId] = useState<string | null>(() => portalDraftSeed?.draftAuditId ?? null);
   const [draftIntakeVersions, setDraftIntakeVersions] = useState<IntakeVersionTuple | null>(
@@ -103,6 +109,36 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
   const [draftRestoredVisible, setDraftRestoredVisible] = useState(() => Boolean(portalDraftSeed));
+
+  useEffect(() => {
+    if (isClientSelfServe) {
+      setConsultantDpaLoading(false);
+      setConsultantDpaOnFile(false);
+      return;
+    }
+    if (!user?.id) {
+      setConsultantDpaLoading(true);
+      return;
+    }
+    let cancelled = false;
+    setConsultantDpaLoading(true);
+    void api
+      .getLegalConsents()
+      .then(body => {
+        if (cancelled) return;
+        const row = body.effective.find(r => r.consent_key === LEGAL_CONSENT_KEYS.dpaAcceptance);
+        setConsultantDpaOnFile(row?.accepted === true);
+      })
+      .catch(() => {
+        if (!cancelled) setConsultantDpaOnFile(false);
+      })
+      .finally(() => {
+        if (!cancelled) setConsultantDpaLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isClientSelfServe, user?.id]);
 
   useWizardPrefillEffects({
     intakeTokenFromUrl,
@@ -232,33 +268,86 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     });
   }
 
-  function handleLaunch(e: FormEvent) {
-    const executionPlan = buildExecutionPlan({
+  const handleLaunch = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
+      if (!isClientSelfServe) {
+        if (consultantDpaLoading) return;
+        if (!consultantDpaOnFile) {
+          if (!consultantDpaChecked) {
+            setError(WORKSPACE_PAGE_COPY.newAudit.step2.dpaConsultantRequired);
+            return;
+          }
+          setLoading(true);
+          setError(null);
+          try {
+            await api.postLegalConsents({
+              source: 'audit_create',
+              events: [{ consent_key: LEGAL_CONSENT_KEYS.dpaAcceptance, accepted: true }],
+            });
+            window.dispatchEvent(new Event(GLC_LEGAL_CONSENTS_UPDATED_WINDOW_EVENT));
+            setConsultantDpaOnFile(true);
+            setConsultantDpaChecked(false);
+          } catch (err) {
+            setLoading(false);
+            setError(
+              err instanceof ApiError ? err.message : WORKSPACE_PAGE_COPY.newAudit.step2.dpaConsultantSaveFailed,
+            );
+            return;
+          }
+          setLoading(false);
+        }
+      }
+
+      const executionPlan = buildExecutionPlan({
+        coveragePackage,
+        selectedDomains,
+        recommendedDomains,
+      });
+      return launchNewAudit(e, {
+        isClientSelfServe,
+        url,
+        noPublicWebsite,
+        name,
+        industry,
+        industrySpecify,
+        productMode: briefProductMode,
+        responses,
+        briefLayoutChoice,
+        executionPlan,
+        draftAuditId,
+        preBriefToken: preBriefState.preBriefToken,
+        intakeTokenFromUrl,
+        setError,
+        setLoading,
+        navigate,
+        setPreBriefToken: preBriefState.setPreBriefToken,
+        setDraftIntakeVersions,
+      });
+    },
+    [
+      briefLayoutChoice,
+      briefProductMode,
+      consultantDpaChecked,
+      consultantDpaLoading,
+      consultantDpaOnFile,
       coveragePackage,
-      selectedDomains,
-      recommendedDomains,
-    });
-    return launchNewAudit(e, {
-      isClientSelfServe,
-      url,
-      noPublicWebsite,
-      name,
+      draftAuditId,
       industry,
       industrySpecify,
-      productMode: briefProductMode,
-      responses,
-      briefLayoutChoice,
-      executionPlan,
-      draftAuditId,
-      preBriefToken: preBriefState.preBriefToken,
       intakeTokenFromUrl,
-      setError,
-      setLoading,
+      isClientSelfServe,
+      name,
       navigate,
-      setPreBriefToken: preBriefState.setPreBriefToken,
-      setDraftIntakeVersions,
-    });
-  }
+      noPublicWebsite,
+      preBriefState.preBriefToken,
+      preBriefState.setPreBriefToken,
+      recommendedDomains,
+      responses,
+      selectedDomains,
+      url,
+    ],
+  );
 
   async function handlePreBriefCreate() {
     preBriefState.setPreBriefErr(null);
@@ -388,6 +477,11 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     // Actions
     handleSaveClientDraft,
     handleLaunch,
+
+    consultantDpaLoading,
+    consultantDpaOnFile,
+    consultantDpaChecked,
+    setConsultantDpaChecked,
 
     // Pre-brief modal
     preBriefOpen: preBriefState.preBriefOpen,

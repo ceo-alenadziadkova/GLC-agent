@@ -36,6 +36,10 @@
 
 ## 2. Архитектура вопросов
 
+### 2.0. Legal metadata (GDPR mapping, sidecar)
+
+Per bank question id, **`packages/intake-core/src/question-bank-legal-meta.v1.ts`** supplies non-branching metadata: **`purpose`**, **`legal_basis`** (`contract` \| `consent` \| `legitimate_interest`), **`sensitive`**, **`requires_dpa_client_ack`**. Coverage is enforced by **`packages/intake-core/src/tests/question-bank-legal-meta-coverage.test.ts`** (every id in **`question-bank.v1.json`** must have an entry). The compact brief schema API includes an optional **`legal`** object keyed by visible question ids (`GET /api/audits/:id/brief/schema` — see [API.md](./API.md)).
+
 ### 2.1. Три контекста сбора
 
 

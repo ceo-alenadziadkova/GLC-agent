@@ -1,5 +1,5 @@
-import { API_PATHS } from '../../config/api-paths';
-import { apiFetch } from '../api-http';
+import { API_PATHS, apiPlatformAuditPipelineResumeCancelled } from '../../config/api-paths';
+import { apiFetch, publicApiFetch } from '../api-http';
 import { assertIntakePayloadShape } from '../api-payload-asserts';
 import type { AuditCoveragePackage } from '../audit/contracts/core/audit-meta.types';
 import type {
@@ -32,6 +32,47 @@ export type BriefSchemaSnapshot = {
   };
   missing_for_report: string[];
   next_recommended: string[];
+  legal?: Record<
+    string,
+    {
+      purpose: string;
+      legal_basis: 'contract' | 'consent' | 'legitimate_interest';
+      sensitive: boolean;
+      requires_dpa_client_ack: boolean;
+    }
+  >;
+};
+
+export type LegalConsentKey =
+  | 'tos_acceptance'
+  | 'privacy_acknowledgment'
+  | 'marketing'
+  | 'product_analytics'
+  | 'case_study_use'
+  | 'evaluation_internal'
+  | 'dpa_acceptance';
+
+export type LegalConsentSource = 'signup' | 'settings' | 'api' | 'import' | 'audit_create';
+
+export type LegalConsentsResponse = {
+  published: {
+    bundle: string;
+    terms_of_service: string;
+    privacy_policy: string;
+    data_processing_agreement: string;
+    legal_notice: string;
+    cookies_policy: string;
+  };
+  effective: Array<{
+    consent_key: LegalConsentKey;
+    accepted: boolean;
+    created_at: string;
+    document_bundle_version: string;
+    tos_version: string | null;
+    privacy_version: string | null;
+    dpa_version: string | null;
+    source: LegalConsentSource;
+  }>;
 };
 
 export type BriefIntakeAnalyticsBatchPayload = {
@@ -143,15 +184,62 @@ export const briefProfilePlatformApi = {
     return payload;
   },
 
+  async getPublicLegalDocuments() {
+    return publicApiFetch<{
+      bundle: string;
+      terms_of_service: { version: string; path: string };
+      privacy_policy: { version: string; path: string };
+      data_processing_agreement: { version: string; path: string };
+      legal_notice: { version: string; path: string };
+      cookies_policy: { version: string; path: string };
+    }>(API_PATHS.publicLegalDocuments);
+  },
+
   async getProfile() {
-    return apiFetch<{ id: string; role: string; email: string | null; full_name: string | null }>(API_PATHS.profile);
+    return apiFetch<{
+      id: string;
+      role: string;
+      email: string | null;
+      full_name: string | null;
+      can_manage_platform_settings?: boolean;
+    }>(API_PATHS.profile);
   },
 
   async patchProfile(params: { full_name?: string | null }) {
-    return apiFetch<{ id: string; role: string; email: string | null; full_name: string | null }>(API_PATHS.profile, {
+    return apiFetch<{
+      id: string;
+      role: string;
+      email: string | null;
+      full_name: string | null;
+      can_manage_platform_settings?: boolean;
+    }>(API_PATHS.profile, {
       method: 'PATCH',
       body: JSON.stringify(params),
     });
+  },
+
+  async getLegalConsents() {
+    return apiFetch<LegalConsentsResponse>(API_PATHS.profileLegalConsents);
+  },
+
+  async postLegalConsents(params: {
+    source: LegalConsentSource;
+    events: Array<{ consent_key: LegalConsentKey; accepted: boolean }>;
+  }) {
+    return apiFetch<LegalConsentsResponse>(API_PATHS.profileLegalConsents, {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  },
+
+  /** Platform admin: move audit from `cancelled` and best-effort schedule owner `pipeline/next`. */
+  async resumePlatformPipelineFromCancelled(auditId: string) {
+    return apiFetch<{
+      status: string;
+      current_phase: number;
+      resumed: boolean;
+      execution_scheduled?: boolean;
+    }>(apiPlatformAuditPipelineResumeCancelled(auditId), { method: 'POST' });
   },
 
   async getPlatformSelfServeOwner() {

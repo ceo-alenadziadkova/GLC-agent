@@ -44,20 +44,28 @@ export function useSnapshotPolling<TData>(params: UseSnapshotPollingParams<TData
       return;
     }
 
+    let cancelled = false;
+    const teardown = () => {
+      cancelled = true;
+      clearPolling();
+    };
+
     const scheduleNextPoll = () => {
+      if (cancelled) return;
       pollTimeoutRef.current = setTimeout(() => {
         void runPoll();
       }, intervalMs);
     };
 
     const runPoll = async () => {
-      if (pollInFlightRef.current) return;
+      if (cancelled || pollInFlightRef.current) return;
       const abortController = new AbortController();
       pollAbortRef.current = abortController;
       pollInFlightRef.current = true;
 
       try {
         const next = await poll(abortController.signal);
+        if (cancelled) return;
         if (next.kind === 'error') {
           pollFailuresRef.current += 1;
           if (pollFailuresRef.current >= failureThreshold) {
@@ -78,7 +86,7 @@ export function useSnapshotPolling<TData>(params: UseSnapshotPollingParams<TData
 
         scheduleNextPoll();
       } catch (error) {
-        if (abortController.signal.aborted) return;
+        if (cancelled || abortController.signal.aborted) return;
         pollFailuresRef.current += 1;
         const message = error instanceof Error ? error.message : 'Polling failed.';
         if (pollFailuresRef.current >= failureThreshold) {
@@ -92,6 +100,6 @@ export function useSnapshotPolling<TData>(params: UseSnapshotPollingParams<TData
     };
 
     void runPoll();
-    return clearPolling;
+    return teardown;
   }, [enabled, failureThreshold, intervalMs, onData, onDone, onFailureThresholdReached, poll]);
 }

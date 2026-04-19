@@ -1,4 +1,5 @@
 import { PIPELINE_AUDIT_ORCHESTRATOR_STATUS } from '../../../config/pipeline-status.js';
+import { logger } from '../../logger.js';
 import { supabase } from '../../supabase.js';
 import { PipelineCancelledError } from './pipeline-cancelled.error.js';
 
@@ -11,7 +12,15 @@ export async function updateAuditIfNotCancelled(
     return false;
   }
   const { error } = await supabase.from('audits').update(patch).eq('id', auditId);
-  return !error;
+  if (error) {
+    logger.error('audit.update_failed', {
+      component: 'pipeline',
+      audit_id: auditId,
+      message: error.message,
+    });
+    throw new Error(`Failed to update audit: ${error.message}`);
+  }
+  return true;
 }
 
 export async function assertAuditNotCancelled(auditId: string): Promise<void> {

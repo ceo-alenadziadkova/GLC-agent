@@ -1,9 +1,6 @@
-import { Link } from 'react-router';
 import { motion, useReducedMotion } from 'motion/react';
 import { ThemeToggle } from '../components/ThemeToggle';
-import { LOGIN_PAGE_COPY_EN as LC } from '../config/login-copy.en';
 import { BACKGROUND_VIDEO_CONFIG } from '../config/background-video';
-import { APP_ROUTE_PATHS } from '../config/route-paths';
 import { useLoginController } from './login/hooks/useLoginController';
 import { LoginBrandSection } from './login/sections/LoginBrandSection';
 import { LoginAuthCardSection } from './login/sections/LoginAuthCardSection';
@@ -89,14 +86,10 @@ export function Login() {
             errorIds={controller.errorIds}
             minPasswordLength={controller.minPasswordLength}
             motionPolicy={controller.motionPolicy}
+            signupLegal={controller.signupLegal}
+            onSignupLegalChange={controller.onSignupLegalChange}
           />
 
-          <p className="mt-5 w-full text-center text-xs lg:text-left ds-text-tertiary" >
-            {LC.footerTerms}{' '}
-            <Link to={APP_ROUTE_PATHS.faq} className="underline-offset-2 hover:underline ds-text-brand" >
-              {LC.footerFaq}
-            </Link>
-          </p>
           </div>
         </motion.div>
 

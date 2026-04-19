@@ -11,6 +11,7 @@ import {
 } from './controllers/consultant-allowlist.controller.js';
 import { postBenchmarkRecomputeHandler } from './controllers/benchmarks.controller.js';
 import { postBanditRecomputeHandler } from './controllers/bandits.controller.js';
+import { postPlatformPipelineResumeCancelledController } from './controllers/post-pipeline-resume-cancelled.controller.js';
 
 export const platformRouter = Router();
 
@@ -30,3 +31,9 @@ platformRouter.delete('/consultant-allowlist', requireRole(PLATFORM_CONSULTANT_R
 
 platformRouter.post('/benchmarks/recompute', requireRole(PLATFORM_CONSULTANT_ROLE), postBenchmarkRecomputeHandler);
 platformRouter.post('/bandits/recompute', requireRole(PLATFORM_CONSULTANT_ROLE), postBanditRecomputeHandler);
+
+platformRouter.post(
+  '/audits/:id/pipeline/resume-cancelled',
+  requireRole(PLATFORM_CONSULTANT_ROLE),
+  postPlatformPipelineResumeCancelledController,
+);

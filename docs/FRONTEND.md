@@ -23,6 +23,8 @@ The no-public-website sentinel is **`NO_PUBLIC_WEBSITE_URL`** from **`@glc/intak
 
 Cross-page persistence keys for consultant flows live in **`storage_keys`** (e.g. `GLC_DISCOVERY_SESSION_TOKEN_STORAGE_KEY` for post–Discovery login handoff). See [DEPLOYMENT.md](./DEPLOYMENT.md#production-environment-variables) for the full production matrix.
 
+**Cookie consent (banner + settings):** The SPA mounts **`CookieConsentProvider`** in **`RootOutlet`** ([`src/app/routes.tsx`](../src/app/routes.tsx)) so cookie links can use **`Link`** inside the router. English copy lives in [`src/app/config/cookie-consent-banner.en.ts`](../src/app/config/cookie-consent-banner.en.ts); persistence policy in [`src/app/config/cookie-consent-storage-policy.ts`](../src/app/config/cookie-consent-storage-policy.ts) and helpers in [`src/app/lib/cookie-consent-storage.ts`](../src/app/lib/cookie-consent-storage.ts). Stored choices are versioned against **`LEGAL_DOCUMENT_VERSIONS.cookiesPolicy`** from **`@glc/api-paths`**; when that version changes, the user sees the banner again. For signed-in, non-anonymous users, **`GET /api/profile/legal-consents`** is the source of truth after load (local storage is then aligned). Banner actions persist optional categories via **`POST /api/profile/legal-consents`** with `product_analytics` and **`marketing`**. **Vercel Web Analytics** ([`@vercel/analytics/react`](../package.json)) is rendered inside the provider and **`beforeSend`** drops events until **`product_analytics`** is allowed. When consents change from **Settings**, the app dispatches **`GLC_LEGAL_CONSENTS_UPDATED_WINDOW_EVENT`** ([`src/app/config/legal-consent-client-policy.ts`](../src/app/config/legal-consent-client-policy.ts)) so the banner state and local snapshot stay aligned.
+
 ### UI languages (i18n target list)
 
 Planned in-app locales (BCP-47): **English (`en`, default), German (`de`), Spanish (`es`), Catalan (`ca`), Russian (`ru`), Italian (`it`).** Canonical definitions: `supported_ui_locales` (`GlcUiLocale`, labels for choosers). Full message catalogs and runtime i18n are a separate rollout; until then see the **Browser auto-translate vs React** paragraph in the Routing section below.
@@ -385,8 +387,9 @@ export function ProtectedRoute({ children }) {
 
 ### `ReviewPointModal.tsx`
 Modal shown at review gates in PipelineMonitor.
-- Displays generated interview questions (from recon)
-- Two textareas: "Consultant Notes" and "Client Interview Answers"
+- **Review Gate #1 (after phase 0):** renders `ReconReviewSummary` using `GET /api/audits/:id` → `recon` (crawl list, tech signals, contacts, optional brief) plus a warning when phase 0 logged crawler context truncation; copy in `src/app/data/pipeline-monitor-copy.en.json` (`reviewModal.recon`), limits in `src/app/config/recon-review-summary-policy.ts`.
+- **Pipeline Monitor — Phase 0:** the same `ReconReviewSummary` block appears in `PhaseDetailPanel` for consultants (not the client portal) as soon as the pipeline is started, with intro lines from `detail.reconPreview*` in that JSON file.
+- Two textareas: "Consultant Notes" and "Interview Notes"
 - "Approve & Continue" → calls `approveReview(phase, { consultant_notes, interview_notes })`
 
 ---

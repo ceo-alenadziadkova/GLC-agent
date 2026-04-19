@@ -68,7 +68,8 @@ Values that are **secrets, connectivity, or deploy wiring** — not product defa
  **Client self-serve (portal):** after migration `018_platform_settings.sql`, persist the default audit owner in **`platform_settings`** via **Settings → Client portal — audit owner** (`PATCH /api/platform/self-serve-owner`). Until a row is stored, the API may still resolve an owner via legacy admin UUIDs or (in open mode) the earliest consultant; the Settings screen surfaces **`implicit_fallback_active`** when that applies. **`SELF_SERVE_AUDIT_OWNER_USER_ID`** is **deprecated and ignored** — remove it from deploy config. **Platform admin ACL:** migration **`049_profiles_platform_admin.sql`** adds **`profiles.is_platform_admin`**. When at least one consultant has this flag **`true`**, only those users (plus ids in **`platform_settings.legacy_platform_admin_user_ids`**) may manage platform settings; when no row has the flag and that array is empty, any consultant may manage (open mode). Set the first admins with SQL: `UPDATE profiles SET is_platform_admin = true WHERE id = '<consultant uuid>';`
 
 6. **Build / start (dashboard):** with **root `railway.json` + `server/Dockerfile`**, the image builds inside Docker (`pnpm run build` in `server/`) and starts with **`node dist/index.js`** (working directory `server/` in the image). Clear conflicting custom build/start overrides in the UI if needed.
-7. Railway provides a public URL like `https://glc-api.up.railway.app`
+7. **Watch paths (monorepo):** root `railway.json` sets **`build.watchPatterns`** so pushes that only touch the SPA (`src/`, marketing assets, etc.) do **not** redeploy the API. Patterns include **`server/**`**, **`packages/**`**, root **`package.json` / `pnpm-lock.yaml` / `pnpm-workspace.yaml`**, **`railway.json`**, and **`.dockerignore`**.
+8. Railway provides a public URL like `https://glc-api.up.railway.app`
 
 **Healthcheck:** use **`/api/health`** (see root `railway.json`). There is no `GET /` handler on the API; pinging `/` returns 404.
 
@@ -197,7 +198,9 @@ Caps are **static config** in **`SYSTEM_DEFAULTS.routeQueries`** (`system_defaul
 5. Deploy — Vercel builds with `pnpm build` and serves `dist/`
 6. Add your custom domain in Vercel → update Supabase Site URL + Redirect URLs
 
-**SPA routing:** Vercel handles React Router automatically (all paths served `index.html`). No `vercel.json` needed for basic SPA routing.
+**Monorepo / skipped builds:** root `vercel.json` sets **`ignoreCommand`** to `scripts/vercel-ignore-when-frontend-unchanged.sh`. Vercel skips the SPA build when the diff since the previous deployment does not touch `src/`, `public/`, `packages/`, or listed root files (`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `vercel.json`, `index.html`, `vite.config.ts`, `postcss.config.mjs`, `tsconfig.json`) — e.g. **server-only** commits.
+
+**SPA routing:** `vercel.json` rewrites all paths to `index.html` for client-side routing.
 
 ---
 

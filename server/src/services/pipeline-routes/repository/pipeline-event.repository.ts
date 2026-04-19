@@ -19,6 +19,22 @@ export async function insertPipelineCancelledEvent(params: {
   });
 }
 
+export async function insertPipelineResumedFromCancelledEvent(params: {
+  auditId: string;
+  phase: number;
+  message: string;
+  actorUserId: string;
+}): Promise<void> {
+  const { auditId, phase, message, actorUserId } = params;
+  await supabase.from('pipeline_events').insert({
+    audit_id: auditId,
+    phase,
+    event_type: PIPELINE_EVENT_TYPES.resumedFromCancelled,
+    message,
+    data: { actor_user_id: actorUserId },
+  });
+}
+
 export async function fetchPipelineEventsForAudit(auditId: string): Promise<unknown[]> {
   const { data } = await supabase
     .from('pipeline_events')

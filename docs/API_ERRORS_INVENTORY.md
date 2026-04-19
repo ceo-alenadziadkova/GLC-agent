@@ -12,6 +12,7 @@ Some responses add a machine-readable **`code`** next to **`error`** (client bra
 |--------|--------------|-------------------|--------|
 | `IDEMPOTENCY_PAYLOAD_MISMATCH` | 409 | `This idempotency key was already used with a different request body.` | `POST /api/audits`, `POST /api/audit-requests/:id/approve` |
 | `AUDIT_INITIALIZATION_FAILED` | 500 | `Failed to create audit` | `POST /api/audits` (child row init rollback), `POST /api/audit-requests/:id/approve` (same) |
+| `AUDITS_DPA_REQUIRED` | 403 | `Accept the Data Processing Agreement before creating this audit.` | `POST /api/audits` (consultant without DPA), `POST /api/audit-requests/:id/approve` (same) |
 | `AUTH_*` | 401 / 403 / 500 | See `api-user-messages.en.json` | `requireAuth`, `attachProfile`, `requireRole`, `rejectGuestFromPortal`, `allowGuestSnapshotLogIngest` |
 | `DISCOVER_*` | 400 / 403 / 404 / 409 / 500 | Same JSON | `discover` |
 | `PUBLIC_URL_*` | 400 | Same JSON | SSRF-safe URL validation (`public_http_url`) — returned by audits, audit-requests, snapshot when `company_url` / `url` fails checks |
@@ -19,6 +20,7 @@ Some responses add a machine-readable **`code`** next to **`error`** (client bra
 | `MARKETING_*` | 400 / 500 | Same JSON | `POST /api/marketing/brief` |
 | `PLATFORM_*` | 400 / 403 / 409 / 500 | Same JSON | `platform` (consultant allowlist duplicate → **409** `PLATFORM_CONSULTANT_ALLOWLIST_DUPLICATE`) |
 | `AUDIT_CREATE_RATE_LIMITED`, `PIPELINE_RATE_LIMITED`, `GENERAL_API_RATE_LIMITED`, `COMPARE_RATE_LIMITED`, `RATE_LIMITED`, `INTAKE_LEGACY_RATE_LIMITED`, `LOG_INGEST_RATE_LIMITED`, `SNAPSHOT_LOG_RATE_LIMITED`, `DISCOVER_*`, `INTAKE_*`, `MARKETING_BRIEF_RATE_LIMITED` | 429 | See `message.error` in `rate_limit` | `express-rate-limit` middleware |
+| `AUDITS_STRATEGY_LAB_CONTEXT_PAYLOAD_INVALID`, `AUDITS_STRATEGY_LAB_CONTEXT_FAILED` | 400 / 500 | Same JSON | `PATCH /api/audits/:id/strategy/lab-context` |
 
 ---
 

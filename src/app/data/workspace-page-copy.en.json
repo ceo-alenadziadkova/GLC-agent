@@ -88,7 +88,16 @@
       "summaryBriefLabel": "Brief",
       "navigationBackText": "Back",
       "launchStartingText": "Starting...",
-      "launchAuditText": "Launch Audit"
+      "launchAuditText": "Launch Audit",
+      "dpaConsultantTitle": "Data processing (consultant)",
+      "dpaConsultantIntro": "Before this audit is created, confirm the Data Processing Agreement applies to your work as a consultant processing client data in GLC. You can also accept or update this anytime under Settings.",
+      "dpaConsultantOnFile": "Data Processing Agreement is already on file for your account.",
+      "dpaConsultantCheckboxPrefix": "I accept the ",
+      "dpaConsultantLinkLabel": "Data Processing Agreement (DPA)",
+      "dpaConsultantCheckboxSuffix": " for audits I run in GLC.",
+      "dpaConsultantRequired": "Confirm the Data Processing Agreement to launch this audit.",
+      "dpaConsultantSaveFailed": "Could not save your DPA acceptance. Please retry or accept it under Settings.",
+      "dpaConsultantLoadingLegal": "Checking your agreements…"
     },
     "preBriefModal": {
       "title": "Send pre-brief link",
@@ -266,7 +275,16 @@
     "mobileNavCloseAriaLabel": "Close navigation menu",
     "mobileNavDialogAriaLabel": "Site navigation",
     "footerNavAriaLabel": "Site links and contact",
-    "breadcrumbsAriaLabel": "Section navigation"
+    "breadcrumbsAriaLabel": "Section navigation",
+    "footerPoliciesNavAriaLabel": "Legal documents",
+    "footerPoliciesIntro": "Policies:",
+    "footerLegalTerms": "Terms",
+    "footerLegalPrivacy": "Privacy",
+    "footerLegalCookies": "Cookies",
+    "footerLegalDpa": "DPA",
+    "footerLegalNotice": "Legal notice",
+    "footerFaqLead": "Questions? See our FAQ.",
+    "footerFaqLink": "FAQ"
   },
   "faqPage": {
     "compareMatrixTitle": "Compare workspace depth",

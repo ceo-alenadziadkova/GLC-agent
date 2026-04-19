@@ -323,6 +323,8 @@
   --z-content: 1;
   --z-overlay: 10;
   --z-floating: 30;
+  /** Below Radix dialog overlay/content (z-50); above floating chrome. */
+  --z-cookie-consent-banner: 40;
   --z-login-mesh: 0;
   --z-login-decor: 1;
   --z-login-layout: 10;

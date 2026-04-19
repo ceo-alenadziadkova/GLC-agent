@@ -3,8 +3,15 @@ import {
   interpolatePipelineEventMessage,
   pipelineStrategyEventCopy,
 } from '../config/pipeline-events-copy.js';
+import { STRATEGY_INITIATIVE_SCHEMA_VERSION } from '../config/strategy-initiative-policy.js';
 import { StrategyOutputSchema } from '../schemas/domain-output.js';
 import { supabase } from '../services/supabase.js';
+import {
+  buildDomainIssueIdIndex,
+  buildStrategyBriefConstraintSnapshot,
+  mergeBriefSnapshotWithLabOverrides,
+} from '../services/strategy/strategy-brief-constraint-snapshot.js';
+import { postProcessStrategyInitiatives } from '../services/strategy/strategy-initiative-post-process.js';
 import { calculateWeightedScore } from '../config/industry-weights.js';
 import { MIN_TOKEN_RESERVE, MODEL_MAX_TOKENS } from '../config/model.js';
 import type { DomainKey, DomainResult } from '../types/audit.js';
@@ -73,15 +80,41 @@ export class StrategyAgent extends BaseAgent {
       ? calculateWeightedScore(domainScores, audit?.industry ?? null)
       : strategyResult.overall_score;
 
+    const { data: domainIssueRows } = await supabase
+      .from('audit_domains')
+      .select('domain_key, issues')
+      .eq('audit_id', this.auditId)
+      .eq('status', 'completed');
+
+    const [{ data: briefRow }, { data: labRow }] = await Promise.all([
+      supabase.from('intake_brief').select('responses').eq('audit_id', this.auditId).maybeSingle(),
+      supabase.from('audit_strategy').select('strategy_lab_context').eq('audit_id', this.auditId).maybeSingle(),
+    ]);
+
+    const briefResponses =
+      briefRow?.responses && typeof briefRow.responses === 'object' && !Array.isArray(briefRow.responses)
+        ? (briefRow.responses as Record<string, unknown>)
+        : undefined;
+    const briefSnapshot = mergeBriefSnapshotWithLabOverrides(
+      buildStrategyBriefConstraintSnapshot(briefResponses),
+      labRow?.strategy_lab_context,
+    );
+    const issueIndex = buildDomainIssueIdIndex(domainIssueRows ?? []);
+
+    const quick_wins = postProcessStrategyInitiatives(strategyResult.quick_wins, briefSnapshot, issueIndex);
+    const medium_term = postProcessStrategyInitiatives(strategyResult.medium_term, briefSnapshot, issueIndex);
+    const strategic = postProcessStrategyInitiatives(strategyResult.strategic, briefSnapshot, issueIndex);
+
     // Save strategy
     await supabase.from('audit_strategy').update({
       status: 'completed',
       executive_summary: strategyResult.executive_summary,
       overall_score: weightedScore,
-      quick_wins: strategyResult.quick_wins,
-      medium_term: strategyResult.medium_term,
-      strategic: strategyResult.strategic,
+      quick_wins,
+      medium_term,
+      strategic,
       scorecard: strategyResult.scorecard,
+      schema_version: STRATEGY_INITIATIVE_SCHEMA_VERSION.v2,
     }).eq('audit_id', this.auditId);
 
     // Update audit

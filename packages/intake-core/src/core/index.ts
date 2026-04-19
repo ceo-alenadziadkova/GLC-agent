@@ -1,5 +1,11 @@
 export { computeNextRecommended } from './plan-next-recommended.js';
 export { buildBriefSchemaSnapshot, type BriefSchemaSnapshot } from './build-brief-schema-snapshot.js';
+export {
+  getQuestionBankLegalMetaForBankId,
+  listQuestionBankIdsWithLegalMeta,
+  type QuestionBankLegalBasisV1,
+  type QuestionBankLegalMetaRowV1,
+} from '../question-bank-legal-meta.v1.js';
 export { buildIntakePlan, buildPlanFromScratch, recomputePlanIncremental } from './build-intake-plan.js';
 export { applyPublicDiscoveryLayout, applySurfaceLayout } from './evaluate-layout.js';
 export { formatPlanTrace, type FormatTraceMeta } from './format-trace.js';

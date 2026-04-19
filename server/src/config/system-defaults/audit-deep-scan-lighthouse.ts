@@ -1,7 +1,7 @@
 export const SYSTEM_DEFAULTS_AUDIT_DEEP_SCAN = {
-  deepScanEnabled: false,
-  lighthouseEnabled: false,
-  axePlaywrightEnabled: false,
+  deepScanEnabled: true,
+  lighthouseEnabled: true,
+  axePlaywrightEnabled: true,
   lighthouseBudgetMsDefault: 55_000,
   lighthouseBudgetMsMin: 10_000,
   lighthouseBudgetMsMax: 120_000,

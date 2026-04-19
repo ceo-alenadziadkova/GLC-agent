@@ -40,7 +40,7 @@ export const PORTAL_AUDIT_CARD_COPY = {
     },
     cancelled: {
       label: 'Cancelled',
-      hint: 'This audit was stopped and can be resumed only with a new pipeline start.',
+      hint: 'This audit was stopped. A platform admin can reopen it from the pipeline monitor; otherwise start a new audit.',
     },
     defaultUnknownHint: 'Open this audit for details.',
   },

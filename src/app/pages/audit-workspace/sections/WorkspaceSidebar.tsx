@@ -1,4 +1,4 @@
-import { CaretRight } from '@phosphor-icons/react';
+import { CaretDoubleLeft, CaretRight } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { ScoreRing } from '../../../components/glc/ScoreBadge';
 import { IntakeBankCoverageHint } from '../../../components/IntakeBankCoverageHint';
@@ -38,6 +38,10 @@ type Props = {
   resetOpenRecommendation: () => void;
   workspaceConsultantSurface: 'consultant_interview' | undefined;
   bankMetrics: BankMetrics;
+  /** When true, sidebar fills the resizable panel (desktop); otherwise fixed CSS width (mobile). */
+  fillParentWidth?: boolean;
+  /** Desktop: collapse the resizable sidebar panel. */
+  onRequestCollapse?: () => void;
 };
 
 export function WorkspaceSidebar({
@@ -61,19 +65,19 @@ export function WorkspaceSidebar({
   resetOpenRecommendation,
   workspaceConsultantSurface,
   bankMetrics,
+  fillParentWidth = false,
+  onRequestCollapse,
 }: Props) {
   return (
     <aside
       className={cn(
-        AUDIT_WORKSPACE_UI.layout.sidebarWidthClass,
+        fillParentWidth ? 'h-full w-full min-w-0 border-r border-[var(--border-subtle)]' : AUDIT_WORKSPACE_UI.layout.sidebarWidthClass,
         'flex-shrink-0 overflow-y-auto flex flex-col ds-workspace-sidebar-aside',
       )}
     >
-      <div
-        className="flex items-center gap-3 border-b border-[var(--border-subtle)] bg-[var(--bg-canvas)] p-4"
-      >
+      <div className="flex items-center gap-3 border-b border-[var(--border-subtle)] bg-[var(--bg-canvas)] p-4">
         <ScoreRing score={overallScore} size={AUDIT_WORKSPACE_UI.scoreRingSize} />
-        <div>
+        <div className="min-w-0 flex-1">
           <p
             className="text-sm font-bold [font-family:var(--font-display)] ds-letterspace-tight-01 text-[var(--text-primary)]"
           >
@@ -83,6 +87,16 @@ export function WorkspaceSidebar({
             {domainCount} {AUDIT_WORKSPACE_COPY.sidebar.domainsAnalyzedSuffix}
           </p>
         </div>
+        {onRequestCollapse ? (
+          <button
+            type="button"
+            onClick={onRequestCollapse}
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md border-0 bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2"
+            aria-label={AUDIT_WORKSPACE_COPY.sidebar.collapseSidebar}
+          >
+            <CaretDoubleLeft className="h-4 w-4" aria-hidden />
+          </button>
+        ) : null}
       </div>
 
       {audit.brief && (

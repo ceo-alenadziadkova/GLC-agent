@@ -10,7 +10,10 @@ export const auditsReviewsReportsApi = {
   async approveReview(id: string, phase: number, consultantNotes?: string, interviewNotes?: string) {
     return apiFetch(apiAuditsReview(id, phase), {
       method: 'POST',
-      body: JSON.stringify({ consultant_notes: consultantNotes, interview_notes: interviewNotes }),
+      body: JSON.stringify({
+        consultant_notes: consultantNotes ?? null,
+        interview_notes: interviewNotes ?? null,
+      }),
     });
   },
 

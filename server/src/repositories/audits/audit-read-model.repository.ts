@@ -6,12 +6,20 @@ export async function listAuditsByUser(args: { userId: string; offset: number; l
   return supabase
     .from('audits')
     .select(
-      'id, company_url, company_name, industry, product_mode, status, current_phase, overall_score, tokens_used, created_at, updated_at, no_public_website',
+      'id, company_url, company_name, industry, product_mode, status, current_phase, overall_score, tokens_used, token_budget, created_at, updated_at, no_public_website',
       { count: 'exact' },
     )
     .or(userFilter)
     .order('created_at', { ascending: false })
     .range(args.offset, args.offset + args.limit - 1);
+}
+
+export async function rpcAuditTokenTotalsForUser(userId: string) {
+  return supabase.rpc('audit_token_totals_for_user', { p_user_id: userId });
+}
+
+export async function rpcAuditTokenTotalsGlobal() {
+  return supabase.rpc('audit_token_totals_global');
 }
 
 export async function fetchAuditByIdForUser(id: string, userId: string) {

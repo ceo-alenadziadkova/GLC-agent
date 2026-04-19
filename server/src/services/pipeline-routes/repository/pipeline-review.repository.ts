@@ -19,6 +19,18 @@ export async function fetchPendingReviewAfterPhase(auditId: string, afterPhase: 
   return data ? (data as PendingReviewRow) : null;
 }
 
+/** Any open human gate blocks advancing or finalizing the pipeline. */
+export async function fetchAnyPendingReviewForAudit(auditId: string): Promise<PendingReviewRow | null> {
+  const { data } = await supabase
+    .from('review_points')
+    .select('audit_id, after_phase, status')
+    .eq('audit_id', auditId)
+    .eq('status', 'pending')
+    .limit(1)
+    .maybeSingle();
+  return data ? (data as PendingReviewRow) : null;
+}
+
 export async function fetchReviewPointsForAudit(auditId: string): Promise<unknown[]> {
   const { data } = await supabase.from('review_points').select('*').eq('audit_id', auditId).order('after_phase');
   return data ?? [];

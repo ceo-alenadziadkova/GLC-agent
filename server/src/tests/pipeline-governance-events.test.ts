@@ -268,7 +268,7 @@ describe('PipelineOrchestrator governance events', () => {
     });
 
     const orch = new PipelineOrchestrator(GOV_AUDIT_ID);
-    await expect(orch.startPhase(1)).resolves.toBeUndefined();
+    await expect(orch.startPhase(1)).resolves.toBe('completed');
 
     expect(mockAgentSaveDomainResult).toHaveBeenCalled();
     const controlRows = getPipelineInserts().filter(i => i.payload.event_type === 'control_object');

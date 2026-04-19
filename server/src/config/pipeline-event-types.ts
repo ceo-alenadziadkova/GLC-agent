@@ -11,6 +11,8 @@ export const PIPELINE_EVENT_TYPES = {
   refineRecommended: 'refine_recommended',
   qualityGate: 'quality_gate',
   cancelled: 'cancelled',
+  /** Platform admin cleared `audits.status` from `cancelled` back to a claimable pause (`review`). */
+  resumedFromCancelled: 'resumed_from_cancelled',
   reviewApproved: 'review_approved',
   reviewNeeded: 'review_needed',
   phaseStalled: 'phase_stalled',

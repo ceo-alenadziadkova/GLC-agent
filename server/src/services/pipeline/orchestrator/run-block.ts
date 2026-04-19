@@ -13,14 +13,14 @@ import {
   runStrategyQualityGate,
 } from '../reviewGateCoordinator.js';
 import { PipelineCancelledError } from './pipeline-cancelled.error.js';
-import type { EmitPipelineEventFn } from './run-single-phase.js';
+import type { EmitPipelineEventFn, SequentialPhaseOutcome } from './run-single-phase.js';
 
 export type RunPipelineOrchestratorBlockParams = {
   auditId: string;
   loadExecutionPlan: () => Promise<AuditExecutionPlan>;
   updateAuditIfNotCancelled: (patch: Record<string, unknown>) => Promise<boolean>;
   runParallelBlock: (phases: readonly number[]) => Promise<string[]>;
-  startPhaseSequential: (phase: number) => Promise<void>;
+  startPhaseSequential: (phase: number) => Promise<SequentialPhaseOutcome>;
   emitEvent: EmitPipelineEventFn;
   cancelledErrorFactory: () => PipelineCancelledError;
 };
@@ -104,7 +104,10 @@ export async function runPipelineOrchestratorBlock(params: RunPipelineOrchestrat
       if (!advancedAnalytic) throw cancelledErrorFactory();
 
       if (allExecutablePhases.includes(7)) {
-        await startPhaseSequential(7);
+        const strategyOutcome = await startPhaseSequential(7);
+        if (strategyOutcome !== 'completed') {
+          return;
+        }
 
         const allDomainPhases = [...wingPhases, 7];
         await runStrategyQualityGate({

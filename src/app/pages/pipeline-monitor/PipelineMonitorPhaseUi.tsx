@@ -10,6 +10,7 @@ import {
 import { ScoreBadge } from '../../components/glc/ScoreBadge';
 import { PIPELINE_MONITOR_COPY as PM } from '../../config/pipeline-monitor-copy';
 import type { PhaseView } from './types';
+import type { PipelineReview } from './types-pipeline-state';
 import { cn } from '../../components/ui/utils';
 
 export function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; onSel: () => void }) {
@@ -83,13 +84,16 @@ export function RevBanner({
   hasWarnings,
   canApprove,
 }: {
-  review: { status: string };
+  review: PipelineReview;
   label: string;
   onOpenModal: () => void;
   hasWarnings?: boolean;
   canApprove: boolean;
 }) {
   const done = review.status === 'approved';
+  const consultantSaved = (review.consultant_notes ?? '').trim();
+  const interviewSaved = (review.interview_notes ?? '').trim();
+  const hasSavedNotes = done && (consultantSaved.length > 0 || interviewSaved.length > 0);
   return (
     <div className={cn('flex items-center gap-2.5 rounded-xl border px-3 py-2.5', done ? 'border-success/40 bg-success/10' : 'border-warning/40 bg-warning/10')}>
       <Star className={cn('h-3.5 w-3.5 flex-shrink-0', done ? 'text-success' : 'text-warning')} weight="fill" />
@@ -104,9 +108,35 @@ export function RevBanner({
             </span>
           )}
         </div>
-        <p className="text-muted-foreground mt-0.5 truncate text-xs">
+        <p className="text-muted-foreground mt-0.5 text-xs">
           {done ? PM.revBanner.approved : hasWarnings ? PM.revBanner.qualityWarningsNotes : PM.revBanner.waitingApproval}
         </p>
+        {hasSavedNotes ? (
+          <div className="border-border/60 mt-2 max-h-28 space-y-2 overflow-y-auto border-t pt-2 text-left">
+            {consultantSaved ? (
+              <div>
+                <p className="text-muted-foreground text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide">
+                  {PM.revBanner.savedConsultantNotes}
+                </p>
+                <p className="text-foreground mt-0.5 whitespace-pre-wrap break-words text-[length:var(--text-2xs)] leading-snug">
+                  {consultantSaved}
+                </p>
+              </div>
+            ) : null}
+            {interviewSaved ? (
+              <div>
+                <p className="text-muted-foreground text-[length:var(--text-2xs)] font-semibold uppercase tracking-wide">
+                  {PM.revBanner.savedInterviewNotes}
+                </p>
+                <p className="text-foreground mt-0.5 whitespace-pre-wrap break-words text-[length:var(--text-2xs)] leading-snug">
+                  {interviewSaved}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        ) : done ? (
+          <p className="text-muted-foreground mt-1 text-[length:var(--text-2xs)] leading-snug">{PM.revBanner.noNotesSaved}</p>
+        ) : null}
       </div>
       {!done && canApprove && (
         <motion.button

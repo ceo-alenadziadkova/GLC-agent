@@ -2,6 +2,10 @@ import { useMemo, useState } from 'react';
 import { useAudit } from '../../../hooks/useAudit';
 import { usePipeline } from '../../../hooks/usePipeline';
 import { useProfile } from '../../../hooks/useProfile';
+import { api } from '../../../data/apiService';
+import { toUiApiErrorMessage } from '../../../lib/api-error-ui';
+import { getGlcQueryClient } from '../../../lib/glc-query-client';
+import { invalidateAuditRelatedQueries } from '../../../lib/glc-invalidate-queries';
 import { PIPELINE_MONITOR_UI_POLICY } from '../config/pipeline-monitor-ui-policy';
 import { useClientPortalPipelineGate } from './useClientPortalPipelineGate';
 import {
@@ -9,6 +13,11 @@ import {
   selectPhaseViews,
   selectPipelineProgressPct,
 } from '../selectors/phase-view.selector';
+import {
+  hasNonEmptyReviewNotesForRerun,
+  isPipelineStrategyReviewGateAfterPhase,
+  PIPELINE_STRATEGY_PHASE_INDEX,
+} from '../../../config/pipeline-phase-policy';
 import { createQualityGateByPhaseMap } from '../selectors/quality-gates.selector';
 import {
   getGovernanceRefinesForReviewModal,
@@ -20,18 +29,23 @@ export function usePipelineMonitorController(id: string | undefined) {
     state: pipelineState,
     loading: pipeLoading,
     error: pipeError,
+    runNextPhaseBusy,
     startPipeline,
     runNextPhase,
     stopPipeline,
+    retryPhase,
     approveReview,
+    reload: reloadPipeline,
   } = usePipeline(id);
   const { audit, loading: auditLoading } = useAudit(id);
-  const { isClient } = useProfile();
+  const { isClient, canManagePlatformSettings } = useProfile();
 
   const [selectedPhaseId, setSelectedPhaseId] = useState(0);
   const [modalReview, setModalReview] = useState<{ afterPhase: number; label: string } | null>(null);
   const [isStopping, setIsStopping] = useState(false);
   const [stopDialogOpen, setStopDialogOpen] = useState(false);
+  const [resumeCancelledBusy, setResumeCancelledBusy] = useState(false);
+  const [resumeCancelledError, setResumeCancelledError] = useState<string | null>(null);
 
   const clientPortalOk = useClientPortalPipelineGate({
     isClient,
@@ -75,8 +89,22 @@ export function usePipelineMonitorController(id: string | undefined) {
 
   async function handleApprove(_id: number, consultantNotes: string, interviewNotes: string) {
     if (!modalReview) return;
-    await approveReview(modalReview.afterPhase, consultantNotes || undefined, interviewNotes || undefined);
+    const ok = await approveReview(
+      modalReview.afterPhase,
+      consultantNotes || undefined,
+      interviewNotes || undefined,
+    );
+    if (!ok) return;
+    const afterPhase = modalReview.afterPhase;
+    const shouldRerunStrategy =
+      isPipelineStrategyReviewGateAfterPhase(afterPhase) &&
+      hasNonEmptyReviewNotesForRerun(consultantNotes, interviewNotes);
     setModalReview(null);
+    if (shouldRerunStrategy) {
+      await retryPhase(PIPELINE_STRATEGY_PHASE_INDEX);
+    } else {
+      await runNextPhase();
+    }
   }
 
   async function handleStopPipeline() {
@@ -90,12 +118,29 @@ export function usePipelineMonitorController(id: string | undefined) {
     }
   }
 
+  async function handleResumeCancelledPlatform() {
+    if (!id || resumeCancelledBusy) return;
+    setResumeCancelledBusy(true);
+    setResumeCancelledError(null);
+    try {
+      await api.resumePlatformPipelineFromCancelled(id);
+      invalidateAuditRelatedQueries(getGlcQueryClient(), id);
+      await reloadPipeline();
+    } catch (err) {
+      setResumeCancelledError(toUiApiErrorMessage(err));
+    } finally {
+      setResumeCancelledBusy(false);
+    }
+  }
+
   return {
     pipelineState,
     pipeLoading,
     pipeError,
+    runNextPhaseBusy,
     startPipeline,
     runNextPhase,
+    retryPhase,
     audit,
     isClient,
     clientPortalOk,
@@ -119,5 +164,9 @@ export function usePipelineMonitorController(id: string | undefined) {
     canStopPipeline,
     handleApprove,
     handleStopPipeline,
+    canManagePlatformSettings,
+    resumeCancelledBusy,
+    resumeCancelledError,
+    handleResumeCancelledPlatform,
   };
 }

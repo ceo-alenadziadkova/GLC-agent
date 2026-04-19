@@ -12,6 +12,7 @@ import {
   WarningCircle,
   X,
 } from '@phosphor-icons/react';
+import { ReconReviewSummary } from '../../../components/glc/ReconReviewSummary';
 import { ScoreBadge } from '../../../components/glc/ScoreBadge';
 import { SectionLabel } from '../../../components/glc/SectionLabel';
 import { StatusPill } from '../../../components/glc/StatusPill';
@@ -19,8 +20,11 @@ import { Callout } from '../../../../design-system/ui';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
 import { PIPELINE_MONITOR_COPY as PM } from '../../../config/pipeline-monitor-copy';
 import { ANALYTIC_WING_IDS, AUTO_WING_IDS } from '../../../lib/pipeline-monitor-helpers';
+import { getPhaseResultViewPath } from '../utils/pipeline-monitor-format';
+import { STRATEGY_PHASE_ID } from '../phase-meta';
 import { ParallelWingBanner } from '../PipelineMonitorPhaseUi';
 import { PIPELINE_MONITOR_UI_POLICY } from '../config/pipeline-monitor-ui-policy';
+import type { ReconData } from '../../../data/auditTypes';
 import type { PhaseView } from '../types';
 import type { PipelineStateLite } from '../types-pipeline-state';
 import { PipelineSummaryFooter } from './PipelineSummaryFooter';
@@ -35,7 +39,9 @@ export function PhaseDetailPanel(props: {
   isCreated: boolean;
   isClient: boolean;
   isExpress: boolean;
-  workspacePath: string;
+  recon: ReconData | null;
+  showReconCrawlerTruncationWarning: boolean;
+  auditId: string | undefined;
   governance: {
     controlObject: {
       decision_hint?: string;
@@ -49,8 +55,16 @@ export function PhaseDetailPanel(props: {
     } | null;
     refine: { reasoning: string } | null;
   };
+  auditStatus: string;
+  canManagePlatformSettings: boolean;
+  resumeCancelledBusy: boolean;
+  resumeCancelledError: string | null;
+  onResumeCancelledPlatform: () => void | Promise<void>;
   onStartPipeline: () => void;
   onRunNextPhase: () => void;
+  /** True while Continue → POST /pipeline/next is in flight. */
+  runNextPhaseBusy: boolean;
+  onRetryPhase: (phase: number) => void | Promise<void>;
 }) {
   const {
     selectedPhase,
@@ -60,11 +74,46 @@ export function PhaseDetailPanel(props: {
     isCreated,
     isClient,
     isExpress,
-    workspacePath,
+    recon,
+    showReconCrawlerTruncationWarning,
+    auditId,
     governance,
+    auditStatus,
+    canManagePlatformSettings,
+    resumeCancelledBusy,
+    resumeCancelledError,
+    onResumeCancelledPlatform,
     onStartPipeline,
     onRunNextPhase,
+    runNextPhaseBusy,
+    onRetryPhase,
   } = props;
+  const currentPhase = pipelineState?.current_phase ?? -1;
+  /** Mirrors server `fetchPendingReviewAfterPhase(auditId, current_phase)` — blocks Continue until this gate is approved. */
+  const pendingReviewForCurrentPhase = pipelineState?.reviews?.find(
+    r => r.after_phase === currentPhase && r.status === 'pending',
+  );
+  const isReviewBlockingContinue = Boolean(pendingReviewForCurrentPhase);
+  /** Show from any selected phase so consultants on Strategy (7) still see Continue when `current_phase` is 6, etc. */
+  const showContinuePipeline =
+    !isClient &&
+    auditStatus === PIPELINE_MONITOR_UI_POLICY.status.review &&
+    !isReviewBlockingContinue;
+
+  /** Agent finished this phase (`completed`), or pipeline paused at a review gate (`review`) — show outputs and workspace link. */
+  const phaseHasAgentOutput =
+    selectedPhase.status === 'completed' || selectedPhase.status === PIPELINE_MONITOR_UI_POLICY.status.review;
+
+  const phaseResultPath = getPhaseResultViewPath({
+    phaseId: selectedPhase.id,
+    auditId,
+    isClient,
+  });
+  const phaseResultLinkLabel =
+    selectedPhase.id === STRATEGY_PHASE_ID && !isClient
+      ? PM.detail.viewStrategyRoadmap
+      : PM.detail.viewInWorkspace;
+
   const Icon = selectedPhase.icon;
   const qualityRunningAuto = phases.some(phase => AUTO_WING_IDS.includes(phase.id) && phase.status === 'running');
   const qualityRunningAnalytic = phases.some(
@@ -101,6 +150,42 @@ export function PhaseDetailPanel(props: {
             <p className="text-sm font-medium text-[var(--score-1)]">
               {PM.errorPrefix} {pipeError}
             </p>
+          </Callout>
+        )}
+
+        {auditStatus === PIPELINE_MONITOR_UI_POLICY.status.cancelled && !canManagePlatformSettings && !isClient && (
+          <Callout intent="warning" className="mb-4 p-4">
+            <p className="text-foreground text-sm font-medium">{PM.detail.pipelineCancelledConsultantTitle}</p>
+            <p className="text-muted-foreground mt-1 text-xs leading-relaxed">{PM.detail.pipelineCancelledConsultantBody}</p>
+          </Callout>
+        )}
+
+        {auditStatus === PIPELINE_MONITOR_UI_POLICY.status.cancelled && canManagePlatformSettings && !isClient && (
+          <Callout intent="warning" className="mb-4 p-4">
+            <p className="text-foreground mb-2 text-sm font-medium">{PM.detail.resumeCancelledPlatform}</p>
+            <p className="text-muted-foreground mb-3 text-xs">{PM.detail.resumeCancelledPlatformHint}</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={resumeCancelledBusy}
+              onClick={() => void onResumeCancelledPlatform()}
+            >
+              {resumeCancelledBusy ? (
+                <>
+                  <ArrowsClockwise className="w-4 h-4 animate-spin" /> {PM.detail.resumeCancelledPlatformBusy}
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4" /> {PM.detail.resumeCancelledPlatform}
+                </>
+              )}
+            </Button>
+            {resumeCancelledError && (
+              <p className="text-[var(--score-1)] mt-2 text-xs font-medium">
+                {PM.errorPrefix} {resumeCancelledError}
+              </p>
+            )}
           </Callout>
         )}
 
@@ -151,6 +236,21 @@ export function PhaseDetailPanel(props: {
               </div>
             </div>
 
+            {selectedPhase.id === 0 && !isClient && !isCreated ? (
+              <div className="space-y-3">
+                <SectionLabel>{PM.detail.reconPreviewSectionTitle}</SectionLabel>
+                <ReconReviewSummary
+                  recon={recon}
+                  showCrawlerTruncationWarning={showReconCrawlerTruncationWarning}
+                  copy={{
+                    ...PM.reviewModal.recon,
+                    introTitle: PM.detail.reconPreviewIntroTitle,
+                    introBody: PM.detail.reconPreviewIntroBody,
+                  }}
+                />
+              </div>
+            ) : null}
+
             {selectedPhase.status === 'running' && (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -176,17 +276,42 @@ export function PhaseDetailPanel(props: {
 
             {selectedPhase.status === 'pending' && (
               <div className="glc-card rounded-xl border-dashed p-10 text-center">
-                <Clock className="text-muted-foreground mx-auto mb-3 h-8 w-8" />
-                <p className="text-muted-foreground text-sm font-medium">
-                  {PM.detail.waitingTitle}
-                </p>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  {PM.detail.waitingSubtitle}
-                </p>
+                {auditStatus === PIPELINE_MONITOR_UI_POLICY.status.failed ? (
+                  <>
+                    <WarningCircle className="text-destructive mx-auto mb-3 h-8 w-8" />
+                    <p className="text-foreground text-sm font-medium">
+                      {PM.detail.pipelineFailedPendingTitle}
+                    </p>
+                    <p className="text-muted-foreground mx-auto mt-2 max-w-md text-xs leading-relaxed">
+                      {PM.detail.pipelineFailedPendingSubtitle}
+                    </p>
+                    {!isClient && pipelineState != null && (
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => void onRetryPhase(pipelineState.current_phase)}
+                        className="mt-5 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90"
+                      >
+                        <ArrowsClockwise className="w-4 h-4" /> {PM.header.retryFailedPipeline}
+                      </motion.button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Clock className="text-muted-foreground mx-auto mb-3 h-8 w-8" />
+                    <p className="text-muted-foreground text-sm font-medium">
+                      {PM.detail.waitingTitle}
+                    </p>
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      {PM.detail.waitingSubtitle}
+                    </p>
+                  </>
+                )}
               </div>
             )}
 
-            {selectedPhase.status === 'failed' && (
+            {selectedPhase.status === PIPELINE_MONITOR_UI_POLICY.status.failed && (
               <Callout intent="danger" className="p-4">
                 <div className="flex items-center gap-2 mb-1">
                   <WarningCircle className="text-destructive h-4 w-4 flex-shrink-0" />
@@ -200,7 +325,7 @@ export function PhaseDetailPanel(props: {
               </Callout>
             )}
 
-            {selectedPhase.status === 'completed' && governance.refine && (
+            {phaseHasAgentOutput && governance.refine && (
               <div className="bg-warning/10 border-warning/40 rounded-xl border p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <WarningCircle className="text-warning h-4 w-4 flex-shrink-0" />
@@ -217,7 +342,7 @@ export function PhaseDetailPanel(props: {
               </div>
             )}
 
-            {selectedPhase.status === 'completed' && !governance.refine && governance.controlObject?.decision_hint === 'accept_with_warnings' && (
+            {phaseHasAgentOutput && !governance.refine && governance.controlObject?.decision_hint === 'accept_with_warnings' && (
               <div className="bg-info/10 border-info/40 rounded-xl border p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Info className="text-info h-4 w-4 flex-shrink-0" />
@@ -231,7 +356,7 @@ export function PhaseDetailPanel(props: {
               </div>
             )}
 
-            {selectedPhase.status === 'completed' && governance.controlObject && (
+            {phaseHasAgentOutput && governance.controlObject && (
               <div className="glc-card rounded-xl p-4">
                 <SectionLabel className="mb-2">{PM.detail.governanceSummaryTitle}</SectionLabel>
                 {(governance.controlObject.auto_remediation_applied_count ?? 0) > 0 && (
@@ -321,7 +446,7 @@ export function PhaseDetailPanel(props: {
               </div>
             )}
 
-            {selectedPhase.status === 'completed' && selectedPhase.score !== null && (
+            {phaseHasAgentOutput && selectedPhase.score !== null && (
               <div className="glc-card rounded-xl p-5">
                 <div className="flex items-center justify-between mb-4">
                   <SectionLabel>{PM.detail.domainScore}</SectionLabel>
@@ -331,21 +456,48 @@ export function PhaseDetailPanel(props: {
             )}
 
             <div className="flex items-center gap-3">
-              {selectedPhase.status === 'completed' && (
+              {phaseHasAgentOutput && (
                 <Button asChild variant="outline" size="sm" className="no-underline">
-                  <Link to={workspacePath}>
-                    {PM.detail.viewInWorkspace} <CaretRight className="w-4 h-4" />
+                  <Link to={phaseResultPath}>
+                    {phaseResultLinkLabel} <CaretRight className="w-4 h-4" />
                   </Link>
                 </Button>
               )}
-              {selectedPhase.status === 'review' && !isClient && (
+              {selectedPhase.status === PIPELINE_MONITOR_UI_POLICY.status.failed && !isClient && (
                 <motion.button
+                  type="button"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={onRunNextPhase}
+                  onClick={() => void onRetryPhase(selectedPhase.id)}
                   className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90"
                 >
-                  <Play className="w-4 h-4" /> {PM.detail.continuePipeline}
+                  <ArrowsClockwise className="w-4 h-4" /> {PM.detail.retryFailedPhase}
+                </motion.button>
+              )}
+              {showContinuePipeline && (
+                <motion.button
+                  type="button"
+                  whileHover={runNextPhaseBusy ? undefined : { scale: 1.02 }}
+                  whileTap={runNextPhaseBusy ? undefined : { scale: 0.98 }}
+                  disabled={runNextPhaseBusy || resumeCancelledBusy}
+                  aria-busy={runNextPhaseBusy}
+                  onClick={() => void onRunNextPhase()}
+                  className={cn(
+                    'inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90',
+                    (runNextPhaseBusy || resumeCancelledBusy) && 'pointer-events-none opacity-70',
+                  )}
+                >
+                  {runNextPhaseBusy ? (
+                    <>
+                      <CircleNotch className="h-4 w-4 animate-spin" aria-hidden />
+                      {PM.detail.continuePipelineBusy}
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4" aria-hidden />
+                      {PM.detail.continuePipeline}
+                    </>
+                  )}
                 </motion.button>
               )}
             </div>

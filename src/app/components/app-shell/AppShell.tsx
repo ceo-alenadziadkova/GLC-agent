@@ -124,7 +124,7 @@ export function AppShell({ children, title, subtitle, actions }: AppShellProps) 
           shellCopy={APP_SHELL_COPY}
         />
 
-        <DesktopHeader title={title} subtitle={subtitle} actions={actions} isSmUp={isSmUp} />
+        <DesktopHeader title={title} subtitle={subtitle} actions={actions} />
 
         <main className="flex-1 overflow-y-auto min-h-0 glc-main-mobile-nav-pad">{children}</main>
 

@@ -19,6 +19,11 @@ import { FullAuditPage }    from './pages/FullAuditPage';
 import { ProAuditPage }     from './pages/ProAuditPage';
 import { PublicBriefPage }  from './pages/PublicBriefPage';
 import { FaqPage }          from './pages/FaqPage';
+import { DataProcessingAgreementPage } from './pages/DataProcessingAgreementPage';
+import { LegalNoticePage } from './pages/LegalNoticePage';
+import { CookiesPolicyPage } from './pages/CookiesPolicyPage';
+import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
+import { TermsOfServicePage } from './pages/TermsOfServicePage';
 import { DiscoveryPublicPage } from './pages/DiscoveryPublicPage';
 import { DiscoveryQueue }   from './pages/DiscoveryQueue';
 import { SettingsPage }     from './pages/SettingsPage';
@@ -29,6 +34,7 @@ import { AdminDesignSystemPage } from './pages/AdminDesignSystemPage';
 import { ProtectedRoute }   from './components/ProtectedRoute';
 import { ClientPortalPipelineProvider } from './context/ClientPortalPipelineContext';
 import { RouteErrorPage }   from './components/RouteErrorPage';
+import { CookieConsentProvider } from './components/cookie-consent/CookieConsentProvider';
 import { APP_ROUTE_SEGMENTS as P, SPA_ROUTE_SEGMENTS as R } from '@glc/intake-core';
 
 function PNoGuest({ children }: { children: ReactNode }) {
@@ -61,10 +67,10 @@ function RootOutlet() {
   }, []);
 
   return (
-    <>
+    <CookieConsentProvider>
       <ScrollRestoration />
       <Outlet />
-    </>
+    </CookieConsentProvider>
   );
 }
 
@@ -83,6 +89,11 @@ export const router = createBrowserRouter([
       { path: 'express-audit', element: <Navigate to={`/${R.starterPackage}`} replace /> },
       { path: P.brief, element: <PublicBriefPage /> },
       { path: P.faq, element: <FaqPage /> },
+      { path: 'legal/terms', element: <TermsOfServicePage /> },
+      { path: 'legal/privacy', element: <PrivacyPolicyPage /> },
+      { path: 'legal/cookies', element: <CookiesPolicyPage /> },
+      { path: 'legal/dpa', element: <DataProcessingAgreementPage /> },
+      { path: 'legal/aviso-legal', element: <LegalNoticePage /> },
       { path: P.intakeToken, element: <IntakeBrief /> },
       { path: P.discoveryPublicLegacy, element: <DiscoveryPublicPage /> },
       { path: R.discovery, element: <DiscoveryPublicPage /> },

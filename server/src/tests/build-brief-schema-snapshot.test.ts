@@ -21,6 +21,8 @@ describe('buildBriefSchemaSnapshot', () => {
     expect(schema.derived.ai_readiness_score).toBeGreaterThanOrEqual(0);
     expect(schema.derived.confidence_overall).toBeGreaterThanOrEqual(0);
     expect(schema.derived.confidence_overall).toBeLessThanOrEqual(1);
+    expect(schema.legal).toBeDefined();
+    expect(schema.legal?.a2?.legal_basis).toBe('contract');
   });
 
   it('uses null surface when caller passes undefined (discovery-style)', () => {

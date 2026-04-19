@@ -1,5 +1,27 @@
 import { z } from 'zod';
 import { AGENT_OUTPUT_LIMITS } from '../config/agent-output-limits.js';
+import {
+  STRATEGY_COMPANY_STAGES,
+  STRATEGY_EXECUTION_PACK_LIMITS,
+  STRATEGY_EXECUTION_PATH_TYPES,
+  STRATEGY_INITIATIVE_DOMAIN_KEYS,
+  STRATEGY_INITIATIVE_LIMITS,
+  STRATEGY_INITIATIVE_PRIORITIES,
+  type StrategyInitiativeDomainKey,
+} from '../config/strategy-initiative-policy.js';
+import { DOMAIN_KEYS } from '@glc/intake-core';
+
+const L = STRATEGY_INITIATIVE_LIMITS;
+const EP = STRATEGY_EXECUTION_PACK_LIMITS;
+
+const initiativeDomainEnum = [...STRATEGY_INITIATIVE_DOMAIN_KEYS] as [
+  StrategyInitiativeDomainKey,
+  ...StrategyInitiativeDomainKey[],
+];
+const companyStageEnum = [...STRATEGY_COMPANY_STAGES] as [string, ...string[]];
+const initiativePriorityEnum = [...STRATEGY_INITIATIVE_PRIORITIES] as [string, ...string[]];
+const pathTypeEnum = [...STRATEGY_EXECUTION_PATH_TYPES] as [string, ...string[]];
+const evidenceDomainEnum = [...DOMAIN_KEYS] as [string, ...string[]];
 
 // ─── Recon Output Schema ───────────────────────────────────
 export const ReconOutputSchema = z.object({
@@ -108,13 +130,110 @@ export const DomainOutputSchema = z.object({
 export type DomainOutput = z.infer<typeof DomainOutputSchema>;
 
 // ─── Strategy Output ───────────────────────────────────────
+export const StrategyInitiativeEvidenceSourceSchema = z.object({
+  domain_key: z.enum(evidenceDomainEnum),
+  /** When set, must match an issue id from that domain's saved audit output (validated server-side). */
+  issue_id: z.string().max(L.idMaxLength).optional(),
+  /** Free-text signal when no stable issue id exists. */
+  signal: z.string().max(L.bulletMaxLength).optional(),
+});
+
+export const StrategyInitiativeExecutionPathSchema = z.object({
+  type: z.enum(pathTypeEnum),
+  description: z.string().min(1).max(L.pathDescriptionMaxLength),
+  time_estimate: z.string().min(1).max(L.pathTimeEstimateMaxLength),
+  tools: z.array(z.string().min(1).max(L.pathToolNameMaxLength)).max(L.pathToolsMax).optional(),
+  architecture: z.string().max(L.pathDescriptionMaxLength).optional(),
+  steps: z.array(z.string().min(1).max(L.pathStepMaxLength)).max(L.pathStepsMax).optional(),
+  incompatible: z.boolean().optional(),
+  incompatibility_reason: z.string().max(80).optional(),
+});
+
 export const StrategyInitiativeSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  description: z.string(),
+  id: z.string().min(1).max(L.idMaxLength),
+  title: z.string().min(L.titleMinLength).max(L.titleMaxLength),
+  description: z.string().min(1).max(L.descriptionMaxLength),
+  domain: z.enum(initiativeDomainEnum),
+  stage: z.enum(companyStageEnum),
+  priority: z.enum(initiativePriorityEnum),
   impact: z.enum(['high', 'medium', 'low']),
   effort: z.enum(['low', 'medium', 'high']),
-  dependencies: z.array(z.string()).optional(),
+  confidence: z.number().min(L.confidenceMin).max(L.confidenceMax),
+  context: z.object({
+    signals: z.array(z.string().min(1).max(L.bulletMaxLength)).min(L.contextSignalsMin).max(L.contextSignalsMax),
+    problems: z.array(z.string().min(1).max(L.bulletMaxLength)).max(L.contextProblemsMax).optional(),
+    risks: z.array(z.string().min(1).max(L.bulletMaxLength)).max(L.contextRisksMax).optional(),
+  }),
+  outcome: z.object({
+    description: z.string().min(1).max(L.outcomeDescriptionMaxLength),
+    timeframe: z.string().max(L.outcomeTimeframeMaxLength).optional(),
+  }),
+  scope: z.object({
+    includes: z.array(z.string().min(1).max(L.bulletMaxLength)).min(L.scopeIncludesMin).max(L.scopeIncludesMax),
+    excludes: z.array(z.string().min(1).max(L.bulletMaxLength)).min(L.scopeExcludesMin).max(L.scopeExcludesMax),
+  }),
+  execution_paths: z
+    .array(StrategyInitiativeExecutionPathSchema)
+    .min(L.executionPathsMin)
+    .max(L.executionPathsMax),
+  dependencies: z.array(z.string().min(1).max(L.idMaxLength)).max(L.dependenciesMax).optional(),
+  alternatives: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(L.alternativeNameMaxLength),
+        type: z.string().max(40).optional(),
+        pros: z.array(z.string().min(1).max(L.alternativeBulletMaxLength)).max(L.alternativeBulletsMax).optional(),
+        cons: z.array(z.string().min(1).max(L.alternativeBulletMaxLength)).max(L.alternativeBulletsMax).optional(),
+      }),
+    )
+    .max(L.alternativesMax)
+    .optional(),
+  automation: z
+    .object({
+      level: z.enum(['none', 'low', 'medium', 'high']),
+      tools: z.array(z.string().min(1).max(L.pathToolNameMaxLength)).max(L.pathToolsMax).optional(),
+    })
+    .optional(),
+  constraints: z
+    .object({
+      budget: z.string().max(80).optional(),
+      team: z.string().max(80).optional(),
+      tech: z.string().max(200).optional(),
+    })
+    .optional(),
+  readiness: z
+    .object({
+      score: z.number().min(0).max(1),
+      blockers: z.array(z.string().min(1).max(L.readinessBlockerMaxLength)).max(L.readinessBlockersMax).optional(),
+    })
+    .optional(),
+  decision: z.object({
+    why_this: z.array(z.string().min(1).max(L.bulletMaxLength)).min(L.whyThisMin).max(L.whyThisMax),
+    tradeoffs: z.array(z.string().min(1).max(L.bulletMaxLength)).max(L.tradeoffsMax).optional(),
+    if_skipped: z.array(z.string().min(1).max(L.bulletMaxLength)).max(L.ifSkippedMax).optional(),
+  }),
+  evidence: z.object({
+    sources: z
+      .array(StrategyInitiativeEvidenceSourceSchema)
+      .min(1)
+      .max(L.evidenceSourcesMax),
+  }),
+  /** Set server-side after evidence link validation. */
+  evidence_verified: z.boolean().optional(),
+});
+
+/** One initiative's generated execution pack (on-demand Claude output). */
+export const StrategyExecutionPackItemSchema = z.object({
+  initiative_id: z.string().min(1).max(L.idMaxLength),
+  tasks: z.array(z.string().min(1).max(EP.taskMaxLength)).min(1).max(EP.tasksMax),
+  architecture: z.string().min(1).max(EP.architectureMaxLength),
+  artifacts: z.array(z.string().min(1).max(EP.artifactMaxLength)).max(EP.artifactsMax).optional(),
+  templates: z.array(z.string().min(1).max(EP.templateMaxLength)).max(EP.templatesMax).optional(),
+  prompts: z.array(z.string().min(1).max(EP.promptMaxLength)).max(EP.promptsMax).optional(),
+});
+
+export const StrategyExecutionPackOutputSchema = z.object({
+  packs: z.array(StrategyExecutionPackItemSchema).min(1),
 });
 
 export const StrategyOutputSchema = z.object({
@@ -136,6 +255,9 @@ export const StrategyOutputSchema = z.object({
 });
 
 export type StrategyOutput = z.infer<typeof StrategyOutputSchema>;
+
+export type StrategyInitiative = z.infer<typeof StrategyInitiativeSchema>;
+export type StrategyExecutionPackOutput = z.infer<typeof StrategyExecutionPackOutputSchema>;
 
 // ─── JSON Schema versions (for Claude tool_use) ───────────
 // Converts Zod schemas to JSON Schema for Claude's tool_use parameter.

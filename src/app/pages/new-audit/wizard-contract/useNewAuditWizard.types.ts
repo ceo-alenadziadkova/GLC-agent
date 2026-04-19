@@ -83,6 +83,12 @@ export type NewAuditWizardContract = {
   setDraftRestoredVisible: Dispatch<SetStateAction<boolean>>;
   handleSaveClientDraft: () => Promise<void>;
   handleLaunch: (e: FormEvent) => Promise<void>;
+
+  consultantDpaLoading: boolean;
+  consultantDpaOnFile: boolean;
+  consultantDpaChecked: boolean;
+  setConsultantDpaChecked: Dispatch<SetStateAction<boolean>>;
+
   preBriefOpen: boolean;
   setPreBriefOpen: Dispatch<SetStateAction<boolean>>;
   preBriefCompany: string;

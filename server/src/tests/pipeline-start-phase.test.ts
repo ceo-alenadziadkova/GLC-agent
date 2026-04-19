@@ -182,6 +182,10 @@ function getDomainUpdates() {
   return getUpdateCalls().filter(c => c.table === 'audit_domains');
 }
 
+function getReviewPointUpdates() {
+  return getUpdateCalls().filter(c => c.table === 'review_points');
+}
+
 function getPipelineInserts() {
   return getInsertCalls().filter(c => c.table === 'pipeline_events');
 }
@@ -402,5 +406,17 @@ describe('PipelineOrchestrator.startPhase(7) — Strategy phase', () => {
     await orch.startPhase(7);
     const events = getPipelineInserts().map(e => (e.payload as Record<string, unknown>).event_type);
     expect(events).toContain('review_needed');
+  });
+
+  it('reopens the review_points row to pending before review_needed (enables Strategy reruns)', async () => {
+    const orch = new PipelineOrchestrator(AUDIT_ID);
+    await orch.startPhase(7);
+    const reopen = getReviewPointUpdates().find(
+      u =>
+        u.filters.audit_id === AUDIT_ID &&
+        Number(u.filters.after_phase) === 7 &&
+        u.payload.status === 'pending',
+    );
+    expect(reopen).toBeDefined();
   });
 });

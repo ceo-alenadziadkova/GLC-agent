@@ -78,11 +78,15 @@ export function selectPhaseViews(args: {
   });
 }
 
-export function selectReviewForPhase(
-  reviews: PipelineReview[],
-  afterPhase: number,
-): { status: string } {
-  return reviews.find(review => review.after_phase === afterPhase) || { status: 'pending' };
+export function selectReviewForPhase(reviews: PipelineReview[], afterPhase: number): PipelineReview {
+  return (
+    reviews.find(review => review.after_phase === afterPhase) ?? {
+      after_phase: afterPhase,
+      status: 'pending',
+      consultant_notes: null,
+      interview_notes: null,
+    }
+  );
 }
 
 export function selectPipelineProgressPct(phases: PhaseView[]): number {

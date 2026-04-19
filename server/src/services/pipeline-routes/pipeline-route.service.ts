@@ -5,6 +5,7 @@ export { runPipelineStart } from './use-cases/start-pipeline.use-case.js';
 export { runPipelineNext } from './use-cases/next-pipeline.use-case.js';
 export { runPipelineRetry } from './use-cases/retry-pipeline.use-case.js';
 export { runPipelineStop } from './use-cases/stop-pipeline.use-case.js';
+export { runPipelineResumeFromCancelled } from './use-cases/resume-pipeline-from-cancelled.use-case.js';
 export { loadPipelineStatus } from './use-cases/load-pipeline-status.use-case.js';
 export { loadQualityGateData } from './use-cases/load-quality-gate.use-case.js';
 export { runReviewApprove } from './use-cases/approve-review.use-case.js';

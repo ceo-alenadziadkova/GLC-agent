@@ -15,6 +15,8 @@ import { SelfServeSection } from './sections/SelfServeSection';
 import { BriefLayoutSection } from './sections/BriefLayoutSection';
 import { NotificationsSection } from './sections/NotificationsSection';
 import { AccountSecuritySection } from './sections/AccountSecuritySection';
+import { TokenUsageSection } from './sections/TokenUsageSection';
+import { LegalConsentsSection } from './sections/LegalConsentsSection';
 
 type GeneralSectionsProps = {
   controller: ReturnType<typeof useSettingsPageController>;
@@ -31,6 +33,7 @@ function GeneralSections({ controller }: GeneralSectionsProps) {
         disabled={!controller.nameChanged}
       />
       <AppearanceSection mode={controller.mode} onModeChange={controller.setMode} />
+      {controller.isConsultant ? <TokenUsageSection enabled /> : null}
       {controller.profile && controller.isConsultant && (
         <SelfServeSection
           selfServeLoading={controller.selfServeLoading}
@@ -50,6 +53,7 @@ function GeneralSections({ controller }: GeneralSectionsProps) {
         onConsultantChange={controller.setConsultantBriefLayoutDefault}
       />
       <NotificationsSection notifyPrefs={controller.notifyPrefs} setNotifyPrefs={controller.setNotifyPrefs} />
+      <LegalConsentsSection enabled={Boolean(controller.profile && !controller.isGuest)} />
       <AccountSecuritySection
         email={controller.user?.email ?? ''}
         newEmail={controller.newEmail}

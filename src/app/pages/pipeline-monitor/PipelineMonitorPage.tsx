@@ -5,13 +5,15 @@ import { ReviewPointModal } from '../../components/glc/ReviewPointModal';
 import { PIPELINE_MONITOR_COPY as PM } from '../../config/pipeline-monitor-copy';
 import { hasQualityWarnings } from './selectors/quality-gates.selector';
 import { selectReviewForPhase } from './selectors/phase-view.selector';
-import { getPipelineMonitorCompanyName, getWorkspacePath } from './utils/pipeline-monitor-format';
+import { getPipelineMonitorCompanyName } from './utils/pipeline-monitor-format';
 import { usePipelineMonitorController } from './hooks/usePipelineMonitorController';
 import { PIPELINE_MONITOR_UI_POLICY } from './config/pipeline-monitor-ui-policy';
 import { MonitorHeaderActions } from './sections/MonitorHeaderActions';
 import { PhaseSidebar } from './sections/PhaseSidebar';
 import { PhaseDetailPanel } from './sections/PhaseDetailPanel';
 import { StopPipelineDialog } from './sections/StopPipelineDialog';
+import { pipelineHasReconCrawlerTruncationWarning } from '../../lib/pipeline-recon-truncation';
+import type { PipelineReview } from './types-pipeline-state';
 
 export function PipelineMonitorPage() {
   const { id } = useParams<{ id: string }>();
@@ -20,8 +22,10 @@ export function PipelineMonitorPage() {
     pipelineState,
     pipeLoading,
     pipeError,
+    runNextPhaseBusy,
     startPipeline,
     runNextPhase,
+    retryPhase,
     audit,
     isClient,
     clientPortalOk,
@@ -45,12 +49,19 @@ export function PipelineMonitorPage() {
     canStopPipeline,
     handleApprove,
     handleStopPipeline,
+    canManagePlatformSettings,
+    resumeCancelledBusy,
+    resumeCancelledError,
+    handleResumeCancelledPlatform,
   } = controller;
 
   const companyName = getPipelineMonitorCompanyName(audit);
-  const workspacePath = getWorkspacePath(id, isClient);
+  const failedRetryPhase =
+    auditStatus === PIPELINE_MONITOR_UI_POLICY.status.failed && pipelineState != null
+      ? pipelineState.current_phase
+      : null;
 
-  const reviewStatusByPhase = new Map<number, { status: string }>([
+  const reviewByPhase = new Map<number, PipelineReview>([
     [0, selectReviewForPhase(reviews, 0)],
     [4, selectReviewForPhase(reviews, 4)],
     [7, selectReviewForPhase(reviews, 7)],
@@ -98,6 +109,9 @@ export function PipelineMonitorPage() {
           canStopPipeline={canStopPipeline}
           isStopping={isStopping}
           onOpenStopDialog={() => setStopDialogOpen(true)}
+          isClient={isClient}
+          failedRetryPhase={failedRetryPhase}
+          onRetryFailedPhase={retryPhase}
         />
       }
     >
@@ -107,7 +121,7 @@ export function PipelineMonitorPage() {
           selectedPhaseId={selectedPhaseId}
           isExpress={isExpress}
           isClient={isClient}
-          reviewStatusByPhase={reviewStatusByPhase}
+          reviewByPhase={reviewByPhase}
           reviewWarningsByPhase={reviewWarningsByPhase}
           onSelectPhase={setSelectedPhaseId}
           onOpenReviewModal={(afterPhase, label) => setModalReview({ afterPhase, label })}
@@ -120,10 +134,19 @@ export function PipelineMonitorPage() {
           isCreated={isCreated}
           isClient={isClient}
           isExpress={isExpress}
-          workspacePath={workspacePath}
+          recon={audit?.recon ?? null}
+          showReconCrawlerTruncationWarning={pipelineHasReconCrawlerTruncationWarning(pipelineState?.events ?? [])}
+          auditId={id}
           governance={governance}
+          auditStatus={auditStatus}
+          canManagePlatformSettings={canManagePlatformSettings}
+          resumeCancelledBusy={resumeCancelledBusy}
+          resumeCancelledError={resumeCancelledError}
+          onResumeCancelledPlatform={handleResumeCancelledPlatform}
           onStartPipeline={startPipeline}
           onRunNextPhase={runNextPhase}
+          runNextPhaseBusy={runNextPhaseBusy}
+          onRetryPhase={retryPhase}
         />
       </div>
 
@@ -140,6 +163,15 @@ export function PipelineMonitorPage() {
         governanceRefines={governanceRefinesForModal}
         governanceRefineSectionTitle={PM.reviewModal.governanceRefineSectionTitle}
         governanceRefineSectionIntro={PM.reviewModal.governanceRefineSectionIntro}
+        reconReviewSummary={
+          modalReview?.afterPhase === 0
+            ? {
+                recon: audit?.recon ?? null,
+                copy: PM.reviewModal.recon,
+                showCrawlerTruncationWarning: pipelineHasReconCrawlerTruncationWarning(pipelineState?.events ?? []),
+              }
+            : null
+        }
       />
 
       <StopPipelineDialog

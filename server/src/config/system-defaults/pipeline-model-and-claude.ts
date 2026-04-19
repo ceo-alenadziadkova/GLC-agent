@@ -6,6 +6,8 @@ export const SYSTEM_DEFAULTS_PIPELINE_MODEL = {
   budgetWarningThreshold: 0.8,
   maxTokensDomain: 4096,
   maxTokensStrategy: 8192,
+  /** On-demand Strategy Lab execution pack (single Claude tool call). */
+  maxTokensStrategyExecutionPack: 6144,
   maxTokensRecon: 4096,
 } as const;
 

@@ -260,6 +260,8 @@ describe('GET /api/audits/:id/brief/schema', () => {
     expect(rows.length).toBeGreaterThan(0);
     expect(rows[0].answer).toBeDefined();
     expect(typeof (rows[0].answer as Record<string, unknown>).type).toBe('string');
+    expect(body.legal).toBeDefined();
+    expect((body.legal as Record<string, { legal_basis?: string }>).a2?.legal_basis).toBe('contract');
   });
 
   it('includes derived.report_anchors when visible bank answers have reportUse', async () => {

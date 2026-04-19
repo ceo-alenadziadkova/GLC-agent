@@ -28,11 +28,20 @@ export const API_HTTP_PATH_PREFIX = {
 
 export type ApiHttpPathPrefixKey = keyof typeof API_HTTP_PATH_PREFIX;
 
+export {
+  LEGAL_DOCUMENT_BUNDLE_VERSION,
+  LEGAL_DOCUMENT_SPA_ROUTES,
+  LEGAL_DOCUMENT_VERSIONS,
+  type LegalDocumentSpaRouteKey,
+} from './legal-documents.js';
+
 export const API_PATHS = {
   publicBrand: `${API_HTTP_PATH_PREFIX.public}/brand`,
+  publicLegalDocuments: `${API_HTTP_PATH_PREFIX.public}/legal-documents`,
   analyticsDashboard: `${API_HTTP_PATH_PREFIX.analytics}/dashboard`,
   auditRequests: API_HTTP_PATH_PREFIX.auditRequests,
   audits: API_HTTP_PATH_PREFIX.audits,
+  auditsTokenUsageSummary: `${API_HTTP_PATH_PREFIX.audits}/token-usage-summary`,
   benchmarks: API_HTTP_PATH_PREFIX.benchmarks,
   benchmarksRecompute: `${API_HTTP_PATH_PREFIX.benchmarks}/recompute`,
   platformBenchmarksRecompute: `${API_HTTP_PATH_PREFIX.platform}/benchmarks/recompute`,
@@ -57,6 +66,7 @@ export const API_PATHS = {
   notificationsReadAll: `${API_HTTP_PATH_PREFIX.notifications}/read-all`,
   platformSelfServeOwner: `${API_HTTP_PATH_PREFIX.platform}/self-serve-owner`,
   profile: API_HTTP_PATH_PREFIX.profile,
+  profileLegalConsents: `${API_HTTP_PATH_PREFIX.profile}/legal-consents`,
   snapshot: API_HTTP_PATH_PREFIX.snapshot,
   snapshotQuota: `${API_HTTP_PATH_PREFIX.snapshot}/quota`,
   snapshotClaim: `${API_HTTP_PATH_PREFIX.snapshot}/claim`,
@@ -104,6 +114,23 @@ export function apiAuditsPipelineStop(auditId: string): string {
 
 export function apiAuditsPipelineStatus(auditId: string): string {
   return `${apiAuditsPath(auditId)}/pipeline/status`;
+}
+
+export function apiAuditsStrategyExecutionPack(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/strategy/execution-pack`;
+}
+
+export function apiAuditsStrategyExecutionPacks(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/strategy/execution-packs`;
+}
+
+export function apiAuditsStrategyLabContext(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/strategy/lab-context`;
+}
+
+/** Platform admin: clear `cancelled` so the audit owner can retry or continue. */
+export function apiPlatformAuditPipelineResumeCancelled(auditId: string): string {
+  return `${API_HTTP_PATH_PREFIX.platform}/audits/${encodeURIComponent(auditId)}/pipeline/resume-cancelled`;
 }
 
 export function apiAuditsBriefHelpRequest(auditId: string): string {

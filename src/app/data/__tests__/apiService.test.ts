@@ -160,6 +160,17 @@ describe('apiService pipeline status contract', () => {
     await expect(api.getPipelineStatus('audit-001')).resolves.toBeTruthy();
   });
 
+  it('getPipelineStatus accepts reviews when note fields are omitted (treated as null)', async () => {
+    const body = validPipelineStatusPayload('audit-001') as Record<string, unknown>;
+    const rev = { after_phase: 0, status: 'approved' } as Record<string, unknown>;
+    body.reviews = [rev];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockJsonResponse(body)));
+
+    const data = await api.getPipelineStatus('audit-001');
+    expect(data.reviews[0].consultant_notes).toBeNull();
+    expect(data.reviews[0].interview_notes).toBeNull();
+  });
+
   it('getPipelineStatus throws when events is not an array', async () => {
     const body = { ...validPipelineStatusPayload('audit-001'), events: {} };
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockJsonResponse(body)));

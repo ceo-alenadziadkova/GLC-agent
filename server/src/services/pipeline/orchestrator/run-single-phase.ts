@@ -18,10 +18,16 @@ import {
 import { assertBriefReady } from '../../brief-validator.js';
 import { logger } from '../../logger.js';
 import { supabase } from '../../supabase.js';
+import { reopenHumanReviewPointForPhase } from '../reviewGateCoordinator.js';
 import { runPhaseDomainExecution, type PhaseDomainExecutionDeps } from '../phaseRunner.js';
 import { auditDomainRowShouldTrackFailure } from './domain-phase-policy.js';
 import { PipelineCancelledError } from './pipeline-cancelled.error.js';
 import type { PhaseAgentConstructor } from './phase-agent-registry.js';
+
+export type SequentialPhaseOutcome = 'completed' | 'cancelled';
+
+/** Sequential phases return a terminal outcome; isolated (parallel) phases return nothing. */
+export type RunSinglePhaseLifecycleOutcome = SequentialPhaseOutcome | undefined;
 
 export type EmitPipelineEventFn = (
   phase: number,
@@ -52,7 +58,9 @@ async function markAuditDomainFailed(auditId: string, domainKey: DomainKey): Pro
     .eq('domain_key', domainKey);
 }
 
-export async function runSinglePhaseWithLifecycle(params: RunSinglePhaseLifecycleParams): Promise<void> {
+export async function runSinglePhaseWithLifecycle(
+  params: RunSinglePhaseLifecycleParams,
+): Promise<RunSinglePhaseLifecycleOutcome> {
   const {
     mode,
     auditId,
@@ -88,12 +96,6 @@ export async function runSinglePhaseWithLifecycle(params: RunSinglePhaseLifecycl
     }
 
     const oc = pipelineOrchestratorCopy();
-    await emitEvent(
-      phase,
-      PIPELINE_EVENT_TYPES.started,
-      interpolateOrchestratorMessage(oc.phase.startedTemplate, { phase, domain: domainKey }),
-    );
-
     if (mode === 'sequential') {
       const moved = await updateAuditIfNotCancelled({
         status: pipelineStatusForPhase(phase),
@@ -101,6 +103,12 @@ export async function runSinglePhaseWithLifecycle(params: RunSinglePhaseLifecycl
       });
       if (!moved) throw new PipelineCancelledError();
     }
+
+    await emitEvent(
+      phase,
+      PIPELINE_EVENT_TYPES.started,
+      interpolateOrchestratorMessage(oc.phase.startedTemplate, { phase, domain: domainKey }),
+    );
 
     const result = await runPhaseDomainExecution({
       auditId,
@@ -114,6 +122,7 @@ export async function runSinglePhaseWithLifecycle(params: RunSinglePhaseLifecycl
     if (mode === 'sequential' && executionPlan) {
       const reviewPhases = reviewPhasesForExecutionPlan(executionPlan);
       if ((reviewPhases as readonly number[]).includes(phase)) {
+        await reopenHumanReviewPointForPhase(auditId, phase);
         await emitEvent(phase, PIPELINE_EVENT_TYPES.reviewNeeded, oc.phase.reviewNeeded);
         const reviewSet = await updateAuditIfNotCancelled({
           status: PIPELINE_AUDIT_ORCHESTRATOR_STATUS.review,
@@ -130,12 +139,13 @@ export async function runSinglePhaseWithLifecycle(params: RunSinglePhaseLifecycl
         score: result.score > 0 ? result.score : undefined,
       },
     );
+    return mode === 'sequential' ? 'completed' : undefined;
   } catch (err) {
     const error = err as Error;
     if (error instanceof PipelineCancelledError) {
       if (mode === 'sequential') {
         logger.info('Pipeline phase cancelled', { audit_id: auditId, phase });
-        return;
+        return 'cancelled';
       }
       logger.info('Pipeline isolated phase cancelled', { audit_id: auditId, phase });
       throw err;

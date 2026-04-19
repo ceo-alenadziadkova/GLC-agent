@@ -119,6 +119,8 @@ export interface Database {
           medium_term: Record<string, unknown>[];
           strategic: Record<string, unknown>[];
           scorecard: Record<string, unknown>[];
+          schema_version: number;
+          strategy_lab_context: Record<string, unknown>;
           created_at: string;
         };
         Insert: {
@@ -131,8 +133,30 @@ export interface Database {
           medium_term?: Record<string, unknown>[];
           strategic?: Record<string, unknown>[];
           scorecard?: Record<string, unknown>[];
+          schema_version?: number;
+          strategy_lab_context?: Record<string, unknown>;
         };
         Update: Partial<Database['public']['Tables']['audit_strategy']['Insert']>;
+      };
+      audit_strategy_execution_packs: {
+        Row: {
+          id: string;
+          audit_id: string;
+          created_by_user_id: string;
+          initiative_ids: string[];
+          selected_path_type: string | null;
+          payload: Record<string, unknown>;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          audit_id: string;
+          created_by_user_id: string;
+          initiative_ids: string[];
+          selected_path_type?: string | null;
+          payload?: Record<string, unknown>;
+        };
+        Update: Partial<Database['public']['Tables']['audit_strategy_execution_packs']['Insert']>;
       };
       pipeline_events: {
         Row: {
@@ -202,6 +226,33 @@ export interface Database {
         };
         Update: Partial<Database['public']['Tables']['consultant_email_allowlist']['Insert']>;
       };
+      legal_consent_events: {
+        Row: {
+          id: string;
+          user_id: string;
+          consent_key: string;
+          accepted: boolean;
+          document_bundle_version: string;
+          tos_version: string | null;
+          privacy_version: string | null;
+          dpa_version: string | null;
+          source: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          consent_key: string;
+          accepted: boolean;
+          document_bundle_version: string;
+          tos_version?: string | null;
+          privacy_version?: string | null;
+          dpa_version?: string | null;
+          source?: string;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['legal_consent_events']['Insert']>;
+      };
       evaluation_datasets: {
         Row: {
           id: string;
@@ -232,6 +283,8 @@ export interface Database {
           agent_variant_id?: string | null;
           retention_policy?: string;
           pii_sanitized?: boolean;
+          created_at?: string;
+          expires_at?: string;
         };
         Update: Partial<Database['public']['Tables']['evaluation_datasets']['Insert']>;
       };

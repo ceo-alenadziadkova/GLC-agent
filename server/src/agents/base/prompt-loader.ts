@@ -11,6 +11,28 @@ import { logger } from '../../services/logger.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROMPTS_DIR = join(__dirname, '../../../prompts');
 
+/** Appended to domain-phase prompts so `summary` and `strengths` stay readable in the product UI. */
+const DOMAIN_READABLE_OUTPUT_APPEND = (() => {
+  try {
+    return readFileSync(join(PROMPTS_DIR, '_append-domain-readable-output.md'), 'utf-8').trim();
+  } catch {
+    logger.error('agent.load_prompt_missing', {
+      component: 'agent',
+      prompt: '_append-domain-readable-output.md',
+    });
+    return '';
+  }
+})();
+
+const PROMPTS_WITH_READABLE_OUTPUT_APPEND = new Set([
+  'tech_infrastructure',
+  'security_compliance',
+  'seo_digital',
+  'ux_conversion',
+  'marketing_utp',
+  'automation_processes',
+]);
+
 /**
  * Load a prompt from server/prompts/<name>.md, stripping the version comment header.
  * Falls back to empty string if the file is missing (shouldn't happen in prod).
@@ -18,7 +40,11 @@ const PROMPTS_DIR = join(__dirname, '../../../prompts');
 export function loadPrompt(name: string): string {
   try {
     const raw = readFileSync(join(PROMPTS_DIR, `${name}.md`), 'utf-8');
-    return raw.replace(/^<!--.*?-->\n/, '').trimStart();
+    let body = raw.replace(/^<!--.*?-->\n/, '').trimStart();
+    if (PROMPTS_WITH_READABLE_OUTPUT_APPEND.has(name) && DOMAIN_READABLE_OUTPUT_APPEND) {
+      body = `${body}\n\n${DOMAIN_READABLE_OUTPUT_APPEND}`;
+    }
+    return body;
   } catch {
     logger.error('agent.load_prompt_missing', { component: 'agent', prompt: `${name}.md` });
     return '';

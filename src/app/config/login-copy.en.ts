@@ -56,8 +56,6 @@ export const LOGIN_PAGE_COPY_EN = {
   creating: 'Creating…',
   submitSignIn: 'Sign in',
   submitCreateAccount: 'Create account',
-  footerTerms: 'By continuing you accept the terms of use.',
-  footerFaq: 'FAQ',
   asideIntroPrefix: 'New to GLC? Start with ',
   asideSnapshotLinkLabel: 'Snapshot',
   asideIntroMiddle: ' or ',

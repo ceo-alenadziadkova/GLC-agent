@@ -57,9 +57,12 @@ Returns current authenticated user profile metadata.
  "id": "uuid",
  "role": "consultant",
  "email": "user@example.com",
- "full_name": "Jane Doe"
+ "full_name": "Jane Doe",
+ "can_manage_platform_settings": true
 }
 ```
+
+- `can_manage_platform_settings` — **`true`** only when **`role`** is **`consultant`** and the caller passes **`canManagePlatformSettings`** (`server/src/lib/platform-admin.ts`: open mode vs `profiles.is_platform_admin` / legacy UUID list). **`false`** for **`client`** / **`guest`**.
 
 ### `PATCH /api/profile`
 
@@ -80,6 +83,45 @@ Notes:
 - `full_name` is optional and nullable.
 - Empty/whitespace value is normalized to `null`.
 - Max length: 200 characters.
+
+### `GET /api/profile/legal-consents`
+
+Returns published legal document version identifiers plus **effective** consent state (latest append-only row per `consent_key`).
+
+**Auth:** valid JWT.
+
+**Response `200`:** `{ "published": { "bundle", "terms_of_service", "privacy_policy", "data_processing_agreement", "legal_notice", "cookies_policy" }, "effective": [ { "consent_key", "accepted", "created_at", "document_bundle_version", "tos_version", "privacy_version", "dpa_version", "source" } ] }`
+
+### `POST /api/profile/legal-consents`
+
+Appends one or more consent / acknowledgment events (no duplicate `consent_key` in a single request).
+
+**Auth:** valid JWT.
+
+**Request body:**
+
+```json
+{
+  "source": "settings",
+  "events": [{ "consent_key": "marketing", "accepted": true }]
+}
+```
+
+**`source`:** `signup` | `settings` | `api` | `import` | **`audit_create`** (consultant DPA at audit creation).
+
+**Response `201`:** same shape as `GET /api/profile/legal-consents`.
+
+---
+
+## Public brand
+
+### `GET /api/public/legal-documents`
+
+**Auth:** none.
+
+Returns published document **version strings** and SPA **paths** for Terms, Privacy, DPA, Cookies Policy, and the LSSI **legal notice** (Aviso Legal) (for signup links, footer, and CMP wiring).
+
+**Response shape (illustrative):** `bundle`, `terms_of_service`, `privacy_policy`, `data_processing_agreement`, `legal_notice`, and `cookies_policy` — each document entry is `{ version, path }` except `bundle`, which is a single string.
 
 ---
 
@@ -227,6 +269,16 @@ Returns effective runtime values (DB override when set, otherwise app-config fal
 
 **Errors:** `400` invalid payload, `403` not platform admin when restricted, `500` persistence failure.
 
+### `POST /api/platform/audits/:id/pipeline/resume-cancelled`
+
+**Auth:** consultant JWT and platform admin (`can_manage` — same rules as `PATCH /api/platform/self-serve-owner`).
+
+Clears a user **`stop`**: compare-and-set updates **`audits.status`** from **`cancelled`** to **`review`**, then **best-effort** runs the same advance as **`POST /api/audits/:id/pipeline/next`** on behalf of the **audit owner** (`audits.user_id`) — queues or in-process **`schedulePipelineExecution`** when allowed. Inserts **`pipeline_events.event_type = resumed_from_cancelled`**. If **`next`** is not allowed (e.g. pending review gate), the audit stays at **`review`** and the owner must **`.../pipeline/next`** or complete the gate first.
+
+**Errors:** `400` with `PIPELINE_RESUME_NOT_CANCELLED` when status is not **`cancelled`**, `PIPELINE_TOKEN_BUDGET_EXCEEDED` when over budget, `403` when not a platform admin, `404` invalid audit id, `409` with `PIPELINE_RESUME_CLAIM_CONFLICT` on stale **`updated_at`**.
+
+**Response `200`:** `{ "status": "review" | "running", "current_phase": <number>, "resumed": true, "execution_scheduled": <boolean> }` — **`execution_scheduled`** is **`true`** when work was scheduled; **`current_phase`** is the **running** phase when execution was scheduled, otherwise the phase at resume idle.
+
 ---
 
 ## Domain benchmarks
@@ -282,11 +334,15 @@ Use this matrix for new endpoints to keep access rules consistent. **Consultant*
 
 | Endpoint pattern | Consultant (owner) | Client (`client_id`) | Notes |
 | ---------------- | ------------------ | -------------------- | ----- |
-| `GET /api/audits`, `GET /api/audits/:id` | yes | yes | Read when permitted by API/RLS |
+| `GET /api/audits`, `GET /api/audits/:id` | yes | yes | Read when permitted by API/RLS; `strategy` initiatives are normalized to **v2** (decision/evidence/execution_paths) when possible |
+| `PATCH /api/audits/:id/strategy/lab-context` | yes | yes | Persist Strategy Lab constraint overrides (`company_stage`, `budget_band`, `team_scale`); merged over intake brief for initiative post-processing and `GET` read model |
+| `POST /api/audits/:id/strategy/execution-pack`, `GET /api/audits/:id/strategy/execution-packs` | yes | yes | On-demand execution plan (extra Claude call); gated by `FEATURE_STRATEGY_EXECUTION_PACK` |
+| `GET /api/audits/token-usage-summary` | yes | no | Consultant-only token aggregates + list slice |
 | `GET /api/audits/:id/brief`, `PUT /api/audits/:id/brief` | yes | yes | Intake brief + `gates`; **GET** includes `product_mode` (runtime compatibility field) |
 | `GET /api/audits/:id/pipeline/status`, `GET /api/audits/:id/quality-gate/:phase` | yes | yes | Progress / quality gate payload |
 | `POST /api/audits/:id/pipeline/start`, `POST .../pipeline/next`, `POST .../pipeline/stop` | yes | yes | Client may start/continue/stop only when `audits.client_id` matches. Start still requires brief gates (`status === 'created'`). **`retry`** remains consultant-only. |
-| `POST /api/audits/:id/pipeline/retry` | yes | no | Consultant-only |
+| `POST /api/audits/:id/pipeline/retry` | yes | no | Consultant-only: owner or platform operator (see retry section) |
+| `POST /api/platform/audits/:id/pipeline/resume-cancelled` | platform admin only | no | Clears **`cancelled`**, then best-effort owner **`pipeline/next`** (see Platform section) |
 | `POST /api/audits/:id/reviews/:phase` | yes | no | Consultant-only |
 | `POST /api/audits/:id/brief/help-request` | no | yes | Client-only: optional brief help ping (`brief_help_*` on `audits` + consultant notification). Only while `status === 'created'`. |
 | `DELETE /api/audits/:id` | yes (owner) | no | Destructive |
@@ -296,6 +352,8 @@ Use this matrix for new endpoints to keep access rules consistent. **Consultant*
 Create a new audit.
 
 **Roles:** **Consultant** — `user_id` is the authenticated consultant, `client_id` null. **Client (self-serve)** — allowed when a valid owner consultant is resolved (stored **`platform_settings.self_serve_audit_owner_user_id`**, legacy admin list, or earliest consultant in open mode — see `GET /api/platform/self-serve-owner`). The new row uses that consultant as `user_id` (billing/ownership) and `client_id` = authenticated client profile id. **`503`** with `code: "SELF_SERVE_OWNER_UNAVAILABLE"` when resolution fails.
+
+**Consultant DPA:** **`403`** with **`AUDITS_DPA_REQUIRED`** when the caller is a **consultant** and the latest effective **`dpa_acceptance`** is not **accepted** (clients are not subject to this check on **`POST /api/audits`**). The SPA records acceptance on the new-audit confirm step or via **`POST /api/profile/legal-consents`** with **`source`: `audit_create`**. **`POST /api/audit-requests/:id/approve`** applies the same rule before creating the audit.
 
 **Request body:**
 
@@ -346,6 +404,7 @@ List audits visible to the caller (summary fields only): consultants see rows th
  "current_phase": 7,
  "overall_score": 3.8,
  "tokens_used": 120000,
+ "token_budget": 200000,
  "created_at": "2024-01-01T00:00:00Z",
  "updated_at": "2024-01-02T00:00:00Z"
  }
@@ -355,6 +414,14 @@ List audits visible to the caller (summary fields only): consultants see rows th
  "offset": 0
 }
 ```
+
+---
+
+### `GET /api/audits/token-usage-summary`
+
+**Consultant only.** Paginated audits visible to the caller (same access as `GET /api/audits`) with per-row token usage, plus aggregates. Query: `limit`, `offset` (same caps as list).
+
+**Response `200`:** `audits[]` includes `tokens_used`, `token_budget`, `tokens_remaining` (non-negative). `scopes.accessible` sums usage and remaining headroom across **all** visible audits (not only the current page). `scopes.platform` is present only when the caller may manage platform settings **and** `platform_settings.llm_token_pool_cap` is set: then it includes `pool_cap`, `global_tokens_used` (sum of `audits.tokens_used` system-wide), and `pool_tokens_remaining` (`pool_cap - global_tokens_used`).
 
 ---
 
@@ -398,12 +465,64 @@ Full audit state: audit meta + all domain results + strategy.
  "strategy": {
  "executive_summary": "...",
  "overall_score": 3.8,
- "quick_wins": [{ "id": "uuid", "title": "...", "impact": "high", "effort": "low" }],
+ "schema_version": 2,
+ "strategy_lab_context": {},
+ "effective_constraints": { "company_stage": "growth", "budget_band": "medium", "team_scale": "small" },
+ "quick_wins": [{ "id": "MKT-01", "title": "...", "domain": "marketing_utp", "decision": { "why_this": ["..."] }, "evidence": { "sources": [{ "domain_key": "marketing_utp", "issue_id": "..." }] }, "evidence_verified": true, "execution_paths": [{ "type": "fast", "description": "...", "time_estimate": "1w" }], "impact": "high", "effort": "low" }],
  "medium_term": [...],
  "strategic": [...]
  }
 }
 ```
+
+**Strategy initiatives:** New audits persist **`schema_version = 2`** rows with structured fields (scope, execution paths, decision, evidence). Older rows are **coerced** on read for API clients. **`evidence_verified`** is computed server-side against saved domain `issues` when `issue_id` references exist.
+
+**`strategy_lab_context`:** Optional persisted overrides (subset of keys). **`effective_constraints`:** Read-only merge of intake brief + overrides, used for constraint rules when normalizing initiatives.
+
+---
+
+### `PATCH /api/audits/:id/strategy/lab-context`
+
+Updates `audit_strategy.strategy_lab_context` for the audit. At least one field must be present in the JSON body. Send **`null`** for a field to remove that override and fall back to the intake brief for that axis.
+
+**Body (examples):**
+
+```json
+{ "company_stage": "scale", "budget_band": "low" }
+```
+
+```json
+{ "budget_band": null }
+```
+
+**Response `200`:** `{ "strategy_lab_context": { "company_stage": "scale", "budget_band": "low" } }` (cleaned; omitted keys are not overrides).
+
+**Errors:** `400 AUDITS_STRATEGY_LAB_CONTEXT_PAYLOAD_INVALID` (including empty body), `404 AUDITS_NOT_FOUND`, `500 AUDITS_STRATEGY_LAB_CONTEXT_FAILED`.
+
+---
+
+### `POST /api/audits/:id/strategy/execution-pack`
+
+Generates a persisted **execution pack** (tasks, architecture, optional prompts) for 1–5 selected initiative ids. **One additional Claude call** per request; token usage is logged under phase **7** like strategy.
+
+**Request `201` body (JSON):**
+
+```json
+{
+  "initiative_ids": ["MKT-01", "SEO-02"],
+  "selected_path_type": "fast"
+}
+```
+
+**Response `201`:** `{ "id": "uuid", "payload": { "packs": [ { "initiative_id": "...", "tasks": ["..."], "architecture": "..." } ] } }`
+
+**Errors:** `403 STRATEGY_EXECUTION_PACK_DISABLED`, `400 AUDITS_STRATEGY_EXECUTION_PACK_PAYLOAD_INVALID`, `409 AUDITS_STRATEGY_EXECUTION_PACK_NOT_READY` (strategy not completed), `429 AUDITS_STRATEGY_EXECUTION_PACK_FAILED` (token budget), `500` on persistence/LLM failure.
+
+---
+
+### `GET /api/audits/:id/strategy/execution-packs`
+
+Lists recent execution-pack rows for the audit (metadata only: ids, initiative ids, timestamps). Full payload is returned from the **POST** response and stored in `audit_strategy_execution_packs.payload`.
 
 ---
 
@@ -523,7 +642,7 @@ For partial audits, `/next` advances to the next selected phase from `execution_
 
 ### `POST /api/audits/:id/pipeline/retry`
 
-Retry a failed phase. **Consultant-only.** Request body must include the `phase` number to retry. Behaviour and limits depend on `product_mode` (phases above the mode’s max are rejected).
+Retry a failed phase. **Consultant-only.** Allowed for the audit owner (`audits.user_id`) or for consultants who pass the same **platform operator** check as `GET /api/platform/*` settings routes (`profiles.is_platform_admin`, `platform_settings.legacy_platform_admin_user_ids`, or any consultant when no platform admins are configured — see `server/src/lib/platform-admin.ts`). Request body must include the `phase` number to retry. Behaviour and limits depend on `product_mode` (phases above the mode’s max are rejected).
 Uses compare-and-set claim on the audit row to prevent duplicate concurrent retries.
 Queue-backed execution/fallback behavior is the same as `pipeline/start`.
 Optional field `disable_auto_remediate: true` in the same JSON body — same semantics as `pipeline/start`.

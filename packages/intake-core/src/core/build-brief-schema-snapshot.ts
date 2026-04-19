@@ -2,6 +2,7 @@
  * Compact intake schema for a brief context — ADR Phase D (`brief-schema` API).
  */
 import { expandAnswerContractForApi, getQuestionBankAnswerContract, getQuestionBankSchemaMeta } from '../question-bank.js';
+import { getQuestionBankLegalMetaForBankId, type QuestionBankLegalMetaRowV1 } from '../question-bank-legal-meta.v1.js';
 import type { IntakeAnswerContract } from '../types.js';
 import type { IntakeBriefCollectionMode, IntakeVersionTuple, ProductMode } from '../audit-contract.js';
 
@@ -48,6 +49,8 @@ export interface BriefSchemaSnapshot {
   /** Domains with unanswered in-scope primary bank questions (SLA-visible set). */
   missing_for_report: string[];
   next_recommended: string[];
+  /** Per visible bank id: GDPR-oriented metadata (contract-first intake); see `question-bank-legal-meta.v1.ts`. */
+  legal?: Record<string, QuestionBankLegalMetaRowV1>;
 }
 
 function mapStepPlan(steps: StepPlanEntry[] | null | undefined): BriefSchemaStepRow[] | null {
@@ -93,6 +96,14 @@ export function buildBriefSchemaSnapshot(args: {
 
   const layoutSlots = plan.layoutSlots ?? {};
 
+  const legal: Record<string, QuestionBankLegalMetaRowV1> = {};
+  for (const row of questions) {
+    const lm = getQuestionBankLegalMetaForBankId(row.id);
+    if (lm) {
+      legal[row.id] = lm;
+    }
+  }
+
   return {
     intake_versions: plan.versions,
     product_mode: args.productMode,
@@ -117,5 +128,6 @@ export function buildBriefSchemaSnapshot(args: {
     },
     missing_for_report: [...plan.missingForReport],
     next_recommended: [...plan.nextRecommended],
+    legal: Object.keys(legal).length > 0 ? legal : undefined,
   };
 }

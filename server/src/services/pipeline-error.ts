@@ -1,12 +1,17 @@
 import {
   AUDITS_TABLE,
+  PIPELINE_ERROR_LOG_FALLBACK,
   PIPELINE_EVENTS_TABLE,
-  PIPELINE_PHASE_ERROR_DEFAULT_MESSAGE,
-  PIPELINE_PHASE_NOTIFICATION_FALLBACK_MESSAGE,
+  PIPELINE_PHASE_ERROR_DATA_SOURCE,
+  PIPELINE_PHASE_FAILED_NOTIFICATION_KEYS,
 } from '../config/pipeline-error-fallback.js';
+import { PIPELINE_AUDIT_ORCHESTRATOR_STATUS } from '../config/pipeline-status.js';
 import { PIPELINE_EVENT_TYPES } from '../config/pipeline-event-types.js';
 import { getSupabaseServiceRestConfig } from '../config/supabase-service-env.js';
-import { PIPELINE_PHASE_FAILED_NOTIFICATION_TITLE } from '../config/route-notification-messages.js';
+import {
+  PIPELINE_PHASE_FAILED_NOTIFICATION_TITLE,
+  PIPELINE_PHASE_FAILED_USER_NOTIFICATION_MESSAGE,
+} from '../config/route-notification-messages.js';
 import { buildPipelineUiRoute } from '../config/route-notification-paths.js';
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
@@ -27,8 +32,8 @@ async function fallbackWritePipelineError(auditId: string, phase: number, err: E
     audit_id: auditId,
     phase,
     event_type: PIPELINE_EVENT_TYPES.error,
-    message: err.message ?? PIPELINE_PHASE_ERROR_DEFAULT_MESSAGE,
-    data: { error: err.message, source: 'fallback_rest' },
+    message: PIPELINE_PHASE_FAILED_USER_NOTIFICATION_MESSAGE,
+    data: { error: err.message, source: PIPELINE_PHASE_ERROR_DATA_SOURCE.fallbackRest },
   };
   await fetch(`${base}/${PIPELINE_EVENTS_TABLE}`, {
     method: 'POST',
@@ -38,7 +43,7 @@ async function fallbackWritePipelineError(auditId: string, phase: number, err: E
   await fetch(`${base}/${AUDITS_TABLE}?id=eq.${encodeURIComponent(auditId)}`, {
     method: 'PATCH',
     headers,
-    body: JSON.stringify({ status: 'failed' }),
+    body: JSON.stringify({ status: PIPELINE_AUDIT_ORCHESTRATOR_STATUS.failed }),
   });
 }
 
@@ -50,11 +55,15 @@ export async function emitPhaseErrorDurable(auditId: string, phase: number, err:
         audit_id: auditId,
         phase,
         event_type: PIPELINE_EVENT_TYPES.error,
-        message: err.message ?? PIPELINE_PHASE_ERROR_DEFAULT_MESSAGE,
-        data: { error: err.message, stack: err.stack?.split('\n')[1]?.trim() ?? '' },
+        message: PIPELINE_PHASE_FAILED_USER_NOTIFICATION_MESSAGE,
+        data: {
+          error: err.message,
+          stack: err.stack?.split('\n')[1]?.trim() ?? '',
+          source: PIPELINE_PHASE_ERROR_DATA_SOURCE.phaseErrorDurable,
+        },
       }),
       supabase.from(AUDITS_TABLE)
-        .update({ status: 'failed' })
+        .update({ status: PIPELINE_AUDIT_ORCHESTRATOR_STATUS.failed })
         .eq('id', auditId),
     ]);
   } catch (dbErr) {
@@ -62,7 +71,7 @@ export async function emitPhaseErrorDurable(auditId: string, phase: number, err:
       audit_id: auditId,
       phase,
       error: (dbErr as Error).message,
-      fallback: 'supabase_rest',
+      fallback: PIPELINE_ERROR_LOG_FALLBACK.supabaseRest,
     });
     try {
       await fallbackWritePipelineError(auditId, phase, err);
@@ -77,18 +86,18 @@ export async function emitPhaseErrorDurable(auditId: string, phase: number, err:
 
   await emitStructuredNotification({
     category: 'pipeline',
-    event: 'pipeline_phase_failed',
+    event: PIPELINE_PHASE_FAILED_NOTIFICATION_KEYS.structuredEvent,
     priority: 'critical',
     audience: 'audit_participants',
     auditId,
     title: PIPELINE_PHASE_FAILED_NOTIFICATION_TITLE,
-    message: err.message ?? PIPELINE_PHASE_NOTIFICATION_FALLBACK_MESSAGE,
+    message: PIPELINE_PHASE_FAILED_USER_NOTIFICATION_MESSAGE,
     route: buildPipelineUiRoute(auditId),
     payload: {
       phase,
-      status: 'failed',
-      actor_role: 'system',
-      failure_type: 'phase_failed',
+      status: PIPELINE_PHASE_FAILED_NOTIFICATION_KEYS.auditStatus,
+      actor_role: PIPELINE_PHASE_FAILED_NOTIFICATION_KEYS.actorRole,
+      failure_type: PIPELINE_PHASE_FAILED_NOTIFICATION_KEYS.failureType,
     },
   });
 }

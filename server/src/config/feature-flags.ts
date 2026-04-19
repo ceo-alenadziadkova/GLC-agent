@@ -26,6 +26,17 @@ export function isEvaluationDatasetsInsertEnabled(): boolean {
   return readFeatureFlagEnv(process.env.EVALUATION_DATASETS_INSERT, FF.evaluationDatasetsInsertEnabled);
 }
 
+/**
+ * When true, inserts into `evaluation_datasets` require audit owner's `evaluation_internal` consent.
+ * Env: EVALUATION_DATASETS_REQUIRE_INTERNAL_CONSENT=true
+ */
+export function isEvaluationDatasetsExplicitInternalConsentRequired(): boolean {
+  return readFeatureFlagEnv(
+    process.env.EVALUATION_DATASETS_REQUIRE_INTERNAL_CONSENT,
+    FF.evaluationDatasetsRequireExplicitInternalConsent,
+  );
+}
+
 /** ML bandit variant selection. Env: FEATURE_BANDITS=true */
 export function isBanditsEnabled(): boolean {
   return readFeatureFlagEnv(process.env.FEATURE_BANDITS, FF.banditsEnabled);
@@ -86,4 +97,9 @@ export function isAutoRemediationEnabled(): boolean {
 /** Domain benchmarks: API reads, pipeline attaches benchmark_reference_id, recompute endpoints. Env: FEATURE_BENCHMARKS=true */
 export function isBenchmarksEnabled(): boolean {
   return readFeatureFlagEnv(process.env.FEATURE_BENCHMARKS, FF.benchmarksEnabled);
+}
+
+/** Strategy Lab on-demand execution pack (extra Claude call). Env: FEATURE_STRATEGY_EXECUTION_PACK=false to disable. */
+export function isStrategyExecutionPackEnabled(): boolean {
+  return readFeatureFlagEnv(process.env.FEATURE_STRATEGY_EXECUTION_PACK, FF.strategyExecutionPackEnabled);
 }

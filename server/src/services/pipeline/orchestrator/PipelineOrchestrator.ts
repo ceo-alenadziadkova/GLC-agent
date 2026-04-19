@@ -26,7 +26,7 @@ import { loadNormalizedExecutionPlanForAudit } from './execution-plan-loader.js'
 import { PipelineCancelledError } from './pipeline-cancelled.error.js';
 import { runParallelBlockForAudit } from './parallel-block.js';
 import { runPipelineOrchestratorBlock } from './run-block.js';
-import { runSinglePhaseWithLifecycle } from './run-single-phase.js';
+import { runSinglePhaseWithLifecycle, type SequentialPhaseOutcome } from './run-single-phase.js';
 
 const STALLED_PHASE_TIMEOUT_MIN = SYSTEM_DEFAULTS.pipelineOrchestrator.stalledPhaseTimeoutMin;
 const PARALLEL_FAILURE_THRESHOLD = SYSTEM_DEFAULTS.pipelineOrchestrator.parallelFailureThreshold;
@@ -198,9 +198,9 @@ export class PipelineOrchestrator {
    * Handles audit-level status updates, review gates, and full error propagation.
    * Used for Phase 0 (Recon), Phase 7 (Strategy), and direct retry calls.
    */
-  async startPhase(phase: number): Promise<void> {
+  async startPhase(phase: number): Promise<SequentialPhaseOutcome> {
     const agentClass = agentClassForPhaseOrThrow(phase);
-    await runSinglePhaseWithLifecycle({
+    const outcome = await runSinglePhaseWithLifecycle({
       mode: 'sequential',
       auditId: this.auditId,
       phase,
@@ -212,6 +212,10 @@ export class PipelineOrchestrator {
       publishControlObjectGovernance: this.publishControlObjectGovernance.bind(this),
       getExecutionPlan: () => this.getExecutionPlan(),
     });
+    if (outcome === undefined) {
+      throw new Error('Invariant: sequential phase returned no outcome');
+    }
+    return outcome;
   }
 
   private async startPhaseIsolated(phase: number): Promise<void> {

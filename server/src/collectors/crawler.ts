@@ -17,6 +17,7 @@ import {
   CRAWLER_CONTACT_EMAIL_PATTERN,
   CRAWLER_PHONE_MAX_DIGITS,
   CRAWLER_PHONE_MIN_DIGITS,
+  crawlerContactPhoneDigitsLikelyYYYYMMDD,
   crawlerContactPhonePattern,
 } from '../config/crawler-contact-extraction.js';
 import { addTechStackFromHtml, TECH_PATTERNS } from '../lib/site-html-signals.js';
@@ -269,6 +270,7 @@ export class CrawlerCollector extends BaseCollector {
     if (foundPhones) {
       for (const phone of foundPhones) {
         const cleaned = phone.replace(/[^\d+]/g, '');
+        if (crawlerContactPhoneDigitsLikelyYYYYMMDD(cleaned)) continue;
         if (cleaned.length >= CRAWLER_PHONE_MIN_DIGITS && cleaned.length <= CRAWLER_PHONE_MAX_DIGITS) {
           phones.add(cleaned);
         }

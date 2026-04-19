@@ -47,9 +47,10 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
     const error = (await response.json().catch(() => ({ error: response.statusText }))) as {
       error?: string;
       code?: unknown;
+      details?: unknown;
     };
     const code = typeof error.code === 'string' ? error.code : undefined;
-    throw new ApiError(error.error ?? `API error: ${response.status}`, response.status, code);
+    throw new ApiError(error.error ?? `API error: ${response.status}`, response.status, code, error.details);
   }
 
   return response.json();
@@ -136,8 +137,9 @@ export async function apiPostAck(path: string, body: unknown, options: ApiPostAc
     const error = (await response.json().catch(() => ({ error: response.statusText }))) as {
       error?: string;
       code?: unknown;
+      details?: unknown;
     };
     const code = typeof error.code === 'string' ? error.code : undefined;
-    throw new ApiError(error.error ?? `API error: ${response.status}`, response.status, code);
+    throw new ApiError(error.error ?? `API error: ${response.status}`, response.status, code, error.details);
   }
 }

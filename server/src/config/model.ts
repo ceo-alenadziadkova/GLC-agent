@@ -31,6 +31,7 @@ export const BUDGET_WARNING_THRESHOLD = P.budgetWarningThreshold;
 export const MODEL_MAX_TOKENS = {
   domain: P.maxTokensDomain,
   strategy: P.maxTokensStrategy,
+  strategyExecutionPack: P.maxTokensStrategyExecutionPack,
   recon: P.maxTokensRecon,
 } as const;
 

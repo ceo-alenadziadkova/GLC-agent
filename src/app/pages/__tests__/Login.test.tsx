@@ -1,3 +1,4 @@
+import { LEGAL_DOCUMENT_VERSIONS } from '@glc/api-paths';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -22,6 +23,23 @@ vi.mock('../../lib/logger', () => ({
     info: vi.fn(),
     debug: vi.fn(),
     error: vi.fn(),
+    warn: vi.fn(),
+  },
+}));
+
+vi.mock('../../data/apiService', () => ({
+  api: {
+    postLegalConsents: vi.fn().mockResolvedValue({
+      published: {
+        bundle: LEGAL_DOCUMENT_VERSIONS.bundle,
+        terms_of_service: LEGAL_DOCUMENT_VERSIONS.termsOfService,
+        privacy_policy: LEGAL_DOCUMENT_VERSIONS.privacyPolicy,
+        data_processing_agreement: LEGAL_DOCUMENT_VERSIONS.dataProcessingAgreement,
+        legal_notice: LEGAL_DOCUMENT_VERSIONS.legalNotice,
+        cookies_policy: LEGAL_DOCUMENT_VERSIONS.cookiesPolicy,
+      },
+      effective: [],
+    }),
   },
 }));
 
@@ -38,7 +56,7 @@ vi.mock('react-router', async importOriginal => {
 });
 
 const signInWithPassword = vi.fn().mockResolvedValue({ error: null });
-const signUpWithPassword = vi.fn().mockResolvedValue({ error: null });
+const signUpWithPassword = vi.fn().mockResolvedValue({ error: null, session: null });
 const signInWithGoogle = vi.fn().mockResolvedValue({ error: null });
 const requestPasswordReset = vi.fn().mockResolvedValue({ error: null });
 const completePasswordRecovery = vi.fn().mockResolvedValue({ error: null });
@@ -67,7 +85,7 @@ function renderLogin(initialPath = '/login') {
 beforeEach(() => {
   vi.clearAllMocks();
   signInWithPassword.mockResolvedValue({ error: null });
-  signUpWithPassword.mockResolvedValue({ error: null });
+  signUpWithPassword.mockResolvedValue({ error: null, session: null });
   signInWithGoogle.mockResolvedValue({ error: null });
   localStorage.clear();
 });
@@ -277,6 +295,8 @@ describe('Login', () => {
     await user.click(createTab);
     await user.type(screen.getByPlaceholderText(/your@email\.com/i), 'new@example.com');
     await user.type(screen.getByPlaceholderText(/^password$/i), 'secret12');
+    await user.click(screen.getByRole('checkbox', { name: /^terms of service$/i }));
+    await user.click(screen.getByRole('checkbox', { name: /^privacy policy$/i }));
     await user.click(getEmailPasswordSubmitButton());
 
     expect(signUpWithPassword).toHaveBeenCalledWith('new@example.com', 'secret12');
@@ -296,6 +316,8 @@ describe('Login', () => {
     await user.click(screen.getByRole('tab', { name: /^create account$/i }));
     await user.type(screen.getByPlaceholderText(/your@email\.com/i), 'new@example.com');
     await user.type(screen.getByPlaceholderText(/^password$/i), 'short7');
+    await user.click(screen.getByRole('checkbox', { name: /^terms of service$/i }));
+    await user.click(screen.getByRole('checkbox', { name: /^privacy policy$/i }));
     await user.click(getEmailPasswordSubmitButton());
 
     expect(signUpWithPassword).not.toHaveBeenCalled();

@@ -241,6 +241,10 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 error={wizard.error}
                 loading={wizard.loading}
                 isClientSelfServe={isClientSelfServe}
+                consultantDpaLoading={wizard.consultantDpaLoading}
+                consultantDpaOnFile={wizard.consultantDpaOnFile}
+                consultantDpaChecked={wizard.consultantDpaChecked}
+                onConsultantDpaCheckedChange={wizard.setConsultantDpaChecked}
                 onBackToStep1={() => wizard.setStep(1)}
                 onLaunchSubmit={wizard.handleLaunch}
                 clientDraftSaveSection={clientDraftSaveSection}

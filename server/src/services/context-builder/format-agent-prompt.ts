@@ -164,8 +164,13 @@ ${P.reconContactInfo}${JSON.stringify(recon.contact_info)}`,
     );
   }
 
+  /**
+   * Human review notes come **after** recon, collectors, and prior domain summaries so the model
+   * sees contradictory automation last in context and can override it (especially Strategy todos).
+   */
   const notesWithContent = ctx.review_notes.filter(n => n.consultant_notes || n.interview_notes);
   if (notesWithContent.length > 0) {
+    sections.push(P.consultantNotesGroundTruthIntro);
     sections.push(P.consultantNotesHeading);
     for (const note of notesWithContent) {
       if (note.consultant_notes) {
@@ -178,6 +183,9 @@ ${P.reconContactInfo}${JSON.stringify(recon.contact_info)}`,
           P.clientInterviewLine.replace('{{phase}}', String(note.phase)).replace('{{notes}}', note.interview_notes),
         );
       }
+    }
+    if (ctx.slice_domain === 'strategy') {
+      sections.push(P.consultantNotesStrategyInitiativesReminder);
     }
   }
 

@@ -1,9 +1,11 @@
 import { motion } from 'motion/react';
 import type { FormEvent, ReactNode } from 'react';
+import { Link } from 'react-router';
 import { ArrowLeft, Lightning, Rocket, Warning } from '@phosphor-icons/react';
 import type { DomainKey, AuditCoveragePackage } from '../../../data/auditTypes';
 import { coveragePackageLabel } from '../../../lib/audit-execution-plan';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
+import { APP_ROUTE_PATHS } from '../../../config/route-paths';
 import { Callout } from '../../../components/ui/callout';
 import { cn } from '../../../components/ui/utils';
 
@@ -20,6 +22,11 @@ export type Step2ConfirmProps = {
   error: string | null;
   loading: boolean;
   isClientSelfServe: boolean;
+
+  consultantDpaLoading: boolean;
+  consultantDpaOnFile: boolean;
+  consultantDpaChecked: boolean;
+  onConsultantDpaCheckedChange: (next: boolean) => void;
 
   onBackToStep1: () => void;
   onLaunchSubmit: (e: FormEvent) => void | Promise<void>;
@@ -38,10 +45,17 @@ export function Step2Confirm({
   error,
   loading,
   isClientSelfServe,
+  consultantDpaLoading,
+  consultantDpaOnFile,
+  consultantDpaChecked,
+  onConsultantDpaCheckedChange,
   onBackToStep1,
   onLaunchSubmit,
   clientDraftSaveSection,
 }: Step2ConfirmProps) {
+  const launchBlockedByDpa =
+    !isClientSelfServe && !consultantDpaLoading && !consultantDpaOnFile && !consultantDpaChecked;
+
   return (
     <motion.form
       key="step2"
@@ -94,6 +108,44 @@ export function Step2Confirm({
         </Callout>
       )}
 
+      {!isClientSelfServe && (
+        <Callout intent="neutral" className="space-y-3 rounded-xl p-4">
+          <div>
+            <p className="m-0 text-sm font-medium text-[var(--text-primary)]">
+              {WORKSPACE_PAGE_COPY.newAudit.step2.dpaConsultantTitle}
+            </p>
+            <p className="mt-1.5 m-0 text-xs leading-relaxed text-[var(--text-tertiary)]">
+              {WORKSPACE_PAGE_COPY.newAudit.step2.dpaConsultantIntro}
+            </p>
+          </div>
+          {consultantDpaLoading ? (
+            <p className="m-0 text-xs text-[var(--text-quaternary)]">
+              {WORKSPACE_PAGE_COPY.newAudit.step2.dpaConsultantLoadingLegal}
+            </p>
+          ) : consultantDpaOnFile ? (
+            <p className="m-0 text-xs text-[var(--text-secondary)]">{WORKSPACE_PAGE_COPY.newAudit.step2.dpaConsultantOnFile}</p>
+          ) : (
+            <label className="flex cursor-pointer items-start gap-2.5 text-sm text-[var(--text-secondary)]">
+              <input
+                type="checkbox"
+                className="glc-auth-signup-legal-checkbox mt-0.5"
+                checked={consultantDpaChecked}
+                onChange={event => onConsultantDpaCheckedChange(event.target.checked)}
+                aria-required
+                aria-label={WORKSPACE_PAGE_COPY.newAudit.step2.dpaConsultantLinkLabel}
+              />
+              <span>
+                {WORKSPACE_PAGE_COPY.newAudit.step2.dpaConsultantCheckboxPrefix}
+                <Link to={APP_ROUTE_PATHS.legalDpa} className="ds-marketing-inline-link-accent" target="_blank" rel="noreferrer">
+                  {WORKSPACE_PAGE_COPY.newAudit.step2.dpaConsultantLinkLabel}
+                </Link>
+                {WORKSPACE_PAGE_COPY.newAudit.step2.dpaConsultantCheckboxSuffix}
+              </span>
+            </label>
+          )}
+        </Callout>
+      )}
+
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:gap-3">
         <button
           type="button"
@@ -104,12 +156,12 @@ export function Step2Confirm({
         </button>
         <motion.button
           type="submit"
-          disabled={loading}
-          whileHover={!loading ? { scale: 1.015 } : {}}
-          whileTap={!loading ? { scale: 0.985 } : {}}
+          disabled={loading || consultantDpaLoading || launchBlockedByDpa}
+          whileHover={!loading && !consultantDpaLoading && !launchBlockedByDpa ? { scale: 1.015 } : {}}
+          whileTap={!loading && !consultantDpaLoading && !launchBlockedByDpa ? { scale: 0.985 } : {}}
           className={cn(
             'glc-touch-target flex flex-1 items-center justify-center gap-2 rounded-lg border-none bg-[var(--gradient-accent)] py-3 text-sm font-semibold text-[var(--on-warm-gradient-fg)] shadow-[0_4px_14px_rgba(242,79,29,0.30)] sm:min-h-0 sm:py-2.5',
-            loading ? 'cursor-not-allowed' : 'cursor-pointer',
+            loading || consultantDpaLoading || launchBlockedByDpa ? 'cursor-not-allowed' : 'cursor-pointer',
           )}
         >
           {loading ? (

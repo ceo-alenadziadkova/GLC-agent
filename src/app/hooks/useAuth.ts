@@ -202,14 +202,14 @@ export function useAuth() {
   };
 
   const signUpWithPassword = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}${AUTH_REDIRECT_PATH}`,
       },
     });
-    return { error };
+    return { error, session: data?.session ?? null };
   };
 
   const requestPasswordReset = async (email: string) => {

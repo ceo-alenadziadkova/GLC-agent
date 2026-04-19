@@ -1,3 +1,4 @@
+import { LEGAL_DOCUMENT_SPA_ROUTES } from '@glc/api-paths';
 import { APP_ROUTE_SEGMENTS as P, SPA_ROUTE_SEGMENTS as R } from '@glc/intake-core';
 
 export const APP_ROUTE_PATHS = {
@@ -7,6 +8,11 @@ export const APP_ROUTE_PATHS = {
   discovery: '/discovery',
   brief: `/${P.brief}`,
   faq: `/${P.faq}`,
+  legalTerms: LEGAL_DOCUMENT_SPA_ROUTES.termsOfService,
+  legalPrivacy: LEGAL_DOCUMENT_SPA_ROUTES.privacyPolicy,
+  legalDpa: LEGAL_DOCUMENT_SPA_ROUTES.dataProcessingAgreement,
+  legalNotice: LEGAL_DOCUMENT_SPA_ROUTES.legalNotice,
+  legalCookies: LEGAL_DOCUMENT_SPA_ROUTES.cookiePolicy,
   dashboard: `/${P.dashboard}`,
   portfolio: `/${P.portfolio}`,
   portal: `/${P.portal}`,

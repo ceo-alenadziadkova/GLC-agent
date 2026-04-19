@@ -5,6 +5,7 @@ import { AuditRequestHttpError } from '../audit-requests/mappers/audit-request-e
 const getStoredIdempotentResponse = vi.fn();
 const getAuditRequestById = vi.fn();
 const claimAuditRequestForApprove = vi.fn();
+const isDpaAcceptanceEffectivelyTrue = vi.fn(async () => true);
 
 vi.mock('../lib/idempotency.js', () => ({
   getStoredIdempotentResponse,
@@ -39,9 +40,14 @@ vi.mock('../services/notifications.js', () => ({
   emitStructuredNotification: vi.fn(),
 }));
 
+vi.mock('../services/legal-consent.service.js', () => ({
+  isDpaAcceptanceEffectivelyTrue,
+}));
+
 describe('approveAuditRequestCommand', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    isDpaAcceptanceEffectivelyTrue.mockResolvedValue(true);
   });
 
   it('returns replay payload when idempotency replay exists', async () => {
@@ -51,6 +57,18 @@ describe('approveAuditRequestCommand', () => {
 
     const result = await approveAuditRequestCommand({ body: {}, userId: 'u1' } as AuthRequest, 'req-1');
     expect(result).toEqual({ replay });
+    expect(getAuditRequestById).not.toHaveBeenCalled();
+  });
+
+  it('throws when consultant has not accepted the DPA', async () => {
+    getStoredIdempotentResponse.mockResolvedValue({ replay: null, key: 'k', hash: 'h' });
+    isDpaAcceptanceEffectivelyTrue.mockResolvedValueOnce(false);
+    const { approveAuditRequestCommand } = await import('../audit-requests/services/audit-request-approve.service.js');
+
+    await expect(approveAuditRequestCommand({ body: {}, userId: 'u1' } as AuthRequest, 'req-1')).rejects.toMatchObject({
+      statusCode: 403,
+      code: 'AUDITS_DPA_REQUIRED',
+    });
     expect(getAuditRequestById).not.toHaveBeenCalled();
   });
 
