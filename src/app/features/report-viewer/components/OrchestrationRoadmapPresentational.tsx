@@ -71,6 +71,8 @@ export function OrchestrationRoadmapPresentational({
   const danglingDataGaps = pack.conflicts_resolved.filter(row => row.id.startsWith('orphan-dep:')).length;
   const targetWindowDays =
     pack.graph.nodes.find(node => typeof node.target_window_days === 'number')?.target_window_days ?? null;
+  const topActions7d = pack.top_7d ?? pack.top_actions?.top_actions_7d ?? [];
+  const topActions30d = pack.top_30d ?? pack.top_actions?.top_actions_30d ?? [];
 
   return (
     <motion.div
@@ -133,6 +135,44 @@ export function OrchestrationRoadmapPresentational({
           Planning window: {targetWindowDays} days
         </p>
       ) : null}
+      {(topActions7d.length > 0 || topActions30d.length > 0) && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-3">
+            <div className="mb-2 text-[length:var(--text-xs)] font-semibold text-[var(--text-primary)]">
+              {ORCHESTRATION_UI_COPY.topActions7dLabel}
+            </div>
+            <ul className="space-y-1 text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
+              {topActions7d.length === 0 && <li>—</li>}
+              {topActions7d.map(id => (
+                <li key={`7d-${id}`} className="flex flex-wrap items-center gap-1">
+                  <span>{titleById.get(id) ?? id}</span>
+                  <OrchestrationNodeBadgesInline pack={pack} nodeId={id} />
+                  <Link className="text-info underline-offset-2 hover:underline" to={nodeLink(id)}>
+                    {ORCHESTRATION_UI_COPY.openNodeInLab}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-3">
+            <div className="mb-2 text-[length:var(--text-xs)] font-semibold text-[var(--text-primary)]">
+              {ORCHESTRATION_UI_COPY.topActions30dLabel}
+            </div>
+            <ul className="space-y-1 text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
+              {topActions30d.length === 0 && <li>—</li>}
+              {topActions30d.map(id => (
+                <li key={`30d-${id}`} className="flex flex-wrap items-center gap-1">
+                  <span>{titleById.get(id) ?? id}</span>
+                  <OrchestrationNodeBadgesInline pack={pack} nodeId={id} />
+                  <Link className="text-info underline-offset-2 hover:underline" to={nodeLink(id)}>
+                    {ORCHESTRATION_UI_COPY.openNodeInLab}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
       <div className="grid gap-3 sm:grid-cols-3">
         {timelineBuckets.map(bucket => (
           <div key={bucket.id} className="rounded-lg border border-[var(--border-default)] bg-[var(--surface-raised)] p-3">

@@ -7,8 +7,18 @@ import type { OrchestrationSeasonPreset } from './orchestration-roadmap-manifest
 export const ORCHESTRATION_PANEL_DOM_ID = 'glc-execution-roadmap' as const;
 /** DOM id for manifest setup entry section within timeline page. */
 export const ORCHESTRATION_MANIFEST_SETUP_DOM_ID = 'manifest-setup' as const;
+/**
+ * Query param for `StrategyLab` / portal strategy routes: scroll to orchestration panel after navigation.
+ * Example: `/strategy/:id?focus=roadmap`
+ */
+export const ORCHESTRATION_LAB_FOCUS_QUERY_KEY = 'focus' as const;
+export const ORCHESTRATION_LAB_FOCUS_ROADMAP_VALUE = 'roadmap' as const;
 
 export const ORCHESTRATION_UI_LIMITS = {
+  /** Debounce before POST manifest preview (Strategy Lab + portal manifest wizard). */
+  manifestPreviewDebounceMs: 400,
+  /** Max execution pack rows listed on client portal timeline (V8 surface). */
+  maxExecutionPackListItemsClient: 8,
   /** Max dependency rows shown under timeline (Report + Lab). */
   maxDependencyLinksDisplayed: 12,
   /** Max edge rows per added/removed list in revision diff (Strategy Lab). */

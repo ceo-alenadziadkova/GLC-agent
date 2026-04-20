@@ -20,6 +20,7 @@ import { logger } from '../../logger.js';
 import { supabase } from '../../supabase.js';
 import { reopenHumanReviewPointForPhase } from '../reviewGateCoordinator.js';
 import { runPhaseDomainExecution, type PhaseDomainExecutionDeps } from '../phaseRunner.js';
+import { maybeAutoPersistOrchestrationPackAfterStrategy } from '../../orchestration/orchestration-pack-persist-run.service.js';
 import { auditDomainRowShouldTrackFailure } from './domain-phase-policy.js';
 import { PipelineCancelledError } from './pipeline-cancelled.error.js';
 import type { PhaseAgentConstructor } from './phase-agent-registry.js';
@@ -139,6 +140,9 @@ export async function runSinglePhaseWithLifecycle(
         score: result.score > 0 ? result.score : undefined,
       },
     );
+    if (phase === 7) {
+      await maybeAutoPersistOrchestrationPackAfterStrategy({ auditId });
+    }
     return mode === 'sequential' ? 'completed' : undefined;
   } catch (err) {
     const error = err as Error;

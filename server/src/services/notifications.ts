@@ -1,8 +1,7 @@
-import { getTelegramApiBase } from '../config/integrations.js';
-import { getTelegramBotCredentials } from '../config/telegram-credentials.js';
 import { formatStructuredTelegramMessage } from '../config/telegram-notification-format.en.js';
 import { supabase } from './supabase.js';
 import { logger } from './logger.js';
+import { sendTelegramChatMessage } from './telegram-chat.js';
 
 export type NotificationKind = 'pipeline' | 'review' | 'intake';
 export type NotificationPriority = 'critical' | 'medium' | 'low';
@@ -72,25 +71,6 @@ function mapCategoryToKind(category: NotificationCategory): NotificationKind {
     return 'intake';
   }
   return 'pipeline';
-}
-
-async function sendTelegramMessage(text: string): Promise<void> {
-  const creds = getTelegramBotCredentials();
-  if (!creds) return;
-  try {
-    const response = await fetch(`${getTelegramApiBase()}/bot${creds.token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: creds.chatId, text }),
-    });
-    if (!response.ok) {
-      logger.warn('notifications.telegram_send_failed', { status: response.status });
-    }
-  } catch (err) {
-    logger.warn('notifications.telegram_send_exception', {
-      error: (err as Error).message,
-    });
-  }
 }
 
 export async function notifyUser(input: NotifyInput): Promise<void> {
@@ -253,8 +233,8 @@ export async function emitStructuredNotification(event: StructuredNotificationEv
   }
 
   if (sendTelegram) {
-    await sendTelegramMessage(
-      formatStructuredTelegramMessage({
+    await sendTelegramChatMessage({
+      text: formatStructuredTelegramMessage({
         priority: event.priority,
         category: event.category,
         title: event.title,
@@ -264,6 +244,7 @@ export async function emitStructuredNotification(event: StructuredNotificationEv
         route: event.route,
         occurredAt,
       }),
-    );
+      parse_mode: 'HTML',
+    });
   }
 }

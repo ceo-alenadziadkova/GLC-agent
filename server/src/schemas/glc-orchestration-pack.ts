@@ -9,6 +9,7 @@ import {
   ORCHESTRATION_EXECUTION_MODES,
   ORCHESTRATION_FALLBACK_REASON_CODES,
   ORCHESTRATION_GRAPH_NODE_ANALYSIS_DEPTHS,
+  ORCHESTRATION_INPUT_GATE_STATUSES,
   ORCHESTRATION_INPUT_MODES,
   ORCHESTRATION_GRAPH_NODE_SOURCES,
   ORCHESTRATION_DEFAULT_INPUT_QUALITY,
@@ -106,6 +107,10 @@ const inputModeTuple = [...ORCHESTRATION_INPUT_MODES] as [
   (typeof ORCHESTRATION_INPUT_MODES)[number],
   ...(typeof ORCHESTRATION_INPUT_MODES)[number][],
 ];
+const inputGateStatusTuple = [...ORCHESTRATION_INPUT_GATE_STATUSES] as [
+  (typeof ORCHESTRATION_INPUT_GATE_STATUSES)[number],
+  ...(typeof ORCHESTRATION_INPUT_GATE_STATUSES)[number][],
+];
 
 const fallbackReasonTuple = [...ORCHESTRATION_FALLBACK_REASON_CODES] as [
   (typeof ORCHESTRATION_FALLBACK_REASON_CODES)[number],
@@ -131,10 +136,24 @@ const OrchestrationDomainInfluenceSchema = z.object({
 
 const OrchestrationInputQualitySchema = z.object({
   input_mode: z.enum(inputModeTuple),
+  input_gate_status: z.enum(inputGateStatusTuple),
   director_coverage_ratio: z.number().min(0).max(1),
   director_input_coverage_ratio: z.number().min(0).max(1),
   degraded: z.boolean(),
   fallback_reason_code: z.enum(fallbackReasonTuple).optional(),
+});
+
+const OrchestrationTopActionsSchema = z.object({
+  top_actions_7d: z.array(z.string().min(1)),
+  top_actions_30d: z.array(z.string().min(1)),
+});
+
+const OrchestrationDataGapsSchema = z.object({
+  degraded_input: z.boolean(),
+  fallback_reason_code: z.enum(fallbackReasonTuple).optional(),
+  dangling_dependencies: z.number().int().nonnegative(),
+  missing_confidence: z.number().int().nonnegative(),
+  missing_risk: z.number().int().nonnegative(),
 });
 
 export const GlcOrchestrationPackSchemaV2 = z.object({
@@ -151,6 +170,14 @@ export const GlcOrchestrationPackSchemaV2 = z.object({
   risk_layer: OrchestrationRiskLayerSchema.default({ node_risk: {} }),
   domain_influence: OrchestrationDomainInfluenceSchema.default({ domain_weights: {} }),
   input_quality: OrchestrationInputQualitySchema.default(ORCHESTRATION_DEFAULT_INPUT_QUALITY),
+  /** v1 contract alias for phase_diagnostic. */
+  system_diagnosis: OrchestrationPhaseDiagnosticSchema.optional(),
+  /** v1 contract aliases for top_actions windows. */
+  top_7d: z.array(z.string().min(1)).optional(),
+  top_30d: z.array(z.string().min(1)).optional(),
+  /** Aggregated data gaps for plan-level governance and UX warnings. */
+  data_gaps: OrchestrationDataGapsSchema.optional(),
+  top_actions: OrchestrationTopActionsSchema.optional(),
 });
 
 const GlcOrchestrationPackSchemaV1 = z.object({

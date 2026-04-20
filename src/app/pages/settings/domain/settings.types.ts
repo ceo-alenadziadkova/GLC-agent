@@ -6,6 +6,7 @@ export type SettingsTab = 'general' | 'bank-studio';
 export type NotificationPrefs = {
   auditStatusReminders: boolean;
   productUpdates: boolean;
+  showExecutionTracePanels: boolean;
 };
 
 export type SelfServePayload = Awaited<ReturnType<typeof api.getPlatformSelfServeOwner>>;

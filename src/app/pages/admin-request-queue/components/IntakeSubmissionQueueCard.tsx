@@ -1,7 +1,6 @@
 import {
   ArrowRight, CaretDown, Clock, Code, Copy,
 } from '@phosphor-icons/react';
-import { Link } from 'react-router';
 import { buildAppRoute } from '../../../config/route-paths';
 import {
   ADMIN_REQUEST_QUEUE_COPY,
@@ -19,6 +18,7 @@ import {
 import { ORDERED_PRE_BRIEF_QUESTIONS } from '../domain/ordered-pre-brief-questions';
 import { cn } from '../../../components/ui/utils';
 import { formatAppMediumDateTime } from '../../../lib/date-format';
+import { QueueInlineActionLink } from '../../queue-inline-action-link';
 
 type Props = {
   submission: IntakeSubmissionQueueRow;
@@ -76,12 +76,9 @@ export function IntakeSubmissionQueueCard({
           </div>
         </div>
         {s.audit_id && (
-          <Link
-            to={buildAppRoute.audit(s.audit_id)}
-            className="text-info glc-touch-target inline-flex items-center rounded-md px-1 text-xs font-medium no-underline sm:min-h-0"
-          >
+          <QueueInlineActionLink to={buildAppRoute.audit(s.audit_id)} tone="info">
             {ADMIN_REQUEST_QUEUE_COPY.openAudit}
-          </Link>
+          </QueueInlineActionLink>
         )}
       </div>
       {open && (
@@ -123,12 +120,14 @@ function IntakeSubmissionExpandedBody({
           <Copy className="w-3.5 h-3.5" />
           {copiedIntakeUrl === s.token ? ADMIN_REQUEST_QUEUE_COPY.copied : ADMIN_REQUEST_QUEUE_COPY.copyClientLink}
         </button>
-        <Link
+        <QueueInlineActionLink
           to={buildAppRoute.auditNewWithIntakeToken(s.token)}
-          className="glc-touch-target text-info inline-flex items-center gap-1.5 rounded-lg border border-info/40 px-2.5 py-1.5 text-xs font-medium no-underline"
+          tone="info"
+          variant="outline"
+          className="gap-1.5"
         >
           {ADMIN_REQUEST_QUEUE_COPY.newAuditWithPrefill} <ArrowRight className="w-3.5 h-3.5" />
-        </Link>
+        </QueueInlineActionLink>
       </div>
       <div className="bg-muted space-y-2 rounded-lg border p-3">
         <p className="text-muted-foreground text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider">{ADMIN_REQUEST_QUEUE_COPY.answersSectionTitle}</p>

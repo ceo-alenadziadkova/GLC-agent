@@ -8,12 +8,18 @@ export interface Database {
         Row: {
           id: string;
           user_id: string;
+          client_id: string | null;
           company_url: string;
           company_name: string | null;
           industry: string | null;
           status: string;
           current_phase: number;
           overall_score: number | null;
+          product_mode: string;
+          origin: string;
+          execution_plan: Record<string, unknown> | null;
+          snapshot_token: string | null;
+          no_public_website: boolean;
           token_budget: number;
           tokens_used: number;
           /** `normal` | `safe` — governance execution mode (see migration 051). */
@@ -24,12 +30,18 @@ export interface Database {
         Insert: {
           id?: string;
           user_id: string;
+          client_id?: string | null;
           company_url: string;
           company_name?: string | null;
           industry?: string | null;
           status?: string;
           current_phase?: number;
           overall_score?: number | null;
+          product_mode?: string;
+          origin?: string;
+          execution_plan?: Record<string, unknown> | null;
+          snapshot_token?: string | null;
+          no_public_website?: boolean;
           token_budget?: number;
           tokens_used?: number;
           execution_mode?: string;

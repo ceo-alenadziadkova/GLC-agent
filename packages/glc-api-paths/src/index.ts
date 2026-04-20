@@ -147,6 +147,10 @@ export function apiAuditsRoadmapManifestSnapshotsLatest(auditId: string): string
   return `${apiAuditsPath(auditId)}/roadmap/manifest-snapshots/latest`;
 }
 
+export function idempotencyPostAuditsRoadmapManifestSnapshotsKey(auditId: string): string {
+  return idempotencyPostKey(apiAuditsRoadmapManifestSnapshots(auditId));
+}
+
 export function apiAuditsOrchestrationPack(auditId: string): string {
   return `${apiAuditsPath(auditId)}/orchestration/pack`;
 }
@@ -185,6 +189,32 @@ export function apiAuditsOrchestrationPackDiff(auditId: string, query: { from_ve
 
 export function apiAuditsOrchestrationCommercialOffer(auditId: string): string {
   return `${apiAuditsPath(auditId)}/orchestration/commercial-offer`;
+}
+
+/**
+ * @deprecated Use `apiAuditsOrchestration*` routes.
+ * Legacy aliases kept for backward compatibility during deprecation window.
+ */
+export function apiAuditsOrchestratorPreview(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/orchestrator/preview`;
+}
+
+/** @deprecated Use `apiAuditsOrchestrationPack`. */
+export function apiAuditsOrchestratorRun(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/orchestrator/run`;
+}
+
+/** @deprecated Use `apiAuditsOrchestrationPack`. */
+export function apiAuditsOrchestratorLatest(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/orchestrator/latest`;
+}
+
+export function idempotencyPostAuditsOrchestratorRunKey(auditId: string): string {
+  return idempotencyPostKey(apiAuditsOrchestratorRun(auditId));
+}
+
+export function apiAuditsTimeline(auditId: string): string {
+  return `${apiAuditsPath(auditId)}/timeline`;
 }
 
 /** Platform admin: clear `cancelled` so the audit owner can retry or continue. */

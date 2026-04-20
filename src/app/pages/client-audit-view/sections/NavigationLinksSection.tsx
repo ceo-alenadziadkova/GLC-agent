@@ -1,10 +1,12 @@
-import { CaretRight, CheckCircle, FileText, Flask, Path, Pulse } from '@phosphor-icons/react';
+import { CaretRight, CheckCircle, ClipboardText, FileText, Flask, Path, Pulse } from '@phosphor-icons/react';
 import { Link } from 'react-router';
 import { Callout } from '../../../components/ui/callout';
 import { CLIENT_AUDIT_VIEW_COPY } from '../../../config/client-audit-view-copy';
+import { ORCHESTRATION_IA_COPY } from '../../../config/orchestration-roadmap-ui-copy.en';
 import { COLOR_TOKENS } from '../../../../design-system/tokens/colors';
 import { CLIENT_AUDIT_VIEW_UI } from '../config/ui';
 import { buildAppRoute } from '../../../config/route-paths';
+import { APP_FEATURE_FLAGS } from '../../../config/app-feature-flags';
 
 export function NavigationLinksSection({
   auditId,
@@ -23,7 +25,7 @@ export function NavigationLinksSection({
 }) {
   return (
     <>
-      {isCompleted && !isFreeSnapshot && (
+      {isCompleted && !isFreeSnapshot && APP_FEATURE_FLAGS.clientTimelineEnabled && (
         <>
           <Link
             to={buildAppRoute.portalTimeline(auditId)}
@@ -34,7 +36,7 @@ export function NavigationLinksSection({
               <Path className="h-5 w-5 flex-shrink-0 ds-text-brand" />
               <div>
                 <div className="font-medium text-sm ds-text-primary">{CLIENT_AUDIT_VIEW_COPY.links.viewTimeline}</div>
-                <div className="ds-type-xs-secondary">{CLIENT_AUDIT_VIEW_COPY.links.timelineReady}</div>
+                <div className="ds-type-xs-secondary">{ORCHESTRATION_IA_COPY.clientNavTimelineCardSubtitle}</div>
               </div>
             </div>
             <CheckCircle weight="fill" className="h-5 w-5" color={COLOR_TOKENS.semantic.uiSemantic.success} />
@@ -53,6 +55,26 @@ export function NavigationLinksSection({
             </div>
             <CheckCircle weight="fill" className="w-5 h-5" color={COLOR_TOKENS.semantic.uiSemantic.success} />
           </Link>
+          {hasStrategy &&
+            APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled &&
+            APP_FEATURE_FLAGS.clientRoadmapManifestWizardEnabled ? (
+            <Link
+              to={buildAppRoute.portalRoadmapManifest(auditId)}
+              className="flex items-center justify-between gap-3 rounded-xl px-5 py-4 no-underline transition-all mobile:px-4"
+              style={CLIENT_AUDIT_VIEW_UI.links.reportCard}
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <ClipboardText className="h-5 w-5 flex-shrink-0 ds-text-brand" />
+                <div>
+                  <div className="text-sm font-medium ds-text-primary">
+                    {CLIENT_AUDIT_VIEW_COPY.links.viewRoadmapManifestWizard}
+                  </div>
+                  <div className="ds-type-xs-secondary">{CLIENT_AUDIT_VIEW_COPY.links.viewRoadmapManifestWizardSubtitle}</div>
+                </div>
+              </div>
+              <CheckCircle weight="fill" className="h-5 w-5" color={COLOR_TOKENS.semantic.uiSemantic.success} />
+            </Link>
+          ) : null}
           {hasStrategy && (
             <Link
               to={buildAppRoute.portalStrategy(auditId)}
@@ -63,7 +85,7 @@ export function NavigationLinksSection({
                 <Flask className="w-5 h-5 flex-shrink-0 ds-text-brand" />
                 <div>
                   <div className="font-medium text-sm ds-text-primary">{CLIENT_AUDIT_VIEW_COPY.links.viewStrategyLab}</div>
-                  <div className="ds-type-xs-secondary">{CLIENT_AUDIT_VIEW_COPY.links.strategyReady}</div>
+                  <div className="ds-type-xs-secondary">{ORCHESTRATION_IA_COPY.clientNavLabCardSubtitle}</div>
                 </div>
               </div>
               <CheckCircle weight="fill" className="w-5 h-5" color={COLOR_TOKENS.semantic.uiSemantic.success} />

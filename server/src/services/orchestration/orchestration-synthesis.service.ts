@@ -55,7 +55,15 @@ export function mergeOrchestrationSynthesisIntoPack(
     ...base,
     conflicts_resolved: [...base.conflicts_resolved, ...additions],
   };
-  return GlcOrchestrationPackSchema.parse(merged);
+  const parsed = GlcOrchestrationPackSchema.parse(merged);
+  if (
+    parsed.graph.nodes.length !== base.graph.nodes.length ||
+    parsed.graph.edges.length !== base.graph.edges.length ||
+    parsed.critical_path.length !== base.critical_path.length
+  ) {
+    throw new Error('orchestration_synthesis invariant: synthesis must not alter graph topology');
+  }
+  return parsed;
 }
 
 /**
@@ -114,6 +122,7 @@ export async function runOrchestrationSynthesisIfEnabled(args: {
       audit_id: args.auditId,
       within_budget: budget.within_budget,
       remaining: budget.remaining,
+      metric: ORCHESTRATION_TELEMETRY_METRICS.synthesisDeterministicFallback,
     });
     await supabase.from('pipeline_events').insert({
       audit_id: args.auditId,
@@ -127,7 +136,10 @@ export async function runOrchestrationSynthesisIfEnabled(args: {
 
   const system = loadPrompt('orchestration-pack-synthesis');
   if (!system.trim()) {
-    logger.error('orchestration_synthesis.missing_prompt', { audit_id: args.auditId });
+    logger.error('orchestration_synthesis.missing_prompt', {
+      audit_id: args.auditId,
+      metric: ORCHESTRATION_TELEMETRY_METRICS.synthesisDeterministicFallback,
+    });
     await supabase.from('pipeline_events').insert({
       audit_id: args.auditId,
       phase: orchestrationPhase,

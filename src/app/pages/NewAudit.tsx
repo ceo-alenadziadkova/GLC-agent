@@ -1,15 +1,15 @@
 import { Link } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  ArrowLeft,
-  CheckCircle,
-  Warning,
-  ClipboardText,
-  X,
-  FloppyDisk,
-  Spinner,
-} from '@phosphor-icons/react';
+import { CheckCircle, Warning, ClipboardText, X, FloppyDisk, Spinner } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '../components/ui/breadcrumb';
 import { WORKSPACE_PAGE_COPY } from '../config/workspace-page-copy';
 import {
   PreBriefModal,
@@ -44,13 +44,11 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
       <button
         type="button"
         disabled={wizard.draftSaving}
+        data-busy={wizard.draftSaving ? 'true' : 'false'}
         onClick={() => {
           void wizard.handleSaveClientDraft();
         }}
-        className={cn(
-          'text-foreground bg-card flex w-full items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-medium transition-all',
-          wizard.draftSaving ? 'cursor-wait' : 'cursor-pointer',
-        )}
+        className="ds-new-audit-draft-save-btn"
       >
         {wizard.draftSaving ? (
           <Spinner className="text-info h-4 w-4 animate-spin" />
@@ -74,16 +72,6 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
           ? WORKSPACE_PAGE_COPY.newAudit.appShellSubtitleClient
           : WORKSPACE_PAGE_COPY.newAudit.appShellSubtitleConsultant
       }
-      actions={
-        isClientSelfServe ? (
-          <Link
-            to="/portal"
-            className="text-muted-foreground hidden text-sm no-underline sm:inline"
-          >
-            {WORKSPACE_PAGE_COPY.newAudit.backToPortalLabel}
-          </Link>
-        ) : undefined
-      }
     >
       <div className="bg-background glc-page-content relative flex min-h-full flex-col items-center justify-center py-8 mobile:py-6">
         <div className="pointer-events-none absolute inset-0 bg-[var(--mesh-brand)] opacity-55" />
@@ -98,13 +86,26 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
           )}
         >
           {isClientSelfServe && (
-            <Link
-              to="/portal"
-              className="text-info glc-touch-target mb-4 inline-flex items-center gap-1.5 text-sm font-medium no-underline sm:hidden"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            {WORKSPACE_PAGE_COPY.newAudit.backToPortalLabel}
-            </Link>
+            <Breadcrumb aria-label={WORKSPACE_PAGE_COPY.marketingLayout.breadcrumbsAriaLabel} className="ds-new-audit-client-breadcrumb">
+              <BreadcrumbList className="ds-new-audit-client-breadcrumb-list">
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link
+                      to="/portal"
+                      className="glc-touch-target ds-new-audit-client-breadcrumb-link inline-flex items-center py-[length:var(--space-2)]"
+                    >
+                      {WORKSPACE_PAGE_COPY.newAudit.breadcrumbPortalParent}
+                    </Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator className="[&>svg]:text-[var(--text-tertiary)]" />
+                <BreadcrumbItem>
+                  <BreadcrumbPage className="text-[length:var(--text-sm)] text-[var(--text-tertiary)]">
+                    {WORKSPACE_PAGE_COPY.newAudit.appShellTitle}
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
           )}
           <StepIndicator current={wizard.step} />
 
@@ -137,6 +138,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
               <>
                 <Step0Basics
                   step0Valid={wizard.step0Valid}
+                  coverageValid={wizard.coverageValid}
                   isClientSelfServe={wizard.isClientSelfServe}
                   url={wizard.url}
                   setUrl={wizard.setUrl}
@@ -201,6 +203,7 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
             {/* ── Step 1: Brief ─────────────────────────── */}
             {wizard.step === 1 && (
               <Step1Brief
+                isClientSelfServe={isClientSelfServe}
                 interviewMode={wizard.interviewMode}
                 layoutSelected={wizard.layoutSelected}
                 answeredRequired={wizard.answeredRequired}
@@ -217,6 +220,11 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 responses={wizard.responses}
                 briefProductMode={wizard.briefProductMode}
                 noPublicWebsite={wizard.noPublicWebsite}
+                url={wizard.url}
+                name={wizard.name}
+                industry={wizard.industry}
+                industrySpecify={wizard.industrySpecify}
+                step0PipelineAnswerSource={wizard.responseSource}
                 intakeAnalytics={wizard.briefWizardIntakeAnalytics}
                 onResponsesChange={next => wizard.setResponses(next)}
                 onResponseChange={wizard.handleResponseChange}
@@ -234,10 +242,12 @@ export function NewAudit(props?: { variant?: NewAuditVariant }) {
                 url={wizard.url}
                 name={wizard.name}
                 industry={wizard.industry}
-                coveragePackage={wizard.coveragePackage}
+                coveragePackage={wizard.coveragePackage!}
                 selectedDomains={wizard.selectedDomains}
                 answeredRequired={wizard.answeredRequired}
                 pipelineRequiredTotal={wizard.pipelineRequiredTotal}
+                answeredPipelineRequiredIds={wizard.answeredPipelineRequiredIds}
+                pipelineGateBriefResponses={wizard.pipelineGateBriefResponses}
                 error={wizard.error}
                 loading={wizard.loading}
                 isClientSelfServe={isClientSelfServe}

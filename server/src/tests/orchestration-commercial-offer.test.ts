@@ -17,6 +17,7 @@ describe('buildOrchestrationCommercialOffer', () => {
       },
     });
     expect(result.offers.length).toBeGreaterThan(0);
+    expect(result.offers[0]!.why_now_bullets.length).toBeGreaterThan(0);
     expect(result.recalculated_preview).not.toBeNull();
     expect(result.accepted_pack_result).toBeNull();
   });
@@ -54,6 +55,7 @@ describe('buildOrchestrationCommercialOffer', () => {
     for (const offer of result.offers) {
       expect(offer.value_message.length).toBeGreaterThan(0);
       expect(offer.estimated_incremental_effort_weeks).toBe(ORCHESTRATION_COMMERCIAL_POLICY.defaultIncrementalEffortWeeks);
+      expect(offer.why_now_bullets.length).toBeGreaterThan(0);
     }
   });
 });

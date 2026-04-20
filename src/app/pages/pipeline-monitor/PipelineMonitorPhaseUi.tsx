@@ -35,7 +35,7 @@ export function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; 
       transition={{ duration: 0.15 }}
       className={cn(
         'w-full rounded-xl border p-3 text-left transition-all',
-        active ? 'border-info/40 bg-info/10 ring-2 ring-info/10' : 'bg-card',
+        active ? 'ds-pipeline-phase-card-active' : 'bg-card',
         ph.status === 'pending' ? 'opacity-50' : ph.status === 'skipped' ? 'opacity-35' : '',
       )}
     >
@@ -44,9 +44,9 @@ export function PhCard({ ph, active, onSel }: { ph: PhaseView; active: boolean; 
           className={cn(
             'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md',
             active
-              ? 'bg-gradient-to-br from-sky-400 to-sky-600'
+              ? 'ds-pipeline-phase-icon-active'
               : ph.status === 'completed'
-                ? 'bg-emerald-500/15'
+                ? 'bg-success/10'
                 : 'bg-muted',
           )}
         >
@@ -143,7 +143,7 @@ export function RevBanner({
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           onClick={onOpenModal}
-          className="flex flex-shrink-0 items-center gap-1 rounded-lg bg-gradient-to-r from-orange-500 to-rose-500 px-2.5 py-1.5 text-xs font-bold text-white shadow-[0_2px_8px_rgba(242,79,29,0.28)]"
+          className="ds-pipeline-approve-cta flex flex-shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-bold"
         >
           {PM.revBanner.approve} <ArrowRight className="w-3 h-3" />
         </motion.button>
@@ -175,9 +175,9 @@ function ParallelMiniCard({ ph }: { ph: PhaseView }) {
       </div>
 
       {isRunning && (
-        <div className="bg-info/20 ds-step1-brief-progress-thin overflow-hidden rounded-full">
+        <div className="ds-pipeline-running-track ds-step1-brief-progress-thin overflow-hidden rounded-full">
           <motion.div
-            className="h-full rounded-full bg-gradient-to-r from-sky-400 to-sky-600"
+            className="ds-pipeline-running-bar h-full rounded-full"
             initial={{ width: '10%' }}
             animate={{ width: '80%' }}
             transition={{ duration: 3.5, ease: 'easeInOut', repeat: Infinity, repeatType: 'mirror' }}
@@ -221,7 +221,7 @@ export function ParallelWingBanner({ phases, wingName }: { phases: PhaseView[]; 
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="bg-info/10 border-info/30 mb-2 rounded-xl border p-4"
+      className="ds-pipeline-info-surface mb-2 rounded-xl border p-4"
     >
       <div className="flex items-center gap-2 mb-3">
         <ArrowsClockwise className="text-info h-3.5 w-3.5 animate-spin" />

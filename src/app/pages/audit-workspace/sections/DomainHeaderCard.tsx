@@ -22,10 +22,8 @@ export function DomainHeaderCard({ activeDomain, domainData }: Props) {
   return (
     <div className="glc-page-hero glc-orb-decor p-5 sm:p-6">
       <div className="flex items-start gap-5">
-        <div
-          className="ds-bg-fill-gradient-brand flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-[0_6px_20px_rgba(28,189,255,0.25)]"
-        >
-          <DomainIcon className="w-7 h-7 text-white" />
+        <div className="ds-bg-fill-gradient-brand flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl shadow-[var(--shadow-brand-cta)]">
+          <DomainIcon className="w-7 h-7 text-[var(--audit-domain-header-icon-fg)]" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="glc-kicker mb-2">{AUDIT_WORKSPACE_COPY.sections.domainFocus}</p>

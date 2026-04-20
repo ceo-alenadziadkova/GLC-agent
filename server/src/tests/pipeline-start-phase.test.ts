@@ -168,6 +168,47 @@ vi.mock('../services/consistency-checker.js', () => ({
   consistencyChecker: { run: vi.fn().mockResolvedValue({ passed: true, flags: [] }) },
 }));
 
+vi.mock('../services/orchestration/extract-glc-director-slice-from-agent-output.js', () => {
+  const minimalSlice = {
+    schema_version: 1,
+    baseline: {
+      actions: [
+        {
+          id: 'test-dir-action',
+          title: 'Test director action',
+          impact: 3,
+          effort: 2,
+          risk: 2,
+          urgency: 3,
+          confidence: 'medium',
+          dependencies: [],
+        },
+      ],
+    },
+  };
+  return {
+    extractGlcDirectorOrchestrationSliceFromAgentOutputDetailed: () => ({
+      slice: minimalSlice,
+      mode: 'canonical',
+    }),
+    extractGlcDirectorOrchestrationSliceFromAgentOutput: () => minimalSlice,
+  };
+});
+
+vi.mock('../services/orchestration/director-orchestration-persistence.service.js', () => ({
+  persistGlcDirectorOrchestrationSliceForAuditOwner: vi.fn().mockResolvedValue({ error: null }),
+}));
+
+vi.mock('../services/orchestration/orchestration-pack-persist-run.service.js', async () => {
+  const actual = await vi.importActual<
+    typeof import('../services/orchestration/orchestration-pack-persist-run.service.js')
+  >('../services/orchestration/orchestration-pack-persist-run.service.js');
+  return {
+    ...actual,
+    maybeAutoPersistOrchestrationPackAfterStrategy: vi.fn().mockResolvedValue(undefined),
+  };
+});
+
 // ─── Import under test ────────────────────────────────────────────────────────
 
 import { PipelineOrchestrator } from '../services/pipeline.js';

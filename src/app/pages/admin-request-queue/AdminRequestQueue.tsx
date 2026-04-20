@@ -10,12 +10,17 @@ import { AdminRequestQueueErrorBanner } from './components/AdminRequestQueueErro
 import { AdminRequestQueueFilters } from './components/AdminRequestQueueFilters';
 import { AdminRequestQueueLoading } from './components/AdminRequestQueueLoading';
 import { IntakeSubmissionQueueCard } from './components/IntakeSubmissionQueueCard';
-import { useAdminRequestQueue } from './hooks/useAdminRequestQueue';
+import {
+  ADMIN_REQUEST_QUEUE_FILTER_ORDER,
+  useAdminRequestQueue,
+} from './hooks/useAdminRequestQueue';
 import { useTablistKeyboardNavigation } from '../../hooks/useTablistKeyboardNavigation';
+import {
+  ADMIN_REQUEST_QUEUE_TAB_PANEL_ID,
+  isAwaitingAdminQueueFilter,
+} from '../queue-tab-config';
 
 export function AdminRequestQueue() {
-  const filterOrder = ['pending', 'all'] as const;
-  const tabPanelId = 'admin-request-queue-panel';
   const {
     filter,
     setFilter,
@@ -41,11 +46,11 @@ export function AdminRequestQueue() {
     auditReqPageOffset,
   } = useAdminRequestQueue();
 
-  const listEmpty = filter === 'pending' ? awaitingRows.length === 0 : visible.length === 0;
+  const listEmpty = isAwaitingAdminQueueFilter(filter) ? awaitingRows.length === 0 : visible.length === 0;
   const { setTabRef, handleTablistKeyDown } = useTablistKeyboardNavigation({
-    order: filterOrder,
+    order: ADMIN_REQUEST_QUEUE_FILTER_ORDER,
     activeKey: filter,
-    onChange: setFilter,
+    onChange: (next) => setFilter(next as typeof filter),
   });
 
   return (
@@ -55,29 +60,29 @@ export function AdminRequestQueue() {
       actions={
         <div className="flex flex-col gap-2 w-full sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:w-auto">
           <Button asChild variant="outline" size="sm" className="glc-touch-target justify-center no-underline sm:min-h-0 sm:min-w-0">
+            <Link to={APP_ROUTE_PATHS.adminAudits}>{ADMIN_REQUEST_QUEUE_COPY.navPortfolio}</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="glc-touch-target justify-center no-underline sm:min-h-0 sm:min-w-0">
             <Link to={APP_ROUTE_PATHS.adminSnapshots}>{ADMIN_REQUEST_QUEUE_COPY.navSnapshots}</Link>
           </Button>
           <Button asChild variant="outline" size="sm" className="glc-touch-target justify-center no-underline sm:min-h-0 sm:min-w-0">
             <Link to={APP_ROUTE_PATHS.adminDiscovery}>{ADMIN_REQUEST_QUEUE_COPY.navDiscovery}</Link>
           </Button>
-          <Button asChild variant="outline" size="sm" className="glc-touch-target justify-center no-underline sm:min-h-0 sm:min-w-0">
-            <Link to={APP_ROUTE_PATHS.portfolio}>{ADMIN_REQUEST_QUEUE_COPY.navPortfolio}</Link>
-          </Button>
         </div>
       }
     >
-      <div className="glc-page-content max-w-4xl mx-auto space-y-4">
+      <div className="glc-page-content mx-auto max-w-4xl space-y-4 lg:max-w-5xl">
         <AdminRequestQueueFilters
           filter={filter}
           onFilterChange={setFilter}
           tabListAriaLabel={ADMIN_REQUEST_QUEUE_COPY.pageTitle}
-          tabPanelId={tabPanelId}
+          tabPanelId={ADMIN_REQUEST_QUEUE_TAB_PANEL_ID}
           onTabListKeyDown={handleTablistKeyDown}
           setTabRef={setTabRef}
         />
 
         <section
-          id={tabPanelId}
+          id={ADMIN_REQUEST_QUEUE_TAB_PANEL_ID}
           role="tabpanel"
           aria-labelledby={`admin-request-queue-tab-${filter}`}
           className="space-y-4"

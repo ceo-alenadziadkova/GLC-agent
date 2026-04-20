@@ -8,23 +8,24 @@ import {
   AUDITS_ROADMAP_MANIFEST_PREVIEW_FAILED_MESSAGE,
   ORCHESTRATION_PACK_API_DISABLED_MESSAGE,
 } from '../../../config/api-error-codes.js';
-import {
-  getOrchestrationPlanGovernanceRolloutMode,
-  isOrchestrationPackApiEnabled,
-} from '../../../config/feature-flags.js';
+import { isOrchestrationPackApiEnabled } from '../../../config/feature-flags.js';
+import { ORCHESTRATION_TELEMETRY_METRICS } from '../../../config/orchestration-telemetry-policy.js';
 import { ROADMAP_MANIFEST_SCHEMA_VERSION } from '../../../config/orchestration-roadmap-presets.js';
-import { ORCHESTRATION_PLAN_GOVERNANCE_POLICY } from '../../../config/orchestration-plan-governance-policy.js';
+import {
+  ORCHESTRATION_PLAN_GOVERNANCE_POLICY,
+  ORCHESTRATION_PLAN_GOVERNANCE_REMEDIATIONS,
+} from '../../../config/orchestration-plan-governance-policy.js';
 import type { AuthRequest } from '../../../middleware/auth.js';
 import { logger } from '../../../services/logger.js';
 import { OrchestrationCommercialOfferRequestSchema } from '../../../schemas/orchestration-commercial-offer.js';
+import type { OrchestrationPlanGovernance } from '../../../schemas/orchestration-plan-governance.js';
 import {
   buildOrchestrationPackForAudit,
   loadAuditExecutionPlanRow,
-  persistGlcOrchestrationPack,
   updateAuditExecutionPlanSelectedDomainsForUser,
 } from '../../../services/orchestration/orchestration-read.service.js';
+import { tryPersistOrchestrationPackWithGovernance } from '../../../services/orchestration/orchestration-pack-persist-run.service.js';
 import { buildOrchestrationCommercialOffer } from '../../../services/orchestration/orchestration-commercial-offer.service.js';
-import { evaluateOrchestrationPlanGovernance } from '../../../services/orchestration/orchestration-plan-governance.service.js';
 import {
   assertManifestMatchesExecutionPlan,
   insertRoadmapManifestSnapshot,
@@ -32,7 +33,6 @@ import {
 } from '../../../services/orchestration/roadmap-manifest.service.js';
 import { sendApiError } from '../mappers/audits-http.mapper.js';
 import { AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH_MESSAGE } from '../../../config/api-user-messages.en.js';
-import { summarizeOrchestrationPackRevisionDiff } from '../../../services/orchestration/orchestration-pack-diff.js';
 
 export async function postOrchestrationCommercialOfferController(req: AuthRequest, res: Response) {
   try {
@@ -59,10 +59,11 @@ export async function postOrchestrationCommercialOfferController(req: AuthReques
       return;
     }
     const manifestPayload = {
-      schema_version: ROADMAP_MANIFEST_SCHEMA_VERSION,
+      schema_version: parsedBody.data.schema_version ?? ROADMAP_MANIFEST_SCHEMA_VERSION,
       selected_domains: parsedBody.data.selected_domains,
       change_scenario: parsedBody.data.change_scenario,
       season_preset: parsedBody.data.season_preset,
+      ...(parsedBody.data.plan_horizon ? { plan_horizon: parsedBody.data.plan_horizon } : {}),
     };
     try {
       assertManifestMatchesExecutionPlan(manifestPayload, auditCtx.plan);
@@ -88,7 +89,8 @@ export async function postOrchestrationCommercialOfferController(req: AuthReques
       orchestration_pack_version: number;
       roadmap_version: number;
       last_revision_diff: unknown;
-      plan_governance: ReturnType<typeof evaluateOrchestrationPlanGovernance>;
+      last_revision_diff_summary: unknown;
+      plan_governance: OrchestrationPlanGovernance;
     } | null = null;
 
     const acceptedDomain = result.accepted_domain;
@@ -128,6 +130,7 @@ export async function postOrchestrationCommercialOfferController(req: AuthReques
             selected_domains: nextSelectedDomains,
             change_scenario: parsedBody.data.change_scenario,
             season_preset: parsedBody.data.season_preset,
+            ...(parsedBody.data.plan_horizon ? { plan_horizon: parsedBody.data.plan_horizon } : {}),
           },
         });
 
@@ -147,32 +150,36 @@ export async function postOrchestrationCommercialOfferController(req: AuthReques
           return;
         }
 
-        const governanceRolloutMode = getOrchestrationPlanGovernanceRolloutMode();
-        const plan_governance = evaluateOrchestrationPlanGovernance(pack, {
-          rolloutMode: governanceRolloutMode,
-        });
-        if (
-          ORCHESTRATION_PLAN_GOVERNANCE_POLICY.blockPersistOnRefinePlan &&
-          plan_governance.decision === 'reject'
-        ) {
-          await rollbackExecutionPlan();
-          sendApiError(
-            res,
-            409,
-            API_ERROR_CODES.AUDITS_ORCHESTRATION_PLAN_REQUIRES_REFINEMENT,
-            AUDITS_ORCHESTRATION_PLAN_REQUIRES_REFINEMENT_MESSAGE,
-            { plan_governance },
-          );
-          return;
-        }
-
-        const persisted = await persistGlcOrchestrationPack({
+        const persistFlow = await tryPersistOrchestrationPackWithGovernance({
           auditId,
           userId: req.userId!,
           pack,
+          logComponent: 'route.orchestration_commercial_offer',
         });
-        if (persisted.error) {
+        if (!persistFlow.ok) {
           await rollbackExecutionPlan();
+          if (persistFlow.kind === 'governance_reject') {
+            sendApiError(
+              res,
+              409,
+              API_ERROR_CODES.AUDITS_ORCHESTRATION_PLAN_REQUIRES_REFINEMENT,
+              AUDITS_ORCHESTRATION_PLAN_REQUIRES_REFINEMENT_MESSAGE,
+              {
+                plan_governance: persistFlow.plan_governance,
+                remediation: persistFlow.plan_governance.reason_codes.map(code => ({
+                  code,
+                  action: ORCHESTRATION_PLAN_GOVERNANCE_REMEDIATIONS[code],
+                })),
+                auto_refine: {
+                  enabled: ORCHESTRATION_PLAN_GOVERNANCE_POLICY.autoRefine.enabled,
+                  max_attempts: ORCHESTRATION_PLAN_GOVERNANCE_POLICY.autoRefine.maxAttempts,
+                  idempotency_window_seconds:
+                    ORCHESTRATION_PLAN_GOVERNANCE_POLICY.autoRefine.idempotencyWindowSeconds,
+                },
+              },
+            );
+            return;
+          }
           sendApiError(
             res,
             500,
@@ -181,21 +188,21 @@ export async function postOrchestrationCommercialOfferController(req: AuthReques
           );
           return;
         }
-        const last_revision_diff_summary = summarizeOrchestrationPackRevisionDiff(persisted.last_revision_diff);
         accepted_pack_result = {
           manifest_snapshot_id: manifestInsert.id,
-          orchestration_pack_version: persisted.orchestration_pack_version,
-          roadmap_version: persisted.orchestration_pack_version,
-          last_revision_diff: persisted.last_revision_diff,
-          plan_governance,
+          orchestration_pack_version: persistFlow.orchestration_pack_version,
+          roadmap_version: persistFlow.orchestration_pack_version,
+          last_revision_diff: persistFlow.last_revision_diff,
+          last_revision_diff_summary: persistFlow.last_revision_diff_summary,
+          plan_governance: persistFlow.plan_governance,
         };
         logger.info('route.orchestration_commercial_offer_pack_regenerated', {
           component: 'audits',
           metric: 'orchestration_commercial_offer.rebuild_success',
           accepted_domain: acceptedDomain,
-          roadmap_version: persisted.orchestration_pack_version,
-          governance_rollout_mode: governanceRolloutMode,
-          last_revision_diff_summary,
+          roadmap_version: persistFlow.orchestration_pack_version,
+          governance_rollout_mode: persistFlow.plan_governance.rollout_mode,
+          last_revision_diff_summary: persistFlow.last_revision_diff_summary,
         });
       } catch (rebuildErr) {
         await rollbackExecutionPlan();
@@ -210,6 +217,7 @@ export async function postOrchestrationCommercialOfferController(req: AuthReques
       accepted_domain: result.accepted_domain,
       kpi_coverage_expansion_offer_shown: result.offers.length > 0 ? 1 : 0,
       kpi_coverage_expansion_conversion: result.accepted_domain ? 1 : 0,
+      [ORCHESTRATION_TELEMETRY_METRICS.versionAdoptionRate]: result.accepted_domain ? 1 : 0,
     });
     res.json({
       ...result,

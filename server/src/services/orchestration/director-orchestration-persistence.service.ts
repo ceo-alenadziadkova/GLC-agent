@@ -1,6 +1,8 @@
 /**
  * Persists Director execution bundles for orchestration merge (read by `buildOrchestrationPackForAudit`).
- * Intentionally separate from FactChecker / CONTROL_OBJECT — called from future Director pipeline steps.
+ * Intentionally separate from FactChecker / CONTROL_OBJECT.
+ * Invoked after each allowed domain Director run from `runPhaseDomainExecution` in `services/pipeline/phaseRunner.ts`
+ * (extract → merge baseline/deep waves → write `audit_domains.raw_data.glc_director_execution`).
  */
 
 import type { DomainKey } from '@glc/intake-core';
@@ -20,7 +22,8 @@ import { supabase } from '../supabase.js';
 
 import { tryParseGlcDirectorOrchestrationSlice } from './extract-glc-director-slice-from-raw-data.js';
 
-function mergeDirectorOrchestrationSlices(
+/** Merges incremental director writes (baseline run, then deep run) without dropping the other wave. */
+export function mergeGlcDirectorOrchestrationSlices(
   existing: GlcDirectorOrchestrationSlice | null,
   incoming: GlcDirectorOrchestrationSlice,
 ): GlcDirectorOrchestrationSlice {
@@ -72,7 +75,7 @@ export async function persistGlcDirectorOrchestrationSlice(args: {
       : {};
 
   const existingSlice = tryParseGlcDirectorOrchestrationSlice(row.raw_data);
-  const mergedSlice = mergeDirectorOrchestrationSlices(existingSlice, parsed.data);
+  const mergedSlice = mergeGlcDirectorOrchestrationSlices(existingSlice, parsed.data);
   const validated = GlcDirectorOrchestrationSliceSchema.safeParse(mergedSlice);
   if (!validated.success) {
     return { error: new Error(`Merged director slice invalid: ${validated.error.message}`) };

@@ -2,6 +2,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { NewAudit } from '../NewAudit';
+import { WORKSPACE_PAGE_COPY } from '../../config/workspace-page-copy';
+import { NEW_AUDIT_ALL_COVERAGE_DOMAINS } from '../../config/new-audit-coverage-policy';
 
 const { mockDraft, apiMock, searchParamsState } = vi.hoisted(() => ({
   searchParamsState: { value: '' },
@@ -18,6 +20,8 @@ const { mockDraft, apiMock, searchParamsState } = vi.hoisted(() => ({
     briefLayoutChoice: 'wizard' as const,
     draftAuditId: null as string | null,
     draftIntakeVersions: null,
+    coveragePackage: 'complete' as const,
+    selectedDomains: [] as string[],
   },
   apiMock: {
     createAudit: vi.fn(),
@@ -137,6 +141,8 @@ describe('NewAudit wizard state wiring', () => {
     mockDraft.industrySpecify = '';
     mockDraft.responses = { old_key: { value: 'legacy', source: 'client' } };
     mockDraft.draftAuditId = null;
+    mockDraft.coveragePackage = 'complete';
+    mockDraft.selectedDomains = [...NEW_AUDIT_ALL_COVERAGE_DOMAINS];
     apiMock.createAudit.mockResolvedValue({ id: 'audit-1' });
     apiMock.saveBrief.mockResolvedValue({ brief: { intake_versions: null } });
     apiMock.startPipeline.mockResolvedValue({});
@@ -223,7 +229,9 @@ describe('NewAudit wizard state wiring', () => {
     });
     expect(localStorage.getItem('glc_discovery_token')).toBeNull();
     await vi.waitFor(() => {
-      expect(screen.getByText(/discovery answers are pre-filled/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(WORKSPACE_PAGE_COPY.newAudit.step1.discoveryPrefilledBannerText),
+      ).toBeInTheDocument();
     });
   });
 });

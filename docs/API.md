@@ -141,6 +141,8 @@ Dev behavior: in local frontend dev (`import.meta.env.DEV`), logger events stay 
 
 **Body** (JSON): `level` (`debug`|`info`|`warn`|`error`), `source` (default `frontend`), `message`, optional `context` object, optional `timestamp` (ISO).
 
+**Ops Telegram:** when `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are configured, `source: "spa_ui_incident"` (full-screen error report from authenticated users) also sends a formatted HTML message to the ops chat. Repeated sends for the same user and `context.ref` are suppressed for `SYSTEM_DEFAULTS.alerts.spaUiIncidentTelegramCooldownMs` (per API instance).
+
 ### `POST /api/log/snapshot`
 
 **Auth:** JWT where the user is **anonymous** (`is_anonymous`) or **`profiles.role`** is **`guest`** (free snapshot / pre-registration). **403** for full `client` / `consultant` — use **`POST /api/log`**.
@@ -496,6 +498,12 @@ Updates `audit_strategy.strategy_lab_context` for the audit. At least one field 
 { "budget_band": null }
 ```
 
+```json
+{ "director_stage2_domains": ["tech_infrastructure", "ux_conversion"] }
+```
+
+(`director_stage2_domains` is an optional product signal for stage-2 deep director follow-up; send `null` to clear.)
+
 **Response `200`:** `{ "strategy_lab_context": { "company_stage": "scale", "budget_band": "low" } }` (cleaned; omitted keys are not overrides).
 
 **Errors:** `400 AUDITS_STRATEGY_LAB_CONTEXT_PAYLOAD_INVALID` (including empty body), `404 AUDITS_NOT_FOUND`, `500 AUDITS_STRATEGY_LAB_CONTEXT_FAILED`.
@@ -545,11 +553,19 @@ Persists an immutable **roadmap input manifest** row. **`selected_domains`** mus
 
 ```json
 {
+  "schema_version": 2,
   "selected_domains": ["tech_infrastructure", "ux_conversion"],
   "change_scenario": "hybrid",
-  "season_preset": "rolling_90d"
+  "season_preset": "rolling_90d",
+  "plan_horizon": {
+    "start_date": "2026-01-01",
+    "end_date": "2026-06-30"
+  }
 }
 ```
+
+- **`schema_version`:** optional on write; defaults to **`2`**. **`1`** remains readable for legacy snapshots.
+- **`plan_horizon`:** optional. ISO calendar dates **`YYYY-MM-DD`** with **`end_date` ≥ **`start_date`**. When present, **`GET /api/audits/:id/timeline`** partitions the critical path into near/mid/far using this window and node **`target_window_days`** (see `partitionCriticalPathIntoCalendarSeasonBuckets`); when omitted, the preset-only length split applies.
 
 **Response `201`:** `{ "id": "<uuid>" }` — use as **`manifest_snapshot_id`** when building the orchestration pack.
 
@@ -564,6 +580,16 @@ Lists recent **roadmap manifest** snapshot rows for the audit (newest first). Op
 **Response `200`:** `{ "snapshots": [ { "id": "<uuid>", "created_at": "<iso>", "payload": { ...same shape as POST body... } } ] }`
 
 **Errors:** `403 ORCHESTRATION_PACK_API_DISABLED` (when **`FEATURE_ORCHESTRATION_PACK_API`** is off), `404 AUDITS_NOT_FOUND`, `500 AUDITS_ROADMAP_MANIFEST_LIST_FAILED`.
+
+---
+
+### `GET /api/audits/:id/timeline`
+
+Returns the **client timeline read model** (seasonal buckets, lanes, truncated dependencies, top-action windows). **`version.plan_horizon`** echoes the calendar window from the manifest snapshot tied to the pack (or from the latest snapshot when the pack is missing), when **`plan_horizon`** was saved on that manifest.
+
+**Response `200`:** `{ "timeline": { "status": "...", "version": { "roadmap_version", "manifest_snapshot_id", "season_preset", "plan_horizon", ... }, "seasons", "lanes", ... } }` — see `server/src/schemas/orchestrator-timeline.ts`.
+
+**Errors:** `403 ORCHESTRATION_PACK_API_DISABLED` when the pack API flag is off, `404` when the audit is missing or inaccessible.
 
 ---
 
@@ -834,11 +860,11 @@ Priority policy:
 - `medium` (YELLOW): review-required events, help requests, action requests/changes
 - `low` (GREEN): successful completion, artifact-ready, registration, successful snapshot/intake flow
 
-Telegram format is intentionally structured as a compact block:
+Telegram uses **HTML** (`parse_mode: HTML`) for readability:
 
-- header: `[COLOR|PRIORITY] [CATEGORY] title`
-- body lines: `event=...`, `audit=...`, `time=...`, free-text message
-- optional route line: `route=/path`
+- header: **`GLC Ops`** plus labeled lines (severity, area, summary)
+- fields: event code, audit id, time, optional route
+- trailing **Details** block with the free-text message body
 
 ### `GET /api/notifications`
 

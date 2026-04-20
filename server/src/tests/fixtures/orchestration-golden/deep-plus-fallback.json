@@ -1,0 +1,65 @@
+{
+  "scenario": "deep-plus-fallback",
+  "manifestSnapshotId": "33333333-3333-4333-8333-333333333333",
+  "nodes": [
+    {
+      "id": "strategy:fallback:ops-foundation",
+      "title": "Fallback operations foundation",
+      "domain": "automation_processes",
+      "lane": "processes_automation",
+      "dependencies": [],
+      "weight": 6,
+      "source": "strategy",
+      "analysis_depth": "baseline",
+      "confidence": "medium",
+      "impact_score": 3,
+      "effort_score": 2,
+      "risk_score": 3,
+      "time_to_value": "fast"
+    },
+    {
+      "id": "dir:tech_infrastructure:deep:api-hardening",
+      "title": "Deep API hardening",
+      "domain": "tech_infrastructure",
+      "lane": "tech_delivery",
+      "dependencies": ["strategy:fallback:ops-foundation"],
+      "weight": 8,
+      "source": "director",
+      "analysis_depth": "deep",
+      "confidence": "high",
+      "impact_score": 5,
+      "effort_score": 3,
+      "risk_score": 2,
+      "time_to_value": "medium"
+    },
+    {
+      "id": "dir:marketing_utp:baseline:campaign-sync",
+      "title": "Baseline campaign sync",
+      "domain": "marketing_utp",
+      "lane": "marketing_narrative",
+      "dependencies": ["dir:tech_infrastructure:deep:api-hardening"],
+      "weight": 7,
+      "source": "director",
+      "analysis_depth": "baseline",
+      "confidence": "medium",
+      "impact_score": 4,
+      "effort_score": 2,
+      "risk_score": 2,
+      "time_to_value": "fast"
+    }
+  ],
+  "expected": {
+    "critical_path": [
+      "strategy:fallback:ops-foundation",
+      "dir:tech_infrastructure:deep:api-hardening",
+      "dir:marketing_utp:baseline:campaign-sync"
+    ],
+    "conflict_ids": [],
+    "top_7d": ["strategy:fallback:ops-foundation"],
+    "top_30d": [
+      "dir:tech_infrastructure:deep:api-hardening",
+      "strategy:fallback:ops-foundation"
+    ]
+  }
+}
+

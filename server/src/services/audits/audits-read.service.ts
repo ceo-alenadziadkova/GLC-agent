@@ -16,11 +16,62 @@ export function parseAuditsPagination(query: { limit?: string | number; offset?:
   return { limit, offset };
 }
 
-export async function getAuditList(userId: string, query: { limit?: string | number; offset?: string | number }) {
+type AuditListQuery = {
+  limit?: string | number;
+  offset?: string | number;
+  source?: string | string[];
+  status?: string | string[];
+  createdFrom?: string;
+  createdTo?: string;
+  updatedFrom?: string;
+  updatedTo?: string;
+  sortBy?: 'created_at' | 'updated_at';
+  sortDir?: 'asc' | 'desc';
+};
+
+function toFilterArray(input: string | string[] | undefined): string[] | undefined {
+  if (!input) return undefined;
+  const raw = Array.isArray(input) ? input : input.split(',');
+  const normalized = raw.map((v) => v.trim()).filter(Boolean);
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+export async function getAuditList(userId: string, query: AuditListQuery) {
   const { limit, offset } = parseAuditsPagination(query);
-  const { data, count, error } = await listAuditsByUser({ userId, limit, offset });
+  const source = toFilterArray(query.source);
+  const status = toFilterArray(query.status);
+  const sortBy = query.sortBy ?? 'created_at';
+  const sortDir = query.sortDir ?? 'desc';
+  const { data, count, error } = await listAuditsByUser({
+    userId,
+    limit,
+    offset,
+    source,
+    status,
+    createdFrom: query.createdFrom,
+    createdTo: query.createdTo,
+    updatedFrom: query.updatedFrom,
+    updatedTo: query.updatedTo,
+    sortBy,
+    sortDir,
+  });
   if (error) throw error;
-  return { data, total: count ?? 0, limit, offset };
+  return {
+    data,
+    total: count ?? 0,
+    limit,
+    offset,
+    filters: {
+      source: source ?? [],
+      status: status ?? [],
+      createdFrom: query.createdFrom ?? null,
+      createdTo: query.createdTo ?? null,
+      updatedFrom: query.updatedFrom ?? null,
+      updatedTo: query.updatedTo ?? null,
+      sortBy,
+      sortDir,
+    },
+  };
 }
 
 export async function getAuditViewModel(id: string, userId: string, viewerRole: UserRole | undefined) {

@@ -1,5 +1,6 @@
 import type { Response } from 'express';
 import type { AuthRequest, UserRole } from '../../../middleware/auth.js';
+import type { AuditOrigin } from '../../../types/audit.js';
 import {
   API_ERROR_CODES,
   AUDIT_INITIALIZATION_FAILED_MESSAGE,
@@ -84,6 +85,7 @@ export async function createAuditController(req: AuthRequest, res: Response) {
       return;
     }
 
+    const origin: AuditOrigin = role === 'client' ? 'client_direct' : 'consultant_direct';
     const audit = await createAuditEntity({
       ownerUserId: ownership.ownerUserId,
       clientId: ownership.clientId,
@@ -93,6 +95,7 @@ export async function createAuditController(req: AuthRequest, res: Response) {
       mode: modeResolution.mode,
       executionPlan: modeResolution.executionPlan,
       noPublicWebsite: no_public_website === true,
+      origin,
     });
 
     const payload = { id: audit.id, status: audit.status };

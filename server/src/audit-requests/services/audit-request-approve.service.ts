@@ -94,6 +94,7 @@ export async function approveAuditRequestCommand(req: AuthRequest, id: string, c
       company_name: null,
       industry: requestRow.industry ?? null,
       mode: persistedMode,
+      origin: 'request_queue',
       execution_plan: executionPlan,
       no_public_website: isNoPublicWebsiteUrl(String(requestRow.url ?? '')),
     });

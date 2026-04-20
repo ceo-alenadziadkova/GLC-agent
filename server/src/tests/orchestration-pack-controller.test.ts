@@ -213,6 +213,17 @@ describe('postOrchestrationPackController', () => {
         }),
       }),
     );
+    expect(loggerMocks.warn).toHaveBeenCalledWith(
+      'orchestration_pack_rejected',
+      expect.objectContaining({
+        component: 'route.orchestration_pack',
+        auditId: 'audit-1',
+        metric: 'kpi_orchestration_plan_gate_reject',
+        metric_legacy: 'orchestration_pack_run.refine_required',
+        governance_reason_codes: expect.any(Array),
+        director_input_coverage_ratio: expect.any(Number),
+      }),
+    );
   });
 
   it('returns persisted pack payload on success', async () => {
@@ -255,8 +266,10 @@ describe('postOrchestrationPackController', () => {
       }),
     );
     expect(loggerMocks.info).toHaveBeenCalledWith(
-      'route.orchestration_pack_success',
+      'orchestration_pack_success',
       expect.objectContaining({
+        component: 'route.orchestration_pack',
+        auditId: 'audit-1',
         metric: 'orchestration_pack_run.success',
         kpi_pack_refine_required: 0,
         kpi_pack_lane_imbalance: expect.any(Number),

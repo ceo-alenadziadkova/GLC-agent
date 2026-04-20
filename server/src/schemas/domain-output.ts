@@ -11,6 +11,8 @@ import {
 } from '../config/strategy-initiative-policy.js';
 import { DOMAIN_KEYS } from '@glc/intake-core';
 
+import { GlcDirectorOrchestrationSliceSchema } from './glc-director-orchestration-slice.js';
+
 const L = STRATEGY_INITIATIVE_LIMITS;
 const EP = STRATEGY_EXECUTION_PACK_LIMITS;
 
@@ -125,6 +127,13 @@ export const DomainOutputSchema = z.object({
    * Leave empty array if all areas were assessable.
    */
   unknown_items: z.array(z.string()).max(10),
+  /**
+   * Optional Director execution bundle for cross-domain orchestration (Layer 2 → 3).
+   * When `FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT` is on, phases in the effective strict set
+   * (`director-orchestration-policy.ts`, optionally narrowed by `DIRECTOR_ORCHESTRATION_STRICT_PHASE_PILOT`)
+   * require a parseable slice before the row is accepted.
+   */
+  glc_director_execution: GlcDirectorOrchestrationSliceSchema.optional(),
 });
 
 export type DomainOutput = z.infer<typeof DomainOutputSchema>;

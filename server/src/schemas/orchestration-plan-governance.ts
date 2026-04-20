@@ -7,6 +7,12 @@ export const OrchestrationPlanGovernanceDecisionHintSchema = z.enum([
   'accept_with_warnings',
   'refine_plan',
 ]);
+export const ORCHESTRATION_PLAN_GATE_OUTCOMES = [
+  'accept',
+  'accept_with_warnings',
+  'refine',
+] as const;
+export const OrchestrationPlanGateOutcomeSchema = z.enum(ORCHESTRATION_PLAN_GATE_OUTCOMES);
 
 export const OrchestrationPlanGovernanceStatusSchema = z.enum([
   'pass',
@@ -42,6 +48,7 @@ export const OrchestrationPlanGovernanceSchema = z.object({
   decision: OrchestrationPlanGovernanceDecisionSchema,
   rollout_mode: z.enum(ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODES),
   decision_hint: OrchestrationPlanGovernanceDecisionHintSchema,
+  plan_gate_outcome: OrchestrationPlanGateOutcomeSchema,
   reason_codes: z.array(z.enum(reasonCodeTuple)),
   blocking_reasons: z.array(z.enum(reasonCodeTuple)),
   warnings_soft: z.array(z.enum(reasonCodeTuple)),

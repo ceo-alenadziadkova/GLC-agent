@@ -12,7 +12,8 @@ import {
   type IntakeSubmissionQueueRow,
 } from '../domain/admin-request-queue.domain';
 
-export type AdminQueueFilter = 'all' | 'pending';
+export const ADMIN_REQUEST_QUEUE_FILTER_ORDER = ['pending', 'all'] as const;
+export type AdminQueueFilter = (typeof ADMIN_REQUEST_QUEUE_FILTER_ORDER)[number];
 
 export type AdminQueuePayload = {
   requests: AuditRequest[];

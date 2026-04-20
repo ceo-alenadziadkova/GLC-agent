@@ -71,6 +71,9 @@ export const SETTINGS_PAGE_COPY = {
     auditStatusReminders: 'Audit status reminders',
     productUpdates: 'Product updates',
     productUpdatesHint: 'Stored as your email marketing consent on the server.',
+    showExecutionTracePanels: 'Show execution trace panels',
+    showExecutionTracePanelsHint:
+      'Admin-only developer surface. When enabled, execution trace panels appear in report, workspace, and pipeline monitor.',
   },
   legalConsents: {
     title: 'Client consent preferences',
@@ -86,6 +89,7 @@ export const SETTINGS_PAGE_COPY = {
     dpa: 'Data Processing Agreement (consultant / B2B)',
   },
   account: {
+    credentialsPanelAriaLabel: 'Change email and password',
     signedInEmail: 'Signed in email',
     unknownEmail: 'unknown',
     changeEmail: 'Change email',
@@ -100,6 +104,19 @@ export const SETTINGS_PAGE_COPY = {
     updatePassword: 'Update password',
     updatingPassword: 'Updating...',
     signOut: 'Sign out',
+    asideTitle: 'Security tips',
+    asideIntro: 'Short reminders while you update email or password.',
+    asideBulletEmail:
+      'Email change messages can land in spam. If nothing arrives, check filters and try again after a few minutes.',
+    asideBulletPasswordMin: 'Passwords must be at least {{min}} characters (platform minimum).',
+    asideBulletPasswordUnique: 'Use a password you do not reuse on other sites or apps.',
+    generateStrongPassword: 'Generate strong password',
+    generateStrongPasswordAriaLabel:
+      'Generate a strong random password and fill the new password and confirmation fields',
+    ariaShowPassword: 'Show new password and confirmation',
+    ariaHidePassword: 'Hide new password and confirmation',
+    asideBulletPasswordGenerator:
+      'Use Generate strong password to fill both fields, then store it in a password manager before you save.',
   },
   page: {
     title: 'Settings',

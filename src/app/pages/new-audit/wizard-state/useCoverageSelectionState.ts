@@ -11,9 +11,23 @@ import {
 
 export function useCoverageSelectionState(params: {
   industry: string;
+  isClientSelfServe: boolean;
+  seedCoveragePackage?: AuditCoveragePackage;
+  seedSelectedDomains?: DomainKey[];
 }) {
-  const [coveragePackage, setCoveragePackage] = useState<AuditCoveragePackage>('complete');
-  const [selectedDomains, setSelectedDomains] = useState<DomainKey[]>([...NEW_AUDIT_ALL_COVERAGE_DOMAINS]);
+  const [coveragePackage, setCoveragePackage] = useState<AuditCoveragePackage | null>(() => {
+    if (!params.isClientSelfServe) return 'complete';
+    const seeded = params.seedCoveragePackage;
+    if (seeded === 'starter' || seeded === 'pro' || seeded === 'complete') return seeded;
+    return null;
+  });
+  const [selectedDomains, setSelectedDomains] = useState<DomainKey[]>(() => {
+    if (!params.isClientSelfServe) return [...NEW_AUDIT_ALL_COVERAGE_DOMAINS];
+    if (params.seedSelectedDomains && params.seedSelectedDomains.length > 0) {
+      return [...params.seedSelectedDomains];
+    }
+    return [];
+  });
 
   const recommendedDomains = useMemo<DomainKey[]>(() => {
     if (!params.industry) return NEW_AUDIT_DEFAULT_DOMAIN_RECOMMENDATIONS;
@@ -21,6 +35,10 @@ export function useCoverageSelectionState(params: {
   }, [params.industry]);
 
   useEffect(() => {
+    if (coveragePackage == null) {
+      setSelectedDomains(prev => (prev.length === 0 ? prev : []));
+      return;
+    }
     setSelectedDomains(prev => {
       if (coveragePackage === 'complete') return [...NEW_AUDIT_ALL_COVERAGE_DOMAINS];
       if (coveragePackage === 'starter') {
@@ -34,6 +52,7 @@ export function useCoverageSelectionState(params: {
 
   function toggleDomainSelection(domain: DomainKey) {
     setSelectedDomains(prev => {
+      if (coveragePackage == null) return prev;
       const has = prev.includes(domain);
       if (coveragePackage === 'complete') return [...NEW_AUDIT_ALL_COVERAGE_DOMAINS];
       const next = has ? prev.filter(d => d !== domain) : [...prev, domain];

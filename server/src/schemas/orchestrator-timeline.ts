@@ -77,6 +77,12 @@ const TimelineSeasonSchema = z.object({
   node_ids: z.array(z.string().min(1)),
 });
 
+const planHorizonIsoRegex = /^\d{4}-\d{2}-\d{2}$/;
+const TimelinePlanHorizonSchema = z.object({
+  start_date: z.string().regex(planHorizonIsoRegex),
+  end_date: z.string().regex(planHorizonIsoRegex),
+});
+
 const TimelineVersionSchema = z.object({
   roadmap_version: z.number().int().nonnegative(),
   manifest_snapshot_id: z.string().uuid().nullable(),
@@ -85,6 +91,8 @@ const TimelineVersionSchema = z.object({
   manifest_state: z.enum(manifestStateTuple),
   /** Manifest planning window used for seasonal bucket weights; null when unknown. */
   season_preset: z.enum(roadmapSeasonPresetTuple).nullable().optional(),
+  /** When the roadmap manifest includes `plan_horizon`, timeline buckets follow calendar partition policy. */
+  plan_horizon: TimelinePlanHorizonSchema.nullable().optional(),
 });
 
 const TimelineDataGapsSchema = z.object({

@@ -24,12 +24,26 @@ export type DirectorOrchestrationPersistenceMode = 'best_effort' | 'strict_for_s
 const ALLOWED_PHASE_SET = new Set<number>(DIRECTOR_ORCHESTRATION_ALLOWED_PHASES);
 const STRICT_PHASE_SET = new Set<number>(DIRECTOR_ORCHESTRATION_STRICT_PHASES);
 
+/**
+ * Gradual strict rollout: when non-empty, only these phase numbers (must also be in
+ * `DIRECTOR_ORCHESTRATION_STRICT_PHASES`) use `strict_for_selected_domains`. Other strict
+ * phases behave as `best_effort` until the pilot list is expanded.
+ * Empty array = full strict set (all of `DIRECTOR_ORCHESTRATION_STRICT_PHASES`).
+ */
+export const DIRECTOR_ORCHESTRATION_STRICT_PHASE_PILOT: readonly number[] = [];
+
 export function isDirectorOrchestrationPhaseAllowed(phase: number): boolean {
   return ALLOWED_PHASE_SET.has(phase);
 }
 
 export function directorOrchestrationPersistenceModeForPhase(phase: number): DirectorOrchestrationPersistenceMode {
-  return STRICT_PHASE_SET.has(phase) ? 'strict_for_selected_domains' : 'best_effort';
+  if (!STRICT_PHASE_SET.has(phase)) return 'best_effort';
+  if (DIRECTOR_ORCHESTRATION_STRICT_PHASE_PILOT.length === 0) {
+    return 'strict_for_selected_domains';
+  }
+  return DIRECTOR_ORCHESTRATION_STRICT_PHASE_PILOT.includes(phase)
+    ? 'strict_for_selected_domains'
+    : 'best_effort';
 }
 
 /** Cap actions per wave bundle before graph merge (safety). */
@@ -47,6 +61,14 @@ export const DIRECTOR_ACTION_SCORE_TIERS = {
   highMin: 4,
   /** >= this and < highMin → medium */
   mediumMin: 3,
+} as const;
+
+export const DIRECTOR_ORCHESTRATION_CONFIDENCE_LEVELS = ['low', 'medium', 'high'] as const;
+
+export const DIRECTOR_ORCHESTRATION_RISK_POLICY = {
+  min: 0,
+  max: 1,
+  fallback: 0.5,
 } as const;
 
 /**

@@ -13,6 +13,7 @@
 
 - Human orchestrator prompt canon (operational text): `docs/instructions/ORCHESTRATOR-INSTRUCTIONS.md`
 - Client-facing roadmap and timeline UX (lanes, seasons, lab vs timeline): `ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md`
+- Phased implementation plan (code-grounded milestones, % remaining): `ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md`
 - Per-phase quality gate (domain phases): `ADR-CONTROL-OBJECT-V1.md`, `ADR-DECISION-LAYER-GATES.md`
 - Plan-level orchestration governance canon: `ADR-ORCHESTRATION-PLAN-GOVERNANCE-CANON.md`
 - Cross-domain two-stage pattern for domain deep audits: `ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md`

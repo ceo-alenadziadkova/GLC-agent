@@ -118,6 +118,10 @@ export async function convertDiscoverySessionToAudit(
     };
   }
   const auditId = convertRow.audit_id;
+  await supabase
+    .from('audits')
+    .update({ origin: 'discovery' })
+    .eq('id', auditId);
   const answers = coerceDiscoverySessionAnswers(convertRow.answers);
 
   let briefPatch: ReturnType<typeof discoveryToBriefPatch> = {};

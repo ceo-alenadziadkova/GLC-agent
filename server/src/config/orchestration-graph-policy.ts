@@ -14,15 +14,19 @@ export const ORCHESTRATION_FALLBACK_REASON_CODES = [
   'director_slice_invalid',
 ] as const;
 export type OrchestrationFallbackReasonCode = (typeof ORCHESTRATION_FALLBACK_REASON_CODES)[number];
+export const ORCHESTRATION_INPUT_GATE_STATUSES = ['finalized', 'degraded'] as const;
+export type OrchestrationInputGateStatus = (typeof ORCHESTRATION_INPUT_GATE_STATUSES)[number];
 
 export const ORCHESTRATION_DEFAULT_INPUT_QUALITY = {
   input_mode: 'strategy_fallback',
+  input_gate_status: 'degraded',
   director_coverage_ratio: 0,
   director_input_coverage_ratio: 0,
   degraded: true,
   fallback_reason_code: 'director_slice_missing',
 } as const satisfies {
   input_mode: OrchestrationInputMode;
+  input_gate_status: OrchestrationInputGateStatus;
   director_coverage_ratio: number;
   director_input_coverage_ratio: number;
   degraded: boolean;
@@ -91,6 +95,8 @@ export const ORCHESTRATION_PACK_PERSIST_MAX_RETRIES = 2;
 
 /** Rolling history depth for persisted orchestration pack diffs (newest-first). */
 export const ORCHESTRATION_PACK_REVISION_HISTORY_MAX_ITEMS = 50;
+/** Contract version for orchestration revision diff snapshots. */
+export const ORCHESTRATION_PACK_REVISION_DIFF_SCHEMA_VERSION = 1 as const;
 
 /**
  * Deterministic dependency edge semantics required by ADR:
@@ -167,6 +173,15 @@ export const ORCHESTRATION_PRIORITY_ENGINE_POLICY = {
     slow: 1.3,
   },
   defaultRiskScore: 3,
+} as const;
+
+/** Top action windows for near-term execution summaries in persisted pack. */
+export const ORCHESTRATION_TOP_ACTIONS_POLICY = {
+  window_days: {
+    short: 7,
+    medium: 30,
+  },
+  per_window_limit: 5,
 } as const;
 
 /**

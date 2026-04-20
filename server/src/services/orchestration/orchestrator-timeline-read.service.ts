@@ -3,7 +3,7 @@ import type { OrchestrationManifestState } from '../../config/orchestration-clie
 import type { RoadmapSeasonPreset } from '../../config/orchestration-roadmap-presets.js';
 import {
   ORCHESTRATION_TIMELINE_POLICY,
-  partitionCriticalPathIntoSeasonBuckets,
+  partitionCriticalPathForTimelineDisplay,
 } from '../../config/orchestration-timeline-policy.js';
 import type { RoadmapManifestPayload } from '../../schemas/roadmap-manifest.js';
 import { OrchestratorTimelineDtoSchema, type OrchestratorTimelineDto } from '../../schemas/orchestrator-timeline.js';
@@ -22,21 +22,31 @@ type TimelineReadResult =
 
 const TIMELINE_BUCKET_IDS = ['near', 'mid', 'far'] as const;
 
-async function resolveSeasonPresetForTimeline(args: {
+async function resolveManifestForTimelinePartition(args: {
   auditId: string;
   packManifestSnapshotId: string | null;
   latestSnapshotPayload: RoadmapManifestPayload | null;
-}): Promise<RoadmapSeasonPreset | null> {
+}): Promise<{
+  seasonPreset: RoadmapSeasonPreset | null;
+  planHorizon: RoadmapManifestPayload['plan_horizon'] | null;
+}> {
   if (args.packManifestSnapshotId) {
     const row = await fetchRoadmapManifestSnapshotForAudit({
       auditId: args.auditId,
       snapshotId: args.packManifestSnapshotId,
     });
-    if (row?.payload.season_preset) {
-      return row.payload.season_preset;
+    if (row?.payload) {
+      return {
+        seasonPreset: row.payload.season_preset ?? null,
+        planHorizon: row.payload.plan_horizon ?? null,
+      };
     }
   }
-  return args.latestSnapshotPayload?.season_preset ?? null;
+  const latest = args.latestSnapshotPayload;
+  return {
+    seasonPreset: latest?.season_preset ?? null,
+    planHorizon: latest?.plan_horizon ?? null,
+  };
 }
 
 /**
@@ -60,7 +70,7 @@ export async function buildClientTimelineReadModel(args: {
 
   const latestSnapshotRes = await listRoadmapManifestSnapshotsForAudit({
     auditId: args.auditId,
-    limit: 1,
+    limit: ORCHESTRATION_TIMELINE_POLICY.latestManifestSnapshotsPeekLimit,
   });
   if (latestSnapshotRes.error) {
     return { status: 'error', error: latestSnapshotRes.error };
@@ -90,7 +100,7 @@ export async function buildClientTimelineReadModel(args: {
       : 'confirmed';
 
   if (!pack) {
-    const versionSeasonPreset = await resolveSeasonPresetForTimeline({
+    const versionManifest = await resolveManifestForTimelinePartition({
       auditId: args.auditId,
       packManifestSnapshotId: null,
       latestSnapshotPayload: latestPayload,
@@ -103,7 +113,8 @@ export async function buildClientTimelineReadModel(args: {
         latest_manifest_snapshot_id: latestSnapshotId,
         stale_manifest: false,
         manifest_state: 'draft',
-        season_preset: versionSeasonPreset,
+        season_preset: versionManifest.seasonPreset,
+        plan_horizon: versionManifest.planHorizon,
       },
       seasons: TIMELINE_BUCKET_IDS.map((id) => ({ id, node_ids: [] })),
       lanes: ORCHESTRATION_LANE_IDS.map((lane_id) => ({ lane_id, items: [] })),
@@ -117,12 +128,20 @@ export async function buildClientTimelineReadModel(args: {
   }
 
   const nodeById = new Map(pack.graph.nodes.map((node) => [node.id, node] as const));
-  const versionSeasonPreset = await resolveSeasonPresetForTimeline({
+  const versionManifest = await resolveManifestForTimelinePartition({
     auditId: args.auditId,
     packManifestSnapshotId: manifestSnapshotId,
     latestSnapshotPayload: latestPayload,
   });
-  const critical = partitionCriticalPathIntoSeasonBuckets(pack.critical_path, versionSeasonPreset);
+  const partitionHints = new Map(
+    pack.graph.nodes.map((n) => [n.id, { target_window_days: n.target_window_days }] as const),
+  );
+  const critical = partitionCriticalPathForTimelineDisplay({
+    criticalPathIds: pack.critical_path,
+    nodesById: partitionHints,
+    seasonPreset: versionManifest.seasonPreset,
+    planHorizon: versionManifest.planHorizon ?? null,
+  });
   const lanes = ORCHESTRATION_LANE_IDS.map((lane_id) => ({
     lane_id,
     items: (pack.lanes[lane_id] ?? [])
@@ -181,7 +200,8 @@ export async function buildClientTimelineReadModel(args: {
       latest_manifest_snapshot_id: latestSnapshotId,
       stale_manifest: staleManifest,
       manifest_state: manifestState,
-      season_preset: versionSeasonPreset,
+      season_preset: versionManifest.seasonPreset,
+      plan_horizon: versionManifest.planHorizon,
     },
     seasons: TIMELINE_BUCKET_IDS.map((id) => ({ id, node_ids: critical[id] })),
     lanes,

@@ -11,15 +11,9 @@ import {
   ORCHESTRATION_PACK_API_DISABLED_MESSAGE,
 } from '../../../config/api-error-codes.js';
 import { idempotencyPostAuditsOrchestrationPackKey } from '../../../config/api-http-paths.js';
-import {
-  getOrchestrationPlanGovernanceRolloutMode,
-  isOrchestrationPackApiEnabled,
-} from '../../../config/feature-flags.js';
-import { ORCHESTRATION_PLAN_GOVERNANCE_POLICY } from '../../../config/orchestration-plan-governance-policy.js';
-import {
-  isTightenedQualityRolloutReady,
-  resolveOrchestrationPlanGovernanceRolloutTransition,
-} from '../../../config/orchestration-plan-governance-rollout-policy.js';
+import { isOrchestrationPackApiEnabled } from '../../../config/feature-flags.js';
+import { ORCHESTRATION_TELEMETRY_METRICS } from '../../../config/orchestration-telemetry-policy.js';
+import { ORCHESTRATION_PLAN_GOVERNANCE_POLICY, ORCHESTRATION_PLAN_GOVERNANCE_REMEDIATIONS } from '../../../config/orchestration-plan-governance-policy.js';
 import { AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH_MESSAGE } from '../../../config/api-user-messages.en.js';
 import {
   getStoredIdempotentResponse,
@@ -28,13 +22,8 @@ import {
 } from '../../../lib/idempotency.js';
 import type { AuthRequest } from '../../../middleware/auth.js';
 import { logger } from '../../../services/logger.js';
-import {
-  buildOrchestrationPackForAuditWithStatus,
-  persistGlcOrchestrationPack,
-} from '../../../services/orchestration/orchestration-read.service.js';
+import { runOrchestrationPackPersistFlowFromManifest } from '../../../services/orchestration/orchestration-pack-persist-run.service.js';
 import { RoadmapManifestMismatchError } from '../../../services/orchestration/roadmap-manifest.service.js';
-import { evaluateOrchestrationPlanGovernance } from '../../../services/orchestration/orchestration-plan-governance.service.js';
-import { summarizeOrchestrationPackRevisionDiff } from '../../../services/orchestration/orchestration-pack-diff.js';
 import { sendApiError } from '../mappers/audits-http.mapper.js';
 
 const BodySchema = z.object({
@@ -76,124 +65,83 @@ export async function executePostOrchestrationPack(req: AuthRequest, res: Respon
       return;
     }
 
-    const buildResult = await buildOrchestrationPackForAuditWithStatus({
+    const flow = await runOrchestrationPackPersistFlowFromManifest({
       auditId,
       userId: req.userId!,
       manifestSnapshotId: parsedBody.data.manifest_snapshot_id,
+      logComponent: 'route.orchestration_pack',
     });
 
-    if (buildResult.status === 'not_ready') {
-      logger.warn('route.orchestration_pack_rejected', {
-        component: 'audits',
-        reason: 'pack_not_ready',
-        not_ready_reason_code: buildResult.reason_code,
-        metric: 'orchestration_pack_run.not_ready',
-      });
+    if (!flow.ok) {
+      if (flow.kind === 'not_ready') {
+        logger.warn('route.orchestration_pack_rejected', {
+          component: 'audits',
+          reason: 'pack_not_ready',
+          not_ready_reason_code: flow.reason_code,
+          metric: 'orchestration_pack_run.not_ready',
+        });
+        sendApiError(
+          res,
+          409,
+          API_ERROR_CODES.AUDITS_ORCHESTRATION_PACK_NOT_READY,
+          AUDITS_ORCHESTRATION_PACK_NOT_READY_MESSAGE,
+          { not_ready_reason_code: flow.reason_code },
+        );
+        return;
+      }
+      if (flow.kind === 'manifest_mismatch') {
+        logger.warn('route.orchestration_pack_rejected', {
+          component: 'audits',
+          reason: 'manifest_execution_plan_mismatch',
+          metric: 'orchestration_pack_run.mismatch',
+        });
+        sendApiError(
+          res,
+          400,
+          API_ERROR_CODES.AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH,
+          AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH_MESSAGE,
+        );
+        return;
+      }
+      if (flow.kind === 'governance_reject') {
+        sendApiError(
+          res,
+          409,
+          API_ERROR_CODES.AUDITS_ORCHESTRATION_PLAN_REQUIRES_REFINEMENT,
+          AUDITS_ORCHESTRATION_PLAN_REQUIRES_REFINEMENT_MESSAGE,
+          {
+            plan_governance: flow.plan_governance,
+            remediation: flow.plan_governance.reason_codes.map(code => ({
+              code,
+              action: ORCHESTRATION_PLAN_GOVERNANCE_REMEDIATIONS[code],
+            })),
+            auto_refine: {
+              enabled: ORCHESTRATION_PLAN_GOVERNANCE_POLICY.autoRefine.enabled,
+              max_attempts: ORCHESTRATION_PLAN_GOVERNANCE_POLICY.autoRefine.maxAttempts,
+              idempotency_window_seconds:
+                ORCHESTRATION_PLAN_GOVERNANCE_POLICY.autoRefine.idempotencyWindowSeconds,
+            },
+          },
+        );
+        return;
+      }
       sendApiError(
         res,
-        409,
-        API_ERROR_CODES.AUDITS_ORCHESTRATION_PACK_NOT_READY,
-        AUDITS_ORCHESTRATION_PACK_NOT_READY_MESSAGE,
-        { not_ready_reason_code: buildResult.reason_code },
+        500,
+        API_ERROR_CODES.AUDITS_ORCHESTRATION_PACK_FAILED,
+        AUDITS_ORCHESTRATION_PACK_FAILED_MESSAGE,
       );
       return;
     }
-    const { pack } = buildResult;
 
-    const governanceRolloutMode = getOrchestrationPlanGovernanceRolloutMode();
-    const plan_governance = evaluateOrchestrationPlanGovernance(pack, {
-      rolloutMode: governanceRolloutMode,
-    });
-    const tightenedQualityRolloutReady = isTightenedQualityRolloutReady({
-      dependencyIntegrityScore: plan_governance.dependency_integrity_score,
-      confidenceCoverageScore: plan_governance.confidence_coverage_score,
-      riskCoverageScore: plan_governance.risk_coverage_score,
-    });
-    const rolloutTransition = resolveOrchestrationPlanGovernanceRolloutTransition({
-      currentMode: governanceRolloutMode,
-      readiness: {
-        dependencyIntegrityScore: plan_governance.dependency_integrity_score,
-        confidenceCoverageScore: plan_governance.confidence_coverage_score,
-        riskCoverageScore: plan_governance.risk_coverage_score,
-      },
-    });
-    if (
-      governanceRolloutMode === 'shadow' &&
-      plan_governance.decision_hint === 'refine_plan'
-    ) {
-      logger.warn('route.orchestration_pack_governance_shadow_would_fail', {
-        component: 'audits',
-        metric: 'orchestration_pack_run.shadow_would_fail',
-        governance_reason_codes: plan_governance.reason_codes,
-      });
-    }
-    if (
-      ORCHESTRATION_PLAN_GOVERNANCE_POLICY.blockPersistOnRefinePlan &&
-      plan_governance.decision === 'reject'
-    ) {
-      logger.warn('route.orchestration_pack_rejected', {
-        component: 'audits',
-        reason: 'plan_requires_refinement',
-        metric: 'orchestration_pack_run.refine_required',
-        governance_reason_codes: plan_governance.reason_codes,
-      });
-      sendApiError(
-        res,
-        409,
-        API_ERROR_CODES.AUDITS_ORCHESTRATION_PLAN_REQUIRES_REFINEMENT,
-        AUDITS_ORCHESTRATION_PLAN_REQUIRES_REFINEMENT_MESSAGE,
-        { plan_governance },
-      );
-      return;
-    }
-
-    const { orchestration_pack_version, last_revision_diff, error: persistErr } = await persistGlcOrchestrationPack({
-      auditId,
-      userId: req.userId!,
-      pack,
-    });
-    if (persistErr) {
-      logger.error('route.orchestration_pack_persist_failed', {
-        component: 'audits',
-        metric: 'orchestration_pack_run.persist_fail',
-        error: persistErr.message,
-      });
-      sendApiError(res, 500, API_ERROR_CODES.AUDITS_ORCHESTRATION_PACK_FAILED, AUDITS_ORCHESTRATION_PACK_FAILED_MESSAGE);
-      return;
-    }
-
-    const last_revision_diff_summary = summarizeOrchestrationPackRevisionDiff(last_revision_diff);
-    logger.info('route.orchestration_pack_success', {
-      component: 'audits',
-      metric: 'orchestration_pack_run.success',
-      roadmap_version: orchestration_pack_version,
-      nodes_count: pack.graph.nodes.length,
-      edges_count: pack.graph.edges.length,
-      conflicts_count: pack.conflicts_resolved.length,
-      governance_decision_hint: plan_governance.decision_hint,
-      governance_status: plan_governance.status,
-      governance_rollout_mode: plan_governance.rollout_mode,
-      governance_next_rollout_mode: rolloutTransition.recommendedMode,
-      governance_reason_codes: plan_governance.reason_codes,
-      tightened_quality_rollout_ready: tightenedQualityRolloutReady ? 1 : 0,
-      kpi_pack_refine_required: plan_governance.decision_hint === 'refine_plan' ? 1 : 0,
-      kpi_pack_lane_imbalance: computeLaneImbalance(pack),
-      kpi_unresolved_conflicts_rate:
-        pack.conflicts_resolved.length === 0
-          ? 0
-          : Number((plan_governance.unresolved_conflicts / pack.conflicts_resolved.length).toFixed(4)),
-      kpi_governance_coverage_score: plan_governance.coverage_score,
-      kpi_governance_integrity_score: plan_governance.integrity_score,
-      last_revision_diff_summary,
-    });
     const payload = {
-      pack,
-      orchestration_pack_version,
-      roadmap_version: orchestration_pack_version,
-      last_revision_diff,
-      last_revision_diff_summary,
-      plan_governance,
-      rollout_transition: rolloutTransition,
+      pack: flow.pack,
+      orchestration_pack_version: flow.orchestration_pack_version,
+      roadmap_version: flow.orchestration_pack_version,
+      last_revision_diff: flow.last_revision_diff,
+      last_revision_diff_summary: flow.last_revision_diff_summary,
+      plan_governance: flow.plan_governance,
+      rollout_transition: flow.rollout_transition,
     };
     await storeIdempotentResponse(
       req,
@@ -231,18 +179,10 @@ export async function executePostOrchestrationPack(req: AuthRequest, res: Respon
     const error = err as Error;
     logger.error('route.orchestration_pack_failed', {
       component: 'audits',
+      metric: ORCHESTRATION_TELEMETRY_METRICS.packRunFailure,
       error: error.message,
       stack: error.stack,
     });
     sendApiError(res, 500, API_ERROR_CODES.AUDITS_ORCHESTRATION_PACK_FAILED, AUDITS_ORCHESTRATION_PACK_FAILED_MESSAGE);
   }
-}
-
-function computeLaneImbalance(pack: { lanes?: Record<string, string[]> }): number {
-  if (!pack?.lanes) return 0;
-  const counts = Object.values(pack.lanes).map(v => (Array.isArray(v) ? v.length : 0));
-  if (counts.length === 0) return 0;
-  const max = Math.max(...counts);
-  const min = Math.min(...counts);
-  return max - min;
 }

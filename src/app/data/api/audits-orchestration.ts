@@ -22,6 +22,7 @@ import type { DomainKey } from '../auditTypes';
 import type {
   OrchestrationChangeScenario,
   OrchestrationManifestSchemaVersion,
+  OrchestrationPlanHorizon,
   OrchestrationPreviewCompressionHint,
   OrchestrationPreviewLaneDensityBand,
   OrchestrationRiskTolerancePreset,
@@ -42,6 +43,7 @@ export type RoadmapManifestRequestBody = {
   change_scenario: OrchestrationChangeScenario;
   season_preset: OrchestrationSeasonPreset;
   risk_tolerance?: OrchestrationRiskTolerancePreset;
+  plan_horizon?: OrchestrationPlanHorizon;
 };
 export type RoadmapInputManifest = RoadmapManifestRequestBody;
 
@@ -101,6 +103,7 @@ export type AuditTimelineDto = {
     stale_manifest: boolean;
     manifest_state: OrchestrationManifestState;
     season_preset?: OrchestrationSeasonPreset | null;
+    plan_horizon?: OrchestrationPlanHorizon | null;
   };
   seasons: Array<{ id: 'near' | 'mid' | 'far'; node_ids: string[] }>;
   lanes: Array<{
@@ -152,6 +155,7 @@ export type OrchestrationCommercialOfferResponseDto = {
     orchestration_pack_version: number;
     roadmap_version: number;
     last_revision_diff: GlcOrchestrationPackRevisionDiffView | null;
+    last_revision_diff_summary?: string | null;
     plan_governance: OrchestrationPlanGovernanceDto;
   } | null;
 };

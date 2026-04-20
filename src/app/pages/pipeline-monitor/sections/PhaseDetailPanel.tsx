@@ -117,6 +117,12 @@ export function PhaseDetailPanel(props: {
         ? PM.detail.viewReport
       : PM.detail.viewInWorkspace;
 
+  /** Portal clients: no consultant-style workspace shortcut; keep Strategy Lab + finished report only. */
+  const showPhaseResultLink =
+    !isClient ||
+    selectedPhase.id === STRATEGY_PHASE_ID ||
+    auditStatus === PIPELINE_MONITOR_UI_POLICY.status.completed;
+
   const Icon = selectedPhase.icon;
   const qualityRunningAuto = phases.some(phase => AUTO_WING_IDS.includes(phase.id) && phase.status === 'running');
   const qualityRunningAnalytic = phases.some(
@@ -153,6 +159,12 @@ export function PhaseDetailPanel(props: {
             <p className="text-sm font-medium text-[var(--score-1)]">
               {PM.errorPrefix} {pipeError}
             </p>
+          </Callout>
+        )}
+
+        {isClient && auditStatus === PIPELINE_MONITOR_UI_POLICY.status.review && (
+          <Callout intent="info" className="mb-4 p-4" title={PM.detail.clientReviewGateTitle}>
+            {PM.detail.clientReviewGateBody}
           </Callout>
         )}
 
@@ -459,7 +471,7 @@ export function PhaseDetailPanel(props: {
             )}
 
             <div className="flex items-center gap-3">
-              {phaseHasAgentOutput && (
+              {phaseHasAgentOutput && showPhaseResultLink && (
                 <Button asChild variant="outline" size="sm" className="no-underline">
                   <Link to={phaseResultPath}>
                     {phaseResultLinkLabel} <CaretRight className="w-4 h-4" />

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { ORCHESTRATION_LANE_IDS } from '../config/orchestration-lanes.js';
+import { ORCHESTRATION_PACK_REVISION_DIFF_SCHEMA_VERSION } from '../config/orchestration-graph-policy.js';
 
 const laneTuple = [...ORCHESTRATION_LANE_IDS] as [
   (typeof ORCHESTRATION_LANE_IDS)[number],
@@ -13,6 +14,9 @@ const EdgeRefSchema = z.object({
 });
 
 export const GlcOrchestrationPackRevisionDiffSchema = z.object({
+  schema_version: z
+    .literal(ORCHESTRATION_PACK_REVISION_DIFF_SCHEMA_VERSION)
+    .default(ORCHESTRATION_PACK_REVISION_DIFF_SCHEMA_VERSION),
   from_version: z.number().int().nonnegative(),
   to_version: z.number().int().positive(),
   nodes_added: z.array(z.string()),

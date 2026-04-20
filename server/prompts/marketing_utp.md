@@ -64,4 +64,7 @@ Example: { type: 'page_crawl', url: '[https://example.com](https://example.com)'
 List areas you could not evaluate due to missing data (e.g. "Social media engagement metrics unavailable", "No pricing page found to assess positioning").
 Leave empty array if all areas were assessable.
 
+## GLC director bundle (tool JSON)
+Include top-level `glc_director_execution` in the same `submit_analysis` payload (see the Director orchestration instructions appended after this file). When strict director persistence is enabled for this phase on the server, a valid bundle is required or the phase may fail.
+
 Use the submit_analysis tool to return your structured analysis.

@@ -1,10 +1,10 @@
 import {
   ArrowRight, CheckCircle, ClipboardText, Spinner, XCircle,
 } from '@phosphor-icons/react';
-import { Link } from 'react-router';
 import { buildAppRoute } from '../../../config/route-paths';
 import { ADMIN_REQUEST_QUEUE_COPY } from '../../../config/admin-request-queue-copy.en';
 import { cn } from '../../../components/ui/utils';
+import { QueueInlineActionLink } from '../../queue-inline-action-link';
 import type { AuditRequest } from '../../../data/auditTypes';
 import {
   auditRequestAwaitingAdminAction,
@@ -80,12 +80,9 @@ export function AuditRequestQueueCard({
         <div className="flex items-center gap-3 flex-shrink-0">
           <AdminRequestQueueStatusBadge status={req.status} />
           {req.audit_id && (
-            <Link
-              to={buildAppRoute.audit(req.audit_id)}
-              className="flex items-center gap-1 text-xs font-medium text-[var(--glc-blue)] no-underline"
-            >
+            <QueueInlineActionLink to={buildAppRoute.audit(req.audit_id)} tone="info" className="h-auto px-0 py-0">
               {ADMIN_REQUEST_QUEUE_COPY.openAudit} <ArrowRight className="w-3 h-3" />
-            </Link>
+            </QueueInlineActionLink>
           )}
         </div>
       </div>

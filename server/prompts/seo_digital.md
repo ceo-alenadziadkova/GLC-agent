@@ -49,4 +49,7 @@ Each issue MUST include:
 List areas you could not evaluate due to missing data (e.g. "Page speed data unavailable", "No structured data collector output").
 Leave empty array if all areas were assessable.
 
+## GLC director bundle (tool JSON)
+Include top-level `glc_director_execution` whenever you can map SEO fixes into executable actions (see appended Director orchestration instructions). This phase uses **best-effort** director persistence server-side, but a complete bundle materially improves the roadmap graph.
+
 Use the submit_analysis tool to return your structured analysis.

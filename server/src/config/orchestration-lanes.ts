@@ -1,6 +1,12 @@
 /**
  * Orchestrator timeline lanes (ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE).
  * Single source for lane ids — Zod enums derive from these tuples.
+ *
+ * **Extending (new “director” or work type):** append a new id to `ORCHESTRATION_LANE_IDS`, add
+ * consultant/client labels in `src/app/config/orchestration-roadmap-ui-copy.en.ts` (`ORCHESTRATION_LANE_LABELS`),
+ * teach `mapStrategyInitiativeDomainToLane` / `mapDirectorDomainToLane` (or a dedicated mapper) if the
+ * lane is domain-driven, and keep graph merge/projection in dedicated modules — avoid growing a single
+ * orchestration “god” service.
  */
 
 import type { StrategyInitiativeDomainKey } from './strategy-initiative-policy.js';

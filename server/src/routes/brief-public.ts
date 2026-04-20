@@ -355,6 +355,12 @@ briefPublicRouter.post(
         });
       }
 
+      await supabase
+        .from('audits')
+        .update({ origin: 'prebrief' })
+        .eq('id', auditId)
+        .eq('user_id', req.userId!);
+
       const { error: upErr } = await supabase
         .from('public_brief_sessions')
         .update({

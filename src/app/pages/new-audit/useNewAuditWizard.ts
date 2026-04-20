@@ -18,7 +18,12 @@ import {
   INTAKE_BRIEF_SLA_PRODUCT_MODE,
 } from '../../data/auditTypes';
 import type { BriefResponses } from '../../data/briefQuestions';
-import { computeNewAuditWizardProgress, validateNewAuditStep0Input } from './newAuditValidation';
+import {
+  computeNewAuditWizardProgress,
+  effectiveBriefForNewAuditPipelineGates,
+  listAnsweredPipelineRequiredIds,
+  validateNewAuditStep0Input,
+} from './newAuditValidation';
 import { launchNewAudit, saveClientDraft } from './newAuditExecution';
 import {
   buildExecutionPlan,
@@ -65,7 +70,12 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     setSelectedDomains,
     recommendedDomains,
     toggleDomainSelection,
-  } = useCoverageSelectionState({ industry });
+  } = useCoverageSelectionState({
+    industry,
+    isClientSelfServe,
+    seedCoveragePackage: portalDraftSeed?.coveragePackage,
+    seedSelectedDomains: portalDraftSeed?.selectedDomains,
+  });
 
   // Step 2 fields
   const [responses, setResponses] = useState<BriefResponses>(() => portalDraftSeed?.responses ?? {});
@@ -76,6 +86,7 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
 
   // Interview mode — consultant fills the brief during a live call
   const [interviewMode, setInterviewMode] = useState(false);
+  const responseSource = resolveResponseSource({ isClientSelfServe, interviewMode });
 
   const {
     briefLayoutChoice,
@@ -173,10 +184,12 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     briefLayoutChoice,
     draftAuditId: draftAuditId,
     draftIntakeVersions: draftIntakeVersions,
+    coveragePackage,
+    selectedDomains,
   });
 
   // Validation + progress
-  const { step0Valid } = useMemo(
+  const { step0Valid, coverageValid } = useMemo(
     () =>
       validateNewAuditStep0Input({
         url,
@@ -202,8 +215,48 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
         responses,
         noPublicWebsite,
         briefProductMode,
+        step0Basics: {
+          url,
+          name,
+          industry,
+          industrySpecify,
+          answerSource: responseSource,
+        },
       }),
-    [responses, noPublicWebsite, briefProductMode],
+    [responses, noPublicWebsite, briefProductMode, url, name, industry, industrySpecify, responseSource],
+  );
+
+  const answeredPipelineRequiredIds = useMemo(
+    () =>
+      listAnsweredPipelineRequiredIds({
+        responses,
+        noPublicWebsite,
+        briefProductMode,
+        step0Basics: {
+          url,
+          name,
+          industry,
+          industrySpecify,
+          answerSource: responseSource,
+        },
+      }),
+    [responses, noPublicWebsite, briefProductMode, url, name, industry, industrySpecify, responseSource],
+  );
+
+  const pipelineGateBriefResponses = useMemo(
+    () =>
+      effectiveBriefForNewAuditPipelineGates({
+        responses,
+        noPublicWebsite,
+        step0Basics: {
+          url,
+          name,
+          industry,
+          industrySpecify,
+          answerSource: responseSource,
+        },
+      }),
+    [responses, noPublicWebsite, url, name, industry, industrySpecify, responseSource],
   );
 
   const bankMetrics = useIntakeBankMetrics(
@@ -228,8 +281,6 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
       getIntakeVersions: (): IntakeVersionTuple | null => draftIntakeVersions,
     };
   }, [draftAuditId, noPublicWebsite, briefLayoutChoice, isClientSelfServe, draftIntakeVersions]);
-
-  const responseSource = resolveResponseSource({ isClientSelfServe, interviewMode });
 
   function handleResponseChange(id: string, value: string | string[] | number | null) {
     setResponses(prev => ({ ...prev, [id]: { value, source: responseSource } }));
@@ -271,6 +322,7 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
   const handleLaunch = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
+      if (coveragePackage == null) return;
       if (!isClientSelfServe) {
         if (consultantDpaLoading) return;
         if (!consultantDpaOnFile) {
@@ -411,6 +463,7 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     error,
     setError,
     step0Valid,
+    coverageValid,
     briefProductMode,
 
     // Step 0 basics
@@ -438,6 +491,8 @@ export function useNewAuditWizard(props?: { variant?: NewAuditVariant }): NewAud
     discoveryPrefilled,
     answeredRequired,
     pipelineRequiredTotal,
+    answeredPipelineRequiredIds,
+    pipelineGateBriefResponses,
     step2Complete,
     progressPct,
     readinessBadge,

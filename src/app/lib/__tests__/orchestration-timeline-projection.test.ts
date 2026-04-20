@@ -99,4 +99,11 @@ describe('orchestration-timeline-projection', () => {
     expect(ordered[0]).toEqual({ from: 'a', to: 'b', weight: 1 });
     expect(ordered[1]).toEqual({ from: 'a', to: 'c', weight: 1 });
   });
+
+  it('returns three empty buckets when critical path is empty', () => {
+    const p = pack([]);
+    const buckets = projectCriticalPathToTimelineBuckets(p, { near: 'N', mid: 'M', far: 'F' });
+    expect(buckets.map((b) => b.nodeIds)).toEqual([[], [], []]);
+    expect(partitionCriticalPathNodeIds(p)).toEqual({ near: [], mid: [], far: [] });
+  });
 });

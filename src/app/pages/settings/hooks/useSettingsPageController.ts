@@ -53,7 +53,7 @@ function isValidationError(
 
 export function useSettingsPageController() {
   const { user, signOut } = useAuth();
-  const { profile, refetch, isClient, isConsultant, isGuest } = useProfile();
+  const { profile, refetch, isClient, isConsultant, isAdmin, isGuest } = useProfile();
   const { mode, setMode } = useGlcTheme();
 
   const [fullName, setFullName] = useState('');
@@ -276,6 +276,7 @@ export function useSettingsPageController() {
     profile,
     isClient,
     isConsultant,
+    isAdmin,
     mode,
     setMode,
     fullName,

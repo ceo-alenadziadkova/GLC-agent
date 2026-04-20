@@ -1,5 +1,6 @@
 /**
  * Single Claude tool call for optional GLC orchestration conflict synthesis (no pipeline events).
+ * Token usage: `TokenTracker.log` with `ORCHESTRATION_SYNTHESIS_TOKEN_PHASE` — same pipeline token shape as domain phases.
  */
 
 import type Anthropic from '@anthropic-ai/sdk';

@@ -9,7 +9,7 @@ export const ADMIN_REQUEST_QUEUE_COPY = {
   pageSubtitle: 'Incoming client audit requests (Admin)',
   navSnapshots: 'Snapshots',
   navDiscovery: 'Discovery',
-  navPortfolio: 'Portfolio',
+  navPortfolio: 'All audits',
   filterAwaiting: 'Awaiting Review',
   filterAll: 'All requests',
   emptyAwaiting:

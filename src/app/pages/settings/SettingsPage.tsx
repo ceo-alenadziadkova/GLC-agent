@@ -54,7 +54,11 @@ function GeneralSections({ controller }: GeneralSectionsProps) {
         onClientChange={controller.setClientBriefLayoutDefault}
         onConsultantChange={controller.setConsultantBriefLayoutDefault}
       />
-      <NotificationsSection notifyPrefs={controller.notifyPrefs} setNotifyPrefs={controller.setNotifyPrefs} />
+      <NotificationsSection
+        notifyPrefs={controller.notifyPrefs}
+        setNotifyPrefs={controller.setNotifyPrefs}
+        showExecutionTraceToggle={controller.isAdmin}
+      />
       <LegalConsentsSection enabled={Boolean(controller.profile && !controller.isGuest)} />
       <AccountSecuritySection
         email={controller.user?.email ?? ''}

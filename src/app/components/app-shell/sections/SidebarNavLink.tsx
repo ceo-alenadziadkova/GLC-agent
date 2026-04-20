@@ -31,7 +31,7 @@ export function SidebarNavLink({ item, pathname, itemKey, onClick }: SidebarNavL
       className={cn(
         'relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[length:var(--text-sm)] no-underline transition-colors duration-200',
         active
-          ? 'font-medium text-[color:var(--primary-foreground)]'
+          ? 'font-medium text-[color:var(--sidebar-foreground)]'
           : 'font-normal text-[color:var(--app-shell-sidebar-link-fg)]',
       )}
       onClick={onClick}

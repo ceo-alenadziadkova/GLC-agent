@@ -128,6 +128,33 @@ function minimalCompletedFreeSnapshotAudit(id: string): AuditState {
   };
 }
 
+function defaultTimelineDto() {
+  return {
+    timeline: {
+      status: 'missing_pack' as const,
+      version: {
+        roadmap_version: 0,
+        manifest_snapshot_id: null as string | null,
+        latest_manifest_snapshot_id: null as string | null,
+        stale_manifest: false,
+        manifest_state: 'draft' as const,
+        season_preset: null as null,
+      },
+      seasons: [
+        { id: 'near' as const, node_ids: [] as string[] },
+        { id: 'mid' as const, node_ids: [] as string[] },
+        { id: 'far' as const, node_ids: [] as string[] },
+      ],
+      lanes: [] as { lane_id: string; items: unknown[] }[],
+      dependencies: [] as unknown[],
+      top_7d: [] as string[],
+      top_30d: [] as string[],
+      waiting_list_domains: [] as string[],
+      data_gaps: null,
+    },
+  };
+}
+
 function renderClientAuditRoute(auditId: string) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -179,6 +206,7 @@ describe('ClientAuditView', () => {
   let upgradeSpy: ReturnType<typeof vi.spyOn>;
   let requestHelpSpy: ReturnType<typeof vi.spyOn>;
   let startPipelineSpy: ReturnType<typeof vi.spyOn>;
+  let getAuditTimelineSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -224,6 +252,7 @@ describe('ClientAuditView', () => {
     });
     requestHelpSpy = vi.spyOn(apiService.api, 'requestBriefHelp').mockResolvedValue(undefined);
     startPipelineSpy = vi.spyOn(apiService.api, 'startPipeline').mockResolvedValue(undefined);
+    getAuditTimelineSpy = vi.spyOn(apiService.api, 'getAuditTimeline').mockResolvedValue(defaultTimelineDto());
   });
 
   afterEach(() => {
@@ -232,6 +261,7 @@ describe('ClientAuditView', () => {
     upgradeSpy.mockRestore();
     requestHelpSpy.mockRestore();
     startPipelineSpy.mockRestore();
+    getAuditTimelineSpy.mockRestore();
   });
 
   it('renders missing-id message when route param is absent', async () => {
@@ -287,18 +317,64 @@ describe('ClientAuditView', () => {
       expect(screen.getByText('What you have now')).toBeInTheDocument();
     });
 
-    expect(screen.getByRole('link', { name: /Open execution timeline/i })).toHaveAttribute(
-      'href',
-      '/portal/reports/audit-cockpit-1#glc-execution-roadmap',
-    );
+    const timelineLinks = screen.getAllByRole('link', { name: /Open execution timeline/i });
+    expect(timelineLinks.length).toBeGreaterThan(0);
+    for (const link of timelineLinks) {
+      expect(link).toHaveAttribute('href', '/portal/timeline/audit-cockpit-1');
+    }
     expect(screen.getByRole('link', { name: /Full domain report/i })).toHaveAttribute(
       'href',
       '/portal/reports/audit-cockpit-1',
     );
-    expect(screen.getByRole('link', { name: /^Strategy Lab$/i })).toHaveAttribute(
-      'href',
-      '/portal/strategy/audit-cockpit-1',
-    );
+    const strategyLinks = screen.getAllByRole('link', { name: /Strategy Lab details/i });
+    expect(strategyLinks.length).toBeGreaterThan(0);
+    for (const link of strategyLinks) {
+      expect(link).toHaveAttribute('href', '/portal/strategy/audit-cockpit-1');
+    }
+  });
+
+  it('shows stale manifest cockpit callout when timeline status is stale_manifest', async () => {
+    const base = minimalCompletedFullAudit('audit-stale-cockpit');
+    getAuditSpy.mockResolvedValue({
+      ...base,
+      strategy: base.strategy
+        ? {
+            ...base.strategy,
+            orchestration_pack_version: 2,
+          }
+        : base.strategy,
+    });
+    getAuditTimelineSpy.mockResolvedValue({
+      timeline: {
+        status: 'stale_manifest',
+        version: {
+          roadmap_version: 2,
+          manifest_snapshot_id: 'snap-old',
+          latest_manifest_snapshot_id: 'snap-new',
+          stale_manifest: true,
+          manifest_state: 'stale',
+          season_preset: null,
+        },
+        seasons: [
+          { id: 'near', node_ids: [] },
+          { id: 'mid', node_ids: [] },
+          { id: 'far', node_ids: [] },
+        ],
+        lanes: [],
+        dependencies: [],
+        top_7d: [],
+        top_30d: [],
+        waiting_list_domains: [],
+        data_gaps: null,
+      },
+    });
+
+    renderClientAuditRoute('audit-stale-cockpit');
+
+    await waitFor(() => {
+      expect(screen.getByText(/Roadmap manifest moved ahead of this timeline/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/stale_manifest/i)).toBeInTheDocument();
   });
 
   it('shows friendly copy for 404 from getAudit', async () => {

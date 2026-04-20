@@ -23,6 +23,11 @@ export const ORCHESTRATION_UI_COPY = {
   coverageLabel: 'Coverage (from audit)',
   scenarioLabel: 'Change scenario',
   seasonLabel: 'Planning window',
+  planHorizonLabel: 'Plan dates (optional)',
+  planHorizonStartLabel: 'Start (YYYY-MM-DD)',
+  planHorizonEndLabel: 'End (YYYY-MM-DD)',
+  planHorizonHint:
+    'When both dates are valid, seasonal buckets map the critical path onto this calendar window using your planning preset. Leave blank to use the length-based split only.',
   previewTitle: 'Preview',
   previewDomains: 'Domains in scope',
   previewScenario: 'Scenario',
@@ -67,9 +72,20 @@ export const ORCHESTRATION_UI_COPY = {
   timelineHint: 'Critical path grouped into planning buckets; lanes show parallel tracks.',
   timelineStateMissingPack:
     'No execution pack is saved yet, so the seasonal timeline is empty. Your consultant confirms scope in Strategy Lab, saves a manifest snapshot, then builds the pack — after that, this view fills in automatically.',
+  /** Prominent empty-state title when pack is missing or manifest is stale */
+  timelineEmptyCalloutTitle: 'Timeline not populated yet',
+  timelineEmptyCalloutClientHint:
+    'Your consultant confirms the roadmap manifest in Strategy Lab and builds the execution pack. You can keep this page open — it updates automatically once the pack is saved.',
+  timelineEmptyCtaOpenReport: 'Open full report',
+  timelineEmptyCtaAuditOverview: 'Audit overview',
   timelineStateDegraded: 'Timeline is available with degraded input coverage.',
   timelineStateStaleManifest: 'Timeline is stale relative to latest manifest snapshot.',
+  /** Extra client copy when pack exists but manifest moved forward (API status `stale_manifest`). */
+  timelineStaleManifestClientHint:
+    'The timeline you see may not match the latest roadmap manifest. Ask your consultant to confirm scope in Strategy Lab and rebuild the execution pack.',
   timelineStateRestricted: 'This view is restricted to client-safe roadmap fields.',
+  /** Machine-oriented reason from `GET /timeline` for support and clarity (paired with human message). */
+  timelineDiagnosticReasonLabel: 'Timeline status code',
   timelineWaitingListTitle: 'Waiting list',
   timelineDependenciesTitle: 'Cross-lane dependencies',
   timelineBlockingDepsTitle: 'Blocking dependencies',
@@ -85,6 +101,14 @@ export const ORCHESTRATION_UI_COPY = {
   topActionsTitle: 'Top actions',
   topActions7dLabel: 'Next 7 days',
   topActions30dLabel: 'Next 30 days',
+  /** Portal timeline — saved Strategy Lab execution packs (optional server feature). */
+  executionPacksSectionTitle: 'Execution detail packs',
+  executionPacksSectionHint:
+    'Deeper initiative breakdowns from Strategy Lab (extra AI pass). Open Lab to create or refresh packs for selected roadmap items.',
+  executionPacksEmpty: 'No execution detail packs saved for this audit yet.',
+  executionPacksLoadError: 'Execution pack history is unavailable (feature off or network error).',
+  executionPacksRowInitiativesLabel: 'initiatives',
+  executionPacksCtaLab: 'Open Strategy Lab',
   bucketNear: 'Near term',
   bucketMid: 'Mid term',
   bucketFar: 'Later',
@@ -99,7 +123,7 @@ export const ORCHESTRATION_UI_COPY = {
   openNodeInLab: 'Open in Lab',
   noPackYet: 'No orchestration pack yet. Save a manifest, then build the pack.',
   labDetailLayerHint:
-    'Strategy Lab now focuses on node-level detail. The shared timeline projection remains in the report roadmap section.',
+    'Strategy Lab focuses on manifest snapshots, pack rebuilds, and node detail. Sequencing stays on the execution timeline.',
   clientHidden: 'Roadmap manifest is available to consultants on this audit.',
   clientTimelineReadOnlyHint:
     'The full seasonal timeline and lanes live in the dedicated timeline view. Open it to review ordering and dependencies, then return here for node detail.',
@@ -144,6 +168,32 @@ export const ORCHESTRATION_UI_COPY = {
   dataGapsDanglingDependenciesLabel: 'Dangling dependencies:',
 } as const;
 
+/** Timeline banner when manifest carries `plan_horizon` (keep copy out of TSX). */
+export function formatTimelineCalendarPlanWindowLine(startIso: string, endIso: string): string {
+  return `Calendar plan window: ${startIso} through ${endIso}. Near, mid, and later buckets follow this horizon.`;
+}
+
+/**
+ * IA: timeline-first vs Strategy Lab (ADR Phase 4). Single narrative SSOT for portal, Lab, cockpit.
+ */
+export const ORCHESTRATION_IA_COPY = {
+  timelineVsLabRole:
+    'Timeline is the primary view for sequencing, critical path, and cross-lane sync. Strategy Lab is for manifest snapshots, rebuilding the pack (vN+1), version diffs, coverage offers, and deep node detail.',
+  /** AppShell subtitle on portal timeline when `orchestrationTimelinePrimaryUxEnabled` is on. */
+  timelinePageSubtitleWhenPrimary:
+    'Sequencing and seasonal buckets live here. Strategy Lab in the toolbar covers manifest snapshots, new pack versions, and node detail.',
+  /** Footnote under primary CTAs on client cockpit. */
+  clientCockpitTimelineFootnote:
+    'Sequencing and seasonal buckets live on the execution timeline; Strategy Lab remains the place for manifest and pack tooling.',
+  /** Strategy Lab AppShell / page subtitle. */
+  strategyLabAppShellSubtitle:
+    'Detail layer: manifest snapshots, pack versions, and node inspection. Sequencing stays on the execution timeline.',
+  /** Secondary line on client navigation cards (timeline). */
+  clientNavTimelineCardSubtitle: 'Primary sequencing — seasonal buckets, lanes, and dependencies.',
+  /** Secondary line on client navigation cards (Lab). */
+  clientNavLabCardSubtitle: 'Manifest snapshots, pack tooling, and node-level detail.',
+} as const;
+
 export const ORCHESTRATION_LANE_LABELS = {
   product_change: 'Product / change',
   tech_delivery: 'Tech and delivery',
@@ -165,6 +215,31 @@ export const ORCHESTRATION_SEASON_LABELS: Record<OrchestrationSeasonPreset, stri
   rolling_30d: 'Rolling 30 days',
   rolling_90d: 'Rolling 90 days',
   rolling_180d: 'Rolling 180 days',
+};
+
+/**
+ * Seasonal bucket headings on the timeline, keyed by manifest `season_preset`.
+ * When preset is unknown/null, UI falls back to generic `bucketNear` / `bucketMid` / `bucketFar`.
+ */
+export const ORCHESTRATION_SEASON_BUCKET_LABELS_BY_PRESET: Record<
+  OrchestrationSeasonPreset,
+  { near: string; mid: string; far: string }
+> = {
+  rolling_30d: {
+    near: 'First ~half of the 30-day window',
+    mid: 'Second ~third',
+    far: 'Final stretch',
+  },
+  rolling_90d: {
+    near: 'Roughly first month',
+    mid: 'Second month',
+    far: 'Third month',
+  },
+  rolling_180d: {
+    near: 'First ~45 days',
+    mid: 'Mid horizon',
+    far: 'Later tranche (toward 180 days)',
+  },
 };
 
 export const ORCHESTRATION_PREVIEW_COMPRESSION_LABELS: Record<OrchestrationPreviewCompressionHint, string> = {

@@ -16,6 +16,7 @@ export function PhaseSidebar(props: {
   selectedPhaseId: number;
   isExpress: boolean;
   isClient: boolean;
+  resizableLayout?: boolean;
   reviewByPhase: Map<number, PipelineReview>;
   reviewWarningsByPhase: Map<number, boolean>;
   onSelectPhase: (phaseId: number) => void;
@@ -26,6 +27,7 @@ export function PhaseSidebar(props: {
     selectedPhaseId,
     isExpress,
     isClient,
+    resizableLayout = false,
     reviewByPhase,
     reviewWarningsByPhase,
     onSelectPhase,
@@ -37,8 +39,11 @@ export function PhaseSidebar(props: {
   return (
     <aside
       className={cn(
-        PIPELINE_MONITOR_UI_POLICY.layout.sidebarWidthClassName,
-        'flex flex-shrink-0 flex-col gap-1.5 overflow-y-auto border-r-[length:var(--border-width-default)] border-r-[var(--border-subtle)] bg-[var(--bg-surface)] p-3',
+        !resizableLayout && PIPELINE_MONITOR_UI_POLICY.layout.sidebarWidthClassName,
+        'flex flex-col gap-1.5 overflow-y-auto bg-[var(--bg-surface)] p-3',
+        resizableLayout
+          ? 'h-full min-h-0 w-full'
+          : 'flex-shrink-0 border-r-[length:var(--border-width-default)] border-r-[var(--border-subtle)]',
       )}
     >
       <div className="px-1 pb-1.5">

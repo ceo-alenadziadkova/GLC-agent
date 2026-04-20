@@ -39,6 +39,17 @@ test.describe('orchestration snapshot/regenerate flow', () => {
     expect(Array.isArray(getPackBody.revision_history)).toBeTruthy();
     expect(typeof getPackBody.last_revision_diff_summary === 'string' || getPackBody.last_revision_diff_summary === null).toBeTruthy();
 
+    const timelineRes = await request.get(`/api/audits/${auditId}/timeline`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(timelineRes.ok()).toBeTruthy();
+    const timelineBody = (await timelineRes.json()) as {
+      timeline?: { status?: string; lanes?: unknown[]; seasons?: unknown[] };
+    };
+    expect(typeof timelineBody.timeline?.status).toBe('string');
+    expect(Array.isArray(timelineBody.timeline?.lanes)).toBeTruthy();
+    expect(Array.isArray(timelineBody.timeline?.seasons)).toBeTruthy();
+
     const historyRes = await request.get(`/api/audits/${auditId}/orchestration/pack-diff-history?limit=5`, {
       headers: { Authorization: `Bearer ${token}` },
     });

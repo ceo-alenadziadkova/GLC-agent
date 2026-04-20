@@ -7,6 +7,7 @@ import {
   executionPlanToPhases,
   reviewPhasesForExecutionPlan,
   type AuditExecutionPlan,
+  type AuditOrigin,
   type ProductMode,
 } from '../types/audit.js';
 import { AUDIT_CHILD_ROWS_INIT_ROLLBACK_MESSAGE } from '../lib/audit-init-error.js';
@@ -18,6 +19,7 @@ export async function createAuditWithChildren(params: {
   company_name: string | null;
   industry: string | null;
   mode: ProductMode;
+  origin: AuditOrigin;
   execution_plan?: AuditExecutionPlan | null;
   no_public_website?: boolean;
 }): Promise<{ id: string; status: string }> {
@@ -28,6 +30,7 @@ export async function createAuditWithChildren(params: {
     company_name,
     industry,
     mode,
+    origin,
     execution_plan,
     no_public_website,
   } = params;
@@ -41,6 +44,7 @@ export async function createAuditWithChildren(params: {
       company_name,
       industry,
       product_mode: mode,
+      origin,
       execution_plan: execution_plan ?? null,
       no_public_website: no_public_website === true,
     })

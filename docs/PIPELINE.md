@@ -253,3 +253,28 @@ Current implementation baseline for GLC Orchestrator runtime:
 - `FULL` pack versioning and revision diff APIs.
 - `PARTIAL` timeline-first migration (legacy initiative buckets still available as fallback/deep-dive paths).
 - `PARTIAL` business-scenario test depth (scenario/regeneration coverage is improved but still integration-focused, not full browser E2E).
+
+## Domain vs Plan Gate Matrix
+
+To avoid mixing responsibilities, quality routing is split into two explicit gates:
+
+| Layer | Input object | Outcomes | Scope |
+|---|---|---|---|
+| Domain quality gate | CONTROL_OBJECT (`FactChecker` + `DecisionLayer`) | `accept` / `accept_with_warnings` / `refine` | Per-domain phase output quality |
+| Plan governance gate | Orchestration plan governance (`evaluateOrchestrationPlanGovernance`) | `accept_plan` / `accept_with_warnings` / `refine_plan` + `plan_gate_outcome` (`accept` / `accept_with_warnings` / `refine`) | Cross-domain roadmap graph quality |
+
+Bridge rule:
+
+- Orchestrator input quality is explicit in `pack.input_quality` (`input_gate_status`, coverage ratios, fallback reason).
+- Domain phases can still persist advisory refine states, but orchestration governance evaluates plan-level integrity independently.
+- Degraded input is never silent: it emits reason codes and telemetry (`input_gate_degraded`, `director_input_coverage_below_floor`).
+
+## Orchestration program (timeline-first)
+
+- **SSOT contract literals:** timeline status + manifest state unions live in `server/src/config/orchestration-client-contract.ts`; the SPA mirrors them with `src/app/config/orchestration-contract-parity.test.ts`.
+- **Legacy HTTP:** `/api/audits/:id/orchestrator/*` aliases delegate to canonical `/orchestration/*` / manifest routes (deprecation headers via `orchestrator-legacy-alias.ts`).
+- **Normalization:** merged director/strategy nodes pass through `applyOrchestrationActionNodeNormalizationPipeline` before graph build; cross-domain tension rules are declared in `orchestration-domain-conflict-policy.ts`.
+- **KPI logs:** timeline responses may emit `route.audit_timeline_served` when `FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX` is enabled (defaults in `system-defaults/feature-flags-defaults.ts`); metric keys in `orchestration-telemetry-policy.ts`.
+- **UX:** consultants open manifest flow from Timeline via `?focus=roadmap` on Strategy Lab (`ORCHESTRATION_LAB_FOCUS_*` in `orchestration-ui-limits.ts`).
+- **Happy path (consultant):** ensure `audit_roadmap_manifest_snapshots` has a **latest** row aligned with `execution_plan.selected_domains` → `POST /api/audits/:id/orchestration/pack` with that snapshot id → Strategy Lab / `GET` pack / timeline read model update. Optional: `FEATURE_ORCHESTRATION_PACK_AUTO_AFTER_STRATEGY` runs the same persist path after phase 7 when a latest snapshot exists (failures are logged; pipeline completion is not blocked).
+- **Shared persist path:** `orchestration-pack-persist-run.service.ts` centralizes governance + `persistGlcOrchestrationPack` for POST pack, commercial-offer rebuild, and the optional auto-pack hook.

@@ -4,17 +4,19 @@ import {
   apiAuditsStrategyLabContext,
 } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
+import type { DomainKey } from '@glc/intake-core';
 import type { StrategyExecutionPackResponse } from '../audit/contracts/report/strategy-lab.types';
 
 export type StrategyLabContextPatchBody = {
   company_stage?: string | null;
   budget_band?: string | null;
   team_scale?: string | null;
+  director_stage2_domains?: DomainKey[] | null;
 };
 
 export const auditsStrategyLabApi = {
   async patchStrategyLabContext(auditId: string, body: StrategyLabContextPatchBody) {
-    return apiFetch<{ strategy_lab_context: Record<string, string> }>(apiAuditsStrategyLabContext(auditId), {
+    return apiFetch<{ strategy_lab_context: Record<string, unknown> }>(apiAuditsStrategyLabContext(auditId), {
       method: 'PATCH',
       body: JSON.stringify(body),
     });

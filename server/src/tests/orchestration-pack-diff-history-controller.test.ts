@@ -20,6 +20,7 @@ vi.mock('../config/feature-flags.js', async importOriginal => {
 
 vi.mock('../services/orchestration/orchestration-read.service.js', () => ({
   fetchOrchestrationPackRevisionHistoryForUser: readMocks.history,
+  fetchPersistedGlcOrchestrationPackForUser: vi.fn().mockResolvedValue({ status: 'ok', pack: null }),
 }));
 
 vi.mock('../routes/audits/mappers/audits-http.mapper.js', () => ({
@@ -61,6 +62,6 @@ describe('getOrchestrationPackDiffHistoryController', () => {
     const req = { params: { id: 'audit-1' }, userId: 'user-1', query: { limit: '5' } } as unknown;
     const res = createRes();
     await getOrchestrationPackDiffHistoryController(req as never, res);
-    expect(res.json).toHaveBeenCalledWith({ items });
+    expect(res.json).toHaveBeenCalledWith({ items, latest_plan_governance: null });
   });
 });

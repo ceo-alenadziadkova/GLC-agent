@@ -20,10 +20,28 @@ import { APP_ROUTE_PATHS, buildAppRoute } from '../config/route-paths';
 type NavTimelinePrimaryOpts = {
   /** When omitted, uses `APP_FEATURE_FLAGS.orchestrationTimelinePrimaryUxEnabled`. */
   timelinePrimaryUx?: boolean;
+  /**
+   * When omitted, uses `APP_FEATURE_FLAGS.clientTimelineEnabled`.
+   * (Tests may override without mutating module state.)
+   */
+  clientTimelineEnabled?: boolean;
+  /**
+   * When omitted, uses `APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled`.
+   * Hides consultant execution-timeline nav when roadmap/orchestration UI is off.
+   */
+  orchestrationRoadmapUiEnabled?: boolean;
 };
 
 function resolveTimelinePrimaryUx(opts?: NavTimelinePrimaryOpts): boolean {
   return opts?.timelinePrimaryUx ?? APP_FEATURE_FLAGS.orchestrationTimelinePrimaryUxEnabled;
+}
+
+function resolveClientTimelineEnabled(opts?: NavTimelinePrimaryOpts): boolean {
+  return opts?.clientTimelineEnabled ?? APP_FEATURE_FLAGS.clientTimelineEnabled;
+}
+
+function resolveConsultantTimelineEnabled(opts?: NavTimelinePrimaryOpts): boolean {
+  return opts?.orchestrationRoadmapUiEnabled ?? APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled;
 }
 
 export type AppShellNavItem = {
@@ -36,8 +54,9 @@ export type AppShellNavItem = {
 export function buildConsultantNav(auditId: string | null, opts?: NavTimelinePrimaryOpts): AppShellNavItem[] {
   const n = APP_SHELL_COPY.nav.consultant;
   const timelineFirst = resolveTimelinePrimaryUx(opts);
+  const consultantTimelineEnabled = resolveConsultantTimelineEnabled(opts);
   const timelineItem: AppShellNavItem = {
-    to: auditId ? buildAppRoute.timeline(auditId) : null,
+    to: auditId && consultantTimelineEnabled ? buildAppRoute.timeline(auditId) : null,
     icon: Path,
     label: n.timeline,
     badge: null,
@@ -48,7 +67,11 @@ export function buildConsultantNav(auditId: string | null, opts?: NavTimelinePri
     label: n.pipeline,
     badge: null,
   };
-  const sequencingPair = timelineFirst ? [timelineItem, pipelineItem] : [pipelineItem, timelineItem];
+  const sequencingPair = consultantTimelineEnabled
+    ? timelineFirst
+      ? [timelineItem, pipelineItem]
+      : [pipelineItem, timelineItem]
+    : [pipelineItem];
   return [
     { to: APP_ROUTE_PATHS.dashboard,                           icon: SquaresFour,    label: n.dashboard,       badge: null },
     { to: APP_ROUTE_PATHS.adminAudits,                        icon: Briefcase,      label: n.allAudits,      badge: null },
@@ -76,8 +99,9 @@ export function buildClientNav(
 ): AppShellNavItem[] {
   const n = APP_SHELL_COPY.nav.client;
   const timelineFirst = resolveTimelinePrimaryUx(opts);
+  const clientTimelineEnabled = resolveClientTimelineEnabled(opts);
   const timelineItem: AppShellNavItem = {
-    to: auditId ? buildAppRoute.portalTimeline(auditId) : null,
+    to: auditId && clientTimelineEnabled ? buildAppRoute.portalTimeline(auditId) : null,
     icon: Path,
     label: n.timeline,
     badge: null,
@@ -88,7 +112,11 @@ export function buildClientNav(
     label: n.pipeline,
     badge: null,
   };
-  const sequencingPair = timelineFirst ? [timelineItem, pipelineItem] : [pipelineItem, timelineItem];
+  const sequencingPair = clientTimelineEnabled
+    ? timelineFirst
+      ? [timelineItem, pipelineItem]
+      : [pipelineItem, timelineItem]
+    : [pipelineItem];
   return [
     { to: APP_ROUTE_PATHS.portal,                                        icon: HouseSimple,   label: n.myPortal,    badge: null },
     { to: auditId ? buildAppRoute.portalAudit(auditId) : null,     icon: Eye,           label: n.auditStatus, badge: null },

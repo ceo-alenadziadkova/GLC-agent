@@ -13,6 +13,7 @@
 
 - Partial audit coverage runtime contract (`execution_plan`, packages): `ADR-PARTIAL-AUDIT-COVERAGE-EXECUTION-PLAN.md`
 - Meta orchestration (single system plan, conflict resolution, graph): `ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md`
+- Phased rollout (milestones, progress %, engineering constraints): `ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md`
 - Two-stage Director pattern: `ADR-DIRECTOR-LAYER-TWO-STAGE-DEEP-AUDIT.md`
 - Per-phase quality gate (domain phases): `ADR-CONTROL-OBJECT-V1.md`, `ADR-DECISION-LAYER-GATES.md`
 - Human orchestrator prompt canon: `docs/instructions/ORCHESTRATOR-INSTRUCTIONS.md`

@@ -1,7 +1,7 @@
 import { API_PATHS } from '../../config/api-paths';
 import { apiFetch } from '../api-http';
 import type { DomainKey } from '@glc/intake-core';
-import type { AuditCoveragePackage, AuditDepth, AuditMeta } from '../audit/contracts/core/audit-meta.types';
+import type { AuditCoveragePackage, AuditDepth, AuditMeta, AuditOrigin } from '../audit/contracts/core/audit-meta.types';
 import type { AuditState } from '../audit/contracts/state/audit-state.types';
 
 function normalizeAuditState(raw: AuditState): AuditState {
@@ -33,6 +33,38 @@ function normalizeAuditState(raw: AuditState): AuditState {
           : '',
     },
   };
+}
+
+export type ListAuditsParams = {
+  limit?: number;
+  offset?: number;
+  source?: AuditOrigin[];
+  status?: string[];
+  createdFrom?: string;
+  createdTo?: string;
+  updatedFrom?: string;
+  updatedTo?: string;
+  sortBy?: 'created_at' | 'updated_at';
+  sortDir?: 'asc' | 'desc';
+};
+
+function buildListAuditsQuery(params: ListAuditsParams): string {
+  const search = new URLSearchParams();
+  search.set('limit', String(params.limit ?? 50));
+  search.set('offset', String(params.offset ?? 0));
+  if (params.source && params.source.length > 0) {
+    search.set('source', params.source.join(','));
+  }
+  if (params.status && params.status.length > 0) {
+    search.set('status', params.status.join(','));
+  }
+  if (params.createdFrom) search.set('createdFrom', params.createdFrom);
+  if (params.createdTo) search.set('createdTo', params.createdTo);
+  if (params.updatedFrom) search.set('updatedFrom', params.updatedFrom);
+  if (params.updatedTo) search.set('updatedTo', params.updatedTo);
+  if (params.sortBy) search.set('sortBy', params.sortBy);
+  if (params.sortDir) search.set('sortDir', params.sortDir);
+  return search.toString();
 }
 
 export const auditsCrudApi = {
@@ -72,9 +104,14 @@ export const auditsCrudApi = {
     });
   },
 
-  async listAudits(limit = 50, offset = 0) {
+  async listAudits(limit = 50, offset = 0, params?: Omit<ListAuditsParams, 'limit' | 'offset'>) {
+    const query = buildListAuditsQuery({
+      limit,
+      offset,
+      ...params,
+    });
     const res = await apiFetch<{ data: AuditMeta[]; total: number; limit: number; offset: number }>(
-      `${API_PATHS.audits}?limit=${limit}&offset=${offset}`,
+      `${API_PATHS.audits}?${query}`,
     );
     return res;
   },

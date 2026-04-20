@@ -78,6 +78,7 @@ function minimalPack(overrides?: Partial<GlcOrchestrationPack>): GlcOrchestratio
     domain_influence: { domain_weights: { marketing_utp: 1 } },
     input_quality: {
       input_mode: 'director_enriched',
+      input_gate_status: 'finalized',
       director_coverage_ratio: 1,
       director_input_coverage_ratio: 1,
       degraded: false,
@@ -100,6 +101,9 @@ describe('mergeOrchestrationSynthesisIntoPack', () => {
     expect(merged.conflicts_resolved).toHaveLength(2);
     expect(merged.conflicts_resolved[1]?.id).toBe(`${ORCHESTRATION_SYNTHESIS_CONFLICT_ID_PREFIX}growth_vs_risk`);
     expect(merged.conflicts_resolved[1]?.resolution).toBe('synthesis_applied');
+    expect(merged.graph.nodes).toEqual(base.graph.nodes);
+    expect(merged.graph.edges).toEqual(base.graph.edges);
+    expect(merged.critical_path).toEqual(base.critical_path);
   });
 
   it('skips LLM row when prefixed id collides with deterministic id', () => {
@@ -226,5 +230,43 @@ describe('runOrchestrationSynthesisIfEnabled', () => {
     });
     expect(out).toEqual(det);
     expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it('invokes Claude when audit id falls inside partial rollout window', async () => {
+    function auditBucketPercent(auditId: string): number {
+      let hash = 0;
+      for (let i = 0; i < auditId.length; i += 1) {
+        hash = (hash * 31 + auditId.charCodeAt(i)) >>> 0;
+      }
+      return hash % 100;
+    }
+    let auditIdInRollout = '';
+    for (let i = 0; i < 400; i += 1) {
+      const candidate = `audit-rollout-probe-${i}`;
+      if (auditBucketPercent(candidate) < 40) {
+        auditIdInRollout = candidate;
+        break;
+      }
+    }
+    expect(auditIdInRollout).not.toBe('');
+
+    ffMock.enabled = true;
+    ffMock.rolloutPercent = 40;
+    invokeMock.mockResolvedValue(
+      GlcOrchestrationSynthesisToolSchema.parse({
+        dominant_constraint: 'TEST',
+        constraint_chain_notes: [],
+        conflicts_resolved: [{ id: 'rollout_hit', summary: 'In segment', resolution: 'synthesis_applied' }],
+      }),
+    );
+    const det = minimalPack();
+    const out = await runOrchestrationSynthesisIfEnabled({
+      auditId: auditIdInRollout,
+      deterministicPack: det,
+      normalizedStrategy: {},
+      domainRows: [],
+    });
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+    expect(out.conflicts_resolved.length).toBeGreaterThan(det.conflicts_resolved.length);
   });
 });

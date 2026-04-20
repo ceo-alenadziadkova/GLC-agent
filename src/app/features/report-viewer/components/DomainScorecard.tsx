@@ -49,12 +49,12 @@ export function DomainScorecard({
       animate="visible"
       className="glc-card overflow-hidden ds-radius-xl"
     >
-      <div className="flex items-center justify-between border-b-[length:var(--border-width-default)] border-b-[var(--border-subtle)] bg-[var(--bg-canvas)] px-5 py-3">
+      <div className="ds-report-scorecard-head flex items-center justify-between px-5 py-3">
         <div className="flex items-center gap-2">
           <ChartBar className="w-4 h-4 ds-text-brand"  />
           <SectionLabel>{REPORT_VIEWER_COPY.sections.scorecard}</SectionLabel>
         </div>
-        <span className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
+        <span className="ds-report-scorecard-meta text-[length:var(--text-xs)]">
           {domainEntriesCount} {isFilteredProfile ? `of ${REPORT_VIEWER_CONSTANTS.totalDomainCount}` : ''}{' '}
           domains · avg {averageScore.toFixed(1)}/{REPORT_VIEWER_CONSTANTS.scoreMax}
         </span>
@@ -64,7 +64,7 @@ export function DomainScorecard({
           <motion.div
             key={domain.key}
             variants={itemVariants}
-            className="group flex items-center gap-4 px-5 py-3.5 [transition:background-color_var(--ease-fast)] hover:bg-[var(--bg-canvas)]"
+            className="ds-report-scorecard-row group flex items-center gap-4 px-5 py-3.5"
           >
             <span className="w-5 flex-shrink-0 tabular-nums font-mono text-xs text-[var(--text-quaternary)]">
               {String(index + 1).padStart(2, '0')}

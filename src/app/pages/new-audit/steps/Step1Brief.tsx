@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router';
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { ArrowLeft, CheckCircle, Circle, Warning } from '@phosphor-icons/react';
 import type { IntakePlanCoverageDomain } from '@glc/intake-core';
 import type { BriefIntakeAnalyticsSurface } from '../../../lib/brief-intake-analytics';
@@ -12,6 +12,7 @@ import { BankClassicBriefFields } from '../../../components/BankClassicBriefFiel
 import { Progress } from '../../../components/ui/progress';
 import type { BriefResponses } from '../../../data/briefQuestions';
 import type {
+  BriefResponseSource,
   IntakeNextBestAction,
   IntakeReadinessBadge,
   IntakeVersionTuple,
@@ -19,6 +20,12 @@ import type {
 } from '../../../data/auditTypes';
 import { labelsForMissingReportDomains } from '../../../lib/intake-coverage-domain-labels';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
+import { getQuestionLabel } from '../../../lib/intake-question-lookup';
+import { listMissingPipelineRequiredIds } from '../newAuditValidation';
+import {
+  NEW_AUDIT_STEP1_MISSING_REQUIRED_HINT_DOM_ID,
+  NEW_AUDIT_STEP1_MISSING_REQUIRED_LABELS_PREVIEW_MAX,
+} from '../wizard-config/wizard-constants';
 import { cn } from '../../../components/ui/utils';
 
 export type BriefLayoutChoice = 'unset' | 'classic' | 'wizard';
@@ -57,6 +64,12 @@ export type Step1BriefProps = {
   responses: BriefResponses;
   briefProductMode: ProductMode;
   noPublicWebsite: boolean;
+  /** Step 0 Basics — merged into pipeline required/missing checks. */
+  url: string;
+  name: string;
+  industry: string;
+  industrySpecify: string;
+  step0PipelineAnswerSource: BriefResponseSource;
   intakeAnalytics?: {
     auditId: string;
     surface: BriefIntakeAnalyticsSurface;
@@ -72,6 +85,9 @@ export type Step1BriefProps = {
   onGoToStep2: () => void;
 
   clientDraftSaveSection: ReactNode;
+
+  /** Portal self-serve: simpler copy (no Settings / consultant defaults). */
+  isClientSelfServe: boolean;
 };
 
 export function Step1Brief({
@@ -91,6 +107,11 @@ export function Step1Brief({
   responses,
   briefProductMode,
   noPublicWebsite,
+  url,
+  name,
+  industry,
+  industrySpecify,
+  step0PipelineAnswerSource,
   intakeAnalytics,
   onResponsesChange,
   onResponseChange,
@@ -99,7 +120,43 @@ export function Step1Brief({
   onBackToStep0,
   onGoToStep2,
   clientDraftSaveSection,
+  isClientSelfServe,
 }: Step1BriefProps) {
+  const pipelineProductMode = briefProductMode === 'express' ? 'express' : 'full';
+  const missingRequiredIds = useMemo(
+    () =>
+      listMissingPipelineRequiredIds({
+        responses,
+        noPublicWebsite,
+        briefProductMode: pipelineProductMode,
+        step0Basics: {
+          url,
+          name,
+          industry,
+          industrySpecify,
+          answerSource: step0PipelineAnswerSource,
+        },
+      }),
+    [
+      responses,
+      noPublicWebsite,
+      pipelineProductMode,
+      url,
+      name,
+      industry,
+      industrySpecify,
+      step0PipelineAnswerSource,
+    ],
+  );
+  const missingRequiredPreview = useMemo(() => {
+    const max = NEW_AUDIT_STEP1_MISSING_REQUIRED_LABELS_PREVIEW_MAX;
+    const head = missingRequiredIds.slice(0, max);
+    return {
+      visible: head.map(id => ({ id, label: getQuestionLabel(id) })),
+      overflow: missingRequiredIds.length > max ? missingRequiredIds.length - max : 0,
+    };
+  }, [missingRequiredIds]);
+
   return (
     <motion.div
       key="step1"
@@ -141,13 +198,19 @@ export function Step1Brief({
       </div>
 
       <p className="text-muted-foreground mb-3 text-xs leading-relaxed">
-        {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsPrefix}
-        <Link to="/settings#brief-layout" className="text-info font-medium underline-offset-2 hover:underline">
-          {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsLinkText}
-        </Link>
-        {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsMidSuffix}
-        {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsChangeLayoutText}
-        {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsSuffix}
+        {isClientSelfServe ? (
+          WORKSPACE_PAGE_COPY.newAudit.step1.layoutIntroClient
+        ) : (
+          <>
+            {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsPrefix}
+            <Link to="/settings#brief-layout" className="text-info font-medium underline-offset-2 hover:underline">
+              {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsLinkText}
+            </Link>
+            {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsMidSuffix}
+            {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsChangeLayoutText}
+            {WORKSPACE_PAGE_COPY.newAudit.step1.layoutSettingsSuffix}
+          </>
+        )}
       </p>
 
       {!layoutSelected && (
@@ -211,7 +274,9 @@ export function Step1Brief({
           {intakePrefillActive && (
             <Callout intent="info" className="mb-4">
               <span className="text-muted-foreground text-sm">
-                {WORKSPACE_PAGE_COPY.newAudit.step1.prefilledFromClientPreBriefText}
+                {isClientSelfServe
+                  ? WORKSPACE_PAGE_COPY.newAudit.step1.prefilledBriefNoteClient
+                  : WORKSPACE_PAGE_COPY.newAudit.step1.prefilledFromClientPreBriefText}
               </span>
             </Callout>
           )}
@@ -227,7 +292,7 @@ export function Step1Brief({
 
           <Progress
             value={(answeredRequired / pipelineRequiredTotal) * 100}
-            className="ds-step1-brief-progress-thin mb-6 bg-muted [&>[data-slot=progress-indicator]]:bg-gradient-to-r [&>[data-slot=progress-indicator]]:from-sky-400 [&>[data-slot=progress-indicator]]:to-sky-600"
+            className="ds-step1-brief-progress-thin mb-6 bg-muted [&>[data-slot=progress-indicator]]:bg-[var(--gradient-brand)]"
           />
 
           <p className="text-muted-foreground mb-3.5 text-xs">
@@ -280,10 +345,15 @@ export function Step1Brief({
           type="button"
           onClick={onGoToStep2}
           disabled={!step2Complete}
+          aria-describedby={
+            !step2Complete && missingRequiredPreview.visible.length > 0
+              ? NEW_AUDIT_STEP1_MISSING_REQUIRED_HINT_DOM_ID
+              : undefined
+          }
           className={cn(
             'glc-touch-target flex flex-1 items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold transition-all sm:min-h-0 sm:py-2.5',
             step2Complete
-              ? 'bg-gradient-to-r from-sky-400 to-sky-600 text-primary-foreground shadow-[0_4px_14px_rgba(28,189,255,0.25)]'
+              ? 'bg-[var(--gradient-brand-cta)] text-[var(--on-gradient-brand-fg)] shadow-[var(--shadow-brand-cta)]'
               : 'bg-muted text-muted-foreground cursor-not-allowed border',
           )}
         >
@@ -300,6 +370,31 @@ export function Step1Brief({
           )}
         </button>
       </div>
+
+      {!step2Complete && missingRequiredPreview.visible.length > 0 && (
+        <div
+          id={NEW_AUDIT_STEP1_MISSING_REQUIRED_HINT_DOM_ID}
+          className="ds-step1-brief-missing-required"
+          role="status"
+        >
+          <p className="ds-step1-brief-missing-required-intro">
+            {WORKSPACE_PAGE_COPY.newAudit.step1.navigationMissingRequiredIntro}
+          </p>
+          <ul className="ds-step1-brief-missing-required-list">
+            {missingRequiredPreview.visible.map(({ id, label }) => (
+              <li key={id}>{label}</li>
+            ))}
+          </ul>
+          {missingRequiredPreview.overflow > 0 && (
+            <p className="ds-step1-brief-missing-required-overflow">
+              {WORKSPACE_PAGE_COPY.newAudit.step1.navigationMissingRequiredOverflow.replace(
+                '{{count}}',
+                String(missingRequiredPreview.overflow),
+              )}
+            </p>
+          )}
+        </div>
+      )}
 
       {clientDraftSaveSection}
     </motion.div>

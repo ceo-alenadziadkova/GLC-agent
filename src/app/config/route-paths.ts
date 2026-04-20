@@ -18,6 +18,7 @@ export const APP_ROUTE_PATHS = {
   portal: `/${P.portal}`,
   settings: `/${P.settings}`,
   adminRequests: `/${P.adminRequests}`,
+  adminAudits: `/${P.adminAudits}`,
   adminSnapshots: `/${P.adminSnapshots}`,
   adminDiscovery: `/${P.adminDiscovery}`,
   adminDesignSystem: `/${P.adminDesignSystem}`,
@@ -39,6 +40,8 @@ export const buildAppRoute = {
   portalReports: (auditId: string): string => `/${P.portalReportsById.replace(':id', auditId)}`,
   portalTimeline: (auditId: string): string => `/${P.portalTimelineById.replace(':id', auditId)}`,
   portalStrategy: (auditId: string): string => `/${P.portalStrategyById.replace(':id', auditId)}`,
+  portalRoadmapManifest: (auditId: string): string =>
+    `/${P.portalRoadmapManifestByAuditId.replace(':id', auditId)}`,
   loginWithDiscovery: (token: string): string => `${APP_ROUTE_PATHS.login}?discovery=${encodeURIComponent(token)}`,
   auditNewFromDiscovery: (): string => `${APP_ROUTE_PATHS.auditNew}?from_discovery=1`,
   /** Public intake token prefill for consultant New Audit wizard (`useNewAuditWizard` reads `intake`). */
@@ -55,6 +58,10 @@ const PORTAL_AUDIT_PREFIXES = ['audit', 'pipeline', 'reports', 'timeline', 'stra
 
 export const APP_ROUTE_PATTERNS = {
   mainAuditScope: new RegExp(`^/(?:${MAIN_AUDIT_PREFIXES})/(${UUID_SEGMENT_PATTERN})`),
-  portalAuditScope: new RegExp(`^/portal/(?:${PORTAL_AUDIT_PREFIXES})/(${UUID_SEGMENT_PATTERN})`),
+  /** Includes optional `/roadmap-manifest` after portal audit scope (client wizard). */
+  portalAuditScope: new RegExp(
+    `^/portal/(?:${PORTAL_AUDIT_PREFIXES})/(${UUID_SEGMENT_PATTERN})(?:/roadmap-manifest)?/?$`,
+    'i',
+  ),
   auditById: /^\/audit\/[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}/i,
 } as const;

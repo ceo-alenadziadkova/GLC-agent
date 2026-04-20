@@ -42,6 +42,7 @@ function basePack(): GlcOrchestrationPack {
     domain_influence: { domain_weights: { marketing_utp: 1 } },
     input_quality: {
       input_mode: 'director_enriched',
+      input_gate_status: 'finalized',
       director_coverage_ratio: 1,
       director_input_coverage_ratio: 1,
       degraded: false,

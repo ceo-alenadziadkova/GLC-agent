@@ -1,10 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '../ui/button';
 import type { PipelineEvent } from '../../data/auditTypes';
 import { usePipeline } from '../../hooks/usePipeline';
 import { UI_POLICY } from '../../config/ui-policy';
 import { PIPELINE_UI_COPY } from '../../config/pipeline-ui-copy.en';
 import { formatAppMediumDateTime } from '../../lib/date-format';
+import { useProfile } from '../../hooks/useProfile';
+import {
+  readNotifyPrefs,
+  subscribeNotifyPrefsChanged,
+} from '../../pages/settings/services/settings-local-preferences.service';
 
 type ExecutionLogPanelProps = {
   auditId: string | undefined;
@@ -17,6 +22,28 @@ export function ExecutionLogPanel({
   title = PIPELINE_UI_COPY.executionLog.defaultTitle,
   compact = false,
 }: ExecutionLogPanelProps) {
+  const { isAdmin } = useProfile();
+  const [showExecutionTracePanels, setShowExecutionTracePanels] = useState(
+    () => readNotifyPrefs().showExecutionTracePanels,
+  );
+
+  useEffect(() => subscribeNotifyPrefsChanged(() => {
+    setShowExecutionTracePanels(readNotifyPrefs().showExecutionTracePanels);
+  }), []);
+
+  const canViewExecutionTrace = isAdmin && showExecutionTracePanels;
+  if (!canViewExecutionTrace) {
+    return null;
+  }
+
+  return <ExecutionLogPanelContent auditId={auditId} title={title} compact={compact} />;
+}
+
+function ExecutionLogPanelContent({
+  auditId,
+  title,
+  compact,
+}: Required<ExecutionLogPanelProps>) {
   const [detailLevel, setDetailLevel] = useState<'default' | 'debug'>(UI_POLICY.pipeline.defaultEventDetailLevel);
   const { state, loading, loadMoreEvents } = usePipeline(auditId, {
     detailLevel,

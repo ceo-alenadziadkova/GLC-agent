@@ -13,6 +13,8 @@ interface OrchestrationGoldenFixture {
   expected: {
     critical_path: string[];
     conflict_ids: string[];
+    top_7d?: string[];
+    top_30d?: string[];
   };
 }
 
@@ -23,7 +25,7 @@ function loadFixture(fileName: string): OrchestrationGoldenFixture {
 }
 
 describe('orchestration golden regression fixtures', () => {
-  const fixtureFiles = ['growth-vs-tech.json', 'ux-vs-compliance.json'] as const;
+  const fixtureFiles = ['growth-vs-tech.json', 'ux-vs-compliance.json', 'deep-plus-fallback.json'] as const;
 
   for (const fixtureFile of fixtureFiles) {
     it(`matches golden snapshot for ${fixtureFile}`, () => {
@@ -37,6 +39,12 @@ describe('orchestration golden regression fixtures', () => {
 
       expect(pack.critical_path).toEqual(fixture.expected.critical_path);
       expect(pack.conflicts_resolved.map(entry => entry.id)).toEqual(fixture.expected.conflict_ids);
+      if (fixture.expected.top_7d) {
+        expect(pack.top_7d).toEqual(fixture.expected.top_7d);
+      }
+      if (fixture.expected.top_30d) {
+        expect(pack.top_30d).toEqual(fixture.expected.top_30d);
+      }
     });
   }
 });

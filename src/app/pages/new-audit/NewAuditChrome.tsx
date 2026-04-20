@@ -1,20 +1,23 @@
-import { CheckCircle, ClipboardText, Cursor, Globe, HardDrives, Lightning, MagnifyingGlass, MapTrifold, Rocket, Shield, Target } from '@phosphor-icons/react';
+import { CheckCircle, ClipboardText, Globe, Rocket } from '@phosphor-icons/react';
+import { WORKSPACE_PAGE_COPY } from '../../config/workspace-page-copy';
 
-const STEPS = [
-  { label: 'Basics', icon: Globe },
-  { label: 'Brief', icon: ClipboardText },
-  { label: 'Launch', icon: Rocket },
-];
+const STEP_ICONS = [Globe, ClipboardText, Rocket] as const;
 
 export function StepIndicator({ current }: { current: number }) {
+  const steps = [
+    { label: WORKSPACE_PAGE_COPY.newAudit.wizardStepBasicsLabel, icon: STEP_ICONS[0] },
+    { label: WORKSPACE_PAGE_COPY.newAudit.wizardStepBriefLabel, icon: STEP_ICONS[1] },
+    { label: WORKSPACE_PAGE_COPY.newAudit.wizardStepLaunchLabel, icon: STEP_ICONS[2] },
+  ];
+
   return (
-    <div className="flex items-center gap-0.5 mobile:gap-0 mb-6 mobile:mb-5 sm:mb-8 justify-center px-1">
-      {STEPS.map((s, i) => {
+    <div className="ds-new-audit-step-indicator-row">
+      {steps.map((s, i) => {
         const done = i < current;
         const active = i === current;
         return (
-          <div key={s.label} className="flex items-center gap-0.5 mobile:gap-0">
-            <div className="flex flex-col items-center gap-1">
+          <div key={s.label} className="ds-new-audit-step-indicator-segment">
+            <div className="ds-new-audit-step-indicator-label-col">
               <div
                 className="ds-new-audit-step-indicator-circle"
                 data-state={done ? 'done' : active ? 'active' : 'idle'}
@@ -27,9 +30,10 @@ export function StepIndicator({ current }: { current: number }) {
                 {s.label}
               </span>
             </div>
-            {i < STEPS.length - 1 && (
+            {i < steps.length - 1 && (
               <div
-                className={`mb-4 h-px w-6 mobile:mb-3.5 mobile:w-4 sm:w-10 ${i < current ? 'bg-[var(--score-5)]' : 'bg-[var(--border-default)]'}`}
+                className="ds-new-audit-step-connector"
+                data-complete={i < current ? 'true' : 'false'}
               />
             )}
           </div>
@@ -38,14 +42,3 @@ export function StepIndicator({ current }: { current: number }) {
     </div>
   );
 }
-
-export const DOMAIN_PILLS = [
-  { icon: MagnifyingGlass, label: 'Recon', color: 'var(--glc-blue)' },
-  { icon: HardDrives, label: 'Tech', color: 'var(--ui-strategic-purple)' },
-  { icon: Shield, label: 'Security', color: 'var(--score-1)' },
-  { icon: Globe, label: 'SEO', color: 'var(--glc-green)' },
-  { icon: Cursor, label: 'UX', color: 'var(--score-3)' },
-  { icon: Target, label: 'Marketing', color: 'var(--glc-orange)' },
-  { icon: Lightning, label: 'Automation', color: 'var(--glc-blue-dark)' },
-  { icon: MapTrifold, label: 'Strategy', color: 'var(--glc-green-dark)' },
-] as const;

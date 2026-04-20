@@ -3,6 +3,7 @@ export * from './audit/product.js';
 export * from './audit/domain-keys.js';
 export * from './audit/execution-plan.js';
 export * from './audit/phase-status.js';
+export * from './audit/origin.js';
 
 // ─── Pipeline phase maps & caps (config; re-exported for stable imports) ──
 export {

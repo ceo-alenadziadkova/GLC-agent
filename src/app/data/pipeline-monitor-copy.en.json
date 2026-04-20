@@ -11,7 +11,9 @@
     "autoWing": "Auto Wing",
     "analyticWing": "Analytic Wing",
     "synthesis": "Synthesis",
-    "parallelBadge": "PARALLEL"
+    "parallelBadge": "PARALLEL",
+    "resizeHandle": "Resize phase sidebar",
+    "resizeHint": "Drag to resize. Double-click to collapse or expand."
   },
   "reviewPoints": {
     "one": "Review Point #1",
@@ -67,7 +69,9 @@
     "governanceAutoRemediationBadge": "Auto-corrected {count} issue(s) (tone)",
     "reconPreviewSectionTitle": "Recon snapshot",
     "reconPreviewIntroTitle": "Findings from this phase",
-    "reconPreviewIntroBody": "This is the saved crawl output used as context for later phases. You can review it here before opening Approve in the sidebar after phase 0."
+    "reconPreviewIntroBody": "This is the saved crawl output used as context for later phases. You can review it here before opening Approve in the sidebar after phase 0.",
+    "clientReviewGateTitle": "Waiting for your consultant",
+    "clientReviewGateBody": "The audit is paused at a review checkpoint. Your consultant must approve this stage before the next steps can run. You do not need to take action here unless they ask you for something. Keep this page open if you like — it will update when the run continues."
   },
   "reviewModal": {
     "defaultNote": "Add your observations before continuing",

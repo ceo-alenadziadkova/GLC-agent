@@ -7,6 +7,7 @@ import type {
   OrchestrationExecutionMode,
   OrchestrationGraphNodeAnalysisDepth,
   OrchestrationGraphNodeSource,
+  OrchestrationInputGateStatus,
 } from '../../config/orchestration-graph-policy.js';
 import type { OrchestrationLaneId } from '../../config/orchestration-lanes.js';
 import type { StrategyInitiativeDomainKey } from '../../config/strategy-initiative-policy.js';
@@ -21,6 +22,7 @@ export type {
   OrchestrationGraphNodeAnalysisDepth,
   OrchestrationInputMode,
   OrchestrationGraphNodeSource,
+  OrchestrationInputGateStatus,
 } from '../../config/orchestration-graph-policy.js';
 
 /**
@@ -119,6 +121,7 @@ export interface OrchestrationPackPolicyEnvelope {
 
 export interface OrchestrationInputQuality {
   input_mode: OrchestrationInputMode;
+  input_gate_status: OrchestrationInputGateStatus;
   director_coverage_ratio: number;
   director_input_coverage_ratio: number;
   degraded: boolean;

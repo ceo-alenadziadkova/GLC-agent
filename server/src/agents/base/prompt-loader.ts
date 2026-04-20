@@ -24,6 +24,18 @@ const DOMAIN_READABLE_OUTPUT_APPEND = (() => {
   }
 })();
 
+const DOMAIN_DIRECTOR_EXECUTION_APPEND = (() => {
+  try {
+    return readFileSync(join(PROMPTS_DIR, '_append-glc-director-execution.md'), 'utf-8').trim();
+  } catch {
+    logger.error('agent.load_prompt_missing', {
+      component: 'agent',
+      prompt: '_append-glc-director-execution.md',
+    });
+    return '';
+  }
+})();
+
 const PROMPTS_WITH_READABLE_OUTPUT_APPEND = new Set([
   'tech_infrastructure',
   'security_compliance',
@@ -43,6 +55,9 @@ export function loadPrompt(name: string): string {
     let body = raw.replace(/^<!--.*?-->\n/, '').trimStart();
     if (PROMPTS_WITH_READABLE_OUTPUT_APPEND.has(name) && DOMAIN_READABLE_OUTPUT_APPEND) {
       body = `${body}\n\n${DOMAIN_READABLE_OUTPUT_APPEND}`;
+    }
+    if (PROMPTS_WITH_READABLE_OUTPUT_APPEND.has(name) && DOMAIN_DIRECTOR_EXECUTION_APPEND) {
+      body = `${body}\n\n${DOMAIN_DIRECTOR_EXECUTION_APPEND}`;
     }
     return body;
   } catch {

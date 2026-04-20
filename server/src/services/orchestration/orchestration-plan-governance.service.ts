@@ -169,6 +169,16 @@ export function evaluateOrchestrationPlanGovernance(
   if (criticalPathNodeRatio < ORCHESTRATION_PLAN_GOVERNANCE_POLICY.minCriticalPathNodeRatio) {
     reason_codes.push('critical_path_coverage_below_floor');
   }
+  if (pack.input_quality?.input_gate_status === 'degraded') {
+    reason_codes.push('input_gate_degraded');
+  }
+  if (
+    typeof pack.input_quality?.director_input_coverage_ratio === 'number' &&
+    pack.input_quality.director_input_coverage_ratio <
+      ORCHESTRATION_PLAN_GOVERNANCE_POLICY.directorInputCoverageRatioFloor
+  ) {
+    reason_codes.push('director_input_coverage_below_floor');
+  }
 
   const uniqueReasonCodes = [...new Set(reason_codes)];
   const blocking_reasons = resolveBlockingReasons(uniqueReasonCodes, rolloutMode);
@@ -194,6 +204,12 @@ export function evaluateOrchestrationPlanGovernance(
       : warnings_soft.length > 0
         ? 'accept_with_warnings'
         : 'accept_plan';
+  const plan_gate_outcome =
+    decision_hint === 'refine_plan'
+      ? 'refine'
+      : decision_hint === 'accept_with_warnings'
+        ? 'accept_with_warnings'
+        : 'accept';
 
   return OrchestrationPlanGovernanceSchema.parse({
     unresolved_conflicts: unresolvedConflicts,
@@ -213,6 +229,7 @@ export function evaluateOrchestrationPlanGovernance(
     decision,
     rollout_mode: rolloutMode,
     decision_hint,
+    plan_gate_outcome,
     reason_codes: uniqueReasonCodes,
     blocking_reasons,
     warnings_soft,

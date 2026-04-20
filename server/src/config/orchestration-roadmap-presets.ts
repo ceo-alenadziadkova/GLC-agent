@@ -3,15 +3,18 @@
  * Keep literals here only — Zod and UI copy consume the same tuples.
  */
 
+/** ADR client pre-roadmap commitment: scenario is enum-backed in `roadmap-manifest` — no ad-hoc strings in UI. */
 export const ROADMAP_CHANGE_SCENARIOS = ['integrate_existing', 'build_new', 'hybrid'] as const;
 
 export type RoadmapChangeScenario = (typeof ROADMAP_CHANGE_SCENARIOS)[number];
 
-/** Manifest payload schema version persisted in roadmap snapshots. */
-export const ROADMAP_MANIFEST_SCHEMA_VERSION = 1 as const;
+/** Manifest payload schema version persisted in roadmap snapshots (v2: optional calendar `plan_horizon`). */
+export const ROADMAP_MANIFEST_SCHEMA_VERSION = 2 as const;
 
 export const ROADMAP_PRIORITY_SPEED_RISK_PRESETS = ['speed', 'balanced', 'risk_averse'] as const;
 export type RoadmapPrioritySpeedRiskPreset = (typeof ROADMAP_PRIORITY_SPEED_RISK_PRESETS)[number];
+export const ROADMAP_RISK_TOLERANCE_PRESETS = ['low', 'medium', 'high'] as const;
+export type RoadmapRiskTolerancePreset = (typeof ROADMAP_RISK_TOLERANCE_PRESETS)[number];
 
 /**
  * Planning window presets for execution compression and lane density (product-defined).

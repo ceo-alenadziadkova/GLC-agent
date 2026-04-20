@@ -6,8 +6,10 @@ import type { DomainKey, AuditCoveragePackage } from '../../../data/auditTypes';
 import { coveragePackageLabel } from '../../../lib/audit-execution-plan';
 import { WORKSPACE_PAGE_COPY } from '../../../config/workspace-page-copy';
 import { APP_ROUTE_PATHS } from '../../../config/route-paths';
+import { BriefPipelineAnsweredTable } from '../../../components/BriefPipelineAnsweredTable';
 import { Callout } from '../../../components/ui/callout';
 import { cn } from '../../../components/ui/utils';
+import type { BriefResponses } from '../../../data/briefQuestions';
 
 export type Step2ConfirmProps = {
   url: string;
@@ -18,6 +20,8 @@ export type Step2ConfirmProps = {
 
   answeredRequired: number;
   pipelineRequiredTotal: number;
+  answeredPipelineRequiredIds: string[];
+  pipelineGateBriefResponses: BriefResponses;
 
   error: string | null;
   loading: boolean;
@@ -42,6 +46,8 @@ export function Step2Confirm({
   selectedDomains,
   answeredRequired,
   pipelineRequiredTotal,
+  answeredPipelineRequiredIds,
+  pipelineGateBriefResponses,
   error,
   loading,
   isClientSelfServe,
@@ -67,16 +73,14 @@ export function Step2Confirm({
       className="glc-card space-y-5 rounded-[var(--radius-2xl)] p-4 shadow-[var(--shadow-lg)] mobile:p-5 sm:p-6"
     >
       <div className="text-center mb-2">
-        <div
-          className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--gradient-brand)] shadow-[0_6px_20px_rgba(28,189,255,0.30)]"
-        >
-          <Rocket className="h-6 w-6 text-[var(--primary-foreground)]" />
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--gradient-brand)] shadow-[var(--shadow-snapshot-cta-active)]">
+          <Rocket className="h-6 w-6 text-[var(--on-gradient-brand-fg)]" />
         </div>
         <h2 className="text-[length:var(--text-xl)] font-bold text-[var(--text-primary)]">{WORKSPACE_PAGE_COPY.newAudit.step2.readyToLaunchTitle}</h2>
         <p className="mt-[length:var(--space-1-5)] text-[length:var(--text-sm)] text-[var(--text-tertiary)]">{WORKSPACE_PAGE_COPY.newAudit.step2.readyToLaunchSubtitle}</p>
         {isClientSelfServe && (
           <p className="mt-[length:var(--space-2-5)] text-[length:var(--text-xs)] leading-[1.5] text-[var(--text-quaternary)]">
-            {WORKSPACE_PAGE_COPY.newAudit.step2.afterReconPauseText}
+            {WORKSPACE_PAGE_COPY.newAudit.step2.afterLaunchPauseNoteClient}
           </p>
         )}
       </div>
@@ -88,7 +92,6 @@ export function Step2Confirm({
           name ? [WORKSPACE_PAGE_COPY.newAudit.step2.summaryCompanyLabel, name] : null,
           industry ? [WORKSPACE_PAGE_COPY.newAudit.step2.summaryIndustryLabel, industry] : null,
           [WORKSPACE_PAGE_COPY.newAudit.step2.summaryCoverageLabel, `${coveragePackageLabel(coveragePackage)} · ${selectedDomains.length} domain(s)`],
-          [WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefLabel, `${answeredRequired}/${pipelineRequiredTotal} required answered`],
         ]
           .filter((row): row is [string, string] => row != null)
           .map(([label, value]) => (
@@ -97,6 +100,34 @@ export function Step2Confirm({
               <span className="break-words text-sm text-[var(--text-primary)]">{value}</span>
             </div>
           ))}
+        <div className="flex items-start gap-3">
+          <span className="ds-step2-summary-label-col pt-[length:var(--border-width-default)] text-xs text-[var(--text-tertiary)]">
+            {WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefLabel}
+          </span>
+          <div className="min-w-0 flex-1 space-y-2">
+            <p className="m-0 break-words text-sm text-[var(--text-primary)]">
+              {answeredRequired}/{pipelineRequiredTotal}{' '}
+              {WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefRequiredAnsweredSuffix}
+            </p>
+            {answeredPipelineRequiredIds.length > 0 ? (
+              <details className="ds-step2-brief-answered-details">
+                <summary>{WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefAnsweredExpand}</summary>
+                <BriefPipelineAnsweredTable
+                  answeredIds={answeredPipelineRequiredIds}
+                  responses={pipelineGateBriefResponses}
+                  questionHeader={WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefAnsweredTableQuestionCol}
+                  answerHeader={WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefAnsweredTableAnswerCol}
+                  valueLabels={{
+                    unknown: WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefAnswerValueUnknown,
+                    yes: WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefAnswerValueYes,
+                    no: WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefAnswerValueNo,
+                    empty: WORKSPACE_PAGE_COPY.newAudit.step2.summaryBriefAnswerValueEmpty,
+                  }}
+                />
+              </details>
+            ) : null}
+          </div>
+        </div>
       </Callout>
 
       {error && (
@@ -160,13 +191,13 @@ export function Step2Confirm({
           whileHover={!loading && !consultantDpaLoading && !launchBlockedByDpa ? { scale: 1.015 } : {}}
           whileTap={!loading && !consultantDpaLoading && !launchBlockedByDpa ? { scale: 0.985 } : {}}
           className={cn(
-            'glc-touch-target flex flex-1 items-center justify-center gap-2 rounded-lg border-none bg-[var(--gradient-accent)] py-3 text-sm font-semibold text-[var(--on-warm-gradient-fg)] shadow-[0_4px_14px_rgba(242,79,29,0.30)] sm:min-h-0 sm:py-2.5',
+            'glc-touch-target flex flex-1 items-center justify-center gap-2 rounded-lg border-none bg-[var(--gradient-accent)] py-3 text-sm font-semibold text-[var(--on-warm-gradient-fg)] shadow-[var(--shadow-accent-cta)] sm:min-h-0 sm:py-2.5',
             loading || consultantDpaLoading || launchBlockedByDpa ? 'cursor-not-allowed' : 'cursor-pointer',
           )}
         >
           {loading ? (
             <span className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+              <span className="w-4 h-4 animate-spin rounded-full border-2 border-[var(--on-warm-gradient-fg)] border-t-transparent" />
               {WORKSPACE_PAGE_COPY.newAudit.step2.launchStartingText}
             </span>
           ) : (

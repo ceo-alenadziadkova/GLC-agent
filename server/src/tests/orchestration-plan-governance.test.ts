@@ -39,6 +39,7 @@ function pack(partial: Partial<GlcOrchestrationPack>): GlcOrchestrationPack {
     domain_influence: { domain_weights: { tech_infrastructure: 1 } },
     input_quality: {
       input_mode: 'director_enriched',
+      input_gate_status: 'finalized',
       director_coverage_ratio: 1,
       director_input_coverage_ratio: 1,
       degraded: false,
@@ -100,6 +101,23 @@ describe('evaluateOrchestrationPlanGovernance', () => {
     expect(result.decision).toBe('persist');
   });
 
+  it('emits degraded input quality reasons when input gate is degraded', () => {
+    const result = evaluateOrchestrationPlanGovernance(
+      pack({
+        input_quality: {
+          input_mode: 'strategy_fallback',
+          input_gate_status: 'degraded',
+          director_coverage_ratio: 0.3,
+          director_input_coverage_ratio: 0.2,
+          degraded: true,
+          fallback_reason_code: 'director_slice_missing',
+        },
+      }),
+    );
+    expect(result.reason_codes).toContain('input_gate_degraded');
+    expect(result.reason_codes).toContain('director_input_coverage_below_floor');
+  });
+
   it('keeps structural failures as warnings in shadow rollout', () => {
     const result = evaluateOrchestrationPlanGovernance(
       pack({
@@ -128,6 +146,26 @@ describe('evaluateOrchestrationPlanGovernance', () => {
     expect(result.blocking_reasons).toContain('confidence_coverage_below_floor');
   });
 
+  it('keeps degraded input reasons as warnings in hard_structure_soft_quality', () => {
+    const result = evaluateOrchestrationPlanGovernance(
+      pack({
+        input_quality: {
+          input_mode: 'strategy_fallback',
+          input_gate_status: 'degraded',
+          director_coverage_ratio: 0.4,
+          director_input_coverage_ratio: 0.2,
+          degraded: true,
+          fallback_reason_code: 'director_slice_partial',
+        },
+      }),
+      { rolloutMode: 'hard_structure_soft_quality' },
+    );
+    expect(result.reason_codes).toContain('input_gate_degraded');
+    expect(result.reason_codes).toContain('director_input_coverage_below_floor');
+    expect(result.decision).toBe('persist');
+    expect(result.status).toBe('pass_with_warnings');
+  });
+
   it('computes tightened-quality rollout readiness from telemetry floors', () => {
     expect(
       isTightenedQualityRolloutReady({
@@ -143,6 +181,58 @@ describe('evaluateOrchestrationPlanGovernance', () => {
         riskCoverageScore: 0.6,
       }),
     ).toBe(false);
+  });
+
+  it('flags dangling dependency conflicts from orphan-dep markers', () => {
+    const result = evaluateOrchestrationPlanGovernance(
+      pack({
+        conflicts_resolved: [
+          {
+            id: 'orphan-dep:n1:missing',
+            summary: 'Dangling dependency',
+            resolution: 'deterministic',
+          },
+        ],
+      }),
+    );
+    expect(result.reason_codes).toContain('dangling_dependencies_detected');
+    expect(result.decision_hint).toBe('refine_plan');
+  });
+
+  it('flags empty critical path when nodes exist', () => {
+    const result = evaluateOrchestrationPlanGovernance(
+      pack({
+        critical_path: [],
+        graph: {
+          nodes: [{ id: 'a', title: 'A', lane: 'tech_delivery', domain: 'tech_infrastructure' }],
+          edges: [],
+        },
+      }),
+    );
+    expect(result.reason_codes).toContain('empty_critical_path');
+    expect(result.decision_hint).toBe('refine_plan');
+  });
+
+  it('flags invalid lane assignments over budget', () => {
+    const result = evaluateOrchestrationPlanGovernance(
+      pack({
+        graph: {
+          nodes: [{ id: 'a', title: 'A', lane: 'not_a_valid_lane', domain: 'tech_infrastructure' }],
+          edges: [],
+        },
+        lanes: {
+          product_change: [],
+          tech_delivery: [],
+          marketing_narrative: [],
+          seo: [],
+          processes_automation: [],
+          risk_compliance: [],
+        },
+        critical_path: ['a'],
+      }),
+    );
+    expect(result.reason_codes).toContain('invalid_lane_assignments_detected');
+    expect(result.decision_hint).toBe('refine_plan');
   });
 
   it('suggests rollout promotion path only when readiness floors are met', () => {

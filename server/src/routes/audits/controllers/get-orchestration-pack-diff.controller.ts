@@ -7,6 +7,7 @@ import {
   AUDITS_NOT_FOUND_MESSAGE,
   ORCHESTRATION_PACK_API_DISABLED_MESSAGE,
 } from '../../../config/api-error-codes.js';
+import { ORCHESTRATION_CONTRACT_POLICY } from '../../../config/orchestration-contract-policy.js';
 import { isOrchestrationPackApiEnabled } from '../../../config/feature-flags.js';
 import type { AuthRequest } from '../../../middleware/auth.js';
 import { logger } from '../../../services/logger.js';
@@ -33,9 +34,9 @@ export async function getOrchestrationPackDiffController(req: AuthRequest, res: 
       return;
     }
     const { from_version, to_version } = parsed.data;
-    if (to_version !== from_version + 1) {
+    if (to_version !== from_version + ORCHESTRATION_CONTRACT_POLICY.maxPackDiffVersionStep) {
       sendApiError(res, 400, API_ERROR_CODES.AUDITS_FETCH_FAILED, AUDITS_FETCH_FAILED_MESSAGE, {
-        detail: 'Only adjacent version diff is supported (to_version must equal from_version + 1).',
+        detail: `Only adjacent version diff is supported (to_version must equal from_version + ${ORCHESTRATION_CONTRACT_POLICY.maxPackDiffVersionStep}).`,
       });
       return;
     }

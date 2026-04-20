@@ -28,6 +28,7 @@ export const APP_ROUTE_SEGMENTS = {
   dashboard: 'dashboard',
   portfolio: 'portfolio',
   adminRequests: 'admin/requests',
+  adminAudits: 'admin/audits',
   adminSnapshots: 'admin/snapshots',
   adminDiscovery: 'admin/discovery',
   adminIntakeWording: 'admin/intake-wording',
@@ -44,6 +45,8 @@ export const APP_ROUTE_SEGMENTS = {
   portalReportsById: 'portal/reports/:id',
   portalTimelineById: 'portal/timeline/:id',
   portalStrategyById: 'portal/strategy/:id',
+  /** Client manifest-first wizard (V2): guided roadmap inputs before pack build. */
+  portalRoadmapManifestByAuditId: 'portal/audit/:id/roadmap-manifest',
   portalAuditById: 'portal/audit/:id',
   portal: 'portal',
 } as const;

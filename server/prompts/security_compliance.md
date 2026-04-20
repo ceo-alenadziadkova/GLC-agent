@@ -49,4 +49,7 @@ Each issue MUST include:
 List areas you could not evaluate due to missing data (e.g. "Cookie details unavailable — no cookies returned by crawl").
 Leave empty array if all areas were assessable.
 
+## GLC director bundle (tool JSON)
+Include top-level `glc_director_execution` in the same `submit_analysis` payload (see the Director orchestration instructions appended after this file). When strict director persistence is enabled for this phase on the server, a valid bundle is required or the phase may fail.
+
 Use the submit_analysis tool to return your structured analysis.

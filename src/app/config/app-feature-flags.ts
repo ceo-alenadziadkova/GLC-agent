@@ -28,7 +28,29 @@ export const APP_FEATURE_FLAGS = {
    */
   strategyLabOrchestratorDetailTabsEnabled: true,
   /**
+   * Strategy Lab: persist stage-2 deep director intent (domain checklist) via lab-context PATCH.
+   */
+  strategyLabDirectorStage2IntentEnabled: true,
+  /**
    * Client portal Strategy Lab: replace “consultant-only manifest” banner with a link to the full timeline in the report.
    */
   clientOrchestrationLabReadOnlyEnabled: true,
+  /**
+   * Client portal: standalone `/portal/audit/:id/roadmap-manifest` guided manifest flow (V2).
+   * Requires `orchestrationRoadmapUiEnabled` and orchestration pack API on the server.
+   */
+  clientRoadmapManifestWizardEnabled: true,
+  /**
+   * Client portal timeline: list saved execution packs + link to Strategy Lab (V8 surface).
+   * Server must allow `FEATURE_STRATEGY_EXECUTION_PACK`; when disabled, the list query may fail and UI shows a short error line.
+   */
+  clientExecutionPackTimelineSurfaceEnabled: true,
+  /**
+   * Client-facing timeline primary surface rollout.
+   */
+  clientTimelineEnabled: true,
+  /**
+   * Timeline-first orchestration program (nav order, manifest CTAs). Server mirrors via FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX.
+   */
+  orchestrationTimelinePrimaryUxEnabled: true,
 } as const;

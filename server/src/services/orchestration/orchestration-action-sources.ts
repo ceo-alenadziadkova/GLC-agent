@@ -8,6 +8,7 @@ import type {
 import type { DirectorInputParseStatus } from './extract-glc-director-slice-from-raw-data.js';
 import { mapStrategyInitiativesToActionNodes } from './map-strategy-initiative-to-action-node.js';
 import { mergeOrchestrationActionInputs } from './merge-orchestration-action-inputs.js';
+import { applyOrchestrationActionNodeNormalizationPipeline } from './normalize-orchestration-action-nodes-pipeline.js';
 import type { StrategyInitiative } from '../../schemas/domain-output.js';
 
 export type ActionSourceId = 'strategy' | 'director';
@@ -87,10 +88,21 @@ export function collectOrchestrationActionInputs(
     throw new Error('Orchestration action source chain is misconfigured');
   }
 
+  const normalized = applyOrchestrationActionNodeNormalizationPipeline(director.nodes);
+  const directorNormalized = {
+    ...director,
+    nodes: normalized.nodes,
+    conflicts_resolved: [...director.conflicts_resolved, ...normalized.conflicts_resolved],
+    input_quality: director.input_quality,
+  };
+
   return {
     strategy,
-    director: { ...director, input_quality: director.input_quality },
-    combined_nodes: director.nodes,
-    combined_conflicts_resolved: [...strategy.conflicts_resolved, ...director.conflicts_resolved],
+    director: directorNormalized,
+    combined_nodes: normalized.nodes,
+    combined_conflicts_resolved: [
+      ...strategy.conflicts_resolved,
+      ...directorNormalized.conflicts_resolved,
+    ],
   };
 }

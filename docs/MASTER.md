@@ -64,6 +64,8 @@ Selected ADR quick links:
 | CTO Director orchestration (deep technical rubric) | [ADR-CTO-DIRECTOR-V1.1-ORCHESTRATION.md](adrs/ADR-CTO-DIRECTOR-V1.1-ORCHESTRATION.md) |
 | GLC Orchestrator v1.1 (meta orchestration) | [ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md](adrs/ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md) |
 | Client unified roadmap (multi-lane timeline, lab split, pre-commit manifest) | [ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md](adrs/ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md) |
+| Orchestration & roadmap rollout plan (phased, code-grounded) | [ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md](adrs/ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md) |
+| Plan-level orchestration quality gate (backlog V4; implementation gated) | [ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md](adrs/ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md) |
 | Domain final-readiness package (6 domains + strategy) | [ADR-DOMAIN-FINAL-READINESS-SUMMARY.md](adrs/ADR-DOMAIN-FINAL-READINESS-SUMMARY.md) |
 
 Current implementation note: persisted `glc_orchestration_pack` uses schema v2 (deterministic phase diagnostic, weighted dependency relations, routing profile) with backward read adapter for historical v1 rows.
@@ -399,6 +401,8 @@ docs/
  ADR-MARKETING-DIRECTOR-TWO-STAGE.md
  ADR-ML-BANDITS.md
  ADR-MULTIMODAL-TRUTH.md
+ ADR-ORCHESTRATION-AND-ROADMAP-ROLLOUT-PLAN.md
+ ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md
  ADR-PHASE-PROFILES.md
  ADR-SAFETY-MODE-EXECUTION.md
  ADR-TECH-DIRECTOR-TWO-STAGE.md

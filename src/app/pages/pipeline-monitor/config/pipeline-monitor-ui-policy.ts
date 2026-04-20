@@ -12,6 +12,11 @@ export const PIPELINE_MONITOR_UI_POLICY = {
     /** Main column height below mobile nav (see `.ds-audit-workspace-main-h`). */
     contentClassName: 'ds-audit-workspace-main-h',
     sidebarWidthClassName: 'ds-pipeline-monitor-sidebar-w',
+    sidebarLayoutAutoSaveId: 'pipeline-monitor:sidebar-layout',
+    sidebarPanelDefaultSizePct: 28,
+    sidebarPanelMinSizePct: 19,
+    sidebarPanelMaxSizePct: 42,
+    detailPanelMinSizePct: 45,
     loaderHeightClassName: 'h-64',
   },
   animation: {

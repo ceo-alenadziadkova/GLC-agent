@@ -6,3 +6,4 @@ export const SETTINGS_PAGE_DEFAULTS = {
 
 /** Browser localStorage id for notification toggles on Settings (not a secret). */
 export const NOTIFY_PREFS_LOCAL_STORAGE_ID = 'glc_notify_prefs_v1';
+export const NOTIFY_PREFS_CHANGED_WINDOW_EVENT = 'glc:notify-prefs-changed';

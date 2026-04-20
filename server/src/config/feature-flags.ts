@@ -145,6 +145,17 @@ export function isOrchestrationPackApiEnabled(): boolean {
   return readFeatureFlagEnv(process.env.FEATURE_ORCHESTRATION_PACK_API, FF.orchestrationPackApiEnabled);
 }
 
+/**
+ * Auto-persist orchestration pack at end of strategy phase when latest manifest snapshot exists.
+ * Env: FEATURE_ORCHESTRATION_PACK_AUTO_AFTER_STRATEGY=true
+ */
+export function isOrchestrationPackAutoAfterStrategyEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_ORCHESTRATION_PACK_AUTO_AFTER_STRATEGY,
+    FF.orchestrationPackAutoAfterStrategyEnabled,
+  );
+}
+
 function readEnumFeatureFlag<T extends string>(
   env: string | undefined,
   allowed: readonly T[],
@@ -181,5 +192,16 @@ export function isDirectorOrchestrationAgentOutputEnabled(): boolean {
   return readFeatureFlagEnv(
     process.env.FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT,
     FF.directorOrchestrationAgentOutputEnabled,
+  );
+}
+
+/**
+ * Timeline-first orchestration UX segment (KPI logs / rollout hooks).
+ * Env: FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX=false to disable structured timeline metrics logs.
+ */
+export function isOrchestrationTimelinePrimaryUxEnabled(): boolean {
+  return readFeatureFlagEnv(
+    process.env.FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX,
+    FF.orchestrationTimelinePrimaryUxEnabled,
   );
 }

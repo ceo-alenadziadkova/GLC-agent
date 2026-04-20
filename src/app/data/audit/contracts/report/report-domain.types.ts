@@ -120,6 +120,11 @@ export interface StrategyEffectiveConstraints {
   team_scale: string;
 }
 
+/** Persisted Strategy Lab JSON subset exposed on the audit strategy read model. */
+export type StrategyLabContextView = Partial<StrategyEffectiveConstraints> & {
+  director_stage2_domains?: DomainKey[];
+};
+
 export interface StrategyRoadmap {
   id: string;
   audit_id: string;
@@ -131,8 +136,8 @@ export interface StrategyRoadmap {
   strategic: StrategyInitiative[];
   scorecard: ScorecardEntry[];
   schema_version?: number;
-  /** Persisted manual overrides (subset of constraint axes). */
-  strategy_lab_context?: Partial<StrategyEffectiveConstraints>;
+  /** Persisted manual overrides (subset of constraint axes + orchestration intent). */
+  strategy_lab_context?: StrategyLabContextView;
   effective_constraints?: StrategyEffectiveConstraints;
   /** GLC Orchestrator cross-domain pack when generated (see docs/ARCHITECTURE.md). */
   glc_orchestration_pack?: GlcOrchestrationPackView | null;

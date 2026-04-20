@@ -74,4 +74,7 @@ Example: { type: 'accessibility_scan', finding: 'alt_coverage_percent: 47' }
 List areas you could not evaluate due to missing data (e.g. "UX signals collector unavailable — using accessibility data only", "No forms detected on crawled pages").
 Leave empty array if all areas were assessable.
 
+## GLC director bundle (tool JSON)
+Include top-level `glc_director_execution` in the same `submit_analysis` payload (see the Director orchestration instructions appended after this file). When strict director persistence is enabled for this phase on the server, a valid bundle is required or the phase may fail.
+
 Use the submit_analysis tool to return your structured analysis.

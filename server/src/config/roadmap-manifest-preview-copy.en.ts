@@ -9,4 +9,6 @@ export const ROADMAP_MANIFEST_PREVIEW_COPY = {
     'Partial coverage: roadmap lanes reflect selected domains only; uncovered domains are listed as waiting list candidates.',
   confidenceStrategyOff:
     'Strategy synthesis is off for this plan; orchestration pack still reflects current domain outputs when available.',
+  waitingListBlocks:
+    'Some growth tracks will wait until missing coverage domains are included in the roadmap scope.',
 } as const;

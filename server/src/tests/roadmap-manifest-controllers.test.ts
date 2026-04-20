@@ -20,6 +20,11 @@ const previewMocks = vi.hoisted(() => ({
 }));
 
 const sendApiErrorMock = vi.hoisted(() => vi.fn());
+const idempotencyMocks = vi.hoisted(() => ({
+  getStoredIdempotentResponse: vi.fn(),
+  storeIdempotentResponse: vi.fn(),
+  isIdempotencyPayloadConflictError: vi.fn(),
+}));
 
 vi.mock('../config/feature-flags.js', async importOriginal => {
   const actual = await importOriginal<typeof import('../config/feature-flags.js')>();
@@ -49,6 +54,12 @@ vi.mock('../services/orchestration/roadmap-manifest-preview.js', () => ({
 
 vi.mock('../routes/audits/mappers/audits-http.mapper.js', () => ({
   sendApiError: sendApiErrorMock,
+}));
+
+vi.mock('../lib/idempotency.js', () => ({
+  getStoredIdempotentResponse: idempotencyMocks.getStoredIdempotentResponse,
+  storeIdempotentResponse: idempotencyMocks.storeIdempotentResponse,
+  isIdempotencyPayloadConflictError: idempotencyMocks.isIdempotencyPayloadConflictError,
 }));
 
 import { postRoadmapManifestPreviewController } from '../routes/audits/controllers/post-roadmap-manifest-preview.controller.js';
@@ -85,6 +96,13 @@ describe('roadmap manifest controllers', () => {
     manifestMocks.insertRoadmapManifestSnapshot.mockResolvedValue({
       id: '00000000-0000-4000-8000-000000000001',
     });
+    idempotencyMocks.getStoredIdempotentResponse.mockResolvedValue({
+      replay: null,
+      key: 'test-key',
+      hash: 'test-hash',
+    });
+    idempotencyMocks.storeIdempotentResponse.mockResolvedValue(undefined);
+    idempotencyMocks.isIdempotencyPayloadConflictError.mockReturnValue(false);
     manifestMocks.listRoadmapManifestSnapshotsForAudit.mockResolvedValue({
       snapshots: [],
       error: null,
@@ -167,6 +185,7 @@ describe('roadmap manifest controllers', () => {
 
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({ id: '00000000-0000-4000-8000-000000000001' });
+    expect(idempotencyMocks.storeIdempotentResponse).toHaveBeenCalled();
   });
 
   it('preview: returns 400 when manifest diverges from execution plan', async () => {

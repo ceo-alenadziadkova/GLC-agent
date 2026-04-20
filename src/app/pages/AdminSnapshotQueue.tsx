@@ -1,17 +1,29 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router';
 import { ArrowsClockwise, Lightning, Spinner, Warning, Tray } from '@phosphor-icons/react';
 import { AppShell } from '../components/AppShell';
 import { api } from '../data/apiService';
 import type { AuditMeta } from '../data/auditTypes';
-import { isSnapshotStyleAudit } from '../lib/audit-execution-plan';
 import { ADMIN_SNAPSHOT_QUEUE_CONFIG } from '../config/admin-snapshot-queue-config';
 import { ADMIN_SNAPSHOT_QUEUE_COPY } from '../config/admin-snapshot-queue-copy.en';
 import { cn } from '../components/ui/utils';
 import { Button } from '../components/ui/button';
 import { useTablistKeyboardNavigation } from '../hooks/useTablistKeyboardNavigation';
 import { formatAppMediumDateTime } from '../lib/date-format';
+import { QueueInlineActionLink } from './queue-inline-action-link';
+import {
+  ADMIN_SNAPSHOT_QUEUE_FILTER_ORDER,
+  ADMIN_SNAPSHOT_QUEUE_TAB_PANEL_ID,
+  QUEUE_EMPTY_STATE_CONTAINER_CLASS,
+  QUEUE_EMPTY_STATE_ICON_CLASS,
+  QUEUE_EMPTY_STATE_TEXT_CLASS,
+  QUEUE_ERROR_BANNER_CLASS,
+  QUEUE_ERROR_BANNER_TEXT_CLASS,
+  QUEUE_TAB_BUTTON_ACTIVE_CLASS,
+  QUEUE_TAB_BUTTON_BASE_CLASS,
+  QUEUE_TAB_BUTTON_INACTIVE_CARD_CLASS,
+  type SnapshotStatusFilter,
+} from './queue-tab-config';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,8 +34,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
-
-type SnapshotStatusFilter = 'all' | 'running' | 'completed' | 'failed';
 
 function matchesStatusFilter(audit: AuditMeta, filter: SnapshotStatusFilter): boolean {
   if (filter === 'all') return true;
@@ -37,8 +47,6 @@ function scoreText(score: number | null): string {
 }
 
 export function AdminSnapshotQueue() {
-  const filterOrder = ['all', 'running', 'completed', 'failed'] as const;
-  const tabPanelId = 'admin-snapshot-queue-panel';
   const [filter, setFilter] = useState<SnapshotStatusFilter>('all');
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -49,8 +57,9 @@ export function AdminSnapshotQueue() {
       const { data } = await api.listAudits(
         ADMIN_SNAPSHOT_QUEUE_CONFIG.listAuditsLimit,
         ADMIN_SNAPSHOT_QUEUE_CONFIG.listAuditsOffset,
+        { source: ['snapshot'] },
       );
-      return data.filter((audit) => isSnapshotStyleAudit(audit));
+      return data.filter((audit) => audit.product_mode === 'free_snapshot');
     },
     staleTime: ADMIN_SNAPSHOT_QUEUE_CONFIG.staleTimeMs,
   });
@@ -60,9 +69,9 @@ export function AdminSnapshotQueue() {
     [q.data, filter],
   );
   const { setTabRef, handleTablistKeyDown } = useTablistKeyboardNavigation({
-    order: filterOrder,
+    order: ADMIN_SNAPSHOT_QUEUE_FILTER_ORDER,
     activeKey: filter,
-    onChange: setFilter,
+    onChange: (next) => setFilter(next as SnapshotStatusFilter),
   });
 
   async function handleDelete(auditId: string) {
@@ -95,19 +104,20 @@ export function AdminSnapshotQueue() {
           aria-label={ADMIN_SNAPSHOT_QUEUE_COPY.title}
           onKeyDown={handleTablistKeyDown}
         >
-          {(['all', 'running', 'completed', 'failed'] as const).map((tab) => (
+          {ADMIN_SNAPSHOT_QUEUE_FILTER_ORDER.map((tab) => (
             <button
               ref={setTabRef(tab)}
               key={tab}
               type="button"
               role="tab"
               id={`admin-snapshot-queue-tab-${tab}`}
-              aria-controls={tabPanelId}
+              aria-controls={ADMIN_SNAPSHOT_QUEUE_TAB_PANEL_ID}
               aria-selected={filter === tab}
               tabIndex={filter === tab ? 0 : -1}
               className={cn(
-                'glc-touch-target rounded-lg border px-3 py-2 text-xs font-medium capitalize sm:min-h-0 sm:py-1.5',
-                filter === tab ? 'border-info/50 bg-info/10 text-info' : 'bg-card text-muted-foreground',
+                QUEUE_TAB_BUTTON_BASE_CLASS,
+                'font-medium capitalize',
+                filter === tab ? QUEUE_TAB_BUTTON_ACTIVE_CLASS : QUEUE_TAB_BUTTON_INACTIVE_CARD_CLASS,
               )}
               onClick={() => setFilter(tab)}
             >
@@ -116,15 +126,15 @@ export function AdminSnapshotQueue() {
           ))}
         </div>
         <section
-          id={tabPanelId}
+          id={ADMIN_SNAPSHOT_QUEUE_TAB_PANEL_ID}
           role="tabpanel"
           aria-labelledby={`admin-snapshot-queue-tab-${filter}`}
           className="space-y-4"
         >
           {deleteError && (
-            <div className="bg-destructive/10 text-destructive border-destructive/40 flex items-center gap-3 rounded-lg border px-4 py-3">
+            <div className={QUEUE_ERROR_BANNER_CLASS}>
               <Warning className="w-4 h-4 flex-shrink-0" />
-              <span className="text-sm">{deleteError}</span>
+              <span className={QUEUE_ERROR_BANNER_TEXT_CLASS}>{deleteError}</span>
             </div>
           )}
 
@@ -135,16 +145,16 @@ export function AdminSnapshotQueue() {
           )}
 
           {!q.isPending && q.error && (
-            <div className="bg-destructive/10 text-destructive border-destructive/40 flex items-center gap-3 rounded-lg border px-4 py-3">
+            <div className={QUEUE_ERROR_BANNER_CLASS}>
               <Warning className="w-4 h-4 flex-shrink-0" />
-              <span className="text-sm">{ADMIN_SNAPSHOT_QUEUE_COPY.loadFailed}</span>
+              <span className={QUEUE_ERROR_BANNER_TEXT_CLASS}>{ADMIN_SNAPSHOT_QUEUE_COPY.loadFailed}</span>
             </div>
           )}
 
           {!q.isPending && !q.error && filtered.length === 0 && (
-            <div className="text-muted-foreground py-16 text-center">
-              <Tray className="text-muted-foreground mx-auto mb-3 h-10 w-10" />
-              <p className="text-sm font-medium">{ADMIN_SNAPSHOT_QUEUE_COPY.emptyState}</p>
+            <div className={QUEUE_EMPTY_STATE_CONTAINER_CLASS}>
+              <Tray className={QUEUE_EMPTY_STATE_ICON_CLASS} />
+              <p className={QUEUE_EMPTY_STATE_TEXT_CLASS}>{ADMIN_SNAPSHOT_QUEUE_COPY.emptyState}</p>
             </div>
           )}
 
@@ -184,9 +194,9 @@ export function AdminSnapshotQueue() {
                         </div>
                         <div className="flex flex-wrap items-center gap-2 sm:gap-3 flex-shrink-0 sm:justify-end">
                           <span className={cn('text-xs font-medium capitalize', statusClass)}>{audit.status}</span>
-                          <Link to={`/audit/${audit.id}`} className="text-info glc-touch-target -mx-1 rounded-md px-1 text-xs font-medium no-underline sm:min-h-0">
+                          <QueueInlineActionLink to={`/audit/${audit.id}`} tone="info">
                             {ADMIN_SNAPSHOT_QUEUE_COPY.openAudit}
-                          </Link>
+                          </QueueInlineActionLink>
                           <Button
                             type="button"
                             variant="outline"

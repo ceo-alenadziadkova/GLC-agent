@@ -6,9 +6,16 @@ import {
   AUDITS_ROADMAP_MANIFEST_EXECUTION_PLAN_MISMATCH_MESSAGE,
   AUDITS_ROADMAP_MANIFEST_PAYLOAD_INVALID_MESSAGE,
   AUDITS_ROADMAP_MANIFEST_SNAPSHOT_FAILED_MESSAGE,
+  IDEMPOTENCY_PAYLOAD_MISMATCH_MESSAGE,
 } from '../../../config/api-error-codes.js';
+import { idempotencyPostAuditsRoadmapManifestSnapshotsKey } from '../../../config/api-http-paths.js';
 import { ORCHESTRATION_PACK_API_DISABLED_MESSAGE } from '../../../config/api-user-messages.en.js';
 import { isOrchestrationPackApiEnabled } from '../../../config/feature-flags.js';
+import {
+  getStoredIdempotentResponse,
+  isIdempotencyPayloadConflictError,
+  storeIdempotentResponse,
+} from '../../../lib/idempotency.js';
 import type { AuthRequest } from '../../../middleware/auth.js';
 import { logger } from '../../../services/logger.js';
 import { RoadmapManifestPayloadSchema } from '../../../schemas/roadmap-manifest.js';
@@ -42,6 +49,16 @@ export async function postRoadmapManifestSnapshotController(req: AuthRequest, re
         AUDITS_ROADMAP_MANIFEST_PAYLOAD_INVALID_MESSAGE,
         { detail: parsedBody.error.flatten() },
       );
+      return;
+    }
+
+    const idempotent = await getStoredIdempotentResponse(
+      req,
+      idempotencyPostAuditsRoadmapManifestSnapshotsKey(auditId),
+      req.body,
+    );
+    if (idempotent.replay) {
+      res.status(idempotent.replay.statusCode).json(idempotent.replay.payload);
       return;
     }
 
@@ -87,8 +104,26 @@ export async function postRoadmapManifestSnapshotController(req: AuthRequest, re
       selected_domains_count: parsedBody.data.selected_domains.length,
       kpi_manifest_confirmed: 1,
     });
-    res.status(201).json({ id });
+    const payload = { id };
+    await storeIdempotentResponse(
+      req,
+      idempotencyPostAuditsRoadmapManifestSnapshotsKey(auditId),
+      idempotent.key,
+      idempotent.hash,
+      { statusCode: 201, payload },
+      auditId,
+    );
+    res.status(201).json(payload);
   } catch (err) {
+    if (isIdempotencyPayloadConflictError(err)) {
+      sendApiError(
+        res,
+        409,
+        API_ERROR_CODES.IDEMPOTENCY_PAYLOAD_MISMATCH,
+        IDEMPOTENCY_PAYLOAD_MISMATCH_MESSAGE,
+      );
+      return;
+    }
     const error = err as Error;
     logger.error('route.roadmap_manifest_snapshot_failed', {
       component: 'audits',

@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router';
 import { Path } from '@phosphor-icons/react';
 
+import type { DomainKey } from '@glc/intake-core';
 import type { AuditMeta } from '../../data/audit/contracts/core/audit-meta.types';
 import type { StrategyRoadmap } from '../../data/audit/contracts/report/report-domain.types';
 import type { GlcOrchestrationPackRevisionDiffView } from '../../data/audit/contracts/report/orchestration-pack.types';
 import type {
+  OrchestrationCommercialOfferResponseDto,
   OrchestrationPlanGovernanceDto,
   OrchestrationPackRevisionHistoryItemDto,
   RoadmapManifestPreviewDto,
@@ -16,8 +19,11 @@ import { DOMAIN_LABELS } from '../../data/auditTypes';
 import { Button } from '../../components/ui/button';
 import { toast } from 'sonner';
 import {
+  encodeManifestChangeSignature,
   ORCHESTRATION_CHANGE_SCENARIOS,
+  ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
   ORCHESTRATION_SEASON_PRESETS,
+  parseOptionalOrchestrationPlanHorizon,
   type OrchestrationChangeScenario,
   type OrchestrationSeasonPreset,
 } from '../../config/orchestration-roadmap-manifest';
@@ -31,9 +37,14 @@ import {
   ORCHESTRATION_UI_COPY,
   type OrchestrationLaneId,
 } from '../../config/orchestration-roadmap-ui-copy.en';
+import { ORCHESTRATION_PLAN_GOVERNANCE_REASON_HINTS } from '../../config/orchestration-plan-governance';
+import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
+import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { isGlcOrchestrationPackView } from '../../lib/orchestration-pack-guards';
 import { orchestrationNodeTitleMap } from '../../lib/orchestration-timeline-projection';
 import { formatAppMediumDateTime } from '../../lib/date-format';
+import { useProfile } from '../../hooks/useProfile';
+import { buildAppRoute } from '../../config/route-paths';
 
 type ExecutionPlan = NonNullable<AuditMeta['execution_plan']>;
 
@@ -42,6 +53,16 @@ interface StrategyLabOrchestrationPanelProps {
   executionPlan: ExecutionPlan;
   strategy: StrategyRoadmap;
   onReload: () => void;
+}
+
+function TimelineLinkButton({ auditId }: { auditId: string }) {
+  const { isClient } = useProfile();
+  const to = isClient ? buildAppRoute.portalTimeline(auditId) : buildAppRoute.timeline(auditId);
+  return (
+    <Button asChild variant="outline" size="sm" className="no-underline">
+      <Link to={to}>{ORCHESTRATION_UI_COPY.commercialAcceptedOpenTimeline}</Link>
+    </Button>
+  );
 }
 
 export function StrategyLabOrchestrationPanel({
@@ -54,7 +75,10 @@ export function StrategyLabOrchestrationPanel({
 
   const [scenario, setScenario] = useState<OrchestrationChangeScenario>('hybrid');
   const [season, setSeason] = useState<OrchestrationSeasonPreset>('rolling_90d');
+  const [planHorizonStart, setPlanHorizonStart] = useState('');
+  const [planHorizonEnd, setPlanHorizonEnd] = useState('');
   const [manifestSnapshotId, setManifestSnapshotId] = useState<string | null>(null);
+  const hydratedManifestSnapshotId = useRef<string | null>(null);
   const [manifestSnapshots, setManifestSnapshots] = useState<RoadmapManifestSnapshotListItem[]>([]);
   const [savedManifestSignature, setSavedManifestSignature] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
@@ -68,17 +92,22 @@ export function StrategyLabOrchestrationPanel({
   const [revisionHistory, setRevisionHistory] = useState<OrchestrationPackRevisionHistoryItemDto[]>([]);
   const [selectedRevisionDiffKey, setSelectedRevisionDiffKey] = useState<string | null>(null);
   const [planGovernance, setPlanGovernance] = useState<OrchestrationPlanGovernanceDto | null>(null);
-  const [commercialOffer, setCommercialOffer] = useState<{
-    offers: Array<{ domain: keyof typeof DOMAIN_LABELS; value_message: string; estimated_incremental_effort_weeks: number }>;
-    accepted_domain: keyof typeof DOMAIN_LABELS | null;
-    recalculated_preview_lanes: string[] | null;
-    accepted_roadmap_version: number | null;
-  } | null>(null);
+  const [commercialOffer, setCommercialOffer] = useState<OrchestrationCommercialOfferResponseDto | null>(null);
   const [commercialWorking, setCommercialWorking] = useState(false);
+  const [analysisDepthFilter, setAnalysisDepthFilter] = useState<'all' | 'baseline' | 'deep'>('all');
+  const [stage2Selection, setStage2Selection] = useState<DomainKey[]>(
+    () => strategy.strategy_lab_context?.director_stage2_domains ?? [],
+  );
+  const [stage2Working, setStage2Working] = useState(false);
+
+  useEffect(() => {
+    setStage2Selection(strategy.strategy_lab_context?.director_stage2_domains ?? []);
+  }, [strategy.strategy_lab_context?.director_stage2_domains]);
 
   useEffect(() => {
     const p = isGlcOrchestrationPackView(strategy.glc_orchestration_pack) ? strategy.glc_orchestration_pack : null;
     if (p?.manifest_snapshot_id) {
+      hydratedManifestSnapshotId.current = null;
       setManifestSnapshotId(prev => prev ?? p.manifest_snapshot_id);
     }
   }, [strategy.glc_orchestration_pack]);
@@ -97,10 +126,8 @@ export function StrategyLabOrchestrationPanel({
         if (manifestSnapshotId) return;
         const row = latest.snapshot ?? snapshots[0] ?? null;
         if (!row) return;
+        hydratedManifestSnapshotId.current = null;
         setManifestSnapshotId(row.id);
-        setScenario(row.payload.change_scenario);
-        setSeason(row.payload.season_preset);
-        setSavedManifestSignature(`${row.payload.change_scenario}::${row.payload.season_preset}`);
         toast.success(ORCHESTRATION_UI_COPY.snapshotAutoSelected);
       } catch {
         if (!cancelled) {
@@ -114,17 +141,58 @@ export function StrategyLabOrchestrationPanel({
   }, [auditId, manifestSnapshotId, strategy.glc_orchestration_pack]);
 
   useEffect(() => {
+    if (!isGlcOrchestrationPackView(strategy.glc_orchestration_pack)) return;
     let cancelled = false;
+    void (async () => {
+      try {
+        const { snapshots } = await api.getRoadmapManifestSnapshots(auditId, {
+          limit: ORCHESTRATION_UI_LIMITS.maxManifestSnapshotHistoryItems,
+        });
+        if (cancelled) return;
+        setManifestSnapshots(snapshots);
+      } catch {
+        if (!cancelled) setManifestSnapshots([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [auditId, strategy.glc_orchestration_pack]);
+
+  useEffect(() => {
+    if (!manifestSnapshotId || manifestSnapshots.length === 0) return;
+    if (hydratedManifestSnapshotId.current === manifestSnapshotId) return;
+    const row = manifestSnapshots.find(s => s.id === manifestSnapshotId);
+    if (!row) return;
+    hydratedManifestSnapshotId.current = manifestSnapshotId;
+    setScenario(row.payload.change_scenario);
+    setSeason(row.payload.season_preset);
+    setPlanHorizonStart(row.payload.plan_horizon?.start_date ?? '');
+    setPlanHorizonEnd(row.payload.plan_horizon?.end_date ?? '');
+    setSavedManifestSignature(
+      encodeManifestChangeSignature({
+        change_scenario: row.payload.change_scenario,
+        season_preset: row.payload.season_preset,
+        plan_horizon: row.payload.plan_horizon,
+      }),
+    );
+  }, [manifestSnapshotId, manifestSnapshots]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const planHorizon = parseOptionalOrchestrationPlanHorizon(planHorizonStart, planHorizonEnd);
     const body = {
+      schema_version: ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
       selected_domains: executionPlan.selected_domains,
       change_scenario: scenario,
       season_preset: season,
+      ...(planHorizon ? { plan_horizon: planHorizon } : {}),
     };
     const t = window.setTimeout(() => {
       setPreviewLoading(true);
       void (async () => {
         try {
-          const { preview } = await api.postRoadmapManifestPreview(auditId, body);
+          const { preview } = await api.postOrchestratorPreview(auditId, body);
           if (!cancelled) {
             setManifestPreview(preview);
             setManifestPreviewError(null);
@@ -144,12 +212,12 @@ export function StrategyLabOrchestrationPanel({
           }
         }
       })();
-    }, 400);
+    }, ORCHESTRATION_UI_LIMITS.manifestPreviewDebounceMs);
     return () => {
       cancelled = true;
       window.clearTimeout(t);
     };
-  }, [auditId, executionPlan.selected_domains, scenario, season]);
+  }, [auditId, executionPlan.selected_domains, scenario, season, planHorizonStart, planHorizonEnd]);
 
   useEffect(() => {
     if (
@@ -202,25 +270,54 @@ export function StrategyLabOrchestrationPanel({
       row => row.resolution === 'synthesis_applied' || row.resolution === 'synthesis_pending',
     );
   }, [pack]);
+  const governanceHints = useMemo(() => {
+    if (!planGovernance) return [];
+    return planGovernance.reason_codes.map((code) => ORCHESTRATION_PLAN_GOVERNANCE_REASON_HINTS[code]);
+  }, [planGovernance]);
+
+  const depthFilteredNodes = useMemo(() => {
+    if (!pack?.graph?.nodes?.length) return [];
+    return pack.graph.nodes
+      .filter(n => {
+        if (analysisDepthFilter === 'all') return true;
+        const d = n.analysis_depth ?? 'baseline';
+        return d === analysisDepthFilter;
+      })
+      .slice(0, ORCHESTRATION_UI_LIMITS.orchestratorRisksMaxItems);
+  }, [pack, analysisDepthFilter]);
 
   const handleSaveManifest = useCallback(async () => {
     setWorking(true);
     try {
+      const planHorizon = parseOptionalOrchestrationPlanHorizon(planHorizonStart, planHorizonEnd);
       const res = await api.postRoadmapManifestSnapshot(auditId, {
+        schema_version: ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
         selected_domains: executionPlan.selected_domains,
         change_scenario: scenario,
         season_preset: season,
+        ...(planHorizon ? { plan_horizon: planHorizon } : {}),
       });
       setManifestSnapshotId(res.id);
-      setSavedManifestSignature(`${scenario}::${season}`);
+      hydratedManifestSnapshotId.current = res.id;
+      setSavedManifestSignature(
+        encodeManifestChangeSignature({
+          change_scenario: scenario,
+          season_preset: season,
+          plan_horizon: planHorizon,
+          plan_start_raw: planHorizonStart,
+          plan_end_raw: planHorizonEnd,
+        }),
+      );
       setManifestSnapshots(prev => [
         {
           id: res.id,
           created_at: new Date().toISOString(),
           payload: {
+            schema_version: ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
             selected_domains: executionPlan.selected_domains,
             change_scenario: scenario,
             season_preset: season,
+            ...(planHorizon ? { plan_horizon: planHorizon } : {}),
           },
         },
         ...prev,
@@ -235,17 +332,13 @@ export function StrategyLabOrchestrationPanel({
     } finally {
       setWorking(false);
     }
-  }, [auditId, executionPlan.selected_domains, scenario, season]);
+  }, [auditId, executionPlan.selected_domains, scenario, season, planHorizonStart, planHorizonEnd]);
 
   const handleBuildPack = useCallback(async () => {
     if (!manifestSnapshotId) return;
     setWorking(true);
     try {
-      const hasExistingRoadmapVersion =
-        typeof strategy.orchestration_pack_version === 'number' && strategy.orchestration_pack_version > 0;
-      const res = hasExistingRoadmapVersion
-        ? await api.postOrchestrationPackRegenerate(auditId, { manifest_snapshot_id: manifestSnapshotId })
-        : await api.postOrchestrationPack(auditId, { manifest_snapshot_id: manifestSnapshotId });
+      const res = await api.postOrchestratorRun(auditId, { manifest_snapshot_id: manifestSnapshotId });
       setLastPostRevision({ roadmap_version: res.roadmap_version, diff: res.last_revision_diff });
       setPlanGovernance(res.plan_governance);
       toast.success(ORCHESTRATION_UI_COPY.packBuilt);
@@ -255,28 +348,26 @@ export function StrategyLabOrchestrationPanel({
     } finally {
       setWorking(false);
     }
-  }, [auditId, manifestSnapshotId, onReload, strategy.orchestration_pack_version]);
+  }, [auditId, manifestSnapshotId, onReload]);
 
   const handleFetchCommercialOffer = useCallback(
     async (accept_domain?: keyof typeof DOMAIN_LABELS) => {
+      if (accept_domain) {
+        const confirmed = window.confirm(ORCHESTRATION_UI_COPY.commercialConfirmAcceptPrompt);
+        if (!confirmed) return;
+      }
       setCommercialWorking(true);
       try {
+        const planHorizon = parseOptionalOrchestrationPlanHorizon(planHorizonStart, planHorizonEnd);
         const res = await api.postOrchestrationCommercialOffer(auditId, {
+          schema_version: ORCHESTRATION_MANIFEST_SCHEMA_VERSION,
           selected_domains: executionPlan.selected_domains,
           change_scenario: scenario,
           season_preset: season,
+          ...(planHorizon ? { plan_horizon: planHorizon } : {}),
           ...(accept_domain ? { accept_domain } : {}),
         });
-        setCommercialOffer({
-          offers: res.offers as Array<{
-            domain: keyof typeof DOMAIN_LABELS;
-            value_message: string;
-            estimated_incremental_effort_weeks: number;
-          }>,
-          accepted_domain: (res.accepted_domain as keyof typeof DOMAIN_LABELS | null) ?? null,
-          recalculated_preview_lanes: res.recalculated_preview?.lanes_included ?? null,
-          accepted_roadmap_version: res.accepted_pack_result?.roadmap_version ?? null,
-        });
+        setCommercialOffer(res);
         if (res.accepted_pack_result) {
           setLastPostRevision({
             roadmap_version: res.accepted_pack_result.roadmap_version,
@@ -292,8 +383,41 @@ export function StrategyLabOrchestrationPanel({
         setCommercialWorking(false);
       }
     },
-    [auditId, executionPlan.selected_domains, onReload, scenario, season],
+    [auditId, executionPlan.selected_domains, onReload, scenario, season, planHorizonStart, planHorizonEnd],
   );
+
+  const toggleStage2Domain = useCallback((d: DomainKey) => {
+    setStage2Selection(prev => (prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]));
+  }, []);
+
+  const handleSaveStage2Intent = useCallback(async () => {
+    setStage2Working(true);
+    try {
+      await api.patchStrategyLabContext(auditId, {
+        director_stage2_domains: stage2Selection.length > 0 ? stage2Selection : null,
+      });
+      toast.success(STRATEGY_LAB_COPY.directorStage2Intent.saved);
+      onReload();
+    } catch {
+      toast.error(STRATEGY_LAB_COPY.directorStage2Intent.saveFailed);
+    } finally {
+      setStage2Working(false);
+    }
+  }, [auditId, onReload, stage2Selection]);
+
+  const handleClearSavedStage2Intent = useCallback(async () => {
+    setStage2Working(true);
+    setStage2Selection([]);
+    try {
+      await api.patchStrategyLabContext(auditId, { director_stage2_domains: null });
+      toast.success(STRATEGY_LAB_COPY.directorStage2Intent.clearSaved);
+      onReload();
+    } catch {
+      toast.error(STRATEGY_LAB_COPY.directorStage2Intent.saveFailed);
+    } finally {
+      setStage2Working(false);
+    }
+  }, [auditId, onReload]);
 
   const revisionDiffToShow = lastPostRevision?.diff ?? strategy.glc_orchestration_last_revision_diff ?? null;
   const revisionDiffCandidates = useMemo(() => {
@@ -322,9 +446,16 @@ export function StrategyLabOrchestrationPanel({
     typeof strategy.orchestration_pack_version === 'number' && strategy.orchestration_pack_version > 0
       ? strategy.orchestration_pack_version
       : lastPostRevision?.roadmap_version ?? 0;
-  const currentManifestSignature = `${scenario}::${season}`;
+  const currentManifestSignature = encodeManifestChangeSignature({
+    change_scenario: scenario,
+    season_preset: season,
+    plan_horizon: parseOptionalOrchestrationPlanHorizon(planHorizonStart, planHorizonEnd),
+    plan_start_raw: planHorizonStart,
+    plan_end_raw: planHorizonEnd,
+  });
   const hasUnsavedManifestChanges =
     savedManifestSignature !== null && savedManifestSignature !== currentManifestSignature;
+  const previewPlanHorizon = parseOptionalOrchestrationPlanHorizon(planHorizonStart, planHorizonEnd);
   const flowSteps = [
     { id: 'scope', label: ORCHESTRATION_UI_COPY.flowScope, done: executionPlan.selected_domains.length > 0 },
     { id: 'preview', label: ORCHESTRATION_UI_COPY.flowPreview, done: manifestPreview !== null && !manifestPreviewError },
@@ -343,6 +474,8 @@ export function StrategyLabOrchestrationPanel({
         <span className="text-foreground text-sm font-semibold">{ORCHESTRATION_UI_COPY.sectionTitle}</span>
       </div>
       <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.sectionHint}</p>
+      <p className="text-muted-foreground text-xs leading-relaxed">{STRATEGY_LAB_COPY.roles.timelineVsLab}</p>
+
       <div className="bg-background space-y-2 rounded-lg border p-3">
         <div className="text-muted-foreground text-xs font-semibold">{ORCHESTRATION_UI_COPY.flowTitle}</div>
         <ol className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
@@ -354,6 +487,57 @@ export function StrategyLabOrchestrationPanel({
           ))}
         </ol>
       </div>
+
+      {APP_FEATURE_FLAGS.strategyLabDirectorStage2IntentEnabled ? (
+        <div className="bg-background space-y-2 rounded-lg border p-3">
+          <div className="text-muted-foreground text-xs font-semibold">{STRATEGY_LAB_COPY.directorStage2Intent.title}</div>
+          <p className="text-muted-foreground text-xs leading-relaxed">{STRATEGY_LAB_COPY.directorStage2Intent.body}</p>
+          <div className="text-muted-foreground text-xs font-medium">{STRATEGY_LAB_COPY.directorStage2Intent.domainsLabel}</div>
+          <ul className="flex flex-col gap-1">
+            {executionPlan.selected_domains.map(d => (
+              <li key={d}>
+                <label className="text-foreground flex cursor-pointer items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={stage2Selection.includes(d)}
+                    onChange={() => toggleStage2Domain(d)}
+                    className="border-border rounded border"
+                  />
+                  <span>{DOMAIN_LABELS[d] ?? d}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={stage2Working}
+              onClick={() => void handleSaveStage2Intent()}
+            >
+              {stage2Working ? STRATEGY_LAB_COPY.directorStage2Intent.saving : STRATEGY_LAB_COPY.directorStage2Intent.save}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={stage2Working}
+              onClick={() => void handleClearSavedStage2Intent()}
+            >
+              {STRATEGY_LAB_COPY.directorStage2Intent.clear}
+            </Button>
+          </div>
+          {(strategy.strategy_lab_context?.director_stage2_domains?.length ?? 0) > 0 ? (
+            <p className="text-muted-foreground text-xs">
+              {STRATEGY_LAB_COPY.directorStage2Intent.selectedSummary}:{' '}
+              {(strategy.strategy_lab_context?.director_stage2_domains ?? [])
+                .map(d => DOMAIN_LABELS[d] ?? d)
+                .join(', ')}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="space-y-3">
         <div>
@@ -388,6 +572,30 @@ export function StrategyLabOrchestrationPanel({
             ))}
           </select>
         </label>
+        <div className="space-y-2">
+          <span className="text-muted-foreground text-xs font-medium">{ORCHESTRATION_UI_COPY.planHorizonLabel}</span>
+          <p className="text-muted-foreground text-[length:var(--text-2xs)] leading-relaxed">{ORCHESTRATION_UI_COPY.planHorizonHint}</p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <label className="flex flex-1 flex-col gap-1">
+              <span className="text-muted-foreground text-[length:var(--text-2xs)]">{ORCHESTRATION_UI_COPY.planHorizonStartLabel}</span>
+              <input
+                type="date"
+                className="bg-background text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                value={planHorizonStart}
+                onChange={e => setPlanHorizonStart(e.target.value)}
+              />
+            </label>
+            <label className="flex flex-1 flex-col gap-1">
+              <span className="text-muted-foreground text-[length:var(--text-2xs)]">{ORCHESTRATION_UI_COPY.planHorizonEndLabel}</span>
+              <input
+                type="date"
+                className="bg-background text-foreground border-border h-9 rounded-md border px-2 text-xs"
+                value={planHorizonEnd}
+                onChange={e => setPlanHorizonEnd(e.target.value)}
+              />
+            </label>
+          </div>
+        </div>
       </div>
 
       <div className="bg-background space-y-2 rounded-lg border p-3">
@@ -407,6 +615,12 @@ export function StrategyLabOrchestrationPanel({
             <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.previewSeason}: </span>
             {ORCHESTRATION_SEASON_LABELS[season]}
           </li>
+          {previewPlanHorizon ? (
+            <li>
+              <span className="text-muted-foreground">{ORCHESTRATION_UI_COPY.planHorizonLabel}: </span>
+              {previewPlanHorizon.start_date} – {previewPlanHorizon.end_date}
+            </li>
+          ) : null}
           {manifestPreview && (
             <>
               <li>
@@ -487,10 +701,20 @@ export function StrategyLabOrchestrationPanel({
                 const nextId = e.target.value;
                 const next = manifestSnapshots.find(row => row.id === nextId);
                 setManifestSnapshotId(nextId);
+                hydratedManifestSnapshotId.current = null;
                 if (next) {
                   setScenario(next.payload.change_scenario);
                   setSeason(next.payload.season_preset);
-                  setSavedManifestSignature(`${next.payload.change_scenario}::${next.payload.season_preset}`);
+                  setPlanHorizonStart(next.payload.plan_horizon?.start_date ?? '');
+                  setPlanHorizonEnd(next.payload.plan_horizon?.end_date ?? '');
+                  setSavedManifestSignature(
+                    encodeManifestChangeSignature({
+                      change_scenario: next.payload.change_scenario,
+                      season_preset: next.payload.season_preset,
+                      plan_horizon: next.payload.plan_horizon,
+                    }),
+                  );
+                  hydratedManifestSnapshotId.current = nextId;
                 }
               }}
             >
@@ -519,15 +743,25 @@ export function StrategyLabOrchestrationPanel({
           {commercialWorking ? ORCHESTRATION_UI_COPY.commercialChecking : ORCHESTRATION_UI_COPY.commercialCheckCta}
         </Button>
         {commercialOffer?.offers.length ? (
-          <ul className="text-foreground list-inside list-disc text-xs">
+          <ul className="text-foreground space-y-3 text-xs">
             {commercialOffer.offers.map(row => (
-              <li key={row.domain}>
-                {row.value_message} ({row.estimated_incremental_effort_weeks}w)
+              <li key={row.domain} className="list-none rounded-md border border-border px-3 py-2">
+                <div className="font-medium">
+                  {row.value_message} ({row.estimated_incremental_effort_weeks}w)
+                </div>
+                <div className="text-muted-foreground mt-1 text-[length:var(--text-2xs)] font-semibold">
+                  {ORCHESTRATION_UI_COPY.commercialWhyNowTitle}
+                </div>
+                <ul className="mt-1 list-inside list-disc text-[length:var(--text-2xs)]">
+                  {row.why_now_bullets.map((line, i) => (
+                    <li key={`${row.domain}-why-${i}`}>{line}</li>
+                  ))}
+                </ul>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="ml-2"
+                  className="mt-2"
                   onClick={() => void handleFetchCommercialOffer(row.domain)}
                 >
                   {ORCHESTRATION_UI_COPY.commercialAcceptCta}
@@ -536,15 +770,45 @@ export function StrategyLabOrchestrationPanel({
             ))}
           </ul>
         ) : null}
-        {commercialOffer?.accepted_domain && commercialOffer.recalculated_preview_lanes ? (
+        {commercialOffer?.base_preview ? (
+          <div className="text-muted-foreground space-y-2 text-xs">
+            <div className="font-semibold text-foreground">{ORCHESTRATION_UI_COPY.commercialBeforeAfterTitle}</div>
+            <div>
+              <span className="font-medium">{ORCHESTRATION_UI_COPY.commercialBeforeLabel}: </span>
+              {commercialOffer.base_preview.lanes_included
+                .map(lane => ORCHESTRATION_LANE_LABELS[lane as OrchestrationLaneId] ?? lane)
+                .join(', ')}
+            </div>
+            {commercialOffer.recalculated_preview ? (
+              <div>
+                <span className="font-medium">{ORCHESTRATION_UI_COPY.commercialAfterLabel}: </span>
+                {commercialOffer.recalculated_preview.lanes_included
+                  .map(lane => ORCHESTRATION_LANE_LABELS[lane as OrchestrationLaneId] ?? lane)
+                  .join(', ')}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        {commercialOffer?.accepted_domain && commercialOffer.recalculated_preview?.lanes_included ? (
           <p className="text-muted-foreground text-xs">
             {ORCHESTRATION_UI_COPY.commercialRecalculatedPrefix}{' '}
             {DOMAIN_LABELS[commercialOffer.accepted_domain] ?? commercialOffer.accepted_domain}:{' '}
-            {commercialOffer.recalculated_preview_lanes
+            {commercialOffer.recalculated_preview.lanes_included
               .map(lane => ORCHESTRATION_LANE_LABELS[lane as OrchestrationLaneId] ?? lane)
               .join(', ')}
-            {commercialOffer.accepted_roadmap_version ? ` · v${commercialOffer.accepted_roadmap_version}` : ''}
+            {commercialOffer.accepted_pack_result?.roadmap_version
+              ? ` · v${commercialOffer.accepted_pack_result.roadmap_version}`
+              : ''}
           </p>
+        ) : null}
+        {commercialOffer?.accepted_pack_result ? (
+          <div className="border-border space-y-2 rounded-md border px-3 py-2">
+            <p className="text-muted-foreground m-0 text-xs">{ORCHESTRATION_UI_COPY.commercialAcceptedReviewTimeline}</p>
+            <p className="text-muted-foreground m-0 text-[length:var(--text-2xs)]">
+              {ORCHESTRATION_UI_COPY.commercialAcceptedCompareHint}
+            </p>
+            <TimelineLinkButton auditId={auditId} />
+          </div>
         ) : null}
       </div>
 
@@ -560,6 +824,12 @@ export function StrategyLabOrchestrationPanel({
           <p className="text-muted-foreground text-xs">
             {ORCHESTRATION_UI_COPY.governanceDecisionHintLabel}: {planGovernance.decision_hint}
           </p>
+          {pack?.input_quality && (
+            <p className="text-muted-foreground text-xs">
+              {ORCHESTRATION_UI_COPY.governanceInputHeaderLabel}: {pack.input_quality.input_gate_status} (
+              {pack.input_quality.input_mode})
+            </p>
+          )}
           <p className="text-muted-foreground text-xs">
             Status: {planGovernance.status} ({planGovernance.decision}, mode: {planGovernance.rollout_mode})
           </p>
@@ -584,6 +854,18 @@ export function StrategyLabOrchestrationPanel({
                 <li key={line}>{line}</li>
               ))}
             </ul>
+          )}
+          {governanceHints.length > 0 && (
+            <div>
+              <div className="text-muted-foreground mb-1 text-xs font-medium">
+                {ORCHESTRATION_UI_COPY.governanceReasonHintTitle}
+              </div>
+              <ul className="text-foreground list-inside list-disc text-xs">
+                {governanceHints.map((hint) => (
+                  <li key={hint}>{hint}</li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       )}
@@ -711,6 +993,38 @@ export function StrategyLabOrchestrationPanel({
 
       {pack ? (
         <div className="space-y-3 border-t pt-4">
+          <div className="space-y-2">
+            <div className="text-foreground text-xs font-semibold">{STRATEGY_LAB_COPY.orchestratorTabs.analysisDepth}</div>
+            <p className="text-muted-foreground text-[length:var(--text-2xs)]">{STRATEGY_LAB_COPY.depthFilter.hint}</p>
+            <div className="flex flex-wrap gap-2">
+              {(['all', 'baseline', 'deep'] as const).map(mode => (
+                <Button
+                  key={mode}
+                  type="button"
+                  size="sm"
+                  variant={analysisDepthFilter === mode ? 'default' : 'outline'}
+                  onClick={() => setAnalysisDepthFilter(mode)}
+                >
+                  {mode === 'all'
+                    ? STRATEGY_LAB_COPY.depthFilter.all
+                    : mode === 'baseline'
+                      ? STRATEGY_LAB_COPY.depthFilter.baseline
+                      : STRATEGY_LAB_COPY.depthFilter.deep}
+                </Button>
+              ))}
+            </div>
+            <ul className="text-muted-foreground list-inside list-disc text-xs">
+              {depthFilteredNodes.length === 0 && <li>—</li>}
+              {depthFilteredNodes.map(n => (
+                <li key={n.id}>
+                  {n.title}{' '}
+                  <span className="text-[length:var(--text-2xs)]">
+                    ({n.analysis_depth === 'deep' ? ORCHESTRATION_UI_COPY.nodeBadgeDeep : ORCHESTRATION_UI_COPY.nodeBadgeBaseline})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
           <p className="text-muted-foreground text-xs">{ORCHESTRATION_UI_COPY.labDetailLayerHint}</p>
           {synthesisConflicts.length > 0 && (
             <div className="border-t pt-3">

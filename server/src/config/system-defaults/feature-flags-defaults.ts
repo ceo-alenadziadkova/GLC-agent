@@ -33,6 +33,11 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    */
   orchestrationPackApiEnabled: true,
   /**
+   * After phase 7 (strategy) completes, auto-build and persist orchestration pack when a latest
+   * roadmap manifest snapshot exists (same path as POST pack). Env: FEATURE_ORCHESTRATION_PACK_AUTO_AFTER_STRATEGY
+   */
+  orchestrationPackAutoAfterStrategyEnabled: false,
+  /**
    * Plan-level governance rollout mode for orchestration pack persistence.
    * Allowed: shadow | hard_structure_soft_quality | tightened_quality.
    * Env: FEATURE_ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODE
@@ -49,4 +54,9 @@ export const SYSTEM_DEFAULTS_FEATURE_FLAGS = {
    * Env: FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT
    */
   directorOrchestrationAgentOutputEnabled: false,
+  /**
+   * When true, timeline-first UX rollout hooks may emit extra structured logs / gates.
+   * Env: FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX
+   */
+  orchestrationTimelinePrimaryUxEnabled: true,
 } as const;

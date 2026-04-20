@@ -8,6 +8,7 @@
 | **Scope**                  | Phased delivery of orchestration + client roadmap UX aligned with `ADR-GLC-ORCHESTRATOR-V1.1-META-DIRECTOR.md` and `ADR-CLIENT-UNIFIED-ROADMAP-V1-MULTI-LANE-TIMELINE.md`                                |
 | **Engineering principles** | KISS, DRY, SOLID; policy/copy/thresholds in config modules and feature-flag facade — **no new inline business literals in services or UI** (see `docs/ARCHITECTURE.md`, `.cursor/rules/no-hardcode.mdc`) |
 
+**No-hardcode (concrete):** extend `server/src/config/orchestration-*-policy.ts`, `orchestration-telemetry-policy.ts`, `orchestration-roadmap-presets.ts`, `orchestration-lanes.ts`, `orchestration-timeline-policy.ts`; app copy in `src/app/config/orchestration-*.ts` / `orchestration-roadmap-ui-copy.en.ts` / `portal-manifest-wizard-copy.en.ts`; server flags via `server/src/config/feature-flags.ts`, SPA via `src/app/config/app-feature-flags.ts` (parity tests where applicable).
 
 ### Canonical product docs
 
@@ -20,7 +21,9 @@
 
 ## Progress snapshot (evidence-based)
 
-**Estimated completion toward the full vision in the two client/orchestrator ADRs: ~68%** (see rationale below; Phase 0 doc pass + timeline season preset wiring + nav/copy/tests landed 2026-04-20).
+**MVP (Phases 0–7 in this ADR): ~100% complete in repo** as of 2026-04-20 — phased checklists below are **closed**; evidence: `server/src/services/orchestration/README.md` (DoD matrix), migrations `069`–`071`, Vitest `orchestration-*.test.ts`, E2E `e2e/orchestration-*.spec.ts` when `E2E_ORCHESTRATION_*` is set.
+
+**Toward the full “north star” vision** (ideal backlog V1–V12 below): track separately from MVP %; remaining work is **post-MVP** (meta-phases P / Q / R).
 
 ### Already implemented (non-exhaustive, verify in tree)
 
@@ -32,16 +35,16 @@
 | **Pack build & merge**         | Services under `server/src/services/orchestration/` (e.g. `build-glc-orchestration-pack`, `merge-orchestration-action-inputs`, `map-strategy-initiative-to-action-node`, `map-domain-director-bundle-to-action-nodes`, graph builder, dedupe)                                                                |
 | **Director slice persistence** | `director-orchestration-persistence.service.ts`, `GLC_DIRECTOR_EXECUTION_RAW_DATA_KEY`, Zod slices                                                                                                                                                                                                           |
 | **HTTP API**                   | POST/GET orchestration pack, regenerate, pack-diff, pack-diff-history; commercial-offer path; `GET /api/audits/:id/timeline` → `buildClientTimelineReadModel`                                                                                                                                                |
-| **Consultant + client UI**     | `PortalTimelinePage.tsx`; Strategy Lab `StrategyLabOrchestrationPanel.tsx` / `StrategyLabOrchestratorListBody.tsx`; client nav timeline ordering via `APP_FEATURE_FLAGS.orchestrationTimelinePrimaryUxEnabled`; `ClientPostAuditCockpitSection.tsx`, timeline link in `NavigationLinksSection.tsx` (flagged) |
+| **Consultant + client UI**     | `PortalTimelinePage.tsx`; **portal manifest wizard** `PortalRoadmapManifestWizardPage.tsx` (route `portal/audit/:id/roadmap-manifest`, flags `clientRoadmapManifestWizardEnabled` ∧ `orchestrationRoadmapUiEnabled`); Strategy Lab `StrategyLabOrchestrationPanel.tsx` / `StrategyLabOrchestratorListBody.tsx`; client nav timeline ordering via `APP_FEATURE_FLAGS.orchestrationTimelinePrimaryUxEnabled`; `ClientPostAuditCockpitSection.tsx`, `NavigationLinksSection.tsx` (flagged) |
 | **Config SSOT**                | `orchestration-*-policy.ts`, `orchestration-lanes.ts`, `orchestration-timeline-policy.ts`, `orchestration-ui-limits.ts`, copy modules — aligns with no-hardcode rule                                                                                                                                         |
 | **Tests / E2E**                | `server/src/tests/orchestration-*.test.ts`, `glc-orchestration-pack.test.ts`, `e2e/orchestration-*.spec.ts`                                                                                                                                                                                                  |
 
 
-### Gaps vs final vision (why not 100%)
+### Gaps vs final vision (post-MVP product backlog)
 
-- **Seasonal UX**: timeline buckets (`near` / `mid` / `far`) are a **projection heuristic** in `orchestrator-timeline-read.service.ts` — not yet full “named seasons” tied to every manifest preset in UI.
-- **Manifest-first wizard**: manifest capture exists in Lab/orchestration panel; **standalone guided flow** for “confirm before first pack” can be clearer for clients.
-- **Lab vs timeline**: split is started; **full reframing** of Strategy Lab copy/IA (timeline primary, lab = detail) is incremental.
+- **Seasonal UX**: preset-driven partitions and optional `plan_horizon` are in policy + read model; **quarter-only anchors** or **explicit TZ display rules** for client copy remain optional follow-ups.
+- **Manifest-first wizard**: **standalone portal route ships** (`PortalRoadmapManifestWizardPage.tsx`, cockpit + timeline CTAs); optional polish (stepper UX, richer empty states) remains product-dependent.
+- **Lab vs timeline**: MVP IA is flag-driven; **incremental copy polish** in Lab sections may continue.
 - **Director coverage**: persistence exists; **uniform deep bundles** across all domains and pipeline hooks are product-dependent.
 - **Optional LLM conflict synthesis**: gated by flags/policies — completeness depends on product activation.
 - **Plan-level CONTROL_OBJECT** (separate from domain CO): **not** required for MVP; future ADR if introduced.
@@ -74,8 +77,8 @@ Each phase ends with a **cumulative % toward final vision** (same definition as 
 
 **Goal:** User never hits an empty timeline without understanding **why** (`missing_pack`, `stale_manifest`, `draft`).
 
-- **Reuse** existing preview + snapshot APIs; improve **client** copy and CTA routing from `PortalTimelinePage` and `ClientPostAuditCockpitSection` (copy in config only).
-- Optional: dedicated **manifest step** route under portal (thin page composing existing API calls — **no** parallel manifest schema).
+- **Reuse** existing preview + snapshot APIs; **client** copy and CTA routing from `PortalTimelinePage` and `ClientPostAuditCockpitSection` (copy in config only).
+- **Done (2026-04-20):** dedicated **manifest wizard** route under portal — `PortalRoadmapManifestWizardPage.tsx` composes POST preview, POST snapshot, POST orchestrator run; **no** duplicate manifest schema.
 
 **Cumulative ~74%**
 
@@ -126,6 +129,39 @@ Each phase ends with a **cumulative % toward final vision** (same definition as 
 
 ---
 
+## Post-MVP ideal backlog (V1–V12) and meta-phases P / Q / R
+
+Track **vision** work here; do **not** merge into Phase 0–7 % above. Full row definitions stay concise; expand in product planning when needed.
+
+| # | Theme | Status (rolling) |
+|---|--------|------------------|
+| V1 | Calendar-native `plan_horizon` on manifest + timeline partition | **Done (MVP calendar)** |
+| V2 | Manifest-first wizard (portal): coverage → scenario → horizon → preview → snapshot → build pack | **Done (portal MVP)** — `PortalRoadmapManifestWizardPage.tsx`, `portal-manifest-wizard-copy.en.ts` |
+| V3 | Full orchestrator ADR v1.1 formula parity in pack fields | Partial |
+| V4 | Plan-level governance / `CONTROL_OBJECT` | Backlog — gate: [ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md](./ADR-ORCHESTRATION-PLAN-LEVEL-QUALITY-V4.md) |
+| V5 | Client-grade dependency graph UX | Backlog |
+| V6 | Evidence taxonomy UX (`Observed` / `Derived` / `Assumed` / `Missing`) | Partial |
+| V7 | Cross-lane narratives (marketing × delivery) | Partial |
+| V8 | Execution packs in journey | Partial |
+| V9 | Expansion directors / lanes | Backlog |
+| V10 | Consultant parity cockpit | Backlog |
+| V11 | Human-readable vN→vN+1 revision story | Partial — `ClientPostAuditCockpitSection`, `PortalTimelinePage` (same copy + `buildOrchestrationRevisionStorySummary`); Strategy Lab history remains detailed view |
+| V12 | Prompt / synthesis quality loop | Ongoing |
+
+| Meta-phase | Rows | Intent |
+|------------|------|--------|
+| **P** — Client & consultant experience | V2, V5, V6, V7, V8, V11 (+ optional V1 display policy) | Wizard shipped; graph, evidence, lanes narrative, execution packs, revision story remain |
+| **Q** — Orchestration depth & governance | V3, V4 | ADR field parity; plan-level quality only after V4 ADR Accepted |
+| **R** — Ecosystem & quality loop | V9, V10, V12 | New lanes/directors, cockpit parity, telemetry iteration |
+
+### Recommended next engineering slice (sprint anchor)
+
+**Selected meta-phase:** **P** — **V2** **Done (portal MVP)**. **V11** revision narrative now on **execution timeline** (`PortalTimelinePage`) when `glc_orchestration_last_revision_diff` is present. **Next default P focus:** **V5** (graph UX) or deeper V11 (e.g. Lab diff browser), unless product re-prioritizes — update this sentence in the same commit as the decision.
+
+**Process:** When closing a V-row, update the table above and (if behavior changed) the DoD matrix in `server/src/services/orchestration/README.md`. **Rollout phase % and MVP history** stay only in this ADR; the README does not duplicate phase percentages ([see “How to update”](#how-to-update-this-adr)).
+
+---
+
 ## Risk register (short)
 
 
@@ -141,3 +177,8 @@ Each phase ends with a **cumulative % toward final vision** (same definition as 
 ## How to update this ADR
 
 When a phase completes, adjust **Progress snapshot** percentages and tick milestones in git with a short commit message. Do not rewrite historical decisions in other ADRs; supersede only when contracts change.
+
+### Documentation split (single source of truth)
+
+- **Rollout progress** — MVP phase %, cumulative table, post-MVP V1–V12 status: **this ADR only**.
+- **Implementation map / DoD traceability** — module pointers, flags, telemetry: `server/src/services/orchestration/README.md` (update when shipped behavior changes; **do not** paste rollout % tables there).

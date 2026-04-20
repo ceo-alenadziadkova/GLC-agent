@@ -4,6 +4,7 @@ import { ROADMAP_CHANGE_SCENARIOS, ROADMAP_SEASON_PRESETS } from '../config/orch
 import { GlcOrchestrationPackRevisionDiffSchema } from './orchestration-pack-revision-diff.js';
 import { OrchestrationPlanGovernanceSchema } from './orchestration-plan-governance.js';
 import { RoadmapManifestPreviewSchema } from './roadmap-manifest-preview.js';
+import { RoadmapPlanHorizonSchema } from './roadmap-manifest.js';
 
 const domainKeyEnum = [...DOMAIN_KEYS] as [DomainKey, ...DomainKey[]];
 const changeScenarioEnum = [...ROADMAP_CHANGE_SCENARIOS] as [
@@ -16,16 +17,20 @@ const seasonPresetEnum = [...ROADMAP_SEASON_PRESETS] as [
 ];
 
 export const OrchestrationCommercialOfferRequestSchema = z.object({
+  schema_version: z.union([z.literal(1), z.literal(2)]).optional(),
   change_scenario: z.enum(changeScenarioEnum),
   season_preset: z.enum(seasonPresetEnum),
   selected_domains: z.array(z.enum(domainKeyEnum)).min(1),
   accept_domain: z.enum(domainKeyEnum).optional(),
+  plan_horizon: RoadmapPlanHorizonSchema.optional(),
 });
 
 export const OrchestrationCommercialOfferItemSchema = z.object({
   domain: z.enum(domainKeyEnum),
   value_message: z.string().min(1),
   estimated_incremental_effort_weeks: z.number().int().positive(),
+  /** Deterministic rationale tied to scoped domains / cross-domain rules (no LLM). */
+  why_now_bullets: z.array(z.string().min(1)).max(6),
 });
 
 export const OrchestrationCommercialOfferResponseSchema = z.object({

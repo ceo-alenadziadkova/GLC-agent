@@ -12,6 +12,7 @@ import { IntakeBrief }       from './pages/intake-brief/IntakeBrief';
 import { ClientPortal }     from './pages/ClientPortal';
 import { ClientAuditView }  from './pages/ClientAuditView';
 import { PortalTimelinePage } from './pages/PortalTimelinePage';
+import { PortalRoadmapManifestWizardPage } from './pages/PortalRoadmapManifestWizardPage';
 import { AdminRequestQueue } from './pages/admin-request-queue/AdminRequestQueue';
 import { RootEntry }        from './components/RootEntry';
 import { SnapshotPage }     from './pages/SnapshotPage';
@@ -27,6 +28,7 @@ import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage';
 import { TermsOfServicePage } from './pages/TermsOfServicePage';
 import { DiscoveryPublicPage } from './pages/DiscoveryPublicPage';
 import { DiscoveryQueue }   from './pages/DiscoveryQueue';
+import { AdminAllAudits } from './pages/AdminAllAudits';
 import { SettingsPage }     from './pages/SettingsPage';
 import { AdminSnapshotQueue } from './pages/AdminSnapshotQueue';
 import { IntakeWordingWorkspace } from './pages/IntakeWordingWorkspace';
@@ -107,8 +109,9 @@ export const router = createBrowserRouter([
 
       // ── Consultant routes ──────────────────────────────────────────────────
       { path: P.dashboard, element: <Consultant><Dashboard /></Consultant> },
-      { path: P.portfolio, element: <Navigate to={`/${P.dashboard}`} replace /> },
+      { path: P.portfolio, element: <Navigate to={`/${P.adminAudits}`} replace /> },
       { path: P.adminRequests, element: <Consultant><AdminRequestQueue /></Consultant> },
+      { path: P.adminAudits, element: <Consultant><AdminAllAudits /></Consultant> },
       { path: P.adminSnapshots, element: <Consultant><AdminSnapshotQueue /></Consultant> },
       { path: P.adminDiscovery, element: <Consultant><DiscoveryQueue /></Consultant> },
       { path: P.adminIntakeWording, element: <Consultant><IntakeWordingWorkspace /></Consultant> },
@@ -126,6 +129,7 @@ export const router = createBrowserRouter([
       { path: P.portalReportsById, element: <ClientPortalShell><ReportViewer /></ClientPortalShell> },
       { path: P.portalTimelineById, element: <ClientPortalShell><PortalTimelinePage /></ClientPortalShell> },
       { path: P.portalStrategyById, element: <ClientPortalShell><StrategyLab /></ClientPortalShell> },
+      { path: P.portalRoadmapManifestByAuditId, element: <ClientPortalShell><PortalRoadmapManifestWizardPage /></ClientPortalShell> },
       { path: P.portalAuditById, element: <ClientPortalShell><ClientAuditView /></ClientPortalShell> },
       { path: P.portal, element: <ClientPortalShell><ClientPortal /></ClientPortalShell> },
     ],

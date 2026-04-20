@@ -45,7 +45,9 @@ export type SaveClientDraftParams = {
   responses: BriefResponses;
   briefLayoutChoice: NewAuditBriefLayoutChoice;
 
-  executionPlan: NewAuditExecutionPlan;
+  coveragePackage: AuditCoveragePackage | null;
+  selectedDomains: DomainKey[];
+  executionPlan: NewAuditExecutionPlan | null;
   draftAuditId: string | null;
   draftIntakeVersions: IntakeVersionTuple | null | undefined;
 
@@ -77,6 +79,9 @@ export async function saveClientDraft(params: SaveClientDraftParams): Promise<vo
       briefLayoutChoice: params.briefLayoutChoice,
       draftAuditId: params.draftAuditId,
       draftIntakeVersions: params.draftIntakeVersions,
+      ...(params.coveragePackage != null
+        ? { coveragePackage: params.coveragePackage, selectedDomains: params.selectedDomains }
+        : {}),
     });
 
     if (!params.step0Valid) {
@@ -86,6 +91,11 @@ export async function saveClientDraft(params: SaveClientDraftParams): Promise<vo
 
     let auditId = params.draftAuditId;
     if (!auditId) {
+      const plan = params.executionPlan;
+      if (!plan) {
+        params.setDraftError(WORKSPACE_PAGE_COPY.newAudit.draftNeedsCoveragePackage);
+        return;
+      }
       const created = await api.createAudit(
         params.url,
         params.name || undefined,
@@ -93,7 +103,7 @@ export async function saveClientDraft(params: SaveClientDraftParams): Promise<vo
         params.productMode,
         {
           noPublicWebsite: params.noPublicWebsite,
-          executionPlan: params.executionPlan,
+          executionPlan: plan,
         },
       );
       auditId = created.id;
@@ -137,6 +147,9 @@ export async function saveClientDraft(params: SaveClientDraftParams): Promise<vo
       briefLayoutChoice: params.briefLayoutChoice,
       draftAuditId: auditId,
       draftIntakeVersions: savePayload.brief.intake_versions ?? null,
+      ...(params.coveragePackage != null
+        ? { coveragePackage: params.coveragePackage, selectedDomains: params.selectedDomains }
+        : {}),
     });
 
     params.setDraftNotice(WORKSPACE_PAGE_COPY.newAudit.draftSavedAccountAndBrowser);

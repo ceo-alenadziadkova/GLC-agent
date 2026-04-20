@@ -260,18 +260,25 @@ Defaults come from `SYSTEM_DEFAULTS.featureFlags` when env vars are unset.
 | Domain benchmarks | `FEATURE_BENCHMARKS`, `BENCHMARK_RECOMPUTE_SECRET` | `false` | `true` when recompute job exists | `false` until recompute scheduling/monitoring is live | Backend + Ops |
 | Strategy execution pack | `FEATURE_STRATEGY_EXECUTION_PACK` | `true` | `true` | `true` (set `false` only for emergency cost control) | Backend + Product |
 | Orchestration pack API | `FEATURE_ORCHESTRATION_PACK_API` | `true` | `true` | `true` (set `false` to disable POST/GET `/api/audits/:id/orchestration/pack` without redeploy; requires migration `069`) | Backend + Product |
+| Auto-persist pack after strategy phase | `FEATURE_ORCHESTRATION_PACK_AUTO_AFTER_STRATEGY` | `false` | `true` only when latest manifest snapshot + pack path are validated | `false` until consultants expect zero-click pack after phase 7 | Backend + Product |
 | Timeline-primary orchestration (telemetry / rollout hooks) | `FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX` | `true` | `true` | `true` (set `false` to disable structured `route.audit_timeline_served` logs and other timeline-first hooks; `GET /api/audits/:id/timeline` still returns the read model) | Backend + Product |
 | Director orchestration slice from domain-agent output | `FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT` | `false` | `true` once each strict phase emits a parseable director slice | `false` until domain rollout is signed off (`director-orchestration-policy.ts`, `server/src/services/orchestration/README.md`) | Backend + Product |
-| Orchestration conflict synthesis (LLM) | `FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS` | `false` | `true` only when implemented + reviewed | `false` until second-stage copy is shipped | Backend + Product |
+| Orchestration conflict synthesis (LLM) | `FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS` | `true` (`SYSTEM_DEFAULTS.featureFlags`; override with env in production) | `true` only when implemented + reviewed | `false` via env until second-stage copy is shipped + cost review | Backend + Product |
+| Orchestration conflict synthesis rollout segment | `FEATURE_ORCHESTRATION_CONFLICT_SYNTHESIS_ROLLOUT_PERCENT` (`0`–`100`) | `100` | `100` in sandbox; lower in prod when enabling synthesis gradually | Tune per rollout; `0` disables eligible segment even if synthesis flag is on | Backend + Product |
+| Orchestration plan governance persistence mode | `FEATURE_ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODE` (`shadow` \| `hard_structure_soft_quality` \| `tightened_quality`) | `shadow` | `shadow` or `hard_structure_soft_quality` per `orchestration-plan-governance-rollout-policy.ts` | Promote only after telemetry signoff | Backend + Product |
 
-**SPA orchestration / timeline toggles (not env):** client nav and portal surfaces also read **`APP_FEATURE_FLAGS`** in `src/app/config/app-feature-flags.ts` (`clientTimelineEnabled`, `orchestrationTimelinePrimaryUxEnabled`, …). There is **no** `VITE_*` for these — change the static map and redeploy. Keep **`orchestrationTimelinePrimaryUxEnabled`** aligned with **`FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX`** (see `src/app/config/orchestration-contract-parity.test.ts`).
+**SPA orchestration / timeline toggles (not env):** client nav and portal surfaces read **`APP_FEATURE_FLAGS`** in `src/app/config/app-feature-flags.ts`: `orchestrationRoadmapUiEnabled`, `clientPostAuditCockpitEnabled`, `strategyLabOrchestratorDetailTabsEnabled`, `strategyLabDirectorStage2IntentEnabled`, `clientOrchestrationLabReadOnlyEnabled`, `clientTimelineEnabled`, `orchestrationTimelinePrimaryUxEnabled`. There is **no** `VITE_*` for these — change the static map and redeploy. Keep **`orchestrationTimelinePrimaryUxEnabled`** aligned with **`FEATURE_ORCHESTRATION_TIMELINE_PRIMARY_UX`** (see `src/app/config/orchestration-contract-parity.test.ts`).
+
+**Orchestration runbook (short):** (1) `FEATURE_ORCHESTRATION_PACK_API` on in target env. (2) Governance: start `FEATURE_ORCHESTRATION_PLAN_GOVERNANCE_ROLLOUT_MODE=shadow`, watch `orchestration_pack_success` / `orchestration_pack_rejected` logs and `kpi_orchestration_plan_governance_rollout_observation`, then promote per `orchestration-plan-governance-rollout-policy.ts`. (3) Director strict: enable `FEATURE_DIRECTOR_ORCHESTRATION_AGENT_OUTPUT` only when domain output emits a parseable slice; optional pilot via `DIRECTOR_ORCHESTRATION_STRICT_PHASE_PILOT` in `director-orchestration-policy.ts`. (4) Optional auto-pack: `FEATURE_ORCHESTRATION_PACK_AUTO_AFTER_STRATEGY` after manifest snapshots are routine.
+
+**Orchestration contract smoke (local / CI):** from repo root, `pnpm vitest server/src/tests/glc-orchestration-pack.test.ts server/src/tests/orchestration-pack-controller.test.ts server/src/tests/orchestrator-timeline-read.service.test.ts src/app/config/orchestration-contract-parity.test.ts` — pack build, HTTP controller, timeline read model, and server/front enum parity.
 
 ### Runtime verification checklist (feature flags)
 
 Before promoting a release:
 
 1. Confirm Railway env values for each key in the matrix.
-2. Confirm required DB migrations are applied for enabled capabilities (`053`-`056` where relevant; **`069`** for orchestration pack / roadmap manifest snapshots).
+2. Confirm required DB migrations are applied for enabled capabilities (`053`-`056` where relevant; orchestration pack / manifest / diff / history: **`069`**–**`071`**).
 3. Run smoke tests for enabled capabilities:
    - bandits (`bandit_arm_performance` reads/writes),
    - causal DAG (`audit_claim_graph` edges/invalidation),

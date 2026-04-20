@@ -25,6 +25,8 @@ export type NewAuditWizardContract = {
   error: string | null;
   setError: Dispatch<SetStateAction<string | null>>;
   step0Valid: boolean;
+  /** Step 0: package + domain count within allowed range. */
+  coverageValid: boolean;
   briefProductMode: 'express' | 'full';
   url: string;
   setUrl: Dispatch<SetStateAction<string>>;
@@ -36,8 +38,8 @@ export type NewAuditWizardContract = {
   setIndustry: Dispatch<SetStateAction<string>>;
   industrySpecify: string;
   setIndustrySpecify: Dispatch<SetStateAction<string>>;
-  coveragePackage: AuditCoveragePackage;
-  setCoveragePackage: Dispatch<SetStateAction<AuditCoveragePackage>>;
+  coveragePackage: AuditCoveragePackage | null;
+  setCoveragePackage: Dispatch<SetStateAction<AuditCoveragePackage | null>>;
   selectedDomains: DomainKey[];
   setSelectedDomains: Dispatch<SetStateAction<DomainKey[]>>;
   toggleDomainSelection: (domain: DomainKey) => void;
@@ -48,6 +50,10 @@ export type NewAuditWizardContract = {
   discoveryPrefilled: boolean;
   answeredRequired: number;
   pipelineRequiredTotal: number;
+  /** Bank question ids for required pipeline gates that currently have an answer (for Step 2 review list). */
+  answeredPipelineRequiredIds: string[];
+  /** Merged brief (Step 0 + cells) used for pipeline gates; drives answer column in Step 2 review table. */
+  pipelineGateBriefResponses: BriefResponses;
   step2Complete: boolean;
   progressPct: number;
   readinessBadge: IntakeReadinessBadge;

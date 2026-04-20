@@ -2,6 +2,19 @@ import { DOMAIN_KEYS } from '../data/auditTypes';
 
 export const STRATEGY_LAB_DEFAULT_BENCHMARK_PERIOD = 'last_90d' as const;
 
+export const STRATEGY_LAB_LAYOUT_POLICY = {
+  sidebarLayoutAutoSaveId: 'strategy-lab:summary-layout',
+  summaryPanelDefaultSizePct: 28,
+  summaryPanelMinSizePct: 20,
+  summaryPanelMaxSizePct: 42,
+  mainPanelMinSizePct: 44,
+  /**
+   * Fixed horizontal split on mobile (resize handle hidden). Slightly wider than desktop default
+   * share so roadmap preview and node detail stay readable; main column keeps ~66%.
+   */
+  summaryPanelMobileFixedSizePct: 34,
+} as const;
+
 /**
  * Initiative `domain` values (keep aligned with `server/src/config/strategy-initiative-policy.ts` STRATEGY_INITIATIVE_DOMAIN_KEYS).
  */

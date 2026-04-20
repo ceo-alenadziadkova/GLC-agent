@@ -139,7 +139,7 @@ export function AuditWorkspaceScreen() {
   const workspaceMain = (
     <div
       className={cn(
-        'bg-background relative min-h-0 overflow-y-auto',
+        'ds-audit-workspace-main relative min-h-0 overflow-y-auto',
         isMobile ? 'flex-1' : 'h-full min-w-0',
       )}
     >

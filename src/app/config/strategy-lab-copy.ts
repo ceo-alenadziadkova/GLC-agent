@@ -1,3 +1,5 @@
+import { ORCHESTRATION_IA_COPY } from './orchestration-roadmap-ui-copy.en';
+
 /** Shared typographic placeholder for empty table/export fields (copy layer). */
 const STRATEGY_LAB_EMPTY_FIELD = '—' as const;
 
@@ -14,8 +16,7 @@ export const STRATEGY_LAB_COPY = {
     hint: 'Filter nodes by director analysis depth. Timeline remains the primary sequencing surface.',
   },
   roles: {
-    timelineVsLab:
-      'Timeline is the primary view for sequencing, critical path, and cross-lane sync. Strategy Lab is for manifest snapshots, rebuilding the pack (vN+1), version diffs, coverage offers, and deep node detail.',
+    timelineVsLab: ORCHESTRATION_IA_COPY.timelineVsLabRole,
   },
   orchestratorTabs: {
     now: 'Now',
@@ -39,8 +40,7 @@ export const STRATEGY_LAB_COPY = {
   },
   appShell: {
     title: 'Strategy Lab',
-    subtitle:
-      'Detail layer for manifest snapshots, pack versions, and node inspection. Sequencing and seasonal buckets stay on the execution timeline.',
+    subtitle: ORCHESTRATION_IA_COPY.strategyLabAppShellSubtitle,
     loadingSubtitle: 'Loading...',
     errorSubtitle: 'Error',
     unavailableSubtitle: 'Not available yet',
@@ -154,5 +154,18 @@ export const STRATEGY_LAB_COPY = {
         unknown: 'Unknown / not shared',
       },
     },
+  },
+  directorStage2Intent: {
+    title: 'Stage-2 deep intent',
+    body:
+      'Select domains for a deliberate deep director follow-up. Re-run those domain phases in the pipeline, then save a manifest snapshot and regenerate the pack. This records intent only; it does not start runs automatically.',
+    domainsLabel: 'Domains in scope',
+    save: 'Save intent',
+    saving: 'Saving…',
+    saved: 'Deep intent saved',
+    clear: 'Clear saved intent',
+    clearSaved: 'Intent cleared',
+    saveFailed: 'Could not save intent',
+    selectedSummary: 'Marked for deep follow-up',
   },
 } as const;

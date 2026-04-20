@@ -197,6 +197,28 @@ describe('roadmap manifest vs execution_plan', () => {
       season_preset: 'rolling_90d',
     });
     expect(manifest.schema_version).toBe(ROADMAP_MANIFEST_SCHEMA_VERSION);
+    expect(manifest.risk_tolerance).toBeUndefined();
+  });
+
+  it('parses optional plan_horizon', () => {
+    const manifest = parseRoadmapManifestPayload({
+      selected_domains: ['marketing_utp'],
+      change_scenario: 'hybrid',
+      season_preset: 'rolling_90d',
+      plan_horizon: { start_date: '2026-01-01', end_date: '2026-06-30' },
+    });
+    expect(manifest.plan_horizon).toEqual({ start_date: '2026-01-01', end_date: '2026-06-30' });
+  });
+
+  it('rejects plan_horizon when end is before start', () => {
+    expect(() =>
+      parseRoadmapManifestPayload({
+        selected_domains: ['marketing_utp'],
+        change_scenario: 'hybrid',
+        season_preset: 'rolling_90d',
+        plan_horizon: { start_date: '2026-06-30', end_date: '2026-01-01' },
+      }),
+    ).toThrow();
   });
 
   it('matches when domain sets are equal', () => {
@@ -316,6 +338,23 @@ describe('mapStrategyInitiativesToActionNodes initiative cap', () => {
   });
 });
 
+describe('buildGlcOrchestrationPackFromInitiatives edge cases', () => {
+  it('produces a valid pack with zero initiatives (empty strategy buckets)', () => {
+    const pack = buildGlcOrchestrationPackFromInitiatives({
+      initiatives: [],
+      manifestSnapshotId: '00000000-0000-4000-8000-0000000000aa',
+      seasonPreset: 'rolling_90d',
+    });
+    expect(GlcOrchestrationPackSchema.safeParse(pack).success).toBe(true);
+    expect(pack.graph.nodes).toHaveLength(0);
+    expect(pack.critical_path).toEqual([]);
+    expect(pack.conflicts_resolved).toEqual([]);
+    for (const lane of ORCHESTRATION_LANE_IDS) {
+      expect(pack.lanes[lane]).toEqual([]);
+    }
+  });
+});
+
 describe('mapStrategyInitiativeToActionNode + buildGlcOrchestrationPackFromInitiatives', () => {
   it('produces a validated pack', () => {
     const initiative = StrategyInitiativeSchema.parse({
@@ -346,6 +385,10 @@ describe('mapStrategyInitiativeToActionNode + buildGlcOrchestrationPackFromIniti
     });
     expect(pack.version).toBe(GLC_ORCHESTRATION_PACK_SCHEMA_VERSION);
     expect(pack.critical_path).toContain('i1');
+    expect(pack.top_actions?.top_actions_7d).toContain('i1');
+    expect(pack.top_7d).toContain('i1');
+    expect(pack.system_diagnosis?.dominant_constraint).toBe(pack.phase_diagnostic.dominant_constraint);
+    expect(typeof pack.data_gaps?.missing_confidence).toBe('number');
   });
 
   it('dedupes duplicate initiative ids into a single graph node (keep_first)', () => {

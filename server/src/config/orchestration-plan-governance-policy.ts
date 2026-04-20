@@ -11,6 +11,8 @@ export const ORCHESTRATION_PLAN_GOVERNANCE_REASON_CODES = [
   'invalid_lane_assignments_detected',
   'empty_critical_path',
   'critical_path_coverage_below_floor',
+  'input_gate_degraded',
+  'director_input_coverage_below_floor',
 ] as const;
 
 export type OrchestrationPlanGovernanceReasonCode =
@@ -32,6 +34,28 @@ export const ORCHESTRATION_PLAN_GOVERNANCE_REASON_MESSAGES: Record<
   invalid_lane_assignments_detected: 'Invalid lane assignments detected',
   empty_critical_path: 'Critical path is empty',
   critical_path_coverage_below_floor: 'Critical path coverage below policy floor',
+  input_gate_degraded: 'Input quality gate is degraded (domain outputs are not fully finalized)',
+  director_input_coverage_below_floor: 'Director input coverage ratio below policy floor',
+} as const;
+
+export const ORCHESTRATION_PLAN_GOVERNANCE_REMEDIATIONS: Record<
+  OrchestrationPlanGovernanceReasonCode,
+  string
+> = {
+  unresolved_conflict_budget_exceeded: 'Resolve synthesis_pending conflicts before persisting the pack.',
+  dependency_cycles_detected: 'Break cyclical dependencies in graph edges and rebuild critical path.',
+  dangling_dependencies_detected: 'Remove or rewire orphan dependencies to existing nodes.',
+  dependency_integrity_below_floor: 'Increase valid edge coverage and rerun merge normalization.',
+  coverage_integrity_below_floor: 'Increase selected-domain coverage in the critical path.',
+  confidence_integrity_below_floor: 'Regenerate confidence mapping for low-confidence nodes.',
+  pack_schema_invalid: 'Rebuild with the latest orchestration pack schema version.',
+  confidence_coverage_below_floor: 'Add confidence entries for nodes missing confidence metadata.',
+  risk_coverage_below_floor: 'Add risk annotations for nodes missing risk metadata.',
+  invalid_lane_assignments_detected: 'Reassign invalid lane ids using graph policy lane mapping.',
+  empty_critical_path: 'Regenerate topological ordering to produce a non-empty critical path.',
+  critical_path_coverage_below_floor: 'Increase proportion of nodes participating in the critical path.',
+  input_gate_degraded: 'Finalize missing domain outputs or accept explicit degraded-input policy.',
+  director_input_coverage_below_floor: 'Raise director slice coverage or fallback to approved strategy blend.',
 } as const;
 
 /**
@@ -48,7 +72,13 @@ export const ORCHESTRATION_PLAN_GOVERNANCE_POLICY = {
   invalidLaneAssignmentBudget: 0,
   allowEmptyCriticalPath: false,
   minCriticalPathNodeRatio: 0.1,
+  directorInputCoverageRatioFloor: 0.6,
   blockPersistOnRefinePlan: true,
+  autoRefine: {
+    enabled: true,
+    maxAttempts: 2,
+    idempotencyWindowSeconds: 120,
+  },
   refineReasonCodes: [
     'dependency_cycles_detected',
     'dangling_dependencies_detected',
@@ -72,9 +102,12 @@ export const ORCHESTRATION_PLAN_GOVERNANCE_POLICY = {
     'confidence_integrity_below_floor',
     'confidence_coverage_below_floor',
     'risk_coverage_below_floor',
+    'input_gate_degraded',
+    'director_input_coverage_below_floor',
   ] as OrchestrationPlanGovernanceReasonCode[],
   tightenedQualityBlockerReasonCodes: [
     'confidence_coverage_below_floor',
     'risk_coverage_below_floor',
+    'director_input_coverage_below_floor',
   ] as OrchestrationPlanGovernanceReasonCode[],
 } as const;

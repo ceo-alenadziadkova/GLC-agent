@@ -22,6 +22,10 @@ import { getOrchestrationPackController } from './controllers/get-orchestration-
 import { getOrchestrationPackDiffController } from './controllers/get-orchestration-pack-diff.controller.js';
 import { getOrchestrationPackDiffHistoryController } from './controllers/get-orchestration-pack-diff-history.controller.js';
 import { postOrchestrationCommercialOfferController } from './controllers/post-orchestration-commercial-offer.controller.js';
+import { postOrchestratorPreviewController } from './controllers/post-orchestrator-preview.controller.js';
+import { postOrchestratorRunController } from './controllers/post-orchestrator-run.controller.js';
+import { getOrchestratorLatestController } from './controllers/get-orchestrator-latest.controller.js';
+import { getAuditTimelineController } from './controllers/get-audit-timeline.controller.js';
 import { getAuditController } from './controllers/get-audit.controller.js';
 import { upgradeFromSnapshotController } from './controllers/upgrade-snapshot.controller.js';
 import { deleteAuditController } from './controllers/delete-audit.controller.js';
@@ -117,6 +121,30 @@ auditsRouter.get(
   attachProfile,
   rejectGuestFromPortal,
   getOrchestrationPackDiffHistoryController,
+);
+auditsRouter.post(
+  '/:id/orchestrator/preview',
+  attachProfile,
+  rejectGuestFromPortal,
+  postOrchestratorPreviewController,
+);
+auditsRouter.post(
+  '/:id/orchestrator/run',
+  attachProfile,
+  rejectGuestFromPortal,
+  postOrchestratorRunController,
+);
+auditsRouter.get(
+  '/:id/orchestrator/latest',
+  attachProfile,
+  rejectGuestFromPortal,
+  getOrchestratorLatestController,
+);
+auditsRouter.get(
+  '/:id/timeline',
+  attachProfile,
+  rejectGuestFromPortal,
+  getAuditTimelineController,
 );
 auditsRouter.post(
   '/:id/orchestration/commercial-offer',

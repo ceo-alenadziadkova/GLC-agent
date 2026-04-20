@@ -35,6 +35,7 @@ import { PORTAL_BRIEF_SAVED_FEEDBACK_MS } from '../../../lib/snapshot-polling-co
 import { toUiApiErrorMessage } from '../../../lib/api-error-ui';
 import { CLIENT_AUDIT_VIEW_COPY } from '../../../config/client-audit-view-copy';
 import { CLIENT_AUDIT_VIEW_UI } from '../config/ui';
+import { BriefPipelineAnsweredTable } from '../../../components/BriefPipelineAnsweredTable';
 
 export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string; onBriefSaved?: () => void }) {
   const queryClient = useQueryClient();
@@ -94,6 +95,10 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
 
   const answeredRequired = countAnswered(effectiveBriefForGates, [...pipelineRequiredIds]);
   const pipelineRequiredTotal = pipelineRequiredIds.length;
+  const answeredPipelineRequiredIds = useMemo(
+    () => pipelineRequiredIds.filter(id => countAnswered(effectiveBriefForGates, [id]) > 0),
+    [effectiveBriefForGates, pipelineRequiredIds],
+  );
   const fallbackProgress = Math.min(
     100,
     Math.round((answeredRequired / Math.max(1, pipelineRequiredTotal)) * 100),
@@ -158,9 +163,28 @@ export function ClientBriefSection({ auditId, onBriefSaved }: { auditId: string;
             </button>
           )}
           {layoutSelected && (
-            <span className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
-              {answeredRequired} / {pipelineRequiredTotal} {CLIENT_AUDIT_VIEW_COPY.brief.requiredAnsweredSuffix}
-            </span>
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-[length:var(--text-xs)] text-[var(--text-tertiary)]">
+                {answeredRequired} / {pipelineRequiredTotal} {CLIENT_AUDIT_VIEW_COPY.brief.requiredAnsweredSuffix}
+              </span>
+              {answeredPipelineRequiredIds.length > 0 ? (
+                <details className="ds-step2-brief-answered-details ds-client-brief-answered-details">
+                  <summary>{CLIENT_AUDIT_VIEW_COPY.brief.reviewAnsweredRequired}</summary>
+                  <BriefPipelineAnsweredTable
+                    answeredIds={answeredPipelineRequiredIds}
+                    responses={effectiveBriefForGates}
+                    questionHeader={CLIENT_AUDIT_VIEW_COPY.brief.answeredTableQuestionCol}
+                    answerHeader={CLIENT_AUDIT_VIEW_COPY.brief.answeredTableAnswerCol}
+                    valueLabels={{
+                      unknown: CLIENT_AUDIT_VIEW_COPY.brief.answeredValueUnknown,
+                      yes: CLIENT_AUDIT_VIEW_COPY.brief.answeredValueYes,
+                      no: CLIENT_AUDIT_VIEW_COPY.brief.answeredValueNo,
+                      empty: CLIENT_AUDIT_VIEW_COPY.brief.answeredValueEmpty,
+                    }}
+                  />
+                </details>
+              ) : null}
+            </div>
           )}
         </div>
       </div>

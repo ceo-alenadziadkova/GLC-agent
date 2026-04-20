@@ -4,7 +4,7 @@ import { Link, useParams, useSearchParams } from 'react-router';
 import {
   Lightning, TrendUp, MapTrifold, ArrowRight, Check,
   Target, ArrowsClockwise, ChartBar, CaretDown, ListBullets, SlidersHorizontal,
-  CalendarBlank, GitBranch, WarningCircle,
+  CalendarBlank, GitBranch, WarningCircle, Path,
 } from '@phosphor-icons/react';
 import { AppShell } from '../../components/AppShell';
 import { SectionLabel } from '../../components/glc/SectionLabel';
@@ -21,6 +21,7 @@ import {
   STRATEGY_LAB_DOMAIN_FILTER_ALL,
   STRATEGY_LAB_EXECUTION_PACK_POLICY,
   STRATEGY_LAB_INITIATIVE_DOMAIN_KEYS,
+  STRATEGY_LAB_LAYOUT_POLICY,
   STRATEGY_LAB_ROADMAP_EXPORT_POLICY,
   STRATEGY_LAB_SORT_MODES,
   STRATEGY_LAB_TAB_DESCRIPTIONS,
@@ -36,7 +37,12 @@ import {
 import { STRATEGY_LAB_COPY } from '../../config/strategy-lab-copy';
 import { APP_FEATURE_FLAGS } from '../../config/app-feature-flags';
 import { ORCHESTRATION_UI_COPY } from '../../config/orchestration-roadmap-ui-copy.en';
-import { ORCHESTRATION_PANEL_DOM_ID, ORCHESTRATION_UI_LIMITS } from '../../config/orchestration-ui-limits';
+import {
+  ORCHESTRATION_LAB_FOCUS_QUERY_KEY,
+  ORCHESTRATION_LAB_FOCUS_ROADMAP_VALUE,
+  ORCHESTRATION_PANEL_DOM_ID,
+  ORCHESTRATION_UI_LIMITS,
+} from '../../config/orchestration-ui-limits';
 import { buildAppRoute } from '../../config/route-paths';
 import { isGlcOrchestrationPackView } from '../../lib/orchestration-pack-guards';
 import {
@@ -46,6 +52,8 @@ import { StrategyLabOrchestrationPanel } from './StrategyLabOrchestrationPanel';
 import { OrchestrationNodeDetailCard } from './OrchestrationNodeDetailCard';
 import { cn } from '../../components/ui/utils';
 import { Button } from '../../components/ui/button';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '../../components/ui/resizable';
+import { useIsMobile } from '../../components/ui/use-mobile';
 import { toast } from 'sonner';
 import {
   buildStrategyLabRoadmapMarkdown,
@@ -81,6 +89,7 @@ const EFFORT_CLASS: Record<string, string> = {
 
 export function StrategyLab() {
   const { id } = useParams<{ id: string }>();
+  const isMobile = useIsMobile();
   const [searchParams, setSearchParams] = useSearchParams();
   const { audit, loading, error, reload } = useAudit(id);
   const { isClient } = useProfile();
@@ -123,6 +132,31 @@ export function StrategyLab() {
     },
     [setSearchParams],
   );
+
+  useEffect(() => {
+    const focus = searchParams.get(ORCHESTRATION_LAB_FOCUS_QUERY_KEY);
+    if (
+      focus !== ORCHESTRATION_LAB_FOCUS_ROADMAP_VALUE ||
+      !APP_FEATURE_FLAGS.orchestrationRoadmapUiEnabled ||
+      isClient
+    ) {
+      return;
+    }
+    setSearchParams(
+      prev => {
+        const next = new URLSearchParams(prev);
+        next.delete(ORCHESTRATION_LAB_FOCUS_QUERY_KEY);
+        return next;
+      },
+      { replace: true },
+    );
+    window.setTimeout(() => {
+      document.getElementById(ORCHESTRATION_PANEL_DOM_ID)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 150);
+  }, [searchParams, setSearchParams, isClient]);
 
   useEffect(() => {
     if (!audit?.strategy || isClient) return;
@@ -333,8 +367,11 @@ export function StrategyLab() {
     : isClient
       ? '/portal/reports'
       : '/reports';
-  const timelineHref =
-    isClient && id ? buildAppRoute.portalTimeline(id) : `${reportHref}#${ORCHESTRATION_PANEL_DOM_ID}`;
+  const timelineHref = id
+    ? isClient
+      ? buildAppRoute.portalTimeline(id)
+      : buildAppRoute.timeline(id)
+    : reportHref;
 
   if (!audit.strategy) {
     return (
@@ -402,12 +439,35 @@ export function StrategyLab() {
           onReload={reload}
         />
       )}
-      <div className="flex ds-audit-workspace-main-h">
+      <ResizablePanelGroup
+        direction="horizontal"
+        className="ds-audit-workspace-main-h"
+        autoSaveId={STRATEGY_LAB_LAYOUT_POLICY.sidebarLayoutAutoSaveId}
+      >
 
         {/* ── Initiative picker ─────────────────────── */}
-        <div className="bg-background flex-1 overflow-y-auto border-r">
+        <ResizablePanel
+          id="strategy-lab-main"
+          order={1}
+          defaultSize={isMobile
+            ? 100 - STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMobileFixedSizePct
+            : 100 - STRATEGY_LAB_LAYOUT_POLICY.summaryPanelDefaultSizePct}
+          minSize={isMobile
+            ? 100 - STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMobileFixedSizePct
+            : STRATEGY_LAB_LAYOUT_POLICY.mainPanelMinSizePct}
+          maxSize={isMobile
+            ? 100 - STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMobileFixedSizePct
+            : undefined}
+          className="min-w-0"
+        >
+        <div className="bg-background h-full min-h-0 flex-1 overflow-y-auto">
           {!isClient && (
             <>
+              {APP_FEATURE_FLAGS.orchestrationTimelinePrimaryUxEnabled ? (
+                <div className="border-b bg-card px-4 py-3">
+                  <p className="text-muted-foreground text-xs leading-relaxed">{STRATEGY_LAB_COPY.roles.timelineVsLab}</p>
+                </div>
+              ) : null}
               <div
                 className="space-y-3 border-b bg-card p-4"
               >
@@ -747,9 +807,32 @@ export function StrategyLab() {
             </div>
           )}
         </div>
+        </ResizablePanel>
+
+        {!isMobile && (
+          <ResizableHandle
+            aria-label={STRATEGY_LAB_COPY.panel.resizeHandle}
+            title={STRATEGY_LAB_COPY.panel.resizeHint}
+            className="w-1.5 bg-[var(--border-subtle)] after:w-1.5"
+          />
+        )}
 
         {/* ── Plan summary ──────────────────────────── */}
-        <div className="bg-card flex ds-strategy-lab-plan-column flex-shrink-0 flex-col overflow-y-auto">
+        <ResizablePanel
+          id="strategy-lab-summary"
+          order={2}
+          defaultSize={isMobile
+            ? STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMobileFixedSizePct
+            : STRATEGY_LAB_LAYOUT_POLICY.summaryPanelDefaultSizePct}
+          minSize={isMobile
+            ? STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMobileFixedSizePct
+            : STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMinSizePct}
+          maxSize={isMobile
+            ? STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMobileFixedSizePct
+            : STRATEGY_LAB_LAYOUT_POLICY.summaryPanelMaxSizePct}
+          className="min-w-0"
+        >
+        <div className="bg-card flex h-full min-h-0 w-full flex-col overflow-y-auto">
           <div className="p-5 flex-1 space-y-5">
             <div>
               <SectionLabel>{STRATEGY_LAB_COPY.panel.yourRoadmap}</SectionLabel>
@@ -910,7 +993,8 @@ export function StrategyLab() {
             </Button>
           </div>
         </div>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </AppShell>
   );
 }

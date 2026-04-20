@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Link } from 'react-router';
-import { Pulse } from '@phosphor-icons/react';
+import { CaretDown, Pulse } from '@phosphor-icons/react';
 import { SectionLabel } from './SectionLabel';
 import { formatRelativeTime } from '../../lib/relativeTime';
 import type { DashboardActivityEvent } from '../../data/apiService';
@@ -26,14 +27,29 @@ function truncate(s: string | null, n: number): string {
 }
 
 export function ActivityFeed({ events, loading }: ActivityFeedProps) {
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
     <div className="glc-card rounded-[var(--radius-xl)] p-5">
       <div className="glc-panel-head">
-        <SectionLabel>Recent Activity</SectionLabel>
-        <span className="glc-panel-meta">{events?.length ?? 0} events</span>
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 rounded-md text-left"
+          aria-expanded={!collapsed}
+          onClick={() => setCollapsed((prev) => !prev)}
+        >
+          <SectionLabel>Recent Activity</SectionLabel>
+          <CaretDown
+            className={cn('h-3.5 w-3.5 transition-transform text-[var(--text-tertiary)]', collapsed ? '-rotate-90' : 'rotate-0')}
+            aria-hidden
+          />
+        </button>
+        <span className="glc-panel-meta">
+          {events?.length ?? 0} events
+        </span>
       </div>
 
-      {loading && !events && (
+      {!collapsed && loading && !events && (
         <div className="space-y-3">
           {[0, 1, 2, 3].map(i => (
             <div key={i} className="h-8 animate-pulse rounded-lg bg-[var(--bg-canvas)]" />
@@ -41,14 +57,14 @@ export function ActivityFeed({ events, loading }: ActivityFeedProps) {
         </div>
       )}
 
-      {!loading && events && events.length === 0 && (
+      {!collapsed && !loading && events && events.length === 0 && (
         <div className="flex flex-col items-center justify-center py-8 gap-2">
           <Pulse className="h-7 w-7 text-[var(--text-quaternary)]" />
           <p className="text-sm text-[var(--text-tertiary)]">No pipeline activity yet</p>
         </div>
       )}
 
-      {events && events.length > 0 && (
+      {!collapsed && events && events.length > 0 && (
         <div className="space-y-2.5">
           {events.map(ev => (
             <div key={ev.id} className="glc-hover-row flex items-start gap-3 px-2 py-1.5">

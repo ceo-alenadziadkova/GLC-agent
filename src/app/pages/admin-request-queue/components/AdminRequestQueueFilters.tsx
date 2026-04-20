@@ -1,7 +1,16 @@
 import type { KeyboardEvent } from 'react';
 import { ADMIN_REQUEST_QUEUE_COPY } from '../../../config/admin-request-queue-copy.en';
 import { cn } from '../../../components/ui/utils';
-import type { AdminQueueFilter } from '../hooks/useAdminRequestQueue';
+import {
+  ADMIN_REQUEST_QUEUE_FILTER_ORDER,
+  type AdminQueueFilter,
+} from '../hooks/useAdminRequestQueue';
+import {
+  QUEUE_TAB_BUTTON_BASE_CLASS,
+  REQUEST_QUEUE_TAB_BUTTON_ACTIVE_CLASS,
+  REQUEST_QUEUE_TAB_BUTTON_BASE_CLASS,
+  REQUEST_QUEUE_TAB_BUTTON_INACTIVE_CLASS,
+} from '../../queue-tab-config';
 
 type Props = {
   filter: AdminQueueFilter;
@@ -22,7 +31,7 @@ export function AdminRequestQueueFilters({
 }: Props) {
   return (
     <div className="flex flex-wrap gap-2" role="tablist" aria-label={tabListAriaLabel} onKeyDown={onTabListKeyDown}>
-      {(['pending', 'all'] as const).map(f => (
+      {ADMIN_REQUEST_QUEUE_FILTER_ORDER.map(f => (
         <button
           ref={setTabRef(f)}
           key={f}
@@ -33,11 +42,11 @@ export function AdminRequestQueueFilters({
           aria-selected={filter === f}
           tabIndex={filter === f ? 0 : -1}
           className={cn(
-            'glc-touch-target rounded-lg px-3 py-2 text-xs font-medium transition-colors sm:min-h-0 sm:px-3 sm:py-1.5',
-            'border-[length:var(--border-width-default)] border-solid',
+            QUEUE_TAB_BUTTON_BASE_CLASS,
+            REQUEST_QUEUE_TAB_BUTTON_BASE_CLASS,
             filter === f
-              ? 'border-[var(--callout-info-border-strong)] bg-[var(--glc-blue-muted-strong)] text-[var(--glc-blue)]'
-              : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)]',
+              ? REQUEST_QUEUE_TAB_BUTTON_ACTIVE_CLASS
+              : REQUEST_QUEUE_TAB_BUTTON_INACTIVE_CLASS,
           )}
           onClick={() => onFilterChange(f)}
         >

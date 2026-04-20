@@ -24,6 +24,21 @@ describe('strategy lab context policy', () => {
     const p = StrategyLabContextPatchSchema.safeParse({ team_scale: null });
     expect(p.success).toBe(true);
   });
+
+  it('parses director_stage2_domains and dedupes', () => {
+    expect(
+      parseStoredStrategyLabContext({
+        director_stage2_domains: ['seo_digital', 'seo_digital', 'ux_conversion'],
+      }),
+    ).toEqual({ director_stage2_domains: ['seo_digital', 'ux_conversion'] });
+  });
+
+  it('merge applies director_stage2_domains and null clears', () => {
+    const a = mergeStrategyLabContextForStorage({}, { director_stage2_domains: ['tech_infrastructure'] });
+    expect(a.director_stage2_domains).toEqual(['tech_infrastructure']);
+    const b = mergeStrategyLabContextForStorage(a, { director_stage2_domains: null });
+    expect(b.director_stage2_domains).toBeUndefined();
+  });
 });
 
 describe('mergeBriefSnapshotWithLabOverrides', () => {
